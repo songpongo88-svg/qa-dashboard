@@ -36,6 +36,10 @@ type UserAccountSnapshot = {
   teamLead?: string;
   teamName?: string;
   status?: string;
+  suspendReason?: string;
+  suspendEffectiveDate?: string;
+  suspendDate?: string;
+  suspend_date?: string;
 };
 
 type SignRole = "QA" | "Supervisor" | "Senior" | "Agent";
@@ -124,6 +128,8 @@ const SIGNATURE_LIBRARY_KEY = "qa-monthly-signature-library-v1";
 const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const HISTORICAL_PAID_LAST_MONTH = "2026-04";
 const CASE_TARGET = 10;
+const AUTO_RESIGNED_WAIVER_NOTE = "Signature waived automatically from resigned User profile";
+const AUTO_RESIGNED_WAIVER_SIGNER = "System – User Sync";
 const SIGNATURE_DEADLINE_RESET_NOTE = "Deadline reset by QA";
 const SIGNATURE_RESET_WINDOW_DAYS = 3;
 const SIGNATURE_RESET_WINDOW_MS = SIGNATURE_RESET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -586,6 +592,44 @@ function findAccountForAgent(accounts: UserAccountSnapshot[], agentName: string)
 function isSuspendedAccount(account?: UserAccountSnapshot | null) {
   const status = normalizeText(account?.status).toLowerCase();
   return status.includes("suspended") || status.includes("resigned") || status.includes("ลาออก");
+}
+
+function getAccountSuspensionDate(account?: UserAccountSnapshot | null) {
+  const value = normalizeText(
+    account?.suspendEffectiveDate || account?.suspendDate || account?.suspend_date
+  );
+  if (!value) return "";
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  const slashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!slashMatch) return "";
+  return `${slashMatch[3]}-${slashMatch[2].padStart(2, "0")}-${slashMatch[1].padStart(2, "0")}`;
+}
+
+function isResignedAccountForAutoWaiver(account?: UserAccountSnapshot | null) {
+  if (!isSuspendedAccount(account) || !getAccountSuspensionDate(account)) return false;
+  const reason = normalizeText(`${account?.status || ""} ${account?.suspendReason || ""}`).toLowerCase();
+  return [
+    "ลาออก",
+    "สิ้นสุดงาน",
+    "สิ้นสุดการทำงาน",
+    "พ้นสภาพ",
+    "resign",
+    "termination",
+    "terminated",
+    "employment end",
+    "offboard",
+  ].some((keyword) => reason.includes(keyword));
+}
+
+function getAutomaticWaiverEffectiveAt(account: UserAccountSnapshot, entries: SignatureEntry[]) {
+  const resignationDate = getAccountSuspensionDate(account);
+  const resignationTime = new Date(`${resignationDate}T00:00:00+07:00`).getTime();
+  const requiredSignedTimes = (["QA", "Supervisor", "Senior"] as SignRole[])
+    .map((role) => new Date(getSignedEntry(entries, role)?.signedAt || "").getTime())
+    .filter((time) => !Number.isNaN(time));
+  const effectiveTime = Math.max(resignationTime, ...requiredSignedTimes);
+  return new Date(effectiveTime).toISOString();
 }
 
 function isGenericRoleName(value: unknown) {
@@ -2854,6 +2898,72 @@ export default function SignatureCenterMockup({
     return counts;
   }, [currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
+  useEffect(() => {
+    if (!documents.length || !accounts.length) return;
+    let alive = true;
+
+    const syncResignedUserWaivers = async () => {
+      const updates = new Map<string, SignatureEntry[]>();
+
+      for (const document of documents) {
+        if (isHistoricalPaidPeriod(document.monthKey) || !isAfterAppealPeriod(document.monthKey)) continue;
+        if (document.cases.some((item) => pendingAppealCaseMap.has(item.caseId))) continue;
+
+        const account = findAccountForAgent(accounts, document.agentName);
+        if (!account || !isResignedAccountForAutoWaiver(account)) continue;
+
+        const entries = effectiveEntriesForDoc(document, signatures);
+        if (getSignedEntry(entries, "Agent")) continue;
+        if (!( ["QA", "Supervisor", "Senior"] as SignRole[]).every((role) => Boolean(getSignedEntry(entries, role)))) continue;
+
+        const resignationDate = getAccountSuspensionDate(account);
+        const existingWaiver = getWaivedEntry(entries, "Agent");
+        const waiverEntry: SignatureEntry = {
+          role: "Agent",
+          signerName: document.agentName,
+          signedBy: "",
+          signedAt: "",
+          status: "Waived",
+          note: AUTO_RESIGNED_WAIVER_NOTE,
+          waiverReason: normalizeText(account.suspendReason) || "Resigned",
+          waivedBy: AUTO_RESIGNED_WAIVER_SIGNER,
+          waivedAt: getAutomaticWaiverEffectiveAt(account, entries),
+          resignationDate,
+        };
+
+        if (
+          existingWaiver &&
+          existingWaiver.note === waiverEntry.note &&
+          existingWaiver.waiverReason === waiverEntry.waiverReason &&
+          existingWaiver.waivedAt === waiverEntry.waivedAt &&
+          existingWaiver.resignationDate === waiverEntry.resignationDate
+        ) continue;
+
+        const nextEntries = [...entries.filter((entry) => entry.role !== "Agent"), waiverEntry];
+        try {
+          await persistDocumentSignatures(document.id, nextEntries, confirmedDocs[document.id] || "");
+          updates.set(document.id, nextEntries);
+        } catch (error) {
+          console.warn(`Auto sync resigned waiver failed for ${document.agentName}`, error);
+        }
+      }
+
+      if (!alive || !updates.size) return;
+      setSignatures((previous) => {
+        const next = { ...previous };
+        updates.forEach((entries, documentId) => {
+          next[documentId] = entries;
+        });
+        return next;
+      });
+    };
+
+    void syncResignedUserWaivers();
+    return () => {
+      alive = false;
+    };
+  }, [accounts, confirmedDocs, documents, pendingAppealCaseMap, signatures]);
+
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
 
   const canGeneratePaymentExcel = selectedMonth !== "all";
@@ -2864,7 +2974,7 @@ export default function SignatureCenterMockup({
   const selectedDocument = selectedDocumentSource ? sortSignatureDocumentCases(selectedDocumentSource) : null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
   const selectedAgentAccount = selectedDocument ? findAccountForAgent(accounts, selectedDocument.agentName) : undefined;
-  const selectedAgentIsSuspended = isSuspendedAccount(selectedAgentAccount);
+  const selectedAgentUsesAutoWaiver = isResignedAccountForAutoWaiver(selectedAgentAccount);
   const selectedDocumentRef = selectedDocument ? getMonthlyDocumentRef(selectedDocument, documents) : "";
   const mySignedRoles = selectedDocument
     ? SIGNATURE_FLOW.filter((role) => {
@@ -3135,73 +3245,6 @@ export default function SignatureCenterMockup({
         return next;
       });
     }
-  };
-
-  const waiveResignedAgentSignature = async () => {
-    if (!selectedDocument || currentUser.role !== "Quality Assurance") return;
-    if (!selectedAgentIsSuspended) {
-      window.alert("ใช้ข้อยกเว้นได้เฉพาะ Agent ที่บัญชีมีสถานะ Suspended หรือ Resigned เท่านั้น");
-      return;
-    }
-    if (hasPendingAppeal) {
-      window.alert("ยังมี Appeal รอผล จึงยังยกเว้นลายเซ็นไม่ได้");
-      return;
-    }
-    if (!isAfterAppealPeriod(selectedDocument.monthKey)) {
-      window.alert("ต้องรอให้พ้นช่วง Appeal ก่อนจึงจะยกเว้นลายเซ็นได้");
-      return;
-    }
-    const requiredRoles: SignRole[] = ["QA", "Supervisor", "Senior"];
-    if (!requiredRoles.every((role) => Boolean(getSignedEntry(selectedEntries, role)))) {
-      window.alert("QA, Supervisor และ Senior / Team Lead ต้องเซ็นครบก่อน");
-      return;
-    }
-    const resignationDate = window.prompt("ระบุวันที่ลาออก รูปแบบ YYYY-MM-DD", new Date().toISOString().slice(0, 10))?.trim() || "";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(resignationDate) || Number.isNaN(new Date(`${resignationDate}T00:00:00`).getTime())) {
-      window.alert("รูปแบบวันที่ไม่ถูกต้อง กรุณาระบุเป็น YYYY-MM-DD");
-      return;
-    }
-    if (!window.confirm(`ยืนยันยกเว้นลายเซ็น Agent เนื่องจากลาออกวันที่ ${resignationDate}\n\nระบบจะไม่ใช้ลายเซ็นเก่าหรือเซ็นแทน`)) return;
-
-    const waivedAt = new Date().toISOString();
-    const waiverEntry: SignatureEntry = {
-      role: "Agent",
-      signerName: selectedDocument.agentName,
-      signedBy: "",
-      signedAt: "",
-      status: "Waived",
-      note: "Signature waived because the employee resigned and the account was suspended",
-      waiverReason: "Resigned",
-      waivedBy: currentUser.displayName || currentUser.username,
-      waivedAt,
-      resignationDate,
-    };
-    const nextEntries = [...selectedEntries.filter((entry) => entry.role !== "Agent"), waiverEntry];
-    try {
-      await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
-    } catch (error) {
-      console.warn("Save resigned signature waiver failed", error);
-      window.alert("บันทึกข้อยกเว้นลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
-      return;
-    }
-    setSignatures((previous) => ({ ...previous, [selectedDocument.id]: nextEntries }));
-    window.alert("บันทึกสถานะ 3 Signed + 1 Waived – Resigned เรียบร้อยแล้ว");
-  };
-
-  const cancelResignedAgentWaiver = async () => {
-    if (!selectedDocument || currentUser.role !== "Quality Assurance") return;
-    const waiver = getWaivedEntry(selectedEntries, "Agent");
-    if (!waiver) return;
-    if (!window.confirm("ยกเลิกข้อยกเว้นลายเซ็นของ Agent หรือไม่?")) return;
-    const nextEntries = selectedEntries.filter((entry) => !(entry.role === "Agent" && entry.status === "Waived"));
-    try {
-      await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
-    } catch (error) {
-      console.warn("Cancel resigned signature waiver failed", error);
-      window.alert("ยกเลิกข้อยกเว้นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
-      return;
-    }
-    setSignatures((previous) => ({ ...previous, [selectedDocument.id]: nextEntries }));
   };
 
   const copySelectedDocumentShareLink = async () => {
@@ -6159,17 +6202,11 @@ export default function SignatureCenterMockup({
                       !completed &&
                       !activeResetAfterDeadline;
                     const canOpenSignaturePad = (!completed && allowSign) || canAddFirstDrawnSignature;
-                    const canManageResignedWaiver =
+                    const waitingForAutomaticWaiver =
                       role === "Agent" &&
-                      currentUser.role === "Quality Assurance" &&
-                      selectedAgentIsSuspended &&
-                      !isHistoricalPaidPeriod(selectedDocument.monthKey);
-                    const canApplyResignedWaiver =
-                      canManageResignedWaiver &&
                       !completed &&
-                      !hasPendingAppeal &&
-                      isAfterAppealPeriod(selectedDocument.monthKey) &&
-                      (["QA", "Supervisor", "Senior"] as SignRole[]).every((requiredRole) => Boolean(getSignedEntry(selectedEntries, requiredRole)));
+                      selectedAgentUsesAutoWaiver &&
+                      !isHistoricalPaidPeriod(selectedDocument.monthKey);
                     const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(role)];
                     return (
                       <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
@@ -6185,7 +6222,7 @@ export default function SignatureCenterMockup({
                           <div className="font-bold text-slate-900">{completed ? completed.signerName : signerName}</div>
                           {waived ? (
                             <div className="mt-1 text-xs font-semibold text-sky-700">
-                              Signature Waived – Resigned • วันที่ลาออก {waived.resignationDate || "-"} • ยืนยันโดย {waived.waivedBy || "QA"}
+                              Signature Waived – Resigned • วันที่ลาออก {waived.resignationDate || "-"} • ซิงก์จากข้อมูล User
                             </div>
                           ) : signed ? (
                             <div className="mt-1 text-xs font-semibold text-slate-400">
@@ -6250,24 +6287,10 @@ export default function SignatureCenterMockup({
                               Reset คนนี้
                             </button>
                           ) : null}
-                          {canManageResignedWaiver && !waived ? (
-                            <button
-                              type="button"
-                              onClick={() => void waiveResignedAgentSignature()}
-                              disabled={!canApplyResignedWaiver}
-                              className="mt-2 w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-black text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                            >
-                              {canApplyResignedWaiver ? "ยกเว้นลายเซ็น – ลาออก" : "รอ 3 Role เซ็นครบ"}
-                            </button>
-                          ) : null}
-                          {waived && currentUser.role === "Quality Assurance" ? (
-                            <button
-                              type="button"
-                              onClick={() => void cancelResignedAgentWaiver()}
-                              className="mt-2 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
-                            >
-                              ยกเลิกข้อยกเว้น
-                            </button>
+                          {waitingForAutomaticWaiver ? (
+                            <div className="mt-2 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-center text-xs font-black leading-5 text-sky-700">
+                              ระบบจะ Waive อัตโนมัติหลัง QA, Supervisor และ Senior เซ็นครบ
+                            </div>
                           ) : null}
                         </div>
                       </div>
