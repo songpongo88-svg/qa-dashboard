@@ -39,8 +39,8 @@ type UserAccountSnapshot = {
 };
 
 type SignRole = "QA" | "Supervisor" | "Senior" | "Agent";
-type SignStatus = "Signed" | "Pending";
-type SignatureStepStatus = "Signed" | "Pending" | "Waiting" | "Locked" | "Expired";
+type SignStatus = "Signed" | "Pending" | "Waived";
+type SignatureStepStatus = "Signed" | "Pending" | "Waiting" | "Locked" | "Expired" | "Waived";
 type WorkspaceStatus = "pending" | "signed" | "in-progress" | "expired";
 type WorkspaceQuickFilter = "all" | WorkspaceStatus;
 
@@ -54,6 +54,10 @@ type SignatureEntry = {
   signatureDataUrl?: string;
   resetBy?: string;
   resetAt?: string;
+  waiverReason?: string;
+  waivedBy?: string;
+  waivedAt?: string;
+  resignationDate?: string;
 };
 
 type SignatureCaseDetail = {
@@ -120,7 +124,6 @@ const SIGNATURE_LIBRARY_KEY = "qa-monthly-signature-library-v1";
 const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const HISTORICAL_PAID_LAST_MONTH = "2026-04";
 const CASE_TARGET = 10;
-const FORCE_EXPORT_ALL_EVALUATED_MONTHS = new Set(["2026-05"]);
 const SIGNATURE_DEADLINE_RESET_NOTE = "Deadline reset by QA";
 const SIGNATURE_RESET_WINDOW_DAYS = 3;
 const SIGNATURE_RESET_WINDOW_MS = SIGNATURE_RESET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -550,17 +553,6 @@ function isSigningAllowedByDate(monthKey: string, now = new Date()) {
   return now >= window.openAt;
 }
 
-function isPaymentExportWindowOpen(monthKey: string, now = new Date()) {
-  if (FORCE_EXPORT_ALL_EVALUATED_MONTHS.has(monthKey)) return true;
-  if (isHistoricalPaidPeriod(monthKey)) return true;
-  const window = getSignatureWindow(monthKey);
-  return now > window.dueAt;
-}
-
-function shouldExportAllEvaluatedAgents(monthKey: string) {
-  return FORCE_EXPORT_ALL_EVALUATED_MONTHS.has(monthKey);
-}
-
 function isSignedWithinCurrentPaymentCycle(signedAt: string, monthKey: string) {
   const signedTime = new Date(signedAt || "").getTime();
   const dueTime = getSignatureWindow(monthKey).dueAt.getTime();
@@ -593,7 +585,7 @@ function findAccountForAgent(accounts: UserAccountSnapshot[], agentName: string)
 
 function isSuspendedAccount(account?: UserAccountSnapshot | null) {
   const status = normalizeText(account?.status).toLowerCase();
-  return status.includes("suspended");
+  return status.includes("suspended") || status.includes("resigned") || status.includes("ลาออก");
 }
 
 function isGenericRoleName(value: unknown) {
@@ -1195,6 +1187,14 @@ function getSignedEntry(entries: SignatureEntry[], role: SignRole) {
   return entries.find((entry) => entry.role === role && entry.status === "Signed");
 }
 
+function getWaivedEntry(entries: SignatureEntry[], role: SignRole) {
+  return entries.find((entry) => entry.role === role && entry.status === "Waived");
+}
+
+function getCompletedEntry(entries: SignatureEntry[], role: SignRole) {
+  return getSignedEntry(entries, role) || getWaivedEntry(entries, role);
+}
+
 function getDeadlineResetEntry(entries: SignatureEntry[], role: SignRole) {
   return entries.find((entry) => entry.role === role && entry.status === "Pending" && entry.note === SIGNATURE_DEADLINE_RESET_NOTE);
 }
@@ -1216,7 +1216,7 @@ function getActiveDeadlineResetEntry(entries: SignatureEntry[], role: SignRole, 
 }
 
 function getPendingRoles(entries: SignatureEntry[]) {
-  return SIGNATURE_FLOW.filter((role) => !getSignedEntry(entries, role));
+  return SIGNATURE_FLOW.filter((role) => !getCompletedEntry(entries, role));
 }
 
 
@@ -1300,6 +1300,7 @@ function canMonitorDocument(currentUser: CurrentUser, doc: SignatureDocument) {
 }
 
 function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string, now = new Date()): SignatureStepStatus {
+  if (getWaivedEntry(entries, role)) return "Waived";
   if (getSignedEntry(entries, role)) return "Signed";
   if (isHistoricalPaidPeriod(monthKey)) return "Signed";
   const timeline = getTimelineStatus(monthKey, now);
@@ -1472,7 +1473,7 @@ function getDocumentTypeLabel(doc: SignatureDocument) {
 }
 
 function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getSignedEntry(entries, role)));
+  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
   if (signedComplete) return "signed" as const;
   if (getTimelineStatus(doc.monthKey) === "Signature Deadline Passed") return "expired" as const;
   if (getPendingRoles(entries).length) return "pending" as const;
@@ -1528,9 +1529,13 @@ function isPaymentReadyDocument(
   entries: SignatureEntry[],
   pendingAppealCaseMap: Map<string, PendingAppealCase>
 ) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getSignedEntry(entries, role)));
+  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
   const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
   const signedWithinCycle = SIGNATURE_FLOW.every((role) => {
+    const waived = getWaivedEntry(entries, role);
+    if (waived) {
+      return role === "Agent" && isSignedWithinCurrentPaymentCycle(waived.waivedAt || "", doc.monthKey);
+    }
     const signed = getSignedEntry(entries, role);
     return Boolean(signed) && isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
   });
@@ -1542,13 +1547,17 @@ function isLateSignedDocument(
   entries: SignatureEntry[],
   pendingAppealCaseMap: Map<string, PendingAppealCase>
 ) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getSignedEntry(entries, role)));
+  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
   const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
-  const hasLateSignature = SIGNATURE_FLOW.some((role) => {
+  const hasLateCompletion = SIGNATURE_FLOW.some((role) => {
+    const waived = getWaivedEntry(entries, role);
+    if (waived) {
+      return !isSignedWithinCurrentPaymentCycle(waived.waivedAt || "", doc.monthKey);
+    }
     const signed = getSignedEntry(entries, role);
     return Boolean(signed) && !isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
   });
-  return signedComplete && hasLateSignature && !hasPending;
+  return signedComplete && hasLateCompletion && !hasPending;
 }
 
 function getSignatureValidationRoleText(
@@ -1557,6 +1566,11 @@ function getSignatureValidationRoleText(
   role: SignRole,
   now = new Date()
 ) {
+  const waived = getWaivedEntry(entries, role);
+  if (waived) {
+    const date = waived.resignationDate ? ` (${waived.resignationDate})` : "";
+    return `Signature Waived - Resigned${date}`;
+  }
   const signed = getSignedEntry(entries, role);
   if (signed) return signed.signerName || getRoleSigner(doc, role);
 
@@ -1572,11 +1586,10 @@ function getSignatureValidationRoleText(
 function getSignatureValidationStatus(
   doc: SignatureDocument,
   entries: SignatureEntry[],
-  exportsAllEvaluated: boolean,
   now = new Date()
 ) {
   const pendingRoles = SIGNATURE_FLOW.filter((role) => {
-    if (getSignedEntry(entries, role)) return false;
+    if (getCompletedEntry(entries, role)) return false;
     return statusForRole(entries, role, doc.monthKey, now) === "Pending";
   });
 
@@ -1584,7 +1597,9 @@ function getSignatureValidationStatus(
     return `Pending ${pendingRoles.map(roleThaiLabel).join(", ")}`;
   }
 
-  return exportsAllEvaluated ? "Exported" : "Completed";
+  const hasResignedWaiver = Boolean(getWaivedEntry(entries, "Agent"));
+  if (hasResignedWaiver) return "3 Signed + 1 Waived - Resigned";
+  return "4 Signed - Completed";
 }
 
 
@@ -1595,19 +1610,6 @@ function getOverallPdfGradeLabel(avgScore: number) {
   if (avgScore >= 80) return "C";
   if (avgScore >= 75) return "D";
   return "F";
-}
-
-function getAgentSignedStatusText(
-  doc: SignatureDocument,
-  entries: SignatureEntry[],
-  exportsAllEvaluated: boolean
-) {
-  const agentEntry = getSignedEntry(entries, "Agent");
-  if (agentEntry?.signedAt) {
-    return "Agent Signed / " + formatDateTime(agentEntry.signedAt);
-  }
-
-  return exportsAllEvaluated ? "Exported" : "Completed";
 }
 
 
@@ -1663,11 +1665,7 @@ function generatePaymentExcelFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
-  const exportsAllEvaluated = shouldExportAllEvaluatedAgents(monthKey);
-  const exportRuleText = exportsAllEvaluated
-    ? "May 2026 one-time export: include all evaluated agents without waiting for completed signatures."
-    : "Pay only agents signed complete by day 15";
-  const statusText = exportsAllEvaluated ? "Evaluated / Signature not required for this export" : "Signed Complete";
+  const exportRuleText = "Include only 4 Signed or 3 Signed + 1 Agent Waived (Resigned) completed by day 15";
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const criticalCases = 0;
@@ -1677,9 +1675,7 @@ function generatePaymentExcelFile(
 
   const aoa: unknown[][] = [
     ["Monthly Team Summary"],
-    [exportsAllEvaluated
-      ? "Selected month overview for incentive payment. May 2026 includes every evaluated agent for this urgent export."
-      : "Selected month overview for incentive payment. Only agents with completed signatures and Ready to Pay status are included."],
+    ["Selected month overview for incentive payment. Only agents with 4 Signed or approved 3 Signed + 1 Waived status are included."],
     [],
     ["Current View"],
     [],
@@ -1702,8 +1698,12 @@ function generatePaymentExcelFile(
     const supervisorSigner = getSignatureValidationRoleText(doc, entries, "Supervisor");
     const seniorSigner = getSignatureValidationRoleText(doc, entries, "Senior");
     const agentSigner = getSignatureValidationRoleText(doc, entries, "Agent");
+    const rowStatus = getSignatureValidationStatus(doc, entries);
     const lastSignedAt =
-      SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
+      SIGNATURE_FLOW.map((role) => {
+        const completed = getCompletedEntry(entries, role);
+        return completed?.signedAt || completed?.waivedAt || "";
+      })
         .filter(Boolean)
         .sort()
         .pop() || "";
@@ -1723,7 +1723,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          statusText,
+          rowStatus,
         ]
       : [
           index + 1,
@@ -1739,7 +1739,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          statusText,
+          rowStatus,
         ];
     aoa.push(rankingRow);
   });
@@ -1753,9 +1753,7 @@ function generatePaymentExcelFile(
     ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", totalPromoAmount]] : []),
     ["Payment Cutoff", formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString())],
     ["Generated At", new Date().toLocaleString("th-TH")],
-    ["Document Rule", exportsAllEvaluated
-      ? "May 2026 one-time export includes every evaluated agent; signatures can continue afterward."
-      : "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
+    ["Document Rule", "Include only 4 Signed or approved 3 Signed + 1 Agent Waived (Resigned) completed by day 15 with no pending Appeal. Late completion moves to the next payment cycle."],
     [],
     ["Signature Validation"],
     ["Seq", "Agent", "QA", "Supervisor", "Senior / Team Lead", "Agent Signature", "Document Ref.", "Status"],
@@ -1771,7 +1769,7 @@ function generatePaymentExcelFile(
       getSignatureValidationRoleText(doc, entries, "Senior"),
       getSignatureValidationRoleText(doc, entries, "Agent"),
       getMonthlyDocumentRef(doc, allMonthDocs.length ? allMonthDocs : sortedDocs),
-      getSignatureValidationStatus(doc, entries, exportsAllEvaluated),
+      getSignatureValidationStatus(doc, entries),
     ]);
   });
 
@@ -1818,10 +1816,7 @@ function generatePaymentPdfFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
-  const exportsAllEvaluated = shouldExportAllEvaluatedAgents(monthKey);
-  const exportRuleText = exportsAllEvaluated
-    ? "May 2026: Export all evaluated agents"
-    : "Pay only signed complete by day 15";
+  const exportRuleText = "4 Signed or 3 Signed + 1 Agent Waived (Resigned) by day 15";
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
@@ -2006,7 +2001,7 @@ function generatePaymentPdfFile(
     if (y === 24) drawTableHeader(rankingHeaders);
 
     const entries = effectiveEntriesForDoc(doc, signatures);
-    const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
+    const statusText = getSignatureValidationStatus(doc, entries);
     const incentive = getDocumentIncentive(doc);
     const incentiveText = totalPromoAmount > 0
       ? `${formatBahtAmount(incentive.cash)} + ${formatBahtAmount(incentive.promo)}`
@@ -2126,9 +2121,7 @@ function generatePaymentPdfFile(
     ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", formatBahtAmount(totalPromoAmount)]] : []),
     ["Payment Cutoff", paymentCutoff],
     ["Generated At", new Date().toLocaleString("th-TH")],
-    ["Document Rule", exportsAllEvaluated
-      ? "May 2026 urgent export includes every evaluated agent; signatures can continue afterward."
-      : "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
+    ["Document Rule", "Include only 4 Signed or approved 3 Signed + 1 Agent Waived (Resigned) completed by day 15 with no pending Appeal. Late completion moves to the next payment cycle."],
   ];
 
   summaryRows.forEach((row, index) => {
@@ -2149,7 +2142,9 @@ function generatePaymentPdfFile(
 
 function SignaturePill({ status }: { status: SignatureStepStatus }) {
   const tone =
-    status === "Signed"
+    status === "Waived"
+      ? "border-sky-200 bg-sky-50 text-sky-700"
+      : status === "Signed"
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
       : status === "Pending"
         ? "border-amber-200 bg-amber-50 text-amber-700"
@@ -2669,7 +2664,7 @@ export default function SignatureCenterMockup({
     const keyword = search.trim().toLowerCase();
     return visibleDocuments.filter((doc) => {
       const entries = effectiveEntriesForDoc(doc, signatures);
-      const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+      const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
       const pendingRoles = getPendingRoles(entries);
       const isComplete = signedCount === SIGNATURE_FLOW.length;
       const timeline = getTimelineStatus(doc.monthKey);
@@ -2823,21 +2818,13 @@ export default function SignatureCenterMockup({
 
   const selectedMonthExportDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
-    if (shouldExportAllEvaluatedAgents(selectedMonth)) {
-      return selectedMonthAllDocs
-        .filter((doc) => doc.caseCount > 0)
-        .sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-    }
     return selectedMonthPaymentDocs;
-  }, [selectedMonth, selectedMonthAllDocs, selectedMonthPaymentDocs]);
+  }, [selectedMonth, selectedMonthPaymentDocs]);
 
   const selectedMonthPaymentExportDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
-    const fallbackDocs = selectedMonthAllDocs
-      .filter((doc) => doc.caseCount > 0)
-      .sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-    return selectedMonthExportDocs.length ? selectedMonthExportDocs : fallbackDocs;
-  }, [selectedMonth, selectedMonthAllDocs, selectedMonthExportDocs]);
+    return selectedMonthExportDocs;
+  }, [selectedMonth, selectedMonthExportDocs]);
 
   const selectedMonthLateSignedDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
@@ -2866,7 +2853,6 @@ export default function SignatureCenterMockup({
   }, [currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
-  const selectedMonthExportAllEvaluated = selectedMonth !== "all" && shouldExportAllEvaluatedAgents(selectedMonth);
 
   const canGeneratePaymentExcel = selectedMonth !== "all";
 
@@ -2879,6 +2865,8 @@ export default function SignatureCenterMockup({
     null;
   const selectedDocument = selectedDocumentSource ? sortSignatureDocumentCases(selectedDocumentSource) : null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
+  const selectedAgentAccount = selectedDocument ? findAccountForAgent(accounts, selectedDocument.agentName) : undefined;
+  const selectedAgentIsSuspended = isSuspendedAccount(selectedAgentAccount);
   const selectedDocumentRef = selectedDocument ? getMonthlyDocumentRef(selectedDocument, documents) : "";
   const mySignedRoles = selectedDocument
     ? SIGNATURE_FLOW.filter((role) => {
@@ -2892,7 +2880,7 @@ export default function SignatureCenterMockup({
   const hasPendingAppeal = selectedPendingAppeals.length > 0;
   const pendingRoles = getPendingRoles(selectedEntries);
   const lastSignedRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(selectedEntries, role)));
-  const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(selectedEntries, role))).length;
+  const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(selectedEntries, role))).length;
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
   const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete);
   const previewConfirmed = Boolean(selectedDocument && (confirmedDocs[selectedDocument.id] || isHistoricalPaidPeriod(selectedDocument.monthKey)));
@@ -2984,7 +2972,7 @@ export default function SignatureCenterMockup({
     let myTurn = 0;
     visibleDocuments.forEach((doc) => {
       const entries = effectiveEntriesForDoc(doc, signatures);
-      const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+      const count = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
       const pendingRoles = getPendingRoles(entries);
       if (count === SIGNATURE_FLOW.length) complete += 1;
       else pending += 1;
@@ -3060,7 +3048,7 @@ export default function SignatureCenterMockup({
     if (!canSignIdentity(currentUser, selectedDocument, role)) return false;
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     if (!canSignRoleByDate(selectedDocument.monthKey, entries, role)) return false;
-    if (getSignedEntry(entries, role)) return false;
+    if (getCompletedEntry(entries, role)) return false;
     if (role === "Agent" && !previewConfirmed) {
       window.alert("Agent ต้องกดยืนยันรับทราบข้อมูลก่อน จึงจะสามารถลงนามในเอกสารของตัวเองได้");
       return false;
@@ -3151,6 +3139,73 @@ export default function SignatureCenterMockup({
     }
   };
 
+  const waiveResignedAgentSignature = async () => {
+    if (!selectedDocument || currentUser.role !== "Quality Assurance") return;
+    if (!selectedAgentIsSuspended) {
+      window.alert("ใช้ข้อยกเว้นได้เฉพาะ Agent ที่บัญชีมีสถานะ Suspended หรือ Resigned เท่านั้น");
+      return;
+    }
+    if (hasPendingAppeal) {
+      window.alert("ยังมี Appeal รอผล จึงยังยกเว้นลายเซ็นไม่ได้");
+      return;
+    }
+    if (!isAfterAppealPeriod(selectedDocument.monthKey)) {
+      window.alert("ต้องรอให้พ้นช่วง Appeal ก่อนจึงจะยกเว้นลายเซ็นได้");
+      return;
+    }
+    const requiredRoles: SignRole[] = ["QA", "Supervisor", "Senior"];
+    if (!requiredRoles.every((role) => Boolean(getSignedEntry(selectedEntries, role)))) {
+      window.alert("QA, Supervisor และ Senior / Team Lead ต้องเซ็นครบก่อน");
+      return;
+    }
+    const resignationDate = window.prompt("ระบุวันที่ลาออก รูปแบบ YYYY-MM-DD", new Date().toISOString().slice(0, 10))?.trim() || "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(resignationDate) || Number.isNaN(new Date(`${resignationDate}T00:00:00`).getTime())) {
+      window.alert("รูปแบบวันที่ไม่ถูกต้อง กรุณาระบุเป็น YYYY-MM-DD");
+      return;
+    }
+    if (!window.confirm(`ยืนยันยกเว้นลายเซ็น Agent เนื่องจากลาออกวันที่ ${resignationDate}\n\nระบบจะไม่ใช้ลายเซ็นเก่าหรือเซ็นแทน`)) return;
+
+    const waivedAt = new Date().toISOString();
+    const waiverEntry: SignatureEntry = {
+      role: "Agent",
+      signerName: selectedDocument.agentName,
+      signedBy: "",
+      signedAt: "",
+      status: "Waived",
+      note: "Signature waived because the employee resigned and the account was suspended",
+      waiverReason: "Resigned",
+      waivedBy: currentUser.displayName || currentUser.username,
+      waivedAt,
+      resignationDate,
+    };
+    const nextEntries = [...selectedEntries.filter((entry) => entry.role !== "Agent"), waiverEntry];
+    try {
+      await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
+    } catch (error) {
+      console.warn("Save resigned signature waiver failed", error);
+      window.alert("บันทึกข้อยกเว้นลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      return;
+    }
+    setSignatures((previous) => ({ ...previous, [selectedDocument.id]: nextEntries }));
+    window.alert("บันทึกสถานะ 3 Signed + 1 Waived – Resigned เรียบร้อยแล้ว");
+  };
+
+  const cancelResignedAgentWaiver = async () => {
+    if (!selectedDocument || currentUser.role !== "Quality Assurance") return;
+    const waiver = getWaivedEntry(selectedEntries, "Agent");
+    if (!waiver) return;
+    if (!window.confirm("ยกเลิกข้อยกเว้นลายเซ็นของ Agent หรือไม่?")) return;
+    const nextEntries = selectedEntries.filter((entry) => !(entry.role === "Agent" && entry.status === "Waived"));
+    try {
+      await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
+    } catch (error) {
+      console.warn("Cancel resigned signature waiver failed", error);
+      window.alert("ยกเลิกข้อยกเว้นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      return;
+    }
+    setSignatures((previous) => ({ ...previous, [selectedDocument.id]: nextEntries }));
+  };
+
   const copySelectedDocumentShareLink = async () => {
     if (!selectedDocument) return;
     const link = createSignatureShareLink(selectedDocument, null);
@@ -3216,10 +3271,11 @@ export default function SignatureCenterMockup({
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const lines = SIGNATURE_FLOW.map((role) => {
       const signed = getSignedEntry(entries, role);
-      return `${signed ? "ฅ" : "❌"} ${roleThaiLabel(role)}: ${signed ? signed.signerName : "ยังไม่ลงนาม"}`;
+      const waived = getWaivedEntry(entries, role);
+      return `${signed || waived ? "✓" : "❌"} ${roleThaiLabel(role)}: ${waived ? "ยกเว้นลายเซ็น – ลาออก" : signed ? signed.signerName : "ยังไม่ลงนาม"}`;
     });
     const pendingLines = SIGNATURE_FLOW
-      .filter((role) => !getSignedEntry(entries, role))
+      .filter((role) => !getCompletedEntry(entries, role))
       .map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`);
 
     const text = [
@@ -3517,7 +3573,7 @@ export default function SignatureCenterMockup({
         ? [...topicRowsWithScore].sort((a, b) => Number(a.avgPercent) - Number(b.avgPercent))[0]
         : null;
 
-      const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+      const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
       const criticalCases = 0;
       const documentStatus = isComplete ? "Completed Signature" : "Incomplete Signature";
       const pdfDocumentRef = getMonthlyDocumentRef(selectedDocument, documents);
@@ -3997,7 +4053,7 @@ export default function SignatureCenterMockup({
       return "Agent";
     };
 
-    const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+    const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
     const safePdfName = (role: SignRole) => {
       const signed = getSignedEntry(entries, role);
       return signed ? getRoleSigner(selectedDocument, role) || signed.signerName || signed.signedBy || "-" : "-";
@@ -4276,7 +4332,7 @@ export default function SignatureCenterMockup({
       drawPdfText(value, x + 4, yy + 16, 16, true, tone);
     };
 
-    const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+    const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
     const documentStatus = isComplete ? "Signed" : "Pending";
 
     drawTopChrome(1);
@@ -5434,9 +5490,11 @@ export default function SignatureCenterMockup({
                     <div className="absolute bottom-5 left-[15px] top-5 w-px bg-slate-200" />
                     {SIGNATURE_FLOW.map((role, index) => {
                       const signedEntry = getSignedEntry(selectedEntries, role);
+                      const waivedEntry = getWaivedEntry(selectedEntries, role);
+                      const completedEntry = signedEntry || waivedEntry;
                       const currentRole = getPendingRoles(selectedEntries)[0];
-                      const isCurrent = !signedEntry && currentRole === role;
-                      const signerName = signedEntry?.signedBy || getRoleSigner(selectedDocument, role);
+                      const isCurrent = !completedEntry && currentRole === role;
+                      const signerName = waivedEntry?.waivedBy || signedEntry?.signedBy || getRoleSigner(selectedDocument, role);
                       return (
                         <div
                           key={role}
@@ -5445,8 +5503,10 @@ export default function SignatureCenterMockup({
                           }`}
                         >
                           <div className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                            signedEntry
-                              ? "bg-emerald-100 text-emerald-700"
+                            completedEntry
+                              ? waivedEntry
+                                ? "bg-sky-100 text-sky-700"
+                                : "bg-emerald-100 text-emerald-700"
                               : isCurrent
                                 ? "bg-violet-700 text-white"
                                 : "bg-slate-100 text-slate-500"
@@ -5457,17 +5517,23 @@ export default function SignatureCenterMockup({
                             <div className="flex items-start justify-between gap-2">
                               <div className="text-sm font-semibold text-slate-900">{role === "Senior" ? "Senior / Team Lead" : role}</div>
                               <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${
-                                signedEntry
-                                  ? "bg-emerald-50 text-emerald-700"
+                                completedEntry
+                                  ? waivedEntry
+                                    ? "bg-sky-50 text-sky-700"
+                                    : "bg-emerald-50 text-emerald-700"
                                   : isCurrent
                                     ? "bg-amber-50 text-amber-700"
                                     : "bg-slate-100 text-slate-500"
                               }`}>
-                                {signedEntry ? "Signed" : isCurrent ? "Current" : "Pending"}
+                                {waivedEntry ? "Waived" : signedEntry ? "Signed" : isCurrent ? "Current" : "Pending"}
                               </span>
                             </div>
                             <div className="mt-0.5 truncate text-xs font-normal text-slate-500">
-                              {signedEntry ? `Signed by ${signerName}` : signerName || "-"}
+                              {waivedEntry
+                                ? `Resigned ${waivedEntry.resignationDate || ""} • confirmed by ${signerName}`
+                                : signedEntry
+                                  ? `Signed by ${signerName}`
+                                  : signerName || "-"}
                             </div>
                           </div>
                         </div>
@@ -5608,7 +5674,7 @@ export default function SignatureCenterMockup({
           <div className="mt-5 max-h-[620px] space-y-3 overflow-y-auto pr-1">
             {activeDocuments.map((doc) => {
               const entries = effectiveEntriesForDoc(doc, signatures);
-              const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+              const count = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
               const docPendingRoles = getPendingRoles(entries);
               const docSignedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role)));
               const isMyPendingTurn =
@@ -6069,14 +6135,17 @@ export default function SignatureCenterMockup({
 
                   {SIGNATURE_FLOW.map((role, index) => {
                     const signed = getSignedEntry(selectedEntries, role);
+                    const waived = getWaivedEntry(selectedEntries, role);
+                    const completed = signed || waived;
                     const resetAfterDeadline = getDeadlineResetEntry(selectedEntries, role);
                     const activeResetAfterDeadline = getActiveDeadlineResetEntry(selectedEntries, role);
                     const resetExpiresAt = getDeadlineResetExpiresAt(resetAfterDeadline);
                     const resetWindowExpired = Boolean(resetAfterDeadline && !activeResetAfterDeadline);
                     const status = statusForRole(selectedEntries, role, selectedDocument.monthKey);
                     const signerName = getRoleSigner(selectedDocument, role);
-                    const isAgentBlockedByConfirm = role === "Agent" && !previewConfirmed && !signed;
+                    const isAgentBlockedByConfirm = role === "Agent" && !previewConfirmed && !completed;
                     const allowSign =
+                      !waived &&
                       canSignIdentity(currentUser, selectedDocument, role) &&
                       canSignRoleByDate(selectedDocument.monthKey, selectedEntries, role);
                     const canAddFirstDrawnSignature =
@@ -6087,23 +6156,38 @@ export default function SignatureCenterMockup({
                       currentUser.role === "Quality Assurance" &&
                       !isHistoricalPaidPeriod(selectedDocument.monthKey) &&
                       getTimelineStatus(selectedDocument.monthKey) === "Signature Deadline Passed" &&
-                      !signed &&
+                      !completed &&
                       !activeResetAfterDeadline;
-                    const canOpenSignaturePad = (!signed && allowSign) || canAddFirstDrawnSignature;
+                    const canOpenSignaturePad = (!completed && allowSign) || canAddFirstDrawnSignature;
+                    const canManageResignedWaiver =
+                      role === "Agent" &&
+                      currentUser.role === "Quality Assurance" &&
+                      selectedAgentIsSuspended &&
+                      !isHistoricalPaidPeriod(selectedDocument.monthKey);
+                    const canApplyResignedWaiver =
+                      canManageResignedWaiver &&
+                      !completed &&
+                      !hasPendingAppeal &&
+                      isAfterAppealPeriod(selectedDocument.monthKey) &&
+                      (["QA", "Supervisor", "Senior"] as SignRole[]).every((requiredRole) => Boolean(getSignedEntry(selectedEntries, requiredRole)));
                     const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(role)];
                     return (
                       <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
                         <div>
                           <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${
-                            signed ? "bg-emerald-100 text-emerald-700" : allowSign ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
+                            waived ? "bg-sky-100 text-sky-700" : signed ? "bg-emerald-100 text-emerald-700" : allowSign ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
                           }`}>
                             {index + 1}
                           </span>
                         </div>
                         <div className="font-black text-slate-950">{role === "Senior" ? "Senior / Team Lead" : role}</div>
                         <div>
-                          <div className="font-bold text-slate-900">{signed ? signed.signerName : signerName}</div>
-                          {signed ? (
+                          <div className="font-bold text-slate-900">{completed ? completed.signerName : signerName}</div>
+                          {waived ? (
+                            <div className="mt-1 text-xs font-semibold text-sky-700">
+                              Signature Waived – Resigned • วันที่ลาออก {waived.resignationDate || "-"} • ยืนยันโดย {waived.waivedBy || "QA"}
+                            </div>
+                          ) : signed ? (
                             <div className="mt-1 text-xs font-semibold text-slate-400">
                               Signed by {signed.signedBy} • {formatDateTime(signed.signedAt)}
                             </div>
@@ -6133,7 +6217,9 @@ export default function SignatureCenterMockup({
                                 : "cursor-not-allowed bg-slate-200 text-slate-500"
                             }`}
                           >
-                            {signed
+                            {waived
+                              ? "ยกเว้นลายเซ็นแล้ว"
+                              : signed
                               ? signed.signatureDataUrl
                                 ? "เอกสารลงนามแล้ว"
                                 : canAddFirstDrawnSignature
@@ -6162,6 +6248,25 @@ export default function SignatureCenterMockup({
                               className="mt-2 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
                             >
                               Reset คนนี้
+                            </button>
+                          ) : null}
+                          {canManageResignedWaiver && !waived ? (
+                            <button
+                              type="button"
+                              onClick={() => void waiveResignedAgentSignature()}
+                              disabled={!canApplyResignedWaiver}
+                              className="mt-2 w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-black text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                            >
+                              {canApplyResignedWaiver ? "ยกเว้นลายเซ็น – ลาออก" : "รอ 3 Role เซ็นครบ"}
+                            </button>
+                          ) : null}
+                          {waived && currentUser.role === "Quality Assurance" ? (
+                            <button
+                              type="button"
+                              onClick={() => void cancelResignedAgentWaiver()}
+                              className="mt-2 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                            >
+                              ยกเลิกข้อยกเว้น
                             </button>
                           ) : null}
                         </div>
