@@ -86,9 +86,9 @@ const replacement = String.raw`function generatePaymentPdfFile(
       drawHeader();
     }
     pdf.setFillColor(purple2[0], purple2[1], purple2[2]);
-    pdf.rect(left, y, tableW, 8, "F");
-    text(title, left + 3, y + 5.5, 9.3, true, [255, 255, 255]);
-    y += 8;
+    pdf.rect(left, y, tableW, 7, "F");
+    text(title, left + 3, y + 4.9, 8.8, true, [255, 255, 255]);
+    y += 7;
   };
 
   const ensureSpace = (height: number, continuedTitle?: string) => {
@@ -96,30 +96,6 @@ const replacement = String.raw`function generatePaymentPdfFile(
     pdf.addPage("a4", "portrait");
     drawHeader();
     if (continuedTitle) section(continuedTitle);
-  };
-
-  const drawSummaryCell = (
-    x: number,
-    yy: number,
-    w: number,
-    h: number,
-    label: string,
-    value: unknown,
-    options: { color?: [number, number, number]; valueSize?: number; badge?: boolean } = {}
-  ) => {
-    pdf.setDrawColor(border[0], border[1], border[2]);
-    pdf.setFillColor(palePurple2[0], palePurple2[1], palePurple2[2]);
-    pdf.rect(x, yy, w, h, "FD");
-    text(label, x + 2.5, yy + 5, 6.8, false, muted);
-    if (options.badge) {
-      const labelText = String(value || "-");
-      const badgeW = Math.min(w - 7, Math.max(24, labelText.length * 1.45));
-      pdf.setFillColor(220, 252, 231);
-      pdf.roundedRect(x + 2.5, yy + 7.5, badgeW, 7.5, 3.5, 3.5, "F");
-      text(labelText, x + 2.5 + badgeW / 2, yy + 12.7, 6.6, true, green, { align: "center" });
-    } else {
-      text(value, x + 2.5, yy + h - 4.2, options.valueSize ?? 11.2, true, options.color ?? black);
-    }
   };
 
   const drawTableCell = (
@@ -144,9 +120,8 @@ const replacement = String.raw`function generatePaymentPdfFile(
     pdf.setDrawColor(border[0], border[1], border[2]);
     pdf.setFillColor(fill[0], fill[1], fill[2]);
     pdf.rect(x, yy, w, h, "FD");
-    setFont(size, options.bold ?? false, options.color ?? black);
     const lines = splitText(value, w - 3, size).slice(0, maxLines);
-    const gap = size * 0.36 + 1.15;
+    const gap = size * 0.36 + 1.1;
     const baseY = yy + h / 2 - ((lines.length - 1) * gap) / 2 + size * 0.22;
     const tx = align === "center" ? x + w / 2 : align === "right" ? x + w - 1.5 : x + 1.5;
     lines.forEach((lineText: string, index: number) => {
@@ -154,81 +129,157 @@ const replacement = String.raw`function generatePaymentPdfFile(
     });
   };
 
-  const addSignatureImage = (dataUrl: string, x: number, yy: number, w: number, h: number) => {
+  const addSignatureContained = (dataUrl: string, x: number, yy: number, w: number, h: number) => {
     if (!dataUrl) return false;
     try {
       const format = /^data:image\/jpe?g/i.test(dataUrl) ? "JPEG" : "PNG";
-      pdf.addImage(dataUrl, format, x, yy, w, h, undefined, "FAST");
+      const props = pdf.getImageProperties(dataUrl);
+      const imageW = Math.max(1, Number(props?.width) || 1);
+      const imageH = Math.max(1, Number(props?.height) || 1);
+      const imageRatio = imageW / imageH;
+      const boxRatio = w / h;
+      let drawW = w;
+      let drawH = h;
+      if (imageRatio > boxRatio) drawH = drawW / imageRatio;
+      else drawW = drawH * imageRatio;
+      pdf.addImage(
+        dataUrl,
+        format,
+        x + (w - drawW) / 2,
+        yy + (h - drawH) / 2,
+        drawW,
+        drawH,
+        undefined,
+        "FAST"
+      );
       return true;
     } catch {
       return false;
     }
   };
 
-  const latestRoleSignature = (role: SignRole) => {
-    let latest:
-      | { doc: SignatureDocument; entry: SignatureEntry; time: number }
-      | null = null;
+  const collectLatestRoleSignatures = (role: SignRole, limit = 1) => {
+    const rows: Array<{ doc: SignatureDocument; entry: SignatureEntry; time: number; signerKey: string }> = [];
     sortedDocs.forEach((doc) => {
       const entries = effectiveEntriesForDoc(doc, signatures);
       const signed = getSignedEntry(entries, role);
       if (!signed) return;
+      const signerName = String(signed.signerName || getRoleSigner(doc, role) || signed.signedBy || "").trim();
       const time = new Date(signed.signedAt || "").getTime();
-      const safeTime = Number.isFinite(time) ? time : 0;
-      if (!latest || safeTime >= latest.time) latest = { doc, entry: signed, time: safeTime };
+      rows.push({
+        doc,
+        entry: signed,
+        time: Number.isFinite(time) ? time : 0,
+        signerKey: signerName.toLowerCase(),
+      });
     });
-    return latest;
+    const seen = new Set<string>();
+    return rows
+      .sort((a, b) => b.time - a.time)
+      .filter((row) => {
+        const key = row.signerKey || row.doc.id;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, Math.max(1, limit));
   };
+
+  const latestRoleSignature = (role: SignRole) => collectLatestRoleSignatures(role, 1)[0] || null;
 
   drawHeader();
 
   section("1. PAYMENT SUMMARY");
-  const summaryW = tableW / 3;
-  drawSummaryCell(left, y, summaryW, 17, "Payment Period", getMonthLabel(monthKey), { color: purple2 });
-  drawSummaryCell(left + summaryW, y, summaryW, 17, "Paid Agents", sortedDocs.length);
-  drawSummaryCell(left + summaryW * 2, y, summaryW, 17, "Team Cases", totalCases);
-  y += 17;
-  drawSummaryCell(left, y, summaryW, 17, "Average QA", avgScore.toFixed(2));
-  drawSummaryCell(left + summaryW, y, summaryW, 17, "Overall Grade", overallGrade, { color: purple2 });
-  drawSummaryCell(left + summaryW * 2, y, summaryW, 17, "Total Payment (THB)", formatBahtAmount(totalCashAmount), { color: green });
-  y += 17;
-  drawSummaryCell(left, y, tableW / 2, 14, "Document Status", sortedDocs.length ? "READY TO EXPORT" : "HOLD", { badge: true });
-  drawSummaryCell(left + tableW / 2, y, tableW / 2, 14, "Total Promo (THB)", formatBahtAmount(totalPromoAmount), { valueSize: 9.5 });
-  y += 14;
+  const summaryRows: Array<Array<{ label: string; value: unknown; color?: [number, number, number]; badge?: boolean }>> = [
+    [
+      { label: "Payment Period", value: getMonthLabel(monthKey), color: purple2 },
+      { label: "Paid Agents", value: sortedDocs.length },
+      { label: "Team Cases", value: totalCases },
+    ],
+    [
+      { label: "Average QA", value: avgScore.toFixed(2) },
+      { label: "Overall Grade", value: overallGrade, color: purple2 },
+      { label: "Total Payment (THB)", value: formatBahtAmount(totalCashAmount), color: green },
+    ],
+    [
+      { label: "Document Status", value: sortedDocs.length ? "READY TO EXPORT" : "HOLD", badge: true },
+      { label: "Total Promo (THB)", value: formatBahtAmount(totalPromoAmount) },
+    ],
+  ];
+  const summaryColW = tableW / 3;
+  summaryRows.forEach((row) => {
+    const rowH = 8.2;
+    row.forEach((item, index) => {
+      const x = left + summaryColW * index;
+      text(item.label, x + 1.5, y + 3.1, 5.9, false, muted);
+      if (item.badge) {
+        const label = String(item.value || "-");
+        setFont(5.6, true, green);
+        const badgeW = Math.min(summaryColW - 5, Math.max(23, pdf.getTextWidth(label) + 6));
+        pdf.setFillColor(220, 252, 231);
+        pdf.roundedRect(x + 1.5, y + 4, badgeW, 4.5, 2.2, 2.2, "F");
+        text(label, x + 1.5 + badgeW / 2, y + 7.1, 5.4, true, green, { align: "center" });
+      } else {
+        text(item.value, x + 1.5, y + 7.1, 7.8, true, item.color || black);
+      }
+    });
+    pdf.setDrawColor(border[0], border[1], border[2]);
+    pdf.setLineWidth(0.1);
+    pdf.line(left, y + rowH, right, y + rowH);
+    y += rowH;
+  });
+  y += 1.5;
 
   section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS");
+  setFont(6.1, true, black);
+  const measuredAgentW = sortedDocs.length
+    ? Math.max(...sortedDocs.map((doc) => pdf.getTextWidth(String(doc.agentName || "")) + 4))
+    : 24;
+  setFont(5.5, true, black);
+  const measuredRefW = sortedDocs.length
+    ? Math.max(...sortedDocs.map((doc) => pdf.getTextWidth(getMonthlyDocumentRef(doc, sourceDocs)) + 4))
+    : 19;
+  const seqW = 7;
+  const agentW = Math.min(34, Math.max(24, measuredAgentW));
+  const refW = Math.min(24, Math.max(18, measuredRefW));
+  const casesW = 10;
+  const avgW = 11;
+  const gradeW = 9;
+  const incentiveW = 16;
+  const statusW = 18;
+  const signatureW = tableW - (seqW + agentW + refW + casesW + avgW + gradeW + incentiveW + statusW);
   const rankingHeaders: Array<[string, number]> = [
-    ["Seq", 8],
-    ["Agent", 27],
-    ["Document Ref.", 25],
-    ["Cases", 11],
-    ["Avg", 13],
-    ["Grade", 10],
-    ["Incentive", 20],
-    ["Agent Signature", 48],
-    ["Status", 22],
+    ["Seq", seqW],
+    ["Agent", agentW],
+    ["Document Ref.", refW],
+    ["Cases", casesW],
+    ["Avg", avgW],
+    ["Grade", gradeW],
+    ["Incentive", incentiveW],
+    ["Agent Signature", signatureW],
+    ["Status", statusW],
   ];
+
   const drawRankingHeader = () => {
     let x = left;
     rankingHeaders.forEach(([label, width]) => {
-      drawTableCell(x, y, width, 8, label, {
+      drawTableCell(x, y, width, 7, label, {
         fill: palePurple,
         color: purple2,
-        size: label === "Agent Signature" || label === "Document Ref." ? 6.1 : 6.6,
+        size: label === "Agent Signature" || label === "Document Ref." ? 5.5 : 6.0,
         bold: true,
         align: "center",
         maxLines: 1,
       });
       x += width;
     });
-    y += 8;
+    y += 7;
   };
   drawRankingHeader();
 
   sortedDocs.forEach((doc, index) => {
-    const rowH = 19;
+    const rowH = 15;
     ensureSpace(rowH, "2. AGENT MONTHLY RANKING & PAYMENT DETAILS (CONTINUED)");
-    if (y === 32) drawRankingHeader();
     const entries = effectiveEntriesForDoc(doc, signatures);
     const agentSigned = getSignedEntry(entries, "Agent");
     const agentWaived = getWaivedEntry(entries, "Agent");
@@ -248,7 +299,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
       const width = rankingHeaders[colIndex][1];
       drawTableCell(x, y, width, rowH, value, {
         fill,
-        size: colIndex === 2 ? 5.6 : colIndex === 1 ? 6.3 : 6.6,
+        size: colIndex === 1 ? 5.8 : colIndex === 2 ? 5.2 : 6.0,
         bold: colIndex === 1 || colIndex === 2 || colIndex === 6,
         align: colIndex === 1 ? "left" : "center",
         maxLines: colIndex === 1 ? 2 : 1,
@@ -256,30 +307,27 @@ const replacement = String.raw`function generatePaymentPdfFile(
       x += width;
     });
 
-    const signatureW = rankingHeaders[7][1];
+    const agentSignatureW = rankingHeaders[7][1];
     pdf.setDrawColor(border[0], border[1], border[2]);
     pdf.setFillColor(fill[0], fill[1], fill[2]);
-    pdf.rect(x, y, signatureW, rowH, "FD");
+    pdf.rect(x, y, agentSignatureW, rowH, "FD");
     if (agentWaived) {
-      text("WAIVED - Resigned", x + signatureW / 2, y + 8.2, 6.3, true, amber, { align: "center" });
-      text(shortDate(agentWaived.waivedAt || agentWaived.resignationDate), x + signatureW / 2, y + 13.8, 5.7, false, muted, { align: "center" });
+      text("WAIVED - Resigned", x + agentSignatureW / 2, y + 6.2, 5.5, true, amber, { align: "center" });
+      text(shortDate(agentWaived.waivedAt || agentWaived.resignationDate), x + agentSignatureW / 2, y + 11.5, 5.0, false, muted, { align: "center" });
     } else if (agentSigned) {
-      const signatureDrawn = addSignatureImage(agentSigned.signatureDataUrl || "", x + 9, y + 2, signatureW - 18, 9);
-      if (!signatureDrawn) {
-        text("Signed", x + signatureW / 2, y + 7, 6.2, true, green, { align: "center" });
-      }
-      text("Signed: " + shortDate(agentSigned.signedAt), x + signatureW / 2, y + 15.2, 5.6, false, muted, { align: "center" });
+      const hasImage = addSignatureContained(agentSigned.signatureDataUrl || "", x + 2.5, y + 1, agentSignatureW - 5, 8.5);
+      if (!hasImage) text("Signed", x + agentSignatureW / 2, y + 6.3, 5.8, true, green, { align: "center" });
+      text("Signed: " + shortDate(agentSigned.signedAt), x + agentSignatureW / 2, y + 12.7, 5.0, false, muted, { align: "center" });
     } else {
-      text("Pending", x + signatureW / 2, y + 10.8, 6.3, true, amber, { align: "center" });
+      text("Pending", x + agentSignatureW / 2, y + 8.3, 5.6, true, amber, { align: "center" });
     }
-    x += signatureW;
+    x += agentSignatureW;
 
-    const statusW = rankingHeaders[8][1];
-    const status = agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";
-    drawTableCell(x, y, statusW, rowH, status, {
+    const rowStatus = agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";
+    drawTableCell(x, y, rankingHeaders[8][1], rowH, rowStatus, {
       fill,
       color: agentSigned ? green : agentWaived ? amber : muted,
-      size: 5.8,
+      size: 5.2,
       bold: true,
       align: "center",
       maxLines: 2,
@@ -315,27 +363,42 @@ const replacement = String.raw`function generatePaymentPdfFile(
   const displayTopicRows = topicRows.length
     ? topicRows
     : SIGNATURE_JUNE_2026_TOPIC_MASTER.map((topic) => ({ code: topic.code, title: topic.label, max: topic.max, total: 0, count: 0 }));
+
+  setFont(5.8, false, black);
+  const measuredDescriptionW = displayTopicRows.length
+    ? Math.max(...displayTopicRows.map((topic) => pdf.getTextWidth(String(topic.title || "")) + 6))
+    : 66;
+  const descriptionW = Math.min(86, Math.max(64, measuredDescriptionW));
+  const topicWidths = {
+    topic: 8,
+    avg: 15,
+    max: 10,
+    pct: 14,
+    status: 20,
+  };
+  const topicTableW = topicWidths.topic + descriptionW + topicWidths.avg + topicWidths.max + topicWidths.pct + topicWidths.status;
+  const topicStartX = left + (tableW - topicTableW) / 2;
   const topicHeaders: Array<[string, number]> = [
-    ["Topic", 10],
-    ["Description", 96],
-    ["Avg Score", 19],
-    ["Max", 15],
-    ["Avg %", 18],
-    ["Dashboard Status", 26],
+    ["Topic", topicWidths.topic],
+    ["Description", descriptionW],
+    ["Avg Score", topicWidths.avg],
+    ["Max", topicWidths.max],
+    ["Avg %", topicWidths.pct],
+    ["Dashboard Status", topicWidths.status],
   ];
-  let topicX = left;
+  let topicX = topicStartX;
   topicHeaders.forEach(([label, width]) => {
-    drawTableCell(topicX, y, width, 8, label, {
+    drawTableCell(topicX, y, width, 7, label, {
       fill: palePurple,
       color: purple2,
-      size: label === "Dashboard Status" ? 5.8 : 6.3,
+      size: label === "Dashboard Status" ? 5.2 : 5.8,
       bold: true,
       align: "center",
       maxLines: 1,
     });
     topicX += width;
   });
-  y += 8;
+  y += 7;
 
   displayTopicRows.forEach((topic, index) => {
     const avgTopicScore = topic.count ? topic.total / topic.count : null;
@@ -343,10 +406,10 @@ const replacement = String.raw`function generatePaymentPdfFile(
     const status = avgPct === null ? "-" : avgPct >= 85 ? "Good" : avgPct >= 75 ? "Watch" : "Improve";
     const statusBg: [number, number, number] = status === "Good" ? [220, 252, 231] : status === "Watch" ? [254, 243, 199] : status === "Improve" ? [255, 228, 230] : palePurple2;
     const statusFg: [number, number, number] = status === "Good" ? green : status === "Watch" ? amber : status === "Improve" ? red : muted;
-    const rowH = 16;
+    const rowH = 13;
     ensureSpace(rowH, "3. TEAM TOPIC PERFORMANCE (CONTINUED)");
     const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : palePurple2;
-    let x = left;
+    let x = topicStartX;
     const rowValues = [
       topic.code,
       topic.title,
@@ -358,7 +421,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
       const width = topicHeaders[colIndex][1];
       drawTableCell(x, y, width, rowH, value, {
         fill,
-        size: colIndex === 1 ? 5.9 : 6.4,
+        size: colIndex === 1 ? 5.6 : 5.9,
         bold: colIndex === 0,
         align: colIndex === 1 ? "left" : "center",
         maxLines: colIndex === 1 ? 2 : 1,
@@ -369,62 +432,68 @@ const replacement = String.raw`function generatePaymentPdfFile(
     drawTableCell(x, y, statusW, rowH, "", { fill, align: "center" });
     if (status !== "-") {
       pdf.setFillColor(statusBg[0], statusBg[1], statusBg[2]);
-      pdf.roundedRect(x + 3, y + 4.2, statusW - 6, 7.5, 3.5, 3.5, "F");
-      text(status, x + statusW / 2, y + 9.5, 6.0, true, statusFg, { align: "center" });
+      pdf.roundedRect(x + 2.5, y + 3.2, statusW - 5, 6.5, 3, 3, "F");
+      text(status, x + statusW / 2, y + 7.8, 5.5, true, statusFg, { align: "center" });
     } else {
-      text("-", x + statusW / 2, y + 9.2, 6.2, false, muted, { align: "center" });
+      text("-", x + statusW / 2, y + 7.6, 5.7, false, muted, { align: "center" });
     }
     y += rowH;
   });
 
   section("4. PAYMENT CERTIFICATION");
-  const certH = 24;
+  const certH = 17;
   pdf.setDrawColor(border[0], border[1], border[2]);
   pdf.setFillColor(255, 255, 255);
   pdf.rect(left, y, tableW, certH, "FD");
   const certCol = tableW / 3;
-  text("Payment Period", left + 2.5, y + 5.5, 6.6, false, muted);
-  text(getMonthLabel(monthKey), left + 29, y + 5.5, 8.0, true, black);
-  text("Total Paid Agents", left + certCol + 2.5, y + 5.5, 6.6, false, muted);
-  text(sortedDocs.length, left + certCol + 37, y + 5.5, 8.0, true, black);
-  text("Total Incentive", left + certCol * 2 + 2.5, y + 5.5, 6.6, false, muted);
-  text("THB " + formatBahtAmount(totalCashAmount), right - 2.5, y + 5.5, 8.5, true, green, { align: "right" });
-  text("Certification", left + 2.5, y + 15, 6.6, false, muted);
-  text("Monthly QA incentive payment summary prepared for payment processing.", left + 29, y + 15, 7.0, false, black);
+  text("Payment Period", left + 2, y + 5.2, 5.9, false, muted);
+  text(getMonthLabel(monthKey), left + 26, y + 5.2, 7.2, true, black);
+  text("Total Paid Agents", left + certCol + 2, y + 5.2, 5.9, false, muted);
+  text(sortedDocs.length, left + certCol + 34, y + 5.2, 7.2, true, black);
+  text("Total Incentive", left + certCol * 2 + 2, y + 5.2, 5.9, false, muted);
+  text("THB " + formatBahtAmount(totalCashAmount), right - 2, y + 5.2, 7.6, true, green, { align: "right" });
+  text("Certification", left + 2, y + 12.5, 5.9, false, muted);
+  text("Monthly QA incentive payment summary prepared for payment processing.", left + 26, y + 12.5, 6.2, false, black);
   if (totalPromoAmount > 0) {
-    text("Promo THB " + formatBahtAmount(totalPromoAmount), right - 2.5, y + 15, 6.8, true, purple2, { align: "right" });
+    text("Promo THB " + formatBahtAmount(totalPromoAmount), right - 2, y + 12.5, 6.2, true, purple2, { align: "right" });
   }
   y += certH;
 
   section("5. AUTHORIZATION & SIGNATURE");
-  const authorizationRoles: Array<[SignRole, string]> = [
-    ["Supervisor", "Supervisor Review"],
-    ["Senior", "Senior Approval"],
-    ["QA", "Quality Assurance Approval"],
+  const seniorApprovals = collectLatestRoleSignatures("Senior", 2);
+  const authorizationSlots: Array<{
+    role: SignRole;
+    label: string;
+    latest: { doc: SignatureDocument; entry: SignatureEntry; time: number; signerKey: string } | null;
+  }> = [
+    { role: "Supervisor", label: "Supervisor Review", latest: latestRoleSignature("Supervisor") },
+    { role: "Senior", label: "Senior Approval", latest: seniorApprovals[0] || null },
+    { role: "Senior", label: "Senior Approval", latest: seniorApprovals[1] || null },
+    { role: "QA", label: "Quality Assurance Approval", latest: latestRoleSignature("QA") },
   ];
-  const signatureBlockW = tableW / authorizationRoles.length;
-  const signatureBlockH = 48;
+  const signatureBlockW = tableW / authorizationSlots.length;
+  const signatureBlockH = 42;
   ensureSpace(signatureBlockH);
-  authorizationRoles.forEach(([role, label], index) => {
+  authorizationSlots.forEach(({ role, label, latest }, index) => {
     const x = left + signatureBlockW * index;
-    const latest = latestRoleSignature(role);
     pdf.setDrawColor(border[0], border[1], border[2]);
     pdf.setFillColor(255, 255, 255);
     pdf.rect(x, y, signatureBlockW, signatureBlockH, "FD");
     pdf.setFillColor(palePurple[0], palePurple[1], palePurple[2]);
-    pdf.rect(x, y, signatureBlockW, 8, "F");
-    text(label, x + signatureBlockW / 2, y + 5.5, 6.4, true, purple2, { align: "center" });
+    pdf.rect(x, y, signatureBlockW, 7, "F");
+    text(label, x + signatureBlockW / 2, y + 4.8, label === "Quality Assurance Approval" ? 5.0 : 5.6, true, purple2, { align: "center" });
 
     if (latest) {
       const signerName = latest.entry.signerName || getRoleSigner(latest.doc, role) || latest.entry.signedBy || "-";
-      const hasImage = addSignatureImage(latest.entry.signatureDataUrl || "", x + 12, y + 11, signatureBlockW - 24, 14);
-      if (!hasImage) {
-        text("Signed", x + signatureBlockW / 2, y + 20.5, 7.2, true, green, { align: "center" });
-      }
-      text(signerName, x + signatureBlockW / 2, y + 31, 7.0, true, black, { align: "center" });
-      text("Signed: " + shortDate(latest.entry.signedAt), x + signatureBlockW / 2, y + 38, 6.1, false, muted, { align: "center" });
+      const hasImage = addSignatureContained(latest.entry.signatureDataUrl || "", x + 3, y + 8.5, signatureBlockW - 6, 14);
+      if (!hasImage) text("Signed", x + signatureBlockW / 2, y + 17, 6.0, true, green, { align: "center" });
+      const nameLines = splitText(signerName, signatureBlockW - 4, 5.6).slice(0, 2);
+      nameLines.forEach((lineText: string, lineIndex: number) => {
+        text(lineText, x + signatureBlockW / 2, y + 28.5 + lineIndex * 3, 5.6, true, black, { align: "center" });
+      });
+      text("Signed: " + shortDate(latest.entry.signedAt), x + signatureBlockW / 2, y + 38, 5.0, false, muted, { align: "center" });
     } else {
-      text("No signed record", x + signatureBlockW / 2, y + 22, 6.6, false, muted, { align: "center" });
+      text("No signed record", x + signatureBlockW / 2, y + 22, 5.6, false, muted, { align: "center" });
     }
   });
   y += signatureBlockH;
@@ -432,7 +501,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
   const totalPages = pdf.getNumberOfPages();
   for (let pageIndex = 1; pageIndex <= totalPages; pageIndex += 1) {
     pdf.setPage(pageIndex);
-    text("Page " + pageIndex + " of " + totalPages, right, pageH - 6, 6.6, false, muted, { align: "right" });
+    text("Page " + pageIndex + " of " + totalPages, right, pageH - 6, 6.2, false, muted, { align: "right" });
   }
 
   const fileName = makePaymentPdfFileName(monthKey);
