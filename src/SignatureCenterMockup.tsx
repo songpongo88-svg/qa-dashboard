@@ -11,9 +11,12 @@ import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIdentity";
 import {
   clearStoredSignatureConfirm,
+  deleteStoredSignatureLibraryEntry,
   fetchStoredSignatureDocuments,
+  fetchStoredSignatureLibraryEntry,
   saveStoredSignatureConfirm,
   saveStoredSignatureDocument,
+  saveStoredSignatureLibraryEntry,
 } from "./signatureStore";
 
 type CurrentUser = {
@@ -2163,6 +2166,7 @@ function SignaturePadModal({
   signerName,
   savedSignatureDataUrl,
   onCancel,
+  onDeleteSavedSignature,
   onUseSavedSignature,
   onSave,
 }: {
@@ -2170,6 +2174,7 @@ function SignaturePadModal({
   signerName: string;
   savedSignatureDataUrl?: string;
   onCancel: () => void;
+  onDeleteSavedSignature?: () => void | Promise<void>;
   onUseSavedSignature?: () => void | Promise<void>;
   onSave: (dataUrl: string, saveToLibrary: boolean) => void | Promise<void>;
 }) {
@@ -2262,20 +2267,29 @@ function SignaturePadModal({
 
         {savedSignatureDataUrl ? (
           <div className="mt-4 rounded-[22px] border border-emerald-200 bg-emerald-50 p-4">
-            <div className="text-sm font-black text-emerald-800">มีลายเซ็นเดิมของคุณในระบบ</div>
+            <div className="text-sm font-black text-emerald-800">ลายเซ็นที่บันทึกไว้</div>
             <div className="mt-1 text-xs font-bold text-emerald-700">
-              หากต้องการใช้ลายเซ็นนี้ ให้กดปุ่มยืนยันด้านล่าง ระบบจะบันทึกการลงนามทันที
+              ใช้ลายเซ็นนี้ได้ทันที หรือวาดลายเซ็นใหม่เพื่อแทนที่รายการนี้
             </div>
             <div className="mt-2 rounded-2xl border border-emerald-100 bg-white p-3">
               <img src={savedSignatureDataUrl} alt="Saved signature" className="h-16 max-w-full object-contain" />
             </div>
-            <button
-              type="button"
-              onClick={onUseSavedSignature}
-              className="mt-3 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
-            >
-              ยืนยันใช้ลายเซ็นเดิม
-            </button>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={onUseSavedSignature}
+                className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+              >
+                ใช้ลายเซ็นนี้
+              </button>
+              <button
+                type="button"
+                onClick={onDeleteSavedSignature}
+                className="rounded-2xl border border-rose-200 bg-white px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-50"
+              >
+                ลบลายเซ็นที่บันทึก
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -2909,6 +2923,49 @@ export default function SignatureCenterMockup({
     const identity = currentUser.username || currentUser.email || currentUser.agentName || currentUser.displayName;
     return `${compactPerson(identity)}::${role}`;
   };
+  const signatureLibraryIdentity = compactPerson(
+    currentUser.username || currentUser.email || currentUser.agentName || currentUser.displayName
+  );
+
+  useEffect(() => {
+    if (!signatureLibraryIdentity) return;
+    let alive = true;
+    Promise.all(
+      SIGNATURE_FLOW.map(async (role) => {
+        const key = `${signatureLibraryIdentity}::${role}`;
+        const signatureDataUrl = await fetchStoredSignatureLibraryEntry(key);
+        return [key, signatureDataUrl] as const;
+      })
+    )
+      .then((entries) => {
+        if (!alive) return;
+        const remoteLibrary = Object.fromEntries(entries.filter(([, dataUrl]) => Boolean(dataUrl)));
+        if (!Object.keys(remoteLibrary).length) return;
+        setSignatureLibrary((previous) => ({ ...previous, ...remoteLibrary }));
+      })
+      .catch((error) => {
+        console.warn("Load remote signature library failed; using the saved signature from this browser.", error);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [signatureLibraryIdentity]);
+
+  const saveSignatureToLibrary = async (role: SignRole, signatureDataUrl: string) => {
+    const libraryKey = getSavedSignatureKey(role);
+    setSignatureLibrary((previous) => ({
+      ...previous,
+      [libraryKey]: signatureDataUrl,
+    }));
+    try {
+      await saveStoredSignatureLibraryEntry(libraryKey, signatureDataUrl);
+      return true;
+    } catch (error) {
+      console.warn("Save remote signature library failed", error);
+      window.alert("บันทึกลายเซ็นในเอกสารแล้ว แต่ซิงก์ลายเซ็นสำหรับใช้ครั้งต่อไปไม่สำเร็จ ระบบจะเก็บไว้ใน Browser นี้ก่อน");
+      return false;
+    }
+  };
 
   const createSignatureShareLink = (doc: SignatureDocument, role?: SignRole | null) => {
     const url = new URL(window.location.href);
@@ -2984,10 +3041,7 @@ export default function SignatureCenterMockup({
     }
 
     if (saveToSavedLibrary) {
-      setSignatureLibrary((previous) => ({
-        ...previous,
-        [getSavedSignatureKey(role)]: signatureDataUrl,
-      }));
+      await saveSignatureToLibrary(role, signatureDataUrl);
     }
 
     setSignatures((previous) => {
@@ -3032,10 +3086,7 @@ export default function SignatureCenterMockup({
     }
 
     if (signatureDataUrl && saveToSavedLibrary) {
-      setSignatureLibrary((previous) => ({
-        ...previous,
-        [getSavedSignatureKey(role)]: signatureDataUrl,
-      }));
+      await saveSignatureToLibrary(role, signatureDataUrl);
     }
 
     setSignatures((previous) => {
@@ -6248,6 +6299,22 @@ export default function SignatureCenterMockup({
           signerName={getRoleSigner(selectedDocument, signingRole)}
           savedSignatureDataUrl={signatureLibrary[getSavedSignatureKey(signingRole)]}
           onCancel={() => setSigningRole(null)}
+          onDeleteSavedSignature={async () => {
+            const libraryKey = getSavedSignatureKey(signingRole);
+            if (!window.confirm("ลบลายเซ็นที่บันทึกไว้หรือไม่? เอกสารเก่าที่เคยเซ็นแล้วจะไม่ถูกเปลี่ยนแปลง")) return;
+            try {
+              await deleteStoredSignatureLibraryEntry(libraryKey);
+            } catch (error) {
+              console.warn("Delete remote signature library failed", error);
+              window.alert("ลบลายเซ็นที่บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+              return;
+            }
+            setSignatureLibrary((previous) => {
+              const next = { ...previous };
+              delete next[libraryKey];
+              return next;
+            });
+          }}
           onUseSavedSignature={async () => {
             const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(signingRole)];
             if (!savedSignatureDataUrl) return;
@@ -6271,6 +6338,8 @@ export default function SignatureCenterMockup({
               setSigningRole(null);
               return;
             }
+            const libraryKey = getSavedSignatureKey(signingRole);
+            const replacingSavedSignature = Boolean(signatureLibrary[libraryKey]);
             const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
             let saved = false;
             if (existingSigned) {
@@ -6278,7 +6347,14 @@ export default function SignatureCenterMockup({
             } else {
               saved = await signRole(signingRole, dataUrl, saveToSavedLibrary);
             }
-            if (saved) setSigningRole(null);
+            if (saved) {
+              if (saveToSavedLibrary) {
+                window.alert(replacingSavedSignature
+                  ? "อัปเดตลายเซ็นที่บันทึกเรียบร้อยแล้ว"
+                  : "บันทึกลายเซ็นไว้ใช้ครั้งต่อไปเรียบร้อยแล้ว");
+              }
+              setSigningRole(null);
+            }
           }}
         />
       ) : null}
