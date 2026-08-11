@@ -130,6 +130,32 @@ const HISTORICAL_PAID_LAST_MONTH = "2026-04";
 const CASE_TARGET = 10;
 const AUTO_RESIGNED_WAIVER_NOTE = "Signature waived automatically from resigned User profile";
 const AUTO_RESIGNED_WAIVER_SIGNER = "System – User Sync";
+const EMPLOYMENT_END_REASON_KEYWORDS = [
+  "ลาออก",
+  "สิ้นสุดงาน",
+  "สิ้นสุดการทำงาน",
+  "สิ้นสุดการปฏิบัติงาน",
+  "สิ้นสุดสัญญาจ้าง",
+  "ยุติการจ้าง",
+  "ยุติการจ้างงาน",
+  "ยุติสัญญาจ้าง",
+  "เลิกจ้าง",
+  "พ้นสภาพ",
+  "พ้นสภาพพนักงาน",
+  "resign",
+  "resigned",
+  "resignation",
+  "termination",
+  "terminated",
+  "employment end",
+  "employment ended",
+  "contract end",
+  "contract ended",
+  "contract expired",
+  "offboard",
+  "offboarded",
+  "offboarding",
+] as const;
 const SIGNATURE_DEADLINE_RESET_NOTE = "Deadline reset by QA";
 const SIGNATURE_RESET_WINDOW_DAYS = 3;
 const SIGNATURE_RESET_WINDOW_MS = SIGNATURE_RESET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -606,20 +632,16 @@ function getAccountSuspensionDate(account?: UserAccountSnapshot | null) {
   return `${slashMatch[3]}-${slashMatch[2].padStart(2, "0")}-${slashMatch[1].padStart(2, "0")}`;
 }
 
+function isEmploymentEndReason(value: unknown) {
+  const reason = normalizeText(value).toLowerCase();
+  if (!reason) return false;
+
+  return EMPLOYMENT_END_REASON_KEYWORDS.some((keyword) => reason.includes(keyword));
+}
+
 function isResignedAccountForAutoWaiver(account?: UserAccountSnapshot | null) {
   if (!isSuspendedAccount(account) || !getAccountSuspensionDate(account)) return false;
-  const reason = normalizeText(`${account?.status || ""} ${account?.suspendReason || ""}`).toLowerCase();
-  return [
-    "ลาออก",
-    "สิ้นสุดงาน",
-    "สิ้นสุดการทำงาน",
-    "พ้นสภาพ",
-    "resign",
-    "termination",
-    "terminated",
-    "employment end",
-    "offboard",
-  ].some((keyword) => reason.includes(keyword));
+  return isEmploymentEndReason(`${account?.status || ""} ${account?.suspendReason || ""}`);
 }
 
 function getAutomaticWaiverEffectiveAt(account: UserAccountSnapshot, entries: SignatureEntry[]) {
