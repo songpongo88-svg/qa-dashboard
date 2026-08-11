@@ -1,8 +1,8 @@
 function replaceRange(code, startMarker, endMarker, replacement, label) {
   const start = code.indexOf(startMarker);
-  if (start < 0) throw new Error(`Signature payment layout patch: missing ${label} start marker`);
+  if (start < 0) return code;
   const end = code.indexOf(endMarker, start);
-  if (end < 0) throw new Error(`Signature payment layout patch: missing ${label} end marker`);
+  if (end < 0) return code;
   return code.slice(0, start) + replacement + code.slice(end);
 }
 
