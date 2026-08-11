@@ -2553,7 +2553,9 @@ export default function SignatureCenterMockup({
         );
         if (!alive) return;
         setDocuments(nextDocs);
-        setSelectedDocumentId((current) => current || nextDocs[0]?.id || "");
+        setSelectedDocumentId((current) =>
+          current && nextDocs.some((document) => document.id === current) ? current : ""
+        );
       } catch (error) {
         if (!alive) return;
         setLoadMessage(error instanceof Error ? error.message : "โหลดข้อมูล Signature ไม่สำเร็จ");
@@ -2856,13 +2858,9 @@ export default function SignatureCenterMockup({
 
   const canGeneratePaymentExcel = selectedMonth !== "all";
 
-  const selectedDocumentSource =
-    workspaceDocuments.find((item) => item.id === selectedDocumentId) ||
-    workspaceDocuments[0] ||
-    activeDocuments[0] ||
-    filteredDocuments[0] ||
-    historyFilteredDocuments[0] ||
-    null;
+  const selectedDocumentSource = selectedDocumentId
+    ? documents.find((item) => item.id === selectedDocumentId) || null
+    : null;
   const selectedDocument = selectedDocumentSource ? sortSignatureDocumentCases(selectedDocumentSource) : null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
   const selectedAgentAccount = selectedDocument ? findAccountForAgent(accounts, selectedDocument.agentName) : undefined;
@@ -4819,7 +4817,9 @@ export default function SignatureCenterMockup({
                     >
                       <div className="text-xs font-semibold text-white">Final Signed PDF</div>
                       <div className="mt-1 text-[11px] font-normal leading-5 text-slate-300">
-                        สร้างเอกสารฉบับสมบูรณ์ของผู้ถูกประเมินที่เลือก พร้อมข้อมูลการลงนาม
+                        {selectedDocument
+                          ? `สร้างเอกสารฉบับสมบูรณ์ของ ${selectedDocument.agentName} พร้อมข้อมูลการลงนาม`
+                          : "กรุณาเลือกรายชื่อหรือเลขเอกสารจาก Document List ก่อน Generate"}
                       </div>
                     </div>
                   </div>
@@ -4827,7 +4827,7 @@ export default function SignatureCenterMockup({
 
                 {actionSidebarMode === "expanded" ? (
                   <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2 text-[10px] font-normal leading-4 text-slate-500">
-                    เลือกเดือนหรือเอกสารก่อน ระบบจะเปิดปุ่มที่พร้อมใช้งานโดยอัตโนมัติ
+                    Monthly Payment ให้เลือกเดือน • Final Signed PDF ให้เลือกรายชื่อหรือเลขเอกสารก่อน
                   </div>
                 ) : null}
               </aside>
