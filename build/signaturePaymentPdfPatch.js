@@ -24,7 +24,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
   const left = 13;
   const right = 197;
   const tableW = right - left;
-  const bottom = 286;
+  const bottom = 281;
   const purple: [number, number, number] = [95, 39, 159];
   const purple2: [number, number, number] = [112, 48, 160];
   const palePurple: [number, number, number] = [247, 242, 251];
@@ -73,22 +73,26 @@ const replacement = String.raw`function generatePaymentPdfFile(
 
   const drawHeader = () => {
     pdf.setFillColor(purple[0], purple[1], purple[2]);
-    pdf.rect(0, 0, pageW, 22, "F");
-    text("QA MONTHLY INCENTIVE PAYMENT AUTHORIZATION", left, 9, 14.5, true, [255, 255, 255]);
-    text("Team Performance & Authorization", left, 16, 8.3, false, [242, 230, 255]);
-    text(getMonthLabel(monthKey).toUpperCase(), right, 9, 9.5, true, [255, 255, 255], { align: "right" });
-    y = 24;
+    pdf.rect(0, 0, pageW, 7, "F");
+    text("QA MONTHLY INCENTIVE PAYMENT AUTHORIZATION", left, 15.8, 15.2, true, purple);
+    text(getMonthLabel(monthKey).toUpperCase(), right, 15.4, 10.4, true, purple, { align: "right" });
+    text("Team Performance & Payment Authorization", left, 21.3, 8.2, false, muted);
+    pdf.setDrawColor(purple[0], purple[1], purple[2]);
+    pdf.setLineWidth(0.35);
+    pdf.line(left, 24.5, right, 24.5);
+    y = 27;
   };
 
   const section = (title: string) => {
-    if (y + 8 > bottom) {
+    if (y + 10 > bottom) {
       pdf.addPage("a4", "portrait");
       drawHeader();
     }
-    pdf.setFillColor(purple2[0], purple2[1], purple2[2]);
-    pdf.rect(left, y, tableW, 7, "F");
-    text(title, left + 3, y + 4.9, 8.8, true, [255, 255, 255]);
-    y += 7;
+    text(title, left, y + 4.8, 10.2, true, purple);
+    pdf.setDrawColor(purple[0], purple[1], purple[2]);
+    pdf.setLineWidth(0.32);
+    pdf.line(left, y + 7.5, right, y + 7.5);
+    y += 10;
   };
 
   const ensureSpace = (height: number, continuedTitle?: string) => {
@@ -118,6 +122,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
     const size = options.size ?? 6.7;
     const maxLines = options.maxLines ?? 2;
     pdf.setDrawColor(border[0], border[1], border[2]);
+    pdf.setLineWidth(0.14);
     pdf.setFillColor(fill[0], fill[1], fill[2]);
     pdf.rect(x, yy, w, h, "FD");
     const lines = splitText(value, w - 3, size).slice(0, maxLines);
@@ -187,66 +192,64 @@ const replacement = String.raw`function generatePaymentPdfFile(
 
   const latestRoleSignature = (role: SignRole) => collectLatestRoleSignatures(role, 1)[0] || null;
 
+  const splitTopicTitle = (value: unknown) => {
+    const raw = String(value || "-").trim();
+    const match = raw.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+    if (!match) return { primary: raw, secondary: "" };
+    return { primary: match[1].trim(), secondary: match[2].trim() };
+  };
+
   drawHeader();
 
   section("1. PAYMENT SUMMARY");
-  const summaryRows: Array<Array<{ label: string; value: unknown; color?: [number, number, number]; badge?: boolean }>> = [
-    [
-      { label: "Payment Period", value: getMonthLabel(monthKey), color: purple2 },
-      { label: "Paid Agents", value: sortedDocs.length },
-      { label: "Team Cases", value: totalCases },
-    ],
-    [
-      { label: "Average QA", value: avgScore.toFixed(2) },
-      { label: "Overall Grade", value: overallGrade, color: purple2 },
-      { label: "Total Payment (THB)", value: formatBahtAmount(totalCashAmount), color: green },
-    ],
-    [
-      { label: "Document Status", value: sortedDocs.length ? "READY TO EXPORT" : "HOLD", badge: true },
-      { label: "Total Promo (THB)", value: formatBahtAmount(totalPromoAmount) },
-    ],
+  const summaryItems: Array<{ label: string; value: unknown; color?: [number, number, number]; badge?: boolean }> = [
+    { label: "Payment Period", value: getMonthLabel(monthKey), color: purple2 },
+    { label: "Paid Agents", value: sortedDocs.length },
+    { label: "Team Cases", value: totalCases },
+    { label: "Average QA", value: avgScore.toFixed(2) },
+    { label: "Overall Grade", value: overallGrade, color: purple2 },
+    { label: "Total Payment (THB)", value: formatBahtAmount(totalCashAmount), color: green },
+    { label: "Total Promo (THB)", value: formatBahtAmount(totalPromoAmount) },
+    { label: "Document Status", value: sortedDocs.length ? "READY TO EXPORT" : "HOLD", badge: true },
   ];
-  const summaryColW = tableW / 3;
-  summaryRows.forEach((row) => {
-    const rowH = 8.2;
-    row.forEach((item, index) => {
-      const x = left + summaryColW * index;
-      text(item.label, x + 1.5, y + 3.1, 5.9, false, muted);
-      if (item.badge) {
-        const label = String(item.value || "-");
-        setFont(5.6, true, green);
-        const badgeW = Math.min(summaryColW - 5, Math.max(23, pdf.getTextWidth(label) + 6));
-        pdf.setFillColor(220, 252, 231);
-        pdf.roundedRect(x + 1.5, y + 4, badgeW, 4.5, 2.2, 2.2, "F");
-        text(label, x + 1.5 + badgeW / 2, y + 7.1, 5.4, true, green, { align: "center" });
-      } else {
-        text(item.value, x + 1.5, y + 7.1, 7.8, true, item.color || black);
-      }
-    });
-    pdf.setDrawColor(border[0], border[1], border[2]);
-    pdf.setLineWidth(0.1);
-    pdf.line(left, y + rowH, right, y + rowH);
-    y += rowH;
+  const summaryColW = tableW / 4;
+  const summaryRowH = 12.4;
+  summaryItems.forEach((item, index) => {
+    const rowIndex = Math.floor(index / 4);
+    const colIndex = index % 4;
+    const x = left + summaryColW * colIndex;
+    const yy = y + summaryRowH * rowIndex;
+    text(item.label, x + 1.2, yy + 3.7, 6.0, false, muted);
+    if (item.badge) {
+      const label = String(item.value || "-");
+      setFont(5.8, true, green);
+      const badgeW = Math.min(summaryColW - 4, Math.max(27, pdf.getTextWidth(label) + 7));
+      pdf.setFillColor(220, 252, 231);
+      pdf.roundedRect(x + 1.2, yy + 5.5, badgeW, 5.8, 2.8, 2.8, "F");
+      text(label, x + 1.2 + badgeW / 2, yy + 9.5, 5.6, true, green, { align: "center" });
+    } else {
+      text(item.value, x + 1.2, yy + 9.4, 8.9, true, item.color || black);
+    }
   });
-  y += 1.5;
+  pdf.setDrawColor(border[0], border[1], border[2]);
+  pdf.setLineWidth(0.13);
+  pdf.line(left, y + summaryRowH, right, y + summaryRowH);
+  pdf.line(left, y + summaryRowH * 2, right, y + summaryRowH * 2);
+  y += summaryRowH * 2 + 1.5;
 
   section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS");
-  setFont(6.1, true, black);
+  setFont(6.3, true, black);
   const measuredAgentW = sortedDocs.length
-    ? Math.max(...sortedDocs.map((doc) => pdf.getTextWidth(String(doc.agentName || "")) + 4))
-    : 24;
-  setFont(5.5, true, black);
-  const measuredRefW = sortedDocs.length
-    ? Math.max(...sortedDocs.map((doc) => pdf.getTextWidth(getMonthlyDocumentRef(doc, sourceDocs)) + 4))
-    : 19;
+    ? Math.max(...sortedDocs.map((doc) => pdf.getTextWidth(String(doc.agentName || "")) + 5))
+    : 31;
   const seqW = 7;
-  const agentW = Math.min(34, Math.max(24, measuredAgentW));
-  const refW = Math.min(24, Math.max(18, measuredRefW));
-  const casesW = 10;
-  const avgW = 11;
-  const gradeW = 9;
-  const incentiveW = 16;
-  const statusW = 18;
+  const agentW = Math.min(34, Math.max(31, measuredAgentW));
+  const refW = 25;
+  const casesW = 11;
+  const avgW = 12;
+  const gradeW = 10;
+  const incentiveW = 18;
+  const statusW = 25;
   const signatureW = tableW - (seqW + agentW + refW + casesW + avgW + gradeW + incentiveW + statusW);
   const rankingHeaders: Array<[string, number]> = [
     ["Seq", seqW],
@@ -263,22 +266,22 @@ const replacement = String.raw`function generatePaymentPdfFile(
   const drawRankingHeader = () => {
     let x = left;
     rankingHeaders.forEach(([label, width]) => {
-      drawTableCell(x, y, width, 7, label, {
+      drawTableCell(x, y, width, 8, label, {
         fill: palePurple,
         color: purple2,
-        size: label === "Agent Signature" || label === "Document Ref." ? 5.5 : 6.0,
+        size: label === "Document Ref." || label === "Agent Signature" ? 5.8 : 6.3,
         bold: true,
         align: "center",
         maxLines: 1,
       });
       x += width;
     });
-    y += 7;
+    y += 8;
   };
   drawRankingHeader();
 
   sortedDocs.forEach((doc, index) => {
-    const rowH = 15;
+    const rowH = 16.5;
     ensureSpace(rowH, "2. AGENT MONTHLY RANKING & PAYMENT DETAILS (CONTINUED)");
     const entries = effectiveEntriesForDoc(doc, signatures);
     const agentSigned = getSignedEntry(entries, "Agent");
@@ -299,7 +302,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
       const width = rankingHeaders[colIndex][1];
       drawTableCell(x, y, width, rowH, value, {
         fill,
-        size: colIndex === 1 ? 5.8 : colIndex === 2 ? 5.2 : 6.0,
+        size: colIndex === 1 ? 6.0 : colIndex === 2 ? 5.5 : 6.2,
         bold: colIndex === 1 || colIndex === 2 || colIndex === 6,
         align: colIndex === 1 ? "left" : "center",
         maxLines: colIndex === 1 ? 2 : 1,
@@ -312,14 +315,14 @@ const replacement = String.raw`function generatePaymentPdfFile(
     pdf.setFillColor(fill[0], fill[1], fill[2]);
     pdf.rect(x, y, agentSignatureW, rowH, "FD");
     if (agentWaived) {
-      text("WAIVED - Resigned", x + agentSignatureW / 2, y + 6.2, 5.5, true, amber, { align: "center" });
-      text(shortDate(agentWaived.waivedAt || agentWaived.resignationDate), x + agentSignatureW / 2, y + 11.5, 5.0, false, muted, { align: "center" });
+      text("WAIVED - Resigned", x + agentSignatureW / 2, y + 7.2, 5.8, true, amber, { align: "center" });
+      text(shortDate(agentWaived.waivedAt || agentWaived.resignationDate), x + agentSignatureW / 2, y + 12.9, 5.1, false, muted, { align: "center" });
     } else if (agentSigned) {
-      const hasImage = addSignatureContained(agentSigned.signatureDataUrl || "", x + 2.5, y + 1, agentSignatureW - 5, 8.5);
-      if (!hasImage) text("Signed", x + agentSignatureW / 2, y + 6.3, 5.8, true, green, { align: "center" });
-      text("Signed: " + shortDate(agentSigned.signedAt), x + agentSignatureW / 2, y + 12.7, 5.0, false, muted, { align: "center" });
+      const hasImage = addSignatureContained(agentSigned.signatureDataUrl || "", x + 3, y + 1.3, agentSignatureW - 6, 9.2);
+      if (!hasImage) text("Signed", x + agentSignatureW / 2, y + 7.1, 5.9, true, green, { align: "center" });
+      text("Signed: " + shortDate(agentSigned.signedAt), x + agentSignatureW / 2, y + 13.4, 5.1, false, muted, { align: "center" });
     } else {
-      text("Pending", x + agentSignatureW / 2, y + 8.3, 5.6, true, amber, { align: "center" });
+      text("Pending", x + agentSignatureW / 2, y + 9.2, 5.8, true, amber, { align: "center" });
     }
     x += agentSignatureW;
 
@@ -327,7 +330,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
     drawTableCell(x, y, rankingHeaders[8][1], rowH, rowStatus, {
       fill,
       color: agentSigned ? green : agentWaived ? amber : muted,
-      size: 5.2,
+      size: 5.5,
       bold: true,
       align: "center",
       maxLines: 2,
@@ -364,41 +367,27 @@ const replacement = String.raw`function generatePaymentPdfFile(
     ? topicRows
     : SIGNATURE_JUNE_2026_TOPIC_MASTER.map((topic) => ({ code: topic.code, title: topic.label, max: topic.max, total: 0, count: 0 }));
 
-  setFont(5.8, false, black);
-  const measuredDescriptionW = displayTopicRows.length
-    ? Math.max(...displayTopicRows.map((topic) => pdf.getTextWidth(String(topic.title || "")) + 6))
-    : 66;
-  const descriptionW = Math.min(86, Math.max(64, measuredDescriptionW));
-  const topicWidths = {
-    topic: 8,
-    avg: 15,
-    max: 10,
-    pct: 14,
-    status: 20,
-  };
-  const topicTableW = topicWidths.topic + descriptionW + topicWidths.avg + topicWidths.max + topicWidths.pct + topicWidths.status;
-  const topicStartX = left + (tableW - topicTableW) / 2;
   const topicHeaders: Array<[string, number]> = [
-    ["Topic", topicWidths.topic],
-    ["Description", descriptionW],
-    ["Avg Score", topicWidths.avg],
-    ["Max", topicWidths.max],
-    ["Avg %", topicWidths.pct],
-    ["Dashboard Status", topicWidths.status],
+    ["Topic", 9],
+    ["Description", 103],
+    ["Avg Score", 20],
+    ["Max", 15],
+    ["Avg %", 17],
+    ["Dashboard Status", 20],
   ];
-  let topicX = topicStartX;
+  let topicX = left;
   topicHeaders.forEach(([label, width]) => {
-    drawTableCell(topicX, y, width, 7, label, {
+    drawTableCell(topicX, y, width, 8, label, {
       fill: palePurple,
       color: purple2,
-      size: label === "Dashboard Status" ? 5.2 : 5.8,
+      size: label === "Dashboard Status" ? 5.3 : 6.0,
       bold: true,
       align: "center",
       maxLines: 1,
     });
     topicX += width;
   });
-  y += 7;
+  y += 8;
 
   displayTopicRows.forEach((topic, index) => {
     const avgTopicScore = topic.count ? topic.total / topic.count : null;
@@ -406,58 +395,89 @@ const replacement = String.raw`function generatePaymentPdfFile(
     const status = avgPct === null ? "-" : avgPct >= 85 ? "Good" : avgPct >= 75 ? "Watch" : "Improve";
     const statusBg: [number, number, number] = status === "Good" ? [220, 252, 231] : status === "Watch" ? [254, 243, 199] : status === "Improve" ? [255, 228, 230] : palePurple2;
     const statusFg: [number, number, number] = status === "Good" ? green : status === "Watch" ? amber : status === "Improve" ? red : muted;
-    const rowH = 13;
+    const rowH = 16;
     ensureSpace(rowH, "3. TEAM TOPIC PERFORMANCE (CONTINUED)");
     const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : palePurple2;
-    let x = topicStartX;
-    const rowValues = [
-      topic.code,
-      topic.title,
+    let x = left;
+
+    drawTableCell(x, y, topicHeaders[0][1], rowH, topic.code, {
+      fill,
+      size: 6.2,
+      bold: true,
+      align: "center",
+      maxLines: 1,
+    });
+    x += topicHeaders[0][1];
+
+    const descriptionW = topicHeaders[1][1];
+    pdf.setDrawColor(border[0], border[1], border[2]);
+    pdf.setFillColor(fill[0], fill[1], fill[2]);
+    pdf.rect(x, y, descriptionW, rowH, "FD");
+    const topicLabel = splitTopicTitle(topic.title);
+    const primaryLines = splitText(topicLabel.primary, descriptionW - 4, 6.2).slice(0, 1);
+    primaryLines.forEach((lineText: string) => {
+      text(lineText, x + 2, y + 6.0, 6.2, true, black);
+    });
+    if (topicLabel.secondary) {
+      const secondaryLines = splitText(topicLabel.secondary, descriptionW - 4, 5.2).slice(0, 1);
+      secondaryLines.forEach((lineText: string) => {
+        text(lineText, x + 2, y + 11.2, 5.2, false, muted);
+      });
+    }
+    x += descriptionW;
+
+    const metricValues = [
       avgTopicScore === null ? "-" : avgTopicScore.toFixed(2),
       String(topic.max || "-"),
       avgPct === null ? "-" : avgPct.toFixed(1) + "%",
     ];
-    rowValues.forEach((value, colIndex) => {
-      const width = topicHeaders[colIndex][1];
+    metricValues.forEach((value, metricIndex) => {
+      const width = topicHeaders[metricIndex + 2][1];
       drawTableCell(x, y, width, rowH, value, {
         fill,
-        size: colIndex === 1 ? 5.6 : 5.9,
-        bold: colIndex === 0,
-        align: colIndex === 1 ? "left" : "center",
-        maxLines: colIndex === 1 ? 2 : 1,
+        size: 6.1,
+        bold: false,
+        align: "center",
+        maxLines: 1,
       });
       x += width;
     });
-    const statusW = topicHeaders[5][1];
-    drawTableCell(x, y, statusW, rowH, "", { fill, align: "center" });
+
+    const statusWCell = topicHeaders[5][1];
+    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });
     if (status !== "-") {
       pdf.setFillColor(statusBg[0], statusBg[1], statusBg[2]);
-      pdf.roundedRect(x + 2.5, y + 3.2, statusW - 5, 6.5, 3, 3, "F");
-      text(status, x + statusW / 2, y + 7.8, 5.5, true, statusFg, { align: "center" });
+      pdf.roundedRect(x + 2.1, y + 4.5, statusWCell - 4.2, 7, 3.2, 3.2, "F");
+      text(status, x + statusWCell / 2, y + 9.5, 5.8, true, statusFg, { align: "center" });
     } else {
-      text("-", x + statusW / 2, y + 7.6, 5.7, false, muted, { align: "center" });
+      text("-", x + statusWCell / 2, y + 9.2, 5.8, false, muted, { align: "center" });
     }
     y += rowH;
   });
 
   section("4. PAYMENT CERTIFICATION");
-  const certH = 17;
+  const certTopH = 12;
+  const certColW = tableW / 3;
+  const certItems: Array<{ label: string; value: unknown; color?: [number, number, number] }> = [
+    { label: "Payment Period", value: getMonthLabel(monthKey) },
+    { label: "Total Paid Agents", value: sortedDocs.length },
+    { label: "Total Incentive", value: "THB " + formatBahtAmount(totalCashAmount), color: green },
+  ];
+  certItems.forEach((item, index) => {
+    const x = left + certColW * index;
+    text(item.label, x, y + 3.8, 6.1, false, muted);
+    text(item.value, x, y + 9.2, 8.2, true, item.color || black);
+  });
   pdf.setDrawColor(border[0], border[1], border[2]);
-  pdf.setFillColor(255, 255, 255);
-  pdf.rect(left, y, tableW, certH, "FD");
-  const certCol = tableW / 3;
-  text("Payment Period", left + 2, y + 5.2, 5.9, false, muted);
-  text(getMonthLabel(monthKey), left + 26, y + 5.2, 7.2, true, black);
-  text("Total Paid Agents", left + certCol + 2, y + 5.2, 5.9, false, muted);
-  text(sortedDocs.length, left + certCol + 34, y + 5.2, 7.2, true, black);
-  text("Total Incentive", left + certCol * 2 + 2, y + 5.2, 5.9, false, muted);
-  text("THB " + formatBahtAmount(totalCashAmount), right - 2, y + 5.2, 7.6, true, green, { align: "right" });
-  text("Certification", left + 2, y + 12.5, 5.9, false, muted);
-  text("Monthly QA incentive payment summary prepared for payment processing.", left + 26, y + 12.5, 6.2, false, black);
+  pdf.setLineWidth(0.13);
+  pdf.line(left, y + certTopH, right, y + certTopH);
+  y += certTopH;
+  text("Certification", left, y + 5.2, 6.2, false, muted);
+  text("Monthly QA incentive payment summary prepared for payment processing.", left + 25, y + 5.2, 6.8, false, black);
   if (totalPromoAmount > 0) {
-    text("Promo THB " + formatBahtAmount(totalPromoAmount), right - 2, y + 12.5, 6.2, true, purple2, { align: "right" });
+    text("Promo THB " + formatBahtAmount(totalPromoAmount), right, y + 5.2, 6.4, true, purple2, { align: "right" });
   }
-  y += certH;
+  y += 9;
 
   section("5. AUTHORIZATION & SIGNATURE");
   const seniorApprovals = collectLatestRoleSignatures("Senior", 2);
@@ -472,36 +492,47 @@ const replacement = String.raw`function generatePaymentPdfFile(
     { role: "QA", label: "Quality Assurance Approval", latest: latestRoleSignature("QA") },
   ];
   const signatureBlockW = tableW / authorizationSlots.length;
-  const signatureBlockH = 42;
-  ensureSpace(signatureBlockH);
+  const authHeaderH = 8;
+  const authBodyH = 36;
+  ensureSpace(authHeaderH + authBodyH);
   authorizationSlots.forEach(({ role, label, latest }, index) => {
     const x = left + signatureBlockW * index;
+    drawTableCell(x, y, signatureBlockW, authHeaderH, label, {
+      fill: palePurple,
+      color: purple2,
+      size: label === "Quality Assurance Approval" ? 5.4 : 5.9,
+      bold: true,
+      align: "center",
+      maxLines: 1,
+    });
     pdf.setDrawColor(border[0], border[1], border[2]);
     pdf.setFillColor(255, 255, 255);
-    pdf.rect(x, y, signatureBlockW, signatureBlockH, "FD");
-    pdf.setFillColor(palePurple[0], palePurple[1], palePurple[2]);
-    pdf.rect(x, y, signatureBlockW, 7, "F");
-    text(label, x + signatureBlockW / 2, y + 4.8, label === "Quality Assurance Approval" ? 5.0 : 5.6, true, purple2, { align: "center" });
+    pdf.rect(x, y + authHeaderH, signatureBlockW, authBodyH, "FD");
 
     if (latest) {
       const signerName = latest.entry.signerName || getRoleSigner(latest.doc, role) || latest.entry.signedBy || "-";
-      const hasImage = addSignatureContained(latest.entry.signatureDataUrl || "", x + 3, y + 8.5, signatureBlockW - 6, 14);
-      if (!hasImage) text("Signed", x + signatureBlockW / 2, y + 17, 6.0, true, green, { align: "center" });
-      const nameLines = splitText(signerName, signatureBlockW - 4, 5.6).slice(0, 2);
+      const hasImage = addSignatureContained(latest.entry.signatureDataUrl || "", x + 5, y + authHeaderH + 3.5, signatureBlockW - 10, 10.5);
+      if (!hasImage) text("Signed", x + signatureBlockW / 2, y + authHeaderH + 10.2, 6.2, true, green, { align: "center" });
+      const nameLines = splitText(signerName, signatureBlockW - 6, 6.0).slice(0, 2);
       nameLines.forEach((lineText: string, lineIndex: number) => {
-        text(lineText, x + signatureBlockW / 2, y + 28.5 + lineIndex * 3, 5.6, true, black, { align: "center" });
+        text(lineText, x + signatureBlockW / 2, y + authHeaderH + 23 + lineIndex * 3.2, 6.0, true, black, { align: "center" });
       });
-      text("Signed: " + shortDate(latest.entry.signedAt), x + signatureBlockW / 2, y + 38, 5.0, false, muted, { align: "center" });
+      text("Signed: " + shortDate(latest.entry.signedAt), x + signatureBlockW / 2, y + authHeaderH + 32.2, 5.2, false, muted, { align: "center" });
     } else {
-      text("No signed record", x + signatureBlockW / 2, y + 22, 5.6, false, muted, { align: "center" });
+      text("No signed record", x + signatureBlockW / 2, y + authHeaderH + 18.5, 5.8, false, muted, { align: "center" });
     }
   });
-  y += signatureBlockH;
+  y += authHeaderH + authBodyH;
 
   const totalPages = pdf.getNumberOfPages();
   for (let pageIndex = 1; pageIndex <= totalPages; pageIndex += 1) {
     pdf.setPage(pageIndex);
-    text("Page " + pageIndex + " of " + totalPages, right, pageH - 6, 6.2, false, muted, { align: "right" });
+    text("Payment Authorization  |  Page " + pageIndex + " of " + totalPages, right, 21.3, 6.2, false, muted, { align: "right" });
+    pdf.setDrawColor(border[0], border[1], border[2]);
+    pdf.setLineWidth(0.12);
+    pdf.line(left, pageH - 13, right, pageH - 13);
+    text("QA Monthly Incentive Payment Authorization", left, pageH - 8, 6.0, false, muted);
+    text("Page " + pageIndex + " of " + totalPages, right, pageH - 8, 6.0, false, muted, { align: "right" });
   }
 
   const fileName = makePaymentPdfFileName(monthKey);
@@ -511,7 +542,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
 
 export function signaturePaymentPdfPatch() {
   return {
-    name: "signature-payment-pdf-official-layout",
+    name: "signature-payment-pdf-preview-v4-layout",
     enforce: "pre",
     transform(code, id) {
       if (!id.replace(/\\/g, "/").endsWith("/src/SignatureCenterMockup.tsx")) return null;
