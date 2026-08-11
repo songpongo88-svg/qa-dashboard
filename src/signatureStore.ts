@@ -10,11 +10,15 @@ export type StoredSignatureEntry = {
   signerName: string;
   signedBy: string;
   signedAt: string;
-  status: "Signed" | "Pending";
+  status: "Signed" | "Pending" | "Waived";
   note?: string;
   signatureDataUrl?: string;
   resetBy?: string;
   resetAt?: string;
+  waiverReason?: string;
+  waivedBy?: string;
+  waivedAt?: string;
+  resignationDate?: string;
 };
 
 export type StoredSignatureDocument = {
@@ -51,16 +55,20 @@ function toStoredDocument(row: any, fallbackId = ""): StoredSignatureDocument {
         signerName: canonicalizeAgentName(entry.signerName || entry.signer_name),
         signedBy: canonicalizeAgentName(entry.signedBy || entry.signed_by),
         signedAt: String(entry.signedAt || entry.signed_at || ""),
-        status: entry.status === "Pending" ? "Pending" : "Signed",
+        status: entry.status === "Waived" ? "Waived" : entry.status === "Pending" ? "Pending" : "Signed",
         note: entry.note ? String(entry.note) : undefined,
         signatureDataUrl: entry.signatureDataUrl || entry.signature_data_url || undefined,
         resetBy: entry.resetBy || entry.reset_by ? canonicalizeAgentName(entry.resetBy || entry.reset_by) : undefined,
         resetAt: entry.resetAt || entry.reset_at ? String(entry.resetAt || entry.reset_at) : undefined,
+        waiverReason: entry.waiverReason || entry.waiver_reason ? String(entry.waiverReason || entry.waiver_reason) : undefined,
+        waivedBy: entry.waivedBy || entry.waived_by ? canonicalizeAgentName(entry.waivedBy || entry.waived_by) : undefined,
+        waivedAt: entry.waivedAt || entry.waived_at ? String(entry.waivedAt || entry.waived_at) : undefined,
+        resignationDate: entry.resignationDate || entry.resignation_date ? String(entry.resignationDate || entry.resignation_date) : undefined,
       }))
       .filter((entry: StoredSignatureEntry) =>
         entry.role &&
         entry.signerName &&
-        (entry.status === "Pending" || entry.signedAt)
+        (entry.status === "Pending" || entry.status === "Waived" || entry.signedAt)
       ),
     confirmedAt: String(row.confirmedAt || row.confirmed_at || ""),
     updatedAt: String(row.updatedAt || row.updated_at || ""),
@@ -73,13 +81,17 @@ function sanitizeEntry(entry: StoredSignatureEntry) {
     signerName: canonicalizeAgentName(entry.signerName),
     signedBy: canonicalizeAgentName(entry.signedBy),
     signedAt: String(entry.signedAt || ""),
-    status: entry.status === "Pending" ? "Pending" : "Signed",
+    status: entry.status === "Waived" ? "Waived" : entry.status === "Pending" ? "Pending" : "Signed",
   };
 
   if (entry.note) cleanEntry.note = String(entry.note);
   if (entry.signatureDataUrl) cleanEntry.signatureDataUrl = String(entry.signatureDataUrl);
   if (entry.resetBy) cleanEntry.resetBy = canonicalizeAgentName(entry.resetBy);
   if (entry.resetAt) cleanEntry.resetAt = String(entry.resetAt);
+  if (entry.waiverReason) cleanEntry.waiverReason = String(entry.waiverReason);
+  if (entry.waivedBy) cleanEntry.waivedBy = canonicalizeAgentName(entry.waivedBy);
+  if (entry.waivedAt) cleanEntry.waivedAt = String(entry.waivedAt);
+  if (entry.resignationDate) cleanEntry.resignationDate = String(entry.resignationDate);
   return cleanEntry;
 }
 
@@ -89,7 +101,7 @@ function sanitizeEntries(entries: StoredSignatureEntry[] = []) {
     .filter((entry) =>
       entry.role &&
       entry.signerName &&
-      (entry.status === "Pending" || entry.signedAt)
+      (entry.status === "Pending" || entry.status === "Waived" || entry.signedAt)
     );
 }
 
