@@ -26,7 +26,7 @@ export function signaturePaymentPdfExactPreviewPatch() {
         next = next.slice(0, section2Start) + block + next.slice(section2End);
       }
 
-      // Section 3 - keep the approved two-line Topic description and a clean Status column.
+      // Section 3 - approved Topic table and Status wording.
       const section3Start = next.indexOf('  section("3. TEAM TOPIC PERFORMANCE");');
       const section3End = next.indexOf('  section("4. PAYMENT CERTIFICATION");', section3Start);
       if (section3Start >= 0 && section3End > section3Start) {
@@ -38,11 +38,13 @@ export function signaturePaymentPdfExactPreviewPatch() {
         );
         block = block.replace(/size: label === "Dashboard Status" \? 5\.3 : 6\.0,/g, 'size: label === "Status" ? 5.8 : 6.0,');
 
+        // Keep safe fallback color variables so PDF generation can never fail even if a browser build preserves the old render block.
         block = block.replace(
-          /    const status =[^\n]*\n(?:    const statusBg:[^\n]*\n)?(?:    const statusFg:[^\n]*\n)?/,
-          `    const status =\n      avgPct === null\n        ? "-"\n        : avgPct >= 90\n          ? "Excellent"\n          : avgPct >= 85\n            ? "Strong"\n            : avgPct >= 80\n              ? "Standard"\n              : "Improvement Needed";\n`
+          /    const status =[^\n]*\n    const statusBg:[^\n]*\n    const statusFg:[^\n]*\n/,
+          `    const status =\n      avgPct === null\n        ? "-"\n        : avgPct >= 90\n          ? "Excellent"\n          : avgPct >= 85\n            ? "Strong"\n            : avgPct >= 80\n              ? "Standard"\n              : "Improvement Needed";\n    const statusBg: [number, number, number] = [255, 255, 255];\n    const statusFg: [number, number, number] = black;\n`
         );
 
+        // Approved design: plain Status text, no pill / no colored background.
         block = block.replace(
           /    const statusWCell = topicHeaders\[5\]\[1\];[\s\S]*?(?=    y \+= rowH;)/,
           `    const statusWCell = topicHeaders[5][1];\n    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });\n    if (status === "Improvement Needed") {\n      text("Improvement", x + statusWCell / 2, y + 7.0, 4.8, false, black, { align: "center" });\n      text("Needed", x + statusWCell / 2, y + 10.8, 4.8, false, black, { align: "center" });\n    } else {\n      text(status, x + statusWCell / 2, y + 9.2, 5.6, false, status === "-" ? muted : black, { align: "center" });\n    }\n`
