@@ -29,22 +29,29 @@ export function signaturePaymentPdfExactPreviewPatch() {
         block = block.replace(/  const gradeW = [^\n]+;/, "  const gradeW = 12;");
         block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 20;");
         block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 24;");
-        block = block.replace(/  const signatureW = [^\n]+;\n/, "");
 
+        // Keep a zero-width fallback variable so an unexpected stale transformed line can never crash at runtime.
+        block = block.replace(/  const signatureW = [^\n]+;/, "  const signatureW = 0;");
+
+        // Remove the signature header explicitly before rebuilding the header array.
+        block = block.replace(/\s*\["Agent Signature",\s*signatureW\],?\n/g, "\n");
         block = block.replace(
           /  const rankingHeaders: Array<\[string, number\]> = \[[\s\S]*?\n  \];/,
           `  const rankingHeaders: Array<[string, number]> = [\n    ["Seq", seqW],\n    ["Agent", agentW],\n    ["Document Ref.", refW],\n    ["Cases", casesW],\n    ["Avg", avgW],\n    ["Grade", gradeW],\n    ["Incentive", incentiveW],\n    ["Status", statusW],\n  ];`
         );
 
-        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19);/g, "let x = 27;");
+        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19|27);/g, "let x = 27;");
         block = block.replace("    const rowH = 16.5;", "    const rowH = 10.5;");
 
         const signatureRenderStart = block.indexOf("    const agentSignatureW = rankingHeaders[7][1];");
         const rowEnd = block.indexOf("    y += rowH;", signatureRenderStart);
         if (signatureRenderStart >= 0 && rowEnd > signatureRenderStart) {
-          const statusOnly = `    const rowStatus = agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";\n    drawTableCell(x, y, rankingHeaders[7][1], rowH, rowStatus, {\n      fill,\n      color: agentSigned ? green : agentWaived ? amber : muted,\n      size: 5.7,\n      bold: true,\n      align: "center",\n      maxLines: 2,\n    });\n`;
+          const statusOnly = `    const rowStatus = agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";\n    const statusColumnW = rankingHeaders[rankingHeaders.length - 1][1];\n    drawTableCell(x, y, statusColumnW, rowH, rowStatus, {\n      fill,\n      color: agentSigned ? green : agentWaived ? amber : muted,\n      size: 5.7,\n      bold: true,\n      align: "center",\n      maxLines: 2,\n    });\n`;
           block = block.slice(0, signatureRenderStart) + statusOnly + block.slice(rowEnd);
         }
+
+        // Final safety: no executable signature width reference may remain in the ranking block.
+        block = block.replace(/\["Agent Signature",\s*signatureW\],?/g, "");
 
         next = next.slice(0, section2Start) + block + next.slice(section2End);
       }
