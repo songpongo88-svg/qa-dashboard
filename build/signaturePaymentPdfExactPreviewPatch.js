@@ -53,6 +53,18 @@ export function signaturePaymentPdfExactPreviewPatch() {
         next = next.slice(0, section3Start) + block + next.slice(section3End);
       }
 
+      // Use the same direct Blob download path that the other working PDFs use.
+      next = next.replace(
+        '  savePdfFile(pdf, fileName);\n  return fileName;',
+        '  downloadBlob(pdf.output("blob"), fileName);\n  return fileName;'
+      );
+
+      // Surface runtime PDF errors immediately instead of failing silently in the sidebar message.
+      next = next.replace(
+        /      console\.error\("Generate payment PDF failed", error\);\n      setPaymentMessage\(error instanceof Error \? `Generate PDF failed: \$\{error\.message\}` : "Generate PDF failed"\);/,
+        `      console.error("Generate payment PDF failed", error);\n      const paymentPdfError = error instanceof Error ? error.message : "Unknown PDF error";\n      setPaymentMessage("Generate PDF failed: " + paymentPdfError);\n      window.alert("Monthly Payment PDF failed: " + paymentPdfError);`
+      );
+
       return { code: next, map: null };
     },
   };
