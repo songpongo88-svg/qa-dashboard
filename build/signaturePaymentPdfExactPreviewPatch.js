@@ -55,19 +55,26 @@ export function signaturePaymentPdfExactPreviewPatch() {
         next = next.slice(0, section2Start) + block + next.slice(section2End);
       }
 
+      // Do not force Team Topic Performance onto a second page. Let the normal
+      // page-space checks decide only when the content genuinely cannot fit.
+      next = next.replace(
+        '  pdf.addPage("a4", "portrait");\n  drawHeader();\n\n  section("3. TEAM TOPIC PERFORMANCE");',
+        '  section("3. TEAM TOPIC PERFORMANCE");'
+      );
+
       const section3Start = next.indexOf('  section("3. TEAM TOPIC PERFORMANCE");');
       const section3End = next.indexOf('  section("4. PAYMENT CERTIFICATION");', section3Start);
       if (section3Start >= 0 && section3End > section3Start) {
         let block = next.slice(section3Start, section3End);
 
-        // Restore the Topic table to full document width. Compact only row height.
+        // Full-width Topic table with compact single-line Thai (English) descriptions.
         block = block.replace(
           /  const topicHeaders: Array<\[string, number\]> = \[[\s\S]*?\n  \];/,
           `  const topicHeaders: Array<[string, number]> = [\n    ["Topic", 9],\n    ["Description", 101],\n    ["Avg Score", 20],\n    ["Max", 15],\n    ["Avg %", 15],\n    ["Status", 20],\n  ];`
         );
         block = block.replace(/  let topicX = (?:left|\d+(?:\.\d+)?);/, "  let topicX = 15;");
         block = block.replace(/    let x = (?:left|\d+(?:\.\d+)?);/g, "    let x = 15;");
-        block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 11.5;");
+        block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 9.5;");
         block = block.replace(/Dashboard Status/g, "Status");
         block = block.replace(/size: label === "Status" \? 5\.3 : 6\.0,/g, 'size: label === "Status" ? 5.8 : 6.0,');
         block = block.replace(
@@ -75,10 +82,18 @@ export function signaturePaymentPdfExactPreviewPatch() {
           '    const status = avgPct === null ? "-" : avgPct >= 90 ? "Excellent" : avgPct >= 85 ? "Strong" : avgPct >= 80 ? "Standard" : "Improvement Needed";'
         );
 
+        const descriptionStart = block.indexOf("    const descriptionW = topicHeaders[1][1];");
+        const descriptionEndMarker = "    x += descriptionW;";
+        const descriptionEnd = block.indexOf(descriptionEndMarker, descriptionStart);
+        if (descriptionStart >= 0 && descriptionEnd > descriptionStart) {
+          const compactDescription = `    const descriptionW = topicHeaders[1][1];\n    const topicLabel = splitTopicTitle(topic.title);\n    const combinedTopicTitle = topicLabel.secondary\n      ? topicLabel.primary + " (" + topicLabel.secondary + ")"\n      : topicLabel.primary;\n    drawTableCell(x, y, descriptionW, rowH, combinedTopicTitle, {\n      fill,\n      size: 5.6,\n      bold: true,\n      align: "left",\n      maxLines: 1,\n    });\n    x += descriptionW;`;
+          block = block.slice(0, descriptionStart) + compactDescription + block.slice(descriptionEnd + descriptionEndMarker.length);
+        }
+
         const renderStart = block.indexOf("    const statusWCell = topicHeaders[5][1];");
         const renderEnd = block.indexOf("    y += rowH;", renderStart);
         if (renderStart >= 0 && renderEnd > renderStart) {
-          const plainStatus = `    const statusWCell = topicHeaders[5][1];\n    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });\n    if (status === "Improvement Needed") {\n      text("Improvement", x + statusWCell / 2, y + 5.0, 4.8, false, black, { align: "center" });\n      text("Needed", x + statusWCell / 2, y + 8.8, 4.8, false, black, { align: "center" });\n    } else {\n      text(status, x + statusWCell / 2, y + 6.8, 5.6, false, status === "-" ? muted : black, { align: "center" });\n    }\n`;
+          const plainStatus = `    const statusWCell = topicHeaders[5][1];\n    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });\n    if (status === "Improvement Needed") {\n      text("Improvement Needed", x + statusWCell / 2, y + 5.8, 4.5, false, black, { align: "center" });\n    } else {\n      text(status, x + statusWCell / 2, y + 5.8, 5.4, false, status === "-" ? muted : black, { align: "center" });\n    }\n`;
           block = block.slice(0, renderStart) + plainStatus + block.slice(renderEnd);
         }
         next = next.slice(0, section3Start) + block + next.slice(section3End);
