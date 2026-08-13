@@ -8,19 +8,44 @@ export function signaturePaymentPdfExactPreviewPatch() {
       let next = code;
       next = next.replace("  const left = 13;\n  const right = 197;", "  const left = 15;\n  const right = 195;");
 
+      // Keep the payment summary formal: plain document status, no UI-style badge.
+      next = next.replace(
+        '{ label: "Document Status", value: sortedDocs.length ? "READY TO EXPORT" : "HOLD", badge: true },',
+        '{ label: "Document Status", value: sortedDocs.length ? "READY TO EXPORT" : "HOLD" },'
+      );
+
       const section2Start = next.indexOf('  section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS");');
       const section2End = next.indexOf('  pdf.addPage("a4", "portrait");', section2Start);
       if (section2Start >= 0 && section2End > section2Start) {
         let block = next.slice(section2Start, section2End);
-        block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 30;");
-        block = block.replace(/  const refW = [^\n]+;/, "  const refW = 24;");
-        block = block.replace(/  const casesW = [^\n]+;/, "  const casesW = 10.5;");
-        block = block.replace(/  const avgW = [^\n]+;/, "  const avgW = 11.5;");
-        block = block.replace(/  const gradeW = [^\n]+;/, "  const gradeW = 9.5;");
-        block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 17;");
-        block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 22.5;");
-        block = block.replace(/  const signatureW = [^\n]+;/, "  const signatureW = 40;");
-        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX);/g, "let x = 19;");
+
+        // Formal compact payment table. No signature image column.
+        block = block.replace(/  const measuredAgentW = sortedDocs\.length[\s\S]*?\n    : 31;\n/, "");
+        block = block.replace(/  const seqW = [^\n]+;/, "  const seqW = 8;");
+        block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 38;");
+        block = block.replace(/  const refW = [^\n]+;/, "  const refW = 28;");
+        block = block.replace(/  const casesW = [^\n]+;/, "  const casesW = 12;");
+        block = block.replace(/  const avgW = [^\n]+;/, "  const avgW = 14;");
+        block = block.replace(/  const gradeW = [^\n]+;/, "  const gradeW = 12;");
+        block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 20;");
+        block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 24;");
+        block = block.replace(/  const signatureW = [^\n]+;\n/, "");
+
+        block = block.replace(
+          /  const rankingHeaders: Array<\[string, number\]> = \[[\s\S]*?\n  \];/,
+          `  const rankingHeaders: Array<[string, number]> = [\n    ["Seq", seqW],\n    ["Agent", agentW],\n    ["Document Ref.", refW],\n    ["Cases", casesW],\n    ["Avg", avgW],\n    ["Grade", gradeW],\n    ["Incentive", incentiveW],\n    ["Status", statusW],\n  ];`
+        );
+
+        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19);/g, "let x = 27;");
+        block = block.replace("    const rowH = 16.5;", "    const rowH = 10.5;");
+
+        const signatureRenderStart = block.indexOf("    const agentSignatureW = rankingHeaders[7][1];");
+        const rowEnd = block.indexOf("    y += rowH;", signatureRenderStart);
+        if (signatureRenderStart >= 0 && rowEnd > signatureRenderStart) {
+          const statusOnly = `    const rowStatus = agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";\n    drawTableCell(x, y, rankingHeaders[7][1], rowH, rowStatus, {\n      fill,\n      color: agentSigned ? green : agentWaived ? amber : muted,\n      size: 5.7,\n      bold: true,\n      align: "center",\n      maxLines: 2,\n    });\n`;
+          block = block.slice(0, signatureRenderStart) + statusOnly + block.slice(rowEnd);
+        }
+
         next = next.slice(0, section2Start) + block + next.slice(section2End);
       }
 
@@ -45,6 +70,13 @@ export function signaturePaymentPdfExactPreviewPatch() {
           block = block.slice(0, renderStart) + plainStatus + block.slice(renderEnd);
         }
         next = next.slice(0, section3Start) + block + next.slice(section3End);
+      }
+
+      // Remove all approval/signature blocks from the payment document.
+      const authStart = next.indexOf('  section("5. AUTHORIZATION & SIGNATURE");');
+      const footerStart = next.indexOf("  const totalPages = pdf.getNumberOfPages();", authStart);
+      if (authStart >= 0 && footerStart > authStart) {
+        next = next.slice(0, authStart) + next.slice(footerStart);
       }
 
       next = next.replace('  savePdfFile(pdf, fileName);\n  return fileName;', '  downloadBlob(pdf.output("blob"), fileName);\n  return fileName;');
