@@ -20,9 +20,22 @@ export function signaturePaymentPdfExactPreviewPatch() {
         let block = next.slice(section2Start, section2End);
         block = block.replace(
           /  setFont\(6\.3, true, black\);[\s\S]*?  const rankingHeaders: Array<\[string, number\]> = \[/,
-          `  // Approved compact Agent table. Total width = 172 mm, centered.\n  const rankingStartX = 19;\n  const seqW = 7;\n  const agentW = 30;\n  const refW = 24;\n  const casesW = 10.5;\n  const avgW = 11.5;\n  const gradeW = 9.5;\n  const incentiveW = 17;\n  const signatureW = 40;\n  const statusW = 22.5;\n  const rankingHeaders: Array<[string, number]> = [`
+          `  // Approved compact Agent table. Total width = 172 mm, centered.\n  const seqW = 7;\n  const agentW = 30;\n  const refW = 24;\n  const casesW = 10.5;\n  const avgW = 11.5;\n  const gradeW = 9.5;\n  const incentiveW = 17;\n  const signatureW = 40;\n  const statusW = 22.5;\n  const rankingHeaders: Array<[string, number]> = [`
         );
-        block = block.replace(/let x = left;/g, "let x = rankingStartX;");
+
+        // Always declare the approved table start explicitly. This prevents runtime scope errors
+        // even when a browser/Vite transform changes the surrounding declaration block.
+        block = block.replace(
+          '  section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS");',
+          '  section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS");\n  const approvedRankingStartX = 19;'
+        );
+        block = block.replace(/let x = left;/g, "let x = approvedRankingStartX;");
+
+        // Never ship a partially transformed ranking layout: fail at build time instead of runtime.
+        if (block.includes("measuredAgentW")) {
+          throw new Error("Monthly Payment PDF exact Agent table transform did not apply");
+        }
+
         next = next.slice(0, section2Start) + block + next.slice(section2End);
       }
 
