@@ -31,10 +31,7 @@ export function signaturePaymentPdfExactPreviewPatch() {
         block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 20;");
         block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 37;");
 
-        // Keep a zero-width fallback variable so an unexpected stale transformed line can never crash at runtime.
         block = block.replace(/  const signatureW = [^\n]+;/, "  const signatureW = 0;");
-
-        // Remove the signature header explicitly before rebuilding the header array.
         block = block.replace(/\s*\["Agent Signature",\s*signatureW\],?\n/g, "\n");
         block = block.replace(
           /  const rankingHeaders: Array<\[string, number\]> = \[[\s\S]*?\n  \];/,
@@ -55,11 +52,10 @@ export function signaturePaymentPdfExactPreviewPatch() {
         next = next.slice(0, section2Start) + block + next.slice(section2End);
       }
 
-      // Do not force Team Topic Performance onto a second page. Let the normal
-      // page-space checks decide only when the content genuinely cannot fit.
+      // Robustly remove ONLY the explicit page break immediately before Team Topic Performance.
       next = next.replace(
-        '  pdf.addPage("a4", "portrait");\n  drawHeader();\n\n  section("3. TEAM TOPIC PERFORMANCE");',
-        '  section("3. TEAM TOPIC PERFORMANCE");'
+        /\n\s*pdf\.addPage\("a4",\s*"portrait"\);\s*\n\s*drawHeader\(\);\s*\n\s*(?=section\("3\. TEAM TOPIC PERFORMANCE"\);)/,
+        "\n\n  "
       );
 
       const section3Start = next.indexOf('  section("3. TEAM TOPIC PERFORMANCE");');
@@ -67,7 +63,6 @@ export function signaturePaymentPdfExactPreviewPatch() {
       if (section3Start >= 0 && section3End > section3Start) {
         let block = next.slice(section3Start, section3End);
 
-        // Full-width Topic table with compact single-line Thai (English) descriptions.
         block = block.replace(
           /  const topicHeaders: Array<\[string, number\]> = \[[\s\S]*?\n  \];/,
           `  const topicHeaders: Array<[string, number]> = [\n    ["Topic", 9],\n    ["Description", 101],\n    ["Avg Score", 20],\n    ["Max", 15],\n    ["Avg %", 15],\n    ["Status", 20],\n  ];`
@@ -99,7 +94,6 @@ export function signaturePaymentPdfExactPreviewPatch() {
         next = next.slice(0, section3Start) + block + next.slice(section3End);
       }
 
-      // Remove all approval/signature blocks from the payment document.
       const authStart = next.indexOf('  section("5. AUTHORIZATION & SIGNATURE");');
       const footerStart = next.indexOf("  const totalPages = pdf.getNumberOfPages();", authStart);
       if (authStart >= 0 && footerStart > authStart) {
