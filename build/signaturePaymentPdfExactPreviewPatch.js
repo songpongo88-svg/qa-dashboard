@@ -7,33 +7,37 @@ export function signaturePaymentPdfExactPreviewPatch() {
 
       let next = code;
 
-      // Run after the base generator and normalize the document body to the approved layout.
+      // Normalize the document body to the approved portrait layout.
       next = next.replace(
         /  const left = \d+(?:\.\d+)?;\n  const right = \d+(?:\.\d+)?;/,
         "  const left = 15;\n  const right = 195;"
       );
 
-      // Section 2 - compact fixed Agent table. Do not auto-fit from names/signatures.
+      // Section 2 - compact fixed Agent table. Apply each width independently so the
+      // transform is not coupled to the surrounding source layout.
       const section2Start = next.indexOf('  section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS");');
       const section2End = next.indexOf('  pdf.addPage("a4", "portrait");', section2Start);
       if (section2Start >= 0 && section2End > section2Start) {
         let block = next.slice(section2Start, section2End);
-        block = block.replace(
-          /  setFont\(6\.3, true, black\);[\s\S]*?  const rankingHeaders: Array<\[string, number\]> = \[/,
-          `  // Approved compact Agent table. Total width = 172 mm, centered.\n  const seqW = 7;\n  const agentW = 30;\n  const refW = 24;\n  const casesW = 10.5;\n  const avgW = 11.5;\n  const gradeW = 9.5;\n  const incentiveW = 17;\n  const signatureW = 40;\n  const statusW = 22.5;\n  const rankingHeaders: Array<[string, number]> = [`
-        );
 
-        // Always declare the approved table start explicitly. This prevents runtime scope errors
-        // even when a browser/Vite transform changes the surrounding declaration block.
         block = block.replace(
           '  section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS");',
           '  section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS");\n  const approvedRankingStartX = 19;'
         );
+        block = block.replace(/  const measuredAgentW = sortedDocs\.length[\s\S]*?\n    : 31;\n/, "");
+        block = block.replace(/  const seqW = [^;]+;/, "  const seqW = 7;");
+        block = block.replace(/  const agentW = [^;]+;/, "  const agentW = 30;");
+        block = block.replace(/  const refW = [^;]+;/, "  const refW = 24;");
+        block = block.replace(/  const casesW = [^;]+;/, "  const casesW = 10.5;");
+        block = block.replace(/  const avgW = [^;]+;/, "  const avgW = 11.5;");
+        block = block.replace(/  const gradeW = [^;]+;/, "  const gradeW = 9.5;");
+        block = block.replace(/  const incentiveW = [^;]+;/, "  const incentiveW = 17;");
+        block = block.replace(/  const statusW = [^;]+;/, "  const statusW = 22.5;");
+        block = block.replace(/  const signatureW = [^;]+;/, "  const signatureW = 40;");
         block = block.replace(/let x = left;/g, "let x = approvedRankingStartX;");
 
-        // Never ship a partially transformed ranking layout: fail at build time instead of runtime.
-        if (block.includes("measuredAgentW")) {
-          throw new Error("Monthly Payment PDF exact Agent table transform did not apply");
+        if (block.includes("measuredAgentW") || !block.includes("const approvedRankingStartX = 19;")) {
+          throw new Error("Monthly Payment PDF fixed Agent table transform did not apply");
         }
 
         next = next.slice(0, section2Start) + block + next.slice(section2End);
@@ -51,13 +55,11 @@ export function signaturePaymentPdfExactPreviewPatch() {
         );
         block = block.replace(/size: label === "Dashboard Status" \? 5\.3 : 6\.0,/g, 'size: label === "Status" ? 5.8 : 6.0,');
 
-        // Keep safe fallback color variables so PDF generation can never fail even if a browser build preserves the old render block.
         block = block.replace(
           /    const status =[^\n]*\n    const statusBg:[^\n]*\n    const statusFg:[^\n]*\n/,
           `    const status =\n      avgPct === null\n        ? "-"\n        : avgPct >= 90\n          ? "Excellent"\n          : avgPct >= 85\n            ? "Strong"\n            : avgPct >= 80\n              ? "Standard"\n              : "Improvement Needed";\n    const statusBg: [number, number, number] = [255, 255, 255];\n    const statusFg: [number, number, number] = black;\n`
         );
 
-        // Approved design: plain Status text, no pill / no colored background.
         block = block.replace(
           /    const statusWCell = topicHeaders\[5\]\[1\];[\s\S]*?(?=    y \+= rowH;)/,
           `    const statusWCell = topicHeaders[5][1];\n    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });\n    if (status === "Improvement Needed") {\n      text("Improvement", x + statusWCell / 2, y + 7.0, 4.8, false, black, { align: "center" });\n      text("Needed", x + statusWCell / 2, y + 10.8, 4.8, false, black, { align: "center" });\n    } else {\n      text(status, x + statusWCell / 2, y + 9.2, 5.6, false, status === "-" ? muted : black, { align: "center" });\n    }\n`
@@ -66,13 +68,11 @@ export function signaturePaymentPdfExactPreviewPatch() {
         next = next.slice(0, section3Start) + block + next.slice(section3End);
       }
 
-      // Use the same direct Blob download path that the other working PDFs use.
+      // Use direct Blob download and surface any runtime failure to the user.
       next = next.replace(
         '  savePdfFile(pdf, fileName);\n  return fileName;',
         '  downloadBlob(pdf.output("blob"), fileName);\n  return fileName;'
       );
-
-      // Surface runtime PDF errors immediately instead of failing silently in the sidebar message.
       next = next.replace(
         /      console\.error\("Generate payment PDF failed", error\);\n      setPaymentMessage\(error instanceof Error \? `Generate PDF failed: \$\{error\.message\}` : "Generate PDF failed"\);/,
         `      console.error("Generate payment PDF failed", error);\n      const paymentPdfError = error instanceof Error ? error.message : "Unknown PDF error";\n      setPaymentMessage("Generate PDF failed: " + paymentPdfError);\n      window.alert("Monthly Payment PDF failed: " + paymentPdfError);`
