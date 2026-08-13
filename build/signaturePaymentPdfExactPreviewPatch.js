@@ -19,15 +19,15 @@ export function signaturePaymentPdfExactPreviewPatch() {
       if (section2Start >= 0 && section2End > section2Start) {
         let block = next.slice(section2Start, section2End);
 
-        // Formal compact payment table. No signature image column.
+        // Formal compact payment table. Total width = 140 mm, centered on A4.
         block = block.replace(/  const measuredAgentW = sortedDocs\.length[\s\S]*?\n    : 31;\n/, "");
         block = block.replace(/  const seqW = [^\n]+;/, "  const seqW = 8;");
-        block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 38;");
-        block = block.replace(/  const refW = [^\n]+;/, "  const refW = 28;");
-        block = block.replace(/  const casesW = [^\n]+;/, "  const casesW = 12;");
-        block = block.replace(/  const avgW = [^\n]+;/, "  const avgW = 14;");
-        block = block.replace(/  const gradeW = [^\n]+;/, "  const gradeW = 12;");
-        block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 20;");
+        block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 34;");
+        block = block.replace(/  const refW = [^\n]+;/, "  const refW = 25;");
+        block = block.replace(/  const casesW = [^\n]+;/, "  const casesW = 10;");
+        block = block.replace(/  const avgW = [^\n]+;/, "  const avgW = 11;");
+        block = block.replace(/  const gradeW = [^\n]+;/, "  const gradeW = 10;");
+        block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 18;");
         block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 24;");
 
         // Keep a zero-width fallback variable so an unexpected stale transformed line can never crash at runtime.
@@ -40,7 +40,7 @@ export function signaturePaymentPdfExactPreviewPatch() {
           `  const rankingHeaders: Array<[string, number]> = [\n    ["Seq", seqW],\n    ["Agent", agentW],\n    ["Document Ref.", refW],\n    ["Cases", casesW],\n    ["Avg", avgW],\n    ["Grade", gradeW],\n    ["Incentive", incentiveW],\n    ["Status", statusW],\n  ];`
         );
 
-        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19|27);/g, "let x = 27;");
+        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19|27|35);/g, "let x = 35;");
         block = block.replace("    const rowH = 16.5;", "    const rowH = 10.5;");
 
         const signatureRenderStart = block.indexOf("    const agentSignatureW = rankingHeaders[7][1];");
@@ -62,8 +62,10 @@ export function signaturePaymentPdfExactPreviewPatch() {
         let block = next.slice(section3Start, section3End);
         block = block.replace(
           /  const topicHeaders: Array<\[string, number\]> = \[[\s\S]*?\n  \];/,
-          `  const topicHeaders: Array<[string, number]> = [\n    ["Topic", 10],\n    ["Description", 99],\n    ["Avg Score", 20],\n    ["Max", 14],\n    ["Avg %", 17],\n    ["Status", 20],\n  ];`
+          `  const topicHeaders: Array<[string, number]> = [\n    ["Topic", 9],\n    ["Description", 78],\n    ["Avg Score", 18],\n    ["Max", 12],\n    ["Avg %", 15],\n    ["Status", 20],\n  ];`
         );
+        block = block.replace(/  let topicX = left;/, "  let topicX = 29;");
+        block = block.replace(/    let x = left;/g, "    let x = 29;");
         block = block.replace(/size: label === "Dashboard Status" \? 5\.3 : 6\.0,/g, 'size: label === "Status" ? 5.8 : 6.0,');
         block = block.replace(
           '    const status = avgPct === null ? "-" : avgPct >= 85 ? "Good" : avgPct >= 75 ? "Watch" : "Improve";',
