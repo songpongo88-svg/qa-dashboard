@@ -19,8 +19,7 @@ export function signaturePaymentPdfExactPreviewPatch() {
       if (section2Start >= 0 && section2End > section2Start) {
         let block = next.slice(section2Start, section2End);
 
-        // Formal payment table: restore near-full-page width; compact only the vertical row spacing.
-        // Total width = 172 mm, centered on A4.
+        // Formal payment table: near-full-page width with compact but readable rows.
         block = block.replace(/  const measuredAgentW = sortedDocs\.length[\s\S]*?\n    : 31;\n/, "");
         block = block.replace(/  const seqW = [^\n]+;/, "  const seqW = 7;");
         block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 42;");
@@ -39,12 +38,19 @@ export function signaturePaymentPdfExactPreviewPatch() {
         );
 
         block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19|27|29|35);/g, "let x = 19;");
-        block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 8.5;");
+        block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 9.0;");
+
+        // Slightly increase Agent table font sizes for readability.
+        block = block.replace(
+          /size: label === "Document Ref\." \|\| label === "Agent Signature" \? 5\.8 : 6\.3,/g,
+          'size: label === "Document Ref." ? 6.2 : 6.7,'
+        );
+        block = block.replace(/size: colIndex === 1 \? 6\.0 : colIndex === 2 \? 5\.5 : 6\.2,/g, "size: colIndex === 1 ? 6.5 : colIndex === 2 ? 6.0 : 6.6,");
 
         const signatureRenderStart = block.indexOf("    const agentSignatureW = rankingHeaders[7][1];");
         const rowEnd = block.indexOf("    y += rowH;", signatureRenderStart);
         if (signatureRenderStart >= 0 && rowEnd > signatureRenderStart) {
-          const statusOnly = `    const rowStatus = agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";\n    const statusColumnW = rankingHeaders[rankingHeaders.length - 1][1];\n    drawTableCell(x, y, statusColumnW, rowH, rowStatus, {\n      fill,\n      color: agentSigned ? green : agentWaived ? amber : muted,\n      size: 5.7,\n      bold: true,\n      align: "center",\n      maxLines: 2,\n    });\n`;
+          const statusOnly = `    const rowStatus = agentWaived ? "Waived - Resigned" : agentSigned ? "Completed" : "Pending";\n    const statusColumnW = rankingHeaders[rankingHeaders.length - 1][1];\n    drawTableCell(x, y, statusColumnW, rowH, rowStatus, {\n      fill,\n      color: agentSigned ? green : agentWaived ? amber : muted,\n      size: 6.2,\n      bold: true,\n      align: "center",\n      maxLines: 2,\n    });\n`;
           block = block.slice(0, signatureRenderStart) + statusOnly + block.slice(rowEnd);
         }
 
@@ -52,10 +58,16 @@ export function signaturePaymentPdfExactPreviewPatch() {
         next = next.slice(0, section2Start) + block + next.slice(section2End);
       }
 
-      // Robustly remove ONLY the explicit page break immediately before Team Topic Performance.
+      // Remove only the explicit page break immediately before Team Topic Performance.
       next = next.replace(
         /\n\s*pdf\.addPage\("a4",\s*"portrait"\);\s*\n\s*drawHeader\(\);\s*\n\s*(?=section\("3\. TEAM TOPIC PERFORMANCE"\);)/,
         "\n\n  "
+      );
+
+      // Add a small visual gap after the Agent table so Section 3 does not feel cramped.
+      next = next.replace(
+        '  section("3. TEAM TOPIC PERFORMANCE");',
+        '  y += 3.5;\n  section("3. TEAM TOPIC PERFORMANCE");'
       );
 
       const section3Start = next.indexOf('  section("3. TEAM TOPIC PERFORMANCE");');
@@ -69,9 +81,10 @@ export function signaturePaymentPdfExactPreviewPatch() {
         );
         block = block.replace(/  let topicX = (?:left|\d+(?:\.\d+)?);/, "  let topicX = 15;");
         block = block.replace(/    let x = (?:left|\d+(?:\.\d+)?);/g, "    let x = 15;");
-        block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 9.5;");
+        block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 10.0;");
         block = block.replace(/Dashboard Status/g, "Status");
-        block = block.replace(/size: label === "Status" \? 5\.3 : 6\.0,/g, 'size: label === "Status" ? 5.8 : 6.0,');
+        block = block.replace(/size: label === "Status" \? 5\.3 : 6\.0,/g, 'size: label === "Status" ? 6.2 : 6.5,');
+        block = block.replace(/size: label === "Status" \? 5\.8 : 6\.0,/g, 'size: label === "Status" ? 6.2 : 6.5,');
         block = block.replace(
           '    const status = avgPct === null ? "-" : avgPct >= 85 ? "Good" : avgPct >= 75 ? "Watch" : "Improve";',
           '    const status = avgPct === null ? "-" : avgPct >= 90 ? "Excellent" : avgPct >= 85 ? "Strong" : avgPct >= 80 ? "Standard" : "Improvement Needed";'
@@ -81,17 +94,34 @@ export function signaturePaymentPdfExactPreviewPatch() {
         const descriptionEndMarker = "    x += descriptionW;";
         const descriptionEnd = block.indexOf(descriptionEndMarker, descriptionStart);
         if (descriptionStart >= 0 && descriptionEnd > descriptionStart) {
-          const compactDescription = `    const descriptionW = topicHeaders[1][1];\n    const topicLabel = splitTopicTitle(topic.title);\n    const combinedTopicTitle = topicLabel.secondary\n      ? topicLabel.primary + " (" + topicLabel.secondary + ")"\n      : topicLabel.primary;\n    drawTableCell(x, y, descriptionW, rowH, combinedTopicTitle, {\n      fill,\n      size: 5.6,\n      bold: true,\n      align: "left",\n      maxLines: 1,\n    });\n    x += descriptionW;`;
+          const compactDescription = `    const descriptionW = topicHeaders[1][1];\n    const topicLabel = splitTopicTitle(topic.title);\n    const combinedTopicTitle = topicLabel.secondary\n      ? topicLabel.primary + " (" + topicLabel.secondary + ")"\n      : topicLabel.primary;\n    drawTableCell(x, y, descriptionW, rowH, combinedTopicTitle, {\n      fill,\n      size: 6.2,\n      bold: true,\n      align: "left",\n      maxLines: 1,\n    });\n    x += descriptionW;`;
           block = block.slice(0, descriptionStart) + compactDescription + block.slice(descriptionEnd + descriptionEndMarker.length);
         }
+
+        // Increase metric font sizes slightly.
+        block = block.replace(/size: 6\.1,/g, "size: 6.5,");
 
         const renderStart = block.indexOf("    const statusWCell = topicHeaders[5][1];");
         const renderEnd = block.indexOf("    y += rowH;", renderStart);
         if (renderStart >= 0 && renderEnd > renderStart) {
-          const plainStatus = `    const statusWCell = topicHeaders[5][1];\n    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });\n    if (status === "Improvement Needed") {\n      text("Improvement Needed", x + statusWCell / 2, y + 5.8, 4.5, false, black, { align: "center" });\n    } else {\n      text(status, x + statusWCell / 2, y + 5.8, 5.4, false, status === "-" ? muted : black, { align: "center" });\n    }\n`;
+          const plainStatus = `    const statusWCell = topicHeaders[5][1];\n    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });\n    if (status === "Improvement Needed") {\n      text("Improvement Needed", x + statusWCell / 2, y + 6.1, 5.0, false, black, { align: "center" });\n    } else {\n      text(status, x + statusWCell / 2, y + 6.1, 6.0, false, status === "-" ? muted : black, { align: "center" });\n    }\n`;
           block = block.slice(0, renderStart) + plainStatus + block.slice(renderEnd);
         }
         next = next.slice(0, section3Start) + block + next.slice(section3End);
+      }
+
+      // Increase certification text readability without changing its structure.
+      const section4Start = next.indexOf('  section("4. PAYMENT CERTIFICATION");');
+      const authStartForSection4 = next.indexOf('  section("5. AUTHORIZATION & SIGNATURE");', section4Start);
+      const footerStartForSection4 = next.indexOf("  const totalPages = pdf.getNumberOfPages();", section4Start);
+      const section4End = authStartForSection4 >= 0 ? authStartForSection4 : footerStartForSection4;
+      if (section4Start >= 0 && section4End > section4Start) {
+        let block = next.slice(section4Start, section4End);
+        block = block.replace(/text\(item\.label, x, y \+ 3\.8, 6\.1,/g, "text(item.label, x, y + 3.8, 6.6,");
+        block = block.replace(/text\(item\.value, x, y \+ 9\.2, 8\.2,/g, "text(item.value, x, y + 9.2, 8.8,");
+        block = block.replace(/text\("Certification", left, y \+ 5\.2, 6\.2,/g, 'text("Certification", left, y + 5.2, 6.7,');
+        block = block.replace(/text\("Monthly QA incentive payment summary prepared for payment processing\."[^\n]*6\.8,/g, (match) => match.replace("6.8", "7.2"));
+        next = next.slice(0, section4Start) + block + next.slice(section4End);
       }
 
       const authStart = next.indexOf('  section("5. AUTHORIZATION & SIGNATURE");');
