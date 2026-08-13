@@ -8,7 +8,6 @@ function replaceRequired(code, before, after, label) {
 export function signaturePaymentPdfExactPreviewPatch() {
   return {
     name: "signature-payment-pdf-exact-approved-layout",
-    enforce: "pre",
     transform(code, id) {
       if (!id.replace(/\\/g, "/").endsWith("/src/SignatureCenterMockup.tsx")) return null;
       if (!code.includes('section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS")')) return null;
