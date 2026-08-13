@@ -19,16 +19,17 @@ export function signaturePaymentPdfExactPreviewPatch() {
       if (section2Start >= 0 && section2End > section2Start) {
         let block = next.slice(section2Start, section2End);
 
-        // Formal compact payment table. Total width = 140 mm, centered on A4.
+        // Formal payment table: restore near-full-page width; compact only the vertical row spacing.
+        // Total width = 172 mm, centered on A4.
         block = block.replace(/  const measuredAgentW = sortedDocs\.length[\s\S]*?\n    : 31;\n/, "");
-        block = block.replace(/  const seqW = [^\n]+;/, "  const seqW = 8;");
-        block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 34;");
-        block = block.replace(/  const refW = [^\n]+;/, "  const refW = 25;");
-        block = block.replace(/  const casesW = [^\n]+;/, "  const casesW = 10;");
-        block = block.replace(/  const avgW = [^\n]+;/, "  const avgW = 11;");
-        block = block.replace(/  const gradeW = [^\n]+;/, "  const gradeW = 10;");
-        block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 18;");
-        block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 24;");
+        block = block.replace(/  const seqW = [^\n]+;/, "  const seqW = 7;");
+        block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 42;");
+        block = block.replace(/  const refW = [^\n]+;/, "  const refW = 30;");
+        block = block.replace(/  const casesW = [^\n]+;/, "  const casesW = 12;");
+        block = block.replace(/  const avgW = [^\n]+;/, "  const avgW = 13;");
+        block = block.replace(/  const gradeW = [^\n]+;/, "  const gradeW = 11;");
+        block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 20;");
+        block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 37;");
 
         // Keep a zero-width fallback variable so an unexpected stale transformed line can never crash at runtime.
         block = block.replace(/  const signatureW = [^\n]+;/, "  const signatureW = 0;");
@@ -40,8 +41,8 @@ export function signaturePaymentPdfExactPreviewPatch() {
           `  const rankingHeaders: Array<[string, number]> = [\n    ["Seq", seqW],\n    ["Agent", agentW],\n    ["Document Ref.", refW],\n    ["Cases", casesW],\n    ["Avg", avgW],\n    ["Grade", gradeW],\n    ["Incentive", incentiveW],\n    ["Status", statusW],\n  ];`
         );
 
-        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19|27|35);/g, "let x = 35;");
-        block = block.replace("    const rowH = 16.5;", "    const rowH = 10.5;");
+        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19|27|29|35);/g, "let x = 19;");
+        block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 8.5;");
 
         const signatureRenderStart = block.indexOf("    const agentSignatureW = rankingHeaders[7][1];");
         const rowEnd = block.indexOf("    y += rowH;", signatureRenderStart);
@@ -50,9 +51,7 @@ export function signaturePaymentPdfExactPreviewPatch() {
           block = block.slice(0, signatureRenderStart) + statusOnly + block.slice(rowEnd);
         }
 
-        // Final safety: no executable signature width reference may remain in the ranking block.
         block = block.replace(/\["Agent Signature",\s*signatureW\],?/g, "");
-
         next = next.slice(0, section2Start) + block + next.slice(section2End);
       }
 
@@ -60,13 +59,17 @@ export function signaturePaymentPdfExactPreviewPatch() {
       const section3End = next.indexOf('  section("4. PAYMENT CERTIFICATION");', section3Start);
       if (section3Start >= 0 && section3End > section3Start) {
         let block = next.slice(section3Start, section3End);
+
+        // Restore the Topic table to full document width. Compact only row height.
         block = block.replace(
           /  const topicHeaders: Array<\[string, number\]> = \[[\s\S]*?\n  \];/,
-          `  const topicHeaders: Array<[string, number]> = [\n    ["Topic", 9],\n    ["Description", 78],\n    ["Avg Score", 18],\n    ["Max", 12],\n    ["Avg %", 15],\n    ["Status", 20],\n  ];`
+          `  const topicHeaders: Array<[string, number]> = [\n    ["Topic", 9],\n    ["Description", 101],\n    ["Avg Score", 20],\n    ["Max", 15],\n    ["Avg %", 15],\n    ["Status", 20],\n  ];`
         );
-        block = block.replace(/  let topicX = left;/, "  let topicX = 29;");
-        block = block.replace(/    let x = left;/g, "    let x = 29;");
-        block = block.replace(/size: label === "Dashboard Status" \? 5\.3 : 6\.0,/g, 'size: label === "Status" ? 5.8 : 6.0,');
+        block = block.replace(/  let topicX = (?:left|\d+(?:\.\d+)?);/, "  let topicX = 15;");
+        block = block.replace(/    let x = (?:left|\d+(?:\.\d+)?);/g, "    let x = 15;");
+        block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 11.5;");
+        block = block.replace(/Dashboard Status/g, "Status");
+        block = block.replace(/size: label === "Status" \? 5\.3 : 6\.0,/g, 'size: label === "Status" ? 5.8 : 6.0,');
         block = block.replace(
           '    const status = avgPct === null ? "-" : avgPct >= 85 ? "Good" : avgPct >= 75 ? "Watch" : "Improve";',
           '    const status = avgPct === null ? "-" : avgPct >= 90 ? "Excellent" : avgPct >= 85 ? "Strong" : avgPct >= 80 ? "Standard" : "Improvement Needed";'
@@ -75,7 +78,7 @@ export function signaturePaymentPdfExactPreviewPatch() {
         const renderStart = block.indexOf("    const statusWCell = topicHeaders[5][1];");
         const renderEnd = block.indexOf("    y += rowH;", renderStart);
         if (renderStart >= 0 && renderEnd > renderStart) {
-          const plainStatus = `    const statusWCell = topicHeaders[5][1];\n    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });\n    if (status === "Improvement Needed") {\n      text("Improvement", x + statusWCell / 2, y + 7.0, 4.8, false, black, { align: "center" });\n      text("Needed", x + statusWCell / 2, y + 10.8, 4.8, false, black, { align: "center" });\n    } else {\n      text(status, x + statusWCell / 2, y + 9.2, 5.6, false, status === "-" ? muted : black, { align: "center" });\n    }\n`;
+          const plainStatus = `    const statusWCell = topicHeaders[5][1];\n    drawTableCell(x, y, statusWCell, rowH, "", { fill, align: "center" });\n    if (status === "Improvement Needed") {\n      text("Improvement", x + statusWCell / 2, y + 5.0, 4.8, false, black, { align: "center" });\n      text("Needed", x + statusWCell / 2, y + 8.8, 4.8, false, black, { align: "center" });\n    } else {\n      text(status, x + statusWCell / 2, y + 6.8, 5.6, false, status === "-" ? muted : black, { align: "center" });\n    }\n`;
           block = block.slice(0, renderStart) + plainStatus + block.slice(renderEnd);
         }
         next = next.slice(0, section3Start) + block + next.slice(section3End);
