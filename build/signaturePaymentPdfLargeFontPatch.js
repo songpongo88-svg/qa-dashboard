@@ -70,7 +70,7 @@ export function signaturePaymentPdfLargeFontPatch() {
         // Keep total width at 180 mm, but give Topic enough room for the full header at large font size.
         block = block.replace(
           /const topicHeaders: Array<\[string, number\]> = \[[\s\S]*?\n\s*\];/,
-          `const topicHeaders: Array<[string, number]> = [\n    ["Topic", 12],\n    ["Description", 98],\n    ["Avg Score", 20],\n    ["Max", 15],\n    ["Avg %", 15],\n    ["Status", 20],\n  ];`
+          `const topicHeaders: Array<[string, number]> = [\n    ["Topic", 15],\n    ["Description", 95],\n    ["Avg Score", 20],\n    ["Max", 15],\n    ["Avg %", 15],\n    ["Status", 20],\n  ];`
         );
 
         block = block.replace(
