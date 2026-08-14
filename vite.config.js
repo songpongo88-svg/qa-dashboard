@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react'
 import { signaturePaymentPdfPatch } from './build/signaturePaymentPdfPatch.js'
 import { signaturePaymentPdfExactPreviewPatch } from './build/signaturePaymentPdfExactPreviewPatch.js'
 import { signaturePaymentPdfLargeFontPatch } from './build/signaturePaymentPdfLargeFontPatch.js'
+import { signatureDocumentRefMatchWebPatch } from './build/signatureDocumentRefMatchWebPatch.js'
 import { sidebarGroupsDefaultOpenPatch } from './build/sidebarGroupsDefaultOpenPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), sidebarGroupsDefaultOpenPatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), react()],
 })
