@@ -61,16 +61,29 @@ export function signaturePaymentPdfLargeFontPatch() {
         next = next.slice(0, rankingStart) + block + next.slice(section3Start);
       }
 
-      // Section 3: apply the same approach so Topic table is readable at 100% too.
+      // Section 3: make Topic header and row numbers as readable as the rest of the table.
       const topicStart = next.indexOf('section("3. TEAM TOPIC PERFORMANCE")');
       const topicEnd = next.indexOf('section("4. PAYMENT CERTIFICATION")', topicStart);
       if (topicStart >= 0 && topicEnd > topicStart) {
         let block = next.slice(topicStart, topicEnd);
 
+        // Keep total width at 180 mm, but give Topic enough room for the full header at large font size.
+        block = block.replace(
+          /const topicHeaders: Array<\[string, number\]> = \[[\s\S]*?\n\s*\];/,
+          `const topicHeaders: Array<[string, number]> = [\n    ["Topic", 12],\n    ["Description", 98],\n    ["Avg Score", 20],\n    ["Max", 15],\n    ["Avg %", 15],\n    ["Status", 20],\n  ];`
+        );
+
         block = block.replace(
           /size:\s*label\s*===\s*"Status"\s*\?\s*\d+(?:\.\d+)?\s*:\s*\d+(?:\.\d+)?,/g,
           'size: label === "Status" ? 9.8 : 10.4,'
         );
+
+        // Topic row index (1-4) used to remain at 6.2 pt even after the other cells were enlarged.
+        block = block.replace(
+          /(drawTableCell\(x,\s*y,\s*topicHeaders\[0\]\[1\],\s*rowH,\s*topic\.code,\s*\{[\s\S]{0,120}?size:)\s*\d+(?:\.\d+)?(,)/g,
+          '$1 9.8$2'
+        );
+
         block = block.replace(
           /(combinedTopicTitle,[\s\S]{0,180}?size:)\s*\d+(?:\.\d+)?(,)/g,
           '$1 10.0$2'
