@@ -67,10 +67,10 @@ export function signaturePaymentPdfLargeFontPatch() {
       if (topicStart >= 0 && topicEnd > topicStart) {
         let block = next.slice(topicStart, topicEnd);
 
-        // Use the full 180 mm table width: give Topic and Description more room, compress numeric columns slightly.
+        // Use the full 180 mm table width and reserve enough room for the complete Topic header.
         block = block.replace(
           /const topicHeaders: Array<\[string, number\]> = \[[\s\S]*?\n\s*\];/,
-          `const topicHeaders: Array<[string, number]> = [\n    ["Topic", 18],\n    ["Description", 105],\n    ["Avg Score", 17],\n    ["Max", 11],\n    ["Avg %", 13],\n    ["Status", 16],\n  ];`
+          `const topicHeaders: Array<[string, number]> = [\n    ["Topic", 22],\n    ["Description", 101],\n    ["Avg Score", 17],\n    ["Max", 11],\n    ["Avg %", 13],\n    ["Status", 16],\n  ];`
         );
 
         block = block.replace(
