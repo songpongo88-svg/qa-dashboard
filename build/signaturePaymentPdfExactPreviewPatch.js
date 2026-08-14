@@ -19,16 +19,16 @@ export function signaturePaymentPdfExactPreviewPatch() {
       if (section2Start >= 0 && section2End > section2Start) {
         let block = next.slice(section2Start, section2End);
 
-        // Formal payment table: near-full-page width with compact but readable rows.
+        // Formal payment table: use the full approved 180 mm width with readable compact rows.
         block = block.replace(/  const measuredAgentW = sortedDocs\.length[\s\S]*?\n    : 31;\n/, "");
-        block = block.replace(/  const seqW = [^\n]+;/, "  const seqW = 7;");
-        block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 42;");
-        block = block.replace(/  const refW = [^\n]+;/, "  const refW = 30;");
+        block = block.replace(/  const seqW = [^\n]+;/, "  const seqW = 9;");
+        block = block.replace(/  const agentW = [^\n]+;/, "  const agentW = 43;");
+        block = block.replace(/  const refW = [^\n]+;/, "  const refW = 31;");
         block = block.replace(/  const casesW = [^\n]+;/, "  const casesW = 12;");
         block = block.replace(/  const avgW = [^\n]+;/, "  const avgW = 13;");
         block = block.replace(/  const gradeW = [^\n]+;/, "  const gradeW = 11;");
         block = block.replace(/  const incentiveW = [^\n]+;/, "  const incentiveW = 20;");
-        block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 37;");
+        block = block.replace(/  const statusW = [^\n]+;/, "  const statusW = 41;");
 
         block = block.replace(/  const signatureW = [^\n]+;/, "  const signatureW = 0;");
         block = block.replace(/\s*\["Agent Signature",\s*signatureW\],?\n/g, "\n");
@@ -37,7 +37,7 @@ export function signaturePaymentPdfExactPreviewPatch() {
           `  const rankingHeaders: Array<[string, number]> = [\n    ["Seq", seqW],\n    ["Agent", agentW],\n    ["Document Ref.", refW],\n    ["Cases", casesW],\n    ["Avg", avgW],\n    ["Grade", gradeW],\n    ["Incentive", incentiveW],\n    ["Status", statusW],\n  ];`
         );
 
-        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|19|27|29|35);/g, "let x = 19;");
+        block = block.replace(/let x = (?:left|rankingStartX|approvedRankingStartX|15|19|27|29|35);/g, "let x = 15;");
         block = block.replace(/    const rowH = \d+(?:\.\d+)?;/, "    const rowH = 9.0;");
 
         // Increase Agent table font sizes while keeping row height unchanged.
