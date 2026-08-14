@@ -3,15 +3,42 @@ export function signaturePaymentPdfLargeFontPatch() {
     name: "signature-payment-pdf-large-font",
     transform(code, id) {
       if (!id.replace(/\\/g, "/").endsWith("/src/SignatureCenterMockup.tsx")) return null;
-      if (!code.includes('section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS")')) return null;
+      if (!code.includes('section("1. PAYMENT SUMMARY")')) return null;
 
       let next = code;
 
+      // Section 1: make the payment summary readable at 100% PDF zoom while preserving its layout.
+      const section1Start = next.indexOf('section("1. PAYMENT SUMMARY")');
+      const section2Start = next.indexOf('section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS")', section1Start);
+      if (section1Start >= 0 && section2Start > section1Start) {
+        let block = next.slice(section1Start, section2Start);
+
+        // Summary labels such as Payment Period / Paid Agents / Team Cases / Average QA.
+        block = block.replace(
+          /text\(item\.label,\s*x \+ 1\.2,\s*yy \+ 3\.7,\s*\d+(?:\.\d+)?,\s*false,\s*muted\);/g,
+          'text(item.label, x + 1.2, yy + 3.7, 8.2, false, muted);'
+        );
+
+        // Summary values such as July 2026 / 13 / 130 / 88.51 / B / 10,100 / READY TO EXPORT.
+        block = block.replace(
+          /text\(item\.value,\s*x \+ 1\.2,\s*yy \+ 9\.4,\s*\d+(?:\.\d+)?,\s*true,\s*item\.color \|\| black\);/g,
+          'text(item.value, x + 1.2, yy + 9.4, 11.0, true, item.color || black);'
+        );
+
+        // Keep badge text readable if an older build still renders the status as a badge.
+        block = block.replace(
+          /text\(label,\s*x \+ 1\.2 \+ badgeW \/ 2,\s*yy \+ 9\.5,\s*\d+(?:\.\d+)?,\s*true,\s*green,/g,
+          'text(label, x + 1.2 + badgeW / 2, yy + 9.5, 8.2, true, green,'
+        );
+
+        next = next.slice(0, section1Start) + block + next.slice(section2Start);
+      }
+
       // Section 2: force every ranking-table font rule regardless of its previous numeric value.
-      const section2Start = next.indexOf('section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS")');
-      const section3Start = next.indexOf('section("3. TEAM TOPIC PERFORMANCE")', section2Start);
-      if (section2Start >= 0 && section3Start > section2Start) {
-        let block = next.slice(section2Start, section3Start);
+      const rankingStart = next.indexOf('section("2. AGENT MONTHLY RANKING & PAYMENT DETAILS")');
+      const section3Start = next.indexOf('section("3. TEAM TOPIC PERFORMANCE")', rankingStart);
+      if (rankingStart >= 0 && section3Start > rankingStart) {
+        let block = next.slice(rankingStart, section3Start);
 
         // Header: Seq / Agent / Document Ref. / Cases / Avg / Grade / Incentive / Status
         block = block.replace(
@@ -31,7 +58,7 @@ export function signaturePaymentPdfLargeFontPatch() {
           '$1 10.0$2'
         );
 
-        next = next.slice(0, section2Start) + block + next.slice(section3Start);
+        next = next.slice(0, rankingStart) + block + next.slice(section3Start);
       }
 
       // Section 3: apply the same approach so Topic table is readable at 100% too.
