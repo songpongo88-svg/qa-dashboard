@@ -5,7 +5,8 @@ import { signaturePaymentPdfExactPreviewPatch } from './build/signaturePaymentPd
 import { signaturePaymentPdfLargeFontPatch } from './build/signaturePaymentPdfLargeFontPatch.js'
 import { signatureDocumentRefMatchWebPatch } from './build/signatureDocumentRefMatchWebPatch.js'
 import { sidebarGroupsDefaultOpenPatch } from './build/sidebarGroupsDefaultOpenPatch.js'
+import { signaturePaymentTopicFinalOverridePatch } from './build/signaturePaymentTopicFinalOverridePatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), react()],
 })
