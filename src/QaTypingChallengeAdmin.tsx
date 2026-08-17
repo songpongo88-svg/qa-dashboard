@@ -18,6 +18,32 @@ type CurrentUser = {
   displayName?: string;
 };
 
+const QA_TYPING_STANDARD_WPM = 30;
+const QA_TYPING_STANDARD_ACCURACY = 95;
+const QA_TYPING_MIN_TIME_SECONDS = 30;
+
+function clampRepeatCount(value: unknown) {
+  return Math.max(1, Math.min(500, Math.floor(Number(value) || 1)));
+}
+
+function calculateAllowedMistakes(repeatCount: number) {
+  const safeRepeat = clampRepeatCount(repeatCount);
+  return Math.floor(safeRepeat * ((100 - QA_TYPING_STANDARD_ACCURACY) / 100));
+}
+
+function calculateTimeLimitSeconds(repeatCount: number) {
+  const safeRepeat = clampRepeatCount(repeatCount);
+  const calculatedSeconds = Math.ceil((safeRepeat / QA_TYPING_STANDARD_WPM) * 60);
+  return Math.max(QA_TYPING_MIN_TIME_SECONDS, Math.min(3600, calculatedSeconds));
+}
+
+function formatDuration(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
 export default function QaTypingChallengeAdmin({
   agent,
   currentUser,
@@ -29,8 +55,6 @@ export default function QaTypingChallengeAdmin({
   const agentName = String(agent?.agentName || agent?.displayName || username || "").trim();
   const [word, setWord] = useState("อนุญาต");
   const [repeatCount, setRepeatCount] = useState(100);
-  const [allowedMistakes, setAllowedMistakes] = useState(0);
-  const [timeLimitSeconds, setTimeLimitSeconds] = useState(60);
   const [activeChallenge, setActiveChallenge] = useState<QaTypingChallenge | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -49,8 +73,6 @@ export default function QaTypingChallengeAdmin({
         if (challenge) {
           setWord(challenge.word);
           setRepeatCount(challenge.repeatCount);
-          setAllowedMistakes(challenge.allowedMistakes);
-          setTimeLimitSeconds(challenge.timeLimitSeconds || 60);
         }
       },
       () => setError("ไม่สามารถตรวจสอบ QA Access Check ของ Agent นี้ได้")
@@ -58,6 +80,17 @@ export default function QaTypingChallengeAdmin({
   }, [username]);
 
   const cleanWord = useMemo(() => word.trim(), [word]);
+  const safeRepeatCount = useMemo(() => clampRepeatCount(repeatCount), [repeatCount]);
+  const autoAllowedMistakes = useMemo(
+    () => calculateAllowedMistakes(safeRepeatCount),
+    [safeRepeatCount]
+  );
+  const autoTimeLimitSeconds = useMemo(
+    () => calculateTimeLimitSeconds(safeRepeatCount),
+    [safeRepeatCount]
+  );
+  const requiredCorrectWords = Math.max(0, safeRepeatCount - autoAllowedMistakes);
+
   if (!agent || !username) return null;
 
   const assignChallenge = async () => {
@@ -72,9 +105,9 @@ export default function QaTypingChallengeAdmin({
       return;
     }
 
-    const safeRepeat = Math.max(1, Math.min(500, Math.floor(Number(repeatCount) || 1)));
-    const safeAllowed = Math.max(0, Math.min(safeRepeat, Math.floor(Number(allowedMistakes) || 0)));
-    const safeTimeLimitSeconds = Math.max(10, Math.min(3600, Math.floor(Number(timeLimitSeconds) || 60)));
+    const safeRepeat = clampRepeatCount(repeatCount);
+    const safeAllowed = calculateAllowedMistakes(safeRepeat);
+    const safeTimeLimitSeconds = calculateTimeLimitSeconds(safeRepeat);
     setBusy(true);
     try {
       await assignQaTypingChallenge({
@@ -88,8 +121,6 @@ export default function QaTypingChallengeAdmin({
         assignedBy: String(currentUser?.username || currentUser?.displayName || "QA").trim(),
       });
       setRepeatCount(safeRepeat);
-      setAllowedMistakes(safeAllowed);
-      setTimeLimitSeconds(safeTimeLimitSeconds);
       setMessage(`ส่ง QA Access Check ให้ ${agentName} แล้ว`);
     } catch (assignError) {
       console.warn("Assign QA typing challenge failed", assignError);
@@ -122,14 +153,16 @@ export default function QaTypingChallengeAdmin({
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-600 text-xs text-white">⌨</span>
             QA Access Check
           </div>
-          <div className="mt-1 text-xs font-bold text-slate-700">กำหนดคำ จำนวนคำ เวลา และเกณฑ์ที่ Agent ต้องผ่านก่อนเข้าดูผล QA</div>
+          <div className="mt-1 text-xs font-bold text-slate-700">
+            กำหนดเฉพาะคำและจำนวนคำ ระบบคำนวณเกณฑ์ผิดได้และเวลาให้อัตโนมัติ
+          </div>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${activeChallenge ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
           {activeChallenge ? "ACTIVE" : "NOT ASSIGNED"}
         </span>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-[1.4fr_.65fr_.75fr_.75fr]">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-[1.5fr_.7fr_.8fr_.9fr]">
         <label className="block">
           <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">คำที่ให้พิมพ์</span>
           <input
@@ -139,6 +172,7 @@ export default function QaTypingChallengeAdmin({
             className="mt-1.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
           />
         </label>
+
         <label className="block">
           <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">จำนวนคำ</span>
           <input
@@ -150,32 +184,41 @@ export default function QaTypingChallengeAdmin({
             className="mt-1.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
           />
         </label>
-        <label className="block">
+
+        <div className="block">
           <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">ยอมให้ผิดได้</span>
-          <input
-            type="number"
-            min={0}
-            max={Math.max(0, Number(repeatCount) || 0)}
-            value={allowedMistakes}
-            onChange={(event) => setAllowedMistakes(Number(event.target.value))}
-            className="mt-1.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-          />
-        </label>
-        <label className="block">
-          <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">เวลา (วินาที)</span>
-          <input
-            type="number"
-            min={10}
-            max={3600}
-            value={timeLimitSeconds}
-            onChange={(event) => setTimeLimitSeconds(Number(event.target.value))}
-            className="mt-1.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-          />
-        </label>
+          <div className="mt-1.5 flex min-h-[38px] items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-800">
+            <span>{autoAllowedMistakes} คำ</span>
+            <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-700">Auto</span>
+          </div>
+        </div>
+
+        <div className="block">
+          <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">เวลา</span>
+          <div className="mt-1.5 flex min-h-[38px] items-center justify-between rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-black text-sky-800">
+            <span>{formatDuration(autoTimeLimitSeconds)}</span>
+            <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-sky-700">Auto</span>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-2 text-[10px] font-semibold text-slate-500">
-        กำหนดเวลาได้ 10–3,600 วินาที เช่น 60 = 1 นาที, 120 = 2 นาที, 300 = 5 นาที
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
+          <div className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Typing Standard</div>
+          <div className="mt-0.5 text-xs font-black text-slate-700">{QA_TYPING_STANDARD_WPM} คำ/นาที</div>
+        </div>
+        <div className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
+          <div className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Accuracy Standard</div>
+          <div className="mt-0.5 text-xs font-black text-slate-700">{QA_TYPING_STANDARD_ACCURACY}%</div>
+        </div>
+        <div className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
+          <div className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">ต้องถูกอย่างน้อย</div>
+          <div className="mt-0.5 text-xs font-black text-slate-700">{requiredCorrectWords} / {safeRepeatCount} คำ</div>
+        </div>
+      </div>
+
+      <div className="mt-2 text-[10px] font-semibold leading-5 text-slate-500">
+        ระบบคำนวณจากมาตรฐาน 30 คำ/นาที และความถูกต้อง 95% • เวลาขั้นต่ำ 30 วินาที • เมื่อเปลี่ยนจำนวนคำ ค่าเกณฑ์และเวลาจะเปลี่ยนอัตโนมัติทันที
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
