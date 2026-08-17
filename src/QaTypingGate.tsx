@@ -3,6 +3,7 @@ import {
   completeQaTypingChallenge,
   subscribeQaTypingChallengeQueue,
   type QaTypingChallenge,
+  type QaTypingChallengeMode,
 } from "./qaTypingChallengeStore";
 import { saveQaTypingChallengeHistory, type QaTypingChallengeHistoryResult } from "./qaTypingChallengeHistoryStore";
 
@@ -11,7 +12,15 @@ type GateUser = {
   displayName?: string;
 };
 
-function splitTypedWords(value: string) {
+function splitTypedUnits(value: string, mode: QaTypingChallengeMode) {
+  if (mode === "sentence") {
+    return String(value || "")
+      .replace(/\r/g, "")
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
   return String(value || "")
     .trim()
     .split(/\s+/)
@@ -26,8 +35,8 @@ function formatCountdown(seconds: number) {
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-function countCorrectWords(words: string[], expectedWord: string) {
-  return words.reduce((sum, word) => sum + (word === expectedWord ? 1 : 0), 0);
+function countCorrectUnits(units: string[], expectedText: string) {
+  return units.reduce((sum, item) => sum + (item === expectedText ? 1 : 0), 0);
 }
 
 export default function QaTypingGate({
@@ -62,7 +71,7 @@ export default function QaTypingGate({
     setMessage("");
     setChecking(false);
     timeoutHistoryRecordedRef.current = false;
-  }, [challenge?.id, challenge?.assignedAt, challenge?.word, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
+  }, [challenge?.id, challenge?.assignedAt, challenge?.word, challenge?.mode, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
 
   useEffect(() => {
     if (!enabled || !challenge || secondsLeft <= 0) return;
@@ -74,12 +83,12 @@ export default function QaTypingGate({
 
   const saveAttemptHistory = async (
     result: QaTypingChallengeHistoryResult,
-    words: string[],
+    units: string[],
     usedSeconds: number
   ) => {
     if (!challenge) return;
-    const correctCount = countCorrectWords(words, challenge.word);
-    const typedCount = words.length;
+    const correctCount = countCorrectUnits(units, challenge.word);
+    const typedCount = units.length;
     const mistakeCount = Math.max(0, typedCount - correctCount);
 
     await saveQaTypingChallengeHistory({
@@ -104,18 +113,25 @@ export default function QaTypingGate({
     if (!challenge || secondsLeft !== 0 || timeoutHistoryRecordedRef.current) return;
     timeoutHistoryRecordedRef.current = true;
     setMessage("หมดเวลา กรุณากดเริ่มใหม่และพิมพ์อีกครั้ง");
-    const words = splitTypedWords(typedText);
-    void saveAttemptHistory("Timeout", words, challenge.timeLimitSeconds || 60).catch((error) => {
+    const units = splitTypedUnits(typedText, challenge.mode);
+    void saveAttemptHistory("Timeout", units, challenge.timeLimitSeconds || 60).catch((error) => {
       console.warn("QA typing timeout history save failed", error);
     });
   }, [challenge, secondsLeft, typedText]);
 
-  const typedWords = useMemo(() => splitTypedWords(typedText), [typedText]);
+  const typedUnits = useMemo(
+    () => challenge ? splitTypedUnits(typedText, challenge.mode) : [],
+    [typedText, challenge?.mode]
+  );
   const repeatCount = challenge?.repeatCount || 0;
-  const progress = repeatCount ? Math.min(100, Math.round((typedWords.length / repeatCount) * 100)) : 0;
-  const currentIndex = repeatCount ? Math.min(typedWords.length, repeatCount - 1) : 0;
+  const progress = repeatCount ? Math.min(100, Math.round((typedUnits.length / repeatCount) * 100)) : 0;
+  const currentIndex = repeatCount ? Math.min(typedUnits.length, repeatCount - 1) : 0;
 
   if (!enabled || !challenge) return null;
+
+  const isSentence = challenge.mode === "sentence";
+  const unitLabel = isSentence ? "รอบ" : "คำ";
+  const contentLabel = isSentence ? "ประโยค" : "คำ";
 
   const resetAttempt = () => {
     setTypedText("");
@@ -126,23 +142,23 @@ export default function QaTypingGate({
 
   const verify = async () => {
     if (checking) return;
-    const words = splitTypedWords(typedText);
-    if (words.length !== challenge.repeatCount) {
-      setMessage(`ยังไม่ผ่าน — ต้องพิมพ์ให้ครบ ${challenge.repeatCount} คำ ปัจจุบันพิมพ์ ${words.length} คำ`);
+    const units = splitTypedUnits(typedText, challenge.mode);
+    if (units.length !== challenge.repeatCount) {
+      setMessage(`ยังไม่ผ่าน — ต้องพิมพ์ให้ครบ ${challenge.repeatCount} ${unitLabel} ปัจจุบันพิมพ์ ${units.length} ${unitLabel}`);
       return;
     }
 
-    const correctCount = countCorrectWords(words, challenge.word);
-    const mistakes = Math.max(0, words.length - correctCount);
+    const correctCount = countCorrectUnits(units, challenge.word);
+    const mistakes = Math.max(0, units.length - correctCount);
     const timeUsedSeconds = Math.max(0, (challenge.timeLimitSeconds || 60) - secondsLeft);
 
     if (mistakes > challenge.allowedMistakes) {
       try {
-        await saveAttemptHistory("Fail", words, timeUsedSeconds);
+        await saveAttemptHistory("Fail", units, timeUsedSeconds);
       } catch (error) {
         console.warn("QA typing fail history save failed", error);
       }
-      setMessage(`ยังไม่ผ่าน — พบคำที่ไม่ตรง ${mistakes} คำ เกินเกณฑ์ที่กำหนด กรุณาพิมพ์ใหม่อีกครั้ง`);
+      setMessage(`ยังไม่ผ่าน — พบ${unitLabel}ที่ไม่ตรง ${mistakes} ${unitLabel} เกินเกณฑ์ที่กำหนด กรุณาพิมพ์ใหม่อีกครั้ง`);
       setTypedText("");
       setSecondsLeft(challenge.timeLimitSeconds || 60);
       timeoutHistoryRecordedRef.current = false;
@@ -150,10 +166,10 @@ export default function QaTypingGate({
     }
 
     setChecking(true);
-    setMessage(queue.length > 1 ? "ผ่านคำนี้แล้ว กำลังไปคำถัดไป..." : "ผ่านการตรวจสอบครบแล้ว กำลังเปิดผล QA...");
+    setMessage(queue.length > 1 ? "ผ่านรายการนี้แล้ว กำลังไปรายการถัดไป..." : "ผ่านการตรวจสอบครบแล้ว กำลังเปิดผล QA...");
     try {
       try {
-        await saveAttemptHistory("Pass", words, timeUsedSeconds);
+        await saveAttemptHistory("Pass", units, timeUsedSeconds);
       } catch (historyError) {
         console.warn("QA typing pass history save failed", historyError);
       }
@@ -161,7 +177,7 @@ export default function QaTypingGate({
     } catch (error) {
       console.warn("QA typing challenge queue completion failed", error);
       setChecking(false);
-      setMessage("ไม่สามารถบันทึกการผ่านคำนี้ได้ กรุณาลองตรวจสอบอีกครั้ง");
+      setMessage("ไม่สามารถบันทึกการผ่านรายการนี้ได้ กรุณาลองตรวจสอบอีกครั้ง");
     }
   };
 
@@ -184,35 +200,61 @@ export default function QaTypingGate({
                 QA ACCESS CHECK
               </div>
               <h2 className="mt-4 text-2xl font-black text-slate-950 sm:text-3xl">ตรวจสอบการพิมพ์ก่อนดูผล QA</h2>
-              <p className="mt-2 text-sm font-semibold text-slate-500">กรุณาพิมพ์คำที่แสดงด้านล่างให้ตรงตามจำนวนที่กำหนด ต้องผ่านทุกคำใน Queue ก่อนเข้าสู่หน้าผลการประเมิน QA</p>
-              {queue.length > 1 ? (
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700">
-                  คำปัจจุบัน · เหลือใน Queue {queue.length} คำ
-                </div>
-              ) : null}
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                {isSentence
+                  ? "พิมพ์ประโยคเต็มให้ตรงกับข้อความด้านล่าง และกด Enter เพื่อแยกแต่ละรอบ"
+                  : "พิมพ์คำที่แสดงด้านล่างให้ตรงตามจำนวนที่กำหนด"}
+                {" "}ต้องผ่านทุกรายการใน Queue ก่อนเข้าสู่หน้าผลการประเมิน QA
+              </p>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <span className={`rounded-full px-3 py-1.5 text-xs font-black ${isSentence ? "bg-fuchsia-100 text-fuchsia-700" : "bg-violet-100 text-violet-700"}`}>
+                  {isSentence ? "Sentence Mode" : "Word Mode"}
+                </span>
+                {queue.length > 1 ? (
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700">
+                    รายการปัจจุบัน · เหลือใน Queue {queue.length} รายการ
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             <div className="mt-5 grid gap-2 rounded-2xl border border-violet-200 bg-violet-50/70 px-4 py-3 text-xs font-bold text-slate-700 sm:grid-cols-4 sm:divide-x sm:divide-violet-200">
               <div className="text-center">ผู้ทำแบบทดสอบ: <span className="font-black text-slate-950">{challenge.displayName || currentUser?.displayName || username}</span></div>
-              <div className="text-center">จำนวนคำ: <span className="font-black text-slate-950">{challenge.repeatCount} คำ</span></div>
-              <div className="text-center">ยอมให้ผิดได้: <span className="font-black text-slate-950">{challenge.allowedMistakes} คำ</span></div>
+              <div className="text-center">{isSentence ? "จำนวนรอบ" : "จำนวนคำ"}: <span className="font-black text-slate-950">{challenge.repeatCount} {unitLabel}</span></div>
+              <div className="text-center">ยอมให้ผิดได้: <span className="font-black text-slate-950">{challenge.allowedMistakes} {unitLabel}</span></div>
               <div className="text-center">เวลาที่กำหนด: <span className="font-black text-slate-950">{formatCountdown(challenge.timeLimitSeconds || 60)}</span></div>
             </div>
 
             <div
-              className="mt-5 max-h-[220px] select-none overflow-y-auto rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50/70 via-white to-indigo-50/60 px-5 py-5 text-[25px] font-bold leading-[1.9] text-slate-700 sm:text-[30px]"
+              className={`mt-5 max-h-[260px] select-none overflow-y-auto rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50/70 via-white to-indigo-50/60 ${isSentence ? "px-4 py-4" : "px-5 py-5 text-[25px] font-bold leading-[1.9] text-slate-700 sm:text-[30px]"}`}
               onCopy={(event) => event.preventDefault()}
               onCut={(event) => event.preventDefault()}
               onContextMenu={(event) => event.preventDefault()}
             >
-              {Array.from({ length: challenge.repeatCount }, (_, index) => (
-                <span
-                  key={index}
-                  className={`mr-3 inline-block rounded-md px-1.5 transition ${index === currentIndex ? "bg-amber-300 text-slate-950 shadow-sm" : ""}`}
-                >
-                  {challenge.word}
-                </span>
-              ))}
+              {isSentence ? (
+                <div className="space-y-2">
+                  {Array.from({ length: challenge.repeatCount }, (_, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-start gap-3 rounded-xl border px-3 py-3 text-base font-bold leading-7 transition sm:text-lg ${index === currentIndex ? "border-amber-300 bg-amber-100 text-slate-950 shadow-sm" : "border-transparent bg-white/70 text-slate-700"}`}
+                    >
+                      <span className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg px-1 text-xs font-black ${index === currentIndex ? "bg-amber-400 text-slate-950" : "bg-violet-100 text-violet-700"}`}>
+                        {index + 1}
+                      </span>
+                      <span>{challenge.word}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                Array.from({ length: challenge.repeatCount }, (_, index) => (
+                  <span
+                    key={index}
+                    className={`mr-3 inline-block rounded-md px-1.5 transition ${index === currentIndex ? "bg-amber-300 text-slate-950 shadow-sm" : ""}`}
+                  >
+                    {challenge.word}
+                  </span>
+                ))
+              )}
             </div>
 
             <div className="mt-4 flex items-stretch gap-3">
@@ -239,8 +281,8 @@ export default function QaTypingGate({
                 autoFocus
                 spellCheck={false}
                 autoComplete="off"
-                placeholder="พิมพ์คำที่แสดงด้านบนที่นี่"
-                className="min-h-[90px] flex-1 resize-none rounded-2xl border-2 border-violet-400 bg-white px-4 py-3 text-lg font-bold text-slate-950 outline-none transition focus:border-violet-600 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                placeholder={isSentence ? `พิมพ์${contentLabel}เต็ม 1 รอบ แล้วกด Enter เพื่อขึ้นรอบถัดไป` : "พิมพ์คำที่แสดงด้านบนที่นี่"}
+                className={`flex-1 resize-none rounded-2xl border-2 border-violet-400 bg-white px-4 py-3 font-bold text-slate-950 outline-none transition focus:border-violet-600 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 ${isSentence ? "min-h-[150px] text-base leading-7" : "min-h-[90px] text-lg"}`}
               />
               <div className="flex w-[112px] shrink-0 flex-col gap-2">
                 <div className={`flex flex-1 items-center justify-center rounded-2xl px-3 text-2xl font-black text-white ${secondsLeft > 10 ? "bg-emerald-500" : secondsLeft > 0 ? "bg-amber-500" : "bg-rose-500"}`}>
@@ -259,11 +301,11 @@ export default function QaTypingGate({
 
             <div className="mt-2 flex items-center gap-2 text-xs font-black text-rose-500">
               <span>⚠</span>
-              ห้าม Copy / Paste • ต้องพิมพ์ด้วยตนเอง
+              ห้าม Copy / Paste • ต้องพิมพ์ด้วยตนเอง{isSentence ? " • 1 บรรทัด = 1 รอบ" : ""}
             </div>
 
             <div className="mt-4 flex items-center gap-4">
-              <div className="min-w-[150px] text-sm font-bold text-slate-600">พิมพ์แล้ว {typedWords.length} / {challenge.repeatCount} คำ</div>
+              <div className="min-w-[170px] text-sm font-bold text-slate-600">พิมพ์แล้ว {typedUnits.length} / {challenge.repeatCount} {unitLabel}</div>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
                 <div className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 transition-all" style={{ width: `${progress}%` }} />
               </div>
@@ -275,9 +317,9 @@ export default function QaTypingGate({
                 {message}
               </div>
             ) : (
-              <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-xs font-semibold text-violet-700">
-                ระบบจะตรวจจำนวนคำและการสะกดตามคำที่กำหนด โดยอนุญาตให้ผิดได้ไม่เกิน {challenge.allowedMistakes} คำ ภายในเวลา {formatCountdown(challenge.timeLimitSeconds || 60)}
-                {queue.length > 1 ? ` • เมื่อผ่านแล้วจะไปคำถัดไปอัตโนมัติ (${queue.length - 1} คำรออยู่)` : ""}
+              <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-xs font-semibold leading-5 text-violet-700">
+                ระบบจะตรวจ {isSentence ? "ประโยคเต็มทีละรอบ โดยตรวจตัวอักษรและการเว้นวรรคภายในประโยค" : "จำนวนคำและการสะกดตามคำที่กำหนด"} โดยอนุญาตให้ผิดได้ไม่เกิน {challenge.allowedMistakes} {unitLabel} ภายในเวลา {formatCountdown(challenge.timeLimitSeconds || 60)}
+                {queue.length > 1 ? ` • เมื่อผ่านแล้วจะไปรายการถัดไปอัตโนมัติ (${queue.length - 1} รายการรออยู่)` : ""}
               </div>
             )}
 
@@ -285,10 +327,10 @@ export default function QaTypingGate({
               <button
                 type="button"
                 onClick={() => void verify()}
-                disabled={checking || secondsLeft <= 0 || typedWords.length < challenge.repeatCount}
+                disabled={checking || secondsLeft <= 0 || typedUnits.length < challenge.repeatCount}
                 className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-sm font-black text-white shadow-[0_12px_30px_rgba(109,40,217,0.24)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {checking ? "กำลังตรวจสอบ..." : queue.length > 1 ? "✓ ตรวจสอบและไปคำถัดไป" : "✓ ตรวจสอบ"}
+                {checking ? "กำลังตรวจสอบ..." : queue.length > 1 ? "✓ ตรวจสอบและไปรายการถัดไป" : "✓ ตรวจสอบ"}
               </button>
             </div>
           </div>
