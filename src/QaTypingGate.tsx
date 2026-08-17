@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { clearQaTypingChallenge, subscribeQaTypingChallenge, type QaTypingChallenge } from "./qaTypingChallengeStore";
+import { saveQaTypingChallengeHistory, type QaTypingChallengeHistoryResult } from "./qaTypingChallengeHistoryStore";
 
 type GateUser = {
   username?: string;
@@ -21,6 +22,10 @@ function formatCountdown(seconds: number) {
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
+function countCorrectWords(words: string[], expectedWord: string) {
+  return words.reduce((sum, word) => sum + (word === expectedWord ? 1 : 0), 0);
+}
+
 export default function QaTypingGate({
   currentUser,
   enabled,
@@ -34,6 +39,7 @@ export default function QaTypingGate({
   const [secondsLeft, setSecondsLeft] = useState(60);
   const [message, setMessage] = useState("");
   const [checking, setChecking] = useState(false);
+  const timeoutHistoryRecordedRef = useRef(false);
 
   useEffect(() => {
     setChallenge(null);
@@ -50,6 +56,7 @@ export default function QaTypingGate({
     setSecondsLeft(challenge?.timeLimitSeconds || 60);
     setMessage("");
     setChecking(false);
+    timeoutHistoryRecordedRef.current = false;
   }, [challenge?.assignedAt, challenge?.word, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
 
   useEffect(() => {
@@ -60,9 +67,42 @@ export default function QaTypingGate({
     return () => window.clearInterval(timer);
   }, [enabled, challenge, secondsLeft > 0]);
 
+  const saveAttemptHistory = async (
+    result: QaTypingChallengeHistoryResult,
+    words: string[],
+    usedSeconds: number
+  ) => {
+    if (!challenge) return;
+    const correctCount = countCorrectWords(words, challenge.word);
+    const typedCount = words.length;
+    const mistakeCount = Math.max(0, typedCount - correctCount);
+
+    await saveQaTypingChallengeHistory({
+      username,
+      displayName: challenge.displayName || currentUser?.displayName || username,
+      word: challenge.word,
+      repeatCount: challenge.repeatCount,
+      typedCount,
+      correctCount,
+      mistakeCount,
+      allowedMistakes: challenge.allowedMistakes,
+      timeLimitSeconds: challenge.timeLimitSeconds || 60,
+      timeUsedSeconds: Math.max(0, Math.min(challenge.timeLimitSeconds || 60, Math.floor(usedSeconds))),
+      result,
+      completedAt: new Date().toISOString(),
+      assignedAt: challenge.assignedAt || "",
+      assignedBy: challenge.assignedBy || "",
+    });
+  };
+
   useEffect(() => {
-    if (!challenge || secondsLeft !== 0) return;
+    if (!challenge || secondsLeft !== 0 || timeoutHistoryRecordedRef.current) return;
+    timeoutHistoryRecordedRef.current = true;
     setMessage("หมดเวลา กรุณากดเริ่มใหม่และพิมพ์อีกครั้ง");
+    const words = splitTypedWords(typedText);
+    void saveAttemptHistory("Timeout", words, challenge.timeLimitSeconds || 60).catch((error) => {
+      console.warn("QA typing timeout history save failed", error);
+    });
   }, [challenge, secondsLeft]);
 
   const typedWords = useMemo(() => splitTypedWords(typedText), [typedText]);
@@ -76,6 +116,7 @@ export default function QaTypingGate({
     setTypedText("");
     setSecondsLeft(challenge.timeLimitSeconds || 60);
     setMessage("");
+    timeoutHistoryRecordedRef.current = false;
   };
 
   const verify = async () => {
@@ -86,21 +127,31 @@ export default function QaTypingGate({
       return;
     }
 
-    let mistakes = 0;
-    words.forEach((word) => {
-      if (word !== challenge.word) mistakes += 1;
-    });
+    const correctCount = countCorrectWords(words, challenge.word);
+    const mistakes = Math.max(0, words.length - correctCount);
+    const timeUsedSeconds = Math.max(0, (challenge.timeLimitSeconds || 60) - secondsLeft);
 
     if (mistakes > challenge.allowedMistakes) {
+      try {
+        await saveAttemptHistory("Fail", words, timeUsedSeconds);
+      } catch (error) {
+        console.warn("QA typing fail history save failed", error);
+      }
       setMessage(`ยังไม่ผ่าน — พบคำที่ไม่ตรง ${mistakes} คำ เกินเกณฑ์ที่กำหนด กรุณาพิมพ์ใหม่อีกครั้ง`);
       setTypedText("");
       setSecondsLeft(challenge.timeLimitSeconds || 60);
+      timeoutHistoryRecordedRef.current = false;
       return;
     }
 
     setChecking(true);
     setMessage("ผ่านการตรวจสอบ กำลังเปิดผล QA...");
     try {
+      try {
+        await saveAttemptHistory("Pass", words, timeUsedSeconds);
+      } catch (historyError) {
+        console.warn("QA typing pass history save failed", historyError);
+      }
       await clearQaTypingChallenge(username);
     } catch (error) {
       console.warn("QA typing challenge completion failed", error);
