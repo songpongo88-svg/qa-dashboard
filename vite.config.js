@@ -11,7 +11,8 @@ import { appealRequestsOriginalCommentCleanupPatch } from './build/appealRequest
 import { evaluationAgentFocusPopupPatch } from './build/evaluationAgentFocusPopupPatch.js'
 import { qaTypingChallengeFeaturePatch } from './build/qaTypingChallengeFeaturePatch.js'
 import { qaAccessCheckPermissionPatch } from './build/qaAccessCheckPermissionPatch.js'
+import { qaEvaluationProgressPatch } from './build/qaEvaluationProgressPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), react()],
 })
