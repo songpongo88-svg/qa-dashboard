@@ -14,6 +14,13 @@ function splitTypedWords(value: string) {
     .filter(Boolean);
 }
 
+function formatCountdown(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
 export default function QaTypingGate({
   currentUser,
   enabled,
@@ -40,10 +47,10 @@ export default function QaTypingGate({
 
   useEffect(() => {
     setTypedText("");
-    setSecondsLeft(60);
+    setSecondsLeft(challenge?.timeLimitSeconds || 60);
     setMessage("");
     setChecking(false);
-  }, [challenge?.assignedAt, challenge?.word, challenge?.repeatCount, challenge?.allowedMistakes]);
+  }, [challenge?.assignedAt, challenge?.word, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
 
   useEffect(() => {
     if (!enabled || !challenge || secondsLeft <= 0) return;
@@ -67,7 +74,7 @@ export default function QaTypingGate({
 
   const resetAttempt = () => {
     setTypedText("");
-    setSecondsLeft(60);
+    setSecondsLeft(challenge.timeLimitSeconds || 60);
     setMessage("");
   };
 
@@ -87,7 +94,7 @@ export default function QaTypingGate({
     if (mistakes > challenge.allowedMistakes) {
       setMessage(`ยังไม่ผ่าน — พบคำที่ไม่ตรง ${mistakes} คำ เกินเกณฑ์ที่กำหนด กรุณาพิมพ์ใหม่อีกครั้ง`);
       setTypedText("");
-      setSecondsLeft(60);
+      setSecondsLeft(challenge.timeLimitSeconds || 60);
       return;
     }
 
@@ -124,10 +131,11 @@ export default function QaTypingGate({
               <p className="mt-2 text-sm font-semibold text-slate-500">กรุณาพิมพ์คำที่แสดงด้านล่างให้ตรงตามจำนวนที่กำหนด เพื่อเข้าสู่หน้าผลการประเมิน QA</p>
             </div>
 
-            <div className="mt-5 grid gap-2 rounded-2xl border border-violet-200 bg-violet-50/70 px-4 py-3 text-xs font-bold text-slate-700 sm:grid-cols-3 sm:divide-x sm:divide-violet-200">
+            <div className="mt-5 grid gap-2 rounded-2xl border border-violet-200 bg-violet-50/70 px-4 py-3 text-xs font-bold text-slate-700 sm:grid-cols-4 sm:divide-x sm:divide-violet-200">
               <div className="text-center">ผู้ประเมิน: <span className="font-black text-slate-950">{challenge.displayName || currentUser?.displayName || username}</span></div>
               <div className="text-center">จำนวนคำ: <span className="font-black text-slate-950">{challenge.repeatCount} คำ</span></div>
               <div className="text-center">ยอมให้ผิดได้: <span className="font-black text-slate-950">{challenge.allowedMistakes} คำ</span></div>
+              <div className="text-center">เวลาที่กำหนด: <span className="font-black text-slate-950">{formatCountdown(challenge.timeLimitSeconds || 60)}</span></div>
             </div>
 
             <div
@@ -175,7 +183,7 @@ export default function QaTypingGate({
               />
               <div className="flex w-[112px] shrink-0 flex-col gap-2">
                 <div className={`flex flex-1 items-center justify-center rounded-2xl px-3 text-2xl font-black text-white ${secondsLeft > 10 ? "bg-emerald-500" : secondsLeft > 0 ? "bg-amber-500" : "bg-rose-500"}`}>
-                  0:{String(secondsLeft).padStart(2, "0")}
+                  {formatCountdown(secondsLeft)}
                 </div>
                 <button
                   type="button"
@@ -207,7 +215,7 @@ export default function QaTypingGate({
               </div>
             ) : (
               <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-xs font-semibold text-violet-700">
-                ระบบจะตรวจจำนวนคำและการสะกดตามคำที่กำหนด โดยอนุญาตให้ผิดได้ไม่เกิน {challenge.allowedMistakes} คำ
+                ระบบจะตรวจจำนวนคำและการสะกดตามคำที่กำหนด โดยอนุญาตให้ผิดได้ไม่เกิน {challenge.allowedMistakes} คำ ภายในเวลา {formatCountdown(challenge.timeLimitSeconds || 60)}
               </div>
             )}
 
