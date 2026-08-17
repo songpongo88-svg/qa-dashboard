@@ -83,14 +83,16 @@ export default function QaTypingChallengeWorkspace({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/60 p-4 text-slate-950 sm:p-6" style={{ fontFamily: "'Kanit', sans-serif" }}>
-      <div className="mx-auto max-w-[1280px]">
+      <div className="mx-auto max-w-[1280px] overflow-hidden rounded-[30px] border border-violet-100 bg-white/60 shadow-sm">
         <PageHero
           eyebrow="QUALITY CONTROL"
           title="QA Access Check"
-          description="กำหนดคำที่ Agent ต้องพิมพ์ให้ถูกต้องก่อนเข้าดูผล QA"
+          subtitle="กำหนดคำที่ Agent ต้องพิมพ์ให้ถูกต้องก่อนเข้าดูผล QA"
+          workspaceTitle="QA Access Control"
+          workspaceSubtitle="Typing verification before QA result access"
         />
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="grid gap-5 p-5 xl:grid-cols-[360px_minmax(0,1fr)] sm:p-6">
           <aside className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08)]">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-600">Target Agent</div>
             <h2 className="mt-1 text-lg font-black text-slate-950">เลือกผู้รับ QA Access Check</h2>
