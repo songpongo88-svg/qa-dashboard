@@ -5,6 +5,7 @@ import {
   removeQaTypingChallenge,
   subscribeQaTypingChallengeQueue,
   type QaTypingChallenge,
+  type QaTypingChallengeMode,
 } from "./qaTypingChallengeStore";
 
 type AgentOption = {
@@ -22,9 +23,14 @@ type CurrentUser = {
 const QA_TYPING_STANDARD_WPM = 30;
 const QA_TYPING_STANDARD_ACCURACY = 95;
 const QA_TYPING_MIN_TIME_SECONDS = 30;
+const STANDARD_CHARACTERS_PER_WORD = 5;
 
 function clampRepeatCount(value: unknown) {
   return Math.max(1, Math.min(500, Math.floor(Number(value) || 1)));
+}
+
+function detectChallengeMode(value: string): QaTypingChallengeMode {
+  return /\s/.test(String(value || "").trim()) ? "sentence" : "word";
 }
 
 function calculateAllowedMistakes(repeatCount: number) {
@@ -32,9 +38,18 @@ function calculateAllowedMistakes(repeatCount: number) {
   return Math.floor(safeRepeat * ((100 - QA_TYPING_STANDARD_ACCURACY) / 100));
 }
 
-function calculateTimeLimitSeconds(repeatCount: number) {
+function calculateTimeLimitSeconds(text: string, repeatCount: number, mode: QaTypingChallengeMode) {
   const safeRepeat = clampRepeatCount(repeatCount);
-  const calculatedSeconds = Math.ceil((safeRepeat / QA_TYPING_STANDARD_WPM) * 60);
+  let calculatedSeconds = 0;
+
+  if (mode === "sentence") {
+    const charactersPerMinute = QA_TYPING_STANDARD_WPM * STANDARD_CHARACTERS_PER_WORD;
+    const totalCharacters = Math.max(1, Array.from(String(text || "").trim()).length) * safeRepeat;
+    calculatedSeconds = Math.ceil((totalCharacters / charactersPerMinute) * 60);
+  } else {
+    calculatedSeconds = Math.ceil((safeRepeat / QA_TYPING_STANDARD_WPM) * 60);
+  }
+
   return Math.max(QA_TYPING_MIN_TIME_SECONDS, Math.min(3600, calculatedSeconds));
 }
 
@@ -77,16 +92,19 @@ export default function QaTypingChallengeAdmin({
   }, [username]);
 
   const cleanWord = useMemo(() => word.trim(), [word]);
+  const mode = useMemo(() => detectChallengeMode(cleanWord), [cleanWord]);
+  const isSentence = mode === "sentence";
   const safeRepeatCount = useMemo(() => clampRepeatCount(repeatCount), [repeatCount]);
   const autoAllowedMistakes = useMemo(
     () => calculateAllowedMistakes(safeRepeatCount),
     [safeRepeatCount]
   );
   const autoTimeLimitSeconds = useMemo(
-    () => calculateTimeLimitSeconds(safeRepeatCount),
-    [safeRepeatCount]
+    () => calculateTimeLimitSeconds(cleanWord, safeRepeatCount, mode),
+    [cleanWord, safeRepeatCount, mode]
   );
-  const requiredCorrectWords = Math.max(0, safeRepeatCount - autoAllowedMistakes);
+  const requiredCorrectUnits = Math.max(0, safeRepeatCount - autoAllowedMistakes);
+  const unitLabel = isSentence ? "รอบ" : "คำ";
 
   if (!agent || !username) return null;
 
@@ -94,17 +112,13 @@ export default function QaTypingChallengeAdmin({
     setMessage("");
     setError("");
     if (!cleanWord) {
-      setError("กรุณากำหนดคำที่ต้องการให้พิมพ์");
-      return;
-    }
-    if (/\s/.test(cleanWord)) {
-      setError("กรุณากำหนดเป็น 1 คำ เช่น อนุญาต");
+      setError("กรุณากำหนดคำหรือประโยคที่ต้องการให้พิมพ์");
       return;
     }
 
     const safeRepeat = clampRepeatCount(repeatCount);
     const safeAllowed = calculateAllowedMistakes(safeRepeat);
-    const safeTimeLimitSeconds = calculateTimeLimitSeconds(safeRepeat);
+    const safeTimeLimitSeconds = calculateTimeLimitSeconds(cleanWord, safeRepeat, mode);
     const nextPosition = queue.length + 1;
     setBusy(true);
     try {
@@ -112,6 +126,7 @@ export default function QaTypingChallengeAdmin({
         username,
         displayName: agentName,
         word: cleanWord,
+        mode,
         repeatCount: safeRepeat,
         allowedMistakes: safeAllowed,
         timeLimitSeconds: safeTimeLimitSeconds,
@@ -128,7 +143,7 @@ export default function QaTypingChallengeAdmin({
     } catch (assignError) {
       console.warn("Assign QA typing challenge failed", assignError);
       const detail = assignError instanceof Error ? assignError.message : "";
-      setError(detail.includes("queue limit") ? "Queue ของ Agent นี้เต็มแล้ว (สูงสุด 50 คำ)" : "ส่ง QA Access Check ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setError(detail.includes("queue limit") ? "Queue ของ Agent นี้เต็มแล้ว (สูงสุด 50 รายการ)" : "ส่ง QA Access Check ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
     } finally {
       setBusy(false);
     }
@@ -143,7 +158,7 @@ export default function QaTypingChallengeAdmin({
       setMessage(`นำ “${challenge.word}” ออกจาก Queue ของ ${agentName} แล้ว`);
     } catch (removeError) {
       console.warn("Remove QA typing challenge failed", removeError);
-      setError("นำคำออกจาก Queue ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setError("นำรายการออกจาก Queue ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
     } finally {
       setBusy(false);
     }
@@ -173,7 +188,7 @@ export default function QaTypingChallengeAdmin({
             QA Access Check
           </div>
           <div className="mt-1 text-xs font-bold text-slate-700">
-            เพิ่มคำได้หลายคำต่อ Agent ระบบจะเรียงเป็น Queue และให้ทำตามลำดับก่อนเข้าดูผล QA
+            รองรับทั้งคำและประโยค ระบบตรวจจับโหมดอัตโนมัติและเรียงหลายรายการเป็น Queue
           </div>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${queue.length ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
@@ -182,18 +197,24 @@ export default function QaTypingChallengeAdmin({
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-[1.5fr_.7fr_.8fr_.9fr]">
-        <label className="block">
-          <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">คำที่ให้พิมพ์</span>
-          <input
+        <label className="block sm:col-span-2 xl:col-span-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">คำ / ประโยคที่ให้พิมพ์</span>
+            <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${isSentence ? "bg-fuchsia-100 text-fuchsia-700" : "bg-violet-100 text-violet-700"}`}>
+              {isSentence ? "Sentence Mode" : "Word Mode"}
+            </span>
+          </div>
+          <textarea
             value={word}
-            onChange={(event) => setWord(event.target.value)}
-            placeholder="เช่น อนุญาต"
-            className="mt-1.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            onChange={(event) => setWord(event.target.value.replace(/\r?\n/g, " "))}
+            placeholder="เช่น อนุญาต หรือ พี่ไรเดอร์มีเสื้อ Robinhood แล้วหรือยังคะ"
+            rows={2}
+            className="mt-1.5 w-full resize-none rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
           />
         </label>
 
         <label className="block">
-          <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">จำนวนคำ</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{isSentence ? "จำนวนรอบ" : "จำนวนคำ"}</span>
           <input
             type="number"
             min={1}
@@ -207,7 +228,7 @@ export default function QaTypingChallengeAdmin({
         <div className="block">
           <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">ยอมให้ผิดได้</span>
           <div className="mt-1.5 flex min-h-[38px] items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-800">
-            <span>{autoAllowedMistakes} คำ</span>
+            <span>{autoAllowedMistakes} {unitLabel}</span>
             <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-700">Auto</span>
           </div>
         </div>
@@ -224,7 +245,7 @@ export default function QaTypingChallengeAdmin({
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         <div className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
           <div className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Typing Standard</div>
-          <div className="mt-0.5 text-xs font-black text-slate-700">{QA_TYPING_STANDARD_WPM} คำ/นาที</div>
+          <div className="mt-0.5 text-xs font-black text-slate-700">{QA_TYPING_STANDARD_WPM} WPM · 5 chars/word</div>
         </div>
         <div className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
           <div className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Accuracy Standard</div>
@@ -232,12 +253,15 @@ export default function QaTypingChallengeAdmin({
         </div>
         <div className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
           <div className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">ต้องถูกอย่างน้อย</div>
-          <div className="mt-0.5 text-xs font-black text-slate-700">{requiredCorrectWords} / {safeRepeatCount} คำ</div>
+          <div className="mt-0.5 text-xs font-black text-slate-700">{requiredCorrectUnits} / {safeRepeatCount} {unitLabel}</div>
         </div>
       </div>
 
-      <div className="mt-2 text-[10px] font-semibold leading-5 text-slate-500">
-        ระบบคำนวณจากมาตรฐาน 30 คำ/นาที และความถูกต้อง 95% • เวลาขั้นต่ำ 30 วินาที • คำใหม่จะต่อท้าย Queue โดยไม่ทับคำเดิม
+      <div className="mt-2 rounded-xl border border-slate-100 bg-white/70 px-3 py-2 text-[10px] font-semibold leading-5 text-slate-500">
+        {isSentence
+          ? "Sentence Mode: Agent ต้องพิมพ์ประโยคเต็มตามข้อความที่กำหนด และกด Enter เพื่อแยกแต่ละรอบ • ระบบตรวจตัวอักษรและการเว้นวรรคภายในประโยค • เวลา Auto จากความยาวข้อความ"
+          : "Word Mode: Agent พิมพ์คำเดิมซ้ำตามจำนวนคำ • เวลา Auto จากมาตรฐาน 30 คำ/นาที"}
+        {" • "}ความถูกต้อง 95% • เวลาขั้นต่ำ 30 วินาที • รายการใหม่ต่อท้าย Queue โดยไม่ทับรายการเดิม
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -247,7 +271,7 @@ export default function QaTypingChallengeAdmin({
           disabled={busy || !cleanWord}
           className="rounded-xl bg-violet-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
         >
-          {busy ? "กำลังดำเนินการ..." : queue.length ? "+ เพิ่มคำเข้าคิว" : "ส่ง QA Access Check"}
+          {busy ? "กำลังดำเนินการ..." : queue.length ? "+ เพิ่มเข้าคิว" : "ส่ง QA Access Check"}
         </button>
         {queue.length ? (
           <button
@@ -267,35 +291,42 @@ export default function QaTypingChallengeAdmin({
           <div className="flex items-center justify-between border-b border-violet-100 bg-violet-50 px-3 py-2.5">
             <div>
               <div className="text-[9px] font-black uppercase tracking-[0.14em] text-violet-600">Pending Queue</div>
-              <div className="text-xs font-black text-slate-800">ต้องทำตามลำดับ {queue.length} คำ</div>
+              <div className="text-xs font-black text-slate-800">ต้องทำตามลำดับ {queue.length} รายการ</div>
             </div>
             <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-violet-700">{queue.length} ITEMS</span>
           </div>
           <div className="divide-y divide-slate-100">
-            {queue.map((item, index) => (
-              <div key={item.id} className="flex flex-wrap items-center gap-3 px-3 py-3">
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${index === 0 ? "bg-amber-100 text-amber-700" : "bg-violet-100 text-violet-700"}`}>
-                  {index + 1}
-                </div>
-                <div className="min-w-[150px] flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-black text-slate-900">{item.word}</span>
-                    {index === 0 ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700">Current</span> : null}
+            {queue.map((item, index) => {
+              const itemSentence = item.mode === "sentence";
+              const itemUnitLabel = itemSentence ? "รอบ" : "คำ";
+              return (
+                <div key={item.id} className="flex flex-wrap items-center gap-3 px-3 py-3">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${index === 0 ? "bg-amber-100 text-amber-700" : "bg-violet-100 text-violet-700"}`}>
+                    {index + 1}
                   </div>
-                  <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
-                    {item.repeatCount} คำ · ผิดได้ {item.allowedMistakes} · เวลา {formatDuration(item.timeLimitSeconds)}
+                  <div className="min-w-[150px] flex-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="max-w-full truncate text-sm font-black text-slate-900" title={item.word}>{item.word}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${itemSentence ? "bg-fuchsia-100 text-fuchsia-700" : "bg-violet-100 text-violet-700"}`}>
+                        {itemSentence ? "Sentence" : "Word"}
+                      </span>
+                      {index === 0 ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700">Current</span> : null}
+                    </div>
+                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
+                      {item.repeatCount} {itemUnitLabel} · ผิดได้ {item.allowedMistakes} {itemUnitLabel} · เวลา {formatDuration(item.timeLimitSeconds)}
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => void removeChallenge(item)}
+                    disabled={busy}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                  >
+                    นำออก
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void removeChallenge(item)}
-                  disabled={busy}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-                >
-                  นำออก
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : null}
