@@ -8,7 +8,8 @@ import { sidebarGroupsDefaultOpenPatch } from './build/sidebarGroupsDefaultOpenP
 import { signaturePaymentTopicFinalOverridePatch } from './build/signaturePaymentTopicFinalOverridePatch.js'
 import { appealReviewHtmlCleanupPatch } from './build/appealReviewHtmlCleanupPatch.js'
 import { appealRequestsOriginalCommentCleanupPatch } from './build/appealRequestsOriginalCommentCleanupPatch.js'
+import { evaluationAgentFocusPopupPatch } from './build/evaluationAgentFocusPopupPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), react()],
 })
