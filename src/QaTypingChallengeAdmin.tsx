@@ -30,6 +30,7 @@ export default function QaTypingChallengeAdmin({
   const [word, setWord] = useState("อนุญาต");
   const [repeatCount, setRepeatCount] = useState(100);
   const [allowedMistakes, setAllowedMistakes] = useState(0);
+  const [timeLimitSeconds, setTimeLimitSeconds] = useState(60);
   const [activeChallenge, setActiveChallenge] = useState<QaTypingChallenge | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -49,6 +50,7 @@ export default function QaTypingChallengeAdmin({
           setWord(challenge.word);
           setRepeatCount(challenge.repeatCount);
           setAllowedMistakes(challenge.allowedMistakes);
+          setTimeLimitSeconds(challenge.timeLimitSeconds || 60);
         }
       },
       () => setError("ไม่สามารถตรวจสอบ QA Access Check ของ Agent นี้ได้")
@@ -72,6 +74,7 @@ export default function QaTypingChallengeAdmin({
 
     const safeRepeat = Math.max(1, Math.min(500, Math.floor(Number(repeatCount) || 1)));
     const safeAllowed = Math.max(0, Math.min(safeRepeat, Math.floor(Number(allowedMistakes) || 0)));
+    const safeTimeLimitSeconds = Math.max(10, Math.min(3600, Math.floor(Number(timeLimitSeconds) || 60)));
     setBusy(true);
     try {
       await assignQaTypingChallenge({
@@ -80,11 +83,13 @@ export default function QaTypingChallengeAdmin({
         word: cleanWord,
         repeatCount: safeRepeat,
         allowedMistakes: safeAllowed,
+        timeLimitSeconds: safeTimeLimitSeconds,
         assignedAt: new Date().toISOString(),
         assignedBy: String(currentUser?.username || currentUser?.displayName || "QA").trim(),
       });
       setRepeatCount(safeRepeat);
       setAllowedMistakes(safeAllowed);
+      setTimeLimitSeconds(safeTimeLimitSeconds);
       setMessage(`ส่ง QA Access Check ให้ ${agentName} แล้ว`);
     } catch (assignError) {
       console.warn("Assign QA typing challenge failed", assignError);
@@ -117,14 +122,14 @@ export default function QaTypingChallengeAdmin({
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-600 text-xs text-white">⌨</span>
             QA Access Check
           </div>
-          <div className="mt-1 text-xs font-bold text-slate-700">กำหนดคำที่ Agent ต้องพิมพ์ก่อนเข้าดูผล QA</div>
+          <div className="mt-1 text-xs font-bold text-slate-700">กำหนดคำ จำนวนคำ เวลา และเกณฑ์ที่ Agent ต้องผ่านก่อนเข้าดูผล QA</div>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${activeChallenge ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
           {activeChallenge ? "ACTIVE" : "NOT ASSIGNED"}
         </span>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-[1.4fr_.7fr_.8fr]">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-[1.4fr_.65fr_.75fr_.75fr]">
         <label className="block">
           <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">คำที่ให้พิมพ์</span>
           <input
@@ -156,6 +161,21 @@ export default function QaTypingChallengeAdmin({
             className="mt-1.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
           />
         </label>
+        <label className="block">
+          <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">เวลา (วินาที)</span>
+          <input
+            type="number"
+            min={10}
+            max={3600}
+            value={timeLimitSeconds}
+            onChange={(event) => setTimeLimitSeconds(Number(event.target.value))}
+            className="mt-1.5 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+          />
+        </label>
+      </div>
+
+      <div className="mt-2 text-[10px] font-semibold text-slate-500">
+        กำหนดเวลาได้ 10–3,600 วินาที เช่น 60 = 1 นาที, 120 = 2 นาที, 300 = 5 นาที
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
