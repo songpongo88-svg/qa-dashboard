@@ -6,7 +6,8 @@ import { signaturePaymentPdfLargeFontPatch } from './build/signaturePaymentPdfLa
 import { signatureDocumentRefMatchWebPatch } from './build/signatureDocumentRefMatchWebPatch.js'
 import { sidebarGroupsDefaultOpenPatch } from './build/sidebarGroupsDefaultOpenPatch.js'
 import { signaturePaymentTopicFinalOverridePatch } from './build/signaturePaymentTopicFinalOverridePatch.js'
+import { appealReviewHtmlCleanupPatch } from './build/appealReviewHtmlCleanupPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), react()],
 })
