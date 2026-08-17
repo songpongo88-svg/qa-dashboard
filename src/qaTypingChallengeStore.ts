@@ -4,11 +4,14 @@ import { firebaseDb } from "./firebaseClient";
 const QA_TYPING_CHALLENGE_COLLECTION = "qa_typing_challenges";
 const MAX_QUEUE_ITEMS = 50;
 
+export type QaTypingChallengeMode = "word" | "sentence";
+
 export type QaTypingChallenge = {
   id: string;
   username: string;
   displayName: string;
   word: string;
+  mode: QaTypingChallengeMode;
   repeatCount: number;
   allowedMistakes: number;
   timeLimitSeconds: number;
@@ -16,7 +19,10 @@ export type QaTypingChallenge = {
   assignedBy: string;
 };
 
-export type NewQaTypingChallenge = Omit<QaTypingChallenge, "id"> & { id?: string };
+export type NewQaTypingChallenge = Omit<QaTypingChallenge, "id" | "mode"> & {
+  id?: string;
+  mode?: QaTypingChallengeMode;
+};
 
 function safeDocId(value: unknown) {
   return String(value || "")
@@ -24,6 +30,11 @@ function safeDocId(value: unknown) {
     .replace(/\//g, "__")
     .replace(/\s+/g, " ")
     .toLowerCase() || "unknown";
+}
+
+function detectChallengeMode(value: unknown): QaTypingChallengeMode {
+  const text = String(value || "").trim();
+  return /\s/.test(text) ? "sentence" : "word";
 }
 
 function createChallengeId(username: string, assignedAt: string, word: string) {
@@ -38,18 +49,23 @@ function legacyChallengeId(username: string, assignedAt: string, word: string) {
 }
 
 function normalizeChallenge(username: string, row: any, fallbackId = ""): QaTypingChallenge | null {
-  const word = String(row?.word || "").trim();
+  const word = String(row?.word || row?.text || "").trim();
   const repeatCount = Math.max(1, Math.min(500, Math.floor(Number(row?.repeatCount) || 0)));
   const allowedMistakes = Math.max(0, Math.min(repeatCount, Math.floor(Number(row?.allowedMistakes) || 0)));
   const timeLimitSeconds = Math.max(10, Math.min(3600, Math.floor(Number(row?.timeLimitSeconds) || 60)));
   const assignedAt = String(row?.assignedAt || "");
   if (!word || !repeatCount) return null;
 
+  const mode: QaTypingChallengeMode = row?.mode === "sentence" || row?.mode === "word"
+    ? row.mode
+    : detectChallengeMode(word);
+
   return {
     id: String(row?.id || fallbackId || legacyChallengeId(username, assignedAt, word)).trim(),
     username: String(row?.username || username || "").trim(),
     displayName: String(row?.displayName || "").trim(),
     word,
+    mode,
     repeatCount,
     allowedMistakes,
     timeLimitSeconds,
@@ -76,6 +92,7 @@ function serializeChallenge(challenge: QaTypingChallenge) {
     username: challenge.username,
     displayName: challenge.displayName,
     word: challenge.word,
+    mode: challenge.mode,
     repeatCount: challenge.repeatCount,
     allowedMistakes: challenge.allowedMistakes,
     timeLimitSeconds: challenge.timeLimitSeconds,
@@ -132,12 +149,15 @@ export function subscribeQaTypingChallenge(
 export async function assignQaTypingChallenge(challenge: NewQaTypingChallenge) {
   const username = String(challenge.username || "").trim();
   const word = String(challenge.word || "").trim();
+  const mode: QaTypingChallengeMode = challenge.mode === "sentence" || challenge.mode === "word"
+    ? challenge.mode
+    : detectChallengeMode(word);
   const repeatCount = Math.max(1, Math.min(500, Math.floor(Number(challenge.repeatCount) || 1)));
   const allowedMistakes = Math.max(0, Math.min(repeatCount, Math.floor(Number(challenge.allowedMistakes) || 0)));
   const timeLimitSeconds = Math.max(10, Math.min(3600, Math.floor(Number(challenge.timeLimitSeconds) || 60)));
   const assignedAt = challenge.assignedAt || new Date().toISOString();
   if (!username) throw new Error("Missing target username");
-  if (!word) throw new Error("Missing typing word");
+  if (!word) throw new Error("Missing typing text");
 
   const challengeRef = doc(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION, safeDocId(username));
 
@@ -153,6 +173,7 @@ export async function assignQaTypingChallenge(challenge: NewQaTypingChallenge) {
       username,
       displayName: String(challenge.displayName || "").trim(),
       word,
+      mode,
       repeatCount,
       allowedMistakes,
       timeLimitSeconds,
@@ -218,7 +239,6 @@ export async function clearQaTypingChallenge(username: string) {
   await deleteDoc(doc(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION, safeDocId(normalizedUsername)));
 }
 
-// Kept for compatibility with older callers that may still replace the document directly.
 export async function replaceQaTypingChallengeQueue(username: string, queue: QaTypingChallenge[]) {
   const normalizedUsername = String(username || "").trim();
   if (!normalizedUsername) return;
