@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { clearQaTypingChallenge, subscribeQaTypingChallenge, type QaTypingChallenge } from "./qaTypingChallengeStore";
+import {
+  completeQaTypingChallenge,
+  subscribeQaTypingChallengeQueue,
+  type QaTypingChallenge,
+} from "./qaTypingChallengeStore";
 import { saveQaTypingChallengeHistory, type QaTypingChallengeHistoryResult } from "./qaTypingChallengeHistoryStore";
 
 type GateUser = {
@@ -34,7 +38,8 @@ export default function QaTypingGate({
   enabled: boolean;
 }) {
   const username = String(currentUser?.username || "").trim();
-  const [challenge, setChallenge] = useState<QaTypingChallenge | null>(null);
+  const [queue, setQueue] = useState<QaTypingChallenge[]>([]);
+  const challenge = queue[0] || null;
   const [typedText, setTypedText] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(60);
   const [message, setMessage] = useState("");
@@ -42,12 +47,12 @@ export default function QaTypingGate({
   const timeoutHistoryRecordedRef = useRef(false);
 
   useEffect(() => {
-    setChallenge(null);
+    setQueue([]);
     if (!username) return;
-    return subscribeQaTypingChallenge(
+    return subscribeQaTypingChallengeQueue(
       username,
-      (next) => setChallenge(next),
-      (error) => console.warn("QA typing gate subscribe failed", error)
+      (nextQueue) => setQueue(nextQueue),
+      (error) => console.warn("QA typing gate queue subscribe failed", error)
     );
   }, [username]);
 
@@ -57,7 +62,7 @@ export default function QaTypingGate({
     setMessage("");
     setChecking(false);
     timeoutHistoryRecordedRef.current = false;
-  }, [challenge?.assignedAt, challenge?.word, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
+  }, [challenge?.id, challenge?.assignedAt, challenge?.word, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
 
   useEffect(() => {
     if (!enabled || !challenge || secondsLeft <= 0) return;
@@ -103,7 +108,7 @@ export default function QaTypingGate({
     void saveAttemptHistory("Timeout", words, challenge.timeLimitSeconds || 60).catch((error) => {
       console.warn("QA typing timeout history save failed", error);
     });
-  }, [challenge, secondsLeft]);
+  }, [challenge, secondsLeft, typedText]);
 
   const typedWords = useMemo(() => splitTypedWords(typedText), [typedText]);
   const repeatCount = challenge?.repeatCount || 0;
@@ -145,18 +150,18 @@ export default function QaTypingGate({
     }
 
     setChecking(true);
-    setMessage("ผ่านการตรวจสอบ กำลังเปิดผล QA...");
+    setMessage(queue.length > 1 ? "ผ่านคำนี้แล้ว กำลังไปคำถัดไป..." : "ผ่านการตรวจสอบครบแล้ว กำลังเปิดผล QA...");
     try {
       try {
         await saveAttemptHistory("Pass", words, timeUsedSeconds);
       } catch (historyError) {
         console.warn("QA typing pass history save failed", historyError);
       }
-      await clearQaTypingChallenge(username);
+      await completeQaTypingChallenge(username, challenge.id);
     } catch (error) {
-      console.warn("QA typing challenge completion failed", error);
+      console.warn("QA typing challenge queue completion failed", error);
       setChecking(false);
-      setMessage("ไม่สามารถปลดล็อกผล QA ได้ กรุณาลองตรวจสอบอีกครั้ง");
+      setMessage("ไม่สามารถบันทึกการผ่านคำนี้ได้ กรุณาลองตรวจสอบอีกครั้ง");
     }
   };
 
@@ -179,11 +184,16 @@ export default function QaTypingGate({
                 QA ACCESS CHECK
               </div>
               <h2 className="mt-4 text-2xl font-black text-slate-950 sm:text-3xl">ตรวจสอบการพิมพ์ก่อนดูผล QA</h2>
-              <p className="mt-2 text-sm font-semibold text-slate-500">กรุณาพิมพ์คำที่แสดงด้านล่างให้ตรงตามจำนวนที่กำหนด เพื่อเข้าสู่หน้าผลการประเมิน QA</p>
+              <p className="mt-2 text-sm font-semibold text-slate-500">กรุณาพิมพ์คำที่แสดงด้านล่างให้ตรงตามจำนวนที่กำหนด ต้องผ่านทุกคำใน Queue ก่อนเข้าสู่หน้าผลการประเมิน QA</p>
+              {queue.length > 1 ? (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700">
+                  คำปัจจุบัน · เหลือใน Queue {queue.length} คำ
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-5 grid gap-2 rounded-2xl border border-violet-200 bg-violet-50/70 px-4 py-3 text-xs font-bold text-slate-700 sm:grid-cols-4 sm:divide-x sm:divide-violet-200">
-              <div className="text-center">ผู้ประเมิน: <span className="font-black text-slate-950">{challenge.displayName || currentUser?.displayName || username}</span></div>
+              <div className="text-center">ผู้ทำแบบทดสอบ: <span className="font-black text-slate-950">{challenge.displayName || currentUser?.displayName || username}</span></div>
               <div className="text-center">จำนวนคำ: <span className="font-black text-slate-950">{challenge.repeatCount} คำ</span></div>
               <div className="text-center">ยอมให้ผิดได้: <span className="font-black text-slate-950">{challenge.allowedMistakes} คำ</span></div>
               <div className="text-center">เวลาที่กำหนด: <span className="font-black text-slate-950">{formatCountdown(challenge.timeLimitSeconds || 60)}</span></div>
@@ -267,6 +277,7 @@ export default function QaTypingGate({
             ) : (
               <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-xs font-semibold text-violet-700">
                 ระบบจะตรวจจำนวนคำและการสะกดตามคำที่กำหนด โดยอนุญาตให้ผิดได้ไม่เกิน {challenge.allowedMistakes} คำ ภายในเวลา {formatCountdown(challenge.timeLimitSeconds || 60)}
+                {queue.length > 1 ? ` • เมื่อผ่านแล้วจะไปคำถัดไปอัตโนมัติ (${queue.length - 1} คำรออยู่)` : ""}
               </div>
             )}
 
@@ -277,7 +288,7 @@ export default function QaTypingGate({
                 disabled={checking || secondsLeft <= 0 || typedWords.length < challenge.repeatCount}
                 className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-sm font-black text-white shadow-[0_12px_30px_rgba(109,40,217,0.24)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {checking ? "กำลังตรวจสอบ..." : "✓ ตรวจสอบ"}
+                {checking ? "กำลังตรวจสอบ..." : queue.length > 1 ? "✓ ตรวจสอบและไปคำถัดไป" : "✓ ตรวจสอบ"}
               </button>
             </div>
           </div>
