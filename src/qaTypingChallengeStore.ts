@@ -9,6 +9,7 @@ export type QaTypingChallenge = {
   word: string;
   repeatCount: number;
   allowedMistakes: number;
+  timeLimitSeconds: number;
   assignedAt: string;
   assignedBy: string;
 };
@@ -25,6 +26,7 @@ function normalizeChallenge(username: string, row: any): QaTypingChallenge | nul
   const word = String(row?.word || "").trim();
   const repeatCount = Math.max(1, Math.min(500, Math.floor(Number(row?.repeatCount) || 0)));
   const allowedMistakes = Math.max(0, Math.min(repeatCount, Math.floor(Number(row?.allowedMistakes) || 0)));
+  const timeLimitSeconds = Math.max(10, Math.min(3600, Math.floor(Number(row?.timeLimitSeconds) || 60)));
   if (!word || !repeatCount) return null;
 
   return {
@@ -33,6 +35,7 @@ function normalizeChallenge(username: string, row: any): QaTypingChallenge | nul
     word,
     repeatCount,
     allowedMistakes,
+    timeLimitSeconds,
     assignedAt: String(row?.assignedAt || ""),
     assignedBy: String(row?.assignedBy || "").trim(),
   };
@@ -73,6 +76,7 @@ export async function assignQaTypingChallenge(challenge: QaTypingChallenge) {
   const word = String(challenge.word || "").trim();
   const repeatCount = Math.max(1, Math.min(500, Math.floor(Number(challenge.repeatCount) || 1)));
   const allowedMistakes = Math.max(0, Math.min(repeatCount, Math.floor(Number(challenge.allowedMistakes) || 0)));
+  const timeLimitSeconds = Math.max(10, Math.min(3600, Math.floor(Number(challenge.timeLimitSeconds) || 60)));
   if (!username) throw new Error("Missing target username");
   if (!word) throw new Error("Missing typing word");
 
@@ -84,6 +88,7 @@ export async function assignQaTypingChallenge(challenge: QaTypingChallenge) {
       word,
       repeatCount,
       allowedMistakes,
+      timeLimitSeconds,
       assignedAt: challenge.assignedAt || new Date().toISOString(),
       assignedBy: String(challenge.assignedBy || "").trim(),
       updatedAtServer: serverTimestamp(),
