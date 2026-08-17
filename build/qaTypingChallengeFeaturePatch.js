@@ -53,7 +53,7 @@ export function qaTypingChallengeFeaturePatch() {
       }
       next = next.replace(
         sidebarAnchor,
-        `${sidebarAnchor}\n        { key: "qa-access-check", label: "QA Access Check", description: "กำหนดคำที่ Agent ต้องพิมพ์ให้ผ่านก่อนเข้าดูผล QA", icon: "target", allowed: createEvaluationAllowed, active: activeWorkspaceTab === "qa-access-check", onClick: () => activateWorkspaceTab("qa-access-check") },`
+        `${sidebarAnchor}\n        { key: "qa-access-check", label: "QA Access Check", description: "กำหนดคำก่อนดูผล QA หรือดูประวัติ QA Access Check ของตัวเอง", icon: "target", allowed: true, active: activeWorkspaceTab === "qa-access-check", onClick: () => activateWorkspaceTab("qa-access-check") },`
       );
 
       const renderAnchor = `            onSubmitEvaluation={handleEvaluationSubmitted}\n          />\n        ) : activeTab === "pre-test" && preTestAllowed ? (`;
@@ -62,7 +62,7 @@ export function qaTypingChallengeFeaturePatch() {
       }
       next = next.replace(
         renderAnchor,
-        `            onSubmitEvaluation={handleEvaluationSubmitted}\n          />\n        ) : activeTab === "qa-access-check" && createEvaluationAllowed ? (\n          <QaTypingChallengeWorkspace\n            agentOptions={qaEvaluationAgentOptions}\n            currentUser={currentUser}\n          />\n        ) : activeTab === "pre-test" && preTestAllowed ? (`
+        `            onSubmitEvaluation={handleEvaluationSubmitted}\n          />\n        ) : activeTab === "qa-access-check" ? (\n          <QaTypingChallengeWorkspace\n            agentOptions={qaEvaluationAgentOptions}\n            currentUser={currentUser}\n            canManage={createEvaluationAllowed}\n          />\n        ) : activeTab === "pre-test" && preTestAllowed ? (`
       );
 
       const gateRenderAnchor = `        </WorkspaceKeepAlive>\n      </div>\n\n    </>`;
