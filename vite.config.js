@@ -14,7 +14,8 @@ import { qaAccessCheckPermissionPatch } from './build/qaAccessCheckPermissionPat
 import { qaEvaluationProgressPatch } from './build/qaEvaluationProgressPatch.js'
 import { caseDetailPdfThaiWrapPatch } from './build/caseDetailPdfThaiWrapPatch.js'
 import { usernameIdentityPolicyPatchV2 } from './build/usernameIdentityPolicyPatchV2.js'
+import { userDirectoryPdfUserColumnPatch } from './build/userDirectoryPdfUserColumnPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), userDirectoryPdfUserColumnPatch(), react()],
 })
