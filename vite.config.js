@@ -13,8 +13,8 @@ import { qaTypingChallengeFeaturePatch } from './build/qaTypingChallengeFeatureP
 import { qaAccessCheckPermissionPatch } from './build/qaAccessCheckPermissionPatch.js'
 import { qaEvaluationProgressPatch } from './build/qaEvaluationProgressPatch.js'
 import { caseDetailPdfThaiWrapPatch } from './build/caseDetailPdfThaiWrapPatch.js'
-import { usernameIdentityPolicyPatch } from './build/usernameIdentityPolicyPatch.js'
+import { usernameIdentityPolicyPatchV2 } from './build/usernameIdentityPolicyPatchV2.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), react()],
 })
