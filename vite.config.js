@@ -17,7 +17,8 @@ import { usernameIdentityPolicyPatchV2 } from './build/usernameIdentityPolicyPat
 import { userDirectoryPdfUserColumnPatch } from './build/userDirectoryPdfUserColumnPatch.js'
 import { profilePdfPreferredNameEnglishPatch } from './build/profilePdfPreferredNameEnglishPatch.js'
 import { teamChatV2Patch } from './build/teamChatV2Patch.js'
+import { chatSendOnlineUiPatch } from './build/chatSendOnlineUiPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), userDirectoryPdfUserColumnPatch(), profilePdfPreferredNameEnglishPatch(), teamChatV2Patch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), userDirectoryPdfUserColumnPatch(), profilePdfPreferredNameEnglishPatch(), teamChatV2Patch(), chatSendOnlineUiPatch(), react()],
 })
