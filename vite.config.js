@@ -21,7 +21,8 @@ import { teamChatV2Patch } from './build/teamChatV2Patch.js'
 import { chatSendOnlineUiPatch } from './build/chatSendOnlineUiPatch.js'
 import { chatOnlineTooltipPhotoPatch } from './build/chatOnlineTooltipPhotoPatch.js'
 import { chatRealtimeBackendPatch } from './build/chatRealtimeBackendPatch.js'
+import { firestoreQuotaProtectionPatch } from './build/firestoreQuotaProtectionPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), usernameMigrationBootstrapBypassPatch(), userDirectoryPdfUserColumnPatch(), profilePdfPreferredNameEnglishPatch(), teamChatV2Patch(), chatSendOnlineUiPatch(), chatOnlineTooltipPhotoPatch(), chatRealtimeBackendPatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), usernameMigrationBootstrapBypassPatch(), userDirectoryPdfUserColumnPatch(), profilePdfPreferredNameEnglishPatch(), teamChatV2Patch(), chatSendOnlineUiPatch(), chatOnlineTooltipPhotoPatch(), chatRealtimeBackendPatch(), firestoreQuotaProtectionPatch(), react()],
 })
