@@ -6,6 +6,10 @@ type BuildMeta = {
   releaseLabel?: string;
   updatedAt?: string;
   commitHash?: string;
+  commitMessage?: string;
+  changedFiles?: string[];
+  releaseNotesTitle?: string;
+  releaseNotes?: string[];
 };
 
 const CHECK_INTERVAL_MS = 30_000;
@@ -43,7 +47,6 @@ function isTypingOrEditing() {
   if (!activeElement) return false;
 
   if (activeElement.isContentEditable) return true;
-
   if (activeElement instanceof HTMLTextAreaElement) return true;
   if (activeElement instanceof HTMLSelectElement) return true;
 
@@ -72,6 +75,25 @@ function hasUnsavedChanges() {
       '[data-unsaved-changes="true"], [data-dirty="true"], [aria-busy="true"][data-saving]'
     )
   );
+}
+
+function getChangeNotes(meta: BuildMeta) {
+  const notes = Array.isArray(meta.releaseNotes)
+    ? meta.releaseNotes.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+
+  if (notes.length) return notes.slice(0, 5);
+
+  const commitMessage = String(meta.commitMessage || "").trim();
+  if (commitMessage) {
+    return commitMessage
+      .split(/\r?\n/)
+      .map((item) => item.replace(/^[-*•]\s*/, "").trim())
+      .filter(Boolean)
+      .slice(0, 5);
+  }
+
+  return [];
 }
 
 export default function AutoDeployRefresh() {
@@ -206,14 +228,19 @@ export default function AutoDeployRefresh() {
     latestMeta.releaseLabel ||
     latestMeta.displayVersion ||
     "เวอร์ชันล่าสุด";
+  const changeNotes = getChangeNotes(latestMeta);
+  const changedFilesCount = Array.isArray(latestMeta.changedFiles)
+    ? latestMeta.changedFiles.length
+    : 0;
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-5 right-5 z-[200] w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-[22px] border bg-white shadow-[0_24px_70px_rgba(15,23,42,0.24)] ${
+      className={`fixed bottom-5 right-5 z-[200] w-[min(470px,calc(100vw-2rem))] overflow-hidden rounded-[24px] border bg-white shadow-[0_24px_70px_rgba(15,23,42,0.24)] ${
         refreshBlocked ? "border-amber-200" : "border-violet-200"
       }`}
+      style={{ fontFamily: "'Kanit', sans-serif" }}
     >
       <div
         className={`h-1.5 ${
@@ -250,8 +277,13 @@ export default function AutoDeployRefresh() {
               มีเวอร์ชันใหม่พร้อมใช้งาน
             </div>
 
-            <div className="mt-1 text-xs font-medium text-violet-700">
-              {versionLabel}
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-violet-700">
+              <span>{versionLabel}</span>
+              {latestMeta.commitHash ? (
+                <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-600">
+                  {latestMeta.commitHash.slice(0, 7)}
+                </span>
+              ) : null}
             </div>
 
             <div className="mt-2 text-sm font-normal leading-6 text-slate-600">
@@ -260,11 +292,26 @@ export default function AutoDeployRefresh() {
                 : `ระบบจะรีเฟรชหน้าเว็บอัตโนมัติใน ${countdown} วินาที`}
             </div>
 
-            {latestMeta.updatedAt ? (
-              <div className="mt-1 text-xs font-normal text-slate-400">
-                Deploy เมื่อ {latestMeta.updatedAt}
+            {changeNotes.length ? (
+              <div className="mt-3 rounded-2xl border border-violet-100 bg-violet-50/60 p-3.5">
+                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-violet-700">
+                  เวอร์ชันนี้ปรับอะไร
+                </div>
+                <div className="mt-2 space-y-1.5">
+                  {changeNotes.map((note, index) => (
+                    <div key={`${note}-${index}`} className="flex gap-2 text-xs font-medium leading-5 text-slate-700">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" />
+                      <span>{note}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : null}
+
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-normal text-slate-400">
+              {latestMeta.updatedAt ? <span>Deploy เมื่อ {latestMeta.updatedAt}</span> : null}
+              {changedFilesCount ? <span>{changedFilesCount} files changed</span> : null}
+            </div>
           </div>
         </div>
 
