@@ -101,6 +101,30 @@ function getChangedFiles() {
   return headFiles.split("\n").map((x) => x.trim()).filter(Boolean);
 }
 
+function buildReleaseNotes(commitMessage, changedFiles) {
+  const messageLines = String(commitMessage || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean)
+    .filter((line) => !/^merge\b/i.test(line));
+
+  const notes = [];
+  for (const line of messageLines) {
+    if (!notes.includes(line)) notes.push(line);
+    if (notes.length >= 4) break;
+  }
+
+  if (!notes.length && changedFiles.length) {
+    const names = changedFiles
+      .slice(0, 4)
+      .map((file) => path.basename(file))
+      .join(", ");
+    notes.push(`Updated ${changedFiles.length} file(s): ${names}${changedFiles.length > 4 ? ", ..." : ""}`);
+  }
+
+  return notes.length ? notes : ["Latest build is ready."];
+}
+
 function main() {
   const baseVersion = getPackageVersion();
   const fullCommitHash = getCommitHash();
@@ -114,6 +138,7 @@ function main() {
 
   const displayVersion = `${baseVersion}.${buildStamp}`;
   const releaseLabel = `v${displayVersion}`;
+  const releaseNotes = buildReleaseNotes(commitMessage, changedFiles);
 
   const nextMeta = {
     appName: "qa-dashboard",
@@ -125,17 +150,17 @@ function main() {
     timezone: "Asia/Bangkok",
     author: "Songpon Phothong",
     commitHash: fullCommitHash,
-    commitMessage: "",
-    changedFiles: [],
-    releaseNotesTitle: "Latest Updates",
-    releaseNotes: ["Latest build is ready."],
+    commitMessage,
+    changedFiles,
+    releaseNotesTitle: "เวอร์ชันนี้ปรับอะไร",
+    releaseNotes,
   };
 
   fs.mkdirSync(path.dirname(buildMetaPath), { recursive: true });
   fs.writeFileSync(buildMetaPath, JSON.stringify(nextMeta, null, 2), "utf8");
 
   console.log("build-meta.json generated successfully");
-  console.log(JSON.stringify(nextMeta, null, 2));
+  console.log(JSON.stringify({ ...nextMeta, shortCommitHash }, null, 2));
 }
 
 main();
