@@ -32,6 +32,16 @@ const DEFAULT_USAGE_LOG_LIMIT = 300;
 const MAX_GENERAL_USAGE_LOG_LIMIT = 5000;
 const MAX_EVENT_USAGE_LOG_LIMIT = 5000;
 const USAGE_LOG_READ_CACHE_TTL_MS = 60 * 1000;
+const CHAT_EVENT_TYPES = new Set([
+  "user_presence",
+  "chat_message",
+  "chat_message_edited",
+  "chat_message_deleted",
+  "chat_call_invite",
+  "chat_call_response",
+  "chat_call_ended",
+  "chat_webrtc_signal",
+]);
 const ALLOWED_ACCESS_EVENT_TYPES = new Set([
   "login",
   "logout",
@@ -49,6 +59,7 @@ const ALLOWED_ACCESS_EVENT_TYPES = new Set([
   "training_check_in",
   "training_check_out",
   "training_attendance_manual_update",
+  ...CHAT_EVENT_TYPES,
 ]);
 
 type UsageLogFetchOptions = number | {
@@ -120,6 +131,7 @@ async function cachedUsageLogRequest(
 }
 
 function toUsageLogEvent(id: string, row: any): UsageLogEvent {
+  const details = row.details && typeof row.details === "object" ? row.details : {};
   return {
     id,
     created_at: String(row.created_at || row.createdAt || ""),
@@ -128,12 +140,12 @@ function toUsageLogEvent(id: string, row: any): UsageLogEvent {
     display_name: canonicalizeAgentName(row.display_name || row.displayName),
     role: String(row.role || ""),
     agent_name: canonicalizeAgentName(row.agent_name || row.agentName),
-    tab: "",
-    case_id: "",
-    target_agent: "",
-    details: row.details && typeof row.details === "object" ? row.details : {},
-    user_agent: "",
-    page_url: "",
+    tab: String(row.tab || details.tab || ""),
+    case_id: String(row.case_id || row.caseId || details.case_id || details.caseId || ""),
+    target_agent: String(row.target_agent || row.targetAgent || details.target_agent || details.targetAgent || details.toUsername || ""),
+    details,
+    user_agent: String(row.user_agent || row.userAgent || ""),
+    page_url: String(row.page_url || row.pageUrl || ""),
     session_login_at: String(row.session_login_at || row.sessionLoginAt || ""),
   };
 }
@@ -159,6 +171,9 @@ export async function logUsageEvent(
       created_at: now,
       login_at: eventType === "login" ? now : user.loginAt || "",
       logout_at: eventType === "logout" ? now : "",
+      tab: payload.tab || "",
+      case_id: payload.case_id || "",
+      target_agent: payload.target_agent || "",
       details: {
         ...(payload.details || {}),
         tab: payload.tab || payload.details?.tab || "",
@@ -198,11 +213,21 @@ export async function fetchUsageLogsByEventTypes(
   if (!cleanEventTypes.length) return fetchUsageLogs(options);
   if (!allowedTypes.length) return [];
 
-  const { limit, offset, cacheTtlMs, forceRefresh } = normalizeFetchOptions(options, MAX_EVENT_USAGE_LOG_LIMIT);
+  const containsChatEvents = allowedTypes.some((eventType) => CHAT_EVENT_TYPES.has(eventType));
+  const normalizedOptions = normalizeFetchOptions(options, MAX_EVENT_USAGE_LOG_LIMIT);
+  const limit = normalizedOptions.limit;
+  const offset = normalizedOptions.offset;
+  const cacheTtlMs = containsChatEvents ? 0 : normalizedOptions.cacheTtlMs;
+  const forceRefresh = containsChatEvents ? true : normalizedOptions.forceRefresh;
   const sortedTypes = [...allowedTypes].sort().join(",");
 
   return cachedUsageLogRequest(`firebase-access-events:${sortedTypes}:${limit}:${offset}`, cacheTtlMs, forceRefresh, async () => {
-    const rows = await fetchUsageLogs({ limit: limit + offset, offset: 0, cacheTtlMs, forceRefresh });
+    const rows = await fetchUsageLogs({
+      limit: Math.min(Math.max(limit + offset, containsChatEvents ? 1200 : limit + offset), MAX_GENERAL_USAGE_LOG_LIMIT),
+      offset: 0,
+      cacheTtlMs,
+      forceRefresh,
+    });
     return rows
       .filter((item) => allowedTypes.includes(item.event_type))
       .slice(offset, offset + limit);
