@@ -71,6 +71,30 @@ export function teamChatRoomsObserverPatch() {
         );
         next = next.slice(0, sendStart) + sendSection + next.slice(sendEnd);
 
+        next = replaceOnce(
+          this,
+          next,
+          `  if (message.room === "team") return "team";`,
+          `  if (message.room === "team") {\n    const scopedTeam = String((message as ChatMessage & { teamName?: string }).teamName || "").trim().toLowerCase();\n    return scopedTeam ? \`team:\${scopedTeam}\` : "team";\n  }`,
+          "team room unread key"
+        );
+
+        next = replaceOnce(
+          this,
+          next,
+          `        const nextMessages = rows.filter((message) => canCurrentUserSeeChatMessage(message, currentUser));`,
+          `        const currentChatAccount = effectiveUserAccounts.find((account) =>\n          account.username.trim().toLowerCase() === currentUser.username.trim().toLowerCase()\n        );\n        const currentChatTeamName = String(currentChatAccount?.teamName || "").trim().toLowerCase();\n        const canObserveTeamRooms =\n          currentUser.username.trim().toLowerCase() === "songpon" ||\n          String(currentUser.role || "").trim().toLowerCase() === "quality assurance";\n        const nextMessages = rows.filter((message) => {\n          const messageTeamName = String((message as ChatMessage & { teamName?: string }).teamName || "").trim().toLowerCase();\n          if (message.room === "team" && messageTeamName) {\n            return canObserveTeamRooms || (Boolean(currentChatTeamName) && messageTeamName === currentChatTeamName);\n          }\n          return canCurrentUserSeeChatMessage(message, currentUser);\n        });`,
+          "team room visibility filter"
+        );
+
+        next = replaceOnce(
+          this,
+          next,
+          `  }, [currentUser?.username, currentUser?.displayName, currentUser?.role, currentUser?.agentName, maintenanceBlocked, activeTab]);`,
+          `  }, [currentUser?.username, currentUser?.displayName, currentUser?.role, currentUser?.agentName, maintenanceBlocked, activeTab, effectiveUserAccounts]);`,
+          "team room visibility dependencies"
+        );
+
         appPatched = true;
         return { code: next, map: null };
       }
