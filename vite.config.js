@@ -14,6 +14,7 @@ import { qaAccessCheckPermissionPatch } from './build/qaAccessCheckPermissionPat
 import { qaEvaluationProgressPatch } from './build/qaEvaluationProgressPatch.js'
 import { caseDetailPdfThaiWrapPatch } from './build/caseDetailPdfThaiWrapPatch.js'
 import { usernameIdentityPolicyPatchV2 } from './build/usernameIdentityPolicyPatchV2.js'
+import { usernameMigrationBootstrapBypassPatch } from './build/usernameMigrationBootstrapBypassPatch.js'
 import { userDirectoryPdfUserColumnPatch } from './build/userDirectoryPdfUserColumnPatch.js'
 import { profilePdfPreferredNameEnglishPatch } from './build/profilePdfPreferredNameEnglishPatch.js'
 import { teamChatV2Patch } from './build/teamChatV2Patch.js'
@@ -21,5 +22,5 @@ import { chatSendOnlineUiPatch } from './build/chatSendOnlineUiPatch.js'
 import { chatOnlineTooltipPhotoPatch } from './build/chatOnlineTooltipPhotoPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), userDirectoryPdfUserColumnPatch(), profilePdfPreferredNameEnglishPatch(), teamChatV2Patch(), chatSendOnlineUiPatch(), chatOnlineTooltipPhotoPatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), usernameMigrationBootstrapBypassPatch(), userDirectoryPdfUserColumnPatch(), profilePdfPreferredNameEnglishPatch(), teamChatV2Patch(), chatSendOnlineUiPatch(), chatOnlineTooltipPhotoPatch(), react()],
 })
