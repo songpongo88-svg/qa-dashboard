@@ -10,6 +10,7 @@ import { appealReviewHtmlCleanupPatch } from './build/appealReviewHtmlCleanupPat
 import { appealRequestsOriginalCommentCleanupPatch } from './build/appealRequestsOriginalCommentCleanupPatch.js'
 import { evaluationAgentFocusPopupPatch } from './build/evaluationAgentFocusPopupPatch.js'
 import { qaTypingChallengeFeaturePatch } from './build/qaTypingChallengeFeaturePatch.js'
+import { qaAccessCheckOverviewPatch } from './build/qaAccessCheckOverviewPatch.js'
 import { qaAccessCheckPermissionPatch } from './build/qaAccessCheckPermissionPatch.js'
 import { qaEvaluationProgressPatch } from './build/qaEvaluationProgressPatch.js'
 import { caseDetailPdfThaiWrapPatch } from './build/caseDetailPdfThaiWrapPatch.js'
@@ -30,5 +31,5 @@ import { chatRemoveOnlineNowBlockPatch } from './build/chatRemoveOnlineNowBlockP
 import { summaryTopicTargetColorPatch } from './build/summaryTopicTargetColorPatch.js'
 
 export default defineConfig({
-  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), usernameMigrationBootstrapBypassPatch(), userDirectoryPdfUserColumnPatch(), profilePdfPreferredNameEnglishPatch(), teamChatV2Patch(), chatSendOnlineUiPatch(), chatOnlineTooltipPhotoPatch(), chatRealtimeBackendPatch(), firestoreQuotaProtectionPatch(), teamChatRoomsObserverPatch(), teamChatRoomsUiPatch(), teamChatObserverPresencePatch(), chatRemoveOnlineOfflineFooterPatch(), chatRemoveOnlineNowBlockPatch(), summaryTopicTargetColorPatch(), react()],
+  plugins: [signaturePaymentPdfPatch(), signaturePaymentPdfExactPreviewPatch(), signaturePaymentPdfLargeFontPatch(), signatureDocumentRefMatchWebPatch(), sidebarGroupsDefaultOpenPatch(), signaturePaymentTopicFinalOverridePatch(), appealReviewHtmlCleanupPatch(), appealRequestsOriginalCommentCleanupPatch(), evaluationAgentFocusPopupPatch(), qaTypingChallengeFeaturePatch(), qaAccessCheckOverviewPatch(), qaAccessCheckPermissionPatch(), qaEvaluationProgressPatch(), caseDetailPdfThaiWrapPatch(), usernameIdentityPolicyPatchV2(), usernameMigrationBootstrapBypassPatch(), userDirectoryPdfUserColumnPatch(), profilePdfPreferredNameEnglishPatch(), teamChatV2Patch(), chatSendOnlineUiPatch(), chatOnlineTooltipPhotoPatch(), chatRealtimeBackendPatch(), firestoreQuotaProtectionPatch(), teamChatRoomsObserverPatch(), teamChatRoomsUiPatch(), teamChatObserverPresencePatch(), chatRemoveOnlineOfflineFooterPatch(), chatRemoveOnlineNowBlockPatch(), summaryTopicTargetColorPatch(), react()],
 })
