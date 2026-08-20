@@ -105,7 +105,7 @@ function AnalyticsCompareTopicDetail({
                   >
                     {delta === null
                       ? "Base"
-                      : `${delta > 0 ? "+" : ""}${delta.toFixed(2)} pp`}
+                      : (delta > 0 ? "+" : "") + delta.toFixed(2) + " pp"}
                   </div>
                 </div>
               </div>
@@ -144,7 +144,7 @@ function AnalyticsCompareTopicDetail({
             <div className="overflow-x-auto">
               <table
                 className="w-full text-[10px]"
-                style={{ minWidth: `${Math.max(760, 300 + reports.length * 180)}px` }}
+                style={{ minWidth: String(Math.max(760, 300 + reports.length * 180)) + "px" }}
               >
                 <thead>
                   <tr className="bg-slate-900 text-white">
@@ -179,7 +179,7 @@ function AnalyticsCompareTopicDetail({
                         const passed = pct !== null && Number(pct) >= target;
 
                         return (
-                          <td key={`${topic.code}-${report.label}`} className="border-t border-slate-100 px-3 py-3 text-center align-middle">
+                          <td key={topic.code + "-" + report.label} className="border-t border-slate-100 px-3 py-3 text-center align-middle">
                             {pct === null ? (
                               <div className="rounded-xl bg-slate-100 px-3 py-3 font-bold text-slate-400">No Data</div>
                             ) : (
@@ -207,7 +207,7 @@ function AnalyticsCompareTopicDetail({
                                 >
                                   {delta === null
                                     ? "Base"
-                                    : `${delta > 0 ? "+" : ""}${Number(delta).toFixed(2)} pp vs Prev`}
+                                    : (delta > 0 ? "+" : "") + Number(delta).toFixed(2) + " pp vs Prev"}
                                 </div>
                               </div>
                             )}
@@ -232,7 +232,7 @@ function AnalyticsCompareTopicDetail({
             : null;
 
           return (
-            <section key={`period-topic-${report.label}`} className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+            <section key={"period-topic-" + report.label} className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-4 py-4 sm:px-5">
                 <div className="min-w-0">
                   <div className="text-[9px] font-black uppercase tracking-[0.14em] text-violet-600">Period Topic Detail {index + 1}</div>
@@ -255,7 +255,7 @@ function AnalyticsCompareTopicDetail({
                   <div className="mt-0.5 text-sm font-black">
                     {overallDelta === null
                       ? "Base"
-                      : `${overallDelta > 0 ? "+" : ""}${overallDelta.toFixed(2)} pp`}
+                      : (overallDelta > 0 ? "+" : "") + overallDelta.toFixed(2) + " pp"}
                   </div>
                 </div>
               </div>
