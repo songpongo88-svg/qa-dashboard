@@ -468,13 +468,6 @@ function parseExcelDate(value: any): Date | null {
   const text = String(value).trim();
   if (!text) return null;
 
-  const direct = new Date(text);
-  if (!Number.isNaN(direct.getTime())) return direct;
-
-  const cleaned = text.replace(",", "");
-  const direct2 = new Date(cleaned);
-  if (!Number.isNaN(direct2.getTime())) return direct2;
-
   const ddmmyyyyMatch = text.match(
     /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
   );
@@ -482,6 +475,13 @@ function parseExcelDate(value: any): Date | null {
     const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
     return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
   }
+
+  const direct = new Date(text);
+  if (!Number.isNaN(direct.getTime())) return direct;
+
+  const cleaned = text.replace(",", "");
+  const direct2 = new Date(cleaned);
+  if (!Number.isNaN(direct2.getTime())) return direct2;
 
   return null;
 }
