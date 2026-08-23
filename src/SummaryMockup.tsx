@@ -14,7 +14,6 @@ import { getIncentiveByGrade, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, 
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
 import PageHero from "./PageHero";
-import PerformanceWorkspaceNav, { type PerformanceWorkspaceSection } from "./PerformanceWorkspaceNav";
 import { canonicalAgentIdentityKey, canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 
 type ReviewStatus = "Original" | "Revised";
@@ -2803,8 +2802,7 @@ export default function SummaryMockup({
   canViewOwnTeam = false,
   canExportAnalytics = false,
   dataRefreshKey,
-  workspaceSection = "analytics",
-  onWorkspaceSectionChange,
+  embedded = false,
   onSelectedAgentChange,
   onSelectedMonthChange,
   onSelectedWeekChange,
@@ -2819,8 +2817,7 @@ export default function SummaryMockup({
   canViewOwnTeam?: boolean;
   canExportAnalytics?: boolean;
   dataRefreshKey?: number;
-  workspaceSection?: PerformanceWorkspaceSection;
-  onWorkspaceSectionChange?: (section: PerformanceWorkspaceSection) => void;
+  embedded?: boolean;
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
@@ -8411,7 +8408,8 @@ export default function SummaryMockup({
   return (
     <div
       data-analytics-permission-scope-v95="true"
-      className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-[#f7f8fc]"}`}
+      data-analytics-embedded-v162={embedded ? "true" : "false"}
+      className={`relative ${embedded ? "" : `min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-[#f7f8fc]"}`}`}
     >
       {false && reportPdfDialogOpen ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
@@ -8463,19 +8461,24 @@ export default function SummaryMockup({
         </div>
       ) : null}
 
-      {songkranTheme ? <SongkranBackdrop /> : null}
-      <PageHero
-        eyebrow="QA Performance Center"
-        title="QA Dashboard"
-        subtitle="Analytics ใช้สูตร คะแนน และขอบเขตข้อมูลเดิม พร้อมเครื่องมือวิเคราะห์ครบถ้วน"
-      />
-      <PerformanceWorkspaceNav
-        activeSection={workspaceSection}
-        analyticsAllowed
-        onChange={onWorkspaceSectionChange}
-      />
+      {songkranTheme && !embedded ? <SongkranBackdrop /> : null}
+      {!embedded ? (
+        <PageHero
+          eyebrow="Performance"
+          title="Analytics"
+          subtitle="ภาพรวมผลการประเมิน QA คะแนน และแนวโน้มการปฏิบัติงาน"
+        />
+      ) : null}
       <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-4 lg:px-8">
-        <div className="flex flex-wrap items-center justify-end gap-2 border-b border-slate-200 pb-4">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
+            {embedded ? (
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">Analytics</div>
+                <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">Performance Analysis</h2>
+                <p className="mt-1 text-xs font-medium text-slate-600">ใช้สูตรและขอบเขตข้อมูล Analytics เดิม โดยไม่อิงคะแนนจาก Overview</p>
+              </div>
+            ) : <span />}
+            <div className="flex flex-wrap items-center justify-end gap-2">
             {isComparisonMode ? <span className="rounded-full bg-violet-100 px-3 py-2 text-xs font-medium text-violet-700">Compare Mode · {effectivePeriodKeys.length} Periods</span> : null}
             {isComparisonMode ? (
               <button type="button" onClick={() => {
@@ -8520,6 +8523,7 @@ export default function SummaryMockup({
               setCompareDraftPeriods(effectivePeriodKeys.length ? [...effectivePeriodKeys] : periodOptions.slice(0, 1));
               setAnalyticsCompareOpen(true);
             }} className="rounded-xl border border-violet-400 bg-white px-4 py-2.5 text-xs font-medium text-violet-700 shadow-sm hover:bg-violet-50">Compare</button>
+            </div>
         </div>
       </div>
       {analyticsCanViewTeamPerformance ? (
