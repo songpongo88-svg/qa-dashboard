@@ -284,8 +284,12 @@ function buildAppealOutcomeMap(
     const reviewedTopics: Topic[] = [];
 
     (Array.isArray(request.topics) ? request.topics : []).forEach((matched: any) => {
-      const revisedComment = String(matched.revisedComment || "").trim();
-      if (!revisedComment) return;
+      const reviewFeedback = String(
+        request.status === "Rejected"
+          ? matched.rejectReason || matched.revisedComment || ""
+          : matched.revisedComment || ""
+      ).trim();
+      if (!reviewFeedback) return;
 
       const master = topicMaster.find((item) => item.code === matched.code);
       if (!master) return;
@@ -299,7 +303,7 @@ function buildAppealOutcomeMap(
         score: safeScore,
         max: master.max,
         pct: master.max > 0 ? Math.round((safeScore / master.max) * 100) : 0,
-        comment: revisedComment,
+        comment: reviewFeedback,
       });
     });
 
@@ -4072,10 +4076,10 @@ function SlideOverCaseDetail({
               caseItem.appealReviewedTopics?.some((topic) => richTextToPlainText(topic.comment)) ? (
                 <div className="mb-5 rounded-[18px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 px-4 py-4 shadow-[0_10px_24px_rgba(225,29,72,0.06)]">
                   <div className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-rose-700">
-                    Review Feedback / Revised Comment
+                    เหตุผลการปฏิเสธอุทธรณ์
                   </div>
                   <div className="mt-1 text-xs leading-5 text-slate-500">
-                    ข้อความที่ผู้พิจารณาแก้ไขไว้ใน Appeal Review — ผลอุทธรณ์ถูก Reject จึงไม่เปลี่ยนคะแนนเดิม
+                    คำอธิบายจากผู้พิจารณาราย Topic โดยคะแนนและ Original Comment ยังคงเป็นข้อมูลเดิม
                   </div>
 
                   <div className="mt-4 space-y-3">

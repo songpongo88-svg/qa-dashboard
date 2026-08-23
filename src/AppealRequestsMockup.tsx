@@ -14,6 +14,7 @@ type AppealTopic = {
   appealReason: string;
   revisedScore?: number | string;
   revisedComment?: string;
+  rejectReason?: string;
 };
 
 const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
@@ -142,7 +143,18 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const reset = resets.get(requestId);
       const reviewTopics = Array.isArray(review?.details?.topics) ? (review?.details?.topics as AppealTopic[]) : null;
       const baseTopics = Array.isArray(log.details?.topics) ? (log.details?.topics as AppealTopic[]) : [];
-      const appealedTopics = (reviewTopics || baseTopics).filter(isAppealedTopic);
+      const reviewDecision = String(review?.details?.decision || "");
+      const appealedTopics = (reviewTopics || baseTopics)
+        .filter(isAppealedTopic)
+        .map((topic) => {
+          if (reviewDecision !== "Rejected") return topic;
+          return {
+            ...topic,
+            revisedScore: undefined,
+            revisedComment: "",
+            rejectReason: String(topic.rejectReason || topic.revisedComment || "").trim(),
+          };
+        });
       const submittedAtTime = new Date(log.created_at || String(log.details?.submittedAt || "")).getTime();
       const reviewedAtTime = new Date(review?.created_at || String(review?.details?.reviewedAt || "")).getTime();
       const resetAtTime = new Date(reset?.created_at || String(reset?.details?.resetAt || "")).getTime();
@@ -220,6 +232,7 @@ function exportAppealRows(requests: AppealRequest[]) {
     `${code} Revised Score`,
     `${code} Comment`,
     `${code} Revised Comment`,
+    `${code} Reject Reason`,
     `${code} Appeal Reason`,
   ]);
 
@@ -246,9 +259,10 @@ function exportAppealRows(requests: AppealRequest[]) {
     topicCodes.forEach((code) => {
       const topic = topicMap.get(code);
       row[`${code} Score`] = topic?.score ?? "";
-      row[`${code} Revised Score`] = item.status === "Approved" ? topic?.revisedScore ?? topic?.score ?? "" : topic?.score ?? "";
+      row[`${code} Revised Score`] = item.status === "Approved" ? topic?.revisedScore ?? topic?.score ?? "" : "";
       row[`${code} Comment`] = topic?.comment ?? "";
       row[`${code} Revised Comment`] = item.status === "Approved" ? topic?.revisedComment ?? "" : "";
+      row[`${code} Reject Reason`] = item.status === "Rejected" ? topic?.rejectReason ?? "" : "";
       row[`${code} Appeal Reason`] = isAppealedTopic(topic) ? topic?.appealReason ?? "" : "";
     });
 
@@ -281,7 +295,7 @@ export default function AppealRequestsMockup({
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [draftTopics, setDraftTopics] = useState<AppealTopic[]>([]);
-  const [decision, setDecision] = useState<"Approved" | "Rejected">("Approved");
+  const [decision, setDecision] = useState<"Approved" | "Rejected">("Rejected");
   const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -318,20 +332,64 @@ export default function AppealRequestsMockup({
   useEffect(() => {
     if (!selectedRequest) return;
     setSelectedRequestId(selectedRequest.requestId);
-    setDraftTopics(selectedRequest.topics.map((topic) => ({ ...topic, revisedScore: topic.revisedScore ?? topic.score })));
+    setDraftTopics(selectedRequest.topics.map((topic) => ({
+      ...topic,
+      revisedScore: selectedRequest.status === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
+      rejectReason: topic.rejectReason || "",
+    })));
+    setDecision(selectedRequest.status === "Approved" ? "Approved" : "Rejected");
     setReviewSummary(selectedRequest.reviewSummary || "");
   }, [selectedRequest?.requestId]);
 
   const submitReview = async () => {
     if (!selectedRequest || selectedRequest.status !== "Pending") return;
-    const invalidTopic = draftTopics.find((topic) => {
-      const revisedScore = toNumber(topic.revisedScore, Number.NaN);
-      return Number.isNaN(revisedScore) || revisedScore < 0 || revisedScore > topic.max;
-    });
-    if (invalidTopic) {
-      window.alert(`Revised score for ${invalidTopic.code} must be between 0 and ${invalidTopic.max}.`);
+    if (!reviewSummary.trim()) {
+      window.alert("Please enter Review Summary before saving.");
       return;
     }
+    if (decision === "Approved") {
+      const invalidTopic = draftTopics.find((topic) => {
+        const revisedScore = toNumber(topic.revisedScore, Number.NaN);
+        return Number.isNaN(revisedScore) || revisedScore < 0 || revisedScore > topic.max;
+      });
+      if (invalidTopic) {
+        window.alert(`Revised score for ${invalidTopic.code} must be between 0 and ${invalidTopic.max}.`);
+        return;
+      }
+    } else {
+      const missingReasonTopic = draftTopics.find((topic) => !String(topic.rejectReason || "").trim());
+      if (missingReasonTopic) {
+        window.alert(`Please enter Reject Reason for ${missingReasonTopic.code} before saving.`);
+        return;
+      }
+    }
+
+    const topicsForReview: AppealTopic[] = draftTopics.map((topic) => {
+      if (decision === "Approved") {
+        return {
+          code: topic.code,
+          label: topic.label,
+          score: topic.score,
+          max: topic.max,
+          comment: String(topic.comment || ""),
+          wantsAppeal: topic.wantsAppeal === true,
+          appealReason: String(topic.appealReason || ""),
+          revisedScore: topic.revisedScore ?? topic.score,
+          revisedComment: String(topic.revisedComment || "").trim(),
+          rejectReason: "",
+        };
+      }
+      return {
+        code: topic.code,
+        label: topic.label,
+        score: topic.score,
+        max: topic.max,
+        comment: String(topic.comment || ""),
+        wantsAppeal: topic.wantsAppeal === true,
+        appealReason: String(topic.appealReason || ""),
+        rejectReason: String(topic.rejectReason || "").trim(),
+      };
+    });
     const confirmed = window.confirm(
       [
         `Confirm ${decision} for appeal case ${selectedRequest.caseId}?`,
@@ -353,9 +411,9 @@ export default function AppealRequestsMockup({
         details: {
           requestId: selectedRequest.requestId,
           decision,
-          reviewSummary,
+          reviewSummary: reviewSummary.trim(),
           reviewedAt: new Date().toISOString(),
-          topics: draftTopics,
+          topics: topicsForReview,
           submittedBy: selectedRequest.submittedBy,
           submittedByUsername: selectedRequest.submittedByUsername,
           notificationTarget: selectedRequest.submittedByUsername || selectedRequest.submittedBy || selectedRequest.agent,
@@ -576,21 +634,32 @@ export default function AppealRequestsMockup({
                             <div className="text-base font-extrabold text-slate-950">{topic.code} {topic.label}</div>
                             <div className="mt-1 text-xs font-semibold text-slate-500">Original {topic.score}/{topic.max}</div>
                           </div>
-                          <select
-                            value={topic.revisedScore ?? topic.score}
-                            disabled={selectedRequest.status !== "Pending"}
-                            onChange={(event) => {
-                              const value = Number(event.target.value);
-                              setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedScore: value } : item));
-                            }}
-                            className="w-40 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
-                          >
-                            {scoreOptions(topic.max).map((score) => (
-                              <option key={score} value={score}>
-                                {score} / {topic.max}
-                              </option>
-                            ))}
-                          </select>
+                          {decision === "Approved" ? (
+                            <label className="w-44 text-[11px] font-bold uppercase tracking-[0.12em] text-violet-700">
+                              Revised Score
+                              <select
+                                value={topic.revisedScore ?? topic.score}
+                                disabled={selectedRequest.status !== "Pending"}
+                                onChange={(event) => {
+                                  const value = Number(event.target.value);
+                                  setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedScore: value } : item));
+                                }}
+                                className="mt-1 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                              >
+                                {scoreOptions(topic.max).map((score) => (
+                                  <option key={score} value={score}>
+                                    {score} / {topic.max}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          ) : (
+                            <div className="min-w-[176px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+                              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Score After Review</div>
+                              <div className="mt-1 text-lg font-extrabold text-slate-950">{topic.score} / {topic.max}</div>
+                              <div className="mt-1 text-[11px] font-bold text-slate-500">🔒 Original Score</div>
+                            </div>
+                          )}
                         </div>
                         <div className="mt-3 grid gap-3 lg:grid-cols-2">
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
@@ -602,64 +671,136 @@ export default function AppealRequestsMockup({
                             {topic.appealReason || "-"}
                           </div>
                         </div>
-                        <textarea
-                  onPaste={(event) => {
-                    requestAnimationFrame(() => {
-                      const target = event.currentTarget;
-                      target.style.height = "auto";
-                      target.style.height = `${target.scrollHeight}px`;
-                    });
-                  }}
-                  onInput={(event) => {
-                    const target = event.currentTarget;
-                    target.style.height = "auto";
-                    target.style.height = `${target.scrollHeight}px`;
-                  }}
-                  rows={3}
-                  data-auto-resize-review="true"
-                          value={topic.revisedComment || ""}
-                          disabled={selectedRequest.status !== "Pending"}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedComment: value } : item));
-                          }}
-                          className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 resize-none overflow-hidden"
-                          placeholder="Revised comment / reason after review"
-                        />
+                        {decision === "Approved" ? (
+                          <div className="mt-4">
+                            <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700" htmlFor={`revised-comment-${topic.code}`}>
+                              Revised Comment
+                            </label>
+                            <textarea
+                              id={`revised-comment-${topic.code}`}
+                              onPaste={(event) => {
+                                requestAnimationFrame(() => {
+                                  const target = event.currentTarget;
+                                  target.style.height = "auto";
+                                  target.style.height = `${target.scrollHeight}px`;
+                                });
+                              }}
+                              onInput={(event) => {
+                                const target = event.currentTarget;
+                                target.style.height = "auto";
+                                target.style.height = `${target.scrollHeight}px`;
+                              }}
+                              rows={3}
+                              data-auto-resize-review="true"
+                              value={topic.revisedComment || ""}
+                              disabled={selectedRequest.status !== "Pending"}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedComment: value } : item));
+                              }}
+                              className="mt-2 min-h-[92px] w-full resize-none overflow-hidden rounded-xl border border-violet-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                              placeholder="ระบุ Comment หลังแก้ไขผลประเมิน"
+                            />
+                            <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-800">
+                              Approve จะนำ Revised Score และ Revised Comment ไปใช้คำนวณและแสดงใน Case Detail
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4">
+                            <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-rose-700" htmlFor={`reject-reason-${topic.code}`}>
+                              Reject Reason <span className="text-rose-600">*</span>
+                            </label>
+                            <textarea
+                              id={`reject-reason-${topic.code}`}
+                              onPaste={(event) => {
+                                requestAnimationFrame(() => {
+                                  const target = event.currentTarget;
+                                  target.style.height = "auto";
+                                  target.style.height = `${target.scrollHeight}px`;
+                                });
+                              }}
+                              onInput={(event) => {
+                                const target = event.currentTarget;
+                                target.style.height = "auto";
+                                target.style.height = `${target.scrollHeight}px`;
+                              }}
+                              rows={3}
+                              data-auto-resize-review="true"
+                              value={topic.rejectReason || ""}
+                              disabled={selectedRequest.status !== "Pending"}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, rejectReason: value } : item));
+                              }}
+                              className="mt-2 min-h-[92px] w-full resize-none overflow-hidden rounded-xl border border-rose-200 px-3 py-2 text-sm outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-100 disabled:bg-slate-100"
+                              placeholder="ระบุเหตุผลที่ยืนยันผลประเมินและคะแนนเดิม"
+                            />
+                            <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold leading-5 text-rose-800">
+                              Reject Reason ใช้อธิบายผลการพิจารณาเท่านั้น ไม่ถือเป็น Revised Comment และไม่เปลี่ยนคะแนนเดิม
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>
 
                 <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
-                  <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
-                    <select
-                      value={decision}
+                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Review Decision</div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      aria-pressed={decision === "Approved"}
                       disabled={selectedRequest.status !== "Pending"}
-                      onChange={(event) => setDecision(event.target.value as "Approved" | "Rejected")}
-                      className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-bold outline-none disabled:bg-slate-100"
+                      onClick={() => setDecision("Approved")}
+                      className={`rounded-2xl border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                        decision === "Approved"
+                          ? "border-emerald-400 bg-emerald-600 text-white shadow-sm"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"
+                      }`}
                     >
-                      <option value="Approved">Approve</option>
-                      <option value="Rejected">Reject</option>
-                    </select>
+                      <div className="text-sm font-extrabold">✓ Approve</div>
+                      <div className={`mt-1 text-xs ${decision === "Approved" ? "text-emerald-50" : "text-slate-500"}`}>ปรับคะแนนและ Comment ตามผลทบทวน</div>
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={decision === "Rejected"}
+                      disabled={selectedRequest.status !== "Pending"}
+                      onClick={() => setDecision("Rejected")}
+                      className={`rounded-2xl border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                        decision === "Rejected"
+                          ? "border-rose-400 bg-rose-600 text-white shadow-sm"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50"
+                      }`}
+                    >
+                      <div className="text-sm font-extrabold">× Reject</div>
+                      <div className={`mt-1 text-xs ${decision === "Rejected" ? "text-rose-50" : "text-slate-500"}`}>ยืนยันคะแนนและ Original Comment เดิม</div>
+                    </button>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700" htmlFor="appeal-review-summary">
+                      Review Summary <span className="text-rose-600">*</span>
+                    </label>
                     <textarea
-                  onPaste={(event) => {
-                    requestAnimationFrame(() => {
-                      const target = event.currentTarget;
-                      target.style.height = "auto";
-                      target.style.height = `${target.scrollHeight}px`;
-                    });
-                  }}
-                  onInput={(event) => {
-                    const target = event.currentTarget;
-                    target.style.height = "auto";
-                    target.style.height = `${target.scrollHeight}px`;
-                  }}
-                  rows={3}
-                  data-auto-resize-review="true"
+                      id="appeal-review-summary"
+                      onPaste={(event) => {
+                        requestAnimationFrame(() => {
+                          const target = event.currentTarget;
+                          target.style.height = "auto";
+                          target.style.height = `${target.scrollHeight}px`;
+                        });
+                      }}
+                      onInput={(event) => {
+                        const target = event.currentTarget;
+                        target.style.height = "auto";
+                        target.style.height = `${target.scrollHeight}px`;
+                      }}
+                      rows={3}
+                      data-auto-resize-review="true"
                       value={reviewSummary}
                       disabled={selectedRequest.status !== "Pending"}
                       onChange={(event) => setReviewSummary(event.target.value)}
-                      className="min-h-[88px] rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 resize-none overflow-hidden"
+                      className="mt-2 min-h-[88px] w-full resize-none overflow-hidden rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
                       placeholder="Appeal review summary"
                     />
                   </div>
@@ -693,5 +834,3 @@ export default function AppealRequestsMockup({
     </div>
   );
 }
-
-
