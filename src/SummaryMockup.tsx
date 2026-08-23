@@ -2211,6 +2211,7 @@ function AnalyticsOverviewV89({
   noCaseMonthKey,
   periodKeys,
   detailContent,
+  hideSummaryCards = false,
 }: {
   summary: SummaryCards;
   cases: CaseItem[];
@@ -2224,6 +2225,7 @@ function AnalyticsOverviewV89({
   noCaseMonthKey?: string;
   periodKeys?: string[];
   detailContent?: React.ReactNode;
+  hideSummaryCards?: boolean;
 }) {
   // data-month-policy-zero-case-and-incentive-guide-v126
   // data-team-evaluation-target-v141
@@ -2533,7 +2535,7 @@ function AnalyticsOverviewV89({
       data-kpi-status-average-v91="true"
       className="space-y-5"
     >
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {!hideSummaryCards ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {metricItems.map(
           (item) => (
             <div
@@ -2565,7 +2567,7 @@ function AnalyticsOverviewV89({
             </div>
           )
         )}
-      </div>
+      </div> : null}
 
       {detailContent}
 
@@ -8470,10 +8472,10 @@ export default function SummaryMockup({
     >
       {embedded && dashboardControlTarget
         ? createPortal(
-            <div data-qa-dashboard-unified-controls-v163="true" className="space-y-4">
+            <div data-qa-dashboard-unified-controls-v163="true" data-unified-controls-light-v164="true" className="space-y-4 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)]">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div className="w-full min-w-[220px] max-w-sm">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Workspace Scope</div>
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Workspace Scope</div>
                   <select
                     value={summarySection}
                     onChange={(event) => {
@@ -8484,7 +8486,7 @@ export default function SummaryMockup({
                         if (analyticsCanSelectAllAgents) selectAnalyticsAgent("all");
                       }
                     }}
-                    className="h-12 w-full rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-950 shadow-[0_4px_14px_rgba(15,23,42,0.18)] outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-400/20"
+                    className="h-12 w-full rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
                   >
                     <option value="summary">Performance Results</option>
                     {analyticsCanViewTeamPerformance ? <option value="team">Team Results</option> : null}
@@ -8496,15 +8498,15 @@ export default function SummaryMockup({
                     <button type="button" onClick={() => {
                       const lastPeriod = effectivePeriodKeys[effectivePeriodKeys.length - 1];
                       setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
-                    }} className="h-10 rounded-xl border border-violet-300 bg-violet-800 px-4 text-xs font-bold text-white hover:bg-violet-700">Exit Compare</button>
+                    }} className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white hover:bg-violet-800">Exit Compare</button>
                   ) : null}
-                  <button type="button" onClick={() => setAnalyticsCustomizeOpen(true)} className="h-10 rounded-xl border border-white/30 bg-white px-4 text-xs font-bold text-slate-900 shadow-sm hover:bg-violet-50">Customize</button>
+                  <button type="button" onClick={() => setAnalyticsCustomizeOpen(true)} className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50">Customize</button>
                   <div className="relative">
                     <button
                       type="button"
                       disabled={!analyticsCanExport}
                       onClick={() => setAnalyticsExportOpen((value) => !value)}
-                      className="h-10 rounded-xl border border-white/30 bg-white px-4 text-xs font-bold text-slate-900 shadow-sm hover:bg-violet-50 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-400"
+                      className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       Export
                     </button>
@@ -8519,15 +8521,15 @@ export default function SummaryMockup({
                   <button type="button" onClick={() => {
                     setCompareDraftPeriods(effectivePeriodKeys.length ? [...effectivePeriodKeys] : periodOptions.slice(0, 1));
                     setAnalyticsCompareOpen(true);
-                  }} className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-600">Compare</button>
+                  }} className="h-10 rounded-xl border border-violet-700 bg-violet-700 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-800">Compare</button>
                 </div>
               </div>
 
               {summarySection === "summary" ? (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]">
+                <div className="grid gap-3 border-t border-violet-100 pt-4 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]">
                   <div>
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Time View</div>
-                    <div className="grid h-12 grid-cols-3 gap-1 rounded-xl border border-violet-500/60 bg-violet-900 p-1">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Time View</div>
+                    <div className="grid h-12 grid-cols-3 gap-1 rounded-xl border border-violet-200 bg-violet-100 p-1">
                       {[
                         { value: "weekly", label: "Weekly" },
                         { value: "monthly", label: "Monthly" },
@@ -8541,7 +8543,7 @@ export default function SummaryMockup({
                             setSelectedPeriods([]);
                             setAnalyticsCompareOpen(false);
                           }}
-                          className={`rounded-lg px-2 text-[10px] font-bold transition ${analysisMode === option.value ? "bg-white text-violet-800 shadow-sm" : "text-violet-100 hover:bg-white/10"}`}
+                          className={`rounded-lg px-2 text-[10px] font-bold transition ${analysisMode === option.value ? "bg-violet-700 text-white shadow-sm" : "text-violet-700 hover:bg-white/80"}`}
                         >
                           {option.label}
                         </button>
@@ -8550,12 +8552,12 @@ export default function SummaryMockup({
                   </div>
 
                   <div>
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Period</div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Period</div>
                     {analysisMode === "weekly" ? (
                       <select
                         value={activeUnifiedPeriodKey}
                         onChange={(event) => setSelectedPeriods(event.target.value ? [event.target.value] : [])}
-                        className="h-12 w-full rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-950 shadow-sm outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-400/20"
+                        className="h-12 w-full rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
                       >
                         {weeklyPeriodGroups.map((group) => (
                           <optgroup key={group.monthKey} label={group.monthLabel}>
@@ -8571,7 +8573,7 @@ export default function SummaryMockup({
                           setSelectedPeriods(value ? [value] : []);
                           if (analysisMode === "monthly" && value) setTeamSelectedMonth(value);
                         }}
-                        className="h-12 w-full rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-950 shadow-sm outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-400/20"
+                        className="h-12 w-full rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
                       >
                         {periodOptions.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
                       </select>
@@ -8579,24 +8581,24 @@ export default function SummaryMockup({
                   </div>
 
                   <div>
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Team</div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Team</div>
                     {analyticsCanSelectAllTeams ? (
                       <select value={selectedTeam} onChange={(event) => {
                         setSelectedTeam(event.target.value);
                         selectAnalyticsAgent("all");
-                      }} className="h-12 w-full rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-950 shadow-sm outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-400/20">
+                      }} className="h-12 w-full rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100">
                         <option value="all">All Teams</option>
                         {analyticsTeamOptions.map((teamName) => <option key={teamName} value={teamName}>{teamName}</option>)}
                       </select>
                     ) : (
-                      <div className="flex h-12 items-center rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-900">{currentUserTeamName || "Assigned Scope"}</div>
+                      <div className="flex h-12 items-center rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-900">{currentUserTeamName || "Assigned Scope"}</div>
                     )}
                   </div>
 
                   <div>
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Agent</div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Agent</div>
                     {!analyticsCanSelectAllAgents ? (
-                      <div className="flex h-12 items-center truncate rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-900">{effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}</div>
+                      <div className="flex h-12 items-center truncate rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-900">{effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}</div>
                     ) : (
                       <FilterSelect value={effectiveSelectedAgent || "all"} onChange={selectAnalyticsAgent} options={agentFilterOptions} />
                     )}
@@ -8605,22 +8607,22 @@ export default function SummaryMockup({
               ) : (
                 <div className="grid gap-3 md:grid-cols-[minmax(240px,420px)_minmax(0,1fr)]">
                   <div>
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Month</div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Month</div>
                     <FilterSelect value={teamSelectedMonth} onChange={setTeamSelectedMonth} options={teamMonthOptions.map((monthKey) => ({ value: monthKey, label: getMonthLabelForKey(monthKey, allCases) }))} />
                   </div>
-                  <div className="flex items-end pb-3 text-xs font-medium text-violet-100">สรุปผลงานรายทีมตามเดือนที่เลือก โดยใช้สิทธิ์การมองเห็นเดิม</div>
+                  <div className="flex items-end pb-3 text-xs font-medium text-slate-600">สรุปผลงานรายทีมตามเดือนที่เลือก โดยใช้สิทธิ์การมองเห็นเดิม</div>
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-violet-700/60 pt-3 text-[10px] font-medium text-violet-200">
-                <span>{summarySection === "team" ? `กำลังแสดง ${getMonthLabelForKey(teamSelectedMonth, allCases)}` : isComparisonMode ? `กำลังเปรียบเทียบ ${effectivePeriodLabels.join(" · ")}` : `กำลังแสดง ${effectivePeriodLabels[0] || "ช่วงปัจจุบัน"}`}</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-violet-50 px-3 py-2 text-[10px] font-medium text-slate-600">
+                <span>{summarySection === "team" ? `Current view: ${getMonthLabelForKey(teamSelectedMonth, allCases)}` : isComparisonMode ? `Comparing: ${effectivePeriodLabels.join(" · ")}` : `Current view: ${effectivePeriodLabels[0] || "Current period"}`}</span>
                 <button type="button" onClick={() => {
                   setSummarySection("summary");
                   setAnalysisMode("monthly");
                   setSelectedPeriods([]);
                   setSelectedTeam(analyticsCanSelectAllTeams ? "all" : currentUserTeamName || "all");
                   if (analyticsCanSelectAllAgents) selectAnalyticsAgent("all");
-                }} className="rounded-lg border border-violet-400/50 bg-violet-900 px-3 py-1.5 font-bold text-white hover:bg-violet-800">Reset Controls</button>
+                }} className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 font-bold text-violet-700 hover:bg-violet-100">Reset</button>
               </div>
             </div>,
             dashboardControlTarget
@@ -9415,6 +9417,7 @@ export default function SummaryMockup({
               summary={summaryCards}
               cases={filteredCases}
               trendRows={qualityScoreTrendRows}
+              hideSummaryCards={embedded}
               monthlyMode={
                 analysisMode === "monthly" &&
                 !isComparisonMode

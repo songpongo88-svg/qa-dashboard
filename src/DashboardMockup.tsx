@@ -5912,7 +5912,7 @@ export default function DashboardMockup({
   const rejectedAppealCount = dashboardCases.filter((item) => item.appealStatus === "Rejected").length;
   const overviewKpiItemsV93 = [
     {
-      label: "Average Score",
+      label: "Quality Score (Avg.)",
       value: metricAverageDisplay,
       note: `${metricCaseCount} case(s) in ${currentViewingMonthLabel}`,
       icon: "☆",
@@ -5946,7 +5946,11 @@ export default function DashboardMockup({
     {
       label: "Overall Grade",
       value: monthlyAgentCompleted && monthlyAgentGrade ? monthlyAgentGrade : "Pending",
-      note: monthlyAgentCompleted ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).level : "Finalizes after 10 evaluated cases",
+      note: monthlyAgentCompleted
+        ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).level
+        : currentGradeDisplay && currentGradeDisplay !== "-"
+          ? `Current score band: ${currentGradeDisplay} · Finalizes after ${dashboardEvaluationTarget} evaluated cases`
+          : `Finalizes after ${dashboardEvaluationTarget} evaluated cases`,
       icon: "◇",
       iconTone: "bg-fuchsia-50 text-fuchsia-600",
       valueTone: monthlyAgentCompleted ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).levelText : "text-amber-700",
@@ -6174,31 +6178,30 @@ export default function DashboardMockup({
       <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
             {/* data-hide-duplicate-case-quick-controls-v134 */}
             {dashboardSubTab === "overview" ? (
-            <div data-performance-center-filters-v160="true" data-qa-dashboard-control-center-v163="true" className="sticky top-[53px] z-[60] rounded-[20px] border border-violet-700 bg-slate-950 p-4 text-white shadow-[0_18px_42px_rgba(15,23,42,0.34)]">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-violet-700/60 pb-4">
+            <div data-performance-center-filters-v160="true" data-qa-dashboard-control-center-v163="true" data-control-center-two-tone-v164="true" className="sticky top-[53px] z-[60] rounded-[22px] border border-violet-200 bg-[#f6f3fb] p-3 text-slate-900 shadow-[0_18px_42px_rgba(76,29,149,0.18)] sm:p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-4 py-3 text-white shadow-[0_8px_22px_rgba(76,29,149,0.24)]">
                 <div>
-                  <div className="text-sm font-bold tracking-wide text-white">QA Dashboard Control Center</div>
-                  <div className="mt-1 text-[10px] font-medium text-violet-200">ตัวควบคุมเดียวสำหรับคะแนน ผลงาน และรายการประเมินทั้งหมด</div>
+                  <div className="text-sm font-bold tracking-wide text-white">QA Dashboard</div>
+                  <div className="mt-1 text-[11px] font-medium text-violet-100">คะแนน ผลงาน และรายการประเมินในพื้นที่ทำงานเดียว</div>
                 </div>
-                <div className="rounded-full border border-violet-400/50 bg-violet-500/15 px-3 py-1.5 text-[10px] font-bold text-violet-100">Single Workspace</div>
               </div>
               {canViewAnalytics && analyticsContent ? (
-                <div id="qa-dashboard-control-center-performance-v163" className="min-w-0" />
+                <div id="qa-dashboard-control-center-performance-v163" className="mt-4 min-w-0" />
               ) : (
-                <div className="mb-4 grid min-w-0 gap-3 md:grid-cols-3">
+                <div className="mt-4 grid min-w-0 gap-3 rounded-2xl border border-violet-100 bg-white p-4 md:grid-cols-3">
                   <div className="min-w-0">
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Year</div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Year</div>
                     <CompactAlignedSelect ariaLabel="Dashboard Year" value={selectedYear} options={quickYearOptions} onChange={setSelectedYear} />
                   </div>
                   <div className="min-w-0">
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Month</div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Month</div>
                     <CompactAlignedSelect ariaLabel="Dashboard Month" value={selectedMonthKey} options={quickMonthOptions} onChange={(value) => {
                       setSelectedMonthKey(value);
                       onSelectedMonthKeyChange?.(value);
                     }} />
                   </div>
                   <div className="min-w-0">
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Agent</div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Agent</div>
                     {overviewSelfOnly ? (
                       <div className="flex h-12 items-center rounded-xl bg-white px-4 text-sm font-semibold text-slate-900">{effectiveSelectedAgent || overviewResolvedAgent || "-"}</div>
                     ) : (
@@ -6211,9 +6214,9 @@ export default function DashboardMockup({
                 </div>
               )}
 
-              <div className="mt-4 grid min-w-0 gap-3 border-t border-violet-700/60 pt-4 md:grid-cols-2 xl:grid-cols-[230px_minmax(0,1fr)]">
+              <div className="mt-3 grid min-w-0 gap-3 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)] md:grid-cols-2 xl:grid-cols-[230px_minmax(0,1fr)]">
                 <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Evaluation Status</div>
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Evaluation Status</div>
                   <CompactAlignedSelect
                     ariaLabel="Dashboard Review Status"
                     value={overviewMode}
@@ -6227,8 +6230,8 @@ export default function DashboardMockup({
                 </div>
                 <div className="min-w-0">
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-white">Search Evaluation ID</div>
-                    <div className="text-[10px] font-bold text-emerald-300">ค้นหาได้ทุกเดือนภายใต้สิทธิ์ของคุณ</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Evaluation ID</div>
+                    <div className="text-[10px] font-bold text-emerald-700">ค้นหาได้ทุกเดือนภายใต้สิทธิ์ของคุณ</div>
                   </div>
                   <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
                     <input
@@ -6241,15 +6244,15 @@ export default function DashboardMockup({
                       }}
                       onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
                       placeholder="Search any authorized Evaluation ID"
-                      className="h-12 min-w-0 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-950 shadow-[0_4px_14px_rgba(15,23,42,0.18)] outline-none transition placeholder:font-medium placeholder:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-300/20"
+                      className="h-12 min-w-0 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-500 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
                     />
-                    <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-500 px-5 text-xs font-bold text-slate-950 shadow-sm transition hover:bg-emerald-400">Search</button>
-                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-violet-400 bg-violet-800 px-4 text-xs font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:border-slate-600 disabled:bg-slate-800 disabled:text-slate-400 disabled:opacity-100">Clear</button>
+                    <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800">Search</button>
+                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">Clear</button>
                   </div>
                 </div>
               </div>
               {caseIdSearch.trim() ? (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-400/50 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
                   <span>เปิดการค้นหาทุกเดือน — รายการผลลัพธ์จะเปลี่ยน แต่คะแนนยังใช้ช่วงเวลาและ Scope ที่เลือก</span>
                   <span>{overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}</span>
                 </div>
