@@ -6178,7 +6178,7 @@ export default function DashboardMockup({
       <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
             {/* data-hide-duplicate-case-quick-controls-v134 */}
             {dashboardSubTab === "overview" ? (
-            <div data-performance-center-filters-v160="true" data-qa-dashboard-control-center-v163="true" data-control-center-two-tone-v164="true" className="sticky top-[53px] z-[60] rounded-[22px] border border-violet-200 bg-[#f6f3fb] p-3 text-slate-900 shadow-[0_18px_42px_rgba(76,29,149,0.18)] sm:p-4">
+            <div data-performance-center-filters-v160="true" data-qa-dashboard-control-center-v163="true" data-control-center-two-tone-v164="true" data-control-center-natural-scroll-v165="true" className="relative rounded-[22px] border border-violet-200 bg-[#f6f3fb] p-3 text-slate-900 shadow-[0_18px_42px_rgba(76,29,149,0.18)] sm:p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-4 py-3 text-white shadow-[0_8px_22px_rgba(76,29,149,0.24)]">
                 <div>
                   <div className="text-sm font-bold tracking-wide text-white">QA Dashboard</div>
