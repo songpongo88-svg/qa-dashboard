@@ -3430,6 +3430,9 @@ export default function App() {
   const [caseSelectedWeek, setCaseSelectedWeek] = useState(
     () => window.sessionStorage.getItem("qa_case_selected_week_v134") || "all"
   );
+  const [caseSelectedYear, setCaseSelectedYear] = useState(
+    () => window.sessionStorage.getItem("qa_case_selected_year_v163") || String(new Date().getFullYear())
+  );
 
   const [analyticsSelectedAgent, setAnalyticsSelectedAgent] = useState(
     () => window.sessionStorage.getItem("qa_analytics_selected_agent_v134") || ""
@@ -3445,7 +3448,8 @@ export default function App() {
     window.sessionStorage.setItem("qa_case_selected_agent_v134", caseSelectedAgent);
     window.sessionStorage.setItem("qa_case_selected_month_v134", caseSelectedMonth);
     window.sessionStorage.setItem("qa_case_selected_week_v134", caseSelectedWeek);
-  }, [caseSelectedAgent, caseSelectedMonth, caseSelectedWeek]);
+    window.sessionStorage.setItem("qa_case_selected_year_v163", caseSelectedYear);
+  }, [caseSelectedAgent, caseSelectedMonth, caseSelectedWeek, caseSelectedYear]);
 
   useEffect(() => {
     window.sessionStorage.setItem("qa_analytics_selected_agent_v134", analyticsSelectedAgent);
@@ -6863,6 +6867,7 @@ export default function App() {
               externalSelectedAgent={caseSelectedAgent}
               externalSelectedMonthKey={caseSelectedMonth}
               externalSelectedWeek={caseSelectedWeek}
+              externalSelectedYear={caseSelectedYear}
               externalCaseIdSearch={selectedDashboardCaseId}
               roleScopedAgentNames={roleScopedAgentNames}
               canViewAgentsInOverview={overviewAgentSelectionAllowed}
@@ -6872,18 +6877,19 @@ export default function App() {
                 <SummaryMockup
                   embedded
                   currentUser={currentUser}
-                  externalSelectedAgent={analyticsSelectedAgent}
-                  externalSelectedMonth={analyticsSelectedMonth}
-                  externalSelectedWeek={analyticsSelectedWeek}
+                  externalSelectedAgent={caseSelectedAgent}
+                  externalSelectedMonth={caseSelectedMonth}
+                  externalSelectedWeek={caseSelectedWeek}
                   roleScopedAgentNames={roleScopedAgentNames}
                   canViewAllAgents={analyticsAllAgentsAllowed}
                   canViewAllTeams={analyticsAllTeamsAllowed}
                   canViewOwnTeam={analyticsOwnTeamAllowed}
                   canExportAnalytics={analyticsExportAllowed}
                   dataRefreshKey={qaDataRefreshKey}
-                  onSelectedAgentChange={setAnalyticsSelectedAgent}
-                  onSelectedMonthChange={setAnalyticsSelectedMonth}
-                  onSelectedWeekChange={setAnalyticsSelectedWeek}
+                  onSelectedAgentChange={(agent) => setCaseSelectedAgent(agent === "all" ? "" : agent)}
+                  onSelectedMonthChange={setCaseSelectedMonth}
+                  onSelectedWeekChange={setCaseSelectedWeek}
+                  onSelectedYearChange={setCaseSelectedYear}
                 />
               ) : null}
               onSelectedAgentChange={setCaseSelectedAgent}

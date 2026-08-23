@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import LoadingMascot from "./LoadingMascot";
@@ -2799,6 +2800,7 @@ export default function SummaryMockup({
   onSelectedAgentChange,
   onSelectedMonthChange,
   onSelectedWeekChange,
+  onSelectedYearChange,
 }: {
   currentUser: any;
   externalSelectedAgent?: string;
@@ -2814,6 +2816,7 @@ export default function SummaryMockup({
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
+  onSelectedYearChange?: (year: string) => void;
 }) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>([]);
@@ -2890,6 +2893,17 @@ export default function SummaryMockup({
   const [selectedTeamDetail, setSelectedTeamDetail] = useState(
     () => window.sessionStorage.getItem("qa_analytics_team_detail_v134") || ""
   );
+  const [dashboardControlTarget, setDashboardControlTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!embedded) {
+      setDashboardControlTarget(null);
+      return;
+    }
+
+    const target = document.getElementById("qa-dashboard-control-center-performance-v163");
+    setDashboardControlTarget(target);
+  }, [embedded, isLoading]);
 
   useEffect(() => {
     window.sessionStorage.setItem("qa_analytics_mode_v134", analysisMode);
@@ -2935,6 +2949,7 @@ export default function SummaryMockup({
       String(value || "").trim() || "all";
 
     setSelectedAgent(nextAgent);
+    onSelectedAgentChange?.(nextAgent);
   };
 
   useEffect(() => {
@@ -2952,9 +2967,11 @@ export default function SummaryMockup({
     };
   }, []);
 
-  // Analytics owns the selected Agent after the page is mounted.
-  // externalSelectedAgent is used only by the initial useState value above.
-  // This prevents stale global values from forcing the filter back to All Agents.
+  useEffect(() => {
+    if (typeof externalSelectedAgent !== "string") return;
+    const nextAgent = String(externalSelectedAgent || "").trim() || "all";
+    if (nextAgent !== selectedAgent) setSelectedAgent(nextAgent);
+  }, [externalSelectedAgent, selectedAgent]);
 
   useEffect(() => {
     if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
@@ -3620,6 +3637,53 @@ export default function SummaryMockup({
   };
 
   const effectivePeriodLabels = effectivePeriodKeys.map(getPeriodDisplayLabel);
+  const activeUnifiedPeriodKey = effectivePeriodKeys[effectivePeriodKeys.length - 1] || "";
+
+  useEffect(() => {
+    if (!embedded || summarySection !== "summary" || !activeUnifiedPeriodKey) return;
+
+    if (analysisMode === "monthly") {
+      onSelectedMonthChange?.(activeUnifiedPeriodKey);
+      onSelectedWeekChange?.("all");
+      onSelectedYearChange?.(activeUnifiedPeriodKey.slice(0, 4));
+      return;
+    }
+
+    if (analysisMode === "weekly") {
+      const matchedCase = allCases.find((item) => item.weekLabel === activeUnifiedPeriodKey);
+      if (matchedCase?.monthKey) onSelectedMonthChange?.(matchedCase.monthKey);
+      if (matchedCase?.yearKey) onSelectedYearChange?.(matchedCase.yearKey);
+      onSelectedWeekChange?.(activeUnifiedPeriodKey);
+      return;
+    }
+
+    onSelectedMonthChange?.("all");
+    onSelectedWeekChange?.("all");
+    onSelectedYearChange?.(activeUnifiedPeriodKey);
+  }, [
+    activeUnifiedPeriodKey,
+    allCases,
+    analysisMode,
+    embedded,
+    onSelectedMonthChange,
+    onSelectedWeekChange,
+    onSelectedYearChange,
+    summarySection,
+  ]);
+
+  useEffect(() => {
+    if (!embedded || summarySection !== "team" || !teamSelectedMonth) return;
+    onSelectedMonthChange?.(teamSelectedMonth);
+    onSelectedWeekChange?.("all");
+    onSelectedYearChange?.(teamSelectedMonth.slice(0, 4));
+  }, [
+    embedded,
+    onSelectedMonthChange,
+    onSelectedWeekChange,
+    onSelectedYearChange,
+    summarySection,
+    teamSelectedMonth,
+  ]);
 
   useEffect(() => {
     if (!analyticsModeMountedRef.current) {
@@ -8404,6 +8468,164 @@ export default function SummaryMockup({
       data-analytics-embedded-v162={embedded ? "true" : "false"}
       className={`relative ${embedded ? "" : `min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-[#f7f8fc]"}`}`}
     >
+      {embedded && dashboardControlTarget
+        ? createPortal(
+            <div data-qa-dashboard-unified-controls-v163="true" className="space-y-4">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="w-full min-w-[220px] max-w-sm">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Workspace Scope</div>
+                  <select
+                    value={summarySection}
+                    onChange={(event) => {
+                      const nextSection = event.target.value as "summary" | "team";
+                      setSummarySection(nextSection);
+                      if (nextSection === "team") {
+                        setSelectedTeam("all");
+                        if (analyticsCanSelectAllAgents) selectAnalyticsAgent("all");
+                      }
+                    }}
+                    className="h-12 w-full rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-950 shadow-[0_4px_14px_rgba(15,23,42,0.18)] outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-400/20"
+                  >
+                    <option value="summary">Performance Results</option>
+                    {analyticsCanViewTeamPerformance ? <option value="team">Team Results</option> : null}
+                  </select>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {isComparisonMode ? (
+                    <button type="button" onClick={() => {
+                      const lastPeriod = effectivePeriodKeys[effectivePeriodKeys.length - 1];
+                      setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
+                    }} className="h-10 rounded-xl border border-violet-300 bg-violet-800 px-4 text-xs font-bold text-white hover:bg-violet-700">Exit Compare</button>
+                  ) : null}
+                  <button type="button" onClick={() => setAnalyticsCustomizeOpen(true)} className="h-10 rounded-xl border border-white/30 bg-white px-4 text-xs font-bold text-slate-900 shadow-sm hover:bg-violet-50">Customize</button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      disabled={!analyticsCanExport}
+                      onClick={() => setAnalyticsExportOpen((value) => !value)}
+                      className="h-10 rounded-xl border border-white/30 bg-white px-4 text-xs font-bold text-slate-900 shadow-sm hover:bg-violet-50 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-400"
+                    >
+                      Export
+                    </button>
+                    {analyticsExportOpen && analyticsCanExport ? (
+                      <div className="absolute right-0 top-[calc(100%+8px)] z-[520] w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-slate-700 shadow-2xl">
+                        <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Export Current Report</div>
+                        <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-violet-50 hover:text-violet-700"><span>PDF</span><span>›</span></button>
+                        <button type="button" onClick={exportCurrentAnalyticsExcel} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-violet-50 hover:text-violet-700"><span>Excel</span><span>›</span></button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <button type="button" onClick={() => {
+                    setCompareDraftPeriods(effectivePeriodKeys.length ? [...effectivePeriodKeys] : periodOptions.slice(0, 1));
+                    setAnalyticsCompareOpen(true);
+                  }} className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-600">Compare</button>
+                </div>
+              </div>
+
+              {summarySection === "summary" ? (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]">
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Time View</div>
+                    <div className="grid h-12 grid-cols-3 gap-1 rounded-xl border border-violet-500/60 bg-violet-900 p-1">
+                      {[
+                        { value: "weekly", label: "Weekly" },
+                        { value: "monthly", label: "Monthly" },
+                        { value: "yearly", label: "Yearly" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setAnalysisMode(option.value as "weekly" | "monthly" | "yearly");
+                            setSelectedPeriods([]);
+                            setAnalyticsCompareOpen(false);
+                          }}
+                          className={`rounded-lg px-2 text-[10px] font-bold transition ${analysisMode === option.value ? "bg-white text-violet-800 shadow-sm" : "text-violet-100 hover:bg-white/10"}`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Period</div>
+                    {analysisMode === "weekly" ? (
+                      <select
+                        value={activeUnifiedPeriodKey}
+                        onChange={(event) => setSelectedPeriods(event.target.value ? [event.target.value] : [])}
+                        className="h-12 w-full rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-950 shadow-sm outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-400/20"
+                      >
+                        {weeklyPeriodGroups.map((group) => (
+                          <optgroup key={group.monthKey} label={group.monthLabel}>
+                            {group.periods.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
+                          </optgroup>
+                        ))}
+                      </select>
+                    ) : (
+                      <select
+                        value={activeUnifiedPeriodKey}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setSelectedPeriods(value ? [value] : []);
+                          if (analysisMode === "monthly" && value) setTeamSelectedMonth(value);
+                        }}
+                        className="h-12 w-full rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-950 shadow-sm outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-400/20"
+                      >
+                        {periodOptions.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
+                      </select>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Team</div>
+                    {analyticsCanSelectAllTeams ? (
+                      <select value={selectedTeam} onChange={(event) => {
+                        setSelectedTeam(event.target.value);
+                        selectAnalyticsAgent("all");
+                      }} className="h-12 w-full rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-950 shadow-sm outline-none focus:border-violet-300 focus:ring-4 focus:ring-violet-400/20">
+                        <option value="all">All Teams</option>
+                        {analyticsTeamOptions.map((teamName) => <option key={teamName} value={teamName}>{teamName}</option>)}
+                      </select>
+                    ) : (
+                      <div className="flex h-12 items-center rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-900">{currentUserTeamName || "Assigned Scope"}</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Agent</div>
+                    {!analyticsCanSelectAllAgents ? (
+                      <div className="flex h-12 items-center truncate rounded-xl border border-white/50 bg-white px-4 text-sm font-bold text-slate-900">{effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}</div>
+                    ) : (
+                      <FilterSelect value={effectiveSelectedAgent || "all"} onChange={selectAnalyticsAgent} options={agentFilterOptions} />
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-[minmax(240px,420px)_minmax(0,1fr)]">
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Month</div>
+                    <FilterSelect value={teamSelectedMonth} onChange={setTeamSelectedMonth} options={teamMonthOptions.map((monthKey) => ({ value: monthKey, label: getMonthLabelForKey(monthKey, allCases) }))} />
+                  </div>
+                  <div className="flex items-end pb-3 text-xs font-medium text-violet-100">สรุปผลงานรายทีมตามเดือนที่เลือก โดยใช้สิทธิ์การมองเห็นเดิม</div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-violet-700/60 pt-3 text-[10px] font-medium text-violet-200">
+                <span>{summarySection === "team" ? `กำลังแสดง ${getMonthLabelForKey(teamSelectedMonth, allCases)}` : isComparisonMode ? `กำลังเปรียบเทียบ ${effectivePeriodLabels.join(" · ")}` : `กำลังแสดง ${effectivePeriodLabels[0] || "ช่วงปัจจุบัน"}`}</span>
+                <button type="button" onClick={() => {
+                  setSummarySection("summary");
+                  setAnalysisMode("monthly");
+                  setSelectedPeriods([]);
+                  setSelectedTeam(analyticsCanSelectAllTeams ? "all" : currentUserTeamName || "all");
+                  if (analyticsCanSelectAllAgents) selectAnalyticsAgent("all");
+                }} className="rounded-lg border border-violet-400/50 bg-violet-900 px-3 py-1.5 font-bold text-white hover:bg-violet-800">Reset Controls</button>
+              </div>
+            </div>,
+            dashboardControlTarget
+          )
+        : null}
       {false && reportPdfDialogOpen ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
           <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-2xl">
@@ -8457,12 +8679,12 @@ export default function SummaryMockup({
       {songkranTheme && !embedded ? <SongkranBackdrop /> : null}
       {!embedded ? (
         <PageHero
-          eyebrow="Performance"
-          title="Analytics"
-          subtitle="ภาพรวมผลการประเมิน QA คะแนน และแนวโน้มการปฏิบัติงาน"
+          eyebrow="QA Workspace"
+          title="QA Dashboard"
+          subtitle="คะแนน ผลงาน แนวโน้ม และรายการประเมินในพื้นที่เดียว"
         />
       ) : null}
-      <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-4 lg:px-8">
+      {!embedded ? <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-4 lg:px-8">
         <div className={embedded ? "flex flex-wrap items-end justify-between gap-4 rounded-[18px] border border-violet-700/60 bg-gradient-to-r from-slate-950 via-violet-950 to-violet-800 px-5 py-4 shadow-[0_12px_28px_rgba(30,27,75,0.22)]" : "flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4"}>
             {embedded ? (
               <div>
@@ -8518,8 +8740,8 @@ export default function SummaryMockup({
             }} className="rounded-xl border border-violet-400 bg-white px-4 py-2.5 text-xs font-medium text-violet-700 shadow-sm hover:bg-violet-50">Compare</button>
             </div>
         </div>
-      </div>
-      {analyticsCanViewTeamPerformance ? (
+      </div> : null}
+      {!embedded && analyticsCanViewTeamPerformance ? (
         <div className="mx-auto max-w-[1720px] px-6 pt-6 lg:px-8">
           <div className="inline-flex rounded-2xl border border-violet-200 bg-white p-1.5 shadow-sm">
             <button
@@ -8989,7 +9211,7 @@ export default function SummaryMockup({
           className="space-y-5"
         >
           <div data-analytics-logic-v90="true" className="space-y-5">
-            <div className="rounded-[20px] border border-violet-200 bg-gradient-to-br from-white via-violet-50/45 to-emerald-50/35 p-5 shadow-[0_8px_24px_rgba(76,29,149,0.08)]">
+            {!embedded ? <div className="rounded-[20px] border border-violet-200 bg-gradient-to-br from-white via-violet-50/45 to-emerald-50/35 p-5 shadow-[0_8px_24px_rgba(76,29,149,0.08)]">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div data-weekly-dropdown-buttons-v138="true">
                   <FilterLabel>View By</FilterLabel>
@@ -9146,7 +9368,7 @@ export default function SummaryMockup({
                   </button>
                 </div>
               </div>
-            </div>
+            </div> : null}
 
             {analyticsCompareOpen ? (
               <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/45 p-4">

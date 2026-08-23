@@ -4166,6 +4166,7 @@ export default function DashboardMockup({
   externalSelectedAgent,
   externalSelectedMonthKey,
   externalSelectedWeek,
+  externalSelectedYear,
   externalCaseIdSearch,
   roleScopedAgentNames,
   canViewAgentsInOverview = false,
@@ -4187,6 +4188,7 @@ export default function DashboardMockup({
   externalSelectedAgent?: string;
   externalSelectedMonthKey?: string;
   externalSelectedWeek?: string;
+  externalSelectedYear?: string;
   externalCaseIdSearch?: string;
   roleScopedAgentNames?: string[];
   canViewAgentsInOverview?: boolean;
@@ -4327,18 +4329,23 @@ export default function DashboardMockup({
   ]);
 
   useEffect(() => {
-    if (dashboardSubTab === "overview") return;
     if (
       typeof externalSelectedMonthKey === "string" &&
       externalSelectedMonthKey !== selectedMonthKey
     ) {
       setSelectedMonthKey(externalSelectedMonthKey);
+      if (externalSelectedMonthKey === "all") {
+        setDateFrom("");
+        setDateTo("");
+      }
     }
-    const externalYear = String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
+    const externalYear =
+      String(externalSelectedYear || "").match(/^\d{4}$/)?.[0] ||
+      String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
     if (externalYear && externalYear !== selectedYear) {
       setSelectedYear(externalYear);
     }
-  }, [dashboardSubTab, externalSelectedMonthKey, selectedMonthKey, selectedYear]);
+  }, [externalSelectedMonthKey, externalSelectedYear, selectedMonthKey, selectedYear]);
 
   useEffect(() => {
     if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
@@ -5390,8 +5397,11 @@ export default function DashboardMockup({
     if (selectedMonthKey && selectedMonthKey !== "all") {
       return agentCases.filter((item) => item.monthKey === selectedMonthKey);
     }
+    if (!dateFrom && !dateTo && /^\d{4}$/.test(selectedYear)) {
+      return agentCases.filter((item) => item.yearKey === selectedYear);
+    }
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
-  }, [agentCases, dateFrom, dateTo, selectedMonthKey]);
+  }, [agentCases, dateFrom, dateTo, selectedMonthKey, selectedYear]);
 
   const searchScopedCases = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
@@ -6164,85 +6174,46 @@ export default function DashboardMockup({
       <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
             {/* data-hide-duplicate-case-quick-controls-v134 */}
             {dashboardSubTab === "overview" ? (
-            <div data-performance-center-filters-v160="true" className="sticky top-[53px] z-[60] rounded-[20px] border border-violet-800/60 bg-gradient-to-r from-slate-950 via-violet-950 to-violet-900 p-4 shadow-[0_18px_42px_rgba(30,27,75,0.28)]">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+            <div data-performance-center-filters-v160="true" data-qa-dashboard-control-center-v163="true" className="sticky top-[53px] z-[60] rounded-[20px] border border-violet-700 bg-slate-950 p-4 text-white shadow-[0_18px_42px_rgba(15,23,42,0.34)]">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-violet-700/60 pb-4">
                 <div>
-                  <div className="text-xs font-bold tracking-wide text-white">Dashboard Filters</div>
-                  <div className="mt-0.5 text-[10px] font-medium text-violet-200">กำหนดช่วงข้อมูลสำหรับภาพรวมและการวิเคราะห์</div>
+                  <div className="text-sm font-bold tracking-wide text-white">QA Dashboard Control Center</div>
+                  <div className="mt-1 text-[10px] font-medium text-violet-200">ตัวควบคุมเดียวสำหรับคะแนน ผลงาน และรายการประเมินทั้งหมด</div>
                 </div>
-                <div className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1.5 text-[10px] font-semibold text-emerald-200">Case Search ค้นหาได้ทุกเดือน</div>
+                <div className="rounded-full border border-violet-400/50 bg-violet-500/15 px-3 py-1.5 text-[10px] font-bold text-violet-100">Single Workspace</div>
               </div>
-              <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-[150px_190px_260px_200px_minmax(280px,1fr)]">
-                <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Year</div>
-                  <CompactAlignedSelect
-                    ariaLabel="Dashboard Year"
-                    value={selectedYear}
-                    options={quickYearOptions}
-                    onChange={(value) => {
-                      setSelectedYear(value);
-                      const availableMonths = [...new Set(
-                        agentCases
-                          .map((item) => item.monthKey)
-                          .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey) && monthKey.startsWith(`${value}-`))
-                      )].sort((a, b) => b.localeCompare(a));
-                      const nextMonth = availableMonths[0] || "all";
-                      setSelectedMonthKey(nextMonth);
-                      onSelectedMonthKeyChange?.(nextMonth);
-                      setSelectedWeek("all");
-                      onSelectedWeekChange?.("all");
-                      setSelectedCaseKey("");
-                      setSlideOverOpen(false);
-                    }}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Month</div>
-                  <CompactAlignedSelect
-                    ariaLabel="Dashboard Month"
-                    value={selectedMonthKey}
-                    options={quickMonthOptions}
-                    onChange={(value) => {
+              {canViewAnalytics && analyticsContent ? (
+                <div id="qa-dashboard-control-center-performance-v163" className="min-w-0" />
+              ) : (
+                <div className="mb-4 grid min-w-0 gap-3 md:grid-cols-3">
+                  <div className="min-w-0">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Year</div>
+                    <CompactAlignedSelect ariaLabel="Dashboard Year" value={selectedYear} options={quickYearOptions} onChange={setSelectedYear} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Month</div>
+                    <CompactAlignedSelect ariaLabel="Dashboard Month" value={selectedMonthKey} options={quickMonthOptions} onChange={(value) => {
                       setSelectedMonthKey(value);
                       onSelectedMonthKeyChange?.(value);
-                      if (value === "all") {
-                        setDateFrom("");
-                        setDateTo("");
-                      }
-                      setSelectedWeek("all");
-                      onSelectedWeekChange?.("all");
-                      setSelectedCaseKey("");
-                      setSlideOverOpen(false);
-                    }}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Agent Scope</div>
-                  {overviewSelfOnly ? (
-                    <div className="flex h-12 min-w-0 items-center rounded-xl border border-white/50 bg-white px-4 shadow-[0_4px_14px_rgba(15,23,42,0.14)]">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-slate-900">{effectiveSelectedAgent || overviewResolvedAgent || "-"}</div>
-                        <div className="truncate text-[10px] font-medium text-slate-500">{currentUser?.role || "Current Role"}</div>
-                      </div>
-                    </div>
-                  ) : (
-                    <CompactAlignedSelect
-                      ariaLabel="Dashboard Agent"
-                      value={selectedAgent}
-                      options={overviewAgentOptionsV94}
-                      onChange={(value) => {
+                    }} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Agent</div>
+                    {overviewSelfOnly ? (
+                      <div className="flex h-12 items-center rounded-xl bg-white px-4 text-sm font-semibold text-slate-900">{effectiveSelectedAgent || overviewResolvedAgent || "-"}</div>
+                    ) : (
+                      <CompactAlignedSelect ariaLabel="Dashboard Agent" value={selectedAgent} options={overviewAgentOptionsV94} onChange={(value) => {
                         setSelectedAgent(value);
                         onSelectedAgentChange?.(value);
-                        setSelectedWeek("all");
-                        onSelectedWeekChange?.("all");
-                        setSelectedCaseKey("");
-                        setSlideOverOpen(false);
-                      }}
-                    />
-                  )}
+                      }} />
+                    )}
+                  </div>
                 </div>
+              )}
+
+              <div className="mt-4 grid min-w-0 gap-3 border-t border-violet-700/60 pt-4 md:grid-cols-2 xl:grid-cols-[230px_minmax(0,1fr)]">
                 <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Review Status</div>
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Evaluation Status</div>
                   <CompactAlignedSelect
                     ariaLabel="Dashboard Review Status"
                     value={overviewMode}
@@ -6256,8 +6227,8 @@ export default function DashboardMockup({
                 </div>
                 <div className="min-w-0">
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Search Case ID</div>
-                    <div className="text-[10px] font-semibold text-emerald-200">All authorized cases · all months</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-white">Search Evaluation ID</div>
+                    <div className="text-[10px] font-bold text-emerald-300">ค้นหาได้ทุกเดือนภายใต้สิทธิ์ของคุณ</div>
                   </div>
                   <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
                     <input
@@ -6269,17 +6240,17 @@ export default function DashboardMockup({
                         setSlideOverOpen(false);
                       }}
                       onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
-                      placeholder="Search any authorized Case ID"
-                      className="h-12 min-w-0 rounded-xl border border-white/50 bg-white px-4 text-sm font-semibold text-slate-900 shadow-[0_4px_14px_rgba(15,23,42,0.14)] outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-300/20"
+                      placeholder="Search any authorized Evaluation ID"
+                      className="h-12 min-w-0 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-950 shadow-[0_4px_14px_rgba(15,23,42,0.18)] outline-none transition placeholder:font-medium placeholder:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-300/20"
                     />
-                    <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-700 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800">Search</button>
-                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-white/40 bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
+                    <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-500 px-5 text-xs font-bold text-slate-950 shadow-sm transition hover:bg-emerald-400">Search</button>
+                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-violet-400 bg-violet-800 px-4 text-xs font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:border-slate-600 disabled:bg-slate-800 disabled:text-slate-400 disabled:opacity-100">Clear</button>
                   </div>
                 </div>
               </div>
               {caseIdSearch.trim() ? (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
-                  <span>Global Case Search is active — เปลี่ยนเฉพาะรายการ Cases; คะแนน Overview และ Analytics ยังคงใช้ Filter ของตัวเอง</span>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-400/50 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100">
+                  <span>เปิดการค้นหาทุกเดือน — รายการผลลัพธ์จะเปลี่ยน แต่คะแนนยังใช้ช่วงเวลาและ Scope ที่เลือก</span>
                   <span>{overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}</span>
                 </div>
               ) : null}
@@ -6460,7 +6431,7 @@ export default function DashboardMockup({
             </Panel>
 
         <div className="mt-4 space-y-4">
-          {!caseIdSearch.trim() ? <section className="qa-weekly-tabs-v36 min-w-0 rounded-[20px] border border-slate-300 bg-white px-5 py-4 shadow-[0_6px_18px_rgba(15,23,42,0.06)]" aria-label="Weekly View">
+          {false && !caseIdSearch.trim() ? <section className="qa-weekly-tabs-v36 min-w-0 rounded-[20px] border border-slate-300 bg-white px-5 py-4 shadow-[0_6px_18px_rgba(15,23,42,0.06)]" aria-label="Weekly View">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="shrink-0">
                 <div className="text-sm font-semibold text-slate-900">Weekly View</div>
@@ -7218,14 +7189,14 @@ export default function DashboardMockup({
                   >
                     <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-emerald-50 via-white to-violet-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">Case Explorer</div>
-                        <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">Cases in Current Scope</h2>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">Evaluation Records</div>
+                        <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">รายการประเมินในขอบเขตปัจจุบัน</h2>
                         <p className="mt-1 text-xs font-medium text-slate-600">
                           {caseIdSearch.trim()
-                            ? "Global Search: แสดงทุกเคสที่มีสิทธิ์เข้าถึงจากทุกเดือน โดยไม่ใช้ Dashboard Filter"
+                            ? "แสดงผลการประเมินที่มีสิทธิ์เข้าถึงจากทุกเดือน"
                             : selectedTopicCode
                               ? `Topic ${selectedTopicCode}: แสดงเฉพาะเคสที่ถูกหักในหัวข้อนี้`
-                              : "เลือกเคสเพื่อเปิดรายละเอียด โดยไม่ต้องเปลี่ยน Tab"}
+                              : "เลือกรายการเพื่อเปิดรายละเอียดได้จากหน้าเดียว"}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
