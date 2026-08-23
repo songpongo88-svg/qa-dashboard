@@ -15,6 +15,7 @@ import {
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
+import PerformanceWorkspaceNav, { type PerformanceWorkspaceSection } from "./PerformanceWorkspaceNav";
 import LoadingMascot from "./LoadingMascot";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import {
@@ -4169,6 +4170,7 @@ export default function DashboardMockup({
   currentUser,
   dashboardSubTab,
   caseDetailWorkspaceMode = false,
+  workspaceSection = "overview",
   externalSelectedAgent,
   externalSelectedMonthKey,
   externalSelectedWeek,
@@ -4185,10 +4187,12 @@ export default function DashboardMockup({
   onOpenAppealCase,
   onGeneratePdf,
   onShareCaseDetail,
+  onWorkspaceSectionChange,
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
   caseDetailWorkspaceMode?: boolean;
+  workspaceSection?: Exclude<PerformanceWorkspaceSection, "analytics">;
   externalSelectedAgent?: string;
   externalSelectedMonthKey?: string;
   externalSelectedWeek?: string;
@@ -4205,6 +4209,7 @@ export default function DashboardMockup({
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
   onShareCaseDetail?: (caseId: string, agentName?: string) => void;
+  onWorkspaceSectionChange?: (section: PerformanceWorkspaceSection) => void;
 }) {
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
@@ -4234,6 +4239,13 @@ export default function DashboardMockup({
   const [selectedTopicCode, setSelectedTopicCode] = useState("");
   const [analyticsTrendMode, setAnalyticsTrendMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
   const [slideOverOpen, setSlideOverOpen] = useState(false);
+
+  useEffect(() => {
+    if (workspaceSection === "cases") return;
+    setCaseIdSearch("");
+    setSelectedCaseKey("");
+    setSlideOverOpen(false);
+  }, [workspaceSection]);
 
   function closeCaseDetail() {
     setSlideOverOpen(false);
@@ -6112,10 +6124,15 @@ export default function DashboardMockup({
       <PageHero
         eyebrow="QA Performance Center"
         title="QA Dashboard"
-        subtitle="ดูภาพรวม วิเคราะห์แนวโน้ม และตรวจรายละเอียดเคสในพื้นที่เดียว"
+        subtitle={workspaceSection === "cases" ? "ค้นหาและเปิดรายละเอียดทุกเคสที่อยู่ในขอบเขตสิทธิ์" : "ติดตาม KPI และภาพรวมผลการประเมิน QA"}
+      />
+      <PerformanceWorkspaceNav
+        activeSection={workspaceSection}
+        analyticsAllowed={canViewAnalytics}
+        onChange={onWorkspaceSectionChange}
       />
       <div data-overview-header-v93="true" className="mx-auto flex max-w-[1720px] flex-wrap justify-end gap-2 px-4 pt-4 sm:px-6 lg:px-8">
-        <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">Overview + Analytics + Cases</span>
+        <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">{workspaceSection === "cases" ? "Case Explorer · All-month Search" : "Overview · Current Scope"}</span>
         <span className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700">{overviewSelfOnly ? "Self View" : "Authorized Scope"}</span>
       </div>
       {false ? (
@@ -6165,7 +6182,7 @@ export default function DashboardMockup({
             {/* data-hide-duplicate-case-quick-controls-v134 */}
             {dashboardSubTab === "overview" ? (
             <div data-performance-center-filters-v160="true" className="sticky top-[53px] z-[60] rounded-[20px] border border-slate-300 bg-white/95 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-              <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-[150px_190px_260px_200px_minmax(280px,1fr)]">
+              <div className={`grid min-w-0 gap-3 md:grid-cols-2 ${workspaceSection === "cases" ? "xl:grid-cols-[150px_190px_260px_200px_minmax(280px,1fr)]" : "xl:grid-cols-4"}`}>
                 <div className="min-w-0">
                   <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Year</div>
                   <CompactAlignedSelect
@@ -6247,7 +6264,7 @@ export default function DashboardMockup({
                     onChange={(value) => setOverviewMode(value as "all" | "originalOnly" | "revisedOnly")}
                   />
                 </div>
-                <div className="min-w-0">
+                {workspaceSection === "cases" ? <div className="min-w-0">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Case ID</div>
                     <div className="text-[10px] font-semibold text-emerald-700">All authorized cases · all months</div>
@@ -6268,7 +6285,7 @@ export default function DashboardMockup({
                     <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-700 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800">Search</button>
                     <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
                   </div>
-                </div>
+                </div> : null}
               </div>
               {caseIdSearch.trim() ? (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
@@ -6453,7 +6470,7 @@ export default function DashboardMockup({
             </Panel>
 
         <div className="mt-4 space-y-4">
-          {!caseIdSearch.trim() ? <section className="qa-weekly-tabs-v36 min-w-0 rounded-[20px] border border-slate-300 bg-white px-5 py-4 shadow-[0_6px_18px_rgba(15,23,42,0.06)]" aria-label="Weekly View">
+          {workspaceSection === "overview" && !caseIdSearch.trim() ? <section className="qa-weekly-tabs-v36 min-w-0 rounded-[20px] border border-slate-300 bg-white px-5 py-4 shadow-[0_6px_18px_rgba(15,23,42,0.06)]" aria-label="Weekly View">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="shrink-0">
                 <div className="text-sm font-semibold text-slate-900">Weekly View</div>
@@ -6474,7 +6491,7 @@ export default function DashboardMockup({
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
                 <>
-                  <div
+                  {workspaceSection === "overview" ? <div
                     data-overview-kpi-grid-v93="true"
                     data-kpi-quality-score-target={KPI_QUALITY_SCORE_TARGET}
                     className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
@@ -6491,9 +6508,9 @@ export default function DashboardMockup({
                         <div className="mt-2 text-[10px] font-medium leading-5 text-slate-600">{item.note}</div>
                       </div>
                     ))}
-                  </div>
+                  </div> : null}
 
-                  {canViewAnalytics ? (
+                  {workspaceSection === "overview" && canViewAnalytics ? (
                     <section data-performance-analytics-v160="true" className="space-y-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                         <div>
@@ -7244,7 +7261,7 @@ export default function DashboardMockup({
                   </>
                   ) : null}
 
-                  {canViewAnalytics ? (
+                  {workspaceSection === "overview" && canViewAnalytics ? (
                     <div className="grid gap-4 xl:grid-cols-2">
                       <PremiumBarChart
                         title="Score Distribution"
@@ -7260,7 +7277,7 @@ export default function DashboardMockup({
                     </div>
                   ) : null}
 
-                  <section
+                  {workspaceSection === "cases" ? <section
                     id="qa-unified-case-explorer-v160"
                     data-unified-case-explorer-v160="true"
                     className="scroll-mt-36 overflow-hidden rounded-[22px] border border-slate-300 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.08)]"
@@ -7379,9 +7396,9 @@ export default function DashboardMockup({
                         )}
                       </aside>
                     </div>
-                  </section>
+                  </section> : null}
 
-                  <SlideOverCaseDetail
+                  {workspaceSection === "cases" ? <SlideOverCaseDetail
                     open={slideOverOpen}
                     caseItem={activeSelectedCase}
                     currentUser={currentUser}
@@ -7389,7 +7406,7 @@ export default function DashboardMockup({
                     onOpenAppealCase={onOpenAppealCase}
                     onGeneratePdf={onGeneratePdf}
                     onShareCaseDetail={onShareCaseDetail}
-                  />
+                  /> : null}
 
                 </>
               ) : (

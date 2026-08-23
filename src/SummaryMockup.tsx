@@ -14,6 +14,7 @@ import { getIncentiveByGrade, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, 
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
 import PageHero from "./PageHero";
+import PerformanceWorkspaceNav, { type PerformanceWorkspaceSection } from "./PerformanceWorkspaceNav";
 import { canonicalAgentIdentityKey, canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 
 type ReviewStatus = "Original" | "Revised";
@@ -2802,6 +2803,8 @@ export default function SummaryMockup({
   canViewOwnTeam = false,
   canExportAnalytics = false,
   dataRefreshKey,
+  workspaceSection = "analytics",
+  onWorkspaceSectionChange,
   onSelectedAgentChange,
   onSelectedMonthChange,
   onSelectedWeekChange,
@@ -2816,6 +2819,8 @@ export default function SummaryMockup({
   canViewOwnTeam?: boolean;
   canExportAnalytics?: boolean;
   dataRefreshKey?: number;
+  workspaceSection?: PerformanceWorkspaceSection;
+  onWorkspaceSectionChange?: (section: PerformanceWorkspaceSection) => void;
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
@@ -8460,9 +8465,14 @@ export default function SummaryMockup({
 
       {songkranTheme ? <SongkranBackdrop /> : null}
       <PageHero
-        eyebrow="Performance"
-        title="Analytics"
-        subtitle="ภาพรวมผลการประเมิน QA คะแนน และแนวโน้มการปฏิบัติงาน"
+        eyebrow="QA Performance Center"
+        title="QA Dashboard"
+        subtitle="Analytics ใช้สูตร คะแนน และขอบเขตข้อมูลเดิม พร้อมเครื่องมือวิเคราะห์ครบถ้วน"
+      />
+      <PerformanceWorkspaceNav
+        activeSection={workspaceSection}
+        analyticsAllowed
+        onChange={onWorkspaceSectionChange}
       />
       <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-4 lg:px-8">
         <div className="flex flex-wrap items-center justify-end gap-2 border-b border-slate-200 pb-4">
@@ -8473,6 +8483,13 @@ export default function SummaryMockup({
                 setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
               }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700">Exit Compare</button>
             ) : null}
+            <button
+              type="button"
+              onClick={() => setAnalyticsCustomizeOpen(true)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700"
+            >
+              Customize
+            </button>
             <div className="relative">
               <button
                 type="button"
@@ -9455,7 +9472,7 @@ export default function SummaryMockup({
             </div>
           </div>
 
-          {false && analyticsCustomizeOpen ? (
+          {analyticsCustomizeOpen ? (
             <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/45 p-4">
               <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[22px] border border-slate-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
@@ -9804,22 +9821,14 @@ export default function SummaryMockup({
                     <button
                       type="button"
                       onClick={() => {
-                        setAnalyticsCustomizeOpen(
-                          false
-                        );
-                        setReportPdfView(
-                          viewMode
-                        );
-                        setReportPdfDialogOpen(
-                          true
-                        );
+                        setAnalyticsCustomizeOpen(false);
                       }}
                       disabled={
                         !effectivePeriodKeys.length
                       }
                       className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Generate Report
+                      Apply View
                     </button>
                   </div>
                 </div>

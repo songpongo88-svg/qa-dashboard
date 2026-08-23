@@ -7,6 +7,7 @@ import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMocku
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
+import type { PerformanceWorkspaceSection } from "./PerformanceWorkspaceNav";
 import SignatureCenterMockup from "./SignatureCenterMockup";
 import PresentationMockup from "./PresentationMockup";
 import CoachingMockup from "./CoachingMockup";
@@ -364,6 +365,7 @@ const DEFAULT_BUILD_META: BuildMeta = {
 
 const QA_DATA_REFRESH_STORAGE_KEY = "qa-dashboard-data-refresh-key";
 const ACTIVE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-tab-session";
+const PERFORMANCE_SECTION_SESSION_STORAGE_KEY = "qa-dashboard:performance-section-v161";
 const OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY = "qa-dashboard:open-workspace-tabs-v36";
 const ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-workspace-tab-v36";
 const SIDEBAR_GROUPS_SESSION_STORAGE_KEY = "qa-dashboard:sidebar-groups-v36";
@@ -3387,6 +3389,10 @@ export default function App() {
     }
   });
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
+  const [performanceWorkspaceSection, setPerformanceWorkspaceSection] = useState<PerformanceWorkspaceSection>(() => {
+    const stored = window.sessionStorage.getItem(PERFORMANCE_SECTION_SESSION_STORAGE_KEY);
+    return stored === "analytics" || stored === "cases" ? stored : "overview";
+  });
   const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<WorkspaceTabKey[]>(() => {
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY) || "[]");
@@ -3452,6 +3458,9 @@ export default function App() {
     window.sessionStorage.setItem("qa_analytics_selected_month_v134", analyticsSelectedMonth);
     window.sessionStorage.setItem("qa_analytics_selected_week_v134", analyticsSelectedWeek);
   }, [analyticsSelectedAgent, analyticsSelectedMonth, analyticsSelectedWeek]);
+  useEffect(() => {
+    window.sessionStorage.setItem(PERFORMANCE_SECTION_SESSION_STORAGE_KEY, performanceWorkspaceSection);
+  }, [performanceWorkspaceSection]);
   const [selectedAppealCaseId, setSelectedAppealCaseId] = useState("");
   const [selectedDashboardCaseId, setSelectedDashboardCaseId] = useState("");
   const [selectedRubricCode, setSelectedRubricCode] = useState("");
@@ -3489,6 +3498,7 @@ export default function App() {
   const resetWorkspaceSessionState = () => {
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
+    setPerformanceWorkspaceSection("overview");
     setOpenWorkspaceTabs(["dashboard"]);
     setActiveWorkspaceTab("dashboard");
     setSelectedDashboardCaseId("");
@@ -3499,6 +3509,7 @@ export default function App() {
     setShareLinkMessage("");
 
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, "dashboard");
+    window.sessionStorage.setItem(PERFORMANCE_SECTION_SESSION_STORAGE_KEY, "overview");
     window.sessionStorage.setItem(
       OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY,
       JSON.stringify(["dashboard"])
@@ -6856,11 +6867,44 @@ export default function App() {
 
         <WorkspaceKeepAlive activeKey={activeTab} retainedKeys={retainedWorkspaceAppTabs}>
           {activeTab === "dashboard" ? (
-            <div>
+            performanceWorkspaceSection === "analytics" &&
+            analyticsAllowed &&
+            dashboardSubTab !== "case-detail" &&
+            !isCaseWorkspaceTabKey(activeWorkspaceTab) ? (
+              <SummaryMockup
+                currentUser={currentUser}
+                externalSelectedAgent={analyticsSelectedAgent}
+                externalSelectedMonth={analyticsSelectedMonth}
+                externalSelectedWeek={analyticsSelectedWeek}
+                roleScopedAgentNames={roleScopedAgentNames}
+                canViewAllAgents={analyticsAllAgentsAllowed}
+                canViewAllTeams={analyticsAllTeamsAllowed}
+                canViewOwnTeam={analyticsOwnTeamAllowed}
+                canExportAnalytics={analyticsExportAllowed}
+                dataRefreshKey={qaDataRefreshKey}
+                workspaceSection="analytics"
+                onWorkspaceSectionChange={(section) => {
+                  setPerformanceWorkspaceSection(section);
+                  setDashboardSubTab("overview");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                onSelectedAgentChange={setAnalyticsSelectedAgent}
+                onSelectedMonthChange={setAnalyticsSelectedMonth}
+                onSelectedWeekChange={setAnalyticsSelectedWeek}
+              />
+            ) : (
             <DashboardMockup
               currentUser={currentUser}
               dashboardSubTab={dashboardSubTab}
               caseDetailWorkspaceMode={isCaseWorkspaceTabKey(activeWorkspaceTab)}
+              workspaceSection={performanceWorkspaceSection === "cases" ? "cases" : "overview"}
+              onWorkspaceSectionChange={(section) => {
+                if (section === "analytics" && !analyticsAllowed) return;
+                setPerformanceWorkspaceSection(section);
+                setDashboardSubTab("overview");
+                setSelectedDashboardCaseId("");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               externalSelectedAgent={caseSelectedAgent}
               externalSelectedMonthKey={caseSelectedMonth}
               externalSelectedWeek={caseSelectedWeek}
@@ -6936,7 +6980,7 @@ export default function App() {
                 });
               }}
             />
-            </div>
+            )
           ) : activeTab === "appeal" ? (
           <AppealMockup
             currentUser={currentUser}
