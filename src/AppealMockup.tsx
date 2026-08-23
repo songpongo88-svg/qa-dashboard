@@ -493,6 +493,26 @@ function getMonthKey(date: Date | null) {
   return `${year}-${month}`;
 }
 
+function getWeekLabelFromAuditDate(date: Date | null) {
+  if (!date) return "-";
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = start.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + mondayOffset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const format = (item: Date) =>
+    `${String(item.getDate()).padStart(2, "0")}/${String(item.getMonth() + 1).padStart(2, "0")}/${item.getFullYear()}`;
+  return `${format(start)} - ${format(end)}`;
+}
+
+function resolveWeekLabel(auditDate: Date | null, ...candidates: unknown[]) {
+  const matched = candidates
+    .map((value) => String(value ?? "").trim())
+    .find((value) => value && value !== "-");
+  return matched || getWeekLabelFromAuditDate(auditDate);
+}
+
 function parseMonthLabelDate(value: any): Date | null {
   const text = String(value ?? "").trim();
   if (!text) return null;
@@ -1458,17 +1478,13 @@ export default function AppealMockup({
             const monthKey = getMonthKey(monthDate);
             const auditDate = formatDateOnly(auditRaw);
 
-            const weekLabel = rawRow
-              ? String(
-                  rawHelper.getValue(rawRow, "Week Label") ??
-                    rawHelper.getValue(rawRow, "Week") ??
-                    "-"
-                ).trim()
-              : String(
-                  appealHelper.getValue(row, "Week Label") ??
-                    appealHelper.getValue(row, "Week") ??
-                    "-"
-                ).trim();
+            const weekLabel = resolveWeekLabel(
+              auditDateObj,
+              rawRow ? rawHelper.getValue(rawRow, "Week Label") : "",
+              rawRow ? rawHelper.getValue(rawRow, "Week") : "",
+              appealHelper.getValue(row, "Week Label"),
+              appealHelper.getValue(row, "Week")
+            );
 
             const caseUrl = rawRow
               ? String(
@@ -1729,13 +1745,12 @@ export default function AppealMockup({
             const monthKey = getMonthKey(monthDate);
             const auditDate = formatDateOnly(auditRaw);
 
-            const weekLabel = rawRow
-              ? String(
-                  rawHelper.getValue(rawRow, "Week Label") ??
-                    rawHelper.getValue(rawRow, "Week") ??
-                    "-"
-                ).trim()
-              : "-";
+            const weekLabel = resolveWeekLabel(
+              auditDateObj,
+              rawRow ? rawHelper.getValue(rawRow, "Week Label") : "",
+              rawRow ? rawHelper.getValue(rawRow, "Week") : "",
+              request.weekLabel
+            );
 
             const caseUrl = rawRow
               ? String(

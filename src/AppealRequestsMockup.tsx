@@ -25,6 +25,7 @@ type AppealRequest = {
   caseId: string;
   agent: string;
   auditDate: string;
+  weekLabel: string;
   submittedBy: string;
   submittedAt: string;
   finalScore: number;
@@ -176,6 +177,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         caseId: String(log.case_id || log.details?.caseId || ""),
         agent: String(log.target_agent || log.details?.agent || ""),
         auditDate: String(log.details?.auditDate || ""),
+        weekLabel: String(log.details?.weekLabel || ""),
         submittedBy: String(log.details?.submittedBy || log.display_name || ""),
         submittedAt: String(log.details?.submittedAt || log.created_at || ""),
         finalScore: toNumber(log.details?.finalScore),
@@ -216,6 +218,7 @@ function exportAppealRows(requests: AppealRequest[]) {
     "Case ID",
     "Agent Name",
     "Audit Date",
+    "Week Label",
     "Final Score",
     "Grade",
     "Appeal Decision",
@@ -245,6 +248,7 @@ function exportAppealRows(requests: AppealRequest[]) {
       "Case ID": item.caseId,
       "Agent Name": item.agent,
       "Audit Date": item.auditDate,
+      "Week Label": item.weekLabel,
       "Final Score": approvedFinalScore,
       Grade: item.status === "Approved" ? appealGradeFromScore(approvedFinalScore) : item.grade,
       "Appeal Decision": item.status,
