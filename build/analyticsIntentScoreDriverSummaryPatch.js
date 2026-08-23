@@ -214,6 +214,8 @@ function buildAnalyticsIntentDriverSummary(periodReports: any[]) {
 }
 
 function AnalyticsIntentDriverSummary({ rows }: { rows: any[] }) {
+  return null;
+
   if (!rows.length) return null;
 
   return (

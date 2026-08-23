@@ -8768,7 +8768,7 @@ export default function SummaryMockup({
         </div>
       ) : null}
 
-      {((embedded && analysisMode === "monthly" && !isComparisonMode && effectiveSelectedAgent === "all") || summarySection === "team") && analyticsCanViewTeamPerformance ? (
+      {((embedded && selectedTeam !== "all" && analysisMode === "monthly" && !isComparisonMode && effectiveSelectedAgent === "all") || summarySection === "team") && analyticsCanViewTeamPerformance ? (
         <div data-team-performance-logic-v90="true" data-team-performance-integrated-v166={embedded ? "true" : "false"} className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
           <Panel>
             <PanelHeader title="Team Performance" subtitle="จำนวนผู้ถูกประเมิน เคส คะแนนเฉลี่ย KPI เกรด และอินเซนทีฟรายทีม" />
