@@ -3645,6 +3645,7 @@ export default function SummaryMockup({
     if (!embedded || summarySection !== "summary" || !activeUnifiedPeriodKey) return;
 
     if (analysisMode === "monthly") {
+      setTeamSelectedMonth(activeUnifiedPeriodKey);
       onSelectedMonthChange?.(activeUnifiedPeriodKey);
       onSelectedWeekChange?.("all");
       onSelectedYearChange?.(activeUnifiedPeriodKey.slice(0, 4));
@@ -3672,6 +3673,12 @@ export default function SummaryMockup({
     onSelectedYearChange,
     summarySection,
   ]);
+
+  useEffect(() => {
+    if (embedded && summarySection !== "summary") {
+      setSummarySection("summary");
+    }
+  }, [embedded, summarySection]);
 
   useEffect(() => {
     if (!embedded || summarySection !== "team" || !teamSelectedMonth) return;
@@ -8473,26 +8480,8 @@ export default function SummaryMockup({
       {embedded && dashboardControlTarget
         ? createPortal(
             <div data-qa-dashboard-unified-controls-v163="true" data-unified-controls-light-v164="true" className="space-y-4 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)]">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div className="w-full min-w-[220px] max-w-sm">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Workspace Scope</div>
-                  <select
-                    value={summarySection}
-                    onChange={(event) => {
-                      const nextSection = event.target.value as "summary" | "team";
-                      setSummarySection(nextSection);
-                      if (nextSection === "team") {
-                        setSelectedTeam("all");
-                        if (analyticsCanSelectAllAgents) selectAnalyticsAgent("all");
-                      }
-                    }}
-                    className="h-12 w-full rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
-                  >
-                    <option value="summary">Performance Results</option>
-                    {analyticsCanViewTeamPerformance ? <option value="team">Team Results</option> : null}
-                  </select>
-                </div>
-
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+                <div id="qa-dashboard-search-slot-v166" className="min-w-0" />
                 <div className="flex flex-wrap items-center gap-2">
                   {isComparisonMode ? (
                     <button type="button" onClick={() => {
@@ -8525,8 +8514,7 @@ export default function SummaryMockup({
                 </div>
               </div>
 
-              {summarySection === "summary" ? (
-                <div className="grid gap-3 border-t border-violet-100 pt-4 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]">
+              <div className="grid gap-3 border-t border-violet-100 pt-4 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]">
                   <div>
                     <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Time View</div>
                     <div className="grid h-12 grid-cols-3 gap-1 rounded-xl border border-violet-200 bg-violet-100 p-1">
@@ -8603,19 +8591,10 @@ export default function SummaryMockup({
                       <FilterSelect value={effectiveSelectedAgent || "all"} onChange={selectAnalyticsAgent} options={agentFilterOptions} />
                     )}
                   </div>
-                </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-[minmax(240px,420px)_minmax(0,1fr)]">
-                  <div>
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Month</div>
-                    <FilterSelect value={teamSelectedMonth} onChange={setTeamSelectedMonth} options={teamMonthOptions.map((monthKey) => ({ value: monthKey, label: getMonthLabelForKey(monthKey, allCases) }))} />
-                  </div>
-                  <div className="flex items-end pb-3 text-xs font-medium text-slate-600">สรุปผลงานรายทีมตามเดือนที่เลือก โดยใช้สิทธิ์การมองเห็นเดิม</div>
-                </div>
-              )}
+              </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-violet-50 px-3 py-2 text-[10px] font-medium text-slate-600">
-                <span>{summarySection === "team" ? `Current view: ${getMonthLabelForKey(teamSelectedMonth, allCases)}` : isComparisonMode ? `Comparing: ${effectivePeriodLabels.join(" · ")}` : `Current view: ${effectivePeriodLabels[0] || "Current period"}`}</span>
+                <span>{isComparisonMode ? `Comparing: ${effectivePeriodLabels.join(" · ")}` : `Current view: ${effectivePeriodLabels[0] || "Current period"}`}</span>
                 <button type="button" onClick={() => {
                   setSummarySection("summary");
                   setAnalysisMode("monthly");
@@ -8789,8 +8768,8 @@ export default function SummaryMockup({
         </div>
       ) : null}
 
-      {summarySection === "team" && analyticsCanViewTeamPerformance ? (
-        <div data-team-performance-logic-v90="true" className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+      {((embedded && analysisMode === "monthly" && !isComparisonMode && effectiveSelectedAgent === "all") || summarySection === "team") && analyticsCanViewTeamPerformance ? (
+        <div data-team-performance-logic-v90="true" data-team-performance-integrated-v166={embedded ? "true" : "false"} className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
           <Panel>
             <PanelHeader title="Team Performance" subtitle="จำนวนผู้ถูกประเมิน เคส คะแนนเฉลี่ย KPI เกรด และอินเซนทีฟรายทีม" />
             <PanelBody className="space-y-5">

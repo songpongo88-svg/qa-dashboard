@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
@@ -4228,10 +4229,31 @@ export default function DashboardMockup({
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [currentPeriodNotice, setCurrentPeriodNotice] = useState("");
   const [appealMergeCount, setAppealMergeCount] = useState(0);
-  const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
+  const [overviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
+  const [dashboardSearchTarget, setDashboardSearchTarget] = useState<HTMLElement | null>(null);
   const [selectedTopicCode, setSelectedTopicCode] = useState("");
   const [analyticsTrendMode, setAnalyticsTrendMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
   const [slideOverOpen, setSlideOverOpen] = useState(false);
+
+  useEffect(() => {
+    if (!canViewAnalytics || !analyticsContent) {
+      setDashboardSearchTarget(null);
+      return;
+    }
+
+    let frameId = 0;
+    const resolveTarget = () => {
+      const target = document.getElementById("qa-dashboard-search-slot-v166");
+      if (target) {
+        setDashboardSearchTarget(target);
+        return;
+      }
+      frameId = window.requestAnimationFrame(resolveTarget);
+    };
+
+    resolveTarget();
+    return () => window.cancelAnimationFrame(frameId);
+  }, [analyticsContent, canViewAnalytics, isLoading]);
 
 
   function closeCaseDetail() {
@@ -6071,6 +6093,37 @@ export default function DashboardMockup({
         )
       : quickAgentOptions;
 
+  const renderDashboardSearchControls = () => (
+    <div data-search-evaluation-primary-v166="true" className="min-w-0">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Evaluation ID</div>
+        <div className="text-[10px] font-bold text-emerald-700">ค้นหาได้ทุกเดือนภายใต้สิทธิ์ของคุณ</div>
+      </div>
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
+        <input
+          type="search"
+          value={caseIdSearch}
+          onChange={(event) => {
+            setCaseIdSearch(event.target.value);
+            setSelectedCaseKey("");
+            setSlideOverOpen(false);
+          }}
+          onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
+          placeholder="Search any authorized Evaluation ID"
+          className="h-12 min-w-0 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-500 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+        />
+        <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800">Search</button>
+        <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">Clear</button>
+      </div>
+      {caseIdSearch.trim() ? (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-800">
+          <span>ค้นหาทุกเดือนแล้ว โดยคะแนนสรุปยังยึด Period, Team และ Agent ที่เลือก</span>
+          <span>{overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+
   if (isLoading) {
     return <LoadingMascot message="กำลังโหลดข้อมูล" subMessage="กรุณารอสักครู่..." />;
   }
@@ -6213,48 +6266,12 @@ export default function DashboardMockup({
                   </div>
                 </div>
               )}
-
-              <div className="mt-3 grid min-w-0 gap-3 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)] md:grid-cols-2 xl:grid-cols-[230px_minmax(0,1fr)]">
-                <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Evaluation Status</div>
-                  <CompactAlignedSelect
-                    ariaLabel="Dashboard Review Status"
-                    value={overviewMode}
-                    options={[
-                      { value: "all", label: "All Results" },
-                      { value: "originalOnly", label: "Original Only" },
-                      { value: "revisedOnly", label: "Revised Only" },
-                    ]}
-                    onChange={(value) => setOverviewMode(value as "all" | "originalOnly" | "revisedOnly")}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Evaluation ID</div>
-                    <div className="text-[10px] font-bold text-emerald-700">ค้นหาได้ทุกเดือนภายใต้สิทธิ์ของคุณ</div>
-                  </div>
-                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
-                    <input
-                      type="search"
-                      value={caseIdSearch}
-                      onChange={(event) => {
-                        setCaseIdSearch(event.target.value);
-                        setSelectedCaseKey("");
-                        setSlideOverOpen(false);
-                      }}
-                      onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
-                      placeholder="Search any authorized Evaluation ID"
-                      className="h-12 min-w-0 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-500 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
-                    />
-                    <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800">Search</button>
-                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">Clear</button>
-                  </div>
-                </div>
-              </div>
-              {caseIdSearch.trim() ? (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
-                  <span>เปิดการค้นหาทุกเดือน — รายการผลลัพธ์จะเปลี่ยน แต่คะแนนยังใช้ช่วงเวลาและ Scope ที่เลือก</span>
-                  <span>{overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}</span>
+              {dashboardSearchTarget
+                ? createPortal(renderDashboardSearchControls(), dashboardSearchTarget)
+                : null}
+              {!canViewAnalytics || !analyticsContent ? (
+                <div className="mt-3 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)]">
+                  {renderDashboardSearchControls()}
                 </div>
               ) : null}
             </div>
