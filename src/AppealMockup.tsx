@@ -11,6 +11,7 @@ import LoadingMascot from "./LoadingMascot";
 import { richTextToPlainText } from "./richText";
 
 type ReviewStatus = "Original" | "Revised";
+type AppealDecision = "Approved" | "Rejected";
 
 type Topic = {
   code: string;
@@ -22,6 +23,7 @@ type Topic = {
   originalScore?: number;
   originalComment?: string;
   appealReason?: string;
+  rejectReason?: string;
   appealed?: boolean;
   changed?: boolean;
 };
@@ -37,6 +39,7 @@ type AppealRevisionItem = {
   finalScore: number;
   grade: Grade;
   reviewStatus: ReviewStatus;
+  appealDecision: AppealDecision;
   appealedTopics: Topic[];
   changedTopics: Topic[];
 };
@@ -53,6 +56,7 @@ type AppealCaseItem = {
   previousScore: number;
   finalScore: number;
   reviewStatus: ReviewStatus;
+  appealDecision: AppealDecision;
   grade: Grade;
   appealVersion: string;
   appealSubmitDateTime: string;
@@ -173,6 +177,13 @@ function normalizeCaseId(value: unknown) {
     .replace(/\s+/g, "")
     .trim()
     .toUpperCase();
+}
+
+function normalizeAppealDecision(value: unknown): AppealDecision {
+  const normalized = normalizeText(value);
+  return normalized === "rejected" || normalized === "reject" || normalized.includes("ปฏิเสธ")
+    ? "Rejected"
+    : "Approved";
 }
 
 function splitAppealCaseIds(value: unknown) {
@@ -366,6 +377,7 @@ function toAppealRevision(item: AppealCaseItem, appealRound: number): AppealRevi
     finalScore: item.finalScore,
     grade: item.grade,
     reviewStatus: item.reviewStatus,
+    appealDecision: item.appealDecision,
     appealedTopics: item.appealedTopics,
     changedTopics: item.changedTopics,
   };
@@ -838,6 +850,15 @@ function QuickCaseCard({
 
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span
+            className={`rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${
+              item.appealDecision === "Rejected"
+                ? "border-rose-200 bg-rose-50 text-rose-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {item.appealDecision}
+          </span>
+          <span
             className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
               item.grade
             )}`}
@@ -1168,7 +1189,13 @@ function AppealRevisionHistory({
   );
 }
 
-function AppealedTopicsCorporateTable({ topics }: { topics: Topic[] }) {
+function AppealedTopicsCorporateTable({
+  topics,
+  decision,
+}: {
+  topics: Topic[];
+  decision: AppealDecision;
+}) {
   const topicRows = [
     {
       label: "Appeal Reason",
@@ -1181,9 +1208,12 @@ function AppealedTopicsCorporateTable({ topics }: { topics: Topic[] }) {
       getValue: (topic: Topic) => sanitizeDisplayText(topic.originalComment, "No evaluation comment"),
     },
     {
-      label: "Revised Comment",
-      tone: "text-violet-700",
-      getValue: (topic: Topic) => sanitizeDisplayText(topic.comment, "No revised comment"),
+      label: decision === "Rejected" ? "Reject Reason" : "Revised Comment",
+      tone: decision === "Rejected" ? "text-rose-700" : "text-violet-700",
+      getValue: (topic: Topic) =>
+        decision === "Rejected"
+          ? sanitizeDisplayText(topic.rejectReason, "No reject reason")
+          : sanitizeDisplayText(topic.comment, "No revised comment"),
     },
   ];
 
@@ -1285,7 +1315,7 @@ export default function AppealMockup({
   const [selectedMonthKey, setSelectedMonthKey] = useState("all");
   const [selectedAgent, setSelectedAgent] = useState(externalSelectedAgent || "");
   const [appealReloadKey, setAppealReloadKey] = useState(0);
-  const [approvedSourceInfo, setApprovedSourceInfo] = useState({
+  const [reviewedSourceInfo, setReviewedSourceInfo] = useState({
     staticCount: 0,
     firebaseCount: 0,
     error: "",
@@ -1464,6 +1494,12 @@ export default function AppealMockup({
               appealHelper.getValue(row, "Final Score") ??
               null;
 
+            const appealDecision = normalizeAppealDecision(
+              appealHelper.getValue(row, "Appeal Decision") ??
+                appealHelper.getValue(row, "Decision") ??
+                appealHelper.getValue(row, "Status")
+            );
+
             const previousScore = Number(
               rawOverallScore !== null &&
                 rawOverallScore !== undefined &&
@@ -1472,13 +1508,14 @@ export default function AppealMockup({
                 : 0
             );
 
-            const finalScore = Number(
+            const importedFinalScore = Number(
               appealOverallScore !== null &&
                 appealOverallScore !== undefined &&
                 String(appealOverallScore).trim() !== ""
                 ? appealOverallScore
                 : previousScore
             );
+            const finalScore = appealDecision === "Rejected" ? previousScore : importedFinalScore;
 
             const appealSubmitRaw =
               getFirstNonEmptyValue(appealHelper, row, [
@@ -1538,16 +1575,23 @@ export default function AppealMockup({
               ).trim();
 
               const revisedScoreCandidate =
-                appealHelper.getValue(row, `${master.code} Revised Score`) ??
-                appealHelper.getValue(row, `${master.code} Final Score`) ??
-                appealHelper.getValue(row, `${master.code} Score`);
+                appealDecision === "Approved"
+                  ? appealHelper.getValue(row, `${master.code} Revised Score`) ??
+                    appealHelper.getValue(row, `${master.code} Final Score`) ??
+                    appealHelper.getValue(row, `${master.code} Score`)
+                  : null;
 
               const revisedCommentCandidate =
-                appealHelper.getValue(row, `${master.code} Revised Comment`) ??
-                appealHelper.getValue(row, `${master.code} Comment`);
+                appealDecision === "Approved"
+                  ? appealHelper.getValue(row, `${master.code} Revised Comment`) ??
+                    appealHelper.getValue(row, `${master.code} Comment`)
+                  : null;
 
               const appealReason = String(
                 appealHelper.getValue(row, `${master.code} Appeal Reason`) ?? ""
+              ).trim();
+              const rejectReason = String(
+                appealHelper.getValue(row, `${master.code} Reject Reason`) ?? ""
               ).trim();
 
               const hasRevisedScore =
@@ -1568,6 +1612,7 @@ export default function AppealMockup({
 
               const appealed = Boolean(appealReason && !isNoAppealReason(appealReason));
               const changed =
+                appealDecision === "Approved" &&
                 appealed &&
                 isRealTopicChanged(
                   originalScore,
@@ -1586,6 +1631,7 @@ export default function AppealMockup({
                 originalScore,
                 originalComment,
                 appealReason,
+                rejectReason,
                 appealed,
                 changed,
               };
@@ -1605,7 +1651,8 @@ export default function AppealMockup({
               inquiry,
               previousScore,
               finalScore,
-              reviewStatus: changedTopics.length ? "Revised" : "Original",
+              reviewStatus: appealDecision === "Approved" && changedTopics.length ? "Revised" : "Original",
+              appealDecision,
               grade: scoreToGrade(finalScore, monthKey),
               appealVersion: String(appealVersionRaw ?? "-").trim() || "-",
               appealSubmitDateTime: formatDateTimeOrRaw(appealSubmitRaw),
@@ -1642,7 +1689,7 @@ export default function AppealMockup({
           )) as UsageLogEvent[];
 
           const firebaseAppealRequests = (buildAppealRequests(appealEvents) as any[])
-            .filter((request) => request.status === "Approved")
+            .filter((request) => request.status === "Approved" || request.status === "Rejected")
             .flatMap((request) =>
               splitAppealCaseIds(request.caseId).map((caseId) => ({
                 ...request,
@@ -1653,6 +1700,7 @@ export default function AppealMockup({
           firebaseAppealRequests.forEach((request, firebaseIndex) => {
             const caseId = String(request.caseId || "").trim();
             if (!caseId) return;
+            const appealDecision = normalizeAppealDecision(request.status);
 
             const normalizedCaseId = normalizeCaseId(caseId);
             const rawRow = rawCaseMap.get(normalizedCaseId);
@@ -1735,17 +1783,24 @@ export default function AppealMockup({
               ).trim();
 
               const revisedScoreCandidate =
-                requestTopic?.revisedScore ??
-                requestTopic?.finalScore ??
-                requestTopic?.score ??
-                null;
+                appealDecision === "Approved"
+                  ? requestTopic?.revisedScore ??
+                    requestTopic?.finalScore ??
+                    requestTopic?.score ??
+                    null
+                  : null;
 
               const revisedCommentCandidate =
-                requestTopic?.revisedComment ??
-                requestTopic?.comment ??
-                "";
+                appealDecision === "Approved"
+                  ? requestTopic?.revisedComment ??
+                    requestTopic?.comment ??
+                    ""
+                  : null;
 
               const appealReason = String(requestTopic?.appealReason ?? "").trim();
+              const rejectReason = String(
+                requestTopic?.rejectReason ?? requestTopic?.revisedComment ?? ""
+              ).trim();
 
               const hasRevisedScore =
                 revisedScoreCandidate !== null &&
@@ -1767,6 +1822,7 @@ export default function AppealMockup({
                 requestTopic?.wantsAppeal === true ||
                 Boolean(appealReason && !isNoAppealReason(appealReason));
               const changed =
+                appealDecision === "Approved" &&
                 appealed &&
                 isRealTopicChanged(
                   originalScore,
@@ -1785,6 +1841,7 @@ export default function AppealMockup({
                 originalScore,
                 originalComment,
                 appealReason,
+                rejectReason,
                 appealed,
                 changed,
               };
@@ -1793,9 +1850,10 @@ export default function AppealMockup({
             const appealedTopics = topics.filter((topic) => topic.appealed);
             const changedTopics = topics.filter((topic) => topic.changed);
             const finalScoreFromTopics = topics.reduce((sum, topic) => sum + Number(topic.score || 0), 0);
-            const finalScore = Number.isFinite(finalScoreFromTopics) && finalScoreFromTopics > 0
+            const approvedFinalScore = Number.isFinite(finalScoreFromTopics) && finalScoreFromTopics > 0
               ? finalScoreFromTopics
               : previousScore;
+            const finalScore = appealDecision === "Rejected" ? previousScore : approvedFinalScore;
 
             const reviewedAtRaw = request.reviewedAt || request.submittedAt || "";
             const appealTimestampRank = new Date(reviewedAtRaw).getTime();
@@ -1811,7 +1869,8 @@ export default function AppealMockup({
               inquiry,
               previousScore,
               finalScore,
-              reviewStatus: "Revised",
+              reviewStatus: appealDecision === "Approved" ? "Revised" : "Original",
+              appealDecision,
               grade: scoreToGrade(finalScore, monthKey),
               appealVersion: "Firebase",
               appealSubmitDateTime: formatDateTimeOrRaw(request.submittedAt),
@@ -1833,8 +1892,8 @@ export default function AppealMockup({
           console.warn("Load Firebase appeal events failed", firebaseError);
           firebaseLoadError =
             firebaseError instanceof Error
-              ? `โหลดผล Approved จาก Appeal Review ไม่สำเร็จ: ${firebaseError.message}`
-              : "โหลดผล Approved จาก Appeal Review ไม่สำเร็จ";
+              ? `โหลดผล Appeal Review ไม่สำเร็จ: ${firebaseError.message}`
+              : "โหลดผล Appeal Review ไม่สำเร็จ";
         }
 
         const firebaseCaseIds = new Set(
@@ -1843,13 +1902,13 @@ export default function AppealMockup({
         const staticCasesWithoutFirebaseDuplicate = mapped.filter(
           (item) => !firebaseCaseIds.has(normalizeCaseId(item.caseId))
         );
-        const approvedCases = collapseAppealRowsToLatest([
+        const reviewedCases = collapseAppealRowsToLatest([
           ...staticCasesWithoutFirebaseDuplicate,
           ...firebaseMapped,
         ]).sort((a, b) => b.appealTimestampRank - a.appealTimestampRank);
 
-        setAllCases(approvedCases);
-        setApprovedSourceInfo({
+        setAllCases(reviewedCases);
+        setReviewedSourceInfo({
           staticCount: staticCasesWithoutFirebaseDuplicate.length,
           firebaseCount: firebaseMapped.length,
           error: firebaseLoadError,
@@ -2034,7 +2093,7 @@ export default function AppealMockup({
   const handleGeneratePdf = async () => {
     if (!selectedCase || !selectedRevision) {
       setPdfStatus("error");
-      setPdfMessage("กรุณาเลือกเคส Approved ก่อนสร้าง Appeal PDF");
+      setPdfMessage("กรุณาเลือกเคสก่อนสร้าง Appeal PDF");
       return;
     }
 
@@ -2136,7 +2195,7 @@ export default function AppealMockup({
       <PageHero
         eyebrow="Appeals"
         title="Appeal Cases"
-        subtitle="ดูเคสอุทธรณ์ ผลตัดสิน Timeline และคะแนนที่แก้ไข"
+        subtitle="ดูเคสอุทธรณ์ทั้ง Approved และ Rejected พร้อมเหตุผลและผลการพิจารณา"
       />
       {false ? (
       <div>
@@ -2192,20 +2251,20 @@ export default function AppealMockup({
 
       <AppealClosedBanner />
 
-      <div className="flex flex-col gap-3 rounded-[24px] border border-emerald-200 bg-emerald-50/80 px-5 py-4 shadow-[0_10px_24px_rgba(16,185,129,0.08)] lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 rounded-[24px] border border-violet-200 bg-violet-50/80 px-5 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.08)] lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">
-            Approved Appeals Only
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">
+            Reviewed Appeals
           </div>
-          <div className="mt-1 text-sm font-semibold leading-6 text-emerald-900">
-            หน้านี้แสดงเฉพาะเคสที่ Appeal Review อนุมัติแล้ว เคส Rejected จะแสดง Feedback ใน Case Review แต่ไม่เข้าหน้า Appeal Cases
+          <div className="mt-1 text-sm font-semibold leading-6 text-violet-900">
+            หน้านี้แสดงเคสที่พิจารณาแล้วทั้ง Approved และ Rejected พร้อม Appeal Reason และผลการพิจารณาราย Topic
           </div>
           <div className="mt-1 text-xs font-semibold text-slate-500">
-            Appeal ROWDATA: {approvedSourceInfo.staticCount} case(s) • Appeal Review / Firebase: {approvedSourceInfo.firebaseCount} case(s)
+            Appeal ROWDATA: {reviewedSourceInfo.staticCount} case(s) • Appeal Review / Firebase: {reviewedSourceInfo.firebaseCount} case(s)
           </div>
-          {approvedSourceInfo.error ? (
+          {reviewedSourceInfo.error ? (
             <div className="mt-2 text-xs font-bold text-rose-700">
-              {approvedSourceInfo.error}
+              {reviewedSourceInfo.error}
             </div>
           ) : null}
         </div>
@@ -2222,17 +2281,17 @@ export default function AppealMockup({
                 onSelectedAgentChange?.("");
               }
             }}
-            className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
+            className="rounded-xl border border-violet-300 bg-white px-4 py-2 text-xs font-black text-violet-700 transition hover:bg-violet-100"
           >
-            Show All Approved
+            Show All Reviewed
           </button>
 
           <button
             type="button"
             onClick={() => setAppealReloadKey((current) => current + 1)}
-            className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-800"
+            className="rounded-xl bg-violet-700 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-800"
           >
-            Refresh Approved Appeals
+            Refresh Appeals
           </button>
         </div>
       </div>
@@ -2439,6 +2498,27 @@ export default function AppealMockup({
                         </div>
                       </div>
 
+                      <div
+                        className={`rounded-2xl border px-4 py-4 ${
+                          (selectedRevision?.appealDecision ?? selectedCase.appealDecision) === "Rejected"
+                            ? "border-rose-200 bg-rose-50"
+                            : "border-emerald-200 bg-emerald-50"
+                        }`}
+                      >
+                        <div
+                          className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                            (selectedRevision?.appealDecision ?? selectedCase.appealDecision) === "Rejected"
+                              ? "text-rose-700"
+                              : "text-emerald-700"
+                          }`}
+                        >
+                          Appeal Decision
+                        </div>
+                        <div className="mt-2 text-sm font-extrabold text-slate-900">
+                          {selectedRevision?.appealDecision ?? selectedCase.appealDecision}
+                        </div>
+                      </div>
+
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                           Month Key
@@ -2470,14 +2550,16 @@ export default function AppealMockup({
                         </a>
                       ) : null}
 
-                      <button
-                        type="button"
-                        onClick={handleGeneratePdf}
-                        disabled={pdfStatus === "generating"}
-                        className="inline-flex rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-semibold text-fuchsia-700 transition hover:bg-fuchsia-100 disabled:cursor-wait disabled:opacity-60"
-                      >
-                        {pdfStatus === "generating" ? "Generating PDF..." : "Generate Appeal PDF"}
-                      </button>
+                      {(selectedRevision?.appealDecision ?? selectedCase.appealDecision) === "Approved" ? (
+                        <button
+                          type="button"
+                          onClick={handleGeneratePdf}
+                          disabled={pdfStatus === "generating"}
+                          className="inline-flex rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-semibold text-fuchsia-700 transition hover:bg-fuchsia-100 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {pdfStatus === "generating" ? "Generating PDF..." : "Generate Appeal PDF"}
+                        </button>
+                      ) : null}
                     </div>
 
                     {pdfMessage ? (
@@ -2542,16 +2624,29 @@ export default function AppealMockup({
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-red-50 px-4 py-4">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700">
+                    <div
+                      className={`rounded-2xl border px-4 py-4 ${
+                        (selectedRevision?.appealDecision ?? selectedCase.appealDecision) === "Rejected"
+                          ? "border-rose-200 bg-gradient-to-br from-rose-50 to-red-50"
+                          : "border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50"
+                      }`}
+                    >
+                      <div
+                        className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                          (selectedRevision?.appealDecision ?? selectedCase.appealDecision) === "Rejected"
+                            ? "text-rose-700"
+                            : "text-emerald-700"
+                        }`}
+                      >
                         Final Decision
                       </div>
-                      <div className="mt-2 text-sm font-bold text-slate-900">
-                        Finalized and closed
+                      <div className="mt-2 text-sm font-extrabold text-slate-900">
+                        {selectedRevision?.appealDecision ?? selectedCase.appealDecision}
                       </div>
                       <div className="mt-2 text-[12px] leading-6 text-slate-700">
-                        This case has completed the appeal review process and cannot be appealed
-                        again.
+                        {(selectedRevision?.appealDecision ?? selectedCase.appealDecision) === "Rejected"
+                          ? "คะแนนและ Original Comment ยังคงเป็นข้อมูลเดิม"
+                          : "Revised Score และ Revised Comment ถูกนำมาใช้กับผลประเมินแล้ว"}
                       </div>
                     </div>
 
@@ -2568,7 +2663,11 @@ export default function AppealMockup({
               <Panel>
                 <PanelHeader
                   title="Appealed Topics"
-                  subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมเปรียบเทียบคะแนนเดิมและคะแนนใหม่"
+                  subtitle={
+                    (selectedRevision?.appealDecision ?? selectedCase.appealDecision) === "Rejected"
+                      ? "แสดง Appeal Reason, Original Comment และ Reject Reason โดยคะแนนยังคงเดิม"
+                      : "แสดง Appeal Reason, Original Comment และ Revised Comment พร้อมคะแนนหลังอนุมัติ"
+                  }
                 />
                 <PanelBody>
                   {!(selectedRevision?.appealedTopics.length ?? selectedCase.appealedTopics.length) ? (
@@ -2648,7 +2747,10 @@ export default function AppealMockup({
                         </div>
                       </div>
 
-                      <AppealedTopicsCorporateTable topics={selectedRevision?.appealedTopics ?? selectedCase.appealedTopics} />
+                      <AppealedTopicsCorporateTable
+                        topics={selectedRevision?.appealedTopics ?? selectedCase.appealedTopics}
+                        decision={selectedRevision?.appealDecision ?? selectedCase.appealDecision}
+                      />
                     </div>
                   )}
                 </PanelBody>

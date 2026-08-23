@@ -37,6 +37,10 @@ type Topic = {
   comment?: string;
 };
 
+type AppealReviewedTopic = Topic & {
+  appealReason?: string;
+};
+
 type CaseItem = {
   key: string;
   evaluationKey: string;
@@ -72,7 +76,7 @@ type CaseItem = {
   appealReviewSummary?: string;
   appealReviewedAt?: string;
   appealRequestId?: string;
-  appealReviewedTopics?: Topic[] | null;
+  appealReviewedTopics?: AppealReviewedTopic[] | null;
 };
 
 type AppealDraftTopic = {
@@ -281,15 +285,16 @@ function buildAppealOutcomeMap(
       rawCaseMonthKeyMap.get(caseId) ||
       getMonthKey(excelDateToJSDate(request.auditDate));
     const topicMaster = getTopicMasterByMonth(monthKey);
-    const reviewedTopics: Topic[] = [];
+    const reviewedTopics: AppealReviewedTopic[] = [];
 
     (Array.isArray(request.topics) ? request.topics : []).forEach((matched: any) => {
+      const appealReason = String(matched.appealReason || "").trim();
       const reviewFeedback = String(
         request.status === "Rejected"
           ? matched.rejectReason || matched.revisedComment || ""
           : matched.revisedComment || ""
       ).trim();
-      if (!reviewFeedback) return;
+      if (!appealReason && !reviewFeedback) return;
 
       const master = topicMaster.find((item) => item.code === matched.code);
       if (!master) return;
@@ -304,6 +309,7 @@ function buildAppealOutcomeMap(
         max: master.max,
         pct: master.max > 0 ? Math.round((safeScore / master.max) * 100) : 0,
         comment: reviewFeedback,
+        appealReason,
       });
     });
 
@@ -2042,11 +2048,15 @@ function CaseDetailTopicTable({
   revisedTopics,
   reviewStatus,
   displayRevisedTopicCodes = [],
+  appealStatus,
+  appealReviewedTopics,
 }: {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
   displayRevisedTopicCodes?: string[];
+  appealStatus?: "Approved" | "Rejected";
+  appealReviewedTopics?: AppealReviewedTopic[] | null;
 }) {
   const displayCodeSet = new Set(displayRevisedTopicCodes);
 
@@ -2055,6 +2065,10 @@ function CaseDetailTopicTable({
       const revisedTopic =
         reviewStatus === "Revised" && revisedTopics?.length
           ? revisedTopics.find((item) => item.code === originalTopic.code)
+          : undefined;
+      const rejectedReviewTopic =
+        appealStatus === "Rejected"
+          ? appealReviewedTopics?.find((item) => item.code === originalTopic.code)
           : undefined;
       const allowedToShowRevised = displayCodeSet.has(originalTopic.code);
       const changed =
@@ -2081,6 +2095,7 @@ function CaseDetailTopicTable({
       return {
         originalTopic,
         revisedTopic,
+        rejectedReviewTopic,
         shownTopic,
         changed,
         pct,
@@ -2091,6 +2106,7 @@ function CaseDetailTopicTable({
     .filter(Boolean) as Array<{
       originalTopic: Topic;
       revisedTopic?: Topic;
+      rejectedReviewTopic?: AppealReviewedTopic;
       shownTopic: Topic;
       changed: boolean;
       pct: number;
@@ -2114,6 +2130,10 @@ function CaseDetailTopicTable({
                 {row.changed && row.revisedTopic ? (
                   <div className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-violet-700">
                     Revised topic review
+                  </div>
+                ) : row.rejectedReviewTopic ? (
+                  <div className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-rose-700">
+                    Rejected appeal review
                   </div>
                 ) : null}
               </div>
@@ -2162,7 +2182,30 @@ function CaseDetailTopicTable({
             </div>
 
             <div className="mt-6 space-y-4">
-              {row.changed && row.revisedTopic ? (
+              {row.rejectedReviewTopic ? (
+                <>
+                  <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">
+                    <div className="text-[13px] font-semibold text-amber-700">Appeal Reason</div>
+                    <div className="mt-4 whitespace-pre-line leading-7 text-amber-950">
+                      <RichTextContent value={row.rejectedReviewTopic.appealReason} fallback="ไม่พบ Appeal Reason" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
+                    <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
+                      <RichTextContent value={row.originalTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-[20px] border border-rose-200 bg-rose-50/80 px-4 py-4">
+                    <div className="text-[13px] font-semibold text-rose-700">Reject Reason</div>
+                    <div className="mt-4 whitespace-pre-line leading-7 text-rose-800">
+                      <RichTextContent value={row.rejectedReviewTopic.comment} fallback="ไม่พบ Reject Reason" />
+                    </div>
+                  </div>
+                </>
+              ) : row.changed && row.revisedTopic ? (
                 <>
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
@@ -3113,6 +3156,13 @@ function SlideOverCaseDetail({
 
   const hasAppealCase =
     caseItem.appealStatus === "Approved" ||
+    caseItem.appealStatus === "Rejected" ||
+    caseItem.reviewStatus === "Revised" ||
+    !!caseItem.revisedTopics?.length ||
+    !!caseItem.displayRevisedTopicCodes?.length;
+
+  const hasApprovedAppealReport =
+    caseItem.appealStatus === "Approved" ||
     caseItem.reviewStatus === "Revised" ||
     !!caseItem.revisedTopics?.length ||
     !!caseItem.displayRevisedTopicCodes?.length;
@@ -3766,7 +3816,7 @@ function SlideOverCaseDetail({
                   </CaseActionTooltip>
                 ) : null}
 
-                {hasAppealCase ? (
+                {hasApprovedAppealReport ? (
                   <CaseActionTooltip text="ดาวน์โหลดรายงานอุทธรณ์ (PDF)">
                     <button
                       type="button"
@@ -4072,41 +4122,13 @@ function SlideOverCaseDetail({
                   </div>
                 </div>
               ) : null}
-              {caseItem.appealStatus === "Rejected" &&
-              caseItem.appealReviewedTopics?.some((topic) => richTextToPlainText(topic.comment)) ? (
-                <div className="mb-5 rounded-[18px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 px-4 py-4 shadow-[0_10px_24px_rgba(225,29,72,0.06)]">
-                  <div className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-rose-700">
-                    เหตุผลการปฏิเสธอุทธรณ์
-                  </div>
-                  <div className="mt-1 text-xs leading-5 text-slate-500">
-                    คำอธิบายจากผู้พิจารณาราย Topic โดยคะแนนและ Original Comment ยังคงเป็นข้อมูลเดิม
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    {caseItem.appealReviewedTopics
-                      .filter((topic) => richTextToPlainText(topic.comment))
-                      .map((topic, index) => (
-                        <div
-                          key={`${topic.code}-${index}`}
-                          className="rounded-[18px] border border-rose-100 bg-white px-4 py-3 shadow-sm"
-                        >
-                          <div className="text-sm font-extrabold text-slate-900">
-                            {index + 1}. {topic.code} {topic.label}
-                          </div>
-                          <div className="mt-2 whitespace-pre-line text-sm leading-7 text-rose-800">
-                            <RichTextContent value={topic.comment} />
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ) : null}
-
               <CaseDetailTopicTable
                 topics={caseItem.topics}
                 revisedTopics={caseItem.revisedTopics}
                 reviewStatus={caseItem.reviewStatus}
                 displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
+                appealStatus={caseItem.appealStatus}
+                appealReviewedTopics={caseItem.appealReviewedTopics}
               />
             </PanelBody>
           </Panel>

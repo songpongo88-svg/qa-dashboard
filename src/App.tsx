@@ -6529,7 +6529,7 @@ export default function App() {
       title: "Appeals",
       description: "งานอุทธรณ์และการอนุมัติแก้ไข",
       items: [
-        { key: "appeal", label: "Appeal Cases", description: "ดูเคสอุทธรณ์ ผลตัดสิน Timeline และคะแนนที่แก้ไข", icon: "appeal", allowed: true, active: activeWorkspaceTab === "appeal", onClick: () => activateWorkspaceTab("appeal") },
+        { key: "appeal", label: "Appeal Cases", description: "ดูเคสอุทธรณ์ ผลตัดสิน Timeline และเหตุผลการพิจารณา", icon: "appeal", allowed: true, active: activeWorkspaceTab === "appeal", onClick: () => activateWorkspaceTab("appeal") },
         { key: "appeal-requests", label: "Appeal Review", description: "ตรวจคำขออุทธรณ์และบันทึกผลอนุมัติหรือปฏิเสธ", icon: "queue", allowed: appealRequestsAllowed, active: activeWorkspaceTab === "appeal-requests", onClick: () => activateWorkspaceTab("appeal-requests") },
         { key: "appeal-override", label: "Late Appeal", description: "เปิดสิทธิ์ให้เคสยื่นอุทธรณ์หลังหมดเวลา", icon: "target", allowed: appealOverrideAllowed, active: activeWorkspaceTab === "appeal-override", onClick: () => activateWorkspaceTab("appeal-override") },
       ],
