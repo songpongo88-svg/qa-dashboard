@@ -1880,7 +1880,15 @@ function ReviewStatusBadge({ item }: { item: CaseItem }) {
   );
 }
 
-function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
+function TopicPerformanceTable({
+  items,
+  selectedTopicCode = "",
+  onSelectTopic,
+}: {
+  items: TopicSummary[];
+  selectedTopicCode?: string;
+  onSelectTopic?: (topicCode: string) => void;
+}) {
   const rankedItems = [...items].sort((a, b) => {
     if (a.pct === "-") return 1;
     if (b.pct === "-") return -1;
@@ -1921,7 +1929,15 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
             return (
               <tr
                 key={entry.code}
-                className={isStrongest ? "bg-emerald-50/80" : isCoachingFocus ? "bg-rose-50/80" : "bg-white"}
+                className={
+                  selectedTopicCode === entry.code
+                    ? "bg-violet-100/90 outline outline-1 outline-violet-300"
+                    : isStrongest
+                      ? "bg-emerald-50/80"
+                      : isCoachingFocus
+                        ? "bg-rose-50/80"
+                        : "bg-white"
+                }
               >
                 <td className="border-t border-slate-200 px-3 py-3 text-center">
                   <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-bold ${
@@ -1934,7 +1950,19 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
                 </td>
                 <td className="hidden border-t border-slate-200 px-3 py-3 text-center font-semibold text-violet-700 md:table-cell">{entry.code}</td>
                 <td className="border-t border-slate-200 px-3 py-3">
-                  <div className="break-words font-semibold text-slate-900">{entry.label}</div>
+                  {onSelectTopic ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectTopic(entry.code)}
+                      className="break-words text-left font-semibold text-slate-900 underline-offset-4 transition hover:text-violet-700 hover:underline"
+                      aria-pressed={selectedTopicCode === entry.code}
+                      title="กรอง Case Explorer ด้วยเคสที่ถูกหักในหัวข้อนี้"
+                    >
+                      {entry.label}
+                    </button>
+                  ) : (
+                    <div className="break-words font-semibold text-slate-900">{entry.label}</div>
+                  )}
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] lg:hidden">
                     <span className="text-slate-500 md:hidden">Topic {entry.code}</span>
                     {focusLabel ? (
@@ -4147,6 +4175,7 @@ export default function DashboardMockup({
   externalCaseIdSearch,
   roleScopedAgentNames,
   canViewAgentsInOverview = false,
+  canViewAnalytics = false,
   dataRefreshKey,
   onSelectedAgentChange,
   onSelectedMonthKeyChange,
@@ -4166,6 +4195,7 @@ export default function DashboardMockup({
   externalCaseIdSearch?: string;
   roleScopedAgentNames?: string[];
   canViewAgentsInOverview?: boolean;
+  canViewAnalytics?: boolean;
   dataRefreshKey?: number;
   onSelectedAgentChange?: (agentName: string) => void;
   onSelectedMonthKeyChange?: (monthKey: string) => void;
@@ -4201,6 +4231,8 @@ export default function DashboardMockup({
   const [currentPeriodNotice, setCurrentPeriodNotice] = useState("");
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
+  const [selectedTopicCode, setSelectedTopicCode] = useState("");
+  const [analyticsTrendMode, setAnalyticsTrendMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
   const [slideOverOpen, setSlideOverOpen] = useState(false);
 
   function closeCaseDetail() {
@@ -4209,7 +4241,9 @@ export default function DashboardMockup({
     if (externalCaseIdSearch) {
       setCaseIdSearch("");
     }
-    onCloseCaseDetail?.();
+    if (caseDetailWorkspaceMode || externalCaseIdSearch) {
+      onCloseCaseDetail?.();
+    }
   }
 
   useEffect(() => {
@@ -4259,32 +4293,13 @@ export default function DashboardMockup({
 
   useEffect(() => {
     if (dashboardSubTab !== "overview") return;
-    setSelectedYear(String(TODAY.getFullYear()));
-    setSelectedMonthKey(currentMonthKey);
-    onSelectedMonthKeyChange?.(currentMonthKey);
-    setDateFrom(formatInputDate(firstDayOfCurrentMonth));
-    setDateTo(formatInputDate(TODAY));
-    setSelectedWeek("all");
-    onSelectedWeekChange?.("all");
-    setCaseIdSearch("");
-    setCaseSearchHistoryOpen(false);
-    setSelectedCaseKey("");
-    setSlideOverOpen(false);
-    setCurrentPeriodNotice("");
     if (overviewSelfOnly && overviewResolvedAgent) {
       setSelectedAgent(overviewResolvedAgent);
       onSelectedAgentChange?.(overviewResolvedAgent);
-    } else if (overviewCanSelectAgents) {
-      setSelectedAgent("");
-      onSelectedAgentChange?.("");
     }
   }, [
-    currentMonthKey,
     dashboardSubTab,
     onSelectedAgentChange,
-    onSelectedMonthKeyChange,
-    onSelectedWeekChange,
-    overviewCanSelectAgents,
     overviewResolvedAgent,
     overviewSelfOnly,
   ]);
@@ -4373,10 +4388,20 @@ export default function DashboardMockup({
   const runCaseSearch = (rawCaseId = caseIdSearch) => {
     const normalized = String(rawCaseId || "").trim().toUpperCase();
     setCaseIdSearch(normalized);
+    if (normalized) {
+      setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
+      setSelectedTopicCode("");
+    }
     setSelectedCaseKey("");
     setSlideOverOpen(false);
     setCaseSearchHistoryOpen(false);
-    if (normalized) rememberCaseSearch(normalized);
+    if (normalized) {
+      rememberCaseSearch(normalized);
+      window.setTimeout(() => {
+        document.getElementById("qa-unified-case-explorer-v160")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+    }
   };
 
   const clearCaseSearch = () => {
@@ -5192,7 +5217,7 @@ export default function DashboardMockup({
   }, [allCases, selectedMonthKey, dateFrom, dateTo, effectiveMonthKeyForAgentVisibility, noCaseEvaluations, overviewAgentScopeList]);
 
   useEffect(() => {
-    if (overviewAgentScopeList.length) {
+    if (overviewSelfOnly && overviewAgentScopeList.length) {
       const lockedAgent = overviewAgentScopeList[0];
       if (lockedAgent && !isSameAgent(selectedAgent || "", lockedAgent)) {
         setSelectedAgent(lockedAgent);
@@ -5201,20 +5226,14 @@ export default function DashboardMockup({
       return;
     }
 
-    if (overviewAgentScopeList.length && selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
-      setSelectedAgent("");
-      onSelectedAgentChange?.("");
-      return;
-    }
-
     if (selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
-  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList.length]);
+  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList, overviewSelfOnly]);
 
   const effectiveSelectedAgent =
-    overviewAgentScopeList.length
+    overviewSelfOnly && overviewAgentScopeList.length
       ? overviewAgentScopeList[0]
       : String(selectedAgent || "").trim();
 
@@ -5229,6 +5248,23 @@ export default function DashboardMockup({
 
     return scopedCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
   }, [allCases, effectiveSelectedAgent, overviewAgentScopeList]);
+
+  const authorizedSearchCases = useMemo(() => {
+    if (overviewSelfOnly) {
+      const selfAgent = overviewResolvedAgent || effectiveSelectedAgent;
+      return selfAgent
+        ? allCases.filter((item) => isSameAgent(item.agent, selfAgent))
+        : [];
+    }
+
+    if (overviewAgentScopeList.length) {
+      return allCases.filter((item) =>
+        overviewAgentScopeList.some((agent) => isSameAgent(item.agent, agent))
+      );
+    }
+
+    return allCases;
+  }, [allCases, effectiveSelectedAgent, overviewAgentScopeList, overviewResolvedAgent, overviewSelfOnly]);
 
   const agentNoCaseMonthKeys = useMemo(() => {
     return noCaseEvaluations
@@ -5363,10 +5399,11 @@ export default function DashboardMockup({
   const searchScopedCases = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
     if (!keyword) return dateFilteredCases;
-    return dateFilteredCases.filter((item) =>
+
+    return authorizedSearchCases.filter((item) =>
       String(item.caseId || "").toLowerCase().includes(keyword)
     );
-  }, [dateFilteredCases, caseIdSearch]);
+  }, [authorizedSearchCases, caseIdSearch, dateFilteredCases]);
 
   const weekLabels = useMemo(() => {
     return [...new Set(searchScopedCases.map((item) => item.weekLabel).filter(Boolean))].sort((left, right) =>
@@ -5430,19 +5467,31 @@ export default function DashboardMockup({
   };
 
   const dashboardCasesBase = useMemo(() => {
-    if (selectedWeek === "all") return searchScopedCases;
-    return searchScopedCases.filter((item) => item.weekLabel === selectedWeek);
-  }, [searchScopedCases, selectedWeek]);
+    let nextCases = searchScopedCases;
+
+    if (!caseIdSearch.trim() && selectedWeek !== "all") {
+      nextCases = nextCases.filter((item) => item.weekLabel === selectedWeek);
+    }
+
+    if (selectedTopicCode) {
+      nextCases = nextCases.filter((item) => {
+        const topic = item.topics.find((entry) => entry.code === selectedTopicCode);
+        return Boolean(topic && topic.score < topic.max);
+      });
+    }
+
+    return nextCases;
+  }, [caseIdSearch, searchScopedCases, selectedTopicCode, selectedWeek]);
 
   const dashboardCases = useMemo(() => {
     let nextCases = dashboardCasesBase;
-    if (overviewMode === "revisedOnly") {
+    if (!caseIdSearch.trim() && overviewMode === "revisedOnly") {
       nextCases = dashboardCasesBase.filter((item) => item.reviewStatus === "Revised");
-    } else if (overviewMode === "originalOnly") {
+    } else if (!caseIdSearch.trim() && overviewMode === "originalOnly") {
       nextCases = dashboardCasesBase.filter((item) => item.reviewStatus === "Original");
     }
     return [...nextCases].sort(compareCaseAuditDateAndWaitingTime);
-  }, [dashboardCasesBase, overviewMode]);
+  }, [caseIdSearch, dashboardCasesBase, overviewMode]);
 
   const revisedCount = useMemo(
     () => dashboardCasesBase.filter((item) => item.reviewStatus === "Revised").length,
@@ -5626,10 +5675,9 @@ export default function DashboardMockup({
     const keyword = caseIdSearch.trim().toLowerCase();
     if (!keyword) return [];
 
-    return agentCases
-      .filter((item) => String(item.caseId || "").toLowerCase().includes(keyword))
-      .slice(0, 8);
-  }, [agentCases, caseIdSearch]);
+    return authorizedSearchCases
+      .filter((item) => String(item.caseId || "").toLowerCase().includes(keyword));
+  }, [authorizedSearchCases, caseIdSearch]);
 
   const scoreDistributionData = useMemo(() => {
     if (isNewPolicyMonth(effectiveViewMonthKey)) {
@@ -5695,6 +5743,47 @@ export default function DashboardMockup({
       value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
     }));
   }, [searchScopedCases]);
+
+  const monthlyTrendData = useMemo(() => {
+    const monthMap = new Map<string, number[]>();
+    agentCases
+      .filter((item) => item.monthKey.startsWith(`${selectedYear}-`))
+      .forEach((item) => {
+        if (!monthMap.has(item.monthKey)) monthMap.set(item.monthKey, []);
+        monthMap.get(item.monthKey)!.push(item.finalScore);
+      });
+
+    return [...monthMap.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([monthKey, scores]) => ({
+        label: getMonthLabel(new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)),
+        value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
+      }));
+  }, [agentCases, selectedYear]);
+
+  const yearlyTrendData = useMemo(() => {
+    const yearMap = new Map<string, number[]>();
+    agentCases.forEach((item) => {
+      const year = String(item.monthKey || "").slice(0, 4);
+      if (!/^\d{4}$/.test(year)) return;
+      if (!yearMap.has(year)) yearMap.set(year, []);
+      yearMap.get(year)!.push(item.finalScore);
+    });
+
+    return [...yearMap.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([label, scores]) => ({
+        label,
+        value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
+      }));
+  }, [agentCases]);
+
+  const performanceTrendData =
+    analyticsTrendMode === "monthly"
+      ? monthlyTrendData
+      : analyticsTrendMode === "yearly"
+        ? yearlyTrendData
+        : weeklyTrendData;
 
   const recentMonthlyAnalytics = useMemo(() => {
     const [anchorYear, anchorMonth] = effectiveViewMonthKey.split("-").map(Number);
@@ -5803,6 +5892,8 @@ export default function DashboardMockup({
         ? "Eligible · Monthly target completed"
         : `Grade ${monthlyAgentGrade || "-"} · Not Eligible`
     : `${kpiScopeSummary.caseCount}/${dashboardEvaluationTarget} evaluated · Complete the monthly target first`;
+  const approvedAppealCount = dashboardCases.filter((item) => item.appealStatus === "Approved").length;
+  const rejectedAppealCount = dashboardCases.filter((item) => item.appealStatus === "Rejected").length;
   const overviewKpiItemsV93 = [
     {
       label: "Average Score",
@@ -5829,12 +5920,12 @@ export default function DashboardMockup({
       valueTone: "text-slate-900",
     },
     {
-      label: "Evaluation Progress",
-      value: `${kpiScopeSummary.caseCount}/${dashboardEvaluationTarget}`,
-      note: kpiScopeSummary.volumePassed ? "Monthly target completed" : `${Math.max(0, dashboardEvaluationTarget - kpiScopeSummary.caseCount)} case(s) remaining`,
-      icon: "◔",
-      iconTone: kpiScopeSummary.volumePassed ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600",
-      valueTone: kpiScopeSummary.volumePassed ? "text-emerald-700" : "text-amber-700",
+      label: "Appeal Results",
+      value: String(approvedAppealCount + rejectedAppealCount),
+      note: `${approvedAppealCount} Approved · ${rejectedAppealCount} Rejected`,
+      icon: "↻",
+      iconTone: approvedAppealCount + rejectedAppealCount ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500",
+      valueTone: approvedAppealCount + rejectedAppealCount ? "text-emerald-700" : "text-slate-600",
     },
     {
       label: "Overall Grade",
@@ -5955,7 +6046,7 @@ export default function DashboardMockup({
     }),
   ];
   const overviewAgentOptionsV94 =
-    overviewAgentScopeList.length
+    overviewSelfOnly && overviewAgentScopeList.length
       ? quickAgentOptions.filter(
           (option) =>
             Boolean(option.value)
@@ -6019,13 +6110,13 @@ export default function DashboardMockup({
       {songkranTheme ? <SongkranBackdrop /> : null}
 
       <PageHero
-        eyebrow="Performance"
-        title="Overview"
-        subtitle="ติดตามสถานะ KPI และงานประจำวันของคุณในเดือนปัจจุบัน"
+        eyebrow="QA Performance Center"
+        title="QA Dashboard"
+        subtitle="ดูภาพรวม วิเคราะห์แนวโน้ม และตรวจรายละเอียดเคสในพื้นที่เดียว"
       />
       <div data-overview-header-v93="true" className="mx-auto flex max-w-[1720px] flex-wrap justify-end gap-2 px-4 pt-4 sm:px-6 lg:px-8">
-        <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700">Current Month</span>
-        <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-normal text-slate-600">{overviewSelfOnly ? "Self View" : "Agent Selection"}</span>
+        <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">Overview + Analytics + Cases</span>
+        <span className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700">{overviewSelfOnly ? "Self View" : "Authorized Scope"}</span>
       </div>
       {false ? (
       <div>
@@ -6073,57 +6164,118 @@ export default function DashboardMockup({
       <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
             {/* data-hide-duplicate-case-quick-controls-v134 */}
             {dashboardSubTab === "overview" ? (
-            <div data-overview-current-controls-v93="true" className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_6px_22px_rgba(15,23,42,0.05)]">
-              <div className="grid gap-4 xl:grid-cols-[220px_280px_minmax(0,1fr)]">
-                <div>
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Current Period</div>
-                  <div className="mt-2 flex h-12 items-center rounded-xl border border-slate-200 bg-slate-50/70 px-4 text-sm font-medium text-slate-800">{currentViewingMonthLabel}</div>
+            <div data-performance-center-filters-v160="true" className="sticky top-[53px] z-[60] rounded-[20px] border border-slate-300 bg-white/95 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+              <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-[150px_190px_260px_200px_minmax(280px,1fr)]">
+                <div className="min-w-0">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Year</div>
+                  <CompactAlignedSelect
+                    ariaLabel="Dashboard Year"
+                    value={selectedYear}
+                    options={quickYearOptions}
+                    onChange={(value) => {
+                      setSelectedYear(value);
+                      const availableMonths = [...new Set(
+                        agentCases
+                          .map((item) => item.monthKey)
+                          .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey) && monthKey.startsWith(`${value}-`))
+                      )].sort((a, b) => b.localeCompare(a));
+                      const nextMonth = availableMonths[0] || "all";
+                      setSelectedMonthKey(nextMonth);
+                      onSelectedMonthKeyChange?.(nextMonth);
+                      setSelectedWeek("all");
+                      onSelectedWeekChange?.("all");
+                      setSelectedCaseKey("");
+                      setSlideOverOpen(false);
+                    }}
+                  />
                 </div>
-                <div>
-                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Agent</div>
-                  {overviewCanSelectAgents ? (
-                    <div className="mt-2">
-                      <CompactAlignedSelect
-                        ariaLabel="Overview Agent"
-                        value={selectedAgent}
-                        options={overviewAgentOptionsV94}
-                        onChange={(value) => {
-                          setSelectedAgent(value);
-                          onSelectedAgentChange?.(value);
-                          setSelectedWeek("all");
-                          onSelectedWeekChange?.("all");
-                          setCaseIdSearch("");
-                          setCaseSearchHistoryOpen(false);
-                          setSelectedCaseKey("");
-                          setSlideOverOpen(false);
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="mt-2 flex h-12 min-w-0 items-center rounded-xl border border-slate-200 bg-slate-50/70 px-4">
+                <div className="min-w-0">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Month</div>
+                  <CompactAlignedSelect
+                    ariaLabel="Dashboard Month"
+                    value={selectedMonthKey}
+                    options={quickMonthOptions}
+                    onChange={(value) => {
+                      setSelectedMonthKey(value);
+                      onSelectedMonthKeyChange?.(value);
+                      if (value === "all") {
+                        setDateFrom("");
+                        setDateTo("");
+                      }
+                      setSelectedWeek("all");
+                      onSelectedWeekChange?.("all");
+                      setSelectedCaseKey("");
+                      setSlideOverOpen(false);
+                    }}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Agent Scope</div>
+                  {overviewSelfOnly ? (
+                    <div className="flex h-12 min-w-0 items-center rounded-xl border border-slate-300 bg-slate-50 px-4">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-slate-800">{effectiveSelectedAgent || overviewResolvedAgent || "-"}</div>
-                        <div className="truncate text-[10px] font-normal text-slate-500">{currentUser?.role || "Current Role"}</div>
+                        <div className="truncate text-sm font-semibold text-slate-900">{effectiveSelectedAgent || overviewResolvedAgent || "-"}</div>
+                        <div className="truncate text-[10px] font-medium text-slate-500">{currentUser?.role || "Current Role"}</div>
                       </div>
                     </div>
+                  ) : (
+                    <CompactAlignedSelect
+                      ariaLabel="Dashboard Agent"
+                      value={selectedAgent}
+                      options={overviewAgentOptionsV94}
+                      onChange={(value) => {
+                        setSelectedAgent(value);
+                        onSelectedAgentChange?.(value);
+                        setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
+                    />
                   )}
                 </div>
-                <div>
+                <div className="min-w-0">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Review Status</div>
+                  <CompactAlignedSelect
+                    ariaLabel="Dashboard Review Status"
+                    value={overviewMode}
+                    options={[
+                      { value: "all", label: "All Results" },
+                      { value: "originalOnly", label: "Original Only" },
+                      { value: "revisedOnly", label: "Revised Only" },
+                    ]}
+                    onChange={(value) => setOverviewMode(value as "all" | "originalOnly" | "revisedOnly")}
+                  />
+                </div>
+                <div className="min-w-0">
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Search Case ID</div>
-                    <div className="text-[10px] font-normal text-slate-400">
-                      {overviewCanSelectAgents
-                        ? "Current month · Selected Agent"
-                        : "Current month · Current user"}
-                    </div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Case ID</div>
+                    <div className="text-[10px] font-semibold text-emerald-700">All authorized cases · all months</div>
                   </div>
                   <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
-                    <input type="search" value={caseIdSearch} onChange={(event) => { setCaseIdSearch(event.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }} placeholder={overviewCanSelectAgents ? "Search selected Agent Case ID" : "Search your current-month Case ID"} className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-normal text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
-                    <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-violet-600 px-4 text-xs font-medium text-white transition hover:bg-violet-700">Search</button>
-                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
+                    <input
+                      type="search"
+                      value={caseIdSearch}
+                      onChange={(event) => {
+                        setCaseIdSearch(event.target.value);
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
+                      onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
+                      placeholder="Search any authorized Case ID"
+                      className="h-12 min-w-0 rounded-xl border border-emerald-300 bg-emerald-50/40 px-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                    />
+                    <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-700 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800">Search</button>
+                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
                   </div>
                 </div>
               </div>
+              {caseIdSearch.trim() ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+                  <span>Global Case Search is active — dashboard filters are temporarily ignored; access permissions still apply.</span>
+                  <span>{overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}</span>
+                </div>
+              ) : null}
             </div>
             ) : null}
 
@@ -6301,7 +6453,7 @@ export default function DashboardMockup({
             </Panel>
 
         <div className="mt-4 space-y-4">
-          <section className="qa-weekly-tabs-v36 min-w-0 rounded-[20px] border border-slate-200 bg-white px-5 py-4 shadow-[0_5px_16px_rgba(15,23,42,0.04)]" aria-label="Weekly View">
+          {!caseIdSearch.trim() ? <section className="qa-weekly-tabs-v36 min-w-0 rounded-[20px] border border-slate-300 bg-white px-5 py-4 shadow-[0_6px_18px_rgba(15,23,42,0.06)]" aria-label="Weekly View">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="shrink-0">
                 <div className="text-sm font-semibold text-slate-900">Weekly View</div>
@@ -6317,43 +6469,7 @@ export default function DashboardMockup({
                 <span className="text-fuchsia-700">Avg {buildAgentSummary(dashboardCases).averageDisplay}</span>
               </div>
             </div>
-          </section>
-          {dashboardSubTab === "overview" && caseIdSearch.trim() ? (
-            <section
-              data-case-search-results-v41="true"
-              className="rounded-[24px] border border-violet-200 border-l-4 border-l-violet-600 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 p-4 shadow-[0_12px_30px_rgba(76,29,149,0.08)]"
-              aria-labelledby="qa-current-case-search-title"
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div id="qa-current-case-search-title" className="text-sm font-semibold text-slate-900">Cases in Current View</div>
-                  <div className="mt-1 text-xs text-slate-500">Search result for “{caseIdSearch.trim().toUpperCase()}”</div>
-                </div>
-                <span className="w-fit rounded-full border border-violet-200 bg-white px-3 py-1 text-xs font-bold text-violet-700">
-                  {overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}
-                </span>
-              </div>
-
-              <div className="mt-3 space-y-3">
-                {overviewCaseSearchResults.length ? (
-                  overviewCaseSearchResults.map((item) => (
-                    <QuickCaseSearchCard
-                      key={item.key}
-                      item={item}
-                      onOpen={() => {
-                        rememberCaseSearch(item.caseId);
-                        setSelectedCaseKey(item.key);
-                        onOpenCaseDetail?.(item.caseId, item.agent);
-                        setSlideOverOpen(true);
-                      }}
-                    />
-                  ))
-                ) : (
-                  <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">ไม่พบเลขเคสที่ค้นหา</div>
-                )}
-              </div>
-            </section>
-          ) : null}
+          </section> : null}
           <div id="qa-dashboard-results-v36" className="scroll-mt-4 space-y-6">
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
@@ -6364,18 +6480,83 @@ export default function DashboardMockup({
                     className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
                   >
                     {overviewKpiItemsV93.map((item) => (
-                      <div key={item.label} className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+                      <div key={item.label} className="rounded-[18px] border border-slate-300 bg-white p-5 shadow-[0_7px_20px_rgba(15,23,42,0.07)]">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-[11px] font-normal text-slate-500">{item.label}</div>
-                            <div className={`mt-2 truncate text-[28px] font-semibold tracking-tight ${item.valueTone}`}>{item.value}</div>
+                            <div className="text-[11px] font-semibold text-slate-600">{item.label}</div>
+                            <div className={`mt-2 truncate text-[28px] font-bold tracking-tight ${item.valueTone}`}>{item.value}</div>
                           </div>
                           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-normal ${item.iconTone}`}>{item.icon}</div>
                         </div>
-                        <div className="mt-2 text-[10px] font-normal leading-5 text-slate-500">{item.note}</div>
+                        <div className="mt-2 text-[10px] font-medium leading-5 text-slate-600">{item.note}</div>
                       </div>
                     ))}
                   </div>
+
+                  {canViewAnalytics ? (
+                    <section data-performance-analytics-v160="true" className="space-y-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">Performance Analytics</div>
+                          <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">Trend &amp; Quality Focus</h2>
+                          <p className="mt-1 text-xs font-medium text-slate-600">วิเคราะห์ผลจากขอบเขตเดียวกับ KPI และเชื่อมต่อไปยัง Case Explorer</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex rounded-xl border border-slate-300 bg-white p-1 shadow-sm" aria-label="Analytics period">
+                            {(["weekly", "monthly", "yearly"] as const).map((mode) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() => setAnalyticsTrendMode(mode)}
+                                className={`rounded-lg px-3 py-2 text-xs font-bold capitalize transition ${analyticsTrendMode === mode ? "bg-emerald-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
+                              >
+                                {mode}
+                              </button>
+                            ))}
+                          </div>
+                          {selectedTopicCode ? (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTopicCode("")}
+                              className="w-fit rounded-full border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-800 transition hover:bg-violet-100"
+                            >
+                              Clear Topic · {selectedTopicCode}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(420px,0.9fr)]">
+                        <PremiumLineChart
+                          title="Performance Trend"
+                          subtitle={
+                            analyticsTrendMode === "monthly"
+                              ? `Average score by month in ${selectedYear}`
+                              : analyticsTrendMode === "yearly"
+                                ? "Average score by year"
+                                : "Average score by visible week"
+                          }
+                          data={performanceTrendData}
+                        />
+                        <Panel className="border-slate-300 shadow-[0_7px_20px_rgba(15,23,42,0.07)]">
+                          <PanelHeader title="Quality Focus" subtitle="คลิก Topic เพื่อดูเฉพาะเคสที่ถูกหักในหัวข้อนั้น" />
+                          <PanelBody>
+                            <TopicPerformanceTable
+                              items={summary.topicPerformance}
+                              selectedTopicCode={selectedTopicCode}
+                              onSelectTopic={(topicCode) => {
+                                setSelectedTopicCode((current) => current === topicCode ? "" : topicCode);
+                                setSelectedCaseKey("");
+                                setSlideOverOpen(false);
+                                window.requestAnimationFrame(() => {
+                                  document.getElementById("qa-unified-case-explorer-v160")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                });
+                              }}
+                            />
+                          </PanelBody>
+                        </Panel>
+                      </div>
+                    </section>
+                  ) : null}
 
                   {false ? (
                   <>
@@ -7063,74 +7244,151 @@ export default function DashboardMockup({
                   </>
                   ) : null}
 
-                  <Panel>
-                    <PanelHeader title="Overview Filters" subtitle="ขอบเขตเคสที่ใช้คำนวณผลใน Overview" />
-                    <PanelBody className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("all")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "all"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          All Cases
-                        </button>
+                  {canViewAnalytics ? (
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <PremiumBarChart
+                        title="Score Distribution"
+                        subtitle="Case count by score range"
+                        data={scoreDistributionData}
+                      />
 
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("originalOnly")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "originalOnly"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          Original Only
-                        </button>
+                      <PremiumReviewMixCard
+                        title="Review Status Mix"
+                        subtitle="Original vs Revised in current view"
+                        data={reviewMixChartData}
+                      />
+                    </div>
+                  ) : null}
 
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("revisedOnly")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "revisedOnly"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          Revised Only
-                        </button>
+                  <section
+                    id="qa-unified-case-explorer-v160"
+                    data-unified-case-explorer-v160="true"
+                    className="scroll-mt-36 overflow-hidden rounded-[22px] border border-slate-300 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.08)]"
+                  >
+                    <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-emerald-50 via-white to-violet-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">Case Explorer</div>
+                        <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">Cases in Current Scope</h2>
+                        <p className="mt-1 text-xs font-medium text-slate-600">
+                          {caseIdSearch.trim()
+                            ? "Global Search: แสดงทุกเคสที่มีสิทธิ์เข้าถึงจากทุกเดือน โดยไม่ใช้ Dashboard Filter"
+                            : selectedTopicCode
+                              ? `Topic ${selectedTopicCode}: แสดงเฉพาะเคสที่ถูกหักในหัวข้อนี้`
+                              : "เลือกเคสเพื่อเปิดรายละเอียด โดยไม่ต้องเปลี่ยน Tab"}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedTopicCode ? (
+                          <button type="button" onClick={() => setSelectedTopicCode("")} className="rounded-full border border-violet-300 bg-white px-3 py-2 text-xs font-bold text-violet-800">Clear Topic</button>
+                        ) : null}
+                        <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">{dashboardCases.length} Cases</span>
+                      </div>
+                    </div>
+
+                    <div className="grid min-w-0 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.75fr)]">
+                      <div className="min-w-0 overflow-x-auto border-b border-slate-200 xl:border-b-0 xl:border-r">
+                        <div className="min-w-[760px]">
+                          <div className="grid grid-cols-[120px_minmax(180px,1fr)_130px_100px_120px] items-center gap-3 bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">
+                            <span>Case ID</span><span>Agent</span><span>Case Date</span><span>Score</span><span>Status</span>
+                          </div>
+                          <div className="max-h-[420px] overflow-y-auto">
+                            {dashboardCases.length ? dashboardCases.map((item) => {
+                              const isSelected = activeSelectedCase?.key === item.key;
+                              const statusLabel = item.appealStatus || item.reviewStatus;
+                              const statusTone = item.appealStatus === "Rejected"
+                                ? "border-rose-200 bg-rose-50 text-rose-700"
+                                : item.appealStatus === "Approved" || item.reviewStatus === "Revised"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-slate-200 bg-slate-100 text-slate-700";
+                              return (
+                                <button
+                                  key={item.key}
+                                  type="button"
+                                  onClick={() => {
+                                    rememberCaseSearch(item.caseId);
+                                    setSelectedCaseKey(item.key);
+                                    setSlideOverOpen(false);
+                                  }}
+                                  className={`grid w-full grid-cols-[120px_minmax(180px,1fr)_130px_100px_120px] items-center gap-3 border-t px-4 py-3 text-left text-xs transition ${
+                                    isSelected
+                                      ? "border-emerald-200 bg-emerald-50 shadow-[inset_4px_0_0_#10b981]"
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span className="font-bold text-slate-950">{item.caseId}</span>
+                                  <span className="truncate font-semibold text-slate-800">{item.agent || "-"}</span>
+                                  <span className="font-medium text-slate-600">{item.auditDate || "-"}</span>
+                                  <span className="font-bold tabular-nums text-emerald-700">{item.finalScore.toFixed(2)}</span>
+                                  <span className={`w-fit rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusTone}`}>{statusLabel}</span>
+                                </button>
+                              );
+                            }) : (
+                              <div className="px-5 py-16 text-center text-sm font-medium text-slate-500">ไม่พบเคสตามขอบเขตที่เลือก</div>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                    </PanelBody>
-                  </Panel>
+                      <aside className="min-w-0 bg-gradient-to-b from-emerald-50/70 to-white p-5">
+                        {activeSelectedCase ? (() => {
+                          const intent = splitCaseNavigatorIntent(activeSelectedCase.inquiryTh, activeSelectedCase.inquiryEn);
+                          return (
+                            <div>
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700">Selected Case</div>
+                                  <div className="mt-1 truncate text-xl font-bold text-slate-950">{activeSelectedCase.caseId}</div>
+                                  <div className="mt-1 text-xs font-medium text-slate-600">{activeSelectedCase.appealStatus ? `Appeal ${activeSelectedCase.appealStatus}` : activeSelectedCase.reviewStatus}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-3xl font-bold tabular-nums text-emerald-700">{activeSelectedCase.finalScore.toFixed(2)}</div>
+                                  <div className="text-[10px] font-semibold text-slate-500">Grade {activeSelectedCase.grade}</div>
+                                </div>
+                              </div>
+                              <div className="mt-4 grid grid-cols-2 gap-2">
+                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Case Date</div><div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.auditDate || "-"}</div></div>
+                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Week Label</div><div className="mt-1 truncate text-xs font-bold text-slate-900">{activeSelectedCase.weekLabel || "-"}</div></div>
+                                <div className="col-span-2 rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Agent</div><div className="mt-1 truncate text-xs font-bold text-slate-900">{activeSelectedCase.agent || "-"}</div></div>
+                              </div>
+                              <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 p-3">
+                                <div className="text-[9px] font-bold uppercase tracking-wide text-violet-700">Intent</div>
+                                <div className="mt-1 text-xs font-semibold leading-5 text-slate-900">{intent.thai}</div>
+                                {intent.english ? <div className="mt-1 text-[11px] font-medium text-slate-600">{intent.english}</div> : null}
+                              </div>
+                              {activeSelectedCase.appealStatus ? (
+                                <div className={`mt-3 rounded-xl border p-3 ${activeSelectedCase.appealStatus === "Rejected" ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"}`}>
+                                  <div className={`text-[10px] font-bold ${activeSelectedCase.appealStatus === "Rejected" ? "text-rose-700" : "text-emerald-700"}`}>Appeal Context Available</div>
+                                  <div className="mt-1 text-[11px] font-medium leading-5 text-slate-700">Appeal Reason · Original Comment · {activeSelectedCase.appealStatus === "Rejected" ? "Reject Reason" : "Revised Comment"}</div>
+                                </div>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => setSlideOverOpen(true)}
+                                className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800"
+                              >
+                                Open Full Case Detail →
+                              </button>
+                            </div>
+                          );
+                        })() : (
+                          <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-200 bg-white text-xl text-emerald-700">▣</div>
+                            <div className="mt-3 text-sm font-bold text-slate-900">Select a case</div>
+                            <div className="mt-1 max-w-xs text-xs font-medium leading-5 text-slate-500">เลือกรายการด้านซ้ายเพื่อดูข้อมูลสรุปก่อนเปิด Case Detail</div>
+                          </div>
+                        )}
+                      </aside>
+                    </div>
+                  </section>
 
-                  <div className="grid gap-6 xl:grid-cols-2">
-                    <PremiumBarChart
-                      title="Score Distribution"
-                      subtitle="Case count by score range"
-                      data={scoreDistributionData}
-                    />
-
-                    <PremiumReviewMixCard
-                      title="Review Status Mix"
-                      subtitle="Original vs Revised in current view"
-                      data={reviewMixChartData}
-                    />
-                  </div>
-
-                  <PremiumLineChart
-                    title="Weekly Score Trend"
-                    subtitle="Average score by visible week"
-                    data={weeklyTrendData}
+                  <SlideOverCaseDetail
+                    open={slideOverOpen}
+                    caseItem={activeSelectedCase}
+                    currentUser={currentUser}
+                    onClose={closeCaseDetail}
+                    onOpenAppealCase={onOpenAppealCase}
+                    onGeneratePdf={onGeneratePdf}
+                    onShareCaseDetail={onShareCaseDetail}
                   />
 
                 </>
