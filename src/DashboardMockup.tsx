@@ -1493,10 +1493,6 @@ function CompactAlignedSelect({
 }) {
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value) || options[0];
-  const alignedOptions = options.filter((option) => (option.parts?.length || 0) > 1);
-  const firstColumnCharacters = alignedOptions.length
-    ? Math.max(...alignedOptions.map((option) => option.parts?.[0]?.length || 0)) + 1
-    : 0;
 
   return (
     <div
@@ -1512,17 +1508,15 @@ function CompactAlignedSelect({
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className="relative flex h-12 w-full min-w-0 items-center justify-center rounded-xl border border-violet-200 bg-white px-10 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        className="relative flex h-12 w-full min-w-0 items-center justify-start rounded-xl border border-white/50 bg-white px-4 pr-10 text-left text-sm font-semibold text-slate-900 shadow-[0_4px_14px_rgba(15,23,42,0.14)] outline-none transition hover:border-violet-200 hover:bg-violet-50 focus:border-violet-300 focus:ring-4 focus:ring-white/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
       >
-        <span className="w-full min-w-0 truncate text-center">{selected?.label || "-"}</span>
-        <svg viewBox="0 0 24 24" className={`absolute right-4 h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        <span className="w-full min-w-0 truncate text-left">{selected?.label || "-"}</span>
+        <svg viewBox="0 0 24 24" className={`absolute right-4 h-4 w-4 shrink-0 text-violet-700 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
       </button>
 
       {open ? (
-        <div role="listbox" aria-label={ariaLabel} className="absolute left-0 top-full z-[500] mt-2 max-h-72 w-full min-w-max overflow-y-auto rounded-2xl border border-violet-200 bg-white p-1.5 shadow-[0_24px_60px_rgba(30,41,59,0.28)]">
+        <div role="listbox" aria-label={ariaLabel} className="absolute left-0 top-full z-[500] mt-2 max-h-72 w-full min-w-[220px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_22px_50px_rgba(15,23,42,0.30)]">
           {options.map((option) => {
-            const parts = option.parts?.filter(Boolean) || [option.label];
-            const aligned = firstColumnCharacters > 0 && parts.length > 1;
             return (
               <button
                 key={option.value || "all"}
@@ -1533,10 +1527,10 @@ function CompactAlignedSelect({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`grid w-full items-center gap-x-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition ${option.value === value ? "bg-sky-300 text-slate-950" : "text-slate-700 hover:bg-violet-50 hover:text-violet-800"}`}
-                style={aligned ? { gridTemplateColumns: `${firstColumnCharacters}ch max-content` } : { gridTemplateColumns: "max-content" }}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition ${option.value === value ? "bg-violet-700 text-white shadow-sm" : "text-slate-700 hover:bg-violet-50 hover:text-violet-800"}`}
               >
-                {parts.length > 1 ? parts.map((part, index) => <span key={`${option.value}-${index}`} className="whitespace-nowrap">{part}</span>) : <span className="whitespace-nowrap">{option.label}</span>}
+                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[9px] ${option.value === value ? "border-white/60 bg-white/15" : "border-slate-300 text-transparent"}`}>✓</span>
+                <span className="whitespace-nowrap">{option.label}</span>
               </button>
             );
           })}
@@ -6023,12 +6017,10 @@ export default function DashboardMockup({
   const quickMonthOptions: CompactSelectOption[] = [
     ...monthOptions.map((item) => {
       const match = item.label.match(/^(.+?)\s+(\d{4})$/);
-      const isCurrent = item.value === currentMonthKey;
-      const suffix = [isCurrent ? "Current" : "", item.hasCases ? "" : "No cases"].filter(Boolean).join(" · ");
       return {
         ...item,
-        label: suffix ? `${item.label} · ${suffix}` : item.label,
-        parts: match ? [match[1], `${match[2]}${suffix ? ` · ${suffix}` : ""}`] : [item.label],
+        label: item.label,
+        parts: match ? [match[1], match[2]] : [item.label],
       };
     }),
     { value: "all", label: "All History" },
@@ -6116,7 +6108,7 @@ export default function DashboardMockup({
       className={`relative min-h-screen ${
         songkranTheme
           ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50"
-          : "bg-[#f7f8fc]"
+          : "bg-[linear-gradient(180deg,#f2eff9_0%,#f7f8fc_32%,#eef6f3_100%)]"
       }`}
     >
       {songkranTheme ? <SongkranBackdrop /> : null}
@@ -6126,10 +6118,6 @@ export default function DashboardMockup({
         title="QA Dashboard"
         subtitle="ดูภาพรวม วิเคราะห์แนวโน้ม และตรวจรายละเอียดเคสในพื้นที่เดียว"
       />
-      <div data-overview-header-v93="true" className="mx-auto flex max-w-[1720px] flex-wrap justify-end gap-2 px-4 pt-4 sm:px-6 lg:px-8">
-        <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">Overview + Analytics + Cases · One Workspace</span>
-        <span className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700">{overviewSelfOnly ? "Self View" : "Authorized Scope"}</span>
-      </div>
       {false ? (
       <div>
         {songkranTheme ? <SongkranBackdrop /> : null}
@@ -6176,10 +6164,17 @@ export default function DashboardMockup({
       <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
             {/* data-hide-duplicate-case-quick-controls-v134 */}
             {dashboardSubTab === "overview" ? (
-            <div data-performance-center-filters-v160="true" className="sticky top-[53px] z-[60] rounded-[20px] border border-slate-300 bg-white/95 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+            <div data-performance-center-filters-v160="true" className="sticky top-[53px] z-[60] rounded-[20px] border border-violet-800/60 bg-gradient-to-r from-slate-950 via-violet-950 to-violet-900 p-4 shadow-[0_18px_42px_rgba(30,27,75,0.28)]">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                <div>
+                  <div className="text-xs font-bold tracking-wide text-white">Dashboard Filters</div>
+                  <div className="mt-0.5 text-[10px] font-medium text-violet-200">กำหนดช่วงข้อมูลสำหรับภาพรวมและการวิเคราะห์</div>
+                </div>
+                <div className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1.5 text-[10px] font-semibold text-emerald-200">Case Search ค้นหาได้ทุกเดือน</div>
+              </div>
               <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-[150px_190px_260px_200px_minmax(280px,1fr)]">
                 <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Year</div>
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Year</div>
                   <CompactAlignedSelect
                     ariaLabel="Dashboard Year"
                     value={selectedYear}
@@ -6202,7 +6197,7 @@ export default function DashboardMockup({
                   />
                 </div>
                 <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Month</div>
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Month</div>
                   <CompactAlignedSelect
                     ariaLabel="Dashboard Month"
                     value={selectedMonthKey}
@@ -6222,9 +6217,9 @@ export default function DashboardMockup({
                   />
                 </div>
                 <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Agent Scope</div>
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Agent Scope</div>
                   {overviewSelfOnly ? (
-                    <div className="flex h-12 min-w-0 items-center rounded-xl border border-slate-300 bg-slate-50 px-4">
+                    <div className="flex h-12 min-w-0 items-center rounded-xl border border-white/50 bg-white px-4 shadow-[0_4px_14px_rgba(15,23,42,0.14)]">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-slate-900">{effectiveSelectedAgent || overviewResolvedAgent || "-"}</div>
                         <div className="truncate text-[10px] font-medium text-slate-500">{currentUser?.role || "Current Role"}</div>
@@ -6247,7 +6242,7 @@ export default function DashboardMockup({
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Review Status</div>
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Review Status</div>
                   <CompactAlignedSelect
                     ariaLabel="Dashboard Review Status"
                     value={overviewMode}
@@ -6261,8 +6256,8 @@ export default function DashboardMockup({
                 </div>
                 <div className="min-w-0">
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Case ID</div>
-                    <div className="text-[10px] font-semibold text-emerald-700">All authorized cases · all months</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Search Case ID</div>
+                    <div className="text-[10px] font-semibold text-emerald-200">All authorized cases · all months</div>
                   </div>
                   <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
                     <input
@@ -6275,10 +6270,10 @@ export default function DashboardMockup({
                       }}
                       onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
                       placeholder="Search any authorized Case ID"
-                      className="h-12 min-w-0 rounded-xl border border-emerald-300 bg-emerald-50/40 px-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                      className="h-12 min-w-0 rounded-xl border border-white/50 bg-white px-4 text-sm font-semibold text-slate-900 shadow-[0_4px_14px_rgba(15,23,42,0.14)] outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-300/20"
                     />
                     <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-700 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800">Search</button>
-                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
+                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-white/40 bg-white/10 px-3 text-xs font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
                   </div>
                 </div>
               </div>
@@ -6492,7 +6487,7 @@ export default function DashboardMockup({
                     className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
                   >
                     {overviewKpiItemsV93.map((item) => (
-                      <div key={item.label} className="rounded-[18px] border border-slate-300 bg-white p-5 shadow-[0_7px_20px_rgba(15,23,42,0.07)]">
+                      <div key={item.label} className="rounded-[18px] border border-violet-200/80 bg-gradient-to-br from-white via-white to-violet-50/80 p-5 shadow-[0_9px_24px_rgba(76,29,149,0.09)]">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-[11px] font-semibold text-slate-600">{item.label}</div>
@@ -6508,7 +6503,7 @@ export default function DashboardMockup({
                   {canViewAnalytics && analyticsContent ? (
                     <section
                       data-performance-analytics-v162="authoritative"
-                      className="overflow-hidden rounded-[22px] border border-violet-200 bg-[#f7f8fc] shadow-[0_10px_28px_rgba(76,29,149,0.09)]"
+                      className="overflow-hidden rounded-[22px] border border-violet-300/80 bg-gradient-to-b from-violet-50/80 via-[#f7f8fc] to-emerald-50/40 shadow-[0_14px_34px_rgba(76,29,149,0.13)]"
                     >
                       {analyticsContent}
                     </section>

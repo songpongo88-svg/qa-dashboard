@@ -1753,6 +1753,87 @@ function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
   );
 }
 
+function MonthlyGradeIncentiveCriteriaV144({
+  monthKey,
+  monthlyMode,
+  periodLabel,
+}: {
+  monthKey: string;
+  monthlyMode: boolean;
+  periodLabel: string;
+}) {
+  const promoActiveForMonth = monthlyMode && hasRbhPromo(monthKey);
+
+  return (
+    <section
+      data-monthly-grade-incentive-criteria-v144="true"
+      className="overflow-hidden rounded-[20px] border border-violet-300 bg-gradient-to-br from-violet-50 via-white to-emerald-50 shadow-[0_10px_28px_rgba(76,29,149,0.10)]"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-violet-200 bg-gradient-to-r from-violet-950 via-violet-900 to-emerald-900 px-5 py-4 text-white">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-200">Monthly Policy Reference</div>
+          <h3 className="mt-1 text-base font-bold">Monthly Grade &amp; Incentive Criteria</h3>
+          <p className="mt-1 text-[10px] font-medium text-violet-100">
+            {monthlyMode
+              ? `${periodLabel || "Selected month"} · ${getGradePolicyLabel(monthKey)}`
+              : "Select Monthly view to see the monthly Grade and Incentive criteria"}
+          </p>
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-lg font-bold text-emerald-200">฿</div>
+      </div>
+
+      <div className="p-5">
+        {monthlyMode ? (
+          <div className="overflow-x-auto rounded-xl border border-violet-200 bg-white">
+            <table className="min-w-[680px] w-full text-[11px]">
+              <thead>
+                <tr className="bg-slate-900 text-left font-semibold text-white">
+                  <th className="px-4 py-3">Grade</th>
+                  <th className="px-4 py-3">Score Range</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Cash Incentive</th>
+                  {promoActiveForMonth ? <th className="px-4 py-3 text-right">Promo</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {getGradeGuideRows(monthKey).map((row, index) => {
+                  const incentive = getIncentiveByGrade(row.grade, monthKey);
+
+                  return (
+                    <tr key={`grade-incentive-${row.grade}`} className={`border-t border-slate-100 ${index % 2 === 0 ? "bg-white" : "bg-violet-50/45"}`}>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}>{row.grade}</span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700">{row.range}</td>
+                      <td className="px-4 py-3 text-slate-600">{incentive.remark}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                        {incentive.cash > 0 ? `฿${incentive.cash.toLocaleString("en-US")}` : "—"}
+                      </td>
+                      {promoActiveForMonth ? (
+                        <td className="px-4 py-3 text-right font-medium text-slate-600">
+                          {incentive.promo > 0 ? `${incentive.promo.toLocaleString("en-US")} RBH` : "—"}
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-violet-300 bg-white/70 px-4 py-7 text-center text-xs font-medium text-slate-500">
+            Grade and Incentive criteria are available in Monthly view.
+          </div>
+        )}
+
+        <p className="mt-4 border-l-2 border-violet-400 pl-3 text-[10px] font-medium leading-5 text-slate-600">
+          Score range, status and incentive follow the selected month. Incentive requires at least {CASE_TARGET} evaluated cases and all applicable monthly conditions. Promo is shown only when active.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function AnalyticsAgentPerformanceV92({
   cases,
   agentNames,
@@ -1909,9 +1990,6 @@ function AnalyticsAgentPerformanceV92({
         )
     );
   }, [rows, allAgentsMode, agentSortTab]);
-  const promoActiveForMonth =
-    monthlyMode && hasRbhPromo(monthKey);
-
   // data-topic-status-allagents-incentive-v131-fix
   const incentiveText = (row: (typeof rows)[number]) => {
     const notEligibleText = allAgentsMode ? "฿0 (Not Eligible)" : "Not Eligible";
@@ -2118,91 +2196,6 @@ function AnalyticsAgentPerformanceV92({
           </table>
         </div>
 
-      </div>
-
-      <div
-        data-monthly-grade-incentive-criteria-v144="true"
-        className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[15px] font-semibold text-slate-900">
-              Monthly Grade &amp; Incentive Criteria
-            </div>
-            <div className="mt-1 text-[10px] font-normal text-slate-500">
-              {monthlyMode
-                ? `${periodLabel || "Selected month"} · ${getGradePolicyLabel(monthKey)}`
-                : "Select Monthly view to see the monthly Grade and Incentive criteria"}
-            </div>
-          </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-lg font-semibold text-emerald-600">
-            ฿
-          </div>
-        </div>
-
-        {monthlyMode ? (
-          <div className="mt-5 overflow-x-auto rounded-2xl border border-violet-100">
-            <table className="min-w-[680px] w-full text-[11px]">
-              <thead>
-                <tr className="bg-violet-950 text-left font-normal text-white">
-                  <th className="px-4 py-3">Grade</th>
-                  <th className="px-4 py-3">Score Range</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Cash Incentive</th>
-                  {promoActiveForMonth ? (
-                    <th className="px-4 py-3 text-right">Promo</th>
-                  ) : null}
-                </tr>
-              </thead>
-              <tbody>
-                {getGradeGuideRows(monthKey).map((row) => {
-                  const incentive = getIncentiveByGrade(row.grade, monthKey);
-
-                  return (
-                    <tr
-                      key={`grade-incentive-${row.grade}`}
-                      className="border-t border-slate-100 bg-white"
-                    >
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}
-                        >
-                          {row.grade}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-700">
-                        {row.range}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {incentive.remark}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-800">
-                        {incentive.cash > 0
-                          ? `฿${incentive.cash.toLocaleString("en-US")}`
-                          : "—"}
-                      </td>
-                      {promoActiveForMonth ? (
-                        <td className="px-4 py-3 text-right font-medium text-slate-600">
-                          {incentive.promo > 0
-                            ? `${incentive.promo.toLocaleString("en-US")} RBH`
-                            : "—"}
-                        </td>
-                      ) : null}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-xs font-normal text-slate-500">
-            Grade and Incentive criteria are available in Monthly view.
-          </div>
-        )}
-
-        <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-[10px] font-normal leading-5 text-slate-500">
-          The score range, Status and Incentive change automatically according to the selected month. Incentive is paid only when the Agent completes at least {CASE_TARGET} evaluated cases and meets the applicable monthly conditions. Promo appears only in months with an active Promo policy.
-        </div>
       </div>
     </div>
   );
@@ -8470,12 +8463,12 @@ export default function SummaryMockup({
         />
       ) : null}
       <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-4 lg:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
+        <div className={embedded ? "flex flex-wrap items-end justify-between gap-4 rounded-[18px] border border-violet-700/60 bg-gradient-to-r from-slate-950 via-violet-950 to-violet-800 px-5 py-4 shadow-[0_12px_28px_rgba(30,27,75,0.22)]" : "flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4"}>
             {embedded ? (
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">Analytics</div>
-                <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">Performance Analysis</h2>
-                <p className="mt-1 text-xs font-medium text-slate-600">ใช้สูตรและขอบเขตข้อมูล Analytics เดิม โดยไม่อิงคะแนนจาก Overview</p>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-200">Analytics</div>
+                <h2 className="mt-1 text-xl font-bold tracking-tight text-white">Performance Analysis</h2>
+                <p className="mt-1 text-xs font-medium text-violet-100">วิเคราะห์คะแนน แนวโน้ม และปัจจัยที่มีผลต่อคุณภาพ</p>
               </div>
             ) : <span />}
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -8996,7 +8989,7 @@ export default function SummaryMockup({
           className="space-y-5"
         >
           <div data-analytics-logic-v90="true" className="space-y-5">
-            <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_6px_22px_rgba(15,23,42,0.05)]">
+            <div className="rounded-[20px] border border-violet-200 bg-gradient-to-br from-white via-violet-50/45 to-emerald-50/35 p-5 shadow-[0_8px_24px_rgba(76,29,149,0.08)]">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div data-weekly-dropdown-buttons-v138="true">
                   <FilterLabel>View By</FilterLabel>
@@ -9212,8 +9205,17 @@ export default function SummaryMockup({
                 effectivePeriodKeys
               }
               detailContent={
-                <div data-analytics-primary-details-v145="true">
-                  <Panel>
+                <div data-analytics-primary-details-v145="true" className="space-y-5">
+                  <MonthlyGradeIncentiveCriteriaV144
+                    monthKey={
+                      analysisMode === "monthly"
+                        ? effectivePeriodKeys[effectivePeriodKeys.length - 1] || ""
+                        : ""
+                    }
+                    monthlyMode={analysisMode === "monthly" && !isComparisonMode}
+                    periodLabel={effectivePeriodLabels.join(" · ")}
+                  />
+                  <Panel className="border-violet-200/90 shadow-[0_10px_28px_rgba(76,29,149,0.08)]">
                     <PanelHeader
                       title="รายละเอียดผลการประเมินและหัวข้อ (Performance & Topic Detail)"
                       subtitle="จำนวนเคส คะแนนเฉลี่ย เกรด และผลคะแนนรายหัวข้อ"

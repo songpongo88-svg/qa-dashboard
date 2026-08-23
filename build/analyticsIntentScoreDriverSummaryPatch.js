@@ -217,57 +217,56 @@ function AnalyticsIntentDriverSummary({ rows }: { rows: any[] }) {
   if (!rows.length) return null;
 
   return (
-    <section data-analytics-intent-driver-summary-v1="true" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-4 sm:px-5">
+    <section data-analytics-intent-driver-summary-v1="true" className="overflow-hidden rounded-[20px] border border-slate-300 bg-slate-50/70 shadow-[0_6px_18px_rgba(15,23,42,0.06)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-5">
         <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-600">Score Driver Summary</div>
-          <div className="mt-1 text-sm font-black text-slate-950">หัวข้อไหนเปลี่ยน · เพราะอะไร · เกิดกับ Intent อะไร</div>
-          <div className="mt-1 text-[10px] font-semibold text-slate-500">สรุปจากคะแนน Topic และจุดที่หัก/Comment จริงในผลประเมิน โดยไม่แสดง Case ID</div>
+          <div className="text-sm font-bold text-slate-950">ปัจจัยที่มีผลต่อคะแนน</div>
+          <div className="mt-0.5 text-[10px] font-medium text-slate-500">หัวข้อที่เปลี่ยน พร้อมเหตุผลและ Intent ที่เกี่ยวข้อง</div>
         </div>
+        <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-[9px] font-bold text-violet-700">Topic comparison</span>
       </div>
 
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-slate-200">
         {rows.map((periodRow: any) => (
-          <div key={periodRow.period} className="px-4 py-5 sm:px-5">
+          <div key={periodRow.period} className="px-4 py-4 sm:px-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-black text-slate-900">{periodRow.period}</div>
-                <div className="mt-1 text-[9px] font-semibold text-slate-500">เทียบกับ {periodRow.previousPeriod}</div>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <div className="text-[11px] font-bold text-slate-900">{periodRow.period}</div>
+                <div className="text-[9px] font-medium text-slate-500">เทียบกับ {periodRow.previousPeriod}</div>
               </div>
-              <div className={"rounded-xl px-3 py-2 text-right " + (periodRow.overallDelta < 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>
-                <div className="text-[9px] font-bold">Overall Difference</div>
-                <div className="text-base font-black">{periodRow.overallDelta > 0 ? "+" : ""}{periodRow.overallDelta.toFixed(2)} pp</div>
-              </div>
+              <span className={"rounded-full px-3 py-1.5 text-[10px] font-bold " + (periodRow.overallDelta < 0 ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700")}>
+                Overall {periodRow.overallDelta > 0 ? "+" : ""}{periodRow.overallDelta.toFixed(2)} pp
+              </span>
             </div>
 
-            <div className="mt-4 grid gap-3 xl:grid-cols-2">
+            <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="hidden grid-cols-[minmax(220px,1.2fr)_110px_minmax(300px,1.8fr)] gap-4 bg-slate-900 px-4 py-2.5 text-[9px] font-bold uppercase tracking-wide text-slate-200 lg:grid">
+                <span>Topic</span><span>Change</span><span>Reason &amp; Intent</span>
+              </div>
               {periodRow.topics.map((topic: any) => (
-                <article key={periodRow.period + "-" + topic.code} className={"rounded-2xl border p-4 " + (topic.direction === "down" ? "border-rose-200 bg-rose-50/35" : "border-emerald-200 bg-emerald-50/35")}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Topic {topic.code}</div>
-                      <div className="mt-1 text-[12px] font-black leading-5 text-slate-900">{topic.label}</div>
-                      <div className="mt-1 text-[9px] font-semibold text-slate-500">{topic.previousPct.toFixed(2)}% → {topic.currentPct.toFixed(2)}%</div>
-                    </div>
-                    <span className={"shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black " + (topic.direction === "down" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700")}>
-                      {topic.direction === "down" ? "ลดลง " : "ดีขึ้น +"}{topic.delta.toFixed(2)} pp
+                <div key={periodRow.period + "-" + topic.code} className="grid gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0 lg:grid-cols-[minmax(220px,1.2fr)_110px_minmax(300px,1.8fr)] lg:gap-4">
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-violet-600">Topic {topic.code}</div>
+                    <div className="mt-0.5 text-[11px] font-bold leading-5 text-slate-900">{topic.label}</div>
+                    <div className="mt-0.5 text-[9px] font-medium text-slate-500">{topic.previousPct.toFixed(2)}% → {topic.currentPct.toFixed(2)}%</div>
+                  </div>
+                  <div className="flex items-start lg:pt-1">
+                    <span className={"rounded-full px-2.5 py-1 text-[9px] font-bold " + (topic.direction === "down" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700")}>
+                      {topic.direction === "down" ? "" : "+"}{topic.delta.toFixed(2)} pp
                     </span>
                   </div>
-
-                  <div className="mt-3 text-[10px] font-black text-slate-700">{topic.direction === "down" ? "สาเหตุที่คะแนนตก" : "สาเหตุที่คะแนนดีขึ้น"}</div>
-                  <div className="mt-2 space-y-2">
+                  <div className="space-y-1.5">
                     {topic.causes.map((cause: any) => (
-                      <div key={topic.code + "-" + cause.key} className="rounded-xl border border-white/80 bg-white px-3 py-2.5 shadow-sm">
-                        <div className={"text-[10px] font-black leading-5 " + (topic.direction === "down" ? "text-rose-700" : "text-emerald-700")}>
-                          {cause.label}{cause.count > 0 ? " · พบ " + cause.count + " เคส" : ""}
-                        </div>
-                        <div className="mt-1 text-[9px] font-semibold leading-5 text-slate-600">
-                          Intent: {cause.intents.length ? cause.intents.join(" · ") : "ไม่พบ Intent ที่ระบุชัดเจน"}
-                        </div>
+                      <div key={topic.code + "-" + cause.key} className="text-[10px] font-medium leading-5 text-slate-600">
+                        <span className={"font-bold " + (topic.direction === "down" ? "text-rose-700" : "text-emerald-700")}>
+                          {cause.label}{cause.count > 0 ? " · " + cause.count + " เคส" : ""}
+                        </span>
+                        <span className="text-slate-400"> — </span>
+                        <span>Intent: {cause.intents.length ? cause.intents.join(" · ") : "ไม่พบข้อมูล"}</span>
                       </div>
                     ))}
                   </div>
-                </article>
+                </div>
               ))}
             </div>
           </div>
@@ -317,8 +316,8 @@ function AnalyticsIntentDriverSummary({ rows }: { rows: any[] }) {
       if (managementScoreDriverReports.length) {
         startNewPage();
         drawSectionTitle(
-          "Score Driver Summary",
-          "What changed by Topic, why it changed, and which Intent groups were involved"
+          "Score Factors",
+          "Topic movement, key reasons and related Intent groups"
         );
 
         managementScoreDriverReports.forEach((periodRow: any, periodIndex: number) => {
