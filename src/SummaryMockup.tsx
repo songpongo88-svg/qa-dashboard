@@ -1768,32 +1768,32 @@ function MonthlyGradeIncentiveCriteriaV144({
   return (
     <section
       data-monthly-grade-incentive-criteria-v144="true"
-      className="overflow-hidden rounded-[20px] border border-violet-300 bg-gradient-to-br from-violet-50 via-white to-emerald-50 shadow-[0_10px_28px_rgba(76,29,149,0.10)]"
+      className="flex h-full min-w-0 flex-col overflow-hidden rounded-[18px] border border-violet-200 bg-white shadow-[0_8px_24px_rgba(76,29,149,0.08)]"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-violet-200 bg-gradient-to-r from-violet-950 via-violet-900 to-emerald-900 px-5 py-4 text-white">
+      <div className="flex min-h-[88px] flex-wrap items-start justify-between gap-3 border-b border-violet-200 bg-gradient-to-r from-violet-950 via-violet-800 to-violet-600 px-4 py-4 text-white">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-200">Monthly Policy Reference</div>
-          <h3 className="mt-1 text-base font-bold">Monthly Grade &amp; Incentive Criteria</h3>
+          <h3 className="mt-1 text-[14px] font-bold">Monthly Grade &amp; Incentive Criteria</h3>
           <p className="mt-1 text-[10px] font-medium text-violet-100">
             {monthlyMode
               ? `${periodLabel || "Selected month"} · ${getGradePolicyLabel(monthKey)}`
               : "Select Monthly view to see the monthly Grade and Incentive criteria"}
           </p>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-lg font-bold text-emerald-200">฿</div>
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-base font-bold text-emerald-200">฿</div>
       </div>
 
-      <div className="p-5">
+      <div className="flex flex-1 flex-col p-4">
         {monthlyMode ? (
           <div className="overflow-x-auto rounded-xl border border-violet-200 bg-white">
-            <table className="min-w-[680px] w-full text-[11px]">
+            <table className="w-full min-w-[430px] text-[10px]">
               <thead>
                 <tr className="bg-slate-900 text-left font-semibold text-white">
-                  <th className="px-4 py-3">Grade</th>
-                  <th className="px-4 py-3">Score Range</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Cash Incentive</th>
-                  {promoActiveForMonth ? <th className="px-4 py-3 text-right">Promo</th> : null}
+                  <th className="px-3 py-2.5">Grade</th>
+                  <th className="px-3 py-2.5">Score Range</th>
+                  <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-2.5 text-right">Cash Incentive</th>
+                  {promoActiveForMonth ? <th className="px-3 py-2.5 text-right">Promo</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -1802,16 +1802,16 @@ function MonthlyGradeIncentiveCriteriaV144({
 
                   return (
                     <tr key={`grade-incentive-${row.grade}`} className={`border-t border-slate-100 ${index % 2 === 0 ? "bg-white" : "bg-violet-50/45"}`}>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}>{row.grade}</span>
+                      <td className="px-3 py-2.5">
+                        <span className={`inline-flex h-7 w-7 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}>{row.grade}</span>
                       </td>
-                      <td className="px-4 py-3 font-semibold text-slate-700">{row.range}</td>
-                      <td className="px-4 py-3 text-slate-600">{incentive.remark}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                      <td className="px-3 py-2.5 font-semibold text-slate-700">{row.range}</td>
+                      <td className="px-3 py-2.5 text-slate-600">{incentive.remark}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold text-slate-900">
                         {incentive.cash > 0 ? `฿${incentive.cash.toLocaleString("en-US")}` : "—"}
                       </td>
                       {promoActiveForMonth ? (
-                        <td className="px-4 py-3 text-right font-medium text-slate-600">
+                        <td className="px-3 py-2.5 text-right font-medium text-slate-600">
                           {incentive.promo > 0 ? `${incentive.promo.toLocaleString("en-US")} RBH` : "—"}
                         </td>
                       ) : null}
@@ -1827,7 +1827,7 @@ function MonthlyGradeIncentiveCriteriaV144({
           </div>
         )}
 
-        <p className="mt-4 border-l-2 border-violet-400 pl-3 text-[10px] font-medium leading-5 text-slate-600">
+        <p className="mt-auto border-l-2 border-violet-400 pl-3 pt-3 text-[9px] font-medium leading-4 text-slate-500">
           Score range, status and incentive follow the selected month. Incentive requires at least {CASE_TARGET} evaluated cases and all applicable monthly conditions. Promo is shown only when active.
         </p>
       </div>
@@ -2210,6 +2210,7 @@ function AnalyticsOverviewV89({
   individualMode,
   noCaseMonthKey,
   periodKeys,
+  policyPeriodLabel = "",
   detailContent,
   hideSummaryCards = false,
 }: {
@@ -2224,6 +2225,7 @@ function AnalyticsOverviewV89({
   individualMode: boolean;
   noCaseMonthKey?: string;
   periodKeys?: string[];
+  policyPeriodLabel?: string;
   detailContent?: React.ReactNode;
   hideSummaryCards?: boolean;
 }) {
@@ -2569,10 +2571,31 @@ function AnalyticsOverviewV89({
         )}
       </div> : null}
 
-      {detailContent}
+      <section
+        data-performance-reference-group-v146="true"
+        className="overflow-hidden rounded-[24px] border border-violet-200 bg-gradient-to-br from-white via-violet-50/45 to-slate-50 shadow-[0_14px_38px_rgba(76,29,149,0.09)]"
+      >
+        <div className="border-b border-violet-200 bg-gradient-to-r from-violet-950 via-violet-800 to-violet-600 px-5 py-4 text-white">
+          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-200">Performance Reference</div>
+          <div className="mt-1 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-[18px] font-semibold">Performance Overview</h2>
+              <p className="mt-1 text-[10px] font-medium text-violet-100">เกณฑ์ที่ใช้งาน แนวโน้มคะแนน และการกระจายเกรดในมุมมองเดียว</p>
+            </div>
+            <div className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[9px] font-semibold text-violet-100">
+              Current selection
+            </div>
+          </div>
+        </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.85fr)]">
-        <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+        <div className="grid items-stretch gap-4 p-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+          <MonthlyGradeIncentiveCriteriaV144
+            monthKey={monthlyMode ? overviewMonthKey : ""}
+            monthlyMode={monthlyMode}
+            periodLabel={policyPeriodLabel}
+          />
+
+        <div className="h-full rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[15px] font-semibold text-slate-900">
@@ -2588,13 +2611,13 @@ function AnalyticsOverviewV89({
             </div>
           </div>
 
-          <div className="mt-5 h-[250px]">
+          <div className="mt-4 h-[230px]">
             {pointRows.length ? (
               <>
                 <svg
                   viewBox="0 0 720 220"
                   preserveAspectRatio="none"
-                  className="h-[210px] w-full overflow-visible"
+                  className="h-[190px] w-full overflow-visible"
                   aria-label="Quality Score Trend"
                 >
                   {[0, 1, 2, 3, 4, 5].map(
@@ -2700,7 +2723,7 @@ function AnalyticsOverviewV89({
           </div>
         </div>
 
-        <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+        <div className="h-full rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
           <div className="text-[15px] font-semibold text-slate-900">
             Grade Distribution
           </div>
@@ -2708,15 +2731,15 @@ function AnalyticsOverviewV89({
             Distribution from the current selection
           </div>
 
-          <div className="mt-6 flex flex-col items-center gap-7 sm:flex-row sm:items-center">
+          <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-center xl:flex-col 2xl:flex-row">
             <div
-              className="relative h-44 w-44 shrink-0 rounded-full"
+              className="relative h-36 w-36 shrink-0 rounded-full"
               style={{
                 background:
                   gradeGradient,
               }}
             >
-              <div className="absolute inset-[30px] flex flex-col items-center justify-center rounded-full bg-white">
+              <div className="absolute inset-[25px] flex flex-col items-center justify-center rounded-full bg-white">
                 <div className="text-2xl font-semibold text-slate-900">
                   {evaluatedCases}
                 </div>
@@ -2762,7 +2785,10 @@ function AnalyticsOverviewV89({
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </section>
+
+      {detailContent}
 
     </div>
   );
@@ -9408,17 +9434,9 @@ export default function SummaryMockup({
               periodKeys={
                 effectivePeriodKeys
               }
+              policyPeriodLabel={effectivePeriodLabels.join(" · ")}
               detailContent={
                 <div data-analytics-primary-details-v145="true" className="space-y-5">
-                  <MonthlyGradeIncentiveCriteriaV144
-                    monthKey={
-                      analysisMode === "monthly"
-                        ? effectivePeriodKeys[effectivePeriodKeys.length - 1] || ""
-                        : ""
-                    }
-                    monthlyMode={analysisMode === "monthly" && !isComparisonMode}
-                    periodLabel={effectivePeriodLabels.join(" · ")}
-                  />
                   <Panel className="border-violet-200/90 shadow-[0_10px_28px_rgba(76,29,149,0.08)]">
                     <PanelHeader
                       title="รายละเอียดผลการประเมินและหัวข้อ (Performance & Topic Detail)"
