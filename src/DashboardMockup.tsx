@@ -7248,8 +7248,20 @@ export default function DashboardMockup({
                     <div className="grid min-w-0 xl:grid-cols-[minmax(0,2.5fr)_minmax(340px,0.85fr)]">
                       <div className="min-w-0 overflow-x-auto border-b border-slate-200 xl:border-b-0 xl:border-r">
                         <div className="min-w-[1080px] bg-slate-50/80 p-3">
-                          <div className="grid grid-cols-[95px_minmax(130px,0.8fr)_minmax(200px,1.5fr)_90px_90px_80px_80px_60px_100px] items-center gap-2 rounded-xl bg-violet-100/80 px-4 py-2.5 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-600">
-                            <span>Case ID</span><span>Agent</span><span>Intent</span><span>Case Date</span><span>Audit Date</span><span>Original Score</span><span>Revised Score</span><span>Grade</span><span>Review Status</span>
+                          <div
+                            data-case-record-header-v162="true"
+                            className="relative grid grid-cols-[95px_minmax(130px,0.8fr)_minmax(200px,1.5fr)_90px_90px_80px_80px_60px_100px] items-center gap-2 overflow-hidden rounded-2xl border border-violet-400/70 bg-gradient-to-r from-violet-950 via-violet-800 to-indigo-700 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_8px_22px_rgba(76,29,149,0.18)]"
+                          >
+                            <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-cyan-300" />
+                            <span className="pl-1">Case ID</span>
+                            <span>Agent</span>
+                            <span>Intent</span>
+                            <span className="text-center">Case Date</span>
+                            <span className="text-center">Audit Date</span>
+                            <span className="text-center leading-3">Original<br />Score</span>
+                            <span className="text-center leading-3">Revised<br />Score</span>
+                            <span className="text-center">Grade</span>
+                            <span className="text-center leading-3">Review<br />Status</span>
                           </div>
                           <div className="mt-2 max-h-[500px] space-y-2 overflow-y-auto pr-1">
                             {caseExplorerCases.length ? caseExplorerCases.map((item) => {
