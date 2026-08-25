@@ -47,6 +47,8 @@ type CaseItem = {
   evaluationKey: string;
   agent: string;
   evaluatorName?: string;
+  caseDate?: string;
+  evaluationAuditDate?: string;
   auditDate: string;
   auditDateObj: Date | null;
   auditTimestamp: string;
@@ -1058,12 +1060,18 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
       });
       const finalScoreVal = Number(record.finalScore || topics.reduce((sum, topic) => sum + topic.score, 0));
       const evaluationKey = record.evaluationKey || `web-eval|${record.caseId}|${record.agentName}|${record.auditDate}|${record.id}`;
+      const caseDateDisplay = formatAuditDateForDisplay(record.auditDate);
+      const evaluationAuditDateDisplay = formatAuditDateForDisplay(
+        record.auditTimestamp || record.submittedAt || record.auditDate
+      );
       return {
         key: evaluationKey,
         evaluationKey,
         agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
         evaluatorName: String(record.evaluatorName || record.evaluatorUsername || "").trim(),
-        auditDate: formatAuditDateForDisplay(record.auditDate),
+        caseDate: caseDateDisplay,
+        evaluationAuditDate: evaluationAuditDateDisplay,
+        auditDate: caseDateDisplay,
         auditDateObj: validAuditDate,
         auditTimestamp: record.auditTimestamp || formatBangkokDateTime(record.submittedAt),
         monthKey,
@@ -4521,8 +4529,9 @@ export default function DashboardMockup({
                 if (!agent) return null;
 
                 const auditRaw = v8Helper.getValue(row, "Audit Date");
+                const caseDateRaw = getFirstAvailableHeaderValue(v8Helper, row, ["Case Date", "Audit Date"], auditRaw);
                 const timestampRaw = getFirstAvailableHeaderValue(v8Helper, row, ["Timestamp", "Audit Timestamp"], auditRaw);
-                const auditDateObj = excelDateToJSDate(auditRaw);
+                const auditDateObj = excelDateToJSDate(caseDateRaw);
                 const monthDate = getReportingMonthDate(
                   v8Helper.getValue(row, "Month Start"),
                   v8Helper.getValue(row, "Month Label"),
@@ -4588,7 +4597,9 @@ export default function DashboardMockup({
                   key: `v8-${evaluationKey}`,
                   evaluationKey,
                   agent,
-                  auditDate: formatAuditDateForDisplay(auditRaw),
+                  caseDate: formatAuditDateForDisplay(caseDateRaw),
+                  evaluationAuditDate: formatAuditDateForDisplay(auditRaw || timestampRaw),
+                  auditDate: formatAuditDateForDisplay(caseDateRaw),
                   auditDateObj,
                   auditTimestamp: formatAuditTimestamp(timestampRaw),
                   monthKey,
@@ -4923,9 +4934,9 @@ export default function DashboardMockup({
             const mergedAppeal = appealMap.get(caseId);
 
             const caseDateRaw = getFirstAvailableHeaderValue(rawHelper, row, ["Case Date", "Audit Date"], "");
-            const auditRaw = caseDateRaw;
+            const auditRaw = getFirstAvailableHeaderValue(rawHelper, row, ["Audit Date", "Audit Timestamp", "Timestamp"], caseDateRaw);
             const timestampRaw =
-              getFirstAvailableHeaderValue(rawHelper, row, ["Audit Date", "Audit Timestamp", "Timestamp"], caseDateRaw);
+              getFirstAvailableHeaderValue(rawHelper, row, ["Audit Timestamp", "Timestamp", "Audit Date"], auditRaw);
             const auditDateObj = excelDateToJSDate(caseDateRaw);
             const monthDate = getReportingMonthDate(
               rawHelper.getValue(row, "Month Start"),
@@ -5093,6 +5104,7 @@ export default function DashboardMockup({
             const reviewStatus: ReviewStatus = mergedAppeal ? "Revised" : "Original";
 
             const auditDateDisplay = formatAuditDateForDisplay(auditRaw);
+            const caseDateDisplay = formatAuditDateForDisplay(caseDateRaw);
 
             const agent = toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim());
             const evaluatorName = String(
@@ -5122,7 +5134,9 @@ export default function DashboardMockup({
               evaluationKey,
               agent,
               evaluatorName,
-              auditDate: auditDateDisplay,
+              caseDate: caseDateDisplay,
+              evaluationAuditDate: auditDateDisplay,
+              auditDate: caseDateDisplay,
               auditDateObj,
               auditTimestamp: formatAuditTimestamp(timestampRaw),
               monthKey,
@@ -7220,6 +7234,8 @@ export default function DashboardMockup({
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-2 text-[10px] font-bold text-emerald-700"><span className="h-2 w-2 rounded-full bg-emerald-500" />KPI Passed ≥ {KPI_QUALITY_SCORE_TARGET}%</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-3 py-2 text-[10px] font-bold text-rose-700"><span className="h-2 w-2 rounded-full bg-rose-500" />Not Passed &lt; {KPI_QUALITY_SCORE_TARGET}%</span>
                         {selectedTopicCode ? (
                           <button type="button" onClick={() => setSelectedTopicCode("")} className="rounded-full border border-violet-300 bg-white px-3 py-2 text-xs font-bold text-violet-800">Clear Topic</button>
                         ) : null}
@@ -7227,20 +7243,24 @@ export default function DashboardMockup({
                       </div>
                     </div>
 
-                    <div className="grid min-w-0 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.75fr)]">
+                    <div className="grid min-w-0 xl:grid-cols-[minmax(0,2.15fr)_minmax(360px,0.85fr)]">
                       <div className="min-w-0 overflow-x-auto border-b border-slate-200 xl:border-b-0 xl:border-r">
-                        <div className="min-w-[760px]">
-                          <div className="grid grid-cols-[120px_minmax(180px,1fr)_130px_100px_120px] items-center gap-3 bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">
-                            <span>Case ID</span><span>Agent</span><span>Case Date</span><span>Score</span><span>Status</span>
+                        <div className="min-w-[1040px] bg-slate-50/80 p-3">
+                          <div className="grid grid-cols-[110px_minmax(150px,0.9fr)_minmax(260px,1.7fr)_105px_105px_85px_105px] items-center gap-3 rounded-xl bg-violet-100/80 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">
+                            <span>Case ID</span><span>Agent</span><span>Intent</span><span>Case Date</span><span>Audit Date</span><span>Score</span><span>Status</span>
                           </div>
-                          <div className="max-h-[420px] overflow-y-auto">
+                          <div className="mt-2 max-h-[500px] space-y-2 overflow-y-auto pr-1">
                             {caseExplorerCases.length ? caseExplorerCases.map((item) => {
                               const isSelected = activeSelectedCase?.key === item.key;
+                              const intent = splitCaseNavigatorIntent(item.inquiryTh, item.inquiryEn);
+                              const scorePassed = item.finalScore >= KPI_QUALITY_SCORE_TARGET;
                               const statusLabel = item.appealStatus || item.reviewStatus;
                               const statusTone = item.appealStatus === "Rejected"
                                 ? "border-rose-200 bg-rose-50 text-rose-700"
-                                : item.appealStatus === "Approved" || item.reviewStatus === "Revised"
+                                : item.appealStatus === "Approved"
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : item.reviewStatus === "Revised"
+                                    ? "border-violet-200 bg-violet-50 text-violet-700"
                                   : "border-slate-200 bg-slate-100 text-slate-700";
                               return (
                                 <button
@@ -7251,16 +7271,29 @@ export default function DashboardMockup({
                                     setSelectedCaseKey(item.key);
                                     setSlideOverOpen(false);
                                   }}
-                                  className={`grid w-full grid-cols-[120px_minmax(180px,1fr)_130px_100px_120px] items-center gap-3 border-t px-4 py-3 text-left text-xs transition ${
+                                  className={`group relative grid w-full grid-cols-[110px_minmax(150px,0.9fr)_minmax(260px,1.7fr)_105px_105px_85px_105px] items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left text-xs transition-all duration-200 ${
                                     isSelected
-                                      ? "border-emerald-200 bg-emerald-50 shadow-[inset_4px_0_0_#10b981]"
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-violet-400 bg-gradient-to-r from-violet-50 via-white to-white shadow-[0_8px_22px_rgba(109,40,217,0.12)]"
+                                      : scorePassed
+                                        ? "border-emerald-100 bg-white hover:border-emerald-300 hover:shadow-[0_7px_18px_rgba(16,185,129,0.08)]"
+                                        : "border-rose-200 bg-rose-50/45 hover:border-rose-300 hover:shadow-[0_7px_18px_rgba(244,63,94,0.09)]"
                                   }`}
                                 >
-                                  <span className="font-bold text-slate-950">{item.caseId}</span>
-                                  <span className="truncate font-semibold text-slate-800">{item.agent || "-"}</span>
-                                  <span className="font-medium text-slate-600">{item.auditDate || "-"}</span>
-                                  <span className="font-bold tabular-nums text-emerald-700">{item.finalScore.toFixed(2)}</span>
+                                  <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${scorePassed ? "bg-emerald-500" : "bg-rose-500"}`} />
+                                  <span className="min-w-0 pl-1">
+                                    <span className="block font-bold text-slate-950">{item.caseId}</span>
+                                    {isSelected ? <span className="mt-1 block text-[9px] font-bold text-violet-700">Selected case</span> : null}
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className="block truncate font-semibold text-slate-800">{item.agent || "-"}</span>
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className={`block truncate font-semibold ${scorePassed ? "text-slate-900" : "text-rose-700"}`} title={intent.thai}>{intent.thai}</span>
+                                    {intent.english ? <span className={`mt-1 block truncate text-[10px] font-medium ${scorePassed ? "text-slate-500" : "text-rose-500"}`} title={intent.english}>{intent.english}</span> : null}
+                                  </span>
+                                  <span className="font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
+                                  <span className="font-medium text-slate-700">{item.evaluationAuditDate || formatAuditDateForDisplay(item.auditTimestamp) || "-"}</span>
+                                  <span className={`w-fit rounded-full px-3 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{item.finalScore.toFixed(2)}</span>
                                   <span className={`w-fit rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusTone}`}>{statusLabel}</span>
                                 </button>
                               );
@@ -7274,28 +7307,44 @@ export default function DashboardMockup({
                       <aside className="min-w-0 bg-gradient-to-b from-emerald-50/70 to-white p-5">
                         {activeSelectedCase ? (() => {
                           const intent = splitCaseNavigatorIntent(activeSelectedCase.inquiryTh, activeSelectedCase.inquiryEn);
+                          const scorePassed = activeSelectedCase.finalScore >= KPI_QUALITY_SCORE_TARGET;
+                          const selectedStatusLabel = activeSelectedCase.appealStatus || activeSelectedCase.reviewStatus;
+                          const selectedStatusTone = activeSelectedCase.appealStatus === "Rejected"
+                            ? "border-rose-200 bg-rose-50 text-rose-700"
+                            : activeSelectedCase.appealStatus === "Approved"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : activeSelectedCase.reviewStatus === "Revised"
+                                ? "border-violet-200 bg-violet-50 text-violet-700"
+                                : "border-slate-200 bg-slate-100 text-slate-700";
                           return (
                             <div>
-                              <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start justify-between gap-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-violet-50/50 p-4">
                                 <div className="min-w-0">
-                                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700">Selected Case</div>
+                                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Selected Case</div>
                                   <div className="mt-1 truncate text-xl font-bold text-slate-950">{activeSelectedCase.caseId}</div>
-                                  <div className="mt-1 text-xs font-medium text-slate-600">{activeSelectedCase.appealStatus ? `Appeal ${activeSelectedCase.appealStatus}` : activeSelectedCase.reviewStatus}</div>
                                 </div>
-                                <div className="text-right">
-                                  <div className="text-3xl font-bold tabular-nums text-emerald-700">{activeSelectedCase.finalScore.toFixed(2)}</div>
+                                <div className={`rounded-full px-4 py-2 text-right ${scorePassed ? "bg-emerald-100" : "bg-rose-100"}`}>
+                                  <div className={`text-xl font-bold tabular-nums ${scorePassed ? "text-emerald-700" : "text-rose-700"}`}>{activeSelectedCase.finalScore.toFixed(2)}</div>
                                   <div className="text-[10px] font-semibold text-slate-500">Grade {activeSelectedCase.grade}</div>
                                 </div>
                               </div>
-                              <div className="mt-4 grid grid-cols-2 gap-2">
-                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Case Date</div><div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.auditDate || "-"}</div></div>
-                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Week Label</div><div className="mt-1 truncate text-xs font-bold text-slate-900">{activeSelectedCase.weekLabel || "-"}</div></div>
-                                <div className="col-span-2 rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Agent</div><div className="mt-1 truncate text-xs font-bold text-slate-900">{activeSelectedCase.agent || "-"}</div></div>
-                              </div>
                               <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 p-3">
                                 <div className="text-[9px] font-bold uppercase tracking-wide text-violet-700">Intent</div>
-                                <div className="mt-1 text-xs font-semibold leading-5 text-slate-900">{intent.thai}</div>
-                                {intent.english ? <div className="mt-1 text-[11px] font-medium text-slate-600">{intent.english}</div> : null}
+                                <div className={`mt-1 text-xs font-semibold leading-5 ${scorePassed ? "text-slate-900" : "text-rose-700"}`}>{intent.thai}</div>
+                                {intent.english ? <div className={`mt-1 text-[11px] font-medium ${scorePassed ? "text-slate-600" : "text-rose-500"}`}>{intent.english}</div> : null}
+                              </div>
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Agent</div><div className="mt-1 truncate text-xs font-bold text-slate-900">{activeSelectedCase.agent || "-"}</div></div>
+                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Review Status</div><span className={`mt-1 inline-flex w-fit rounded-full border px-2.5 py-1 text-[10px] font-bold ${selectedStatusTone}`}>{selectedStatusLabel}</span></div>
+                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Case Date</div><div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.caseDate || activeSelectedCase.auditDate || "-"}</div></div>
+                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Audit Date</div><div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.evaluationAuditDate || formatAuditDateForDisplay(activeSelectedCase.auditTimestamp) || "-"}</div></div>
+                              </div>
+                              <div className={`mt-3 flex items-center gap-3 rounded-xl border p-3 ${scorePassed ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
+                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ${scorePassed ? "bg-emerald-500" : "bg-rose-500"}`}>{scorePassed ? "✓" : "!"}</span>
+                                <div>
+                                  <div className={`text-[9px] font-bold uppercase tracking-wide ${scorePassed ? "text-emerald-700" : "text-rose-700"}`}>KPI Status</div>
+                                  <div className={`mt-0.5 text-sm font-bold ${scorePassed ? "text-emerald-800" : "text-rose-800"}`}>{scorePassed ? "Passed" : "Not Passed"} · KPI {KPI_QUALITY_SCORE_TARGET}%</div>
+                                </div>
                               </div>
                               {activeSelectedCase.appealStatus ? (
                                 <div className={`mt-3 rounded-xl border p-3 ${activeSelectedCase.appealStatus === "Rejected" ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"}`}>
@@ -7306,7 +7355,7 @@ export default function DashboardMockup({
                               <button
                                 type="button"
                                 onClick={() => setSlideOverOpen(true)}
-                                className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800"
+                                className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-violet-800"
                               >
                                 Open Full Case Detail →
                               </button>
