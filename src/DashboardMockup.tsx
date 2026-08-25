@@ -7249,8 +7249,9 @@ export default function DashboardMockup({
                       <div className="min-w-0 overflow-x-auto border-b border-slate-200 xl:border-b-0 xl:border-r">
                         <div className="min-w-[1080px] bg-slate-50/80 p-3">
                           <div
-                            data-case-record-header-v162="true"
-                            className="relative grid grid-cols-[95px_minmax(130px,0.8fr)_minmax(200px,1.5fr)_90px_90px_80px_80px_60px_100px] items-center gap-2 overflow-hidden rounded-2xl border border-violet-400/70 bg-gradient-to-r from-violet-950 via-violet-800 to-indigo-700 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_8px_22px_rgba(76,29,149,0.18)]"
+                            data-case-record-header-v163="true"
+                            className="relative grid grid-cols-[95px_minmax(130px,0.8fr)_minmax(200px,1.5fr)_90px_90px_80px_80px_60px_100px] items-center gap-2 overflow-hidden rounded-2xl border border-violet-400/70 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_8px_22px_rgba(76,29,149,0.18)]"
+                            style={{ background: "linear-gradient(90deg, #3b0764 0%, #6b21a8 52%, #312e81 100%)" }}
                           >
                             <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-cyan-300" />
                             <span className="pl-1">Case ID</span>
@@ -7258,10 +7259,10 @@ export default function DashboardMockup({
                             <span>Intent</span>
                             <span className="text-center">Case Date</span>
                             <span className="text-center">Audit Date</span>
-                            <span className="text-center leading-3">Original<br />Score</span>
-                            <span className="text-center leading-3">Revised<br />Score</span>
-                            <span className="text-center">Grade</span>
-                            <span className="text-center leading-3">Review<br />Status</span>
+                            <span className="text-center leading-3 text-violet-50">Original<br />Score</span>
+                            <span className="text-center leading-3 text-violet-50">Revised<br />Score</span>
+                            <span className="text-center text-violet-50">Grade</span>
+                            <span className="text-center leading-3 text-violet-50">Review<br />Status</span>
                           </div>
                           <div className="mt-2 max-h-[500px] space-y-2 overflow-y-auto pr-1">
                             {caseExplorerCases.length ? caseExplorerCases.map((item) => {
