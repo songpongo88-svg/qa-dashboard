@@ -2970,6 +2970,11 @@ export default function SummaryMockup({
   );
   const [analyticsCompareOpen, setAnalyticsCompareOpen] = useState(false);
   const [compareDraftPeriods, setCompareDraftPeriods] = useState<string[]>([]);
+  const [compareDraftMode, setCompareDraftMode] = useState<
+    "weekly" | "monthly" | "yearly"
+  >("monthly");
+  const [compareDraftYear, setCompareDraftYear] = useState("all");
+  const [compareDraftMonth, setCompareDraftMonth] = useState("all");
   const [analyticsExportOpen, setAnalyticsExportOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(
     () => window.sessionStorage.getItem("qa_analytics_team_v134") || "all"
@@ -3646,6 +3651,223 @@ export default function SummaryMockup({
       }));
   }, [analysisMode, periodOptions, allCases]);
 
+  const compareDraftMonthOptions = useMemo(() => {
+    const monthKeys = Array.from(
+      new Set(
+        [
+          ...allCases.map((item) => item.monthKey),
+          ...noCaseEvaluations.map(
+            getStoredEvaluationMonthKey
+          ),
+        ].filter(
+          (monthKey) =>
+            /^\d{4}-\d{2}$/.test(monthKey) &&
+            (compareDraftYear === "all" ||
+              monthKey.startsWith(
+                `${compareDraftYear}-`
+              ))
+        )
+      )
+    ).sort((left, right) =>
+      right.localeCompare(left)
+    );
+
+    return monthKeys.map((monthKey) => ({
+      value: monthKey,
+      label: getMonthLabelForKey(
+        monthKey,
+        allCases
+      ),
+    }));
+  }, [
+    allCases,
+    compareDraftYear,
+    noCaseEvaluations,
+  ]);
+
+  const compareDraftPeriodOptions = useMemo(() => {
+    if (compareDraftMode === "weekly") {
+      return Array.from(
+        new Set(
+          allCases
+            .map((item) => item.weekLabel)
+            .filter(
+              (weekLabel) =>
+                weekLabel && weekLabel !== "-"
+            )
+        )
+      )
+        .filter((weekLabel) => {
+          const referenceCase = allCases
+            .filter(
+              (item) =>
+                item.weekLabel === weekLabel
+            )
+            .sort(
+              (left, right) =>
+                (right.auditDateObj?.getTime() ||
+                  0) -
+                (left.auditDateObj?.getTime() ||
+                  0)
+            )[0];
+
+          if (
+            compareDraftYear !== "all" &&
+            referenceCase?.yearKey !==
+              compareDraftYear
+          ) {
+            return false;
+          }
+
+          return (
+            compareDraftMonth === "all" ||
+            referenceCase?.monthKey ===
+              compareDraftMonth
+          );
+        })
+        .sort(
+          (left, right) =>
+            getPeriodRowSortRank(
+              right,
+              "week"
+            ) -
+            getPeriodRowSortRank(
+              left,
+              "week"
+            )
+        );
+    }
+
+    if (compareDraftMode === "monthly") {
+      return Array.from(
+        new Set(
+          [
+            ...allCases.map(
+              (item) => item.monthKey
+            ),
+            ...noCaseEvaluations.map(
+              getStoredEvaluationMonthKey
+            ),
+          ].filter(
+            (monthKey) =>
+              /^\d{4}-\d{2}$/.test(
+                monthKey
+              ) &&
+              (compareDraftYear === "all" ||
+                monthKey.startsWith(
+                  `${compareDraftYear}-`
+                ))
+          )
+        )
+      ).sort((left, right) =>
+        right.localeCompare(left)
+      );
+    }
+
+    return selectableYears;
+  }, [
+    allCases,
+    compareDraftMode,
+    compareDraftMonth,
+    compareDraftYear,
+    noCaseEvaluations,
+    selectableYears,
+  ]);
+
+  const compareWeeklyPeriodGroups = useMemo(() => {
+    if (compareDraftMode !== "weekly") {
+      return [];
+    }
+
+    const grouped = new Map<
+      string,
+      {
+        monthKey: string;
+        monthLabel: string;
+        periods: string[];
+      }
+    >();
+
+    compareDraftPeriodOptions.forEach((period) => {
+      const referenceCase = allCases
+        .filter(
+          (item) =>
+            item.weekLabel === period
+        )
+        .sort(
+          (left, right) =>
+            (right.auditDateObj?.getTime() ||
+              0) -
+            (left.auditDateObj?.getTime() ||
+              0)
+        )[0];
+      const monthKey =
+        referenceCase?.monthKey || "unknown";
+
+      if (!grouped.has(monthKey)) {
+        grouped.set(monthKey, {
+          monthKey,
+          monthLabel:
+            referenceCase?.monthLabel ||
+            "Other",
+          periods: [],
+        });
+      }
+
+      grouped.get(monthKey)!.periods.push(period);
+    });
+
+    return [...grouped.values()]
+      .sort((left, right) =>
+        right.monthKey.localeCompare(
+          left.monthKey
+        )
+      )
+      .map((group) => ({
+        ...group,
+        periods: [...group.periods].sort(
+          (left, right) =>
+            getPeriodRowSortRank(
+              right,
+              "week"
+            ) -
+            getPeriodRowSortRank(
+              left,
+              "week"
+            )
+        ),
+      }));
+  }, [
+    allCases,
+    compareDraftMode,
+    compareDraftPeriodOptions,
+  ]);
+
+  const maxCompareDraftPeriods =
+    compareDraftMode === "monthly" ? 6 : 4;
+
+  const sortCompareDraftPeriodKeys = (
+    values: string[]
+  ) =>
+    [...values].sort((left, right) => {
+      if (compareDraftMode === "weekly") {
+        return (
+          getPeriodRowSortRank(
+            left,
+            "week"
+          ) -
+          getPeriodRowSortRank(
+            right,
+            "week"
+          )
+        );
+      }
+      if (compareDraftMode === "monthly") {
+        return left.localeCompare(right);
+      }
+      return Number(left) - Number(right);
+    });
+
   const maxSelectedPeriods =
     analysisMode === "monthly" ? 6 : 4;
 
@@ -3723,6 +3945,18 @@ export default function SummaryMockup({
 
   const effectivePeriodLabels = effectivePeriodKeys.map(getPeriodDisplayLabel);
   const activeUnifiedPeriodKey = effectivePeriodKeys[effectivePeriodKeys.length - 1] || "";
+
+  const openAnalyticsCompare = () => {
+    setCompareDraftMode(analysisMode);
+    setCompareDraftYear("all");
+    setCompareDraftMonth("all");
+    setCompareDraftPeriods(
+      effectivePeriodKeys.length
+        ? [...effectivePeriodKeys]
+        : periodOptions.slice(0, 1)
+    );
+    setAnalyticsCompareOpen(true);
+  };
 
   useEffect(() => {
     if (!embedded || summarySection !== "summary" || !activeUnifiedPeriodKey) return;
@@ -8748,7 +8982,6 @@ export default function SummaryMockup({
                       setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
                     }} className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white hover:bg-violet-800">Exit Compare</button>
                   ) : null}
-                  <button type="button" onClick={() => setAnalyticsCustomizeOpen(true)} className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50">Customize</button>
                   <div className="relative">
                     <button
                       type="button"
@@ -8766,10 +8999,7 @@ export default function SummaryMockup({
                       </div>
                     ) : null}
                   </div>
-                  <button type="button" onClick={() => {
-                    setCompareDraftPeriods(effectivePeriodKeys.length ? [...effectivePeriodKeys] : periodOptions.slice(0, 1));
-                    setAnalyticsCompareOpen(true);
-                  }} className="h-10 rounded-xl border border-violet-700 bg-violet-700 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-800">Compare</button>
+                  <button type="button" onClick={openAnalyticsCompare} className="h-10 rounded-xl border border-violet-700 bg-violet-700 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-800">Compare</button>
                 </div>
               </div>
 
@@ -8806,10 +9036,17 @@ export default function SummaryMockup({
                         onChange={(event) => setSelectedPeriods(event.target.value ? [event.target.value] : [])}
                         className="h-12 w-full rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
                       >
-                        {weeklyPeriodGroups.map((group) => (
-                          <optgroup key={group.monthKey} label={group.monthLabel}>
-                            {group.periods.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
-                          </optgroup>
+                        {weeklyPeriodGroups.map((group, groupIndex) => (
+                          <React.Fragment key={group.monthKey}>
+                            <optgroup label={group.monthLabel}>
+                              {group.periods.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
+                            </optgroup>
+                            {groupIndex < weeklyPeriodGroups.length - 1 ? (
+                              <option disabled value={`__separator_${group.monthKey}`}>
+                                ----------------------------
+                              </option>
+                            ) : null}
+                          </React.Fragment>
                         ))}
                       </select>
                     ) : (
@@ -8941,13 +9178,6 @@ export default function SummaryMockup({
                 setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
               }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700">Exit Compare</button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => setAnalyticsCustomizeOpen(true)}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700"
-            >
-              Customize
-            </button>
             <div className="relative">
               <button
                 type="button"
@@ -8974,10 +9204,7 @@ export default function SummaryMockup({
                 </div>
               ) : null}
             </div>
-            <button type="button" onClick={() => {
-              setCompareDraftPeriods(effectivePeriodKeys.length ? [...effectivePeriodKeys] : periodOptions.slice(0, 1));
-              setAnalyticsCompareOpen(true);
-            }} className="rounded-xl border border-violet-400 bg-white px-4 py-2.5 text-xs font-medium text-violet-700 shadow-sm hover:bg-violet-50">Compare</button>
+            <button type="button" onClick={openAnalyticsCompare} className="rounded-xl border border-violet-400 bg-white px-4 py-2.5 text-xs font-medium text-violet-700 shadow-sm hover:bg-violet-50">Compare</button>
             </div>
         </div>
       </div> : null}
@@ -9614,35 +9841,210 @@ export default function SummaryMockup({
 
             {analyticsCompareOpen ? (
               <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/45 p-4">
-                <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-[22px] border border-slate-200 bg-white shadow-2xl">
+                <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[22px] border border-slate-200 bg-white shadow-2xl">
                   <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
-                    <div><div className="text-lg font-semibold text-slate-900">Compare Periods</div><div className="mt-1 text-xs font-normal text-slate-500">{reportModeName} · เลือก 2–{maxSelectedPeriods} ช่วง</div></div>
+                    <div>
+                      <div className="text-lg font-semibold text-slate-900">Compare Periods</div>
+                      <div className="mt-1 text-xs font-normal text-slate-500">
+                        เลือกประเภทช่วงเวลา ปี และเดือนที่ต้องการเปรียบเทียบ · เลือก 2–{maxCompareDraftPeriods} ช่วง
+                      </div>
+                    </div>
                     <button type="button" onClick={() => setAnalyticsCompareOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50">×</button>
                   </div>
-                  <div className="p-6">
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {periodOptions.map((period) => {
-                        const checked = compareDraftPeriods.includes(period);
-                        const disabled = !checked && compareDraftPeriods.length >= maxSelectedPeriods;
-                        return (
-                          <button key={period} type="button" disabled={disabled} onClick={() => {
-                            if (checked) {
-                              setCompareDraftPeriods(compareDraftPeriods.filter((item) => item !== period));
-                            } else if (!disabled) {
-                              setCompareDraftPeriods(sortPeriodKeys([...compareDraftPeriods, period]));
+                  <div className="space-y-5 p-6">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div>
+                        <FilterLabel>Time View</FilterLabel>
+                        <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl border border-violet-200 bg-violet-50 p-1">
+                          {[
+                            { value: "weekly", label: "Weekly" },
+                            { value: "monthly", label: "Monthly" },
+                            { value: "yearly", label: "Yearly" },
+                          ].map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setCompareDraftMode(
+                                  option.value as
+                                    | "weekly"
+                                    | "monthly"
+                                    | "yearly"
+                                );
+                                setCompareDraftYear("all");
+                                setCompareDraftMonth("all");
+                                setCompareDraftPeriods([]);
+                              }}
+                              className={
+                                "rounded-lg px-2 py-2.5 text-[11px] font-medium transition " +
+                                (compareDraftMode === option.value
+                                  ? "bg-violet-700 text-white shadow-sm"
+                                  : "bg-white text-violet-700 hover:bg-violet-100")
+                              }
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {compareDraftMode !== "yearly" ? (
+                        <div>
+                          <FilterLabel>Year</FilterLabel>
+                          <select
+                            value={compareDraftYear}
+                            onChange={(event) => {
+                              setCompareDraftYear(event.target.value);
+                              setCompareDraftMonth("all");
+                            }}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                          >
+                            <option value="all">All Years</option>
+                            {selectableYears.map((year) => (
+                              <option key={year} value={year}>
+                                {year}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
+
+                      {compareDraftMode === "weekly" ? (
+                        <div>
+                          <FilterLabel>Month</FilterLabel>
+                          <select
+                            value={compareDraftMonth}
+                            onChange={(event) =>
+                              setCompareDraftMonth(event.target.value)
                             }
-                          }} className={"flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-normal transition " + (checked ? "border-violet-400 bg-violet-50 text-violet-800" : disabled ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300")}>
-                            <span>{getPeriodDisplayLabel(period)}</span><span>{checked ? "✓" : ""}</span>
-                          </button>
-                        );
-                      })}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                          >
+                            <option value="all">All Months</option>
+                            {compareDraftMonthOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
                     </div>
+
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <FilterLabel>
+                          {compareDraftMode === "weekly"
+                            ? "Select Weeks"
+                            : compareDraftMode === "monthly"
+                              ? "Select Months"
+                              : "Select Years"}
+                        </FilterLabel>
+                        <div className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-medium text-violet-700">
+                          {compareDraftPeriods.length}/{maxCompareDraftPeriods}
+                        </div>
+                      </div>
+
+                      <div className="mt-2 max-h-[360px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                        {(compareDraftMode === "weekly"
+                          ? compareWeeklyPeriodGroups
+                          : [
+                              {
+                                monthKey: "all",
+                                monthLabel: "",
+                                periods: compareDraftPeriodOptions,
+                              },
+                            ]
+                        ).map((group, groupIndex) => (
+                          <div
+                            key={group.monthKey}
+                            className={
+                              groupIndex > 0
+                                ? "mt-4 border-t border-dashed border-slate-300 pt-4"
+                                : ""
+                            }
+                          >
+                            {compareDraftMode === "weekly" ? (
+                              <div className="mb-2 flex items-center gap-3">
+                                <div className="text-xs font-semibold text-slate-700">
+                                  {group.monthLabel}
+                                </div>
+                                <div className="h-px flex-1 border-t border-dashed border-slate-300" />
+                              </div>
+                            ) : null}
+
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                              {group.periods.map((period) => {
+                                const checked = compareDraftPeriods.includes(period);
+                                const disabled =
+                                  !checked &&
+                                  compareDraftPeriods.length >= maxCompareDraftPeriods;
+
+                                return (
+                                  <button
+                                    key={period}
+                                    type="button"
+                                    disabled={disabled}
+                                    onClick={() => {
+                                      if (checked) {
+                                        setCompareDraftPeriods(
+                                          compareDraftPeriods.filter(
+                                            (item) => item !== period
+                                          )
+                                        );
+                                      } else if (!disabled) {
+                                        setCompareDraftPeriods(
+                                          sortCompareDraftPeriodKeys([
+                                            ...compareDraftPeriods,
+                                            period,
+                                          ])
+                                        );
+                                      }
+                                    }}
+                                    className={
+                                      "flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-normal transition " +
+                                      (checked
+                                        ? "border-violet-400 bg-violet-50 text-violet-800"
+                                        : disabled
+                                          ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
+                                          : "border-slate-200 bg-white text-slate-600 hover:border-violet-300")
+                                    }
+                                  >
+                                    <span>
+                                      {compareDraftMode === "monthly"
+                                        ? getMonthLabelForKey(period, allCases)
+                                        : period}
+                                    </span>
+                                    <span>{checked ? "✓" : ""}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+
+                        {!compareDraftPeriodOptions.length ? (
+                          <div className="px-4 py-10 text-center text-sm font-normal text-slate-400">
+                            No periods available for the selected filters
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
                     <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-5">
-                      <div className="text-xs font-normal text-slate-500">{compareDraftPeriods.length}/{maxSelectedPeriods} selected</div>
+                      <div className="text-xs font-normal text-slate-500">
+                        ใช้ Team และ Agent ที่เลือกอยู่บนหน้าหลัก
+                      </div>
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setAnalyticsCompareOpen(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
                         <button type="button" disabled={compareDraftPeriods.length < 2} onClick={() => {
-                          setSelectedPeriods(sortPeriodKeys(compareDraftPeriods));
+                          const nextPeriods = sortCompareDraftPeriodKeys(compareDraftPeriods);
+                          setAnalysisMode(compareDraftMode);
+                          setSelectedPeriods(nextPeriods);
+                          setPeriodFilterYear(compareDraftYear);
+                          setPeriodFilterMonth(compareDraftMonth);
+                          if (compareDraftMode === "monthly") {
+                            setTeamSelectedMonth(nextPeriods[nextPeriods.length - 1] || "");
+                          }
                           setAnalyticsCompareOpen(false);
                         }} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Compare</button>
                       </div>
