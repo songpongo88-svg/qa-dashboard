@@ -7316,22 +7316,21 @@ export default function DashboardMockup({
 
                     <div className="grid min-w-0 xl:grid-cols-[minmax(0,2.5fr)_minmax(340px,0.85fr)]">
                       <div className="min-w-0 overflow-x-auto border-b border-slate-200 xl:border-b-0 xl:border-r">
-                        <div className="min-w-[1080px] bg-slate-50/80 p-3">
+                        <div className="min-w-[980px] bg-slate-50/80 p-3">
                           <div
                             data-case-record-header-v163="true"
-                            className="relative grid grid-cols-[95px_minmax(130px,0.8fr)_minmax(200px,1.5fr)_90px_90px_80px_80px_60px_100px] items-center gap-2 overflow-hidden rounded-2xl border border-violet-400/70 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_8px_22px_rgba(76,29,149,0.18)]"
+                            className="relative grid grid-cols-[90px_95px_minmax(130px,0.8fr)_minmax(220px,1.6fr)_90px_80px_60px_110px] items-center gap-2 overflow-hidden rounded-2xl border border-violet-400/70 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_8px_22px_rgba(76,29,149,0.18)]"
                             style={{ background: "linear-gradient(90deg, #3b0764 0%, #6b21a8 52%, #312e81 100%)" }}
                           >
                             <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-cyan-300" />
-                            <span className="pl-1">Case ID</span>
+                            <span className="pl-1 text-center">Case Date</span>
+                            <span>Case ID</span>
                             <span>Agent</span>
                             <span>Intent</span>
-                            <span className="text-center">Case Date</span>
                             <span className="text-center">Audit Date</span>
-                            <span className="text-center leading-3 text-violet-50">Original<br />Score</span>
-                            <span className="text-center leading-3 text-violet-50">Revised<br />Score</span>
+                            <span className="text-center text-violet-50">Score</span>
                             <span className="text-center text-violet-50">Grade</span>
-                            <span className="text-center leading-3 text-violet-50">Review<br />Status</span>
+                            <span className="text-center leading-3 text-violet-50">KPI<br />Status</span>
                           </div>
                           <div className="mt-2 max-h-[500px] space-y-2 overflow-y-auto pr-1">
                             {caseExplorerCases.length ? caseExplorerCases.map((item) => {
@@ -7339,15 +7338,6 @@ export default function DashboardMockup({
                               const intent = splitCaseNavigatorIntent(item.inquiryTh, item.inquiryEn);
                               const scorePassed = item.finalScore >= KPI_QUALITY_SCORE_TARGET;
                               const hasAppealChange = item.appealStatus === "Approved" || item.reviewStatus === "Revised";
-                              const originalScore = typeof item.previousScore === "number" ? item.previousScore : item.finalScore;
-                              const statusLabel = item.appealStatus || item.reviewStatus;
-                              const statusTone = item.appealStatus === "Rejected"
-                                ? "border-rose-200 bg-rose-50 text-rose-700"
-                                : item.appealStatus === "Approved"
-                                  ? "border-sky-200 bg-sky-50 text-sky-700"
-                                  : item.reviewStatus === "Revised"
-                                    ? "border-sky-200 bg-sky-50 text-sky-700"
-                                  : "border-slate-200 bg-slate-100 text-slate-700";
                               return (
                                 <div
                                   key={item.key}
@@ -7366,7 +7356,7 @@ export default function DashboardMockup({
                                     setSelectedCaseKey(item.key);
                                     setSlideOverOpen(false);
                                   }}
-                                  className={`group relative grid w-full cursor-pointer grid-cols-[95px_minmax(130px,0.8fr)_minmax(200px,1.5fr)_90px_90px_80px_80px_60px_100px] items-center gap-2 overflow-hidden rounded-2xl border px-4 py-3 text-left text-xs transition-all duration-200 ${
+                                  className={`group relative grid w-full cursor-pointer grid-cols-[90px_95px_minmax(130px,0.8fr)_minmax(220px,1.6fr)_90px_80px_60px_110px] items-center gap-2 overflow-hidden rounded-2xl border px-4 py-3 text-left text-xs transition-all duration-200 ${
                                     isSelected
                                       ? "border-violet-400 bg-gradient-to-r from-violet-50 via-white to-white shadow-[0_8px_22px_rgba(109,40,217,0.12)]"
                                       : hasAppealChange
@@ -7377,7 +7367,8 @@ export default function DashboardMockup({
                                   }`}
                                 >
                                   <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${hasAppealChange ? "bg-sky-500" : scorePassed ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                  <span className="min-w-0 cursor-text select-text pl-1">
+                                  <span className="cursor-text select-text pl-1 text-center font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
+                                  <span className="min-w-0 cursor-text select-text">
                                     <span className="block font-bold text-slate-950">{item.caseId}</span>
                                     {isSelected ? <span className="mt-1 block text-[9px] font-bold text-violet-700">Selected case</span> : hasAppealChange ? <span className="mt-1 block text-[9px] font-bold text-sky-700">Appeal updated</span> : null}
                                   </span>
@@ -7388,12 +7379,10 @@ export default function DashboardMockup({
                                     <span className={`block truncate font-semibold ${hasAppealChange ? "text-sky-900" : scorePassed ? "text-slate-900" : "text-rose-700"}`} title={intent.thai}>{intent.thai}</span>
                                     {intent.english ? <span className={`mt-1 block truncate text-[10px] font-medium ${hasAppealChange ? "text-sky-600" : scorePassed ? "text-slate-500" : "text-rose-500"}`} title={intent.english}>{intent.english}</span> : null}
                                   </span>
-                                  <span className="cursor-text select-text font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
-                                  <span className="cursor-text select-text font-medium text-slate-700">{item.evaluationAuditDate || formatAuditDateForDisplay(item.auditTimestamp) || "-"}</span>
-                                  <span className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${hasAppealChange ? "bg-slate-100 text-slate-700" : scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{originalScore.toFixed(2)}</span>
-                                  {hasAppealChange ? <span className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{item.finalScore.toFixed(2)}</span> : <span className="cursor-text select-text px-2.5 text-center font-bold text-slate-400">—</span>}
+                                  <span className="cursor-text select-text text-center font-medium text-slate-700">{item.evaluationAuditDate || formatAuditDateForDisplay(item.auditTimestamp) || "-"}</span>
+                                  <span className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{item.finalScore.toFixed(2)}</span>
                                   <span className={`inline-flex h-8 w-8 cursor-text select-text items-center justify-center rounded-lg border font-bold ${gradeTone(item.grade)}`}>{item.grade}</span>
-                                  <span className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusTone}`}>{statusLabel}</span>
+                                  <span className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${scorePassed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scorePassed ? "KPI Passed" : "KPI Not Passed"}</span>
                                 </div>
                               );
                             }) : (
