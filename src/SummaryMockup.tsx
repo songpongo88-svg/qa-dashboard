@@ -11526,7 +11526,7 @@ export default function SummaryMockup({
                           }}
                         >
                           <div className="absolute inset-[20px] flex flex-col items-center justify-center rounded-full bg-white shadow-inner">
-                            <div className="text-2xl font-semibold text-violet-700">
+                            <div className="max-w-full whitespace-nowrap text-xl font-semibold leading-none tracking-tight text-violet-700">
                               {comparisonChartAnalytics.originalPct.toFixed(0)}%
                             </div>
                             <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
