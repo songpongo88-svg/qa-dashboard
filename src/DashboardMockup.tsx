@@ -4367,18 +4367,33 @@ export default function DashboardMockup({
       externalSelectedMonthKey !== selectedMonthKey
     ) {
       setSelectedMonthKey(externalSelectedMonthKey);
-      if (externalSelectedMonthKey === "all") {
-        setDateFrom("");
-        setDateTo("");
-      }
     }
     const externalYear =
       String(externalSelectedYear || "").match(/^\d{4}$/)?.[0] ||
       String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
+
+    // The embedded Yearly view represents the complete selected year. Clear a
+    // stale month/date range even when the shared month value was already "all".
+    if (
+      externalSelectedMonthKey === "all" &&
+      externalYear &&
+      (dateFrom || dateTo)
+    ) {
+      setDateFrom("");
+      setDateTo("");
+    }
+
     if (externalYear && externalYear !== selectedYear) {
       setSelectedYear(externalYear);
     }
-  }, [externalSelectedMonthKey, externalSelectedYear, selectedMonthKey, selectedYear]);
+  }, [
+    dateFrom,
+    dateTo,
+    externalSelectedMonthKey,
+    externalSelectedYear,
+    selectedMonthKey,
+    selectedYear,
+  ]);
 
   useEffect(() => {
     if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
@@ -6552,7 +6567,12 @@ export default function DashboardMockup({
             </div>
           </section> : null}
           <div id="qa-dashboard-results-v36" className="scroll-mt-4 space-y-6">
-            {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
+            {(
+              (dashboardSubTab === "overview" && canViewAnalytics && Boolean(analyticsContent)) ||
+              dashboardCases.length > 0 ||
+              Boolean(caseIdSearch.trim()) ||
+              Boolean(effectiveSelectedAgent)
+            ) ? (
               dashboardSubTab === "overview" ? (
                 <>
                   <div
