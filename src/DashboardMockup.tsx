@@ -4448,6 +4448,17 @@ export default function DashboardMockup({
     setCaseSearchFeedback("idle");
   };
 
+  useEffect(() => {
+    const pendingCaseId = caseIdSearch.trim();
+    if (!pendingCaseId || caseSearchFeedback !== "idle") return;
+
+    const timerId = window.setTimeout(() => {
+      runCaseSearch(pendingCaseId);
+    }, 350);
+
+    return () => window.clearTimeout(timerId);
+  }, [caseIdSearch, caseSearchFeedback]);
+
   const clearCaseSearchHistory = () => {
     setCaseSearchHistory([]);
     try {
@@ -6150,10 +6161,10 @@ export default function DashboardMockup({
       : quickAgentOptions;
 
   const renderDashboardSearchControls = () => (
-    <div data-search-evaluation-primary-v166="true" className="min-w-0">
+    <div data-search-evaluation-primary-v166="true" data-search-evaluation-auto-v168="true" className="min-w-0">
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Evaluation ID</div>
-        <div className="text-[10px] font-bold text-emerald-700">ค้นหาได้ทุกเดือนภายใต้สิทธิ์ของคุณ</div>
+        <div className="text-[10px] font-bold text-emerald-700">พิมพ์หรือวาง Case ID เพื่อค้นหาอัตโนมัติทุกเดือน</div>
       </div>
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
         <input
