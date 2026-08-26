@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -4231,6 +4231,9 @@ export default function DashboardMockup({
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
+  const [caseSearchSubmitNonce, setCaseSearchSubmitNonce] = useState(0);
+  const [caseSearchFeedback, setCaseSearchFeedback] = useState<"idle" | "found" | "multiple" | "not-found">("idle");
+  const caseSearchHandledNonceRef = useRef(0);
   const [caseSearchHistory, setCaseSearchHistory] = useState<string[]>([]);
   const [caseSearchHistoryOpen, setCaseSearchHistoryOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(firstDayOfCurrentMonth));
@@ -4422,6 +4425,7 @@ export default function DashboardMockup({
   const runCaseSearch = (rawCaseId = caseIdSearch) => {
     const normalized = String(rawCaseId || "").trim().toUpperCase();
     setCaseIdSearch(normalized);
+    setCaseSearchFeedback("idle");
     if (normalized) {
       setSelectedWeek("all");
       onSelectedWeekChange?.("all");
@@ -4432,9 +4436,7 @@ export default function DashboardMockup({
     setCaseSearchHistoryOpen(false);
     if (normalized) {
       rememberCaseSearch(normalized);
-      window.setTimeout(() => {
-        document.getElementById("qa-unified-case-explorer-v160")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 0);
+      setCaseSearchSubmitNonce((current) => current + 1);
     }
   };
 
@@ -4443,6 +4445,7 @@ export default function DashboardMockup({
     setSelectedCaseKey("");
     setSlideOverOpen(false);
     setCaseSearchHistoryOpen(false);
+    setCaseSearchFeedback("idle");
   };
 
   const clearCaseSearchHistory = () => {
@@ -5545,6 +5548,45 @@ export default function DashboardMockup({
       .sort(compareCaseAuditDateAndWaitingTime);
   }, [authorizedSearchCases, caseIdSearch, dashboardCases]);
 
+  useEffect(() => {
+    if (!caseSearchSubmitNonce || caseSearchHandledNonceRef.current === caseSearchSubmitNonce) return;
+    caseSearchHandledNonceRef.current = caseSearchSubmitNonce;
+
+    const normalized = caseIdSearch.trim().toLowerCase();
+    if (!normalized) return;
+
+    if (!caseExplorerCases.length) {
+      setCaseSearchFeedback("not-found");
+      return;
+    }
+
+    const exactMatch = caseExplorerCases.find(
+      (item) => String(item.caseId || "").trim().toLowerCase() === normalized
+    );
+    const targetCase = exactMatch || (caseExplorerCases.length === 1 ? caseExplorerCases[0] : null);
+
+    if (targetCase) {
+      setSelectedCaseKey(targetCase.key);
+      setCaseSearchFeedback("found");
+    } else {
+      setCaseSearchFeedback("multiple");
+    }
+
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        document
+          .getElementById("qa-unified-case-explorer-v160")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [caseExplorerCases, caseIdSearch, caseSearchSubmitNonce]);
+
   const revisedCount = useMemo(
     () => dashboardCasesBase.filter((item) => item.reviewStatus === "Revised").length,
     [dashboardCasesBase]
@@ -6121,6 +6163,7 @@ export default function DashboardMockup({
             setCaseIdSearch(event.target.value);
             setSelectedCaseKey("");
             setSlideOverOpen(false);
+            setCaseSearchFeedback("idle");
           }}
           onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
           placeholder="Search any authorized Evaluation ID"
@@ -6130,8 +6173,22 @@ export default function DashboardMockup({
         <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">Clear</button>
       </div>
       {caseIdSearch.trim() ? (
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-800">
-          <span>ค้นหาทุกเดือนแล้ว โดยคะแนนสรุปยังยึด Period, Team และ Agent ที่เลือก</span>
+        <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[10px] font-semibold ${
+          caseSearchFeedback === "not-found"
+            ? "border-rose-200 bg-rose-50 text-rose-700"
+            : caseSearchFeedback === "found"
+              ? "border-violet-200 bg-violet-50 text-violet-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+        }`}>
+          <span>
+            {caseSearchFeedback === "not-found"
+              ? "ไม่พบ Evaluation ID นี้ภายใต้สิทธิ์การเข้าถึงของคุณ"
+              : caseSearchFeedback === "found"
+                ? "พบ Case แล้ว · ระบบเลือก Case และเลื่อนไปยังรายละเอียดให้แล้ว"
+                : caseSearchFeedback === "multiple"
+                  ? "พบหลาย Case · ระบบเลื่อนไปยังรายการเพื่อให้เลือก Case ที่ต้องการ"
+                  : "ค้นหาได้ทุกเดือน โดยคะแนนสรุปยังยึด Period, Team และ Agent ที่เลือก"}
+          </span>
           <span>{overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}</span>
         </div>
       ) : null}
@@ -6444,6 +6501,7 @@ export default function DashboardMockup({
                           setCaseIdSearch(event.target.value);
                           setSelectedCaseKey("");
                           setSlideOverOpen(false);
+                          setCaseSearchFeedback("idle");
                         }}
                         onKeyDown={(event) => {
                           if (event.key === "Enter") runCaseSearch();
