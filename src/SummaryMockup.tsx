@@ -9959,16 +9959,21 @@ export default function SummaryMockup({
                             key={group.monthKey}
                             className={
                               groupIndex > 0
-                                ? "mt-4 border-t border-dashed border-slate-300 pt-4"
+                                ? "mt-5"
                                 : ""
                             }
                           >
                             {compareDraftMode === "weekly" ? (
-                              <div className="mb-2 flex items-center gap-3">
-                                <div className="text-xs font-semibold text-slate-700">
-                                  {group.monthLabel}
+                              <div className="sticky top-0 z-10 mb-2 flex items-center justify-between rounded-xl border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-white px-3 py-2 shadow-[0_3px_10px_rgba(76,29,149,0.05)]">
+                                <div className="flex items-center gap-2.5">
+                                  <span className="h-5 w-1 rounded-full bg-gradient-to-b from-violet-600 to-pink-500" />
+                                  <div className="text-xs font-semibold text-slate-800">
+                                    {group.monthLabel}
+                                  </div>
                                 </div>
-                                <div className="h-px flex-1 border-t border-dashed border-slate-300" />
+                                <div className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-medium text-violet-700">
+                                  {group.periods.length} {group.periods.length === 1 ? "week" : "weeks"}
+                                </div>
                               </div>
                             ) : null}
 
