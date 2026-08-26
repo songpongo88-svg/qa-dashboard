@@ -5463,7 +5463,9 @@ export default function DashboardMockup({
       return agentCases.filter((item) => item.monthKey === selectedMonthKey);
     }
     if (!dateFrom && !dateTo && /^\d{4}$/.test(selectedYear)) {
-      return agentCases.filter((item) => item.yearKey === selectedYear);
+      return agentCases.filter(
+        (item) => String(item.monthKey || "").slice(0, 4) === selectedYear
+      );
     }
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
   }, [agentCases, dateFrom, dateTo, selectedMonthKey, selectedYear]);
@@ -5681,14 +5683,24 @@ export default function DashboardMockup({
       ? getEffectiveMonthKeyFromDateRange(dateFrom, dateTo)
       : selectedMonthKey;
   const isMonthlyView = selectedMonthKey !== "all";
+  const isYearlyView =
+    !isMonthlyView &&
+    !dateFrom &&
+    !dateTo &&
+    /^\d{4}$/.test(selectedYear);
 
   const kpiScoreTarget = getKpiScoreTarget(effectiveViewMonthKey);
   const kpiPeriodCases = useMemo(() => {
     if (selectedMonthKey && selectedMonthKey !== "all") {
       return agentCases.filter((item) => item.monthKey === selectedMonthKey);
     }
+    if (isYearlyView) {
+      return agentCases.filter(
+        (item) => String(item.monthKey || "").slice(0, 4) === selectedYear
+      );
+    }
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
-  }, [agentCases, dateFrom, dateTo, selectedMonthKey]);
+  }, [agentCases, dateFrom, dateTo, isYearlyView, selectedMonthKey, selectedYear]);
 
   const hasNoCaseMonthlyResult = useMemo(() => {
     if (
@@ -5984,16 +5996,28 @@ export default function DashboardMockup({
   }, [dashboardCases]);
 
   const currentViewingMonthLabel =
-    selectedMonthKey === "all"
+    isYearlyView
+      ? `Year ${selectedYear}`
+      : selectedMonthKey === "all"
       ? dateFrom || dateTo
         ? getMonthLabel(new Date(Number(effectiveViewMonthKey.slice(0, 4)), Number(effectiveViewMonthKey.slice(5, 7)) - 1, 1))
         : "All History"
       : monthOptions.find((m) => m.value === selectedMonthKey)?.label || "-";
 
   const dashboardEvaluationTarget = kpiScopeSummary.volumeTarget;
+  const yearlyGrade: Grade | null =
+    isYearlyView && metricCaseCount > 0
+      ? scoreToGrade(Number(metricAverageDisplay), `${selectedYear}-12`)
+      : null;
 
   const kpiStatusLabel =
-    !isMonthlyView
+    isYearlyView
+      ? kpiScopeSummary.caseCount === 0
+        ? "Not Started"
+        : kpiScopeSummary.scorePassed
+          ? "Passed"
+          : "Not Passed"
+      : !isMonthlyView
       ? "Select Month"
       : kpiScopeSummary.status === "passed"
       ? "Passed"
@@ -6034,7 +6058,9 @@ export default function DashboardMockup({
     {
       label: "Cases Evaluated",
       value: String(metricCaseCount),
-      note: `${Math.min(metricCaseCount, dashboardEvaluationTarget)}/${dashboardEvaluationTarget} monthly target`,
+      note: isYearlyView
+        ? `${metricCaseCount} case(s) evaluated in ${selectedYear}`
+        : `${Math.min(metricCaseCount, dashboardEvaluationTarget)}/${dashboardEvaluationTarget} monthly target`,
       icon: "▤",
       iconTone: "bg-sky-50 text-sky-600",
       valueTone: "text-slate-900",
@@ -6049,15 +6075,29 @@ export default function DashboardMockup({
     },
     {
       label: "Overall Grade",
-      value: monthlyAgentCompleted && monthlyAgentGrade ? monthlyAgentGrade : "Pending",
-      note: monthlyAgentCompleted
-        ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).level
-        : currentGradeDisplay && currentGradeDisplay !== "-"
-          ? `Current score band: ${currentGradeDisplay} · Finalizes after ${dashboardEvaluationTarget} evaluated cases`
-          : `Finalizes after ${dashboardEvaluationTarget} evaluated cases`,
+      value: isYearlyView
+        ? yearlyGrade || "No Data"
+        : monthlyAgentCompleted && monthlyAgentGrade
+          ? monthlyAgentGrade
+          : "Pending",
+      note: isYearlyView
+        ? yearlyGrade
+          ? `Annual score band · ${currentGradeTone(yearlyGrade).level}`
+          : `No evaluated cases in ${selectedYear}`
+        : monthlyAgentCompleted
+          ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).level
+          : currentGradeDisplay && currentGradeDisplay !== "-"
+            ? `Current score band: ${currentGradeDisplay} · Finalizes after ${dashboardEvaluationTarget} evaluated cases`
+            : `Finalizes after ${dashboardEvaluationTarget} evaluated cases`,
       icon: "◇",
       iconTone: "bg-fuchsia-50 text-fuchsia-600",
-      valueTone: monthlyAgentCompleted ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).levelText : "text-amber-700",
+      valueTone: isYearlyView
+        ? yearlyGrade
+          ? currentGradeTone(yearlyGrade).levelText
+          : "text-slate-500"
+        : monthlyAgentCompleted
+          ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).levelText
+          : "text-amber-700",
     },
   ];
 
