@@ -2236,6 +2236,8 @@ function AnalyticsOverviewV89({
   summary,
   cases,
   trendRows,
+  trendMode,
+  trendPeriodLabel = "",
   monthlyMode,
   individualMode,
   noCaseMonthKey,
@@ -2251,6 +2253,8 @@ function AnalyticsOverviewV89({
       scoreDelta?: number | null;
     }
   >;
+  trendMode: "weekly" | "monthly" | "yearly";
+  trendPeriodLabel?: string;
   monthlyMode: boolean;
   individualMode: boolean;
   noCaseMonthKey?: string;
@@ -2405,7 +2409,30 @@ function AnalyticsOverviewV89({
       : "#e2e8f0";
 
   const visibleTrend =
-    trendRows.slice(0, 3);
+    trendMode === "monthly"
+      ? trendRows.slice(0, 3)
+      : trendRows;
+  const trendSubtitle =
+    trendMode === "weekly"
+      ? `All weeks in ${
+          trendPeriodLabel ||
+          "the selected month"
+        } · oldest week first`
+      : trendMode === "yearly"
+        ? "All years with available data · oldest year first"
+        : "Latest 3 calendar months · newest month first";
+  const trendCountLabel =
+    trendMode === "monthly"
+      ? `${visibleTrend.length}/3 months`
+      : `${visibleTrend.length} ${
+          trendMode === "weekly"
+            ? visibleTrend.length === 1
+              ? "week"
+              : "weeks"
+            : visibleTrend.length === 1
+              ? "year"
+              : "years"
+        }`;
   const trendScores =
     visibleTrend.map(
       (row) => row.avgScore
@@ -2632,12 +2659,12 @@ function AnalyticsOverviewV89({
                 Quality Score Trend
               </div>
               <div className="mt-1 text-[10px] font-normal text-slate-500">
-                Latest 3 calendar months · newest month first
+                {trendSubtitle}
               </div>
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-normal text-slate-500">
-              {visibleTrend.length}/3 months
+              {trendCountLabel}
             </div>
           </div>
 
@@ -3973,24 +4000,137 @@ export default function SummaryMockup({
   );
 
   const qualityScoreTrendRows = useMemo(() => {
+    const matchesTrendScope =
+      (item: CaseItem) => {
+        if (
+          roleScopedAgentList.length &&
+          !roleScopedAgentList.some(
+            (agent) =>
+              isSameAgent(
+                item.agent,
+                agent
+              )
+          )
+        ) {
+          return false;
+        }
+
+        if (selectedTeam !== "all") {
+          const account =
+            getAccountStatus(
+              item.agent,
+              accountProfiles
+            );
+          if (
+            normalizeText(
+              getSummaryTeamName(account)
+            ) !==
+            normalizeText(selectedTeam)
+          ) {
+            return false;
+          }
+        }
+
+        return (
+          effectiveSelectedAgent ===
+            "all" ||
+          isSameAgent(
+            item.agent,
+            effectiveSelectedAgent
+          )
+        );
+      };
+    const scopedTrendCases =
+      allCases.filter(matchesTrendScope);
+
+    if (analysisMode === "yearly") {
+      return groupCases(
+        scopedTrendCases,
+        "year"
+      ).sort((left, right) => {
+        const rankDiff =
+          getPeriodRowSortRank(
+            left.label,
+            "year"
+          ) -
+          getPeriodRowSortRank(
+            right.label,
+            "year"
+          );
+        return (
+          rankDiff ||
+          left.label.localeCompare(
+            right.label
+          )
+        );
+      });
+    }
+
+    if (analysisMode === "weekly") {
+      const referenceCase = allCases
+        .filter(
+          (item) =>
+            item.weekLabel ===
+            activeUnifiedPeriodKey
+        )
+        .sort(
+          (left, right) =>
+            (right.auditDateObj?.getTime() ||
+              0) -
+            (left.auditDateObj?.getTime() ||
+              0)
+        )[0];
+      const anchorMonthKey =
+        referenceCase?.monthKey || "";
+
+      if (
+        !/^\d{4}-\d{2}$/.test(
+          anchorMonthKey
+        )
+      ) {
+        return [];
+      }
+
+      return groupCases(
+        scopedTrendCases.filter(
+          (item) =>
+            item.monthKey ===
+            anchorMonthKey
+        ),
+        "week"
+      ).sort((left, right) => {
+        const rankDiff =
+          getPeriodRowSortRank(
+            left.label,
+            "week"
+          ) -
+          getPeriodRowSortRank(
+            right.label,
+            "week"
+          );
+        return (
+          rankDiff ||
+          left.label.localeCompare(
+            right.label
+          )
+        );
+      });
+    }
+
     const selectedMonthlyKey =
-      analysisMode === "monthly"
-        ? effectivePeriodKeys[
-            effectivePeriodKeys.length - 1
-          ] || ""
-        : "";
+      effectivePeriodKeys[
+        effectivePeriodKeys.length - 1
+      ] || "";
     const anchorMonthKey =
       selectedMonthlyKey ||
       getLatestMonthKey(
-        filteredCases.length
-          ? filteredCases
+        scopedTrendCases.length
+          ? scopedTrendCases
           : allCases
       );
 
     if (!/^\d{4}-\d{2}$/.test(anchorMonthKey)) {
-      return [...comparisonRowsWithDelta]
-        .slice(-3)
-        .reverse();
+      return [];
     }
 
     const newestFirstRows =
@@ -4001,57 +4141,10 @@ export default function SummaryMockup({
         .reverse()
         .map((monthKey) => {
           const monthCases =
-            allCases.filter((item) => {
-              if (
-                item.monthKey !== monthKey
-              ) {
-                return false;
-              }
-
-              if (
-                roleScopedAgentList.length &&
-                !roleScopedAgentList.some(
-                  (agent) =>
-                    isSameAgent(
-                      item.agent,
-                      agent
-                    )
-                )
-              ) {
-                return false;
-              }
-
-              if (
-                selectedTeam !== "all"
-              ) {
-                const account =
-                  getAccountStatus(
-                    item.agent,
-                    accountProfiles
-                  );
-                if (
-                  normalizeText(
-                    getSummaryTeamName(
-                      account
-                    )
-                  ) !==
-                  normalizeText(
-                    selectedTeam
-                  )
-                ) {
-                  return false;
-                }
-              }
-
-              return (
-                effectiveSelectedAgent ===
-                  "all" ||
-                isSameAgent(
-                  item.agent,
-                  effectiveSelectedAgent
-                )
-              );
-            });
+            scopedTrendCases.filter(
+              (item) =>
+                item.monthKey === monthKey
+            );
 
           if (!monthCases.length) {
             return {
@@ -4121,15 +4214,52 @@ export default function SummaryMockup({
     );
   }, [
     accountProfiles,
+    activeUnifiedPeriodKey,
     allCases,
     analysisMode,
-    comparisonRowsWithDelta,
     effectivePeriodKeys,
     effectiveSelectedAgent,
-    filteredCases,
     roleScopedAgentList,
     selectedTeam,
   ]);
+
+  const qualityScoreTrendPeriodLabel =
+    useMemo(() => {
+      if (
+        analysisMode !== "weekly" ||
+        !activeUnifiedPeriodKey
+      ) {
+        return "";
+      }
+
+      const referenceCase = allCases
+        .filter(
+          (item) =>
+            item.weekLabel ===
+            activeUnifiedPeriodKey
+        )
+        .sort(
+          (left, right) =>
+            (right.auditDateObj?.getTime() ||
+              0) -
+            (left.auditDateObj?.getTime() ||
+              0)
+        )[0];
+
+      return (
+        referenceCase?.monthLabel ||
+        (referenceCase?.monthKey
+          ? getMonthLabelForKey(
+              referenceCase.monthKey,
+              allCases
+            )
+          : "")
+      );
+    }, [
+      activeUnifiedPeriodKey,
+      allCases,
+      analysisMode,
+    ]);
 
   const getCasesForPeriodLabel = (periodLabel: string) =>
     filteredCases.filter((item) => {
@@ -9527,6 +9657,8 @@ export default function SummaryMockup({
               summary={summaryCards}
               cases={filteredCases}
               trendRows={qualityScoreTrendRows}
+              trendMode={analysisMode}
+              trendPeriodLabel={qualityScoreTrendPeriodLabel}
               hideSummaryCards={embedded}
               monthlyMode={
                 analysisMode === "monthly" &&
@@ -10174,6 +10306,8 @@ export default function SummaryMockup({
               summary={summaryCards}
               cases={filteredCases}
               trendRows={qualityScoreTrendRows}
+              trendMode={analysisMode}
+              trendPeriodLabel={qualityScoreTrendPeriodLabel}
               monthlyMode={
                 analysisMode === "monthly" &&
                 !isComparisonMode
