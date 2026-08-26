@@ -164,9 +164,10 @@ function AnalyticsCompareTopicDetail({
                           <span className="inline-flex min-w-[38px] shrink-0 justify-center rounded-lg bg-violet-100 px-2 py-1 text-[10px] font-black text-violet-700">
                             {topic.code}
                           </span>
-                          <div className="pt-0.5 text-[11px] font-semibold leading-5 text-slate-800">
-                            {topic.label}
-                          </div>
+                          <AnalyticsBilingualTopicLabel
+                            label={String(topic.label || topic.code || "Topic")}
+                            className="min-w-0 pt-0.5"
+                          />
                         </div>
                       </td>
 
@@ -317,8 +318,8 @@ function AnalyticsCompareTopicDetail({
       next = replaceOrThrow(
         this,
         next,
-        `        doc.setTextColor(109, 40, 217);\n        drawText(\n          topic.pct.toFixed(2) + "%",\n          pageWidth - margin - 14,\n          y + 5.6,\n          { align: "center" }\n        );`,
-        `        const topicTarget = getTopicKpiTarget(\n          getPolicyMonthKeyForCases(report.cases || []),\n          topic.code\n        );\n        const topicPassed = topic.pct >= topicTarget;\n        doc.setTextColor(\n          topicPassed ? 5 : 190,\n          topicPassed ? 150 : 24,\n          topicPassed ? 105 : 93\n        );\n        doc.setFontSize(6.2);\n        drawText(\n          topic.pct.toFixed(2) + "% " + (topicPassed ? "PASS" : "FAIL"),\n          pageWidth - margin - 14,\n          y + 5.6,\n          { align: "center" }\n        );`,
+        `        doc.setTextColor(109, 40, 217);\n        drawText(\n          topic.pct.toFixed(2) + "%",\n          pageWidth - margin - 14,\n          scoreY,\n          { align: "center" }\n        );`,
+        `        const topicTarget = getTopicKpiTarget(\n          getPolicyMonthKeyForCases(report.cases || []),\n          topic.code\n        );\n        const topicPassed = topic.pct >= topicTarget;\n        doc.setTextColor(\n          topicPassed ? 5 : 190,\n          topicPassed ? 150 : 24,\n          topicPassed ? 105 : 93\n        );\n        doc.setFontSize(6.2);\n        drawText(\n          topic.pct.toFixed(2) + "% " + (topicPassed ? "PASS" : "FAIL"),\n          pageWidth - margin - 14,\n          scoreY,\n          { align: "center" }\n        );`,
         "PDF topic KPI color status"
       );
 

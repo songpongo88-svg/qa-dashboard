@@ -68,11 +68,16 @@ function AnalyticsCompareDashboardV2({
             topic.code
           )
         : PERFORMANCE_KPI_TARGET;
+      const topicTitle = splitAnalyticsTopicTitle(
+        String(topic.label || topic.code || "Topic")
+      );
 
       return {
         key: String(group.key || "group") + "-" + String(topic.code || "topic"),
         code: String(topic.code || ""),
         label: String(topic.label || topic.code || "Topic"),
+        thaiLabel: topicTitle.thai,
+        englishLabel: topicTitle.english,
         first,
         last,
         delta,
@@ -210,7 +215,12 @@ function AnalyticsCompareDashboardV2({
                 <span className={"inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-black " + (topic.passed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>
                   {topic.code}
                 </span>
-                <div className="min-w-0 text-[11px] font-black leading-5 text-slate-900">{topic.label}</div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-black leading-5 text-slate-900">{topic.thaiLabel}</div>
+                  {topic.englishLabel ? (
+                    <div className="mt-0.5 text-[10px] font-black italic leading-4 text-rose-600">{topic.englishLabel}</div>
+                  ) : null}
+                </div>
               </div>
               <div className="grid grid-cols-2 divide-x divide-slate-200/70 px-2 py-4 text-center">
                 <div>
@@ -265,12 +275,18 @@ function AnalyticsCompareDashboardV2({
                     const firstPct = availableValues.length ? Number(availableValues[0].pct) : null;
                     const lastPct = availableValues.length ? Number(availableValues[availableValues.length - 1].pct) : null;
                     const rowDelta = firstPct !== null && lastPct !== null ? Number((lastPct - firstPct).toFixed(2)) : null;
+                    const topicTitle = splitAnalyticsTopicTitle(String(topic.label || topic.code || "Topic"));
                     return (
                       <tr key={topic.code} className={topicIndex % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
                         <td className="border-t border-slate-100 px-4 py-4">
                           <div className="flex items-center gap-2.5">
                             <span className="inline-flex h-7 min-w-[32px] items-center justify-center rounded-lg bg-violet-100 px-2 text-[10px] font-black text-violet-700">{topic.code}</span>
-                            <span className="font-bold text-slate-800">{topic.label}</span>
+                            <div className="min-w-0">
+                              <div className="font-bold leading-5 text-slate-900">{topicTitle.thai}</div>
+                              {topicTitle.english ? (
+                                <div className="mt-0.5 text-[9px] font-bold italic leading-4 text-rose-600">{topicTitle.english}</div>
+                              ) : null}
+                            </div>
                           </div>
                         </td>
                         {reports.map((report: any) => {
@@ -339,12 +355,17 @@ function AnalyticsCompareDashboardV2({
                 </div>
 
                 <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  {(transition.topics || []).map((topic: any) => (
+                  {(transition.topics || []).map((topic: any) => {
+                    const topicTitle = splitAnalyticsTopicTitle(String(topic.label || topic.code || "Topic"));
+                    return (
                     <article key={transition.period + "-" + topic.code} className={"rounded-2xl border p-4 " + (topic.direction === "up" ? "border-emerald-200 bg-emerald-50/35" : "border-rose-200 bg-rose-50/35")}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Topic {topic.code}</div>
-                          <div className="mt-1 text-[11px] font-black leading-5 text-slate-900">{topic.label}</div>
+                          <div className="mt-1 text-[11px] font-black leading-5 text-slate-900">{topicTitle.thai}</div>
+                          {topicTitle.english ? (
+                            <div className="mt-0.5 text-[9px] font-black italic leading-4 text-rose-600">{topicTitle.english}</div>
+                          ) : null}
                         </div>
                         <span className={"shrink-0 rounded-full px-2 py-1 text-[9px] font-black " + (topic.direction === "up" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>
                           {formatDelta(topic.delta)}
@@ -377,7 +398,8 @@ function AnalyticsCompareDashboardV2({
                         </div>
                       </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}

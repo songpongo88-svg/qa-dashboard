@@ -1353,7 +1353,9 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
           {topics.map((topic) => (
             <tr key={topic.code} className="bg-white">
               <td className="border-t border-slate-200 px-3 py-3 text-center">{topic.code}</td>
-              <td className="border-t border-slate-200 px-3 py-3">{topic.label}</td>
+              <td className="border-t border-slate-200 px-3 py-3">
+                <AnalyticsBilingualTopicLabel label={topic.label} />
+              </td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{topic.avgScore.toFixed(2)}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{topic.max}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{topic.pct.toFixed(2)}%</td>
@@ -1411,6 +1413,33 @@ function splitAnalyticsTopicTitle(label: string) {
       bilingualFallback?.[2]?.trim() ||
       "",
   };
+}
+
+function AnalyticsBilingualTopicLabel({
+  label,
+  code,
+  className = "",
+  thaiClassName = "text-[12px] font-bold leading-5 text-slate-950",
+  englishClassName = "mt-0.5 text-[11px] font-bold italic leading-5 text-rose-600",
+}: {
+  label: string;
+  code?: string;
+  className?: string;
+  thaiClassName?: string;
+  englishClassName?: string;
+}) {
+  const { thai, english } = splitAnalyticsTopicTitle(label);
+
+  return (
+    <div className={className}>
+      <div className={thaiClassName}>
+        {code ? `${code}. ` : ""}{thai}
+      </div>
+      {english ? (
+        <div className={englishClassName}>{english}</div>
+      ) : null}
+    </div>
+  );
 }
 
 function buildAnalyticsTopicGroups(topics: TopicSummary[]) {
@@ -1564,9 +1593,10 @@ function AnalyticsGroupedTopicDetail({
                         <span className="inline-flex min-w-[38px] shrink-0 justify-center rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
                           {topic.code}
                         </span>
-                        <div className="min-w-0 pt-0.5 text-[12px] font-medium leading-5 text-slate-900">
-                          {topic.label}
-                        </div>
+                        <AnalyticsBilingualTopicLabel
+                          label={topic.label}
+                          className="min-w-0 pt-0.5"
+                        />
                       </div>
                     </div>
 
@@ -7008,12 +7038,19 @@ export default function SummaryMockup({
       y += 9;
 
       report.topics.forEach((topic, index) => {
-        const lines = wrapText(
-          `${topic.code}. ${topic.label}`,
-          68,
+        const topicTitle = splitAnalyticsTopicTitle(topic.label);
+        const thaiLines = wrapText(
+          `${topic.code}. ${topicTitle.thai}`,
+          54,
           2
         );
-        const rowHeight = Math.max(9, 4 + lines.length * 4);
+        const englishLines = topicTitle.english
+          ? wrapText(topicTitle.english, 54, 1)
+          : [];
+        const rowHeight = Math.max(
+          13,
+          4 + thaiLines.length * 3.6 + englishLines.length * 3.5
+        );
 
         ensureSpace(rowHeight + 4);
 
@@ -7026,35 +7063,51 @@ export default function SummaryMockup({
         doc.rect(tableX, y, tableWidth, rowHeight, "FD");
 
         doc.setTextColor(15, 23, 42);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.6);
 
-        lines.forEach((line, lineIndex) => {
+        thaiLines.forEach((line, lineIndex) => {
           drawText(
             line,
             tableX + 3,
-            y + 5 + lineIndex * 4
+            y + 4.8 + lineIndex * 3.6
           );
         });
 
+        if (englishLines.length) {
+          doc.setTextColor(225, 29, 72);
+          doc.setFont("helvetica", "italic");
+          doc.setFontSize(6.2);
+          englishLines.forEach((line, lineIndex) => {
+            drawText(
+              line,
+              tableX + 3,
+              y + 4.8 + thaiLines.length * 3.6 + lineIndex * 3.5
+            );
+          });
+        }
+
         doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(15, 23, 42);
+        const scoreY = y + rowHeight / 2 + 1.8;
         drawText(
           topic.avgScore.toFixed(2),
           tableX + 112 + 12,
-          y + 5.6,
+          scoreY,
           { align: "center" }
         );
         drawText(
           topic.max.toFixed(2),
           tableX + 112 + 24 + 10,
-          y + 5.6,
+          scoreY,
           { align: "center" }
         );
         doc.setTextColor(109, 40, 217);
         drawText(
           topic.pct.toFixed(2) + "%",
           pageWidth - margin - 14,
-          y + 5.6,
+          scoreY,
           { align: "center" }
         );
 
@@ -7063,7 +7116,7 @@ export default function SummaryMockup({
 
       y += 7;
 
-      if (y + 39 > contentBottom) {
+      if (y + 47 > contentBottom) {
         startNewPage();
         drawSectionTitle(
           `Topic Performance — ${report.label} (continued)`,
@@ -7095,7 +7148,7 @@ export default function SummaryMockup({
 
         doc.setFillColor(...fill);
         doc.setDrawColor(...border);
-        doc.roundedRect(x, insightY, halfWidth, 32, 2.5, 2.5, "FD");
+        doc.roundedRect(x, insightY, halfWidth, 40, 2.5, 2.5, "FD");
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8.5);
@@ -7103,22 +7156,30 @@ export default function SummaryMockup({
         drawText(title, x + 4, insightY + 7);
 
         items.slice(0, 3).forEach((topic, index) => {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(6.5);
+          const topicTitle = splitAnalyticsTopicTitle(topic.label);
+          const itemY = insightY + 13 + index * 9;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(5.8);
           doc.setTextColor(51, 65, 85);
           drawText(
-            `${index + 1}. ${topic.label}`,
+            `${index + 1}. ${topicTitle.thai}`,
             x + 4,
-            insightY + 13 + index * 6
+            itemY
           );
           doc.setFont("helvetica", "bold");
           doc.setTextColor(...text);
           drawText(
             topic.pct.toFixed(2) + "%",
             x + halfWidth - 4,
-            insightY + 13 + index * 6,
+            itemY,
             { align: "right" }
           );
+          if (topicTitle.english) {
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(5.1);
+            doc.setTextColor(225, 29, 72);
+            drawText(topicTitle.english, x + 4, itemY + 3.6);
+          }
         });
       };
 
@@ -7135,7 +7196,7 @@ export default function SummaryMockup({
         "amber"
       );
 
-      y += 39;
+      y += 47;
 
       if (y + 48 > contentBottom) {
         startNewPage();
@@ -7542,7 +7603,18 @@ export default function SummaryMockup({
             .join("  |  ");
 
           const lines = wrapText(valuesText, 108, 2);
-          const rowHeight = 9 + lines.length * 3.6;
+          const topicTitle = splitAnalyticsTopicTitle(topic.label);
+          const thaiTitleLines = wrapText(
+            `${topic.code}. ${topicTitle.thai}`,
+            80,
+            2
+          );
+          const englishTitleLines = topicTitle.english
+            ? wrapText(topicTitle.english, 88, 1)
+            : [];
+          const titleBlockHeight =
+            thaiTitleLines.length * 3.6 + englishTitleLines.length * 3.4;
+          const rowHeight = 7 + titleBlockHeight + lines.length * 3.6;
 
           ensureSpace(rowHeight + 2);
 
@@ -7555,23 +7627,35 @@ export default function SummaryMockup({
           doc.rect(margin, y, contentWidth, rowHeight, "FD");
 
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(7);
+          doc.setFontSize(6.6);
           doc.setTextColor(15, 23, 42);
-          drawText(
-            `${topic.code}. ${topic.label}`,
-            margin + 3,
-            y + 4.8
-          );
+          thaiTitleLines.forEach((line, lineIndex) => {
+            drawText(line, margin + 3, y + 4.6 + lineIndex * 3.6);
+          });
+
+          if (englishTitleLines.length) {
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(6);
+            doc.setTextColor(225, 29, 72);
+            englishTitleLines.forEach((line, lineIndex) => {
+              drawText(
+                line,
+                margin + 3,
+                y + 4.6 + thaiTitleLines.length * 3.6 + lineIndex * 3.4
+              );
+            });
+          }
 
           doc.setFont("helvetica", "normal");
           doc.setFontSize(6.4);
           doc.setTextColor(71, 85, 105);
+          const valuesStartY = y + 6 + titleBlockHeight;
 
           lines.forEach((line, lineIndex) => {
             drawText(
               line,
               margin + 3,
-              y + 9 + lineIndex * 3.6
+              valuesStartY + lineIndex * 3.6
             );
           });
 
@@ -7788,6 +7872,7 @@ export default function SummaryMockup({
         align?: "left" | "center" | "right";
         color?: string;
         bold?: boolean;
+        italic?: boolean;
         size?: number;
       } = {}
     ) => {
@@ -7801,6 +7886,8 @@ export default function SummaryMockup({
         "helvetica",
         options.bold
           ? "bold"
+          : options.italic
+            ? "italic"
           : "normal"
       );
       doc.setFontSize(size);
@@ -7836,11 +7923,13 @@ export default function SummaryMockup({
 
       const weight =
         options.bold ? "700" : "400";
+      const fontStyle =
+        options.italic ? "italic " : "";
       const family =
         '"Sarabun", "TH Sarabun New", Tahoma, "Noto Sans Thai", Arial, sans-serif';
 
       measure.font =
-        `${weight} ${fontPx}px ${family}`;
+        `${fontStyle}${weight} ${fontPx}px ${family}`;
       canvas.width = Math.max(
         8,
         Math.ceil(
@@ -7861,7 +7950,7 @@ export default function SummaryMockup({
 
       context.scale(scale, scale);
       context.font =
-        `${weight} ${fontPx / scale}px ${family}`;
+        `${fontStyle}${weight} ${fontPx / scale}px ${family}`;
       context.textBaseline =
         "alphabetic";
       context.fillStyle =
@@ -8238,7 +8327,7 @@ export default function SummaryMockup({
         y += 7;
         ensureTeamSpace(
           8 +
-          teamRow.topics.length * 9
+          teamRow.topics.length * 13
         );
 
         drawTeamText(
@@ -8254,8 +8343,9 @@ export default function SummaryMockup({
 
         teamRow.topics.forEach(
           (topic) => {
+            const topicTitle = splitAnalyticsTopicTitle(topic.label);
             drawTeamText(
-              `${topic.code}. ${topic.label}`,
+              `${topic.code}. ${topicTitle.thai}`,
               margin,
               y + 3,
               {
@@ -8264,6 +8354,19 @@ export default function SummaryMockup({
                 color: "#334155",
               }
             );
+
+            if (topicTitle.english) {
+              drawTeamText(
+                topicTitle.english,
+                margin,
+                y + 6.5,
+                {
+                  size: 5.2,
+                  italic: true,
+                  color: "#e11d48",
+                }
+              );
+            }
 
             drawTeamText(
               `${topic.pct.toFixed(2)}%`,
@@ -8278,7 +8381,7 @@ export default function SummaryMockup({
             );
 
             const trackX = margin;
-            const trackY = y + 5;
+            const trackY = y + 9;
             const trackWidth =
               contentWidth;
             doc.setFillColor(
@@ -8318,7 +8421,7 @@ export default function SummaryMockup({
               "F"
             );
 
-            y += 9;
+            y += 13;
           }
         );
 
@@ -9068,9 +9171,11 @@ export default function SummaryMockup({
                                 {row.topics.map((topic) => (
                                   <div key={`${row.teamName}-${topic.code}`}>
                                     <div className="flex items-start justify-between gap-3 text-xs">
-                                      <div className="font-medium leading-5 text-slate-700">
-                                        {topic.code}. {topic.label}
-                                      </div>
+                                      <AnalyticsBilingualTopicLabel
+                                        label={topic.label}
+                                        code={topic.code}
+                                        className="min-w-0"
+                                      />
                                       <div className="shrink-0 font-semibold text-violet-700">
                                         {topic.pct.toFixed(2)}%
                                       </div>
@@ -10618,8 +10723,8 @@ export default function SummaryMockup({
                           <tbody>
                             {report.topics.map((topic) => (
                               <tr key={topic.code} className="bg-white">
-                                <td className="border-t border-violet-100 px-4 py-3 font-medium text-slate-800">
-                                  {topic.code}. {topic.label}
+                                <td className="border-t border-violet-100 px-4 py-3">
+                                  <AnalyticsBilingualTopicLabel label={topic.label} code={topic.code} />
                                 </td>
                                 <td className="border-t border-violet-100 px-4 py-3 text-center font-semibold text-slate-900">
                                   {topic.avgScore.toFixed(2)}
@@ -10655,7 +10760,12 @@ export default function SummaryMockup({
                             <div className="mt-3 space-y-2">
                               {report.strongest.map((topic, index) => (
                                 <div key={topic.code} className="rounded-xl bg-white/80 px-3 py-2">
-                                  <div className="text-xs font-medium text-slate-700">{index + 1}. {topic.label}</div>
+                                  <AnalyticsBilingualTopicLabel
+                                    label={topic.label}
+                                    code={String(index + 1)}
+                                    thaiClassName="text-xs font-bold leading-5 text-slate-800"
+                                    englishClassName="mt-0.5 text-[10px] font-bold italic leading-4 text-rose-600"
+                                  />
                                   <div className="mt-1 text-sm font-semibold text-emerald-700">{topic.pct.toFixed(2)}%</div>
                                 </div>
                               ))}
@@ -10667,7 +10777,12 @@ export default function SummaryMockup({
                             <div className="mt-3 space-y-2">
                               {report.coaching.map((topic, index) => (
                                 <div key={topic.code} className="rounded-xl bg-white/80 px-3 py-2">
-                                  <div className="text-xs font-medium text-slate-700">{index + 1}. {topic.label}</div>
+                                  <AnalyticsBilingualTopicLabel
+                                    label={topic.label}
+                                    code={String(index + 1)}
+                                    thaiClassName="text-xs font-bold leading-5 text-slate-800"
+                                    englishClassName="mt-0.5 text-[10px] font-bold italic leading-4 text-rose-600"
+                                  />
                                   <div className="mt-1 text-sm font-semibold text-amber-700">{topic.pct.toFixed(2)}%</div>
                                 </div>
                               ))}
@@ -10932,8 +11047,8 @@ export default function SummaryMockup({
                         <tbody>
                           {group.topics.map((topic: any) => (
                             <tr key={topic.code} className="bg-white">
-                              <td className="border-t border-violet-100 px-4 py-3 font-medium text-slate-800">
-                                {topic.code}. {topic.label}
+                              <td className="border-t border-violet-100 px-4 py-3">
+                                <AnalyticsBilingualTopicLabel label={topic.label} code={topic.code} />
                               </td>
                               {topic.values.map((value: any) => (
                                 <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">
