@@ -24,404 +24,548 @@ function AnalyticsCompareDashboardV2({
   topicGroups,
   reportModeName,
   summary,
+  cases,
+  agentRows,
+  selectedAgent,
+  currentUser,
+  accountProfiles,
 }: {
   periodReports: any[];
   topicGroups: any[];
   reportModeName: string;
   summary: any;
+  cases: any[];
+  agentRows: any[];
+  selectedAgent: string;
+  currentUser: any;
+  accountProfiles: any[];
 }) {
-  const [activeTab, setActiveTab] = useState<"overview" | "topics" | "drivers">("overview");
-
   if (!Array.isArray(periodReports) || periodReports.length < 2) return null;
 
   const firstReport = periodReports[0];
   const lastReport = periodReports[periodReports.length - 1];
-  const overallDelta = Number(
-    (Number(lastReport?.avgScore || 0) - Number(firstReport?.avgScore || 0)).toFixed(2)
-  );
-  const totalCases = periodReports.reduce(
-    (sum, report) => sum + Number(report?.caseCount || 0),
-    0
-  );
-  const driverTransitions = buildAnalyticsIntentDriverSummary(periodReports);
-  const differentCriteria = topicGroups.length > 1;
-  const isWeekly = String(reportModeName || "").toLowerCase().includes("week");
+  const firstScore = Number(firstReport?.avgScore || 0);
+  const lastScore = Number(lastReport?.avgScore || 0);
+  const overallDelta = Number((lastScore - firstScore).toFixed(2));
+  const scopeIsAll = selectedAgent === "all";
+  const scopeLabel = scopeIsAll
+    ? "All Agents"
+    : buildSuspendedAgentLabel(String(selectedAgent || "Selected Agent"), accountProfiles || []);
+  const preparedBy =
+    String(
+      currentUser?.displayName ||
+      currentUser?.agentName ||
+      currentUser?.username ||
+      "QA Team"
+    ).trim() || "QA Team";
 
-  const monthDetailsForReport = (report: any) => {
-    const reportCases = Array.isArray(report?.cases) ? report.cases : [];
-    const referenceCase = reportCases[0] || null;
-    const monthKey = String(referenceCase?.monthKey || "");
-    const monthLabel = String(
-      referenceCase?.monthLabel ||
-      (monthKey ? getMonthLabelForKey(monthKey, reportCases) : report?.label || "Period")
-    );
-    return { monthKey, monthLabel };
+  const monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  const shortPeriodLabel = (label: string) => {
+    const raw = String(label || "");
+    const dates = raw.match(/\d{1,2}\/\d{1,2}\/\d{4}/g) || [];
+    if (dates.length >= 2) {
+      const left = dates[0].split("/").map(Number);
+      const right = dates[dates.length - 1].split("/").map(Number);
+      if (left[1] === right[1] && left[2] === right[2]) {
+        return String(left[0]) + "-" + String(right[0]) + " " + monthNames[Math.max(0, left[1] - 1)] + " " + String(left[2]);
+      }
+      return String(left[0]) + " " + monthNames[Math.max(0, left[1] - 1)] + " - " + String(right[0]) + " " + monthNames[Math.max(0, right[1] - 1)] + " " + String(right[2]);
+    }
+    return raw;
   };
 
-  const periodGroups = periodReports.reduce((groups: any[], report: any) => {
-    const month = monthDetailsForReport(report);
-    const groupKey = isWeekly
-      ? month.monthKey || month.monthLabel
-      : String(report?.label || month.monthLabel);
-    const policyKey = String(report?.policy?.key || "default");
-    const policyLabel = String(report?.policy?.label || "QA Criteria");
-    const lastGroup = groups[groups.length - 1];
+  const compactPeriodLabels = periodReports.map((report: any) =>
+    shortPeriodLabel(String(report?.label || ""))
+  );
+  const periodText =
+    compactPeriodLabels.length <= 3
+      ? compactPeriodLabels.join(" vs ")
+      : compactPeriodLabels[0] +
+        " → " +
+        compactPeriodLabels[compactPeriodLabels.length - 1] +
+        " · " +
+        String(compactPeriodLabels.length) +
+        " periods";
 
-    if (lastGroup && lastGroup.key === groupKey) {
-      lastGroup.reports.push(report);
-      if (!lastGroup.policyKeys.includes(policyKey)) lastGroup.policyKeys.push(policyKey);
-      if (!lastGroup.policyLabels.includes(policyLabel)) lastGroup.policyLabels.push(policyLabel);
-      return groups;
-    }
+  const latestCases = Array.isArray(lastReport?.cases) ? lastReport.cases : [];
+  const latestSummary = lastReport?.summary || lastReport || {};
+  const latestCaseCount = Number(lastReport?.caseCount ?? latestSummary?.caseCount ?? latestCases.length ?? 0);
+  const latestAverage = Number(lastReport?.avgScore ?? latestSummary?.avgScore ?? 0);
+  const latestGrade = String(lastReport?.grade ?? latestSummary?.grade ?? "-");
+  const latestAgentCount = Number(
+    lastReport?.coverage?.agentCount ??
+    new Set(latestCases.map((item: any) => String(item?.agent || "").trim()).filter(Boolean)).size
+  );
+  const latestIncentive = Number(latestSummary?.incentive ?? lastReport?.incentive ?? 0);
+  const averagePerAgent = Number(
+    lastReport?.coverage?.averageCasesPerAgent ??
+    (latestAgentCount ? latestCaseCount / latestAgentCount : 0)
+  );
 
-    groups.push({
-      key: groupKey,
-      label: isWeekly ? month.monthLabel : String(report?.label || month.monthLabel),
-      reports: [report],
-      policyKeys: [policyKey],
-      policyLabels: [policyLabel],
-    });
-    return groups;
-  }, []);
+  const originalCount = Number(lastReport?.reviewMix?.original ?? 0);
+  const revisedCount = Number(lastReport?.reviewMix?.revised ?? 0);
+  const reviewTotal = originalCount + revisedCount;
+  const originalPct = reviewTotal ? Number(((originalCount / reviewTotal) * 100).toFixed(2)) : 0;
+  const revisedPct = reviewTotal ? Number(((revisedCount / reviewTotal) * 100).toFixed(2)) : 0;
+  const reviewGradient =
+    reviewTotal > 0
+      ? "conic-gradient(#7c3aed 0 " +
+        String(originalPct) +
+        "%, #d946ef " +
+        String(originalPct) +
+        "% 100%)"
+      : "#e2e8f0";
 
-  const topicMaster = new Map<string, any>();
-  periodReports.forEach((report: any) => {
-    (report?.topics || []).forEach((topic: any) => {
-      topicMaster.set(String(topic.code), {
-        code: String(topic.code || ""),
-        label: String(topic.label || topic.code || "Topic"),
-      });
-    });
-  });
+  const trendScores = periodReports.map((report: any) => Number(report?.avgScore || 0));
+  const rawMinScore = trendScores.length ? Math.min(...trendScores) : 0;
+  const trendFloor = Math.max(0, Math.floor((rawMinScore - 5) / 5) * 5);
+  const trendCeiling = Math.min(100, Math.max(100, Math.ceil((Math.max(...trendScores, 0) + 3) / 5) * 5));
+  const trendRange = Math.max(1, trendCeiling - trendFloor);
 
-  const topicCards = Array.from(topicMaster.values()).map((topic: any) => {
-    const values = periodReports.map((report: any) => {
-      const matched = (report?.topics || []).find(
-        (item: any) => String(item.code) === String(topic.code)
-      );
-      return {
-        report,
-        pct: matched ? Number(matched.pct) : null,
-        policyKey: String(report?.policy?.key || "default"),
-      };
-    });
-    const first = values[0];
-    const last = values[values.length - 1];
-    const sameCriteria = first.policyKey === last.policyKey;
-    let status = "Comparable";
-    if (first.pct === null && last.pct !== null) status = "New";
-    else if (first.pct !== null && last.pct === null) status = "Removed";
-    else if (first.pct === null || last.pct === null || !sameCriteria) status = "Not Comparable";
-    const delta = status === "Comparable"
-      ? Number((Number(last.pct) - Number(first.pct)).toFixed(2))
-      : null;
-    const target = last.pct !== null
-      ? getTopicKpiTarget(
-          getPolicyMonthKeyForCases(last.report?.cases || []),
-          topic.code
-        )
-      : PERFORMANCE_KPI_TARGET;
-    const topicTitle = splitAnalyticsTopicTitle(topic.label);
-
-    return {
-      ...topic,
-      thaiLabel: topicTitle.thai,
-      englishLabel: topicTitle.english,
-      first,
-      last,
-      status,
-      delta,
-      target,
-      passed: last.pct !== null && Number(last.pct) >= target,
-    };
-  });
+  const latestTopics = Array.isArray(lastReport?.topics) ? lastReport.topics : [];
+  const latestStrongest = Array.isArray(lastReport?.strongest)
+    ? lastReport.strongest.slice(0, 2)
+    : [...latestTopics].sort((left: any, right: any) => Number(right?.pct || 0) - Number(left?.pct || 0)).slice(0, 2);
+  const latestCoaching = Array.isArray(lastReport?.coaching)
+    ? lastReport.coaching.slice(0, 2)
+    : [...latestTopics].sort((left: any, right: any) => Number(left?.pct || 0) - Number(right?.pct || 0)).slice(0, 2);
+  const gradeMix = (Array.isArray(lastReport?.gradeMix) ? lastReport.gradeMix : []).filter(
+    (item: any) => Number(item?.count || 0) > 0 || ["A", "B", "C", "D", "F", "G"].includes(String(item?.grade || ""))
+  );
 
   const formatDelta = (value: number | null) => {
-    if (value === null) return "N/A";
+    if (value === null || !Number.isFinite(value)) return "—";
     return (value > 0 ? "+" : "") + value.toFixed(2) + " pp";
   };
 
-  const rubricChangedBetween = (left: any, right: any) => {
-    const leftKeys = (left?.policyKeys || []).join("|");
-    const rightKeys = (right?.policyKeys || []).join("|");
-    return leftKeys !== rightKeys;
-  };
-
-  const tabs = [
-    { value: "overview", label: "Overview", helper: "ภาพรวม" },
-    { value: "topics", label: "Topic Changes", helper: "หัวข้อ" },
-    { value: "drivers", label: "Score Drivers", helper: "สาเหตุ" },
+  const kpiCards = [
+    {
+      title: "TOTAL CASES",
+      value: String(latestCaseCount),
+      helper: shortPeriodLabel(String(lastReport?.label || "")),
+      icon: "▤",
+      valueClass: "text-amber-500",
+      iconClass: "bg-amber-50 text-amber-500",
+      helperClass: "bg-amber-50 text-amber-600",
+    },
+    {
+      title: "AVERAGE SCORE",
+      value: latestAverage.toFixed(2),
+      helper: scopeIsAll ? "Team Score" : "Agent Score",
+      icon: "⌁",
+      valueClass: "text-violet-600",
+      iconClass: "bg-violet-100 text-violet-600",
+      helperClass: "bg-violet-100 text-violet-600",
+    },
+    {
+      title: "OVERALL GRADE",
+      value: latestGrade,
+      helper: overallDelta > 0 ? "Improving" : overallDelta < 0 ? "Needs Attention" : "Stable",
+      icon: "◆",
+      valueClass: "text-blue-600",
+      iconClass: "bg-blue-50 text-blue-600",
+      helperClass: "bg-blue-50 text-blue-600",
+    },
+    {
+      title: "REVIEWED AGENTS",
+      value: String(latestAgentCount),
+      helper: latestAgentCount === 1 ? "Agent Evaluated" : "Agents Evaluated",
+      icon: "♟",
+      valueClass: "text-violet-600",
+      iconClass: "bg-violet-100 text-violet-600",
+      helperClass: "bg-violet-100 text-violet-600",
+    },
+    {
+      title: "TOTAL INCENTIVE",
+      value: latestIncentive.toLocaleString("en-US"),
+      helper: "THB",
+      icon: "฿",
+      valueClass: "text-emerald-600",
+      iconClass: "bg-emerald-50 text-emerald-600",
+      helperClass: "bg-emerald-50 text-emerald-600",
+    },
   ];
 
-  return (
-    <div data-analytics-compare-redesign-v2="true" className="space-y-5">
-      <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-white via-white to-violet-50/70 px-5 py-5 sm:px-6">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-600">Compare Analytics</div>
-            <div className="mt-1 text-lg font-black text-slate-950">เปรียบเทียบผล QA ตามช่วงเวลาที่เลือก</div>
-            <div className="mt-1 text-[10px] font-medium text-slate-500">{reportModeName} Comparison · แยกภาพรวม การเปลี่ยนแปลงรายหัวข้อ และสาเหตุคะแนน</div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-violet-100 bg-violet-50 px-3 py-1.5 text-[10px] font-black text-violet-700">{periodReports.length} Periods</span>
-            {differentCriteria ? (
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-black text-amber-700">Rubric changed</span>
-            ) : null}
-          </div>
-        </div>
+  const displayAgentRows = scopeIsAll
+    ? (Array.isArray(agentRows) ? agentRows : [])
+    : [
+        {
+          agent: scopeLabel,
+          values: periodReports.map((report: any) => ({
+            period: report.label,
+            score: Number(report?.caseCount || 0) > 0 ? Number(report?.avgScore || 0) : null,
+            caseCount: Number(report?.caseCount || 0),
+          })),
+          overallDelta,
+        },
+      ];
 
-        <div className="border-b border-slate-100 bg-white px-4 pt-3 sm:px-6">
-          <div className="flex min-w-max gap-1" role="tablist" aria-label="Compare result sections">
-            {tabs.map((tab) => {
-              const selected = activeTab === tab.value;
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  onClick={() => setActiveTab(tab.value as "overview" | "topics" | "drivers")}
-                  className={
-                    "relative min-w-[142px] rounded-t-xl px-4 py-3 text-left transition " +
-                    (selected
-                      ? "bg-violet-50 text-violet-800"
-                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")
-                  }
-                >
-                  <div className="text-[11px] font-black">{tab.label}</div>
-                  <div className="mt-0.5 text-[9px] font-semibold opacity-70">{tab.helper}</div>
-                  {selected ? <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-violet-600" /> : null}
-                </button>
-              );
-            })}
+  const sortedAgentRows = [...displayAgentRows].sort((left: any, right: any) => {
+    const leftDelta = left?.overallDelta === null || left?.overallDelta === undefined
+      ? Number.POSITIVE_INFINITY
+      : Number(left.overallDelta);
+    const rightDelta = right?.overallDelta === null || right?.overallDelta === undefined
+      ? Number.POSITIVE_INFINITY
+      : Number(right.overallDelta);
+    return leftDelta - rightDelta || String(left?.agent || "").localeCompare(String(right?.agent || ""));
+  });
+  const comparableAgentRows = sortedAgentRows.filter(
+    (row: any) => row?.overallDelta !== null && row?.overallDelta !== undefined
+  );
+  const weakestAgent = comparableAgentRows.length ? comparableAgentRows[0] : null;
+  const strongestAgent = comparableAgentRows.length
+    ? comparableAgentRows[comparableAgentRows.length - 1]
+    : null;
+  const differentCriteria = topicGroups.length > 1;
+
+  return (
+    <div data-analytics-compare-ppt-report-v1="true" className="space-y-6">
+      <section className="relative overflow-hidden rounded-[24px] border border-violet-200 bg-white shadow-[0_12px_34px_rgba(76,29,149,0.08)]">
+        <div className="pointer-events-none absolute -left-14 -top-20 h-44 w-44 rounded-full bg-violet-600" />
+        <div className="pointer-events-none absolute -left-8 -top-14 h-48 w-48 rounded-full bg-violet-200/80" />
+
+        <div className="relative px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 pl-7 sm:pl-10">
+              <div className="text-[23px] font-black tracking-tight text-slate-950 sm:text-[28px]">
+                QA {reportModeName} Comparison Report
+              </div>
+              <div className="mt-1 text-[11px] font-medium text-slate-500">
+                {scopeIsAll
+                  ? "Formal comparison view for all visible agents"
+                  : "Formal comparison view for the selected agent"}
+              </div>
+            </div>
+
+            <div className="grid min-w-0 gap-2 sm:grid-cols-3 xl:w-[660px]">
+              <div className="rounded-xl bg-violet-100/90 px-4 py-3">
+                <div className="text-[9px] font-black uppercase tracking-wide text-violet-600">Scope</div>
+                <div className="mt-1 truncate text-[11px] font-black text-slate-900" title={scopeLabel}>{scopeLabel}</div>
+              </div>
+              <div className="rounded-xl bg-violet-100/90 px-4 py-3">
+                <div className="text-[9px] font-black uppercase tracking-wide text-violet-600">Period</div>
+                <div className="mt-1 truncate text-[11px] font-black text-slate-900" title={periodText}>{periodText}</div>
+              </div>
+              <div className="rounded-xl bg-violet-100/90 px-4 py-3">
+                <div className="text-[9px] font-black uppercase tracking-wide text-violet-600">Prepared By</div>
+                <div className="mt-1 truncate text-[11px] font-black text-slate-900" title={preparedBy}>{preparedBy}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {kpiCards.map((item) => (
+              <article key={item.title} className="rounded-2xl border border-violet-200 bg-white px-4 py-3.5 shadow-[0_4px_12px_rgba(76,29,149,0.06)]">
+                <div className="flex items-center gap-2">
+                  <span className={"inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-black " + item.iconClass}>{item.icon}</span>
+                  <span className="text-[9px] font-black tracking-wide text-slate-500">{item.title}</span>
+                </div>
+                <div className={"mt-2 text-[25px] font-black leading-none " + item.valueClass}>{item.value}</div>
+                <div className={"mt-2 rounded-full px-3 py-1 text-center text-[9px] font-black " + item.helperClass}>{item.helper}</div>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr_0.95fr]">
+            <article className="rounded-2xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="text-[13px] font-black text-slate-900">{reportModeName}-over-{reportModeName} Trend</div>
+                  <div className="mt-1 text-[9px] font-semibold text-slate-500">
+                    {shortPeriodLabel(String(firstReport?.label || ""))} → {shortPeriodLabel(String(lastReport?.label || ""))}
+                  </div>
+                </div>
+                <div className={"text-[10px] font-black " + (overallDelta > 0 ? "text-emerald-600" : overallDelta < 0 ? "text-rose-500" : "text-slate-500")}>
+                  {formatDelta(overallDelta)}
+                </div>
+              </div>
+
+              <div className="mt-3 overflow-x-auto pb-1">
+                <div className="flex h-[145px] min-w-max items-end gap-5 border-b border-slate-400 px-3" style={{ minWidth: String(Math.max(360, periodReports.length * 118)) + "px" }}>
+                  {periodReports.map((report: any, index: number) => {
+                    const score = Number(report?.avgScore || 0);
+                    const height = Math.max(20, ((score - trendFloor) / trendRange) * 108);
+                    return (
+                      <div key={String(report?.label || index)} className="flex w-[92px] shrink-0 flex-col items-center justify-end">
+                        <div className="mb-1 text-[10px] font-black text-slate-800">{score.toFixed(2)}</div>
+                        <div className="w-[72px] rounded-t-sm bg-gradient-to-t from-violet-700 to-violet-500" style={{ height: String(height) + "px" }} />
+                        <div className="mt-2 w-full truncate text-center text-[8px] font-semibold text-slate-500" title={String(report?.label || "")}>
+                          {shortPeriodLabel(String(report?.label || ""))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
+              <div className="text-[13px] font-black text-slate-900">Case Coverage</div>
+              <div className="mt-1 text-[9px] font-semibold text-slate-500">{shortPeriodLabel(String(lastReport?.label || ""))}</div>
+              <div className="mt-5 space-y-4">
+                <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Total Cases</span><span className="text-[17px] font-black text-violet-600">{latestCaseCount}</span></div>
+                <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Agents Evaluated</span><span className="text-[17px] font-black text-violet-600">{latestAgentCount}</span></div>
+                <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Avg / Agent</span><span className="text-[17px] font-black text-violet-600">{averagePerAgent.toFixed(2)}</span></div>
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
+              <div className="text-[13px] font-black text-slate-900">Review Status Mix</div>
+              <div className="mt-5 flex items-center justify-center gap-6">
+                <div className="relative h-24 w-24 shrink-0 rounded-full" style={{ background: reviewGradient }}>
+                  <div className="absolute inset-[15px] flex flex-col items-center justify-center rounded-full bg-white">
+                    <div className="whitespace-nowrap text-[15px] font-black leading-none text-violet-700">{originalPct.toFixed(0)}%</div>
+                  </div>
+                </div>
+                <div className="min-w-0 text-[10px] font-bold leading-5">
+                  <div className="text-violet-700">Original: {originalCount} ({originalPct.toFixed(0)}%)</div>
+                  <div className="text-slate-500">Revised: {revisedCount} ({revisedPct.toFixed(0)}%)</div>
+                </div>
+              </div>
+              <div className="mt-4 text-center text-[9px] font-medium text-slate-500">Total: {reviewTotal} cases</div>
+            </article>
+          </div>
+
+          {differentCriteria ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[9px] font-semibold leading-5 text-amber-700">
+              Different QA Rubrics detected. Topic scores are separated by rubric and Difference is calculated only within the same rubric.
+            </div>
+          ) : null}
+
+          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(440px,0.9fr)]">
+            <div className="min-w-0 space-y-4">
+              {topicGroups.map((group: any, groupIndex: number) => {
+                const reports = Array.isArray(group?.reports) ? group.reports : [];
+                const rubricLabel = topicGroups.length > 1
+                  ? groupIndex === topicGroups.length - 1
+                    ? "Current QA Rubric"
+                    : "Previous QA Rubric"
+                  : "";
+                return (
+                  <article key={String(group?.key || groupIndex)} className="overflow-hidden rounded-2xl border border-violet-200 bg-white">
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                      <div className="text-[14px] font-black text-slate-900">(Topic Performance)</div>
+                      {rubricLabel ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black text-amber-700">{rubricLabel}</span> : null}
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px]" style={{ minWidth: String(Math.max(720, 360 + reports.length * 130 + 110)) + "px" }}>
+                        <thead>
+                          <tr className="bg-violet-600 text-white">
+                            <th className="min-w-[320px] px-4 py-3 text-left font-black">Topic</th>
+                            {reports.map((report: any) => (
+                              <th key={String(report?.label || "")} className="min-w-[130px] px-3 py-3 text-center font-black" title={String(report?.label || "")}>
+                                {shortPeriodLabel(String(report?.label || ""))}
+                              </th>
+                            ))}
+                            <th className="min-w-[110px] px-3 py-3 text-center font-black">Δ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(group?.topics || []).map((topic: any, topicIndex: number) => {
+                            const values = reports.map((report: any) => {
+                              const matched = (topic?.values || []).find((item: any) => item?.period === report?.label);
+                              return matched?.pct === null || matched?.pct === undefined ? null : Number(matched.pct);
+                            });
+                            const availableValues = values.filter((value: number | null) => value !== null) as number[];
+                            const rowDelta = availableValues.length >= 2
+                              ? Number((availableValues[availableValues.length - 1] - availableValues[0]).toFixed(2))
+                              : null;
+                            const topicTitle = splitAnalyticsTopicTitle(String(topic?.label || topic?.code || "Topic"));
+                            return (
+                              <tr key={String(topic?.code || topicIndex)} className={topicIndex % 2 === 0 ? "bg-white" : "bg-violet-50/65"}>
+                                <td className="border-t border-violet-100 px-4 py-3">
+                                  <div className="flex items-start gap-3">
+                                    <span className="w-7 shrink-0 text-[10px] font-black text-slate-700">{String(topic?.code || "")}.</span>
+                                    <div className="min-w-0">
+                                      <div className="font-semibold leading-5 text-slate-700">{topicTitle.thai}</div>
+                                      {topicTitle.english ? <div className="mt-0.5 text-[8px] font-semibold italic text-slate-400">{topicTitle.english}</div> : null}
+                                    </div>
+                                  </div>
+                                </td>
+                                {reports.map((report: any, reportIndex: number) => {
+                                  const pct = values[reportIndex];
+                                  const target = getTopicKpiTarget(getPolicyMonthKeyForCases(report?.cases || []), String(topic?.code || ""));
+                                  const passed = pct !== null && pct >= target;
+                                  return (
+                                    <td key={String(topic?.code || "") + "-" + String(report?.label || "")} className="border-t border-violet-100 px-3 py-3 text-center">
+                                      {pct === null ? (
+                                        <span className="text-slate-400">—</span>
+                                      ) : (
+                                        <span className={"font-black " + (passed ? "text-emerald-600" : "text-amber-500")}>{pct.toFixed(2)}%</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                                <td className={"border-t border-violet-100 px-3 py-3 text-center font-black " + (rowDelta === null ? "text-slate-400" : rowDelta > 0 ? "text-emerald-600" : rowDelta < 0 ? "text-rose-500" : "text-slate-500")}>
+                                  {formatDelta(rowDelta)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="grid min-w-0 gap-4 md:grid-cols-3 xl:grid-cols-[0.95fr_1.05fr_1.05fr]">
+              <article>
+                <div className="mb-2 text-[13px] font-black text-slate-900">Grade Mix</div>
+                <div className="space-y-2">
+                  {gradeMix.map((item: any) => {
+                    const grade = String(item?.grade || "-");
+                    const gradeTone =
+                      grade === "A" ? "bg-emerald-100 text-emerald-600" :
+                      grade === "B" ? "bg-blue-100 text-blue-600" :
+                      grade === "C" ? "bg-amber-100 text-amber-600" :
+                      grade === "D" ? "bg-orange-100 text-orange-600" :
+                      grade === "F" ? "bg-rose-100 text-rose-600" :
+                      "bg-slate-200 text-slate-500";
+                    return (
+                      <div key={grade} className="flex items-center gap-3 rounded-xl border border-violet-200 bg-white px-3 py-2.5">
+                        <span className={"inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-black " + gradeTone}>{grade}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-black text-slate-800">{Number(item?.count || 0)} case(s)</div>
+                        </div>
+                        <div className={"text-[10px] font-black " + gradeTone.split(" ").slice(-1)[0]}>{Number(item?.pct || 0).toFixed(2)}%</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </article>
+
+              <article>
+                <div className="mb-2 text-center text-[13px] font-black text-emerald-600">★ (Strongest Topics)</div>
+                <div className="space-y-3">
+                  {latestStrongest.map((topic: any) => (
+                    <div key={String(topic?.code || topic?.label)} className="flex min-h-[110px] flex-col justify-between rounded-xl bg-emerald-50 px-4 py-3.5">
+                      <div className="text-[11px] font-black text-slate-800">{String(topic?.code || "")}.</div>
+                      <div className="mt-3 text-[12px] font-black text-emerald-600">{Number(topic?.pct || 0).toFixed(2)}% average</div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article>
+                <div className="mb-2 text-center text-[13px] font-black text-amber-500">⚠ (Coaching Focus)</div>
+                <div className="space-y-3">
+                  {latestCoaching.map((topic: any) => (
+                    <div key={String(topic?.code || topic?.label)} className="flex min-h-[110px] flex-col justify-between rounded-xl bg-amber-50 px-4 py-3.5">
+                      <div className="text-[11px] font-black text-slate-800">{String(topic?.code || "")}.</div>
+                      <div className="mt-3 text-[12px] font-black text-amber-500">{Number(topic?.pct || 0).toFixed(2)}% average</div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div className="mt-5 flex justify-end">
+            <img src="/robinhood-logo.png" alt="Robinhood" className="h-7 w-auto object-contain" />
           </div>
         </div>
       </section>
 
-      {activeTab === "overview" ? (
-        <div className="space-y-5" role="tabpanel">
-          <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
-            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-600">Selected Timeline</div>
-                <div className="mt-1 text-[15px] font-black text-slate-950">ช่วงเวลาที่เปรียบเทียบ แยกตามเดือน</div>
-                <div className="mt-1 text-[10px] font-medium text-slate-500">แต่ละกลุ่มเดือนใช้หัวข้อและเกณฑ์ของช่วงเวลานั้น</div>
-              </div>
-              <div className="rounded-full bg-slate-100 px-3 py-1.5 text-[9px] font-black text-slate-600">{periodGroups.length} Month Groups</div>
+      <section className="relative overflow-hidden rounded-[24px] border border-violet-200 bg-white shadow-[0_12px_34px_rgba(76,29,149,0.08)]">
+        <div className="pointer-events-none absolute -left-12 -top-20 h-40 w-40 rounded-full bg-violet-600" />
+        <div className="pointer-events-none absolute -left-7 -top-14 h-44 w-44 rounded-full bg-violet-200/80" />
+
+        <div className="relative px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex flex-wrap items-start justify-between gap-4 pl-7 sm:pl-10">
+            <div>
+              <div className="text-[23px] font-black tracking-tight text-slate-950 sm:text-[28px]">Agent Overview: {reportModeName}-over-{reportModeName}</div>
+              <div className="mt-1 text-[11px] font-medium text-slate-500">{periodText}</div>
             </div>
-
-            <div className="space-y-4 p-4 sm:p-6">
-              {periodGroups.map((group: any, groupIndex: number) => {
-                const previousGroup = groupIndex > 0 ? periodGroups[groupIndex - 1] : null;
-                const rubricChanged = previousGroup && rubricChangedBetween(previousGroup, group);
-                return (
-                  <div key={group.key} className="space-y-4">
-                    {rubricChanged ? (
-                      <div className="flex items-center gap-3 py-1">
-                        <span className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-200" />
-                        <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[9px] font-black text-amber-700">
-                          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-100">!</span>
-                          Rubric changed · ไม่คำนวณ Topic Difference ข้ามเกณฑ์
-                        </div>
-                        <span className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-200" />
-                      </div>
-                    ) : null}
-
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/45">
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 text-sm font-black text-white shadow-sm">{groupIndex + 1}</span>
-                          <div>
-                            <div className="text-[12px] font-black text-slate-950">{group.label}</div>
-                            <div className="mt-0.5 text-[9px] font-semibold text-slate-500">{group.policyLabels.join(" · ")}</div>
-                          </div>
-                        </div>
-                        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[9px] font-black text-violet-700">{group.reports.length} {group.reports.length === 1 ? "Period" : "Periods"}</span>
-                      </div>
-
-                      <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-3">
-                        {group.reports.map((report: any) => {
-                          const reportIndex = periodReports.findIndex((item: any) => item.label === report.label);
-                          const isFirst = reportIndex === 0;
-                          const isLast = reportIndex === periodReports.length - 1;
-                          const target = getPerformanceKpiTarget(getPolicyMonthKeyForCases(report.cases || []));
-                          const passed = Number(report.avgScore || 0) >= target;
-                          return (
-                            <article key={report.label} className={"rounded-2xl border bg-white p-4 " + (isLast ? "border-violet-300 shadow-[0_5px_16px_rgba(124,58,237,0.10)]" : "border-slate-200")}>
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className={"text-[9px] font-black uppercase tracking-[0.12em] " + (isLast ? "text-violet-600" : isFirst ? "text-emerald-600" : "text-slate-400")}>{isFirst ? "ช่วงแรก" : isLast ? "ช่วงล่าสุด" : "ช่วงที่ " + (reportIndex + 1)}</div>
-                                  <div className="mt-1 text-[12px] font-black text-slate-950">{report.label}</div>
-                                </div>
-                                <span className={"rounded-full px-2.5 py-1 text-[9px] font-black " + (passed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>{passed ? "PASS" : "FAIL"}</span>
-                              </div>
-                              <div className="mt-3 flex items-end justify-between gap-4 border-t border-slate-100 pt-3">
-                                <div>
-                                  <div className="text-[9px] font-semibold text-slate-400">Average Score</div>
-                                  <div className="mt-0.5 text-xl font-black text-slate-950">{Number(report.avgScore || 0).toFixed(2)}%</div>
-                                </div>
-                                <div className="text-right text-[9px] font-semibold text-slate-500">
-                                  <div>{report.caseCount} Cases</div>
-                                  <div className="mt-1">Grade {report.grade}</div>
-                                </div>
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-600">Comparison Summary</div>
-                <div className="mt-1 text-[15px] font-black text-slate-950">จากช่วงแรกถึงช่วงล่าสุด</div>
-              </div>
-              <span className={"rounded-full px-3 py-1.5 text-[10px] font-black " + (overallDelta > 0 ? "bg-emerald-100 text-emerald-700" : overallDelta < 0 ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600")}>{formatDelta(overallDelta)}</span>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl bg-slate-50 px-4 py-4"><div className="text-[9px] font-semibold text-slate-400">รวมเคส</div><div className="mt-1 text-xl font-black text-slate-950">{totalCases}</div></div>
-              <div className="rounded-2xl bg-slate-50 px-4 py-4"><div className="text-[9px] font-semibold text-slate-400">คะแนนเฉลี่ยรวม</div><div className="mt-1 text-xl font-black text-slate-950">{Number(summary?.avgScore || 0).toFixed(2)}%</div></div>
-              <div className="rounded-2xl bg-slate-50 px-4 py-4"><div className="text-[9px] font-semibold text-slate-400">เกรดรวม</div><div className="mt-1 text-xl font-black text-slate-950">{summary?.grade || "-"}</div></div>
-              <div className={"rounded-2xl px-4 py-4 " + (overallDelta > 0 ? "bg-emerald-50" : overallDelta < 0 ? "bg-rose-50" : "bg-slate-50")}><div className="text-[9px] font-semibold text-slate-400">ช่วงล่าสุดเทียบช่วงแรก</div><div className={"mt-1 text-xl font-black " + (overallDelta > 0 ? "text-emerald-700" : overallDelta < 0 ? "text-rose-600" : "text-slate-700")}>{formatDelta(overallDelta)}</div></div>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {activeTab === "topics" ? (
-        <div className="space-y-5" role="tabpanel">
-          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] sm:p-6">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-600">Topic Changes</div>
-                <div className="mt-1 text-[15px] font-black text-slate-950">สรุปการเปลี่ยนแปลงรายหัวข้อ</div>
-                <div className="mt-1 text-[10px] font-medium text-slate-500">คำนวณ Difference เฉพาะหัวข้อที่ใช้ Rubric เดียวกัน</div>
-              </div>
-              <div className="flex flex-wrap gap-2 text-[9px] font-black"><span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">New</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">Removed</span><span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">Not Comparable</span></div>
-            </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {topicCards.map((topic: any) => {
-                const statusTone = topic.status === "New" ? "border-blue-200 bg-blue-50/40" : topic.status === "Removed" ? "border-slate-200 bg-slate-50" : topic.status === "Not Comparable" ? "border-amber-200 bg-amber-50/40" : topic.passed ? "border-emerald-200 bg-emerald-50/35" : "border-rose-200 bg-rose-50/35";
-                return (
-                  <article key={topic.code} className={"overflow-hidden rounded-2xl border " + statusTone}>
-                    <div className="flex min-h-[76px] items-start gap-3 border-b border-slate-200/70 px-4 py-3">
-                      <span className="inline-flex h-7 min-w-[30px] shrink-0 items-center justify-center rounded-lg bg-white px-2 text-[10px] font-black text-violet-700 shadow-sm">{topic.code}</span>
-                      <div className="min-w-0"><div className="text-[11px] font-black leading-5 text-slate-900">{topic.thaiLabel}</div>{topic.englishLabel ? <div className="mt-0.5 text-[9px] font-black italic leading-4 text-rose-600">{topic.englishLabel}</div> : null}</div>
-                    </div>
-                    <div className="grid grid-cols-2 divide-x divide-slate-200/70 px-2 py-4 text-center">
-                      <div><div className="text-[9px] font-semibold text-slate-400">ช่วงแรก</div><div className="mt-1 text-base font-black text-slate-800">{topic.first.pct !== null ? Number(topic.first.pct).toFixed(2) + "%" : "N/A"}</div></div>
-                      <div><div className="text-[9px] font-semibold text-slate-400">ช่วงล่าสุด</div><div className={"mt-1 text-base font-black " + (topic.last.pct === null ? "text-slate-400" : topic.passed ? "text-emerald-700" : "text-rose-600")}>{topic.last.pct !== null ? Number(topic.last.pct).toFixed(2) + "%" : "N/A"}</div></div>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-slate-200/70 bg-white/70 px-4 py-2.5">
-                      <span className="text-[9px] font-semibold text-slate-500">{topic.status === "Comparable" ? "Target " + topic.target + "%" : topic.status}</span>
-                      <span className={"text-[10px] font-black " + (topic.delta === null ? "text-slate-400" : topic.delta > 0 ? "text-emerald-700" : topic.delta < 0 ? "text-rose-600" : "text-slate-600")}>{topic.status === "Comparable" ? formatDelta(topic.delta) : "—"}</span>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-
-          {topicGroups.map((group: any, groupIndex: number) => {
-            const reports = Array.isArray(group?.reports) ? group.reports : [];
-            const groupMonths = Array.from(new Set(reports.map((report: any) => monthDetailsForReport(report).monthLabel)));
-            return (
-              <div key={group.key} className="space-y-5">
-                {groupIndex > 0 ? (
-                  <div className="flex items-center gap-3 px-2"><span className="h-px flex-1 bg-amber-200" /><span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[9px] font-black text-amber-700">Rubric changed · ตารางด้านล่างเป็นคนละชุดเกณฑ์</span><span className="h-px flex-1 bg-amber-200" /></div>
-                ) : null}
-                <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-                    <div><div className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-600">Topic Comparison Matrix</div><div className="mt-1 text-[15px] font-black text-slate-950">{group.label}</div><div className="mt-1 text-[9px] font-semibold text-slate-500">{groupMonths.join(" · ")}</div></div>
-                    <div className="rounded-full bg-slate-100 px-3 py-1.5 text-[9px] font-black text-slate-600">{reports.length} {reports.length === 1 ? "Period" : "Periods"}</div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[10px]" style={{ minWidth: String(Math.max(820, 300 + reports.length * 180 + 130)) + "px" }}>
-                      <thead><tr className="bg-slate-900 text-white"><th className="min-w-[280px] px-4 py-3 text-left font-semibold">หัวข้อ (Topic)</th>{reports.map((report: any) => { const month = monthDetailsForReport(report); return <th key={report.label} className="min-w-[180px] px-3 py-3 text-center"><div className="text-[9px] font-black text-violet-200">{month.monthLabel}</div><div className="mt-1 font-semibold text-white">{report.label}</div></th>; })}<th className="min-w-[130px] px-3 py-3 text-center font-semibold">Difference</th></tr></thead>
-                      <tbody>
-                        {(group.topics || []).map((topic: any, topicIndex: number) => {
-                          const values = reports.map((report: any) => (topic.values || []).find((item: any) => item.period === report.label)?.pct ?? null);
-                          const firstAvailableIndex = values.findIndex((value: any) => value !== null);
-                          const lastAvailableIndex = values.reduce((last: number, value: any, index: number) => value !== null ? index : last, -1);
-                          const firstPct = firstAvailableIndex >= 0 ? Number(values[firstAvailableIndex]) : null;
-                          const lastPct = lastAvailableIndex >= 0 ? Number(values[lastAvailableIndex]) : null;
-                          const rowDelta = reports.length > 1 && firstPct !== null && lastPct !== null && firstAvailableIndex !== lastAvailableIndex ? Number((lastPct - firstPct).toFixed(2)) : null;
-                          const topicTitle = splitAnalyticsTopicTitle(String(topic.label || topic.code || "Topic"));
-                          return (
-                            <tr key={topic.code} className={topicIndex % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
-                              <td className="border-t border-slate-100 px-4 py-4"><div className="flex items-center gap-2.5"><span className="inline-flex h-7 min-w-[32px] items-center justify-center rounded-lg bg-violet-100 px-2 text-[10px] font-black text-violet-700">{topic.code}</span><div className="min-w-0"><div className="font-bold leading-5 text-slate-900">{topicTitle.thai}</div>{topicTitle.english ? <div className="mt-0.5 text-[9px] font-bold italic leading-4 text-rose-600">{topicTitle.english}</div> : null}</div></div></td>
-                              {reports.map((report: any, reportIndex: number) => {
-                                const pct = values[reportIndex];
-                                const target = getTopicKpiTarget(getPolicyMonthKeyForCases(report.cases || []), topic.code);
-                                const passed = pct !== null && Number(pct) >= target;
-                                let missingStatus = "No Data";
-                                if (pct === null && reportIndex < firstAvailableIndex) missingStatus = "New later";
-                                else if (pct === null && lastAvailableIndex >= 0 && reportIndex > lastAvailableIndex) missingStatus = "Removed";
-                                return <td key={String(topic.code) + "-" + report.label} className="border-t border-slate-100 px-3 py-3">{pct === null ? <div className="text-center"><span className={"inline-flex rounded-full px-2.5 py-1 text-[9px] font-black " + (missingStatus === "Removed" ? "bg-slate-100 text-slate-600" : missingStatus === "New later" ? "bg-blue-50 text-blue-700" : "bg-slate-50 text-slate-400")}>{missingStatus}</span></div> : <div className="flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200"><div className={"h-full rounded-full " + (passed ? "bg-emerald-500" : "bg-rose-500")} style={{ width: String(Math.max(0, Math.min(100, Number(pct)))) + "%" }} /></div><div className="w-[58px] text-right"><div className={"font-black " + (passed ? "text-emerald-700" : "text-rose-600")}>{Number(pct).toFixed(2)}%</div><div className="mt-0.5 text-[8px] font-semibold text-slate-400">Target {target}%</div></div></div>}</td>;
-                              })}
-                              <td className="border-t border-slate-100 px-3 py-3 text-center"><span className={"inline-flex rounded-full px-2.5 py-1 text-[10px] font-black " + (rowDelta === null ? "bg-amber-50 text-amber-700" : rowDelta > 0 ? "bg-emerald-100 text-emerald-700" : rowDelta < 0 ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600")}>{rowDelta === null ? "Not Comparable" : formatDelta(rowDelta)}</span></td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-
-      {activeTab === "drivers" ? (
-        <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)]" role="tabpanel">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-            <div><div className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-600">Score Drivers</div><div className="mt-1 text-[15px] font-black text-slate-950">สาเหตุหลักของคะแนนที่เพิ่ม / ลด</div><div className="mt-1 text-[10px] font-medium text-slate-500">แสดงสูงสุด 3 หัวข้อสำคัญต่อการเปลี่ยนช่วง เพื่อลดความรก</div></div>
-            <div className="flex items-center gap-2 text-[9px] font-bold"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">ดีขึ้น</span><span className="rounded-full bg-rose-50 px-2.5 py-1 text-rose-700">ลดลง</span></div>
+            <img src="/robinhood-logo.png" alt="Robinhood" className="h-7 w-auto object-contain" />
           </div>
 
-          {driverTransitions.length ? (
-            <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3 sm:p-6">
-              {driverTransitions.map((transition: any) => {
-                const currentReport = periodReports.find((report: any) => report.label === transition.period);
-                const previousReport = periodReports.find((report: any) => report.label === transition.previousPeriod);
-                const criteriaChanged = String(currentReport?.policy?.key || "") !== String(previousReport?.policy?.key || "");
-                const currentMonth = monthDetailsForReport(currentReport || {});
-                const previousMonth = monthDetailsForReport(previousReport || {});
-                return (
-                  <article key={transition.period} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/45">
-                    <div className="border-b border-slate-200 bg-white px-4 py-4">
-                      <div className="flex items-start justify-between gap-3"><div><div className="text-[9px] font-black text-violet-600">{previousMonth.monthLabel} → {currentMonth.monthLabel}</div><div className="mt-1 text-[11px] font-black leading-5 text-slate-950">{transition.previousPeriod}<br />→ {transition.period}</div></div><span className={"shrink-0 rounded-full px-2.5 py-1.5 text-[9px] font-black " + (criteriaChanged ? "bg-amber-100 text-amber-700" : transition.overallDelta > 0 ? "bg-emerald-100 text-emerald-700" : transition.overallDelta < 0 ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600")}>{criteriaChanged ? "Not Comparable" : formatDelta(transition.overallDelta)}</span></div>
-                    </div>
+          <div className="mt-6 overflow-x-auto rounded-xl border border-violet-200">
+            <table className="w-full text-[11px]" style={{ minWidth: String(Math.max(780, 370 + periodReports.length * 190 + 180)) + "px" }}>
+              <thead>
+                <tr className="bg-violet-600 text-white">
+                  <th className="min-w-[300px] px-4 py-3 text-left font-black">Agent</th>
+                  {periodReports.map((report: any) => (
+                    <th key={String(report?.label || "")} className="min-w-[190px] px-3 py-3 text-center font-black" title={String(report?.label || "")}>
+                      {shortPeriodLabel(String(report?.label || ""))}
+                    </th>
+                  ))}
+                  <th className="min-w-[180px] px-3 py-3 text-center font-black">Δ {reportModeName}-over-{reportModeName}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedAgentRows.map((row: any, rowIndex: number) => {
+                  const rowDelta = row?.overallDelta === null || row?.overallDelta === undefined
+                    ? null
+                    : Number(row.overallDelta);
+                  const isWeakest = scopeIsAll && weakestAgent && row?.agent === weakestAgent?.agent;
+                  const isStrongest = scopeIsAll && strongestAgent && row?.agent === strongestAgent?.agent && strongestAgent?.agent !== weakestAgent?.agent;
+                  return (
+                    <tr
+                      key={String(row?.agent || rowIndex)}
+                      className={
+                        isWeakest
+                          ? "bg-rose-50"
+                          : isStrongest
+                            ? "bg-emerald-50/70"
+                            : rowIndex % 2 === 0
+                              ? "bg-white"
+                              : "bg-violet-50/70"
+                      }
+                    >
+                      <td className="border-t border-violet-100 px-4 py-3 font-black text-slate-800">
+                        {scopeIsAll ? buildSuspendedAgentLabel(String(row?.agent || ""), accountProfiles || []) : scopeLabel}
+                      </td>
+                      {periodReports.map((report: any) => {
+                        const matched = (row?.values || []).find((value: any) => value?.period === report?.label);
+                        const score = matched?.score === null || matched?.score === undefined ? null : Number(matched.score);
+                        return (
+                          <td key={String(row?.agent || "") + "-" + String(report?.label || "")} className="border-t border-violet-100 px-3 py-3 text-center">
+                            <span className={report === lastReport ? "font-black text-slate-900" : "font-medium text-slate-600"}>
+                              {score === null ? "—" : score.toFixed(2)}
+                            </span>
+                          </td>
+                        );
+                      })}
+                      <td className={"border-t border-violet-100 px-3 py-3 text-center font-black " + (rowDelta === null ? "text-slate-400" : rowDelta > 0 ? "text-emerald-600" : rowDelta < 0 ? "text-rose-500" : "text-slate-500")}>
+                        {rowDelta === null ? "—" : (rowDelta > 0 ? "+" : "") + rowDelta.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!sortedAgentRows.length ? (
+                  <tr><td colSpan={periodReports.length + 2} className="px-5 py-10 text-center text-sm font-medium text-slate-400">No Agent data for the selected periods</td></tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
 
-                    {criteriaChanged ? (
-                      <div className="p-4"><div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4"><div className="text-[10px] font-black text-amber-800">Rubric changed</div><div className="mt-1 text-[9px] font-semibold leading-5 text-amber-700">หัวข้อและน้ำหนักคะแนนเป็นคนละเกณฑ์ จึงไม่สรุปสาเหตุแบบเทียบตรงเพื่อป้องกันความเข้าใจผิด</div></div></div>
-                    ) : (
-                      <div className="space-y-3 p-3">
-                        {(transition.topics || []).slice(0, 3).map((topic: any) => {
-                          const topicTitle = splitAnalyticsTopicTitle(String(topic.label || topic.code || "Topic"));
-                          return <div key={transition.period + "-" + topic.code} className="rounded-xl border border-slate-200 bg-white p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-[8px] font-black uppercase tracking-wide text-slate-400">Topic {topic.code}</div><div className="mt-1 text-[10px] font-black leading-5 text-slate-900">{topicTitle.thai}</div>{topicTitle.english ? <div className="mt-0.5 text-[8px] font-bold italic leading-4 text-rose-600">{topicTitle.english}</div> : null}</div><span className={"shrink-0 rounded-full px-2 py-1 text-[9px] font-black " + (topic.direction === "up" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>{formatDelta(topic.delta)}</span></div><div className="mt-3 space-y-2">{(topic.causes || []).slice(0, 2).map((cause: any) => <div key={cause.key} className="rounded-lg bg-slate-50 px-3 py-2"><div className="flex items-start justify-between gap-2"><div className="text-[9px] font-bold leading-4 text-slate-700">{cause.label}</div>{cause.count > 0 ? <span className="shrink-0 text-[8px] font-black text-slate-400">{cause.count} เคส</span> : null}</div>{cause.intents?.length ? <div className="mt-1.5 text-[8px] font-semibold leading-4 text-slate-500">Intent: {cause.intents.slice(0, 2).join(" · ")}</div> : null}</div>)}</div></div>;
-                        })}
-                        {!(transition.topics || []).length ? <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-[9px] font-semibold text-slate-400">ไม่พบหัวข้อที่สามารถอธิบายการเปลี่ยนแปลงได้</div> : null}
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
+          {scopeIsAll && weakestAgent && strongestAgent ? (
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-[11px]">
+                <span className="font-black text-rose-500">⚠ Largest decline:</span>
+                <span className="ml-2 font-bold text-slate-700">{buildSuspendedAgentLabel(String(weakestAgent.agent || ""), accountProfiles || [])} · {formatDelta(Number(weakestAgent.overallDelta))}</span>
+              </div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-[11px]">
+                <span className="font-black text-emerald-600">★ Biggest improvement:</span>
+                <span className="ml-2 font-bold text-slate-700">{buildSuspendedAgentLabel(String(strongestAgent.agent || ""), accountProfiles || [])} · {formatDelta(Number(strongestAgent.overallDelta))}</span>
+              </div>
             </div>
-          ) : <div className="p-6"><div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center text-[10px] font-semibold text-slate-500">ยังไม่มีข้อมูลเพียงพอสำหรับสรุป Score Drivers</div></div>}
-
-          <div className="border-t border-blue-100 bg-blue-50/70 px-5 py-3 text-[9px] font-semibold leading-5 text-blue-700">Score Drivers สรุปจากผลประเมิน QA และ Comment/จุดที่หักของเคส โดยไม่แสดง Case ID ในมุม Compare</div>
-        </section>
-      ) : null}
+          ) : !scopeIsAll && sortedAgentRows.length ? (
+            <div className={"mt-5 rounded-xl border px-5 py-4 text-[11px] " + (overallDelta > 0 ? "border-emerald-200 bg-emerald-50" : overallDelta < 0 ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-slate-50")}>
+              <span className={"font-black " + (overallDelta > 0 ? "text-emerald-600" : overallDelta < 0 ? "text-rose-500" : "text-slate-600")}>
+                {overallDelta > 0 ? "★ Improvement:" : overallDelta < 0 ? "⚠ Decline:" : "No change:"}
+              </span>
+              <span className="ml-2 font-bold text-slate-700">{scopeLabel} · {formatDelta(overallDelta)}</span>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 }
@@ -440,7 +584,7 @@ function AnalyticsCompareDashboardV2({
         this,
         next,
         `          <div data-analytics-overview-logic-v90="true" data-analytics-readable-v128="true" className="min-w-0 space-y-5">\n            <AnalyticsOverviewV89`,
-        `          <div data-analytics-overview-logic-v90="true" data-analytics-readable-v128="true" className="min-w-0 space-y-5">\n            {isComparisonMode ? (\n              <AnalyticsCompareDashboardV2\n                periodReports={periodTopicReports}\n                topicGroups={topicDifferenceGroups}\n                reportModeName={reportModeName}\n                summary={summaryCards}\n              />\n            ) : null}\n            <div className={isComparisonMode ? "hidden" : "contents"}>\n            <AnalyticsOverviewV89`,
+        `          <div data-analytics-overview-logic-v90="true" data-analytics-readable-v128="true" className="min-w-0 space-y-5">\n            {isComparisonMode ? (\n              <AnalyticsCompareDashboardV2\n                periodReports={periodTopicReports}\n                topicGroups={topicDifferenceGroups}\n                reportModeName={reportModeName}\n                summary={summaryCards}\n                cases={filteredCases}\n                agentRows={agentComparisonRows}\n                selectedAgent={effectiveSelectedAgent}\n                currentUser={currentUser}\n                accountProfiles={accountProfiles}\n              />\n            ) : null}\n            <div className={isComparisonMode ? "hidden" : "contents"}>\n            <AnalyticsOverviewV89`,
         "compare workspace start"
       );
 
