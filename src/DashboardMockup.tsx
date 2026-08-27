@@ -11,11 +11,14 @@ import {
   fetchStoredEvaluations,
   getStoredEvaluationMonthKey,
   isNoCaseEvaluation,
+  isTestCaseEvaluation,
+  excludeTestEvaluations,
   type StoredEvaluation,
 } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
+import TestCaseBadge from "./TestCaseBadge";
 import LoadingMascot from "./LoadingMascot";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import {
@@ -43,6 +46,7 @@ type AppealReviewedTopic = Topic & {
 };
 
 type CaseItem = {
+  isTestCase?: boolean;
   key: string;
   evaluationKey: string;
   agent: string;
@@ -1067,6 +1071,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
       return {
         key: evaluationKey,
         evaluationKey,
+        isTestCase: isTestCaseEvaluation(record),
         agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
         evaluatorName: String(record.evaluatorName || record.evaluatorUsername || "").trim(),
         caseDate: caseDateDisplay,
@@ -1806,6 +1811,7 @@ function CaseNavigatorCard({
       <div className="flex items-start justify-between gap-3 pl-1">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-black leading-5 text-slate-950">{item.caseId}</div>
+          {isTestCaseEvaluation(item) ? <TestCaseBadge /> : null}
           <div className="mt-0.5 text-[11px] font-semibold text-slate-500">{item.auditDate}</div>
         </div>
 
@@ -3014,6 +3020,7 @@ function QuickCaseSearchCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
+          {isTestCaseEvaluation(item) ? <TestCaseBadge /> : null}
           <div className="mt-1 text-[11px] text-slate-500">
             {item.agent} • {item.auditDate}
           </div>
@@ -3760,6 +3767,7 @@ function SlideOverCaseDetail({
                   <div className="truncate text-[24px] font-extrabold leading-none tracking-tight text-slate-950 lg:text-[28px]">
                     {caseItem.caseId}
                   </div>
+                  {isTestCaseEvaluation(caseItem) ? <TestCaseBadge /> : null}
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
                     <span aria-hidden="true">▣</span>
                     {caseItem.weekLabel || "-"}
@@ -4625,6 +4633,7 @@ export default function DashboardMockup({
                 return {
                   key: `v8-${evaluationKey}`,
                   evaluationKey,
+                  isTestCase: isTestCaseEvaluation({ "Test Case": v8Helper.getValue(row, "Test Case") }),
                   agent,
                   caseDate: formatAuditDateForDisplay(caseDateRaw),
                   evaluationAuditDate: formatAuditDateForDisplay(auditRaw || timestampRaw),
@@ -5161,6 +5170,7 @@ export default function DashboardMockup({
             return {
               key: evaluationKey,
               evaluationKey,
+              isTestCase: isTestCaseEvaluation({ "Test Case": rawHelper.getValue(row, "Test Case") }),
               agent,
               evaluatorName,
               caseDate: caseDateDisplay,
@@ -5540,7 +5550,7 @@ export default function DashboardMockup({
     updateDateRange("", "");
   };
 
-  const dashboardCasesBase = useMemo(() => {
+  const caseExplorerCasesBase = useMemo(() => {
     let nextCases = dateFilteredCases;
 
     if (selectedWeek !== "all") {
@@ -5557,6 +5567,8 @@ export default function DashboardMockup({
     return nextCases;
   }, [dateFilteredCases, selectedTopicCode, selectedWeek]);
 
+  const dashboardCasesBase = useMemo(() => excludeTestEvaluations(caseExplorerCasesBase), [caseExplorerCasesBase]);
+
   const dashboardCases = useMemo(() => {
     let nextCases = dashboardCasesBase;
     if (overviewMode === "revisedOnly") {
@@ -5569,12 +5581,17 @@ export default function DashboardMockup({
 
   const caseExplorerCases = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
-    if (!keyword) return dashboardCases;
+    if (!keyword) {
+      return caseExplorerCasesBase.filter((item) =>
+        overviewMode === "revisedOnly" ? item.reviewStatus === "Revised" :
+        overviewMode === "originalOnly" ? item.reviewStatus === "Original" : true
+      ).sort(compareCaseAuditDateAndWaitingTime);
+    }
 
     return authorizedSearchCases
       .filter((item) => String(item.caseId || "").toLowerCase().includes(keyword))
       .sort(compareCaseAuditDateAndWaitingTime);
-  }, [authorizedSearchCases, caseIdSearch, dashboardCases]);
+  }, [authorizedSearchCases, caseIdSearch, caseExplorerCasesBase, overviewMode]);
 
   useEffect(() => {
     if (!caseSearchSubmitNonce || caseSearchHandledNonceRef.current === caseSearchSubmitNonce) return;
@@ -5661,8 +5678,19 @@ export default function DashboardMockup({
   const metricCaseCount = dashboardCases.length;
   const visibleTargetAgents = useMemo(() => {
     if (overviewAgentScopeList.length) return overviewAgentScopeList;
-    return visibleAgentList;
-  }, [overviewAgentScopeList, visibleAgentList]);
+    const realCases = excludeTestEvaluations(allCases).filter((item) => {
+      if (selectedMonthKey && selectedMonthKey !== "all") return item.monthKey === selectedMonthKey;
+      const rangeMonthKey = getEffectiveMonthKeyFromDateRange(dateFrom, dateTo);
+      return (rangeMonthKey && rangeMonthKey !== "unknown" && item.monthKey === rangeMonthKey) ||
+        isWithinDateRange(item.auditDateObj, dateFrom, dateTo);
+    });
+    const realNoCaseAgents = noCaseEvaluations.filter((item) =>
+      !isTestCaseEvaluation(item) && (!effectiveMonthKeyForAgentVisibility || effectiveMonthKeyForAgentVisibility === "all" ||
+        getStoredEvaluationMonthKey(item) === effectiveMonthKeyForAgentVisibility)
+    );
+    return visibleAgentList.filter((agent) => realCases.some((item) => isSameAgent(item.agent, agent)) ||
+      realNoCaseAgents.some((item) => isSameAgent(item.agentName || item.targetDisplayName, agent)));
+  }, [overviewAgentScopeList, visibleAgentList, allCases, selectedMonthKey, dateFrom, dateTo, noCaseEvaluations, effectiveMonthKeyForAgentVisibility]);
   const evaluatedAgentNames = useMemo(() => {
     return dedupeAgentNames(dashboardCases.map((item) => item.agent).filter(Boolean));
   }, [dashboardCases]);
@@ -5691,15 +5719,16 @@ export default function DashboardMockup({
 
   const kpiScoreTarget = getKpiScoreTarget(effectiveViewMonthKey);
   const kpiPeriodCases = useMemo(() => {
+    const realCases = excludeTestEvaluations(agentCases);
     if (selectedMonthKey && selectedMonthKey !== "all") {
-      return agentCases.filter((item) => item.monthKey === selectedMonthKey);
+      return realCases.filter((item) => item.monthKey === selectedMonthKey);
     }
     if (isYearlyView) {
-      return agentCases.filter(
+      return realCases.filter(
         (item) => String(item.monthKey || "").slice(0, 4) === selectedYear
       );
     }
-    return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
+    return realCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
   }, [agentCases, dateFrom, dateTo, isYearlyView, selectedMonthKey, selectedYear]);
 
   const hasNoCaseMonthlyResult = useMemo(() => {
@@ -5864,7 +5893,7 @@ export default function DashboardMockup({
   const weeklyTrendData = useMemo(() => {
     const weekMap = new Map<string, number[]>();
 
-    searchScopedCases.forEach((item) => {
+    excludeTestEvaluations(searchScopedCases).forEach((item) => {
       const week = item.weekLabel || "Unknown";
       if (!weekMap.has(week)) weekMap.set(week, []);
       weekMap.get(week)!.push(item.finalScore);
@@ -5878,7 +5907,7 @@ export default function DashboardMockup({
 
   const monthlyTrendData = useMemo(() => {
     const monthMap = new Map<string, number[]>();
-    agentCases
+    excludeTestEvaluations(agentCases)
       .filter((item) => item.monthKey.startsWith(`${selectedYear}-`))
       .forEach((item) => {
         if (!monthMap.has(item.monthKey)) monthMap.set(item.monthKey, []);
@@ -5895,7 +5924,7 @@ export default function DashboardMockup({
 
   const yearlyTrendData = useMemo(() => {
     const yearMap = new Map<string, number[]>();
-    agentCases.forEach((item) => {
+    excludeTestEvaluations(agentCases).forEach((item) => {
       const year = String(item.monthKey || "").slice(0, 4);
       if (!/^\d{4}$/.test(year)) return;
       if (!yearMap.has(year)) yearMap.set(year, []);
@@ -5926,7 +5955,7 @@ export default function DashboardMockup({
       getMonthKey(new Date(anchorDate.getFullYear(), anchorDate.getMonth() - monthsBack, 1))
     );
 
-    const currentScopeCases = agentCases.filter((item) => monthKeys.includes(item.monthKey));
+    const currentScopeCases = excludeTestEvaluations(agentCases).filter((item) => monthKeys.includes(item.monthKey));
 
     return monthKeys.map((monthKey) => {
       const monthCases = currentScopeCases.filter((item) => item.monthKey === monthKey);
@@ -7430,6 +7459,7 @@ export default function DashboardMockup({
                                   <span className="cursor-text select-text pl-1 text-center font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
                                   <span className="min-w-0 cursor-text select-text">
                                     <span className="block font-bold text-slate-950">{item.caseId}</span>
+                                    {isTestCaseEvaluation(item) ? <TestCaseBadge /> : null}
                                     {isSelected ? <span className="mt-1 block text-[9px] font-bold text-violet-700">Selected case</span> : hasAppealChange ? <span className="mt-1 block text-[9px] font-bold text-sky-700">Appeal updated</span> : null}
                                   </span>
                                   <span className="min-w-0 cursor-text select-text">
@@ -7472,6 +7502,7 @@ export default function DashboardMockup({
                                 <div className="min-w-0">
                                   <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Selected Case</div>
                                   <div className="mt-1 truncate text-xl font-bold text-slate-950">{activeSelectedCase.caseId}</div>
+                                  {isTestCaseEvaluation(activeSelectedCase) ? <TestCaseBadge /> : null}
                                 </div>
                                 <div className={`rounded-full px-4 py-2 text-right ${scorePassed ? "bg-emerald-100" : "bg-rose-100"}`}>
                                   <div className={`text-xl font-bold tabular-nums ${scorePassed ? "text-emerald-700" : "text-rose-700"}`}>{activeSelectedCase.finalScore.toFixed(2)}</div>

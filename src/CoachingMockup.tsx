@@ -8,6 +8,7 @@ import PageHero from "./PageHero";
 import { LoadingMascotPanel } from "./LoadingMascot";
 import {
   fetchStoredEvaluations,
+  excludeTestEvaluations,
   type StoredEvaluation,
   type StoredEvaluationTopic,
 } from "./evaluationStore";
@@ -833,7 +834,7 @@ export default function CoachingMockup({
 
         if (cancelled) return;
         setEvaluations(
-          mergeEvaluationSources(historicalRows, currentRows)
+          mergeEvaluationSources(excludeTestEvaluations(historicalRows), excludeTestEvaluations(currentRows))
         );
         setRecords(coachingRows);
       } catch (error) {

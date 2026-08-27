@@ -1,5 +1,6 @@
 ﻿import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { isTestCaseEvaluation } from "./lib/evaluationScope";
 import { parseRichTextRuns, richTextToPlainText, type RichTextRun } from "./richText";
 
 type PdfVariant = "original" | "appeal";
@@ -693,13 +694,14 @@ export async function generateOfficialCaseDetailPdf({
 
   const reportScore = includeAppeal ? num(caseItem.finalScore) : originalScore(caseItem);
   const grade = safeText(caseItem.grade || scoreGrade(reportScore));
-  const safeCaseId = safeText(caseItem.caseId, "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_");
+  const isTestCase = isTestCaseEvaluation(caseItem);
+  const safeCaseId = `${isTestCase ? "TEST_" : ""}${safeText(caseItem.caseId, "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_")}`;
   const fileSuffix = includeAppeal ? "case_detail_appeal" : "original_pdf";
   const title = includeAppeal ? `${caseItem.caseId} Appeal PDF` : `${caseItem.caseId} Original PDF`;
 
   const drawOriginalTop = () => {
     setWidths(topWidths);
-    purpleRow(y, 6, "Case Detail");
+    purpleRow(y, 6, isTestCase ? "TEST Case Detail - Excluded from official results" : "Case Detail");
     y += 6;
     purpleRow(y, 6, "Select Case ID directly in Control_Panel. This page now shows the original evaluated case by Selected Case ID.", 5.8);
     y += 10;
@@ -817,7 +819,7 @@ export async function generateOfficialCaseDetailPdf({
 
   const drawAppealTop = () => {
     setWidths(topWidths);
-    purpleRow(y, 6, "Case Detail - Appeal / Revised");
+    purpleRow(y, 6, isTestCase ? "TEST Case Detail - Appeal / Revised" : "Case Detail - Appeal / Revised");
     y += 6;
     purpleRow(
       y,

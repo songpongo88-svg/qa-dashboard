@@ -7,6 +7,8 @@ import {
   fetchStoredEvaluations,
   getStoredEvaluationMonthKey,
   isNoCaseEvaluation,
+  isTestCaseEvaluation,
+  excludeTestEvaluations,
   type StoredEvaluation,
 } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
@@ -3102,6 +3104,7 @@ export default function SummaryMockup({
               .map((row, rowIndex) => {
                 const caseId = String(v8Helper.getValue(row, "Case ID") || "").trim();
                 if (!caseId) return null;
+                if (isTestCaseEvaluation({ "Test Case": v8Helper.getValue(row, "Test Case") })) return null;
 
                 const agent = toTitleCaseName(String(v8Helper.getValue(row, "Agent Name") || "").trim());
                 if (!agent) return null;
@@ -3306,6 +3309,7 @@ export default function SummaryMockup({
         }
 
         const mappedCases: CaseItem[] = rawDataEntries.map(({ row, rowIndex, source }) => {
+          if (isTestCaseEvaluation({ "Test Case": source.rawHelper.getValue(row, "Test Case") })) return null;
           const rawHelper = source.rawHelper;
           const caseId = String(rawHelper.getValue(row, "Case ID") || "").trim();
           if (!caseId) return null as any;
@@ -3403,7 +3407,7 @@ export default function SummaryMockup({
           } as CaseItem;
         }).filter(Boolean) as CaseItem[];
 
-        const storedEvaluations = await fetchStoredEvaluations(300);
+        const storedEvaluations = excludeTestEvaluations(await fetchStoredEvaluations(300));
         setNoCaseEvaluations(storedEvaluations.filter(isNoCaseEvaluation));
         const evaluationCases: CaseItem[] = storedEvaluations
           .filter((record) => !isNoCaseEvaluation(record))

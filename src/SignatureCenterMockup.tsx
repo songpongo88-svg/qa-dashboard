@@ -6,7 +6,7 @@ import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
-import { fetchStoredEvaluations, type StoredEvaluation } from "./evaluationStore";
+import { fetchStoredEvaluations, excludeTestEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIdentity";
 import {
@@ -1104,7 +1104,7 @@ function buildDocumentsFromStoredEvaluations(
     caseIds: Set<string>;
   }>();
 
-  records.forEach((record) => {
+  excludeTestEvaluations(records).forEach((record) => {
     const rawPreview = record.rawDataPreview || {};
     const agentName = canonicalAgentName(record.agentName || record.targetDisplayName || rawPreview["Agent Name"]);
     if (!agentName || agentName === "-") return;

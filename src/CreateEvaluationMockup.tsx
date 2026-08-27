@@ -2,11 +2,14 @@ import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ClipboardE
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
+import TestCaseBadge, { TestCaseNotice } from "./TestCaseBadge";
 import {
   deleteStoredEvaluation,
   fetchStoredEvaluations,
   getStoredEvaluationMonthKey,
   isNoCaseEvaluation,
+  isTestCaseEvaluation,
+  excludeTestEvaluations,
   upsertStoredEvaluation,
   type StoredEvaluation,
   type StoredEvaluationTopic,
@@ -79,6 +82,7 @@ type EvaluationDraft = {
   processReference?: string;
   evidenceUrl: string;
   noCaseForMonth?: boolean;
+  isTestCase?: boolean;
   criticalError: boolean;
   evaluationStartedAt: string;
   evaluationSubmittedAt: string;
@@ -108,6 +112,7 @@ export type EvaluationSubmitPayload = {
   recordId?: string;
   evaluationKey?: string;
   evaluationType?: StoredEvaluationType;
+  isTestCase?: boolean;
   evaluationMonthKey?: string;
   caseId: string;
   agentName: string;
@@ -167,6 +172,7 @@ type EvaluateTabMemory = {
   evidenceUrl: string;
   evidenceFiles: EvidenceFile[];
   noCaseForMonth: boolean;
+  isTestCase: boolean;
   criticalError: boolean;
   evaluationStartedAt: string;
   evaluationSubmittedAt: string;
@@ -869,6 +875,7 @@ export default function CreateEvaluationMockup({
   const [noCaseForMonth, setNoCaseForMonth] = useState(
     () => Boolean(readEvaluateTabMemory()?.noCaseForMonth)
   );
+  const [isTestCase, setIsTestCase] = useState(() => isTestCaseEvaluation(readEvaluateTabMemory()));
   const [criticalError, setCriticalError] = useState(() => Boolean(readEvaluateTabMemory()?.criticalError));
   const [evaluationStartedAt, setEvaluationStartedAt] = useState(() => readEvaluateTabMemory()?.evaluationStartedAt || "");
   const [evaluationSubmittedAt, setEvaluationSubmittedAt] = useState(() => readEvaluateTabMemory()?.evaluationSubmittedAt || "");
@@ -938,6 +945,7 @@ export default function CreateEvaluationMockup({
       evidenceUrl,
       evidenceFiles,
       noCaseForMonth,
+      isTestCase,
       criticalError,
       evaluationStartedAt,
       evaluationSubmittedAt,
@@ -963,6 +971,7 @@ export default function CreateEvaluationMockup({
     evidenceUrl,
     evidenceFiles,
     noCaseForMonth,
+    isTestCase,
     criticalError,
     evaluationStartedAt,
     evaluationSubmittedAt,
@@ -1003,7 +1012,7 @@ export default function CreateEvaluationMockup({
 
     const uniqueCases = new Set<string>();
     agentQuotaRecords.forEach((record) => {
-      if (isNoCaseEvaluation(record)) return;
+      if (isNoCaseEvaluation(record) || isTestCaseEvaluation(record)) return;
       const recordMonthKey = getEvaluationMonthKey(record.auditDate || record.auditTimestamp || record.submittedAt || record.updatedAt || record.createdAt);
       if (recordMonthKey !== selectedMonthKey) return;
       if (!storedEvaluationMatchesAgent(record, agentValues)) return;
@@ -1213,8 +1222,9 @@ export default function CreateEvaluationMockup({
       "Process Reference": noCaseForMonth ? "-" : richTextToPlainText(processReference) || "-",
       "Case Image URL": noCaseForMonth ? "-" : evidenceDisplayValue || "-",
       "Evaluation Type": noCaseForMonth ? "no_case_month" : "case",
+      "Test Case": isTestCase && !noCaseForMonth ? "YES" : "NO",
       "Evaluation Month Key": selectedMonthKey,
-      "Case Count Contribution": noCaseForMonth ? 0 : 1,
+      "Case Count Contribution": noCaseForMonth || isTestCase ? 0 : 1,
       "QA Scheme": activeRubric.code,
       "Rubric Version": activeRubric.name,
       "Rubric Active Period": rubricPeriod,
@@ -1235,7 +1245,7 @@ export default function CreateEvaluationMockup({
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, noCaseForMonth, processReference, rubricPeriod, selectedMonthKey, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, noCaseForMonth, isTestCase, processReference, rubricPeriod, selectedMonthKey, serviceTime, topicState, topics, waitingTime]);
 
   function makeDraftId(draftCaseId: string, draftAuditDate: string) {
     const caseKey = draftCaseId.trim().toUpperCase() || "UNTITLED-CASE";
@@ -1290,6 +1300,7 @@ export default function CreateEvaluationMockup({
       processReference,
       evidenceUrl,
       noCaseForMonth,
+      isTestCase,
       criticalError,
       evaluationStartedAt: "",
       evaluationSubmittedAt,
@@ -1313,6 +1324,7 @@ export default function CreateEvaluationMockup({
     setProcessReference(normalizedDraft.processReference || "");
     setEvidenceUrl(normalizedDraft.evidenceUrl || "");
     setNoCaseForMonth(Boolean(normalizedDraft.noCaseForMonth));
+    setIsTestCase(isTestCaseEvaluation(normalizedDraft) && !normalizedDraft.noCaseForMonth);
     setCriticalError(Boolean(normalizedDraft.criticalError));
     setEvaluationStartedAt(normalizedDraft.evaluationStartedAt || "");
     setEvaluationSubmittedAt(normalizedDraft.evaluationSubmittedAt || "");
@@ -1370,6 +1382,7 @@ export default function CreateEvaluationMockup({
       return [];
     });
     setNoCaseForMonth(false);
+    setIsTestCase(false);
     setCriticalError(false);
     setEvaluationStartedAt("");
     setEvaluationSubmittedAt("");
@@ -1406,11 +1419,13 @@ export default function CreateEvaluationMockup({
         const realStoredCase = stored.find(
           (record) =>
             !isNoCaseEvaluation(record) &&
+            !isTestCaseEvaluation(record) &&
             getStoredEvaluationMonthKey(record) === selectedMonthKey &&
             storedEvaluationMatchesAgent(record, agentValues)
         );
         const realRawCase = rawRecords.find(
           (record) =>
+            !isTestCaseEvaluation(record) &&
             getEvaluationMonthKey(record.auditDate) === selectedMonthKey &&
             agentValues.has(normalizeAgentMatchValue(record.agentName))
         );
@@ -1494,10 +1509,11 @@ export default function CreateEvaluationMockup({
         activeSubmittedRecordId ||
         (noCaseForMonth ? noCaseRecordId : undefined),
       evaluationType: noCaseForMonth ? "no_case_month" : "case",
+      isTestCase: isTestCase && !noCaseForMonth,
       evaluationMonthKey: selectedMonthKey,
       pdfButtonLabel: noCaseForMonth
         ? `No Case ${selectedMonthKey}`
-        : `${caseId || "Untitled"} Original PDF`,
+        : `${isTestCase ? "TEST " : ""}${caseId || "Untitled"} Original PDF`,
       caseId: noCaseForMonth ? "" : caseId || "Untitled Case",
       agentName: canonicalizeAgentName(agentName),
       targetUsername: selectedAgentOption?.username || "",
@@ -1557,22 +1573,24 @@ export default function CreateEvaluationMockup({
       } else {
         await onSubmitEvaluation?.(record);
 
-        const recordMonthKey =
-          record.evaluationMonthKey ||
-          getEvaluationMonthKey(record.auditDate);
-        const recordAgentValues = buildAgentMatchValues(record.agentName);
-        const storedRecords = await fetchStoredEvaluations(500);
-        const supersededNoCaseRecords = storedRecords.filter(
-          (item) =>
-            isNoCaseEvaluation(item) &&
-            getStoredEvaluationMonthKey(item) === recordMonthKey &&
-            storedEvaluationMatchesAgent(item, recordAgentValues)
-        );
-        await Promise.all(
-          supersededNoCaseRecords.map((item) =>
-            deleteStoredEvaluation(item.id || item.evaluationKey)
-          )
-        );
+        if (!isTestCaseEvaluation(record)) {
+          const recordMonthKey =
+            record.evaluationMonthKey ||
+            getEvaluationMonthKey(record.auditDate);
+          const recordAgentValues = buildAgentMatchValues(record.agentName);
+          const storedRecords = await fetchStoredEvaluations(500);
+          const supersededNoCaseRecords = storedRecords.filter(
+            (item) =>
+              isNoCaseEvaluation(item) &&
+              getStoredEvaluationMonthKey(item) === recordMonthKey &&
+              storedEvaluationMatchesAgent(item, recordAgentValues)
+          );
+          await Promise.all(
+            supersededNoCaseRecords.map((item) =>
+              deleteStoredEvaluation(item.id || item.evaluationKey)
+            )
+          );
+        }
       }
 
       setEvaluationStartedAt(record.evaluationStartedAt || record.submittedAt);
@@ -1603,12 +1621,15 @@ export default function CreateEvaluationMockup({
       setDraftMessage(
         record.evaluationType === "no_case_month"
           ? `No Case monthly result saved for ${record.agentName} (${record.evaluationMonthKey}). Score 0 and Grade ${record.grade}.`
-          : `Evaluation submitted at ${record.submittedAt}. Result task was sent to ${record.targetDisplayName || record.agentName || "the selected agent"}.`
+          : isTestCaseEvaluation(record)
+            ? `Test Case ${record.caseId} saved. เปิด Case Detail ได้ตามสิทธิ์เดิม และไม่นับใน Dashboard หรือผลประเมินจริง`
+            : `Evaluation submitted at ${record.submittedAt}. Result task was sent to ${record.targetDisplayName || record.agentName || "the selected agent"}.`
       );
       window.dispatchEvent(
         new CustomEvent("qa-dashboard:data-refresh", {
           detail: {
             evaluationType: record.evaluationType || "case",
+            isTestCase: isTestCaseEvaluation(record),
             evaluationMonthKey: record.evaluationMonthKey,
           },
         })
@@ -1789,6 +1810,7 @@ export default function CreateEvaluationMockup({
         "Evaluation Started At": parseDateTimeValue(record.evaluationStartedAt) || record.evaluationStartedAt,
         "Evaluation Submitted At": parseDateTimeValue(record.submittedAt) || record.submittedAt,
         "Evaluation Status": "Submitted",
+        "Test Case": isTestCaseEvaluation(record) ? "YES" : "NO",
         "Final Score": record.finalScore,
         "Grade": record.grade,
         "Critical Error": record.criticalError ? "YES" : "NO",
@@ -1859,7 +1881,7 @@ export default function CreateEvaluationMockup({
       evaluationKey: item.evaluationKey,
       pdfButtonLabel: isNoCaseEvaluation(item)
         ? `No Case ${getStoredEvaluationMonthKey(item)}`
-        : `${item.caseId || "Untitled"} Original PDF`,
+        : `${isTestCaseEvaluation(item) ? "TEST " : ""}${item.caseId || "Untitled"} Original PDF`,
       rawDataPreview: item.rawDataPreview || {},
       targetEmail: item.targetEmail,
     };
@@ -1897,6 +1919,7 @@ export default function CreateEvaluationMockup({
     setEvidenceUrl(editableEvidence.manualUrls);
     setEvidenceFiles(editableEvidence.attachedFiles);
     setNoCaseForMonth(record.evaluationType === "no_case_month");
+    setIsTestCase(isTestCaseEvaluation(record));
     setCriticalError(Boolean(record.criticalError));
     setEvaluationStartedAt(record.evaluationStartedAt || record.auditTimestamp || "");
     setEvaluationSubmittedAt(record.submittedAt || "");
@@ -1991,8 +2014,8 @@ export default function CreateEvaluationMockup({
     ]);
     const storedRecords: EvaluationRecord[] = stored.map(storedRecordToEvaluationRecord);
     const submittedSource = storedRecords.length ? storedRecords : evaluationHistory;
-    const filteredSubmitted = filterRecordsByReportDate(submittedSource);
-    const filteredRaw = filterRawRecordsByReportDate(rawRecords);
+    const filteredSubmitted = filterRecordsByReportDate(excludeTestEvaluations(submittedSource));
+    const filteredRaw = filterRawRecordsByReportDate(excludeTestEvaluations(rawRecords));
     const exportRows = [
       ...filteredRaw.map((record) => record.rowData),
       ...buildRowDataRows(filteredSubmitted),
@@ -2320,6 +2343,7 @@ export default function CreateEvaluationMockup({
                     return (
                       <div key={draftId} className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 shadow-sm transition hover:border-sky-300 hover:bg-white">
                         <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Case Draft</div>
+                        {isTestCaseEvaluation(draft) ? <TestCaseBadge /> : null}
                         <div className="mt-1 text-lg font-black text-slate-950">{draft.caseId || "Untitled Case"}</div>
                         <div className="mt-1 text-xs font-semibold text-slate-500">{draft.agentName || "No agent selected"}</div>
                         <div className="mt-3 text-xs font-semibold text-slate-600">Saved at: <span className="font-black text-slate-900">{draft.savedAt || "-"}</span></div>
@@ -2358,6 +2382,7 @@ export default function CreateEvaluationMockup({
                   {evaluationHistory.slice(0, 20).map((item) => (
                     <div key={item.recordId} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <div className="text-sm font-black text-slate-950">{item.caseId} - {item.targetDisplayName || item.agentName || "-"}</div>
+                      {isTestCaseEvaluation(item) ? <TestCaseBadge /> : null}
                       <div className="mt-1 text-xs font-semibold text-slate-600">Submitted at {formatDisplayTimestamp(item.submittedAt, "-")} | Score {item.finalScore}/{activeRubric.totalScore} | Grade {item.grade}</div>
                     </div>
                   ))}
@@ -2409,6 +2434,7 @@ export default function CreateEvaluationMockup({
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
                 Export RowData uses the selected Case Date range and includes GitHub RawData plus submitted QA Evaluation cases.
+                {" "}Test Cases are excluded from this report.
               </div>
               {reportMessage ? (
                 <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
@@ -2467,6 +2493,7 @@ export default function CreateEvaluationMockup({
                                     ? `No Case · ${record.evaluationMonthKey || getEvaluationMonthKey(record.auditDate)}`
                                     : record.caseId}
                                 </div>
+                                {isTestCaseEvaluation(record) ? <TestCaseBadge /> : null}
                                 <div className="mt-1 text-xs font-semibold text-slate-500">
                                   {record.agentName || record.targetDisplayName || "-"} |{" "}
                                   {record.evaluationType === "no_case_month" ? "Evaluation Month" : "Case Date"}{" "}
@@ -2556,6 +2583,7 @@ export default function CreateEvaluationMockup({
         {workspaceView === "form" ? (
         <>
         <RichTextToolbar className="sticky top-3 z-30 mb-6" />
+        {isTestCase ? <div className="mb-4"><TestCaseNotice /></div> : null}
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)_360px]">
           <div className="space-y-6">
             <SectionCard label="Section A" title="Case Information">
@@ -2591,6 +2619,7 @@ export default function CreateEvaluationMockup({
                   <input
                     type="checkbox"
                     checked={noCaseForMonth}
+                    disabled={isTestCase}
                     onChange={(event) => {
                       const checked = event.target.checked;
                       setNoCaseForMonth(checked);
@@ -2616,6 +2645,21 @@ export default function CreateEvaluationMockup({
                     <span className="mt-1 block text-xs font-semibold leading-5 text-slate-600">
                       บันทึกคะแนน 0 และคำนวณ Grade ตามเกณฑ์ของเดือนที่เลือก โดยจำนวนเคสยังคงเป็น 0
                     </span>
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                  <input
+                    type="checkbox"
+                    checked={isTestCase}
+                    disabled={noCaseForMonth || Boolean(activeSubmittedRecordId)}
+                    onChange={(event) => setIsTestCase(event.target.checked)}
+                    className="mt-1 h-5 w-5 accent-amber-600 disabled:opacity-50"
+                  />
+                  <span>
+                    <span className="block text-sm font-bold text-amber-900">Test Case — เคสทดสอบ</span>
+                    <span className="mt-1 block text-xs leading-5 text-amber-800">บันทึกและเปิด Case Detail ได้ แต่ไม่นับคะแนนหรือจำนวนเคสในผลจริง ใช้ Case ID ที่ไม่ซ้ำกับเคสเดิม</span>
+                    {activeSubmittedRecordId ? <span className="mt-1 block text-xs text-slate-600">เคสที่บันทึกแล้วจะคงประเภทเดิม</span> : null}
                   </span>
                 </label>
 
@@ -3121,6 +3165,7 @@ export default function CreateEvaluationMockup({
             </div>
 
             <div className="bg-[#f5f8f3] p-5">
+              {isTestCaseEvaluation(submitPreview.record) ? <div className="mb-4"><TestCaseNotice /></div> : null}
               <div className="rounded-[22px] border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="border-b border-slate-200 pb-4">
                   <div className="text-3xl font-black text-slate-950">Case Detail</div>

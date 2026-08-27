@@ -16,7 +16,7 @@ import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
 import PreTestMockup from "./PreTestMockup";
 import TrainingAttendanceMockup from "./TrainingAttendanceMockup";
-import { upsertStoredEvaluation } from "./evaluationStore";
+import { upsertStoredEvaluation, isTestCaseEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
 import CallHistoryMockup from "./CallHistoryMockup";
@@ -4437,6 +4437,9 @@ export default function App() {
       await upsertStoredEvaluation({
         id: evaluationId,
         evaluationKey,
+        isTestCase: isTestCaseEvaluation(payload),
+        evaluationType: payload.evaluationType || "case",
+        evaluationMonthKey: payload.evaluationMonthKey,
         caseId: compactCentralStoreText(payload.caseId),
         agentName: compactCentralStoreText(payload.agentName),
         targetUsername: compactCentralStoreText(payload.targetUsername),
@@ -4490,7 +4493,7 @@ export default function App() {
       throw new Error(`เน€เธยเน€เธเธ‘เน€เธยเน€เธโ€”เน€เธเธ–เน€เธยเน€เธโฌเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธโฌเน€เธเธเน€เธเธ”เน€เธยเน€เธเธ…เน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธเธ…เน€เธเธ’เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย: ${errorMessage}`);
     }
 
-    await logUsageEvent(currentUser, "qa_evaluation_submitted", {
+    await logUsageEvent(currentUser, isTestCaseEvaluation(payload) ? "qa_test_evaluation_submitted" : "qa_evaluation_submitted", {
       tab: "create-evaluation",
       case_id: payload.caseId,
       target_agent: payload.targetUsername || payload.agentName,
@@ -4502,6 +4505,7 @@ export default function App() {
         targetRole: payload.targetRole,
         auditDate: payload.auditDate,
         auditTimestamp: payload.auditTimestamp,
+        isTestCase: isTestCaseEvaluation(payload),
         finalScore: payload.finalScore,
         grade: payload.grade,
         qaScheme: payload.qaScheme,

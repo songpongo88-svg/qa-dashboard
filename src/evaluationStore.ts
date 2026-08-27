@@ -1,7 +1,9 @@
 ﻿import { initializeApp, getApps } from "firebase/app";
-import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc, startAfter, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
+import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
+export { isTestCaseEvaluation, excludeTestEvaluations } from "./lib/evaluationScope";
 
 const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
@@ -77,6 +79,7 @@ export type StoredEvaluation = {
   id: string;
   evaluationKey: string;
   evaluationType?: StoredEvaluationType;
+  isTestCase?: boolean;
   evaluationMonthKey?: string;
   caseId: string;
   agentName: string;
@@ -202,6 +205,7 @@ function compactStoredUrl(value: unknown) {
 function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
   return {
     ...record,
+    isTestCase: isTestCaseEvaluation(record),
     agentName: canonicalizeAgentName(record.agentName),
     targetDisplayName: canonicalizeAgentName(record.targetDisplayName),
     caseUrl: compactStoredUrl(record.caseUrl),
@@ -288,6 +292,7 @@ function isStoredEvaluationRecord(item: StoredEvaluation) {
 
 function toEvaluation(row: any): StoredEvaluation {
   return {
+    isTestCase: isTestCaseEvaluation(row),
     id: String(row.id || ""),
     evaluationKey: String(row.evaluation_key || row.id || ""),
     evaluationType: normalizeEvaluationType(
@@ -370,6 +375,7 @@ function toLocalEvaluation(row: any): StoredEvaluation {
   );
 
   return {
+    isTestCase: isTestCaseEvaluation(row),
     id: normalizeLocalString(row?.recordId || row?.id || fallbackId),
     evaluationKey: normalizeLocalString(localField(row, "evaluationKey", "evaluation_key") || row?.recordId || row?.id || fallbackId),
     evaluationType: normalizeEvaluationType(
@@ -654,6 +660,7 @@ function fromEvaluation(record: StoredEvaluation) {
     topics: record.topics || [],
     raw_data_preview: {
       ...(record.rawDataPreview || {}),
+      "Test Case": isTestCaseEvaluation(record) ? "YES" : "NO",
       "Process Reference":
         record.processReference || record.rawDataPreview?.["Process Reference"] || "",
     },
@@ -1012,7 +1019,7 @@ function saveEvaluationLocally(record: StoredEvaluation) {
     const currentLocal = readLocalEvaluationHistory().filter(
       (item) => !evaluationIdentityValues(item).some((identity) => recordIdentities.has(identity))
     );
-    const nextLocal = [localRecord, ...currentLocal].slice(0, MAX_EVALUATION_LIMIT);
+    const nextLocal = limitEvaluationScopes([localRecord, ...currentLocal], MAX_EVALUATION_LIMIT);
     window.localStorage.setItem(LOCAL_EVALUATION_HISTORY_KEY, JSON.stringify(nextLocal));
     forgetDeletedEvaluationMarkers(localRecord);
     clearRemoteEvaluationReadCache();
@@ -1022,7 +1029,10 @@ function saveEvaluationLocally(record: StoredEvaluation) {
 }
 
 function toFirebaseEvaluation(record: StoredEvaluation) {
-  return fromEvaluation(compactStoredRecord(record));
+  return {
+    ...fromEvaluation(compactStoredRecord(record)),
+    is_test_case: isTestCaseEvaluation(record),
+  };
 }
 
 export async function upsertStoredEvaluation(record: StoredEvaluation) {
@@ -1115,16 +1125,27 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
       try {
         const db = getFirebaseEvaluationDb();
         if (!db) return [];
-        const snapshot = await getDocs(
-          query(
+        const records: StoredEvaluation[] = [];
+        let cursor: QueryDocumentSnapshot | undefined;
+        let realCount = 0;
+        // Page past test records to retain the same real-result window as before.
+        while (realCount < safeLimit) {
+          const pageLimit = safeLimit - realCount;
+          const snapshot = await getDocs(query(
             collection(db, FIREBASE_EVALUATION_COLLECTION),
             orderBy("submitted_at", "desc"),
-            firestoreLimit(safeLimit)
-          )
-        );
-        return snapshot.docs
-          .map((item) => toEvaluation({ id: item.id, ...item.data() }))
-          .filter(isStoredEvaluationRecord);
+            ...(cursor ? [startAfter(cursor)] : []),
+            firestoreLimit(pageLimit)
+          ));
+          const page = snapshot.docs
+            .map((item) => toEvaluation({ id: item.id, ...item.data() }))
+            .filter(isStoredEvaluationRecord);
+          records.push(...page);
+          realCount += page.filter((item) => !isTestCaseEvaluation(item)).length;
+          if (snapshot.docs.length < pageLimit) break;
+          cursor = snapshot.docs[snapshot.docs.length - 1];
+        }
+        return limitEvaluationScopes(records, safeLimit);
       } catch (error) {
         console.warn("Load Firebase evaluations failed", error);
         return [];
@@ -1136,8 +1157,8 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
       : [];
     const availableEvaluations = mergeEvaluationSources([...firebaseEvaluations, ...syncedLocalEvaluations], localSources);
     writeRemoteEvaluationCache(availableEvaluations);
-    return availableEvaluations.slice(0, safeLimit);
+    return limitEvaluationScopes(availableEvaluations, safeLimit);
   }
 
-  return localSources.slice(0, safeLimit);
+  return limitEvaluationScopes(localSources, safeLimit);
 }

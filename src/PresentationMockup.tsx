@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
-import { fetchStoredEvaluations, StoredEvaluation } from "./evaluationStore";
+import { fetchStoredEvaluations, excludeTestEvaluations, StoredEvaluation } from "./evaluationStore";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import PageHero from "./PageHero";
@@ -301,7 +301,7 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
     fetchStoredEvaluations(1000)
       .then((rows) => {
         if (!alive) return;
-        setEvaluations(rows);
+        setEvaluations(excludeTestEvaluations(rows));
       })
       .catch((error) => {
         console.warn("Load presentation evaluations failed", error);
