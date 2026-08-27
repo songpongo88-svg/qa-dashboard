@@ -20,6 +20,13 @@ textarea {
   min-width: 0;
 }
 
+/* Keep one summary row while an embedded Compare report is rendered.
+   Removing the report (Exit Compare) restores the dashboard row automatically.
+   Scope to this results container, not other retained workspaces or the modal. */
+#qa-dashboard-results-v36:has(> [data-performance-analytics-v162="authoritative"] [data-analytics-embedded-v162="true"] [data-analytics-compare-ppt-report-v1="true"]) > [data-overview-kpi-grid-v93="true"] {
+  display: none;
+}
+
 [data-analytics-readable-v128="true"] > *,
 [data-analytics-readable-v128="true"] table,
 [data-analytics-readable-v128="true"] .overflow-auto,

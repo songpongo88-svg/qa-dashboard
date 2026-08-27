@@ -479,8 +479,14 @@ function AnalyticsCompareDashboardV2({
                 <div className="mb-2 flex min-h-[40px] items-center justify-center text-center text-[13px] font-black text-emerald-600">★ (Strongest Topics)</div>
                 <div className="space-y-3">
                   {latestStrongest.map((topic: any) => (
-                    <div key={String(topic?.code || topic?.label)} className="flex min-h-[130px] flex-col justify-between rounded-xl bg-emerald-50 px-3 py-3.5">
-                      <div className="text-[11px] font-black text-slate-800">{String(topic?.code || "")}.</div>
+                    <div key={String(topic?.code || topic?.label)} data-compare-topic-insight="strongest" className="flex min-h-[130px] flex-col justify-between rounded-xl bg-emerald-50 px-3 py-3.5">
+                      <AnalyticsBilingualTopicLabel
+                        code={String(topic?.code || "")}
+                        label={String(topic?.label || "Topic")}
+                        className="min-w-0 break-words"
+                        thaiClassName="text-[12px] font-semibold leading-5 text-slate-800"
+                        englishClassName="mt-1 text-[10px] font-medium leading-4 text-slate-600"
+                      />
                       <div className="mt-3 text-[12px] font-black text-emerald-600">{Number(topic?.pct || 0).toFixed(2)}% average</div>
                     </div>
                   ))}
@@ -491,8 +497,14 @@ function AnalyticsCompareDashboardV2({
                 <div className="mb-2 flex min-h-[40px] items-center justify-center text-center text-[13px] font-black text-amber-500">⚠ (Coaching Focus)</div>
                 <div className="space-y-3">
                   {latestCoaching.map((topic: any) => (
-                    <div key={String(topic?.code || topic?.label)} className="flex min-h-[130px] flex-col justify-between rounded-xl bg-amber-50 px-3 py-3.5">
-                      <div className="text-[11px] font-black text-slate-800">{String(topic?.code || "")}.</div>
+                    <div key={String(topic?.code || topic?.label)} data-compare-topic-insight="coaching" className="flex min-h-[130px] flex-col justify-between rounded-xl bg-amber-50 px-3 py-3.5">
+                      <AnalyticsBilingualTopicLabel
+                        code={String(topic?.code || "")}
+                        label={String(topic?.label || "Topic")}
+                        className="min-w-0 break-words"
+                        thaiClassName="text-[12px] font-semibold leading-5 text-slate-800"
+                        englishClassName="mt-1 text-[10px] font-medium leading-4 text-slate-600"
+                      />
                       <div className="mt-3 text-[12px] font-black text-amber-500">{Number(topic?.pct || 0).toFixed(2)}% average</div>
                     </div>
                   ))}
