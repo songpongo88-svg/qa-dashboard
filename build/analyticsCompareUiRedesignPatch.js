@@ -47,6 +47,8 @@ function AnalyticsCompareDashboardV2({
   const firstScore = Number(firstReport?.avgScore || 0);
   const lastScore = Number(lastReport?.avgScore || 0);
   const overallDelta = Number((lastScore - firstScore).toFixed(2));
+  const comparisonUnit = reportModeName === "Weekly" ? "Week" : reportModeName === "Monthly" ? "Month" : "Year";
+  const comparisonTitle = comparisonUnit + "-over-" + comparisonUnit;
   const scopeIsAll = selectedAgent === "all";
   const scopeLabel = scopeIsAll
     ? "All Agents"
@@ -111,20 +113,26 @@ function AnalyticsCompareDashboardV2({
   const reviewTotal = originalCount + revisedCount;
   const originalPct = reviewTotal ? Number(((originalCount / reviewTotal) * 100).toFixed(2)) : 0;
   const revisedPct = reviewTotal ? Number(((revisedCount / reviewTotal) * 100).toFixed(2)) : 0;
-  const reviewGradient =
-    reviewTotal > 0
-      ? "conic-gradient(#7c3aed 0 " +
-        String(originalPct) +
-        "%, #d946ef " +
-        String(originalPct) +
-        "% 100%)"
-      : "#e2e8f0";
-
-  const trendScores = periodReports.map((report: any) => Number(report?.avgScore || 0));
+  const trendScores = periodReports
+    .filter((report: any) => Number(report?.caseCount || 0) > 0)
+    .map((report: any) => Number(report?.avgScore || 0));
   const rawMinScore = trendScores.length ? Math.min(...trendScores) : 0;
-  const trendFloor = Math.max(0, Math.floor((rawMinScore - 5) / 5) * 5);
-  const trendCeiling = Math.min(100, Math.max(100, Math.ceil((Math.max(...trendScores, 0) + 3) / 5) * 5));
+  const trendFloor = Math.max(0, Math.min(70, Math.floor((rawMinScore - 5) / 10) * 10));
+  const trendCeiling = 100;
   const trendRange = Math.max(1, trendCeiling - trendFloor);
+  const trendTickStep = trendRange <= 40 ? 10 : 20;
+  const trendTicks = Array.from(
+    { length: Math.floor(trendRange / trendTickStep) + 1 },
+    (_, index) => trendCeiling - index * trendTickStep
+  );
+  if (trendTicks[trendTicks.length - 1] !== trendFloor) trendTicks.push(trendFloor);
+  const trendWidth = Math.max(360, periodReports.length * 100 + 44);
+  const trendLeft = 34;
+  const trendRight = trendWidth - 10;
+  const trendTop = 20;
+  const trendBottom = 120;
+  const trendY = (score: number) =>
+    trendBottom - ((Math.max(trendFloor, Math.min(trendCeiling, score)) - trendFloor) / trendRange) * (trendBottom - trendTop);
 
   const latestTopics = Array.isArray(lastReport?.topics) ? lastReport.topics : [];
   const latestStrongest = Array.isArray(lastReport?.strongest)
@@ -225,11 +233,11 @@ function AnalyticsCompareDashboardV2({
   return (
     <div data-analytics-compare-ppt-report-v1="true" className="space-y-6">
       <section className="relative overflow-hidden rounded-[24px] border border-violet-200 bg-white shadow-[0_12px_34px_rgba(76,29,149,0.08)]">
-        <div className="pointer-events-none absolute -left-14 -top-20 h-44 w-44 rounded-full bg-violet-600" />
-        <div className="pointer-events-none absolute -left-8 -top-14 h-48 w-48 rounded-full bg-violet-200/80" />
+        <div className="pointer-events-none absolute -left-20 -top-32 h-48 w-48 rounded-full bg-violet-200/80" />
+        <div className="pointer-events-none absolute -left-24 -top-36 h-44 w-44 rounded-full bg-violet-600" />
 
         <div className="relative px-5 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:items-start">
             <div className="min-w-0 pl-7 sm:pl-10">
               <div className="text-[23px] font-black tracking-tight text-slate-950 sm:text-[28px]">
                 QA {reportModeName} Comparison Report
@@ -241,40 +249,40 @@ function AnalyticsCompareDashboardV2({
               </div>
             </div>
 
-            <div className="grid min-w-0 gap-2 sm:grid-cols-3 xl:w-[660px]">
-              <div className="rounded-xl bg-violet-100/90 px-4 py-3">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,1fr)]">
+              <div className="min-w-0 rounded-xl bg-violet-100/90 px-3 py-3">
                 <div className="text-[9px] font-black uppercase tracking-wide text-violet-600">Scope</div>
                 <div className="mt-1 truncate text-[11px] font-black text-slate-900" title={scopeLabel}>{scopeLabel}</div>
               </div>
-              <div className="rounded-xl bg-violet-100/90 px-4 py-3">
+              <div className="min-w-0 rounded-xl bg-violet-100/90 px-3 py-3">
                 <div className="text-[9px] font-black uppercase tracking-wide text-violet-600">Period</div>
-                <div className="mt-1 truncate text-[11px] font-black text-slate-900" title={periodText}>{periodText}</div>
+                <div className="mt-1 break-words text-[11px] font-black text-slate-900" title={periodText}>{periodText}</div>
               </div>
-              <div className="rounded-xl bg-violet-100/90 px-4 py-3">
+              <div className="min-w-0 rounded-xl bg-violet-100/90 px-3 py-3">
                 <div className="text-[9px] font-black uppercase tracking-wide text-violet-600">Prepared By</div>
                 <div className="mt-1 truncate text-[11px] font-black text-slate-900" title={preparedBy}>{preparedBy}</div>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div data-compare-kpis="true" className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {kpiCards.map((item) => (
-              <article key={item.title} className="rounded-2xl border border-violet-200 bg-white px-4 py-3.5 shadow-[0_4px_12px_rgba(76,29,149,0.06)]">
+              <article key={item.title} className="flex min-w-0 flex-col rounded-xl border border-violet-200 bg-white px-4 py-3 shadow-[0_4px_12px_rgba(76,29,149,0.06)]">
                 <div className="flex items-center gap-2">
-                  <span className={"inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-black " + item.iconClass}>{item.icon}</span>
+                  <span className={"inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black " + item.iconClass}>{item.icon}</span>
                   <span className="text-[9px] font-black tracking-wide text-slate-500">{item.title}</span>
                 </div>
-                <div className={"mt-2 text-[25px] font-black leading-none " + item.valueClass}>{item.value}</div>
-                <div className={"mt-2 rounded-full px-3 py-1 text-center text-[9px] font-black " + item.helperClass}>{item.helper}</div>
+                <div className={"mb-2 mt-2 text-[25px] font-black leading-none tabular-nums " + item.valueClass}>{item.value}</div>
+                <div className={"mt-auto rounded-full px-2 py-1 text-center text-[9px] font-black " + item.helperClass}>{item.helper}</div>
               </article>
             ))}
           </div>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr_0.95fr]">
-            <article className="rounded-2xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
+          <div data-compare-charts="true" className="mt-4 grid items-stretch gap-4 lg:grid-cols-3">
+            <article className="flex min-w-0 flex-col rounded-xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <div className="text-[13px] font-black text-slate-900">{reportModeName}-over-{reportModeName} Trend</div>
+                  <div className="text-[13px] font-black text-slate-900">{comparisonTitle} Trend</div>
                   <div className="mt-1 text-[9px] font-semibold text-slate-500">
                     {shortPeriodLabel(String(firstReport?.label || ""))} → {shortPeriodLabel(String(lastReport?.label || ""))}
                   </div>
@@ -284,49 +292,76 @@ function AnalyticsCompareDashboardV2({
                 </div>
               </div>
 
-              <div className="mt-3 overflow-x-auto pb-1">
-                <div className="flex h-[145px] min-w-max items-end gap-5 border-b border-slate-400 px-3" style={{ minWidth: String(Math.max(360, periodReports.length * 118)) + "px" }}>
+              <div className="mt-auto overflow-x-auto pt-2">
+                <svg
+                  data-compare-trend="true"
+                  role="img"
+                  aria-label={comparisonTitle + " scores: " + periodReports.map((report: any, index: number) => compactPeriodLabels[index] + ": " + (Number(report?.caseCount || 0) > 0 ? Number(report?.avgScore || 0).toFixed(2) : "No data")).join(", ")}
+                  viewBox={"0 0 " + String(trendWidth) + " 164"}
+                  className="block h-[152px] w-full"
+                  style={{ minWidth: periodReports.length > 3 ? String(trendWidth) + "px" : undefined }}
+                >
+                  {trendTicks.map((tick: number) => (
+                    <g key={tick}>
+                      <line x1={trendLeft} x2={trendRight} y1={trendY(tick)} y2={trendY(tick)} stroke="#ede9fe" strokeWidth="1" />
+                      <text x={trendLeft - 6} y={trendY(tick) + 3.5} textAnchor="end" fontSize="10" fill="#64748b">{tick}</text>
+                    </g>
+                  ))}
+                  <path d={"M " + trendLeft + " " + trendTop + " V " + trendBottom + " H " + trendRight} fill="none" stroke="#94a3b8" strokeWidth="1" />
                   {periodReports.map((report: any, index: number) => {
                     const score = Number(report?.avgScore || 0);
-                    const height = Math.max(20, ((score - trendFloor) / trendRange) * 108);
+                    const hasData = Number(report?.caseCount || 0) > 0;
+                    const slotWidth = (trendRight - trendLeft) / periodReports.length;
+                    const centerX = trendLeft + slotWidth * (index + 0.5);
+                    const barWidth = slotWidth * 0.68;
+                    const labelParts = compactPeriodLabels[index].match(/^(.*)\s(\d{4})$/);
                     return (
-                      <div key={String(report?.label || index)} className="flex w-[92px] shrink-0 flex-col items-center justify-end">
-                        <div className="mb-1 text-[10px] font-black text-slate-800">{score.toFixed(2)}</div>
-                        <div className="w-[72px] rounded-t-sm bg-gradient-to-t from-violet-700 to-violet-500" style={{ height: String(height) + "px" }} />
-                        <div className="mt-2 w-full truncate text-center text-[8px] font-semibold text-slate-500" title={String(report?.label || "")}>
-                          {shortPeriodLabel(String(report?.label || ""))}
-                        </div>
-                      </div>
+                      <g key={String(report?.label || index)}>
+                        {hasData ? <rect data-trend-bar="true" x={centerX - barWidth / 2} y={trendY(score)} width={barWidth} height={trendBottom - trendY(score)} rx="1.5" fill="var(--qa-theme-600, #7c3aed)" /> : null}
+                        <text x={centerX} y={hasData ? trendY(score) - 7 : trendBottom - 7} textAnchor="middle" fontSize="11" fontWeight="600" fill="#1e293b">{hasData ? score.toFixed(2) : "—"}</text>
+                        <text x={centerX} y="138" textAnchor="middle" fontSize="10" fill="#64748b">
+                          <tspan x={centerX}>{labelParts ? labelParts[1] : compactPeriodLabels[index]}</tspan>
+                          {labelParts ? <tspan x={centerX} dy="13">{labelParts[2]}</tspan> : null}
+                        </text>
+                      </g>
                     );
                   })}
-                </div>
+                </svg>
               </div>
             </article>
 
-            <article className="rounded-2xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
+            <article className="flex min-w-0 flex-col rounded-xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
               <div className="text-[13px] font-black text-slate-900">Case Coverage</div>
               <div className="mt-1 text-[9px] font-semibold text-slate-500">{shortPeriodLabel(String(lastReport?.label || ""))}</div>
-              <div className="mt-5 space-y-4">
+              <div className="mt-4 flex flex-1 flex-col justify-around gap-3">
                 <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Total Cases</span><span className="text-[17px] font-black text-violet-600">{latestCaseCount}</span></div>
                 <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Agents Evaluated</span><span className="text-[17px] font-black text-violet-600">{latestAgentCount}</span></div>
                 <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Avg / Agent</span><span className="text-[17px] font-black text-violet-600">{averagePerAgent.toFixed(2)}</span></div>
               </div>
             </article>
 
-            <article className="rounded-2xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
+            <article className="flex min-w-0 flex-col rounded-xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
               <div className="text-[13px] font-black text-slate-900">Review Status Mix</div>
-              <div className="mt-5 flex items-center justify-center gap-6">
-                <div className="relative h-24 w-24 shrink-0 rounded-full" style={{ background: reviewGradient }}>
-                  <div className="absolute inset-[15px] flex flex-col items-center justify-center rounded-full bg-white">
-                    <div className="whitespace-nowrap text-[15px] font-black leading-none text-violet-700">{originalPct.toFixed(0)}%</div>
-                  </div>
-                </div>
+              <div className="mt-3 flex flex-1 flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                <svg
+                  data-compare-review-donut="true"
+                  role="img"
+                  aria-label={"Review status: Original " + originalCount + " (" + originalPct.toFixed(0) + "%), Revised " + revisedCount + " (" + revisedPct.toFixed(0) + "%)"}
+                  viewBox="0 0 120 120"
+                  width="112"
+                  height="112"
+                  className="shrink-0"
+                >
+                  <circle cx="60" cy="60" r="42" fill="none" stroke={reviewTotal ? "#d946ef" : "#e2e8f0"} strokeWidth="16" />
+                  {originalCount > 0 ? <circle cx="60" cy="60" r="42" fill="none" stroke="var(--qa-theme-600, #7c3aed)" strokeWidth="16" pathLength="100" strokeDasharray={String(originalPct) + " " + String(100 - originalPct)} transform="rotate(-90 60 60)" /> : null}
+                  <text x="60" y="60" dy="0.35em" textAnchor="middle" fontSize="18" fontWeight="600" fill="#334155">{reviewTotal ? originalPct.toFixed(0) + "%" : "—"}</text>
+                </svg>
                 <div className="min-w-0 text-[10px] font-bold leading-5">
-                  <div className="text-violet-700">Original: {originalCount} ({originalPct.toFixed(0)}%)</div>
-                  <div className="text-slate-500">Revised: {revisedCount} ({revisedPct.toFixed(0)}%)</div>
+                  <div className="flex items-center gap-1.5 text-violet-700"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "var(--qa-theme-600, #7c3aed)" }} />Original: {originalCount} ({originalPct.toFixed(0)}%)</div>
+                  <div className="flex items-center gap-1.5 text-slate-500"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "#d946ef" }} />Revised: {revisedCount} ({revisedPct.toFixed(0)}%)</div>
                 </div>
               </div>
-              <div className="mt-4 text-center text-[9px] font-medium text-slate-500">Total: {reviewTotal} cases</div>
+              <div className="mt-1 text-center text-[9px] font-medium text-slate-500">Total: {reviewTotal} cases</div>
             </article>
           </div>
 
@@ -336,7 +371,7 @@ function AnalyticsCompareDashboardV2({
             </div>
           ) : null}
 
-          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(440px,0.9fr)]">
+          <div data-compare-detail-grid="true" className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div className="min-w-0 space-y-4">
               {topicGroups.map((group: any, groupIndex: number) => {
                 const reports = Array.isArray(group?.reports) ? group.reports : [];
@@ -346,22 +381,22 @@ function AnalyticsCompareDashboardV2({
                     : "Previous QA Rubric"
                   : "";
                 return (
-                  <article key={String(group?.key || groupIndex)} className="overflow-hidden rounded-2xl border border-violet-200 bg-white">
-                    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                  <article key={String(group?.key || groupIndex)} className="min-w-0 overflow-hidden bg-white">
+                    <div className="mb-2 flex min-h-[40px] flex-wrap items-center justify-between gap-2">
                       <div className="text-[14px] font-black text-slate-900">(Topic Performance)</div>
                       {rubricLabel ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black text-amber-700">{rubricLabel}</span> : null}
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-[10px]" style={{ minWidth: String(Math.max(720, 360 + reports.length * 130 + 110)) + "px" }}>
+                    <div className="overflow-x-auto border border-violet-200">
+                      <table className="w-full text-[10px]" style={{ minWidth: String(Math.max(520, 240 + reports.length * 96 + 88)) + "px" }}>
                         <thead>
                           <tr className="bg-violet-600 text-white">
-                            <th className="min-w-[320px] px-4 py-3 text-left font-black">Topic</th>
+                            <th className="min-w-[240px] px-3 py-3 text-left font-black">Topic</th>
                             {reports.map((report: any) => (
-                              <th key={String(report?.label || "")} className="min-w-[130px] px-3 py-3 text-center font-black" title={String(report?.label || "")}>
+                              <th key={String(report?.label || "")} className="min-w-[96px] px-2 py-3 text-center font-black" title={String(report?.label || "")}>
                                 {shortPeriodLabel(String(report?.label || ""))}
                               </th>
                             ))}
-                            <th className="min-w-[110px] px-3 py-3 text-center font-black">Δ</th>
+                            <th className="min-w-[88px] px-2 py-3 text-center font-black">Δ</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -377,9 +412,9 @@ function AnalyticsCompareDashboardV2({
                             const topicTitle = splitAnalyticsTopicTitle(String(topic?.label || topic?.code || "Topic"));
                             return (
                               <tr key={String(topic?.code || topicIndex)} className={topicIndex % 2 === 0 ? "bg-white" : "bg-violet-50/65"}>
-                                <td className="border-t border-violet-100 px-4 py-3">
-                                  <div className="flex items-start gap-3">
-                                    <span className="w-7 shrink-0 text-[10px] font-black text-slate-700">{String(topic?.code || "")}.</span>
+                                <td className="border-t border-violet-100 px-3 py-4">
+                                  <div className="flex items-start gap-2">
+                                    <span className="w-5 shrink-0 text-[10px] font-black text-slate-700">{String(topic?.code || "")}.</span>
                                     <div className="min-w-0">
                                       <div className="font-semibold leading-5 text-slate-700">{topicTitle.thai}</div>
                                       {topicTitle.english ? <div className="mt-0.5 text-[8px] font-semibold italic text-slate-400">{topicTitle.english}</div> : null}
@@ -391,7 +426,7 @@ function AnalyticsCompareDashboardV2({
                                   const target = getTopicKpiTarget(getPolicyMonthKeyForCases(report?.cases || []), String(topic?.code || ""));
                                   const passed = pct !== null && pct >= target;
                                   return (
-                                    <td key={String(topic?.code || "") + "-" + String(report?.label || "")} className="border-t border-violet-100 px-3 py-3 text-center">
+                                    <td key={String(topic?.code || "") + "-" + String(report?.label || "")} className="border-t border-violet-100 px-2 py-3 text-center tabular-nums">
                                       {pct === null ? (
                                         <span className="text-slate-400">—</span>
                                       ) : (
@@ -400,7 +435,7 @@ function AnalyticsCompareDashboardV2({
                                     </td>
                                   );
                                 })}
-                                <td className={"border-t border-violet-100 px-3 py-3 text-center font-black " + (rowDelta === null ? "text-slate-400" : rowDelta > 0 ? "text-emerald-600" : rowDelta < 0 ? "text-rose-500" : "text-slate-500")}>
+                                <td className={"whitespace-nowrap border-t border-violet-100 px-2 py-3 text-center font-black tabular-nums " + (rowDelta === null ? "text-slate-400" : rowDelta > 0 ? "text-emerald-600" : rowDelta < 0 ? "text-rose-500" : "text-slate-500")}>
                                   {formatDelta(rowDelta)}
                                 </td>
                               </tr>
@@ -414,9 +449,9 @@ function AnalyticsCompareDashboardV2({
               })}
             </div>
 
-            <div className="grid min-w-0 gap-4 md:grid-cols-3 xl:grid-cols-[0.95fr_1.05fr_1.05fr]">
-              <article>
-                <div className="mb-2 text-[13px] font-black text-slate-900">Grade Mix</div>
+            <div data-compare-insights="true" className="grid min-w-0 items-start gap-4 md:grid-cols-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]">
+              <article className="min-w-0">
+                <div className="mb-2 flex min-h-[40px] items-center text-[13px] font-black text-slate-900">Grade Mix</div>
                 <div className="space-y-2">
                   {gradeMix.map((item: any) => {
                     const grade = String(item?.grade || "-");
@@ -428,23 +463,23 @@ function AnalyticsCompareDashboardV2({
                       grade === "F" ? "bg-rose-100 text-rose-600" :
                       "bg-slate-200 text-slate-500";
                     return (
-                      <div key={grade} className="flex items-center gap-3 rounded-xl border border-violet-200 bg-white px-3 py-2.5">
-                        <span className={"inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-black " + gradeTone}>{grade}</span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[10px] font-black text-slate-800">{Number(item?.count || 0)} case(s)</div>
+                      <div key={grade} className="flex min-w-0 items-center gap-2 rounded-lg border border-violet-200 bg-white px-2 py-2.5">
+                        <span className={"inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black " + gradeTone}>{grade}</span>
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-1 gap-y-0.5">
+                          <div className="whitespace-nowrap text-[10px] font-black text-slate-800">{Number(item?.count || 0)} case(s)</div>
+                          <div className={"whitespace-nowrap text-[10px] font-black tabular-nums " + gradeTone.split(" ").slice(-1)[0]}>{Number(item?.pct || 0).toFixed(2)}%</div>
                         </div>
-                        <div className={"text-[10px] font-black " + gradeTone.split(" ").slice(-1)[0]}>{Number(item?.pct || 0).toFixed(2)}%</div>
                       </div>
                     );
                   })}
                 </div>
               </article>
 
-              <article>
-                <div className="mb-2 text-center text-[13px] font-black text-emerald-600">★ (Strongest Topics)</div>
+              <article className="min-w-0">
+                <div className="mb-2 flex min-h-[40px] items-center justify-center text-center text-[13px] font-black text-emerald-600">★ (Strongest Topics)</div>
                 <div className="space-y-3">
                   {latestStrongest.map((topic: any) => (
-                    <div key={String(topic?.code || topic?.label)} className="flex min-h-[110px] flex-col justify-between rounded-xl bg-emerald-50 px-4 py-3.5">
+                    <div key={String(topic?.code || topic?.label)} className="flex min-h-[130px] flex-col justify-between rounded-xl bg-emerald-50 px-3 py-3.5">
                       <div className="text-[11px] font-black text-slate-800">{String(topic?.code || "")}.</div>
                       <div className="mt-3 text-[12px] font-black text-emerald-600">{Number(topic?.pct || 0).toFixed(2)}% average</div>
                     </div>
@@ -452,11 +487,11 @@ function AnalyticsCompareDashboardV2({
                 </div>
               </article>
 
-              <article>
-                <div className="mb-2 text-center text-[13px] font-black text-amber-500">⚠ (Coaching Focus)</div>
+              <article className="min-w-0">
+                <div className="mb-2 flex min-h-[40px] items-center justify-center text-center text-[13px] font-black text-amber-500">⚠ (Coaching Focus)</div>
                 <div className="space-y-3">
                   {latestCoaching.map((topic: any) => (
-                    <div key={String(topic?.code || topic?.label)} className="flex min-h-[110px] flex-col justify-between rounded-xl bg-amber-50 px-4 py-3.5">
+                    <div key={String(topic?.code || topic?.label)} className="flex min-h-[130px] flex-col justify-between rounded-xl bg-amber-50 px-3 py-3.5">
                       <div className="text-[11px] font-black text-slate-800">{String(topic?.code || "")}.</div>
                       <div className="mt-3 text-[12px] font-black text-amber-500">{Number(topic?.pct || 0).toFixed(2)}% average</div>
                     </div>
@@ -473,13 +508,13 @@ function AnalyticsCompareDashboardV2({
       </section>
 
       <section className="relative overflow-hidden rounded-[24px] border border-violet-200 bg-white shadow-[0_12px_34px_rgba(76,29,149,0.08)]">
-        <div className="pointer-events-none absolute -left-12 -top-20 h-40 w-40 rounded-full bg-violet-600" />
-        <div className="pointer-events-none absolute -left-7 -top-14 h-44 w-44 rounded-full bg-violet-200/80" />
+        <div className="pointer-events-none absolute -left-20 -top-32 h-48 w-48 rounded-full bg-violet-200/80" />
+        <div className="pointer-events-none absolute -left-24 -top-36 h-44 w-44 rounded-full bg-violet-600" />
 
         <div className="relative px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-wrap items-start justify-between gap-4 pl-7 sm:pl-10">
             <div>
-              <div className="text-[23px] font-black tracking-tight text-slate-950 sm:text-[28px]">Agent Overview: {reportModeName}-over-{reportModeName}</div>
+              <div className="text-[23px] font-black tracking-tight text-slate-950 sm:text-[28px]">Agent Overview: {comparisonTitle}</div>
               <div className="mt-1 text-[11px] font-medium text-slate-500">{periodText}</div>
             </div>
             <img src="/robinhood-logo.png" alt="Robinhood" className="h-7 w-auto object-contain" />
@@ -495,7 +530,7 @@ function AnalyticsCompareDashboardV2({
                       {shortPeriodLabel(String(report?.label || ""))}
                     </th>
                   ))}
-                  <th className="min-w-[180px] px-3 py-3 text-center font-black">Δ {reportModeName}-over-{reportModeName}</th>
+                  <th className="min-w-[180px] px-3 py-3 text-center font-black">Δ {comparisonTitle}</th>
                 </tr>
               </thead>
               <tbody>
