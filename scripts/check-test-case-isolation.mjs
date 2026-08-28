@@ -211,4 +211,96 @@ await check("visible TEST badge renders and Case Detail/individual PDF retain th
   assert.match(source("DashboardMockup.tsx"), /isTestCaseEvaluation\(caseItem\) \? <TestCaseBadge/);
   assert.match(source("caseDetailOfficialPdf.ts"), /TEST Case Detail - Excluded from official results/);
 });
-console.log(`\n${checks} test-case isolation checks passed.`);
+const watermarks = functions("CaseWatermarks.tsx", ["getCaseWatermarkLabels", "CaseWatermarks"], { ...scope, React });
+await check("watermarks distinguish normal, test and every appeal-history state", () => {
+  const labels = watermarks.getCaseWatermarkLabels;
+  assert.deepEqual(labels({}), []);
+  assert.deepEqual(labels({ caseId: "TEST_APPEAL_123", reviewStatus: "Original" }), []);
+  assert.deepEqual(labels({ isTestCase: true }), ["TEST"]);
+  for (const appeal of [
+    { hasAppealHistory: true }, { appealRequestId: "request-1" }, { reviewStatus: "Revised" },
+    ...["Pending", "Approved", "Rejected", "Reset"].map((appealStatus) => ({ appealStatus })),
+  ]) {
+    assert.deepEqual(labels(appeal), ["APPEAL"]);
+    assert.deepEqual(labels({ ...appeal, isTestCase: true }), ["TEST", "APPEAL"]);
+  }
+  assert.deepEqual(labels({ appealStatus: "Draft" }), []);
+});
+await check("watermarks render separate accessible stamps behind clickable card content", () => {
+  const render = (item) => renderToStaticMarkup(React.createElement(watermarks.CaseWatermarks, { item }));
+  assert.equal(render({}), "");
+  const both = render({ isTestCase: true, hasAppealHistory: true });
+  assert.match(both, /data-count="2"/);
+  assert.match(both, /qa-case-watermark--test/);
+  assert.match(both, /qa-case-watermark--appeal/);
+  assert.match(both, /aria-label="เคสทดสอบ ไม่นับในผลประเมินจริง · เคสนี้เคยยื่นอุทธรณ์"/);
+  assert.equal((both.match(/aria-hidden="true"/g) || []).length, 2);
+  const css = source("index.css");
+  assert.match(css, /\.qa-case-watermark-card\s*\{[^}]*isolation: isolate/s);
+  assert.match(css, /\.qa-case-watermarks\s*\{[^}]*z-index: -1[^}]*pointer-events: none/s);
+  assert.match(css, /\.qa-case-watermark\s*\{[^}]*transform: rotate\(-12deg\)/s);
+  assert.match(css, /\.qa-case-watermarks\s*\{[^}]*flex-wrap: wrap/s);
+});
+const appealHistory = functions("DashboardMockup.tsx", [
+  "normalizeAppealCaseId", "splitAppealCaseIds", "buildAppealHistoryCaseIds", "applyAppealMapsToCaseItems",
+], {
+  calcMergedFinalScore: () => { throw new Error("History must not recalculate scores"); },
+  scoreToGrade: () => { throw new Error("History must not recalculate grades"); },
+});
+await check("submitted, reviewed and reset appeals retain history independently of scores", () => {
+  const ids = appealHistory.buildAppealHistoryCaseIds([
+    { event_type: "appeal_request_submitted", case_id: "aa291165, AA291166" },
+    { event_type: "appeal_request_reviewed", details: { caseId: "Test Round 1_Dada", status: "Rejected" } },
+    { event_type: "appeal_request_reset", case_id: "Test_ศักดา" },
+    { event_type: "appeal_case_override", case_id: "AA999999" },
+    { event_type: "appeal_request_draft", case_id: "AA888888" },
+    { event_type: "appeal_request_submitted" },
+  ]);
+  assert.deepEqual([...ids].sort(), ["AA291165", "AA291166", "TESTROUND1_DADA", "TEST_ศักดา"].sort());
+  const cases = [{ ...mapped[1], caseId: "AA291165" }, { ...mapped[0], caseId: "Test Round 1_Dada" }, mapped[2]];
+  const baseline = appealHistory.applyAppealMapsToCaseItems(cases, new Map(), new Map());
+  const stamped = appealHistory.applyAppealMapsToCaseItems(cases, new Map(), new Map(), ids);
+  assert.deepEqual(stamped.map((item) => item.hasAppealHistory), [true, true, false]);
+  for (let index = 0; index < cases.length; index++) {
+    const { hasAppealHistory: ignored, ...actual } = stamped[index];
+    const { hasAppealHistory: previous, ...expected } = baseline[index];
+    assert.deepEqual(actual, expected);
+    assert.equal(cases[index].hasAppealHistory, undefined);
+  }
+  assert.deepEqual(appealHistory.applyAppealMapsToCaseItems(stamped, new Map(), new Map()).map((item) => item.hasAppealHistory), [true, true, false]);
+});
+await check("successful appeal submission updates the matching card immediately", () => {
+  let cases = [{ ...mapped[1], caseId: "AA291165" }, mapped[0], mapped[2]];
+  const before = cases;
+  value("DashboardMockup.tsx", "markCaseAppealSubmitted", {
+    ...appealHistory, dashboardWorkbookCacheV155: {}, setAllCases: (update) => { cases = update(cases); },
+  })("aa291165");
+  assert.equal(cases[0].hasAppealHistory, true);
+  assert.equal(cases[0].finalScore, before[0].finalScore);
+  assert.equal(cases[1], before[1]);
+  assert.equal(cases[2], before[2]);
+  const dashboard = source("DashboardMockup.tsx");
+  assert.equal((dashboard.match(/onAppealSubmitted=\{markCaseAppealSubmitted\}/g) || []).length, 3);
+  assert.equal((dashboard.match(/<CaseWatermarks item=/g) || []).length, 4);
+  assert.match(dashboard, /setAppealRequestExists\(true\);\s*onAppealSubmitted\?\.\(caseItem.caseId\)/);
+});
+const filenames = functions("caseDetailOfficialPdf.ts", ["safeText", "caseIdForFileName"], {
+  richTextToPlainText: (text) => String(text ?? ""),
+});
+await check("PDF filenames use Case ID, preserve Thai and sanitize only unsafe characters", () => {
+  for (const id of ["AA291165", "Test_ศักดา", "Test Round 1_Dada", "291165"]) {
+    assert.equal(filenames.caseIdForFileName(id), id);
+  }
+  assert.equal(filenames.caseIdForFileName('Case/ไทย\\A:*?"<>|\u0001'), "Case_ไทย_A_");
+  assert.equal(filenames.caseIdForFileName("Case...  "), "Case");
+  assert.equal(filenames.caseIdForFileName(""), "case-detail");
+  assert.equal(filenames.caseIdForFileName(undefined), "case-detail");
+  const pdf = source("caseDetailOfficialPdf.ts");
+  assert.match(pdf, /const safeCaseId = caseIdForFileName\(caseItem.caseId\)/);
+  assert.match(pdf, /\$\{safeCaseId\}_Original_QA_Report.pdf/);
+  assert.match(pdf, /\$\{safeCaseId\}_case_detail_appeal_report.pdf/);
+  assert.doesNotMatch(pdf, /isTestCase \? "TEST_"/);
+  assert.doesNotMatch(source("CreateEvaluationMockup.tsx"), /\? "TEST " : ""/);
+  assert.match(pdf, /TEST Case Detail - Excluded from official results/);
+});
+console.log(`\n${checks} test-case isolation and watermark checks passed.`);

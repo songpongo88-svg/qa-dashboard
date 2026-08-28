@@ -1513,7 +1513,7 @@ export default function CreateEvaluationMockup({
       evaluationMonthKey: selectedMonthKey,
       pdfButtonLabel: noCaseForMonth
         ? `No Case ${selectedMonthKey}`
-        : `${isTestCase ? "TEST " : ""}${caseId || "Untitled"} Original PDF`,
+        : `${caseId || "Untitled"} Original PDF`,
       caseId: noCaseForMonth ? "" : caseId || "Untitled Case",
       agentName: canonicalizeAgentName(agentName),
       targetUsername: selectedAgentOption?.username || "",
@@ -1881,7 +1881,7 @@ export default function CreateEvaluationMockup({
       evaluationKey: item.evaluationKey,
       pdfButtonLabel: isNoCaseEvaluation(item)
         ? `No Case ${getStoredEvaluationMonthKey(item)}`
-        : `${isTestCaseEvaluation(item) ? "TEST " : ""}${item.caseId || "Untitled"} Original PDF`,
+        : `${item.caseId || "Untitled"} Original PDF`,
       rawDataPreview: item.rawDataPreview || {},
       targetEmail: item.targetEmail,
     };

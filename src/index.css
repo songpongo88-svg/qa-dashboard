@@ -3,6 +3,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Non-interactive stamps live behind card content, not in the grid columns. */
+.qa-case-watermark-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.qa-case-watermarks {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 1rem;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  user-select: none;
+}
+.qa-case-watermark {
+  flex: 0 0 auto;
+  font-size: clamp(22px, 2.4vw, 34px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  transform: rotate(-12deg);
+}
+.qa-case-watermark--appeal { color: rgb(79 70 229 / 19%); }
+.qa-case-watermark--test { color: rgb(217 119 6 / 21%); }
+
 /* qa-kanit-font-v32 */
 html,
 body,

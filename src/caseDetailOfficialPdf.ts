@@ -54,6 +54,13 @@ function safeText(value: unknown, fallback = "-") {
   return text || fallback;
 }
 
+function caseIdForFileName(value: unknown) {
+  // Preserve the entered ID (including Thai); replace only unsafe filename characters.
+  return safeText(value, "case-detail")
+    .replace(/[<>:"/\\|?*\u0000-\u001f\u007f]+/g, "_")
+    .replace(/[. ]+$/g, "") || "case-detail";
+}
+
 function safeMultiline(value: unknown, fallback = "-") {
   const text = richTextToPlainText(value).replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
   return text || fallback;
@@ -695,7 +702,7 @@ export async function generateOfficialCaseDetailPdf({
   const reportScore = includeAppeal ? num(caseItem.finalScore) : originalScore(caseItem);
   const grade = safeText(caseItem.grade || scoreGrade(reportScore));
   const isTestCase = isTestCaseEvaluation(caseItem);
-  const safeCaseId = `${isTestCase ? "TEST_" : ""}${safeText(caseItem.caseId, "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_")}`;
+  const safeCaseId = caseIdForFileName(caseItem.caseId);
   const fileSuffix = includeAppeal ? "case_detail_appeal" : "original_pdf";
   const title = includeAppeal ? `${caseItem.caseId} Appeal PDF` : `${caseItem.caseId} Original PDF`;
 

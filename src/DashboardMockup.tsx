@@ -19,6 +19,7 @@ import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
 import TestCaseBadge from "./TestCaseBadge";
+import CaseWatermarks from "./CaseWatermarks";
 import LoadingMascot from "./LoadingMascot";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import {
@@ -47,6 +48,7 @@ type AppealReviewedTopic = Topic & {
 
 type CaseItem = {
   isTestCase?: boolean;
+  hasAppealHistory?: boolean;
   key: string;
   evaluationKey: string;
   agent: string;
@@ -194,6 +196,15 @@ function getAppealRequestTime(request: any) {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
+function buildAppealHistoryCaseIds(logs: UsageLogEvent[]) {
+  const caseIds = new Set<string>();
+  logs.forEach((log) => {
+    if (!["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset"].includes(log.event_type)) return;
+    splitAppealCaseIds(log.case_id || log.details?.caseId).forEach((caseId) => caseIds.add(caseId));
+  });
+  return caseIds;
+}
+
 function buildLatestAppealRequestMap(logs: UsageLogEvent[]) {
   const latest = new Map<string, any>();
 
@@ -336,7 +347,8 @@ function buildAppealOutcomeMap(
 function applyAppealMapsToCaseItems(
   cases: CaseItem[],
   appealMap: Map<string, AppealMergeItem>,
-  outcomeMap: Map<string, AppealOutcomeItem>
+  outcomeMap: Map<string, AppealOutcomeItem>,
+  appealHistoryCaseIds: Set<string> = new Set()
 ) {
   return cases.map((item) => {
     const itemCaseIds = splitAppealCaseIds(item.caseId);
@@ -358,6 +370,8 @@ function applyAppealMapsToCaseItems(
 
     let nextItem: CaseItem = {
       ...item,
+      hasAppealHistory: Boolean(item.hasAppealHistory || mergedAppeal || loggedOutcome ||
+        candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),
       appealStatus: effectiveStatus,
       appealReviewSummary: loggedOutcome?.reviewSummary || "",
       appealReviewedAt: loggedOutcome?.reviewedAt || "",
@@ -1791,7 +1805,7 @@ function CaseNavigatorCard({
         }
       }}
       data-case-navigator-compact-v52="true"
-      className={`group relative flex h-full min-h-[210px] cursor-pointer flex-col overflow-hidden rounded-[20px] border px-3.5 py-3 text-left transition-all duration-200 ${
+      className={`qa-case-watermark-card group relative flex h-full min-h-[210px] cursor-pointer flex-col overflow-hidden rounded-[20px] border px-3.5 py-3 text-left transition-all duration-200 ${
         isSelected
           ? songkranTheme
             ? "border-cyan-300 bg-gradient-to-br from-cyan-50 via-white to-fuchsia-50 shadow-[0_10px_24px_rgba(34,211,238,0.16)]"
@@ -1799,6 +1813,7 @@ function CaseNavigatorCard({
           : "border-violet-200/80 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_10px_22px_rgba(109,40,217,0.11)]"
       }`}
     >
+      <CaseWatermarks item={item} />
       <span
         className={`pointer-events-none absolute inset-y-0 left-0 w-1 ${
           songkranTheme
@@ -3011,8 +3026,9 @@ function QuickCaseSearchCard({
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl border border-violet-100 bg-white px-4 py-4 text-left transition hover:border-violet-300 hover:bg-violet-50"
+      className="qa-case-watermark-card relative w-full overflow-hidden rounded-2xl border border-violet-100 bg-white px-4 py-4 text-left transition hover:border-violet-300 hover:bg-violet-50"
     >
+      <CaseWatermarks item={item} />
       {isSongkranThemeActive() ? (
         <span className="pointer-events-none absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
       ) : null}
@@ -3180,6 +3196,7 @@ function SlideOverCaseDetail({
   onOpenAppealCase,
   onGeneratePdf,
   onShareCaseDetail,
+  onAppealSubmitted,
 }: {
   open: boolean;
   embedded?: boolean;
@@ -3189,6 +3206,7 @@ function SlideOverCaseDetail({
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
   onShareCaseDetail?: (caseId: string, agentName?: string) => void;
+  onAppealSubmitted?: (caseId: string) => void;
 }) {
   if (!open || !caseItem) return null;
 
@@ -3385,6 +3403,7 @@ function SlideOverCaseDetail({
       }
 
       setAppealRequestExists(true);
+      onAppealSubmitted?.(caseItem.caseId);
       setAppealSubmitOpen(false);
       setAppealSubmitMessage("Appeal request submitted to Songpon for review.");
     } finally {
@@ -4225,6 +4244,15 @@ export default function DashboardMockup({
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
 
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
+  const markCaseAppealSubmitted = (caseId: string) => {
+    const submittedIds = new Set(splitAppealCaseIds(caseId));
+    setAllCases((cases) => cases.map((item) =>
+      splitAppealCaseIds(item.caseId).some((id) => submittedIds.has(id))
+        ? { ...item, hasAppealHistory: true }
+        : item
+    ));
+    dashboardWorkbookCacheV155 = null;
+  };
   const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -4842,6 +4870,11 @@ export default function DashboardMockup({
         const appealHelper = buildHeaderHelpers(appealHeaderRow);
 
         const appealMap = new Map<string, AppealMergeItem>();
+        const appealHistoryCaseIds = new Set<string>();
+        appealDataRows.forEach((row) => {
+          splitAppealCaseIds(appealHelper.getValue(row, "Case ID"))
+            .forEach((caseId) => appealHistoryCaseIds.add(caseId));
+        });
 
         getLatestAppealRows(appealDataRows, appealHelper).forEach((row) => {
           const caseId = String(appealHelper.getValue(row, "Case ID") ?? "").trim();
@@ -4938,6 +4971,8 @@ export default function DashboardMockup({
             ],
             { limit: 2000, forceRefresh: true }
           ) as UsageLogEvent[];
+
+          buildAppealHistoryCaseIds(reviewedLogs).forEach((caseId) => appealHistoryCaseIds.add(caseId));
 
           const firebaseApprovedMap = buildApprovedAppealMergeMap(
             reviewedLogs,
@@ -5206,7 +5241,7 @@ export default function DashboardMockup({
 
         evaluationCases = await loadEvaluationCases();
         const canonicalCases = mergeRawAndStoredEvaluationCases(mapped, evaluationCases);
-        const mergedCases = applyAppealMapsToCaseItems(canonicalCases, appealMap, appealOutcomeMap);
+        const mergedCases = applyAppealMapsToCaseItems(canonicalCases, appealMap, appealOutcomeMap, appealHistoryCaseIds);
         applyLoadedWorkbook(mergedCases, appealMap.size);
       } catch (error: any) {
         console.error("Load Error:", error);
@@ -6321,6 +6356,7 @@ export default function DashboardMockup({
             onOpenAppealCase={onOpenAppealCase}
             onGeneratePdf={onGeneratePdf}
             onShareCaseDetail={onShareCaseDetail}
+            onAppealSubmitted={markCaseAppealSubmitted}
           />
         ) : (
           <div className="mx-auto flex min-h-[420px] max-w-3xl items-center justify-center p-6">
@@ -7445,7 +7481,7 @@ export default function DashboardMockup({
                                     setSelectedCaseKey(item.key);
                                     setSlideOverOpen(false);
                                   }}
-                                  className={`group relative grid w-full cursor-pointer grid-cols-[90px_95px_minmax(130px,0.8fr)_minmax(220px,1.6fr)_90px_80px_60px_110px] items-center gap-2 overflow-hidden rounded-2xl border px-4 py-3 text-left text-xs transition-all duration-200 ${
+                                  className={`qa-case-watermark-card group relative grid w-full cursor-pointer grid-cols-[90px_95px_minmax(130px,0.8fr)_minmax(220px,1.6fr)_90px_80px_60px_110px] items-center gap-2 overflow-hidden rounded-2xl border px-4 py-3 text-left text-xs transition-all duration-200 ${
                                     isSelected
                                       ? "border-violet-400 bg-gradient-to-r from-violet-50 via-white to-white shadow-[0_8px_22px_rgba(109,40,217,0.12)]"
                                       : hasAppealChange
@@ -7455,6 +7491,7 @@ export default function DashboardMockup({
                                         : "border-rose-200 bg-rose-50/45 hover:border-rose-300 hover:shadow-[0_7px_18px_rgba(244,63,94,0.09)]"
                                   }`}
                                 >
+                                  <CaseWatermarks item={item} />
                                   <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${hasAppealChange ? "bg-sky-500" : scorePassed ? "bg-emerald-500" : "bg-rose-500"}`} />
                                   <span className="cursor-text select-text pl-1 text-center font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
                                   <span className="min-w-0 cursor-text select-text">
@@ -7498,7 +7535,8 @@ export default function DashboardMockup({
                                 : "border-slate-200 bg-slate-100 text-slate-700";
                           return (
                             <div className="cursor-text select-text">
-                              <div className="flex items-start justify-between gap-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-violet-50/50 p-4">
+                              <div className="qa-case-watermark-card flex items-start justify-between gap-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-violet-50/50 p-4">
+                                <CaseWatermarks item={activeSelectedCase} />
                                 <div className="min-w-0">
                                   <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Selected Case</div>
                                   <div className="mt-1 truncate text-xl font-bold text-slate-950">{activeSelectedCase.caseId}</div>
@@ -7571,6 +7609,7 @@ export default function DashboardMockup({
                     onOpenAppealCase={onOpenAppealCase}
                     onGeneratePdf={onGeneratePdf}
                     onShareCaseDetail={onShareCaseDetail}
+                    onAppealSubmitted={markCaseAppealSubmitted}
                   />
 
                 </>
@@ -7657,6 +7696,7 @@ export default function DashboardMockup({
                     onOpenAppealCase={onOpenAppealCase}
                     onGeneratePdf={onGeneratePdf}
                     onShareCaseDetail={onShareCaseDetail}
+                    onAppealSubmitted={markCaseAppealSubmitted}
                   />
                 </>
               )
