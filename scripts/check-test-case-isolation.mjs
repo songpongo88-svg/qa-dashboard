@@ -39,6 +39,8 @@ async function check(label, fn) { await fn(); checks++; console.log(`PASS ${labe
 
 const scope = functions("lib/evaluationScope.ts", ["isTestCaseEvaluation", "excludeTestEvaluations", "limitEvaluationScopes"]);
 const { isTestCaseEvaluation, excludeTestEvaluations, limitEvaluationScopes } = scope;
+const identity = run(source("lib/agentIdentity.ts"));
+const names = functions("lib/userNames.ts", ["getUserFullName", "withConsistentUserNames", "getEvaluationAgentFullName"], identity);
 await check("legacy default, remote/raw flags and explicit false precedence", () => {
   for (const record of [undefined, {}, { isTestCase: false }, { isTestCase: "NO" }, { isTestCase: false, rawDataPreview: { "Test Case": "YES" } }]) {
     assert.equal(isTestCaseEvaluation(record), false);
@@ -52,7 +54,7 @@ const store = functions("evaluationStore.ts", [
   "toArray", "compactStoredText", "compactStoredUrl", "compactStoredRecord", "canonicalizeRawPreview", "toTopics",
   "normalizeEvaluationType", "monthKeyFromValue", "isNoCaseEvaluation", "getStoredEvaluationMonthKey", "isStoredEvaluationRecord",
   "toEvaluation", "normalizeLocalString", "localField", "localRawPreview", "toLocalEvaluation", "fromEvaluation", "toFirebaseEvaluation",
-], { ...scope, canonicalizeAgentName: (name) => String(name || "") });
+], { ...scope, ...identity, ...names });
 function record(id, score, test = false, agent = "Agent A") {
   return store.toLocalEvaluation({ id, evaluationKey: id, caseId: id, isTestCase: test,
     agentName: agent, targetDisplayName: agent, auditDate: "2026-08-17", auditTimestamp: "2026-08-17T12:00:00Z",
@@ -311,4 +313,88 @@ await check("PDF filenames use Case ID, preserve Thai and sanitize only unsafe c
   assert.doesNotMatch(source("CreateEvaluationMockup.tsx"), /\? "TEST " : ""/);
   assert.match(pdf, /TEST Case Detail - Excluded from official results/);
 });
-console.log(`\n${checks} test-case isolation and watermark checks passed.`);
+await check("profile full name is shared without changing username, role or account state", () => {
+  const original = { username: "Darunee", displayName: "  Darunee  Teparsa ", agentName: "Darunee",
+    role: "Admin Live Chat", status: "Active", teamName: "Team A", password: "fixture-only", passwordKind: "temporary" };
+  const normalized = names.withConsistentUserNames(original);
+  assert.deepEqual(normalized, { ...original, displayName: "Darunee Teparsa", agentName: "Darunee Teparsa" });
+  assert.equal(original.agentName, "Darunee");
+  assert.equal(names.getUserFullName({ displayName: " ", agentName: "Agent Fullname", username: "agent" }), "Agent Fullname");
+  assert.equal(names.getUserFullName({ display_name: "ชื่อ นามสกุล", agent_name: "ชื่อ" }), "ชื่อ นามสกุล");
+  assert.equal(names.getUserFullName({ username: "legacy" }), "legacy");
+  assert.equal(names.getUserFullName({}), "");
+  assert.equal(names.getUserFullName({ displayName: "Jirapong Wongwaengnoi" }), "Jirapong Wongwangnoi");
+});
+await check("profile store and cached reads synchronize names while preserving all other fields", () => {
+  const profiles = functions("userRoleStore.ts", ["toUserProfile", "fromUserProfile"], {
+    ...names, normalizeRoleName: (role) => role, bangkokToday: () => "2026-08-28", serverTimestamp: () => "server-time",
+  });
+  const original = { username: "Darunee", displayName: "Darunee Teparsa", agentName: "Darunee", email: "fixture@example.com",
+    role: "Admin Live Chat", status: "Active", teamLead: "Lead A", teamName: "Team A", suspendReason: "", workSim: "0812345678",
+    password: "fixture-only", passwordKind: "temporary", passwordIssuedAt: "2026-08-27T00:00:00Z",
+    passwordExpiresAt: "2026-09-10T00:00:00Z", createdAt: "2026-08-27T00:00:00Z", updatedAt: "2026-08-27T00:00:00Z" };
+  const expected = { ...original, agentName: original.displayName };
+  assert.deepEqual(profiles.toUserProfile(original), profiles.toUserProfile(expected));
+  assert.deepEqual(profiles.fromUserProfile(original), profiles.fromUserProfile(expected));
+  const encoded = profiles.fromUserProfile(original);
+  for (const key of ["username", "role", "status", "email", "teamLead", "teamName", "password", "passwordKind", "passwordIssuedAt", "passwordExpiresAt"]) {
+    assert.equal(encoded[key], original[key], key);
+  }
+});
+await check("legacy evaluation names expand from the linked snapshot without changing keys or scores", () => {
+  const original = { ...testCase, id: "Test_Dada-1787805937176", evaluationKey: "web-eval|TEST-ROUND-1_DADA|darunee|2026-08-27|123",
+    caseId: "Test Round 1_Dada", agentName: "Darunee", targetDisplayName: "Darunee Teparsa", targetUsername: "Darunee" };
+  for (const decoded of [store.toLocalEvaluation(original), store.toEvaluation({ ...store.toFirebaseEvaluation(original), agent_name: "Darunee" })]) {
+    assert.equal(decoded.agentName, "Darunee Teparsa");
+    for (const key of ["id", "evaluationKey", "caseId", "targetUsername", "isTestCase", "finalScore", "grade"]) assert.equal(decoded[key], original[key], key);
+    assert.deepEqual(decoded.topics, original.topics);
+    assert.deepEqual(decoded.evidenceUrls, original.evidenceUrls);
+  }
+  const noIds = { ...original, id: undefined, evaluationKey: undefined, recordId: undefined };
+  const withoutSnapshot = { ...noIds, targetDisplayName: "Darunee" };
+  assert.equal(store.toLocalEvaluation(noIds).id, store.toLocalEvaluation(withoutSnapshot).id);
+  assert.equal(store.toLocalEvaluation(noIds).evaluationKey, store.toLocalEvaluation(withoutSnapshot).evaluationKey);
+  assert.equal(names.getEvaluationAgentFullName({ agentName: "Legacy Agent", targetDisplayName: "Nickname" }), "Legacy Agent");
+  assert.equal(names.getEvaluationAgentFullName({ agentName: "", targetUsername: "account-only" }), "");
+});
+await check("evaluation options use full names and old drafts resolve by exact username", () => {
+  const agentOptions = [{ username: "Darunee", displayName: "Darunee Teparsa", agentName: "Darunee", role: "Admin Live Chat" },
+    { username: "Darunee2", displayName: "Darunee Other", agentName: "Darunee Other", role: "Admin Live Chat" }];
+  const options = value("CreateEvaluationMockup.tsx", "availableAgentOptions", { ...names, agentOptions });
+  assert.equal(options.find((agent) => agent.username === "Darunee").agentName, "Darunee Teparsa");
+  assert.equal(options.length, agentOptions.length);
+  const select = (agentName) => value("CreateEvaluationMockup.tsx", "selectedAgentOption", { availableAgentOptions: options, agentName });
+  assert.equal(select("Darunee").username, "Darunee");
+  assert.equal(select("Darunee2").username, "Darunee2");
+  assert.equal(select("Darunee Other").username, "Darunee2");
+  assert.equal(select("Dar"), undefined);
+  assert.equal(select(""), undefined);
+});
+await check("editing a full name synchronizes both fields but other profile edits stay isolated", () => {
+  let draft = { username: "Darunee", displayName: "Darunee", agentName: "Darunee", role: "Admin Live Chat" };
+  const update = value("CorporateUserDirectoryProfile.tsx", "updateAccount", { setAccountDraft: (fn) => { draft = fn(draft); } });
+  update("displayName", "Darunee Teparsa");
+  assert.deepEqual(draft, { username: "Darunee", displayName: "Darunee Teparsa", agentName: "Darunee Teparsa", role: "Admin Live Chat" });
+  update("role", "Senior");
+  assert.equal(draft.agentName, "Darunee Teparsa");
+  assert.equal(draft.username, "Darunee");
+  assert.equal(draft.role, "Senior");
+  update("displayName", "");
+  assert.equal(draft.displayName, "");
+  assert.equal(draft.agentName, "");
+});
+await check("legacy profile logs and stored profiles agree on the same full name", () => {
+  const app = functions("App.tsx", ["getProfileUpdateUsername", "buildUserProfileOverrides", "buildUserProfileOverridesFromStore", "buildEffectiveUserAccounts"], {
+    ...names, normalizeRoleName: (role) => role, isUserRole: () => true, DEFAULT_TEAM_ASSIGNMENTS: {},
+  });
+  const profile = { username: "Darunee", displayName: "Darunee Teparsa", agentName: "Darunee", role: "Admin Live Chat", status: "Active" };
+  const fromStore = app.buildUserProfileOverridesFromStore([profile]);
+  const fromLog = app.buildUserProfileOverrides([{ event_type: "user_profile_saved", target_agent: "Darunee", details: profile }]);
+  assert.deepEqual(fromLog, fromStore);
+  const accounts = app.buildEffectiveUserAccounts([{ ...profile, password: "fixture-only" }], fromStore, {});
+  assert.equal(accounts[0].agentName, "Darunee Teparsa");
+  assert.equal(accounts[0].username, "Darunee");
+  assert.equal(accounts[0].password, "fixture-only");
+  assert.equal(accounts[0].role, "Admin Live Chat");
+});
+console.log(`\n${checks} identity, test-case isolation and watermark checks passed.`);

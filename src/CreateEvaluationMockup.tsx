@@ -24,6 +24,7 @@ import {
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
+import { withConsistentUserNames } from "./lib/userNames";
 import {
   cacheStickyNote,
   fetchStoredStickyNote,
@@ -987,11 +988,7 @@ export default function CreateEvaluationMockup({
   const availableAgentOptions = useMemo(() => {
     const options = (agentOptions || [])
       .filter((agent) => agent.agentName || agent.displayName)
-      .map((agent) => ({
-        ...agent,
-        displayName: canonicalizeAgentName(agent.displayName),
-        agentName: canonicalizeAgentName(agent.agentName || agent.displayName),
-      }))
+      .map(withConsistentUserNames)
       .sort((a, b) => (a.agentName || a.displayName).localeCompare(b.agentName || b.displayName));
     if (options.length) return options;
     return FALLBACK_AGENT_NAMES.map((name) => ({
@@ -1002,10 +999,16 @@ export default function CreateEvaluationMockup({
     }));
   }, [agentOptions]);
   const selectedAgentOption = useMemo(
-    () => availableAgentOptions.find((agent) => agent.agentName === agentName || agent.displayName === agentName),
+    () => availableAgentOptions.find((agent) => agent.agentName === agentName || agent.displayName === agentName)
+      || availableAgentOptions.find((agent) => Boolean(agentName.trim()) && agent.username.trim().toLowerCase() === agentName.trim().toLowerCase()),
     [agentName, availableAgentOptions]
   );
   const selectedMonthKey = useMemo(() => getEvaluationMonthKey(auditDate) || todayInputValue().slice(0, 7), [auditDate]);
+  useEffect(() => {
+    if (selectedAgentOption && agentName !== selectedAgentOption.agentName) {
+      setAgentName(selectedAgentOption.agentName);
+    }
+  }, [agentName, selectedAgentOption]);
   const selectedAgentCaseCount = useMemo(() => {
     const agentValues = buildAgentMatchValues(agentName, selectedAgentOption);
     if (!agentValues.size || !selectedMonthKey) return 0;

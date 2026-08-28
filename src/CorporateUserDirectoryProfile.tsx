@@ -5,6 +5,7 @@ import { jsPDF } from "jspdf";
 import { firebaseDb } from "./firebaseClient";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchStoredProfilePhoto } from "./profilePhotoStore";
+import { withConsistentUserNames } from "./lib/userNames";
 
 type DirectoryStatusView = "active" | "suspended";
 type LifecycleMode = "active" | "scheduled" | "suspended" | "offboarding";
@@ -3367,7 +3368,11 @@ export default function CorporateUserDirectoryProfile({
     key: K,
     value: CorporateUserAccountUpdate[K]
   ) => {
-    setAccountDraft((current) => (current ? { ...current, [key]: value } : current));
+    setAccountDraft((current) => current
+      ? key === "displayName" || key === "agentName"
+        ? { ...current, displayName: String(value), agentName: String(value) }
+        : { ...current, [key]: value }
+      : current);
   };
 
   const updateDevice = <K extends keyof WorkDevice>(id: string, key: K, value: WorkDevice[K]) => {
@@ -3667,12 +3672,7 @@ export default function CorporateUserDirectoryProfile({
 
     const update: CorporateUserAccountUpdate =
       {
-        ...accountDraft,
-        displayName:
-          accountDraft.displayName.trim(),
-        agentName:
-          accountDraft.agentName.trim() ||
-          accountDraft.displayName.trim(),
+        ...withConsistentUserNames(accountDraft),
         email: accountDraft.email.trim(),
         role: accountDraft.role.trim(),
         teamLead:

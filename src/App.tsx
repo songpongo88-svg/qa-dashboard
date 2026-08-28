@@ -14,6 +14,7 @@ import AnnouncementHub from "./AnnouncementHub";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
+import { withConsistentUserNames } from "./lib/userNames";
 import PreTestMockup from "./PreTestMockup";
 import TrainingAttendanceMockup from "./TrainingAttendanceMockup";
 import { upsertStoredEvaluation, isTestCaseEvaluation } from "./evaluationStore";
@@ -1621,9 +1622,9 @@ function buildUserProfileOverrides(logs: UsageLogEvent[]) {
     if (!username || profiles[normalizedUsername] || !isUserRole(role)) return;
 
     const status = item.details?.status === "Suspended" ? "Suspended" : "Active";
-    profiles[normalizedUsername] = {
+    profiles[normalizedUsername] = withConsistentUserNames({
       username,
-      displayName: String(item.details?.displayName || username),
+      displayName: String(item.details?.displayName || item.details?.agentName || username),
       agentName: String(item.details?.agentName || item.details?.displayName || username),
       email: String(item.details?.email || ""),
       workSim: String(item.details?.workSim || item.details?.workSimNumber || "").replace(/\D+/g, ""),
@@ -1633,7 +1634,7 @@ function buildUserProfileOverrides(logs: UsageLogEvent[]) {
       status,
       suspendReason: String(item.details?.suspendReason || ""),
       suspendEffectiveDate: String(item.details?.suspendEffectiveDate || item.details?.suspendDate || ""),
-    };
+    });
   });
 
   return profiles;
@@ -1644,9 +1645,9 @@ function buildUserProfileOverridesFromStore(rows: StoredUserProfile[]) {
   rows.forEach((row) => {
     const username = String(row.username || "").trim();
     if (!username) return;
-    profiles[username.toLowerCase()] = {
+    profiles[username.toLowerCase()] = withConsistentUserNames({
       username,
-      displayName: row.displayName || username,
+      displayName: row.displayName || row.agentName || username,
       agentName: row.agentName || row.displayName || username,
       email: row.email || "",
       workSim: row.workSim || "",
@@ -1656,7 +1657,7 @@ function buildUserProfileOverridesFromStore(rows: StoredUserProfile[]) {
       status: row.status === "Suspended" ? "Suspended" : "Active",
       suspendReason: row.suspendReason || "",
       suspendEffectiveDate: row.suspendEffectiveDate || "",
-    };
+    });
   });
   return profiles;
 }

@@ -9,6 +9,7 @@ import { appendUserProfileHistory } from "./profileHistoryStore";
 // data-analytics-permission-scope-v95-role
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
+import { getUserFullName, withConsistentUserNames } from "./lib/userNames";
 import CorporateUserDirectoryProfile, { type CorporateUserAccountUpdate } from "./CorporateUserDirectoryProfile";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
@@ -1371,9 +1372,7 @@ export default function UserRoleAdminMockup({
   };
 
   const saveNewUser = async () => {
-    const agentName =
-      newUserDraft.agentName.trim() ||
-      newUserDraft.displayName.trim();
+    const agentName = getUserFullName(newUserDraft);
     const temporaryPassword =
       generateTemporaryPassword();
     const createdAt =
@@ -1561,6 +1560,7 @@ export default function UserRoleAdminMockup({
   const saveSingleUserAccount = async (
     update: CorporateUserAccountUpdate
   ) => {
+    update = withConsistentUserNames(update);
     const original = rows.find(
       (row) =>
         normalizeUsername(row.username) ===
@@ -1655,10 +1655,8 @@ export default function UserRoleAdminMockup({
   };
   const handleSaveDirectory = async () => {
     const cleanedUsers = draftUsers.map((item) => ({
-      ...item,
+      ...withConsistentUserNames(item),
       username: item.username.trim(),
-      displayName: item.displayName.trim(),
-      agentName: item.agentName.trim() || item.displayName.trim(),
       email: item.email.trim(),
       role: normalizeRoleName(item.role),
       teamLead:
@@ -6586,9 +6584,9 @@ function CreateUserModal({
                     1. ข้อมูลผู้ใช้งาน
                   </div>
                   <div className="mt-1 text-[11px] leading-5 text-slate-500">
-                    กรอกชื่อจริงเพียงครั้งเดียว
+                    กรอกชื่อ–นามสกุลเพียงครั้งเดียว
                     ระบบใช้เป็น Agent Name และ
-                    Display Name อัตโนมัติ
+                    Display Name อัตโนมัติ ส่วน Username ใช้สำหรับล็อกอินแยกต่างหาก
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -7191,7 +7189,6 @@ function TextInput({
     />
   );
 }
-
 
 
 

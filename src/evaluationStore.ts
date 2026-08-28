@@ -2,6 +2,7 @@
 import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc, startAfter, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
+import { getEvaluationAgentFullName } from "./lib/userNames";
 import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
 export { isTestCaseEvaluation, excludeTestEvaluations } from "./lib/evaluationScope";
 
@@ -206,7 +207,7 @@ function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
   return {
     ...record,
     isTestCase: isTestCaseEvaluation(record),
-    agentName: canonicalizeAgentName(record.agentName),
+    agentName: getEvaluationAgentFullName(record),
     targetDisplayName: canonicalizeAgentName(record.targetDisplayName),
     caseUrl: compactStoredUrl(record.caseUrl),
     inquiry: compactStoredText(record.inquiry),
@@ -304,7 +305,7 @@ function toEvaluation(row: any): StoredEvaluation {
         ""
     ),
     caseId: String(row.case_id || ""),
-    agentName: canonicalizeAgentName(row.agent_name),
+    agentName: getEvaluationAgentFullName(row),
     targetUsername: String(row.target_username || ""),
     targetDisplayName: canonicalizeAgentName(row.target_display_name || row.agent_name),
     targetEmail: String(row.target_email || ""),
@@ -387,7 +388,8 @@ function toLocalEvaluation(row: any): StoredEvaluation {
         rawDataPreview?.["Evaluation Month Key"]
     ),
     caseId,
-    agentName,
+    // Compute fallback IDs above from the original name; never rename record keys.
+    agentName: getEvaluationAgentFullName(row),
     targetUsername: normalizeLocalString(localField(row, "targetUsername", "target_username")),
     targetDisplayName: canonicalizeAgentName(localField(row, "targetDisplayName", "target_display_name") || agentName),
     targetEmail: normalizeLocalString(localField(row, "targetEmail", "target_email")),

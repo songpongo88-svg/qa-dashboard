@@ -1,6 +1,6 @@
 import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
-import { canonicalizeAgentName } from "./lib/agentIdentity";
+import { getUserFullName } from "./lib/userNames";
 
 const USER_PROFILE_CACHE_KEY = "qa-dashboard:user-profiles-cache";
 const ROLE_DEFINITION_CACHE_KEY = "qa-dashboard:role-definitions-cache";
@@ -144,6 +144,7 @@ function bangkokToday() {
 }
 
 function toUserProfile(row: any): StoredUserProfile {
+  const fullName = getUserFullName(row);
   const devices = Array.isArray(row.devices) ? row.devices : [];
   const primaryDevice =
     devices.find((device: any) => device?.isPrimary === true) ||
@@ -199,20 +200,8 @@ function toUserProfile(row: any): StoredUserProfile {
 
   return {
     username: String(row.username || ""),
-    displayName: canonicalizeAgentName(
-      row.displayName ||
-        row.display_name ||
-        row.username ||
-        ""
-    ),
-    agentName: canonicalizeAgentName(
-      row.agentName ||
-        row.agent_name ||
-        row.displayName ||
-        row.display_name ||
-        row.username ||
-        ""
-    ),
+    displayName: fullName,
+    agentName: fullName,
     email: String(row.email || ""),
     workSim,
     role: normalizeRoleName(
@@ -271,10 +260,11 @@ function toUserProfile(row: any): StoredUserProfile {
 }
 
 function fromUserProfile(profile: StoredUserProfile) {
+  const fullName = getUserFullName(profile);
   const row: any = {
     username: profile.username,
-    displayName: canonicalizeAgentName(profile.displayName),
-    agentName: canonicalizeAgentName(profile.agentName),
+    displayName: fullName,
+    agentName: fullName,
     email: profile.email,
     role: normalizeRoleName(profile.role),
     teamLead: profile.teamLead,
@@ -492,6 +482,4 @@ export async function upsertStoredMaintenanceState(state: StoredMaintenanceState
   await setDoc(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, "global"), nextState, { merge: true });
   writeSingleCache(MAINTENANCE_CACHE_KEY, state);
 }
-
-
 
