@@ -7496,7 +7496,6 @@ export default function DashboardMockup({
                                   <span className="cursor-text select-text pl-1 text-center font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
                                   <span className="min-w-0 cursor-text select-text">
                                     <span className="block font-bold text-slate-950">{item.caseId}</span>
-                                    {isTestCaseEvaluation(item) ? <TestCaseBadge /> : null}
                                     {isSelected ? <span className="mt-1 block text-[9px] font-bold text-violet-700">Selected case</span> : hasAppealChange ? <span className="mt-1 block text-[9px] font-bold text-sky-700">Appeal updated</span> : null}
                                   </span>
                                   <span className="min-w-0 cursor-text select-text">

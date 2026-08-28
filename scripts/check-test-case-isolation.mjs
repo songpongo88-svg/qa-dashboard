@@ -212,6 +212,14 @@ await check("visible TEST badge renders and Case Detail/individual PDF retain th
   assert.match(source("caseDetailOfficialPdf.ts"), /TEST Case Detail - Excluded from official results/);
 });
 const watermarks = functions("CaseWatermarks.tsx", ["getCaseWatermarkLabels", "CaseWatermarks"], { ...scope, React });
+await check("horizontal case cards keep watermarks without the redundant TEST badge", () => {
+  const rows = find("DashboardMockup.tsx", (node) => ts.isCallExpression(node)
+    && node.expression.getText() === "caseExplorerCases.map").getText();
+  assert.doesNotMatch(rows, /<TestCaseBadge/);
+  assert.match(rows, /<CaseWatermarks item=\{item\}/);
+  assert.match(rows, /\{item.caseId\}/);
+  assert.match(rows, /onClick=/);
+});
 await check("watermarks distinguish normal, test and every appeal-history state", () => {
   const labels = watermarks.getCaseWatermarkLabels;
   assert.deepEqual(labels({}), []);
