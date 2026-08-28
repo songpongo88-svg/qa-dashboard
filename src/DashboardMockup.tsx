@@ -30,6 +30,7 @@ import {
   type IncentiveResult,
 } from "./lib/scoreIncentivePolicy";
 import { canonicalAgentIdentityKey, canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
+import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -52,6 +53,7 @@ type CaseItem = {
   key: string;
   evaluationKey: string;
   agent: string;
+  targetUsername?: string;
   evaluatorName?: string;
   caseDate?: string;
   evaluationAuditDate?: string;
@@ -1087,6 +1089,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
         evaluationKey,
         isTestCase: isTestCaseEvaluation(record),
         agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
+        targetUsername: record.targetUsername,
         evaluatorName: String(record.evaluatorName || record.evaluatorUsername || "").trim(),
         caseDate: caseDateDisplay,
         evaluationAuditDate: evaluationAuditDateDisplay,
@@ -2691,6 +2694,7 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
           if (existing) {
             merged.set(key, {
               ...existing,
+              targetUsername: existing.targetUsername || item.targetUsername,
               evaluatorName: existing.evaluatorName || item.evaluatorName,
               processReference: existing.processReference || item.processReference,
             });
@@ -4197,6 +4201,7 @@ function SlideOverCaseDetail({
 
 export default function DashboardMockup({
   currentUser,
+  caseAgentDirectory = [],
   dashboardSubTab,
   caseDetailWorkspaceMode = false,
   externalSelectedAgent,
@@ -4219,6 +4224,7 @@ export default function DashboardMockup({
   onShareCaseDetail,
 }: {
   currentUser: any;
+  caseAgentDirectory?: CaseAgentDirectoryEntry[];
   dashboardSubTab: "overview" | "case-detail";
   caseDetailWorkspaceMode?: boolean;
   externalSelectedAgent?: string;
@@ -5689,6 +5695,11 @@ export default function DashboardMockup({
     if (!selectedCaseKey) return null;
     return caseExplorerCases.find((item) => item.key === selectedCaseKey) || null;
   }, [caseExplorerCases, selectedCaseKey]);
+
+  const selectedCaseTeam = useMemo(
+    () => resolveCaseAgentTeam(activeSelectedCase, caseAgentDirectory),
+    [activeSelectedCase, caseAgentDirectory]
+  );
 
   useEffect(() => {
     if (!caseExplorerCases.length) {
@@ -7564,6 +7575,14 @@ export default function DashboardMockup({
                               <div className="mt-3 grid grid-cols-2 gap-2">
                                 <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Agent</div><div className="mt-1 truncate text-xs font-bold text-slate-900">{activeSelectedCase.agent || "-"}</div></div>
                                 <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Review Status</div><span className={`mt-1 inline-flex w-fit rounded-full border px-2.5 py-1 text-[10px] font-bold ${selectedStatusTone}`}>{selectedStatusLabel}</span></div>
+                                <div data-case-team-field="lead" className="min-w-0 rounded-xl border border-slate-300 bg-white p-3">
+                                  <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Team Lead</div>
+                                  <div className="mt-1 break-words text-xs font-bold leading-5 text-slate-900">{selectedCaseTeam.teamLead || "ยังไม่ระบุ"}</div>
+                                </div>
+                                <div data-case-team-field="team" className="min-w-0 rounded-xl border border-slate-300 bg-white p-3">
+                                  <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Team Name</div>
+                                  <div className="mt-1 break-words text-xs font-bold leading-5 text-slate-900">{selectedCaseTeam.teamName || "ยังไม่ระบุ"}</div>
+                                </div>
                                 <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Case Date</div><div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.caseDate || activeSelectedCase.auditDate || "-"}</div></div>
                                 <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Audit Date</div><div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.evaluationAuditDate || formatAuditDateForDisplay(activeSelectedCase.auditTimestamp) || "-"}</div></div>
                               </div>

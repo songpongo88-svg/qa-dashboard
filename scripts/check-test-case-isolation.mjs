@@ -522,4 +522,99 @@ await check("build policy leaves manual usernames untouched and retains existing
   bootstrap.buildEnd.call(context);
   assert.doesNotMatch(source(adminFile), /buildUsername|setUsernameEdited/);
 });
-console.log(`\n${checks} identity, test-case isolation and watermark checks passed.`);
+const teams = functions("lib/caseAgentTeam.ts", ["directoryUsernameKey", "findDirectoryProfileByName", "resolveCaseAgentTeam"], { ...identity, ...names });
+const teamDirectory = [
+  { username: "agent.one", displayName: "Agent One", agentName: "Agent One", teamLead: "lead.one", teamName: "Team One" },
+  { username: "agent.two", displayName: "Agent Two", agentName: "Agent Two", teamLead: "Lead Two", teamName: "Team Two", status: "Suspended" },
+  { username: "lead.one", displayName: "Lead One Fullname", agentName: "Lead One Fullname" },
+  { username: "lead.two", displayName: "Lead Two", agentName: "Lead Two" },
+];
+const noTeam = { teamLead: "", teamName: "" };
+await check("selected case resolves current team by username without changing scores or historical data", () => {
+  const item = Object.freeze({ ...mapped[1], targetUsername: " AGENT.ONE ", agent: "Old Agent Name", teamLead: "Former Lead", teamName: "Former Team" });
+  const directory = teamDirectory.map((profile) => Object.freeze({ ...profile }));
+  const before = JSON.stringify({ item, directory });
+  assert.deepEqual(teams.resolveCaseAgentTeam(item, directory), { teamLead: "Lead One Fullname", teamName: "Team One" });
+  assert.equal(JSON.stringify({ item, directory }), before);
+  const renamed = directory.map((profile) => profile.username === "agent.one" ? { ...profile, displayName: "Renamed Agent", agentName: "Renamed Agent", teamName: "New Team" } : profile);
+  assert.deepEqual(teams.resolveCaseAgentTeam(item, renamed), { teamLead: "Lead One Fullname", teamName: "New Team" });
+});
+await check("legacy cases match unique full names or exact usernames, never first-name prefixes", () => {
+  for (const agent of ["Agent One", " agent  one ", "agent.one"]) {
+    assert.equal(teams.resolveCaseAgentTeam({ agent }, teamDirectory).teamName, "Team One");
+  }
+  assert.equal(teams.resolveCaseAgentTeam({ agent: "Agent Two" }, teamDirectory).teamName, "Team Two"); // Historical cases still have a suspended agent's current assignment.
+  for (const agent of ["Agent", "Agent O", "agentone.username", ""]) {
+    assert.deepEqual(teams.resolveCaseAgentTeam({ agent }, teamDirectory), noTeam);
+  }
+  const alias = [{ username: "Jirapong", displayName: "Jirapong Wongwangnoi", teamLead: "Known Lead", teamName: "Known Team" }];
+  assert.equal(teams.resolveCaseAgentTeam({ agent: "Jirapong Wongwaengnoi" }, alias).teamName, "Known Team");
+});
+await check("missing or ambiguous assignments remain unspecified instead of selecting another account", () => {
+  const duplicate = [...teamDirectory, { username: "another.one", displayName: "Agent One", teamName: "Wrong Team" }];
+  assert.deepEqual(teams.resolveCaseAgentTeam({ agent: "Agent One" }, duplicate), noTeam);
+  assert.equal(teams.resolveCaseAgentTeam({ agent: "Agent One", targetUsername: "agent.one" }, duplicate).teamName, "Team One");
+  assert.deepEqual(teams.resolveCaseAgentTeam({ agent: "Agent One", targetUsername: "deleted.account" }, teamDirectory), noTeam);
+  assert.deepEqual(teams.resolveCaseAgentTeam({ targetUsername: "agent.one" }, [...teamDirectory, teamDirectory[0]]), noTeam);
+  assert.deepEqual(teams.resolveCaseAgentTeam({ targetUsername: "lead.one" }, teamDirectory), noTeam);
+  for (const item of [null, undefined, {}, { agent: "No Such Agent" }]) assert.deepEqual(teams.resolveCaseAgentTeam(item, teamDirectory), noTeam);
+  assert.deepEqual(teams.resolveCaseAgentTeam({ targetUsername: "agent.one" }, []), noTeam);
+  assert.deepEqual(teams.resolveCaseAgentTeam({ targetUsername: "agent.one" }, [{ ...teamDirectory[0], teamLead: " ", teamName: " " }]), noTeam);
+});
+await check("case preview receives only current display fields, not passwords or changed permissions", () => {
+  const accounts = teamDirectory.map((profile) => ({ ...profile, password: "fixture-only", role: "Admin Live Chat", status: "Suspended", history: ["private"] }));
+  const directory = value("App.tsx", "caseAgentDirectory", { effectiveUserAccounts: accounts });
+  assert.equal(directory.length, accounts.length);
+  for (let index = 0; index < directory.length; index++) {
+    assert.deepEqual(Object.keys(directory[index]).sort(), ["username", "displayName", "agentName", "teamLead", "teamName"].sort());
+    assert.equal(directory[index].teamName, accounts[index].teamName);
+  }
+  assert.match(source("App.tsx"), /<DashboardMockup\s+currentUser=\{currentUser\}\s+caseAgentDirectory=\{caseAgentDirectory\}/);
+});
+await check("stored-case mapping and workbook merge retain linked username without changing results", () => {
+  const mapping = functions("DashboardMockup.tsx", ["mapStoredEvaluationsToCaseItems", "normalizeEvaluationKeyPart", "buildCaseMergeKey", "mergeRawAndStoredEvaluationCases"], {
+    ...scope, ...identity, getMonthKey: () => "2026-08", getMonthLabel: () => "August 2026", getWeekLabelFromAuditDate: () => "Week 3",
+    getTopicMasterByMonth: () => [{ code: "1", label: "Topic", max: 100 }], toTitleCaseName: (name) => name,
+    formatAuditDateForDisplay: (date) => String(date || ""), formatBangkokDateTime: (date) => date, scoreToGrade: () => "B",
+  });
+  const original = mapping.mapStoredEvaluationsToCaseItems([real[0]])[0];
+  const linked = mapping.mapStoredEvaluationsToCaseItems([{ ...real[0], targetUsername: "agent.one" }])[0];
+  assert.equal(linked.targetUsername, "agent.one");
+  assert.deepEqual({ ...linked, targetUsername: original.targetUsername }, original);
+  const raw = { ...original, finalScore: 96, previousScore: 94, reviewStatus: "Revised", grade: "A" };
+  assert.deepEqual(mapping.mergeRawAndStoredEvaluationCases([raw], [linked]), [{ ...raw, targetUsername: "agent.one" }]);
+  const alreadyLinked = { ...raw, targetUsername: "existing.account" };
+  assert.deepEqual(mapping.mergeRawAndStoredEvaluationCases([alreadyLinked], [linked]), [alreadyLinked]);
+});
+await check("switching selected cases and updating directory refreshes team details within existing case scope", () => {
+  const caseExplorerCases = [{ ...mapped[1], key: "one", targetUsername: "agent.one" }, { ...mapped[2], key: "two", targetUsername: "agent.two" }];
+  const select = (selectedCaseKey, directory = teamDirectory) => {
+    const activeSelectedCase = value("DashboardMockup.tsx", "activeSelectedCase", { caseExplorerCases, selectedCaseKey });
+    return value("DashboardMockup.tsx", "selectedCaseTeam", { ...teams, activeSelectedCase, caseAgentDirectory: directory });
+  };
+  assert.equal(select("one").teamName, "Team One");
+  assert.equal(select("two").teamName, "Team Two");
+  assert.deepEqual(select("not-in-authorized-list"), noTeam);
+  assert.deepEqual(select(""), noTeam);
+  assert.equal(select("one", teamDirectory.map((profile) => profile.username === "agent.one" ? { ...profile, teamName: "Reassigned Team" } : profile)).teamName, "Reassigned Team");
+  const memo = find("DashboardMockup.tsx", (node) => ts.isVariableDeclaration(node) && node.name.getText() === "selectedCaseTeam");
+  assert.match(memo.getText(), /\[activeSelectedCase, caseAgentDirectory\]/);
+});
+await check("selected-case team cards render below Agent and Review Status with readable missing values", () => {
+  for (const field of ["lead", "team"]) {
+    const card = find("DashboardMockup.tsx", (node) => ts.isJsxElement(node) && node.openingElement.attributes.properties.some((attr) =>
+      attr.name?.getText() === "data-case-team-field" && attr.initializer?.getText() === `"${field}"`));
+    for (const selectedCaseTeam of [noTeam, { teamLead: "หัวหน้าทีม ชื่อยาวมาก", teamName: "Team Name With Several Words" }]) {
+      const markup = renderToStaticMarkup(run(`export const element = (${card.getText()});`, { React, selectedCaseTeam }).element);
+      assert.ok(markup.includes(field === "lead" ? "Team Lead" : "Team Name"));
+      assert.ok(markup.includes(selectedCaseTeam[field === "lead" ? "teamLead" : "teamName"] || "ยังไม่ระบุ"));
+      assert.match(markup, /break-words/);
+      assert.doesNotMatch(markup, /truncate/);
+    }
+    const grid = card.parent.getText();
+    assert.match(grid, /grid-cols-2/);
+    assert.ok(grid.indexOf(">Review Status<") < grid.indexOf('data-case-team-field="lead"'));
+    assert.ok(grid.indexOf('data-case-team-field="team"') < grid.indexOf(">Case Date<"));
+  }
+});
+console.log(`\n${checks} identity, case-team, test-case isolation and watermark checks passed.`);

@@ -3648,6 +3648,13 @@ export default function App() {
     [profileOverrides, roleOverrides]
   );
 
+  const caseAgentDirectory = useMemo(
+    () => effectiveUserAccounts.map(({ username, displayName, agentName, teamLead, teamName }) => ({
+      username, displayName, agentName, teamLead, teamName,
+    })),
+    [effectiveUserAccounts]
+  );
+
   useEffect(() => {
     if (currentUser || loginStep !== "username") return;
 
@@ -6867,6 +6874,7 @@ export default function App() {
           {activeTab === "dashboard" ? (
             <DashboardMockup
               currentUser={currentUser}
+              caseAgentDirectory={caseAgentDirectory}
               dashboardSubTab={dashboardSubTab}
               caseDetailWorkspaceMode={isCaseWorkspaceTabKey(activeWorkspaceTab)}
               externalSelectedAgent={caseSelectedAgent}
