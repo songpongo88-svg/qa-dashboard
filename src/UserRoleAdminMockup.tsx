@@ -653,6 +653,26 @@ function normalizeUsername(value: string) {
   return value.trim().toLowerCase();
 }
 
+// New-account validation only. Existing login identifiers are never renamed.
+function getNewUsernameError(
+  value: string,
+  existingUsers: ReadonlyArray<{ username: string }>
+) {
+  const username = value.trim();
+  if (!username) return "กรุณากรอก Username สำหรับ Login";
+  if (username.length < 2 || username.length > 50) return "Username ต้องมี 2–50 ตัวอักษร";
+  if (!/^[A-Za-z0-9._-]+$/.test(username)) {
+    return "ใช้ A–Z, a–z, 0–9, จุด (.), ขีดล่าง (_) หรือขีดกลาง (-) โดยไม่มีช่องว่าง";
+  }
+  if (username === "." || username === ".." || /^__.*__$/.test(username)) {
+    return "Username นี้เป็นชื่อสงวน กรุณาเลือกชื่ออื่น";
+  }
+  if (existingUsers.some((item) => normalizeUsername(item.username) === normalizeUsername(username))) {
+    return `Username already exists: ${username}`;
+  }
+  return "";
+}
+
 function formatDateTime(value = new Date().toISOString()) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
@@ -1436,18 +1456,9 @@ export default function UserRoleAdminMockup({
       return null;
     }
 
-    if (
-      rows.some(
-        (row) =>
-          normalizeUsername(row.username) ===
-          normalizeUsername(
-            cleanedUser.username
-          )
-      )
-    ) {
-      setMessage(
-        `Username already exists: ${cleanedUser.username}`
-      );
+    const usernameError = getNewUsernameError(cleanedUser.username, rows);
+    if (usernameError) {
+      setMessage(usernameError);
       return null;
     }
 
@@ -6128,8 +6139,6 @@ function CreateUserModal({
     temporaryPassword: string;
   } | null>;
 }) {
-  const [usernameEdited, setUsernameEdited] =
-    useState(false);
   const [emailEdited, setEmailEdited] =
     useState(false);
   const [addTeamOpen, setAddTeamOpen] =
@@ -6239,80 +6248,13 @@ function CreateUserModal({
     );
   }, [activeUsers, customTeams]);
 
-  const existingUsernameSet =
-    useMemo(
-      () =>
-        new Set(
-          existingUsers.map((item) =>
-            normalizeUsername(
-              item.username
-            )
-          )
-        ),
-      [existingUsers]
-    );
-
-  const buildUsername = (
-    agentName: string
-  ) => {
-    const firstName =
-      agentName
-        .trim()
-        .split(/s+/)[0]
-        ?.toLowerCase()
-        .replace(
-          /[^a-z0-9._-]/g,
-          ""
-        ) || "";
-
-    if (!firstName) return "";
-    if (
-      !existingUsernameSet.has(
-        firstName
-      )
-    ) {
-      return firstName;
-    }
-
-    let suffix = 2;
-
-    while (
-      existingUsernameSet.has(
-        `${firstName}${suffix}`
-      )
-    ) {
-      suffix += 1;
-    }
-
-    return `${firstName}${suffix}`;
-  };
+  const usernameError = getNewUsernameError(user.username, existingUsers);
 
   const handleAgentNameChange = (
     value: string
   ) => {
     onChange("agentName", value);
     onChange("displayName", value);
-
-    const nextUsername =
-      usernameEdited
-        ? user.username
-        : buildUsername(value);
-
-    if (!usernameEdited) {
-      onChange(
-        "username",
-        nextUsername
-      );
-    }
-
-    if (!emailEdited) {
-      onChange(
-        "email",
-        nextUsername
-          ? `${nextUsername}@robinhood.co.th`
-          : ""
-      );
-    }
 
     if (
       user.teamLead ===
@@ -6330,21 +6272,14 @@ function CreateUserModal({
   const handleUsernameChange = (
     value: string
   ) => {
-    const cleaned = value
-      .toLowerCase()
-      .replace(
-        /[^a-z0-9._-]/g,
-        ""
-      );
-
-    setUsernameEdited(true);
-    onChange("username", cleaned);
+    onChange("username", value);
 
     if (!emailEdited) {
+      const emailUsername = value.trim();
       onChange(
         "email",
-        cleaned
-          ? `${cleaned}@robinhood.co.th`
+        emailUsername && !getNewUsernameError(emailUsername, [])
+          ? `${emailUsername}@robinhood.co.th`
           : ""
       );
     }
@@ -6447,7 +6382,6 @@ function CreateUserModal({
       )
     );
 
-    setUsernameEdited(false);
     setEmailEdited(false);
     setAddTeamOpen(false);
     setNewTeamName("");
@@ -6614,7 +6548,7 @@ function CreateUserModal({
                       <span className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
                         Username สำหรับ Login
                         <small className="normal-case tracking-normal text-slate-400">
-                          สร้างอัตโนมัติ
+                          กำหนดเอง
                         </small>
                       </span>
                       <input
@@ -6625,12 +6559,21 @@ function CreateUserModal({
                             event.target.value
                           )
                         }
-                        placeholder="จะแสดงจากชื่อจริง"
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                        placeholder="เช่น Darunee.qa"
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        aria-invalid={Boolean(user.username && usernameError)}
+                        aria-describedby="new-user-username-help new-user-username-error"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
                       />
-                      <div className="mt-1.5 text-[10px] leading-4 text-slate-400">
-                        แก้ได้เมื่อรูปแบบอัตโนมัติไม่ตรง
-                        และระบบตรวจชื่อซ้ำก่อนสร้าง
+                      <div id="new-user-username-help" className="mt-1.5 text-[10px] leading-4 text-slate-500">
+                        กำหนดเองได้ 2–50 ตัวอักษร ใช้ A–Z, a–z, 0–9, จุด (.), _ หรือ -
+                        {" "}Login ต้องตรงตัวพิมพ์ใหญ่–เล็ก และระบบตรวจชื่อซ้ำก่อนสร้าง
+                      </div>
+                      <div id="new-user-username-error" aria-live="polite" className="mt-1 text-[10px] leading-4 text-rose-600">
+                        {user.username ? usernameError : ""}
                       </div>
                     </label>
 
@@ -6990,7 +6933,7 @@ function CreateUserModal({
                   disabled={
                     saving ||
                     !user.agentName.trim() ||
-                    !user.username.trim()
+                    Boolean(usernameError)
                   }
                   className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-medium text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -7189,8 +7132,6 @@ function TextInput({
     />
   );
 }
-
-
 
 
 

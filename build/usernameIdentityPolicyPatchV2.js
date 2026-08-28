@@ -5,16 +5,8 @@ function replaceOrThrow(context, code, search, replacement, label) {
   return code.replace(search, replacement);
 }
 
-function replaceAllOrThrow(context, code, search, replacement, label) {
-  if (!code.includes(search)) {
-    context.error(`Username identity policy patch could not find ${label}.`);
-  }
-  return code.split(search).join(replacement);
-}
-
 export function usernameIdentityPolicyPatchV2() {
   let appPatched = false;
-  let adminPatched = false;
   let mainPatched = false;
   let sessionPatched = false;
 
@@ -120,69 +112,8 @@ export function usernameIdentityPolicyPatchV2() {
         return { code: next, map: null };
       }
 
-      if (cleanId.endsWith("/src/UserRoleAdminMockup.tsx")) {
-        let next = code;
-
-        next = replaceOrThrow(
-          this,
-          next,
-          `      username:\n        newUserDraft.username.trim(),`,
-          `      username:\n        newUserDraft.username.trim()\n          ? newUserDraft.username.trim().charAt(0).toUpperCase() + newUserDraft.username.trim().slice(1)\n          : "",`,
-          "new user username save normalization"
-        );
-
-        next = replaceOrThrow(
-          this,
-          next,
-          `    if (!firstName) return "";`,
-          `    if (!firstName) return "";\n    const formattedUsername =\n      firstName.charAt(0).toUpperCase() + firstName.slice(1);`,
-          "generated username formatted value"
-        );
-
-        next = replaceOrThrow(
-          this,
-          next,
-          `      !existingUsernameSet.has(\n        firstName\n      )`,
-          `      !existingUsernameSet.has(\n        normalizeUsername(formattedUsername)\n      )`,
-          "generated username duplicate check"
-        );
-
-        next = replaceOrThrow(
-          this,
-          next,
-          `      return firstName;`,
-          `      return formattedUsername;`,
-          "generated username direct return"
-        );
-
-        next = replaceAllOrThrow(
-          this,
-          next,
-          '`${firstName}${suffix}`',
-          '`${formattedUsername}${suffix}`',
-          "generated username suffix"
-        );
-
-        next = replaceOrThrow(
-          this,
-          next,
-          `                      <input\n                        value={user.username}\n                        disabled={saving}\n                        onChange={(event) =>\n                          handleUsernameChange(\n                            event.target.value\n                          )\n                        }\n                        placeholder="จะแสดงจากชื่อจริง"`,
-          `                      <input\n                        value={user.username}\n                        disabled\n                        readOnly\n                        placeholder="จะแสดงจากชื่อจริง"`,
-          "create user username readonly field"
-        );
-
-        next = replaceOrThrow(
-          this,
-          next,
-          `                        แก้ได้เมื่อรูปแบบอัตโนมัติไม่ตรง\n                        และระบบตรวจชื่อซ้ำก่อนสร้าง`,
-          `                        ระบบกำหนด Username อัตโนมัติ โดยขึ้นต้นด้วยตัวพิมพ์ใหญ่\n                        และตรวจชื่อซ้ำก่อนสร้าง`,
-          "create user username helper text"
-        );
-
-        adminPatched = true;
-        return { code: next, map: null };
-      }
-
+      // New usernames are entered and validated in UserRoleAdminMockup.
+      // Keep this patch limited to the existing case-sensitive login/session policy.
       return null;
     },
 
@@ -191,7 +122,6 @@ export function usernameIdentityPolicyPatchV2() {
       if (!sessionPatched) this.error("Username identity policy patch was not applied to sessionStore.ts.");
       if (!mainPatched) this.error("Username identity policy patch was not applied to main.tsx.");
       if (!appPatched) this.error("Username identity policy patch was not applied to App.tsx.");
-      if (!adminPatched) this.error("Username identity policy patch was not applied to UserRoleAdminMockup.tsx.");
     },
   };
 }

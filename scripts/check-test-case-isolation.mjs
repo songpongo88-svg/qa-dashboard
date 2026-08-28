@@ -5,6 +5,8 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { usernameIdentityPolicyPatchV2 } from "../build/usernameIdentityPolicyPatchV2.js";
+import { usernameMigrationBootstrapBypassPatch } from "../build/usernameMigrationBootstrapBypassPatch.js";
 
 const source = (file) => readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
 const parse = (file) => ts.createSourceFile(file, source(file), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -396,5 +398,128 @@ await check("legacy profile logs and stored profiles agree on the same full name
   assert.equal(accounts[0].username, "Darunee");
   assert.equal(accounts[0].password, "fixture-only");
   assert.equal(accounts[0].role, "Admin Live Chat");
+});
+const adminFile = "UserRoleAdminMockup.tsx";
+const usernames = functions(adminFile, ["normalizeUsername", "getNewUsernameError"]);
+await check("manual usernames validate safely and reject duplicates regardless of letter case", () => {
+  const existing = [{ username: "Darunee" }, { username: "existing.qa", status: "Suspended" }];
+  for (const username of ["darunee.qa", "DaDa_26", "new-agent.1", "ab", "  new.Login  ", "a".repeat(50)]) {
+    assert.equal(usernames.getNewUsernameError(username, existing), "", username);
+  }
+  for (const username of ["Darunee", "darunee", " DARUNEE ", "Existing.QA"]) {
+    assert.match(usernames.getNewUsernameError(username, existing), /already exists/);
+  }
+  for (const username of ["", " ", "a", "a b", "a/b", "a\\b", "ชื่อ", "a@b", ".", "..", "__reserved__", "a".repeat(51)]) {
+    assert.ok(usernames.getNewUsernameError(username, existing), username);
+  }
+});
+await check("changing the full name never generates or overwrites username or email", () => {
+  for (const username of ["", "my.Login_26"]) {
+    const original = { username, agentName: "Old Name", displayName: "Old Name", teamLead: "Old Name", email: "custom@example.com" };
+    let draft = { ...original };
+    value(adminFile, "handleAgentNameChange", {
+      user: original, onChange: (key, next) => { draft = { ...draft, [key]: next }; },
+    })("New Fullname");
+    assert.deepEqual(draft, { ...original, agentName: "New Fullname", displayName: "New Fullname", teamLead: "New Fullname" });
+  }
+});
+await check("typing a username preserves casing and only suggests email until manually edited", () => {
+  for (const emailEdited of [false, true]) {
+    const changes = {};
+    const change = value(adminFile, "handleUsernameChange", {
+      ...usernames, emailEdited, onChange: (key, next) => { changes[key] = next; },
+    });
+    change("my.Login_26");
+    assert.equal(changes.username, "my.Login_26");
+    assert.equal(changes.email, emailEdited ? undefined : "my.Login_26@robinhood.co.th");
+    assert.equal(changes.agentName, undefined);
+    change("invalid/name");
+    assert.equal(changes.username, "invalid/name"); // Show validation, never silently rewrite the chosen identifier.
+    assert.equal(changes.email, emailEdited ? undefined : "");
+    change("");
+    assert.equal(changes.username, "");
+    assert.equal(changes.email, emailEdited ? undefined : "");
+  }
+});
+await check("create-user field is editable, preserves input, and prevents invalid submissions", () => {
+  const input = find(adminFile, (node) => ts.isJsxSelfClosingElement(node) && node.tagName.getText() === "input" &&
+    node.attributes.properties.some((attr) => attr.name?.getText() === "value" && attr.initializer?.getText() === "{user.username}"));
+  const button = find(adminFile, (node) => ts.isJsxElement(node) && node.openingElement.tagName.getText() === "button" &&
+    node.getText().includes("handleCreate()"));
+  for (const saving of [false, true]) {
+    for (const username of ["my.Login_26", "darunee", "", "bad/name"]) {
+      const user = { username, agentName: "Full Name" };
+      const usernameError = usernames.getNewUsernameError(username, [{ username: "Darunee" }]);
+      let typed;
+      const dependencies = { React, user, saving, usernameError, handleCreate: () => {}, handleUsernameChange: (next) => { typed = next; } };
+      const field = run(`export const element = (${input.getText()});`, dependencies).element;
+      assert.equal(field.props.disabled, saving);
+      assert.ok(!field.props.readOnly);
+      assert.equal(field.props.autoCapitalize, "none");
+      field.props.onChange({ target: { value: "chosen.Login" } });
+      assert.equal(typed, "chosen.Login");
+      const submit = run(`export const element = (${button.getText()});`, dependencies).element;
+      assert.equal(submit.props.disabled, saving || Boolean(usernameError));
+      const noName = run(`export const element = (${button.getText()});`, { ...dependencies, user: { ...user, agentName: "" } }).element;
+      assert.equal(noName.props.disabled, true);
+    }
+  }
+  assert.match(source("CorporateUserDirectoryProfile.tsx"), /<Field label="Username" value=\{account.username\} editing=\{false\}/);
+});
+await check("saving a new account preserves the chosen username in profile, history and login details", async () => {
+  for (const username of ["my.Login_26", "Mixed.Case-1", "  trimmed.Login  ", "darunee", "bad/name", "a", ""]) {
+    const writes = [];
+    const events = [];
+    const messages = [];
+    const newUserDraft = { username, displayName: "New Fullname", agentName: "New Fullname", email: "custom@example.com",
+      role: "Admin Live Chat", teamLead: "Lead A", teamName: "Team A" };
+    const result = await value(adminFile, "saveNewUser", {
+      ...names, ...usernames, newUserDraft, rows: [{ username: "Darunee" }], currentUser: null,
+      generateTemporaryPassword: () => "fixture-password", normalizeRoleName: (role) => role,
+      editableToStoredProfile: (user, extra) => ({ ...user, ...extra }), upsertStoredUserProfiles: async (rows) => { writes.push(...rows); },
+      logUsageEventBestEffort: async (_actor, type, event) => { events.push({ type, ...event }); },
+      addDays: (date, days) => new Date(date.getTime() + days * 86400000), onRolesChanged: async () => {},
+      setSaving: () => {}, setMessage: (message) => { messages.push(message); }, setAccessMessage: () => {}, setDirectoryTab: () => {},
+    })();
+    if (usernames.getNewUsernameError(username, [{ username: "Darunee" }])) {
+      assert.equal(result, null);
+      assert.equal(writes.length, 0);
+      assert.equal(events.length, 0);
+      assert.ok(messages.at(-1));
+    } else {
+      assert.equal(result.username, username.trim());
+      assert.equal(writes.length, 1);
+      assert.equal(writes[0].username, username.trim());
+      assert.equal(writes[0].agentName, "New Fullname");
+      assert.equal(writes[0].displayName, "New Fullname");
+      assert.equal(writes[0].email, "custom@example.com");
+      assert.equal(writes[0].role, "Admin Live Chat");
+      assert.equal(writes[0].teamName, "Team A");
+      assert.equal(writes[0].history[0].changes[0].after, `${username.trim()} · Active`);
+      assert.equal(events.length, 2);
+      for (const event of events) {
+        assert.equal(event.target_agent, username.trim());
+        assert.equal(event.details.username, username.trim());
+      }
+    }
+  }
+});
+await check("build policy leaves manual usernames untouched and retains existing exact-case login", () => {
+  const policy = usernameIdentityPolicyPatchV2();
+  const context = { error: (message) => { throw new Error(message); } };
+  assert.equal(policy.transform.call(context, source(adminFile), `/src/${adminFile}`), null);
+  const app = policy.transform.call(context, source("App.tsx"), "/src/App.tsx").code;
+  assert.match(app, /item.username.trim\(\) === exactUsername/);
+  assert.match(app, /storedProfileUsername !== typedUsername/);
+  assert.match(app, /const profileIds = \[typedUsername\]/);
+  const session = policy.transform.call(context, source("sessionStore.ts"), "/src/sessionStore.ts").code;
+  assert.match(session, /qa-session-policy-2026-08-18-v2-case-sensitive/);
+  const main = policy.transform.call(context, source("main.tsx"), "/src/main.tsx").code;
+  const bootstrap = usernameMigrationBootstrapBypassPatch();
+  const finalMain = bootstrap.transform.call(context, main, "/src/main.tsx").code;
+  assert.doesNotMatch(finalMain, /ensureUsernamePolicyMigration|UsernamePolicyBootstrap/);
+  policy.buildEnd.call(context);
+  bootstrap.buildEnd.call(context);
+  assert.doesNotMatch(source(adminFile), /buildUsername|setUsernameEdited/);
 });
 console.log(`\n${checks} identity, test-case isolation and watermark checks passed.`);
