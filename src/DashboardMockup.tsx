@@ -31,6 +31,8 @@ import {
 } from "./lib/scoreIncentivePolicy";
 import { canonicalAgentIdentityKey, canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
+import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
+import MonthlyKpiNotice from "./MonthlyKpiNotice";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -5810,9 +5812,30 @@ export default function DashboardMockup({
     );
   }, [isAllAgentsView, kpiPeriodCases]);
 
+  // Full authorized month, not the narrowed week, search results or date range.
+  const monthlyKpiCases = useMemo(
+    () => isMonthlyView && !isAllAgentsView
+      ? selectMonthlyKpiCases(authorizedSearchCases, effectiveSelectedAgent, selectedMonthKey)
+      : [],
+    [authorizedSearchCases, effectiveSelectedAgent, isAllAgentsView, isMonthlyView, selectedMonthKey]
+  );
+  const monthlyKpiResult = useMemo(
+    () => calculateMonthlyKpi(monthlyKpiCases.map((item) => item.finalScore)),
+    [monthlyKpiCases]
+  );
+  const monthlyKpiQuotaReady = useMemo(() => {
+    if (!isMonthlyView) return true; // Annual reporting retains its existing policy.
+    if (!isAllAgentsView) return monthlyKpiResult.status !== "pending";
+    const agents = dedupeAgentNames([...visibleTargetAgents, ...kpiPeriodCases.map((item) => item.agent)]);
+    // 11 + 9 cases cannot finalize both agents, even though the team has 20.
+    return agents.length > 0 && agents.every((agent) =>
+      selectMonthlyKpiCases(kpiPeriodCases, agent, selectedMonthKey).length >= CASE_TARGET
+    );
+  }, [isMonthlyView, isAllAgentsView, monthlyKpiResult.status, visibleTargetAgents, kpiPeriodCases, selectedMonthKey]);
+
   const kpiScopeSummary = useMemo(() => {
-    const caseCount = kpiPeriodCases.length;
-    const average = caseCount
+    const caseCount = isMonthlyView && !isAllAgentsView ? monthlyKpiResult.count : kpiPeriodCases.length;
+    const average = isMonthlyView && !isAllAgentsView ? (monthlyKpiResult.average ?? 0) : caseCount
       ? kpiPeriodCases.reduce((sum, item) => sum + item.finalScore, 0) / caseCount
       : 0;
     const volumeTarget = isAllAgentsView
@@ -5821,7 +5844,9 @@ export default function DashboardMockup({
     const scorePassed = caseCount > 0 && average >= kpiScoreTarget;
     const volumePassed = caseCount >= volumeTarget;
     const status =
-      caseCount === 0
+      isMonthlyView && !monthlyKpiQuotaReady
+        ? "in-progress"
+        : caseCount === 0
         ? hasNoCaseMonthlyResult
           ? "not-passed"
           : "not-started"
@@ -5835,10 +5860,10 @@ export default function DashboardMockup({
       volumeTarget,
       scorePassed,
       volumePassed,
-      passed: scorePassed,
+      passed: status === "passed",
       status,
     };
-  }, [hasNoCaseMonthlyResult, isAllAgentsView, kpiPeriodCases, kpiScoreTarget, kpiTargetAgentCount]);
+  }, [hasNoCaseMonthlyResult, isAllAgentsView, isMonthlyView, monthlyKpiResult, monthlyKpiQuotaReady, kpiPeriodCases, kpiScoreTarget, kpiTargetAgentCount]);
 
   const currentGradeDisplay =
     metricCaseCount === 0
@@ -6099,7 +6124,7 @@ export default function DashboardMockup({
       : kpiScopeSummary.status === "not-passed"
         ? "Not Passed"
         : kpiScopeSummary.status === "in-progress"
-          ? "In Progress"
+          ? "—"
           : "Not Started";
   const incentiveSummaryValue = monthlyAgentCompleted
     ? formatCurrencyTHB(incentiveResult.cash)
@@ -6125,7 +6150,11 @@ export default function DashboardMockup({
     {
       label: "KPI Status",
       value: kpiStatusLabel,
-      note: `Quality Score (Avg.) ${kpiScopeSummary.average.toFixed(2)}% · Target ${kpiScoreTarget}%`,
+      note: isMonthlyView && !monthlyKpiQuotaReady
+        ? isAllAgentsView
+          ? "รอประเมินครบ 10 เคสต่อคน · ยังไม่สรุป KPI"
+          : `${monthlyKpiResult.count}/10 เคส · รอประเมินครบ 10 เคสเพื่อสรุป KPI`
+        : `Quality Score (Avg.) ${kpiScopeSummary.average.toFixed(2)}% · Target ${kpiScoreTarget}%`,
       icon: kpiScopeSummary.status === "passed" ? "✓" : kpiScopeSummary.status === "not-passed" ? "!" : "…",
       iconTone: kpiScopeSummary.status === "passed" ? "bg-emerald-50 text-emerald-600" : kpiScopeSummary.status === "not-passed" ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600",
       valueTone: kpiScopeSummary.status === "passed" ? "text-emerald-700" : kpiScopeSummary.status === "not-passed" ? "text-rose-600" : "text-amber-700",
@@ -6709,6 +6738,16 @@ export default function DashboardMockup({
                       </div>
                     ))}
                   </div>
+
+                  {isMonthlyView && !isAllAgentsView && currentUser?.username ? (
+                    <MonthlyKpiNotice
+                      cases={monthlyKpiCases}
+                      agent={effectiveSelectedAgent}
+                      monthKey={selectedMonthKey}
+                      monthLabel={currentViewingMonthLabel}
+                      viewer={currentUser.username}
+                    />
+                  ) : null}
 
                   {canViewAnalytics && analyticsContent ? (
                     <section

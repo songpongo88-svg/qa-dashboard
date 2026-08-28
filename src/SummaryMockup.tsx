@@ -1951,6 +1951,7 @@ function AnalyticsAgentPerformanceV92({
         const kpiPassed =
           caseCount > 0 &&
           average >= PERFORMANCE_KPI_TARGET;
+        const kpiPending = monthlyMode && caseCount < CASE_TARGET;
         const completed =
           monthlyMode &&
           monthlyPerformance.completed;
@@ -1985,6 +1986,7 @@ function AnalyticsAgentPerformanceV92({
           hasNoCaseMonthlyResult,
           gradeReady,
           kpiPassed,
+          kpiPending,
           completed,
           incentiveCash: incentiveResult?.cash || 0,
           incentivePromo: incentiveResult?.promo || 0,
@@ -2155,7 +2157,9 @@ function AnalyticsAgentPerformanceV92({
                     <span
                       className={
                         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " +
-                        (row.hasNoCaseMonthlyResult
+                        (row.kpiPending
+                          ? "bg-slate-100 text-slate-500"
+                          : row.hasNoCaseMonthlyResult
                           ? "bg-rose-50 text-rose-600"
                           : !row.caseCount
                             ? "bg-slate-100 text-slate-500"
@@ -2164,7 +2168,9 @@ function AnalyticsAgentPerformanceV92({
                               : "bg-rose-50 text-rose-600")
                       }
                     >
-                      {row.hasNoCaseMonthlyResult
+                      {row.kpiPending
+                        ? `รอครบ 10 เคส (${row.caseCount}/10)`
+                        : row.hasNoCaseMonthlyResult
                         ? "● Not Passed"
                         : !row.caseCount
                           ? "No Data"
@@ -2323,6 +2329,10 @@ function AnalyticsOverviewV89({
     !hasNoCaseMonthlyResult &&
     summary.avgScore >=
       PERFORMANCE_KPI_TARGET;
+  const kpiPending = monthlyMode && (evaluatedCases < CASE_TARGET ||
+    getUniqueNormalizedAgents(cases.map((item) => item.agent)).some((agent) =>
+      cases.filter((item) => canonicalAgentIdentityKey(item.agent) === canonicalAgentIdentityKey(agent)).length < CASE_TARGET
+    ));
 
   const currentGradeGuide =
     gradeReady
@@ -2500,29 +2510,33 @@ function AnalyticsOverviewV89({
     },
     {
       title: "KPI Status",
-      value: hasNoCaseMonthlyResult
+      value: kpiPending
+        ? "—"
+        : hasNoCaseMonthlyResult
         ? "Not Passed"
         : !hasKpiData
           ? "No Data"
           : kpiPassed
             ? "Passed"
             : "Not Passed",
-      note: hasNoCaseMonthlyResult
+      note: kpiPending
+        ? "รอประเมินครบ 10 เคสต่อคน · ยังไม่สรุป KPI"
+        : hasNoCaseMonthlyResult
         ? `Average 0.00% · KPI Target ${PERFORMANCE_KPI_TARGET}%`
         : !hasKpiData
           ? `No evaluated cases · KPI Target ${PERFORMANCE_KPI_TARGET}%`
           : `Average ${summary.avgScore.toFixed(2)}% · KPI Target ${PERFORMANCE_KPI_TARGET}%`,
-      icon: !hasKpiData
+      icon: kpiPending || !hasKpiData
         ? "–"
         : kpiPassed
           ? "✓"
           : "!",
-      tone: !hasKpiData
+      tone: kpiPending || !hasKpiData
         ? "bg-slate-100 text-slate-500"
         : kpiPassed
           ? "bg-emerald-50 text-emerald-600"
           : "bg-rose-50 text-rose-600",
-      valueTone: !hasKpiData
+      valueTone: kpiPending || !hasKpiData
         ? "text-slate-500"
         : kpiPassed
           ? "text-emerald-700"
@@ -5001,7 +5015,7 @@ export default function SummaryMockup({
             const agentSummary = summarizeCases(agentCases);
 
             const kpiPassed =
-              agentSummary.caseCount > 0 &&
+              agentSummary.caseCount >= CASE_TARGET &&
               agentSummary.avgScore >=
                 PERFORMANCE_KPI_TARGET;
             const completed =
@@ -9325,7 +9339,7 @@ export default function SummaryMockup({
                             <div className="truncate font-normal text-slate-700">{buildSuspendedAgentLabel(agent.agent, accountProfiles)}</div>
                             <div className="text-center text-slate-500">{agent.caseCount}</div>
                             <div className="text-center font-medium text-violet-700">{agent.avgScore.toFixed(2)}</div>
-                            <div className={"text-center font-medium " + (agent.kpiPassed ? "text-emerald-700" : "text-rose-600")}>{agent.kpiPassed ? "Passed" : "Not Passed"}</div>
+                            <div title={!agent.completed ? `รอครบ 10 เคส (${agent.caseCount}/10)` : undefined} className={"text-center font-medium " + (!agent.completed ? "text-slate-500" : agent.kpiPassed ? "text-emerald-700" : "text-rose-600")}>{!agent.completed ? "—" : agent.kpiPassed ? "Passed" : "Not Passed"}</div>
                             <div className="text-right font-medium text-violet-700">{agent.completed ? "฿" + agent.incentiveCash.toLocaleString("en-US") : "Pending " + agent.caseCount + "/" + CASE_TARGET}</div>
                           </button>
                         ))}
