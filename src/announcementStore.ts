@@ -44,6 +44,7 @@ export type StoredAnnouncement = {
   dailyEndTime: string;
   displayMode: AnnouncementDisplayMode;
   tickerMode: AnnouncementTickerMode;
+  tickerTextColor: string;
   actionRequired: AnnouncementActionRequired;
   startsAt: string;
   endsAt: string;
@@ -142,6 +143,9 @@ function normalizeAnnouncement(
       value?.tickerMode === "static" || value?.tickerMode === "rotate"
         ? value.tickerMode
         : "scroll",
+    tickerTextColor: /^#[0-9a-f]{6}$/i.test(String(value?.tickerTextColor || ""))
+      ? String(value.tickerTextColor).toUpperCase()
+      : "#33264B",
     actionRequired:
       value?.actionRequired === "Acknowledge" ? "Acknowledge" : "Read Only",
     startsAt: String(value?.startsAt || ""),

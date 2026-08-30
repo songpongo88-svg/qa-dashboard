@@ -104,6 +104,11 @@
   font-weight: 600;
 }
 
+.qaa-ticker__separator {
+  margin: 0 12px;
+  color: var(--qaa-accent);
+}
+
 .qaa-ticker__rotate {
   animation: qaa-ticker-fade .45s ease both;
 }

@@ -78,6 +78,17 @@ const TICKER_MODE_OPTIONS: Array<{
   { value: "rotate", label: "สลับข้อความ", detail: "เหมาะเมื่อมีหลายประกาศพร้อมกัน" },
 ];
 
+const TICKER_TEXT_COLORS = [
+  { value: "#33264B", label: "ม่วงเข้ม" },
+  { value: "#6D28D9", label: "ม่วง" },
+  { value: "#0369A1", label: "น้ำเงิน" },
+  { value: "#047857", label: "เขียว" },
+  { value: "#C2410C", label: "ส้ม" },
+  { value: "#BE123C", label: "แดง" },
+  { value: "#111827", label: "ดำ" },
+  { value: "#FFFFFF", label: "ขาว" },
+];
+
 const STATUS_LABELS: Record<string, string> = {
   Active: "กำลังแสดง",
   Scheduled: "ตั้งเวลาแล้ว",
@@ -90,6 +101,13 @@ const SESSION_SNOOZE_KEY = "qa-announcement-session-snooze-v1";
 
 function normalize(value: unknown) {
   return String(value || "").trim().toLowerCase();
+}
+
+function splitTickerText(value: unknown) {
+  return String(value || "")
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function canManageAnnouncements(user: HubUser) {
@@ -508,6 +526,7 @@ function emptyDraft(user: HubUser): StoredAnnouncement {
     dailyEndTime: localDateTimeInput(tomorrow).slice(11, 16),
     displayMode: "Media Only",
     tickerMode: "scroll",
+    tickerTextColor: "#33264B",
     actionRequired: "Read Only",
     startsAt: localDateTimeInput(now),
     endsAt: localDateTimeInput(tomorrow),
@@ -845,7 +864,7 @@ export default function AnnouncementHub({
 
   const saveAnnouncement = async () => {
     const isTicker = draft.displayMode === "Banner";
-    if (!draft.title.trim() || (!isTicker && !draft.body.trim())) {
+    if ((isTicker && !splitTickerText(draft.title).length) || (!isTicker && (!draft.title.trim() || !draft.body.trim()))) {
       setSaveMessage(isTicker ? "กรุณากรอกข้อความบนแถบประกาศ" : "กรุณากรอกหัวข้อและรายละเอียดประกาศ");
       return;
     }
@@ -1146,22 +1165,30 @@ export default function AnnouncementHub({
     [myAnnouncements, scheduleTick]
   );
   const tickerMode = activeTickerAnnouncements[0]?.tickerMode || "scroll";
+  const tickerItems = activeTickerAnnouncements.flatMap((item) =>
+    splitTickerText(item.title).map((text, index) => ({
+      id: `${item.id}-${index}`,
+      text,
+      color: item.tickerTextColor || "#33264B",
+    }))
+  );
+  const tickerRotationKey = tickerItems.map((item) => item.id).join("|");
   const tickerPriority: AnnouncementPriority = activeTickerAnnouncements.some((item) => item.priority === "Urgent")
     ? "Urgent"
     : activeTickerAnnouncements.some((item) => item.priority === "Important")
       ? "Important"
       : "Normal";
-  const tickerDuration = Math.max(18, activeTickerAnnouncements.reduce((total, item) => total + item.title.length, 0) * 0.32);
+  const tickerDuration = Math.max(18, tickerItems.reduce((total, item) => total + item.text.length, 0) * 0.32);
 
   useEffect(() => {
     setTickerIndex(0);
-    if (tickerMode !== "rotate" || activeTickerAnnouncements.length < 2) return;
+    if (tickerMode !== "rotate" || tickerItems.length < 2) return;
     const timer = window.setInterval(
-      () => setTickerIndex((current) => (current + 1) % activeTickerAnnouncements.length),
+      () => setTickerIndex((current) => (current + 1) % tickerItems.length),
       5500
     );
     return () => window.clearInterval(timer);
-  }, [activeTickerAnnouncements.length, tickerMode]);
+  }, [tickerItems.length, tickerMode, tickerRotationKey]);
 
   const spotlightMode = popupMessage?.displayMode === "Media Spotlight" || popupMessage?.displayMode === "Media Only";
   const mediaOnlyMode = popupMessage?.displayMode === "Media Only";
@@ -1284,7 +1311,7 @@ export default function AnnouncementHub({
   return (
     <>
       {/* data-announcement-media-spotlight-v4 */}
-      {tickerTarget && activeTickerAnnouncements.length ? createPortal(
+      {tickerTarget && tickerItems.length ? createPortal(
         <section
           className="qaa-ticker"
           data-announcement-ticker-v1="true"
@@ -1304,18 +1331,35 @@ export default function AnnouncementHub({
               <div className="qaa-ticker__track" style={{ "--qaa-duration": `${tickerDuration}s` } as React.CSSProperties}>
                 {[false, true].map((duplicate) => (
                   <div key={String(duplicate)} className="qaa-ticker__segment" aria-hidden={duplicate || undefined}>
-                    {activeTickerAnnouncements.map((item) => (
-                      <span key={`${duplicate ? "copy" : "main"}-${item.id}`} className="qaa-ticker__item">{item.title}</span>
+                    {tickerItems.map((item) => (
+                      <span
+                        key={`${duplicate ? "copy" : "main"}-${item.id}`}
+                        className="qaa-ticker__item"
+                        style={{ color: item.color }}
+                      >
+                        {item.text}
+                      </span>
                     ))}
                   </div>
                 ))}
               </div>
-            ) : tickerMode === "rotate" && activeTickerAnnouncements.length > 1 ? (
-              <div key={activeTickerAnnouncements[tickerIndex]?.id} className="qaa-ticker__static qaa-ticker__rotate">
-                {activeTickerAnnouncements[tickerIndex]?.title}
+            ) : tickerMode === "rotate" && tickerItems.length > 1 ? (
+              <div
+                key={tickerItems[tickerIndex]?.id}
+                className="qaa-ticker__static qaa-ticker__rotate"
+                style={{ color: tickerItems[tickerIndex]?.color }}
+              >
+                {tickerItems[tickerIndex]?.text}
               </div>
             ) : (
-              <div className="qaa-ticker__static">{activeTickerAnnouncements[0]?.title}</div>
+              <div className="qaa-ticker__static">
+                {tickerItems.map((item, index) => (
+                  <React.Fragment key={item.id}>
+                    {index ? <span className="qaa-ticker__separator" aria-hidden="true">•</span> : null}
+                    <span style={{ color: item.color }}>{item.text}</span>
+                  </React.Fragment>
+                ))}
+              </div>
             )}
           </div>
           {manageAllowed ? (
@@ -1690,14 +1734,19 @@ export default function AnnouncementHub({
                         </span>
                         <input
                           value={draft.title}
-                          maxLength={draft.displayMode === "Banner" ? 220 : undefined}
+                          maxLength={draft.displayMode === "Banner" ? 500 : undefined}
                           onChange={(event) =>
                             setDraft({ ...draft, title: event.target.value })
                           }
-                          placeholder={draft.displayMode === "Banner" ? "พิมพ์ข้อความที่ต้องการให้ผู้ใช้เห็น" : undefined}
+                          placeholder={draft.displayMode === "Banner" ? "เช่น แจ้งกำหนดส่งงาน; ปิดระบบเวลา 22:00 น." : undefined}
                           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                         />
-                        {draft.displayMode === "Banner" ? <span className="mt-1 block text-right text-[10px] font-bold text-slate-400">{draft.title.length}/220</span> : null}
+                        {draft.displayMode === "Banner" ? (
+                          <span className="mt-1 flex items-center justify-between gap-3 text-[10px] font-bold text-slate-400">
+                            <span>ใช้ ; เพื่อแบ่งเป็นข้อความใหม่ ระบบจะข้ามส่วนที่เว้นว่าง</span>
+                            <span>{draft.title.length}/500</span>
+                          </span>
+                        ) : null}
                       </label>
 
                       <label>
@@ -1754,6 +1803,48 @@ export default function AnnouncementHub({
                                 <span className="mt-1 block text-[11px] leading-5 text-slate-500">{option.detail}</span>
                               </button>
                             ))}
+                          </div>
+                          <div className="mt-5 border-t border-violet-200/80 pt-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <div className="text-xs font-black text-slate-700">สีตัวอักษร</div>
+                                <div className="mt-0.5 text-[11px] text-slate-500">เลือกสีสำเร็จรูป หรือกดช่องสีเพื่อเลือกเอง</div>
+                              </div>
+                              <div className="flex items-center gap-2 rounded-xl border border-violet-200 bg-white px-2.5 py-2">
+                                <input
+                                  type="color"
+                                  value={draft.tickerTextColor}
+                                  onChange={(event) => setDraft({ ...draft, tickerTextColor: event.target.value.toUpperCase() })}
+                                  className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0"
+                                  aria-label="เลือกสีตัวอักษรเอง"
+                                />
+                                <span className="text-xs font-black text-slate-600">{draft.tickerTextColor}</span>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {TICKER_TEXT_COLORS.map((option) => (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => setDraft({ ...draft, tickerTextColor: option.value })}
+                                  className={`flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-xs font-bold transition ${draft.tickerTextColor === option.value ? "border-violet-500 ring-2 ring-violet-100" : "border-slate-200 hover:border-violet-300"}`}
+                                  aria-pressed={draft.tickerTextColor === option.value}
+                                >
+                                  <span
+                                    className="h-4 w-4 rounded-full border border-slate-300"
+                                    style={{ backgroundColor: option.value }}
+                                    aria-hidden="true"
+                                  />
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="mt-4 rounded-2xl border border-violet-100 bg-white px-4 py-3">
+                              <div className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">ตัวอย่าง</div>
+                              <div className="mt-1 truncate text-sm font-bold" style={{ color: draft.tickerTextColor }}>
+                                {splitTickerText(draft.title).join("  •  ") || "ข้อความตัวอย่างจะแสดงตรงนี้"}
+                              </div>
+                            </div>
                           </div>
                           <label className="mt-4 block">
                             <span className="mb-2 block text-xs font-black text-slate-500">แสดงถึง</span>
