@@ -431,6 +431,11 @@ function getKpiScoreTarget(_monthKey: string) {
   return KPI_QUALITY_SCORE_TARGET;
 }
 
+function isQualityAssuranceRole(value: unknown) {
+  const role = String(value || "").trim().toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+  return role === "quality assurance" || role === "qa";
+}
+
 const JAN_FEB_2026_TOPIC_MASTER = [
   { code: "1", label: "\u0E40\u0E1B\u0E34\u0E14-\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E2A\u0E19\u0E17\u0E19\u0E32", max: 10 },
   { code: "2", label: "\u0E27\u0E34\u0E40\u0E04\u0E23\u0E32\u0E30\u0E2B\u0E4C/\u0E41\u0E01\u0E49\u0E44\u0E02", max: 30 },
@@ -5823,6 +5828,18 @@ export default function DashboardMockup({
     () => calculateMonthlyKpi(monthlyKpiCases.map((item) => item.finalScore)),
     [monthlyKpiCases]
   );
+  const qaCanBrowseMonthlyKpiAgents =
+    isQualityAssuranceRole(currentUser?.role) &&
+    overviewCanSelectAgents;
+  const qaMonthlyKpiAgentOptions = useMemo(
+    () => isMonthlyView && qaCanBrowseMonthlyKpiAgents
+      ? visibleAgentList.map((agent) => ({
+          agent,
+          cases: selectMonthlyKpiCases(authorizedSearchCases, agent, selectedMonthKey),
+        }))
+      : [],
+    [authorizedSearchCases, isMonthlyView, qaCanBrowseMonthlyKpiAgents, selectedMonthKey, visibleAgentList]
+  );
   const monthlyKpiQuotaReady = useMemo(() => {
     if (!isMonthlyView) return true; // Annual reporting retains its existing policy.
     if (!isAllAgentsView) return monthlyKpiResult.status !== "pending";
@@ -6739,13 +6756,16 @@ export default function DashboardMockup({
                     ))}
                   </div>
 
-                  {isMonthlyView && !isAllAgentsView && currentUser?.username ? (
+                  {isMonthlyView && currentUser?.username &&
+                  (!isAllAgentsView || (qaCanBrowseMonthlyKpiAgents && qaMonthlyKpiAgentOptions.length)) ? (
                     <MonthlyKpiNotice
                       cases={monthlyKpiCases}
                       agent={effectiveSelectedAgent}
                       monthKey={selectedMonthKey}
                       monthLabel={currentViewingMonthLabel}
                       viewer={currentUser.username}
+                      agentOptions={qaMonthlyKpiAgentOptions}
+                      canBrowseAgents={qaCanBrowseMonthlyKpiAgents}
                     />
                   ) : null}
 

@@ -2,18 +2,69 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { calculateMonthlyKpi, getMonthlyKpiMessage, monthlyKpiNoticeKey, monthlyKpiSnapshot, type MonthlyKpiCase } from "./lib/monthlyKpi";
 import "./monthlyKpiNotice.css";
 
-export default function MonthlyKpiNotice({ cases, agent, monthKey, monthLabel, viewer }: {
-  cases: readonly MonthlyKpiCase[]; agent: string; monthKey: string; monthLabel: string; viewer: string;
+export type MonthlyKpiAgentOption = {
+  agent: string;
+  cases: readonly MonthlyKpiCase[];
+};
+
+export default function MonthlyKpiNotice({
+  cases,
+  agent,
+  monthKey,
+  monthLabel,
+  viewer,
+  agentOptions = [],
+  canBrowseAgents = false,
+  autoOpen = true,
+}: {
+  cases: readonly MonthlyKpiCase[];
+  agent: string;
+  monthKey: string;
+  monthLabel: string;
+  viewer: string;
+  agentOptions?: readonly MonthlyKpiAgentOption[];
+  canBrowseAgents?: boolean;
+  autoOpen?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [workspaceVisible, setWorkspaceVisible] = useState(false);
   const [open, setOpen] = useState(false);
   const shownRef = useRef(new Map<string, string>());
-  const result = useMemo(() => calculateMonthlyKpi(cases.map((item) => item.finalScore)), [cases]);
-  const snapshot = useMemo(() => monthlyKpiSnapshot(cases), [cases]);
-  const storageKey = monthlyKpiNoticeKey(viewer, agent, monthKey);
+  const availableAgents = useMemo(() => {
+    const options = canBrowseAgents ? agentOptions : [];
+    const unique = new Map<string, MonthlyKpiAgentOption>();
+    options.forEach((option) => {
+      const name = String(option.agent || "").trim();
+      if (name && !unique.has(name.toLowerCase())) unique.set(name.toLowerCase(), { agent: name, cases: option.cases });
+    });
+    const selectedName = String(agent || "").trim();
+    if (selectedName && !unique.has(selectedName.toLowerCase())) {
+      unique.set(selectedName.toLowerCase(), { agent: selectedName, cases });
+    }
+    if (!unique.size && selectedName) unique.set(selectedName.toLowerCase(), { agent: selectedName, cases });
+    return [...unique.values()];
+  }, [agent, agentOptions, canBrowseAgents, cases]);
+  const [activeAgent, setActiveAgent] = useState(agent || availableAgents[0]?.agent || "");
+
+  useEffect(() => {
+    setActiveAgent((current) => {
+      const requested = String(agent || "").trim();
+      if (requested && availableAgents.some((option) => option.agent === requested)) return requested;
+      if (availableAgents.some((option) => option.agent === current)) return current;
+      return availableAgents[0]?.agent || "";
+    });
+  }, [agent, availableAgents]);
+
+  const activeIndex = Math.max(0, availableAgents.findIndex((option) => option.agent === activeAgent));
+  const activeOption = availableAgents[activeIndex] || { agent, cases };
+  const activeCases = activeOption.cases;
+  const activeName = activeOption.agent;
+  const result = useMemo(() => calculateMonthlyKpi(activeCases.map((item) => item.finalScore)), [activeCases]);
+  const snapshot = useMemo(() => monthlyKpiSnapshot(activeCases), [activeCases]);
+  const storageKey = monthlyKpiNoticeKey(`${viewer}${canBrowseAgents ? ":qa-all" : ""}`, activeName, monthKey);
   const message = getMonthlyKpiMessage(result);
+  const showAgentBrowser = canBrowseAgents && availableAgents.length > 1;
 
   useEffect(() => {
     // Workspaces are kept mounted while hidden. Never open a top-layer dialog
@@ -31,7 +82,7 @@ export default function MonthlyKpiNotice({ cases, agent, monthKey, monthLabel, v
     if (!workspaceVisible || !viewer) { setOpen(false); return; }
     let seen = shownRef.current.get(storageKey);
     try { seen = window.sessionStorage.getItem(storageKey) || seen; } catch { /* Memory fallback for blocked storage. */ }
-    if (seen === snapshot) { setOpen(false); return; }
+    if (!autoOpen || seen === snapshot) return;
     // Wait for linked month/agent controls to settle before showing an automatic notice.
     const timer = window.setTimeout(() => {
       shownRef.current.set(storageKey, snapshot);
@@ -39,7 +90,7 @@ export default function MonthlyKpiNotice({ cases, agent, monthKey, monthLabel, v
       setOpen(true);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [snapshot, storageKey, viewer, workspaceVisible]);
+  }, [autoOpen, snapshot, storageKey, viewer, workspaceVisible]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -52,18 +103,29 @@ export default function MonthlyKpiNotice({ cases, agent, monthKey, monthLabel, v
   return (
     <div ref={rootRef} className="qa-monthly-kpi" data-monthly-kpi-notice="true">
       <div className="qmk-launcher">
-        <span>เป้าคะแนนรายเดือน · {agent} · {monthLabel} · {result.count}/10 เคส</span>
-        <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog">ดูเป้าคะแนน KPI <span aria-hidden="true">↗</span></button>
+        <span>{canBrowseAgents ? `เป้าคะแนนรายเดือน · Agent ${availableAgents.length} คน · ${monthLabel}` : `เป้าคะแนนรายเดือน · ${activeName} · ${monthLabel} · ${result.count}/10 เคส`}</span>
+        <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog">{canBrowseAgents ? "ดูเป้าคะแนน KPI ของ Agent" : "ดูเป้าคะแนน KPI"} <span aria-hidden="true">↗</span></button>
       </div>
       <dialog ref={dialogRef} className="qmk-dialog" aria-labelledby="qmk-title" aria-describedby="qmk-subject"
         onCancel={(event) => { event.preventDefault(); setOpen(false); }}>
         <header className="qmk-header">
           <div className="qmk-eyebrow">MONTHLY KPI · TARGET 85%</div>
           <h2 id="qmk-title">เป้าคะแนน KPI เดือนนี้</h2>
-          <p id="qmk-subject">{agent} · {monthLabel}</p>
+          <p id="qmk-subject">{activeName} · {monthLabel}</p>
           <button type="button" className="qmk-close" aria-label="ปิดเป้าคะแนน KPI" onClick={() => setOpen(false)}>×</button>
         </header>
         <div className="qmk-body" data-tone={message.tone}>
+          {showAgentBrowser ? (
+            <div className="qmk-agent-browser">
+              <label htmlFor="qmk-agent-select">เลือก Agent</label>
+              <div className="qmk-agent-select-row">
+                <select id="qmk-agent-select" value={activeName} onChange={(event) => setActiveAgent(event.target.value)}>
+                  {availableAgents.map((option) => <option key={option.agent} value={option.agent}>{option.agent}</option>)}
+                </select>
+                <span>{activeIndex + 1} / {availableAgents.length}</span>
+              </div>
+            </div>
+          ) : null}
           <div className="qmk-status">{message.status}</div>
           <div className="qmk-metrics">
             <div><div className="qmk-label">คะแนนเฉลี่ยปัจจุบัน</div><div className="qmk-number">{result.average === null ? "—" : result.average.toFixed(2)} <small>/ 100</small></div></div>
@@ -81,7 +143,16 @@ export default function MonthlyKpiNotice({ cases, agent, monthKey, monthLabel, v
           <p className="qmk-footnote">ใช้คะแนนล่าสุดทั้งเดือนของคนนี้ รวมผลอุทธรณ์ที่อนุมัติแล้ว ไม่นับเคสซ้ำและไม่รวม Test Case</p>
           {result.count > 10 ? <p className="qmk-footnote">มีมากกว่า 10 เคส: คำนวณจากทุกเคสจริงของเดือนตาม Dashboard ไม่ตัดเคสออก</p> : null}
         </div>
-        <footer className="qmk-footer"><span>แจ้งใหม่เมื่อข้อมูลคะแนนเดือนนี้เปลี่ยน</span><button type="button" onClick={() => setOpen(false)}>รับทราบ</button></footer>
+        <footer className="qmk-footer">
+          {showAgentBrowser ? (
+            <div className="qmk-agent-nav" aria-label="เลื่อนดู Agent">
+              <button type="button" disabled={activeIndex === 0} onClick={() => setActiveAgent(availableAgents[activeIndex - 1]?.agent || activeName)}>← ก่อนหน้า</button>
+              <span>{activeIndex + 1} / {availableAgents.length}</span>
+              <button type="button" disabled={activeIndex >= availableAgents.length - 1} onClick={() => setActiveAgent(availableAgents[activeIndex + 1]?.agent || activeName)}>คนถัดไป →</button>
+            </div>
+          ) : <span>แจ้งใหม่เมื่อข้อมูลคะแนนเดือนนี้เปลี่ยน</span>}
+          <button type="button" className="qmk-acknowledge" onClick={() => setOpen(false)}>รับทราบ</button>
+        </footer>
       </dialog>
     </div>
   );

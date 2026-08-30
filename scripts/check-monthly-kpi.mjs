@@ -21,6 +21,11 @@ function value(file, name, dependencies) {
   const node = find(file, (n) => ts.isVariableDeclaration(n) && n.name.getText() === name);
   return run(`export const result = ${node.initializer.getText()};`, { useMemo: (fn) => fn(), ...dependencies }).result;
 }
+function functions(file, names, dependencies = {}) {
+  const code = names.map((name) => find(file, (node) => ts.isFunctionDeclaration(node) && node.name?.text === name).getText()
+    .replace(/^export\s+(default\s+)?/, "")).join("\n");
+  return run(`${code}\nexport { ${names.join(",")} };`, dependencies);
+}
 const identity = run(moduleCode("lib/agentIdentity.ts"));
 const scope = run(moduleCode("lib/evaluationScope.ts"));
 const kpi = run(moduleCode("lib/monthlyKpi.ts"), { ...identity, ...scope });
@@ -94,6 +99,21 @@ check("Dashboard popup consumes the authorized full month, ignoring weekly and s
   assert.deepEqual(value(dashboard,"monthlyKpiCases",{...deps,isAllAgentsView:true}),[]);
   assert.deepEqual(value(dashboard,"monthlyKpiCases",{...deps,isMonthlyView:false}),[]);
 });
+check("only an authorized Quality Assurance user receives all-Agent popup options", () => {
+  const { isQualityAssuranceRole } = functions(dashboard,["isQualityAssuranceRole"]);
+  for(const role of ["QA","Quality Assurance"," quality_assurance "]) assert.equal(isQualityAssuranceRole(role),true);
+  for(const role of ["Admin Live Chat","Senior","Supervisor",""]) assert.equal(isQualityAssuranceRole(role),false);
+  const canBrowse = (role,allowed) => value(dashboard,"qaCanBrowseMonthlyKpiAgents",{isQualityAssuranceRole,currentUser:{role},overviewCanSelectAgents:allowed});
+  assert.equal(canBrowse("QA",true),true);
+  assert.equal(canBrowse("QA",false),false);
+  assert.equal(canBrowse("Supervisor",true),false);
+  const authorizedSearchCases=[...rows(8,82.5),...rows(6,90,"Agent Two"),{...rows(1,100,"Agent Two")[0],caseId:"test",isTestCase:true}];
+  const deps={...kpi,isMonthlyView:true,qaCanBrowseMonthlyKpiAgents:true,visibleAgentList:["Agent One","Agent Two","Agent Zero"],authorizedSearchCases,selectedMonthKey:"2026-08"};
+  const options=value(dashboard,"qaMonthlyKpiAgentOptions",deps);
+  assert.deepEqual(options.map((option)=>[option.agent,option.cases.length]),[["Agent One",8],["Agent Two",6],["Agent Zero",0]]);
+  assert.deepEqual(value(dashboard,"qaMonthlyKpiAgentOptions",{...deps,qaCanBrowseMonthlyKpiAgents:false}),[]);
+  assert.deepEqual(value(dashboard,"qaMonthlyKpiAgentOptions",{...deps,isMonthlyView:false}),[]);
+});
 
 function dashboardState(cases, all=false, yearly=false, noCase=false, targets=[]) {
   const monthlyKpiResult = kpi.calculateMonthlyKpi(cases.map((item)=>item.finalScore));
@@ -132,6 +152,16 @@ check("popup renders all scenarios with agent/month, safe labels and capped prog
     assert.match(html,/ไม่รวม Test Case/); assert.match(html,/รับทราบ/);
   }
 });
+check("QA popup renders one accessible Agent picker with previous and next controls", () => {
+  const agentOptions=[{agent:"Agent One",cases:rows(8,82.5)},{agent:"Agent Two",cases:rows(6,90,"Agent Two")},{agent:"Agent Zero",cases:[]}];
+  const html=renderToStaticMarkup(React.createElement(Component,{cases:agentOptions[0].cases,agent:"Agent One",agentOptions,canBrowseAgents:true,monthKey:"2026-08",monthLabel:"August 2026",viewer:"qa.user"}));
+  assert.match(html,/Agent 3 คน/);
+  assert.match(html,/<select id="qmk-agent-select"/);
+  for(const agent of ["Agent One","Agent Two","Agent Zero"]) assert.match(html,new RegExp(`<option value="${agent}"`));
+  assert.match(html,/← ก่อนหน้า/); assert.match(html,/คนถัดไป →/); assert.match(html,/1 \/ 3/);
+  const ordinary=renderToStaticMarkup(React.createElement(Component,{cases:agentOptions[0].cases,agent:"Agent One",agentOptions,canBrowseAgents:false,monthKey:"2026-08",monthLabel:"August 2026",viewer:"agent.user"}));
+  assert.doesNotMatch(ordinary,/qmk-agent-select|Agent Two|คนถัดไป/);
+});
 check("native modal has Escape/dismiss/reopen and hidden-workspace cleanup", () => {
   const code = source("MonthlyKpiNotice.tsx");
   assert.match(code,/onCancel=\{\(event\) => \{ event.preventDefault\(\); setOpen\(false\); \}\}/);
@@ -149,7 +179,7 @@ check("automatic notices, dismissal, score refresh and retained-workspace visibi
   const root = { closest: () => workspace };
   const dialog = { open:false, opens:0, showModal(){this.open=true;this.opens++;}, close(){this.open=false;} };
   const fakeHooks = {
-    useMemo:(fn)=>fn(),
+    useMemo:(fn,deps)=>{const id=index++,old=slots[id];if(!old||deps.some((v,i)=>!Object.is(v,old.deps[i])))slots[id]={deps,value:fn()};return slots[id].value;},
     useRef:(initial)=>{const id=index++;return slots[id] ||= {current:initial};},
     useState:(initial)=>{const id=index++;if(!slots[id])slots[id]={value:initial};return [slots[id].value,(next)=>{const v=typeof next==="function"?next(slots[id].value):next;if(v!==slots[id].value){slots[id].value=v;dirty=true;}}];},
     useEffect:(effect,deps)=>{const id=index++,old=slots[id];if(!old||deps.some((v,i)=>!Object.is(v,old.deps[i]))){pending.push(()=>{old?.cleanup?.();slots[id]={deps,cleanup:effect()};});}}
@@ -171,6 +201,12 @@ check("automatic notices, dismissal, score refresh and retained-workspace visibi
   hidden=true;observerCallback();flush();assert.equal(dialog.open,false);
   props={...props,cases:props.cases.map((c,i)=>i?c:{...c,finalScore:95})};flush();tick();assert.equal(dialog.open,false);
   hidden=false;observerCallback();flush();tick();assert.equal(dialog.open,true);
+  const agentOptions=[{agent:"Agent One",cases:rows(8,82.5)},{agent:"Agent Two",cases:rows(6,90,"Agent Two")}];
+  props={...props,agent:"Agent One",cases:agentOptions[0].cases,agentOptions,canBrowseAgents:true};flush();tick();
+  action((el)=>el.type==="select"&&el.props.id==="qmk-agent-select",(p)=>p.onChange({target:{value:"Agent Two"}}));
+  let markup=renderToStaticMarkup(tree);assert.match(markup,/<p id="qmk-subject">Agent Two · August 2026<\/p>/);assert.match(markup,/aria-valuenow="6"/);
+  action((el)=>el.type==="button"&&String(el.props.children).includes("ก่อนหน้า"),(p)=>p.onClick());
+  markup=renderToStaticMarkup(tree);assert.match(markup,/<p id="qmk-subject">Agent One · August 2026<\/p>/);assert.match(markup,/aria-valuenow="8"/);
   for(const slot of slots)slot?.cleanup?.();assert.equal(dialog.open,false);assert.equal(timers.size,0);
 });
 check("monthly analytics status is also pending before ten without changing grade or incentive", () => {

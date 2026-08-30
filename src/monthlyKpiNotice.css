@@ -11,6 +11,11 @@
 .qa-monthly-kpi .qmk-header p { margin: 0; font-size: 13px; color: #625b75; overflow-wrap: anywhere; }
 .qa-monthly-kpi .qmk-close { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 12px; background: #f3edf9; color: #625b75; font-size: 26px; }
 .qa-monthly-kpi .qmk-body { --qmk-tone: #926009; --qmk-soft: #fff6e6; padding: 22px 24px; }
+.qa-monthly-kpi .qmk-agent-browser { margin-bottom: 16px; padding: 13px 14px; border: 1px solid #e4d9f4; border-radius: 13px; background: #faf8fe; }
+.qa-monthly-kpi .qmk-agent-browser label { display: block; margin-bottom: 6px; color: #6a617b; font-size: 11px; font-weight: 500; }
+.qa-monthly-kpi .qmk-agent-select-row { display: flex; align-items: center; gap: 10px; }
+.qa-monthly-kpi .qmk-agent-select-row select { min-width: 0; flex: 1; min-height: 40px; border: 1px solid #d8c9f4; border-radius: 10px; padding: 8px 34px 8px 11px; background: #fff; color: #2d2840; font: inherit; font-size: 13px; font-weight: 500; }
+.qa-monthly-kpi .qmk-agent-select-row span { flex: 0 0 auto; color: #766d87; font-size: 11px; font-variant-numeric: tabular-nums; }
 .qa-monthly-kpi [data-tone="violet"] { --qmk-tone: #673bad; --qmk-soft: #f2ebff; }
 .qa-monthly-kpi [data-tone="emerald"] { --qmk-tone: #08765b; --qmk-soft: #eaf9f2; }
 .qa-monthly-kpi [data-tone="rose"] { --qmk-tone: #af3248; --qmk-soft: #fff0f3; }
@@ -32,10 +37,15 @@
 .qa-monthly-kpi .qmk-footnote { margin: 15px 0 0; font-size: 11px; line-height: 1.8; color: #6a617b; }
 .qa-monthly-kpi .qmk-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; border-top: 1px solid #e9e0f5; background: #fcfaff; }
 .qa-monthly-kpi .qmk-footer span { font-size: 11px; color: #6a617b; }
-.qa-monthly-kpi .qmk-footer button { border: 0; border-radius: 11px; padding: 11px 23px; color: #fff; background: #7142c2; font-weight: 600; }
+.qa-monthly-kpi .qmk-footer .qmk-acknowledge { border: 0; border-radius: 11px; padding: 11px 23px; color: #fff; background: #7142c2; font-weight: 600; }
+.qa-monthly-kpi .qmk-agent-nav { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.qa-monthly-kpi .qmk-agent-nav button { border: 1px solid #d8c9f4; border-radius: 10px; padding: 9px 11px; background: #fff; color: #6235b5; font-size: 11px; font-weight: 500; }
+.qa-monthly-kpi .qmk-agent-nav button:disabled { cursor: not-allowed; border-color: #ebe7f1; color: #aaa3b7; background: #f6f4f8; }
+.qa-monthly-kpi .qmk-agent-nav span { min-width: 35px; text-align: center; font-variant-numeric: tabular-nums; }
 @media (max-width: 420px) {
   .qa-monthly-kpi .qmk-header, .qa-monthly-kpi .qmk-body, .qa-monthly-kpi .qmk-footer { padding-left: 18px; padding-right: 18px; }
   .qa-monthly-kpi .qmk-header { padding-right: 58px; }
   .qa-monthly-kpi .qmk-number { font-size: 26px; }
-  .qa-monthly-kpi .qmk-footer button { width: 100%; }
+  .qa-monthly-kpi .qmk-agent-nav { width: 100%; justify-content: space-between; }
+  .qa-monthly-kpi .qmk-footer .qmk-acknowledge { width: 100%; }
 }
