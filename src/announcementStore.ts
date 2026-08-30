@@ -17,6 +17,7 @@ export type AnnouncementPopupMode = "Once" | "Until Acknowledged" | "Mailbox Onl
 export type AnnouncementRepeatMode = "once" | "daily" | "until-read";
 export type AnnouncementDeliveryModel = "legacy" | "immediate-reminder";
 export type AnnouncementDisplayMode = "Banner" | "Popup" | "Full Screen" | "Media Spotlight" | "Media Only" | "Mailbox Only";
+export type AnnouncementTickerMode = "scroll" | "static" | "rotate";
 export type AnnouncementActionRequired = "Read Only" | "Acknowledge";
 export type AnnouncementMediaType = "image" | "video" | "pdf" | "file" | "link";
 
@@ -42,6 +43,7 @@ export type StoredAnnouncement = {
   dailyStartTime: string;
   dailyEndTime: string;
   displayMode: AnnouncementDisplayMode;
+  tickerMode: AnnouncementTickerMode;
   actionRequired: AnnouncementActionRequired;
   startsAt: string;
   endsAt: string;
@@ -136,6 +138,10 @@ function normalizeAnnouncement(
       value?.displayMode === "Mailbox Only"
         ? value.displayMode
         : "Popup",
+    tickerMode:
+      value?.tickerMode === "static" || value?.tickerMode === "rotate"
+        ? value.tickerMode
+        : "scroll",
     actionRequired:
       value?.actionRequired === "Acknowledge" ? "Acknowledge" : "Read Only",
     startsAt: String(value?.startsAt || ""),

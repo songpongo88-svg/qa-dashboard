@@ -1,4 +1,4 @@
-.qa-monthly-kpi { color: #242039; font-family: inherit; }
+.qa-monthly-kpi { position: absolute; width: 0; height: 0; color: #242039; font-family: inherit; }
 .qa-monthly-kpi .qmk-launcher { position: fixed; right: 26px; bottom: 104px; z-index: 81; }
 .qa-monthly-kpi button { font: inherit; cursor: pointer; }
 .qa-monthly-kpi button:focus-visible { outline: 3px solid #a78bfa; outline-offset: 3px; }

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   deleteStoredAnnouncement,
   fetchAnnouncementReceipts,
@@ -11,8 +12,10 @@ import {
   type AnnouncementMediaType,
   type AnnouncementPriority,
   type AnnouncementReceipt,
+  type AnnouncementTickerMode,
   type StoredAnnouncement,
 } from "./announcementStore";
+import "./announcementTicker.css";
 
 type HubUser = {
   username: string;
@@ -64,6 +67,16 @@ const PRIORITY_LABELS: Record<AnnouncementPriority, string> = {
   Important: "สำคัญ",
   Urgent: "เร่งด่วน",
 };
+
+const TICKER_MODE_OPTIONS: Array<{
+  value: AnnouncementTickerMode;
+  label: string;
+  detail: string;
+}> = [
+  { value: "scroll", label: "วิ่งต่อเนื่อง", detail: "เหมาะกับประกาศยาวหรือหลายข้อความ" },
+  { value: "static", label: "ข้อความนิ่ง", detail: "เหมาะกับข้อความสั้นที่ต้องการเน้น" },
+  { value: "rotate", label: "สลับข้อความ", detail: "เหมาะเมื่อมีหลายประกาศพร้อมกัน" },
+];
 
 const STATUS_LABELS: Record<string, string> = {
   Active: "กำลังแสดง",
@@ -494,6 +507,7 @@ function emptyDraft(user: HubUser): StoredAnnouncement {
     dailyStartTime: localDateTimeInput(now).slice(11, 16),
     dailyEndTime: localDateTimeInput(tomorrow).slice(11, 16),
     displayMode: "Media Only",
+    tickerMode: "scroll",
     actionRequired: "Read Only",
     startsAt: localDateTimeInput(now),
     endsAt: localDateTimeInput(tomorrow),
@@ -539,6 +553,8 @@ export default function AnnouncementHub({
   const [busy, setBusy] = useState(false);
   const [snoozedIds, setSnoozedIds] = useState<string[]>(readSnoozedIds);
   const [scheduleTick, setScheduleTick] = useState(0);
+  const [tickerTarget, setTickerTarget] = useState<HTMLElement | null>(null);
+  const [tickerIndex, setTickerIndex] = useState(0);
 
   const manageAllowed = canManageAnnouncements(currentUser);
   const currentUsername = normalize(currentUser.username);
@@ -546,6 +562,14 @@ export default function AnnouncementHub({
   useEffect(() => {
     setMediaDescriptionOpen(false);
   }, [popupMessage?.id]);
+
+  useEffect(() => {
+    const syncTarget = () => setTickerTarget(document.getElementById("qa-dashboard-announcement-ticker"));
+    syncTarget();
+    const observer = new MutationObserver(syncTarget);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   const loadData = async () => {
     try {
@@ -820,24 +844,30 @@ export default function AnnouncementHub({
   };
 
   const saveAnnouncement = async () => {
-    if (!draft.title.trim() || !draft.body.trim()) {
-      setSaveMessage("กรุณากรอกหัวข้อและรายละเอียดประกาศ");
+    const isTicker = draft.displayMode === "Banner";
+    if (!draft.title.trim() || (!isTicker && !draft.body.trim())) {
+      setSaveMessage(isTicker ? "กรุณากรอกข้อความบนแถบประกาศ" : "กรุณากรอกหัวข้อและรายละเอียดประกาศ");
       return;
     }
-    if (!draft.media.some((item) => item.type === "image" || item.type === "video")) {
+    if (!isTicker && !draft.media.some((item) => item.type === "image" || item.type === "video")) {
       setSaveMessage("กรุณาแนบรูปภาพหรือวิดีโอสำหรับ Media Popup");
+      return;
+    }
+    const tickerEndsAt = new Date(draft.endsAt);
+    if (isTicker && (Number.isNaN(tickerEndsAt.getTime()) || tickerEndsAt.getTime() <= Date.now())) {
+      setSaveMessage("กรุณาเลือกเวลาสิ้นสุดของข้อความให้เป็นเวลาในอนาคต");
       return;
     }
     const reminderDate = localDatePart(draft.reminderAt);
     const reminderTime = localTimePart(draft.reminderAt);
     const dailyEndDate = localDatePart(draft.endsAt);
     const dailyReminderEnabled =
-      draft.reminderEnabled && draft.repeatMode === "daily";
+      !isTicker && draft.reminderEnabled && draft.repeatMode === "daily";
     const reminderDateTime = new Date(
       joinLocalDateTime(reminderDate, reminderTime)
     );
     if (
-      draft.reminderEnabled &&
+      !isTicker && draft.reminderEnabled &&
       (!reminderDate ||
         !isValidTime(reminderTime) ||
         Number.isNaN(reminderDateTime.getTime()))
@@ -846,7 +876,7 @@ export default function AnnouncementHub({
       return;
     }
     if (
-      draft.reminderEnabled &&
+      !isTicker && draft.reminderEnabled &&
       !dailyReminderEnabled &&
       reminderDateTime.getTime() <= Date.now()
     ) {
@@ -878,24 +908,29 @@ export default function AnnouncementHub({
     setBusy(true);
     try {
       const publishedAt = new Date().toISOString();
-      const reminderAt = draft.reminderEnabled
+      const reminderAt = !isTicker && draft.reminderEnabled
         ? reminderDateTime.toISOString()
         : "";
-      const reminderEndsAt = dailyReminderEnabled
-        ? new Date(`${dailyEndDate}T23:59:59.999`).toISOString()
-        : reminderAt || publishedAt;
+      const reminderEndsAt = isTicker
+        ? tickerEndsAt.toISOString()
+        : dailyReminderEnabled
+          ? new Date(`${dailyEndDate}T23:59:59.999`).toISOString()
+          : reminderAt || publishedAt;
 
       await upsertStoredAnnouncement({
         ...draft,
-        popupMode: "Once",
-        deliveryModel: "immediate-reminder",
-        showImmediately: true,
-        reminderEnabled: draft.reminderEnabled,
+        title: draft.title.trim(),
+        body: isTicker ? "" : draft.body,
+        media: isTicker ? [] : draft.media,
+        popupMode: isTicker ? "Mailbox Only" : "Once",
+        deliveryModel: isTicker ? "legacy" : "immediate-reminder",
+        showImmediately: !isTicker,
+        reminderEnabled: !isTicker && draft.reminderEnabled,
         reminderAt,
         repeatMode: dailyReminderEnabled ? "daily" : "once",
         dailyStartTime: reminderTime,
         dailyEndTime: "",
-        displayMode: "Media Only",
+        displayMode: isTicker ? "Banner" : "Media Only",
         actionRequired: "Read Only",
         id: draft.id || `announcement-${Date.now()}`,
         startsAt: publishedAt,
@@ -904,7 +939,9 @@ export default function AnnouncementHub({
         createdByName: currentUser.displayName,
       });
       setSaveMessage(
-        dailyReminderEnabled
+        isTicker
+          ? "แสดงข้อความบน Dashboard แล้ว"
+          : dailyReminderEnabled
           ? `ส่ง Popup เข้าคิวผู้รับทันทีแล้ว และจะเด้งซ้ำ ${formatThaiDailySchedule(
               reminderDate,
               dailyEndDate,
@@ -936,6 +973,7 @@ export default function AnnouncementHub({
   };
 
   const editAnnouncement = (item: StoredAnnouncement) => {
+    const editingTicker = item.displayMode === "Banner";
     const toLocal = (value: string) => {
       const date = new Date(value);
       return Number.isNaN(date.getTime()) ? "" : localDateTimeInput(date);
@@ -962,13 +1000,13 @@ export default function AnnouncementHub({
       : reminderAt;
     setDraft({
       ...item,
-      popupMode: "Once",
-      deliveryModel: "immediate-reminder",
-      showImmediately: true,
+      popupMode: editingTicker ? "Mailbox Only" : "Once",
+      deliveryModel: editingTicker ? "legacy" : "immediate-reminder",
+      showImmediately: !editingTicker,
       reminderEnabled:
-        item.deliveryModel === "immediate-reminder"
+        !editingTicker && item.deliveryModel === "immediate-reminder"
           ? item.reminderEnabled
-          : legacyReminderEnabled,
+          : !editingTicker && legacyReminderEnabled,
       reminderAt,
       repeatMode: dailyReminderEnabled ? "daily" : "once",
       dailyStartTime:
@@ -976,10 +1014,10 @@ export default function AnnouncementHub({
           ? item.dailyStartTime
           : localTimePart(reminderAt),
       dailyEndTime: "",
-      displayMode: "Media Only",
+      displayMode: editingTicker ? "Banner" : "Media Only",
       actionRequired: "Read Only",
       startsAt: localDateTimeInput(new Date()),
-      endsAt: reminderEndsAt,
+      endsAt: editingTicker ? toLocal(item.endsAt) || fallbackReminder : reminderEndsAt,
     });
     setView("control");
     setHubOpen(true);
@@ -1101,12 +1139,29 @@ export default function AnnouncementHub({
       (item) => item.announcementId === announcementId && Boolean(item[field])
     ).length;
 
-  const activeBanner = myAnnouncements.find(
-    (item) =>
-      announcementStatus(item) === "Active" &&
-      item.displayMode === "Banner" &&
-      !wasAcknowledged(item, myReceiptMap.get(item.id))
+  const activeTickerAnnouncements = useMemo(
+    () => myAnnouncements
+      .filter((item) => announcementStatus(item) === "Active" && item.displayMode === "Banner" && item.title.trim())
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()),
+    [myAnnouncements, scheduleTick]
   );
+  const tickerMode = activeTickerAnnouncements[0]?.tickerMode || "scroll";
+  const tickerPriority: AnnouncementPriority = activeTickerAnnouncements.some((item) => item.priority === "Urgent")
+    ? "Urgent"
+    : activeTickerAnnouncements.some((item) => item.priority === "Important")
+      ? "Important"
+      : "Normal";
+  const tickerDuration = Math.max(18, activeTickerAnnouncements.reduce((total, item) => total + item.title.length, 0) * 0.32);
+
+  useEffect(() => {
+    setTickerIndex(0);
+    if (tickerMode !== "rotate" || activeTickerAnnouncements.length < 2) return;
+    const timer = window.setInterval(
+      () => setTickerIndex((current) => (current + 1) % activeTickerAnnouncements.length),
+      5500
+    );
+    return () => window.clearInterval(timer);
+  }, [activeTickerAnnouncements.length, tickerMode]);
 
   const spotlightMode = popupMessage?.displayMode === "Media Spotlight" || popupMessage?.displayMode === "Media Only";
   const mediaOnlyMode = popupMessage?.displayMode === "Media Only";
@@ -1229,29 +1284,57 @@ export default function AnnouncementHub({
   return (
     <>
       {/* data-announcement-media-spotlight-v4 */}
-      {activeBanner ? (
-        <div className="fixed left-1/2 top-4 z-[130] w-[min(94vw,1100px)] -translate-x-1/2 rounded-[22px] border border-white/30 bg-gradient-to-r from-violet-800 to-fuchsia-600 px-5 py-4 text-white shadow-[0_20px_60px_rgba(76,29,149,0.35)]">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-200">
-                {activeBanner.category} • {activeBanner.priority}
+      {tickerTarget && activeTickerAnnouncements.length ? createPortal(
+        <section
+          className="qaa-ticker"
+          data-announcement-ticker-v1="true"
+          data-priority={tickerPriority}
+          data-mode={tickerMode}
+          aria-label="ข้อความประกาศ"
+        >
+          <div className="qaa-ticker__label" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M4 13V9l13-5v14L4 13Z" />
+              <path d="M7 14.2 8.5 20h3L10 15.4M17 8.5a4 4 0 0 1 0 5" />
+            </svg>
+            <span>ประกาศ</span>
+          </div>
+          <div className="qaa-ticker__viewport">
+            {tickerMode === "scroll" ? (
+              <div className="qaa-ticker__track" style={{ "--qaa-duration": `${tickerDuration}s` } as React.CSSProperties}>
+                {[false, true].map((duplicate) => (
+                  <div key={String(duplicate)} className="qaa-ticker__segment" aria-hidden={duplicate || undefined}>
+                    {activeTickerAnnouncements.map((item) => (
+                      <span key={`${duplicate ? "copy" : "main"}-${item.id}`} className="qaa-ticker__item">{item.title}</span>
+                    ))}
+                  </div>
+                ))}
               </div>
-              <div className="mt-1 text-base font-black">
-                {activeBanner.title}
+            ) : tickerMode === "rotate" && activeTickerAnnouncements.length > 1 ? (
+              <div key={activeTickerAnnouncements[tickerIndex]?.id} className="qaa-ticker__static qaa-ticker__rotate">
+                {activeTickerAnnouncements[tickerIndex]?.title}
               </div>
-              <div className="mt-1 line-clamp-2 text-sm text-white/80">
-                {activeBanner.body}
-              </div>
-            </div>
+            ) : (
+              <div className="qaa-ticker__static">{activeTickerAnnouncements[0]?.title}</div>
+            )}
+          </div>
+          {manageAllowed ? (
             <button
               type="button"
-              onClick={() => void markRead(activeBanner, true)}
-              className="rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-xs font-black text-white hover:bg-white/25"
+              className="qaa-ticker__edit"
+              aria-label="สร้างหรือแก้ไขข้อความบนแถบประกาศ"
+              title="จัดการข้อความ"
+              onClick={() => {
+                setDraft({ ...emptyDraft(currentUser), displayMode: "Banner" });
+                setView("control");
+                setHubOpen(true);
+              }}
             >
-              รับทราบ
+              ✎
             </button>
-          </div>
-        </div>
+          ) : null}
+        </section>,
+        tickerTarget
       ) : null}
 
       <button
@@ -1579,17 +1662,42 @@ export default function AnnouncementHub({
                     </div>
 
                     <div className="mt-6 grid gap-4 md:grid-cols-2">
+                      <div className="md:col-span-2 rounded-[22px] border border-violet-200 bg-violet-50/60 p-4">
+                        <div className="text-sm font-black text-slate-900">รูปแบบประกาศ</div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => setDraft({ ...draft, displayMode: "Media Only" })}
+                            className={`rounded-2xl border px-4 py-3 text-left transition ${draft.displayMode !== "Banner" ? "border-violet-500 bg-violet-600 text-white shadow-md" : "border-violet-200 bg-white text-slate-700 hover:border-violet-400"}`}
+                          >
+                            <span className="block text-sm font-black">Media Popup</span>
+                            <span className={`mt-1 block text-xs ${draft.displayMode !== "Banner" ? "text-violet-100" : "text-slate-500"}`}>รูปภาพหรือวิดีโอแบบเดิม</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDraft({ ...draft, displayMode: "Banner", reminderEnabled: false })}
+                            className={`rounded-2xl border px-4 py-3 text-left transition ${draft.displayMode === "Banner" ? "border-fuchsia-500 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md" : "border-violet-200 bg-white text-slate-700 hover:border-violet-400"}`}
+                          >
+                            <span className="block text-sm font-black">แถบข้อความ Dashboard</span>
+                            <span className={`mt-1 block text-xs ${draft.displayMode === "Banner" ? "text-fuchsia-100" : "text-slate-500"}`}>Text เท่านั้น ไม่ใช้รูปหรือไฟล์</span>
+                          </button>
+                        </div>
+                      </div>
+
                       <label className="md:col-span-2">
                         <span className="mb-2 block text-xs font-black text-slate-500">
-                          หัวข้อประกาศ
+                          {draft.displayMode === "Banner" ? "ข้อความบนแถบ" : "หัวข้อประกาศ"}
                         </span>
                         <input
                           value={draft.title}
+                          maxLength={draft.displayMode === "Banner" ? 220 : undefined}
                           onChange={(event) =>
                             setDraft({ ...draft, title: event.target.value })
                           }
+                          placeholder={draft.displayMode === "Banner" ? "พิมพ์ข้อความที่ต้องการให้ผู้ใช้เห็น" : undefined}
                           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                         />
+                        {draft.displayMode === "Banner" ? <span className="mt-1 block text-right text-[10px] font-bold text-slate-400">{draft.title.length}/220</span> : null}
                       </label>
 
                       <label>
@@ -1631,9 +1739,39 @@ export default function AnnouncementHub({
                         </select>
                       </label>
 
+                      {draft.displayMode === "Banner" ? (
+                        <div className="md:col-span-2 rounded-[24px] border border-fuchsia-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-4 sm:p-5">
+                          <div className="text-sm font-black text-slate-900">การแสดงผลบน Dashboard</div>
+                          <div className="mt-3 grid gap-2 md:grid-cols-3">
+                            {TICKER_MODE_OPTIONS.map((option) => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setDraft({ ...draft, tickerMode: option.value })}
+                                className={`rounded-2xl border px-4 py-3 text-left transition ${draft.tickerMode === option.value ? "border-violet-500 bg-white text-violet-800 shadow-md ring-2 ring-violet-100" : "border-violet-100 bg-white/60 text-slate-600 hover:border-violet-300"}`}
+                              >
+                                <span className="block text-sm font-black">{option.label}</span>
+                                <span className="mt-1 block text-[11px] leading-5 text-slate-500">{option.detail}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <label className="mt-4 block">
+                            <span className="mb-2 block text-xs font-black text-slate-500">แสดงถึง</span>
+                            <input
+                              type="datetime-local"
+                              value={draft.endsAt}
+                              min={localDateTimeInput(new Date())}
+                              onChange={(event) => setDraft({ ...draft, endsAt: event.target.value })}
+                              className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 sm:max-w-sm"
+                            />
+                          </label>
+                          <div className="mt-3 text-xs leading-5 text-violet-700">ข้อความจะแสดงทันทีตามผู้รับที่เลือก และหยุดอัตโนมัติตามเวลานี้</div>
+                        </div>
+                      ) : null}
+
                       <div
                         data-announcement-schedule-redesign-v2="true"
-                        className="md:col-span-2 rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50/50 p-4 sm:p-5"
+                        className={`${draft.displayMode === "Banner" ? "hidden" : ""} md:col-span-2 rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50/50 p-4 sm:p-5`}
                       >
                         <div className="text-sm font-black text-slate-900">
                           การแจ้งเตือน
@@ -1836,7 +1974,7 @@ export default function AnnouncementHub({
                         </div>
                       </div>
 
-                      <div className="md:col-span-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3">
+                      <div className={`${draft.displayMode === "Banner" ? "hidden" : ""} md:col-span-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3`}>
                         <div className="text-xs font-black text-violet-800">
                           Media Popup
                         </div>
@@ -1845,7 +1983,7 @@ export default function AnnouncementHub({
                         </div>
                       </div>
 
-                      <label className="md:col-span-2">
+                      <label className={`${draft.displayMode === "Banner" ? "hidden" : ""} md:col-span-2`}>
                         <span className="mb-2 block text-xs font-black text-slate-500">
                           รายละเอียดเมื่อกด Media
                         </span>
@@ -1860,7 +1998,7 @@ export default function AnnouncementHub({
                       </label>
                     </div>
 
-                    <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                    <div className={`${draft.displayMode === "Banner" ? "hidden" : ""} mt-6 rounded-[24px] border border-slate-200 bg-slate-50 p-4`}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <div className="text-sm font-black text-slate-900">
@@ -2092,6 +2230,8 @@ export default function AnnouncementHub({
                       >
                         {busy
                           ? "กำลังบันทึก..."
+                          : draft.displayMode === "Banner"
+                            ? draft.id ? "บันทึกข้อความ" : "แสดงข้อความบน Dashboard"
                           : draft.id
                             ? "บันทึกและส่งรอบใหม่"
                             : draft.reminderEnabled

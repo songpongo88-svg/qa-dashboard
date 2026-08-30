@@ -6756,6 +6756,8 @@ export default function DashboardMockup({
                     ))}
                   </div>
 
+                  <div id="qa-dashboard-announcement-ticker" className="empty:hidden" />
+
                   {isMonthlyView && currentUser?.username &&
                   (!isAllAgentsView || (qaCanBrowseMonthlyKpiAgents && qaMonthlyKpiAgentOptions.length)) ? (
                     <MonthlyKpiNotice
