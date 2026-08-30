@@ -156,6 +156,10 @@ check("QA popup renders one accessible Agent picker with previous and next contr
   const agentOptions=[{agent:"Agent One",cases:rows(8,82.5)},{agent:"Agent Two",cases:rows(6,90,"Agent Two")},{agent:"Agent Zero",cases:[]}];
   const html=renderToStaticMarkup(React.createElement(Component,{cases:agentOptions[0].cases,agent:"Agent One",agentOptions,canBrowseAgents:true,monthKey:"2026-08",monthLabel:"August 2026",viewer:"qa.user"}));
   assert.match(html,/Agent 3 คน/);
+  assert.match(html,/data-tooltip="เป้าคะแนน KPI"/);
+  assert.match(html,/<svg viewBox="0 0 24 24"/);
+  assert.doesNotMatch(html,/>ดูเป้าคะแนน KPI/);
+  assert.match(source("monthlyKpiNotice.css"),/\.qmk-launcher \{ position: fixed; right: 26px; bottom: 104px;/);
   assert.match(html,/<select id="qmk-agent-select"/);
   for(const agent of ["Agent One","Agent Two","Agent Zero"]) assert.match(html,new RegExp(`<option value="${agent}"`));
   assert.match(html,/← ก่อนหน้า/); assert.match(html,/คนถัดไป →/); assert.match(html,/1 \/ 3/);

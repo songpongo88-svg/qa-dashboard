@@ -103,14 +103,28 @@ export default function MonthlyKpiNotice({
   return (
     <div ref={rootRef} className="qa-monthly-kpi" data-monthly-kpi-notice="true">
       <div className="qmk-launcher">
-        <span>{canBrowseAgents ? `เป้าคะแนนรายเดือน · Agent ${availableAgents.length} คน · ${monthLabel}` : `เป้าคะแนนรายเดือน · ${activeName} · ${monthLabel} · ${result.count}/10 เคส`}</span>
-        <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog">{canBrowseAgents ? "ดูเป้าคะแนน KPI ของ Agent" : "ดูเป้าคะแนน KPI"} <span aria-hidden="true">↗</span></button>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          aria-label={canBrowseAgents
+            ? `เปิดเป้าคะแนน KPI ของ Agent ${availableAgents.length} คน เดือน ${monthLabel}`
+            : `เปิดเป้าคะแนน KPI ของ ${activeName} เดือน ${monthLabel}`}
+          data-tooltip="เป้าคะแนน KPI"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="7.5" />
+            <circle cx="12" cy="12" r="3.5" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+          <span>KPI</span>
+        </button>
       </div>
       <dialog ref={dialogRef} className="qmk-dialog" aria-labelledby="qmk-title" aria-describedby="qmk-subject"
         onCancel={(event) => { event.preventDefault(); setOpen(false); }}>
         <header className="qmk-header">
-          <div className="qmk-eyebrow">MONTHLY KPI · TARGET 85%</div>
-          <h2 id="qmk-title">เป้าคะแนน KPI เดือนนี้</h2>
+          <div className="qmk-eyebrow">KPI รายเดือน · เป้าหมาย 85</div>
+          <h2 id="qmk-title">เป้าคะแนน KPI</h2>
           <p id="qmk-subject">{activeName} · {monthLabel}</p>
           <button type="button" className="qmk-close" aria-label="ปิดเป้าคะแนน KPI" onClick={() => setOpen(false)}>×</button>
         </header>
@@ -128,20 +142,20 @@ export default function MonthlyKpiNotice({
           ) : null}
           <div className="qmk-status">{message.status}</div>
           <div className="qmk-metrics">
-            <div><div className="qmk-label">คะแนนเฉลี่ยปัจจุบัน</div><div className="qmk-number">{result.average === null ? "—" : result.average.toFixed(2)} <small>/ 100</small></div></div>
-            <div><div className="qmk-label">ประเมินแล้ว</div><div className="qmk-number">{result.count} <small>/ 10 เคส</small></div></div>
+            <div><div className="qmk-label">คะแนนเฉลี่ย</div><div className="qmk-number">{result.average === null ? "—" : result.average.toFixed(2)} <small>/ 100</small></div></div>
+            <div><div className="qmk-label">จำนวนเคส</div><div className="qmk-number">{result.count} <small>/ 10 เคส</small></div></div>
           </div>
           <div className="qmk-track" role="progressbar" aria-label="จำนวนเคสที่ประเมินแล้ว" aria-valuemin={0} aria-valuemax={10} aria-valuenow={Math.min(result.count, 10)} aria-valuetext={`${result.count} จาก 10 เคส`}>
             {Array.from({ length: 10 }, (_, index) => <span key={index} className={index < result.count ? "qmk-done" : ""} />)}
           </div>
-          <div className="qmk-caption"><span>คะแนนสะสม {result.total.toFixed(2)}{result.count <= 10 ? " / 850" : ""}</span><span>{result.remaining ? `เหลืออีก ${result.remaining} เคส` : "ครบโควต้าแล้ว"}</span></div>
+          <div className="qmk-caption"><span>สะสม {result.total.toFixed(2)}{result.count <= 10 ? " / 850" : ""}</span><span>{result.remaining ? `เหลือ ${result.remaining} เคส` : "ครบ 10 เคสแล้ว"}</span></div>
           <section className="qmk-notice" aria-label="เป้าคะแนนที่ต้องทำ">
             <div className="qmk-label-strong">{message.label}</div>
             <div className="qmk-target">{message.value} <small>{message.unit}</small></div>
             <p>{message.text}</p>
           </section>
-          <p className="qmk-footnote">ใช้คะแนนล่าสุดทั้งเดือนของคนนี้ รวมผลอุทธรณ์ที่อนุมัติแล้ว ไม่นับเคสซ้ำและไม่รวม Test Case</p>
-          {result.count > 10 ? <p className="qmk-footnote">มีมากกว่า 10 เคส: คำนวณจากทุกเคสจริงของเดือนตาม Dashboard ไม่ตัดเคสออก</p> : null}
+          <p className="qmk-footnote">ใช้คะแนนล่าสุด รวมอุทธรณ์ที่อนุมัติ · ไม่รวม Test Case และเคสซ้ำ</p>
+          {result.count > 10 ? <p className="qmk-footnote">เกิน 10 เคส: คำนวณจากทุกเคสจริงของเดือน</p> : null}
         </div>
         <footer className="qmk-footer">
           {showAgentBrowser ? (

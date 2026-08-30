@@ -69,13 +69,17 @@ export function getMonthlyKpiMessage(result: MonthlyKpiResult) {
   const { count, remaining, average, requiredAverage, maxFinalAverage, state } = result;
   const required = formatRequiredKpiScore(requiredAverage || 0);
   const averageText = average === null ? "—" : average.toFixed(2);
+  const remainingLabel = remaining === 1
+    ? "อีก 1 เคส ต้องได้อย่างน้อย"
+    : `อีก ${remaining} เคส ต้องได้เฉลี่ยอย่างน้อย`;
+  const remainingText = "เพื่อให้ค่าเฉลี่ยรวมถึง KPI 85 เมื่อครบ 10 เคส";
   switch (state) {
-    case "empty": return { tone: "violet", status: "ยังไม่มีผลประเมิน", label: "เป้าหมายคะแนนเฉลี่ยทั้ง 10 เคส", value: "85.00", unit: "คะแนน / เคส", text: "ต้องสะสมอย่างน้อย 850 คะแนนจาก 10 เคส ระบบจะคำนวณเป้าคะแนนที่เหลือเมื่อมีผลประเมิน" };
-    case "ahead": return { tone: "emerald", status: "ขณะนี้ถึงเกณฑ์ · ยังไม่ครบโควต้า", label: `รักษาคะแนนอีก ${remaining} เคส ให้ได้เฉลี่ยอย่างน้อย`, value: required, unit: "คะแนน / เคส", text: "คะแนนตอนนี้ถึงเกณฑ์ 85% แล้ว แต่ยังต้องรักษาค่าเฉลี่ยของเคสที่เหลือ ผล KPI เดือนนี้ยังไม่สรุปจนกว่าจะครบ 10 เคส" };
-    case "secured": return { tone: "emerald", status: "คะแนนสะสมถึงเป้าแล้ว · รอครบโควต้า", label: "เหลือประเมินให้ครบโควต้าอีก", value: String(remaining), unit: "เคส", text: "คะแนนสะสมถึงขั้นต่ำ 850 คะแนนแล้ว รอครบ 10 เคสเพื่อสรุปผล หากคะแนนเดิมเปลี่ยน ระบบจะคำนวณใหม่" };
-    case "unreachable": return { tone: "rose", status: "เคสที่เหลือไม่เพียงพอให้ถึงเป้า", label: `แม้อีก ${remaining} เคสได้เต็ม 100 ค่าเฉลี่ยสูงสุดคือ`, value: (maxFinalAverage || 0).toFixed(2), unit: "%", text: `ต้องได้เฉลี่ย ${required} คะแนน/เคส ซึ่งเกินคะแนนเต็ม 100 จึงไม่ถึงเป้าภายในโควต้า 10 เคส ให้ยึดผลประเมินจริงโดยไม่เพิ่มเคสเพื่อให้ถึงเป้า` };
-    case "passed": return { tone: "emerald", status: "ผ่าน KPI เดือนนี้", label: `ประเมินแล้ว ${count} เคส · คะแนนเฉลี่ย`, value: averageText, unit: "%", text: "คะแนนเฉลี่ยถึงเกณฑ์ 85% และประเมินครบโควต้าประจำเดือนแล้ว" };
-    case "not-passed": return { tone: "rose", status: "ไม่ผ่าน KPI เดือนนี้", label: `ประเมินแล้ว ${count} เคส · คะแนนเฉลี่ย`, value: averageText, unit: "%", text: "คะแนนเฉลี่ยยังต่ำกว่า 85% หลังประเมินครบโควต้าประจำเดือน" };
-    default: return { tone: "amber", status: "กำลังประเมิน · ยังไม่สรุป KPI", label: `อีก ${remaining} เคส ต้องได้เฉลี่ยอย่างน้อย`, value: required, unit: "คะแนน / เคส", text: "เพื่อให้คะแนนเฉลี่ยเมื่อครบ 10 เคสถึง 85% นี่คือเป้าคะแนนของเคสที่เหลือ ไม่ใช่ผล KPI สรุปประจำเดือน" };
+    case "empty": return { tone: "violet", status: "ยังไม่มีคะแนนเดือนนี้", label: "เป้าหมายเมื่อครบ 10 เคส", value: "85.00", unit: "คะแนนเฉลี่ย", text: "เริ่มประเมินแล้ว ระบบจะแจ้งคะแนนที่ต้องได้ในเคสที่เหลือ" };
+    case "ahead": return { tone: "emerald", status: "คะแนนถึงเกณฑ์ · รอครบ 10 เคส", label: remainingLabel, value: required, unit: "คะแนน / เคส", text: remainingText };
+    case "secured": return { tone: "emerald", status: "คะแนนถึงเกณฑ์ · รอครบ 10 เคส", label: "เหลืออีก", value: String(remaining), unit: "เคส", text: "คะแนนสะสมถึงเป้าแล้ว ประเมินให้ครบ 10 เคสเพื่อสรุป KPI" };
+    case "unreachable": return { tone: "rose", status: "คะแนนยังไม่ถึงเกณฑ์", label: `แม้ ${remaining} เคสที่เหลือได้ 100 คะแนน ค่าเฉลี่ยสูงสุด`, value: (maxFinalAverage || 0).toFixed(2), unit: "%", text: "ค่าเฉลี่ยสูงสุดยังต่ำกว่า KPI 85" };
+    case "passed": return { tone: "emerald", status: "ผ่าน KPI", label: "คะแนนเฉลี่ย", value: averageText, unit: "/ 100", text: `ประเมินครบ ${count} เคส และคะแนนเฉลี่ยถึง KPI 85` };
+    case "not-passed": return { tone: "rose", status: "ไม่ผ่าน KPI", label: "คะแนนเฉลี่ย", value: averageText, unit: "/ 100", text: `ประเมินครบ ${count} เคส แต่คะแนนเฉลี่ยต่ำกว่า KPI 85` };
+    default: return { tone: "amber", status: "ยังไม่ถึงเกณฑ์ · รอครบ 10 เคส", label: remainingLabel, value: required, unit: "คะแนน / เคส", text: remainingText };
   }
 }
