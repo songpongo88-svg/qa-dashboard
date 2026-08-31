@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "generate:meta": "node ./scripts/generate-build-meta.mjs",
-    "predev": "npm run generate:meta",
+    "patch:dashboard-grade": "node ./scripts/patch-dashboard-overall-grade.mjs",
+    "predev": "npm run patch:dashboard-grade && npm run generate:meta",
     "dev": "vite",
-    "prebuild": "npm run generate:meta",
+    "prebuild": "npm run patch:dashboard-grade && npm run generate:meta",
     "build": "vite build",
     "preview": "vite preview"
   },
