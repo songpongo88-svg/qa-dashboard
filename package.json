@@ -9,9 +9,10 @@
     "patch:announcement-media-history": "node ./scripts/patch-announcement-media-history.mjs",
     "patch:bulk-case-pdf": "node ./scripts/patch-bulk-case-detail-pdf.mjs",
     "patch:bulk-case-pdf-permission": "node ./scripts/patch-bulk-case-pdf-permission.mjs",
-    "predev": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run patch:bulk-case-pdf && npm run patch:bulk-case-pdf-permission && npm run generate:meta",
+    "patch:bulk-case-pdf-role-scopes": "node ./scripts/patch-bulk-case-pdf-role-scopes-v2.mjs",
+    "predev": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run patch:bulk-case-pdf && npm run patch:bulk-case-pdf-permission && npm run patch:bulk-case-pdf-role-scopes && npm run generate:meta",
     "dev": "vite",
-    "prebuild": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run patch:bulk-case-pdf && npm run patch:bulk-case-pdf-permission && npm run generate:meta",
+    "prebuild": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run patch:bulk-case-pdf && npm run patch:bulk-case-pdf-permission && npm run patch:bulk-case-pdf-role-scopes && npm run generate:meta",
     "build": "vite build",
     "preview": "vite preview"
   },
