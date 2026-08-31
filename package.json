@@ -11,9 +11,10 @@
     "patch:bulk-case-pdf-permission": "node ./scripts/patch-bulk-case-pdf-permission.mjs",
     "patch:bulk-case-pdf-role-scopes": "node ./scripts/patch-bulk-case-pdf-role-scopes-v2.mjs",
     "patch:bulk-case-pdf-filter-teamname": "node ./scripts/patch-bulk-case-pdf-filter-teamname-v3.mjs",
-    "predev": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run patch:bulk-case-pdf && npm run patch:bulk-case-pdf-permission && npm run patch:bulk-case-pdf-role-scopes && npm run patch:bulk-case-pdf-filter-teamname && npm run generate:meta",
+    "patch:case-pdf-agent-team-spacing": "node ./scripts/patch-case-pdf-agent-team-spacing-v4.mjs",
+    "predev": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run patch:bulk-case-pdf && npm run patch:bulk-case-pdf-permission && npm run patch:bulk-case-pdf-role-scopes && npm run patch:bulk-case-pdf-filter-teamname && npm run patch:case-pdf-agent-team-spacing && npm run generate:meta",
     "dev": "vite",
-    "prebuild": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run patch:bulk-case-pdf && npm run patch:bulk-case-pdf-permission && npm run patch:bulk-case-pdf-role-scopes && npm run patch:bulk-case-pdf-filter-teamname && npm run generate:meta",
+    "prebuild": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run patch:bulk-case-pdf && npm run patch:bulk-case-pdf-permission && npm run patch:bulk-case-pdf-role-scopes && npm run patch:bulk-case-pdf-filter-teamname && npm run patch:case-pdf-agent-team-spacing && npm run generate:meta",
     "build": "vite build",
     "preview": "vite preview"
   },
