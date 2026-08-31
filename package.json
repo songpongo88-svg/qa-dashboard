@@ -6,9 +6,10 @@
   "scripts": {
     "generate:meta": "node ./scripts/generate-build-meta.mjs",
     "patch:dashboard-grade": "node ./scripts/patch-dashboard-overall-grade.mjs",
-    "predev": "npm run patch:dashboard-grade && npm run generate:meta",
+    "patch:announcement-media-history": "node ./scripts/patch-announcement-media-history.mjs",
+    "predev": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run generate:meta",
     "dev": "vite",
-    "prebuild": "npm run patch:dashboard-grade && npm run generate:meta",
+    "prebuild": "npm run patch:dashboard-grade && npm run patch:announcement-media-history && npm run generate:meta",
     "build": "vite build",
     "preview": "vite preview"
   },
