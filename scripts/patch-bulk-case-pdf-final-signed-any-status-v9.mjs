@@ -61,14 +61,21 @@ function patchDashboardMessage() {
 
   source = replaceOnce(
     source,
+    "      // bulk-case-pdf-final-signed-v8",
+    `      // bulk-case-pdf-final-signed-v8\n      // ${marker}`,
+    "Dashboard v9 marker"
+  );
+
+  source = replaceOnce(
+    source,
     "Gen PDF สำเร็จ แต่ไม่พบ FINAL Final Signed PDF ที่ลงนามครบสำหรับ:",
-    `Gen PDF สำเร็จ แต่ไม่พบเอกสาร Signature สำหรับ:`,
+    "Gen PDF สำเร็จ แต่ไม่พบเอกสาร Signature สำหรับ:",
     "Dashboard missing Signature wording"
   );
 
   source = source.replace(
     "ระบบข้ามเฉพาะ Signed PDF และยังรวม Case ของ Agent เหล่านี้ตามปกติ",
-    `ระบบข้ามเฉพาะหน้า Signature และยังรวม Case ของ Agent เหล่านี้ตามปกติ\n// ${marker}`
+    "ระบบข้ามเฉพาะหน้า Signature และยังรวม Case ของ Agent เหล่านี้ตามปกติ"
   );
 
   fs.writeFileSync(dashboardPath, source, "utf8");
