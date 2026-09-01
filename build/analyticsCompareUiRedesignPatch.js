@@ -93,23 +93,34 @@ function AnalyticsCompareDashboardV2({
         String(compactPeriodLabels.length) +
         " periods";
 
-  const latestCases = Array.isArray(lastReport?.cases) ? lastReport.cases : [];
-  const latestSummary = lastReport?.summary || lastReport || {};
-  const latestCaseCount = Number(lastReport?.caseCount ?? latestSummary?.caseCount ?? latestCases.length ?? 0);
-  const latestAverage = Number(lastReport?.avgScore ?? latestSummary?.avgScore ?? 0);
-  const latestGrade = String(lastReport?.grade ?? latestSummary?.grade ?? "-");
-  const latestAgentCount = Number(
-    lastReport?.coverage?.agentCount ??
-    new Set(latestCases.map((item: any) => String(item?.agent || "").trim()).filter(Boolean)).size
+  // data-analytics-canonical-metrics-v25
+  // Recalculate every KPI card from the exact effective Dashboard rows for the
+  // latest selected period. This keeps score, volume, agents, appeals, grade,
+  // incentive and review mix on one source of truth.
+  const latestCases = (Array.isArray(lastReport?.cases) ? lastReport.cases : []).filter(
+    (item: any) => item && !item.isTestCase
   );
-  const latestIncentive = Number(latestSummary?.incentive ?? lastReport?.incentive ?? 0);
-  const averagePerAgent = Number(
-    lastReport?.coverage?.averageCasesPerAgent ??
-    (latestAgentCount ? latestCaseCount / latestAgentCount : 0)
-  );
+  const latestSummary = summarizeCases(latestCases);
+  const latestCaseCount = latestCases.length;
+  const latestAverage = latestSummary.avgScore;
+  const latestGrade = String(latestSummary.grade || "-");
+  const latestAgentCount = getUniqueNormalizedAgents(
+    latestCases.map((item: any) => String(item?.agent || "").trim()).filter(Boolean)
+  ).length;
+  const latestIncentive = getTotalIncentiveForCases(latestCases);
+  const averagePerAgent = latestAgentCount ? latestCaseCount / latestAgentCount : 0;
+  const latestApprovedAppeals = latestCases.filter(
+    (item: any) => item.appealStatus === "Approved"
+  ).length;
+  const latestRejectedAppeals = latestCases.filter(
+    (item: any) => item.appealStatus === "Rejected"
+  ).length;
+  const latestAppealResults = latestApprovedAppeals + latestRejectedAppeals;
 
-  const originalCount = Number(lastReport?.reviewMix?.original ?? 0);
-  const revisedCount = Number(lastReport?.reviewMix?.revised ?? 0);
+  const revisedCount = latestCases.filter(
+    (item: any) => item.reviewStatus === "Revised"
+  ).length;
+  const originalCount = Math.max(0, latestCaseCount - revisedCount);
   const reviewTotal = originalCount + revisedCount;
   const originalPct = reviewTotal ? Number(((originalCount / reviewTotal) * 100).toFixed(2)) : 0;
   const revisedPct = reviewTotal ? Number(((revisedCount / reviewTotal) * 100).toFixed(2)) : 0;
@@ -333,10 +344,12 @@ function AnalyticsCompareDashboardV2({
             <article className="flex min-w-0 flex-col rounded-xl border border-violet-200 bg-white p-4 shadow-[0_4px_12px_rgba(76,29,149,0.05)]">
               <div className="text-[13px] font-black text-slate-900">Case Coverage</div>
               <div className="mt-1 text-[9px] font-semibold text-slate-500">{shortPeriodLabel(String(lastReport?.label || ""))}</div>
-              <div className="mt-4 flex flex-1 flex-col justify-around gap-3">
+              <div className="mt-4 flex flex-1 flex-col justify-around gap-2.5">
                 <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Total Cases</span><span className="text-[17px] font-black text-violet-600">{latestCaseCount}</span></div>
                 <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Agents Evaluated</span><span className="text-[17px] font-black text-violet-600">{latestAgentCount}</span></div>
                 <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Avg / Agent</span><span className="text-[17px] font-black text-violet-600">{averagePerAgent.toFixed(2)}</span></div>
+                <div className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-slate-500">Appeal Results</span><span className="text-[17px] font-black text-violet-600">{latestAppealResults}</span></div>
+                <div className="text-right text-[9px] font-semibold text-slate-500">{latestApprovedAppeals} Approved · {latestRejectedAppeals} Rejected</div>
               </div>
             </article>
 
