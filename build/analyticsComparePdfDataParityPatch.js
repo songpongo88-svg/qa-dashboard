@@ -25,8 +25,16 @@ export function analyticsComparePdfDataParityPatch() {
         this,
         next,
         `    const reportSummary = summarizeCases(filteredCases);`,
-        `    // data-analytics-compare-pdf-data-parity-v32\n    // Keep the original PDF design, but source its headline metrics from the\n    // exact latest Comparison period shown on screen. Period-by-period sections\n    // continue to use periodTopicReports, so their values remain tied to each\n    // selected period.\n    const comparisonPdfSummaryCasesV32 =\n      isComparisonMode && periodTopicReports.length\n        ? (Array.isArray(periodTopicReports[periodTopicReports.length - 1]?.cases)\n            ? periodTopicReports[periodTopicReports.length - 1].cases\n            : [])\n        : filteredCases;\n    const reportSummary = summarizeCases(comparisonPdfSummaryCasesV32);`,
+        `    // data-analytics-compare-pdf-data-parity-v33\n    // Keep the original PDF design, but source headline metrics from the exact\n    // latest Comparison period shown on screen. Period-by-period sections keep\n    // using periodTopicReports so each selected period remains independent.\n    const comparisonPdfSummaryCasesV32 =\n      isComparisonMode && periodTopicReports.length\n        ? (Array.isArray(periodTopicReports[periodTopicReports.length - 1]?.cases)\n            ? periodTopicReports[periodTopicReports.length - 1].cases\n            : [])\n        : filteredCases;\n    const reportSummary = summarizeCases(comparisonPdfSummaryCasesV32);`,
         "PDF report summary source"
+      );
+
+      next = replaceOrThrow(
+        this,
+        next,
+        `      String(getTotalIncentiveForCases(filteredCases).toLocaleString("en-US")) + " THB",`,
+        `      String(getTotalIncentiveForCases(comparisonPdfSummaryCasesV32).toLocaleString("en-US")) + " THB",`,
+        "PDF Executive Summary incentive source"
       );
 
       patched = true;
