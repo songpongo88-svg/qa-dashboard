@@ -22,6 +22,16 @@ export type CoachingTopicSnapshot = {
   caseIds: string[];
 };
 
+export type CoachingChecklistItem = {
+  id: string;
+  title: string;
+  caseIds: string[];
+  feedback: string;
+  completed: boolean;
+  examples?: string[];
+  manual?: boolean;
+};
+
 export type StoredCoachingRecord = {
   id: string;
   coachingDate: string;
@@ -44,6 +54,8 @@ export type StoredCoachingRecord = {
   status: CoachingRecordStatus;
   caseReferences: string[];
   topicSnapshot: CoachingTopicSnapshot[];
+  checklistItems: CoachingChecklistItem[];
+  generalFeedback: string;
   agentResponse: string;
   agreedActionPlan: string;
   additionalNote: string;
@@ -95,6 +107,21 @@ function toTopicSnapshot(value: unknown): CoachingTopicSnapshot[] {
   }));
 }
 
+function toChecklistItems(value: unknown): CoachingChecklistItem[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item: any, index) => ({
+      id: String(item?.id || `checklist-${index + 1}`),
+      title: String(item?.title || "").trim(),
+      caseIds: toStringArray(item?.caseIds),
+      feedback: String(item?.feedback || ""),
+      completed: Boolean(item?.completed),
+      examples: toStringArray(item?.examples),
+      manual: Boolean(item?.manual),
+    }))
+    .filter((item) => item.title);
+}
+
 function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
   return {
     id: String(row?.id || fallbackId || ""),
@@ -120,6 +147,8 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
     status: normalizeStatus(row?.status),
     caseReferences: toStringArray(row?.caseReferences || row?.case_references),
     topicSnapshot: toTopicSnapshot(row?.topicSnapshot || row?.topic_snapshot),
+    checklistItems: toChecklistItems(row?.checklistItems || row?.checklist_items),
+    generalFeedback: String(row?.generalFeedback || row?.general_feedback || ""),
     agentResponse: String(row?.agentResponse || row?.agent_response || ""),
     agreedActionPlan: String(
       row?.agreedActionPlan || row?.agreed_action_plan || ""
@@ -191,6 +220,8 @@ export async function upsertStoredCoachingRecord(
     ...record,
     coachedBy: canonicalizeAgentName(record.coachedBy),
     agent: canonicalizeAgentName(record.agent),
+    checklistItems: toChecklistItems(record.checklistItems),
+    generalFeedback: String(record.generalFeedback || ""),
     id: safeDocId(record.id),
     createdAt: record.createdAt || now,
     updatedAt: now,
