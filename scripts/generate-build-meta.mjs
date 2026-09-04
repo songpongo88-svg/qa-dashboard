@@ -134,7 +134,7 @@ function buildReleaseNotes(commitMessage, changedFiles) {
 function main() {
   const baseVersion = getPackageVersion();
   const fullCommitHash = getCommitHash();
-  const shortCommitHash = getShortCommitHash(fullHash = fullCommitHash);
+  const shortCommitHash = getShortCommitHash(fullCommitHash);
   const commitMessage = getCommitMessage();
   const changedFiles = getChangedFiles();
   const now = new Date();
