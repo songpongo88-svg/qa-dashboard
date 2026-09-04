@@ -172,7 +172,7 @@ export function analyticsCompareSinglePeriodPdfParityPatch() {
       .replace(/[^a-zA-Z0-9ก-๙_-]+/g, "_")
       .replace(/^_+|_+$/g, "")
       .slice(0, 90) || "Selected_Period";
-    doc.save(`QA_${reportModeName}_Comparison_${safePeriods}.pdf`);
+    doc.save("QA_" + reportModeName + "_Comparison_" + safePeriods + ".pdf");
   }
 
 `;
