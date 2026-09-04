@@ -9,6 +9,7 @@ import "./patch-coaching-month-first-agent-v29.mjs";
 import "./patch-coaching-main-issues-summary-v30.mjs";
 import "./patch-coaching-checklist-schedule-v31.mjs";
 import "./patch-dashboard-coaching-status-v31.mjs";
+import "./patch-dashboard-coaching-status-runtime-fix-v31b.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,7 +69,7 @@ function formatBangkokBuildStamp(date = new Date()) {
 
   const parts = formatter.formatToParts(date);
   const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-  return `${map.year}${map.month}${map.day}${map.hour}${map.minute}`;
+  return `${map.year}${map.month}${map.day}${map.hour}:${map.minute}`.replace(":", "");
 }
 
 function getPackageVersion() {
