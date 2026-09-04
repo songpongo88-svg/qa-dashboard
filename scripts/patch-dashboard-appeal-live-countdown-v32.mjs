@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const filePath = "src/DashboardMockup.tsx";
 const marker = "// dashboard-appeal-live-countdown-v32";
+const polishMarker = "// dashboard-case-action-buttons-polish-v33";
 let source = fs.readFileSync(filePath, "utf8");
 
 if (source.includes(marker)) {
@@ -23,6 +24,7 @@ if (helperIndex < 0) {
 }
 
 const helperCode = String.raw`${marker}
+${polishMarker}
 function formatAppealCountdownV32(deadline: Date | null, nowMs: number) {
   if (!deadline) {
     return { text: "ไม่พบกำหนดเวลา", level: "expired" as const, expired: true };
@@ -120,17 +122,17 @@ const newButton = String.raw`                {shouldShowAppealActionV32 ? (
                       disabled={appealActionDisabledV32}
                       aria-disabled={appealActionDisabledV32}
                       className={
-                        "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-extrabold shadow-sm transition " +
+                        "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-[12px] font-extrabold shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-inset ring-white/70 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-violet-100/70 " +
                         appealActionToneV32 +
                         (appealActionDisabledV32
                           ? " cursor-not-allowed opacity-80"
-                          : " hover:-translate-y-0.5")
+                          : " hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.13)]")
                       }
                     >
-                      <span aria-hidden="true" className="text-base">＋</span>
+                      <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/75 text-[13px] shadow-sm">＋</span>
                       <span>{appealActionLabelV32}</span>
                       {isAppealObserverRoleV32 ? (
-                        <span className="rounded-full border border-current/20 bg-white/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">
+                        <span className="rounded-full border border-current/20 bg-white/75 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide shadow-sm">
                           View only
                         </span>
                       ) : null}
@@ -153,5 +155,61 @@ replaceOnce(
   "Deadline: {formatBangkokDateTime(appealDeadline)} · {appealOverrideAllowed && !isAppealWindowOpenLive ? \"Appeal Override\" : appealCountdownV32.text}"
 );
 
+replaceOnce(
+  "open case button polish",
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-extrabold text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100",
+  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-200/90 bg-gradient-to-b from-white to-emerald-50 px-4 text-[12px] font-extrabold text-emerald-700 shadow-[0_8px_22px_rgba(16,185,129,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-[0_12px_28px_rgba(16,185,129,0.16)] focus:outline-none focus:ring-4 focus:ring-emerald-100"
+);
+
+replaceOnce(
+  "share button polish",
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-[12px] font-extrabold text-indigo-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-100",
+  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-indigo-200/90 bg-gradient-to-b from-white to-indigo-50 px-4 text-[12px] font-extrabold text-indigo-700 shadow-[0_8px_22px_rgba(79,70,229,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-[0_12px_28px_rgba(79,70,229,0.16)] focus:outline-none focus:ring-4 focus:ring-indigo-100"
+);
+
+replaceOnce(
+  "original pdf button polish",
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 text-[12px] font-extrabold text-amber-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-100",
+  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-amber-200/90 bg-gradient-to-b from-white to-amber-50 px-4 text-[12px] font-extrabold text-amber-700 shadow-[0_8px_22px_rgba(217,119,6,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_12px_28px_rgba(217,119,6,0.16)] focus:outline-none focus:ring-4 focus:ring-amber-100"
+);
+
+replaceOnce(
+  "preview image button polish",
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 text-[12px] font-extrabold text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-100",
+  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-sky-200/90 bg-gradient-to-b from-white to-sky-50 px-4 text-[12px] font-extrabold text-sky-700 shadow-[0_8px_22px_rgba(14,165,233,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-[0_12px_28px_rgba(14,165,233,0.16)] focus:outline-none focus:ring-4 focus:ring-sky-100"
+);
+
+replaceOnce(
+  "close tab button polish",
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700",
+  "inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 px-4 text-[12px] font-extrabold text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-200 hover:from-white hover:to-rose-50 hover:text-rose-700 hover:shadow-[0_12px_28px_rgba(244,63,94,0.12)] focus:outline-none focus:ring-4 focus:ring-rose-100"
+);
+
+replaceOnce(
+  "open case icon polish",
+  '<span aria-hidden="true" className="text-base">↗</span>\n                      Open Case',
+  '<span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">↗</span>\n                      Open Case'
+);
+replaceOnce(
+  "share icon polish",
+  '<span aria-hidden="true" className="text-base">⌯</span>\n                    Share Link',
+  '<span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">⌯</span>\n                    Share Link'
+);
+replaceOnce(
+  "pdf icon polish",
+  '<span aria-hidden="true" className="text-base">▤</span>\n                    Original PDF',
+  '<span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">▤</span>\n                    Original PDF'
+);
+replaceOnce(
+  "preview icon polish",
+  '<span aria-hidden="true" className="text-base">▧</span>\n                      Preview Image',
+  '<span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">▧</span>\n                      Preview Image'
+);
+replaceOnce(
+  "close icon polish",
+  '<span aria-hidden="true" className="text-base">×</span>\n                    Close Tab',
+  '<span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">×</span>\n                    Close Tab'
+);
+
 fs.writeFileSync(filePath, source, "utf8");
-console.log("Dashboard Appeal live countdown and QA observer button v32 applied");
+console.log("Dashboard Appeal countdown + polished Case Detail action buttons applied");
