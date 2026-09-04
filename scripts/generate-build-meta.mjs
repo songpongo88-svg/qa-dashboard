@@ -4,6 +4,7 @@ import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import "./patch-coaching-dashboard-parity-v27.mjs";
 import "./patch-coaching-topic3-classifier-v27b.mjs";
+import "./patch-coaching-case-evidence-v28.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
