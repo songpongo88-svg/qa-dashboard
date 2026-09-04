@@ -6,6 +6,7 @@ import "./patch-coaching-dashboard-parity-v27.mjs";
 import "./patch-coaching-topic3-classifier-v27b.mjs";
 import "./patch-coaching-case-evidence-v28.mjs";
 import "./patch-coaching-month-first-agent-v29.mjs";
+import "./patch-coaching-main-issues-summary-v30.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
