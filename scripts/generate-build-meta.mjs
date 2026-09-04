@@ -8,6 +8,7 @@ import "./patch-coaching-case-evidence-v28.mjs";
 import "./patch-coaching-month-first-agent-v29.mjs";
 import "./patch-coaching-main-issues-summary-v30.mjs";
 import "./patch-coaching-checklist-schedule-v31.mjs";
+import "./patch-dashboard-appeal-live-countdown-v32.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
