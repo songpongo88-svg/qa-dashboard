@@ -33,6 +33,16 @@ function plain(value: unknown, fallback = "-") {
   return text || fallback;
 }
 
+function pdfHtml(value: unknown, fallback = "-") {
+  return plain(value, fallback)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+    .replace(/\n/g, "<br>");
+}
+
 function numeric(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -138,18 +148,16 @@ export async function generateCasePdfWithAppealHistory({
         );
     const revisedLabel = approved ? "Revised Comment" : "Revised Comment (Rejected)";
     const combinedComment = [
-      `Original Score: ${scoreText(originalTopicScore)} / ${scoreText(numeric(topic?.max))}`,
-      `Revised Score: ${scoreText(revisedTopicScore)} / ${scoreText(maxScore)}`,
-      "",
-      "Original Comment",
-      plain(topic?.comment),
-      "",
-      "Appeal Reason",
-      appealReason,
-      "",
-      revisedLabel,
-      revisedComment,
-    ].join("\n");
+      `<div><strong>Original Score: ${scoreText(originalTopicScore)} / ${scoreText(numeric(topic?.max))}</strong></div>`,
+      `<div><strong>Revised Score: ${scoreText(revisedTopicScore)} / ${scoreText(maxScore)}</strong></div>`,
+      "<div><br></div>",
+      "<div><strong>Original Comment</strong></div>",
+      `<div>${pdfHtml(topic?.comment)}</div>`,
+      "<hr>",
+      `<div><span style="color:#dc2626"><strong>Appeal Reason</strong><br>${pdfHtml(appealReason)}</span></div>`,
+      "<hr>",
+      `<div><span style="color:#dc2626"><strong>${revisedLabel}</strong><br>${pdfHtml(revisedComment)}</span></div>`,
+    ].join("");
 
     return {
       ...topic,
