@@ -43,6 +43,29 @@ function pdfHtml(value: unknown, fallback = "-") {
     .replace(/\n/g, "<br>");
 }
 
+function formatBangkokDateTime(value: unknown) {
+  const raw = plain(value, "");
+  if (!raw) return "";
+
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value || "";
+
+  return `${part("day")}/${part("month")}/${part("year")} ${part("hour")}:${part("minute")}:${part("second")}`;
+}
+
 function numeric(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -108,6 +131,12 @@ export async function generateCasePdfWithAppealHistory({
   const revisedMap = new Map(revisedTopics.map((topic: any) => [String(topic?.code), topic]));
   const reviewedMap = new Map(reviewedTopics.map((topic: any) => [String(topic?.code), topic]));
   const revisedCodes = new Set((caseItem.displayRevisedTopicCodes || []).map((code: unknown) => String(code)));
+  const appealTopicUpdates: Array<{
+    code: string;
+    label: string;
+    appealReason: string;
+    revisedComment: string;
+  }> = [];
 
   const calculatedOriginal = topicTotal(originalTopics);
   const hasPreviousScore = hasValue(caseItem.previousScore) && Number.isFinite(Number(caseItem.previousScore));
@@ -147,6 +176,12 @@ export async function generateCasePdfWithAppealHistory({
           "Appeal Rejected - คะแนนและผลการประเมินคงเดิม"
         );
     const revisedLabel = approved ? "Revised Comment" : "Revised Comment (Rejected)";
+    appealTopicUpdates.push({
+      code: plain(topic?.code, code),
+      label: plain(topic?.label || revised?.label || reviewed?.label, ""),
+      appealReason,
+      revisedComment,
+    });
     const combinedComment = [
       `<div><strong>Original Score: ${scoreText(originalTopicScore)} / ${scoreText(numeric(topic?.max))}</strong></div>`,
       `<div><strong>Revised Score: ${scoreText(revisedTopicScore)} / ${scoreText(maxScore)}</strong></div>`,
@@ -170,13 +205,42 @@ export async function generateCasePdfWithAppealHistory({
 
   const reportKind = pdfVariant === "appeal" ? "Appeal PDF" : "Main PDF";
   const safeCaseId = safeFilePart(caseItem.caseId);
+  const appealReasonHtml = appealTopicUpdates.length
+    ? appealTopicUpdates
+        .map((item) => {
+          const topicName = item.label
+            ? `Topic ${pdfHtml(item.code)} - ${pdfHtml(item.label)}`
+            : `Topic ${pdfHtml(item.code)}`;
+          return `<strong>${topicName}</strong><br>${pdfHtml(item.appealReason)}`;
+        })
+        .join("<br><br>")
+    : pdfHtml("ไม่พบ Appeal Reason");
+  const reviewSummary = plain(caseItem.appealReviewSummary, "");
+  const revisedSummaryHtml = reviewSummary
+    ? pdfHtml(reviewSummary)
+    : appealTopicUpdates.length
+      ? appealTopicUpdates
+          .map((item) => {
+            const topicName = item.label
+              ? `Topic ${pdfHtml(item.code)} - ${pdfHtml(item.label)}`
+              : `Topic ${pdfHtml(item.code)}`;
+            return `<strong>${topicName}</strong><br>${pdfHtml(item.revisedComment)}`;
+          })
+          .join("<br><br>")
+      : pdfHtml("ไม่พบ Revised Comment");
+  const summaryLabel = approved ? "Revised Comment" : "Revised Comment (Rejected)";
   const appealSummary = [
-    caseItem.appealReviewedAt ? `Reviewed Date: ${plain(caseItem.appealReviewedAt)}` : "",
-    caseItem.appealRequestId ? `Appeal Request ID: ${plain(caseItem.appealRequestId)}` : "",
-    "",
-    approved ? "Revised Comment" : "Revised Comment (Rejected)",
-    plain(caseItem.appealReviewSummary, "ไม่พบ Review Summary"),
-  ].filter((line) => line !== "").join("\n");
+    caseItem.appealReviewedAt
+      ? `<div>Reviewed Date: ${pdfHtml(formatBangkokDateTime(caseItem.appealReviewedAt))}</div>`
+      : "",
+    caseItem.appealRequestId
+      ? `<div>Appeal Request ID: ${pdfHtml(caseItem.appealRequestId)}</div>`
+      : "",
+    "<hr>",
+    `<div><span style="color:#dc2626"><strong>Appeal Reason</strong><br>${appealReasonHtml}</span></div>`,
+    "<hr>",
+    `<div><span style="color:#dc2626"><strong>${summaryLabel}</strong><br>${revisedSummaryHtml}</span></div>`,
+  ].filter(Boolean).join("");
 
   const updatedCaseItem = {
     ...caseItem,
