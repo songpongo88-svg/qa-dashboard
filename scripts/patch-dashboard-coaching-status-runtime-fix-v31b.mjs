@@ -48,8 +48,18 @@ if (!source.includes(effectiveAgentAnchor)) {
   throw new Error("effectiveSelectedAgent anchor not found");
 }
 
-const relocated = `${effectiveAgentAnchor}\n  ${marker}\n${statusBlock}${appendCard}`;
-source = source.replace(effectiveAgentAnchor, relocated);
+source = source.replace(
+  effectiveAgentAnchor,
+  `${effectiveAgentAnchor}\n  ${marker}\n${statusBlock}`
+);
+
+const relocatedMetricStart = source.indexOf("  const metricItems = [");
+const relocatedMetricEnd = source.indexOf("\n  ];", relocatedMetricStart);
+if (relocatedMetricStart < 0 || relocatedMetricEnd < 0) {
+  throw new Error("metricItems array not found after Coaching Status relocation");
+}
+const metricInsertAt = relocatedMetricEnd + "\n  ];".length;
+source = source.slice(0, metricInsertAt) + "\n" + appendCard + source.slice(metricInsertAt);
 
 fs.writeFileSync(filePath, source, "utf8");
-console.log("Dashboard Coaching Status runtime scope fix v31b applied");
+console.log("Dashboard Coaching Status runtime scope fix v31b applied with safe metric ordering");
