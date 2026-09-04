@@ -41,7 +41,7 @@ function formatAppealCountdownV32(deadline: Date | null, nowMs: number) {
   const clock = [hours, minutes, seconds]
     .map((value) => String(value).padStart(2, "0"))
     .join(":");
-  const text = days > 0 ? `เหลือ ${days} วัน ${clock}` : `เหลือ ${clock}`;
+  const text = days > 0 ? "เหลือ " + days + " วัน " + clock : "เหลือ " + clock;
   const level = remainingMs <= 24 * 60 * 60 * 1000
     ? "critical"
     : remainingMs <= 3 * 24 * 60 * 60 * 1000
@@ -85,7 +85,7 @@ const appealLogic = String.raw`  const appealDeadline = getAppealDeadline(caseIt
       ? "Appeal Override"
       : appealCountdownV32.expired
         ? "หมดเวลาอุทธรณ์"
-        : `Appeal · ${appealCountdownV32.text}`;
+        : "Appeal · " + appealCountdownV32.text;
   const appealActionToneV32 =
     appealOverrideAllowed && !isAppealWindowOpenLive
       ? "border-amber-300 bg-amber-50 text-amber-800"
@@ -102,7 +102,7 @@ const appealLogic = String.raw`  const appealDeadline = getAppealDeadline(caseIt
       ? "หมดเวลาอุทธรณ์แล้ว"
       : appealOverrideAllowed && !isAppealWindowOpenLive
         ? "เคสนี้ได้รับสิทธิ์ Late Appeal Override"
-        : `ส่งคำขออุทธรณ์เคสนี้ · ${appealCountdownV32.text}`;
+        : "ส่งคำขออุทธรณ์เคสนี้ · " + appealCountdownV32.text;
 `;
 source = source.slice(0, appealLogicStart) + appealLogic + source.slice(appealEffectStart);
 
