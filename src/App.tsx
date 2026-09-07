@@ -298,7 +298,7 @@ type QaThemeOption = {
   id: QaThemeId;
   label: string;
   swatches: [string, string, string];
-  motifs?: [string, string, string];
+  patternImage?: string;
   description?: string;
 };
 
@@ -327,12 +327,12 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "emerald", label: "Emerald Mint", swatches: ["#0f8a78", "#115e59", "#5ee0b5"] },
   { id: "midnight", label: "Midnight Violet", swatches: ["#43308a", "#22164f", "#8b72ff"] },
   { id: "graphite", label: "Graphite Mono", swatches: ["#3f4653", "#20242c", "#8d96a5"] },
-  { id: "kitty-pink", label: "Kitty Pink", swatches: ["#f472b6", "#be185d", "#fbcfe8"], motifs: ["♡", "🐱", "🎀"], description: "ลายแมว โบว์ และหัวใจ" },
-  { id: "doraemon-blue", label: "Doraemon Blue", swatches: ["#38bdf8", "#0369a1", "#facc15"], motifs: ["☁", "🔔", "★"], description: "ลายกระดิ่ง เมฆ และดาว" },
-  { id: "honey-bear", label: "Honey Bear", swatches: ["#fbbf24", "#92400e", "#fde68a"], motifs: ["✿", "🐻", "🍯"], description: "ลายหมี น้ำผึ้ง และดอกไม้" },
-  { id: "bunny-melody", label: "Bunny Melody", swatches: ["#fb7185", "#a21caf", "#fce7f3"], motifs: ["♪", "🐰", "♡"], description: "ลายกระต่าย หัวใจ และโน้ตเพลง" },
-  { id: "froggy-green", label: "Froggy Green", swatches: ["#4ade80", "#15803d", "#a7f3d0"], motifs: ["◌", "🐸", "☘"], description: "ลายกบ ใบไม้ และฟองน้ำ" },
-  { id: "starry-cat", label: "Starry Cat", swatches: ["#8b5cf6", "#312e81", "#f9a8d4"], motifs: ["☾", "🐱", "★"], description: "ลายแมว พระจันทร์ และดาว" },
+  { id: "kitty-pink", label: "Hello Kitty", swatches: ["#f472b6", "#be185d", "#fbcfe8"], patternImage: "/theme-kitty-pink.png", description: "Hello Kitty · โบว์และหัวใจ" },
+  { id: "doraemon-blue", label: "Doraemon", swatches: ["#38bdf8", "#0369a1", "#facc15"], patternImage: "/theme-doraemon-blue.png", description: "Doraemon · กระดิ่ง เมฆ และดาว" },
+  { id: "honey-bear", label: "Honey Bear", swatches: ["#fbbf24", "#92400e", "#fde68a"], patternImage: "/theme-honey-bear.png", description: "หมีน้ำผึ้ง · ผึ้งและดอกไม้" },
+  { id: "bunny-melody", label: "My Melody", swatches: ["#fb7185", "#a21caf", "#fce7f3"], patternImage: "/theme-bunny-melody.png", description: "My Melody · หัวใจและดอกไม้" },
+  { id: "froggy-green", label: "Keroppi", swatches: ["#4ade80", "#15803d", "#a7f3d0"], patternImage: "/theme-froggy-green.png", description: "Keroppi · ใบบัวและฟองน้ำ" },
+  { id: "starry-cat", label: "Kuromi", swatches: ["#8b5cf6", "#312e81", "#f9a8d4"], patternImage: "/theme-starry-cat.png", description: "Kuromi · พระจันทร์และดาว" },
 ];
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
@@ -3263,12 +3263,15 @@ function ThemePickerModal({
                 }`}
               >
                 <span className="relative flex min-w-[72px] shrink-0 items-center justify-center gap-1" aria-hidden="true">
-                  {theme.motifs ? (
-                    <span className="flex h-11 items-center gap-1 rounded-xl px-2 text-lg" style={{ backgroundColor: theme.swatches[2] }}>
-                      {theme.motifs.map((motif, index) => (
-                        <span key={`${theme.id}-${index}`} className={index === 1 ? "text-xl" : "text-sm"}>{motif}</span>
-                      ))}
-                    </span>
+                  {theme.patternImage ? (
+                    <span
+                      className="h-12 w-[72px] rounded-xl border border-white/80 bg-center shadow-sm"
+                      style={{
+                        backgroundColor: theme.swatches[2],
+                        backgroundImage: `url(${theme.patternImage})`,
+                        backgroundSize: "92px 92px",
+                      }}
+                    />
                   ) : theme.swatches.map((color, index) => (
                     <span
                       key={color}

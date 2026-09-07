@@ -1,36 +1,36 @@
 /* qa-cartoon-themes-v2: original lightweight patterns for the dashboard UI */
 :root[data-qa-theme="kitty-pink"] {
-  --qa-theme-50: #fff7fb; --qa-theme-100: #fce7f3; --qa-theme-200: #fbcfe8; --qa-theme-300: #f9a8d4; --qa-theme-400: #f472b6; --qa-theme-500: #ec4899; --qa-theme-600: #db2777; --qa-theme-700: #be185d; --qa-theme-800: #9d174d; --qa-theme-900: #6b183f; --qa-theme-950: #3b1026; --qa-theme-highlight: #fb7185; --qa-cartoon-pattern: url("/theme-kitty-pink.svg");
+  --qa-theme-50: #fff7fb; --qa-theme-100: #fce7f3; --qa-theme-200: #fbcfe8; --qa-theme-300: #f9a8d4; --qa-theme-400: #f472b6; --qa-theme-500: #ec4899; --qa-theme-600: #db2777; --qa-theme-700: #be185d; --qa-theme-800: #9d174d; --qa-theme-900: #6b183f; --qa-theme-950: #3b1026; --qa-theme-highlight: #fb7185; --qa-cartoon-pattern: url("/theme-kitty-pink.png");
 }
 :root[data-qa-theme="doraemon-blue"] {
-  --qa-theme-50: #f0f9ff; --qa-theme-100: #e0f2fe; --qa-theme-200: #bae6fd; --qa-theme-300: #7dd3fc; --qa-theme-400: #38bdf8; --qa-theme-500: #0ea5e9; --qa-theme-600: #0284c7; --qa-theme-700: #0369a1; --qa-theme-800: #075985; --qa-theme-900: #0c4a6e; --qa-theme-950: #082f49; --qa-theme-highlight: #f4c430; --qa-cartoon-pattern: url("/theme-doraemon-blue.svg");
+  --qa-theme-50: #f0f9ff; --qa-theme-100: #e0f2fe; --qa-theme-200: #bae6fd; --qa-theme-300: #7dd3fc; --qa-theme-400: #38bdf8; --qa-theme-500: #0ea5e9; --qa-theme-600: #0284c7; --qa-theme-700: #0369a1; --qa-theme-800: #075985; --qa-theme-900: #0c4a6e; --qa-theme-950: #082f49; --qa-theme-highlight: #f4c430; --qa-cartoon-pattern: url("/theme-doraemon-blue.png");
 }
 :root[data-qa-theme="honey-bear"] {
-  --qa-theme-50: #fffbeb; --qa-theme-100: #fef3c7; --qa-theme-200: #fde68a; --qa-theme-300: #fcd34d; --qa-theme-400: #fbbf24; --qa-theme-500: #e9a312; --qa-theme-600: #ca7a0b; --qa-theme-700: #a1540b; --qa-theme-800: #7c3f12; --qa-theme-900: #5c3215; --qa-theme-950: #35200e; --qa-theme-highlight: #f59e0b; --qa-cartoon-pattern: url("/theme-honey-bear.svg");
+  --qa-theme-50: #fffbeb; --qa-theme-100: #fef3c7; --qa-theme-200: #fde68a; --qa-theme-300: #fcd34d; --qa-theme-400: #fbbf24; --qa-theme-500: #e9a312; --qa-theme-600: #ca7a0b; --qa-theme-700: #a1540b; --qa-theme-800: #7c3f12; --qa-theme-900: #5c3215; --qa-theme-950: #35200e; --qa-theme-highlight: #f59e0b; --qa-cartoon-pattern: url("/theme-honey-bear.png");
 }
 :root[data-qa-theme="bunny-melody"] {
-  --qa-theme-50: #fff1f7; --qa-theme-100: #ffe4f0; --qa-theme-200: #fecddf; --qa-theme-300: #fda4c7; --qa-theme-400: #fb718f; --qa-theme-500: #f04f80; --qa-theme-600: #d92d6d; --qa-theme-700: #b51f60; --qa-theme-800: #901b55; --qa-theme-900: #751a4b; --qa-theme-950: #47102e; --qa-theme-highlight: #c084fc; --qa-cartoon-pattern: url("/theme-bunny-melody.svg");
+  --qa-theme-50: #fff1f7; --qa-theme-100: #ffe4f0; --qa-theme-200: #fecddf; --qa-theme-300: #fda4c7; --qa-theme-400: #fb718f; --qa-theme-500: #f04f80; --qa-theme-600: #d92d6d; --qa-theme-700: #b51f60; --qa-theme-800: #901b55; --qa-theme-900: #751a4b; --qa-theme-950: #47102e; --qa-theme-highlight: #c084fc; --qa-cartoon-pattern: url("/theme-bunny-melody.png");
 }
 :root[data-qa-theme="froggy-green"] {
-  --qa-theme-50: #f0fdf4; --qa-theme-100: #dcfce7; --qa-theme-200: #bbf7d0; --qa-theme-300: #86efac; --qa-theme-400: #4ade80; --qa-theme-500: #22c55e; --qa-theme-600: #16a34a; --qa-theme-700: #15803d; --qa-theme-800: #166534; --qa-theme-900: #14532d; --qa-theme-950: #052e16; --qa-theme-highlight: #2dd4bf; --qa-cartoon-pattern: url("/theme-froggy-green.svg");
+  --qa-theme-50: #f0fdf4; --qa-theme-100: #dcfce7; --qa-theme-200: #bbf7d0; --qa-theme-300: #86efac; --qa-theme-400: #4ade80; --qa-theme-500: #22c55e; --qa-theme-600: #16a34a; --qa-theme-700: #15803d; --qa-theme-800: #166534; --qa-theme-900: #14532d; --qa-theme-950: #052e16; --qa-theme-highlight: #2dd4bf; --qa-cartoon-pattern: url("/theme-froggy-green.png");
 }
 :root[data-qa-theme="starry-cat"] {
-  --qa-theme-50: #f7f5ff; --qa-theme-100: #ede9fe; --qa-theme-200: #ddd6fe; --qa-theme-300: #c4b5fd; --qa-theme-400: #a78bfa; --qa-theme-500: #8b5cf6; --qa-theme-600: #7c3aed; --qa-theme-700: #6d28d9; --qa-theme-800: #4c1d95; --qa-theme-900: #312e81; --qa-theme-950: #1e1b4b; --qa-theme-highlight: #f472b6; --qa-cartoon-pattern: url("/theme-starry-cat.svg");
+  --qa-theme-50: #f7f5ff; --qa-theme-100: #ede9fe; --qa-theme-200: #ddd6fe; --qa-theme-300: #c4b5fd; --qa-theme-400: #a78bfa; --qa-theme-500: #8b5cf6; --qa-theme-600: #7c3aed; --qa-theme-700: #6d28d9; --qa-theme-800: #4c1d95; --qa-theme-900: #312e81; --qa-theme-950: #1e1b4b; --qa-theme-highlight: #f472b6; --qa-cartoon-pattern: url("/theme-starry-cat.png");
 }
 :root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) #root {
   background-color: var(--qa-theme-50) !important;
-  background-image: var(--qa-cartoon-pattern), linear-gradient(135deg, var(--qa-theme-50) 0%, #fff 52%, var(--qa-theme-100) 100%) !important;
-  background-size: 184px 184px, auto !important;
+  background-image: linear-gradient(rgb(255 255 255 / 76%), rgb(255 255 255 / 76%)), var(--qa-cartoon-pattern), linear-gradient(135deg, var(--qa-theme-50) 0%, #fff 52%, var(--qa-theme-100) 100%) !important;
+  background-size: auto, 340px 340px, auto !important;
   background-attachment: fixed, fixed;
 }
 :root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) [data-qa-theme-surface-v1="true"] {
   background-color: color-mix(in srgb, var(--qa-theme-50) 84%, #f8fafc) !important;
-  background-image: var(--qa-cartoon-pattern) !important;
-  background-size: 184px 184px !important;
+  background-image: linear-gradient(rgb(255 255 255 / 84%), rgb(255 255 255 / 84%)), var(--qa-cartoon-pattern) !important;
+  background-size: auto, 340px 340px !important;
 }
 :root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) .qa-global-sidebar-v39 {
   background-image: var(--qa-cartoon-pattern), linear-gradient(180deg, var(--qa-theme-950) 0%, var(--qa-theme-800) 52%, var(--qa-theme-highlight) 100%) !important;
-  background-size: 168px 168px, auto !important;
+  background-size: 260px 260px, auto !important;
   background-position: center top, center !important;
   background-blend-mode: soft-light, normal;
 }
