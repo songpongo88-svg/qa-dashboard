@@ -1,223 +1,39 @@
-/* qa-cartoon-theme-addon-v1 */
-:root[data-qa-theme="cartoon"] {
-  --qa-theme-50: #fff8fb;
-  --qa-theme-100: #ffeaf3;
-  --qa-theme-200: #ffd4e4;
-  --qa-theme-300: #f8adc9;
-  --qa-theme-400: #f27eaa;
-  --qa-theme-500: #e85d98;
-  --qa-theme-600: #c64283;
-  --qa-theme-700: #9e356f;
-  --qa-theme-800: #6f3568;
-  --qa-theme-900: #46305e;
-  --qa-theme-950: #291d3c;
-  --qa-theme-highlight: #63b7ff;
+/* qa-cartoon-themes-v2: original lightweight patterns for the dashboard UI */
+:root[data-qa-theme="kitty-pink"] {
+  --qa-theme-50: #fff7fb; --qa-theme-100: #fce7f3; --qa-theme-200: #fbcfe8; --qa-theme-300: #f9a8d4; --qa-theme-400: #f472b6; --qa-theme-500: #ec4899; --qa-theme-600: #db2777; --qa-theme-700: #be185d; --qa-theme-800: #9d174d; --qa-theme-900: #6b183f; --qa-theme-950: #3b1026; --qa-theme-highlight: #fb7185; --qa-cartoon-pattern: url("/theme-kitty-pink.svg");
 }
-
-:root[data-qa-theme="cartoon"] #root {
-  background-color: #fffafc !important;
-  background-image:
-    url("/cartoon-theme-pattern.svg"),
-    linear-gradient(135deg, #fff7fb 0%, #fffdf8 48%, #eef8ff 100%) !important;
-  background-size: 190px 190px, auto !important;
+:root[data-qa-theme="doraemon-blue"] {
+  --qa-theme-50: #f0f9ff; --qa-theme-100: #e0f2fe; --qa-theme-200: #bae6fd; --qa-theme-300: #7dd3fc; --qa-theme-400: #38bdf8; --qa-theme-500: #0ea5e9; --qa-theme-600: #0284c7; --qa-theme-700: #0369a1; --qa-theme-800: #075985; --qa-theme-900: #0c4a6e; --qa-theme-950: #082f49; --qa-theme-highlight: #f4c430; --qa-cartoon-pattern: url("/theme-doraemon-blue.svg");
+}
+:root[data-qa-theme="honey-bear"] {
+  --qa-theme-50: #fffbeb; --qa-theme-100: #fef3c7; --qa-theme-200: #fde68a; --qa-theme-300: #fcd34d; --qa-theme-400: #fbbf24; --qa-theme-500: #e9a312; --qa-theme-600: #ca7a0b; --qa-theme-700: #a1540b; --qa-theme-800: #7c3f12; --qa-theme-900: #5c3215; --qa-theme-950: #35200e; --qa-theme-highlight: #f59e0b; --qa-cartoon-pattern: url("/theme-honey-bear.svg");
+}
+:root[data-qa-theme="bunny-melody"] {
+  --qa-theme-50: #fff1f7; --qa-theme-100: #ffe4f0; --qa-theme-200: #fecddf; --qa-theme-300: #fda4c7; --qa-theme-400: #fb718f; --qa-theme-500: #f04f80; --qa-theme-600: #d92d6d; --qa-theme-700: #b51f60; --qa-theme-800: #901b55; --qa-theme-900: #751a4b; --qa-theme-950: #47102e; --qa-theme-highlight: #c084fc; --qa-cartoon-pattern: url("/theme-bunny-melody.svg");
+}
+:root[data-qa-theme="froggy-green"] {
+  --qa-theme-50: #f0fdf4; --qa-theme-100: #dcfce7; --qa-theme-200: #bbf7d0; --qa-theme-300: #86efac; --qa-theme-400: #4ade80; --qa-theme-500: #22c55e; --qa-theme-600: #16a34a; --qa-theme-700: #15803d; --qa-theme-800: #166534; --qa-theme-900: #14532d; --qa-theme-950: #052e16; --qa-theme-highlight: #2dd4bf; --qa-cartoon-pattern: url("/theme-froggy-green.svg");
+}
+:root[data-qa-theme="starry-cat"] {
+  --qa-theme-50: #f7f5ff; --qa-theme-100: #ede9fe; --qa-theme-200: #ddd6fe; --qa-theme-300: #c4b5fd; --qa-theme-400: #a78bfa; --qa-theme-500: #8b5cf6; --qa-theme-600: #7c3aed; --qa-theme-700: #6d28d9; --qa-theme-800: #4c1d95; --qa-theme-900: #312e81; --qa-theme-950: #1e1b4b; --qa-theme-highlight: #f472b6; --qa-cartoon-pattern: url("/theme-starry-cat.svg");
+}
+:root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) #root {
+  background-color: var(--qa-theme-50) !important;
+  background-image: var(--qa-cartoon-pattern), linear-gradient(135deg, var(--qa-theme-50) 0%, #fff 52%, var(--qa-theme-100) 100%) !important;
+  background-size: 184px 184px, auto !important;
   background-attachment: fixed, fixed;
 }
-
-:root[data-qa-theme="cartoon"] [data-qa-theme-surface-v1="true"] {
-  background-color: color-mix(in srgb, #fffafc 82%, #eef8ff) !important;
+:root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) [data-qa-theme-surface-v1="true"] {
+  background-color: color-mix(in srgb, var(--qa-theme-50) 84%, #f8fafc) !important;
+  background-image: var(--qa-cartoon-pattern) !important;
+  background-size: 184px 184px !important;
 }
-
-:root[data-qa-theme="cartoon"] .qa-global-sidebar-v39 {
-  border-color: #d8b7ff !important;
-  background-image:
-    url("/cartoon-theme-pattern.svg"),
-    linear-gradient(180deg, #342451 0%, #553b8b 47%, #d75796 100%) !important;
-  background-size: 180px 180px, auto !important;
-  background-position: center top, center;
+:root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) .qa-global-sidebar-v39 {
+  background-image: var(--qa-cartoon-pattern), linear-gradient(180deg, var(--qa-theme-950) 0%, var(--qa-theme-800) 52%, var(--qa-theme-highlight) 100%) !important;
+  background-size: 168px 168px, auto !important;
+  background-position: center top, center !important;
   background-blend-mode: soft-light, normal;
-  box-shadow: 8px 0 34px rgb(70 48 94 / 24%) !important;
 }
-
-:root[data-qa-theme="cartoon"] .qa-global-sidebar-v39::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 14%, rgb(255 255 255 / 16%) 0 4px, transparent 5px),
-    radial-gradient(circle at 82% 28%, rgb(255 225 119 / 18%) 0 5px, transparent 6px),
-    radial-gradient(circle at 34% 76%, rgb(141 211 255 / 16%) 0 4px, transparent 5px);
-}
-
-.qa-cartoon-theme-card {
-  position: relative;
-  grid-column: 1 / -1;
-  display: flex;
-  min-height: 84px;
-  width: 100%;
-  align-items: center;
-  gap: 14px;
-  overflow: hidden;
-  border: 1px solid #e8d8ff;
-  border-radius: 18px;
-  padding: 12px 16px;
-  text-align: left;
-  background-image:
-    linear-gradient(90deg, rgb(255 255 255 / 92%), rgb(255 249 252 / 88%), rgb(239 248 255 / 88%)),
-    url("/cartoon-theme-pattern.svg");
-  background-size: auto, 180px 180px;
-  background-position: center, right center;
-  box-shadow: 0 8px 22px rgb(94 65 150 / 8%);
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.qa-cartoon-theme-card:hover {
-  transform: translateY(-1px);
-  border-color: #bfa3ff;
-  box-shadow: 0 12px 28px rgb(94 65 150 / 14%);
-}
-
-.qa-cartoon-theme-card.is-selected {
-  border-color: #8b6cf5;
-  box-shadow: 0 0 0 2px #e5dcff, 0 12px 28px rgb(94 65 150 / 16%);
-}
-
-.qa-cartoon-theme-preview {
-  display: flex;
-  min-width: 168px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.qa-cartoon-theme-swatches {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.qa-cartoon-theme-swatches > span {
-  display: block;
-  width: 14px;
-  height: 34px;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 55%);
-}
-
-.qa-cartoon-theme-swatches > span:nth-child(1) { background: #ff7fa6; }
-.qa-cartoon-theme-swatches > span:nth-child(2) { background: #6fc3ff; height: 40px; }
-.qa-cartoon-theme-swatches > span:nth-child(3) { background: #9d83ff; }
-
-.qa-cartoon-doodle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  user-select: none;
-}
-
-.qa-cartoon-star {
-  color: #ffc83d;
-  font-size: 28px;
-  text-shadow: 0 2px 0 rgb(227 166 31 / 20%);
-  transform: rotate(-7deg);
-}
-
-.qa-cartoon-cloud {
-  color: #7dc8ff;
-  font-size: 31px;
-  text-shadow: 0 2px 0 rgb(61 151 221 / 14%);
-}
-
-.qa-cartoon-heart {
-  color: #ff7fa6;
-  font-size: 22px;
-  transform: rotate(8deg);
-}
-
-.qa-cartoon-theme-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.qa-cartoon-theme-title {
-  display: block;
-  color: #1f2937;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.qa-cartoon-theme-subtitle {
-  display: block;
-  margin-top: 4px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.45;
-}
-
-.qa-cartoon-theme-check {
-  display: flex;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  color: transparent;
-  font-size: 15px;
-  font-weight: 600;
-  background: rgb(255 255 255 / 84%);
-}
-
-.qa-cartoon-theme-card.is-selected .qa-cartoon-theme-check {
-  border-color: #694fcf;
-  color: #ffffff;
-  background: #694fcf;
-}
-
-:root[data-qa-cartoon-theme="true"] section[role="dialog"][aria-labelledby="qa-theme-picker-title"] > div.grid > button[aria-pressed="true"]:not([data-cartoon-theme-button]) {
-  border-color: #e2e8f0 !important;
-  background: #ffffff !important;
-  box-shadow: none !important;
-  --tw-ring-shadow: 0 0 #0000 !important;
-}
-
-:root[data-qa-cartoon-theme="true"] section[role="dialog"][aria-labelledby="qa-theme-picker-title"] > div.grid > button[aria-pressed="true"]:not([data-cartoon-theme-button]) > span:last-child {
-  border: 1px solid #e2e8f0 !important;
-  color: transparent !important;
-  background: transparent !important;
-}
-
-button[data-qa-cartoon-theme-sidebar="true"] > span[aria-hidden="true"] span:nth-child(1) {
-  background-color: #ff7fa6 !important;
-}
-
-button[data-qa-cartoon-theme-sidebar="true"] > span[aria-hidden="true"] span:nth-child(2) {
-  background-color: #6fc3ff !important;
-}
-
-button[data-qa-cartoon-theme-sidebar="true"] > span[aria-hidden="true"] span:nth-child(3) {
-  background-color: #9d83ff !important;
-}
-
-@media (max-width: 640px) {
-  .qa-cartoon-theme-card {
-    align-items: center;
-    gap: 10px;
-    padding: 12px;
-  }
-
-  .qa-cartoon-theme-preview {
-    min-width: 116px;
-    gap: 5px;
-  }
-
-  .qa-cartoon-star { font-size: 22px; }
-  .qa-cartoon-cloud { font-size: 25px; }
-  .qa-cartoon-heart { font-size: 18px; }
-  .qa-cartoon-theme-swatches > span { width: 10px; height: 28px; }
-  .qa-cartoon-theme-swatches > span:nth-child(2) { height: 34px; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) .qa-global-sidebar-v39 { transition: background-image 180ms ease, border-color 180ms ease; }
 }

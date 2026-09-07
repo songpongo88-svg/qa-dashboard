@@ -3,8 +3,8 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import MaintenanceRuntime from "./MaintenanceRuntime";
 import AutoDeployRefresh from "./AutoDeployRefresh";
-import CartoonThemeAddon from "./CartoonThemeAddon";
 import "./index.css";
+import "./cartoonTheme.css";
 import "./deleteUserDirectoryPatch";
 
 // data-root-error-boundary-v149
@@ -80,7 +80,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <RootErrorBoundary>
       <App />
-      <CartoonThemeAddon />
       <AutoDeployRefresh />
       <MaintenanceRuntime />
     </RootErrorBoundary>

@@ -286,12 +286,20 @@ type QaThemeId =
   | "ocean"
   | "emerald"
   | "midnight"
-  | "graphite";
+  | "graphite"
+  | "kitty-pink"
+  | "doraemon-blue"
+  | "honey-bear"
+  | "bunny-melody"
+  | "froggy-green"
+  | "starry-cat";
 
 type QaThemeOption = {
   id: QaThemeId;
   label: string;
   swatches: [string, string, string];
+  motifs?: [string, string, string];
+  description?: string;
 };
 
 const USER_ACCOUNTS: UserAccount[] = [
@@ -319,6 +327,12 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "emerald", label: "Emerald Mint", swatches: ["#0f8a78", "#115e59", "#5ee0b5"] },
   { id: "midnight", label: "Midnight Violet", swatches: ["#43308a", "#22164f", "#8b72ff"] },
   { id: "graphite", label: "Graphite Mono", swatches: ["#3f4653", "#20242c", "#8d96a5"] },
+  { id: "kitty-pink", label: "Kitty Pink", swatches: ["#f472b6", "#be185d", "#fbcfe8"], motifs: ["♡", "🐱", "🎀"], description: "ลายแมว โบว์ และหัวใจ" },
+  { id: "doraemon-blue", label: "Doraemon Blue", swatches: ["#38bdf8", "#0369a1", "#facc15"], motifs: ["☁", "🔔", "★"], description: "ลายกระดิ่ง เมฆ และดาว" },
+  { id: "honey-bear", label: "Honey Bear", swatches: ["#fbbf24", "#92400e", "#fde68a"], motifs: ["✿", "🐻", "🍯"], description: "ลายหมี น้ำผึ้ง และดอกไม้" },
+  { id: "bunny-melody", label: "Bunny Melody", swatches: ["#fb7185", "#a21caf", "#fce7f3"], motifs: ["♪", "🐰", "♡"], description: "ลายกระต่าย หัวใจ และโน้ตเพลง" },
+  { id: "froggy-green", label: "Froggy Green", swatches: ["#4ade80", "#15803d", "#a7f3d0"], motifs: ["◌", "🐸", "☘"], description: "ลายกบ ใบไม้ และฟองน้ำ" },
+  { id: "starry-cat", label: "Starry Cat", swatches: ["#8b5cf6", "#312e81", "#f9a8d4"], motifs: ["☾", "🐱", "★"], description: "ลายแมว พระจันทร์ และดาว" },
 ];
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
@@ -3208,7 +3222,7 @@ function ThemePickerModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="qa-theme-picker-title"
-        className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_28px_80px_rgba(30,16,60,0.28)]"
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_28px_80px_rgba(30,16,60,0.28)]"
       >
         <header className="flex items-start justify-between gap-4 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-5 sm:px-6">
           <div>
@@ -3217,10 +3231,10 @@ function ThemePickerModal({
               Appearance
             </div>
             <h2 id="qa-theme-picker-title" className="text-xl font-medium text-slate-950">
-              เลือก Theme สีที่ต้องการ
+              เลือก Theme ที่ต้องการ
             </h2>
             <p className="mt-1 text-sm font-normal text-slate-500">
-              กดเพียงครั้งเดียว สีของ Sidebar และหน้าใช้งานจะเปลี่ยนทันที
+              เลือกได้ทั้ง Theme สีและลายการ์ตูน ระบบจะเปลี่ยนให้ทันที
             </p>
           </div>
           <button
@@ -3233,7 +3247,7 @@ function ThemePickerModal({
           </button>
         </header>
 
-        <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 sm:p-6">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
           {QA_THEME_OPTIONS.map((theme) => {
             const selected = theme.id === selectedTheme;
             return (
@@ -3248,8 +3262,14 @@ function ThemePickerModal({
                     : "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/50"
                 }`}
               >
-                <span className="flex shrink-0 items-center gap-1" aria-hidden="true">
-                  {theme.swatches.map((color, index) => (
+                <span className="relative flex min-w-[72px] shrink-0 items-center justify-center gap-1" aria-hidden="true">
+                  {theme.motifs ? (
+                    <span className="flex h-11 items-center gap-1 rounded-xl px-2 text-lg" style={{ backgroundColor: theme.swatches[2] }}>
+                      {theme.motifs.map((motif, index) => (
+                        <span key={`${theme.id}-${index}`} className={index === 1 ? "text-xl" : "text-sm"}>{motif}</span>
+                      ))}
+                    </span>
+                  ) : theme.swatches.map((color, index) => (
                     <span
                       key={color}
                       className={`${index === 1 ? "h-10 w-6" : "h-10 w-3"} rounded-full`}
@@ -3262,7 +3282,7 @@ function ThemePickerModal({
                     {theme.label}
                   </span>
                   <span className="mt-1 block text-xs font-normal text-slate-500">
-                    {selected ? "กำลังใช้งาน Theme นี้" : "กดเพื่อเปลี่ยนทันที"}
+                    {selected ? "กำลังใช้งาน Theme นี้" : theme.description || "กดเพื่อเปลี่ยนทันที"}
                   </span>
                 </span>
                 <span
