@@ -92,11 +92,23 @@ if (!source.includes(excelRevisedWithReason)) {
 
 const originalPdfLabel = "                    Original PDF";
 const mainPdfLabel = '                    {hasAppealCase ? "Main PDF" : "Original PDF"}';
-if (!source.includes(mainPdfLabel)) {
-  if (!source.includes(originalPdfLabel)) {
-    throw new Error("Original PDF button label anchor was not found in DashboardMockup.tsx");
+const caseDetailPdfLabel = "                    Case Detail PDF - {caseItem.caseId}";
+if (!source.includes(caseDetailPdfLabel)) {
+  if (source.includes(mainPdfLabel)) {
+    source = source.replace(mainPdfLabel, caseDetailPdfLabel);
+  } else if (source.includes(originalPdfLabel)) {
+    source = source.replace(originalPdfLabel, caseDetailPdfLabel);
+  } else {
+    throw new Error("Case Detail PDF button label anchor was not found in DashboardMockup.tsx");
   }
-  source = source.replace(originalPdfLabel, mainPdfLabel);
+}
+
+const appealPdfButtonBlock = /\n\s{16}\{hasAppealReport \? \(\n\s{18}<CaseActionTooltip text="ดาวน์โหลดรายงานอุทธรณ์ \(PDF\)">[\s\S]*?\n\s{16}\) : null\}\n/;
+if (source.includes('text="ดาวน์โหลดรายงานอุทธรณ์ (PDF)"')) {
+  if (!appealPdfButtonBlock.test(source)) {
+    throw new Error("Appeal PDF button block was not found in DashboardMockup.tsx");
+  }
+  source = source.replace(appealPdfButtonBlock, "\n");
 }
 
 if (source !== original) {
@@ -144,6 +156,17 @@ if (!pdfSource.includes(pdfMarker)) {
   const reportKpiStatus = safeText(
     caseItem.pdfReportKpiStatus,
     reportScore >= 85 ? "Passed" : "Not Passed"
+  );
+  const appealStatusForVersion = safeText(caseItem.appealStatus, "").toLowerCase();
+  const reportVersionText = safeText(
+    caseItem.pdfReportType,
+    appealStatusForVersion === "approved"
+      ? "Revised Evaluation"
+      : appealStatusForVersion === "rejected"
+        ? "Final Evaluation - No Change"
+        : appealStatusForVersion && appealStatusForVersion !== "-"
+          ? "Appeal Pending"
+          : "Original Evaluation"
   );
   const isTestCase = isTestCaseEvaluation(caseItem);
   const safeCaseId = caseIdForFileName(caseItem.caseId);
@@ -280,7 +303,7 @@ if (!pdfSource.includes(pdfMarker)) {
           { value: originalScoreText + " -> " + reportScore.toFixed(2), w: wOf(1), size: 6.6, padY: 4.4 },
           { value: originalGradeText + " -> " + grade, w: wOf(3), size: 7.2, padY: 4.4 },
           { value: originalKpiText + " -> " + reportKpiStatus, w: wOf(5), size: 5.9, padY: 4.4 },
-          { value: safeText(caseItem.pdfReportType, "Main PDF"), w: wOf(7), size: 6.4, padY: 4.4 },
+          { value: reportVersionText, w: wOf(7), size: 6.4, padY: 4.4 },
         ],
         10,
         18
@@ -369,8 +392,8 @@ if (!pdfSource.includes(pdfMarker)) {
       drawChangeValue(3, y, 1, comparisonRowH, originalGradeText, grade, 7.2);
       label(4, y, 1, comparisonRowH, "KPI Status");
       drawChangeValue(5, y, 1, comparisonRowH, originalKpiText, reportKpiStatus, 5.9);
-      label(6, y, 1, comparisonRowH, "Report Type");
-      value(7, y, 1, comparisonRowH, safeText(caseItem.pdfReportType, "Main PDF"), LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: fitLinesForHeight(comparisonRowH, 6.4, 0.46, 4) });
+      label(6, y, 1, comparisonRowH, "Report Version");
+      value(7, y, 1, comparisonRowH, reportVersionText, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: fitLinesForHeight(comparisonRowH, 6.4, 0.46, 4) });
       y += comparisonRowH;
 
       drawAppealAutoRow({
@@ -410,9 +433,9 @@ if (!pdfSource.includes(pdfMarker)) {
       label(2, y, 1, kpiRowH, "KPI Target");
       value(3, y, 1, kpiRowH, "85 / 100", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
       label(4, y, 1, kpiRowH, "Appeal Status");
-      value(5, y, 1, kpiRowH, "-", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
-      label(6, y, 1, kpiRowH, "Report Type");
-      value(7, y, 1, kpiRowH, "Original PDF", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 2 });
+      value(5, y, 1, kpiRowH, appealStatusForVersion ? safeText(caseItem.appealStatus) : "-", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
+      label(6, y, 1, kpiRowH, "Report Version");
+      value(7, y, 1, kpiRowH, reportVersionText, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: 2 });
       y += kpiRowH;
 
       const inquiryLines = splitTextLines(inquiryText, wOf(1, 7), BODY_TEXT_SIZE);

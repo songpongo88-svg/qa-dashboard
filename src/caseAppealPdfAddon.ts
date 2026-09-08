@@ -216,7 +216,9 @@ export async function generateCasePdfWithAppealHistory({
     };
   });
 
-  const reportKind = pdfVariant === "appeal" ? "Appeal PDF" : "Main PDF";
+  const reportKind = status === "Rejected"
+    ? "Final Evaluation - No Change"
+    : "Revised Evaluation";
   const safeCaseId = safeFilePart(caseItem.caseId);
   const appealedTopicText = appealTopicUpdates.length
     ? appealTopicUpdates
@@ -243,7 +245,7 @@ export async function generateCasePdfWithAppealHistory({
     pdfAppealReviewedAt: formatBangkokDateTime(caseItem.appealReviewedAt),
     pdfReportType: reportKind,
     pdfAppealSummary: appealedTopicText,
-    pdfReportTitleOverride: `${caseItem.caseId} ${reportKind}`,
+    pdfReportTitleOverride: `${caseItem.caseId} Case Detail PDF`,
     pdfReportFileSuffixOverride: pdfVariant === "appeal" ? "case_detail_appeal" : "case_main_report",
     pdfReportFileNameOverride: pdfVariant === "appeal"
       ? `${safeCaseId}_Appeal_Report.pdf`
