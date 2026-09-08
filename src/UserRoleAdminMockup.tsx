@@ -431,7 +431,13 @@ function getDefaultRolePermissions(role: UserRole): RolePermissions {
 
 function normalizeRoleName(value: unknown): UserRole {
   const roleName = String(value || "").trim();
-  return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
+  const normalized = roleName.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+  if (normalized === "agent" || normalized === "admin live chat") return "Admin Live Chat";
+  if (
+    normalized === "head of operation and customer fulfillment" ||
+    normalized === "department head"
+  ) return "Department Head";
+  return roleName;
 }
 
 function buildRoleDefinitions(logs: UsageLogEvent[]) {
@@ -1346,7 +1352,9 @@ export default function UserRoleAdminMockup({
     try {
       await upsertStoredRolePermissions(permissionRows);
     } catch {
-      // Legacy logs remain the fallback until the new permission table is installed.
+      setSaving(false);
+      setMessage("บันทึกสิทธิ์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      return;
     }
 
     await onRolesChanged();
@@ -7132,8 +7140,6 @@ function TextInput({
     />
   );
 }
-
-
 
 
 

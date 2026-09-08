@@ -889,6 +889,10 @@ function normalizeRoleName(value: unknown): UserRole {
   if (normalized === "senior") return "Senior";
   if (normalized === "supervisor") return "Supervisor";
   if (normalized === "quality assurance" || normalized === "qa") return "Quality Assurance";
+  if (
+    normalized === "head of operation and customer fulfillment" ||
+    normalized === "department head"
+  ) return "Department Head";
   return roleName;
 }
 
@@ -1678,10 +1682,20 @@ function buildUserProfileOverridesFromStore(rows: StoredUserProfile[]) {
 
 function buildRolePermissionOverridesFromStore(rows: StoredRolePermission[]) {
   const permissionMap = buildRolePermissionOverrides([]);
+  const latestPermissionByRole = new Map<string, StoredRolePermission>();
 
   rows.forEach((row) => {
-    const roleName = String(row.roleName || "").trim();
+    const roleName = normalizeRoleName(row.roleName);
     if (!roleName) return;
+    const existing = latestPermissionByRole.get(roleName);
+    const existingUpdatedAt = Date.parse(existing?.updatedAt || "") || 0;
+    const candidateUpdatedAt = Date.parse(row.updatedAt || "") || 0;
+    if (!existing || candidateUpdatedAt >= existingUpdatedAt) {
+      latestPermissionByRole.set(roleName, { ...row, roleName });
+    }
+  });
+
+  latestPermissionByRole.forEach((row, roleName) => {
     const current = permissionMap[roleName] || getDefaultRolePermissions(roleName);
     const next = { ...current };
     PERMISSION_KEYS.forEach((key) => {
