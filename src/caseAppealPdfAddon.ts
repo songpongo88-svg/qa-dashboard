@@ -218,16 +218,16 @@ export async function generateCasePdfWithAppealHistory({
 
   const reportKind = pdfVariant === "appeal" ? "Appeal PDF" : "Main PDF";
   const safeCaseId = safeFilePart(caseItem.caseId);
-  const appealedTopicHtml = appealTopicUpdates.length
+  const appealedTopicText = appealTopicUpdates.length
     ? appealTopicUpdates
         .map((item) => {
           const topicName = item.label
-            ? `Topic ${pdfHtml(item.code)} - ${pdfHtml(item.label)}`
-            : `Topic ${pdfHtml(item.code)}`;
-          return `<div><strong>${topicName}</strong></div>`;
+            ? `Topic ${item.code} - ${item.label}`
+            : `Topic ${item.code}`;
+          return topicName;
         })
-        .join("")
-    : `<div><strong>ไม่พบข้อมูล Topic ที่ยื่นอุทธรณ์</strong></div>`;
+        .join("\n")
+    : "ไม่พบข้อมูล Topic ที่ยื่นอุทธรณ์";
 
   const updatedCaseItem = {
     ...caseItem,
@@ -242,7 +242,7 @@ export async function generateCasePdfWithAppealHistory({
     pdfAppealStatus: status,
     pdfAppealReviewedAt: formatBangkokDateTime(caseItem.appealReviewedAt),
     pdfReportType: reportKind,
-    pdfAppealSummary: appealedTopicHtml,
+    pdfAppealSummary: appealedTopicText,
     pdfReportTitleOverride: `${caseItem.caseId} ${reportKind}`,
     pdfReportFileSuffixOverride: pdfVariant === "appeal" ? "case_detail_appeal" : "case_main_report",
     pdfReportFileNameOverride: pdfVariant === "appeal"
