@@ -86,13 +86,10 @@ function patchWeeklyCaseDateSource(filePath, fileLabel, expectedReplacements) {
     });
   };
 
-  // Never trust a persisted Week / Week Label column for Weekly reporting.
-  // auditDateObj in these loaders is intentionally built from Case Date.
   replaceWeekAssignment(
     /^(\s*)weekLabel:\s*String\(v8Helper\.getValue\(row,\s*"Week(?: Label)?"\)\s*\|\|\s*v8Helper\.getValue\(row,\s*"Week(?: Label)?"\)\s*\|\|\s*"-"\)\.trim\(\),\s*$/gm
   );
 
-  // RawData loader keeps a local weekLabel value from Excel; recompute it from Case Date instead.
   replaceWeekAssignment(
     /^(\s*)weekLabel:\s*String\(weekLabel\s*\|\|\s*"-"\)\.trim\(\),\s*$/gm
   );
@@ -107,9 +104,7 @@ function patchWeeklyCaseDateSource(filePath, fileLabel, expectedReplacements) {
 }
 
 function patchWeeklyCaseDateLogic() {
-  // Dashboard: V8/effective source + RawData source.
   patchWeeklyCaseDateSource(dashboardPath, "DashboardMockup.tsx", 2);
-  // Summary / Compare / Ranking / Trend: V8/effective source.
   patchWeeklyCaseDateSource(summaryPath, "SummaryMockup.tsx", 1);
 }
 
@@ -117,15 +112,44 @@ function patchMonthClippedWeeklyRanges(filePath, fileLabel) {
   let source = fs.readFileSync(filePath, "utf8");
   if (source.includes(`// ${weeklyMonthBoundaryMarker}`)) return;
 
-  const oldHelper = `function getWeekLabelFromAuditDate(date: Date | null) {\n  if (!date) return "-";\n  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());\n  const day = start.getDay();\n  const mondayOffset = day === 0 ? -6 : 1 - day;\n  start.setDate(start.getDate() + mondayOffset);\n  const end = new Date(start);\n  end.setDate(start.getDate() + 6);\n  const format = (item: Date) =>\n    \`${String.raw`\${String(item.getDate()).padStart(2, "0")}/\${String(item.getMonth() + 1).padStart(2, "0")}/\${item.getFullYear()}`}\`;\n  return \`${String.raw`\${format(start)} - \${format(end)}`}\`;\n}`;
-
-  const newHelper = `// ${weeklyMonthBoundaryMarker}\nfunction getWeekLabelFromAuditDate(date: Date | null) {\n  if (!date) return "-";\n\n  const caseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());\n  const start = new Date(caseDate);\n  const day = start.getDay();\n  const mondayOffset = day === 0 ? -6 : 1 - day;\n  start.setDate(start.getDate() + mondayOffset);\n\n  const end = new Date(start);\n  end.setDate(start.getDate() + 6);\n\n  // Weekly reporting must never pull a Case Date from another month.\n  // Example: September Week 1 is 01/09-06/09, while 31/08 stays in August.\n  const monthStart = new Date(caseDate.getFullYear(), caseDate.getMonth(), 1);\n  const monthEnd = new Date(caseDate.getFullYear(), caseDate.getMonth() + 1, 0);\n  if (start.getTime() < monthStart.getTime()) start.setTime(monthStart.getTime());\n  if (end.getTime() > monthEnd.getTime()) end.setTime(monthEnd.getTime());\n\n  const format = (item: Date) =>\n    \`${String.raw`\${String(item.getDate()).padStart(2, "0")}/\${String(item.getMonth() + 1).padStart(2, "0")}/\${item.getFullYear()}`}\`;\n  return \`${String.raw`\${format(start)} - \${format(end)}`}\`;\n}`;
-
-  if (!source.includes(oldHelper)) {
-    throw new Error(`Weekly month-boundary v30 helper anchor not found in ${fileLabel}.`);
+  const functionStart = source.indexOf("function getWeekLabelFromAuditDate(date: Date | null) {");
+  if (functionStart < 0) {
+    throw new Error(`Weekly month-boundary v30 helper start not found in ${fileLabel}.`);
   }
 
-  source = source.replace(oldHelper, newHelper);
+  const functionEnd = source.indexOf("\n}", functionStart);
+  if (functionEnd < 0) {
+    throw new Error(`Weekly month-boundary v30 helper end not found in ${fileLabel}.`);
+  }
+
+  const replacement = [
+    `// ${weeklyMonthBoundaryMarker}`,
+    "function getWeekLabelFromAuditDate(date: Date | null) {",
+    '  if (!date) return "-";',
+    "",
+    "  const caseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());",
+    "  const start = new Date(caseDate);",
+    "  const day = start.getDay();",
+    "  const mondayOffset = day === 0 ? -6 : 1 - day;",
+    "  start.setDate(start.getDate() + mondayOffset);",
+    "",
+    "  const end = new Date(start);",
+    "  end.setDate(start.getDate() + 6);",
+    "",
+    "  // Keep weekly reporting inside the Case Date reporting month.",
+    "  // Example: September Week 1 = 01/09-06/09; 31/08 stays in August.",
+    "  const monthStart = new Date(caseDate.getFullYear(), caseDate.getMonth(), 1);",
+    "  const monthEnd = new Date(caseDate.getFullYear(), caseDate.getMonth() + 1, 0);",
+    "  if (start.getTime() < monthStart.getTime()) start.setTime(monthStart.getTime());",
+    "  if (end.getTime() > monthEnd.getTime()) end.setTime(monthEnd.getTime());",
+    "",
+    "  const format = (item: Date) =>",
+    '    [String(item.getDate()).padStart(2, "0"), String(item.getMonth() + 1).padStart(2, "0"), item.getFullYear()].join("/");',
+    '  return format(start) + " - " + format(end);',
+    "}",
+  ].join("\n");
+
+  source = source.slice(0, functionStart) + replacement + source.slice(functionEnd + 2);
   fs.writeFileSync(filePath, source, "utf8");
 }
 
