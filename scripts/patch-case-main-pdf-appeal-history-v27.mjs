@@ -163,7 +163,7 @@ if (!pdfSource.includes(pdfMarker)) {
     setWidths(topWidths);`,
     `  const drawOriginalTop = () => {
     const hasAppealUpdate = Boolean(caseItem.pdfAppealStatus);
-    setWidths(hasAppealUpdate ? appealTopWidths : topWidths);`
+    setWidths(appealTopWidths);`
   );
 
   replacePdfOnce(
@@ -184,47 +184,28 @@ if (!pdfSource.includes(pdfMarker)) {
     label(5, y, 1, firstSelectionRowH, "Case ID");
     value(6, y, 2, firstSelectionRowH, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 7.4 });
     y += firstSelectionRowH;`,
-    `    if (hasAppealUpdate) {
-      const agentText = safeText(caseItem.agent);
-      const teamText = safeText(caseItem.teamName || caseItem.team || "", "-");
-      const firstSelectionRowH = autoRowHeight(
-        [
-          { value: agentText, w: wOf(1), size: 6.4, padY: 4.4 },
-          { value: teamText, w: wOf(3), size: 6.4, padY: 4.4 },
-          { value: caseItem.monthLabel || caseItem.monthKey, w: wOf(5), size: 6.4, padY: 4.4 },
-          { value: caseItem.caseId, w: wOf(7), size: 6.6, padY: 4.4 },
-        ],
-        10,
-        20
-      );
-      addPageIfNeeded(firstSelectionRowH);
-      label(0, y, 1, firstSelectionRowH, "Agent");
-      value(1, y, 1, firstSelectionRowH, agentText, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: fitLinesForHeight(firstSelectionRowH, 6.4, 0.46, 4) });
-      label(2, y, 1, firstSelectionRowH, "Team");
-      value(3, y, 1, firstSelectionRowH, teamText, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: fitLinesForHeight(firstSelectionRowH, 6.4, 0.46, 4) });
-      label(4, y, 1, firstSelectionRowH, "Month");
-      value(5, y, 1, firstSelectionRowH, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: fitLinesForHeight(firstSelectionRowH, 6.4, 0.46, 4) });
-      label(6, y, 1, firstSelectionRowH, "Case ID");
-      value(7, y, 1, firstSelectionRowH, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.6, maxLines: fitLinesForHeight(firstSelectionRowH, 6.6, 0.46, 4) });
-      y += firstSelectionRowH;
-    } else {
-      const firstSelectionRowH = autoRowHeight(
-        [
-          { value: agentSelectionText(caseItem), w: wOf(1, 2), size: 6.8, padY: 5 },
-          { value: caseItem.monthLabel || caseItem.monthKey, w: wOf(4), size: 6.8, padY: 4 },
-          { value: caseItem.caseId, w: wOf(6, 2), size: 7.4, padY: 4 },
-        ],
-        9,
-        12
-      );
-      label(0, y, 1, firstSelectionRowH, "Agent");
-      agentValue(1, y, 2, firstSelectionRowH, caseItem);
-      label(3, y, 1, firstSelectionRowH, "Month");
-      value(4, y, 1, firstSelectionRowH, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 6.8 });
-      label(5, y, 1, firstSelectionRowH, "Case ID");
-      value(6, y, 2, firstSelectionRowH, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 7.4 });
-      y += firstSelectionRowH;
-    }`
+    `    const agentText = safeText(caseItem.agent);
+    const teamText = safeText(caseItem.teamName || caseItem.team || "", "-");
+    const firstSelectionRowH = autoRowHeight(
+      [
+        { value: agentText, w: wOf(1), size: 6.4, padY: 4.4 },
+        { value: teamText, w: wOf(3), size: 6.4, padY: 4.4 },
+        { value: caseItem.monthLabel || caseItem.monthKey, w: wOf(5), size: 6.4, padY: 4.4 },
+        { value: caseItem.caseId, w: wOf(7), size: 6.6, padY: 4.4 },
+      ],
+      10,
+      20
+    );
+    addPageIfNeeded(firstSelectionRowH);
+    label(0, y, 1, firstSelectionRowH, "Agent");
+    value(1, y, 1, firstSelectionRowH, agentText, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: fitLinesForHeight(firstSelectionRowH, 6.4, 0.46, 4) });
+    label(2, y, 1, firstSelectionRowH, "Team");
+    value(3, y, 1, firstSelectionRowH, teamText, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: fitLinesForHeight(firstSelectionRowH, 6.4, 0.46, 4) });
+    label(4, y, 1, firstSelectionRowH, "Month");
+    value(5, y, 1, firstSelectionRowH, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.4, maxLines: fitLinesForHeight(firstSelectionRowH, 6.4, 0.46, 4) });
+    label(6, y, 1, firstSelectionRowH, "Case ID");
+    value(7, y, 1, firstSelectionRowH, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.6, maxLines: fitLinesForHeight(firstSelectionRowH, 6.6, 0.46, 4) });
+    y += firstSelectionRowH;`
   );
 
   replacePdfOnce(
@@ -260,9 +241,9 @@ if (!pdfSource.includes(pdfMarker)) {
     label(6, y, 1, secondSelectionRowH, "Case Grade");
     value(7, y, 1, secondSelectionRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });`,
     `    label(4, y, 1, secondSelectionRowH, hasAppealUpdate ? "Appeal Status" : "Final Score");
-    value(5, y, 1, secondSelectionRowH, appealStatusText, LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 6.5 : 8.2, maxLines: fitLinesForHeight(secondSelectionRowH, hasAppealUpdate ? 6.5 : 8.2, 0.46, 4), color: hasAppealUpdate ? (caseItem.pdfAppealStatus === "Approved" ? [21, 128, 61] : [220, 38, 38]) : undefined });
+    value(5, y, 1, secondSelectionRowH, appealStatusText, LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 6.5 : 8.2, maxLines: fitLinesForHeight(secondSelectionRowH, hasAppealUpdate ? 6.5 : 8.2, 0.46, 4), color: hasAppealUpdate ? (caseItem.pdfAppealStatus === "Approved" ? [21, 128, 61] : [220, 38, 38]) : (reportKpiStatus === "Passed" ? [21, 128, 61] : [220, 38, 38]) });
     label(6, y, 1, secondSelectionRowH, hasAppealUpdate ? "Reviewed Date" : "Case Grade");
-    value(7, y, 1, secondSelectionRowH, reviewedDateText, LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 5.8 : 8.2, maxLines: fitLinesForHeight(secondSelectionRowH, hasAppealUpdate ? 5.8 : 8.2, 0.46, 4) });`
+    value(7, y, 1, secondSelectionRowH, reviewedDateText, LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 5.8 : 8.2, maxLines: fitLinesForHeight(secondSelectionRowH, hasAppealUpdate ? 5.8 : 8.2, 0.46, 4), color: hasAppealUpdate ? undefined : (reportKpiStatus === "Passed" ? [21, 128, 61] : [220, 38, 38]) });`
   );
 
   replacePdfOnce(
@@ -425,29 +406,47 @@ if (!pdfSource.includes(pdfMarker)) {
       const kpiRowH = 9;
       addPageIfNeeded(kpiRowH);
       label(0, y, 1, kpiRowH, "KPI Status");
-      value(1, y, 1, kpiRowH, reportKpiStatus, reportScore >= 85 ? GREEN : RED, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
+      value(1, y, 1, kpiRowH, reportKpiStatus, LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 1, color: reportKpiStatus === "Passed" ? [21, 128, 61] : [220, 38, 38] });
       label(2, y, 1, kpiRowH, "KPI Target");
-      value(3, y, 1, kpiRowH, "85 / 100", reportScore >= 85 ? GREEN : RED, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
+      value(3, y, 1, kpiRowH, "85 / 100", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
       label(4, y, 1, kpiRowH, "Appeal Status");
       value(5, y, 1, kpiRowH, "-", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
       label(6, y, 1, kpiRowH, "Report Type");
       value(7, y, 1, kpiRowH, "Original PDF", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 2 });
       y += kpiRowH;
 
-      const inquiryRowH = Math.max(12, Math.min(28, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
-      addPageIfNeeded(inquiryRowH);
-      label(0, y, 1, inquiryRowH, "Critical Error");
-      value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 6.6 });
-      label(2, y, 1, inquiryRowH, "Customer\\nInquiry");
-      value(3, y, 5, inquiryRowH, inquiryText, LIGHT_PURPLE, {
-        align: "left",
-        size: BODY_TEXT_SIZE,
-        valign: "middle",
-        maxLines: fitLinesForHeight(inquiryRowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 6),
-        leading: BODY_LINE_SPACING,
-        bold: false,
-      });
-      y += inquiryRowH;
+      const inquiryLines = splitTextLines(inquiryText, wOf(1, 7), BODY_TEXT_SIZE);
+      let inquiryIndex = 0;
+      while (inquiryIndex < inquiryLines.length) {
+        if (bottom - y < 9) {
+          doc.addPage();
+          y = top;
+        }
+        const fitCount = Math.max(1, fitLinesForHeight(bottom - y, BODY_TEXT_SIZE, BODY_LINE_SPACING, 4.4));
+        const chunk = inquiryLines.slice(inquiryIndex, inquiryIndex + fitCount);
+        const inquiryRowH = Math.max(9, chunk.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING) + 4.4);
+        label(0, y, 1, inquiryRowH, inquiryIndex === 0 ? "Customer\\nInquiry" : "Customer\\nInquiry\\n(cont.)");
+        value(1, y, 7, inquiryRowH, chunk.join("\\n"), LIGHT_PURPLE, {
+          size: BODY_TEXT_SIZE,
+          valign: "top",
+          maxLines: chunk.length,
+          leading: BODY_LINE_SPACING,
+          bold: false,
+          color: BLACK,
+        });
+        y += inquiryRowH;
+        inquiryIndex += chunk.length;
+        if (inquiryIndex < inquiryLines.length) {
+          doc.addPage();
+          y = top;
+        }
+      }
+
+      const criticalErrorRowH = 9;
+      addPageIfNeeded(criticalErrorRowH);
+      label(0, y, 1, criticalErrorRowH, "Critical Error");
+      value(1, y, 7, criticalErrorRowH, "NO", LIGHT_PURPLE, { align: "left", valign: "middle", maxLines: 1, size: 6.6 });
+      y += criticalErrorRowH;
     }
 `
   );
