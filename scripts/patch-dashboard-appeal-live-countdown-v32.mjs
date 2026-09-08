@@ -149,11 +149,20 @@ replaceOnce(
   "appealOverrideAllowed && !isAppealWindowOpenLive"
 );
 
-replaceOnce(
-  "modal live deadline",
-  "Deadline: {formatBangkokDateTime(appealDeadline)}",
-  "Deadline: {formatBangkokDateTime(appealDeadline)} · {appealOverrideAllowed && !isAppealWindowOpenLive ? \"Appeal Override\" : appealCountdownV32.text}"
-);
+const legacyAppealDeadline = "Deadline: {formatBangkokDateTime(appealDeadline)}";
+const workspaceAppealDeadline = "ยื่นได้ถึง {formatBangkokDateTime(appealDeadline)} น.";
+if (source.includes(legacyAppealDeadline)) {
+  source = source.replace(
+    legacyAppealDeadline,
+    "Deadline: {formatBangkokDateTime(appealDeadline)} · {appealOverrideAllowed && !isAppealWindowOpenLive ? \"Appeal Override\" : appealCountdownV32.text}"
+  );
+} else {
+  replaceOnce(
+    "workspace live deadline",
+    workspaceAppealDeadline,
+    "ยื่นได้ถึง {formatBangkokDateTime(appealDeadline)} น. · {appealOverrideAllowed && !isAppealWindowOpenLive ? \"สิทธิ์ยื่นล่าช้า\" : appealCountdownV32.text}"
+  );
+}
 
 replaceOnce(
   "open case button polish",
