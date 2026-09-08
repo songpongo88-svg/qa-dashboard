@@ -3268,6 +3268,7 @@ function SlideOverCaseDetail({
   const [appealRequestExists, setAppealRequestExists] = useState(false);
   const [appealOverrideAllowed, setAppealOverrideAllowed] = useState(false);
   const [appealSubmitOpen, setAppealSubmitOpen] = useState(false);
+  const [appealSubmitStep, setAppealSubmitStep] = useState<1 | 2 | 3>(1);
   const [appealDraftTopics, setAppealDraftTopics] = useState<AppealDraftTopic[]>([]);
   const [appealSubmitMessage, setAppealSubmitMessage] = useState("");
   const [appealSubmitBusy, setAppealSubmitBusy] = useState(false);
@@ -3328,6 +3329,7 @@ function SlideOverCaseDetail({
     };
 
     setAppealSubmitOpen(false);
+    setAppealSubmitStep(1);
     setAppealDraftTopics([]);
     setAppealSubmitMessage("");
     void checkAppealRequest();
@@ -3350,7 +3352,37 @@ function SlideOverCaseDetail({
       }))
     );
     setAppealSubmitMessage("");
+    setAppealSubmitStep(1);
     setAppealSubmitOpen(true);
+  };
+
+  const closeAppealSubmitForm = () => {
+    setAppealSubmitOpen(false);
+    setAppealSubmitStep(1);
+    setAppealSubmitMessage("");
+  };
+
+  const selectedAppealTopics = appealDraftTopics.filter((topic) => topic.wantsAppeal);
+
+  const goToAppealReasonStep = () => {
+    if (!selectedAppealTopics.length) {
+      setAppealSubmitMessage("กรุณาเลือกอย่างน้อย 1 หัวข้อที่ต้องการอุทธรณ์");
+      return;
+    }
+    setAppealSubmitMessage("");
+    setAppealSubmitStep(2);
+  };
+
+  const goToAppealReviewStep = () => {
+    const incompleteTopic = selectedAppealTopics.find(
+      (topic) => !topic.appealReason.trim() || isNoAppealReason(topic.appealReason)
+    );
+    if (incompleteTopic) {
+      setAppealSubmitMessage(`กรุณาระบุเหตุผลของ ${incompleteTopic.code} ${incompleteTopic.label}`);
+      return;
+    }
+    setAppealSubmitMessage("");
+    setAppealSubmitStep(3);
   };
 
   const submitAppealRequest = async () => {
@@ -3416,7 +3448,8 @@ function SlideOverCaseDetail({
       setAppealRequestExists(true);
       onAppealSubmitted?.(caseItem.caseId);
       setAppealSubmitOpen(false);
-      setAppealSubmitMessage("Appeal request submitted to Songpon for review.");
+      setAppealSubmitStep(1);
+      setAppealSubmitMessage("ส่งคำขออุทธรณ์ให้ Songpon ตรวจสอบเรียบร้อยแล้ว");
     } finally {
       setAppealSubmitBusy(false);
     }
@@ -3661,126 +3694,250 @@ function SlideOverCaseDetail({
       ) : null}
 
       {appealSubmitOpen ? (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl">
-            <div className="border-b border-slate-200 px-4 py-3">
-              <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">Submit Appeal</div>
-              <div className="mt-1 text-xl font-extrabold text-slate-950">{caseItem.caseId}</div>
-              <div className="mt-1 text-sm text-slate-500">
-                Send selected topics to Songpon for review. Dashboard score remains based on RawData / Appeal ROWDATA Excel.
+        <div data-appeal-submit-workspace-v1="true" className="fixed inset-0 z-[130] flex flex-col bg-[#f8f6ff]">
+          <header className="shrink-0 border-b border-violet-100 bg-white shadow-sm">
+            <div className="mx-auto flex w-full max-w-[1180px] items-start justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-700">Appeal Workspace</div>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <h2 className="text-2xl font-extrabold text-slate-950">ยื่นอุทธรณ์</h2>
+                  <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                    {caseItem.caseId}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-semibold text-slate-500">
+                  <span>Agent: {caseItem.agent}</span>
+                  <span>ยื่นได้ถึง {formatBangkokDateTime(appealDeadline)} น.</span>
+                </div>
               </div>
-              <div className="mt-2 text-xs font-semibold text-slate-500">
-                Deadline: {formatBangkokDateTime(appealDeadline)}
-              </div>
+              <button
+                type="button"
+                onClick={closeAppealSubmitForm}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                aria-label="กลับไปหน้า Case Detail"
+              >
+                <span aria-hidden="true">←</span>
+                <span className="hidden sm:inline">กลับไป Case Detail</span>
+              </button>
             </div>
+          </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
-              <div className="space-y-3">
-                {appealDraftTopics.map((topic, index) => (
-                  <div key={topic.code} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <div className="text-sm font-bold text-slate-950">
-                          {topic.code} {topic.label}
-                        </div>
-                        <div className="mt-1 text-xs font-semibold text-slate-500">
-                          Original score: {topic.score}/{topic.max}
-                        </div>
-                      </div>
-                      <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
-                        Topic {index + 1}
-                      </div>
+          <main className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-sm">
+                {[
+                  { step: 1, label: "เลือกหัวข้อ" },
+                  { step: 2, label: "ระบุเหตุผล" },
+                  { step: 3, label: "ตรวจสอบและส่ง" },
+                ].map((item) => {
+                  const active = appealSubmitStep === item.step;
+                  const completed = appealSubmitStep > item.step;
+                  return (
+                    <div
+                      key={item.step}
+                      className={`flex min-h-[62px] items-center justify-center gap-2 border-r border-violet-100 px-2 text-center last:border-r-0 ${
+                        active ? "bg-violet-700 text-white" : completed ? "bg-violet-50 text-violet-700" : "bg-white text-slate-400"
+                      }`}
+                    >
+                      <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
+                        active ? "bg-white text-violet-700" : completed ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {completed ? "✓" : item.step}
+                      </span>
+                      <span className="text-xs font-bold sm:text-sm">{item.label}</span>
                     </div>
-                    <div className="mt-3 whitespace-pre-line rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
-                      <RichTextContent value={topic.comment} />
-                    </div>
-                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Appeal decision for this topic</div>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setAppealDraftTopics((current) =>
-                              current.map((item) =>
-                                item.code === topic.code
-                                  ? { ...item, wantsAppeal: false, appealReason: NO_APPEAL_TEXT }
-                                  : item
-                              )
-                            )
-                          }
-                          className={`rounded-xl border px-3 py-2 text-sm font-bold transition ${
-                            !topic.wantsAppeal
-                              ? "border-slate-400 bg-slate-900 text-white"
-                              : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >{NO_APPEAL_TEXT}</button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setAppealDraftTopics((current) =>
-                              current.map((item) =>
-                                item.code === topic.code
-                                  ? { ...item, wantsAppeal: true, appealReason: isNoAppealReason(item.appealReason) ? "" : item.appealReason }
-                                  : item
-                              )
-                            )
-                          }
-                          className={`rounded-xl border px-3 py-2 text-sm font-bold transition ${
-                            topic.wantsAppeal
-                              ? "border-emerald-500 bg-emerald-600 text-white"
-                              : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                          }`}
-                        >{"ยื่นอุทธรณ์หัวข้อนี้"}</button>
-                      </div>
-
-                      {!topic.wantsAppeal ? (
-                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
-                          หัวข้อนี้จะไม่ถูกส่งเข้า Appeal
-                        </div>
-                      ) : (
-                        <textarea
-                          value={topic.appealReason}
-                          onChange={(event) => {
-                            const nextValue = event.target.value;
-                            setAppealDraftTopics((current) =>
-                              current.map((item) => (item.code === topic.code ? { ...item, appealReason: nextValue } : item))
-                            );
-                          }}
-                          className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                          placeholder="Enter appeal reason for this topic only if you want to appeal it."
-                        />
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            </div>
 
-            <div className="border-t border-slate-200 bg-white px-4 py-3">
               {appealSubmitMessage ? (
-                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                <div role="alert" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
                   {appealSubmitMessage}
                 </div>
               ) : null}
-              <div className="flex flex-wrap justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAppealSubmitOpen(false)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={submitAppealRequest}
-                  disabled={appealSubmitBusy}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  {appealSubmitBusy ? "Submitting..." : "Submit to Songpon"}
-                </button>
+
+              {appealSubmitStep === 1 ? (
+                <section className="mt-5 overflow-hidden rounded-[24px] border border-violet-100 bg-white shadow-sm">
+                  <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-950">เลือกหัวข้อที่ต้องการอุทธรณ์</h3>
+                      <p className="mt-1 text-sm font-normal text-slate-500">เลือกเฉพาะหัวข้อที่ไม่เห็นด้วย ระบบจะแสดงช่องเหตุผลในขั้นตอนถัดไป</p>
+                    </div>
+                    <span className="w-fit rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                      เลือกแล้ว {selectedAppealTopics.length} หัวข้อ
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-100 p-3 sm:p-4">
+                    {appealDraftTopics.map((topic) => (
+                      <label
+                        key={topic.code}
+                        className={`flex cursor-pointer flex-col gap-3 rounded-2xl px-4 py-4 transition sm:flex-row sm:items-center sm:justify-between ${
+                          topic.wantsAppeal ? "bg-violet-50 ring-2 ring-violet-200" : "hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="flex min-w-0 items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={topic.wantsAppeal}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              setAppealSubmitMessage("");
+                              setAppealDraftTopics((current) =>
+                                current.map((item) =>
+                                  item.code === topic.code
+                                    ? {
+                                        ...item,
+                                        wantsAppeal: checked,
+                                        appealReason: checked
+                                          ? (isNoAppealReason(item.appealReason) ? "" : item.appealReason)
+                                          : NO_APPEAL_TEXT,
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                            className="mt-0.5 h-5 w-5 shrink-0 accent-violet-700"
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-extrabold text-slate-950">{topic.code} {topic.label}</span>
+                            <span className="mt-1 block line-clamp-2 text-xs font-normal leading-5 text-slate-500">
+                              <RichTextContent value={topic.comment} fallback="ไม่มีความคิดเห็นเพิ่มเติม" />
+                            </span>
+                          </span>
+                        </span>
+                        <span className={`w-fit shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+                          topic.wantsAppeal ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-600"
+                        }`}>
+                          คะแนนเดิม {topic.score}/{topic.max}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {appealSubmitStep === 2 ? (
+                <section className="mt-5 overflow-hidden rounded-[24px] border border-violet-100 bg-white shadow-sm">
+                  <div className="border-b border-slate-100 px-5 py-4">
+                    <h3 className="text-lg font-extrabold text-slate-950">ระบุเหตุผลที่ขออุทธรณ์</h3>
+                    <p className="mt-1 text-sm font-normal text-slate-500">แสดงเฉพาะ {selectedAppealTopics.length} หัวข้อที่คุณเลือก กรุณาระบุเหตุผลแยกแต่ละหัวข้อ</p>
+                  </div>
+                  <div className="space-y-4 p-4 sm:p-5">
+                    {selectedAppealTopics.map((topic) => (
+                      <div key={topic.code} className="rounded-2xl border border-violet-100 bg-violet-50/40 p-4 sm:p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm font-extrabold text-slate-950">{topic.code} {topic.label}</div>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 shadow-sm">
+                            คะแนนเดิม {topic.score}/{topic.max}
+                          </span>
+                        </div>
+                        <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">ความคิดเห็นเดิมจาก QA</div>
+                          <div className="mt-2 whitespace-pre-line text-sm font-normal leading-6 text-slate-700">
+                            <RichTextContent value={topic.comment} fallback="ไม่มีความคิดเห็นเพิ่มเติม" />
+                          </div>
+                        </div>
+                        <label className="mt-4 block text-sm font-bold text-slate-800">
+                          เหตุผลที่ขออุทธรณ์ <span className="text-rose-600">*</span>
+                          <textarea
+                            value={isNoAppealReason(topic.appealReason) ? "" : topic.appealReason}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              setAppealSubmitMessage("");
+                              setAppealDraftTopics((current) =>
+                                current.map((item) => item.code === topic.code ? { ...item, appealReason: nextValue } : item)
+                              );
+                            }}
+                            className="mt-2 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                            placeholder="ระบุจุดที่ไม่เห็นด้วย พร้อมข้อมูลหรือช่วงเวลาที่ใช้ประกอบการตรวจสอบ"
+                          />
+                          <span className="mt-2 block text-xs font-normal text-slate-500">เหตุผลนี้จะถูกส่งให้ QA ใช้ประกอบการพิจารณาหัวข้อนี้</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {appealSubmitStep === 3 ? (
+                <section className="mt-5 overflow-hidden rounded-[24px] border border-violet-100 bg-white shadow-sm">
+                  <div className="border-b border-slate-100 px-5 py-4">
+                    <h3 className="text-lg font-extrabold text-slate-950">ตรวจสอบข้อมูลก่อนส่ง</h3>
+                    <p className="mt-1 text-sm font-normal text-slate-500">ตรวจสอบหัวข้อและเหตุผลให้ครบก่อนยืนยันส่งคำขอ</p>
+                  </div>
+                  <div className="p-4 sm:p-5">
+                    <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
+                      <div><div className="text-xs font-semibold text-slate-500">Case ID</div><div className="mt-1 font-extrabold text-slate-950">{caseItem.caseId}</div></div>
+                      <div><div className="text-xs font-semibold text-slate-500">Agent</div><div className="mt-1 font-extrabold text-slate-950">{caseItem.agent}</div></div>
+                      <div><div className="text-xs font-semibold text-slate-500">จำนวนหัวข้อ</div><div className="mt-1 font-extrabold text-violet-700">{selectedAppealTopics.length} หัวข้อ</div></div>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {selectedAppealTopics.map((topic) => (
+                        <div key={topic.code} className="rounded-2xl border border-slate-200 p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-sm font-extrabold text-slate-950">{topic.code} {topic.label}</div>
+                            <span className="text-xs font-bold text-slate-500">คะแนนเดิม {topic.score}/{topic.max}</span>
+                          </div>
+                          <div className="mt-3 rounded-xl bg-violet-50 px-4 py-3">
+                            <div className="text-xs font-bold text-violet-700">เหตุผลที่ขออุทธรณ์</div>
+                            <div className="mt-1 whitespace-pre-line text-sm font-normal leading-6 text-slate-700">{topic.appealReason.trim()}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      <span aria-hidden="true" className="font-black">!</span>
+                      <span><strong>โปรดตรวจสอบก่อนยืนยัน:</strong> หนึ่งเคสส่งคำขออุทธรณ์ได้ครั้งเดียว และไม่สามารถกลับมาแก้ไขหลังส่งแล้ว</span>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+            </div>
+          </main>
+
+          <footer className="shrink-0 border-t border-slate-200 bg-white shadow-[0_-10px_30px_rgba(15,23,42,0.06)]">
+            <div className="mx-auto flex w-full max-w-[1180px] flex-col-reverse gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+              <button
+                type="button"
+                onClick={closeAppealSubmitForm}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                ยกเลิกและกลับไป Case Detail
+              </button>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                {appealSubmitStep > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppealSubmitMessage("");
+                      setAppealSubmitStep((appealSubmitStep - 1) as 1 | 2);
+                    }}
+                    className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+                  >
+                    ย้อนกลับ
+                  </button>
+                ) : null}
+                {appealSubmitStep === 1 ? (
+                  <button type="button" onClick={goToAppealReasonStep} className="rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800">
+                    ถัดไป: ระบุเหตุผล ({selectedAppealTopics.length})
+                  </button>
+                ) : appealSubmitStep === 2 ? (
+                  <button type="button" onClick={goToAppealReviewStep} className="rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800">
+                    ตรวจสอบก่อนส่ง
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={submitAppealRequest}
+                    disabled={appealSubmitBusy}
+                    className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {appealSubmitBusy ? "กำลังส่ง..." : "ยืนยันส่งอุทธรณ์"}
+                  </button>
+                )}
               </div>
             </div>
-          </div>
+          </footer>
         </div>
       ) : null}
 
