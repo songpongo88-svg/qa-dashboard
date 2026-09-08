@@ -5,7 +5,10 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const addonPath = path.join(root, "src", "caseAppealPdfAddon.ts");
 const bulkPath = path.join(root, "src", "bulkCaseDetailPdf.ts");
+const dashboardPath = path.join(root, "src", "DashboardMockup.tsx");
+const summaryPath = path.join(root, "src", "SummaryMockup.tsx");
 const marker = "bulk-main-pdf-appeal-parity-v28";
+const weeklyCaseDateMarker = "weekly-case-date-v29";
 
 function replaceOnce(source, before, after, label) {
   if (!source.includes(before)) {
@@ -70,6 +73,46 @@ function patchBulkRenderer() {
   fs.writeFileSync(bulkPath, source, "utf8");
 }
 
+function patchWeeklyCaseDateSource(filePath, fileLabel, expectedReplacements) {
+  let source = fs.readFileSync(filePath, "utf8");
+  if (source.includes(`// ${weeklyCaseDateMarker}`)) return;
+
+  let replacementCount = 0;
+  const replaceWeekAssignment = (pattern) => {
+    source = source.replace(pattern, (_match, indent) => {
+      replacementCount += 1;
+      return `${indent}// ${weeklyCaseDateMarker}\n${indent}weekLabel: getWeekLabelFromAuditDate(auditDateObj),`;
+    });
+  };
+
+  // Never trust a persisted Week / Week Label column for Weekly reporting.
+  // auditDateObj in these loaders is intentionally built from Case Date.
+  replaceWeekAssignment(
+    /^(\s*)weekLabel:\s*String\(v8Helper\.getValue\(row,\s*"Week(?: Label)?"\)\s*\|\|\s*v8Helper\.getValue\(row,\s*"Week(?: Label)?"\)\s*\|\|\s*"-"\)\.trim\(\),\s*$/gm
+  );
+
+  // RawData loader keeps a local weekLabel value from Excel; recompute it from Case Date instead.
+  replaceWeekAssignment(
+    /^(\s*)weekLabel:\s*String\(weekLabel\s*\|\|\s*"-"\)\.trim\(\),\s*$/gm
+  );
+
+  if (replacementCount < expectedReplacements) {
+    throw new Error(
+      `Weekly Case Date v29 expected at least ${expectedReplacements} replacement(s) in ${fileLabel}, found ${replacementCount}.`
+    );
+  }
+
+  fs.writeFileSync(filePath, source, "utf8");
+}
+
+function patchWeeklyCaseDateLogic() {
+  // Dashboard: V8/effective source + RawData source.
+  patchWeeklyCaseDateSource(dashboardPath, "DashboardMockup.tsx", 2);
+  // Summary / Compare / Ranking / Trend: V8/effective source.
+  patchWeeklyCaseDateSource(summaryPath, "SummaryMockup.tsx", 1);
+}
+
 patchAppealAwareRenderer();
 patchBulkRenderer();
-console.log("Patched Gen All Case PDF to render each Case through the same current Main PDF appeal-aware source.");
+patchWeeklyCaseDateLogic();
+console.log("Patched Gen All Case PDF parity and Weekly reporting to use Case Date as the week source.");
