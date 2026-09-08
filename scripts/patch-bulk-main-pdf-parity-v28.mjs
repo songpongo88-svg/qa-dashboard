@@ -9,6 +9,7 @@ const dashboardPath = path.join(root, "src", "DashboardMockup.tsx");
 const summaryPath = path.join(root, "src", "SummaryMockup.tsx");
 const marker = "bulk-main-pdf-appeal-parity-v28";
 const weeklyCaseDateMarker = "weekly-case-date-v29";
+const weeklyMonthBoundaryMarker = "weekly-month-boundary-v30";
 
 function replaceOnce(source, before, after, label) {
   if (!source.includes(before)) {
@@ -112,7 +113,29 @@ function patchWeeklyCaseDateLogic() {
   patchWeeklyCaseDateSource(summaryPath, "SummaryMockup.tsx", 1);
 }
 
+function patchMonthClippedWeeklyRanges(filePath, fileLabel) {
+  let source = fs.readFileSync(filePath, "utf8");
+  if (source.includes(`// ${weeklyMonthBoundaryMarker}`)) return;
+
+  const oldHelper = `function getWeekLabelFromAuditDate(date: Date | null) {\n  if (!date) return "-";\n  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());\n  const day = start.getDay();\n  const mondayOffset = day === 0 ? -6 : 1 - day;\n  start.setDate(start.getDate() + mondayOffset);\n  const end = new Date(start);\n  end.setDate(start.getDate() + 6);\n  const format = (item: Date) =>\n    \`${String.raw`\${String(item.getDate()).padStart(2, "0")}/\${String(item.getMonth() + 1).padStart(2, "0")}/\${item.getFullYear()}`}\`;\n  return \`${String.raw`\${format(start)} - \${format(end)}`}\`;\n}`;
+
+  const newHelper = `// ${weeklyMonthBoundaryMarker}\nfunction getWeekLabelFromAuditDate(date: Date | null) {\n  if (!date) return "-";\n\n  const caseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());\n  const start = new Date(caseDate);\n  const day = start.getDay();\n  const mondayOffset = day === 0 ? -6 : 1 - day;\n  start.setDate(start.getDate() + mondayOffset);\n\n  const end = new Date(start);\n  end.setDate(start.getDate() + 6);\n\n  // Weekly reporting must never pull a Case Date from another month.\n  // Example: September Week 1 is 01/09-06/09, while 31/08 stays in August.\n  const monthStart = new Date(caseDate.getFullYear(), caseDate.getMonth(), 1);\n  const monthEnd = new Date(caseDate.getFullYear(), caseDate.getMonth() + 1, 0);\n  if (start.getTime() < monthStart.getTime()) start.setTime(monthStart.getTime());\n  if (end.getTime() > monthEnd.getTime()) end.setTime(monthEnd.getTime());\n\n  const format = (item: Date) =>\n    \`${String.raw`\${String(item.getDate()).padStart(2, "0")}/\${String(item.getMonth() + 1).padStart(2, "0")}/\${item.getFullYear()}`}\`;\n  return \`${String.raw`\${format(start)} - \${format(end)}`}\`;\n}`;
+
+  if (!source.includes(oldHelper)) {
+    throw new Error(`Weekly month-boundary v30 helper anchor not found in ${fileLabel}.`);
+  }
+
+  source = source.replace(oldHelper, newHelper);
+  fs.writeFileSync(filePath, source, "utf8");
+}
+
+function patchWeeklyMonthBoundaries() {
+  patchMonthClippedWeeklyRanges(dashboardPath, "DashboardMockup.tsx");
+  patchMonthClippedWeeklyRanges(summaryPath, "SummaryMockup.tsx");
+}
+
 patchAppealAwareRenderer();
 patchBulkRenderer();
 patchWeeklyCaseDateLogic();
-console.log("Patched Gen All Case PDF parity and Weekly reporting to use Case Date as the week source.");
+patchWeeklyMonthBoundaries();
+console.log("Patched Weekly reporting to use Case Date and keep each week inside its reporting month.");
