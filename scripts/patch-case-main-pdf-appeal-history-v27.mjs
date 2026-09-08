@@ -151,46 +151,70 @@ if (!pdfSource.includes(pdfMarker)) {
   );
 
   replacePdfOnce(
+    "appeal metadata in original header row",
+    `    const auditText = caseItem.auditTimestamp || caseItem.auditDate;
+    const caseDateText = caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp || "-";`,
+    `    const hasAppealUpdate = Boolean(caseItem.pdfAppealStatus);
+    const auditText = caseItem.auditTimestamp || caseItem.auditDate;
+    const caseDateText = caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp || "-";`
+  );
+
+  replacePdfOnce(
+    "appeal status and reviewed date header cells",
+    `    label(4, y, 1, secondSelectionRowH, "Final Score");
+    value(5, y, 1, secondSelectionRowH, reportScore.toFixed(2), LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });
+    label(6, y, 1, secondSelectionRowH, "Case Grade");
+    value(7, y, 1, secondSelectionRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });`,
+    `    label(4, y, 1, secondSelectionRowH, hasAppealUpdate ? "Appeal Status" : "Final Score");
+    value(5, y, 1, secondSelectionRowH, hasAppealUpdate ? caseItem.pdfAppealStatus : reportScore.toFixed(2), hasAppealUpdate ? (caseItem.pdfAppealStatus === "Approved" ? GREEN : RED) : LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 7.2 : 8.2, maxLines: 1 });
+    label(6, y, 1, secondSelectionRowH, hasAppealUpdate ? "Reviewed Date" : "Case Grade");
+    value(7, y, 1, secondSelectionRowH, hasAppealUpdate ? safeText(caseItem.pdfAppealReviewedAt, "-") : grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 6.4 : 8.2, maxLines: hasAppealUpdate ? 2 : 1 });`
+  );
+
+  replacePdfOnce(
     "original KPI and appeal update rows",
     `    y += secondSelectionRowH;
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";`,
     `    y += secondSelectionRowH;
 
-    const hasAppealUpdate = Boolean(caseItem.pdfAppealStatus);
     const comparisonRowH = 10;
     if (hasAppealUpdate) {
+      const originalScoreText = num(caseItem.pdfOriginalScore).toFixed(2);
+      const originalGradeText = safeText(caseItem.pdfOriginalGrade, grade);
+      const originalKpiText = safeText(caseItem.pdfOriginalKpiStatus, reportKpiStatus);
+      const appealApproved = caseItem.pdfAppealStatus === "Approved";
       addPageIfNeeded(comparisonRowH);
-      label(0, y, 1, comparisonRowH, "Original\\nScore");
-      value(1, y, 1, comparisonRowH, num(caseItem.pdfOriginalScore).toFixed(2), LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.8, maxLines: 1 });
-      label(2, y, 1, comparisonRowH, "Revised\\nScore");
-      value(3, y, 1, comparisonRowH, reportScore.toFixed(2), reportScore >= num(caseItem.pdfOriginalScore) ? GREEN : RED, { align: "center", valign: "middle", size: 7.8, maxLines: 1 });
-      label(4, y, 1, comparisonRowH, "Original\\nGrade");
-      value(5, y, 1, comparisonRowH, caseItem.pdfOriginalGrade || grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.8, maxLines: 1 });
-      label(6, y, 1, comparisonRowH, "Revised\\nGrade");
-      value(7, y, 1, comparisonRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.8, maxLines: 1 });
+      label(0, y, 1, comparisonRowH, "Score");
+      value(1, y, 2, comparisonRowH, originalScoreText + " -> " + reportScore.toFixed(2), appealApproved ? GREEN : LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.6, maxLines: 1 });
+      label(3, y, 1, comparisonRowH, "Grade");
+      value(4, y, 1, comparisonRowH, originalGradeText + " -> " + grade, appealApproved ? GREEN : LIGHT_PURPLE, { align: "center", valign: "middle", size: 6.8, maxLines: 1 });
+      label(5, y, 1, comparisonRowH, "KPI Status");
+      value(6, y, 2, comparisonRowH, originalKpiText + " -> " + reportKpiStatus, reportKpiStatus === "Passed" ? GREEN : RED, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
       y += comparisonRowH;
     }
 
-    const kpiRowH = 9;
-    addPageIfNeeded(kpiRowH);
-    label(0, y, 1, kpiRowH, hasAppealUpdate ? "Original KPI" : "KPI Status");
-    value(1, y, 1, kpiRowH, hasAppealUpdate ? caseItem.pdfOriginalKpiStatus : reportKpiStatus, hasAppealUpdate ? LIGHT_PURPLE : reportScore >= 85 ? GREEN : RED, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
-    label(2, y, 1, kpiRowH, hasAppealUpdate ? "Revised KPI" : "KPI Target");
-    value(3, y, 1, kpiRowH, hasAppealUpdate ? reportKpiStatus : "85 / 100", reportScore >= 85 ? GREEN : RED, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
-    label(4, y, 1, kpiRowH, "Appeal Status");
-    value(5, y, 1, kpiRowH, caseItem.pdfAppealStatus || "-", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
-    label(6, y, 1, kpiRowH, "Report Type");
-    value(7, y, 1, kpiRowH, caseItem.pdfReportType || "Original PDF", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 2 });
-    y += kpiRowH;
+    if (!hasAppealUpdate) {
+      const kpiRowH = 9;
+      addPageIfNeeded(kpiRowH);
+      label(0, y, 1, kpiRowH, "KPI Status");
+      value(1, y, 1, kpiRowH, reportKpiStatus, reportScore >= 85 ? GREEN : RED, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
+      label(2, y, 1, kpiRowH, "KPI Target");
+      value(3, y, 1, kpiRowH, "85 / 100", reportScore >= 85 ? GREEN : RED, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
+      label(4, y, 1, kpiRowH, "Appeal Status");
+      value(5, y, 1, kpiRowH, "-", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 1 });
+      label(6, y, 1, kpiRowH, "Report Type");
+      value(7, y, 1, kpiRowH, "Original PDF", LIGHT_PURPLE, { align: "center", valign: "middle", size: 7.2, maxLines: 2 });
+      y += kpiRowH;
+    }
 
     if (safeMultiline(caseItem.pdfAppealSummary, "")) {
       drawWideRichTextRow({
-        labelText: "Appeal\\nUpdate",
+        labelText: "Appealed\\nTopic",
         text: caseItem.pdfAppealSummary,
         size: CASE_DESCRIPTION_TEXT_SIZE,
         leading: CASE_DESCRIPTION_LINE_SPACING,
-        minH: 20,
+        minH: 12,
         padY: 5,
       });
     }

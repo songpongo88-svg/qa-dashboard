@@ -10,10 +10,14 @@ type PdfResult = {
   fileSuffix: string;
 };
 
+// bulk-main-pdf-appeal-parity-v28
 type PdfGenerator = (input: {
   caseItem: any;
   currentUser?: any;
   pdfVariant?: PdfVariant;
+  pdfDoc?: any;
+  appendPage?: boolean;
+  suppressOutput?: boolean;
 }) => Promise<PdfResult>;
 
 type GenerateAppealAwarePdfInput = {
@@ -21,6 +25,9 @@ type GenerateAppealAwarePdfInput = {
   currentUser?: any;
   pdfVariant?: PdfVariant;
   fallback: PdfGenerator;
+  pdfDoc?: any;
+  appendPage?: boolean;
+  suppressOutput?: boolean;
 };
 
 const KPI_TARGET = 85;
@@ -118,9 +125,19 @@ export async function generateCasePdfWithAppealHistory({
   currentUser,
   pdfVariant = "original",
   fallback,
+  pdfDoc,
+  appendPage = false,
+  suppressOutput = false,
 }: GenerateAppealAwarePdfInput): Promise<PdfResult> {
   if (!hasResolvedAppeal(caseItem)) {
-    return fallback({ caseItem, currentUser, pdfVariant });
+    return fallback({
+      caseItem,
+      currentUser,
+      pdfVariant,
+      pdfDoc,
+      appendPage,
+      suppressOutput,
+    });
   }
 
   const status = caseItem.appealStatus === "Rejected" ? "Rejected" : "Approved";
@@ -134,8 +151,6 @@ export async function generateCasePdfWithAppealHistory({
   const appealTopicUpdates: Array<{
     code: string;
     label: string;
-    appealReason: string;
-    revisedComment: string;
   }> = [];
 
   const calculatedOriginal = topicTotal(originalTopics);
@@ -179,8 +194,6 @@ export async function generateCasePdfWithAppealHistory({
     appealTopicUpdates.push({
       code: plain(topic?.code, code),
       label: plain(topic?.label || revised?.label || reviewed?.label, ""),
-      appealReason,
-      revisedComment,
     });
     const combinedComment = [
       `<div><strong>Original Score: ${scoreText(originalTopicScore)} / ${scoreText(numeric(topic?.max))}</strong></div>`,
@@ -205,42 +218,16 @@ export async function generateCasePdfWithAppealHistory({
 
   const reportKind = pdfVariant === "appeal" ? "Appeal PDF" : "Main PDF";
   const safeCaseId = safeFilePart(caseItem.caseId);
-  const appealReasonHtml = appealTopicUpdates.length
+  const appealedTopicHtml = appealTopicUpdates.length
     ? appealTopicUpdates
         .map((item) => {
           const topicName = item.label
             ? `Topic ${pdfHtml(item.code)} - ${pdfHtml(item.label)}`
             : `Topic ${pdfHtml(item.code)}`;
-          return `<strong>${topicName}</strong><br>${pdfHtml(item.appealReason)}`;
+          return `<div><strong>${topicName}</strong></div>`;
         })
-        .join("<br><br>")
-    : pdfHtml("ไม่พบ Appeal Reason");
-  const reviewSummary = plain(caseItem.appealReviewSummary, "");
-  const revisedSummaryHtml = reviewSummary
-    ? pdfHtml(reviewSummary)
-    : appealTopicUpdates.length
-      ? appealTopicUpdates
-          .map((item) => {
-            const topicName = item.label
-              ? `Topic ${pdfHtml(item.code)} - ${pdfHtml(item.label)}`
-              : `Topic ${pdfHtml(item.code)}`;
-            return `<strong>${topicName}</strong><br>${pdfHtml(item.revisedComment)}`;
-          })
-          .join("<br><br>")
-      : pdfHtml("ไม่พบ Revised Comment");
-  const summaryLabel = approved ? "Revised Comment" : "Revised Comment (Rejected)";
-  const appealSummary = [
-    caseItem.appealReviewedAt
-      ? `<div>Reviewed Date: ${pdfHtml(formatBangkokDateTime(caseItem.appealReviewedAt))}</div>`
-      : "",
-    caseItem.appealRequestId
-      ? `<div>Appeal Request ID: ${pdfHtml(caseItem.appealRequestId)}</div>`
-      : "",
-    "<hr>",
-    `<div><span style="color:#dc2626"><strong>Appeal Reason</strong><br>${appealReasonHtml}</span></div>`,
-    "<hr>",
-    `<div><span style="color:#dc2626"><strong>${summaryLabel}</strong><br>${revisedSummaryHtml}</span></div>`,
-  ].filter(Boolean).join("");
+        .join("")
+    : `<div><strong>ไม่พบข้อมูล Topic ที่ยื่นอุทธรณ์</strong></div>`;
 
   const updatedCaseItem = {
     ...caseItem,
@@ -253,8 +240,9 @@ export async function generateCasePdfWithAppealHistory({
     pdfOriginalGrade: originalGrade,
     pdfOriginalKpiStatus: kpiStatus(originalFinalScore),
     pdfAppealStatus: status,
+    pdfAppealReviewedAt: formatBangkokDateTime(caseItem.appealReviewedAt),
     pdfReportType: reportKind,
-    pdfAppealSummary: appealSummary,
+    pdfAppealSummary: appealedTopicHtml,
     pdfReportTitleOverride: `${caseItem.caseId} ${reportKind}`,
     pdfReportFileSuffixOverride: pdfVariant === "appeal" ? "case_detail_appeal" : "case_main_report",
     pdfReportFileNameOverride: pdfVariant === "appeal"
@@ -264,5 +252,12 @@ export async function generateCasePdfWithAppealHistory({
 
   // Keep the existing Original PDF renderer and inject appeal data into its
   // purple table. No separate report template is created.
-  return fallback({ caseItem: updatedCaseItem, currentUser, pdfVariant: "original" });
+  return fallback({
+    caseItem: updatedCaseItem,
+    currentUser,
+    pdfVariant: "original",
+    pdfDoc,
+    appendPage,
+    suppressOutput,
+  });
 }
