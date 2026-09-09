@@ -3,12 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const appPath = path.join(root, "src", "App.tsx");
 const appealPath = path.join(root, "src", "AppealMockup.tsx");
 const pdfPath = path.join(root, "src", "caseDetailOfficialPdf.ts");
 const marker = "appeal-pdf-final-fix-v48";
 const compactMarker = "appeal-pdf-date-stack-v49";
 const scoreColumnMarker = "appeal-pdf-split-score-columns-v50";
 const resultSecondsMarker = "appeal-result-time-seconds-v51";
+const identityFallbackMarker = "appeal-identity-fallback-v52";
 
 function patchAuditTimestampSource() {
   let source = fs.readFileSync(appealPath, "utf8");
@@ -94,6 +96,171 @@ function patchAppealResultTimeSeconds() {
 
   source = source.replace(before, after);
   fs.writeFileSync(appealPath, source, "utf8");
+}
+
+function patchAppealIdentityFallbacks() {
+  let source = fs.readFileSync(appealPath, "utf8");
+
+  if (!source.includes(`// ${identityFallbackMarker}`)) {
+    const importBefore = `import { canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";`;
+    const importAfter = `${importBefore}\nimport { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";`;
+    if (!source.includes(importBefore)) {
+      throw new Error("Appeal v52: Agent directory import anchor not found.");
+    }
+    source = source.replace(importBefore, importAfter);
+
+    const sameAgentBefore = `function isSameAgent(a: string, b: string) {
+  return isSameCanonicalAgent(a, b);
+}`;
+    const sameAgentAfter = `${sameAgentBefore}
+
+function cleanAppealIdentityValue(value: unknown) {
+  const cleaned = stripInvisibleChars(value)
+    .replace(/\\u00A0/g, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
+  return !cleaned || cleaned === "-" ? "" : cleaned;
+}
+
+function findAppealAgentDirectoryEntry(
+  agentName: string,
+  directory: readonly CaseAgentDirectoryEntry[]
+) {
+  const matches = directory.filter((entry) =>
+    [entry.agentName, entry.displayName].some((value) =>
+      Boolean(value) && isSameAgent(String(value), agentName)
+    )
+  );
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function resolveAppealTeamName(
+  sourceTeamName: unknown,
+  agentName: string,
+  directory: readonly CaseAgentDirectoryEntry[]
+) {
+  const sourceTeam = cleanAppealIdentityValue(sourceTeamName);
+  if (sourceTeam) return sourceTeam;
+  return cleanAppealIdentityValue(resolveCaseAgentTeam({ agent: agentName }, directory).teamName) || "-";
+}
+
+function resolveAppealSubmittedBy(
+  sourceSubmittedBy: unknown,
+  appealChannel: unknown,
+  agentName: string,
+  directory: readonly CaseAgentDirectoryEntry[]
+) {
+  const directName = cleanAppealIdentityValue(sourceSubmittedBy);
+  if (directName) return directName;
+
+  const channelText = cleanAppealIdentityValue(appealChannel);
+  const emailMatch = channelText.match(/([A-Z0-9._%+-]+)@[A-Z0-9.-]+\\.[A-Z]{2,}/i);
+  if (emailMatch?.[1]) return emailMatch[1];
+
+  const directoryEntry = findAppealAgentDirectoryEntry(agentName, directory);
+  return cleanAppealIdentityValue(directoryEntry?.username) ||
+    cleanAppealIdentityValue(directoryEntry?.displayName) ||
+    cleanAppealIdentityValue(agentName) ||
+    "-";
+}`;
+    if (!source.includes(sameAgentBefore)) {
+      throw new Error("Appeal v52: identity helper anchor not found.");
+    }
+    source = source.replace(sameAgentBefore, sameAgentAfter);
+
+    const propsBefore = `export default function AppealMockup({
+  currentUser,
+  externalSelectedAgent,`;
+    const propsAfter = `export default function AppealMockup({
+  currentUser,
+  agentDirectory,
+  externalSelectedAgent,`;
+    if (!source.includes(propsBefore)) {
+      throw new Error("Appeal v52: component property anchor not found.");
+    }
+    source = source.replace(propsBefore, propsAfter);
+
+    const propsTypeBefore = `  currentUser: any;
+  externalSelectedAgent?: string;`;
+    const propsTypeAfter = `  currentUser: any;
+  agentDirectory?: CaseAgentDirectoryEntry[];
+  // ${identityFallbackMarker}
+  externalSelectedAgent?: string;`;
+    if (!source.includes(propsTypeBefore)) {
+      throw new Error("Appeal v52: component property type anchor not found.");
+    }
+    source = source.replace(propsTypeBefore, propsTypeAfter);
+
+    const mappedIdentityBlock = `              caseId,
+              agent,
+              teamName,
+              submittedByName,
+              reviewedByName,
+              auditDate,`;
+    const staticIdentityBlock = `              caseId,
+              agent,
+              teamName: resolveAppealTeamName(teamName, agent, agentDirectory || []),
+              submittedByName: resolveAppealSubmittedBy(
+                submittedByName,
+                appealChannelRaw,
+                agent,
+                agentDirectory || []
+              ),
+              reviewedByName,
+              auditDate,`;
+    const staticIdentityIndex = source.indexOf(mappedIdentityBlock);
+    if (staticIdentityIndex < 0) {
+      throw new Error("Appeal v52: imported appeal identity block not found.");
+    }
+    source = source.slice(0, staticIdentityIndex) +
+      staticIdentityBlock +
+      source.slice(staticIdentityIndex + mappedIdentityBlock.length);
+
+    const firebaseKeyIndex = source.indexOf(`key: \`firebase-appeal-`);
+    const firebaseIdentityIndex = source.indexOf(mappedIdentityBlock, Math.max(firebaseKeyIndex, 0));
+    if (firebaseKeyIndex < 0 || firebaseIdentityIndex < 0) {
+      throw new Error("Appeal v52: Firebase appeal identity block not found.");
+    }
+    const firebaseIdentityBlock = `              caseId,
+              agent,
+              teamName: resolveAppealTeamName(teamName, agent, agentDirectory || []),
+              submittedByName: resolveAppealSubmittedBy(
+                submittedByName,
+                "Dashboard Case Detail",
+                agent,
+                agentDirectory || []
+              ),
+              reviewedByName,
+              auditDate,`;
+    source = source.slice(0, firebaseIdentityIndex) +
+      firebaseIdentityBlock +
+      source.slice(firebaseIdentityIndex + mappedIdentityBlock.length);
+
+    const loadDependencyBefore = `  }, [appealReloadKey]);`;
+    const loadDependencyAfter = `  }, [appealReloadKey, agentDirectory]);`;
+    if (!source.includes(loadDependencyBefore)) {
+      throw new Error("Appeal v52: workbook reload dependency anchor not found.");
+    }
+    source = source.replace(loadDependencyBefore, loadDependencyAfter);
+
+    fs.writeFileSync(appealPath, source, "utf8");
+  }
+
+  let appSource = fs.readFileSync(appPath, "utf8");
+  if (!appSource.includes(`${identityFallbackMarker}-app`)) {
+    const appBefore = `          <AppealMockup
+            currentUser={currentUser}
+            externalSelectedAgent={selectedAgentGlobal}`;
+    const appAfter = `          <AppealMockup
+            currentUser={currentUser}
+            agentDirectory={caseAgentDirectory /* ${identityFallbackMarker}-app */}
+            externalSelectedAgent={selectedAgentGlobal}`;
+    if (!appSource.includes(appBefore)) {
+      throw new Error("Appeal v52: App AppealMockup anchor not found.");
+    }
+    appSource = appSource.replace(appBefore, appAfter);
+    fs.writeFileSync(appPath, appSource, "utf8");
+  }
 }
 
 function disableOldInformation(source) {
@@ -241,5 +408,6 @@ function patchPdfRenderer() {
 patchAuditTimestampSource();
 patchAppealDateTimeSeconds();
 patchAppealResultTimeSeconds();
+patchAppealIdentityFallbacks();
 patchPdfRenderer();
-console.log("Appeal v51 applied: Result Date timestamps always include seconds; Appeal PDF split-score layout retained.");
+console.log("Appeal v52 applied: Admin and Team use historical email and live Agent-directory fallbacks.");
