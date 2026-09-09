@@ -9,6 +9,7 @@ const dashboardPath = path.join(root, "src", "DashboardMockup.tsx");
 const summaryPath = path.join(root, "src", "SummaryMockup.tsx");
 const marker = "bulk-main-pdf-appeal-parity-v28";
 const weeklyCaseDateMarker = "weekly-case-date-v29";
+const periodMasterMarker = "period-master-filter-v31";
 
 function replaceOnce(source, before, after, label) {
   if (!source.includes(before)) {
@@ -107,7 +108,46 @@ function patchWeeklyCaseDateLogic() {
   patchWeeklyCaseDateSource(summaryPath, "SummaryMockup.tsx", 1);
 }
 
+function patchDashboardPeriodMasterFilter() {
+  let source = fs.readFileSync(dashboardPath, "utf8");
+  if (source.includes(`// ${periodMasterMarker}`)) return;
+
+  source = replaceOnce(
+    source,
+    `  const dateFilteredCases = useMemo(() => {\n    if (selectedMonthKey && selectedMonthKey !== "all") {`,
+    `  // ${periodMasterMarker}\n  const dateFilteredCases = useMemo(() => {\n    // A selected Week is the master Period. Do not pre-filter it by Month/Year/date range.\n    // This keeps cross-month weeks such as 31/08/2026 - 06/09/2026 complete.\n    if (selectedWeek !== "all") {\n      return agentCases;\n    }\n\n    if (selectedMonthKey && selectedMonthKey !== "all") {`,
+    "Dashboard Period master start"
+  );
+
+  source = replaceOnce(
+    source,
+    `  }, [agentCases, dateFrom, dateTo, selectedMonthKey, selectedYear]);`,
+    `  }, [agentCases, dateFrom, dateTo, selectedMonthKey, selectedYear, selectedWeek]);`,
+    "Dashboard Period master dependencies"
+  );
+
+  fs.writeFileSync(dashboardPath, source, "utf8");
+}
+
+function patchSummaryPeriodMasterSync() {
+  let source = fs.readFileSync(summaryPath, "utf8");
+  if (source.includes(`// ${periodMasterMarker}`)) return;
+
+  const oldWeeklySync = `    if (analysisMode === "weekly") {\n      const matchedCase = allCases.find((item) => item.weekLabel === activeUnifiedPeriodKey);\n      if (matchedCase?.monthKey) onSelectedMonthChange?.(matchedCase.monthKey);\n      if (matchedCase?.yearKey) onSelectedYearChange?.(matchedCase.yearKey);\n      onSelectedWeekChange?.(activeUnifiedPeriodKey);\n      return;\n    }`;
+
+  const newWeeklySync = `    // ${periodMasterMarker}\n    if (analysisMode === "weekly") {\n      const matchedCase = allCases.find((item) => item.weekLabel === activeUnifiedPeriodKey);\n      // Weekly Period owns the scope. Clear Month so cross-month weeks are never cut down.\n      onSelectedMonthChange?.("all");\n      if (matchedCase?.yearKey) onSelectedYearChange?.(matchedCase.yearKey);\n      onSelectedWeekChange?.(activeUnifiedPeriodKey);\n      return;\n    }`;
+
+  source = replaceOnce(source, oldWeeklySync, newWeeklySync, "Summary Weekly Period sync");
+  fs.writeFileSync(summaryPath, source, "utf8");
+}
+
+function patchCurrentPeriodAsMaster() {
+  patchDashboardPeriodMasterFilter();
+  patchSummaryPeriodMasterSync();
+}
+
 patchAppealAwareRenderer();
 patchBulkRenderer();
 patchWeeklyCaseDateLogic();
-console.log("Patched Weekly reporting to use Case Date while keeping every Period as a full Monday-Sunday week.");
+patchCurrentPeriodAsMaster();
+console.log("Patched Weekly Case Date and made the selected Time View Period the master filter for Dashboard, Agent Performance, Current View and Details.");
