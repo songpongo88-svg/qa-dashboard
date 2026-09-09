@@ -23,6 +23,114 @@ if (!source.includes(`// ${marker}`)) {
     "v36 marker"
   );
 
+  source = replaceOnce(
+    source,
+    `const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);`,
+    `function getBilingualAppealTopicLabel(topic: Topic, monthKey: string) {
+  const label = String(topic.label || "").trim();
+  const hasThai = /[ก-๙]/.test(label);
+
+  const juneThai: Record<string, string> = {
+    "1": "การปฏิบัติตามกระบวนการและนโยบาย",
+    "2": "คุณภาพคำตอบและการวิเคราะห์ปัญหา",
+    "3": "การจัดการเคสและการติดตาม",
+    "4": "ทักษะการสื่อสาร",
+  };
+  const juneEnglish: Record<string, string> = {
+    "1": "Process & Policy Compliance",
+    "2": "Answer Quality & Problem Analysis",
+    "3": "Case Handling & Follow-up",
+    "4": "Communication Skills",
+  };
+
+  const aprilThai: Record<string, string> = {
+    "1.1": "มาตรฐานการทักทายและปิดการสนทนา",
+    "1.2": "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด",
+    "1.3": "การปฏิบัติตามกระบวนการและ SLA",
+    "2.1": "ความถูกต้องของคำตอบ",
+    "2.2": "ความครบถ้วนของคำตอบ",
+    "2.3": "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง",
+    "3.1": "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด",
+    "3.2": "Ownership และการแจ้ง Next Step",
+    "4.1": "โครงสร้างข้อความและความอ่านง่าย",
+    "4.2": "ความกระชับและความถูกต้องของภาษา",
+    "4.3": "น้ำเสียงและความเหมาะสมตามสถานการณ์",
+  };
+  const aprilEnglish: Record<string, string> = {
+    "1.1": "Standard Opening & Closing",
+    "1.2": "PDPA / Policy / Requirements Compliance",
+    "1.3": "Process & SLA Compliance",
+    "2.1": "Answer Accuracy",
+    "2.2": "Answer Completeness",
+    "2.3": "Clear Steps & Official Sources",
+    "3.1": "Problem Analysis & Resolution",
+    "3.2": "Ownership & Next Step",
+    "4.1": "Message Structure & Readability",
+    "4.2": "Conciseness & Language Accuracy",
+    "4.3": "Tone & Context Appropriateness",
+  };
+
+  const legacyThai: Record<string, string> = {
+    "1.1": "มาตรฐานการทักทายและปิดการสนทนา",
+    "1.2": "ความถูกต้องของข้อมูล",
+    "1.3": "การปฏิบัติตาม PDPA และ Policy",
+    "2.1": "ความถูกต้องของเคส",
+    "2.2": "ความครบถ้วนของข้อมูล",
+    "2.3": "คำแนะนำที่ชัดเจนและนำไปปฏิบัติได้",
+    "2.4": "แหล่งข้อมูลทางการ",
+    "3.1": "การวิเคราะห์สาเหตุและการแก้ไขปัญหา",
+    "3.2": "การรับผิดชอบเคส",
+    "3.3": "การแจ้งขั้นตอนถัดไปอย่างชัดเจน",
+    "4.1": "โครงสร้างข้อความ",
+    "4.2": "คุณภาพภาษา",
+    "4.3": "น้ำเสียงและความเข้าใจผู้ติดต่อ",
+    "4.4": "การปรับให้เหมาะกับบริบท",
+    "5.1": "การปฏิบัติตามกระบวนการทำงาน",
+    "5.2": "การปฏิบัติตาม SLA",
+    "5.3": "ความถูกต้องของการบันทึกเคส / สถานะ",
+  };
+  const legacyEnglish: Record<string, string> = {
+    "1.1": "Greeting & Closing Standard",
+    "1.2": "Accuracy of Information",
+    "1.3": "PDPA & Policy",
+    "2.1": "Case Accuracy",
+    "2.2": "Completeness",
+    "2.3": "Clear Actionable Guidance",
+    "2.4": "Official Sources",
+    "3.1": "Root Cause & Resolution",
+    "3.2": "Case Ownership",
+    "3.3": "Clear Next Step Guidance",
+    "4.1": "Message Structure",
+    "4.2": "Language Quality",
+    "4.3": "Tone & Empathy",
+    "4.4": "Adaptation to Context",
+    "5.1": "Work Process Compliance",
+    "5.2": "SLA Compliance",
+    "5.3": "Case Logging / Status Accuracy",
+  };
+
+  let thaiMap = legacyThai;
+  let englishMap = legacyEnglish;
+  if (monthKey !== "unknown" && monthKey >= "2026-06") {
+    thaiMap = juneThai;
+    englishMap = juneEnglish;
+  } else if (monthKey !== "unknown" && monthKey >= "2026-04") {
+    thaiMap = aprilThai;
+    englishMap = aprilEnglish;
+  }
+
+  const thai = hasThai ? label : thaiMap[topic.code] || "";
+  const english = hasThai ? englishMap[topic.code] || "" : label || englishMap[topic.code] || "";
+  return {
+    thai: thai || label || topic.code,
+    english: english && english !== thai ? english : "",
+  };
+}
+
+const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);`,
+    "bilingual Appeal topic labels"
+  );
+
   const summaryStart = source.indexOf(
     `      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">`
   );
@@ -59,7 +167,7 @@ if (!source.includes(`// ${marker}`)) {
                   title="Appeal Case Detail"
                   subtitle="สรุปผลอุทธรณ์ของเคสที่เลือก"
                 />
-                <PanelBody className="space-y-4 p-4 sm:p-5">
+                <PanelBody className="space-y-4 bg-slate-50/90 p-4 sm:p-5">
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
@@ -150,7 +258,7 @@ if (!source.includes(`// ${marker}`)) {
                       <span className="text-base">▣</span>
                       <span>Appeal Information</span>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                       <div className="grid gap-x-6 gap-y-2.5 text-xs sm:grid-cols-2">
                         <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2">
                           <span className="font-semibold text-slate-500">Case ID</span>
@@ -185,12 +293,90 @@ if (!source.includes(`// ${marker}`)) {
                             {selectedRevision?.appealDecision ?? selectedCase.appealDecision}
                           </span>
                         </div>
+                        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2">
+                          <span className="font-semibold text-slate-500">Appeal Submit</span>
+                          <span className="font-bold text-slate-900">{sanitizeDisplayText(selectedRevision?.appealSubmitDateTime ?? selectedCase.appealSubmitDateTime, "-")}</span>
+                        </div>
+                        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2">
+                          <span className="font-semibold text-slate-500">Appeal Round</span>
+                          <span className="font-bold text-slate-900">{selectedRevision?.appealRound ?? selectedCase.appealRound ?? 1}</span>
+                        </div>
                         <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 sm:col-span-2">
                           <span className="font-semibold text-slate-500">Appealed Topics</span>
                           <span className="font-bold text-slate-900">{selectedRevision?.appealedTopics.length ?? selectedCase.appealedTopics.length} topic(s)</span>
                         </div>
+                        <div className="grid gap-1 border-t border-slate-100 pt-2.5 sm:col-span-2 sm:grid-cols-[120px_minmax(0,1fr)]">
+                          <span className="font-semibold text-slate-500">Customer Inquiry</span>
+                          <span className="whitespace-pre-line font-semibold leading-5 text-slate-900">{sanitizeDisplayText(selectedCase.inquiry, "-")}</span>
+                        </div>
+                        <div className="grid gap-1 border-t border-slate-100 pt-2.5 sm:col-span-2 sm:grid-cols-[120px_minmax(0,1fr)]">
+                          <span className="font-semibold text-slate-500">Appeal Review Summary</span>
+                          <span className="whitespace-pre-line font-semibold leading-5 text-slate-900">{sanitizeDisplayText(selectedRevision?.appealReviewSummary ?? selectedCase.appealReviewSummary, "-")}</span>
+                        </div>
+                      </div>
+
+                      {(selectedRevision?.appealDecision ?? selectedCase.appealDecision) === "Approved" ? (
+                        <div className="mt-3 border-t border-slate-100 pt-3">
+                          <button
+                            type="button"
+                            onClick={handleGeneratePdf}
+                            disabled={pdfStatus === "generating"}
+                            className="inline-flex rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-extrabold text-sky-700 transition hover:bg-sky-100 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            {pdfStatus === "generating" ? "Generating PDF..." : "Generate Appeal PDF"}
+                          </button>
+                          {pdfMessage ? (
+                            <div className={
+                              "mt-2 rounded-xl border px-3 py-2 text-[11px] font-semibold " +
+                              (pdfStatus === "error"
+                                ? "border-rose-200 bg-rose-50 text-rose-700"
+                                : pdfStatus === "success"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-sky-200 bg-sky-50 text-sky-700")
+                            }>
+                              {pdfMessage}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-2 flex items-center gap-2 text-sm font-extrabold text-sky-700">
+                      <span className="text-base">▣</span>
+                      <span>Appealed Topics</span>
+                    </div>
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                        <div className="text-center">#</div>
+                        <div>Topic</div>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {(selectedRevision?.appealedTopics ?? selectedCase.appealedTopics).length ? (
+                          (selectedRevision?.appealedTopics ?? selectedCase.appealedTopics).map((topic, index) => {
+                            const topicDisplay = getBilingualAppealTopicLabel(topic, selectedCase.monthKey);
+                            return (
+                              <div
+                                key={selectedCase.caseId + "-appealed-topic-" + topic.code + "-" + index}
+                                className="grid grid-cols-[42px_minmax(0,1fr)] items-start px-3 py-3"
+                              >
+                                <div className="pt-0.5 text-center text-xs font-bold text-slate-600">{index + 1}</div>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-bold leading-5 text-slate-900">{topicDisplay.thai}</div>
+                                  {topicDisplay.english ? (
+                                    <div className="mt-0.5 text-[11px] font-semibold leading-4 text-slate-500">{topicDisplay.english}</div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="px-4 py-5 text-center text-xs font-semibold text-slate-500">No appealed topics</div>
+                        )}
                       </div>
                     </div>
+                    <div className="mt-2 text-[10px] font-semibold text-slate-400">ใช้ปุ่ม View Full Record ด้านบนเพื่อเปิดรายละเอียดเคสเต็ม</div>
                   </div>
                 </PanelBody>
               </Panel>
@@ -208,12 +394,20 @@ if (!source.includes(`// ${marker}`)) {
     source = source.slice(0, historyCallStart) + source.slice(historyCallEnd + 2);
   }
 
-  source = replaceOnce(
-    source,
-    `                      <AppealedTopicsCorporateTable\n                        topics={selectedRevision?.appealedTopics ?? selectedCase.appealedTopics}\n                        decision={selectedRevision?.appealDecision ?? selectedCase.appealDecision}\n                      />`,
-    `                      <div className="space-y-2">\n                        <div className="flex items-center gap-2 text-sm font-extrabold text-sky-700">\n                          <span className="text-base">▣</span>\n                          <span>Appealed Topics</span>\n                        </div>\n                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">\n                          <div className="grid grid-cols-[42px_minmax(0,1fr)_34px] border-b border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">\n                            <div className="text-center">#</div>\n                            <div>Topic</div>\n                            <div />\n                          </div>\n                          <div className="divide-y divide-slate-100">\n                            {(selectedRevision?.appealedTopics ?? selectedCase.appealedTopics).length ? (\n                              (selectedRevision?.appealedTopics ?? selectedCase.appealedTopics).map((topic, index) => (\n                                <button\n                                  type="button"\n                                  key={selectedCase.caseId + "-appealed-topic-" + topic.code + "-" + index}\n                                  onClick={() => onOpenCaseDetail?.(selectedCase.caseId, selectedCase.agent)}\n                                  className="group grid w-full grid-cols-[42px_minmax(0,1fr)_34px] items-center px-3 py-3 text-left transition hover:bg-sky-50"\n                                >\n                                  <div className="text-center text-xs font-bold text-slate-600">{index + 1}</div>\n                                  <div className="min-w-0">\n                                    <div className="truncate text-sm font-bold text-slate-900">{topic.label}</div>\n                                  </div>\n                                  <div className="text-center text-xl font-bold text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-sky-600">›</div>\n                                </button>\n                              ))\n                            ) : (\n                              <div className="px-4 py-5 text-center text-xs font-semibold text-slate-500">No appealed topics</div>\n                            )}\n                          </div>\n                        </div>\n                      </div>`,
-    "compact Appealed Topics table"
+  const oldAppealedPanelStart = source.indexOf(
+    `              <Panel>\n                <PanelHeader\n                  title="Appealed Topics"`,
+    detailStart
   );
+  if (oldAppealedPanelStart >= 0) {
+    const oldAppealedPanelClose = `\n              </Panel>`;
+    const oldAppealedPanelEnd = source.indexOf(oldAppealedPanelClose, oldAppealedPanelStart);
+    if (oldAppealedPanelEnd < 0) {
+      throw new Error("Appeal two-column v36 old Appealed Topics panel end not found.");
+    }
+    source =
+      source.slice(0, oldAppealedPanelStart) +
+      source.slice(oldAppealedPanelEnd + oldAppealedPanelClose.length);
+  }
 
   source = source.replace(
     `              <div className="max-h-[720px] overflow-auto">`,
@@ -227,4 +421,4 @@ if (!source.includes(`// ${marker}`)) {
   fs.writeFileSync(appealPath, source, "utf8");
 }
 
-console.log("Patched Appeal Cases to use the compact approved right-side layout: concise case header, compact score cards, table-style Appeal Information, and clickable Appealed Topics.");
+console.log("Patched Appeal Case Detail to match the compact mockup: clean background, Customer Inquiry and Appeal Review Summary inside Appeal Information, non-clickable bilingual Appealed Topics, and View Full Record as the only case-opening action.");
