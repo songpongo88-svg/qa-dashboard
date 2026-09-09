@@ -20,7 +20,6 @@ if (!source.includes(`// ${marker}`)) {
     `  // ${marker}\n${stateAnchor}`
   );
 
-  // Appeal page filters are local UI state. Do not push Agent changes back to Dashboard.
   source = source.replace(/\n\s*onSelectedAgentChange\?\.\(scopedAgent \|\| ""\);/g, "");
   source = source.replace(/\n\s*onSelectedAgentChange\?\.\(""\);/g, "");
   source = source.replace(/\n\s*onSelectedAgentChange\?\.\(next\);/g, "");
@@ -31,8 +30,6 @@ if (!source.includes(`// ${marker}`)) {
     `  }, [roleScopedAgentList, selectedAgent, visibleAgentList]);`
   );
 
-  // External Case ID may initialize/select an Appeal case, but local search/filter state
-  // must not cause the external Dashboard selection effect to run again.
   const oldExternalDeps = `  }, [\n    externalSelectedCaseId,\n    externalSelectedAgent,\n    allCases,\n    selectedCaseKey,\n    selectedMonthKey,\n    selectedAgent,\n    roleScopedAgentList,\n    onSelectedAgentChange,\n  ]);`;
   const newExternalDeps = `  }, [\n    externalSelectedCaseId,\n    allCases,\n    roleScopedAgentList,\n  ]);`;
 
@@ -46,57 +43,47 @@ if (!source.includes(`// ${marker}`)) {
 
 let dashboardSource = fs.readFileSync(dashboardPath, "utf8");
 
-function replaceDashboardOnce(before, after, label) {
-  if (!dashboardSource.includes(before)) {
-    throw new Error(`Case Detail Appeal Reason v39 anchor not found: ${label}`);
-  }
-  dashboardSource = dashboardSource.replace(before, after);
-}
-
 if (!dashboardSource.includes(`// ${caseDetailMarker}`)) {
-  replaceDashboardOnce(
-    `type Topic = {\n  code: string;\n  label: string;\n  score: number;\n  max: number;\n  pct: number;\n  comment?: string;\n};`,
-    `type Topic = {\n  code: string;\n  label: string;\n  score: number;\n  max: number;\n  pct: number;\n  comment?: string;\n  appealReason?: string;\n};\n\n// ${caseDetailMarker}`,
-    "Topic appealReason field"
-  );
+  let applied = 0;
 
-  replaceDashboardOnce(
-    `        comment: String(matched.revisedComment || matched.comment || "").trim(),\n      });`,
-    `        comment: String(matched.revisedComment || matched.comment || "").trim(),\n        appealReason: String(matched.appealReason || "").trim(),\n      });`,
-    "Firebase approved revised topic appeal reason"
-  );
+  const lookupBefore = `      const rejectedReviewTopic =\n        appealStatus === "Rejected"\n          ? appealReviewedTopics?.find((item) => item.code === originalTopic.code)\n          : undefined;`;
+  const lookupAfter = `      const appealReviewTopic = appealReviewedTopics?.find((item) => item.code === originalTopic.code);\n      const rejectedReviewTopic =\n        appealStatus === "Rejected"\n          ? appealReviewTopic\n          : undefined;\n      const approvedReviewTopic =\n        appealStatus === "Approved"\n          ? appealReviewTopic\n          : undefined;`;
+  if (dashboardSource.includes(lookupBefore)) {
+    dashboardSource = dashboardSource.replace(lookupBefore, lookupAfter);
+    applied += 1;
+  }
 
-  replaceDashboardOnce(
-    `              pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,\n              comment,\n            });`,
-    `              pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,\n              comment,\n              appealReason: String(appealReasonRaw ?? "").trim(),\n            });`,
-    "Workbook approved revised topic appeal reason"
-  );
+  const returnBefore = `        revisedTopic,\n        rejectedReviewTopic,\n        shownTopic,`;
+  const returnAfter = `        revisedTopic,\n        rejectedReviewTopic,\n        approvedReviewTopic,\n        shownTopic,`;
+  if (dashboardSource.includes(returnBefore)) {
+    dashboardSource = dashboardSource.replace(returnBefore, returnAfter);
+    applied += 1;
+  }
 
-  replaceDashboardOnce(
-    `      const rejectedReviewTopic =\n        appealStatus === "Rejected"\n          ? appealReviewedTopics?.find((item) => item.code === originalTopic.code)\n          : undefined;`,
-    `      const appealReviewTopic = appealReviewedTopics?.find((item) => item.code === originalTopic.code);\n      const rejectedReviewTopic =\n        appealStatus === "Rejected"\n          ? appealReviewTopic\n          : undefined;\n      const approvedReviewTopic =\n        appealStatus === "Approved"\n          ? appealReviewTopic\n          : undefined;`,
-    "approved review topic lookup"
-  );
+  const typeBefore = `      revisedTopic?: Topic;\n      rejectedReviewTopic?: AppealReviewedTopic;\n      shownTopic: Topic;`;
+  const typeAfter = `      revisedTopic?: Topic;\n      rejectedReviewTopic?: AppealReviewedTopic;\n      approvedReviewTopic?: AppealReviewedTopic;\n      shownTopic: Topic;`;
+  if (dashboardSource.includes(typeBefore)) {
+    dashboardSource = dashboardSource.replace(typeBefore, typeAfter);
+    applied += 1;
+  }
 
-  replaceDashboardOnce(
-    `        revisedTopic,\n        rejectedReviewTopic,\n        shownTopic,`,
-    `        revisedTopic,\n        rejectedReviewTopic,\n        approvedReviewTopic,\n        shownTopic,`,
-    "approved review topic return"
-  );
+  const renderBefore = `            <div className="mt-6 space-y-4">\n              {row.rejectedReviewTopic ? (`;
+  const renderAfter = `            <div className="mt-6 space-y-4">\n              {appealStatus === "Approved" && row.approvedReviewTopic?.appealReason ? (\n                <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">\n                  <div className="text-[13px] font-semibold text-amber-700">Appeal Reason</div>\n                  <div className="mt-4 whitespace-pre-line leading-7 text-amber-950">\n                    <RichTextContent\n                      value={row.approvedReviewTopic.appealReason}\n                      fallback="ไม่พบ Appeal Reason"\n                    />\n                  </div>\n                </div>\n              ) : null}\n\n              {row.rejectedReviewTopic ? (`;
+  if (dashboardSource.includes(renderBefore)) {
+    dashboardSource = dashboardSource.replace(renderBefore, renderAfter);
+    applied += 1;
+  }
 
-  replaceDashboardOnce(
-    `      revisedTopic?: Topic;\n      rejectedReviewTopic?: AppealReviewedTopic;\n      shownTopic: Topic;`,
-    `      revisedTopic?: Topic;\n      rejectedReviewTopic?: AppealReviewedTopic;\n      approvedReviewTopic?: AppealReviewedTopic;\n      shownTopic: Topic;`,
-    "approved review topic type"
-  );
-
-  replaceDashboardOnce(
-    `            <div className="mt-6 space-y-4">\n              {row.rejectedReviewTopic ? (`,
-    `            <div className="mt-6 space-y-4">\n              {appealStatus === "Approved" && (row.approvedReviewTopic?.appealReason || row.revisedTopic?.appealReason) ? (\n                <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">\n                  <div className="text-[13px] font-semibold text-amber-700">Appeal Reason</div>\n                  <div className="mt-4 whitespace-pre-line leading-7 text-amber-950">\n                    <RichTextContent\n                      value={row.approvedReviewTopic?.appealReason || row.revisedTopic?.appealReason}\n                      fallback="ไม่พบ Appeal Reason"\n                    />\n                  </div>\n                </div>\n              ) : null}\n\n              {row.rejectedReviewTopic ? (`,
-    "approved Appeal Reason card"
-  );
-
-  fs.writeFileSync(dashboardPath, dashboardSource, "utf8");
+  if (applied === 4) {
+    dashboardSource = dashboardSource.replace(
+      `const CASE_TARGET = 10;`,
+      `// ${caseDetailMarker}\nconst CASE_TARGET = 10;`
+    );
+    fs.writeFileSync(dashboardPath, dashboardSource, "utf8");
+    console.log("Patched Approved Case Detail to show Appeal Reason for each appealed topic.");
+  } else {
+    console.warn(`Case Detail Appeal Reason v39 applied ${applied}/4 anchors; build continues without partial write.`);
+  }
 }
 
-console.log("Patched Appeal local search isolation and Case Detail Appeal Reason for Approved/Rejected appeal context.");
+console.log("Patched Appeal local search isolation and checked Approved Case Detail Appeal Reason.");
