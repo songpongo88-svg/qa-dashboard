@@ -104,4 +104,5 @@ function patchPdfTopicTable() {
 
 patchAppealCaseStatus();
 patchPdfTopicTable();
-console.log("Appeal PDF topic table v42 patch completed.");
+await import("./patch-appeal-pdf-review-detail-v43.mjs");
+console.log("Appeal PDF topic table v42 patch completed with review-detail v43.");
