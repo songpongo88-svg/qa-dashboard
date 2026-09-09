@@ -1,0 +1,92 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const appealPath = path.join(root, "src", "AppealMockup.tsx");
+const pdfPath = path.join(root, "src", "caseDetailOfficialPdf.ts");
+const marker = "appeal-pdf-final-fix-v48";
+
+function patchAuditTimestampSource() {
+  let source = fs.readFileSync(appealPath, "utf8");
+  if (source.includes(`// ${marker}-audit-source`)) return;
+
+  const before = `            const auditTimestamp = formatDateTimeOrRaw(\n              request.auditTimestamp ||\n              (rawRow\n                ? getFirstNonEmptyValue(rawHelper, rawRow, [\n                    "Audit Timestamp",\n                    "Audit Date & Time",\n                    "Audit DateTime",\n                    "Audit Datetime",\n                    "Submitted At",\n                    "Created Date & Time",\n                  ])\n                : null) ||\n              auditRaw\n            );`;
+
+  const after = `            // ${marker}-audit-source\n            const auditTimestampSource =\n              request.auditTimestamp ||\n              (rawRow\n                ? getFirstNonEmptyValue(rawHelper, rawRow, [\n                    "Audit Timestamp",\n                    "Audit Date & Time",\n                    "Audit DateTime",\n                    "Audit Datetime",\n                    "Submitted At",\n                    "Created Date & Time",\n                  ])\n                : null) ||\n              auditRaw;\n            const auditTimestamp = (() => {\n              const rawText = String(auditTimestampSource ?? "").trim();\n              if (/^\\d{1,2}\\/\\d{1,2}\\/\\d{4}\\s+\\d{1,2}:\\d{2}:\\d{2}$/.test(rawText)) {\n                return rawText;\n              }\n              const parsed = parseExcelDate(auditTimestampSource);\n              if (parsed) {\n                const pad = (value) => String(value).padStart(2, "0");\n                return pad(parsed.getDate()) + "/" +\n                  pad(parsed.getMonth() + 1) + "/" +\n                  parsed.getFullYear() + " " +\n                  pad(parsed.getHours()) + ":" +\n                  pad(parsed.getMinutes()) + ":" +\n                  pad(parsed.getSeconds());\n              }\n              return formatDateTimeOrRaw(auditTimestampSource);\n            })();`;
+
+  if (source.includes(before)) {
+    source = source.replace(before, after);
+  } else {
+    console.warn("Appeal PDF v48: Firebase Audit Timestamp anchor not found; existing source kept.");
+  }
+
+  fs.writeFileSync(appealPath, source, "utf8");
+}
+
+function disableOldInformation(source) {
+  const oldMarker = `// appeal-nonappealed-information-v44-render`;
+  const markerIndex = source.indexOf(oldMarker);
+  if (markerIndex < 0) return source;
+
+  const condition = `  if (includeAppeal) {`;
+  const conditionIndex = source.indexOf(condition, markerIndex);
+  if (conditionIndex < 0) return source;
+
+  return source.slice(0, conditionIndex) +
+    `  if (false && includeAppeal) {` +
+    source.slice(conditionIndex + condition.length);
+}
+
+function patchAuditBlock(source) {
+  if (source.includes(`// ${marker}-audit-box`)) return source;
+
+  const startToken = `    // appeal-pdf-final-v47-audit-box`;
+  const start = source.indexOf(startToken);
+  if (start < 0) {
+    console.warn("Appeal PDF v48: v47 Audit Date block not found.");
+    return source;
+  }
+
+  const endToken = `    y += appealAuditRowH;`;
+  const endStart = source.indexOf(endToken, start);
+  if (endStart < 0) {
+    console.warn("Appeal PDF v48: Audit Date block end not found.");
+    return source;
+  }
+  const end = endStart + endToken.length;
+
+  const replacement = `    // ${marker}-audit-box\n    // Audit Date and Updated Date stay inside the same Audit Date label/value block.\n    const appealUpdatedDateText = safeText(\n      caseItem.appealUpdatedDate || caseItem.appealResultDateTime || "-",\n      "-"\n    );\n    const appealAuditDateText = safeText(appealAuditText, "-");\n    const appealAuditRowH = 14.5;\n    const appealAuditHalfH = appealAuditRowH / 2;\n\n    // One purple label cell containing both labels. Updated Date is forced onto one line.\n    rect(xOf(0), y, wOf(0), appealAuditRowH, PURPLE);\n    setFont("bold");\n    doc.setTextColor(WHITE[0], WHITE[1], WHITE[2]);\n    doc.setFontSize(5.4);\n    doc.text("Audit Date", xOf(0) + wOf(0) / 2, y + 4.8, { align: "center" });\n    doc.setFontSize(4.7);\n    doc.text("Updated Date", xOf(0) + wOf(0) / 2, y + 11.0, { align: "center" });\n\n    // One value cell containing the corresponding two timestamps.\n    rect(xOf(1), y, wOf(1), appealAuditRowH, LIGHT_PURPLE);\n    writeText(appealAuditDateText, xOf(1), y, wOf(1), appealAuditHalfH, {\n      bold: true,\n      size: 5.6,\n      align: "center",\n      valign: "middle",\n      maxLines: 1,\n    });\n    writeText(appealUpdatedDateText, xOf(1), y + appealAuditHalfH, wOf(1), appealAuditHalfH, {\n      bold: true,\n      size: 5.6,\n      align: "center",\n      valign: "middle",\n      maxLines: 1,\n    });\n\n    label(2, y, 1, appealAuditRowH, "Case Date");\n    value(3, y, 1, appealAuditRowH, appealCaseDateText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.2 });\n    label(4, y, 1, appealAuditRowH, "Final Score");\n    value(5, y, 1, appealAuditRowH, reportScore.toFixed(2), LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 8.0, color: appealKpiPassed ? [5, 150, 105] : [220, 38, 38] });\n    label(6, y, 1, appealAuditRowH, "Case Grade");\n    value(7, y, 1, appealAuditRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 8.0, color: appealKpiPassed ? [5, 150, 105] : [220, 38, 38] });\n    y += appealAuditRowH;`;
+
+  return source.slice(0, start) + replacement + source.slice(end);
+}
+
+function patchGuaranteedInformation(source) {
+  if (source.includes(`// ${marker}-information`)) return source;
+
+  source = disableOldInformation(source);
+
+  let insertionIndex = source.lastIndexOf(`  if (!suppressOutput) addOfficialPdfPageNumbers(doc);`);
+  if (insertionIndex < 0) {
+    insertionIndex = source.lastIndexOf(`\n  return {`);
+  }
+  if (insertionIndex < 0) {
+    console.warn("Appeal PDF v48: final PDF anchor not found; Information skipped.");
+    return source;
+  }
+
+  const block = `  // ${marker}-information\n  if (includeAppeal) {\n    const informationMonthKeyV48 = String(caseItem.monthKey || "");\n    const informationMasterV48 = informationMonthKeyV48 >= "2026-06"\n      ? [\n          { code: "1", th: "การปฏิบัติตามกระบวนการและนโยบาย", en: "Process & Policy Compliance" },\n          { code: "2", th: "คุณภาพคำตอบและการวิเคราะห์ปัญหา", en: "Answer Quality & Problem Analysis" },\n          { code: "3", th: "การจัดการเคสและการติดตามผล", en: "Case Handling & Follow-up" },\n          { code: "4", th: "ทักษะการสื่อสาร", en: "Communication Skills" },\n        ]\n      : informationMonthKeyV48 >= "2026-04"\n        ? [\n            { code: "1.1", th: "มาตรฐานการทักทายและปิดการสนทนา", en: "Greeting & Closing Standard" },\n            { code: "1.2", th: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", en: "PDPA & Policy Compliance" },\n            { code: "1.3", th: "การปฏิบัติตามกระบวนการและ SLA", en: "Process & SLA Compliance" },\n            { code: "2.1", th: "ความถูกต้องของคำตอบ", en: "Answer Accuracy" },\n            { code: "2.2", th: "ความครบถ้วนของคำตอบ", en: "Answer Completeness" },\n            { code: "2.3", th: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", en: "Clear Steps & Official Sources" },\n            { code: "3.1", th: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", en: "Problem Analysis & Resolution" },\n            { code: "3.2", th: "Ownership และการแจ้ง Next Step", en: "Ownership & Next Step" },\n            { code: "4.1", th: "โครงสร้างข้อความและความอ่านง่าย", en: "Message Structure & Readability" },\n            { code: "4.2", th: "ความกระชับและความถูกต้องของภาษา", en: "Conciseness & Language Accuracy" },\n            { code: "4.3", th: "น้ำเสียงและความเหมาะสมตามสถานการณ์", en: "Tone & Context Appropriateness" },\n          ]\n        : (caseItem.topics || [])\n            .filter((topic: any) => num(topic.max) > 0)\n            .map((topic: any) => ({\n              code: String(topic.code || "").trim(),\n              th: safeText(topic.label),\n              en: "",\n            }));\n\n    const informationTopicsV48 = informationMasterV48.filter((topic: any) =>\n      topic.code && !revisedCodes.has(String(topic.code).trim())\n    );\n\n    if (informationTopicsV48.length) {\n      addPageIfNeeded(18);\n      y += 4;\n      setWidths(topWidths);\n      purpleRow(y, 5, "Information");\n      y += 7;\n\n      informationTopicsV48.forEach((topic: any) => {\n        const topicName = topic.en ? topic.th + " (" + topic.en + ")" : topic.th;\n        const infoText = "Topic " + topic.code + " " + topicName + " — ไม่อุทธรณ์หัวข้อนี้";\n        const infoH = Math.max(6.8, Math.min(13, measureTextHeight(infoText, fullW, 6.4, 0.42, 3.6)));\n\n        if (y + infoH > bottom) {\n          doc.addPage();\n          y = top;\n          setWidths(topWidths);\n          purpleRow(y, 5, "Information");\n          y += 7;\n        }\n\n        // Plain red text only: no cell, no border, no table.\n        writeText(infoText, left, y, fullW, infoH, {\n          size: 6.4,\n          color: [220, 38, 38],\n          valign: "middle",\n          maxLines: 3,\n          leading: 0.42,\n        });\n        y += infoH + 0.8;\n      });\n    }\n  }\n\n`;
+
+  return source.slice(0, insertionIndex) + block + source.slice(insertionIndex);
+}
+
+function patchPdfRenderer() {
+  let source = fs.readFileSync(pdfPath, "utf8");
+  source = patchAuditBlock(source);
+  source = patchGuaranteedInformation(source);
+  fs.writeFileSync(pdfPath, source, "utf8");
+}
+
+patchAuditTimestampSource();
+patchPdfRenderer();
+console.log("Appeal PDF v48 applied: combined Audit/Updated Date block, guaranteed red text-only Information, and Audit seconds preserved.");
