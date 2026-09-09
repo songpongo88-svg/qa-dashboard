@@ -9,7 +9,6 @@ const dashboardPath = path.join(root, "src", "DashboardMockup.tsx");
 const summaryPath = path.join(root, "src", "SummaryMockup.tsx");
 const marker = "bulk-main-pdf-appeal-parity-v28";
 const weeklyCaseDateMarker = "weekly-case-date-v29";
-const weeklyMonthBoundaryMarker = "weekly-month-boundary-v30";
 
 function replaceOnce(source, before, after, label) {
   if (!source.includes(before)) {
@@ -108,58 +107,7 @@ function patchWeeklyCaseDateLogic() {
   patchWeeklyCaseDateSource(summaryPath, "SummaryMockup.tsx", 1);
 }
 
-function patchMonthClippedWeeklyRanges(filePath, fileLabel) {
-  let source = fs.readFileSync(filePath, "utf8");
-  if (source.includes(`// ${weeklyMonthBoundaryMarker}`)) return;
-
-  const functionStart = source.indexOf("function getWeekLabelFromAuditDate(date: Date | null) {");
-  if (functionStart < 0) {
-    throw new Error(`Weekly month-boundary v30 helper start not found in ${fileLabel}.`);
-  }
-
-  const functionEnd = source.indexOf("\n}", functionStart);
-  if (functionEnd < 0) {
-    throw new Error(`Weekly month-boundary v30 helper end not found in ${fileLabel}.`);
-  }
-
-  const replacement = [
-    `// ${weeklyMonthBoundaryMarker}`,
-    "function getWeekLabelFromAuditDate(date: Date | null) {",
-    '  if (!date) return "-";',
-    "",
-    "  const caseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());",
-    "  const start = new Date(caseDate);",
-    "  const day = start.getDay();",
-    "  const mondayOffset = day === 0 ? -6 : 1 - day;",
-    "  start.setDate(start.getDate() + mondayOffset);",
-    "",
-    "  const end = new Date(start);",
-    "  end.setDate(start.getDate() + 6);",
-    "",
-    "  // Keep weekly reporting inside the Case Date reporting month.",
-    "  // Example: September Week 1 = 01/09-06/09; 31/08 stays in August.",
-    "  const monthStart = new Date(caseDate.getFullYear(), caseDate.getMonth(), 1);",
-    "  const monthEnd = new Date(caseDate.getFullYear(), caseDate.getMonth() + 1, 0);",
-    "  if (start.getTime() < monthStart.getTime()) start.setTime(monthStart.getTime());",
-    "  if (end.getTime() > monthEnd.getTime()) end.setTime(monthEnd.getTime());",
-    "",
-    "  const format = (item: Date) =>",
-    '    [String(item.getDate()).padStart(2, "0"), String(item.getMonth() + 1).padStart(2, "0"), item.getFullYear()].join("/");',
-    '  return format(start) + " - " + format(end);',
-    "}",
-  ].join("\n");
-
-  source = source.slice(0, functionStart) + replacement + source.slice(functionEnd + 2);
-  fs.writeFileSync(filePath, source, "utf8");
-}
-
-function patchWeeklyMonthBoundaries() {
-  patchMonthClippedWeeklyRanges(dashboardPath, "DashboardMockup.tsx");
-  patchMonthClippedWeeklyRanges(summaryPath, "SummaryMockup.tsx");
-}
-
 patchAppealAwareRenderer();
 patchBulkRenderer();
 patchWeeklyCaseDateLogic();
-patchWeeklyMonthBoundaries();
-console.log("Patched Weekly reporting to use Case Date and keep each week inside its reporting month.");
+console.log("Patched Weekly reporting to use Case Date while keeping every Period as a full Monday-Sunday week.");
