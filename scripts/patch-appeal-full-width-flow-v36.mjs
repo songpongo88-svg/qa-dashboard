@@ -44,14 +44,32 @@ if (!source.includes(`// ${marker}`)) {
     "two-column Appeal Cases workspace"
   );
 
-  // Keep the right side as Appeal Case Detail. View only selects the appeal row;
-  // Open Case Detail remains the separate action for the full Dashboard case record.
   source = source.replace(
     `                <PanelHeader\n                  title="Appeal Result"\n                  subtitle="สรุปผลอุทธรณ์ของเคสที่เลือก — รายละเอียดเคสจริงเปิดผ่าน Open Case Detail"\n                />`,
-    `                <PanelHeader\n                  title="Appeal Case Detail"\n                  subtitle="Review the selected appeal result. Open Case Detail for the full case record."\n                />`
+    `                <PanelHeader\n                  title="Appeal Case Detail"\n                  subtitle="Review the selected appeal result. View Full Record opens the same Case Detail used by the Dashboard."\n                />`
   );
 
-  // Make the selected row visually obvious and keep the case table compact like Dashboard.
+  source = replaceOnce(
+    source,
+    `                      <button\n                        type="button"\n                        onClick={() => onOpenCaseDetail?.(selectedCase.caseId, selectedCase.agent)}\n                        className="inline-flex shrink-0 items-center justify-center rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-xs font-extrabold text-sky-700 shadow-sm transition hover:bg-sky-50"\n                      >\n                        Open Case Detail\n                      </button>`,
+    `                      <button\n                        type="button"\n                        onClick={() => onOpenCaseDetail?.(selectedCase.caseId, selectedCase.agent)}\n                        className="inline-flex shrink-0 items-center justify-center rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-xs font-extrabold text-sky-700 shadow-sm transition hover:bg-sky-50"\n                      >\n                        View Full Record\n                      </button>`,
+    "top View Full Record action"
+  );
+
+  source = replaceOnce(
+    source,
+    `                    <button\n                      type="button"\n                      onClick={() => onOpenCaseDetail?.(selectedCase.caseId, selectedCase.agent)}\n                      className="inline-flex rounded-xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-xs font-extrabold text-sky-700 transition hover:bg-sky-100"\n                    >\n                      Open Case Detail\n                    </button>\n`,
+    ``,
+    "remove duplicate Appeal Information case button"
+  );
+
+  source = replaceOnce(
+    source,
+    `                      <AppealedTopicsCorporateTable\n                        topics={selectedRevision?.appealedTopics ?? selectedCase.appealedTopics}\n                        decision={selectedRevision?.appealDecision ?? selectedCase.appealDecision}\n                      />`,
+    `                      <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">\n                        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">\n                          <div>\n                            <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Appealed Topics</div>\n                            <div className="mt-0.5 text-xs font-semibold text-slate-600">Select a topic to open the full Case Detail</div>\n                          </div>\n                          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-extrabold text-slate-600">\n                            {(selectedRevision?.appealedTopics ?? selectedCase.appealedTopics).length} topic(s)\n                          </span>\n                        </div>\n\n                        <div className="divide-y divide-slate-100">\n                          {(selectedRevision?.appealedTopics ?? selectedCase.appealedTopics).length ? (\n                            (selectedRevision?.appealedTopics ?? selectedCase.appealedTopics).map((topic, index) => (\n                              <button\n                                type="button"\n                                key={\`${selectedCase.caseId}-appealed-topic-${topic.code}-${index}\`}\n                                onClick={() => onOpenCaseDetail?.(selectedCase.caseId, selectedCase.agent)}\n                                className="group flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-sky-50"\n                              >\n                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-50 text-xs font-extrabold text-sky-700 ring-1 ring-inset ring-sky-100">\n                                  {index + 1}\n                                </span>\n                                <div className="min-w-0 flex-1">\n                                  <div className="truncate text-sm font-extrabold text-slate-900">{topic.label}</div>\n                                  <div className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Topic {topic.code}</div>\n                                </div>\n                                <span className="text-xl font-bold text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-sky-600">›</span>\n                              </button>\n                            ))\n                          ) : (\n                            <div className="px-4 py-6 text-center text-xs font-semibold text-slate-500">No appealed topics</div>\n                          )}\n                        </div>\n                      </div>`,
+    "compact Appealed Topics that open Case Detail"
+  );
+
   source = source.replace(
     `              <div className="max-h-[720px] overflow-auto">`,
     `              <div className="max-h-[650px] overflow-auto">`
@@ -64,4 +82,4 @@ if (!source.includes(`// ${marker}`)) {
   fs.writeFileSync(appealPath, source, "utf8");
 }
 
-console.log("Patched Appeal Cases to match the approved two-column mockup: full case table on the left, selected Appeal Case Detail on the right, with Open Case Detail kept separate.");
+console.log("Patched Appeal Cases to match the approved mockup: table left, selected Appeal Case Detail right, compact Appealed Topics, and topic clicks open the full Dashboard Case Detail.");
