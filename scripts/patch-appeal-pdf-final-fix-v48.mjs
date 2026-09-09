@@ -8,6 +8,7 @@ const pdfPath = path.join(root, "src", "caseDetailOfficialPdf.ts");
 const marker = "appeal-pdf-final-fix-v48";
 const compactMarker = "appeal-pdf-date-stack-v49";
 const scoreColumnMarker = "appeal-pdf-split-score-columns-v50";
+const resultSecondsMarker = "appeal-result-time-seconds-v51";
 
 function patchAuditTimestampSource() {
   let source = fs.readFileSync(appealPath, "utf8");
@@ -43,6 +44,52 @@ function patchAppealDateTimeSeconds() {
 
   if (!source.includes(before)) {
     throw new Error("Appeal PDF v49: date-time formatter anchor not found.");
+  }
+
+  source = source.replace(before, after);
+  fs.writeFileSync(appealPath, source, "utf8");
+}
+
+function patchAppealResultTimeSeconds() {
+  let source = fs.readFileSync(appealPath, "utf8");
+  if (source.includes(`// ${resultSecondsMarker}`)) return;
+
+  const before = `function formatDateTimeOrRaw(value: any): string {
+  if (value === null || value === undefined || value === "") return "-";
+  const formatted = stripInvisibleChars(formatDateTime(value));
+  const raw = stripInvisibleChars(String(value ?? "")).trim();
+  return formatted && formatted.trim() !== "" ? formatted : raw || "-";
+}`;
+
+  const after = `function formatDateTimeOrRaw(value: any): string {
+  if (value === null || value === undefined || value === "") return "-";
+  // ${resultSecondsMarker}
+  // Clean imported text before parsing so minute-only values do not fall back to raw text.
+  const raw = stripInvisibleChars(String(value ?? ""))
+    .replace(/\\u00A0/g, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
+  if (!raw) return "-";
+
+  const formatted = stripInvisibleChars(formatDateTime(raw)).trim();
+  const normalized = formatted || raw;
+  const minuteOrSecondMatch = normalized.match(
+    /^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})\\s+(\\d{1,2}):(\\d{2})(?::(\\d{2}))?$/
+  );
+
+  if (!minuteOrSecondMatch) return normalized;
+
+  const [, day, month, year, hour, minute, second = "00"] = minuteOrSecondMatch;
+  return day.padStart(2, "0") + "/" +
+    month.padStart(2, "0") + "/" +
+    year + " " +
+    hour.padStart(2, "0") + ":" +
+    minute + ":" +
+    second;
+}`;
+
+  if (!source.includes(before)) {
+    throw new Error("Appeal v51: date-time raw fallback anchor not found.");
   }
 
   source = source.replace(before, after);
@@ -193,5 +240,6 @@ function patchPdfRenderer() {
 
 patchAuditTimestampSource();
 patchAppealDateTimeSeconds();
+patchAppealResultTimeSeconds();
 patchPdfRenderer();
-console.log("Appeal PDF v50 applied: separate Original Score and New Score columns in Detailed Topic Scores.");
+console.log("Appeal v51 applied: Result Date timestamps always include seconds; Appeal PDF split-score layout retained.");
