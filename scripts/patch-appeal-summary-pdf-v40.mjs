@@ -3,104 +3,39 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const appealPath = path.join(root, "src", "AppealMockup.tsx");
-const marker = "appeal-summary-pdf-v40";
+const pdfPath = path.join(root, "src", "caseDetailOfficialPdf.ts");
+const marker = "appeal-pdf-header-status-parity-v41";
 
-let source = fs.readFileSync(appealPath, "utf8");
-
-if (!source.includes(`// ${marker}`)) {
-  const oldImport = `import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";`;
-  const newImport = `import { generateAppealSummaryPdf } from "./appealSummaryPdf";\n// ${marker}`;
-
-  if (!source.includes(oldImport)) {
-    throw new Error("Appeal Summary PDF v40 import anchor not found.");
+function replaceOnce(source, before, after, label) {
+  if (!source.includes(before)) {
+    throw new Error(`Appeal PDF parity anchor not found: ${label}`);
   }
-  source = source.replace(oldImport, newImport);
-
-  const startToken = `  const handleGeneratePdf = async () => {`;
-  const start = source.indexOf(startToken);
-  if (start < 0) {
-    throw new Error("Appeal Summary PDF v40 handleGeneratePdf start not found.");
-  }
-
-  const errorAnchor = `console.error("Generate Appeal PDF failed", error);`;
-  const errorIndex = source.indexOf(errorAnchor, start);
-  if (errorIndex < 0) {
-    throw new Error("Appeal Summary PDF v40 error anchor not found.");
-  }
-
-  const endToken = `\n  };`;
-  const endStart = source.indexOf(endToken, errorIndex);
-  if (endStart < 0) {
-    throw new Error("Appeal Summary PDF v40 handleGeneratePdf end not found.");
-  }
-  const end = endStart + endToken.length;
-
-  const newBlock = `  const handleGeneratePdf = async () => {
-    if (!selectedCase || !selectedRevision) {
-      setPdfStatus("error");
-      setPdfMessage("กรุณาเลือกเคสก่อนสร้าง Appeal PDF");
-      return;
-    }
-
-    setPdfStatus("generating");
-    setPdfMessage("กำลังสร้าง Appeal PDF...");
-
-    try {
-      const originalGrade = scoreToGrade(selectedRevision.previousScore, selectedCase.monthKey);
-      const finalGrade = scoreToGrade(selectedRevision.finalScore, selectedCase.monthKey);
-
-      const appealedTopics = selectedRevision.appealedTopics.map((topic) => ({
-        code: String(topic.code || "").trim(),
-        label: String(topic.label || "").trim(),
-        max: Number(topic.max || 0),
-        originalScore: Number(topic.originalScore ?? topic.score ?? 0),
-        finalScore: Number(topic.score ?? topic.originalScore ?? 0),
-        originalComment: String(topic.originalComment || "").trim(),
-        appealReason: String(topic.appealReason || "").trim(),
-        reviewComment: String(
-          selectedRevision.appealDecision === "Rejected"
-            ? topic.rejectReason || topic.comment || ""
-            : topic.comment || ""
-        ).trim(),
-      }));
-
-      const generated = await generateAppealSummaryPdf({
-        caseId: selectedCase.caseId,
-        agent: selectedCase.agent,
-        monthLabel: formatMonthKeyLabel(selectedCase.monthKey),
-        caseDate: selectedCase.auditDate,
-        inquiry: selectedCase.inquiry,
-        appealSubmitDateTime: selectedRevision.appealSubmitDateTime,
-        appealResultDateTime: selectedRevision.appealResultDateTime,
-        appealDecision: selectedRevision.appealDecision,
-        appealRound: selectedRevision.appealRound,
-        reviewSummary: selectedRevision.appealReviewSummary,
-        previousScore: selectedRevision.previousScore,
-        finalScore: selectedRevision.finalScore,
-        originalGrade,
-        finalGrade,
-        appealedTopics,
-      });
-
-      downloadGeneratedAppealPdf(generated.blob, generated.fileName);
-      onGeneratePdf?.(selectedCase.caseId, selectedCase.agent, "appeal");
-
-      setPdfStatus("success");
-      setPdfMessage(\`สร้าง \${generated.fileName} เรียบร้อยแล้ว\`);
-    } catch (error) {
-      console.error("Generate Appeal PDF failed", error);
-      setPdfStatus("error");
-      setPdfMessage(
-        error instanceof Error
-          ? \`สร้าง Appeal PDF ไม่สำเร็จ: \${error.message}\`
-          : "สร้าง Appeal PDF ไม่สำเร็จ กรุณาลองใหม่"
-      );
-    }
-  };`;
-
-  source = source.slice(0, start) + newBlock + source.slice(end);
-  fs.writeFileSync(appealPath, source, "utf8");
+  return source.replace(before, after);
 }
 
-console.log("Patched Generate Appeal PDF to create a dedicated compact Appeal Summary containing only appealed topics and appeal-specific review details.");
+let source = fs.readFileSync(pdfPath, "utf8");
+
+if (!source.includes(`// ${marker}`)) {
+  source = replaceOnce(
+    source,
+    `  const drawAppealTop = () => {\n    setWidths(topWidths);`,
+    `  // ${marker}\n  const drawAppealTop = () => {\n    setWidths(topWidths);`,
+    "marker"
+  );
+
+  const oldFirstRows = `    const appealSelectionRowH = autoRowHeight(\n      [\n        { value: caseItem.agent, w: wOf(1, 2), size: 6.8, padY: 4 },\n        { value: caseItem.monthLabel || caseItem.monthKey, w: wOf(4), size: 6.8, padY: 4 },\n        { value: caseItem.appealVersion || "REV1", w: wOf(6, 2), size: 7.2, padY: 4 },\n      ],\n      9,\n      13\n    );\n    label(0, y, 1, appealSelectionRowH, "Agent");\n    value(1, y, 2, appealSelectionRowH, caseItem.agent, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.8 });\n    label(3, y, 1, appealSelectionRowH, "Month");\n    value(4, y, 1, appealSelectionRowH, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.8 });\n    label(5, y, 1, appealSelectionRowH, "Appeal Ver.");\n    value(6, y, 2, appealSelectionRowH, caseItem.appealVersion || "REV1", LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 7.2 });\n    y += appealSelectionRowH;\n\n    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const appealSecondRowH = autoRowHeight(\n      [\n        { value: appealAuditText, w: wOf(1), size: 6.4, padY: 4 },\n        { value: caseItem.caseId, w: wOf(3), size: 7.2, padY: 4 },\n        { value: reportScore.toFixed(2), w: wOf(5), size: 8.4, padY: 4 },\n        { value: grade, w: wOf(7), size: 8.4, padY: 4 },\n      ],\n      10,\n      15\n    );\n    label(0, y, 1, appealSecondRowH, "Audit Date");\n    value(1, y, 1, appealSecondRowH, appealAuditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });\n    label(2, y, 1, appealSecondRowH, "Case ID");\n    value(3, y, 1, appealSecondRowH, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 7.2 });\n    label(4, y, 1, appealSecondRowH, "Final Score");\n    value(5, y, 1, appealSecondRowH, reportScore.toFixed(2), LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.4, maxLines: 1 });\n    label(6, y, 1, appealSecondRowH, "Case Grade");\n    value(7, y, 1, appealSecondRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.4, maxLines: 1 });\n    y += appealSecondRowH;`;
+
+  const newFirstRows = `    // Keep the Appeal PDF header grid identical to Case Detail PDF.\n    const appealSelectionRowH = autoRowHeight(\n      [\n        { value: caseItem.agent, w: wOf(1, 2), size: 6.8, padY: 4 },\n        { value: caseItem.monthLabel || caseItem.monthKey, w: wOf(4), size: 6.8, padY: 4 },\n        { value: caseItem.caseId, w: wOf(6, 2), size: 7.4, padY: 4 },\n      ],\n      9,\n      12\n    );\n    label(0, y, 1, appealSelectionRowH, "Agent");\n    value(1, y, 2, appealSelectionRowH, caseItem.agent, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.8 });\n    label(3, y, 1, appealSelectionRowH, "Month");\n    value(4, y, 1, appealSelectionRowH, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 6.8 });\n    label(5, y, 1, appealSelectionRowH, "Case ID");\n    value(6, y, 2, appealSelectionRowH, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 7.4 });\n    y += appealSelectionRowH;\n\n    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const appealCaseDateText = caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp || "-";\n    const appealSecondRowH = autoRowHeight(\n      [\n        { value: appealAuditText, w: wOf(1), size: 6.4, padY: 4 },\n        { value: appealCaseDateText, w: wOf(3), size: 6.4, padY: 4 },\n        { value: reportScore.toFixed(2), w: wOf(5), size: 8.2, padY: 4 },\n        { value: grade, w: wOf(7), size: 8.2, padY: 4 },\n      ],\n      10,\n      14\n    );\n    label(0, y, 1, appealSecondRowH, "Audit Date");\n    value(1, y, 1, appealSecondRowH, appealAuditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });\n    label(2, y, 1, appealSecondRowH, "Case Date");\n    value(3, y, 1, appealSecondRowH, appealCaseDateText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });\n    label(4, y, 1, appealSecondRowH, "Final Score");\n    value(5, y, 1, appealSecondRowH, reportScore.toFixed(2), LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });\n    label(6, y, 1, appealSecondRowH, "Case Grade");\n    value(7, y, 1, appealSecondRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });\n    y += appealSecondRowH;`;
+
+  source = replaceOnce(source, oldFirstRows, newFirstRows, "Case Detail-aligned header rows");
+
+  const oldStatusRow = `    label(0, y, 1, 8, "Appeal Status");\n    value(1, y, 1, 8, caseItem.appealStatus || "Approved", LIGHT_PURPLE, { align: "center", maxLines: 1 });\n    label(2, y, 1, 8, "Comment Status");\n    value(3, y, 1, 8, caseItem.commentStatus || "Approved", LIGHT_PURPLE, { align: "center", maxLines: 1 });\n    label(4, y, 1, 8, "Review Type");\n    value(5, y, 3, 8, "Revised", LIGHT_PURPLE, { align: "center", maxLines: 1 });\n    y += 8;`;
+
+  const newStatusRow = `    label(0, y, 1, 8, "Appeal Status");\n    value(1, y, 1, 8, caseItem.appealStatus || "Approved", LIGHT_PURPLE, { align: "center", maxLines: 1 });\n    label(2, y, 1, 8, "Review Status");\n    value(3, y, 1, 8, caseItem.reviewStatus || "Revised", LIGHT_PURPLE, { align: "center", maxLines: 1 });\n    label(4, y, 1, 8, "Appeal Version");\n    value(5, y, 3, 8, caseItem.appealVersion || "REV1", LIGHT_PURPLE, { align: "center", maxLines: 1 });\n    y += 8;`;
+
+  source = replaceOnce(source, oldStatusRow, newStatusRow, "status wording");
+
+  fs.writeFileSync(pdfPath, source, "utf8");
+}
+
+console.log("Patched legacy Appeal PDF only: preserved the original purple report format, aligned the header grid with Case Detail PDF, and replaced Comment Status/Review Type with Appeal Status, Review Status, and Appeal Version.");
