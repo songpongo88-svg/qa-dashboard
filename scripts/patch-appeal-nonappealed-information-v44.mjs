@@ -22,8 +22,6 @@ function patchAppealPdfContext() {
 
   source = source.slice(0, generatedIndex) + contextBlock + source.slice(generatedIndex);
 
-  // Add an explicit property immediately before previousScore. If v43 already added an older
-  // nonAppealedTopics property, this later property intentionally overrides it.
   const previousScoreAnchor = `          previousScore: selectedRevision.previousScore,`;
   if (source.includes(previousScoreAnchor)) {
     source = source.replace(
@@ -41,8 +39,6 @@ function patchPdfInformationRenderer() {
   let source = fs.readFileSync(pdfPath, "utf8");
   if (source.includes(`// ${marker}-render`)) return;
 
-  // Disable the older conditional Information block from v42 so the explicit block below is
-  // the single source of truth and cannot duplicate rows.
   source = source.replace(
     `  if (includeAppeal && nonAppealedTopics.length) {`,
     `  if (false && includeAppeal && nonAppealedTopics.length) {`
@@ -64,4 +60,5 @@ function patchPdfInformationRenderer() {
 
 patchAppealPdfContext();
 patchPdfInformationRenderer();
+await import("./patch-appeal-information-updated-date-v45.mjs");
 console.log("Appeal PDF non-appealed Information now comes from the complete month topic master and is rendered explicitly after the appeal table.");
