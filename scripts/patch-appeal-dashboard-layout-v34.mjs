@@ -144,7 +144,7 @@ if (!source.includes(`// ${marker}`)) {
     '            </div>',
   ].join("\n");
 
-  source = source.slice(0, listStart) + tableBlock + "\n" + source.slice(listEnd);
+  source = source.slice(0, listStart) + tableBlock + "\n" + source.slice(listEnd + "            </div>\n".length);
 
   const resultStart = source.indexOf(`              <div className="overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_16px_40px_rgba(76,29,149,0.10)]">`);
   const resultEndMarker = `              <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.2fr)_360px]">`;
