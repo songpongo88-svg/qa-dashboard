@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const appealPath = path.join(root, "src", "AppealMockup.tsx");
 const pdfPath = path.join(root, "src", "caseDetailOfficialPdf.ts");
 const marker = "appeal-pdf-final-fix-v48";
+const compactMarker = "appeal-pdf-date-stack-v49";
 
 function patchAuditTimestampSource() {
   let source = fs.readFileSync(appealPath, "utf8");
@@ -21,6 +22,29 @@ function patchAuditTimestampSource() {
     console.warn("Appeal PDF v48: Firebase Audit Timestamp anchor not found; existing source kept.");
   }
 
+  fs.writeFileSync(appealPath, source, "utf8");
+}
+
+function patchAppealDateTimeSeconds() {
+  let source = fs.readFileSync(appealPath, "utf8");
+  if (source.includes(`// ${compactMarker}-seconds`)) return;
+
+  const before = [
+    '  const min = `${dt.getMinutes()}`.padStart(2, "0");',
+    '  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;',
+  ].join("\n");
+  const after = [
+    `  // ${compactMarker}-seconds`,
+    '  const min = `${dt.getMinutes()}`.padStart(2, "0");',
+    '  const sec = `${dt.getSeconds()}`.padStart(2, "0");',
+    '  return `${dd}/${mm}/${yyyy} ${hh}:${min}:${sec}`;',
+  ].join("\n");
+
+  if (!source.includes(before)) {
+    throw new Error("Appeal PDF v49: date-time formatter anchor not found.");
+  }
+
+  source = source.replace(before, after);
   fs.writeFileSync(appealPath, source, "utf8");
 }
 
@@ -61,6 +85,23 @@ function patchAuditBlock(source) {
   return source.slice(0, start) + replacement + source.slice(end);
 }
 
+function patchTightDateStack(source) {
+  if (source.includes(`// ${compactMarker}-audit-stack`)) return source;
+
+  const startToken = `    // ${marker}-audit-box`;
+  const start = source.indexOf(startToken);
+  const endToken = `    label(2, y, 1, appealAuditRowH, "Case Date");`;
+  const end = source.indexOf(endToken, start);
+
+  if (start < 0 || end < 0) {
+    throw new Error("Appeal PDF v49: combined Audit/Updated Date block not found.");
+  }
+
+  const replacement = `    // ${marker}-audit-box\n    // ${compactMarker}-audit-stack\n    // Render the two date rows as one tightly stacked, vertically centered group.\n    const appealUpdatedDateText = safeText(\n      caseItem.appealUpdatedDate || caseItem.appealResultDateTime || "-",\n      "-"\n    );\n    const appealAuditDateText = safeText(appealAuditText, "-");\n    const appealAuditRowH = 10.5;\n    const appealAuditLineOneY = y + 4.1;\n    const appealAuditLineTwoY = y + 6.7;\n\n    rect(xOf(0), y, wOf(0), appealAuditRowH, PURPLE);\n    setFont("bold");\n    doc.setTextColor(WHITE[0], WHITE[1], WHITE[2]);\n    doc.setFontSize(5.2);\n    doc.text("Audit Date", xOf(0) + wOf(0) / 2, appealAuditLineOneY, { align: "center" });\n    doc.setFontSize(4.7);\n    doc.text("Updated Date", xOf(0) + wOf(0) / 2, appealAuditLineTwoY, { align: "center" });\n\n    rect(xOf(1), y, wOf(1), appealAuditRowH, LIGHT_PURPLE);\n    setFont("bold");\n    doc.setTextColor(BLACK[0], BLACK[1], BLACK[2]);\n    doc.setFontSize(5.4);\n    doc.text(appealAuditDateText, xOf(1) + wOf(1) / 2, appealAuditLineOneY, { align: "center" });\n    doc.text(appealUpdatedDateText, xOf(1) + wOf(1) / 2, appealAuditLineTwoY, { align: "center" });\n\n`;
+
+  return source.slice(0, start) + replacement + source.slice(end);
+}
+
 function patchGuaranteedInformation(source) {
   if (source.includes(`// ${marker}-information`)) return source;
 
@@ -83,10 +124,12 @@ function patchGuaranteedInformation(source) {
 function patchPdfRenderer() {
   let source = fs.readFileSync(pdfPath, "utf8");
   source = patchAuditBlock(source);
+  source = patchTightDateStack(source);
   source = patchGuaranteedInformation(source);
   fs.writeFileSync(pdfPath, source, "utf8");
 }
 
 patchAuditTimestampSource();
+patchAppealDateTimeSeconds();
 patchPdfRenderer();
-console.log("Appeal PDF v48 applied: combined Audit/Updated Date block, guaranteed red text-only Information, and Audit seconds preserved.");
+console.log("Appeal PDF v49 applied: tightly stacked Audit/Updated Date rows and result timestamps with seconds.");
