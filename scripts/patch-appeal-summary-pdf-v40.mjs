@@ -69,4 +69,8 @@ if (!source.includes(`// ${marker}`)) {
   }
 }
 
-console.log("Appeal PDF keeps the legacy purple format; header rows now align with Case Detail and status fields use Appeal Status, Review Status, and Appeal Version.");
+// Run after the legacy parity patch so the final Appeal PDF Current Selection block
+// matches the equal four-column Case Detail grid without changing the rest of the report.
+await import("./patch-appeal-pdf-equal-grid-v42.mjs");
+
+console.log("Appeal PDF keeps the legacy purple format; Current Selection now uses the same equal-box grid as Case Detail.");
