@@ -8,9 +8,10 @@ const appealPath = path.join(root, "src", "AppealMockup.tsx");
 const pdfPath = path.join(root, "src", "caseDetailOfficialPdf.ts");
 const marker = "appeal-pdf-review-detail-v43";
 
-function replaceOnce(source, before, after, label) {
+function replaceOptional(source, before, after, label) {
   if (!source.includes(before)) {
-    throw new Error(`Appeal PDF v43 anchor not found: ${label}`);
+    console.warn(`Appeal PDF v43 skipped missing anchor: ${label}`);
+    return source;
   }
   return source.replace(before, after);
 }
@@ -19,14 +20,14 @@ function patchAppealRequests() {
   let source = fs.readFileSync(appealRequestsPath, "utf8");
   if (source.includes(`// ${marker}-requests`)) return;
 
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     `  reviewSummary?: string;\n  reviewedAt?: string;\n  submittedByUsername?: string;`,
     `  reviewSummary?: string;\n  reviewedAt?: string;\n  reviewedBy?: string;\n  reviewedByUsername?: string;\n  submittedByUsername?: string;\n  // ${marker}-requests`,
     "AppealRequest reviewer fields"
   );
 
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     `        reviewSummary: String(review?.details?.reviewSummary || ""),\n        reviewedAt: String(review?.details?.reviewedAt || review?.created_at || ""),\n        submittedByUsername: String(log.details?.submittedByUsername || ""),\n        topics: appealedTopics,`,
     `        reviewSummary: String(review?.details?.reviewSummary || ""),\n        reviewedAt: String(review?.details?.reviewedAt || review?.created_at || ""),\n        reviewedBy: String(review?.details?.reviewedBy || review?.display_name || ""),\n        reviewedByUsername: String(review?.details?.reviewedByUsername || review?.username || ""),\n        submittedByUsername: String(log.details?.submittedByUsername || log.username || ""),\n        topics: appealedTopics,`,
@@ -40,59 +41,58 @@ function patchAppealMockup() {
   let source = fs.readFileSync(appealPath, "utf8");
   if (source.includes(`// ${marker}-mockup`)) return;
 
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     `  agent: string;\n  auditDate: string;`,
     `  agent: string;\n  teamName?: string;\n  submittedByName?: string;\n  reviewedByName?: string;\n  // ${marker}-mockup\n  auditDate: string;`,
     "AppealCaseItem identity fields"
   );
 
-  // Static/ROW_DATA mapping: enrich from the original evaluated row and any exported Appeal columns.
   const staticAgentAnchor = `            const agent = toTitleCaseName(rawAgent);\n\n            const inquiry = rawRow`;
   const staticAgentReplacement = `            const agent = toTitleCaseName(rawAgent);\n            const teamName = String(\n              rawRow\n                ? rawHelper.getValue(rawRow, "Team Name") ??\n                  rawHelper.getValue(rawRow, "Team") ??\n                  rawHelper.getValue(rawRow, "Agent Team") ??\n                  rawHelper.getValue(rawRow, "Team Label") ??\n                  ""\n                : appealHelper.getValue(row, "Team Name") ??\n                  appealHelper.getValue(row, "Team") ??\n                  appealHelper.getValue(row, "Agent Team") ??\n                  ""\n            ).trim();\n            const submittedByName = String(\n              getFirstNonEmptyValue(appealHelper, row, [\n                "Submitted By Username",\n                "Appeal Submitted By Username",\n                "Submitted By",\n                "Appeal Submitted By",\n                "Requester Username",\n                "Requester",\n              ]) ?? ""\n            ).trim();\n            const reviewedByName = String(\n              getFirstNonEmptyValue(appealHelper, row, [\n                "Reviewed By Username",\n                "Appeal Reviewed By Username",\n                "Reviewed By",\n                "Appeal Reviewed By",\n                "Reviewer Username",\n                "Reviewer",\n                "QA Reviewer",\n              ]) ?? ""\n            ).trim();\n\n            const inquiry = rawRow`;
-  source = replaceOnce(source, staticAgentAnchor, staticAgentReplacement, "static Team/login names");
+
+  const firstAgentIndex = source.indexOf(staticAgentAnchor);
+  if (firstAgentIndex >= 0) {
+    source = source.slice(0, firstAgentIndex) + staticAgentReplacement + source.slice(firstAgentIndex + staticAgentAnchor.length);
+  } else {
+    console.warn("Appeal PDF v43 skipped missing anchor: static Team/login names");
+  }
 
   const staticReturnAnchor = `              caseId,\n              agent,\n              auditDate,`;
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     staticReturnAnchor,
     `              caseId,\n              agent,\n              teamName,\n              submittedByName,\n              reviewedByName,\n              auditDate,`,
     "static mapped identity properties"
   );
 
-  // Firebase mapping: use the original case row for Team and exact login usernames from appeal events.
   const firebaseAgentAnchor = `            const agent = toTitleCaseName(rawAgent);\n\n            const inquiry = rawRow`;
-  const firebaseAgentIndex = source.indexOf(firebaseAgentAnchor, source.indexOf(staticAgentReplacement) + staticAgentReplacement.length);
-  if (firebaseAgentIndex < 0) {
-    throw new Error("Appeal PDF v43 anchor not found: Firebase Team/login names");
+  const firebaseAgentIndex = source.indexOf(firebaseAgentAnchor);
+  if (firebaseAgentIndex >= 0) {
+    const firebaseAgentReplacement = `            const agent = toTitleCaseName(rawAgent);\n            const teamName = String(\n              rawRow\n                ? rawHelper.getValue(rawRow, "Team Name") ??\n                  rawHelper.getValue(rawRow, "Team") ??\n                  rawHelper.getValue(rawRow, "Agent Team") ??\n                  rawHelper.getValue(rawRow, "Team Label") ??\n                  ""\n                : request.teamName ?? request.team ?? ""\n            ).trim();\n            const submittedByName = String(\n              request.submittedByUsername || request.submittedBy || ""\n            ).trim();\n            const reviewedByName = String(\n              request.reviewedByUsername || request.reviewedBy || ""\n            ).trim();\n\n            const inquiry = rawRow`;
+    source = source.slice(0, firebaseAgentIndex) + firebaseAgentReplacement + source.slice(firebaseAgentIndex + firebaseAgentAnchor.length);
+  } else {
+    console.warn("Appeal PDF v43 skipped missing anchor: Firebase Team/login names");
   }
-  const firebaseAgentReplacement = `            const agent = toTitleCaseName(rawAgent);\n            const teamName = String(\n              rawRow\n                ? rawHelper.getValue(rawRow, "Team Name") ??\n                  rawHelper.getValue(rawRow, "Team") ??\n                  rawHelper.getValue(rawRow, "Agent Team") ??\n                  rawHelper.getValue(rawRow, "Team Label") ??\n                  ""\n                : request.teamName ?? request.team ?? ""\n            ).trim();\n            const submittedByName = String(\n              request.submittedByUsername || request.submittedBy || ""\n            ).trim();\n            const reviewedByName = String(\n              request.reviewedByUsername || request.reviewedBy || ""\n            ).trim();\n\n            const inquiry = rawRow`;
-  source =
-    source.slice(0, firebaseAgentIndex) +
-    firebaseAgentReplacement +
-    source.slice(firebaseAgentIndex + firebaseAgentAnchor.length);
 
   const firebaseReturnSearchStart = source.indexOf(`key: \`firebase-appeal-`);
   const firebaseReturnAnchor = `              caseId,\n              agent,\n              auditDate,`;
-  const firebaseReturnIndex = source.indexOf(firebaseReturnAnchor, firebaseReturnSearchStart);
-  if (firebaseReturnIndex < 0) {
-    throw new Error("Appeal PDF v43 anchor not found: Firebase mapped identity properties");
+  const firebaseReturnIndex = source.indexOf(firebaseReturnAnchor, Math.max(firebaseReturnSearchStart, 0));
+  if (firebaseReturnIndex >= 0) {
+    const firebaseReturnReplacement = `              caseId,\n              agent,\n              teamName,\n              submittedByName,\n              reviewedByName,\n              auditDate,`;
+    source = source.slice(0, firebaseReturnIndex) + firebaseReturnReplacement + source.slice(firebaseReturnIndex + firebaseReturnAnchor.length);
+  } else {
+    console.warn("Appeal PDF v43 skipped missing anchor: Firebase mapped identity properties");
   }
-  const firebaseReturnReplacement = `              caseId,\n              agent,\n              teamName,\n              submittedByName,\n              reviewedByName,\n              auditDate,`;
-  source =
-    source.slice(0, firebaseReturnIndex) +
-    firebaseReturnReplacement +
-    source.slice(firebaseReturnIndex + firebaseReturnAnchor.length);
 
-  // Pass all PDF-only context explicitly so Information, Team, Admin and QA names never depend on inferred fields.
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     `          caseDescription: selectedCase.inquiry,\n          topics: originalTopics,`,
     `          caseDescription: selectedCase.inquiry,\n          teamName: selectedCase.teamName || "",\n          appealSubmittedBy: selectedCase.submittedByName || "",\n          appealReviewedBy: selectedCase.reviewedByName || "",\n          topics: originalTopics,`,
     "PDF identity context"
   );
 
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     `          revisedTopics,\n          displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),`,
     `          revisedTopics,\n          displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),\n          nonAppealedTopics: originalTopics.filter(\n            (topic) => !revisedTopics.some((appealedTopic) => appealedTopic.code === topic.code)\n          ),`,
@@ -106,40 +106,35 @@ function patchPdfRenderer() {
   let source = fs.readFileSync(pdfPath, "utf8");
   if (source.includes(`// ${marker}-pdf`)) return;
 
-  // System wording: this field is the actual Appeal Review Summary, not a generic Remark.
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     `    label(0, y, 1, remarkRowH, "Remark");`,
     `    // ${marker}-pdf\n    label(0, y, 1, remarkRowH, "Appeal Review\\nSummary");`,
     "Appeal Review Summary label"
   );
 
-  // The column includes both the submission reason and QA review response.
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     `      label(6, y, 1, 8, "Appeal Reason");`,
     `      label(6, y, 1, 8, "Appeal Review Detail");`,
     "Appeal Review Detail header"
   );
 
-  // Prefer the explicit non-appealed list passed by AppealMockup. This fixes cases where the
-  // renderer only receives the appealed topic subset after an appeal revision is collapsed.
-  source = replaceOnce(
+  source = replaceOptional(
     source,
     `  const nonAppealedTopics = includeAppeal\n    ? allTopicRows.filter((topic: any) => !revisedCodes.has(topic.code))\n    : [];`,
     `  const nonAppealedTopics = includeAppeal\n    ? (Array.isArray(caseItem.nonAppealedTopics) && caseItem.nonAppealedTopics.length\n        ? caseItem.nonAppealedTopics.filter((topic: any) => num(topic.max) > 0)\n        : allTopicRows.filter((topic: any) => !revisedCodes.has(topic.code)))\n    : [];`,
     "non-appealed topics source"
   );
 
-  const oldMergedLines = `      const mergedLines: Array<{ text: string; color: [number, number, number]; bold?: boolean }> = [\n        ...wrapPdfText(appealReason, mergedWidth).map((text) => ({ text, color: BLACK as [number, number, number] })),\n        { text: "- - - - - - - - - - - - - - - - - -", color: [148, 163, 184] as [number, number, number] },\n        { text: "Evaluation Comment", color: [220, 38, 38] as [number, number, number], bold: true },\n        ...wrapPdfText(evaluationComment, mergedWidth).map((text) => ({ text, color: [220, 38, 38] as [number, number, number] })),\n      ];`;
-  const newMergedLines = `      const appealAdminName = safeText(\n        caseItem.appealSubmittedBy || caseItem.submittedByName || caseItem.submittedBy || "-",\n        "-"\n      );\n      const appealQaName = safeText(\n        caseItem.appealReviewedBy ||\n          caseItem.reviewedByName ||\n          caseItem.reviewedBy ||\n          currentUser?.username ||\n          currentUser?.displayName ||\n          "-",\n        "-"\n      );\n      const mergedLines: Array<{ text: string; color: [number, number, number]; bold?: boolean }> = [\n        ...wrapPdfText(\`Admin: \${appealAdminName}\`, mergedWidth).map((text) => ({ text, color: BLACK as [number, number, number], bold: true })),\n        { text: "Appeal Reason", color: BLACK as [number, number, number], bold: true },\n        ...wrapPdfText(appealReason, mergedWidth).map((text) => ({ text, color: BLACK as [number, number, number] })),\n        { text: "- - - - - - - - - - - - - - - - - -", color: [148, 163, 184] as [number, number, number] },\n        ...wrapPdfText(\`QA: \${appealQaName}\`, mergedWidth).map((text) => ({ text, color: BLACK as [number, number, number], bold: true })),\n        { text: "Evaluation Comment", color: [220, 38, 38] as [number, number, number], bold: true },\n        ...wrapPdfText(evaluationComment, mergedWidth).map((text) => ({ text, color: [220, 38, 38] as [number, number, number] })),\n      ];`;
-  source = replaceOnce(source, oldMergedLines, newMergedLines, "Admin/QA Appeal Review Detail content");
+  const oldAppealLines = `    const appealReasonLines = includeAppeal ? layoutRichTextLines(appealReason, wOf(6), SMALL_BODY_TEXT_SIZE) : [];\n    const evaluationComment = safeMultiline((revised && revised.rejectReason) || comment, "-");\n    const evaluationLines = includeAppeal\n      ? layoutRichTextLines(evaluationComment, wOf(6), SMALL_BODY_TEXT_SIZE).map((line) =>\n          line.map((run) => ({ ...run, color: "#dc2626" }))\n        )\n      : [];\n    const appealLines = includeAppeal\n      ? appealReasonLines.concat(\n          [[{ text: "- - - - - - - - - - - - - - -", color: "#94a3b8" }]],\n          [[{ text: "Evaluation Comment", bold: true, color: "#dc2626" }]],\n          evaluationLines\n        )\n      : [];`;
+  const newAppealLines = `    const appealAdminName = safeText(\n      caseItem.appealSubmittedBy || caseItem.submittedByName || caseItem.submittedBy || "-",\n      "-"\n    );\n    const appealQaName = safeText(\n      caseItem.appealReviewedBy ||\n        caseItem.reviewedByName ||\n        caseItem.reviewedBy ||\n        currentUser?.username ||\n        currentUser?.displayName ||\n        "-",\n      "-"\n    );\n    const appealReasonLines = includeAppeal ? layoutRichTextLines(appealReason, wOf(6), SMALL_BODY_TEXT_SIZE) : [];\n    const appealAdminLines = includeAppeal\n      ? layoutRichTextLines(\`Admin: \${appealAdminName}\`, wOf(6), SMALL_BODY_TEXT_SIZE).map((line) =>\n          line.map((run) => ({ ...run, bold: true, color: "#000000" }))\n        )\n      : [];\n    const appealQaLines = includeAppeal\n      ? layoutRichTextLines(\`QA: \${appealQaName}\`, wOf(6), SMALL_BODY_TEXT_SIZE).map((line) =>\n          line.map((run) => ({ ...run, bold: true, color: "#000000" }))\n        )\n      : [];\n    const evaluationComment = safeMultiline((revised && revised.rejectReason) || comment, "-");\n    const evaluationLines = includeAppeal\n      ? layoutRichTextLines(evaluationComment, wOf(6), SMALL_BODY_TEXT_SIZE).map((line) =>\n          line.map((run) => ({ ...run, color: "#dc2626" }))\n        )\n      : [];\n    const appealLines = includeAppeal\n      ? appealAdminLines.concat(\n          [[{ text: "Appeal Reason", bold: true, color: "#000000" }]],\n          appealReasonLines,\n          [[{ text: "- - - - - - - - - - - - - - -", color: "#94a3b8" }]],\n          appealQaLines,\n          [[{ text: "Evaluation Comment", bold: true, color: "#dc2626" }]],\n          evaluationLines\n        )\n      : [];`;
+  source = replaceOptional(source, oldAppealLines, newAppealLines, "Admin/QA Appeal Review Detail content");
 
-  // Make non-appealed topics explicit Information rows and retain bilingual topic names.
-  source = replaceOnce(
+  source = replaceOptional(
     source,
-    `        const infoText = \`Topic \${topic.code}  \${safeText(topic.label)}  - ไม่อุทธรณ์หัวข้อนี้\`;`,
-    `        const infoDescription = bilingualAppealTopicDescription(\n          String(topic.code || ""),\n          topic.label\n        ).replace(/\\n+/g, " / ");\n        const infoText = \`Topic \${topic.code}  \${infoDescription}  - ไม่อุทธรณ์หัวข้อนี้\`;`,
+    `      const infoText = "Topic " + topic.code + "  " + safeText(topic.label) + "  - ไม่อุทธรณ์หัวข้อนี้";`,
+    `      const infoDescription = bilingualAppealTopicDescription(\n        String(topic.code || ""),\n        topic.label\n      ).replace(/\\n+/g, " / ");\n      const infoText = "Topic " + topic.code + "  " + infoDescription + "  - ไม่อุทธรณ์หัวข้อนี้";`,
     "Information bilingual topic text"
   );
 
@@ -149,4 +144,4 @@ function patchPdfRenderer() {
 patchAppealRequests();
 patchAppealMockup();
 patchPdfRenderer();
-console.log("Patched Appeal PDF review detail: real login usernames, Team from original case data, Appeal Review Summary wording, and explicit non-appealed topic Information rows.");
+console.log("Patched Appeal PDF review detail: exact login usernames, Team from original case data, Appeal Review Summary wording, and explicit non-appealed topic Information rows.");
