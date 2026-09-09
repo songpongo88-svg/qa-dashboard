@@ -7,6 +7,7 @@ const appealPath = path.join(root, "src", "AppealMockup.tsx");
 const pdfPath = path.join(root, "src", "caseDetailOfficialPdf.ts");
 const marker = "appeal-pdf-final-fix-v48";
 const compactMarker = "appeal-pdf-date-stack-v49";
+const scoreColumnMarker = "appeal-pdf-split-score-columns-v50";
 
 function patchAuditTimestampSource() {
   let source = fs.readFileSync(appealPath, "utf8");
@@ -102,6 +103,66 @@ function patchTightDateStack(source) {
   return source.slice(0, start) + replacement + source.slice(end);
 }
 
+function patchSplitAppealScoreColumns(source) {
+  if (source.includes(`// ${scoreColumnMarker}`)) return source;
+
+  const widthBefore = `  const topicWidthsAppeal = [14, 44, 27, 16, 17, 20, 57];`;
+  const widthAfter = `  // ${scoreColumnMarker}\n  const topicWidthsAppeal = [12, 40, 18, 18, 13, 15, 17, 62];`;
+  if (!source.includes(widthBefore)) {
+    throw new Error("Appeal PDF v50: appeal topic width anchor not found.");
+  }
+  source = source.replace(widthBefore, widthAfter);
+
+  const headerStartToken = `  const drawTopicHeader = () => {`;
+  const headerEndToken = `  const newTopicPage = () => {`;
+  const headerStart = source.indexOf(headerStartToken);
+  const headerEnd = source.indexOf(headerEndToken, headerStart);
+  if (headerStart < 0 || headerEnd < 0) {
+    throw new Error("Appeal PDF v50: topic header block not found.");
+  }
+
+  const headerReplacement = `  const drawTopicHeader = () => {\n    if (includeAppeal) {\n      setWidths(topicWidthsAppeal);\n      label(0, y, 1, 8, "Topic");\n      label(1, y, 1, 8, "Description");\n      label(2, y, 1, 8, "Original Score");\n      label(3, y, 1, 8, "New Score");\n      label(4, y, 1, 8, "Max");\n      label(5, y, 1, 8, "Score %");\n      label(6, y, 1, 8, "Status");\n      label(7, y, 1, 8, "Appeal Review Detail");\n    } else {\n      setWidths(topicWidthsOriginal);\n      label(0, y, 1, 8, "Topic");\n      label(1, y, 1, 8, "Description");\n      label(2, y, 1, 8, "Score");\n      label(3, y, 1, 8, "Max");\n      label(4, y, 1, 8, "Score %");\n      label(5, y, 1, 8, "Status");\n      label(6, y, 1, 8, "Evaluation Comment");\n    }\n    y += 8;\n  };\n\n`;
+  source = source.slice(0, headerStart) + headerReplacement + source.slice(headerEnd);
+
+  const topicStart = source.indexOf(`  const revisedMap = new Map(`);
+  const topicEnd = source.indexOf(`  // ${marker}-information`, topicStart);
+  if (topicStart < 0 || topicEnd < 0) {
+    throw new Error("Appeal PDF v50: detailed topic rendering section not found.");
+  }
+
+  let topicSection = source.slice(topicStart, topicEnd);
+  const loopAnchor = `  topics.forEach((topic: any) => {`;
+  if (!topicSection.includes(loopAnchor)) {
+    throw new Error("Appeal PDF v50: topic loop anchor not found.");
+  }
+  topicSection = topicSection.replace(
+    loopAnchor,
+    `  const topicDetailColumn = includeAppeal ? 7 : 6;\n\n${loopAnchor}`
+  );
+  topicSection = topicSection.replaceAll(`wOf(6)`, `wOf(topicDetailColumn)`);
+
+  const scoreStart = topicSection.indexOf(`      cell(2, y, 1, rowH,`);
+  const detailStart = topicSection.indexOf(
+    `      if (includeAppeal) {\n        drawRichTextCell(6,`,
+    scoreStart
+  );
+  if (scoreStart < 0 || detailStart < 0) {
+    throw new Error("Appeal PDF v50: combined score row block not found.");
+  }
+
+  const scoreReplacement = `      if (includeAppeal) {\n        cell(2, y, 1, rowH, firstChunk ? originalTopicScore.toFixed(0) : "", WHITE, {\n          size: 6.8,\n          align: "center",\n          valign: "middle",\n          maxLines: 1,\n        });\n        cell(3, y, 1, rowH, firstChunk ? score.toFixed(0) : "", WHITE, {\n          size: 7.0,\n          bold: true,\n          align: "center",\n          valign: "middle",\n          maxLines: 1,\n        });\n        cell(4, y, 1, rowH, firstChunk ? max.toFixed(0) : "", SCORE_GREY, { size: 6.8, align: "center", valign: "middle" });\n        cell(5, y, 1, rowH, firstChunk ? formatPct(pct) : "", pctFill(pct), { size: 6.8, align: "center", valign: "middle" });\n        cell(6, y, 1, rowH, firstChunk ? statusByPct(pct) : "", WHITE, { size: 6.4, align: "center", valign: "middle", maxLines: 2 });\n      } else {\n        cell(2, y, 1, rowH, firstChunk ? score.toFixed(0) : "", WHITE, { size: 6.8, align: "center", valign: "middle", maxLines: 1 });\n        cell(3, y, 1, rowH, firstChunk ? max.toFixed(0) : "", SCORE_GREY, { size: 6.8, align: "center", valign: "middle" });\n        cell(4, y, 1, rowH, firstChunk ? formatPct(pct) : "", pctFill(pct), { size: 6.8, align: "center", valign: "middle" });\n        cell(5, y, 1, rowH, firstChunk ? statusByPct(pct) : "", WHITE, { size: 6.4, align: "center", valign: "middle", maxLines: 2 });\n      }\n\n`;
+  topicSection =
+    topicSection.slice(0, scoreStart) +
+    scoreReplacement +
+    topicSection.slice(detailStart);
+  topicSection = topicSection.replace(
+    `drawRichTextCell(6, y, 1, rowH, visibleAppeal`,
+    `drawRichTextCell(7, y, 1, rowH, visibleAppeal`
+  );
+
+  return source.slice(0, topicStart) + topicSection + source.slice(topicEnd);
+}
+
 function patchGuaranteedInformation(source) {
   if (source.includes(`// ${marker}-information`)) return source;
 
@@ -126,10 +187,11 @@ function patchPdfRenderer() {
   source = patchAuditBlock(source);
   source = patchTightDateStack(source);
   source = patchGuaranteedInformation(source);
+  source = patchSplitAppealScoreColumns(source);
   fs.writeFileSync(pdfPath, source, "utf8");
 }
 
 patchAuditTimestampSource();
 patchAppealDateTimeSeconds();
 patchPdfRenderer();
-console.log("Appeal PDF v49 applied: tightly stacked Audit/Updated Date rows and result timestamps with seconds.");
+console.log("Appeal PDF v50 applied: separate Original Score and New Score columns in Detailed Topic Scores.");
