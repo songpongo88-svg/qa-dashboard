@@ -10,6 +10,7 @@ const summaryPath = path.join(root, "src", "SummaryMockup.tsx");
 const marker = "bulk-main-pdf-appeal-parity-v28";
 const weeklyCaseDateMarker = "weekly-case-date-v29";
 const periodMasterMarker = "period-master-filter-v31";
+const agentPeriodMarker = "agent-keeps-period-v32";
 
 function replaceOnce(source, before, after, label) {
   if (!source.includes(before)) {
@@ -146,8 +147,30 @@ function patchCurrentPeriodAsMaster() {
   patchSummaryPeriodMasterSync();
 }
 
+function patchAgentSelectionKeepsMasterPeriod() {
+  let source = fs.readFileSync(dashboardPath, "utf8");
+  if (source.includes(`// ${agentPeriodMarker}`)) return;
+
+  source = replaceOnce(
+    source,
+    `      setSelectedAgent(externalSelectedAgent);\n      setSelectedWeek("all");\n      onSelectedWeekChange?.("all");\n      setCaseIdSearch("");`,
+    `      setSelectedAgent(externalSelectedAgent);\n      // ${agentPeriodMarker}\n      // Changing Agent (including Agent Performance > View Details) must keep the selected Period.\n      setCaseIdSearch("");`,
+    "external Agent selection keeps Period"
+  );
+
+  source = replaceOnce(
+    source,
+    `                          setSelectedAgent(value);\n                          onSelectedAgentChange?.(value);\n                          setSelectedWeek("all");\n                          onSelectedWeekChange?.("all");\n                          setCaseIdSearch("");`,
+    `                          setSelectedAgent(value);\n                          onSelectedAgentChange?.(value);\n                          // Agent is a secondary filter; keep the active Week/Month/Year Period.\n                          setCaseIdSearch("");`,
+    "Dashboard Agent dropdown keeps Period"
+  );
+
+  fs.writeFileSync(dashboardPath, source, "utf8");
+}
+
 patchAppealAwareRenderer();
 patchBulkRenderer();
 patchWeeklyCaseDateLogic();
 patchCurrentPeriodAsMaster();
-console.log("Patched Weekly Case Date and made the selected Time View Period the master filter for Dashboard, Agent Performance, Current View and Details.");
+patchAgentSelectionKeepsMasterPeriod();
+console.log("Patched Period master filtering so Agent/View Details keeps the selected Weekly, Monthly or Yearly scope.");
