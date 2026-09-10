@@ -37,4 +37,5 @@ await import("./patch-bulk-weekly-summary-v29b.mjs");
 await import("./patch-weekly-summary-body-font-v30.mjs");
 await import("./patch-selected-case-appeal-countdown-v64.mjs");
 await import("./patch-process-library-v65.mjs");
+await import("./patch-process-library-auto-index-v66.mjs");
 console.log("Appeal Review v63 applied: Submitted and Reviewed date/time use fixed-width character cells so every digit and separator aligns exactly while keeping Kanit.");
