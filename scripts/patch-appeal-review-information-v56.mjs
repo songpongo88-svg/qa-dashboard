@@ -40,11 +40,11 @@ function patchAppealReview() {
     "Submitted Date & Time sorting"
   );
 
-  const openCaseBlock = `function openCaseDetailTab(request: AppealRequest) {\n  const params = new URLSearchParams({\n    tab: "dashboard",\n    subTab: "case-detail",\n    caseId: request.caseId,\n  });\n  if (request.agent) params.set("agent", request.agent);\n  window.open(\`${window.location.origin}${window.location.pathname}?\${params.toString()}\`, "_blank", "noopener,noreferrer");\n}\n`;
+  const openCaseBlock = `function openCaseDetailTab(request: AppealRequest) {\n  const params = new URLSearchParams({\n    tab: "dashboard",\n    subTab: "case-detail",\n    caseId: request.caseId,\n  });\n  if (request.agent) params.set("agent", request.agent);\n  window.open(\`\${window.location.origin}\${window.location.pathname}?\${params.toString()}\`, "_blank", "noopener,noreferrer");\n}\n`;
   source = replaceRequired(
     source,
     openCaseBlock,
-    `${openCaseBlock}\nfunction openAppealReviewTab(request: AppealRequest) {\n  const params = new URLSearchParams({\n    tab: "appeal-requests",\n    requestId: request.requestId,\n  });\n  window.open(\`${window.location.origin}${window.location.pathname}?\${params.toString()}\`, "_blank", "noopener,noreferrer");\n}\n`,
+    `${openCaseBlock}\nfunction openAppealReviewTab(request: AppealRequest) {\n  const params = new URLSearchParams({\n    tab: "appeal-requests",\n    requestId: request.requestId,\n  });\n  window.open(\`\${window.location.origin}\${window.location.pathname}?\${params.toString()}\`, "_blank", "noopener,noreferrer");\n}\n`,
     "Appeal Review new-tab helper"
   );
 
