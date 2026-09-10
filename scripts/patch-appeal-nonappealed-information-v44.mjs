@@ -69,4 +69,5 @@ await import("./patch-appeal-review-information-v56.mjs");
 await import("./patch-appeal-review-information-plain-v57.mjs");
 await import("./patch-appeal-review-layout-v58.mjs");
 await import("./patch-appeal-review-workspace-tabs-v59.mjs");
+await import("./patch-appeal-review-reviewed-time-caseid-v60.mjs");
 console.log("Appeal PDF non-appealed Information now comes from the complete month topic master and is rendered explicitly after the appeal table.");
