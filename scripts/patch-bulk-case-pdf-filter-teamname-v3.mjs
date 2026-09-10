@@ -8,6 +8,8 @@ const dashboardPath = path.resolve(__dirname, "../src/DashboardMockup.tsx");
 const summaryPath = path.resolve(__dirname, "../src/SummaryMockup.tsx");
 const pdfPath = path.resolve(__dirname, "../src/caseDetailOfficialPdf.ts");
 const marker = "bulk-case-pdf-filter-teamname-v3";
+const agent = "${agent}";
+const team = "${team}";
 
 function replaceOnce(source, before, after, label) {
   if (!source.includes(before)) throw new Error(`Missing ${label} anchor`);
