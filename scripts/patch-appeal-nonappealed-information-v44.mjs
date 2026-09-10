@@ -63,4 +63,5 @@ patchPdfInformationRenderer();
 await import("./patch-appeal-information-updated-date-v45.mjs");
 await import("./patch-appeal-pdf-final-fix-v48.mjs");
 await import("./patch-appeal-pdf-admin-user-team-v53.mjs");
+await import("./patch-appeal-review-reset-datetime-v54.mjs");
 console.log("Appeal PDF non-appealed Information now comes from the complete month topic master and is rendered explicitly after the appeal table.");

@@ -27,7 +27,11 @@ function patchAppealPdfAdminDirectory() {
 
   const resolverBlock = `      // Resolve the Appeal submitter from the central User directory.\n      // Do not filter by status: Active and Suspended users are both valid matches.\n      const appealPdfUserProfiles = await fetchStoredUserProfiles().catch(() => []);\n      const appealPdfSubmittedIdentity = String(selectedCase.submittedByName || "").trim();\n      const normalizeAppealPdfIdentity = (value: unknown) =>\n        String(value || "")\n          .replace(/\\u00A0/g, " ")\n          .replace(/\\s+/g, " ")\n          .trim()\n          .toLowerCase();\n      const compactAppealPdfIdentity = (value: unknown) =>\n        normalizeAppealPdfIdentity(value).replace(/[^a-z0-9ก-๙]/g, "");\n      const submittedNormalized = normalizeAppealPdfIdentity(appealPdfSubmittedIdentity);\n      const submittedCompact = compactAppealPdfIdentity(appealPdfSubmittedIdentity);\n      const appealPdfAdminProfile = appealPdfUserProfiles.find((profile) => {\n        const email = String(profile.email || "").trim();\n        const emailLocal = email.includes("@") ? email.split("@")[0] : email;\n        const candidates = [\n          profile.username,\n          profile.displayName,\n          profile.agentName,\n          email,\n          emailLocal,\n        ].filter(Boolean);\n        return candidates.some((candidate) => {\n          const normalized = normalizeAppealPdfIdentity(candidate);\n          const compact = compactAppealPdfIdentity(candidate);\n          return Boolean(\n            (submittedNormalized && normalized === submittedNormalized) ||\n            (submittedCompact && compact === submittedCompact)\n          );\n        });\n      });\n      const appealPdfAdminUser = String(appealPdfAdminProfile?.username || "").trim() || "-";\n      const appealPdfAdminTeam = String(appealPdfAdminProfile?.teamName || "").trim() || "-";\n\n`;
 
-  source = source.slice(0, generateIndex) + resolverBlock + source.slice(generateIndex);
+  const fullNameResolverBlock = resolverBlock.replace(
+    `const appealPdfAdminUser = String(appealPdfAdminProfile?.username || "").trim() || "-";`,
+    `const appealPdfAdminUser = String(\n        appealPdfAdminProfile?.displayName ||\n        appealPdfAdminProfile?.agentName ||\n        appealPdfAdminProfile?.username ||\n        ""\n      ).trim() || "-";`
+  );
+  source = source.slice(0, generateIndex) + fullNameResolverBlock + source.slice(generateIndex);
 
   const identityBefore = `          teamName: selectedCase.teamName || "",\n          appealSubmittedBy: selectedCase.submittedByName || "",\n          appealReviewedBy: selectedCase.reviewedByName || "",`;
   const identityAfter = `          teamName: appealPdfAdminTeam,\n          appealSubmittedBy: appealPdfAdminUser,\n          appealReviewedBy: selectedCase.reviewedByName || "",`;
@@ -40,4 +44,4 @@ function patchAppealPdfAdminDirectory() {
 }
 
 patchAppealPdfAdminDirectory();
-console.log("Appeal PDF v53 applied: Admin uses the central User value only, includes Suspended users, and Team comes from the matched User record.");
+console.log("Appeal PDF v53 applied: Admin uses the full central User name (including Suspended users), and Team comes from the matched User record.");
