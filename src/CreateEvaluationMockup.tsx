@@ -38,6 +38,8 @@ import {
   hasRichTextContent,
   richTextToPlainText,
 } from "./richText";
+import { ProcessReferenceDisplay, ProcessReferenceSelector } from "./processLibrary";
+// process-library-v65
 
 type TopicState = {
   score: number | null;
@@ -2738,17 +2740,14 @@ export default function CreateEvaluationMockup({
                   />
                 </label>
 
-                <label className="block">
+                <div className="block">
                   <span className={labelClass}>Process ที่ใช้เทียบ</span>
-                  <RichTextEditor
+                  <ProcessReferenceSelector
                     value={processReference}
                     onChange={setProcessReference}
-                    editorLabel="Process ที่ใช้เทียบ"
-                    minHeight={132}
-                    tone="violet"
-                    placeholder="วางข้อมูล Process, Slide, ข้อ หรือ Tag ที่ใช้อ้างอิงได้ที่นี่..."
+                    currentUser={currentUser}
                   />
-                </label>
+                </div>
                   </>
                 ) : (
                   <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold leading-6 text-violet-900">
@@ -3222,7 +3221,7 @@ export default function CreateEvaluationMockup({
 
                 <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/60 px-4 py-3">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Process ที่ใช้เทียบ</div>
-                  <RichTextContent value={submitPreview.record.processReference} className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800" />
+                  <ProcessReferenceDisplay value={submitPreview.record.processReference} className="mt-2" />
                 </div>
 
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">

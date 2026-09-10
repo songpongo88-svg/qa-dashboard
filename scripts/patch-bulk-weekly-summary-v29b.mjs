@@ -48,8 +48,8 @@ function patchBulk() {
 
   source = replaceOnce(
     source,
-    `  for (const group of groups) {\n    // bulk-case-pdf-signature-match-v11`,
-    `  for (const group of groups) {\n    if (isWeeklyExport) {\n      const appendedWeeklySummary = appendWeeklyCaseSummaryForAgent({\n        doc,\n        cases: group.cases,\n        monthKey,\n        weekLabel,\n        agentName: group.agentName,\n        appendPage: hasWrittenContent,\n      });\n      if (appendedWeeklySummary) hasWrittenContent = true;\n    }\n\n    // bulk-case-pdf-signature-match-v11`,
+    `  for (const group of groups) {`,
+    `  for (const group of groups) {\n    if (isWeeklyExport) {\n      const appendedWeeklySummary = appendWeeklyCaseSummaryForAgent({\n        doc,\n        cases: group.cases,\n        monthKey,\n        weekLabel,\n        agentName: group.agentName,\n        appendPage: hasWrittenContent,\n      });\n      if (appendedWeeklySummary) hasWrittenContent = true;\n    }`,
     "prepend Weekly summary per Agent"
   );
 
@@ -57,12 +57,22 @@ function patchBulk() {
 
   const gatedMonthlySignatureBlock = `    if (!isWeeklyExport) {\n      // bulk-case-pdf-signature-fallback-v10\n      // Monthly exports keep the existing Signature/Final Signed cover.\n      const signatureDocument = storedDocument || {\n        docId: \`${'${monthKey}'}::${'${group.agentName}'}\`,\n        entries: [],\n        confirmedAt: "",\n        updatedAt: "",\n      };\n      const referenceMonthRows = storedDocument\n        ? allMonthRows\n        : [...allMonthRows, signatureDocument];\n      const appended = await appendFinalSignedReportForAgent({\n        doc,\n        cases: group.cases,\n        monthKey,\n        agentName: group.agentName,\n        storedDocument: signatureDocument,\n        allMonthRows: referenceMonthRows,\n        appendPage: hasWrittenContent,\n      });\n      if (appended) hasWrittenContent = true;\n    }`;
 
-  source = replaceOnce(
-    source,
-    monthlySignatureBlock,
-    gatedMonthlySignatureBlock,
-    "gate Monthly Signature cover during Weekly export"
-  );
+  if (source.includes(monthlySignatureBlock)) {
+    source = source.replace(monthlySignatureBlock, gatedMonthlySignatureBlock);
+  } else {
+    source = replaceOnce(
+      source,
+      `    if (storedDocument) {`,
+      `    if (!isWeeklyExport && storedDocument) {`,
+      "gate stored Monthly Signature cover during Weekly export"
+    );
+    source = replaceOnce(
+      source,
+      `    } else {\n      missingSignedAgents.push(group.agentName);\n    }`,
+      `    } else if (!isWeeklyExport) {\n      missingSignedAgents.push(group.agentName);\n    }`,
+      "suppress missing Monthly Signature warning during Weekly export"
+    );
+  }
 
   fs.writeFileSync(bulkPath, source, "utf8");
 }

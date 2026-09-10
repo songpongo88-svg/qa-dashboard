@@ -33,6 +33,8 @@ import { canonicalAgentIdentityKey, canonicalizeAgentName, JIRAPONG_AGENT_NAME }
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
 import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
 import MonthlyKpiNotice from "./MonthlyKpiNotice";
+import { ProcessReferenceDisplay } from "./processLibrary";
+// process-library-v65
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -4342,7 +4344,7 @@ function SlideOverCaseDetail({
                       </div>
                     </div>
                     <div className="mt-3 rounded-[16px] border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
-                      <RichTextContent value={caseItem.processReference} className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800" />
+                      <ProcessReferenceDisplay value={caseItem.processReference || ""} />
                     </div>
                   </div>
                 </div>

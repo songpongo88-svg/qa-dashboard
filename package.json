@@ -52,6 +52,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aiden0z/pptx-renderer": "^1.2.4",
     "firebase": "^12.14.0",
     "jspdf": "^4.2.1",
     "react": "^18.2.0",
