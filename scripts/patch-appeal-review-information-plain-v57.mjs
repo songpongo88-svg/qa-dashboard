@@ -1,0 +1,40 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const reviewPath = path.join(root, "src", "AppealRequestsMockup.tsx");
+const marker = "appeal-review-information-plain-v57";
+const previousMarker = "appeal-review-information-action-v55";
+
+function replaceRequired(source, before, after, label) {
+  if (!source.includes(before)) {
+    throw new Error(`Appeal Review v57: ${label} anchor not found.`);
+  }
+  return source.replace(before, after);
+}
+
+function patchAppealReviewInformation() {
+  let source = fs.readFileSync(reviewPath, "utf8");
+  if (source.includes(`// ${marker}`)) return;
+
+  const helperAnchor = `function appealFinalScoreFromTopics(topics: AppealTopic[], originalFinalScore: number) {`;
+  const helper = `const APPEAL_REVIEW_BILINGUAL_TOPICS: Record<string, [string, string]> = {\n  "1": ["การปฏิบัติตามกระบวนการและนโยบาย", "Process & Policy Compliance"],\n  "2": ["คุณภาพคำตอบและการวิเคราะห์ปัญหา", "Answer Quality & Problem Analysis"],\n  "3": ["การจัดการเคสและการติดตามผล", "Case Handling & Follow-up"],\n  "4": ["ทักษะการสื่อสาร", "Communication Skills"],\n  "1.1": ["มาตรฐานการทักทายและปิดการสนทนา", "Greeting & Closing Standard"],\n  "1.2": ["การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", "PDPA & Policy Compliance"],\n  "1.3": ["การปฏิบัติตามกระบวนการและ SLA", "Process & SLA Compliance"],\n  "2.1": ["ความถูกต้องของคำตอบ", "Answer Accuracy"],\n  "2.2": ["ความครบถ้วนของคำตอบ", "Answer Completeness"],\n  "2.3": ["ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", "Clear Steps & Official Sources"],\n  "3.1": ["การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", "Problem Analysis & Resolution"],\n  "3.2": ["Ownership และการแจ้ง Next Step", "Ownership & Next Step"],\n  "4.1": ["โครงสร้างข้อความและความอ่านง่าย", "Message Structure & Readability"],\n  "4.2": ["ความกระชับและความถูกต้องของภาษา", "Conciseness & Language Accuracy"],\n  "4.3": ["น้ำเสียงและความเหมาะสมตามสถานการณ์", "Tone & Context Appropriateness"],\n};\n\nfunction appealReviewTopicLine(topic: AppealTopic, index: number) {\n  const code = String(topic.code || "-").trim();\n  const mapped = APPEAL_REVIEW_BILINGUAL_TOPICS[code];\n  const description = mapped\n    ? mapped[0] + " (" + mapped[1] + ")"\n    : String(topic.label || "-").trim();\n  return String(index + 1) + ". Topic " + code + " " + description;\n}\n\n// ${marker}\n`;
+  source = replaceRequired(source, helperAnchor, helper + helperAnchor, "topic label helper");
+
+  const infoStartToken = `            ) : !isReviewDetailOpen ? (\n              <div className="space-y-5" data-appeal-review-information="${previousMarker}">`;
+  const detailStartToken = `            ) : (\n              <div className="space-y-5">\n                {/* ${previousMarker} */}`;
+  const infoStart = source.indexOf(infoStartToken);
+  const detailStart = source.indexOf(detailStartToken, infoStart);
+  if (infoStart < 0 || detailStart < 0) {
+    throw new Error("Appeal Review v57: Information/detail branch anchors not found.");
+  }
+
+  const informationBranch = `            ) : !isReviewDetailOpen ? (\n              <section className="min-h-[520px] min-w-0" data-appeal-review-information="${marker}">\n                <div className="border-b border-slate-200 pb-4">\n                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">Information</div>\n                  <div className="mt-2 text-2xl font-extrabold text-slate-950">{selectedRequest.caseId}</div>\n                  <div className="mt-1 text-xs font-semibold text-slate-500">ข้อมูลคำขออุทธรณ์ของเคสที่เลือก</div>\n                </div>\n\n                <div className="divide-y divide-slate-100">\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Case ID</div><div className="font-semibold text-slate-900">{selectedRequest.caseId || "-"}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Agent</div><div className="font-semibold text-slate-900">{selectedRequest.agent || "-"}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Team</div><div className="font-semibold text-slate-900">{selectedAgentTeam.teamName || "-"}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Status</div><div className="font-semibold text-slate-900">{selectedRequest.status || "-"}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Case Date</div><div className="font-semibold text-slate-900">{selectedRequest.auditDate || "-"}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Audit Date</div><div className="font-semibold text-slate-900">{selectedRequest.auditTimestamp || selectedRequest.auditDate || "-"}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Submitted By</div><div className="font-semibold text-slate-900">{selectedRequest.submittedByUsername || selectedRequest.submittedBy || "-"}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Submitted Date & Time</div><div className="font-semibold text-slate-900">{formatDateTime(selectedRequest.submittedAt)}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Intent</div><div className="min-w-0 font-semibold leading-6 text-slate-900">{selectedRequest.inquiry || "-"}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Original Score</div><div className="font-semibold text-slate-900">{selectedRequest.finalScore.toFixed(2)}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Current Score</div><div className="font-semibold text-slate-900">{selectedCurrentScore.toFixed(2)}</div></div>\n                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Current Grade</div><div className="font-semibold text-slate-900">{selectedCurrentGrade || "-"}</div></div>\n                </div>\n\n                <div className="border-t border-slate-200 pt-4">\n                  <div className="text-sm font-extrabold text-slate-950">Appealed Topics: {selectedAppealedTopics.length} Topics</div>\n                  <div className="mt-2 overflow-x-auto pb-2">\n                    <div className="min-w-max space-y-1.5">\n                      {selectedAppealedTopics.length ? selectedAppealedTopics.map((topic, index) => (\n                        <div key={topic.code} className="whitespace-nowrap text-[11px] font-semibold leading-5 text-slate-700 xl:text-xs">\n                          {appealReviewTopicLine(topic, index)}\n                        </div>\n                      )) : (\n                        <div className="whitespace-nowrap text-[11px] font-semibold text-slate-500">-</div>\n                      )}\n                    </div>\n                  </div>\n                </div>\n              </section>\n`;
+
+  source = source.slice(0, infoStart) + informationBranch + source.slice(detailStart);
+  fs.writeFileSync(reviewPath, source, "utf8");
+}
+
+patchAppealReviewInformation();
+console.log("Appeal Review v57 applied: right side is Information only with plain scores and plain one-line appealed topics.");
