@@ -69,7 +69,7 @@ function patchPdf() {
   source = replaceOnce(
     source,
     safeTextAnchor,
-    `${safeTextAnchor}\n\n// ${marker}\nfunction agentSelectionText(caseItem: any) {\n  const agent = safeText(caseItem?.agent);\n  const team = safeText(caseItem?.teamName || caseItem?.team || "", "");\n  return team ? \`${'${agent}'}\\n(${'${team}'})\` : agent;\n}`,
+    `${safeTextAnchor}\n\n// ${marker}\nfunction agentSelectionText(caseItem: any) {\n  const agent = safeText(caseItem?.agent);\n  const team = safeText(caseItem?.teamName || caseItem?.team || "", "");\n  return team ? \`${agent}\\n(${team})\` : agent;\n}`,
     "PDF agent display helper"
   );
 
@@ -78,7 +78,7 @@ function patchPdf() {
   source = replaceOnce(
     source,
     valueAnchor,
-    `${valueAnchor}\n\n  const agentValue = (col: number, yy: number, span: number, h: number, caseItemValue: any) => {\n    const x = xOf(col);\n    const w = wOf(col, span);\n    rect(x, yy, w, h, LIGHT_PURPLE);\n    const team = safeText(caseItemValue?.teamName || caseItemValue?.team || "", "");\n    if (!team) {\n      writeText(caseItemValue?.agent, x, yy, w, h, { bold: true, size: 6.8, align: "center", valign: "middle", maxLines: 2 });\n      return;\n    }\n    writeText(caseItemValue?.agent, x, yy + 0.4, w, Math.max(6, h * 0.57), { bold: true, size: 6.8, align: "center", valign: "middle", maxLines: 2 });\n    writeText(\`(${'${team}'})\`, x, yy + h * 0.52, w, Math.max(4.5, h * 0.4), { bold: false, size: 5.4, color: [105, 105, 105], align: "center", valign: "middle", maxLines: 1 });\n  };`,
+    `${valueAnchor}\n\n  const agentValue = (col: number, yy: number, span: number, h: number, caseItemValue: any) => {\n    const x = xOf(col);\n    const w = wOf(col, span);\n    rect(x, yy, w, h, LIGHT_PURPLE);\n    const team = safeText(caseItemValue?.teamName || caseItemValue?.team || "", "");\n    if (!team) {\n      writeText(caseItemValue?.agent, x, yy, w, h, { bold: true, size: 6.8, align: "center", valign: "middle", maxLines: 2 });\n      return;\n    }\n    writeText(caseItemValue?.agent, x, yy + 0.4, w, Math.max(6, h * 0.57), { bold: true, size: 6.8, align: "center", valign: "middle", maxLines: 2 });\n    writeText(\`(${team})\`, x, yy + h * 0.52, w, Math.max(4.5, h * 0.4), { bold: false, size: 5.4, color: [105, 105, 105], align: "center", valign: "middle", maxLines: 1 });\n  };`,
     "PDF agent cell renderer"
   );
 
@@ -102,3 +102,4 @@ patchSummary();
 patchDashboard();
 patchPdf();
 console.log("Patched Gen All PDF to follow Team/Agent filters and show Team below Agent in PDF.");
+await import("./patch-bulk-case-pdf-weekly-v4.mjs");
