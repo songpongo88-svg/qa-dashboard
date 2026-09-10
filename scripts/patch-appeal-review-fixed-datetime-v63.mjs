@@ -33,4 +33,5 @@ function patchAppealReview() {
 }
 
 patchAppealReview();
+await import("./patch-bulk-weekly-summary-v29b.mjs");
 console.log("Appeal Review v63 applied: Submitted and Reviewed date/time use fixed-width character cells so every digit and separator aligns exactly while keeping Kanit.");
