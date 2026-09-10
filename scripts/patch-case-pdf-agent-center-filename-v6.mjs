@@ -36,12 +36,12 @@ function patchAgentFilename() {
 
   const before = `      downloadGeneratedPdfFile(\n        mode === "my"\n          ? { ...result, fileName: result.fileName.replace(/_All_Cases\\.pdf$/i, "_My_Cases.pdf") }\n          : result\n      );`;
 
-  const after = `      // ${marker}\n      const agentNameForFile = mode === "my"\n        ? String(currentUser?.agentName || currentUser?.displayName || "").trim()\n        : selectedAgent && selectedAgent !== "all"\n          ? String(selectedAgent).trim()\n          : "";\n      const safeAgentNameForFile = agentNameForFile\n        .replace(/[<>:\"/\\\\|?*\\u0000-\\u001f\\u007f]+/g, "_")\n        .replace(/\\s+/g, "_")\n        .replace(/[. ]+$/g, "");\n      downloadGeneratedPdfFile(\n        safeAgentNameForFile\n          ? { ...result, fileName: result.fileName.replace(/_All_Cases\\.pdf$/i, \`_\${safeAgentNameForFile}.pdf\`) }\n          : result\n      );`;
+  const after = `      // ${marker}\n      const safeFilterFilePart = (value: unknown, fallback: string) => {\n        const text = String(value || "").trim() || fallback;\n        return text\n          .replace(/\\s*-\\s*/g, "_to_")\n          .replace(/\\//g, "-")\n          .replace(/[<>:\"/\\\\|?*\\u0000-\\u001f\\u007f]+/g, "_")\n          .replace(/\\s+/g, "_")\n          .replace(/_+/g, "_")\n          .replace(/^_+|_+$/g, "") || fallback;\n      };\n      const periodForFile = isWeeklyCasePdfView\n        ? safeFilterFilePart(selectedWeek, "Weekly")\n        : safeFilterFilePart(currentViewingMonthLabel || selectedMonthKey, selectedMonthKey || "Month");\n      const teamForFile =\n        bulkCasePdfSelectedTeam && bulkCasePdfSelectedTeam !== "all"\n          ? safeFilterFilePart(bulkCasePdfSelectedTeam, "Team")\n          : "All_Teams";\n      const agentNameForFile =\n        mode === "my"\n          ? ""\n          : selectedAgent && selectedAgent !== "all"\n            ? String(selectedAgent).trim()\n            : "";\n      const agentForFile = mode === "my"\n        ? "My_Cases"\n        : agentNameForFile\n          ? safeFilterFilePart(agentNameForFile, "Agent")\n          : "All_Agents";\n      const filterFileName = \`QA_Case_Detail_\${periodForFile}_\${teamForFile}_\${agentForFile}.pdf\`;\n      downloadGeneratedPdfFile({ ...result, fileName: filterFileName });`;
 
-  source = replaceOnce(source, before, after, "Agent filename");
+  source = replaceOnce(source, before, after, "Filter-aware PDF filename");
   fs.writeFileSync(dashboardPath, source, "utf8");
 }
 
 patchPdfAgentCenter();
 patchAgentFilename();
-console.log("Patched PDF Agent block to visual center and Agent-scoped filenames.");
+console.log("Patched PDF Agent block and filter-aware Gen All filenames.");
