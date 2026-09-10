@@ -53,18 +53,15 @@ function patchBulk() {
     "prepend Weekly summary per Agent"
   );
 
-  source = replaceOnce(
-    source,
-    `    if (storedDocument) {`,
-    `    if (!isWeeklyExport && storedDocument) {`,
-    "Monthly Final Signed gate"
-  );
+  const monthlySignatureBlock = `    // bulk-case-pdf-signature-fallback-v10\n    // Signature Center documents are generated from monthly Agent data even before\n    // anyone signs. Firestore may therefore have no stored signature row yet.\n    // Build a synthetic empty signature document in that case so every Agent still\n    // gets the Signature/Final Signed cover before their Case Detail pages.\n    const signatureDocument = storedDocument || {\n      docId: \`${'${monthKey}'}::${'${group.agentName}'}\`,\n      entries: [],\n      confirmedAt: "",\n      updatedAt: "",\n    };\n    const referenceMonthRows = storedDocument\n      ? allMonthRows\n      : [...allMonthRows, signatureDocument];\n    const appended = await appendFinalSignedReportForAgent({\n      doc,\n      cases: group.cases,\n      monthKey,\n      agentName: group.agentName,\n      storedDocument: signatureDocument,\n      allMonthRows: referenceMonthRows,\n      appendPage: hasWrittenContent,\n    });\n    if (appended) hasWrittenContent = true;`;
+
+  const gatedMonthlySignatureBlock = `    if (!isWeeklyExport) {\n      // bulk-case-pdf-signature-fallback-v10\n      // Monthly exports keep the existing Signature/Final Signed cover.\n      const signatureDocument = storedDocument || {\n        docId: \`${'${monthKey}'}::${'${group.agentName}'}\`,\n        entries: [],\n        confirmedAt: "",\n        updatedAt: "",\n      };\n      const referenceMonthRows = storedDocument\n        ? allMonthRows\n        : [...allMonthRows, signatureDocument];\n      const appended = await appendFinalSignedReportForAgent({\n        doc,\n        cases: group.cases,\n        monthKey,\n        agentName: group.agentName,\n        storedDocument: signatureDocument,\n        allMonthRows: referenceMonthRows,\n        appendPage: hasWrittenContent,\n      });\n      if (appended) hasWrittenContent = true;\n    }`;
 
   source = replaceOnce(
     source,
-    `    } else {\n      missingSignedAgents.push(group.agentName);\n    }`,
-    `    } else if (!isWeeklyExport) {\n      missingSignedAgents.push(group.agentName);\n    }`,
-    "Weekly missing Signature suppression"
+    monthlySignatureBlock,
+    gatedMonthlySignatureBlock,
+    "gate Monthly Signature cover during Weekly export"
   );
 
   fs.writeFileSync(bulkPath, source, "utf8");
