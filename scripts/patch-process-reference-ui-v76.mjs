@@ -6,6 +6,7 @@ const marker = "// process-reference-pinned-minimize-eager-media-v76";
 
 if (source.includes(marker)) {
   console.log("Process reference pinned minimize/eager media v76 already applied");
+  await import("./patch-process-reference-ui-v77.mjs");
   process.exit(0);
 }
 
@@ -64,3 +65,4 @@ source = source.replace('          pdfjs: false,\n', '');
 
 fs.writeFileSync(file, source);
 console.log("Applied viewport-pinned minimized bar, reopen-on-view, and eager PPTX media rendering v76");
+await import("./patch-process-reference-ui-v77.mjs");
