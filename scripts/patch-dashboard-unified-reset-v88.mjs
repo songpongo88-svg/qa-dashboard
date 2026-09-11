@@ -12,7 +12,8 @@ function replaceIfPresent(source, from, to, label) {
   return source.replace(from, to);
 }
 
-// 1) Dashboard search row: Clear becomes the single Reset button and resets search + analytics filters.
+// Dashboard: replace Clear with one Reset button. Reset clears search + dashboard filter memory,
+// then reloads once so every filter/state returns to its normal default in one action.
 {
   let source = fs.readFileSync(dashboardFile, "utf8");
   if (!source.includes(marker)) {
@@ -21,8 +22,6 @@ function replaceIfPresent(source, from, to, label) {
         'const CASE_SEARCH_HISTORY_LIMIT = 5;\n',
         'const CASE_SEARCH_HISTORY_LIMIT = 5;\n' + marker + '\n',
       );
-    } else {
-      source = marker + '\n' + source;
     }
 
     source = replaceIfPresent(
@@ -31,14 +30,12 @@ function replaceIfPresent(source, from, to, label) {
       '<div data-search-evaluation-primary-v166="true" data-search-evaluation-auto-v168="true" data-dashboard-unified-reset-v88="true" className="min-w-0">',
       "search controls root",
     );
-
     source = replaceIfPresent(
       source,
       'className="h-12 min-w-0 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-500 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"',
       'className="h-12 min-w-0 rounded-xl border border-sky-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-[#155B83] focus:ring-4 focus:ring-sky-100"',
       "search input styling",
     );
-
     source = replaceIfPresent(
       source,
       'className="h-12 rounded-xl bg-emerald-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800"',
@@ -46,23 +43,31 @@ function replaceIfPresent(source, from, to, label) {
       "Search button styling",
     );
 
-    const resetButton = '<button type="button" title="ล้างการค้นหา เคสที่เลือก และตัวกรองทั้งหมดกลับค่าเริ่มต้น" onClick={() => { clearCaseSearch(); window.dispatchEvent(new CustomEvent("qa-dashboard-reset-all-v88")); }} className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md">Reset</button>';
+    const resetButton = `<button type="button" title="ล้างการค้นหา เคสที่เลือก และตัวกรองทั้งหมดกลับค่าเริ่มต้น" onClick={() => {
+          clearCaseSearch();
+          [
+            "qa_analytics_mode_v134",
+            "qa_analytics_periods_v134",
+            "qa_analytics_year_filter_v134",
+            "qa_analytics_month_filter_v134",
+            "qa_analytics_section_v134",
+            "qa_analytics_team_month_v134",
+            "qa_analytics_team_v134",
+            "qa_analytics_team_detail_v134",
+            "qa_summary_selected_agent_v119"
+          ].forEach((key) => window.sessionStorage.removeItem(key));
+          window.setTimeout(() => window.location.reload(), 0);
+        }} className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md">Reset</button>`;
     const clearPattern = /<button\s+type="button"\s+onClick=\{clearCaseSearch\}[\s\S]{0,700}?>\s*Clear\s*<\/button>/;
-    if (clearPattern.test(source)) {
-      source = source.replace(clearPattern, resetButton);
-    } else {
-      console.warn("Dashboard unified reset v88: Clear button pattern not found");
-    }
+    if (clearPattern.test(source)) source = source.replace(clearPattern, resetButton);
+    else console.warn("Dashboard unified reset v88: Clear button pattern not found");
 
     fs.writeFileSync(dashboardFile, source);
-    console.log("Applied unified Search/Reset dashboard controls v88");
-  } else {
-    console.log("Dashboard unified Search/Reset v88 already applied");
+    console.log("Applied single dashboard Reset button v88");
   }
 }
 
-// 2) Analytics controls: listen for the unified Reset, remove the second Reset button,
-// and align Search / Reset / Export / Compare styling with the dashboard palette.
+// Summary/Analytics: remove the old second Reset and refresh the visible control palette.
 {
   let source = fs.readFileSync(summaryFile, "utf8");
   if (!source.includes(marker)) {
@@ -71,53 +76,11 @@ function replaceIfPresent(source, from, to, label) {
         'type ReviewStatus = "Original" | "Revised";\n',
         marker + '\n' + 'type ReviewStatus = "Original" | "Revised";\n',
       );
-    } else {
-      source = marker + '\n' + source;
-    }
-
-    const compareAnchor = '  const openAnalyticsCompare = () => {';
-    if (source.includes(compareAnchor)) {
-      const resetHandler = `  const resetDashboardControlsV88 = () => {
-    setSummarySection("summary");
-    setAnalysisMode("monthly");
-    setSelectedPeriods([]);
-    setPeriodFilterYear("all");
-    setPeriodFilterMonth("all");
-    setSelectedYear("all");
-    setSelectedMonth("all");
-    setSelectedWeek("all");
-    setSelectedTeam(analyticsCanSelectAllTeams ? "all" : currentUserTeamName || "all");
-    setSelectedTeamDetail("");
-    setAnalyticsExportOpen(false);
-    setAnalyticsCustomizeOpen(false);
-    setAnalyticsCompareOpen(false);
-    if (analyticsCanSelectAllAgents) selectAnalyticsAgent("all");
-    onSelectedWeekChange?.("all");
-  };
-
-  useEffect(() => {
-    const handleDashboardResetV88 = () => resetDashboardControlsV88();
-    window.addEventListener("qa-dashboard-reset-all-v88", handleDashboardResetV88);
-    return () => window.removeEventListener("qa-dashboard-reset-all-v88", handleDashboardResetV88);
-  }, [
-    analyticsCanSelectAllAgents,
-    analyticsCanSelectAllTeams,
-    currentUserTeamName,
-    onSelectedWeekChange,
-  ]);
-
-`;
-      source = source.replace(compareAnchor, resetHandler + compareAnchor);
-    } else {
-      console.warn("Dashboard unified reset v88: openAnalyticsCompare anchor not found");
     }
 
     const oldResetPattern = /\s*<button\s+type="button"\s+onClick=\{\(\) => \{[\s\S]{0,700}?setAnalysisMode\("monthly"\);[\s\S]{0,700}?>\s*Reset\s*<\/button>/;
-    if (oldResetPattern.test(source)) {
-      source = source.replace(oldResetPattern, "");
-    } else {
-      console.warn("Dashboard unified reset v88: old filter Reset button pattern not found");
-    }
+    if (oldResetPattern.test(source)) source = source.replace(oldResetPattern, "");
+    else console.warn("Dashboard unified reset v88: old filter Reset button pattern not found");
 
     source = source.replace(
       'className="space-y-4 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)]"',
@@ -127,7 +90,6 @@ function replaceIfPresent(source, from, to, label) {
       'className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end"',
       'className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end"',
     );
-
     source = source.replace(
       'className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"',
       'className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"',
@@ -140,7 +102,6 @@ function replaceIfPresent(source, from, to, label) {
       'className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white hover:bg-violet-800"',
       'className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"',
     );
-
     source = source.replace(
       'className="grid gap-3 border-t border-violet-100 pt-4 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]"',
       'className="grid gap-3 border-t border-sky-100 pt-4 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]"',
@@ -155,8 +116,6 @@ function replaceIfPresent(source, from, to, label) {
     );
 
     fs.writeFileSync(summaryFile, source);
-    console.log("Applied single Reset + refreshed dashboard control styling v88");
-  } else {
-    console.log("Dashboard analytics unified reset v88 already applied");
+    console.log("Removed duplicate Reset and refreshed dashboard controls v88");
   }
 }
