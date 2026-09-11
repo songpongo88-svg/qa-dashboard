@@ -12,7 +12,7 @@ if (!source.includes(marker)) {
   const anchor = 'function formatDescriptionText(value: unknown, fallback = "-") {';
   if (!source.includes(anchor)) throw new Error("Process PDF parity v84: formatter anchor missing");
 
-  const helper = `${marker}
+  const helper = String.raw`${marker}
 function formatProcessReferenceForPdfV84(value: unknown) {
   const raw = safeMultiline(value, "");
   if (!raw) return "";
