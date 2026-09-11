@@ -100,3 +100,4 @@ replaceOnce(
 
 fs.writeFileSync(file, source);
 console.log("Applied Process Library Firestore nested-array fix v72");
+await import("./patch-process-reference-ui-v73.mjs");
