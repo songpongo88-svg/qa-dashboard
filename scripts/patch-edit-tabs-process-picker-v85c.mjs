@@ -70,3 +70,4 @@ $2`);
 }
 
 await import("./patch-edit-tabs-process-picker-v85b.mjs");
+await import("./patch-process-no-support-v86.mjs");
