@@ -6,6 +6,7 @@ const marker = "// process-reference-centered-large-viewer-v75";
 
 if (source.includes(marker)) {
   console.log("Process reference centered large viewer v75 already applied");
+  await import("./patch-process-reference-ui-v76.mjs");
   process.exit(0);
 }
 
@@ -54,3 +55,4 @@ source = source.replace(
 
 fs.writeFileSync(file, source);
 console.log("Applied centered, larger initial Process Slide viewer and high-visibility minimized bar v75");
+await import("./patch-process-reference-ui-v76.mjs");
