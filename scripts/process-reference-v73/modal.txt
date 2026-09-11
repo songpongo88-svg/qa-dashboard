@@ -1,0 +1,69 @@
+function ProcessSlideModalV68({ meta, items = [], onClose, onNavigate }: { meta: ProcessReferenceMeta | null; items?: ProcessReferenceMeta[]; onClose: () => void; onNavigate?: (meta: ProcessReferenceMeta) => void }) {
+  const [minimized, setMinimized] = useState(false);
+  const index = meta ? items.findIndex((item) => item.versionId === meta.versionId && item.slideNumber === meta.slideNumber) : -1;
+  const hasPrevious = index > 0;
+  const hasNext = index >= 0 && index < items.length - 1;
+
+  useEffect(() => {
+    if (!meta) return;
+    setMinimized(false);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft" && hasPrevious && onNavigate) onNavigate(items[index - 1]);
+      if (event.key === "ArrowRight" && hasNext && onNavigate) onNavigate(items[index + 1]);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [meta, onClose, onNavigate, hasPrevious, hasNext, index, items]);
+
+  if (!meta) return null;
+  const displayTitle = meta.step && meta.step !== "ทั้งสไลด์" ? meta.step : (meta.slideTitle || ("Slide " + meta.slideNumber));
+
+  if (minimized) {
+    return (
+      <div className="fixed bottom-5 right-5 z-[260] flex max-w-[min(92vw,520px)] items-center gap-3 rounded-2xl border border-sky-200 bg-white px-3 py-2.5 shadow-2xl">
+        <div className="min-w-0 flex-1">
+          <div className="text-[9px] font-black uppercase tracking-[0.18em] text-sky-700">Process Slide · ย่ออยู่</div>
+          <div className="truncate text-sm font-black text-slate-950">Slide {meta.slideNumber} · {displayTitle}</div>
+        </div>
+        <button type="button" onClick={() => setMinimized(false)} className="h-9 rounded-xl bg-[#155B83] px-3 text-xs font-black text-white hover:bg-[#104A6B]" title="ขยายหน้าต่างสไลด์กลับมา">ขยาย</button>
+        <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-black text-slate-600 hover:bg-slate-50" aria-label="ปิด">×</button>
+      </div>
+    );
+  }
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label={"Slide " + meta.slideNumber + " " + displayTitle} className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/75 p-3 sm:p-6" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+      <div className="flex max-h-[94vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] border border-sky-200 bg-white shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-sky-100 bg-white px-4 py-3 sm:px-5">
+          <div className="min-w-0">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#155B83]">Process Slide</div>
+            <div className="truncate text-base font-black text-slate-950">Slide {meta.slideNumber} · {displayTitle}</div>
+            <div className="mt-0.5 text-xs font-semibold text-slate-500">{meta.processName} · v{meta.versionLabel}</div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {items.length > 1 ? (
+              <div className="mr-1 hidden items-center gap-1 sm:flex">
+                <button type="button" disabled={!hasPrevious} onClick={() => { if (hasPrevious && onNavigate) onNavigate(items[index - 1]); }} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35">← ย้อนกลับ</button>
+                <span className="min-w-[54px] text-center text-[11px] font-black text-slate-500">{index + 1}/{items.length}</span>
+                <button type="button" disabled={!hasNext} onClick={() => { if (hasNext && onNavigate) onNavigate(items[index + 1]); }} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35">ถัดไป →</button>
+              </div>
+            ) : null}
+            <button type="button" onClick={() => setMinimized(true)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-lg font-black text-[#155B83] hover:bg-sky-100" aria-label="ย่อหน้าต่าง" title="ย่อหน้าต่างสไลด์">−</button>
+            <button type="button" onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl font-black text-slate-600 hover:bg-slate-50" aria-label="ปิด">×</button>
+          </div>
+        </div>
+        {items.length > 1 ? (
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 sm:hidden">
+            <button type="button" disabled={!hasPrevious} onClick={() => { if (hasPrevious && onNavigate) onNavigate(items[index - 1]); }} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black disabled:opacity-35">← ย้อนกลับ</button>
+            <span className="text-[11px] font-black text-slate-500">{index + 1}/{items.length}</span>
+            <button type="button" disabled={!hasNext} onClick={() => { if (hasNext && onNavigate) onNavigate(items[index + 1]); }} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black disabled:opacity-35">ถัดไป →</button>
+          </div>
+        ) : null}
+        <div className="min-h-0 flex-1 bg-slate-100 p-2 sm:p-3">
+          <ProcessSlideFileV70 key={serializeProcessReference(meta)} meta={meta} />
+        </div>
+      </div>
+    </div>
+  );
+}
