@@ -1,0 +1,170 @@
+function ProcessSlideModalV68({ meta, items = [], onClose, onNavigate, openToken = 0 }: { meta: ProcessReferenceMeta | null; items?: ProcessReferenceMeta[]; onClose: () => void; onNavigate?: (meta: ProcessReferenceMeta) => void; openToken?: number }) {
+  type ViewerFrame = { left: number; top: number; width: number; height: number };
+  const [minimized, setMinimized] = useState(false);
+  const [maximized, setMaximized] = useState(false);
+  const [frame, setFrame] = useState<ViewerFrame>({ left: 24, top: 24, width: 960, height: 720 });
+  const restoreFrameRef = useRef<ViewerFrame | null>(null);
+  const previousMetaRef = useRef<ProcessReferenceMeta | null>(null);
+
+  const index = meta ? items.findIndex((item) => item.versionId === meta.versionId && item.slideNumber === meta.slideNumber) : -1;
+  const hasPrevious = index > 0;
+  const hasNext = index >= 0 && index < items.length - 1;
+  const displayTitle = meta ? (meta.step && meta.step !== "ทั้งสไลด์" ? meta.step : meta.slideTitle || `Slide ${meta.slideNumber}`) : "";
+
+  const viewportFrame = () => {
+    const viewportWidth = Math.max(360, window.innerWidth);
+    const viewportHeight = Math.max(420, window.innerHeight);
+    const horizontalMargin = viewportWidth >= 900 ? 48 : 24;
+    const verticalMargin = viewportHeight >= 700 ? 48 : 24;
+    const width = Math.max(420, Math.min(1500, viewportWidth - horizontalMargin));
+    const height = Math.max(360, Math.min(920, viewportHeight - verticalMargin));
+    const left = Math.max(8, Math.round((viewportWidth - width) / 2));
+    const top = Math.max(8, Math.round((viewportHeight - height) / 2));
+    return { left, top, width, height };
+  };
+
+  useEffect(() => {
+    if (!meta) {
+      previousMetaRef.current = null;
+      return;
+    }
+    const wasClosed = !previousMetaRef.current;
+    previousMetaRef.current = meta;
+    if (wasClosed) {
+      setMinimized(false);
+      setMaximized(false);
+      setFrame(viewportFrame());
+    }
+  }, [meta]);
+
+  useEffect(() => {
+    if (!meta || !openToken) return;
+    setMinimized(false);
+    setMaximized(false);
+    setFrame(viewportFrame());
+  }, [openToken]);
+
+  useEffect(() => {
+    if (!meta) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft" && hasPrevious && onNavigate) onNavigate(items[index - 1]);
+      if (event.key === "ArrowRight" && hasNext && onNavigate) onNavigate(items[index + 1]);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [meta, onClose, onNavigate, hasPrevious, hasNext, index, items]);
+
+  useEffect(() => {
+    const keepInViewport = () => {
+      if (!meta || maximized || minimized) return;
+      setFrame((current) => {
+        const maxWidth = Math.max(360, window.innerWidth - 24);
+        const maxHeight = Math.max(320, window.innerHeight - 24);
+        const width = Math.min(current.width, maxWidth);
+        const height = Math.min(current.height, maxHeight);
+        const left = Math.max(8, Math.min(current.left, window.innerWidth - width - 8));
+        const top = Math.max(8, Math.min(current.top, window.innerHeight - height - 8));
+        return { left, top, width, height };
+      });
+    };
+    window.addEventListener("resize", keepInViewport);
+    return () => window.removeEventListener("resize", keepInViewport);
+  }, [meta, maximized, minimized]);
+
+  if (!meta || typeof document === "undefined") return null;
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (maximized || (event.target instanceof HTMLElement && event.target.closest("button"))) return;
+    event.preventDefault();
+    const originX = event.clientX;
+    const originY = event.clientY;
+    const originLeft = frame.left;
+    const originTop = frame.top;
+    document.body.style.userSelect = "none";
+
+    const move = (pointerEvent: PointerEvent) => {
+      const nextLeft = Math.max(8, Math.min(window.innerWidth - 120, originLeft + pointerEvent.clientX - originX));
+      const nextTop = Math.max(8, Math.min(window.innerHeight - 70, originTop + pointerEvent.clientY - originY));
+      setFrame((current) => ({ ...current, left: nextLeft, top: nextTop }));
+    };
+    const up = () => {
+      document.body.style.userSelect = "";
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const toggleMaximize = () => {
+    if (maximized) {
+      setMaximized(false);
+      if (restoreFrameRef.current) setFrame(restoreFrameRef.current);
+      return;
+    }
+    restoreFrameRef.current = frame;
+    setMaximized(true);
+    setMinimized(false);
+  };
+
+  if (minimized) {
+    return createPortal(
+      <div className="fixed flex w-[min(620px,calc(100vw-32px))] items-center gap-3 rounded-2xl border-2 border-[#155B83] bg-white px-4 py-3 shadow-[0_24px_80px_rgba(15,23,42,0.42)] ring-4 ring-white/90" style={{ right: 18, bottom: 18, zIndex: 2147483000 }}>
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#155B83]">Process Slide · ย่อหน้าต่างอยู่</div>
+          <div className="truncate text-sm font-black text-slate-950">Slide {meta.slideNumber} · {displayTitle}</div>
+        </div>
+        <button type="button" onClick={() => { setMinimized(false); setFrame(viewportFrame()); }} className="h-9 rounded-xl bg-[#155B83] px-3 text-xs font-black text-white hover:bg-[#104A6B]" title="ขยายหน้าต่างสไลด์กลับมา">ขยาย</button>
+        <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-black text-slate-600 hover:bg-slate-50" aria-label="ปิด">×</button>
+      </div>,
+      document.body,
+    );
+  }
+
+  const windowStyle: React.CSSProperties = maximized
+    ? { left: 12, top: 12, width: "calc(100vw - 24px)", height: "calc(100vh - 24px)" }
+    : { left: frame.left, top: frame.top, width: frame.width, height: frame.height, minWidth: 420, minHeight: 330, maxWidth: "calc(100vw - 16px)", maxHeight: "calc(100vh - 16px)", resize: "both" };
+
+  return createPortal(
+    <div className="pointer-events-none fixed inset-0" style={{ zIndex: 2147483000 }}>
+      <div role="dialog" aria-modal="false" aria-label={`Slide ${meta.slideNumber} ${displayTitle}`} style={windowStyle} className="pointer-events-auto fixed flex flex-col overflow-hidden rounded-[20px] border border-sky-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.30)]">
+        <div onPointerDown={startDrag} className={`flex shrink-0 items-center justify-between gap-4 border-b border-sky-100 bg-white px-3 py-2.5 sm:px-4 ${maximized ? "" : "cursor-move"}`} title={maximized ? undefined : "ลากแถบนี้เพื่อเลื่อนหน้าต่าง"}>
+          <div className="min-w-0">
+            <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#155B83]">Process Slide</div>
+            <div className="truncate text-sm font-black text-slate-950">Slide {meta.slideNumber} · {displayTitle}</div>
+            <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-500">{meta.processName} · v{meta.versionLabel}</div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {items.length > 1 ? (
+              <div className="mr-1 hidden items-center gap-1 lg:flex">
+                <button type="button" disabled={!hasPrevious} onClick={() => hasPrevious && onNavigate?.(items[index - 1])} className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35">← ย้อนกลับ</button>
+                <span className="min-w-[44px] text-center text-[10px] font-black text-slate-500">{index + 1}/{items.length}</span>
+                <button type="button" disabled={!hasNext} onClick={() => hasNext && onNavigate?.(items[index + 1])} className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35">ถัดไป →</button>
+              </div>
+            ) : null}
+            <button type="button" onClick={() => setMinimized(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-base font-black text-[#155B83] hover:bg-sky-100" aria-label="ย่อหน้าต่าง" title="ย่อหน้าต่างสไลด์">−</button>
+            <button type="button" onClick={toggleMaximize} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-white text-sm font-black text-[#155B83] hover:bg-sky-50" aria-label={maximized ? "คืนขนาดหน้าต่าง" : "ขยายเต็มหน้าจอ"} title={maximized ? "คืนขนาดหน้าต่าง" : "ขยายเต็มหน้าจอ"}>{maximized ? "❐" : "□"}</button>
+            <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg font-black text-slate-600 hover:bg-slate-50" aria-label="ปิด">×</button>
+          </div>
+        </div>
+
+        {items.length > 1 ? (
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1.5 lg:hidden">
+            <button type="button" disabled={!hasPrevious} onClick={() => hasPrevious && onNavigate?.(items[index - 1])} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black disabled:opacity-35">← ย้อนกลับ</button>
+            <span className="text-[10px] font-black text-slate-500">{index + 1}/{items.length}</span>
+            <button type="button" disabled={!hasNext} onClick={() => hasNext && onNavigate?.(items[index + 1])} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black disabled:opacity-35">ถัดไป →</button>
+          </div>
+        ) : null}
+
+        <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-2">
+          <ProcessSlideFileV70 key={serializeProcessReference(meta)} meta={meta} />
+        </div>
+        {!maximized ? (
+          <div className="pointer-events-none absolute bottom-1 right-1 text-[13px] font-black text-slate-400" aria-hidden="true">⌟</div>
+        ) : null}
+      </div>
+    </div>,
+    document.body,
+  );
+}
