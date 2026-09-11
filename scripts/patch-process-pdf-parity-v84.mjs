@@ -68,3 +68,5 @@ function formatProcessReferenceForPdfV84(value: unknown) {
 } else {
   console.log("Case PDF Process Reference parity v84 already applied");
 }
+
+await import("./patch-edit-tabs-process-picker-v85.mjs");
