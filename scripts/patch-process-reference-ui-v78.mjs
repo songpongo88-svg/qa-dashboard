@@ -153,3 +153,5 @@ if (!pdfSource.includes(pdfMarker)) {
 } else {
   console.log("Process reference PDF Version v78 already applied");
 }
+
+await import("./patch-process-reference-timezone-v79.mjs");
