@@ -68,6 +68,8 @@ function replaceIfPresent(source, from, to, label) {
 }
 
 // Summary/Analytics: remove the old second Reset and refresh the visible control palette.
+// Do not rewrite Export / Compare / Exit Compare source button classes here; the
+// analytics compare build plugin needs those exact class strings as transform anchors.
 {
   let source = fs.readFileSync(summaryFile, "utf8");
   if (!source.includes(marker)) {
@@ -89,18 +91,6 @@ function replaceIfPresent(source, from, to, label) {
     source = source.replace(
       'className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end"',
       'className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end"',
-    );
-    source = source.replace(
-      'className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"',
-      'className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"',
-    );
-    source = source.replace(
-      'className="h-10 rounded-xl border border-violet-700 bg-violet-700 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-800"',
-      'className="h-12 rounded-xl border border-[#0F766E] bg-[#0F766E] px-4 text-xs font-black text-white shadow-[0_7px_18px_rgba(15,118,110,0.20)] transition hover:-translate-y-0.5 hover:bg-[#0B655E] hover:shadow-[0_9px_22px_rgba(15,118,110,0.24)]"',
-    );
-    source = source.replace(
-      'className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white hover:bg-violet-800"',
-      'className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"',
     );
     source = source.replace(
       'className="grid gap-3 border-t border-violet-100 pt-4 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]"',
