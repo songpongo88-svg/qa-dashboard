@@ -90,3 +90,5 @@ if (!source.includes(marker)) {
 } else {
   console.log("Process submitted-case title repair v81 already applied");
 }
+
+await import("./patch-case-tabs-edit-slide-viewer-v82.mjs");
