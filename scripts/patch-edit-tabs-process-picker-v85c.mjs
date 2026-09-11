@@ -55,4 +55,18 @@ $2`);
   fs.writeFileSync(file, source);
 }
 
+// Keep the original readEvaluateTabMemory() field initializers intact. Several Vite
+// source transforms (including Investigation Findings) intentionally patch those exact
+// anchors. Dedicated Edit tabs are isolated by the write guard + their own keyed mount,
+// so rewriting every field initializer is unnecessary and breaks those transforms.
+{
+  const file = "scripts/patch-edit-tabs-process-picker-v85b.mjs";
+  let source = fs.readFileSync(file, "utf8");
+  const oldLine = '    source = source.split("readEvaluateTabMemory()?.").join("evaluateMemoryV85b?.");\n';
+  if (source.includes(oldLine)) {
+    source = source.replace(oldLine, '    // Preserve readEvaluateTabMemory() field initializer anchors for Vite transforms.\n');
+    fs.writeFileSync(file, source);
+  }
+}
+
 await import("./patch-edit-tabs-process-picker-v85b.mjs");
