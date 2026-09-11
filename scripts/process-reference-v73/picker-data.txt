@@ -1,0 +1,9 @@
+  const usedSlides = new Set(parsedRefs.map((item) => item.slideNumber));
+  const autoName = uploadFile ? uploadFile.name.replace(/\.[^.]+$/, "").replace(/\s*\(\d+\)\s*$/, "").trim() : "-";
+  const filteredSlides = active.slideTitles
+    .map((title, index) => ({ slideNumber: index + 1, title: String(title || ("Slide " + (index + 1))) }))
+    .filter((item) => {
+      const query = slideQuery.trim().toLowerCase();
+      if (!query) return true;
+      return String(item.slideNumber).includes(query) || item.title.toLowerCase().includes(query);
+    });
