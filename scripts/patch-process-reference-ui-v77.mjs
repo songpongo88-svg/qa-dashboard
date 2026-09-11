@@ -108,3 +108,5 @@ if (!pdfSource.includes(pdfMarker)) {
 } else {
   console.log("Clean Process Reference PDF v77 already applied");
 }
+
+await import("./patch-process-reference-ui-v78.mjs");
