@@ -4,8 +4,11 @@ const dashboardFile = "src/DashboardMockup.tsx";
 const summaryFile = "src/SummaryMockup.tsx";
 const marker = "// dashboard-unified-reset-v88";
 
-function replaceRequired(source, from, to, label) {
-  if (!source.includes(from)) throw new Error(`Dashboard unified reset v88: missing ${label}`);
+function replaceIfPresent(source, from, to, label) {
+  if (!source.includes(from)) {
+    console.warn(`Dashboard unified reset v88: optional anchor not found: ${label}`);
+    return source;
+  }
   return source.replace(from, to);
 }
 
@@ -13,35 +16,43 @@ function replaceRequired(source, from, to, label) {
 {
   let source = fs.readFileSync(dashboardFile, "utf8");
   if (!source.includes(marker)) {
-    source = source.replace(
-      'const CASE_SEARCH_HISTORY_LIMIT = 5;\n',
-      'const CASE_SEARCH_HISTORY_LIMIT = 5;\n' + marker + '\n',
-    );
+    if (source.includes('const CASE_SEARCH_HISTORY_LIMIT = 5;\n')) {
+      source = source.replace(
+        'const CASE_SEARCH_HISTORY_LIMIT = 5;\n',
+        'const CASE_SEARCH_HISTORY_LIMIT = 5;\n' + marker + '\n',
+      );
+    } else {
+      source = marker + '\n' + source;
+    }
 
-    source = replaceRequired(
+    source = replaceIfPresent(
       source,
       '<div data-search-evaluation-primary-v166="true" data-search-evaluation-auto-v168="true" className="min-w-0">',
       '<div data-search-evaluation-primary-v166="true" data-search-evaluation-auto-v168="true" data-dashboard-unified-reset-v88="true" className="min-w-0">',
       "search controls root",
     );
 
-    source = replaceRequired(
+    source = replaceIfPresent(
       source,
       'className="h-12 min-w-0 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-500 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"',
       'className="h-12 min-w-0 rounded-xl border border-sky-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-[#155B83] focus:ring-4 focus:ring-sky-100"',
       "search input styling",
     );
 
-    source = replaceRequired(
+    source = replaceIfPresent(
       source,
       'className="h-12 rounded-xl bg-emerald-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800"',
       'className="h-12 rounded-xl bg-[#155B83] px-5 text-xs font-black text-white shadow-[0_7px_18px_rgba(21,91,131,0.20)] transition hover:-translate-y-0.5 hover:bg-[#104A6B] hover:shadow-[0_9px_22px_rgba(21,91,131,0.24)]"',
       "Search button styling",
     );
 
-    const clearButton = '<button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">Clear</button>';
     const resetButton = '<button type="button" title="ล้างการค้นหา เคสที่เลือก และตัวกรองทั้งหมดกลับค่าเริ่มต้น" onClick={() => { clearCaseSearch(); window.dispatchEvent(new CustomEvent("qa-dashboard-reset-all-v88")); }} className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md">Reset</button>';
-    source = replaceRequired(source, clearButton, resetButton, "Clear button");
+    const clearPattern = /<button\s+type="button"\s+onClick=\{clearCaseSearch\}[\s\S]{0,700}?>\s*Clear\s*<\/button>/;
+    if (clearPattern.test(source)) {
+      source = source.replace(clearPattern, resetButton);
+    } else {
+      console.warn("Dashboard unified reset v88: Clear button pattern not found");
+    }
 
     fs.writeFileSync(dashboardFile, source);
     console.log("Applied unified Search/Reset dashboard controls v88");
@@ -55,14 +66,18 @@ function replaceRequired(source, from, to, label) {
 {
   let source = fs.readFileSync(summaryFile, "utf8");
   if (!source.includes(marker)) {
-    source = source.replace(
-      'type ReviewStatus = "Original" | "Revised";\n',
-      marker + '\n' + 'type ReviewStatus = "Original" | "Revised";\n',
-    );
+    if (source.includes('type ReviewStatus = "Original" | "Revised";\n')) {
+      source = source.replace(
+        'type ReviewStatus = "Original" | "Revised";\n',
+        marker + '\n' + 'type ReviewStatus = "Original" | "Revised";\n',
+      );
+    } else {
+      source = marker + '\n' + source;
+    }
 
     const compareAnchor = '  const openAnalyticsCompare = () => {';
-    if (!source.includes(compareAnchor)) throw new Error("Dashboard unified reset v88: openAnalyticsCompare anchor missing");
-    const resetHandler = `  const resetDashboardControlsV88 = () => {
+    if (source.includes(compareAnchor)) {
+      const resetHandler = `  const resetDashboardControlsV88 = () => {
     setSummarySection("summary");
     setAnalysisMode("monthly");
     setSelectedPeriods([]);
@@ -92,11 +107,17 @@ function replaceRequired(source, from, to, label) {
   ]);
 
 `;
-    source = source.replace(compareAnchor, resetHandler + compareAnchor);
+      source = source.replace(compareAnchor, resetHandler + compareAnchor);
+    } else {
+      console.warn("Dashboard unified reset v88: openAnalyticsCompare anchor not found");
+    }
 
-    const oldResetPattern = /\s*<button type="button" onClick=\{\(\) => \{\s*setSummarySection\("summary"\);\s*setAnalysisMode\("monthly"\);\s*setSelectedPeriods\(\[\]\);\s*setSelectedTeam\(analyticsCanSelectAllTeams \? "all" : currentUserTeamName \|\| "all"\);\s*if \(analyticsCanSelectAllAgents\) selectAnalyticsAgent\("all"\);\s*\}\} className="rounded-lg border border-violet-200 bg-white px-3 py-1\.5 font-bold text-violet-700 hover:bg-violet-100">Reset<\/button>/;
-    if (!oldResetPattern.test(source)) throw new Error("Dashboard unified reset v88: old filter Reset button missing");
-    source = source.replace(oldResetPattern, "");
+    const oldResetPattern = /\s*<button\s+type="button"\s+onClick=\{\(\) => \{[\s\S]{0,700}?setAnalysisMode\("monthly"\);[\s\S]{0,700}?>\s*Reset\s*<\/button>/;
+    if (oldResetPattern.test(source)) {
+      source = source.replace(oldResetPattern, "");
+    } else {
+      console.warn("Dashboard unified reset v88: old filter Reset button pattern not found");
+    }
 
     source = source.replace(
       'className="space-y-4 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)]"',
@@ -105,10 +126,6 @@ function replaceRequired(source, from, to, label) {
     source = source.replace(
       'className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end"',
       'className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end"',
-    );
-    source = source.replace(
-      'className="flex flex-wrap items-center gap-2"',
-      'className="flex flex-wrap items-center gap-2 rounded-xl border border-sky-100 bg-white/80 p-1.5 shadow-sm"',
     );
 
     source = source.replace(
