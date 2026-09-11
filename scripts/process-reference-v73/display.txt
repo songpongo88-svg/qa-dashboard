@@ -1,0 +1,53 @@
+export function ProcessReferenceDisplay({ value, className = "" }: { value: string; className?: string }) {
+  const refs = useMemo(() => parseProcessReferenceListV68(value), [value]);
+  const [previewMeta, setPreviewMeta] = useState<ProcessReferenceMeta | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (activeIndex >= refs.length) setActiveIndex(Math.max(0, refs.length - 1));
+  }, [activeIndex, refs.length]);
+
+  if (!refs.length) return <RichTextContent value={value} className={"whitespace-pre-line text-[14px] leading-6 text-slate-800 " + className} />;
+  const first = refs[0];
+  const activeRef = refs[Math.min(activeIndex, refs.length - 1)] || first;
+  const displayTitle = activeRef.step && activeRef.step !== "ทั้งสไลด์" ? activeRef.step : (activeRef.slideTitle || ("Slide " + activeRef.slideNumber));
+  return (
+    <div className={className}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Process</div>
+          <div className="mt-0.5 truncate text-sm font-black text-slate-950" title={first.processName}>{first.processName}</div>
+        </div>
+        {refs.length > 1 ? <div className="shrink-0 text-[11px] font-black text-slate-500">{activeIndex + 1} / {refs.length}</div> : null}
+      </div>
+
+      <div className="mt-3 rounded-xl border border-sky-100 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-xs font-black text-emerald-700">Slide {activeRef.slideNumber}</div>
+            <div className="mt-0.5 text-sm font-black text-slate-950" title={displayTitle}>{displayTitle}</div>
+          </div>
+          <button type="button" onClick={() => setPreviewMeta(activeRef)} className="shrink-0 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-[#155B83] shadow-sm transition hover:bg-sky-100">◉ ดูสไลด์</button>
+        </div>
+        {refs.length > 1 ? (
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+            <button type="button" disabled={activeIndex === 0} onClick={() => setActiveIndex((index) => Math.max(0, index - 1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35">← ย้อนกลับ</button>
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
+              {refs.map((item, index) => {
+                const dotClass = "h-2 rounded-full transition-all " + (index === activeIndex ? "w-6 bg-[#155B83]" : "w-2 bg-slate-300 hover:bg-slate-400");
+                return <button key={item.versionId + "-dot-" + item.slideNumber} type="button" onClick={() => setActiveIndex(index)} className={dotClass} aria-label={"Slide " + item.slideNumber} />;
+              })}
+            </div>
+            <button type="button" disabled={activeIndex === refs.length - 1} onClick={() => setActiveIndex((index) => Math.min(refs.length - 1, index + 1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35">ถัดไป →</button>
+          </div>
+        ) : null}
+      </div>
+      <div className="mt-2 text-[11px] font-semibold text-slate-500">ใช้ไฟล์จาก Version ที่บันทึกไว้พร้อมผลประเมินเคสนี้</div>
+      <ProcessSlideModalV68 meta={previewMeta} items={refs} onNavigate={(next) => {
+        setPreviewMeta(next);
+        const nextIndex = refs.findIndex((item) => item.slideNumber === next.slideNumber && item.versionId === next.versionId);
+        if (nextIndex >= 0) setActiveIndex(nextIndex);
+      }} onClose={() => setPreviewMeta(null)} />
+    </div>
+  );
+}
