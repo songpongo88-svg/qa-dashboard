@@ -6,6 +6,7 @@ const marker = "// process-reference-floating-viewer-v74";
 
 if (source.includes(marker)) {
   console.log("Process reference floating viewer v74 already applied");
+  await import("./patch-process-reference-ui-v75.mjs");
   process.exit(0);
 }
 
@@ -38,3 +39,4 @@ replaceRegex(
 
 fs.writeFileSync(file, source);
 console.log("Applied list display + draggable, resizable, minimizable Process Slide viewer v74");
+await import("./patch-process-reference-ui-v75.mjs");
