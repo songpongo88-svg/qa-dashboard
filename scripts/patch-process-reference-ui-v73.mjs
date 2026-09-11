@@ -6,6 +6,7 @@ const marker = "// process-reference-custom-labels-v73";
 
 if (source.includes(marker)) {
   console.log("Process reference UI v73 already applied");
+  await import("./patch-process-reference-ui-v74.mjs");
   process.exit(0);
 }
 
@@ -68,3 +69,4 @@ replaceRegex(
 
 fs.writeFileSync(file, source);
 console.log("Applied Process reference custom labels, picker, carousel, navigation, and minimize v73");
+await import("./patch-process-reference-ui-v74.mjs");
