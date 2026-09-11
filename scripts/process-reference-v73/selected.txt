@@ -1,0 +1,79 @@
+      <div className="space-y-2 p-4">
+        {parsedRefs.length ? (
+          <>
+            <div className="flex items-center justify-between gap-3 pb-1">
+              <div className="text-xs font-black text-slate-700">รายการ Slide ที่เลือก ({parsedRefs.length})</div>
+              {!historical && parsedRefs.length > 1 ? <button type="button" onClick={() => writeRefs([])} className="text-[11px] font-black text-rose-600 hover:text-rose-700">ล้างทั้งหมด</button> : null}
+            </div>
+            {parsedRefs.map((meta) => {
+              const displayTitle = meta.step && meta.step !== "ทั้งสไลด์" ? meta.step : meta.slideTitle;
+              return (
+                <div key={meta.versionId + "-" + meta.slideNumber} className="rounded-xl border border-sky-100 bg-white px-3 py-3 shadow-sm">
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <div className="min-w-0">
+                      <div className="text-xs font-black text-[#155B83]">Slide {meta.slideNumber}</div>
+                      <input value={displayTitle || ""} readOnly={historical} onChange={(event) => updateDisplayTitle(meta.slideNumber, event.target.value)} placeholder="พิมพ์ชื่อหัวข้อที่ต้องการแสดง..." className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 read-only:bg-slate-100" />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 self-end">
+                      <button type="button" onClick={() => setPreviewMeta(meta)} className="h-10 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-black text-[#155B83] hover:bg-sky-100">◉ ดูสไลด์</button>
+                      {!historical ? <button type="button" onClick={() => removeSlide(meta.slideNumber)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-sm font-black text-rose-700 hover:bg-rose-100" aria-label="ลบ Slide">×</button> : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {!historical ? <button type="button" onClick={() => { setSlidePickerOpen(true); setSlideQuery(""); setPickerSlideNumber(0); }} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-sky-300 bg-sky-50/60 text-xs font-black text-[#155B83] hover:bg-sky-50"><span className="text-xl">＋</span> เพิ่ม Slide อื่นๆ</button> : null}
+          </>
+        ) : (
+          <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/60 px-4 py-5 text-center text-xs font-semibold text-slate-500">ยังไม่ได้เลือก Slide ที่ใช้เทียบ</div>
+        )}
+      </div>
+
+      {slidePickerOpen && !historical ? (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-950/65 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="เลือก Slide จาก Process" onMouseDown={(event) => { if (event.currentTarget === event.target) setSlidePickerOpen(false); }}>
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-sky-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-sky-100 px-5 py-4">
+              <div className="min-w-0 flex-1">
+                <div className="text-lg font-black text-[#103d66]">เลือก Slide จาก Process</div>
+                <div className="mt-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2">
+                  <div className="truncate text-sm font-black text-slate-950">{active.name} · v{active.versionLabel}</div>
+                  <div className="text-xs font-semibold text-slate-500">{active.slideCount} slides</div>
+                </div>
+              </div>
+              <button type="button" onClick={() => setSlidePickerOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl font-black text-slate-600 hover:bg-slate-50">×</button>
+            </div>
+            <div className="border-b border-slate-100 px-5 py-3">
+              <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+                <span className="text-slate-400">⌕</span>
+                <input autoFocus value={slideQuery} onChange={(event) => setSlideQuery(event.target.value)} placeholder="ค้นหาเลข Slide หรือชื่อหัวข้อ..." className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" />
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-5 py-3">
+              {filteredSlides.map((item) => {
+                const alreadyUsed = usedSlides.has(item.slideNumber);
+                const selected = pickerSlideNumber === item.slideNumber;
+                const rowClass = "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition " +
+                  (selected ? "border-sky-500 bg-sky-50 ring-2 ring-sky-100 " : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/50 ") +
+                  (alreadyUsed ? "cursor-not-allowed opacity-45" : "");
+                return (
+                  <button key={item.slideNumber} type="button" disabled={alreadyUsed} onClick={() => setPickerSlideNumber(item.slideNumber)} className={rowClass}>
+                    <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-gradient-to-br from-[#155B83] to-[#6F8B67] text-[10px] font-black text-white shadow-sm">Slide {item.slideNumber}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-black text-[#155B83]">Slide {item.slideNumber}</div>
+                      <div className="truncate text-sm font-bold text-slate-800" title={item.title}>{item.title}</div>
+                    </div>
+                    <div className={"h-5 w-5 shrink-0 rounded-full border-2 " + (selected ? "border-sky-600 bg-sky-600 shadow-[inset_0_0_0_4px_white]" : "border-slate-300 bg-white")} />
+                  </button>
+                );
+              })}
+              {!filteredSlides.length ? <div className="py-10 text-center text-sm font-semibold text-slate-500">ไม่พบ Slide ที่ค้นหา</div> : null}
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
+              <button type="button" onClick={() => setSlidePickerOpen(false)} className="h-10 rounded-xl border border-slate-300 bg-white px-4 text-xs font-black text-slate-700 hover:bg-slate-50">ยกเลิก</button>
+              <button type="button" disabled={!pickerSlideNumber || usedSlides.has(pickerSlideNumber)} onClick={() => { addSlide(pickerSlideNumber); setSlidePickerOpen(false); }} className="h-10 rounded-xl bg-[#155B83] px-5 text-xs font-black text-white shadow-sm hover:bg-[#104A6B] disabled:cursor-not-allowed disabled:bg-slate-300">✓ เลือก Slide นี้</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <ProcessSlideModalV68 meta={previewMeta} items={parsedRefs} onNavigate={setPreviewMeta} onClose={() => setPreviewMeta(null)} />
