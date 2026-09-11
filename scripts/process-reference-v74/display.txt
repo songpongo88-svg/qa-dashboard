@@ -1,0 +1,33 @@
+export function ProcessReferenceDisplay({ value, className = "" }: { value: string; className?: string }) {
+  const refs = useMemo(() => parseProcessReferenceListV68(value), [value]);
+  const [previewMeta, setPreviewMeta] = useState<ProcessReferenceMeta | null>(null);
+
+  if (!refs.length) return <RichTextContent value={value} className={"whitespace-pre-line text-[14px] leading-6 text-slate-800 " + className} />;
+  const first = refs[0];
+
+  return (
+    <div className={className}>
+      <div className="min-w-0">
+        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Process</div>
+        <div className="mt-0.5 truncate text-sm font-black text-slate-950" title={first.processName}>{first.processName}</div>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {refs.map((meta) => {
+          const displayTitle = meta.step && meta.step !== "ทั้งสไลด์" ? meta.step : (meta.slideTitle || ("Slide " + meta.slideNumber));
+          return (
+            <div key={meta.versionId + "-" + meta.slideNumber} className="flex flex-col gap-2 rounded-xl border border-sky-100 bg-white px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="text-xs font-black text-emerald-700">Slide {meta.slideNumber}</div>
+                <div className="mt-0.5 text-sm font-black text-slate-950" title={displayTitle}>{displayTitle}</div>
+              </div>
+              <button type="button" onClick={() => setPreviewMeta(meta)} className="shrink-0 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-[#155B83] shadow-sm transition hover:bg-sky-100">◉ ดูสไลด์</button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 text-[11px] font-semibold text-slate-500">ใช้ไฟล์จาก Version ที่บันทึกไว้พร้อมผลประเมินเคสนี้</div>
+      <ProcessSlideModalV68 meta={previewMeta} items={refs} onNavigate={(next) => setPreviewMeta(next)} onClose={() => setPreviewMeta(null)} />
+    </div>
+  );
+}
