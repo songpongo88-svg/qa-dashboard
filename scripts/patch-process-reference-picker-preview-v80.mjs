@@ -92,3 +92,5 @@ if (!source.includes(marker)) {
 } else {
   console.log("Process reference picker Preview/title sync v80 already applied");
 }
+
+await import("./patch-process-reference-case-title-repair-v81.mjs");
