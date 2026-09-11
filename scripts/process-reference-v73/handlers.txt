@@ -1,0 +1,12 @@
+  const addSlide = (slideNumber: number) => {
+    if (!slideNumber || parsedRefs.some((item) => item.slideNumber === slideNumber)) return;
+    const fallbackTitle = active.slideTitles[Math.max(0, slideNumber - 1)] || ("Slide " + slideNumber);
+    const next = fromVersion(active, slideNumber, fallbackTitle);
+    writeRefs([...parsedRefs, next].sort((a, b) => a.slideNumber - b.slideNumber));
+    setPickerSlideNumber(0);
+  };
+
+  const updateDisplayTitle = (slideNumber: number, nextTitle: string) => {
+    writeRefs(parsedRefs.map((item) => item.slideNumber === slideNumber ? { ...item, step: nextTitle } : item));
+  };
+
