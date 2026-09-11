@@ -39,6 +39,19 @@ import fs from "node:fs";
 `);
   }
 
+  // Normalize the workspace-tab label expression; v85b will recognize the Edit branch
+  // and leave it in place while preserving all surrounding tab UI.
+  if (!source.includes('`Edit ${parseEditWorkspaceKey(workspaceKey).caseId}`')) {
+    const labelPattern = /(\{openWorkspaceTabs\.map\(\(workspaceKey\) => \{\s*\n\s*const isActive = activeWorkspaceTab === workspaceKey;\s*\n)\s*const label = [\s\S]*?;\s*\n(\s*return <div)/;
+    if (!labelPattern.test(source)) throw new Error("v85c workspace label block not found");
+    source = source.replace(labelPattern, `$1              const label = isEditWorkspaceTabKey(workspaceKey)
+                ? \`Edit \${parseEditWorkspaceKey(workspaceKey).caseId}\`
+                : isCaseWorkspaceTabKey(workspaceKey)
+                  ? parseCaseWorkspaceKey(workspaceKey).caseId
+                  : WORKSPACE_TAB_LABELS[workspaceKey];
+$2`);
+  }
+
   fs.writeFileSync(file, source);
 }
 
