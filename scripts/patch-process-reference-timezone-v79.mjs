@@ -137,3 +137,5 @@ function formatProcessReferenceForPdfV77`;
 } else {
   console.log("Process reference PDF Bangkok timezone v79 already applied");
 }
+
+await import("./patch-process-reference-picker-preview-v80.mjs");
