@@ -92,3 +92,4 @@ if (!source.includes(marker)) {
 }
 
 await import("./patch-case-tabs-edit-slide-viewer-v82.mjs");
+await import("./patch-internal-tabs-slide-fidelity-v83.mjs");
