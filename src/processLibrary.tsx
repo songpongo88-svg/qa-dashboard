@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { RichTextContent } from "./richText";
 import { getApps, initializeApp } from "firebase/app";
-import { collection, doc, getDocs, getFirestore, onSnapshot, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, writeBatch } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "firebase/storage";
 
 type ProcessVersion = {
@@ -102,7 +102,7 @@ export function serializeProcessReference(meta: ProcessReferenceMeta) {
 export function parseProcessReference(value: unknown): ProcessReferenceMeta | null {
   const text = String(value || "").trim();
   if (!text || !/^Process:/m.test(text) || !/^Slide:/m.test(text)) return null;
-  const get = (key: string) => text.match(new RegExp(`^${key}:\\s*(.*)$`, "mi"))?.[1]?.trim() || "";
+  const get = (key: string) => text.match(new RegExp(`^${key}:[\\t ]*([^\\r\\n]*)$`, "mi"))?.[1]?.trim() || "";
   return {
     versionId: get("Version ID"), processName: get("Process"), versionLabel: get("Version"),
     slideNumber: Number(get("Slide") || 0), slideTitle: get("Title"), step: get("Step") || "ทั้งสไลด์",
@@ -119,11 +119,23 @@ function fromVersion(version: ProcessVersion, slideNumber: number, step: string)
   };
 }
 
+function processFileUrlV70(value: unknown) {
+  const url = String(value || "").trim();
+  if (!/^(?:https?:\/\/|\/(?!\/))/i.test(url)) return "";
+  try {
+    const parsed = new URL(url, "https://process-reference.invalid");
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? url : "";
+  } catch {
+    return "";
+  }
+}
+
 function previewUrl(meta: ProcessReferenceMeta) {
-  if (!meta.fileUrl) return "";
-  if (meta.fileType === "pdf" || meta.fileUrl.toLowerCase().includes(".pdf")) return `${meta.fileUrl.split("#")[0]}#page=${Math.max(1, meta.slideNumber)}&view=FitH`;
+  const url = processFileUrlV70(meta.fileUrl);
+  if (!url) return "";
+  if (meta.fileType === "pdf" || url.toLowerCase().includes(".pdf")) return `${url.split("#")[0]}#page=${Math.max(1, meta.slideNumber)}&view=FitH`;
   if (meta.fileType === "pptx" || meta.fileType === "ppt") return "";
-  return meta.fileUrl;
+  return url;
 }
 
 const PROCESS_REFERENCE_SEPARATOR_V68 = "\n---PROCESS-REFERENCE---\n";
@@ -169,7 +181,7 @@ function builtInVersionV68(): ProcessVersion {
 function currentProcessVersionV69(rows: any[]): ProcessVersion | null {
   const currentRows = rows.filter((row) => row?.status === "current");
   currentRows.sort((a, b) => new Date(b?.uploadedAt || 0).getTime() - new Date(a?.uploadedAt || 0).getTime());
-  const row = currentRows[0];
+  const row = currentRows[0] || rows.find((entry) => entry?.id === BUILTIN_VERSION.id);
   if (!row) return null;
 
   const storedCount = Number(row.slideCount || 1);
@@ -470,6 +482,52 @@ function PptxSlidePreviewV69({ meta }: { meta: ProcessReferenceMeta }) {
   );
 }
 
+function ProcessSlideFileV70({ meta }: { meta: ProcessReferenceMeta }) {
+  const savedUrl = processFileUrlV70(meta.fileUrl);
+  const [resolvedMeta, setResolvedMeta] = useState<ProcessReferenceMeta | null>(() => savedUrl ? { ...meta, fileUrl: savedUrl } : null);
+  const [loading, setLoading] = useState(!savedUrl);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (savedUrl) return;
+    let disposed = false;
+    const services = meta.versionId ? firebaseServices() : null;
+    if (!services) {
+      setLoading(false);
+      return;
+    }
+    void getDoc(doc(services.db, PROCESS_COLLECTION, meta.versionId))
+      .then((snapshot) => {
+        if (disposed) return;
+        const version = snapshot.exists() ? snapshot.data() : null;
+        const url = processFileUrlV70(version?.fileUrl);
+        if (url) setResolvedMeta({ ...meta, fileUrl: url, fileType: String(version?.fileType || meta.fileType) });
+      })
+      .catch((cause) => {
+        if (disposed) return;
+        console.error("Load saved Process version file failed", cause);
+        setError("โหลดข้อมูลไฟล์ของเวอร์ชันนี้ไม่สำเร็จ กรุณาลองเปิดใหม่");
+      })
+      .finally(() => { if (!disposed) setLoading(false); });
+    return () => { disposed = true; };
+  }, [meta, savedUrl]);
+
+  if (loading) return <div className="flex h-[70vh] items-center justify-center text-sm font-bold text-slate-600">กำลังโหลดไฟล์ของ Process Version นี้...</div>;
+  if (resolvedMeta) {
+    const isPptx = resolvedMeta.fileType === "pptx" || resolvedMeta.fileType === "ppt" || /\.pptx?(?:$|[?#])/i.test(resolvedMeta.fileUrl);
+    const src = previewUrl(resolvedMeta);
+    if (isPptx) return <PptxSlidePreviewV69 meta={resolvedMeta} />;
+    if (src) return <iframe key={src} src={src} title={"Process Slide " + meta.slideNumber} allowFullScreen className="h-[78vh] w-full rounded-xl border border-slate-200 bg-white" />;
+  }
+  return (
+    <div className="flex h-[70vh] flex-col items-center justify-center rounded-xl border border-dashed border-amber-300 bg-amber-50 p-6 text-center">
+      <div className="text-4xl" aria-hidden="true">📄</div>
+      <div className="mt-3 text-base font-black text-amber-900">{error || "ยังไม่มีไฟล์ของ Process Version นี้"}</div>
+      <div className="mt-1 text-sm font-semibold text-amber-800">{error ? "ปิดหน้าต่างนี้แล้วกดดูสไลด์อีกครั้ง" : "ต้องแนบไฟล์ของเวอร์ชันที่ใช้ประเมิน จึงจะเปิด Slide " + meta.slideNumber + " ได้"}</div>
+    </div>
+  );
+}
+
 function ProcessSlideModalV68({ meta, onClose }: { meta: ProcessReferenceMeta | null; onClose: () => void }) {
   useEffect(() => {
     if (!meta) return;
@@ -481,8 +539,6 @@ function ProcessSlideModalV68({ meta, onClose }: { meta: ProcessReferenceMeta | 
   }, [meta, onClose]);
 
   if (!meta) return null;
-  const isPptx = meta.fileType === "pptx" || meta.fileType === "ppt" || /\.pptx?(?:$|[?#])/i.test(meta.fileUrl);
-  const src = previewUrl(meta);
   return (
     <div role="dialog" aria-modal="true" aria-label={`Slide ${meta.slideNumber} ${meta.slideTitle}`} className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/75 p-3 sm:p-6" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
       <div className="flex max-h-[94vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-[22px] border border-violet-200 bg-white shadow-2xl">
@@ -495,17 +551,7 @@ function ProcessSlideModalV68({ meta, onClose }: { meta: ProcessReferenceMeta | 
           <button type="button" onClick={onClose} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl font-black text-slate-600 hover:bg-slate-50" aria-label="ปิด">×</button>
         </div>
         <div className="min-h-0 flex-1 bg-slate-100 p-2 sm:p-3">
-          {isPptx && meta.fileUrl ? (
-            <PptxSlidePreviewV69 meta={meta} />
-          ) : src ? (
-            <iframe key={src} src={src} title={"Process Slide " + meta.slideNumber} allowFullScreen className="h-[78vh] w-full rounded-xl border border-slate-200 bg-white" />
-          ) : (
-            <div className="flex h-[70vh] flex-col items-center justify-center rounded-xl border border-dashed border-amber-300 bg-amber-50 p-6 text-center">
-              <div className="text-4xl" aria-hidden="true">📄</div>
-              <div className="mt-3 text-base font-black text-amber-900">ไม่พบไฟล์จริงของ Process Version นี้</div>
-              <div className="mt-1 text-sm font-semibold text-amber-800">จึงยังไม่สามารถเปิด Slide {meta.slideNumber} ได้</div>
-            </div>
-          )}
+          <ProcessSlideFileV70 key={serializeProcessReference(meta)} meta={meta} />
         </div>
       </div>
     </div>
