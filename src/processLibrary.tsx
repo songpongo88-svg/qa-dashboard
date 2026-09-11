@@ -1,5 +1,6 @@
 // process-library-native-v69
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { RichTextContent } from "./richText";
 import { getApps, initializeApp } from "firebase/app";
 import { collection, doc, getDocs, getFirestore, onSnapshot, writeBatch } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "firebase/storage";
@@ -758,7 +759,7 @@ export function ProcessReferenceSelector({ value, onChange, currentUser }: { val
 export function ProcessReferenceDisplay({ value, className = "" }: { value: string; className?: string }) {
   const refs = useMemo(() => parseProcessReferenceListV68(value), [value]);
   const [previewMeta, setPreviewMeta] = useState<ProcessReferenceMeta | null>(null);
-  if (!refs.length) return <div className={"whitespace-pre-line text-[14px] leading-6 text-slate-800 " + className}>{String(value || "-")}</div>;
+  if (!refs.length) return <RichTextContent value={value} className={"whitespace-pre-line text-[14px] leading-6 text-slate-800 " + className} />;
   const first = refs[0];
   return (
     <div className={className}>
