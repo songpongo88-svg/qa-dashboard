@@ -30,11 +30,13 @@ if (!source.includes(marker)) {
     "serialized Version formatting",
   );
 
-  replaceExact(
-    '      const versionLabel = uploadedAt.slice(0, 16).replace(/-/g, ".").replace("T", "-").replace(":", ".");',
-    '      const versionLabel = formatProcessVersionV78(new Date());',
-    "new upload Version formatting",
-  );
+  const firestoreVersionOld = `      const versionLabel = attachToSeed
+        ? current.versionLabel
+        : uploadedAt.slice(0, 16).replace(/-/g, ".").replace("T", "-").replace(":", ".");`;
+  const firestoreVersionNew = `      const versionLabel = attachToSeed
+        ? formatProcessVersionV78(current.versionLabel)
+        : formatProcessVersionV78(new Date());`;
+  replaceExact(firestoreVersionOld, firestoreVersionNew, "Firestore upload Version formatting");
 
   replaceExact(
     '          <div className="mt-1 text-sm font-black text-slate-950">{loading ? "กำลังโหลด..." : active.name + " · v" + active.versionLabel}</div>',
