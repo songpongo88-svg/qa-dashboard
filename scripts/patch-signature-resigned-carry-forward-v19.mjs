@@ -41,3 +41,4 @@ console.log("Patched Signature Center: Supakrit Promkhamnoi August 2026 automati
 
 await import("./patch-signature-late-carryover-v90.mjs");
 await import("./patch-signature-date-center-v91.mjs");
+await import("./patch-signature-date-row-center-v92.mjs");
