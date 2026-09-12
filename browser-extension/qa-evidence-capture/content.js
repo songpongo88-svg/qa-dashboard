@@ -278,6 +278,11 @@ function cropScreenshot(payload) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "QA_EVIDENCE_PING") {
+    sendResponse({ ok: true, version: chrome.runtime.getManifest().version });
+    return;
+  }
+
   if (message?.type === "QA_EVIDENCE_START_SELECTION") {
     startSelectionOverlay();
     sendResponse({ ok: true });
