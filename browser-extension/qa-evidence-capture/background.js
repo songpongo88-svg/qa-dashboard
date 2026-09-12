@@ -38,6 +38,31 @@ function queryTabs(queryInfo) {
   return new Promise((resolve) => chrome.tabs.query(queryInfo, resolve));
 }
 
+function injectContentScript(tabId) {
+  return chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["content.js"],
+  });
+}
+
+async function ensureContentScript(tabId) {
+  try {
+    const response = await sendTabMessage(tabId, { type: "QA_EVIDENCE_PING" });
+    if (response?.ok) return true;
+  } catch {
+    // Existing tabs do not automatically receive a freshly reloaded unpacked extension.
+  }
+
+  try {
+    await injectContentScript(tabId);
+    const response = await sendTabMessage(tabId, { type: "QA_EVIDENCE_PING" });
+    return Boolean(response?.ok);
+  } catch (error) {
+    console.warn("QA Evidence Capture: cannot inject into this page", error);
+    return false;
+  }
+}
+
 async function getContextState() {
   const stored = await storageGet([
     CONTEXT_KEY,
@@ -116,6 +141,7 @@ async function deliverCaptureToQa(capture) {
   const { qaTabId } = await getContextState();
   if (!qaTabId) return false;
   try {
+    await ensureContentScript(qaTabId);
     await sendTabMessage(qaTabId, { type: "QA_EVIDENCE_CAPTURED", payload: capture });
     return true;
   } catch (error) {
@@ -127,6 +153,7 @@ async function deliverCaptureToQa(capture) {
 async function deliverPendingToQa(qaTabId, context) {
   const pending = await getPendingCaptures();
   const matching = pending.filter((item) => sameContext(item.context, context));
+  await ensureContentScript(qaTabId);
   for (const capture of matching) {
     try {
       await sendTabMessage(qaTabId, { type: "QA_EVIDENCE_CAPTURED", payload: capture });
@@ -149,6 +176,8 @@ async function stopSelectionOnTab(tabId) {
 
 async function startSelection(tab) {
   if (!tab?.id || !isCapturableUrl(tab.url)) return false;
+  const ready = await ensureContentScript(tab.id);
+  if (!ready) return false;
   try {
     await sendTabMessage(tab.id, { type: "QA_EVIDENCE_START_SELECTION" });
     await setActiveCaptureTab(tab.id);
@@ -217,7 +246,9 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
-  void armActiveTab(activeInfo.windowId);
+  window.setTimeout(() => {
+    void armActiveTab(activeInfo.windowId);
+  }, 80);
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
