@@ -160,7 +160,7 @@ export async function fetchQaTypingChallengeQueue(username: string) {
         this,
         next,
         "export async function clearQaTypingChallenge(",
-        "export async function replaceQaTypingChallengeQueue(",
+        "async function resolveQaTypingChallengeDocumentIdV3(",
         clearReplacement,
         "clear queue"
       );
