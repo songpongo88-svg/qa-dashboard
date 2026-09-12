@@ -1,12 +1,13 @@
 export function signatureFourColumnPdfPatch() {
   return {
     name: "signature-four-column-pdf-v101",
+    enforce: "pre",
     transform(code, id) {
       const cleanId = id.replace(/\\/g, "/").split("?")[0];
       if (!cleanId.endsWith("/src/SignatureCenterMockup.tsx")) return null;
 
-      // Run after the legacy pre-transform patches and immediately before React.
-      // If an earlier build step already produced the final renderer, keep it.
+      // This plugin is listed after every legacy build patch, so within Vite's
+      // pre-transform stage it sees their final TSX and runs immediately before React.
       if (code.includes("signature-four-column-final-v101") || code.includes("signature-four-column-landscape-v98")) {
         return null;
       }
@@ -36,7 +37,6 @@ export function signatureFourColumnPdfPatch() {
         normalizedSignatures.set(role, signature ? await normalizeSignatureDataUrl(signature) : "");
       }
 
-      // Page 1 stays portrait. The signature page is always a separate A4 landscape page.
       pdf.addPage("a4", "landscape");
       const signaturePageW = pdf.internal.pageSize.getWidth();
       const signaturePageH = pdf.internal.pageSize.getHeight();
