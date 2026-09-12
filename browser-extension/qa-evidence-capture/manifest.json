@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "QA Evidence Capture",
+  "version": "1.0.0",
+  "description": "Capture any area from a web page and send it back to the active QA Dashboard case.",
+  "permissions": ["storage", "tabs", "activeTab", "unlimitedStorage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Capture Evidence"
+  },
+  "commands": {
+    "capture-evidence": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Capture evidence from the current web page"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
