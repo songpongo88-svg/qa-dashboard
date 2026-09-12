@@ -54,3 +54,7 @@ if (source.includes("// evaluate-dedicated-edit-memory-v85b") && !source.include
 await import("./patch-signature-date-center-final-v93.mjs");
 await import("./patch-signature-date-plain-center-v94.mjs");
 await import("./patch-signature-date-axis-v95.mjs");
+
+// Add browser-wide Capture Evidence bridge after the Evaluate workspace has reached
+// its final build-time shape, so the Section B controls are patched only once.
+await import("./patch-evidence-browser-capture-v96.mjs");
