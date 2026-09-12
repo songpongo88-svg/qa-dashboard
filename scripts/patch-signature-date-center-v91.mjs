@@ -25,3 +25,5 @@ if (!source.includes(marker)) {
 }
 
 console.log("Patched Signature Center PDF: signing dates are centered on the true panel center.");
+
+await import("./patch-signature-date-row-center-v92.mjs");
