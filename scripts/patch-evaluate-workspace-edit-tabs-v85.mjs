@@ -48,18 +48,6 @@ if (source.includes("// evaluate-dedicated-edit-memory-v85b") && !source.include
   console.log("Applied dedicated Edit-tab Cancel behavior after Evaluate workspace v72");
 }
 
-// Run Signature PDF geometry last. Several earlier build patches also rewrite
-// SignatureCenterMockup.tsx, so the centering correction must be applied after
-// every other prebuild transform to prevent the old +3.5 mm date offset returning.
-await import("./patch-signature-date-center-final-v93.mjs");
-await import("./patch-signature-date-plain-center-v94.mjs");
-await import("./patch-signature-date-axis-v95.mjs");
-
 // Add browser-wide Capture Evidence bridge after the Evaluate workspace has reached
 // its final build-time shape, so the Section B controls are patched only once.
 await import("./patch-evidence-browser-capture-v96.mjs");
-
-// Put Agent, Senior, Supervisor, and QA signature panels on one landscape row.
-await import("./patch-signature-four-column-landscape-v98.mjs");
-// Keep only the signed date/time value on the true center axis of each landscape panel.
-await import("./patch-signature-landscape-date-axis-v99.mjs");

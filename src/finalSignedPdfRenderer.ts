@@ -548,9 +548,21 @@ export async function renderFinalSignedPdf({
     normalizedSignatures.set(role, signature ? await normalizeSignatureDataUrl(signature) : "");
   }
 
+  // The acknowledgement page is intentionally a separate A4 landscape page.
+  // Page 1 above remains the existing portrait dashboard renderer.
   const signatureBlockHeight = 74;
+  let signaturePageW = pdf.internal.pageSize.getWidth();
+  let signaturePageH = pdf.internal.pageSize.getHeight();
+  let signatureLeft = left;
+  let signatureRight = left + tableW;
+  let signatureTableW = tableW;
   if (y + signatureBlockHeight > bottom - 5) {
-    pdf.addPage();
+    pdf.addPage("a4", "landscape");
+    signaturePageW = pdf.internal.pageSize.getWidth();
+    signaturePageH = pdf.internal.pageSize.getHeight();
+    signatureLeft = 10;
+    signatureRight = signaturePageW - 10;
+    signatureTableW = signatureRight - signatureLeft;
     y = 12;
   }
 
@@ -563,24 +575,48 @@ export async function renderFinalSignedPdf({
     dashedPdf.setLineDashPattern?.([], 0);
   };
 
-  const drawSignedLine = (label: string, centerX: number, lineY: number, value = "") => {
+  const drawSignedLine = (
+    label: string,
+    centerX: number,
+    lineY: number,
+    value = "",
+    centerValueOnPanel = false
+  ) => {
     const labelX = centerX - 20;
     const lineStart = centerX - 18;
     const lineEnd = centerX + 25;
     setTemplateFont(6.0, false, muted);
     pdf.text(label, labelX, lineY - 0.25, { align: "right" });
-    drawDottedLine(lineStart, lineY, lineEnd);
     if (value) {
       setTemplateFont(5.9, true, black);
-      pdf.text(value, (lineStart + lineEnd) / 2, lineY - 0.35, { align: "center" });
+      const valueCenter = centerValueOnPanel ? centerX : (lineStart + lineEnd) / 2;
+      const valueGapHalf = Math.min(
+        Math.max(6.8, pdf.getTextWidth(value) / 2 + 1.4),
+        Math.max(7, (lineEnd - lineStart) / 2 - 1.5)
+      );
+      drawDottedLine(lineStart, lineY, valueCenter - valueGapHalf);
+      drawDottedLine(valueCenter + valueGapHalf, lineY, lineEnd);
+      pdf.text(value, valueCenter, lineY - 0.35, { align: "center" });
+    } else {
+      drawDottedLine(lineStart, lineY, lineEnd);
     }
   };
 
   const drawSignaturePanel = (x: number, panelY: number, w: number, role: FinalSignedRole, roleTitle: string) => {
-    drawCell(x, panelY, w, 5.2, roleTitle, purple, { bold: true, color: [255,255,255], size: 7.0, align: "center", maxLines: 1 });
-    const signatureAreaY = panelY + 5.2;
-    const signatureAreaH = 14.2;
-    const signLineY = signatureAreaY + 9.9;
+    const headerH = 7.2;
+    const signatureAreaH = 31.0;
+    const nameH = 7.2;
+    const roleH = 6.4;
+    const dateH = 8.8;
+    drawCell(x, panelY, w, headerH, roleTitle, purple, {
+      bold: true,
+      color: [255,255,255],
+      size: 6.5,
+      align: "center",
+      maxLines: 1,
+    });
+    const signatureAreaY = panelY + headerH;
+    const signLineY = signatureAreaY + signatureAreaH - 6.0;
     const centerX = x + w / 2;
     drawCell(x, signatureAreaY, w, signatureAreaH, "", palePurple, { size: 6, align: "center" });
     drawSignedLine("ลงชื่อ", centerX, signLineY);
@@ -589,38 +625,56 @@ export async function renderFinalSignedPdf({
       try {
         const imageProps = pdf.getImageProperties(signature);
         const ratio = imageProps.width && imageProps.height ? imageProps.width / imageProps.height : 4;
-        const maxImageW = Math.min(w - 38, 46);
-        const maxImageH = 9.6;
+        const maxImageW = Math.min(w - 17, 42);
+        const maxImageH = 18.0;
         let imageW = maxImageW;
         let imageH = imageW / ratio;
         if (imageH > maxImageH) {
           imageH = maxImageH;
           imageW = imageH * ratio;
         }
-        pdf.addImage(signature, "PNG", centerX - imageW / 2, signLineY - imageH + 0.9, imageW, imageH);
+        pdf.addImage(signature, "PNG", centerX - imageW / 2, signLineY - imageH + 1.0, imageW, imageH);
       } catch {
-        setTemplateFont(6.0, false, muted);
-        pdf.text("Signature image unavailable", centerX, signLineY - 1.5, { align: "center" });
+        setTemplateFont(5.8, false, muted);
+        pdf.text("Signature image unavailable", centerX, signLineY - 2, { align: "center" });
       }
     }
-    drawCell(x, panelY + 19.4, w, 4.2, signerName(role), [255,255,255], { bold: true, size: 6.4, align: "center", maxLines: 1 });
-    drawCell(x, panelY + 23.6, w, 3.8, roleTitle, [255,255,255], { size: 5.8, align: "center", maxLines: 1 });
-    drawCell(x, panelY + 27.4, w, 4.6, "", [255,255,255], { size: 5.8, align: "center" });
-    drawSignedLine("วันที่", centerX, panelY + 30.3, signerDate(role));
+    const nameY = signatureAreaY + signatureAreaH;
+    drawCell(x, nameY, w, nameH, signerName(role), [255,255,255], {
+      bold: true,
+      size: 6.3,
+      align: "center",
+      maxLines: 1,
+    });
+    const roleY = nameY + nameH;
+    drawCell(x, roleY, w, roleH, roleTitle, [255,255,255], {
+      size: 5.7,
+      align: "center",
+      maxLines: 1,
+    });
+    const dateY = roleY + roleH;
+    drawCell(x, dateY, w, dateH, "", [255,255,255], { size: 5.7, align: "center" });
+    drawSignedLine("วันที่", centerX, dateY + dateH / 2 + 0.8, signerDate(role), true);
   };
 
-  const halfW = tableW / 2 - 3;
-  drawSignaturePanel(left, y, halfW, "Agent", "Agent ผู้ถูกประเมิน");
-  drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
-  y += 35.5;
-  drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor หัวหน้าแผนก");
-  drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA ผู้ตรวจสอบ");
+  const signatureGap = 4;
+  const signaturePanelW = (signatureTableW - signatureGap * 3) / 4;
+  const signatureRoles: Array<{ role: FinalSignedRole; title: string }> = [
+    { role: "Agent", title: "Agent ผู้ถูกประเมิน" },
+    { role: "Senior", title: "Senior หัวหน้าทีมผู้ถูกประเมิน" },
+    { role: "Supervisor", title: "Supervisor หัวหน้าแผนก" },
+    { role: "QA", title: "QA ผู้ตรวจสอบ" },
+  ];
+  signatureRoles.forEach((item, index) => {
+    const panelX = signatureLeft + index * (signaturePanelW + signatureGap);
+    drawSignaturePanel(panelX, y, signaturePanelW, item.role, item.title);
+  });
 
   setTemplateFont(7.0, false, muted);
   pdf.text(
     `Document Ref. ${pdfDocumentRef} | Generated: ${formatDateTime(generatedAt)} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`,
-    left + tableW,
-    pageH - 5.4,
+    signatureRight,
+    signaturePageH - 5.4,
     { align: "right" }
   );
 

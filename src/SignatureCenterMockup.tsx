@@ -3,6 +3,8 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { renderFinalSignedPdf } from "./finalSignedPdfRenderer";
+// final-signed-shared-renderer-v12
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
@@ -188,176 +190,7 @@ const SIGNATURE_LEGACY_TOPIC_MASTER = [
   { code: "3.2", label: "Case Ownership", max: 5 },
   { code: "3.3", label: "Clear Next Step Guidance", max: 5 },
   { code: "4.1", label: "Message Structure", max: 5 },
-  { code: "4.2", label: "Language Quality", max: 5 },
-  { code: "4.3", label: "Tone & Empathy", max: 5 },
-  { code: "4.4", label: "Adaptation to Context", max: 5 },
-  { code: "5.1", label: "Work Process Compliance", max: 10 },
-  { code: "5.2", label: "SLA Compliance", max: 5 },
-  { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
-] as const;
-
-const SIGNATURE_APRIL_2026_TOPIC_MASTER = [
-  { code: "1.1", label: "à¸¡à¸²à¸•à¸£à¸à¸²à¸™à¸à¸²à¸£à¸—à¸±à¸à¸—à¸²à¸¢à¹à¸¥à¸°à¸›à¸´à¸”à¸à¸²à¸£à¸ªà¸™à¸—à¸™à¸²", max: 10 },
-  { code: "1.2", label: "à¸à¸²à¸£à¸›à¸à¸´à¸šà¸±à¸•à¸´à¸•à¸²à¸¡ PDPA / Policy / à¸‚à¹‰à¸­à¸à¸³à¸«à¸™à¸”", max: 10 },
-  { code: "1.3", label: "à¸à¸²à¸£à¸›à¸à¸´à¸šà¸±à¸•à¸´à¸•à¸²à¸¡à¸à¸£à¸°à¸šà¸§à¸™à¸à¸²à¸£à¹à¸¥à¸° SLA", max: 10 },
-  { code: "2.1", label: "à¸„à¸§à¸²à¸¡à¸–à¸¹à¸à¸•à¹‰à¸­à¸‡à¸‚à¸­à¸‡à¸„à¸³à¸•à¸­à¸š", max: 10 },
-  { code: "2.2", label: "à¸„à¸§à¸²à¸¡à¸„à¸£à¸šà¸–à¹‰à¸§à¸™à¸‚à¸­à¸‡à¸„à¸³à¸•à¸­à¸š", max: 10 },
-  { code: "2.3", label: "à¸„à¸§à¸²à¸¡à¸Šà¸±à¸”à¹€à¸ˆà¸™à¸‚à¸­à¸‡à¸‚à¸±à¹‰à¸™à¸•à¸­à¸™à¹à¸¥à¸°à¹à¸«à¸¥à¹ˆà¸‡à¸­à¹‰à¸²à¸‡à¸­à¸´à¸‡", max: 5 },
-  { code: "3.1", label: "à¸à¸²à¸£à¸§à¸´à¹€à¸„à¸£à¸²à¸°à¸«à¹Œà¹à¸¥à¸°à¹à¸à¹‰à¹„à¸‚à¸›à¸±à¸à¸«à¸²à¹„à¸”à¹‰à¸•à¸£à¸‡à¸ˆà¸¸à¸”", max: 15 },
-  { code: "3.2", label: "Ownership à¹à¸¥à¸°à¸à¸²à¸£à¹à¸ˆà¹‰à¸‡ Next Step", max: 10 },
-  { code: "4.1", label: "à¹‚à¸„à¸£à¸‡à¸ªà¸£à¹‰à¸²à¸‡à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹à¸¥à¸°à¸„à¸§à¸²à¸¡à¸­à¹ˆà¸²à¸™à¸‡à¹ˆà¸²à¸¢", max: 5 },
-  { code: "4.2", label: "à¸„à¸§à¸²à¸¡à¸à¸£à¸°à¸Šà¸±à¸šà¹à¸¥à¸°à¸„à¸§à¸²à¸¡à¸–à¸¹à¸à¸•à¹‰à¸­à¸‡à¸‚à¸­à¸‡à¸ à¸²à¸©à¸²", max: 5 },
-  { code: "4.3", label: "à¸™à¹‰à¸³à¹€à¸ªà¸µà¸¢à¸‡à¹à¸¥à¸°à¸„à¸§à¸²à¸¡à¹€à¸«à¸¡à¸²à¸°à¸ªà¸¡à¸•à¸²à¸¡à¸ªà¸–à¸²à¸™à¸à¸²à¸£à¸“à¹Œ", max: 10 },
-] as const;
-
-const SIGNATURE_JUNE_2026_TOPIC_MASTER = [
-  { code: "1", label: "Process & Policy Compliance", max: 30 },
-  { code: "2", label: "Answer Quality & Problem Analysis", max: 20 },
-  { code: "3", label: "Case Handling & Follow-up", max: 25 },
-  { code: "4", label: "Communication Skills", max: 25 },
-] as const;
-
-function normalizeText(value: unknown) {
-  return String(value ?? "")
-    .replace(/\u00A0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function splitSignatureIntent(value: unknown) {
-  const fullText = normalizeText(value);
-  if (!fullText || !fullText.endsWith(")")) {
-    return { primary: fullText, secondary: "" };
-  }
-
-  let depth = 0;
-  let openingIndex = -1;
-  for (let index = fullText.length - 1; index >= 0; index -= 1) {
-    const char = fullText[index];
-    if (char === ")") depth += 1;
-    if (char === "(") {
-      depth -= 1;
-      if (depth === 0) {
-        openingIndex = index;
-        break;
-      }
-    }
-  }
-
-  if (openingIndex <= 0) {
-    return { primary: fullText, secondary: "" };
-  }
-
-  const primary = fullText.slice(0, openingIndex).trim();
-  const secondary = fullText.slice(openingIndex).trim();
-  return primary ? { primary, secondary } : { primary: fullText, secondary: "" };
-}
-
-const SIGNATURE_TOPIC_ENGLISH_LABELS: Record<string, Record<string, string>> = {
-  "2026-01": {
-    "1": "Greeting & Closing",
-    "2": "Analysis & Resolution",
-    "3": "Process Compliance",
-    "4": "Courtesy",
-    "5": "Language Quality",
-    "6": "SLA & Response Time",
-  },
-  "2026-02": {
-    "1": "Greeting & Closing",
-    "2": "Analysis & Resolution",
-    "3": "Process Compliance",
-    "4": "Courtesy",
-    "5": "Language Quality",
-    "6": "SLA & Response Time",
-  },
-  "2026-04": {
-    "1.1": "Greeting & Closing Standard",
-    "1.2": "PDPA & Policy Compliance",
-    "1.3": "Process & SLA Compliance",
-    "2.1": "Answer Accuracy",
-    "2.2": "Answer Completeness",
-    "2.3": "Clear Guidance & References",
-    "3.1": "Root Cause & Resolution",
-    "3.2": "Ownership & Next Steps",
-    "4.1": "Message Structure & Readability",
-    "4.2": "Conciseness & Language Accuracy",
-    "4.3": "Tone & Context Appropriateness",
-  },
-  "2026-06": {
-    "1": "Process Compliance",
-    "2": "Answer Accuracy & Verification",
-    "3": "Case Handling & Follow-up",
-    "4": "Communication Skills",
-  },
-  "2026-07": {
-    "1": "Process Compliance",
-    "2": "Answer Accuracy & Verification",
-    "3": "Case Handling & Follow-up",
-    "4": "Communication Skills",
-  },
-};
-
-function getSignatureTopicEnglishLabel(
-  topic: { code?: unknown; title?: unknown },
-  monthKey: string
-) {
-  const code = normalizeText(topic.code);
-  const title = normalizeText(topic.title);
-  const mapped = SIGNATURE_TOPIC_ENGLISH_LABELS[monthKey]?.[code];
-  if (mapped) return mapped;
-  if (/[A-Za-z]/.test(title) && !/[à¸-à¹™]/.test(title)) return title;
-  return code ? `Topic ${code}` : "Topic Score";
-}
-
-function normalizeKey(value: unknown) {
-  return normalizeText(value).toLowerCase();
-}
-
-function compactPerson(value: unknown) {
-  return normalizeText(value).toLowerCase().replace(/[^a-z0-9à¸-à¹™]/g, "");
-}
-
-function isSamePerson(a: unknown, b: unknown) {
-  const left = canonicalAgentIdentityKey(a);
-  const right = canonicalAgentIdentityKey(b);
-  return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)));
-}
-
-function currentUserMatchesName(currentUser: CurrentUser, name: unknown) {
-  return (
-    isSamePerson(currentUser.displayName, name) ||
-    isSamePerson(currentUser.agentName, name) ||
-    isSamePerson(currentUser.username, name) ||
-    isSamePerson(currentUser.email, name)
-  );
-}
-
-function currentUserHasRole(currentUser: CurrentUser, role: SignRole) {
-  const roleText = normalizeText(currentUser.role).toLowerCase();
-  const compactRole = compactPerson(currentUser.role);
-
-  if (role === "QA") {
-    return (
-      roleText === "quality assurance" ||
-      roleText === "admin" ||
-      compactRole === "qa" ||
-      compactRole === "qualityassurance"
-    );
-  }
-
-  if (role === "Supervisor") {
-    return roleText.includes("supervisor") || compactRole.includes("supervisor");
-  }
-
-  if (role === "Senior") {
-    return (
-      roleText === "senior" ||
-      roleText.includes("senior") ||
-      roleText.includes("team lead") ||
-      roleText.includes("teamlead") ||
-      roleText.includes("lead") ||
-      compactRole.includes("senior") ||
-      compactRole.includes("teamlead") ||
+  { code: "4.2", label: "Language Quality", max: m«ëŒ+Š×®º+º$zzb¥ãRÒÀ¢²6öFS¢#Bã2"ÂÆ&VÃ¢%FöæRbV×F‡’"ÂÖƒ¢RÒÀ¢²6öFS¢#BãB"ÂÆ&VÃ¢$FFF–öâFò6öçFW‡B"ÂÖƒ¢RÒÀ¢²6öFS¢#Rã"ÂÆ&VÃ¢%v÷&²&ö6W726ö×Æ–æ6R"ÂÖƒ¢ÒÀ¢²6öFS¢#Rã""ÂÆ&VÃ¢%4Ä6ö×Æ–æ6R"ÂÖƒ¢RÒÀ¢²6öFS¢#Rã2"ÂÆ&VÃ¢$66RÆövv–ærò7FGW267W&7’"ÂÖƒ¢RÒÀ¥Ò26öç7C° ¦6öç7B4”täEU$Uô$”Åó##eõDõ”5ôÔ5DU"Ò°¢²6öFS¢#ã"ÂÆ&VÃ¢.Š‹.‰^Š>‰‹.‰ˆ‹.Š>‰~‹ˆ‰~‹.Š.˜Š^‹‰¾‹N‰Nˆ‹.Š>Š®‰‰~‰‹""ÂÖƒ¢ÒÀ¢²6öFS¢#ã""ÂÆ&VÃ¢.ˆ‹.Š>‰¾ˆş‹N‰®‹‰^‹N‰^‹.ŠEòöÆ–7’òˆ.˜ŠŞˆ‹>Š¾‰‰B"ÂÖƒ¢ÒÀ¢²6öFS¢#ã2"ÂÆ&VÃ¢.ˆ‹.Š>‰¾ˆş‹N‰®‹‰^‹N‰^‹.ŠˆŠ>‹‰®Š~‰ˆ‹.Š>˜Š^‹4Ä"ÂÖƒ¢ÒÀ¢²6öFS¢#"ã"ÂÆ&VÃ¢.ˆNŠ~‹.Š‰n‹ˆ‰^˜ŠŞˆ~ˆ.ŠŞˆ~ˆN‹>‰^ŠŞ‰¢"ÂÖƒ¢ÒÀ¢²6öFS¢#"ã""ÂÆ&VÃ¢.ˆNŠ~‹.ŠˆNŠ>‰®‰n˜Š~‰ˆ.ŠŞˆ~ˆN‹>‰^ŠŞ‰¢"ÂÖƒ¢ÒÀ¢²6öFS¢#"ã2"ÂÆ&VÃ¢.ˆNŠ~‹.Šˆ®‹‰N˜ˆ‰ˆ.ŠŞˆ~ˆ.‹˜‰‰^ŠŞ‰˜Š^‹˜Š¾Š^˜ˆ~ŠŞ˜‹.ˆ~ŠŞ‹Nˆr"ÂÖƒ¢RÒÀ¢²6öFS¢#2ã"ÂÆ&VÃ¢.ˆ‹.Š>Š~‹N˜ˆNŠ>‹.‹Š¾˜Î˜Š^‹˜ˆ˜˜Nˆ.‰¾‹ˆŞŠ¾‹.˜N‰N˜‰^Š>ˆ~ˆ‹‰B"ÂÖƒ¢RÒÀ¢²6öFS¢#2ã""ÂÆ&VÃ¢$÷væW'6†—˜Š^‹ˆ‹.Š>˜ˆ˜ˆræW‡B7FW"ÂÖƒ¢ÒÀ¢²6öFS¢#Bã"ÂÆ&VÃ¢.˜.ˆNŠ>ˆ~Š®Š>˜‹.ˆ~ˆ.˜ŠŞˆNŠ~‹.Š˜Š^‹ˆNŠ~‹.ŠŠŞ˜‹.‰ˆ~˜‹.Š""ÂÖƒ¢RÒÀ¢²6öFS¢#Bã""ÂÆ&VÃ¢.ˆNŠ~‹.ŠˆŠ>‹ˆ®‹‰®˜Š^‹ˆNŠ~‹.Š‰n‹ˆ‰^˜ŠŞˆ~ˆ.ŠŞˆ~Š‹.Š‹""ÂÖƒ¢RÒÀ¢²6öFS¢#Bã2"ÂÆ&VÃ¢.‰˜‹>˜Š®‹^Š.ˆ~˜Š^‹ˆNŠ~‹.Š˜Š¾Š‹.‹Š®Š‰^‹.ŠŠ®‰n‹.‰ˆ‹.Š>‰>˜Â"ÂÖƒ¢ÒÀ¥Ò26öç7C° ¦6öç7B4”täEU$Uô¥TäUó##eõDõ”5ôÔ5DU"Ò°¢²6öFS¢#"ÂÆ&VÃ¢%&ö6W72böÆ–7’6ö×Æ–æ6R"ÂÖƒ¢3ÒÀ¢²6öFS¢#""ÂÆ&VÃ¢$ç7vW"VÆ—G’b&ö&ÆVÒæÇ—6—2"ÂÖƒ¢#ÒÀ¢²6öFS¢#2"ÂÆ&VÃ¢$66R†æFÆ–ærbföÆÆ÷r×W"ÂÖƒ¢#RÒÀ¢²6öFS¢#B"ÂÆ&VÃ¢$6öÖ×Væ–6F–öâ6¶–ÆÇ2"ÂÖƒ¢#RÒÀ¥Ò26öç7C° ¦gVæ7F–öâæ÷&ÖÆ—¦UFW‡B‡fÇVS¢Væ¶æ÷vâ’°¢&WGW&â7G&–ær‡fÇVRóò""¢ç&WÆ6R‚õÇSörÂ""¢ç&WÆ6R‚õÇ2²örÂ""¢çG&–Ò‚“°§Ğ ¦gVæ7F–öâ7Æ—E6–væGW&T–çFVçB‡fÇVS¢Væ¶æ÷vâ’°¢6öç7BgVÆÅFW‡BÒæ÷&ÖÆ—¦UFW‡B‡fÇVR“°¢–b‚gVÆÅFW‡BÇÂgVÆÅFW‡BæVæG5v—F‚‚"’"’’°¢&WGW&â²&–Ö'“¢gVÆÅFW‡BÂ6V6öæF'“¢""Ó°¢Ğ ¢ÆWBFWF‚Ò°¢ÆWB÷Væ–æt–æFW‚ÒÓ°¢f÷"†ÆWB–æFW‚ÒgVÆÅFW‡BæÆVæwF‚Ò²–æFW‚ãÒ²–æFW‚ÓÒ’°¢6öç7B6†"ÒgVÆÅFW‡E¶–æFW…Ó°¢–b†6†"ÓÓÒ"’"’FWF‚³Ò°¢–b†6†"ÓÓÒ"‚"’°¢FWF‚ÓÒ°¢–b†FWF‚ÓÓÒ’°¢÷Væ–æt–æFW‚Ò–æFWƒ°¢'&V³°¢Ğ¢Ğ¢Ğ ¢–b†÷Væ–æt–æFW‚ÃÒ’°¢&WGW&â²&–Ö'“¢gVÆÅFW‡BÂ6V6öæF'“¢""Ó°¢Ğ ¢6öç7B&–Ö'’ÒgVÆÅFW‡Bç6Æ–6RƒÂ÷Væ–æt–æFW‚’çG&–Ò‚“°¢6öç7B6V6öæF'’ÒgVÆÅFW‡Bç6Æ–6R†÷Væ–æt–æFW‚’çG&–Ò‚“°¢&WGW&â&–Ö'’ò²&–Ö'’Â6V6öæF'’Ò¢²&–Ö'“¢gVÆÅFW‡BÂ6V6öæF'“¢""Ó°§Ğ ¦6öç7B4”täEU$UõDõ”5ôTätÄ•4…ôÄ$TÅ3¢&V6÷&CÇ7G&–ærÂ&V6÷&CÇ7G&–ærÂ7G&–æsãâÒ°¢###bÓ#¢°¢##¢$w&VWF–ærb6Æ÷6–ær"À¢#"#¢$æÇ—6—2b&W6öÇWF–öâ"À¢#2#¢%&ö6W726ö×Æ–æ6R"À¢#B#¢$6÷W'FW7’"À¢#R#¢$ÆæwVvRVÆ—G’"À¢#b#¢%4Äb&W7öç6RF–ÖR"À¢ÒÀ¢###bÓ"#¢°¢##¢$w&VWF–ærb6Æ÷6–ær"À¢#"#¢$æÇ—6—2b&W6öÇWF–öâ"À¢#2#¢%&ö6W726ö×Æ–æ6R"À¢#B#¢$6÷W'FW7’"À¢#R#¢$ÆæwVvRVÆ—G’"À¢#b#¢%4Äb&W7öç6RF–ÖR"À¢ÒÀ¢###bÓB#¢°¢#ã#¢$w&VWF–ærb6Æ÷6–ær7FæF&B"À¢#ã"#¢%EböÆ–7’6ö×Æ–æ6R"À¢#ã2#¢%&ö6W72b4Ä6ö×Æ–æ6R"À¢#"ã#¢$ç7vW"67W&7’"À¢#"ã"#¢$ç7vW"6ö×ÆWFVæW72"À¢#"ã2#¢$6ÆV"wV–Fæ6Rb&VfW&Væ6W2"À¢#2ã#¢%&ö÷B6W6Rb&W6öÇWF–öâ"À¢#2ã"#¢$÷væW'6†—bæW‡B7FW2"À¢#Bã#¢$ÖW76vR7G'V7GW&Rb&VF&–Æ—G’"À¢#Bã"#¢$6öæ6—6VæW72bÆæwVvR67W&7’"À¢#Bã2#¢%FöæRb6öçFW‡B&÷&–FVæW72"À¢ÒÀ¢###bÓb#¢°¢##¢%&ö6W726ö×Æ–æ6R"À¢#"#¢$ç7vW"67W&7’bfW&–f–6F–öâ"À¢#2#¢$66R†æFÆ–ærbföÆÆ÷r×W"À¢#B#¢$6öÖ×Væ–6F–öâ6¶–ÆÇ2"À¢ÒÀ¢###bÓr#¢°¢##¢%&ö6W726ö×Æ–æ6R"À¢#"#¢$ç7vW"67W&7’bfW&–f–6F–öâ"À¢#2#¢$66R†æFÆ–ærbföÆÆ÷r×W"À¢#B#¢$6öÖ×Væ–6F–öâ6¶–ÆÇ2"À¢ÒÀ§Ó° ¦gVæ7F–öâvWE6–væGW&UF÷–4VævÆ—6„Æ&VÂ€¢F÷–3¢²6öFSó¢Væ¶æ÷vã²F—FÆSó¢Væ¶æ÷vâÒÀ¢ÖöçF„¶W“¢7G&–æp¢’°¢6öç7B6öFRÒæ÷&ÖÆ—¦UFW‡B‡F÷–2æ6öFR“°¢6öç7BF—FÆRÒæ÷&ÖÆ—¦UFW‡B‡F÷–2çF—FÆR“°¢6öç7BÖVBÒ4”täEU$UõDõ”5ôTätÄ•4…ôÄ$TÅ5¶ÖöçF„¶W•Óòå¶6öFUÓ°¢–b†ÖVB’&WGW&âÖVC°¢–b‚õ´Õ¦×¥ÒòçFW7B‡F—FÆR’bbõ¾ˆŞ™•ÒòçFW7B‡F—FÆR’’&WGW&âF—FÆS°¢&WGW&â6öFRòF÷–2G¶6öFWÖ¢%F÷–266÷&R#°§Ğ ¦gVæ7F–öâæ÷&ÖÆ—¦T¶W’‡fÇVS¢Væ¶æ÷vâ’°¢&WGW&âæ÷&ÖÆ—¦UFW‡B‡fÇVR’çFôÆ÷vW$66R‚“°§Ğ ¦gVæ7F–öâ6ö×7EW'6öâ‡fÇVS¢Væ¶æ÷vâ’°¢&WGW&âæ÷&ÖÆ—¦UFW‡B‡fÇVR’çFôÆ÷vW$66R‚’ç&WÆ6R‚õµæ×£ÓˆŞ™•ÒörÂ""“°§Ğ ¦gVæ7F–öâ—56ÖUW'6öâ†¢Væ¶æ÷vâÂ#¢Væ¶æ÷vâ’°¢6öç7BÆVgBÒ6æöæ–6ÄvVçD–FVçF—G”¶W’†“°¢6öç7B&–v‡BÒ6æöæ–6ÄvVçD–FVçF—G”¶W’†"“°¢&WGW&â&ööÆVâ†ÆVgBbb&–v‡Bbb†ÆVgBÓÓÒ&–v‡BÇÂÆVgBæ–æ6ÇVFW2‡&–v‡B’ÇÂ&–v‡Bæ–æ6ÇVFW2†ÆVgB’’“°§Ğ ¦gVæ7F–öâ7W'&VçEW6W$ÖF6†W4æÖR†7W'&VçEW6W#¢7W'&VçEW6W"ÂæÖS¢Væ¶æ÷vâ’°¢&WGW&â€¢—56ÖUW'6öâ†7W'&VçEW6W"æF—7Æ”æÖRÂæÖR’ÇÀ¢—56ÖUW'6öâ†7W'&VçEW6W"ævVçDæÖRÂæÖR’ÇÀ¢—56ÖUW'6öâ†7W'&VçEW6W"çW6W&æÖRÂæÖR’ÇÀ¢—56ÖUW'6öâ†7W'&VçEW6W"æVÖ–ÂÂæÖR¢“°§Ğ ¦gVæ7F–öâ7W'&VçEW6W$†5&öÆR†7W'&VçEW6W#¢7W'&VçEW6W"Â&öÆS¢6–vå&öÆR’°¢6öç7B&öÆUFW‡BÒæ÷&ÖÆ—¦UFW‡B†7W'&VçEW6W"ç&öÆR’çFôÆ÷vW$66R‚“°¢6öç7B6ö×7E&öÆRÒ6ö×7EW'6öâ†7W'&VçEW6W"ç&öÆR“° ¢–b‡&öÆRÓÓÒ%"’°¢&WGW&â€¢&öÆUFW‡BÓÓÒ'VÆ—G’77W&æ6R"ÇÀ¢&öÆUFW‡BÓÓÒ&FÖ–â"ÇÀ¢6ö×7E&öÆRÓÓÒ'"ÇÀ¢6ö×7E&öÆRÓÓÒ'VÆ—G–77W&æ6R ¢“°¢Ğ ¢–b‡&öÆRÓÓÒ%7WW'f—6÷""’°¢&WGW&â&öÆUFW‡Bæ–æ6ÇVFW2‚'7WW'f—6÷""’ÇÂ6ö×7E&öÆRæ–æ6ÇVFW2‚'7WW'f—6÷""“°¢Ğ ¢–b‡&öÆRÓÓÒ%6Væ–÷""’°¢&WGW&â€¢&öÆUFW‡BÓÓÒ'6Væ–÷""ÇÀ¢&öÆUFW‡Bæ–æ6ÇVFW2‚'6Væ–÷""’ÇÀ¢&öÆUFW‡Bæ–æ6ÇVFW2‚'FVÒÆVB"’ÇÀ¢&öÆUFW‡Bæ–æ6ÇVFW2‚'FVÖÆVB"’ÇÀ¢&öÆUFW‡Bæ–æ6ÇVFW2‚&ÆVB"’ÇÀ¢6ö×7E&öÆRæ–æ6ÇVFW2‚'6Væ–÷""’ÇÀ¢6ö×7E&öÆRæ–æ6ÇVFW2‚'FÚ±î¸Â¸­yêë¢°k¢G§¦*^eamlead") ||
       compactRole.includes("lead")
     );
   }
@@ -516,154 +349,7 @@ function extractSignatureTopicsFromRow(
       SIGNATURE_TOPIC_MISSING
     );
     const hasScore = rawScore !== SIGNATURE_TOPIC_MISSING;
-    const score = hasScore && !Number.isNaN(Number(rawScore)) ? Number(rawScore) : 0;
-    return {
-      hasScore,
-      topic: {
-        code: master.code,
-        title: master.label,
-        max: master.max,
-        score,
-      },
-    };
-  });
-
-  if (!topicsWithPresence.some((item) => item.hasScore)) return [];
-  return topicsWithPresence.map((item) => item.topic);
-}
-
-function getMonthKeyFromRow(row: unknown[], helper: ReturnType<typeof buildHeaderMap>) {
-  const explicitMonthKey = normalizeText(
-    helper.get(row, ["Month Key", "MonthKey", "Month_Key", "Reporting Month Key", "Selected Month Key"], "")
-  );
-  const monthKeyMatch = explicitMonthKey.match(/(20\d{2})[-/](\d{1,2})/);
-  if (monthKeyMatch) return `${monthKeyMatch[1]}-${String(Number(monthKeyMatch[2])).padStart(2, "0")}`;
-  const compactMonthKeyMatch = explicitMonthKey.match(/(20\d{2})(\d{2})\d{2}/);
-  if (compactMonthKeyMatch) return `${compactMonthKeyMatch[1]}-${compactMonthKeyMatch[2]}`;
-
-  const monthDate =
-    parseMonthValueToDate(helper.get(row, ["Month Label", "Month", "Reporting Month", "Selected Month", "Report Month"], "")) ||
-    parseMonthValueToDate(helper.get(row, ["Month Start", "Month Start Date", "MonthStart"], "")) ||
-    parseMonthValueToDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
-
-  return getMonthKey(monthDate);
-}
-
-function isDashboardReportingMonth(monthKey: string) {
-  return /^2026-(0[1-9]|1[0-2])$/.test(monthKey);
-}
-
-function isHistoricalPaidPeriod(monthKey: string) {
-  return isDashboardReportingMonth(monthKey) && monthKey <= HISTORICAL_PAID_LAST_MONTH;
-}
-
-function getSignatureWindow(monthKey: string): SignatureWindow {
-  const [yearText, monthText] = monthKey.split("-");
-  const year = Number(yearText);
-  const monthIndex = Number(monthText) - 1;
-  return {
-    appealCloseAt: new Date(year, monthIndex + 1, 10, 23, 59, 59),
-    openAt: new Date(year, monthIndex + 1, 11, 0, 0, 0),
-    dueAt: new Date(year, monthIndex + 1, 15, 23, 59, 59),
-  };
-}
-
-function getTimelineStatus(monthKey: string, now = new Date()) {
-  if (isHistoricalPaidPeriod(monthKey)) return "Historical Paid";
-  const window = getSignatureWindow(monthKey);
-  if (now <= window.appealCloseAt) return "Appeal Period Open";
-  if (now >= window.openAt && now <= window.dueAt) return "Signature Open";
-  if (now > window.dueAt) return "Signature Deadline Passed";
-  return "Waiting Signature Window";
-}
-
-function isSigningAllowedByDate(monthKey: string, now = new Date()) {
-  if (isHistoricalPaidPeriod(monthKey)) return false;
-  const window = getSignatureWindow(monthKey);
-  // à¹€à¸›à¸´à¸”à¹ƒà¸«à¹‰à¸¥à¸‡à¸™à¸²à¸¡à¹„à¸”à¹‰à¸«à¸¥à¸±à¸‡à¸›à¸´à¸”à¸£à¸­à¸š Appeal à¹€à¸›à¹‡à¸™à¸•à¹‰à¸™à¹„à¸›
-  // à¸–à¹‰à¸²à¹€à¸‹à¹‡à¸™à¸«à¸¥à¸±à¸‡ Due Date à¸ˆà¸°à¸–à¸·à¸­à¹€à¸›à¹‡à¸™ Late Signature à¹à¸¥à¸°à¹„à¸¡à¹ˆà¹€à¸‚à¹‰à¸²à¸£à¸­à¸šà¸ˆà¹ˆà¸²à¸¢à¹€à¸”à¸·à¸­à¸™à¸›à¸±à¸ˆà¸ˆà¸¸à¸šà¸±à¸™
-  return now >= window.openAt;
-}
-
-function isSignedWithinCurrentPaymentCycle(signedAt: string, monthKey: string) {
-  const signedTime = new Date(signedAt || "").getTime();
-  const dueTime = getSignatureWindow(monthKey).dueAt.getTime();
-  return !Number.isNaN(signedTime) && signedTime <= dueTime;
-}
-
-function isAfterAppealPeriod(monthKey: string, now = new Date()) {
-  if (isHistoricalPaidPeriod(monthKey)) return true;
-  const window = getSignatureWindow(monthKey);
-  return now > window.appealCloseAt;
-}
-
-function safeName(value: unknown, fallback = "-") {
-  const text = normalizeText(value);
-  return text || fallback;
-}
-
-function canonicalAgentName(value: unknown) {
-  const name = canonicalizeAgentName(safeName(value, ""));
-  if (isSamePerson(name, "Arisa Aiemrit")) return "Arisa Aiemrit";
-  if (isSamePerson(name, "Anucha Makundin")) return "Anucha Makundin";
-  return name;
-}
-
-function findAccountForAgent(accounts: UserAccountSnapshot[], agentName: string) {
-  return accounts.find((account) =>
-    [account.agentName, account.displayName, account.username].some((identity) => isSamePerson(identity, agentName))
-  );
-}
-
-function isSuspendedAccount(account?: UserAccountSnapshot | null) {
-  const status = normalizeText(account?.status).toLowerCase();
-  return status.includes("suspended") || status.includes("resigned") || status.includes("à¸¥à¸²à¸­à¸­à¸");
-}
-
-function getAccountSuspensionDate(account?: UserAccountSnapshot | null) {
-  const value = normalizeText(
-    account?.suspendEffectiveDate || account?.suspendDate || account?.suspend_date
-  );
-  if (!value) return "";
-  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-  const slashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (!slashMatch) return "";
-  return `${slashMatch[3]}-${slashMatch[2].padStart(2, "0")}-${slashMatch[1].padStart(2, "0")}`;
-}
-
-function isEmploymentEndReason(value: unknown) {
-  const reason = normalizeText(value).toLowerCase();
-  if (!reason) return false;
-
-  return EMPLOYMENT_END_REASON_KEYWORDS.some((keyword) => reason.includes(keyword));
-}
-
-function isResignedAccountForAutoWaiver(account?: UserAccountSnapshot | null) {
-  if (!isSuspendedAccount(account) || !getAccountSuspensionDate(account)) return false;
-  return isEmploymentEndReason(`${account?.status || ""} ${account?.suspendReason || ""}`);
-}
-
-function getAutomaticWaiverEffectiveAt(account: UserAccountSnapshot, entries: SignatureEntry[]) {
-  const resignationDate = getAccountSuspensionDate(account);
-  const resignationTime = new Date(`${resignationDate}T00:00:00+07:00`).getTime();
-  const requiredSignedTimes = (["QA", "Supervisor", "Senior"] as SignRole[])
-    .map((role) => new Date(getSignedEntry(entries, role)?.signedAt || "").getTime())
-    .filter((time) => !Number.isNaN(time));
-  const effectiveTime = Math.max(resignationTime, ...requiredSignedTimes);
-  return new Date(effectiveTime).toISOString();
-}
-
-function isGenericRoleName(value: unknown) {
-  const text = normalizeText(value).toLowerCase();
-  return !text ||
-    text === "-" ||
-    text === "supervisor" ||
-    text === "senior" ||
-    text === "senior / team lead" ||
-    text === "senior / lead" ||
-    text === "team lead" ||
-    text === "quality assurance";
+    const scorm«ëŒ+Š×®º+º$zzb¥æRÒ†566÷&RbbçVÖ&W"æ—4æâ„çVÖ&W"‡&u66÷&R’’òçVÖ&W"‡&u66÷&R’¢°¢&WGW&â°¢†566÷&RÀ¢F÷–3¢°¢6öFS¢Ö7FW"æ6öFRÀ¢F—FÆS¢Ö7FW"æÆ&VÂÀ¢Öƒ¢Ö7FW"æÖ‚À¢66÷&RÀ¢ÒÀ¢Ó°¢Ò“° ¢–b‚F÷–75v—F…&W6Væ6Rç6öÖR‚†—FVÒ’Óâ—FVÒæ†566÷&R’’&WGW&âµÓ°¢&WGW&âF÷–75v—F…&W6Væ6RæÖ‚†—FVÒ’Óâ—FVÒçF÷–2“°§Ğ ¦gVæ7F–öâvWDÖöçF„¶W”g&öÕ&÷r‡&÷s¢Væ¶æ÷våµÒÂ†VÇW#¢&WGW&åG—SÇG—Vöb'V–ÆD†VFW$Öâ’°¢6öç7BW‡Æ–6—DÖöçF„¶W’Òæ÷&ÖÆ—¦UFW‡B€¢†VÇW"ævWB‡&÷rÂ²$ÖöçF‚¶W’"Â$ÖöçF„¶W’"Â$ÖöçF…ô¶W’"Â%&W÷'F–ærÖöçF‚¶W’"Â%6VÆV7FVBÖöçF‚¶W’%ÒÂ""¢“°¢6öç7BÖöçF„¶W”ÖF6‚ÒW‡Æ–6—DÖöçF„¶W’æÖF6‚‚òƒ#ÆG³'Ò•²ÒõÒ…ÆG³Ã'Ò’ò“°¢–b†ÖöçF„¶W”ÖF6‚’&WGW&âG¶ÖöçF„¶W”ÖF6…³×ÒÒGµ7G&–ær„çVÖ&W"†ÖöçF„¶W”ÖF6…³%Ò’’çE7F'Bƒ"Â#"—Ö°¢6öç7B6ö×7DÖöçF„¶W”ÖF6‚ÒW‡Æ–6—DÖöçF„¶W’æÖF6‚‚òƒ#ÆG³'Ò’…ÆG³'Ò•ÆG³'Òò“°¢–b†6ö×7DÖöçF„¶W”ÖF6‚’&WGW&âG¶6ö×7DÖöçF„¶W”ÖF6…³×ÒÒG¶6ö×7DÖöçF„¶W”ÖF6…³%×Ö° ¢6öç7BÖöçF„FFRĞ¢'6TÖöçF…fÇVUFôFFR††VÇW"ævWB‡&÷rÂ²$ÖöçF‚Æ&VÂ"Â$ÖöçF‚"Â%&W÷'F–ærÖöçF‚"Â%6VÆV7FVBÖöçF‚"Â%&W÷'BÖöçF‚%ÒÂ""’’ÇÀ¢'6TÖöçF…fÇVUFôFFR††VÇW"ævWB‡&÷rÂ²$ÖöçF‚7F'B"Â$ÖöçF‚7F'BFFR"Â$ÖöçF…7F'B%ÒÂ""’’ÇÀ¢'6TÖöçF…fÇVUFôFFR††VÇW"ævWB‡&÷rÂ²$VF—BFFR"Â$66RFFR"Â%F–ÖW7F×"Â$FFR%ÒÂ""’“° ¢&WGW&âvWDÖöçF„¶W’†ÖöçF„FFR“°§Ğ ¦gVæ7F–öâ—4F6†&ö&E&W÷'F–ætÖöçF‚†ÖöçF„¶W“¢7G&–ær’°¢&WGW&âõã##bÒƒ³Ó•×Ã³Ó%Ò’BòçFW7B†ÖöçF„¶W’“°§Ğ ¦gVæ7F–öâ—4†—7F÷&–6Å–EW&–öB†ÖöçF„¶W“¢7G&–ær’°¢&WGW&â—4F6†&ö&E&W÷'F–ætÖöçF‚†ÖöçF„¶W’’bbÖöçF„¶W’ÃÒ„•5Dõ$”4Åõ”EôÄ5EôÔôåDƒ°§Ğ ¦gVæ7F–öâvWE6–væGW&Uv–æF÷r†ÖöçF„¶W“¢7G&–ær“¢6–væGW&Uv–æF÷r°¢6öç7B·–V%FW‡BÂÖöçF…FW‡EÒÒÖöçF„¶W’ç7Æ—B‚"Ò"“°¢6öç7B–V"ÒçVÖ&W"‡–V%FW‡B“°¢6öç7BÖöçF„–æFW‚ÒçVÖ&W"†ÖöçF…FW‡B’Ò°¢&WGW&â°¢VÄ6Æ÷6TC¢æWrFFR‡–V"ÂÖöçF„–æFW‚²ÂÂ#2ÂS’ÂS’’À¢÷VäC¢æWrFFR‡–V"ÂÖöçF„–æFW‚²ÂÂÂÂ’À¢GVTC¢æWrFFR‡–V"ÂÖöçF„–æFW‚²ÂRÂ#2ÂS’ÂS’’À¢Ó°§Ğ ¦gVæ7F–öâvWEF–ÖVÆ–æU7FGW2†ÖöçF„¶W“¢7G&–ærÂæ÷rÒæWrFFR‚’’°¢–b†—4†—7F÷&–6Å–EW&–öB†ÖöçF„¶W’’’&WGW&â$†—7F÷&–6Â–B#°¢6öç7Bv–æF÷rÒvWE6–væGW&Uv–æF÷r†ÖöçF„¶W’“°¢–b†æ÷rÃÒv–æF÷ræVÄ6Æ÷6TB’&WGW&â$VÂW&–öB÷Vâ#°¢–b†æ÷rãÒv–æF÷ræ÷VäBbbæ÷rÃÒv–æF÷ræGVTB’&WGW&â%6–væGW&R÷Vâ#°¢–b†æ÷râv–æF÷ræGVTB’&WGW&â%6–væGW&RFVFÆ–æR76VB#°¢&WGW&â%v—F–ær6–væGW&Rv–æF÷r#°§Ğ ¦gVæ7F–öâ—56–væ–ætÆÆ÷vVD'”FFR†ÖöçF„¶W“¢7G&–ærÂæ÷rÒæWrFFR‚’’°¢–b†—4†—7F÷&–6Å–EW&–öB†ÖöçF„¶W’’’&WGW&âfÇ6S°¢6öç7Bv–æF÷rÒvWE6–væGW&Uv–æF÷r†ÖöçF„¶W’“°¢òò˜‰¾‹N‰N˜>Š¾˜Š^ˆ~‰‹.Š˜N‰N˜Š¾Š^‹ˆ~‰¾‹N‰NŠ>ŠŞ‰¢VÂ˜‰¾˜~‰‰^˜‰˜N‰°¢òò‰n˜‹.˜ˆ¾˜~‰Š¾Š^‹ˆrGVRFFRˆ‹‰n‹~ŠŞ˜‰¾˜~‰’ÆFR6–væGW&R˜Š^‹˜NŠ˜˜ˆ.˜‹.Š>ŠŞ‰®ˆ˜‹.Š.˜‰N‹~ŠŞ‰‰¾‹ˆˆ‹‰®‹‰¢&WGW&âæ÷rãÒv–æF÷ræ÷VäC°§Ğ ¦gVæ7F–öâ—56–væVEv—F†–ä7W'&VçE–ÖVçD7–6ÆR‡6–væVDC¢7G&–ærÂÖöçF„¶W“¢7G&–ær’°¢6öç7B6–væVEF–ÖRÒæWrFFR‡6–væVDBÇÂ""’ævWEF–ÖR‚“°¢6öç7BGVUF–ÖRÒvWE6–væGW&Uv–æF÷r†ÖöçF„¶W’’æGVTBævWEF–ÖR‚“°¢&WGW&âçVÖ&W"æ—4æâ‡6–væVEF–ÖR’bb6–væVEF–ÖRÃÒGVUF–ÖS°§Ğ ¦gVæ7F–öâ—4gFW$VÅW&–öB†ÖöçF„¶W“¢7G&–ærÂæ÷rÒæWrFFR‚’’°¢–b†—4†—7F÷&–6Å–EW&–öB†ÖöçF„¶W’’’&WGW&âG'VS°¢6öç7Bv–æF÷rÒvWE6–væGW&Uv–æF÷r†ÖöçF„¶W’“°¢&WGW&âæ÷râv–æF÷ræVÄ6Æ÷6TC°§Ğ ¦gVæ7F–öâ6fTæÖR‡fÇVS¢Væ¶æ÷vâÂfÆÆ&6²Ò"Ò"’°¢6öç7BFW‡BÒæ÷&ÖÆ—¦UFW‡B‡fÇVR“°¢&WGW&âFW‡BÇÂfÆÆ&6³°§Ğ ¦gVæ7F–öâ6æöæ–6ÄvVçDæÖR‡fÇVS¢Væ¶æ÷vâ’°¢6öç7BæÖRÒ6æöæ–6Æ—¦TvVçDæÖR‡6fTæÖR‡fÇVRÂ""’“°¢–b†—56ÖUW'6öâ†æÖRÂ$&—6–V×&—B"’’&WGW&â$&—6–V×&—B#°¢–b†—56ÖUW'6öâ†æÖRÂ$çV6†Ö·VæF–â"’’&WGW&â$çV6†Ö·VæF–â#°¢&WGW&âæÖS°§Ğ ¦gVæ7F–öâf–æD66÷VçDf÷$vVçB†66÷VçG3¢W6W$66÷VçE6æ6†÷EµÒÂvVçDæÖS¢7G&–ær’°¢&WGW&â66÷VçG2æf–æB‚†66÷VçB’Óà¢¶66÷VçBævVçDæÖRÂ66÷VçBæF—7Æ”æÖRÂ66÷VçBçW6W&æÖUÒç6öÖR‚†–FVçF—G’’Óâ—56ÖUW'6öâ†–FVçF—G’ÂvVçDæÖR’¢“°§Ğ ¦gVæ7F–öâ—57W7VæFVD66÷VçB†66÷VçCó¢W6W$66÷VçE6æ6†÷BÂçVÆÂ’°¢6öç7B7FGW2Òæ÷&ÖÆ—¦UFW‡B†66÷VçCòç7FGW2’çFôÆ÷vW$66R‚“°¢&WGW&â7FGW2æ–æ6ÇVFW2‚'7W7VæFVB"’ÇÂ7FGW2æ–æ6ÇVFW2‚'&W6–væVB"’ÇÂ7FGW2æ–æ6ÇVFW2‚.Š^‹.ŠŞŠŞˆ"“°§Ğ ¦gVæ7F–öâvWD66÷VçE7W7Vç6–öäFFR†66÷VçCó¢W6W$66÷VçE6æ6†÷BÂçVÆÂ’°¢6öç7BfÇVRÒæ÷&ÖÆ—¦UFW‡B€¢66÷VçCòç7W7VæDVffV7F—fTFFRÇÂ66÷VçCòç7W7VæDFFRÇÂ66÷VçCòç7W7VæEöFFP¢“°¢–b‚fÇVR’&WGW&â"#°¢6öç7B—6ôÖF6‚ÒfÇVRæÖF6‚‚õâ…ÆG³GÒ’Ò…ÆG³'Ò’Ò…ÆG³'Ò’ò“°¢–b†—6ôÖF6‚’&WGW&âG¶—6ôÖF6…³×ÒÒG¶—6ôÖF6…³%×ÒÒG¶—6ôÖF6…³5×Ö°¢6öç7B6Æ6„ÖF6‚ÒfÇVRæÖF6‚‚õâ…ÆG³Ã'Ò•Âò…ÆG³Ã'Ò•Âò…ÆG³GÒ’ò“°¢–b‚6Æ6„ÖF6‚’&WGW&â"#°¢&WGW&âG·6Æ6„ÖF6…³5×ÒÒG·6Æ6„ÖF6…³%ÒçE7F'Bƒ"Â#"—ÒÒG·6Æ6„ÖF6…³ÒçE7F'Bƒ"Â#"—Ö°§Ğ ¦gVæ7F–öâ—4V×Æ÷–ÖVçDVæE&V6öâ‡fÇVS¢Væ¶æ÷vâ’°¢6öç7B&V6öâÒæ÷&ÖÆ—¦UFW‡B‡fÇVR’çFôÆ÷vW$66R‚“°¢–b‚&V6öâ’&WGW&âfÇ6S° ¢&WGW&âTÕÄõ”ÔTåEôTäEõ$T4ôåô´U•tõ$E2ç6öÖR‚†¶W—v÷&B’Óâ&V6öâæ–æ6ÇVFW2†¶W—v÷&B’“°§Ğ ¦gVæ7F–öâ—5&W6–væVD66÷VçDf÷$WFõv—fW"†66÷VçCó¢W6W$66÷VçE6æ6†÷BÂçVÆÂ’°¢–b‚—57W7VæFVD66÷VçB†66÷VçB’ÇÂvWD66÷VçE7W7Vç6–öäFFR†66÷VçB’’&WGW&âfÇ6S°¢&WGW&â—4V×Æ÷–ÖVçDVæE&V6öâ†G¶66÷VçCòç7FGW2ÇÂ"'ÒG¶66÷VçCòç7W7VæE&V6öâÇÂ"'Ö“°§Ğ ¦gVæ7F–öâvWDWFöÖF–5v—fW$VffV7F—fTB†66÷VçC¢W6W$66÷VçE6æ6†÷BÂVçG&–W3¢6–væGW&TVçG'•µÒ’°¢6öç7B&W6–væF–öäFFRÒvWD66÷VçE7W7Vç6–öäFFR†66÷VçB“°¢6öç7B&W6–væF–öåF–ÖRÒæWrFFR†G·&W6–væF–öäFFWÕC££³s£’ævWEF–ÖR‚“°¢6öç7B&WV—&VE6–væVEF–ÖW2Ò…²%"Â%7WW'f—6÷""Â%6Væ–÷"%Ò26–vå&öÆUµÒ¢æÖ‚‡&öÆR’ÓâæWrFFR†vWE6–væVDVçG'’†VçG&–W2Â&öÆR“òç6–væVDBÇÂ""’ævWEF–ÖR‚’¢æf–ÇFW"‚‡F–ÖR’ÓâçVÖ&W"æ—4æâ‡F–ÖR’“°¢6öç7BVffV7F—fUF–ÖRÒÖF‚æÖ‚‡&W6–væF–öåF–ÖRÂââç&WV—&VE6–væVEF–ÖW2“°¢&WGW&âæWrFFR†VffV7F—fUF–ÖR’çFô•4õ7G&–ær‚“°§Ğ ¦gVæ7F–öâ—4vVæW&–5&öÆTæÖR‡fÇVS¢Væ¶æ÷vâ’°¢6öç7BFW‡BÒæ÷&ÖÆ—¦UFW‡B‡fÇVR’çFôÆ÷vW$66R‚“°¢&WGW&âFW‡BÇÀ¢FW‡BÓÓÒ"Ò"ÇÀ¢FW‡BÓÓÒ'7WW'f—6÷""ÇÀ¢FW‡BÓÓÒ'6Væ–÷""ÇÀ¢FW‡BÓÓÒ'6Væ–÷"òFVÒÆVB"ÇÀ¢FW‡BÓÓÒ'6Væ–÷"òÆVB"ÇÀ¢FW‡BÓÓÒ'FVÒÆVB"ÇÀ¢Ú±î¸Â¸­yêë¢°k¢G§¦*^  text === "quality assurance";
 }
 
 function resolveFallbackSignerName(value: unknown, fallback = "Phommarin Thaithom") {
@@ -845,173 +531,7 @@ function buildSignatureApprovedAppealMap(logs: UsageLogEvent[]) {
       const revisedTopics = request.topics
         .filter(isSignatureAppealTopicChanged)
         .map((topic) => {
-          const originalScore = Number(topic.score || 0);
-          const revisedScore =
-            topic.revisedScore !== null &&
-            topic.revisedScore !== "" &&
-            !Number.isNaN(Number(topic.revisedScore))
-              ? Number(topic.revisedScore)
-              : originalScore;
-          const max = Number(topic.max || 0);
-          if (!Number.isFinite(originalScore) || !Number.isFinite(revisedScore) || !Number.isFinite(max) || max <= 0) return null;
-          scoreDelta += revisedScore - originalScore;
-          return {
-            code: normalizeText(topic.code),
-            title: normalizeText((topic as any).title || topic.label),
-            max,
-            score: revisedScore,
-          };
-        })
-        .filter(Boolean) as SignatureCaseDetail["topics"];
-      const approvedAppeal = {
-        caseId,
-        previousScore,
-        finalScore: Number((previousScore + scoreDelta).toFixed(2)),
-        reviewedAt: request.reviewedAt || request.submittedAt || "",
-        topics: revisedTopics,
-      };
-      map.set(caseId, approvedAppeal);
-      const monthKey = getMonthKey(parseExcelDate(request.auditDate) || new Date(request.submittedAt || request.reviewedAt || ""));
-      if (/^20\d{2}-\d{2}$/.test(monthKey)) {
-        map.set(`${caseId}::${monthKey}`, approvedAppeal);
-      }
-    });
-  return map;
-}
-
-function applySignatureAppealTopics(
-  topics: SignatureCaseDetail["topics"],
-  appeal?: SignatureApprovedAppeal
-): SignatureCaseDetail["topics"] {
-  const revisedTopics = appeal?.topics || [];
-  if (!revisedTopics.length) return topics || [];
-
-  const revisedByCode = new Map(revisedTopics.map((topic) => [normalizeText(topic.code), topic]));
-  if (!topics?.length) return revisedTopics;
-
-  return topics.map((topic) => {
-    const revised = revisedByCode.get(normalizeText(topic.code));
-    return revised
-      ? {
-          ...topic,
-          title: revised.title || topic.title,
-          max: Number(revised.max || topic.max || 0),
-          score: Number(revised.score || 0),
-        }
-      : topic;
-  });
-}
-
-function getLastSignatureHeaderValue(
-  headerRow: unknown[],
-  row: unknown[],
-  headerName: string,
-  fallback: unknown = ""
-) {
-  const target = normalizeKey(headerName);
-  for (let index = headerRow.length - 1; index >= 0; index -= 1) {
-    if (normalizeKey(headerRow[index]) !== target) continue;
-    const value = row[index];
-    if (value !== null && value !== undefined && normalizeText(value) !== "") return value;
-  }
-  return fallback;
-}
-
-function buildSignatureRawAppealMap(rows: unknown[][]) {
-  const headerIndex = rows.findIndex((row) => row.map((item) => normalizeKey(item)).includes("case id"));
-  const map = new Map<string, SignatureApprovedAppeal>();
-  if (headerIndex < 0) return map;
-
-  const headerRow = rows[headerIndex] || [];
-  const helper = buildHeaderMap(headerRow);
-
-  rows.slice(headerIndex + 1).forEach((row) => {
-    const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""), "");
-    if (!caseId) return;
-
-    const monthKey = getMonthKeyFromRow(row, helper);
-    const rawFinalScore = Number(getLastSignatureHeaderValue(headerRow, row, "Final Score", ""));
-    if (!Number.isFinite(rawFinalScore)) return;
-
-    const rawPreviousScore = Number(helper.get(row, ["Previous Score", "Original Score"], rawFinalScore));
-    const item: SignatureApprovedAppeal = {
-      caseId,
-      previousScore: Number.isFinite(rawPreviousScore) ? rawPreviousScore : rawFinalScore,
-      finalScore: Number(rawFinalScore.toFixed(2)),
-      reviewedAt: normalizeText(helper.get(row, ["Reviewed At", "Review Date", "Audit Date", "Timestamp"], "")),
-    };
-
-    map.set(caseId, item);
-    if (/^20\d{2}-\d{2}$/.test(monthKey)) {
-      map.set(`${caseId}::${monthKey}`, item);
-    }
-  });
-
-  return map;
-}
-
-async function fetchSignatureRawAppealMap() {
-  const appealFiles = [
-    "/Appleal ROWDATA.xlsx",
-    "/Appeal ROWDATA.xlsx",
-    "/Appeal_ROWDATA.xlsx",
-  ];
-
-  for (const fileName of appealFiles) {
-    try {
-      const response = await fetch(fileName, { cache: "no-store" });
-      if (!response.ok) continue;
-      const buffer = await response.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-      const sheet = workbook.Sheets["Appeal_Data"] || workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
-      const map = buildSignatureRawAppealMap(rows);
-      if (map.size) return map;
-    } catch (error) {
-      console.warn(`Signature raw appeal file skipped: ${fileName}`, error);
-    }
-  }
-
-  return new Map<string, SignatureApprovedAppeal>();
-}
-
-
-function buildDocuments(
-  rows: unknown[][],
-  accounts: UserAccountSnapshot[],
-  approvedAppealMap: Map<string, SignatureApprovedAppeal> = new Map()
-) {
-  const headerIndex = rows.findIndex((row) => {
-    const keys = row.map((item) => normalizeKey(item));
-    return keys.includes("agent name") && (keys.includes("case id") || keys.includes("final score"));
-  });
-  if (headerIndex < 0) return [];
-
-  const helper = buildHeaderMap(rows[headerIndex] || []);
-  const grouped = new Map<string, {
-    monthKey: string;
-    agentName: string;
-    seniorName: string;
-    supervisorName: string;
-    qaName: string;
-    teamName: string;
-    scores: number[];
-    cases: SignatureCaseDetail[];
-    caseIds: Set<string>;
-  }>();
-
-  rows.slice(headerIndex + 1).forEach((row) => {
-    const agentName = canonicalAgentName(helper.get(row, ["Agent Name", "Agent", "Employee Name", "User"], ""));
-    if (!agentName || agentName === "-") return;
-
-    const monthKey = getMonthKeyFromRow(row, helper);
-    if (!isDashboardReportingMonth(monthKey)) return;
-
-    const account = findAccountForAgent(accounts, agentName);
-    const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""));
-    const auditDate = parseExcelDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
-    const rawFinalScore = Number(helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], ""));
-    const approvedAppeal = approvedAppealMap.get(`${caseId}::${monthKey}`) || approvedAppealMap.get(caseId);
+          const originalScore = m«ëŒ+Š×®º+º$zzb¥äçVÖ&W"‡F÷–2ç66÷&RÇÂ“°¢6öç7B&Wf—6VE66÷&RĞ¢F÷–2ç&Wf—6VE66÷&RÓÒçVÆÂb`¢F÷–2ç&Wf—6VE66÷&RÓÒ""b`¢çVÖ&W"æ—4æâ„çVÖ&W"‡F÷–2ç&Wf—6VE66÷&R’¢òçVÖ&W"‡F÷–2ç&Wf—6VE66÷&R¢¢÷&–v–æÅ66÷&S°¢6öç7BÖ‚ÒçVÖ&W"‡F÷–2æÖ‚ÇÂ“°¢–b‚çVÖ&W"æ—4f–æ—FR†÷&–v–æÅ66÷&R’ÇÂçVÖ&W"æ—4f–æ—FR‡&Wf—6VE66÷&R’ÇÂçVÖ&W"æ—4f–æ—FR†Ö‚’ÇÂÖ‚ÃÒ’&WGW&âçVÆÃ°¢66÷&TFVÇF³Ò&Wf—6VE66÷&RÒ÷&–v–æÅ66÷&S°¢&WGW&â°¢6öFS¢æ÷&ÖÆ—¦UFW‡B‡F÷–2æ6öFR’À¢F—FÆS¢æ÷&ÖÆ—¦UFW‡B‚‡F÷–22ç’’çF—FÆRÇÂF÷–2æÆ&VÂ’À¢Ö‚À¢66÷&S¢&Wf—6VE66÷&RÀ¢Ó°¢Ò¢æf–ÇFW"„&ööÆVâ’26–væGW&T66TFWF–Å²'F÷–72%Ó°¢6öç7B&÷fVDVÂÒ°¢66T–BÀ¢&Wf–÷W566÷&RÀ¢f–æÅ66÷&S¢çVÖ&W"‚‡&Wf–÷W566÷&R²66÷&TFVÇF’çFôf—†VBƒ"’’À¢&Wf–WvVDC¢&WVW7Bç&Wf–WvVDBÇÂ&WVW7Bç7V&Ö—GFVDBÇÂ""À¢F÷–73¢&Wf—6VEF÷–72À¢Ó°¢Öç6WB†66T–BÂ&÷fVDVÂ“°¢6öç7BÖöçF„¶W’ÒvWDÖöçF„¶W’‡'6TW†6VÄFFR‡&WVW7BæVF—DFFR’ÇÂæWrFFR‡&WVW7Bç7V&Ö—GFVDBÇÂ&WVW7Bç&Wf–WvVDBÇÂ""’“°¢–b‚õã#ÆG³'ÒÕÆG³'ÒBòçFW7B†ÖöçF„¶W’’’°¢Öç6WB†G¶66T–GÓ£¢G¶ÖöçF„¶W—ÖÂ&÷fVDVÂ“°¢Ğ¢Ò“°¢&WGW&âÖ°§Ğ ¦gVæ7F–öâÇ•6–væGW&TVÅF÷–72€¢F÷–73¢6–væGW&T66TFWF–Å²'F÷–72%ÒÀ¢VÃó¢6–væGW&T&÷fVDVÀ¢“¢6–væGW&T66TFWF–Å²'F÷–72%Ò°¢6öç7B&Wf—6VEF÷–72ÒVÃòçF÷–72ÇÂµÓ°¢–b‚&Wf—6VEF÷–72æÆVæwF‚’&WGW&âF÷–72ÇÂµÓ° ¢6öç7B&Wf—6VD'”6öFRÒæWrÖ‡&Wf—6VEF÷–72æÖ‚‡F÷–2’Óâ¶æ÷&ÖÆ—¦UFW‡B‡F÷–2æ6öFR’ÂF÷–5Ò’“°¢–b‚F÷–73òæÆVæwF‚’&WGW&â&Wf—6VEF÷–73° ¢&WGW&âF÷–72æÖ‚‡F÷–2’Óâ°¢6öç7B&Wf—6VBÒ&Wf—6VD'”6öFRævWB†æ÷&ÖÆ—¦UFW‡B‡F÷–2æ6öFR’“°¢&WGW&â&Wf—6V@¢ò°¢ââçF÷–2À¢F—FÆS¢&Wf—6VBçF—FÆRÇÂF÷–2çF—FÆRÀ¢Öƒ¢çVÖ&W"‡&Wf—6VBæÖ‚ÇÂF÷–2æÖ‚ÇÂ’À¢66÷&S¢çVÖ&W"‡&Wf—6VBç66÷&RÇÂ’À¢Ğ¢¢F÷–3°¢Ò“°§Ğ ¦gVæ7F–öâvWDÆ7E6–væGW&T†VFW%fÇVR€¢†VFW%&÷s¢Væ¶æ÷våµÒÀ¢&÷s¢Væ¶æ÷våµÒÀ¢†VFW$æÖS¢7G&–ærÀ¢fÆÆ&6³¢Væ¶æ÷vâÒ" ¢’°¢6öç7BF&vWBÒæ÷&ÖÆ—¦T¶W’††VFW$æÖR“°¢f÷"†ÆWB–æFW‚Ò†VFW%&÷ræÆVæwF‚Ò²–æFW‚ãÒ²–æFW‚ÓÒ’°¢–b†æ÷&ÖÆ—¦T¶W’††VFW%&÷u¶–æFW…Ò’ÓÒF&vWB’6öçF–çVS°¢6öç7BfÇVRÒ&÷u¶–æFW…Ó°¢–b‡fÇVRÓÒçVÆÂbbfÇVRÓÒVæFVf–æVBbbæ÷&ÖÆ—¦UFW‡B‡fÇVR’ÓÒ""’&WGW&âfÇVS°¢Ğ¢&WGW&âfÆÆ&6³°§Ğ ¦gVæ7F–öâ'V–ÆE6–væGW&U&tVÄÖ‡&÷w3¢Væ¶æ÷våµÕµÒ’°¢6öç7B†VFW$–æFW‚Ò&÷w2æf–æD–æFW‚‚‡&÷r’Óâ&÷ræÖ‚†—FVÒ’Óâæ÷&ÖÆ—¦T¶W’†—FVÒ’’æ–æ6ÇVFW2‚&66R–B"’“°¢6öç7BÖÒæWrÖÇ7G&–ærÂ6–væGW&T&÷fVDVÃâ‚“°¢–b††VFW$–æFW‚Â’&WGW&âÖ° ¢6öç7B†VFW%&÷rÒ&÷w5¶†VFW$–æFW…ÒÇÂµÓ°¢6öç7B†VÇW"Ò'V–ÆD†VFW$Ö††VFW%&÷r“° ¢&÷w2ç6Æ–6R††VFW$–æFW‚²’æf÷$V6‚‚‡&÷r’Óâ°¢6öç7B66T–BÒ6fTæÖR††VÇW"ævWB‡&÷rÂ²$66R”B"Â$66T–B"Â$66R%ÒÂ""’Â""“°¢–b‚66T–B’&WGW&ã° ¢6öç7BÖöçF„¶W’ÒvWDÖöçF„¶W”g&öÕ&÷r‡&÷rÂ†VÇW"“°¢6öç7B&tf–æÅ66÷&RÒçVÖ&W"†vWDÆ7E6–væGW&T†VFW%fÇVR††VFW%&÷rÂ&÷rÂ$f–æÂ66÷&R"Â""’“°¢–b‚çVÖ&W"æ—4f–æ—FR‡&tf–æÅ66÷&R’’&WGW&ã° ¢6öç7B&u&Wf–÷W566÷&RÒçVÖ&W"††VÇW"ævWB‡&÷rÂ²%&Wf–÷W266÷&R"Â$÷&–v–æÂ66÷&R%ÒÂ&tf–æÅ66÷&R’“°¢6öç7B—FVÓ¢6–væGW&T&÷fVDVÂÒ°¢66T–BÀ¢&Wf–÷W566÷&S¢çVÖ&W"æ—4f–æ—FR‡&u&Wf–÷W566÷&R’ò&u&Wf–÷W566÷&R¢&tf–æÅ66÷&RÀ¢f–æÅ66÷&S¢çVÖ&W"‡&tf–æÅ66÷&RçFôf—†VBƒ"’’À¢&Wf–WvVDC¢æ÷&ÖÆ—¦UFW‡B††VÇW"ævWB‡&÷rÂ²%&Wf–WvVBB"Â%&Wf–WrFFR"Â$VF—BFFR"Â%F–ÖW7F×%ÒÂ""’’À¢Ó° ¢Öç6WB†66T–BÂ—FVÒ“°¢–b‚õã#ÆG³'ÒÕÆG³'ÒBòçFW7B†ÖöçF„¶W’’’°¢Öç6WB†G¶66T–GÓ£¢G¶ÖöçF„¶W—ÖÂ—FVÒ“°¢Ğ¢Ò“° ¢&WGW&âÖ°§Ğ ¦7–æ2gVæ7F–öâfWF6…6–væGW&U&tVÄÖ‚’°¢6öç7BVÄf–ÆW2Ò°¢"ôÆVÂ$õtDDç†Ç7‚"À¢"ôVÂ$õtDDç†Ç7‚"À¢"ôVÅõ$õtDDç†Ç7‚"À¢Ó° ¢f÷"†6öç7Bf–ÆTæÖRöbVÄf–ÆW2’°¢G'’°¢6öç7B&W7öç6RÒv—BfWF6‚†f–ÆTæÖRÂ²66†S¢&æò×7F÷&R"Ò“°¢–b‚&W7öç6Ræö²’6öçF–çVS°¢6öç7B'VffW"Òv—B&W7öç6Ræ'&”'VffW"‚“°¢6öç7Bv÷&¶&öö²Ò„Å5‚ç&VB†'VffW"Â²G—S¢&'&’"Â6VÆÄFFW3¢G'VRÒ“°¢6öç7B6†VWBÒv÷&¶&öö²å6†VWG5²$VÅôFF%ÒÇÂv÷&¶&öö²å6†VWG5·v÷&¶&öö²å6†VWDæÖW5³ÕÓ°¢6öç7B&÷w2Ò„Å5‚çWF–Ç2ç6†VWE÷Fõö§6öãÇVæ¶æ÷våµÓâ‡6†VWBÂ²†VFW#¢ÂFVgfÃ¢çVÆÂÂ&s¢G'VRÒ“°¢6öç7BÖÒ'V–ÆE6–væGW&U&tVÄÖ‡&÷w2“°¢–b†Öç6—¦R’&WGW&âÖ°¢Ò6F6‚†W'&÷"’°¢6öç6öÆRçv&â†6–væGW&R&rVÂf–ÆR6¶—VC¢G¶f–ÆTæÖWÖÂW'&÷"“°¢Ğ¢Ğ ¢&WGW&âæWrÖÇ7G&–ærÂ6–væGW&T&÷fVDVÃâ‚“°§Ğ  ¦gVæ7F–öâ'V–ÆDFö7VÖVçG2€¢&÷w3¢Væ¶æ÷våµÕµÒÀ¢66÷VçG3¢W6W$66÷VçE6æ6†÷EµÒÀ¢&÷fVDVÄÖ¢ÖÇ7G&–ærÂ6–væGW&T&÷fVDVÃâÒæWrÖ‚¢’°¢6öç7B†VFW$–æFW‚Ò&÷w2æf–æD–æFW‚‚‡&÷r’Óâ°¢6öç7B¶W—2Ò&÷ræÖ‚†—FVÒ’Óâæ÷&ÖÆ—¦T¶W’†—FVÒ’“°¢&WGW&â¶W—2æ–æ6ÇVFW2‚&vVçBæÖR"’bb†¶W—2æ–æ6ÇVFW2‚&66R–B"’ÇÂ¶W—2æ–æ6ÇVFW2‚&f–æÂ66÷&R"’“°¢Ò“°¢–b††VFW$–æFW‚Â’&WGW&âµÓ° ¢6öç7B†VÇW"Ò'V–ÆD†VFW$Ö‡&÷w5¶†VFW$–æFW…ÒÇÂµÒ“°¢6öç7Bw&÷WVBÒæWrÖÇ7G&–ærÂ°¢ÖöçF„¶W“¢7G&–æs°¢vVçDæÖS¢7G&–æs°¢6Væ–÷$æÖS¢7G&–æs°¢7WW'f—6÷$æÖS¢7G&–æs°¢æÖS¢7G&–æs°¢FVÔæÖS¢7G&–æs°¢66÷&W3¢çVÖ&W%µÓ°¢66W3¢6–væGW&T66TFWF–ÅµÓ°¢66T–G3¢6WCÇ7G&–æsã°¢Óâ‚“° ¢&÷w2ç6Æ–6R††VFW$–æFW‚²’æf÷$V6‚‚‡&÷r’Óâ°¢6öç7BvVçDæÖRÒ6æöæ–6ÄvVçDæÖR††VÇW"ævWB‡&÷rÂ²$vVçBæÖR"Â$vVçB"Â$V×Æ÷–VRæÖR"Â%W6W"%ÒÂ""’“°¢–b‚vVçDæÖRÇÂvVçDæÖRÓÓÒ"Ò"’&WGW&ã° ¢6öç7BÖöçF„¶W’ÒvWDÖöçF„¶W”g&öÕ&÷r‡&÷rÂ†VÇW"“°¢–b‚—4F6†&ö&E&W÷'F–ætÖöçF‚†ÖöçF„¶W’’’&WGW&ã° ¢6öç7B66÷VçBÒf–æD66÷VçDf÷$vVçB†66÷VçG2ÂvVçDæÖR“°¢6öç7B66T–BÒ6fTæÖR††VÇW"ævWB‡&÷rÂ²$66R”B"Â$66T–B"Â$66R%ÒÂ""’“°¢6öç7BVF—DFFRÒ'6TW†6VÄFFR††VÇW"ævWB‡&÷rÂ²$VF—BFFR"Â$66RFFR"Â%F–ÖW7F×"Â$FFR%ÒÂ""’“°¢6öç7B&tf–æÅ66÷&RÒçVÖ&W"††VÇW"ævWB‡&÷rÂ²$f–æÂ66÷&R"Â%F÷FÂ66÷&R"Â%66÷&R"Â%66÷&R%ÒÂ""’“°¢6öç7B&÷fVDVÂÒ&÷fVDVÄÖævWB†G¶66T–GÓ£¢G¶ÖöæÚ±î¸Â¸­yêë¢°k¢G§¦*^thKey}`) || approvedAppealMap.get(caseId);
     const appealScore = approvedAppeal?.finalScore;
     const finalScore = Number.isFinite(Number(appealScore)) ? Number(appealScore) : rawFinalScore;
     const score = Number.isFinite(finalScore) ? finalScore : 0;
@@ -1151,157 +671,7 @@ function buildDocumentsFromStoredEvaluations(
     };
 
     current.seniorName = isGenericRoleName(current.seniorName) ? seniorName : current.seniorName;
-    current.supervisorName = isGenericRoleName(current.supervisorName) ? supervisorName : current.supervisorName;
-    current.qaName = current.qaName === "Quality Assurance" ? qaName : current.qaName;
-    current.teamName = current.teamName === "-" ? teamName : current.teamName;
-
-    if (caseId && !current.caseIds.has(caseId)) {
-      current.caseIds.add(caseId);
-      current.scores.push(finalScore);
-      current.cases.push({
-        caseId,
-        auditDate: auditDate ? auditDate.toLocaleDateString("th-TH") : "-",
-        inquiry,
-        finalScore,
-        grade: scoreToGrade(finalScore, monthKey),
-        comment,
-        topics: applySignatureAppealTopics(record.topics || [], approvedAppeal),
-      });
-    }
-
-    grouped.set(key, current);
-  });
-
-  return Array.from(grouped.values())
-    .map((item): SignatureDocument => {
-      const averageScore = item.scores.length
-        ? item.scores.reduce((sum, score) => sum + score, 0) / item.scores.length
-        : 0;
-      const caseCount = item.caseIds.size || item.scores.length;
-      const base = {
-        id: `${item.monthKey}::${item.agentName}`,
-        monthKey: item.monthKey,
-        monthLabel: getMonthLabel(item.monthKey),
-        agentName: item.agentName,
-        seniorName: item.seniorName,
-        supervisorName: item.supervisorName,
-        qaName: item.qaName,
-        teamName: item.teamName,
-        caseCount,
-        averageScore,
-        grade: scoreToGrade(averageScore, item.monthKey),
-        eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80,
-        cases: sortSignatureCasesByAuditDate(item.cases),
-      };
-      return { ...base, documentHash: createDocumentHash(base) };
-    })
-    .sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName, "th"));
-}
-
-function mergeSignatureDocuments(existing: SignatureDocument, incoming: SignatureDocument): SignatureDocument {
-  const caseMap = new Map<string, SignatureCaseDetail>();
-  existing.cases.forEach((item) => caseMap.set(item.caseId, item));
-  incoming.cases.forEach((item) => {
-    const previous = caseMap.get(item.caseId);
-    if (previous?.topics?.length && (!item.topics?.length || previous.topics.length > item.topics.length)) {
-      caseMap.set(item.caseId, { ...item, topics: previous.topics });
-      return;
-    }
-    caseMap.set(item.caseId, item);
-  });
-  const cases = sortSignatureCasesByAuditDate(Array.from(caseMap.values()));
-  const caseCount = cases.length || Math.max(existing.caseCount, incoming.caseCount);
-  const averageScore = cases.length
-    ? cases.reduce((sum, item) => sum + Number(item.finalScore || 0), 0) / cases.length
-    : (() => {
-        const existingCases = Math.max(Number(existing.caseCount) || 0, 0);
-        const incomingCases = Math.max(Number(incoming.caseCount) || 0, 0);
-        const totalCases = existingCases + incomingCases;
-        if (!totalCases) return 0;
-        return ((Number(existing.averageScore) || 0) * existingCases + (Number(incoming.averageScore) || 0) * incomingCases) / totalCases;
-      })();
-  const monthKey = incoming.monthKey || existing.monthKey;
-  const base = {
-    ...existing,
-    ...incoming,
-    id: incoming.id || existing.id,
-    monthKey,
-    monthLabel: getMonthLabel(monthKey),
-    caseCount,
-    averageScore,
-    grade: scoreToGrade(averageScore, monthKey),
-    eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80,
-    cases,
-  };
-  return { ...base, documentHash: createDocumentHash(base) };
-}
-
-function getQaSignerNameByMonth(monthKey: string, fallback = "Quality Assurance") {
-  if (monthKey >= "2026-03") return "Songpon Phothong";
-  if (monthKey === "2026-01" || monthKey === "2026-02") return "Phommarin Thaithom";
-  return fallback || "Quality Assurance";
-}
-
-function getRoleSigner(doc: SignatureDocument, role: SignRole) {
-  if (role === "QA") return getQaSignerNameByMonth(doc.monthKey, doc.qaName);
-  if (role === "Supervisor") return resolveSupervisorName(doc.supervisorName);
-  if (role === "Senior") return resolveFallbackSignerName(doc.seniorName, DEFAULT_SUPERVISOR_SIGNER);
-  return doc.agentName;
-}
-
-function getSignedEntry(entries: SignatureEntry[], role: SignRole) {
-  return entries.find((entry) => entry.role === role && entry.status === "Signed");
-}
-
-function getWaivedEntry(entries: SignatureEntry[], role: SignRole) {
-  return entries.find((entry) => entry.role === role && entry.status === "Waived");
-}
-
-function getCompletedEntry(entries: SignatureEntry[], role: SignRole) {
-  return getSignedEntry(entries, role) || getWaivedEntry(entries, role);
-}
-
-function getDeadlineResetEntry(entries: SignatureEntry[], role: SignRole) {
-  return entries.find((entry) => entry.role === role && entry.status === "Pending" && entry.note === SIGNATURE_DEADLINE_RESET_NOTE);
-}
-
-function getDeadlineResetExpiresAt(entry?: SignatureEntry) {
-  const resetTime = new Date(entry?.resetAt || "").getTime();
-  if (Number.isNaN(resetTime)) return null;
-  return new Date(resetTime + SIGNATURE_RESET_WINDOW_MS);
-}
-
-function isDeadlineResetActive(entry?: SignatureEntry, now = new Date()) {
-  const expiresAt = getDeadlineResetExpiresAt(entry);
-  return Boolean(expiresAt && now.getTime() <= expiresAt.getTime());
-}
-
-function getActiveDeadlineResetEntry(entries: SignatureEntry[], role: SignRole, now = new Date()) {
-  const entry = getDeadlineResetEntry(entries, role);
-  return isDeadlineResetActive(entry, now) ? entry : undefined;
-}
-
-function getPendingRoles(entries: SignatureEntry[]) {
-  return SIGNATURE_FLOW.filter((role) => !getCompletedEntry(entries, role));
-}
-
-
-function getPendingRoleText(_doc: SignatureDocument, entries: SignatureEntry[]) {
-  const pendingRoles = getPendingRoles(entries);
-  return pendingRoles.length
-    ? pendingRoles.map(roleThaiLabel).join(", ")
-    : "à¹€à¸‹à¹‡à¸™à¸„à¸£à¸šà¹à¸¥à¹‰à¸§";
-}
-
-function roleThaiLabel(role: SignRole) {
-  if (role === "QA") return "QA à¸œà¸¹à¹‰à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸š";
-  if (role === "Supervisor") return "Supervisor";
-  if (role === "Senior") return "Senior / Team Lead";
-  return "Agent à¸œà¸¹à¹‰à¸–à¸¹à¸à¸›à¸£à¸°à¹€à¸¡à¸´à¸™";
-}
-
-function canSignIdentity(currentUser: CurrentUser, doc: SignatureDocument, role: SignRole) {
-  const signerName = getRoleSigner(doc, role);
+    current.supervisorName = isGenericRoleName(current.supervisorNam«ëŒ+Š×®º+º$zzb¥æÖR’ò7WW'f—6÷$æÖR¢7W'&VçBç7WW'f—6÷$æÖS°¢7W'&VçBçæÖRÒ7W'&VçBçæÖRÓÓÒ%VÆ—G’77W&æ6R"òæÖR¢7W'&VçBçæÖS°¢7W'&VçBçFVÔæÖRÒ7W'&VçBçFVÔæÖRÓÓÒ"Ò"òFVÔæÖR¢7W'&VçBçFVÔæÖS° ¢–b†66T–Bbb7W'&VçBæ66T–G2æ†2†66T–B’’°¢7W'&VçBæ66T–G2æFB†66T–B“°¢7W'&VçBç66÷&W2çW6‚†f–æÅ66÷&R“°¢7W'&VçBæ66W2çW6‚‡°¢66T–BÀ¢VF—DFFS¢VF—DFFRòVF—DFFRçFôÆö6ÆTFFU7G&–ær‚'F‚ÕD‚"’¢"Ò"À¢–çV—'’À¢f–æÅ66÷&RÀ¢w&FS¢66÷&UFôw&FR†f–æÅ66÷&RÂÖöçF„¶W’’À¢6öÖÖVçBÀ¢F÷–73¢Ç•6–væGW&TVÅF÷–72‡&V6÷&BçF÷–72ÇÂµÒÂ&÷fVDVÂ’À¢Ò“°¢Ğ ¢w&÷WVBç6WB†¶W’Â7W'&VçB“°¢Ò“° ¢&WGW&â'&’æg&öÒ†w&÷WVBçfÇVW2‚’¢æÖ‚†—FVÒ“¢6–væGW&TFö7VÖVçBÓâ°¢6öç7BfW&vU66÷&RÒ—FVÒç66÷&W2æÆVæwF€¢ò—FVÒç66÷&W2ç&VGV6R‚‡7VÒÂ66÷&R’Óâ7VÒ²66÷&RÂ’ò—FVÒç66÷&W2æÆVæwF€¢¢°¢6öç7B66T6÷VçBÒ—FVÒæ66T–G2ç6—¦RÇÂ—FVÒç66÷&W2æÆVæwFƒ°¢6öç7B&6RÒ°¢–C¢G¶—FVÒæÖöçF„¶W—Ó£¢G¶—FVÒævVçDæÖWÖÀ¢ÖöçF„¶W“¢—FVÒæÖöçF„¶W’À¢ÖöçF„Æ&VÃ¢vWDÖöçF„Æ&VÂ†—FVÒæÖöçF„¶W’’À¢vVçDæÖS¢—FVÒævVçDæÖRÀ¢6Væ–÷$æÖS¢—FVÒç6Væ–÷$æÖRÀ¢7WW'f—6÷$æÖS¢—FVÒç7WW'f—6÷$æÖRÀ¢æÖS¢—FVÒçæÖRÀ¢FVÔæÖS¢—FVÒçFVÔæÖRÀ¢66T6÷VçBÀ¢fW&vU66÷&RÀ¢w&FS¢66÷&UFôw&FR†fW&vU66÷&RÂ—FVÒæÖöçF„¶W’’À¢VÆ–v–&ÆT'•66÷&S¢66T6÷VçBãÒ44UõD$tUBbbfW&vU66÷&RãÒƒÀ¢66W3¢6÷'E6–væGW&T66W4'”VF—DFFR†—FVÒæ66W2’À¢Ó°¢&WGW&â²ââæ&6RÂFö7VÖVçD†6ƒ¢7&VFTFö7VÖVçD†6‚†&6R’Ó°¢Ò¢ç6÷'B‚†Â"’Óâ"æÖöçF„¶W’æÆö6ÆT6ö×&R†æÖöçF„¶W’’ÇÂævVçDæÖRæÆö6ÆT6ö×&R†"ævVçDæÖRÂ'F‚"’“°§Ğ ¦gVæ7F–öâÖW&vU6–væGW&TFö7VÖVçG2†W†—7F–æs¢6–væGW&TFö7VÖVçBÂ–æ6öÖ–æs¢6–væGW&TFö7VÖVçB“¢6–væGW&TFö7VÖVçB°¢6öç7B66TÖÒæWrÖÇ7G&–ærÂ6–væGW&T66TFWF–Ãâ‚“°¢W†—7F–æræ66W2æf÷$V6‚‚†—FVÒ’Óâ66TÖç6WB†—FVÒæ66T–BÂ—FVÒ’“°¢–æ6öÖ–æræ66W2æf÷$V6‚‚†—FVÒ’Óâ°¢6öç7B&Wf–÷W2Ò66TÖævWB†—FVÒæ66T–B“°¢–b‡&Wf–÷W3òçF÷–73òæÆVæwF‚bb‚—FVÒçF÷–73òæÆVæwF‚ÇÂ&Wf–÷W2çF÷–72æÆVæwF‚â—FVÒçF÷–72æÆVæwF‚’’°¢66TÖç6WB†—FVÒæ66T–BÂ²ââæ—FVÒÂF÷–73¢&Wf–÷W2çF÷–72Ò“°¢&WGW&ã°¢Ğ¢66TÖç6WB†—FVÒæ66T–BÂ—FVÒ“°¢Ò“°¢6öç7B66W2Ò6÷'E6–væGW&T66W4'”VF—DFFR„'&’æg&öÒ†66TÖçfÇVW2‚’’“°¢6öç7B66T6÷VçBÒ66W2æÆVæwF‚ÇÂÖF‚æÖ‚†W†—7F–æræ66T6÷VçBÂ–æ6öÖ–æræ66T6÷VçB“°¢6öç7BfW&vU66÷&RÒ66W2æÆVæwF€¢ò66W2ç&VGV6R‚‡7VÒÂ—FVÒ’Óâ7VÒ²çVÖ&W"†—FVÒæf–æÅ66÷&RÇÂ’Â’ò66W2æÆVæwF€¢¢‚‚’Óâ°¢6öç7BW†—7F–æt66W2ÒÖF‚æÖ‚„çVÖ&W"†W†—7F–æræ66T6÷VçB’ÇÂÂ“°¢6öç7B–æ6öÖ–æt66W2ÒÖF‚æÖ‚„çVÖ&W"†–æ6öÖ–æræ66T6÷VçB’ÇÂÂ“°¢6öç7BF÷FÄ66W2ÒW†—7F–æt66W2²–æ6öÖ–æt66W3°¢–b‚F÷FÄ66W2’&WGW&â°¢&WGW&â‚„çVÖ&W"†W†—7F–æræfW&vU66÷&R’ÇÂ’¢W†—7F–æt66W2²„çVÖ&W"†–æ6öÖ–æræfW&vU66÷&R’ÇÂ’¢–æ6öÖ–æt66W2’òF÷FÄ66W3°¢Ò’‚“°¢6öç7BÖöçF„¶W’Ò–æ6öÖ–æræÖöçF„¶W’ÇÂW†—7F–æræÖöçF„¶W“°¢6öç7B&6RÒ°¢ââæW†—7F–ærÀ¢ââæ–æ6öÖ–ærÀ¢–C¢–æ6öÖ–æræ–BÇÂW†—7F–æræ–BÀ¢ÖöçF„¶W’À¢ÖöçF„Æ&VÃ¢vWDÖöçF„Æ&VÂ†ÖöçF„¶W’’À¢66T6÷VçBÀ¢fW&vU66÷&RÀ¢w&FS¢66÷&UFôw&FR†fW&vU66÷&RÂÖöçF„¶W’’À¢VÆ–v–&ÆT'•66÷&S¢66T6÷VçBãÒ44UõD$tUBbbfW&vU66÷&RãÒƒÀ¢66W2À¢Ó°¢&WGW&â²ââæ&6RÂFö7VÖVçD†6ƒ¢7&VFTFö7VÖVçD†6‚†&6R’Ó°§Ğ ¦gVæ7F–öâvWE6–væW$æÖT'”ÖöçF‚†ÖöçF„¶W“¢7G&–ærÂfÆÆ&6²Ò%VÆ—G’77W&æ6R"’°¢–b†ÖöçF„¶W’ãÒ###bÓ2"’&WGW&â%6öæwöâ†÷F†öær#°¢–b†ÖöçF„¶W’ÓÓÒ###bÓ"ÇÂÖöçF„¶W’ÓÓÒ###bÓ""’&WGW&â%†öÖÖ&–âF†—F†öÒ#°¢&WGW&âfÆÆ&6²ÇÂ%VÆ—G’77W&æ6R#°§Ğ ¦gVæ7F–öâvWE&öÆU6–væW"†Fö3¢6–væGW&TFö7VÖVçBÂ&öÆS¢6–vå&öÆR’°¢–b‡&öÆRÓÓÒ%"’&WGW&âvWE6–væW$æÖT'”ÖöçF‚†Fö2æÖöçF„¶W’ÂFö2çæÖR“°¢–b‡&öÆRÓÓÒ%7WW'f—6÷""’&WGW&â&W6öÇfU7WW'f—6÷$æÖR†Fö2ç7WW'f—6÷$æÖR“°¢–b‡&öÆRÓÓÒ%6Væ–÷""’&WGW&â&W6öÇfTfÆÆ&6µ6–væW$æÖR†Fö2ç6Væ–÷$æÖRÂDTdTÅEõ5UU%d•4õ%õ4”täU"“°¢&WGW&âFö2ævVçDæÖS°§Ğ ¦gVæ7F–öâvWE6–væVDVçG'’†VçG&–W3¢6–væGW&TVçG'•µÒÂ&öÆS¢6–vå&öÆR’°¢&WGW&âVçG&–W2æf–æB‚†VçG'’’ÓâVçG'’ç&öÆRÓÓÒ&öÆRbbVçG'’ç7FGW2ÓÓÒ%6–væVB"“°§Ğ ¦gVæ7F–öâvWEv—fVDVçG'’†VçG&–W3¢6–væGW&TVçG'•µÒÂ&öÆS¢6–vå&öÆR’°¢&WGW&âVçG&–W2æf–æB‚†VçG'’’ÓâVçG'’ç&öÆRÓÓÒ&öÆRbbVçG'’ç7FGW2ÓÓÒ%v—fVB"“°§Ğ ¦gVæ7F–öâvWD6ö×ÆWFVDVçG'’†VçG&–W3¢6–væGW&TVçG'•µÒÂ&öÆS¢6–vå&öÆR’°¢&WGW&âvWE6–væVDVçG'’†VçG&–W2Â&öÆR’ÇÂvWEv—fVDVçG'’†VçG&–W2Â&öÆR“°§Ğ ¦gVæ7F–öâvWDFVFÆ–æU&W6WDVçG'’†VçG&–W3¢6–væGW&TVçG'•µÒÂ&öÆS¢6–vå&öÆR’°¢&WGW&âVçG&–W2æf–æB‚†VçG'’’ÓâVçG'’ç&öÆRÓÓÒ&öÆRbbVçG'’ç7FGW2ÓÓÒ%VæF–ær"bbVçG'’ææ÷FRÓÓÒ4”täEU$UôDTDÄ”äUõ$U4UEôäõDR“°§Ğ ¦gVæ7F–öâvWDFVFÆ–æU&W6WDW‡—&W4B†VçG'“ó¢6–væGW&TVçG'’’°¢6öç7B&W6WEF–ÖRÒæWrFFR†VçG'“òç&W6WDBÇÂ""’ævWEF–ÖR‚“°¢–b„çVÖ&W"æ—4æâ‡&W6WEF–ÖR’’&WGW&âçVÆÃ°¢&WGW&âæWrFFR‡&W6WEF–ÖR²4”täEU$Uõ$U4UEõt”äDõuôÕ2“°§Ğ ¦gVæ7F–öâ—4FVFÆ–æU&W6WD7F—fR†VçG'“ó¢6–væGW&TVçG'’Âæ÷rÒæWrFFR‚’’°¢6öç7BW‡—&W4BÒvWDFVFÆ–æU&W6WDW‡—&W4B†VçG'’“°¢&WGW&â&ööÆVâ†W‡—&W4Bbbæ÷rævWEF–ÖR‚’ÃÒW‡—&W4BævWEF–ÖR‚’“°§Ğ ¦gVæ7F–öâvWD7F—fTFVFÆ–æU&W6WDVçG'’†VçG&–W3¢6–væGW&TVçG'•µÒÂ&öÆS¢6–vå&öÆRÂæ÷rÒæWrFFR‚’’°¢6öç7BVçG'’ÒvWDFVFÆ–æU&W6WDVçG'’†VçG&–W2Â&öÆR“°¢&WGW&â—4FVFÆ–æU&W6WD7F—fR†VçG'’Âæ÷r’òVçG'’¢VæFVf–æVC°§Ğ ¦gVæ7F–öâvWEVæF–æu&öÆW2†VçG&–W3¢6–væGW&TVçG'•µÒ’°¢&WGW&â4”täEU$UôdÄõræf–ÇFW"‚‡&öÆR’ÓâvWD6ö×ÆWFVDVçG'’†VçG&–W2Â&öÆR’“°§Ğ  ¦gVæ7F–öâvWEVæF–æu&öÆUFW‡B…öFö3¢6–væGW&TFö7VÖVçBÂVçG&–W3¢6–væGW&TVçG'•µÒ’°¢6öç7BVæF–æu&öÆW2ÒvWEVæF–æu&öÆW2†VçG&–W2“°¢&WGW&âVæF–æu&öÆW2æÆVæwF€¢òVæF–æu&öÆW2æÖ‡&öÆUF†”Æ&VÂ’æ¦ö–â‚"Â"¢¢.˜ˆ¾˜~‰ˆNŠ>‰®˜Š^˜Šr#°§Ğ ¦gVæ7F–öâ&öÆUF†”Æ&VÂ‡&öÆS¢6–vå&öÆR’°¢–b‡&öÆRÓÓÒ%"’&WGW&â%‰Î‹˜‰^Š>Š~ˆŠ®ŠŞ‰¢#°¢–b‡&öÆRÓÓÒ%7WW'f—6÷""’&WGW&â%7WW'f—6÷"#°¢–b‡&öÆRÓÓÒ%6Væ–÷""’&WGW&â%6Væ–÷"òFVÒÆVB#°¢&WGW&â$vVçB‰Î‹˜‰n‹ˆ‰¾Š>‹˜Š‹N‰’#°§Ğ ¦gVæ7F–öâ6å6–vä–FVçF—G’†7W'&VçEW6W#¢7W'&VçEW6W"ÂFö3¢6–væGW&TFö7VÖVçBÂ&öÆS¢6–vå&öÆR’°¢6öç7B6–væW$æÚ±î¸Â¸­yêë¢°k¢G§¦*^ame = getRoleSigner(doc, role);
 
   if (role === "Agent") {
     return currentUserMatchesName(currentUser, doc.agentName);
@@ -1457,168 +827,7 @@ async function normalizeSignatureDataUrl(dataUrl: string) {
   return new Promise<string>((resolve) => {
     let resolved = false;
     let timeoutId = 0;
-    const finish = (value: string) => {
-      if (resolved) return;
-      resolved = true;
-      window.clearTimeout(timeoutId);
-      resolve(value);
-    };
-    timeoutId = window.setTimeout(() => finish(dataUrl), 2500);
-    const image = new Image();
-    image.onload = () => {
-      try {
-        const sourceCanvas = document.createElement("canvas");
-        sourceCanvas.width = image.naturalWidth || image.width;
-        sourceCanvas.height = image.naturalHeight || image.height;
-        const sourceContext = sourceCanvas.getContext("2d");
-        if (!sourceContext || !sourceCanvas.width || !sourceCanvas.height) {
-          finish(dataUrl);
-          return;
-        }
-
-        sourceContext.drawImage(image, 0, 0);
-        const imageData = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
-        let minX = sourceCanvas.width;
-        let minY = sourceCanvas.height;
-        let maxX = 0;
-        let maxY = 0;
-        let hasInk = false;
-
-        for (let y = 0; y < sourceCanvas.height; y += 1) {
-          for (let x = 0; x < sourceCanvas.width; x += 1) {
-            const index = (y * sourceCanvas.width + x) * 4;
-            const alpha = imageData.data[index + 3];
-            const red = imageData.data[index];
-            const green = imageData.data[index + 1];
-            const blue = imageData.data[index + 2];
-            const isInk = alpha > 24 && (red < 244 || green < 244 || blue < 244);
-            if (!isInk) continue;
-            hasInk = true;
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-          }
-        }
-
-        if (!hasInk) {
-          finish(dataUrl);
-          return;
-        }
-
-        const padding = 18;
-        const cropX = Math.max(0, minX - padding);
-        const cropY = Math.max(0, minY - padding);
-        const cropW = Math.min(sourceCanvas.width - cropX, maxX - minX + 1 + padding * 2);
-        const cropH = Math.min(sourceCanvas.height - cropY, maxY - minY + 1 + padding * 2);
-        const outputCanvas = document.createElement("canvas");
-        outputCanvas.width = cropW;
-        outputCanvas.height = cropH;
-        const outputContext = outputCanvas.getContext("2d");
-        if (!outputContext) {
-          finish(dataUrl);
-          return;
-        }
-
-        outputContext.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-        finish(outputCanvas.toDataURL("image/png"));
-      } catch (error) {
-        console.warn("Signature image normalization failed", error);
-        finish(dataUrl);
-      }
-    };
-    image.onerror = () => finish(dataUrl);
-    image.src = dataUrl;
-  });
-}
-
-function getDocumentTypeLabel(doc: SignatureDocument) {
-  return doc.eligibleByScore
-    ? "Monthly Incentive Payment Document"
-    : "Monthly QA Acknowledgement Document";
-}
-
-function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
-  if (signedComplete) return "signed" as const;
-  if (getTimelineStatus(doc.monthKey) === "Signature Deadline Passed") return "expired" as const;
-  if (getPendingRoles(entries).length) return "pending" as const;
-  return "in-progress" as const;
-}
-
-function getWorkspaceStatusLabel(status: WorkspaceStatus) {
-  if (status === "signed") return "Signed";
-  if (status === "expired") return "Expired";
-  if (status === "in-progress") return "In Progress";
-  return "Pending";
-}
-
-function getWorkspaceStatusClass(status: WorkspaceStatus) {
-  if (status === "signed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "expired") return "border-rose-200 bg-rose-50 text-rose-700";
-  if (status === "in-progress") return "border-sky-200 bg-sky-50 text-sky-700";
-  return "border-amber-200 bg-amber-50 text-amber-700";
-}
-
-function WorkspaceStatusBadge({ status }: { status: WorkspaceStatus }) {
-  return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getWorkspaceStatusClass(status)}`}>
-      {getWorkspaceStatusLabel(status)}
-    </span>
-  );
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
-function savePdfFile(pdf: jsPDF, fileName: string) {
-  try {
-    pdf.save(fileName);
-    return;
-  } catch (error) {
-    console.warn("jsPDF save failed, falling back to blob download", error);
-  }
-  downloadBlob(pdf.output("blob"), fileName);
-}
-
-function isPaymentReadyDocument(
-  doc: SignatureDocument,
-  entries: SignatureEntry[],
-  pendingAppealCaseMap: Map<string, PendingAppealCase>
-) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
-  const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
-  const signedWithinCycle = SIGNATURE_FLOW.every((role) => {
-    const waived = getWaivedEntry(entries, role);
-    if (waived) {
-      return role === "Agent" && isSignedWithinCurrentPaymentCycle(waived.waivedAt || "", doc.monthKey);
-    }
-    const signed = getSignedEntry(entries, role);
-    return Boolean(signed) && isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
-  });
-  return signedComplete && signedWithinCycle && !hasPending;
-}
-
-function isLateSignedDocument(
-  doc: SignatureDocument,
-  entries: SignatureEntry[],
-  pendingAppealCaseMap: Map<string, PendingAppealCase>
-) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
-  const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
-  const hasLateCompletion = SIGNATURE_FLOW.some((role) => {
-    const waived = getWaivedEntry(entries, role);
-    if (waived) {
-      return !isSignedWithinCurrentPaymentCycle(waived.waivedAt || "", doc.monthKey);
+    const finish = (value: m«ëŒ+Š×®º+º$zzb¥ç7G&–ær’Óâ°¢–b‡&W6öÇfVB’&WGW&ã°¢&W6öÇfVBÒG'VS°¢v–æF÷ræ6ÆV%F–ÖV÷WB‡F–ÖV÷WD–B“°¢&W6öÇfR‡fÇVR“°¢Ó°¢F–ÖV÷WD–BÒv–æF÷rç6WEF–ÖV÷WB‚‚’Óâf–æ—6‚†FFW&Â’Â#S“°¢6öç7B–ÖvRÒæWr–ÖvR‚“°¢–ÖvRæöæÆöBÒ‚’Óâ°¢G'’°¢6öç7B6÷W&6T6çf2ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚&6çf2"“°¢6÷W&6T6çf2çv–GF‚Ò–ÖvRææGW&Åv–GF‚ÇÂ–ÖvRçv–GFƒ°¢6÷W&6T6çf2æ†V–v‡BÒ–ÖvRææGW&Ä†V–v‡BÇÂ–ÖvRæ†V–v‡C°¢6öç7B6÷W&6T6öçFW‡BÒ6÷W&6T6çf2ævWD6öçFW‡B‚#&B"“°¢–b‚6÷W&6T6öçFW‡BÇÂ6÷W&6T6çf2çv–GF‚ÇÂ6÷W&6T6çf2æ†V–v‡B’°¢f–æ—6‚†FFW&Â“°¢&WGW&ã°¢Ğ ¢6÷W&6T6öçFW‡BæG&t–ÖvR†–ÖvRÂÂ“°¢6öç7B–ÖvTFFÒ6÷W&6T6öçFW‡BævWD–ÖvTFFƒÂÂ6÷W&6T6çf2çv–GF‚Â6÷W&6T6çf2æ†V–v‡B“°¢ÆWBÖ–å‚Ò6÷W&6T6çf2çv–GFƒ°¢ÆWBÖ–å’Ò6÷W&6T6çf2æ†V–v‡C°¢ÆWBÖ…‚Ò°¢ÆWBÖ…’Ò°¢ÆWB†4–æ²ÒfÇ6S° ¢f÷"†ÆWB’Ò²’Â6÷W&6T6çf2æ†V–v‡C²’³Ò’°¢f÷"†ÆWB‚Ò²‚Â6÷W&6T6çf2çv–GFƒ²‚³Ò’°¢6öç7B–æFW‚Ò‡’¢6÷W&6T6çf2çv–GF‚²‚’¢C°¢6öç7BÇ†Ò–ÖvTFFæFF¶–æFW‚²5Ó°¢6öç7B&VBÒ–ÖvTFFæFF¶–æFW…Ó°¢6öç7Bw&VVâÒ–ÖvTFFæFF¶–æFW‚²Ó°¢6öç7B&ÇVRÒ–ÖvTFFæFF¶–æFW‚²%Ó°¢6öç7B—4–æ²ÒÇ†â#Bbb‡&VBÂ#CBÇÂw&VVâÂ#CBÇÂ&ÇVRÂ#CB“°¢–b‚—4–æ²’6öçF–çVS°¢†4–æ²ÒG'VS°¢Ö–å‚ÒÖF‚æÖ–â†Ö–å‚Â‚“°¢Ö–å’ÒÖF‚æÖ–â†Ö–å’Â’“°¢Ö…‚ÒÖF‚æÖ‚†Ö…‚Â‚“°¢Ö…’ÒÖF‚æÖ‚†Ö…’Â’“°¢Ğ¢Ğ ¢–b‚†4–æ²’°¢f–æ—6‚†FFW&Â“°¢&WGW&ã°¢Ğ ¢6öç7BFF–ærÒƒ°¢6öç7B7&÷‚ÒÖF‚æÖ‚ƒÂÖ–å‚ÒFF–ær“°¢6öç7B7&÷’ÒÖF‚æÖ‚ƒÂÖ–å’ÒFF–ær“°¢6öç7B7&÷rÒÖF‚æÖ–â‡6÷W&6T6çf2çv–GF‚Ò7&÷‚ÂÖ…‚ÒÖ–å‚²²FF–ær¢"“°¢6öç7B7&÷‚ÒÖF‚æÖ–â‡6÷W&6T6çf2æ†V–v‡BÒ7&÷’ÂÖ…’ÒÖ–å’²²FF–ær¢"“°¢6öç7B÷WGWD6çf2ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚&6çf2"“°¢÷WGWD6çf2çv–GF‚Ò7&÷s°¢÷WGWD6çf2æ†V–v‡BÒ7&÷ƒ°¢6öç7B÷WGWD6öçFW‡BÒ÷WGWD6çf2ævWD6öçFW‡B‚#&B"“°¢–b‚÷WGWD6öçFW‡B’°¢f–æ—6‚†FFW&Â“°¢&WGW&ã°¢Ğ ¢÷WGWD6öçFW‡BæG&t–ÖvR‡6÷W&6T6çf2Â7&÷‚Â7&÷’Â7&÷rÂ7&÷‚ÂÂÂ7&÷rÂ7&÷‚“°¢f–æ—6‚†÷WGWD6çf2çFôFFU$Â‚&–ÖvR÷ær"’“°¢Ò6F6‚†W'&÷"’°¢6öç6öÆRçv&â‚%6–væGW&R–ÖvRæ÷&ÖÆ—¦F–öâf–ÆVB"ÂW'&÷"“°¢f–æ—6‚†FFW&Â“°¢Ğ¢Ó°¢–ÖvRæöæW'&÷"Ò‚’Óâf–æ—6‚†FFW&Â“°¢–ÖvRç7&2ÒFFW&Ã°¢Ò“°§Ğ ¦gVæ7F–öâvWDFö7VÖVçEG—TÆ&VÂ†Fö3¢6–væGW&TFö7VÖVçB’°¢&WGW&âFö2æVÆ–v–&ÆT'•66÷&P¢ò$ÖöçF†Ç’–æ6VçF—fR–ÖVçBFö7VÖVçB ¢¢$ÖöçF†Ç’6¶æ÷vÆVFvVÖVçBFö7VÖVçB#°§Ğ ¦gVæ7F–öâvWEv÷&·76U7FGW2†Fö3¢6–væGW&TFö7VÖVçBÂVçG&–W3¢6–væGW&TVçG'•µÒ’°¢6öç7B6–væVD6ö×ÆWFRÒ4”täEU$UôdÄõræWfW'’‚‡&öÆR’Óâ&ööÆVâ†vWD6ö×ÆWFVDVçG'’†VçG&–W2Â&öÆR’’“°¢–b‡6–væVD6ö×ÆWFR’&WGW&â'6–væVB"26öç7C°¢–b†vWEF–ÖVÆ–æU7FGW2†Fö2æÖöçF„¶W’’ÓÓÒ%6–væGW&RFVFÆ–æR76VB"’&WGW&â&W‡—&VB"26öç7C°¢–b†vWEVæF–æu&öÆW2†VçG&–W2’æÆVæwF‚’&WGW&â'VæF–ær"26öç7C°¢&WGW&â&–â×&öw&W72"26öç7C°§Ğ ¦gVæ7F–öâvWEv÷&·76U7FGW4Æ&VÂ‡7FGW3¢v÷&·76U7FGW2’°¢–b‡7FGW2ÓÓÒ'6–væVB"’&WGW&â%6–væVB#°¢–b‡7FGW2ÓÓÒ&W‡—&VB"’&WGW&â$W‡—&VB#°¢–b‡7FGW2ÓÓÒ&–â×&öw&W72"’&WGW&â$–â&öw&W72#°¢&WGW&â%VæF–ær#°§Ğ ¦gVæ7F–öâvWEv÷&·76U7FGW46Æ72‡7FGW3¢v÷&·76U7FGW2’°¢–b‡7FGW2ÓÓÒ'6–væVB"’&WGW&â&&÷&FW"ÖVÖW&ÆBÓ#&rÖVÖW&ÆBÓSFW‡BÖVÖW&ÆBÓs#°¢–b‡7FGW2ÓÓÒ&W‡—&VB"’&WGW&â&&÷&FW"×&÷6RÓ#&r×&÷6RÓSFW‡B×&÷6RÓs#°¢–b‡7FGW2ÓÓÒ&–â×&öw&W72"’&WGW&â&&÷&FW"×6·’Ó#&r×6·’ÓSFW‡B×6·’Ós#°¢&WGW&â&&÷&FW"ÖÖ&W"Ó#&rÖÖ&W"ÓSFW‡BÖÖ&W"Ós#°§Ğ ¦gVæ7F–öâv÷&·76U7FGW4&FvR‡²7FGW2Ó¢²7FGW3¢v÷&·76U7FGW2Ò’°¢&WGW&â€¢Ç7â6Æ74æÖS×¶–æÆ–æRÖfÆW‚&÷VæFVBÖgVÆÂ&÷&FW"‚Ó2’ÓFW‡B×‡2föçBÖ&Æ6²G¶vWEv÷&·76U7FGW46Æ72‡7FGW2—ÖÓà¢¶vWEv÷&·76U7FGW4Æ&VÂ‡7FGW2—Ğ¢Â÷7ãà¢“°§Ğ ¦gVæ7F–öâF÷væÆöD&Æö"†&Æö#¢&Æö"Âf–ÆTæÖS¢7G&–ær’°¢6öç7BW&ÂÒU$Âæ7&VFTö&¦V7EU$Â†&Æö"“°¢6öç7BÆ–æ²ÒFö7VÖVçBæ7&VFTVÆVÖVçB‚&"“°¢Æ–æ²æ‡&VbÒW&Ã°¢Æ–æ²æF÷væÆöBÒf–ÆTæÖS°¢Æ–æ²ç7G–ÆRæF—7Æ’Ò&æöæR#°¢Fö7VÖVçBæ&öG’æVæD6†–ÆB†Æ–æ²“°¢Æ–æ²æ6Æ–6²‚“°¢Æ–æ²ç&VÖ÷fR‚“°¢v–æF÷rç6WEF–ÖV÷WB‚‚’ÓâU$Âç&Wfö¶Tö&¦V7EU$Â‡W&Â’ÂS“°§Ğ ¦gVæ7F–öâ6fUFdf–ÆR‡Fc¢§5DbÂf–ÆTæÖS¢7G&–ær’°¢G'’°¢Fbç6fR†f–ÆTæÖR“°¢&WGW&ã°¢Ò6F6‚†W'&÷"’°¢6öç6öÆRçv&â‚&§5Db6fRf–ÆVBÂfÆÆ–ær&6²Fò&Æö"F÷væÆöB"ÂW'&÷"“°¢Ğ¢F÷væÆöD&Æö"‡Fbæ÷WGWB‚&&Æö""’Âf–ÆTæÖR“°§Ğ ¦gVæ7F–öâ—5–ÖVçE&VG”Fö7VÖVçB€¢Fö3¢6–væGW&TFö7VÖVçBÀ¢VçG&–W3¢6–væGW&TVçG'•µÒÀ¢VæF–ætVÄ66TÖ¢ÖÇ7G&–ærÂVæF–ætVÄ66Sà¢’°¢6öç7B6–væVD6ö×ÆWFRÒ4”täEU$UôdÄõræWfW'’‚‡&öÆR’Óâ&ööÆVâ†vWD6ö×ÆWFVDVçG'’†VçG&–W2Â&öÆR’’“°¢6öç7B†5VæF–ærÒ—4†—7F÷&–6Å–EW&–öB†Fö2æÖöçF„¶W’’bbFö2æ66W2ç6öÖR‚†—FVÒ’ÓâVæF–ætVÄ66TÖæ†2†—FVÒæ66T–B’“°¢6öç7B6–væVEv—F†–ä7–6ÆRÒ4”täEU$UôdÄõræWfW'’‚‡&öÆR’Óâ°¢6öç7Bv—fVBÒvWEv—fVDVçG'’†VçG&–W2Â&öÆR“°¢–b‡v—fVB’°¢&WGW&â&öÆRÓÓÒ$vVçB"bb—56–væVEv—F†–ä7W'&VçE–ÖVçD7–6ÆR‡v—fVBçv—fVDBÇÂ""ÂFö2æÖöçF„¶W’“°¢Ğ¢6öç7B6–væVBÒvWE6–væVDVçG'’†VçG&–W2Â&öÆR“°¢&WGW&â&ööÆVâ‡6–væVB’bb—56–væVEv—F†–ä7W'&VçE–ÖVçD7–6ÆR‡6–væVCòç6–væVDBÇÂ""ÂFö2æÖöçF„¶W’“°¢Ò“°¢&WGW&â6–væVD6ö×ÆWFRbb6–væVEv—F†–ä7–6ÆRbb†5VæF–æs°§Ğ ¦gVæ7F–öâ—4ÆFU6–væVDFö7VÖVçB€¢Fö3¢6–væGW&TFö7VÖVçBÀ¢VçG&–W3¢6–væGW&TVçG'•µÒÀ¢VæF–ætVÄ66TÖ¢ÖÇ7G&–ærÂVæF–ætVÄ66Sà¢’°¢6öç7B6–væVD6ö×ÆWFRÒ4”täEU$UôdÄõræWfW'’‚‡&öÆR’Óâ&ööÆVâ†vWD6ö×ÆWFVDVçG'’†VçG&–W2Â&öÆR’’“°¢6öç7B†5VæF–ærÒ—4†—7F÷&–6Å–EW&–öB†Fö2æÖöçF„¶W’’bbFö2æ66W2ç6öÖR‚†—FVÒ’ÓâVæF–ætVÄ66TÖæ†2†—FVÒæ66T–B’“°¢6öç7B†4ÆFT6ö×ÆWF–öâÒ4”täEU$UôdÄõrç6öÖR‚‡&öÆR’Óâ°¢6öç7Bv—fVBÒvWEv—fVDVçG'’†VçG&–W2Â&öÆR“°¢–b‡v—fVB’°¢&WGW&â—56–væVEv—F†–ä7W'&VçE–ÖVçD7–6ÆR‡v—fVBçv—fVDBÚ±î¸Â¸­yêë¢°k¢G§¦*^|| "", doc.monthKey);
     }
     const signed = getSignedEntry(entries, role);
     return Boolean(signed) && !isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
@@ -1777,198 +986,7 @@ function generatePaymentExcelFile(
       ? [
           index + 1,
           doc.agentName,
-          doc.caseCount,
-          Number(doc.averageScore.toFixed(2)),
-          doc.grade,
-          incentive.cash,
-          incentive.promo,
-          incentive.label,
-          qaSigner,
-          supervisorSigner,
-          seniorSigner,
-          agentSigner,
-          lastSignedAt ? formatDateTime(lastSignedAt) : "-",
-          "No",
-          rowStatus,
-        ]
-      : [
-          index + 1,
-          doc.agentName,
-          doc.caseCount,
-          Number(doc.averageScore.toFixed(2)),
-          doc.grade,
-          incentive.cash,
-          incentive.label,
-          qaSigner,
-          supervisorSigner,
-          seniorSigner,
-          agentSigner,
-          lastSignedAt ? formatDateTime(lastSignedAt) : "-",
-          "No",
-          rowStatus,
-        ];
-    aoa.push(rankingRow);
-  });
-
-  const summaryStartRow = aoa.length + 3;
-  aoa.push(
-    [],
-    ["Payment Export Summary"],
-    ["Total Paid Agents In This Cycle", sortedDocs.length],
-    ["Total Cash Amount (THB)", totalCashAmount],
-    ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", totalPromoAmount]] : []),
-    ["Payment Cutoff", formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString())],
-    ["Generated At", new Date().toLocaleString("th-TH")],
-    ["Document Rule", "Include only 4 Signed or approved 3 Signed + 1 Agent Waived (Resigned) completed by day 15 with no pending Appeal. Late completion moves to the next payment cycle."],
-    [],
-    ["Signature Validation"],
-    ["Seq", "Agent", "QA", "Supervisor", "Senior / Team Lead", "Agent Signature", "Document Ref.", "Status"],
-  );
-
-  sortedDocs.forEach((doc, index) => {
-    const entries = effectiveEntriesForDoc(doc, signatures);
-    aoa.push([
-      index + 1,
-      doc.agentName,
-      getSignatureValidationRoleText(doc, entries, "QA"),
-      getSignatureValidationRoleText(doc, entries, "Supervisor"),
-      getSignatureValidationRoleText(doc, entries, "Senior"),
-      getSignatureValidationRoleText(doc, entries, "Agent"),
-      getMonthlyDocumentRef(doc, allMonthDocs.length ? allMonthDocs : sortedDocs),
-      getSignatureValidationStatus(doc, entries),
-    ]);
-  });
-
-  const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.aoa_to_sheet(aoa);
-  sheet["!cols"] = [
-    { wch: 8 },
-    { wch: 30 },
-    { wch: 12 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 22 },
-    { wch: 18 },
-    { wch: 34 },
-    { wch: 24 },
-    { wch: 24 },
-    { wch: 28 },
-    { wch: 24 },
-    { wch: 22 },
-    { wch: 16 },
-    { wch: 38 },
-  ];
-  sheet["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 14 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 14 } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: 14 } },
-    { s: { r: 10, c: 0 }, e: { r: 10, c: 14 } },
-    { s: { r: summaryStartRow - 1, c: 0 }, e: { r: summaryStartRow - 1, c: 14 } },
-  ];
-  XLSX.utils.book_append_sheet(workbook, sheet, "Monthly_Team_Summary");
-  XLSX.writeFile(workbook, makePaymentFileName(monthKey));
-}
-
-function makePaymentPdfFileName(monthKey: string) {
-  const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_à¸-à¹™]+/g, "");
-  return `Incentive_QA_Monthly_${label || monthKey}.pdf`;
-}
-
-function generatePaymentPdfFile(
-  monthKey: string,
-  readyDocs: SignatureDocument[],
-  signatures: Record<string, SignatureEntry[]>,
-  allMonthDocs: SignatureDocument[] = readyDocs
-) {
-  const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-  const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
-  const exportRuleText = "4 Signed or 3 Signed + 1 Agent Waived (Resigned) by day 15";
-  const totalCases = dashboardSummary.totalCases;
-  const avgScore = dashboardSummary.avgScore;
-  const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
-  const totalPromoAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).promo, 0);
-  const year = /^\d{4}-\d{2}$/.test(monthKey) ? monthKey.slice(0, 4) : "";
-  const paymentCutoff = formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString());
-
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-
-  try {
-    registerTHSarabunNew(pdf);
-    pdf.setFont("THSarabunNew", "normal");
-  } catch {}
-
-  const pageW = 210;
-  const pageH = 297;
-  const left = 10;
-  const right = 200;
-  const bottom = 282;
-  let y = 12;
-  let pageNo = 1;
-
-  const setFont = (size: number, bold = false, color: [number, number, number] = [31, 41, 55]) => {
-    try {
-      pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
-    } catch {}
-    pdf.setFontSize(size);
-    pdf.setTextColor(color[0], color[1], color[2]);
-  };
-
-  const drawText = (
-    value: string | number,
-    x: number,
-    yy: number,
-    size = 10,
-    bold = false,
-    color: [number, number, number] = [31, 41, 55],
-    options?: { align?: "left" | "center" | "right" }
-  ) => {
-    setFont(size, bold, color);
-    pdf.text(String(value ?? ""), x, yy, options);
-  };
-
-  const drawWrap = (
-    value: string | number,
-    x: number,
-    yy: number,
-    width: number,
-    size = 8.2,
-    bold = false,
-    color: [number, number, number] = [31, 41, 55],
-    lineHeight = 3.2,
-    maxLines = 2
-  ) => {
-    setFont(size, bold, color);
-    const lines = pdf.splitTextToSize(String(value ?? ""), width).slice(0, maxLines);
-    lines.forEach((line: string, index: number) => pdf.text(line, x, yy + index * lineHeight));
-  };
-
-  const footer = () => {
-    drawText(`Page ${pageNo}`, right, pageH - 7, 7.5, false, [148, 163, 184], { align: "right" });
-  };
-
-  const addPage = (title?: string) => {
-    footer();
-    pdf.addPage("a4", "portrait");
-    pageNo += 1;
-    y = 12;
-    if (title) section(title);
-  };
-
-  const ensureSpace = (height: number, continuedTitle?: string) => {
-    if (y + height > bottom) {
-      addPage(continuedTitle);
-    }
-  };
-
-  const section = (title: string) => {
-    ensureSpace(14);
-    pdf.setFillColor(109, 40, 217);
-    pdf.roundedRect(left, y, right - left, 8, 2, 2, "F");
-    drawText(title, left + 4, y + 5.7, 11.5, true, [255, 255, 255]);
-    y += 12;
-  };
-
-  const cell = (label: string, value: string | number, x: number, yy: number, width: number, height = 15) => {
+          doc.m«ëŒ+Š×®º+º$zzb¥æ66T6÷VçBÀ¢çVÖ&W"†Fö2æfW&vU66÷&RçFôf—†VBƒ"’’À¢Fö2æw&FRÀ¢–æ6VçF—fRæ66‚À¢–æ6VçF—fRç&öÖòÀ¢–æ6VçF—fRæÆ&VÂÀ¢6–væW"À¢7WW'f—6÷%6–væW"À¢6Væ–÷%6–væW"À¢vVçE6–væW"À¢Æ7E6–væVDBòf÷&ÖDFFUF–ÖR†Æ7E6–væVDB’¢"Ò"À¢$æò"À¢&÷u7FGW2À¢Ğ¢¢°¢–æFW‚²À¢Fö2ævVçDæÖRÀ¢Fö2æ66T6÷VçBÀ¢çVÖ&W"†Fö2æfW&vU66÷&RçFôf—†VBƒ"’’À¢Fö2æw&FRÀ¢–æ6VçF—fRæ66‚À¢–æ6VçF—fRæÆ&VÂÀ¢6–væW"À¢7WW'f—6÷%6–væW"À¢6Væ–÷%6–væW"À¢vVçE6–væW"À¢Æ7E6–væVDBòf÷&ÖDFFUF–ÖR†Æ7E6–væVDB’¢"Ò"À¢$æò"À¢&÷u7FGW2À¢Ó°¢öçW6‚‡&æ¶–æu&÷r“°¢Ò“° ¢6öç7B7VÖÖ'•7F'E&÷rÒöæÆVæwF‚²3°¢öçW6‚€¢µÒÀ¢²%–ÖVçBW‡÷'B7VÖÖ'’%ÒÀ¢²%F÷FÂ–BvVçG2–âF†—27–6ÆR"Â6÷'FVDFö72æÆVæwF…ÒÀ¢²%F÷FÂ66‚Ö÷VçB…D„"’"ÂF÷FÄ66„Ö÷VçEÒÀ¢âââ‡F÷FÅ&öÖôÖ÷VçBâòµ²%F÷FÂ$$‚&öÖò…D„"’"ÂF÷FÅ&öÖôÖ÷VçEÕÒ¢µÒ’À¢²%–ÖVçB7WFöfb"Âf÷&ÖDFFUF–ÖR†vWE6–væGW&Uv–æF÷r†ÖöçF„¶W’’æGVTBçFô•4õ7G&–ær‚’•ÒÀ¢²$vVæW&FVBB"ÂæWrFFR‚’çFôÆö6ÆU7G&–ær‚'F‚ÕD‚"•ÒÀ¢²$Fö7VÖVçB'VÆR"Â$–æ6ÇVFRöæÇ’B6–væVB÷"&÷fVB26–væVB²vVçBv—fVB…&W6–væVB’6ö×ÆWFVB'’F’Rv—F‚æòVæF–ærVÂâÆFR6ö×ÆWF–öâÖ÷fW2FòF†RæW‡B–ÖVçB7–6ÆRâ%ÒÀ¢µÒÀ¢²%6–væGW&RfÆ–FF–öâ%ÒÀ¢²%6W"Â$vVçB"Â%"Â%7WW'f—6÷""Â%6Væ–÷"òFVÒÆVB"Â$vVçB6–væGW&R"Â$Fö7VÖVçB&Vbâ"Â%7FGW2%ÒÀ¢“° ¢6÷'FVDFö72æf÷$V6‚‚†Fö2Â–æFW‚’Óâ°¢6öç7BVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2†Fö2Â6–væGW&W2“°¢öçW6‚…°¢–æFW‚²À¢Fö2ævVçDæÖRÀ¢vWE6–væGW&UfÆ–FF–öå&öÆUFW‡B†Fö2ÂVçG&–W2Â%"’À¢vWE6–væGW&UfÆ–FF–öå&öÆUFW‡B†Fö2ÂVçG&–W2Â%7WW'f—6÷""’À¢vWE6–væGW&UfÆ–FF–öå&öÆUFW‡B†Fö2ÂVçG&–W2Â%6Væ–÷""’À¢vWE6–væGW&UfÆ–FF–öå&öÆUFW‡B†Fö2ÂVçG&–W2Â$vVçB"’À¢vWDÖöçF†Ç”Fö7VÖVçE&Vb†Fö2ÂÆÄÖöçF„Fö72æÆVæwF‚òÆÄÖöçF„Fö72¢6÷'FVDFö72’À¢vWE6–væGW&UfÆ–FF–öå7FGW2†Fö2ÂVçG&–W2’À¢Ò“°¢Ò“° ¢6öç7Bv÷&¶&öö²Ò„Å5‚çWF–Ç2æ&ööµöæWr‚“°¢6öç7B6†VWBÒ„Å5‚çWF–Ç2æö÷Fõ÷6†VWB†ö“°¢6†VWE²"6öÇ2%ÒÒ°¢²v6ƒ¢‚ÒÀ¢²v6ƒ¢3ÒÀ¢²v6ƒ¢"ÒÀ¢²v6ƒ¢BÒÀ¢²v6ƒ¢BÒÀ¢²v6ƒ¢#"ÒÀ¢²v6ƒ¢‚ÒÀ¢²v6ƒ¢3BÒÀ¢²v6ƒ¢#BÒÀ¢²v6ƒ¢#BÒÀ¢²v6ƒ¢#‚ÒÀ¢²v6ƒ¢#BÒÀ¢²v6ƒ¢#"ÒÀ¢²v6ƒ¢bÒÀ¢²v6ƒ¢3‚ÒÀ¢Ó°¢6†VWE²"ÖW&vW2%ÒÒ°¢²3¢²#¢Â3¢ÒÂS¢²#¢Â3¢BÒÒÀ¢²3¢²#¢Â3¢ÒÂS¢²#¢Â3¢BÒÒÀ¢²3¢²#¢2Â3¢ÒÂS¢²#¢2Â3¢BÒÒÀ¢²3¢²#¢Â3¢ÒÂS¢²#¢Â3¢BÒÒÀ¢²3¢²#¢7VÖÖ'•7F'E&÷rÒÂ3¢ÒÂS¢²#¢7VÖÖ'•7F'E&÷rÒÂ3¢BÒÒÀ¢Ó°¢„Å5‚çWF–Ç2æ&ööµöVæE÷6†VWB‡v÷&¶&öö²Â6†VWBÂ$ÖöçF†Ç•õFVÕõ7VÖÖ'’"“°¢„Å5‚çw&—FTf–ÆR‡v÷&¶&öö²ÂÖ¶U–ÖVçDf–ÆTæÖR†ÖöçF„¶W’’“°§Ğ ¦gVæ7F–öâÖ¶U–ÖVçEFdf–ÆTæÖR†ÖöçF„¶W“¢7G&–ær’°¢6öç7BÆ&VÂÒvWDÖöçF„Æ&VÂ†ÖöçF„¶W’’ç&WÆ6R‚õÇ2²örÂ%ò"’ç&WÆ6R‚õµæ×¤Õ£Ó•şˆŞ™•Ò²örÂ""“°¢&WGW&â–æ6VçF—fUõôÖöçF†Ç•òG¶Æ&VÂÇÂÖöçF„¶W—ÒçFf°§Ğ ¦gVæ7F–öâvVæW&FU–ÖVçEFdf–ÆR€¢ÖöçF„¶W“¢7G&–ærÀ¢&VG”Fö73¢6–væGW&TFö7VÖVçEµÒÀ¢6–væGW&W3¢&V6÷&CÇ7G&–ærÂ6–væGW&TVçG'•µÓâÀ¢ÆÄÖöçF„Fö73¢6–væGW&TFö7VÖVçEµÒÒ&VG”Fö70¢’°¢6öç7B6÷'FVDFö72Ò²ââç&VG”Fö75Òç6÷'B‚†Â"’ÓâævVçDæÖRæÆö6ÆT6ö×&R†"ævVçDæÖRÂ'F‚"’“°¢6öç7BF6†&ö&E7VÖÖ'’ÒvWDF6†&ö&DÖöçF…7VÖÖ'”f÷$W‡÷'B†ÖöçF„¶W’ÂÆÄÖöçF„Fö72Â6÷'FVDFö72“°¢6öç7BW‡÷'E'VÆUFW‡BÒ#B6–væVB÷"26–væVB²vVçBv—fVB…&W6–væVB’'’F’R#°¢6öç7BF÷FÄ66W2ÒF6†&ö&E7VÖÖ'’çF÷FÄ66W3°¢6öç7Bfu66÷&RÒF6†&ö&E7VÖÖ'’æfu66÷&S°¢6öç7BF÷FÄ66„Ö÷VçBÒ6÷'FVDFö72ç&VGV6R‚‡7VÒÂFö2’Óâ7VÒ²vWDFö7VÖVçD–æ6VçF—fR†Fö2’æ66‚Â“°¢6öç7BF÷FÅ&öÖôÖ÷VçBÒ6÷'FVDFö72ç&VGV6R‚‡7VÒÂFö2’Óâ7VÒ²vWDFö7VÖVçD–æ6VçF—fR†Fö2’ç&öÖòÂ“°¢6öç7B–V"ÒõåÆG³GÒÕÆG³'ÒBòçFW7B†ÖöçF„¶W’’òÖöçF„¶W’ç6Æ–6RƒÂB’¢"#°¢6öç7B–ÖVçD7WFöfbÒf÷&ÖDFFUF–ÖR†vWE6–væGW&Uv–æF÷r†ÖöçF„¶W’’æGVTBçFô•4õ7G&–ær‚’“° ¢6öç7BFbÒæWr§5Db‡²Væ—C¢&ÖÒ"Âf÷&ÖC¢&B"Â÷&–VçFF–öã¢'÷'G&—B"Ò“° ¢G'’°¢&Vv—7FW%D…6&'VäæWr‡Fb“°¢Fbç6WDföçB‚%D…6&'VäæWr"Â&æ÷&ÖÂ"“°¢Ò6F6‚·Ğ ¢6öç7BvUrÒ#°¢6öç7BvT‚Ò#“s°¢6öç7BÆVgBÒ°¢6öç7B&–v‡BÒ#°¢6öç7B&÷GFöÒÒ#ƒ#°¢ÆWB’Ò#°¢ÆWBvTæòÒ° ¢6öç7B6WDföçBÒ‡6—¦S¢çVÖ&W"Â&öÆBÒfÇ6RÂ6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³3ÂCÂSUÒ’Óâ°¢G'’°¢Fbç6WDföçB‚%D…6&'VäæWr"Â&öÆBò&&öÆB"¢&æ÷&ÖÂ"“°¢Ò6F6‚·Ğ¢Fbç6WDföçE6—¦R‡6—¦R“°¢Fbç6WEFW‡D6öÆ÷"†6öÆ÷%³ÒÂ6öÆ÷%³ÒÂ6öÆ÷%³%Ò“°¢Ó° ¢6öç7BG&uFW‡BÒ€¢fÇVS¢7G&–ærÂçVÖ&W"À¢ƒ¢çVÖ&W"À¢—“¢çVÖ&W"À¢6—¦RÒÀ¢&öÆBÒfÇ6RÀ¢6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³3ÂCÂSUÒÀ¢÷F–öç3ó¢²Æ–vãó¢&ÆVgB"Â&6VçFW""Â'&–v‡B"Ğ¢’Óâ°¢6WDföçB‡6—¦RÂ&öÆBÂ6öÆ÷"“°¢FbçFW‡B…7G&–ær‡fÇVRóò""’Â‚Â—’Â÷F–öç2“°¢Ó° ¢6öç7BG&uw&Ò€¢fÇVS¢7G&–ærÂçVÖ&W"À¢ƒ¢çVÖ&W"À¢—“¢çVÖ&W"À¢v–GFƒ¢çVÖ&W"À¢6—¦RÒ‚ã"À¢&öÆBÒfÇ6RÀ¢6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³3ÂCÂSUÒÀ¢Æ–æT†V–v‡BÒ2ã"À¢Ö„Æ–æW2Ò ¢’Óâ°¢6WDföçB‡6—¦RÂ&öÆBÂ6öÆ÷"“°¢6öç7BÆ–æW2ÒFbç7Æ—EFW‡EFõ6—¦R…7G&–ær‡fÇVRóò""’Âv–GF‚’ç6Æ–6RƒÂÖ„Æ–æW2“°¢Æ–æW2æf÷$V6‚‚†Æ–æS¢7G&–ærÂ–æFWƒ¢çVÖ&W"’ÓâFbçFW‡B†Æ–æRÂ‚Â—’²–æFW‚¢Æ–æT†V–v‡B’“°¢Ó° ¢6öç7Bfö÷FW"Ò‚’Óâ°¢G&uFW‡B†vRG·vTæ÷ÖÂ&–v‡BÂvT‚ÒrÂrãRÂfÇ6RÂ³C‚Âc2ÂƒEÒÂ²Æ–vã¢'&–v‡B"Ò“°¢Ó° ¢6öç7BFEvRÒ‡F—FÆSó¢7G&–ær’Óâ°¢fö÷FW"‚“°¢FbæFEvR‚&B"Â'÷'G&—B"“°¢vTæò³Ò°¢’Ò#°¢–b‡F—FÆR’6V7F–öâ‡F—FÆR“°¢Ó° ¢6öç7BVç7W&U76RÒ††V–v‡C¢çVÖ&W"Â6öçF–çVVEF—FÆSó¢7G&–ær’Óâ°¢–b‡’²†V–v‡Bâ&÷GFöÒ’°¢FEvR†6öçF–çVVEF—FÆR“°¢Ğ¢Ó° ¢6öç7B6V7F–öâÒ‡F—FÆS¢7G&–ær’Óâ°¢Vç7W&U76RƒB“°¢Fbç6WDf–ÆÄ6öÆ÷"ƒ’ÂCÂ#r“°¢Fbç&÷VæFVE&V7B†ÆVgBÂ’Â&–v‡BÒÆVgBÂ‚Â"Â"Â$b"“°¢G&uFW‡B‡F—FÆRÂÆVgB²BÂ’²RãrÂãRÂG'VRÂ³#SRÂ#SRÂ#SUÒ“°¢’³Ò#°¢Ó° ¢6öç7B6VÆÂÒ†Æ&VÃ¢7G&–ærÂfÇVS¢6Ú±î¸Â¸­yêë¢°k¢G§¦*^tring | number, x: number, yy: number, width: number, height = 15) => {
     pdf.setDrawColor(226, 232, 240);
     pdf.setFillColor(248, 250, 252);
     pdf.roundedRect(x, yy, width, height, 2, 2, "FD");
@@ -2133,168 +1151,7 @@ function generatePaymentPdfFile(
   drawTableHeader(topicHeaders);
 
   if (!topicRows.length) {
-    const fallbackTopics = SIGNATURE_JUNE_2026_TOPIC_MASTER;
-    fallbackTopics.forEach((topic, index) => {
-      ensureSpace(8, "Topic Performance % - Team Monthly (continued)");
-      const shade = index % 2 === 0 ? 255 : 248;
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setFillColor(shade, shade === 255 ? 255 : 250, shade === 255 ? 255 : 252);
-      pdf.rect(left, y, right - left, 8, "FD");
-      const row = [topic.code, topic.label, "-", String(topic.max), "-", "-"];
-      let cx = left;
-      row.forEach((value, colIndex) => {
-        const [label, width] = topicHeaders[colIndex];
-        const align = label === "Description" ? "left" : "center";
-        drawColText(value, cx, y + 5.4, width, 7.2, colIndex === 0, [31, 41, 55], align);
-        cx += width;
-      });
-      y += 8;
-    });
-  } else {
-    topicRows.forEach((topic, index) => {
-      ensureSpace(8, "Topic Performance % - Team Monthly (continued)");
-      const avgTopicScore = topic.count ? topic.total / topic.count : 0;
-      const avgPct = topic.max > 0 ? (avgTopicScore / topic.max) * 100 : 0;
-      const status = topic.max > 0 ? (avgPct >= 85 ? "Good" : avgPct >= 75 ? "Watch" : "Improve") : "-";
-      const shade = index % 2 === 0 ? 255 : 248;
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setFillColor(shade, shade === 255 ? 255 : 250, shade === 255 ? 255 : 252);
-      pdf.rect(left, y, right - left, 8, "FD");
-      const row = [
-        topic.code,
-        topic.title,
-        avgTopicScore.toFixed(2),
-        String(topic.max || "-"),
-        topic.max > 0 ? `${avgPct.toFixed(1)}%` : "-",
-        status,
-      ];
-      let cx = left;
-      row.forEach((value, colIndex) => {
-        const [label, width] = topicHeaders[colIndex];
-        const align = label === "Description" ? "left" : "center";
-        drawColText(value, cx, y + 5.4, width, label === "Description" ? 6.8 : 7.1, colIndex === 0, [31, 41, 55], align);
-        cx += width;
-      });
-      y += 8;
-    });
-  }
-
-  y += 6;
-  section("Payment Export Summary");
-  const summaryRows = [
-    ["Total Paid Agents In This Cycle", String(sortedDocs.length)],
-    ["Total Cash Amount (THB)", formatBahtAmount(totalCashAmount)],
-    ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", formatBahtAmount(totalPromoAmount)]] : []),
-    ["Payment Cutoff", paymentCutoff],
-    ["Generated At", new Date().toLocaleString("th-TH")],
-    ["Document Rule", "Include only 4 Signed or approved 3 Signed + 1 Agent Waived (Resigned) completed by day 15 with no pending Appeal. Late completion moves to the next payment cycle."],
-  ];
-
-  summaryRows.forEach((row, index) => {
-    ensureSpace(10, "Payment Export Summary (continued)");
-    pdf.setDrawColor(226, 232, 240);
-    pdf.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 252);
-    pdf.rect(left, y, right - left, 9, "FD");
-    drawText(row[0], left + 3, y + 6, 8, true, [71, 85, 105]);
-    drawWrap(row[1], left + 70, y + 6, right - left - 74, 8, false, [31, 41, 55], 3.2, 1);
-    y += 9;
-  });
-
-  footer();
-  const fileName = makePaymentPdfFileName(monthKey);
-  savePdfFile(pdf, fileName);
-  return fileName;
-}
-
-function SignaturePill({ status }: { status: SignatureStepStatus }) {
-  const tone =
-    status === "Waived"
-      ? "border-sky-200 bg-sky-50 text-sky-700"
-      : status === "Signed"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : status === "Pending"
-        ? "border-amber-200 bg-amber-50 text-amber-700"
-        : status === "Expired"
-          ? "border-rose-200 bg-rose-50 text-rose-700"
-          : status === "Locked"
-            ? "border-slate-200 bg-slate-100 text-slate-500"
-            : "border-slate-200 bg-slate-50 text-slate-500";
-  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${tone}`}>{status}</span>;
-}
-
-function SignaturePadModal({
-  roleLabel,
-  signerName,
-  savedSignatureDataUrl,
-  onCancel,
-  onDeleteSavedSignature,
-  onUseSavedSignature,
-  onSave,
-}: {
-  roleLabel: string;
-  signerName: string;
-  savedSignatureDataUrl?: string;
-  onCancel: () => void;
-  onDeleteSavedSignature?: () => void | Promise<void>;
-  onUseSavedSignature?: () => void | Promise<void>;
-  onSave: (dataUrl: string, saveToLibrary: boolean) => void | Promise<void>;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawingRef = useRef(false);
-  const hasDrawnRef = useRef(false);
-  const [saveToLibrary, setSaveToLibrary] = useState(true);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.lineWidth = 3;
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    context.strokeStyle = "#111827";
-  }, []);
-
-  const getPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
-    };
-  };
-
-  const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-    canvas.setPointerCapture(event.pointerId);
-    const point = getPoint(event);
-    drawingRef.current = true;
-    hasDrawnRef.current = true;
-    context.beginPath();
-    context.moveTo(point.x, point.y);
-  };
-
-  const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return;
-    const context = canvasRef.current?.getContext("2d");
-    if (!context) return;
-    const point = getPoint(event);
-    context.lineTo(point.x, point.y);
-    context.stroke();
-  };
-
-  const stopDrawing = () => {
-    drawingRef.current = false;
-  };
-
-  const clearSignature = () => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    const fallbacm«ëŒ+Š×®º+º$zzb¥æµF÷–72Ò4”täEU$Uô¥TäUó##eõDõ”5ôÔ5DU#°¢fÆÆ&6µF÷–72æf÷$V6‚‚‡F÷–2Â–æFW‚’Óâ°¢Vç7W&U76Rƒ‚Â%F÷–2W&f÷&Öæ6RRÒFVÒÖöçF†Ç’†6öçF–çVVB’"“°¢6öç7B6†FRÒ–æFW‚R"ÓÓÒò#SR¢#Cƒ°¢Fbç6WDG&t6öÆ÷"ƒ##bÂ#3"Â#C“°¢Fbç6WDf–ÆÄ6öÆ÷"‡6†FRÂ6†FRÓÓÒ#SRò#SR¢#SÂ6†FRÓÓÒ#SRò#SR¢#S"“°¢Fbç&V7B†ÆVgBÂ’Â&–v‡BÒÆVgBÂ‚Â$dB"“°¢6öç7B&÷rÒ·F÷–2æ6öFRÂF÷–2æÆ&VÂÂ"Ò"Â7G&–ær‡F÷–2æÖ‚’Â"Ò"Â"Ò%Ó°¢ÆWB7‚ÒÆVgC°¢&÷ræf÷$V6‚‚‡fÇVRÂ6öÄ–æFW‚’Óâ°¢6öç7B¶Æ&VÂÂv–GF…ÒÒF÷–4†VFW'5¶6öÄ–æFW…Ó°¢6öç7BÆ–vâÒÆ&VÂÓÓÒ$FW67&—F–öâ"ò&ÆVgB"¢&6VçFW"#°¢G&t6öÅFW‡B‡fÇVRÂ7‚Â’²RãBÂv–GF‚Ârã"Â6öÄ–æFW‚ÓÓÒÂ³3ÂCÂSUÒÂÆ–vâ“°¢7‚³Òv–GFƒ°¢Ò“°¢’³Òƒ°¢Ò“°¢ÒVÇ6R°¢F÷–5&÷w2æf÷$V6‚‚‡F÷–2Â–æFW‚’Óâ°¢Vç7W&U76Rƒ‚Â%F÷–2W&f÷&Öæ6RRÒFVÒÖöçF†Ç’†6öçF–çVVB’"“°¢6öç7BfuF÷–566÷&RÒF÷–2æ6÷VçBòF÷–2çF÷FÂòF÷–2æ6÷VçB¢°¢6öç7Bfu7BÒF÷–2æÖ‚âò†fuF÷–566÷&RòF÷–2æÖ‚’¢¢°¢6öç7B7FGW2ÒF÷–2æÖ‚âò†fu7BãÒƒRò$vööB"¢fu7BãÒsRò%vF6‚"¢$–×&÷fR"’¢"Ò#°¢6öç7B6†FRÒ–æFW‚R"ÓÓÒò#SR¢#Cƒ°¢Fbç6WDG&t6öÆ÷"ƒ##bÂ#3"Â#C“°¢Fbç6WDf–ÆÄ6öÆ÷"‡6†FRÂ6†FRÓÓÒ#SRò#SR¢#SÂ6†FRÓÓÒ#SRò#SR¢#S"“°¢Fbç&V7B†ÆVgBÂ’Â&–v‡BÒÆVgBÂ‚Â$dB"“°¢6öç7B&÷rÒ°¢F÷–2æ6öFRÀ¢F÷–2çF—FÆRÀ¢fuF÷–566÷&RçFôf—†VBƒ"’À¢7G&–ær‡F÷–2æÖ‚ÇÂ"Ò"’À¢F÷–2æÖ‚âòG¶fu7BçFôf—†VBƒ—ÒV¢"Ò"À¢7FGW2À¢Ó°¢ÆWB7‚ÒÆVgC°¢&÷ræf÷$V6‚‚‡fÇVRÂ6öÄ–æFW‚’Óâ°¢6öç7B¶Æ&VÂÂv–GF…ÒÒF÷–4†VFW'5¶6öÄ–æFW…Ó°¢6öç7BÆ–vâÒÆ&VÂÓÓÒ$FW67&—F–öâ"ò&ÆVgB"¢&6VçFW"#°¢G&t6öÅFW‡B‡fÇVRÂ7‚Â’²RãBÂv–GF‚ÂÆ&VÂÓÓÒ$FW67&—F–öâ"òbã‚¢rãÂ6öÄ–æFW‚ÓÓÒÂ³3ÂCÂSUÒÂÆ–vâ“°¢7‚³Òv–GFƒ°¢Ò“°¢’³Òƒ°¢Ò“°¢Ğ ¢’³Òc°¢6V7F–öâ‚%–ÖVçBW‡÷'B7VÖÖ'’"“°¢6öç7B7VÖÖ'•&÷w2Ò°¢²%F÷FÂ–BvVçG2–âF†—27–6ÆR"Â7G&–ær‡6÷'FVDFö72æÆVæwF‚•ÒÀ¢²%F÷FÂ66‚Ö÷VçB…D„"’"Âf÷&ÖD&‡DÖ÷VçB‡F÷FÄ66„Ö÷VçB•ÒÀ¢âââ‡F÷FÅ&öÖôÖ÷VçBâòµ²%F÷FÂ$$‚&öÖò…D„"’"Âf÷&ÖD&‡DÖ÷VçB‡F÷FÅ&öÖôÖ÷VçB•ÕÒ¢µÒ’À¢²%–ÖVçB7WFöfb"Â–ÖVçD7WFöfeÒÀ¢²$vVæW&FVBB"ÂæWrFFR‚’çFôÆö6ÆU7G&–ær‚'F‚ÕD‚"•ÒÀ¢²$Fö7VÖVçB'VÆR"Â$–æ6ÇVFRöæÇ’B6–væVB÷"&÷fVB26–væVB²vVçBv—fVB…&W6–væVB’6ö×ÆWFVB'’F’Rv—F‚æòVæF–ærVÂâÆFR6ö×ÆWF–öâÖ÷fW2FòF†RæW‡B–ÖVçB7–6ÆRâ%ÒÀ¢Ó° ¢7VÖÖ'•&÷w2æf÷$V6‚‚‡&÷rÂ–æFW‚’Óâ°¢Vç7W&U76RƒÂ%–ÖVçBW‡÷'B7VÖÖ'’†6öçF–çVVB’"“°¢Fbç6WDG&t6öÆ÷"ƒ##bÂ#3"Â#C“°¢Fbç6WDf–ÆÄ6öÆ÷"†–æFW‚R"ÓÓÒò#SR¢#C‚Â–æFW‚R"ÓÓÒò#SR¢#SÂ–æFW‚R"ÓÓÒò#SR¢#S"“°¢Fbç&V7B†ÆVgBÂ’Â&–v‡BÒÆVgBÂ’Â$dB"“°¢G&uFW‡B‡&÷u³ÒÂÆVgB²2Â’²bÂ‚ÂG'VRÂ³sÂƒRÂUÒ“°¢G&uw&‡&÷u³ÒÂÆVgB²sÂ’²bÂ&–v‡BÒÆVgBÒsBÂ‚ÂfÇ6RÂ³3ÂCÂSUÒÂ2ã"Â“°¢’³Ò“°¢Ò“° ¢fö÷FW"‚“°¢6öç7Bf–ÆTæÖRÒÖ¶U–ÖVçEFdf–ÆTæÖR†ÖöçF„¶W’“°¢6fUFdf–ÆR‡FbÂf–ÆTæÖR“°¢&WGW&âf–ÆTæÖS°§Ğ ¦gVæ7F–öâ6–væGW&U–ÆÂ‡²7FGW2Ó¢²7FGW3¢6–væGW&U7FW7FGW2Ò’°¢6öç7BFöæRĞ¢7FGW2ÓÓÒ%v—fVB ¢ò&&÷&FW"×6·’Ó#&r×6·’ÓSFW‡B×6·’Ós ¢¢7FGW2ÓÓÒ%6–væVB ¢ò&&÷&FW"ÖVÖW&ÆBÓ#&rÖVÖW&ÆBÓSFW‡BÖVÖW&ÆBÓs ¢¢7FGW2ÓÓÒ%VæF–ær ¢ò&&÷&FW"ÖÖ&W"Ó#&rÖÖ&W"ÓSFW‡BÖÖ&W"Ós ¢¢7FGW2ÓÓÒ$W‡—&VB ¢ò&&÷&FW"×&÷6RÓ#&r×&÷6RÓSFW‡B×&÷6RÓs ¢¢7FGW2ÓÓÒ$Æö6¶VB ¢ò&&÷&FW"×6ÆFRÓ#&r×6ÆFRÓFW‡B×6ÆFRÓS ¢¢&&÷&FW"×6ÆFRÓ#&r×6ÆFRÓSFW‡B×6ÆFRÓS#°¢&WGW&âÇ7â6Æ74æÖS×¶–æÆ–æRÖfÆW‚&÷VæFVBÖgVÆÂ&÷&FW"‚Ó2’ÓFW‡B×‡2föçBÖ&Æ6²G·FöæWÖÓç·7FGW7ÓÂ÷7ãã°§Ğ ¦gVæ7F–öâ6–væGW&UDÖöFÂ‡°¢&öÆTÆ&VÂÀ¢6–væW$æÖRÀ¢6fVE6–væGW&TFFW&ÂÀ¢öä6æ6VÂÀ¢öäFVÆWFU6fVE6–væGW&RÀ¢öåW6U6fVE6–væGW&RÀ¢öå6fRÀ§Ó¢°¢&öÆTÆ&VÃ¢7G&–æs°¢6–væW$æÖS¢7G&–æs°¢6fVE6–væGW&TFFW&Ãó¢7G&–æs°¢öä6æ6VÃ¢‚’Óâfö–C°¢öäFVÆWFU6fVE6–væGW&Só¢‚’Óâfö–BÂ&öÖ—6SÇfö–Cã°¢öåW6U6fVE6–væGW&Só¢‚’Óâfö–BÂ&öÖ—6SÇfö–Cã°¢öå6fS¢†FFW&Ã¢7G&–ærÂ6fUFôÆ–'&'“¢&ööÆVâ’Óâfö–BÂ&öÖ—6SÇfö–Cã°§Ò’°¢6öç7B6çf5&VbÒW6U&VcÄ…DÔÄ6çf4VÆVÖVçBÂçVÆÃâ†çVÆÂ“°¢6öç7BG&v–æu&VbÒW6U&Vb†fÇ6R“°¢6öç7B†4G&vå&VbÒW6U&Vb†fÇ6R“°¢6öç7B·6fUFôÆ–'&'’Â6WE6fUFôÆ–'&'•ÒÒW6U7FFR‡G'VR“° ¢W6TVffV7B‚‚’Óâ°¢6öç7B6çf2Ò6çf5&Vbæ7W'&VçC°¢6öç7B6öçFW‡BÒ6çf3òævWD6öçFW‡B‚#&B"“°¢–b‚6çf2ÇÂ6öçFW‡B’&WGW&ã°¢6öçFW‡Bæ6ÆV%&V7BƒÂÂ6çf2çv–GF‚Â6çf2æ†V–v‡B“°¢6öçFW‡BæÆ–æUv–GF‚Ò3°¢6öçFW‡BæÆ–æT6Ò'&÷VæB#°¢6öçFW‡BæÆ–æT¦ö–âÒ'&÷VæB#°¢6öçFW‡Bç7G&ö¶U7G–ÆRÒ"3ƒ#r#°¢ÒÂµÒ“° ¢6öç7BvWEö–çBÒ†WfVçC¢&V7Båö–çFW$WfVçCÄ…DÔÄ6çf4VÆVÖVçCâ’Óâ°¢6öç7B6çf2Ò6çf5&Vbæ7W'&VçC°¢–b‚6çf2’&WGW&â²ƒ¢Â“¢Ó°¢6öç7B&V7BÒ6çf2ævWD&÷VæF–æt6Æ–VçE&V7B‚“°¢&WGW&â°¢ƒ¢‚†WfVçBæ6Æ–VçE‚Ò&V7BæÆVgB’ò&V7Bçv–GF‚’¢6çf2çv–GF‚À¢“¢‚†WfVçBæ6Æ–VçE’Ò&V7BçF÷’ò&V7Bæ†V–v‡B’¢6çf2æ†V–v‡BÀ¢Ó°¢Ó° ¢6öç7B7F'DG&v–ærÒ†WfVçC¢&V7Båö–çFW$WfVçCÄ…DÔÄ6çf4VÆVÖVçCâ’Óâ°¢6öç7B6çf2Ò6çf5&Vbæ7W'&VçC°¢6öç7B6öçFW‡BÒ6çf3òævWD6öçFW‡B‚#&B"“°¢–b‚6çf2ÇÂ6öçFW‡B’&WGW&ã°¢6çf2ç6WEö–çFW$6GW&R†WfVçBçö–çFW$–B“°¢6öç7Bö–çBÒvWEö–çB†WfVçB“°¢G&v–æu&Vbæ7W'&VçBÒG'VS°¢†4G&vå&Vbæ7W'&VçBÒG'VS°¢6öçFW‡Bæ&Vv–åF‚‚“°¢6öçFW‡BæÖ÷fUFò‡ö–çBç‚Âö–çBç’“°¢Ó° ¢6öç7BG&rÒ†WfVçC¢&V7Båö–çFW$WfVçCÄ…DÔÄ6çf4VÆVÖVçCâ’Óâ°¢–b‚G&v–æu&Vbæ7W'&VçB’&WGW&ã°¢6öç7B6öçFW‡BÒ6çf5&Vbæ7W'&VçCòævWD6öçFW‡B‚#&B"“°¢–b‚6öçFW‡B’&WGW&ã°¢6öç7Bö–çBÒvWEö–çB†WfVçB“°¢6öçFW‡BæÆ–æUFò‡ö–çBç‚Âö–çBç’“°¢6öçFW‡Bç7G&ö¶R‚“°¢Ó° ¢6öç7B7F÷G&v–ærÒ‚’Óâ°¢G&v–æu&Vbæ7W'&VçBÒfÇ6S°¢Ó° ¢6öç7B6ÆV%6–væGW&RÒ‚’Óâ°¢6öç7B6çf2Ò6çf5&Vbæ7W'&VçC°¢6öç7B6öçFW‡BÒ6çf3òævWD6öçFW‡B‚#&B"“°¢–b‚6çf2ÇÂ6öçFW‡B’&WGW&ã°¢6öçFW‡Bæ6ÆV%&V7BƒÂÂ6çf2çv–GF‚Â6çf2æ†VÚ±î¸Â¸­yêë¢°k¢G§¦*^ight);
     hasDrawnRef.current = false;
   };
 
@@ -2434,146 +1291,7 @@ const SIGNING_STAGE_OPTIONS = [
   {
     value: "expired",
     label: "Overdue",
-    description: "à¹€à¸­à¸à¸ªà¸²à¸£à¹€à¸¥à¸¢à¸à¸³à¸«à¸™à¸”à¸¥à¸‡à¸™à¸²à¸¡à¹à¸¥à¸°à¸¢à¸±à¸‡à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£à¹„à¸¡à¹ˆà¸„à¸£à¸š",
-  },
-] as const;
-
-function getSigningStageOption(value: string) {
-  return SIGNING_STAGE_OPTIONS.find((option) => option.value === value) || SIGNING_STAGE_OPTIONS[0];
-}
-
-function closeOtherSignatureFilterDropdowns(current: HTMLDetailsElement) {
-  document
-    .querySelectorAll<HTMLDetailsElement>('details[data-signature-filter-dropdown="true"][open]')
-    .forEach((detail) => {
-      if (detail !== current) detail.removeAttribute("open");
-    });
-}
-
-export default function SignatureCenterMockup({
-  currentUser,
-  accounts = [],
-}: {
-  currentUser: CurrentUser;
-  accounts?: UserAccountSnapshot[];
-}) {
-  const [documents, setDocuments] = useState<SignatureDocument[]>([]);
-  const [appealLogs, setAppealLogs] = useState<UsageLogEvent[]>([]);
-  const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
-  const [signatureLibrary, setSignatureLibrary] = useState<Record<string, string>>(() => readSignatureLibraryStore());
-  const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
-  const [selectedDocumentId, setSelectedDocumentId] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("all");
-  const [selectedYear, setSelectedYear] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [quickFilter, setQuickFilter] = useState<WorkspaceQuickFilter>("all");
-  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [workspaceDetailOpen, setWorkspaceDetailOpen] = useState(true);
-  const workspaceDetailRef = useRef<HTMLDivElement | null>(null);
-  const [documentView, setDocumentView] = useState<"queue" | "history">("queue");
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [loadMessage, setLoadMessage] = useState("");
-  const [pdfMessage, setPdfMessage] = useState("");
-  const [paymentMessage, setPaymentMessage] = useState("");
-  const [shareMessage, setShareMessage] = useState("");
-  const [signingRole, setSigningRole] = useState<SignRole | null>(null);
-  const [previewCase, setPreviewCase] = useState<SignatureCaseDetail | null>(null);
-  const [queuePreviewDocumentId, setQueuePreviewDocumentId] = useState("");
-  const [actionSidebarMode, setActionSidebarMode] = useState<"expanded" | "collapsed" | "hidden">(() => {
-    if (typeof window === "undefined") return "expanded";
-    const saved = window.sessionStorage.getItem("signature-document-actions-mode");
-    return saved === "collapsed" || saved === "hidden" ? saved : "expanded";
-  });
-  const shareLinkAppliedRef = useRef(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem("signature-document-actions-mode", actionSidebarMode);
-    }
-  }, [actionSidebarMode]);
-
-  useEffect(() => {
-    if (!previewCase) return;
-    const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPreviewCase(null);
-    };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [previewCase]);
-
-  useEffect(() => {
-    let alive = true;
-    const loadAppeals = async () => {
-      try {
-        const logs = await fetchAppealEvents();
-        if (alive) setAppealLogs(logs);
-      } catch (error) {
-        console.warn("Signature Center appeal logs failed", error);
-        if (alive) setAppealLogs([]);
-      }
-    };
-    void loadAppeals();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        setLoadMessage("");
-        const loadedDocs: SignatureDocument[] = [];
-        const rawAppealMap = await fetchSignatureRawAppealMap().catch((error) => {
-          console.warn("Signature Center raw appeal merge skipped", error);
-          return new Map<string, SignatureApprovedAppeal>();
-        });
-        let approvedAppealMap = rawAppealMap;
-
-        // Fallback only: if no uploaded Appeal ROWDATA exists, use web approval logs.
-        if (!approvedAppealMap.size) {
-          const approvedAppealLogs = await fetchAppealEvents(
-            [
-              "appeal_request_submitted",
-              "appeal_request_reviewed",
-              "appeal_request_reset",
-            ],
-            { limit: 2000, forceRefresh: true }
-          ).catch((error) => {
-            console.warn("Signature Center approved appeal merge skipped", error);
-            return [] as UsageLogEvent[];
-          });
-          approvedAppealMap = buildSignatureApprovedAppealMap(approvedAppealLogs as UsageLogEvent[]);
-        }
-        for (const fileName of RAW_DATA_FILES) {
-          const response = await fetch(fileName, { cache: "no-store" });
-          if (!response.ok) continue;
-          const buffer = await response.arrayBuffer();
-          const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-          const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
-          loadedDocs.push(...buildDocuments(rows, accounts, approvedAppealMap));
-        }
-        const storedEvaluations = await fetchStoredEvaluations(1000).catch((error) => {
-          console.warn("Signature Center stored evaluations skipped", error);
-          return [] as StoredEvaluation[];
-        });
-        const rawMonthKeys = new Set(loadedDocs.map((doc) => doc.monthKey).filter(Boolean));
-        loadedDocs.push(
-          ...buildDocumentsFromStoredEvaluations(storedEvaluations, accounts, approvedAppealMap).filter(
-            (doc) => !rawMonthKeys.has(doc.monthKey)
-          )
-        );
-        if (!loadedDocs.length) throw new Error("à¹„à¸¡à¹ˆà¸à¸šà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸ˆà¸²à¸à¹„à¸Ÿà¸¥à¹Œ QA Raw Data");
+    description: "à¹€à¸­à¸à¸ªà¸²à¸£à¹€à¸¥à¸¢à¸à¸³à¸«à¸™à¸”à¸¥à¸‡à¸™à¸²à¸¡à¹à¸¥à¸°à¸¢à¸±àm«ëŒ+Š×®º+º$zzb¥ëˆ~‰N‹>˜‰‹N‰ˆ‹.Š>˜NŠ˜ˆNŠ>‰¢"À¢ÒÀ¥Ò26öç7C° ¦gVæ7F–öâvWE6–væ–æu7FvT÷F–öâ‡fÇVS¢7G&–ær’°¢&WGW&â4”tä”äuõ5DtUôõD”ôå2æf–æB‚†÷F–öâ’Óâ÷F–öâçfÇVRÓÓÒfÇVR’ÇÂ4”tä”äuõ5DtUôõD”ôå5³Ó°§Ğ ¦gVæ7F–öâ6Æ÷6T÷F†W%6–væGW&Tf–ÇFW$G&÷F÷vç2†7W'&VçC¢…DÔÄFWF–Ç4VÆVÖVçB’°¢Fö7VÖVç@¢çVW'•6VÆV7F÷$ÆÃÄ…DÔÄFWF–Ç4VÆVÖVçCâ‚vFWF–Ç5¶FF×6–væGW&RÖf–ÇFW"ÖG&÷F÷vãÒ'G'VR%Õ¶÷VåÒr¢æf÷$V6‚‚†FWF–Â’Óâ°¢–b†FWF–ÂÓÒ7W'&VçB’FWF–Âç&VÖ÷fTGG&–'WFR‚&÷Vâ"“°¢Ò“°§Ğ ¦W‡÷'BFVfVÇBgVæ7F–öâ6–væGW&T6VçFW$Öö6·W‡°¢7W'&VçEW6W"À¢66÷VçG2ÒµÒÀ§Ó¢°¢7W'&VçEW6W#¢7W'&VçEW6W#°¢66÷VçG3ó¢W6W$66÷VçE6æ6†÷EµÓ°§Ò’°¢6öç7B¶Fö7VÖVçG2Â6WDFö7VÖVçG5ÒÒW6U7FFSÅ6–væGW&TFö7VÖVçEµÓâ…µÒ“°¢6öç7B¶VÄÆöw2Â6WDVÄÆöw5ÒÒW6U7FFSÅW6vTÆötWfVçEµÓâ…µÒ“°¢6öç7B·6–væGW&W2Â6WE6–væGW&W5ÒÒW6U7FFSÅ&V6÷&CÇ7G&–ærÂ6–væGW&TVçG'•µÓãâ‚‚’Óâ&VE6–væGW&U7F÷&R‚’“°¢6öç7B·6–væGW&TÆ–'&'’Â6WE6–væGW&TÆ–'&'•ÒÒW6U7FFSÅ&V6÷&CÇ7G&–ærÂ7G&–æsãâ‚‚’Óâ&VE6–væGW&TÆ–'&'•7F÷&R‚’“°¢6öç7B¶6öæf—&ÖVDFö72Â6WD6öæf—&ÖVDFö75ÒÒW6U7FFSÅ&V6÷&CÇ7G&–ærÂ7G&–æsãâ‚‚’Óâ&VD6öæf—&ÖVE7F÷&R‚’“°¢6öç7B·6VÆV7FVDFö7VÖVçD–BÂ6WE6VÆV7FVDFö7VÖVçD–EÒÒW6U7FFR‚""“°¢6öç7B·6VÆV7FVDÖöçF‚Â6WE6VÆV7FVDÖöçF…ÒÒW6U7FFR‚&ÆÂ"“°¢6öç7B·6VÆV7FVE–V"Â6WE6VÆV7FVE–V%ÒÒW6U7FFR‚&ÆÂ"“°¢6öç7B·7FGW4f–ÇFW"Â6WE7FGW4f–ÇFW%ÒÒW6U7FFR‚&ÆÂ"“°¢6öç7B·V–6´f–ÇFW"Â6WEV–6´f–ÇFW%ÒÒW6U7FFSÅv÷&·76UV–6´f–ÇFW#â‚&ÆÂ"“°¢6öç7B¶W‡æFVDÖöçF‡2Â6WDW‡æFVDÖöçF‡5ÒÒW6U7FFSÅ&V6÷&CÇ7G&–ærÂ&ööÆVããâ‡·Ò“°¢6öç7B¶7W'&VçEvRÂ6WD7W'&VçEvUÒÒW6U7FFRƒ“°¢6öç7B·&÷w5W%vRÂ6WE&÷w5W%vUÒÒW6U7FFRƒ“°¢6öç7B·v÷&·76TFWF–Ä÷VâÂ6WEv÷&·76TFWF–Ä÷VåÒÒW6U7FFR‡G'VR“°¢6öç7Bv÷&·76TFWF–Å&VbÒW6U&VcÄ…DÔÄF—dVÆVÖVçBÂçVÆÃâ†çVÆÂ“°¢6öç7B¶Fö7VÖVçEf–WrÂ6WDFö7VÖVçEf–WuÒÒW6U7FFSÂ'VWVR"Â&†—7F÷'’#â‚'VWVR"“°¢6öç7B·6V&6‚Â6WE6V&6…ÒÒW6U7FFR‚""“°¢6öç7B¶ÆöF–ærÂ6WDÆöF–æuÒÒW6U7FFR‡G'VR“°¢6öç7B¶ÆöDÖW76vRÂ6WDÆöDÖW76vUÒÒW6U7FFR‚""“°¢6öç7B·FdÖW76vRÂ6WEFdÖW76vUÒÒW6U7FFR‚""“°¢6öç7B·–ÖVçDÖW76vRÂ6WE–ÖVçDÖW76vUÒÒW6U7FFR‚""“°¢6öç7B·6†&TÖW76vRÂ6WE6†&TÖW76vUÒÒW6U7FFR‚""“°¢6öç7B·6–væ–æu&öÆRÂ6WE6–væ–æu&öÆUÒÒW6U7FFSÅ6–vå&öÆRÂçVÆÃâ†çVÆÂ“°¢6öç7B·&Wf–Wt66RÂ6WE&Wf–Wt66UÒÒW6U7FFSÅ6–væGW&T66TFWF–ÂÂçVÆÃâ†çVÆÂ“°¢6öç7B·VWVU&Wf–WtFö7VÖVçD–BÂ6WEVWVU&Wf–WtFö7VÖVçD–EÒÒW6U7FFR‚""“°¢6öç7B¶7F–öå6–FV&$ÖöFRÂ6WD7F–öå6–FV&$ÖöFUÒÒW6U7FFSÂ&W‡æFVB"Â&6öÆÆ6VB"Â&†–FFVâ#â‚‚’Óâ°¢–b‡G—Vöbv–æF÷rÓÓÒ'VæFVf–æVB"’&WGW&â&W‡æFVB#°¢6öç7B6fVBÒv–æF÷rç6W76–öå7F÷&vRævWD—FVÒ‚'6–væGW&RÖFö7VÖVçBÖ7F–öç2ÖÖöFR"“°¢&WGW&â6fVBÓÓÒ&6öÆÆ6VB"ÇÂ6fVBÓÓÒ&†–FFVâ"ò6fVB¢&W‡æFVB#°¢Ò“°¢6öç7B6†&TÆ–æ´Æ–VE&VbÒW6U&Vb†fÇ6R“° ¢W6TVffV7B‚‚’Óâ°¢–b‡G—Vöbv–æF÷rÓÒ'VæFVf–æVB"’°¢v–æF÷rç6W76–öå7F÷&vRç6WD—FVÒ‚'6–væGW&RÖFö7VÖVçBÖ7F–öç2ÖÖöFR"Â7F–öå6–FV&$ÖöFR“°¢Ğ¢ÒÂ¶7F–öå6–FV&$ÖöFUÒ“° ¢W6TVffV7B‚‚’Óâ°¢–b‚&Wf–Wt66R’&WGW&ã°¢6öç7B&Wf–÷W4÷fW&fÆ÷rÒFö7VÖVçBæ&öG’ç7G–ÆRæ÷fW&fÆ÷s°¢6öç7B6Æ÷6TöäW66RÒ†WfVçC¢¶W–&ö&DWfVçB’Óâ°¢–b†WfVçBæ¶W’ÓÓÒ$W66R"’6WE&Wf–Wt66R†çVÆÂ“°¢Ó°¢Fö7VÖVçBæ&öG’ç7G–ÆRæ÷fW&fÆ÷rÒ&†–FFVâ#°¢v–æF÷ræFDWfVçDÆ—7FVæW"‚&¶W–F÷vâ"Â6Æ÷6TöäW66R“°¢&WGW&â‚’Óâ°¢Fö7VÖVçBæ&öG’ç7G–ÆRæ÷fW&fÆ÷rÒ&Wf–÷W4÷fW&fÆ÷s°¢v–æF÷rç&VÖ÷fTWfVçDÆ—7FVæW"‚&¶W–F÷vâ"Â6Æ÷6TöäW66R“°¢Ó°¢ÒÂ·&Wf–Wt66UÒ“° ¢W6TVffV7B‚‚’Óâ°¢ÆWBÆ—fRÒG'VS°¢6öç7BÆöDVÇ2Ò7–æ2‚’Óâ°¢G'’°¢6öç7BÆöw2Òv—BfWF6„VÄWfVçG2‚“°¢–b†Æ—fR’6WDVÄÆöw2†Æöw2“°¢Ò6F6‚†W'&÷"’°¢6öç6öÆRçv&â‚%6–væGW&R6VçFW"VÂÆöw2f–ÆVB"ÂW'&÷"“°¢–b†Æ—fR’6WDVÄÆöw2…µÒ“°¢Ğ¢Ó°¢fö–BÆöDVÇ2‚“°¢&WGW&â‚’Óâ°¢Æ—fRÒfÇ6S°¢Ó°¢ÒÂµÒ“° ¢W6TVffV7B‚‚’Óâ°¢ÆWBÆ—fRÒG'VS°¢6öç7BÆöBÒ7–æ2‚’Óâ°¢G'’°¢6WDÆöF–ær‡G'VR“°¢6WDÆöDÖW76vR‚""“°¢6öç7BÆöFVDFö73¢6–væGW&TFö7VÖVçEµÒÒµÓ°¢6öç7B&tVÄÖÒv—BfWF6…6–væGW&U&tVÄÖ‚’æ6F6‚‚†W'&÷"’Óâ°¢6öç6öÆRçv&â‚%6–væGW&R6VçFW"&rVÂÖW&vR6¶—VB"ÂW'&÷"“°¢&WGW&âæWrÖÇ7G&–ærÂ6–væGW&T&÷fVDVÃâ‚“°¢Ò“°¢ÆWB&÷fVDVÄÖÒ&tVÄÖ° ¢òòfÆÆ&6²öæÇ“¢–bæòWÆöFVBVÂ$õtDDW†—7G2ÂW6RvV"&÷fÂÆöw2à¢–b‚&÷fVDVÄÖç6—¦R’°¢6öç7B&÷fVDVÄÆöw2Òv—BfWF6„VÄWfVçG2€¢°¢&VÅ÷&WVW7E÷7V&Ö—GFVB"À¢&VÅ÷&WVW7E÷&Wf–WvVB"À¢&VÅ÷&WVW7E÷&W6WB"À¢ÒÀ¢²Æ–Ö—C¢#Âf÷&6U&Vg&W6ƒ¢G'VRĞ¢’æ6F6‚‚†W'&÷"’Óâ°¢6öç6öÆRçv&â‚%6–væGW&R6VçFW"&÷fVBVÂÖW&vR6¶—VB"ÂW'&÷"“°¢&WGW&âµÒ2W6vTÆötWfVçEµÓ°¢Ò“°¢&÷fVDVÄÖÒ'V–ÆE6–væGW&T&÷fVDVÄÖ†&÷fVDVÄÆöw22W6vTÆötWfVçEµÒ“°¢Ğ¢f÷"†6öç7Bf–ÆTæÖRöb$uôDDôd”ÄU2’°¢6öç7B&W7öç6RÒv—BfWF6‚†f–ÆTæÖRÂ²66†S¢&æò×7F÷&R"Ò“°¢–b‚&W7öç6Ræö²’6öçF–çVS°¢6öç7B'VffW"Òv—B&W7öç6Ræ'&”'VffW"‚“°¢6öç7Bv÷&¶&öö²Ò„Å5‚ç&VB†'VffW"Â²G—S¢&'&’"Â6VÆÄFFW3¢G'VRÒ“°¢6öç7B6†VWBÒv÷&¶&öö²å6†VWG5²%&uôFF%ÒÇÂv÷&¶&öö²å6†VWG5·v÷&¶&öö²å6†VWDæÖW5³ÕÓ°¢6öç7B&÷w2Ò„Å5‚çWF–Ç2ç6†VWE÷Fõö§6öãÇVæ¶æ÷våµÓâ‡6†VWBÂ²†VFW#¢ÂFVgfÃ¢çVÆÂÂ&s¢G'VRÒ“°¢ÆöFVDFö72çW6‚‚ââæ'V–ÆDFö7VÖVçG2‡&÷w2Â66÷VçG2Â&÷fVDVÄÖ’“°¢Ğ¢6öç7B7F÷&VDWfÇVF–öç2Òv—BfWF6…7F÷&VDWfÇVF–öç2ƒ’æ6F6‚‚†W'&÷"’Óâ°¢6öç6öÆRçv&â‚%6–væGW&R6VçFW"7F÷&VBWfÇVF–öç26¶—VB"ÂW'&÷"“°¢&WGW&âµÒ27F÷&VDWfÇVF–öåµÓ°¢Ò“°¢6öç7B&tÖöçF„¶W—2ÒæWr6WB†ÆöFVDFö72æÖ‚†Fö2’ÓâFö2æÖöçF„¶W’’æf–ÇFW"„&ööÆVâ’“°¢ÆöFVDFö72çW6‚€¢ââæ'V–ÆDFö7VÖVçG4g&öÕ7F÷&VDWfÇVF–öç2‡7F÷&VDWfÇVF–öç2Â66÷VçG2Â&÷fVDVÄÖ’æf–ÇFW"€¢†Fö2’Óâ&tÖöçF„¶W—2æ†2†Fö2æÖöçF„¶W’¢¢“°¢–b‚ÆöFVÚ±î¸Â¸­yêë¢°k¢G§¦*^dDocs.length) throw new Error("à¹„à¸¡à¹ˆà¸à¸šà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸ˆà¸²à¸à¹„à¸Ÿà¸¥à¹Œ QA Raw Data");
         const docMap = new Map<string, SignatureDocument>();
         loadedDocs.forEach((doc) => {
           const existing = docMap.get(doc.id);
@@ -2735,141 +1453,7 @@ export default function SignatureCenterMockup({
       const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
       const pendingRoles = getPendingRoles(entries);
       const isComplete = signedCount === SIGNATURE_FLOW.length;
-      const timeline = getTimelineStatus(doc.monthKey);
-      const statusMatch =
-        statusFilter === "all" ||
-        (statusFilter === "my-turn" && pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) ||
-        (statusFilter === "preview" && !confirmedDocs[doc.id] && !isHistoricalPaidPeriod(doc.monthKey)) ||
-        (statusFilter === "ready" && isComplete && doc.eligibleByScore) ||
-        (statusFilter === "pending" && !isComplete) ||
-        (statusFilter === "expired" && timeline === "Signature Deadline Passed" && !isComplete) ||
-        (statusFilter === "appeal-pending" && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId)));
-      const monthMatch = selectedMonth === "all" || doc.monthKey === selectedMonth;
-      const keywordMatch =
-        !keyword ||
-        doc.agentName.toLowerCase().includes(keyword) ||
-        getMonthlyDocumentRef(doc, documents).toLowerCase().includes(keyword) ||
-        doc.documentHash.toLowerCase().includes(keyword) ||
-        doc.monthKey.toLowerCase().includes(keyword) ||
-        doc.monthLabel.toLowerCase().includes(keyword) ||
-        doc.teamName.toLowerCase().includes(keyword) ||
-        doc.seniorName.toLowerCase().includes(keyword) ||
-        doc.supervisorName.toLowerCase().includes(keyword) ||
-        doc.cases.some((item) =>
-          item.caseId.toLowerCase().includes(keyword) ||
-          item.inquiry.toLowerCase().includes(keyword) ||
-          item.comment.toLowerCase().includes(keyword)
-        );
-      return statusMatch && monthMatch && keywordMatch;
-    }).sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-  }, [confirmedDocs, currentUser, documents, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
-
-  const historyFilteredDocuments = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return documents.filter((doc) => {
-      if (!canMonitorDocument(currentUser, doc)) return false;
-
-      const monthMatch = selectedMonth === "all" || doc.monthKey === selectedMonth;
-      const keywordMatch =
-        !keyword ||
-        doc.agentName.toLowerCase().includes(keyword) ||
-        getMonthlyDocumentRef(doc, documents).toLowerCase().includes(keyword) ||
-        doc.documentHash.toLowerCase().includes(keyword) ||
-        doc.monthKey.toLowerCase().includes(keyword) ||
-        doc.monthLabel.toLowerCase().includes(keyword) ||
-        doc.teamName.toLowerCase().includes(keyword) ||
-        doc.seniorName.toLowerCase().includes(keyword) ||
-        doc.supervisorName.toLowerCase().includes(keyword) ||
-        doc.cases.some((item) =>
-          item.caseId.toLowerCase().includes(keyword) ||
-          item.inquiry.toLowerCase().includes(keyword) ||
-          item.comment.toLowerCase().includes(keyword)
-        );
-
-      return monthMatch && keywordMatch;
-    }).sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-  }, [currentUser, documents, search, selectedMonth]);
-
-  const activeDocuments = documentView === "history" ? historyFilteredDocuments : filteredDocuments;
-  const workspaceDocuments = useMemo(() => {
-    return activeDocuments.filter((doc) => {
-      const entries = effectiveEntriesForDoc(doc, signatures);
-      const docStatus = getWorkspaceStatus(doc, entries);
-      const yearMatch = selectedYear === "all" || doc.monthKey.startsWith(`${selectedYear}-`);
-      const quickMatch = quickFilter === "all" || docStatus === quickFilter;
-      return yearMatch && quickMatch;
-    }).sort((a, b) => {
-      const dateDiff = getDocumentAuditSortTime(a) - getDocumentAuditSortTime(b);
-      if (dateDiff) return dateDiff;
-      return a.agentName.localeCompare(b.agentName, "th");
-    });
-  }, [activeDocuments, quickFilter, selectedYear, signatures]);
-
-  const workspaceSummary = useMemo(() => {
-    const counts = {
-      total: workspaceDocuments.length,
-      pending: 0,
-      signed: 0,
-      expired: 0,
-      inProgress: 0,
-    };
-    workspaceDocuments.forEach((doc) => {
-      const status = getWorkspaceStatus(doc, effectiveEntriesForDoc(doc, signatures));
-      if (status === "pending") counts.pending += 1;
-      if (status === "signed") counts.signed += 1;
-      if (status === "expired") counts.expired += 1;
-      if (status === "in-progress") counts.inProgress += 1;
-    });
-    return counts;
-  }, [signatures, workspaceDocuments]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [documentView, quickFilter, search, selectedMonth, selectedYear, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(workspaceDocuments.length / rowsPerPage));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const pagedWorkspaceDocuments = useMemo(() => {
-    const start = (safeCurrentPage - 1) * rowsPerPage;
-    return workspaceDocuments.slice(start, start + rowsPerPage);
-  }, [rowsPerPage, safeCurrentPage, workspaceDocuments]);
-
-  const groupedWorkspaceDocuments = useMemo(() => {
-    const groups = new Map<string, SignatureDocument[]>();
-    pagedWorkspaceDocuments.forEach((doc) => {
-      const group = groups.get(doc.monthKey) || [];
-      group.push(doc);
-      groups.set(doc.monthKey, group);
-    });
-    return Array.from(groups.entries()).map(([monthKey, items]) => ({
-      monthKey,
-      monthLabel: getMonthLabel(monthKey),
-      items,
-    }));
-  }, [pagedWorkspaceDocuments]);
-
-  const clearWorkspaceFilters = () => {
-    setSearch("");
-    setSelectedMonth("all");
-    setSelectedYear("all");
-    setStatusFilter("all");
-    setQuickFilter("all");
-    setCurrentPage(1);
-  };
-
-  const openWorkspaceDetail = (docId: string) => {
-    setSelectedDocumentId(docId);
-    if (documentView === "queue") setQueuePreviewDocumentId(docId);
-    setWorkspaceDetailOpen(true);
-    window.setTimeout(() => {
-      workspaceDetailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
-  };
-
-  const isQaUser = currentUser.role === "Quality Assurance";
-  const monitorTitle = isQaUser ? "QA Monitor" : "à¸›à¸£à¸°à¸§à¸±à¸•à¸´à¸‚à¸­à¸‡à¸‰à¸±à¸™";
-  const monitorDescription = isQaUser
-    ? "à¹à¸ªà¸”à¸‡à¹€à¸­à¸à¸ªà¸²à¸£à¸—à¸µà¹ˆ QA à¸„à¸™à¸™à¸µà¹‰à¸£à¸±à¸šà¸œà¸´à¸”à¸Šà¸­à¸š à¸à¸£à¹‰à¸­à¸¡à¸ªà¸–à¸²à¸™à¸°à¸§à¹ˆà¸²à¹ƒà¸„à¸£à¹€à¸‹à¹‡à¸™à¹à¸¥à¹‰à¸§à¹à¸¥à¸°à¹ƒà¸„à¸£à¸¢à¸±à¸‡à¹€à¸«à¸¥à¸·à¸­"
+      const timeline = getTimelm«ëŒ+Š×®º+º$zzb¥æ–æU7FGW2†Fö2æÖöçF„¶W’“°¢6öç7B7FGW4ÖF6‚Ğ¢7FGW4f–ÇFW"ÓÓÒ&ÆÂ"ÇÀ¢‡7FGW4f–ÇFW"ÓÓÒ&×’×GW&â"bbVæF–æu&öÆW2ç6öÖR‚‡&öÆR’Óâ6å6–vä–FVçF—G’†7W'&VçEW6W"ÂFö2Â&öÆR’bb6å6–vå&öÆT'”FFR†Fö2æÖöçF„¶W’ÂVçG&–W2Â&öÆR’’’ÇÀ¢‡7FGW4f–ÇFW"ÓÓÒ'&Wf–Wr"bb6öæf—&ÖVDFö75¶Fö2æ–EÒbb—4†—7F÷&–6Å–EW&–öB†Fö2æÖöçF„¶W’’’ÇÀ¢‡7FGW4f–ÇFW"ÓÓÒ'&VG’"bb—46ö×ÆWFRbbFö2æVÆ–v–&ÆT'•66÷&R’ÇÀ¢‡7FGW4f–ÇFW"ÓÓÒ'VæF–ær"bb—46ö×ÆWFR’ÇÀ¢‡7FGW4f–ÇFW"ÓÓÒ&W‡—&VB"bbF–ÖVÆ–æRÓÓÒ%6–væGW&RFVFÆ–æR76VB"bb—46ö×ÆWFR’ÇÀ¢‡7FGW4f–ÇFW"ÓÓÒ&VÂ×VæF–ær"bbFö2æ66W2ç6öÖR‚†—FVÒ’ÓâVæF–ætVÄ66TÖæ†2†—FVÒæ66T–B’’“°¢6öç7BÖöçF„ÖF6‚Ò6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"ÇÂFö2æÖöçF„¶W’ÓÓÒ6VÆV7FVDÖöçFƒ°¢6öç7B¶W—v÷&DÖF6‚Ğ¢¶W—v÷&BÇÀ¢Fö2ævVçDæÖRçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢vWDÖöçF†Ç”Fö7VÖVçE&Vb†Fö2ÂFö7VÖVçG2’çFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2æFö7VÖVçD†6‚çFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2æÖöçF„¶W’çFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2æÖöçF„Æ&VÂçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2çFVÔæÖRçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2ç6Væ–÷$æÖRçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2ç7WW'f—6÷$æÖRçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2æ66W2ç6öÖR‚†—FVÒ’Óà¢—FVÒæ66T–BçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢—FVÒæ–çV—'’çFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢—FVÒæ6öÖÖVçBçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B¢“°¢&WGW&â7FGW4ÖF6‚bbÖöçF„ÖF6‚bb¶W—v÷&DÖF6ƒ°¢Ò’ç6÷'B‚†Â"’ÓâævVçDæÖRæÆö6ÆT6ö×&R†"ævVçDæÖRÂ'F‚"’“°¢ÒÂ¶6öæf—&ÖVDFö72Â7W'&VçEW6W"ÂFö7VÖVçG2ÂVæF–ætVÄ66TÖÂ6V&6‚Â6VÆV7FVDÖöçF‚Â6–væGW&W2Â7FGW4f–ÇFW"Âf—6–&ÆTFö7VÖVçG5Ò“° ¢6öç7B†—7F÷'”f–ÇFW&VDFö7VÖVçG2ÒW6TÖVÖò‚‚’Óâ°¢6öç7B¶W—v÷&BÒ6V&6‚çG&–Ò‚’çFôÆ÷vW$66R‚“°¢&WGW&âFö7VÖVçG2æf–ÇFW"‚†Fö2’Óâ°¢–b‚6äÖöæ—F÷$Fö7VÖVçB†7W'&VçEW6W"ÂFö2’’&WGW&âfÇ6S° ¢6öç7BÖöçF„ÖF6‚Ò6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"ÇÂFö2æÖöçF„¶W’ÓÓÒ6VÆV7FVDÖöçFƒ°¢6öç7B¶W—v÷&DÖF6‚Ğ¢¶W—v÷&BÇÀ¢Fö2ævVçDæÖRçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢vWDÖöçF†Ç”Fö7VÖVçE&Vb†Fö2ÂFö7VÖVçG2’çFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2æFö7VÖVçD†6‚çFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2æÖöçF„¶W’çFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2æÖöçF„Æ&VÂçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2çFVÔæÖRçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2ç6Væ–÷$æÖRçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2ç7WW'f—6÷$æÖRçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢Fö2æ66W2ç6öÖR‚†—FVÒ’Óà¢—FVÒæ66T–BçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢—FVÒæ–çV—'’çFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B’ÇÀ¢—FVÒæ6öÖÖVçBçFôÆ÷vW$66R‚’æ–æ6ÇVFW2†¶W—v÷&B¢“° ¢&WGW&âÖöçF„ÖF6‚bb¶W—v÷&DÖF6ƒ°¢Ò’ç6÷'B‚†Â"’ÓâævVçDæÖRæÆö6ÆT6ö×&R†"ævVçDæÖRÂ'F‚"’“°¢ÒÂ¶7W'&VçEW6W"ÂFö7VÖVçG2Â6V&6‚Â6VÆV7FVDÖöçF…Ò“° ¢6öç7B7F—fTFö7VÖVçG2ÒFö7VÖVçEf–WrÓÓÒ&†—7F÷'’"ò†—7F÷'”f–ÇFW&VDFö7VÖVçG2¢f–ÇFW&VDFö7VÖVçG3°¢6öç7Bv÷&·76TFö7VÖVçG2ÒW6TÖVÖò‚‚’Óâ°¢&WGW&â7F—fTFö7VÖVçG2æf–ÇFW"‚†Fö2’Óâ°¢6öç7BVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2†Fö2Â6–væGW&W2“°¢6öç7BFö57FGW2ÒvWEv÷&·76U7FGW2†Fö2ÂVçG&–W2“°¢6öç7B–V$ÖF6‚Ò6VÆV7FVE–V"ÓÓÒ&ÆÂ"ÇÂFö2æÖöçF„¶W’ç7F'G5v—F‚†G·6VÆV7FVE–V'ÒÖ“°¢6öç7BV–6´ÖF6‚ÒV–6´f–ÇFW"ÓÓÒ&ÆÂ"ÇÂFö57FGW2ÓÓÒV–6´f–ÇFW#°¢&WGW&â–V$ÖF6‚bbV–6´ÖF6ƒ°¢Ò’ç6÷'B‚†Â"’Óâ°¢6öç7BFFTF–fbÒvWDFö7VÖVçDVF—E6÷'EF–ÖR†’ÒvWDFö7VÖVçDVF—E6÷'EF–ÖR†"“°¢–b†FFTF–fb’&WGW&âFFTF–fc°¢&WGW&âævVçDæÖRæÆö6ÆT6ö×&R†"ævVçDæÖRÂ'F‚"“°¢Ò“°¢ÒÂ¶7F—fTFö7VÖVçG2ÂV–6´f–ÇFW"Â6VÆV7FVE–V"Â6–væGW&W5Ò“° ¢6öç7Bv÷&·76U7VÖÖ'’ÒW6TÖVÖò‚‚’Óâ°¢6öç7B6÷VçG2Ò°¢F÷FÃ¢v÷&·76TFö7VÖVçG2æÆVæwF‚À¢VæF–æs¢À¢6–væVC¢À¢W‡—&VC¢À¢–å&öw&W73¢À¢Ó°¢v÷&·76TFö7VÖVçG2æf÷$V6‚‚†Fö2’Óâ°¢6öç7B7FGW2ÒvWEv÷&·76U7FGW2†Fö2ÂVffV7F—fTVçG&–W4f÷$Fö2†Fö2Â6–væGW&W2’“°¢–b‡7FGW2ÓÓÒ'VæF–ær"’6÷VçG2çVæF–ær³Ò°¢–b‡7FGW2ÓÓÒ'6–væVB"’6÷VçG2ç6–væVB³Ò°¢–b‡7FGW2ÓÓÒ&W‡—&VB"’6÷VçG2æW‡—&VB³Ò°¢–b‡7FGW2ÓÓÒ&–â×&öw&W72"’6÷VçG2æ–å&öw&W72³Ò°¢Ò“°¢&WGW&â6÷VçG3°¢ÒÂ·6–væGW&W2Âv÷&·76TFö7VÖVçG5Ò“° ¢W6TVffV7B‚‚’Óâ°¢6WD7W'&VçEvRƒ“°¢ÒÂ¶Fö7VÖVçEf–WrÂV–6´f–ÇFW"Â6V&6‚Â6VÆV7FVDÖöçF‚Â6VÆV7FVE–V"Â7FGW4f–ÇFW%Ò“° ¢6öç7BF÷FÅvW2ÒÖF‚æÖ‚ƒÂÖF‚æ6V–Â‡v÷&·76TFö7VÖVçG2æÆVæwF‚ò&÷w5W%vR’“°¢6öç7B6fT7W'&VçEvRÒÖF‚æÖ–â†7W'&VçEvRÂF÷FÅvW2“°¢6öç7BvVEv÷&·76TFö7VÖVçG2ÒW6TÖVÖò‚‚’Óâ°¢6öç7B7F'BÒ‡6fT7W'&VçEvRÒ’¢&÷w5W%vS°¢&WGW&âv÷&·76TFö7VÖVçG2ç6Æ–6R‡7F'BÂ7F'B²&÷w5W%vR“°¢ÒÂ·&÷w5W%vRÂ6fT7W'&VçEvRÂv÷&·76TFö7VÖVçG5Ò“° ¢6öç7Bw&÷WVEv÷&·76TFö7VÖVçG2ÒW6TÖVÖò‚‚’Óâ°¢6öç7Bw&÷W2ÒæWrÖÇ7G&–ærÂ6–væGW&TFö7VÖVçEµÓâ‚“°¢vVEv÷&·76TFö7VÖVçG2æf÷$V6‚‚†Fö2’Óâ°¢6öç7Bw&÷WÒw&÷W2ævWB†Fö2æÖöçF„¶W’’ÇÂµÓ°¢w&÷WçW6‚†Fö2“°¢w&÷W2ç6WB†Fö2æÖöçF„¶W’Âw&÷W“°¢Ò“°¢&WGW&â'&’æg&öÒ†w&÷W2æVçG&–W2‚’’æÖ‚…¶ÖöçF„¶W’Â—FV×5Ò’Óâ‡°¢ÖöçF„¶W’À¢ÖöçF„Æ&VÃ¢vWDÖöçF„Æ&VÂ†ÖöçF„¶W’’À¢—FV×2À¢Ò’“°¢ÒÂ·vVEv÷&·76TFö7VÖVçG5Ò“° ¢6öç7B6ÆV%v÷&·76Tf–ÇFW'2Ò‚’Óâ°¢6WE6V&6‚‚""“°¢6WE6VÆV7FVDÖöçF‚‚&ÆÂ"“°¢6WE6VÆV7FVE–V"‚&ÆÂ"“°¢6WE7FGW4f–ÇFW"‚&ÆÂ"“°¢6WEV–6´f–ÇFW"‚&ÆÂ"“°¢6WD7W'&VçEvRƒ“°¢Ó° ¢6öç7B÷Våv÷&·76TFWF–ÂÒ†Fö4–C¢7G&–ær’Óâ°¢6WE6VÆV7FVDFö7VÖVçD–B†Fö4–B“°¢–b†Fö7VÖVçEf–WrÓÓÒ'VWVR"’6WEVWVU&Wf–WtFö7VÖVçD–B†Fö4–B“°¢6WEv÷&·76TFWF–Ä÷Vâ‡G'VR“°¢v–æF÷rç6WEF–ÖV÷WB‚‚’Óâ°¢v÷&·76TFWF–Å&Vbæ7W'&VçCòç67&öÆÄ–çFõf–Wr‡²&V†f–÷#¢'6Öö÷F‚"Â&Æö6³¢'7F'B"Ò“°¢ÒÂƒ“°¢Ó° ¢6öç7B—5W6W"Ò7W'&VçEW6W"ç&öÆRÓÓÒ%VÆ—G’77W&æ6R#°¢6öç7BÖöæ—F÷%F—FÆRÒ—5W6W"ò%Ööæ—F÷""¢.‰¾Š>‹Š~‹‰^‹Nˆ.ŠŞˆ~ˆ‹‰’#°¢6öç7BÖöæ—F÷$FW67&—F–öâÒ—5W6W ¢ò.˜Š®‰Nˆ~˜ŠŞˆŠ®‹.Š>‰~‹^˜‚ˆN‰‰‹^˜Š6Ú±î¸Â¸­yêë¢°k¢G§¦*^à¸±à¸šà¸œà¸´à¸”à¸Šà¸­à¸š à¸à¸£à¹‰à¸­à¸¡à¸ªà¸–à¸²à¸™à¸°à¸§à¹ˆà¸²à¹ƒà¸„à¸£à¹€à¸‹à¹‡à¸™à¹à¸¥à¹‰à¸§à¹à¸¥à¸°à¹ƒà¸„à¸£à¸¢à¸±à¸‡à¹€à¸«à¸¥à¸·à¸­"
     : "à¹à¸ªà¸”à¸‡à¹€à¸‰à¸à¸²à¸°à¹€à¸­à¸à¸ªà¸²à¸£à¸—à¸µà¹ˆà¹€à¸à¸µà¹ˆà¸¢à¸§à¸‚à¹‰à¸­à¸‡à¸à¸±à¸šà¸ªà¸´à¸—à¸˜à¸´à¹Œà¸‚à¸­à¸‡à¸„à¸¸à¸“à¹€à¸—à¹ˆà¸²à¸™à¸±à¹‰à¸™";
 
   const selectedMonthAllDocs = useMemo(() => {
@@ -3005,134 +1589,7 @@ export default function SignatureCenterMockup({
       })
     : [];
   const selectedPendingAppeals = selectedDocument
-    ? selectedDocument.cases.filter((item) => pendingAppealCaseMap.has(item.caseId))
-    : [];
-  const hasPendingAppeal = selectedPendingAppeals.length > 0;
-  const pendingRoles = getPendingRoles(selectedEntries);
-  const lastSignedRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(selectedEntries, role)));
-  const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(selectedEntries, role))).length;
-  const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
-  const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete);
-  const previewConfirmed = Boolean(selectedDocument && (confirmedDocs[selectedDocument.id] || isHistoricalPaidPeriod(selectedDocument.monthKey)));
-  const workflowReadyToSign = Boolean(
-    selectedDocument &&
-    !hasPendingAppeal &&
-    (previewConfirmed || isAfterAppealPeriod(selectedDocument.monthKey))
-  );
-  const confirmAvailable = Boolean(
-    selectedDocument &&
-    !previewConfirmed &&
-    !hasPendingAppeal &&
-    isAfterAppealPeriod(selectedDocument.monthKey) &&
-    canSignIdentity(currentUser, selectedDocument, "Agent")
-  );
-  const confirmBlockedReason = selectedDocument && !previewConfirmed
-    ? hasPendingAppeal
-      ? "à¸¡à¸µà¹€à¸„à¸ªà¸¢à¸·à¹ˆà¸™ Appeal à¸—à¸µà¹ˆà¸£à¸­ Approved à¸­à¸¢à¸¹à¹ˆ à¸ˆà¸¶à¸‡à¸¢à¸±à¸‡à¸¢à¸·à¸™à¸¢à¸±à¸™à¸£à¸±à¸šà¸—à¸£à¸²à¸šà¹„à¸¡à¹ˆà¹„à¸”à¹‰"
-      : !isAfterAppealPeriod(selectedDocument.monthKey)
-        ? "à¹€à¸›à¸´à¸”à¹ƒà¸«à¹‰à¸¢à¸·à¸™à¸¢à¸±à¸™à¸£à¸±à¸šà¸—à¸£à¸²à¸šà¸«à¸¥à¸±à¸‡à¸§à¸±à¸™à¸—à¸µà¹ˆ 10 à¸‚à¸­à¸‡à¹€à¸”à¸·à¸­à¸™à¸–à¸±à¸”à¹„à¸›"
-        : !canSignIdentity(currentUser, selectedDocument, "Agent")
-          ? "à¹€à¸‰à¸à¸²à¸° Agent à¸œà¸¹à¹‰à¸–à¸¹à¸à¸›à¸£à¸°à¹€à¸¡à¸´à¸™à¹€à¸—à¹ˆà¸²à¸™à¸±à¹‰à¸™à¸—à¸µà¹ˆà¸à¸”à¸¢à¸·à¸™à¸¢à¸±à¸™à¸£à¸±à¸šà¸—à¸£à¸²à¸šà¹„à¸”à¹‰"
-          : ""
-    : "";
-  const timeline = selectedDocument ? getTimelineStatus(selectedDocument.monthKey) : "-";
-
-  const getSavedSignatureKey = (role: SignRole) => {
-    const identity = currentUser.username || currentUser.email || currentUser.agentName || currentUser.displayName;
-    return `${compactPerson(identity)}::${role}`;
-  };
-  const signatureLibraryIdentity = compactPerson(
-    currentUser.username || currentUser.email || currentUser.agentName || currentUser.displayName
-  );
-
-  useEffect(() => {
-    if (!signatureLibraryIdentity) return;
-    let alive = true;
-    Promise.all(
-      SIGNATURE_FLOW.map(async (role) => {
-        const key = `${signatureLibraryIdentity}::${role}`;
-        const signatureDataUrl = await fetchStoredSignatureLibraryEntry(key);
-        return [key, signatureDataUrl] as const;
-      })
-    )
-      .then((entries) => {
-        if (!alive) return;
-        const remoteLibrary = Object.fromEntries(entries.filter(([, dataUrl]) => Boolean(dataUrl)));
-        if (!Object.keys(remoteLibrary).length) return;
-        setSignatureLibrary((previous) => ({ ...previous, ...remoteLibrary }));
-      })
-      .catch((error) => {
-        console.warn("Load remote signature library failed; using the saved signature from this browser.", error);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [signatureLibraryIdentity]);
-
-  const saveSignatureToLibrary = async (role: SignRole, signatureDataUrl: string) => {
-    const libraryKey = getSavedSignatureKey(role);
-    setSignatureLibrary((previous) => ({
-      ...previous,
-      [libraryKey]: signatureDataUrl,
-    }));
-    try {
-      await saveStoredSignatureLibraryEntry(libraryKey, signatureDataUrl);
-      return true;
-    } catch (error) {
-      console.warn("Save remote signature library failed", error);
-      window.alert("à¸šà¸±à¸™à¸—à¸¶à¸à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¹ƒà¸™à¹€à¸­à¸à¸ªà¸²à¸£à¹à¸¥à¹‰à¸§ à¹à¸•à¹ˆà¸‹à¸´à¸‡à¸à¹Œà¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸ªà¸³à¸«à¸£à¸±à¸šà¹ƒà¸Šà¹‰à¸„à¸£à¸±à¹‰à¸‡à¸•à¹ˆà¸­à¹„à¸›à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ à¸£à¸°à¸šà¸šà¸ˆà¸°à¹€à¸à¹‡à¸šà¹„à¸§à¹‰à¹ƒà¸™ Browser à¸™à¸µà¹‰à¸à¹ˆà¸­à¸™");
-      return false;
-    }
-  };
-
-  const createSignatureShareLink = (doc: SignatureDocument, role?: SignRole | null) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("tab", "signature-center");
-    url.searchParams.set("month", doc.monthKey);
-    url.searchParams.set("doc", doc.id);
-    if (role) url.searchParams.set("role", role);
-    else url.searchParams.delete("role");
-    return url.toString();
-  };
-
-  const summary = useMemo(() => {
-    let complete = 0;
-    let pending = 0;
-    let ready = 0;
-    let myTurn = 0;
-    visibleDocuments.forEach((doc) => {
-      const entries = effectiveEntriesForDoc(doc, signatures);
-      const count = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
-      const pendingRoles = getPendingRoles(entries);
-      if (count === SIGNATURE_FLOW.length) complete += 1;
-      else pending += 1;
-      if (count === SIGNATURE_FLOW.length && doc.eligibleByScore) ready += 1;
-      if (pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) myTurn += 1;
-    });
-    return { total: visibleDocuments.length, complete, pending, ready, myTurn };
-  }, [currentUser, signatures, visibleDocuments]);
-
-  const persistDocumentSignatures = async (docId: string, entries: SignatureEntry[], confirmedAt = "") => {
-    await saveStoredSignatureDocument(docId, entries, confirmedAt);
-  };
-
-  const confirmPreview = async () => {
-    if (!selectedDocument || !confirmAvailable || hasPendingAppeal) return;
-    const confirmedAt = new Date().toISOString();
-    try {
-      await saveStoredSignatureConfirm(selectedDocument.id, confirmedAt);
-      setConfirmedDocs((previous) => ({
-        ...previous,
-        [selectedDocument.id]: confirmedAt,
-      }));
-    } catch (error) {
-      console.warn("Save remote signature confirm failed", error);
-      window.alert("à¸šà¸±à¸™à¸—à¸¶à¸à¸à¸²à¸£à¸¢à¸·à¸™à¸¢à¸±à¸™à¸£à¸±à¸šà¸—à¸£à¸²à¸šà¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ à¸à¸£à¸¸à¸“à¸²à¸¥à¸­à¸‡à¹ƒà¸«à¸¡à¹ˆà¸­à¸µà¸à¸„à¸£à¸±à¹‰à¸‡");
-    }
-  };
-
-  const saveDrawnSignature = async (role: SignRole, signatureDataUrl: string, saveToSavedLibrary = false) => {
-    if (!selectedDocument) return false;
+    ? selectedDocument.m«ëŒ+Š×®º+º$zzb¥î‹‰®‰Î‹N‰Nˆ®ŠŞ‰¢‰îŠ>˜ŠŞŠŠ®‰n‹.‰‹Š~˜‹.˜>ˆNŠ>˜ˆ¾˜~‰˜Š^˜Š~˜Š^‹˜>ˆNŠ>Š.‹ˆ~˜Š¾Š^‹~ŠÒ ¢¢.˜Š®‰Nˆ~˜ˆ‰î‹.‹˜ŠŞˆŠ®‹.Š>‰~‹^˜˜ˆ‹^˜Š.Š~ˆ.˜ŠŞˆ~ˆ‹‰®Š®‹N‰~‰‹N˜Îˆ.ŠŞˆ~ˆN‹‰>˜‰~˜‹.‰‹˜‰’#° ¢6öç7B6VÆV7FVDÖöçF„ÆÄFö72ÒW6TÖVÖò‚‚’Óâ°¢–b‡6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"’&WGW&âµÓ°¢&WGW&âFö7VÖVçG2æf–ÇFW"‚†Fö2’ÓâFö2æÖöçF„¶W’ÓÓÒ6VÆV7FVDÖöçF‚“°¢ÒÂ¶Fö7VÖVçG2Â6VÆV7FVDÖöçF…Ò“° ¢6öç7B6VÆV7FVDÖöçF…–ÖVçDFö72ÒW6TÖVÖò‚‚’Óâ°¢–b‡6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"’&WGW&âµÓ°¢&WGW&âFö7VÖVçG0¢æf–ÇFW"‚†Fö2’ÓâFö2æÖöçF„¶W’ÓÓÒ6VÆV7FVDÖöçF‚¢æf–ÇFW"‚†Fö2’Óâ—5–ÖVçE&VG”Fö7VÖVçB†Fö2ÂVffV7F—fTVçG&–W4f÷$Fö2†Fö2Â6–væGW&W2’ÂVæF–ætVÄ66TÖ’“°¢ÒÂ¶Fö7VÖVçG2ÂVæF–ætVÄ66TÖÂ6VÆV7FVDÖöçF‚Â6–væGW&W5Ò“° ¢6öç7B6VÆV7FVDÖöçF„W‡÷'DFö72ÒW6TÖVÖò‚‚’Óâ°¢–b‡6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"’&WGW&âµÓ°¢&WGW&â6VÆV7FVDÖöçF…–ÖVçDFö73°¢ÒÂ·6VÆV7FVDÖöçF‚Â6VÆV7FVDÖöçF…–ÖVçDFö75Ò“° ¢6öç7B6VÆV7FVDÖöçF…–ÖVçDW‡÷'DFö72ÒW6TÖVÖò‚‚’Óâ°¢–b‡6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"’&WGW&âµÓ°¢&WGW&â6VÆV7FVDÖöçF„W‡÷'DFö73°¢ÒÂ·6VÆV7FVDÖöçF‚Â6VÆV7FVDÖöçF„W‡÷'DFö75Ò“° ¢6öç7B6VÆV7FVDÖöçF„ÆFU6–væVDFö72ÒW6TÖVÖò‚‚’Óâ°¢–b‡6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"’&WGW&âµÓ°¢&WGW&âFö7VÖVçG0¢æf–ÇFW"‚†Fö2’ÓâFö2æÖöçF„¶W’ÓÓÒ6VÆV7FVDÖöçF‚¢æf–ÇFW"‚†Fö2’Óâ—4ÆFU6–væVDFö7VÖVçB†Fö2ÂVffV7F—fTVçG&–W4f÷$Fö2†Fö2Â6–væGW&W2’ÂVæF–ætVÄ66TÖ’“°¢ÒÂ¶Fö7VÖVçG2ÂVæF–ætVÄ66TÖÂ6VÆV7FVDÖöçF‚Â6–væGW&W5Ò“° ¢6öç7B&öÆUVæF–æt6÷VçG2ÒW6TÖVÖò‚‚’Óâ°¢6öç7B6÷VçG3¢&V6÷&CÅ6–vå&öÆRÂçVÖ&W#âÒ²¢Â7WW'f—6÷#¢Â6Væ–÷#¢ÂvVçC¢Ó°¢6öç7B6÷W&6TFö72ÒFö7VÖVçG0¢æf–ÇFW"‚†Fö2’Óâ6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"ÇÂFö2æÖöçF„¶W’ÓÓÒ6VÆV7FVDÖöçF‚¢æf–ÇFW"‚†Fö2’Óâ6äÖöæ—F÷$Fö7VÖVçB†7W'&VçEW6W"ÂFö2’“° ¢6÷W&6TFö72æf÷$V6‚‚†Fö2’Óâ°¢–b‚—4gFW$VÅW&–öB†Fö2æÖöçF„¶W’’’&WGW&ã°¢–b†Fö2æ66W2ç6öÖR‚†—FVÒ’ÓâVæF–ætVÄ66TÖæ†2†—FVÒæ66T–B’’’&WGW&ã°¢6öç7BVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2†Fö2Â6–væGW&W2“°¢vWEVæF–æu&öÆW2†VçG&–W2’æf÷$V6‚‚‡&öÆR’Óâ°¢–b†7W'&VçEW6W"ç&öÆRÓÒ%VÆ—G’77W&æ6R"bb6å6–vä–FVçF—G’†7W'&VçEW6W"ÂFö2Â&öÆR’’&WGW&ã°¢6÷VçG5·&öÆUÒ³Ò°¢Ò“°¢Ò“° ¢&WGW&â6÷VçG3°¢ÒÂ¶7W'&VçEW6W"ÂFö7VÖVçG2ÂVæF–ætVÄ66TÖÂ6VÆV7FVDÖöçF‚Â6–væGW&W5Ò“° ¢W6TVffV7B‚‚’Óâ°¢–b‚Fö7VÖVçG2æÆVæwF‚ÇÂ66÷VçG2æÆVæwF‚’&WGW&ã°¢ÆWBÆ—fRÒG'VS° ¢6öç7B7–æ5&W6–væVEW6W%v—fW'2Ò7–æ2‚’Óâ°¢6öç7BWFFW2ÒæWrÖÇ7G&–ærÂ6–væGW&TVçG'•µÓâ‚“° ¢f÷"†6öç7BFö7VÖVçBöbFö7VÖVçG2’°¢–b†—4†—7F÷&–6Å–EW&–öB†Fö7VÖVçBæÖöçF„¶W’’ÇÂ—4gFW$VÅW&–öB†Fö7VÖVçBæÖöçF„¶W’’’6öçF–çVS°¢–b†Fö7VÖVçBæ66W2ç6öÖR‚†—FVÒ’ÓâVæF–ætVÄ66TÖæ†2†—FVÒæ66T–B’’’6öçF–çVS° ¢6öç7B66÷VçBÒf–æD66÷VçDf÷$vVçB†66÷VçG2ÂFö7VÖVçBævVçDæÖR“°¢–b‚66÷VçBÇÂ—5&W6–væVD66÷VçDf÷$WFõv—fW"†66÷VçB’’6öçF–çVS° ¢6öç7BVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2†Fö7VÖVçBÂ6–væGW&W2“°¢–b†vWE6–væVDVçG'’†VçG&–W2Â$vVçB"’’6öçF–çVS°¢–b‚‚²%"Â%7WW'f—6÷""Â%6Væ–÷"%Ò26–vå&öÆUµÒ’æWfW'’‚‡&öÆR’Óâ&ööÆVâ†vWE6–væVDVçG'’†VçG&–W2Â&öÆR’’’’6öçF–çVS° ¢6öç7B&W6–væF–öäFFRÒvWD66÷VçE7W7Vç6–öäFFR†66÷VçB“°¢6öç7BW†—7F–æuv—fW"ÒvWEv—fVDVçG'’†VçG&–W2Â$vVçB"“°¢6öç7Bv—fW$VçG'“¢6–væGW&TVçG'’Ò°¢&öÆS¢$vVçB"À¢6–væW$æÖS¢Fö7VÖVçBævVçDæÖRÀ¢6–væVD'“¢""À¢6–væVDC¢""À¢7FGW3¢%v—fVB"À¢æ÷FS¢UDõõ$U4”täTEõt•dU%ôäõDRÀ¢v—fW%&V6öã¢æ÷&ÖÆ—¦UFW‡B†66÷VçBç7W7VæE&V6öâ’ÇÂ%&W6–væVB"À¢v—fVD'“¢UDõõ$U4”täTEõt•dU%õ4”täU"À¢v—fVDC¢vWDWFöÖF–5v—fW$VffV7F—fTB†66÷VçBÂVçG&–W2’À¢&W6–væF–öäFFRÀ¢Ó° ¢–b€¢W†—7F–æuv—fW"b`¢W†—7F–æuv—fW"ææ÷FRÓÓÒv—fW$VçG'’ææ÷FRb`¢W†—7F–æuv—fW"çv—fW%&V6öâÓÓÒv—fW$VçG'’çv—fW%&V6öâb`¢W†—7F–æuv—fW"çv—fVDBÓÓÒv—fW$VçG'’çv—fVDBb`¢W†—7F–æuv—fW"ç&W6–væF–öäFFRÓÓÒv—fW$VçG'’ç&W6–væF–öäFFP¢’6öçF–çVS° ¢6öç7BæW‡DVçG&–W2Ò²ââæVçG&–W2æf–ÇFW"‚†VçG'’’ÓâVçG'’ç&öÆRÓÒ$vVçB"’Âv—fW$VçG'•Ó°¢G'’°¢v—BW'6—7DFö7VÖVçE6–væGW&W2†Fö7VÖVçBæ–BÂæW‡DVçG&–W2Â6öæf—&ÖVDFö75¶Fö7VÖVçBæ–EÒÇÂ""“°¢WFFW2ç6WB†Fö7VÖVçBæ–BÂæW‡DVçG&–W2“°¢Ò6F6‚†W'&÷"’°¢6öç6öÆRçv&â†WFò7–æ2&W6–væVBv—fW"f–ÆVBf÷"G¶Fö7VÖVçBævVçDæÖWÖÂW'&÷"“°¢Ğ¢Ğ ¢–b‚Æ—fRÇÂWFFW2ç6—¦R’&WGW&ã°¢6WE6–væGW&W2‚‡&Wf–÷W2’Óâ°¢6öç7BæW‡BÒ²ââç&Wf–÷W2Ó°¢WFFW2æf÷$V6‚‚†VçG&–W2ÂFö7VÖVçD–B’Óâ°¢æW‡E¶Fö7VÖVçD–EÒÒVçG&–W3°¢Ò“°¢&WGW&âæW‡C°¢Ò“°¢Ó° ¢fö–B7–æ5&W6–væVEW6W%v—fW'2‚“°¢&WGW&â‚’Óâ°¢Æ—fRÒfÇ6S°¢Ó°¢ÒÂ¶66÷VçG2Â6öæf—&ÖVDFö72ÂFö7VÖVçG2ÂVæF–ætVÄ66TÖÂ6–væGW&W5Ò“° ¢6öç7B6VÆV7FVDÖöçF…F÷FÄFö72Ò6VÆV7FVDÖöçF„ÆÄFö72æÆVæwFƒ° ¢6öç7B6ävVæW&FU–ÖVçDW†6VÂÒ6VÆV7FVDÖöçF‚ÓÒ&ÆÂ#° ¢6öç7B6VÆV7FVDFö7VÖVçE6÷W&6RÒ6VÆV7FVDFö7VÖVçD–@¢òFö7VÖVçG2æf–æB‚†—FVÒ’Óâ—FVÒæ–BÓÓÒ6VÆV7FVDFö7VÖVçD–B’ÇÂçVÆÀ¢¢çVÆÃ°¢6öç7B6VÆV7FVDFö7VÖVçBÒ6VÆV7FVDFö7VÖVçE6÷W&6Rò6÷'E6–væGW&TFö7VÖVçD66W2‡6VÆV7FVDFö7VÖVçE6÷W&6R’¢çVÆÃ°¢6öç7B6VÆV7FVDVçG&–W2Ò6VÆV7FVDFö7VÖVçBòVffV7F—fTVçG&–W4f÷$Fö2‡6VÆV7FVDFö7VÖVçBÂ6–væGW&W2’¢µÓ°¢6öç7B6VÆV7FVDvVçD66÷VçBÒ6VÆV7FVDFö7VÖVçBòf–æD66÷VçDf÷$vVçB†66÷VçG2Â6VÆV7FVDFö7VÖVçBævVçDæÖR’¢VæFVf–æVC°¢6öç7B6VÆV7FVDvVçEW6W4WFõv—fW"Ò—5&W6–væVD66÷VçDf÷$WFõv—fW"‡6VÆV7FVDvVçD66÷VçB“°¢6öç7B6VÆV7FVDFö7VÖVçE&VbÒ6VÆV7FVDFö7VÖVçBòvWDÖöçF†Ç”Fö7VÖVçE&Vb‡6VÆV7FVDFö7VÖVçBÂFö7VÖVçG2’¢"#°¢6öç7B×•6–væVE&öÆW2Ò6VÆV7FVDFö7VÖVç@¢ò4”täEU$UôdÄõræf–ÇFW"‚‡&öÆR’Óâ°¢6öç7B6–væVBÒvWE6–væVDVçG'’‡6VÆV7FVDVçG&–W2Â&öÆR“°¢&WGW&â&ööÆVâ‡6–væVB’bb6å6–vä–FVçF—G’†7W'&VçEW6W"Â6VÆV7FVDFö7VÖVçBÂ&öÆR“°¢Ò¢¢µÓ°¢6öç7B6VÆV7FVEVæF–ætVÇ2Ò6VÆV7FVDFö7VÖVç@¢ò6VÆV7FVDFö7VÖVçBæÚ±î¸Â¸­yêë¢°k¢G§¦*^electedDocument) return false;
     if (!canSignIdentity(currentUser, selectedDocument, role)) {
       window.alert("à¹€à¸‹à¹‡à¸™à¹à¸—à¸™à¸à¸±à¸™à¹„à¸¡à¹ˆà¹„à¸”à¹‰ à¸à¸£à¸¸à¸“à¸²à¹ƒà¸«à¹‰à¹€à¸ˆà¹‰à¸²à¸‚à¸­à¸‡à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸•à¸²à¸¡ Role à¹€à¸›à¹‡à¸™à¸œà¸¹à¹‰à¸¥à¸‡à¸™à¸²à¸¡à¹€à¸­à¸‡");
       return false;
@@ -3284,112 +1741,7 @@ export default function SignatureCenterMockup({
 
   const copyNextSignerAlert = async () => {
     if (!selectedDocument) return;
-    const entries = effectiveEntriesForDoc(selectedDocument, signatures);
-    const pendingRoles = getPendingRoles(entries);
-    const latestStatus = pendingRoles.length
-      ? `${SIGNATURE_FLOW.length - pendingRoles.length}/4 role à¸¥à¸‡à¸™à¸²à¸¡à¹à¸¥à¹‰à¸§`
-      : "à¹€à¸­à¸à¸ªà¸²à¸£à¸¥à¸‡à¸™à¸²à¸¡à¸„à¸£à¸šà¹à¸¥à¹‰à¸§";
-
-    const text = pendingRoles.length
-      ? [
-          "à¹à¸ˆà¹‰à¸‡à¹€à¸•à¸·à¸­à¸™à¸¥à¸‡à¸™à¸²à¸¡à¹€à¸­à¸à¸ªà¸²à¸£ QA Incentive",
-          "",
-          `à¹€à¸”à¸·à¸­à¸™: ${selectedDocument.monthLabel}`,
-          `Agent: ${selectedDocument.agentName}`,
-          "",
-          `à¸ªà¸–à¸²à¸™à¸°à¸¥à¹ˆà¸²à¸ªà¸¸à¸”: ${latestStatus}`,
-          "à¸œà¸¹à¹‰à¸—à¸µà¹ˆà¸¢à¸±à¸‡à¸•à¹‰à¸­à¸‡à¸¥à¸‡à¸™à¸²à¸¡:",
-          ...pendingRoles.map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`),
-          "",
-          "à¸à¸”à¸¥à¸´à¸‡à¸à¹Œà¸™à¸µà¹‰à¹€à¸à¸·à¹ˆà¸­à¹€à¸›à¸´à¸”à¹€à¸­à¸à¸ªà¸²à¸£:",
-          createSignatureShareLink(selectedDocument, null),
-          "",
-          "à¸£à¸šà¸à¸§à¸™à¹€à¸‚à¹‰à¸²à¸£à¸°à¸šà¸š Signature Center à¹€à¸à¸·à¹ˆà¸­à¸¥à¸‡à¸™à¸²à¸¡à¸„à¹ˆà¸°/à¸„à¸£à¸±à¸š",
-        ].join("\n")
-      : [
-          "à¹à¸ˆà¹‰à¸‡à¹€à¸•à¸·à¸­à¸™à¸¥à¸‡à¸™à¸²à¸¡à¹€à¸­à¸à¸ªà¸²à¸£ QA Incentive",
-          "",
-          `à¹€à¸”à¸·à¸­à¸™: ${selectedDocument.monthLabel}`,
-          `Agent: ${selectedDocument.agentName}`,
-          "",
-          "à¸ªà¸–à¸²à¸™à¸°à¸¥à¹ˆà¸²à¸ªà¸¸à¸”: à¹€à¸­à¸à¸ªà¸²à¸£à¸¥à¸‡à¸™à¸²à¸¡à¸„à¸£à¸šà¹à¸¥à¹‰à¸§",
-          "",
-          "à¸à¸”à¸¥à¸´à¸‡à¸à¹Œà¸™à¸µà¹‰à¹€à¸à¸·à¹ˆà¸­à¹€à¸›à¸´à¸”à¹€à¸­à¸à¸ªà¸²à¸£:",
-          createSignatureShareLink(selectedDocument, null),
-        ].join("\n");
-
-    try {
-      await navigator.clipboard.writeText(text);
-      setShareMessage("Copy Reminder Messageà¹à¸¥à¹‰à¸§");
-    } catch {
-      window.prompt("à¸„à¸±à¸”à¸¥à¸­à¸à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¸™à¸µà¹‰à¹€à¸à¸·à¹ˆà¸­à¹à¸ˆà¹‰à¸‡à¹€à¸•à¸·à¸­à¸™", text);
-      setShareMessage("à¹à¸ªà¸”à¸‡à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹à¸ˆà¹‰à¸‡à¹€à¸•à¸·à¸­à¸™à¸ªà¸³à¸«à¸£à¸±à¸šà¸„à¸±à¸”à¸¥à¸­à¸à¹à¸¥à¹‰à¸§");
-    }
-
-    window.setTimeout(() => setShareMessage(""), 3000);
-  };
-
-  const shareSignatureStatus = async () => {
-    if (!selectedDocument) return;
-    const entries = effectiveEntriesForDoc(selectedDocument, signatures);
-    const lines = SIGNATURE_FLOW.map((role) => {
-      const signed = getSignedEntry(entries, role);
-      const waived = getWaivedEntry(entries, role);
-      return `${signed || waived ? "âœ“" : "âŒ"} ${roleThaiLabel(role)}: ${waived ? "à¸¢à¸à¹€à¸§à¹‰à¸™à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™ â€“ à¸¥à¸²à¸­à¸­à¸" : signed ? signed.signerName : "à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¥à¸‡à¸™à¸²à¸¡"}`;
-    });
-    const pendingLines = SIGNATURE_FLOW
-      .filter((role) => !getCompletedEntry(entries, role))
-      .map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`);
-
-    const text = [
-      `à¹€à¸­à¸à¸ªà¸²à¸£ Signature à¹€à¸”à¸·à¸­à¸™ ${selectedDocument.monthLabel}`,
-      `Agent: ${selectedDocument.agentName}`,
-      "",
-      "à¸ªà¸–à¸²à¸™à¸°à¸à¸²à¸£à¸¥à¸‡à¸™à¸²à¸¡:",
-      ...lines,
-      "",
-      pendingLines.length ? "à¸œà¸¹à¹‰à¸—à¸µà¹ˆà¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¥à¸‡à¸™à¸²à¸¡:" : "à¸ªà¸–à¸²à¸™à¸°: à¸¥à¸‡à¸™à¸²à¸¡à¸„à¸£à¸šà¹à¸¥à¹‰à¸§",
-      ...(pendingLines.length ? pendingLines : []),
-      "",
-      pendingLines.length
-        ? "à¸£à¸šà¸à¸§à¸™à¸œà¸¹à¹‰à¸—à¸µà¹ˆà¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¥à¸‡à¸™à¸²à¸¡ à¹€à¸‚à¹‰à¸²à¸£à¸°à¸šà¸šà¹€à¸à¸·à¹ˆà¸­à¹€à¸‹à¹‡à¸™à¹€à¸­à¸à¸ªà¸²à¸£à¹ƒà¸«à¹‰à¹€à¸£à¸µà¸¢à¸šà¸£à¹‰à¸­à¸¢à¸„à¹ˆà¸°/à¸„à¸£à¸±à¸š"
-        : "à¹€à¸­à¸à¸ªà¸²à¸£à¸™à¸µà¹‰à¸¥à¸‡à¸™à¸²à¸¡à¸„à¸£à¸šà¹à¸¥à¹‰à¸§à¸„à¹ˆà¸°/à¸„à¸£à¸±à¸š",
-    ].join("\n");
-
-    try {
-      await navigator.clipboard.writeText(text);
-      setShareMessage("à¸„à¸±à¸”à¸¥à¸­à¸à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹à¸Šà¸£à¹Œà¹à¸¥à¹‰à¸§");
-    } catch {
-      window.prompt("à¸„à¸±à¸”à¸¥à¸­à¸à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¸™à¸µà¹‰à¹€à¸à¸·à¹ˆà¸­à¹à¸Šà¸£à¹Œ", text);
-      setShareMessage("à¹à¸ªà¸”à¸‡à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¸ªà¸³à¸«à¸£à¸±à¸šà¸„à¸±à¸”à¸¥à¸­à¸à¹à¸¥à¹‰à¸§");
-    }
-
-    window.setTimeout(() => setShareMessage(""), 3000);
-  };
-
-  const resetDocument = () => {
-    if (!selectedDocument || isHistoricalPaidPeriod(selectedDocument.monthKey)) return;
-    setSignatures((previous) => {
-      const next = { ...previous };
-      delete next[selectedDocument.id];
-      return next;
-    });
-    setConfirmedDocs((previous) => {
-      const next = { ...previous };
-      delete next[selectedDocument.id];
-      return next;
-    });
-    void clearStoredSignatureConfirm(selectedDocument.id, []).catch((error) => {
-      console.warn("Reset remote signature document failed", error);
-    });
-  };
-
-  const generatePdf = async () => {
-    if (!selectedDocument) return;
-    const entries = effectiveEntriesForDoc(selectedDocument, signatures);
-    const individualIncentive = getDocumentIncentive(selectedDocument);
-    const needMoreToTarget = Math.max(CASE_TARGET - selectedDocument.caseCount, 0);
-    const pdf = new jsPDF({ unit: "mm", format: "a4" });
+    const entries m«ëŒ+Š×®º+º$zzb¥ãÒVffV7F—fTVçG&–W4f÷$Fö2‡6VÆV7FVDFö7VÖVçBÂ6–væGW&W2“°¢6öç7BVæF–æu&öÆW2ÒvWEVæF–æu&öÆW2†VçG&–W2“°¢6öç7BÆFW7E7FGW2ÒVæF–æu&öÆW2æÆVæwF€¢òGµ4”täEU$UôdÄõræÆVæwF‚ÒVæF–æu&öÆW2æÆVæwF‡ÒóB&öÆRŠ^ˆ~‰‹.Š˜Š^˜Šv ¢¢.˜ŠŞˆŠ®‹.Š>Š^ˆ~‰‹.ŠˆNŠ>‰®˜Š^˜Šr#° ¢6öç7BFW‡BÒVæF–æu&öÆW2æÆVæwF€¢ò°¢.˜ˆ˜ˆ~˜‰^‹~ŠŞ‰Š^ˆ~‰‹.Š˜ŠŞˆŠ®‹.Š2–æ6VçF—fR"À¢""À¢˜‰N‹~ŠŞ‰“¢G·6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÇÖÀ¢vVçC¢G·6VÆV7FVDFö7VÖVçBævVçDæÖWÖÀ¢""À¢Š®‰n‹.‰‹Š^˜‹.Š®‹‰C¢G¶ÆFW7E7FGW7ÖÀ¢.‰Î‹˜‰~‹^˜Š.‹ˆ~‰^˜ŠŞˆ~Š^ˆ~‰‹.Š¢"À¢ââçVæF–æu&öÆW2æÖ‚‡&öÆR’ÓâÒG·&öÆUF†”Æ&VÂ‡&öÆR—Ó¢G¶vWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ&öÆR—Ö’À¢""À¢.ˆ‰NŠ^‹Nˆ~ˆ˜Î‰‹^˜˜‰î‹~˜ŠŞ˜‰¾‹N‰N˜ŠŞˆŠ®‹.Š3¢"À¢7&VFU6–væGW&U6†&TÆ–æ²‡6VÆV7FVDFö7VÖVçBÂçVÆÂ’À¢""À¢.Š>‰®ˆŠ~‰˜ˆ.˜‹.Š>‹‰®‰¢6–væGW&R6VçFW"˜‰î‹~˜ŠŞŠ^ˆ~‰‹.ŠˆN˜‹şˆNŠ>‹‰¢"À¢Òæ¦ö–â‚%Æâ"¢¢°¢.˜ˆ˜ˆ~˜‰^‹~ŠŞ‰Š^ˆ~‰‹.Š˜ŠŞˆŠ®‹.Š2–æ6VçF—fR"À¢""À¢˜‰N‹~ŠŞ‰“¢G·6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÇÖÀ¢vVçC¢G·6VÆV7FVDFö7VÖVçBævVçDæÖWÖÀ¢""À¢.Š®‰n‹.‰‹Š^˜‹.Š®‹‰C¢˜ŠŞˆŠ®‹.Š>Š^ˆ~‰‹.ŠˆNŠ>‰®˜Š^˜Šr"À¢""À¢.ˆ‰NŠ^‹Nˆ~ˆ˜Î‰‹^˜˜‰î‹~˜ŠŞ˜‰¾‹N‰N˜ŠŞˆŠ®‹.Š3¢"À¢7&VFU6–væGW&U6†&TÆ–æ²‡6VÆV7FVDFö7VÖVçBÂçVÆÂ’À¢Òæ¦ö–â‚%Æâ"“° ¢G'’°¢v—Bæf–vF÷"æ6Æ—&ö&Bçw&—FUFW‡B‡FW‡B“°¢6WE6†&TÖW76vR‚$6÷’&VÖ–æFW"ÖW76v^˜Š^˜Šr"“°¢Ò6F6‚°¢v–æF÷rç&ö×B‚.ˆN‹‰NŠ^ŠŞˆˆ.˜ŠŞˆNŠ~‹.Š‰‹^˜˜‰î‹~˜ŠŞ˜ˆ˜ˆ~˜‰^‹~ŠŞ‰’"ÂFW‡B“°¢6WE6†&TÖW76vR‚.˜Š®‰Nˆ~ˆ.˜ŠŞˆNŠ~‹.Š˜ˆ˜ˆ~˜‰^‹~ŠŞ‰Š®‹>Š¾Š>‹‰®ˆN‹‰NŠ^ŠŞˆ˜Š^˜Šr"“°¢Ğ ¢v–æF÷rç6WEF–ÖV÷WB‚‚’Óâ6WE6†&TÖW76vR‚""’Â3“°¢Ó° ¢6öç7B6†&U6–væGW&U7FGW2Ò7–æ2‚’Óâ°¢–b‚6VÆV7FVDFö7VÖVçB’&WGW&ã°¢6öç7BVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2‡6VÆV7FVDFö7VÖVçBÂ6–væGW&W2“°¢6öç7BÆ–æW2Ò4”täEU$UôdÄõræÖ‚‡&öÆR’Óâ°¢6öç7B6–væVBÒvWE6–væVDVçG'’†VçG&–W2Â&öÆR“°¢6öç7Bv—fVBÒvWEv—fVDVçG'’†VçG&–W2Â&öÆR“°¢&WGW&âG·6–væVBÇÂv—fVBò.)É2"¢.)ØÂ'ÒG·&öÆUF†”Æ&VÂ‡&öÆR—Ó¢G·v—fVBò.Š.ˆ˜Š~˜‰Š^‹.Š.˜ˆ¾˜~‰’(	2Š^‹.ŠŞŠŞˆ"¢6–væVBò6–væVBç6–væW$æÖR¢.Š.‹ˆ~˜NŠ˜Š^ˆ~‰‹.Š'Ö°¢Ò“°¢6öç7BVæF–ætÆ–æW2Ò4”täEU$UôdÄõp¢æf–ÇFW"‚‡&öÆR’ÓâvWD6ö×ÆWFVDVçG'’†VçG&–W2Â&öÆR’¢æÖ‚‡&öÆR’ÓâÒG·&öÆUF†”Æ&VÂ‡&öÆR—Ó¢G¶vWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ&öÆR—Ö“° ¢6öç7BFW‡BÒ°¢˜ŠŞˆŠ®‹.Š26–væGW&R˜‰N‹~ŠŞ‰’G·6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÇÖÀ¢vVçC¢G·6VÆV7FVDFö7VÖVçBævVçDæÖWÖÀ¢""À¢.Š®‰n‹.‰‹ˆ‹.Š>Š^ˆ~‰‹.Š¢"À¢ââæÆ–æW2À¢""À¢VæF–ætÆ–æW2æÆVæwF‚ò.‰Î‹˜‰~‹^˜Š.‹ˆ~˜NŠ˜Š^ˆ~‰‹.Š¢"¢.Š®‰n‹.‰‹¢Š^ˆ~‰‹.ŠˆNŠ>‰®˜Š^˜Šr"À¢âââ‡VæF–ætÆ–æW2æÆVæwF‚òVæF–ætÆ–æW2¢µÒ’À¢""À¢VæF–ætÆ–æW2æÆVæwF€¢ò.Š>‰®ˆŠ~‰‰Î‹˜‰~‹^˜Š.‹ˆ~˜NŠ˜Š^ˆ~‰‹.Š˜ˆ.˜‹.Š>‹‰®‰®˜‰î‹~˜ŠŞ˜ˆ¾˜~‰˜ŠŞˆŠ®‹.Š>˜>Š¾˜˜Š>‹^Š.‰®Š>˜ŠŞŠ.ˆN˜‹şˆNŠ>‹‰¢ ¢¢.˜ŠŞˆŠ®‹.Š>‰‹^˜Š^ˆ~‰‹.ŠˆNŠ>‰®˜Š^˜Š~ˆN˜‹şˆNŠ>‹‰¢"À¢Òæ¦ö–â‚%Æâ"“° ¢G'’°¢v—Bæf–vF÷"æ6Æ—&ö&Bçw&—FUFW‡B‡FW‡B“°¢6WE6†&TÖW76vR‚.ˆN‹‰NŠ^ŠŞˆˆ.˜ŠŞˆNŠ~‹.Š˜ˆ®Š>˜Î˜Š^˜Šr"“°¢Ò6F6‚°¢v–æF÷rç&ö×B‚.ˆN‹‰NŠ^ŠŞˆˆ.˜ŠŞˆNŠ~‹.Š‰‹^˜˜‰î‹~˜ŠŞ˜ˆ®Š>˜Â"ÂFW‡B“°¢6WE6†&TÖW76vR‚.˜Š®‰Nˆ~ˆ.˜ŠŞˆNŠ~‹.ŠŠ®‹>Š¾Š>‹‰®ˆN‹‰NŠ^ŠŞˆ˜Š^˜Šr"“°¢Ğ ¢v–æF÷rç6WEF–ÖV÷WB‚‚’Óâ6WE6†&TÖW76vR‚""’Â3“°¢Ó° ¢6öç7B&W6WDFö7VÖVçBÒ‚’Óâ°¢–b‚6VÆV7FVDFö7VÖVçBÇÂ—4†—7F÷&–6Å–EW&–öB‡6VÆV7FVDFö7VÖVçBæÖöçF„¶W’’’&WGW&ã°¢6WE6–væGW&W2‚‡&Wf–÷W2’Óâ°¢6öç7BæW‡BÒ²ââç&Wf–÷W2Ó°¢FVÆWFRæW‡E·6VÆV7FVDFö7VÖVçBæ–EÓ°¢&WGW&âæW‡C°¢Ò“°¢6WD6öæf—&ÖVDFö72‚‡&Wf–÷W2’Óâ°¢6öç7BæW‡BÒ²ââç&Wf–÷W2Ó°¢FVÆWFRæW‡E·6VÆV7FVDFö7VÖVçBæ–EÓ°¢&WGW&âæW‡C°¢Ò“°¢fö–B6ÆV%7F÷&VE6–væGW&T6öæf—&Ò‡6VÆV7FVDFö7VÖVçBæ–BÂµÒ’æ6F6‚‚†W'&÷"’Óâ°¢6öç6öÆRçv&â‚%&W6WB&VÖ÷FR6–væGW&RFö7VÖVçBf–ÆVB"ÂW'&÷"“°¢Ò“°¢Ó° ¢6öç7BvVæW&FUFbÒ7–æ2‚’Óâ°¢–b‚6VÆV7FVDFö7VÖVçB’&WGW&ã°¢°¢òòF†R6–væGW&R6VçFW"'WGFöâW6W2F†—26†&VB&VæFW&W"2—G2öæÇ’7F—fP¢òòf–æÂ6–væVBDbF‚â¶VWF†RÆVv7’–æÆ–æR&VæFW&W"&VÆ÷rVç&V6†&ÆP¢òòVçF–Â—B6â&R&VÖ÷fVBv—F†÷WB6†æv–ærVç&VÆFVBvVæW&FVBDg2à¢6öç7B6†&VDVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2‡6VÆV7FVDFö7VÖVçBÂ6–væGW&W2“°¢6öç7B6†&VD–æ6VçF—fRÒvWDFö7VÖVçD–æ6VçF—fR‡6VÆV7FVDFö7VÖVçB“°¢6öç7B6†&VDFö7VÖVçE&VbÒvWDÖöçF†Ç”Fö7VÖVçE&Vb‡6VÆV7FVDFö7VÖVçBÂFö7VÖVçG2“°¢6öç7B6†&VE&W7VÇBÒv—B&VæFW$f–æÅ6–væVEFb‡°¢Fö7VÖVçC¢6VÆV7FVDFö7VÖVçBÀ¢VçG&–W3¢6†&VDVçG&–W2À¢–æ6VçF—fS¢6†&VD–æ6VçF—fRÀ¢Fö7VÖVçE&Vc¢6†&VDFö7VÖVçE&VbÀ¢&öÆU6–væW$æÖW3¢°¢¢vWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ%"’À¢7WW'f—6÷#¢vWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ%7WW'f—6÷""’À¢6Væ–÷#¢vWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ%6Væ–÷""’À¢vVçC¢vWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ$vVçB"’À¢ÒÀ¢Ò“°¢F÷væÆöD&Æö"‡6†&VE&W7VÇBçFbæ÷WGWB‚&&Æö""’Â6†&VE&W7VÇBæf–ÆTæÖR“°¢6WEFdÖW76vR†vVæW&FVBG·6†&VE&W7VÇBæf–ÆTæÖWÖ“°¢v–æF÷rç6WEF–ÖV÷WB‚‚’Óâ6WEFdÖW76vR‚""’Â3S“°¢&WGW&ã°¢Ğ¢6öç7BVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2‡6VÆV7FVDFö7VÖVçBÂ6–væGW&W2“°¢6öç7B–æF—f–GVÄ–æ6VçF—fRÒvWDFö7VÖVçD–æ6VçF—fR‡6VÆV7FVDFö7VÖVçB“°¢6öç7BæVVDÖ÷&UFõF&vWBÒÖF‚æÖ‚„44UõD$tUBÒ6VÆV7FVDFö7VÖVçBæ66T6÷VçBÂ“°¢Ú±î¸Â¸­yêë¢°k¢G§¦*^const pdf = new jsPDF({ unit: "mm", format: "a4" });
 
     try {
       registerTHSarabunNew(pdf);
@@ -3566,183 +1918,7 @@ export default function SignatureCenterMockup({
         drawCellCols(valueStart, valueEnd, rowY, h, value, lightPurple, {
           bold: true,
           size: 8.8,
-          align: "center",
-          maxLines: 2,
-          ...valueOptions,
-        });
-      };
-
-      const topicMap = new Map<
-        string,
-        {
-          code: string;
-          title: string;
-          scoreSum: number;
-          maxSum: number;
-          count: number;
-          maxValues: Set<number>;
-        }
-      >();
-
-      selectedDocument.cases.forEach((item) => {
-        (item.topics || []).forEach((topic) => {
-          const code = normalizeText(topic.code);
-          const title = normalizeText(topic.title);
-          const score = Number(topic.score || 0);
-          const max = Number(topic.max || 0);
-          if (!code || !title || !Number.isFinite(score) || !Number.isFinite(max) || max <= 0) return;
-
-          const key = code || normalizeKey(title);
-          const current = topicMap.get(key) || {
-            code,
-            title,
-            scoreSum: 0,
-            maxSum: 0,
-            count: 0,
-            maxValues: new Set<number>(),
-          };
-          current.title = current.title || title;
-          current.scoreSum += score;
-          current.maxSum += max;
-          current.count += 1;
-          current.maxValues.add(max);
-          topicMap.set(key, current);
-        });
-      });
-
-      const topicStats = Array.from(topicMap.values())
-        .map((item) => {
-          const avgScore = item.count ? item.scoreSum / item.count : null;
-          const avgMax = item.count ? item.maxSum / item.count : 0;
-          const max = item.maxValues.size === 1 ? Array.from(item.maxValues)[0] : avgMax;
-          const avgPercent = avgScore !== null && avgMax > 0 ? (avgScore / avgMax) * 100 : null;
-          return {
-            code: item.code,
-            title: item.title,
-            avgScore,
-            max,
-            avgPercent,
-          };
-        })
-        .sort((a, b) =>
-          a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: "base" }) ||
-          a.title.localeCompare(b.title, "th")
-        );
-      const topicRowsWithScore = topicStats.filter((item) => item.avgPercent !== null);
-      const bestTopic = topicRowsWithScore.length
-        ? [...topicRowsWithScore].sort((a, b) => Number(b.avgPercent) - Number(a.avgPercent))[0]
-        : null;
-      const lowestTopic = topicRowsWithScore.length
-        ? [...topicRowsWithScore].sort((a, b) => Number(a.avgPercent) - Number(b.avgPercent))[0]
-        : null;
-
-      const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
-      const criticalCases = 0;
-      const documentStatus = isComplete ? "Completed Signature" : "Incomplete Signature";
-      const pdfDocumentRef = getMonthlyDocumentRef(selectedDocument, documents);
-      const incentiveText =
-        Number(individualIncentive.promo || 0) > 0
-          ? `${individualIncentive.label || "No Incentive"}\nCash ${formatBahtAmount(individualIncentive.cash || 0)} / Promo ${formatBahtAmount(individualIncentive.promo || 0)}`
-          : `${individualIncentive.label || `${formatBahtAmount(individualIncentive.cash || 0)} THB`}`;
-
-      drawHeader(
-        "Monthly QA Dashboard",
-        "Monthly dashboard for the selected Agent and selected Month. Values are generated from the current QA system."
-      );
-
-      drawSection("Current View");
-      drawLabelValue(0, 1, 1, 3, "Agent", selectedDocument.agentName, y, 10.0, { maxLines: 2 });
-      drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 10.0);
-      drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 10.0);
-      drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 10.0);
-      y += 11.0;
-
-      drawCellCols(0, 3, y, 7.4, "Cases Reviewed", purple, {
-        bold: true,
-        color: [255, 255, 255],
-        size: 8.7,
-        align: "center",
-      });
-      drawCellCols(3, 6, y, 7.4, "Need More to 10", purple, {
-        bold: true,
-        color: [255, 255, 255],
-        size: 8.7,
-        align: "center",
-      });
-      drawCellCols(6, 9, y, 7.4, "Average Score", purple, {
-        bold: true,
-        color: [255, 255, 255],
-        size: 8.7,
-        align: "center",
-      });
-      drawCellCols(9, 10, y, 7.4, "Monthly Grade", purple, {
-        bold: true,
-        color: [255, 255, 255],
-        size: 8.7,
-        align: "center",
-        maxLines: 2,
-      });
-      y += 7.4;
-      drawCellCols(0, 3, y, 10.8, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, {
-        bold: true,
-        size: 13.0,
-        align: "center",
-        maxLines: 1,
-      });
-      drawCellCols(3, 6, y, 10.8, needMoreToTarget, lightPurple, {
-        bold: true,
-        size: 13.0,
-        align: "center",
-        maxLines: 1,
-      });
-      drawCellCols(6, 9, y, 10.8, selectedDocument.averageScore.toFixed(2), lightPurple, {
-        bold: true,
-        size: 13.0,
-        align: "center",
-        color: selectedDocument.averageScore >= 80 ? good : warn,
-        maxLines: 1,
-      });
-      drawCellCols(9, 10, y, 10.8, selectedDocument.grade, lightPurple, {
-        bold: true,
-        size: 13.0,
-        align: "center",
-        maxLines: 1,
-      });
-      y += 13.0;
-
-      drawSection("Incentive Summary");
-      drawCellCols(0, 3, y, 7.4, "Incentive", purple, {
-        bold: true,
-        color: [255, 255, 255],
-        size: 8.7,
-        align: "center",
-      });
-      drawCellCols(3, 6, y, 7.4, "Best Topic", purple, {
-        bold: true,
-        color: [255, 255, 255],
-        size: 8.7,
-        align: "center",
-      });
-      drawCellCols(6, 10, y, 7.4, "Lowest Topic", purple, {
-        bold: true,
-        color: [255, 255, 255],
-        size: 8.7,
-        align: "center",
-      });
-      y += 7.4;
-      drawCellCols(0, 3, y, 12.0, incentiveText, lightPurple, {
-        bold: true,
-        size: 8.8,
-        align: "center",
-        maxLines: 2,
-      });
-      drawCellCols(3, 6, y, 12.0, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
-        bold: true,
-        size: 8.3,
-        align: "center",
-        maxLines: 2,
-      });
-      drawCellCols(6, 10, y, 12.0, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+          align: "center",m«ëŒ+Š×®º+º$zzb¥à¢Ö„Æ–æW3¢"À¢ââçfÇVT÷F–öç2À¢Ò“°¢Ó° ¢6öç7BF÷–4ÖÒæWrÖÀ¢7G&–ærÀ¢°¢6öFS¢7G&–æs°¢F—FÆS¢7G&–æs°¢66÷&U7VÓ¢çVÖ&W#°¢Ö…7VÓ¢çVÖ&W#°¢6÷VçC¢çVÖ&W#°¢Ö…fÇVW3¢6WCÆçVÖ&W#ã°¢Ğ¢â‚“° ¢6VÆV7FVDFö7VÖVçBæ66W2æf÷$V6‚‚†—FVÒ’Óâ°¢†—FVÒçF÷–72ÇÂµÒ’æf÷$V6‚‚‡F÷–2’Óâ°¢6öç7B6öFRÒæ÷&ÖÆ—¦UFW‡B‡F÷–2æ6öFR“°¢6öç7BF—FÆRÒæ÷&ÖÆ—¦UFW‡B‡F÷–2çF—FÆR“°¢6öç7B66÷&RÒçVÖ&W"‡F÷–2ç66÷&RÇÂ“°¢6öç7BÖ‚ÒçVÖ&W"‡F÷–2æÖ‚ÇÂ“°¢–b‚6öFRÇÂF—FÆRÇÂçVÖ&W"æ—4f–æ—FR‡66÷&R’ÇÂçVÖ&W"æ—4f–æ—FR†Ö‚’ÇÂÖ‚ÃÒ’&WGW&ã° ¢6öç7B¶W’Ò6öFRÇÂæ÷&ÖÆ—¦T¶W’‡F—FÆR“°¢6öç7B7W'&VçBÒF÷–4ÖævWB†¶W’’ÇÂ°¢6öFRÀ¢F—FÆRÀ¢66÷&U7VÓ¢À¢Ö…7VÓ¢À¢6÷VçC¢À¢Ö…fÇVW3¢æWr6WCÆçVÖ&W#â‚’À¢Ó°¢7W'&VçBçF—FÆRÒ7W'&VçBçF—FÆRÇÂF—FÆS°¢7W'&VçBç66÷&U7VÒ³Ò66÷&S°¢7W'&VçBæÖ…7VÒ³ÒÖƒ°¢7W'&VçBæ6÷VçB³Ò°¢7W'&VçBæÖ…fÇVW2æFB†Ö‚“°¢F÷–4Öç6WB†¶W’Â7W'&VçB“°¢Ò“°¢Ò“° ¢6öç7BF÷–57FG2Ò'&’æg&öÒ‡F÷–4ÖçfÇVW2‚’¢æÖ‚†—FVÒ’Óâ°¢6öç7Bfu66÷&RÒ—FVÒæ6÷VçBò—FVÒç66÷&U7VÒò—FVÒæ6÷VçB¢çVÆÃ°¢6öç7BftÖ‚Ò—FVÒæ6÷VçBò—FVÒæÖ…7VÒò—FVÒæ6÷VçB¢°¢6öç7BÖ‚Ò—FVÒæÖ…fÇVW2ç6—¦RÓÓÒò'&’æg&öÒ†—FVÒæÖ…fÇVW2•³Ò¢ftÖƒ°¢6öç7BfuW&6VçBÒfu66÷&RÓÒçVÆÂbbftÖ‚âò†fu66÷&RòftÖ‚’¢¢çVÆÃ°¢&WGW&â°¢6öFS¢—FVÒæ6öFRÀ¢F—FÆS¢—FVÒçF—FÆRÀ¢fu66÷&RÀ¢Ö‚À¢fuW&6VçBÀ¢Ó°¢Ò¢ç6÷'B‚†Â"’Óà¢æ6öFRæÆö6ÆT6ö×&R†"æ6öFRÂVæFVf–æVBÂ²çVÖW&–3¢G'VRÂ6Vç6—F—f—G“¢&&6R"Ò’ÇÀ¢çF—FÆRæÆö6ÆT6ö×&R†"çF—FÆRÂ'F‚"¢“°¢6öç7BF÷–5&÷w5v—F…66÷&RÒF÷–57FG2æf–ÇFW"‚†—FVÒ’Óâ—FVÒæfuW&6VçBÓÒçVÆÂ“°¢6öç7B&W7EF÷–2ÒF÷–5&÷w5v—F…66÷&RæÆVæwF€¢ò²ââçF÷–5&÷w5v—F…66÷&UÒç6÷'B‚†Â"’ÓâçVÖ&W"†"æfuW&6VçB’ÒçVÖ&W"†æfuW&6VçB’•³Ğ¢¢çVÆÃ°¢6öç7BÆ÷vW7EF÷–2ÒF÷–5&÷w5v—F…66÷&RæÆVæwF€¢ò²ââçF÷–5&÷w5v—F…66÷&UÒç6÷'B‚†Â"’ÓâçVÖ&W"†æfuW&6VçB’ÒçVÖ&W"†"æfuW&6VçB’•³Ğ¢¢çVÆÃ° ¢6öç7B6–væVE&öÆW2Ò4”täEU$UôdÄõræf–ÇFW"‚‡&öÆR’Óâ&ööÆVâ†vWD6ö×ÆWFVDVçG'’†VçG&–W2Â&öÆR’’’æÆVæwFƒ°¢6öç7B7&—F–6Ä66W2Ò°¢6öç7BFö7VÖVçE7FGW2Ò—46ö×ÆWFRò$6ö×ÆWFVB6–væGW&R"¢$–æ6ö×ÆWFR6–væGW&R#°¢6öç7BFdFö7VÖVçE&VbÒvWDÖöçF†Ç”Fö7VÖVçE&Vb‡6VÆV7FVDFö7VÖVçBÂFö7VÖVçG2“°¢6öç7B–æ6VçF—fUFW‡BĞ¢çVÖ&W"†–æF—f–GVÄ–æ6VçF—fRç&öÖòÇÂ’â ¢òG¶–æF—f–GVÄ–æ6VçF—fRæÆ&VÂÇÂ$æò–æ6VçF—fR'ÕÆä66‚G¶f÷&ÖD&‡DÖ÷VçB†–æF—f–GVÄ–æ6VçF—fRæ66‚ÇÂ—Òò&öÖòG¶f÷&ÖD&‡DÖ÷VçB†–æF—f–GVÄ–æ6VçF—fRç&öÖòÇÂ—Ö ¢¢G¶–æF—f–GVÄ–æ6VçF—fRæÆ&VÂÇÂG¶f÷&ÖD&‡DÖ÷VçB†–æF—f–GVÄ–æ6VçF—fRæ66‚ÇÂ—ÒD„&Ö° ¢G&t†VFW"€¢$ÖöçF†Ç’F6†&ö&B"À¢$ÖöçF†Ç’F6†&ö&Bf÷"F†R6VÆV7FVBvVçBæB6VÆV7FVBÖöçF‚âfÇVW2&RvVæW&FVBg&öÒF†R7W'&VçB7—7FVÒâ ¢“° ¢G&u6V7F–öâ‚$7W'&VçBf–Wr"“°¢G&tÆ&VÅfÇVRƒÂÂÂ2Â$vVçB"Â6VÆV7FVDFö7VÖVçBævVçDæÖRÂ’ÂãÂ²Ö„Æ–æW3¢"Ò“°¢G&tÆ&VÅfÇVRƒ2ÂBÂBÂbÂ$ÖöçF‚"Â6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÂÂ’Âã“°¢G&tÆ&VÅfÇVRƒbÂrÂrÂ‚Â%&Wf–WvVB66W2"Â6VÆV7FVDFö7VÖVçBæ66T6÷VçBÂ’Âã“°¢G&tÆ&VÅfÇVRƒ‚Â’Â’ÂÂ$7&—F–6Â66W2"Â7&—F–6Ä66W2Â’Âã“°¢’³Òã° ¢G&t6VÆÄ6öÇ2ƒÂ2Â’ÂrãBÂ$66W2&Wf–WvVB"ÂW'ÆRÂ°¢&öÆC¢G'VRÀ¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢6—¦S¢‚ãrÀ¢Æ–vã¢&6VçFW""À¢Ò“°¢G&t6VÆÄ6öÇ2ƒ2ÂbÂ’ÂrãBÂ$æVVBÖ÷&RFò"ÂW'ÆRÂ°¢&öÆC¢G'VRÀ¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢6—¦S¢‚ãrÀ¢Æ–vã¢&6VçFW""À¢Ò“°¢G&t6VÆÄ6öÇ2ƒbÂ’Â’ÂrãBÂ$fW&vR66÷&R"ÂW'ÆRÂ°¢&öÆC¢G'VRÀ¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢6—¦S¢‚ãrÀ¢Æ–vã¢&6VçFW""À¢Ò“°¢G&t6VÆÄ6öÇ2ƒ’ÂÂ’ÂrãBÂ$ÖöçF†Ç’w&FR"ÂW'ÆRÂ°¢&öÆC¢G'VRÀ¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢6—¦S¢‚ãrÀ¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢"À¢Ò“°¢’³ÒrãC°¢G&t6VÆÄ6öÇ2ƒÂ2Â’Âã‚ÂG·6VÆV7FVDFö7VÖVçBæ66T6÷VçGÒòG´44UõD$tUGÖÂÆ–v‡EW'ÆRÂ°¢&öÆC¢G'VRÀ¢6—¦S¢2ãÀ¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢À¢Ò“°¢G&t6VÆÄ6öÇ2ƒ2ÂbÂ’Âã‚ÂæVVDÖ÷&UFõF&vWBÂÆ–v‡EW'ÆRÂ°¢&öÆC¢G'VRÀ¢6—¦S¢2ãÀ¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢À¢Ò“°¢G&t6VÆÄ6öÇ2ƒbÂ’Â’Âã‚Â6VÆV7FVDFö7VÖVçBæfW&vU66÷&RçFôf—†VBƒ"’ÂÆ–v‡EW'ÆRÂ°¢&öÆC¢G'VRÀ¢6—¦S¢2ãÀ¢Æ–vã¢&6VçFW""À¢6öÆ÷#¢6VÆV7FVDFö7VÖVçBæfW&vU66÷&RãÒƒòvööB¢v&âÀ¢Ö„Æ–æW3¢À¢Ò“°¢G&t6VÆÄ6öÇ2ƒ’ÂÂ’Âã‚Â6VÆV7FVDFö7VÖVçBæw&FRÂÆ–v‡EW'ÆRÂ°¢&öÆC¢G'VRÀ¢6—¦S¢2ãÀ¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢À¢Ò“°¢’³Ò2ã° ¢G&u6V7F–öâ‚$–æ6VçF—fR7VÖÖ'’"“°¢G&t6VÆÄ6öÇ2ƒÂ2Â’ÂrãBÂ$–æ6VçF—fR"ÂW'ÆRÂ°¢&öÆC¢G'VRÀ¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢6—¦S¢‚ãrÀ¢Æ–vã¢&6VçFW""À¢Ò“°¢G&t6VÆÄ6öÇ2ƒ2ÂbÂ’ÂrãBÂ$&W7BF÷–2"ÂW'ÆRÂ°¢&öÆC¢G'VRÀ¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢6—¦S¢‚ãrÀ¢Æ–vã¢&6VçFW""À¢Ò“°¢G&t6VÆÄ6öÇ2ƒbÂÂ’ÂrãBÂ$Æ÷vW7BF÷–2"ÂW'ÆRÂ°¢&öÆC¢G'VRÀ¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢6—¦S¢‚ãrÀ¢Æ–vã¢&6VçFW""À¢Ò“°¢’³ÒrãC°¢G&t6VÆÄ6öÇ2ƒÂ2Â’Â"ãÂ–æ6VçF—fUFW‡BÂÆ–v‡EW'ÆRÂ°¢&öÆC¢G'VRÀ¢6—¦S¢‚ã‚À¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢"À¢Ò“°¢G&t6VÆÄ6öÇ2ƒ2ÂbÂ’Â"ãÂ&W7EF÷–2òG¶&W7EF÷–2çF—FÆWÕÆâG´çVÖ&W"†&W7EF÷–2æfuW&6VçB’çFôf—†VBƒ"—ÒV¢"Ò"ÂÆ–v‡EW'ÆRÂ°¢&öÆC¢G'VRÀ¢6—¦S¢‚ã2À¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢"À¢Ò“°¢G&t6VÆÄ6öÇ2ƒbÂÂ’Â"ãÂÆ÷vW7EF÷–2òG¶Æ÷vW7EF÷–6Ú±î¸Â¸­yêë¢°k¢G§¦*^.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
         bold: true,
         size: 8.3,
         align: "center",
@@ -3885,165 +2061,7 @@ export default function SignatureCenterMockup({
         dashedPdf.setLineDashPattern?.([], 0);
       };
 
-      const drawSignedLine = (label: string, centerX: number, lineY: number, value = "") => {
-        const labelX = centerX - 20;
-        const lineStart = centerX - 18;
-        const lineEnd = centerX + 25;
-        setTemplateFont(6.0, false, muted);
-        pdf.text(label, labelX, lineY - 0.25, { align: "right" });
-        drawDottedLine(lineStart, lineY, lineEnd);
-        if (value) {
-          setTemplateFont(5.9, true, black);
-          pdf.text(value, (lineStart + lineEnd) / 2, lineY - 0.35, { align: "center" });
-        }
-      };
-
-      const drawSignaturePanel = (
-        x: number,
-        panelY: number,
-        w: number,
-        role: SignRole,
-        roleTitle: string
-      ) => {
-        drawCell(x, panelY, w, 5.2, roleTitle, purple, {
-          bold: true,
-          color: [255, 255, 255],
-          size: 7.0,
-          align: "center",
-          maxLines: 1,
-        });
-        const signatureAreaY = panelY + 5.2;
-        const signatureAreaH = 14.2;
-        const signLineY = signatureAreaY + 9.9;
-        const centerX = x + w / 2;
-        drawCell(x, signatureAreaY, w, signatureAreaH, "", palePurple, { size: 6, align: "center" });
-        drawSignedLine("à¸¥à¸‡à¸Šà¸·à¹ˆà¸­", centerX, signLineY);
-        const signature = normalizedSignatures.get(role) || "";
-        if (signature) {
-          try {
-            const imageProps = pdf.getImageProperties(signature);
-            const ratio = imageProps.width && imageProps.height ? imageProps.width / imageProps.height : 4;
-            const maxImageW = Math.min(w - 38, 46);
-            const maxImageH = 9.6;
-            let imageW = maxImageW;
-            let imageH = imageW / ratio;
-            if (imageH > maxImageH) {
-              imageH = maxImageH;
-              imageW = imageH * ratio;
-            }
-            pdf.addImage(signature, "PNG", centerX - imageW / 2, signLineY - imageH + 0.9, imageW, imageH);
-          } catch {
-            setTemplateFont(6.0, false, muted);
-            pdf.text("Signature image unavailable", centerX, signLineY - 1.5, { align: "center" });
-          }
-        }
-        drawCell(x, panelY + 19.4, w, 4.2, signerName(role), [255, 255, 255], {
-          bold: true,
-          size: 6.4,
-          align: "center",
-          maxLines: 1,
-        });
-        drawCell(x, panelY + 23.6, w, 3.8, roleTitle, [255, 255, 255], {
-          size: 5.8,
-          align: "center",
-          maxLines: 1,
-        });
-        drawCell(x, panelY + 27.4, w, 4.6, "", [255, 255, 255], { size: 5.8, align: "center" });
-        drawSignedLine("à¸§à¸±à¸™à¸—à¸µà¹ˆ", centerX, panelY + 30.3, signerDate(role));
-      };
-
-      const halfW = tableW / 2 - 3;
-      drawSignaturePanel(left, y, halfW, "Agent", "Agent à¸œà¸¹à¹‰à¸–à¸¹à¸à¸›à¸£à¸°à¹€à¸¡à¸´à¸™");
-      drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior à¸«à¸±à¸§à¸«à¸™à¹‰à¸²à¸—à¸µà¸¡à¸œà¸¹à¹‰à¸–à¸¹à¸à¸›à¸£à¸°à¹€à¸¡à¸´à¸™");
-      y += 35.5;
-      drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor à¸«à¸±à¸§à¸«à¸™à¹‰à¸²à¹à¸œà¸™à¸");
-      drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA à¸œà¸¹à¹‰à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸š");
-
-      setTemplateFont(7.0, false, muted);
-      pdf.text(
-        `Document Ref. ${pdfDocumentRef} | Generated: ${formatDateTime(new Date().toISOString())} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`,
-        left + tableW,
-        pageH - 5.4,
-        { align: "right" }
-      );
-
-      const safeAgentFileName =
-        selectedDocument.agentName.replace(/[^a-zA-Z0-9à¸-à¹™]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
-      const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}_${pdfDocumentRef}.pdf`;
-      downloadBlob(pdf.output("blob"), fileName);
-      setPdfMessage(`Generated ${fileName}`);
-      window.setTimeout(() => setPdfMessage(""), 3500);
-      return;
-    }
-
-    {
-    const officialPageW = 210;
-    const officialPageH = 297;
-    const officialLeft = 12;
-    const officialRight = 198;
-    const officialTableW = officialRight - officialLeft;
-    const officialBottom = 282;
-    const officialPurple: [number, number, number] = [95, 39, 159];
-    const officialPurpleDark: [number, number, number] = [88, 28, 135];
-    const officialLightPurple: [number, number, number] = [206, 193, 216];
-    const officialSoftPurple: [number, number, number] = [245, 240, 250];
-    const officialBorder: [number, number, number] = [190, 184, 198];
-    const officialBlack: [number, number, number] = [18, 24, 38];
-    const officialMuted: [number, number, number] = [83, 96, 124];
-    let officialY = 12;
-
-    const setOfficialFont = (
-      size: number,
-      bold = false,
-      color: [number, number, number] = officialBlack
-    ) => {
-      try {
-        pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
-      } catch {}
-      pdf.setFontSize(size);
-      pdf.setTextColor(color[0], color[1], color[2]);
-    };
-
-    const drawOfficialText = (
-      value: string,
-      x: number,
-      yy: number,
-      size = 9,
-      bold = false,
-      color: [number, number, number] = officialBlack,
-      options?: { align?: "left" | "center" | "right" }
-    ) => {
-      setOfficialFont(size, bold, color);
-      pdf.text(String(value ?? ""), x, yy, options);
-    };
-
-    const splitOfficialText = (value: unknown, width: number, size = 8) => {
-      setOfficialFont(size);
-      return pdf.splitTextToSize(String(value || "-"), Math.max(4, width));
-    };
-
-    const drawOfficialCell = (
-      x: number,
-      yy: number,
-      w: number,
-      h: number,
-      value: unknown,
-      fill: [number, number, number],
-      options: {
-        bold?: boolean;
-        color?: [number, number, number];
-        size?: number;
-        align?: "left" | "center" | "right";
-        valign?: "top" | "middle";
-        maxLines?: number;
-      } = {}
-    ) => {
-      const size = options.size ?? 7.5;
-      const align = options.align ?? "left";
-      const color = options.color ?? officialBlack;
-      const maxLines = options.maxLines ?? 2;
-      pdf.setDrawColor(officialBorder[0], officialBorder[1], officialBorder[2]);
-      pdf.setFillColor(fill[0], fill[1], fill[2]);
+      const drawSignedLine = m«ëŒ+Š×®º+º$zzb¥â†Æ&VÃ¢7G&–ærÂ6VçFW%ƒ¢çVÖ&W"ÂÆ–æU“¢çVÖ&W"ÂfÇVRÒ""’Óâ°¢6öç7BÆ&VÅ‚Ò6VçFW%‚Ò#°¢6öç7BÆ–æU7F'BÒ6VçFW%‚Òƒ°¢6öç7BÆ–æTVæBÒ6VçFW%‚²#S°¢6WEFV×ÆFTföçBƒbãÂfÇ6RÂ×WFVB“°¢FbçFW‡B†Æ&VÂÂÆ&VÅ‚ÂÆ–æU’Òã#RÂ²Æ–vã¢'&–v‡B"Ò“°¢G&tF÷GFVDÆ–æR†Æ–æU7F'BÂÆ–æU’ÂÆ–æTVæB“°¢–b‡fÇVR’°¢6WEFV×ÆFTföçBƒRã’ÂG'VRÂ&Æ6²“°¢FbçFW‡B‡fÇVRÂ†Æ–æU7F'B²Æ–æTVæB’ò"ÂÆ–æU’Òã3RÂ²Æ–vã¢&6VçFW""Ò“°¢Ğ¢Ó° ¢6öç7BG&u6–væGW&UæVÂÒ€¢ƒ¢çVÖ&W"À¢æVÅ“¢çVÖ&W"À¢s¢çVÖ&W"À¢&öÆS¢6–vå&öÆRÀ¢&öÆUF—FÆS¢7G&–æp¢’Óâ°¢G&t6VÆÂ‡‚ÂæVÅ’ÂrÂRã"Â&öÆUF—FÆRÂW'ÆRÂ°¢&öÆC¢G'VRÀ¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢6—¦S¢rãÀ¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢À¢Ò“°¢6öç7B6–væGW&T&V’ÒæVÅ’²Rã#°¢6öç7B6–væGW&T&V‚ÒBã#°¢6öç7B6–väÆ–æU’Ò6–væGW&T&V’²’ã“°¢6öç7B6VçFW%‚Ò‚²rò#°¢G&t6VÆÂ‡‚Â6–væGW&T&V’ÂrÂ6–væGW&T&V‚Â""ÂÆUW'ÆRÂ²6—¦S¢bÂÆ–vã¢&6VçFW""Ò“°¢G&u6–væVDÆ–æR‚.Š^ˆ~ˆ®‹~˜ŠÒ"Â6VçFW%‚Â6–väÆ–æU’“°¢6öç7B6–væGW&RÒæ÷&ÖÆ—¦VE6–væGW&W2ævWB‡&öÆR’ÇÂ"#°¢–b‡6–væGW&R’°¢G'’°¢6öç7B–ÖvU&÷2ÒFbævWD–ÖvU&÷W'F–W2‡6–væGW&R“°¢6öç7B&F–òÒ–ÖvU&÷2çv–GF‚bb–ÖvU&÷2æ†V–v‡Bò–ÖvU&÷2çv–GF‚ò–ÖvU&÷2æ†V–v‡B¢C°¢6öç7BÖ„–ÖvUrÒÖF‚æÖ–â‡rÒ3‚ÂCb“°¢6öç7BÖ„–ÖvT‚Ò’ãc°¢ÆWB–ÖvUrÒÖ„–ÖvUs°¢ÆWB–ÖvT‚Ò–ÖvUrò&F–ó°¢–b†–ÖvT‚âÖ„–ÖvT‚’°¢–ÖvT‚ÒÖ„–ÖvTƒ°¢–ÖvUrÒ–ÖvT‚¢&F–ó°¢Ğ¢FbæFD–ÖvR‡6–væGW&RÂ%är"Â6VçFW%‚Ò–ÖvUrò"Â6–väÆ–æU’Ò–ÖvT‚²ã’Â–ÖvUrÂ–ÖvT‚“°¢Ò6F6‚°¢6WEFV×ÆFTföçBƒbãÂfÇ6RÂ×WFVB“°¢FbçFW‡B‚%6–væGW&R–ÖvRVæf–Æ&ÆR"Â6VçFW%‚Â6–väÆ–æU’ÒãRÂ²Æ–vã¢&6VçFW""Ò“°¢Ğ¢Ğ¢G&t6VÆÂ‡‚ÂæVÅ’²’ãBÂrÂBã"Â6–væW$æÖR‡&öÆR’Â³#SRÂ#SRÂ#SUÒÂ°¢&öÆC¢G'VRÀ¢6—¦S¢bãBÀ¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢À¢Ò“°¢G&t6VÆÂ‡‚ÂæVÅ’²#2ãbÂrÂ2ã‚Â&öÆUF—FÆRÂ³#SRÂ#SRÂ#SUÒÂ°¢6—¦S¢Rã‚À¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢À¢Ò“°¢G&t6VÆÂ‡‚ÂæVÅ’²#rãBÂrÂBãbÂ""Â³#SRÂ#SRÂ#SUÒÂ²6—¦S¢Rã‚ÂÆ–vã¢&6VçFW""Ò“°¢G&u6–væVDÆ–æR‚.Š~‹‰‰~‹^˜‚"Â6VçFW%‚ÂæVÅ’²3ã2Â6–væW$FFR‡&öÆR’“°¢Ó° ¢6öç7B†ÆerÒF&ÆUrò"Ò3°¢G&u6–væGW&UæVÂ†ÆVgBÂ’Â†ÆerÂ$vVçB"Â$vVçB‰Î‹˜‰n‹ˆ‰¾Š>‹˜Š‹N‰’"“°¢G&u6–væGW&UæVÂ†ÆVgB²†Æer²bÂ’Â†ÆerÂ%6Væ–÷""Â%6Væ–÷"Š¾‹Š~Š¾‰˜‹.‰~‹^Š‰Î‹˜‰n‹ˆ‰¾Š>‹˜Š‹N‰’"“°¢’³Ò3RãS°¢G&u6–væGW&UæVÂ†ÆVgBÂ’Â†ÆerÂ%7WW'f—6÷""Â%7WW'f—6÷"Š¾‹Š~Š¾‰˜‹.˜‰Î‰ˆ"“°¢G&u6–væGW&UæVÂ†ÆVgB²†Æer²bÂ’Â†ÆerÂ%"Â%‰Î‹˜‰^Š>Š~ˆŠ®ŠŞ‰¢"“° ¢6WEFV×ÆFTföçBƒrãÂfÇ6RÂ×WFVB“°¢FbçFW‡B€¢Fö7VÖVçB&VbâG·FdFö7VÖVçE&VgÒÂvVæW&FVC¢G¶f÷&ÖDFFUF–ÖR†æWrFFR‚’çFô•4õ7G&–ær‚’—ÒÂG¶Fö7VÖVçE7FGW7ÒÂ6–væVC¢G·6–væVE&öÆW7ÒòGµ4”täEU$UôdÄõræÆVæwF‡ÖÀ¢ÆVgB²F&ÆUrÀ¢vT‚ÒRãBÀ¢²Æ–vã¢'&–v‡B"Ğ¢“° ¢6öç7B6fTvVçDf–ÆTæÖRĞ¢6VÆV7FVDFö7VÖVçBævVçDæÖRç&WÆ6R‚õµæ×¤Õ£ÓˆŞ™•Ò²örÂ%ò"’ç&WÆ6R‚õåò·Åò²BörÂ""’ÇÂ$vVçB#°¢6öç7Bf–ÆTæÖRÒ66÷&RÖöçF†Ç’G·6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÇÕòG·6fTvVçDf–ÆTæÖWÕòG·FdFö7VÖVçE&VgÒçFf°¢F÷væÆöD&Æö"‡Fbæ÷WGWB‚&&Æö""’Âf–ÆTæÖR“°¢6WEFdÖW76vR†vVæW&FVBG¶f–ÆTæÖWÖ“°¢v–æF÷rç6WEF–ÖV÷WB‚‚’Óâ6WEFdÖW76vR‚""’Â3S“°¢&WGW&ã°¢Ğ ¢°¢6öç7Böff–6–ÅvUrÒ#°¢6öç7Böff–6–ÅvT‚Ò#“s°¢6öç7Böff–6–ÄÆVgBÒ#°¢6öç7Böff–6–Å&–v‡BÒ“ƒ°¢6öç7Böff–6–ÅF&ÆUrÒöff–6–Å&–v‡BÒöff–6–ÄÆVgC°¢6öç7Böff–6–Ä&÷GFöÒÒ#ƒ#°¢6öç7Böff–6–ÅW'ÆS¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³“RÂ3’ÂS•Ó°¢6öç7Böff–6–ÅW'ÆTF&³¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³ƒ‚Â#‚Â3UÓ°¢6öç7Böff–6–ÄÆ–v‡EW'ÆS¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³#bÂ“2Â#eÓ°¢6öç7Böff–6–Å6ögEW'ÆS¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³#CRÂ#CÂ#SÓ°¢6öç7Böff–6–Ä&÷&FW#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³“ÂƒBÂ“…Ó°¢6öç7Böff–6–Ä&Æ6³¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³‚Â#BÂ3…Ó°¢6öç7Böff–6–Ä×WFVC¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³ƒ2Â“bÂ#EÓ°¢ÆWBöff–6–Å’Ò#° ¢6öç7B6WDöff–6–ÄföçBÒ€¢6—¦S¢çVÖ&W"À¢&öÆBÒfÇ6RÀ¢6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒöff–6–Ä&Æ6°¢’Óâ°¢G'’°¢Fbç6WDföçB‚%D…6&'VäæWr"Â&öÆBò&&öÆB"¢&æ÷&ÖÂ"“°¢Ò6F6‚·Ğ¢Fbç6WDföçE6—¦R‡6—¦R“°¢Fbç6WEFW‡D6öÆ÷"†6öÆ÷%³ÒÂ6öÆ÷%³ÒÂ6öÆ÷%³%Ò“°¢Ó° ¢6öç7BG&töff–6–ÅFW‡BÒ€¢fÇVS¢7G&–ærÀ¢ƒ¢çVÖ&W"À¢—“¢çVÖ&W"À¢6—¦RÒ’À¢&öÆBÒfÇ6RÀ¢6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒöff–6–Ä&Æ6²À¢÷F–öç3ó¢²Æ–vãó¢&ÆVgB"Â&6VçFW""Â'&–v‡B"Ğ¢’Óâ°¢6WDöff–6–ÄföçB‡6—¦RÂ&öÆBÂ6öÆ÷"“°¢FbçFW‡B…7G&–ær‡fÇVRóò""’Â‚Â—’Â÷F–öç2“°¢Ó° ¢6öç7B7Æ—Döff–6–ÅFW‡BÒ‡fÇVS¢Væ¶æ÷vâÂv–GFƒ¢çVÖ&W"Â6—¦RÒ‚’Óâ°¢6WDöff–6–ÄföçB‡6—¦R“°¢&WGW&âFbç7Æ—EFW‡EFõ6—¦R…7G&–ær‡fÇVRÇÂ"Ò"’ÂÖF‚æÖ‚ƒBÂv–GF‚’“°¢Ó° ¢6öç7BG&töff–6–Ä6VÆÂÒ€¢ƒ¢çVÖ&W"À¢—“¢çVÖ&W"À¢s¢çVÖ&W"À¢ƒ¢çVÖ&W"À¢fÇVS¢Væ¶æ÷vâÀ¢f–ÆÃ¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÀ¢÷F–öç3¢°¢&öÆCó¢&ööÆVã°¢6öÆ÷#ó¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%Ó°¢6—¦Só¢çVÖ&W#°¢Æ–vãó¢&ÆVgB"Â&6VçFW""Â'&–v‡B#°¢fÆ–vãó¢'F÷"Â&Ö–FFÆR#°¢Ö„Æ–æW3ó¢çVÖ&W#°¢ÒÒ·Ğ¢’Óâ°¢6öç7B6—¦RÒ÷F–öç2ç6—¦RóòrãS°¢6öç7BÆ–vâÒ÷F–öç2æÆ–vâóò&ÆVgB#°¢6öç7B6öÆ÷"Ò÷F–öç2æ6öÆ÷"óòöff–6–Ä&Æ6³°¢6öç7BÖ„Æ–æW2Ò÷F–öç2æÖ„Æ–æW2óò#°¢Fbç6WDG&t6öÆ÷"†öff–6–Ä&÷&FW%³ÒÂöff–6–Ä&÷&FW%³ÒÂöff–6–Ä&÷&FW%³%Ò“°¢Fbç6WDf–ÆÄ6öÆ÷"†f–ÆÅ³ÒÂf–ÆÅ³ÒÂf–ÆÅ¶Ú±î¸Â¸­yêë¢°k¢G§¦*^2]);
       pdf.rect(x, yy, w, h, "FD");
       setOfficialFont(size, options.bold ?? false, color);
       const lines = splitOfficialText(value, w - 4, size).slice(0, maxLines);
@@ -4173,171 +2191,7 @@ export default function SignatureCenterMockup({
     drawOfficialSection("Monthly Case List", "Cases included in this monthly acknowledgement");
     const caseColWidths = [11, 25, 29, 74, 25, 22];
     const caseHeaders = ["Seq", "Audit Date", "Case ID", "Customer Inquiry", "Final Score", "Grade"];
-    let caseX = officialLeft;
-    caseHeaders.forEach((header, index) => {
-      drawOfficialCell(caseX, officialY, caseColWidths[index], 8, header, officialPurpleDark, {
-        color: [255, 255, 255],
-        bold: true,
-        size: 7,
-        align: "center",
-        maxLines: 1,
-      });
-      caseX += caseColWidths[index];
-    });
-    officialY += 8;
-
-    selectedDocument.cases.slice(0, 10).forEach((item, index) => {
-      const rowH = 9;
-      ensureOfficialSpace(rowH + 3);
-      const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
-      caseX = officialLeft;
-      const rowValues = [
-        String(index + 1),
-        item.auditDate || "-",
-        item.caseId || "-",
-        item.inquiry || "-",
-        item.finalScore.toFixed(2),
-        item.grade || "-",
-      ];
-      rowValues.forEach((cell, cellIndex) => {
-        drawOfficialCell(caseX, officialY, caseColWidths[cellIndex], rowH, cell, fill, {
-          bold: cellIndex === 0 || cellIndex === 2 || cellIndex === 4 || cellIndex === 5,
-          size: cellIndex === 3 ? 6.7 : 7,
-          align: cellIndex === 3 ? "left" : "center",
-          maxLines: cellIndex === 3 ? 2 : 1,
-        });
-        caseX += caseColWidths[cellIndex];
-      });
-      officialY += rowH;
-    });
-
-    pdf.addPage();
-    officialY = 12;
-    drawOfficialSection("Acknowledgement / Signature", "Only signed roles are shown with signature image and signed date");
-    drawOfficialText(
-      "This document confirms acknowledgement of the monthly QA score, case list, incentive condition, and signature status.",
-      officialLeft,
-      officialY + 1,
-      8.5,
-      false,
-      officialMuted
-    );
-    officialY += 10;
-
-    const drawSignatureBox = (x: number, yy: number, w: number, h: number, role: SignRole) => {
-      const signed = getSignedEntry(entries, role);
-      pdf.setDrawColor(officialBorder[0], officialBorder[1], officialBorder[2]);
-      pdf.setFillColor(255, 255, 255);
-      pdf.roundedRect(x, yy, w, h, 2, 2, "FD");
-      pdf.setFillColor(officialPurpleDark[0], officialPurpleDark[1], officialPurpleDark[2]);
-      pdf.rect(x, yy, w, 8, "F");
-      drawOfficialText(roleLabelForPdf(role), x + 3, yy + 5.7, 8.2, true, [255, 255, 255]);
-      const signatureImage = safePdfSignature(role);
-      if (signatureImage) {
-        try {
-          pdf.addImage(signatureImage, "PNG", x + 7, yy + 13, w - 14, 17);
-        } catch {
-          drawOfficialText("Signature image unavailable", x + w / 2, yy + 23, 8, false, officialMuted, { align: "center" });
-        }
-      } else {
-        pdf.setDrawColor(150, 145, 160);
-        pdf.line(x + 8, yy + 27, x + w - 8, yy + 27);
-        drawOfficialText("Unsigned", x + w / 2, yy + 24, 8, false, officialMuted, { align: "center" });
-      }
-      drawOfficialText(safePdfName(role), x + 4, yy + 36, 9, true);
-      drawOfficialText(`Date: ${safePdfDate(role)}`, x + 4, yy + 43, 7.8, false, officialMuted);
-      drawOfficialText(`Status: ${signed ? "Signed" : "Pending"}`, x + 4, yy + 50, 8, true, signed ? [5, 150, 105] : [180, 83, 9]);
-    };
-
-    const sigBoxW = 86;
-    const sigBoxH = 56;
-    drawSignatureBox(officialLeft, officialY, sigBoxW, sigBoxH, "QA");
-    drawSignatureBox(officialLeft + 100, officialY, sigBoxW, sigBoxH, "Supervisor");
-    officialY += sigBoxH + 9;
-    drawSignatureBox(officialLeft, officialY, sigBoxW, sigBoxH, "Senior");
-    drawSignatureBox(officialLeft + 100, officialY, sigBoxW, sigBoxH, "Agent");
-    officialY += sigBoxH + 10;
-
-    pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(officialLeft, officialY, officialTableW, 14, 2, 2, "F");
-    drawOfficialText(
-      `Document Ref: ${selectedDocument.documentHash || selectedDocument.id} | Cases: ${selectedDocument.caseCount} | Average: ${selectedDocument.averageScore.toFixed(2)} | Grade: ${selectedDocument.grade}`,
-      officialLeft + 4,
-      officialY + 8.5,
-      8.2,
-      false,
-      officialMuted
-    );
-
-    pdf.setPage(1);
-    drawOfficialText("Page 1/2", officialRight, officialPageH - 7, 7.5, false, officialMuted, { align: "right" });
-    pdf.setPage(2);
-    drawOfficialText("Page 2/2", officialRight, officialPageH - 7, 7.5, false, officialMuted, { align: "right" });
-
-    const safeAgentFileName =
-      selectedDocument.agentName.replace(/[^a-zA-Z0-9à¸-à¹™]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
-    const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}.pdf`;
-    downloadBlob(pdf.output("blob"), fileName);
-    setPdfMessage(`Generated ${fileName}`);
-    window.setTimeout(() => setPdfMessage(""), 3500);
-    return;
-    }
-
-    if (false) {
-    const docW = 210;
-    const docH = 297;
-    const qaDoc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-    try {
-      registerTHSarabunNew(qaDoc);
-      qaDoc.setFont("THSarabunNew", "normal");
-    } catch {}
-
-    const pageW = 210;
-    const pageH = 210;
-    const sidebarW = 36;
-    const leftX = sidebarW + 8;
-    const rightX = 288;
-    const accent: [number, number, number] = [109, 40, 217];
-    const dark: [number, number, number] = [20, 8, 49];
-    const muted: [number, number, number] = [100, 116, 139];
-
-    const setPdfText = (
-      size: number,
-      bold = false,
-      color: [number, number, number] = [31, 41, 55]
-    ) => {
-      try {
-        qaDoc.setFont("THSarabunNew", bold ? "bold" : "normal");
-      } catch {}
-      qaDoc.setFontSize(size);
-      qaDoc.setTextColor(color[0], color[1], color[2]);
-    };
-
-    const drawPdfText = (
-      value: string,
-      x: number,
-      yy: number,
-      size = 10,
-      bold = false,
-      color: [number, number, number] = [31, 41, 55],
-      options?: { align?: "left" | "center" | "right" }
-    ) => {
-      setPdfText(size, bold, color);
-      qaDoc.text(String(value ?? ""), x, yy, options);
-    };
-
-    const drawWrappedText = (
-      value: string,
-      x: number,
-      yy: number,
-      width: number,
-      size = 8,
-      bold = false,
-      color: [number, number, number] = [31, 41, 55],
-      maxLines = 2
-    ) => {
-      setPdfText(size, bold, color);
-      const lines = qaDoc.splitTextToSize(String(value ?? ""), width).slice(0, maxLines);
+    let caseX m«ëŒ+Š×®º+º$zzb¥ãÒöff–6–ÄÆVgC°¢66T†VFW'2æf÷$V6‚‚††VFW"Â–æFW‚’Óâ°¢G&töff–6–Ä6VÆÂ†66U‚Âöff–6–Å’Â66T6öÅv–GF‡5¶–æFW…ÒÂ‚Â†VFW"Âöff–6–ÅW'ÆTF&²Â°¢6öÆ÷#¢³#SRÂ#SRÂ#SUÒÀ¢&öÆC¢G'VRÀ¢6—¦S¢rÀ¢Æ–vã¢&6VçFW""À¢Ö„Æ–æW3¢À¢Ò“°¢66U‚³Ò66T6öÅv–GF‡5¶–æFW…Ó°¢Ò“°¢öff–6–Å’³Òƒ° ¢6VÆV7FVDFö7VÖVçBæ66W2ç6Æ–6RƒÂ’æf÷$V6‚‚†—FVÒÂ–æFW‚’Óâ°¢6öç7B&÷t‚Ò“°¢Vç7W&Töff–6–Å76R‡&÷t‚²2“°¢6öç7Bf–ÆÃ¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ–æFW‚R"ÓÓÒò³#SRÂ#SRÂ#SUÒ¢³#SÂ#CrÂ#S5Ó°¢66U‚Òöff–6–ÄÆVgC°¢6öç7B&÷ufÇVW2Ò°¢7G&–ær†–æFW‚²’À¢—FVÒæVF—DFFRÇÂ"Ò"À¢—FVÒæ66T–BÇÂ"Ò"À¢—FVÒæ–çV—'’ÇÂ"Ò"À¢—FVÒæf–æÅ66÷&RçFôf—†VBƒ"’À¢—FVÒæw&FRÇÂ"Ò"À¢Ó°¢&÷ufÇVW2æf÷$V6‚‚†6VÆÂÂ6VÆÄ–æFW‚’Óâ°¢G&töff–6–Ä6VÆÂ†66U‚Âöff–6–Å’Â66T6öÅv–GF‡5¶6VÆÄ–æFW…ÒÂ&÷t‚Â6VÆÂÂf–ÆÂÂ°¢&öÆC¢6VÆÄ–æFW‚ÓÓÒÇÂ6VÆÄ–æFW‚ÓÓÒ"ÇÂ6VÆÄ–æFW‚ÓÓÒBÇÂ6VÆÄ–æFW‚ÓÓÒRÀ¢6—¦S¢6VÆÄ–æFW‚ÓÓÒ2òbãr¢rÀ¢Æ–vã¢6VÆÄ–æFW‚ÓÓÒ2ò&ÆVgB"¢&6VçFW""À¢Ö„Æ–æW3¢6VÆÄ–æFW‚ÓÓÒ2ò"¢À¢Ò“°¢66U‚³Ò66T6öÅv–GF‡5¶6VÆÄ–æFW…Ó°¢Ò“°¢öff–6–Å’³Ò&÷tƒ°¢Ò“° ¢FbæFEvR‚“°¢öff–6–Å’Ò#°¢G&töff–6–Å6V7F–öâ‚$6¶æ÷vÆVFvVÖVçBò6–væGW&R"Â$öæÇ’6–væVB&öÆW2&R6†÷vâv—F‚6–væGW&R–ÖvRæB6–væVBFFR"“°¢G&töff–6–ÅFW‡B€¢%F†—2Fö7VÖVçB6öæf—&×26¶æ÷vÆVFvVÖVçBöbF†RÖöçF†Ç’66÷&RÂ66RÆ—7BÂ–æ6VçF—fR6öæF—F–öâÂæB6–væGW&R7FGW2â"À¢öff–6–ÄÆVgBÀ¢öff–6–Å’²À¢‚ãRÀ¢fÇ6RÀ¢öff–6–Ä×WFV@¢“°¢öff–6–Å’³Ò° ¢6öç7BG&u6–væGW&T&÷‚Ò‡ƒ¢çVÖ&W"Â—“¢çVÖ&W"Âs¢çVÖ&W"Âƒ¢çVÖ&W"Â&öÆS¢6–vå&öÆR’Óâ°¢6öç7B6–væVBÒvWE6–væVDVçG'’†VçG&–W2Â&öÆR“°¢Fbç6WDG&t6öÆ÷"†öff–6–Ä&÷&FW%³ÒÂöff–6–Ä&÷&FW%³ÒÂöff–6–Ä&÷&FW%³%Ò“°¢Fbç6WDf–ÆÄ6öÆ÷"ƒ#SRÂ#SRÂ#SR“°¢Fbç&÷VæFVE&V7B‡‚Â—’ÂrÂ‚Â"Â"Â$dB"“°¢Fbç6WDf–ÆÄ6öÆ÷"†öff–6–ÅW'ÆTF&µ³ÒÂöff–6–ÅW'ÆTF&µ³ÒÂöff–6–ÅW'ÆTF&µ³%Ò“°¢Fbç&V7B‡‚Â—’ÂrÂ‚Â$b"“°¢G&töff–6–ÅFW‡B‡&öÆTÆ&VÄf÷%Fb‡&öÆR’Â‚²2Â—’²RãrÂ‚ã"ÂG'VRÂ³#SRÂ#SRÂ#SUÒ“°¢6öç7B6–væGW&T–ÖvRÒ6fUFe6–væGW&R‡&öÆR“°¢–b‡6–væGW&T–ÖvR’°¢G'’°¢FbæFD–ÖvR‡6–væGW&T–ÖvRÂ%är"Â‚²rÂ—’²2ÂrÒBÂr“°¢Ò6F6‚°¢G&töff–6–ÅFW‡B‚%6–væGW&R–ÖvRVæf–Æ&ÆR"Â‚²rò"Â—’²#2Â‚ÂfÇ6RÂöff–6–Ä×WFVBÂ²Æ–vã¢&6VçFW""Ò“°¢Ğ¢ÒVÇ6R°¢Fbç6WDG&t6öÆ÷"ƒSÂCRÂc“°¢FbæÆ–æR‡‚²‚Â—’²#rÂ‚²rÒ‚Â—’²#r“°¢G&töff–6–ÅFW‡B‚%Vç6–væVB"Â‚²rò"Â—’²#BÂ‚ÂfÇ6RÂöff–6–Ä×WFVBÂ²Æ–vã¢&6VçFW""Ò“°¢Ğ¢G&töff–6–ÅFW‡B‡6fUFdæÖR‡&öÆR’Â‚²BÂ—’²3bÂ’ÂG'VR“°¢G&töff–6–ÅFW‡B†FFS¢G·6fUFdFFR‡&öÆR—ÖÂ‚²BÂ—’²C2Ârã‚ÂfÇ6RÂöff–6–Ä×WFVB“°¢G&töff–6–ÅFW‡B†7FGW3¢G·6–væVBò%6–væVB"¢%VæF–ær'ÖÂ‚²BÂ—’²SÂ‚ÂG'VRÂ6–væVBò³RÂSÂUÒ¢³ƒÂƒ2Â•Ò“°¢Ó° ¢6öç7B6–t&÷…rÒƒc°¢6öç7B6–t&÷„‚ÒSc°¢G&u6–væGW&T&÷‚†öff–6–ÄÆVgBÂöff–6–Å’Â6–t&÷…rÂ6–t&÷„‚Â%"“°¢G&u6–væGW&T&÷‚†öff–6–ÄÆVgB²Âöff–6–Å’Â6–t&÷…rÂ6–t&÷„‚Â%7WW'f—6÷""“°¢öff–6–Å’³Ò6–t&÷„‚²“°¢G&u6–væGW&T&÷‚†öff–6–ÄÆVgBÂöff–6–Å’Â6–t&÷…rÂ6–t&÷„‚Â%6Væ–÷""“°¢G&u6–væGW&T&÷‚†öff–6–ÄÆVgB²Âöff–6–Å’Â6–t&÷…rÂ6–t&÷„‚Â$vVçB"“°¢öff–6–Å’³Ò6–t&÷„‚²° ¢Fbç6WDf–ÆÄ6öÆ÷"ƒ#C‚Â#SÂ#S"“°¢Fbç&÷VæFVE&V7B†öff–6–ÄÆVgBÂöff–6–Å’Âöff–6–ÅF&ÆUrÂBÂ"Â"Â$b"“°¢G&töff–6–ÅFW‡B€¢Fö7VÖVçB&Vc¢G·6VÆV7FVDFö7VÖVçBæFö7VÖVçD†6‚ÇÂ6VÆV7FVDFö7VÖVçBæ–GÒÂ66W3¢G·6VÆV7FVDFö7VÖVçBæ66T6÷VçGÒÂfW&vS¢G·6VÆV7FVDFö7VÖVçBæfW&vU66÷&RçFôf—†VBƒ"—ÒÂw&FS¢G·6VÆV7FVDFö7VÖVçBæw&FWÖÀ¢öff–6–ÄÆVgB²BÀ¢öff–6–Å’²‚ãRÀ¢‚ã"À¢fÇ6RÀ¢öff–6–Ä×WFV@¢“° ¢Fbç6WEvRƒ“°¢G&töff–6–ÅFW‡B‚%vRó""Âöff–6–Å&–v‡BÂöff–6–ÅvT‚ÒrÂrãRÂfÇ6RÂöff–6–Ä×WFVBÂ²Æ–vã¢'&–v‡B"Ò“°¢Fbç6WEvRƒ"“°¢G&töff–6–ÅFW‡B‚%vR"ó""Âöff–6–Å&–v‡BÂöff–6–ÅvT‚ÒrÂrãRÂfÇ6RÂöff–6–Ä×WFVBÂ²Æ–vã¢'&–v‡B"Ò“° ¢6öç7B6fTvVçDf–ÆTæÖRĞ¢6VÆV7FVDFö7VÖVçBævVçDæÖRç&WÆ6R‚õµæ×¤Õ£ÓˆŞ™•Ò²örÂ%ò"’ç&WÆ6R‚õåò·Åò²BörÂ""’ÇÂ$vVçB#°¢6öç7Bf–ÆTæÖRÒ66÷&RÖöçF†Ç’G·6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÇÕòG·6fTvVçDf–ÆTæÖWÒçFf°¢F÷væÆöD&Æö"‡Fbæ÷WGWB‚&&Æö""’Âf–ÆTæÖR“°¢6WEFdÖW76vR†vVæW&FVBG¶f–ÆTæÖWÖ“°¢v–æF÷rç6WEF–ÖV÷WB‚‚’Óâ6WEFdÖW76vR‚""’Â3S“°¢&WGW&ã°¢Ğ ¢–b†fÇ6R’°¢6öç7BFö5rÒ#°¢6öç7BFö4‚Ò#“s°¢6öç7BFö2ÒæWr§5Db‡²Væ—C¢&ÖÒ"Âf÷&ÖC¢&B"Â÷&–VçFF–öã¢'÷'G&—B"Ò“°¢G'’°¢&Vv—7FW%D…6&'VäæWr‡Fö2“°¢Fö2ç6WDföçB‚%D…6&'VäæWr"Â&æ÷&ÖÂ"“°¢Ò6F6‚·Ğ ¢6öç7BvUrÒ#°¢6öç7BvT‚Ò#°¢6öç7B6–FV&%rÒ3c°¢6öç7BÆVgE‚Ò6–FV&%r²ƒ°¢6öç7B&–v‡E‚Ò#ƒƒ°¢6öç7B66VçC¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³’ÂCÂ#uÓ°¢6öç7BF&³¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³#Â‚ÂC•Ó°¢6öç7B×WFVC¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³ÂbÂ3•Ó° ¢6öç7B6WEFeFW‡BÒ€¢6—¦S¢çVÖ&W"À¢&öÆBÒfÇ6RÀ¢6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³3ÂCÂSUĞ¢’Óâ°¢G'’°¢Fö2ç6WDföçB‚%D…6&'VäæWr"Â&öÆBò&&öÆB"¢&æ÷&ÖÂ"“°¢Ò6F6‚·Ğ¢Fö2ç6WDföçE6—¦R‡6—¦R“°¢Fö2ç6WEFW‡D6öÆ÷"†6öÆ÷%³ÒÂ6öÆ÷%³ÒÂ6öÆ÷%³%Ò“°¢Ó° ¢6öç7BG&uFeFW‡BÒ€¢fÇVS¢7G&–ærÀ¢ƒ¢çVÖ&W"À¢—“¢çVÖ&W"À¢6—¦RÒÀ¢&öÆBÒfÇ6RÀ¢6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³3ÂCÂSUÒÀ¢÷F–öç3ó¢²Æ–vãó¢&ÆVgB"Â&6VçFW""Â'&–v‡B"Ğ¢’Óâ°¢6WEFeFW‡B‡6—¦RÂ&öÆBÂ6öÆ÷"“°¢Fö2çFW‡B…7G&–ær‡fÇVRóò""’Â‚Â—’Â÷F–öç2“°¢Ó° ¢6öç7BG&uw&VEFW‡BÒ€¢fÇVS¢7G&–ærÀ¢ƒ¢çVÖ&W"À¢—“¢çVÖ&W"À¢v–GFƒ¢çVÖ&W"À¢6—¦RÒ‚À¢&öÆBÒfÇ6RÀ¢6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³3ÂCÂSUÒÀ¢Ö„Æ–æW2Ò ¢’Óâ°¢6WEFeFW‡B‡6—¦RÂ&öÆBÂ6öÆ÷"“°¢6öç7BÆ–æW2ÒFö2ç7Æ—EFW‡EFõ6Ú±î¸Â¸­yêë¢°k¢G§¦*^ize(String(value ?? ""), width).slice(0, maxLines);
       lines.forEach((lineText: string, index: number) => qaDoc.text(lineText, x, yy + index * 3.4));
     };
 
@@ -4468,146 +2322,7 @@ export default function SignatureCenterMockup({
       const signed = getSignedEntry(entries, role);
       qaDoc.setFillColor(signed ? 220 : 241, signed ? 252 : 245, signed ? 231 : 249);
       qaDoc.circle(panelX + 7, panelY - 1, 2.5, "F");
-      drawPdfText(String(index + 1), panelX + 7, panelY, 6.2, true, signed ? [22, 101, 52] : accent, { align: "center" });
-      drawPdfText(roleThaiLabel(role), panelX + 12, panelY, 7.4, true);
-      drawPdfText(signed ? "Signed" : "Pending", panelX + 12, panelY + 4.2, 6.8, false, signed ? [22, 101, 52] : [180, 83, 9]);
-      panelY += 10;
-    });
-
-    const qaFileName = `QA Score Monthly ${selectedDocument.monthLabel}_2026_${selectedDocument.agentName.replace(/[^a-zA-Z0-9à¸-à¹™]+/g, "_")}.pdf`;
-    downloadBlob(qaDoc.output("blob"), qaFileName);
-    setPdfMessage(`Generated ${qaFileName}`);
-    window.setTimeout(() => setPdfMessage(""), 3500);
-    return;
-    }
-
-    const pageWidth = 210;
-    const left = 10;
-    const right = 198;
-    let y = 12;
-
-    const setFont = (size: number, bold = false, color: [number, number, number] = [31, 41, 55]) => {
-      try {
-        pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
-      } catch {}
-      pdf.setFontSize(size);
-      pdf.setTextColor(color[0], color[1], color[2]);
-    };
-
-    const text = (value: string, x: number, yy: number, size = 12, bold = false, color: [number, number, number] = [31, 41, 55]) => {
-      setFont(size, bold, color);
-      pdf.text(value, x, yy);
-    };
-
-    const line = (value: string, size = 12, bold = false) => {
-      text(value, left, y, size, bold);
-      y += size * 0.42 + 2.5;
-    };
-
-    const drawSectionTitle = (title: string) => {
-      pdf.setFillColor(109, 40, 217);
-      pdf.roundedRect(left, y, right - left, 8, 2, 2, "F");
-      text(title, left + 4, y + 5.7, 12, true, [255, 255, 255]);
-      y += 12;
-    };
-
-    const safePdfName = (role: SignRole) => {
-      const signed = getSignedEntry(entries, role);
-      return signed ? getRoleSigner(selectedDocument, role) || signed.signerName || signed.signedBy || "-" : "-";
-    };
-
-    const safePdfDate = (role: SignRole) => {
-      const signed = getSignedEntry(entries, role);
-      return signed ? formatDateTime(signed.signedAt) : "-";
-    };
-
-    const safePdfStatus = (role: SignRole) => {
-      const signed = getSignedEntry(entries, role);
-      return signed ? "Signed" : statusForRole(entries, role, selectedDocument.monthKey);
-    };
-
-    const safePdfSignature = (role: SignRole) => {
-      const signed = getSignedEntry(entries, role);
-      return signed?.signatureDataUrl || "";
-    };
-
-    pdf.setFillColor(95, 39, 159);
-    pdf.rect(0, 0, pageWidth, 24, "F");
-    text("QA Score Monthly Report", left, 10, 17, true, [255, 255, 255]);
-    text("Official monthly QA acknowledgement form", left, 17, 11, false, [255, 255, 255]);
-
-    y = 33;
-    drawSectionTitle("Current View");
-
-    const infoRows = [
-      ["Agent", selectedDocument.agentName, "Month", selectedDocument.monthLabel],
-      ["Reviewed Cases", `${selectedDocument.caseCount}`, "Critical Cases", "-"],
-      ["Cases Reviewed", `${selectedDocument.caseCount}/${CASE_TARGET}`, "Need More to 10", `${needMoreToTarget}`],
-      ["Average Score", selectedDocument.averageScore.toFixed(2), "Monthly Grade", selectedDocument.grade],
-      ["Document Status", isComplete ? "Completed" : "Incomplete Signature", "Document Ref.", selectedDocument.documentHash],
-    ];
-
-    infoRows.forEach((row) => {
-      const yy = y;
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(left, yy - 5, right - left, 8, "F");
-      text(row[0], left + 3, yy, 10, true, [100, 116, 139]);
-      text(row[1], left + 34, yy, 11, true, [31, 41, 55]);
-      text(row[2], left + 98, yy, 10, true, [100, 116, 139]);
-      text(row[3], left + 132, yy, 11, true, [31, 41, 55]);
-      y += 9;
-    });
-
-    y += 2;
-    drawSectionTitle("Incentive Summary");
-    const incentiveRows = [
-      ["Estimated Incentive", individualIncentive.label || "No Incentive", "Payment Status", readyForIncentive ? "Ready to Pay" : "Hold / Not Ready"],
-      ["Cash (THB)", formatBahtAmount(individualIncentive.cash || 0), "RBH Promo (THB)", formatBahtAmount(individualIncentive.promo || 0)],
-      ["Remark", individualIncentive.remark || "-", "Condition", readyForIncentive ? "Signature completed" : "Waiting signature completion"],
-    ];
-    incentiveRows.forEach((row) => {
-      const yy = y;
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(left, yy - 5, right - left, 8, "F");
-      text(row[0], left + 3, yy, 10, true, [100, 116, 139]);
-      text(row[1], left + 34, yy, 11, true, [31, 41, 55]);
-      text(row[2], left + 98, yy, 10, true, [100, 116, 139]);
-      text(row[3], left + 132, yy, 11, true, [31, 41, 55]);
-      y += 9;
-    });
-
-    if (isHistoricalPaidPeriod(selectedDocument.monthKey)) {
-      line("à¸«à¸¡à¸²à¸¢à¹€à¸«à¸•à¸¸: à¹€à¸”à¸·à¸­à¸™ Jan-Apr à¹€à¸›à¹‡à¸™à¸£à¸­à¸šà¸›à¸£à¸°à¸§à¸±à¸•à¸´à¸‚à¸­à¸‡à¹€à¸­à¸à¸ªà¸²à¸£ à¸£à¸°à¸šà¸šà¹à¸ªà¸”à¸‡à¸ªà¸–à¸²à¸™à¸° Completed à¸­à¸±à¸•à¹‚à¸™à¸¡à¸±à¸•à¸´", 10);
-    }
-    if (hasPendingAppeal) {
-      line(`à¸«à¸¡à¸²à¸¢à¹€à¸«à¸•à¸¸: à¸¡à¸µ ${selectedPendingAppeals.length} à¹€à¸„à¸ªà¸—à¸µà¹ˆà¸¢à¸·à¹ˆà¸™ Appeal à¹à¸¥à¸°à¸£à¸­ Approved à¸ˆà¸¶à¸‡à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸ªà¸²à¸¡à¸²à¸£à¸–à¸¢à¸·à¸™à¸¢à¸±à¸™à¸£à¸±à¸šà¸—à¸£à¸²à¸šà¸«à¸£à¸·à¸­à¹€à¸‹à¹‡à¸™à¹„à¸”à¹‰`, 10);
-    }
-
-    y += 3;
-    drawSectionTitle("Monthly Case List");
-
-    const headerY = y;
-    pdf.setFillColor(237, 233, 254);
-    pdf.rect(left, headerY - 5, right - left, 8, "F");
-    text("Seq", left + 2, headerY, 10, true, [88, 28, 135]);
-    text("Case Date", left + 15, headerY, 10, true, [88, 28, 135]);
-    text("Case ID", left + 43, headerY, 10, true, [88, 28, 135]);
-    text("Inquiry", left + 72, headerY, 10, true, [88, 28, 135]);
-    text("Final Score", left + 142, headerY, 10, true, [88, 28, 135]);
-    text("Grade", left + 172, headerY, 10, true, [88, 28, 135]);
-    y += 8;
-
-    const caseRows = selectedDocument.cases.slice(0, 10);
-    for (let i = 0; i < 10; i += 1) {
-      const item = caseRows[i];
-      const rowY = y;
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setFillColor(i % 2 === 0 ? 255 : 248, i % 2 === 0 ? 255 : 250, i % 2 === 0 ? 255 : 252);
-      pdf.rect(left, rowY - 5, right - left, 10, "FD");
-
-      text(String(i + 1), left + 3, rowY, 9, true);
-      text(item?.auditDate || "-", left + 15, rowY, 9);
-      text(item?.caseId || "-", left + 43, rowY, 9, true);
+      drawPdfText(String(index + 1), panelX + 7, panelY, 6.2, true, signed ? [22m«ëŒ+Š×®º+º$zzb¥âÂÂS%Ò¢66VçBÂ²Æ–vã¢&6VçFW""Ò“°¢G&uFeFW‡B‡&öÆUF†”Æ&VÂ‡&öÆR’ÂæVÅ‚²"ÂæVÅ’ÂrãBÂG'VR“°¢G&uFeFW‡B‡6–væVBò%6–væVB"¢%VæF–ær"ÂæVÅ‚²"ÂæVÅ’²Bã"Âbã‚ÂfÇ6RÂ6–væVBò³#"ÂÂS%Ò¢³ƒÂƒ2Â•Ò“°¢æVÅ’³Ò°¢Ò“° ¢6öç7Bf–ÆTæÖRÒ66÷&RÖöçF†Ç’G·6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÇÕó##eòG·6VÆV7FVDFö7VÖVçBævVçDæÖRç&WÆ6R‚õµæ×¤Õ£ÓˆŞ™•Ò²örÂ%ò"—ÒçFf°¢F÷væÆöD&Æö"‡Fö2æ÷WGWB‚&&Æö""’Âf–ÆTæÖR“°¢6WEFdÖW76vR†vVæW&FVBG·f–ÆTæÖWÖ“°¢v–æF÷rç6WEF–ÖV÷WB‚‚’Óâ6WEFdÖW76vR‚""’Â3S“°¢&WGW&ã°¢Ğ ¢6öç7BvUv–GF‚Ò#°¢6öç7BÆVgBÒ°¢6öç7B&–v‡BÒ“ƒ°¢ÆWB’Ò#° ¢6öç7B6WDföçBÒ‡6—¦S¢çVÖ&W"Â&öÆBÒfÇ6RÂ6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³3ÂCÂSUÒ’Óâ°¢G'’°¢Fbç6WDföçB‚%D…6&'VäæWr"Â&öÆBò&&öÆB"¢&æ÷&ÖÂ"“°¢Ò6F6‚·Ğ¢Fbç6WDföçE6—¦R‡6—¦R“°¢Fbç6WEFW‡D6öÆ÷"†6öÆ÷%³ÒÂ6öÆ÷%³ÒÂ6öÆ÷%³%Ò“°¢Ó° ¢6öç7BFW‡BÒ‡fÇVS¢7G&–ærÂƒ¢çVÖ&W"Â—“¢çVÖ&W"Â6—¦RÒ"Â&öÆBÒfÇ6RÂ6öÆ÷#¢¶çVÖ&W"ÂçVÖ&W"ÂçVÖ&W%ÒÒ³3ÂCÂSUÒ’Óâ°¢6WDföçB‡6—¦RÂ&öÆBÂ6öÆ÷"“°¢FbçFW‡B‡fÇVRÂ‚Â—’“°¢Ó° ¢6öç7BÆ–æRÒ‡fÇVS¢7G&–ærÂ6—¦RÒ"Â&öÆBÒfÇ6R’Óâ°¢FW‡B‡fÇVRÂÆVgBÂ’Â6—¦RÂ&öÆB“°¢’³Ò6—¦R¢ãC"²"ãS°¢Ó° ¢6öç7BG&u6V7F–öåF—FÆRÒ‡F—FÆS¢7G&–ær’Óâ°¢Fbç6WDf–ÆÄ6öÆ÷"ƒ’ÂCÂ#r“°¢Fbç&÷VæFVE&V7B†ÆVgBÂ’Â&–v‡BÒÆVgBÂ‚Â"Â"Â$b"“°¢FW‡B‡F—FÆRÂÆVgB²BÂ’²RãrÂ"ÂG'VRÂ³#SRÂ#SRÂ#SUÒ“°¢’³Ò#°¢Ó° ¢6öç7B6fUFdæÖRÒ‡&öÆS¢6–vå&öÆR’Óâ°¢6öç7B6–væVBÒvWE6–væVDVçG'’†VçG&–W2Â&öÆR“°¢&WGW&â6–væVBòvWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ&öÆR’ÇÂ6–væVBç6–væW$æÖRÇÂ6–væVBç6–væVD'’ÇÂ"Ò"¢"Ò#°¢Ó° ¢6öç7B6fUFdFFRÒ‡&öÆS¢6–vå&öÆR’Óâ°¢6öç7B6–væVBÒvWE6–væVDVçG'’†VçG&–W2Â&öÆR“°¢&WGW&â6–væVBòf÷&ÖDFFUF–ÖR‡6–væVBç6–væVDB’¢"Ò#°¢Ó° ¢6öç7B6fUFe7FGW2Ò‡&öÆS¢6–vå&öÆR’Óâ°¢6öç7B6–væVBÒvWE6–væVDVçG'’†VçG&–W2Â&öÆR“°¢&WGW&â6–væVBò%6–væVB"¢7FGW4f÷%&öÆR†VçG&–W2Â&öÆRÂ6VÆV7FVDFö7VÖVçBæÖöçF„¶W’“°¢Ó° ¢6öç7B6fUFe6–væGW&RÒ‡&öÆS¢6–vå&öÆR’Óâ°¢6öç7B6–væVBÒvWE6–væVDVçG'’†VçG&–W2Â&öÆR“°¢&WGW&â6–væVCòç6–væGW&TFFW&ÂÇÂ"#°¢Ó° ¢Fbç6WDf–ÆÄ6öÆ÷"ƒ“RÂ3’ÂS’“°¢Fbç&V7BƒÂÂvUv–GF‚Â#BÂ$b"“°¢FW‡B‚%66÷&RÖöçF†Ç’&W÷'B"ÂÆVgBÂÂrÂG'VRÂ³#SRÂ#SRÂ#SUÒ“°¢FW‡B‚$öff–6–ÂÖöçF†Ç’6¶æ÷vÆVFvVÖVçBf÷&Ò"ÂÆVgBÂrÂÂfÇ6RÂ³#SRÂ#SRÂ#SUÒ“° ¢’Ò33°¢G&u6V7F–öåF—FÆR‚$7W'&VçBf–Wr"“° ¢6öç7B–æfõ&÷w2Ò°¢²$vVçB"Â6VÆV7FVDFö7VÖVçBævVçDæÖRÂ$ÖöçF‚"Â6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÅÒÀ¢²%&Wf–WvVB66W2"ÂG·6VÆV7FVDFö7VÖVçBæ66T6÷VçGÖÂ$7&—F–6Â66W2"Â"Ò%ÒÀ¢²$66W2&Wf–WvVB"ÂG·6VÆV7FVDFö7VÖVçBæ66T6÷VçGÒòG´44UõD$tUGÖÂ$æVVBÖ÷&RFò"ÂG¶æVVDÖ÷&UFõF&vWGÖÒÀ¢²$fW&vR66÷&R"Â6VÆV7FVDFö7VÖVçBæfW&vU66÷&RçFôf—†VBƒ"’Â$ÖöçF†Ç’w&FR"Â6VÆV7FVDFö7VÖVçBæw&FUÒÀ¢²$Fö7VÖVçB7FGW2"Â—46ö×ÆWFRò$6ö×ÆWFVB"¢$–æ6ö×ÆWFR6–væGW&R"Â$Fö7VÖVçB&Vbâ"Â6VÆV7FVDFö7VÖVçBæFö7VÖVçD†6…ÒÀ¢Ó° ¢–æfõ&÷w2æf÷$V6‚‚‡&÷r’Óâ°¢6öç7B—’Ò“°¢Fbç6WDf–ÆÄ6öÆ÷"ƒ#C‚Â#SÂ#S"“°¢Fbç&V7B†ÆVgBÂ—’ÒRÂ&–v‡BÒÆVgBÂ‚Â$b"“°¢FW‡B‡&÷u³ÒÂÆVgB²2Â—’ÂÂG'VRÂ³ÂbÂ3•Ò“°¢FW‡B‡&÷u³ÒÂÆVgB²3BÂ—’ÂÂG'VRÂ³3ÂCÂSUÒ“°¢FW‡B‡&÷u³%ÒÂÆVgB²“‚Â—’ÂÂG'VRÂ³ÂbÂ3•Ò“°¢FW‡B‡&÷u³5ÒÂÆVgB²3"Â—’ÂÂG'VRÂ³3ÂCÂSUÒ“°¢’³Ò“°¢Ò“° ¢’³Ò#°¢G&u6V7F–öåF—FÆR‚$–æ6VçF—fR7VÖÖ'’"“°¢6öç7B–æ6VçF—fU&÷w2Ò°¢²$W7F–ÖFVB–æ6VçF—fR"Â–æF—f–GVÄ–æ6VçF—fRæÆ&VÂÇÂ$æò–æ6VçF—fR"Â%–ÖVçB7FGW2"Â&VG”f÷$–æ6VçF—fRò%&VG’Fò’"¢$†öÆBòæ÷B&VG’%ÒÀ¢²$66‚…D„"’"Âf÷&ÖD&‡DÖ÷VçB†–æF—f–GVÄ–æ6VçF—fRæ66‚ÇÂ’Â%$$‚&öÖò…D„"’"Âf÷&ÖD&‡DÖ÷VçB†–æF—f–GVÄ–æ6VçF—fRç&öÖòÇÂ•ÒÀ¢²%&VÖ&²"Â–æF—f–GVÄ–æ6VçF—fRç&VÖ&²ÇÂ"Ò"Â$6öæF—F–öâ"Â&VG”f÷$–æ6VçF—fRò%6–væGW&R6ö×ÆWFVB"¢%v—F–ær6–væGW&R6ö×ÆWF–öâ%ÒÀ¢Ó°¢–æ6VçF—fU&÷w2æf÷$V6‚‚‡&÷r’Óâ°¢6öç7B—’Ò“°¢Fbç6WDf–ÆÄ6öÆ÷"ƒ#C‚Â#SÂ#S"“°¢Fbç&V7B†ÆVgBÂ—’ÒRÂ&–v‡BÒÆVgBÂ‚Â$b"“°¢FW‡B‡&÷u³ÒÂÆVgB²2Â—’ÂÂG'VRÂ³ÂbÂ3•Ò“°¢FW‡B‡&÷u³ÒÂÆVgB²3BÂ—’ÂÂG'VRÂ³3ÂCÂSUÒ“°¢FW‡B‡&÷u³%ÒÂÆVgB²“‚Â—’ÂÂG'VRÂ³ÂbÂ3•Ò“°¢FW‡B‡&÷u³5ÒÂÆVgB²3"Â—’ÂÂG'VRÂ³3ÂCÂSUÒ“°¢’³Ò“°¢Ò“° ¢–b†—4†—7F÷&–6Å–EW&–öB‡6VÆV7FVDFö7VÖVçBæÖöçF„¶W’’’°¢Æ–æR‚.Š¾Š‹.Š.˜Š¾‰^‹ƒ¢˜‰N‹~ŠŞ‰’¦âÔ"˜‰¾˜~‰Š>ŠŞ‰®‰¾Š>‹Š~‹‰^‹Nˆ.ŠŞˆ~˜ŠŞˆŠ®‹.Š2Š>‹‰®‰®˜Š®‰Nˆ~Š®‰n‹.‰‹6ö×ÆWFVBŠŞ‹‰^˜.‰Š‹‰^‹B"Â“°¢Ğ¢–b††5VæF–ætVÂ’°¢Æ–æR†Š¾Š‹.Š.˜Š¾‰^‹ƒ¢Š‹RG·6VÆV7FVEVæF–ætVÇ2æÆVæwF‡Ò˜ˆNŠ®‰~‹^˜Š.‹~˜‰’VÂ˜Š^‹Š>ŠÒ&÷fVBˆ‹nˆ~Š.‹ˆ~˜NŠ˜Š®‹.Š‹.Š>‰nŠ.‹~‰Š.‹‰Š>‹‰®‰~Š>‹.‰®Š¾Š>‹~ŠŞ˜ˆ¾˜~‰˜N‰N˜–Â“°¢Ğ ¢’³Ò3°¢G&u6V7F–öåF—FÆR‚$ÖöçF†Ç’66RÆ—7B"“° ¢6öç7B†VFW%’Ò“°¢Fbç6WDf–ÆÄ6öÆ÷"ƒ#3rÂ#32Â#SB“°¢Fbç&V7B†ÆVgBÂ†VFW%’ÒRÂ&–v‡BÒÆVgBÂ‚Â$b"“°¢FW‡B‚%6W"ÂÆVgB²"Â†VFW%’ÂÂG'VRÂ³ƒ‚Â#‚Â3UÒ“°¢FW‡B‚$66RFFR"ÂÆVgB²RÂ†VFW%’ÂÂG'VRÂ³ƒ‚Â#‚Â3UÒ“°¢FW‡B‚$66R”B"ÂÆVgB²C2Â†VFW%’ÂÂG'VRÂ³ƒ‚Â#‚Â3UÒ“°¢FW‡B‚$–çV—'’"ÂÆVgB²s"Â†VFW%’ÂÂG'VRÂ³ƒ‚Â#‚Â3UÒ“°¢FW‡B‚$f–æÂ66÷&R"ÂÆVgB²C"Â†VFW%’ÂÂG'VRÂ³ƒ‚Â#‚Â3UÒ“°¢FW‡B‚$w&FR"ÂÆVgB²s"Â†VFW%’ÂÂG'VRÂ³ƒ‚Â#‚Â3UÒ“°¢’³Òƒ° ¢6öç7B66U&÷w2Ò6VÆV7FVDFö7VÖVçBæ66W2ç6Æ–6RƒÂ“°¢f÷"†ÆWB’Ò²’Â²’³Ò’°¢6öç7B—FVÒÒ66U&÷w5¶•Ó°¢6öç7B&÷u’Ò“°¢Fbç6WDG&t6öÆ÷"ƒ##bÂ#3"Â#C“°¢Fbç6WDf–ÆÄ6öÆ÷"†’R"ÓÓÒò#SR¢#C‚Â’R"ÓÓÒò#SR¢#SÂ’R"ÓÓÒò#SR¢#S"“°¢Fbç&V7B†ÆVgBÂ&÷u’ÒRÂ&–v‡BÒÆVgBÂÂ$dB"“° ¢FW‡B…7G&–ær†’²’ÂÆVgB²2Â&÷u’Â’ÂG'VR“°¢FW‡B†—FVÓòæVF—DFFRÇÂ"Ò"ÂÆVgB²RÂ&÷u’Â’“°¢FW‡B†—FVÓòæ66T–BÇÂ"Ò"ÂÆVgB²C2Â&÷u’Â’ÆÚ±î¸Â¸­yêë¢°k¢G§¦*^ true);
       const inquiryLines = pdf.splitTextToSize(item?.inquiry || "-", 66);
       text(Array.isArray(inquiryLines) ? inquiryLines[0] : String(inquiryLines), left + 72, rowY, 9);
       text(item ? item.finalScore.toFixed(2) : "-", left + 144, rowY, 9, true);
@@ -4730,7 +2445,7 @@ export default function SignatureCenterMockup({
           [data-signature-ui-v26] input,
           [data-signature-ui-v26] select,
           [data-signature-ui-v26] textarea {
-            font-family: "Kanit", "Noto Sans Thai", sans-serif;
+            font-family: "Kanit", "Noto Sans Thai", sans-sm«ëŒ+Š×®º+º$zzb¥æÚ±î¸Â¸­yêë¢°k¢G§¦*^erif;
           }
         `}</style>
         <PageHero
@@ -4921,112 +2636,7 @@ export default function SignatureCenterMockup({
               <button
                 type="button"
                 onClick={() => setDocumentView("history")}
-                className={`rounded-xl px-4 py-2.5 text-sm font-black transition ${
-                  documentView === "history"
-                    ? "bg-slate-950 text-white"
-                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                {isQaUser ? "Tracking" : "History"} ({historyFilteredDocuments.length})
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <section className="rounded-[26px] border border-violet-100 bg-white p-4 shadow-[0_16px_42px_rgba(88,28,135,0.06)]">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,360px)_170px_140px_210px_auto]">
-            <div className="block">
-              <span className="mb-1.5 block text-xs font-black text-slate-500">Search</span>
-              <div className="relative">
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-none stroke-slate-400"
-                  strokeWidth="2"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m20 20-3.5-3.5" />
-                </svg>
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") setSearch("");
-                  }}
-                  placeholder="Search Document Ref., Case ID or Agent"
-                  className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-semibold outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                />
-                {search ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearch("")}
-                    title="Clear search"
-                    aria-label="Clear search"
-                    className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-base font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                  >
-                    Ã—
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            <div className="block">
-              <span className="mb-1.5 block text-xs font-black text-slate-500">Month</span>
-              <details
-                data-signature-filter-dropdown="true"
-                className="group relative"
-                onToggle={(event) => {
-                  if (event.currentTarget.open) {
-                    closeOtherSignatureFilterDropdowns(event.currentTarget);
-                  }
-                }}
-                onBlur={(event) => {
-                  const nextTarget = event.relatedTarget as Node | null;
-                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
-                    event.currentTarget.removeAttribute("open");
-                  }
-                }}
-              >
-                <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 focus-visible:border-violet-400 [&::-webkit-details-marker]:hidden">
-                  <span className="truncate">
-                    {selectedMonth === "all" ? "All Months" : getMonthLabel(selectedMonth)}
-                  </span>
-                  <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">âŒ„</span>
-                </summary>
-                <div className="absolute left-0 top-[calc(100%+8px)] z-[90] w-[260px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
-                  <div className="px-3 pb-2 pt-1">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">Month</div>
-                    <div className="mt-0.5 text-[11px] font-normal text-slate-500">à¹€à¸¥à¸·à¸­à¸à¹€à¸”à¸·à¸­à¸™à¸‚à¸­à¸‡à¹€à¸­à¸à¸ªà¸²à¸£à¸—à¸µà¹ˆà¸•à¹‰à¸­à¸‡à¸à¸²à¸£à¹à¸ªà¸”à¸‡</div>
-                  </div>
-                  <div className="max-h-[300px] space-y-1 overflow-y-auto">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        setSelectedMonth("all");
-                        event.currentTarget.closest("details")?.removeAttribute("open");
-                      }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
-                        selectedMonth === "all" ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span>
-                        <span className="block text-xs font-semibold">All Months</span>
-                        <span className="mt-0.5 block text-[11px] font-normal text-slate-500">à¹à¸ªà¸”à¸‡à¹€à¸­à¸à¸ªà¸²à¸£à¸—à¸¸à¸à¹€à¸”à¸·à¸­à¸™</span>
-                      </span>
-                      {selectedMonth === "all" ? (
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-700 text-[10px] font-bold text-white">âœ“</span>
-                      ) : null}
-                    </button>
-                    {monthOptions.map((month) => {
-                      const selected = selectedMonth === month;
-                      return (
-                        <button
-                          key={month}
-                          type="button"
-                          onClick={(event) => {
-                            setSelectedMonth(month);
-                            event.currentTarget.closest("details")?.removeAttribute("open");
-                          }}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
+        m«ëŒ+Š×®º+º$zzb¥â6Æ74æÖS×¶&÷VæFVB×†Â‚ÓB’Ó"ãRFW‡B×6ÒföçBÖ&Æ6²G&ç6—F–öâG°¢Fö7VÖVçEf–WrÓÓÒ&†—7F÷'’ ¢ò&&r×6ÆFRÓ“SFW‡B×v†—FR ¢¢&&÷&FW"&÷&FW"×6ÆFRÓ#&r×v†—FRFW‡B×6ÆFRÓs†÷fW#¦&r×6ÆFRÓS ¢ÖĞ¢à¢¶—5W6W"ò%G&6¶–ær"¢$†—7F÷'’'Ò‡¶†—7F÷'”f–ÇFW&VDFö7VÖVçG2æÆVæwF‡Ò¢Âö'WGFöãà¢ÂöF—cà¢ÂöF—cà¢Âö†VFW#à ¢Ç6V7F–öâ6Æ74æÖSÒ'&÷VæFVBÕ³#g…Ò&÷&FW"&÷&FW"×f–öÆWBÓ&r×v†—FRÓB6†F÷rÕ³óg…óC'…÷&v&ƒƒ‚Ã#‚Ã3RÃãb•Ò#à¢ÆF—b6Æ74æÖSÒ&w&–BvÓ2ÖC¦w&–BÖ6öÇ2Ó"†Ã¦w&–BÖ6öÇ2Õ¶Ö–æÖ‚ƒ#c‚Ã3c‚•ós…óC…ó#…öWFõÒ#à¢ÆF—b6Æ74æÖSÒ&&Æö6²#à¢Ç7â6Æ74æÖSÒ&Ö"ÓãR&Æö6²FW‡B×‡2föçBÖ&Æ6²FW‡B×6ÆFRÓS#å6V&6ƒÂ÷7ãà¢ÆF—b6Æ74æÖSÒ'&VÆF—fR#à¢Ç7fp¢&–Ö†–FFVãÒ'G'VR ¢f–Wt&÷ƒÒ##B#B ¢6Æ74æÖSÒ'ö–çFW"ÖWfVçG2ÖæöæR'6öÇWFRÆVgBÓ2ãRF÷Óó"‚ÓBrÓB×G&ç6ÆFR×’Óó"f–ÆÂÖæöæR7G&ö¶R×6ÆFRÓC ¢7G&ö¶Uv–GFƒÒ#" ¢à¢Æ6—&6ÆR7ƒÒ#"7“Ò#"#Ò#r"óà¢ÇF‚CÒ&Ó##Ó2ãRÓ2ãR"óà¢Â÷7fsà¢Æ–çW@¢fÇVS×·6V&6‡Ğ¢öä6†ævS×²†WfVçB’Óâ6WE6V&6‚†WfVçBçF&vWBçfÇVR—Ğ¢öä¶W”F÷vã×²†WfVçB’Óâ°¢–b†WfVçBæ¶W’ÓÓÒ$W66R"’6WE6V&6‚‚""“°¢×Ğ¢Æ6V†öÆFW#Ò%6V&6‚Fö7VÖVçB&VbâÂ66R”B÷"vVçB ¢6Æ74æÖSÒ'rÖgVÆÂ&÷VæFVB×†Â&÷&FW"&÷&FW"×6ÆFRÓ#&r×v†—FR’Ó2ÂÓ"ÓFW‡B×6ÒföçB×6VÖ–&öÆB÷WFÆ–æRÖæöæRG&ç6—F–öâ†÷fW#¦&÷&FW"×f–öÆWBÓ3fö7W3¦&÷&FW"×f–öÆWBÓCfö7W3§&–ærÓ"fö7W3§&–ær×f–öÆWBÓ ¢óà¢·6V&6‚ò€¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²‚’Óâ6WE6V&6‚‚""—Ğ¢F—FÆSÒ$6ÆV"6V&6‚ ¢&–ÖÆ&VÃÒ$6ÆV"6V&6‚ ¢6Æ74æÖSÒ&'6öÇWFR&–v‡BÓ"ãRF÷Óó"fÆW‚‚ÓrrÓr×G&ç6ÆFR×’Óó"—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖÆrFW‡BÖ&6RföçB×6VÖ–&öÆBFW‡B×6ÆFRÓCG&ç6—F–öâ†÷fW#¦&r×6ÆFRÓ†÷fW#§FW‡B×6ÆFRÓs ¢à¢9p¢Âö'WGFöãà¢’¢çVÆÇĞ¢ÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&&Æö6²#à¢Ç7â6Æ74æÖSÒ&Ö"ÓãR&Æö6²FW‡B×‡2föçBÖ&Æ6²FW‡B×6ÆFRÓS#äÖöçFƒÂ÷7ãà¢ÆFWF–Ç0¢FF×6–væGW&RÖf–ÇFW"ÖG&÷F÷vãÒ'G'VR ¢6Æ74æÖSÒ&w&÷W&VÆF—fR ¢öåFövvÆS×²†WfVçB’Óâ°¢–b†WfVçBæ7W'&VçEF&vWBæ÷Vâ’°¢6Æ÷6T÷F†W%6–væGW&Tf–ÇFW$G&÷F÷vç2†WfVçBæ7W'&VçEF&vWB“°¢Ğ¢×Ğ¢öä&ÇW#×²†WfVçB’Óâ°¢6öç7BæW‡EF&vWBÒWfVçBç&VÆFVEF&vWB2æöFRÂçVÆÃ°¢–b‚æW‡EF&vWBÇÂWfVçBæ7W'&VçEF&vWBæ6öçF–ç2†æW‡EF&vWB’’°¢WfVçBæ7W'&VçEF&vWBç&VÖ÷fTGG&–'WFR‚&÷Vâ"“°¢Ğ¢×Ğ¢à¢Ç7VÖÖ'’6Æ74æÖSÒ&fÆW‚rÖgVÆÂ7W'6÷"×ö–çFW"Æ—7BÖæöæR—FV×2Ö6VçFW"§W7F–g’Ö&WGvVVâvÓ"&÷VæFVB×†Â&÷&FW"&÷&FW"×6ÆFRÓ#&r×v†—FR‚Ó2’Ó2FW‡B×6ÒföçBÖ&öÆBFW‡B×6ÆFRÓs÷WFÆ–æRÖæöæRG&ç6—F–öâ†÷fW#¦&÷&FW"×f–öÆWBÓ3†÷fW#¦&r×f–öÆWBÓSóCfö7W2×f—6–&ÆS¦&÷&FW"×f–öÆWBÓC²c£¢×vV&¶—BÖFWF–Ç2ÖÖ&¶W%Ó¦†–FFVâ#à¢Ç7â6Æ74æÖSÒ'G'Væ6FR#à¢·6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"ò$ÆÂÖöçF‡2"¢vWDÖöçF„Æ&VÂ‡6VÆV7FVDÖöçF‚—Ğ¢Â÷7ãà¢Ç7â6Æ74æÖSÒ'6‡&–æ²ÓFW‡B×‡2FW‡B×f–öÆWBÓcG&ç6—F–öâw&÷WÖ÷Vã§&÷FFRÓƒ#î(ÈCÂ÷7ãà¢Â÷7VÖÖ'“à¢ÆF—b6Æ74æÖSÒ&'6öÇWFRÆVgBÓF÷Õ¶6Æ2ƒR³‡‚•Ò¢Õ³“ÒrÕ³#c…Ò÷fW&fÆ÷rÖ†–FFVâ&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×f–öÆWBÓ&r×v†—FRÓ"6†F÷rÕ³ó#…óSW…÷&v&ƒ3ÃCÃS’Ãã#•Ò#à¢ÆF—b6Æ74æÖSÒ'‚Ó2"Ó"BÓ#à¢ÆF—b6Æ74æÖSÒ'FW‡BÕ³…ÒföçB×6VÖ–&öÆBWW&66RG&6¶–ærÕ³ã&VÕÒFW‡B×f–öÆWBÓS#äÖöçFƒÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓãRFW‡BÕ³…ÒföçBÖæ÷&ÖÂFW‡B×6ÆFRÓS#î˜Š^‹~ŠŞˆ˜‰N‹~ŠŞ‰ˆ.ŠŞˆ~˜ŠŞˆŠ®‹.Š>‰~‹^˜‰^˜ŠŞˆ~ˆ‹.Š>˜Š®‰NˆsÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&Ö‚Ö‚Õ³3…Ò76R×’Ó÷fW&fÆ÷r×’ÖWFò#à¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²†WfVçB’Óâ°¢6WE6VÆV7FVDÖöçF‚‚&ÆÂ"“°¢WfVçBæ7W'&VçEF&vWBæ6Æ÷6W7B‚&FWF–Ç2"“òç&VÖ÷fTGG&–'WFR‚&÷Vâ"“°¢×Ğ¢6Æ74æÖS×¶fÆW‚rÖgVÆÂ—FV×2Ö6VçFW"§W7F–g’Ö&WGvVVâ&÷VæFVB×†Â‚Ó2’Ó"ãRFW‡BÖÆVgBG&ç6—F–öâG°¢6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"ò&&r×f–öÆWBÓFW‡B×f–öÆWBÓƒ"¢'FW‡B×6ÆFRÓs†÷fW#¦&r×6ÆFRÓS ¢ÖĞ¢à¢Ç7ãà¢Ç7â6Æ74æÖSÒ&&Æö6²FW‡B×‡2föçB×6VÖ–&öÆB#äÆÂÖöçF‡3Â÷7ãà¢Ç7â6Æ74æÖSÒ&×BÓãR&Æö6²FW‡BÕ³…ÒföçBÖæ÷&ÖÂFW‡B×6ÆFRÓS#î˜Š®‰Nˆ~˜ŠŞˆŠ®‹.Š>‰~‹ˆ˜‰N‹~ŠŞ‰“Â÷7ãà¢Â÷7ãà¢·6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ"ò€¢Ç7â6Æ74æÖSÒ&fÆW‚‚ÓRrÓR—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂ&r×f–öÆWBÓsFW‡BÕ³…ÒföçBÖ&öÆBFW‡B×v†—FR#î)É3Â÷7ãà¢’¢çVÆÇĞ¢Âö'WGFöãà¢¶ÖöçF„÷F–öç2æÖ‚†ÖöçF‚’Óâ°¢6öç7B6VÆV7FVBÒ6VÆV7FVDÖöçF‚ÓÓÒÖöçFƒ°¢&WGW&â€¢Æ'WGFöà¢¶W“×¶ÖöçF‡Ğ¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²†WfVçB’Óâ°¢6WE6VÆV7FVDÖöçF‚†ÖöçF‚“°¢WfVçBæ7W'&VçEF&vWBæ6Æ÷6W7B‚&FWF–Ç2"“òç&VÖ÷fTGG&–'WFR‚&÷Vâ"“°¢×Ğ¢6Æ74æÖS×¶fÆW‚rÖgVÆÂ—FV×2Ö6VçFW"Ú±î¸Â¸­yêë¢°k¢G§¦*^justify-between rounded-xl px-3 py-2.5 text-left transition ${
                             selected ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-slate-50"
                           }`}
                         >
@@ -5128,129 +2738,8 @@ export default function SignatureCenterMockup({
                     </div>
                   </div>
 
-                  <div className="grid gap-1">
-                    {SIGNING_STAGE_OPTIONS.map((option) => {
-                      const selected = statusFilter === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          title={option.description}
-                          onClick={(event) => {
-                            setStatusFilter(option.value);
-                            event.currentTarget.closest("details")?.removeAttribute("open");
-                          }}
-                          className={`rounded-xl px-3 py-2.5 text-left transition ${
-                            selected
-                              ? "bg-violet-100 text-violet-800"
-                              : "text-slate-700 hover:bg-slate-50"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-xs font-semibold">{option.label}</span>
-                            {selected ? (
-                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-700 text-[10px] font-bold text-white">
-                                âœ“
-                              </span>
-                            ) : null}
-                          </div>
-                          <div
-                            className={`mt-1 text-[11px] font-normal leading-4 ${
-                              selected ? "text-violet-600" : "text-slate-500"
-                            }`}
-                          >
-                            {option.description}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </details>
-            </div>
-            <div className="flex items-end justify-end">
-              <button
-                type="button"
-                onClick={clearWorkspaceFilters}
-                className="inline-flex h-[46px] w-auto min-w-[118px] items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
-
-          {quickFilter !== "all" ? (
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2 text-xs">
-              <span className="font-medium text-violet-700">
-                Active Document Status: {quickFilter === "pending"
-                  ? "Pending"
-                  : quickFilter === "signed"
-                    ? "Signed"
-                    : quickFilter === "in-progress"
-                      ? "In Progress"
-                      : "Overdue"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setQuickFilter("all")}
-                className="font-semibold text-violet-700 underline underline-offset-2"
-              >
-                Clear Status
-              </button>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="rounded-[26px] border border-violet-100 bg-white px-5 py-4 shadow-[0_16px_42px_rgba(88,28,135,0.06)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">Monthly Incentive Export</div>
-              <div className="mt-1 text-lg font-black text-slate-950">à¹€à¸­à¸à¸ªà¸²à¸£à¸ªà¹ˆà¸‡à¸ˆà¹ˆà¸²à¸¢ Incentive à¸£à¸²à¸¢à¹€à¸”à¸·à¸­à¸™</div>
-              <div className="mt-1 text-sm font-semibold text-slate-500">
-                {selectedMonth === "all"
-                  ? "à¹€à¸¥à¸·à¸­à¸à¹€à¸”à¸·à¸­à¸™à¹€à¸à¸·à¹ˆà¸­à¸ªà¸£à¹‰à¸²à¸‡à¹€à¸­à¸à¸ªà¸²à¸£à¸ªà¹ˆà¸‡à¸ˆà¹ˆà¸²à¸¢"
-                  : `${getMonthLabel(selectedMonth)} â€¢ à¸à¸£à¹‰à¸­à¸¡à¸ªà¹ˆà¸‡à¸­à¸­à¸ ${selectedMonthPaymentExportDocs.length} à¸„à¸™`}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-
-
-            </div>
-          </div>
-          {paymentMessage ? (
-            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">
-              {paymentMessage}
-            </div>
-          ) : null}
-        </section>
-
-        <section className="grid items-start gap-5 px-1.5 xl:grid-cols-[minmax(0,1fr)_330px]">
-          <div data-document-list-v24 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-[#faf9fd] shadow-[0_16px_42px_rgba(88,28,135,0.09)]">
-            <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-950">Document List</h2>
-                <p className="mt-0.5 text-xs font-normal text-slate-500">
-                  à¸„à¸¥à¸´à¸à¸—à¸µà¹ˆà¹à¸–à¸§à¹€à¸à¸·à¹ˆà¸­à¸”à¸¹à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¹à¸¥à¸°à¸¥à¸³à¸”à¸±à¸šà¸à¸²à¸£à¸¥à¸‡à¸™à¸²à¸¡
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <details
-                data-signature-filter-dropdown="true"
-                className="group relative"
-                onToggle={(event) => {
-                  if (event.currentTarget.open) {
-                    closeOtherSignatureFilterDropdowns(event.currentTarget);
-                  }
-                }}
-                onBlur={(event) => {
-                  const nextTarget = event.relatedTarget as Node | null;
-                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
-                    event.currentTarget.removeAttribute("open");
-                  }
-                }}
-              >
-                  <summary className="flex min-w-[190px] cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 [&::-webkit-details-marker]:hidden">
+                  <div className="grid gam«ëŒ+Š×®º+º$zzb¥çÓ#à¢µ4”tä”äuõ5DtUôõD”ôå2æÖ‚†÷F–öâ’Óâ°¢6öç7B6VÆV7FVBÒ7FGW4f–ÇFW"ÓÓÒ÷F–öâçfÇVS°¢&WGW&â€¢Æ'WGFöà¢¶W“×¶÷F–öâçfÇVWĞ¢G—SÒ&'WGFöâ ¢F—FÆS×¶÷F–öâæFW67&—F–öçĞ¢öä6Æ–6³×²†WfVçB’Óâ°¢6WE7FGW4f–ÇFW"†÷F–öâçfÇVR“°¢WfVçBæ7W'&VçEF&vWBæ6Æ÷6W7B‚&FWF–Ç2"“òç&VÖ÷fTGG&–'WFR‚&÷Vâ"“°¢×Ğ¢6Æ74æÖS×¶&÷VæFVB×†Â‚Ó2’Ó"ãRFW‡BÖÆVgBG&ç6—F–öâG°¢6VÆV7FV@¢ò&&r×f–öÆWBÓFW‡B×f–öÆWBÓƒ ¢¢'FW‡B×6ÆFRÓs†÷fW#¦&r×6ÆFRÓS ¢ÖĞ¢à¢ÆF—b6Æ74æÖSÒ&fÆW‚—FV×2Ö6VçFW"§W7F–g’Ö&WGvVVâvÓ2#à¢Ç7â6Æ74æÖSÒ'FW‡B×‡2föçB×6VÖ–&öÆB#ç¶÷F–öâæÆ&VÇÓÂ÷7ãà¢·6VÆV7FVBò€¢Ç7â6Æ74æÖSÒ&fÆW‚‚ÓRrÓR—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂ&r×f–öÆWBÓsFW‡BÕ³…ÒföçBÖ&öÆBFW‡B×v†—FR#à¢)É0¢Â÷7ãà¢’¢çVÆÇĞ¢ÂöF—cà¢ÆF—`¢6Æ74æÖS×¶×BÓFW‡BÕ³…ÒföçBÖæ÷&ÖÂÆVF–ærÓBG°¢6VÆV7FVBò'FW‡B×f–öÆWBÓc"¢'FW‡B×6ÆFRÓS ¢ÖĞ¢à¢¶÷F–öâæFW67&—F–öçĞ¢ÂöF—cà¢Âö'WGFöãà¢“°¢Ò—Ğ¢ÂöF—cà¢ÂöF—cà¢ÂöFWF–Ç3à¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚—FV×2ÖVæB§W7F–g’ÖVæB#à¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×¶6ÆV%v÷&·76Tf–ÇFW'7Ğ¢6Æ74æÖSÒ&–æÆ–æRÖfÆW‚‚Õ³Cg…ÒrÖWFòÖ–â×rÕ³‡…Ò—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"v†—FW76RÖæ÷w&&÷VæFVB×†Â&÷&FW"&÷&FW"×6ÆFRÓ#&r×v†—FR‚ÓBFW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×6ÆFRÓsG&ç6—F–öâ†÷fW#¦&÷&FW"×f–öÆWBÓ#†÷fW#¦&r×f–öÆWBÓS†÷fW#§FW‡B×f–öÆWBÓs ¢à¢6ÆV"f–ÇFW'0¢Âö'WGFöãà¢ÂöF—cà¢ÂöF—cà ¢·V–6´f–ÇFW"ÓÒ&ÆÂ"ò€¢ÆF—b6Æ74æÖSÒ&×BÓ2fÆW‚—FV×2Ö6VçFW"§W7F–g’Ö&WGvVVâ&÷VæFVB×†Â&÷&FW"&÷&FW"×f–öÆWBÓ&r×f–öÆWBÓSóS‚Ó2’Ó"FW‡B×‡2#à¢Ç7â6Æ74æÖSÒ&föçBÖÖVF—VÒFW‡B×f–öÆWBÓs#à¢7F—fRFö7VÖVçB7FGW3¢·V–6´f–ÇFW"ÓÓÒ'VæF–ær ¢ò%VæF–ær ¢¢V–6´f–ÇFW"ÓÓÒ'6–væVB ¢ò%6–væVB ¢¢V–6´f–ÇFW"ÓÓÒ&–â×&öw&W72 ¢ò$–â&öw&W72 ¢¢$÷fW&GVR'Ğ¢Â÷7ãà¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²‚’Óâ6WEV–6´f–ÇFW"‚&ÆÂ"—Ğ¢6Æ74æÖSÒ&föçB×6VÖ–&öÆBFW‡B×f–öÆWBÓsVæFW&Æ–æRVæFW&Æ–æRÖöfg6WBÓ" ¢à¢6ÆV"7FGW0¢Âö'WGFöãà¢ÂöF—cà¢’¢çVÆÇĞ¢Â÷6V7F–öãà ¢Ç6V7F–öâ6Æ74æÖSÒ'&÷VæFVBÕ³#g…Ò&÷&FW"&÷&FW"×f–öÆWBÓ&r×v†—FR‚ÓR’ÓB6†F÷rÕ³óg…óC'…÷&v&ƒƒ‚Ã#‚Ã3RÃãb•Ò#à¢ÆF—b6Æ74æÖSÒ&fÆW‚fÆW‚Ö6öÂvÓBÆs¦fÆW‚×&÷rÆs¦—FV×2Ö6VçFW"Æs¦§W7F–g’Ö&WGvVVâ#à¢ÆF—cà¢ÆF—b6Æ74æÖSÒ'FW‡B×‡2föçBÖ&Æ6²WW&66RG&6¶–ærÕ³ãfVÕÒFW‡B×f–öÆWBÓc#äÖöçF†Ç’–æ6VçF—fRW‡÷'CÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡BÖÆrföçBÖ&Æ6²FW‡B×6ÆFRÓ“S#î˜ŠŞˆŠ®‹.Š>Š®˜ˆ~ˆ˜‹.Š"–æ6VçF—fRŠ>‹.Š.˜‰N‹~ŠŞ‰“ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×6ÆFRÓS#à¢·6VÆV7FVDÖöçF‚ÓÓÒ&ÆÂ ¢ò.˜Š^‹~ŠŞˆ˜‰N‹~ŠŞ‰˜‰î‹~˜ŠŞŠ®Š>˜‹.ˆ~˜ŠŞˆŠ®‹.Š>Š®˜ˆ~ˆ˜‹.Š" ¢¢G¶vWDÖöçF„Æ&VÂ‡6VÆV7FVDÖöçF‚—Ò(
+"‰îŠ>˜ŠŞŠŠ®˜ˆ~ŠŞŠŞˆG·6VÆV7FVDÖöçF…–ÖVçDW‡÷'DFö72æÆVæwF‡ÒˆN‰–Ğ¢ÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚fÆW‚×w&vÓ"#à  ¢ÂöF—cà¢ÂöF—cà¢·–ÖVçDÖW76vRò€¢ÆF—b6Æ74æÖSÒ&×BÓ2&÷VæFVB×†Â&÷&FW"&÷&FW"ÖVÖW&ÆBÓ#&rÖVÖW&ÆBÓS‚ÓB’Ó2FW‡B×6ÒföçBÖ&Æ6²FW‡BÖVÖW&ÆBÓs#à¢·–ÖVçDÖW76vWĞ¢ÂöF—cà¢’¢çVÆÇĞ¢Â÷6V7F–öãà ¢Ç6V7F–öâ6Æ74æÖSÒ&w&–B—FV×2×7F'BvÓR‚ÓãR†Ã¦w&–BÖ6öÇ2Õ¶Ö–æÖ‚ƒÃg"•ó33…Ò#à¢ÆF—bFFÖFö7VÖVçBÖÆ—7B×c#B6Æ74æÖSÒ&Ö–â×rÓ6VÆb×7F'B÷fW&fÆ÷rÖ†–FFVâ&÷VæFVBÕ³#'…Ò&÷&FW"&÷&FW"×f–öÆWBÓ&rÕ²6fc–fEÒ6†F÷rÕ³óg…óC'…÷&v&ƒƒ‚Ã#‚Ã3RÃã’•Ò#à¢ÆF—b6Æ74æÖSÒ&fÆW‚fÆW‚Ö6öÂvÓ2&÷&FW"Ö"&÷&FW"×6ÆFRÓ‚ÓR’ÓBÆs¦fÆW‚×&÷rÆs¦—FV×2Ö6VçFW"Æs¦§W7F–g’Ö&WGvVVâ#à¢ÆF—cà¢Æƒ"6Æ74æÖSÒ'FW‡BÖÆrföçB×6VÖ–&öÆBFW‡B×6ÆFRÓ“S#äFö7VÖVçBÆ—7CÂöƒ#à¢Ç6Æ74æÖSÒ&×BÓãRFW‡B×‡2föçBÖæ÷&ÖÂFW‡B×6ÆFRÓS#à¢ˆNŠ^‹Nˆ‰~‹^˜˜‰nŠ~˜‰î‹~˜ŠŞ‰N‹Š>‹.Š.Š^‹˜ŠŞ‹^Š.‰N˜Š^‹Š^‹>‰N‹‰®ˆ‹.Š>Š^ˆ~‰‹.Š¢Â÷à¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ&fÆW‚fÆW‚×w&—FV×2Ö6VçFW"vÓ"#à¢ÆFWF–Ç0¢FF×6–væGW&RÖf–ÇFW"ÖG&÷F÷vãÒ'G'VR ¢6Æ74æÖSÒ&w&÷W&VÆF—fR ¢öåFövvÆS×²†WfVçB’Óâ°¢–b†WfVçBæ7W'&VçEF&vWBæ÷Vâ’°¢6Æ÷6T÷F†W%6–væGW&Tf–ÇFW$G&÷F÷vç2†WfVçBæ7W'&VçEF&vWB“°¢Ğ¢×Ğ¢öä&ÇW#×²†WfVçB’Óâ°¢6öç7BæW‡EF&vWBÒWfVçBç&VÆFVEF&vWB2æöFRÂçVÆÃ°¢–b‚æW‡EF&vWBÇÂWfVçBæ7W'&VçEF&vWBæ6öçF–ç2†æW‡EF&vWB’’°¢WfVçBæ7W'&VçEF&vWBç&VÖ÷fTGG&–'WFR‚&÷Vâ"“°¢Ğ¢×Ğ¢à¢Ç7VÖÖ'’6Æ74æÖSÒ&fÆW‚Ö–â×rÕ³“…Ò7W'6÷&Ú±î¸Â¸­yêë¢°k¢G§¦*^-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 [&::-webkit-details-marker]:hidden">
                     <span>
                       <span className="block text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400">Document Status</span>
                       <span className="mt-0.5 block">
@@ -5334,7 +2823,9 @@ export default function SignatureCenterMockup({
                           </div>
                           <div className="flex min-w-0 items-center justify-center rounded-lg bg-sky-50 px-2 py-2 text-center text-sky-700">
                             Document Type
-                          </div>
+     m«ëŒ+Š×®º+º$zzb¥âÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚Ö–â×rÓ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖÆr&r×6ÆFRÓ‚Ó"’Ó"FW‡BÖ6VçFW"FW‡B×6ÆFRÓs#à¢7FGW0¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚Ö–â×rÓ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖÆr&rÖÖ&W"ÓS‚Ó"’Ó"FW‡BÖ6VçFW"FW‡BÖÖ&W"Ós#à¢VæF–ær&öÆW0¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚Ö–â×rÓ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖÆr&rÖ–æF–vòÓS‚Ó"’Ó"FW‡BÖ6VçFW"FW‡BÖ–æF–vòÓs#à¢VæF–ær6–væW'0¢ÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&F—f–FR×’F—f–FR×6ÆFRÓ#à¢¶w&÷Wæ—FV×2æÖ‚†Fö2’Óâ°¢6öç7BVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2†Fö2Â6–væGW&W2“°¢6öç7B7FGW2ÒvWEv÷&·76U7FGW2†Fö2ÂVçG&–W2“°¢6öç7B6VÆV7FVBÒ6VÆV7FVDFö7VÖVçCòæ–BÓÓÒFö2æ–C°¢6öç7BFö7VÖVçE&VbÒvWDÖöçF†Ç”Fö7VÖVçE&Vb†Fö2ÂFö7VÖVçG2“°¢6öç7BFö5VæF–æu&öÆW2ÒvWEVæF–æu&öÆW2†VçG&–W2“°¢&WGW&â€¢Æ'WGFöà¢¶W“×¶Fö2æ–GĞ¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²‚’Óâ÷Våv÷&·76TFWF–Â†Fö2æ–B—Ğ¢6Æ74æÖS×¶×‚Ó2×’ÓãRw&–BrÕ¶6Æ2ƒRÓãW&VÒ•Ò7W'6÷"×ö–çFW"vÓ"÷fW&fÆ÷rÖ†–FFVâ&÷VæFVB×†Â&÷&FW"‚ÓB’Ó"FW‡BÖÆVgBG&ç6—F–öâfö7W3¦÷WFÆ–æRÖæöæRfö7W2×f—6–&ÆS§&–ærÓ"fö7W2×f—6–&ÆS§&–ær×f–öÆWBÓSÖC¦w&–BÖ6öÇ2Õ¶Ö–æÖ‚ƒÃã“&g"•öÖ–æÖ‚ƒÃãfg"•öÖ–æÖ‚ƒÃã3Vg"•öÖ–æÖ‚ƒÃãc†g"•öÖ–æÖ‚ƒÃãƒ&g"•öÖ–æÖ‚ƒÃã“&g"•ÒÖC¦—FV×2Ö6VçFW"ÖC¦vÓG°¢6VÆV7FV@¢ò&&÷&FW"×f–öÆWBÓ3&r×f–öÆWBÓS6†F÷rÕ³ó‡…ó#…÷&v&ƒ#BÃS‚Ã#3rÃã"•Ò ¢¢&&÷&FW"×6ÆFRÓ&r×v†—FR6†F÷r×6Ò†÷fW#¦&÷&FW"×f–öÆWBÓ#†÷fW#¦&r×v†—FR†÷fW#§6†F÷rÕ³ó‡…ó‡…÷&v&ƒƒ‚Ã#‚Ã3RÃã‚•Ò ¢ÖĞ¢à¢ÆF—b6Æ74æÖSÒ&Ö–â×rÓ#à¢ÆF—b6Æ74æÖSÒ'FW‡BÕ³…ÒföçBÖÖVF—VÒFW‡B×6ÆFRÓCÖC¦†–FFVâ#äFö7VÖVçB&VbãÂöF—cà¢ÆF—b6Æ74æÖSÒ'G'Væ6FRFW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×f–öÆWBÓƒ"F—FÆS×¶Fö7VÖVçE&VgÓç¶Fö7VÖVçE&VgÓÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&Ö–â×rÓ#à¢ÆF—b6Æ74æÖSÒ'G'Væ6FRFW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×6ÆFRÓ“S#ç¶Fö2ævVçDæÖWÓÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓãRG'Væ6FRFW‡B×‡2föçBÖæ÷&ÖÂFW‡B×6ÆFRÓS#à¢¶Fö2çFVÔæÖRÇÂ"Ò'Ò(
+"¶Fö2æ66T6÷VçGÒ˜ˆNŠ¢(
+"¶Fö2æfW&vU66÷&RçFôf—†VBƒ"—Ğ¢ÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&Ö–â×rÓ÷fW&fÆ÷rÖ†–FFVâ#à¢ÆF—b6Æ74æÖSÒ&ÖC¦†–FFVâFW‡BÕ³…ÒföçBÖÖVF—VÒFW‡B×6ÆFRÓC#äFö7VÖVçBG—SÂöF—cà¢Ç7à¢6Æ74æÖSÒ&–æÆ–æRÖfÆW‚Ö‚×rÖgVÆÂ—FV×2Ö6VçFW"&÷VæFVBÖÆr&÷&FW"&÷&FW"×6·’Ó&r×6·’ÓS‚Ó"ãR’ÓFW‡BÕ³…ÒföçB×6VÖ–&öÆBÆVF–ærÓBFW‡B×6·’Óƒ ¢F—FÆS×¶vWDFö7VÖVçEG—TÆ&VÂ†Fö2—Ğ¢à¢Ç7â6Æ74æÖSÒ'G'Væ6FR#ç¶vWDFö7VÖVçEG—TÆ&VÂ†Fö2—ÓÂ÷7ãà¢Â÷7ãà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚Ö–â×rÓ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"FW‡BÖ6VçFW"ÖC¦§W7F–g’×6VÆbÖ6VçFW"#ãÅv÷&·76U7FGW4&FvR7FGW3×·7FGW7ÒóãÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚Ö–â×rÓfÆW‚Ö6öÂ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"vÓFW‡BÖ6VçFW"ÖC¦§W7F–g’×6VÆbÖ6VçFW"#à¢¶Fö5VæF–æu&öÆW2æÆVæwF‚ò€¢Fö5VæF–æu&öÆW2æÖ‚‡&öÆR’Óâ€¢Ç7à¢¶W“×¶G¶Fö2æ–GÒ×VæF–ær×&öÆRÒG·&öÆWÖĞ¢6Æ74æÖSÒ&–æÆ–æRÖfÆW‚rÖf—BÖ‚×rÖgVÆÂ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂ&÷&FW"&÷&FW"ÖÖ&W"Ó#&rÖÖ&W"ÓS‚Ó"ãR’ÓFW‡BÕ³…ÒföçB×6VÖ–&öÆBÆVF–ærÓBFW‡BÖÖ&W"Ós ¢F—FÆS×·&öÆRÓÓÒ%6Væ–÷""ò%6Væ–÷"òFVÒÆVB"¢&öÆWĞ¢à¢Ç7â6Æ74æÖSÒ&Ö‚×rÖgVÆÂG'Væ6FR#à¢·&öÆRÓÓÒ%6Væ–÷""ò%6Væ–÷"òFVÒÆVB"¢&öÆWĞ¢Â÷7ãà¢Â÷7ãà¢’¢’¢€¢Ç7â6Æ74æÖSÒ&–æÆ–æRÖfÆW‚rÖf—B—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂ&÷&FW"&÷&FW"ÖVÖW&ÆBÓ#&rÖVÖW&ÆBÓS‚Ó"ãR’ÓFW‡BÕ³…ÒföçB×6VÖ–&öÆBÆVF–ærÓBFW‡BÖVÖW&ÆBÓs#à¢6ö×ÆWFV@¢Â÷7ãà¢—Ğ¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚Ö–â×rÓfÆW‚Ö6öÂ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"vÓ÷fW&fÆ÷rÖ†–FFVâFW‡BÖ6VçFW"ÖC¦§W7F–g’×6VÆbÖ6VçFW"#à¢¶Fö5VæF–æu&öÆW2æÆVæwF‚ò€¢Fö5VæF–æu&öÆW2æÖ‚‡&öÆR’Óâ°¢6öç7B6–væW$æÖRÒvWE&öÆU6–væW"†Fö2Â&öÆR’ÇÂ"Ò#°¢&WGW&â€¢Ç7à¢¶W“×¶G¶Fö2æ–GÒ×VæF–ær×6–væW"ÒG·&öÆWÖĞ¢6Æ74æÖSÒ&–æÆ–æRÖfÆW‚rÖf—BÖ–â×rÓÖ‚×rÖgVÆÂ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂ&÷&FW"Ú±î¸Â¸­yêë¢°k¢G§¦*^                     </div>
                           <div className="flex min-w-0 items-center justify-center rounded-lg bg-slate-100 px-2 py-2 text-center text-slate-700">
                             Status
                           </div>
@@ -5409,215 +2900,8 @@ export default function SignatureCenterMockup({
                                       return (
                                         <span
                                           key={`${doc.id}-pending-signer-${role}`}
-                                          className="inline-flex w-fit min-w-0 max-w-full items-center justify-center rounded-full border border-indigo-100 bg-indigo-50/70 px-2.5 py-1 text-[11px] font-medium leading-4 text-indigo-800"
-                                          title={signerName}
-                                        >
-                                          <span className="block min-w-0 max-w-full truncate">{signerName}</span>
-                                        </span>
-                                      );
-                                    })
-                                  ) : (
-                                    <span className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-500">
-                                      -
-                                    </span>
-                                  )}
-                                </div>
-
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-
-            {!workspaceDocuments.length ? (
-              <div className="px-5 py-12 text-center">
-                <div className="text-base font-semibold text-slate-700">à¹„à¸¡à¹ˆà¸à¸šà¸£à¸²à¸¢à¸à¸²à¸£à¹€à¸­à¸à¸ªà¸²à¸£à¸•à¸²à¸¡à¸•à¸±à¸§à¸à¸£à¸­à¸‡à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸</div>
-                <div className="mt-1 text-sm font-normal text-slate-500">à¸¥à¸­à¸‡Clear Filtersà¸«à¸£à¸·à¸­à¹€à¸¥à¸·à¸­à¸à¹€à¸”à¸·à¸­à¸™à¸­à¸·à¹ˆà¸™</div>
-              </div>
-            ) : null}
-
-            <div className="mt-2 flex flex-col gap-3 border-t border-slate-100 px-5 py-3 text-sm font-normal text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                à¹à¸ªà¸”à¸‡ {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} à¸ˆà¸²à¸ {workspaceDocuments.length} à¸£à¸²à¸¢à¸à¸²à¸£
-              </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={rowsPerPage}
-                  onChange={(event) => setRowsPerPage(Number(event.target.value))}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
-                >
-                  {SIGNATURE_ROWS_PER_PAGE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>{option} / à¸«à¸™à¹‰à¸²</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                  disabled={safeCurrentPage <= 1}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-40"
-                >
-                  à¸à¹ˆà¸­à¸™à¸«à¸™à¹‰à¸²
-                </button>
-                <span className="text-xs font-medium text-slate-500">{safeCurrentPage}/{totalPages}</span>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                  disabled={safeCurrentPage >= totalPages}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-40"
-                >
-                  à¸–à¸±à¸”à¹„à¸›
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mr-1 space-y-4 self-start xl:sticky xl:top-4">
-            <section className="rounded-[22px] border border-violet-100 bg-white p-4 shadow-[0_14px_36px_rgba(88,28,135,0.07)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-500">Overview</div>
-                  <div className="mt-0.5 text-base font-semibold text-slate-950">Document Summary</div>
-                </div>
-                <span className="rounded-full bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-700">{workspaceSummary.total}</span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {[
-                  { label: "Pending", value: workspaceSummary.pending, tone: "text-amber-700", surface: "border-amber-100 bg-amber-50" },
-                  { label: "Signed", value: workspaceSummary.signed, tone: "text-emerald-700", surface: "border-emerald-100 bg-emerald-50" },
-                  { label: "Overdue", value: workspaceSummary.expired, tone: "text-rose-700", surface: "border-rose-100 bg-rose-50" },
-                  { label: "In Progress", value: workspaceSummary.inProgress, tone: "text-sky-700", surface: "border-sky-100 bg-sky-50" },
-                ].map((item) => (
-                  <div key={item.label} className={`rounded-xl border px-3 py-2.5 ${item.surface}`}>
-                    <div className="text-[10px] font-medium text-slate-500">{item.label}</div>
-                    <div className={`mt-0.5 text-xl font-semibold ${item.tone}`}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <aside className="rounded-[22px] border border-violet-100 bg-white p-4 shadow-[0_14px_36px_rgba(88,28,135,0.07)]">
-            {selectedDocument && workspaceDetailOpen ? (
-              <>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-base font-semibold text-slate-950">Document Details</div>
-                    <div className="mt-2 inline-flex max-w-full rounded-xl bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-800">
-                      <span className="truncate">{selectedDocumentRef}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setWorkspaceDetailOpen(false)}
-                    aria-label="Close document details"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-xl font-normal text-slate-500 transition hover:bg-slate-50"
-                  >
-                    Ã—
-                  </button>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0 truncate text-sm font-medium text-slate-700">{selectedDocument.agentName}</div>
-                  <WorkspaceStatusBadge status={getWorkspaceStatus(selectedDocument, selectedEntries)} />
-                </div>
-
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                  {[
-                    ["Month", selectedDocument.monthLabel],
-                    ["Team", selectedDocument.teamName || "-"],
-                    ["Document Type", getDocumentTypeLabel(selectedDocument)],
-                    ["Audit Date", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
-                    ["Due Date", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
-                    ["Pending Roles", getPendingRoles(selectedEntries).length
-                      ? getPendingRoles(selectedEntries)
-                          .map((role) => (role === "Senior" ? "Senior / Team Lead" : role))
-                          .join(", ")
-                      : "Completed"],
-                  ].map(([label, value], index, rows) => (
-                    <div
-                      key={label}
-                      className={`grid grid-cols-[104px_minmax(0,1fr)] gap-3 px-3.5 py-2.5 text-sm ${
-                        index < rows.length - 1 ? "border-b border-slate-100" : ""
-                      }`}
-                    >
-                      <div className="font-normal text-slate-500">{label}</div>
-                      <div className="break-words font-medium text-slate-900">{value}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-5">
-                  <div className="text-sm font-semibold text-slate-950">Signature Timeline</div>
-                  <div className="relative mt-3 space-y-2">
-                    <div className="absolute bottom-5 left-[15px] top-5 w-px bg-slate-200" />
-                    {SIGNATURE_FLOW.map((role, index) => {
-                      const signedEntry = getSignedEntry(selectedEntries, role);
-                      const waivedEntry = getWaivedEntry(selectedEntries, role);
-                      const completedEntry = signedEntry || waivedEntry;
-                      const currentRole = getPendingRoles(selectedEntries)[0];
-                      const isCurrent = !completedEntry && currentRole === role;
-                      const signerName = waivedEntry?.waivedBy || signedEntry?.signedBy || getRoleSigner(selectedDocument, role);
-                      return (
-                        <div
-                          key={role}
-                          className={`relative flex gap-3 rounded-xl px-2 py-2.5 ${
-                            isCurrent ? "border border-violet-100 bg-violet-50" : ""
-                          }`}
-                        >
-                          <div className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                            completedEntry
-                              ? waivedEntry
-                                ? "bg-sky-100 text-sky-700"
-                                : "bg-emerald-100 text-emerald-700"
-                              : isCurrent
-                                ? "bg-violet-700 text-white"
-                                : "bg-slate-100 text-slate-500"
-                          }`}>
-                            {index + 1}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="text-sm font-semibold text-slate-900">{role === "Senior" ? "Senior / Team Lead" : role}</div>
-                              <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${
-                                completedEntry
-                                  ? waivedEntry
-                                    ? "bg-sky-50 text-sky-700"
-                                    : "bg-emerald-50 text-emerald-700"
-                                  : isCurrent
-                                    ? "bg-amber-50 text-amber-700"
-                                    : "bg-slate-100 text-slate-500"
-                              }`}>
-                                {waivedEntry ? "Waived" : signedEntry ? "Signed" : isCurrent ? "Current" : "Pending"}
-                              </span>
-                            </div>
-                            <div className="mt-0.5 truncate text-xs font-normal text-slate-500">
-                              {waivedEntry
-                                ? `Resigned ${waivedEntry.resignationDate || ""} â€¢ confirmed by ${signerName}`
-                                : signedEntry
-                                  ? `Signed by ${signerName}`
-                                  : signerName || "-"}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {(() => {
-                  const currentRole = getPendingRoles(selectedEntries)[0];
-                  if (!currentRole) {
-                    return (
-                      <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                        <div className="text-xs font-normal text-emerald-700">Current Status</div>
-                        <div className="mt-1 text-sm font-semibold text-emerald-800">Completed</div>
-                      </div>
-                    );
-                  }
-                  const currentSigner = getRoleSigner(selectedDocument, currentRole) || "-";
+                                          className="inline-flex w-fit min-w-0 max-w-full items-center justify-center rounded-full border m«ëŒ+Š×®º+º$zzb¥â—Ğ¢&–ÖÆ&VÃÒ$6Æ÷6RFö7VÖVçBFWF–Ç2 ¢6Æ74æÖSÒ&fÆW‚‚Ó’rÓ’6‡&–æ²Ó—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂ&÷&FW"&÷&FW"×6ÆFRÓ#FW‡B×†ÂföçBÖæ÷&ÖÂFW‡B×6ÆFRÓSG&ç6—F–öâ†÷fW#¦&r×6ÆFRÓS ¢à¢9p¢Âö'WGFöãà¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ&×BÓ2fÆW‚—FV×2Ö6VçFW"§W7F–g’Ö&WGvVVâvÓ2#à¢ÆF—b6Æ74æÖSÒ&Ö–â×rÓG'Væ6FRFW‡B×6ÒföçBÖÖVF—VÒFW‡B×6ÆFRÓs#ç·6VÆV7FVDFö7VÖVçBævVçDæÖWÓÂöF—cà¢Åv÷&·76U7FGW4&FvR7FGW3×¶vWEv÷&·76U7FGW2‡6VÆV7FVDFö7VÖVçBÂ6VÆV7FVDVçG&–W2—Òóà¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ&×BÓB÷fW&fÆ÷rÖ†–FFVâ&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×6ÆFRÓ##à¢µ°¢²$ÖöçF‚"Â6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÅÒÀ¢²%FVÒ"Â6VÆV7FVDFö7VÖVçBçFVÔæÖRÇÂ"Ò%ÒÀ¢²$Fö7VÖVçBG—R"ÂvWDFö7VÖVçEG—TÆ&VÂ‡6VÆV7FVDFö7VÖVçB•ÒÀ¢²$VF—BFFR"Âf÷&ÖDFFTöæÇ’†vWE6–væGW&T7&VFVDFFR‡6VÆV7FVDFö7VÖVçB’•ÒÀ¢²$GVRFFR"Âf÷&ÖDFFTöæÇ’†vWE6–væGW&TGVTFFR‡6VÆV7FVDFö7VÖVçBæÖöçF„¶W’’•ÒÀ¢²%VæF–ær&öÆW2"ÂvWEVæF–æu&öÆW2‡6VÆV7FVDVçG&–W2’æÆVæwF€¢òvWEVæF–æu&öÆW2‡6VÆV7FVDVçG&–W2¢æÖ‚‡&öÆR’Óâ‡&öÆRÓÓÒ%6Væ–÷""ò%6Væ–÷"òFVÒÆVB"¢&öÆR’¢æ¦ö–â‚"Â"¢¢$6ö×ÆWFVB%ÒÀ¢ÒæÖ‚…¶Æ&VÂÂfÇVUÒÂ–æFW‚Â&÷w2’Óâ€¢ÆF—`¢¶W“×¶Æ&VÇĞ¢6Æ74æÖS×¶w&–Bw&–BÖ6öÇ2Õ³G…öÖ–æÖ‚ƒÃg"•ÒvÓ2‚Ó2ãR’Ó"ãRFW‡B×6ÒG°¢–æFW‚Â&÷w2æÆVæwF‚Òò&&÷&FW"Ö"&÷&FW"×6ÆFRÓ"¢" ¢ÖĞ¢à¢ÆF—b6Æ74æÖSÒ&föçBÖæ÷&ÖÂFW‡B×6ÆFRÓS#ç¶Æ&VÇÓÂöF—cà¢ÆF—b6Æ74æÖSÒ&'&V²×v÷&G2föçBÖÖVF—VÒFW‡B×6ÆFRÓ“#ç·fÇVWÓÂöF—cà¢ÂöF—cà¢’—Ğ¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ&×BÓR#à¢ÆF—b6Æ74æÖSÒ'FW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×6ÆFRÓ“S#å6–væGW&RF–ÖVÆ–æSÂöF—cà¢ÆF—b6Æ74æÖSÒ'&VÆF—fR×BÓ276R×’Ó"#à¢ÆF—b6Æ74æÖSÒ&'6öÇWFR&÷GFöÒÓRÆVgBÕ³W…ÒF÷ÓRr×‚&r×6ÆFRÓ#"óà¢µ4”täEU$UôdÄõræÖ‚‡&öÆRÂ–æFW‚’Óâ°¢6öç7B6–væVDVçG'’ÒvWE6–væVDVçG'’‡6VÆV7FVDVçG&–W2Â&öÆR“°¢6öç7Bv—fVDVçG'’ÒvWEv—fVDVçG'’‡6VÆV7FVDVçG&–W2Â&öÆR“°¢6öç7B6ö×ÆWFVDVçG'’Ò6–væVDVçG'’ÇÂv—fVDVçG'“°¢6öç7B7W'&VçE&öÆRÒvWEVæF–æu&öÆW2‡6VÆV7FVDVçG&–W2•³Ó°¢6öç7B—47W'&VçBÒ6ö×ÆWFVDVçG'’bb7W'&VçE&öÆRÓÓÒ&öÆS°¢6öç7B6–væW$æÖRÒv—fVDVçG'“òçv—fVD'’ÇÂ6–væVDVçG'“òç6–væVD'’ÇÂvWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ&öÆR“°¢&WGW&â€¢ÆF—`¢¶W“×·&öÆWĞ¢6Æ74æÖS×¶&VÆF—fRfÆW‚vÓ2&÷VæFVB×†Â‚Ó"’Ó"ãRG°¢—47W'&VçBò&&÷&FW"&÷&FW"×f–öÆWBÓ&r×f–öÆWBÓS"¢" ¢ÖĞ¢à¢ÆF—b6Æ74æÖS×¶&VÆF—fR¢ÓfÆW‚‚Ó‚rÓ‚6‡&–æ²Ó—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂFW‡B×‡2föçB×6VÖ–&öÆBG°¢6ö×ÆWFVDVçG'¢òv—fVDVçG'¢ò&&r×6·’ÓFW‡B×6·’Ós ¢¢&&rÖVÖW&ÆBÓFW‡BÖVÖW&ÆBÓs ¢¢—47W'&Vç@¢ò&&r×f–öÆWBÓsFW‡B×v†—FR ¢¢&&r×6ÆFRÓFW‡B×6ÆFRÓS ¢ÖÓà¢¶–æFW‚²Ğ¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&Ö–â×rÓfÆW‚Ó#à¢ÆF—b6Æ74æÖSÒ&fÆW‚—FV×2×7F'B§W7F–g’Ö&WGvVVâvÓ"#à¢ÆF—b6Æ74æÖSÒ'FW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×6ÆFRÓ“#ç·&öÆRÓÓÒ%6Væ–÷""ò%6Væ–÷"òFVÒÆVB"¢&öÆWÓÂöF—cà¢Ç7â6Æ74æÖS×¶6‡&–æ²Ó&÷VæFVBÖgVÆÂ‚Ó"’ÓFW‡BÕ³…ÒföçBÖÖVF—VÒG°¢6ö×ÆWFVDVçG'¢òv—fVDVçG'¢ò&&r×6·’ÓSFW‡B×6·’Ós ¢¢&&rÖVÖW&ÆBÓSFW‡BÖVÖW&ÆBÓs ¢¢—47W'&Vç@¢ò&&rÖÖ&W"ÓSFW‡BÖÖ&W"Ós ¢¢&&r×6ÆFRÓFW‡B×6ÆFRÓS ¢ÖÓà¢·v—fVDVçG'’ò%v—fVB"¢6–væVDVçG'’ò%6–væVB"¢—47W'&VçBò$7W'&VçB"¢%VæF–ær'Ğ¢Â÷7ãà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓãRG'Væ6FRFW‡B×‡2föçBÖæ÷&ÖÂFW‡B×6ÆFRÓS#à¢·v—fVDVçG'¢ò&W6–væVBG·v—fVDVçG'’ç&W6–væF–öäFFRÇÂ"'Ò(
+"6öæf—&ÖVB'’G·6–væW$æÖWÖ ¢¢6–væVDVçG'¢ò6–væVB'’G·6–væW$æÖWÖ ¢¢6–væW$æÖRÇÂ"Ò'Ğ¢ÂöF—cà¢ÂöF—cà¢ÂöF—cà¢“°¢Ò—Ğ¢ÂöF—cà¢ÂöF—cà ¢²‚‚’Óâ°¢6öç7B7W'&VçE&öÆRÒvWEVæF–æu&öÆW2‡6VÆV7FVDVçG&–W2•³Ó°¢–b‚7W'&VçE&öÆR’°¢&WGW&â€¢ÆF—b6Æ74æÖSÒ&×BÓB&÷VæFVBÓ'†Â&÷&FW"&÷&FW"ÖVÖW&ÆBÓ#&rÖVÖW&ÆBÓS‚ÓB’Ó2#à¢ÆF—b6Æ74æÖSÒ'FW‡B×‡2föçBÖæ÷&ÖÂFW‡BÖVÖW&ÆBÓs#ä7W'&VçB7FGW3ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×6ÒföçB×6VÖ–&öÆBFW‡BÖVÖW&ÆBÓƒ#ä6ö×ÆWFVCÂöF—cà¢ÂöF—cà¢“°¢Ğ¢6öç7B7W'&VçE6–væW"ÒvWE&öÆU6–væW"‡6Ú±î¸Â¸­yêë¢°k¢G§¦*^electedDocument, currentRole) || "-";
                   return (
                     <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
                       <div className="text-xs font-normal text-slate-500">Current Signer</div>
@@ -5724,99 +3008,9 @@ export default function SignatureCenterMockup({
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
-            >
-              <option value="all">All Workflow Statuses</option>
-              <option value="preview">à¸£à¸­ Confirm Preview</option>
-              <option value="my-turn">My Signature Pending</option>
-              <option value="pending">Pending Signature</option>
-              <option value="ready">Ready for Incentive Payment</option>
-              <option value="appeal-pending">à¸¡à¸µ Appeal à¸£à¸­ Approved</option>
-              <option value="expired">à¹€à¸à¸´à¸™à¸§à¸±à¸™à¸—à¸µà¹ˆ 15 / à¹„à¸¡à¹ˆà¸„à¸£à¸š</option>
-            </select>
-          </div>
-
-          <div className="mt-5 max-h-[620px] space-y-3 overflow-y-auto pr-1">
-            {activeDocuments.map((doc) => {
-              const entries = effectiveEntriesForDoc(doc, signatures);
-              const count = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(entries, role))).length;
-              const docPendingRoles = getPendingRoles(entries);
-              const docSignedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role)));
-              const isMyPendingTurn =
-                docPendingRoles.some((role) => canSignIdentity(currentUser, doc, role)) &&
-                isSigningAllowedByDate(doc.monthKey) &&
-                !doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
-              const selected = selectedDocument?.id === doc.id;
-              return (
-                <button
-                  key={doc.id}
-                  type="button"
-                  onClick={() => openWorkspaceDetail(doc.id)}
-                  className={`w-full rounded-[24px] border p-4 text-left transition ${
-                    selected
-                      ? "border-violet-400 bg-violet-50 shadow-[0_16px_34px_rgba(109,40,217,0.14)]"
-                      : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        {isMyPendingTurn ? <span className="h-2.5 w-2.5 rounded-full bg-rose-600" /> : null}
-                        <div className="truncate text-sm font-black text-slate-950">{doc.agentName}</div>
-                      </div>
-                      <div className="mt-1 text-xs font-bold text-slate-500">{doc.monthLabel}</div>
-                      {docPendingRoles.length ? (
-                        <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black ${
-                          isMyPendingTurn ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"
-                        }`}>
-                          à¸£à¸­à¹€à¸‹à¹‡à¸™ {docPendingRoles.length} role
-                        </div>
-                      ) : null}
-                    </div>
-                    <SignaturePill status={count === SIGNATURE_FLOW.length ? "Signed" : "Pending"} />
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{count}/4 signed</span>
-                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Score {doc.averageScore.toFixed(2)}</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{getTimelineStatus(doc.monthKey)}</span>
-                  </div>
-                  {documentView === "history" ? (
-                    <div className="mt-3 space-y-1 text-xs font-bold leading-5">
-                      <div className="text-emerald-700">
-                        à¹€à¸‹à¹‡à¸™à¹à¸¥à¹‰à¸§: {docSignedRoles.length ? docSignedRoles.map(roleThaiLabel).join(", ") : "-"}
-                      </div>
-                      <div className="text-rose-700">
-                        à¸¢à¸±à¸‡à¹€à¸«à¸¥à¸·à¸­: {docPendingRoles.length ? docPendingRoles.map((role) => `${roleThaiLabel(role)} (${getRoleSigner(doc, role)})`).join(", ") : "à¸„à¸£à¸šà¹à¸¥à¹‰à¸§"}
-                      </div>
-                    </div>
-                  ) : null}
-                </button>
-              );
-            })}
-
-            {!activeDocuments.length ? (
-              <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
-                {documentView === "history"
-                  ? "à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¸›à¸£à¸°à¸§à¸±à¸•à¸´à¹€à¸­à¸à¸ªà¸²à¸£à¸•à¸²à¸¡à¹€à¸‡à¸·à¹ˆà¸­à¸™à¹„à¸‚à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸"
-                  : "à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¸„à¸´à¸§à¹€à¸‹à¹‡à¸™à¸‚à¸­à¸‡à¸„à¸¸à¸“à¸•à¸²à¸¡à¹€à¸‡à¸·à¹ˆà¸­à¸™à¹„à¸‚à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸"}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        {selectedDocument && (documentView === "history" || (queuePreviewDocumentId === selectedDocument.id && filteredDocuments.some((doc) => doc.id === selectedDocument.id))) ? (
-          <div className="space-y-5">
-            <div className="rounded-[30px] border border-violet-100 bg-white p-6 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Preview Before Signature</div>
-                  <div className="mt-1 text-2xl font-black text-slate-950">{selectedDocument.agentName}</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-500">
-                    {selectedDocument.monthLabel} â€¢ Team: {selectedDocument.teamName} â€¢ Team Lead: {selectedDocument.seniorName}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  {documentView === "history" && currentUser.role === "Quality Assurance" && selectedDocument && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
+              className="rm«ëŒ+Š×®º+º$zzb¥æ÷VæFVBÓ'†Â&÷&FW"&÷&FW"×f–öÆWBÓ&r×v†—FR‚ÓB’Ó2FW‡B×6ÒföçBÖ&öÆBFW‡B×6ÆFRÓs÷WFÆ–æRÖæöæRG&ç6—F–öâfö7W3¦&÷&FW"×f–öÆWBÓC ¢à¢Æ÷F–öâfÇVSÒ&ÆÂ#äÆÂv÷&¶fÆ÷r7FGW6W3Âö÷F–öãà¢Æ÷F–öâfÇVSÒ'&Wf–Wr#îŠ>ŠÒ6öæf—&Ò&Wf–WsÂö÷F–öãà¢Æ÷F–öâfÇVSÒ&×’×GW&â#ä×’6–væGW&RVæF–æsÂö÷F–öãà¢Æ÷F–öâfÇVSÒ'VæF–ær#åVæF–ær6–væGW&SÂö÷F–öãà¢Æ÷F–öâfÇVSÒ'&VG’#å&VG’f÷"–æ6VçF—fR–ÖVçCÂö÷F–öãà¢Æ÷F–öâfÇVSÒ&VÂ×VæF–ær#îŠ‹RVÂŠ>ŠÒ&÷fVCÂö÷F–öãà¢Æ÷F–öâfÇVSÒ&W‡—&VB#î˜ˆ‹N‰Š~‹‰‰~‹^˜‚Rò˜NŠ˜ˆNŠ>‰£Âö÷F–öãà¢Â÷6VÆV7Cà¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ&×BÓRÖ‚Ö‚Õ³c#…Ò76R×’Ó2÷fW&fÆ÷r×’ÖWFò"Ó#à¢¶7F—fTFö7VÖVçG2æÖ‚†Fö2’Óâ°¢6öç7BVçG&–W2ÒVffV7F—fTVçG&–W4f÷$Fö2†Fö2Â6–væGW&W2“°¢6öç7B6÷VçBÒ4”täEU$UôdÄõræf–ÇFW"‚‡&öÆR’Óâ&ööÆVâ†vWD6ö×ÆWFVDVçG'’†VçG&–W2Â&öÆR’’’æÆVæwFƒ°¢6öç7BFö5VæF–æu&öÆW2ÒvWEVæF–æu&öÆW2†VçG&–W2“°¢6öç7BFö56–væVE&öÆW2Ò4”täEU$UôdÄõræf–ÇFW"‚‡&öÆR’Óâ&ööÆVâ†vWE6–væVDVçG'’†VçG&–W2Â&öÆR’’“°¢6öç7B—4×•VæF–æuGW&âĞ¢Fö5VæF–æu&öÆW2ç6öÖR‚‡&öÆR’Óâ6å6–vä–FVçF—G’†7W'&VçEW6W"ÂFö2Â&öÆR’’b`¢—56–væ–ætÆÆ÷vVD'”FFR†Fö2æÖöçF„¶W’’b`¢Fö2æ66W2ç6öÖR‚†—FVÒ’ÓâVæF–ætVÄ66TÖæ†2†—FVÒæ66T–B’“°¢6öç7B6VÆV7FVBÒ6VÆV7FVDFö7VÖVçCòæ–BÓÓÒFö2æ–C°¢&WGW&â€¢Æ'WGFöà¢¶W“×¶Fö2æ–GĞ¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²‚’Óâ÷Våv÷&·76TFWF–Â†Fö2æ–B—Ğ¢6Æ74æÖS×¶rÖgVÆÂ&÷VæFVBÕ³#G…Ò&÷&FW"ÓBFW‡BÖÆVgBG&ç6—F–öâG°¢6VÆV7FV@¢ò&&÷&FW"×f–öÆWBÓC&r×f–öÆWBÓS6†F÷rÕ³óg…ó3G…÷&v&ƒ’ÃCÃ#rÃãB•Ò ¢¢&&÷&FW"×6ÆFRÓ#&r×v†—FR†÷fW#¦&÷&FW"×f–öÆWBÓ#†÷fW#¦&r×f–öÆWBÓSóS ¢ÖĞ¢à¢ÆF—b6Æ74æÖSÒ&fÆW‚—FV×2×7F'B§W7F–g’Ö&WGvVVâvÓ2#à¢ÆF—b6Æ74æÖSÒ&Ö–â×rÓ#à¢ÆF—b6Æ74æÖSÒ&fÆW‚—FV×2Ö6VçFW"vÓ"#à¢¶—4×•VæF–æuGW&âòÇ7â6Æ74æÖSÒ&‚Ó"ãRrÓ"ãR&÷VæFVBÖgVÆÂ&r×&÷6RÓc"óâ¢çVÆÇĞ¢ÆF—b6Æ74æÖSÒ'G'Væ6FRFW‡B×6ÒföçBÖ&Æ6²FW‡B×6ÆFRÓ“S#ç¶Fö2ævVçDæÖWÓÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×‡2föçBÖ&öÆBFW‡B×6ÆFRÓS#ç¶Fö2æÖöçF„Æ&VÇÓÂöF—cà¢¶Fö5VæF–æu&öÆW2æÆVæwF‚ò€¢ÆF—b6Æ74æÖS×¶×BÓ"–æÆ–æRÖfÆW‚&÷VæFVBÖgVÆÂ‚Ó"ãR’ÓFW‡B×‡2föçBÖ&Æ6²G°¢—4×•VæF–æuGW&âò&&r×&÷6RÓFW‡B×&÷6RÓs"¢&&r×6ÆFRÓFW‡B×6ÆFRÓS ¢ÖÓà¢Š>ŠŞ˜ˆ¾˜~‰’¶Fö5VæF–æu&öÆW2æÆVæwF‡Ò&öÆP¢ÂöF—cà¢’¢çVÆÇĞ¢ÂöF—cà¢Å6–væGW&U–ÆÂ7FGW3×¶6÷VçBÓÓÒ4”täEU$UôdÄõræÆVæwF‚ò%6–væVB"¢%VæF–ær'Òóà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓ2fÆW‚fÆW‚×w&vÓ"FW‡B×‡2föçBÖ&öÆB#à¢Ç7â6Æ74æÖSÒ'&÷VæFVBÖgVÆÂ&r×6ÆFRÓ‚Ó"ãR’ÓFW‡B×6ÆFRÓc#ç¶6÷VçGÒóB6–væVCÂ÷7ãà¢Ç7â6Æ74æÖSÒ'&÷VæFVBÖgVÆÂ&r×f–öÆWBÓ‚Ó"ãR’ÓFW‡B×f–öÆWBÓs#å66÷&R¶Fö2æfW&vU66÷&RçFôf—†VBƒ"—ÓÂ÷7ãà¢Ç7â6Æ74æÖSÒ'&÷VæFVBÖgVÆÂ&r×6ÆFRÓ‚Ó"ãR’ÓFW‡B×6ÆFRÓc#ç¶vWEF–ÖVÆ–æU7FGW2†Fö2æÖöçF„¶W’—ÓÂ÷7ãà¢ÂöF—cà¢¶Fö7VÖVçEf–WrÓÓÒ&†—7F÷'’"ò€¢ÆF—b6Æ74æÖSÒ&×BÓ276R×’ÓFW‡B×‡2föçBÖ&öÆBÆVF–ærÓR#à¢ÆF—b6Æ74æÖSÒ'FW‡BÖVÖW&ÆBÓs#à¢˜ˆ¾˜~‰˜Š^˜Šs¢¶Fö56–væVE&öÆW2æÆVæwF‚òFö56–væVE&öÆW2æÖ‡&öÆUF†”Æ&VÂ’æ¦ö–â‚"Â"’¢"Ò'Ğ¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ'FW‡B×&÷6RÓs#à¢Š.‹ˆ~˜Š¾Š^‹~ŠÓ¢¶Fö5VæF–æu&öÆW2æÆVæwF‚òFö5VæF–æu&öÆW2æÖ‚‡&öÆR’ÓâG·&öÆUF†”Æ&VÂ‡&öÆR—Ò‚G¶vWE&öÆU6–væW"†Fö2Â&öÆR—Ò–’æ¦ö–â‚"Â"’¢.ˆNŠ>‰®˜Š^˜Šr'Ğ¢ÂöF—cà¢ÂöF—cà¢’¢çVÆÇĞ¢Âö'WGFöãà¢“°¢Ò—Ğ ¢²7F—fTFö7VÖVçG2æÆVæwF‚ò€¢ÆF—b6Æ74æÖSÒ'&÷VæFVBÕ³#G…Ò&÷&FW"&÷&FW"ÖF6†VB&÷&FW"×6ÆFRÓ#&r×6ÆFRÓS‚ÓB’Ó‚FW‡BÖ6VçFW"FW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×6ÆFRÓS#à¢¶Fö7VÖVçEf–WrÓÓÒ&†—7F÷'’ ¢ò.Š.‹ˆ~˜NŠ˜Š‹^‰¾Š>‹Š~‹‰^‹N˜ŠŞˆŠ®‹.Š>‰^‹.Š˜ˆ~‹~˜ŠŞ‰˜Nˆ.‰~‹^˜˜Š^‹~ŠŞˆ ¢¢.Š.‹ˆ~˜NŠ˜Š‹^ˆN‹NŠ~˜ˆ¾˜~‰ˆ.ŠŞˆ~ˆN‹‰>‰^‹.Š˜ˆ~‹~˜ŠŞ‰˜Nˆ.‰~‹^˜˜Š^‹~ŠŞˆ'Ğ¢ÂöF—cà¢’¢çVÆÇĞ¢ÂöF—cà¢ÂöF—cà ¢·6VÆV7FVDFö7VÖVçBbb†Fö7VÖVçEf–WrÓÓÒ&†—7F÷'’"ÇÂ‡VWVU&Wf–WtFö7VÖVçD–BÓÓÒ6VÆV7FVDFö7VÖVçBæ–Bbbf–ÇFW&VDFö7VÖVçG2ç6öÖR‚†Fö2’ÓâFö2æ–BÓÓÒ6VÆV7FVDFö7VÖVçBæ–B’’’ò€¢ÆF—b6Æ74æÖSÒ'76R×’ÓR#à¢ÆF—b6Æ74æÖSÒ'&÷VæFVBÕ³3…Ò&÷&FW"&÷&FW"×f–öÆWBÓ&r×v†—FRÓb6†F÷rÕ³ó#…óSG…÷&v&ƒƒ‚Ã#‚Ã3RÃã‚•Ò#à¢ÆF—b6Æ74æÖSÒ&fÆW‚fÆW‚Ö6öÂvÓBÆs¦fÆW‚×&÷rÆs¦—FV×2×7F'BÆs¦§W7F–g’Ö&WGvVVâ#à¢ÆF—cà¢ÆF—b6Æ74æÖSÒ'FW‡B×‡2föçBÖ&Æ6²WW&66RG&6¶–ærÕ³ã†VÕÒFW‡B×f–öÆWBÓS#å&Wf–Wr&Vf÷&R6–væGW&SÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡BÓ'†ÂföçBÖ&Æ6²FW‡B×6ÆFRÓ“S#ç·6VÆV7FVDFö7VÖVçBævVçDæÖWÓÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×6ÆFRÓS#à¢·6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÇÒ(
+"FVÓ¢·6VÆV7FVDFö7VÖVçBçFVÔæÖWÒ(
+"FVÒÆVC¢·6VÆV7FVDFö7VÖVçBç6Væ–÷$æÖWĞ¢ÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚fÆW‚Ö6öÂvÓ"6Ó¦fÆW‚×&÷r#à¢¶Fö7VÖVçEf–WrÓÓÒ&†—7F÷'’"bb7W'&VçEW6W"ç&öÆRÓÓÒ%VÆ—G’77W&æ6R"bb6VÆV7FVDFö7VÖVçBbb—4†—7FÚ±î¸Â¸­yêë¢°k¢G§¦*^oricalPaidPeriod(selectedDocument.monthKey) ? (
                     <button
                       type="button"
                       onClick={resetDocument}
@@ -5913,7 +3107,7 @@ export default function SignatureCenterMockup({
                 >();
 
                 previewCases.forEach((caseItem) => {
-                  (caseItem.topics || []).forEach((topic) => {
+            m«ëŒ+Š×®º+º$zzb¥â†66T—FVÒçF÷–72ÇÂµÒ’æf÷$V6‚‚‡F÷–2’Óâ°¢6öç7B6öFRÒæ÷&ÖÆ—¦UFW‡B‡F÷–2æ6öFR“°¢6öç7BF—FÆRÒæ÷&ÖÆ—¦UFW‡B‡F÷–2çF—FÆR“°¢6öç7B¶W’Ò6öFRÇÂæ÷&ÖÆ—¦T¶W’‡F—FÆR“°¢–b‚¶W’’&WGW&ã°¢6öç7BÖ‚ÒçVÖ&W"‡F÷–2æÖ‚’ÇÂ°¢6öç7B7W'&VçBÒF÷–4ÖævWB†¶W’“°¢–b‚7W'&VçB’°¢F÷–4Öç6WB†¶W’Â°¢6öFRÀ¢F—FÆRÀ¢Æ&VÃ¢vWE6–væGW&UF÷–4VævÆ—6„Æ&VÂ‡F÷–2Â6VÆV7FVDFö7VÖVçBæÖöçF„¶W’’À¢Ö‚À¢Ò“°¢ÒVÇ6R–b†Ö‚â7W'&VçBæÖ‚’°¢7W'&VçBæÖ‚ÒÖƒ°¢Ğ¢Ò“°¢Ò“° ¢6öç7BG–æÖ–5F÷–72Ò'&’æg&öÒ‡F÷–4ÖæVçG&–W2‚’’æÖ‚…¶¶W’ÂF÷–5Ò’Óâ‡°¢¶W’À¢ââçF÷–2À¢Ò’“° ¢6öç7B7FæF&Df÷W%F÷–4Æ&VÇ2Ò°¢%&ö6W726ö×Æ–æ6R"À¢$ç7vW"67W&7’bfW&–f–6F–öâ"À¢$66R†æFÆ–ærbföÆÆ÷r×W"À¢$6öÖ×Væ–6F–öâ6¶–ÆÇ2"À¢Ó°¢6öç7B7FæF&Df÷W%F÷–4Ö…66÷&W2Ò³3Â#Â#RÂ#UÓ°¢6öç7B—4§VæT÷$§VÇ’Ğ¢ö§VæWÆ§VÇ’ö’çFW7B†æ÷&ÖÆ—¦UFW‡B‡6VÆV7FVDFö7VÖVçBæÖöçF„Æ&VÂ’’ÇÀ¢òƒó¥çÅ²ÒõÒ’ƒógÃór’ƒó¢GÅ²ÒõÒ’òçFW7B†æ÷&ÖÆ—¦UFW‡B‡6VÆV7FVDFö7VÖVçBæÖöçF„¶W’’“°¢6öç7BÖF6†W57FæF&Df÷W%F÷–566÷&W2Ğ¢G–æÖ–5F÷–72æÆVæwF‚ÓÓÒBb`¢G–æÖ–5F÷–72æWfW'’€¢‡F÷–2ÂF÷–4–æFW‚’Óà¢çVÖ&W"‡F÷–2æÖ‚’ÓÓÒ7FæF&Df÷W%F÷–4Ö…66÷&W5·F÷–4–æFW…Ğ¢“°¢6öç7BW6U7FæF&Df÷W%F÷–4Æ&VÇ2Ğ¢G–æÖ–5F÷–72æÆVæwF‚ÓÓÒBb`¢†—4§VæT÷$§VÇ’ÇÂÖF6†W57FæF&Df÷W%F÷–566÷&W2“° ¢&WGW&â€¢ÆF—`¢FF×&Wf–Wr×F&ÆR×c#P¢6Æ74æÖSÒ&×BÓR÷fW&fÆ÷r×‚ÖWFò&÷VæFVBÕ³g…Ò&÷&FW"&÷&FW"×6ÆFRÓ#&r×v†—FR6†F÷rÕ³ó‡…ó#G…÷&v&ƒRÃ#2ÃC"ÃãR•Ò ¢à¢ÇF&ÆR6Æ74æÖSÒ'rÖgVÆÂÖ–â×rÕ³ƒ…ÒF&ÆRÖf—†VB&÷&FW"Ö6öÆÆ6R#à¢Æ6öÆw&÷Wà¢Æ6öÂ7G–ÆS×·²v–GFƒ¢#2R"×Òóà¢Æ6öÂ7G–ÆS×·²v–GFƒ¢#’R"×Òóà¢Æ6öÂ7G–ÆS×·²v–GFƒ¢#‚R"×Òóà¢Æ6öÂ7G–ÆS×·²v–GFƒ¢##‚R"×Òóà¢¶G–æÖ–5F÷–72æÖ‚‡F÷–2’Óâ€¢Æ6öÀ¢¶W“×¶&Wf–WrÖ6öÂÒG·F÷–2æ¶W—ÖĞ¢7G–ÆS×·²v–GFƒ¢G³C"òÖF‚æÖ‚†G–æÖ–5F÷–72æÆVæwF‚Â—ÒV×Ğ¢óà¢’—Ğ¢Æ6öÂ7G–ÆS×·²v–GFƒ¢#R"×Òóà¢Âö6öÆw&÷Wà¢ÇF†VB6Æ74æÖSÒ'7F–6·’F÷Ó¢Ó#à¢ÇG"6Æ74æÖSÒ&&rÖw&F–VçB×Fò×"g&öÒÕ²36#scEÒf–×f–öÆWBÓƒFòÕ²3fC#†C•ÒFW‡B×v†—FR#à¢ÇF‚6Æ74æÖSÒ'v†—FW76RÖæ÷w&‚Ó2’Ó"ãRFW‡BÖ6VçFW"FW‡BÕ³…ÒföçB×6VÖ–&öÆB#â3Â÷Fƒà¢ÇF‚6Æ74æÖSÒ'v†—FW76RÖæ÷w&‚Ó2’Ó"ãRFW‡BÖ6VçFW"FW‡BÕ³…ÒföçB×6VÖ–&öÆB#ä66R”CÂ÷Fƒà¢ÇF‚6Æ74æÖSÒ'v†—FW76RÖæ÷w&‚Ó2’Ó"ãRFW‡BÖ6VçFW"FW‡BÕ³…ÒföçB×6VÖ–&öÆB#äFFSÂ÷Fƒà¢ÇF‚6Æ74æÖSÒ'‚Ó2’Ó"ãRFW‡BÖ6VçFW"FW‡BÕ³…ÒföçB×6VÖ–&öÆB#ä–çFVçCÂ÷Fƒà¢¶G–æÖ–5F÷–72æÖ‚‡F÷–2ÂF÷–4–æFW‚’Óâ€¢ÇF€¢¶W“×¶&Wf–WrÖ†VBÒG·F÷–2æ¶W—ÖĞ¢6Æ74æÖSÒ'‚Ó"’Ó"ãRFW‡BÖ6VçFW"Æ–vâÖÖ–FFÆR ¢à¢ÆF—b6Æ74æÖSÒ&×‚ÖWFòÖ‚×rÕ³c…Òv†—FW76RÖæ÷&ÖÂFW‡BÕ³…ÒföçB×6VÖ–&öÆBÆVF–ærÓB#à¢·W6U7FæF&Df÷W%F÷–4Æ&VÇ0¢ò7FæF&Df÷W%F÷–4Æ&VÇ5·F÷–4–æFW…Ğ¢¢F÷–2æÆ&VÇĞ¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡BÕ³—…ÒföçBÖÖVF—VÒFW‡B×f–öÆWBÓ#à¢Ö‚66÷&S¢·F÷–2æÖ‚ÇÂ"Ò'Ğ¢ÂöF—cà¢Â÷Fƒà¢’—Ğ¢ÇF‚6Æ74æÖSÒ'v†—FW76RÖæ÷w&‚Ó2’Ó"ãRFW‡BÖ6VçFW"FW‡BÕ³…ÒföçB×6VÖ–&öÆB#å66÷&SÂ÷Fƒà¢Â÷G#à¢Â÷F†VCà ¢ÇF&öG“à¢·&Wf–Wt66W2æÖ‚†—FVÒÂ–æFW‚’Óâ°¢6öç7B–çFVçE'G2Ò7Æ—E6–væGW&T–çFVçB†—FVÒæ–çV—'’“°¢6öç7B&÷uF÷–72ÒæWrÖ€¢†—FVÒçF÷–72ÇÂµÒ’æÖ‚‡F÷–2’Óâ°¢æ÷&ÖÆ—¦UFW‡B‡F÷–2æ6öFR’ÇÂæ÷&ÖÆ—¦T¶W’‡F÷–2çF—FÆR’À¢F÷–2À¢Ò¢“° ¢6öç7Bf–æÅ66÷&UFöæRĞ¢—FVÒæf–æÅ66÷&RãÒƒP¢ò&&r×f–öÆWBÓFW‡B×f–öÆWBÓs ¢¢—FVÒæf–æÅ66÷&RãÒsP¢ò&&rÖÖ&W"ÓFW‡BÖÖ&W"Ós ¢¢&&r×&÷6RÓFW‡B×&÷6RÓs#° ¢&WGW&â€¢ÇG ¢¶W“×¶G¶—FVÒæ66T–GÒÒG¶–æFW‡ÖĞ¢6Æ74æÖSÒ&&÷&FW"×B&÷&FW"×6ÆFRÓöFC¦&r×v†—FRWfVã¦&r×6ÆFRÓSóCRG&ç6—F–öâ†÷fW#¦&r×f–öÆWBÓSóSR ¢à¢ÇFB6Æ74æÖSÒ'‚Ó2’Ó"ãRFW‡BÖ6VçFW"Æ–vâÖÖ–FFÆRFW‡B×‡2föçBÖÖVF—VÒFW‡B×6ÆFRÓC#à¢¶–æFW‚²Ğ¢Â÷FCà ¢ÇFB6Æ74æÖSÒ'‚Ó2’Ó"ãRFW‡BÖ6VçFW"Æ–vâÖÖ–FFÆR#à¢Æ'WGFöà¢G–Ú±î¸Â¸­yêë¢°k¢G§¦*^      (caseItem.topics || []).forEach((topic) => {
                     const code = normalizeText(topic.code);
                     const title = normalizeText(topic.title);
                     const key = code || normalizeKey(title);
@@ -6030,484 +3224,7 @@ export default function SignatureCenterMockup({
 
                               <td className="px-3 py-2.5 text-center align-middle">
                                 <button
-                                  type="button"
-                                  onClick={() => setPreviewCase(item)}
-                                  className="whitespace-nowrap text-sm font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
-                                >
-                                  {item.caseId}
-                                </button>
-                              </td>
-
-                              <td className="whitespace-nowrap px-3 py-2.5 text-center align-middle text-xs font-normal text-slate-500">
-                                {item.auditDate}
-                              </td>
-
-                              <td className="px-3 py-2.5 align-middle">
-                                <div className="break-words text-sm font-medium leading-5 text-slate-900">
-                                  {intentParts.primary || "-"}
-                                </div>
-                                {intentParts.secondary ? (
-                                  <div className="mt-0.5 text-[11px] font-normal leading-4 text-slate-500">
-                                    {intentParts.secondary}
-                                  </div>
-                                ) : null}
-                                {pendingAppealCaseMap.has(item.caseId) ? (
-                                  <span className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[9px] font-medium text-rose-700">
-                                    Appeal Pending
-                                  </span>
-                                ) : null}
-                              </td>
-
-                              {dynamicTopics.map((topic) => {
-                                const scoreTopic = rowTopics.get(topic.key);
-                                const score = scoreTopic ? Number(scoreTopic.score) || 0 : null;
-                                const max = scoreTopic
-                                  ? Number(scoreTopic.max) || topic.max
-                                  : topic.max;
-                                const percent =
-                                  score !== null && max > 0
-                                    ? Math.max(0, Math.min(100, (score / max) * 100))
-                                    : 0;
-
-                                const scoreTone =
-                                  score === null
-                                    ? "bg-slate-100 text-slate-400"
-                                    : percent >= 85
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : percent >= 75
-                                        ? "bg-amber-100 text-amber-700"
-                                        : "bg-rose-100 text-rose-700";
-
-                                return (
-                                  <td
-                                    key={`${item.caseId}-${topic.key}`}
-                                    className="px-2 py-2.5 text-center align-middle"
-                                  >
-                                    <span
-                                      className={`inline-flex min-w-[38px] items-center justify-center rounded-full px-2.5 py-1 text-sm font-semibold ${scoreTone}`}
-                                    >
-                                      {score === null ? "-" : score}
-                                    </span>
-                                  </td>
-                                );
-                              })}
-
-                              <td className="px-3 py-2.5 text-center align-middle">
-                                <span
-                                  className={`inline-flex min-w-[62px] justify-center rounded-full px-3 py-1.5 text-sm font-semibold ${finalScoreTone}`}
-                                >
-                                  {item.finalScore.toFixed(2)}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {workflowReadyToSign ? (
-              <div className="rounded-[30px] border border-violet-100 bg-white p-6 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Signature Workflow</div>
-                    <div className="mt-1 text-xl font-black text-slate-950">Independent Role Signing After Appeal Closure</div>
-                    {!previewConfirmed ? (
-                      <div className="mt-1 text-xs font-bold text-amber-600">
-                        Agent à¸•à¹‰à¸­à¸‡à¸à¸”à¸¢à¸·à¸™à¸¢à¸±à¸™à¸£à¸±à¸šà¸—à¸£à¸²à¸šà¸à¹ˆà¸­à¸™à¸¥à¸‡à¸™à¸²à¸¡à¸‚à¸­à¸‡à¸•à¸±à¸§à¹€à¸­à¸‡ à¹à¸•à¹ˆ Role à¸­à¸·à¹ˆà¸™à¸¥à¸‡à¸™à¸²à¸¡à¹„à¸”à¹‰à¹‚à¸”à¸¢à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡à¸£à¸­ Agent
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={shareSignatureStatus}
-                      className="whitespace-nowrap rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 transition hover:bg-violet-100"
-                    >
-                      Share Signing Status
-                    </button>
-                    {currentUser.role === "Quality Assurance" && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
-                      <button
-                        type="button"
-                        onClick={resetDocument}
-                        className="whitespace-nowrap rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
-                      >
-                        Reset Document
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className={`mt-4 rounded-[24px] border px-5 py-4 shadow-[0_14px_34px_rgba(88,28,135,0.08)] ${
-                  pendingRoles.length
-                    ? "border-violet-200 bg-violet-50"
-                    : "border-emerald-200 bg-emerald-50"
-                }`}>
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <div className={`text-xs font-black uppercase tracking-[0.18em] ${
-                        pendingRoles.length ? "text-violet-600" : "text-emerald-700"
-                      }`}>
-                        Pending Signers
-                      </div>
-                      <div className="mt-1 text-lg font-black text-slate-950">
-                        {pendingRoles.length
-                          ? `à¸¢à¸±à¸‡à¸£à¸­à¸¥à¸‡à¸™à¸²à¸¡ ${pendingRoles.length} role`
-                          : "à¹€à¸­à¸à¸ªà¸²à¸£à¸¥à¸‡à¸™à¸²à¸¡à¸„à¸£à¸šà¹à¸¥à¹‰à¸§"}
-                      </div>
-                      <div className="mt-1 text-sm font-bold text-slate-600">
-                        {pendingRoles.length
-                          ? pendingRoles.map((role) => `${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`).join(" / ")
-                          : "à¹„à¸¡à¹ˆà¹€à¸«à¸¥à¸·à¸­ Role à¸—à¸µà¹ˆà¸•à¹‰à¸­à¸‡à¹€à¸‹à¹‡à¸™à¸•à¹ˆà¸­"}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={copySelectedDocumentShareLink}
-                        className="whitespace-nowrap rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50"
-                      >
-                        Copy Share Link
-                      </button>
-                      <button
-                        type="button"
-                        onClick={copyNextSignerAlert}
-                        className="whitespace-nowrap rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
-                      >
-                        à¸„à¸±à¸”à¸¥à¸­à¸à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹à¸ˆà¹‰à¸‡à¹€à¸•à¸·à¸­à¸™
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {shareMessage ? (
-                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">
-                    {shareMessage}
-                  </div>
-                ) : null}
-
-                <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200">
-                  <div className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white">
-                    <div>Step</div>
-                    <div>Role</div>
-                    <div>Signer</div>
-                    <div>Status</div>
-                    <div>Action</div>
-                  </div>
-
-                  {SIGNATURE_FLOW.map((role, index) => {
-                    const signed = getSignedEntry(selectedEntries, role);
-                    const waived = getWaivedEntry(selectedEntries, role);
-                    const completed = signed || waived;
-                    const resetAfterDeadline = getDeadlineResetEntry(selectedEntries, role);
-                    const activeResetAfterDeadline = getActiveDeadlineResetEntry(selectedEntries, role);
-                    const resetExpiresAt = getDeadlineResetExpiresAt(resetAfterDeadline);
-                    const resetWindowExpired = Boolean(resetAfterDeadline && !activeResetAfterDeadline);
-                    const status = statusForRole(selectedEntries, role, selectedDocument.monthKey);
-                    const signerName = getRoleSigner(selectedDocument, role);
-                    const isAgentBlockedByConfirm = role === "Agent" && !previewConfirmed && !completed;
-                    const allowSign =
-                      !waived &&
-                      canSignIdentity(currentUser, selectedDocument, role) &&
-                      canSignRoleByDate(selectedDocument.monthKey, selectedEntries, role);
-                    const canAddFirstDrawnSignature =
-                      Boolean(signed) &&
-                      !signed?.signatureDataUrl &&
-                      canSignIdentity(currentUser, selectedDocument, role);
-                    const canResetRoleAfterDeadline =
-                      currentUser.role === "Quality Assurance" &&
-                      !isHistoricalPaidPeriod(selectedDocument.monthKey) &&
-                      getTimelineStatus(selectedDocument.monthKey) === "Signature Deadline Passed" &&
-                      !completed &&
-                      !activeResetAfterDeadline;
-                    const canOpenSignaturePad = (!completed && allowSign) || canAddFirstDrawnSignature;
-                    const waitingForAutomaticWaiver =
-                      role === "Agent" &&
-                      !completed &&
-                      selectedAgentUsesAutoWaiver &&
-                      !isHistoricalPaidPeriod(selectedDocument.monthKey);
-                    const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(role)];
-                    return (
-                      <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
-                        <div>
-                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${
-                            waived ? "bg-sky-100 text-sky-700" : signed ? "bg-emerald-100 text-emerald-700" : allowSign ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
-                          }`}>
-                            {index + 1}
-                          </span>
-                        </div>
-                        <div className="font-black text-slate-950">{role === "Senior" ? "Senior / Team Lead" : role}</div>
-                        <div>
-                          <div className="font-bold text-slate-900">{completed ? completed.signerName : signerName}</div>
-                          {waived ? (
-                            <div className="mt-1 text-xs font-semibold text-sky-700">
-                              Signature Waived â€“ Resigned â€¢ à¸§à¸±à¸™à¸—à¸µà¹ˆà¸¥à¸²à¸­à¸­à¸ {waived.resignationDate || "-"} â€¢ à¸‹à¸´à¸‡à¸à¹Œà¸ˆà¸²à¸à¸‚à¹‰à¸­à¸¡à¸¹à¸¥ User
-                            </div>
-                          ) : signed ? (
-                            <div className="mt-1 text-xs font-semibold text-slate-400">
-                              Signed by {signed.signedBy} â€¢ {formatDateTime(signed.signedAt)}
-                            </div>
-                          ) : isAgentBlockedByConfirm ? (
-                            <div className="mt-1 text-xs font-semibold text-amber-600">Agent à¸•à¹‰à¸­à¸‡à¸à¸”à¸¢à¸·à¸™à¸¢à¸±à¸™à¸£à¸±à¸šà¸—à¸£à¸²à¸šà¸à¹ˆà¸­à¸™à¸¥à¸‡à¸™à¸²à¸¡</div>
-                          ) : status === "Locked" ? (
-                            <div className="mt-1 text-xs font-semibold text-slate-400">à¹€à¸›à¸´à¸”à¹€à¸‹à¹‡à¸™à¸«à¸¥à¸±à¸‡à¸§à¸±à¸™à¸—à¸µà¹ˆ 10 à¸‚à¸­à¸‡à¹€à¸”à¸·à¸­à¸™à¸–à¸±à¸”à¹„à¸›</div>
-                          ) : activeResetAfterDeadline ? (
-                            <div className="mt-1 text-xs font-semibold text-violet-600">
-                              à¸£à¸µà¹€à¸‹à¹‡à¸•à¹à¸¥à¹‰à¸§ à¹€à¸‹à¹‡à¸™à¹„à¸”à¹‰à¸–à¸¶à¸‡ {resetExpiresAt ? formatDateTime(resetExpiresAt.toISOString()) : `${SIGNATURE_RESET_WINDOW_DAYS} à¸§à¸±à¸™`}
-                            </div>
-                          ) : resetWindowExpired ? (
-                            <div className="mt-1 text-xs font-semibold text-rose-600">
-                              à¸£à¸­à¸šà¸£à¸µà¹€à¸‹à¹‡à¸•à¸«à¸¡à¸”à¸­à¸²à¸¢à¸¸à¹à¸¥à¹‰à¸§ à¸à¸” Reset à¹ƒà¸«à¸¡à¹ˆà¹„à¸”à¹‰
-                            </div>
-                          ) : null}
-                        </div>
-                        <div><SignaturePill status={status} /></div>
-                        <div>
-                          <button
-                            type="button"
-                            onClick={() => openSignaturePad(role)}
-                            disabled={!canOpenSignaturePad}
-                            className={`w-full rounded-2xl px-4 py-2 text-xs font-black transition ${
-                              canOpenSignaturePad
-                                ? "bg-violet-700 text-white hover:bg-violet-800"
-                                : "cursor-not-allowed bg-slate-200 text-slate-500"
-                            }`}
-                          >
-                            {waived
-                              ? "à¸¢à¸à¹€à¸§à¹‰à¸™à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¹à¸¥à¹‰à¸§"
-                              : signed
-                              ? signed.signatureDataUrl
-                                ? "à¹€à¸­à¸à¸ªà¸²à¸£à¸¥à¸‡à¸™à¸²à¸¡à¹à¸¥à¹‰à¸§"
-                                : canAddFirstDrawnSignature
-                                  ? savedSignatureDataUrl
-                                    ? "à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¹€à¸”à¸´à¸¡"
-                                    : "à¹€à¸à¸´à¹ˆà¸¡à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸ˆà¸£à¸´à¸‡"
-                                  : "à¹€à¸‰à¸à¸²à¸°à¹€à¸ˆà¹‰à¸²à¸‚à¸­à¸‡à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™"
-                              : allowSign
-                                ? isAgentBlockedByConfirm
-                                  ? "à¸à¸”à¸¢à¸·à¸™à¸¢à¸±à¸™à¸à¹ˆà¸­à¸™à¹€à¸‹à¹‡à¸™"
-                                  : savedSignatureDataUrl
-                                  ? "à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¹€à¸”à¸´à¸¡"
-                                  : timeline === "Signature Deadline Passed"
-                                    ? "à¸§à¸²à¸”à¹à¸¥à¸°à¸¥à¸‡à¸™à¸²à¸¡à¸¥à¹ˆà¸²à¸Šà¹‰à¸²"
-                                    : "à¸§à¸²à¸”à¹à¸¥à¸°à¸¥à¸‡à¸™à¸²à¸¡"
-                                : status === "Locked"
-                                  ? "à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¹€à¸›à¸´à¸”à¹ƒà¸«à¹‰à¹€à¸‹à¹‡à¸™"
-                                  : status === "Expired"
-                                    ? "à¹€à¸à¸´à¸™à¸à¸³à¸«à¸™à¸”"
-                                    : "à¸£à¸­à¸œà¸¹à¹‰à¹€à¸à¸µà¹ˆà¸¢à¸§à¸‚à¹‰à¸­à¸‡"}
-                          </button>
-                          {canResetRoleAfterDeadline ? (
-                            <button
-                              type="button"
-                              onClick={() => void resetSignatureRole(role)}
-                              className="mt-2 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
-                            >
-                              Reset à¸„à¸™à¸™à¸µà¹‰
-                            </button>
-                          ) : null}
-                          {waitingForAutomaticWaiver ? (
-                            <div className="mt-2 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-center text-xs font-black leading-5 text-sky-700">
-                              à¸£à¸°à¸šà¸šà¸ˆà¸° Waive à¸­à¸±à¸•à¹‚à¸™à¸¡à¸±à¸•à¸´à¸«à¸¥à¸±à¸‡ QA, Supervisor à¹à¸¥à¸° Senior à¹€à¸‹à¹‡à¸™à¸„à¸£à¸š
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                  PDF à¸­à¸­à¸à¹„à¸”à¹‰à¸—à¸¸à¸à¸ªà¸–à¸²à¸™à¸° à¹à¸•à¹ˆà¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸ˆà¸£à¸´à¸‡à¸•à¹‰à¸­à¸‡à¹ƒà¸«à¹‰à¹€à¸ˆà¹‰à¸²à¸‚à¸­à¸‡ Role à¹€à¸‹à¹‡à¸™à¹€à¸­à¸‡à¹€à¸—à¹ˆà¸²à¸™à¸±à¹‰à¸™ à¹€à¸¡à¸·à¹ˆà¸­à¸šà¸±à¸™à¸—à¸¶à¸à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸ˆà¸£à¸´à¸‡à¹à¸¥à¹‰à¸§à¸ˆà¸°à¸à¸¥à¸±à¸šà¸¡à¸²à¹à¸à¹‰à¹€à¸­à¸‡à¹„à¸¡à¹ˆà¹„à¸”à¹‰
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-            </div>
-          </div>
-        </main>
-      </div>
-
-      {previewCase ? (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
-          onMouseDown={() => setPreviewCase(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="signature-case-preview-title"
-            onMouseDown={(event) => event.stopPropagation()}
-            className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[24px] border border-violet-100 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.32)]"
-          >
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4">
-              <div>
-                <div className="text-xs font-medium text-violet-600">à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¹€à¸„à¸ª</div>
-                <h3 id="signature-case-preview-title" className="mt-1 text-2xl font-semibold text-slate-950">
-                  {previewCase.caseId}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPreviewCase(null)}
-                aria-label="à¸›à¸´à¸”à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¹€à¸„à¸ª"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-2xl font-normal text-slate-500 transition hover:bg-slate-50"
-              >
-                Ã—
-              </button>
-            </div>
-
-            <div className="p-5">
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  ["à¸§à¸±à¸™à¸—à¸µà¹ˆ", previewCase.auditDate || "-"],
-                  ["à¸„à¸°à¹à¸™à¸™", previewCase.finalScore.toFixed(2)],
-                  ["Grade", previewCase.grade || "-"],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <div className="text-xs font-normal text-slate-500">{label}</div>
-                    <div className="mt-1 text-base font-semibold text-slate-900">{value}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/50 p-4">
-                <div className="text-xs font-medium text-violet-600">Intent</div>
-                {(() => {
-                  const intentParts = splitSignatureIntent(previewCase.inquiry);
-                  return (
-                    <div className="mt-2">
-                      <div className="text-base font-semibold leading-7 text-slate-900">{intentParts.primary || "-"}</div>
-                      {intentParts.secondary ? (
-                        <div className="mt-1 text-sm font-normal leading-6 text-slate-500">{intentParts.secondary}</div>
-                      ) : null}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="text-xs font-medium text-slate-500">Comment / à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¸ªà¸£à¸¸à¸›</div>
-                <div className="mt-2 whitespace-pre-wrap text-sm font-normal leading-7 text-slate-700">
-                  {previewCase.comment || "-"}
-                </div>
-              </div>
-
-              {previewCase.topics?.length ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs font-medium text-slate-500">à¸„à¸°à¹à¸™à¸™à¸£à¸²à¸¢à¸«à¸±à¸§à¸‚à¹‰à¸­</div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {previewCase.topics.map((topic) => {
-                      const score = Number(topic.score) || 0;
-                      const max = Number(topic.max) || 0;
-                      const percent = max > 0 ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
-                      const barTone =
-                        percent >= 85
-                          ? "bg-emerald-500"
-                          : percent >= 75
-                            ? "bg-amber-500"
-                            : "bg-rose-500";
-                      return (
-                        <div key={`${topic.code}-${topic.title}`} className="rounded-xl bg-white px-3 py-2.5">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 truncate text-sm font-normal text-slate-700">{topic.title}</div>
-                            <div className="shrink-0 text-sm font-semibold text-violet-700">{score}/{max || "-"}</div>
-                          </div>
-                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                            <div className={`h-full rounded-full ${barTone}`} style={{ width: `${percent}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="mt-5 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setPreviewCase(null)}
-                  className="rounded-xl bg-violet-700 px-5 py-3 text-sm font-medium text-white transition hover:bg-violet-800"
-                >
-                  à¸›à¸´à¸”
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {signingRole && selectedDocument ? (
-        <SignaturePadModal
-          roleLabel={roleThaiLabel(signingRole)}
-          signerName={getRoleSigner(selectedDocument, signingRole)}
-          savedSignatureDataUrl={signatureLibrary[getSavedSignatureKey(signingRole)]}
-          onCancel={() => setSigningRole(null)}
-          onDeleteSavedSignature={async () => {
-            const libraryKey = getSavedSignatureKey(signingRole);
-            if (!window.confirm("à¸¥à¸šà¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸—à¸µà¹ˆà¸šà¸±à¸™à¸—à¸¶à¸à¹„à¸§à¹‰à¸«à¸£à¸·à¸­à¹„à¸¡à¹ˆ? à¹€à¸­à¸à¸ªà¸²à¸£à¹€à¸à¹ˆà¸²à¸—à¸µà¹ˆà¹€à¸„à¸¢à¹€à¸‹à¹‡à¸™à¹à¸¥à¹‰à¸§à¸ˆà¸°à¹„à¸¡à¹ˆà¸–à¸¹à¸à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¹à¸›à¸¥à¸‡")) return;
-            try {
-              await deleteStoredSignatureLibraryEntry(libraryKey);
-            } catch (error) {
-              console.warn("Delete remote signature library failed", error);
-              window.alert("à¸¥à¸šà¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸—à¸µà¹ˆà¸šà¸±à¸™à¸—à¸¶à¸à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ à¸à¸£à¸¸à¸“à¸²à¸¥à¸­à¸‡à¹ƒà¸«à¸¡à¹ˆà¸­à¸µà¸à¸„à¸£à¸±à¹‰à¸‡");
-              return;
-            }
-            setSignatureLibrary((previous) => {
-              const next = { ...previous };
-              delete next[libraryKey];
-              return next;
-            });
-          }}
-          onUseSavedSignature={async () => {
-            const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(signingRole)];
-            if (!savedSignatureDataUrl) return;
-            if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
-              window.alert("à¹€à¸‹à¹‡à¸™à¹à¸—à¸™à¸à¸±à¸™à¹„à¸¡à¹ˆà¹„à¸”à¹‰ à¸à¸£à¸¸à¸“à¸²à¹ƒà¸«à¹‰à¹€à¸ˆà¹‰à¸²à¸‚à¸­à¸‡à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸•à¸²à¸¡ Role à¹€à¸›à¹‡à¸™à¸œà¸¹à¹‰à¸¥à¸‡à¸™à¸²à¸¡à¹€à¸­à¸‡");
-              setSigningRole(null);
-              return;
-            }
-            const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
-            let saved = false;
-            if (existingSigned) {
-              saved = await saveDrawnSignature(signingRole, savedSignatureDataUrl, false);
-            } else {
-              saved = await signRole(signingRole, savedSignatureDataUrl, false);
-            }
-            if (saved) setSigningRole(null);
-          }}
-          onSave={async (dataUrl, saveToSavedLibrary) => {
-            if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
-              window.alert("à¹€à¸‹à¹‡à¸™à¹à¸—à¸™à¸à¸±à¸™à¹„à¸¡à¹ˆà¹„à¸”à¹‰ à¸à¸£à¸¸à¸“à¸²à¹ƒà¸«à¹‰à¹€à¸ˆà¹‰à¸²à¸‚à¸­à¸‡à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸•à¸²à¸¡ Role à¹€à¸›à¹‡à¸™à¸œà¸¹à¹‰à¸¥à¸‡à¸™à¸²à¸¡à¹€à¸­à¸‡");
-              setSigningRole(null);
-              return;
-            }
-            const libraryKey = getSavedSignatureKey(signingRole);
-            const replacingSavedSignature = Boolean(signatureLibrary[libraryKey]);
-            const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
-            let saved = false;
-            if (existingSigned) {
-              saved = await saveDrawnSignature(signingRole, dataUrl, saveToSavedLibrary);
-            } else {
-              saved = await signRole(signingRole, dataUrl, saveToSavedLibrary);
-            }
-            if (saved) {
-              if (saveToSavedLibrary) {
-                window.alert(replacingSavedSignature
-                  ? "à¸­à¸±à¸›à¹€à¸”à¸•à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¸—à¸µà¹ˆà¸šà¸±à¸™à¸—à¸¶à¸à¹€à¸£à¸µà¸¢à¸šà¸£à¹‰à¸­à¸¢à¹à¸¥à¹‰à¸§"
-                  : "à¸šà¸±à¸™à¸—à¸¶à¸à¸¥à¸²à¸¢à¹€à¸‹à¹‡à¸™à¹„à¸§à¹‰à¹ƒà¸Šà¹‰à¸„à¸£à¸±à¹‰à¸‡à¸•à¹ˆà¸­à¹„à¸›à¹€à¸£à¸µà¸¢à¸šà¸£à¹‰à¸­à¸¢à¹à¸¥à¹‰à¸§");
-              }
-              setSigningRole(null);
-            }
-          }}
-        />
-      ) : null}
-    </div>
-  );
-}
+                                  tym«ëŒ+Š×®º+º$zzb¥â’¢çVÆÇĞ¢ÂöF—cà¢ÂöF—cà ¢ÆF—b6Æ74æÖS×¶×BÓB&÷VæFVBÕ³#G…Ò&÷&FW"‚ÓR’ÓB6†F÷rÕ³óG…ó3G…÷&v&ƒƒ‚Ã#‚Ã3RÃã‚•ÒG°¢VæF–æu&öÆW2æÆVæwF€¢ò&&÷&FW"×f–öÆWBÓ#&r×f–öÆWBÓS ¢¢&&÷&FW"ÖVÖW&ÆBÓ#&rÖVÖW&ÆBÓS ¢ÖÓà¢ÆF—b6Æ74æÖSÒ&fÆW‚fÆW‚Ö6öÂvÓ2Æs¦fÆW‚×&÷rÆs¦—FV×2Ö6VçFW"Æs¦§W7F–g’Ö&WGvVVâ#à¢ÆF—cà¢ÆF—b6Æ74æÖS×¶FW‡B×‡2föçBÖ&Æ6²WW&66RG&6¶–ærÕ³ã†VÕÒG°¢VæF–æu&öÆW2æÆVæwF‚ò'FW‡B×f–öÆWBÓc"¢'FW‡BÖVÖW&ÆBÓs ¢ÖÓà¢VæF–ær6–væW'0¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡BÖÆrföçBÖ&Æ6²FW‡B×6ÆFRÓ“S#à¢·VæF–æu&öÆW2æÆVæwF€¢òŠ.‹ˆ~Š>ŠŞŠ^ˆ~‰‹.ŠG·VæF–æu&öÆW2æÆVæwF‡Ò&öÆV ¢¢.˜ŠŞˆŠ®‹.Š>Š^ˆ~‰‹.ŠˆNŠ>‰®˜Š^˜Šr'Ğ¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×6ÒföçBÖ&öÆBFW‡B×6ÆFRÓc#à¢·VæF–æu&öÆW2æÆVæwF€¢òVæF–æu&öÆW2æÖ‚‡&öÆR’ÓâG·&öÆUF†”Æ&VÂ‡&öÆR—Ó¢G¶vWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ&öÆR—Ö’æ¦ö–â‚"ò"¢¢.˜NŠ˜˜Š¾Š^‹~ŠÒ&öÆR‰~‹^˜‰^˜ŠŞˆ~˜ˆ¾˜~‰‰^˜ŠÒ'Ğ¢ÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&fÆW‚fÆW‚Ö6öÂvÓ"6Ó¦fÆW‚×&÷r#à¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×¶6÷•6VÆV7FVDFö7VÖVçE6†&TÆ–æ·Ğ¢6Æ74æÖSÒ'v†—FW76RÖæ÷w&&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×f–öÆWBÓ#&r×v†—FR‚ÓR’Ó2FW‡B×6ÒföçBÖ&Æ6²FW‡B×f–öÆWBÓsG&ç6—F–öâ†÷fW#¦&r×f–öÆWBÓS ¢à¢6÷’6†&RÆ–æ°¢Âö'WGFöãà¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×¶6÷”æW‡E6–væW$ÆW'GĞ¢6Æ74æÖSÒ'v†—FW76RÖæ÷w&&÷VæFVBÓ'†Â&r×6ÆFRÓ“S‚ÓR’Ó2FW‡B×6ÒföçBÖ&Æ6²FW‡B×v†—FRG&ç6—F–öâ†÷fW#¦&r×6ÆFRÓƒ ¢à¢ˆN‹‰NŠ^ŠŞˆˆ.˜ŠŞˆNŠ~‹.Š˜ˆ˜ˆ~˜‰^‹~ŠŞ‰¢Âö'WGFöãà¢ÂöF—cà¢ÂöF—cà¢ÂöF—cà ¢·6†&TÖW76vRò€¢ÆF—b6Æ74æÖSÒ&×BÓB&÷VæFVBÓ'†Â&÷&FW"&÷&FW"ÖVÖW&ÆBÓ#&rÖVÖW&ÆBÓS‚ÓB’Ó2FW‡B×6ÒföçBÖ&Æ6²FW‡BÖVÖW&ÆBÓs#à¢·6†&TÖW76vWĞ¢ÂöF—cà¢’¢çVÆÇĞ ¢ÆF—b6Æ74æÖSÒ&×BÓR÷fW&fÆ÷rÖ†–FFVâ&÷VæFVBÕ³#G…Ò&÷&FW"&÷&FW"×6ÆFRÓ##à¢ÆF—b6Æ74æÖSÒ&w&–Bw&–BÖ6öÇ2Õ³“…ó##…öÖ–æÖ‚ƒÃg"•óS…ó#…Ò&r×f–öÆWBÓs‚ÓB’Ó2FW‡B×‡2föçBÖ&Æ6²WW&66RG&6¶–ærÕ³ãFVÕÒFW‡B×v†—FR#à¢ÆF—cå7FWÂöF—cà¢ÆF—cå&öÆSÂöF—cà¢ÆF—cå6–væW#ÂöF—cà¢ÆF—cå7FGW3ÂöF—cà¢ÆF—cä7F–öãÂöF—cà¢ÂöF—cà ¢µ4”täEU$UôdÄõræÖ‚‡&öÆRÂ–æFW‚’Óâ°¢6öç7B6–væVBÒvWE6–væVDVçG'’‡6VÆV7FVDVçG&–W2Â&öÆR“°¢6öç7Bv—fVBÒvWEv—fVDVçG'’‡6VÆV7FVDVçG&–W2Â&öÆR“°¢6öç7B6ö×ÆWFVBÒ6–væVBÇÂv—fVC°¢6öç7B&W6WDgFW$FVFÆ–æRÒvWDFVFÆ–æU&W6WDVçG'’‡6VÆV7FVDVçG&–W2Â&öÆR“°¢6öç7B7F—fU&W6WDgFW$FVFÆ–æRÒvWD7F—fTFVFÆ–æU&W6WDVçG'’‡6VÆV7FVDVçG&–W2Â&öÆR“°¢6öç7B&W6WDW‡—&W4BÒvWDFVFÆ–æU&W6WDW‡—&W4B‡&W6WDgFW$FVFÆ–æR“°¢6öç7B&W6WEv–æF÷tW‡—&VBÒ&ööÆVâ‡&W6WDgFW$FVFÆ–æRbb7F—fU&W6WDgFW$FVFÆ–æR“°¢6öç7B7FGW2Ò7FGW4f÷%&öÆR‡6VÆV7FVDVçG&–W2Â&öÆRÂ6VÆV7FVDFö7VÖVçBæÖöçF„¶W’“°¢6öç7B6–væW$æÖRÒvWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ&öÆR“°¢6öç7B—4vVçD&Æö6¶VD'”6öæf—&ÒÒ&öÆRÓÓÒ$vVçB"bb&Wf–Wt6öæf—&ÖVBbb6ö×ÆWFVC°¢6öç7BÆÆ÷u6–vâĞ¢v—fVBb`¢6å6–vä–FVçF—G’†7W'&VçEW6W"Â6VÆV7FVDFö7VÖVçBÂ&öÆR’b`¢6å6–vå&öÆT'”FFR‡6VÆV7FVDFö7VÖVçBæÖöçF„¶W’Â6VÆV7FVDVçG&–W2Â&öÆR“°¢6öç7B6äFDf—'7DG&vå6–væGW&RĞ¢&ööÆVâ‡6–væVB’b`¢6–væVCòç6–væGW&TFFW&Âb`¢6å6–vä–FVçF—G’†7W'&VçEW6W"Â6VÆV7FVDFö7VÖVçBÂ&öÆR“°¢6öç7B6å&W6WE&öÆTgFW$FVFÆ–æRĞ¢7W'&VçEW6W"ç&öÆRÓÓÒ%VÆ—G’77W&æ6R"b`¢—4†—7F÷&–6Å–EW&–öB‡6VÆV7FVDFö7VÖVçBæÖöçF„¶W’’b`¢vWEF–ÖVÆ–æU7FGW2‡6VÆV7FVDFö7VÖVçBæÖöçF„¶W’’ÓÓÒ%6–væGW&RFVFÆ–æR76VB"b`¢6ö×ÆWFVBb`¢7F—fU&W6WDgFW$FVFÆ–æS°¢6öç7B6ä÷Vå6–væGW&UBÒ‚6ö×ÆWFVBbbÆÆ÷u6–vâ’ÇÂ6äFDf—'7DG&vå6–væGW&S°¢6öç7Bv—F–ætf÷$WFöÖF–5v—fW"Ğ¢&öÆRÓÓÒ$vVçB"b`¢6ö×ÆWFVBb`¢6VÆV7FVDvVçEW6W4WFõv—fW"b`¢—4†—7F÷&–6Å–EW&–öB‡6VÆV7FVDFö7VÖVçBæÖöçF„¶W’“°¢6öç7B6fVE6–væGW&TFFW&ÂÒ6–væGW&TÆ–'&'•¶vWE6fVE6–væGW&T¶W’‡&öÆR•Ó°¢&WGW&â€¢ÆF—b¶W“×·&öÆWÒ6Æ74æÖSÒ&w&–Bw&–BÖ6öÇ2Õ³“…ó##…öÖ–æÖ‚ƒÃg"•óS…ó#…Ò—FV×2Ö6VçFW"vÓ2&÷&FW"×B&÷&FW"×6ÆFRÓ#‚ÓB’ÓBFW‡B×6Ò#à¢ÆF—cà¢Ç7â6Æ74æÖS×¶–æÆ–æRÖfÆW‚‚Ó‚rÓ‚—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂFW‡B×‡2föçBÖ&Æ6²G°¢v—fVBò&&r×6·’ÓFW‡B×6·’Ós"¢6–væVBò&&rÖVÖW&ÆBÓFW‡BÖVÖW&ÆBÓs"¢ÆÆ÷u6–vâò&&r×f–öÆWBÓsFW‡B×v†—FR"¢&&r×6ÆFRÓFW‡B×6ÆFRÓS ¢ÖÓà¢¶–æFW‚²Ğ¢Â÷7ãà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&föçBÖ&Æ6²FW‡B×6ÆFRÓ“S#ç·&öÆRÓÓÒ%6Væ–÷""ò%6Væ–÷"òFVÒÆVB"¢&öÆWÓÂöF—cà¢ÆF—cà¢ÆF—b6Æ74æÖSÒ&föçBÖ&öÆBFW‡B×6ÆFRÓ“#ç¶6ö×ÆWFVBò6ö×ÆWFVBç6–væW$æÖR¢6–væW$æÖWÓÂöF—cà¢·v—fVBò€¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×‡2föçB×6VÖ–&öÆBFW‡B×6·’Ós#à¢6–væGW&Rv—fVB(	2&W6–væVB(
+"Š~‹‰‰~‹^˜Š^‹.ŠŞŠŞˆ·v—fVBç&W6–væF–öäFFRÇÂ"Ò'Ò(
+"ˆ¾‹Nˆ~ˆ˜Îˆ‹.ˆˆ.˜ŠŞŠ‹ŠRW6W ¢ÂöF—cà¢’¢6–væVBò€¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×‡2föçB×6VÖ–&öÆBFW‡B×6ÆFRÓC#à¢6–væVB'’·6–væVBç6–væVD'—Ò(
+"¶f÷&ÖDFFUF–ÖR‡6–væVBç6–væVDB—Ğ¢ÂöF—cà¢’¢—4vVçD&Æö6¶VD'”6öæf—&Òò€¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×‡2föçB×6VÖ–&öÆBFW‡BÖÖ&W"Óc#ävVçB‰^˜ŠŞˆ~ˆ‰NŠ.‹~‰Š.‹‰Š>‹‰®‰~Š>‹.‰®ˆ˜ŠŞ‰Š^ˆ~‰‹.ŠÂöF—cà¢’¢7FGW2ÓÓÒ$Æö6¶VB"ò€¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×‡2föçB×6VÖ–&öÆBFW‡B×6ÆFRÓC#î˜‰¾‹N‰N˜ˆ¾˜~‰Š¾Š^‹ˆ~Š~‹‰‰~‹^˜‚ˆ.ŠŞˆ~˜‰N‹~ŠŞ‰‰n‹‰N˜N‰³ÂöF—cà¢’¢7F—fU&W6WDgFW$FVFÆ–æRò€¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×‡2föçB×6VÖ–&öÆBFW‡B×f–öÆWBÓc#à¢Š>‹^˜ˆ¾˜~‰^˜Š^˜Šr˜ˆ¾˜~‰˜N‰N˜‰n‹nˆr·&W6WDW‡—&W4Bòf÷&ÖDFFUF–ÖR‡&W6WDW‡—&W4BçFô•4õ7G&–ær‚’’¢Gµ4”täEU$Uõ$U4UEõt”äDõuôD•7ÒŠ~‹‰–Ğ¢ÂöF—cà¢’¢&W6WEv–æF÷tW‡—&VBò€¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×‡2föçB×6VÖ–&öÆBFW‡B×&÷6RÓc#à¢Š>ŠŞ‰®Š>‹^˜ˆ¾˜~‰^Š¾Š‰NŠŞ‹.Š.‹˜Š^˜Šrˆ‰B&W6WB˜>Š¾Š˜˜N‰N˜¢ÂöF—cà¢’¢çVÆÇĞ¢ÂöF—cà¢ÆF—cãÅ6–væGW&U–ÆÂ7FGW3×·7FGW7ÒóãÂöF—cà¢ÆF—cà¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²‚’Óâ÷Vå6–væGW&UB‡&öÆR—Ğ¢F—6&ÆVC×²6ä÷Vå6–væGW&UGĞ¢6Æ74æÖS×¶rÖgVÆÂ&÷VæFVBÓ'†Â‚ÓB’Ó"FW‡B×‡2föçBÖ&Æ6²G&ç6—F–öâG°¢6ä÷Vå6–væGW&U@¢ò&&r×f–öÆWBÓsFW‡B×v†—FR†÷fW#¦&r×f–öÆWBÓƒ ¢¢&7W'6÷"Öæ÷BÖÆÆ÷vVB&r×6ÆFRÓ#FW‡B×6ÆFRÓS ¢ÖĞ¢à¢·v—fV@¢ò.Š.ˆ˜Š~˜‰Š^‹.Š.˜ˆ¾˜~‰˜Š^˜Šr ¢¢6–væV@¢ò6–væVBç6–væGW&TFFW&À¢ò.˜ŠŞˆŠ®‹.Š>Š^ˆ~‰‹.Š˜Š^˜Šr ¢¢6äFDf—'7DG&vå6–væGW&P¢ò6fVE6–væGW&TFFW&À¢ò.‰^Š>Š~ˆŠ®ŠŞ‰®Š^‹.Š.˜ˆ¾˜~‰˜‰N‹NŠ ¢¢.˜‰î‹N˜ŠŠ^‹.Š.˜ˆ¾˜~‰ˆŠ>‹Nˆr ¢¢.˜ˆ‰î‹.‹˜ˆ˜‹.ˆ.ŠŞˆ~Š^‹.Š.˜ˆ¾˜~‰’ ¢¢ÆÆ÷u6–và¢ò—4vVçD&Æö6¶VD'”6öæf—&Ğ¢ò.ˆ‰NŠ.‹~‰Š.‹‰ˆ˜ŠŞ‰˜ˆ¾˜~‰’ ¢¢6fVE6–væGW&TFFW&À¢ò.‰^Š>Š~ˆŠ®ŠŞ‰®Š^‹.Š.˜ˆ¾˜~‰˜‰N‹NŠ ¢¢F–ÖVÆ–æRÓÓÒ%6–væGW&RFVFÆ–æR76VB ¢ò.Š~‹.‰N˜Š^‹Š^ˆ~‰‹.ŠŠ^˜‹.ˆ®˜‹" ¢¢.Š~‹.‰N˜Š^‹Š^ˆ~‰‹.Š ¢¢7FGW2ÓÓÒ$Æö6¶VB ¢ò.Š.‹ˆ~˜NŠ˜˜‰¾‹N‰N˜>Š¾˜˜ˆ¾˜~‰’ ¢¢7FGW2ÓÓÒ$W‡—&VB ¢ò.˜ˆ‹N‰ˆ‹>Š¾‰‰B ¢¢.Š>ŠŞ‰Î‹˜˜ˆ‹^˜Š.Š~ˆ.˜ŠŞˆr'Ğ¢Âö'WGFöãà¢¶6å&W6WE&öÆTgFW$FVFÆ–æRò€¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²‚’Óâfö–B&W6WE6–væGW&U&öÆR‡&öÆR—Ğ¢6Æ74æÖSÒ&×BÓ"rÖgVÆÂ&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×&÷6RÓ#&r×&÷6RÓS‚ÓB’Ó"FW‡B×‡2föçBÖ&Æ6²FW‡B×&÷6RÓsG&ç6—F–öâ†÷fW#¦&r×&÷6RÓ ¢à¢&W6WBˆN‰‰‹^˜¢Âö'WGFöãà¢’¢çVÆÇĞ¢·v—F–ætf÷$WFöÖF–5v—fW"ò€¢ÆF—b6Æ74æÖSÒ&×BÓ"&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×6·’Ó#&r×6·’ÓS‚Ó2’Ó"FW‡BÖ6VçFW"FW‡B×‡2föçBÖ&Æ6²ÆVF–ærÓRFW‡B×6·’Ós#à¢Š>‹‰®‰®ˆ‹v—fRŠŞ‹‰^˜.‰Š‹‰^‹NŠ¾Š^‹ˆrÂ7WW'f—6÷"˜Š^‹6Væ–÷"˜ˆ¾˜~‰ˆNŠ>‰ ¢ÂöF—cà¢’¢çVÆÇĞ¢ÂöF—cà¢ÂöF—cà¢“°¢Ò—Ğ¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ&×BÓB&÷VæFVBÓ'†Â&÷&FW"&÷&FW"ÖÖ&W"Ó#&rÖÖ&W"ÓS‚ÓB’Ó2FW‡B×6ÒÆVF–ærÓbFW‡BÖÖ&W"Óƒ#à¢DbŠŞŠŞˆ˜N‰N˜‰~‹ˆŠ®‰n‹.‰‹˜‰^˜Š^‹.Š.˜ˆ¾˜~‰ˆŠ>‹Nˆ~‰^˜ŠŞˆ~˜>Š¾˜˜ˆ˜‹.ˆ.ŠŞˆr&öÆR˜ˆ¾˜~‰˜ŠŞˆ~˜‰~˜‹.‰‹˜‰’˜Š‹~˜ŠŞ‰®‹‰‰~‹nˆŠ^‹.Š.˜ˆ¾˜~‰ˆŠ>‹Nˆ~˜Š^˜Š~ˆ‹ˆŠ^‹‰®Š‹.˜ˆ˜˜ŠŞˆ~˜NŠ˜˜N‰N˜¢ÂöF—cà¢ÂöF—cà¢’¢çVÆÇĞ¢ÂöF—cà¢’¢çVÆÇĞ¢ÂöF—cà ¢ÂöF—cà¢ÂöF—cà¢ÂöÖ–ãà¢ÂöF—cà ¢·&Wf–Wt66Rò€¢ÆF—`¢6Æ74æÖSÒ&f—†VB–ç6WBÓ¢Õ³“ÒfÆW‚—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&r×6ÆFRÓ“SóSR‚ÓB’Ób&6¶G&÷Ö&ÇW"×6Ò ¢öäÖ÷W6TF÷vã×²‚’Óâ6WE&Wf–Wt66R†çVÆÂ—Ğ¢à¢ÆF—`¢&öÆSÒ&F–Æör ¢&–ÖÖöFÃÒ'G'VR ¢&–ÖÆ&VÆÆVF'“Ò'6–væGW&RÖ66R×&Wf–Wr×F—FÆR ¢öäÖ÷W6TF÷vã×²†WfVçB’ÓâWfVçBç7F÷&÷vF–öâ‚—Ğ¢6Æ74æÖSÒ&Ö‚Ö‚Õ³ƒ‡f…ÒrÖgVÆÂÖ‚×rÓ7†Â÷fW&fÆ÷r×’ÖWFò&÷VæFVBÕ³#G…Ò&÷&FW"&÷&FW"×f–öÆWBÓ&r×v†—FR6†F÷rÕ³ó3…ó“…÷&v&ƒRÃ#2ÃC"Ãã3"•Ò ¢à¢ÆF—b6Æ74æÖSÒ'7F–6·’F÷Ó¢ÓfÆW‚—FV×2×7F'B§W7F–g’Ö&WGvVVâvÓB&÷&FW"Ö"&÷&FW"×6ÆFRÓ&r×v†—FR‚ÓR’ÓB#à¢ÆF—cà¢ÆF—b6Æ74æÖSÒ'FW‡B×‡2föçBÖÖVF—VÒFW‡B×f–öÆWBÓc#îŠ>‹.Š.Š^‹˜ŠŞ‹^Š.‰N˜ˆNŠ£ÂöF—cà¢Æƒ2–CÒ'6–væGW&RÖ66R×&Wf–Wr×F—FÆR"6Æ74æÖSÒ&×BÓFW‡BÓ'†ÂföçB×6VÖ–&öÆBFW‡B×6ÆFRÓ“S#à¢·&Wf–Wt66Ræ66T–GĞ¢Âöƒ3à¢ÂöF—cà¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²‚’Óâ6WE&Wf–Wt66R†çVÆÂ—Ğ¢&–ÖÆ&VÃÒ.‰¾‹N‰NŠ>‹.Š.Š^‹˜ŠŞ‹^Š.‰N˜ˆNŠ¢ ¢6Æ74æÖSÒ&fÆW‚‚ÓrÓ—FV×2Ö6VçFW"§W7F–g’Ö6VçFW"&÷VæFVBÖgVÆÂ&÷&FW"&÷&FW"×6ÆFRÓ#FW‡BÓ'†ÂföçBÖæ÷&ÖÂFW‡B×6ÆFRÓSG&ç6—F–öâ†÷fW#¦&r×6ÆFRÓS ¢à¢9p¢Âö'WGFöãà¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ'ÓR#à¢ÆF—b6Æ74æÖSÒ&w&–BvÓ26Ó¦w&–BÖ6öÇ2Ó2#à¢µ°¢².Š~‹‰‰~‹^˜‚"Â&Wf–Wt66RæVF—DFFRÇÂ"Ò%ÒÀ¢².ˆN‹˜‰‰’"Â&Wf–Wt66Ræf–æÅ66÷&RçFôf—†VBƒ"•ÒÀ¢²$w&FR"Â&Wf–Wt66Ræw&FRÇÂ"Ò%ÒÀ¢ÒæÖ‚…¶Æ&VÂÂfÇVUÒ’Óâ€¢ÆF—b¶W“×¶Æ&VÇÒ6Æ74æÖSÒ'&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×6ÆFRÓ#&r×6ÆFRÓS‚ÓB’Ó2#à¢ÆF—b6Æ74æÖSÒ'FW‡B×‡2föçBÖæ÷&ÖÂFW‡B×6ÆFRÓS#ç¶Æ&VÇÓÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓFW‡BÖ&6RföçB×6VÖ–&öÆBFW‡B×6ÆFRÓ“#ç·fÇVWÓÂöF—cà¢ÂöF—cà¢’—Ğ¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ&×BÓB&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×f–öÆWBÓ&r×f–öÆWBÓSóSÓB#à¢ÆF—b6Æ74æÖSÒ'FW‡B×‡2föçBÖÖVF—VÒFW‡B×f–öÆWBÓc#ä–çFVçCÂöF—cà¢²‚‚’Óâ°¢6öç7B–çFVçE'G2Ò7Æ—E6–væGW&T–çFVçB‡&Wf–Wt66Ræ–çV—'’“°¢&WGW&â€¢ÆF—b6Æ74æÖSÒ&×BÓ"#à¢ÆF—b6Æ74æÖSÒ'FW‡BÖ&6RföçB×6VÖ–&öÆBÆVF–ærÓrFW‡B×6ÆFRÓ“#ç¶–çFVçE'G2ç&–Ö'’ÇÂ"Ò'ÓÂöF—cà¢¶–çFVçE'G2ç6V6öæF'’ò€¢ÆF—b6Æ74æÖSÒ&×BÓFW‡B×6ÒföçBÖæ÷&ÖÂÆVF–ærÓbFW‡B×6ÆFRÓS#ç¶–çFVçE'G2ç6V6öæF'—ÓÂöF—cà¢’¢çVÆÇĞ¢ÂöF—cà¢“°¢Ò’‚—Ğ¢ÂöF—cà ¢ÆF—b6Æ74æÖSÒ&×BÓB&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×6ÆFRÓ#&r×v†—FRÓB#à¢ÆF—b6Æ74æÖSÒ'FW‡B×‡2föçBÖÖVF—VÒFW‡B×6ÆFRÓS#ä6öÖÖVçBòŠ>‹.Š.Š^‹˜ŠŞ‹^Š.‰NŠ®Š>‹‰³ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓ"v†—FW76R×&R×w&FW‡B×6ÒföçBÖæ÷&ÖÂÆVF–ærÓrFW‡B×6ÆFRÓs#à¢·&Wf–Wt66Ræ6öÖÖVçBÇÂ"Ò'Ğ¢ÂöF—cà¢ÂöF—cà ¢·&Wf–Wt66RçF÷–73òæÆVæwF‚ò€¢ÆF—b6Æ74æÖSÒ&×BÓB&÷VæFVBÓ'†Â&÷&FW"&÷&FW"×6ÆFRÓ#&r×6ÆFRÓSÓB#à¢ÆF—b6Æ74æÖSÒ'FW‡B×‡2föçBÖÖVF—VÒFW‡B×6ÆFRÓS#îˆN‹˜‰‰Š>‹.Š.Š¾‹Š~ˆ.˜ŠÓÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓ2w&–BvÓ"6Ó¦w&–BÖ6öÇ2Ó"#à¢·&Wf–Wt66RçF÷–72æÖ‚‡F÷–2’Óâ°¢6öç7B66÷&RÒçVÖ&W"‡F÷–2ç66÷&R’ÇÂ°¢6öç7BÖ‚ÒçVÖ&W"‡F÷–2æÖ‚’ÇÂ°¢6öç7BW&6VçBÒÖ‚âòÖF‚æÖ‚ƒÂÖF‚æÖ–âƒÂ‡66÷&RòÖ‚’¢’’¢°¢6öç7B&%FöæRĞ¢W&6VçBãÒƒP¢ò&&rÖVÖW&ÆBÓS ¢¢W&6VçBãÒsP¢ò&&rÖÖ&W"ÓS ¢¢&&r×&÷6RÓS#°¢&WGW&â€¢ÆF—b¶W“×¶G·F÷–2æ6öFWÒÒG·F÷–2çF—FÆWÖÒ6Æ74æÖSÒ'&÷VæFVB×†Â&r×v†—FR‚Ó2’Ó"ãR#à¢ÆF—b6Æ74æÖSÒ&fÆW‚—FV×2Ö6VçFW"§W7F–g’Ö&WGvVVâvÓ2#à¢ÆF—b6Æ74æÖSÒ&Ö–â×rÓG'Væ6FRFW‡B×6ÒföçBÖæ÷&ÖÂFW‡B×6ÆFRÓs#ç·F÷–2çF—FÆWÓÂöF—cà¢ÆF—b6Æ74æÖSÒ'6‡&–æ²ÓFW‡B×6ÒföçB×6VÖ–&öÆBFW‡B×f–öÆWBÓs#ç·66÷&WÒ÷¶Ö‚ÇÂ"Ò'ÓÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&×BÓ"‚Ó"÷fW&fÆ÷rÖ†–FFVâ&÷VæFVBÖgVÆÂ&r×6ÆFRÓ##à¢ÆF—b6Æ74æÖS×¶‚ÖgVÆÂ&÷VæFVBÖgVÆÂG¶&%FöæWÖÒ7G–ÆS×·²v–GFƒ¢G·W&6VçGÒV×Òóà¢ÂöF—cà¢ÂöF—cà¢“°¢Ò—Ğ¢ÂöF—cà¢ÂöF—cà¢’¢çVÆÇĞ ¢ÆF—b6Æ74æÖSÒ&×BÓRfÆW‚§W7F–g’ÖVæB#à¢Æ'WGFöà¢G—SÒ&'WGFöâ ¢öä6Æ–6³×²‚’Óâ6WE&Wf–Wt66R†çVÆÂ—Ğ¢6Æ74æÖSÒ'&÷VæFVB×†Â&r×f–öÆWBÓs‚ÓR’Ó2FW‡B×6ÒföçBÖÖVF—VÒFW‡B×v†—FRG&ç6—F–öâ†÷fW#¦&r×f–öÆWBÓƒ ¢à¢‰¾‹N‰@¢Âö'WGFöãà¢ÂöF—cà¢ÂöF—cà¢ÂöF—cà¢ÂöF—cà¢’¢çVÆÇĞ ¢·6–væ–æu&öÆRbb6VÆV7FVDFö7VÖVçBò€¢Å6–væGW&UDÖöFÀ¢&öÆTÆ&VÃ×·&öÆUF†”Æ&VÂ‡6–væ–æu&öÆR—Ğ¢6–væW$æÖS×¶vWE&öÆU6–væW"‡6VÆV7FVDFö7VÖVçBÂ6–væ–æu&öÆR—Ğ¢6fVE6–væGW&TFFW&Ã×·6–væGW&TÆ–'&'•¶vWE6fVE6–væGW&T¶W’‡6–væ–æu&öÆR•×Ğ¢öä6æ6VÃ×²‚’Óâ6WE6–væ–æu&öÆR†çVÆÂ—Ğ¢öäFVÆWFU6fVE6–væGW&S×¶7–æ2‚’Óâ°¢6öç7BÆ–'&'”¶W’ÒvWE6fVE6–væGW&T¶W’‡6–væ–æu&öÆR“°¢–b‚v–æF÷ræ6öæf—&Ò‚.Š^‰®Š^‹.Š.˜ˆ¾˜~‰‰~‹^˜‰®‹‰‰~‹nˆ˜NŠ~˜Š¾Š>‹~ŠŞ˜NŠ˜ƒò˜ŠŞˆŠ®‹.Š>˜ˆ˜‹.‰~‹^˜˜ˆNŠ.˜ˆ¾˜~‰˜Š^˜Š~ˆ‹˜NŠ˜‰n‹ˆ˜‰¾Š^‹^˜Š.‰˜‰¾Š^ˆr"’’&WGW&ã°¢G'’°¢v—BFVÆWFU7F÷&VE6–væGW&TÆ–'&'”VçG'’†Æ–'&'”¶W’“°¢Ò6F6‚†W'&÷"’°¢6öç6öÆRçv&â‚$FVÆWFR&VÖ÷FR6–væGW&RÆ–'&'’f–ÆVB"ÂW'&÷"“°¢v–æF÷ræÆW'B‚.Š^‰®Š^‹.Š.˜ˆ¾˜~‰‰~‹^˜‰®‹‰‰~‹nˆ˜NŠ˜Š®‹>˜Š>˜~ˆ‚ˆŠ>‹‰>‹.Š^ŠŞˆ~˜>Š¾Š˜ŠŞ‹^ˆˆNŠ>‹˜ˆr"“°¢&WGW&ã°¢Ğ¢6WE6–væGW&TÆ–'&'’‚‡&Wf–÷W2’Óâ°¢6öç7BæW‡BÒ²ââç&Wf–÷W2Ó°¢FVÆWFRæW‡E¶Æ–'&'”¶W•Ó°¢&WGW&âæW‡C°¢Ò“°¢×Ğ¢öåW6U6fVE6–væGW&S×¶7–æ2‚’Óâ°¢6öç7B6fVE6–væGW&TFFW&ÂÒ6–væGW&TÆ–'&'•¶vWE6fVE6–væGW&T¶W’‡6–væ–æu&öÆR•Ó°¢–b‚6fVE6–væGW&TFFW&Â’&WGW&ã°¢–b‚6å6–vä–FVçF—G’†7W'&VçEW6W"Â6VÆV7FVDFö7VÖVçBÂ6–væ–æu&öÆR’’°¢v–æF÷ræÆW'B‚.˜ˆ¾˜~‰˜‰~‰ˆ‹‰˜NŠ˜˜N‰N˜’ˆŠ>‹‰>‹.˜>Š¾˜˜ˆ˜‹.ˆ.ŠŞˆ~Š^‹.Š.˜ˆ¾˜~‰‰^‹.Š&öÆR˜‰¾˜~‰‰Î‹˜Š^ˆ~‰‹.Š˜ŠŞˆr"“°¢6WE6–væ–æu&öÆR†çVÆÂ“°¢&WGW&ã°¢Ğ¢6öç7BW†—7F–æu6–væVBÒvWE6–væVDVçG'’†VffV7F—fTVçG&–W4f÷$Fö2‡6VÆV7FVDFö7VÖVçBÂ6–væGW&W2’Â6–væ–æu&öÆR“°¢ÆWB6fVBÒfÇ6S°¢–b†W†—7F–æu6–væVB’°¢6fVBÒv—B6fTG&vå6–væGW&R‡6–væ–æu&öÆRÂ6fVE6–væGW&TFFW&ÂÂfÇ6R“°¢ÒVÇ6R°¢6fVBÒv—B6–vå&öÆR‡6–væ–æu&öÆRÂ6fVE6–væGW&TFFW&ÂÂfÇ6R“°¢Ğ¢–b‡6fVB’6WE6–væ–æu&öÆR†çVÆÂ“°¢×Ğ¢öå6fS×¶7–æ2†FFW&ÂÂ6fUFõ6fVDÆ–'&'’’Óâ°¢–b‚6å6–vä–FVçF—G’†7W'&VçEW6W"Â6VÆV7FVDFö7VÖVçBÂ6–væ–æu&öÆR’’°¢v–æF÷ræÆW'B‚.˜ˆ¾˜~‰˜‰~‰ˆ‹‰˜NŠ˜˜N‰N˜’ˆŠ>‹‰>‹.˜>Š¾˜˜ˆ˜‹.ˆ.ŠŞˆ~Š^‹.Š.˜ˆ¾˜~‰‰^‹.Š&öÆR˜‰¾˜~‰‰Î‹˜Š^ˆ~‰‹.Š˜ŠŞˆr"“°¢6WE6–væ–æu&öÆR†çVÆÂ“°¢&WGW&ã°¢Ğ¢6öç7BÆ–'&'”¶W’ÒvWE6fVE6–væGW&T¶W’‡6–væ–æu&öÆR“°¢6öç7B&WÆ6–æu6fVE6–væGW&RÒ&ööÆVâ‡6–væGW&TÆ–'&'•¶Æ–'&'”¶W•Ò“°¢6öç7BW†—7F–æu6–væVBÒvWE6–væVDVçG'’†VffV7F—fTVçG&–W4f÷$Fö2‡6VÆV7FVDFö7VÖVçBÂ6–væGW&W2’Â6–væ–æu&öÆR“°¢ÆWB6fVBÒfÇ6S°¢–b†W†—7F–æu6–væVB’°¢6fVBÒv—B6fTG&vå6–væGW&R‡6–væ–æu&öÆRÂFFW&ÂÂ6fUFõ6fVDÆ–'&'’“°¢ÒVÇ6R°¢6fVBÒv—B6–vå&öÆR‡6–væ–æu&öÆRÂFFW&ÂÂ6fUFõ6fVDÆ–'&'’“°¢Ğ¢–b‡6fVB’°¢–b‡6fUFõ6fVDÆ–'&'’’°¢v–æF÷ræÆW'B‡&WÆ6–æu6fVE6–væGW&P¢ò.ŠŞ‹‰¾˜‰N‰^Š^‹.Š.˜ˆ¾˜~‰‰~‹^˜‰®‹‰‰~‹nˆ˜Š>‹^Š.‰®Š>˜ŠŞŠ.˜Š^˜Šr ¢¢.‰®‹‰‰~‹nˆŠ^‹.Š.˜ˆ¾˜~‰˜NŠ~˜˜>ˆ®˜ˆNŠ>‹˜ˆ~‰^˜ŠŞ˜N‰¾˜Š>‹^Š.‰®Š>˜
