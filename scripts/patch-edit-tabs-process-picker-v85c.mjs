@@ -72,4 +72,5 @@ $2`);
 await import("./patch-edit-tabs-process-picker-v85b.mjs");
 await import("./patch-process-no-support-v86.mjs");
 await import("./patch-process-sticky-note-autofit-v87.mjs");
+await import("./patch-process-note-pdf-runtime-v89.mjs");
 await import("./patch-dashboard-unified-reset-v88.mjs");
