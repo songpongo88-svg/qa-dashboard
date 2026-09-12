@@ -61,3 +61,5 @@ await import("./patch-evidence-browser-capture-v96.mjs");
 
 // Put Agent, Senior, Supervisor, and QA signature panels on one landscape row.
 await import("./patch-signature-four-column-landscape-v98.mjs");
+// Keep only the signed date/time value on the true center axis of each landscape panel.
+await import("./patch-signature-landscape-date-axis-v99.mjs");
