@@ -38,3 +38,5 @@ if (!source.includes(marker)) {
 }
 
 console.log("Patched Signature Center: Supakrit Promkhamnoi August 2026 automatically carries the signed Agent signature from July 2026, preserving the original signing date.");
+
+await import("./patch-signature-late-carryover-v90.mjs");
