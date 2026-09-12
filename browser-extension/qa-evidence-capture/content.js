@@ -5,29 +5,58 @@ function postToPage(type, payload = {}) {
 }
 
 function notifyReady() {
-  postToPage("QA_EVIDENCE_EXTENSION_READY", { version: chrome.runtime.getManifest().version });
+  postToPage("QA_EVIDENCE_EXTENSION_READY", {
+    version: chrome.runtime.getManifest().version,
+  });
 }
 
 window.addEventListener("message", (event) => {
   if (event.source !== window) return;
   const message = event.data;
   if (!message || message.source !== "qa-dashboard") return;
-  if (!["QA_EVIDENCE_CONTEXT", "QA_EVIDENCE_ARM_CAPTURE", "QA_EVIDENCE_PULL", "QA_EVIDENCE_CAPTURE_ACK"].includes(message.type)) return;
+  if (
+    ![
+      "QA_EVIDENCE_CONTEXT",
+      "QA_EVIDENCE_ARM_CAPTURE",
+      "QA_EVIDENCE_PULL",
+      "QA_EVIDENCE_CAPTURE_ACK",
+      "QA_EVIDENCE_STOP_CAPTURE",
+    ].includes(message.type)
+  ) {
+    return;
+  }
 
-  chrome.runtime.sendMessage({ type: message.type, payload: message.payload || {} }, (response) => {
-    const error = chrome.runtime.lastError;
-    if (error) {
-      postToPage("QA_EVIDENCE_CAPTURE_ERROR", { fileName: error.message });
-      return;
+  chrome.runtime.sendMessage(
+    { type: message.type, payload: message.payload || {} },
+    (response) => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        postToPage("QA_EVIDENCE_CAPTURE_ERROR", { fileName: error.message });
+        return;
+      }
+      if (
+        message.type === "QA_EVIDENCE_CONTEXT" ||
+        message.type === "QA_EVIDENCE_ARM_CAPTURE"
+      ) {
+        notifyReady();
+      }
+      if (response?.error) {
+        postToPage("QA_EVIDENCE_CAPTURE_ERROR", { fileName: response.error });
+      }
     }
-    if (message.type === "QA_EVIDENCE_CONTEXT" || message.type === "QA_EVIDENCE_ARM_CAPTURE") notifyReady();
-    if (response?.error) postToPage("QA_EVIDENCE_CAPTURE_ERROR", { fileName: response.error });
-  });
+  );
 });
 
 function removeSelectionOverlay() {
   if (typeof selectionCleanup === "function") selectionCleanup();
   selectionCleanup = null;
+}
+
+function stopCaptureSession() {
+  removeSelectionOverlay();
+  chrome.runtime.sendMessage({ type: "QA_EVIDENCE_STOP_CAPTURE" }, () => {
+    void chrome.runtime.lastError;
+  });
 }
 
 function startSelectionOverlay() {
@@ -45,7 +74,8 @@ function startSelectionOverlay() {
   });
 
   const help = document.createElement("div");
-  help.textContent = "ลากเมาส์ครอบพื้นที่ที่ต้องการบันทึก • Esc เพื่อยกเลิก";
+  help.textContent =
+    "ลากเมาส์ครอบพื้นที่ได้ต่อเนื่อง • เปลี่ยนแท็บได้ • Esc เพื่อจบ Capture";
   Object.assign(help.style, {
     position: "fixed",
     top: "18px",
@@ -89,6 +119,13 @@ function startSelectionOverlay() {
     selection.style.height = height + "px";
   };
 
+  const resetSelection = () => {
+    dragging = false;
+    selection.style.display = "none";
+    selection.style.width = "0";
+    selection.style.height = "0";
+  };
+
   const onMouseDown = (event) => {
     if (event.button !== 0) return;
     dragging = true;
@@ -108,29 +145,54 @@ function startSelectionOverlay() {
 
   const onMouseUp = (event) => {
     if (!dragging) return;
-    dragging = false;
+
     const left = Math.max(0, Math.min(startX, event.clientX));
     const top = Math.max(0, Math.min(startY, event.clientY));
-    const width = Math.min(window.innerWidth - left, Math.abs(event.clientX - startX));
-    const height = Math.min(window.innerHeight - top, Math.abs(event.clientY - startY));
-    removeSelectionOverlay();
+    const width = Math.min(
+      window.innerWidth - left,
+      Math.abs(event.clientX - startX)
+    );
+    const height = Math.min(
+      window.innerHeight - top,
+      Math.abs(event.clientY - startY)
+    );
 
-    if (width < 8 || height < 8) return;
-    window.setTimeout(() => {
-      chrome.runtime.sendMessage({
-        type: "QA_EVIDENCE_SELECTION_READY",
-        payload: {
-          rect: { x: left, y: top, width, height },
-          viewport: { width: window.innerWidth, height: window.innerHeight },
-        },
-      });
-    }, 80);
     event.preventDefault();
     event.stopPropagation();
+
+    if (width < 8 || height < 8) {
+      resetSelection();
+      return;
+    }
+
+    removeSelectionOverlay();
+
+    window.setTimeout(() => {
+      chrome.runtime.sendMessage(
+        {
+          type: "QA_EVIDENCE_SELECTION_READY",
+          payload: {
+            rect: { x: left, y: top, width, height },
+            viewport: { width: window.innerWidth, height: window.innerHeight },
+          },
+        },
+        (response) => {
+          const error = chrome.runtime.lastError;
+          if (error || response?.error) {
+            postToPage("QA_EVIDENCE_CAPTURE_ERROR", {
+              fileName: error?.message || response?.error || "Capture Evidence ไม่สำเร็จ",
+            });
+          }
+        }
+      );
+    }, 80);
   };
 
   const onKeyDown = (event) => {
-    if (event.key === "Escape") removeSelectionOverlay();
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    stopCaptureSession();
   };
 
   overlay.addEventListener("mousedown", onMouseDown, true);
@@ -158,8 +220,14 @@ function cropScreenshot(payload) {
       const scaleY = image.naturalHeight / viewport.height;
       const sx = Math.max(0, Math.round(rect.x * scaleX));
       const sy = Math.max(0, Math.round(rect.y * scaleY));
-      const sw = Math.max(1, Math.min(image.naturalWidth - sx, Math.round(rect.width * scaleX)));
-      const sh = Math.max(1, Math.min(image.naturalHeight - sy, Math.round(rect.height * scaleY)));
+      const sw = Math.max(
+        1,
+        Math.min(image.naturalWidth - sx, Math.round(rect.width * scaleX))
+      );
+      const sh = Math.max(
+        1,
+        Math.min(image.naturalHeight - sy, Math.round(rect.height * scaleY))
+      );
 
       const canvas = document.createElement("canvas");
       canvas.width = sw;
@@ -170,22 +238,42 @@ function cropScreenshot(payload) {
 
       const dataUrl = canvas.toDataURL("image/png");
       const capturedAt = new Date().toISOString();
-      const fileName = "Evidence_Capture_" + capturedAt.replace(/[:.]/g, "-") + ".png";
-      chrome.runtime.sendMessage({
-        type: "QA_EVIDENCE_CAPTURE_CROPPED",
-        payload: {
-          dataUrl,
-          fileName,
-          capturedAt,
-          pageUrl: location.href,
-          pageTitle: document.title,
+      const fileName =
+        "Evidence_Capture_" + capturedAt.replace(/[:.]/g, "-") + ".png";
+
+      chrome.runtime.sendMessage(
+        {
+          type: "QA_EVIDENCE_CAPTURE_CROPPED",
+          payload: {
+            dataUrl,
+            fileName,
+            capturedAt,
+            pageUrl: location.href,
+            pageTitle: document.title,
+          },
         },
-      });
+        (response) => {
+          const error = chrome.runtime.lastError;
+          if (error || response?.error) {
+            postToPage("QA_EVIDENCE_CAPTURE_ERROR", {
+              fileName:
+                error?.message ||
+                response?.error ||
+                "ไม่สามารถส่งภาพกลับ QA Dashboard ได้",
+            });
+          }
+        }
+      );
     } catch (error) {
-      postToPage("QA_EVIDENCE_CAPTURE_ERROR", { fileName: String(error?.message || error) });
+      postToPage("QA_EVIDENCE_CAPTURE_ERROR", {
+        fileName: String(error?.message || error),
+      });
     }
   };
-  image.onerror = () => postToPage("QA_EVIDENCE_CAPTURE_ERROR", { fileName: "ไม่สามารถประมวลผลภาพหน้าจอได้" });
+  image.onerror = () =>
+    postToPage("QA_EVIDENCE_CAPTURE_ERROR", {
+      fileName: "ไม่สามารถประมวลผลภาพหน้าจอได้",
+    });
   image.src = screenshotDataUrl;
 }
 
@@ -195,11 +283,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ ok: true });
     return;
   }
+
+  if (message?.type === "QA_EVIDENCE_STOP_SELECTION") {
+    removeSelectionOverlay();
+    sendResponse({ ok: true });
+    return;
+  }
+
   if (message?.type === "QA_EVIDENCE_CROP_SCREENSHOT") {
     cropScreenshot(message.payload);
     sendResponse({ ok: true });
     return;
   }
+
   if (message?.type === "QA_EVIDENCE_CAPTURED") {
     postToPage("QA_EVIDENCE_CAPTURED", message.payload || {});
     sendResponse({ ok: true });
