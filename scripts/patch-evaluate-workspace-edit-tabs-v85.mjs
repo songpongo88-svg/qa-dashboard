@@ -58,3 +58,6 @@ await import("./patch-signature-date-axis-v95.mjs");
 // Add browser-wide Capture Evidence bridge after the Evaluate workspace has reached
 // its final build-time shape, so the Section B controls are patched only once.
 await import("./patch-evidence-browser-capture-v96.mjs");
+
+// Put Agent, Senior, Supervisor, and QA signature panels on one landscape row.
+await import("./patch-signature-four-column-landscape-v98.mjs");
