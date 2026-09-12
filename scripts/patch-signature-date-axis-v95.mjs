@@ -8,61 +8,45 @@ const signatureCenterPath = path.resolve(__dirname, "../src/SignatureCenterMocku
 
 let source = fs.readFileSync(signatureCenterPath, "utf8");
 
-// Normalize every drawSignedLine helper in SignatureCenterMockup. There are multiple
-// PDF renderers in this file. For the date row, do not use the legacy label/dotted
-// field at all: render only the date/time on the exact panel centerX axis.
-const helperPattern = /      const drawSignedLine = \(label: string, centerX: number, lineY: number, value = ""\) => \{[\s\S]*?\n      \};\n\n      const drawSignaturePanel = \(/g;
+// Approved layout: keep the existing "วันที่" label, dotted line, signature,
+// signer name, role, panel geometry and all other spacing exactly as-is.
+// Move ONLY the date/time text onto the same centerX axis as the signature panel.
 
-const helperReplacement = `      const drawSignedLine = (label: string, centerX: number, lineY: number, value = "") => {
-        if (label === "วันที่") {
-          if (value) {
-            setTemplateFont(5.9, true, black);
-            pdf.text(value, centerX, lineY - 0.35, { align: "center" });
-          }
-          // signature-date-axis-v95: date/time uses the exact signature panel center.
-          return;
-        }
+// v94 converted some date rows into a plain full-width cell. Restore those rows
+// to the original date-line layout first so the label/dotted line stay unchanged.
+const v94RowPattern = /        drawCell\(x, panelY \+ 27\.4, w, 4\.6, signerDate\(role\), \[255, 255, 255\], \{\n          bold: true,\n          size: 5\.9,\n          align: "center",\n          maxLines: 1,\n        \}\);\n        \/\/ signature-date-plain-centered-row-v94/g;
 
-        const labelX = centerX - 20;
-        const lineStart = centerX - 18;
-        const lineEnd = centerX + 25;
-        setTemplateFont(6.0, false, muted);
-        pdf.text(label, labelX, lineY - 0.25, { align: "right" });
-        drawDottedLine(lineStart, lineY, lineEnd);
-        if (value) {
-          setTemplateFont(5.9, true, black);
-          pdf.text(value, (lineStart + lineEnd) / 2, lineY - 0.35, { align: "center" });
-        }
-      };
+const restoredDateRow = `        drawCell(x, panelY + 27.4, w, 4.6, "", [255, 255, 255], { size: 5.8, align: "center" });
+        drawSignedLine("วันที่", centerX, panelY + 30.3, signerDate(role));
+        // signature-date-value-axis-v95`;
 
-      const drawSignaturePanel = (`;
-
-let helperCount = 0;
-source = source.replace(helperPattern, () => {
-  helperCount += 1;
-  return helperReplacement;
+let restoredRowCount = 0;
+source = source.replace(v94RowPattern, () => {
+  restoredRowCount += 1;
+  return restoredDateRow;
 });
 
-// Also convert any remaining legacy date-row call directly into the same full-width
-// centered detail row used by the signer name and role. This catches renderers whose
-// surrounding helper was already transformed by an earlier patch.
-const legacyDateRowPattern = /        drawCell\(x, panelY \+ 27\.4, w, 4\.6, "", \[255, 255, 255\], \{ size: 5\.8, align: "center" \}\);\n        drawSignedLine\("วันที่", centerX, panelY \+ 30\.3, signerDate\(role\)\);/g;
-const centeredDateRow = `        drawCell(x, panelY + 27.4, w, 4.6, signerDate(role), [255, 255, 255], {
-          bold: true,
-          size: 5.9,
-          align: "center",
-          maxLines: 1,
-        });
-        // signature-date-row-exact-center-v95`;
-let rowCount = 0;
-source = source.replace(legacyDateRowPattern, () => {
-  rowCount += 1;
-  return centeredDateRow;
-});
+// In every legacy drawSignedLine helper, preserve the current label and dotted-line
+// positions. Only the value coordinate changes for the date row:
+//   other rows -> existing field midpoint
+//   วันที่     -> exact panel centerX (same axis as signature/name/role)
+const legacyValueLine = 'pdf.text(value, (lineStart + lineEnd) / 2, lineY - 0.35, { align: "center" });';
+const centeredValueLine = 'pdf.text(value, label === "วันที่" ? centerX : (lineStart + lineEnd) / 2, lineY - 0.35, { align: "center" });';
 
-if (helperCount === 0 && rowCount === 0 && !source.includes("signature-date-axis-v95") && !source.includes("signature-date-row-exact-center-v95")) {
-  throw new Error("v95: Signature PDF date-center anchors not found");
+const valueLineCount = source.split(legacyValueLine).length - 1;
+if (valueLineCount > 0) {
+  source = source.split(legacyValueLine).join(centeredValueLine);
+}
+
+// v93-style helpers already render the date value at centerX while retaining the
+// label and dotted line. Leave those untouched; they already match the approved mockup.
+const alreadyCenteredCount = (source.match(/pdf\.text\(value, centerX, lineY - 0\.35, \{ align: "center" \}\);/g) || []).length;
+
+if (restoredRowCount === 0 && valueLineCount === 0 && alreadyCenteredCount === 0 && !source.includes("signature-date-value-axis-v95")) {
+  throw new Error("v95: no Signature PDF date-axis anchors found");
 }
 
 fs.writeFileSync(signatureCenterPath, source, "utf8");
-console.log(`Patched Signature PDF exact date axis: ${helperCount} helper(s), ${rowCount} legacy row(s).`);
+console.log(
+  `Patched Signature PDF approved date axis: restored ${restoredRowCount} row(s), centered ${valueLineCount} legacy value line(s), ${alreadyCenteredCount} already centered helper(s).`
+);
