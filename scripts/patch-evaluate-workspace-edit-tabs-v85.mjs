@@ -53,3 +53,4 @@ if (source.includes("// evaluate-dedicated-edit-memory-v85b") && !source.include
 // every other prebuild transform to prevent the old +3.5 mm date offset returning.
 await import("./patch-signature-date-center-final-v93.mjs");
 await import("./patch-signature-date-plain-center-v94.mjs");
+await import("./patch-signature-date-axis-v95.mjs");
