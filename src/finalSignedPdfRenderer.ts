@@ -201,6 +201,12 @@ export async function renderFinalSignedPdf({
   const left = 10;
   const tableW = 186;
   const bottom = 289;
+  // Reference: four wide, shallow panels (~1.94:1), never tall cards.
+  // Keep these dimensions fixed when the number of monthly topics changes.
+  const signatureGap = 2;
+  const signaturePanel = { header: 3.5, ink: 9, name: 3.2, role: 3.2, date: 4.3 };
+  const signaturePanelH = Object.values(signaturePanel).reduce((sum, height) => sum + height, 0);
+  const acknowledgementH = 7.2 + 6.2 + signaturePanelH;
   const purple: [number, number, number] = [112, 48, 160];
   const lightPurple: [number, number, number] = [204, 193, 218];
   const palePurple: [number, number, number] = [248, 242, 251];
@@ -269,6 +275,7 @@ export async function renderFinalSignedPdf({
       valign?: "top" | "middle";
       maxLines?: number;
       lineHeight?: number;
+      baselineOffset?: number;
     } = {}
   ) => {
     const size = options.size ?? 8;
@@ -285,7 +292,7 @@ export async function renderFinalSignedPdf({
     const textX = align === "center" ? x + w / 2 : align === "right" ? x + w - 2 : x + 2;
     const textY = options.valign === "top"
       ? cellY + 4.2
-      : cellY + h / 2 - ((lines.length - 1) * lineHeight) / 2 + size * 0.22;
+      : cellY + h / 2 - ((lines.length - 1) * lineHeight) / 2 + (options.baselineOffset ?? size * 0.22);
     lines.forEach((lineText: string, index: number) => {
       pdf.text(lineText, textX, textY + index * lineHeight, { align });
     });
@@ -339,10 +346,6 @@ export async function renderFinalSignedPdf({
   };
 
   const drawSection = (title: string) => {
-    if (y + 10 > bottom) {
-      pdf.addPage();
-      y = 10;
-    }
     drawCell(left, y, tableW, 7.2, title, purple, {
       bold: true,
       color: [255, 255, 255],
@@ -516,14 +519,8 @@ export async function renderFinalSignedPdf({
     y += rowH;
   }
 
-  // Reserve the remaining space on page 1 for the acknowledgement signatures.
-  // Topic performance continues on a new portrait page instead of moving the
-  // signatures to a separate page.
-  const signaturePageNumber = pdf.getNumberOfPages();
-  const signatureStartY = y;
-  pdf.addPage("a4", "portrait");
-  y = 10;
-
+  // All sections stay in reading order on this one portrait page. Reserve the
+  // compact acknowledgement block below the topics, not on an earlier page.
   drawSection("Monthly Topic Performance");
   const topicColWidths = [12, 77, 28, 18, 23, 28];
   const drawTopicHeader = () => {
@@ -539,38 +536,31 @@ export async function renderFinalSignedPdf({
   const formatTopicMax = (value: number) => Number.isFinite(value) ? (Number.isInteger(value) ? String(value) : value.toFixed(2)) : "-";
 
   drawTopicHeader();
+  const topicRowH = Math.min(8, (bottom - y - acknowledgementH) / Math.max(1, topicStats.length));
+  const topicFontSize = Math.min(7.6, topicRowH * 1.45);
   if (!topicStats.length) {
-    drawCell(left, y, tableW, 8.8, "No topic score data for this document", [250,247,253], { size: 8.2, align: "center", bold: true, color: muted, maxLines: 1 });
-    y += 8.8;
+    drawCell(left, y, tableW, topicRowH, "No topic score data for this document", [250,247,253], { size: 8.2, align: "center", bold: true, color: muted, maxLines: 1 });
+    y += topicRowH;
   } else {
     topicStats.forEach((item, index) => {
-      const topicRowH = 8.0;
-      if (y + topicRowH > bottom - 4) {
-        pdf.addPage();
-        y = 10;
-        drawSection("Monthly Topic Performance (continued)");
-        drawTopicHeader();
-      }
       const isKpiFail = item.avgPercent !== null && Number(item.avgPercent) < KPI_TARGET;
       const fill: [number, number, number] = isKpiFail
         ? kpiFailFill
         : index % 2 === 0 ? [255,255,255] : [250,247,253];
       const kpiStatus = item.avgPercent === null ? "-" : isKpiFail ? "Not Passed" : "Passed";
       drawCellsByWidth(left, y, topicRowH, [
-        { value: item.code, width: topicColWidths[0], fill, options: { size: 7.6, align: "center", bold: true, maxLines: 1 } },
-        { value: item.title, width: topicColWidths[1], fill, options: { size: 7.2, align: "left", bold: true, maxLines: 1 } },
-        { value: formatMetric(item.avgScore), width: topicColWidths[2], fill, options: { size: 7.6, align: "center", bold: true, maxLines: 1 } },
-        { value: formatTopicMax(item.max), width: topicColWidths[3], fill, options: { size: 7.6, align: "center", bold: true, maxLines: 1 } },
-        { value: item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, width: topicColWidths[4], fill, options: { size: 7.6, align: "center", bold: true, maxLines: 1 } },
-        { value: kpiStatus, width: topicColWidths[5], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1, color: isKpiFail ? kpiFailText : item.avgPercent === null ? muted : good } },
+        { value: item.code, width: topicColWidths[0], fill, options: { size: topicFontSize, align: "center", bold: true, maxLines: 1 } },
+        { value: item.title, width: topicColWidths[1], fill, options: { size: Math.min(7.2, topicFontSize), align: "left", bold: true, maxLines: 1 } },
+        { value: formatMetric(item.avgScore), width: topicColWidths[2], fill, options: { size: topicFontSize, align: "center", bold: true, maxLines: 1 } },
+        { value: formatTopicMax(item.max), width: topicColWidths[3], fill, options: { size: topicFontSize, align: "center", bold: true, maxLines: 1 } },
+        { value: item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, width: topicColWidths[4], fill, options: { size: topicFontSize, align: "center", bold: true, maxLines: 1 } },
+        { value: kpiStatus, width: topicColWidths[5], fill, options: { size: Math.min(7.0, topicFontSize), align: "center", bold: true, maxLines: 1, color: isKpiFail ? kpiFailText : item.avgPercent === null ? muted : good } },
       ] as any);
       y += topicRowH;
     });
   }
 
-  // Draw the acknowledgement block in the reserved area at the end of page 1.
-  pdf.setPage(signaturePageNumber);
-  y = signatureStartY;
+  // The acknowledgement is always the final section, immediately after topics.
   drawSection("Acknowledgement / Signature");
   drawCell(left, y, tableW, 5.4, "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", [255,255,255], { size: 7.2, align: "left", color: muted, maxLines: 1 });
   y += 6.2;
@@ -590,11 +580,6 @@ export async function renderFinalSignedPdf({
     normalizedSignatures.set(role, signature ? await normalizeSignatureDataUrl(signature) : "");
   }
 
-  const signaturePageH = pageH;
-  let signatureLeft = left;
-  let signatureRight = left + tableW;
-  let signatureTableW = tableW;
-
   const drawDottedLine = (x1: number, lineY: number, x2: number) => {
     pdf.setDrawColor(108, 96, 128);
     pdf.setLineWidth(0.12);
@@ -609,46 +594,35 @@ export async function renderFinalSignedPdf({
     panelLeft: number,
     panelWidth: number,
     lineY: number,
-    value = "",
-    centerValueOnPanel = false
+    value = ""
   ) => {
     const centerX = panelLeft + panelWidth / 2;
     const labelX = panelLeft + 9.5;
     const lineStart = panelLeft + 11;
     const lineEnd = panelLeft + panelWidth - 2;
-    setTemplateFont(6.0, false, muted);
+    setTemplateFont(7.6, false, muted);
     pdf.text(label, labelX, lineY - 0.25, { align: "right" });
+    // Keep the original dotted baseline continuous, with the value ABOVE it.
+    // Its center is the panel/signature axis, not the label's remaining space.
+    drawDottedLine(lineStart, lineY, lineEnd);
     if (value) {
-      setTemplateFont(5.9, true, black);
-      const valueCenter = centerValueOnPanel ? centerX : (lineStart + lineEnd) / 2;
-      const valueGapHalf = Math.min(
-        Math.max(4.8, pdf.getTextWidth(value) / 2 + 1.0),
-        Math.max(4.5, (lineEnd - lineStart) / 2 - 1.5)
-      );
-      drawDottedLine(lineStart, lineY, valueCenter - valueGapHalf);
-      drawDottedLine(valueCenter + valueGapHalf, lineY, lineEnd);
-      pdf.text(value, valueCenter, lineY - 0.35, { align: "center" });
-    } else {
-      drawDottedLine(lineStart, lineY, lineEnd);
+      setTemplateFont(8.4, true, black);
+      pdf.text(value, centerX, lineY - 0.5, { align: "center" });
     }
   };
 
   const drawSignaturePanel = (x: number, panelY: number, w: number, role: FinalSignedRole, roleTitle: string) => {
-    const headerH = 7.2;
-    const signatureAreaH = 31.0;
-    const nameH = 7.2;
-    const roleH = 6.4;
-    const dateH = 8.8;
+    const { header: headerH, ink: signatureAreaH, name: nameH, role: roleH, date: dateH } = signaturePanel;
     drawCell(x, panelY, w, headerH, roleTitle, purple, {
       bold: true,
       color: [255,255,255],
-      size: 5.5,
+      size: 8.6,
       align: "center",
-      maxLines: 2,
-      lineHeight: 2.6,
+      maxLines: 1,
+      baselineOffset: 0.7,
     });
     const signatureAreaY = panelY + headerH;
-    const signLineY = signatureAreaY + signatureAreaH - 6.0;
+    const signLineY = signatureAreaY + signatureAreaH - 2.0;
     const centerX = x + w / 2;
     drawCell(x, signatureAreaY, w, signatureAreaH, "", palePurple, { size: 6, align: "center" });
     drawSignedLine("ลงชื่อ", x, w, signLineY);
@@ -657,15 +631,15 @@ export async function renderFinalSignedPdf({
       try {
         const imageProps = pdf.getImageProperties(signature);
         const ratio = imageProps.width && imageProps.height ? imageProps.width / imageProps.height : 4;
-        const maxImageW = Math.min(w - 17, 42);
-        const maxImageH = 18.0;
+        const maxImageW = w - 17;
+        const maxImageH = signatureAreaH - 2.0;
         let imageW = maxImageW;
         let imageH = imageW / ratio;
         if (imageH > maxImageH) {
           imageH = maxImageH;
           imageW = imageH * ratio;
         }
-        pdf.addImage(signature, "PNG", centerX - imageW / 2, signLineY - imageH + 1.0, imageW, imageH);
+        pdf.addImage(signature, "PNG", centerX - imageW / 2, signLineY - imageH + 0.5, imageW, imageH);
       } catch {
         setTemplateFont(5.8, false, muted);
         pdf.text("Signature image unavailable", centerX, signLineY - 2, { align: "center" });
@@ -674,24 +648,24 @@ export async function renderFinalSignedPdf({
     const nameY = signatureAreaY + signatureAreaH;
     drawCell(x, nameY, w, nameH, signerName(role), [255,255,255], {
       bold: true,
-      size: 6.3,
+      size: 8.6,
       align: "center",
       maxLines: 1,
+      baselineOffset: 0.7,
     });
     const roleY = nameY + nameH;
     drawCell(x, roleY, w, roleH, roleTitle, [255,255,255], {
-      size: 5.7,
+      size: 7.6,
       align: "center",
-      maxLines: 2,
-      lineHeight: 2.5,
+      maxLines: 1,
+      baselineOffset: 0.65,
     });
     const dateY = roleY + roleH;
     drawCell(x, dateY, w, dateH, "", [255,255,255], { size: 5.7, align: "center" });
-    drawSignedLine("วันที่", x, w, dateY + dateH / 2 + 0.8, signerDate(role), true);
+    drawSignedLine("วันที่", x, w, dateY + dateH - 1.0, signerDate(role));
   };
 
-  const signatureGap = 4;
-  const signaturePanelW = (signatureTableW - signatureGap * 3) / 4;
+  const signaturePanelW = (tableW - signatureGap * 3) / 4;
   const signatureRoles: Array<{ role: FinalSignedRole; title: string }> = [
     { role: "Agent", title: "Agent ผู้ถูกประเมิน" },
     { role: "Senior", title: "Senior หัวหน้าทีมผู้ถูกประเมิน" },
@@ -699,15 +673,15 @@ export async function renderFinalSignedPdf({
     { role: "QA", title: "QA ผู้ตรวจสอบ" },
   ];
   signatureRoles.forEach((item, index) => {
-    const panelX = signatureLeft + index * (signaturePanelW + signatureGap);
+    const panelX = left + index * (signaturePanelW + signatureGap);
     drawSignaturePanel(panelX, y, signaturePanelW, item.role, item.title);
   });
 
   setTemplateFont(7.0, false, muted);
   pdf.text(
     `Document Ref. ${pdfDocumentRef} | Generated: ${formatDateTime(generatedAt)} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`,
-    signatureRight,
-    signaturePageH - 5.4,
+    left + tableW,
+    pageH - 5.4,
     { align: "right" }
   );
 
