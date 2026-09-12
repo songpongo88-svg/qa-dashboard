@@ -6,8 +6,15 @@ export function signatureFourColumnPdfPatch() {
       const cleanId = id.replace(/\\/g, "/").split("?")[0];
       if (!cleanId.endsWith("/src/SignatureCenterMockup.tsx")) return null;
 
-      // If the npm prebuild patch already ran, keep that result.
-      if (code.includes("signature-four-column-landscape-v98")) return null;
+      // If npm prebuild already created the four-column page, only correct the
+      // date/value axis so the displayed date sits on the true panel center.
+      if (code.includes("signature-four-column-landscape-v98")) {
+        const centered = code.replace(
+          "        const lineCenter = (lineStart + lineEnd) / 2;",
+          "        const lineCenter = x + w / 2;",
+        );
+        return centered === code ? null : { code: centered, map: null };
+      }
 
       let next = code;
 
