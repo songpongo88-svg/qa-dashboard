@@ -52,3 +52,4 @@ if (source.includes("// evaluate-dedicated-edit-memory-v85b") && !source.include
 // SignatureCenterMockup.tsx, so the centering correction must be applied after
 // every other prebuild transform to prevent the old +3.5 mm date offset returning.
 await import("./patch-signature-date-center-final-v93.mjs");
+await import("./patch-signature-date-plain-center-v94.mjs");
