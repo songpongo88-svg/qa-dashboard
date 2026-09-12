@@ -185,7 +185,7 @@ export function signatureFourColumnPdfPatch() {
 
       setTemplateFont(7.0, false, muted);
       pdf.text(
-        `Document Ref. ${pdfDocumentRef} | Generated: ${formatDateTime(new Date().toISOString())} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`,
+        "Document Ref. " + pdfDocumentRef + " | Generated: " + formatDateTime(new Date().toISOString()) + " | " + documentStatus + " | Signed: " + signedRoles + "/" + SIGNATURE_FLOW.length,
         signatureRight,
         signaturePageH - 5.4,
         { align: "right" }
