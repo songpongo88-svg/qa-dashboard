@@ -49,6 +49,12 @@ export type FinalSignedIncentive = {
 
 const SIGNATURE_FLOW: FinalSignedRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const CASE_TARGET = 10;
+const KPI_TARGET = 85;
+// final-signed-kpi-status-v14
+// final-signed-current-kpi-tight-layout-v15
+// final-signed-current-score-color-v16
+// final-signed-current-kpi-restore-v17
+// final-signed-dashboard-value-colors-v18
 
 function normalizeText(value: unknown) {
   return String(value ?? "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
@@ -183,8 +189,8 @@ export async function renderFinalSignedPdf({
   appendPage?: boolean;
   generatedAt?: string;
 }) {
-  const pdf = pdfDoc || new jsPDF({ unit: "mm", format: "a4" });
-  if (appendPage) pdf.addPage();
+  const pdf = pdfDoc || new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  if (appendPage) pdf.addPage("a4", "portrait");
 
   try {
     registerTHSarabunNew(pdf);
@@ -203,6 +209,21 @@ export async function renderFinalSignedPdf({
   const muted: [number, number, number] = [71, 85, 105];
   const good: [number, number, number] = [5, 150, 105];
   const warn: [number, number, number] = [180, 83, 9];
+  const kpiFailFill: [number, number, number] = [254, 226, 226];
+  const kpiFailText: [number, number, number] = [185, 28, 28];
+  const valueWhite: [number, number, number] = [255, 255, 255];
+  // Mirror Dashboard semantic backgrounds: strongest = emerald-50, coaching focus = rose-50.
+  const dashboardBestTopicFill: [number, number, number] = [236, 253, 245];
+  const dashboardLowestTopicFill: [number, number, number] = [255, 241, 242];
+  const dashboardGradeFill = (grade: string): [number, number, number] => {
+    switch (String(grade || "").toUpperCase()) {
+      case "A": return [236, 253, 245];
+      case "B": return [239, 246, 255];
+      case "C": return [255, 251, 235];
+      case "D": return [255, 237, 213];
+      default: return [255, 241, 242];
+    }
+  };
   const templateWidths = [15.36, 35.36, 12.27, 34.73, 19.91, 24.09, 30.36, 8, 25.36, 25.91];
   const widthScale = tableW / templateWidths.reduce((sum, value) => sum + value, 0);
   const colX = templateWidths.reduce<number[]>((acc, width) => {
@@ -314,7 +335,7 @@ export async function renderFinalSignedPdf({
       align: "left",
       maxLines: 1,
     });
-    y += 8.2;
+    y += 7.0;
   };
 
   const drawSection = (title: string) => {
@@ -329,7 +350,7 @@ export async function renderFinalSignedPdf({
       align: "left",
       maxLines: 1,
     });
-    y += 8.0;
+    y += 7.2;
   };
 
   const drawLabelValue = (
@@ -350,7 +371,7 @@ export async function renderFinalSignedPdf({
       align: "center",
       maxLines: 2,
     });
-    drawCellCols(valueStart, valueEnd, rowY, h, value, lightPurple, {
+    drawCellCols(valueStart, valueEnd, rowY, h, value, valueWhite, {
       bold: true,
       size: 8.8,
       align: "center",
@@ -433,73 +454,85 @@ export async function renderFinalSignedPdf({
   drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 10.0);
   drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 10.0);
   drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 10.0);
-  y += 11.0;
+  y += 10.0;
 
-  drawCellCols(0, 3, y, 7.4, "Cases Reviewed", purple, { bold: true, color: [255,255,255], size: 8.7, align: "center" });
-  drawCellCols(3, 6, y, 7.4, "Need More to 10", purple, { bold: true, color: [255,255,255], size: 8.7, align: "center" });
-  drawCellCols(6, 9, y, 7.4, "Average Score", purple, { bold: true, color: [255,255,255], size: 8.7, align: "center" });
-  drawCellCols(9, 10, y, 7.4, "Monthly Grade", purple, { bold: true, color: [255,255,255], size: 8.7, align: "center", maxLines: 2 });
+  const monthlyKpiPassed = Number(selectedDocument.averageScore || 0) >= KPI_TARGET;
+  const currentMetricWidths = [38, 38, 43, 27, 40];
+  drawCellsByWidth(left, y, 7.4, ["Cases Reviewed", "Need More to 10", "Average Score", "Monthly Grade", "KPI Status"].map((label, index) => ({
+    value: label,
+    width: currentMetricWidths[index],
+    fill: purple,
+    options: { bold: true, color: [255,255,255] as [number,number,number], size: index === 4 ? 7.8 : 8.4, align: "center" as const, maxLines: 1 },
+  })));
   y += 7.4;
-  drawCellCols(0, 3, y, 10.8, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, { bold: true, size: 13, align: "center", maxLines: 1 });
-  drawCellCols(3, 6, y, 10.8, needMoreToTarget, lightPurple, { bold: true, size: 13, align: "center", maxLines: 1 });
-  drawCellCols(6, 9, y, 10.8, selectedDocument.averageScore.toFixed(2), lightPurple, { bold: true, size: 13, align: "center", color: selectedDocument.averageScore >= 80 ? good : warn, maxLines: 1 });
-  drawCellCols(9, 10, y, 10.8, selectedDocument.grade, lightPurple, { bold: true, size: 13, align: "center", maxLines: 1 });
-  y += 13;
+  drawCellsByWidth(left, y, 10.8, [
+    { value: `${selectedDocument.caseCount}/${CASE_TARGET}`, width: currentMetricWidths[0], fill: valueWhite, options: { bold: true, size: 12.5, align: "center", maxLines: 1 } },
+    { value: needMoreToTarget, width: currentMetricWidths[1], fill: valueWhite, options: { bold: true, size: 12.5, align: "center", maxLines: 1 } },
+    { value: selectedDocument.averageScore.toFixed(2), width: currentMetricWidths[2], fill: valueWhite, options: { bold: true, size: 12.5, align: "center", color: monthlyKpiPassed ? good : kpiFailText, maxLines: 1 } },
+    { value: selectedDocument.grade, width: currentMetricWidths[3], fill: dashboardGradeFill(selectedDocument.grade), options: { bold: true, size: 12.5, align: "center", color: black, maxLines: 1 } },
+    { value: monthlyKpiPassed ? "Passed" : "Not Passed", width: currentMetricWidths[4], fill: valueWhite, options: { bold: true, size: 8.2, align: "center", color: monthlyKpiPassed ? good : kpiFailText, maxLines: 1 } },
+  ] as any);
+  y += 10.8;
 
   drawSection("Incentive Summary");
   drawCellCols(0, 3, y, 7.4, "Incentive", purple, { bold: true, color: [255,255,255], size: 8.7, align: "center" });
   drawCellCols(3, 6, y, 7.4, "Best Topic", purple, { bold: true, color: [255,255,255], size: 8.7, align: "center" });
   drawCellCols(6, 10, y, 7.4, "Lowest Topic", purple, { bold: true, color: [255,255,255], size: 8.7, align: "center" });
   y += 7.4;
-  drawCellCols(0, 3, y, 12, incentiveText, lightPurple, { bold: true, size: 8.8, align: "center", maxLines: 2 });
-  drawCellCols(3, 6, y, 12, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, { bold: true, size: 8.3, align: "center", maxLines: 2 });
-  drawCellCols(6, 10, y, 12, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, { bold: true, size: 8.3, align: "center", maxLines: 2 });
-  y += 14;
+  drawCellCols(0, 3, y, 12, incentiveText, valueWhite, { bold: true, size: 8.8, align: "center", maxLines: 2 });
+  drawCellCols(3, 6, y, 12, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", dashboardBestTopicFill, { bold: true, size: 8.3, align: "center", maxLines: 2 });
+  drawCellCols(6, 10, y, 12, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", dashboardLowestTopicFill, { bold: true, size: 8.3, align: "center", maxLines: 2 });
+  y += 12;
 
   drawSection("Monthly Case List");
-  const caseColWidths = [10, 23, 24, 96, 16, 8, 9];
-  drawCellsByWidth(left, y, 7.4, ["Seq", "Case Date", "Case ID", "Inquiry", "Score", "Grade", "Critical"].map((label, index) => ({
+  const caseColWidths = [8, 20, 22, 82, 14, 8, 9, 23];
+  drawCellsByWidth(left, y, 7.4, ["Seq", "Case Date", "Case ID", "Inquiry", "Score", "Grade", "Critical", "KPI Status"].map((label, index) => ({
     value: label,
     width: caseColWidths[index],
     fill: purple,
-    options: { bold: true, color: [255,255,255] as [number,number,number], size: 7.8, align: "center" as const, maxLines: 1 },
+    options: { bold: true, color: [255,255,255] as [number,number,number], size: index === 7 ? 7.1 : 7.6, align: "center" as const, maxLines: 1 },
   })));
   y += 7.4;
 
   for (let index = 0; index < CASE_TARGET; index += 1) {
     const item = selectedDocument.cases[index];
     const rowH = 8.4;
-    const fill: [number, number, number] = index % 2 === 0 ? [255,255,255] : [250,247,253];
+    const score = item ? Number(item.finalScore || 0) : null;
+    const isKpiFail = score !== null && Number.isFinite(score) && score < KPI_TARGET;
+    const fill: [number, number, number] = isKpiFail
+      ? kpiFailFill
+      : index % 2 === 0 ? [255,255,255] : [250,247,253];
+    const kpiStatus = !item ? "-" : isKpiFail ? "Not Passed" : "Passed";
     drawCellsByWidth(left, y, rowH, [
-      { value: index + 1, width: caseColWidths[0], fill, options: { size: 7.5, align: "center", bold: true, maxLines: 1 } },
-      { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 7.1, align: "center", bold: true, maxLines: 1 } },
-      { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 7.1, align: "center", bold: true, maxLines: 1 } },
-      { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 7.0, align: "left", bold: true, maxLines: 2, lineHeight: 3.55 } },
-      { value: item ? Number(item.finalScore || 0).toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 7.5, align: "center", bold: true, maxLines: 1 } },
-      { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 7.5, align: "center", bold: true, maxLines: 1 } },
-      { value: "NO", width: caseColWidths[6], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1 } },
+      { value: index + 1, width: caseColWidths[0], fill, options: { size: 7.3, align: "center", bold: true, maxLines: 1 } },
+      { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1 } },
+      { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1 } },
+      { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 6.8, align: "left", bold: true, maxLines: 2, lineHeight: 3.45 } },
+      { value: item ? Number(item.finalScore || 0).toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 7.3, align: "center", bold: true, maxLines: 1 } },
+      { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 7.3, align: "center", bold: true, maxLines: 1 } },
+      { value: item ? "NO" : "-", width: caseColWidths[6], fill, options: { size: 6.8, align: "center", bold: true, maxLines: 1 } },
+      { value: kpiStatus, width: caseColWidths[7], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1, color: isKpiFail ? kpiFailText : item ? good : muted } },
     ] as any);
     y += rowH;
   }
 
-  y += 3;
+  // Reserve the remaining space on page 1 for the acknowledgement signatures.
+  // Topic performance continues on a new portrait page instead of moving the
+  // signatures to a separate page.
+  const signaturePageNumber = pdf.getNumberOfPages();
+  const signatureStartY = y;
+  pdf.addPage("a4", "portrait");
+  y = 10;
+
   drawSection("Monthly Topic Performance");
+  const topicColWidths = [12, 77, 28, 18, 23, 28];
   const drawTopicHeader = () => {
-    [
-      [0, 1, "Topic"],
-      [1, 4, "Description"],
-      [4, 6, "Avg Score"],
-      [6, 7, "Max"],
-      [7, 10, "Avg %"],
-    ].forEach(([start, end, label]) => {
-      drawCellCols(Number(start), Number(end), y, 7.4, String(label), purple, {
-        bold: true,
-        color: [255,255,255],
-        size: 8.0,
-        align: "center",
-        maxLines: 1,
-      });
-    });
+    drawCellsByWidth(left, y, 7.4, ["Topic", "Description", "Avg Score", "Max", "Avg %", "KPI Status"].map((label, index) => ({
+      value: label,
+      width: topicColWidths[index],
+      fill: purple,
+      options: { bold: true, color: [255,255,255] as [number,number,number], size: index === 5 ? 7.2 : 7.8, align: "center" as const, maxLines: 1 },
+    })));
     y += 7.4;
   };
   const formatMetric = (value: number | null) => value === null || !Number.isFinite(value) ? "-" : value.toFixed(2);
@@ -518,17 +551,26 @@ export async function renderFinalSignedPdf({
         drawSection("Monthly Topic Performance (continued)");
         drawTopicHeader();
       }
-      const fill: [number, number, number] = index % 2 === 0 ? [255,255,255] : [250,247,253];
-      drawCellCols(0, 1, y, topicRowH, item.code, fill, { size: 7.8, align: "center", bold: true, maxLines: 1 });
-      drawCellCols(1, 4, y, topicRowH, item.title, fill, { size: 7.4, align: "left", bold: true, maxLines: 1 });
-      drawCellCols(4, 6, y, topicRowH, formatMetric(item.avgScore), fill, { size: 7.8, align: "center", bold: true, maxLines: 1 });
-      drawCellCols(6, 7, y, topicRowH, formatTopicMax(item.max), fill, { size: 7.8, align: "center", bold: true, maxLines: 1 });
-      drawCellCols(7, 10, y, topicRowH, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, { size: 7.8, align: "center", bold: true, maxLines: 1 });
+      const isKpiFail = item.avgPercent !== null && Number(item.avgPercent) < KPI_TARGET;
+      const fill: [number, number, number] = isKpiFail
+        ? kpiFailFill
+        : index % 2 === 0 ? [255,255,255] : [250,247,253];
+      const kpiStatus = item.avgPercent === null ? "-" : isKpiFail ? "Not Passed" : "Passed";
+      drawCellsByWidth(left, y, topicRowH, [
+        { value: item.code, width: topicColWidths[0], fill, options: { size: 7.6, align: "center", bold: true, maxLines: 1 } },
+        { value: item.title, width: topicColWidths[1], fill, options: { size: 7.2, align: "left", bold: true, maxLines: 1 } },
+        { value: formatMetric(item.avgScore), width: topicColWidths[2], fill, options: { size: 7.6, align: "center", bold: true, maxLines: 1 } },
+        { value: formatTopicMax(item.max), width: topicColWidths[3], fill, options: { size: 7.6, align: "center", bold: true, maxLines: 1 } },
+        { value: item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, width: topicColWidths[4], fill, options: { size: 7.6, align: "center", bold: true, maxLines: 1 } },
+        { value: kpiStatus, width: topicColWidths[5], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1, color: isKpiFail ? kpiFailText : item.avgPercent === null ? muted : good } },
+      ] as any);
       y += topicRowH;
     });
   }
 
-  y += 3;
+  // Draw the acknowledgement block in the reserved area at the end of page 1.
+  pdf.setPage(signaturePageNumber);
+  y = signatureStartY;
   drawSection("Acknowledgement / Signature");
   drawCell(left, y, tableW, 5.4, "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", [255,255,255], { size: 7.2, align: "left", color: muted, maxLines: 1 });
   y += 6.2;
@@ -548,23 +590,10 @@ export async function renderFinalSignedPdf({
     normalizedSignatures.set(role, signature ? await normalizeSignatureDataUrl(signature) : "");
   }
 
-  // The acknowledgement page is intentionally a separate A4 landscape page.
-  // Page 1 above remains the existing portrait dashboard renderer.
-  const signatureBlockHeight = 74;
-  let signaturePageW = pdf.internal.pageSize.getWidth();
-  let signaturePageH = pdf.internal.pageSize.getHeight();
+  const signaturePageH = pageH;
   let signatureLeft = left;
   let signatureRight = left + tableW;
   let signatureTableW = tableW;
-  if (y + signatureBlockHeight > bottom - 5) {
-    pdf.addPage("a4", "landscape");
-    signaturePageW = pdf.internal.pageSize.getWidth();
-    signaturePageH = pdf.internal.pageSize.getHeight();
-    signatureLeft = 10;
-    signatureRight = signaturePageW - 10;
-    signatureTableW = signatureRight - signatureLeft;
-    y = 12;
-  }
 
   const drawDottedLine = (x1: number, lineY: number, x2: number) => {
     pdf.setDrawColor(108, 96, 128);
@@ -577,22 +606,24 @@ export async function renderFinalSignedPdf({
 
   const drawSignedLine = (
     label: string,
-    centerX: number,
+    panelLeft: number,
+    panelWidth: number,
     lineY: number,
     value = "",
     centerValueOnPanel = false
   ) => {
-    const labelX = centerX - 20;
-    const lineStart = centerX - 18;
-    const lineEnd = centerX + 25;
+    const centerX = panelLeft + panelWidth / 2;
+    const labelX = panelLeft + 9.5;
+    const lineStart = panelLeft + 11;
+    const lineEnd = panelLeft + panelWidth - 2;
     setTemplateFont(6.0, false, muted);
     pdf.text(label, labelX, lineY - 0.25, { align: "right" });
     if (value) {
       setTemplateFont(5.9, true, black);
       const valueCenter = centerValueOnPanel ? centerX : (lineStart + lineEnd) / 2;
       const valueGapHalf = Math.min(
-        Math.max(6.8, pdf.getTextWidth(value) / 2 + 1.4),
-        Math.max(7, (lineEnd - lineStart) / 2 - 1.5)
+        Math.max(4.8, pdf.getTextWidth(value) / 2 + 1.0),
+        Math.max(4.5, (lineEnd - lineStart) / 2 - 1.5)
       );
       drawDottedLine(lineStart, lineY, valueCenter - valueGapHalf);
       drawDottedLine(valueCenter + valueGapHalf, lineY, lineEnd);
@@ -611,15 +642,16 @@ export async function renderFinalSignedPdf({
     drawCell(x, panelY, w, headerH, roleTitle, purple, {
       bold: true,
       color: [255,255,255],
-      size: 6.5,
+      size: 5.5,
       align: "center",
-      maxLines: 1,
+      maxLines: 2,
+      lineHeight: 2.6,
     });
     const signatureAreaY = panelY + headerH;
     const signLineY = signatureAreaY + signatureAreaH - 6.0;
     const centerX = x + w / 2;
     drawCell(x, signatureAreaY, w, signatureAreaH, "", palePurple, { size: 6, align: "center" });
-    drawSignedLine("ลงชื่อ", centerX, signLineY);
+    drawSignedLine("ลงชื่อ", x, w, signLineY);
     const signature = normalizedSignatures.get(role) || "";
     if (signature) {
       try {
@@ -650,11 +682,12 @@ export async function renderFinalSignedPdf({
     drawCell(x, roleY, w, roleH, roleTitle, [255,255,255], {
       size: 5.7,
       align: "center",
-      maxLines: 1,
+      maxLines: 2,
+      lineHeight: 2.5,
     });
     const dateY = roleY + roleH;
     drawCell(x, dateY, w, dateH, "", [255,255,255], { size: 5.7, align: "center" });
-    drawSignedLine("วันที่", centerX, dateY + dateH / 2 + 0.8, signerDate(role), true);
+    drawSignedLine("วันที่", x, w, dateY + dateH / 2 + 0.8, signerDate(role), true);
   };
 
   const signatureGap = 4;
