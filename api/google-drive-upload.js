@@ -32,11 +32,35 @@ export default async function handler(req, res) {
     if (!response.ok || data.error) {
       return res.status(500).json({ error: data.error || "Google Drive upload failed" });
     }
+
+    const nested = data.file && typeof data.file === "object"
+      ? data.file
+      : data.data && typeof data.data === "object"
+        ? data.data
+        : {};
+    const id = data.id || data.fileId || nested.id || nested.fileId || "";
+    const webViewLink =
+      data.webViewLink ||
+      data.url ||
+      data.fileUrl ||
+      data.link ||
+      nested.webViewLink ||
+      nested.url ||
+      nested.fileUrl ||
+      nested.link ||
+      (id ? `https://drive.google.com/file/d/${encodeURIComponent(id)}/view` : "");
+
+    if (!webViewLink) {
+      return res.status(502).json({
+        error: "Google Drive upload completed but no file link was returned",
+      });
+    }
+
     return res.status(200).json({
-      id: data.id || data.fileId || "",
-      name: data.name || fileName,
-      webViewLink: data.webViewLink || data.url || data.fileUrl || "",
-      webContentLink: data.webContentLink || "",
+      id,
+      name: data.name || nested.name || fileName,
+      webViewLink,
+      webContentLink: data.webContentLink || nested.webContentLink || "",
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
