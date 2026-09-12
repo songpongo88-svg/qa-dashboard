@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "QA Evidence Capture",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Continuously capture evidence across browser tabs and send it back to the active QA Dashboard case.",
-  "permissions": ["storage", "tabs", "activeTab", "unlimitedStorage"],
+  "permissions": ["storage", "tabs", "activeTab", "scripting", "unlimitedStorage"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
