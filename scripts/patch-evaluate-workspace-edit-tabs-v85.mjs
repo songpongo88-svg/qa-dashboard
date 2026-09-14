@@ -70,3 +70,6 @@ await import("./patch-evaluation-last-updated-v88-safety.mjs");
 
 // Final display parity: PDF shares Audit Date cell, dashboard has no comma, and Selected Case shows Last Updated.
 await import("./patch-evaluation-last-updated-v89-layout.mjs");
+
+// Selected Case readability: label and timestamp share a line; Last Updated remains in the same card.
+await import("./patch-selected-case-audit-inline-v90.mjs");
