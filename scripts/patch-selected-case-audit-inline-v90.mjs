@@ -17,7 +17,7 @@ if (!match) {
 }
 
 const auditValueExpression = match[1];
-const newCard = `<div className="rounded-xl border border-slate-300 bg-white p-3">\n                                  <div className="flex items-baseline justify-between gap-2 whitespace-nowrap leading-none">\n                                    <span className="text-[8px] font-bold uppercase tracking-wide text-slate-500">Audit Date</span>\n                                    <span className="text-[10px] font-bold tabular-nums text-slate-900">${auditValueExpression}</span>\n                                  </div>\n                                  {activeSelectedCase.lastUpdatedAt ? (\n                                    <div className="mt-2 flex items-baseline justify-between gap-2 whitespace-nowrap leading-none">\n                                      <span className="text-[8px] font-bold uppercase tracking-wide text-rose-600">Last Updated</span>\n                                      <span className="text-[10px] font-bold tabular-nums text-rose-600">{activeSelectedCase.lastUpdatedAt}</span>\n                                    </div>\n                                  ) : null}\n                                </div>`;
+const newCard = `<div className="rounded-xl border border-slate-300 bg-white px-3 py-2">\n                                  <div className="text-[8px] font-bold uppercase tracking-wide leading-none text-slate-500">Audit Date</div>\n                                  <div className="mt-1 text-[11px] font-bold tabular-nums leading-none text-slate-900">${auditValueExpression}</div>\n                                  {activeSelectedCase.lastUpdatedAt ? (\n                                    <div className="mt-2">\n                                      <div className="text-[8px] font-bold uppercase tracking-wide leading-none text-rose-600">Last Updated</div>\n                                      <div className="mt-1 text-[11px] font-bold tabular-nums leading-none text-rose-600">{activeSelectedCase.lastUpdatedAt}</div>\n                                    </div>\n                                  ) : null}\n                                </div>`;
 
 source = source.replace(compactCardPattern, newCard);
 source = source.replace(
@@ -26,4 +26,4 @@ source = source.replace(
 );
 
 fs.writeFileSync(file, source, "utf8");
-console.log(`${PATCH}: Audit Date and Last Updated now render as two readable inline rows inside one equal-height card`);
+console.log(`${PATCH}: Audit Date and Last Updated now render as stacked label/value pairs inside one card`);
