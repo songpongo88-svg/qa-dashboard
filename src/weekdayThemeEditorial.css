@@ -1,0 +1,230 @@
+/* qa-weekday-editorial-v2
+   Visual-only enhancement for Monday-Sunday.
+   Keeps dashboard data, layout, KPI semantics and workflows unchanged. */
+
+:root[data-qa-theme^="weekday-"] {
+  --day-card-radius: 22px;
+  --day-panel-radius: 28px;
+  --day-motif: "";
+  --day-note: "";
+  --day-photo: linear-gradient(135deg, transparent, transparent);
+  --day-detail: linear-gradient(135deg, transparent, transparent);
+}
+
+/* MONDAY — warm morning / flowers / coffee */
+:root[data-qa-theme="weekday-monday"] {
+  --day-card-radius: 22px;
+  --day-panel-radius: 30px;
+  --day-motif: "🌼  ☕  ✨";
+  --day-note: "MONDAY  •  FRESH START";
+  --day-photo:
+    radial-gradient(circle at 84% 20%, rgba(255,255,255,.96) 0 5%, transparent 5.3%),
+    radial-gradient(circle at 78% 16%, rgba(250,204,21,.42) 0 5%, transparent 5.3%),
+    radial-gradient(circle at 91% 28%, rgba(245,158,11,.28) 0 4%, transparent 4.3%),
+    linear-gradient(110deg, rgba(255,255,255,.88), rgba(254,240,138,.54) 62%, rgba(251,191,36,.25));
+  --day-detail: repeating-linear-gradient(120deg, transparent 0 22px, rgba(202,138,4,.035) 23px 24px);
+}
+
+/* TUESDAY — polished floral / ribbon / upbeat */
+:root[data-qa-theme="weekday-tuesday"] {
+  --day-card-radius: 26px 18px 26px 18px;
+  --day-panel-radius: 34px 22px 34px 22px;
+  --day-motif: "🌷  💗  ✨";
+  --day-note: "TUESDAY  •  POSITIVE ENERGY";
+  --day-photo:
+    radial-gradient(ellipse at 82% 16%, rgba(249,168,212,.40) 0 6%, transparent 6.4%),
+    radial-gradient(ellipse at 89% 24%, rgba(251,113,133,.28) 0 5%, transparent 5.4%),
+    radial-gradient(ellipse at 75% 29%, rgba(244,114,182,.22) 0 4%, transparent 4.4%),
+    linear-gradient(120deg, rgba(255,255,255,.90), rgba(252,231,243,.64) 62%, rgba(251,207,232,.40));
+  --day-detail: radial-gradient(circle at 15px 15px, rgba(236,72,153,.05) 0 2px, transparent 2.4px);
+}
+
+/* WEDNESDAY — botanical workspace / calm focus */
+:root[data-qa-theme="weekday-wednesday"] {
+  --day-card-radius: 28px 16px 28px 16px;
+  --day-panel-radius: 34px 18px 34px 18px;
+  --day-motif: "🪴  🌿  📗";
+  --day-note: "WEDNESDAY  •  KEEP GROWING";
+  --day-photo:
+    radial-gradient(ellipse at 86% 12%, rgba(34,197,94,.28) 0 8%, transparent 8.4%),
+    radial-gradient(ellipse at 78% 25%, rgba(22,163,74,.22) 0 7%, transparent 7.4%),
+    radial-gradient(ellipse at 94% 31%, rgba(134,239,172,.36) 0 6%, transparent 6.4%),
+    linear-gradient(115deg, rgba(255,255,255,.92), rgba(220,252,231,.68) 60%, rgba(187,247,208,.40));
+  --day-detail: repeating-linear-gradient(35deg, transparent 0 30px, rgba(22,163,74,.035) 31px 32px);
+}
+
+/* THURSDAY — warm studio / books / progress */
+:root[data-qa-theme="weekday-thursday"] {
+  --day-card-radius: 18px;
+  --day-panel-radius: 22px;
+  --day-motif: "📚  ☕  ✦";
+  --day-note: "THURSDAY  •  PROGRESS MODE";
+  --day-photo:
+    linear-gradient(90deg, transparent 0 74%, rgba(154,52,18,.05) 74% 76%, transparent 76%),
+    radial-gradient(circle at 84% 18%, rgba(251,146,60,.34) 0 7%, transparent 7.4%),
+    radial-gradient(circle at 92% 30%, rgba(245,158,11,.22) 0 5%, transparent 5.4%),
+    linear-gradient(115deg, rgba(255,255,255,.92), rgba(255,237,213,.68) 60%, rgba(254,215,170,.44));
+  --day-detail: repeating-linear-gradient(0deg, transparent 0 29px, rgba(234,88,12,.035) 30px 31px);
+}
+
+/* FRIDAY — airy blue / seaside-desk / reward energy */
+:root[data-qa-theme="weekday-friday"] {
+  --day-card-radius: 30px;
+  --day-panel-radius: 36px;
+  --day-motif: "🌊  🥤  ☀️";
+  --day-note: "FRIDAY  •  GOOD VIBES";
+  --day-photo:
+    radial-gradient(ellipse at 82% 15%, rgba(255,255,255,.90) 0 7%, transparent 7.4%),
+    repeating-radial-gradient(ellipse at 92% 88%, transparent 0 18px, rgba(14,165,233,.08) 19px 21px, transparent 22px 36px),
+    linear-gradient(180deg, rgba(224,242,254,.78) 0 58%, rgba(186,230,253,.52) 59% 68%, rgba(255,255,255,.90) 69% 100%);
+  --day-detail: linear-gradient(90deg, rgba(14,165,233,.025) 50%, transparent 50%);
+}
+
+/* SATURDAY — twilight lounge / music / recharge */
+:root[data-qa-theme="weekday-saturday"] {
+  --day-card-radius: 24px;
+  --day-panel-radius: 30px;
+  --day-motif: "🌙  🎧  💜";
+  --day-note: "SATURDAY  •  REST & RECHARGE";
+  --day-photo:
+    radial-gradient(circle at 84% 14%, rgba(233,213,255,.38) 0 7%, transparent 7.3%),
+    radial-gradient(circle at 94% 20%, rgba(196,181,253,.24) 0 5%, transparent 5.3%),
+    radial-gradient(circle at 76% 26%, rgba(255,255,255,.34) 0 2px, transparent 2.5px),
+    linear-gradient(120deg, rgba(255,255,255,.88), rgba(237,233,254,.68) 60%, rgba(196,181,253,.40));
+  --day-detail: radial-gradient(circle at 12px 12px, rgba(124,58,237,.05) 0 1.5px, transparent 2px);
+}
+
+/* SUNDAY — sunrise / planning / cozy reset */
+:root[data-qa-theme="weekday-sunday"] {
+  --day-card-radius: 20px 30px 20px 30px;
+  --day-panel-radius: 26px 38px 26px 38px;
+  --day-motif: "🌅  📝  ☕";
+  --day-note: "SUNDAY  •  RESET & READY";
+  --day-photo:
+    radial-gradient(circle at 88% 16%, rgba(251,113,133,.30) 0 8%, transparent 8.4%),
+    linear-gradient(180deg, rgba(254,226,226,.48) 0 44%, rgba(255,237,213,.58) 45% 63%, rgba(255,255,255,.92) 64% 100%),
+    linear-gradient(110deg, rgba(255,255,255,.94), rgba(254,202,202,.45));
+  --day-detail: repeating-linear-gradient(135deg, transparent 0 24px, rgba(220,38,38,.03) 25px 26px);
+}
+
+/* Main canvas: editorial atmosphere, not a flat recolor. */
+:root[data-qa-theme^="weekday-"] #root {
+  background-image: var(--day-detail), var(--day-photo), var(--weekday-art) !important;
+  background-size: 48px 48px, 100% 250px, auto !important;
+  background-repeat: repeat, no-repeat, no-repeat !important;
+  background-position: 0 0, top center, center !important;
+  background-attachment: fixed, scroll, fixed !important;
+}
+
+/* Large decorative visual cluster, intentionally non-interactive. */
+:root[data-qa-theme^="weekday-"] #root::before {
+  content: var(--day-motif) !important;
+  position: fixed !important;
+  z-index: 1 !important;
+  top: 94px !important;
+  right: 34px !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 14px 18px !important;
+  border-radius: 24px !important;
+  background: rgba(255,255,255,.68) !important;
+  border: 1px solid color-mix(in srgb, var(--weekday-accent) 18%, white) !important;
+  box-shadow: 0 18px 46px color-mix(in srgb, var(--weekday-accent) 14%, transparent) !important;
+  backdrop-filter: blur(14px) saturate(135%) !important;
+  font-size: 28px !important;
+  line-height: 1 !important;
+  letter-spacing: 5px !important;
+  filter: none !important;
+  pointer-events: none !important;
+}
+
+/* Day identity plaque; replaces generic glow with a readable visual signature. */
+:root[data-qa-theme^="weekday-"] #root::after {
+  content: var(--day-note) !important;
+  position: fixed !important;
+  z-index: 1 !important;
+  right: 34px !important;
+  top: 157px !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 7px 12px !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--weekday-accent) 88%, #ffffff) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--weekday-accent) 18%, transparent) !important;
+  font-family: 'Kanit', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .13em !important;
+  white-space: nowrap !important;
+  filter: none !important;
+  pointer-events: none !important;
+}
+
+/* Existing white cards adopt each day's shape language while preserving layout. */
+:root[data-qa-theme^="weekday-"] #root :where(.rounded-xl,.rounded-2xl,.rounded-3xl,.rounded-\[18px\],.rounded-\[20px\],.rounded-\[22px\],.rounded-\[24px\],.rounded-\[28px\])[class*="bg-white"] {
+  border-radius: var(--day-card-radius) !important;
+  background: color-mix(in srgb, white 94%, var(--weekday-surface-2)) !important;
+  border: 1px solid var(--weekday-border) !important;
+  box-shadow: 0 14px 34px var(--weekday-shadow), inset 0 1px 0 rgba(255,255,255,.76) !important;
+  backdrop-filter: blur(6px);
+}
+
+/* Broader themed surfaces get a stronger editorial treatment. */
+:root[data-qa-theme^="weekday-"] [data-qa-theme-surface-v1="true"] {
+  border-radius: var(--day-panel-radius);
+  background-image:
+    linear-gradient(135deg, rgba(255,255,255,.80), rgba(255,255,255,.46)),
+    var(--day-detail) !important;
+  border: 1px solid var(--weekday-border) !important;
+  box-shadow: 0 20px 48px var(--weekday-shadow) !important;
+}
+
+/* Sidebar gets day-specific texture and keeps all menu functions untouched. */
+:root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 {
+  border-right: 1px solid color-mix(in srgb, var(--weekday-accent-soft) 35%, transparent) !important;
+  box-shadow: 18px 0 44px color-mix(in srgb, var(--weekday-sidebar-a) 18%, transparent) !important;
+}
+
+:root[data-qa-theme="weekday-monday"] .qa-global-sidebar-v39 { background-image: radial-gradient(circle at 28% 88%, rgba(250,204,21,.18) 0 8%, transparent 8.3%), linear-gradient(180deg,#5a4208,#8a6508 58%,#b98a0a) !important; }
+:root[data-qa-theme="weekday-tuesday"] .qa-global-sidebar-v39 { background-image: radial-gradient(ellipse at 26% 86%, rgba(249,168,212,.18) 0 10%, transparent 10.3%), linear-gradient(180deg,#4d1832,#812151 58%,#bd3376) !important; }
+:root[data-qa-theme="weekday-wednesday"] .qa-global-sidebar-v39 { background-image: radial-gradient(ellipse at 28% 86%, rgba(134,239,172,.16) 0 11%, transparent 11.3%), linear-gradient(180deg,#123d28,#175f3d 58%,#28875a) !important; }
+:root[data-qa-theme="weekday-thursday"] .qa-global-sidebar-v39 { background-image: linear-gradient(35deg, transparent 0 80%, rgba(253,186,116,.12) 80% 82%, transparent 82%), linear-gradient(180deg,#4c2816,#7b3a13 58%,#b95d1b) !important; }
+:root[data-qa-theme="weekday-friday"] .qa-global-sidebar-v39 { background-image: repeating-radial-gradient(ellipse at 28% 86%, transparent 0 18px, rgba(125,211,252,.10) 19px 21px, transparent 22px 34px), linear-gradient(180deg,#12374d,#075f8c 58%,#0a83b7) !important; }
+:root[data-qa-theme="weekday-saturday"] .qa-global-sidebar-v39 { background-image: radial-gradient(circle at 28% 86%, rgba(221,214,254,.16) 0 9%, transparent 9.3%), linear-gradient(180deg,#281b50,#452d79 58%,#6d4caf) !important; }
+:root[data-qa-theme="weekday-sunday"] .qa-global-sidebar-v39 { background-image: radial-gradient(circle at 30% 86%, rgba(254,202,202,.15) 0 10%, transparent 10.3%), linear-gradient(180deg,#501f1f,#842222 58%,#bd3636) !important; }
+
+/* Themed controls: functional icons remain semantically identical, only chrome changes. */
+:root[data-qa-theme^="weekday-"] #root :where(button,[role="button"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="text-red"]):not([class*="text-green"]) {
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease;
+}
+:root[data-qa-theme^="weekday-"] #root :where(button,[role="button"]):not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+/* Day-specific micro accents without touching Pass/Fail semantics. */
+:root[data-qa-theme^="weekday-"] #root :where(h1,h2,h3,strong)[class*="font"] {
+  text-shadow: 0 1px 0 rgba(255,255,255,.40);
+}
+
+:root[data-qa-theme^="weekday-"] #root :where(input,select,textarea) {
+  background-color: rgba(255,255,255,.86) !important;
+  border-color: color-mix(in srgb, var(--weekday-accent) 18%, #dbe3ee) !important;
+}
+
+@media (max-width: 1180px) {
+  :root[data-qa-theme^="weekday-"] #root::before,
+  :root[data-qa-theme^="weekday-"] #root::after { opacity: .40 !important; transform: scale(.86); transform-origin: top right; }
+}
+
+@media (max-width: 768px) {
+  :root[data-qa-theme^="weekday-"] #root { background-size: 42px 42px, 100% 190px, auto !important; }
+  :root[data-qa-theme^="weekday-"] #root::before { top: 76px !important; right: 12px !important; font-size: 21px !important; padding: 10px 12px !important; }
+  :root[data-qa-theme^="weekday-"] #root::after { top: 124px !important; right: 12px !important; font-size: 8px !important; padding: 6px 9px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-qa-theme^="weekday-"] #root :where(button,[role="button"]) { transition: none !important; }
+}
