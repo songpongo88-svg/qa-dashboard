@@ -38,10 +38,12 @@ function patchPdf() {
     file,
   );
 
+  // The final Original PDF template is already adjusted by the Appeal-history patch,
+  // so use its final font/padding values here rather than the repository base values.
   source = replaceOnce(
     source,
-    `{ value: auditText, w: wOf(1), size: 6.4, padY: 4 },`,
-    `{ value: auditDisplayText, w: wOf(1), size: 6.4, padY: 5 },`,
+    `{ value: auditText, w: wOf(1), size: 6.2, padY: 4.4 },`,
+    `{ value: auditDisplayText, w: wOf(1), size: 6.2, padY: 5 },`,
     "Original Audit Date row height",
     file,
   );
@@ -49,35 +51,27 @@ function patchPdf() {
   source = replaceOnce(
     source,
     `value(1, y, 1, secondSelectionRowH, auditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });`,
-    `value(1, y, 1, secondSelectionRowH, auditDisplayText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });`,
+    `value(1, y, 1, secondSelectionRowH, auditDisplayText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.2 });`,
     "Original Audit Date cell",
     file,
   );
 
-  // Keep the Appeal/Revised PDF consistent if it is generated from the same renderer.
-  source = replaceOnce(
-    source,
-    `    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const appealSecondRowH = autoRowHeight(`,
-    `    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const appealLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");\n    const appealAuditDisplayText = appealLastUpdatedText\n      ? \`${"${appealAuditText}"}\\nLast Updated: ${"${appealLastUpdatedText}"}\`\n      : appealAuditText;\n    const appealSecondRowH = autoRowHeight(`,
-    "Appeal Audit Date display source",
-    file,
-  );
-
-  source = replaceOnce(
-    source,
-    `{ value: appealAuditText, w: wOf(1), size: 6.4, padY: 4 },`,
-    `{ value: appealAuditDisplayText, w: wOf(1), size: 6.4, padY: 5 },`,
-    "Appeal Audit Date row height",
-    file,
-  );
-
-  source = replaceOnce(
-    source,
-    `value(1, y, 1, appealSecondRowH, appealAuditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });`,
-    `value(1, y, 1, appealSecondRowH, appealAuditDisplayText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });`,
-    "Appeal Audit Date cell",
-    file,
-  );
+  // Keep Appeal/Revised PDF consistent when these legacy anchors are still present.
+  const appealSourceAnchor = `    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const appealSecondRowH = autoRowHeight(`;
+  if (source.includes(appealSourceAnchor)) {
+    source = source.replace(
+      appealSourceAnchor,
+      `    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const appealLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");\n    const appealAuditDisplayText = appealLastUpdatedText\n      ? \`${"${appealAuditText}"}\\nLast Updated: ${"${appealLastUpdatedText}"}\`\n      : appealAuditText;\n    const appealSecondRowH = autoRowHeight(`
+    );
+    source = source.replace(
+      `{ value: appealAuditText, w: wOf(1), size: 6.4, padY: 4 },`,
+      `{ value: appealAuditDisplayText, w: wOf(1), size: 6.4, padY: 5 },`
+    );
+    source = source.replace(
+      `value(1, y, 1, appealSecondRowH, appealAuditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });`,
+      `value(1, y, 1, appealSecondRowH, appealAuditDisplayText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });`
+    );
+  }
 
   // Duplicate guard: no standalone Last Updated label row is allowed in this PDF.
   const duplicateRowPattern = /label\(0, y, 1, 8, "Last Updated"\)/g;
