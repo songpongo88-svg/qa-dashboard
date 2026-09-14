@@ -616,10 +616,12 @@ export async function renderFinalSignedPdf({
     drawCell(x, panelY, w, headerH, roleTitle, purple, {
       bold: true,
       color: [255,255,255],
-      size: 8.6,
+      // At 8 pt, THSarabunNew's Thai marks and lower vowels fit inside the
+      // existing 3.5 mm header with at least 0.2 mm clearance on both sides.
+      size: 8.0,
       align: "center",
       maxLines: 1,
-      baselineOffset: 0.7,
+      baselineOffset: 0.85,
     });
     const signatureAreaY = panelY + headerH;
     const signLineY = signatureAreaY + signatureAreaH - 2.0;
