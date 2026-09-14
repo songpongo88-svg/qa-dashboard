@@ -17,7 +17,7 @@ if (!match) {
 }
 
 const auditValueExpression = match[1];
-const newCard = `<div className="rounded-xl border border-slate-300 bg-white px-3 py-2">\n                                  <div className="text-[9px] font-bold uppercase tracking-wide leading-none text-slate-500">Audit Date</div>\n                                  <div className="mt-1 text-xs font-bold tabular-nums leading-none text-slate-900">${auditValueExpression}</div>\n                                  {activeSelectedCase.lastUpdatedAt ? (\n                                    <div className="mt-2">\n                                      <div className="text-[9px] font-bold uppercase tracking-wide leading-none text-rose-600">Last Updated</div>\n                                      <div className="mt-1 text-xs font-bold tabular-nums leading-none text-rose-600">{activeSelectedCase.lastUpdatedAt}</div>\n                                    </div>\n                                  ) : null}\n                                </div>`;
+const newCard = `<div className="rounded-xl border border-slate-300 bg-white p-3">\n                                  <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Audit Date</div>\n                                  <div className="mt-1 text-xs font-bold text-slate-900">${auditValueExpression}</div>\n                                  {activeSelectedCase.lastUpdatedAt ? (\n                                    <div className="mt-2">\n                                      <div className="text-[9px] font-bold uppercase tracking-wide text-rose-600">Last Updated</div>\n                                      <div className="mt-1 text-xs font-bold text-rose-600">{activeSelectedCase.lastUpdatedAt}</div>\n                                    </div>\n                                  ) : null}\n                                </div>`;
 
 source = source.replace(compactCardPattern, newCard);
 source = source.replace(
@@ -26,4 +26,4 @@ source = source.replace(
 );
 
 fs.writeFileSync(file, source, "utf8");
-console.log(`${PATCH}: Audit Date and Last Updated now match Case Date text sizing while keeping the stacked layout`);
+console.log(`${PATCH}: Audit Date now uses the exact Case Date card spacing and text sizing; Last Updated remains conditional inside the same card`);
