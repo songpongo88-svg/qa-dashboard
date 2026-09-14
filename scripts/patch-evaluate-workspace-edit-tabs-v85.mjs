@@ -56,4 +56,11 @@ await import("./patch-evidence-browser-capture-v96.mjs");
 await import("./patch-evaluation-last-updated-v87-compat.mjs");
 
 // Preserve the original Audit Date timestamp and expose only the latest Last Updated timestamp.
-await import("./patch-evaluation-last-updated-v87.mjs");
+try {
+  await import("./patch-evaluation-last-updated-v87.mjs");
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (!message.includes("missing Appeal PDF Last Updated row")) throw error;
+  console.log("Merged Appeal PDF uses the main Case Detail header; applying Last Updated fallback there.");
+  await import("./patch-evaluation-last-updated-v87-pdf-fallback.mjs");
+}
