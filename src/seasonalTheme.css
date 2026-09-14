@@ -1,0 +1,59 @@
+/* qa-seasonal-themes-v1 */
+:root[data-qa-theme="festival-songkran"] {
+  --qa-theme-50:#effcff;--qa-theme-100:#dff8ff;--qa-theme-200:#baeefe;--qa-theme-300:#7ddffd;--qa-theme-400:#38c8f8;--qa-theme-500:#0ea5e9;--qa-theme-600:#0284c7;--qa-theme-700:#0369a1;--qa-theme-800:#075985;--qa-theme-900:#0c4a6e;--qa-theme-950:#082f49;--qa-theme-highlight:#ec4899;
+  --qa-seasonal-art:radial-gradient(circle at 18% 18%,rgb(255 255 255/.95) 0 5px,transparent 6px),radial-gradient(circle at 74% 26%,rgb(125 211 252/.75) 0 8px,transparent 9px),radial-gradient(circle at 28% 74%,rgb(244 114 182/.38) 0 10px,transparent 11px),linear-gradient(135deg,#ecfeff,#e0f2fe 50%,#fdf2f8);
+}
+:root[data-qa-theme="festival-new-year"] {
+  --qa-theme-50:#faf5ff;--qa-theme-100:#f3e8ff;--qa-theme-200:#e9d5ff;--qa-theme-300:#d8b4fe;--qa-theme-400:#c084fc;--qa-theme-500:#a855f7;--qa-theme-600:#9333ea;--qa-theme-700:#7e22ce;--qa-theme-800:#6b21a8;--qa-theme-900:#581c87;--qa-theme-950:#3b0764;--qa-theme-highlight:#f59e0b;
+  --qa-seasonal-art:radial-gradient(circle at 14% 20%,#fde68a 0 3px,transparent 4px),radial-gradient(circle at 82% 22%,#f0abfc 0 4px,transparent 5px),radial-gradient(circle at 72% 78%,#93c5fd 0 3px,transparent 4px),linear-gradient(145deg,#2e1065,#6b21a8 50%,#111827);
+}
+:root[data-qa-theme="festival-christmas"] {
+  --qa-theme-50:#f0fdf4;--qa-theme-100:#dcfce7;--qa-theme-200:#bbf7d0;--qa-theme-300:#86efac;--qa-theme-400:#4ade80;--qa-theme-500:#22c55e;--qa-theme-600:#16a34a;--qa-theme-700:#15803d;--qa-theme-800:#166534;--qa-theme-900:#14532d;--qa-theme-950:#052e16;--qa-theme-highlight:#dc2626;
+  --qa-seasonal-art:radial-gradient(circle at 20% 18%,rgb(255 255 255/.9) 0 3px,transparent 4px),radial-gradient(circle at 70% 24%,rgb(254 240 138/.65) 0 4px,transparent 5px),radial-gradient(circle at 86% 72%,rgb(248 113 113/.35) 0 7px,transparent 8px),linear-gradient(145deg,#f0fdf4,#dcfce7 48%,#fef2f2);
+}
+:root[data-qa-theme="festival-valentine"] {
+  --qa-theme-50:#fff1f2;--qa-theme-100:#ffe4e6;--qa-theme-200:#fecdd3;--qa-theme-300:#fda4af;--qa-theme-400:#fb7185;--qa-theme-500:#f43f5e;--qa-theme-600:#e11d48;--qa-theme-700:#be123c;--qa-theme-800:#9f1239;--qa-theme-900:#881337;--qa-theme-950:#4c0519;--qa-theme-highlight:#ec4899;
+  --qa-seasonal-art:radial-gradient(circle at 20% 22%,rgb(251 113 133/.24) 0 12px,transparent 13px),radial-gradient(circle at 78% 32%,rgb(244 114 182/.22) 0 15px,transparent 16px),radial-gradient(circle at 44% 82%,rgb(255 255 255/.92) 0 8px,transparent 9px),linear-gradient(145deg,#fff1f2,#fce7f3 50%,#fff7ed);
+}
+:root[data-qa-theme="festival-loy-krathong"] {
+  --qa-theme-50:#f5f3ff;--qa-theme-100:#ede9fe;--qa-theme-200:#ddd6fe;--qa-theme-300:#c4b5fd;--qa-theme-400:#a78bfa;--qa-theme-500:#8b5cf6;--qa-theme-600:#7c3aed;--qa-theme-700:#6d28d9;--qa-theme-800:#5b21b6;--qa-theme-900:#4c1d95;--qa-theme-950:#2e1065;--qa-theme-highlight:#f59e0b;
+  --qa-seasonal-art:radial-gradient(ellipse at 18% 82%,rgb(244 114 182/.22) 0 18px,transparent 19px),radial-gradient(ellipse at 78% 76%,rgb(251 191 36/.25) 0 14px,transparent 15px),radial-gradient(circle at 50% 12%,rgb(254 240 138/.92) 0 20px,transparent 21px),linear-gradient(180deg,#312e81,#4c1d95 45%,#172554);
+}
+:root[data-qa-theme="festival-halloween"] {
+  --qa-theme-50:#fff7ed;--qa-theme-100:#ffedd5;--qa-theme-200:#fed7aa;--qa-theme-300:#fdba74;--qa-theme-400:#fb923c;--qa-theme-500:#f97316;--qa-theme-600:#ea580c;--qa-theme-700:#c2410c;--qa-theme-800:#9a3412;--qa-theme-900:#7c2d12;--qa-theme-950:#431407;--qa-theme-highlight:#7c3aed;
+  --qa-seasonal-art:radial-gradient(circle at 18% 24%,rgb(249 115 22/.38) 0 13px,transparent 14px),radial-gradient(circle at 78% 20%,rgb(168 85 247/.28) 0 10px,transparent 11px),radial-gradient(circle at 60% 80%,rgb(0 0 0/.18) 0 8px,transparent 9px),linear-gradient(145deg,#111827,#3f1d0b 55%,#2e1065);
+}
+
+:root[data-qa-theme="weekday-monday"]{--qa-theme-50:#fefce8;--qa-theme-100:#fef9c3;--qa-theme-200:#fef08a;--qa-theme-300:#fde047;--qa-theme-400:#facc15;--qa-theme-500:#eab308;--qa-theme-600:#ca8a04;--qa-theme-700:#a16207;--qa-theme-800:#854d0e;--qa-theme-900:#713f12;--qa-theme-950:#422006;--qa-theme-highlight:#f59e0b;--qa-seasonal-art:radial-gradient(circle at 20% 20%,#facc15 0 10px,transparent 11px),radial-gradient(circle at 78% 72%,#fde68a 0 14px,transparent 15px),linear-gradient(145deg,#fffef3,#fef9c3,#fff7ed)}
+:root[data-qa-theme="weekday-tuesday"]{--qa-theme-50:#fdf2f8;--qa-theme-100:#fce7f3;--qa-theme-200:#fbcfe8;--qa-theme-300:#f9a8d4;--qa-theme-400:#f472b6;--qa-theme-500:#ec4899;--qa-theme-600:#db2777;--qa-theme-700:#be185d;--qa-theme-800:#9d174d;--qa-theme-900:#831843;--qa-theme-950:#500724;--qa-theme-highlight:#fb7185;--qa-seasonal-art:radial-gradient(circle at 20% 22%,#f9a8d4 0 13px,transparent 14px),radial-gradient(circle at 78% 70%,#fbcfe8 0 18px,transparent 19px),linear-gradient(145deg,#fff7fb,#fce7f3,#fff1f2)}
+:root[data-qa-theme="weekday-wednesday"]{--qa-theme-50:#f0fdf4;--qa-theme-100:#dcfce7;--qa-theme-200:#bbf7d0;--qa-theme-300:#86efac;--qa-theme-400:#4ade80;--qa-theme-500:#22c55e;--qa-theme-600:#16a34a;--qa-theme-700:#15803d;--qa-theme-800:#166534;--qa-theme-900:#14532d;--qa-theme-950:#052e16;--qa-theme-highlight:#34d399;--qa-seasonal-art:radial-gradient(circle at 18% 24%,#86efac 0 12px,transparent 13px),radial-gradient(circle at 80% 74%,#bbf7d0 0 18px,transparent 19px),linear-gradient(145deg,#f0fdf4,#dcfce7,#ecfdf5)}
+:root[data-qa-theme="weekday-thursday"]{--qa-theme-50:#fff7ed;--qa-theme-100:#ffedd5;--qa-theme-200:#fed7aa;--qa-theme-300:#fdba74;--qa-theme-400:#fb923c;--qa-theme-500:#f97316;--qa-theme-600:#ea580c;--qa-theme-700:#c2410c;--qa-theme-800:#9a3412;--qa-theme-900:#7c2d12;--qa-theme-950:#431407;--qa-theme-highlight:#f59e0b;--qa-seasonal-art:radial-gradient(circle at 16% 24%,#fdba74 0 12px,transparent 13px),radial-gradient(circle at 82% 72%,#fed7aa 0 18px,transparent 19px),linear-gradient(145deg,#fff7ed,#ffedd5,#fffbeb)}
+:root[data-qa-theme="weekday-friday"]{--qa-theme-50:#f0f9ff;--qa-theme-100:#e0f2fe;--qa-theme-200:#bae6fd;--qa-theme-300:#7dd3fc;--qa-theme-400:#38bdf8;--qa-theme-500:#0ea5e9;--qa-theme-600:#0284c7;--qa-theme-700:#0369a1;--qa-theme-800:#075985;--qa-theme-900:#0c4a6e;--qa-theme-950:#082f49;--qa-theme-highlight:#22d3ee;--qa-seasonal-art:radial-gradient(circle at 18% 22%,#7dd3fc 0 12px,transparent 13px),radial-gradient(circle at 80% 74%,#bae6fd 0 18px,transparent 19px),linear-gradient(145deg,#f0f9ff,#e0f2fe,#ecfeff)}
+:root[data-qa-theme="weekday-saturday"]{--qa-theme-50:#f5f3ff;--qa-theme-100:#ede9fe;--qa-theme-200:#ddd6fe;--qa-theme-300:#c4b5fd;--qa-theme-400:#a78bfa;--qa-theme-500:#8b5cf6;--qa-theme-600:#7c3aed;--qa-theme-700:#6d28d9;--qa-theme-800:#5b21b6;--qa-theme-900:#4c1d95;--qa-theme-950:#2e1065;--qa-theme-highlight:#c084fc;--qa-seasonal-art:radial-gradient(circle at 20% 22%,#c4b5fd 0 13px,transparent 14px),radial-gradient(circle at 80% 72%,#ddd6fe 0 18px,transparent 19px),linear-gradient(145deg,#f5f3ff,#ede9fe,#faf5ff)}
+:root[data-qa-theme="weekday-sunday"]{--qa-theme-50:#fef2f2;--qa-theme-100:#fee2e2;--qa-theme-200:#fecaca;--qa-theme-300:#fca5a5;--qa-theme-400:#f87171;--qa-theme-500:#ef4444;--qa-theme-600:#dc2626;--qa-theme-700:#b91c1c;--qa-theme-800:#991b1b;--qa-theme-900:#7f1d1d;--qa-theme-950:#450a0a;--qa-theme-highlight:#fb7185;--qa-seasonal-art:radial-gradient(circle at 18% 22%,#fca5a5 0 13px,transparent 14px),radial-gradient(circle at 82% 72%,#fecaca 0 18px,transparent 19px),linear-gradient(145deg,#fef2f2,#fee2e2,#fff1f2)}
+
+:root:is([data-qa-theme^="festival-"],[data-qa-theme^="weekday-"]) #root {
+  background-color:var(--qa-theme-50)!important;
+  background-image:linear-gradient(rgb(255 255 255/.76),rgb(255 255 255/.76)),var(--qa-seasonal-art)!important;
+  background-size:auto,420px 420px!important;
+  background-attachment:fixed,fixed!important;
+}
+:root:is([data-qa-theme^="festival-"],[data-qa-theme^="weekday-"]) [data-qa-theme-surface-v1="true"] {
+  background-color:color-mix(in srgb,var(--qa-theme-50) 86%,#fff)!important;
+  background-image:linear-gradient(rgb(255 255 255/.88),rgb(255 255 255/.88)),var(--qa-seasonal-art)!important;
+  background-size:auto,460px 460px!important;
+}
+:root:is([data-qa-theme^="festival-"],[data-qa-theme^="weekday-"]) .qa-global-sidebar-v39 {
+  background-image:linear-gradient(rgb(15 23 42/.08),rgb(15 23 42/.08)),var(--qa-seasonal-art),linear-gradient(180deg,var(--qa-theme-950),var(--qa-theme-800) 54%,var(--qa-theme-600))!important;
+  background-size:auto,360px 360px,auto!important;
+  background-position:center,center top,center!important;
+  background-blend-mode:normal,soft-light,normal!important;
+}
+:root[data-qa-theme="festival-new-year"] .qa-global-sidebar-v39,
+:root[data-qa-theme="festival-loy-krathong"] .qa-global-sidebar-v39,
+:root[data-qa-theme="festival-halloween"] .qa-global-sidebar-v39 {color:white!important}
+
+@media (prefers-reduced-motion:no-preference){
+  :root:is([data-qa-theme^="festival-"],[data-qa-theme^="weekday-"]) #root,
+  :root:is([data-qa-theme^="festival-"],[data-qa-theme^="weekday-"]) .qa-global-sidebar-v39{transition:background-image .22s ease,background-color .22s ease,border-color .22s ease}
+}
