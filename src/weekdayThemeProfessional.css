@@ -1,0 +1,256 @@
+/* qa-weekday-professional-v1
+   Appearance-only layer for Monday-Sunday themes.
+   Festival themes and dashboard business logic are intentionally untouched. */
+
+:root[data-qa-theme="weekday-monday"] {
+  --weekday-accent: #d6a900;
+  --weekday-accent-strong: #8a5a00;
+  --weekday-accent-soft: #fff0a8;
+  --weekday-ink: #352b16;
+  --weekday-surface: #fffdf5;
+  --weekday-surface-2: #fff9dc;
+  --weekday-border: rgba(202, 138, 4, .18);
+  --weekday-shadow: rgba(120, 83, 8, .10);
+  --weekday-sidebar-a: #4b3a0a;
+  --weekday-sidebar-b: #7c5a08;
+  --weekday-sidebar-c: #b88708;
+  --weekday-art:
+    radial-gradient(circle at 10% 12%, rgba(250,204,21,.24) 0 7%, transparent 7.2%),
+    radial-gradient(circle at 92% 8%, rgba(255,255,255,.92) 0 5%, transparent 5.2%),
+    linear-gradient(120deg, transparent 0 42%, rgba(250,204,21,.075) 42% 43%, transparent 43% 100%),
+    linear-gradient(145deg, #fffdf5 0%, #fff9db 46%, #fff7ed 100%);
+  --weekday-sidebar-art:
+    radial-gradient(circle at 85% 10%, rgba(253,224,71,.26) 0 6%, transparent 6.3%),
+    linear-gradient(155deg, rgba(255,255,255,.10) 0 12%, transparent 12.2% 100%);
+}
+
+:root[data-qa-theme="weekday-tuesday"] {
+  --weekday-accent: #db2777;
+  --weekday-accent-strong: #8f174d;
+  --weekday-accent-soft: #fbcfe8;
+  --weekday-ink: #3f2030;
+  --weekday-surface: #fff9fc;
+  --weekday-surface-2: #fff0f7;
+  --weekday-border: rgba(219,39,119,.16);
+  --weekday-shadow: rgba(131,24,67,.10);
+  --weekday-sidebar-a: #4b1731;
+  --weekday-sidebar-b: #7b1e4c;
+  --weekday-sidebar-c: #b72d70;
+  --weekday-art:
+    radial-gradient(ellipse at 8% 16%, rgba(244,114,182,.17) 0 6%, transparent 6.3%),
+    radial-gradient(ellipse at 88% 12%, rgba(251,207,232,.55) 0 8%, transparent 8.3%),
+    radial-gradient(ellipse at 74% 88%, rgba(251,113,133,.10) 0 10%, transparent 10.3%),
+    linear-gradient(145deg, #fffafd 0%, #fdf2f8 48%, #fff7fb 100%);
+  --weekday-sidebar-art:
+    radial-gradient(ellipse at 78% 12%, rgba(249,168,212,.22) 0 8%, transparent 8.4%),
+    linear-gradient(135deg, rgba(255,255,255,.08) 0 14%, transparent 14.2% 100%);
+}
+
+:root[data-qa-theme="weekday-wednesday"] {
+  --weekday-accent: #15803d;
+  --weekday-accent-strong: #14532d;
+  --weekday-accent-soft: #bbf7d0;
+  --weekday-ink: #1d3828;
+  --weekday-surface: #f9fdf9;
+  --weekday-surface-2: #edf9f0;
+  --weekday-border: rgba(22,163,74,.15);
+  --weekday-shadow: rgba(20,83,45,.10);
+  --weekday-sidebar-a: #123a28;
+  --weekday-sidebar-b: #155e3b;
+  --weekday-sidebar-c: #248454;
+  --weekday-art:
+    radial-gradient(ellipse at 7% 18%, rgba(74,222,128,.15) 0 8%, transparent 8.3%),
+    radial-gradient(ellipse at 94% 18%, rgba(187,247,208,.50) 0 9%, transparent 9.3%),
+    linear-gradient(35deg, transparent 0 73%, rgba(22,163,74,.055) 73% 74%, transparent 74% 100%),
+    linear-gradient(145deg, #fbfffc 0%, #effaf2 50%, #f7fff9 100%);
+  --weekday-sidebar-art:
+    radial-gradient(ellipse at 84% 10%, rgba(134,239,172,.20) 0 9%, transparent 9.4%),
+    linear-gradient(145deg, rgba(255,255,255,.07) 0 15%, transparent 15.2% 100%);
+}
+
+:root[data-qa-theme="weekday-thursday"] {
+  --weekday-accent: #ea580c;
+  --weekday-accent-strong: #8a3412;
+  --weekday-accent-soft: #fed7aa;
+  --weekday-ink: #402719;
+  --weekday-surface: #fffaf6;
+  --weekday-surface-2: #fff2e5;
+  --weekday-border: rgba(234,88,12,.16);
+  --weekday-shadow: rgba(124,45,18,.10);
+  --weekday-sidebar-a: #4a2514;
+  --weekday-sidebar-b: #78350f;
+  --weekday-sidebar-c: #b65317;
+  --weekday-art:
+    linear-gradient(30deg, transparent 0 82%, rgba(251,146,60,.09) 82% 83%, transparent 83% 100%),
+    linear-gradient(120deg, transparent 0 18%, rgba(251,191,36,.055) 18% 19%, transparent 19% 100%),
+    radial-gradient(circle at 90% 12%, rgba(253,186,116,.22) 0 7%, transparent 7.3%),
+    linear-gradient(145deg, #fffaf5 0%, #fff2e4 50%, #fff9ed 100%);
+  --weekday-sidebar-art:
+    linear-gradient(35deg, transparent 0 78%, rgba(255,255,255,.10) 78% 80%, transparent 80% 100%),
+    radial-gradient(circle at 80% 10%, rgba(253,186,116,.18) 0 7%, transparent 7.4%);
+}
+
+:root[data-qa-theme="weekday-friday"] {
+  --weekday-accent: #0284c7;
+  --weekday-accent-strong: #075985;
+  --weekday-accent-soft: #bae6fd;
+  --weekday-ink: #193649;
+  --weekday-surface: #f8fcff;
+  --weekday-surface-2: #ebf8ff;
+  --weekday-border: rgba(2,132,199,.15);
+  --weekday-shadow: rgba(7,89,133,.10);
+  --weekday-sidebar-a: #12354b;
+  --weekday-sidebar-b: #075985;
+  --weekday-sidebar-c: #0877a6;
+  --weekday-art:
+    radial-gradient(ellipse at 14% 8%, rgba(125,211,252,.20) 0 10%, transparent 10.4%),
+    radial-gradient(ellipse at 82% 92%, rgba(186,230,253,.38) 0 14%, transparent 14.4%),
+    repeating-radial-gradient(ellipse at 98% 82%, transparent 0 26px, rgba(14,165,233,.04) 27px 29px, transparent 30px 48px),
+    linear-gradient(145deg, #fafdff 0%, #eef9ff 48%, #ecfeff 100%);
+  --weekday-sidebar-art:
+    repeating-radial-gradient(ellipse at 85% 12%, transparent 0 20px, rgba(255,255,255,.08) 21px 23px, transparent 24px 40px);
+}
+
+:root[data-qa-theme="weekday-saturday"] {
+  --weekday-accent: #7c3aed;
+  --weekday-accent-strong: #4c1d95;
+  --weekday-accent-soft: #ddd6fe;
+  --weekday-ink: #2f2850;
+  --weekday-surface: #fbfaff;
+  --weekday-surface-2: #f3f0ff;
+  --weekday-border: rgba(124,58,237,.15);
+  --weekday-shadow: rgba(76,29,149,.11);
+  --weekday-sidebar-a: #261a4d;
+  --weekday-sidebar-b: #432c75;
+  --weekday-sidebar-c: #6846a8;
+  --weekday-art:
+    radial-gradient(circle at 91% 10%, rgba(196,181,253,.27) 0 8%, transparent 8.3%),
+    radial-gradient(circle at 12% 20%, rgba(167,139,250,.10) 0 6%, transparent 6.3%),
+    radial-gradient(circle at 76% 74%, rgba(255,255,255,.70) 0 2px, transparent 2.5px),
+    linear-gradient(145deg, #fcfbff 0%, #f3f0ff 48%, #faf5ff 100%);
+  --weekday-sidebar-art:
+    radial-gradient(circle at 80% 12%, rgba(221,214,254,.19) 0 8%, transparent 8.3%),
+    radial-gradient(circle at 28% 26%, rgba(255,255,255,.24) 0 1.5px, transparent 2px);
+}
+
+:root[data-qa-theme="weekday-sunday"] {
+  --weekday-accent: #dc2626;
+  --weekday-accent-strong: #8f1d1d;
+  --weekday-accent-soft: #fecaca;
+  --weekday-ink: #432323;
+  --weekday-surface: #fffafa;
+  --weekday-surface-2: #fff0ef;
+  --weekday-border: rgba(220,38,38,.15);
+  --weekday-shadow: rgba(127,29,29,.10);
+  --weekday-sidebar-a: #4a1d1d;
+  --weekday-sidebar-b: #7f1d1d;
+  --weekday-sidebar-c: #b52b2b;
+  --weekday-art:
+    radial-gradient(circle at 8% 8%, rgba(248,113,113,.18) 0 10%, transparent 10.3%),
+    linear-gradient(112deg, transparent 0 44%, rgba(251,113,133,.055) 44% 45%, transparent 45% 100%),
+    radial-gradient(circle at 92% 82%, rgba(254,202,202,.34) 0 12%, transparent 12.3%),
+    linear-gradient(145deg, #fffafa 0%, #fff1f1 50%, #fff7ed 100%);
+  --weekday-sidebar-art:
+    radial-gradient(circle at 82% 10%, rgba(254,202,202,.18) 0 8%, transparent 8.3%),
+    linear-gradient(145deg, rgba(255,255,255,.08) 0 14%, transparent 14.2% 100%);
+}
+
+/* Whole-workspace atmosphere. The decorative layers never receive pointer events. */
+:root[data-qa-theme^="weekday-"] #root {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background: var(--weekday-art) !important;
+  background-attachment: fixed !important;
+  color: #1f2937;
+}
+
+:root[data-qa-theme^="weekday-"] #root::before,
+:root[data-qa-theme^="weekday-"] #root::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(2px);
+}
+
+:root[data-qa-theme^="weekday-"] #root::before {
+  width: min(34vw, 520px);
+  height: min(34vw, 520px);
+  right: -11vw;
+  top: 8vh;
+  background: radial-gradient(circle, color-mix(in srgb, var(--weekday-accent) 13%, transparent) 0%, transparent 69%);
+}
+
+:root[data-qa-theme^="weekday-"] #root::after {
+  width: min(30vw, 460px);
+  height: min(30vw, 460px);
+  left: 10vw;
+  bottom: -13vw;
+  background: radial-gradient(circle, color-mix(in srgb, var(--weekday-accent-soft) 34%, transparent) 0%, transparent 70%);
+}
+
+:root[data-qa-theme^="weekday-"] #root > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Existing dashboard surface receives a translucent editorial layer instead of a flat recolor. */
+:root[data-qa-theme^="weekday-"] [data-qa-theme-surface-v1="true"] {
+  background-color: color-mix(in srgb, var(--weekday-surface) 91%, white) !important;
+  background-image:
+    linear-gradient(135deg, color-mix(in srgb, var(--weekday-accent-soft) 18%, transparent), transparent 28%),
+    linear-gradient(315deg, color-mix(in srgb, var(--weekday-accent) 5%, transparent), transparent 36%) !important;
+  border-color: var(--weekday-border) !important;
+}
+
+/* Sidebar: deeper, professional interpretation of each Thai day color. */
+:root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 {
+  background-color: var(--weekday-sidebar-a) !important;
+  background-image:
+    var(--weekday-sidebar-art),
+    linear-gradient(180deg, var(--weekday-sidebar-a) 0%, var(--weekday-sidebar-b) 56%, var(--weekday-sidebar-c) 100%) !important;
+  background-size: auto, auto !important;
+  background-position: center top, center !important;
+  background-blend-mode: soft-light, normal !important;
+  box-shadow: 16px 0 42px color-mix(in srgb, var(--weekday-sidebar-a) 22%, transparent) !important;
+}
+
+/* Keep work cards white and readable, but make them feel part of the selected theme. */
+:root[data-qa-theme^="weekday-"] #root :where(.rounded-2xl,.rounded-3xl,.rounded-\[20px\],.rounded-\[22px\],.rounded-\[24px\],.rounded-\[28px\])[class*="bg-white"] {
+  border-color: var(--weekday-border);
+  box-shadow: 0 14px 34px var(--weekday-shadow);
+}
+
+/* Theme-linked typography only for headings; body/data colors remain untouched. */
+:root[data-qa-theme^="weekday-"] #root :where(h1,h2,h3) {
+  color: color-mix(in srgb, var(--weekday-ink) 88%, #0f172a);
+}
+
+/* Small structural accents create a consistent rhythm without recoloring status data. */
+:root[data-qa-theme^="weekday-"] #root :where(header)[class*="border-b"] {
+  border-bottom-color: var(--weekday-border);
+}
+
+:root[data-qa-theme^="weekday-"] #root :where(input,select,textarea):focus {
+  border-color: color-mix(in srgb, var(--weekday-accent) 64%, #94a3b8);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--weekday-accent) 12%, transparent);
+}
+
+/* Do not overwrite semantic KPI / Pass / Fail colors. These selectors intentionally avoid
+   text-green, text-red, bg-green, bg-red and other status classes. */
+
+@media (max-width: 768px) {
+  :root[data-qa-theme^="weekday-"] #root::before { width: 260px; height: 260px; right: -150px; top: 110px; }
+  :root[data-qa-theme^="weekday-"] #root::after { width: 240px; height: 240px; left: -140px; bottom: -100px; }
+  :root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 { box-shadow: 8px 0 26px color-mix(in srgb, var(--weekday-sidebar-a) 18%, transparent) !important; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-qa-theme^="weekday-"] #root,
+  :root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39,
+  :root[data-qa-theme^="weekday-"] [data-qa-theme-surface-v1="true"] {
+    transition: background-color .22s ease, background-image .22s ease, border-color .22s ease, box-shadow .22s ease;
+  }
+}
