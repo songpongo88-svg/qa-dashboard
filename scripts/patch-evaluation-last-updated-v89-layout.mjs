@@ -49,9 +49,17 @@ function patchPdf() {
 
   source = replaceOnce(
     source,
-    `      10,\n      hasAppealUpdate ? 20 : 14\n    );\n    addPageIfNeeded(secondSelectionRowH);\n    label(0, y, 1, secondSelectionRowH, "Audit Date");\n    value(1, y, 1, secondSelectionRowH, auditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });`,
-    `      auditLastUpdatedText ? 14 : 10,\n      hasAppealUpdate ? 20 : (auditLastUpdatedText ? 16 : 14)\n    );\n    addPageIfNeeded(secondSelectionRowH);\n    label(0, y, 1, secondSelectionRowH, auditLabelText);\n    value(1, y, 1, secondSelectionRowH, auditValueText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: auditLastUpdatedText ? 2 : 1, size: 6.2 });`,
-    "Audit Date label and value cells",
+    `label(0, y, 1, secondSelectionRowH, "Audit Date");`,
+    `label(0, y, 1, secondSelectionRowH, auditLabelText);`,
+    "Audit Date label cell",
+    file,
+  );
+
+  source = replaceOnce(
+    source,
+    `value(1, y, 1, secondSelectionRowH, auditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });`,
+    `value(1, y, 1, secondSelectionRowH, auditValueText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: auditLastUpdatedText ? 2 : 1, size: 6.2 });`,
+    "Audit Date value cell",
     file,
   );
 
