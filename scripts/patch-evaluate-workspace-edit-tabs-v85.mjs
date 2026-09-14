@@ -64,3 +64,6 @@ try {
   console.log("Merged Appeal PDF uses the main Case Detail header; applying Last Updated fallback there.");
   await import("./patch-evaluation-last-updated-v87-pdf-fallback.mjs");
 }
+
+// Recover legacy edit timestamps only when the stored record itself proves an edit occurred.
+await import("./patch-evaluation-last-updated-v88-safety.mjs");
