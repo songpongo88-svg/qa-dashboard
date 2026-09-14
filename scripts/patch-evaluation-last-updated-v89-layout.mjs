@@ -23,65 +23,29 @@ function patchPdf() {
   }
   source = source.replace(markerAnchor, `${markerAnchor}// ${PATCH}-pdf\n`);
 
-  // Remove the standalone Last Updated row added by v87. Last Updated belongs
-  // inside the Audit Date value cell so it cannot be rendered twice.
+  // Keep Audit Date as the original audit timestamp only.
+  // The v87 fallback already adds Last Updated as its own row directly below the header row.
   const standaloneRow = `\n    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");\n    if (lastUpdatedText) {\n      addPageIfNeeded(8);\n      label(0, y, 1, 8, "Last Updated");\n      value(1, y, 7, 8, lastUpdatedText, LIGHT_PURPLE, { align: "left", valign: "middle", maxLines: 2, size: 6.4 });\n      y += 8;\n    }\n`;
-  if (source.includes(standaloneRow)) {
-    source = source.replace(standaloneRow, "\n");
+  if (!source.includes(standaloneRow)) {
+    throw new Error(`${PATCH}: standalone Last Updated PDF row not found`);
   }
 
-  source = replaceOnce(
-    source,
-    `    const auditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const caseDateText = caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp || "-";`,
-    `    const auditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const auditLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");\n    const auditDisplayText = auditLastUpdatedText\n      ? \`${"${auditText}"}\\nLast Updated: ${"${auditLastUpdatedText}"}\`\n      : auditText;\n    const caseDateText = caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp || "-";`,
-    "Original Audit Date display source",
-    file,
-  );
-
-  // The final Original PDF template is already adjusted by the Appeal-history patch,
-  // so use its final font/padding values here rather than the repository base values.
-  source = replaceOnce(
-    source,
-    `{ value: auditText, w: wOf(1), size: 6.2, padY: 4.4 },`,
-    `{ value: auditDisplayText, w: wOf(1), size: 6.2, padY: 5 },`,
-    "Original Audit Date row height",
-    file,
-  );
-
-  source = replaceOnce(
-    source,
-    `value(1, y, 1, secondSelectionRowH, auditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });`,
-    `value(1, y, 1, secondSelectionRowH, auditDisplayText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.2 });`,
-    "Original Audit Date cell",
-    file,
-  );
-
-  // Keep Appeal/Revised PDF consistent when these legacy anchors are still present.
-  const appealSourceAnchor = `    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const appealSecondRowH = autoRowHeight(`;
-  if (source.includes(appealSourceAnchor)) {
+  // Keep Appeal/Revised PDF consistent if the legacy Appeal header is used.
+  const appealRowAnchor = `    y += appealSecondRowH;\n\n    const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";`;
+  if (source.includes(appealRowAnchor)) {
     source = source.replace(
-      appealSourceAnchor,
-      `    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;\n    const appealLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");\n    const appealAuditDisplayText = appealLastUpdatedText\n      ? \`${"${appealAuditText}"}\\nLast Updated: ${"${appealLastUpdatedText}"}\`\n      : appealAuditText;\n    const appealSecondRowH = autoRowHeight(`
-    );
-    source = source.replace(
-      `{ value: appealAuditText, w: wOf(1), size: 6.4, padY: 4 },`,
-      `{ value: appealAuditDisplayText, w: wOf(1), size: 6.4, padY: 5 },`
-    );
-    source = source.replace(
-      `value(1, y, 1, appealSecondRowH, appealAuditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });`,
-      `value(1, y, 1, appealSecondRowH, appealAuditDisplayText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });`
+      appealRowAnchor,
+      `    y += appealSecondRowH;\n\n    const appealLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");\n    if (appealLastUpdatedText) {\n      addPageIfNeeded(8);\n      label(0, y, 1, 8, "Last Updated");\n      value(1, y, 7, 8, appealLastUpdatedText, LIGHT_PURPLE, { align: "left", valign: "middle", maxLines: 2, size: 6.4 });\n      y += 8;\n    }\n\n    const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";`
     );
   }
 
-  // Duplicate guard: no standalone Last Updated label row is allowed in this PDF.
-  const duplicateRowPattern = /label\(0, y, 1, 8, "Last Updated"\)/g;
-  const duplicateCount = (source.match(duplicateRowPattern) || []).length;
-  if (duplicateCount > 0) {
-    throw new Error(`${PATCH}: found ${duplicateCount} standalone Last Updated PDF row(s)`);
+  // Safety: Last Updated must not be merged into the Audit Date display value.
+  if (source.includes("Last Updated: ${auditLastUpdatedText}")) {
+    throw new Error(`${PATCH}: Last Updated is still merged into Audit Date`);
   }
 
   fs.writeFileSync(file, source, "utf8");
-  console.log(`${PATCH}: merged Last Updated into Audit Date PDF cell; duplicate rows=${duplicateCount}`);
+  console.log(`${PATCH}: Last Updated kept as a separate PDF row below Audit Date`);
 }
 
 function patchDashboard() {
@@ -109,10 +73,9 @@ function patchDashboard() {
     file,
   );
 
-  // Selected Case: keep the current Appeal text/countdown and append plain red
-  // Last Updated text only for edited cases.
+  // Selected Case: Appeal stays on the first line; Last Updated is a separate red line underneath.
   const componentStart = `function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {\n  const [nowMs, setNowMs] = useState(() => Date.now());\n  const deadline = getAppealDeadline(caseItem.auditDateObj);`;
-  const componentStartNext = `function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {\n  const [nowMs, setNowMs] = useState(() => Date.now());\n  const deadline = getAppealDeadline(caseItem.auditDateObj);\n  const lastUpdatedTextV89 = caseItem.lastUpdatedAt\n    ? String(caseItem.lastUpdatedAt).replace(/,\\s*/, " ").trim()\n    : "";\n  const lastUpdatedNodeV89 = lastUpdatedTextV89 ? (\n    <span className="ml-1 font-extrabold text-rose-600">· Last Updated {lastUpdatedTextV89}</span>\n  ) : null;`;
+  const componentStartNext = `function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {\n  const [nowMs, setNowMs] = useState(() => Date.now());\n  const deadline = getAppealDeadline(caseItem.auditDateObj);\n  const lastUpdatedTextV89 = caseItem.lastUpdatedAt\n    ? String(caseItem.lastUpdatedAt).replace(/,\\s*/, " ").trim()\n    : "";\n  const lastUpdatedNodeV89 = lastUpdatedTextV89 ? (\n    <span className="block mt-0.5 font-extrabold text-rose-600">Last Updated {lastUpdatedTextV89}</span>\n  ) : null;`;
   source = replaceOnce(
     source,
     componentStart,
@@ -144,7 +107,7 @@ function patchDashboard() {
   }
 
   fs.writeFileSync(file, source, "utf8");
-  console.log(`${PATCH}: normalized timestamps and appended Selected Case Last Updated text`);
+  console.log(`${PATCH}: normalized timestamps and moved Selected Case Last Updated to its own line`);
 }
 
 patchPdf();
