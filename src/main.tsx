@@ -5,6 +5,8 @@ import MaintenanceRuntime from "./MaintenanceRuntime";
 import AutoDeployRefresh from "./AutoDeployRefresh";
 import "./index.css";
 import "./cartoonTheme.css";
+import "./seasonalTheme.css";
+import "./seasonalThemeRuntime";
 import "./deleteUserDirectoryPatch";
 
 // data-root-error-boundary-v149
