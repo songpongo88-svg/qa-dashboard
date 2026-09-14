@@ -6,7 +6,6 @@ import AutoDeployRefresh from "./AutoDeployRefresh";
 import "./index.css";
 import "./cartoonTheme.css";
 import "./seasonalTheme.css";
-import "./weekdayThemeProfessional.css";
 import "./weekdayThemeEditorial.css";
 import "./seasonalThemeRuntime2";
 import "./deleteUserDirectoryPatch";

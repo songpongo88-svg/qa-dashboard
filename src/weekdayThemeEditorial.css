@@ -1,230 +1,253 @@
-/* qa-weekday-editorial-v2
-   Visual-only enhancement for Monday-Sunday.
-   Keeps dashboard data, layout, KPI semantics and workflows unchanged. */
-
+/* Photographic weekday collection. Replaces the old motif/emoji layer. */
 :root[data-qa-theme^="weekday-"] {
-  --day-card-radius: 22px;
-  --day-panel-radius: 28px;
-  --day-motif: "";
-  --day-note: "";
-  --day-photo: linear-gradient(135deg, transparent, transparent);
-  --day-detail: linear-gradient(135deg, transparent, transparent);
+  --day-photo: url("/weekday-scenes-v3.png");
+  --day-photo-position: 0%;
+  --day-photo-height: 710%;
+  --day-sidebar-ink: #17213b;
+  --day-sidebar-muted: #475569;
+  --day-button-ink: #ffffff;
+  --weekday-accent: var(--qa-theme-500);
 }
-
-/* MONDAY — warm morning / flowers / coffee */
 :root[data-qa-theme="weekday-monday"] {
-  --day-card-radius: 22px;
-  --day-panel-radius: 30px;
-  --day-motif: "🌼  ☕  ✨";
-  --day-note: "MONDAY  •  FRESH START";
-  --day-photo:
-    radial-gradient(circle at 84% 20%, rgba(255,255,255,.96) 0 5%, transparent 5.3%),
-    radial-gradient(circle at 78% 16%, rgba(250,204,21,.42) 0 5%, transparent 5.3%),
-    radial-gradient(circle at 91% 28%, rgba(245,158,11,.28) 0 4%, transparent 4.3%),
-    linear-gradient(110deg, rgba(255,255,255,.88), rgba(254,240,138,.54) 62%, rgba(251,191,36,.25));
-  --day-detail: repeating-linear-gradient(120deg, transparent 0 22px, rgba(202,138,4,.035) 23px 24px);
+  --day-photo-position: 0.00000%;
+  --day-photo-height: 708.47458%;
+  --weekday-accent: #f9b900;
+  --day-sidebar: #fff5ce;
+  --day-canvas: #fff9e8;
+  --weekday-border: color-mix(in srgb, #f9b900 22%, white);
+  --weekday-shadow: color-mix(in srgb, #f9b900 13%, transparent);
+  
+  --day-button-ink: #38250a;
 }
-
-/* TUESDAY — polished floral / ribbon / upbeat */
 :root[data-qa-theme="weekday-tuesday"] {
-  --day-card-radius: 26px 18px 26px 18px;
-  --day-panel-radius: 34px 22px 34px 22px;
-  --day-motif: "🌷  💗  ✨";
-  --day-note: "TUESDAY  •  POSITIVE ENERGY";
-  --day-photo:
-    radial-gradient(ellipse at 82% 16%, rgba(249,168,212,.40) 0 6%, transparent 6.4%),
-    radial-gradient(ellipse at 89% 24%, rgba(251,113,133,.28) 0 5%, transparent 5.4%),
-    radial-gradient(ellipse at 75% 29%, rgba(244,114,182,.22) 0 4%, transparent 4.4%),
-    linear-gradient(120deg, rgba(255,255,255,.90), rgba(252,231,243,.64) 62%, rgba(251,207,232,.40));
-  --day-detail: radial-gradient(circle at 15px 15px, rgba(236,72,153,.05) 0 2px, transparent 2.4px);
+  --day-photo-position: 16.68211%;
+  --day-photo-height: 716.57143%;
+  --weekday-accent: #ed3e8b;
+  --day-sidebar: #ffd1e3;
+  --day-canvas: #fff0f6;
+  --weekday-border: color-mix(in srgb, #ed3e8b 22%, white);
+  --weekday-shadow: color-mix(in srgb, #ed3e8b 13%, transparent);
+  
+  
 }
-
-/* WEDNESDAY — botanical workspace / calm focus */
 :root[data-qa-theme="weekday-wednesday"] {
-  --day-card-radius: 28px 16px 28px 16px;
-  --day-panel-radius: 34px 18px 34px 18px;
-  --day-motif: "🪴  🌿  📗";
-  --day-note: "WEDNESDAY  •  KEEP GROWING";
-  --day-photo:
-    radial-gradient(ellipse at 86% 12%, rgba(34,197,94,.28) 0 8%, transparent 8.4%),
-    radial-gradient(ellipse at 78% 25%, rgba(22,163,74,.22) 0 7%, transparent 7.4%),
-    radial-gradient(ellipse at 94% 31%, rgba(134,239,172,.36) 0 6%, transparent 6.4%),
-    linear-gradient(115deg, rgba(255,255,255,.92), rgba(220,252,231,.68) 60%, rgba(187,247,208,.40));
-  --day-detail: repeating-linear-gradient(35deg, transparent 0 30px, rgba(22,163,74,.035) 31px 32px);
+  --day-photo-position: 33.11808%;
+  --day-photo-height: 737.64706%;
+  --weekday-accent: #16a463;
+  --day-sidebar: #d7edbf;
+  --day-canvas: #f2faec;
+  --weekday-border: color-mix(in srgb, #16a463 22%, white);
+  --weekday-shadow: color-mix(in srgb, #16a463 13%, transparent);
+  
+  
 }
-
-/* THURSDAY — warm studio / books / progress */
 :root[data-qa-theme="weekday-thursday"] {
-  --day-card-radius: 18px;
-  --day-panel-radius: 22px;
-  --day-motif: "📚  ☕  ✦";
-  --day-note: "THURSDAY  •  PROGRESS MODE";
-  --day-photo:
-    linear-gradient(90deg, transparent 0 74%, rgba(154,52,18,.05) 74% 76%, transparent 76%),
-    radial-gradient(circle at 84% 18%, rgba(251,146,60,.34) 0 7%, transparent 7.4%),
-    radial-gradient(circle at 92% 30%, rgba(245,158,11,.22) 0 5%, transparent 5.4%),
-    linear-gradient(115deg, rgba(255,255,255,.92), rgba(255,237,213,.68) 60%, rgba(254,215,170,.44));
-  --day-detail: repeating-linear-gradient(0deg, transparent 0 29px, rgba(234,88,12,.035) 30px 31px);
+  --day-photo-position: 49.26199%;
+  --day-photo-height: 737.64706%;
+  --weekday-accent: #f69216;
+  --day-sidebar: #ffe0a2;
+  --day-canvas: #fff6e7;
+  --weekday-border: color-mix(in srgb, #f69216 22%, white);
+  --weekday-shadow: color-mix(in srgb, #f69216 13%, transparent);
+  
+  --day-button-ink: #38250a;
 }
-
-/* FRIDAY — airy blue / seaside-desk / reward energy */
 :root[data-qa-theme="weekday-friday"] {
-  --day-card-radius: 30px;
-  --day-panel-radius: 36px;
-  --day-motif: "🌊  🥤  ☀️";
-  --day-note: "FRIDAY  •  GOOD VIBES";
-  --day-photo:
-    radial-gradient(ellipse at 82% 15%, rgba(255,255,255,.90) 0 7%, transparent 7.4%),
-    repeating-radial-gradient(ellipse at 92% 88%, transparent 0 18px, rgba(14,165,233,.08) 19px 21px, transparent 22px 36px),
-    linear-gradient(180deg, rgba(224,242,254,.78) 0 58%, rgba(186,230,253,.52) 59% 68%, rgba(255,255,255,.90) 69% 100%);
-  --day-detail: linear-gradient(90deg, rgba(14,165,233,.025) 50%, transparent 50%);
+  --day-photo-position: 65.43779%;
+  --day-photo-height: 742.01183%;
+  --weekday-accent: #119ee6;
+  --day-sidebar: #c0e7fc;
+  --day-canvas: #eef9ff;
+  --weekday-border: color-mix(in srgb, #119ee6 22%, white);
+  --weekday-shadow: color-mix(in srgb, #119ee6 13%, transparent);
+  
+  
 }
-
-/* SATURDAY — twilight lounge / music / recharge */
 :root[data-qa-theme="weekday-saturday"] {
-  --day-card-radius: 24px;
-  --day-panel-radius: 30px;
-  --day-motif: "🌙  🎧  💜";
-  --day-note: "SATURDAY  •  REST & RECHARGE";
-  --day-photo:
-    radial-gradient(circle at 84% 14%, rgba(233,213,255,.38) 0 7%, transparent 7.3%),
-    radial-gradient(circle at 94% 20%, rgba(196,181,253,.24) 0 5%, transparent 5.3%),
-    radial-gradient(circle at 76% 26%, rgba(255,255,255,.34) 0 2px, transparent 2.5px),
-    linear-gradient(120deg, rgba(255,255,255,.88), rgba(237,233,254,.68) 60%, rgba(196,181,253,.40));
-  --day-detail: radial-gradient(circle at 12px 12px, rgba(124,58,237,.05) 0 1.5px, transparent 2px);
+  --day-photo-position: 81.41674%;
+  --day-photo-height: 750.89820%;
+  --weekday-accent: #8d43df;
+  --day-sidebar: #9252c9;
+  --day-canvas: #f2eaff;
+  --weekday-border: color-mix(in srgb, #8d43df 22%, white);
+  --weekday-shadow: color-mix(in srgb, #8d43df 13%, transparent);
+  --day-sidebar-ink: #fff; --day-sidebar-muted: #fff;
+  
 }
-
-/* SUNDAY — sunrise / planning / cozy reset */
 :root[data-qa-theme="weekday-sunday"] {
-  --day-card-radius: 20px 30px 20px 30px;
-  --day-panel-radius: 26px 38px 26px 38px;
-  --day-motif: "🌅  📝  ☕";
-  --day-note: "SUNDAY  •  RESET & READY";
-  --day-photo:
-    radial-gradient(circle at 88% 16%, rgba(251,113,133,.30) 0 8%, transparent 8.4%),
-    linear-gradient(180deg, rgba(254,226,226,.48) 0 44%, rgba(255,237,213,.58) 45% 63%, rgba(255,255,255,.92) 64% 100%),
-    linear-gradient(110deg, rgba(255,255,255,.94), rgba(254,202,202,.45));
-  --day-detail: repeating-linear-gradient(135deg, transparent 0 24px, rgba(220,38,38,.03) 25px 26px);
+  --day-photo-position: 100.00000%;
+  --day-photo-height: 643.07692%;
+  --weekday-accent: #f23e5d;
+  --day-sidebar: #ff647e;
+  --day-canvas: #fff0f0;
+  --weekday-border: color-mix(in srgb, #f23e5d 22%, white);
+  --weekday-shadow: color-mix(in srgb, #f23e5d 13%, transparent);
+  --day-sidebar-ink: #fff; --day-sidebar-muted: #fff;
+  
 }
 
-/* Main canvas: editorial atmosphere, not a flat recolor. */
 :root[data-qa-theme^="weekday-"] #root {
-  background-image: var(--day-detail), var(--day-photo), var(--weekday-art) !important;
-  background-size: 48px 48px, 100% 250px, auto !important;
-  background-repeat: repeat, no-repeat, no-repeat !important;
-  background-position: 0 0, top center, center !important;
-  background-attachment: fixed, scroll, fixed !important;
+  background: var(--day-canvas) !important;
+  background-image: none !important;
 }
-
-/* Large decorative visual cluster, intentionally non-interactive. */
-:root[data-qa-theme^="weekday-"] #root::before {
-  content: var(--day-motif) !important;
-  position: fixed !important;
-  z-index: 1 !important;
-  top: 94px !important;
-  right: 34px !important;
-  width: auto !important;
-  height: auto !important;
-  padding: 14px 18px !important;
-  border-radius: 24px !important;
-  background: rgba(255,255,255,.68) !important;
-  border: 1px solid color-mix(in srgb, var(--weekday-accent) 18%, white) !important;
-  box-shadow: 0 18px 46px color-mix(in srgb, var(--weekday-accent) 14%, transparent) !important;
-  backdrop-filter: blur(14px) saturate(135%) !important;
-  font-size: 28px !important;
-  line-height: 1 !important;
-  letter-spacing: 5px !important;
-  filter: none !important;
-  pointer-events: none !important;
-}
-
-/* Day identity plaque; replaces generic glow with a readable visual signature. */
+:root[data-qa-theme^="weekday-"] #root::before,
 :root[data-qa-theme^="weekday-"] #root::after {
-  content: var(--day-note) !important;
-  position: fixed !important;
-  z-index: 1 !important;
-  right: 34px !important;
-  top: 157px !important;
-  left: auto !important;
-  bottom: auto !important;
-  width: auto !important;
-  height: auto !important;
-  padding: 7px 12px !important;
-  border-radius: 999px !important;
-  background: color-mix(in srgb, var(--weekday-accent) 88%, #ffffff) !important;
-  color: #fff !important;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--weekday-accent) 18%, transparent) !important;
-  font-family: 'Kanit', sans-serif !important;
-  font-size: 10px !important;
-  font-weight: 800 !important;
-  letter-spacing: .13em !important;
-  white-space: nowrap !important;
-  filter: none !important;
-  pointer-events: none !important;
+  content: none !important;
+  display: none !important;
 }
-
-/* Existing white cards adopt each day's shape language while preserving layout. */
-:root[data-qa-theme^="weekday-"] #root :where(.rounded-xl,.rounded-2xl,.rounded-3xl,.rounded-\[18px\],.rounded-\[20px\],.rounded-\[22px\],.rounded-\[24px\],.rounded-\[28px\])[class*="bg-white"] {
-  border-radius: var(--day-card-radius) !important;
-  background: color-mix(in srgb, white 94%, var(--weekday-surface-2)) !important;
-  border: 1px solid var(--weekday-border) !important;
-  box-shadow: 0 14px 34px var(--weekday-shadow), inset 0 1px 0 rgba(255,255,255,.76) !important;
-  backdrop-filter: blur(6px);
+:root[data-qa-theme^="weekday-"] [data-qa-theme-surface-v1="true"],
+:root[data-qa-theme^="weekday-"] [data-overview-self-current-v93="true"] {
+  background: var(--day-canvas) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
-
-/* Broader themed surfaces get a stronger editorial treatment. */
-:root[data-qa-theme^="weekday-"] [data-qa-theme-surface-v1="true"] {
-  border-radius: var(--day-panel-radius);
-  background-image:
-    linear-gradient(135deg, rgba(255,255,255,.80), rgba(255,255,255,.46)),
-    var(--day-detail) !important;
-  border: 1px solid var(--weekday-border) !important;
-  box-shadow: 0 20px 48px var(--weekday-shadow) !important;
+/* The photographic scene remains visible above real dashboard content. */
+.qa-weekday-scene {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 230px;
+  overflow: hidden;
+  padding: 28px clamp(20px, 3vw, 48px);
+  background: var(--day-canvas);
+  border-bottom: 1px solid var(--weekday-border);
+  font-family: Kanit, sans-serif;
 }
+.qa-weekday-scene-photo {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: var(--day-photo);
+  background-size: 100% var(--day-photo-height);
+  background-position: center var(--day-photo-position);
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+.qa-weekday-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, var(--day-canvas) 0%, color-mix(in srgb, var(--day-canvas) 90%, transparent) 20%, color-mix(in srgb, var(--day-canvas) 45%, transparent) 44%, transparent 66%);
+  pointer-events: none;
+}
+.qa-weekday-scene-content { max-width: 61%; min-width: 0; color: #17213b; }
+.qa-weekday-scene-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .38em; margin-bottom: 12px; }
+#root .qa-weekday-scene h1 { margin: 0; color: #27213a; font-size: clamp(30px, 3.4vw, 52px); line-height: 1.28; font-weight: 700 !important; letter-spacing: -.035em; }
+#root .qa-weekday-scene h1 span { color: var(--qa-theme-700); }
+.qa-weekday-scene-content > p { margin: 12px 0 0; font-size: clamp(12px, 1.15vw, 17px); line-height: 1.65; max-width: 580px; }
+.qa-weekday-scene-meta { margin-top: 16px; font-size: 11px; color: #475569; }
+.qa-weekday-scene-note {
+  margin-left: auto; align-self: flex-end; max-width: 170px;
+  padding: 14px 16px; border: 1px solid var(--weekday-border);
+  border-radius: 12px; background: color-mix(in srgb, var(--day-canvas) 88%, transparent);
+  color: var(--qa-theme-900); box-shadow: 0 5px 20px var(--weekday-shadow);
+}
+.qa-weekday-scene-note > span { font-size: 16px; font-weight: 600; }
+.qa-weekday-scene-note p { font-size: 12px; line-height: 1.6; margin-top: 7px; }
 
-/* Sidebar gets day-specific texture and keeps all menu functions untouched. */
+/* Sidebar uses the reference's light day colors, with purple/coral weekend variants. */
 :root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 {
-  border-right: 1px solid color-mix(in srgb, var(--weekday-accent-soft) 35%, transparent) !important;
-  box-shadow: 18px 0 44px color-mix(in srgb, var(--weekday-sidebar-a) 18%, transparent) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--day-sidebar) 72%, white), var(--day-sidebar)) !important;
+  background-blend-mode: normal !important;
+  border-color: var(--weekday-border) !important;
+  box-shadow: 5px 0 18px var(--weekday-shadow) !important;
+  color: var(--day-sidebar-ink) !important;
+}
+:root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 :is([class*="text-white"],[class*="text-violet-1"],[class*="text-violet-2"],[class*="text-violet-3"]) {
+  color: var(--day-sidebar-ink) !important;
+}
+:root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 .qa-sidebar-section-label { color: var(--day-sidebar-muted) !important; }
+:root[data-qa-theme^="weekday-"] #root .qa-global-sidebar-v39 .qa-sidebar-nav-v39 button[class~="bg-white"] {
+  background: var(--weekday-accent) !important;
+  color: var(--day-button-ink) !important;
+  border-color: transparent !important;
+}
+:root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 button[aria-disabled="true"] { opacity: .55; }
+:root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 > div:first-of-type {
+  background: color-mix(in srgb, white 25%, transparent) !important;
+  border-color: color-mix(in srgb, var(--day-sidebar-ink) 15%, transparent) !important;
+}
+:root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 .qa-sidebar-nav-v39 button:not([aria-disabled="true"]):hover {
+  background-color: color-mix(in srgb, white 32%, transparent);
+}
+:root[data-qa-theme^="weekday-"] .qa-sidebar-nav-v39 { scrollbar-color: var(--qa-theme-400) transparent; }
+
+/* White cards, tinted borders/shadows. Semantic score/status fills are deliberately excluded. */
+:root[data-qa-theme^="weekday-"] #root :where(.rounded-xl,.rounded-2xl,.rounded-3xl,[class*="rounded-["]):is([class~="bg-white"],[class*="from-white"]) {
+  background: #ffffff !important;
+  border-color: var(--weekday-border) !important;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px var(--weekday-shadow);
+}
+:root[data-qa-theme^="weekday-"] #root .qa-workspace-tabs-v36 {
+  background: color-mix(in srgb, var(--day-canvas) 90%, white) !important;
+  border-color: var(--weekday-border) !important;
+}
+/* Existing theme variables already recolor violet/fuchsia controls. */
+:root[data-qa-theme^="weekday-"] #root :is(button,[role="tab"]):is([class~="bg-violet-600"],[class~="bg-violet-700"],[class~="bg-violet-800"]) {
+  background: var(--weekday-accent) !important;
+  color: var(--day-button-ink) !important;
+  border-color: var(--weekday-accent) !important;
+}
+:root[data-qa-theme^="weekday-"] #root :is(input,select,textarea) {
+  border-color: var(--weekday-border);
+}
+:root[data-qa-theme^="weekday-"] #root :is(button,input,select,textarea):focus-visible {
+  outline: 2px solid var(--qa-theme-700);
+  outline-offset: 3px;
+}
+/* Only decorative purple chart marks; never change red/green KPI marks. */
+:root[data-qa-theme^="weekday-"] #root svg [stroke="#7c3aed"] { stroke: var(--weekday-accent) !important; }
+:root[data-qa-theme^="weekday-"] #root svg :is([fill="#7c3aed"],[fill="#8b5cf6"]) { fill: var(--weekday-accent) !important; }
+:root[data-qa-theme^="weekday-"] #root svg :is([fill="rgba(124,58,237,0.12)"],[fill="rgba(124, 58, 237, 0.1)"]) { fill: color-mix(in srgb, var(--weekday-accent) 12%, transparent) !important; }
+:root[data-qa-theme^="weekday-"] #root svg :is(#lineStrokePremium,#lineFillPremium) stop { stop-color: var(--weekday-accent) !important; }
+:root[data-qa-theme^="weekday-"] #root svg [stroke="#e9d5ff"] { stroke: var(--weekday-border) !important; }
+
+/* One selectable collection, seven non-interactive color previews. */
+.qa-weekday-collection-preview {
+  flex: 0 0 110px; height: 58px; border-radius: 10px;
+  background: url("/weekday-scenes-v3.png") center var(--day-photo-position, 0%) / 100% 700% no-repeat;
+}
+.qa-weekday-preview-list { grid-column: 1/-1; display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 6px; }
+.qa-weekday-preview-item { border-top: 4px solid var(--preview-color); padding: 8px 2px; font: 11px Kanit,sans-serif; text-align: center; color: #334155; border-radius: 6px; background: #f8fafc; }
+.qa-weekday-preview-item[data-today="true"] { background: color-mix(in srgb, var(--preview-color) 12%, white); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .qa-weekday-scene { min-height: 200px; padding: 24px 20px; }
+  .qa-weekday-scene-content { max-width: 72%; }
+  .qa-weekday-scene-note { display: none; }
+}
+@media (max-width: 600px) {
+  .qa-weekday-scene { min-height: 210px; align-items: flex-start; }
+  .qa-weekday-scene-photo { background-size: 190% var(--day-photo-height); background-position: right var(--day-photo-position); }
+  .qa-weekday-scene::after { background: linear-gradient(90deg, color-mix(in srgb, var(--day-canvas) 97%, transparent), color-mix(in srgb, var(--day-canvas) 65%, transparent) 70%, transparent); }
+  .qa-weekday-scene-content { max-width: 100%; }
+  #root .qa-weekday-scene h1 { font-size: clamp(24px, 6vw, 32px); }
+  .qa-weekday-scene-content > p { max-width: 260px; font-size: 12px; }
+  .qa-weekday-scene-eyebrow { font-size: 9px; letter-spacing: .24em; }
+  .qa-weekday-collection-preview { flex-basis: 64px; height: 48px; }
+  .qa-weekday-preview-list { grid-template-columns: repeat(4,minmax(0,1fr)); }
+}
+@media print {
+  .qa-weekday-scene { display: none !important; }
 }
 
-:root[data-qa-theme="weekday-monday"] .qa-global-sidebar-v39 { background-image: radial-gradient(circle at 28% 88%, rgba(250,204,21,.18) 0 8%, transparent 8.3%), linear-gradient(180deg,#5a4208,#8a6508 58%,#b98a0a) !important; }
-:root[data-qa-theme="weekday-tuesday"] .qa-global-sidebar-v39 { background-image: radial-gradient(ellipse at 26% 86%, rgba(249,168,212,.18) 0 10%, transparent 10.3%), linear-gradient(180deg,#4d1832,#812151 58%,#bd3376) !important; }
-:root[data-qa-theme="weekday-wednesday"] .qa-global-sidebar-v39 { background-image: radial-gradient(ellipse at 28% 86%, rgba(134,239,172,.16) 0 11%, transparent 11.3%), linear-gradient(180deg,#123d28,#175f3d 58%,#28875a) !important; }
-:root[data-qa-theme="weekday-thursday"] .qa-global-sidebar-v39 { background-image: linear-gradient(35deg, transparent 0 80%, rgba(253,186,116,.12) 80% 82%, transparent 82%), linear-gradient(180deg,#4c2816,#7b3a13 58%,#b95d1b) !important; }
-:root[data-qa-theme="weekday-friday"] .qa-global-sidebar-v39 { background-image: repeating-radial-gradient(ellipse at 28% 86%, transparent 0 18px, rgba(125,211,252,.10) 19px 21px, transparent 22px 34px), linear-gradient(180deg,#12374d,#075f8c 58%,#0a83b7) !important; }
-:root[data-qa-theme="weekday-saturday"] .qa-global-sidebar-v39 { background-image: radial-gradient(circle at 28% 86%, rgba(221,214,254,.16) 0 9%, transparent 9.3%), linear-gradient(180deg,#281b50,#452d79 58%,#6d4caf) !important; }
-:root[data-qa-theme="weekday-sunday"] .qa-global-sidebar-v39 { background-image: radial-gradient(circle at 30% 86%, rgba(254,202,202,.15) 0 10%, transparent 10.3%), linear-gradient(180deg,#501f1f,#842222 58%,#bd3636) !important; }
-
-/* Themed controls: functional icons remain semantically identical, only chrome changes. */
-:root[data-qa-theme^="weekday-"] #root :where(button,[role="button"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="text-red"]):not([class*="text-green"]) {
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease;
+:root[data-qa-theme="weekday-saturday"] .qa-global-sidebar-v39 { background: linear-gradient(180deg,#653298,#9252c9) !important; }
+:root[data-qa-theme="weekday-sunday"] .qa-global-sidebar-v39 { background: linear-gradient(180deg,#c8294b,#ef5571) !important; }
+:root[data-qa-theme^="weekday-"] [data-overview-self-current-v93="true"]::after {
+  content: "Same System · More Vibes";
+  display: flex; align-items: flex-start; padding: 24px 32px;
+  height: clamp(130px, 15vw, 200px); margin-top: 24px;
+  background-image: linear-gradient(90deg,var(--day-canvas),transparent 65%),var(--day-photo);
+  background-size: 100% 100%,100% var(--day-photo-height);
+  background-position: center,center var(--day-photo-position);
+  background-repeat: no-repeat;
+  font: 500 18px Kanit,sans-serif; color: var(--qa-theme-900);
+  pointer-events: none;
 }
-:root[data-qa-theme^="weekday-"] #root :where(button,[role="button"]):not(:disabled):hover {
-  transform: translateY(-1px);
-}
-
-/* Day-specific micro accents without touching Pass/Fail semantics. */
-:root[data-qa-theme^="weekday-"] #root :where(h1,h2,h3,strong)[class*="font"] {
-  text-shadow: 0 1px 0 rgba(255,255,255,.40);
-}
-
-:root[data-qa-theme^="weekday-"] #root :where(input,select,textarea) {
-  background-color: rgba(255,255,255,.86) !important;
-  border-color: color-mix(in srgb, var(--weekday-accent) 18%, #dbe3ee) !important;
-}
-
-@media (max-width: 1180px) {
-  :root[data-qa-theme^="weekday-"] #root::before,
-  :root[data-qa-theme^="weekday-"] #root::after { opacity: .40 !important; transform: scale(.86); transform-origin: top right; }
-}
-
-@media (max-width: 768px) {
-  :root[data-qa-theme^="weekday-"] #root { background-size: 42px 42px, 100% 190px, auto !important; }
-  :root[data-qa-theme^="weekday-"] #root::before { top: 76px !important; right: 12px !important; font-size: 21px !important; padding: 10px 12px !important; }
-  :root[data-qa-theme^="weekday-"] #root::after { top: 124px !important; right: 12px !important; font-size: 8px !important; padding: 6px 9px !important; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :root[data-qa-theme^="weekday-"] #root :where(button,[role="button"]) { transition: none !important; }
+@media print {
+  :root[data-qa-theme^="weekday-"] [data-overview-self-current-v93="true"]::after { display: none !important; }
 }

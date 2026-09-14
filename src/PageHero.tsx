@@ -1,4 +1,5 @@
 import React from "react";
+import WeekdayScene, { useWeekdayScene } from "./WeekdayScene";
 
 type PageHeroProps = {
   eyebrow: string;
@@ -17,6 +18,8 @@ export default function PageHero({
   workspaceSubtitle = "Corporate dashboard for audit tracking and case review",
   className = "",
 }: PageHeroProps) {
+  const weekdayScene = useWeekdayScene();
+  if (weekdayScene) return <WeekdayScene scene={weekdayScene} title={title} />;
   return (
     <div
       data-unified-robinhood-hero-v156="true"

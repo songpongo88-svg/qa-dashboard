@@ -1,3 +1,4 @@
+import { WEEKDAY_COLLECTION_ID, isWeekdayPreference, getBangkokWeekdayTheme, resolveWeekdayPreference, millisecondsUntilBangkokMidnight } from "./weekdayCollection.mjs";
 // Seasonal theme runtime v2
 // Appearance-only behavior. It does not touch QA data, permissions, scoring, or workflow logic.
 
@@ -203,14 +204,25 @@ function getFestivalAvailability(festival: Festival) {
   return next ? { active: false, ...next } : null;
 }
 
+// Undefined means read storage; a string retains the user's choice when storage is blocked.
+let sessionCustomTheme: string | undefined;
+function getCustomPreference() {
+  if (sessionCustomTheme !== undefined) return sessionCustomTheme;
+  try { return localStorage.getItem(CUSTOM_THEME_STORAGE_KEY) || ""; }
+  catch { return ""; }
+}
 function getPreferredTheme() {
-  try {
-    const custom = localStorage.getItem(CUSTOM_THEME_STORAGE_KEY) || "";
-    if (weekdayThemes.some((theme) => theme.id === custom)) return custom;
-    return localStorage.getItem(BASE_THEME_STORAGE_KEY) || "robinhood";
-  } catch {
-    return "robinhood";
+  const custom = getCustomPreference();
+  if (isWeekdayPreference(custom)) {
+    // Existing per-day choices migrate once to the automatic collection.
+    if (custom !== WEEKDAY_COLLECTION_ID) {
+      sessionCustomTheme = WEEKDAY_COLLECTION_ID;
+      try { localStorage.setItem(CUSTOM_THEME_STORAGE_KEY, WEEKDAY_COLLECTION_ID); } catch {}
+    }
+    return resolveWeekdayPreference(custom);
   }
+  try { return localStorage.getItem(BASE_THEME_STORAGE_KEY) || "robinhood"; }
+  catch { return document.documentElement.dataset.qaTheme || "robinhood"; }
 }
 
 let applyingTheme = false;
@@ -227,6 +239,7 @@ function applyEffectiveTheme() {
     }
 
     document.documentElement.dataset.qaFestivalOverride = activeFestival?.id || "";
+    document.documentElement.dataset.qaWeekdayCollection = isWeekdayPreference(getCustomPreference()) ? "auto" : "";
     requestThemePickerRefresh();
   } finally {
     applyingTheme = false;
@@ -275,6 +288,7 @@ function createThemeCard(options: {
   button.dataset.qaSeasonalAdded = "true";
   button.dataset.qaCustomThemeCard = theme.id;
   button.disabled = Boolean(options.disabled);
+  button.setAttribute("aria-pressed", String(Boolean(options.selected)));
   button.style.cssText = [
     "position:relative",
     "display:flex",
@@ -372,36 +386,59 @@ function renderExtraThemeCards() {
 
     grid.append(createHeading("Day of the Week Collection"));
 
-    let storedCustomTheme = "";
-    try {
-      storedCustomTheme = localStorage.getItem(CUSTOM_THEME_STORAGE_KEY) || "";
-    } catch {
-      storedCustomTheme = "";
-    }
+    const storedCustomTheme = getCustomPreference();
+    const todayTheme = weekdayThemes.find((theme) => theme.id === getBangkokWeekdayTheme())!;
+    const selected = isWeekdayPreference(storedCustomTheme);
+    const collection = createThemeCard({
+      theme: { id: WEEKDAY_COLLECTION_ID, label: "7 Days · ธีมประจำวันอัตโนมัติ", emoji: "", color: todayTheme.color },
+      subtitle: selected && activeFestivalId
+        ? "เลือกไว้แล้ว • จะกลับมาใช้อัตโนมัติเมื่อจบเทศกาล"
+        : "จันทร์–อาทิตย์ • เปลี่ยนตามวันประเทศไทย • จำไว้ในเครื่องนี้",
+      selected,
+      onClick: () => {
+        sessionCustomTheme = WEEKDAY_COLLECTION_ID;
+        try { localStorage.setItem(CUSTOM_THEME_STORAGE_KEY, WEEKDAY_COLLECTION_ID); } catch {}
+        applyEffectiveTheme();
+        renderExtraThemeCards();
+      },
+    });
+    collection.style.gridColumn = "1 / -1";
+    const preview = collection.firstElementChild as HTMLElement;
+    preview.className = "qa-weekday-collection-preview";
+    preview.style.cssText = "";
+    preview.style.setProperty("--day-photo-position", String(weekdayThemes.indexOf(todayTheme) / 6 * 100) + "%");
+    grid.append(collection);
 
+    const days = document.createElement("div");
+    days.dataset.qaSeasonalAdded = "true";
+    days.className = "qa-weekday-preview-list";
+    days.setAttribute("aria-label", "ตัวอย่างทั้ง 7 วัน เปลี่ยนตามวันอัตโนมัติ");
     for (const theme of weekdayThemes) {
-      grid.append(createThemeCard({
-        theme,
-        subtitle: "เลือกใช้เป็น Theme ประจำเครื่องนี้",
-        selected: !activeFestivalId && storedCustomTheme === theme.id,
-        onClick: () => {
-          try {
-            localStorage.setItem(CUSTOM_THEME_STORAGE_KEY, theme.id);
-          } catch {
-            // Continue with in-session theme even when storage is unavailable.
-          }
-          applyEffectiveTheme();
-          renderExtraThemeCards();
-        },
-      }));
+      const item = document.createElement("div");
+      item.className = "qa-weekday-preview-item";
+      item.style.setProperty("--preview-color", theme.color);
+      item.textContent = theme.label.replace("สวัสดี", "");
+      if (theme.id === todayTheme.id) {
+        item.dataset.today = "true";
+        item.textContent += " · วันนี้";
+      }
+      days.append(item);
     }
+    grid.append(days);
   } finally {
     renderingPicker = false;
   }
 }
 
+let pickerRefreshSignature = "";
 function requestThemePickerRefresh() {
-  if (getThemePickerGrid()) requestAnimationFrame(renderExtraThemeCards);
+  const grid = getThemePickerGrid();
+  if (!grid) { pickerRefreshSignature = ""; return; }
+  const signature = [getCustomPreference(), document.documentElement.dataset.qaTheme, toEpochDay(getBangkokToday())].join("|");
+  if (signature !== pickerRefreshSignature || !grid.querySelector("[data-qa-seasonal-added='true']")) {
+    pickerRefreshSignature = signature;
+    requestAnimationFrame(renderExtraThemeCards);
+  }
 }
 
 function installThemeHooks() {
@@ -417,6 +454,7 @@ function installThemeHooks() {
 
     const grid = getThemePickerGrid();
     if (grid && grid.contains(button)) {
+      sessionCustomTheme = "";
       try {
         localStorage.removeItem(CUSTOM_THEME_STORAGE_KEY);
       } catch {
@@ -448,7 +486,23 @@ function startSeasonalThemeRuntime() {
 
   installThemeHooks();
   setTimeout(applyEffectiveTheme, 0);
+  let midnightTimer: ReturnType<typeof setTimeout>;
+  const scheduleMidnight = () => {
+    clearTimeout(midnightTimer);
+    midnightTimer = setTimeout(() => {
+      applyEffectiveTheme();
+      scheduleMidnight();
+    }, millisecondsUntilBangkokMidnight() + 50);
+  };
+  scheduleMidnight();
+  // A minute check also recovers from clock changes and suspended devices.
   setInterval(applyEffectiveTheme, 60 * 1000);
+  window.addEventListener("storage", (event) => {
+    if (event.key === CUSTOM_THEME_STORAGE_KEY || event.key === BASE_THEME_STORAGE_KEY || event.key === null) {
+      sessionCustomTheme = undefined;
+      applyEffectiveTheme();
+    }
+  });
   window.addEventListener("focus", applyEffectiveTheme);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) applyEffectiveTheme();
