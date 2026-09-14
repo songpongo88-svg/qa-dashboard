@@ -119,24 +119,29 @@ function patchDashboard() {
     file,
   );
 
-  // Selected Case: keep Appeal as-is. Audit Date stays the same size as Case Date,
-  // while Last Updated becomes its own equal card directly below Audit Date.
+  // Selected Case: keep Appeal unchanged and keep Last Updated inside Audit Date.
+  // The compact third line is intentionally small so the Audit Date card remains
+  // the same visual height as the adjacent Case Date card.
   const auditCardPattern = /<div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-\[9px\] font-bold uppercase tracking-wide text-slate-500">Audit Date<\/div><div className="mt-1 text-xs font-bold text-slate-900">([\s\S]*?)<\/div><\/div>/;
   const auditCardMatch = source.match(auditCardPattern);
   if (!auditCardMatch || !auditCardMatch[0].includes("activeSelectedCase")) {
     throw new Error(`${PATCH}: Selected Case Audit Date card not found`);
   }
   const currentAuditValue = auditCardMatch[1];
-  const auditAndLastUpdatedCards = `<div className="rounded-xl border border-slate-300 bg-white p-3">\n                                  <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Audit Date</div>\n                                  <div className="mt-1 text-xs font-bold tabular-nums text-slate-900">${currentAuditValue}</div>\n                                </div>\n                                {activeSelectedCase.lastUpdatedAt ? (\n                                  <div className="col-start-2 rounded-xl border border-slate-300 bg-white p-3">\n                                    <div className="text-[9px] font-bold uppercase tracking-wide text-rose-600">Last Updated</div>\n                                    <div className="mt-1 text-xs font-bold tabular-nums text-rose-600">{activeSelectedCase.lastUpdatedAt}</div>\n                                  </div>\n                                ) : null}`;
-  source = source.replace(auditCardPattern, auditAndLastUpdatedCards);
+  const compactAuditCard = `<div className="rounded-xl border border-slate-300 bg-white px-3 py-2">\n                                  <div className="text-[8px] font-bold uppercase tracking-wide leading-none text-slate-500">Audit Date</div>\n                                  <div className="mt-1 text-[11px] font-bold tabular-nums leading-none text-slate-900">${currentAuditValue}</div>\n                                  {activeSelectedCase.lastUpdatedAt ? (\n                                    <div className="mt-1 flex items-baseline gap-1.5 whitespace-nowrap leading-none">\n                                      <span className="text-[7px] font-bold uppercase tracking-wide text-rose-600">Last Updated</span>\n                                      <span className="text-[9px] font-bold tabular-nums text-rose-600">{activeSelectedCase.lastUpdatedAt}</span>\n                                    </div>\n                                  ) : null}\n                                </div>`;
+  source = source.replace(auditCardPattern, compactAuditCard);
 
-  // Guard against the previous layout: Last Updated must not be appended to Appeal text.
+  // Guard against the previous layouts: Last Updated must not be appended to Appeal
+  // and must not render as a separate Selected Case card.
   if (source.includes("lastUpdatedNodeV89")) {
     throw new Error(`${PATCH}: Last Updated is still attached to Selected Case Appeal text`);
   }
+  if (source.includes('className="col-start-2 rounded-xl border border-slate-300 bg-white p-3"')) {
+    throw new Error(`${PATCH}: Last Updated is still rendered as a separate Selected Case card`);
+  }
 
   fs.writeFileSync(file, source, "utf8");
-  console.log(`${PATCH}: Selected Case Last Updated split into its own equal card below Audit Date; Appeal text unchanged`);
+  console.log(`${PATCH}: Selected Case Last Updated compacted inside Audit Date card; PDF unchanged`);
 }
 
 patchPdf();
