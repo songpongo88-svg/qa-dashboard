@@ -52,5 +52,5 @@ if (source.includes("// evaluate-dedicated-edit-memory-v85b") && !source.include
 // its final build-time shape, so the Section B controls are patched only once.
 await import("./patch-evidence-browser-capture-v96.mjs");
 
-// Keep Audit Date immutable on edit and expose only the latest Last Updated timestamp.
-await import("./patch-evaluation-last-updated-v86.mjs");
+// Preserve the original Audit Date timestamp and expose only the latest Last Updated timestamp.
+await import("./patch-evaluation-last-updated-v87.mjs");
