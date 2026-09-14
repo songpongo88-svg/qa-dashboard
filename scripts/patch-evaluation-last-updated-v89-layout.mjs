@@ -119,17 +119,16 @@ function patchDashboard() {
     file,
   );
 
-  // Selected Case: keep Appeal as-is. Put Last Updated inside the existing Audit Date card.
-  // Earlier build patches may change the timestamp expression, so match the card by its label/styles
-  // and preserve whatever Audit Date value expression is already present.
+  // Selected Case: keep Appeal as-is. Audit Date stays the same size as Case Date,
+  // while Last Updated becomes its own equal card directly below Audit Date.
   const auditCardPattern = /<div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-\[9px\] font-bold uppercase tracking-wide text-slate-500">Audit Date<\/div><div className="mt-1 text-xs font-bold text-slate-900">([\s\S]*?)<\/div><\/div>/;
   const auditCardMatch = source.match(auditCardPattern);
   if (!auditCardMatch || !auditCardMatch[0].includes("activeSelectedCase")) {
     throw new Error(`${PATCH}: Selected Case Audit Date card not found`);
   }
   const currentAuditValue = auditCardMatch[1];
-  const auditCardWithLastUpdated = `<div className="rounded-xl border border-slate-300 bg-white p-3">\n                                  <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Audit Date</div>\n                                  <div className="mt-1 text-xs font-bold text-slate-900">${currentAuditValue}</div>\n                                  {activeSelectedCase.lastUpdatedAt ? (\n                                    <div className="mt-2 border-t border-slate-100 pt-2">\n                                      <div className="text-[9px] font-bold uppercase tracking-wide text-rose-600">Last Updated</div>\n                                      <div className="mt-1 text-xs font-bold tabular-nums text-rose-600">{activeSelectedCase.lastUpdatedAt}</div>\n                                    </div>\n                                  ) : null}\n                                </div>`;
-  source = source.replace(auditCardPattern, auditCardWithLastUpdated);
+  const auditAndLastUpdatedCards = `<div className="rounded-xl border border-slate-300 bg-white p-3">\n                                  <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Audit Date</div>\n                                  <div className="mt-1 text-xs font-bold tabular-nums text-slate-900">${currentAuditValue}</div>\n                                </div>\n                                {activeSelectedCase.lastUpdatedAt ? (\n                                  <div className="col-start-2 rounded-xl border border-slate-300 bg-white p-3">\n                                    <div className="text-[9px] font-bold uppercase tracking-wide text-rose-600">Last Updated</div>\n                                    <div className="mt-1 text-xs font-bold tabular-nums text-rose-600">{activeSelectedCase.lastUpdatedAt}</div>\n                                  </div>\n                                ) : null}`;
+  source = source.replace(auditCardPattern, auditAndLastUpdatedCards);
 
   // Guard against the previous layout: Last Updated must not be appended to Appeal text.
   if (source.includes("lastUpdatedNodeV89")) {
@@ -137,7 +136,7 @@ function patchDashboard() {
   }
 
   fs.writeFileSync(file, source, "utf8");
-  console.log(`${PATCH}: Selected Case Last Updated moved into Audit Date card; Appeal text unchanged`);
+  console.log(`${PATCH}: Selected Case Last Updated split into its own equal card below Audit Date; Appeal text unchanged`);
 }
 
 patchPdf();
