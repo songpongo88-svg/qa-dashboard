@@ -67,3 +67,6 @@ try {
 
 // Recover legacy edit timestamps only when the stored record itself proves an edit occurred.
 await import("./patch-evaluation-last-updated-v88-safety.mjs");
+
+// Final display parity: PDF shares Audit Date cell, dashboard has no comma, and Selected Case shows Last Updated.
+await import("./patch-evaluation-last-updated-v89-layout.mjs");
