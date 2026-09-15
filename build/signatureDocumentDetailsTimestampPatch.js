@@ -1,7 +1,7 @@
 export function signatureDocumentDetailsTimestampPatch() {
   return {
     name: "signature-document-details-countdown",
-    enforce: "post",
+    enforce: "pre",
     transform(code, id) {
       if (!id.replace(/\\/g, "/").endsWith("/src/SignatureCenterMockup.tsx")) return null;
 
@@ -24,7 +24,7 @@ export function signatureDocumentDetailsTimestampPatch() {
       const detailsTableReplacement = `                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">\n                  <div className="grid grid-cols-[104px_minmax(0,1fr)] gap-3 border-b border-slate-100 px-3.5 py-2.5 text-sm">\n                    <div className="font-normal text-slate-500">Time Remaining</div>\n                    <div className="break-words font-bold tabular-nums text-rose-600">\n                      {(() => {\n                        const pendingRoles = getPendingRoles(selectedEntries);\n                        if (!pendingRoles.length) return "Completed";\n\n                        const activeResetDeadlines = pendingRoles\n                          .map((role) => getActiveDeadlineResetEntry(selectedEntries, role, new Date(signatureCountdownNow)))\n                          .map((entry) => getDeadlineResetExpiresAt(entry)?.getTime() || 0)\n                          .filter((time) => time > signatureCountdownNow);\n\n                        const regularDueAt = getSignatureDueDate(selectedDocument.monthKey)?.getTime() || 0;\n                        const deadlineAt = activeResetDeadlines.length\n                          ? Math.max(...activeResetDeadlines)\n                          : regularDueAt;\n\n                        if (!deadlineAt || deadlineAt <= signatureCountdownNow) return "Overdue";\n\n                        const remaining = deadlineAt - signatureCountdownNow;\n                        const days = Math.floor(remaining / 86400000);\n                        const hours = Math.floor((remaining % 86400000) / 3600000);\n                        const minutes = Math.floor((remaining % 3600000) / 60000);\n                        const seconds = Math.floor((remaining % 60000) / 1000);\n                        const pad = (value: number) => String(value).padStart(2, "0");\n                        return \`${'${pad(days)}'}d ${'${pad(hours)}'}h ${'${pad(minutes)}'}m ${'${pad(seconds)}'}s\`;\n                      })()}\n                    </div>\n                  </div>\n                  {[`;
       next = next.replace(detailsTableAnchor, detailsTableReplacement);
 
-      // Restore Signature Timeline to signer name only; no signed timestamp appended.
+      // Keep Signature Timeline as signer name only; no timestamp appended.
       next = next.replace(
         /\? `Signed by \$\{signerName\} • \$\{formatDateTime\(signedEntry\.signedAt\)\}`/g,
         '? `Signed by ${signerName}`'
