@@ -20,7 +20,7 @@ function FitLine({ children, size = 10, bold = false }: { children: React.ReactN
     void document.fonts.ready.then(fit);
     return () => { active = false; observer.disconnect(); };
   }, [children, size]);
-  return <div ref={box} style={{ width: "100%", minWidth: 0, lineHeight: "1.7", whiteSpace: "nowrap" }}>
+  return <div ref={box} style={{ width: "100%", minWidth: 0, fontSize: size, lineHeight: "1.45", whiteSpace: "nowrap" }}>
     <span ref={text} style={{ display: "inline-block", fontSize: size, fontWeight: bold ? 600 : 400 }}>{children}</span>
   </div>;
 }
@@ -28,12 +28,12 @@ function FitLine({ children, size = 10, bold = false }: { children: React.ReactN
 export default function SidebarProfileDetails({ name, adminName, role, team, workSim, version }: {
   name: string; adminName: string; role: string; team: string; workSim: string; version: string;
 }) {
-  return <div className="qa-sidebar-label" data-sidebar-profile-details="true" style={{ width: "100%", minWidth: 0 }}>
+  return <div className="qa-sidebar-label" data-sidebar-profile-details="true" style={{ flex: "1 1 0%", minWidth: 0 }}>
     <FitLine size={14} bold>{name}</FitLine>
     {adminName ? <FitLine><strong>Admin Name:</strong> {adminName}</FitLine> : null}
     {role ? <FitLine><strong>Role:</strong> {role}</FitLine> : null}
     {team && team !== "-" ? <FitLine><strong>Team:</strong> {team}</FitLine> : null}
     {workSim && workSim !== "—" ? <FitLine><strong>Work SIM:</strong> {workSim}</FitLine> : null}
-    <FitLine><strong>Deploy Version:</strong> {version}</FitLine>
+    <FitLine><strong>Deploy Version:</strong> <span style={{ background: "rgba(255,255,255,0.85)", color: "#5b21b6", borderRadius: 4, padding: "1px 4px" }}>{version}</span></FitLine>
   </div>;
 }

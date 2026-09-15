@@ -16,7 +16,6 @@ export function reportProfileLayoutPatch() {
         const outerEnd = next.indexOf('</div> : null}', end) + '</div> : null}'.length;
         if (start < 0 || end < start || outerEnd < end) this.error("Sidebar details block missing");
         next = next.slice(0, start) + `{!globalSidebarCollapsed ? <SidebarProfileDetails name={welcomeName} adminName={workspaceAdminName} role={currentUser.role} team={workspaceTeamName} workSim={workspaceWorkSim} version={shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")} /> : null}` + next.slice(outerEnd);
-        replace('className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3 pb-4"}`}', 'className={`flex ${globalSidebarCollapsed ? "items-center justify-center" : "flex-col items-start gap-7 pb-1"}`}');
         next = 'import SidebarProfileDetails from "./SidebarProfileDetails";\n' + next;
       }
       if (path.endsWith("/src/SummaryMockup.tsx")) {
