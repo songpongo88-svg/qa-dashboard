@@ -259,10 +259,11 @@ function getThemePickerGrid() {
   }) || null;
 }
 
-function createHeading(text: string) {
+function createHeading(text: string, collection: string) {
   const heading = document.createElement("div");
   heading.dataset.qaSeasonalAdded = "true";
   heading.textContent = text;
+  heading.dataset.qaThemeCollection = collection;
   heading.style.cssText = [
     "grid-column:1/-1",
     "margin-top:10px",
@@ -287,6 +288,8 @@ function createThemeCard(options: {
   button.type = "button";
   button.dataset.qaSeasonalAdded = "true";
   button.dataset.qaCustomThemeCard = theme.id;
+  button.dataset.qaThemeCollection = theme.id.startsWith("festival-") ? "festival" : "weekday";
+  button.className = "qa-theme-preview-card";
   button.disabled = Boolean(options.disabled);
   button.setAttribute("aria-pressed", String(Boolean(options.selected)));
   button.style.cssText = [
@@ -307,7 +310,9 @@ function createThemeCard(options: {
   ].join(";");
 
   const icon = document.createElement("span");
-  icon.textContent = theme.emoji;
+  icon.textContent = "";
+  icon.className = "qa-theme-mini-preview";
+  icon.setAttribute("aria-hidden", "true");
   icon.style.cssText = [
     "display:grid",
     "place-items:center",
@@ -330,6 +335,15 @@ function createThemeCard(options: {
   subtitle.textContent = options.subtitle;
   subtitle.style.cssText = "font-size:11px;color:#64748b;font-weight:500;line-height:1.35";
 
+  if (theme.id.startsWith("festival-")) {
+    icon.style.cssText = "";
+    icon.style.setProperty("--preview-accent", theme.color);
+    const canvas = document.createElement("span");
+    canvas.className = "qa-theme-mini-canvas";
+    for (let i = 0; i < 4; i++) canvas.append(document.createElement("i"));
+    icon.append(canvas);
+  }
+  content.style.flex = "1";
   content.append(label, subtitle);
   button.append(icon, content);
 
@@ -364,7 +378,7 @@ function renderExtraThemeCards() {
   try {
     grid.querySelectorAll("[data-qa-seasonal-added='true']").forEach((node) => node.remove());
 
-    grid.append(createHeading("Festival Collection"));
+    grid.append(createHeading("Festival Collection", "festival"));
     const activeFestivalId = getActiveFestival()?.id || "";
 
     for (const festival of festivals) {
@@ -384,7 +398,7 @@ function renderExtraThemeCards() {
       }));
     }
 
-    grid.append(createHeading("Day of the Week Collection"));
+    grid.append(createHeading("เลือกครั้งเดียว · เปลี่ยนตามวันประเทศไทยอัตโนมัติ", "weekday"));
 
     const storedCustomTheme = getCustomPreference();
     const todayTheme = weekdayThemes.find((theme) => theme.id === getBangkokWeekdayTheme())!;
@@ -411,16 +425,28 @@ function renderExtraThemeCards() {
 
     const days = document.createElement("div");
     days.dataset.qaSeasonalAdded = "true";
-    days.className = "qa-weekday-preview-list";
+    days.className = "qa-weekday-image-list";
+    days.dataset.qaThemeCollection = "weekday";
     days.setAttribute("aria-label", "ตัวอย่างทั้ง 7 วัน เปลี่ยนตามวันอัตโนมัติ");
     for (const theme of weekdayThemes) {
       const item = document.createElement("div");
-      item.className = "qa-weekday-preview-item";
+      item.className = "qa-weekday-image-card";
       item.style.setProperty("--preview-color", theme.color);
-      item.textContent = theme.label.replace("สวัสดี", "");
+      const photo = document.createElement("span");
+      photo.className = "qa-weekday-image-thumbnail";
+      photo.setAttribute("aria-hidden", "true");
+      photo.style.backgroundPosition = "78% " + (weekdayThemes.indexOf(theme) / 6 * 100) + "%";
+      const caption = document.createElement("span");
+      caption.className = "qa-weekday-image-caption";
+      const name = document.createElement("strong");
+      name.textContent = theme.label.replace("สวัสดี", "");
+      const note = document.createElement("span");
+      note.textContent = "เปลี่ยนให้อัตโนมัติเมื่อถึงวันนี้";
+      caption.append(name, note);
+      item.append(photo, caption);
       if (theme.id === todayTheme.id) {
         item.dataset.today = "true";
-        item.textContent += " · วันนี้";
+        note.textContent = "วันนี้ · " + (selected && !activeFestivalId ? "กำลังใช้งาน" : "ธีมประจำวัน");
       }
       days.append(item);
     }

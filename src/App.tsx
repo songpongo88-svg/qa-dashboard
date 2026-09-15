@@ -1,3 +1,4 @@
+import "./themePickerCollections.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
@@ -3212,6 +3213,23 @@ function ThemePickerModal({
   onSelect: (theme: QaThemeId) => void;
   onClose: () => void;
 }) {
+  const [collection, setCollection] = useState("color");
+  const [customCollectionSelected, setCustomCollectionSelected] = useState(false);
+  const [festivalOverride, setFestivalOverride] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const sync = () => {
+      setCustomCollectionSelected(document.documentElement.dataset.qaWeekdayCollection === "auto");
+      setFestivalOverride(Boolean(document.documentElement.dataset.qaFestivalOverride));
+    };
+    sync();
+    setCollection(document.documentElement.dataset.qaFestivalOverride ? "festival"
+      : document.documentElement.dataset.qaWeekdayCollection === "auto" ? "weekday"
+      : QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme)?.patternImage ? "character" : "color");
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-qa-weekday-collection", "data-qa-festival-override"] });
+    return () => observer.disconnect();
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -3248,7 +3266,7 @@ function ThemePickerModal({
               เลือก Theme ที่ต้องการ
             </h2>
             <p className="mt-1 text-sm font-normal text-slate-500">
-              เลือกได้ทั้ง Theme สีและลายการ์ตูน ระบบจะเปลี่ยนให้ทันที
+              เลือก Collection แล้วดูภาพตัวอย่างก่อนใช้งาน
             </p>
           </div>
           <button
@@ -3261,12 +3279,40 @@ function ThemePickerModal({
           </button>
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
+        <div className="qa-theme-collection-navigation">
+          <div className="qa-theme-collection-label">Collection</div>
+          <div role="tablist" aria-label="Theme Collections" className="qa-theme-collection-tabs">
+            {[
+              ["color", "Color Collection"],
+              ["character", "Character Collection"],
+              ["festival", "Festival Collection"],
+              ["weekday", "7 Days Collection"],
+            ].map(([id, label], index, items) => (
+              <button key={id} id={`qa-collection-tab-${id}`} type="button" role="tab"
+                aria-selected={collection === id} aria-controls="qa-theme-collection-panel"
+                tabIndex={collection === id ? 0 : -1}
+                onClick={() => setCollection(id)}
+                onKeyDown={(event) => {
+                  const next = event.key === "ArrowRight" ? (index + 1) % items.length
+                    : event.key === "ArrowLeft" ? (index + items.length - 1) % items.length
+                    : event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : -1;
+                  if (next < 0) return;
+                  event.preventDefault();
+                  setCollection(items[next][0]);
+                  document.getElementById(`qa-collection-tab-${items[next][0]}`)?.focus();
+                }}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <div id="qa-theme-collection-panel" role="tabpanel" aria-labelledby={`qa-collection-tab-${collection}`}
+          data-qa-picker-collection={collection}
+          className="qa-theme-collection-panel grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
           {QA_THEME_OPTIONS.map((theme) => {
-            const selected = theme.id === selectedTheme;
+            const selected = theme.id === selectedTheme && !customCollectionSelected && !festivalOverride;
             return (
               <button
                 key={theme.id}
+                data-qa-theme-collection={theme.patternImage ? "character" : "color"}
                 type="button"
                 onClick={() => onSelect(theme.id)}
                 aria-pressed={selected}
