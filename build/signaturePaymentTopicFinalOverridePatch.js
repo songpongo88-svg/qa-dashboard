@@ -38,21 +38,21 @@ export function signaturePaymentTopicFinalOverridePatch() {
       // Monthly Payment PDF percentage values must always use two decimal places.
       block = block.replace(/avgPct\.toFixed\(1\)/g, 'avgPct.toFixed(2)');
 
-      // The approved-preview renderer historically hard-coded Improvement Needed at 5.4 pt,
-      // while Strong / Excellent are promoted to 9.5 pt by the large-font patch. Normalize the
-      // long label to the exact same body typography now that the Status column is wide enough.
+      // Render Status with the exact same table-cell renderer and body size as
+      // Avg Score / Max / Avg %. This guarantees identical horizontal/vertical
+      // centering and puts every Status value on the same visual baseline as the metrics.
       block = block.replace(
-        /text\("Improvement Needed",\s*x \+ statusWCell \/ 2,\s*y \+ 6\.1,\s*\d+(?:\.\d+)?,\s*false,\s*black,\s*\{ align: "center" \}\);/g,
-        'text("Improvement Needed", x + statusWCell / 2, y + 6.1, 9.5, false, black, { align: "center" });'
-      );
-
-      // Status text is rendered manually rather than through drawTableCell, so its old
-      // fixed baseline (y + 6.1) no longer sits vertically centered after the row height
-      // was increased to support wrapped descriptions. Center every Status label using
-      // the actual row height, with a small baseline correction for the 9.5 pt font.
-      block = block.replace(
-        /x \+ statusWCell \/ 2,\s*y \+ 6\.1/g,
-        'x + statusWCell / 2, y + rowH / 2 + 1.1'
+        /const statusWCell = topicHeaders\[5\]\[1\];[\s\S]*?(?=\s*y \+= rowH;)/,
+        `const statusWCell = topicHeaders[5][1];
+    drawTableCell(x, y, statusWCell, rowH, status, {
+      fill,
+      color: status === "-" ? muted : black,
+      size: 9.8,
+      bold: false,
+      align: "center",
+      maxLines: 1,
+    });
+`
       );
 
       if (block === before) return null;
