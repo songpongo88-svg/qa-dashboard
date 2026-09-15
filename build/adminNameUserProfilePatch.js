@@ -136,9 +136,22 @@ export function adminNameUserProfilePatch() {
           "          displayName: nextDisplayName,\n          adminName: nextAdminName,\n          agentName: nextAgentName,"
         );
 
+        const welcomeBlock = `  const welcomeName = useMemo(() => {\n    if (!currentUser) return \"\";\n    return currentUser.displayName || currentUser.username;\n  }, [currentUser]);`;
+        const welcomeWithAdminName = `${welcomeBlock}\n\n  const workspaceAdminName = useMemo(() => {\n    if (!currentUser) return \"\";\n    return String(currentUser.adminName || \"\").trim();\n  }, [currentUser]);`;
+        next = next.replace(welcomeBlock, welcomeWithAdminName);
+
         next = next.replace(
-          "    return currentUser.displayName || currentUser.username;",
-          "    return currentUser.adminName?.trim() || currentUser.displayName || currentUser.username;"
+          `<div className="truncate text-[15px] font-semibold">{welcomeName}</div><div className="mt-0.5 truncate text-[10px] font-normal text-violet-200">{currentUser.role}</div>`,
+          `<div className="truncate text-[15px] font-semibold">{welcomeName}</div>{workspaceAdminName ? <div className="mt-0.5 truncate text-[10px] font-semibold text-violet-100">{workspaceAdminName}</div> : null}<div className="mt-0.5 truncate text-[10px] font-normal text-violet-200">{currentUser.role}</div>`
+        );
+
+        next = next.replace(
+          `<div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px]"><svg`,
+          `{workspaceWorkSim !== "—" ? <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px]"><svg`
+        );
+        next = next.replace(
+          `{workspaceWorkSim}</span></div></div> : null}`,
+          `{workspaceWorkSim}</span></div> : null}</div> : null}`
         );
       }
 
