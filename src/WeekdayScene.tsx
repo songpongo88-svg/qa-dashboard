@@ -28,7 +28,10 @@ export default function WeekdayScene({ scene, title }: { scene: NonNullable<Retu
     <header className="qa-weekday-scene" data-qa-weekday-scene="true">
       <div className="qa-weekday-scene-photo" aria-hidden="true" />
       <div className="qa-weekday-scene-content">
-        <div className="qa-weekday-scene-eyebrow">HAPPY {scene.english.toUpperCase()}</div>
+        <div className="qa-weekday-brand-row">
+          <img src="/robinhood-logo.png" alt="Robinhood" width="40" height="40" />
+          <div><strong>Robinhood QA</strong><div className="qa-weekday-scene-eyebrow">HAPPY {scene.english.toUpperCase()}</div></div>
+        </div>
         <h1>สวัสดีวัน<span>{scene.day}</span></h1>
         <p>{scene.message}</p>
         <div className="qa-weekday-scene-meta">{title} · {date}</div>

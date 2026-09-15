@@ -353,3 +353,7 @@
   .qa-weekday-dashboard-layout, .qa-weekday-dashboard-main { display: contents !important; }
   .qa-weekday-side-rail { display: none !important; }
 }
+
+.qa-weekday-brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.qa-weekday-brand-row strong { display: block; color: #17213b; font-size: 13px; line-height: 1.5; }
+.qa-weekday-brand-row .qa-weekday-scene-eyebrow { margin: 2px 0 0; font-size: 9px; letter-spacing: 0.18em; }

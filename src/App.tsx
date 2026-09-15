@@ -6712,6 +6712,10 @@ export default function App() {
           }
         `}</style>
         <aside data-navigation-labels-v50="true" data-admin-sidebar-v56="true" data-sidebar-soft-v87="true" className="qa-global-sidebar-v39 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300/70 bg-gradient-to-b from-violet-900 via-violet-800 to-fuchsia-700 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.14)] transition-[width] duration-200" aria-label="QA workspace navigation">
+          <div className="qa-organization-brand" aria-label="Robinhood QA Dashboard">
+            <img src="/robinhood-logo.png" alt="Robinhood" width="40" height="40" />
+            {!globalSidebarCollapsed ? <div className="qa-sidebar-label"><strong>QA Dashboard</strong><span>Robinhood Live Chat</span></div> : null}
+          </div>
           <div className={`rounded-[22px] border border-white/20 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-4"}`}>
             <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
             <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3"}`}>
@@ -6766,7 +6770,7 @@ export default function App() {
                   <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                 </button> : null}
                 {(globalSidebarCollapsed || isOpen) ? <div className="space-y-0.5">
-                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={() => { if (!item.allowed) { setSidebarPermissionNotice(item.label); return; } setSidebarPermissionNotice(""); item.onClick(); }} aria-label={item.allowed ? item.label : `${item.label}. ไม่มีสิทธิ์ใช้งาน`} aria-disabled={!item.allowed} title={item.allowed ? `${item.label} - ${item.description}` : `${item.label} - ไม่มีสิทธิ์ใช้งาน: ${item.description}`} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition ${!item.allowed ? "cursor-not-allowed border border-white/10 text-violet-300/70 hover:bg-white/5" : item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
+                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={() => { if (!item.allowed) { setSidebarPermissionNotice(item.label); return; } setSidebarPermissionNotice(""); item.onClick(); }} aria-label={item.allowed ? item.label : `${item.label}. ไม่มีสิทธิ์ใช้งาน`} aria-disabled={!item.allowed} title={item.allowed ? `${item.label} - ${item.description}` : `${item.label} - ไม่มีสิทธิ์ใช้งาน: ${item.description}`} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition ${!item.allowed ? "cursor-not-allowed border border-white/10 text-violet-300/70 hover:bg-white/5" : item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "qa-sidebar-danger text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
                     <SidebarGlyph name={item.icon} />
                     {!globalSidebarCollapsed ? <span className="qa-sidebar-label min-w-0 flex-1 truncate">{item.label}</span> : null}
                     {!item.allowed ? <svg viewBox="0 0 24 24" className="ml-auto h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> : null}

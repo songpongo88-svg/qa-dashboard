@@ -37,3 +37,49 @@
 @media (prefers-reduced-motion: no-preference) {
   :root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) .qa-global-sidebar-v39 { transition: background-image 180ms ease, border-color 180ms ease; }
 }
+
+/* Carry the collection artwork onto each workspace, beneath readable content cards. */
+:root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) [data-qa-theme-surface-v1="true"],
+:root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) [data-qa-theme-surface-v1="true"] .min-h-screen,
+:root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) [data-qa-theme-surface-v1="true"] :is(div,main,section):has(> [data-unified-robinhood-hero-v156="true"]) {
+  background-color: var(--qa-theme-50) !important;
+  background-image: linear-gradient(rgb(255 255 255 / 88%), rgb(255 255 255 / 88%)), var(--qa-cartoon-pattern) !important;
+  background-size: auto, 380px 380px !important;
+  background-repeat: repeat !important;
+}
+:root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) [data-unified-robinhood-hero-v156="true"] {
+  background-color: var(--qa-theme-900) !important;
+  background-image: linear-gradient(90deg, var(--qa-theme-950), transparent 85%), var(--qa-cartoon-pattern) !important;
+  background-size: auto, 300px 300px !important;
+  background-blend-mode: normal, soft-light;
+}
+:root:is([data-qa-theme="kitty-pink"], [data-qa-theme="doraemon-blue"], [data-qa-theme="honey-bear"], [data-qa-theme="bunny-melody"], [data-qa-theme="froggy-green"], [data-qa-theme="starry-cat"]) .qa-workspace-tabs-v36 {
+  border-bottom-color: var(--qa-theme-200) !important;
+  background-color: var(--qa-theme-50) !important;
+}
+/* The original organization mark stays independent of collection decoration. */
+#root .qa-organization-brand {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  margin-bottom: 10px; padding: 9px 8px; border-radius: 14px;
+  background: #fff !important; color: #17213b !important;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
+}
+#root .qa-organization-brand img, .qa-weekday-brand-row img {
+  width: 40px; height: 40px; flex-shrink: 0; object-fit: contain;
+  background: #fff; border-radius: 10px;
+}
+#root .qa-organization-brand strong { display: block; font-size: 13px; line-height: 1.4; }
+#root .qa-organization-brand span { display: block; font-size: 10px; color: #475569; }
+#root .qa-global-sidebar-v39 .qa-sidebar-nav-v39 button.qa-sidebar-danger {
+  color: #9f1239 !important; background: #fff1f2 !important;
+  border: 1px solid #fda4af !important;
+}
+#root .qa-global-sidebar-v39 .qa-sidebar-nav-v39 button.qa-sidebar-danger:hover {
+  color: #881337 !important; background: #ffe4e6 !important;
+}
+#root .qa-global-sidebar-v39 .qa-sidebar-nav-v39 button:focus-visible {
+  outline: 2px solid currentColor; outline-offset: -4px;
+}
+@media (max-width: 900px) {
+  #root .qa-organization-brand { justify-content: center; padding: 8px 0; }
+}
