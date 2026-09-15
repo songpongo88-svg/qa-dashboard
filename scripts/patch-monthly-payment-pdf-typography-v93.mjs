@@ -20,54 +20,64 @@ if (fnStart < 0 || fnEnd < 0) {
 let block = source.slice(fnStart, fnEnd);
 const originalBlock = block;
 
-// Keep all table headers on one typography scale.
+// Typography hierarchy for Monthly Payment PDF:
+// section titles = 11.5, table headers = 7.6, all table body cells = 7.2.
+// Long content gets space instead of a smaller font.
 block = block.replace(
   /drawColText\(label, cx, y \+ 5\.6, width, 7\.6, true,/g,
   'drawColText(label, cx, y + 5.6, width, 7.6, true,'
 );
 
-// Ranking table body: Status must not be smaller than neighboring body cells.
+// Agent Monthly Ranking: use one body size for every column, including Status.
 block = block.replace(
   /drawColText\(value, cx, y \+ 5\.4, width, label === "Status" \? 6\.8 : 7\.3,/g,
-  'drawColText(value, cx, y + 5.4, width, 7.3,'
+  'drawColText(value, cx, y + 5.4, width, 7.2,'
+);
+block = block.replace(
+  /drawColText\(value, cx, y \+ 5\.4, width, 7\.3,/g,
+  'drawColText(value, cx, y + 5.4, width, 7.2,'
 );
 
-// Topic table body: Description must use the same body size as the rest of the row.
+// Topic Performance: Description and Status use the same body size as numeric cells.
 block = block.replace(
   /drawColText\(value, cx, y \+ 5\.4, width, label === "Description" \? 6\.8 : 7\.1,/g,
-  'drawColText(value, cx, y + 5.4, width, 7.1,'
+  'drawColText(value, cx, y + 5.4, width, 7.2,'
+);
+block = block.replace(
+  /drawColText\(value, cx, y \+ 5\.4, width, 7\.1,/g,
+  'drawColText(value, cx, y + 5.4, width, 7.2,'
 );
 
-// Corporate renderer variants sometimes shrink a cell with fitCellText. Do not allow
-// table body text to fall below the normal readable body scale.
+// Give a long Topic Status more room without changing total table width.
+block = block.replace(
+  '["Description", 86],\n    ["Avg Score", 24],\n    ["Max", 18],\n    ["Avg %", 22],\n    ["Status", 22],',
+  '["Description", 80],\n    ["Avg Score", 24],\n    ["Max", 18],\n    ["Avg %", 22],\n    ["Status", 28],'
+);
+
+// Corporate renderer variants sometimes shrink a cell with fitCellText. Keep the
+// readable body floor aligned to the same hierarchy instead of allowing tiny status text.
 block = block.replace(
   /fitCellText\(([^;\n]+?),\s*5\.4\)/g,
-  'fitCellText($1, 6.8)'
+  'fitCellText($1, 7.2)'
 );
 block = block.replace(
   /fitCellText\(([^;\n]+?),\s*5\.6\)/g,
-  'fitCellText($1, 6.8)'
+  'fitCellText($1, 7.2)'
+);
+block = block.replace(
+  /fitCellText\(([^;\n]+?),\s*6\.8\)/g,
+  'fitCellText($1, 7.2)'
 );
 
-// If the corporate Topic Performance renderer is present, prefer a readable two-line
-// status over shrinking long text such as "Improvement Needed".
+// If a corporate Topic Performance variant has a dedicated fitted status object,
+// keep its font at the normal body size instead of shrinking Improvement Needed.
 block = block.replace(
   /const\s+statusText\s*=\s*String\(value\s*\?\?\s*""\);\s*const\s+fittedStatus\s*=\s*fitCellText\(statusText,\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);/g,
-  'const statusText = String(value ?? ""); const fittedStatus = { text: statusText, size: 7.1 };'
+  'const statusText = String(value ?? ""); const fittedStatus = { text: statusText, size: 7.2 };'
 );
 
 if (block === originalBlock) {
-  console.log(`${PATCH}: no legacy size-specific pattern found; emitting generator diagnostics`);
-}
-
-// Build log diagnostics are intentionally concise and help keep this late patch compatible
-// with the production renderer assembled by earlier build-time patches.
-for (const needle of ["Improvement Needed", "TEAM TOPIC PERFORMANCE", "fitCellText", "drawTableHeader", 'label === "Status"']) {
-  const index = block.indexOf(needle);
-  if (index >= 0) {
-    const excerpt = block.slice(Math.max(0, index - 350), Math.min(block.length, index + 900)).replace(/\s+/g, " ");
-    console.log(`${PATCH}: diagnostic ${needle}: ${excerpt}`);
-  }
+  throw new Error(`${PATCH}: no Monthly Payment PDF typography anchors changed`);
 }
 
 block = block.replace(
@@ -81,4 +91,4 @@ block = block.replace(
 
 source = source.slice(0, fnStart) + block + source.slice(fnEnd);
 fs.writeFileSync(file, source, "utf8");
-console.log(`${PATCH}: standardized Monthly Payment PDF header/body typography without changing document data`);
+console.log(`${PATCH}: section/header/body typography standardized; Topic Status gets extra width and no tiny-font exception`);
