@@ -13,14 +13,23 @@ export function signaturePaymentTopicFinalOverridePatch() {
       const before = block;
 
       // Final layout authority for Team Topic Performance.
-      // Total width remains 180 mm: 26 + 97 + 17 + 11 + 13 + 16.
+      // Keep the full 180 mm table width while giving long Status labels enough room.
+      // Total: 26 + 85 + 17 + 11 + 13 + 28 = 180 mm.
       block = block
         .replace(/\["Topic",\s*\d+(?:\.\d+)?\]/g, '["Topic", 26]')
-        .replace(/\["Description",\s*\d+(?:\.\d+)?\]/g, '["Description", 97]')
+        .replace(/\["Description",\s*\d+(?:\.\d+)?\]/g, '["Description", 85]')
         .replace(/\["Avg Score",\s*\d+(?:\.\d+)?\]/g, '["Avg Score", 17]')
         .replace(/\["Max",\s*\d+(?:\.\d+)?\]/g, '["Max", 11]')
         .replace(/\["Avg %",\s*\d+(?:\.\d+)?\]/g, '["Avg %", 13]')
-        .replace(/\["Status",\s*\d+(?:\.\d+)?\]/g, '["Status", 16]');
+        .replace(/\["Status",\s*\d+(?:\.\d+)?\]/g, '["Status", 28]');
+
+      // The approved-preview renderer historically hard-coded Improvement Needed at 5.4 pt,
+      // while Strong / Excellent are promoted to 9.5 pt by the large-font patch. Normalize the
+      // long label to the exact same body typography now that the Status column is wide enough.
+      block = block.replace(
+        /text\("Improvement Needed",\s*x \+ statusWCell \/ 2,\s*y \+ 6\.1,\s*\d+(?:\.\d+)?,\s*false,\s*black,\s*\{ align: "center" \}\);/g,
+        'text("Improvement Needed", x + statusWCell / 2, y + 6.1, 9.5, false, black, { align: "center" });'
+      );
 
       if (block === before) return null;
       const next = code.slice(0, sectionStart) + block + code.slice(sectionEnd);
