@@ -46,6 +46,15 @@ export function signaturePaymentTopicFinalOverridePatch() {
         'text("Improvement Needed", x + statusWCell / 2, y + 6.1, 9.5, false, black, { align: "center" });'
       );
 
+      // Status text is rendered manually rather than through drawTableCell, so its old
+      // fixed baseline (y + 6.1) no longer sits vertically centered after the row height
+      // was increased to support wrapped descriptions. Center every Status label using
+      // the actual row height, with a small baseline correction for the 9.5 pt font.
+      block = block.replace(
+        /x \+ statusWCell \/ 2,\s*y \+ 6\.1/g,
+        'x + statusWCell / 2, y + rowH / 2 + 1.1'
+      );
+
       if (block === before) return null;
       const next = code.slice(0, sectionStart) + block + code.slice(sectionEnd);
       return { code: next, map: null };
