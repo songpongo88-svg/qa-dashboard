@@ -2995,7 +2995,6 @@ export default function SummaryMockup({
   const [selectedTeam, setSelectedTeam] = useState(
     () => window.sessionStorage.getItem("qa_analytics_team_v134") || "all"
   );
-  const analyticsModeMountedRef = useRef(false);
   const [selectedTeamDetail, setSelectedTeamDetail] = useState(
     () => window.sessionStorage.getItem("qa_analytics_team_detail_v134") || ""
   );
@@ -3964,6 +3963,13 @@ export default function SummaryMockup({
   const effectivePeriodLabels = effectivePeriodKeys.map(getPeriodDisplayLabel);
   const activeUnifiedPeriodKey = effectivePeriodKeys[effectivePeriodKeys.length - 1] || "";
 
+  // Explicit Time View changes reset the selection; applying Compare preserves its draft.
+  const changeAnalysisMode = (nextMode: "weekly" | "monthly" | "yearly") => {
+    setAnalysisMode(nextMode);
+    setSelectedPeriods([]);
+    setPeriodFilterMonth("all");
+  };
+
   const openAnalyticsCompare = () => {
     setCompareDraftMode(analysisMode);
     setCompareDraftYear("all");
@@ -4030,13 +4036,6 @@ export default function SummaryMockup({
   ]);
 
   useEffect(() => {
-    if (!analyticsModeMountedRef.current) {
-      analyticsModeMountedRef.current = true;
-    } else {
-      setSelectedPeriods([]);
-      setPeriodFilterMonth("all");
-    }
-
     setViewMode(
       analysisMode === "weekly"
         ? "weekly-dashboard"
@@ -9034,7 +9033,7 @@ export default function SummaryMockup({
                           key={option.value}
                           type="button"
                           onClick={() => {
-                            setAnalysisMode(option.value as "weekly" | "monthly" | "yearly");
+                            changeAnalysisMode(option.value as "weekly" | "monthly" | "yearly");
                             setSelectedPeriods([]);
                             setAnalyticsCompareOpen(false);
                           }}
@@ -9111,7 +9110,7 @@ export default function SummaryMockup({
                 <span>{isComparisonMode ? `Comparing: ${effectivePeriodLabels.join(" · ")}` : `Current view: ${effectivePeriodLabels[0] || "Current period"}`}</span>
                 <button type="button" onClick={() => {
                   setSummarySection("summary");
-                  setAnalysisMode("monthly");
+                  changeAnalysisMode("monthly");
                   setSelectedPeriods([]);
                   setSelectedTeam(analyticsCanSelectAllTeams ? "all" : currentUserTeamName || "all");
                   if (analyticsCanSelectAllAgents) selectAnalyticsAgent("all");
@@ -9715,7 +9714,7 @@ export default function SummaryMockup({
                           key={option.value}
                           type="button"
                           onClick={() => {
-                            setAnalysisMode(
+                            changeAnalysisMode(
                               option.value as
                                 | "weekly"
                                 | "monthly"
@@ -9838,7 +9837,7 @@ export default function SummaryMockup({
                   <button
                     type="button"
                     onClick={() => {
-                      setAnalysisMode("monthly");
+                      changeAnalysisMode("monthly");
                       setSelectedPeriods([]);
                       setSelectedTeam(
                         analyticsCanSelectAllTeams
@@ -10231,7 +10230,7 @@ export default function SummaryMockup({
                   <select
                     value={analysisMode}
                     onChange={(event) =>
-                      setAnalysisMode(
+                      changeAnalysisMode(
                         event.target
                           .value as
                           | "weekly"
@@ -10333,7 +10332,7 @@ export default function SummaryMockup({
               <button
                 type="button"
                 onClick={() => {
-                  setAnalysisMode(
+                  changeAnalysisMode(
                     "monthly"
                   );
                   setSelectedPeriods([]);
@@ -10423,7 +10422,7 @@ export default function SummaryMockup({
                               }
                               type="button"
                               onClick={() =>
-                                setAnalysisMode(
+                                changeAnalysisMode(
                                   option.value as
                                     | "weekly"
                                     | "monthly"
