@@ -13,15 +13,30 @@ export function signaturePaymentTopicFinalOverridePatch() {
       const before = block;
 
       // Final layout authority for Team Topic Performance.
-      // Keep the full 180 mm table width while giving long Status labels enough room.
-      // Total: 26 + 85 + 17 + 11 + 13 + 28 = 180 mm.
+      // Topic only contains the short 1-4 code, so keep it compact and give the
+      // recovered width to Description. Status remains wide enough for the full label.
+      // Total: 12 + 99 + 17 + 11 + 13 + 28 = 180 mm.
       block = block
-        .replace(/\["Topic",\s*\d+(?:\.\d+)?\]/g, '["Topic", 26]')
-        .replace(/\["Description",\s*\d+(?:\.\d+)?\]/g, '["Description", 85]')
+        .replace(/\["Topic",\s*\d+(?:\.\d+)?\]/g, '["Topic", 12]')
+        .replace(/\["Description",\s*\d+(?:\.\d+)?\]/g, '["Description", 99]')
         .replace(/\["Avg Score",\s*\d+(?:\.\d+)?\]/g, '["Avg Score", 17]')
         .replace(/\["Max",\s*\d+(?:\.\d+)?\]/g, '["Max", 11]')
         .replace(/\["Avg %",\s*\d+(?:\.\d+)?\]/g, '["Avg %", 13]')
         .replace(/\["Status",\s*\d+(?:\.\d+)?\]/g, '["Status", 28]');
+
+      // Keep long bilingual descriptions inside their own cell. If a label does not
+      // fit on one line, wrap it instead of letting the text touch/cross the divider.
+      block = block.replace(
+        /const rowH = \d+(?:\.\d+)?;/,
+        'const rowH = 13.5;'
+      );
+      block = block.replace(
+        /(combinedTopicTitle,[\s\S]{0,260}?maxLines:)\s*1(,)/,
+        '$1 2$2'
+      );
+
+      // Monthly Payment PDF percentage values must always use two decimal places.
+      block = block.replace(/avgPct\.toFixed\(1\)/g, 'avgPct.toFixed(2)');
 
       // The approved-preview renderer historically hard-coded Improvement Needed at 5.4 pt,
       // while Strong / Excellent are promoted to 9.5 pt by the large-font patch. Normalize the
