@@ -33,7 +33,28 @@ export default function WeekdayScene({ scene, title }: { scene: NonNullable<Retu
         <p>{scene.message}</p>
         <div className="qa-weekday-scene-meta">{title} · {date}</div>
       </div>
-      <div className="qa-weekday-scene-note"><span>{scene.english}</span><p>{scene.quote}</p></div>
     </header>
+  );
+}
+
+/** A real grid column reserves space for the rail; data and dialogs stay interactive. */
+export function WeekdayDashboardLayout({ children }: { children: React.ReactNode }) {
+  const scene = useWeekdayScene();
+  return (
+    <div className={scene ? "qa-weekday-dashboard-layout" : "qa-weekday-layout-inactive"}>
+      <div className="qa-weekday-dashboard-main">{children}</div>
+      {scene ? (
+        <aside className="qa-weekday-side-rail" aria-label="ข้อความประจำวัน">
+          <div className="qa-weekday-side-photo" aria-hidden="true" />
+          <div className="qa-weekday-side-copy">
+            <span className="qa-weekday-side-label">{scene.english}</span>
+            <blockquote>{scene.quote}</blockquote>
+            <div className="qa-weekday-side-rule" />
+            <p>Good People<br />Better Service</p>
+          </div>
+          <div className="qa-weekday-side-footer">Same System<br /><strong>More Vibes</strong></div>
+        </aside>
+      ) : null}
+    </div>
   );
 }

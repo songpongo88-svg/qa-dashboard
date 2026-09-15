@@ -251,3 +251,105 @@
 @media print {
   :root[data-qa-theme^="weekday-"] [data-overview-self-current-v93="true"]::after { display: none !important; }
 }
+
+/* v4: quieter corporate styling and a dedicated photographic right rail. */
+:root[data-qa-theme^="weekday-"] {
+  --weekday-shadow: color-mix(in srgb, var(--weekday-accent) 7%, transparent);
+  --weekday-border: color-mix(in srgb, var(--weekday-accent) 15%, #e5e7eb);
+}
+:root[data-qa-theme^="weekday-"] .qa-weekday-scene { min-height: 198px; padding-block: 24px; }
+:root[data-qa-theme^="weekday-"] #root .qa-weekday-scene h1 {
+  font-size: clamp(28px, 2.8vw, 40px);
+  font-weight: 600 !important;
+  letter-spacing: -.02em;
+}
+:root[data-qa-theme^="weekday-"] .qa-weekday-scene-eyebrow { letter-spacing: .2em; font-size: 10px; }
+:root[data-qa-theme^="weekday-"] .qa-weekday-scene-content > p { font-size: 14px; line-height: 1.7; }
+:root[data-qa-theme^="weekday-"] #root :where(.rounded-xl,.rounded-2xl,.rounded-3xl,[class*="rounded-["]):is([class~="bg-white"],[class*="from-white"]) {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 4%);
+}
+:root[data-qa-theme^="weekday-"] .qa-global-sidebar-v39 { box-shadow: 1px 0 0 var(--weekday-border) !important; }
+:root[data-qa-theme^="weekday-"] [data-overview-self-current-v93="true"]::after { display: none; }
+.qa-weekday-layout-inactive, .qa-weekday-layout-inactive > .qa-weekday-dashboard-main { display: contents; }
+.qa-weekday-dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) clamp(152px,12vw,184px);
+  gap: 0;
+  align-items: start;
+  padding-right: 20px;
+}
+.qa-weekday-dashboard-main { min-width: 0; }
+/* Natural document flow: never fixed over the charts or dialog controls. */
+.qa-weekday-side-rail {
+  position: sticky;
+  top: 72px;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 500px;
+  margin-top: 24px;
+  border: 1px solid var(--weekday-border);
+  border-radius: 14px;
+  background: var(--day-canvas);
+  box-shadow: 0 2px 10px rgb(15 23 42 / 5%);
+  font-family: Kanit, sans-serif;
+}
+.qa-weekday-side-photo {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: var(--day-photo);
+  background-size: auto var(--day-photo-height);
+  background-position: 78% var(--day-photo-position);
+  background-repeat: no-repeat;
+}
+.qa-weekday-side-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg,transparent 0%,color-mix(in srgb,var(--day-canvas) 90%,transparent) 26%,var(--day-canvas) 68%,color-mix(in srgb,var(--day-canvas) 60%,transparent) 100%);
+}
+.qa-weekday-side-copy { padding: 145px 20px 20px; }
+.qa-weekday-side-label {
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--qa-theme-800);
+  font-weight: 500;
+}
+.qa-weekday-side-copy blockquote {
+  margin: 16px 0 20px;
+  font-size: 19px;
+  line-height: 1.7;
+  font-weight: 500;
+  color: #253047;
+  overflow-wrap: anywhere;
+}
+.qa-weekday-side-rule { width: 24px; height: 2px; background: var(--weekday-accent); margin-bottom: 18px; }
+.qa-weekday-side-copy p { margin: 0; font-size: 12px; line-height: 1.7; font-weight: 400; color: #475569; }
+.qa-weekday-side-footer { padding: 20px; font-size: 11px; line-height: 1.7; color: var(--qa-theme-800); }
+.qa-weekday-side-footer strong { font-weight: 500; }
+/* Match the content column, not just the window: an expanded sidebar needs room too. */
+@media (max-width: 1279px) {
+  .qa-weekday-dashboard-layout { grid-template-columns: minmax(0,1fr); padding-right: 0; }
+  .qa-weekday-side-rail { position: relative; top: auto; min-height: 190px; margin: 8px 24px 24px; }
+  .qa-weekday-side-photo { background-size: 100% var(--day-photo-height); background-position: center var(--day-photo-position); }
+  .qa-weekday-side-rail::before { background: linear-gradient(90deg,var(--day-canvas),color-mix(in srgb,var(--day-canvas) 92%,transparent) 42%,transparent 78%); }
+  .qa-weekday-side-copy { padding: 24px; max-width: 70%; }
+  .qa-weekday-side-copy blockquote { font-size: 17px; margin: 10px 0 14px; }
+  .qa-weekday-side-copy p, .qa-weekday-side-rule { display: none; }
+  .qa-weekday-side-footer { padding: 0 24px 20px; }
+}
+@media (max-width: 600px) {
+  .qa-weekday-side-rail { margin: 8px 16px 20px; border-radius: 12px; }
+  .qa-weekday-side-copy { max-width: 85%; padding: 20px; }
+  .qa-weekday-side-copy blockquote { font-size: 16px; }
+  .qa-weekday-side-footer { padding-inline: 20px; }
+  :root[data-qa-theme^="weekday-"] #root .qa-weekday-scene h1 { font-size: 28px; }
+}
+@media print {
+  .qa-weekday-dashboard-layout, .qa-weekday-dashboard-main { display: contents !important; }
+  .qa-weekday-side-rail { display: none !important; }
+}

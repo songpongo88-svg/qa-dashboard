@@ -1,3 +1,4 @@
+import { WeekdayDashboardLayout } from "./WeekdayScene";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
@@ -6603,6 +6604,7 @@ export default function DashboardMockup({
         title="QA Dashboard"
         subtitle="ดูภาพรวม วิเคราะห์แนวโน้ม และตรวจรายละเอียดเคสในพื้นที่เดียว"
       />
+      <WeekdayDashboardLayout>
       {false ? (
       <div>
         {songkranTheme ? <SongkranBackdrop /> : null}
@@ -7949,6 +7951,7 @@ export default function DashboardMockup({
           </div>
         </div>
       </div>
+      </WeekdayDashboardLayout>
     </div>
   );
 }
