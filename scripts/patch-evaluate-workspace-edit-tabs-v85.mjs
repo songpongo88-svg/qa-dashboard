@@ -79,3 +79,6 @@ await import("./patch-active-theme-label-v91.mjs");
 
 // Sidebar Current Theme preview follows the exact effective theme style/image as well.
 await import("./patch-active-theme-preview-v92.mjs");
+
+// Monthly Payment PDF uses consistent typography across section titles, headers and body cells.
+await import("./patch-monthly-payment-pdf-typography-v93.mjs");
