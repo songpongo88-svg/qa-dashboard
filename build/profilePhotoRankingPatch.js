@@ -48,7 +48,7 @@ export function profilePhotoRankingPatch() {
         );
 
         const teamLine = `{workspaceTeamName && workspaceTeamName !== "-" ? <div className="truncate text-[10px]"><span className="font-semibold text-violet-300">Team:</span> <span className="font-normal text-white">{workspaceTeamName}</span></div> : null}`;
-        const deployLine = `${teamLine}<div className="mt-0.5 flex items-center gap-1.5 truncate text-[10px]"><span className="shrink-0 font-semibold text-violet-300">Deploy Version:</span> <span className="inline-flex shrink-0 items-center rounded-md bg-white/85 px-1.5 py-0.5 font-normal leading-none text-violet-800 shadow-sm">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span></div>`;
+        const deployLine = `${teamLine}<div className="truncate text-[10px]"><span className="font-semibold text-violet-300">Deploy Version:</span> <span className="font-normal text-white">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span></div>`;
         next = next.replace(teamLine, deployLine);
 
         const deployBlock = `{!globalSidebarCollapsed ? <div className="qa-sidebar-deploy-block mt-3 flex items-center justify-between gap-2 border-t border-white/15 pt-2.5">\n              <div><div className="text-[9px] font-medium uppercase tracking-[0.14em] text-violet-300">Deploy Version</div><div className="text-[9px] font-normal text-violet-200">Current production</div></div>\n              <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-semibold tracking-wider text-violet-800">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span>\n            </div> : null}`;
