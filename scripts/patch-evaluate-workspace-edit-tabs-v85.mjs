@@ -76,3 +76,6 @@ await import("./patch-selected-case-audit-inline-v90.mjs");
 
 // Sidebar Theme name follows the effective theme, including the automatic 7Days Collection day.
 await import("./patch-active-theme-label-v91.mjs");
+
+// Sidebar Current Theme preview follows the exact effective theme style/image as well.
+await import("./patch-active-theme-preview-v92.mjs");
