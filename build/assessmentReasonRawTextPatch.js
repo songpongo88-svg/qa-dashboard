@@ -11,21 +11,15 @@ function assertAssessmentReasonRawTextRoundTrip() {
     "",
   ].join("\n");
 
-  // Paste/Input -> React state.
   const inputState = sample;
-
-  // Save Draft -> localStorage JSON -> Refresh -> Load Draft.
   const draftJson = JSON.stringify({
     topicState: { "1": { score: 18, reason: inputState } },
   });
   const loadedDraftReason = JSON.parse(draftJson).topicState["1"].reason;
 
-  // Submit Evaluation -> Database/Storage JSON -> Load/Edit Evaluation.
   const submitted = { topics: [{ code: "1", comment: loadedDraftReason }] };
   const databaseJson = JSON.stringify(submitted);
   const loadedEvaluationReason = JSON.parse(databaseJson).topics[0].comment;
-
-  // Case Detail raw-text render model.
   const caseDetailReason = String(loadedEvaluationReason ?? "");
 
   const checkpoints = [
@@ -46,6 +40,30 @@ function assertAssessmentReasonRawTextRoundTrip() {
   }
 }
 
+const assessmentDisplayHelperBody = `function AssessmentReasonTextDisplay({
+  value,
+  fallback = "-",
+  className = "",
+}: {
+  value: unknown;
+  fallback?: string;
+  className?: string;
+}) {
+  const rawText = String(value ?? "");
+  if (!rawText) return <div className={className}>{fallback}</div>;
+
+  const looksLikeLegacyRichText = /<\\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li)\\b/i.test(rawText);
+  if (looksLikeLegacyRichText) {
+    return <RichTextContent value={rawText} fallback={fallback} className={className} />;
+  }
+
+  return (
+    <div className={\`whitespace-pre-wrap break-words \${className}\`}>
+      {rawText}
+    </div>
+  );
+}`;
+
 export function assessmentReasonRawTextPatch() {
   assertAssessmentReasonRawTextRoundTrip();
 
@@ -58,15 +76,21 @@ export function assessmentReasonRawTextPatch() {
       const original = code;
 
       if (normalized.endsWith("/src/CreateEvaluationMockup.tsx")) {
-        const topicStateAnchor = `type TopicState = {\n  score: number | null;\n  reason: string;\n};`;
-        const assessmentDisplayHelper = `${topicStateAnchor}\n\nfunction AssessmentReasonTextDisplay({\n  value,\n  fallback = \"-\",\n  className = \"\",\n}: {\n  value: unknown;\n  fallback?: string;\n  className?: string;\n}) {\n  const rawText = String(value ?? \"\");\n  if (!rawText) return <div className={className}>{fallback}</div>;\n\n  // Keep legacy rich-text records readable, but render all new Assessment Reason\n  // values as untouched raw text so every newline/blank line is preserved.\n  const looksLikeLegacyRichText = /<\\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li)\\b/i.test(rawText);\n  if (looksLikeLegacyRichText) {\n    return <RichTextContent value={rawText} fallback={fallback} className={className} />;\n  }\n\n  return (\n    <div className={\`whitespace-pre-wrap break-words \${className}\`}>\n      {rawText}\n    </div>\n  );\n}`;
-        if (next.includes(topicStateAnchor) && !next.includes("function AssessmentReasonTextDisplay")) {
-          next = next.replace(topicStateAnchor, assessmentDisplayHelper);
+        const topicStatePattern = /(type TopicState = \{[\s\S]*?\n\};)/;
+        if (!next.includes("function AssessmentReasonTextDisplay")) {
+          next = next.replace(topicStatePattern, `$1\n\n${assessmentDisplayHelperBody}`);
         }
 
         next = next.replace(
           /<RichTextEditor\s+value=\{topicState\[topic\.code\]\?\.reason \|\| \"\"\}\s+onChange=\{\(reason\) => updateTopic\(topic\.code, \{ reason \}\)\}\s+editorLabel=\{`Assessment Reason · \$\{topic\.code\}`\}\s+minHeight=\{108\}\s+placeholder=\"ระบุเหตุผลการประเมินหัวข้อนี้\.\.\.\"\s*\/>/m,
-          `<textarea\n                                      value={topicState[topic.code]?.reason || \"\"}\n                                      onChange={(event) => updateTopic(topic.code, { reason: event.target.value })}\n                                      rows={5}\n                                      spellCheck={false}\n                                      placeholder=\"ระบุเหตุผลการประเมินหัวข้อนี้...\"\n                                      className=\"mt-2 min-h-[108px] w-full resize-y rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-semibold leading-6 text-slate-800 outline-none transition whitespace-pre-wrap break-words focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100\"\n                                    />`
+          `<textarea
+                                      value={topicState[topic.code]?.reason || ""}
+                                      onChange={(event) => updateTopic(topic.code, { reason: event.target.value })}
+                                      rows={5}
+                                      spellCheck={false}
+                                      placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..."
+                                      className="mt-2 min-h-[108px] w-full resize-y rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-semibold leading-6 text-slate-800 outline-none transition whitespace-pre-wrap break-words focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                                    />`
         );
 
         next = next.replace(
@@ -96,10 +120,9 @@ export function assessmentReasonRawTextPatch() {
       }
 
       if (normalized.endsWith("/src/DashboardMockup.tsx")) {
-        const topicTypeAnchor = `type Topic = {\n  code: string;\n  label: string;\n  score: number;\n  max: number;\n  pct: number;\n  comment?: string;\n};`;
-        const dashboardAssessmentDisplayHelper = `${topicTypeAnchor}\n\nfunction AssessmentReasonTextDisplay({\n  value,\n  fallback = \"-\",\n  className = \"\",\n}: {\n  value: unknown;\n  fallback?: string;\n  className?: string;\n}) {\n  const rawText = String(value ?? \"\");\n  if (!rawText) return <div className={className}>{fallback}</div>;\n\n  const looksLikeLegacyRichText = /<\\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li)\\b/i.test(rawText);\n  if (looksLikeLegacyRichText) {\n    return <RichTextContent value={rawText} fallback={fallback} className={className} />;\n  }\n\n  return (\n    <div className={\`whitespace-pre-wrap break-words \${className}\`}>\n      {rawText}\n    </div>\n  );\n}`;
-        if (next.includes(topicTypeAnchor) && !next.includes("function AssessmentReasonTextDisplay")) {
-          next = next.replace(topicTypeAnchor, dashboardAssessmentDisplayHelper);
+        const topicTypePattern = /(type Topic = \{[\s\S]*?\n\};)/;
+        if (!next.includes("function AssessmentReasonTextDisplay")) {
+          next = next.replace(topicTypePattern, `$1\n\n${assessmentDisplayHelperBody}`);
         }
 
         next = next
@@ -116,8 +139,6 @@ export function assessmentReasonRawTextPatch() {
             '<AssessmentReasonTextDisplay value={topic.comment} fallback="ไม่มีความคิดเห็นเพิ่มเติม" />'
           );
 
-        // The wrapper previously used whitespace-pre-line, which collapses repeated blank lines.
-        // pre-wrap is required for Assessment Reason raw text.
         next = next.replaceAll(
           'className="mt-4 whitespace-pre-line leading-7 text-slate-800"',
           'className="mt-4 whitespace-pre-wrap break-words leading-7 text-slate-800"'
