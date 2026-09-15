@@ -1,4 +1,54 @@
+function assertAssessmentReasonRawTextRoundTrip() {
+  const sample = [
+    "เปิดและปิดแชทตามมาตรฐาน (Standard Opening & Closing)",
+    "",
+    "แอดมินมีการทักทาย แนะนำตัว และปิดการสนทนาตามมาตรฐาน",
+    "",
+    "",
+    "ยืนยันข้อมูล / PDPA / Policy (Verification, PDPA & Policy Compliance)",
+    "",
+    "ผู้สมัครแจ้งชื่อและเบอร์โทรศัพท์ครบแล้ว ซึ่งเพียงพอสำหรับตรวจสอบข้อมูล",
+    "",
+  ].join("\n");
+
+  // Paste/Input -> React state.
+  const inputState = sample;
+
+  // Save Draft -> localStorage JSON -> Refresh -> Load Draft.
+  const draftJson = JSON.stringify({
+    topicState: { "1": { score: 18, reason: inputState } },
+  });
+  const loadedDraftReason = JSON.parse(draftJson).topicState["1"].reason;
+
+  // Submit Evaluation -> Database/Storage JSON -> Load/Edit Evaluation.
+  const submitted = { topics: [{ code: "1", comment: loadedDraftReason }] };
+  const databaseJson = JSON.stringify(submitted);
+  const loadedEvaluationReason = JSON.parse(databaseJson).topics[0].comment;
+
+  // Case Detail raw-text render model.
+  const caseDetailReason = String(loadedEvaluationReason ?? "");
+
+  const checkpoints = [
+    ["Input state", inputState],
+    ["Save Draft + Refresh", loadedDraftReason],
+    ["Submit + Database reload", loadedEvaluationReason],
+    ["Edit Evaluation + Case Detail", caseDetailReason],
+  ];
+
+  checkpoints.forEach(([label, value]) => {
+    if (value !== sample) {
+      throw new Error(`Assessment Reason regression failed at ${label}: raw newlines changed`);
+    }
+  });
+
+  if (!sample.includes("\n\n") || !sample.includes("\n\n\n")) {
+    throw new Error("Assessment Reason regression fixture must contain repeated blank lines");
+  }
+}
+
 export function assessmentReasonRawTextPatch() {
+  assertAssessmentReasonRawTextRoundTrip();
+
   return {
     name: "assessment-reason-raw-text",
     enforce: "pre",
@@ -33,6 +83,16 @@ export function assessmentReasonRawTextPatch() {
           '<RichTextContent value={topic.comment} className="mt-1 whitespace-pre-line text-sm font-semibold leading-6 text-slate-700" />',
           '<AssessmentReasonTextDisplay value={topic.comment} className="mt-1 text-sm font-semibold leading-6 text-slate-700" />'
         );
+
+        if (!next.includes('onChange={(event) => updateTopic(topic.code, { reason: event.target.value })}')) {
+          throw new Error("Assessment Reason patch failed: raw textarea input was not installed");
+        }
+        if (next.includes('editorLabel={`Assessment Reason · ${topic.code}`}')) {
+          throw new Error("Assessment Reason patch failed: RichTextEditor is still used for Assessment Reason");
+        }
+        if (!next.includes('base[`${topic.code} Comment`] = topicState[topic.code]?.reason || "-";')) {
+          throw new Error("Assessment Reason patch failed: raw preview still normalizes topic comments");
+        }
       }
 
       if (normalized.endsWith("/src/DashboardMockup.tsx")) {
@@ -66,6 +126,13 @@ export function assessmentReasonRawTextPatch() {
           'className="mt-2 whitespace-pre-line text-sm font-normal leading-6 text-slate-700"',
           'className="mt-2 whitespace-pre-wrap break-words text-sm font-normal leading-6 text-slate-700"'
         );
+
+        if (!next.includes("function AssessmentReasonTextDisplay")) {
+          throw new Error("Assessment Reason patch failed: Case Detail raw-text renderer was not installed");
+        }
+        if (!next.includes("whitespace-pre-wrap break-words")) {
+          throw new Error("Assessment Reason patch failed: Case Detail does not preserve whitespace");
+        }
       }
 
       return next === original ? null : { code: next, map: null };
