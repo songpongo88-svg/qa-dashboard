@@ -7228,7 +7228,12 @@ export default function App() {
           )}
         </WorkspaceKeepAlive>
       </div>
-      {activeTab !== "user-guide" && <button type="button" className="guide-help-button" onClick={() => setGuideDrawerOpen(true)}>คู่มือหน้านี้</button>}
+      {activeTab !== "user-guide" && <button type="button" className="guide-help-button" aria-label="คู่มือหน้านี้" title="คู่มือหน้านี้" aria-haspopup="dialog" aria-expanded={guideDrawerOpen} onClick={() => setGuideDrawerOpen(true)}>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+          <path d="M12 5.5C9.4 3.8 6.1 3.2 3 4v15c3.1-.8 6.4-.2 9 1.5 2.6-1.7 5.9-2.3 9-1.5V4c-3.1-.8-6.4-.2-9 1.5Z" />
+          <path d="M12 5.5v15M6 8h3M6 11h3M15 8h3M15 11h3" />
+        </svg>
+      </button>}
       {guideDrawerOpen && <GuideDrawer user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} context={activeTab === "dashboard" && dashboardSubTab === "case-detail" ? "case-detail" : activeWorkspaceTab} onClose={closeGuideDrawer} />}
       </TermsAccessBoundary>
     </>

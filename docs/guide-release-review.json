@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-16T13:49:41.767Z",
-  "reason": "Reviewed T&C acceptance, permissions, saved evidence, role-aware guide, PDF layout, and release compatibility against the current QA Dashboard workflows.",
+  "reviewedAt": "2026-09-16T14:08:55.309Z",
+  "reason": "Reviewed the book-icon guide shortcut, keyboard label and focus, separate desktop/mobile position above KPI and chat, and updated the guide instructions.",
   "contentChanged": true,
   "reviewedChapters": [
-    "all"
+    "guide"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
@@ -219,7 +219,7 @@
     "scripts/test-rich-text-toolbar.mjs": "9b0f6ec0c8b20ca9aaee87d7348ac3e6a2c9a8a5703236094ea6f4a3c9228cc6",
     "scripts/test-weekday-collection.mjs": "cf226bb114d1661c3e8800e7751718cefd57af172cfd6b53427bc8f5d0a951c4",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "4bc7c18e09d392aed4b108de9d793dce6744b8d4d0ec4cf628f5de53494997d0",
+    "src/App.tsx": "4c09f077c8277b3451e21da057943116e9b2247be0e930e3642166d4469f76f6",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
     "src/AppealRequestsMockup.tsx": "d663a847f8b15a3858bef905638e4a8b8c79f575dc2ea75b97f72eb8d08ad4a5",
@@ -279,8 +279,8 @@
     "src/knowledge/UserGuide.tsx": "964190bfeb59239f1791a547ab648eb2a8c86e434dfa14b90e2e354903ffe7af",
     "src/knowledge/guideModel.ts": "d9ccf23f7e3038f64e90e9f0b8d25bc9aeeb12dfa07050d1beffcd467e1a1209",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
-    "src/knowledge/knowledge.css": "21902430e8668de917430f66632072549037ed5bd19977ba257a07efb1f1baaf",
-    "src/knowledge/manual.json": "4348691306114d5d53cec46cbdf049cb24a926ea15fa1c84833e7883d1bebae3",
+    "src/knowledge/knowledge.css": "336f5fb638680910f766422c3ea655b268eac06ec41721f5e07415c32fe11eee",
+    "src/knowledge/manual.json": "80321e542d6e29cd1c960ef37f313c9bee66f47819ed9455150804f23e639331",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "7d22264b453cfd30941cc26627c0b5d3a09d1b9c92250f6b7f3bc20922906e79",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
