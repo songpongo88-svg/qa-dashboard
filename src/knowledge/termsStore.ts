@@ -1,26 +1,11 @@
-import { collection, doc, getDocFromCache, getDocFromServer, getDocsFromServer, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
+import { collection, doc, getDocFromServer, getDocsFromServer, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { firebaseDb } from "../firebaseClient";
 import { validateStoredUserSession } from "../sessionStore";
 import { fetchStoredSignatureLibraryEntry } from "../signatureStore";
 import { acceptanceId, CURRENT_TERMS, documentHash, KNOWLEDGE_BUILD, normalizeUsername, validateTermsInput, type AcceptTermsInput, type KnowledgeUser, type TermsAcceptance } from "./model";
 
 export const TERMS_COLLECTION = "qa_terms_acceptances";
-const TERMS_CURRENT_TIMEOUT_MS = 6000;
 const profileId = (value: string) => value.trim().replace(/\//g, "__").replace(/\s+/g, " ");
-
-async function withTimeout<T>(promise: Promise<T>, ms = TERMS_CURRENT_TIMEOUT_MS): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("การเชื่อมต่อฐานข้อมูลใช้เวลานานเกินไป กรุณากดลองอีกครั้ง")), ms);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
 
 /** Use the existing central session/profile; a local session fallback cannot create acknowledgements. */
 export async function verifiedKnowledgeUser(user: KnowledgeUser) {
@@ -62,12 +47,7 @@ function parseAcceptance(id: string, data: any): TermsAcceptance {
 
 export const termsRepository = {
   async current(user: KnowledgeUser): Promise<TermsAcceptance | null> {
-    const reference = doc(firebaseDb, TERMS_COLLECTION, acceptanceId(user.username, CURRENT_TERMS.version));
-    try {
-      const cached = await getDocFromCache(reference);
-      if (cached.exists()) return parseAcceptance(cached.id, cached.data());
-    } catch {}
-    const snapshot = await withTimeout(getDocFromServer(reference));
+    const snapshot = await getDocFromServer(doc(firebaseDb, TERMS_COLLECTION, acceptanceId(user.username, CURRENT_TERMS.version)));
     return snapshot.exists() ? parseAcceptance(snapshot.id, snapshot.data()) : null;
   },
   async accept(user: KnowledgeUser, input: AcceptTermsInput): Promise<TermsAcceptance> {
@@ -89,7 +69,7 @@ export const termsRepository = {
         buildCommit: KNOWLEDGE_BUILD.commitHash || "", confirmationMethod: "explicit-checkbox-and-button",
       });
     });
-    const saved = await withTimeout(getDocFromServer(reference));
+    const saved = await getDocFromServer(reference);
     if (!saved.exists()) throw new Error("ยังยืนยันการบันทึกไม่ได้ กรุณาลองอีกครั้ง");
     return parseAcceptance(saved.id, saved.data());
   },
