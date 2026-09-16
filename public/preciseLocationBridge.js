@@ -1,5 +1,5 @@
 (() => {
-  const RESOLVER_VERSION = 'district-v2';
+  const RESOLVER_VERSION = 'district-v3';
   const CACHE_KEY = 'qa-dashboard:weather-cache-v4';
   const VERSION_KEY = 'qa-dashboard:location-resolver-version';
 
