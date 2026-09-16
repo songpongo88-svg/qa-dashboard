@@ -42,7 +42,7 @@ function plainTextToHtml(value: string) {
   return escapeHtml(String(value || "")).replace(/\r\n?|\n/g, "<br>");
 }
 
-export function sanitizeRichTextHtml(value: unknown) {
+export function sanitizeRichTextHtml(value: unknown, preserveWhitespace = false) {
   const source = String(value || "");
   if (!source) return "";
   if (typeof DOMParser === "undefined" || typeof document === "undefined") {
@@ -50,7 +50,7 @@ export function sanitizeRichTextHtml(value: unknown) {
   }
 
   const parsed = new DOMParser().parseFromString(
-    looksLikeRichText(source) ? source : plainTextToHtml(source),
+    `<body>${looksLikeRichText(source) ? source : plainTextToHtml(source)}</body>`,
     "text/html"
   );
   const output = document.createElement("div");
@@ -85,19 +85,21 @@ export function sanitizeRichTextHtml(value: unknown) {
   };
 
   Array.from(parsed.body.childNodes).forEach((node) => appendSafeNode(node, output));
-  return output.innerHTML
-    .replace(/(?:<br>\s*){3,}/gi, "<br><br>")
-    .trim();
+  if (preserveWhitespace) return output.innerHTML;
+  return output.innerHTML.trim();
 }
 
-export function parseRichTextRuns(value: unknown): RichTextRun[] {
-  const source = sanitizeRichTextHtml(value);
+export function parseRichTextRuns(value: unknown, preserveWhitespace = false): RichTextRun[] {
+  if (preserveWhitespace && !looksLikeRichText(String(value ?? ""))) {
+    return value ? [{ text: String(value) }] : [];
+  }
+  const source = sanitizeRichTextHtml(value, preserveWhitespace);
   if (!source) return [];
   if (typeof DOMParser === "undefined") {
     return [{ text: String(value || "").replace(/<[^>]*>/g, "") }];
   }
 
-  const parsed = new DOMParser().parseFromString(source, "text/html");
+  const parsed = new DOMParser().parseFromString(`<body>${source}</body>`, "text/html");
   const runs: RichTextRun[] = [];
   const pushRun = (run: RichTextRun) => {
     if (!run.text) return;
@@ -174,24 +176,25 @@ export function parseRichTextRuns(value: unknown): RichTextRun[] {
   };
 
   Array.from(parsed.body.childNodes).forEach((node) => visit(node, {}));
-  if (runs[runs.length - 1]?.text.endsWith("\n")) {
+  if (!preserveWhitespace && runs[runs.length - 1]?.text.endsWith("\n")) {
     runs[runs.length - 1].text = runs[runs.length - 1].text.replace(/\n+$/, "");
   }
   return runs.filter((run) => run.text);
 }
 
-export function richTextToPlainText(value: unknown) {
-  return parseRichTextRuns(value)
+export function richTextToPlainText(value: unknown, preserveWhitespace = false) {
+  const text = parseRichTextRuns(value, preserveWhitespace)
     .map((run) => run.text)
     .join("")
-    .replace(/\u00a0/g, " ")
+    .replace(/\u00a0/g, " ");
+  if (preserveWhitespace) return text;
+  return text
     .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
 export function hasRichTextContent(value: unknown) {
-  return Boolean(richTextToPlainText(value));
+  return Boolean(richTextToPlainText(value)) || /<(?:table|hr)\b/i.test(sanitizeRichTextHtml(value));
 }
 
 const RICH_TEXT_SURFACE_CLASS = [
@@ -201,10 +204,10 @@ const RICH_TEXT_SURFACE_CLASS = [
   "[&_hr]:my-4 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-slate-300",
 ].join(" ");
 
-export function RichTextContent({ value, fallback = "-", className = "" }: { value: unknown; fallback?: string; className?: string }) {
-  const html = sanitizeRichTextHtml(value);
+export function RichTextContent({ value, fallback = "-", className = "", preserveWhitespace = false }: { value: unknown; fallback?: string; className?: string; preserveWhitespace?: boolean }) {
+  const html = sanitizeRichTextHtml(value, preserveWhitespace);
   if (!hasRichTextContent(html)) return <div className={className}>{fallback}</div>;
-  return <div className={`${RICH_TEXT_SURFACE_CLASS} ${className}`} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className={`${RICH_TEXT_SURFACE_CLASS} ${className}`} style={preserveWhitespace ? { whiteSpace: "pre-wrap" } : undefined} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 type RichTextEditorTarget = {
@@ -212,7 +215,7 @@ type RichTextEditorTarget = {
   label: string;
   restoreSelection: () => void;
   rememberSelection: () => void;
-  commit: (normalizeEditor?: boolean) => void;
+  commit: () => void;
 };
 
 let activeEditorTarget: RichTextEditorTarget | null = null;
@@ -225,18 +228,14 @@ function setActiveEditorTarget(target: RichTextEditorTarget | null) {
 
 function runActiveEditorCommand(command: "bold" | "italic" | "underline" | "removeFormat" | "foreColor" | "insertHTML", value?: string) {
   const target = activeEditorTarget;
-  if (!target) return false;
-  // Capture the live range while the pointer is still down on the toolbar.
-  // Restoring it before focus prevents the editor's onFocus handler from
-  // replacing a highlighted range with a collapsed caret position.
-  target.rememberSelection();
-  target.restoreSelection();
+  if (!target?.element.isConnected) return false;
+  // Toolbar focus must never replace the highlighted range with a caret.
   target.element.focus({ preventScroll: true });
   target.restoreSelection();
   document.execCommand("styleWithCSS", false, "true");
   document.execCommand(command, false, value);
   target.rememberSelection();
-  target.commit(false);
+  target.commit();
   return true;
 }
 
@@ -250,6 +249,7 @@ function tableHtml(rows: number, columns: number) {
 }
 
 export function RichTextToolbar({ className = "" }: { className?: string }) {
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [target, setTarget] = useState<RichTextEditorTarget | null>(activeEditorTarget);
   const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[0]);
   const [tableMenuOpen, setTableMenuOpen] = useState(false);
@@ -260,7 +260,18 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
       setTableMenuOpen(false);
     };
     activeEditorListeners.add(listener);
-    return () => activeEditorListeners.delete(listener);
+    const clearPlainTextTarget = (event: FocusEvent) => {
+      const element = event.target;
+      if (!(element instanceof HTMLElement) || toolbarRef.current?.contains(element)) return;
+      if (element.matches("input, textarea, select") || (element.isContentEditable && !element.hasAttribute("data-rich-text-editor"))) {
+        setActiveEditorTarget(null);
+      }
+    };
+    document.addEventListener("focusin", clearPlainTextTarget);
+    return () => {
+      activeEditorListeners.delete(listener);
+      document.removeEventListener("focusin", clearPlainTextTarget);
+    };
   }, []);
 
   const disabled = !target;
@@ -272,10 +283,7 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
       title={title}
       aria-label={title}
       disabled={disabled}
-      onMouseDown={(event) => {
-        event.preventDefault();
-        runActiveEditorCommand(command);
-      }}
+      onClick={() => runActiveEditorCommand(command)}
       className={`${buttonClass} ${extraClass}`}
     >
       {label}
@@ -283,11 +291,11 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
   );
 
   return (
-    <div className={`rounded-[22px] border border-violet-200 bg-white shadow-[0_14px_38px_rgba(76,29,149,0.12)] ${className}`}>
+    <div ref={toolbarRef} data-rich-text-toolbar="true" onMouseDown={(event) => { if (event.button === 0) event.preventDefault(); }} className={`rounded-[22px] border border-violet-200 bg-white shadow-[0_14px_38px_rgba(76,29,149,0.12)] ${className}`}>
       <div className="flex flex-col gap-2 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">เครื่องมือแก้ไขข้อความ</div>
-          <div className="mt-0.5 text-xs font-semibold text-slate-500">เลือกช่องข้อความก่อน แล้วใช้เครื่องมือชุดนี้ได้ทันที</div>
+          <div className="mt-0.5 text-xs font-semibold text-slate-500">เลือกข้อความใน Assessment Reason, Case Description หรือ Sticky Note แล้วใช้เครื่องมือได้ทันที</div>
         </div>
         <div className={`w-fit rounded-full border px-3 py-1.5 text-xs font-black ${target ? "border-violet-200 bg-violet-100 text-violet-800" : "border-slate-200 bg-slate-100 text-slate-500"}`}>
           {target ? `กำลังใช้กับ: ${target.label}` : "ยังไม่ได้เลือกช่องข้อความ"}
@@ -307,8 +315,7 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
               title={`สีตัวอักษร ${color}`}
               aria-label={`สีตัวอักษร ${color}`}
               disabled={disabled}
-              onMouseDown={(event) => {
-                event.preventDefault();
+              onClick={() => {
                 setSelectedColor(color);
                 runActiveEditorCommand("foreColor", color);
               }}
@@ -323,8 +330,7 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
           type="button"
           disabled={disabled}
           aria-expanded={tableMenuOpen}
-          onMouseDown={(event) => {
-            event.preventDefault();
+          onClick={() => {
             if (!disabled) setTableMenuOpen((current) => !current);
           }}
           className={buttonClass}
@@ -334,8 +340,7 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
         <button
           type="button"
           disabled={disabled}
-          onMouseDown={(event) => {
-            event.preventDefault();
+          onClick={() => {
             runActiveEditorCommand("insertHTML", "<hr><div><br></div>");
           }}
           className={buttonClass}
@@ -352,8 +357,7 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
             <button
               key={`${rows}-${columns}`}
               type="button"
-              onMouseDown={(event) => {
-                event.preventDefault();
+              onClick={() => {
                 runActiveEditorCommand("insertHTML", tableHtml(rows, columns));
                 setTableMenuOpen(false);
               }}
@@ -368,6 +372,29 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
   );
 }
 
+function editorPlainText(root: HTMLElement): string {
+  const blocks = new Set(["DIV", "P", "LI"]);
+  const read = (parent: HTMLElement): string => {
+    let text = "";
+    let previousBlock = false;
+    Array.from(parent.childNodes).forEach((node, index) => {
+      const element = node.nodeType === Node.ELEMENT_NODE ? node as HTMLElement : null;
+      const block = Boolean(element && blocks.has(element.tagName));
+      if (index > 0 && (previousBlock || (block && !text.endsWith("\n")))) text += "\n";
+      if (node.nodeType === Node.TEXT_NODE) text += (node.textContent || "").replace(/\u00a0/g, " ");
+      else if (element?.tagName === "BR") text += "\n";
+      else if (element) {
+        // A lone BR in an empty browser-created block is a caret placeholder.
+        const emptyBlock = block && element.childNodes.length === 1 && element.firstChild?.nodeName === "BR";
+        if (!emptyBlock) text += read(element);
+      }
+      previousBlock = block;
+    });
+    return text;
+  };
+  return read(root);
+}
+
 export function RichTextEditor({
   value,
   onChange,
@@ -375,6 +402,7 @@ export function RichTextEditor({
   minHeight = 132,
   tone = "emerald",
   editorLabel = "ช่องข้อความ",
+  preserveWhitespace = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -382,38 +410,60 @@ export function RichTextEditor({
   minHeight?: number;
   tone?: "emerald" | "amber" | "violet";
   editorLabel?: string;
+  preserveWhitespace?: boolean;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const selectionRef = useRef<Range | null>(null);
+  const onChangeRef = useRef(onChange);
+  const valueRef = useRef(value);
+  onChangeRef.current = onChange;
+  valueRef.current = value;
   const ringClass = tone === "amber" ? "focus-within:border-amber-500 focus-within:ring-amber-100" : tone === "violet" ? "focus-within:border-violet-500 focus-within:ring-violet-100" : "focus-within:border-emerald-600 focus-within:ring-emerald-100";
 
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor || document.activeElement === editor) return;
-    const safeHtml = sanitizeRichTextHtml(value);
-    if (editor.innerHTML !== safeHtml) editor.innerHTML = safeHtml;
-  }, [value]);
+    const safeHtml = sanitizeRichTextHtml(value, preserveWhitespace);
+    // Do not replace equivalent DOM: saved Ranges point to its text nodes.
+    if (sanitizeRichTextHtml(editor.innerHTML, preserveWhitespace) !== safeHtml) {
+      editor.innerHTML = safeHtml;
+      selectionRef.current = null;
+    }
+  }, [value, preserveWhitespace]);
 
   const rememberSelection = () => {
     const selection = window.getSelection();
-    if (!selection?.rangeCount || !editorRef.current?.contains(selection.anchorNode)) return;
-    selectionRef.current = selection.getRangeAt(0).cloneRange();
+    if (!selection?.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current?.contains(range.startContainer) || !editorRef.current.contains(range.endContainer)) return;
+    selectionRef.current = range.cloneRange();
   };
 
   const restoreSelection = () => {
     const selection = window.getSelection();
-    const range = selectionRef.current;
-    if (!selection || !range) return;
+    const editor = editorRef.current;
+    if (!selection || !editor) return;
+    let range = selectionRef.current;
+    if (!range || !editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+    }
     selection.removeAllRanges();
     selection.addRange(range);
   };
 
-  const commit = (normalizeEditor = false) => {
+  const commit = () => {
     const editor = editorRef.current;
     if (!editor) return;
-    const safeHtml = sanitizeRichTextHtml(editor.innerHTML);
-    if (normalizeEditor && editor.innerHTML !== safeHtml) editor.innerHTML = safeHtml;
-    onChange(hasRichTextContent(safeHtml) ? safeHtml : "");
+    const safeHtml = sanitizeRichTextHtml(editor.innerHTML, preserveWhitespace);
+    // Keep existing plain-text reasons byte-for-byte until the user changes them.
+    if (safeHtml === sanitizeRichTextHtml(valueRef.current, preserveWhitespace)) return;
+    if (preserveWhitespace && !editor.querySelector("strong, b, em, i, u, [style], table, hr, ul, ol, li")) {
+      onChangeRef.current(editorPlainText(editor));
+      return;
+    }
+    onChangeRef.current(preserveWhitespace || hasRichTextContent(safeHtml) ? safeHtml : "");
   };
 
   const activateEditor = () => {
@@ -430,7 +480,12 @@ export function RichTextEditor({
 
   useEffect(() => {
     const editor = editorRef.current;
+    const captureSelection = () => {
+      if (document.activeElement === editor) rememberSelection();
+    };
+    document.addEventListener("selectionchange", captureSelection);
     return () => {
+      document.removeEventListener("selectionchange", captureSelection);
       if (editor && activeEditorTarget?.element === editor) setActiveEditorTarget(null);
     };
   }, []);
@@ -443,16 +498,18 @@ export function RichTextEditor({
         suppressContentEditableWarning
         role="textbox"
         aria-multiline="true"
+        aria-label={editorLabel}
+        data-rich-text-editor="true"
         data-placeholder={placeholder}
         onFocus={() => {
           activateEditor();
-          rememberSelection();
         }}
         onInput={() => {
           activateEditor();
-          commit(false);
+          rememberSelection();
+          commit();
         }}
-        onBlur={() => commit(true)}
+        onBlur={() => { rememberSelection(); commit(); }}
         onMouseUp={() => {
           activateEditor();
           rememberSelection();
@@ -465,10 +522,11 @@ export function RichTextEditor({
           event.preventDefault();
           const text = event.clipboardData.getData("text/plain");
           document.execCommand("insertText", false, text);
-          commit(false);
+          rememberSelection();
+          commit();
         }}
         className={`prose prose-sm max-w-none overflow-y-auto px-4 py-3 text-sm font-normal leading-6 text-slate-900 outline-none empty:before:pointer-events-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] [&_div]:min-h-[1.5em] [&_p]:my-1 [&_u]:underline ${RICH_TEXT_SURFACE_CLASS}`}
-        style={{ minHeight }}
+        style={{ minHeight, whiteSpace: preserveWhitespace ? "pre-wrap" : undefined }}
       />
     </div>
   );

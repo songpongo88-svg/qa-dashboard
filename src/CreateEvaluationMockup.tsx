@@ -2990,6 +2990,7 @@ export default function CreateEvaluationMockup({
                                       value={topicState[topic.code]?.reason || ""}
                                       onChange={(reason) => updateTopic(topic.code, { reason })}
                                       editorLabel={`Assessment Reason · ${topic.code}`}
+                                      preserveWhitespace
                                       minHeight={108}
                                       placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..."
                                     />

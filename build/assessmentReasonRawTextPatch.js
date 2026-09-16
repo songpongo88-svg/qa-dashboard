@@ -52,9 +52,9 @@ const assessmentDisplayHelperBody = `function AssessmentReasonTextDisplay({
   const rawText = String(value ?? "");
   if (!rawText) return <div className={className}>{fallback}</div>;
 
-  const looksLikeLegacyRichText = /<\\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li)\\b/i.test(rawText);
+  const looksLikeLegacyRichText = /<\\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li|font|table|thead|tbody|tfoot|tr|td|th|hr)\\b/i.test(rawText);
   if (looksLikeLegacyRichText) {
-    return <RichTextContent value={rawText} fallback={fallback} className={className} />;
+    return <RichTextContent value={rawText} fallback={fallback} className={className} preserveWhitespace />;
   }
 
   return (
@@ -82,24 +82,13 @@ export function assessmentReasonRawTextPatch() {
         }
 
         next = next.replace(
-          /<RichTextEditor\s+value=\{topicState\[topic\.code\]\?\.reason \|\| \"\"\}\s+onChange=\{\(reason\) => updateTopic\(topic\.code, \{ reason \}\)\}\s+editorLabel=\{`Assessment Reason · \$\{topic\.code\}`\}\s+minHeight=\{108\}\s+placeholder=\"ระบุเหตุผลการประเมินหัวข้อนี้\.\.\.\"\s*\/>/m,
-          `<AutoGrowTextarea
-                                      value={topicState[topic.code]?.reason || ""}
-                                      onChange={(event) => updateTopic(topic.code, { reason: event.target.value })}
-                                      minRows={5}
-                                      placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..."
-                                      className="mt-2 min-h-[108px] w-full resize-none overflow-hidden rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-semibold leading-6 text-slate-800 outline-none transition whitespace-pre-wrap break-words focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                                    />`
-        );
-
-        next = next.replace(
           'base[`${topic.code} Comment`] = richTextToPlainText(topicState[topic.code]?.reason) || "-";',
-          'base[`${topic.code} Comment`] = topicState[topic.code]?.reason || "-";'
+          'base[`${topic.code} Comment`] = richTextToPlainText(topicState[topic.code]?.reason, true) || "-";'
         );
 
         next = next.replace(
           'row[`${code} Comment`] = richTextToPlainText(topic?.comment ?? "");',
-          'row[`${code} Comment`] = String(topic?.comment ?? "");'
+          'row[`${code} Comment`] = richTextToPlainText(topic?.comment ?? "", true);'
         );
 
         next = next.replace(
@@ -107,17 +96,11 @@ export function assessmentReasonRawTextPatch() {
           '<AssessmentReasonTextDisplay value={topic.comment} className="mt-1 text-sm font-semibold leading-6 text-slate-700" />'
         );
 
-        if (!next.includes('onChange={(event) => updateTopic(topic.code, { reason: event.target.value })}')) {
-          throw new Error("Assessment Reason patch failed: raw input was not installed");
+        if (!/editorLabel=\{`Assessment Reason · \$\{topic\.code\}`\}\s+preserveWhitespace/.test(next)) {
+          throw new Error("Assessment Reason patch failed: whitespace-preserving RichTextEditor is missing");
         }
-        if (!next.includes("<AutoGrowTextarea")) {
-          throw new Error("Assessment Reason patch failed: auto-grow textarea was not installed");
-        }
-        if (next.includes('editorLabel={`Assessment Reason · ${topic.code}`}')) {
-          throw new Error("Assessment Reason patch failed: RichTextEditor is still used for Assessment Reason");
-        }
-        if (!next.includes('base[`${topic.code} Comment`] = topicState[topic.code]?.reason || "-";')) {
-          throw new Error("Assessment Reason patch failed: raw preview still normalizes topic comments");
+        if (!next.includes('base[`${topic.code} Comment`] = richTextToPlainText(topicState[topic.code]?.reason, true) || "-";')) {
+          throw new Error("Assessment Reason patch failed: plain-text export does not preserve whitespace");
         }
       }
 
