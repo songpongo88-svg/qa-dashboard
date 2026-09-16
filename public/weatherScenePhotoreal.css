@@ -1,5 +1,6 @@
 /* Weather Collection — photoreal Bangkok city scenes.
-   Loaded after weatherCollectionDesign.css so the approved scene direction wins. */
+   Direct upload.wikimedia.org image URLs are used so CSS backgrounds load as images,
+   not via Commons redirect pages. Loaded after weatherCollectionDesign.css. */
 html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]{
   background-size:cover!important;
   background-repeat:no-repeat!important;
@@ -7,104 +8,96 @@ html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"
   background-blend-mode:normal!important;
 }
 html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:0;
-  pointer-events:none;
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
   background:linear-gradient(90deg,rgba(3,18,31,.18) 0%,rgba(5,24,39,.035) 48%,rgba(4,16,31,.17) 100%)!important;
 }
 
-/* 1 — Clear / Fair: bright real Bangkok skyline, clean blue daytime atmosphere. */
+/* 1 Clear / Fair */
 html[data-qa-weather-state="weather-clear"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(7,62,95,.10),rgba(255,255,255,.01)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Bangkok_-_City_skyline_at_mid_day.JPG?width=2200")!important;
+  background-image:linear-gradient(90deg,rgba(7,62,95,.08),rgba(255,255,255,.01)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Bangkok_-_City_skyline_at_mid_day.JPG/1280px-Bangkok_-_City_skyline_at_mid_day.JPG")!important;
   background-position:center 46%!important;
 }
 
-/* 2 — Sunny / Hot: a separate warm real-city scene with strong golden sunlight. */
+/* 2 Sunny / Hot */
 html[data-qa-weather-state="weather-hot"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(95deg,rgba(106,49,4,.10),rgba(255,183,65,.10)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Bangkok_skyline_at_sunset%2C_Bangkok%2C_Thailand.jpg?width=2200")!important;
+  background-image:linear-gradient(95deg,rgba(106,49,4,.08),rgba(255,183,65,.08)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Bangkok_skyline_at_sunset%2C_Bangkok%2C_Thailand.jpg/1280px-Bangkok_skyline_at_sunset%2C_Bangkok%2C_Thailand.jpg")!important;
   background-position:center 50%!important;
 }
 html[data-qa-weather-state="weather-hot"] [data-unified-robinhood-hero-v156="true"]::after{
   content:"";position:absolute;z-index:1;right:7.5%;top:7%;width:92px;height:92px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle,#fff8c8 0 23%,#ffd55b 38%,rgba(255,184,61,.28) 61%,transparent 72%);
-  box-shadow:0 0 52px rgba(255,188,64,.36);
+  background:radial-gradient(circle,#fff8c8 0 23%,#ffd55b 38%,rgba(255,184,61,.28) 61%,transparent 72%);box-shadow:0 0 52px rgba(255,188,64,.36);
 }
 
-/* 3 — Partly Cloudy: separate wide Bangkok panorama with real sky and clouds. */
+/* 3 Partly Cloudy */
 html[data-qa-weather-state="weather-partly-cloudy"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(20,73,106,.08),rgba(255,255,255,.015)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Bangkok_Skyline_from_Wat_Saket.jpg?width=2200")!important;
+  background-image:linear-gradient(90deg,rgba(20,73,106,.06),rgba(255,255,255,.01)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Bangkok_Skyline_from_Wat_Saket.jpg/1280px-Bangkok_Skyline_from_Wat_Saket.jpg")!important;
   background-position:center 47%!important;
 }
 
-/* 4 — Cloudy: actual Bangkok cityscape beneath a dark cloudy sky, kept readable rather than black. */
+/* 4 Cloudy */
 html[data-qa-weather-state="weather-cloudy"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(20,44,60,.12),rgba(83,109,126,.05)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Bangkok_cityscape_under_dark_sky.jpg?width=2200")!important;
+  background-image:linear-gradient(90deg,rgba(20,44,60,.10),rgba(83,109,126,.035)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Bangkok_cityscape_under_dark_sky.jpg/1280px-Bangkok_cityscape_under_dark_sky.jpg")!important;
   background-position:center 48%!important;
 }
 
-/* 5 — Light Rain: a real Bangkok rain scene from Wat Saket. */
+/* 5 Light Rain */
 html[data-qa-weather-state="weather-light-rain"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(16,50,70,.14),rgba(88,122,143,.04)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Rain_in_Bangkok_%28view_from_Wat_Saket%29%2C_May%2C_2018.jpg?width=2200")!important;
+  background-image:linear-gradient(90deg,rgba(16,50,70,.12),rgba(88,122,143,.025)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Rain_in_Bangkok_%28view_from_Wat_Saket%29%2C_May%2C_2018.jpg/1280px-Rain_in_Bangkok_%28view_from_Wat_Saket%29%2C_May%2C_2018.jpg")!important;
   background-position:center 48%!important;
 }
 html[data-qa-weather-state="weather-light-rain"] [data-unified-robinhood-hero-v156="true"]::before{
-  background:linear-gradient(90deg,rgba(7,28,43,.13),rgba(17,48,66,.025)),repeating-linear-gradient(108deg,transparent 0 32px,rgba(226,243,255,.20) 33px 34px,transparent 35px 66px)!important;
-  background-size:auto,360px 360px!important;
-  animation:qa-photo-rain 1.75s linear infinite;
+  background:linear-gradient(90deg,rgba(7,28,43,.12),rgba(17,48,66,.02)),repeating-linear-gradient(108deg,transparent 0 32px,rgba(226,243,255,.20) 33px 34px,transparent 35px 66px)!important;
+  background-size:auto,360px 360px!important;animation:qa-photo-rain 1.75s linear infinite;
 }
 
-/* 6 — Rain: actual heavy rain on a Bangkok road, not a filtered clear-day photo. */
+/* 6 Rain */
 html[data-qa-weather-state="weather-rain"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(8,34,51,.18),rgba(61,89,108,.05)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Heavy_rain_in_bangkok_roads.jpg?width=2200")!important;
+  background-image:linear-gradient(90deg,rgba(8,34,51,.16),rgba(61,89,108,.035)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Heavy_rain_in_bangkok_roads.jpg/1280px-Heavy_rain_in_bangkok_roads.jpg")!important;
   background-position:center 53%!important;
 }
 html[data-qa-weather-state="weather-rain"] [data-unified-robinhood-hero-v156="true"]::before{
-  background:linear-gradient(90deg,rgba(4,23,38,.16),rgba(14,40,58,.035)),repeating-linear-gradient(108deg,transparent 0 24px,rgba(219,239,255,.28) 25px 26px,transparent 27px 50px)!important;
-  background-size:auto,300px 300px!important;
-  animation:qa-photo-rain 1.2s linear infinite;
+  background:linear-gradient(90deg,rgba(4,23,38,.14),rgba(14,40,58,.025)),repeating-linear-gradient(108deg,transparent 0 24px,rgba(219,239,255,.28) 25px 26px,transparent 27px 50px)!important;
+  background-size:auto,300px 300px!important;animation:qa-photo-rain 1.2s linear infinite;
 }
 
-/* 7 — Thunderstorm: real lightning over Bangkok. */
+/* 7 Thunderstorm */
 html[data-qa-weather-state="weather-thunderstorm"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(8,12,35,.20),rgba(35,39,74,.06)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Lighting_Storm_at_Night_%28Unsplash%29.jpg?width=2200")!important;
+  background-image:linear-gradient(90deg,rgba(8,12,35,.18),rgba(35,39,74,.04)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Lighting_Storm_at_Night_%28Unsplash%29.jpg/1280px-Lighting_Storm_at_Night_%28Unsplash%29.jpg")!important;
   background-position:center 51%!important;
 }
 html[data-qa-weather-state="weather-thunderstorm"] [data-unified-robinhood-hero-v156="true"]::before{
-  background:repeating-linear-gradient(108deg,transparent 0 21px,rgba(210,229,255,.25) 22px 23px,transparent 24px 45px),linear-gradient(112deg,transparent 48%,rgba(255,255,255,.30) 49%,transparent 50%)!important;
+  background:repeating-linear-gradient(108deg,transparent 0 21px,rgba(210,229,255,.25) 22px 23px,transparent 24px 45px),linear-gradient(112deg,transparent 48%,rgba(255,255,255,.28) 49%,transparent 50%)!important;
   animation:qa-photo-rain 1s linear infinite,qa-photo-flash 7.5s ease-in-out infinite;
 }
 
-/* 8 — Mist / Fog: separate real aerial Bangkok photograph, softened by a true fog layer. */
+/* 8 Mist / Fog */
 html[data-qa-weather-state="weather-fog"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(232,239,243,.13),rgba(245,248,250,.08)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Bangkok_from_the_sky.jpg?width=2200")!important;
+  background-image:linear-gradient(90deg,rgba(232,239,243,.10),rgba(245,248,250,.06)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Bangkok_from_the_sky.jpg/1280px-Bangkok_from_the_sky.jpg")!important;
   background-position:center 51%!important;
 }
 html[data-qa-weather-state="weather-fog"] [data-unified-robinhood-hero-v156="true"]::before{
-  background:radial-gradient(ellipse at 18% 36%,rgba(255,255,255,.60) 0 12%,transparent 41%),radial-gradient(ellipse at 75% 58%,rgba(232,239,243,.56) 0 13%,transparent 44%),linear-gradient(90deg,rgba(227,235,240,.18),rgba(240,245,248,.13))!important;
+  background:radial-gradient(ellipse at 18% 36%,rgba(255,255,255,.58) 0 12%,transparent 41%),radial-gradient(ellipse at 75% 58%,rgba(232,239,243,.52) 0 13%,transparent 44%),linear-gradient(90deg,rgba(227,235,240,.16),rgba(240,245,248,.11))!important;
   backdrop-filter:blur(.45px);
 }
 
-/* 9 — Rain + Clear: distinct real bright Bangkok sunset/city scene with sun + light rain. */
+/* 9 Rain + Clear */
 html[data-qa-weather-state="weather-sunshower"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(95deg,rgba(17,84,128,.05),rgba(255,193,73,.08)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Bangkok_-_City_skyline_at_sunset.JPG?width=2200")!important;
+  background-image:linear-gradient(95deg,rgba(17,84,128,.04),rgba(255,193,73,.06)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Bangkok_-_City_skyline_at_sunset.JPG/1280px-Bangkok_-_City_skyline_at_sunset.JPG")!important;
   background-position:center 48%!important;
 }
 html[data-qa-weather-state="weather-sunshower"] [data-unified-robinhood-hero-v156="true"]::before{
-  background:linear-gradient(90deg,rgba(8,39,59,.09),rgba(255,201,92,.03)),repeating-linear-gradient(108deg,transparent 0 34px,rgba(231,246,255,.23) 35px 36px,transparent 37px 70px)!important;
-  background-size:auto,390px 390px!important;
-  animation:qa-photo-rain 1.75s linear infinite;
+  background:linear-gradient(90deg,rgba(8,39,59,.08),rgba(255,201,92,.025)),repeating-linear-gradient(108deg,transparent 0 34px,rgba(231,246,255,.23) 35px 36px,transparent 37px 70px)!important;
+  background-size:auto,390px 390px!important;animation:qa-photo-rain 1.75s linear infinite;
 }
 html[data-qa-weather-state="weather-sunshower"] [data-unified-robinhood-hero-v156="true"]::after{
   content:"";position:absolute;z-index:1;right:7.5%;top:8%;width:80px;height:80px;border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,#fff9c9 0 24%,#ffd763 42%,rgba(255,183,62,.23) 63%,transparent 73%);box-shadow:0 0 40px rgba(255,199,78,.30);
 }
 
-/* 10 — Night: separate real Bangkok skyline at night with city lights. */
+/* 10 Night — real Bangkok night panorama, intentionally very wide for the hero. */
 html[data-qa-weather-state="weather-night"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(2,10,28,.15),rgba(16,31,60,.025)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Bangkok_Skyline_from_Movenpick_Hotel%2C_Asok%2C_Bangkok_at_night.jpg?width=2200")!important;
-  background-position:center 52%!important;
+  background-image:linear-gradient(90deg,rgba(2,10,28,.10),rgba(16,31,60,.015)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Bangkok_Night_Wikimedia_Commons.jpg/1280px-Bangkok_Night_Wikimedia_Commons.jpg")!important;
+  background-position:center 48%!important;
 }
 html[data-qa-weather-state="weather-night"] [data-unified-robinhood-hero-v156="true"]::after{
   content:"";position:absolute;z-index:1;right:8%;top:8%;width:74px;height:74px;border-radius:50%;pointer-events:none;
@@ -112,17 +105,17 @@ html[data-qa-weather-state="weather-night"] [data-unified-robinhood-hero-v156="t
   box-shadow:0 0 34px rgba(231,241,255,.46);opacity:.95;
 }
 
-/* Night follows the real condition while keeping the same authentic night skyline. */
+/* Night keeps the actual city photo; weather is layered on top instead of replacing it with flat art. */
 html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-cloudy"] [data-unified-robinhood-hero-v156="true"]::before{
-  background:radial-gradient(ellipse at 25% 18%,rgba(151,167,191,.34) 0 12%,transparent 29%),radial-gradient(ellipse at 68% 23%,rgba(117,137,166,.30) 0 15%,transparent 34%),linear-gradient(90deg,rgba(2,9,25,.18),rgba(23,38,66,.06))!important;
+  background:radial-gradient(ellipse at 25% 18%,rgba(151,167,191,.24) 0 12%,transparent 29%),radial-gradient(ellipse at 68% 23%,rgba(117,137,166,.22) 0 15%,transparent 34%),linear-gradient(90deg,rgba(2,9,25,.12),rgba(23,38,66,.035))!important;
 }
 html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-light-rain"] [data-unified-robinhood-hero-v156="true"]::before,
 html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-rain"] [data-unified-robinhood-hero-v156="true"]::before{
-  background:linear-gradient(90deg,rgba(2,10,28,.18),rgba(14,30,55,.05)),repeating-linear-gradient(108deg,transparent 0 25px,rgba(194,220,255,.27) 26px 27px,transparent 28px 52px)!important;
+  background:linear-gradient(90deg,rgba(2,10,28,.14),rgba(14,30,55,.035)),repeating-linear-gradient(108deg,transparent 0 25px,rgba(194,220,255,.27) 26px 27px,transparent 28px 52px)!important;
   background-size:auto,310px 310px!important;animation:qa-photo-rain 1.25s linear infinite;
 }
 html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-thunderstorm"] [data-unified-robinhood-hero-v156="true"]{
-  background-image:linear-gradient(90deg,rgba(4,8,28,.18),rgba(25,30,70,.05)),url("https://commons.wikimedia.org/wiki/Special:Redirect/file/Thunderstorms_banner_Lightning_over_Bangkok.jpg?width=2200")!important;
+  background-image:linear-gradient(90deg,rgba(4,8,28,.12),rgba(25,30,70,.03)),url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Lighting_Storm_at_Night_%28Unsplash%29.jpg/1280px-Lighting_Storm_at_Night_%28Unsplash%29.jpg")!important;
 }
 html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-thunderstorm"] [data-unified-robinhood-hero-v156="true"]::before{
   background:repeating-linear-gradient(108deg,transparent 0 20px,rgba(202,223,255,.28) 21px 22px,transparent 23px 43px)!important;
@@ -132,7 +125,6 @@ html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-thund
 @keyframes qa-photo-rain{to{background-position:0 0,-82px 150px}}
 @keyframes qa-photo-flash{0%,86%,91%,100%{opacity:1}87%,89%{opacity:.42}}
 
-/* Keep dashboard text legible without turning the whole scene into a dark slab. */
 html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"] .qa-weather-hero-info{z-index:6!important}
 html[data-qa-weather-state="weather-clear"] .qa-weather-hero-info,
 html[data-qa-weather-state="weather-hot"] .qa-weather-hero-info,
@@ -145,6 +137,4 @@ html[data-qa-weather-state="weather-rain"] .qa-weather-hero-info,
 html[data-qa-weather-state="weather-thunderstorm"] .qa-weather-hero-info,
 html[data-qa-weather-state="weather-night"] .qa-weather-hero-info{color:#fff!important;text-shadow:0 2px 11px rgba(2,10,24,.72)!important}
 
-@media(prefers-reduced-motion:reduce){
-  html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]::before{animation:none!important}
-}
+@media(prefers-reduced-motion:reduce){html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]::before{animation:none!important}}
