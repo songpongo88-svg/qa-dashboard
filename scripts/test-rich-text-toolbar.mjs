@@ -15,6 +15,7 @@ const dom = new JSDOM('<!doctype html><div id="root"></div>', { pretendToBeVisua
 for (const key of ['window', 'document', 'Node', 'HTMLElement', 'DOMParser', 'Event', 'MouseEvent']) {
   globalThis[key] = dom.window[key];
 }
+Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true });
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const React = await import('react');
 const { createRoot } = await import('react-dom/client');
