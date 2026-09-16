@@ -1,0 +1,107 @@
+/* Weather Collection → native QA theme bridge.
+   Weather owns the QA palette while active so all existing violet/fuchsia UI
+   follows the real weather instead of staying Robinhood Purple. */
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-clear"]{
+  --qa-theme-50:#eff9ff;--qa-theme-100:#dff3ff;--qa-theme-200:#bfe6fb;--qa-theme-300:#8ed2f4;--qa-theme-400:#55b7e9;--qa-theme-500:#2499d4;--qa-theme-600:#157fb7;--qa-theme-700:#126895;--qa-theme-800:#155778;--qa-theme-900:#154963;--qa-theme-950:#0a2d42;--qa-theme-highlight:#45b9f2;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-hot"]{
+  --qa-theme-50:#fff9e8;--qa-theme-100:#fff0bd;--qa-theme-200:#ffe184;--qa-theme-300:#ffcb48;--qa-theme-400:#fbbf24;--qa-theme-500:#f59e0b;--qa-theme-600:#d97b08;--qa-theme-700:#b45c0a;--qa-theme-800:#91480f;--qa-theme-900:#773b11;--qa-theme-950:#441c04;--qa-theme-highlight:#fb7a28;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-partly-cloudy"]{
+  --qa-theme-50:#f0f8fc;--qa-theme-100:#dceef7;--qa-theme-200:#badfed;--qa-theme-300:#89c9df;--qa-theme-400:#52adc9;--qa-theme-500:#318eae;--qa-theme-600:#277493;--qa-theme-700:#255e77;--qa-theme-800:#254f63;--qa-theme-900:#234354;--qa-theme-950:#122c39;--qa-theme-highlight:#75c5e7;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-cloudy"]{
+  --qa-theme-50:#f4f7f9;--qa-theme-100:#e7edf1;--qa-theme-200:#d0dbe2;--qa-theme-300:#afc0cb;--qa-theme-400:#899fad;--qa-theme-500:#6d8391;--qa-theme-600:#586b78;--qa-theme-700:#485760;--qa-theme-800:#3d4850;--qa-theme-900:#344047;--qa-theme-950:#1b2227;--qa-theme-highlight:#7f98a8;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-light-rain"]{
+  --qa-theme-50:#eff8fb;--qa-theme-100:#d9eef5;--qa-theme-200:#b8dfea;--qa-theme-300:#86c8da;--qa-theme-400:#4eabc4;--qa-theme-500:#318ea9;--qa-theme-600:#28738c;--qa-theme-700:#265d71;--qa-theme-800:#274f5e;--qa-theme-900:#24434f;--qa-theme-950:#122b35;--qa-theme-highlight:#5bb9d6;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-rain"]{
+  --qa-theme-50:#eef4f7;--qa-theme-100:#dae7ed;--qa-theme-200:#b9d1dd;--qa-theme-300:#8eb5c8;--qa-theme-400:#6093ad;--qa-theme-500:#437892;--qa-theme-600:#356177;--qa-theme-700:#2e5062;--qa-theme-800:#294453;--qa-theme-900:#263b46;--qa-theme-950:#12232d;--qa-theme-highlight:#5c8fab;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-thunderstorm"]{
+  --qa-theme-50:#f1f3f8;--qa-theme-100:#e2e6f0;--qa-theme-200:#c9d0e3;--qa-theme-300:#a7b3d1;--qa-theme-400:#7f8fba;--qa-theme-500:#6273a4;--qa-theme-600:#4f5b8e;--qa-theme-700:#414a73;--qa-theme-800:#373e5f;--qa-theme-900:#303651;--qa-theme-950:#171a2c;--qa-theme-highlight:#7b84c8;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-fog"]{
+  --qa-theme-50:#f8fafb;--qa-theme-100:#eef2f4;--qa-theme-200:#dce3e7;--qa-theme-300:#c1ccd2;--qa-theme-400:#9eafb8;--qa-theme-500:#81949e;--qa-theme-600:#697983;--qa-theme-700:#56636b;--qa-theme-800:#49535a;--qa-theme-900:#40484e;--qa-theme-950:#24292d;--qa-theme-highlight:#a7b5bd;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-sunshower"]{
+  --qa-theme-50:#effbff;--qa-theme-100:#daf5ff;--qa-theme-200:#b8eaff;--qa-theme-300:#82d9fa;--qa-theme-400:#45bff0;--qa-theme-500:#1e9fd8;--qa-theme-600:#1680b8;--qa-theme-700:#176694;--qa-theme-800:#195678;--qa-theme-900:#1a4964;--qa-theme-950:#0d2e42;--qa-theme-highlight:#e8bd3f;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-night"]{
+  --qa-theme-50:#f1f4fa;--qa-theme-100:#e1e7f3;--qa-theme-200:#c6d1e7;--qa-theme-300:#a1b2d5;--qa-theme-400:#778dbf;--qa-theme-500:#5b70a9;--qa-theme-600:#46588f;--qa-theme-700:#394775;--qa-theme-800:#313d61;--qa-theme-900:#29344f;--qa-theme-950:#10182c;--qa-theme-highlight:#6579bf;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-night"][data-qa-weather-night="weather-cloudy"]{
+  --qa-theme-50:#f2f5f8;--qa-theme-100:#e2e8ee;--qa-theme-200:#c7d1dc;--qa-theme-300:#a3b1c1;--qa-theme-400:#7e8fa4;--qa-theme-500:#627489;--qa-theme-600:#4c5c70;--qa-theme-700:#3f4b5d;--qa-theme-800:#35404f;--qa-theme-900:#2d3643;--qa-theme-950:#121927;--qa-theme-highlight:#71849c;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-night"][data-qa-weather-night="weather-rain"]{
+  --qa-theme-50:#eff4f8;--qa-theme-100:#dce7ef;--qa-theme-200:#bfd1df;--qa-theme-300:#96b5ca;--qa-theme-400:#6e97b2;--qa-theme-500:#507b98;--qa-theme-600:#3f627c;--qa-theme-700:#354f65;--qa-theme-800:#2f4354;--qa-theme-900:#293946;--qa-theme-950:#111f2b;--qa-theme-highlight:#648eaa;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-night"][data-qa-weather-night="weather-thunderstorm"]{
+  --qa-theme-50:#f1f2f8;--qa-theme-100:#e1e3ef;--qa-theme-200:#c7cce2;--qa-theme-300:#a3acd1;--qa-theme-400:#7b88bb;--qa-theme-500:#5f6da6;--qa-theme-600:#4a558d;--qa-theme-700:#3c4574;--qa-theme-800:#343b60;--qa-theme-900:#2d334f;--qa-theme-950:#14172c;--qa-theme-highlight:#7b83c5;
+}
+
+/* Make the page hero visibly follow the actual weather scene. */
+html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(115deg,var(--qa-theme-950) 0%,var(--qa-theme-800) 48%,var(--qa-theme-highlight) 130%)!important;
+  box-shadow:0 16px 40px color-mix(in srgb,var(--qa-theme-950) 24%,transparent)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-clear"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:radial-gradient(circle at 86% 18%,rgba(255,224,104,.9) 0 5%,rgba(255,224,104,.22) 12%,transparent 21%),linear-gradient(120deg,#0d6ea8 0%,#39aee8 55%,#bfeaff 120%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-hot"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:radial-gradient(circle at 86% 12%,rgba(255,224,94,.98) 0 6%,rgba(255,144,44,.28) 15%,transparent 27%),linear-gradient(120deg,#8d4208 0%,#df7a10 50%,#ffbf3c 120%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-partly-cloudy"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:radial-gradient(ellipse at 78% 14%,rgba(255,255,255,.3) 0 13%,transparent 14%),radial-gradient(ellipse at 93% 23%,rgba(255,255,255,.22) 0 10%,transparent 11%),linear-gradient(120deg,#245f7d 0%,#459dc2 58%,#c7e7f4 130%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-cloudy"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:radial-gradient(ellipse at 78% 14%,rgba(238,243,247,.2) 0 18%,transparent 19%),linear-gradient(120deg,#324553 0%,#667b89 58%,#aebdc8 130%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-light-rain"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:repeating-linear-gradient(108deg,transparent 0 22px,rgba(175,220,239,.15) 23px 24px,transparent 25px 42px),linear-gradient(120deg,#244b61 0%,#4c839e 58%,#9cc8d8 130%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-rain"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:repeating-linear-gradient(108deg,transparent 0 18px,rgba(188,211,226,.16) 19px 20px,transparent 21px 35px),linear-gradient(120deg,#1d3443 0%,#35566d 56%,#6e8da1 130%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-thunderstorm"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(115deg,transparent 47%,rgba(255,255,255,.18) 48%,transparent 49%),linear-gradient(120deg,#13182c 0%,#2c3450 56%,#515e88 130%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-fog"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:radial-gradient(ellipse at 78% 25%,rgba(255,255,255,.25) 0 24%,transparent 48%),linear-gradient(120deg,#56636c 0%,#8e9ca4 58%,#ced7dc 130%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-sunshower"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:radial-gradient(circle at 86% 14%,rgba(255,221,78,.96) 0 5%,rgba(255,221,78,.2) 13%,transparent 22%),repeating-linear-gradient(108deg,transparent 0 22px,rgba(118,199,235,.14) 23px 24px,transparent 25px 42px),linear-gradient(120deg,#146b96 0%,#2aa4d8 56%,#f3d77b 135%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-night"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:radial-gradient(circle at 87% 14%,rgba(255,248,205,.88) 0 3.5%,rgba(255,248,205,.12) 10%,transparent 17%),radial-gradient(circle at 73% 21%,rgba(255,255,255,.68) 0 1px,transparent 2px),radial-gradient(circle at 94% 31%,rgba(255,255,255,.55) 0 1px,transparent 2px),linear-gradient(120deg,#0d162b 0%,#23324f 58%,#4a5c7b 130%)!important;
+}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-night"][data-qa-weather-night="weather-cloudy"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:radial-gradient(ellipse at 82% 16%,rgba(161,174,191,.18) 0 18%,transparent 19%),radial-gradient(ellipse at 94% 31%,rgba(129,145,165,.16) 0 13%,transparent 14%),linear-gradient(120deg,#101825 0%,#2d3948 58%,#566576 130%)!important;
+}
+
+/* Header weather text: no card, no shadow, no overlap with PageHero title. */
+html[data-qa-weather-collection="auto"] .qa-weather-inline{
+  top:14px!important;right:28px!important;z-index:96!important;max-width:420px!important;color:#172033!important;text-shadow:none!important;align-items:flex-end!important;pointer-events:none!important;
+}
+html[data-qa-weather-collection="auto"] .qa-weather-inline[data-tone="light"],
+html[data-qa-weather-collection="auto"] .qa-weather-inline[data-tone="dark"]{color:#172033!important;text-shadow:none!important}
+html[data-qa-weather-collection="auto"] .w-inline-kicker{font-size:8px!important;letter-spacing:.14em!important;opacity:.7!important}
+html[data-qa-weather-collection="auto"] .w-inline-main{font-size:16px!important;font-weight:600!important;letter-spacing:0!important}
+html[data-qa-weather-collection="auto"] .w-inline-sub{font-size:8px!important;opacity:.58!important}
+
+/* Sidebar uses weather identity, not the old theme swatches. */
+html[data-qa-weather-collection="auto"] button[data-qa-weather-sidebar="true"]>span[aria-hidden="true"]{display:none!important}
+html[data-qa-weather-collection="auto"] button[data-qa-weather-sidebar="true"]::before{content:"☁️";display:inline-flex;width:28px;height:28px;flex:0 0 28px;align-items:center;justify-content:center;border-radius:9px;background:rgba(255,255,255,.14);font-size:16px}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-clear"] button[data-qa-weather-sidebar="true"]::before{content:"☀️"}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-hot"] button[data-qa-weather-sidebar="true"]::before{content:"🌞"}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-partly-cloudy"] button[data-qa-weather-sidebar="true"]::before{content:"🌤️"}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-light-rain"] button[data-qa-weather-sidebar="true"]::before{content:"🌦️"}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-rain"] button[data-qa-weather-sidebar="true"]::before{content:"🌧️"}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-thunderstorm"] button[data-qa-weather-sidebar="true"]::before{content:"⛈️"}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-fog"] button[data-qa-weather-sidebar="true"]::before{content:"🌫️"}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-sunshower"] button[data-qa-weather-sidebar="true"]::before{content:"🌦️"}
+html[data-qa-weather-collection="auto"][data-qa-weather-state="weather-night"] button[data-qa-weather-sidebar="true"]::before{content:"🌙"}
+
+@media(max-width:1100px){html[data-qa-weather-collection="auto"] .qa-weather-inline{right:18px!important;max-width:300px!important}.w-inline-main{font-size:14px!important}}
+@media(max-width:760px){html[data-qa-weather-collection="auto"] .qa-weather-inline{display:none!important}}
