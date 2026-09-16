@@ -46,6 +46,8 @@ import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { firebaseDb } from "./firebaseClient";
 import { clearStoredProfilePhoto, fetchStoredProfilePhoto, upsertStoredProfilePhoto } from "./profilePhotoStore";
 import { appendUserProfileHistory } from "./profileHistoryStore";
+import TermsWorkspace, { TermsAccessBoundary } from "./knowledge/Terms";
+import UserGuide, { GuideDrawer } from "./knowledge/UserGuide";
 
 // data-password-history-v83
 import {
@@ -212,6 +214,9 @@ type AppTab =
   | "presentation-builder"
   | "coaching"
   | "rubric"
+  | "terms"
+  | "terms-management"
+  | "user-guide"
   | "usage-log"
   | "user-roles";
 
@@ -411,6 +416,9 @@ const VALID_APP_TABS = new Set<AppTab>([
   "presentation-builder",
   "coaching",
   "rubric",
+  "terms",
+  "terms-management",
+  "user-guide",
   "usage-log",
   "user-roles",
 ]);
@@ -449,6 +457,9 @@ const WORKSPACE_TAB_LABELS: Record<AppTab | "case-detail", string> = {
   "presentation-builder": "QA Slides",
   coaching: "Coaching",
   rubric: "Rubrics",
+  "terms": "Terms & Acknowledgements",
+  "terms-management": "T&C Management",
+  "user-guide": "คู่มือการใช้งาน",
   "usage-log": "Login Log",
   "user-roles": "Administration",
 };
@@ -3450,6 +3461,8 @@ export default function App() {
     }
   });
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
+  const [guideDrawerOpen, setGuideDrawerOpen] = useState(false);
+  const closeGuideDrawer = useCallback(() => setGuideDrawerOpen(false), []);
   const [floatingChatOpen, setFloatingChatOpen] = useState(false);
   const [liveNow, setLiveNow] = useState(() => new Date());
   const [workspaceProfilePhoto, setWorkspaceProfilePhoto] = useState("");
@@ -4090,6 +4103,9 @@ export default function App() {
   ).length;
   const userDirectoryAllowed = Boolean(currentUser);
   const roleManagementAllowed = Boolean(currentUser) && hasRolePermission(currentUser, rolePermissions, "manageRoles");
+  const termsManageAllowed = Boolean(currentUser) && hasRolePermission(currentUser, rolePermissions, "manageUsers");
+  const guideManageAllowed = Boolean(currentUser) && hasRolePermission(currentUser, rolePermissions, "manageRubric");
+  const knowledgePermissions = useMemo(() => Object.fromEntries(PERMISSION_KEYS.map((key) => [key, hasRolePermission(currentUser, rolePermissions, key)])), [currentUser, rolePermissions]);
   const maintenanceAdminAllowed = Boolean(currentUser) && hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const roleAdminAllowed = Boolean(currentUser) && (
     userDirectoryAllowed || roleManagementAllowed || maintenanceAdminAllowed
@@ -4176,6 +4192,7 @@ export default function App() {
     if (tab === "pre-test" && !preTestAllowed) return "missing pre-test permission";
     if (tab === "training-attendance" && !trainingAttendanceAllowed) return "missing training attendance permission";
     if (tab === "user-roles" && !roleAdminAllowed) return "missing user role admin permission";
+    if (tab === "terms-management" && !termsManageAllowed) return "missing manageUsers permission";
     if ((tab === "team-chat" || tab === "call-history") && !teamChatAllowed) return "missing useTeamChat permission";
     return "";
   }, [
@@ -4189,6 +4206,7 @@ export default function App() {
     sessionValidationPending,
     preTestAllowed,
     roleAdminAllowed,
+    termsManageAllowed,
     teamChatAllowed,
     trainingAttendanceAllowed,
     usageLogAllowed,
@@ -6657,6 +6675,7 @@ export default function App() {
       items: [
         { key: "presentation-builder", label: "QA Slides", description: "สร้างสไลด์ QA รายสัปดาห์ Preview และส่งออก PDF", icon: "presentation", allowed: true, active: activeWorkspaceTab === "presentation-builder", onClick: () => activateWorkspaceTab("presentation-builder") },
         { key: "signature-center", label: "Signatures", description: "ติดตามการลงนาม เอกสาร Incentive และไฟล์ส่งออก", icon: "signature", allowed: true, active: activeWorkspaceTab === "signature-center", onClick: () => activateWorkspaceTab("signature-center") },
+        { key: "user-guide", label: "คู่มือการใช้งาน", description: "ค้นหาขั้นตอนตามสิทธิ์และดาวน์โหลดคู่มือ PDF", icon: "list", allowed: true, active: activeWorkspaceTab === "user-guide", onClick: () => activateWorkspaceTab("user-guide") },
       ],
     },
     {
@@ -6678,6 +6697,7 @@ export default function App() {
         { key: "reset-password", label: "Password Reset", description: "รีเซ็ตรหัสผ่านให้ผู้ใช้งาน", icon: "appeal", allowed: passwordResetShortcutAllowed, active: false, onClick: () => handleAccountMenuChange("reset-password"), badge: pendingPasswordResetRequestCount },
         { key: "admin-users", label: "Users", description: "สร้าง แก้ไข เปิดหรือระงับบัญชีผู้ใช้งาน", icon: "users", allowed: userDirectoryAllowed, active: activeWorkspaceTab === "user-roles" && userAdminSection === "users", onClick: () => openUserAdminSection("users") },
         { key: "admin-roles", label: "Roles & Permissions", description: "จัดการ Role และกำหนดสิทธิ์การเข้าถึง", icon: "key", allowed: roleManagementAllowed, active: activeWorkspaceTab === "user-roles" && userAdminSection === "roles", onClick: () => openUserAdminSection("roles") },
+        { key: "terms-management", label: "T&C Management", description: "ตรวจสถานะและหลักฐานการยอมรับรายบุคคล", icon: "check", allowed: termsManageAllowed, active: activeWorkspaceTab === "terms-management", onClick: () => activateWorkspaceTab("terms-management") },
       ],
     },
     {
@@ -6694,6 +6714,7 @@ export default function App() {
       description: "ตั้งค่าบัญชีและออกจากระบบ",
       items: [
         { key: "change-password", label: "My Password", description: "เปลี่ยนรหัสผ่านของบัญชีตัวเอง", icon: "key", allowed: true, active: false, onClick: () => handleAccountMenuChange("change-password") },
+        { key: "terms", label: "Terms & Acknowledgements", description: "ประวัติการยอมรับและหลักฐาน PDF ของคุณ", icon: "signature", allowed: true, active: activeWorkspaceTab === "terms", onClick: () => activateWorkspaceTab("terms") },
         { key: "logout", label: "Sign Out", description: "ออกจากระบบ", icon: "logout", allowed: true, active: false, onClick: () => handleAccountMenuChange("logout"), danger: true },
       ],
     },
@@ -6701,6 +6722,7 @@ export default function App() {
 
   return (
     <>
+      <TermsAccessBoundary key={currentUser.username} user={{ ...currentUser, teamName: workspaceTeamName }} onLogout={handleLogout}>
         <style>{`
           :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "296px"}; }
           body { padding-left: var(--qa-sidebar-width); transition: padding-left .22s ease; }
@@ -6731,6 +6753,7 @@ export default function App() {
               <div><div className="text-[9px] font-medium uppercase tracking-[0.14em] text-violet-300">Deploy Version</div><div className="text-[9px] font-normal text-violet-200">Current production</div></div>
               <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-semibold tracking-wider text-violet-800">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span>
             </div> : null}
+            {!globalSidebarCollapsed && <button type="button" onClick={() => activateWorkspaceTab("terms")} className="qa-sidebar-label mt-2 w-full rounded-lg border border-white/20 px-2 py-1.5 text-left text-[10px] font-medium text-white hover:bg-white/10">Profile · Terms & Acknowledgements</button>}
             <button
               type="button"
               onClick={() => setThemePickerOpen(true)}
@@ -6958,7 +6981,13 @@ export default function App() {
         ) : null}
 
         <WorkspaceKeepAlive activeKey={activeTab} retainedKeys={retainedWorkspaceAppTabs}>
-          {activeTab === "dashboard" ? (
+          {activeTab === "user-guide" ? (
+            <UserGuide user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} />
+          ) : activeTab === "terms" ? (
+            <TermsWorkspace user={currentUser} />
+          ) : activeTab === "terms-management" && termsManageAllowed ? (
+            <TermsWorkspace user={currentUser} management canManage={termsManageAllowed} />
+          ) : activeTab === "dashboard" ? (
             <DashboardMockup
               currentUser={currentUser}
               caseAgentDirectory={caseAgentDirectory}
@@ -7199,7 +7228,9 @@ export default function App() {
           )}
         </WorkspaceKeepAlive>
       </div>
-
+      {activeTab !== "user-guide" && <button type="button" className="guide-help-button" onClick={() => setGuideDrawerOpen(true)}>คู่มือหน้านี้</button>}
+      {guideDrawerOpen && <GuideDrawer user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} context={activeTab === "dashboard" && dashboardSubTab === "case-detail" ? "case-detail" : activeWorkspaceTab} onClose={closeGuideDrawer} />}
+      </TermsAccessBoundary>
     </>
   );
 }

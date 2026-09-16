@@ -65,13 +65,18 @@ export function qaTypingChallengeFeaturePatch() {
         `            onSubmitEvaluation={handleEvaluationSubmitted}\n          />\n        ) : activeTab === "qa-access-check" ? (\n          <QaTypingChallengeWorkspace\n            agentOptions={qaEvaluationAgentOptions}\n            currentUser={currentUser}\n            canManage={createEvaluationAllowed}\n          />\n        ) : activeTab === "pre-test" && preTestAllowed ? (`
       );
 
-      const gateRenderAnchor = `        </WorkspaceKeepAlive>\n      </div>\n\n    </>`;
+      const hasTermsBoundary = next.includes("      </TermsAccessBoundary>");
+      const gateRenderAnchor = hasTermsBoundary
+        ? "      </TermsAccessBoundary>"
+        : `        </WorkspaceKeepAlive>\n      </div>\n\n    </>`;
       if (!next.includes(gateRenderAnchor)) {
         this.error("QA Access Check patch could not find App gate render anchor.");
       }
       next = next.replace(
         gateRenderAnchor,
-        `        </WorkspaceKeepAlive>\n      </div>\n\n      <QaTypingGate currentUser={currentUser} enabled={activeTab === "dashboard"} />\n\n    </>`
+        hasTermsBoundary
+          ? `      <QaTypingGate currentUser={currentUser} enabled={activeTab === "dashboard"} />\n      </TermsAccessBoundary>`
+          : `        </WorkspaceKeepAlive>\n      </div>\n\n      <QaTypingGate currentUser={currentUser} enabled={activeTab === "dashboard"} />\n\n    </>`
       );
 
       if (next === code) {
