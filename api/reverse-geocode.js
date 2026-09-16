@@ -3,7 +3,13 @@ const clean = (value = "") => String(value)
   .replace(/^Khwaeng\s+/i, "")
   .replace(/^Amphoe\s+/i, "")
   .replace(/^District\s+/i, "")
+  .replace(/\s+District$/i, "")
+  .replace(/\s+Province$/i, "")
+  .replace(/^Bangkok Metropolis$/i, "Bangkok")
+  .replace(/^Krung Thep Maha Nakhon$/i, "Bangkok")
   .trim();
+
+const keyOf = (value = "") => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 const component = (items, type) => {
   const row = items.find((item) => Array.isArray(item.types) && item.types.includes(type));
@@ -22,8 +28,9 @@ async function fromGoogle(lat, lon, key) {
   if (!result) throw new Error("Google reverse geocoding returned no result");
   const c = result.address_components || [];
   const district = component(c, "sublocality_level_1") || component(c, "administrative_area_level_2") || component(c, "locality");
-  const city = component(c, "locality") || component(c, "administrative_area_level_1") || "Bangkok";
-  return { district, city, source: "google" };
+  const city = component(c, "locality") || component(c, "administrative_area_level_2") || component(c, "administrative_area_level_1");
+  const region = component(c, "administrative_area_level_1") || city || "Bangkok";
+  return { district, city, region, source: "google" };
 }
 
 async function fromOsm(lat, lon) {
@@ -45,8 +52,9 @@ async function fromOsm(lat, lon) {
   const payload = await response.json();
   const a = payload.address || {};
   const district = clean(a.city_district || a.borough || a.district || a.municipality || a.county || a.suburb || "");
-  const city = clean(a.city || a.state_district || a.state || a.province || "Bangkok");
-  return { district, city, source: "osm" };
+  const city = clean(a.city || a.town || a.municipality || a.state_district || a.state || a.province || "");
+  const region = clean(a.state || a.province || a.state_district || city || "Bangkok");
+  return { district, city, region, source: "osm" };
 }
 
 export default async function handler(req, res) {
@@ -69,8 +77,21 @@ export default async function handler(req, res) {
 
     let district = clean(result.district);
     let city = clean(result.city);
+    let region = clean(result.region);
+
     if (/^Bangkok$/i.test(district)) district = "";
-    if (!city) city = "Bangkok";
+    if (/^Bangkok$/i.test(region)) region = "Bangkok";
+    if (/^Bangkok$/i.test(city)) city = "Bangkok";
+
+    // Some providers return the Bangkok district in both city_district and city.
+    // Prefer the broader administrative region so the UI becomes "Bang Phlat, Bangkok".
+    if (district && city && keyOf(district) === keyOf(city)) {
+      city = region && keyOf(region) !== keyOf(district) ? region : "";
+    }
+    if (district && region && keyOf(district) === keyOf(region)) region = "";
+    if (!city) city = region || "Bangkok";
+    if (district && keyOf(district) === keyOf(city)) district = "";
+
     const label = district ? `${district}, ${city}` : city;
     res.setHeader("Cache-Control", "private, max-age=900");
     return res.status(200).json({ label, district, city, source: result.source });
