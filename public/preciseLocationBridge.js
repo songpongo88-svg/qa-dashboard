@@ -1,5 +1,5 @@
 (() => {
-  const RESOLVER_VERSION = 'district-v3';
+  const RESOLVER_VERSION = 'district-v4';
   const CACHE_KEY = 'qa-dashboard:weather-cache-v4';
   const VERSION_KEY = 'qa-dashboard:location-resolver-version';
 
@@ -93,10 +93,14 @@
       const resolved = await response.json();
       if (!resolved?.label) throw new Error('district resolver returned no label');
 
+      const district = String(resolved.district || '').trim();
+      const city = String(resolved.city || 'Bangkok').trim();
+      const cleanDistrict = district && district.toLowerCase() !== city.toLowerCase() ? district : '';
+
       return new Response(JSON.stringify({
-        city: resolved.label,
-        locality: resolved.district || resolved.label,
-        principalSubdivision: resolved.city || 'Bangkok',
+        city,
+        locality: cleanDistrict,
+        principalSubdivision: city,
         countryName: 'Thailand',
         source: resolved.source || 'district-resolver',
       }), {
