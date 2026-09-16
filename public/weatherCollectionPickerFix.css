@@ -1,0 +1,39 @@
+/* Weather Collection picker isolation fix.
+   Keeps the React picker layout intact and isolates Weather into its own view. */
+.qa-theme-collection-panel[data-qa-picker-collection="weather"] {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: start !important;
+}
+
+.qa-theme-collection-panel[data-qa-picker-collection="weather"] > *:not(#qa-weather-picker-panel) {
+  display: none !important;
+}
+
+#qa-weather-picker-panel {
+  display: none !important;
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.qa-theme-collection-panel[data-qa-picker-collection="weather"] > #qa-weather-picker-panel {
+  display: grid !important;
+}
+
+/* Preserve the original 2-column layout for native collections. */
+.qa-theme-collection-panel:not([data-qa-picker-collection="weather"]) {
+  display: grid !important;
+}
+
+@media (min-width: 640px) {
+  .qa-theme-collection-panel:not([data-qa-picker-collection="weather"]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .qa-theme-collection-panel:not([data-qa-picker-collection="weather"]) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
