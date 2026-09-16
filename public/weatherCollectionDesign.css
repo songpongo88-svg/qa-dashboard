@@ -1,0 +1,119 @@
+/* Weather Collection final visual pass — photo scene + hero weather data, no layout shift. */
+html[data-qa-weather-collection="auto"] body{background:#f5f7fb!important}
+html[data-qa-weather-collection="auto"] body::before,html[data-qa-weather-collection="auto"] body::after{display:none!important}
+html[data-qa-weather-collection="auto"] #root{background:linear-gradient(180deg,#f6f8fc 0%,#f3f5fa 100%)!important}
+html[data-qa-weather-collection="auto"] .qa-weather-inline{display:none!important}
+
+/* Hero becomes the weather scene; dashboard content remains clean and bright. */
+html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]{
+  position:relative!important;
+  isolation:isolate!important;
+  min-height:220px!important;
+  background-color:#4f6f92!important;
+  background-size:cover!important;
+  background-position:center 54%!important;
+  background-repeat:no-repeat!important;
+  box-shadow:0 18px 42px rgba(15,23,42,.16)!important;
+}
+html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(5,18,35,.30) 0%,rgba(8,28,48,.12) 45%,rgba(5,16,34,.28) 100%);
+}
+html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]> *{z-index:2}
+html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"] .bg-white\/5,
+html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"] .bg-fuchsia-200\/10{opacity:.08!important}
+
+/* Real Bangkok scenes from Unsplash; weather effects layer above the photographs. */
+html[data-qa-weather-state="weather-clear"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(90deg,rgba(11,70,108,.12),rgba(255,255,255,.02)),url("https://images.unsplash.com/photo-1741212342553-f25423aa6380?auto=format&fit=crop&q=82&w=2200")!important;
+}
+html[data-qa-weather-state="weather-hot"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(90deg,rgba(126,58,0,.16),rgba(255,175,58,.20)),url("https://images.unsplash.com/photo-1741212342553-f25423aa6380?auto=format&fit=crop&q=82&w=2200")!important;
+  filter:saturate(1.08) brightness(1.04);
+}
+html[data-qa-weather-state="weather-partly-cloudy"] [data-unified-robinhood-hero-v156="true"],
+html[data-qa-weather-state="weather-cloudy"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(90deg,rgba(26,64,91,.10),rgba(123,153,177,.15)),url("https://images.unsplash.com/photo-1622362148852-a9959a07ad49?auto=format&fit=crop&q=82&w=2200")!important;
+}
+html[data-qa-weather-state="weather-cloudy"] [data-unified-robinhood-hero-v156="true"]{filter:saturate(.86) brightness(.88)}
+html[data-qa-weather-state="weather-fog"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(90deg,rgba(229,235,239,.22),rgba(235,240,243,.28)),url("https://images.unsplash.com/photo-1483694583352-6af4091a9498?auto=format&fit=crop&q=82&w=2200")!important;
+  filter:saturate(.72) contrast(.92) brightness(1.06);
+}
+html[data-qa-weather-state="weather-light-rain"] [data-unified-robinhood-hero-v156="true"],
+html[data-qa-weather-state="weather-rain"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(90deg,rgba(16,47,69,.28),rgba(42,76,99,.20)),url("https://images.unsplash.com/photo-1622362148852-a9959a07ad49?auto=format&fit=crop&q=80&w=2200")!important;
+  filter:saturate(.78) brightness(.82);
+}
+html[data-qa-weather-state="weather-sunshower"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(100deg,rgba(23,111,165,.06),rgba(255,195,63,.18)),url("https://images.unsplash.com/photo-1741212342553-f25423aa6380?auto=format&fit=crop&q=82&w=2200")!important;
+  filter:saturate(1.12) brightness(1.02);
+}
+html[data-qa-weather-state="weather-thunderstorm"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(90deg,rgba(18,20,50,.42),rgba(41,45,87,.30)),url("https://images.unsplash.com/photo-1761555488095-7bacc1a4c0bd?auto=format&fit=crop&q=82&w=2200")!important;
+  filter:saturate(.90) brightness(.78);
+}
+html[data-qa-weather-state="weather-night"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(90deg,rgba(2,10,28,.32),rgba(13,27,64,.12)),url("https://images.unsplash.com/photo-1761555488095-7bacc1a4c0bd?auto=format&fit=crop&q=84&w=2200")!important;
+  filter:none!important;
+}
+
+/* Weather effects stay inside the hero only. */
+html[data-qa-weather-state="weather-hot"] [data-unified-robinhood-hero-v156="true"]::after,
+html[data-qa-weather-state="weather-sunshower"] [data-unified-robinhood-hero-v156="true"]::after{
+  content:"";position:absolute;z-index:1;right:8%;top:7%;width:92px;height:92px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,#fff7bd 0 26%,#ffd34f 42%,rgba(255,177,48,.32) 64%,transparent 72%);box-shadow:0 0 48px rgba(255,192,61,.42);
+}
+html[data-qa-weather-state="weather-night"] [data-unified-robinhood-hero-v156="true"]::after{
+  content:"";position:absolute;z-index:1;right:8%;top:9%;width:72px;height:72px;border-radius:50%;pointer-events:none;
+  background:url("https://images.unsplash.com/photo-1774923309787-d94a3eecd317?auto=format&fit=crop&q=80&w=300") center/cover no-repeat;
+  box-shadow:0 0 34px rgba(233,241,255,.32);opacity:.96;
+}
+html[data-qa-weather-state="weather-light-rain"] [data-unified-robinhood-hero-v156="true"]::before,
+html[data-qa-weather-state="weather-rain"] [data-unified-robinhood-hero-v156="true"]::before,
+html[data-qa-weather-state="weather-sunshower"] [data-unified-robinhood-hero-v156="true"]::before{
+  background:linear-gradient(90deg,rgba(4,22,39,.18),rgba(8,27,43,.07)),repeating-linear-gradient(108deg,transparent 0 23px,rgba(220,240,255,.32) 24px 25px,transparent 26px 49px)!important;
+  background-size:auto,300px 300px!important;animation:qa-weather-rain 1.35s linear infinite;
+}
+html[data-qa-weather-state="weather-thunderstorm"] [data-unified-robinhood-hero-v156="true"]::before,
+html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-thunderstorm"] [data-unified-robinhood-hero-v156="true"]::before{
+  background:repeating-linear-gradient(108deg,transparent 0 19px,rgba(201,218,255,.34) 20px 21px,transparent 22px 40px),linear-gradient(115deg,transparent 46%,rgba(255,255,255,.82) 47%,rgba(255,255,255,.04) 48%,transparent 50%)!important;
+  animation:qa-weather-rain 1s linear infinite,qa-weather-flash 7s ease-in-out infinite;
+}
+html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-cloudy"] [data-unified-robinhood-hero-v156="true"]{
+  background-image:linear-gradient(90deg,rgba(4,12,31,.30),rgba(58,73,104,.14)),url("https://images.unsplash.com/photo-1622362148852-a9959a07ad49?auto=format&fit=crop&q=64&w=2200"),url("https://images.unsplash.com/photo-1761555488095-7bacc1a4c0bd?auto=format&fit=crop&q=84&w=2200")!important;
+  background-blend-mode:normal,soft-light,normal!important;
+}
+html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-rain"] [data-unified-robinhood-hero-v156="true"]::before,
+html[data-qa-weather-state="weather-night"][data-qa-weather-night="weather-light-rain"] [data-unified-robinhood-hero-v156="true"]::before{
+  background:linear-gradient(90deg,rgba(3,11,31,.25),rgba(15,30,58,.12)),repeating-linear-gradient(108deg,transparent 0 21px,rgba(181,210,255,.30) 22px 23px,transparent 24px 45px)!important;
+  animation:qa-weather-rain 1.25s linear infinite;
+}
+@keyframes qa-weather-rain{to{background-position:0 0,-80px 145px}}
+@keyframes qa-weather-flash{0%,87%,91%,100%{opacity:1}88%,89%{opacity:.35}}
+
+/* Weather info: transparent, in the hero highlighted area, inspired by the user's weather reference. */
+.qa-weather-hero-info{position:absolute;z-index:6;left:53%;top:50%;transform:translate(-50%,-50%);width:min(470px,34vw);min-width:360px;color:#fff;font-family:Kanit,system-ui,sans-serif;text-shadow:0 2px 10px rgba(3,12,29,.46);pointer-events:none}
+.qa-weather-hero-info[data-tone="dark"]{color:#102235;text-shadow:0 1px 10px rgba(255,255,255,.72)}
+.qa-weather-location{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;font-weight:700;letter-spacing:.01em}.qa-weather-location::before{content:"";width:11px;height:11px;border-radius:50%;background:var(--w-accent,#38a8ff);box-shadow:0 0 0 4px color-mix(in srgb,var(--w-accent,#38a8ff) 20%,transparent)}
+.qa-weather-info-row{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;column-gap:12px}.qa-weather-icon{font-size:48px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18))}.qa-weather-temp{font-size:48px;font-weight:500;line-height:.95;letter-spacing:-.05em;white-space:nowrap}.qa-weather-temp small{font-size:20px;vertical-align:top;margin-left:3px;font-weight:500}.qa-weather-metrics{display:grid;gap:1px;padding-left:3px;font-size:11px;font-weight:500;line-height:1.35}.qa-weather-condition{text-align:right;min-width:118px}.qa-weather-condition strong{display:block;font-size:20px;font-weight:700;line-height:1.1}.qa-weather-condition span{display:block;margin-top:4px;font-size:12px;font-weight:500}.qa-weather-updated{margin-top:5px;text-align:right;font-size:8px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.78}
+
+/* Sidebar stays coherent with the scene. */
+html[data-qa-weather-state="weather-clear"]{--w-side1:#166da3;--w-side2:#0e456f;--w-accent:#43b8f4}
+html[data-qa-weather-state="weather-hot"]{--w-side1:#9d570c;--w-side2:#633407;--w-accent:#f7b82c}
+html[data-qa-weather-state="weather-partly-cloudy"]{--w-side1:#326f95;--w-side2:#214d6b;--w-accent:#64bce7}
+html[data-qa-weather-state="weather-cloudy"]{--w-side1:#536b7e;--w-side2:#344959;--w-accent:#94a9ba}
+html[data-qa-weather-state="weather-light-rain"]{--w-side1:#326682;--w-side2:#21485e;--w-accent:#65b7dc}
+html[data-qa-weather-state="weather-rain"]{--w-side1:#34556d;--w-side2:#223b50;--w-accent:#6c9fc0}
+html[data-qa-weather-state="weather-thunderstorm"]{--w-side1:#2b315f;--w-side2:#171b3d;--w-accent:#8e8ff0}
+html[data-qa-weather-state="weather-fog"]{--w-side1:#6f7f8c;--w-side2:#4f5f6b;--w-accent:#a8bac6}
+html[data-qa-weather-state="weather-sunshower"]{--w-side1:#247aa3;--w-side2:#185271;--w-accent:#63c4ef}
+html[data-qa-weather-state="weather-night"]{--w-side1:#243954;--w-side2:#14253b;--w-accent:#8ca8d1}
+
+/* Don't flash the T&C card while acceptance is only being checked. */
+.terms-gate:has(.knowledge-empty[role="status"]){visibility:hidden!important;background:#f7f7fb!important}
+
+@media(max-width:1180px){.qa-weather-hero-info{left:54%;width:390px;min-width:320px}.qa-weather-temp{font-size:40px}.qa-weather-icon{font-size:40px}.qa-weather-condition strong{font-size:17px}}
+@media(max-width:900px){.qa-weather-hero-info{left:auto;right:18px;top:54%;transform:translateY(-50%);width:310px;min-width:0}.qa-weather-info-row{grid-template-columns:auto auto 1fr}.qa-weather-condition{display:none}.qa-weather-temp{font-size:34px}.qa-weather-icon{font-size:34px}.qa-weather-metrics{font-size:9px}}
+@media(max-width:640px){.qa-weather-hero-info{right:12px;left:12px;top:auto;bottom:10px;transform:none;width:auto}.qa-weather-location{font-size:10px}.qa-weather-info-row{column-gap:8px}.qa-weather-temp{font-size:30px}.qa-weather-icon{font-size:30px}.qa-weather-metrics{font-size:8px}.qa-weather-updated{display:none}}
+@media(prefers-reduced-motion:reduce){html[data-qa-weather-collection="auto"] [data-unified-robinhood-hero-v156="true"]::before{animation:none!important}}
