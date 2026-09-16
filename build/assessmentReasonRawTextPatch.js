@@ -83,13 +83,12 @@ export function assessmentReasonRawTextPatch() {
 
         next = next.replace(
           /<RichTextEditor\s+value=\{topicState\[topic\.code\]\?\.reason \|\| \"\"\}\s+onChange=\{\(reason\) => updateTopic\(topic\.code, \{ reason \}\)\}\s+editorLabel=\{`Assessment Reason · \$\{topic\.code\}`\}\s+minHeight=\{108\}\s+placeholder=\"ระบุเหตุผลการประเมินหัวข้อนี้\.\.\.\"\s*\/>/m,
-          `<textarea
+          `<AutoGrowTextarea
                                       value={topicState[topic.code]?.reason || ""}
                                       onChange={(event) => updateTopic(topic.code, { reason: event.target.value })}
-                                      rows={5}
-                                      spellCheck={false}
+                                      minRows={5}
                                       placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..."
-                                      className="mt-2 min-h-[108px] w-full resize-y rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-semibold leading-6 text-slate-800 outline-none transition whitespace-pre-wrap break-words focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                                      className="mt-2 min-h-[108px] w-full resize-none overflow-hidden rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-semibold leading-6 text-slate-800 outline-none transition whitespace-pre-wrap break-words focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
                                     />`
         );
 
@@ -109,7 +108,10 @@ export function assessmentReasonRawTextPatch() {
         );
 
         if (!next.includes('onChange={(event) => updateTopic(topic.code, { reason: event.target.value })}')) {
-          throw new Error("Assessment Reason patch failed: raw textarea input was not installed");
+          throw new Error("Assessment Reason patch failed: raw input was not installed");
+        }
+        if (!next.includes("<AutoGrowTextarea")) {
+          throw new Error("Assessment Reason patch failed: auto-grow textarea was not installed");
         }
         if (next.includes('editorLabel={`Assessment Reason · ${topic.code}`}')) {
           throw new Error("Assessment Reason patch failed: RichTextEditor is still used for Assessment Reason");
