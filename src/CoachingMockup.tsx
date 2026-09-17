@@ -1,3 +1,5 @@
+import { officialPdfPrintStyles } from "./officialPdf";
+import { PDF_LOGO } from "./pdfLogo";
 import React, {
   useEffect,
   useMemo,
@@ -1283,9 +1285,12 @@ export default function CoachingMockup({
     )} - ${escapeHtml(record.monthLabel)}</title>
 <style>
 @page { size: A4; margin: 14mm; }
-body { font-family: "Kanit", "Noto Sans Thai", Arial, sans-serif; color:#172033; font-size:12px; line-height:1.6; }
-h1 { font-size:24px; margin:0 0 4px; color:#4c1d95; }
-h2 { font-size:15px; margin:20px 0 8px; color:#5b21b6; border-bottom:1px solid #ddd6fe; padding-bottom:5px; }
+${officialPdfPrintStyles()}
+body { font-family: "THSarabunNew", sans-serif; color:#172033; font-size:16pt; line-height:1.3; }
+tr,.box { break-inside:avoid; }
+.pdf-brand { display:flex;align-items:center;gap:12px;border-bottom:1px solid #cbd5e1;padding-bottom:10px;margin-bottom:12px; }
+h1 { font-size:24pt; margin:0 0 4px; color:#4c1d95; }
+h2 { font-size:18pt; margin:20px 0 8px; color:#5b21b6; border-bottom:1px solid #ddd6fe; padding-bottom:5px; }
 .meta { display:grid; grid-template-columns:1fr 1fr; gap:6px 18px; background:#f5f3ff; padding:12px; border-radius:12px; }
 .box { white-space:pre-wrap; border:1px solid #e2e8f0; border-radius:10px; padding:10px; }
 table { width:100%; border-collapse:collapse; }
@@ -1294,6 +1299,7 @@ th { background:#f5f3ff; color:#4c1d95; }
 </style>
 </head>
 <body>
+<div class="pdf-brand"><img src="${PDF_LOGO}" width="48" height="48" alt="Robinhood" /><strong>Robinhood Quality Assurance · Monthly Coaching</strong></div>
 <h1>Monthly Coaching Record</h1>
 <div>${escapeHtml(record.agent)} • ${escapeHtml(
       record.monthLabel
@@ -1344,7 +1350,7 @@ th { background:#f5f3ff; color:#4c1d95; }
 <h2>Case References</h2><div class="box">${escapeHtml(
       record.caseReferences.join(", ")
     )}</div>
-<script>window.onload=()=>setTimeout(()=>window.print(),300);</script>
+<script>window.onload=async()=>{await document.fonts.ready;await Promise.all(Array.from(document.images).map(img=>img.decode().catch(()=>{})));window.print();};</script>
 </body>
 </html>`);
     win.document.close();

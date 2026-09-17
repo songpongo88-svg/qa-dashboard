@@ -1,7 +1,7 @@
 /* Collection navigation stays outside the scrolling theme panel. */
 .qa-theme-collection-navigation { padding:16px 24px 0; flex:0 0 auto; }
 .qa-theme-collection-label { margin-bottom:10px; color:#475569; font:500 12px Kanit,sans-serif; }
-.qa-theme-collection-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; padding:4px; background:#f1f5f9; border-radius:12px; }
+.qa-theme-collection-tabs { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; padding:4px; background:#f1f5f9; border-radius:12px; }
 .qa-theme-collection-tabs button { min-width:0; padding:10px 5px; border:1px solid transparent; border-radius:9px; background:transparent; color:#64748b; font:500 11px Kanit,sans-serif; line-height:1.5; }
 .qa-theme-collection-tabs button[aria-selected="true"] { background:white; color:var(--qa-theme-800); border-color:var(--qa-theme-200); box-shadow:0 1px 4px rgb(15 23 42/.07); }
 .qa-theme-collection-tabs button:focus-visible { outline:2px solid var(--qa-theme-600); outline-offset:2px; }

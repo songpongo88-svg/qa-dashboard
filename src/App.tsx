@@ -1,3 +1,4 @@
+import { WeatherCollection, WeatherSidebarLabel } from "./weather/Weather";
 import "./themePickerCollections.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
@@ -3234,7 +3235,8 @@ function ThemePickerModal({
       setFestivalOverride(Boolean(document.documentElement.dataset.qaFestivalOverride));
     };
     sync();
-    setCollection(document.documentElement.dataset.qaFestivalOverride ? "festival"
+    setCollection(document.documentElement.dataset.qaWeatherCollection === "auto" ? "weather"
+      : document.documentElement.dataset.qaFestivalOverride ? "festival"
       : document.documentElement.dataset.qaWeekdayCollection === "auto" ? "weekday"
       : QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme)?.patternImage ? "character" : "color");
     const observer = new MutationObserver(sync);
@@ -3298,6 +3300,7 @@ function ThemePickerModal({
               ["character", "Character Collection"],
               ["festival", "Festival Collection"],
               ["weekday", "7 Days Collection"],
+              ["weather", "Weather Collection"],
             ].map(([id, label], index, items) => (
               <button key={id} id={`qa-collection-tab-${id}`} type="button" role="tab"
                 aria-selected={collection === id} aria-controls="qa-theme-collection-panel"
@@ -3318,8 +3321,9 @@ function ThemePickerModal({
         <div id="qa-theme-collection-panel" role="tabpanel" aria-labelledby={`qa-collection-tab-${collection}`}
           data-qa-picker-collection={collection}
           className="qa-theme-collection-panel grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
+          <WeatherCollection />
           {QA_THEME_OPTIONS.map((theme) => {
-            const selected = theme.id === selectedTheme && !customCollectionSelected && !festivalOverride;
+            const selected = theme.id === selectedTheme && !customCollectionSelected && !festivalOverride && document.documentElement.dataset.qaWeatherCollection !== "auto";
             return (
               <button
                 key={theme.id}
@@ -6675,7 +6679,7 @@ export default function App() {
       items: [
         { key: "presentation-builder", label: "QA Slides", description: "สร้างสไลด์ QA รายสัปดาห์ Preview และส่งออก PDF", icon: "presentation", allowed: true, active: activeWorkspaceTab === "presentation-builder", onClick: () => activateWorkspaceTab("presentation-builder") },
         { key: "signature-center", label: "Signatures", description: "ติดตามการลงนาม เอกสาร Incentive และไฟล์ส่งออก", icon: "signature", allowed: true, active: activeWorkspaceTab === "signature-center", onClick: () => activateWorkspaceTab("signature-center") },
-        { key: "user-guide", label: "คู่มือการใช้งาน", description: "ค้นหาขั้นตอนตามสิทธิ์และดาวน์โหลดคู่มือ PDF", icon: "list", allowed: true, active: activeWorkspaceTab === "user-guide", onClick: () => activateWorkspaceTab("user-guide") },
+        { key: "user-guide", label: "คู่มือการใช้งาน", description: "คู่มือครบทุกหัวข้อ อ่าน ค้นหา และดาวน์โหลด PDF", icon: "list", allowed: true, active: activeWorkspaceTab === "user-guide", onClick: () => activateWorkspaceTab("user-guide") },
       ],
     },
     {
@@ -6762,6 +6766,7 @@ export default function App() {
                 globalSidebarCollapsed ? "justify-center px-2 py-2" : "gap-2 px-2.5 py-2 text-left"
               }`}
             >
+              <WeatherSidebarLabel />
               <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
                 {activeThemeOption.swatches.map((color, index) => (
                   <span

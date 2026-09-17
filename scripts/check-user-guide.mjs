@@ -8,18 +8,18 @@ const reviewPath = "docs/guide-release-review.json";
 const hash = (value) => crypto.createHash("sha256").update(value).digest("hex");
 export function reviewedSources(root) {
   const files = [];
-  for (const directory of ["src", "build", "scripts", ".github/workflows", "public/guide"]) {
+  for (const directory of ["src", "build", "scripts", ".github/workflows", "public/guide", "src/weather", "public/weather", "api"]) {
     const walk = (folder) => {
       if (!fs.existsSync(folder)) return;
       for (const item of fs.readdirSync(folder, { withFileTypes: true })) {
         const full = path.join(folder, item.name);
         if (item.isDirectory()) walk(full);
-        else if (/\.(tsx?|m?js|css|json|ya?ml|png|jpe?g|webp|svg)$/.test(item.name)) files.push(path.relative(root, full).replaceAll("\\", "/"));
+        else if (/\.(tsx?|m?js|py|css|json|ya?ml|png|jpe?g|webp|svg)$/.test(item.name)) files.push(path.relative(root, full).replaceAll("\\", "/"));
       }
     };
     walk(path.join(root, directory));
   }
-  for (const name of ["package.json", "vite.config.js"]) if (fs.existsSync(path.join(root, name))) files.push(name);
+  for (const name of ["package.json", "package-lock.json", "vite.config.js", "index.html"]) if (fs.existsSync(path.join(root, name))) files.push(name);
   return Object.fromEntries(files.sort().map((file) => [file, hash(fs.readFileSync(path.join(root, file)))]));
 }
 function readTerms(root) {

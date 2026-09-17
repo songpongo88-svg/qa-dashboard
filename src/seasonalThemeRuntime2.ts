@@ -231,8 +231,9 @@ function applyEffectiveTheme() {
   applyingTheme = true;
 
   try {
-    const activeFestival = getActiveFestival();
-    const effectiveTheme = activeFestival?.id || getPreferredTheme();
+    const weatherSelected = getCustomPreference() === "weather-auto";
+    const activeFestival = weatherSelected ? null : getActiveFestival();
+    const effectiveTheme = weatherSelected ? "robinhood" : activeFestival?.id || getPreferredTheme();
 
     if (document.documentElement.dataset.qaTheme !== effectiveTheme) {
       document.documentElement.dataset.qaTheme = effectiveTheme;
@@ -241,6 +242,7 @@ function applyEffectiveTheme() {
     document.documentElement.dataset.qaFestivalOverride = activeFestival?.id || "";
     document.documentElement.dataset.qaWeekdayCollection = isWeekdayPreference(getCustomPreference()) ? "auto" : "";
     requestThemePickerRefresh();
+    window.dispatchEvent(new CustomEvent("qa-appearance-change", { detail: { preference: getCustomPreference(), applied: true } }));
   } finally {
     applyingTheme = false;
   }
@@ -511,6 +513,12 @@ function startSeasonalThemeRuntime() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
   installThemeHooks();
+  window.addEventListener("qa-appearance-change", (event: Event) => {
+    const detail = (event as CustomEvent).detail;
+    if (detail?.applied) return;
+    sessionCustomTheme = detail?.preference;
+    applyEffectiveTheme();
+  });
   setTimeout(applyEffectiveTheme, 0);
   let midnightTimer: ReturnType<typeof setTimeout>;
   const scheduleMidnight = () => {

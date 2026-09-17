@@ -1,17 +1,24 @@
-# Weather Collection photo credits
+# Weather Collection scenes
 
-Weather Collection uses real Bangkok photographs from Wikimedia Commons. The dashboard applies crops, overlays, rain/fog/light effects, and UI text over these photographs.
+The current collection uses locally bundled, AI-generated illustrative Bangkok cityscapes in `/weather/*.webp`, created with the built-in Image Generation tool for this dashboard. These are atmospheric illustrations, not live camera images or photographs of the selected user's exact location. The prior external Wikimedia/Unsplash CSS layers are not loaded.
 
-- **Clear / Fair** — *Bangkok - City skyline at mid day.JPG*, Azreey, CC BY-SA 3.0. https://commons.wikimedia.org/wiki/File:Bangkok_-_City_skyline_at_mid_day.JPG
-- **Sunny / Hot** — *Bangkok skyline at sunset, Bangkok, Thailand.jpg*, Vyacheslav Argenberg, CC BY 4.0. https://commons.wikimedia.org/wiki/File:Bangkok_skyline_at_sunset,_Bangkok,_Thailand.jpg
-- **Partly Cloudy** — *Bangkok Skyline from Wat Saket.jpg*, Slyronit, CC BY-SA 4.0. https://commons.wikimedia.org/wiki/File:Bangkok_Skyline_from_Wat_Saket.jpg
-- **Cloudy** — *Bangkok cityscape under dark sky.jpg*, Jakob Owens, CC0. https://commons.wikimedia.org/wiki/File:Bangkok_cityscape_under_dark_sky.jpg
-- **Light Rain** — *Rain in Bangkok (view from Wat Saket), May, 2018.jpg*, Alexey Komarov. https://commons.wikimedia.org/wiki/File:Rain_in_Bangkok_(view_from_Wat_Saket),_May,_2018.jpg
-- **Rain** — *Heavy rain in bangkok roads.jpg*, Chainwit, CC BY-SA 4.0. https://commons.wikimedia.org/wiki/File:Heavy_rain_in_bangkok_roads.jpg
-- **Thunderstorm** — *Lighting Storm at Night (Unsplash).jpg*, Dominik QN, CC0. https://commons.wikimedia.org/wiki/File:Lighting_Storm_at_Night_(Unsplash).jpg
-- **Mist / Fog** — *Bangkok from the sky.jpg*, neajjean, CC BY-SA 2.0. https://commons.wikimedia.org/wiki/File:Bangkok_from_the_sky.jpg
-- **Rain + Clear** — *Bangkok - City skyline at sunset.JPG*, Azreey, CC BY-SA 3.0. https://commons.wikimedia.org/wiki/File:Bangkok_-_City_skyline_at_sunset.JPG
-- **Night** — *Bangkok Skyline from Movenpick Hotel, Asok, Bangkok at night.jpg*, Slyronit. https://commons.wikimedia.org/wiki/File:Bangkok_Skyline_from_Movenpick_Hotel,_Asok,_Bangkok_at_night.jpg
-- **Night + Thunderstorm** — *Thunderstorms banner Lightning over Bangkok.jpg*, Dominik QN, CC0. https://commons.wikimedia.org/wiki/File:Thunderstorms_banner_Lightning_over_Bangkok.jpg
+Shared prompt specification: `photorealistic-natural`, one 1536×1024 landscape image, detailed realistic Bangkok city skyline in the lower half, expansive weather sky above, natural cinematic editorial photography. No UI, text, labels, logo, watermark, frame or collage. Each weather scene is independently generated, rather than applying a tint to one photo. Original PNGs are converted to WebP for delivery without changing composition.
 
-See each Wikimedia Commons file page for the full license text and attribution requirements.
+| File | Scene prompt |
+| --- | --- |
+| clear.webp | Clear fair midmorning, blue sky, green urban park and lake, crisp modern skyline. |
+| hot.webp | Intense hot daytime sun, warm golden reflections, heat haze and modern city; not sunset. |
+| partly-cloudy.webp | Bright cumulus clouds alternating with blue sky and sunshine over city and park. |
+| cloudy.webp | Dense layered grey overcast sky, silver-blue light, detailed city and park, no rain. |
+| light-rain.webp | Gentle daytime drizzle, fine rain, softened buildings, damp park, brighter sky opening. |
+| rain.webp | Sustained monsoon rain, grey clouds, rain streaks, wet city and river reflections. |
+| thunderstorm.webp | Late-afternoon storm clouds, branched lightning behind high rises, rain and warm window lights. |
+| fog.webp | Early morning cool mist layered between skyscrapers, crisp nearer buildings and park trees. |
+| sunshower.webp | Rain falling in sunshine, blue sky openings, white clouds, subtle rainbow, wet reflections. |
+| night.webp | Clear deep blue night, small crescent moon, glowing high rises and river reflections. |
+| night-cloudy.webp | Cloud layers veiling a moon above a legible Bangkok night skyline with warm windows. |
+| night-rain.webp | Rainy Bangkok night, rain veils, glowing windows, wet streets and river. |
+| night-thunderstorm.webp | Night storm, realistic fork of lightning behind lit skyscrapers, rain haze and wet reflections. |
+| night-fog.webp | Night mist between lit buildings, warm lights through blue fog, navy sky and river. |
+
+Weather data attribution: [Open-Meteo](https://open-meteo.com/), [API documentation](https://open-meteo.com/en/docs). Approximate automatic city location uses [Vercel request geolocation headers](https://vercel.com/docs/headers/request-headers). No browser GPS permission is requested. Coarse coordinates are rounded to two decimals before weather lookup or persistence. Users can choose a city manually; Bangkok is explicitly labelled when used as fallback.

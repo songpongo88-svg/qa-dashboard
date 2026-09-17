@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { formatKnowledgeDate, KNOWLEDGE_BUILD, type KnowledgeUser } from "./model";
 import { canReadChapter, contextualChapter, findChapters, MANUAL, type GuideChapter } from "./guideModel";
 import { guideRepository, type GuideRepository } from "./guideStore";
 import { downloadGuidePdf } from "./pdf";
 import "./knowledge.css";
+
+const PdfReader = lazy(() => import("./PdfReader"));
 
 type Props = { user: KnowledgeUser; permissions: Record<string, boolean>; canManage?: boolean; context?: string; drawer?: boolean; onClose?: () => void; repository?: GuideRepository };
 const errorText = (error: unknown) => error instanceof Error ? error.message : "ไม่สามารถดำเนินการได้ กรุณาลองอีกครั้ง";
@@ -44,7 +46,7 @@ function GuideEditor({ chapter, busy, onCancel, onPublish }: { chapter: GuideCha
       try { const src = await readGuideImage(file); setDraft((current) => ({ ...current, images: [...(current.images || []), { src, caption: "" }] })); }
       catch (reason) { setError(errorText(reason)); } finally { setImageBusy(false); }
     }} /></label>
-    {(draft.images || []).map((image, index) => <div key={index}><img className="guide-image" src={image.src} alt={image.caption || `ภาพประกอบ ${index + 1}`} /><label>คำอธิบายภาพ<input value={image.caption} maxLength={400} onChange={(event) => setDraft({ ...draft, images: draft.images?.map((item, i) => i === index ? { ...item, caption: event.target.value } : item) })} /></label><button className="knowledge-link" onClick={() => setDraft({ ...draft, images: draft.images?.filter((_, i) => i !== index) })}>นำภาพนี้ออก</button></div>)}
+    {(draft.images || []).map((image, index) => <div key={index}><img className="guide-image" src={image.src} alt={image.caption || `ภาพประกอบ ${index + 1}`} /><label>คำอธิบายภาพ<input value={image.caption} maxLength={400} onChange={(event) => setDraft({ ...draft, images: draft.images?.map((item, i) => i === index ? { ...item, caption: event.target.value } : item) })} /></label><label>ตำแหน่งภาพ<select value={image.step || 0} onChange={event=>setDraft({...draft,images:draft.images?.map((item,i)=>i===index?{...item,step:Number(event.target.value)||undefined}:item)})}><option value={0}>ก่อนเริ่มขั้นตอน</option>{draft.steps.map((step,i)=><option key={i} value={i+1}>หลังขั้นตอน {i+1}: {step.title}</option>)}</select></label><button className="knowledge-link" onClick={() => setDraft({ ...draft, images: draft.images?.filter((_, i) => i !== index) })}>นำภาพนี้ออก</button></div>)}
     {error && <p className="knowledge-error" role="alert">{error}</p>}
     <div className="knowledge-actions"><button className="knowledge-secondary" disabled={busy} onClick={onCancel}>ยกเลิก</button><button className="knowledge-primary" disabled={busy || imageBusy} onClick={() => onPublish(draft)}>{busy ? "กำลังเผยแพร่…" : "เผยแพร่คู่มือฉบับแก้ไข"}</button></div>
   </section>;
@@ -54,7 +56,8 @@ export default function UserGuide({ user, permissions, canManage = false, contex
   const [chapters, setChapters] = useState<GuideChapter[]>(MANUAL.chapters);
   const [stale, setStale] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState(() => contextualChapter(context, MANUAL.chapters.filter((chapter) => canReadChapter(chapter, permissions))));
+  const [searchInput, setSearchInput] = useState("");
+  const [selected, setSelected] = useState(() => contextualChapter(context, MANUAL.chapters));
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
@@ -71,9 +74,9 @@ export default function UserGuide({ user, permissions, canManage = false, contex
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [attempt, repository]);
-  const allowed = useMemo(() => chapters.filter((chapter) => canReadChapter(chapter, permissions)), [chapters, permissions]);
-  const filtered = useMemo(() => findChapters(allowed, search), [allowed, search]);
-  const chapter = filtered.find((item) => item.id === selected) || filtered[0];
+  const filtered = useMemo(() => findChapters(chapters, search), [chapters, search]);
+  const chapter = chapters.find((item) => item.id === selected) || chapters[0];
+  const selectChapter = (id: string) => { setSelected(id); setEditing(null); setError(""); };
   const exportPdf = async (content: GuideChapter[]) => {
     setPdfBusy(true); setError("");
     try { await downloadGuidePdf(content); } catch (reason) { setError(errorText(reason)); } finally { setPdfBusy(false); }
@@ -84,29 +87,24 @@ export default function UserGuide({ user, permissions, canManage = false, contex
     try { await repository.publish(user, edited, editing.revision || 0); setEditing(null); setAttempt((value) => value + 1); setNotice("เผยแพร่คู่มือแล้ว PDF จะใช้เนื้อหาฉบับเดียวกัน"); }
     catch (reason) { setError(errorText(reason)); } finally { setBusy(false); }
   };
-  return <main className="knowledge knowledge-workspace" aria-busy={busy} data-saving={busy || undefined}>
-    <header className="knowledge-page-header"><div><span className="knowledge-eyebrow">QA DASHBOARD · USER GUIDE</span><h1>{drawer ? "คู่มือหน้านี้" : "คู่มือการใช้งาน"}</h1><p>ขั้นตอนตามสิทธิ์ของคุณ พร้อมคำแนะนำเมื่อพบปัญหา</p></div>{onClose && <button className="knowledge-secondary" onClick={onClose} aria-label="ปิดคู่มือ">ปิด</button>}</header>
-    <p className="knowledge-muted">คู่มือ Version {MANUAL.version} · Deploy Version {String(KNOWLEDGE_BUILD.commitHash || "").slice(0, 7) || "local"}</p>
+  return <main className="knowledge knowledge-workspace guide-workspace" aria-busy={busy} data-saving={busy || undefined}>
+    <header className="knowledge-page-header"><div><span className="knowledge-eyebrow">QA DASHBOARD · USER GUIDE</span><h1>{drawer ? "คู่มือหน้านี้" : "คู่มือการใช้งาน"}</h1><p>เลือกหัวข้อแล้วอ่าน PDF ได้ทันที พร้อมค้นหาและดาวน์โหลด</p></div>{onClose && <button className="knowledge-secondary" onClick={onClose} aria-label="ปิดคู่มือ">ปิด</button>}</header>
+    <p className="knowledge-muted">คู่มือ {MANUAL.version} · Deploy {String(KNOWLEDGE_BUILD.commitHash || "").slice(0, 7) || "local"} · ครบ {chapters.length} หัวข้อ</p>
     {loading && <p className="knowledge-muted" role="status">กำลังตรวจคู่มือฉบับล่าสุด…</p>}
-    {loadError && <div className="knowledge-callout" role="status">{loadError} <button className="knowledge-link" onClick={() => setAttempt((value) => value + 1)}>ลองโหลดอีกครั้ง</button></div>}
-    {notice && <p className="knowledge-callout" role="status">{notice}</p>}
-    {error && <p className="knowledge-error" role="alert">{error}</p>}
-    <div className="knowledge-filters"><label>ค้นหาคู่มือ<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="เช่น Appeal, Last Updated, ลงนาม" /></label></div>
-    {!drawer && <div className="knowledge-actions"><button className="knowledge-secondary" disabled={pdfBusy || loading || !allowed.length} onClick={() => exportPdf(allowed)}>{pdfBusy ? "กำลังสร้าง PDF…" : "ดาวน์โหลดทุกบทที่มีสิทธิ์อ่าน"}</button><button className="knowledge-link" disabled={loading} onClick={() => setAttempt((value) => value + 1)}>รีเฟรชคู่มือ</button><span className="knowledge-muted">{allowed.length} บทสำหรับบัญชีของคุณ</span></div>}
-    <div className="guide-layout"><nav className="guide-toc" aria-label="สารบัญคู่มือ">{filtered.map((item) => <button key={item.id} aria-current={chapter?.id === item.id} onClick={() => { setSelected(item.id); setError(""); }}><small>{item.category}</small>{item.title}</button>)}{!filtered.length && <p className="knowledge-empty">ไม่พบคู่มือที่ตรงกับคำค้นหา</p>}</nav>
-      <div>{chapter && <article className="knowledge-card"><span className="knowledge-eyebrow">{chapter.category}</span><h2>{chapter.title}</h2><p>{chapter.summary}</p><p className="knowledge-muted">สำหรับ: {chapter.audience}<br />แก้เนื้อหาล่าสุด {formatKnowledgeDate(chapter.updatedAt)} (เวลาไทย){chapter.revision ? ` · Revision ${chapter.revision}` : ""}{chapter.publishedBy ? ` · ${chapter.publishedBy}` : ""}</p>
-        {canManage && stale.includes(chapter.id) && <p className="knowledge-callout">บทนี้เปลี่ยนตาม Deploy ใหม่ กำลังใช้เนื้อหาที่มากับเวอร์ชันนี้ กรุณาตรวจฉบับแก้ไขก่อนเผยแพร่ต่อ</p>}
-        <ol className="guide-steps">{chapter.steps.map((step, index) => <li key={index}><div><strong>{step.title}</strong><p>{step.body}</p></div></li>)}</ol>
-        {(chapter.images || []).map((image, index) => <figure key={index}><img className="guide-image" src={image.src} alt={image.caption || `ภาพประกอบ ${index + 1}`} /><figcaption className="knowledge-muted">{image.caption}</figcaption></figure>)}
-        <div className="knowledge-callout"><strong>ผลที่ควรเห็น</strong><p>{chapter.result}</p></div>
-        <h3>ข้อควรรู้</h3>{chapter.tips.map((tip, index) => <p key={index}>• {tip}</p>)}
-        <h3>เมื่อพบปัญหา</h3>{chapter.troubleshooting.map((tip, index) => <p key={index}>• {tip}</p>)}
-        <div className="knowledge-actions"><button className="knowledge-secondary" disabled={pdfBusy || loading} onClick={() => exportPdf([chapter])}>{pdfBusy ? "กำลังสร้าง PDF…" : "PDF บทนี้"}</button>{canManage && !drawer && <button className="knowledge-link" disabled={loading || Boolean(loadError)} onClick={() => setEditing(chapter)}>แก้ไขบทนี้</button>}</div>
-      </article>}
-      {editing && canManage && <GuideEditor key={`${editing.id}:${editing.revision || 0}`} chapter={editing} busy={busy} onCancel={() => setEditing(null)} onPublish={publish} />}
-      {!drawer && <details className="guide-updates"><summary>มีอะไรเปลี่ยนแปลงในคู่มือ {MANUAL.version}</summary>{MANUAL.releaseNotes.map((note) => <p key={note}>• {note}</p>)}<p className="knowledge-muted">ข้อความฉบับแก้ไขของแต่ละบทแสดงวันที่และผู้เผยแพร่ในบทนั้น</p></details>}
-      </div>
-    </div>
+    {loadError && <div className="knowledge-callout" role="status">{loadError} <button className="knowledge-link" onClick={() => setAttempt(value=>value+1)}>ลองโหลดอีกครั้ง</button></div>}
+    {notice && <p className="knowledge-callout" role="status">{notice}</p>}{error && <p className="knowledge-error" role="alert">{error}</p>}
+    <form className="guide-global-search" onSubmit={event=>{event.preventDefault();setSearch(searchInput);}}><label>ค้นหาทุกหัวข้อ<input type="search" value={searchInput} onChange={event=>setSearchInput(event.target.value)} placeholder="เช่น อุทธรณ์, วันที่ 10, ลงนาม, Weather"/></label><button className="knowledge-primary">ค้นหา</button>{search&&<button type="button" className="knowledge-secondary" onClick={()=>{setSearch('');setSearchInput('');}}>ล้าง</button>}<button type="button" className="knowledge-secondary" disabled={pdfBusy || loading} onClick={()=>exportPdf(chapters)}>{pdfBusy?'กำลังสร้าง PDF…':'ดาวน์โหลดทั้งเล่ม'}</button></form>
+    <div className="guide-layout"><nav className="guide-toc" aria-label="สารบัญคู่มือ">
+      <label className="guide-mobile-select">เลือกหัวข้อ<select value={chapter?.id} onChange={event=>selectChapter(event.target.value)}>{chapters.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+      {search&&<div className="guide-search-results" role="region" aria-label="ผลการค้นหาคู่มือ"><strong>ผลการค้นหา {filtered.length} หัวข้อ</strong>{filtered.map(item=><button key={item.id} onClick={()=>selectChapter(item.id)}>{item.title}</button>)}{!filtered.length&&<p>ไม่พบข้อความ ลองใช้คำสั้นลง</p>}</div>}
+      <div className="guide-complete-toc"><h2>สารบัญทั้งหมด ({chapters.length})</h2>{chapters.map(item=><button key={item.id} aria-current={chapter?.id===item.id} onClick={()=>selectChapter(item.id)}><small>{item.category}</small>{item.title}</button>)}</div>
+    </nav><div className="guide-document">{chapter&&<>
+      <header className="guide-document-header"><div><small>{chapter.category}</small><h2>{chapter.title}</h2><p>สำหรับ: {chapter.audience}</p></div>{canManage&&<button className="knowledge-secondary" disabled={loading || Boolean(loadError) || busy} onClick={()=>setEditing(editing?null:chapter)}>{editing?'กลับไปอ่าน PDF':'แก้ไขบทนี้'}</button>}</header>
+      {!canReadChapter(chapter,permissions)&&<p className="knowledge-muted guide-access-note">อ่านขั้นตอนได้ครบ การทำรายการในหัวข้อนี้ต้องได้รับสิทธิ์ที่เกี่ยวข้อง</p>}
+      {canManage&&stale.includes(chapter.id)&&<p className="knowledge-callout">บทนี้ปรับตาม Deploy ใหม่ กรุณาตรวจฉบับแก้ไขก่อนเผยแพร่ต่อ</p>}
+      {editing&&canManage ? <GuideEditor key={`${editing.id}:${editing.revision || 0}`} chapter={editing} busy={busy} onCancel={()=>setEditing(null)} onPublish={publish}/> : <Suspense fallback={<p role="status">กำลังเปิดตัวอ่าน PDF…</p>}><PdfReader chapter={chapter}/></Suspense>}
+    </>}</div></div>
+    <details className="guide-updates"><summary>สิ่งที่เปลี่ยนในคู่มือ {MANUAL.version}</summary>{MANUAL.releaseNotes.map(note=><p key={note}>• {note}</p>)}</details>
   </main>;
 }
 

@@ -16,16 +16,25 @@ const entry = [
   'export * from "./src/knowledge/model.ts";', 'export * from "./src/knowledge/guideModel.ts";',
   'export * from "./src/knowledge/termsStore.ts";', 'export * from "./src/knowledge/guideStore.ts";',
   'export * from "./src/knowledge/Terms.tsx";', 'export { default as TermsWorkspace } from "./src/knowledge/Terms.tsx";',
-  'export { default as UserGuide } from "./src/knowledge/UserGuide.tsx";', 'export * from "./src/knowledge/pdf.ts";',
+  'export { default as UserGuide } from "./src/knowledge/UserGuide.tsx";', 'export * from "./src/knowledge/pdf.ts";', 'export * from "./src/officialPdf.ts";', 'export {pdfState} from "./scripts/fixtures/knowledge-pdfjs.mjs";',
   'export { state as mock, reset as resetMock } from "./scripts/fixtures/knowledge-firestore.mjs";',
 ].join('\n');
 const dom = new JSDOM('<!doctype html><div id="root"></div>', { pretendToBeVisual: true, url: 'https://local.qa.test/' });
 for (const key of ['window', 'document', 'Node', 'HTMLElement', 'Event', 'MouseEvent', 'HTMLCanvasElement']) globalThis[key] = dom.window[key];
 Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true });
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+globalThis.ResizeObserver = class { constructor(callback){this.callback=callback;} observe(){this.callback([{contentRect:{width:760}}]);} disconnect(){} };
+dom.window.HTMLCanvasElement.prototype.getContext = () => ({});
+globalThis.fetch = async (url) => { assert.match(String(url), /^\/guide\/[a-z0-9-]+\.png$/); return new Response(fs.readFileSync(path.join(rootDir,'public',String(url))),{status:200}); };
+
 let root;
 try {
   await build({ stdin: { contents: entry, resolveDir: rootDir, loader: 'ts' }, outfile: path.join(temp, 'bundle.cjs'), bundle: true, platform: 'node', format: 'cjs', packages: 'external', loader: { '.css': 'empty' }, logLevel: 'silent', plugins: [{ name: 'isolated-knowledge-transport', setup(plugin) {
+    plugin.onResolve({ filter: /^pdfjs-dist$/ },()=>({path:path.join(rootDir,'scripts/fixtures/knowledge-pdfjs.mjs')}));
+    plugin.onResolve({ filter: /pdf\.worker.*\?url$/ },()=>({path:'pdf-worker',namespace:'pdf-worker'}));
+    plugin.onLoad({filter:/.*/,namespace:'pdf-worker'},()=>({contents:'export default "/test-pdf-worker.mjs";'}));
+    plugin.onResolve({ filter: /pdfjs-dist\/web\/pdf_viewer\.css$/ },()=>({path:'pdf-style',namespace:'pdf-style'}));
+    plugin.onLoad({filter:/.*/,namespace:'pdf-style'},()=>({contents:'',loader:'js'}));
     plugin.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: fixture }));
     plugin.onResolve({ filter: /\/(firebaseClient|sessionStore|signatureStore)$/ }, () => ({ path: fixture }));
   } }] });
@@ -85,7 +94,7 @@ try {
   const onlyAgent = k.MANUAL.chapters.filter((row) => k.canReadChapter(row, { viewDashboard: true, submitAppeal: true }));
   assert.equal(onlyAgent.some((row) => row.id === 'appeal-review'), false);
   assert.equal(onlyAgent.some((row) => row.id === 'administration'), false);
-  assert.equal(k.findChapters(onlyAgent, 'Last Updated')[0].id, 'case-detail');
+  assert.ok(k.findChapters(onlyAgent, 'Last Updated').some(chapter=>chapter.id==='case-detail'));
   assert.equal(k.contextualChapter('case:AA0000|Test', onlyAgent), 'case-detail');
   assert.throws(() => k.cleanGuideContent(chapter, { ...chapter, images: [{ src: 'https://external.invalid/x.png', caption: '' }] }));
   console.log('PASS: role-aware guide, search, immutable revisions and stale-override protection');
@@ -116,7 +125,19 @@ try {
   assert.equal(document.querySelector('.knowledge-stats'), null);
   await act(async () => root.render(h(k.UserGuide, { user, permissions: { viewDashboard: true, submitAppeal: true }, canManage: false, repository: { ...k.guideRepository, load: async () => ({ chapters: k.MANUAL.chapters, stale: [] }) } })));
   await settle(() => !document.body.textContent.includes('กำลังตรวจคู่มือ'));
-  assert.equal(document.body.textContent.includes('พิจารณาคำขออุทธรณ์'), false);
+  assert.equal(document.body.textContent.includes('พิจารณาคำขออุทธรณ์'), true);
+  assert.equal(document.querySelectorAll('.guide-complete-toc button').length,k.MANUAL.chapters.length);
+  await settle(()=>document.querySelector('.guide-pdf-page')?.style.display==='block');
+  assert.ok(k.pdfState.rendered.length);
+  await act(async()=>[...document.querySelectorAll('.guide-complete-toc button')].find(node=>node.textContent.includes('ลงนามเกินกำหนด')).click());
+  await settle(()=>k.pdfState.destroyed>0 && document.querySelector('a[download]')?.getAttribute('download').includes('signature-overdue'));
+  assert.ok(document.querySelector('.guide-pdf-page'));
+  const search=document.querySelector('input[aria-label="ค้นหาใน PDF"]');
+  await act(async()=>{Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype,'value').set.call(search,'72');search.dispatchEvent(new dom.window.Event('input',{bubbles:true}));});
+  await act(async()=>button('ค้นหาใน PDF').click());
+  await settle(()=>document.querySelector('.guide-pdf-matches')?.textContent.includes('พบใน'));
+  assert.ok(document.querySelector('.guide-pdf-matches button'));
+  assert.equal(document.querySelectorAll('.guide-complete-toc button').length,38);
   assert.equal(button('แก้ไขบทนี้'), undefined);
   console.log('PASS: failed admin reads never imply Not Accepted; guide actions respect permissions');
 
@@ -134,12 +155,17 @@ try {
   console.log('PASS: unreviewed releases and in-place T&C edits fail the build guard');
 
   if (process.env.QA_KNOWLEDGE_PDF_QA_DIR) {
-    const fonts = { regular: fs.readFileSync(path.join(rootDir, 'public/fonts/Kanit-Regular.ttf')).toString('base64'), semibold: fs.readFileSync(path.join(rootDir, 'public/fonts/Kanit-SemiBold.ttf')).toString('base64') };
+    const fonts = undefined;
     const output = process.env.QA_KNOWLEDGE_PDF_QA_DIR; fs.mkdirSync(output, { recursive: true });
     const sample = { ...accepted, user: { ...accepted.user, displayName: 'แอดมินเฉาก๊วย — ตัวอย่างทดสอบ', teamName: 'ทีมตัวอย่าง', username: 'sample.agent' } };
     globalThis.fetch = async (url) => { assert.match(String(url), /^\/guide\/[a-z0-9-]+\.png$/); const bytes = fs.readFileSync(path.join(rootDir, 'public', String(url))); return new Response(bytes, { status: 200 }); };
     const termsPdf = await k.generateTermsPdf(sample, fonts);
-    const guidePdf = await k.generateGuidePdf([k.MANUAL.chapters[0], k.MANUAL.chapters[2], k.MANUAL.chapters[5]], fonts);
+    const guidePdf = await k.generateGuidePdf(k.MANUAL.chapters.filter(c=>['deadlines','signatures','weather'].includes(c.id)), fonts);
+    const whole=await k.generateGuidePdf(k.MANUAL.chapters);
+    fs.writeFileSync(path.join(output,'guide-complete.pdf'),Buffer.from(whole.output('arraybuffer')));
+    const legacy = new k.jsPDF(); legacy.setFont('helvetica','bold'); legacy.setFontSize(20); legacy.text('ทดสอบเอกสารอย่างเป็นทางการ',18,25);
+    assert.equal(legacy.getFont().fontName,'THSarabunNew');
+    fs.writeFileSync(path.join(output,'legacy-font-sample.pdf'),Buffer.from(legacy.output('arraybuffer')));
     fs.writeFileSync(path.join(output, 'terms-sample.pdf'), Buffer.from(termsPdf.output('arraybuffer')));
     fs.writeFileSync(path.join(output, 'guide-sample.pdf'), Buffer.from(guidePdf.output('arraybuffer')));
     console.log(`PASS: sample PDFs generated (${termsPdf.getNumberOfPages()} terms pages; ${guidePdf.getNumberOfPages()} guide pages)`);

@@ -1,7 +1,7 @@
 import manual from "./manual.json";
-export type GuideImage = { src: string; caption: string };
-export type GuideChapter = typeof manual.chapters[number] & { images?: GuideImage[]; revision?: number; publishedBy?: string };
-export const MANUAL = manual;
+export type GuideImage = { src: string; caption: string; step?: number };
+export type GuideChapter = { id: string; title: string; category: string; contexts: string[]; permissions: string[]; summary: string; audience: string; updatedAt: string; steps: { title: string; body: string }[]; result: string; tips: string[]; troubleshooting: string[]; images?: GuideImage[]; revision?: number; publishedBy?: string; buttonGuide?: { menu: string; buttons: string[]; note: string } };
+export const MANUAL: Omit<typeof manual, "chapters"> & { chapters: GuideChapter[] } = manual;
 export const canReadChapter = (chapter: GuideChapter, permissions: Record<string, boolean>) => !chapter.permissions.length || chapter.permissions.some((key) => permissions[key] === true);
 export function contextualChapter(context: string, chapters: GuideChapter[]) {
   const normalized = context.startsWith("case:") ? "case-detail" : context;
@@ -9,7 +9,7 @@ export function contextualChapter(context: string, chapters: GuideChapter[]) {
 }
 export function findChapters(chapters: GuideChapter[], search: string) {
   const words = search.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
-  return chapters.filter((chapter) => { const text = JSON.stringify([chapter.title, chapter.summary, chapter.category, chapter.steps, chapter.tips, chapter.troubleshooting]).toLocaleLowerCase(); return words.every((word) => text.includes(word)); });
+  return chapters.filter((chapter) => { const text = JSON.stringify([chapter.title, chapter.summary, chapter.category, chapter.steps, chapter.tips, chapter.troubleshooting, chapter.audience, chapter.result, chapter.images]).toLocaleLowerCase(); return words.every((word) => text.includes(word)); });
 }
 export function validGuideImage(src: string) {
   return /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(src) || /^\/guide\/[a-zA-Z0-9/_-]+\.(?:png|jpg|jpeg|webp)$/.test(src);
@@ -19,7 +19,7 @@ export function cleanGuideContent(base: GuideChapter, edited: GuideChapter): Gui
   const text = (value: unknown, max: number) => { if (typeof value !== "string" || value.length > max) throw new Error("ข้อความยาวเกินกำหนดหรือรูปแบบไม่ถูกต้อง"); return value.trim(); };
   const steps = edited.steps.map((step) => ({ title: text(step.title, 180), body: text(step.body, 2500) }));
   if (steps.some((step) => !step.title || !step.body)) throw new Error("กรุณากรอกหัวข้อและคำอธิบายของทุกขั้นตอน");
-  const images = (edited.images || []).map((image) => { if (!validGuideImage(image.src) || image.src.length > 330000) throw new Error("ภาพคู่มือต้องเป็น PNG, JPEG หรือ WebP ขนาดไม่เกิน 245 KB"); return { src: image.src, caption: text(image.caption, 400) }; });
+  const images = (edited.images || []).map((image) => { if (!validGuideImage(image.src) || image.src.length > 330000) throw new Error("ภาพคู่มือต้องเป็น PNG, JPEG หรือ WebP ขนาดไม่เกิน 245 KB"); return { src: image.src, caption: text(image.caption, 400), ...(Number.isInteger(image.step) && image.step! > 0 && image.step! <= steps.length ? { step: image.step } : {}) }; });
   if (images.length > 2 || JSON.stringify(images).length > 500000) throw new Error("รองรับภาพไม่เกิน 2 ภาพ และขนาดรวมไม่เกิน 375 KB ต่อบท");
   // Routing and permission metadata always come from the deployed source, never from editable fields.
   return { ...base, title: text(edited.title, 180), summary: text(edited.summary, 1000), steps,

@@ -32,6 +32,7 @@ function runtimeHarness({ custom = "", base = "ocean", blocked = false } = {}) {
   }
   const context = vm.createContext({
     Date: Clock, Intl, console,
+    CustomEvent: class { constructor(type,options){ this.type=type; this.detail=options?.detail; } },
     document: { documentElement: root, body: {}, hidden: false, querySelector: () => null, addEventListener: (name, fn) => { listeners[name] = fn; } },
     localStorage: {
       getItem: (key) => { if (blocked) throw Error("blocked"); return stored.get(key) || null; },
@@ -41,7 +42,7 @@ function runtimeHarness({ custom = "", base = "ocean", blocked = false } = {}) {
     MutationObserver: class { observe() {} disconnect() {} },
     setTimeout: (fn, ms) => { timeouts.push({ fn, ms }); return timeouts.length; },
     clearTimeout: () => {}, setInterval: () => 1, requestAnimationFrame: (fn) => fn(),
-    window: { addEventListener: (name, fn) => { listeners[name] = fn; } },
+    window: { dispatchEvent: event => { listeners[event.type]?.(event); return true; }, addEventListener: (name, fn) => { listeners[name] = fn; } },
   });
   const source = fs.readFileSync(new URL("../src/seasonalThemeRuntime2.ts", import.meta.url), "utf8").replace(/^import .*?;\n/, "").replace(/export \{\};?/, "");
   const calendarSource = fs.readFileSync(new URL("../src/weekdayCollection.mjs", import.meta.url), "utf8").replaceAll("export ", "");
@@ -67,6 +68,10 @@ assert.equal(h.root.dataset.qaTheme, "weekday-sunday");
 h.stored.delete(customKey);
 h.listeners.storage({ key: customKey });
 assert.equal(h.root.dataset.qaTheme, "ocean");
+const weather = runtimeHarness({custom:"weather-auto"});
+weather.setDate("2026-12-25T05:00:00Z"); weather.api.applyEffectiveTheme();
+assert.equal(weather.root.dataset.qaTheme,"robinhood");
+assert.equal(weather.root.dataset.qaFestivalOverride,"");
 const ordinary = runtimeHarness();
 ordinary.api.applyEffectiveTheme();
 assert.equal(ordinary.root.dataset.qaTheme, "ocean");

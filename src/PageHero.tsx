@@ -1,4 +1,6 @@
 import React from "react";
+import { WeatherHero } from "./weather/Weather";
+import { useWeather } from "./weather/store";
 import WeekdayScene, { useWeekdayScene } from "./WeekdayScene";
 
 type PageHeroProps = {
@@ -19,6 +21,8 @@ export default function PageHero({
   className = "",
 }: PageHeroProps) {
   const weekdayScene = useWeekdayScene();
+  const weather = useWeather();
+  if (weather.enabled) return <WeatherHero title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (weekdayScene) return <WeekdayScene scene={weekdayScene} title={title} />;
   return (
     <div

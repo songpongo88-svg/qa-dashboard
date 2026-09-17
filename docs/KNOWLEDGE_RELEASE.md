@@ -23,3 +23,13 @@ Terms are in `src/knowledge/terms.json`. Never edit an already-published version
 T&C Management follows existing Manage Users and team scope. Guide editing follows Manage QA Rubric. Writes validate the existing central session and stored role. These modules use the project's existing Firestore access model; they do not change authentication or database security rules.
 
 Local verification: `npm run test:knowledge` uses isolated in-memory data, never production acceptance or signature records. Kanit font files and their OFL license are included in `public/fonts` so PDF exports do not depend on external font hosting.
+
+## Guide 2.0 and official PDF standard
+
+- The complete 38-chapter table of contents is readable by every account. Reading the guide never grants business permissions. Editing still requires the existing manager permission and optimistic revision check.
+- The selected chapter opens in the embedded PDF.js reader. It has page navigation, zoom, text selection, page search and a separate download link. Global search shows matches without removing the complete contents. Editing is above the reader.
+- Deadlines were checked against `getAppealDeadline`, `getSignatureWindow`, the per-role reset expiry, appeal overrides and payment status logic. The manual documents the next-month 10th appeal cutoff, 11th–15th signature window, 72-hour reset and LateSigned implications without promising a later payment cycle.
+- All generated jsPDF documents pass through the final Vite `official-pdf-standards` transform, including generators injected by earlier build patches. It embeds the four existing THSarabunNew faces, retains document-specific headings, and stamps the organization logo without reflowing historical signature grids. Comparison HTML captures and Coaching print exports wait for the same embedded Thai font. Uploaded third-party source PDFs are not rewritten.
+- Guide and acknowledgement PDFs have a formal logo/title header and page footer. T&C wording, version, immutable acceptance snapshots and signature records remain unchanged.
+- Guide figures are labelled schematic button instructions, not captured production screenshots. `python3 scripts/render-guide-figures.py` recreates them from the manual; the editor can replace them with authorized screenshots and position each image next to a step.
+- Every build checks the guide review manifest against source, dependencies, API and weather scene changes. The gate requires review; it does not automatically invent updated business rules.
