@@ -6721,7 +6721,6 @@ export default function App() {
       description: "ตั้งค่าบัญชีและออกจากระบบ",
       items: [
         { key: "change-password", label: "My Password", description: "เปลี่ยนรหัสผ่านของบัญชีตัวเอง", icon: "key", allowed: true, active: false, onClick: () => handleAccountMenuChange("change-password") },
-        { key: "terms", label: "Terms & Acknowledgements", description: "ประวัติการยอมรับและหลักฐาน PDF ของคุณ", icon: "signature", allowed: true, active: activeWorkspaceTab === "terms", onClick: () => activateWorkspaceTab("terms") },
         { key: "logout", label: "Sign Out", description: "ออกจากระบบ", icon: "logout", allowed: true, active: false, onClick: () => handleAccountMenuChange("logout"), danger: true },
       ],
     },
