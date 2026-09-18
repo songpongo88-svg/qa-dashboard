@@ -1,7 +1,7 @@
 import { WeatherCollection, WeatherSidebarLabel } from "./weather/Weather";
 import "./themePickerCollections.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
@@ -3338,7 +3338,7 @@ function ThemePickerModal({
 
   const refreshThemeUsage = useCallback(async () => {
     try {
-      const snapshot = await getDocs(collection(firebaseDb, "qa_user_profiles"));
+      const snapshot = await getDocs(firestoreCollection(firebaseDb, "qa_user_profiles"));
       const activeProfiles = snapshot.docs
         .map((item) => item.data())
         .filter((row: any) => String(row?.status || "Active") !== "Suspended");
