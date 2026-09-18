@@ -9,7 +9,7 @@ const clean = (value = "") => String(value)
   .replace(/^Krung Thep Maha Nakhon$/i, "Bangkok")
   .trim();
 
-const keyOf = (value = "") => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+const keyOf = (value = "") => clean(value).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 
 const component = (items, type) => {
   const row = items.find((item) => Array.isArray(item.types) && item.types.includes(type));
@@ -19,9 +19,9 @@ const component = (items, type) => {
 async function fromGoogle(lat, lon, key) {
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
   url.searchParams.set("latlng", `${lat},${lon}`);
-  url.searchParams.set("language", "en");
+  url.searchParams.set("language", "th");
   url.searchParams.set("key", key);
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(7000) });
   if (!response.ok) throw new Error("Google reverse geocoding failed");
   const payload = await response.json();
   const result = payload.results?.[0];
@@ -29,7 +29,7 @@ async function fromGoogle(lat, lon, key) {
   const c = result.address_components || [];
   const district = component(c, "sublocality_level_1") || component(c, "administrative_area_level_2") || component(c, "locality");
   const city = component(c, "locality") || component(c, "administrative_area_level_2") || component(c, "administrative_area_level_1");
-  const region = component(c, "administrative_area_level_1") || city || "Bangkok";
+  const region = component(c, "administrative_area_level_1") || city || "";
   return { district, city, region, source: "google" };
 }
 
@@ -40,25 +40,28 @@ async function fromOsm(lat, lon) {
   url.searchParams.set("lon", lon);
   url.searchParams.set("zoom", "14");
   url.searchParams.set("addressdetails", "1");
-  url.searchParams.set("accept-language", "en");
+  url.searchParams.set("accept-language", "th");
   const response = await fetch(url, {
     headers: {
       "Accept": "application/json",
       "User-Agent": "Robinhood-QA-Dashboard/1.0"
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(7000),
   });
   if (!response.ok) throw new Error("OSM reverse geocoding failed");
   const payload = await response.json();
   const a = payload.address || {};
   const district = clean(a.city_district || a.borough || a.district || a.municipality || a.county || a.suburb || "");
   const city = clean(a.city || a.town || a.municipality || a.state_district || a.state || a.province || "");
-  const region = clean(a.state || a.province || a.state_district || city || "Bangkok");
+  const region = clean(a.state || a.province || a.state_district || city || "");
   return { district, city, region, source: "osm" };
 }
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  res.setHeader("Cache-Control", "private, no-store");
+  if (!String(req.query.lat ?? "").trim() || !String(req.query.lon ?? "").trim()) return res.status(400).json({ error: "Invalid coordinates" });
   const lat = Number(req.query.lat);
   const lon = Number(req.query.lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
@@ -89,11 +92,12 @@ export default async function handler(req, res) {
       city = region && keyOf(region) !== keyOf(district) ? region : "";
     }
     if (district && region && keyOf(district) === keyOf(region)) region = "";
-    if (!city) city = region || "Bangkok";
+    if (!city) city = region || "";
     if (district && keyOf(district) === keyOf(city)) district = "";
 
+    if (!district && !city) throw new Error("Area name unavailable");
     const label = district ? `${district}, ${city}` : city;
-    res.setHeader("Cache-Control", "private, max-age=900");
+    res.setHeader("Cache-Control", "private, no-store");
     return res.status(200).json({ label, district, city, source: result.source });
   } catch (error) {
     return res.status(502).json({ error: error instanceof Error ? error.message : "Reverse geocoding failed" });

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-17T23:53:15.717Z",
-  "reason": "Reviewed all 38 chapters, Sarabun PDF reader and Weather; full build and regressions passed",
+  "reviewedAt": "2026-09-18T04:59:47.194Z",
+  "reason": "Reviewed automatic device location, permission fallback, session-only GPS data and modal picker",
   "contentChanged": true,
   "reviewedChapters": [
-    "all"
+    "weather"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
@@ -13,7 +13,7 @@
     ".github/workflows/build-diagnostics.yml": "c5390336bca39091333ba8911b51278309b088cffadbbb4b98b1a5e4c855fd51",
     ".github/workflows/daily-v13-excel-sync.yml": "b26e2be9ad8bb7b36ad13ae3a4a75e9a2bfb9623ddd1135c0f6ab77855fcb391",
     "api/google-drive-upload.js": "d8387ef78f0c4dd6a33e3d5b780d2c3dc091b905e0f34368198355725d677971",
-    "api/reverse-geocode.js": "ac28ec961c38ed2991ab0ba14506e1553b9639abb364e5b5b672ba9d95c3b259",
+    "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
     "build/adminNameUserProfilePatch.js": "69e5240ec63cb6a33c7febd3fef09d6e9f9811a8fc0e905bc7e48a5603955f8d",
@@ -278,7 +278,7 @@
     "scripts/test-knowledge.mjs": "edf7933d14e2137c42e97d77c2ff7ec0f363a0f0d1d666d1d54e3d4c7884ccca",
     "scripts/test-monthly-signature-pdf.mjs": "f2ef3b0ac88fef3750bc1cb3057c516ace822a54e3c15b7a504e1898f07b0bfb",
     "scripts/test-rich-text-toolbar.mjs": "9b0f6ec0c8b20ca9aaee87d7348ac3e6a2c9a8a5703236094ea6f4a3c9228cc6",
-    "scripts/test-weather.mjs": "d1cbfc8f79ff78f8851f41d7ec1ebec2fcf1b6cd1d534e9128246206b9b5af9a",
+    "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
     "src/App.tsx": "75453c789e7f7545a0cb5efcc047b9f732eb082c95e8fc6cbd33d96ef99e657f",
@@ -343,7 +343,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "835e452563e34f208edbd9c8ecbe2f7e2a4ce74f11ffd6cc8df6c2c71046d448",
-    "src/knowledge/manual.json": "65c13d56f1908f9ca0177ac94130d2830a51bc5638bed38378534a090c78ff31",
+    "src/knowledge/manual.json": "af1ccfb0c49dfc1a73e5fffcb2e65174a8efcf6eb882792ad44cf2b96371f992",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
@@ -386,10 +386,11 @@
     "src/usageLog.ts": "9560516d1a6e98c93fa3cafc67469d806c8f5525f3d69fbbe1efa4276627d127",
     "src/userRoleStore.ts": "8ce86433aa8ad29c345b7ec0a32b1bd8d0650293da2d54bac55272a00a4c265c",
     "src/usernamePolicyMigrationStore.ts": "4b25fe45aa4c758169b579b8aaebe1cb5106589540f953f09284426ccfa05d04",
-    "src/weather/Weather.tsx": "e16ede4e68493498a08af8d6e236a1e5ed44533940229345a0ebda622af8ceb4",
+    "src/weather/Weather.tsx": "3c07b6823318c635de56e6fcca30a510b01d9cae64b6a2987a6d11dc7bafdc71",
+    "src/weather/location.ts": "f18529e9e99fa8f60b00c22fd29a7e5a3912aca0d2cc75b9125acb574fd3eb62",
     "src/weather/model.mjs": "74a3e5a2b85e8def152301a285382a27f65fdd43efa2d25bfce120ff3414c4d8",
-    "src/weather/store.ts": "22ad7952bc0b6790e4f21030b4d3da996f272612f3ed28292dea931779847d85",
-    "src/weather/weather.css": "1b7592a0574228d0a0098edc79d08259ad26976c657fd6f92d3dbf4da26061c9",
+    "src/weather/store.ts": "0e5edc42cb732a2fda2fc8afaeafafa632a77e49fdbdcc985ec06f8d15f0ea26",
+    "src/weather/weather.css": "a147bcf63d39fc0f72e45205ca37ecfd8a63919476da9c079ca3b26aa75e1cb3",
     "src/weekdayCollection.mjs": "1daad7752fb1beab9e87d55d36fb9a3a7be7e4db3f973ee52c2609f1e5b96bb2",
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",

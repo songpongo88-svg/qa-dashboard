@@ -37,12 +37,16 @@ const dom=new JSDOM('<!doctype html><div id="root"></div>',{url:'https://weather
 for(const key of ['window','document','localStorage','CustomEvent','Event','HTMLElement','Node','HTMLInputElement'])globalThis[key]=dom.window[key];
 Object.defineProperty(globalThis,'navigator',{value:dom.window.navigator,configurable:true});
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-let gps=0;Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition(){gps++;}}});
+let modalOpens=0;
+dom.window.HTMLDialogElement.prototype.showModal=function(){modalOpens++;this.open=true;};
+dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
+let gps=0;Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition(ok,fail){gps++;fail({code:1});}}});
 let interval;const originalInterval=globalThis.setInterval;globalThis.setInterval=(callback)=>{interval=callback;return 1;};
+fs.mkdirSync(path.join(root,'node_modules/.cache'),{recursive:true});
 const tmp=fs.mkdtempSync(path.join(root,'node_modules/.cache/weather-test-'));
 let app;
 try {
- await build({stdin:{contents:'export * from "./src/weather/store.ts";export * from "./src/weather/Weather.tsx";',resolveDir:root,loader:'ts'},outfile:path.join(tmp,'bundle.cjs'),bundle:true,format:'cjs',platform:'node',packages:'external',loader:{'.css':'empty'},logLevel:'silent'});
+ await build({stdin:{contents:'export * from "./src/weather/location.ts";export * from "./src/weather/store.ts";export * from "./src/weather/Weather.tsx";',resolveDir:root,loader:'ts'},outfile:path.join(tmp,'bundle.cjs'),bundle:true,format:'cjs',platform:'node',packages:'external',loader:{'.css':'empty'},logLevel:'silent'});
  const require=createRequire(import.meta.url),k=require(path.join(tmp,'bundle.cjs')),React=require('react'),{createRoot}=require('react-dom/client'),act=React.act;
  const urls=[];let fail=false;
  globalThis.fetch=async(url)=>{urls.push(String(url)); if(fail)throw new Error('offline');return {ok:true,json:async()=>String(url).includes('weather-location')?{...city,source:'ip'}:{...payload,current:{...sample,time:Date.now()/1000}}};};
@@ -50,12 +54,21 @@ try {
  await act(async()=>app.render(React.createElement(React.Fragment,null,React.createElement(k.WeatherHero,{title:'QA Dashboard',eyebrow:'PERFORMANCE'}),React.createElement(k.WeatherCollection))));
  const settle=async predicate=>{for(let i=0;i<30&&!predicate();i++)await act(async()=>await new Promise(r=>setTimeout(r,5)));assert.ok(predicate());};
  await act(async()=>k.chooseWeather());await settle(()=>document.querySelector('.weather-current strong').textContent==='30°C');
- assert.equal(gps,0);assert.equal(document.querySelectorAll('.weather-info').length,1);assert.equal(document.querySelector('h1').textContent,'QA Dashboard');assert.ok(document.querySelector('.weather-metrics').textContent.includes('80%'));
+ assert.equal(gps,1);assert.equal(document.querySelectorAll('.weather-info').length,1);assert.equal(document.querySelector('h1').textContent,'QA Dashboard');assert.ok(document.querySelector('.weather-metrics').textContent.includes('80%'));
+ await act(async()=>document.querySelector('.weather-place button').click());assert.equal(modalOpens,1);assert.equal(document.querySelector('dialog').open,true);
+ await act(async()=>document.querySelector('dialog').dispatchEvent(new Event('cancel',{cancelable:true})));assert.equal(document.querySelector('dialog'),null);
  const requests=urls.length;await act(async()=>window.dispatchEvent(new Event('focus')));await act(async()=>interval());assert.equal(urls.length,requests,'focus/minute ticks do not refetch before expiry');
  await act(async()=>[...document.querySelectorAll('button')].find(button=>button.textContent==='ดู Night + Rain').click());assert.equal(document.documentElement.dataset.qaWeatherState,'weather-clear','preview does not change live state');
  assert.equal(document.querySelectorAll('.weather-scene-grid button').length,10);
  fail=true;await act(async()=>k.refreshWeather(true));assert.ok(document.querySelector('.weather-status').textContent.includes('แสดงข้อมูลล่าสุดที่มี'));assert.equal(document.querySelector('.weather-current strong').textContent,'30°C');
- await act(async()=>window.dispatchEvent(new CustomEvent('qa-appearance-change',{detail:{preference:'weekday-auto'}})));assert.equal(document.documentElement.dataset.qaWeatherCollection,undefined);assert.equal(gps,0);
+ await act(async()=>window.dispatchEvent(new CustomEvent('qa-appearance-change',{detail:{preference:'weekday-auto'}})));assert.equal(document.documentElement.dataset.qaWeatherCollection,undefined);assert.equal(gps,1);
+ const beforeGps=localStorage.getItem('qa-dashboard:weather-city-v1');
+ navigator.geolocation.getCurrentPosition=(ok)=>ok({coords:{latitude:13.77889,longitude:100.51234}});
+ globalThis.fetch=async url=>{assert.match(url,/reverse-geocode/);return {ok:true,json:async()=>({label:'เขตบางพลัด, กรุงเทพมหานคร'})};};
+ const located=await k.deviceCity(new AbortController().signal,true);assert.equal(located.label,'เขตบางพลัด, กรุงเทพมหานคร');assert.equal(located.source,'gps');assert.equal(located.latitude,13.78);assert.equal(localStorage.getItem('qa-dashboard:weather-city-v1'),beforeGps);
+ globalThis.fetch=async()=>{throw Error('offline');};const unnamed=await k.deviceCity(new AbortController().signal,true);assert.match(unnamed.label,/ยังระบุชื่อพื้นที่ไม่ได้/);assert.equal(unnamed.source,'gps');
+ const canceled=new AbortController();canceled.abort();assert.equal(await k.deviceCity(canceled.signal),null);
+ console.log('PASS: automatic permission fallback, device district lookup, naming failure, cancellation, no GPS persistence and modal dialog');
  console.log('PASS: real React hero/collection, temperature, rain chance, preview isolation, refresh deduplication, cached failure display and clean theme switching');
 }finally{if(app){const require=createRequire(import.meta.url);await require('react').act(async()=>app.unmount());}globalThis.setInterval=originalInterval;globalThis.fetch=originalFetch;dom.window.close();fs.rmSync(tmp,{recursive:true,force:true});}
 for (const [id] of WEATHER_STATES)assert.ok(fs.existsSync(path.join(root,'public/weather',id+'.webp')),id+' asset');

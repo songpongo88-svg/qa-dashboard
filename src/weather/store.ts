@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
+import { deviceCity } from './location';
 import { WEATHER_ID, WEATHER_KEY, normalizeForecast, sceneFor, sceneUrl } from './model.mjs';
 
-export type City = { label: string; latitude: number; longitude: number; source: 'ip' | 'manual' | 'fallback' };
+export type City = { label: string; latitude: number; longitude: number; source: 'ip' | 'manual' | 'fallback' | 'gps' };
 const CACHE = 'qa-dashboard:weather-v6', CITY = 'qa-dashboard:weather-city-v1', REFRESH = 30 * 60000;
 const listeners = new Set<() => void>();
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -35,16 +36,17 @@ async function json(url: string, signal: AbortSignal) {
 export async function refreshWeather(force = false) {
   if (!state.enabled || state.loading || (!force && Date.now() - lastAttempt < REFRESH)) return;
   const current = ++generation; controller?.abort(); controller = new AbortController(); const activeController = controller; const signal = activeController.signal;
-  const timeout = setTimeout(() => activeController.abort(), 18000);
+  const timeout = setTimeout(() => activeController.abort(), 30000);
   lastAttempt = Date.now(); emit({ loading: true, error: '' });
   try {
     let city = override;
+    if (!city) city = await deviceCity(signal);
     if (!city) { try { city = await json('/api/weather-location',signal); } catch (error) { if (signal.aborted) throw error; } }
     if (!validCity(city)) city = { label: 'กรุงเทพมหานคร', latitude: 13.75, longitude: 100.5, source: 'fallback' };
     const payload = await json(`/api/weather?lat=${city.latitude.toFixed(2)}&lon=${city.longitude.toFixed(2)}`,signal);
     const data = normalizeForecast(payload,city);
     if (current !== generation || !enabled()) return;
-    write(CACHE,JSON.stringify(data)); emit({ data, loading: false, now: Date.now() });
+    write(CACHE,city.source === 'gps' ? null : JSON.stringify(data)); emit({ data, loading: false, now: Date.now() });
   } catch {
     if (current === generation && enabled()) emit({ loading: false, error: 'อัปเดตอากาศยังไม่สำเร็จ' });
   } finally { clearTimeout(timeout); }
