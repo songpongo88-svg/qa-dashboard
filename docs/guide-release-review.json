@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-18T04:59:47.194Z",
-  "reason": "Reviewed automatic device location, permission fallback, session-only GPS data and modal picker",
+  "reviewedAt": "2026-09-18T05:13:54.161Z",
+  "reason": "Reviewed Color Collection previews, preserved eight palettes, selection and responsive controls",
   "contentChanged": true,
   "reviewedChapters": [
-    "weather"
+    "profile"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
@@ -281,7 +281,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "75453c789e7f7545a0cb5efcc047b9f732eb082c95e8fc6cbd33d96ef99e657f",
+    "src/App.tsx": "72a7beecf3740e594f6d9701be474bfe4ef07e6e5a959451e1c6ad5110c0d081",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
     "src/AppealRequestsMockup.tsx": "d663a847f8b15a3858bef905638e4a8b8c79f575dc2ea75b97f72eb8d08ad4a5",
@@ -343,7 +343,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "835e452563e34f208edbd9c8ecbe2f7e2a4ce74f11ffd6cc8df6c2c71046d448",
-    "src/knowledge/manual.json": "af1ccfb0c49dfc1a73e5fffcb2e65174a8efcf6eb882792ad44cf2b96371f992",
+    "src/knowledge/manual.json": "7ac9b727ba3d10fa252b7e8f134282a3c528f4dd6c10b736b6ddc9825d4cf491",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
@@ -382,7 +382,7 @@
     "src/signatureStore.ts": "c86d7cb05128410f4ffd2d842533253c008e0e09d512e54b310b568bd8e84dc4",
     "src/staticFileCache.ts": "3bc13a58d57dd8883a5ee26a503e66ec5a93808affbad61b708404a9381768ca",
     "src/stickyNoteStore.ts": "fb848e980df87ae2703d780c626af8021114f9526f36e53001af67e2fcd13e9d",
-    "src/themePickerCollections.css": "be4086635551d8c7f2b022d17fb6823b82ee54b61e20ac4f9af8649e7e882d01",
+    "src/themePickerCollections.css": "812442bbb62a1220a0defafa234637f4a574696282e5660344717f12e6003264",
     "src/usageLog.ts": "9560516d1a6e98c93fa3cafc67469d806c8f5525f3d69fbbe1efa4276627d127",
     "src/userRoleStore.ts": "8ce86433aa8ad29c345b7ec0a32b1bd8d0650293da2d54bac55272a00a4c265c",
     "src/usernamePolicyMigrationStore.ts": "4b25fe45aa4c758169b579b8aaebe1cb5106589540f953f09284426ccfa05d04",

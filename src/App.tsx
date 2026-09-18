@@ -3328,6 +3328,8 @@ function ThemePickerModal({
               <button
                 key={theme.id}
                 data-qa-theme-collection={theme.patternImage ? "character" : "color"}
+                data-qa-color-option={theme.patternImage ? undefined : theme.id}
+                style={theme.patternImage ? undefined : { "--color-accent": theme.swatches[0], "--color-deep": theme.swatches[1], "--color-highlight": theme.swatches[2] } as React.CSSProperties}
                 type="button"
                 onClick={() => onSelect(theme.id)}
                 aria-pressed={selected}
@@ -3337,7 +3339,8 @@ function ThemePickerModal({
                     : "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/50"
                 }`}
               >
-                <span className="relative flex min-w-[72px] shrink-0 items-center justify-center gap-1" aria-hidden="true">
+                <span className={`relative flex min-w-[72px] shrink-0 items-center justify-center gap-1 ${theme.patternImage ? "" : "qa-color-preview"}`} aria-hidden="true">
+                  {!theme.patternImage && <span className="qa-color-preview-window"><span className="qa-color-preview-sidebar" /><span className="qa-color-preview-content"><i className="qa-color-preview-heading" /><span><i /><i /></span><i className="qa-color-preview-action" /></span></span>}
                   {theme.patternImage ? (
                     <span
                       className="h-12 w-[72px] rounded-xl border border-white/80 bg-center shadow-sm"
@@ -3350,17 +3353,17 @@ function ThemePickerModal({
                   ) : theme.swatches.map((color, index) => (
                     <span
                       key={color}
-                      className={`${index === 1 ? "h-10 w-6" : "h-10 w-3"} rounded-full`}
+                      className={`qa-color-swatch ${index === 1 ? "h-10 w-6" : "h-10 w-3"} rounded-full`}
                       style={{ backgroundColor: color }}
                     />
                   ))}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-slate-900">
+                  <span className="qa-color-name block text-sm font-medium text-slate-900">
                     {theme.label}
                   </span>
                   <span className="mt-1 block text-xs font-normal text-slate-500">
-                    {selected ? "กำลังใช้งาน Theme นี้" : theme.description || "กดเพื่อเปลี่ยนทันที"}
+                    {selected ? "✓ กำลังใช้งาน" : theme.description || "ใช้โทนสีนี้"}
                   </span>
                 </span>
                 <span
