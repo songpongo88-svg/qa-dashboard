@@ -326,6 +326,7 @@ const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const PASSWORD_RECORD_KEY = "qa_password_records";
 const QA_THEME_STORAGE_KEY = "qa-dashboard:theme-v1";
 const QA_CUSTOM_THEME_STORAGE_KEY = "qa-dashboard:custom-theme-v1";
+const QA_THEME_USAGE_CACHE_KEY = "qa-dashboard:theme-usage-cache-v1";
 type QaThemeCollectionId = "color" | "character" | "festival" | "weekday" | "weather";
 const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "character", "festival", "weekday", "weather"];
 const QA_THEME_OPTIONS: QaThemeOption[] = [
@@ -404,6 +405,38 @@ function readStoredQaTheme(): QaThemeId {
     return "robinhood";
   }
 }
+type QaThemeUsagePercent = Record<QaThemeCollectionId, number>;
+
+function readThemeUsageCache(): QaThemeUsagePercent | null {
+  try {
+    const raw = window.localStorage.getItem(QA_THEME_USAGE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const values = parsed?.percent;
+    if (!values) return null;
+    return {
+      color: Number(values.color) || 0,
+      character: Number(values.character) || 0,
+      festival: Number(values.festival) || 0,
+      weekday: Number(values.weekday) || 0,
+      weather: Number(values.weather) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeThemeUsageCache(percent: QaThemeUsagePercent) {
+  try {
+    window.localStorage.setItem(
+      QA_THEME_USAGE_CACHE_KEY,
+      JSON.stringify({ percent, updatedAt: new Date().toISOString() })
+    );
+  } catch {
+    // Usage cache is optional; Firebase remains the source of truth.
+  }
+}
+
 function themeCollectionFromProfile(row: any): QaThemeCollectionId {
   const storedCollection = String(row?.themeCollection || row?.theme_collection || "").trim().toLowerCase();
   if (QA_THEME_COLLECTION_IDS.includes(storedCollection as QaThemeCollectionId)) {
@@ -3291,14 +3324,17 @@ function ThemePickerModal({
   const [collection, setCollection] = useState("color");
   const [customCollectionSelected, setCustomCollectionSelected] = useState(false);
   const [festivalOverride, setFestivalOverride] = useState(false);
-  const [themeUsagePercent, setThemeUsagePercent] = useState<Record<QaThemeCollectionId, number>>({
-    color: 0,
-    character: 0,
-    festival: 0,
-    weekday: 0,
-    weather: 0,
-  });
-  const [themeUsageReady, setThemeUsageReady] = useState(false);
+  const cachedThemeUsage = useMemo(() => readThemeUsageCache(), []);
+  const [themeUsagePercent, setThemeUsagePercent] = useState<QaThemeUsagePercent>(() =>
+    cachedThemeUsage || {
+      color: 0,
+      character: 0,
+      festival: 0,
+      weekday: 0,
+      weather: 0,
+    }
+  );
+  const [themeUsageReady, setThemeUsageReady] = useState(() => Boolean(cachedThemeUsage));
 
   const refreshThemeUsage = useCallback(async () => {
     try {
@@ -3317,17 +3353,19 @@ function ThemePickerModal({
       activeProfiles.forEach((row: any) => {
         counts[themeCollectionFromProfile(row)] += 1;
       });
-      setThemeUsagePercent({
+      const nextPercent: QaThemeUsagePercent = {
         color: total ? Math.round((counts.color / total) * 100) : 0,
         character: total ? Math.round((counts.character / total) * 100) : 0,
         festival: total ? Math.round((counts.festival / total) * 100) : 0,
         weekday: total ? Math.round((counts.weekday / total) * 100) : 0,
         weather: total ? Math.round((counts.weather / total) * 100) : 0,
-      });
+      };
+      setThemeUsagePercent(nextPercent);
+      writeThemeUsageCache(nextPercent);
       setThemeUsageReady(true);
     } catch (error) {
+      // Keep the last cached percentage visible. Do not show loading/error text in the picker.
       console.warn("Theme usage summary unavailable", error);
-      setThemeUsageReady(false);
     }
   }, []);
   useEffect(() => {
@@ -3430,11 +3468,11 @@ function ThemePickerModal({
             ))}
           </div>
         </div>
-        <div className="px-5 pt-3 text-right text-xs font-normal text-slate-500 sm:px-6">
-          {themeUsageReady
-            ? `ผู้ใช้งาน ${themeUsagePercent[collection as QaThemeCollectionId] ?? 0}% เลือกใช้ Collection นี้`
-            : "กำลังโหลดสัดส่วนผู้ใช้งาน..."}
-        </div>
+        {themeUsageReady ? (
+          <div className="px-5 pt-3 text-right text-xs font-normal text-slate-500 sm:px-6">
+            {`ผู้ใช้งาน ${themeUsagePercent[collection as QaThemeCollectionId] ?? 0}% เลือกใช้ Collection นี้`}
+          </div>
+        ) : null}
         <div id="qa-theme-collection-panel" role="tabpanel" aria-labelledby={`qa-collection-tab-${collection}`}
           data-qa-picker-collection={collection}
           className="qa-theme-collection-panel grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
