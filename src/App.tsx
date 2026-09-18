@@ -1,7 +1,7 @@
 import { WeatherCollection, WeatherSidebarLabel } from "./weather/Weather";
 import "./themePickerCollections.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
@@ -325,6 +325,9 @@ const REMEMBERED_USERNAME_KEY = "qa_remembered_username";
 const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const PASSWORD_RECORD_KEY = "qa_password_records";
 const QA_THEME_STORAGE_KEY = "qa-dashboard:theme-v1";
+const QA_CUSTOM_THEME_STORAGE_KEY = "qa-dashboard:custom-theme-v1";
+type QaThemeCollectionId = "color" | "character" | "festival" | "weekday" | "weather";
+const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "character", "festival", "weekday", "weather"];
 const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "robinhood", label: "Robinhood Purple", swatches: ["#7027a9", "#4c1d78", "#d946a8"] },
   { id: "pink", label: "Pink Blossom", swatches: ["#db2777", "#9d174d", "#fb72b6"] },
@@ -401,6 +404,66 @@ function readStoredQaTheme(): QaThemeId {
     return "robinhood";
   }
 }
+function themeCollectionFromProfile(row: any): QaThemeCollectionId {
+  const storedCollection = String(row?.themeCollection || row?.theme_collection || "").trim().toLowerCase();
+  if (QA_THEME_COLLECTION_IDS.includes(storedCollection as QaThemeCollectionId)) {
+    return storedCollection as QaThemeCollectionId;
+  }
+
+  const preference = String(row?.themePreference || row?.theme_preference || "").trim();
+  if (preference === "weather-auto") return "weather";
+  if (preference === "weekday-auto" || /^weekday-/.test(preference)) return "weekday";
+
+  const themeId = String(row?.themeId || row?.theme_id || "robinhood") as QaThemeId;
+  return QA_THEME_OPTIONS.find((theme) => theme.id === themeId)?.patternImage ? "character" : "color";
+}
+
+function getCurrentThemePreferenceSnapshot(themeId: QaThemeId) {
+  let customPreference = "";
+  try {
+    customPreference = window.localStorage.getItem(QA_CUSTOM_THEME_STORAGE_KEY) || "";
+  } catch {
+    customPreference = "";
+  }
+
+  const root = document.documentElement;
+  const collection: QaThemeCollectionId =
+    root.dataset.qaWeatherCollection === "auto"
+      ? "weather"
+      : Boolean(root.dataset.qaFestivalOverride)
+        ? "festival"
+        : root.dataset.qaWeekdayCollection === "auto"
+          ? "weekday"
+          : QA_THEME_OPTIONS.find((theme) => theme.id === themeId)?.patternImage
+            ? "character"
+            : "color";
+
+  return {
+    themeId,
+    themePreference: customPreference,
+    themeCollection: collection,
+  };
+}
+
+async function persistUserThemePreference(
+  username: string,
+  snapshot: ReturnType<typeof getCurrentThemePreferenceSnapshot>
+) {
+  const safeUsername = String(username || "").trim();
+  if (!safeUsername) return;
+  await setDoc(
+    doc(firebaseDb, "qa_user_profiles", safeUsername),
+    {
+      themeId: snapshot.themeId,
+      themePreference: snapshot.themePreference,
+      themeCollection: snapshot.themeCollection,
+      themeUpdatedAt: new Date().toISOString(),
+      themeUpdatedAtServer: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
 const VALID_APP_TABS = new Set<AppTab>([
   "dashboard",
   "appeal",
@@ -3228,6 +3291,55 @@ function ThemePickerModal({
   const [collection, setCollection] = useState("color");
   const [customCollectionSelected, setCustomCollectionSelected] = useState(false);
   const [festivalOverride, setFestivalOverride] = useState(false);
+  const [themeUsagePercent, setThemeUsagePercent] = useState<Record<QaThemeCollectionId, number>>({
+    color: 0,
+    character: 0,
+    festival: 0,
+    weekday: 0,
+    weather: 0,
+  });
+  const [themeUsageReady, setThemeUsageReady] = useState(false);
+
+  const refreshThemeUsage = useCallback(async () => {
+    try {
+      const snapshot = await getDocs(collection(firebaseDb, "qa_user_profiles"));
+      const activeProfiles = snapshot.docs
+        .map((item) => item.data())
+        .filter((row: any) => String(row?.status || "Active") !== "Suspended");
+      const total = activeProfiles.length;
+      const counts: Record<QaThemeCollectionId, number> = {
+        color: 0,
+        character: 0,
+        festival: 0,
+        weekday: 0,
+        weather: 0,
+      };
+      activeProfiles.forEach((row: any) => {
+        counts[themeCollectionFromProfile(row)] += 1;
+      });
+      setThemeUsagePercent({
+        color: total ? Math.round((counts.color / total) * 100) : 0,
+        character: total ? Math.round((counts.character / total) * 100) : 0,
+        festival: total ? Math.round((counts.festival / total) * 100) : 0,
+        weekday: total ? Math.round((counts.weekday / total) * 100) : 0,
+        weather: total ? Math.round((counts.weather / total) * 100) : 0,
+      });
+      setThemeUsageReady(true);
+    } catch (error) {
+      console.warn("Theme usage summary unavailable", error);
+      setThemeUsageReady(false);
+    }
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    void refreshThemeUsage();
+    const handleThemeUsageUpdated = () => {
+      window.setTimeout(() => void refreshThemeUsage(), 120);
+    };
+    window.addEventListener("qa-theme-usage-updated", handleThemeUsageUpdated);
+    return () => window.removeEventListener("qa-theme-usage-updated", handleThemeUsageUpdated);
+  }, [open, refreshThemeUsage]);
+
   useEffect(() => {
     if (!open) return;
     const sync = () => {
@@ -3318,6 +3430,11 @@ function ThemePickerModal({
             ))}
           </div>
         </div>
+        <div className="px-5 pt-3 text-right text-xs font-normal text-slate-500 sm:px-6">
+          {themeUsageReady
+            ? `ผู้ใช้งาน ${themeUsagePercent[collection as QaThemeCollectionId] ?? 0}% เลือกใช้ Collection นี้`
+            : "กำลังโหลดสัดส่วนผู้ใช้งาน..."}
+        </div>
         <div id="qa-theme-collection-panel" role="tabpanel" aria-labelledby={`qa-collection-tab-${collection}`}
           data-qa-picker-collection={collection}
           className="qa-theme-collection-panel grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
@@ -3380,7 +3497,7 @@ function ThemePickerModal({
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs font-normal text-slate-500 sm:px-6">
-          <span>ระบบจะจำ Theme นี้ไว้ในอุปกรณ์โดยอัตโนมัติ</span>
+          <span>ระบบจะจำ Theme ตามบัญชีผู้ใช้และอุปกรณ์โดยอัตโนมัติ</span>
           <button type="button" onClick={onClose} className="rounded-xl bg-slate-900 px-4 py-2 font-medium text-white transition hover:bg-violet-800">
             เสร็จแล้ว
           </button>
@@ -3457,6 +3574,100 @@ export default function App() {
       // Theme still applies for the current session when storage is unavailable.
     }
   }, [selectedTheme]);
+
+  const lastThemePreferenceSignatureRef = useRef("");
+
+  useEffect(() => {
+    if (!currentUser?.username) return;
+    let cancelled = false;
+
+    const restoreUserThemePreference = async () => {
+      try {
+        const profileSnapshot = await getDoc(doc(firebaseDb, "qa_user_profiles", currentUser.username));
+        if (cancelled) return;
+
+        if (profileSnapshot.exists()) {
+          const profile = profileSnapshot.data() as any;
+          const storedThemeId = String(profile.themeId || profile.theme_id || "");
+          const storedPreference = String(profile.themePreference || profile.theme_preference || "");
+          const hasStoredTheme = QA_THEME_OPTIONS.some((theme) => theme.id === storedThemeId);
+
+          if (hasStoredTheme) {
+            setSelectedTheme(storedThemeId as QaThemeId);
+          }
+
+          try {
+            if (storedPreference === "weather-auto" || storedPreference === "weekday-auto" || /^weekday-/.test(storedPreference)) {
+              window.localStorage.setItem(QA_CUSTOM_THEME_STORAGE_KEY, storedPreference);
+            } else if (hasStoredTheme) {
+              window.localStorage.removeItem(QA_CUSTOM_THEME_STORAGE_KEY);
+            }
+          } catch {
+            // Keep the current session preference if storage is unavailable.
+          }
+
+          if (hasStoredTheme || storedPreference) {
+            const signature = [
+              currentUser.username,
+              hasStoredTheme ? storedThemeId : selectedTheme,
+              storedPreference,
+              themeCollectionFromProfile(profile),
+            ].join("|");
+            lastThemePreferenceSignatureRef.current = signature;
+            window.dispatchEvent(new CustomEvent("qa-appearance-change", {
+              detail: { preference: storedPreference || storedThemeId, restoredForUser: true },
+            }));
+            return;
+          }
+        }
+
+        const initialSnapshot = getCurrentThemePreferenceSnapshot(selectedTheme);
+        await persistUserThemePreference(currentUser.username, initialSnapshot);
+        if (cancelled) return;
+        lastThemePreferenceSignatureRef.current = [
+          currentUser.username,
+          initialSnapshot.themeId,
+          initialSnapshot.themePreference,
+          initialSnapshot.themeCollection,
+        ].join("|");
+        window.dispatchEvent(new Event("qa-theme-usage-updated"));
+      } catch (error) {
+        console.warn("User theme preference restore skipped", error);
+      }
+    };
+
+    void restoreUserThemePreference();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.username]);
+
+  useEffect(() => {
+    if (!currentUser?.username) return;
+
+    const syncThemePreferenceToUser = () => {
+      window.setTimeout(() => {
+        const snapshot = getCurrentThemePreferenceSnapshot(selectedTheme);
+        const signature = [
+          currentUser.username,
+          snapshot.themeId,
+          snapshot.themePreference,
+          snapshot.themeCollection,
+        ].join("|");
+        if (lastThemePreferenceSignatureRef.current === signature) return;
+        lastThemePreferenceSignatureRef.current = signature;
+        void persistUserThemePreference(currentUser.username, snapshot)
+          .then(() => window.dispatchEvent(new Event("qa-theme-usage-updated")))
+          .catch((error) => {
+            lastThemePreferenceSignatureRef.current = "";
+            console.warn("User theme preference save skipped", error);
+          });
+      }, 0);
+    };
+
+    window.addEventListener("qa-appearance-change", syncThemePreferenceToUser);
+    return () => window.removeEventListener("qa-appearance-change", syncThemePreferenceToUser);
+  }, [currentUser?.username, selectedTheme]);
 
   // data-create-evaluation-multitab-v5
   const [maintenanceState, setMaintenanceState] = useState<MaintenanceState>(DEFAULT_MAINTENANCE_STATE);
