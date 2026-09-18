@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-18T07:01:00.000Z",
-  "reason": "Reviewed Gregorian DD/MM/YYYY formatting in Signature case preview table and popup; no guide content change required",
+  "reviewedAt": "2026-09-18T07:36:30.000Z",
+  "reason": "Reviewed Process Reference report text cleanup; removes only the automatic item prefix and does not change user guide workflow",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -241,8 +241,8 @@
     "scripts/patch-process-library-v65.mjs": "e39145978184666fb41287da7f7b4e22508be85264bd49032957203e00d63083",
     "scripts/patch-process-multifile-v84.mjs": "f22f4114ccd98e3b3c2d33fbe7a2e35869454719514196a5cb5140d61e10c758",
     "scripts/patch-process-no-support-v86.mjs": "32d4be09d159233ec1c06aecb5c5753cb822f40d0a2a1221cc324dec8e84986f",
-    "scripts/patch-process-note-pdf-runtime-v89.mjs": "b99ef305609c525a7fd5f0fd2c269a6c577d10c35cd192bf34af7bdc5cdc9856",
-    "scripts/patch-process-pdf-parity-v84.mjs": "32fec07faf79602037fedae7a9798d5a8fb29e123b7a76e8a3c51426ba884ae5",
+    "scripts/patch-process-note-pdf-runtime-v89.mjs": "797c63dbcc3601151cca71a7d89aeee4cf4439799db49809b6c03107db180518",
+    "scripts/patch-process-pdf-parity-v84.mjs": "e3f851c363adf1437a3be32ab402c17cd788f255fd119f560ed6012c6506ac02",
     "scripts/patch-process-reference-case-title-repair-v81.mjs": "09ebb3996f09552edde5f167f8875e239964a87ade860dcaad1c9ed75ea45614",
     "scripts/patch-process-reference-picker-preview-v80.mjs": "0f05bea4a88260c208127140aae740381a1fab6eccc24458fba26e26aa407468",
     "scripts/patch-process-reference-timezone-v79.mjs": "dfba2ac8bb2c3c463bbfe78b6b7cd63d62127b8fa2698f283aa6318cb8b0465a",
@@ -393,6 +393,7 @@
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
-    "vite.config.js": "55cc4ed3321d625492cd44fc9a6e5a56cf38c8eaf55ece79e2ffba388c8c3a08"
+    "vite.config.js": "7bf3ce183b0ae9b5ace73d2a78a3b5b13fa6497016fc023dcec49f57c13308e5",
+    "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242"
   }
 }
