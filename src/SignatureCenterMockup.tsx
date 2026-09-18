@@ -417,6 +417,15 @@ function parseExcelDate(value: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function formatSignatureAuditDate(value: unknown) {
+  const date = parseExcelDate(value);
+  if (!date) return normalizeText(value) || "-";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const buddhistYear = date.getFullYear() + 543;
+  return `${day}/${month}/${buddhistYear}`;
+}
+
 function getSignatureCaseAuditSortTime(item: SignatureCaseDetail) {
   const date = parseExcelDate(item.auditDate);
   return date ? date.getTime() : Number.MAX_SAFE_INTEGER;
@@ -6088,7 +6097,7 @@ export default function SignatureCenterMockup({
                               </td>
 
                               <td className="whitespace-nowrap px-3 py-2.5 text-center align-middle text-xs font-normal text-slate-500">
-                                {item.auditDate}
+                                {formatSignatureAuditDate(item.auditDate)}
                               </td>
 
                               <td className="px-3 py-2.5 align-middle">
@@ -6415,7 +6424,7 @@ export default function SignatureCenterMockup({
             <div className="p-5">
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
-                  ["วันที่", previewCase.auditDate || "-"],
+                  ["วันที่", formatSignatureAuditDate(previewCase.auditDate)],
                   ["คะแนน", previewCase.finalScore.toFixed(2)],
                   ["Grade", previewCase.grade || "-"],
                 ].map(([label, value]) => (
