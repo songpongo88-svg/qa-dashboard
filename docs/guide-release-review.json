@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-18T06:58:30.000Z",
-  "reason": "Reviewed DD/MM/YYYY Buddhist-year formatting in Signature case preview table and popup; no guide content change required",
+  "reviewedAt": "2026-09-18T07:01:00.000Z",
+  "reason": "Reviewed Gregorian DD/MM/YYYY formatting in Signature case preview table and popup; no guide content change required",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -305,7 +305,7 @@
     "src/QaTypingChallengeWorkspace.tsx": "0ab378e90ef6484ba5b77e4a42c25acf61d149a688f6c2889e9c3554e5cd724b",
     "src/QaTypingGate.tsx": "b6ca32a92ebc9756385c3f570c82963794a086f443f2e6549b65e7aaac039dfe",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
-    "src/SignatureCenterMockup.tsx": "e1a6a35df6db800ef7c0b22cdad4e3a6ba4dffbb520d5266915cde8b61dec54a",
+    "src/SignatureCenterMockup.tsx": "6fd5d0594f26692dddb0f094b63d1c57a007f638bd74f14d4d0a15560ed70334",
     "src/SummaryMockup.tsx": "a5071cf630f451daeb5a6530519d0d669babbfc8bf0858490b85964304f8ab52",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
