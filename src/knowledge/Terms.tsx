@@ -84,6 +84,27 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
     finally { setBusy(false); }
   };
   if (state === "accepted") return <>{children}</>;
+  if (state === "loading") {
+    return (
+      <main
+        role="status"
+        aria-busy="true"
+        aria-label="กำลังโหลด QA Dashboard"
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          background: "#f8fafc",
+          color: "#64748b",
+          fontFamily: '"Kanit", ui-sans-serif, system-ui, sans-serif',
+          fontSize: "14px",
+          fontWeight: 600,
+        }}
+      >
+        กำลังโหลด QA Dashboard…
+      </main>
+    );
+  }
   return <main className="knowledge terms-gate" data-testid="terms-gate" aria-busy={busy} data-saving={busy || undefined}>
     <div className="terms-gate-card">
       <header className="knowledge-header">
@@ -94,7 +115,7 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
         </div>
       </header>
       <p className="knowledge-identity">{user.displayName} <span>· {user.role}</span></p>
-      {state === "loading" ? <div className="knowledge-empty" role="status">กำลังตรวจสอบประวัติการยอมรับ…</div> : state === "error" ? <div className="knowledge-empty">
+      {state === "error" ? <div className="knowledge-empty">
         <p role="alert">ตรวจสอบสถานะยังไม่สำเร็จ: {error}</p>
         <button className="knowledge-primary" onClick={() => setAttempt((value) => value + 1)}>ลองอีกครั้ง</button>
       </div> : <>
