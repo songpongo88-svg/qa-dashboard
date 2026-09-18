@@ -422,8 +422,8 @@ function formatSignatureAuditDate(value: unknown) {
   if (!date) return normalizeText(value) || "-";
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
-  const buddhistYear = date.getFullYear() + 543;
-  return `${day}/${month}/${buddhistYear}`;
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function getSignatureCaseAuditSortTime(item: SignatureCaseDetail) {
