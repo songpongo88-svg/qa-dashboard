@@ -226,6 +226,29 @@ function normalizeText(value: unknown) {
     .trim();
 }
 
+function formatSignatureCaseComment(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  return raw
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(div|p|li|tr|h[1-6])\s*>/gi, "\n")
+    .replace(/<li(?:\s[^>]*)?>/gi, "• ")
+    .replace(/<(div|p|tr|h[1-6])(?:\s[^>]*)?>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function splitSignatureIntent(value: unknown) {
   const fullText = normalizeText(value);
   if (!fullText || !fullText.endsWith(")")) {
@@ -6421,7 +6444,7 @@ export default function SignatureCenterMockup({
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="text-xs font-medium text-slate-500">Comment / รายละเอียดสรุป</div>
                 <div className="mt-2 whitespace-pre-wrap text-sm font-normal leading-7 text-slate-700">
-                  {previewCase.comment || "-"}
+                  {formatSignatureCaseComment(previewCase.comment) || "-"}
                 </div>
               </div>
 
