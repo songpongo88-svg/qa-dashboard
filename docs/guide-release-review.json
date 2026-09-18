@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-18T05:13:54.161Z",
-  "reason": "Reviewed Color Collection previews, preserved eight palettes, selection and responsive controls",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "profile"
-  ],
+  "reviewedAt": "2026-09-18T06:24:15.630Z",
+  "reason": "Verified code-only T&C loading and navigation cleanup",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -281,7 +279,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "72a7beecf3740e594f6d9701be474bfe4ef07e6e5a959451e1c6ad5110c0d081",
+    "src/App.tsx": "78ff303d15926b9edfb5b403ba8e227426501cfc30332676e55159037b853287",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
     "src/AppealRequestsMockup.tsx": "d663a847f8b15a3858bef905638e4a8b8c79f575dc2ea75b97f72eb8d08ad4a5",
@@ -338,7 +336,7 @@
     "src/firebaseClient.ts": "860d60f9e7ae95dabc407bc6fefddfce1409edf493d01d6e9194287d7c27bd75",
     "src/index.css": "bef1080a551bb63a4444810010d29f54a41e48be11a7af80dbc97c297b79b0ba",
     "src/knowledge/PdfReader.tsx": "eeef5fda3c22a96bd1497b193a833fa65727e5232046e14751b3e29bd4effeb9",
-    "src/knowledge/Terms.tsx": "14d4daabcaf1ca75ef6cebf9d739b8eea943ac1183f56e0dc794b3fe9ddefa12",
+    "src/knowledge/Terms.tsx": "f960b65da5e6234e51e0c31f074c6d5e388c53071fe6e1a93366c9a191685e8e",
     "src/knowledge/UserGuide.tsx": "791e93b6ffc0df6bb1acc6b82d451742169c7b97b27354e4e43c8e013272b653",
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
