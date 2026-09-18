@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-18T08:05:00.000Z",
-  "reason": "Reviewed per-user Theme persistence and Collection usage percentage text in Appearance; no user guide content change required",
+  "reviewedAt": "2026-09-18T08:12:00.000Z",
+  "reason": "Reviewed silent cached Theme usage percentage loading in Appearance; no user guide content change required",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -279,7 +279,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "1f1e9d9c691b96a823729b18ff6e7103fa81cfb8d15cd82324f3a02ebbf40dfa",
+    "src/App.tsx": "bb8df44c7a36e75742a2df682faaea2af3f9086c895604c5e1997d5eb5d35c7f",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
     "src/AppealRequestsMockup.tsx": "d663a847f8b15a3858bef905638e4a8b8c79f575dc2ea75b97f72eb8d08ad4a5",
