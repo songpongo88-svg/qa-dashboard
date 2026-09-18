@@ -48,7 +48,7 @@ function formatProcessReferenceForPdfV84(value: unknown) {
     }
     if (ref.slide) lines.push("Slide: " + ref.slide);
     const displayTitle = ref.step && ref.step !== "ทั้งสไลด์" ? ref.step : ref.title;
-    if (displayTitle) lines.push("ข้อ: " + displayTitle);
+    if (displayTitle) lines.push(displayTitle);
     if (ref.step && ref.step !== "ทั้งสไลด์" && ref.title && ref.step !== ref.title && !/^Slide\s+\d+$/i.test(ref.title)) {
       lines.push("ชื่อเดิมในไฟล์: " + ref.title);
     }
