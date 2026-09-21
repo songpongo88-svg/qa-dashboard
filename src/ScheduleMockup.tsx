@@ -1197,10 +1197,26 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
           )}
 
           {month ? (
-            <div className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500">
-              Last update: {month.updatedAtIso ? new Date(month.updatedAtIso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "—"} · {month.updatedBy || "—"}
-              {canManage ? " · คลิกช่องวันที่เพื่อแก้ไขกะ/OT" : ""}
-            </div>
+            <>
+              <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3">
+                <div className="text-[11px] font-bold text-slate-700">Note · Summary Abbreviations</div>
+                <div className="mt-2 grid gap-x-5 gap-y-1.5 text-[10px] leading-5 text-slate-600 sm:grid-cols-2 xl:grid-cols-3">
+                  <div><span className="font-black text-red-600">BL</span> — Birthday Leave <span className="text-slate-500">(วันลาหยุดในวันเกิด)</span></div>
+                  <div><span className="font-black text-red-600">AL</span> — Annual Leave <span className="text-slate-500">(ลาพักร้อนประจำปี)</span></div>
+                  <div><span className="font-black text-red-600">SL</span> — Sick Leave <span className="text-slate-500">(ลาป่วย)</span></div>
+                  <div><span className="font-black text-red-600">PL</span> — Personal Leave <span className="text-slate-500">(ลากิจ)</span></div>
+                  <div><span className="font-black text-red-600">LW</span> — Leave Without Pay <span className="text-slate-500">(ลาไม่รับค่าจ้าง)</span></div>
+                  <div><span className="font-black text-red-600">AB</span> — Absent <span className="text-slate-500">(ขาดงาน)</span></div>
+                  <div><span className="font-black text-slate-800">TDO</span> — Total Days Off <span className="text-slate-500">(จำนวนวันหยุดรวมทั้งหมด)</span></div>
+                  <div><span className="font-black text-slate-800">TWD</span> — Total Working Days <span className="text-slate-500">(จำนวนวันทำงานจริงรวมทั้งหมด)</span></div>
+                  <div><span className="font-black text-slate-800">TD</span> — Total Days <span className="text-slate-500">(จำนวนวันทั้งหมดของเดือน)</span></div>
+                </div>
+              </div>
+              <div className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500">
+                Last update: {month.updatedAtIso ? new Date(month.updatedAtIso).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "—"} · {month.updatedBy || "—"}
+                {canManage ? " · คลิกช่องวันที่เพื่อแก้ไขกะ/OT" : ""}
+              </div>
+            </>
           ) : null}
         </section>
       </div>
