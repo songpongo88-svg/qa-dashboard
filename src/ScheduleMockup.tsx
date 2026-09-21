@@ -310,8 +310,8 @@ function entryTone(entry: ShiftScheduleEntry | null) {
   if (!entry) return "border-slate-200 bg-slate-50 text-slate-500";
   if (isWfhEntry(entry)) return "border-pink-300 bg-pink-200 text-pink-950";
   if (entry.status === "OFF") return "border-emerald-300 bg-emerald-100 text-emerald-700";
-  if (["BL", "AL", "SL", "PL", "LW"].includes(entry.status)) return "border-amber-500 bg-amber-400 text-white";
-  if (entry.status === "AB") return "border-yellow-300 bg-yellow-200 text-red-600";
+  if (["BL", "AL", "SL", "PL", "LW"].includes(entry.status)) return "border-yellow-400 bg-yellow-300 text-red-600";
+  if (entry.status === "AB") return "border-red-600 bg-red-500 text-white";
   if (entry.status) return "border-amber-200 bg-amber-50 text-amber-800";
   return "border-slate-200 bg-white text-slate-800";
 }
@@ -385,6 +385,9 @@ export function ScheduleSidebarCard({
 export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const today = useMemo(() => bangkokToday(), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const scrollSyncRef = useRef<"top" | "table" | null>(null);
   const [months, setMonths] = useState<ShiftScheduleMonth[]>([]);
   const [selectedMonthKey, setSelectedMonthKey] = useState(today.monthKey);
   const [month, setMonth] = useState<ShiftScheduleMonth | null>(null);
@@ -476,6 +479,20 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     const match = selectedMonthKey.match(/^(\d{4})-(\d{2})$/);
     return match ? new Date(Number(match[1]), Number(match[2]), 0).getDate() : 31;
   }, [selectedMonthKey]);
+
+  const scheduleTableMinWidth = 286 + daysInMonth * 118;
+
+  const syncHorizontalScroll = (source: "top" | "table") => {
+    if (scrollSyncRef.current && scrollSyncRef.current !== source) return;
+    const from = source === "top" ? topScrollRef.current : tableScrollRef.current;
+    const to = source === "top" ? tableScrollRef.current : topScrollRef.current;
+    if (!from || !to) return;
+    scrollSyncRef.current = source;
+    to.scrollLeft = from.scrollLeft;
+    window.requestAnimationFrame(() => {
+      scrollSyncRef.current = null;
+    });
+  };
 
   const handleFile = async (file: File) => {
     setMessage("");
@@ -667,68 +684,76 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               <div className="mt-2 text-sm text-slate-500">อัปโหลดไฟล์ Excel แล้วเลือกชีตของเดือนนี้เพื่อเพิ่มข้อมูล</div>
             </div>
           ) : (
-            <div className="overflow-auto">
-              <table className="min-w-max border-collapse text-xs">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-slate-950 text-white">
-                    <th className="sticky left-0 z-30 min-w-[112px] border-r border-slate-700 bg-slate-950 px-3 py-3 text-left">Employee ID</th>
-                    <th className="sticky left-[112px] z-30 min-w-[220px] border-r border-slate-700 bg-slate-950 px-3 py-3 text-left">Full Name</th>
-                    <th className="sticky left-[332px] z-30 min-w-[110px] border-r border-slate-700 bg-slate-950 px-3 py-3 text-left">Nickname</th>
-                    {Array.from({ length: daysInMonth }, (_, index) => {
-                      const day = index + 1;
-                      const isToday = selectedMonthKey === today.monthKey && day === today.day;
-                      return <th key={day} className={`min-w-[118px] border-r border-slate-700 px-2 py-3 text-center ${isToday ? "bg-violet-700" : ""}`}>{day}</th>;
-                    })}
-                  </tr>
-                </thead>
-                {peopleBySection.map(([section, sectionPeople]) => (
-                  <tbody key={section}>
-                    <tr>
-                      <td
-                        colSpan={daysInMonth + 3}
-                        className="border-b border-violet-300 bg-violet-100 px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.08em] text-violet-900"
-                      >
-                        {section}
-                      </td>
+            <div className="relative">
+              <div
+                ref={topScrollRef}
+                onScroll={() => syncHorizontalScroll("top")}
+                className="sticky top-0 z-30 overflow-x-auto overflow-y-hidden border-b border-slate-200 bg-white/95"
+                aria-label="เลื่อนตารางกะซ้ายขวา"
+              >
+                <div style={{ width: scheduleTableMinWidth, height: 14 }} />
+              </div>
+              <div
+                ref={tableScrollRef}
+                onScroll={() => syncHorizontalScroll("table")}
+                className="max-h-[68vh] overflow-auto"
+              >
+                <table className="min-w-max border-collapse text-xs" style={{ minWidth: scheduleTableMinWidth }}>
+                  <thead className="sticky top-0 z-20">
+                    <tr className="bg-slate-950 text-white">
+                      <th className="sticky left-0 z-30 min-w-[286px] border-r-2 border-violet-300 bg-slate-950 px-3 py-3 text-left shadow-[8px_0_12px_-8px_rgba(15,23,42,0.65)]">Agent</th>
+                      {Array.from({ length: daysInMonth }, (_, index) => {
+                        const day = index + 1;
+                        const isToday = selectedMonthKey === today.monthKey && day === today.day;
+                        return <th key={day} className={`min-w-[118px] border-r border-slate-700 px-2 py-3 text-center ${isToday ? "bg-violet-700" : ""}`}>{day}</th>;
+                      })}
                     </tr>
-                    {sectionPeople.map((person, personIndex) => (
-                      <tr key={person.agentName} className={personIndex % 2 ? "bg-slate-50/60" : "bg-white"}>
-                        <td className="sticky left-0 z-[6] border-b border-r border-slate-200 bg-inherit px-3 py-2 font-semibold text-slate-700">
-                          {person.employeeId || "—"}
+                  </thead>
+                  {peopleBySection.map(([section, sectionPeople]) => (
+                    <tbody key={section}>
+                      <tr>
+                        <td
+                          colSpan={daysInMonth + 1}
+                          className="border-b border-violet-300 bg-violet-100 px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.08em] text-violet-900"
+                        >
+                          {section}
                         </td>
-                        <td className="sticky left-[112px] z-[6] border-b border-r border-slate-200 bg-inherit px-3 py-2">
-                          <div className="font-semibold text-slate-900">{person.agentName}</div>
-                        </td>
-                        <td className="sticky left-[332px] z-[6] border-b border-r border-slate-200 bg-inherit px-3 py-2 text-slate-600">
-                          {person.nickname || "—"}
-                        </td>
-                        {Array.from({ length: daysInMonth }, (_, index) => {
-                          const day = index + 1;
-                          const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
-                          const entry = entriesByPersonDate.get(`${normalizeScheduleName(person.agentName)}|${date}`) || null;
-                          const isToday = selectedMonthKey === today.monthKey && day === today.day;
-                          return (
-                            <td key={date} className={`border-b border-r border-slate-200 p-1.5 text-center ${isToday ? "bg-violet-50" : ""}`}>
-                              <button
-                                type="button"
-                                disabled={!entry || !canManage}
-                                onClick={() => entry && openEdit(entry)}
-                                title={entry?.note || entry?.otText || entryLabel(entry)}
-                                className={`relative min-h-[54px] w-full rounded-lg border px-2 py-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
-                                style={entryStyle(entry)}
-                              >
-                                <span className="block whitespace-nowrap">{entryLabel(entry).replace("–", "-")}</span>
-                                {isWfhEntry(entry) ? <span className="mt-0.5 block text-[9px] font-black uppercase tracking-wide text-pink-800">WFH</span> : null}
-                                {entry?.otText ? <span className="mt-0.5 block whitespace-nowrap font-black text-rose-600">{formatOtLabel(entry.otText)}</span> : null}
-                              </button>
-                            </td>
-                          );
-                        })}
                       </tr>
-                    ))}
-                  </tbody>
-                ))}
-              </table>
+                      {sectionPeople.map((person, personIndex) => (
+                        <tr key={person.agentName} className={personIndex % 2 ? "bg-slate-50/60" : "bg-white"}>
+                          <td className="sticky left-0 z-[8] min-w-[286px] border-b border-r-2 border-violet-200 bg-inherit px-3 py-2 shadow-[8px_0_12px_-8px_rgba(100,116,139,0.55)]">
+                            <div className="text-[9px] font-bold uppercase tracking-[0.08em] text-violet-600">{person.employeeId || "—"}</div>
+                            <div className="mt-0.5 font-semibold text-slate-900">{person.agentName}</div>
+                            <div className="mt-0.5 text-[10px] text-slate-500">{person.nickname || "—"}</div>
+                          </td>
+                          {Array.from({ length: daysInMonth }, (_, index) => {
+                            const day = index + 1;
+                            const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
+                            const entry = entriesByPersonDate.get(`${normalizeScheduleName(person.agentName)}|${date}`) || null;
+                            const isToday = selectedMonthKey === today.monthKey && day === today.day;
+                            return (
+                              <td key={date} className={`border-b border-r border-slate-200 p-1.5 text-center ${isToday ? "bg-violet-50" : ""}`}>
+                                <button
+                                  type="button"
+                                  disabled={!entry || !canManage}
+                                  onClick={() => entry && openEdit(entry)}
+                                  title={entry?.note || entry?.otText || entryLabel(entry)}
+                                  className={`relative min-h-[54px] w-full rounded-lg border px-2 py-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
+                                  style={entryStyle(entry)}
+                                >
+                                  <span className="block whitespace-nowrap">{entryLabel(entry).replace("–", "-")}</span>
+                                  {isWfhEntry(entry) ? <span className="mt-0.5 block text-[9px] font-black uppercase tracking-wide text-pink-800">WFH</span> : null}
+                                  {entry?.otText ? <span className="mt-0.5 block whitespace-nowrap font-black text-rose-600">{formatOtLabel(entry.otText)}</span> : null}
+                                </button>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  ))}
+                </table>
+              </div>
             </div>
           )}
 
