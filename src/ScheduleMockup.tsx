@@ -89,6 +89,26 @@ function formatMonthLabel(monthKey: string) {
   return `${MONTH_NAMES[Number(match[2]) - 1]} ${match[1]}`;
 }
 
+function formatScheduleMonthHeader(monthKey: string) {
+  const match = monthKey.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return monthKey.toUpperCase();
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return `${MONTH_NAMES[month - 1].slice(0, 3).toUpperCase()} ${year}`;
+}
+
+function scheduleWeekday(monthKey: string, day: number) {
+  const match = monthKey.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "";
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, day);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
+}
+
+function isScheduleWeekend(monthKey: string, day: number) {
+  const weekday = scheduleWeekday(monthKey, day);
+  return weekday === "Sat" || weekday === "Sun";
+}
+
 function parseMonthYear(text: unknown) {
   const value = String(text || "").trim();
   const match = value.match(/\b(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:T(?:EMBER)?)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\s*[.\-_/ ]*\s*(20\d{2}|\d{2})\b/i);
@@ -976,27 +996,77 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               >
                 <table className="min-w-max border-collapse text-xs" style={{ minWidth: scheduleTableMinWidth }}>
                   <thead className="sticky top-0 z-20">
-                    <tr className="bg-slate-950 text-white">
-                      <th className="sticky left-0 z-30 min-w-[286px] border-r-2 border-slate-300 bg-slate-950 px-3 py-3 text-left">Agent</th>
+                    <tr>
+                      <th
+                        rowSpan={3}
+                        className="sticky left-0 z-40 min-w-[286px] border-r-2 border-slate-300 bg-slate-950 px-3 py-2 text-left align-middle text-white"
+                      >
+                        Agent
+                      </th>
+                      <th
+                        colSpan={daysInMonth}
+                        className="border-b border-r border-violet-950 bg-violet-800 px-2 py-1 text-center text-[10px] font-black uppercase tracking-[0.08em] text-white"
+                      >
+                        {formatScheduleMonthHeader(selectedMonthKey)}
+                      </th>
+                      <th
+                        colSpan={EMPLOYEE_SUMMARY_COLUMNS.length}
+                        className="border-b border-slate-700 bg-slate-950"
+                      />
+                    </tr>
+                    <tr>
                       {Array.from({ length: daysInMonth }, (_, index) => {
                         const day = index + 1;
-                        const isToday = selectedMonthKey === today.monthKey && day === today.day;
-                        return <th key={day} className={`min-w-[118px] border-r border-slate-700 px-2 py-3 text-center ${isToday ? "bg-violet-700" : ""}`}>{day}</th>;
+                        const weekend = isScheduleWeekend(selectedMonthKey, day);
+                        return (
+                          <th
+                            key={`weekday-${day}`}
+                            className={`min-w-[118px] border-b border-r px-2 py-1 text-center text-[10px] font-black ${
+                              weekend
+                                ? "border-red-700 bg-red-600 text-white"
+                                : "border-slate-300 bg-white text-slate-950"
+                            }`}
+                          >
+                            {scheduleWeekday(selectedMonthKey, day)}
+                          </th>
+                        );
                       })}
                       {EMPLOYEE_SUMMARY_COLUMNS.map((column) => (
                         <th
                           key={column}
-                          className={`min-w-[56px] border-l border-slate-700 px-2 py-3 text-center font-black ${
+                          rowSpan={2}
+                          className={`min-w-[56px] border-b border-l px-2 py-1 text-center align-middle text-[10px] font-black ${
                             ["BL", "AL", "SL", "PL", "LW"].includes(column)
-                              ? "bg-yellow-300 text-red-600"
+                              ? "border-yellow-400 bg-yellow-300 text-red-600"
                               : column === "AB"
-                                ? "bg-red-500 text-white"
-                                : "bg-slate-300 text-slate-950"
+                                ? "border-red-700 bg-red-500 text-white"
+                                : "border-slate-500 bg-slate-300 text-slate-950"
                           }`}
                         >
                           {column}
                         </th>
                       ))}
+                    </tr>
+                    <tr>
+                      {Array.from({ length: daysInMonth }, (_, index) => {
+                        const day = index + 1;
+                        const weekend = isScheduleWeekend(selectedMonthKey, day);
+                        const isToday = selectedMonthKey === today.monthKey && day === today.day;
+                        return (
+                          <th
+                            key={`date-${day}`}
+                            className={`min-w-[118px] border-b border-r px-2 py-1 text-center text-[10px] font-black ${
+                              weekend
+                                ? "border-red-700 bg-red-600 text-white"
+                                : isToday
+                                  ? "border-violet-400 bg-violet-100 text-violet-900"
+                                  : "border-slate-300 bg-white text-slate-950"
+                            }`}
+                          >
+                            {day}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   {peopleBySection.map(([section, sectionPeople]) => (
