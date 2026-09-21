@@ -531,9 +531,11 @@ function scheduleCellLabel(entry: ShiftScheduleEntry | null) {
     .map(parseClockMinutes)
     .filter((value): value is number => value !== null);
 
+  const validOtStartTimes = otTimes.filter((value) => value <= baseStart);
   const validOtEndTimes = otTimes.filter((value) => value >= baseEnd);
+  const start = validOtStartTimes.length ? Math.min(baseStart, ...validOtStartTimes) : baseStart;
   const end = validOtEndTimes.length ? Math.max(baseEnd, ...validOtEndTimes) : baseEnd;
-  return `${formatClockMinutes(baseStart)}-${formatClockMinutes(end)}`;
+  return `${formatClockMinutes(start)}-${formatClockMinutes(end)}`;
 }
 
 function isScheduleChangedEntry(entry: ShiftScheduleEntry | null) {
