@@ -21,6 +21,7 @@ type ScheduleUser = {
 type ParsedCandidate = {
   month: ShiftScheduleMonth;
   isDraft: boolean;
+  isHidden: boolean;
   employeeCount: number;
 };
 
@@ -436,6 +437,7 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
       updatedAtIso: new Date().toISOString(),
     },
     isDraft: /draft/i.test(sheetName),
+    isHidden: false,
     employeeCount,
   };
 }
@@ -627,6 +629,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [candidates, setCandidates] = useState<ParsedCandidate[]>([]);
+  const [candidateMonthKey, setCandidateMonthKey] = useState("");
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [importing, setImporting] = useState(false);
   const [editEntry, setEditEntry] = useState<ShiftScheduleEntry | null>(null);
@@ -636,6 +639,16 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [editWfh, setEditWfh] = useState(false);
   const [editWfhTouched, setEditWfhTouched] = useState(false);
   const canManage = canManageSchedule(currentUser.role);
+
+  const candidateMonthKeys = useMemo(
+    () => [...new Set(candidates.map((candidate) => candidate.month.monthKey))].sort((a, b) => b.localeCompare(a)),
+    [candidates]
+  );
+
+  const filteredCandidates = useMemo(
+    () => candidates.filter((candidate) => !candidateMonthKey || candidate.month.monthKey === candidateMonthKey),
+    [candidates, candidateMonthKey]
+  );
 
   const refreshMonths = async () => {
     try {
