@@ -145,21 +145,47 @@ function addMinutes(clock: string, add: number) {
   return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 }
 
+function legacyDecimalClockToClock(value: number) {
+  if (!Number.isFinite(value) || value < 0 || value >= 24) return "";
+  const hour = Math.floor(value);
+  const minute = Math.round((value - hour) * 100);
+  if (minute < 0 || minute > 59) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 function parseShiftValue(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value < 1) {
-    const start = excelTimeToClock(value);
-    const end = addMinutes(start, 9 * 60);
-    return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value >= 0 && value < 1) {
+      const start = excelTimeToClock(value);
+      const end = addMinutes(start, 9 * 60);
+      return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+    }
+    if (value >= 1 && value < 24) {
+      const start = legacyDecimalClockToClock(value);
+      if (start) {
+        const end = addMinutes(start, 9 * 60);
+        return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+      }
+    }
   }
   const raw = String(value ?? "").trim();
   const upper = raw.toUpperCase();
   if (!raw) return { shiftCode: "", shiftStart: "", shiftEnd: "", status: "" };
   if (STATUS_CODES.has(upper)) return { shiftCode: upper, shiftStart: "", shiftEnd: "", status: upper };
   const numeric = Number(raw);
-  if (Number.isFinite(numeric) && numeric >= 0 && numeric < 1) {
-    const start = excelTimeToClock(numeric);
-    const end = addMinutes(start, 9 * 60);
-    return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+  if (Number.isFinite(numeric)) {
+    if (numeric >= 0 && numeric < 1) {
+      const start = excelTimeToClock(numeric);
+      const end = addMinutes(start, 9 * 60);
+      return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+    }
+    if (numeric >= 1 && numeric < 24) {
+      const start = legacyDecimalClockToClock(numeric);
+      if (start) {
+        const end = addMinutes(start, 9 * 60);
+        return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+      }
+    }
   }
   const time = raw.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
   if (time) {
@@ -370,7 +396,7 @@ function mergeImportedScheduleMonth(
 
 function sectionName(value: unknown) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
-  return text.replace(/^Full Name/i, "").trim() || "Team";
+  return text.replace(/^Full Name/i, "").replace(/^Name$/i, "").trim() || "Team";
 }
 
 function parseSheetCandidate(workbook: any, sheetName: string, fileName: string): ParsedCandidate | null {
@@ -385,47 +411,92 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
   const month = Number(monthText);
   const daysInMonth = new Date(year, month, 0).getDate();
   const entries: ShiftScheduleEntry[] = [];
-  let currentSection = "";
+
+  let currentSection = "Team";
   let dayColumns = new Map<number, number>();
+  let employeeIdCol = -1;
+  let agentNameCol = 0;
+  let nicknameCol = 1;
+
+  const buildDayColumns = (dateRow: any[]) => {
+    const result = new Map<number, number>();
+    let started = false;
+    let expected = 1;
+    for (let col = 0; col < dateRow.length; col += 1) {
+      const day = Number(dateRow[col]);
+      if (!started) {
+        if (day === 1) {
+          started = true;
+          result.set(col, 1);
+          expected = 2;
+        }
+        continue;
+      }
+      if (day === expected && day <= daysInMonth) {
+        result.set(col, day);
+        expected += 1;
+        if (day === daysInMonth) break;
+      }
+    }
+    return result;
+  };
 
   rows.forEach((row, rowIndex) => {
-    const firstCell = String(row?.[0] || "");
-    if (/Full\s*Name/i.test(firstCell)) {
-      currentSection = sectionName(firstCell);
-      const dateRow = rows[rowIndex + 2] || [];
-      dayColumns = new Map<number, number>();
-      let started = false;
-      let expected = 1;
-      for (let col = 3; col < dateRow.length; col += 1) {
-        const day = Number(dateRow[col]);
-        if (!started) {
-          if (day === 1) {
-            started = true;
-            dayColumns.set(col, 1);
-            expected = 2;
-          }
-          continue;
-        }
-        if (day === expected && day <= daysInMonth) {
-          dayColumns.set(col, day);
-          expected += 1;
-          if (day === daysInMonth) break;
-        }
+    const headerCol = row.findIndex((value) => {
+      const text = String(value || "").replace(/\s+/g, " ").trim();
+      return /Full\s*Name/i.test(text) || /^Name$/i.test(text);
+    });
+
+    if (headerCol >= 0) {
+      currentSection = sectionName(row[headerCol]);
+
+      let bestDayColumns = new Map<number, number>();
+      for (let offset = 1; offset <= 4; offset += 1) {
+        const candidate = buildDayColumns(rows[rowIndex + offset] || []);
+        if (candidate.size > bestDayColumns.size) bestDayColumns = candidate;
       }
+      dayColumns = bestDayColumns;
+      if (!dayColumns.size) return;
+
+      const firstDayCol = Math.min(...dayColumns.keys());
+      employeeIdCol = -1;
+      agentNameCol = headerCol;
+      nicknameCol = headerCol + 1;
+
+      for (let lookahead = rowIndex + 1; lookahead < Math.min(rows.length, rowIndex + 18); lookahead += 1) {
+        const sample = rows[lookahead] || [];
+        for (let col = 0; col < firstDayCol; col += 1) {
+          if (/^RBH\d+/i.test(String(sample[col] || "").trim())) {
+            employeeIdCol = col;
+            agentNameCol = col + 1;
+            nicknameCol = col + 2;
+            break;
+          }
+        }
+        if (employeeIdCol >= 0) break;
+      }
+
+      const nicknameHeaderCol = row.findIndex((value) => /Nickname/i.test(String(value || "")));
+      if (employeeIdCol < 0 && nicknameHeaderCol >= 0) nicknameCol = nicknameHeaderCol;
       return;
     }
 
-    const employeeId = String(row?.[0] || "").trim();
-    const agentName = String(row?.[1] || "").trim();
-    const nickname = String(row?.[2] || "").trim();
-    const hasEmployeeId = /^RBH\d+/i.test(employeeId);
-    const isBlankIdAgent =
-      !employeeId &&
-      Boolean(agentName) &&
-      Boolean(nickname) &&
-      /[A-Za-zก-๙]/.test(agentName);
+    if (!dayColumns.size) return;
 
-    if (!dayColumns.size || !agentName || (!hasEmployeeId && !isBlankIdAgent)) return;
+    const employeeId = employeeIdCol >= 0 ? String(row?.[employeeIdCol] || "").trim() : "";
+    const agentName = String(row?.[agentNameCol] || "").replace(/\s+/g, " ").trim();
+    const nickname = String(row?.[nicknameCol] || "").replace(/\s+/g, " ").trim();
+
+    const hasScheduleValue = [...dayColumns.keys()].some((col) => String(row?.[col] ?? "").trim() !== "");
+    if (!employeeId && agentName && !nickname && !hasScheduleValue && !/Headcount|\d{1,2}:\d{2}/i.test(agentName)) {
+      currentSection = agentName;
+      return;
+    }
+
+    if (!agentName || !nickname) return;
+    if (employeeId && !/^RBH\d+/i.test(employeeId)) return;
+    if (/Headcount|^\d{1,2}:\d{2}/i.test(agentName)) return;
+
     dayColumns.forEach((day, col) => {
       const parsed = parseShiftValue(row?.[col]);
       const date = `${monthKey}-${String(day).padStart(2, "0")}`;
