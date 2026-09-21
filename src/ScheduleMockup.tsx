@@ -268,35 +268,39 @@ function extractOtRanges(value: string) {
     .filter((range) => range.start && range.end);
 }
 
-function parseShiftValueWithNote(value: unknown, note: string) {
-  const parsed = parseShiftValue(value);
-  if (parsed.status) return parsed;
+function adjustBaseShiftForShortAfterOt(
+  shift: { shiftCode: string; shiftStart: string; shiftEnd: string; status: string },
+  otText: string
+) {
+  if (shift.status || !shift.shiftStart || !shift.shiftEnd) return shift;
+  const shiftStartMinutes = parseClockMinutes(shift.shiftStart);
+  if (shiftStartMinutes === null) return shift;
 
-  const rawClock = singleClockFromShiftValue(value);
-  if (!rawClock) return parsed;
-
-  const rawMinutes = parseClockMinutes(rawClock);
-  if (rawMinutes === null) return parsed;
-
-  for (const range of extractOtRanges(extractOtText(note))) {
-    if (range.start !== rawClock) continue;
+  for (const range of extractOtRanges(otText)) {
+    if (range.start !== shift.shiftStart) continue;
     const startMinutes = parseClockMinutes(range.start);
     const endMinutes = parseClockMinutes(range.end);
     if (startMinutes === null || endMinutes === null) continue;
     const duration = (endMinutes - startMinutes + 1440) % 1440;
 
     if (duration > 0 && duration <= 4 * 60) {
-      const baseStart = formatClockMinutes(rawMinutes - 9 * 60);
+      const baseStart = formatClockMinutes(shiftStartMinutes - 9 * 60);
       return {
-        shiftCode: `${baseStart}-${rawClock}`,
+        shiftCode: `${baseStart}-${shift.shiftStart}`,
         shiftStart: baseStart,
-        shiftEnd: rawClock,
+        shiftEnd: shift.shiftStart,
         status: "",
       };
     }
   }
 
-  return parsed;
+  return shift;
+}
+
+function parseShiftValueWithNote(value: unknown, note: string) {
+  const parsed = parseShiftValue(value);
+  if (parsed.status) return parsed;
+  return adjustBaseShiftForShortAfterOt(parsed, extractOtText(note));
 }
 
 function noteLines(value: string) {
@@ -634,12 +638,17 @@ function entryBaseShift(entry: ShiftScheduleEntry | null) {
     const start = normalizeClockToken(entry.shiftStart);
     const end = normalizeClockToken(entry.shiftEnd);
     if (start && end) {
-      return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+      return adjustBaseShiftForShortAfterOt(
+        { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" },
+        entry.otText || extractOtText(entry.note || "")
+      );
     }
   }
 
   const fallback = parseShiftValue(entry.status || entry.shiftCode || "");
-  return !fallback.status && fallback.shiftStart && fallback.shiftEnd ? fallback : null;
+  return !fallback.status && fallback.shiftStart && fallback.shiftEnd
+    ? adjustBaseShiftForShortAfterOt(fallback, entry.otText || extractOtText(entry.note || ""))
+    : null;
 }
 
 function entryExcelBaseShift(entry: ShiftScheduleEntry) {
@@ -647,12 +656,17 @@ function entryExcelBaseShift(entry: ShiftScheduleEntry) {
     const start = normalizeClockToken(entry.excelShiftStart);
     const end = normalizeClockToken(entry.excelShiftEnd);
     if (start && end) {
-      return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+      return adjustBaseShiftForShortAfterOt(
+        { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" },
+        entry.excelOtText || extractOtText(entry.excelNote || "")
+      );
     }
   }
 
   const fallback = parseShiftValue(entry.excelStatus || entry.excelShiftCode || "");
-  return !fallback.status && fallback.shiftStart && fallback.shiftEnd ? fallback : null;
+  return !fallback.status && fallback.shiftStart && fallback.shiftEnd
+    ? adjustBaseShiftForShortAfterOt(fallback, entry.excelOtText || extractOtText(entry.excelNote || ""))
+    : null;
 }
 
 function entryLabel(entry: ShiftScheduleEntry | null) {
