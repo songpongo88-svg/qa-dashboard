@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-21T08:05:00.000Z",
-  "reason": "Reviewed new SCH monthly shift schedule workspace, Excel import, shift/OT editing, and sidebar today summary",
+  "reviewedAt": "2026-09-21T08:20:00.000Z",
+  "reason": "Reviewed SCH Excel-style colors, WFH pink display, and inline red OT text; no user guide content change required",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -396,7 +396,7 @@
     "vite.config.js": "f9c374d41124b58ef47568956bb17a0afae79a497e7f9afc0098979acb5bd305",
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
     "build/processSelectedPdfPagesPatch.js": "4b1013d6fbb515532209a8db89d7654abf3ab61d007937a6617ba538cd321b3f",
-    "src/scheduleStore.ts": "a342f9d42a258afd14aed4b46c6d17bf62f927ef1b09acda43089c6fe8fe1b6d",
-    "src/ScheduleMockup.tsx": "5daffc4546ab5e942e7496d55f4fa6ec886296e172a3f24ec0bbfe9f27104a1e"
+    "src/scheduleStore.ts": "90fda78ba3dd88ec7fb99ee23a0e567dfa6d3cfd5d072a673940bf9cbd1f3355",
+    "src/ScheduleMockup.tsx": "120d8660482e4336fa276848cd958074c5dc475aba276491a66d77c9ffada7a8"
   }
 }
