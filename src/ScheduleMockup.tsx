@@ -642,6 +642,19 @@ function entryBaseShift(entry: ShiftScheduleEntry | null) {
   return !fallback.status && fallback.shiftStart && fallback.shiftEnd ? fallback : null;
 }
 
+function entryExcelBaseShift(entry: ShiftScheduleEntry) {
+  if (entry.excelShiftStart && entry.excelShiftEnd) {
+    const start = normalizeClockToken(entry.excelShiftStart);
+    const end = normalizeClockToken(entry.excelShiftEnd);
+    if (start && end) {
+      return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+    }
+  }
+
+  const fallback = parseShiftValue(entry.excelStatus || entry.excelShiftCode || "");
+  return !fallback.status && fallback.shiftStart && fallback.shiftEnd ? fallback : null;
+}
+
 function entryLabel(entry: ShiftScheduleEntry | null) {
   if (!entry) return "ไม่มีข้อมูล";
   const base = entryBaseShift(entry);
@@ -915,7 +928,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
           employeeId: entry.employeeId,
           agentName: entry.agentName,
           nickname: entry.nickname,
-          section: entry.section,
+          section: sectionName(entry.section),
         });
       }
     });
@@ -1093,10 +1106,11 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const saveEdit = async () => {
     if (!month || !editEntry) return;
     const parsed = parseEditedShift(editShift);
-    const baselineShiftCode = editEntry.excelShiftCode ?? editEntry.shiftCode;
-    const baselineShiftStart = editEntry.excelShiftStart ?? editEntry.shiftStart;
-    const baselineShiftEnd = editEntry.excelShiftEnd ?? editEntry.shiftEnd;
-    const baselineStatus = editEntry.excelStatus ?? editEntry.status;
+    const excelBase = entryExcelBaseShift(editEntry);
+    const baselineShiftCode = excelBase?.shiftCode || editEntry.excelShiftCode || editEntry.shiftCode;
+    const baselineShiftStart = excelBase?.shiftStart || editEntry.excelShiftStart || editEntry.shiftStart;
+    const baselineShiftEnd = excelBase?.shiftEnd || editEntry.excelShiftEnd || editEntry.shiftEnd;
+    const baselineStatus = excelBase ? "" : (editEntry.excelStatus ?? editEntry.status);
     const manualShift =
       parsed.shiftCode !== baselineShiftCode ||
       parsed.shiftStart !== baselineShiftStart ||
