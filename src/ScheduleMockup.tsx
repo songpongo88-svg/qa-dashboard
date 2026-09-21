@@ -417,9 +417,15 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
 
     const employeeId = String(row?.[0] || "").trim();
     const agentName = String(row?.[1] || "").trim();
-    if (!/^RBH\d+/i.test(employeeId) || !agentName || !dayColumns.size) return;
-
     const nickname = String(row?.[2] || "").trim();
+    const hasEmployeeId = /^RBH\d+/i.test(employeeId);
+    const isBlankIdAgent =
+      !employeeId &&
+      Boolean(agentName) &&
+      Boolean(nickname) &&
+      /[A-Za-zก-๙]/.test(agentName);
+
+    if (!dayColumns.size || !agentName || (!hasEmployeeId && !isBlankIdAgent)) return;
     dayColumns.forEach((day, col) => {
       const parsed = parseShiftValue(row?.[col]);
       const date = `${monthKey}-${String(day).padStart(2, "0")}`;
@@ -668,6 +674,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [message, setMessage] = useState("");
   const [candidates, setCandidates] = useState<ParsedCandidate[]>([]);
   const [candidateMonthKey, setCandidateMonthKey] = useState("");
+  const [candidateIndex, setCandidateIndex] = useState(0);
   const [importing, setImporting] = useState(false);
   const [editEntry, setEditEntry] = useState<ShiftScheduleEntry | null>(null);
   const [editShift, setEditShift] = useState("");
@@ -687,10 +694,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     [candidates, candidateMonthKey]
   );
 
-  const selectedMonthImport = useMemo(
-    () => combineScheduleCandidates(filteredCandidates),
-    [filteredCandidates]
-  );
+  const selectedCandidate = filteredCandidates[candidateIndex] || null;
 
   const refreshMonths = async () => {
     try {
@@ -820,6 +824,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
       });
       setCandidates(next);
       setCandidateMonthKey(next[0]?.month.monthKey || "");
+      setCandidateIndex(0);
       const hiddenCount = next.filter((candidate) => candidate.isHidden).length;
       setMessage(
         next.length
