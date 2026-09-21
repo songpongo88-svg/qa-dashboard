@@ -754,8 +754,8 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [candidates, setCandidates] = useState<ParsedCandidate[]>([]);
-  const [candidateMonthKey, setCandidateMonthKey] = useState("");
-  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [candidateMonthKey, setCandidateMonthKey] = useState("ALL");
+  const [selectedCandidateKeys, setSelectedCandidateKeys] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [editEntry, setEditEntry] = useState<ShiftScheduleEntry | null>(null);
   const [editShift, setEditShift] = useState("");
@@ -771,11 +771,18 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   );
 
   const filteredCandidates = useMemo(
-    () => candidates.filter((candidate) => !candidateMonthKey || candidate.month.monthKey === candidateMonthKey),
+    () => candidateMonthKey === "ALL"
+      ? candidates
+      : candidates.filter((candidate) => candidate.month.monthKey === candidateMonthKey),
     [candidates, candidateMonthKey]
   );
 
-  const selectedCandidate = filteredCandidates[candidateIndex] || null;
+  const candidateKey = (candidate: ParsedCandidate) => `${candidate.month.monthKey}||${candidate.month.sheetName}`;
+
+  const selectedCandidates = useMemo(
+    () => candidates.filter((candidate) => selectedCandidateKeys.includes(candidateKey(candidate))),
+    [candidates, selectedCandidateKeys]
+  );
 
   const refreshMonths = async () => {
     try {
@@ -904,8 +911,8 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
         return b.month.monthKey.localeCompare(a.month.monthKey);
       });
       setCandidates(next);
-      setCandidateMonthKey(next[0]?.month.monthKey || "");
-      setCandidateIndex(0);
+      setCandidateMonthKey("ALL");
+      setSelectedCandidateKeys([]);
       const hiddenCount = next.filter((candidate) => candidate.isHidden).length;
       setMessage(
         next.length
@@ -919,31 +926,71 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     }
   };
 
+  const toggleCandidateSelection = (candidate: ParsedCandidate, checked: boolean) => {
+    const key = candidateKey(candidate);
+    setSelectedCandidateKeys((current) => {
+      if (!checked) return current.filter((item) => item !== key);
+      const sameMonthKeys = candidates
+        .filter((item) => item.month.monthKey === candidate.month.monthKey)
+        .map(candidateKey);
+      return [...current.filter((item) => !sameMonthKeys.includes(item)), key];
+    });
+  };
+
+  const selectAllVisibleSheets = () => {
+    const preferredByMonth = new Map<string, ParsedCandidate>();
+    filteredCandidates.forEach((candidate) => {
+      const current = preferredByMonth.get(candidate.month.monthKey);
+      if (!current || (current.isDraft && !candidate.isDraft)) preferredByMonth.set(candidate.month.monthKey, candidate);
+    });
+    setSelectedCandidateKeys((current) => {
+      const visibleMonthKeys = new Set(filteredCandidates.map((candidate) => candidate.month.monthKey));
+      const kept = current.filter((key) => {
+        const candidate = candidates.find((item) => candidateKey(item) === key);
+        return candidate ? !visibleMonthKeys.has(candidate.month.monthKey) : false;
+      });
+      return [...kept, ...[...preferredByMonth.values()].map(candidateKey)];
+    });
+  };
+
+  const clearVisibleSheetSelection = () => {
+    const visibleKeys = new Set(filteredCandidates.map(candidateKey));
+    setSelectedCandidateKeys((current) => current.filter((key) => !visibleKeys.has(key)));
+  };
+
   const importSelected = async () => {
-    const candidate = selectedCandidate;
-    if (!candidate) return;
+    if (!selectedCandidates.length) return;
     setImporting(true);
     setMessage("");
     try {
-      const targetMonth = candidate.month;
-      const existingMonth =
-        months.find((item) => item.monthKey === targetMonth.monthKey) ||
-        (month?.monthKey === targetMonth.monthKey ? month : null);
-      const mergedMonth = mergeImportedScheduleMonth(targetMonth, existingMonth);
-      await saveScheduleMonth({
-        ...mergedMonth,
-        updatedBy: currentUser.displayName || currentUser.username,
-        updatedAtIso: new Date().toISOString(),
-      });
-      setSelectedMonthKey(targetMonth.monthKey);
-      setMessage(`นำเข้า ${formatMonthLabel(targetMonth.monthKey)} · ${candidate.month.sheetName} แล้ว · ${candidate.employeeCount} คน`);
+      const existingByMonth = new Map(months.map((item) => [item.monthKey, item]));
+      if (month) existingByMonth.set(month.monthKey, month);
+      const importedMonthKeys: string[] = [];
+
+      for (const candidate of selectedCandidates) {
+        const targetMonth = candidate.month;
+        const existingMonth = existingByMonth.get(targetMonth.monthKey) || null;
+        const mergedMonth = mergeImportedScheduleMonth(targetMonth, existingMonth);
+        const savedMonth: ShiftScheduleMonth = {
+          ...mergedMonth,
+          updatedBy: currentUser.displayName || currentUser.username,
+          updatedAtIso: new Date().toISOString(),
+        };
+        await saveScheduleMonth(savedMonth);
+        existingByMonth.set(targetMonth.monthKey, savedMonth);
+        importedMonthKeys.push(targetMonth.monthKey);
+        window.dispatchEvent(new CustomEvent("qa-schedule-updated", { detail: { monthKey: targetMonth.monthKey } }));
+      }
+
+      const firstImported = selectedCandidates[0];
+      setSelectedMonthKey(firstImported.month.monthKey);
+      setMessage(`นำเข้าแล้ว ${selectedCandidates.length} Sheet · ${new Set(importedMonthKeys).size} เดือน`);
       setCandidates([]);
-      setCandidateMonthKey("");
-      setCandidateIndex(0);
+      setCandidateMonthKey("ALL");
+      setSelectedCandidateKeys([]);
       await refreshMonths();
-      window.dispatchEvent(new CustomEvent("qa-schedule-updated", { detail: { monthKey: targetMonth.monthKey } }));
     } catch (error) {
-      console.error("Save schedule month failed", error);
+      console.error("Save schedule months failed", error);
       setMessage("บันทึกตารางกะไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setImporting(false);
