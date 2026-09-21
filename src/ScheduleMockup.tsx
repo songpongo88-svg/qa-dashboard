@@ -668,7 +668,6 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [message, setMessage] = useState("");
   const [candidates, setCandidates] = useState<ParsedCandidate[]>([]);
   const [candidateMonthKey, setCandidateMonthKey] = useState("");
-  const [candidateIndex, setCandidateIndex] = useState(0);
   const [importing, setImporting] = useState(false);
   const [editEntry, setEditEntry] = useState<ShiftScheduleEntry | null>(null);
   const [editShift, setEditShift] = useState("");
@@ -821,7 +820,6 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
       });
       setCandidates(next);
       setCandidateMonthKey(next[0]?.month.monthKey || "");
-      setCandidateIndex(0);
       const hiddenCount = next.filter((candidate) => candidate.isHidden).length;
       setMessage(
         next.length
@@ -857,7 +855,6 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
       );
       setCandidates([]);
       setCandidateMonthKey("");
-      setCandidateIndex(0);
       await refreshMonths();
       window.dispatchEvent(new CustomEvent("qa-schedule-updated", { detail: { monthKey: targetMonth.monthKey } }));
     } catch (error) {
@@ -958,8 +955,6 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     }
   };
 
-  const selectedCandidate = filteredCandidates[candidateIndex];
-
   return (
     <div className="min-h-screen bg-[#f6f7fb] pb-10 font-['Kanit']">
       <PageHero
@@ -1012,15 +1007,12 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
 
             {candidates.length ? (
               <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
-                <div className="grid gap-3 sm:grid-cols-[0.8fr_1.4fr_auto] sm:items-end">
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                   <label className="block">
                     <span className="text-xs font-semibold text-violet-800">เลือกเดือนที่จะนำเข้า</span>
                     <select
                       value={candidateMonthKey}
-                      onChange={(event) => {
-                        setCandidateMonthKey(event.target.value);
-                        setCandidateIndex(0);
-                      }}
+                      onChange={(event) => setCandidateMonthKey(event.target.value)}
                       className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
                     >
                       {candidateMonthKeys.map((key) => (
@@ -1028,32 +1020,24 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                       ))}
                     </select>
                   </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-violet-800">เลือกชีต</span>
-                    <select
-                      value={candidateIndex}
-                      onChange={(event) => setCandidateIndex(Number(event.target.value))}
-                      className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-slate-800"
-                    >
-                      {filteredCandidates.map((candidate, index) => (
-                        <option key={`${candidate.month.sheetName}-${index}`} value={index}>
-                          {candidate.month.sheetName}{candidate.isHidden ? " · Hidden" : ""}{candidate.isDraft ? " · Draft" : ""} · {candidate.employeeCount} คน
-                        </option>
-                      ))}
-                    </select>
-                  </label>
                   <button
                     type="button"
-                    disabled={importing || !selectedCandidate}
+                    disabled={importing || !selectedMonthImport}
                     onClick={() => void importSelected()}
                     className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                   >
-                    {importing ? "กำลังนำเข้า..." : selectedCandidate ? `นำเข้า ${formatMonthLabel(selectedCandidate.month.monthKey)}` : "นำเข้า"}
+                    {importing ? "กำลังนำเข้า..." : candidateMonthKey ? `นำเข้า ${formatMonthLabel(candidateMonthKey)}` : "นำเข้า"}
                   </button>
                 </div>
-                <div className="mt-2 text-[10px] text-violet-700">แสดงทั้งชีตปกติและชีตที่ซ่อนอยู่ในไฟล์ Excel</div>
-                {selectedCandidate?.isHidden ? <div className="mt-1 text-xs font-semibold text-sky-700">ชีตที่เลือกเป็น Hidden Sheet</div> : null}
-                {selectedCandidate?.isDraft ? <div className="mt-1 text-xs font-semibold text-amber-700">ชีตนี้เป็น Draft กรุณาตรวจสอบก่อนนำเข้า</div> : null}
+                {selectedMonthImport ? (
+                  <div className="mt-3 rounded-xl border border-violet-100 bg-white/80 px-3 py-2 text-xs text-violet-800">
+                    ระบบจะรวม <span className="font-black">{selectedMonthImport.sheetCount} ชีต</span>
+                    {selectedMonthImport.hiddenCount ? <> · Hidden <span className="font-black">{selectedMonthImport.hiddenCount}</span></> : null}
+                    {" · "}<span className="font-black">{selectedMonthImport.employeeCount} คน</span>
+                    {selectedMonthImport.skippedDraftCount ? <> · ข้าม Draft <span className="font-black">{selectedMonthImport.skippedDraftCount} ชีต</span></> : null}
+                  </div>
+                ) : null}
+                <div className="mt-2 text-[10px] text-violet-700">เมื่อเลือกเดือน ระบบจะรวมทุกชีตของเดือนนั้นทั้งชีตปกติและ Hidden Sheet แล้วตัดรายชื่อซ้ำให้อัตโนมัติ</div>
               </div>
             ) : null}
             {message ? <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">{message}</div> : null}
