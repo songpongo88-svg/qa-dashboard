@@ -513,7 +513,15 @@ function formatClockMinutes(value: number) {
 }
 
 function extractOtClockTimes(value: string) {
-  return [...String(value || "").matchAll(/\b(\d{1,2}:\d{2})\b/g)]
+  const raw = String(value || "");
+  const rangeTimes = [...raw.matchAll(/\b(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})\b/g)]
+    .flatMap((match) => [match[1], match[2]])
+    .filter(Boolean);
+
+  if (rangeTimes.length) return rangeTimes;
+
+  const withoutDuration = raw.replace(/\(\s*\d{1,2}:\d{2}\s*\)/g, " ");
+  return [...withoutDuration.matchAll(/\b(\d{1,2}:\d{2})\b/g)]
     .map((match) => match[1])
     .filter(Boolean);
 }
