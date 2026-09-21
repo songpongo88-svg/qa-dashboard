@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-21T08:45:00.000Z",
-  "reason": "Reviewed SCH status colors, compact Agent display, Excel-order preservation, and synchronized horizontal scrolling",
+  "reviewedAt": "2026-09-21T09:05:00.000Z",
+  "reason": "Reviewed SCH start-time-only display and Excel-style shift/headcount summary rows",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -397,6 +397,6 @@
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
     "build/processSelectedPdfPagesPatch.js": "4b1013d6fbb515532209a8db89d7654abf3ab61d007937a6617ba538cd321b3f",
     "src/scheduleStore.ts": "90fda78ba3dd88ec7fb99ee23a0e567dfa6d3cfd5d072a673940bf9cbd1f3355",
-    "src/ScheduleMockup.tsx": "aac0f996e7985938c7da0858e8461f086ab6d1adf80be005a518fec09ff175c7"
+    "src/ScheduleMockup.tsx": "9904c6c3c752fba95d7104fd8b02f01b8e27edbbe6e38fd91729f51878d160fe"
   }
 }
