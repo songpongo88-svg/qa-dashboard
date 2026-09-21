@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-21T16:32:00.000+07:00",
-  "reason": "Reviewed SCH Excel re-import merge logic that preserves manual shift, WFH, OT, and note edits",
+  "reviewedAt": "2026-09-21T16:45:00.000+07:00",
+  "reason": "Reviewed explicit Workspace override for automatic WFH shifts and preservation through Excel re-import",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -396,7 +396,7 @@
     "vite.config.js": "f9c374d41124b58ef47568956bb17a0afae79a497e7f9afc0098979acb5bd305",
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
     "build/processSelectedPdfPagesPatch.js": "4b1013d6fbb515532209a8db89d7654abf3ab61d007937a6617ba538cd321b3f",
-    "src/scheduleStore.ts": "3e5ba2876c6a904c1b7da540acd335651ec0c51c5a1b38393f22b7a98bbb9472",
-    "src/ScheduleMockup.tsx": "66c6bb36dc1cd9143df716c952d8ee6d5a4d98c471e10c8360b16c172184759e"
+    "src/scheduleStore.ts": "751d70926f9c421e1d3f34fe53b2b216809fd7bb302553e53db3f3bbd56adb79",
+    "src/ScheduleMockup.tsx": "f21d92a231e480d9f4d7c7113cec068df3b7773e3e1e15f9d3d5c0d137fa86a9"
   }
 }
