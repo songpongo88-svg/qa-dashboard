@@ -49,9 +49,11 @@ const STATUS_CODES = new Set(["OFF", "AL", "SL", "PL", "BL", "LW", "AB", "WFH"])
 const EDIT_OPTIONS = [
   "07:30-16:30",
   "08:00-17:00",
+  "08:30-17:30",
   "09:00-18:00",
   "10:00-19:00",
   "11:00-20:00",
+  "11:30-20:30",
   "12:00-21:00",
   "OFF", "AL", "SL", "PL", "BL", "LW", "AB",
 ];
@@ -61,9 +63,11 @@ const AUTO_WFH_START_TIMES = new Set(["07:30", "11:00", "12:00"]);
 const SHIFT_SUMMARY_ROWS = [
   { start: "07:30", end: "16:30" },
   { start: "08:00", end: "17:00" },
+  { start: "08:30", end: "17:30" },
   { start: "09:00", end: "18:00" },
   { start: "10:00", end: "19:00" },
   { start: "11:00", end: "20:00" },
+  { start: "11:30", end: "20:30" },
   { start: "12:00", end: "21:00" },
 ];
 
@@ -153,54 +157,54 @@ function legacyDecimalClockToClock(value: number) {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function parseShiftValue(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    if (value >= 0 && value < 1) {
-      const start = excelTimeToClock(value);
-      const end = addMinutes(start, 9 * 60);
-      return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
-    }
-    if (value >= 1 && value < 24) {
-      const start = legacyDecimalClockToClock(value);
-      if (start) {
-        const end = addMinutes(start, 9 * 60);
-        return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
-      }
-    }
-  }
-  const raw = String(value ?? "").trim();
-  const upper = raw.toUpperCase();
-  if (!raw) return { shiftCode: "", shiftStart: "", shiftEnd: "", status: "" };
-  if (STATUS_CODES.has(upper)) return { shiftCode: upper, shiftStart: "", shiftEnd: "", status: upper };
-  const numeric = Number(raw);
-  if (Number.isFinite(numeric)) {
-    if (numeric >= 0 && numeric < 1) {
-      const start = excelTimeToClock(numeric);
-      const end = addMinutes(start, 9 * 60);
-      return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
-    }
-    if (numeric >= 1 && numeric < 24) {
-      const start = legacyDecimalClockToClock(numeric);
-      if (start) {
-        const end = addMinutes(start, 9 * 60);
-        return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
-      }
-    }
-  }
-  const time = raw.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
-  if (time) {
-    return { shiftCode: `${time[1]}-${time[2]}`, shiftStart: time[1], shiftEnd: time[2], status: "" };
-  }
-  return { shiftCode: raw, shiftStart: "", shiftEnd: "", status: upper };
+function normalizeClockToken(value: string) {
+  const match = String(value || "").trim().match(/^(\d{1,2})[:.](\d{2})$/);
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function parseEditedShift(value: string) {
-  const raw = value.trim();
+function singleClockFromShiftValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value >= 0 && value < 1) return excelTimeToClock(value);
+    if (value >= 1 && value < 24) return legacyDecimalClockToClock(value);
+  }
+  const raw = String(value ?? "").trim();
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric)) {
+    if (numeric >= 0 && numeric < 1) return excelTimeToClock(numeric);
+    if (numeric >= 1 && numeric < 24) return legacyDecimalClockToClock(numeric);
+  }
+  return normalizeClockToken(raw);
+}
+
+function parseShiftValue(value: unknown) {
+  const raw = String(value ?? "").trim();
   const upper = raw.toUpperCase();
+  if (!raw && !(typeof value === "number" && Number.isFinite(value))) {
+    return { shiftCode: "", shiftStart: "", shiftEnd: "", status: "" };
+  }
   if (STATUS_CODES.has(upper)) return { shiftCode: upper, shiftStart: "", shiftEnd: "", status: upper };
-  const match = raw.match(/^(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})$/);
-  if (match) return { shiftCode: `${match[1]}-${match[2]}`, shiftStart: match[1], shiftEnd: match[2], status: "" };
+
+  const range = raw.match(/^(\d{1,2}[:.]\d{2})\s*[-–—]\s*(\d{1,2}[:.]\d{2})$/);
+  if (range) {
+    const start = normalizeClockToken(range[1]);
+    const end = normalizeClockToken(range[2]);
+    if (start && end) return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+  }
+
+  const start = singleClockFromShiftValue(value);
+  if (start) {
+    const end = addMinutes(start, 9 * 60);
+    return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+  }
+
   return { shiftCode: raw, shiftStart: "", shiftEnd: "", status: upper };
+}
+function parseEditedShift(value: string) {
+  return parseShiftValue(value);
 }
 
 function normalizeExcelHex(value: unknown) {
@@ -396,7 +400,16 @@ function mergeImportedScheduleMonth(
 
 function sectionName(value: unknown) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
-  return text.replace(/^Full Name/i, "").replace(/^Name$/i, "").trim() || "Team";
+  const cleaned = text
+    .replace(/^Full Name/i, "")
+    .replace(/^Name\s+/i, "")
+    .replace(/^Name$/i, "")
+    .replace(/\bSernior\b/gi, "Senior")
+    .replace(/\bVitual\b/gi, "Virtual")
+    .replace(/Non[_ ]+Voice/gi, "Non Voice")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || "Team";
 }
 
 function isScheduleTemplatePerson(agentName: unknown, nickname: unknown) {
