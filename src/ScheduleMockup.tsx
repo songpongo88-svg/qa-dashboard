@@ -57,6 +57,15 @@ const EDIT_OPTIONS = [
 
 const AUTO_WFH_START_TIMES = new Set(["07:30", "11:00", "12:00"]);
 
+const SHIFT_SUMMARY_ROWS = [
+  { start: "07:30", end: "16:30" },
+  { start: "08:00", end: "17:00" },
+  { start: "09:00", end: "18:00" },
+  { start: "10:00", end: "19:00" },
+  { start: "11:00", end: "20:00" },
+  { start: "12:00", end: "21:00" },
+];
+
 function bangkokToday() {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Bangkok",
@@ -298,6 +307,12 @@ function entryLabel(entry: ShiftScheduleEntry | null) {
   return entry.shiftCode || "—";
 }
 
+function scheduleCellLabel(entry: ShiftScheduleEntry | null) {
+  if (!entry) return "—";
+  if (entry.status) return entry.status;
+  return entry.shiftStart || "—";
+}
+
 function isWfhEntry(entry: ShiftScheduleEntry | null) {
   return Boolean(
     entry &&
@@ -356,7 +371,7 @@ export function ScheduleSidebarCard({
   const summary = entry
     ? entry.status
       ? `วันนี้ · ${entry.status}`
-      : `วันนี้ · ${entry.shiftStart || "—"}–${entry.shiftEnd || "—"}${isWfhEntry(entry) ? " · WFH" : ""}${entry.otText ? ` · ${formatOtLabel(entry.otText)}` : ""}`
+      : `วันนี้ · ${entry.shiftStart || "—"}`
     : month
       ? "วันนี้ · ไม่พบชื่อใน SCH"
       : "วันนี้ · ยังไม่มีตาราง";
@@ -472,6 +487,17 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const entriesByPersonDate = useMemo(() => {
     const map = new Map<string, ShiftScheduleEntry>();
     month?.entries.forEach((entry) => map.set(`${normalizeScheduleName(entry.agentName)}|${entry.date}`, entry));
+    return map;
+  }, [month]);
+
+  const workingEntriesByDate = useMemo(() => {
+    const map = new Map<string, ShiftScheduleEntry[]>();
+    month?.entries.forEach((entry) => {
+      if (entry.status || !entry.shiftStart) return;
+      const list = map.get(entry.date) || [];
+      list.push(entry);
+      map.set(entry.date, list);
+    });
     return map;
   }, [month]);
 
@@ -608,12 +634,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">Today</div>
             <div className="mt-2 text-xl font-bold text-slate-950">{currentUser.agentName || currentUser.displayName}</div>
             <div
-              className={`mt-4 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl border px-4 py-3 text-base font-bold ${entryTone(todayEntry)}`}
+              className={`mt-4 inline-flex rounded-2xl border px-4 py-3 text-base font-bold ${entryTone(todayEntry)}`}
               style={entryStyle(todayEntry)}
             >
-              <span>{entryLabel(todayEntry)}</span>
-              {isWfhEntry(todayEntry) ? <span className="rounded-full bg-pink-600/15 px-2 py-0.5 text-[11px] font-bold text-pink-800">WFH</span> : null}
-              {todayEntry?.otText ? <span className="text-rose-600">{formatOtLabel(todayEntry.otText)}</span> : null}
+              <span>{scheduleCellLabel(todayEntry)}</span>
             </div>
             {todayEntry?.note ? <div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-500">{todayEntry.note}</div> : null}
             {selectedMonthKey !== today.monthKey ? <div className="mt-3 text-xs text-slate-400">การ์ด Today จะแสดงเมื่อเลือกเดือนปัจจุบัน</div> : null}
@@ -741,9 +765,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                                   className={`relative min-h-[54px] w-full rounded-lg border px-2 py-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
                                   style={entryStyle(entry)}
                                 >
-                                  <span className="block whitespace-nowrap">{entryLabel(entry).replace("–", "-")}</span>
-                                  {isWfhEntry(entry) ? <span className="mt-0.5 block text-[9px] font-black uppercase tracking-wide text-pink-800">WFH</span> : null}
-                                  {entry?.otText ? <span className="mt-0.5 block whitespace-nowrap font-black text-rose-600">{formatOtLabel(entry.otText)}</span> : null}
+                                  <span className="block whitespace-nowrap">{scheduleCellLabel(entry)}</span>
                                 </button>
                               </td>
                             );
@@ -752,6 +774,48 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                       ))}
                     </tbody>
                   ))}
+                  <tbody>
+                    <tr>
+                      <td
+                        colSpan={daysInMonth + 1}
+                        className="border-y border-amber-300 bg-amber-50 px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.08em] text-amber-900"
+                      >
+                        Shift Headcount
+                      </td>
+                    </tr>
+                    {SHIFT_SUMMARY_ROWS.map((shift) => (
+                      <tr key={shift.start} className="bg-white">
+                        <td className="sticky left-0 z-[8] min-w-[286px] border-b border-r-2 border-violet-200 bg-amber-50 px-3 py-2 font-bold text-slate-800 shadow-[8px_0_12px_-8px_rgba(100,116,139,0.55)]">
+                          {shift.start}–{shift.end}
+                        </td>
+                        {Array.from({ length: daysInMonth }, (_, index) => {
+                          const day = index + 1;
+                          const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
+                          const count = (workingEntriesByDate.get(date) || []).filter((entry) => entry.shiftStart === shift.start).length;
+                          return (
+                            <td key={date} className="border-b border-r border-slate-200 bg-white px-2 py-2 text-center font-bold text-slate-700">
+                              {count}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                    <tr className="bg-violet-700 text-white">
+                      <td className="sticky left-0 z-[8] min-w-[286px] border-r-2 border-violet-300 bg-violet-700 px-3 py-2 font-black shadow-[8px_0_12px_-8px_rgba(76,29,149,0.7)]">
+                        Headcount Per Day
+                      </td>
+                      {Array.from({ length: daysInMonth }, (_, index) => {
+                        const day = index + 1;
+                        const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
+                        const count = (workingEntriesByDate.get(date) || []).length;
+                        return (
+                          <td key={date} className="border-r border-violet-500 px-2 py-2 text-center font-black">
+                            {count}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             </div>
