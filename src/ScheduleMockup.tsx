@@ -66,6 +66,8 @@ const SHIFT_SUMMARY_ROWS = [
   { start: "12:00", end: "21:00" },
 ];
 
+const EMPLOYEE_SUMMARY_COLUMNS = ["BL", "AL", "SL", "PL", "LW", "AB", "TDO", "TWD", "TD"] as const;
+
 function bangkokToday() {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Bangkok",
@@ -349,6 +351,27 @@ function formatOtLabel(value: string) {
   return cleaned ? `+ OT ${cleaned}` : "+ OT";
 }
 
+function employeeScheduleSummary(
+  entries: ShiftScheduleEntry[],
+  agentName: string,
+  daysInMonth: number
+) {
+  const mine = entries.filter((entry) => normalizeScheduleName(entry.agentName) === normalizeScheduleName(agentName));
+  const countStatus = (status: string) => mine.filter((entry) => entry.status === status).length;
+  const twd = mine.filter((entry) => !entry.status && Boolean(entry.shiftStart)).length;
+  return {
+    BL: countStatus("BL"),
+    AL: countStatus("AL"),
+    SL: countStatus("SL"),
+    PL: countStatus("PL"),
+    LW: countStatus("LW"),
+    AB: countStatus("AB"),
+    TDO: countStatus("OFF"),
+    TWD: twd,
+    TD: daysInMonth,
+  };
+}
+
 export function ScheduleSidebarCard({
   currentUser,
   collapsed = false,
@@ -506,7 +529,8 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     return match ? new Date(Number(match[1]), Number(match[2]), 0).getDate() : 31;
   }, [selectedMonthKey]);
 
-  const scheduleTableMinWidth = 286 + daysInMonth * 118;
+  const employeeSummaryWidth = EMPLOYEE_SUMMARY_COLUMNS.length * 56;
+  const scheduleTableMinWidth = 286 + daysInMonth * 118 + employeeSummaryWidth;
 
   const syncHorizontalScroll = (source: "top" | "table") => {
     if (scrollSyncRef.current && scrollSyncRef.current !== source) return;
@@ -725,19 +749,33 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                 <table className="min-w-max border-collapse text-xs" style={{ minWidth: scheduleTableMinWidth }}>
                   <thead className="sticky top-0 z-20">
                     <tr className="bg-slate-950 text-white">
-                      <th className="sticky left-0 z-30 min-w-[286px] border-r-2 border-violet-300 bg-slate-950 px-3 py-3 text-left shadow-[8px_0_12px_-8px_rgba(15,23,42,0.65)]">Agent</th>
+                      <th className="sticky left-0 z-30 min-w-[286px] border-r-2 border-slate-300 bg-slate-950 px-3 py-3 text-left">Agent</th>
                       {Array.from({ length: daysInMonth }, (_, index) => {
                         const day = index + 1;
                         const isToday = selectedMonthKey === today.monthKey && day === today.day;
                         return <th key={day} className={`min-w-[118px] border-r border-slate-700 px-2 py-3 text-center ${isToday ? "bg-violet-700" : ""}`}>{day}</th>;
                       })}
+                      {EMPLOYEE_SUMMARY_COLUMNS.map((column) => (
+                        <th
+                          key={column}
+                          className={`min-w-[56px] border-l border-slate-700 px-2 py-3 text-center font-black ${
+                            ["BL", "AL", "SL", "PL", "LW"].includes(column)
+                              ? "bg-yellow-300 text-red-600"
+                              : column === "AB"
+                                ? "bg-red-500 text-white"
+                                : "bg-slate-300 text-slate-950"
+                          }`}
+                        >
+                          {column}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   {peopleBySection.map(([section, sectionPeople]) => (
                     <tbody key={section}>
                       <tr>
                         <td
-                          colSpan={daysInMonth + 1}
+                          colSpan={daysInMonth + 1 + EMPLOYEE_SUMMARY_COLUMNS.length}
                           className="border-b border-violet-300 bg-violet-100 px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.08em] text-violet-900"
                         >
                           {section}
@@ -745,7 +783,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                       </tr>
                       {sectionPeople.map((person, personIndex) => (
                         <tr key={person.agentName} className={personIndex % 2 ? "bg-slate-50/60" : "bg-white"}>
-                          <td className="sticky left-0 z-[8] min-w-[286px] border-b border-r-2 border-violet-200 bg-inherit px-3 py-2 shadow-[8px_0_12px_-8px_rgba(100,116,139,0.55)]">
+                          <td className="sticky left-0 z-[8] min-w-[286px] border-b border-r-2 border-slate-300 bg-inherit px-3 py-2">
                             <div className="text-[9px] font-bold uppercase tracking-[0.08em] text-violet-600">{person.employeeId || "—"}</div>
                             <div className="mt-0.5 font-semibold text-slate-900">{person.agentName}</div>
                             <div className="mt-0.5 text-[10px] text-slate-500">{person.nickname || "—"}</div>
@@ -770,6 +808,23 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                               </td>
                             );
                           })}
+                          {(() => {
+                            const summary = employeeScheduleSummary(month.entries, person.agentName, daysInMonth);
+                            return EMPLOYEE_SUMMARY_COLUMNS.map((column) => (
+                              <td
+                                key={column}
+                                className={`min-w-[56px] border-b border-l px-2 py-2 text-center font-black ${
+                                  ["BL", "AL", "SL", "PL", "LW"].includes(column)
+                                    ? "border-yellow-300 bg-yellow-50 text-red-600"
+                                    : column === "AB"
+                                      ? "border-red-300 bg-red-50 text-red-700"
+                                      : "border-slate-300 bg-slate-100 text-slate-800"
+                                }`}
+                              >
+                                {summary[column]}
+                              </td>
+                            ));
+                          })()}
                         </tr>
                       ))}
                     </tbody>
@@ -785,7 +840,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                     </tr>
                     {SHIFT_SUMMARY_ROWS.map((shift) => (
                       <tr key={shift.start} className="bg-white">
-                        <td className="sticky left-0 z-[8] min-w-[286px] border-b border-r-2 border-violet-200 bg-amber-50 px-3 py-2 font-bold text-slate-800 shadow-[8px_0_12px_-8px_rgba(100,116,139,0.55)]">
+                        <td className="sticky left-0 z-[8] min-w-[286px] border-b border-r-2 border-slate-300 bg-amber-50 px-3 py-2 font-bold text-slate-800">
                           {shift.start}–{shift.end}
                         </td>
                         {Array.from({ length: daysInMonth }, (_, index) => {
@@ -798,10 +853,13 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                             </td>
                           );
                         })}
+                        {EMPLOYEE_SUMMARY_COLUMNS.map((column) => (
+                          <td key={column} className="min-w-[56px] border-b border-l border-slate-200 bg-slate-50" />
+                        ))}
                       </tr>
                     ))}
                     <tr className="bg-violet-700 text-white">
-                      <td className="sticky left-0 z-[8] min-w-[286px] border-r-2 border-violet-300 bg-violet-700 px-3 py-2 font-black shadow-[8px_0_12px_-8px_rgba(76,29,149,0.7)]">
+                      <td className="sticky left-0 z-[8] min-w-[286px] border-r-2 border-slate-300 bg-violet-700 px-3 py-2 font-black">
                         Headcount Per Day
                       </td>
                       {Array.from({ length: daysInMonth }, (_, index) => {
@@ -814,6 +872,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                           </td>
                         );
                       })}
+                      {EMPLOYEE_SUMMARY_COLUMNS.map((column) => (
+                        <td key={column} className="min-w-[56px] border-l border-violet-500 bg-violet-700" />
+                      ))}
                     </tr>
                   </tbody>
                 </table>
