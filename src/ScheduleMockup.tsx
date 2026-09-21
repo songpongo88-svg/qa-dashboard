@@ -759,9 +759,15 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array", cellDates: false, cellStyles: true });
+      const sheetVisibility = new Map<string, number>(
+        (workbook.Workbook?.Sheets || []).map((sheet: any) => [String(sheet?.name || ""), Number(sheet?.Hidden || 0)])
+      );
       const next = workbook.SheetNames
-        .filter((name) => !/^\s*D_/i.test(name))
-        .map((name) => parseSheetCandidate(workbook, name, file.name))
+        .map((name) => {
+          const candidate = parseSheetCandidate(workbook, name, file.name);
+          if (!candidate) return null;
+          return { ...candidate, isHidden: (sheetVisibility.get(name) || 0) > 0 };
+        })
         .filter(Boolean) as ParsedCandidate[];
       next.sort((a, b) => {
         const currentDiff = Number(b.month.monthKey === today.monthKey) - Number(a.month.monthKey === today.monthKey);
@@ -771,8 +777,14 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
         return b.month.monthKey.localeCompare(a.month.monthKey);
       });
       setCandidates(next);
+      setCandidateMonthKey(next[0]?.month.monthKey || "");
       setCandidateIndex(0);
-      setMessage(next.length ? `พบ ${next.length} ตารางรายเดือนในไฟล์ เลือกเดือนที่ต้องการนำเข้า` : "ไม่พบชีตรายเดือนที่อ่านได้");
+      const hiddenCount = next.filter((candidate) => candidate.isHidden).length;
+      setMessage(
+        next.length
+          ? `พบ ${next.length} ตารางรายเดือน${hiddenCount ? ` · มีชีตซ่อน ${hiddenCount} ชีต` : ""} เลือกเดือนที่ต้องการนำเข้า`
+          : "ไม่พบชีตรายเดือนที่อ่านได้"
+      );
     } catch (error) {
       console.error("Parse shift schedule failed", error);
       setCandidates([]);
@@ -781,7 +793,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   };
 
   const importSelected = async () => {
-    const candidate = candidates[candidateIndex];
+    const candidate = filteredCandidates[candidateIndex];
     if (!candidate) return;
     setImporting(true);
     setMessage("");
@@ -898,7 +910,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     }
   };
 
-  const selectedCandidate = candidates[candidateIndex];
+  const selectedCandidate = filteredCandidates[candidateIndex];
 
   return (
     <div className="min-h-screen bg-[#f6f7fb] pb-10 font-['Kanit']">
