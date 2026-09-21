@@ -16,6 +16,17 @@ export type ShiftScheduleEntry = {
   sourceFill?: string;
   sourceFontColor?: string;
   workMode?: string;
+  excelShiftCode?: string;
+  excelShiftStart?: string;
+  excelShiftEnd?: string;
+  excelStatus?: string;
+  excelOtText?: string;
+  excelNote?: string;
+  manualShift?: boolean;
+  manualWorkMode?: boolean;
+  manualOtEdited?: boolean;
+  manualOtText?: string;
+  manualNoteText?: string;
 };
 
 export type ShiftScheduleMonth = {
@@ -73,6 +84,17 @@ export async function saveScheduleMonth(value: ShiftScheduleMonth) {
     sourceFill: String(entry.sourceFill || ""),
     sourceFontColor: String(entry.sourceFontColor || ""),
     workMode: String(entry.workMode || ""),
+    excelShiftCode: String(entry.excelShiftCode || ""),
+    excelShiftStart: String(entry.excelShiftStart || ""),
+    excelShiftEnd: String(entry.excelShiftEnd || ""),
+    excelStatus: String(entry.excelStatus || ""),
+    excelOtText: String(entry.excelOtText || ""),
+    excelNote: String(entry.excelNote || ""),
+    manualShift: Boolean(entry.manualShift),
+    manualWorkMode: Boolean(entry.manualWorkMode),
+    manualOtEdited: Boolean(entry.manualOtEdited),
+    manualOtText: String(entry.manualOtText || ""),
+    manualNoteText: String(entry.manualNoteText || ""),
   }));
   await setDoc(doc(firebaseDb, COLLECTION, value.monthKey), {
     ...value,
