@@ -55,6 +55,8 @@ const EDIT_OPTIONS = [
   "OFF", "AL", "SL", "PL", "BL", "LW", "AB",
 ];
 
+const AUTO_WFH_START_TIMES = new Set(["07:30", "11:00", "12:00"]);
+
 function bangkokToday() {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Bangkok",
@@ -244,7 +246,10 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
       const address = XLSX.utils.encode_cell({ r: rowIndex, c: col });
       const note = extractNote(ws, address);
       const appearance = extractCellAppearance(ws, address);
-      const workMode = !parsed.status && isPinkishHex(appearance.fill) ? "WFH" : "";
+      const workMode =
+        !parsed.status && (AUTO_WFH_START_TIMES.has(parsed.shiftStart) || isPinkishHex(appearance.fill))
+          ? "WFH"
+          : "";
       entries.push({
         employeeId,
         agentName,
@@ -293,20 +298,26 @@ function entryLabel(entry: ShiftScheduleEntry | null) {
   return entry.shiftCode || "—";
 }
 
+function isWfhEntry(entry: ShiftScheduleEntry | null) {
+  return Boolean(
+    entry &&
+    !entry.status &&
+    (entry.workMode === "WFH" || AUTO_WFH_START_TIMES.has(entry.shiftStart))
+  );
+}
+
 function entryTone(entry: ShiftScheduleEntry | null) {
   if (!entry) return "border-slate-200 bg-slate-50 text-slate-500";
-  if (entry.workMode === "WFH") return "border-pink-300 bg-pink-100 text-pink-950";
-  if (entry.status === "OFF") return "border-rose-300 bg-rose-100 text-rose-800";
-  if (entry.status === "SL") return "border-amber-300 bg-amber-100 text-amber-900";
-  if (entry.status === "AL") return "border-emerald-300 bg-emerald-100 text-emerald-900";
-  if (entry.status === "PL" || entry.status === "BL") return "border-sky-300 bg-sky-100 text-sky-900";
-  if (entry.status === "AB") return "border-red-300 bg-red-100 text-red-800";
+  if (isWfhEntry(entry)) return "border-pink-300 bg-pink-200 text-pink-950";
+  if (entry.status === "OFF") return "border-emerald-300 bg-emerald-100 text-emerald-700";
+  if (["BL", "AL", "SL", "PL", "LW"].includes(entry.status)) return "border-amber-500 bg-amber-400 text-white";
+  if (entry.status === "AB") return "border-yellow-300 bg-yellow-200 text-red-600";
   if (entry.status) return "border-amber-200 bg-amber-50 text-amber-800";
-  return "border-violet-200 bg-white text-slate-800";
+  return "border-slate-200 bg-white text-slate-800";
 }
 
 function entryStyle(entry: ShiftScheduleEntry | null): React.CSSProperties | undefined {
-  if (!entry?.sourceFill) return undefined;
+  if (!entry || entry.status || isWfhEntry(entry) || !entry.sourceFill) return undefined;
   return {
     backgroundColor: entry.sourceFill,
     color: entry.sourceFontColor || undefined,
@@ -345,7 +356,7 @@ export function ScheduleSidebarCard({
   const summary = entry
     ? entry.status
       ? `วันนี้ · ${entry.status}`
-      : `วันนี้ · ${entry.shiftStart || "—"}–${entry.shiftEnd || "—"}${entry.otText ? ` · ${entry.otText}` : ""}`
+      : `วันนี้ · ${entry.shiftStart || "—"}–${entry.shiftEnd || "—"}${isWfhEntry(entry) ? " · WFH" : ""}${entry.otText ? ` · ${formatOtLabel(entry.otText)}` : ""}`
     : month
       ? "วันนี้ · ไม่พบชื่อใน SCH"
       : "วันนี้ · ยังไม่มีตาราง";
@@ -386,7 +397,6 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [editShift, setEditShift] = useState("");
   const [editOt, setEditOt] = useState("");
   const [editNote, setEditNote] = useState("");
-  const [editWorkMode, setEditWorkMode] = useState("");
   const canManage = canManageSchedule(currentUser.role);
 
   const refreshMonths = async () => {
@@ -442,8 +452,19 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
         });
       }
     });
-    return [...map.values()].sort((a, b) => a.section.localeCompare(b.section) || a.agentName.localeCompare(b.agentName));
+    return [...map.values()];
   }, [month]);
+
+  const peopleBySection = useMemo(() => {
+    const groups = new Map<string, typeof people>();
+    people.forEach((person) => {
+      const section = person.section || "Team";
+      const list = groups.get(section) || [];
+      list.push(person);
+      groups.set(section, list);
+    });
+    return [...groups.entries()];
+  }, [people]);
 
   const entriesByPersonDate = useMemo(() => {
     const map = new Map<string, ShiftScheduleEntry>();
@@ -512,26 +533,23 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     setEditShift(entry.shiftCode || entry.status || "");
     setEditOt(entry.otText || "");
     setEditNote(entry.note || "");
-    setEditWorkMode(entry.workMode || "");
   };
 
   const saveEdit = async () => {
     if (!month || !editEntry) return;
     const parsed = parseEditedShift(editShift);
     const shiftChanged = parsed.shiftCode !== editEntry.shiftCode || parsed.status !== editEntry.status;
-    const nextWorkMode = parsed.status ? "" : editWorkMode;
+    const nextWorkMode =
+      !parsed.status && AUTO_WFH_START_TIMES.has(parsed.shiftStart)
+        ? "WFH"
+        : "";
     const nextEntry: ShiftScheduleEntry = {
       ...editEntry,
       ...parsed,
       otText: editOt.trim(),
       note: editNote.trim(),
       workMode: nextWorkMode,
-      sourceFill:
-        nextWorkMode === "WFH"
-          ? "#F9C2D6"
-          : shiftChanged
-            ? ""
-            : editEntry.sourceFill,
+      sourceFill: shiftChanged ? "" : editEntry.sourceFill,
       sourceFontColor: shiftChanged ? "" : editEntry.sourceFontColor,
     };
     const nextMonth: ShiftScheduleMonth = {
@@ -577,7 +595,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               style={entryStyle(todayEntry)}
             >
               <span>{entryLabel(todayEntry)}</span>
-              {todayEntry?.workMode === "WFH" ? <span className="rounded-full bg-pink-600/15 px-2 py-0.5 text-[11px] font-bold text-pink-800">WFH</span> : null}
+              {isWfhEntry(todayEntry) ? <span className="rounded-full bg-pink-600/15 px-2 py-0.5 text-[11px] font-bold text-pink-800">WFH</span> : null}
               {todayEntry?.otText ? <span className="text-rose-600">{formatOtLabel(todayEntry.otText)}</span> : null}
             </div>
             {todayEntry?.note ? <div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-500">{todayEntry.note}</div> : null}
@@ -653,7 +671,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               <table className="min-w-max border-collapse text-xs">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-950 text-white">
-                    <th className="sticky left-0 z-20 min-w-[210px] border-r border-slate-700 bg-slate-950 px-3 py-3 text-left">Agent</th>
+                    <th className="sticky left-0 z-30 min-w-[112px] border-r border-slate-700 bg-slate-950 px-3 py-3 text-left">Employee ID</th>
+                    <th className="sticky left-[112px] z-30 min-w-[220px] border-r border-slate-700 bg-slate-950 px-3 py-3 text-left">Full Name</th>
+                    <th className="sticky left-[332px] z-30 min-w-[110px] border-r border-slate-700 bg-slate-950 px-3 py-3 text-left">Nickname</th>
                     {Array.from({ length: daysInMonth }, (_, index) => {
                       const day = index + 1;
                       const isToday = selectedMonthKey === today.monthKey && day === today.day;
@@ -661,38 +681,53 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                     })}
                   </tr>
                 </thead>
-                <tbody>
-                  {people.map((person, personIndex) => (
-                    <tr key={person.agentName} className={personIndex % 2 ? "bg-slate-50/60" : "bg-white"}>
-                      <td className="sticky left-0 z-[5] border-b border-r border-slate-200 bg-inherit px-3 py-2">
-                        <div className="font-semibold text-slate-900">{person.agentName}</div>
-                        <div className="text-[10px] text-slate-500">{person.nickname ? `${person.nickname} · ` : ""}{person.section}</div>
+                {peopleBySection.map(([section, sectionPeople]) => (
+                  <tbody key={section}>
+                    <tr>
+                      <td
+                        colSpan={daysInMonth + 3}
+                        className="border-b border-violet-300 bg-violet-100 px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.08em] text-violet-900"
+                      >
+                        {section}
                       </td>
-                      {Array.from({ length: daysInMonth }, (_, index) => {
-                        const day = index + 1;
-                        const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
-                        const entry = entriesByPersonDate.get(`${normalizeScheduleName(person.agentName)}|${date}`) || null;
-                        const isToday = selectedMonthKey === today.monthKey && day === today.day;
-                        return (
-                          <td key={date} className={`border-b border-r border-slate-200 p-1.5 text-center ${isToday ? "bg-violet-50" : ""}`}>
-                            <button
-                              type="button"
-                              disabled={!entry || !canManage}
-                              onClick={() => entry && openEdit(entry)}
-                              title={entry?.note || entry?.otText || entryLabel(entry)}
-                              className={`relative min-h-[54px] w-full rounded-lg border px-2 py-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
-                              style={entryStyle(entry)}
-                            >
-                              <span className="block whitespace-nowrap">{entryLabel(entry).replace("–", "-")}</span>
-                              {entry?.workMode === "WFH" ? <span className="mt-0.5 block text-[9px] font-black uppercase tracking-wide text-pink-800">WFH</span> : null}
-                              {entry?.otText ? <span className="mt-0.5 block whitespace-nowrap font-black text-rose-600">{formatOtLabel(entry.otText)}</span> : null}
-                            </button>
-                          </td>
-                        );
-                      })}
                     </tr>
-                  ))}
-                </tbody>
+                    {sectionPeople.map((person, personIndex) => (
+                      <tr key={person.agentName} className={personIndex % 2 ? "bg-slate-50/60" : "bg-white"}>
+                        <td className="sticky left-0 z-[6] border-b border-r border-slate-200 bg-inherit px-3 py-2 font-semibold text-slate-700">
+                          {person.employeeId || "—"}
+                        </td>
+                        <td className="sticky left-[112px] z-[6] border-b border-r border-slate-200 bg-inherit px-3 py-2">
+                          <div className="font-semibold text-slate-900">{person.agentName}</div>
+                        </td>
+                        <td className="sticky left-[332px] z-[6] border-b border-r border-slate-200 bg-inherit px-3 py-2 text-slate-600">
+                          {person.nickname || "—"}
+                        </td>
+                        {Array.from({ length: daysInMonth }, (_, index) => {
+                          const day = index + 1;
+                          const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
+                          const entry = entriesByPersonDate.get(`${normalizeScheduleName(person.agentName)}|${date}`) || null;
+                          const isToday = selectedMonthKey === today.monthKey && day === today.day;
+                          return (
+                            <td key={date} className={`border-b border-r border-slate-200 p-1.5 text-center ${isToday ? "bg-violet-50" : ""}`}>
+                              <button
+                                type="button"
+                                disabled={!entry || !canManage}
+                                onClick={() => entry && openEdit(entry)}
+                                title={entry?.note || entry?.otText || entryLabel(entry)}
+                                className={`relative min-h-[54px] w-full rounded-lg border px-2 py-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
+                                style={entryStyle(entry)}
+                              >
+                                <span className="block whitespace-nowrap">{entryLabel(entry).replace("–", "-")}</span>
+                                {isWfhEntry(entry) ? <span className="mt-0.5 block text-[9px] font-black uppercase tracking-wide text-pink-800">WFH</span> : null}
+                                {entry?.otText ? <span className="mt-0.5 block whitespace-nowrap font-black text-rose-600">{formatOtLabel(entry.otText)}</span> : null}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
               </table>
             </div>
           )}
@@ -724,13 +759,12 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                 <input list="qa-sch-shifts" value={editShift} onChange={(event) => setEditShift(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
                 <datalist id="qa-sch-shifts">{EDIT_OPTIONS.map((option) => <option key={option} value={option} />)}</datalist>
               </label>
-              <label className="flex items-center gap-3 rounded-xl border border-pink-200 bg-pink-50 px-3 py-3">
-                <input type="checkbox" checked={editWorkMode === "WFH"} disabled={Boolean(parseEditedShift(editShift).status)} onChange={(event) => setEditWorkMode(event.target.checked ? "WFH" : "")} className="h-4 w-4 rounded border-pink-300 text-pink-600" />
-                <span>
-                  <span className="block text-xs font-bold text-pink-900">WFH</span>
-                  <span className="block text-[10px] text-pink-700">กะ WFH จะแสดงพื้นหลังสีชมพูในตาราง</span>
-                </span>
-              </label>
+              {!parseEditedShift(editShift).status && AUTO_WFH_START_TIMES.has(parseEditedShift(editShift).shiftStart) ? (
+                <div className="rounded-xl border border-pink-200 bg-pink-50 px-3 py-3">
+                  <span className="block text-xs font-bold text-pink-900">WFH อัตโนมัติ</span>
+                  <span className="block text-[10px] text-pink-700">กะ 07:30 / 11:00 / 12:00 แสดงพื้นหลังสีชมพูโดยอัตโนมัติ</span>
+                </div>
+              ) : null}
               <label className="block">
                 <span className="text-xs font-semibold text-slate-600">OT</span>
                 <input value={editOt} onChange={(event) => setEditOt(event.target.value)} placeholder="เช่น 18:00-19:00" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
