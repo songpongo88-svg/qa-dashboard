@@ -309,10 +309,48 @@ function entryLabel(entry: ShiftScheduleEntry | null) {
   return entry.shiftCode || "—";
 }
 
+function parseClockMinutes(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+function formatClockMinutes(value: number) {
+  const normalized = ((value % 1440) + 1440) % 1440;
+  return `${String(Math.floor(normalized / 60)).padStart(2, "0")}:${String(normalized % 60).padStart(2, "0")}`;
+}
+
+function extractOtClockTimes(value: string) {
+  return [...String(value || "").matchAll(/\b(\d{1,2}:\d{2})\b/g)]
+    .map((match) => match[1])
+    .filter(Boolean);
+}
+
 function scheduleCellLabel(entry: ShiftScheduleEntry | null) {
   if (!entry) return "—";
   if (entry.status) return entry.status;
-  return entry.shiftStart || "—";
+  if (!entry.shiftStart || !entry.shiftEnd) return entry.shiftStart || entry.shiftCode || "—";
+
+  const baseStart = parseClockMinutes(entry.shiftStart);
+  const baseEnd = parseClockMinutes(entry.shiftEnd);
+  if (baseStart === null || baseEnd === null) return `${entry.shiftStart}-${entry.shiftEnd}`;
+
+  const otTimes = extractOtClockTimes(entry.otText)
+    .map(parseClockMinutes)
+    .filter((value): value is number => value !== null);
+
+  const start = otTimes.length ? Math.min(baseStart, ...otTimes) : baseStart;
+  const end = otTimes.length ? Math.max(baseEnd, ...otTimes) : baseEnd;
+  return `${formatClockMinutes(start)}-${formatClockMinutes(end)}`;
+}
+
+function isScheduleChangedEntry(entry: ShiftScheduleEntry | null) {
+  if (!entry?.note) return false;
+  const note = entry.note.toLowerCase();
+  return /(แลก|เปลี่ยน(?:กะ|เวลา|ตาราง|เป็น)?|สลับ|เดิม|swap|switch|change(?:d)?\s*(?:shift|schedule|time)?)/i.test(note);
 }
 
 function isWfhEntry(entry: ShiftScheduleEntry | null) {
@@ -325,6 +363,7 @@ function isWfhEntry(entry: ShiftScheduleEntry | null) {
 
 function entryTone(entry: ShiftScheduleEntry | null) {
   if (!entry) return "border-slate-200 bg-slate-50 text-slate-500";
+  if (isScheduleChangedEntry(entry)) return "border-orange-400 bg-orange-200 text-orange-950";
   if (isWfhEntry(entry)) return "border-pink-300 bg-pink-200 text-pink-950";
   if (entry.status === "OFF") return "border-emerald-300 bg-emerald-100 text-emerald-700";
   if (["BL", "AL", "SL", "PL", "LW"].includes(entry.status)) return "border-yellow-400 bg-yellow-300 text-red-600";
@@ -334,7 +373,7 @@ function entryTone(entry: ShiftScheduleEntry | null) {
 }
 
 function entryStyle(entry: ShiftScheduleEntry | null): React.CSSProperties | undefined {
-  if (!entry || entry.status || isWfhEntry(entry) || !entry.sourceFill) return undefined;
+  if (!entry || entry.status || isWfhEntry(entry) || isScheduleChangedEntry(entry) || !entry.sourceFill) return undefined;
   return {
     backgroundColor: entry.sourceFill,
     color: entry.sourceFontColor || undefined,
@@ -803,7 +842,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                                   className={`relative min-h-[54px] w-full rounded-lg border px-2 py-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
                                   style={entryStyle(entry)}
                                 >
-                                  <span className="block whitespace-nowrap">{scheduleCellLabel(entry)}</span>
+                                  {entry?.otText ? (
+                                    <span className="absolute right-1.5 top-1 text-[8px] font-black uppercase tracking-wide text-red-600">OT</span>
+                                  ) : null}
+                                  <span className="block whitespace-nowrap px-1 pt-1">{scheduleCellLabel(entry)}</span>
                                 </button>
                               </td>
                             );
@@ -918,7 +960,11 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               <label className="block">
                 <span className="text-xs font-semibold text-slate-600">OT</span>
                 <input value={editOt} onChange={(event) => setEditOt(event.target.value)} placeholder="เช่น 18:00-19:00" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
-                {editOt.trim() ? <span className="mt-1 block text-[10px] font-bold text-rose-600">แสดงในตาราง: {formatOtLabel(editOt)}</span> : null}
+                {editOt.trim() ? (
+                  <span className="mt-1 block text-[10px] font-bold text-rose-600">
+                    ตารางจะรวมเวลาถึง OT และแสดงคำว่า OT ที่มุมขวาบน
+                  </span>
+                ) : null}
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-600">Note / ประวัติการเปลี่ยนกะ</span>
