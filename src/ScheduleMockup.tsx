@@ -346,9 +346,9 @@ function scheduleCellLabel(entry: ShiftScheduleEntry | null) {
     .map(parseClockMinutes)
     .filter((value): value is number => value !== null);
 
-  const start = otTimes.length ? Math.min(baseStart, ...otTimes) : baseStart;
-  const end = otTimes.length ? Math.max(baseEnd, ...otTimes) : baseEnd;
-  return `${formatClockMinutes(start)}-${formatClockMinutes(end)}`;
+  const validOtEndTimes = otTimes.filter((value) => value >= baseEnd);
+  const end = validOtEndTimes.length ? Math.max(baseEnd, ...validOtEndTimes) : baseEnd;
+  return `${formatClockMinutes(baseStart)}-${formatClockMinutes(end)}`;
 }
 
 function isScheduleChangedEntry(entry: ShiftScheduleEntry | null) {
@@ -363,6 +363,7 @@ function isWfhEntry(entry: ShiftScheduleEntry | null) {
     !entry.status &&
     (
       entry.workMode === "WFH" ||
+      AUTO_WFH_START_TIMES.has(entry.shiftStart) ||
       (!entry.workMode && isPinkishHex(entry.sourceFill || ""))
     )
   );
@@ -370,6 +371,12 @@ function isWfhEntry(entry: ShiftScheduleEntry | null) {
 
 function isWorkingEntry(entry: ShiftScheduleEntry | null) {
   return Boolean(entry && !entry.status && entry.shiftStart);
+}
+
+function workModeLabel(entry: ShiftScheduleEntry | null) {
+  if (!isWorkingEntry(entry)) return "";
+  const mode = isWfhEntry(entry) ? "WFH" : "Workspace";
+  return entry?.otText ? `${mode}, OT` : mode;
 }
 
 function entryTone(entry: ShiftScheduleEntry | null) {
@@ -444,7 +451,7 @@ export function ScheduleSidebarCard({
   const summary = entry
     ? entry.status
       ? `วันนี้ · ${entry.status}`
-      : `วันนี้ · ${entry.shiftStart || "—"}`
+      : `วันนี้ · ${scheduleCellLabel(entry)} · ${workModeLabel(entry)}`
     : month
       ? "วันนี้ · ไม่พบชื่อใน SCH"
       : "วันนี้ · ยังไม่มีตาราง";
@@ -658,7 +665,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     if (!month || !editEntry) return;
     const parsed = parseEditedShift(editShift);
     const shiftChanged = parsed.shiftCode !== editEntry.shiftCode || parsed.status !== editEntry.status;
-    const nextWorkMode = !parsed.status && editWfh ? "WFH" : "";
+    const nextWorkMode =
+      !parsed.status && (editWfh || AUTO_WFH_START_TIMES.has(parsed.shiftStart))
+        ? "WFH"
+        : "";
     const nextEntry: ShiftScheduleEntry = {
       ...editEntry,
       ...parsed,
@@ -711,6 +721,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               style={entryStyle(todayEntry)}
             >
               <span>{scheduleCellLabel(todayEntry)}</span>
+              {isWorkingEntry(todayEntry) ? (
+                <span className="ml-2 text-xs font-semibold opacity-80">· {workModeLabel(todayEntry)}</span>
+              ) : null}
             </div>
             {todayEntry?.note ? <div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-500">{todayEntry.note}</div> : null}
             {selectedMonthKey !== today.monthKey ? <div className="mt-3 text-xs text-slate-400">การ์ด Today จะแสดงเมื่อเลือกเดือนปัจจุบัน</div> : null}
