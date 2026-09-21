@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-21T05:15:00.000Z",
-  "reason": "Reviewed Process Library selected PDF slide viewer restriction; no user guide content change required",
+  "reviewedAt": "2026-09-21T06:02:00.000Z",
+  "reason": "Reviewed QA Dashboard 2026 data floor and completed monthly KPI popup behavior; no user guide content change required",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -289,7 +289,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "abda63bf350e695b10354b44946e7dac81c59f0a674485f1a2406b7834cf2b7e",
-    "src/DashboardMockup.tsx": "a52a08b02cc4104c58ca50e03ba504573a444beaf27f1fb86ee5babccf1e887b",
+    "src/DashboardMockup.tsx": "d5767773d5b6ec058ab556264d6d7f3c4fde54cd7ddcae18506e7c4e9f39c619",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
