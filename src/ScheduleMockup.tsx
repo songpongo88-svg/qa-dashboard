@@ -182,13 +182,17 @@ function extractCellAppearance(ws: any, address: string) {
 }
 
 function extractNote(ws: any, address: string) {
-  const comments = ws?.[address]?.c;
-  if (!Array.isArray(comments)) return "";
-  return comments
-    .map((comment: any) => String(comment?.t || comment?.text || "").trim())
-    .filter(Boolean)
-    .join("\n")
-    .trim();
+  const cell = ws?.[address];
+  const commentSources = [
+    ...(Array.isArray(cell?.c) ? cell.c : []),
+    ...(Array.isArray(cell?.comments) ? cell.comments : []),
+  ];
+  const commentText = commentSources
+    .map((comment: any) => String(comment?.t || comment?.text || comment?.T || comment?.r || "").trim())
+    .filter(Boolean);
+  const directNote = typeof cell?.note === "string" ? cell.note.trim() : "";
+  if (directNote) commentText.push(directNote);
+  return [...new Set(commentText)].join("\n").trim();
 }
 
 function extractOtText(note: string) {
@@ -357,8 +361,15 @@ function isWfhEntry(entry: ShiftScheduleEntry | null) {
   return Boolean(
     entry &&
     !entry.status &&
-    (entry.workMode === "WFH" || AUTO_WFH_START_TIMES.has(entry.shiftStart))
+    (
+      entry.workMode === "WFH" ||
+      (!entry.workMode && isPinkishHex(entry.sourceFill || ""))
+    )
   );
+}
+
+function isWorkingEntry(entry: ShiftScheduleEntry | null) {
+  return Boolean(entry && !entry.status && entry.shiftStart);
 }
 
 function entryTone(entry: ShiftScheduleEntry | null) {
@@ -477,6 +488,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [editShift, setEditShift] = useState("");
   const [editOt, setEditOt] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [editWfh, setEditWfh] = useState(false);
   const canManage = canManageSchedule(currentUser.role);
 
   const refreshMonths = async () => {
@@ -639,16 +651,14 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     setEditShift(entry.shiftCode || entry.status || "");
     setEditOt(entry.otText || "");
     setEditNote(entry.note || "");
+    setEditWfh(isWfhEntry(entry));
   };
 
   const saveEdit = async () => {
     if (!month || !editEntry) return;
     const parsed = parseEditedShift(editShift);
     const shiftChanged = parsed.shiftCode !== editEntry.shiftCode || parsed.status !== editEntry.status;
-    const nextWorkMode =
-      !parsed.status && AUTO_WFH_START_TIMES.has(parsed.shiftStart)
-        ? "WFH"
-        : "";
+    const nextWorkMode = !parsed.status && editWfh ? "WFH" : "";
     const nextEntry: ShiftScheduleEntry = {
       ...editEntry,
       ...parsed,
@@ -822,7 +832,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                       </tr>
                       {sectionPeople.map((person, personIndex) => (
                         <tr key={person.agentName} className={personIndex % 2 ? "bg-slate-50/60" : "bg-white"}>
-                          <td className="sticky left-0 z-[8] min-w-[286px] border-b border-r-2 border-slate-300 bg-inherit px-3 py-2">
+                          <td
+                            className={`sticky left-0 z-40 min-w-[286px] overflow-hidden border-b border-r-2 border-slate-300 px-3 py-2 ${personIndex % 2 ? "bg-slate-50" : "bg-white"}`}
+                            style={{ width: 286, minWidth: 286, maxWidth: 286 }}
+                          >
                             <div className="text-[9px] font-bold uppercase tracking-[0.08em] text-violet-600">{person.employeeId || "—"}</div>
                             <div className="mt-0.5 font-semibold text-slate-900">{person.agentName}</div>
                             <div className="mt-0.5 text-[10px] text-slate-500">{person.nickname || "—"}</div>
@@ -842,10 +855,20 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                                   className={`relative min-h-[54px] w-full rounded-lg border px-2 py-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
                                   style={entryStyle(entry)}
                                 >
-                                  {entry?.otText ? (
-                                    <span className="absolute right-1.5 top-1 text-[8px] font-black uppercase tracking-wide text-red-600">OT</span>
+                                  {isWorkingEntry(entry) ? (
+                                    <span className="absolute right-1.5 top-1 flex items-center gap-0.5 whitespace-nowrap text-[8px] font-black tracking-wide">
+                                      <span className={isWfhEntry(entry) ? "text-pink-700" : "text-slate-500"}>
+                                        {isWfhEntry(entry) ? "WFH" : "Workspace"}
+                                      </span>
+                                      {entry?.otText ? (
+                                        <>
+                                          <span className="text-slate-400">,</span>
+                                          <span className="text-red-600">OT</span>
+                                        </>
+                                      ) : null}
+                                    </span>
                                   ) : null}
-                                  <span className="block whitespace-nowrap px-1 pt-1">{scheduleCellLabel(entry)}</span>
+                                  <span className="block whitespace-nowrap px-1 pt-3">{scheduleCellLabel(entry)}</span>
                                 </button>
                               </td>
                             );
@@ -951,11 +974,19 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                 <input list="qa-sch-shifts" value={editShift} onChange={(event) => setEditShift(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
                 <datalist id="qa-sch-shifts">{EDIT_OPTIONS.map((option) => <option key={option} value={option} />)}</datalist>
               </label>
-              {!parseEditedShift(editShift).status && AUTO_WFH_START_TIMES.has(parseEditedShift(editShift).shiftStart) ? (
-                <div className="rounded-xl border border-pink-200 bg-pink-50 px-3 py-3">
-                  <span className="block text-xs font-bold text-pink-900">WFH อัตโนมัติ</span>
-                  <span className="block text-[10px] text-pink-700">กะ 07:30 / 11:00 / 12:00 แสดงพื้นหลังสีชมพูโดยอัตโนมัติ</span>
-                </div>
+              {!parseEditedShift(editShift).status ? (
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-pink-200 bg-pink-50 px-3 py-3">
+                  <span>
+                    <span className="block text-xs font-bold text-pink-900">WFH</span>
+                    <span className="block text-[10px] text-pink-700">ติ๊กเพื่อกำหนดกะนี้เป็น Work From Home และใช้พื้นหลังสีชมพู</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={editWfh}
+                    onChange={(event) => setEditWfh(event.target.checked)}
+                    className="h-5 w-5 accent-pink-600"
+                  />
+                </label>
               ) : null}
               <label className="block">
                 <span className="text-xs font-semibold text-slate-600">OT</span>
