@@ -512,7 +512,7 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
   rows.forEach((row, rowIndex) => {
     const headerCol = row.findIndex((value) => {
       const text = String(value || "").replace(/\s+/g, " ").trim();
-      return /Full\s*Name/i.test(text) || /^Name$/i.test(text);
+      return /Full\s*Name/i.test(text) || /^Name(?:\s+Chat[- ]?Non\s*Voice)?$/i.test(text);
     });
 
     if (headerCol >= 0) {
