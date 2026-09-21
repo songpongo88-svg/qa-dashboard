@@ -254,6 +254,51 @@ function extractOtText(note: string) {
   return "";
 }
 
+function normalizeClockNotationText(value: string) {
+  return String(value || "").replace(/\b(\d{1,2})\.(\d{2})\b/g, "$1:$2");
+}
+
+function extractOtRanges(value: string) {
+  const raw = normalizeClockNotationText(value);
+  return [...raw.matchAll(/\b(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})\b/g)]
+    .map((match) => ({
+      start: normalizeClockToken(match[1]),
+      end: normalizeClockToken(match[2]),
+    }))
+    .filter((range) => range.start && range.end);
+}
+
+function parseShiftValueWithNote(value: unknown, note: string) {
+  const parsed = parseShiftValue(value);
+  if (parsed.status) return parsed;
+
+  const rawClock = singleClockFromShiftValue(value);
+  if (!rawClock) return parsed;
+
+  const rawMinutes = parseClockMinutes(rawClock);
+  if (rawMinutes === null) return parsed;
+
+  for (const range of extractOtRanges(extractOtText(note))) {
+    if (range.start !== rawClock) continue;
+    const startMinutes = parseClockMinutes(range.start);
+    const endMinutes = parseClockMinutes(range.end);
+    if (startMinutes === null || endMinutes === null) continue;
+    const duration = (endMinutes - startMinutes + 1440) % 1440;
+
+    if (duration > 0 && duration <= 4 * 60) {
+      const baseStart = formatClockMinutes(rawMinutes - 9 * 60);
+      return {
+        shiftCode: `${baseStart}-${rawClock}`,
+        shiftStart: baseStart,
+        shiftEnd: rawClock,
+        status: "",
+      };
+    }
+  }
+
+  return parsed;
+}
+
 function noteLines(value: string) {
   return String(value || "")
     .split(/\r?\n/)
@@ -518,10 +563,10 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
     if (/Headcount|^\d{1,2}:\d{2}/i.test(agentName)) return;
 
     dayColumns.forEach((day, col) => {
-      const parsed = parseShiftValue(row?.[col]);
       const date = `${monthKey}-${String(day).padStart(2, "0")}`;
       const address = XLSX.utils.encode_cell({ r: rowIndex, c: col });
       const note = extractNote(ws, address);
+      const parsed = parseShiftValueWithNote(row?.[col], note);
       const excelOtText = extractOtText(note);
       const appearance = extractCellAppearance(ws, address);
       const workMode =
