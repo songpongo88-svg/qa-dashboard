@@ -13,6 +13,9 @@ export type ShiftScheduleEntry = {
   status: string;
   otText: string;
   note: string;
+  sourceFill?: string;
+  sourceFontColor?: string;
+  workMode?: string;
 };
 
 export type ShiftScheduleMonth = {
@@ -67,6 +70,9 @@ export async function saveScheduleMonth(value: ShiftScheduleMonth) {
     status: String(entry.status || ""),
     otText: String(entry.otText || ""),
     note: String(entry.note || ""),
+    sourceFill: String(entry.sourceFill || ""),
+    sourceFontColor: String(entry.sourceFontColor || ""),
+    workMode: String(entry.workMode || ""),
   }));
   await setDoc(doc(firebaseDb, COLLECTION, value.monthKey), {
     ...value,
