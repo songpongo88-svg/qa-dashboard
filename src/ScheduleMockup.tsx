@@ -839,12 +839,12 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   };
 
   const importSelected = async () => {
-    const combined = selectedMonthImport;
-    if (!combined) return;
+    const candidate = selectedCandidate;
+    if (!candidate) return;
     setImporting(true);
     setMessage("");
     try {
-      const targetMonth = combined.month;
+      const targetMonth = candidate.month;
       const existingMonth =
         months.find((item) => item.monthKey === targetMonth.monthKey) ||
         (month?.monthKey === targetMonth.monthKey ? month : null);
@@ -855,11 +855,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
         updatedAtIso: new Date().toISOString(),
       });
       setSelectedMonthKey(targetMonth.monthKey);
-      setMessage(
-        `นำเข้า ${formatMonthLabel(targetMonth.monthKey)} แล้ว · รวม ${combined.sheetCount} ชีต · ${combined.employeeCount} คน${combined.skippedDraftCount ? ` · ข้าม Draft ${combined.skippedDraftCount} ชีต` : ""}`
-      );
+      setMessage(`นำเข้า ${formatMonthLabel(targetMonth.monthKey)} · ${candidate.month.sheetName} แล้ว · ${candidate.employeeCount} คน`);
       setCandidates([]);
       setCandidateMonthKey("");
+      setCandidateIndex(0);
       await refreshMonths();
       window.dispatchEvent(new CustomEvent("qa-schedule-updated", { detail: { monthKey: targetMonth.monthKey } }));
     } catch (error) {
@@ -869,7 +868,6 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
       setImporting(false);
     }
   };
-
   const openEdit = (entry: ShiftScheduleEntry) => {
     if (!canManage) return;
     setEditEntry(entry);
