@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-21T06:08:00.000Z",
-  "reason": "Reviewed monthly KPI popup completion gating; completed agent targets no longer render the KPI popup",
+  "reviewedAt": "2026-09-21T08:05:00.000Z",
+  "reason": "Reviewed new SCH monthly shift schedule workspace, Excel import, shift/OT editing, and sidebar today summary",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -279,7 +279,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "e3887c75acc1f614bf1658f1d7c980c74ba7287778c2a5ae248e50bfe65c87b0",
+    "src/App.tsx": "2e44f1e5915bfbb0fa614cd61ec391cf2ac5abbcbdec1476231b150f4fd3e07c",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
     "src/AppealRequestsMockup.tsx": "d663a847f8b15a3858bef905638e4a8b8c79f575dc2ea75b97f72eb8d08ad4a5",
@@ -395,6 +395,8 @@
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
     "vite.config.js": "f9c374d41124b58ef47568956bb17a0afae79a497e7f9afc0098979acb5bd305",
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
-    "build/processSelectedPdfPagesPatch.js": "4b1013d6fbb515532209a8db89d7654abf3ab61d007937a6617ba538cd321b3f"
+    "build/processSelectedPdfPagesPatch.js": "4b1013d6fbb515532209a8db89d7654abf3ab61d007937a6617ba538cd321b3f",
+    "src/scheduleStore.ts": "a342f9d42a258afd14aed4b46c6d17bf62f927ef1b09acda43089c6fe8fe1b6d",
+    "src/ScheduleMockup.tsx": "5daffc4546ab5e942e7496d55f4fa6ec886296e172a3f24ec0bbfe9f27104a1e"
   }
 }
