@@ -6031,11 +6031,14 @@ export default function DashboardMockup({
       : [],
     [authorizedSearchCases, isMonthlyView, qaCanBrowseMonthlyKpiAgents, selectedMonthKey, visibleAgentList]
   );
-  const monthlyKpiAutoOpen =
+  const qaIncompleteMonthlyKpiAgentOptions = useMemo(
+    () => qaMonthlyKpiAgentOptions.filter((option) => option.cases.length < CASE_TARGET),
+    [qaMonthlyKpiAgentOptions]
+  );
+  const monthlyKpiNeedsAttention =
     !isAllAgentsView
       ? monthlyKpiResult.count < CASE_TARGET
-      : qaCanBrowseMonthlyKpiAgents &&
-        qaMonthlyKpiAgentOptions.some((option) => option.cases.length < CASE_TARGET);
+      : qaCanBrowseMonthlyKpiAgents && qaIncompleteMonthlyKpiAgentOptions.length > 0;
   const monthlyKpiQuotaReady = useMemo(() => {
     if (!isMonthlyView) return true; // Annual reporting retains its existing policy.
     if (!isAllAgentsView) return monthlyKpiResult.status !== "pending";
@@ -6955,17 +6958,16 @@ export default function DashboardMockup({
 
                   <div id="qa-dashboard-announcement-ticker" className="empty:hidden" />
 
-                  {isMonthlyView && currentUser?.username &&
-                  (!isAllAgentsView || (qaCanBrowseMonthlyKpiAgents && qaMonthlyKpiAgentOptions.length)) ? (
+                  {isMonthlyView && currentUser?.username && monthlyKpiNeedsAttention ? (
                     <MonthlyKpiNotice
                       cases={monthlyKpiCases}
                       agent={effectiveSelectedAgent}
                       monthKey={selectedMonthKey}
                       monthLabel={currentViewingMonthLabel}
                       viewer={currentUser.username}
-                      agentOptions={qaMonthlyKpiAgentOptions}
+                      agentOptions={isAllAgentsView ? qaIncompleteMonthlyKpiAgentOptions : qaMonthlyKpiAgentOptions}
                       canBrowseAgents={qaCanBrowseMonthlyKpiAgents}
-                      autoOpen={monthlyKpiAutoOpen}
+                      autoOpen={true}
                     />
                   ) : null}
 
