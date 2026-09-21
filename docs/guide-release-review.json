@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-21T17:58:00.000+07:00",
-  "reason": "Reviewed SCH import restoring explicit sheet selection and supporting agent rows without Employee ID",
+  "reviewedAt": "2026-09-21T18:10:00.000+07:00",
+  "reason": "Reviewed SCH display-time expansion for OT before and after base shift while keeping Shift Headcount on base shift",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -397,6 +397,6 @@
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
     "build/processSelectedPdfPagesPatch.js": "4b1013d6fbb515532209a8db89d7654abf3ab61d007937a6617ba538cd321b3f",
     "src/scheduleStore.ts": "751d70926f9c421e1d3f34fe53b2b216809fd7bb302553e53db3f3bbd56adb79",
-    "src/ScheduleMockup.tsx": "83d90219eff434e683dbf8dcb367d3f2f7244abc0153188b7c7efdf5dfe75d2b"
+    "src/ScheduleMockup.tsx": "854efb69ddfda263659df22735f72bca20d91a4badfdef8e42207edb34d346d4"
   }
 }
