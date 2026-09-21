@@ -1010,12 +1010,15 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
 
             {candidates.length ? (
               <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
-                <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div className="grid gap-3 sm:grid-cols-[0.8fr_1.4fr_auto] sm:items-end">
                   <label className="block">
                     <span className="text-xs font-semibold text-violet-800">เลือกเดือนที่จะนำเข้า</span>
                     <select
                       value={candidateMonthKey}
-                      onChange={(event) => setCandidateMonthKey(event.target.value)}
+                      onChange={(event) => {
+                        setCandidateMonthKey(event.target.value);
+                        setCandidateIndex(0);
+                      }}
                       className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
                     >
                       {candidateMonthKeys.map((key) => (
@@ -1023,24 +1026,38 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                       ))}
                     </select>
                   </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-violet-800">เลือก Sheet ที่จะนำเข้า</span>
+                    <select
+                      value={candidateIndex}
+                      onChange={(event) => setCandidateIndex(Number(event.target.value))}
+                      className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    >
+                      {filteredCandidates.map((candidate, index) => (
+                        <option key={`${candidate.month.sheetName}-${index}`} value={index}>
+                          {candidate.month.sheetName}{candidate.isHidden ? " · Hidden" : ""}{candidate.isDraft ? " · Draft" : ""} · {candidate.employeeCount} คน
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <button
                     type="button"
-                    disabled={importing || !selectedMonthImport}
+                    disabled={importing || !selectedCandidate}
                     onClick={() => void importSelected()}
                     className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                   >
-                    {importing ? "กำลังนำเข้า..." : candidateMonthKey ? `นำเข้า ${formatMonthLabel(candidateMonthKey)}` : "นำเข้า"}
+                    {importing ? "กำลังนำเข้า..." : selectedCandidate ? `นำเข้า ${formatMonthLabel(selectedCandidate.month.monthKey)}` : "นำเข้า"}
                   </button>
                 </div>
-                {selectedMonthImport ? (
+                {selectedCandidate ? (
                   <div className="mt-3 rounded-xl border border-violet-100 bg-white/80 px-3 py-2 text-xs text-violet-800">
-                    ระบบจะรวม <span className="font-black">{selectedMonthImport.sheetCount} ชีต</span>
-                    {selectedMonthImport.hiddenCount ? <> · Hidden <span className="font-black">{selectedMonthImport.hiddenCount}</span></> : null}
-                    {" · "}<span className="font-black">{selectedMonthImport.employeeCount} คน</span>
-                    {selectedMonthImport.skippedDraftCount ? <> · ข้าม Draft <span className="font-black">{selectedMonthImport.skippedDraftCount} ชีต</span></> : null}
+                    Sheet: <span className="font-black">{selectedCandidate.month.sheetName}</span>
+                    {" · "}<span className="font-black">{selectedCandidate.employeeCount} คน</span>
+                    {selectedCandidate.isHidden ? <> · <span className="font-black text-sky-700">Hidden</span></> : null}
+                    {selectedCandidate.isDraft ? <> · <span className="font-black text-amber-700">Draft</span></> : null}
                   </div>
                 ) : null}
-                <div className="mt-2 text-[10px] text-violet-700">เมื่อเลือกเดือน ระบบจะรวมทุกชีตของเดือนนั้นทั้งชีตปกติและ Hidden Sheet แล้วตัดรายชื่อซ้ำให้อัตโนมัติ</div>
+                <div className="mt-2 text-[10px] text-violet-700">ระบบแสดงทั้ง Sheet ปกติและ Hidden Sheet และจะนำเข้าเฉพาะ Sheet ที่คุณเลือก</div>
               </div>
             ) : null}
             {message ? <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">{message}</div> : null}
