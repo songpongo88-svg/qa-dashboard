@@ -416,6 +416,7 @@ function applyAppealMapsToCaseItems(
 
 
 const CASE_TARGET = 10;
+const QA_DASHBOARD_MIN_MONTH_KEY = "2026-01";
 // data-dashboard-evaluation-target-fallback-v150
 const dashboardEvaluationTarget = CASE_TARGET;
 const RAW_DATA_FILE_NAME = "QA_RawData_March-May2026.xlsx";
@@ -432,6 +433,11 @@ const KPI_QUALITY_SCORE_TARGET = 85;
 
 function getKpiScoreTarget(_monthKey: string) {
   return KPI_QUALITY_SCORE_TARGET;
+}
+
+function isQaDashboardSupportedMonthKey(value: unknown) {
+  const monthKey = String(value || "").trim();
+  return /^\d{4}-\d{2}$/.test(monthKey) && monthKey >= QA_DASHBOARD_MIN_MONTH_KEY;
 }
 
 function isQualityAssuranceRole(value: unknown) {
@@ -4430,12 +4436,17 @@ export default function DashboardMockup({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
-  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(
-    externalSelectedMonthKey && externalSelectedMonthKey !== "all" ? externalSelectedMonthKey : currentMonthKey
-  );
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() => {
+    const requestedMonth = String(externalSelectedMonthKey || "").trim();
+    return requestedMonth !== "all" && isQaDashboardSupportedMonthKey(requestedMonth)
+      ? requestedMonth
+      : currentMonthKey;
+  });
   const [selectedYear, setSelectedYear] = useState<string>(() => {
-    const externalYear = String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
-    return externalYear || String(TODAY.getFullYear());
+    const externalYear =
+      String(externalSelectedYear || "").match(/^\d{4}$/)?.[0] ||
+      String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
+    return externalYear && externalYear >= "2026" ? externalYear : String(TODAY.getFullYear());
   });
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
@@ -4571,20 +4582,29 @@ export default function DashboardMockup({
   ]);
 
   useEffect(() => {
+    const requestedExternalMonth = String(externalSelectedMonthKey || "").trim();
+    const safeExternalMonth =
+      requestedExternalMonth === "all" || isQaDashboardSupportedMonthKey(requestedExternalMonth)
+        ? requestedExternalMonth
+        : "";
     if (
-      typeof externalSelectedMonthKey === "string" &&
-      externalSelectedMonthKey !== selectedMonthKey
+      safeExternalMonth &&
+      safeExternalMonth !== selectedMonthKey
     ) {
-      setSelectedMonthKey(externalSelectedMonthKey);
+      setSelectedMonthKey(safeExternalMonth);
     }
-    const externalYear =
+    const requestedExternalYear =
       String(externalSelectedYear || "").match(/^\d{4}$/)?.[0] ||
       String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
+    const externalYear =
+      requestedExternalYear && requestedExternalYear >= "2026"
+        ? requestedExternalYear
+        : "";
 
     // The embedded Yearly view represents the complete selected year. Clear a
     // stale month/date range even when the shared month value was already "all".
     if (
-      externalSelectedMonthKey === "all" &&
+      safeExternalMonth === "all" &&
       externalYear &&
       (dateFrom || dateTo)
     ) {
@@ -4710,12 +4730,13 @@ export default function DashboardMockup({
         return evaluationCasesPromise;
       };
       const applyLoadedWorkbook = (nextCases: CaseItem[], nextAppealMergeCount: number) => {
+        const supportedCases = nextCases.filter((item) => isQaDashboardSupportedMonthKey(item.monthKey));
         dashboardWorkbookCacheV155 = {
           cacheKey,
-          cases: nextCases,
+          cases: supportedCases,
           appealMergeCount: nextAppealMergeCount,
         };
-        setAllCases(nextCases);
+        setAllCases(supportedCases);
         setAppealMergeCount(nextAppealMergeCount);
       };
 
@@ -4727,7 +4748,7 @@ export default function DashboardMockup({
           dashboardWorkbookCacheV155 &&
           dashboardWorkbookCacheV155.cacheKey === cacheKey
         ) {
-          setAllCases(dashboardWorkbookCacheV155.cases);
+          setAllCases(dashboardWorkbookCacheV155.cases.filter((item) => isQaDashboardSupportedMonthKey(item.monthKey)));
           setAppealMergeCount(dashboardWorkbookCacheV155.appealMergeCount);
           setLoadError("");
           setIsLoading(false);
@@ -5437,7 +5458,11 @@ export default function DashboardMockup({
     fetchStoredEvaluations(300)
       .then((records) => {
         if (!cancelled) {
-          setNoCaseEvaluations(records.filter(isNoCaseEvaluation));
+          setNoCaseEvaluations(
+            records.filter(
+              (item) => isNoCaseEvaluation(item) && isQaDashboardSupportedMonthKey(getStoredEvaluationMonthKey(item))
+            )
+          );
         }
       })
       .catch((error) => {
@@ -5566,7 +5591,7 @@ export default function DashboardMockup({
         );
       })
       .map(getStoredEvaluationMonthKey)
-      .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey));
+      .filter((monthKey) => isQaDashboardSupportedMonthKey(monthKey));
   }, [effectiveSelectedAgent, noCaseEvaluations, overviewAgentScopeList]);
 
   const yearOptions = useMemo(() => {
@@ -5579,7 +5604,7 @@ export default function DashboardMockup({
         ...sourceCases.map((item) => String(item.monthKey || "").slice(0, 4)),
         ...agentNoCaseMonthKeys.map((monthKey) => monthKey.slice(0, 4)),
       ]
-        .filter((year) => /^\d{4}$/.test(year))
+        .filter((year) => /^\d{4}$/.test(year) && year >= "2026")
     )].sort((a, b) => b.localeCompare(a));
 
     const currentYear = String(TODAY.getFullYear());
@@ -5592,7 +5617,7 @@ export default function DashboardMockup({
         ...agentCases.map((item) => item.monthKey),
         ...agentNoCaseMonthKeys,
       ]
-        .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey) && monthKey.startsWith(`${selectedYear}-`))
+        .filter((monthKey) => isQaDashboardSupportedMonthKey(monthKey) && monthKey.startsWith(`${selectedYear}-`))
     )];
     const monthKeysWithCases = new Set(
       agentCases
@@ -5601,7 +5626,7 @@ export default function DashboardMockup({
     );
     const selectedMonthInYear =
       selectedMonthKey !== "all" &&
-      /^\d{4}-\d{2}$/.test(selectedMonthKey) &&
+      isQaDashboardSupportedMonthKey(selectedMonthKey) &&
       selectedMonthKey.startsWith(`${selectedYear}-`)
         ? selectedMonthKey
         : "";
@@ -5993,13 +6018,24 @@ export default function DashboardMockup({
     overviewCanSelectAgents;
   const qaMonthlyKpiAgentOptions = useMemo(
     () => isMonthlyView && qaCanBrowseMonthlyKpiAgents
-      ? visibleAgentList.map((agent) => ({
-          agent,
-          cases: selectMonthlyKpiCases(authorizedSearchCases, agent, selectedMonthKey),
-        }))
+      ? visibleAgentList
+          .map((agent) => ({
+            agent,
+            cases: selectMonthlyKpiCases(authorizedSearchCases, agent, selectedMonthKey),
+          }))
+          .sort((a, b) => {
+            const aComplete = a.cases.length >= CASE_TARGET ? 1 : 0;
+            const bComplete = b.cases.length >= CASE_TARGET ? 1 : 0;
+            return aComplete - bComplete || a.agent.localeCompare(b.agent);
+          })
       : [],
     [authorizedSearchCases, isMonthlyView, qaCanBrowseMonthlyKpiAgents, selectedMonthKey, visibleAgentList]
   );
+  const monthlyKpiAutoOpen =
+    !isAllAgentsView
+      ? monthlyKpiResult.count < CASE_TARGET
+      : qaCanBrowseMonthlyKpiAgents &&
+        qaMonthlyKpiAgentOptions.some((option) => option.cases.length < CASE_TARGET);
   const monthlyKpiQuotaReady = useMemo(() => {
     if (!isMonthlyView) return true; // Annual reporting retains its existing policy.
     if (!isAllAgentsView) return monthlyKpiResult.status !== "pending";
@@ -6929,6 +6965,7 @@ export default function DashboardMockup({
                       viewer={currentUser.username}
                       agentOptions={qaMonthlyKpiAgentOptions}
                       canBrowseAgents={qaCanBrowseMonthlyKpiAgents}
+                      autoOpen={monthlyKpiAutoOpen}
                     />
                   ) : null}
 
