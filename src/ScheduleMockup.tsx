@@ -242,9 +242,12 @@ function mergeImportedScheduleMonth(
     if (!current) return incoming;
 
     const manualShift = Boolean(current.manualShift);
+    const explicitWorkModeOverride = current.workModeOverride || "";
     const inferredManualWfh =
+      explicitWorkModeOverride === "WFH" ||
       Boolean(current.manualWorkMode) ||
       (
+        !explicitWorkModeOverride &&
         current.workMode === "WFH" &&
         !AUTO_WFH_START_TIMES.has(current.shiftStart) &&
         !isPinkishHex(current.sourceFill || "")
@@ -274,11 +277,14 @@ function mergeImportedScheduleMonth(
           : manualNoteDelta(current.note || "", incomingExcelNote);
 
     const effectiveShift = manualShift ? current : incoming;
-    const effectiveWorkMode = inferredManualWfh
-      ? "WFH"
-      : manualShift && AUTO_WFH_START_TIMES.has(effectiveShift.shiftStart)
-        ? "WFH"
-        : incoming.workMode || "";
+    const effectiveWorkMode =
+      explicitWorkModeOverride === "Workspace"
+        ? ""
+        : inferredManualWfh
+          ? "WFH"
+          : manualShift && AUTO_WFH_START_TIMES.has(effectiveShift.shiftStart)
+            ? "WFH"
+            : incoming.workMode || "";
 
     return {
       ...incoming,
@@ -290,7 +296,8 @@ function mergeImportedScheduleMonth(
       otText: inferredManualOt ? manualOtText : (incoming.excelOtText ?? incoming.otText ?? ""),
       note: mergeNoteText(incomingExcelNote, manualNoteText),
       manualShift,
-      manualWorkMode: inferredManualWfh,
+      manualWorkMode: explicitWorkModeOverride === "WFH" || inferredManualWfh,
+      workModeOverride: explicitWorkModeOverride,
       manualOtEdited: inferredManualOt,
       manualOtText,
       manualNoteText,
@@ -388,6 +395,7 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
         excelNote: note,
         manualShift: false,
         manualWorkMode: false,
+        workModeOverride: "",
         manualOtEdited: false,
         manualOtText: "",
         manualNoteText: "",
@@ -469,14 +477,13 @@ function isScheduleChangedEntry(entry: ShiftScheduleEntry | null) {
 }
 
 function isWfhEntry(entry: ShiftScheduleEntry | null) {
+  if (!entry || entry.status) return false;
+  if (entry.workModeOverride === "Workspace") return false;
+  if (entry.workModeOverride === "WFH") return true;
   return Boolean(
-    entry &&
-    !entry.status &&
-    (
-      entry.workMode === "WFH" ||
-      AUTO_WFH_START_TIMES.has(entry.shiftStart) ||
-      (!entry.workMode && isPinkishHex(entry.sourceFill || ""))
-    )
+    entry.workMode === "WFH" ||
+    AUTO_WFH_START_TIMES.has(entry.shiftStart) ||
+    (!entry.workMode && isPinkishHex(entry.sourceFill || ""))
   );
 }
 
@@ -607,6 +614,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [editOt, setEditOt] = useState("");
   const [editNote, setEditNote] = useState("");
   const [editWfh, setEditWfh] = useState(false);
+  const [editWfhTouched, setEditWfhTouched] = useState(false);
   const canManage = canManageSchedule(currentUser.role);
 
   const refreshMonths = async () => {
@@ -774,6 +782,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     setEditOt(entry.otText || "");
     setEditNote(entry.note || "");
     setEditWfh(isWfhEntry(entry));
+    setEditWfhTouched(false);
   };
 
   const saveEdit = async () => {
@@ -794,12 +803,23 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     const manualOtText = manualOtEdited ? editOt.trim() : "";
     const excelNote = editEntry.excelNote ?? editEntry.note ?? "";
     const manualNoteText = manualNoteDelta(editNote.trim(), excelNote);
-    const manualWorkMode =
-      !parsed.status &&
-      !AUTO_WFH_START_TIMES.has(parsed.shiftStart) &&
-      editWfh;
+    const previousWorkModeOverride = editEntry.workModeOverride || "";
+    const nextWorkModeOverride =
+      parsed.status
+        ? ""
+        : editWfhTouched
+          ? (editWfh ? "WFH" : "Workspace")
+          : previousWorkModeOverride;
+    const manualWorkMode = nextWorkModeOverride === "WFH";
     const nextWorkMode =
-      !parsed.status && (manualWorkMode || AUTO_WFH_START_TIMES.has(parsed.shiftStart))
+      !parsed.status &&
+      (
+        nextWorkModeOverride === "WFH" ||
+        (
+          nextWorkModeOverride !== "Workspace" &&
+          (AUTO_WFH_START_TIMES.has(parsed.shiftStart) || isPinkishHex(editEntry.sourceFill || ""))
+        )
+      )
         ? "WFH"
         : "";
 
@@ -817,6 +837,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
       excelNote,
       manualShift,
       manualWorkMode,
+      workModeOverride: nextWorkModeOverride,
       manualOtEdited,
       manualOtText,
       manualNoteText,
@@ -1141,7 +1162,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                   <input
                     type="checkbox"
                     checked={editWfh}
-                    onChange={(event) => setEditWfh(event.target.checked)}
+                    onChange={(event) => {
+                      setEditWfh(event.target.checked);
+                      setEditWfhTouched(true);
+                    }}
                     className="h-5 w-5 accent-pink-600"
                   />
                 </label>
