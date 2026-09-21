@@ -203,6 +203,105 @@ function extractOtText(note: string) {
   return "";
 }
 
+function noteLines(value: string) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function mergeNoteText(excelNote: string, manualNote: string) {
+  return [...new Set([...noteLines(excelNote), ...noteLines(manualNote)])].join("\n");
+}
+
+function manualNoteDelta(fullNote: string, excelNote: string) {
+  const excelLines = new Set(noteLines(excelNote));
+  return noteLines(fullNote).filter((line) => !excelLines.has(line)).join("\n");
+}
+
+function mergeImportedScheduleMonth(
+  imported: ShiftScheduleMonth,
+  existing: ShiftScheduleMonth | null
+): ShiftScheduleMonth {
+  if (!existing) return imported;
+
+  const byEmployeeDate = new Map<string, ShiftScheduleEntry>();
+  const byNameDate = new Map<string, ShiftScheduleEntry>();
+  existing.entries.forEach((entry) => {
+    if (entry.employeeId) byEmployeeDate.set(`${entry.employeeId.toLowerCase()}|${entry.date}`, entry);
+    byNameDate.set(`${normalizeScheduleName(entry.agentName)}|${entry.date}`, entry);
+  });
+
+  const entries = imported.entries.map((incoming) => {
+    const current =
+      (incoming.employeeId
+        ? byEmployeeDate.get(`${incoming.employeeId.toLowerCase()}|${incoming.date}`)
+        : undefined) ||
+      byNameDate.get(`${normalizeScheduleName(incoming.agentName)}|${incoming.date}`);
+
+    if (!current) return incoming;
+
+    const manualShift = Boolean(current.manualShift);
+    const inferredManualWfh =
+      Boolean(current.manualWorkMode) ||
+      (
+        current.workMode === "WFH" &&
+        !AUTO_WFH_START_TIMES.has(current.shiftStart) &&
+        !isPinkishHex(current.sourceFill || "")
+      );
+
+    const currentExcelOt = current.excelOtText ?? extractOtText(current.excelNote ?? current.note ?? "");
+    const inferredManualOt =
+      current.manualOtEdited === true ||
+      (
+        current.manualOtEdited === undefined &&
+        Boolean(current.otText) &&
+        current.otText.trim() !== currentExcelOt.trim()
+      );
+    const manualOtText =
+      current.manualOtText !== undefined
+        ? current.manualOtText
+        : inferredManualOt
+          ? current.otText
+          : "";
+
+    const incomingExcelNote = incoming.excelNote ?? incoming.note ?? "";
+    const manualNoteText =
+      current.manualNoteText !== undefined
+        ? current.manualNoteText
+        : current.excelNote !== undefined
+          ? ""
+          : manualNoteDelta(current.note || "", incomingExcelNote);
+
+    const effectiveShift = manualShift ? current : incoming;
+    const effectiveWorkMode = inferredManualWfh
+      ? "WFH"
+      : manualShift && AUTO_WFH_START_TIMES.has(effectiveShift.shiftStart)
+        ? "WFH"
+        : incoming.workMode || "";
+
+    return {
+      ...incoming,
+      shiftCode: effectiveShift.shiftCode,
+      shiftStart: effectiveShift.shiftStart,
+      shiftEnd: effectiveShift.shiftEnd,
+      status: effectiveShift.status,
+      workMode: effectiveWorkMode,
+      otText: inferredManualOt ? manualOtText : (incoming.excelOtText ?? incoming.otText ?? ""),
+      note: mergeNoteText(incomingExcelNote, manualNoteText),
+      manualShift,
+      manualWorkMode: inferredManualWfh,
+      manualOtEdited: inferredManualOt,
+      manualOtText,
+      manualNoteText,
+      sourceFill: manualShift ? current.sourceFill : incoming.sourceFill,
+      sourceFontColor: manualShift ? current.sourceFontColor : incoming.sourceFontColor,
+    };
+  });
+
+  return { ...imported, entries };
+}
+
 function sectionName(value: unknown) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.replace(/^Full Name/i, "").trim() || "Team";
@@ -260,6 +359,7 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
       const date = `${monthKey}-${String(day).padStart(2, "0")}`;
       const address = XLSX.utils.encode_cell({ r: rowIndex, c: col });
       const note = extractNote(ws, address);
+      const excelOtText = extractOtText(note);
       const appearance = extractCellAppearance(ws, address);
       const workMode =
         !parsed.status && (AUTO_WFH_START_TIMES.has(parsed.shiftStart) || isPinkishHex(appearance.fill))
@@ -275,11 +375,22 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
         shiftStart: parsed.shiftStart,
         shiftEnd: parsed.shiftEnd,
         status: parsed.status,
-        otText: extractOtText(note),
+        otText: excelOtText,
         note,
         sourceFill: appearance.fill,
         sourceFontColor: appearance.fontColor,
         workMode,
+        excelShiftCode: parsed.shiftCode,
+        excelShiftStart: parsed.shiftStart,
+        excelShiftEnd: parsed.shiftEnd,
+        excelStatus: parsed.status,
+        excelOtText,
+        excelNote: note,
+        manualShift: false,
+        manualWorkMode: false,
+        manualOtEdited: false,
+        manualOtText: "",
+        manualNoteText: "",
       });
     });
   });
@@ -634,8 +745,12 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     setImporting(true);
     setMessage("");
     try {
+      const existingMonth =
+        months.find((item) => item.monthKey === candidate.month.monthKey) ||
+        (month?.monthKey === candidate.month.monthKey ? month : null);
+      const mergedMonth = mergeImportedScheduleMonth(candidate.month, existingMonth);
       await saveScheduleMonth({
-        ...candidate.month,
+        ...mergedMonth,
         updatedBy: currentUser.displayName || currentUser.username,
         updatedAtIso: new Date().toISOString(),
       });
@@ -664,19 +779,49 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const saveEdit = async () => {
     if (!month || !editEntry) return;
     const parsed = parseEditedShift(editShift);
-    const shiftChanged = parsed.shiftCode !== editEntry.shiftCode || parsed.status !== editEntry.status;
+    const baselineShiftCode = editEntry.excelShiftCode ?? editEntry.shiftCode;
+    const baselineShiftStart = editEntry.excelShiftStart ?? editEntry.shiftStart;
+    const baselineShiftEnd = editEntry.excelShiftEnd ?? editEntry.shiftEnd;
+    const baselineStatus = editEntry.excelStatus ?? editEntry.status;
+    const manualShift =
+      parsed.shiftCode !== baselineShiftCode ||
+      parsed.shiftStart !== baselineShiftStart ||
+      parsed.shiftEnd !== baselineShiftEnd ||
+      parsed.status !== baselineStatus;
+
+    const excelOtText = editEntry.excelOtText ?? extractOtText(editEntry.excelNote ?? editEntry.note ?? "");
+    const manualOtEdited = editOt.trim() !== excelOtText.trim();
+    const manualOtText = manualOtEdited ? editOt.trim() : "";
+    const excelNote = editEntry.excelNote ?? editEntry.note ?? "";
+    const manualNoteText = manualNoteDelta(editNote.trim(), excelNote);
+    const manualWorkMode =
+      !parsed.status &&
+      !AUTO_WFH_START_TIMES.has(parsed.shiftStart) &&
+      editWfh;
     const nextWorkMode =
-      !parsed.status && (editWfh || AUTO_WFH_START_TIMES.has(parsed.shiftStart))
+      !parsed.status && (manualWorkMode || AUTO_WFH_START_TIMES.has(parsed.shiftStart))
         ? "WFH"
         : "";
+
     const nextEntry: ShiftScheduleEntry = {
       ...editEntry,
       ...parsed,
-      otText: editOt.trim(),
-      note: editNote.trim(),
+      otText: manualOtEdited ? manualOtText : excelOtText,
+      note: mergeNoteText(excelNote, manualNoteText),
       workMode: nextWorkMode,
-      sourceFill: shiftChanged ? "" : editEntry.sourceFill,
-      sourceFontColor: shiftChanged ? "" : editEntry.sourceFontColor,
+      excelShiftCode: editEntry.excelShiftCode ?? editEntry.shiftCode,
+      excelShiftStart: editEntry.excelShiftStart ?? editEntry.shiftStart,
+      excelShiftEnd: editEntry.excelShiftEnd ?? editEntry.shiftEnd,
+      excelStatus: editEntry.excelStatus ?? editEntry.status,
+      excelOtText,
+      excelNote,
+      manualShift,
+      manualWorkMode,
+      manualOtEdited,
+      manualOtText,
+      manualNoteText,
+      sourceFill: manualShift ? "" : editEntry.sourceFill,
+      sourceFontColor: manualShift ? "" : editEntry.sourceFontColor,
     };
     const nextMonth: ShiftScheduleMonth = {
       ...month,
