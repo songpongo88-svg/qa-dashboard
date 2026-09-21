@@ -240,6 +240,44 @@ function manualNoteDelta(fullNote: string, excelNote: string) {
   return noteLines(fullNote).filter((line) => !excelLines.has(line)).join("\n");
 }
 
+function combineScheduleCandidates(candidates: ParsedCandidate[]): { month: ShiftScheduleMonth; employeeCount: number; sheetCount: number; hiddenCount: number; skippedDraftCount: number } | null {
+  if (!candidates.length) return null;
+
+  const nonDraft = candidates.filter((candidate) => !candidate.isDraft);
+  const activeCandidates = nonDraft.length ? nonDraft : candidates;
+  const entries: ShiftScheduleEntry[] = [];
+  const seenEntryKeys = new Set<string>();
+
+  activeCandidates.forEach((candidate) => {
+    candidate.month.entries.forEach((entry) => {
+      const employeeKey = entry.employeeId
+        ? entry.employeeId.trim().toLowerCase()
+        : normalizeScheduleName(entry.agentName);
+      const key = `${employeeKey}|${entry.date}`;
+      if (seenEntryKeys.has(key)) return;
+      seenEntryKeys.add(key);
+      entries.push(entry);
+    });
+  });
+
+  const first = activeCandidates[0];
+  const employeeCount = new Set(
+    entries.map((entry) => entry.employeeId?.trim().toLowerCase() || normalizeScheduleName(entry.agentName))
+  ).size;
+
+  return {
+    month: {
+      ...first.month,
+      sheetName: activeCandidates.map((candidate) => candidate.month.sheetName).join(" + "),
+      entries,
+    },
+    employeeCount,
+    sheetCount: activeCandidates.length,
+    hiddenCount: activeCandidates.filter((candidate) => candidate.isHidden).length,
+    skippedDraftCount: candidates.length - activeCandidates.length,
+  };
+}
+
 function mergeImportedScheduleMonth(
   imported: ShiftScheduleMonth,
   existing: ShiftScheduleMonth | null
@@ -650,6 +688,11 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     [candidates, candidateMonthKey]
   );
 
+  const selectedMonthImport = useMemo(
+    () => combineScheduleCandidates(filteredCandidates),
+    [filteredCandidates]
+  );
+
   const refreshMonths = async () => {
     try {
       const next = await fetchScheduleMonths();
@@ -793,25 +836,30 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   };
 
   const importSelected = async () => {
-    const candidate = filteredCandidates[candidateIndex];
-    if (!candidate) return;
+    const combined = selectedMonthImport;
+    if (!combined) return;
     setImporting(true);
     setMessage("");
     try {
+      const targetMonth = combined.month;
       const existingMonth =
-        months.find((item) => item.monthKey === candidate.month.monthKey) ||
-        (month?.monthKey === candidate.month.monthKey ? month : null);
-      const mergedMonth = mergeImportedScheduleMonth(candidate.month, existingMonth);
+        months.find((item) => item.monthKey === targetMonth.monthKey) ||
+        (month?.monthKey === targetMonth.monthKey ? month : null);
+      const mergedMonth = mergeImportedScheduleMonth(targetMonth, existingMonth);
       await saveScheduleMonth({
         ...mergedMonth,
         updatedBy: currentUser.displayName || currentUser.username,
         updatedAtIso: new Date().toISOString(),
       });
-      setSelectedMonthKey(candidate.month.monthKey);
-      setMessage(`นำเข้า ${formatMonthLabel(candidate.month.monthKey)} แล้ว · ${candidate.employeeCount} คน`);
+      setSelectedMonthKey(targetMonth.monthKey);
+      setMessage(
+        `นำเข้า ${formatMonthLabel(targetMonth.monthKey)} แล้ว · รวม ${combined.sheetCount} ชีต · ${combined.employeeCount} คน${combined.skippedDraftCount ? ` · ข้าม Draft ${combined.skippedDraftCount} ชีต` : ""}`
+      );
       setCandidates([]);
+      setCandidateMonthKey("");
+      setCandidateIndex(0);
       await refreshMonths();
-      window.dispatchEvent(new CustomEvent("qa-schedule-updated", { detail: { monthKey: candidate.month.monthKey } }));
+      window.dispatchEvent(new CustomEvent("qa-schedule-updated", { detail: { monthKey: targetMonth.monthKey } }));
     } catch (error) {
       console.error("Save schedule month failed", error);
       setMessage("บันทึกตารางกะไม่สำเร็จ กรุณาลองใหม่");
