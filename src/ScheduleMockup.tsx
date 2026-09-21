@@ -1138,54 +1138,84 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
 
             {candidates.length ? (
               <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
-                <div className="grid gap-3 sm:grid-cols-[0.8fr_1.4fr_auto] sm:items-end">
-                  <label className="block">
-                    <span className="text-xs font-semibold text-violet-800">เลือกเดือนที่จะนำเข้า</span>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <label className="block sm:w-[260px]">
+                    <span className="text-xs font-semibold text-violet-800">แสดง Sheet ของเดือน</span>
                     <select
                       value={candidateMonthKey}
-                      onChange={(event) => {
-                        setCandidateMonthKey(event.target.value);
-                        setCandidateIndex(0);
-                      }}
+                      onChange={(event) => setCandidateMonthKey(event.target.value)}
                       className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
                     >
+                      <option value="ALL">ทุกเดือน</option>
                       {candidateMonthKeys.map((key) => (
                         <option key={key} value={key}>{formatMonthLabel(key)}</option>
                       ))}
                     </select>
                   </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-violet-800">เลือก Sheet ที่จะนำเข้า</span>
-                    <select
-                      value={candidateIndex}
-                      onChange={(event) => setCandidateIndex(Number(event.target.value))}
-                      className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={selectAllVisibleSheets}
+                      className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
                     >
-                      {filteredCandidates.map((candidate, index) => (
-                        <option key={`${candidate.month.sheetName}-${index}`} value={index}>
-                          {candidate.month.sheetName}{candidate.isHidden ? " · Hidden" : ""}{candidate.isDraft ? " · Draft" : ""} · {candidate.employeeCount} คน
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      เลือกทั้งหมดที่แสดง
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearVisibleSheetSelection}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                    >
+                      ล้างที่เลือก
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                  {filteredCandidates.map((candidate) => {
+                    const key = candidateKey(candidate);
+                    const checked = selectedCandidateKeys.includes(key);
+                    return (
+                      <label
+                        key={key}
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
+                          checked ? "border-violet-400 bg-white shadow-sm" : "border-violet-100 bg-white/70 hover:bg-white"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) => toggleCandidateSelection(candidate, event.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300 accent-violet-700"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-bold text-slate-900">{candidate.month.sheetName}</span>
+                            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">{formatMonthLabel(candidate.month.monthKey)}</span>
+                            {candidate.isHidden ? <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">Hidden</span> : null}
+                            {candidate.isDraft ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Draft</span> : null}
+                          </div>
+                          <div className="mt-0.5 text-[10px] text-slate-500">{candidate.employeeCount} คน</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 flex flex-col gap-2 border-t border-violet-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-xs text-violet-800">
+                    เลือกแล้ว <span className="font-black">{selectedCandidates.length}</span> Sheet
+                    <span className="ml-2 text-[10px] text-violet-600">เลือกหลายเดือนได้พร้อมกัน · 1 Sheet ต่อเดือน</span>
+                  </div>
                   <button
                     type="button"
-                    disabled={importing || !selectedCandidate}
+                    disabled={importing || !selectedCandidates.length}
                     onClick={() => void importSelected()}
                     className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                   >
-                    {importing ? "กำลังนำเข้า..." : selectedCandidate ? `นำเข้า ${formatMonthLabel(selectedCandidate.month.monthKey)}` : "นำเข้า"}
+                    {importing ? "กำลังนำเข้า..." : `นำเข้า ${selectedCandidates.length} Sheet`}
                   </button>
                 </div>
-                {selectedCandidate ? (
-                  <div className="mt-3 rounded-xl border border-violet-100 bg-white/80 px-3 py-2 text-xs text-violet-800">
-                    Sheet: <span className="font-black">{selectedCandidate.month.sheetName}</span>
-                    {" · "}<span className="font-black">{selectedCandidate.employeeCount} คน</span>
-                    {selectedCandidate.isHidden ? <> · <span className="font-black text-sky-700">Hidden</span></> : null}
-                    {selectedCandidate.isDraft ? <> · <span className="font-black text-amber-700">Draft</span></> : null}
-                  </div>
-                ) : null}
-                <div className="mt-2 text-[10px] text-violet-700">ระบบแสดงทั้ง Sheet ปกติและ Hidden Sheet และจะนำเข้าเฉพาะ Sheet ที่คุณเลือก</div>
+                <div className="mt-2 text-[10px] text-violet-700">ปุ่ม “เลือกทั้งหมดที่แสดง” จะเลือก Sheet หลักของแต่ละเดือนก่อน Draft อัตโนมัติ และ Hidden Sheet ยังเลือกเองได้</div>
               </div>
             ) : null}
             {message ? <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">{message}</div> : null}
