@@ -19,6 +19,7 @@ import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluat
 import { withConsistentUserNames } from "./lib/userNames";
 import PreTestMockup from "./PreTestMockup";
 import TrainingAttendanceMockup from "./TrainingAttendanceMockup";
+import ScheduleMockup, { ScheduleSidebarCard } from "./ScheduleMockup";
 import { upsertStoredEvaluation, isTestCaseEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
@@ -205,6 +206,7 @@ type AppTab =
   | "create-evaluation"
   | "pre-test"
   | "training-attendance"
+  | "schedule"
   | "appeal-requests"
   | "appeal-override"
   | "task-inbox"
@@ -503,6 +505,7 @@ const VALID_APP_TABS = new Set<AppTab>([
   "create-evaluation",
   "pre-test",
   "training-attendance",
+  "schedule",
   "appeal-requests",
   "appeal-override",
   "task-inbox",
@@ -544,6 +547,7 @@ const WORKSPACE_TAB_LABELS: Record<AppTab | "case-detail", string> = {
   "create-evaluation": "Evaluate",
   "pre-test": "Pre-Test",
   "training-attendance": "Training",
+  schedule: "SCH",
   "appeal-requests": "Appeal Review",
   "appeal-override": "Late Appeal",
   "task-inbox": "Inbox",
@@ -6939,6 +6943,7 @@ export default function App() {
       title: "Workspace",
       description: "พื้นที่ทำงานและการประสานงานของทีม",
       items: [
+        { key: "schedule", label: "SCH", description: "ดูตารางกะรายเดือน กะวันนี้ และ OT พร้อมอัปโหลด Excel", icon: "clock", allowed: true, active: activeWorkspaceTab === "schedule", onClick: () => activateWorkspaceTab("schedule") },
         { key: "call-history", label: "Calls", description: "ดูประวัติสายเข้า สายออก สายพลาด และสายที่จบแล้ว", icon: "phone", allowed: teamChatAllowed, active: activeWorkspaceTab === "call-history", onClick: () => activateWorkspaceTab("call-history") },
         { key: "team-chat", label: "Chat", description: "สนทนาในห้องทีม ส่งข้อความส่วนตัว ไฟล์ และ Call Invite", icon: "chat", allowed: teamChatAllowed, active: activeWorkspaceTab === "team-chat", onClick: () => activateWorkspaceTab("team-chat"), badge: totalChatUnreadCount },
         { key: "task-inbox", label: "Inbox", description: "ดูงานใหม่ ผล QA การแจ้งเตือน และงานตรวจสอบ", icon: "queue", allowed: true, active: activeWorkspaceTab === "task-inbox", onClick: openTaskInbox, badge: unreadInboxTaskCount },
@@ -7010,6 +7015,7 @@ export default function App() {
               <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-semibold tracking-wider text-violet-800">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span>
             </div> : null}
             {!globalSidebarCollapsed && <button type="button" onClick={() => activateWorkspaceTab("terms")} className="qa-sidebar-label mt-2 w-full rounded-lg border border-white/20 px-2 py-1.5 text-left text-[10px] font-medium text-white hover:bg-white/10">Profile · Terms & Acknowledgements</button>}
+            <ScheduleSidebarCard currentUser={currentUser} collapsed={globalSidebarCollapsed} onOpen={() => activateWorkspaceTab("schedule")} />
             <button
               type="button"
               onClick={() => setThemePickerOpen(true)}
@@ -7427,6 +7433,8 @@ export default function App() {
               void loadChatData();
             }}
           />
+        ) : activeTab === "schedule" ? (
+          <ScheduleMockup currentUser={currentUser} />
         ) : activeTab === "summary" && analyticsAllowed ? (
           <SummaryMockup
             currentUser={currentUser}
