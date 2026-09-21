@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-18T08:20:00.000Z",
-  "reason": "Reviewed Theme usage percentage Firebase query fix; no user guide content change required",
+  "reviewedAt": "2026-09-21T05:15:00.000Z",
+  "reason": "Reviewed Process Library selected PDF slide viewer restriction; no user guide content change required",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -393,7 +393,8 @@
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
-    "vite.config.js": "7bf3ce183b0ae9b5ace73d2a78a3b5b13fa6497016fc023dcec49f57c13308e5",
-    "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242"
+    "vite.config.js": "f9c374d41124b58ef47568956bb17a0afae79a497e7f9afc0098979acb5bd305",
+    "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
+    "build/processSelectedPdfPagesPatch.js": "4b1013d6fbb515532209a8db89d7654abf3ab61d007937a6617ba538cd321b3f"
   }
 }
