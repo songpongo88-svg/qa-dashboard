@@ -24,6 +24,7 @@ export type ShiftScheduleEntry = {
   excelNote?: string;
   manualShift?: boolean;
   manualWorkMode?: boolean;
+  workModeOverride?: "WFH" | "Workspace" | "";
   manualOtEdited?: boolean;
   manualOtText?: string;
   manualNoteText?: string;
@@ -92,6 +93,7 @@ export async function saveScheduleMonth(value: ShiftScheduleMonth) {
     excelNote: String(entry.excelNote || ""),
     manualShift: Boolean(entry.manualShift),
     manualWorkMode: Boolean(entry.manualWorkMode),
+    workModeOverride: String(entry.workModeOverride || ""),
     manualOtEdited: Boolean(entry.manualOtEdited),
     manualOtText: String(entry.manualOtText || ""),
     manualNoteText: String(entry.manualNoteText || ""),
