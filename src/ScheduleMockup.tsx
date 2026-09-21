@@ -627,10 +627,26 @@ function canManageSchedule(role: unknown) {
   return /quality assurance|\bqa\b|supervisor|senior|team lead|department head/.test(value);
 }
 
+function entryBaseShift(entry: ShiftScheduleEntry | null) {
+  if (!entry) return null;
+
+  if (entry.shiftStart && entry.shiftEnd) {
+    const start = normalizeClockToken(entry.shiftStart);
+    const end = normalizeClockToken(entry.shiftEnd);
+    if (start && end) {
+      return { shiftCode: `${start}-${end}`, shiftStart: start, shiftEnd: end, status: "" };
+    }
+  }
+
+  const fallback = parseShiftValue(entry.status || entry.shiftCode || "");
+  return !fallback.status && fallback.shiftStart && fallback.shiftEnd ? fallback : null;
+}
+
 function entryLabel(entry: ShiftScheduleEntry | null) {
   if (!entry) return "ไม่มีข้อมูล";
+  const base = entryBaseShift(entry);
+  if (base) return `${base.shiftStart}–${base.shiftEnd}`;
   if (entry.status) return entry.status;
-  if (entry.shiftStart && entry.shiftEnd) return `${entry.shiftStart}–${entry.shiftEnd}`;
   return entry.shiftCode || "—";
 }
 
@@ -649,27 +665,24 @@ function formatClockMinutes(value: number) {
 }
 
 function extractOtClockTimes(value: string) {
-  const raw = String(value || "");
-  const rangeTimes = [...raw.matchAll(/\b(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})\b/g)]
-    .flatMap((match) => [match[1], match[2]])
-    .filter(Boolean);
-
-  if (rangeTimes.length) return rangeTimes;
+  const raw = normalizeClockNotationText(value);
+  const ranges = extractOtRanges(raw);
+  if (ranges.length) return ranges.flatMap((range) => [range.start, range.end]);
 
   const withoutDuration = raw.replace(/\(\s*\d{1,2}:\d{2}\s*\)/g, " ");
   return [...withoutDuration.matchAll(/\b(\d{1,2}:\d{2})\b/g)]
-    .map((match) => match[1])
+    .map((match) => normalizeClockToken(match[1]))
     .filter(Boolean);
 }
 
 function scheduleCellLabel(entry: ShiftScheduleEntry | null) {
   if (!entry) return "—";
-  if (entry.status) return entry.status;
-  if (!entry.shiftStart || !entry.shiftEnd) return entry.shiftStart || entry.shiftCode || "—";
+  const base = entryBaseShift(entry);
+  if (!base) return entry.status || entry.shiftCode || "—";
 
-  const baseStart = parseClockMinutes(entry.shiftStart);
-  const baseEnd = parseClockMinutes(entry.shiftEnd);
-  if (baseStart === null || baseEnd === null) return `${entry.shiftStart}-${entry.shiftEnd}`;
+  const baseStart = parseClockMinutes(base.shiftStart);
+  const baseEnd = parseClockMinutes(base.shiftEnd);
+  if (baseStart === null || baseEnd === null) return `${base.shiftStart}-${base.shiftEnd}`;
 
   const otTimes = extractOtClockTimes(entry.otText)
     .map(parseClockMinutes)
@@ -689,18 +702,20 @@ function isScheduleChangedEntry(entry: ShiftScheduleEntry | null) {
 }
 
 function isWfhEntry(entry: ShiftScheduleEntry | null) {
-  if (!entry || entry.status) return false;
+  if (!entry) return false;
+  const base = entryBaseShift(entry);
+  if (!base) return false;
   if (entry.workModeOverride === "Workspace") return false;
   if (entry.workModeOverride === "WFH") return true;
   return Boolean(
     entry.workMode === "WFH" ||
-    AUTO_WFH_START_TIMES.has(entry.shiftStart) ||
+    AUTO_WFH_START_TIMES.has(base.shiftStart) ||
     (!entry.workMode && isPinkishHex(entry.sourceFill || ""))
   );
 }
 
 function isWorkingEntry(entry: ShiftScheduleEntry | null) {
-  return Boolean(entry && !entry.status && entry.shiftStart);
+  return Boolean(entryBaseShift(entry));
 }
 
 function workModeLabel(entry: ShiftScheduleEntry | null) {
@@ -713,6 +728,7 @@ function entryTone(entry: ShiftScheduleEntry | null) {
   if (!entry) return "border-slate-200 bg-slate-50 text-slate-500";
   if (isScheduleChangedEntry(entry)) return "border-orange-400 bg-orange-200 text-orange-950";
   if (isWfhEntry(entry)) return "border-pink-300 bg-pink-200 text-pink-950";
+  if (isWorkingEntry(entry)) return "border-slate-200 bg-white text-slate-800";
   if (entry.status === "OFF") return "border-emerald-300 bg-emerald-100 text-emerald-700";
   if (["BL", "AL", "SL", "PL", "LW"].includes(entry.status)) return "border-yellow-400 bg-yellow-300 text-red-600";
   if (entry.status === "AB") return "border-red-600 bg-red-500 text-white";
@@ -721,7 +737,7 @@ function entryTone(entry: ShiftScheduleEntry | null) {
 }
 
 function entryStyle(entry: ShiftScheduleEntry | null): React.CSSProperties | undefined {
-  if (!entry || entry.status || isWfhEntry(entry) || isScheduleChangedEntry(entry) || !entry.sourceFill) return undefined;
+  if (!entry || !isWorkingEntry(entry) || isWfhEntry(entry) || isScheduleChangedEntry(entry) || !entry.sourceFill) return undefined;
   return {
     backgroundColor: entry.sourceFill,
     color: entry.sourceFontColor || undefined,
@@ -744,8 +760,8 @@ function employeeScheduleSummary(
   daysInMonth: number
 ) {
   const mine = entries.filter((entry) => normalizeScheduleName(entry.agentName) === normalizeScheduleName(agentName));
-  const countStatus = (status: string) => mine.filter((entry) => entry.status === status).length;
-  const twd = mine.filter((entry) => !entry.status && Boolean(entry.shiftStart)).length;
+  const countStatus = (status: string) => mine.filter((entry) => !isWorkingEntry(entry) && entry.status === status).length;
+  const twd = mine.filter((entry) => isWorkingEntry(entry)).length;
   return {
     BL: countStatus("BL"),
     AL: countStatus("AL"),
@@ -779,9 +795,9 @@ export function ScheduleSidebarCard({
   );
 
   const summary = entry
-    ? entry.status
-      ? `วันนี้ · ${entry.status}`
-      : `วันนี้ · ${scheduleCellLabel(entry)} · ${workModeLabel(entry)}`
+    ? isWorkingEntry(entry)
+      ? `วันนี้ · ${scheduleCellLabel(entry)} · ${workModeLabel(entry)}`
+      : `วันนี้ · ${entry.status || entry.shiftCode || "—"}`
     : month
       ? "วันนี้ · ไม่พบชื่อใน SCH"
       : "วันนี้ · ยังไม่มีตาราง";
@@ -927,7 +943,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     const map = new Map<string, ShiftScheduleEntry[]>();
     month?.entries.forEach((entry) => {
       if (isScheduleTemplatePerson(entry.agentName, entry.nickname)) return;
-      if (entry.status || !entry.shiftStart) return;
+      if (!isWorkingEntry(entry)) return;
       const list = map.get(entry.date) || [];
       list.push(entry);
       map.set(entry.date, list);
@@ -1066,7 +1082,8 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const openEdit = (entry: ShiftScheduleEntry) => {
     if (!canManage) return;
     setEditEntry(entry);
-    setEditShift(entry.shiftCode || entry.status || "");
+    const base = entryBaseShift(entry);
+    setEditShift(base?.shiftCode || entry.shiftCode || entry.status || "");
     setEditOt(entry.otText || "");
     setEditNote(entry.note || "");
     setEditWfh(isWfhEntry(entry));
@@ -1490,7 +1507,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                         {Array.from({ length: daysInMonth }, (_, index) => {
                           const day = index + 1;
                           const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
-                          const count = (workingEntriesByDate.get(date) || []).filter((entry) => entry.shiftStart === shift.start).length;
+                          const count = (workingEntriesByDate.get(date) || []).filter((entry) => entryBaseShift(entry)?.shiftStart === shift.start).length;
                           return (
                             <td key={date} className="border-b border-r border-slate-200 bg-white px-2 py-2 text-center font-bold text-slate-700">
                               {count}
