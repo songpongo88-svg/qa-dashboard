@@ -399,6 +399,12 @@ function sectionName(value: unknown) {
   return text.replace(/^Full Name/i, "").replace(/^Name$/i, "").trim() || "Team";
 }
 
+function isScheduleTemplatePerson(agentName: unknown, nickname: unknown) {
+  const name = String(agentName || "").replace(/\s+/g, " ").trim();
+  const nick = String(nickname || "").replace(/\s+/g, " ").trim();
+  return /^Nickname$/i.test(nick) || /^Name\s+Chat[- ]?Non\s*Voice$/i.test(name);
+}
+
 function parseSheetCandidate(workbook: any, sheetName: string, fileName: string): ParsedCandidate | null {
   const ws = workbook.Sheets[sheetName];
   if (!ws) return null;
@@ -494,6 +500,7 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
     }
 
     if (!agentName || !nickname) return;
+    if (isScheduleTemplatePerson(agentName, nickname)) return;
     if (employeeId && !/^RBH\d+/i.test(employeeId)) return;
     if (/Headcount|^\d{1,2}:\d{2}/i.test(agentName)) return;
 
@@ -827,6 +834,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     if (!month) return [];
     const map = new Map<string, { employeeId: string; agentName: string; nickname: string; section: string }>();
     month.entries.forEach((entry) => {
+      if (isScheduleTemplatePerson(entry.agentName, entry.nickname)) return;
       const key = normalizeScheduleName(entry.agentName);
       if (!map.has(key)) {
         map.set(key, {
@@ -860,6 +868,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const workingEntriesByDate = useMemo(() => {
     const map = new Map<string, ShiftScheduleEntry[]>();
     month?.entries.forEach((entry) => {
+      if (isScheduleTemplatePerson(entry.agentName, entry.nickname)) return;
       if (entry.status || !entry.shiftStart) return;
       const list = map.get(entry.date) || [];
       list.push(entry);
