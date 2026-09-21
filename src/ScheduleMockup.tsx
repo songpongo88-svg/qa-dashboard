@@ -964,20 +964,48 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
 
             {candidates.length ? (
               <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
-                <label className="text-xs font-semibold text-violet-800">เลือกชีตที่จะนำเข้า</label>
-                <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-                  <select value={candidateIndex} onChange={(event) => setCandidateIndex(Number(event.target.value))} className="min-w-0 flex-1 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-slate-800">
-                    {candidates.map((candidate, index) => (
-                      <option key={`${candidate.month.sheetName}-${index}`} value={index}>
-                        {formatMonthLabel(candidate.month.monthKey)} · {candidate.month.sheetName}{candidate.isDraft ? " (Draft)" : ""} · {candidate.employeeCount} คน
-                      </option>
-                    ))}
-                  </select>
-                  <button type="button" disabled={importing} onClick={() => void importSelected()} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                <div className="grid gap-3 sm:grid-cols-[0.8fr_1.4fr_auto] sm:items-end">
+                  <label className="block">
+                    <span className="text-xs font-semibold text-violet-800">เลือกเดือนที่จะนำเข้า</span>
+                    <select
+                      value={candidateMonthKey}
+                      onChange={(event) => {
+                        setCandidateMonthKey(event.target.value);
+                        setCandidateIndex(0);
+                      }}
+                      className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
+                    >
+                      {candidateMonthKeys.map((key) => (
+                        <option key={key} value={key}>{formatMonthLabel(key)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-violet-800">เลือกชีต</span>
+                    <select
+                      value={candidateIndex}
+                      onChange={(event) => setCandidateIndex(Number(event.target.value))}
+                      className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    >
+                      {filteredCandidates.map((candidate, index) => (
+                        <option key={`${candidate.month.sheetName}-${index}`} value={index}>
+                          {candidate.month.sheetName}{candidate.isHidden ? " · Hidden" : ""}{candidate.isDraft ? " · Draft" : ""} · {candidate.employeeCount} คน
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={importing || !selectedCandidate}
+                    onClick={() => void importSelected()}
+                    className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                  >
                     {importing ? "กำลังนำเข้า..." : selectedCandidate ? `นำเข้า ${formatMonthLabel(selectedCandidate.month.monthKey)}` : "นำเข้า"}
                   </button>
                 </div>
-                {selectedCandidate?.isDraft ? <div className="mt-2 text-xs font-semibold text-amber-700">ชีตนี้เป็น Draft กรุณาตรวจสอบก่อนนำเข้า</div> : null}
+                <div className="mt-2 text-[10px] text-violet-700">แสดงทั้งชีตปกติและชีตที่ซ่อนอยู่ในไฟล์ Excel</div>
+                {selectedCandidate?.isHidden ? <div className="mt-1 text-xs font-semibold text-sky-700">ชีตที่เลือกเป็น Hidden Sheet</div> : null}
+                {selectedCandidate?.isDraft ? <div className="mt-1 text-xs font-semibold text-amber-700">ชีตนี้เป็น Draft กรุณาตรวจสอบก่อนนำเข้า</div> : null}
               </div>
             ) : null}
             {message ? <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">{message}</div> : null}
