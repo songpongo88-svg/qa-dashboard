@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-21T15:55:00.000+07:00",
-  "reason": "Reviewed SCH merged shift/OT display, OT corner badge, and orange highlighting for exchanged or changed schedules",
+  "reviewedAt": "2026-09-21T16:05:00.000+07:00",
+  "reason": "Reviewed SCH WFH manual control, Workspace/WFH/OT labels, Excel notes, and opaque sticky Agent column",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -397,6 +397,6 @@
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
     "build/processSelectedPdfPagesPatch.js": "4b1013d6fbb515532209a8db89d7654abf3ab61d007937a6617ba538cd321b3f",
     "src/scheduleStore.ts": "90fda78ba3dd88ec7fb99ee23a0e567dfa6d3cfd5d072a673940bf9cbd1f3355",
-    "src/ScheduleMockup.tsx": "112ff759046d05a2caa26996e94bf0072b0124eea82a69d151051ce6f44a887a"
+    "src/ScheduleMockup.tsx": "218a6b635e7dc5b7ec38b1d79edcd198bd76d10b9cf4e65d57bd2eacce02b99b"
   }
 }
