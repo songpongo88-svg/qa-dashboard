@@ -10,18 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: 5817d8f3d3da7263fb0c75836a1900e221595e60
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Build exact production commit with Vercel environment
-        env:
-          VERCEL: "1"
-          VERCEL_ENV: "production"
-          VERCEL_GIT_COMMIT_SHA: 5817d8f3d3da7263fb0c75836a1900e221595e60
-          VERCEL_GIT_COMMIT_MESSAGE: Deploy clean Case Detail appeal and theme fixes
-        run: npm run build
+      - run: npm run build
