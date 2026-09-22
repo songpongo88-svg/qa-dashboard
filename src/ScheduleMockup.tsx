@@ -705,21 +705,29 @@ function extractOtClockTimes(value: string) {
 function scheduleCellLabel(entry: ShiftScheduleEntry | null) {
   if (!entry) return "—";
   const base = entryBaseShift(entry);
-  if (!base) return entry.status || entry.shiftCode || "—";
+  if (base) return `${base.shiftStart}-${base.shiftEnd}`;
+  return entry.status || entry.shiftCode || "—";
+}
 
-  const baseStart = parseClockMinutes(base.shiftStart);
-  const baseEnd = parseClockMinutes(base.shiftEnd);
-  if (baseStart === null || baseEnd === null) return `${base.shiftStart}-${base.shiftEnd}`;
+function scheduleOtLabel(entry: ShiftScheduleEntry | null) {
+  if (!entry?.otText) return "";
+  const raw = normalizeClockNotationText(entry.otText).trim();
+  if (!raw) return "";
 
-  const otTimes = extractOtClockTimes(entry.otText)
-    .map(parseClockMinutes)
-    .filter((value): value is number => value !== null);
+  const ranges = extractOtRanges(raw);
+  const rangeText = ranges.map((range) => `${range.start}-${range.end}`).join(" · ");
 
-  const validOtStartTimes = otTimes.filter((value) => value <= baseStart);
-  const validOtEndTimes = otTimes.filter((value) => value >= baseEnd);
-  const start = validOtStartTimes.length ? Math.min(baseStart, ...validOtStartTimes) : baseStart;
-  const end = validOtEndTimes.length ? Math.max(baseEnd, ...validOtEndTimes) : baseEnd;
-  return `${formatClockMinutes(start)}-${formatClockMinutes(end)}`;
+  if (isOtExtraEntry(entry)) {
+    return rangeText ? `OT Extra ${rangeText}` : "OT Extra";
+  }
+
+  if (rangeText) return `OT ${rangeText}`;
+
+  const cleaned = raw
+    .replace(/^\+\s*/g, "")
+    .replace(/^OT\s*[:：]?\s*/i, "")
+    .trim();
+  return cleaned ? `OT ${cleaned}` : "OT";
 }
 
 function isScheduleChangedEntry(entry: ShiftScheduleEntry | null) {
@@ -906,8 +914,8 @@ export function ScheduleSidebarCard({
 
   const summary = entry
     ? isWorkingEntry(entry)
-      ? `วันนี้ · ${scheduleCellLabel(entry)} · ${workModeLabel(entry)}`
-      : `วันนี้ · ${entry.status || entry.shiftCode || "—"}`
+      ? `วันนี้ · ${scheduleCellLabel(entry)}${scheduleOtLabel(entry) ? ` · ${scheduleOtLabel(entry)}` : ""} · ${isWfhEntry(entry) ? "WFH" : "Workspace"}`
+      : `วันนี้ · ${entry.status || entry.shiftCode || "—"}${scheduleOtLabel(entry) ? ` · ${scheduleOtLabel(entry)}` : ""}`
     : month
       ? "วันนี้ · ไม่พบชื่อใน SCH"
       : "วันนี้ · ยังไม่มีตาราง";
@@ -1312,12 +1320,17 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">Today</div>
             <div className="mt-2 text-xl font-bold text-slate-950">{currentUser.agentName || currentUser.displayName}</div>
             <div
-              className={`mt-4 inline-flex rounded-2xl border px-4 py-3 text-base font-bold ${entryTone(todayEntry)}`}
+              className={`mt-4 inline-flex items-center rounded-2xl border px-4 py-3 text-base font-bold ${entryTone(todayEntry)}`}
               style={entryStyle(todayEntry)}
             >
               <span>{scheduleCellLabel(todayEntry)}</span>
+              {scheduleOtLabel(todayEntry) ? (
+                <span className={`ml-2 text-xs font-bold ${isOtExtraEntry(todayEntry) ? "text-sky-700" : "text-red-600"}`}>
+                  · {scheduleOtLabel(todayEntry)}
+                </span>
+              ) : null}
               {isWorkingEntry(todayEntry) ? (
-                <span className="ml-2 text-xs font-semibold opacity-80">· {workModeLabel(todayEntry)}</span>
+                <span className="ml-2 text-xs font-semibold opacity-80">· {isWfhEntry(todayEntry) ? "WFH" : "Workspace"}</span>
               ) : null}
             </div>
             {todayEntry?.note ? <div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-500">{todayEntry.note}</div> : null}
@@ -1578,21 +1591,23 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                                   style={entryStyle(entry)}
                                 >
                                   {isWorkingEntry(entry) ? (
-                                    <span className="absolute right-1.5 top-1 flex items-center gap-0.5 whitespace-nowrap text-[8px] font-black tracking-wide">
+                                    <span className="absolute right-1.5 top-1 whitespace-nowrap text-[8px] font-black tracking-wide">
                                       <span className={isWfhEntry(entry) ? "text-pink-700" : "text-slate-500"}>
                                         {isWfhEntry(entry) ? "WFH" : "Workspace"}
                                       </span>
-                                      {entry?.otText ? (
-                                        <>
-                                          <span className="text-slate-400">,</span>
-                                          <span className={isOtExtraEntry(entry) ? "text-sky-700" : "text-red-600"}>
-                                            {isOtExtraEntry(entry) ? "OT Extra" : "OT"}
-                                          </span>
-                                        </>
-                                      ) : null}
                                     </span>
                                   ) : null}
-                                  <span className="block whitespace-nowrap px-1 pt-3">{scheduleCellLabel(entry)}</span>
+                                  <span className={`block whitespace-nowrap px-1 ${isWorkingEntry(entry) ? "pt-3" : scheduleOtLabel(entry) ? "pt-1" : "pt-3"}`}>
+                                    {scheduleCellLabel(entry)}
+                                  </span>
+                                  {scheduleOtLabel(entry) ? (
+                                    <span
+                                      className={`mt-0.5 block truncate whitespace-nowrap px-1 text-[8px] font-black leading-3 ${isOtExtraEntry(entry) ? "text-sky-700" : "text-red-600"}`}
+                                      title={scheduleOtLabel(entry)}
+                                    >
+                                      {scheduleOtLabel(entry)}
+                                    </span>
+                                  ) : null}
                                 </button>
                               </td>
                             );
