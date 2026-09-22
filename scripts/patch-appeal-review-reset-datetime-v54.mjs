@@ -20,22 +20,32 @@ function patchDashboardDateSourceAndReset() {
   let source = fs.readFileSync(dashboardPath, "utf8");
   if (source.includes("// appeal-review-reset-datetime-v54-dashboard")) return;
 
-  const caseDetailAppealMetadataFields = \`  appealReviewSummary?: string;\n  appealReviewedAt?: string;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\`;
-  if (source.includes(caseDetailAppealMetadataFields)) {
-    source = replaceOnce(
-      source,
-      caseDetailAppealMetadataFields,
-      \`\${caseDetailAppealMetadataFields}\n  // appeal-review-reset-datetime-v54-dashboard\`,
-      "Case Detail appeal timestamp fields"
+  const caseDetailAppealMetadataCompat = source.includes("  appealSubmittedBy?: string;");
+  if (caseDetailAppealMetadataCompat) {
+    source = source.replace(
+      `  appealReviewSummary?: string;\n  appealReviewedAt?: string;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealRequestId?: string;`,
+      `  appealReviewSummary?: string;\n  appealReviewedAt?: string;\n  appealRequestId?: string;`
     );
-  } else {
-    source = replaceOnce(
-      source,
-      \`  appealReviewSummary?: string;\n  appealReviewedAt?: string;\`,
-      \`  appealReviewSummary?: string;\n  appealSubmittedAt?: string;\n  appealReviewedAt?: string;\n  // appeal-review-reset-datetime-v54-dashboard\`,
-      "Case Detail appeal timestamp fields"
+    source = source.replace(
+      `type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  reviewedAt: string;\n  submittedBy: string;\n  submittedAt: string;\n  reviewedBy: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};`,
+      `type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  reviewedAt: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};`
+    );
+    source = source.replace(
+      `      reviewedAt: String(request.reviewedAt || "").trim(),\n      submittedBy: String(\n        submittedEvent?.agent_name ||\n          submittedEvent?.display_name ||\n          request.submittedBy ||\n          request.agent ||\n          ""\n      ).trim(),\n      submittedAt: String(\n        request.submittedAt ||\n          submittedEvent?.details?.submittedAt ||\n          submittedEvent?.created_at ||\n          ""\n      ).trim(),\n      reviewedBy: String(\n        reviewedEvent?.agent_name ||\n          reviewedEvent?.display_name ||\n          ""\n      ).trim(),\n      requestId: String(request.requestId || "").trim(),`,
+      `      reviewedAt: String(request.reviewedAt || "").trim(),\n      requestId: String(request.requestId || "").trim(),`
+    );
+    source = source.replace(
+      `      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealReviewedAt: loggedOutcome?.reviewedAt || "",\n      appealSubmittedBy: loggedOutcome?.submittedBy || item.agent || "",\n      appealSubmittedAt: loggedOutcome?.submittedAt || "",\n      appealReviewedBy: loggedOutcome?.reviewedBy || "",\n      appealRequestId: loggedOutcome?.requestId || "",`,
+      `      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealReviewedAt: loggedOutcome?.reviewedAt || "",\n      appealRequestId: loggedOutcome?.requestId || "",`
     );
   }
+
+  source = replaceOnce(
+    source,
+    `  appealReviewSummary?: string;\n  appealReviewedAt?: string;`,
+    `  appealReviewSummary?: string;\n  appealSubmittedAt?: string;\n  appealReviewedAt?: string;\n  // appeal-review-reset-datetime-v54-dashboard`,
+    "Case Detail appeal timestamp fields"
+  );
 
   source = replaceOnce(
     source,
@@ -44,22 +54,12 @@ function patchDashboardDateSourceAndReset() {
     "Appeal merge timestamp fields"
   );
 
-  const appealOutcomeMetadataType = \`type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  reviewedAt: string;\n  submittedBy: string;\n  submittedAt: string;\n  reviewedBy: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};\`;
-  if (source.includes(appealOutcomeMetadataType)) {
-    source = replaceOnce(
-      source,
-      appealOutcomeMetadataType,
-      \`\${appealOutcomeMetadataType}\n\ntype AppealTimelineItem = {\n  caseId: string;\n  submittedAt: string;\n  reviewedAt: string;\n};\`,
-      "Appeal outcome timestamp type"
-    );
-  } else {
-    source = replaceOnce(
-      source,
-      \`type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  reviewedAt: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};\`,
-      \`type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  submittedAt: string;\n  reviewedAt: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};\n\ntype AppealTimelineItem = {\n  caseId: string;\n  submittedAt: string;\n  reviewedAt: string;\n};\`,
-      "Appeal outcome timestamp type"
-    );
-  }
+  source = replaceOnce(
+    source,
+    `type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  reviewedAt: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};`,
+    `type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  submittedAt: string;\n  reviewedAt: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};\n\ntype AppealTimelineItem = {\n  caseId: string;\n  submittedAt: string;\n  reviewedAt: string;\n};`,
+    "Appeal outcome timestamp type"
+  );
 
   source = replaceOnce(
     source,
@@ -79,28 +79,12 @@ function patchDashboardDateSourceAndReset() {
     "Firebase Appeal merge timestamps"
   );
 
-  const reviewedAtMetadataAnchor = \`      reviewedAt: String(request.reviewedAt || "").trim(),\n      submittedBy: String(\`;
-  if (source.includes(reviewedAtMetadataAnchor)) {
-    source = replaceOnce(
-      source,
-      \`      reviewedAt: String(request.reviewedAt || "").trim(),\`,
-      \`      reviewedAt: formatCaseDetailDateTime(request.reviewedAt),\`,
-      "Appeal outcome reviewed timestamp"
-    );
-    source = replaceOnce(
-      source,
-      \`      submittedAt: String(\n        request.submittedAt ||\n          submittedEvent?.details?.submittedAt ||\n          submittedEvent?.created_at ||\n          ""\n      ).trim(),\`,
-      \`      submittedAt: formatCaseDetailDateTime(\n        request.submittedAt ||\n          submittedEvent?.details?.submittedAt ||\n          submittedEvent?.created_at ||\n          ""\n      ),\`,
-      "Appeal outcome submitted timestamp"
-    );
-  } else {
-    source = replaceOnce(
-      source,
-      \`      status: request.status,\n      reviewSummary: String(request.reviewSummary || "").trim(),\n      reviewedAt: String(request.reviewedAt || "").trim(),\`,
-      \`      status: request.status,\n      reviewSummary: String(request.reviewSummary || "").trim(),\n      submittedAt: formatCaseDetailDateTime(request.submittedAt),\n      reviewedAt: formatCaseDetailDateTime(request.reviewedAt),\`,
-      "Appeal outcome timestamps"
-    );
-  }
+  source = replaceOnce(
+    source,
+    `      status: request.status,\n      reviewSummary: String(request.reviewSummary || "").trim(),\n      reviewedAt: String(request.reviewedAt || "").trim(),`,
+    `      status: request.status,\n      reviewSummary: String(request.reviewSummary || "").trim(),\n      submittedAt: formatCaseDetailDateTime(request.submittedAt),\n      reviewedAt: formatCaseDetailDateTime(request.reviewedAt),`,
+    "Appeal outcome timestamps"
+  );
 
   source = replaceOnce(
     source,
@@ -116,22 +100,12 @@ function patchDashboardDateSourceAndReset() {
     "Case Detail Appeal timeline lookup"
   );
 
-  const caseDetailMetadataProjection = \`      hasAppealHistory: Boolean(item.hasAppealHistory || mergedAppeal || loggedOutcome ||\n        candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),\n      appealStatus: effectiveStatus,\n      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealReviewedAt: loggedOutcome?.reviewedAt || "",\n      appealSubmittedBy: loggedOutcome?.submittedBy || item.agent || "",\n      appealSubmittedAt: loggedOutcome?.submittedAt || "",\n      appealReviewedBy: loggedOutcome?.reviewedBy || "",\`;
-  if (source.includes(caseDetailMetadataProjection)) {
-    source = replaceOnce(
-      source,
-      caseDetailMetadataProjection,
-      \`      hasAppealHistory: Boolean(mergedAppeal || loggedOutcome || appealTimeline ||\n        candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),\n      appealStatus: effectiveStatus,\n      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",\n      appealSubmittedBy: loggedOutcome?.submittedBy || item.agent || "",\n      appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",\n      appealReviewedBy: loggedOutcome?.reviewedBy || "",\`,
-      "Case Detail Appeal timestamp projection"
-    );
-  } else {
-    source = replaceOnce(
-      source,
-      \`      hasAppealHistory: Boolean(item.hasAppealHistory || mergedAppeal || loggedOutcome ||\n        candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),\n      appealStatus: effectiveStatus,\n      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealReviewedAt: loggedOutcome?.reviewedAt || "",\`,
-      \`      hasAppealHistory: Boolean(mergedAppeal || loggedOutcome || appealTimeline ||\n        candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),\n      appealStatus: effectiveStatus,\n      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",\n      appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",\`,
-      "Case Detail Appeal timestamp projection"
-    );
-  }
+  source = replaceOnce(
+    source,
+    `      hasAppealHistory: Boolean(item.hasAppealHistory || mergedAppeal || loggedOutcome ||\n        candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),\n      appealStatus: effectiveStatus,\n      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealReviewedAt: loggedOutcome?.reviewedAt || "",`,
+    `      hasAppealHistory: Boolean(mergedAppeal || loggedOutcome || appealTimeline ||\n        candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),\n      appealStatus: effectiveStatus,\n      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",\n      appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",`,
+    "Case Detail Appeal timestamp projection"
+  );
 
   source = replaceOnce(
     source,
@@ -204,6 +178,25 @@ function patchDashboardDateSourceAndReset() {
     `activeSelectedCase.evaluationAuditDate || activeSelectedCase.auditTimestamp || "-"`
   );
 
+
+  if (caseDetailAppealMetadataCompat) {
+    source = source.replace(
+      `  appealReviewSummary?: string;\n  appealSubmittedAt?: string;\n  appealReviewedAt?: string;\n  // appeal-review-reset-datetime-v54-dashboard\n  appealRequestId?: string;`,
+      `  appealReviewSummary?: string;\n  appealSubmittedAt?: string;\n  appealReviewedAt?: string;\n  appealSubmittedBy?: string;\n  appealReviewedBy?: string;\n  // appeal-review-reset-datetime-v54-dashboard\n  appealRequestId?: string;`
+    );
+    source = source.replace(
+      `type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  submittedAt: string;\n  reviewedAt: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};`,
+      `type AppealOutcomeItem = {\n  caseId: string;\n  status: "Approved" | "Rejected";\n  reviewSummary: string;\n  submittedAt: string;\n  reviewedAt: string;\n  submittedBy: string;\n  reviewedBy: string;\n  requestId: string;\n  reviewedTopics: Topic[];\n};`
+    );
+    source = source.replace(
+      `      status: request.status,\n      reviewSummary: String(request.reviewSummary || "").trim(),\n      submittedAt: formatCaseDetailDateTime(request.submittedAt),\n      reviewedAt: formatCaseDetailDateTime(request.reviewedAt),\n      requestId: String(request.requestId || "").trim(),`,
+      `      status: request.status,\n      reviewSummary: String(request.reviewSummary || "").trim(),\n      submittedAt: formatCaseDetailDateTime(request.submittedAt),\n      reviewedAt: formatCaseDetailDateTime(request.reviewedAt),\n      submittedBy: String(\n        submittedEvent?.agent_name ||\n          submittedEvent?.display_name ||\n          request.submittedBy ||\n          request.agent ||\n          ""\n      ).trim(),\n      reviewedBy: String(\n        reviewedEvent?.agent_name ||\n          reviewedEvent?.display_name ||\n          ""\n      ).trim(),\n      requestId: String(request.requestId || "").trim(),`
+    );
+    source = source.replace(
+      `      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",\n      appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",\n      appealRequestId: loggedOutcome?.requestId || "",`,
+      `      appealReviewSummary: loggedOutcome?.reviewSummary || "",\n      appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",\n      appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",\n      appealSubmittedBy: loggedOutcome?.submittedBy || item.agent || "",\n      appealReviewedBy: loggedOutcome?.reviewedBy || "",\n      appealRequestId: loggedOutcome?.requestId || "",`
+    );
+  }
   fs.writeFileSync(dashboardPath, source, "utf8");
 }
 
