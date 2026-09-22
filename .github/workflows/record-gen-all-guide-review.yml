@@ -1,0 +1,29 @@
+name: Record Gen All Guide Review
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  record-review:
+    if: github.event.head_commit.message != 'Record guide review for Gen All signer fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Record reviewed source hashes and remove temporary workflow
+        run: |
+          rm .github/workflows/record-gen-all-guide-review.yml
+          node scripts/check-user-guide.mjs --record --reason "Reviewed Gen All signer-name parity with stored Final Signed signatures" --no-content-change
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Record guide review for Gen All signer fix"
+          git push
