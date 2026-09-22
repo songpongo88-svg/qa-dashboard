@@ -454,9 +454,8 @@ function buildApprovedAppealMergeMap(
       previousScore: originalFinalScore,
       reviewStatus: "Revised",
       revisedTopics,
-            reviewedTopics,
-            displayRevisedTopicCodes,
-            submittedAt: formatCaseDetailDateTime(request.submittedAt),
+      displayRevisedTopicCodes,
+      submittedAt: formatCaseDetailDateTime(request.submittedAt),
       reviewedAt: formatCaseDetailDateTime(request.reviewedAt),
       source: "firebase",
     });
@@ -5752,7 +5751,8 @@ export default function DashboardMockup({
               ? Number(explicitOriginalFinalScore)
               : undefined;
 
-          if (!revisedTopics.length && finalScore === undefined) return;
+          // legacy-appeal-reason-fallback-v2
+          if (!revisedTopics.length && !reviewedTopics.length && finalScore === undefined) return;
 
           appealMap.set(caseId, {
             caseId,
@@ -5760,6 +5760,7 @@ export default function DashboardMockup({
             previousScore,
             reviewStatus: displayRevisedTopicCodes.length ? "Revised" : "Original",
             revisedTopics,
+            reviewedTopics,
             displayRevisedTopicCodes,
             submittedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
       "Appeal Submit Date & Time",
