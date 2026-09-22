@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-22T04:41:44.300Z",
-  "reason": "Reviewed Appeal PDF reviewer identity to use the QA full agent name including surname",
+  "reviewedAt": "2026-09-22T04:54:57.933Z",
+  "reason": "Reviewed Appeal reviewer full-name resolution and non-blocking appeal data loading hotfix",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -88,7 +88,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "f2c1a7fa5e5c25c7605405e1d7106bed40fec9582dbc10697a811f76e390371a",
+    "package.json": "976673231edc3b7b857cd995546a4e002fce453555a6bec3981622831f2010ae",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -188,6 +188,7 @@
     "scripts/patch-appeal-review-reset-datetime-v54.mjs": "7a842503ba6a204efcc0fdd2a08a7a9380a5f8146e1f20d0de1a89c907593c82",
     "scripts/patch-appeal-review-reviewed-time-caseid-v60.mjs": "7b064fbdd2538c1e7d65f3400ff4b5465b12e31f043719c15443e595ae2f7421",
     "scripts/patch-appeal-review-workspace-tabs-v59.mjs": "c00fd6c731495c15401e4870d81a7e58e8a27e58146bd92a79608d2e2c0469d2",
+    "scripts/patch-appeal-reviewer-loading-fix-v64.mjs": "269d3351cd989b2412f3c4da758a4dc7e0569db50491f8e6bccab70921af6872",
     "scripts/patch-appeal-summary-pdf-v40.mjs": "ba347b3ee64e9678a39398f3f7dfb823626d8a840bc83d3b80572fd0ec7be541",
     "scripts/patch-appeal-topic-table-v42.mjs": "f1e278954cb3f1d4e996967bd3694418675497e5d37a4d9e2dc9686c38dcaf1d",
     "scripts/patch-bulk-case-detail-pdf.mjs": "7efdda06ef98afa8a835b720b99a795bc7eb41ea37cad97bfd471d0d80249170",
