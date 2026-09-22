@@ -1,0 +1,41 @@
+name: Redeploy Current Main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/redeploy-current-main.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-redeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Prepare final guide review state
+        run: |
+          rm .github/workflows/redeploy-current-main.yml
+          node scripts/check-user-guide.mjs --record --reason "Reviewed current Case Detail appeal layout before production redeploy" --no-content-change
+          cp docs/guide-release-review.json /tmp/guide-release-review.json
+      - name: Verify production build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit redeploy marker only
+        run: |
+          git reset --hard HEAD
+          rm .github/workflows/redeploy-current-main.yml
+          cp /tmp/guide-release-review.json docs/guide-release-review.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/guide-release-review.json
+          git add -u .github/workflows/redeploy-current-main.yml
+          git commit -m "Redeploy Case Detail appeal layout"
+          git push
