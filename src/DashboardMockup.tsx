@@ -3081,6 +3081,17 @@ function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "evaluation
 
 function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: CaseItem[]) {
   const rawMonthKeys = new Set(rawCases.map((item) => item.monthKey).filter(Boolean));
+  // jan-feb-rawdata-authority-v1
+  // January-February 2026 is a closed historical dataset. The workbook is the
+  // canonical source for those two reporting months, so live/stored evaluations
+  // must not add extra cases or move a historical case into another month.
+  const authoritativeHistoricalRawCases = rawCases.filter((item) =>
+    String(item.rawDataSourceName || "").trim() === RAW_DATA_JAN_FEB_FILE_NAME &&
+    (item.monthKey === "2026-01" || item.monthKey === "2026-02")
+  );
+  const authoritativeHistoricalMonthKeys = new Set(
+    authoritativeHistoricalRawCases.map((item) => item.monthKey)
+  );
   const merged = new Map<string, CaseItem>();
 
   rawCases
@@ -3092,6 +3103,10 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
   storedCases
     .filter((item) => item.agent && item.caseId && item.auditDateObj)
     .forEach((item) => {
+      // The Jan-Feb workbook contains the complete 10-case historical set for
+      // each included Agent. Do not append Firestore/stored rows for those months.
+      if (authoritativeHistoricalMonthKeys.has(item.monthKey)) return;
+
       const key = buildCaseMergeKey(item);
 
       if (rawMonthKeys.has(item.monthKey)) {
@@ -3121,6 +3136,12 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
         merged.set(key, item);
       }
     });
+
+  // Re-apply the historical rows last so a stored evaluation with a mismatched
+  // audit month cannot overwrite a Jan-Feb workbook case with the same Case ID.
+  authoritativeHistoricalRawCases.forEach((item) => {
+    merged.set(buildCaseMergeKey(item), item);
+  });
 
   return [...merged.values()];
 }

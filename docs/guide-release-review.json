@@ -1,17 +1,18 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-22T10:09:33.442Z",
-  "reason": "Reviewed Appeal timestamps, legacy Appleal ROWDATA Appeal Reason, Appeal reviewer fallback, and Original QA fallback",
+  "reviewedAt": "2026-09-22T10:32:10.039Z",
+  "reason": "Reviewed Appeal fixes and January-February 2026 authoritative RawData month/case counts",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
   "sourceHashes": {
+    ".github/workflows/audit-jan-feb-rawdata.yml": "8fc156e416ea0729eb9b6e92578ef34ac3582d5d6ce567bcc7c67b72303594e0",
     ".github/workflows/build-diagnostics.yml": "c5390336bca39091333ba8911b51278309b088cffadbbb4b98b1a5e4c855fd51",
     ".github/workflows/daily-v13-excel-sync.yml": "b26e2be9ad8bb7b36ad13ae3a4a75e9a2bfb9623ddd1135c0f6ab77855fcb391",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
-    ".github/workflows/fix-appeal-submit-fallback.yml": "a36b9800473b6594310d249727bb290e39a8662146b7ab85012cefd2154bd32d",
+    ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     "api/google-drive-upload.js": "d8387ef78f0c4dd6a33e3d5b780d2c3dc091b905e0f34368198355725d677971",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
@@ -152,6 +153,7 @@
     "scripts/check-user-guide.mjs": "e976657d3a182c6bba1c8977afe61829ae78cd13619bc8a1a24d07b299d00a65",
     "scripts/cloud-sync-v13-graph.mjs": "f7b1cef4e61da83f63305b66b707eec9295887858010ba50bb8e22787004be25",
     "scripts/fix-appeal-submit-fallback-v2.mjs": "565a019b824735d628879f52794feac22f9ccad7d6f2261f2ecf3a4c69e24b11",
+    "scripts/fix-jan-feb-raw-authority-v1.mjs": "6f0ca2a39c8ff210480e3ad37837928751648f3e31dd1a7c3ffd01f6075c2a9b",
     "scripts/fix-legacy-appeal-qa-v1.mjs": "e6a9f94502959accef2904f18388790e6b2bb20c8102223dd4bacda10a5e28cc",
     "scripts/fix-legacy-appeal-reason-v1.mjs": "437858c2b5e4d191783538d8efdb34a720c5c3deb35d888923a0428cffe698fa",
     "scripts/fix-legacy-appeal-reason-v2.mjs": "e446dc2a0183429fd02b5fd3974a0442f631977aad7f96e8655678045793a2d2",
@@ -299,7 +301,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "abda63bf350e695b10354b44946e7dac81c59f0a674485f1a2406b7834cf2b7e",
-    "src/DashboardMockup.tsx": "6cf9fc22781efa510e0a01bd881db2d6ca6208d0e9843b18d6ca19ef94216621",
+    "src/DashboardMockup.tsx": "ae447bfb64a79e57fffbb5206aba3d01819496fed2c025fb591e6b82e01de281",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
