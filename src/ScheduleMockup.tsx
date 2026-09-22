@@ -1611,8 +1611,25 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
             <div className="mt-5 space-y-4">
               <label className="block">
                 <span className="text-xs font-semibold text-slate-600">Shift / Status</span>
-                <input list="qa-sch-shifts" value={editShift} onChange={(event) => setEditShift(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
-                <datalist id="qa-sch-shifts">{EDIT_OPTIONS.map((option) => <option key={option} value={option} />)}</datalist>
+                <select
+                  value={editShift}
+                  onChange={(event) => setEditShift(event.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
+                >
+                  {!EDIT_OPTIONS.includes(editShift) && editShift ? (
+                    <option value={editShift}>{editShift}</option>
+                  ) : null}
+                  <optgroup label="กะทำงาน">
+                    {EDIT_OPTIONS.filter((option) => option.includes("-")).map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="สถานะ">
+                    {EDIT_OPTIONS.filter((option) => !option.includes("-")).map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </optgroup>
+                </select>
               </label>
               {!parseEditedShift(editShift).status ? (
                 <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-pink-200 bg-pink-50 px-3 py-3">
