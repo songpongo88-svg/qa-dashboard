@@ -24,7 +24,12 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply unified Appeal timestamp fix
-        run: node scripts/fix-appeal-submit-fallback-v2.mjs
+        run: |
+          if grep -q "Appeal timestamps are normalized earlier as DD/MM/YYYY HH:mm:ss." src/DashboardMockup.tsx; then
+            echo "Unified Appeal timestamp fix already installed."
+          else
+            node scripts/fix-appeal-submit-fallback-v2.mjs
+          fi
       - name: Apply legacy Appeal Reason fix
         run: node scripts/fix-legacy-appeal-reason-v1.mjs
       - name: Preserve intended source
