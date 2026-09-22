@@ -2335,6 +2335,8 @@ function CaseDetailTopicTable({
   appealSubmittedAt,
   appealReviewedBy,
   appealReviewedAt,
+  originalQaName,
+  originalAuditDate,
 }: {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
@@ -2346,7 +2348,10 @@ function CaseDetailTopicTable({
   appealSubmittedAt?: string;
   appealReviewedBy?: string;
   appealReviewedAt?: string;
+  originalQaName?: string;
+  originalAuditDate?: string;
 }) {
+  // case-detail-original-comment-metadata-v1
   const displayCodeSet = new Set(displayRevisedTopicCodes);
 
   const rows = topics
@@ -2455,7 +2460,11 @@ function CaseDetailTopicTable({
                 <>
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
-                    <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
+                    <div className="mt-3 space-y-1 text-[13px] font-semibold text-slate-700">
+                      <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>
+                      <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>
+                    </div>
+                    <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
                       <RichTextContent value={row.originalTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
                     </div>
                   </div>
@@ -2492,7 +2501,11 @@ function CaseDetailTopicTable({
               ) : (
                 <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                   <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
-                  <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
+                  <div className="mt-3 space-y-1 text-[13px] font-semibold text-slate-700">
+                    <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>
+                    <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>
+                  </div>
+                  <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
                     <RichTextContent value={row.shownTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
                   </div>
                 </div>
@@ -4600,6 +4613,8 @@ function SlideOverCaseDetail({
                 appealSubmittedAt={caseItem.appealSubmittedAt}
                 appealReviewedBy={caseItem.appealReviewedBy}
                 appealReviewedAt={caseItem.appealReviewedAt}
+                originalQaName={caseItem.evaluatorName}
+                originalAuditDate={caseItem.auditTimestamp}
               />
             </PanelBody>
           </Panel>

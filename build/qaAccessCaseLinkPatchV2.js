@@ -1,3 +1,4 @@
+// original-comment-metadata-compat-v1
 function mustReplace(context, code, search, replacement, label) {
   if (!code.includes(search)) context.error(`QA Access case-link v2 missing ${label}`);
   return code.replace(search, replacement);
@@ -291,13 +292,13 @@ function normalizeHistoryRecord(id: string, row: any): QaTypingChallengeHistoryR
           "dashboard import"
         );
         next = mustReplace(this, next,
-          '  appealReviewedTopics,\n  appealSubmittedBy,\n  appealSubmittedAt,\n  appealReviewedBy,\n  appealReviewedAt,\n}: {\n  topics: Topic[];',
-          '  appealReviewedTopics,\n  appealSubmittedBy,\n  appealSubmittedAt,\n  appealReviewedBy,\n  appealReviewedAt,\n  caseId,\n  targetUsername,\n}: {\n  topics: Topic[];',
+          '  appealReviewedTopics,\n  appealSubmittedBy,\n  appealSubmittedAt,\n  appealReviewedBy,\n  appealReviewedAt,\n  originalQaName,\n  originalAuditDate,\n}: {\n  topics: Topic[];',
+          '  appealReviewedTopics,\n  appealSubmittedBy,\n  appealSubmittedAt,\n  appealReviewedBy,\n  appealReviewedAt,\n  originalQaName,\n  originalAuditDate,\n  caseId,\n  targetUsername,\n}: {\n  topics: Topic[];',
           "dashboard props"
         );
         next = mustReplace(this, next,
-          '  appealStatus?: "Approved" | "Rejected";\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealReviewedAt?: string;\n}) {',
-          '  appealStatus?: "Approved" | "Rejected";\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealReviewedAt?: string;\n  caseId?: string;\n  targetUsername?: string;\n}) {',
+          '  appealStatus?: "Approved" | "Rejected";\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealReviewedAt?: string;\n  originalQaName?: string;\n  originalAuditDate?: string;\n}) {',
+          '  appealStatus?: "Approved" | "Rejected";\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealReviewedAt?: string;\n  originalQaName?: string;\n  originalAuditDate?: string;\n  caseId?: string;\n  targetUsername?: string;\n}) {',
           "dashboard prop types"
         );
         next = mustReplace(this, next,
@@ -313,8 +314,8 @@ function normalizeHistoryRecord(id: string, row: any): QaTypingChallengeHistoryR
           "dashboard topic button"
         );
         next = mustReplace(this, next,
-          '                appealStatus={caseItem.appealStatus}\n                appealReviewedTopics={caseItem.appealReviewedTopics}\n                appealSubmittedBy={caseItem.appealSubmittedBy}\n                appealSubmittedAt={caseItem.appealSubmittedAt}\n                appealReviewedBy={caseItem.appealReviewedBy}\n                appealReviewedAt={caseItem.appealReviewedAt}\n              />',
-          '                appealStatus={caseItem.appealStatus}\n                appealReviewedTopics={caseItem.appealReviewedTopics}\n                appealSubmittedBy={caseItem.appealSubmittedBy}\n                appealSubmittedAt={caseItem.appealSubmittedAt}\n                appealReviewedBy={caseItem.appealReviewedBy}\n                appealReviewedAt={caseItem.appealReviewedAt}\n                caseId={caseItem.caseId}\n                targetUsername={caseItem.targetUsername}\n              />',
+          '                appealStatus={caseItem.appealStatus}\n                appealReviewedTopics={caseItem.appealReviewedTopics}\n                appealSubmittedBy={caseItem.appealSubmittedBy}\n                appealSubmittedAt={caseItem.appealSubmittedAt}\n                appealReviewedBy={caseItem.appealReviewedBy}\n                appealReviewedAt={caseItem.appealReviewedAt}\n                originalQaName={caseItem.evaluatorName}\n                originalAuditDate={caseItem.auditTimestamp}\n              />',
+          '                appealStatus={caseItem.appealStatus}\n                appealReviewedTopics={caseItem.appealReviewedTopics}\n                appealSubmittedBy={caseItem.appealSubmittedBy}\n                appealSubmittedAt={caseItem.appealSubmittedAt}\n                appealReviewedBy={caseItem.appealReviewedBy}\n                appealReviewedAt={caseItem.appealReviewedAt}\n                originalQaName={caseItem.evaluatorName}\n                originalAuditDate={caseItem.auditTimestamp}\n                caseId={caseItem.caseId}\n                targetUsername={caseItem.targetUsername}\n              />',
           "dashboard case values"
         );
         seen.add("dashboard");
