@@ -278,6 +278,16 @@ function splitOtRange(value: string) {
   return range ? { start: range.start, end: range.end } : { start: "", end: "" };
 }
 
+function sanitizeClockInput(value: string) {
+  return String(value || "")
+    .replace(/[^0-9:.]/g, "")
+    .slice(0, 5);
+}
+
+function normalizedClockInput(value: string) {
+  return normalizeClockToken(String(value || "").replace(".", ":"));
+}
+
 function adjustBaseShiftForShortAfterOt(
   shift: { shiftCode: string; shiftStart: string; shiftEnd: string; status: string },
   otText: string
@@ -1249,7 +1259,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
       parsed.shiftEnd !== baselineShiftEnd ||
       parsed.status !== baselineStatus;
 
-    const nextOtText = editOtStart && editOtEnd ? `${editOtStart}-${editOtEnd}` : "";
+    const normalizedOtStart = normalizedClockInput(editOtStart);
+    const normalizedOtEnd = normalizedClockInput(editOtEnd);
+    const nextOtText = normalizedOtStart && normalizedOtEnd ? `${normalizedOtStart}-${normalizedOtEnd}` : "";
     const excelOtText = canonicalOtRange(editEntry.excelOtText ?? extractOtText(editEntry.excelNote ?? editEntry.note ?? ""));
     const manualOtEdited = nextOtText !== excelOtText;
     const manualOtText = manualOtEdited ? nextOtText : "";
@@ -1783,29 +1795,47 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                 <span className="text-xs font-semibold text-slate-600">OT</span>
                 <div className="mt-1.5 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <input
-                    type="time"
+                    type="text"
+                    inputMode="numeric"
                     value={editOtStart}
-                    onChange={(event) => setEditOtStart(event.target.value)}
+                    onChange={(event) => setEditOtStart(sanitizeClockInput(event.target.value))}
+                    onBlur={() => {
+                      const normalized = normalizedClockInput(editOtStart);
+                      if (normalized) setEditOtStart(normalized);
+                    }}
+                    placeholder="18:00"
+                    maxLength={5}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
-                    aria-label="OT start time"
+                    aria-label="OT start time 24-hour format"
                   />
                   <span className="text-sm font-bold text-slate-400">–</span>
                   <input
-                    type="time"
+                    type="text"
+                    inputMode="numeric"
                     value={editOtEnd}
-                    onChange={(event) => setEditOtEnd(event.target.value)}
+                    onChange={(event) => setEditOtEnd(sanitizeClockInput(event.target.value))}
+                    onBlur={() => {
+                      const normalized = normalizedClockInput(editOtEnd);
+                      if (normalized) setEditOtEnd(normalized);
+                    }}
+                    placeholder="20:00"
+                    maxLength={5}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
-                    aria-label="OT end time"
+                    aria-label="OT end time 24-hour format"
                   />
                 </div>
                 {editOtStart || editOtEnd ? (
-                  <span className={`mt-1 block text-[10px] font-bold ${Boolean(editOtStart) !== Boolean(editOtEnd) ? "text-rose-600" : "text-slate-500"}`}>
-                    {Boolean(editOtStart) !== Boolean(editOtEnd)
+                  <span className={`mt-1 block text-[10px] font-bold ${
+                    !normalizedClockInput(editOtStart) || !normalizedClockInput(editOtEnd) ? "text-rose-600" : "text-slate-500"
+                  }`}>
+                    {!editOtStart || !editOtEnd
                       ? "กรุณาระบุเวลาเริ่มและเวลาสิ้นสุด OT ให้ครบ"
-                      : `ระบบจะแสดงเป็น OT ${editOtStart}-${editOtEnd}`}
+                      : !normalizedClockInput(editOtStart) || !normalizedClockInput(editOtEnd)
+                        ? "กรุณาใช้เวลาแบบ 24 ชั่วโมง HH:mm เช่น 18:00-20:00"
+                        : `ระบบจะแสดงเป็น OT ${normalizedClockInput(editOtStart)}-${normalizedClockInput(editOtEnd)}`}
                   </span>
                 ) : (
-                  <span className="mt-1 block text-[10px] text-slate-400">กรอกเฉพาะเวลา ไม่ต้องพิมพ์คำว่า OT หรือข้อความอื่น</span>
+                  <span className="mt-1 block text-[10px] text-slate-400">รูปแบบเวลา 24 ชั่วโมง เช่น 18:00-20:00</span>
                 )}
               </div>
               <label className="block">
@@ -1817,7 +1847,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               <button type="button" onClick={() => setEditEntry(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">ยกเลิก</button>
               <button
                 type="button"
-                disabled={Boolean(editOtStart) !== Boolean(editOtEnd)}
+                disabled={
+                  Boolean(editOtStart) !== Boolean(editOtEnd) ||
+                  (Boolean(editOtStart) && (!normalizedClockInput(editOtStart) || !normalizedClockInput(editOtEnd)))
+                }
                 onClick={() => void saveEdit()}
                 className="rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
