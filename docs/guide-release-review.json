@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-22T07:33:37.552Z",
-  "reason": "Reviewed Case Detail appeal topic ordering and restored Appeal Reason metadata",
+  "reviewedAt": "2026-09-22T07:45:08.683Z",
+  "reason": "Restored missing evaluation timestamp helpers required by Dashboard and reviewed Case Detail appeal layout before production redeploy",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -292,7 +292,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "abda63bf350e695b10354b44946e7dac81c59f0a674485f1a2406b7834cf2b7e",
-    "src/DashboardMockup.tsx": "5de8872c305a31b035d54524687fef0d84517fd4afee148910d7e863e8c4fa0e",
+    "src/DashboardMockup.tsx": "a36a2430478e26887d45f1e5fb40fd88cde0656f0537a8c303b05d2529a37da1",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
@@ -334,7 +334,7 @@
     "src/coachingStore.ts": "85d024517fd83642d4a6bbcbfa864379ac058cc68bea4557fe89afc17917bada",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
-    "src/evaluationStore.ts": "99bb794977b16373703bcb82d1883f9f3fbef59c5153e014f24945f72612ab4c",
+    "src/evaluationStore.ts": "26b33b64f47cd8ec6294e5fbfd1b6ee664e2c0b7e73a819052df1942acf7da35",
     "src/finalSignedCasePdf.ts": "f99fd97a35ab570d3091b65b5c5b842cbfe87c1d6f00e70c9eacec67fa8ed342",
     "src/finalSignedPdfRenderer.ts": "629a2d503f58275ffc778542d3716ea57fae3831ce4e8c560cabf290906aca6d",
     "src/firebaseClient.ts": "860d60f9e7ae95dabc407bc6fefddfce1409edf493d01d6e9194287d7c27bd75",
