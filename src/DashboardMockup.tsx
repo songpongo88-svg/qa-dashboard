@@ -154,6 +154,7 @@ type AppealMergeItem = {
   submittedBy?: string;
   reviewedBy?: string;
   reviewSummary?: string;
+  reviewedTopics?: Topic[];
   status?: "Approved" | "Rejected";
   source?: "excel" | "firebase";
 };
@@ -453,8 +454,9 @@ function buildApprovedAppealMergeMap(
       previousScore: originalFinalScore,
       reviewStatus: "Revised",
       revisedTopics,
-      displayRevisedTopicCodes,
-      submittedAt: formatCaseDetailDateTime(request.submittedAt),
+            reviewedTopics,
+            displayRevisedTopicCodes,
+            submittedAt: formatCaseDetailDateTime(request.submittedAt),
       reviewedAt: formatCaseDetailDateTime(request.reviewedAt),
       source: "firebase",
     });
@@ -587,10 +589,12 @@ function applyAppealMapsToCaseItems(
       appealRequestId: loggedOutcome?.requestId || "",
       appealReviewedTopics: loggedOutcome?.reviewedTopics?.length
         ? loggedOutcome.reviewedTopics
-        : mergedAppeal?.revisedTopics?.filter((topic) => {
-            const reason = String(topic.appealReason || "").trim();
-            return Boolean(reason) && !isNoAppealReason(reason);
-          }) || null,
+        : mergedAppeal?.reviewedTopics?.length
+          ? mergedAppeal.reviewedTopics
+          : mergedAppeal?.revisedTopics?.filter((topic) => {
+              const reason = String(topic.appealReason || "").trim();
+              return Boolean(reason) && !isNoAppealReason(reason);
+            }) || null,
     };
 
     if (!mergedAppeal || effectiveStatus === "Rejected") {
@@ -5565,16 +5569,25 @@ export default function DashboardMockup({
 
         const appealMap = new Map<string, AppealMergeItem>();
         const appealHistoryCaseIds = new Set<string>();
+        const appealRowsByCaseId = new Map<string, any[][]>();
         appealDataRows.forEach((row) => {
-          splitAppealCaseIds(appealHelper.getValue(row, "Case ID"))
-            .forEach((caseId) => appealHistoryCaseIds.add(caseId));
+          const rowCaseIds = splitAppealCaseIds(appealHelper.getValue(row, "Case ID"));
+          rowCaseIds.forEach((caseId) => {
+            appealHistoryCaseIds.add(caseId);
+            const normalizedCaseId = normalizeAppealCaseId(caseId);
+            const existing = appealRowsByCaseId.get(normalizedCaseId) || [];
+            existing.push(row);
+            appealRowsByCaseId.set(normalizedCaseId, existing);
+          });
         });
 
         getLatestAppealRows(appealDataRows, appealHelper).forEach((row) => {
           const caseId = String(appealHelper.getValue(row, "Case ID") ?? "").trim();
           if (!caseId) return;
 
+          const legacyAppealRowsForCase = appealRowsByCaseId.get(normalizeAppealCaseId(caseId)) || [row];
           const revisedTopics: Topic[] = [];
+          const reviewedTopics: Topic[] = [];
           const displayRevisedTopicCodes: string[] = [];
           const appealAuditRaw = appealHelper.getValue(row, "Audit Date");
           const topicMaster = getTopicMasterByMonth(
@@ -5586,7 +5599,80 @@ export default function DashboardMockup({
             const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
             const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
             const revisedCommentRaw = appealHelper.getValue(row, `${topic.code} Revised Comment`);
-            const appealReasonRaw = appealHelper.getValue(row, `${topic.code} Appeal Reason`);
+            // legacy-appeal-reason-fallback-v1
+            const appealReasonRaw = (() => {
+              const rowsToCheck = [
+                row,
+                ...legacyAppealRowsForCase
+                  .filter((candidateRow) => candidateRow !== row)
+                  .slice()
+                  .reverse(),
+              ];
+              const topicSpecificHeaders = [
+                `${topic.code} Appeal Reason`,
+                `${topic.code} Reason for Appeal`,
+                `${topic.code} AppealReason`,
+              ];
+              const genericReasonHeaders = [
+                "Appeal Reason",
+                "Reason for Appeal",
+                "Appeal Request Reason",
+                "Agent Appeal Reason",
+                "Appeal Comment",
+              ];
+              const appealTopicHeaders = [
+                "Appealed Topic",
+                "Appeal Topic",
+                "Appealed Topics",
+                "Appeal Topics",
+                "Appeal Topic(s)",
+                "Topic Code",
+              ];
+
+              const getLastNonEmptyHeaderValue = (candidateRow: any[], header: string) => {
+                let found: any = "";
+                for (let occurrence = 0; occurrence < 50; occurrence += 1) {
+                  const value = appealHelper.getValue(candidateRow, header, occurrence);
+                  if (value === null || value === undefined) break;
+                  if (String(value).trim() !== "") found = value;
+                }
+                return found;
+              };
+
+              for (const candidateRow of rowsToCheck) {
+                for (const header of topicSpecificHeaders) {
+                  const value = getLastNonEmptyHeaderValue(candidateRow, header);
+                  if (String(value ?? "").trim()) return value;
+                }
+
+                let appealedTopicRaw: any = "";
+                for (const header of appealTopicHeaders) {
+                  appealedTopicRaw = getLastNonEmptyHeaderValue(candidateRow, header);
+                  if (String(appealedTopicRaw ?? "").trim()) break;
+                }
+
+                const appealedTopicText = normalizeText(appealedTopicRaw);
+                const topicMatches = Boolean(appealedTopicText) && (
+                  appealedTopicText.includes(normalizeText(topic.code)) ||
+                  appealedTopicText.includes(normalizeText(topic.label))
+                );
+                const candidateChanged = hasRealTopicChange(
+                  appealHelper.getValue(candidateRow, `${topic.code} Score`),
+                  appealHelper.getValue(candidateRow, `${topic.code} Revised Score`),
+                  appealHelper.getValue(candidateRow, `${topic.code} Comment`),
+                  appealHelper.getValue(candidateRow, `${topic.code} Revised Comment`)
+                );
+
+                if (!topicMatches && !candidateChanged) continue;
+
+                for (const header of genericReasonHeaders) {
+                  const value = getLastNonEmptyHeaderValue(candidateRow, header);
+                  if (String(value ?? "").trim()) return value;
+                }
+              }
+
+              return "";
+            })();
 
             const hasRevisedScore =
               revisedScoreRaw !== null &&
@@ -5595,6 +5681,29 @@ export default function DashboardMockup({
 
             const hasRevisedComment =
               revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== "";
+
+            const hasAppealReason =
+              Boolean(String(appealReasonRaw ?? "").trim()) && !isNoAppealReason(appealReasonRaw);
+
+            if (hasAppealReason) {
+              const reviewedScore = hasRevisedScore
+                ? Number(revisedScoreRaw)
+                : Number(originalScoreRaw ?? 0);
+              const reviewedComment = hasRevisedComment
+                ? String(revisedCommentRaw).trim()
+                : String(originalCommentRaw ?? "").trim();
+              reviewedTopics.push({
+                code: topic.code,
+                label: topic.label,
+                score: Number.isFinite(reviewedScore) ? reviewedScore : 0,
+                max: topic.max,
+                pct: topic.max > 0 && Number.isFinite(reviewedScore)
+                  ? Math.round((reviewedScore / topic.max) * 100)
+                  : 0,
+                comment: reviewedComment,
+                appealReason: String(appealReasonRaw ?? "").trim(),
+              });
+            }
 
             if (!hasRevisedScore && !hasRevisedComment) return;
 
@@ -5613,7 +5722,7 @@ export default function DashboardMockup({
               appealReason: String(appealReasonRaw ?? "").trim(),
             });
 
-            const appealedThisTopic = Boolean(String(appealReasonRaw ?? "").trim()) && !isNoAppealReason(appealReasonRaw);
+            const appealedThisTopic = hasAppealReason;
             const changedThisTopic = hasRealTopicChange(
               originalScoreRaw,
               revisedScoreRaw,
