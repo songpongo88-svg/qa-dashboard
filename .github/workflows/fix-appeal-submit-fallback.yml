@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/fix-appeal-submit-fallback.yml"
       - "scripts/fix-appeal-submit-fallback-v2.mjs"
+      - "scripts/fix-legacy-appeal-reason-v1.mjs"
 
 permissions:
   contents: write
@@ -24,10 +25,12 @@ jobs:
       - run: npm ci
       - name: Apply unified Appeal timestamp fix
         run: node scripts/fix-appeal-submit-fallback-v2.mjs
+      - name: Apply legacy Appeal Reason fix
+        run: node scripts/fix-legacy-appeal-reason-v1.mjs
       - name: Preserve intended source
         run: cp src/DashboardMockup.tsx /tmp/DashboardMockup.tsx
       - name: Review intended source
-        run: npm run guide:review -- --reason "Reviewed unified Appeal Submit and Appeal Result timestamps for legacy E-Mail and Firebase cases" --no-content-change
+        run: npm run guide:review -- --reason "Reviewed unified Appeal timestamps and legacy Appleal ROWDATA Appeal Reason fallback" --no-content-change
       - name: Preserve guide review
         run: cp docs/guide-release-review.json /tmp/guide-release-review.json
       - name: Verify production build
@@ -46,5 +49,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/DashboardMockup.tsx docs/guide-release-review.json
-          git commit -m "Fix all Appeal Submit and Result timestamps"
+          git commit -m "Fix legacy Appleal Appeal Reason display"
           git push
