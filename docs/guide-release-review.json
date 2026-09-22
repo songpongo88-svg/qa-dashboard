@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-22T06:54:43.185Z",
-  "reason": "Reviewed clean v54 compatibility with Case Detail appeal submitter and reviewer metadata",
+  "reviewedAt": "2026-09-22T06:59:19.340Z",
+  "reason": "Reviewed bold formatting for Case Detail PDF appeal metadata lines",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -325,7 +325,7 @@
     "src/appealSummaryPdf.ts": "3b8d76e436c80d61319802f88be327c6110a4d83748a6295e4abeda713b9037c",
     "src/bulkCaseDetailPdf.ts": "041a9f3b433f17a94b7e2babf8c9843e4f0300a635bce6a4488d6029036b0750",
     "src/cartoonTheme.css": "d6748736b56145608cbb7caa1e78d765a4687f631c42ef956b5ea777c0e08385",
-    "src/caseAppealPdfAddon.ts": "22f14e07eb01027421324159f209e989013df5a97a1d59ea6c744fc0708e8425",
+    "src/caseAppealPdfAddon.ts": "369a4463c1ae8ca5ff7bf82cc8adb9c1e52615fc5d04820fc21e0f7ae50f6a7f",
     "src/caseDetailOfficialPdf.ts": "38ece818019b203d90bfeb09280dda4595ffa98d7758e3b33167293816a318ab",
     "src/chatRealtimeStore.ts": "bb91970a0ced12b34d39ba8695be0218014136aa0c21551dbb1292bbb682abc2",
     "src/coachingCanonicalStore.ts": "91f66eade41fee2b043a24cd34c404dde3a43b5cc80871583a82ac7381c6ac9e",

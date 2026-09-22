@@ -206,12 +206,12 @@ export async function generateCasePdfWithAppealHistory({
       "<div><strong>Original Comment</strong></div>",
       `<div>${pdfHtml(topic?.comment)}</div>`,
       "<hr>",
-      `<div>Admin: ${pdfHtml(appealAdmin)}</div>`,
-      `<div>Appeal Submit: ${pdfHtml(appealSubmit || "-")}</div>`,
+      `<div><strong>Admin: ${pdfHtml(appealAdmin)}</strong></div>`,
+      `<div><strong>Appeal Submit: ${pdfHtml(appealSubmit || "-")}</strong></div>`,
       `<div><span style="color:#dc2626"><strong>Appeal Reason</strong><br>${pdfHtml(appealReason)}</span></div>`,
       "<hr>",
-      `<div>QA: ${pdfHtml(appealQa)}</div>`,
-      `<div>Appeal Result: ${pdfHtml(appealResult || "-")}</div>`,
+      `<div><strong>QA: ${pdfHtml(appealQa)}</strong></div>`,
+      `<div><strong>Appeal Result: ${pdfHtml(appealResult || "-")}</strong></div>`,
       `<div><span style="color:#dc2626"><strong>${revisedLabel}</strong><br>${pdfHtml(revisedComment)}</span></div>`,
     ].join("");
 
