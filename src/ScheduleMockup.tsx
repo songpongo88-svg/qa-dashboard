@@ -1587,7 +1587,7 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                                   disabled={!entry || !canManage}
                                   onClick={() => entry && openEdit(entry)}
                                   title={entry?.note || entry?.otText || entryLabel(entry)}
-                                  className={`relative min-h-[54px] w-full rounded-lg border px-2 py-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
+                                  className={`relative h-[54px] w-full overflow-hidden rounded-lg border px-2 text-[10px] font-semibold leading-4 ${entryTone(entry)} ${canManage && entry ? "hover:ring-2 hover:ring-violet-200" : ""}`}
                                   style={entryStyle(entry)}
                                 >
                                   {isWorkingEntry(entry) ? (
@@ -1597,17 +1597,19 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                                       </span>
                                     </span>
                                   ) : null}
-                                  <span className={`block whitespace-nowrap px-1 ${isWorkingEntry(entry) ? "pt-3" : scheduleOtLabel(entry) ? "pt-1" : "pt-3"}`}>
-                                    {scheduleCellLabel(entry)}
-                                  </span>
-                                  {scheduleOtLabel(entry) ? (
-                                    <span
-                                      className={`mt-0.5 block truncate whitespace-nowrap px-1 text-[8px] font-black leading-3 ${isOtExtraEntry(entry) ? "text-sky-700" : "text-red-600"}`}
-                                      title={scheduleOtLabel(entry)}
-                                    >
-                                      {scheduleOtLabel(entry)}
+                                  <span className="flex h-full min-w-0 flex-col items-center justify-center pt-2">
+                                    <span className="block whitespace-nowrap px-1 leading-4">
+                                      {scheduleCellLabel(entry)}
                                     </span>
-                                  ) : null}
+                                    {scheduleOtLabel(entry) ? (
+                                      <span
+                                        className={`mt-0.5 block max-w-full truncate whitespace-nowrap px-1 text-[8px] font-black leading-3 ${isOtExtraEntry(entry) ? "text-sky-700" : "text-red-600"}`}
+                                        title={scheduleOtLabel(entry)}
+                                      >
+                                        {scheduleOtLabel(entry)}
+                                      </span>
+                                    ) : null}
+                                  </span>
                                 </button>
                               </td>
                             );
