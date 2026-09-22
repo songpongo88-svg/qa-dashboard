@@ -5814,12 +5814,18 @@ export default function DashboardMockup({
               const match = channel.match(/(?:E-?Mail|Email)\s*:\s*(.+)$/i);
               return match?.[1]?.trim() || "";
             })(),
-            reviewedBy: String(getFirstAvailableHeaderValue(appealHelper, row, [
-              "Appeal Reviewed By",
-              "Reviewed By",
-              "QA Name",
-              "Reviewer Name",
-            ], "") ?? "").trim(),
+            // legacy-appeal-qa-fallback-v1
+            reviewedBy: (() => {
+              const reviewer = String(getFirstAvailableHeaderValue(appealHelper, row, [
+                "Appeal Reviewed By",
+                "Reviewed By",
+                "QA Name",
+                "QA Reviewer",
+                "QA",
+                "Reviewer Name",
+              ], "") ?? "").trim();
+              return reviewer || "Songpon Phothong";
+            })(),
             reviewSummary: String(getFirstAvailableHeaderValue(appealHelper, row, [
               "Appeal Review Summary",
               "Review Summary",
