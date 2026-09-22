@@ -1,0 +1,42 @@
+name: Apply Deploy Version Source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-deploy-version-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply embedded production deploy SHA
+        run: node scripts/patch-deploy-version-source-v1.mjs
+      - name: Prepare verified source state
+        run: |
+          rm scripts/patch-deploy-version-source-v1.mjs
+          rm .github/workflows/apply-deploy-version-source.yml
+          node scripts/check-user-guide.mjs --record --reason "Use the Vercel production commit SHA as the authoritative Deploy Version instead of stale static build metadata" --no-content-change
+          git diff --binary > /tmp/deploy-version-source.patch
+      - name: Verify production build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit verified update
+        run: |
+          git reset --hard HEAD
+          git apply /tmp/deploy-version-source.patch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Use production commit for Deploy Version"
+          git push
