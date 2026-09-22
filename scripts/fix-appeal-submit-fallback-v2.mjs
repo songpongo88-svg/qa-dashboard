@@ -87,11 +87,54 @@ if (!resultPattern.test(text)) {
 }
 text = text.replace(resultPattern, resultReplacement);
 
+const bangkokFormatterPattern = /function formatBangkokDateTime\(value: Date \| string \| null\) \{[\s\S]*?\n\}\n\nfunction parseMonthLabelDate/;
+const bangkokFormatterReplacement = `function formatBangkokDateTime(value: Date | string | null) {
+  if (!value) return "-";
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return "-";
+
+    // Appeal timestamps are normalized earlier as DD/MM/YYYY HH:mm:ss.
+    // Do not feed that display string back into new Date(), because browsers
+    // parse DD/MM/YYYY inconsistently and can return Invalid Date (shown as "-").
+    const localDateTime = raw.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})(?:\\s+(\\d{1,2}):(\\d{2})(?::(\\d{2}))?)?$/);
+    if (localDateTime) {
+      const [, day, month, year, hour = "00", minute = "00", second = "00"] = localDateTime;
+      return day.padStart(2, "0") + "/" + month.padStart(2, "0") + "/" + year + " " +
+        hour.padStart(2, "0") + ":" + minute + ":" + second;
+    }
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function parseMonthLabelDate`;
+if (!bangkokFormatterPattern.test(text)) {
+  throw new Error("Bangkok Appeal timestamp formatter anchor not found");
+}
+text = text.replace(bangkokFormatterPattern, bangkokFormatterReplacement);
+
 // Keep the direct Firebase event fallback already present. This patch restores the
-// legacy Appeal ROWDATA / E-Mail timestamp aliases that existed in the older parser.
+// legacy Appeal ROWDATA / E-Mail timestamp aliases and prevents normalized Bangkok
+// display timestamps from being reparsed as ambiguous browser dates.
 if (!text.includes('"Appeal Result",') || !text.includes('"Appeal Created Date & Time",')) {
   throw new Error("Legacy Appeal timestamp aliases were not installed");
 }
+if (!text.includes("Appeal timestamps are normalized earlier as DD/MM/YYYY HH:mm:ss.")) {
+  throw new Error("Appeal display timestamp formatter fix was not installed");
+}
 
 fs.writeFileSync(path, text);
-console.log("Applied unified legacy + Firebase Appeal Submit/Result timestamp resolver.");
+console.log("Applied unified Appeal timestamp resolver + stable Bangkok display parser.");
