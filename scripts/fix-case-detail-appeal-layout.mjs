@@ -143,4 +143,51 @@ replaceOnce(
 );
 
 fs.writeFileSync(file, s, 'utf8');
-console.log('Applied Case Detail appeal layout fix');
+
+const pluginFile = 'build/qaAccessCaseLinkPatchV2.js';
+let plugin = fs.readFileSync(pluginFile, 'utf8');
+
+function replacePlugin(search, replacement, label) {
+  if (plugin.includes(replacement)) return;
+  if (!plugin.includes(search)) throw new Error(`Missing QA Access plugin anchor: ${label}`);
+  plugin = plugin.replace(search, replacement);
+}
+
+replacePlugin(
+`          '  appealReviewedTopics,\\n}: {\\n  topics: Topic[];',`,
+`          '  appealReviewedTopics,\\n  appealSubmittedBy,\\n  appealSubmittedAt,\\n  appealReviewedBy,\\n  appealReviewedAt,\\n}: {\\n  topics: Topic[];',`,
+'dashboard props search'
+);
+
+replacePlugin(
+`          '  appealReviewedTopics,\\n  caseId,\\n  targetUsername,\\n}: {\\n  topics: Topic[];',`,
+`          '  appealReviewedTopics,\\n  appealSubmittedBy,\\n  appealSubmittedAt,\\n  appealReviewedBy,\\n  appealReviewedAt,\\n  caseId,\\n  targetUsername,\\n}: {\\n  topics: Topic[];',`,
+'dashboard props replacement'
+);
+
+replacePlugin(
+`          '  appealStatus?: "Approved" | "Rejected";\\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\\n}) {',`,
+`          '  appealStatus?: "Approved" | "Rejected";\\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\\n  appealSubmittedBy?: string;\\n  appealSubmittedAt?: string;\\n  appealReviewedBy?: string;\\n  appealReviewedAt?: string;\\n}) {',`,
+'dashboard prop types search'
+);
+
+replacePlugin(
+`          '  appealStatus?: "Approved" | "Rejected";\\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\\n  caseId?: string;\\n  targetUsername?: string;\\n}) {',`,
+`          '  appealStatus?: "Approved" | "Rejected";\\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\\n  appealSubmittedBy?: string;\\n  appealSubmittedAt?: string;\\n  appealReviewedBy?: string;\\n  appealReviewedAt?: string;\\n  caseId?: string;\\n  targetUsername?: string;\\n}) {',`,
+'dashboard prop types replacement'
+);
+
+replacePlugin(
+`          '                appealStatus={caseItem.appealStatus}\\n                appealReviewedTopics={caseItem.appealReviewedTopics}\\n              />',`,
+`          '                appealStatus={caseItem.appealStatus}\\n                appealReviewedTopics={caseItem.appealReviewedTopics}\\n                appealSubmittedBy={caseItem.appealSubmittedBy}\\n                appealSubmittedAt={caseItem.appealSubmittedAt}\\n                appealReviewedBy={caseItem.appealReviewedBy}\\n                appealReviewedAt={caseItem.appealReviewedAt}\\n              />',`,
+'dashboard case values search'
+);
+
+replacePlugin(
+`          '                appealStatus={caseItem.appealStatus}\\n                appealReviewedTopics={caseItem.appealReviewedTopics}\\n                caseId={caseItem.caseId}\\n                targetUsername={caseItem.targetUsername}\\n              />',`,
+`          '                appealStatus={caseItem.appealStatus}\\n                appealReviewedTopics={caseItem.appealReviewedTopics}\\n                appealSubmittedBy={caseItem.appealSubmittedBy}\\n                appealSubmittedAt={caseItem.appealSubmittedAt}\\n                appealReviewedBy={caseItem.appealReviewedBy}\\n                appealReviewedAt={caseItem.appealReviewedAt}\\n                caseId={caseItem.caseId}\\n                targetUsername={caseItem.targetUsername}\\n              />',`,
+'dashboard case values replacement'
+);
+
+fs.writeFileSync(pluginFile, plugin, 'utf8');
+console.log('Applied Case Detail appeal layout fix and QA Access build compatibility');
