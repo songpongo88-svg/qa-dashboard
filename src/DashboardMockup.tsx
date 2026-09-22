@@ -2270,31 +2270,8 @@ function CaseDetailTopicTable({
               </div>
             </div>
 
-            <div className="mt-5 grid gap-x-8 gap-y-3 text-sm lg:grid-cols-[170px_minmax(0,1fr)]">
-              <div className="font-semibold text-slate-500">Score</div>
-              <div className="text-slate-900">
-                {row.changed && row.revisedTopic ? (
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700">
-                      Original {row.originalTopic.score}/{row.originalTopic.max} ({Number(row.originalTopic.pct || 0).toFixed(1)}%)
-                    </span>
-                    <span className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-[12px] font-semibold text-violet-700">
-                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} ({Number(row.revisedTopic.pct || 0).toFixed(1)}%)
-                    </span>
-                  </div>
-                ) : (
-                  <span>{row.shownTopic.score}/{row.shownTopic.max} ({row.pct.toFixed(1)}%)</span>
-                )}
-              </div>
 
-              <div className="font-semibold text-slate-500">Max Score</div>
-              <div className="text-slate-900">{row.shownTopic.max}</div>
-
-              <div className="font-semibold text-slate-500">Status</div>
-              <div className={`font-semibold ${row.statusClass}`}>{row.statusLabel}</div>
-            </div>
-
-            <div className="mt-6 space-y-4">
+            <div className="mt-4 space-y-4">
               {row.rejectedReviewTopic ? (
                 <>
                   <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">
