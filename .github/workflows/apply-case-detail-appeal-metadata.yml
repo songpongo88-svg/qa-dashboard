@@ -1,0 +1,98 @@
+name: Apply Case Detail Appeal Metadata
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-case-detail-appeal-metadata.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add appeal metadata to Case Detail PDF
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          function replaceOnce(source, search, replacement, label) {
+            if (source.includes(replacement)) return source;
+            if (!source.includes(search)) throw new Error(`Missing anchor: ${label}`);
+            return source.replace(search, replacement);
+          }
+
+          const dashboardPath = 'src/DashboardMockup.tsx';
+          let dashboard = fs.readFileSync(dashboardPath, 'utf8');
+
+          dashboard = replaceOnce(
+            dashboard,
+            `  appealReviewSummary?: string;\n  appealReviewedAt?: string;\n  appealRequestId?: string;`,
+            `  appealReviewSummary?: string;\n  appealReviewedAt?: string;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealRequestId?: string;`,
+            'CaseItem appeal metadata fields'
+          );
+
+          dashboard = replaceOnce(
+            dashboard,
+            `  reviewSummary: string;\n  reviewedAt: string;\n  requestId: string;\n  reviewedTopics: Topic[];`,
+            `  reviewSummary: string;\n  reviewedAt: string;\n  submittedBy: string;\n  submittedAt: string;\n  reviewedBy: string;\n  requestId: string;\n  reviewedTopics: Topic[];`,
+            'AppealOutcomeItem metadata fields'
+          );
+
+          dashboard = replaceOnce(
+            dashboard,
+            `  const map = new Map<string, AppealOutcomeItem>();\n  const latestRequests = buildLatestAppealRequestMap(logs);\n\n  latestRequests.forEach((request, caseId) => {\n    if (request.status !== \"Approved\" && request.status !== \"Rejected\") return;`,
+            `  const map = new Map<string, AppealOutcomeItem>();\n  const latestRequests = buildLatestAppealRequestMap(logs);\n  const submittedEvents = new Map<string, UsageLogEvent>();\n  const reviewedEvents = new Map<string, UsageLogEvent>();\n\n  logs.forEach((log) => {\n    const requestId = String(log.details?.requestId || log.id || \"\").trim();\n    if (!requestId) return;\n    if (log.event_type === \"appeal_request_submitted\" && !submittedEvents.has(requestId)) {\n      submittedEvents.set(requestId, log);\n    }\n    if (log.event_type === \"appeal_request_reviewed\" && !reviewedEvents.has(requestId)) {\n      reviewedEvents.set(requestId, log);\n    }\n  });\n\n  latestRequests.forEach((request, caseId) => {\n    if (request.status !== \"Approved\" && request.status !== \"Rejected\") return;\n    const submittedEvent = submittedEvents.get(String(request.requestId || \"\"));\n    const reviewedEvent = reviewedEvents.get(String(request.requestId || \"\"));`,
+            'appeal event lookup'
+          );
+
+          dashboard = replaceOnce(
+            dashboard,
+            `      reviewSummary: String(request.reviewSummary || \"\").trim(),\n      reviewedAt: String(request.reviewedAt || \"\").trim(),\n      requestId: String(request.requestId || \"\").trim(),`,
+            `      reviewSummary: String(request.reviewSummary || \"\").trim(),\n      reviewedAt: String(request.reviewedAt || \"\").trim(),\n      submittedBy: String(\n        submittedEvent?.agent_name ||\n          submittedEvent?.display_name ||\n          request.submittedBy ||\n          request.agent ||\n          \"\"\n      ).trim(),\n      submittedAt: String(\n        request.submittedAt ||\n          submittedEvent?.details?.submittedAt ||\n          submittedEvent?.created_at ||\n          \"\"\n      ).trim(),\n      reviewedBy: String(\n        reviewedEvent?.agent_name ||\n          reviewedEvent?.display_name ||\n          \"\"\n      ).trim(),\n      requestId: String(request.requestId || \"\").trim(),`,
+            'appeal outcome metadata values'
+          );
+
+          dashboard = replaceOnce(
+            dashboard,
+            `      appealReviewSummary: loggedOutcome?.reviewSummary || \"\",\n      appealReviewedAt: loggedOutcome?.reviewedAt || \"\",\n      appealRequestId: loggedOutcome?.requestId || \"\",`,
+            `      appealReviewSummary: loggedOutcome?.reviewSummary || \"\",\n      appealReviewedAt: loggedOutcome?.reviewedAt || \"\",\n      appealSubmittedBy: loggedOutcome?.submittedBy || item.agent || \"\",\n      appealSubmittedAt: loggedOutcome?.submittedAt || \"\",\n      appealReviewedBy: loggedOutcome?.reviewedBy || \"\",\n      appealRequestId: loggedOutcome?.requestId || \"\",`,
+            'CaseItem mapped appeal metadata'
+          );
+
+          fs.writeFileSync(dashboardPath, dashboard, 'utf8');
+
+          const addonPath = 'src/caseAppealPdfAddon.ts';
+          let addon = fs.readFileSync(addonPath, 'utf8');
+
+          addon = replaceOnce(
+            addon,
+            `  const revisedGrade = approved\n    ? String(caseItem.grade || scoreToGrade(revisedFinalScore, caseItem.monthKey))\n    : originalGrade;\n\n  const updatedTopics = originalTopics.map((topic: any) => {`,
+            `  const revisedGrade = approved\n    ? String(caseItem.grade || scoreToGrade(revisedFinalScore, caseItem.monthKey))\n    : originalGrade;\n  const appealAdmin = plain(caseItem.appealSubmittedBy || caseItem.agent, \"-\");\n  const appealSubmit = formatBangkokDateTime(caseItem.appealSubmittedAt);\n  const appealQa = plain(caseItem.appealReviewedBy, \"-\");\n  const appealResult = formatBangkokDateTime(caseItem.appealReviewedAt);\n\n  const updatedTopics = originalTopics.map((topic: any) => {`,
+            'appeal PDF metadata values'
+          );
+
+          addon = replaceOnce(
+            addon,
+            `      \"<hr>\",\n      \`<div><span style=\"color:#dc2626\"><strong>Appeal Reason</strong><br>\${pdfHtml(appealReason)}</span></div>\`,\n      \"<hr>\",\n      \`<div><span style=\"color:#dc2626\"><strong>\${revisedLabel}</strong><br>\${pdfHtml(revisedComment)}</span></div>\`,`,
+            `      \"<hr>\",\n      \`<div>Admin: \${pdfHtml(appealAdmin)}</div>\`,\n      \`<div>Appeal Submit: \${pdfHtml(appealSubmit || \"-\")}</div>\`,\n      \`<div><span style=\"color:#dc2626\"><strong>Appeal Reason</strong><br>\${pdfHtml(appealReason)}</span></div>\`,\n      \"<hr>\",\n      \`<div>QA: \${pdfHtml(appealQa)}</div>\`,\n      \`<div>Appeal Result: \${pdfHtml(appealResult || \"-\")}</div>\`,\n      \`<div><span style=\"color:#dc2626\"><strong>\${revisedLabel}</strong><br>\${pdfHtml(revisedComment)}</span></div>\`,`,
+            'four highlighted appeal metadata lines'
+          );
+
+          fs.writeFileSync(addonPath, addon, 'utf8');
+          NODE
+          rm .github/workflows/apply-case-detail-appeal-metadata.yml
+          node scripts/check-user-guide.mjs --record --reason "Reviewed Case Detail PDF appeal submitter and reviewer metadata lines" --no-content-change
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add Case Detail appeal review metadata"
+          git push
