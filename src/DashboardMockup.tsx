@@ -151,6 +151,10 @@ type AppealMergeItem = {
   displayRevisedTopicCodes: string[];
   submittedAt?: string;
   reviewedAt?: string;
+  submittedBy?: string;
+  reviewedBy?: string;
+  reviewSummary?: string;
+  status?: "Approved" | "Rejected";
   source?: "excel" | "firebase";
 };
 
@@ -567,7 +571,7 @@ function applyAppealMapsToCaseItems(
 
     const excelAppealWins = Boolean(mergedAppeal && mergedAppeal.source !== "firebase");
     const effectiveStatus = excelAppealWins
-      ? "Approved"
+      ? mergedAppeal?.status || "Approved"
       : loggedOutcome?.status;
 
     let nextItem: CaseItem = {
@@ -575,15 +579,18 @@ function applyAppealMapsToCaseItems(
       hasAppealHistory: Boolean(mergedAppeal || loggedOutcome || appealTimeline ||
         candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),
       appealStatus: effectiveStatus,
-      appealReviewSummary: loggedOutcome?.reviewSummary || "",
+      appealReviewSummary: loggedOutcome?.reviewSummary || mergedAppeal?.reviewSummary || "",
       appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",
       appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",
-      appealSubmittedBy: loggedOutcome?.submittedBy || item.agent || "",
-      appealReviewedBy: loggedOutcome?.reviewedBy || "",
+      appealSubmittedBy: loggedOutcome?.submittedBy || mergedAppeal?.submittedBy || item.agent || "",
+      appealReviewedBy: loggedOutcome?.reviewedBy || mergedAppeal?.reviewedBy || "",
       appealRequestId: loggedOutcome?.requestId || "",
       appealReviewedTopics: loggedOutcome?.reviewedTopics?.length
         ? loggedOutcome.reviewedTopics
-        : null,
+        : mergedAppeal?.revisedTopics?.filter((topic) => {
+            const reason = String(topic.appealReason || "").trim();
+            return Boolean(reason) && !isNoAppealReason(reason);
+          }) || null,
     };
 
     if (!mergedAppeal || effectiveStatus === "Rejected") {
@@ -5685,6 +5692,37 @@ export default function DashboardMockup({
       "Created",
       "File Created Date",
             ], "")),
+            submittedBy: (() => {
+              const direct = String(getFirstAvailableHeaderValue(appealHelper, row, [
+                "Appeal Submitted By",
+                "Submitted By",
+                "Admin Name",
+                "Admin",
+              ], "") ?? "").trim();
+              if (direct) return direct;
+              const channel = String(getFirstAvailableHeaderValue(appealHelper, row, ["Appeal Channel"], "") ?? "").trim();
+              const match = channel.match(/(?:E-?Mail|Email)\s*:\s*(.+)$/i);
+              return match?.[1]?.trim() || "";
+            })(),
+            reviewedBy: String(getFirstAvailableHeaderValue(appealHelper, row, [
+              "Appeal Reviewed By",
+              "Reviewed By",
+              "QA Name",
+              "Reviewer Name",
+            ], "") ?? "").trim(),
+            reviewSummary: String(getFirstAvailableHeaderValue(appealHelper, row, [
+              "Appeal Review Summary",
+              "Review Summary",
+            ], "") ?? "").trim(),
+            status: (() => {
+              const rawStatus = String(getFirstAvailableHeaderValue(appealHelper, row, [
+                "Appeal Decision",
+                "Comment Status",
+                "QA Scheme",
+                "Status",
+              ], "") ?? "").trim().toLowerCase();
+              return rawStatus === "rejected" || rawStatus === "reject" ? "Rejected" : "Approved";
+            })(),
             source: "excel",
           });
         });
