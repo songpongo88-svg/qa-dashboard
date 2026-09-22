@@ -1,4 +1,4 @@
-name: Diagnose Jan-Feb Workbook V2
+name: Diagnose Historical RawData
 
 on:
   push:
@@ -14,88 +14,54 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install openpyxl
-        run: pip install openpyxl
-      - name: Inspect workbook
+      - run: pip install openpyxl
+      - name: Inspect historical workbook month coverage
         run: |
           python - <<'PY'
           from openpyxl import load_workbook
-          from collections import Counter
+          from collections import Counter, defaultdict
           from datetime import datetime, date
           import re
 
-          path = 'public/QA_RawData_January-February2026.xlsx'
-          wb = load_workbook(path, data_only=True, read_only=True)
-          print('SHEETS', wb.sheetnames)
-
-          def norm(v):
-              return re.sub(r'[^a-z0-9ก-๙]+', '', str(v or '').strip().lower())
-
+          files = [
+            'public/QA_RawData_January-February2026.xlsx',
+            'public/QA_RawData_March-May2026.xlsx',
+          ]
+          def norm(v): return re.sub(r'[^a-z0-9ก-๙]+','',str(v or '').strip().lower())
           def month_of(v):
-              if isinstance(v, (datetime, date)):
-                  return f'{v.year:04d}-{v.month:02d}'
-              s = str(v or '').strip()
-              if not s:
-                  return ''
-              m = re.match(r'^(\d{4})-(\d{1,2})-', s)
-              if m:
-                  return f'{int(m.group(1)):04d}-{int(m.group(2)):02d}'
-              m = re.match(r'^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})', s)
-              if m:
-                  return f'{int(m.group(3)):04d}-{int(m.group(2)):02d}'
+              if isinstance(v,(datetime,date)): return f'{v.year:04d}-{v.month:02d}'
+              s=str(v or '').strip()
+              m=re.match(r'^(\d{4})-(\d{1,2})-',s)
+              if m: return f'{int(m.group(1)):04d}-{int(m.group(2)):02d}'
+              m=re.match(r'^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})',s)
+              if m: return f'{int(m.group(3)):04d}-{int(m.group(2)):02d}'
               return ''
-
-          for ws in wb.worksheets:
-              rows = list(ws.iter_rows(values_only=True))
-              print('SHEET', ws.title, 'ROWS', len(rows), 'COLS', ws.max_column)
-              header_idx = -1
-              for i, row in enumerate(rows[:50]):
-                  values = {norm(v) for v in row}
-                  if 'agentname' in values and 'caseid' in values:
-                      header_idx = i
-                      break
-              print('HEADER_IDX', header_idx)
-              if header_idx < 0:
-                  continue
-              headers = [str(v or '').strip() for v in rows[header_idx]]
-              print('HEADERS', headers)
-              idx = {norm(h): j for j, h in enumerate(headers)}
-              print('INDEXES', {k: idx.get(k) for k in ['agentname','caseid','casedate','auditdate','monthlabel','monthstart','month','period']})
-              case_idx = idx.get('caseid')
-              agent_idx = idx.get('agentname')
-              data = [r for r in rows[header_idx+1:] if case_idx is not None and str(r[case_idx] or '').strip()]
-              print('DATA_ROWS', len(data))
-              if case_idx is not None:
-                  ids = [str(r[case_idx] or '').strip().upper() for r in data]
-                  counts = Counter(ids)
-                  dups = [(k,v) for k,v in counts.items() if v > 1]
-                  print('CASE_ID_COUNT', len(ids), 'UNIQUE', len(counts), 'DUPS', dups[:50])
-              for key in ['casedate','auditdate','monthlabel','monthstart','month','period']:
-                  j = idx.get(key)
-                  if j is None:
-                      continue
-                  print('RAW_COUNTER', key, Counter(str(r[j]) for r in data).most_common(30))
-                  print('MONTH_COUNTER', key, Counter(month_of(r[j]) for r in data).most_common(30))
-              if agent_idx is not None:
-                  print('AGENT_ROWS', sorted(Counter(str(r[agent_idx] or '').strip() for r in data).items()))
-                  case_date_idx = idx.get('casedate')
-                  audit_date_idx = idx.get('auditdate')
-                  for date_key, date_idx in [('CaseDate', case_date_idx), ('AuditDate', audit_date_idx)]:
-                      if date_idx is None:
-                          continue
-                      per = {}
-                      for r in data:
-                          m = month_of(r[date_idx])
-                          a = str(r[agent_idx] or '').strip()
-                          per.setdefault(m, Counter())[a] += 1
-                      for m in sorted(per):
-                          print('PER_AGENT', date_key, m, sorted(per[m].items()))
-              print('SAMPLE_ROWS')
-              for r in data[:10]:
-                  sample = {}
-                  for key in ['agentname','caseid','casedate','auditdate','monthlabel','monthstart','month','period']:
-                      j = idx.get(key)
-                      if j is not None:
-                          sample[key] = r[j]
-                  print(sample)
+          for path in files:
+              print('\nFILE',path)
+              wb=load_workbook(path,data_only=True,read_only=True)
+              ws=wb['Raw_Data'] if 'Raw_Data' in wb.sheetnames else wb[wb.sheetnames[0]]
+              rows=list(ws.iter_rows(values_only=True))
+              hi=-1
+              for i,row in enumerate(rows[:50]):
+                  vals={norm(v) for v in row}
+                  if 'agentname' in vals and 'caseid' in vals:
+                      hi=i;break
+              print('HEADER_IDX',hi)
+              headers=[str(v or '').strip() for v in rows[hi]]
+              idx={norm(h):j for j,h in enumerate(headers)}
+              print('INDEXES',{k:idx.get(k) for k in ['agentname','caseid','casedate','auditdate','monthlabel','monthstart']})
+              ci=idx['caseid']; ai=idx['agentname']
+              data=[r for r in rows[hi+1:] if str(r[ci] or '').strip()]
+              print('DATA_ROWS',len(data),'UNIQUE_CASES',len(set(str(r[ci]).strip().upper() for r in data)))
+              for key in ['casedate','auditdate','monthstart']:
+                  j=idx.get(key)
+                  if j is not None:
+                      print('MONTH_COUNTS',key,sorted(Counter(month_of(r[j]) for r in data).items()))
+              j=idx.get('monthlabel')
+              if j is not None: print('MONTH_LABELS',sorted(Counter(str(r[j] or '').strip() for r in data).items()))
+              cd=idx.get('casedate')
+              if cd is not None:
+                  per=defaultdict(Counter)
+                  for r in data: per[month_of(r[cd])][str(r[ai] or '').strip()]+=1
+                  for m in sorted(per): print('PER_AGENT_CASEDATE',m,sorted(per[m].items()))
           PY
