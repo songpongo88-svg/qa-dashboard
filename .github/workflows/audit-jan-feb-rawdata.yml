@@ -19,7 +19,7 @@ jobs:
       - name: Audit workbook
         run: |
           node --input-type=module <<'NODE'
-          import * as XLSX from 'xlsx';
+          import XLSX from 'xlsx';
           const path = 'public/QA_RawData_January-February2026.xlsx';
           const wb = XLSX.readFile(path, { cellDates: true });
           console.log('SHEETS', JSON.stringify(wb.SheetNames));
