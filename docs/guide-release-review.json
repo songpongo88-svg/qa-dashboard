@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-22T06:43:28.800Z",
-  "reason": "Reviewed Case Detail PDF appeal submitter and reviewer metadata lines",
+  "reviewedAt": "2026-09-22T06:52:17.084Z",
+  "reason": "Reviewed appeal v54 compatibility with Case Detail submitter and reviewer metadata",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -185,7 +185,7 @@
     "scripts/patch-appeal-review-information-v56.mjs": "e89887daa54791a42ba98f62adbd73680d78dd4ec8b1ba2fdfb8dd15b13d53c8",
     "scripts/patch-appeal-review-information-visual-v61.mjs": "1dcf869e8fffc8af56ce9cee4c8ed2dc14d1c410e81bda2c25057beff447508a",
     "scripts/patch-appeal-review-layout-v58.mjs": "5aece3f9495ad963d578bc1d743a00f046cced05338682657cf609eb989873e8",
-    "scripts/patch-appeal-review-reset-datetime-v54.mjs": "7a842503ba6a204efcc0fdd2a08a7a9380a5f8146e1f20d0de1a89c907593c82",
+    "scripts/patch-appeal-review-reset-datetime-v54.mjs": "5727ac782692e224499dbb0cb77fa9e18a9f29da36155ac3e0879a709b4c4acb",
     "scripts/patch-appeal-review-reviewed-time-caseid-v60.mjs": "7b064fbdd2538c1e7d65f3400ff4b5465b12e31f043719c15443e595ae2f7421",
     "scripts/patch-appeal-review-workspace-tabs-v59.mjs": "c00fd6c731495c15401e4870d81a7e58e8a27e58146bd92a79608d2e2c0469d2",
     "scripts/patch-appeal-reviewer-loading-fix-v64.mjs": "269d3351cd989b2412f3c4da758a4dc7e0569db50491f8e6bccab70921af6872",
