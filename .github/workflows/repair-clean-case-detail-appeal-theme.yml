@@ -1,0 +1,69 @@
+name: Repair Clean Case Detail Appeal Theme
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-clean-case-detail-appeal-theme.yml"
+      - "scripts/repair-clean-case-detail-appeal-theme-v2.mjs"
+
+permissions:
+  contents: write
+
+jobs:
+  repair-build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Restore clean source and apply requested fixes
+        run: node scripts/repair-clean-case-detail-appeal-theme-v2.mjs
+      - name: Remove temporary repair files
+        run: |
+          rm -f scripts/repair-clean-case-detail-appeal-theme-v2.mjs
+          rm -f .github/workflows/repair-clean-case-detail-appeal-theme.yml
+      - name: Preserve intended source before legacy prebuild patches
+        run: |
+          mkdir -p /tmp/qa-intended
+          cp src/App.tsx /tmp/qa-intended/App.tsx
+          cp src/AppealRequestsMockup.tsx /tmp/qa-intended/AppealRequestsMockup.tsx
+          cp src/DashboardMockup.tsx /tmp/qa-intended/DashboardMockup.tsx
+      - name: Review intended source before build
+        run: npm run guide:review -- --reason "Reviewed clean Case Detail metadata order, Appeal Submit recovery, and 7 Days Theme label" --no-content-change
+      - name: Verify Vercel production build
+        env:
+          VERCEL: "1"
+          VERCEL_ENV: "production"
+          VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+          VERCEL_GIT_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: npm run build
+      - name: Restore intended source after legacy prebuild patches
+        run: |
+          cp /tmp/qa-intended/App.tsx src/App.tsx
+          cp /tmp/qa-intended/AppealRequestsMockup.tsx src/AppealRequestsMockup.tsx
+          cp /tmp/qa-intended/DashboardMockup.tsx src/DashboardMockup.tsx
+          git checkout -- public/build-meta.json || true
+      - name: Record final guide review for committed source
+        run: npm run guide:review -- --reason "Reviewed final committed Case Detail metadata order, Appeal Submit recovery, and 7 Days Theme label after production build" --no-content-change
+      - name: Commit clean verified source only
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx src/AppealRequestsMockup.tsx src/DashboardMockup.tsx docs/guide-release-review.json
+          git add -u -- scripts/repair-clean-case-detail-appeal-theme-v2.mjs .github/workflows/repair-clean-case-detail-appeal-theme.yml
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Deploy clean Case Detail appeal and theme fixes"
+          git push
