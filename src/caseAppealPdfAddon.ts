@@ -163,6 +163,10 @@ export async function generateCasePdfWithAppealHistory({
   const revisedGrade = approved
     ? String(caseItem.grade || scoreToGrade(revisedFinalScore, caseItem.monthKey))
     : originalGrade;
+  const appealAdmin = plain(caseItem.appealSubmittedBy || caseItem.agent, "-");
+  const appealSubmit = formatBangkokDateTime(caseItem.appealSubmittedAt);
+  const appealQa = plain(caseItem.appealReviewedBy, "-");
+  const appealResult = formatBangkokDateTime(caseItem.appealReviewedAt);
 
   const updatedTopics = originalTopics.map((topic: any) => {
     const code = String(topic?.code);
@@ -202,8 +206,12 @@ export async function generateCasePdfWithAppealHistory({
       "<div><strong>Original Comment</strong></div>",
       `<div>${pdfHtml(topic?.comment)}</div>`,
       "<hr>",
+      `<div>Admin: ${pdfHtml(appealAdmin)}</div>`,
+      `<div>Appeal Submit: ${pdfHtml(appealSubmit || "-")}</div>`,
       `<div><span style="color:#dc2626"><strong>Appeal Reason</strong><br>${pdfHtml(appealReason)}</span></div>`,
       "<hr>",
+      `<div>QA: ${pdfHtml(appealQa)}</div>`,
+      `<div>Appeal Result: ${pdfHtml(appealResult || "-")}</div>`,
       `<div><span style="color:#dc2626"><strong>${revisedLabel}</strong><br>${pdfHtml(revisedComment)}</span></div>`,
     ].join("");
 

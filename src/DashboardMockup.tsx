@@ -91,6 +91,9 @@ type CaseItem = {
   appealStatus?: "Approved" | "Rejected";
   appealReviewSummary?: string;
   appealReviewedAt?: string;
+  appealSubmittedBy?: string;
+  appealSubmittedAt?: string;
+  appealReviewedBy?: string;
   appealRequestId?: string;
   appealReviewedTopics?: AppealReviewedTopic[] | null;
 };
@@ -143,6 +146,9 @@ type AppealOutcomeItem = {
   status: "Approved" | "Rejected";
   reviewSummary: string;
   reviewedAt: string;
+  submittedBy: string;
+  submittedAt: string;
+  reviewedBy: string;
   requestId: string;
   reviewedTopics: Topic[];
 };
@@ -302,9 +308,24 @@ function buildAppealOutcomeMap(
 ) {
   const map = new Map<string, AppealOutcomeItem>();
   const latestRequests = buildLatestAppealRequestMap(logs);
+  const submittedEvents = new Map<string, UsageLogEvent>();
+  const reviewedEvents = new Map<string, UsageLogEvent>();
+
+  logs.forEach((log) => {
+    const requestId = String(log.details?.requestId || log.id || "").trim();
+    if (!requestId) return;
+    if (log.event_type === "appeal_request_submitted" && !submittedEvents.has(requestId)) {
+      submittedEvents.set(requestId, log);
+    }
+    if (log.event_type === "appeal_request_reviewed" && !reviewedEvents.has(requestId)) {
+      reviewedEvents.set(requestId, log);
+    }
+  });
 
   latestRequests.forEach((request, caseId) => {
     if (request.status !== "Approved" && request.status !== "Rejected") return;
+    const submittedEvent = submittedEvents.get(String(request.requestId || ""));
+    const reviewedEvent = reviewedEvents.get(String(request.requestId || ""));
 
     const monthKey =
       rawCaseMonthKeyMap.get(caseId) ||
@@ -343,6 +364,24 @@ function buildAppealOutcomeMap(
       status: request.status,
       reviewSummary: String(request.reviewSummary || "").trim(),
       reviewedAt: String(request.reviewedAt || "").trim(),
+      submittedBy: String(
+        submittedEvent?.agent_name ||
+          submittedEvent?.display_name ||
+          request.submittedBy ||
+          request.agent ||
+          ""
+      ).trim(),
+      submittedAt: String(
+        request.submittedAt ||
+          submittedEvent?.details?.submittedAt ||
+          submittedEvent?.created_at ||
+          ""
+      ).trim(),
+      reviewedBy: String(
+        reviewedEvent?.agent_name ||
+          reviewedEvent?.display_name ||
+          ""
+      ).trim(),
       requestId: String(request.requestId || "").trim(),
       reviewedTopics,
     });
@@ -382,6 +421,9 @@ function applyAppealMapsToCaseItems(
       appealStatus: effectiveStatus,
       appealReviewSummary: loggedOutcome?.reviewSummary || "",
       appealReviewedAt: loggedOutcome?.reviewedAt || "",
+      appealSubmittedBy: loggedOutcome?.submittedBy || item.agent || "",
+      appealSubmittedAt: loggedOutcome?.submittedAt || "",
+      appealReviewedBy: loggedOutcome?.reviewedBy || "",
       appealRequestId: loggedOutcome?.requestId || "",
       appealReviewedTopics: loggedOutcome?.reviewedTopics?.length
         ? loggedOutcome.reviewedTopics

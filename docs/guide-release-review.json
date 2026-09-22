@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-22T06:14:54.972Z",
-  "reason": "Reviewed Gen All signer-name parity with stored Final Signed signatures",
+  "reviewedAt": "2026-09-22T06:43:28.800Z",
+  "reason": "Reviewed Case Detail PDF appeal submitter and reviewer metadata lines",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -292,7 +292,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "abda63bf350e695b10354b44946e7dac81c59f0a674485f1a2406b7834cf2b7e",
-    "src/DashboardMockup.tsx": "d5425840a1d4bddad0941bb5ea327d607d31519b8a0de7d4e342f49f30f309d3",
+    "src/DashboardMockup.tsx": "c590570e0597f3c3e6e755054042d42766614126d485e9f0ae304693b8861175",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
@@ -325,7 +325,7 @@
     "src/appealSummaryPdf.ts": "3b8d76e436c80d61319802f88be327c6110a4d83748a6295e4abeda713b9037c",
     "src/bulkCaseDetailPdf.ts": "041a9f3b433f17a94b7e2babf8c9843e4f0300a635bce6a4488d6029036b0750",
     "src/cartoonTheme.css": "d6748736b56145608cbb7caa1e78d765a4687f631c42ef956b5ea777c0e08385",
-    "src/caseAppealPdfAddon.ts": "973f719abbb501b6b3c8e224372182672c82446aaaa5b0eeeb8c7e3c37791b4d",
+    "src/caseAppealPdfAddon.ts": "22f14e07eb01027421324159f209e989013df5a97a1d59ea6c744fc0708e8425",
     "src/caseDetailOfficialPdf.ts": "38ece818019b203d90bfeb09280dda4595ffa98d7758e3b33167293816a318ab",
     "src/chatRealtimeStore.ts": "bb91970a0ced12b34d39ba8695be0218014136aa0c21551dbb1292bbb682abc2",
     "src/coachingCanonicalStore.ts": "91f66eade41fee2b043a24cd34c404dde3a43b5cc80871583a82ac7381c6ac9e",
