@@ -126,15 +126,122 @@ if (!bangkokFormatterPattern.test(text)) {
 }
 text = text.replace(bangkokFormatterPattern, bangkokFormatterReplacement);
 
-// Keep the direct Firebase event fallback already present. This patch restores the
-// legacy Appeal ROWDATA / E-Mail timestamp aliases and prevents normalized Bangkok
-// display timestamps from being reparsed as ambiguous browser dates.
+const mergeTypePattern = /type AppealMergeItem = \{[\s\S]*?\n\};\n\ntype AppealOutcomeItem/;
+const mergeTypeReplacement = `type AppealMergeItem = {
+  caseId: string;
+  finalScore?: number;
+  previousScore?: number;
+  reviewStatus?: ReviewStatus;
+  revisedTopics: Topic[];
+  displayRevisedTopicCodes: string[];
+  submittedAt?: string;
+  reviewedAt?: string;
+  submittedBy?: string;
+  reviewedBy?: string;
+  reviewSummary?: string;
+  status?: "Approved" | "Rejected";
+  source?: "excel" | "firebase";
+};
+
+type AppealOutcomeItem`;
+if (!mergeTypePattern.test(text)) {
+  throw new Error("AppealMergeItem type anchor not found");
+}
+text = text.replace(mergeTypePattern, mergeTypeReplacement);
+
+const excelMergePattern = /appealMap\.set\(caseId, \{\n\s*caseId,\n\s*finalScore,\n\s*previousScore,\n\s*reviewStatus: displayRevisedTopicCodes\.length \? "Revised" : "Original",\n\s*revisedTopics,\n\s*displayRevisedTopicCodes,\n\s*submittedAt:[\s\S]*?\n\s*reviewedAt:[\s\S]*?\n\s*source: "excel",\n\s*\}\);/;
+const excelMergeReplacement = `appealMap.set(caseId, {
+            caseId,
+            finalScore,
+            previousScore,
+            reviewStatus: displayRevisedTopicCodes.length ? "Revised" : "Original",
+            revisedTopics,
+            displayRevisedTopicCodes,
+            submittedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
+${submitList}
+            ], "")),
+            reviewedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
+${resultList}
+            ], "")),
+            submittedBy: (() => {
+              const direct = String(getFirstAvailableHeaderValue(appealHelper, row, [
+                "Appeal Submitted By",
+                "Submitted By",
+                "Admin Name",
+                "Admin",
+              ], "") ?? "").trim();
+              if (direct) return direct;
+              const channel = String(getFirstAvailableHeaderValue(appealHelper, row, ["Appeal Channel"], "") ?? "").trim();
+              const match = channel.match(/(?:E-?Mail|Email)\\s*:\\s*(.+)$/i);
+              return match?.[1]?.trim() || "";
+            })(),
+            reviewedBy: String(getFirstAvailableHeaderValue(appealHelper, row, [
+              "Appeal Reviewed By",
+              "Reviewed By",
+              "QA Name",
+              "Reviewer Name",
+            ], "") ?? "").trim(),
+            reviewSummary: String(getFirstAvailableHeaderValue(appealHelper, row, [
+              "Appeal Review Summary",
+              "Review Summary",
+            ], "") ?? "").trim(),
+            status: (() => {
+              const rawStatus = String(getFirstAvailableHeaderValue(appealHelper, row, [
+                "Appeal Decision",
+                "Comment Status",
+                "QA Scheme",
+                "Status",
+              ], "") ?? "").trim().toLowerCase();
+              return rawStatus === "rejected" || rawStatus === "reject" ? "Rejected" : "Approved";
+            })(),
+            source: "excel",
+          });`;
+if (!excelMergePattern.test(text)) {
+  throw new Error("Legacy Excel Appeal merge anchor not found");
+}
+text = text.replace(excelMergePattern, excelMergeReplacement);
+
+const effectiveStatusPattern = /const excelAppealWins = Boolean\(mergedAppeal && mergedAppeal\.source !== "firebase"\);\n\s*const effectiveStatus = excelAppealWins\n\s*\? "Approved"\n\s*: loggedOutcome\?\.status;/;
+const effectiveStatusReplacement = `const excelAppealWins = Boolean(mergedAppeal && mergedAppeal.source !== "firebase");
+    const effectiveStatus = excelAppealWins
+      ? mergedAppeal?.status || "Approved"
+      : loggedOutcome?.status;`;
+if (!effectiveStatusPattern.test(text)) {
+  throw new Error("Legacy Excel Appeal status anchor not found");
+}
+text = text.replace(effectiveStatusPattern, effectiveStatusReplacement);
+
+const nextItemPattern = /appealReviewSummary: loggedOutcome\?\.reviewSummary \|\| "",\n\s*appealSubmittedAt: appealTimeline\?\.submittedAt \|\| loggedOutcome\?\.submittedAt \|\| mergedAppeal\?\.submittedAt \|\| "",\n\s*appealReviewedAt: appealTimeline\?\.reviewedAt \|\| loggedOutcome\?\.reviewedAt \|\| mergedAppeal\?\.reviewedAt \|\| "",\n\s*appealSubmittedBy: loggedOutcome\?\.submittedBy \|\| item\.agent \|\| "",\n\s*appealReviewedBy: loggedOutcome\?\.reviewedBy \|\| "",\n\s*appealRequestId: loggedOutcome\?\.requestId \|\| "",\n\s*appealReviewedTopics: loggedOutcome\?\.reviewedTopics\?\.length\n\s*\? loggedOutcome\.reviewedTopics\n\s*: null,/;
+const nextItemReplacement = `appealReviewSummary: loggedOutcome?.reviewSummary || mergedAppeal?.reviewSummary || "",
+      appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",
+      appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",
+      appealSubmittedBy: loggedOutcome?.submittedBy || mergedAppeal?.submittedBy || item.agent || "",
+      appealReviewedBy: loggedOutcome?.reviewedBy || mergedAppeal?.reviewedBy || "",
+      appealRequestId: loggedOutcome?.requestId || "",
+      appealReviewedTopics: loggedOutcome?.reviewedTopics?.length
+        ? loggedOutcome.reviewedTopics
+        : mergedAppeal?.revisedTopics?.filter((topic) => {
+            const reason = String(topic.appealReason || "").trim();
+            return Boolean(reason) && !isNoAppealReason(reason);
+          }) || null,`;
+if (!nextItemPattern.test(text)) {
+  throw new Error("CaseItem legacy Appeal detail fallback anchor not found");
+}
+text = text.replace(nextItemPattern, nextItemReplacement);
+
+// Keep the direct Firebase event fallback already present. Legacy Excel / E-Mail
+// appeals must also populate the detail model used by the Case Detail UI, otherwise
+// old cases have revised scores but the Original / Appeal Reason / Revised Comment
+// cards are hidden because appealReviewedTopics is null.
 if (!text.includes('"Appeal Result",') || !text.includes('"Appeal Created Date & Time",')) {
   throw new Error("Legacy Appeal timestamp aliases were not installed");
 }
 if (!text.includes("Appeal timestamps are normalized earlier as DD/MM/YYYY HH:mm:ss.")) {
   throw new Error("Appeal display timestamp formatter fix was not installed");
 }
+if (!text.includes("mergedAppeal?.revisedTopics?.filter((topic) =>")) {
+  throw new Error("Legacy Excel Appeal detail fallback was not installed");
+}
 
 fs.writeFileSync(path, text);
-console.log("Applied unified Appeal timestamp resolver + stable Bangkok display parser.");
+console.log("Applied Appeal timestamp fixes + legacy Excel Appeal detail fallback.");
