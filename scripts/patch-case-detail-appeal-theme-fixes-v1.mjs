@@ -22,9 +22,18 @@ function replaceExact(relativePath, from, to, expectedCount = 1) {
 }
 
 // 1) Case Detail: owner/timestamp metadata belongs above the Original Comment heading.
-const originalCommentHeader = `                  <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>\n                  <div className="mt-3 space-y-1 text-[13px] font-semibold text-slate-700">\n                    <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>\n                    <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>\n                  </div>`;
-const originalCommentHeaderFixed = `                  <div className="space-y-1 text-[13px] font-semibold text-slate-700">\n                    <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>\n                    <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>\n                  </div>\n                  <div className="mt-3 text-[13px] font-semibold text-slate-600">Original Comment</div>`;
-replaceExact("src/DashboardMockup.tsx", originalCommentHeader, originalCommentHeaderFixed, 2);
+{
+  const relativePath = "src/DashboardMockup.tsx";
+  const source = read(relativePath);
+  let count = 0;
+  const pattern = /^([ \t]*)<div className="text-\[13px\] font-semibold text-slate-600">Original Comment<\/div>\r?\n[ \t]*<div className="mt-3 space-y-1 text-\[13px\] font-semibold text-slate-700">\r?\n[ \t]*<div><span className="font-extrabold">QA:<\/span> \{originalQaName \|\| "-"\}<\/div>\r?\n[ \t]*<div><span className="font-extrabold">Audit Date:<\/span> \{originalAuditDate \|\| "-"\}<\/div>\r?\n[ \t]*<\/div>/gm;
+  const fixed = source.replace(pattern, (_match, indent) => {
+    count += 1;
+    return `${indent}<div className="space-y-1 text-[13px] font-semibold text-slate-700">\n${indent}  <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>\n${indent}  <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>\n${indent}</div>\n${indent}<div className="mt-3 text-[13px] font-semibold text-slate-600">Original Comment</div>`;
+  });
+  if (count !== 2) throw new Error(`${relativePath}: expected 2 Original Comment metadata blocks, found ${count}`);
+  write(relativePath, fixed);
+}
 
 // Also accept common historical spreadsheet headers for Appeal Submit time.
 replaceExact(
