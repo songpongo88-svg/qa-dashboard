@@ -1,0 +1,68 @@
+name: Apply Case Detail Appeal Theme Fixes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apply-case-detail-appeal-theme-fixes.yml"
+      - "scripts/patch-case-detail-appeal-theme-fixes-v1.mjs"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply requested fixes
+        run: node scripts/patch-case-detail-appeal-theme-fixes-v1.mjs
+
+      - name: Remove temporary repair files before guide review
+        run: |
+          rm -f scripts/patch-case-detail-appeal-theme-fixes-v1.mjs
+          rm -f .github/workflows/apply-case-detail-appeal-theme-fixes.yml
+
+      - name: Record User Guide review
+        run: npm run guide:review -- --reason "Reviewed Case Detail metadata order, Appeal Submit timestamp recovery, and selected Theme label behavior" --no-content-change
+
+      - name: Verify production build
+        run: npm run build
+
+      - name: Reject unexpected build-time source mutations
+        shell: bash
+        run: |
+          git checkout -- public/build-meta.json || true
+          allowed='^(src/DashboardMockup\.tsx|src/AppealRequestsMockup\.tsx|src/App\.tsx|docs/guide-release-review\.json|scripts/patch-case-detail-appeal-theme-fixes-v1\.mjs|\.github/workflows/apply-case-detail-appeal-theme-fixes\.yml)$'
+          unexpected=$(git status --short | sed -E 's/^...//' | grep -Ev "$allowed" || true)
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected files changed during verified build:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit verified fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Fix Case Detail appeal metadata and theme label"
+          git push
