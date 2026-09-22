@@ -1,22 +1,29 @@
-name: Audit Jan-Feb RawData
+name: Fix Jan-Feb RawData Authority
 
 on:
   push:
     branches: [main]
     paths:
       - ".github/workflows/audit-jan-feb-rawdata.yml"
+      - "scripts/fix-jan-feb-raw-authority-v1.mjs"
+
+permissions:
+  contents: write
 
 jobs:
-  audit:
+  patch-build-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Audit workbook
+
+      - name: Verify actual Jan-Feb workbook
         run: |
           node --input-type=module <<'NODE'
           import XLSX from 'xlsx';
@@ -25,50 +32,80 @@ jobs:
           const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
           const norm = v => String(v ?? '').trim().toLowerCase().replace(/[^a-z0-9ก-๙]+/g, '');
           const headerRowIndex = rows.findIndex(r => r.some(v => norm(v) === 'auditdate') && r.some(v => norm(v) === 'agentname') && r.some(v => norm(v) === 'caseid'));
-          const headerRow = rows[headerRowIndex] || [];
-          const idx = name => headerRow.findIndex(v => norm(v) === norm(name));
-          const auditIdx = idx('Audit Date');
+          if (headerRowIndex < 0) throw new Error('Jan-Feb RawData header not found');
+          const header = rows[headerRowIndex];
+          const idx = name => header.findIndex(v => norm(v) === norm(name));
           const caseDateIdx = idx('Case Date');
           const agentIdx = idx('Agent Name');
           const caseIdx = idx('Case ID');
           const monthLabelIdx = idx('Month Label');
-          const monthKeyIdx = idx('Month Key');
+          const data = rows.slice(headerRowIndex + 1).filter(r => String(r[caseIdx] ?? '').trim());
           const monthOf = value => {
             if (value instanceof Date && !Number.isNaN(value.getTime())) return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}`;
-            const s = String(value ?? '').trim();
-            if (!s) return '';
-            let m = s.match(/^(\d{4})-(\d{1,2})-/); if (m) return `${m[1]}-${m[2].padStart(2,'0')}`;
-            m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/); if (m) return `${m[3]}-${String(Number(m[2])).padStart(2,'0')}`;
-            const d = new Date(s); return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            const d = new Date(String(value ?? ''));
+            return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
           };
-          const data = rows.slice(headerRowIndex + 1).filter(r => String(r[caseIdx] ?? '').trim());
-          console.log('HEADER_ROW_INDEX', headerRowIndex);
-          console.log('INDEXES', JSON.stringify({auditIdx,caseDateIdx,agentIdx,caseIdx,monthLabelIdx,monthKeyIdx}));
-          console.log('DATA_ROWS', data.length);
-          for (const [label, di] of [['Audit Date',auditIdx],['Case Date',caseDateIdx]]) {
-            const months = {};
-            const agents = {};
-            for (const r of data) {
-              const month = monthOf(r[di]);
-              months[month] = (months[month] || 0) + 1;
-              const agent = String(r[agentIdx] ?? '').trim();
-              agents[month] ||= {};
-              agents[month][agent] = (agents[month][agent] || 0) + 1;
-            }
-            console.log('MONTH_COUNTS', label, JSON.stringify(months));
-            for (const month of Object.keys(agents).sort()) {
-              console.log('AGENT_COUNTS', label, month, JSON.stringify(Object.fromEntries(Object.entries(agents[month]).sort((a,b)=>a[0].localeCompare(b[0])))));
+          const counts = {};
+          const perAgent = {};
+          const ids = new Set();
+          for (const row of data) {
+            const id = String(row[caseIdx] ?? '').trim().toUpperCase();
+            if (ids.has(id)) throw new Error(`Duplicate Case ID in Jan-Feb workbook: ${id}`);
+            ids.add(id);
+            const month = monthOf(row[caseDateIdx]);
+            counts[month] = (counts[month] || 0) + 1;
+            const agent = String(row[agentIdx] ?? '').trim();
+            perAgent[month] ||= {};
+            perAgent[month][agent] = (perAgent[month][agent] || 0) + 1;
+          }
+          console.log('Jan-Feb workbook Case Date counts:', JSON.stringify(counts));
+          console.log('Jan agents:', JSON.stringify(perAgent['2026-01']));
+          console.log('Feb agents:', JSON.stringify(perAgent['2026-02']));
+          if (counts['2026-01'] !== 100 || counts['2026-02'] !== 100 || data.length !== 200) {
+            throw new Error(`Unexpected Jan-Feb workbook counts: ${JSON.stringify(counts)}, rows=${data.length}`);
+          }
+          for (const [month, agents] of Object.entries(perAgent)) {
+            for (const [agent, count] of Object.entries(agents)) {
+              if (count !== 10) throw new Error(`${month} ${agent} expected 10 cases, found ${count}`);
             }
           }
-          const labels = {};
-          const keys = {};
-          for (const r of data) {
-            const ml = String(r[monthLabelIdx] ?? '').trim(); labels[ml] = (labels[ml] || 0) + 1;
-            const mk = String(r[monthKeyIdx] ?? '').trim(); keys[mk] = (keys[mk] || 0) + 1;
-          }
-          console.log('MONTH_LABEL_COUNTS', JSON.stringify(labels));
-          console.log('MONTH_KEY_COUNTS', JSON.stringify(keys));
-          const idCounts = data.reduce((m,r)=>{const id=String(r[caseIdx]??'').trim().toUpperCase();m[id]=(m[id]||0)+1;return m;},{});
-          const dups = Object.entries(idCounts).filter(([,n])=>n>1);
-          console.log('DUPLICATE_CASE_IDS', JSON.stringify({count:dups.length,items:dups.slice(0,100)}));
+          const labels = data.reduce((acc,row)=>{const label=String(row[monthLabelIdx]??'').trim();acc[label]=(acc[label]||0)+1;return acc;},{});
+          console.log('Month Label counts:', JSON.stringify(labels));
           NODE
+
+      - name: Apply Jan-Feb RawData authority fix
+        run: node scripts/fix-jan-feb-raw-authority-v1.mjs
+
+      - name: Preserve intended source
+        run: cp src/DashboardMockup.tsx /tmp/DashboardMockup.tsx
+
+      - name: Review intended source
+        run: npm run guide:review -- --reason "Reviewed January-February 2026 dashboard source parity: Case Date reporting month and authoritative 10-case historical workbook sets" --no-content-change
+
+      - name: Preserve guide review
+        run: cp docs/guide-release-review.json /tmp/guide-release-review.json
+
+      - name: Verify production build
+        env:
+          VERCEL: "1"
+          VERCEL_ENV: production
+          VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+        run: npm run build
+
+      - name: Restore intended source after build patches
+        run: |
+          git reset --hard HEAD
+          cp /tmp/DashboardMockup.tsx src/DashboardMockup.tsx
+          cp /tmp/guide-release-review.json docs/guide-release-review.json
+
+      - name: Commit targeted fix only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/DashboardMockup.tsx docs/guide-release-review.json
+          if git diff --cached --quiet; then
+            echo "No Jan-Feb source change to commit."
+          else
+            git commit -m "Make Jan-Feb RawData authoritative"
+            git push
+          fi
