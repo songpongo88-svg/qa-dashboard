@@ -268,6 +268,16 @@ function extractOtRanges(value: string) {
     .filter((range) => range.start && range.end);
 }
 
+function canonicalOtRange(value: string) {
+  const range = extractOtRanges(value)[0];
+  return range ? `${range.start}-${range.end}` : "";
+}
+
+function splitOtRange(value: string) {
+  const range = extractOtRanges(value)[0];
+  return range ? { start: range.start, end: range.end } : { start: "", end: "" };
+}
+
 function adjustBaseShiftForShortAfterOt(
   shift: { shiftCode: string; shiftStart: string; shiftEnd: string; status: string },
   otText: string
@@ -958,7 +968,8 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [importing, setImporting] = useState(false);
   const [editEntry, setEditEntry] = useState<ShiftScheduleEntry | null>(null);
   const [editShift, setEditShift] = useState("");
-  const [editOt, setEditOt] = useState("");
+  const [editOtStart, setEditOtStart] = useState("");
+  const [editOtEnd, setEditOtEnd] = useState("");
   const [editNote, setEditNote] = useState("");
   const [editWfh, setEditWfh] = useState(false);
   const [editWfhTouched, setEditWfhTouched] = useState(false);
@@ -1216,7 +1227,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
     setEditEntry(entry);
     const base = entryBaseShift(entry);
     setEditShift(base?.shiftCode || entry.shiftCode || entry.status || "");
-    setEditOt(entry.otText || "");
+    const otRange = splitOtRange(entry.otText || extractOtText(entry.note || ""));
+    setEditOtStart(otRange.start);
+    setEditOtEnd(otRange.end);
     setEditNote(entry.note || "");
     setEditWfh(isWfhEntry(entry));
     setEditWfhTouched(false);
@@ -1236,9 +1249,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
       parsed.shiftEnd !== baselineShiftEnd ||
       parsed.status !== baselineStatus;
 
-    const excelOtText = editEntry.excelOtText ?? extractOtText(editEntry.excelNote ?? editEntry.note ?? "");
-    const manualOtEdited = editOt.trim() !== excelOtText.trim();
-    const manualOtText = manualOtEdited ? editOt.trim() : "";
+    const nextOtText = editOtStart && editOtEnd ? `${editOtStart}-${editOtEnd}` : "";
+    const excelOtText = canonicalOtRange(editEntry.excelOtText ?? extractOtText(editEntry.excelNote ?? editEntry.note ?? ""));
+    const manualOtEdited = nextOtText !== excelOtText;
+    const manualOtText = manualOtEdited ? nextOtText : "";
     const excelNote = editEntry.excelNote ?? editEntry.note ?? "";
     const manualNoteText = manualNoteDelta(editNote.trim(), excelNote);
     const previousWorkModeOverride = editEntry.workModeOverride || "";
@@ -1765,15 +1779,35 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                   />
                 </label>
               ) : null}
-              <label className="block">
+              <div>
                 <span className="text-xs font-semibold text-slate-600">OT</span>
-                <input value={editOt} onChange={(event) => setEditOt(event.target.value)} placeholder="เช่น 18:00-19:00" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
-                {editOt.trim() ? (
-                  <span className="mt-1 block text-[10px] font-bold text-rose-600">
-                    ตารางจะรวมเวลาถึง OT และแสดงคำว่า OT ที่มุมขวาบน
+                <div className="mt-1.5 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <input
+                    type="time"
+                    value={editOtStart}
+                    onChange={(event) => setEditOtStart(event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
+                    aria-label="OT start time"
+                  />
+                  <span className="text-sm font-bold text-slate-400">–</span>
+                  <input
+                    type="time"
+                    value={editOtEnd}
+                    onChange={(event) => setEditOtEnd(event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800"
+                    aria-label="OT end time"
+                  />
+                </div>
+                {editOtStart || editOtEnd ? (
+                  <span className={`mt-1 block text-[10px] font-bold ${Boolean(editOtStart) !== Boolean(editOtEnd) ? "text-rose-600" : "text-slate-500"}`}>
+                    {Boolean(editOtStart) !== Boolean(editOtEnd)
+                      ? "กรุณาระบุเวลาเริ่มและเวลาสิ้นสุด OT ให้ครบ"
+                      : `ระบบจะแสดงเป็น OT ${editOtStart}-${editOtEnd}`}
                   </span>
-                ) : null}
-              </label>
+                ) : (
+                  <span className="mt-1 block text-[10px] text-slate-400">กรอกเฉพาะเวลา ไม่ต้องพิมพ์คำว่า OT หรือข้อความอื่น</span>
+                )}
+              </div>
               <label className="block">
                 <span className="text-xs font-semibold text-slate-600">Note / ประวัติการเปลี่ยนกะ</span>
                 <textarea value={editNote} onChange={(event) => setEditNote(event.target.value)} rows={5} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
@@ -1781,7 +1815,14 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={() => setEditEntry(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">ยกเลิก</button>
-              <button type="button" onClick={() => void saveEdit()} className="rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white">บันทึก</button>
+              <button
+                type="button"
+                disabled={Boolean(editOtStart) !== Boolean(editOtEnd)}
+                onClick={() => void saveEdit()}
+                className="rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                บันทึก
+              </button>
             </div>
           </div>
         </div>
