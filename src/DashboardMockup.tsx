@@ -2459,11 +2459,11 @@ function CaseDetailTopicTable({
               {row.appealReviewTopic ? (
                 <>
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-                    <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
-                    <div className="mt-3 space-y-1 text-[13px] font-semibold text-slate-700">
+                    <div className="space-y-1 text-[13px] font-semibold text-slate-700">
                       <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>
                       <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>
                     </div>
+                    <div className="mt-3 text-[13px] font-semibold text-slate-600">Original Comment</div>
                     <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
                       <RichTextContent value={row.originalTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
                     </div>
@@ -2500,11 +2500,11 @@ function CaseDetailTopicTable({
                 </>
               ) : (
                 <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-                  <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
-                  <div className="mt-3 space-y-1 text-[13px] font-semibold text-slate-700">
+                  <div className="space-y-1 text-[13px] font-semibold text-slate-700">
                     <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>
                     <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>
                   </div>
+                  <div className="mt-3 text-[13px] font-semibold text-slate-600">Original Comment</div>
                   <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
                     <RichTextContent value={row.shownTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
                   </div>
@@ -5474,7 +5474,7 @@ export default function DashboardMockup({
             revisedTopics,
             displayRevisedTopicCodes,
             submittedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
-              "Appeal Submit Date & Time", "Appeal Submit Date", "Submit Date & Time", "Submit Date"
+              "Appeal Submit Date & Time", "Appeal Submit Date", "Appeal Submitted At", "Submitted At", "Appeal Submitted Date", "Appeal Date & Time", "Appeal Date", "Submit Date & Time", "Submit Date"
             ], "")),
             reviewedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
               "Appeal Result Date & Time", "Appeal Result Date", "Result Date & Time", "Result Date"

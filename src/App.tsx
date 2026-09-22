@@ -16,6 +16,8 @@ import AnnouncementHub from "./AnnouncementHub";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
+// app-internal-case-edit-tabs-v83
+// app-dedicated-edit-workspace-tabs-v85b
 import { withConsistentUserNames } from "./lib/userNames";
 import PreTestMockup from "./PreTestMockup";
 import TrainingAttendanceMockup from "./TrainingAttendanceMockup";
@@ -91,6 +93,7 @@ type RolePermissionKey =
   | "exportTrainingAttendance"
   | "viewUsageLog"
   | "exportPdf"
+  | "generateAllCasePdf"
   | "exportAppealRawdata"
   | "viewUserDirectory"
   | "viewAllTeams"
@@ -103,6 +106,7 @@ type RolePermissionKey =
   | "manageMaintenance"
   | "useTeamChat";
 
+// bulk-case-pdf-permission-v1
 type RolePermissions = Record<RolePermissionKey, boolean>;
 type RolePermissionMap = Record<string, RolePermissions>;
 
@@ -227,7 +231,9 @@ type AppTab =
   | "user-roles";
 
 type CaseWorkspaceTabKey = `case:${string}`;
-type WorkspaceTabKey = AppTab | "case-detail" | CaseWorkspaceTabKey;
+type EditWorkspaceTabKey = `edit:${string}`;
+type AppealReviewWorkspaceTabKey = `appeal-review:${string}`;
+type WorkspaceTabKey = AppTab | "case-detail" | CaseWorkspaceTabKey | AppealReviewWorkspaceTabKey | EditWorkspaceTabKey;
 type UserAdminSection = "users" | "roles" | "maintenance";
 
 function WorkspaceKeepAlive({
@@ -595,9 +601,62 @@ function isCaseWorkspaceTabKey(value: unknown): value is CaseWorkspaceTabKey {
   return String(value || "").startsWith("case:") && Boolean(parseCaseWorkspaceKey(value).caseId);
 }
 
+function buildAppealReviewWorkspaceKey(requestId: string, caseId: string): AppealReviewWorkspaceTabKey {
+  return `appeal-review:${encodeURIComponent(String(requestId || "").trim())}|${encodeURIComponent(String(caseId || "").trim())}` as AppealReviewWorkspaceTabKey;
+}
+
+function parseAppealReviewWorkspaceKey(value: unknown) {
+  const normalized = String(value || "");
+  if (!normalized.startsWith("appeal-review:")) return { requestId: "", caseId: "" };
+  const payload = normalized.slice("appeal-review:".length);
+  const separatorIndex = payload.indexOf("|");
+  const encodedRequestId = separatorIndex >= 0 ? payload.slice(0, separatorIndex) : payload;
+  const encodedCaseId = separatorIndex >= 0 ? payload.slice(separatorIndex + 1) : "";
+  try {
+    return {
+      requestId: decodeURIComponent(encodedRequestId || ""),
+      caseId: decodeURIComponent(encodedCaseId || ""),
+    };
+  } catch {
+    return { requestId: encodedRequestId, caseId: encodedCaseId };
+  }
+}
+
+function isAppealReviewWorkspaceTabKey(value: unknown): value is AppealReviewWorkspaceTabKey {
+  return String(value || "").startsWith("appeal-review:") && Boolean(parseAppealReviewWorkspaceKey(value).requestId);
+}
+
+// appeal-review-workspace-tabs-v59-app
+
+function buildEditWorkspaceKey(caseId: string, agentName = ""): EditWorkspaceTabKey {
+  const safeCaseId = String(caseId || "").trim().toUpperCase();
+  const safeAgent = String(agentName || "").trim();
+  return `edit:${encodeURIComponent(safeCaseId)}|${encodeURIComponent(safeAgent)}` as EditWorkspaceTabKey;
+}
+
+function parseEditWorkspaceKey(value: unknown) {
+  const normalized = String(value || "");
+  if (!normalized.startsWith("edit:")) return { caseId: "", agentName: "" };
+  const payload = normalized.slice(5);
+  const separatorIndex = payload.indexOf("|");
+  const encodedCaseId = separatorIndex >= 0 ? payload.slice(0, separatorIndex) : payload;
+  const encodedAgent = separatorIndex >= 0 ? payload.slice(separatorIndex + 1) : "";
+  try {
+    return { caseId: decodeURIComponent(encodedCaseId), agentName: decodeURIComponent(encodedAgent) };
+  } catch {
+    return { caseId: encodedCaseId, agentName: encodedAgent };
+  }
+}
+
+function isEditWorkspaceTabKey(value: unknown): value is EditWorkspaceTabKey {
+  return String(value || "").startsWith("edit:") && Boolean(parseEditWorkspaceKey(value).caseId);
+}
+
 function normalizeWorkspaceTabKey(value: unknown): WorkspaceTabKey | "" {
   const normalized = String(value || "").trim();
   if (isCaseWorkspaceTabKey(normalized)) return normalized as CaseWorkspaceTabKey;
+  if (isEditWorkspaceTabKey(normalized)) return normalized as EditWorkspaceTabKey;
+  if (isAppealReviewWorkspaceTabKey(normalized)) return normalized as AppealReviewWorkspaceTabKey;
   return VALID_WORKSPACE_TAB_KEYS.has(normalized as AppTab | "case-detail")
     ? (normalized as AppTab | "case-detail")
     : "";
@@ -810,6 +869,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "exportTrainingAttendance",
   "viewUsageLog",
   "exportPdf",
+  "generateAllCasePdf",
   "exportAppealRawdata",
   "viewUserDirectory",
   "viewAllTeams",
@@ -854,6 +914,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: false,
+    generateAllCasePdf: false,
     exportAppealRawdata: false,
     viewUserDirectory: false,
     viewAllTeams: false,
@@ -893,6 +954,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: false,
+    generateAllCasePdf: false,
     exportAppealRawdata: false,
     viewUserDirectory: false,
     viewAllTeams: false,
@@ -932,6 +994,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: true,
+    generateAllCasePdf: false,
     exportAppealRawdata: false,
     viewUserDirectory: false,
     viewAllTeams: true,
@@ -971,6 +1034,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportTrainingAttendance: true,
     viewUsageLog: false,
     exportPdf: true,
+    generateAllCasePdf: false,
     exportAppealRawdata: true,
     viewUserDirectory: false,
     viewAllTeams: true,
@@ -3613,6 +3677,56 @@ export default function App() {
     () => QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme) || QA_THEME_OPTIONS[0],
     [selectedTheme]
   );
+  const [sidebarThemeCollection, setSidebarThemeCollection] = useState<"weekday" | "weather" | "festival" | "">("");
+
+  useEffect(() => {
+    const syncSidebarThemeCollection = () => {
+      let customPreference = "";
+      try {
+        customPreference = window.localStorage.getItem(QA_CUSTOM_THEME_STORAGE_KEY) || "";
+      } catch {
+        customPreference = "";
+      }
+
+      const root = document.documentElement;
+      if (customPreference === "weather-auto" || root.dataset.qaWeatherCollection === "auto") {
+        setSidebarThemeCollection("weather");
+        return;
+      }
+      if (customPreference === "weekday-auto" || /^weekday-/.test(customPreference) || root.dataset.qaWeekdayCollection === "auto") {
+        setSidebarThemeCollection("weekday");
+        return;
+      }
+      if (root.dataset.qaFestivalOverride) {
+        setSidebarThemeCollection("festival");
+        return;
+      }
+      setSidebarThemeCollection("");
+    };
+
+    syncSidebarThemeCollection();
+    const observer = new MutationObserver(syncSidebarThemeCollection);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-qa-theme", "data-qa-weekday-collection", "data-qa-weather-collection", "data-qa-festival-override"],
+    });
+    window.addEventListener("qa-appearance-change", syncSidebarThemeCollection);
+    window.addEventListener("storage", syncSidebarThemeCollection);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("qa-appearance-change", syncSidebarThemeCollection);
+      window.removeEventListener("storage", syncSidebarThemeCollection);
+    };
+  }, []);
+
+  const sidebarThemeLabel =
+    sidebarThemeCollection === "weekday"
+      ? "7 Days · ธีมประจำวันอัตโนมัติ"
+      : sidebarThemeCollection === "weather"
+        ? "Weather Collection"
+        : sidebarThemeCollection === "festival"
+          ? "Festival Collection"
+          : activeThemeOption.label;
 
   useLayoutEffect(() => {
     document.documentElement.dataset.qaTheme = selectedTheme;
@@ -3738,6 +3852,8 @@ export default function App() {
     const stored = Number(window.localStorage.getItem(QA_DATA_REFRESH_STORAGE_KEY) || 0);
     return Number.isFinite(stored) ? stored : 0;
   });
+  // data-analytics-dashboard-case-source-v24
+  const [dashboardEffectiveCases, setDashboardEffectiveCases] = useState<any[] | null>(null);
 
   const [activeTab, setActiveTab] = useState<AppTab>(() => {
     try {
@@ -4403,7 +4519,9 @@ export default function App() {
       retained.add(
         workspaceKey === "case-detail" || isCaseWorkspaceTabKey(workspaceKey)
           ? "dashboard"
-          : workspaceKey
+          : isEditWorkspaceTabKey(workspaceKey)
+            ? "create-evaluation"
+            : workspaceKey as AppTab
       );
     });
     return Array.from(retained);
@@ -4536,6 +4654,10 @@ export default function App() {
       workspaceKey?: WorkspaceTabKey;
     } = {}
   ) => {
+    const dedicatedEditRouteV85b = Boolean(options.workspaceKey && isEditWorkspaceTabKey(options.workspaceKey));
+    if (!dedicatedEditRouteV85b) {
+      options = { ...options, params: { ...(options.params || {}), editCaseId: "" } };
+    }
     const unifiedTab = tab === "summary" ? "dashboard" : tab;
     const blockedReason = getTabBlockedReason(unifiedTab);
     const nextTab = blockedReason ? "dashboard" : unifiedTab;
@@ -4593,9 +4715,13 @@ export default function App() {
     const routeWorkspaceTab = normalizedRouteWorkspaceTab === "summary" || normalizedRouteWorkspaceTab === "case-detail"
       ? "dashboard"
       : normalizedRouteWorkspaceTab;
+    const legacyEditCaseIdV85b = nextTab === "create-evaluation" ? String(params.get("editCaseId") || "").trim().toUpperCase() : "";
+    const inferredEditWorkspaceV85b: WorkspaceTabKey | "" = legacyEditCaseIdV85b
+      ? buildEditWorkspaceKey(legacyEditCaseIdV85b, String(params.get("agent") || ""))
+      : "";
     const nextWorkspaceTab: WorkspaceTabKey = blockedReason
       ? "dashboard"
-      : routeWorkspaceTab || (nextTab === "dashboard" && params.get("subTab") === "case-detail"
+      : routeWorkspaceTab || inferredEditWorkspaceV85b || (nextTab === "dashboard" && params.get("subTab") === "case-detail"
         ? "case-detail"
         : nextTab);
     setOpenWorkspaceTabs((current) => current.includes(nextWorkspaceTab) ? current : [...current, nextWorkspaceTab]);
@@ -4631,6 +4757,27 @@ export default function App() {
   }, [sidebarPermissionNotice]);
 
   const activateWorkspaceTab = useCallback((workspaceKey: WorkspaceTabKey) => {
+    if (isEditWorkspaceTabKey(workspaceKey)) {
+      const { caseId, agentName } = parseEditWorkspaceKey(workspaceKey);
+      if (agentName) {
+        setSelectedAgentGlobal(agentName);
+        setCaseSelectedAgent(agentName);
+      }
+      navigateToTab("create-evaluation", {
+        workspaceKey,
+        params: { editCaseId: caseId, agent: agentName, caseId: "", subTab: "" },
+      });
+      return;
+    }
+
+    if (isAppealReviewWorkspaceTabKey(workspaceKey)) {
+      navigateToTab("appeal-requests", {
+        workspaceKey,
+        params: { requestId: "" },
+      });
+      return;
+    }
+
     if (isCaseWorkspaceTabKey(workspaceKey)) {
       const { caseId, agentName } = parseCaseWorkspaceKey(workspaceKey);
       setDashboardSubTab("case-detail");
@@ -4661,6 +4808,14 @@ export default function App() {
       navigateToTab("dashboard", {
         workspaceKey,
         params: { subTab: "overview", caseId: "", agent: "" },
+      });
+      return;
+    }
+
+    if (workspaceKey === "create-evaluation") {
+      navigateToTab("create-evaluation", {
+        workspaceKey,
+        params: { editCaseId: "", caseId: "", subTab: "" },
       });
       return;
     }
@@ -7028,7 +7183,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setThemePickerOpen(true)}
-              aria-label={`Theme ปัจจุบัน ${activeThemeOption.label}. กดเพื่อเปลี่ยน Theme`}
+              aria-label={`Theme ปัจจุบัน ${sidebarThemeLabel}. กดเพื่อเปลี่ยน Theme`}
               className={`mt-2 flex w-full items-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20 ${
                 globalSidebarCollapsed ? "justify-center px-2 py-2" : "gap-2 px-2.5 py-2 text-left"
               }`}
@@ -7047,7 +7202,7 @@ export default function App() {
                 <>
                   <span className="qa-sidebar-label min-w-0 flex-1">
                     <span className="block text-[9px] font-normal uppercase tracking-[0.12em] text-violet-300">Theme</span>
-                    <span className="block truncate text-[10px] font-medium text-white">{activeThemeOption.label}</span>
+                    <span className="block truncate text-[10px] font-medium text-white">{sidebarThemeLabel}</span>
                   </span>
                   <svg viewBox="0 0 24 24" className="qa-sidebar-label h-4 w-4 shrink-0 text-violet-200" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
                 </>
@@ -7188,9 +7343,11 @@ export default function App() {
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5" role="tablist" aria-label="Open workspace tabs">
             {openWorkspaceTabs.map((workspaceKey) => {
               const isActive = activeWorkspaceTab === workspaceKey;
-              const label = isCaseWorkspaceTabKey(workspaceKey)
-                ? parseCaseWorkspaceKey(workspaceKey).caseId
-                : WORKSPACE_TAB_LABELS[workspaceKey];
+              const label = isEditWorkspaceTabKey(workspaceKey)
+                ? `Edit ${parseEditWorkspaceKey(workspaceKey).caseId}`
+                : isCaseWorkspaceTabKey(workspaceKey)
+                  ? parseCaseWorkspaceKey(workspaceKey).caseId
+                  : WORKSPACE_TAB_LABELS[workspaceKey];
               return <div
                 key={workspaceKey}
                 draggable={workspaceKey !== "dashboard"}
@@ -7274,6 +7431,7 @@ export default function App() {
               canViewAgentsInOverview={overviewAgentSelectionAllowed}
               canViewAnalytics={analyticsAllowed}
               dataRefreshKey={qaDataRefreshKey}
+              onEffectiveCasesChange={setDashboardEffectiveCases}
               analyticsContent={analyticsAllowed ? (
                 <SummaryMockup
                   embedded
@@ -7287,6 +7445,7 @@ export default function App() {
                   canViewOwnTeam={analyticsOwnTeamAllowed}
                   canExportAnalytics={analyticsExportAllowed}
                   dataRefreshKey={qaDataRefreshKey}
+                  externalEffectiveCases={dashboardEffectiveCases}
                   onSelectedAgentChange={(agent) => setCaseSelectedAgent(agent === "all" ? "" : agent)}
                   onSelectedMonthChange={setCaseSelectedMonth}
                   onSelectedWeekChange={setCaseSelectedWeek}
@@ -7311,6 +7470,28 @@ export default function App() {
                     caseId: "",
                     agent: selectedAgentGlobal || "",
                   },
+                });
+              }}
+              onOpenEvaluationEdit={(caseId, agentName) => {
+                if (!caseId) return;
+                setSelectedDashboardCaseId(caseId);
+                if (agentName) {
+                  setSelectedAgentGlobal(agentName);
+                  setCaseSelectedAgent(agentName);
+                }
+                navigateToTab("create-evaluation", {
+                  workspaceKey: buildEditWorkspaceKey(caseId, agentName || ""),
+                  params: {
+                    editCaseId: caseId,
+                    agent: agentName || "",
+                    caseId: "",
+                    subTab: "",
+                  },
+                });
+                logUsageEvent(currentUser, "evaluation_edit_open", {
+                  caseId,
+                  agentName: agentName || "",
+                  source: "dashboard_selected_case",
                 });
               }}
               onOpenCaseDetail={(caseId, agentName) => {
@@ -7363,10 +7544,30 @@ export default function App() {
           ) : activeTab === "appeal" ? (
           <AppealMockup
             currentUser={currentUser}
+            agentDirectory={caseAgentDirectory /* appeal-identity-fallback-v52-app */}
+            externalCaseDetailCases={dashboardEffectiveCases || [] /* case-detail-datetime-source-v54-app */}
             externalSelectedAgent={selectedAgentGlobal}
             externalSelectedCaseId={selectedAppealCaseId}
             roleScopedAgentNames={roleScopedAgentNames}
             onSelectedAgentChange={setSelectedAgentGlobal}
+            // appeal-detail-dashboard-link-v35-app
+            onOpenCaseDetail={(caseId, agentName) => {
+              const caseWorkspaceKey = buildCaseWorkspaceKey(caseId || "", agentName || "");
+              setDashboardSubTab("case-detail");
+              setSelectedDashboardCaseId(caseId || "");
+              if (agentName) {
+                setSelectedAgentGlobal(agentName);
+                setCaseSelectedAgent(agentName);
+              }
+              navigateToTab("dashboard", {
+                workspaceKey: caseWorkspaceKey,
+                params: {
+                  subTab: "case-detail",
+                  caseId: caseId || "",
+                  agent: agentName || "",
+                },
+              });
+            }}
             onGeneratePdf={(caseId, agentName, pdfType) => {
               logUsageEvent(currentUser, "pdf_generate", {
                 tab: "appeal",
@@ -7378,8 +7579,13 @@ export default function App() {
           />
         ) : activeTab === "create-evaluation" && createEvaluationAllowed ? (
           <CreateEvaluationMockup
+            key={isEditWorkspaceTabKey(activeWorkspaceTab) ? activeWorkspaceTab : "create-evaluation-new"}
             agentOptions={qaEvaluationAgentOptions}
             currentUser={currentUser}
+            editCaseId={isEditWorkspaceTabKey(activeWorkspaceTab) ? parseEditWorkspaceKey(activeWorkspaceTab).caseId : ""}
+            onCancelEdit={() => {
+              if (isEditWorkspaceTabKey(activeWorkspaceTab)) closeWorkspaceTab(activeWorkspaceTab);
+            }}
             onSubmitEvaluation={handleEvaluationSubmitted}
           />
         ) : activeTab === "pre-test" && preTestAllowed ? (
@@ -7404,7 +7610,20 @@ export default function App() {
             canExportTrainingAttendance={exportTrainingAttendanceAllowed}
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
-          <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
+          <AppealRequestsMockup
+            currentUser={currentUser}
+            agentDirectory={caseAgentDirectory /* appeal-review-information-action-v55-app */}
+            externalCaseDetailCases={dashboardEffectiveCases || []}
+            externalRequestId={isAppealReviewWorkspaceTabKey(activeWorkspaceTab) ? parseAppealReviewWorkspaceKey(activeWorkspaceTab).requestId : ""}
+            onOpenRequestWorkspace={(requestId, caseId) => {
+              const workspaceKey = buildAppealReviewWorkspaceKey(requestId, caseId);
+              navigateToTab("appeal-requests", {
+                workspaceKey,
+                params: { requestId: "" },
+              });
+            }}
+            onTasksChanged={loadInboxTasks}
+          />
         ) : activeTab === "appeal-override" && appealOverrideAllowed ? (
           <AppealOverrideMockup currentUser={currentUser} />
         ) : activeTab === "task-inbox" ? (
@@ -7456,6 +7675,7 @@ export default function App() {
             canViewOwnTeam={analyticsOwnTeamAllowed}
             canExportAnalytics={analyticsExportAllowed}
             dataRefreshKey={qaDataRefreshKey}
+            externalEffectiveCases={dashboardEffectiveCases}
             onSelectedAgentChange={setAnalyticsSelectedAgent}
             onSelectedMonthChange={setAnalyticsSelectedMonth}
             onSelectedWeekChange={setAnalyticsSelectedWeek}
