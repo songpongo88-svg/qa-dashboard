@@ -1339,6 +1339,22 @@ function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {
 
 function formatBangkokDateTime(value: Date | string | null) {
   if (!value) return "-";
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return "-";
+
+    // Appeal timestamps are normalized earlier as DD/MM/YYYY HH:mm:ss.
+    // Do not feed that display string back into new Date(), because browsers
+    // parse DD/MM/YYYY inconsistently and can return Invalid Date (shown as "-").
+    const localDateTime = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (localDateTime) {
+      const [, day, month, year, hour = "00", minute = "00", second = "00"] = localDateTime;
+      return day.padStart(2, "0") + "/" + month.padStart(2, "0") + "/" + year + " " +
+        hour.padStart(2, "0") + ":" + minute + ":" + second;
+    }
+  }
+
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("en-GB", {
