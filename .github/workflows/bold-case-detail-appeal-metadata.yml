@@ -1,0 +1,49 @@
+name: Bold Case Detail Appeal Metadata
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bold-case-detail-appeal-metadata.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Bold appeal metadata lines
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const file = 'src/caseAppealPdfAddon.ts';
+          let s = fs.readFileSync(file, 'utf8');
+          const pairs = [
+            ['`<div>Admin: ${pdfHtml(appealAdmin)}</div>`', '`<div><strong>Admin: ${pdfHtml(appealAdmin)}</strong></div>`'],
+            ['`<div>Appeal Submit: ${pdfHtml(appealSubmit || "-")}</div>`', '`<div><strong>Appeal Submit: ${pdfHtml(appealSubmit || "-")}</strong></div>`'],
+            ['`<div>QA: ${pdfHtml(appealQa)}</div>`', '`<div><strong>QA: ${pdfHtml(appealQa)}</strong></div>`'],
+            ['`<div>Appeal Result: ${pdfHtml(appealResult || "-")}</div>`', '`<div><strong>Appeal Result: ${pdfHtml(appealResult || "-")}</strong></div>`'],
+          ];
+          for (const [from, to] of pairs) {
+            if (s.includes(to)) continue;
+            if (!s.includes(from)) throw new Error(`Missing anchor: ${from}`);
+            s = s.replace(from, to);
+          }
+          fs.writeFileSync(file, s, 'utf8');
+          NODE
+      - name: Record guide review and commit
+        run: |
+          rm .github/workflows/bold-case-detail-appeal-metadata.yml
+          node scripts/check-user-guide.mjs --record --reason "Reviewed bold formatting for Case Detail PDF appeal metadata lines" --no-content-change
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Bold Case Detail appeal metadata lines"
+          git push
