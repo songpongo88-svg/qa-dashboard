@@ -15,4 +15,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - name: Build with Vercel production environment
+        env:
+          VERCEL: "1"
+          VERCEL_ENV: "production"
+          VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+          VERCEL_GIT_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: npm run build
