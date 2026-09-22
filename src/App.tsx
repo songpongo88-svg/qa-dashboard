@@ -163,6 +163,9 @@ type BuildMeta = {
   timezone?: string;
 };
 
+// deploy-version-embedded-sha-v1
+const EMBEDDED_DEPLOY_COMMIT_SHA = String(import.meta.env.VITE_DEPLOY_COMMIT_SHA || "").trim();
+
 class SignatureCenterErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { errorMessage: string }
@@ -3602,7 +3605,10 @@ export default function App() {
   const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMap>(() => buildRolePermissionOverrides([]));
   const [accessRulesReady, setAccessRulesReady] = useState(false);
-  const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
+  const [buildMeta, setBuildMeta] = useState<BuildMeta>(() => ({
+    ...DEFAULT_BUILD_META,
+    commitHash: EMBEDDED_DEPLOY_COMMIT_SHA || DEFAULT_BUILD_META.commitHash,
+  }));
   const activeThemeOption = useMemo(
     () => QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme) || QA_THEME_OPTIONS[0],
     [selectedTheme]
@@ -4402,7 +4408,7 @@ export default function App() {
     });
     return Array.from(retained);
   }, [openWorkspaceTabs]);
-  const shortBuildHash = buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "";
+  const shortBuildHash = (EMBEDDED_DEPLOY_COMMIT_SHA || buildMeta.commitHash || "").slice(0, 7);
   const chatUnreadCounts = useMemo(() => {
     const readMap = currentUser ? readChatReadMap(currentUser) : {};
     const counts: Record<string, number> = {};
@@ -5687,14 +5693,17 @@ export default function App() {
           changedFiles: Array.isArray(data?.changedFiles)
             ? data.changedFiles.map((item: unknown) => String(item))
             : DEFAULT_BUILD_META.changedFiles,
-          commitHash: String(data?.commitHash ?? DEFAULT_BUILD_META.commitHash),
+          commitHash: EMBEDDED_DEPLOY_COMMIT_SHA || String(data?.commitHash ?? DEFAULT_BUILD_META.commitHash),
           commitMessage: String(data?.commitMessage ?? DEFAULT_BUILD_META.commitMessage),
           timezone: String(data?.timezone ?? DEFAULT_BUILD_META.timezone),
         });
       })
       .catch(() => {
         if (!isMounted) return;
-        setBuildMeta(DEFAULT_BUILD_META);
+        setBuildMeta({
+          ...DEFAULT_BUILD_META,
+          commitHash: EMBEDDED_DEPLOY_COMMIT_SHA || DEFAULT_BUILD_META.commitHash,
+        });
       });
 
     return () => {
