@@ -2744,15 +2744,49 @@ function getAppealVersionRank(value: any) {
 }
 
 function getAppealTimestampRank(helper: ReturnType<typeof buildHeaderHelpers>, row: any[]) {
-  const raw =
-    getFirstAvailableHeaderValue(helper, row, [
+  const resultRaw = getFirstAvailableHeaderValue(helper, row, [
       "Appeal Result Date & Time",
+      "Appeal Result",
       "Appeal Result Date",
-      "Timestamp",
+      "Result Date & Time",
+      "Result Date",
+      "Appeal Reviewed At",
+      "Reviewed At",
+      "Review Date & Time",
+      "Review Date",
+      "Appeal Closed Date & Time",
+      "Appeal Closed Date",
+      "Closed Date & Time",
+      "Closed Date",
       "Created Date & Time",
       "Created Date",
-    ]) ?? null;
-  return excelDateToJSDate(raw)?.getTime() ?? -1;
+      "Created",
+      "File Created Date",
+  ], "");
+  const submitRaw = getFirstAvailableHeaderValue(helper, row, [
+      "Appeal Submit Date & Time",
+      "Appeal Submit",
+      "Appeal Submit Date",
+      "Appeal Submitted At",
+      "Submitted At",
+      "Appeal Submitted Date & Time",
+      "Appeal Submitted Date",
+      "Submitted Date & Time",
+      "Submitted Date",
+      "Submission Date & Time",
+      "Submission Date",
+      "Submit Date & Time",
+      "Submit Date",
+      "Appeal Created Date & Time",
+      "Appeal Created Date",
+      "Created Date & Time",
+      "Created Date",
+      "Created",
+      "File Created Date",
+  ], "");
+  const resultRank = excelDateToJSDate(resultRaw)?.getTime() ?? -1;
+  const submitRank = excelDateToJSDate(submitRaw)?.getTime() ?? -1;
+  return Math.max(resultRank, submitRank);
 }
 
 function getLatestAppealRows(appealDataRows: any[][], helper: ReturnType<typeof buildHeaderHelpers>) {
@@ -5596,10 +5630,44 @@ export default function DashboardMockup({
             revisedTopics,
             displayRevisedTopicCodes,
             submittedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
-              "Appeal Submit Date & Time", "Appeal Submit Date", "Appeal Submitted At", "Submitted At", "Appeal Submitted Date", "Appeal Submitted Date & Time", "Submitted Date & Time", "Submitted Date", "Submission Date & Time", "Submission Date", "Appeal Submit", "Appeal Date & Time", "Appeal Date", "Submit Date & Time", "Submit Date"
+      "Appeal Submit Date & Time",
+      "Appeal Submit",
+      "Appeal Submit Date",
+      "Appeal Submitted At",
+      "Submitted At",
+      "Appeal Submitted Date & Time",
+      "Appeal Submitted Date",
+      "Submitted Date & Time",
+      "Submitted Date",
+      "Submission Date & Time",
+      "Submission Date",
+      "Submit Date & Time",
+      "Submit Date",
+      "Appeal Created Date & Time",
+      "Appeal Created Date",
+      "Created Date & Time",
+      "Created Date",
+      "Created",
+      "File Created Date",
             ], "")),
             reviewedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
-              "Appeal Result Date & Time", "Appeal Result Date", "Result Date & Time", "Result Date"
+      "Appeal Result Date & Time",
+      "Appeal Result",
+      "Appeal Result Date",
+      "Result Date & Time",
+      "Result Date",
+      "Appeal Reviewed At",
+      "Reviewed At",
+      "Review Date & Time",
+      "Review Date",
+      "Appeal Closed Date & Time",
+      "Appeal Closed Date",
+      "Closed Date & Time",
+      "Closed Date",
+      "Created Date & Time",
+      "Created Date",
+      "Created",
+      "File Created Date",
             ], "")),
             source: "excel",
           });
