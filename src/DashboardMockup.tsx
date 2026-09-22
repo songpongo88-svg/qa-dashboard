@@ -2608,7 +2608,7 @@ function CaseDetailTopicTable({
                 <>
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="space-y-1 text-[13px] font-semibold text-slate-700">
-                      <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>
+                      <div><span className="font-extrabold">QA:</span> {originalQaName || "Songpon Phothong"}</div>
                       <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>
                     </div>
                     <div className="mt-3 text-[13px] font-semibold text-slate-600">Original Comment</div>
@@ -2649,7 +2649,7 @@ function CaseDetailTopicTable({
               ) : (
                 <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                   <div className="space-y-1 text-[13px] font-semibold text-slate-700">
-                    <div><span className="font-extrabold">QA:</span> {originalQaName || "-"}</div>
+                    <div><span className="font-extrabold">QA:</span> {originalQaName || "Songpon Phothong"}</div>
                     <div><span className="font-extrabold">Audit Date:</span> {originalAuditDate || "-"}</div>
                   </div>
                   <div className="mt-3 text-[13px] font-semibold text-slate-600">Original Comment</div>
