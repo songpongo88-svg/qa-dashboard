@@ -7,6 +7,7 @@ on:
       - ".github/workflows/fix-appeal-submit-fallback.yml"
       - "scripts/fix-appeal-submit-fallback-v2.mjs"
       - "scripts/fix-legacy-appeal-reason-v1.mjs"
+      - "scripts/fix-legacy-appeal-reason-v2.mjs"
 
 permissions:
   contents: write
@@ -32,6 +33,8 @@ jobs:
           fi
       - name: Apply legacy Appeal Reason fix
         run: node scripts/fix-legacy-appeal-reason-v1.mjs
+      - name: Finalize legacy Appeal Reason fix
+        run: node scripts/fix-legacy-appeal-reason-v2.mjs
       - name: Preserve intended source
         run: cp src/DashboardMockup.tsx /tmp/DashboardMockup.tsx
       - name: Review intended source
