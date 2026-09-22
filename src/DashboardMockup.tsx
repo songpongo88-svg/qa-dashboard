@@ -5,11 +5,15 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
+import { generateCasePdfWithAppealHistory } from "./caseAppealPdfAddon";
+import { generateBulkCaseDetailPdf } from "./bulkCaseDetailPdf";
 import { RichTextContent, richTextToPlainText } from "./richText";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import {
   fetchStoredEvaluations,
+  getEvaluationLastUpdatedAt,
+  getOriginalEvaluationTimestamp,
   getStoredEvaluationMonthKey,
   isNoCaseEvaluation,
   isTestCaseEvaluation,
@@ -34,8 +38,12 @@ import { canonicalAgentIdentityKey, canonicalizeAgentName, JIRAPONG_AGENT_NAME }
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
 import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
 import MonthlyKpiNotice from "./MonthlyKpiNotice";
+import { fetchStoredRolePermissions } from "./userRoleStore";
 import { ProcessReferenceDisplay } from "./processLibrary";
 // process-library-v65
+// evaluation-last-updated-v87-dashboard
+// evaluation-last-updated-v89-layout-dashboard
+// evaluation-last-updated-v87-compat
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -46,6 +54,7 @@ type Topic = {
   max: number;
   pct: number;
   comment?: string;
+  appealReason?: string;
 };
 
 type AppealReviewedTopic = Topic & {
@@ -65,6 +74,7 @@ type CaseItem = {
   auditDate: string;
   auditDateObj: Date | null;
   auditTimestamp: string;
+  lastUpdatedAt?: string;
   monthKey: string;
   monthLabel: string;
   weekLabel: string;
@@ -90,10 +100,11 @@ type CaseItem = {
   displayRevisedTopicCodes?: string[];
   appealStatus?: "Approved" | "Rejected";
   appealReviewSummary?: string;
+  appealSubmittedAt?: string;
   appealReviewedAt?: string;
   appealSubmittedBy?: string;
-  appealSubmittedAt?: string;
   appealReviewedBy?: string;
+  // appeal-review-reset-datetime-v54-dashboard
   appealRequestId?: string;
   appealReviewedTopics?: AppealReviewedTopic[] | null;
 };
@@ -138,6 +149,8 @@ type AppealMergeItem = {
   reviewStatus?: ReviewStatus;
   revisedTopics: Topic[];
   displayRevisedTopicCodes: string[];
+  submittedAt?: string;
+  reviewedAt?: string;
   source?: "excel" | "firebase";
 };
 
@@ -145,12 +158,18 @@ type AppealOutcomeItem = {
   caseId: string;
   status: "Approved" | "Rejected";
   reviewSummary: string;
+  submittedAt: string;
   reviewedAt: string;
   submittedBy: string;
-  submittedAt: string;
   reviewedBy: string;
   requestId: string;
   reviewedTopics: Topic[];
+};
+
+type AppealTimelineItem = {
+  caseId: string;
+  submittedAt: string;
+  reviewedAt: string;
 };
 
 
@@ -211,9 +230,9 @@ function getAppealRequestTime(request: any) {
 
 function buildAppealHistoryCaseIds(logs: UsageLogEvent[]) {
   const caseIds = new Set<string>();
-  logs.forEach((log) => {
-    if (!["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset"].includes(log.event_type)) return;
-    splitAppealCaseIds(log.case_id || log.details?.caseId).forEach((caseId) => caseIds.add(caseId));
+  buildLatestAppealRequestMap(logs).forEach((request, caseId) => {
+    // A reset closes the active appeal lifecycle, so Dashboard must remove APPEAL.
+    if (request.status !== "Reset") caseIds.add(caseId);
   });
   return caseIds;
 }
@@ -234,6 +253,19 @@ function buildLatestAppealRequestMap(logs: UsageLogEvent[]) {
     });
 
   return latest;
+}
+
+function buildAppealTimelineMap(logs: UsageLogEvent[]) {
+  const map = new Map<string, AppealTimelineItem>();
+  buildLatestAppealRequestMap(logs).forEach((request, caseId) => {
+    if (request.status === "Reset") return;
+    map.set(caseId, {
+      caseId,
+      submittedAt: formatCaseDetailDateTime(request.submittedAt),
+      reviewedAt: formatCaseDetailDateTime(request.reviewedAt),
+    });
+  });
+  return map;
 }
 
 function buildApprovedAppealMergeMap(
@@ -279,6 +311,7 @@ function buildApprovedAppealMergeMap(
           ? Math.round(((Number.isFinite(revisedScore) ? revisedScore : 0) / master.max) * 100)
           : 0,
         comment: String(matched.revisedComment || matched.comment || "").trim(),
+        appealReason: String(matched.appealReason || "").trim(),
       });
 
       if (isAppealTopicChanged(matched)) {
@@ -295,6 +328,8 @@ function buildApprovedAppealMergeMap(
       reviewStatus: "Revised",
       revisedTopics,
       displayRevisedTopicCodes,
+      submittedAt: formatCaseDetailDateTime(request.submittedAt),
+      reviewedAt: formatCaseDetailDateTime(request.reviewedAt),
       source: "firebase",
     });
   });
@@ -363,18 +398,13 @@ function buildAppealOutcomeMap(
       caseId,
       status: request.status,
       reviewSummary: String(request.reviewSummary || "").trim(),
-      reviewedAt: String(request.reviewedAt || "").trim(),
+      submittedAt: formatCaseDetailDateTime(request.submittedAt),
+      reviewedAt: formatCaseDetailDateTime(request.reviewedAt),
       submittedBy: String(
         submittedEvent?.agent_name ||
           submittedEvent?.display_name ||
           request.submittedBy ||
           request.agent ||
-          ""
-      ).trim(),
-      submittedAt: String(
-        request.submittedAt ||
-          submittedEvent?.details?.submittedAt ||
-          submittedEvent?.created_at ||
           ""
       ).trim(),
       reviewedBy: String(
@@ -394,7 +424,8 @@ function applyAppealMapsToCaseItems(
   cases: CaseItem[],
   appealMap: Map<string, AppealMergeItem>,
   outcomeMap: Map<string, AppealOutcomeItem>,
-  appealHistoryCaseIds: Set<string> = new Set()
+  appealHistoryCaseIds: Set<string> = new Set(),
+  appealTimelineMap: Map<string, AppealTimelineItem> = new Map()
 ) {
   return cases.map((item) => {
     const itemCaseIds = splitAppealCaseIds(item.caseId);
@@ -408,6 +439,9 @@ function applyAppealMapsToCaseItems(
     const loggedOutcome = candidateCaseIds
       .map((caseId) => outcomeMap.get(caseId))
       .find(Boolean);
+    const appealTimeline = candidateCaseIds
+      .map((caseId) => appealTimelineMap.get(caseId))
+      .find(Boolean);
 
     const excelAppealWins = Boolean(mergedAppeal && mergedAppeal.source !== "firebase");
     const effectiveStatus = excelAppealWins
@@ -416,13 +450,13 @@ function applyAppealMapsToCaseItems(
 
     let nextItem: CaseItem = {
       ...item,
-      hasAppealHistory: Boolean(item.hasAppealHistory || mergedAppeal || loggedOutcome ||
+      hasAppealHistory: Boolean(mergedAppeal || loggedOutcome || appealTimeline ||
         candidateCaseIds.some((caseId) => appealHistoryCaseIds.has(caseId))),
       appealStatus: effectiveStatus,
       appealReviewSummary: loggedOutcome?.reviewSummary || "",
-      appealReviewedAt: loggedOutcome?.reviewedAt || "",
+      appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",
+      appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",
       appealSubmittedBy: loggedOutcome?.submittedBy || item.agent || "",
-      appealSubmittedAt: loggedOutcome?.submittedAt || "",
       appealReviewedBy: loggedOutcome?.reviewedBy || "",
       appealRequestId: loggedOutcome?.requestId || "",
       appealReviewedTopics: loggedOutcome?.reviewedTopics?.length
@@ -470,6 +504,7 @@ const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 const JUNE_2026_POLICY_START_MONTH_KEY = "2026-06";
 const CASE_SEARCH_HISTORY_LIMIT = 5;
+// dashboard-unified-reset-v88
 const CASE_SEARCH_HISTORY_STORAGE_PREFIX = "qa-dashboard:case-search-history-v41";
 const KPI_QUALITY_SCORE_TARGET = 85;
 
@@ -485,6 +520,37 @@ function isQaDashboardSupportedMonthKey(value: unknown) {
 function isQualityAssuranceRole(value: unknown) {
   const role = String(value || "").trim().toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
   return role === "quality assurance" || role === "qa";
+}
+
+// dashboard-case-browser-tabs-edit-v82
+// dashboard-internal-case-edit-tabs-v83
+function openCaseDetailBrowserTabV82(caseId: string, agentName?: string) {
+  if (typeof window === "undefined" || !caseId) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("tab", "dashboard");
+  url.searchParams.set("subTab", "case-detail");
+  url.searchParams.set("caseId", caseId);
+  if (agentName) url.searchParams.set("agent", agentName);
+  else url.searchParams.delete("agent");
+  url.searchParams.delete("editCaseId");
+  url.searchParams.delete("adminSection");
+  const opened = window.open(url.toString(), "_blank", "noopener,noreferrer");
+  opened?.focus?.();
+}
+
+function openEvaluationEditBrowserTabV82(caseId: string, agentName?: string) {
+  if (typeof window === "undefined" || !caseId) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("tab", "create-evaluation");
+  url.searchParams.set("editCaseId", caseId);
+  if (agentName) url.searchParams.set("agent", agentName);
+  else url.searchParams.delete("agent");
+  url.searchParams.delete("subTab");
+  url.searchParams.delete("caseId");
+  url.searchParams.delete("workspace");
+  url.searchParams.delete("adminSection");
+  const opened = window.open(url.toString(), "_blank", "noopener,noreferrer");
+  opened?.focus?.();
 }
 
 const JAN_FEB_2026_TOPIC_MASTER = [
@@ -770,16 +836,8 @@ function reviewTone(reviewStatus: ReviewStatus) {
 }
 
 function roundExcelLikeMinute(date: Date) {
-  const rounded = new Date(date.getTime());
-  const seconds = rounded.getSeconds();
-  const milliseconds = rounded.getMilliseconds();
-
-  if (seconds >= 30 || milliseconds >= 500) {
-    rounded.setMinutes(rounded.getMinutes() + 1);
-  }
-
-  rounded.setSeconds(0, 0);
-  return rounded;
+  // Preserve source seconds. Date-only and minute-only values naturally become :00.
+  return new Date(date.getTime());
 }
 
 function excelDateToJSDate(value: any): Date | null {
@@ -845,14 +903,48 @@ function formatAuditDate(value: any): string {
 }
 
 function formatAuditTimestamp(value: any): string {
+  if (value === null || value === undefined || value === "") return "-";
+  const raw = String(value).trim();
+  const localDateTime = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (localDateTime) {
+    const [, day, month, year, hour = "00", minute = "00", second = "00"] = localDateTime;
+    return day.padStart(2, "0") + "/" + month.padStart(2, "0") + "/" + year + " " +
+      hour.padStart(2, "0") + ":" + minute + ":" + second;
+  }
+  const localIsoDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (localIsoDate) {
+    const [, year, month, day, hour = "00", minute = "00", second = "00"] = localIsoDate;
+    return day + "/" + month + "/" + year + " " + hour.padStart(2, "0") + ":" + minute + ":" + second;
+  }
+  if (typeof value === "string" && /T/.test(raw) && /(Z|[+-]\d{2}:?\d{2})$/.test(raw)) {
+    const instant = new Date(raw);
+    if (!Number.isNaN(instant.getTime())) {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Bangkok",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }).formatToParts(instant);
+      const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value || "00";
+      return part("day") + "/" + part("month") + "/" + part("year") + " " +
+        part("hour") + ":" + part("minute") + ":" + part("second");
+    }
+  }
   const dt = excelDateToJSDate(value);
   if (!dt) return "-";
-  const dd = `${dt.getDate()}`.padStart(2, "0");
-  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
-  const yyyy = dt.getFullYear();
-  const hh = `${dt.getHours()}`.padStart(2, "0");
-  const min = `${dt.getMinutes()}`.padStart(2, "0");
-  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return pad(dt.getDate()) + "/" + pad(dt.getMonth() + 1) + "/" + dt.getFullYear() + " " +
+    pad(dt.getHours()) + ":" + pad(dt.getMinutes()) + ":" + pad(dt.getSeconds());
+}
+
+function formatCaseDetailDateTime(value: any): string {
+  if (value === null || value === undefined || String(value).trim() === "") return "";
+  const formatted = formatAuditTimestamp(value);
+  return formatted === "-" ? "" : formatted;
 }
 
 function formatTimeOnly(value: any): string {
@@ -1052,6 +1144,77 @@ function isAppealWindowOpen(auditDate: Date | null, now = TODAY) {
   return !!deadline && now.getTime() <= deadline.getTime();
 }
 
+// dashboard-appeal-live-countdown-v32
+// dashboard-case-action-buttons-polish-v33
+function formatAppealCountdownV32(deadline: Date | null, nowMs: number) {
+  if (!deadline) {
+    return { text: "ไม่พบกำหนดเวลา", level: "expired" as const, expired: true };
+  }
+
+  const remainingMs = deadline.getTime() - nowMs;
+  if (remainingMs <= 0) {
+    return { text: "หมดเวลาอุทธรณ์", level: "expired" as const, expired: true };
+  }
+
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const clock = [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
+  const text = days > 0 ? "เหลือ " + days + " วัน " + clock : "เหลือ " + clock;
+  const level = remainingMs <= 24 * 60 * 60 * 1000
+    ? "critical"
+    : remainingMs <= 3 * 24 * 60 * 60 * 1000
+      ? "warning"
+      : "normal";
+
+  return { text, level, expired: false } as const;
+}
+
+// selected-case-appeal-countdown-v64
+function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const deadline = getAppealDeadline(caseItem.auditDateObj);
+
+  useEffect(() => {
+    setNowMs(Date.now());
+    if (!deadline) return;
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [caseItem.caseId, deadline?.getTime()]);
+
+  if (caseItem.hasAppealHistory || caseItem.appealStatus) {
+    return <div className="mt-1 text-[11px] font-extrabold text-sky-600">Appeal · ใช้งานแล้ว</div>;
+  }
+
+  if (!deadline) {
+    return <div className="mt-1 text-[11px] font-bold text-slate-400">Appeal · ไม่พบกำหนดเวลา</div>;
+  }
+
+  const remainingMs = deadline.getTime() - nowMs;
+  if (remainingMs <= 0) {
+    return <div className="mt-1 text-[11px] font-extrabold text-slate-500">Appeal · หมดเวลาอุทธรณ์</div>;
+  }
+
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const clock = [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+  const text = days > 0 ? `เหลือ ${days} วัน ${clock}` : `เหลือ ${clock}`;
+  const tone = remainingMs <= 24 * 60 * 60 * 1000
+    ? "text-rose-600"
+    : remainingMs <= 3 * 24 * 60 * 60 * 1000
+      ? "text-amber-600"
+      : "text-teal-600";
+
+  return <div className={`mt-1 text-[11px] font-extrabold tabular-nums ${tone}`}>Appeal · {text}</div>;
+}
+
 function formatBangkokDateTime(value: Date | string | null) {
   if (!value) return "-";
   const date = value instanceof Date ? value : new Date(value);
@@ -1139,9 +1302,11 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
       const finalScoreVal = Number(record.finalScore || topics.reduce((sum, topic) => sum + topic.score, 0));
       const evaluationKey = record.evaluationKey || `web-eval|${record.caseId}|${record.agentName}|${record.auditDate}|${record.id}`;
       const caseDateDisplay = formatAuditDateForDisplay(record.auditDate);
-      const evaluationAuditDateDisplay = formatAuditDateForDisplay(
-        record.auditTimestamp || record.submittedAt || record.auditDate
+      const originalAuditTimestamp = getOriginalEvaluationTimestamp(record);
+      const evaluationAuditDateDisplay = formatAuditTimestamp(
+        originalAuditTimestamp || record.auditTimestamp || record.submittedAt || record.auditDate
       );
+      const lastUpdatedAt = getEvaluationLastUpdatedAt(record);
       return {
         key: evaluationKey,
         evaluationKey,
@@ -1153,7 +1318,10 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
         evaluationAuditDate: evaluationAuditDateDisplay,
         auditDate: caseDateDisplay,
         auditDateObj: validAuditDate,
-        auditTimestamp: record.auditTimestamp || formatBangkokDateTime(record.submittedAt),
+        auditTimestamp: formatAuditTimestamp(
+          originalAuditTimestamp || record.auditTimestamp || record.submittedAt || record.auditDate
+        ),
+        lastUpdatedAt: lastUpdatedAt ? formatAuditTimestamp(lastUpdatedAt) : "",
         monthKey,
         monthLabel: getMonthLabel(monthDate),
         weekLabel: getWeekLabelFromAuditDate(validAuditDate),
@@ -2163,6 +2331,10 @@ function CaseDetailTopicTable({
   displayRevisedTopicCodes = [],
   appealStatus,
   appealReviewedTopics,
+  appealSubmittedBy,
+  appealSubmittedAt,
+  appealReviewedBy,
+  appealReviewedAt,
 }: {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
@@ -2170,6 +2342,10 @@ function CaseDetailTopicTable({
   displayRevisedTopicCodes?: string[];
   appealStatus?: "Approved" | "Rejected";
   appealReviewedTopics?: AppealReviewedTopic[] | null;
+  appealSubmittedBy?: string;
+  appealSubmittedAt?: string;
+  appealReviewedBy?: string;
+  appealReviewedAt?: string;
 }) {
   const displayCodeSet = new Set(displayRevisedTopicCodes);
 
@@ -2179,10 +2355,11 @@ function CaseDetailTopicTable({
         reviewStatus === "Revised" && revisedTopics?.length
           ? revisedTopics.find((item) => item.code === originalTopic.code)
           : undefined;
-      const rejectedReviewTopic =
-        appealStatus === "Rejected"
+      const appealReviewTopic =
+        appealStatus === "Approved" || appealStatus === "Rejected"
           ? appealReviewedTopics?.find((item) => item.code === originalTopic.code)
           : undefined;
+      const rejectedReviewTopic = appealStatus === "Rejected" ? appealReviewTopic : undefined;
       const allowedToShowRevised = displayCodeSet.has(originalTopic.code);
       const changed =
         reviewStatus === "Revised" &&
@@ -2208,6 +2385,7 @@ function CaseDetailTopicTable({
       return {
         originalTopic,
         revisedTopic,
+        appealReviewTopic,
         rejectedReviewTopic,
         shownTopic,
         changed,
@@ -2219,6 +2397,7 @@ function CaseDetailTopicTable({
     .filter(Boolean) as Array<{
       originalTopic: Topic;
       revisedTopic?: Topic;
+      appealReviewTopic?: AppealReviewedTopic;
       rejectedReviewTopic?: AppealReviewedTopic;
       shownTopic: Topic;
       changed: boolean;
@@ -2272,42 +2451,41 @@ function CaseDetailTopicTable({
 
 
             <div className="mt-4 space-y-4">
-              {row.rejectedReviewTopic ? (
+              {row.appealReviewTopic ? (
                 <>
+                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
+                    <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
+                      <RichTextContent value={row.originalTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
+                    </div>
+                  </div>
+
                   <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">
-                    <div className="text-[13px] font-semibold text-amber-700">Appeal Reason</div>
-                    <div className="mt-4 whitespace-pre-line leading-7 text-amber-950">
-                      <RichTextContent value={row.rejectedReviewTopic.appealReason} fallback="ไม่พบ Appeal Reason" />
+                    <div className="space-y-1 text-[13px] font-semibold text-amber-950">
+                      <div><span className="font-extrabold">Admin:</span> {appealSubmittedBy || "-"}</div>
+                      <div><span className="font-extrabold">Appeal Submit:</span> {formatBangkokDateTime(appealSubmittedAt || null)}</div>
+                    </div>
+                    <div className="mt-4 text-[13px] font-semibold text-amber-700">Appeal Reason</div>
+                    <div className="mt-2 whitespace-pre-line leading-7 text-amber-950">
+                      <RichTextContent value={row.appealReviewTopic.appealReason} fallback="ไม่พบ Appeal Reason" />
                     </div>
                   </div>
 
-                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-                    <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
-                    <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                      <RichTextContent value={row.originalTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
+                  <div className={`rounded-[20px] border px-4 py-4 ${appealStatus === "Rejected" ? "border-rose-200 bg-rose-50/80" : "border-violet-200 bg-violet-50"}`}>
+                    <div className={`space-y-1 text-[13px] font-semibold ${appealStatus === "Rejected" ? "text-rose-800" : "text-violet-800"}`}>
+                      <div><span className="font-extrabold">QA:</span> {appealReviewedBy || "-"}</div>
+                      <div><span className="font-extrabold">Appeal Result:</span> {formatBangkokDateTime(appealReviewedAt || null)}</div>
                     </div>
-                  </div>
-
-                  <div className="rounded-[20px] border border-rose-200 bg-rose-50/80 px-4 py-4">
-                    <div className="text-[13px] font-semibold text-rose-700">Reject Reason</div>
-                    <div className="mt-4 whitespace-pre-line leading-7 text-rose-800">
-                      <RichTextContent value={row.rejectedReviewTopic.comment} fallback="ไม่พบ Reject Reason" />
+                    <div className={`mt-4 text-[13px] font-semibold ${appealStatus === "Rejected" ? "text-rose-700" : "text-violet-700"}`}>
+                      {appealStatus === "Rejected" ? "Reject Reason" : "Revised Comment"}
                     </div>
-                  </div>
-                </>
-              ) : row.changed && row.revisedTopic ? (
-                <>
-                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-                    <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
-                    <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                      <RichTextContent value={row.originalTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
-                    </div>
-                  </div>
-
-                  <div className="rounded-[20px] border border-violet-200 bg-violet-50 px-4 py-4">
-                    <div className="text-[13px] font-semibold text-violet-700">Revised Comment</div>
-                    <div className="mt-4 whitespace-pre-line leading-7 text-violet-700">
-                      <RichTextContent value={row.revisedTopic.comment} fallback="ยังไม่มี Revised Comment" />
+                    <div className={`mt-2 whitespace-pre-line leading-7 ${appealStatus === "Rejected" ? "text-rose-800" : "text-violet-700"}`}>
+                      <RichTextContent
+                        value={appealStatus === "Rejected"
+                          ? row.appealReviewTopic.comment
+                          : row.revisedTopic?.comment || row.appealReviewTopic.comment}
+                        fallback={appealStatus === "Rejected" ? "ไม่พบ Reject Reason" : "ยังไม่มี Revised Comment"}
+                      />
                     </div>
                   </div>
                 </>
@@ -3256,11 +3434,7 @@ function SlideOverCaseDetail({
     !!caseItem.revisedTopics?.length ||
     !!caseItem.displayRevisedTopicCodes?.length;
 
-  const hasApprovedAppealReport =
-    caseItem.appealStatus === "Approved" ||
-    caseItem.reviewStatus === "Revised" ||
-    !!caseItem.revisedTopics?.length ||
-    !!caseItem.displayRevisedTopicCodes?.length;
+  const hasAppealReport = hasAppealCase;
 
   const resolvedPdfLinks = {
     original: normalizeAssetUrl(
@@ -3313,11 +3487,48 @@ function SlideOverCaseDetail({
   const [shareCopied, setShareCopied] = useState(false);
 
   const appealDeadline = getAppealDeadline(caseItem.auditDateObj);
+  const [appealClockNowV32, setAppealClockNowV32] = useState(() => Date.now());
+  useEffect(() => {
+    setAppealClockNowV32(Date.now());
+    if (!appealDeadline) return;
+    const timer = window.setInterval(() => setAppealClockNowV32(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [caseItem.caseId, appealDeadline?.getTime()]);
+
   const isOwnAppealCase = isCurrentUserCaseOwner(currentUser, caseItem.agent);
+  const isAppealObserverRoleV32 = isQualityAssuranceRole(currentUser?.role) && !isOwnAppealCase;
+  const isAppealWindowOpenLive = !!appealDeadline && appealClockNowV32 <= appealDeadline.getTime();
+  const appealCountdownV32 = formatAppealCountdownV32(appealDeadline, appealClockNowV32);
   const canSubmitAppeal =
     isOwnAppealCase &&
-    (isAppealWindowOpen(caseItem.auditDateObj) || appealOverrideAllowed) &&
+    (isAppealWindowOpenLive || appealOverrideAllowed) &&
     !appealRequestExists;
+  const shouldShowAppealActionV32 =
+    !appealRequestExists && (isOwnAppealCase || isAppealObserverRoleV32);
+  const appealActionDisabledV32 = !canSubmitAppeal;
+  const appealActionLabelV32 =
+    appealOverrideAllowed && !isAppealWindowOpenLive
+      ? "Appeal Override"
+      : appealCountdownV32.expired
+        ? "หมดเวลาอุทธรณ์"
+        : "Appeal · " + appealCountdownV32.text;
+  const appealActionToneV32 =
+    appealOverrideAllowed && !isAppealWindowOpenLive
+      ? "border-amber-300 bg-amber-50 text-amber-800"
+      : appealCountdownV32.level === "critical"
+        ? "border-rose-300 bg-rose-50 text-rose-700"
+        : appealCountdownV32.level === "warning"
+          ? "border-amber-300 bg-amber-50 text-amber-800"
+          : appealCountdownV32.level === "expired"
+            ? "border-slate-200 bg-slate-100 text-slate-500"
+            : "border-teal-200 bg-teal-50 text-teal-700";
+  const appealActionTooltipV32 = isAppealObserverRoleV32
+    ? "ดูเวลาคงเหลือสำหรับ Appeal เท่านั้น · Role Quality Assurance ไม่สามารถ Submit Appeal แทนผู้ถูกประเมินได้"
+    : appealCountdownV32.expired && !appealOverrideAllowed
+      ? "หมดเวลาอุทธรณ์แล้ว"
+      : appealOverrideAllowed && !isAppealWindowOpenLive
+        ? "เคสนี้ได้รับสิทธิ์ Late Appeal Override"
+        : "ส่งคำขออุทธรณ์เคสนี้ · " + appealCountdownV32.text;
   useEffect(() => {
     let cancelled = false;
 
@@ -3569,10 +3780,11 @@ function SlideOverCaseDetail({
 
   const handleGenerateCaseDetailPdf = async (pdfVariant: "original" | "appeal" = "original") => {
     try {
-      const officialPdf = await generateOfficialCaseDetailPdf({
+      const officialPdf = await generateCasePdfWithAppealHistory({
         caseItem,
         currentUser,
         pdfVariant,
+        fallback: generateOfficialCaseDetailPdf,
       });
 
       downloadGeneratedPdfFile(officialPdf);
@@ -3735,7 +3947,7 @@ function SlideOverCaseDetail({
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-semibold text-slate-500">
                   <span>Agent: {caseItem.agent}</span>
-                  <span>ยื่นได้ถึง {formatBangkokDateTime(appealDeadline)} น.</span>
+                  <span>ยื่นได้ถึง {formatBangkokDateTime(appealDeadline)} น. · {appealOverrideAllowed && !isAppealWindowOpenLive ? "สิทธิ์ยื่นล่าช้า" : appealCountdownV32.text}</span>
                 </div>
               </div>
               <button
@@ -3992,7 +4204,7 @@ function SlideOverCaseDetail({
                       Appeal Submitted
                     </span>
                   ) : null}
-                  {appealOverrideAllowed && !isAppealWindowOpen(caseItem.auditDateObj) ? (
+                  {appealOverrideAllowed && !isAppealWindowOpenLive ? (
                     <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
                       Appeal Override
                     </span>
@@ -4007,9 +4219,9 @@ function SlideOverCaseDetail({
                       href={caseItem.caseUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-extrabold text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-200/90 bg-gradient-to-b from-white to-emerald-50 px-4 text-[12px] font-extrabold text-emerald-700 shadow-[0_8px_22px_rgba(16,185,129,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-[0_12px_28px_rgba(16,185,129,0.16)] focus:outline-none focus:ring-4 focus:ring-emerald-100"
                     >
-                      <span aria-hidden="true" className="text-base">↗</span>
+                      <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">↗</span>
                       Open Case
                     </a>
                   </CaseActionTooltip>
@@ -4038,9 +4250,9 @@ function SlideOverCaseDetail({
                       setShareCopied(true);
                       window.setTimeout(() => setShareCopied(false), 3000);
                     }}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-[12px] font-extrabold text-indigo-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-100"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-indigo-200/90 bg-gradient-to-b from-white to-indigo-50 px-4 text-[12px] font-extrabold text-indigo-700 shadow-[0_8px_22px_rgba(79,70,229,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-[0_12px_28px_rgba(79,70,229,0.16)] focus:outline-none focus:ring-4 focus:ring-indigo-100"
                   >
-                    <span aria-hidden="true" className="text-base">⌯</span>
+                    <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">⌯</span>
                     Share Link
                   </button>
                 </CaseActionTooltip>
@@ -4049,38 +4261,39 @@ function SlideOverCaseDetail({
                   <button
                     type="button"
                     onClick={() => handleGenerateCaseDetailPdf("original")}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 text-[12px] font-extrabold text-amber-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-100"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-amber-200/90 bg-gradient-to-b from-white to-amber-50 px-4 text-[12px] font-extrabold text-amber-700 shadow-[0_8px_22px_rgba(217,119,6,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_12px_28px_rgba(217,119,6,0.16)] focus:outline-none focus:ring-4 focus:ring-amber-100"
                   >
-                    <span aria-hidden="true" className="text-base">▤</span>
-                    Original PDF
+                    <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">▤</span>
+                    Case Detail PDF - {caseItem.caseId}
                   </button>
                 </CaseActionTooltip>
 
-                {canSubmitAppeal ? (
-                  <CaseActionTooltip text="ส่งคำขออุทธรณ์เคสนี้">
+                {shouldShowAppealActionV32 ? (
+                  <CaseActionTooltip text={appealActionTooltipV32}>
                     <button
                       type="button"
-                      onClick={openAppealSubmitForm}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 text-[12px] font-extrabold text-teal-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-teal-100"
+                      onClick={canSubmitAppeal ? openAppealSubmitForm : undefined}
+                      disabled={appealActionDisabledV32}
+                      aria-disabled={appealActionDisabledV32}
+                      className={
+                        "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-[12px] font-extrabold shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-inset ring-white/70 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-violet-100/70 " +
+                        appealActionToneV32 +
+                        (appealActionDisabledV32
+                          ? " cursor-not-allowed opacity-80"
+                          : " hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.13)]")
+                      }
                     >
-                      <span aria-hidden="true" className="text-base">＋</span>
-                      Submit Appeal
+                      <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/75 text-[13px] shadow-sm">＋</span>
+                      <span>{appealActionLabelV32}</span>
+                      {isAppealObserverRoleV32 ? (
+                        <span className="rounded-full border border-current/20 bg-white/75 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide shadow-sm">
+                          View only
+                        </span>
+                      ) : null}
                     </button>
                   </CaseActionTooltip>
                 ) : null}
 
-                {hasApprovedAppealReport ? (
-                  <CaseActionTooltip text="ดาวน์โหลดรายงานอุทธรณ์ (PDF)">
-                    <button
-                      type="button"
-                      onClick={() => handleGenerateCaseDetailPdf("appeal")}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-3 text-[12px] font-extrabold text-fuchsia-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-fuchsia-100"
-                    >
-                      <span aria-hidden="true" className="text-base">▤</span>
-                      Appeal PDF
-                    </button>
-                  </CaseActionTooltip>
-                ) : null}
 
                 {String(caseItem.caseImageUrl || "").trim() ? (
                   <CaseActionTooltip text="ดูภาพตัวอย่างของเคส">
@@ -4138,9 +4351,9 @@ function SlideOverCaseDetail({
                           });
                         }
                       }}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 text-[12px] font-extrabold text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-100"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-sky-200/90 bg-gradient-to-b from-white to-sky-50 px-4 text-[12px] font-extrabold text-sky-700 shadow-[0_8px_22px_rgba(14,165,233,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-[0_12px_28px_rgba(14,165,233,0.16)] focus:outline-none focus:ring-4 focus:ring-sky-100"
                     >
-                      <span aria-hidden="true" className="text-base">▧</span>
+                      <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">▧</span>
                       Preview Image
                     </button>
                   </CaseActionTooltip>
@@ -4172,9 +4385,9 @@ function SlideOverCaseDetail({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 px-4 text-[12px] font-extrabold text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-200 hover:from-white hover:to-rose-50 hover:text-rose-700 hover:shadow-[0_12px_28px_rgba(244,63,94,0.12)] focus:outline-none focus:ring-4 focus:ring-rose-100"
                   >
-                    <span aria-hidden="true" className="text-base">×</span>
+                    <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">×</span>
                     Close Tab
                   </button>
                 </CaseActionTooltip>
@@ -4321,9 +4534,10 @@ function SlideOverCaseDetail({
                   <div className="mt-0.5 text-[11px] text-slate-500">เวลาให้บริการและข้อมูลผู้ประเมิน</div>
                 </div>
               </div>
-              <div className="grid gap-0 p-4 sm:grid-cols-3">
+              <div className={`grid gap-0 p-4 ${caseItem.lastUpdatedAt ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-3"}`}>
                 {[
                   { label: "Audit Date", value: caseItem.auditTimestamp || "-" },
+                  ...(caseItem.lastUpdatedAt ? [{ label: "Last Updated", value: caseItem.lastUpdatedAt }] : []),
                   {
                     label: "Waiting Time / Service Time",
                     value: formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime),
@@ -4382,6 +4596,10 @@ function SlideOverCaseDetail({
                 displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
                 appealStatus={caseItem.appealStatus}
                 appealReviewedTopics={caseItem.appealReviewedTopics}
+                appealSubmittedBy={caseItem.appealSubmittedBy}
+                appealSubmittedAt={caseItem.appealSubmittedAt}
+                appealReviewedBy={caseItem.appealReviewedBy}
+                appealReviewedAt={caseItem.appealReviewedAt}
               />
             </PanelBody>
           </Panel>
@@ -4406,10 +4624,12 @@ export default function DashboardMockup({
   canViewAnalytics = false,
   dataRefreshKey,
   analyticsContent,
+  onEffectiveCasesChange,
   onSelectedAgentChange,
   onSelectedMonthKeyChange,
   onSelectedWeekChange,
   onOpenCaseDetail,
+  onOpenEvaluationEdit,
   onCloseCaseDetail,
   onOpenAppealCase,
   onGeneratePdf,
@@ -4429,10 +4649,12 @@ export default function DashboardMockup({
   canViewAnalytics?: boolean;
   dataRefreshKey?: number;
   analyticsContent?: React.ReactNode;
+  onEffectiveCasesChange?: (cases: any[]) => void;
   onSelectedAgentChange?: (agentName: string) => void;
   onSelectedMonthKeyChange?: (monthKey: string) => void;
   onSelectedWeekChange?: (week: string) => void;
   onOpenCaseDetail?: (caseId?: string, agentName?: string) => void;
+  onOpenEvaluationEdit?: (caseId: string, agentName?: string) => void;
   onCloseCaseDetail?: () => void;
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
@@ -4469,6 +4691,63 @@ export default function DashboardMockup({
   });
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
+  // bulk-case-detail-pdf-v1
+  const [bulkCasePdfBusy, setBulkCasePdfBusy] = useState(false);
+  const [bulkCasePdfProgress, setBulkCasePdfProgress] = useState("");
+  // bulk-case-pdf-role-scopes-v2
+  const [bulkCasePdfMode, setBulkCasePdfMode] = useState<"all" | "my" | "">("");
+  // bulk-case-pdf-filter-teamname-v3
+  const [bulkCasePdfSelectedTeam, setBulkCasePdfSelectedTeam] = useState(() =>
+    window.sessionStorage.getItem("qa_analytics_team_v134") || "all"
+  );
+
+  useEffect(() => {
+    const syncTeam = (event?: Event) => {
+      const detailTeam = String((event as CustomEvent)?.detail?.team || "").trim();
+      const storedTeam = window.sessionStorage.getItem("qa_analytics_team_v134") || "all";
+      setBulkCasePdfSelectedTeam(detailTeam || storedTeam);
+    };
+    window.addEventListener("qa-dashboard-team-filter-change", syncTeam);
+    return () => window.removeEventListener("qa-dashboard-team-filter-change", syncTeam);
+  }, []);
+  // bulk-case-pdf-permission-v1
+  const [bulkCasePdfPermissionEnabled, setBulkCasePdfPermissionEnabled] = useState(() =>
+    isQualityAssuranceRole(currentUser?.role)
+  );
+
+  useEffect(() => {
+    let active = true;
+    const fallback = isQualityAssuranceRole(currentUser?.role);
+    setBulkCasePdfPermissionEnabled(fallback);
+    const roleKey = String(currentUser?.role || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ");
+
+    void fetchStoredRolePermissions()
+      .then((rows) => {
+        if (!active) return;
+        const matched = rows.find((row) =>
+          String(row.roleName || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[-_]+/g, " ")
+            .replace(/\s+/g, " ") === roleKey
+        );
+        const storedValue = matched?.permissions?.generateAllCasePdf;
+        setBulkCasePdfPermissionEnabled(
+          typeof storedValue === "boolean" ? storedValue : fallback
+        );
+      })
+      .catch(() => {
+        if (active) setBulkCasePdfPermissionEnabled(fallback);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.role]);
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
   const [caseSearchSubmitNonce, setCaseSearchSubmitNonce] = useState(0);
   const [caseSearchFeedback, setCaseSearchFeedback] = useState<"idle" | "found" | "multiple" | "not-found">("idle");
@@ -4483,6 +4762,13 @@ export default function DashboardMockup({
   const [dashboardSearchTarget, setDashboardSearchTarget] = useState<HTMLElement | null>(null);
   const [selectedTopicCode, setSelectedTopicCode] = useState("");
   const [analyticsTrendMode, setAnalyticsTrendMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
+
+  // data-analytics-dashboard-case-source-v24
+  useEffect(() => {
+    if (isLoading || loadError) return;
+    onEffectiveCasesChange?.(allCases);
+  }, [allCases, isLoading, loadError, onEffectiveCasesChange]);
+
   const [slideOverOpen, setSlideOverOpen] = useState(false);
 
   useEffect(() => {
@@ -4587,8 +4873,8 @@ export default function DashboardMockup({
       externalSelectedAgent !== selectedAgent
     ) {
       setSelectedAgent(externalSelectedAgent);
-      setSelectedWeek("all");
-      onSelectedWeekChange?.("all");
+      // agent-keeps-period-v32
+      // Changing Agent (including Agent Performance > View Details) must keep the selected Period.
       setCaseIdSearch("");
       setSelectedCaseKey("");
       setSlideOverOpen(false);
@@ -4877,13 +5163,14 @@ export default function DashboardMockup({
                   isTestCase: isTestCaseEvaluation({ "Test Case": v8Helper.getValue(row, "Test Case") }),
                   agent,
                   caseDate: formatAuditDateForDisplay(caseDateRaw),
-                  evaluationAuditDate: formatAuditDateForDisplay(auditRaw || timestampRaw),
+                  evaluationAuditDate: formatAuditTimestamp(timestampRaw || auditRaw),
                   auditDate: formatAuditDateForDisplay(caseDateRaw),
                   auditDateObj,
                   auditTimestamp: formatAuditTimestamp(timestampRaw),
                   monthKey,
                   monthLabel: getReportingMonthLabel(v8Helper.getValue(row, "Month Label"), monthDate),
-                  weekLabel: String(v8Helper.getValue(row, "Week Label") || v8Helper.getValue(row, "Week") || "-").trim(),
+                  // weekly-case-date-v29
+                  weekLabel: getWeekLabelFromAuditDate(auditDateObj),
                   caseId,
                   rawDataSourceName,
                   caseUrl: caseUrl ? String(caseUrl).trim() : "",
@@ -5129,6 +5416,7 @@ export default function DashboardMockup({
               max: topic.max,
               pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
               comment,
+              appealReason: String(appealReasonRaw ?? "").trim(),
             });
 
             const appealedThisTopic = Boolean(String(appealReasonRaw ?? "").trim()) && !isNoAppealReason(appealReasonRaw);
@@ -5170,10 +5458,18 @@ export default function DashboardMockup({
             reviewStatus: displayRevisedTopicCodes.length ? "Revised" : "Original",
             revisedTopics,
             displayRevisedTopicCodes,
+            submittedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
+              "Appeal Submit Date & Time", "Appeal Submit Date", "Submit Date & Time", "Submit Date"
+            ], "")),
+            reviewedAt: formatCaseDetailDateTime(getFirstAvailableHeaderValue(appealHelper, row, [
+              "Appeal Result Date & Time", "Appeal Result Date", "Result Date & Time", "Result Date"
+            ], "")),
+            source: "excel",
           });
         });
 
         let appealOutcomeMap = new Map<string, AppealOutcomeItem>();
+        let appealTimelineMap = new Map<string, AppealTimelineItem>();
 
         try {
           const reviewedLogs = await fetchAppealEvents(
@@ -5186,6 +5482,7 @@ export default function DashboardMockup({
           ) as UsageLogEvent[];
 
           buildAppealHistoryCaseIds(reviewedLogs).forEach((caseId) => appealHistoryCaseIds.add(caseId));
+          appealTimelineMap = buildAppealTimelineMap(reviewedLogs);
 
           const firebaseApprovedMap = buildApprovedAppealMergeMap(
             reviewedLogs,
@@ -5422,13 +5719,14 @@ export default function DashboardMockup({
               agent,
               evaluatorName,
               caseDate: caseDateDisplay,
-              evaluationAuditDate: auditDateDisplay,
+              evaluationAuditDate: formatAuditTimestamp(timestampRaw || auditRaw),
               auditDate: caseDateDisplay,
               auditDateObj,
               auditTimestamp: formatAuditTimestamp(timestampRaw),
               monthKey,
               monthLabel: getReportingMonthLabel(rawHelper.getValue(row, "Month Label"), monthDate),
-              weekLabel: String(weekLabel || "-").trim(),
+              // weekly-case-date-v29
+              weekLabel: getWeekLabelFromAuditDate(auditDateObj),
               caseId,
               rawDataSourceName,
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
@@ -5454,7 +5752,9 @@ export default function DashboardMockup({
 
         evaluationCases = await loadEvaluationCases();
         const canonicalCases = mergeRawAndStoredEvaluationCases(mapped, evaluationCases);
-        const mergedCases = applyAppealMapsToCaseItems(canonicalCases, appealMap, appealOutcomeMap, appealHistoryCaseIds);
+        const mergedCases = applyAppealMapsToCaseItems(
+          canonicalCases, appealMap, appealOutcomeMap, appealHistoryCaseIds, appealTimelineMap
+        );
         applyLoadedWorkbook(mergedCases, appealMap.size);
       } catch (error: any) {
         console.error("Load Error:", error);
@@ -5720,7 +6020,14 @@ export default function DashboardMockup({
     setDateTo(formatInputDate(lastDay));
   }, [selectedMonthKey, selectedYear]);
 
+  // period-master-filter-v31
   const dateFilteredCases = useMemo(() => {
+    // A selected Week is the master Period. Do not pre-filter it by Month/Year/date range.
+    // This keeps cross-month weeks such as 31/08/2026 - 06/09/2026 complete.
+    if (selectedWeek !== "all") {
+      return agentCases;
+    }
+
     if (selectedMonthKey && selectedMonthKey !== "all") {
       return agentCases.filter((item) => item.monthKey === selectedMonthKey);
     }
@@ -5730,7 +6037,7 @@ export default function DashboardMockup({
       );
     }
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
-  }, [agentCases, dateFrom, dateTo, selectedMonthKey, selectedYear]);
+  }, [agentCases, dateFrom, dateTo, selectedMonthKey, selectedYear, selectedWeek]);
 
   const searchScopedCases = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
@@ -6032,6 +6339,155 @@ export default function DashboardMockup({
     () => calculateMonthlyKpi(monthlyKpiCases.map((item) => item.finalScore)),
     [monthlyKpiCases]
   );
+
+  const qaCanGenerateAllCasePdf = bulkCasePdfPermissionEnabled;
+  const normalizedBulkCasePdfRole = String(currentUser?.role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ");
+  const isSeniorBulkCasePdfRole = normalizedBulkCasePdfRole === "senior";
+
+  // bulk-case-pdf-weekly-v4
+  const isWeeklyCasePdfView = selectedWeek !== "all";
+  const bulkCasePdfExportMonthKey = selectedMonthKey !== "all" ? selectedMonthKey : effectiveViewMonthKey;
+
+  const monthlyCasePdfCases = useMemo(() => {
+    if (!qaCanGenerateAllCasePdf || (!isMonthlyView && !isWeeklyCasePdfView)) return [];
+    return allCases
+      .filter((item) =>
+        Boolean(String(item.caseId || "").trim()) &&
+        !isTestCaseEvaluation(item) &&
+        (isWeeklyCasePdfView
+          ? item.weekLabel === selectedWeek
+          : item.monthKey === selectedMonthKey)
+      )
+      .map((item) => {
+        const team = resolveCaseAgentTeam(item, caseAgentDirectory);
+        return { ...item, teamName: team.teamName || "" };
+      });
+  }, [
+    allCases,
+    caseAgentDirectory,
+    isMonthlyView,
+    isWeeklyCasePdfView,
+    qaCanGenerateAllCasePdf,
+    selectedMonthKey,
+    selectedWeek,
+  ]);
+
+  const allCasePdfCases = useMemo(() => {
+    let scopedCases = monthlyCasePdfCases;
+
+    if (selectedAgent && selectedAgent !== "all") {
+      scopedCases = scopedCases.filter((item) => isSameAgent(item.agent, selectedAgent));
+    }
+
+    if (bulkCasePdfSelectedTeam && bulkCasePdfSelectedTeam !== "all") {
+      scopedCases = scopedCases.filter((item) =>
+        normalizeText(item.teamName) === normalizeText(bulkCasePdfSelectedTeam)
+      );
+    }
+
+    return scopedCases;
+  }, [bulkCasePdfSelectedTeam, monthlyCasePdfCases, selectedAgent]);
+
+  const myCasePdfCases = useMemo(() => {
+    if (!qaCanGenerateAllCasePdf || !isSeniorBulkCasePdfRole || (!isMonthlyView && !isWeeklyCasePdfView)) return [];
+    const currentUsername = String(currentUser?.username || "").trim().toLowerCase();
+    const selfAgent = String(currentUser?.agentName || currentUser?.displayName || "").trim();
+    return monthlyCasePdfCases.filter((item) => {
+      const targetUsername = String(item.targetUsername || "").trim().toLowerCase();
+      if (currentUsername && targetUsername) return currentUsername === targetUsername;
+      return Boolean(selfAgent) && isSameAgent(item.agent, selfAgent);
+    });
+  }, [
+    currentUser?.agentName,
+    currentUser?.displayName,
+    currentUser?.username,
+    isMonthlyView,
+    isSeniorBulkCasePdfRole,
+    isWeeklyCasePdfView,
+    monthlyCasePdfCases,
+    qaCanGenerateAllCasePdf,
+    selectedMonthKey,
+  ]);
+
+  const handleGenerateCasePdf = async (mode: "all" | "my") => {
+    if (!qaCanGenerateAllCasePdf || bulkCasePdfBusy) return;
+    if (!isMonthlyView && !isWeeklyCasePdfView) {
+      alert("กรุณาเลือก Month หรือ Week ก่อน Gen PDF");
+      return;
+    }
+    if (mode === "my" && !isSeniorBulkCasePdfRole) return;
+
+    const targetCases = mode === "my" ? myCasePdfCases : allCasePdfCases;
+    if (!targetCases.length) {
+      alert(mode === "my" ? "ไม่พบ Case ของคุณสำหรับเดือนที่เลือก" : "ไม่พบ Case สำหรับเดือนที่เลือก");
+      return;
+    }
+
+    setBulkCasePdfMode(mode);
+    setBulkCasePdfBusy(true);
+    setBulkCasePdfProgress(`0/${targetCases.length}`);
+    try {
+      const result = await generateBulkCaseDetailPdf({
+        cases: targetCases,
+        currentUser,
+        monthKey: bulkCasePdfExportMonthKey,
+        weekLabel: isWeeklyCasePdfView ? selectedWeek : "",
+        onProgress: (done, total) => setBulkCasePdfProgress(`${done}/${total}`),
+      });
+      // case-pdf-agent-center-filename-v6
+      const safeFilterFilePart = (value: unknown, fallback: string) => {
+        const text = String(value || "").trim() || fallback;
+        return text
+          .replace(/\s*-\s*/g, "_to_")
+          .replace(/\//g, "-")
+          .replace(/[<>:"/\\|?*\u0000-\u001f\u007f]+/g, "_")
+          .replace(/\s+/g, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "") || fallback;
+      };
+      const periodForFile = isWeeklyCasePdfView
+        ? safeFilterFilePart(selectedWeek, "Weekly")
+        : safeFilterFilePart(currentViewingMonthLabel || selectedMonthKey, selectedMonthKey || "Month");
+      const teamForFile =
+        bulkCasePdfSelectedTeam && bulkCasePdfSelectedTeam !== "all"
+          ? safeFilterFilePart(bulkCasePdfSelectedTeam, "Team")
+          : "All_Teams";
+      const agentNameForFile =
+        mode === "my"
+          ? ""
+          : selectedAgent && selectedAgent !== "all"
+            ? String(selectedAgent).trim()
+            : "";
+      const agentForFile = mode === "my"
+        ? "My_Cases"
+        : agentNameForFile
+          ? safeFilterFilePart(agentNameForFile, "Agent")
+          : "All_Agents";
+      const filterFileName = `QA_Case_Detail_${periodForFile}_${teamForFile}_${agentForFile}.pdf`;
+      downloadGeneratedPdfFile({ ...result, fileName: filterFileName });
+      setBulkCasePdfProgress(`${result.caseCount}/${result.caseCount}`);
+      // bulk-case-pdf-final-signed-v8
+      // bulk-case-pdf-final-signed-any-status-v9
+      if (Array.isArray(result.missingSignedAgents) && result.missingSignedAgents.length) {
+        window.alert(`Gen PDF สำเร็จ แต่ไม่พบเอกสาร Signature สำหรับ: \n- ${result.missingSignedAgents.join("\n- ")}\n\nระบบข้ามเฉพาะหน้า Signature และยังรวม Case ของ Agent เหล่านี้ตามปกติ`);
+      }
+    } catch (error) {
+      // bulk-weekly-summary-v29b
+      console.error(mode === "my" ? "Gen My Case PDF failed:" : "Gen All Case PDF failed:", error);
+      alert(error instanceof Error ? error.message : mode === "my" ? "Gen My Case PDF ไม่สำเร็จ" : "Gen All Case PDF ไม่สำเร็จ");
+    } finally {
+      setBulkCasePdfBusy(false);
+      setBulkCasePdfMode("");
+    }
+  };
+
+  const handleGenerateAllCasePdf = async () => handleGenerateCasePdf("all");
+  const handleGenerateMyCasePdf = async () => handleGenerateCasePdf("my");
+
   const qaCanBrowseMonthlyKpiAgents =
     isQualityAssuranceRole(currentUser?.role) &&
     overviewCanSelectAgents;
@@ -6413,30 +6869,39 @@ export default function DashboardMockup({
       valueTone: approvedAppealCount + rejectedAppealCount ? "text-emerald-700" : "text-slate-600",
     },
     {
+      // dashboard-overall-grade-all-agents-final-v156
       label: "Overall Grade",
       value: isYearlyView
         ? yearlyGrade || "No Data"
-        : monthlyAgentCompleted && monthlyAgentGrade
-          ? monthlyAgentGrade
-          : "Pending",
+        : isAllAgentsView
+          ? monthlyKpiQuotaReady && currentGradeDisplay !== "-"
+            ? currentGradeDisplay
+            : "Pending"
+          : monthlyAgentCompleted && monthlyAgentGrade
+            ? monthlyAgentGrade
+            : "Pending",
       note: isYearlyView
         ? yearlyGrade
           ? `Annual score band · ${currentGradeTone(yearlyGrade).level}`
           : `No evaluated cases in ${selectedYear}`
-        : monthlyAgentCompleted
-          ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).level
-          : currentGradeDisplay && currentGradeDisplay !== "-"
-            ? `Current score band: ${currentGradeDisplay} · Finalizes after ${dashboardEvaluationTarget} evaluated cases`
-            : `Finalizes after ${dashboardEvaluationTarget} evaluated cases`,
+        : isAllAgentsView && monthlyKpiQuotaReady && currentGradeDisplay !== "-"
+          ? `Final monthly team grade · ${currentGradeTone(currentGradeDisplay).level}`
+          : monthlyAgentCompleted
+            ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).level
+            : currentGradeDisplay && currentGradeDisplay !== "-"
+              ? `Current score band: ${currentGradeDisplay} · Finalizes after ${dashboardEvaluationTarget} evaluated cases`
+              : `Finalizes after ${dashboardEvaluationTarget} evaluated cases`,
       icon: "◇",
       iconTone: "bg-fuchsia-50 text-fuchsia-600",
       valueTone: isYearlyView
         ? yearlyGrade
           ? currentGradeTone(yearlyGrade).levelText
           : "text-slate-500"
-        : monthlyAgentCompleted
-          ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).levelText
-          : "text-amber-700",
+        : isAllAgentsView && monthlyKpiQuotaReady && currentGradeDisplay !== "-"
+          ? currentGradeTone(currentGradeDisplay).levelText
+          : monthlyAgentCompleted
+            ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).levelText
+            : "text-amber-700",
     },
   ];
 
@@ -6555,7 +7020,7 @@ export default function DashboardMockup({
       : quickAgentOptions;
 
   const renderDashboardSearchControls = () => (
-    <div data-search-evaluation-primary-v166="true" data-search-evaluation-auto-v168="true" className="min-w-0">
+    <div data-search-evaluation-primary-v166="true" data-search-evaluation-auto-v168="true" data-dashboard-unified-reset-v88="true" className="min-w-0">
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Evaluation ID</div>
         <div className="text-[10px] font-bold text-emerald-700">พิมพ์หรือวาง Case ID เพื่อค้นหาอัตโนมัติทุกเดือน</div>
@@ -6572,10 +7037,24 @@ export default function DashboardMockup({
           }}
           onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
           placeholder="Search any authorized Evaluation ID"
-          className="h-12 min-w-0 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-500 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+          className="h-12 min-w-0 rounded-xl border border-sky-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-[#155B83] focus:ring-4 focus:ring-sky-100"
         />
-        <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-emerald-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800">Search</button>
-        <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-violet-300 bg-white px-4 text-xs font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">Clear</button>
+        <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-[#155B83] px-5 text-xs font-black text-white shadow-[0_7px_18px_rgba(21,91,131,0.20)] transition hover:-translate-y-0.5 hover:bg-[#104A6B] hover:shadow-[0_9px_22px_rgba(21,91,131,0.24)]">Search</button>
+        <button type="button" title="ล้างการค้นหา เคสที่เลือก และตัวกรองทั้งหมดกลับค่าเริ่มต้น" onClick={() => {
+          clearCaseSearch();
+          [
+            "qa_analytics_mode_v134",
+            "qa_analytics_periods_v134",
+            "qa_analytics_year_filter_v134",
+            "qa_analytics_month_filter_v134",
+            "qa_analytics_section_v134",
+            "qa_analytics_team_month_v134",
+            "qa_analytics_team_v134",
+            "qa_analytics_team_detail_v134",
+            "qa_summary_selected_agent_v119"
+          ].forEach((key) => window.sessionStorage.removeItem(key));
+          window.setTimeout(() => window.location.reload(), 0);
+        }} className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md">Reset</button>
       </div>
       {caseIdSearch.trim() ? (
         <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[10px] font-semibold ${
@@ -6625,7 +7104,7 @@ export default function DashboardMockup({
           <SlideOverCaseDetail
             embedded
             open
-            caseItem={activeSelectedCase}
+            caseItem={{ ...activeSelectedCase, teamName: selectedCaseTeam.teamName || "" }}
             currentUser={currentUser}
             onClose={closeCaseDetail}
             onOpenAppealCase={onOpenAppealCase}
@@ -6850,8 +7329,7 @@ export default function DashboardMockup({
                         onChange={(value) => {
                           setSelectedAgent(value);
                           onSelectedAgentChange?.(value);
-                          setSelectedWeek("all");
-                          onSelectedWeekChange?.("all");
+                          // Agent is a secondary filter; keep the active Week/Month/Year Period.
                           setCaseIdSearch("");
                           setCaseSearchHistoryOpen(false);
                           setSelectedCaseKey("");
@@ -7720,6 +8198,38 @@ export default function DashboardMockup({
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
+                        {qaCanGenerateAllCasePdf && (isWeeklyCasePdfView || (isMonthlyView && selectedMonthKey !== "all")) ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleGenerateAllCasePdf()}
+                              disabled={bulkCasePdfBusy || !allCasePdfCases.length}
+                              className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-700 px-3 py-2 text-[10px] font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              title={isWeeklyCasePdfView
+                                ? `รวม Case Detail เฉพาะสัปดาห์ ${selectedWeek} เป็น PDF ไฟล์เดียว โดยใช้ Appeal ล่าสุดแทน Original เมื่อมีอุทธรณ์`
+                                : "รวม Case Detail ทุกเคสของเดือนที่เลือกเป็น PDF ไฟล์เดียว โดยใช้ Appeal ล่าสุดแทน Original เมื่อมีอุทธรณ์"}
+                            >
+                              <span aria-hidden="true">▤</span>
+                              {bulkCasePdfBusy && bulkCasePdfMode === "all"
+                                ? `กำลัง Gen ${bulkCasePdfProgress}`
+                                : `Gen All Case PDF (${allCasePdfCases.length})`}
+                            </button>
+                            {isSeniorBulkCasePdfRole ? (
+                              <button
+                                type="button"
+                                onClick={() => void handleGenerateMyCasePdf()}
+                                disabled={bulkCasePdfBusy || !myCasePdfCases.length}
+                                className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-white px-3 py-2 text-[10px] font-black text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                title="รวมเฉพาะ Case Detail ของฉันในเดือนที่เลือกเป็น PDF ไฟล์เดียว"
+                              >
+                                <span aria-hidden="true">▤</span>
+                                {bulkCasePdfBusy && bulkCasePdfMode === "my"
+                                  ? `กำลัง Gen ${bulkCasePdfProgress}`
+                                  : `Gen My Case PDF (${myCasePdfCases.length})`}
+                              </button>
+                            ) : null}
+                          </>
+                        ) : null}
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-2 text-[10px] font-bold text-emerald-700"><span className="h-2 w-2 rounded-full bg-emerald-500" />KPI Passed ≥ {KPI_QUALITY_SCORE_TARGET}%</span>
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-white px-3 py-2 text-[10px] font-bold text-rose-700"><span className="h-2 w-2 rounded-full bg-rose-500" />Not Passed &lt; {KPI_QUALITY_SCORE_TARGET}%</span>
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white px-3 py-2 text-[10px] font-bold text-sky-700"><span className="h-2 w-2 rounded-full bg-sky-500" />Appeal Updated</span>
@@ -7796,7 +8306,7 @@ export default function DashboardMockup({
                                     <span className={`block truncate font-semibold ${hasAppealChange ? "text-sky-900" : scorePassed ? "text-slate-900" : "text-rose-700"}`} title={intent.thai}>{intent.thai}</span>
                                     {intent.english ? <span className={`mt-1 block truncate text-[10px] font-medium ${hasAppealChange ? "text-sky-600" : scorePassed ? "text-slate-500" : "text-rose-500"}`} title={intent.english}>{intent.english}</span> : null}
                                   </span>
-                                  <span className="cursor-text select-text text-center font-medium text-slate-700">{item.evaluationAuditDate || formatAuditDateForDisplay(item.auditTimestamp) || "-"}</span>
+                                  <span className="cursor-text select-text text-center font-medium text-slate-700">{item.evaluationAuditDate || item.auditTimestamp || "-"}</span>
                                   <span className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{item.finalScore.toFixed(2)}</span>
                                   <span className={`inline-flex h-8 w-8 cursor-text select-text items-center justify-center rounded-lg border font-bold ${gradeTone(item.grade)}`}>{item.grade}</span>
                                   <span className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${scorePassed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scorePassed ? "KPI Passed" : "KPI Not Passed"}</span>
@@ -7830,6 +8340,7 @@ export default function DashboardMockup({
                                 <div className="min-w-0">
                                   <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Selected Case</div>
                                   <div className="mt-1 truncate text-xl font-bold text-slate-950">{activeSelectedCase.caseId}</div>
+                                  <SelectedCaseAppealCountdownV64 caseItem={activeSelectedCase} />
                                   {isTestCaseEvaluation(activeSelectedCase) ? <TestCaseBadge /> : null}
                                 </div>
                                 <div className={`rounded-full px-4 py-2 text-right ${scorePassed ? "bg-emerald-100" : "bg-rose-100"}`}>
@@ -7864,7 +8375,16 @@ export default function DashboardMockup({
                                   <div className="mt-1 break-words text-xs font-bold leading-5 text-slate-900">{selectedCaseTeam.teamName || "ยังไม่ระบุ"}</div>
                                 </div>
                                 <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Case Date</div><div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.caseDate || activeSelectedCase.auditDate || "-"}</div></div>
-                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Audit Date</div><div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.evaluationAuditDate || formatAuditDateForDisplay(activeSelectedCase.auditTimestamp) || "-"}</div></div>
+                                <div className="rounded-xl border border-slate-300 bg-white p-3">
+                                  <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Audit Date</div>
+                                  <div className="mt-1 text-xs font-bold text-slate-900">{activeSelectedCase.evaluationAuditDate || activeSelectedCase.auditTimestamp || "-"}</div>
+                                  {activeSelectedCase.lastUpdatedAt ? (
+                                    <div className="mt-2">
+                                      <div className="text-[9px] font-bold uppercase tracking-wide text-rose-600">Last Updated</div>
+                                      <div className="mt-1 text-xs font-bold text-rose-600">{activeSelectedCase.lastUpdatedAt}</div>
+                                    </div>
+                                  ) : null}
+                                </div>
                               </div>
                               <div className={`mt-3 flex items-center gap-3 rounded-xl border p-3 ${scorePassed ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
                                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ${scorePassed ? "bg-emerald-500" : "bg-rose-500"}`}>{scorePassed ? "✓" : "!"}</span>
@@ -7879,13 +8399,26 @@ export default function DashboardMockup({
                                   <div className="mt-1 text-[11px] font-medium leading-5 text-slate-700">Appeal Reason · Original Comment · {activeSelectedCase.appealStatus === "Rejected" ? "Reject Reason" : "Revised Comment"}</div>
                                 </div>
                               ) : null}
-                              <button
-                                type="button"
-                                onClick={() => setSlideOverOpen(true)}
-                                className="mt-4 w-full cursor-pointer rounded-xl bg-violet-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-violet-800"
-                              >
-                                Open Full Case Detail →
-                              </button>
+                              <div className="mt-4 grid gap-2">
+                                {isQualityAssuranceRole(currentUser?.role) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenEvaluationEdit?.(activeSelectedCase.caseId, activeSelectedCase.agent)}
+                                    className="w-full cursor-pointer rounded-xl border border-[#155B83] bg-[#F3F8FB] px-4 py-3 text-sm font-black text-[#155B83] shadow-sm transition hover:bg-[#E5F0F5]"
+                                    title="เปิดแบบประเมินเคสนี้ในโหมดแก้ไขคะแนน"
+                                  >
+                                    Edit Evaluation
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenCaseDetail?.(activeSelectedCase.caseId, activeSelectedCase.agent)}
+                                  className="w-full cursor-pointer rounded-xl bg-[#155B83] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#104A6B]"
+                                  title="เปิด Case Detail เป็น Tab ภายใน QA Dashboard"
+                                >
+                                  Open Full Case Detail
+                                </button>
+                              </div>
                             </div>
                           );
                         })() : (
@@ -7901,7 +8434,7 @@ export default function DashboardMockup({
 
                   <SlideOverCaseDetail
                     open={slideOverOpen}
-                    caseItem={activeSelectedCase}
+                    caseItem={{ ...activeSelectedCase, teamName: selectedCaseTeam.teamName || "" }}
                     currentUser={currentUser}
                     onClose={closeCaseDetail}
                     onOpenAppealCase={onOpenAppealCase}
@@ -7988,7 +8521,7 @@ export default function DashboardMockup({
 
                   <SlideOverCaseDetail
                     open={slideOverOpen}
-                    caseItem={activeSelectedCase}
+                    caseItem={{ ...activeSelectedCase, teamName: selectedCaseTeam.teamName || "" }}
                     currentUser={currentUser}
                     onClose={closeCaseDetail}
                     onOpenAppealCase={onOpenAppealCase}

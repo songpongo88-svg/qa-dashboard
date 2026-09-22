@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-22T07:16:03.336Z",
-  "reason": "Reviewed Case Detail topic layout after removing duplicated Score Max Score and Status block",
+  "reviewedAt": "2026-09-22T07:33:37.552Z",
+  "reason": "Reviewed Case Detail appeal topic ordering and restored Appeal Reason metadata",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -58,7 +58,7 @@
     "build/profilePdfPreferredNameEnglishPatch.js": "00babd4709b5cf972a47c1c053b5cc94c1be09c5c9c92bef56aea17f2036c966",
     "build/profilePhotoRankingPatch.js": "15b90b71121c552f46e721a886e9df98f795587250d582cf6690fdaaa585d5f9",
     "build/qaAccessCaseLinkPatch.js": "9a1efbd98602037040109d880844d1e211773963e4fec3b42fc0d111deb426f8",
-    "build/qaAccessCaseLinkPatchV2.js": "7694abd506eaa9372530983106f84e973e5488c4a54d92f279e91b63da3bb67c",
+    "build/qaAccessCaseLinkPatchV2.js": "9a26e861befae9f1ff4ffa01e85262fefe4322dd2e7a9956bb20fe87a5dd7346",
     "build/qaAccessCheckDirectWriteFixPatch.js": "f6ab5aa16a14efdc5801b792fd4e603eab22b75886ff5334d13ab802d6cd6dea",
     "build/qaAccessCheckOverviewPatch.js": "6018bbe96b9f9dc0ccaca3f3303dd05e1dcf109ab678475dd2d40732bf024ce7",
     "build/qaAccessCheckPermissionPatch.js": "c310f49403ced6fbd45eec882b8c60d0d34de36a83534a17565ad4b8158005e0",
@@ -292,7 +292,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "abda63bf350e695b10354b44946e7dac81c59f0a674485f1a2406b7834cf2b7e",
-    "src/DashboardMockup.tsx": "9f9235abe7735fc84de6f5e419ca8ef0cf783c5a592f312a98e50317685770cd",
+    "src/DashboardMockup.tsx": "5de8872c305a31b035d54524687fef0d84517fd4afee148910d7e863e8c4fa0e",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
