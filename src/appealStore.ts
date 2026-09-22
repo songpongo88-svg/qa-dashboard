@@ -130,14 +130,15 @@ async function cachedAppealEventRequest(
 }
 
 function toAppealLogEvent(id: string, row: any): AppealLogEvent {
+  const fullReviewerName = canonicalizeAgentName(row.agent_name || row.agentName);
   return {
     id,
     created_at: String(row.created_at || row.createdAt || ""),
     event_type: String(row.event_type || row.eventType || ""),
     username: String(row.username || ""),
-    display_name: canonicalizeAgentName(row.display_name || row.displayName),
+    display_name: fullReviewerName || canonicalizeAgentName(row.display_name || row.displayName),
     role: String(row.role || ""),
-    agent_name: canonicalizeAgentName(row.agent_name || row.agentName),
+    agent_name: fullReviewerName,
     tab: String(row.tab || row.details?.tab || ""),
     case_id: String(row.case_id || row.caseId || row.details?.caseId || ""),
     target_agent: canonicalizeAgentName(row.target_agent || row.targetAgent || row.details?.agent),
@@ -159,13 +160,14 @@ export async function writeAppealEvent(
   const details = payload.details && typeof payload.details === "object" ? payload.details : {};
   const requestId = String((details as any).requestId || payload.id || payload.case_id || now);
   const docId = sanitizeId(`${eventType}-${requestId}`);
+  const fullReviewerName = canonicalizeAgentName(user.agentName || user.displayName);
 
   await setDoc(
     doc(firebaseDb, APPEAL_EVENTS_COLLECTION, docId),
     {
       event_type: eventType,
       username: user.username || "",
-      display_name: canonicalizeAgentName(user.displayName),
+      display_name: fullReviewerName,
       role: user.role || "",
       agent_name: canonicalizeAgentName(user.agentName),
       tab: payload.tab || "",
