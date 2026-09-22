@@ -1,0 +1,42 @@
+name: Apply Original Comment Metadata
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-original-comment-metadata.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply Original Comment metadata
+        run: node scripts/patch-case-detail-original-comment-metadata-v1.mjs
+      - name: Prepare verified source state
+        run: |
+          rm scripts/patch-case-detail-original-comment-metadata-v1.mjs
+          rm .github/workflows/apply-original-comment-metadata.yml
+          node scripts/check-user-guide.mjs --record --reason "Added original QA and Audit Date metadata to Case Detail Original Comment blocks" --no-content-change
+          git diff --binary > /tmp/original-comment-metadata.patch
+      - name: Verify production build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit verified update
+        run: |
+          git reset --hard HEAD
+          git apply /tmp/original-comment-metadata.patch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Show QA and Audit Date in Original Comment"
+          git push
