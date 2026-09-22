@@ -20,66 +20,55 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import XLSX from 'xlsx';
-          const path = 'public/QA_RawData_January-February2026.xlsx';
-          const wb = XLSX.readFile(path, { cellDates: true });
-          console.log('SHEETS', JSON.stringify(wb.SheetNames));
+          const wb = XLSX.readFile('public/QA_RawData_January-February2026.xlsx', { cellDates: true });
           const ws = wb.Sheets['Raw_Data'] || wb.Sheets[wb.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
-          const headers = (rows[0] || []).map((v, i) => ({ i, h: String(v ?? '').trim() }));
-          console.log('HEADERS', JSON.stringify(headers));
-          console.log('ROW_COUNT', Math.max(0, rows.length - 1));
-          const norm = s => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9ก-๙]+/g, '');
-          const findIndex = candidates => {
-            for (const c of candidates) {
-              const ci = headers.find(x => norm(x.h) === norm(c));
-              if (ci) return ci.i;
-            }
-            for (const c of candidates) {
-              const ci = headers.find(x => norm(x.h).includes(norm(c)));
-              if (ci) return ci.i;
-            }
-            return -1;
-          };
-          const agentIdx = findIndex(['Agent','Agent Name','Admin Name','Name']);
-          const caseIdx = findIndex(['Case ID','CaseId','Case No','Case']);
-          const dateCandidates = headers.filter(x => /date|วันที่|audit|created|case date/i.test(x.h));
-          console.log('DETECTED', JSON.stringify({agentIdx, agentHeader: headers[agentIdx]?.h, caseIdx, caseHeader: headers[caseIdx]?.h, dateCandidates}));
+          const norm = v => String(v ?? '').trim().toLowerCase().replace(/[^a-z0-9ก-๙]+/g, '');
+          const headerRowIndex = rows.findIndex(r => r.some(v => norm(v) === 'auditdate') && r.some(v => norm(v) === 'agentname') && r.some(v => norm(v) === 'caseid'));
+          const headerRow = rows[headerRowIndex] || [];
+          const idx = name => headerRow.findIndex(v => norm(v) === norm(name));
+          const auditIdx = idx('Audit Date');
+          const caseDateIdx = idx('Case Date');
+          const agentIdx = idx('Agent Name');
+          const caseIdx = idx('Case ID');
+          const monthLabelIdx = idx('Month Label');
+          const monthKeyIdx = idx('Month Key');
           const monthOf = value => {
             if (value instanceof Date && !Number.isNaN(value.getTime())) return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}`;
-            if (typeof value === 'number') {
-              const p = XLSX.SSF.parse_date_code(value);
-              if (p) return `${p.y}-${String(p.m).padStart(2,'0')}`;
-            }
             const s = String(value ?? '').trim();
             if (!s) return '';
-            let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
-            if (m) return `${m[3]}-${String(Number(m[2])).padStart(2,'0')}`;
-            m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
-            if (m) return `${m[1]}-${String(Number(m[2])).padStart(2,'0')}`;
-            const d = new Date(s);
-            if (!Number.isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-            return '';
+            let m = s.match(/^(\d{4})-(\d{1,2})-/); if (m) return `${m[1]}-${m[2].padStart(2,'0')}`;
+            m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/); if (m) return `${m[3]}-${String(Number(m[2])).padStart(2,'0')}`;
+            const d = new Date(s); return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
           };
-          for (const dc of dateCandidates) {
-            const monthCounts = {};
-            const perAgent = {};
-            const casesByMonth = {};
-            for (const r of rows.slice(1)) {
-              const month = monthOf(r[dc.i]);
-              if (!month) continue;
-              monthCounts[month] = (monthCounts[month] || 0) + 1;
-              const agent = String(r[agentIdx] ?? '').trim() || '(blank)';
-              perAgent[month] ||= {};
-              perAgent[month][agent] = (perAgent[month][agent] || 0) + 1;
-              const cid = String(r[caseIdx] ?? '').trim().toUpperCase();
-              casesByMonth[month] ||= [];
-              if (cid) casesByMonth[month].push(cid);
+          const data = rows.slice(headerRowIndex + 1).filter(r => String(r[caseIdx] ?? '').trim());
+          console.log('HEADER_ROW_INDEX', headerRowIndex);
+          console.log('INDEXES', JSON.stringify({auditIdx,caseDateIdx,agentIdx,caseIdx,monthLabelIdx,monthKeyIdx}));
+          console.log('DATA_ROWS', data.length);
+          for (const [label, di] of [['Audit Date',auditIdx],['Case Date',caseDateIdx]]) {
+            const months = {};
+            const agents = {};
+            for (const r of data) {
+              const month = monthOf(r[di]);
+              months[month] = (months[month] || 0) + 1;
+              const agent = String(r[agentIdx] ?? '').trim();
+              agents[month] ||= {};
+              agents[month][agent] = (agents[month][agent] || 0) + 1;
             }
-            console.log('DATE_AUDIT', JSON.stringify({header: dc.h, index: dc.i, monthCounts, perAgent}));
-            for (const [month, ids] of Object.entries(casesByMonth)) {
-              const dup = Object.entries(ids.reduce((a,id)=>(a[id]=(a[id]||0)+1,a),{})).filter(([,n])=>n>1);
-              console.log('DUP_CASES', JSON.stringify({header: dc.h, month, duplicates: dup.slice(0,50), duplicateCount: dup.length, uniqueCases: new Set(ids).size, rowsWithCaseId: ids.length}));
+            console.log('MONTH_COUNTS', label, JSON.stringify(months));
+            for (const month of Object.keys(agents).sort()) {
+              console.log('AGENT_COUNTS', label, month, JSON.stringify(Object.fromEntries(Object.entries(agents[month]).sort((a,b)=>a[0].localeCompare(b[0])))));
             }
           }
-          console.log('SAMPLE_ROWS', JSON.stringify(rows.slice(0,8), null, 2));
+          const labels = {};
+          const keys = {};
+          for (const r of data) {
+            const ml = String(r[monthLabelIdx] ?? '').trim(); labels[ml] = (labels[ml] || 0) + 1;
+            const mk = String(r[monthKeyIdx] ?? '').trim(); keys[mk] = (keys[mk] || 0) + 1;
+          }
+          console.log('MONTH_LABEL_COUNTS', JSON.stringify(labels));
+          console.log('MONTH_KEY_COUNTS', JSON.stringify(keys));
+          const idCounts = data.reduce((m,r)=>{const id=String(r[caseIdx]??'').trim().toUpperCase();m[id]=(m[id]||0)+1;return m;},{});
+          const dups = Object.entries(idCounts).filter(([,n])=>n>1);
+          console.log('DUPLICATE_CASE_IDS', JSON.stringify({count:dups.length,items:dups.slice(0,100)}));
           NODE
