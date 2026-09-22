@@ -728,6 +728,11 @@ function isScheduleChangedEntry(entry: ShiftScheduleEntry | null) {
   return /(แลก|เปลี่ยน(?:กะ|เวลา|ตาราง|เป็น)?|สลับ|เดิม|swap|switch|change(?:d)?\s*(?:shift|schedule|time)?)/i.test(note);
 }
 
+function isOtExtraEntry(entry: ShiftScheduleEntry | null) {
+  if (!entry) return false;
+  return /\bOT\s*Extra\b/i.test(`${entry.otText || ""} ${entry.note || ""}`);
+}
+
 function isWfhEntry(entry: ShiftScheduleEntry | null) {
   if (!entry) return false;
   const base = entryBaseShift(entry);
@@ -748,11 +753,13 @@ function isWorkingEntry(entry: ShiftScheduleEntry | null) {
 function workModeLabel(entry: ShiftScheduleEntry | null) {
   if (!isWorkingEntry(entry)) return "";
   const mode = isWfhEntry(entry) ? "WFH" : "Workspace";
+  if (isOtExtraEntry(entry)) return `${mode}, OT Extra`;
   return entry?.otText ? `${mode}, OT` : mode;
 }
 
 function entryTone(entry: ShiftScheduleEntry | null) {
   if (!entry) return "border-slate-200 bg-slate-50 text-slate-500";
+  if (isOtExtraEntry(entry)) return "border-sky-300 bg-sky-100 text-sky-950";
   if (isScheduleChangedEntry(entry)) return "border-orange-400 bg-orange-200 text-orange-950";
   if (isWfhEntry(entry)) return "border-pink-300 bg-pink-200 text-pink-950";
   if (isWorkingEntry(entry)) return "border-slate-200 bg-white text-slate-800";
@@ -764,7 +771,7 @@ function entryTone(entry: ShiftScheduleEntry | null) {
 }
 
 function entryStyle(entry: ShiftScheduleEntry | null): React.CSSProperties | undefined {
-  if (!entry || !isWorkingEntry(entry) || isWfhEntry(entry) || isScheduleChangedEntry(entry) || !entry.sourceFill) return undefined;
+  if (!entry || !isWorkingEntry(entry) || isOtExtraEntry(entry) || isWfhEntry(entry) || isScheduleChangedEntry(entry) || !entry.sourceFill) return undefined;
   return {
     backgroundColor: entry.sourceFill,
     color: entry.sourceFontColor || undefined,
@@ -779,6 +786,82 @@ function formatOtLabel(value: string) {
     .replace(/^OT\s*[:：]?\s*/i, "")
     .trim();
   return cleaned ? `+ OT ${cleaned}` : "+ OT";
+}
+
+function enforceKnownScheduleRules(month: ShiftScheduleMonth) {
+  let changed = false;
+  const target = normalizeScheduleName("Phrommarin Thaithorn");
+  const leaveStatuses = new Set(["AL", "SL", "PL", "BL", "LW", "AB"]);
+
+  const entries = month.entries.map((entry) => {
+    if (normalizeScheduleName(entry.agentName) !== target) return entry;
+
+    const date = new Date(`${entry.date}T00:00:00+07:00`);
+    const weekday = date.getDay();
+    const isWeekend = weekday === 0 || weekday === 6;
+
+    if (isWeekend) {
+      const same =
+        entry.status === "OFF" &&
+        !entry.shiftStart &&
+        !entry.shiftEnd &&
+        entry.shiftCode === "OFF" &&
+        !entry.workMode;
+      if (same) return entry;
+      changed = true;
+      return {
+        ...entry,
+        shiftCode: "OFF",
+        shiftStart: "",
+        shiftEnd: "",
+        status: "OFF",
+        workMode: "",
+        workModeOverride: "",
+        manualShift: false,
+        manualWorkMode: false,
+        sourceFill: "",
+        sourceFontColor: "",
+        excelShiftCode: "OFF",
+        excelShiftStart: "",
+        excelShiftEnd: "",
+        excelStatus: "OFF",
+      };
+    }
+
+    if (leaveStatuses.has(entry.status)) return entry;
+
+    const same =
+      entry.shiftCode === "09:00-18:00" &&
+      entry.shiftStart === "09:00" &&
+      entry.shiftEnd === "18:00" &&
+      !entry.status &&
+      entry.workModeOverride === "Workspace";
+    if (same) return entry;
+
+    changed = true;
+    return {
+      ...entry,
+      shiftCode: "09:00-18:00",
+      shiftStart: "09:00",
+      shiftEnd: "18:00",
+      status: "",
+      workMode: "",
+      workModeOverride: "Workspace",
+      manualShift: false,
+      manualWorkMode: false,
+      sourceFill: "",
+      sourceFontColor: "",
+      excelShiftCode: "09:00-18:00",
+      excelShiftStart: "09:00",
+      excelShiftEnd: "18:00",
+      excelStatus: "",
+    };
+  });
+
+  return {
+    month: changed ? { ...month, entries } : month,
+    changed,
+  };
 }
 
 function employeeScheduleSummary(
@@ -895,9 +978,22 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const refreshMonths = async () => {
     try {
       const next = await fetchScheduleMonths();
-      setMonths(next);
-      if (!next.some((item) => item.monthKey === selectedMonthKey) && next.length && selectedMonthKey !== today.monthKey) {
-        setSelectedMonthKey(next[0].monthKey);
+      const normalized = await Promise.all(next.map(async (item) => {
+        const ruled = enforceKnownScheduleRules(item);
+        if (ruled.changed && canManage) {
+          const saved = {
+            ...ruled.month,
+            updatedBy: currentUser.displayName || currentUser.username,
+            updatedAtIso: new Date().toISOString(),
+          };
+          await saveScheduleMonth(saved);
+          return saved;
+        }
+        return ruled.month;
+      }));
+      setMonths(normalized);
+      if (!normalized.some((item) => item.monthKey === selectedMonthKey) && normalized.length && selectedMonthKey !== today.monthKey) {
+        setSelectedMonthKey(normalized[0].monthKey);
       }
     } catch (error) {
       console.error("Load schedule months failed", error);
@@ -1081,8 +1177,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
         const targetMonth = candidate.month;
         const existingMonth = existingByMonth.get(targetMonth.monthKey) || null;
         const mergedMonth = mergeImportedScheduleMonth(targetMonth, existingMonth);
+        const ruledMonth = enforceKnownScheduleRules(mergedMonth).month;
         const savedMonth: ShiftScheduleMonth = {
-          ...mergedMonth,
+          ...ruledMonth,
           updatedBy: currentUser.displayName || currentUser.username,
           updatedAtIso: new Date().toISOString(),
         };
@@ -1185,9 +1282,10 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
       updatedBy: currentUser.displayName || currentUser.username,
       updatedAtIso: new Date().toISOString(),
     };
+    const ruledNextMonth = enforceKnownScheduleRules(nextMonth).month;
     try {
-      await saveScheduleMonth(nextMonth);
-      setMonth(nextMonth);
+      await saveScheduleMonth(ruledNextMonth);
+      setMonth(ruledNextMonth);
       setEditEntry(null);
       setMessage(`อัปเดต ${editEntry.agentName} · ${editEntry.date} แล้ว`);
       await refreshMonths();
@@ -1487,7 +1585,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                                       {entry?.otText ? (
                                         <>
                                           <span className="text-slate-400">,</span>
-                                          <span className="text-red-600">OT</span>
+                                          <span className={isOtExtraEntry(entry) ? "text-sky-700" : "text-red-600"}>
+                                            {isOtExtraEntry(entry) ? "OT Extra" : "OT"}
+                                          </span>
                                         </>
                                       ) : null}
                                     </span>
