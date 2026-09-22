@@ -1,0 +1,85 @@
+name: Audit Jan-Feb RawData
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-jan-feb-rawdata.yml"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Audit workbook
+        run: |
+          node --input-type=module <<'NODE'
+          import * as XLSX from 'xlsx';
+          const path = 'public/QA_RawData_January-February2026.xlsx';
+          const wb = XLSX.readFile(path, { cellDates: true });
+          console.log('SHEETS', JSON.stringify(wb.SheetNames));
+          const ws = wb.Sheets['Raw_Data'] || wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+          const headers = (rows[0] || []).map((v, i) => ({ i, h: String(v ?? '').trim() }));
+          console.log('HEADERS', JSON.stringify(headers));
+          console.log('ROW_COUNT', Math.max(0, rows.length - 1));
+          const norm = s => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9ก-๙]+/g, '');
+          const findIndex = candidates => {
+            for (const c of candidates) {
+              const ci = headers.find(x => norm(x.h) === norm(c));
+              if (ci) return ci.i;
+            }
+            for (const c of candidates) {
+              const ci = headers.find(x => norm(x.h).includes(norm(c)));
+              if (ci) return ci.i;
+            }
+            return -1;
+          };
+          const agentIdx = findIndex(['Agent','Agent Name','Admin Name','Name']);
+          const caseIdx = findIndex(['Case ID','CaseId','Case No','Case']);
+          const dateCandidates = headers.filter(x => /date|วันที่|audit|created|case date/i.test(x.h));
+          console.log('DETECTED', JSON.stringify({agentIdx, agentHeader: headers[agentIdx]?.h, caseIdx, caseHeader: headers[caseIdx]?.h, dateCandidates}));
+          const monthOf = value => {
+            if (value instanceof Date && !Number.isNaN(value.getTime())) return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}`;
+            if (typeof value === 'number') {
+              const p = XLSX.SSF.parse_date_code(value);
+              if (p) return `${p.y}-${String(p.m).padStart(2,'0')}`;
+            }
+            const s = String(value ?? '').trim();
+            if (!s) return '';
+            let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+            if (m) return `${m[3]}-${String(Number(m[2])).padStart(2,'0')}`;
+            m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+            if (m) return `${m[1]}-${String(Number(m[2])).padStart(2,'0')}`;
+            const d = new Date(s);
+            if (!Number.isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            return '';
+          };
+          for (const dc of dateCandidates) {
+            const monthCounts = {};
+            const perAgent = {};
+            const casesByMonth = {};
+            for (const r of rows.slice(1)) {
+              const month = monthOf(r[dc.i]);
+              if (!month) continue;
+              monthCounts[month] = (monthCounts[month] || 0) + 1;
+              const agent = String(r[agentIdx] ?? '').trim() || '(blank)';
+              perAgent[month] ||= {};
+              perAgent[month][agent] = (perAgent[month][agent] || 0) + 1;
+              const cid = String(r[caseIdx] ?? '').trim().toUpperCase();
+              casesByMonth[month] ||= [];
+              if (cid) casesByMonth[month].push(cid);
+            }
+            console.log('DATE_AUDIT', JSON.stringify({header: dc.h, index: dc.i, monthCounts, perAgent}));
+            for (const [month, ids] of Object.entries(casesByMonth)) {
+              const dup = Object.entries(ids.reduce((a,id)=>(a[id]=(a[id]||0)+1,a),{})).filter(([,n])=>n>1);
+              console.log('DUP_CASES', JSON.stringify({header: dc.h, month, duplicates: dup.slice(0,50), duplicateCount: dup.length, uniqueCases: new Set(ids).size, rowsWithCaseId: ids.length}));
+            }
+          }
+          console.log('SAMPLE_ROWS', JSON.stringify(rows.slice(0,8), null, 2));
+          NODE
