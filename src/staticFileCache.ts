@@ -8,16 +8,26 @@ type CachedStaticResponse = {
 const staticResponseCache = new Map<string, Promise<CachedStaticResponse>>();
 
 export async function fetchCachedStaticResponse(url: string) {
-  const cacheKey = url;
+  // Separate assets from different deploys and never retain a failed download.
+  const version = String(import.meta.env.VITE_DEPLOY_COMMIT_SHA || "");
+  const requestUrl = version && url.startsWith("/")
+    ? `${url}${url.includes("?") ? "&" : "?"}deploy=${encodeURIComponent(version)}` : url;
+  const cacheKey = requestUrl;
   if (!staticResponseCache.has(cacheKey)) {
     staticResponseCache.set(
       cacheKey,
-      fetch(url, { cache: "default" }).then(async (response) => ({
+      fetch(requestUrl, { cache: "no-cache" }).then(async (response) => {
+        if (!response.ok) throw new Error(`Static file unavailable (${response.status}): ${url}`);
+        return {
         status: response.status,
         statusText: response.statusText,
         contentType: response.headers.get("content-type") || "",
         buffer: await response.arrayBuffer(),
-      }))
+        };
+      }).catch(error => {
+        staticResponseCache.delete(cacheKey);
+        throw error;
+      })
     );
   }
 

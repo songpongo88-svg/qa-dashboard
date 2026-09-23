@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type BuildMeta = {
+  buildId?: string;
   buildNumber?: number;
   displayVersion?: string;
   releaseLabel?: string;
@@ -13,12 +15,14 @@ type BuildMeta = {
 };
 
 const CHECK_INTERVAL_MS = 30_000;
-const REFRESH_COUNTDOWN_SECONDS = 5;
+const REFRESH_COUNTDOWN_SECONDS = 10;
+const EMBEDDED_BUILD_META: BuildMeta = import.meta.env.VITE_BUILD_META || {};
 
 function getBuildKey(meta: BuildMeta) {
   return String(
-    meta.buildNumber ||
+    meta.buildId ||
       meta.commitHash ||
+      meta.buildNumber ||
       meta.displayVersion ||
       meta.releaseLabel ||
       ""
@@ -26,9 +30,12 @@ function getBuildKey(meta: BuildMeta) {
 }
 
 async function fetchLatestBuildMeta(): Promise<BuildMeta | null> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
   try {
     const response = await fetch(`/build-meta.json?check=${Date.now()}`, {
       cache: "no-store",
+      signal: controller.signal,
       headers: {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         Pragma: "no-cache",
@@ -39,6 +46,8 @@ async function fetchLatestBuildMeta(): Promise<BuildMeta | null> {
     return (await response.json()) as BuildMeta;
   } catch {
     return null;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 }
 
@@ -97,33 +106,38 @@ function getChangeNotes(meta: BuildMeta) {
 }
 
 export default function AutoDeployRefresh() {
-  const baselineBuildKey = useRef("");
+  const baselineBuildKey = useRef(getBuildKey(EMBEDDED_BUILD_META));
   const latestBuildKey = useRef("");
   const reloading = useRef(false);
 
   const [latestMeta, setLatestMeta] = useState<BuildMeta | null>(null);
   const [refreshBlocked, setRefreshBlocked] = useState(false);
+  const [deferred, setDeferred] = useState(false);
   const [countdown, setCountdown] = useState(REFRESH_COUNTDOWN_SECONDS);
 
   const refreshNow = useCallback(() => {
     if (reloading.current) return;
     reloading.current = true;
 
-    if (latestBuildKey.current) {
+    try { if (latestBuildKey.current) {
       window.sessionStorage.setItem(
         "qa-dashboard:last-applied-build",
         latestBuildKey.current
       );
-    }
+    } } catch { /* Storage restrictions must not prevent an explicit refresh. */ }
 
     window.location.reload();
   }, []);
 
   useEffect(() => {
     let disposed = false;
+    let checking = false;
 
     const checkForNewBuild = async () => {
+      if (checking) return;
+      checking = true;
       const meta = await fetchLatestBuildMeta();
+      checking = false;
       if (disposed || !meta) return;
 
       const nextKey = getBuildKey(meta);
@@ -134,9 +148,13 @@ export default function AutoDeployRefresh() {
         return;
       }
 
-      if (nextKey !== baselineBuildKey.current) {
+      if (nextKey !== baselineBuildKey.current && nextKey !== latestBuildKey.current) {
         latestBuildKey.current = nextKey;
         setLatestMeta(meta);
+        setDeferred(false);
+      } else if (nextKey === baselineBuildKey.current && latestBuildKey.current) {
+        latestBuildKey.current = "";
+        setLatestMeta(null);
       }
     };
 
@@ -181,7 +199,7 @@ export default function AutoDeployRefresh() {
     if (!latestMeta) return;
 
     const updateBlockedState = () => {
-      setRefreshBlocked(hasUnsavedChanges() || isTypingOrEditing());
+      setRefreshBlocked(document.visibilityState !== "visible" || hasUnsavedChanges() || isTypingOrEditing());
     };
 
     updateBlockedState();
@@ -193,7 +211,7 @@ export default function AutoDeployRefresh() {
   }, [latestMeta]);
 
   useEffect(() => {
-    if (!latestMeta || refreshBlocked) {
+    if (!latestMeta || refreshBlocked || deferred) {
       setCountdown(REFRESH_COUNTDOWN_SECONDS);
       return;
     }
@@ -201,26 +219,23 @@ export default function AutoDeployRefresh() {
     setCountdown(REFRESH_COUNTDOWN_SECONDS);
 
     const intervalId = window.setInterval(() => {
-      if (hasUnsavedChanges() || isTypingOrEditing()) {
+      if (document.visibilityState !== "visible" || hasUnsavedChanges() || isTypingOrEditing()) {
         setRefreshBlocked(true);
         return;
       }
 
-      setCountdown((current) => {
-        if (current <= 1) {
-          window.clearInterval(intervalId);
-          refreshNow();
-          return 0;
-        }
-
-        return current - 1;
-      });
+      setCountdown(current => Math.max(0, current - 1));
     }, 1000);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [latestMeta, refreshBlocked, refreshNow]);
+  }, [latestMeta, refreshBlocked, deferred]);
+
+  useEffect(() => {
+    if (latestMeta && countdown === 0 && !refreshBlocked && !deferred &&
+      document.visibilityState === "visible" && !hasUnsavedChanges() && !isTypingOrEditing()) refreshNow();
+  }, [latestMeta, countdown, refreshBlocked, deferred, refreshNow]);
 
   if (!latestMeta) return null;
 
@@ -233,14 +248,15 @@ export default function AutoDeployRefresh() {
     ? latestMeta.changedFiles.length
     : 0;
 
-  return (
+  return createPortal(
     <div
       role="status"
       aria-live="polite"
       className={`fixed bottom-5 right-5 z-[200] w-[min(470px,calc(100vw-2rem))] overflow-hidden rounded-[24px] border bg-white shadow-[0_24px_70px_rgba(15,23,42,0.24)] ${
         refreshBlocked ? "border-amber-200" : "border-violet-200"
       }`}
-      style={{ fontFamily: "'Kanit', sans-serif" }}
+      data-deploy-notice="true"
+      style={{ fontFamily: "'Kanit', sans-serif", zIndex: 2147483647 }}
     >
       <div
         className={`h-1.5 ${
@@ -287,7 +303,7 @@ export default function AutoDeployRefresh() {
             </div>
 
             <div className="mt-2 text-sm font-normal leading-6 text-slate-600">
-              {refreshBlocked
+              {deferred ? "พักการรีเฟรชไว้แล้ว กดรีเฟรชตอนนี้เมื่อพร้อม" : refreshBlocked
                 ? "ระบบพักการรีเฟรชไว้เพื่อป้องกันข้อมูลที่กำลังกรอกหรือยังไม่ได้บันทึก เมื่อบันทึกเสร็จ ระบบจะเริ่มนับถอยหลังอัตโนมัติ"
                 : `ระบบจะรีเฟรชหน้าเว็บอัตโนมัติใน ${countdown} วินาที`}
             </div>
@@ -315,7 +331,11 @@ export default function AutoDeployRefresh() {
           </div>
         </div>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={() => setDeferred(true)} disabled={deferred}
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 disabled:opacity-50">
+            เลื่อนการรีเฟรช
+          </button>
           <button
             type="button"
             onClick={refreshNow}
@@ -329,6 +349,6 @@ export default function AutoDeployRefresh() {
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }

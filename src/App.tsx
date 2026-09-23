@@ -1,3 +1,5 @@
+import ThemePreview, { WEEKDAY_LABELS, FESTIVAL_LABELS } from "./ThemePreview";
+import { WEEKDAY_IDS } from "./weekdayCollection.mjs";
 import { WeatherCollection, WeatherSidebarLabel } from "./weather/Weather";
 import "./themePickerCollections.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -3613,6 +3615,7 @@ export default function App() {
     () => QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme) || QA_THEME_OPTIONS[0],
     [selectedTheme]
   );
+  const [effectiveThemeId, setEffectiveThemeId] = useState(() => document.documentElement.dataset.qaTheme || selectedTheme);
   const [sidebarThemeCollection, setSidebarThemeCollection] = useState<"weekday" | "weather" | "festival" | "">("");
 
   useEffect(() => {
@@ -3625,6 +3628,11 @@ export default function App() {
       }
 
       const root = document.documentElement;
+      setEffectiveThemeId(root.dataset.qaTheme || selectedTheme);
+      if (root.dataset.qaFestivalOverride) {
+        setSidebarThemeCollection("festival");
+        return;
+      }
       if (customPreference === "weather-auto" || root.dataset.qaWeatherCollection === "auto") {
         setSidebarThemeCollection("weather");
         return;
@@ -3655,14 +3663,16 @@ export default function App() {
     };
   }, []);
 
+  const activeThemePreviewOption = QA_THEME_OPTIONS.find(theme => theme.id === effectiveThemeId) || activeThemeOption;
+  const activeWeekdayIndex = WEEKDAY_IDS.indexOf(effectiveThemeId);
   const sidebarThemeLabel =
-    sidebarThemeCollection === "weekday"
-      ? "7 Days · ธีมประจำวันอัตโนมัติ"
-      : sidebarThemeCollection === "weather"
-        ? "Weather Collection"
-        : sidebarThemeCollection === "festival"
-          ? "Festival Collection"
-          : activeThemeOption.label;
+    FESTIVAL_LABELS[effectiveThemeId]
+      ? `Festival · ${FESTIVAL_LABELS[effectiveThemeId]}`
+      : activeWeekdayIndex >= 0
+        ? `7 Days · วัน${WEEKDAY_LABELS[activeWeekdayIndex]}`
+        : sidebarThemeCollection === "weather"
+          ? "Weather Collection"
+          : activeThemePreviewOption.label;
 
   useLayoutEffect(() => {
     document.documentElement.dataset.qaTheme = selectedTheme;
@@ -7084,15 +7094,7 @@ export default function App() {
               }`}
             >
               <WeatherSidebarLabel />
-              <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
-                {activeThemeOption.swatches.map((color, index) => (
-                  <span
-                    key={color}
-                    className={`${index === 1 ? "h-4 w-2.5" : "h-4 w-1.5"} rounded-full`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </span>
+              <ThemePreview themeId={effectiveThemeId} option={activeThemePreviewOption} />
               {!globalSidebarCollapsed ? (
                 <>
                   <span className="qa-sidebar-label min-w-0 flex-1">

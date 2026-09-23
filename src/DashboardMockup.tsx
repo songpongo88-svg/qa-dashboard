@@ -973,6 +973,13 @@ function roundExcelLikeMinute(date: Date) {
   return new Date(date.getTime());
 }
 
+function readWorkbookWithSerialDates(buffer: ArrayBuffer) {
+  // Preserve Excel calendar values. SheetJS cellDates:true shifts midnight back
+  // four seconds in Asia/Bangkok, moving day-one cases into the previous month.
+  // excelDateToJSDate decodes the serial components without that timezone shift.
+  return XLSX.read(buffer, { type: "array", cellDates: false });
+}
+
 function excelDateToJSDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
 
@@ -5497,6 +5504,10 @@ export default function DashboardMockup({
         }
 
         const availableRawResponses = rawResponses.filter((item) => item.response.ok);
+        const missingRawFiles = rawResponses.filter(item => !item.response.ok).map(item => item.fileName);
+        if (missingRawFiles.length) {
+          throw new Error(`โหลดข้อมูล RawData ไม่ครบ: ${missingRawFiles.join(", ")} กรุณาลองโหลดใหม่ เพื่อให้จำนวนเคสและคะแนนตรงกับต้นทาง`);
+        }
         if (!availableRawResponses.length) {
           evaluationCases = await loadEvaluationCases();
           if (evaluationCases.length) {
@@ -5510,7 +5521,7 @@ export default function DashboardMockup({
         const rawSources = await Promise.all(
           availableRawResponses.map(async ({ fileName, response }) => {
             const rawBuffer = await response.arrayBuffer();
-            const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
+            const rawWorkbook = readWorkbookWithSerialDates(rawBuffer);
             const rawSheet =
               rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
 
@@ -5573,7 +5584,7 @@ export default function DashboardMockup({
         let appealRows: any[][] = [];
         if (appealResponse) {
           const appealBuffer = await appealResponse.arrayBuffer();
-          const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
+          const appealWorkbook = readWorkbookWithSerialDates(appealBuffer);
           const appealSheet =
             appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
 

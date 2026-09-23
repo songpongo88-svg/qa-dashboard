@@ -70,3 +70,7 @@ html #root #qa-theme-collection-panel > button[data-qa-color-option][aria-presse
 @media(prefers-reduced-motion:reduce) {
   html #root #qa-theme-collection-panel > button[data-qa-color-option] { transition:none; }
 }
+.qa-active-theme-preview { display:flex; width:44px; height:32px; flex-shrink:0; overflow:hidden; border-radius:8px; border:1px solid rgb(255 255 255/.6); }
+.qa-active-theme-preview>span { display:block; width:100%; height:100%; background-repeat:no-repeat; }
+.qa-active-theme-preview>.qa-active-theme-swatches { display:flex; align-items:center; justify-content:center; gap:3px; }
+.qa-active-theme-swatches>i { display:block; height:20px; border-radius:99px; }
