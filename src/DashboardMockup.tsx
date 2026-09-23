@@ -80,6 +80,7 @@ type CaseItem = {
   weekLabel: string;
   caseId: string;
   rawDataSourceName?: string;
+  rawDataFileName?: string;
   caseUrl?: string;
   waitingTime?: string;
   serviceTime?: string;
@@ -1475,6 +1476,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
         weekLabel: getWeekLabelFromAuditDate(validAuditDate),
         caseId: record.caseId,
         rawDataSourceName: "QA Evaluation Form",
+        rawDataFileName: "QA Evaluation Form",
         caseUrl: record.caseUrl,
         waitingTime: record.waitingTime,
         serviceTime: record.serviceTime,
@@ -3080,21 +3082,33 @@ function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "evaluation
 }
 
 function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: CaseItem[]) {
-  const rawMonthKeys = new Set(rawCases.map((item) => item.monthKey).filter(Boolean));
-  // jan-feb-rawdata-authority-v1
-  // January-February 2026 is a closed historical dataset. The workbook is the
-  // canonical source for those two reporting months, so live/stored evaluations
-  // must not add extra cases or move a historical case into another month.
+  // jan-feb-rawdata-authority-v2
+  // January-February 2026 is a closed historical dataset. Authority must use
+  // the physical workbook that supplied the row, not a display/source label
+  // embedded inside the workbook.
+  const isAuthoritativeHistoricalMonth = (monthKey: string) =>
+    monthKey === "2026-01" || monthKey === "2026-02";
+
   const authoritativeHistoricalRawCases = rawCases.filter((item) =>
-    String(item.rawDataSourceName || "").trim() === RAW_DATA_JAN_FEB_FILE_NAME &&
-    (item.monthKey === "2026-01" || item.monthKey === "2026-02")
+    String(item.rawDataFileName || "").trim() === RAW_DATA_JAN_FEB_FILE_NAME &&
+    isAuthoritativeHistoricalMonth(item.monthKey)
   );
   const authoritativeHistoricalMonthKeys = new Set(
     authoritativeHistoricalRawCases.map((item) => item.monthKey)
   );
+
+  // When the Jan-Feb workbook is present for a month, rows for that month from
+  // every other raw workbook are ignored. This prevents historical duplicates
+  // from being appended before the stored-evaluation merge even starts.
+  const canonicalRawCases = rawCases.filter((item) => {
+    if (!authoritativeHistoricalMonthKeys.has(item.monthKey)) return true;
+    return String(item.rawDataFileName || "").trim() === RAW_DATA_JAN_FEB_FILE_NAME;
+  });
+
+  const rawMonthKeys = new Set(canonicalRawCases.map((item) => item.monthKey).filter(Boolean));
   const merged = new Map<string, CaseItem>();
 
-  rawCases
+  canonicalRawCases
     .filter((item) => item.agent && item.caseId && item.auditDateObj)
     .forEach((item) => {
       merged.set(buildCaseMergeKey(item), item);
@@ -3103,8 +3117,7 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
   storedCases
     .filter((item) => item.agent && item.caseId && item.auditDateObj)
     .forEach((item) => {
-      // The Jan-Feb workbook contains the complete 10-case historical set for
-      // each included Agent. Do not append Firestore/stored rows for those months.
+      // Jan-Feb must come only from the authoritative historical workbook.
       if (authoritativeHistoricalMonthKeys.has(item.monthKey)) return;
 
       const key = buildCaseMergeKey(item);
@@ -3137,8 +3150,8 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
       }
     });
 
-  // Re-apply the historical rows last so a stored evaluation with a mismatched
-  // audit month cannot overwrite a Jan-Feb workbook case with the same Case ID.
+  // Re-apply authoritative historical rows last as an additional guard against
+  // a Case ID collision with any non-historical source.
   authoritativeHistoricalRawCases.forEach((item) => {
     merged.set(buildCaseMergeKey(item), item);
   });
@@ -5391,6 +5404,7 @@ export default function DashboardMockup({
                   weekLabel: getWeekLabelFromAuditDate(auditDateObj),
                   caseId,
                   rawDataSourceName,
+                  rawDataFileName: V8_EFFECTIVE_FILE_NAME,
                   caseUrl: caseUrl ? String(caseUrl).trim() : "",
                   waitingTime: formatTimeOnly(getFirstAvailableHeaderValue(v8Helper, row, ["Waiting Time", "WaitingTime"], "")),
                   serviceTime: formatTimeOnly(getFirstAvailableHeaderValue(v8Helper, row, ["Service Time", "ServiceTime"], "")),
@@ -6125,6 +6139,7 @@ export default function DashboardMockup({
               weekLabel: getWeekLabelFromAuditDate(auditDateObj),
               caseId,
               rawDataSourceName,
+              rawDataFileName: source.fileName,
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
               waitingTime,
               serviceTime,
