@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-23T02:40:55.973Z",
-  "reason": "Verified real workbooks in Bangkok and UTC, effective-theme previews, fresh build metadata, and refresh warning with pause/defer",
+  "reviewedAt": "2026-09-23T08:44:53.633Z",
+  "reason": "Reviewed per-subtopic deduction workflow and verified build dependency recovery",
   "contentChanged": true,
   "reviewedChapters": [
-    "profile"
+    "evaluation"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
@@ -95,7 +95,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "c9b922aa633f2a66758699992901b55a526774fcc227064f1f13144c0906506a",
+    "package.json": "56bb8a78e08026ff595d079d14be6b881ef91ce013f93b6bb6797c3a522ea102",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -289,6 +289,7 @@
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "4c4a8af7c60c4f6adcde922ecec746c76649590ea878ac6da022eb04423ede40",
     "scripts/sync-v13-rowdata.mjs": "9f98a43be94809668dc809621d7f46fdd3984e0cd7456f9129f09d42fdcdaf9e",
+    "scripts/test-deduction-tags.mjs": "9be3a0fc26f9d729b2937cb8ce9e10c987dadc216d3dcd52b8e4cbeea5889d48",
     "scripts/test-deploy-theme-data.mjs": "03063f589566853e41c81c37256d97ff7e52180547ffb6d7d382cd59d1b8adb0",
     "scripts/test-knowledge.mjs": "edf7933d14e2137c42e97d77c2ff7ec0f363a0f0d1d666d1d54e3d4c7884ccca",
     "scripts/test-monthly-signature-pdf.mjs": "f2ef3b0ac88fef3750bc1cb3057c516ace822a54e3c15b7a504e1898f07b0bfb",
@@ -305,8 +306,8 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
-    "src/CreateEvaluationMockup.tsx": "abda63bf350e695b10354b44946e7dac81c59f0a674485f1a2406b7834cf2b7e",
-    "src/DashboardMockup.tsx": "3c712d09b2e6234a26237cb35e5e2851bdffc752112db0d3937c1db85985a215",
+    "src/CreateEvaluationMockup.tsx": "25b082157a539482fded451682df70d9e28cb52f1df3843c4d71de338c670068",
+    "src/DashboardMockup.tsx": "81ce3d203dfc6f34e899c6e702d9128981befc7805297e8bde6560fa800d9f83",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
@@ -349,7 +350,7 @@
     "src/coachingStore.ts": "85d024517fd83642d4a6bbcbfa864379ac058cc68bea4557fe89afc17917bada",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
-    "src/evaluationStore.ts": "26b33b64f47cd8ec6294e5fbfd1b6ee664e2c0b7e73a819052df1942acf7da35",
+    "src/evaluationStore.ts": "a1a06cd7bcce182f5542edfa562db4cc41f1ee7295409cc2dc2aad2ba9429506",
     "src/finalSignedCasePdf.ts": "f99fd97a35ab570d3091b65b5c5b842cbfe87c1d6f00e70c9eacec67fa8ed342",
     "src/finalSignedPdfRenderer.ts": "629a2d503f58275ffc778542d3716ea57fae3831ce4e8c560cabf290906aca6d",
     "src/firebaseClient.ts": "860d60f9e7ae95dabc407bc6fefddfce1409edf493d01d6e9194287d7c27bd75",
@@ -360,7 +361,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "835e452563e34f208edbd9c8ecbe2f7e2a4ce74f11ffd6cc8df6c2c71046d448",
-    "src/knowledge/manual.json": "6b3b773806bf62bc7f64bb32f80e764db3706551dfecce0fd9ea1aa605667af6",
+    "src/knowledge/manual.json": "e76fc80e5c67e4cc0e9a78f16be852d622d4aca773df07923f5d0be31c709e05",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
@@ -368,6 +369,7 @@
     "src/lib/agentIdentity.ts": "70c539e0462821d5101b3ea05f91678a13286b9ddea0f446ce17810a2b9269ad",
     "src/lib/caseAgentTeam.ts": "94d14a47c7de8a83f80df00c93f5662161b32e0e43421a76cd31a822268888b5",
     "src/lib/evaluation/deductionRules.ts": "dc9bb57eccd2cec0ad007c11823524818b58ebb42c1f2af861a708e5dc32adf7",
+    "src/lib/evaluation/deductionTags.ts": "c9ac0f388be228d0c2f4aa42c8a68ef2f62e6c7395c894d48ec8f32b1cda590f",
     "src/lib/evaluation/evaluationTypes.ts": "ecd7dd2928ea9c2bfe86f2c52ee79e5e1b0dd414632c9d69f704805eb0116a51",
     "src/lib/evaluation/gradeIncentiveEngine.ts": "95ac6027e9adbfdb40d8ad5674805761c3b8dfcaff36083e028ada78e61ac0b5",
     "src/lib/evaluation/reasonTemplates.ts": "2902720b385d112439b1a611ed4c2bf7a6142db133c91ea088069593351eda52",

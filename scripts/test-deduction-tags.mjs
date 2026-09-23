@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+
+function loadTypeScript(file) {
+  const source = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
+  const js = ts.transpileModule(source, { compilerOptions: {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.CommonJS,
+  }}).outputText;
+  const exports = {};
+  Function('exports', js)(exports);
+  return exports;
+}
+
+const { RUBRIC_VERSIONS } = loadTypeScript('../src/lib/rubricVersions.ts');
+const { deductionOptions, deductionTotal, deductionError, buildDeductionAnalysis } = loadTypeScript('../src/lib/evaluation/deductionTags.ts');
+const topic = RUBRIC_VERSIONS.find(item => item.code === 'QA-2026-08').topics[0];
+const [process, ...otherOptions] = deductionOptions(topic);
+assert.equal(otherOptions.length, 6);
+const tags = [{ subtopic: process, points: 12 }, { subtopic: otherOptions[3], points: 6 }];
+assert.equal(deductionTotal(tags), 18);
+assert.equal(deductionError(topic, 12, tags), '');
+assert.match(deductionError(topic, 13, tags), /18.*17/);
+assert.match(deductionError(topic, 12, []), /18/);
+assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { subtopic: process, points: 6 }]), /ซ้ำ/);
+assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { subtopic: 'Unlisted', points: 6 }]), /เลือก/);
+assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { subtopic: otherOptions[3], points: null }]), /จำนวนเต็ม/);
+assert.deepEqual(deductionOptions(RUBRIC_VERSIONS[0].topics[0]), [RUBRIC_VERSIONS[0].topics[0].title]);
+
+const rows = [
+  { caseId: 'AA1', agentName: 'Agent A', auditDate: '2026-09-01', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title, deductions: tags }] },
+  { caseId: 'AA2', agentName: 'Agent B', auditDate: '2026-09-02', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title, deductions: [{ subtopic: process, points: 12 }] }] },
+  { caseId: 'AA3', agentName: 'Agent C', auditDate: '2026-09-03', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title }] },
+  { caseId: '', agentName: 'Agent D', auditDate: '2026-09-04', qaScheme: 'QA-2026-08', evaluationType: 'no_case_month', topics: [{ code: topic.code, title: topic.title, deductions: tags }] },
+];
+const analysis = buildDeductionAnalysis(rows);
+assert.equal(analysis.detailRows.length, 3);
+assert.equal(analysis.summaryRows[0]['Deducted Points'], 24);
+assert.equal(analysis.summaryRows[0]['Share of Tagged Deducted Points (%)'], 80);
+assert.equal(analysis.summaryRows[0]['Cases With This Deduction (%)'], 66.67);
+assert.equal(analysis.summaryRows[1]['Deducted Points'], 6);
+assert.equal(analysis.summaryRows[1]['Share of Tagged Deducted Points (%)'], 20);
+assert.equal(analysis.summaryRows[1]['Evaluated Cases'], 3);
+const mixedRubric = buildDeductionAnalysis([...rows, {
+  caseId: 'AA4', agentName: 'Agent D', auditDate: '2026-02-01', qaScheme: 'QA-2026-01-02',
+  topics: [{ code: '1', title: 'Older opening criterion' }],
+}]);
+assert.equal(mixedRubric.summaryRows[0]['Cases With This Deduction (%)'], 66.67, 'case percentages use eligible cases in the same rubric');
+const storeSource = fs.readFileSync(new URL('../src/evaluationStore.ts', import.meta.url), 'utf8');
+const syntaxTree = ts.createSourceFile('evaluationStore.ts', storeSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+const storeParser = syntaxTree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'toTopics');
+assert.ok(storeParser, 'stored evaluations must parse their topic deductions');
+const parserJs = ts.transpileModule(`${storeParser.getText()}\nexport { toTopics };`, { compilerOptions: {
+  target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
+}}).outputText;
+const parsedExports = {};
+Function('exports', parserJs)(parsedExports);
+const restored = parsedExports.toTopics(JSON.parse(JSON.stringify([{ code: '1', max: 30, score: 12, deductions: tags }])));
+assert.deepEqual(restored[0].deductions, tags);
+assert.deepEqual(parsedExports.toTopics([{ code: '1', score: 15 }])[0].deductions, [], 'old records still open');
+console.log('PASS deduction tags, score consistency and case/point percentages');

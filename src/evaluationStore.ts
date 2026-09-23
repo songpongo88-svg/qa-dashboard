@@ -4,6 +4,7 @@ import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "fire
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { getEvaluationAgentFullName } from "./lib/userNames";
 import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
+import type { DeductionTag } from "./lib/evaluation/deductionTags";
 export { isTestCaseEvaluation, excludeTestEvaluations } from "./lib/evaluationScope";
 
 const env = (import.meta as any).env || {};
@@ -72,6 +73,7 @@ export type StoredEvaluationTopic = {
   max: number;
   score: number;
   comment: string;
+  deductions?: DeductionTag[];
 };
 
 export type StoredEvaluationType = "case" | "no_case_month";
@@ -220,6 +222,10 @@ function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
       ...topic,
       title: compactStoredText(topic.title, 2000),
       comment: compactStoredText(topic.comment),
+      deductions: (topic.deductions || []).map((entry) => ({
+        subtopic: compactStoredText(entry.subtopic, 2000),
+        points: entry.points,
+      })),
     })),
     rawDataPreview: canonicalizeRawPreview(Object.fromEntries(
       Object.entries(record.rawDataPreview || {}).map(([key, value]) => [
@@ -247,6 +253,11 @@ function toTopics(value: unknown): StoredEvaluationTopic[] {
     max: Number(item?.max || 0),
     score: Number(item?.score || 0),
     comment: String(item?.comment || item?.reason || ""),
+    deductions: Array.isArray(item?.deductions)
+      ? item.deductions
+        .map((entry: any) => ({ subtopic: String(entry?.subtopic || ""), points: Number(entry?.points) }))
+        .filter((entry: DeductionTag) => entry.subtopic && Number.isFinite(entry.points) && entry.points > 0)
+      : [],
   })).filter((item) => item.code);
 }
 

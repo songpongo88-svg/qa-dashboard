@@ -40,6 +40,7 @@ import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
 import MonthlyKpiNotice from "./MonthlyKpiNotice";
 import { fetchStoredRolePermissions } from "./userRoleStore";
 import { ProcessReferenceDisplay } from "./processLibrary";
+import type { DeductionTag } from "./lib/evaluation/deductionTags";
 // process-library-v65
 // evaluation-last-updated-v87-dashboard
 // evaluation-last-updated-v89-layout-dashboard
@@ -53,6 +54,7 @@ type Topic = {
   score: number;
   max: number;
   pct: number;
+  deductions?: DeductionTag[];
   comment?: string;
   appealReason?: string;
 };
@@ -1453,6 +1455,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
           max: master.max,
           pct: master.max > 0 ? Math.round(((Number.isFinite(score) ? score : 0) / master.max) * 100) : 0,
           comment: matched?.comment || "",
+          deductions: matched?.deductions || [],
         };
       });
       const finalScoreVal = Number(record.finalScore || topics.reduce((sum, topic) => sum + topic.score, 0));
@@ -2667,6 +2670,17 @@ function CaseDetailTopicTable({
                   </div>
                 </div>
               )}
+              {row.originalTopic.deductions?.length ? (
+                <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4 text-sm text-amber-950">
+                  <div className="font-extrabold">{row.changed ? "จุดที่หักจากผลประเมินเดิม" : "จุดที่หัก"}</div>
+                  {row.originalTopic.deductions.map((entry) => (
+                    <div key={entry.subtopic} className="mt-2 flex flex-wrap justify-between gap-2">
+                      <span>{entry.subtopic}</span>
+                      <span className="font-extrabold">-{entry.points} คะแนน</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         )) : (
