@@ -273,6 +273,20 @@ if (!pdfSource.includes(pdfMarker)) {
     "original KPI and appeal update rows",
     `    y += secondSelectionRowH;
 
+    // Preserve Last Updated in the official Case Detail PDF when an evaluation was edited.
+    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
+    if (lastUpdatedText) {
+      addPageIfNeeded(8);
+      label(0, y, 1, 8, "Last Updated");
+      value(1, y, 7, 8, lastUpdatedText, LIGHT_PURPLE, {
+        align: "left",
+        valign: "middle",
+        maxLines: 2,
+        size: 6.4,
+      });
+      y += 8;
+    }
+
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     const inquiryRowH = Math.max(12, Math.min(28, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
     addPageIfNeeded(inquiryRowH);
@@ -289,6 +303,20 @@ if (!pdfSource.includes(pdfMarker)) {
     });
     y += inquiryRowH;`,
     `    y += secondSelectionRowH;
+
+    // Preserve Last Updated in the official Case Detail PDF when an evaluation was edited.
+    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
+    if (lastUpdatedText) {
+      addPageIfNeeded(8);
+      label(0, y, 1, 8, "Last Updated");
+      value(1, y, 7, 8, lastUpdatedText, LIGHT_PURPLE, {
+        align: "left",
+        valign: "middle",
+        maxLines: 2,
+        size: 6.4,
+      });
+      y += 8;
+    }
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     if (hasAppealUpdate) {
