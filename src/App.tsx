@@ -400,7 +400,7 @@ const ACTIVE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-tab-session";
 const OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY = "qa-dashboard:open-workspace-tabs-v36";
 const ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-workspace-tab-v36";
 const SIDEBAR_GROUPS_SESSION_STORAGE_KEY = "qa-dashboard:sidebar-groups-v36";
-const CENTRAL_EVALUATION_TEXT_LIMIT = 2800;
+const CENTRAL_EVALUATION_TEXT_LIMIT = 32000;
 
 function readStoredQaTheme(): QaThemeId {
   try {
