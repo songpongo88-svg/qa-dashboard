@@ -18,10 +18,26 @@ export function deductionTotal(items: DraftDeductionTag[] = []): number {
   return items.reduce((total, item) => total + (Number.isFinite(item.points) ? Number(item.points) : 0), 0);
 }
 
-export function deductionError(topic: RubricTopic, score: number | null, items: DraftDeductionTag[] = []): string {
+export const DEDUCTION_SCORING_START_DATE = "2026-10-01";
+
+export function usesAutomaticDeductionScoring(auditDate: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(auditDate) && auditDate >= DEDUCTION_SCORING_START_DATE;
+}
+
+export function topicScoreForDate(topic: RubricTopic, manualScore: number | null, auditDate: string, items: DraftDeductionTag[] = []): number | null {
+  return usesAutomaticDeductionScoring(auditDate) ? Math.max(0, topic.max - deductionTotal(items)) : manualScore;
+}
+
+export function deductionPointOptions(topic: RubricTopic, items: DraftDeductionTag[], index: number, maximumDeduction = topic.max): number[] {
+  const others = items.filter((_, otherIndex) => otherIndex !== index);
+  const remaining = Math.max(0, Math.min(topic.max, maximumDeduction) - deductionTotal(others));
+  return Array.from({ length: Math.floor(remaining) }, (_, optionIndex) => optionIndex + 1);
+}
+
+export function deductionError(topic: RubricTopic, score: number | null, items: DraftDeductionTag[] = [], required = true): string {
   if (score === null) return "";
   const expected = topic.max - score;
-  if (!items.length) return expected > 0 ? `กรุณาระบุจุดที่หักให้ครบ ${expected} คะแนน` : "";
+  if (!items.length) return expected > 0 && required ? `กรุณาระบุจุดที่หักให้ครบ ${expected} คะแนน` : "";
 
   const allowed = new Set(deductionOptions(topic));
   const selected = new Set<string>();

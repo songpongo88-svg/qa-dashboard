@@ -14,7 +14,7 @@ function loadTypeScript(file) {
 }
 
 const { RUBRIC_VERSIONS } = loadTypeScript('../src/lib/rubricVersions.ts');
-const { deductionOptions, deductionTotal, deductionError, subtopicDeductionStatuses, buildDeductionAnalysis } = loadTypeScript('../src/lib/evaluation/deductionTags.ts');
+const { deductionOptions, deductionTotal, deductionError, deductionPointOptions, subtopicDeductionStatuses, topicScoreForDate, usesAutomaticDeductionScoring, buildDeductionAnalysis } = loadTypeScript('../src/lib/evaluation/deductionTags.ts');
 const topic = RUBRIC_VERSIONS.find(item => item.code === 'QA-2026-08').topics[0];
 const [process, ...otherOptions] = deductionOptions(topic);
 assert.equal(otherOptions.length, 6);
@@ -27,6 +27,15 @@ assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { sub
 assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { subtopic: 'Unlisted', points: 6 }]), /เลือก/);
 assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { subtopic: otherOptions[3], points: null }]), /จำนวนเต็ม/);
 assert.deepEqual(deductionOptions(RUBRIC_VERSIONS[0].topics[0]), [RUBRIC_VERSIONS[0].topics[0].title]);
+assert.equal(usesAutomaticDeductionScoring('2026-09-30'), false, 'September retains manual scores');
+assert.equal(usesAutomaticDeductionScoring('2026-10-01'), true, 'October starts deduction scoring');
+assert.equal(topicScoreForDate(topic, 20, '2026-09-30'), 20);
+assert.equal(topicScoreForDate(topic, null, '2026-10-01'), 30, 'no deduction gives full score');
+assert.equal(topicScoreForDate(topic, 20, '2026-10-01', tags), 12, 'saved manual score is ignored once October deductions apply');
+assert.equal(deductionPointOptions(topic, tags, 0).at(-1), 24, 'point dropdown only offers remaining points after other deductions');
+assert.equal(deductionPointOptions(topic, [{ subtopic: process, points: 5 }], 0, 10).at(-1), 10, 'historical tagged edits respect manually selected deduction total');
+assert.equal(deductionError(topic, 20, [], false), '', 'historical untagged scores stay editable');
+assert.match(deductionError(topic, 20, [{ subtopic: process, points: 5 }], false), /5.*10/, 'optional historical tags must still reconcile with the manual score');
 const taggedStatuses = subtopicDeductionStatuses(topic, 12, tags);
 assert.equal(taggedStatuses.find(row => row.subtopic === process).status, 'deducted');
 assert.equal(taggedStatuses.find(row => row.subtopic === process).points, 12);

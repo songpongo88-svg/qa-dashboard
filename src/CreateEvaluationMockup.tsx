@@ -22,7 +22,7 @@ import {
   getRubricForDate,
   type RubricTopic,
 } from "./lib/rubricVersions";
-import { buildDeductionAnalysis, deductionError, deductionOptions, deductionTotal, subtopicDeductionStatuses, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
+import { buildDeductionAnalysis, deductionError, deductionOptions, deductionPointOptions, deductionTotal, subtopicDeductionStatuses, topicScoreForDate, usesAutomaticDeductionScoring, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
@@ -939,6 +939,10 @@ export default function CreateEvaluationMockup({
   const [topicState, setTopicState] = useState<Record<string, TopicState>>(
     () => readEvaluateTabMemory()?.topicState || buildInitialTopicState(topics)
   );
+  const automaticScoring = usesAutomaticDeductionScoring(auditDate);
+  const scoreOf = (topic: RubricTopic) => topicScoreForDate(
+    topic, topicState[topic.code]?.score ?? null, auditDate, topicState[topic.code]?.deductions
+  );
 
   useEffect(() => {
     writeEvaluateTabMemory({
@@ -1177,18 +1181,18 @@ export default function CreateEvaluationMockup({
   const finalScore = useMemo(
     () => noCaseForMonth
       ? 0
-      : topics.reduce((sum, topic) => sum + Number(topicState[topic.code]?.score || 0), 0),
-    [noCaseForMonth, topicState, topics]
+      : topics.reduce((sum, topic) => sum + Number(scoreOf(topic) || 0), 0),
+    [auditDate, noCaseForMonth, topicState, topics]
   );
   const missingScoreTopics = useMemo(
     () => noCaseForMonth
       ? []
-      : topics.filter((topic) => topicState[topic.code]?.score === null || topicState[topic.code]?.score === undefined),
-    [noCaseForMonth, topicState, topics]
+      : topics.filter((topic) => scoreOf(topic) === null),
+    [auditDate, noCaseForMonth, topicState, topics]
   );
   const missingScoreText = missingScoreTopics.map((topic) => topic.code).join(", ");
   const invalidDeductionTopic = noCaseForMonth ? null : topics.find((topic) =>
-    deductionError(topic, topicState[topic.code]?.score ?? null, topicState[topic.code]?.deductions)
+    deductionError(topic, scoreOf(topic), topicState[topic.code]?.deductions, automaticScoring)
   );
   const completedTopics = useMemo(
     () => noCaseForMonth
@@ -1254,7 +1258,7 @@ export default function CreateEvaluationMockup({
     };
 
     topics.forEach((topic) => {
-      base[`${topic.code} Score`] = topicState[topic.code]?.score ?? "-";
+      base[`${topic.code} Score`] = scoreOf(topic) ?? "-";
       base[`${topic.code} Comment`] = richTextToPlainText(topicState[topic.code]?.reason) || "-";
     });
 
@@ -1319,7 +1323,10 @@ export default function CreateEvaluationMockup({
       evaluationStartedAt: "",
       evaluationSubmittedAt,
       evaluationStatus: "Draft",
-      topicState,
+      topicState: Object.fromEntries(topics.map((topic) => [topic.code, {
+        ...topicState[topic.code],
+        score: scoreOf(topic),
+      }])),
       savedAt,
       savedAtMs,
     };
@@ -1418,7 +1425,7 @@ export default function CreateEvaluationMockup({
     }
 
     if (invalidDeductionTopic) {
-      const message = `${invalidDeductionTopic.code} ${invalidDeductionTopic.title}: ${deductionError(invalidDeductionTopic, topicState[invalidDeductionTopic.code]?.score ?? null, topicState[invalidDeductionTopic.code]?.deductions)}`;
+      const message = `${invalidDeductionTopic.code} ${invalidDeductionTopic.title}: ${deductionError(invalidDeductionTopic, scoreOf(invalidDeductionTopic), topicState[invalidDeductionTopic.code]?.deductions, automaticScoring)}`;
       setDraftMessage(message);
       window.alert(message);
       return;
@@ -1503,13 +1510,13 @@ export default function CreateEvaluationMockup({
       (noCaseForMonth ? noCaseRecordId : makeDraftId(caseId, auditDate));
     const topicSummaries = noCaseForMonth ? [] : topics.map((topic) => ({
       topic,
-      score: Number(topicState[topic.code]?.score || 0),
+      score: Number(scoreOf(topic) || 0),
       reason: topicState[topic.code]?.reason || "",
       deductions: (topicState[topic.code]?.deductions || []).map((entry) => ({
         subtopic: entry.subtopic,
         points: Number(entry.points),
       })),
-      pct: topic.max ? (Number(topicState[topic.code]?.score || 0) / topic.max) * 100 : 0,
+      pct: topic.max ? (Number(scoreOf(topic) || 0) / topic.max) * 100 : 0,
     }));
     const submittedTopicRows: StoredEvaluationTopic[] = topicSummaries.map((item) => ({
       code: item.topic.code,
@@ -2394,7 +2401,11 @@ export default function CreateEvaluationMockup({
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {draftInbox.map((draft) => {
                     const draftId = draft.draftId || makeDraftId(draft.caseId, draft.auditDate);
-                    const draftScore = topics.reduce((sum, topic) => sum + Number(draft.topicState?.[topic.code]?.score || 0), 0);
+                    const draftRubric = getRubricForDate(draft.auditDate);
+                    const draftScore = draftRubric.topics.reduce((sum, topic) => sum + Number(topicScoreForDate(
+                      topic, draft.topicState?.[topic.code]?.score ?? null, draft.auditDate,
+                      draft.topicState?.[topic.code]?.deductions
+                    ) || 0), 0);
                     return (
                       <div key={draftId} className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 shadow-sm transition hover:border-sky-300 hover:bg-white">
                         <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Case Draft</div>
@@ -2402,7 +2413,7 @@ export default function CreateEvaluationMockup({
                         <div className="mt-1 text-lg font-black text-slate-950">{draft.caseId || "Untitled Case"}</div>
                         <div className="mt-1 text-xs font-semibold text-slate-500">{draft.agentName || "No agent selected"}</div>
                         <div className="mt-3 text-xs font-semibold text-slate-600">Saved at: <span className="font-black text-slate-900">{draft.savedAt || "-"}</span></div>
-                        <div className="mt-1 text-xs font-semibold text-slate-600">Score: <span className="font-black text-slate-900">{draft.criticalError ? 0 : draftScore}/{activeRubric.totalScore}</span></div>
+                        <div className="mt-1 text-xs font-semibold text-slate-600">Score: <span className="font-black text-slate-900">{draft.criticalError ? 0 : draftScore}/{draftRubric.totalScore}</span></div>
                         <div className="mt-4 flex gap-2">
                           <button type="button" onClick={() => { loadDraftIntoForm(draft); setWorkspaceView("form"); }} className="flex-1 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-sky-800">
                             Open Draft
@@ -2972,7 +2983,7 @@ export default function CreateEvaluationMockup({
                 {RUBRIC_GROUP_LABELS.map((group, groupIndex) => {
                   const groupTopics = topics.filter((topic) => topic.group === group.key);
                   const open = expandedGroups[group.key];
-                  const groupScore = groupTopics.reduce((sum, topic) => sum + Number(topicState[topic.code]?.score || 0), 0);
+                  const groupScore = groupTopics.reduce((sum, topic) => sum + Number(scoreOf(topic) || 0), 0);
                   const groupMax = groupTopics.reduce((sum, topic) => sum + topic.max, 0);
 
                   return (
@@ -3001,10 +3012,10 @@ export default function CreateEvaluationMockup({
                           </div>
                           <div className="overflow-hidden rounded-xl border border-emerald-200 bg-white lg:rounded-t-none lg:border-t-0">
                             {groupTopics.map((topic, index) => {
-                              const selectedScore = topicState[topic.code]?.score ?? null;
+                              const selectedScore = scoreOf(topic);
                               const deductions = topicState[topic.code]?.deductions || [];
                               const deductionChoices = deductionOptions(topic);
-                              const deductionProblem = deductionError(topic, selectedScore, deductions);
+                              const deductionProblem = deductionError(topic, selectedScore, deductions, automaticScoring);
                               return (
                                 <div key={topic.code} className={`border-b border-emerald-100 px-4 py-4 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-emerald-50/35"}`}>
                                   <div className="grid gap-3 lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px] lg:items-start">
@@ -3016,32 +3027,40 @@ export default function CreateEvaluationMockup({
                                       <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Description</div>
                                       <div className="mt-1 text-sm font-bold leading-6 text-slate-950 lg:mt-0">{topic.title}</div>
                                     </div>
-                                    <label className="block">
+                                    <div className="block">
                                       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Score</span>
-                                      <select
-                                        value={selectedScore ?? ""}
-                                        onChange={(event) => updateTopic(topic.code, { score: event.target.value === "" ? null : Number(event.target.value) })}
-                                        className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2.5 text-sm font-black text-slate-950 shadow-inner outline-none transition focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100 lg:mt-0"
-                                      >
-                                        <option value="">- Select -</option>
-                                        {scoreOptions(topic.max).map((score) => (
-                                          <option key={score} value={score}>{score}</option>
-                                        ))}
-                                      </select>
+                                      {automaticScoring ? (
+                                        <div aria-label={`คะแนนหัวข้อ ${topic.code} คำนวณอัตโนมัติ`} aria-live="polite" className="mt-1 w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-black text-emerald-950 lg:mt-0">
+                                          {selectedScore}/{topic.max}
+                                        </div>
+                                      ) : (
+                                        <select
+                                          aria-label={`คะแนนหัวข้อ ${topic.code}`}
+                                          value={selectedScore ?? ""}
+                                          onChange={(event) => updateTopic(topic.code, { score: event.target.value === "" ? null : Number(event.target.value) })}
+                                          className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2.5 text-sm font-black text-slate-950 shadow-inner outline-none transition focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100 lg:mt-0"
+                                        >
+                                          <option value="">- Select -</option>
+                                          {scoreOptions(topic.max).map((score) => (
+                                            <option key={score} value={score}>{score}</option>
+                                          ))}
+                                        </select>
+                                      )}
                                       <div className={`mt-1 text-[11px] font-bold ${selectedScore === null ? "text-amber-700" : "text-emerald-700"}`}>
-                                        {selectedScore === null ? `Score not selected / ${topic.max}` : `Score ${selectedScore}/${topic.max}`}
+                                        {selectedScore === null ? `Score not selected / ${topic.max}` : automaticScoring ? "คำนวณจากคะแนนที่หัก" : `Score ${selectedScore}/${topic.max}`}
                                       </div>
-                                    </label>
+                                    </div>
                                     <div>
                                       <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Max</div>
                                       <div className="mt-1 inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 lg:mt-0">{topic.max}</div>
                                     </div>
                                   </div>
+                                  {automaticScoring || deductions.length > 0 ? (
                                   <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                       <span className="text-sm font-black text-amber-950">จุดที่หัก (หัวข้อย่อย)</span>
                                       <span className="text-sm font-bold text-amber-900">
-                                        หักรวม {deductionTotal(deductions)}{selectedScore === null ? "" : ` / ${topic.max - selectedScore}`} คะแนน
+                                        หักรวม {deductionTotal(deductions)}{automaticScoring ? ` / สูงสุด ${topic.max}` : selectedScore === null ? "" : ` / ${topic.max - selectedScore}`} คะแนน
                                       </span>
                                     </div>
                                     <p className="mt-2 text-xs text-amber-900">เลือกเฉพาะหัวข้อย่อยที่ถูกหักคะแนน ข้อที่ไม่หักไม่ต้องเลือก</p>
@@ -3063,17 +3082,17 @@ export default function CreateEvaluationMockup({
                                           </label>
                                           <label className="text-xs font-bold text-slate-700">
                                             คะแนนที่หัก
-                                            <input
-                                              type="number"
-                                              inputMode="numeric"
-                                              min={1}
-                                              max={topic.max}
-                                              step={1}
+                                            <select
                                               value={item.points ?? ""}
                                               onChange={(event) => updateDeduction(topic.code, deductionIndex, { points: event.target.value === "" ? null : Number(event.target.value) })}
                                               className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900"
                                               aria-label={`คะแนนที่หัก ${topic.code} รายการ ${deductionIndex + 1}`}
-                                            />
+                                            >
+                                              <option value="">เลือกคะแนน</option>
+                                              {deductionPointOptions(topic, deductions, deductionIndex, automaticScoring || selectedScore === null ? topic.max : topic.max - selectedScore).map((points) => (
+                                                <option key={points} value={points}>{points}</option>
+                                              ))}
+                                            </select>
                                           </label>
                                           <button type="button" onClick={() => removeDeduction(topic.code, deductionIndex)} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50" aria-label={`ลบจุดที่หัก ${topic.code} รายการ ${deductionIndex + 1}`}>ลบ</button>
                                         </div>
@@ -3082,7 +3101,7 @@ export default function CreateEvaluationMockup({
                                     <button
                                       type="button"
                                       onClick={() => updateTopic(topic.code, { deductions: [...deductions, { subtopic: "", points: null }] })}
-                                      disabled={deductions.length >= deductionChoices.length}
+                                      disabled={deductions.length >= deductionChoices.length || deductionTotal(deductions) >= (automaticScoring || selectedScore === null ? topic.max : topic.max - selectedScore)}
                                       className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                                     >+ เพิ่มจุดที่หัก</button>
                                     {selectedScore !== null ? (
@@ -3099,6 +3118,7 @@ export default function CreateEvaluationMockup({
                                     ) : null}
                                     {deductionProblem ? <p role="alert" className="mt-2 text-xs font-bold text-rose-700">{deductionProblem}</p> : null}
                                   </div>
+                                  ) : null}
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
                                     <RichTextEditor

@@ -1,11 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-24T01:30:56.628Z",
-  "reason": "ตรวจฟอร์มและ Case Detail แยกจุดหักและไม่หัก รวมเคสเก่าและรายงาน",
+  "reviewedAt": "2026-09-24T02:19:01.277Z",
+  "reason": "คำนวณคะแนนจากจุดที่หักอัตโนมัติตั้งแต่ตุลาคมและเลือกคะแนนหักจากรายการ",
   "contentChanged": true,
   "reviewedChapters": [
-    "evaluation",
-    "case-detail"
+    "evaluation"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
@@ -290,7 +289,7 @@
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "4c4a8af7c60c4f6adcde922ecec746c76649590ea878ac6da022eb04423ede40",
     "scripts/sync-v13-rowdata.mjs": "9f98a43be94809668dc809621d7f46fdd3984e0cd7456f9129f09d42fdcdaf9e",
-    "scripts/test-deduction-tags.mjs": "7b064e1f2f4da8df49ec6f41b1fc3fef79f9837027d829e1233b16f87a80b6c8",
+    "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deploy-theme-data.mjs": "5be66dc27be379600c24072a8452c0808be6b507026a2dfb4cb6e74c35b2e31e",
     "scripts/test-knowledge.mjs": "edf7933d14e2137c42e97d77c2ff7ec0f363a0f0d1d666d1d54e3d4c7884ccca",
     "scripts/test-monthly-signature-pdf.mjs": "f2ef3b0ac88fef3750bc1cb3057c516ace822a54e3c15b7a504e1898f07b0bfb",
@@ -307,7 +306,7 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
-    "src/CreateEvaluationMockup.tsx": "25c9ee04e102ebb41b6a284ef056bd2620faa40d5dd9c315440d86659230dad3",
+    "src/CreateEvaluationMockup.tsx": "1b0c056e7914a7245a7a4f528f886f275c3e4685d78d0722bbd8dba0cfa3f436",
     "src/DashboardMockup.tsx": "34c7bd95e75e386954804ed18f14ef9a18ac8324e68ed8be5695b8f282b126af",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
@@ -362,7 +361,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "835e452563e34f208edbd9c8ecbe2f7e2a4ce74f11ffd6cc8df6c2c71046d448",
-    "src/knowledge/manual.json": "6d415ab3ebbefa7aa98c075b14e292cb5ffbae4e920adc3b5411ab1e16be5e8e",
+    "src/knowledge/manual.json": "61478f0cd43483c40985ae30e991e539f305835c28298c7eff301692501601dd",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
@@ -370,7 +369,7 @@
     "src/lib/agentIdentity.ts": "70c539e0462821d5101b3ea05f91678a13286b9ddea0f446ce17810a2b9269ad",
     "src/lib/caseAgentTeam.ts": "94d14a47c7de8a83f80df00c93f5662161b32e0e43421a76cd31a822268888b5",
     "src/lib/evaluation/deductionRules.ts": "dc9bb57eccd2cec0ad007c11823524818b58ebb42c1f2af861a708e5dc32adf7",
-    "src/lib/evaluation/deductionTags.ts": "38b22680898ad57e5508e99c004393c73b94eec9bfa042fa7ddc45a077775089",
+    "src/lib/evaluation/deductionTags.ts": "c5a6d6f35cc15eb9dc8ae7e3a424060974430efddaccf36c72f790c5af0bbdc2",
     "src/lib/evaluation/evaluationTypes.ts": "ecd7dd2928ea9c2bfe86f2c52ee79e5e1b0dd414632c9d69f704805eb0116a51",
     "src/lib/evaluation/gradeIncentiveEngine.ts": "95ac6027e9adbfdb40d8ad5674805761c3b8dfcaff36083e028ada78e61ac0b5",
     "src/lib/evaluation/reasonTemplates.ts": "2902720b385d112439b1a611ed4c2bf7a6142db133c91ea088069593351eda52",
