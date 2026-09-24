@@ -4913,7 +4913,7 @@ export default function App() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error || "Unknown error");
       console.warn("Evaluation store save failed.", error);
-      await logUsageEvent(currentUser, "qa_evaluation_save_failed", {
+      void logUsageEvent(currentUser, "qa_evaluation_save_failed", {
         tab: "create-evaluation",
         case_id: payload.caseId,
         target_agent: payload.targetUsername || payload.agentName,
@@ -4925,38 +4925,45 @@ export default function App() {
           attemptedAt: new Date().toISOString(),
         },
       });
-      throw new Error(`เน€เธยเน€เธเธ‘เน€เธยเน€เธโ€”เน€เธเธ–เน€เธยเน€เธโฌเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธโฌเน€เธเธเน€เธเธ”เน€เธยเน€เธเธ…เน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธเธ…เน€เธเธ’เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย: ${errorMessage}`);
+      throw new Error(`บันทึกเคสประเมินลงฐานกลางไม่สำเร็จ: ${errorMessage}`);
     }
 
-    await logUsageEvent(currentUser, isTestCaseEvaluation(payload) ? "qa_test_evaluation_submitted" : "qa_evaluation_submitted", {
-      tab: "create-evaluation",
-      case_id: payload.caseId,
-      target_agent: payload.targetUsername || payload.agentName,
-      details: {
-        caseId: payload.caseId,
-        agentName: payload.agentName,
-        targetUsername: payload.targetUsername,
-        targetDisplayName: payload.targetDisplayName,
-        targetRole: payload.targetRole,
-        auditDate: payload.auditDate,
-        auditTimestamp: payload.auditTimestamp,
-        isTestCase: isTestCaseEvaluation(payload),
-        finalScore: payload.finalScore,
-        grade: payload.grade,
-        qaScheme: payload.qaScheme,
-        rubricName: payload.rubricName,
-        completedTopics: payload.completedTopics,
-        totalTopics: payload.totalTopics,
-        criticalError: payload.criticalError,
-        evidenceCount: payload.evidenceUrls?.length || 0,
-        topicCount: payload.topics?.length || 0,
-        evaluatorName: currentUser.displayName || currentUser.username,
-        evaluatorUsername: currentUser.username,
-        savedAt: new Date().toISOString(),
-      },
-    });
-    await loadInboxTasks();
     notifyQaDataChanged();
+
+    void (async () => {
+      try {
+        await logUsageEvent(currentUser, isTestCaseEvaluation(payload) ? "qa_test_evaluation_submitted" : "qa_evaluation_submitted", {
+          tab: "create-evaluation",
+          case_id: payload.caseId,
+          target_agent: payload.targetUsername || payload.agentName,
+          details: {
+            caseId: payload.caseId,
+            agentName: payload.agentName,
+            targetUsername: payload.targetUsername,
+            targetDisplayName: payload.targetDisplayName,
+            targetRole: payload.targetRole,
+            auditDate: payload.auditDate,
+            auditTimestamp: payload.auditTimestamp,
+            isTestCase: isTestCaseEvaluation(payload),
+            finalScore: payload.finalScore,
+            grade: payload.grade,
+            qaScheme: payload.qaScheme,
+            rubricName: payload.rubricName,
+            completedTopics: payload.completedTopics,
+            totalTopics: payload.totalTopics,
+            criticalError: payload.criticalError,
+            evidenceCount: payload.evidenceUrls?.length || 0,
+            topicCount: payload.topics?.length || 0,
+            evaluatorName: currentUser.displayName || currentUser.username,
+            evaluatorUsername: currentUser.username,
+            savedAt: new Date().toISOString(),
+          },
+        });
+        await loadInboxTasks();
+      } catch (error) {
+        console.warn("Post-submit usage log or inbox refresh skipped", error);
+      }
+    })();
   };
 
   const loadInboxTasks = async () => {
