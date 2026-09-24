@@ -754,7 +754,7 @@ export async function generateOfficialCaseDetailPdf({
     value(7, y, 1, secondSelectionRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });
     y += secondSelectionRowH;
 
-    // Keep Last Updated visible in the official Case Detail PDF whenever the evaluation was edited.
+    // Preserve Last Updated in the official Case Detail PDF when an evaluation was edited.
     const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
     if (lastUpdatedText) {
       addPageIfNeeded(8);
