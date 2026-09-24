@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-24T10:36:00.000Z",
-  "reason": "ตรวจแก้ Regression ของ Last Updated ใน Case Detail PDF โดยคู่มือเดิมอธิบายพฤติกรรมนี้ครบแล้ว",
+  "reviewedAt": "2026-09-24T10:59:00.000Z",
+  "reason": "ตรวจแก้ Layout ล่าสุดให้ Last Updated อยู่ในช่อง Audit Date เดียวกันตาม Case Detail PDF",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -214,7 +214,7 @@
     "scripts/patch-bulk-main-pdf-parity-v28.mjs": "a4fd76ae3087f810808e219a299bf223002291065bd4232f6f33ca7bdb1891a6",
     "scripts/patch-bulk-weekly-summary-v29b.mjs": "1fc6005925d314e8f24d75e60af7dfadcf146b30bab0427596ad2cdc554a2424",
     "scripts/patch-case-detail-approved-appeal-reason-v38.mjs": "41bbaab21aaa0e109a433658776b24d32d5cc5cf106c6bba863bd4a7f9682cf3",
-    "scripts/patch-case-main-pdf-appeal-history-v27.mjs": "ae0f192bfd123ec162b8fe6927e61aa6c83ddb37b5b2487b943865f335ab8abd",
+    "scripts/patch-case-main-pdf-appeal-history-v27.mjs": "1a58e577acc886de1ec4de051396535553044df9238b225ed9729a3e138c54b2",
     "scripts/patch-case-pdf-agent-center-filename-v6.mjs": "909ab14cb373dd624141fc682ea552726cb0560f0f19f8bdb8b9a5d0c26782bc",
     "scripts/patch-case-pdf-agent-team-spacing-v4.mjs": "0c354b63001f533e563707445b62a8a089068918e4847a27118e547b9d5f0fac",
     "scripts/patch-case-pdf-agent-team-tight-v5.mjs": "15cd4b65d8d33abfce907c779c2b25222475801e64655a52e9d99f2a9fbc95ed",
@@ -342,7 +342,7 @@
     "src/bulkCaseDetailPdf.ts": "041a9f3b433f17a94b7e2babf8c9843e4f0300a635bce6a4488d6029036b0750",
     "src/cartoonTheme.css": "d6748736b56145608cbb7caa1e78d765a4687f631c42ef956b5ea777c0e08385",
     "src/caseAppealPdfAddon.ts": "369a4463c1ae8ca5ff7bf82cc8adb9c1e52615fc5d04820fc21e0f7ae50f6a7f",
-    "src/caseDetailOfficialPdf.ts": "80186f8b7e89f2001de02869421353f758880d619498736876b696fd189e9371",
+    "src/caseDetailOfficialPdf.ts": "98eda7de99988a8f204283b5f597548c2336b1af11ebbd127d989e5b128750b8",
     "src/chatRealtimeStore.ts": "bb91970a0ced12b34d39ba8695be0218014136aa0c21551dbb1292bbb682abc2",
     "src/coachingCanonicalStore.ts": "91f66eade41fee2b043a24cd34c404dde3a43b5cc80871583a82ac7381c6ac9e",
     "src/coachingHistoricalStore.ts": "7a7097bc7ea733777855caf99174665d73666c2870d46f30abdc10b49bbd533f",
