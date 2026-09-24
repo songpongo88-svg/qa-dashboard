@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-24T03:08:01.695Z",
-  "reason": "ย้าย Draft ไป IndexedDB เมื่อ localStorage เต็ม และรับรอง build หลังสคริปต์ปรับหน้า",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "evaluation"
-  ],
+  "reviewedAt": "2026-09-24T03:42:00.000Z",
+  "reason": "ตรวจการซ่อนสถานะหัวข้อย่อยก่อนตุลาคม โดยใช้ Audit Date และไม่เปลี่ยนเนื้อหาคู่มือ",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -308,7 +306,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "693eb4a6b8bbafaf3b979b99df307bcd08ddff10dfc5223f3a03b6d165583526",
-    "src/DashboardMockup.tsx": "34c7bd95e75e386954804ed18f14ef9a18ac8324e68ed8be5695b8f282b126af",
+    "src/DashboardMockup.tsx": "6279b11ec592b152f4702290a4bbf50ff8642662fff0eb2c592a63d0172eec8c",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
