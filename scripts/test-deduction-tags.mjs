@@ -14,7 +14,7 @@ function loadTypeScript(file) {
 }
 
 const { RUBRIC_VERSIONS } = loadTypeScript('../src/lib/rubricVersions.ts');
-const { deductionOptions, deductionTotal, deductionError, buildDeductionAnalysis } = loadTypeScript('../src/lib/evaluation/deductionTags.ts');
+const { deductionOptions, deductionTotal, deductionError, subtopicDeductionStatuses, buildDeductionAnalysis } = loadTypeScript('../src/lib/evaluation/deductionTags.ts');
 const topic = RUBRIC_VERSIONS.find(item => item.code === 'QA-2026-08').topics[0];
 const [process, ...otherOptions] = deductionOptions(topic);
 assert.equal(otherOptions.length, 6);
@@ -27,25 +27,37 @@ assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { sub
 assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { subtopic: 'Unlisted', points: 6 }]), /เลือก/);
 assert.match(deductionError(topic, 12, [{ subtopic: process, points: 12 }, { subtopic: otherOptions[3], points: null }]), /จำนวนเต็ม/);
 assert.deepEqual(deductionOptions(RUBRIC_VERSIONS[0].topics[0]), [RUBRIC_VERSIONS[0].topics[0].title]);
+const taggedStatuses = subtopicDeductionStatuses(topic, 12, tags);
+assert.equal(taggedStatuses.find(row => row.subtopic === process).status, 'deducted');
+assert.equal(taggedStatuses.find(row => row.subtopic === process).points, 12);
+assert.equal(taggedStatuses.find(row => row.subtopic === otherOptions[0]).status, 'not_deducted');
+assert.ok(subtopicDeductionStatuses(topic, topic.max).every(row => row.status === 'not_deducted'));
+assert.ok(subtopicDeductionStatuses(topic, 12).every(row => row.status === 'unknown'), 'missing historical tags do not mean zero deduction');
+assert.equal(subtopicDeductionStatuses(topic, 12, [{ subtopic: process, points: 12 }]).find(row => row.subtopic === otherOptions[0]).status, 'unknown');
 
 const rows = [
-  { caseId: 'AA1', agentName: 'Agent A', auditDate: '2026-09-01', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title, deductions: tags }] },
-  { caseId: 'AA2', agentName: 'Agent B', auditDate: '2026-09-02', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title, deductions: [{ subtopic: process, points: 12 }] }] },
-  { caseId: 'AA3', agentName: 'Agent C', auditDate: '2026-09-03', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title }] },
+  { caseId: 'AA1', agentName: 'Agent A', auditDate: '2026-09-01', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title, score: 12, max: 30, deductions: tags }] },
+  { caseId: 'AA2', agentName: 'Agent B', auditDate: '2026-09-02', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title, score: 18, max: 30, deductions: [{ subtopic: process, points: 12 }] }] },
+  { caseId: 'AA3', agentName: 'Agent C', auditDate: '2026-09-03', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title, score: 30, max: 30 }] },
+  { caseId: 'AA5', agentName: 'Agent E', auditDate: '2026-09-05', qaScheme: 'QA-2026-08', topics: [{ code: topic.code, title: topic.title, score: 18, max: 30 }] },
   { caseId: '', agentName: 'Agent D', auditDate: '2026-09-04', qaScheme: 'QA-2026-08', evaluationType: 'no_case_month', topics: [{ code: topic.code, title: topic.title, deductions: tags }] },
 ];
-const analysis = buildDeductionAnalysis(rows);
+const analysis = buildDeductionAnalysis(rows, RUBRIC_VERSIONS);
 assert.equal(analysis.detailRows.length, 3);
 assert.equal(analysis.summaryRows[0]['Deducted Points'], 24);
 assert.equal(analysis.summaryRows[0]['Share of Tagged Deducted Points (%)'], 80);
 assert.equal(analysis.summaryRows[0]['Cases With This Deduction (%)'], 66.67);
 assert.equal(analysis.summaryRows[1]['Deducted Points'], 6);
 assert.equal(analysis.summaryRows[1]['Share of Tagged Deducted Points (%)'], 20);
-assert.equal(analysis.summaryRows[1]['Evaluated Cases'], 3);
+assert.equal(analysis.summaryRows[1]['Evaluated Cases'], 4);
+assert.equal(analysis.summaryRows[1]['Known Status Cases'], 3);
+assert.equal(analysis.summaryRows[1]['Not Deducted Cases'], 2);
+assert.equal(analysis.statusRows.filter(row => row['Case ID'] === 'AA3' && row['Deduction Status'] === 'Not Deducted').length, 7);
+assert.equal(analysis.statusRows.filter(row => row['Case ID'] === 'AA5' && row['Deduction Status'] === 'Unknown').length, 7);
 const mixedRubric = buildDeductionAnalysis([...rows, {
   caseId: 'AA4', agentName: 'Agent D', auditDate: '2026-02-01', qaScheme: 'QA-2026-01-02',
   topics: [{ code: '1', title: 'Older opening criterion' }],
-}]);
+}], RUBRIC_VERSIONS);
 assert.equal(mixedRubric.summaryRows[0]['Cases With This Deduction (%)'], 66.67, 'case percentages use eligible cases in the same rubric');
 const storeSource = fs.readFileSync(new URL('../src/evaluationStore.ts', import.meta.url), 'utf8');
 const syntaxTree = ts.createSourceFile('evaluationStore.ts', storeSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);

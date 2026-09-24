@@ -67,6 +67,18 @@ assert.equal(cases.filter(item => item.monthKey === '2026-03').length, 120);
 assert.equal(cases.length, 560);
 console.log('PASS real workbooks: January 100, February 100, ten cases per Agent; later months and Case Date preserved');
 
+const rawEvaluation = { agent: 'Example Agent', caseId: 'SAME-001', monthKey: '2026-09', auditDateObj: new Date('2026-09-05'),
+  rawDataFileName: 'current.xlsx', topics: [{ code: '1', score: 12, max: 30, comment: 'raw evaluation' }] };
+const savedEvaluation = { ...rawEvaluation, qaScheme: 'QA-2026-08', topics: [{ code: '1', score: 12, max: 30,
+  deductions: [{ subtopic: 'SLA', points: 18 }] }] };
+const mergedEvaluation = mapping.mergeRawAndStoredEvaluationCases([rawEvaluation], [savedEvaluation])[0];
+assert.deepEqual(mergedEvaluation.topics[0].deductions, savedEvaluation.topics[0].deductions);
+assert.equal(mergedEvaluation.qaScheme, 'QA-2026-08');
+const mismatchedEvaluation = mapping.mergeRawAndStoredEvaluationCases([rawEvaluation], [
+  { ...savedEvaluation, topics: [{ ...savedEvaluation.topics[0], score: 13 }] },
+])[0];
+assert.equal(mismatchedEvaluation.topics[0].deductions, undefined);
+
 const preview = run(read('src/ThemePreview.tsx').replace(/^import .*;\n/gm, ''), { React, WEEKDAY_IDS });
 for (let i = 0; i < WEEKDAY_IDS.length; i++) {
   const html = renderToStaticMarkup(React.createElement(preview.default, { themeId: WEEKDAY_IDS[i], option: { swatches: ['#111', '#222', '#333'] } }));

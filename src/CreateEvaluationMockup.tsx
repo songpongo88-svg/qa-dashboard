@@ -17,11 +17,12 @@ import {
 } from "./evaluationStore";
 import {
   RUBRIC_GROUP_LABELS,
+  RUBRIC_VERSIONS,
   formatRubricDate,
   getRubricForDate,
   type RubricTopic,
 } from "./lib/rubricVersions";
-import { buildDeductionAnalysis, deductionError, deductionOptions, deductionTotal, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
+import { buildDeductionAnalysis, deductionError, deductionOptions, deductionTotal, subtopicDeductionStatuses, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
@@ -2074,7 +2075,10 @@ export default function CreateEvaluationMockup({
     const workbook = XLSX.utils.book_new();
     const worksheet = buildRawDataWorksheet(exportRows);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Raw_Data");
-    const { detailRows, summaryRows } = buildDeductionAnalysis(filteredSubmitted);
+    const { detailRows, statusRows, summaryRows } = buildDeductionAnalysis(filteredSubmitted, RUBRIC_VERSIONS);
+    if (statusRows.length) {
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(statusRows), "Deduction_Status");
+    }
     if (detailRows.length) {
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(detailRows), "Deduction_Detail");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Deduction_Summary");
@@ -3040,6 +3044,7 @@ export default function CreateEvaluationMockup({
                                         หักรวม {deductionTotal(deductions)}{selectedScore === null ? "" : ` / ${topic.max - selectedScore}`} คะแนน
                                       </span>
                                     </div>
+                                    <p className="mt-2 text-xs text-amber-900">เลือกเฉพาะหัวข้อย่อยที่ถูกหักคะแนน ข้อที่ไม่หักไม่ต้องเลือก</p>
                                     <div className="mt-2 space-y-2">
                                       {deductions.map((item, deductionIndex) => (
                                         <div key={deductionIndex} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_100px_auto] sm:items-end">
@@ -3080,6 +3085,18 @@ export default function CreateEvaluationMockup({
                                       disabled={deductions.length >= deductionChoices.length}
                                       className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                                     >+ เพิ่มจุดที่หัก</button>
+                                    {selectedScore !== null ? (
+                                      <div className="mt-3 grid gap-2 sm:grid-cols-2" aria-label={`สถานะหัวข้อย่อย ${topic.code}`}>
+                                        {subtopicDeductionStatuses(topic, selectedScore, deductions).map((entry) => (
+                                          <div key={entry.subtopic} className="flex flex-wrap items-start justify-between gap-1 rounded-lg border border-amber-100 bg-white px-3 py-2 text-xs text-slate-800">
+                                            <span className="min-w-0 flex-1">{entry.subtopic}</span>
+                                            <span className={`font-extrabold ${entry.status === "deducted" ? "text-rose-700" : entry.status === "not_deducted" ? "text-emerald-700" : "text-slate-500"}`}>
+                                              {entry.status === "deducted" ? `หัก ${entry.points} คะแนน` : entry.status === "not_deducted" ? "ไม่หัก · 0 คะแนน" : "รอระบุจุดที่หักให้ครบ"}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : null}
                                     {deductionProblem ? <p role="alert" className="mt-2 text-xs font-bold text-rose-700">{deductionProblem}</p> : null}
                                   </div>
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">

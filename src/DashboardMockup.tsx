@@ -40,7 +40,8 @@ import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
 import MonthlyKpiNotice from "./MonthlyKpiNotice";
 import { fetchStoredRolePermissions } from "./userRoleStore";
 import { ProcessReferenceDisplay } from "./processLibrary";
-import type { DeductionTag } from "./lib/evaluation/deductionTags";
+import { subtopicDeductionStatuses, type DeductionTag } from "./lib/evaluation/deductionTags";
+import { RUBRIC_VERSIONS } from "./lib/rubricVersions";
 // process-library-v65
 // evaluation-last-updated-v87-dashboard
 // evaluation-last-updated-v89-layout-dashboard
@@ -68,6 +69,7 @@ type CaseItem = {
   hasAppealHistory?: boolean;
   key: string;
   evaluationKey: string;
+  qaScheme?: string;
   agent: string;
   targetUsername?: string;
   evaluatorName?: string;
@@ -1469,6 +1471,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
       return {
         key: evaluationKey,
         evaluationKey,
+        qaScheme: record.qaScheme,
         isTestCase: isTestCaseEvaluation(record),
         agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
         targetUsername: record.targetUsername,
@@ -2486,6 +2489,7 @@ function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
 
 function CaseDetailTopicTable({
   topics,
+  qaScheme,
   revisedTopics,
   reviewStatus,
   displayRevisedTopicCodes = [],
@@ -2499,6 +2503,7 @@ function CaseDetailTopicTable({
   originalAuditDate,
 }: {
   topics: Topic[];
+  qaScheme?: string;
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
   displayRevisedTopicCodes?: string[];
@@ -2513,6 +2518,7 @@ function CaseDetailTopicTable({
 }) {
   // case-detail-original-comment-metadata-v1
   const displayCodeSet = new Set(displayRevisedTopicCodes);
+  const rubric = RUBRIC_VERSIONS.find((version) => version.code === qaScheme);
 
   const rows = topics
     .map((originalTopic) => {
@@ -2670,17 +2676,39 @@ function CaseDetailTopicTable({
                   </div>
                 </div>
               )}
-              {row.originalTopic.deductions?.length ? (
-                <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4 text-sm text-amber-950">
-                  <div className="font-extrabold">{row.changed ? "จุดที่หักจากผลประเมินเดิม" : "จุดที่หัก"}</div>
-                  {row.originalTopic.deductions.map((entry) => (
-                    <div key={entry.subtopic} className="mt-2 flex flex-wrap justify-between gap-2">
-                      <span>{entry.subtopic}</span>
-                      <span className="font-extrabold">-{entry.points} คะแนน</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              {(() => {
+                const rubricTopic = rubric?.topics.find((topic) => topic.code === row.originalTopic.code);
+                const statuses = rubricTopic
+                  ? subtopicDeductionStatuses(rubricTopic, row.originalTopic.score, row.originalTopic.deductions)
+                  : [];
+                const complete = statuses.length > 0 && statuses.every((entry) => entry.status !== "unknown");
+                if (!rubricTopic && !row.originalTopic.deductions?.length) return null;
+                return (
+                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-900">
+                    <div className="font-extrabold">{row.changed ? "สถานะหัวข้อย่อยจากผลประเมินเดิม" : "สถานะหัวข้อย่อย"}</div>
+                    {statuses.length ? (
+                      <div className="mt-3 space-y-2">
+                        {statuses.map((entry) => (
+                          <div key={entry.subtopic} className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-200 pb-2 last:border-b-0 last:pb-0">
+                            <span className="min-w-0 flex-1">{entry.subtopic}</span>
+                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold ${entry.status === "deducted" ? "bg-rose-100 text-rose-800" : entry.status === "not_deducted" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}`}>
+                              {entry.status === "deducted" ? `หัก ${entry.points} คะแนน` : entry.status === "not_deducted" ? "ไม่หัก · 0 คะแนน" : "ไม่มีข้อมูลจุดที่หัก"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : row.originalTopic.deductions?.map((entry) => (
+                      <div key={entry.subtopic} className="mt-2 flex flex-wrap justify-between gap-2">
+                        <span>{entry.subtopic}</span><span className="font-extrabold text-rose-800">หัก {entry.points} คะแนน</span>
+                      </div>
+                    ))}
+                    {rubricTopic && !complete ? (
+                      <p className="mt-3 text-xs text-slate-600">ข้อมูลจุดที่หักของผลประเมินนี้ยังไม่ครบ จึงไม่สรุปว่าหัวข้อย่อยที่ไม่มีแท็กเป็นข้อที่ไม่หัก</p>
+                    ) : null}
+                    {row.changed ? <p className="mt-2 text-xs text-slate-600">สถานะนี้อ้างอิงคะแนนก่อนการทบทวนผล</p> : null}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )) : (
@@ -3154,6 +3182,13 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
               targetUsername: existing.targetUsername || item.targetUsername,
               evaluatorName: existing.evaluatorName || item.evaluatorName,
               processReference: existing.processReference || item.processReference,
+              qaScheme: item.qaScheme,
+              topics: existing.topics?.map((rawTopic) => {
+                const storedTopic = item.topics?.find((topic) => topic.code === rawTopic.code);
+                return storedTopic && storedTopic.score === rawTopic.score && storedTopic.max === rawTopic.max
+                  ? { ...rawTopic, deductions: storedTopic.deductions }
+                  : rawTopic;
+              }) || existing.topics,
             });
           }
         }
@@ -4841,6 +4876,7 @@ function SlideOverCaseDetail({
               ) : null}
               <CaseDetailTopicTable
                 topics={caseItem.topics}
+                qaScheme={caseItem.qaScheme}
                 revisedTopics={caseItem.revisedTopics}
                 reviewStatus={caseItem.reviewStatus}
                 displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
