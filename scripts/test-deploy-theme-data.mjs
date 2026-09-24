@@ -38,6 +38,14 @@ plugin.generateBundle.call({ emitFile: value => { emitted = value; } });
 assert.equal(emitted.fileName, 'build-meta.json'); assert.deepEqual(JSON.parse(emitted.source), meta);
 console.log('PASS metadata is generated per build, including same-commit redeploys');
 
+const appSource = read('src/App.tsx');
+assert.match(appSource, /CENTRAL_EVALUATION_TEXT_LIMIT\s*=\s*32000/, 'evaluation text must not be truncated at the old 2,800-character limit');
+assert.doesNotMatch(appSource, /CENTRAL_EVALUATION_TEXT_LIMIT\s*=\s*2800/);
+const evaluationStoreSource = read('src/evaluationStore.ts');
+assert.match(evaluationStoreSource, /qa-dashboard:create-evaluation:history"/, 'current local evaluation history key must be recoverable');
+assert.match(evaluationStoreSource, /truncated for central storage\|trimmed for central sync/, 'stored evaluation recovery must recognize historical truncation markers');
+console.log('PASS evaluation storage preserves normal-length full text and recognizes historical truncated records');
+
 const identity = run(read('src/lib/agentIdentity.ts'));
 const mapping = functions('src/DashboardMockup.tsx', ['readWorkbookWithSerialDates', 'normalizeText', 'normalizeHeaderComparable', 'buildHeaderHelpers', 'getFirstAvailableHeaderValue', 'roundExcelLikeMinute', 'excelDateToJSDate', 'parseMonthLabelDate', 'getReportingMonthDate', 'getMonthKey', 'normalizeEvaluationKeyPart', 'buildCaseMergeKey', 'mergeRawAndStoredEvaluationCases'], { XLSX, ...identity, RAW_DATA_JAN_FEB_FILE_NAME: 'QA_RawData_January-February2026.xlsx' });
 function rawCases(fileName) {
