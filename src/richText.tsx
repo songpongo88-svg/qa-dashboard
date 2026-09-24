@@ -78,7 +78,8 @@ export function sanitizeRichTextHtml(value: unknown, preserveWhitespace = false)
       if (color) safeElement.style.color = color;
       if (element.style.fontWeight === "bold" || Number(element.style.fontWeight) >= 600) safeElement.style.fontWeight = "bold";
       if (element.style.fontStyle === "italic") safeElement.style.fontStyle = "italic";
-      if (element.style.textDecoration.includes("underline")) safeElement.style.textDecoration = "underline";
+      const textDecoration = `${element.style.textDecoration} ${element.style.textDecorationLine}`;
+      if (textDecoration.includes("underline")) safeElement.style.textDecoration = "underline";
     }
     Array.from(element.childNodes).forEach((child) => appendSafeNode(child, safeElement));
     target.appendChild(safeElement);
@@ -140,7 +141,8 @@ export function parseRichTextRuns(value: unknown, preserveWhitespace = false): R
     const nextStyle = { ...style };
     if (tagName === "STRONG" || tagName === "B" || element.style.fontWeight === "bold" || Number(element.style.fontWeight) >= 600) nextStyle.bold = true;
     if (tagName === "EM" || tagName === "I" || element.style.fontStyle === "italic") nextStyle.italic = true;
-    if (tagName === "U" || element.style.textDecoration.includes("underline")) nextStyle.underline = true;
+    const textDecoration = `${element.style.textDecoration} ${element.style.textDecorationLine}`;
+    if (tagName === "U" || textDecoration.includes("underline")) nextStyle.underline = true;
     const color = normalizeColor(element.style.color || "");
     if (color) nextStyle.color = color;
 
@@ -198,6 +200,7 @@ export function hasRichTextContent(value: unknown) {
 }
 
 const RICH_TEXT_SURFACE_CLASS = [
+  "[&_u]:underline",
   "[&_table]:my-3 [&_table]:w-full [&_table]:border-collapse",
   "[&_td]:min-w-[72px] [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-2",
   "[&_th]:min-w-[72px] [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-2 [&_th]:font-bold",
