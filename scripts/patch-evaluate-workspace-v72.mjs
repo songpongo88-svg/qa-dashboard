@@ -107,7 +107,7 @@ const newWorkspace = String.raw`        <div className="overflow-hidden rounded-
               </span>
 
               <span title="เปิดรายการ Draft ที่บันทึกไว้ เพื่อเลือกกลับมาทำต่อ" className="inline-flex">
-                <button type="button" onClick={() => setWorkspaceView("drafts")} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 hover:shadow-md">
+                <button type="button" onClick={openDraftQueue} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 hover:shadow-md">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5h16v14H4z"/><path d="M4 9h16M9 9v10"/></svg>
                   Draft Queue
                   <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] text-white">{draftInbox.length}</span>

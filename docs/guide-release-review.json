@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-24T02:19:01.277Z",
-  "reason": "คำนวณคะแนนจากจุดที่หักอัตโนมัติตั้งแต่ตุลาคมและเลือกคะแนนหักจากรายการ",
+  "reviewedAt": "2026-09-24T02:28:34.923Z",
+  "reason": "ตรวจ Draft Queue หลังสลับแท็บและยืนยันการบันทึก Draft",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation"
@@ -237,7 +237,7 @@
     "scripts/patch-edit-tabs-process-picker-v85b.mjs": "c4092a1bd80ea58c8ac61e59872dc2d76b819217988f75a38d58a94e01b2192c",
     "scripts/patch-edit-tabs-process-picker-v85c.mjs": "ad83465c1fff94cf71383b90e1a98c76d375b3c7a3202b8ebebc975d030d50e9",
     "scripts/patch-evaluate-workspace-edit-tabs-v85.mjs": "4ea39bb382a11f2ab99073325af3be77792ac525a50e35369bb5ccc08da1c3f6",
-    "scripts/patch-evaluate-workspace-v72.mjs": "acded8ca6008c6a1c77ad7e08aa0f70cfe7b7e0f86dd8113e324d6295a07c255",
+    "scripts/patch-evaluate-workspace-v72.mjs": "045a294cbda9f5461ca3df09de2ec093fcd68ceb1a2bbe1fbb4d7ba41a00454c",
     "scripts/patch-evaluation-last-updated-v86.mjs": "c493c9a8a877b343ca821e837a9832c471f98acfb51234563f1828164d4cdebd",
     "scripts/patch-evaluation-last-updated-v87-compat.mjs": "7cd5d43181c33cd9ef6fb6c95030250cc6d2627eff79dd027f2ca65b1183e40d",
     "scripts/patch-evaluation-last-updated-v87-pdf-fallback.mjs": "4f1bfba5c4888d99cce83c98ac7cc5619e5a09360be88ab096bd069a207398fe",
@@ -306,7 +306,7 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
-    "src/CreateEvaluationMockup.tsx": "1b0c056e7914a7245a7a4f528f886f275c3e4685d78d0722bbd8dba0cfa3f436",
+    "src/CreateEvaluationMockup.tsx": "e1e0825aef45ababae9ccb93d5f76e20377155d0affd400046374da16d1b6f70",
     "src/DashboardMockup.tsx": "34c7bd95e75e386954804ed18f14ef9a18ac8324e68ed8be5695b8f282b126af",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",

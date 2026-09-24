@@ -868,7 +868,6 @@ export default function CreateEvaluationMockup({
   onSubmitEvaluation?: (payload: EvaluationSubmitPayload) => void | Promise<void>;
 }) {
   const stickyNoteOwner = currentUser?.username || currentUser?.email || "anonymous";
-  const restoredEvaluateTabMemoryRef = useRef(Boolean(readEvaluateTabMemory()));
   const [agentName, setAgentName] = useState(() => readEvaluateTabMemory()?.agentName || "");
   const [auditDate, setAuditDate] = useState(() => readEvaluateTabMemory()?.auditDate || todayInputValue());
   const [waitingTime, setWaitingTime] = useState(() => readEvaluateTabMemory()?.waitingTime || "");
@@ -899,7 +898,14 @@ export default function CreateEvaluationMockup({
   const [stickyNoteMessage, setStickyNoteMessage] = useState("");
   const [stickyNoteReady, setStickyNoteReady] = useState(false);
   const stickyNoteDirtyRef = useRef(false);
-  const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
+  const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) || "[]");
+      return Array.isArray(stored) ? stored as EvaluationDraft[] : [];
+    } catch {
+      return [];
+    }
+  });
   const [activeDraftId, setActiveDraftId] = useState(() => readEvaluateTabMemory()?.activeDraftId || "");
   const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState(
     () => readEvaluateTabMemory()?.activeSubmittedRecordId || ""
@@ -1092,7 +1098,6 @@ export default function CreateEvaluationMockup({
   }, [activeRubric.code, topics]);
 
   useEffect(() => {
-    if (restoredEvaluateTabMemoryRef.current) return;
     const rawDrafts = window.localStorage.getItem(DRAFT_STORAGE_KEY);
     const rawLegacyDraft = window.localStorage.getItem(LEGACY_DRAFT_STORAGE_KEY);
     if (!rawDrafts && !rawLegacyDraft) return;
@@ -1105,13 +1110,11 @@ export default function CreateEvaluationMockup({
         window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify([legacyDraft]));
         window.localStorage.removeItem(LEGACY_DRAFT_STORAGE_KEY);
         setDraftInbox([legacyDraft]);
-        loadDraftIntoForm(legacyDraft);
         return;
       }
 
       const normalizedDrafts = sortDrafts(drafts.map(normalizeDraft));
       setDraftInbox(normalizedDrafts);
-      if (normalizedDrafts[0]) loadDraftIntoForm(normalizedDrafts[0]);
     } catch {
       setDraftMessage("Draft could not be loaded. Please save a new draft.");
     }
@@ -1291,8 +1294,18 @@ export default function CreateEvaluationMockup({
 
   function persistDrafts(nextDrafts: EvaluationDraft[]) {
     const sortedDrafts = sortDrafts(nextDrafts.map(normalizeDraft));
-    setDraftInbox(sortedDrafts);
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(sortedDrafts));
+    setDraftInbox(sortedDrafts);
+  }
+
+  function openDraftQueue() {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) || "[]");
+      if (Array.isArray(stored)) setDraftInbox(sortDrafts(stored.map(normalizeDraft)));
+    } catch {
+      setDraftMessage("อ่าน Draft ที่บันทึกไว้ไม่สำเร็จ กรุณาลองเปิด Draft Queue อีกครั้ง");
+    }
+    setWorkspaceView("drafts");
   }
 
   function persistHistory(nextHistory: EvaluationRecord[]) {
@@ -1692,7 +1705,12 @@ export default function CreateEvaluationMockup({
     const savedAtMs = now.getTime();
     const draft = buildCurrentDraft(savedAt, savedAtMs);
     const nextDrafts = [draft, ...draftInbox.filter((item) => (item.draftId || makeDraftId(item.caseId, item.auditDate)) !== draft.draftId)];
-    persistDrafts(nextDrafts);
+    try {
+      persistDrafts(nextDrafts);
+    } catch {
+      setDraftMessage("บันทึก Draft ไม่สำเร็จ พื้นที่เก็บข้อมูลในเบราว์เซอร์อาจเต็ม กรุณาตรวจสอบก่อนออกจากหน้านี้");
+      return;
+    }
     setActiveDraftId(draft.draftId || "");
     setEvaluationStartedAt(draft.evaluationStartedAt);
     setEvaluationStatus("Draft");
@@ -2335,7 +2353,7 @@ export default function CreateEvaluationMockup({
             <div className="bg-slate-950 p-5 text-white">
               <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">Workspace Actions</div>
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
+                <button type="button" onClick={openDraftQueue} className="relative rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
                   Draft Queue
                   <span className="ml-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
                 </button>
