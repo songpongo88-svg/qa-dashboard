@@ -235,25 +235,25 @@ if (!pdfSource.includes(pdfMarker)) {
     "auto-height appeal date and status row",
     `    const secondSelectionRowH = autoRowHeight(
       [
-        { value: auditText, w: wOf(1), size: 6.4, padY: 4 },
+        { value: auditValueText, w: wOf(1), size: 6.2, padY: lastUpdatedText ? 5.2 : 4 },
         { value: caseDateText, w: wOf(3), size: 6.4, padY: 4 },
         { value: reportScore.toFixed(2), w: wOf(5), size: 8.2, padY: 4 },
         { value: grade, w: wOf(7), size: 8.2, padY: 4 },
       ],
       10,
-      14
+      lastUpdatedText ? 18 : 14
     );`,
     `    const appealStatusText = hasAppealUpdate ? safeText(caseItem.pdfAppealStatus) : reportScore.toFixed(2);
     const reviewedDateText = hasAppealUpdate ? safeText(caseItem.pdfAppealReviewedAt, "-") : grade;
     const secondSelectionRowH = autoRowHeight(
       [
-        { value: auditText, w: wOf(1), size: 6.2, padY: 4.4 },
+        { value: auditValueText, w: wOf(1), size: 6.2, padY: lastUpdatedText ? 5.2 : 4.4 },
         { value: caseDateText, w: wOf(3), size: 6.2, padY: 4.4 },
         { value: appealStatusText, w: wOf(5), size: hasAppealUpdate ? 6.5 : 8.2, padY: 4.4 },
         { value: reviewedDateText, w: wOf(7), size: hasAppealUpdate ? 5.8 : 8.2, padY: 4.4 },
       ],
       10,
-      hasAppealUpdate ? 20 : 14
+      hasAppealUpdate ? 20 : (lastUpdatedText ? 18 : 14)
     );`
   );
 
@@ -273,20 +273,6 @@ if (!pdfSource.includes(pdfMarker)) {
     "original KPI and appeal update rows",
     `    y += secondSelectionRowH;
 
-    // Preserve Last Updated in the official Case Detail PDF when an evaluation was edited.
-    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
-    if (lastUpdatedText) {
-      addPageIfNeeded(8);
-      label(0, y, 1, 8, "Last Updated");
-      value(1, y, 7, 8, lastUpdatedText, LIGHT_PURPLE, {
-        align: "left",
-        valign: "middle",
-        maxLines: 2,
-        size: 6.4,
-      });
-      y += 8;
-    }
-
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     const inquiryRowH = Math.max(12, Math.min(28, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
     addPageIfNeeded(inquiryRowH);
@@ -303,20 +289,6 @@ if (!pdfSource.includes(pdfMarker)) {
     });
     y += inquiryRowH;`,
     `    y += secondSelectionRowH;
-
-    // Preserve Last Updated in the official Case Detail PDF when an evaluation was edited.
-    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
-    if (lastUpdatedText) {
-      addPageIfNeeded(8);
-      label(0, y, 1, 8, "Last Updated");
-      value(1, y, 7, 8, lastUpdatedText, LIGHT_PURPLE, {
-        align: "left",
-        valign: "middle",
-        maxLines: 2,
-        size: 6.4,
-      });
-      y += 8;
-    }
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     if (hasAppealUpdate) {
