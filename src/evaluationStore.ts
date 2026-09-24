@@ -22,7 +22,10 @@ const FIREBASE_EVALUATION_COLLECTION = String(
   env.VITE_FIREBASE_QA_EVALUATION_COLLECTION || env.VITE_QA_EVALUATION_TABLE || "qa_evaluations"
 );
 
-const LOCAL_EVALUATION_HISTORY_KEY = "qa-dashboard:create-evaluation:history:v2";
+const LOCAL_EVALUATION_HISTORY_KEYS = [
+  "qa-dashboard:create-evaluation:history",
+  "qa-dashboard:create-evaluation:history:v2",
+];
 const REMOTE_EVALUATION_CACHE_KEY = "qa-dashboard:create-evaluation:remote-cache:v2";
 const DELETED_EVALUATION_IDS_KEY = "qa-dashboard:create-evaluation:deleted-ids:v2";
 const SUPABASE_REQUEST_TIMEOUT_MS = 2500;
@@ -597,17 +600,19 @@ function readRecoveredLocalEvaluations() {
 
 function readLocalEvaluationHistory() {
   if (typeof window === "undefined") return [];
-  const rawHistory = window.localStorage.getItem(LOCAL_EVALUATION_HISTORY_KEY);
-  if (!rawHistory) return [];
-
-  try {
-    const parsed = JSON.parse(rawHistory);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(toLocalEvaluation).filter(isStoredEvaluationRecord);
-  } catch (error) {
-    console.warn("Load local evaluation history failed", error);
-    return [];
-  }
+  const records: StoredEvaluation[] = [];
+  LOCAL_EVALUATION_HISTORY_KEYS.forEach((storageKey) => {
+    const rawHistory = window.localStorage.getItem(storageKey);
+    if (!rawHistory) return;
+    try {
+      const parsed = JSON.parse(rawHistory);
+      if (!Array.isArray(parsed)) return;
+      parsed.map(toLocalEvaluation).filter(isStoredEvaluationRecord).forEach((item) => records.push(item));
+    } catch (error) {
+      console.warn("Load local evaluation history failed", storageKey, error);
+    }
+  });
+  return mergeEvaluationSources([], records);
 }
 
 function readRemoteEvaluationCache() {
@@ -716,6 +721,87 @@ function forgetDeletedEvaluationMarkers(record: Pick<StoredEvaluation, "id" | "e
   window.localStorage.setItem(DELETED_EVALUATION_IDS_KEY, JSON.stringify([...deletedIds]));
 }
 
+function hasCentralTextTruncation(value: unknown) {
+  return /\[(?:truncated for central storage|trimmed for central sync)\]\s*$/i.test(String(value || "").trim());
+}
+
+function comparableRichText(value: unknown) {
+  return String(value || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:div|p|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasVisibleRichFormatting(value: unknown) {
+  const text = String(value || "");
+  return /<(?:u|strong|b|em|i)\b/i.test(text) ||
+    /<span\b[^>]*style=["'][^"']*(?:text-decoration|font-weight|font-style|color)\s*:/i.test(text);
+}
+
+function preferLocalEvaluationText(remoteValue: unknown, localValue: unknown) {
+  const remoteText = String(remoteValue ?? "");
+  const localText = String(localValue ?? "");
+  if (!localText) return remoteText;
+  if (!remoteText) return localText;
+  if (hasCentralTextTruncation(remoteText) && !hasCentralTextTruncation(localText)) return localText;
+  if (
+    hasVisibleRichFormatting(localText) &&
+    !hasVisibleRichFormatting(remoteText) &&
+    comparableRichText(localText) === comparableRichText(remoteText)
+  ) {
+    return localText;
+  }
+  return remoteText;
+}
+
+function findLocalEvaluationBackup(remote: StoredEvaluation, local: StoredEvaluation[]) {
+  const remoteIds = new Set(evaluationIdentityValues(remote));
+  return local.find((item) => evaluationIdentityValues(item).some((identity) => remoteIds.has(identity))) ||
+    local.find((item) =>
+      String(item.caseId || "").trim().toUpperCase() === String(remote.caseId || "").trim().toUpperCase() &&
+      String(item.auditDate || "").trim() === String(remote.auditDate || "").trim() &&
+      canonicalizeAgentName(item.agentName) === canonicalizeAgentName(remote.agentName)
+    );
+}
+
+function recoverRemoteEvaluationFromLocal(remote: StoredEvaluation, local: StoredEvaluation[]) {
+  const backup = findLocalEvaluationBackup(remote, local);
+  if (!backup) return remote;
+
+  const backupTopics = new Map((backup.topics || []).map((topic) => [topic.code, topic]));
+  return {
+    ...remote,
+    inquiry: preferLocalEvaluationText(remote.inquiry, backup.inquiry),
+    caseDescription: preferLocalEvaluationText(remote.caseDescription, backup.caseDescription),
+    processReference: preferLocalEvaluationText(remote.processReference, backup.processReference),
+    topics: (remote.topics || []).map((topic) => {
+      const localTopic = backupTopics.get(topic.code);
+      if (!localTopic) return topic;
+      const sameScore = Number(localTopic.score) === Number(topic.score) && Number(localTopic.max) === Number(topic.max);
+      if (!sameScore) return topic;
+      return {
+        ...topic,
+        comment: preferLocalEvaluationText(topic.comment, localTopic.comment),
+      };
+    }),
+    rawDataPreview: Object.fromEntries(
+      Object.entries(remote.rawDataPreview || {}).map(([key, value]) => {
+        const localValue = backup.rawDataPreview?.[key];
+        if (typeof value === "number" || typeof localValue === "number") return [key, value];
+        return [key, preferLocalEvaluationText(value, localValue)];
+      })
+    ) as Record<string, string | number>,
+  };
+}
+
 function mergeEvaluationSources(remote: StoredEvaluation[], local: StoredEvaluation[]) {
   const merged = new Map<string, StoredEvaluation>();
   const deletedIds = readDeletedEvaluationIds();
@@ -725,7 +811,12 @@ function mergeEvaluationSources(remote: StoredEvaluation[], local: StoredEvaluat
   });
   remote.forEach((item) => {
     if (isDeletedEvaluation(item, deletedIds)) return;
-    merged.set(item.evaluationKey || item.id, item);
+    const recovered = recoverRemoteEvaluationFromLocal(item, local);
+    const exactLocal = findLocalEvaluationBackup(item, local);
+    if (exactLocal) {
+      merged.delete(exactLocal.evaluationKey || exactLocal.id);
+    }
+    merged.set(recovered.evaluationKey || recovered.id, recovered);
   });
 
   return [...merged.values()].sort((a, b) => {
@@ -1261,10 +1352,13 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
       }
     }).catch(() => []);
 
+    const recoveredFirebaseEvaluations = firebaseEvaluations.map((item) =>
+      recoverRemoteEvaluationFromLocal(item, localEvaluations)
+    );
     const syncedLocalEvaluations = AUTO_SYNC_LOCAL_EVALUATIONS
-      ? await syncLocalEvaluationsToRemote(firebaseEvaluations, localSources)
+      ? await syncLocalEvaluationsToRemote(recoveredFirebaseEvaluations, localSources)
       : [];
-    const availableEvaluations = mergeEvaluationSources([...firebaseEvaluations, ...syncedLocalEvaluations], localSources);
+    const availableEvaluations = mergeEvaluationSources([...recoveredFirebaseEvaluations, ...syncedLocalEvaluations], localSources);
     writeRemoteEvaluationCache(availableEvaluations);
     return limitEvaluationScopes(availableEvaluations, safeLimit);
   }
