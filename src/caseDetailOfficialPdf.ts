@@ -733,19 +733,22 @@ export async function generateOfficialCaseDetailPdf({
     y += firstSelectionRowH;
 
     const auditText = caseItem.auditTimestamp || caseItem.auditDate;
+    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
+    const auditLabelText = lastUpdatedText ? "Audit Date\nLast Updated" : "Audit Date";
+    const auditValueText = lastUpdatedText ? `${auditText}\n${lastUpdatedText}` : auditText;
     const caseDateText = caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp || "-";
     const secondSelectionRowH = autoRowHeight(
       [
-        { value: auditText, w: wOf(1), size: 6.4, padY: 4 },
+        { value: auditValueText, w: wOf(1), size: 6.2, padY: lastUpdatedText ? 5.2 : 4 },
         { value: caseDateText, w: wOf(3), size: 6.4, padY: 4 },
         { value: reportScore.toFixed(2), w: wOf(5), size: 8.2, padY: 4 },
         { value: grade, w: wOf(7), size: 8.2, padY: 4 },
       ],
       10,
-      14
+      lastUpdatedText ? 18 : 14
     );
-    label(0, y, 1, secondSelectionRowH, "Audit Date");
-    value(1, y, 1, secondSelectionRowH, auditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });
+    label(0, y, 1, secondSelectionRowH, auditLabelText);
+    value(1, y, 1, secondSelectionRowH, auditValueText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: lastUpdatedText ? 2 : 1, size: 6.2 });
     label(2, y, 1, secondSelectionRowH, "Case Date");
     value(3, y, 1, secondSelectionRowH, caseDateText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });
     label(4, y, 1, secondSelectionRowH, "Final Score");
@@ -753,20 +756,6 @@ export async function generateOfficialCaseDetailPdf({
     label(6, y, 1, secondSelectionRowH, "Case Grade");
     value(7, y, 1, secondSelectionRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });
     y += secondSelectionRowH;
-
-    // Preserve Last Updated in the official Case Detail PDF when an evaluation was edited.
-    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
-    if (lastUpdatedText) {
-      addPageIfNeeded(8);
-      label(0, y, 1, 8, "Last Updated");
-      value(1, y, 7, 8, lastUpdatedText, LIGHT_PURPLE, {
-        align: "left",
-        valign: "middle",
-        maxLines: 2,
-        size: 6.4,
-      });
-      y += 8;
-    }
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     const inquiryRowH = Math.max(12, Math.min(28, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
@@ -870,18 +859,21 @@ export async function generateOfficialCaseDetailPdf({
     y += appealSelectionRowH;
 
     const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;
+    const appealLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
+    const appealAuditLabelText = appealLastUpdatedText ? "Audit Date\nLast Updated" : "Audit Date";
+    const appealAuditValueText = appealLastUpdatedText ? `${appealAuditText}\n${appealLastUpdatedText}` : appealAuditText;
     const appealSecondRowH = autoRowHeight(
       [
-        { value: appealAuditText, w: wOf(1), size: 6.4, padY: 4 },
+        { value: appealAuditValueText, w: wOf(1), size: 6.2, padY: appealLastUpdatedText ? 5.2 : 4 },
         { value: caseItem.caseId, w: wOf(3), size: 7.2, padY: 4 },
         { value: reportScore.toFixed(2), w: wOf(5), size: 8.4, padY: 4 },
         { value: grade, w: wOf(7), size: 8.4, padY: 4 },
       ],
       10,
-      15
+      appealLastUpdatedText ? 18 : 15
     );
-    label(0, y, 1, appealSecondRowH, "Audit Date");
-    value(1, y, 1, appealSecondRowH, appealAuditText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 3, size: 6.4 });
+    label(0, y, 1, appealSecondRowH, appealAuditLabelText);
+    value(1, y, 1, appealSecondRowH, appealAuditValueText, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: appealLastUpdatedText ? 2 : 1, size: 6.2 });
     label(2, y, 1, appealSecondRowH, "Case ID");
     value(3, y, 1, appealSecondRowH, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 7.2 });
     label(4, y, 1, appealSecondRowH, "Final Score");
@@ -889,19 +881,6 @@ export async function generateOfficialCaseDetailPdf({
     label(6, y, 1, appealSecondRowH, "Case Grade");
     value(7, y, 1, appealSecondRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.4, maxLines: 1 });
     y += appealSecondRowH;
-
-    const appealLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
-    if (appealLastUpdatedText) {
-      addPageIfNeeded(8);
-      label(0, y, 1, 8, "Last Updated");
-      value(1, y, 7, 8, appealLastUpdatedText, LIGHT_PURPLE, {
-        align: "left",
-        valign: "middle",
-        maxLines: 2,
-        size: 6.4,
-      });
-      y += 8;
-    }
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     const inquiryRowH = Math.max(12, Math.min(30, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
