@@ -23,6 +23,7 @@ import {
   type RubricTopic,
 } from "./lib/rubricVersions";
 import { buildDeductionAnalysis, deductionError, deductionOptions, deductionPointOptions, deductionTotal, subtopicDeductionStatuses, topicScoreForDate, usesAutomaticDeductionScoring, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
+import { readDraftQueue, writeDraftQueue } from "./lib/evaluation/draftPersistence";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
@@ -231,8 +232,6 @@ const FALLBACK_AGENT_NAMES = [
 const inputClass =
   "mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-950 shadow-inner outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100";
 const labelClass = "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500";
-const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
-const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 const HISTORY_STORAGE_KEY = "qa-dashboard:create-evaluation:history";
 const REPORT_PAGE_SIZE = 12;
 const RAW_DATA_FILE_NAMES = ["QA_RawData_March-May2026.xlsx"];
@@ -898,14 +897,8 @@ export default function CreateEvaluationMockup({
   const [stickyNoteMessage, setStickyNoteMessage] = useState("");
   const [stickyNoteReady, setStickyNoteReady] = useState(false);
   const stickyNoteDirtyRef = useRef(false);
-  const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>(() => {
-    try {
-      const stored = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) || "[]");
-      return Array.isArray(stored) ? stored as EvaluationDraft[] : [];
-    } catch {
-      return [];
-    }
-  });
+  const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
+  const [draftQueueLoading, setDraftQueueLoading] = useState(true);
   const [activeDraftId, setActiveDraftId] = useState(() => readEvaluateTabMemory()?.activeDraftId || "");
   const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState(
     () => readEvaluateTabMemory()?.activeSubmittedRecordId || ""
@@ -1098,26 +1091,12 @@ export default function CreateEvaluationMockup({
   }, [activeRubric.code, topics]);
 
   useEffect(() => {
-    const rawDrafts = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-    const rawLegacyDraft = window.localStorage.getItem(LEGACY_DRAFT_STORAGE_KEY);
-    if (!rawDrafts && !rawLegacyDraft) return;
-
-    try {
-      const parsedDrafts = rawDrafts ? JSON.parse(rawDrafts) : [];
-      const drafts = Array.isArray(parsedDrafts) ? parsedDrafts as EvaluationDraft[] : [];
-      if (!drafts.length && rawLegacyDraft) {
-        const legacyDraft = normalizeDraft(JSON.parse(rawLegacyDraft) as EvaluationDraft);
-        window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify([legacyDraft]));
-        window.localStorage.removeItem(LEGACY_DRAFT_STORAGE_KEY);
-        setDraftInbox([legacyDraft]);
-        return;
-      }
-
-      const normalizedDrafts = sortDrafts(drafts.map(normalizeDraft));
-      setDraftInbox(normalizedDrafts);
-    } catch {
-      setDraftMessage("Draft could not be loaded. Please save a new draft.");
-    }
+    let cancelled = false;
+    readDraftQueue<EvaluationDraft>()
+      .then((drafts) => { if (!cancelled) setDraftInbox(sortDrafts(drafts.map(normalizeDraft))); })
+      .catch(() => { if (!cancelled) setDraftMessage("อ่าน Draft ที่บันทึกไว้ไม่สำเร็จ กรุณาลองเปิด Draft Queue อีกครั้ง"); })
+      .finally(() => { if (!cancelled) setDraftQueueLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -1292,20 +1271,23 @@ export default function CreateEvaluationMockup({
     };
   }
 
-  function persistDrafts(nextDrafts: EvaluationDraft[]) {
+  async function persistDrafts(nextDrafts: EvaluationDraft[]) {
     const sortedDrafts = sortDrafts(nextDrafts.map(normalizeDraft));
-    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(sortedDrafts));
+    await writeDraftQueue(sortedDrafts);
     setDraftInbox(sortedDrafts);
   }
 
-  function openDraftQueue() {
+  async function openDraftQueue() {
+    setWorkspaceView("drafts");
+    setDraftQueueLoading(true);
     try {
-      const stored = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) || "[]");
-      if (Array.isArray(stored)) setDraftInbox(sortDrafts(stored.map(normalizeDraft)));
+      const drafts = await readDraftQueue<EvaluationDraft>();
+      setDraftInbox(sortDrafts(drafts.map(normalizeDraft)));
     } catch {
       setDraftMessage("อ่าน Draft ที่บันทึกไว้ไม่สำเร็จ กรุณาลองเปิด Draft Queue อีกครั้ง");
+    } finally {
+      setDraftQueueLoading(false);
     }
-    setWorkspaceView("drafts");
   }
 
   function persistHistory(nextHistory: EvaluationRecord[]) {
@@ -1370,9 +1352,15 @@ export default function CreateEvaluationMockup({
     setDraftMessage(normalizedDraft.savedAt ? `Loaded draft saved at ${normalizedDraft.savedAt}` : "Loaded saved draft");
   }
 
-  function deleteDraft(draftId: string) {
-    const nextDrafts = draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId);
-    persistDrafts(nextDrafts);
+  async function deleteDraft(draftId: string) {
+    try {
+      const savedDrafts = await readDraftQueue<EvaluationDraft>();
+      const nextDrafts = savedDrafts.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId);
+      await persistDrafts(nextDrafts);
+    } catch {
+      setDraftMessage("ลบ Draft ไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return;
+    }
     if (activeDraftId === draftId) {
       setActiveDraftId("");
       setDraftSavedAt("");
@@ -1642,7 +1630,12 @@ export default function CreateEvaluationMockup({
       setEvaluationStartedAt(record.evaluationStartedAt || record.submittedAt);
       setEvaluationSubmittedAt(record.submittedAt);
       setEvaluationStatus("Submitted");
-      persistDrafts(draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId));
+      try {
+        const savedDrafts = await readDraftQueue<EvaluationDraft>();
+        await persistDrafts(savedDrafts.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId));
+      } catch (error) {
+        console.warn("Submitted evaluation saved, but its local draft could not be removed", error);
+      }
       setActiveDraftId("");
       setDraftSavedAt("");
 
@@ -1690,7 +1683,8 @@ export default function CreateEvaluationMockup({
     }
   }
 
-  function saveDraft() {
+  async function saveDraft() {
+    if (draftQueueLoading) return;
     if (!validateAgentSelected("saving draft")) return;
 
     if (missingScoreTopics.length) {
@@ -1704,11 +1698,12 @@ export default function CreateEvaluationMockup({
     const savedAt = formatTimestamp(now);
     const savedAtMs = now.getTime();
     const draft = buildCurrentDraft(savedAt, savedAtMs);
-    const nextDrafts = [draft, ...draftInbox.filter((item) => (item.draftId || makeDraftId(item.caseId, item.auditDate)) !== draft.draftId)];
     try {
-      persistDrafts(nextDrafts);
+      const savedDrafts = await readDraftQueue<EvaluationDraft>();
+      const nextDrafts = [draft, ...savedDrafts.filter((item) => (item.draftId || makeDraftId(item.caseId, item.auditDate)) !== draft.draftId)];
+      await persistDrafts(nextDrafts);
     } catch {
-      setDraftMessage("บันทึก Draft ไม่สำเร็จ พื้นที่เก็บข้อมูลในเบราว์เซอร์อาจเต็ม กรุณาตรวจสอบก่อนออกจากหน้านี้");
+      setDraftMessage("บันทึก Draft ไม่สำเร็จ กรุณาตรวจสอบพื้นที่เก็บข้อมูลในเบราว์เซอร์ก่อนออกจากหน้านี้");
       return;
     }
     setActiveDraftId(draft.draftId || "");
@@ -2355,7 +2350,7 @@ export default function CreateEvaluationMockup({
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button type="button" onClick={openDraftQueue} className="relative rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
                   Draft Queue
-                  <span className="ml-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
+                  <span className="ml-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white">{draftQueueLoading ? "…" : draftInbox.length}</span>
                 </button>
                 <button type="button" onClick={() => setWorkspaceView("history")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
                   Evaluation History
@@ -2415,7 +2410,9 @@ export default function CreateEvaluationMockup({
               </button>
             </div>
             <div className="p-5">
-              {draftInbox.length ? (
+              {draftQueueLoading ? (
+                <div className="rounded-[20px] border border-sky-200 bg-sky-50 px-5 py-8 text-center text-sm font-semibold text-slate-700">กำลังโหลด Draft ที่บันทึกไว้...</div>
+              ) : draftInbox.length ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {draftInbox.map((draft) => {
                     const draftId = draft.draftId || makeDraftId(draft.caseId, draft.auditDate);
@@ -3227,7 +3224,7 @@ export default function CreateEvaluationMockup({
                 <button
                   type="button"
                   onClick={saveDraft}
-                  disabled={Boolean(missingScoreTopics.length)}
+                  disabled={draftQueueLoading}
                   className="w-full rounded-xl border border-emerald-300 bg-white px-5 py-3.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
                 >
                   Save Draft

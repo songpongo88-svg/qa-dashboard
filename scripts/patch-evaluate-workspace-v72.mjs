@@ -100,7 +100,7 @@ const newWorkspace = String.raw`        <div className="overflow-hidden rounded-
             <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Workspace Actions</div>
             <div className="flex flex-wrap items-center gap-2">
               <span title="บันทึกข้อมูลที่กำลังทำไว้เป็น Draft เพื่อกลับมาทำต่อภายหลัง" className="inline-flex">
-                <button type="button" onClick={saveDraft} disabled={Boolean(missingScoreTopics.length)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3.5 text-xs font-black text-emerald-800 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:hover:translate-y-0 disabled:hover:shadow-sm">
+                <button type="button" onClick={saveDraft} disabled={draftQueueLoading} className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3.5 text-xs font-black text-emerald-800 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:hover:translate-y-0 disabled:hover:shadow-sm">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg>
                   Save Draft
                 </button>
@@ -110,7 +110,7 @@ const newWorkspace = String.raw`        <div className="overflow-hidden rounded-
                 <button type="button" onClick={openDraftQueue} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 hover:shadow-md">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5h16v14H4z"/><path d="M4 9h16M9 9v10"/></svg>
                   Draft Queue
-                  <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] text-white">{draftInbox.length}</span>
+                  <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] text-white">{draftQueueLoading ? "…" : draftInbox.length}</span>
                 </button>
               </span>
 

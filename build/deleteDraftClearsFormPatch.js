@@ -7,9 +7,15 @@ export function deleteDraftClearsFormPatch() {
       if (!normalized.endsWith("/src/CreateEvaluationMockup.tsx")) return null;
 
       const original = code;
-      const oldBlock = `  function deleteDraft(draftId: string) {
-    const nextDrafts = draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId);
-    persistDrafts(nextDrafts);
+      const oldBlock = `  async function deleteDraft(draftId: string) {
+    try {
+      const savedDrafts = await readDraftQueue<EvaluationDraft>();
+      const nextDrafts = savedDrafts.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId);
+      await persistDrafts(nextDrafts);
+    } catch {
+      setDraftMessage("ลบ Draft ไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return;
+    }
     if (activeDraftId === draftId) {
       setActiveDraftId("");
       setDraftSavedAt("");
@@ -17,13 +23,19 @@ export function deleteDraftClearsFormPatch() {
     setDraftMessage("Draft deleted. The current form stays open until you start another draft.");
   }`;
 
-      const newBlock = `  function deleteDraft(draftId: string) {
-    const nextDrafts = draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId);
+      const newBlock = `  async function deleteDraft(draftId: string) {
     const deletingCurrentDraft =
       activeDraftId === draftId ||
       (!activeSubmittedRecordId && makeDraftId(caseId, auditDate) === draftId);
 
-    persistDrafts(nextDrafts);
+    try {
+      const savedDrafts = await readDraftQueue<EvaluationDraft>();
+      const nextDrafts = savedDrafts.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId);
+      await persistDrafts(nextDrafts);
+    } catch {
+      setDraftMessage("ลบ Draft ไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return;
+    }
 
     if (deletingCurrentDraft) {
       // Delete means delete: remove the saved draft and clear the same case from the live form.
