@@ -103,13 +103,15 @@ export function firestoreQuotaProtectionPatch() {
         "inbox history read limit"
       );
 
-      next = replaceOrThrow(
-        this,
-        next,
-        `    await loadInboxTasks();\n    notifyQaDataChanged();`,
-        `    // Inbox refresh is deferred to its own low-frequency/manual refresh path.\n    notifyQaDataChanged();`,
-        "post-evaluation inbox reload"
-      );
+      const blockingInboxReload = `    await loadInboxTasks();\n    notifyQaDataChanged();`;
+      if (next.includes(blockingInboxReload)) {
+        next = next.replace(
+          blockingInboxReload,
+          `    // Inbox refresh is deferred to its own low-frequency/manual refresh path.\n    notifyQaDataChanged();`
+        );
+      } else if (!next.includes('Post-submit usage log or inbox refresh skipped')) {
+        this.error("Firestore quota protection could not find post-evaluation inbox handling.");
+      }
 
       next = replaceOrThrow(
         this,

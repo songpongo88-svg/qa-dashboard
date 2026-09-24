@@ -24,10 +24,6 @@ export function draftQueueIsolationPatch() {
         `      const normalizedDrafts = sortDrafts(drafts.map(normalizeDraft));\n      setDraftInbox(normalizedDrafts);`
       );
 
-      const draftHeader = `                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-100">Saved Drafts</div>\n                <div className="mt-1 text-xl font-black">Saved Draft Cases</div>\n              </div>\n              <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">`;
-      const draftHeaderReplacement = `                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-100">Saved Drafts</div>\n                <div className="mt-1 text-xl font-black">Saved Draft Cases</div>\n              </div>\n              <button type="button" onClick={() => { resetEvaluationForm(); setWorkspaceView("form"); }} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">`;
-      next = next.replace(draftHeader, draftHeaderReplacement);
-
       // Draft means unfinished work is allowed. Keep the all-score requirement only for Submit.
       const scoreGuard = `    if (missingScoreTopics.length) {\n      const message = \`Please select score for every topic before saving draft. Missing: \${missingScoreText}\`;\n      setDraftMessage(message);\n      window.alert(message);\n      return;\n    }\n\n`;
       next = next.replace(scoreGuard, "");
@@ -49,8 +45,9 @@ export function draftQueueIsolationPatch() {
       if (next.includes("if (normalizedDrafts[0]) loadDraftIntoForm(normalizedDrafts[0]);")) {
         throw new Error("Draft Queue isolation patch failed: latest draft still auto-loads into form");
       }
-      if (!next.includes('onClick={() => { resetEvaluationForm(); setWorkspaceView("form"); }}')) {
-        throw new Error("Draft Queue isolation patch failed: Back to Form does not reset the form");
+      if (!next.includes('onClick={() => setWorkspaceView("form")}') ||
+          next.includes('onClick={() => { resetEvaluationForm(); setWorkspaceView("form"); }}')) {
+        throw new Error("Draft Queue isolation patch failed: Back to Form must preserve the unfinished form");
       }
       if (next.includes("Please select score for every topic before saving draft")) {
         throw new Error("Draft Queue isolation patch failed: Save Draft still requires every topic score");
