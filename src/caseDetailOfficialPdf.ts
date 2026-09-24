@@ -754,6 +754,20 @@ export async function generateOfficialCaseDetailPdf({
     value(7, y, 1, secondSelectionRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });
     y += secondSelectionRowH;
 
+    // Keep Last Updated visible in the official Case Detail PDF whenever the evaluation was edited.
+    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
+    if (lastUpdatedText) {
+      addPageIfNeeded(8);
+      label(0, y, 1, 8, "Last Updated");
+      value(1, y, 7, 8, lastUpdatedText, LIGHT_PURPLE, {
+        align: "left",
+        valign: "middle",
+        maxLines: 2,
+        size: 6.4,
+      });
+      y += 8;
+    }
+
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     const inquiryRowH = Math.max(12, Math.min(28, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
     addPageIfNeeded(inquiryRowH);
@@ -875,6 +889,19 @@ export async function generateOfficialCaseDetailPdf({
     label(6, y, 1, appealSecondRowH, "Case Grade");
     value(7, y, 1, appealSecondRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.4, maxLines: 1 });
     y += appealSecondRowH;
+
+    const appealLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
+    if (appealLastUpdatedText) {
+      addPageIfNeeded(8);
+      label(0, y, 1, 8, "Last Updated");
+      value(1, y, 7, 8, appealLastUpdatedText, LIGHT_PURPLE, {
+        align: "left",
+        valign: "middle",
+        maxLines: 2,
+        size: 6.4,
+      });
+      y += 8;
+    }
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     const inquiryRowH = Math.max(12, Math.min(30, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
