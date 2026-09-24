@@ -44,6 +44,9 @@ try {
   const saved = JSON.parse(JSON.stringify({ topics: [{ comment: sanitizeRichTextHtml(formatted, true) }] })).topics[0].comment;
   assert.equal(richTextToPlainText(saved, true), 'เหตุผล\n\n\nบรรทัดท้าย\n');
   assert.deepEqual(parseRichTextRuns(saved, true)[0], { text: 'เหตุผล', bold: true, underline: true, color: '#dc2626' });
+  const lineStyleUnderline = sanitizeRichTextHtml('<span style="text-decoration-line: underline;">ขีดเส้นใต้</span>', true);
+  assert.match(lineStyleUnderline, /text-decoration:\s*underline/i);
+  assert.equal(parseRichTextRuns(lineStyleUnderline, true)[0].underline, true);
   assert.doesNotMatch(sanitizeRichTextHtml('<b onclick="alert(1)">safe</b><script>alert(2)</script>', true), /onclick|script|alert/);
   assert.ok(hasRichTextContent('<table><tr><td><br></td></tr></table>'));
   assert.ok(hasRichTextContent('<hr>'));
