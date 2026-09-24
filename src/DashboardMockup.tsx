@@ -2490,6 +2490,7 @@ function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
 function CaseDetailTopicTable({
   topics,
   qaScheme,
+  showSubtopicStatuses,
   revisedTopics,
   reviewStatus,
   displayRevisedTopicCodes = [],
@@ -2504,6 +2505,7 @@ function CaseDetailTopicTable({
 }: {
   topics: Topic[];
   qaScheme?: string;
+  showSubtopicStatuses?: boolean;
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
   displayRevisedTopicCodes?: string[];
@@ -2676,7 +2678,7 @@ function CaseDetailTopicTable({
                   </div>
                 </div>
               )}
-              {(() => {
+              {showSubtopicStatuses ? (() => {
                 const rubricTopic = rubric?.topics.find((topic) => topic.code === row.originalTopic.code);
                 const statuses = rubricTopic
                   ? subtopicDeductionStatuses(rubricTopic, row.originalTopic.score, row.originalTopic.deductions)
@@ -2708,7 +2710,7 @@ function CaseDetailTopicTable({
                     {row.changed ? <p className="mt-2 text-xs text-slate-600">สถานะนี้อ้างอิงคะแนนก่อนการทบทวนผล</p> : null}
                   </div>
                 );
-              })()}
+              })() : null}
             </div>
           </div>
         )) : (
@@ -4877,6 +4879,7 @@ function SlideOverCaseDetail({
               <CaseDetailTopicTable
                 topics={caseItem.topics}
                 qaScheme={caseItem.qaScheme}
+                showSubtopicStatuses={caseItem.monthKey >= "2026-10"}
                 revisedTopics={caseItem.revisedTopics}
                 reviewStatus={caseItem.reviewStatus}
                 displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
