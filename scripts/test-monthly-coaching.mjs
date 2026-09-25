@@ -52,7 +52,7 @@ const field = (label,index=0) => [...document.querySelectorAll('label')].filter(
 async function chooseAgent(name='Agent A Full Name') { const row=[...document.querySelectorAll('aside button')].find(e=>e.textContent.includes(name)); await click(row); }
 async function tickTopic(topic) {const checkbox=[...document.querySelectorAll('label')].find(e=>e.textContent.startsWith(topic)&&e.querySelector('input[type=checkbox]')&&!e.querySelector('input').disabled)?.querySelector('input');assert.ok(checkbox);await act(async()=>{checkbox.checked=true;Simulate.change(checkbox);await flush();});}
 try {
-  sessionStorage.setItem('qa-dashboard:monthly-coaching:view:qa',JSON.stringify({month}));
+  sessionStorage.setItem('qa-dashboard:monthly-coaching:view:qa',JSON.stringify({periodVersion:2,month}));
   await mount(qa); await chooseAgent();
   await fill(named('QA Summary'),'QA summary retained across tabs'); await tickTopic('Verify'); await tickTopic('SLA');
   await fill(field('วันที่นัดหมาย'),'2026-09-28'); await fill(field('เวลาเริ่ม (24 ชั่วโมง)'),'14:00');
@@ -65,6 +65,7 @@ try {
   assert.equal(fixture.records.get(id).qaSummary,'QA summary retained across tabs');
   await click(button('นัดหมาย')); await click(button('ส่งให้ Senior'));
   assert.equal(fixture.records.get(id).status,'Waiting Senior'); assert.equal(fixture.records.size,1,'one monthly record reused through transitions');
+  sessionStorage.setItem('qa-dashboard:monthly-coaching:view:lead-a',JSON.stringify({periodVersion:2,month}));
   await mount(seniorA); assert.ok(!text().includes('Agent B Full Name')); await chooseAgent();
   assert.equal(named('QA Summary').readOnly,true); assert.equal(field('วันที่นัดหมาย').disabled,true);
   await fill(field('วันที่ Coaching จริง'),'2026-09-28');await fill(field('เวลาเริ่มจริง'),'14:00');await fill(field('เวลาสิ้นสุดจริง'),'15:00');
@@ -80,12 +81,36 @@ try {
   const previous=structuredClone(fixture.records.get(id));
   await fill(named('เดือน Coaching'),'10');assert.ok(text().includes('Coaching ล่าสุด · 2026-09'));assert.ok(text().includes('Plan 1'));assert.equal(named('QA Summary').value,'');
   await fill(named('QA Summary'),'October new record');await click(button('บันทึก Draft'));assert.equal(fixture.records.size,2);assert.deepEqual(fixture.records.get(id),previous,'next month must not modify previous month');
-  await click(button('ประวัติ Coaching'));assert.ok(text().includes('Plan 2'));assert.ok(text().includes('2026-09'));
+  await click(button('ประวัติ Coaching'));assert.ok(text().includes('Plan 2'));assert.ok(text().includes('September 2026'));
   const latest = await m.fetchStoredCoachingRecords({allowCache:false});const old=latest.find(r=>r.id===id);
   await assert.rejects(()=>m.saveMonthlyCoachingRecord({...old,status:'Closed'},qa,accounts,'stale-version'),/ข้อมูลใหม่/);
   await assert.rejects(()=>m.saveMonthlyCoachingRecord({...old,status:'Coaching In Progress'},seniorB,accounts,old.updatedAt),/ไม่มีสิทธิ์/);
   const malicious={...old,qaSummary:'altered by senior',agentId:'agent-b',team:'Wrong Team',seniorId:'lead-ann',actions:[{id:'x',plan:'New plan'}]};
   const merged=m.mergeMonthlyCoachingSave(old,malicious,'Senior');assert.equal(merged.qaSummary,old.qaSummary);assert.equal(merged.agentId,'agent-a');assert.equal(merged.team,'Team A');assert.equal(merged.seniorId,'lead-a');
   fixture.readError=true;await assert.rejects(()=>m.fetchStoredCoachingRecords({allowCache:false}),/offline/);fixture.readError=false;
+  assert.equal(m.currentCoachingMonth(new Date('2026-08-31T17:00:00Z')),'2026-09','Bangkok midnight uses the new Gregorian month');
+  assert.equal(m.initialCoachingMonth({month:'2025-08'},month),month,'migrate the old cached year once');
+  assert.equal(m.initialCoachingMonth({periodVersion:2,month:'2026-08'},month),'2026-08','keep intentional period selections');
+  const beforeArchive=JSON.stringify([...fixture.records]);
+  for (const legacyMonth of m.HISTORICAL_COACHING_MONTHS) {
+    await fill(named('เดือน Coaching'),legacyMonth.slice(5));
+    await click(button('ข้อมูล Coaching'));
+    assert.equal(named('QA Summary'),null,'historical period has no new workflow form');
+    assert.equal(button('บันทึก Draft'),undefined);
+    assert.ok([...document.querySelectorAll('aside button')].filter(e=>e.textContent.includes('Full Name')).every(e=>e.textContent.includes('Coaching แล้ว')));
+    await mount(qa);assert.equal(named('เดือน Coaching').value,legacyMonth.slice(5),'history selection survives tab navigation');
+    assert.match(m.coachingSaveError(qa.role,null,{...old,monthKey:legacyMonth,status:'Draft'}),/กันยายน 2026/);
+    await assert.rejects(()=>m.saveMonthlyCoachingRecord({...old,id:m.monthlyCoachingId(agentA.username,legacyMonth),monthKey:legacyMonth,status:'Draft'},qa,accounts,null),/กันยายน 2026/);
+  }
+  assert.equal(JSON.stringify([...fixture.records]),beforeArchive,'historical display must not rewrite stored coaching, scores or notes');
+  assert.equal(m.isHistoricalCoachingMonth('2025-08'),false);
+  assert.equal(m.isHistoricalCoachingMonth('2026-09'),false);
+  await fill(field('สถานะ'),'Coaching แล้ว');assert.ok(text().includes('Agent A Full Name'));
+  await fill(named('ปี Coaching'),'2025');assert.ok(!document.querySelector('main').textContent.includes('Coaching แล้ว'),'2025 is not forced complete');
+  await click(button('เดือนปัจจุบัน'));assert.equal(named('ปี Coaching').value,m.currentCoachingMonth().slice(0,4));assert.equal(named('เดือน Coaching').value,m.currentCoachingMonth().slice(5));
+  assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')));
+  await fill(named('ปี Coaching'),'2026');await fill(named('เดือน Coaching'),'09');assert.ok(named('QA Summary'),'September uses the new workflow');
+  await mount(seniorA);await fill(named('เดือน Coaching'),'08');assert.ok(!text().includes('Agent B Full Name'));assert.equal(named('QA Summary'),null);
+  console.log('PASS January–August 2026 historical completion, read-only save guards, September boundary, Gregorian month order, current-month reset and Senior scope');
   console.log('PASS Monthly Coaching: QA draft, unsaved tab restore, appointment, Senior team isolation, read-only QA fields, multiple plans, return/accept, next-month follow-up, history, duplicate prevention, stale-write rejection and ownership preservation');
 } finally { if(root)await act(async()=>root.unmount());dom.window.close();await fs.rm(temp,{recursive:true,force:true});delete globalThis.__monthlyCoachingFixture; }

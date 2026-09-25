@@ -23,7 +23,18 @@ export function visibleCoachingAgents(accounts: CoachingAccount[], currentUser?:
   return accounts.filter(a => a.status !== 'Suspended' && ['Admin Live Chat', 'Virtual Rider'].includes(a.role) && (actor.role === 'Quality Assurance' || seniorFor(accounts, a)?.username === actor.username));
 }
 export const monthlyCoachingId = (username: string, month: string) => `coaching-${encodeURIComponent(username.trim().toLowerCase())}-${month}`;
-export const currentCoachingMonth = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit' }).format(new Date());
+export const COACHING_WORKFLOW_START = '2026-09';
+export const HISTORICAL_COACHING_MONTHS = Array.from({ length: 8 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
+export const isHistoricalCoachingMonth = (month: string) => HISTORICAL_COACHING_MONTHS.includes(month);
+export const coachingDisplayStatus = (month: string, status?: string) => isHistoricalCoachingMonth(month) ? 'Coaching แล้ว' : status;
+export const currentCoachingMonth = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', calendar: 'gregory', year: 'numeric', month: '2-digit' }).formatToParts(date);
+  return `${parts.find(p => p.type === 'year')!.value}-${parts.find(p => p.type === 'month')!.value}`;
+};
+export const coachingMonthLabel = (month: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? `${month.slice(5)} · ${new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00Z`))}` : month;
+export function initialCoachingMonth(view: { periodVersion?: number; month?: string } | null, current = currentCoachingMonth()) {
+  return view?.periodVersion === 2 && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month || '') ? view.month! : current;
+}
 export function blankCoachingForm(): CoachingForm {
   return { summary: '', topics: [], appointment: { date: '', startTime: '', duration: 60, method: 'Face to Face', url: '', other: '', participants: [], agenda: [''], note: '' }, result: { date: '', startTime: '', endTime: '', topics: [], note: '', finalNote: '', noPlanReason: '' }, actions: [], review: '', attachments: [] };
 }
@@ -33,6 +44,7 @@ export function formFromRecord(record?: StoredCoachingRecord | null): CoachingFo
   return { summary: record.qaSummary || record.generalFeedback || record.mainIssues || '', topics: record.recommendedTopics || [], appointment: { ...empty.appointment, ...record.appointment }, result: { ...empty.result, ...record.actualCoaching }, actions: record.actions || [], review: record.qaReviewComment || '', attachments: record.attachments || [] };
 }
 export function allowedCoachingStatuses(role: string, record?: StoredCoachingRecord | null): CoachingRecordStatus[] {
+  if (record && record.monthKey < COACHING_WORKFLOW_START) return [];
   if (role === 'Senior') return record && seniorEditing.includes(record.status) ? ['Coaching In Progress', 'Action Plan Submitted'] : [];
   if (role !== 'Quality Assurance') return [];
   if (!record || preparation.includes(record.status)) return [...preparation, 'Waiting Senior', 'No Coaching Required'];
@@ -55,6 +67,7 @@ export function mergeMonthlyCoachingSave(previous: StoredCoachingRecord | null, 
   return { ...merged, qaReviewComment: next.qaReviewComment };
 }
 export function coachingSaveError(role: string, previous: StoredCoachingRecord | null, next: StoredCoachingRecord) {
+  if (next.monthKey < COACHING_WORKFLOW_START) return 'ระบบ Coaching ใหม่เริ่มกันยายน 2026 เดือนก่อนหน้าเป็นประวัติอ่านอย่างเดียว';
   if (!allowedCoachingStatuses(role, previous).includes(next.status)) return 'สถานะเปลี่ยนแล้ว หรือบัญชีนี้ไม่มีสิทธิ์ทำรายการ กรุณาโหลดข้อมูลล่าสุด';
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(next.monthKey)) return 'กรุณาเลือกเดือนและปี';
   if (next.status === 'Waiting Senior' && (!next.qaSummary?.trim() || !next.recommendedTopics?.length || !next.seniorId)) return 'กรุณาระบุ QA Summary หัวข้อ Coaching และ Senior ผู้ดูแลก่อนส่ง';
