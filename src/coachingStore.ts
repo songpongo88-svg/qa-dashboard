@@ -1,11 +1,13 @@
-import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
+
+import { belongsToAgent, visibleCoachingAgents, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
 
 const COACHING_COLLECTION = "qa_coaching_records";
 const COACHING_CACHE_KEY = "qa-dashboard:coaching-records-cache:v1";
 
-export type CoachingRecordStatus = "Draft" | "Coached" | "Completed";
+export type CoachingRecordStatus = "Draft" | "Coached" | "Completed" | "Waiting Appointment" | "Appointment Scheduled" | "Waiting Senior" | "Coaching In Progress" | "Action Plan Submitted" | "QA Reviewed" | "Follow-up Next Month" | "Closed" | "No Coaching Required";
 export type CoachingRecordResult =
   | "Pending Review"
   | "Improved"
@@ -61,6 +63,17 @@ export type StoredCoachingRecord = {
   additionalNote: string;
   createdAt: string;
   updatedAt: string;
+  agentId?: string;
+  seniorId?: string;
+  seniorName?: string;
+  teamId?: string;
+  qaSummary?: string;
+  recommendedTopics?: string[];
+  appointment?: CoachingAppointment;
+  actualCoaching?: CoachingResult;
+  actions?: CoachingAction[];
+  qaReviewComment?: string;
+  attachments?: CoachingAttachment[];
 };
 
 function safeDocId(value: unknown) {
@@ -74,7 +87,8 @@ function safeDocId(value: unknown) {
 }
 
 function normalizeStatus(value: unknown): CoachingRecordStatus {
-  return value === "Coached" || value === "Completed" ? value : "Draft";
+  const statuses: CoachingRecordStatus[] = ['Draft', 'Coached', 'Completed', 'Waiting Appointment', 'Appointment Scheduled', 'Waiting Senior', 'Coaching In Progress', 'Action Plan Submitted', 'QA Reviewed', 'Follow-up Next Month', 'Closed', 'No Coaching Required'];
+  return statuses.includes(value as CoachingRecordStatus) ? value as CoachingRecordStatus : 'Draft';
 }
 
 function normalizeResult(value: unknown): CoachingRecordResult {
@@ -156,6 +170,11 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
     additionalNote: String(row?.additionalNote || row?.additional_note || ""),
     createdAt: String(row?.createdAt || row?.created_at || ""),
     updatedAt: String(row?.updatedAt || row?.updated_at || ""),
+    agentId: String(row?.agentId || ''), seniorId: String(row?.seniorId || ''), seniorName: String(row?.seniorName || ''), teamId: String(row?.teamId || ''),
+    qaSummary: String(row?.qaSummary || ''), recommendedTopics: toStringArray(row?.recommendedTopics),
+    ...(row?.appointment && typeof row.appointment === 'object' ? { appointment: row.appointment } : {}),
+    ...(row?.actualCoaching && typeof row.actualCoaching === 'object' ? { actualCoaching: row.actualCoaching } : {}),
+    actions: Array.isArray(row?.actions) ? row.actions : [], qaReviewComment: String(row?.qaReviewComment || ''), attachments: Array.isArray(row?.attachments) ? row.attachments : [],
   };
 }
 
@@ -197,7 +216,7 @@ function writeCache(rows: StoredCoachingRecord[]) {
   }
 }
 
-export async function fetchStoredCoachingRecords() {
+export async function fetchStoredCoachingRecords(options: { allowCache?: boolean } = {}) {
   try {
     const snapshot = await getDocs(collection(firebaseDb, COACHING_COLLECTION));
     const rows = snapshot.docs
@@ -206,6 +225,7 @@ export async function fetchStoredCoachingRecords() {
     writeCache(rows);
     return sortRecords(rows);
   } catch (error) {
+    if (options.allowCache === false) throw error;
     const cached = readCache();
     if (cached.length) return cached;
     throw error;
@@ -239,4 +259,25 @@ export async function upsertStoredCoachingRecord(
   const cached = readCache().filter((item) => item.id !== normalized.id);
   writeCache([normalized, ...cached]);
   return normalized;
+}
+
+// Scoped application workflow. Database rules are managed separately by the existing app.
+export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, actor: CoachingAccount, accounts: CoachingAccount[], expectedUpdatedAt: string | null) {
+  const target = visibleCoachingAgents(accounts, actor).find(account => belongsToAgent(account, record.agentId, record.agent));
+  if (!target) throw new Error('บัญชีนี้ไม่มีสิทธิ์แก้ Coaching ของ Admin ที่เลือก');
+  const reference = doc(firebaseDb, COACHING_COLLECTION, safeDocId(record.id));
+  const saved = await runTransaction(firebaseDb, async transaction => {
+    const snapshot = await transaction.get(reference);
+    const previous = snapshot.exists() ? toRecord(snapshot.data(), snapshot.id) : null;
+    if ((previous?.updatedAt ?? null) !== expectedUpdatedAt) throw new Error('Coaching นี้มีข้อมูลใหม่แล้ว กรุณากดโหลดข้อมูลล่าสุดก่อนบันทึก ข้อความที่กรอกยังอยู่ในฟอร์ม');
+    if (previous && (!belongsToAgent(target, previous.agentId, previous.agent) || previous.monthKey !== record.monthKey)) throw new Error('ไม่สามารถเปลี่ยน Admin หรือเดือนของ Coaching เดิม');
+    const next = mergeMonthlyCoachingSave(previous, record, actor.role);
+    const error = coachingSaveError(actor.role, previous, next); if (error) throw new Error(error);
+    const normalized = JSON.parse(JSON.stringify({ ...next, id: reference.id, updatedAt: new Date().toISOString() })) as StoredCoachingRecord;
+    transaction.set(reference, { ...normalized, updatedAtServer: serverTimestamp() }, { merge: true });
+    return normalized;
+  });
+  writeCache([saved, ...readCache().filter(row => row.id !== saved.id)]);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('qa-coaching-refresh'));
+  return saved;
 }

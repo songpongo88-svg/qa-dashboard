@@ -14,6 +14,7 @@ import SummaryMockup from "./SummaryMockup";
 import SignatureCenterMockup from "./SignatureCenterMockup";
 import PresentationMockup from "./PresentationMockup";
 import CoachingMockup from "./CoachingMockup";
+import MonthlyCoachingWorkspace from "./MonthlyCoachingWorkspace";
 import AnnouncementHub from "./AnnouncementHub";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
@@ -7530,7 +7531,11 @@ export default function App() {
             dataRefreshKey={qaDataRefreshKey}
           />
         ) : activeTab === "coaching" && coachingAllowed ? (
-          <CoachingMockup
+          currentUser?.role === 'Quality Assurance' || currentUser?.role === 'Senior' ? <MonthlyCoachingWorkspace key={currentUser.username} currentUser={currentUser} accounts={effectiveUserAccounts} onOpenCase={(caseId, agentName) => {
+            setSelectedDashboardCaseId(caseId);
+            setDashboardSubTab("case-detail");
+            navigateToTab("dashboard", { params: { subTab: "case-detail", caseId, agent: agentName } });
+          }} /> : <CoachingMockup
             currentUser={currentUser}
             externalSelectedAgent={selectedAgentGlobal}
             externalSelectedMonth={selectedMonthGlobal}
