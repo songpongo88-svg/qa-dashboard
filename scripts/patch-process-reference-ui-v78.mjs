@@ -130,8 +130,13 @@ if (!source.includes(marker)) {
   const inputNew = 'onChange={(event) => updateDisplayTitle(meta.slideNumber, event.target.value)} onBlur={(event) => persistDisplayTitleV78(meta.slideNumber, event.currentTarget.value)} placeholder="พิมพ์ชื่อหัวข้อที่ต้องการแสดง..."';
   replaceExact(inputOld, inputNew, "custom title onBlur persistence");
 
+  const finalDisplayV82 = fs.readFileSync("scripts/process-reference-v82/display.txt", "utf8");
+  const finalDisplayPatternV82 = /export function ProcessReferenceDisplay\(\{ value, className = "" \}: \{ value: string; className\?: string \}\) \{[\s\S]*\}\s*$/;
+  if (!finalDisplayPatternV82.test(source)) throw new Error("Process reference v82: saved display block missing");
+  source = source.replace(finalDisplayPatternV82, finalDisplayV82 + "\n");
+
   fs.writeFileSync(processFile, source);
-  console.log("Applied Process Version date/time, title sync, and multi-slide search v78");
+  console.log("Applied Process Version date/time, title sync, grouped saved references, and multi-slide search v78/v82");
 } else {
   console.log("Process reference Version/search/title sync v78 already applied");
 }
