@@ -1,6 +1,7 @@
 export function ProcessReferenceDisplay({ value, className = "" }: { value: string; className?: string }) {
   const refs = useMemo(() => parseProcessReferenceListV68(value), [value]);
-  const groups = useMemo(() => {
+  const [previewMeta, setPreviewMeta] = useState<ProcessReferenceMeta | null>(null);
+  const groups = (() => {
     const grouped = new Map<string, { key: string; processName: string; versionLabel: string; refs: ProcessReferenceMeta[] }>();
     refs.forEach((meta, index) => {
       const fallbackIdentity = [
@@ -23,9 +24,7 @@ export function ProcessReferenceDisplay({ value, className = "" }: { value: stri
       });
     });
     return Array.from(grouped.values());
-  }, [refs]);
-  const [previewMeta, setPreviewMeta] = useState<ProcessReferenceMeta | null>(null);
-  const [previewOpenTokenV76, setPreviewOpenTokenV76] = useState(0);
+  })();
 
   if (!refs.length) return <RichTextContent value={value} className={"whitespace-pre-line text-[14px] leading-6 text-slate-800 " + className} />;
 
@@ -49,7 +48,7 @@ export function ProcessReferenceDisplay({ value, className = "" }: { value: stri
                       <div className="text-xs font-black text-emerald-700">Slide {meta.slideNumber}</div>
                       <div className="mt-0.5 text-sm font-normal text-emerald-700" title={displayTitle}>{displayTitle}</div>
                     </div>
-                    <button type="button" onClick={() => { setPreviewMeta(meta); setPreviewOpenTokenV76((value) => value + 1); }} className="shrink-0 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-[#155B83] shadow-sm transition hover:bg-sky-100">◉ ดูสไลด์</button>
+                    <button type="button" onClick={() => setPreviewMeta({ ...meta, __openTokenV82: Date.now() } as any)} className="shrink-0 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-[#155B83] shadow-sm transition hover:bg-sky-100">◉ ดูสไลด์</button>
                   </div>
                 );
               })}
@@ -58,7 +57,7 @@ export function ProcessReferenceDisplay({ value, className = "" }: { value: stri
         ))}
       </div>
       <div className="mt-2 text-[11px] font-semibold text-slate-500">ใช้ไฟล์จาก Version ที่บันทึกไว้พร้อมผลประเมินเคสนี้</div>
-      <ProcessSlideModalV68 meta={previewMeta} items={refs} openToken={previewOpenTokenV76} onNavigate={(next) => setPreviewMeta(next)} onClose={() => setPreviewMeta(null)} />
+      <ProcessSlideModalV68 meta={previewMeta} items={refs} openToken={Number((previewMeta as any)?.__openTokenV82 || 0)} onNavigate={(next) => setPreviewMeta({ ...next, __openTokenV82: Date.now() } as any)} onClose={() => setPreviewMeta(null)} />
     </div>
   );
 }
