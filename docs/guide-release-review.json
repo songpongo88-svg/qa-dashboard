@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-25T12:34:39.389Z",
-  "reason": "ตรวจเดือนปีปัจจุบันและประวัติ Coaching มกราคม–สิงหาคม 2026 อ่านอย่างเดียว เริ่มขั้นตอนใหม่กันยายน 2026",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "coaching"
-  ],
+  "reviewedAt": "2026-09-30T07:28:00.000Z",
+  "reason": "แก้ Case Detail ให้แยก Process Reference ตามไฟล์และ Version ที่บันทึกไว้ โดยคู่มือเดิมยังถูกต้อง",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -395,7 +393,7 @@
     "src/paymentCarryOverStore.ts": "e22936f4dbf0f304890fd8b090c32e44808497cf0834b8133471d60a8bea10b4",
     "src/pdfLogo.ts": "caeca4afb5c394639f702ca7dfd96ddbeaf98d7855da9a17be45737f01b1620b",
     "src/preTestThtPlus2026.ts": "7e62a8f2e022890aac871478e9808080abf60c093a3b501a765ce65b21ab253b",
-    "src/processLibrary.tsx": "0d48d358fab79cd97ffb5e504d23212ab8de5948d1a2727c83722b1bd7f271da",
+    "src/processLibrary.tsx": "2fe33b77f06e959292c6821d57a0c95eb3164f894c80d18fa99ed5160a1a6c7a",
     "src/profileHistoryStore.ts": "e1208756a989e45d750138d6a7d06a03f4b49af965ecfaba7f12de68f3dcf316",
     "src/profilePhotoStore.ts": "f0931b3c248e5268705f879789430a2d0e312159868347d33968d7dfdc5694d9",
     "src/qaEvaluationProgressStore.ts": "dfefa646e4790d29ea4517093bcd9396a6e739a2042d9497dbe92786716e3ab1",
