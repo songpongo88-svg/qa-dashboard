@@ -55,10 +55,10 @@ if (!source.includes(marker)) {
   if (!source.includes(modalVersionOld)) throw new Error("Process reference v78: viewer Version display missing");
   source = source.split(modalVersionOld).join(modalVersionNew);
 
-  const processNameDisplay = '<div className="mt-0.5 break-words text-sm font-black text-slate-950" title={group.processName}>{group.processName}</div>';
+  const processNameDisplay = '<div className="mt-0.5 truncate text-sm font-black text-slate-950" title={first.processName}>{first.processName}</div>';
   replaceExact(
     processNameDisplay,
-    processNameDisplay + '\n              <div className="mt-1 text-xs font-semibold text-slate-500">Version: {formatProcessVersionV78(group.versionLabel)}</div>',
+    processNameDisplay + '\n        <div className="mt-1 text-xs font-semibold text-slate-500">Version: {formatProcessVersionV78(first.versionLabel)}</div>',
     "saved Process Version display",
   );
 
