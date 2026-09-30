@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-09-30T07:45:00.000Z",
-  "reason": "แก้ Build chain ให้ Process Reference แยกตามไฟล์และ Version หลัง patch UI ทั้งหมด",
+  "reviewedAt": "2026-09-30T07:49:00.000Z",
+  "reason": "ตรวจ Build chain และ template ของ Process Reference หลังแก้การแยกไฟล์/Version ใน Case Detail",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -421,6 +421,7 @@
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
     "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
-    "scripts/process-reference-v74/display.txt": "d950e4acb11c22535e7e99f641751b361e7465f22238906ec58ce58f6af98a8d"
+    "scripts/process-reference-v74/display.txt": "ee60a6beefa3cce73fad6ce52267a808c046ab5f61816fab00c9791a9fcd0cd8",
+    "scripts/process-reference-v82/display.txt": "987139a2982bf4674b1fbf9f1b06d2c6fe14302f49bcce4c4a27584753f671b2"
   }
 }
