@@ -804,28 +804,58 @@ export function ProcessReferenceSelector({ value, onChange, currentUser }: { val
 
 export function ProcessReferenceDisplay({ value, className = "" }: { value: string; className?: string }) {
   const refs = useMemo(() => parseProcessReferenceListV68(value), [value]);
+  const groups = useMemo(() => {
+    const grouped = new Map<string, { key: string; processName: string; versionLabel: string; refs: ProcessReferenceMeta[] }>();
+    refs.forEach((meta, index) => {
+      const fallbackIdentity = [
+        meta.processName || "Process",
+        meta.versionLabel || "-",
+        meta.fileUrl || "",
+        meta.fileType || "",
+      ].join("||");
+      const key = String(meta.versionId || "").trim() || fallbackIdentity || `process-${index}`;
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.refs.push(meta);
+        return;
+      }
+      grouped.set(key, {
+        key,
+        processName: meta.processName || "Process",
+        versionLabel: meta.versionLabel || "-",
+        refs: [meta],
+      });
+    });
+    return Array.from(grouped.values());
+  }, [refs]);
   const [previewMeta, setPreviewMeta] = useState<ProcessReferenceMeta | null>(null);
   if (!refs.length) return <RichTextContent value={value} className={"whitespace-pre-line text-[14px] leading-6 text-slate-800 " + className} />;
-  const first = refs[0];
+
   return (
     <div className={className}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Process</div>
-          <div className="mt-0.5 truncate text-sm font-black text-slate-950" title={first.processName}>{first.processName}</div>
-        </div>
-        <div className="shrink-0 text-xs font-bold text-violet-700">Version {first.versionLabel || "-"}</div>
-      </div>
-      <div className="mt-3 space-y-2">
-        {refs.map((meta) => (
-          <div key={meta.versionId + "-" + meta.slideNumber} className="flex flex-col gap-2 rounded-xl border border-violet-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="text-xs font-black text-violet-800">Slide {meta.slideNumber}</div>
-              <div className="mt-0.5 truncate text-sm font-extrabold text-slate-900" title={meta.slideTitle}>{meta.slideTitle}</div>
-              <div className="mt-1 text-xs font-bold text-slate-500">{meta.step || "ทั้งสไลด์"}</div>
+      <div className="space-y-3">
+        {groups.map((group) => (
+          <section key={group.key} className="rounded-2xl border border-violet-100 bg-violet-50/40 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Process</div>
+                <div className="mt-0.5 break-words text-sm font-black text-slate-950" title={group.processName}>{group.processName}</div>
+              </div>
+              <div className="shrink-0 text-xs font-bold text-violet-700">Version {group.versionLabel}</div>
             </div>
-            <button type="button" onClick={() => setPreviewMeta(meta)} className="shrink-0 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">ดูสไลด์</button>
-          </div>
+            <div className="mt-3 space-y-2">
+              {group.refs.map((meta, index) => (
+                <div key={group.key + "-" + meta.slideNumber + "-" + index} className="flex flex-col gap-2 rounded-xl border border-violet-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-xs font-black text-violet-800">Slide {meta.slideNumber}</div>
+                    <div className="mt-0.5 break-words text-sm font-extrabold text-slate-900" title={meta.slideTitle}>{meta.slideTitle}</div>
+                    <div className="mt-1 text-xs font-bold text-slate-500">{meta.step || "ทั้งสไลด์"}</div>
+                  </div>
+                  <button type="button" onClick={() => setPreviewMeta(meta)} className="shrink-0 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">ดูสไลด์</button>
+                </div>
+              ))}
+            </div>
+          </section>
         ))}
       </div>
       <div className="mt-2 text-[11px] font-semibold text-slate-500">ใช้ไฟล์จาก Version ที่บันทึกพร้อมผลประเมินเคสนี้</div>
