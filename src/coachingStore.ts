@@ -171,7 +171,7 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
     createdAt: String(row?.createdAt || row?.created_at || ""),
     updatedAt: String(row?.updatedAt || row?.updated_at || ""),
     agentId: String(row?.agentId || ''), seniorId: String(row?.seniorId || ''), seniorName: String(row?.seniorName || ''), teamId: String(row?.teamId || ''),
-    qaSummary: String(row?.qaSummary || ''), recommendedTopics: toStringArray(row?.recommendedTopics),
+    ...(typeof row?.qaSummary === 'string' ? { qaSummary: row.qaSummary } : {}), recommendedTopics: toStringArray(row?.recommendedTopics),
     ...(row?.appointment && typeof row.appointment === 'object' ? { appointment: row.appointment } : {}),
     ...(row?.actualCoaching && typeof row.actualCoaching === 'object' ? { actualCoaching: row.actualCoaching } : {}),
     actions: Array.isArray(row?.actions) ? row.actions : [], qaReviewComment: String(row?.qaReviewComment || ''), attachments: Array.isArray(row?.attachments) ? row.attachments : [],

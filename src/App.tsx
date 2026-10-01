@@ -7531,7 +7531,7 @@ export default function App() {
             dataRefreshKey={qaDataRefreshKey}
           />
         ) : activeTab === "coaching" && coachingAllowed ? (
-          currentUser?.role === 'Quality Assurance' || currentUser?.role === 'Senior' ? <MonthlyCoachingWorkspace key={currentUser.username} currentUser={currentUser} accounts={effectiveUserAccounts} onOpenCase={(caseId, agentName) => {
+          currentUser?.role === 'Quality Assurance' || currentUser?.role === 'Senior' ? <MonthlyCoachingWorkspace key={currentUser.username} currentUser={currentUser} accounts={effectiveUserAccounts.map(account => ({ ...account, qaEvaluationTarget: Boolean((rolePermissions[account.role] || getDefaultRolePermissions(account.role)).qaEvaluationTarget) }))} onOpenCase={(caseId, agentName) => {
             setSelectedDashboardCaseId(caseId);
             setDashboardSubTab("case-detail");
             navigateToTab("dashboard", { params: { subTab: "case-detail", caseId, agent: agentName } });
