@@ -130,6 +130,7 @@ type DashboardWorkbookCacheV155 = {
   cacheKey: string;
   cases: CaseItem[];
   appealMergeCount: number;
+  cachedAt: number;
 };
 
 let dashboardWorkbookCacheV155: DashboardWorkbookCacheV155 | null = null;
@@ -5353,11 +5354,16 @@ export default function DashboardMockup({
       };
       const applyLoadedWorkbook = (nextCases: CaseItem[], nextAppealMergeCount: number) => {
         const supportedCases = nextCases.filter((item) => isQaDashboardSupportedMonthKey(item.monthKey));
-        dashboardWorkbookCacheV155 = {
-          cacheKey,
-          cases: supportedCases,
-          appealMergeCount: nextAppealMergeCount,
-        };
+        // Never keep an empty workbook result as a reusable cache. A transient read
+        // failure used to leave Cases in Current View empty until a full browser refresh.
+        dashboardWorkbookCacheV155 = supportedCases.length
+          ? {
+              cacheKey,
+              cases: supportedCases,
+              appealMergeCount: nextAppealMergeCount,
+              cachedAt: Date.now(),
+            }
+          : null;
         setAllCases(supportedCases);
         setAppealMergeCount(nextAppealMergeCount);
       };
@@ -5368,13 +5374,24 @@ export default function DashboardMockup({
 
         if (
           dashboardWorkbookCacheV155 &&
-          dashboardWorkbookCacheV155.cacheKey === cacheKey
+          dashboardWorkbookCacheV155.cacheKey === cacheKey &&
+          dashboardWorkbookCacheV155.cases.length > 0 &&
+          Date.now() - dashboardWorkbookCacheV155.cachedAt < 15000
         ) {
           setAllCases(dashboardWorkbookCacheV155.cases.filter((item) => isQaDashboardSupportedMonthKey(item.monthKey)));
           setAppealMergeCount(dashboardWorkbookCacheV155.appealMergeCount);
           setLoadError("");
           setIsLoading(false);
           return;
+        }
+
+        if (
+          dashboardWorkbookCacheV155 &&
+          (dashboardWorkbookCacheV155.cacheKey !== cacheKey ||
+            !dashboardWorkbookCacheV155.cases.length ||
+            Date.now() - dashboardWorkbookCacheV155.cachedAt >= 15000)
+        ) {
+          dashboardWorkbookCacheV155 = null;
         }
 
         const v8Response = { ok: false } as Response;
