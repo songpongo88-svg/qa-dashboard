@@ -1,6 +1,6 @@
 # Monthly Individual Coaching release
 
-This release uses the existing application's username/password login, roles, and current team assignments. QA can select all active Admin Live Chat/Virtual Rider accounts. Senior matches the current account and exact assigned Senior identity; partial names, suspended users, unknown identities and stale roles are excluded. Other existing roles keep their previous Coaching screen and permissions.
+This release uses the existing application's username/password login, roles, and current team assignments. QA can select active accounts in roles with QA Evaluation Target enabled, only when actual scored cases exist in the selected month. Senior sees the same evaluated-user set within their assigned team. Senior matches the current account and exact assigned Senior identity; partial names, suspended users, unknown identities and stale roles are excluded. Other existing roles keep their previous Coaching screen and permissions.
 
 ## Data compatibility
 
@@ -18,4 +18,8 @@ The application filters and write guards do not replace database authorization. 
 
 ## Verification
 
-`npm run test:monthly-coaching` mounts the actual React page with isolated in-memory service adapters and runs the real store transaction/validation code. It covers QA Draft and appointment, unsaved form unmount/remount, two Senior teams with overlapping names, read-only QA fields, multiple Action Plans, return with comment, acceptance, next-month follow-up, history, duplicate prevention, stale writes, and immutable team/identity snapshots. No production QA records are created by these tests. Full production build also runs the existing Draft Queue, deduction tags, rich text, guide, weather, theme and signature PDF regression suites.
+`npm run test:monthly-coaching` mounts the actual React page with isolated in-memory service adapters and runs the real store transaction/validation code. It covers QA Draft and appointment, unsaved form unmount/remount, two Senior teams with overlapping names, read-only QA fields, multiple Action Plans, return with comment, acceptance, next-month follow-up, history, duplicate prevention, stale writes, and immutable team/identity snapshots. No production QA records are created by these tests. The evaluated scope additionally excludes test cases, no-case records, invalid scores, future periods, disabled roles, unknown and ambiguous identities. Month options and history use actual evaluation periods. Legacy completion covers evaluated users in January–August 2026 only; the new workflow starts September 2026. QA summary and Agenda are manual; mainIssues and Case Description are never used to populate notes.
+
+The reference layout uses a teal header and purple accents with three columns for roster, monthly details/manual form, and score/case evidence/attachments. Calendar reads saved appointments.
+
+Full production build also runs the existing Draft Queue, deduction tags, rich text, guide, weather, theme and signature PDF regression suites.
