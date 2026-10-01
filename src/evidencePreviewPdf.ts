@@ -13,6 +13,7 @@ type RenderedEvidencePage = {
   width: number;
   height: number;
   mode: "page" | "image";
+  watermarkYRatio?: number;
 };
 
 function safeCaseId(value: string) {
@@ -71,14 +72,74 @@ function blobToDataUrl(blob: Blob) {
   });
 }
 
+function findQuietWatermarkYRatio(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context || canvas.width < 10 || canvas.height < 10) return 0.5;
+
+  const candidates = [0.34, 0.46, 0.58, 0.7];
+  const xStart = Math.floor(canvas.width * 0.14);
+  const xEnd = Math.ceil(canvas.width * 0.86);
+  const bandHeight = Math.max(16, Math.floor(canvas.height * 0.13));
+  const step = Math.max(4, Math.floor(Math.max(canvas.width, canvas.height) / 240));
+
+  let bestRatio = 0.5;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (const ratio of candidates) {
+    const centerY = Math.floor(canvas.height * ratio);
+    const yStart = Math.max(0, centerY - Math.floor(bandHeight / 2));
+    const yEnd = Math.min(canvas.height, centerY + Math.floor(bandHeight / 2));
+    let darkPixels = 0;
+    let samples = 0;
+    let darkness = 0;
+
+    for (let y = yStart; y < yEnd; y += step) {
+      for (let x = xStart; x < xEnd; x += step) {
+        const pixel = context.getImageData(x, y, 1, 1).data;
+        const luminance = 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2];
+        if (luminance < 232) darkPixels += 1;
+        darkness += 255 - luminance;
+        samples += 1;
+      }
+    }
+
+    if (!samples) continue;
+    const darkRatio = darkPixels / samples;
+    const averageDarkness = darkness / samples;
+    const score = darkRatio * 1000 + averageDarkness;
+    if (score < bestScore) {
+      bestScore = score;
+      bestRatio = ratio;
+    }
+  }
+
+  return bestRatio;
+}
+
+function imageToAnalysisCanvas(image: HTMLImageElement) {
+  const maxWidth = 1100;
+  const scale = Math.min(1, maxWidth / Math.max(image.naturalWidth || image.width || 1, 1));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * scale));
+  canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * scale));
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
 async function imageBlobToPage(blob: Blob): Promise<RenderedEvidencePage> {
   const dataUrl = await blobToDataUrl(blob);
   const image = await loadImage(dataUrl);
+  const analysisCanvas = imageToAnalysisCanvas(image);
   return {
     dataUrl,
     width: image.naturalWidth || image.width || 1,
     height: image.naturalHeight || image.height || 1,
     mode: "image",
+    watermarkYRatio: analysisCanvas ? findQuietWatermarkYRatio(analysisCanvas) : 0.5,
   };
 }
 
@@ -109,6 +170,7 @@ async function pdfBlobToPages(blob: Blob): Promise<RenderedEvidencePage[]> {
         width: canvas.width,
         height: canvas.height,
         mode: "page",
+        watermarkYRatio: findQuietWatermarkYRatio(canvas),
       });
       page.cleanup();
     }
@@ -146,6 +208,8 @@ function drawEvidencePage(
 ) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
+  const watermarkRatio = Math.min(0.72, Math.max(0.3, page.watermarkYRatio ?? 0.5));
+  let watermarkY = pageH * watermarkRatio;
 
   if (page.mode === "page") {
     doc.addImage(page.dataUrl, "JPEG", 0, 0, pageW, pageH, undefined, "FAST");
@@ -159,18 +223,21 @@ function drawEvidencePage(
     const boxRatio = maxW / maxH;
     const width = ratio > boxRatio ? maxW : maxH * ratio;
     const height = ratio > boxRatio ? maxW / ratio : maxH;
-    doc.addImage(page.dataUrl, "JPEG", (pageW - width) / 2, top + (maxH - height) / 2, width, height, undefined, "FAST");
+    const imageY = top + (maxH - height) / 2;
+    doc.addImage(page.dataUrl, "JPEG", (pageW - width) / 2, imageY, width, height, undefined, "FAST");
+    watermarkY = imageY + height * watermarkRatio;
   }
 
   const passed = Number(finalScore) >= 85;
+  // Approx. 6% visual strength on white: visible as a watermark without obscuring evidence text.
   const watermarkColor: [number, number, number] = passed
-    ? [173, 220, 190]
-    : [244, 188, 188];
+    ? [241, 250, 244]
+    : [253, 242, 242];
 
   doc.setFont("THSarabunNew", "bold");
   doc.setFontSize(52);
   doc.setTextColor(...watermarkColor);
-  doc.text(safeCaseId(caseId), pageW / 2, pageH / 2, {
+  doc.text(safeCaseId(caseId), pageW / 2, watermarkY, {
     align: "center",
     angle: 35,
   });
