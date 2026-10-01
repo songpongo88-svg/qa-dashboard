@@ -1,7 +1,8 @@
+import { getStoredEvaluationMonthKey, type StoredEvaluation } from './evaluationStore';
 import { canonicalAgentIdentityKey } from './lib/agentIdentity';
 import type { StoredCoachingRecord, CoachingRecordStatus } from './coachingStore';
 
-export type CoachingAccount = { username: string; displayName: string; agentName: string; role: string; teamName?: string; teamLead?: string; status?: string };
+export type CoachingAccount = { username: string; displayName: string; agentName: string; role: string; teamName?: string; teamLead?: string; status?: string; qaEvaluationTarget?: boolean };
 export type CoachingAction = { id: string; topic: string; issue: string; plan: string; owner: string; dueDate: string; expectedResult: string; followUpNote: string; status: 'Not Started' | 'In Progress' | 'Completed' | 'Not Achieved' };
 export type CoachingAttachment = { name: string; url: string; path: string; uploadedBy: string; uploadedAt: string };
 export type CoachingAppointment = { date: string; startTime: string; duration: number; method: string; url: string; other: string; participants: string[]; agenda: string[]; note: string };
@@ -20,7 +21,7 @@ export function visibleCoachingAgents(accounts: CoachingAccount[], currentUser?:
   if (!currentUser) return [];
   const actor = accounts.find(a => a.username.toLowerCase() === currentUser.username.toLowerCase() && a.status !== 'Suspended');
   if (!actor || actor.role !== currentUser.role || !['Quality Assurance', 'Senior'].includes(actor.role)) return [];
-  return accounts.filter(a => a.status !== 'Suspended' && ['Admin Live Chat', 'Virtual Rider'].includes(a.role) && (actor.role === 'Quality Assurance' || seniorFor(accounts, a)?.username === actor.username));
+  return accounts.filter(a => a.status !== 'Suspended' && (a.qaEvaluationTarget ?? ['Admin Live Chat', 'Virtual Rider'].includes(a.role)) && (actor.role === 'Quality Assurance' || seniorFor(accounts, a)?.username === actor.username));
 }
 export const monthlyCoachingId = (username: string, month: string) => `coaching-${encodeURIComponent(username.trim().toLowerCase())}-${month}`;
 export const COACHING_WORKFLOW_START = '2026-09';
@@ -31,7 +32,7 @@ export const currentCoachingMonth = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', calendar: 'gregory', year: 'numeric', month: '2-digit' }).formatToParts(date);
   return `${parts.find(p => p.type === 'year')!.value}-${parts.find(p => p.type === 'month')!.value}`;
 };
-export const coachingMonthLabel = (month: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? `${month.slice(5)} · ${new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00Z`))}` : month;
+export const coachingMonthLabel = (month: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? `${new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00Z`))}` : month;
 export function initialCoachingMonth(view: { periodVersion?: number; month?: string } | null, current = currentCoachingMonth()) {
   return view?.periodVersion === 2 && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month || '') ? view.month! : current;
 }
@@ -41,7 +42,7 @@ export function blankCoachingForm(): CoachingForm {
 export function formFromRecord(record?: StoredCoachingRecord | null): CoachingForm {
   const empty = blankCoachingForm();
   if (!record) return empty;
-  return { summary: record.qaSummary || record.generalFeedback || record.mainIssues || '', topics: record.recommendedTopics || [], appointment: { ...empty.appointment, ...record.appointment }, result: { ...empty.result, ...record.actualCoaching }, actions: record.actions || [], review: record.qaReviewComment || '', attachments: record.attachments || [] };
+  return { summary: manualCoachingSummary(record), topics: record.recommendedTopics || [], appointment: { ...empty.appointment, ...record.appointment }, result: { ...empty.result, ...record.actualCoaching }, actions: record.actions || [], review: record.qaReviewComment || '', attachments: record.attachments || [] };
 }
 export function allowedCoachingStatuses(role: string, record?: StoredCoachingRecord | null): CoachingRecordStatus[] {
   if (record && record.monthKey < COACHING_WORKFLOW_START) return [];
@@ -99,4 +100,29 @@ export function followUpLabel(current: { percentage: number; deductedCases: numb
   if (previous && current.percentage > previous.percentage + 0.5) return 'Improved';
   if (current.deductedCases) return 'Still Needs Improvement';
   return 'No Change';
+}
+
+export function coachingEvaluationScope(accounts: CoachingAccount[], user: CoachingAccount | null | undefined, evaluations: StoredEvaluation[], current = currentCoachingMonth()) {
+  const allowed = visibleCoachingAgents(accounts, user);
+  const rowsByAgent = new Map<string, StoredEvaluation[]>();
+  const months = new Set<string>();
+  for (const row of evaluations) {
+    const month = getStoredEvaluationMonthKey(row);
+    if (row.isTestCase || row.evaluationType === 'no_case_month' || !Number.isFinite(row.finalScore) || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month > current) continue;
+    const matches = allowed.filter(a => belongsToAgent(a, row.targetUsername, row.agentName));
+    if (matches.length !== 1) continue;
+    const id = matches[0].username;
+    rowsByAgent.set(id, [...(rowsByAgent.get(id) || []), row]);
+    months.add(month);
+  }
+  return { agents: allowed.filter(a => rowsByAgent.has(a.username)), rowsByAgent, months: [...months].sort() };
+}
+export function resolveCoachingMonth(requested: string, months: string[], current = currentCoachingMonth()) {
+  return months.includes(requested) ? requested : months.includes(current) ? current : months[months.length - 1] || '';
+}
+export function manualCoachingSummary(record?: StoredCoachingRecord | null) {
+  return record?.qaSummary?.trim() ? record.qaSummary : record?.generalFeedback || '';
+}
+export function coachingStatusLabel(status?: string) {
+  return ({Draft:'ฉบับร่าง', 'Waiting Appointment':'รอนัดหมาย', 'Appointment Scheduled':'นัดหมายแล้ว', 'Waiting Senior':'รอผลจาก Senior', 'Coaching In Progress':'กำลัง Coaching', 'Action Plan Submitted':'รอ QA ตรวจแผน', 'QA Reviewed':'แก้ไขแผน', 'Follow-up Next Month':'ติดตามเดือนถัดไป', Closed:'ปิดเคสแล้ว', 'No Coaching Required':'ไม่ต้อง Coaching'} as Record<string,string>)[status || ''] || status || 'ยังไม่สร้าง';
 }
