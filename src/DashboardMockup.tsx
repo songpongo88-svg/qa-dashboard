@@ -42,6 +42,7 @@ import { fetchStoredRolePermissions } from "./userRoleStore";
 import { ProcessReferenceDisplay } from "./processLibrary";
 import { subtopicDeductionStatuses, type DeductionTag } from "./lib/evaluation/deductionTags";
 import { RUBRIC_VERSIONS } from "./lib/rubricVersions";
+import { buildEvidencePreviewPdf, downloadEvidenceUrl } from "./evidencePreviewPdf";
 // process-library-v65
 // evaluation-last-updated-v87-dashboard
 // evaluation-last-updated-v89-layout-dashboard
@@ -3770,6 +3771,7 @@ function SlideOverCaseDetail({
     items?: string[];
     index?: number;
   } | null>(null);
+  const [evidencePreviewBusy, setEvidencePreviewBusy] = useState(false);
 
   const [shareCopied, setShareCopied] = useState(false);
 
@@ -4065,6 +4067,81 @@ function SlideOverCaseDetail({
   }, [caseItem.caseId, caseItem.caseImageUrl, resolvedPdfLinks.original, resolvedPdfLinks.revised]);
 
 
+  const openStandardEvidencePreview = async () => {
+    if (evidencePreviewBusy) return;
+    const sourceUrls = rawImageUrls.filter(Boolean);
+    if (!sourceUrls.length) return;
+
+    setEvidencePreviewBusy(true);
+    try {
+      const result = await buildEvidencePreviewPdf(sourceUrls, caseItem.caseId, caseItem.finalScore);
+      const pdfUrl = URL.createObjectURL(result.blob);
+      setPreviewAsset((current) => {
+        if (current?.url?.startsWith("blob:")) URL.revokeObjectURL(current.url);
+        return {
+          type: "pdf",
+          url: pdfUrl,
+          downloadUrl: pdfUrl,
+          downloadName: result.fileName,
+          title: result.title,
+        };
+      });
+    } catch (error) {
+      console.error("Prepare Evidence PDF preview failed:", error);
+
+      if (verifiedImagePdfUrls.length) {
+        setPreviewAsset({
+          type: "pdf",
+          url: verifiedImagePdfUrls[0].url,
+          title: verifiedImagePdfUrls[0].label,
+          downloadUrl: verifiedImagePdfUrls[0].downloadUrl || verifiedImagePdfUrls[0].url,
+          downloadName: `${caseItem.caseId}_Evidence_Attachment.pdf`,
+        });
+      } else if (verifiedImageUrls.length) {
+        setPreviewAsset({
+          type: "image",
+          url: verifiedImageUrls[0],
+          title: `${caseItem.caseId} Case Image`,
+          items: verifiedImageUrls,
+          index: 0,
+          downloadUrl: verifiedImageUrls[0],
+          downloadName: `${caseItem.caseId}_Evidence_Attachment`,
+        });
+      } else {
+        alert("เตรียมไฟล์หลักฐาน PDF ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      }
+    } finally {
+      setEvidencePreviewBusy(false);
+    }
+  };
+
+  const handlePreviewDownload = async () => {
+    if (!previewAsset) return;
+    const sourceUrl = previewAsset.downloadUrl || previewAsset.url;
+    const fileName =
+      previewAsset.downloadName ||
+      (previewAsset.type === "pdf"
+        ? `${caseItem.caseId}_Evidence_Attachment.pdf`
+        : `${caseItem.caseId}_Evidence_Attachment`);
+
+    try {
+      if (sourceUrl.startsWith("blob:")) {
+        const link = document.createElement("a");
+        link.href = sourceUrl;
+        link.download = fileName;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        return;
+      }
+      await downloadEvidenceUrl(sourceUrl, fileName);
+    } catch (error) {
+      console.error("Download preview file failed:", error);
+      alert("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }
+  };
+
   const handleGenerateCaseDetailPdf = async (pdfVariant: "original" | "appeal" = "original") => {
     try {
       const officialPdf = await generateCasePdfWithAppealHistory({
@@ -4135,13 +4212,13 @@ function SlideOverCaseDetail({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <a
-                  href={previewAsset.downloadUrl || previewAsset.url}
+                <button
+                  type="button"
+                  onClick={() => void handlePreviewDownload()}
                   className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-                  download={previewAsset.downloadName || previewAsset.title || true}
                 >
                   Download File
-                </a>
+                </button>
                 <button
                   type="button"
                   onClick={() => setPreviewAsset(null)}
@@ -4586,62 +4663,11 @@ function SlideOverCaseDetail({
                   <CaseActionTooltip text="ดูภาพตัวอย่างของเคส">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (verifiedImagePdfUrls.length) {
-                          setPreviewAsset({
-                            type: "pdf",
-                            url: verifiedImagePdfUrls[0].url,
-                            title: verifiedImagePdfUrls[0].label,
-                            downloadUrl: verifiedImagePdfUrls[0].url,
-                          });
-                          return;
-                        }
-                        if (verifiedImageUrls.length) {
-                          setPreviewAsset({
-                            type: "image",
-                            url: verifiedImageUrls[0],
-                            title: `${caseItem.caseId} Case Image`,
-                            items: verifiedImageUrls,
-                            index: 0,
-                            downloadUrl: verifiedImageUrls[0],
-                          });
-                          return;
-                        }
-
-                        const fallbackImageCandidates = imageAssetCandidates.filter((item) => item?.previewUrl || item?.url);
-                        const firstFallback = fallbackImageCandidates[0];
-
-                        if (firstFallback?.isPdf) {
-                          const pdfTarget = firstFallback.rawUrl || firstFallback.url;
-                          setPreviewAsset({
-                            type: "pdf",
-                            url: getGoogleDrivePdfViewerUrl(pdfTarget) || pdfTarget,
-                            title: `${caseItem.caseId} Image Attachment PDF`,
-                            downloadUrl: normalizeAssetUrl(pdfTarget) || pdfTarget,
-                          });
-                          return;
-                        }
-
-                        const fallbackUrls = fallbackImageCandidates
-                          .map((item) => item.previewUrl || item.url)
-                          .filter((url): url is string => Boolean(url))
-                          .filter((url, index, arr) => arr.indexOf(url) === index);
-
-                        if (fallbackUrls.length) {
-                          setPreviewAsset({
-                            type: "image",
-                            url: fallbackUrls[0],
-                            title: `${caseItem.caseId} Case Image`,
-                            items: fallbackUrls,
-                            index: 0,
-                            downloadUrl: fallbackUrls[0],
-                          });
-                        }
-                      }}
+                      onClick={() => void openStandardEvidencePreview()}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-sky-200/90 bg-gradient-to-b from-white to-sky-50 px-4 text-[12px] font-extrabold text-sky-700 shadow-[0_8px_22px_rgba(14,165,233,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-[0_12px_28px_rgba(14,165,233,0.16)] focus:outline-none focus:ring-4 focus:ring-sky-100"
                     >
                       <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">▧</span>
-                      Preview Image
+                      {evidencePreviewBusy ? "Preparing PDF..." : "Preview Image"}
                     </button>
                   </CaseActionTooltip>
                 ) : null}
