@@ -185,9 +185,9 @@ function drawEvidencePage(
   doc.setLineWidth(0.2);
   doc.line(5.5, pageH - 10.5, pageW - 5.5, pageH - 10.5);
   doc.setFont("THSarabunNew", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(77, 60, 100);
-  doc.text(`Page ${pageNo} / ${totalPages}`, pageW - 7, pageH - 5.5, { align: "right" });
+  doc.setFontSize(5.8);
+  doc.setTextColor(125, 125, 125);
+  doc.text(`Page ${pageNo} of ${totalPages}`, pageW - 7.5, pageH - 4.2, { align: "right" });
 }
 
 export async function buildEvidencePreviewPdf(
