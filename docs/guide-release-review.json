@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-01T03:18:29.666Z",
-  "reason": "ตรวจภาพ Coaching สามคอลัมน์ใน Preview เดือนจากผลประเมินจริง QA กรอกข้อความเอง Draft/สลับแท็บ/ปฏิทินผ่าน และไม่แสดงผู้เข้าร่วมหลักซ้ำในช่องเพิ่มเติม",
+  "reviewedAt": "2026-10-01T04:03:31.951Z",
+  "reason": "แก้วันที่เคสใน Coaching ให้ใช้ Case Date ที่บันทึกไว้เหมือน Case Detail รองรับ preview เก่า และทดสอบว่าไม่แทนด้วยเวลาประเมิน QA",
   "contentChanged": true,
   "reviewedChapters": [
     "coaching"
@@ -294,7 +294,7 @@
     "scripts/test-draft-persistence.mjs": "943c92866ab31731f4db7c0f8641cef75c7e88346dfa1699c83e28c7599924e0",
     "scripts/test-draft-queue-navigation.mjs": "886240a22aa46a15e9ec0ecbb26fc61c5f72ea1d43492667170e49b3c80ddf09",
     "scripts/test-knowledge.mjs": "edf7933d14e2137c42e97d77c2ff7ec0f363a0f0d1d666d1d54e3d4c7884ccca",
-    "scripts/test-monthly-coaching.mjs": "ac6c9c98e486a29488a9e262c6c6302f160f9850b9a4afcf9d6c833fb72acc4e",
+    "scripts/test-monthly-coaching.mjs": "cc130b62a58a6f7f7c6d7476aea10b1b36f70e8865a4f76abf134cd2c335b9bf",
     "scripts/test-monthly-signature-pdf.mjs": "f2ef3b0ac88fef3750bc1cb3057c516ace822a54e3c15b7a504e1898f07b0bfb",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
@@ -313,7 +313,7 @@
     "src/DashboardMockup.tsx": "6279b11ec592b152f4702290a4bbf50ff8642662fff0eb2c592a63d0172eec8c",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
-    "src/MonthlyCoachingWorkspace.tsx": "b1664274e30056ea0df088493d1f3cbd37da7c0b65a80930ea3a9fb90ebfb5b5",
+    "src/MonthlyCoachingWorkspace.tsx": "fed78c07733f3c80e350c5e0ae1173f17968942014d3058643857cac9a7dd27b",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
     "src/PageHero.tsx": "6e5621714c19abd9580783ff982edea6bd897bdc5342ae30303c24639f4e12e9",
     "src/PreTestMockup.tsx": "9608f60c5b579a3929931d20a366e5462013a452d61c7bc4e570e73afc2baeef",
