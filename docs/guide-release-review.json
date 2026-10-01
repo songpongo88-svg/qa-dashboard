@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-01T04:03:31.951Z",
-  "reason": "แก้วันที่เคสใน Coaching ให้ใช้ Case Date ที่บันทึกไว้เหมือน Case Detail รองรับ preview เก่า และทดสอบว่าไม่แทนด้วยเวลาประเมิน QA",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "coaching"
-  ],
+  "reviewedAt": "2026-10-01T08:24:00.000Z",
+  "reason": "ตรวจการเพิ่มมาตรฐาน Preview Image, ลายน้ำ KPI, เลขหน้า และดาวน์โหลด PDF แล้ว ไม่มีการเปลี่ยนเนื้อหาคู่มือ",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -310,7 +308,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "693eb4a6b8bbafaf3b979b99df307bcd08ddff10dfc5223f3a03b6d165583526",
-    "src/DashboardMockup.tsx": "6279b11ec592b152f4702290a4bbf50ff8642662fff0eb2c592a63d0172eec8c",
+    "src/DashboardMockup.tsx": "67dbd8c213c2f91c4283019eaad2dbcbed2ae73912508fe8d16959c133a72c4f",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "fed78c07733f3c80e350c5e0ae1173f17968942014d3058643857cac9a7dd27b",
@@ -423,6 +421,8 @@
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
-    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735"
+    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
+    "src/evidencePreviewPdf.ts": "34b1f56dbc576bdcd0f99b8a3f35aaea796c262c9834f58b36abf244c9671329",
+    "api/google-drive-download.js": "ec788b84e98042ba6036d8c1820be79f34f15f03144ae3111529aaf2b1cd32b2"
   }
 }
