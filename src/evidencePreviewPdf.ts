@@ -235,10 +235,10 @@ function drawEvidencePage(
   }
 
   const passed = Number(finalScore) >= 85;
-  // Approx. 6% visual strength on white: visible as a watermark without obscuring evidence text.
+  // Approx. 11% visual strength on white: clearer than before while keeping evidence readable.
   const watermarkColor: [number, number, number] = passed
-    ? [241, 250, 244]
-    : [253, 242, 242];
+    ? [226, 243, 232]
+    : [249, 226, 226];
 
   doc.setFont("THSarabunNew", "bold");
   doc.setFontSize(52);
