@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-01T08:28:00.000Z",
-  "reason": "ตรวจเลขหน้า Evidence PDF ให้ตรงรูปแบบ Case Detail แบบ Page X of Y แล้ว ไม่มีการเปลี่ยนเนื้อหาคู่มือ",
+  "reviewedAt": "2026-10-01T08:36:00.000Z",
+  "reason": "ตรวจการปรับลายน้ำ Evidence ให้จางลงและเลือกตำแหน่งที่มีข้อความน้อยลงแล้ว ไม่มีการเปลี่ยนเนื้อหาคู่มือ",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -422,7 +422,7 @@
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
     "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
-    "src/evidencePreviewPdf.ts": "3cca3c0678d94c0d14b650aac335c14841e7724d6a994d0b08990339aa4a2255",
+    "src/evidencePreviewPdf.ts": "95e3740c1d15e96d2e13b35b14cd99343d137bdd0e7c6d4cbb5196a4e5f0c2c3",
     "api/google-drive-download.js": "ec788b84e98042ba6036d8c1820be79f34f15f03144ae3111529aaf2b1cd32b2"
   }
 }
