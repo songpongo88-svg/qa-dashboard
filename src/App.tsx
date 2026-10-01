@@ -3800,6 +3800,14 @@ export default function App() {
     return Number.isFinite(stored) ? stored : 0;
   });
 
+  const refreshQaDashboardData = useCallback(() => {
+    const nextKey = Date.now();
+    setQaDataRefreshKey(nextKey);
+    window.localStorage.setItem(QA_DATA_REFRESH_STORAGE_KEY, String(nextKey));
+    window.dispatchEvent(new CustomEvent("qa-dashboard-data-refresh", { detail: nextKey }));
+    return nextKey;
+  }, []);
+
   const [activeTab, setActiveTab] = useState<AppTab>(() => {
     try {
       const initialTab = normalizeAppTab(new URL(window.location.href).searchParams.get("tab"));
@@ -3811,6 +3819,33 @@ export default function App() {
     }
   });
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
+
+  // qa-dashboard-refresh-on-activation-v166
+  const previousActiveTabRef = useRef<AppTab | null>(null);
+  useEffect(() => {
+    const previousTab = previousActiveTabRef.current;
+    previousActiveTabRef.current = activeTab;
+    if (activeTab !== "dashboard" || previousTab === "dashboard") return;
+    refreshQaDashboardData();
+  }, [activeTab, refreshQaDashboardData]);
+
+  useEffect(() => {
+    let lastRefreshAt = 0;
+    const refreshWhenVisible = () => {
+      if (activeTab !== "dashboard" || document.visibilityState === "hidden") return;
+      const now = Date.now();
+      if (now - lastRefreshAt < 3000) return;
+      lastRefreshAt = now;
+      refreshQaDashboardData();
+    };
+
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [activeTab, refreshQaDashboardData]);
   const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<WorkspaceTabKey[]>(() => {
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY) || "[]");
@@ -4846,10 +4881,7 @@ export default function App() {
   };
 
   const notifyQaDataChanged = () => {
-    const nextKey = Date.now();
-    setQaDataRefreshKey(nextKey);
-    window.localStorage.setItem(QA_DATA_REFRESH_STORAGE_KEY, String(nextKey));
-    window.dispatchEvent(new CustomEvent("qa-dashboard-data-refresh", { detail: nextKey }));
+    refreshQaDashboardData();
   };
 
   const handleEvaluationSubmitted = async (payload: EvaluationSubmitPayload) => {
