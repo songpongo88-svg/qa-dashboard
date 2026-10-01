@@ -92,11 +92,17 @@ function findQuietWatermarkYRatio(canvas: HTMLCanvasElement) {
     let darkPixels = 0;
     let samples = 0;
     let darkness = 0;
+    const sampleWidth = Math.max(1, xEnd - xStart);
+    const sampleHeight = Math.max(1, yEnd - yStart);
+    const pixels = context.getImageData(xStart, yStart, sampleWidth, sampleHeight).data;
 
-    for (let y = yStart; y < yEnd; y += step) {
-      for (let x = xStart; x < xEnd; x += step) {
-        const pixel = context.getImageData(x, y, 1, 1).data;
-        const luminance = 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2];
+    for (let localY = 0; localY < sampleHeight; localY += step) {
+      for (let localX = 0; localX < sampleWidth; localX += step) {
+        const offset = (localY * sampleWidth + localX) * 4;
+        const luminance =
+          0.2126 * pixels[offset] +
+          0.7152 * pixels[offset + 1] +
+          0.0722 * pixels[offset + 2];
         if (luminance < 232) darkPixels += 1;
         darkness += 255 - luminance;
         samples += 1;
