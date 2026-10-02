@@ -23,8 +23,13 @@ export default async function handler(req, res) {
     }
 
     const arrayBuffer = await response.arrayBuffer();
+    const inline = String(req.query?.inline || "") === "1";
+    const requestedName = String(req.query?.name || "").replace(/[\r\n"]/g, "").trim();
+    const fallbackName = contentType.startsWith("audio/") ? `voice-${id}` : `evidence-${id}.pdf`;
+    const safeName = requestedName || fallbackName;
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Disposition", `attachment; filename="evidence-${id}.pdf"`);
+    res.setHeader("Content-Disposition", `${inline ? "inline" : "attachment"}; filename="${safeName}"`);
+    res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Cache-Control", "private, max-age=60");
     return res.status(200).send(Buffer.from(arrayBuffer));
   } catch (error) {
