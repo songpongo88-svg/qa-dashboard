@@ -3189,6 +3189,7 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
               targetUsername: existing.targetUsername || item.targetUsername,
               evaluatorName: existing.evaluatorName || item.evaluatorName,
               processReference: existing.processReference || item.processReference,
+              callLogs: existing.callLogs?.length ? existing.callLogs : item.callLogs,
               qaScheme: item.qaScheme,
               topics: existing.topics?.map((rawTopic) => {
                 const storedTopic = item.topics?.find((topic) => topic.code === rawTopic.code);
