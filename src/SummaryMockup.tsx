@@ -2899,6 +2899,7 @@ export default function SummaryMockup({
   dataRefreshKey,
   embedded = false,
   onSelectedAgentChange,
+  onAgentPerformanceCaseSelect,
   onSelectedMonthChange,
   onSelectedWeekChange,
   onSelectedYearChange,
@@ -2915,6 +2916,7 @@ export default function SummaryMockup({
   dataRefreshKey?: number;
   embedded?: boolean;
   onSelectedAgentChange?: (agent: string) => void;
+  onAgentPerformanceCaseSelect?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
   onSelectedYearChange?: (year: string) => void;
@@ -10182,6 +10184,16 @@ export default function SummaryMockup({
               canSelectAgent={analyticsCanSelectAllAgents}
               onSelectAgent={(agent) => {
                 if (!analyticsCanSelectAllAgents) return;
+                if (embedded && onAgentPerformanceCaseSelect) {
+                  onAgentPerformanceCaseSelect(agent);
+                  window.requestAnimationFrame(() => {
+                    document.getElementById("qa-unified-case-explorer-v160")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  });
+                  return;
+                }
                 selectAnalyticsAgent(agent);
               }}
             />
