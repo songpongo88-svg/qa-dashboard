@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T03:59:00.000Z",
-  "reason": "ตรวจการปรับ Call Time ให้พิมพ์หรือวางค่า HH:MM:SS เช่น 10:33:15 ได้โดยตรงแล้ว ไม่มีการเปลี่ยนเนื้อหาคู่มือ",
+  "reviewedAt": "2026-10-02T04:20:00.000Z",
+  "reason": "ตรวจการย่อ No Case และ Test Case เป็น Icon selector พร้อม Tooltip แล้ว ไม่มีการเปลี่ยนเงื่อนไขการใช้งานหรือเนื้อหาคู่มือ",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -307,7 +307,7 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
-    "src/CreateEvaluationMockup.tsx": "28ec0d051686276fa70707861a6d646c85ec57e7c190d7bcc6a17329921f9c30",
+    "src/CreateEvaluationMockup.tsx": "6832f3d10fa7b7cdd2ca1da579f3daf4964a231ca1b6197139f2b2896dd4a9e9",
     "src/DashboardMockup.tsx": "12c68fce4fe23aa1423f7b753fcd126d0cf34264d63d64b068c43bdb5dc52c08",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
