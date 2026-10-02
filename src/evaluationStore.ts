@@ -79,6 +79,19 @@ export type StoredEvaluationTopic = {
   deductions?: DeductionTag[];
 };
 
+export type StoredEvaluationCallLog = {
+  id: string;
+  phoneNumber: string;
+  direction: "Outbound" | "Inbound";
+  callDate: string;
+  callTime: string;
+  duration: string;
+  note?: string;
+  recordingUrl?: string;
+  recordingName?: string;
+  recordingType?: string;
+};
+
 export type StoredEvaluationType = "case" | "no_case_month";
 
 export type StoredEvaluation = {
@@ -102,6 +115,7 @@ export type StoredEvaluation = {
   caseDescription: string;
   processReference?: string;
   evidenceUrls: string[];
+  callLogs?: StoredEvaluationCallLog[];
   criticalError: boolean;
   finalScore: number;
   grade: string;
@@ -219,6 +233,18 @@ function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
     caseDescription: compactStoredText(record.caseDescription),
     processReference: compactStoredText(record.processReference),
     evidenceUrls: (record.evidenceUrls || []).map(compactStoredUrl).filter(Boolean),
+    callLogs: (record.callLogs || []).map((item) => ({
+      id: compactStoredText(item.id, 200),
+      phoneNumber: compactStoredText(item.phoneNumber, 100),
+      direction: item.direction === "Inbound" ? "Inbound" : "Outbound",
+      callDate: compactStoredText(item.callDate, 40),
+      callTime: compactStoredText(item.callTime, 40),
+      duration: compactStoredText(item.duration, 40),
+      note: compactStoredText(item.note, 2000),
+      recordingUrl: compactStoredUrl(item.recordingUrl),
+      recordingName: compactStoredText(item.recordingName, 500),
+      recordingType: compactStoredText(item.recordingType, 120),
+    })),
     strengths: (record.strengths || []).map((item) => compactStoredText(item, 2000)),
     improvements: (record.improvements || []).map((item) => compactStoredText(item, 2000)),
     topics: (record.topics || []).map((topic) => ({
@@ -431,6 +457,20 @@ function toEvaluation(row: any): StoredEvaluation {
       row.process_reference || row.raw_data_preview?.["Process Reference"] || ""
     ),
     evidenceUrls: toArray(row.evidence_urls),
+    callLogs: Array.isArray(row.call_logs)
+      ? row.call_logs.map((item: any, index: number) => ({
+          id: String(item?.id || `call-${index + 1}`),
+          phoneNumber: String(item?.phoneNumber || item?.phone_number || ""),
+          direction: item?.direction === "Inbound" ? "Inbound" : "Outbound",
+          callDate: String(item?.callDate || item?.call_date || ""),
+          callTime: String(item?.callTime || item?.call_time || ""),
+          duration: String(item?.duration || ""),
+          note: String(item?.note || ""),
+          recordingUrl: String(item?.recordingUrl || item?.recording_url || ""),
+          recordingName: String(item?.recordingName || item?.recording_name || ""),
+          recordingType: String(item?.recordingType || item?.recording_type || ""),
+        }))
+      : [],
     criticalError: row.critical_error === true,
     finalScore: Number(row.final_score || 0),
     grade: String(row.grade || ""),
@@ -847,6 +887,7 @@ function fromEvaluation(record: StoredEvaluation) {
     inquiry: record.inquiry || "",
     case_description: record.caseDescription || "",
     evidence_urls: record.evidenceUrls || [],
+    call_logs: record.callLogs || [],
     critical_error: record.criticalError,
     final_score: Number(record.finalScore || 0),
     grade: record.grade || "",
@@ -1034,6 +1075,16 @@ async function uploadEvidenceBlobToFirebase(
     contentType: contentType || blob.type || "application/octet-stream",
   });
   return getDownloadURL(objectRef);
+}
+
+export async function uploadCallRecordingFile(file: File, caseId: string) {
+  const safeOriginalName = sanitizeStoragePathPart(file.name || "voice-recording", "voice-recording");
+  return uploadEvidenceBlobToFirebase(
+    file,
+    `call-recording-${safeOriginalName}`,
+    file.type || "audio/wav",
+    caseId || "uncategorized"
+  );
 }
 
 async function uploadEvidenceFileToFirebase(file: File, caseId: string): Promise<PendingEvidenceUpload | null> {
