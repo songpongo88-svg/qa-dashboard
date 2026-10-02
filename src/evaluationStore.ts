@@ -188,14 +188,22 @@ function clearRemoteEvaluationReadCache() {
   remoteEvaluationReadCache.clear();
 }
 
+export function invalidateStoredEvaluationCache() {
+  clearRemoteEvaluationReadCache();
+}
+
 async function cachedRemoteEvaluations(limit: number, request: () => Promise<StoredEvaluation[]>) {
   const now = Date.now();
   const cacheKey = `submitted-at-desc:${limit}`;
   const cached = remoteEvaluationReadCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.promise;
 
-  const promise = request().catch((error) => {
-    remoteEvaluationReadCache.delete(cacheKey);
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<StoredEvaluation[]>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง")), 20_000);
+  });
+  const promise = Promise.race([request(), timeout]).finally(() => clearTimeout(timeoutId)).catch((error) => {
+    if (remoteEvaluationReadCache.get(cacheKey)?.promise === promise) remoteEvaluationReadCache.delete(cacheKey);
     throw error;
   });
   remoteEvaluationReadCache.set(cacheKey, {
@@ -1364,7 +1372,7 @@ async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[
   return restored;
 }
 
-export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
+export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, options: { strict?: boolean } = {}) {
   const safeLimit = normalizeEvaluationLimit(limit);
   const localEvaluations = readLocalEvaluationHistory();
   const cachedEvaluations = isFirebaseEvaluationConfigured() ? [] : readRemoteEvaluationCache();
@@ -1399,9 +1407,12 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
         return limitEvaluationScopes(records, safeLimit);
       } catch (error) {
         console.warn("Load Firebase evaluations failed", error);
-        return [];
+        throw error;
       }
-    }).catch(() => []);
+    }).catch((error) => {
+      if (options.strict) throw error;
+      return [];
+    });
 
     const recoveredFirebaseEvaluations = firebaseEvaluations.map((item) =>
       recoverRemoteEvaluationFromLocal(item, localEvaluations)

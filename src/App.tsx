@@ -23,7 +23,9 @@ import { withConsistentUserNames } from "./lib/userNames";
 import PreTestMockup from "./PreTestMockup";
 import TrainingAttendanceMockup from "./TrainingAttendanceMockup";
 import ScheduleMockup, { ScheduleSidebarCard } from "./ScheduleMockup";
-import { upsertStoredEvaluation, isTestCaseEvaluation } from "./evaluationStore";
+import { upsertStoredEvaluation, isTestCaseEvaluation, invalidateStoredEvaluationCache } from "./evaluationStore";
+import { useDashboardAutoRefresh } from "./useDashboardAutoRefresh";
+import { fetchDashboardRevision } from "./dashboardRevision";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
 import CallHistoryMockup from "./CallHistoryMockup";
@@ -3799,11 +3801,13 @@ export default function App() {
     const stored = Number(window.localStorage.getItem(QA_DATA_REFRESH_STORAGE_KEY) || 0);
     return Number.isFinite(stored) ? stored : 0;
   });
+  const [qaDataCheckedAt, setQaDataCheckedAt] = useState(0);
 
   const refreshQaDashboardData = useCallback(() => {
     const nextKey = Date.now();
+    invalidateStoredEvaluationCache();
     setQaDataRefreshKey(nextKey);
-    window.localStorage.setItem(QA_DATA_REFRESH_STORAGE_KEY, String(nextKey));
+    try { window.localStorage.setItem(QA_DATA_REFRESH_STORAGE_KEY, String(nextKey)); } catch { /* Refresh still works without browser storage. */ }
     window.dispatchEvent(new CustomEvent("qa-dashboard-data-refresh", { detail: nextKey }));
     return nextKey;
   }, []);
@@ -3820,19 +3824,7 @@ export default function App() {
   });
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
 
-  // qa-dashboard-refresh-on-activation-v167
-  // Keep the Dashboard live without reloading on every browser focus/tab switch.
-  // Returning to Dashboard only refreshes when the current QA data is older than 60 seconds.
-  const previousActiveTabRef = useRef<AppTab | null>(null);
-  useEffect(() => {
-    const previousTab = previousActiveTabRef.current;
-    previousActiveTabRef.current = activeTab;
-    if (activeTab !== "dashboard" || previousTab === "dashboard") return;
-
-    const lastRefreshAt = Number(qaDataRefreshKey || 0);
-    const isStale = !Number.isFinite(lastRefreshAt) || lastRefreshAt <= 0 || Date.now() - lastRefreshAt >= 60000;
-    if (isStale) refreshQaDashboardData();
-  }, [activeTab, qaDataRefreshKey, refreshQaDashboardData]);
+  useDashboardAutoRefresh(Boolean(currentUser) && activeTab === "dashboard", qaDataRefreshKey, refreshQaDashboardData, fetchDashboardRevision, setQaDataCheckedAt);
   const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<WorkspaceTabKey[]>(() => {
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY) || "[]");
@@ -7364,6 +7356,8 @@ export default function App() {
               roleScopedAgentNames={roleScopedAgentNames}
               canViewAgentsInOverview={overviewAgentSelectionAllowed}
               canViewAnalytics={analyticsAllowed}
+              onRefreshData={refreshQaDashboardData}
+              dataCheckedAt={qaDataCheckedAt}
               dataRefreshKey={qaDataRefreshKey}
               analyticsContent={analyticsAllowed ? (
                 <SummaryMockup
