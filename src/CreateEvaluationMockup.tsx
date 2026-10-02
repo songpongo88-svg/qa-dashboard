@@ -454,6 +454,11 @@ function normalizeTimeTyping(value: string) {
   return value.replace(/\D/g, "").slice(0, 4);
 }
 
+function normalizeCallTimeTyping(value: string) {
+  // Call Time accepts direct paste/type in HH:MM:SS, e.g. 10:33:15.
+  return value.replace(/[^0-9:]/g, "").slice(0, 8);
+}
+
 function formatTimeInput(value: string) {
   const digits = normalizeTimeTyping(value);
   if (!digits) return "";
@@ -3231,11 +3236,13 @@ export default function CreateEvaluationMockup({
                               <label className="min-w-0">
                                 <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Call Time</span>
                                 <input
-                                  type="time"
-                                  step="1"
+                                  type="text"
+                                  inputMode="numeric"
                                   value={call.callTime}
-                                  onChange={(event) => updateCallLog(call.id, { callTime: event.target.value })}
-                                  className={`${inputClass} min-w-0 px-2 text-[12px]`}
+                                  onChange={(event) => updateCallLog(call.id, { callTime: normalizeCallTimeTyping(event.target.value) })}
+                                  className={`${inputClass} min-w-0 px-2 text-[13px] font-bold tabular-nums`}
+                                  placeholder="10:33:15"
+                                  maxLength={8}
                                 />
                               </label>
 
