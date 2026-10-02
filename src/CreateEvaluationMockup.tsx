@@ -1312,6 +1312,7 @@ export default function CreateEvaluationMockup({
       "Case Description": noCaseForMonth ? "Monthly zero-case result" : richTextToPlainText(caseDescription) || "-",
       "Process Reference": noCaseForMonth ? "-" : richTextToPlainText(processReference) || "-",
       "Case Image URL": noCaseForMonth ? "-" : evidenceDisplayValue || "-",
+      "Call Log": noCaseForMonth ? "-" : callLogSummary(callLogs) || "-",
       "Evaluation Type": noCaseForMonth ? "no_case_month" : "case",
       "Test Case": isTestCase && !noCaseForMonth ? "YES" : "NO",
       "Evaluation Month Key": selectedMonthKey,
@@ -1336,7 +1337,7 @@ export default function CreateEvaluationMockup({
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, noCaseForMonth, isTestCase, processReference, rubricPeriod, selectedMonthKey, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, noCaseForMonth, isTestCase, processReference, callLogs, rubricPeriod, selectedMonthKey, serviceTime, topicState, topics, waitingTime]);
 
   function makeDraftId(draftCaseId: string, draftAuditDate: string) {
     const caseKey = draftCaseId.trim().toUpperCase() || "UNTITLED-CASE";
@@ -1403,6 +1404,7 @@ export default function CreateEvaluationMockup({
       caseDescription,
       processReference,
       evidenceUrl,
+      callLogs: callLogs.map(({ uploadStatus: _uploadStatus, uploadError: _uploadError, localPreviewUrl: _localPreviewUrl, ...item }) => item),
       noCaseForMonth,
       isTestCase,
       criticalError,
@@ -1430,6 +1432,7 @@ export default function CreateEvaluationMockup({
     setCaseDescription(normalizedDraft.caseDescription || "");
     setProcessReference(normalizedDraft.processReference || "");
     setEvidenceUrl(normalizedDraft.evidenceUrl || "");
+    setCallLogs((normalizedDraft.callLogs || []).map((item) => ({ ...item, uploadStatus: item.recordingUrl ? "uploaded" : "idle" })));
     setNoCaseForMonth(Boolean(normalizedDraft.noCaseForMonth));
     setIsTestCase(isTestCaseEvaluation(normalizedDraft) && !normalizedDraft.noCaseForMonth);
     setCriticalError(Boolean(normalizedDraft.criticalError));
@@ -1487,6 +1490,12 @@ export default function CreateEvaluationMockup({
     setCaseDescription("");
     setProcessReference("");
     setEvidenceUrl("");
+    setCallLogs((current) => {
+      current.forEach((item) => {
+        if (item.localPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(item.localPreviewUrl);
+      });
+      return [];
+    });
     setEvidenceFiles((current) => {
       current.forEach((file) => {
         URL.revokeObjectURL(file.previewUrl);
@@ -1656,6 +1665,9 @@ export default function CreateEvaluationMockup({
       evidenceUrls: noCaseForMonth
         ? []
         : evidencePreviewValue.split(/\n+/).map((item) => item.trim()).filter(Boolean),
+      callLogs: noCaseForMonth
+        ? []
+        : callLogs.map(({ uploadStatus: _uploadStatus, uploadError: _uploadError, localPreviewUrl: _localPreviewUrl, ...item }) => item),
       finalScore: noCaseForMonth || criticalError ? 0 : finalScore,
       grade,
       criticalError: noCaseForMonth ? false : criticalError,
@@ -1874,6 +1886,83 @@ export default function CreateEvaluationMockup({
     }));
   }
 
+  function addCallLog() {
+    setCallLogs((current) => [
+      ...current,
+      {
+        id: callLogId(),
+        phoneNumber: "",
+        direction: "Outbound",
+        callDate: auditDate || todayInputValue(),
+        callTime: "",
+        duration: "",
+        note: "",
+        recordingUrl: "",
+        recordingName: "",
+        recordingType: "",
+        uploadStatus: "idle",
+      },
+    ]);
+  }
+
+  function updateCallLog(id: string, patch: Partial<EditableCallLog>) {
+    setCallLogs((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
+  }
+
+  function removeCallLog(id: string) {
+    setCallLogs((current) => {
+      const target = current.find((item) => item.id === id);
+      if (target?.localPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(target.localPreviewUrl);
+      return current.filter((item) => item.id !== id);
+    });
+  }
+
+  async function handleCallRecordingFile(id: string, file: File | null) {
+    if (!file) return;
+    const validAudio = file.type.startsWith("audio/") || /\.(wav|mp3|m4a|aac)$/i.test(file.name);
+    if (!validAudio) {
+      updateCallLog(id, { uploadStatus: "failed", uploadError: "รองรับไฟล์ WAV, MP3, M4A และ AAC" });
+      return;
+    }
+
+    const parsed = parseCallRecordingFileName(file.name);
+    const duration = await readAudioDuration(file);
+    const localPreviewUrl = URL.createObjectURL(file);
+    setCallLogs((current) => current.map((item) => {
+      if (item.id !== id) return item;
+      if (item.localPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(item.localPreviewUrl);
+      return {
+        ...item,
+        phoneNumber: parsed.phoneNumber || item.phoneNumber,
+        direction: parsed.direction || item.direction,
+        callDate: parsed.callDate || item.callDate || auditDate,
+        callTime: parsed.callTime || item.callTime,
+        duration: duration || item.duration,
+        recordingName: file.name,
+        recordingType: file.type || "audio/wav",
+        localPreviewUrl,
+        uploadStatus: "uploading",
+        uploadError: "",
+      };
+    }));
+
+    try {
+      const recordingUrl = await uploadCallRecordingFile(file, caseId || "draft-case");
+      updateCallLog(id, {
+        recordingUrl,
+        recordingName: file.name,
+        recordingType: file.type || "audio/wav",
+        uploadStatus: "uploaded",
+        uploadError: "",
+      });
+    } catch (error) {
+      updateCallLog(id, {
+        uploadStatus: "failed",
+        uploadError: error instanceof Error ? error.message : "อัปโหลดไฟล์เสียงไม่สำเร็จ",
+      });
+    }
+  }
+
   async function handleEvidenceFiles(files: FileList | null) {
     if (!files?.length) return;
 
@@ -1960,6 +2049,7 @@ export default function CreateEvaluationMockup({
         "Case Description": richTextToPlainText(record.caseDescription),
         "Process Reference": richTextToPlainText(record.processReference),
         "Case Image URL": record.evidenceUrls.join("\n"),
+        "Call Log": callLogSummary(record.callLogs || []),
         "QA Scheme": record.qaScheme,
         "Rubric Version": record.rubricName,
         "Rubric Active Period": record.rubricPeriod,
@@ -2072,6 +2162,7 @@ export default function CreateEvaluationMockup({
     setInquiry(record.inquiry || "");
     setCaseDescription(record.caseDescription || "");
     setProcessReference(record.processReference || "");
+    setCallLogs((record.callLogs || []).map((item) => ({ ...item, uploadStatus: item.recordingUrl ? "uploaded" : "idle" })));
     const editableEvidence = splitEditableEvidence(record.evidenceUrls || []);
     setEvidenceUrl(editableEvidence.manualUrls);
     setEvidenceFiles(editableEvidence.attachedFiles);
@@ -2805,6 +2896,7 @@ export default function CreateEvaluationMockup({
                         setProcessReference("");
                         setEvidenceUrl("");
                         setEvidenceFiles([]);
+                        setCallLogs([]);
                         setCriticalError(false);
                       }
                     }}
