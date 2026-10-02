@@ -5,6 +5,15 @@ export function dashboardResetPreservesEvaluationPatch() {
     transform(code, id) {
       const normalized = id.replace(/\\/g, "/").split("?")[0];
 
+      // The current components reset case selection directly and keep the
+      // selected Period/Team/Agent. Retain this adapter only for older sources.
+      if (code.includes("// dashboard-case-navigation-v1")) {
+        if (normalized.endsWith("/src/DashboardMockup.tsx") && code.includes("window.location.reload()")) {
+          throw new Error("Dashboard case navigation must not reload the workspace");
+        }
+        return null;
+      }
+
       if (normalized.endsWith("/src/DashboardMockup.tsx")) {
         let next = code;
         const resetEvent = 'window.dispatchEvent(new Event("qa-dashboard-reset-preserve-evaluation-v90"));';

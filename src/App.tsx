@@ -3862,6 +3862,10 @@ export default function App() {
   const [caseSelectedAgent, setCaseSelectedAgent] = useState(
     () => window.sessionStorage.getItem("qa_case_selected_agent_v134") || ""
   );
+  const [caseFilterResetKey, setCaseFilterResetKey] = useState(0);
+  const resetDashboardCaseFilters = useCallback(() => {
+    setCaseFilterResetKey((key) => key + 1);
+  }, []);
   const [caseSelectedMonth, setCaseSelectedMonth] = useState(
     () => window.sessionStorage.getItem("qa_case_selected_month_v134") || getCurrentMonthKey()
   );
@@ -4719,9 +4723,8 @@ export default function App() {
       setDashboardSubTab("case-detail");
       setSelectedDashboardCaseId(caseId);
       if (agentName) {
-                  setSelectedAgentGlobal(agentName);
-                  setCaseSelectedAgent(agentName);
-                }
+        setSelectedAgentGlobal(agentName);
+      }
       navigateToTab("dashboard", {
         workspaceKey,
         params: { subTab: "case-detail", caseId, agent: agentName },
@@ -7360,7 +7363,9 @@ export default function App() {
               externalSelectedMonthKey={caseSelectedMonth}
               externalSelectedWeek={caseSelectedWeek}
               externalSelectedYear={caseSelectedYear}
-              externalCaseIdSearch={selectedDashboardCaseId}
+              externalSelectedCaseId={selectedDashboardCaseId}
+              externalSelectedCaseAgent={isCaseWorkspaceTabKey(activeWorkspaceTab) ? parseCaseWorkspaceKey(activeWorkspaceTab).agentName : selectedAgentGlobal}
+              caseFilterResetKey={caseFilterResetKey}
               roleScopedAgentNames={roleScopedAgentNames}
               canViewAgentsInOverview={overviewAgentSelectionAllowed}
               canViewAnalytics={analyticsAllowed}
@@ -7384,8 +7389,13 @@ export default function App() {
                     const nextAgent = agent === "all" ? "" : agent;
                     setDashboardSummarySelectedAgent(nextAgent);
                     setCaseSelectedAgent(nextAgent);
+                    resetDashboardCaseFilters();
                   }}
-                  onAgentPerformanceCaseSelect={(agent) => setCaseSelectedAgent(agent)}
+                  onAgentPerformanceCaseSelect={(agent) => {
+                    setCaseSelectedAgent(agent);
+                    resetDashboardCaseFilters();
+                  }}
+                  onResetCaseFilters={resetDashboardCaseFilters}
                   onSelectedMonthChange={setCaseSelectedMonth}
                   onSelectedWeekChange={setCaseSelectedWeek}
                   onSelectedYearChange={setCaseSelectedYear}
@@ -7417,7 +7427,6 @@ export default function App() {
                 setSelectedDashboardCaseId(caseId || "");
                 if (agentName) {
                   setSelectedAgentGlobal(agentName);
-                  setCaseSelectedAgent(agentName);
                 }
                 navigateToTab("dashboard", {
                   workspaceKey: caseWorkspaceKey,

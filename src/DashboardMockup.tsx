@@ -1,5 +1,5 @@
 import { WeekdayDashboardLayout } from "./WeekdayScene";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -5000,7 +5000,9 @@ export default function DashboardMockup({
   externalSelectedMonthKey,
   externalSelectedWeek,
   externalSelectedYear,
-  externalCaseIdSearch,
+  externalSelectedCaseId,
+  externalSelectedCaseAgent,
+  caseFilterResetKey = 0,
   roleScopedAgentNames,
   canViewAgentsInOverview = false,
   canViewAnalytics = false,
@@ -5027,7 +5029,9 @@ export default function DashboardMockup({
   externalSelectedMonthKey?: string;
   externalSelectedWeek?: string;
   externalSelectedYear?: string;
-  externalCaseIdSearch?: string;
+  externalSelectedCaseId?: string;
+  externalSelectedCaseAgent?: string;
+  caseFilterResetKey?: number;
   roleScopedAgentNames?: string[];
   canViewAgentsInOverview?: boolean;
   canViewAnalytics?: boolean;
@@ -5184,19 +5188,16 @@ export default function DashboardMockup({
   function closeCaseDetail() {
     setSlideOverOpen(false);
     setSelectedCaseKey("");
-    if (externalCaseIdSearch) {
-      setCaseIdSearch("");
-    }
-    if (caseDetailWorkspaceMode || externalCaseIdSearch) {
+    if (caseDetailWorkspaceMode || externalSelectedCaseId) {
       onCloseCaseDetail?.();
     }
   }
 
   useEffect(() => {
-    if (!caseDetailWorkspaceMode && !externalCaseIdSearch) {
+    if (!caseDetailWorkspaceMode && !externalSelectedCaseId) {
       setSlideOverOpen(false);
     }
-  }, [caseDetailWorkspaceMode, externalCaseIdSearch]);
+  }, [caseDetailWorkspaceMode, externalSelectedCaseId]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const caseSearchHistoryStorageKey = useMemo(() => {
@@ -5330,12 +5331,6 @@ export default function DashboardMockup({
   }, [externalSelectedWeek, selectedWeek]);
 
   useEffect(() => {
-    if (typeof externalCaseIdSearch === "string" && externalCaseIdSearch && externalCaseIdSearch !== caseIdSearch) {
-      setCaseIdSearch(externalCaseIdSearch);
-    }
-  }, [externalCaseIdSearch, caseIdSearch]);
-
-  useEffect(() => {
     try {
       const stored = JSON.parse(window.localStorage.getItem(caseSearchHistoryStorageKey) || "[]");
       const normalized = Array.isArray(stored)
@@ -5383,13 +5378,21 @@ export default function DashboardMockup({
     }
   };
 
-  const clearCaseSearch = () => {
+  // dashboard-case-navigation-v1
+  const clearCaseSearch = useCallback(() => {
     setCaseIdSearch("");
     setSelectedCaseKey("");
     setSlideOverOpen(false);
     setCaseSearchHistoryOpen(false);
     setCaseSearchFeedback("idle");
-  };
+    setSelectedTopicCode("");
+  }, []);
+
+  // A repeated click on the same Agent is still a new navigation action.
+  // Clear only case filters; the user's Period, Team and Agent remain selected.
+  useEffect(() => {
+    clearCaseSearch();
+  }, [caseFilterResetKey, clearCaseSearch]);
 
   useEffect(() => {
     const pendingCaseId = caseIdSearch.trim();
@@ -6426,6 +6429,9 @@ export default function DashboardMockup({
   }, [allCases, selectedMonthKey, dateFrom, dateTo, effectiveMonthKeyForAgentVisibility, noCaseEvaluations, overviewAgentScopeList]);
 
   useEffect(() => {
+    // A detail link may target another month/Agent. Do not reconcile its
+    // unrelated Dashboard filters against the currently visible Agent list.
+    if (dashboardSubTab === "case-detail" && externalSelectedCaseId) return;
     if (overviewSelfOnly && overviewAgentScopeList.length) {
       const lockedAgent = overviewAgentScopeList[0];
       if (lockedAgent && !isSameAgent(selectedAgent || "", lockedAgent)) {
@@ -6444,7 +6450,7 @@ export default function DashboardMockup({
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
-  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList, overviewSelfOnly, isLoading, allCases.length]);
+  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList, overviewSelfOnly, isLoading, allCases.length, dashboardSubTab, externalSelectedCaseId]);
 
   const effectiveSelectedAgent =
     overviewSelfOnly && overviewAgentScopeList.length
@@ -6779,23 +6785,24 @@ export default function DashboardMockup({
     [dashboardCasesBase]
   );
 
+  const detailTargetCase = useMemo(() => {
+    if (dashboardSubTab !== "case-detail" || !externalSelectedCaseId) return null;
+    const caseId = String(externalSelectedCaseId).trim().toLowerCase();
+    return authorizedSearchCases.find((item) =>
+      String(item.caseId || "").trim().toLowerCase() === caseId &&
+      (!externalSelectedCaseAgent || isSameCanonicalAgent(item.agent, externalSelectedCaseAgent))
+    ) || null;
+  }, [authorizedSearchCases, dashboardSubTab, externalSelectedCaseId, externalSelectedCaseAgent]);
+
   useEffect(() => {
-    if (dashboardSubTab !== "case-detail" || !externalCaseIdSearch || !caseExplorerCases.length) return;
-    const targetCaseId = String(externalCaseIdSearch || "").trim().toLowerCase();
-    const targetCase = caseExplorerCases.find((item) => String(item.caseId || "").trim().toLowerCase() === targetCaseId);
-    if (!targetCase) return;
-    if (selectedCaseKey !== targetCase.key) {
-      setSelectedCaseKey(targetCase.key);
-    }
-    if (!slideOverOpen) {
-      setSlideOverOpen(true);
-    }
-  }, [caseExplorerCases, dashboardSubTab, externalCaseIdSearch, selectedCaseKey, slideOverOpen]);
+    if (detailTargetCase) setSlideOverOpen(true);
+  }, [detailTargetCase]);
 
   const activeSelectedCase = useMemo(() => {
+    if (dashboardSubTab === "case-detail" && externalSelectedCaseId) return detailTargetCase;
     if (!selectedCaseKey) return null;
     return caseExplorerCases.find((item) => item.key === selectedCaseKey) || null;
-  }, [caseExplorerCases, selectedCaseKey]);
+  }, [caseExplorerCases, selectedCaseKey, dashboardSubTab, externalSelectedCaseId, detailTargetCase]);
 
   const selectedCaseTeam = useMemo(
     () => resolveCaseAgentTeam(activeSelectedCase, caseAgentDirectory),
@@ -6803,6 +6810,7 @@ export default function DashboardMockup({
   );
 
   useEffect(() => {
+    if (dashboardSubTab === "case-detail" && externalSelectedCaseId) return;
     if (!caseExplorerCases.length) {
       if (selectedCaseKey !== "") setSelectedCaseKey("");
       if (slideOverOpen) setSlideOverOpen(false);
@@ -6816,7 +6824,7 @@ export default function DashboardMockup({
       setSelectedCaseKey("");
       setSlideOverOpen(false);
     }
-  }, [caseExplorerCases, selectedCaseKey, slideOverOpen]);
+  }, [caseExplorerCases, selectedCaseKey, slideOverOpen, dashboardSubTab, externalSelectedCaseId]);
 
   const isAllAgentsView = !effectiveSelectedAgent;
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
@@ -7623,21 +7631,7 @@ export default function DashboardMockup({
           className="h-12 min-w-0 rounded-xl border border-sky-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-[#155B83] focus:ring-4 focus:ring-sky-100"
         />
         <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-[#155B83] px-5 text-xs font-black text-white shadow-[0_7px_18px_rgba(21,91,131,0.20)] transition hover:-translate-y-0.5 hover:bg-[#104A6B] hover:shadow-[0_9px_22px_rgba(21,91,131,0.24)]">Search</button>
-        <button type="button" title="ล้างการค้นหา เคสที่เลือก และตัวกรองทั้งหมดกลับค่าเริ่มต้น" onClick={() => {
-          clearCaseSearch();
-          [
-            "qa_analytics_mode_v134",
-            "qa_analytics_periods_v134",
-            "qa_analytics_year_filter_v134",
-            "qa_analytics_month_filter_v134",
-            "qa_analytics_section_v134",
-            "qa_analytics_team_month_v134",
-            "qa_analytics_team_v134",
-            "qa_analytics_team_detail_v134",
-            "qa_summary_selected_agent_v119"
-          ].forEach((key) => window.sessionStorage.removeItem(key));
-          window.setTimeout(() => window.location.reload(), 0);
-        }} className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md">Reset</button>
+        <button type="button" title="ล้างคำค้น เคสที่เลือก และหัวข้อที่กรอง โดยคง Period, Team และ Agent" onClick={clearCaseSearch} className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md">Reset</button>
       </div>
       {caseIdSearch.trim() ? (
         <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[10px] font-semibold ${
@@ -7705,8 +7699,9 @@ export default function DashboardMockup({
         ) : (
           <div className="mx-auto flex min-h-[420px] max-w-3xl items-center justify-center p-6">
             <div className="w-full rounded-[20px] border border-violet-200 bg-white px-5 py-8 text-center shadow-sm">
-              <div className="text-sm font-bold text-slate-800">กำลังเปิด Case Detail</div>
-              <div className="mt-1 text-xs text-slate-500">รอโหลดข้อมูลของ {externalCaseIdSearch || "เคสที่เลือก"}</div>
+              <div className="text-sm font-bold text-slate-800">{isLoading ? "กำลังเปิด Case Detail" : "ไม่พบเคสนี้ภายใต้สิทธิ์การเข้าถึงของคุณ"}</div>
+              <div className="mt-1 text-xs text-slate-500">{externalSelectedCaseId || "เคสที่เลือก"}</div>
+              <button type="button" onClick={closeCaseDetail} className="mt-4 rounded-xl border border-violet-200 bg-white px-4 py-2 text-xs font-bold text-violet-700">กลับ QA Dashboard</button>
             </div>
           </div>
         )}

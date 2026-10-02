@@ -2900,6 +2900,7 @@ export default function SummaryMockup({
   embedded = false,
   onSelectedAgentChange,
   onAgentPerformanceCaseSelect,
+  onResetCaseFilters,
   onSelectedMonthChange,
   onSelectedWeekChange,
   onSelectedYearChange,
@@ -2917,6 +2918,7 @@ export default function SummaryMockup({
   embedded?: boolean;
   onSelectedAgentChange?: (agent: string) => void;
   onAgentPerformanceCaseSelect?: (agent: string) => void;
+  onResetCaseFilters?: () => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
   onSelectedYearChange?: (year: string) => void;
@@ -3000,6 +3002,7 @@ export default function SummaryMockup({
   const [selectedTeamDetail, setSelectedTeamDetail] = useState(
     () => window.sessionStorage.getItem("qa_analytics_team_detail_v134") || ""
   );
+  // dashboard-case-navigation-v1
   const [dashboardControlTarget, setDashboardControlTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -9111,6 +9114,7 @@ export default function SummaryMockup({
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-violet-50 px-3 py-2 text-[10px] font-medium text-slate-600">
                 <span>{isComparisonMode ? `Comparing: ${effectivePeriodLabels.join(" · ")}` : `Current view: ${effectivePeriodLabels[0] || "Current period"}`}</span>
                 <button type="button" onClick={() => {
+                  onResetCaseFilters?.();
                   setSummarySection("summary");
                   changeAnalysisMode("monthly");
                   setSelectedPeriods([]);
@@ -9839,6 +9843,7 @@ export default function SummaryMockup({
                   <button
                     type="button"
                     onClick={() => {
+                      onResetCaseFilters?.();
                       changeAnalysisMode("monthly");
                       setSelectedPeriods([]);
                       setSelectedTeam(
