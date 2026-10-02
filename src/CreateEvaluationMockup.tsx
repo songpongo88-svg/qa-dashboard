@@ -1927,6 +1927,76 @@ export default function CreateEvaluationMockup({
     });
   }
 
+  async function handleNewCallRecordingFiles(files: FileList | null) {
+    const selectedFiles = Array.from(files || []);
+    if (!selectedFiles.length) return;
+
+    for (const file of selectedFiles) {
+      const id = callLogId();
+      const validAudio = file.type.startsWith("audio/") || /\.(wav|mp3|m4a|aac)$/i.test(file.name);
+
+      if (!validAudio) {
+        setCallLogs((current) => [
+          ...current,
+          {
+            id,
+            phoneNumber: "",
+            direction: "Outbound",
+            callDate: auditDate || todayInputValue(),
+            callTime: "",
+            duration: "",
+            note: "",
+            recordingUrl: "",
+            recordingName: file.name,
+            recordingType: file.type || "",
+            uploadStatus: "failed",
+            uploadError: "รองรับไฟล์ WAV, MP3, M4A และ AAC",
+          },
+        ]);
+        continue;
+      }
+
+      const parsed = parseCallRecordingFileName(file.name);
+      const duration = await readAudioDuration(file);
+      const localPreviewUrl = URL.createObjectURL(file);
+
+      setCallLogs((current) => [
+        ...current,
+        {
+          id,
+          phoneNumber: parsed.phoneNumber || "",
+          direction: parsed.direction || "Outbound",
+          callDate: parsed.callDate || auditDate || todayInputValue(),
+          callTime: parsed.callTime || "",
+          duration,
+          note: "",
+          recordingUrl: "",
+          recordingName: file.name,
+          recordingType: file.type || "audio/wav",
+          localPreviewUrl,
+          uploadStatus: "uploading",
+          uploadError: "",
+        },
+      ]);
+
+      try {
+        const recordingUrl = await uploadCallRecordingFile(file, caseId || "draft-case");
+        updateCallLog(id, {
+          recordingUrl,
+          recordingName: file.name,
+          recordingType: file.type || "audio/wav",
+          uploadStatus: "uploaded",
+          uploadError: "",
+        });
+      } catch (error) {
+        updateCallLog(id, {
+          uploadStatus: "failed",
+          uploadError: error instanceof Error ? error.message : "อัปโหลดไฟล์เสียงไม่สำเร็จ",
+        });
+      }
+    }
+  }
+
   async function handleCallRecordingFile(id: string, file: File | null) {
     if (!file) return;
     const validAudio = file.type.startsWith("audio/") || /\.(wav|mp3|m4a|aac)$/i.test(file.name);
@@ -3175,20 +3245,41 @@ export default function CreateEvaluationMockup({
             {!noCaseForMonth ? (
               <SectionCard label="Section B2" title="Call Log / Voice Recording">
                 <div className="space-y-4">
-                  <div className="flex flex-col gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="text-sm font-black text-violet-950">Call Log & Voice Recording</div>
-                      <div className="mt-1 text-xs font-semibold leading-5 text-violet-700">
-                        เพิ่มเบอร์โทร วันเวลา ประเภทสาย และไฟล์เสียงได้หลายรายการต่อเคส หากไม่มีข้อมูล ส่วนนี้จะไม่แสดงใน Case Detail PDF
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-sm font-black text-violet-950">Call Log & Voice Recording</div>
+                        <div className="mt-1 text-xs font-semibold leading-5 text-violet-700">
+                          แนบไฟล์เสียงได้เลย ระบบจะสร้าง Call Log และอ่านเบอร์โทร ประเภทสาย วัน เวลา และ Duration ให้อัตโนมัติ
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <label className="inline-flex cursor-pointer items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-800">
+                          + Attach Voice
+                          <input
+                            data-storage-upload="disabled"
+                            type="file"
+                            accept="audio/*,.wav,.mp3,.m4a,.aac"
+                            multiple
+                            className="hidden"
+                            onChange={(event) => {
+                              void handleNewCallRecordingFiles(event.target.files);
+                              event.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={addCallLog}
+                          className="rounded-xl border border-violet-300 bg-white px-3 py-2.5 text-xs font-black text-violet-700 transition hover:bg-violet-100"
+                        >
+                          + Add Manual Call
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={addCallLog}
-                      className="shrink-0 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-violet-800"
-                    >
-                      + Add Call Log
-                    </button>
+                    <div className="mt-2 text-[11px] font-semibold leading-5 text-violet-600">
+                      รองรับ WAV, MP3, M4A, AAC และเลือกหลายไฟล์พร้อมกันได้ • ถ้าระบบอ่านข้อมูลบางช่องไม่ได้ ค่อยกรอกเฉพาะช่องนั้น
+                    </div>
                   </div>
 
                   {callLogs.length ? (
