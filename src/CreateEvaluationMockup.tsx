@@ -44,6 +44,7 @@ import {
   richTextToPlainText,
 } from "./richText";
 import { ProcessReferenceDisplay, ProcessReferenceSelector } from "./processLibrary";
+import { prepareVoiceRecordingForBrowser } from "./gsmMsWav";
 // process-library-v65
 
 type TopicState = {
@@ -57,6 +58,8 @@ type EditableCallLog = StoredEvaluationCallLog & {
   uploadError?: string;
   uploadProgress?: number;
   localPreviewUrl?: string;
+  playbackRepairing?: boolean;
+  playbackError?: string;
 };
 
 type EvidenceFile = {
@@ -1966,8 +1969,18 @@ export default function CreateEvaluationMockup({
       }
 
       const parsed = parseCallRecordingFileName(file.name);
-      const duration = await readAudioDuration(file);
-      const localPreviewUrl = URL.createObjectURL(file);
+      let playbackFile = file;
+      let convertedDuration = "";
+      try {
+        const prepared = await prepareVoiceRecordingForBrowser(file);
+        playbackFile = prepared.file;
+        if (prepared.durationSeconds) convertedDuration = formatCallDuration(prepared.durationSeconds);
+      } catch (error) {
+        console.warn("Prepare Voice Recording for browser playback failed", error);
+      }
+
+      const duration = convertedDuration || await readAudioDuration(playbackFile);
+      const localPreviewUrl = URL.createObjectURL(playbackFile);
 
       setCallLogs((current) => [
         ...current,
@@ -1981,24 +1994,25 @@ export default function CreateEvaluationMockup({
           note: "",
           recordingUrl: "",
           recordingName: file.name,
-          recordingType: file.type || "audio/wav",
+          recordingType: playbackFile.type || "audio/wav",
           localPreviewUrl,
           uploadStatus: "uploading",
           uploadError: "",
           uploadProgress: 0,
+          playbackError: "",
         },
       ]);
 
       try {
         const recordingUrl = await uploadCallRecordingFile(
-          file,
+          playbackFile,
           caseId || "draft-case",
           (uploadProgress) => updateCallLog(id, { uploadProgress })
         );
         updateCallLog(id, {
           recordingUrl,
           recordingName: file.name,
-          recordingType: file.type || "audio/wav",
+          recordingType: playbackFile.type || "audio/wav",
           uploadStatus: "uploaded",
           uploadError: "",
           uploadProgress: 100,
@@ -2006,13 +2020,13 @@ export default function CreateEvaluationMockup({
       } catch (firebaseError) {
         try {
           updateCallLog(id, { uploadProgress: 0, uploadError: "Firebase ช้า กำลังลองสำรองผ่าน Google Drive..." });
-          const driveLink = await uploadEvidenceFileToDrive(file, caseId || "draft-case");
-          const fallbackUrl = googleDrivePlaybackUrl(driveLink, file.name);
+          const driveLink = await uploadEvidenceFileToDrive(playbackFile, caseId || "draft-case");
+          const fallbackUrl = googleDrivePlaybackUrl(driveLink, playbackFile.name);
           if (!fallbackUrl) throw new Error("ไม่พบ Google Drive file id");
           updateCallLog(id, {
             recordingUrl: fallbackUrl,
             recordingName: file.name,
-            recordingType: file.type || "audio/wav",
+            recordingType: playbackFile.type || "audio/wav",
             uploadStatus: "uploaded",
             uploadError: "",
             uploadProgress: 100,
@@ -2039,8 +2053,18 @@ export default function CreateEvaluationMockup({
     }
 
     const parsed = parseCallRecordingFileName(file.name);
-    const duration = await readAudioDuration(file);
-    const localPreviewUrl = URL.createObjectURL(file);
+    let playbackFile = file;
+    let convertedDuration = "";
+    try {
+      const prepared = await prepareVoiceRecordingForBrowser(file);
+      playbackFile = prepared.file;
+      if (prepared.durationSeconds) convertedDuration = formatCallDuration(prepared.durationSeconds);
+    } catch (error) {
+      console.warn("Prepare replacement Voice Recording for browser playback failed", error);
+    }
+
+    const duration = convertedDuration || await readAudioDuration(playbackFile);
+    const localPreviewUrl = URL.createObjectURL(playbackFile);
     setCallLogs((current) => current.map((item) => {
       if (item.id !== id) return item;
       if (item.localPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(item.localPreviewUrl);
@@ -2052,23 +2076,25 @@ export default function CreateEvaluationMockup({
         callTime: parsed.callTime || item.callTime,
         duration: duration || item.duration,
         recordingName: file.name,
-        recordingType: file.type || "audio/wav",
+        recordingType: playbackFile.type || "audio/wav",
         localPreviewUrl,
         uploadStatus: "uploading",
         uploadError: "",
+        uploadProgress: 0,
+        playbackError: "",
       };
     }));
 
     try {
       const recordingUrl = await uploadCallRecordingFile(
-        file,
+        playbackFile,
         caseId || "draft-case",
         (uploadProgress) => updateCallLog(id, { uploadProgress })
       );
       updateCallLog(id, {
         recordingUrl,
         recordingName: file.name,
-        recordingType: file.type || "audio/wav",
+        recordingType: playbackFile.type || "audio/wav",
         uploadStatus: "uploaded",
         uploadError: "",
         uploadProgress: 100,
@@ -2076,13 +2102,13 @@ export default function CreateEvaluationMockup({
     } catch (firebaseError) {
       try {
         updateCallLog(id, { uploadProgress: 0, uploadError: "Firebase ช้า กำลังลองสำรองผ่าน Google Drive..." });
-        const driveLink = await uploadEvidenceFileToDrive(file, caseId || "draft-case");
-        const fallbackUrl = googleDrivePlaybackUrl(driveLink, file.name);
+        const driveLink = await uploadEvidenceFileToDrive(playbackFile, caseId || "draft-case");
+        const fallbackUrl = googleDrivePlaybackUrl(driveLink, playbackFile.name);
         if (!fallbackUrl) throw new Error("ไม่พบ Google Drive file id");
         updateCallLog(id, {
           recordingUrl: fallbackUrl,
           recordingName: file.name,
-          recordingType: file.type || "audio/wav",
+          recordingType: playbackFile.type || "audio/wav",
           uploadStatus: "uploaded",
           uploadError: "",
           uploadProgress: 100,
@@ -2096,6 +2122,68 @@ export default function CreateEvaluationMockup({
           uploadError: `${firstMessage} / สำรองไม่สำเร็จ: ${secondMessage}`,
         });
       }
+    }
+  }
+
+  async function repairCallRecordingPlayback(id: string) {
+    const call = callLogs.find((item) => item.id === id);
+    if (!call || call.playbackRepairing) return;
+    const sourceUrl = call.localPreviewUrl || call.recordingUrl || "";
+    if (!sourceUrl) return;
+
+    updateCallLog(id, { playbackRepairing: true, playbackError: "" });
+    try {
+      const response = await fetch(sourceUrl);
+      if (!response.ok) throw new Error("โหลดไฟล์เสียงเดิมไม่สำเร็จ");
+      const blob = await response.blob();
+      const sourceFile = new File(
+        [blob],
+        call.recordingName || "voice-recording.wav",
+        { type: call.recordingType || blob.type || "audio/wav" }
+      );
+      const prepared = await prepareVoiceRecordingForBrowser(sourceFile);
+      if (!prepared.converted) throw new Error("รูปแบบเสียงนี้ยังไม่รองรับการแปลงอัตโนมัติ");
+
+      const playbackFile = prepared.file;
+      const localPreviewUrl = URL.createObjectURL(playbackFile);
+      const duration = prepared.durationSeconds
+        ? formatCallDuration(prepared.durationSeconds)
+        : await readAudioDuration(playbackFile);
+
+      updateCallLog(id, {
+        localPreviewUrl,
+        duration: duration || call.duration,
+        recordingType: playbackFile.type || "audio/wav",
+        playbackRepairing: false,
+        playbackError: "",
+        uploadStatus: "uploading",
+        uploadProgress: 0,
+      });
+
+      try {
+        const recordingUrl = await uploadCallRecordingFile(
+          playbackFile,
+          caseId || "draft-case",
+          (uploadProgress) => updateCallLog(id, { uploadProgress })
+        );
+        updateCallLog(id, {
+          recordingUrl,
+          uploadStatus: "uploaded",
+          uploadProgress: 100,
+          uploadError: "",
+        });
+      } catch (error) {
+        updateCallLog(id, {
+          uploadStatus: "uploaded",
+          uploadProgress: 100,
+          uploadError: "",
+        });
+      }
+    } catch (error) {
+      updateCallLog(id, {
+        playbackRepairing: false,
+        playbackError: error instanceof Error ? error.message : "ซ่อมการเล่นไฟล์เสียงไม่สำเร็จ",
+      });
     }
   }
 
@@ -3488,10 +3576,35 @@ export default function CreateEvaluationMockup({
                                     src={playableUrl}
                                     className="w-full"
                                     onContextMenu={(event) => event.preventDefault()}
+                                    onError={() => {
+                                      if (!call.playbackRepairing && !call.playbackError) {
+                                        void repairCallRecordingPlayback(call.id);
+                                      }
+                                    }}
                                   />
                                   <div className="mt-2 text-[11px] font-semibold text-slate-500">
                                     ฟังได้ในระบบ • ไม่มีปุ่ม Download
                                   </div>
+                                  {call.playbackRepairing ? (
+                                    <div className="mt-2 text-[11px] font-black text-amber-700">
+                                      กำลังแปลงไฟล์เสียงเดิมให้เล่นบน Browser ได้...
+                                    </div>
+                                  ) : null}
+                                  {call.playbackError ? (
+                                    <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-rose-50 px-2.5 py-2 text-[11px] font-bold text-rose-700">
+                                      <span>{call.playbackError}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          updateCallLog(call.id, { playbackError: "" });
+                                          void repairCallRecordingPlayback(call.id);
+                                        }}
+                                        className="shrink-0 rounded-lg border border-rose-200 bg-white px-2 py-1 font-black"
+                                      >
+                                        ลองแก้ Playback
+                                      </button>
+                                    </div>
+                                  ) : null}
                                 </div>
                               ) : null}
                             </div>
