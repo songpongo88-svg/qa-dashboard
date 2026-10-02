@@ -35,7 +35,7 @@ import {
   type Grade,
   type IncentiveResult,
 } from "./lib/scoreIncentivePolicy";
-import { canonicalAgentIdentityKey, canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
+import { canonicalAgentIdentityKey, canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
 import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
 import MonthlyKpiNotice from "./MonthlyKpiNotice";
@@ -5256,14 +5256,19 @@ export default function DashboardMockup({
   }, [selectedMonthKey, dateFrom, dateTo]);
 
   useEffect(() => {
-    if (
-      !overviewAgentScopeList.length &&
-      typeof externalSelectedAgent === "string" &&
-      externalSelectedAgent !== selectedAgent
-    ) {
-      setSelectedAgent(externalSelectedAgent);
+    if (overviewAgentScopeList.length || typeof externalSelectedAgent !== "string") return;
+
+    const requestedAgent = String(externalSelectedAgent || "").trim();
+    const resolvedAgent = requestedAgent
+      ? allCases.find((item) => isSameCanonicalAgent(item.agent, requestedAgent))?.agent || requestedAgent
+      : "";
+
+    if (resolvedAgent !== selectedAgent) {
+      setSelectedAgent(resolvedAgent);
       // agent-keeps-period-v32
-      // Changing Agent (including Agent Performance > View Details) must keep the selected Period.
+      // Agent Performance and Case Records can be backed by differently-normalized
+      // names. Resolve the clicked Analytics name to the canonical Case Records name
+      // before filtering so the list never falls to 0 until a browser refresh.
       setCaseIdSearch("");
       setSelectedCaseKey("");
       setSlideOverOpen(false);
@@ -5272,7 +5277,7 @@ export default function DashboardMockup({
     externalSelectedAgent,
     selectedAgent,
     overviewAgentScopeList.length,
-    onSelectedWeekChange,
+    allCases,
   ]);
 
   useEffect(() => {
