@@ -19,6 +19,7 @@ import {
   isTestCaseEvaluation,
   excludeTestEvaluations,
   type StoredEvaluation,
+  type StoredEvaluationCallLog,
 } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
@@ -97,6 +98,7 @@ type CaseItem = {
   casePdfUrl?: string;
   casePdfOriginalUrl?: string;
   casePdfRevisedUrl?: string;
+  callLogs?: StoredEvaluationCallLog[];
   finalScore: number;
   previousScore?: number;
   grade: Grade;
@@ -1503,6 +1505,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
         casePdfUrl: record.evidenceUrls.find((url) => url.toLowerCase().endsWith(".pdf")) || "",
         casePdfOriginalUrl: "",
         casePdfRevisedUrl: "",
+        callLogs: record.callLogs || [],
         finalScore: finalScoreVal,
         previousScore: finalScoreVal,
         grade: scoreToGrade(finalScoreVal, monthKey),
@@ -4868,6 +4871,65 @@ function SlideOverCaseDetail({
                 ))}
               </div>
             </div>
+
+            {caseItem.callLogs?.length ? (
+              <div className="overflow-hidden rounded-[20px] border border-emerald-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+                <div className="flex items-center gap-3 border-b border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-base font-black text-emerald-700">☎</span>
+                  <div>
+                    <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Call Log & Voice Recording</div>
+                    <div className="mt-0.5 text-[11px] text-slate-500">ข้อมูลการโทรและไฟล์เสียงที่บันทึกไว้กับเคส</div>
+                  </div>
+                </div>
+                <div className="space-y-3 p-4">
+                  {caseItem.callLogs.map((call, index) => (
+                    <div key={call.id || `call-${index}`} className="rounded-[16px] border border-slate-200 bg-slate-50/70 p-4">
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                        {[
+                          { label: "Call", value: `#${index + 1}` },
+                          { label: "Type", value: call.direction || "-" },
+                          { label: "Phone Number", value: call.phoneNumber || "-" },
+                          { label: "Date / Time", value: [call.callDate, call.callTime].filter(Boolean).join(" ") || "-" },
+                          { label: "Duration", value: call.duration || "-" },
+                        ].map((entry) => (
+                          <div key={entry.label} className="min-w-0">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">{entry.label}</div>
+                            <div className="mt-1 break-words text-[13px] font-extrabold text-slate-900">{entry.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {call.note ? (
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
+                          <span className="font-extrabold text-slate-900">Note:</span> {call.note}
+                        </div>
+                      ) : null}
+                      {call.recordingUrl ? (
+                        <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-xs font-extrabold text-emerald-800">Voice Recording</div>
+                              <div className="mt-0.5 truncate text-[11px] font-semibold text-slate-500" title={call.recordingName || "Voice Recording"}>
+                                {call.recordingName || "Voice Recording"}
+                              </div>
+                            </div>
+                            <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">Available</span>
+                          </div>
+                          <audio
+                            controls
+                            controlsList="nodownload noplaybackrate"
+                            preload="metadata"
+                            src={call.recordingUrl}
+                            className="w-full"
+                            onContextMenu={(event) => event.preventDefault()}
+                          />
+                          <div className="mt-2 text-[10px] font-semibold text-slate-500">Playback only • Download is not provided in Case Detail</div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <Panel>
