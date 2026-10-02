@@ -3872,6 +3872,10 @@ export default function App() {
     () => window.sessionStorage.getItem("qa_case_selected_year_v163") || String(new Date().getFullYear())
   );
 
+  const [dashboardSummarySelectedAgent, setDashboardSummarySelectedAgent] = useState(
+    () => window.sessionStorage.getItem("qa_dashboard_summary_selected_agent_v167") || ""
+  );
+
   const [analyticsSelectedAgent, setAnalyticsSelectedAgent] = useState(
     () => window.sessionStorage.getItem("qa_analytics_selected_agent_v134") || ""
   );
@@ -3888,6 +3892,10 @@ export default function App() {
     window.sessionStorage.setItem("qa_case_selected_week_v134", caseSelectedWeek);
     window.sessionStorage.setItem("qa_case_selected_year_v163", caseSelectedYear);
   }, [caseSelectedAgent, caseSelectedMonth, caseSelectedWeek, caseSelectedYear]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem("qa_dashboard_summary_selected_agent_v167", dashboardSummarySelectedAgent);
+  }, [dashboardSummarySelectedAgent]);
 
   useEffect(() => {
     window.sessionStorage.setItem("qa_analytics_selected_agent_v134", analyticsSelectedAgent);
@@ -7363,7 +7371,7 @@ export default function App() {
                 <SummaryMockup
                   embedded
                   currentUser={currentUser}
-                  externalSelectedAgent={caseSelectedAgent}
+                  externalSelectedAgent={dashboardSummarySelectedAgent}
                   externalSelectedMonth={caseSelectedMonth}
                   externalSelectedWeek={caseSelectedWeek}
                   roleScopedAgentNames={roleScopedAgentNames}
@@ -7372,7 +7380,12 @@ export default function App() {
                   canViewOwnTeam={analyticsOwnTeamAllowed}
                   canExportAnalytics={analyticsExportAllowed}
                   dataRefreshKey={qaDataRefreshKey}
-                  onSelectedAgentChange={(agent) => setCaseSelectedAgent(agent === "all" ? "" : agent)}
+                  onSelectedAgentChange={(agent) => {
+                    const nextAgent = agent === "all" ? "" : agent;
+                    setDashboardSummarySelectedAgent(nextAgent);
+                    setCaseSelectedAgent(nextAgent);
+                  }}
+                  onAgentPerformanceCaseSelect={(agent) => setCaseSelectedAgent(agent)}
                   onSelectedMonthChange={setCaseSelectedMonth}
                   onSelectedWeekChange={setCaseSelectedWeek}
                   onSelectedYearChange={setCaseSelectedYear}
