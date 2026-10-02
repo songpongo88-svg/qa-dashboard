@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T09:55:00.000Z",
-  "reason": "ปรับ voice upload timeout ให้ใช้ uploadBytes ที่เข้ากับ test fixture เดิม พร้อม fallback ไป Google Drive และไม่ให้ค้างไม่สิ้นสุด",
+  "reviewedAt": "2026-10-02T10:05:00.000Z",
+  "reason": "ปรับ UI Call Log ให้ส่วนบนกระชับขึ้น และทำปุ่มลบ Call เป็นปุ่ม X มุมขวาบนที่มองเห็นได้เสมอ โดยไม่เปลี่ยนเงื่อนไขการใช้งานหรือคู่มือ",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -309,7 +309,7 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
-    "src/CreateEvaluationMockup.tsx": "857800394e97db1d28ffce197badf84617e2ffc3f5476462d78555a747dab728",
+    "src/CreateEvaluationMockup.tsx": "75e242703c848196fb53968970e3943ce1d2b9c6b6cdfddabe515be6bc8e12e6",
     "src/DashboardMockup.tsx": "6bec86eb37686bdf99477b1f52751aad81078d5e9b51752fd69bc273ab752cd2",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
