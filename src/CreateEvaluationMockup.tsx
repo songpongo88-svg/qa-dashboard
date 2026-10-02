@@ -3143,6 +3143,169 @@ export default function CreateEvaluationMockup({
               </div>
             </SectionCard>
             ) : null}
+
+            {!noCaseForMonth ? (
+              <SectionCard label="Section B2" title="Call Log / Voice Recording">
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-sm font-black text-violet-950">Call Log & Voice Recording</div>
+                      <div className="mt-1 text-xs font-semibold leading-5 text-violet-700">
+                        เพิ่มเบอร์โทร วันเวลา ประเภทสาย และไฟล์เสียงได้หลายรายการต่อเคส หากไม่มีข้อมูล ส่วนนี้จะไม่แสดงใน Case Detail PDF
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addCallLog}
+                      className="shrink-0 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-violet-800"
+                    >
+                      + Add Call Log
+                    </button>
+                  </div>
+
+                  {callLogs.length ? (
+                    <div className="space-y-3">
+                      {callLogs.map((call, index) => {
+                        const playableUrl = call.recordingUrl || call.localPreviewUrl || "";
+                        return (
+                          <div key={call.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-black text-slate-950">Call {index + 1}</div>
+                                <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                                  {call.recordingName || "ยังไม่มี Voice Recording"}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeCallLog(call.id)}
+                                className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                              >
+                                Remove
+                              </button>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                              <label className="block">
+                                <span className={labelClass}>Phone Number</span>
+                                <input
+                                  value={call.phoneNumber}
+                                  onChange={(event) => updateCallLog(call.id, { phoneNumber: event.target.value })}
+                                  className={inputClass}
+                                  placeholder="เช่น 0966541149"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className={labelClass}>Call Type</span>
+                                <select
+                                  value={call.direction}
+                                  onChange={(event) => updateCallLog(call.id, { direction: event.target.value === "Inbound" ? "Inbound" : "Outbound" })}
+                                  className={inputClass}
+                                >
+                                  <option value="Outbound">Outbound</option>
+                                  <option value="Inbound">Inbound</option>
+                                </select>
+                              </label>
+                              <label className="block">
+                                <span className={labelClass}>Call Date</span>
+                                <input
+                                  type="date"
+                                  value={call.callDate}
+                                  onChange={(event) => updateCallLog(call.id, { callDate: event.target.value })}
+                                  className={inputClass}
+                                />
+                              </label>
+                              <label className="block">
+                                <span className={labelClass}>Call Time</span>
+                                <input
+                                  type="time"
+                                  step="1"
+                                  value={call.callTime}
+                                  onChange={(event) => updateCallLog(call.id, { callTime: event.target.value })}
+                                  className={inputClass}
+                                />
+                              </label>
+                            </div>
+
+                            <div className="mt-3 grid gap-3 md:grid-cols-[180px_1fr]">
+                              <label className="block">
+                                <span className={labelClass}>Duration</span>
+                                <input
+                                  value={call.duration}
+                                  onChange={(event) => updateCallLog(call.id, { duration: event.target.value })}
+                                  className={inputClass}
+                                  placeholder="เช่น 03:42"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className={labelClass}>Note</span>
+                                <input
+                                  value={call.note || ""}
+                                  onChange={(event) => updateCallLog(call.id, { note: event.target.value })}
+                                  className={inputClass}
+                                  placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="mt-3 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 p-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <label className="inline-flex cursor-pointer items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-800">
+                                  {call.recordingUrl ? "Replace Voice" : "Attach Voice"}
+                                  <input
+                                    data-storage-upload="disabled"
+                                    type="file"
+                                    accept="audio/*,.wav,.mp3,.m4a,.aac"
+                                    className="hidden"
+                                    onChange={(event) => {
+                                      void handleCallRecordingFile(call.id, event.target.files?.[0] || null);
+                                      event.currentTarget.value = "";
+                                    }}
+                                  />
+                                </label>
+                                <span className="text-xs font-semibold text-slate-600">
+                                  WAV, MP3, M4A, AAC • ระบบจะอ่านวัน/เวลา/ประเภทสาย/เบอร์จากชื่อไฟล์เมื่ออ่านได้
+                                </span>
+                              </div>
+
+                              {call.uploadStatus === "uploading" ? (
+                                <div className="mt-3 text-xs font-black text-amber-700">กำลังอัปโหลด Voice Recording...</div>
+                              ) : null}
+                              {call.uploadStatus === "uploaded" ? (
+                                <div className="mt-3 text-xs font-black text-emerald-700">Voice Recording uploaded</div>
+                              ) : null}
+                              {call.uploadStatus === "failed" ? (
+                                <div className="mt-3 text-xs font-black text-rose-700">{call.uploadError || "อัปโหลดไฟล์เสียงไม่สำเร็จ"}</div>
+                              ) : null}
+
+                              {playableUrl ? (
+                                <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
+                                  <audio
+                                    controls
+                                    controlsList="nodownload noplaybackrate"
+                                    preload="metadata"
+                                    src={playableUrl}
+                                    className="w-full"
+                                    onContextMenu={(event) => event.preventDefault()}
+                                  />
+                                  <div className="mt-2 text-[11px] font-semibold text-slate-500">
+                                    ฟังได้ในระบบ • ไม่มีปุ่ม Download
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600">
+                      ยังไม่มี Call Log — ถ้าเคสนี้ไม่มีการโทร ไม่ต้องเพิ่มข้อมูล
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+            ) : null}
           </div>
 
           <div className="space-y-5">
