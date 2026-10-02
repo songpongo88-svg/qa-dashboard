@@ -70,8 +70,8 @@ export function investigationFindingsPatch() {
         next = replaceAllRequired(
           this,
           next,
-          '                        setCaseDescription("");\n                        setProcessReference("");',
-          '                        setCaseDescription("");\n                        setInvestigationFindings("");\n                        setProcessReference("");',
+          '                          setCaseDescription("");\n                          setProcessReference("");',
+          '                          setCaseDescription("");\n                          setInvestigationFindings("");\n                          setProcessReference("");',
           "CreateEvaluation no-case reset"
         );
 
