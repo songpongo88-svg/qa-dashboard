@@ -3301,40 +3301,48 @@ export default function CreateEvaluationMockup({
             {!noCaseForMonth ? (
               <SectionCard label="Section B2" title="Call Log / Voice Recording">
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-sm font-black text-violet-950">Call Log & Voice Recording</div>
-                        <div className="mt-1 text-xs font-semibold leading-5 text-violet-700">
-                          แนบไฟล์เสียงได้เลย ระบบจะสร้าง Call Log และอ่านเบอร์โทร ประเภทสาย วัน เวลา และ Duration ให้อัตโนมัติ
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M12 3v12" />
+                          <path d="m8 7 4-4 4 4" />
+                          <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-black text-slate-950">เพิ่มข้อมูลการโทร</div>
+                        <div className="mt-0.5 text-[11px] font-semibold leading-5 text-slate-600">
+                          แนบไฟล์เสียงเพื่ออ่านเบอร์ วัน เวลา ประเภทสาย และ Duration อัตโนมัติ
                         </div>
                       </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-2">
-                        <label className="inline-flex cursor-pointer items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-800">
-                          + Attach Voice
-                          <input
-                            data-storage-upload="disabled"
-                            type="file"
-                            accept="audio/*,.wav,.mp3,.m4a,.aac"
-                            multiple
-                            className="hidden"
-                            onChange={(event) => {
-                              void handleNewCallRecordingFiles(event.target.files);
-                              event.currentTarget.value = "";
-                            }}
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={addCallLog}
-                          className="rounded-xl border border-violet-300 bg-white px-3 py-2.5 text-xs font-black text-violet-700 transition hover:bg-violet-100"
-                        >
-                          + Add Manual Call
-                        </button>
-                      </div>
                     </div>
-                    <div className="mt-2 text-[11px] font-semibold leading-5 text-violet-600">
-                      รองรับ WAV, MP3, M4A, AAC และเลือกหลายไฟล์พร้อมกันได้ • ถ้าระบบอ่านข้อมูลบางช่องไม่ได้ ค่อยกรอกเฉพาะช่องนั้น
+
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label className="inline-flex min-w-0 cursor-pointer items-center justify-center rounded-xl bg-emerald-700 px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-800">
+                        + Attach Voice
+                        <input
+                          data-storage-upload="disabled"
+                          type="file"
+                          accept="audio/*,.wav,.mp3,.m4a,.aac"
+                          multiple
+                          className="hidden"
+                          onChange={(event) => {
+                            void handleNewCallRecordingFiles(event.target.files);
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={addCallLog}
+                        className="min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-black text-slate-700 transition hover:bg-slate-100"
+                      >
+                        + Manual Call
+                      </button>
+                    </div>
+                    <div className="mt-2 text-[10px] font-semibold leading-4 text-slate-500">
+                      WAV, MP3, M4A, AAC • เลือกหลายไฟล์พร้อมกันได้
                     </div>
                   </div>
 
@@ -3343,21 +3351,24 @@ export default function CreateEvaluationMockup({
                       {callLogs.map((call, index) => {
                         const playableUrl = call.recordingUrl || call.localPreviewUrl || "";
                         return (
-                          <div key={call.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="mb-3 flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-black text-slate-950">Call {index + 1}</div>
-                                <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                                  {call.recordingName || "ยังไม่มี Voice Recording"}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => removeCallLog(call.id)}
-                                className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                          <div key={call.id} className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() => removeCallLog(call.id)}
+                              title="ลบ Call นี้"
+                              aria-label={`ลบ Call ${index + 1}`}
+                              className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-lg font-black leading-none text-rose-700 transition hover:bg-rose-100"
+                            >
+                              ×
+                            </button>
+                            <div className="mb-3 min-w-0 pr-10">
+                              <div className="text-sm font-black text-slate-950">Call {index + 1}</div>
+                              <div
+                                className="mt-0.5 truncate text-[11px] font-semibold text-slate-500"
+                                title={call.recordingName || "ยังไม่มี Voice Recording"}
                               >
-                                Remove
-                              </button>
+                                {call.recordingName || "ยังไม่มี Voice Recording"}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
