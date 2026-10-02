@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T09:45:00.000Z",
-  "reason": "แก้ Voice Recording ที่ค้างอัปโหลดด้วย progress, timeout 20 วินาที และ fallback ไป Google Drive สำหรับ playback หาก Firebase ช้าหรือไม่ตอบสนอง",
+  "reviewedAt": "2026-10-02T09:55:00.000Z",
+  "reason": "ปรับ voice upload timeout ให้ใช้ uploadBytes ที่เข้ากับ test fixture เดิม พร้อม fallback ไป Google Drive และไม่ให้ค้างไม่สิ้นสุด",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -356,7 +356,7 @@
     "src/dashboardRevision.ts": "51cd5d455b3ce02ca90b371a10f5fba981ff196df057ddd03622a716401f5a50",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
-    "src/evaluationStore.ts": "a4cbcaf96a7a64b11dec921bcb4e2e2e368fbc888b0f0854b6d135ab9629c701",
+    "src/evaluationStore.ts": "70285f830f6ab4505b3407f2b3efd16a951cd36b798860aa0a4e420fb2335bd6",
     "src/evidencePreviewPdf.ts": "53a344d00db402295f7f3ae8defa99443e6f00e7973fd264396cfd9154c88f8d",
     "src/finalSignedCasePdf.ts": "f99fd97a35ab570d3091b65b5c5b842cbfe87c1d6f00e70c9eacec67fa8ed342",
     "src/finalSignedPdfRenderer.ts": "629a2d503f58275ffc778542d3716ea57fae3831ce4e8c560cabf290906aca6d",
