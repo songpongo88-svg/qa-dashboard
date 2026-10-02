@@ -699,6 +699,49 @@ export async function generateOfficialCaseDetailPdf({
     }
   };
 
+  const formatCallDateForPdf = (value: unknown) => {
+    const raw = safeText(value, "");
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+  };
+
+  const drawCallLogSection = () => {
+    const callLogs = Array.isArray(caseItem.callLogs)
+      ? caseItem.callLogs.filter((item: any) =>
+          item && (
+            safeText(item.phoneNumber, "") ||
+            safeText(item.callDate, "") ||
+            safeText(item.callTime, "") ||
+            safeText(item.duration, "") ||
+            safeText(item.note, "") ||
+            safeText(item.recordingUrl, "")
+          )
+        )
+      : [];
+    if (!callLogs.length) return;
+
+    const text = callLogs.map((item: any, index: number) => {
+      const header = [
+        `${index + 1}. ${safeText(item.direction, "Outbound")}`,
+        safeText(item.phoneNumber, ""),
+        [formatCallDateForPdf(item.callDate), safeText(item.callTime, "")].filter(Boolean).join(" "),
+        safeText(item.duration, "") ? `Duration ${safeText(item.duration, "")}` : "",
+      ].filter(Boolean).join(" | ");
+      const note = safeText(item.note, "");
+      const voice = safeText(item.recordingUrl, "") ? "Voice Recording: Available in QA Dashboard" : "";
+      return [header, note ? `Note: ${note}` : "", voice].filter(Boolean).join("\n");
+    }).join("\n\n");
+
+    drawWideTextRow({
+      labelText: "Call Log /\nVoice",
+      text,
+      size: CASE_DESCRIPTION_TEXT_SIZE,
+      leading: CASE_DESCRIPTION_LINE_SPACING,
+      minH: 14,
+      padY: 5,
+    });
+  };
+
   const reportScore = includeAppeal ? num(caseItem.finalScore) : originalScore(caseItem);
   const grade = safeText(caseItem.grade || scoreGrade(reportScore));
   const isTestCase = isTestCaseEvaluation(caseItem);
@@ -809,6 +852,8 @@ export async function generateOfficialCaseDetailPdf({
         padY: 5,
       });
     }
+
+    drawCallLogSection();
 
     const imageUrlRaw = caseItem.caseImageUrl || "-";
     const imageUrlText = normalizeUrlForPdf(imageUrlRaw);
@@ -952,6 +997,8 @@ export async function generateOfficialCaseDetailPdf({
         padY: 5,
       });
     }
+
+    drawCallLogSection();
 
     const imageUrlRaw = caseItem.caseImageUrl || safeText(caseItem.appealVersion, "REV1");
     const imageUrlText = normalizeUrlForPdf(imageUrlRaw);
