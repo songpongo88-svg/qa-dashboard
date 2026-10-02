@@ -1,5 +1,21 @@
 import assert from 'node:assert/strict';
-import { readDraftQueue, writeDraftQueue } from '../src/lib/evaluation/draftPersistence.ts';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import ts from 'typescript';
+
+const sourceUrl = new URL('../src/lib/evaluation/draftPersistence.ts', import.meta.url);
+const source = await fs.readFile(sourceUrl, 'utf8');
+const transpiled = ts.transpileModule(source, {
+  compilerOptions: {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ES2022,
+  },
+}).outputText;
+const tempPath = path.join(os.tmpdir(), `qa-draft-persistence-${process.pid}-${Date.now()}.mjs`);
+await fs.writeFile(tempPath, transpiled, 'utf8');
+const { readDraftQueue, writeDraftQueue } = await import(`${pathToFileURL(tempPath).href}?v=${Date.now()}`);
 
 const saved = new Map();
 const browserStorage = new Map();
@@ -54,3 +70,5 @@ assert.deepEqual(await readDraftQueue(), [original, next], 'both drafts survive 
 await writeDraftQueue([next]);
 assert.deepEqual(await readDraftQueue(), [next], 'deleting one draft persists without restoring it from old storage');
 console.log('PASS draft migration, localStorage quota and Draft Queue reload');
+
+try { await fs.unlink(tempPath); } catch {}
