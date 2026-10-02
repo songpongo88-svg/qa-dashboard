@@ -1,6 +1,6 @@
 ﻿import { initializeApp, getApps } from "firebase/app";
 import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc, startAfter, type QueryDocumentSnapshot } from "firebase/firestore";
-import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
+import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { getEvaluationAgentFullName } from "./lib/userNames";
 import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
@@ -1100,47 +1100,27 @@ export async function uploadCallRecordingFile(
   const path = `qa-evaluation-evidence/${safeCaseId}/${timestamp}-${random}-call-recording-${safeOriginalName}`;
   const objectRef = storageRef(storage, path);
 
-  return new Promise<string>((resolve, reject) => {
-    const task = uploadBytesResumable(objectRef, file, {
-      contentType: file.type || "audio/wav",
-    });
-    let settled = false;
-    let lastActivityAt = Date.now();
-
-    const finish = (callback: () => void) => {
-      if (settled) return;
-      settled = true;
-      globalThis.clearInterval(watchdog);
-      callback();
-    };
-
-    const watchdog = globalThis.setInterval(() => {
-      if (Date.now() - lastActivityAt < 20000) return;
-      try { task.cancel(); } catch {}
-      finish(() => reject(new Error("Voice upload timed out after 20 seconds without progress.")));
-    }, 1000);
-
-    task.on(
-      "state_changed",
-      (snapshot) => {
-        lastActivityAt = Date.now();
-        const total = Number(snapshot.totalBytes || file.size || 0);
-        const transferred = Number(snapshot.bytesTransferred || 0);
-        const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((transferred / total) * 100))) : 0;
-        onProgress?.(percent);
-      },
-      (error) => finish(() => reject(error)),
-      async () => {
-        try {
-          onProgress?.(100);
-          const url = await getDownloadURL(task.snapshot.ref);
-          finish(() => resolve(url));
-        } catch (error) {
-          finish(() => reject(error instanceof Error ? error : new Error("Unable to get Voice Recording URL.")));
-        }
-      }
+  onProgress?.(5);
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = globalThis.setTimeout(
+      () => reject(new Error("Voice upload timed out after 20 seconds.")),
+      20000
     );
   });
+
+  try {
+    const snapshot = await Promise.race([
+      uploadBytes(objectRef, file, { contentType: file.type || "audio/wav" }),
+      timeoutPromise,
+    ]);
+    onProgress?.(95);
+    const url = await getDownloadURL(snapshot.ref);
+    onProgress?.(100);
+    return url;
+  } finally {
+    if (timeoutId) globalThis.clearTimeout(timeoutId);
+  }
 }
 
 async function uploadEvidenceFileToFirebase(file: File, caseId: string): Promise<PendingEvidenceUpload | null> {
