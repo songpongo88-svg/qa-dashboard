@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "public/dashboard-case-navigation-check/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/dashboard-case-navigation-check/?",
+      "dest": "/public/dashboard-case-navigation-check/index.html"
+    },
+    {
+      "src": "/dashboard-case-navigation-check/(.+)",
+      "dest": "/public/dashboard-case-navigation-check/$1"
+    }
+  ]
+}
