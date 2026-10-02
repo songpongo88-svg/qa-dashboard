@@ -55,6 +55,7 @@ type TopicState = {
 type EditableCallLog = StoredEvaluationCallLog & {
   uploadStatus?: "idle" | "uploading" | "uploaded" | "failed";
   uploadError?: string;
+  uploadProgress?: number;
   localPreviewUrl?: string;
 };
 
@@ -692,6 +693,13 @@ async function buildImageEvidencePdf(files: File[], caseId: string) {
 
   const blob = doc.output("blob");
   return new File([blob], safePdfEvidenceName(caseId), { type: "application/pdf" });
+}
+
+function googleDrivePlaybackUrl(webViewLink: string, fileName: string) {
+  const match = String(webViewLink || "").match(/\/d\/([A-Za-z0-9_-]+)/) ||
+    String(webViewLink || "").match(/[?&]id=([A-Za-z0-9_-]+)/);
+  if (!match?.[1]) return "";
+  return `/api/google-drive-download?id=${encodeURIComponent(match[1])}&inline=1&name=${encodeURIComponent(fileName || "voice-recording")}`;
 }
 
 async function uploadEvidenceFileToDrive(file: File, caseId: string) {
@@ -1951,6 +1959,7 @@ export default function CreateEvaluationMockup({
             recordingType: file.type || "",
             uploadStatus: "failed",
             uploadError: "รองรับไฟล์ WAV, MP3, M4A และ AAC",
+            uploadProgress: 0,
           },
         ]);
         continue;
@@ -1976,23 +1985,47 @@ export default function CreateEvaluationMockup({
           localPreviewUrl,
           uploadStatus: "uploading",
           uploadError: "",
+          uploadProgress: 0,
         },
       ]);
 
       try {
-        const recordingUrl = await uploadCallRecordingFile(file, caseId || "draft-case");
+        const recordingUrl = await uploadCallRecordingFile(
+          file,
+          caseId || "draft-case",
+          (uploadProgress) => updateCallLog(id, { uploadProgress })
+        );
         updateCallLog(id, {
           recordingUrl,
           recordingName: file.name,
           recordingType: file.type || "audio/wav",
           uploadStatus: "uploaded",
           uploadError: "",
+          uploadProgress: 100,
         });
-      } catch (error) {
-        updateCallLog(id, {
-          uploadStatus: "failed",
-          uploadError: error instanceof Error ? error.message : "อัปโหลดไฟล์เสียงไม่สำเร็จ",
-        });
+      } catch (firebaseError) {
+        try {
+          updateCallLog(id, { uploadProgress: 0, uploadError: "Firebase ช้า กำลังลองสำรองผ่าน Google Drive..." });
+          const driveLink = await uploadEvidenceFileToDrive(file, caseId || "draft-case");
+          const fallbackUrl = googleDrivePlaybackUrl(driveLink, file.name);
+          if (!fallbackUrl) throw new Error("ไม่พบ Google Drive file id");
+          updateCallLog(id, {
+            recordingUrl: fallbackUrl,
+            recordingName: file.name,
+            recordingType: file.type || "audio/wav",
+            uploadStatus: "uploaded",
+            uploadError: "",
+            uploadProgress: 100,
+          });
+        } catch (driveError) {
+          const firstMessage = firebaseError instanceof Error ? firebaseError.message : "Firebase upload failed";
+          const secondMessage = driveError instanceof Error ? driveError.message : "Google Drive upload failed";
+          updateCallLog(id, {
+            uploadStatus: "failed",
+            uploadProgress: 0,
+            uploadError: `${firstMessage} / สำรองไม่สำเร็จ: ${secondMessage}`,
+          });
+        }
       }
     }
   }
@@ -2027,19 +2060,42 @@ export default function CreateEvaluationMockup({
     }));
 
     try {
-      const recordingUrl = await uploadCallRecordingFile(file, caseId || "draft-case");
+      const recordingUrl = await uploadCallRecordingFile(
+        file,
+        caseId || "draft-case",
+        (uploadProgress) => updateCallLog(id, { uploadProgress })
+      );
       updateCallLog(id, {
         recordingUrl,
         recordingName: file.name,
         recordingType: file.type || "audio/wav",
         uploadStatus: "uploaded",
         uploadError: "",
+        uploadProgress: 100,
       });
-    } catch (error) {
-      updateCallLog(id, {
-        uploadStatus: "failed",
-        uploadError: error instanceof Error ? error.message : "อัปโหลดไฟล์เสียงไม่สำเร็จ",
-      });
+    } catch (firebaseError) {
+      try {
+        updateCallLog(id, { uploadProgress: 0, uploadError: "Firebase ช้า กำลังลองสำรองผ่าน Google Drive..." });
+        const driveLink = await uploadEvidenceFileToDrive(file, caseId || "draft-case");
+        const fallbackUrl = googleDrivePlaybackUrl(driveLink, file.name);
+        if (!fallbackUrl) throw new Error("ไม่พบ Google Drive file id");
+        updateCallLog(id, {
+          recordingUrl: fallbackUrl,
+          recordingName: file.name,
+          recordingType: file.type || "audio/wav",
+          uploadStatus: "uploaded",
+          uploadError: "",
+          uploadProgress: 100,
+        });
+      } catch (driveError) {
+        const firstMessage = firebaseError instanceof Error ? firebaseError.message : "Firebase upload failed";
+        const secondMessage = driveError instanceof Error ? driveError.message : "Google Drive upload failed";
+        updateCallLog(id, {
+          uploadStatus: "failed",
+          uploadProgress: 0,
+          uploadError: `${firstMessage} / สำรองไม่สำเร็จ: ${secondMessage}`,
+        });
+      }
     }
   }
 
@@ -3392,7 +3448,18 @@ export default function CreateEvaluationMockup({
                               </div>
 
                               {call.uploadStatus === "uploading" ? (
-                                <div className="mt-3 text-xs font-black text-amber-700">กำลังอัปโหลด Voice Recording...</div>
+                                <div className="mt-3">
+                                  <div className="flex items-center justify-between gap-3 text-xs font-black text-amber-700">
+                                    <span>{call.uploadError || "กำลังอัปโหลด Voice Recording..."}</span>
+                                    <span>{Math.max(0, Math.min(100, Math.round(call.uploadProgress || 0)))}%</span>
+                                  </div>
+                                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-amber-100">
+                                    <div
+                                      className="h-full rounded-full bg-amber-500 transition-all"
+                                      style={{ width: `${Math.max(2, Math.min(100, Math.round(call.uploadProgress || 0)))}%` }}
+                                    />
+                                  </div>
+                                </div>
                               ) : null}
                               {call.uploadStatus === "uploaded" ? (
                                 <div className="mt-3 text-xs font-black text-emerald-700">Voice Recording uploaded</div>
