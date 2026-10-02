@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T04:20:00.000Z",
-  "reason": "ตรวจการย่อ No Case และ Test Case เป็น Icon selector พร้อม Tooltip แล้ว ไม่มีการเปลี่ยนเงื่อนไขการใช้งานหรือเนื้อหาคู่มือ",
+  "reviewedAt": "2026-10-02T04:34:00.000Z",
+  "reason": "ตรวจการแก้ build compatibility ของ draft persistence test เพื่อให้ deploy UI icon selector ได้ ไม่มีการเปลี่ยนเนื้อหาคู่มือ",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -93,7 +93,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "3ee2e0708fe1dabf3778b8cb273ad481befc1f144a6b269ce8c7aae86c4a97bc",
+    "package.json": "8376a0e7548fb40b705973879fc6c727f996376952a51f3b806d73c8a83db842",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
