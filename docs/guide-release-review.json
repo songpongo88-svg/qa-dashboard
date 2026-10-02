@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T05:02:00.000Z",
-  "reason": "ตรวจ build patch ของ Investigation Findings ให้รองรับ No Case icon selector ใหม่แล้ว โดยไม่เปลี่ยนเนื้อหาคู่มือ",
+  "reviewedAt": "2026-10-02T05:12:00.000Z",
+  "reason": "ตรวจ build หลังปรับ No Case/Test Case icon selector และ compatibility patches ผ่านแล้ว ส่ง redeploy production โดยไม่เปลี่ยนเนื้อหาคู่มือ",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
