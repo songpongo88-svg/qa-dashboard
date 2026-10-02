@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T10:05:00.000Z",
-  "reason": "ปรับ UI Call Log ให้ส่วนบนกระชับขึ้น และทำปุ่มลบ Call เป็นปุ่ม X มุมขวาบนที่มองเห็นได้เสมอ โดยไม่เปลี่ยนเงื่อนไขการใช้งานหรือคู่มือ",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-10-02T10:22:00.000Z",
+  "reason": "แก้ Playback ของ Voice Recording ที่เป็น Microsoft GSM 6.10 WAV โดยแปลงเป็น PCM WAV ใน Browser ก่อนเล่น/อัปโหลด และซ่อมรายการเก่าที่ Player อ่านไม่ได้ พร้อมอัปเดตคู่มือ",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "evaluation"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -309,7 +311,7 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
-    "src/CreateEvaluationMockup.tsx": "75e242703c848196fb53968970e3943ce1d2b9c6b6cdfddabe515be6bc8e12e6",
+    "src/CreateEvaluationMockup.tsx": "3beb54ae08497044a972419ccbe7ecc37064f13ae39fcc391845e1f1a65c6173",
     "src/DashboardMockup.tsx": "6bec86eb37686bdf99477b1f52751aad81078d5e9b51752fd69bc273ab752cd2",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
@@ -368,7 +370,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "835e452563e34f208edbd9c8ecbe2f7e2a4ce74f11ffd6cc8df6c2c71046d448",
-    "src/knowledge/manual.json": "498e59a308e2c6fb76a68b178b2fe9d6516d24e2eb5eee8b112a23ecebdb271d",
+    "src/knowledge/manual.json": "e0572863b36e4d341d223341a2552bc9e3c10ad5cb91612750e4b130bf85c5b1",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
@@ -426,6 +428,8 @@
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
-    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735"
+    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
+    "src/gsmMsWav.ts": "b1b2a8c2e3e07ad61c76433e027b4125dd57c814047189e2913d09fc79dabdbc",
+    "src/vendor/gsmDecoder.js": "d5c74220166bd1c69bab366d6e6b21bb2eaf59bab76abec2cf2468e78ec8f993"
   }
 }
