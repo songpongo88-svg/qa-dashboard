@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T04:50:00.000Z",
-  "reason": "ตรวจการแก้ CI monthly coaching test ให้มี browser navigator เพื่อให้ deploy icon selector ผ่าน โดยไม่เปลี่ยนพฤติกรรมผู้ใช้หรือคู่มือ",
+  "reviewedAt": "2026-10-02T05:02:00.000Z",
+  "reason": "ตรวจ build patch ของ Investigation Findings ให้รองรับ No Case icon selector ใหม่แล้ว โดยไม่เปลี่ยนเนื้อหาคู่มือ",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -53,7 +53,7 @@
     "build/evaluationAgentFocusPopupPatch.js": "1fd27ed287c97fad494e2dead5f81a73c8cbfb0078e88d336d6dc07d74f6a07d",
     "build/finalSignedPdfDateFormatPatch.js": "69c7073d0c42d9f1d3f1bd7314c108b99d265245829c0c410d06810a26f9b535",
     "build/firestoreQuotaProtectionPatch.js": "edb2dc177016fffe6493501bc5c3b21cd7409ab85cb1d24730a7dc541a5aa997",
-    "build/investigationFindingsPatch.js": "fa929985b005303bc5d215ccd01761a94a6500e7609f714428d26dbe7995bef8",
+    "build/investigationFindingsPatch.js": "b15d2671da2c1cd00ccb0726498aa16e26cac2c38c4bac61ccf093e053ab001f",
     "build/officialPdfStandardsPatch.js": "d1f3f38ea5981963928325919f58ae18cd62f561cccaed6e4079c4c81dc8ec23",
     "build/processReferenceNotePdfPatch.js": "1776b99cc4842a56add8b0c5e80c1a0ac94c5cca7d1f5dd20c625a858a00603b",
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
