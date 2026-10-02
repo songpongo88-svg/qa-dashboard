@@ -60,6 +60,32 @@ const EDIT_OPTIONS = [
 
 const AUTO_WFH_START_TIMES = new Set(["07:30", "11:00", "12:00"]);
 
+const SCHEDULE_PUBLIC_HOLIDAY_DATES_2026 = new Set([
+  "2026-01-01",
+  "2026-01-02",
+  "2026-03-03",
+  "2026-04-06",
+  "2026-04-13",
+  "2026-04-14",
+  "2026-04-15",
+  "2026-05-01",
+  "2026-05-04",
+  "2026-06-01",
+  "2026-06-03",
+  "2026-07-28",
+  "2026-07-29",
+  "2026-08-12",
+  "2026-10-13",
+  "2026-10-23",
+  "2026-12-07",
+  "2026-12-10",
+  "2026-12-31",
+]);
+
+function isKnownSchedulePublicHoliday(date: string) {
+  return SCHEDULE_PUBLIC_HOLIDAY_DATES_2026.has(String(date || "").trim());
+}
+
 const SHIFT_SUMMARY_ROWS = [
   { start: "07:30", end: "16:30" },
   { start: "08:00", end: "17:00" },
@@ -240,7 +266,10 @@ function isWeekendDate(date: string) {
 }
 
 function isForcedWfhDate(entry: ShiftScheduleEntry | null) {
-  return Boolean(entry && (entry.isHoliday || isWeekendDate(entry.date)));
+  return Boolean(
+    entry &&
+    (entry.isHoliday || isWeekendDate(entry.date) || isKnownSchedulePublicHoliday(entry.date))
+  );
 }
 
 function extractCellAppearance(ws: any, address: string) {
@@ -636,7 +665,10 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
       const parsed = parseShiftValueWithNote(row?.[col], note);
       const excelOtText = extractOtText(note);
       const appearance = extractCellAppearance(ws, address);
-      const forcedWfhDate = isScheduleWeekend(monthKey, day) || holidayDays.has(day);
+      const forcedWfhDate =
+        isScheduleWeekend(monthKey, day) ||
+        holidayDays.has(day) ||
+        isKnownSchedulePublicHoliday(date);
       const workMode =
         !parsed.status && (forcedWfhDate || AUTO_WFH_START_TIMES.has(parsed.shiftStart) || isPinkishHex(appearance.fill))
           ? "WFH"
@@ -668,7 +700,7 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
         manualOtEdited: false,
         manualOtText: "",
         manualNoteText: "",
-        isHoliday: holidayDays.has(day),
+        isHoliday: holidayDays.has(day) || isKnownSchedulePublicHoliday(date),
       });
     });
   });
@@ -1579,7 +1611,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                         const day = index + 1;
                         const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
                         const weekend = isScheduleWeekend(selectedMonthKey, day);
-                        const holiday = Boolean(month?.holidayDates?.includes(date));
+                        const holiday =
+                          Boolean(month?.holidayDates?.includes(date)) ||
+                          isKnownSchedulePublicHoliday(date);
                         const wfhDate = weekend || holiday;
                         return (
                           <th
@@ -1616,7 +1650,9 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                         const day = index + 1;
                         const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
                         const weekend = isScheduleWeekend(selectedMonthKey, day);
-                        const holiday = Boolean(month?.holidayDates?.includes(date));
+                        const holiday =
+                          Boolean(month?.holidayDates?.includes(date)) ||
+                          isKnownSchedulePublicHoliday(date);
                         const wfhDate = weekend || holiday;
                         const isToday = selectedMonthKey === today.monthKey && day === today.day;
                         return (
