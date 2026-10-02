@@ -223,6 +223,26 @@ function isPinkishHex(value: string) {
   return r >= 210 && r > g + 15 && b >= 120 && b > g - 20;
 }
 
+function isReddishHex(value: string) {
+  const match = value.match(/^#([0-9A-F]{6})$/i);
+  if (!match) return false;
+  const r = Number.parseInt(match[1].slice(0, 2), 16);
+  const g = Number.parseInt(match[1].slice(2, 4), 16);
+  const b = Number.parseInt(match[1].slice(4, 6), 16);
+  return r >= 170 && r >= g + 55 && r >= b + 45 && g <= 135;
+}
+
+function isWeekendDate(date: string) {
+  const match = String(date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const weekday = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getDay();
+  return weekday === 0 || weekday === 6;
+}
+
+function isForcedWfhDate(entry: ShiftScheduleEntry | null) {
+  return Boolean(entry && (entry.isHoliday || isWeekendDate(entry.date)));
+}
+
 function extractCellAppearance(ws: any, address: string) {
   const cell = ws?.[address];
   const fill =
@@ -369,6 +389,7 @@ function combineScheduleCandidates(candidates: ParsedCandidate[]): { month: Shif
       ...first.month,
       sheetName: activeCandidates.map((candidate) => candidate.month.sheetName).join(" + "),
       entries,
+      holidayDates: [...new Set(activeCandidates.flatMap((candidate) => candidate.month.holidayDates || []))].sort(),
     },
     employeeCount,
     sheetCount: activeCandidates.length,
@@ -464,7 +485,11 @@ function mergeImportedScheduleMonth(
     };
   });
 
-  return { ...imported, entries };
+  return {
+    ...imported,
+    entries,
+    holidayDates: [...new Set([...(existing.holidayDates || []), ...(imported.holidayDates || [])])].sort(),
+  };
 }
 
 function sectionName(value: unknown) {
@@ -499,9 +524,11 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
   const month = Number(monthText);
   const daysInMonth = new Date(year, month, 0).getDate();
   const entries: ShiftScheduleEntry[] = [];
+  const holidayDates = new Set<string>();
 
   let currentSection = "Team";
   let dayColumns = new Map<number, number>();
+  let holidayDays = new Set<number>();
   let employeeIdCol = -1;
   let agentNameCol = 0;
   let nicknameCol = 1;
@@ -539,12 +566,28 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
       currentSection = sectionName(row[headerCol]);
 
       let bestDayColumns = new Map<number, number>();
+      let bestDayRowIndex = -1;
       for (let offset = 1; offset <= 4; offset += 1) {
         const candidate = buildDayColumns(rows[rowIndex + offset] || []);
-        if (candidate.size > bestDayColumns.size) bestDayColumns = candidate;
+        if (candidate.size > bestDayColumns.size) {
+          bestDayColumns = candidate;
+          bestDayRowIndex = rowIndex + offset;
+        }
       }
       dayColumns = bestDayColumns;
       if (!dayColumns.size) return;
+
+      holidayDays = new Set<number>();
+      dayColumns.forEach((day, col) => {
+        const candidateRows = [bestDayRowIndex, bestDayRowIndex - 1].filter((value) => value >= 0);
+        const isRedDate = candidateRows.some((candidateRow) => {
+          const appearance = extractCellAppearance(ws, XLSX.utils.encode_cell({ r: candidateRow, c: col }));
+          return isReddishHex(appearance.fill) || isReddishHex(appearance.fontColor);
+        });
+        if (!isRedDate) return;
+        holidayDays.add(day);
+        holidayDates.add(`${monthKey}-${String(day).padStart(2, "0")}`);
+      });
 
       const firstDayCol = Math.min(...dayColumns.keys());
       employeeIdCol = -1;
@@ -593,8 +636,9 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
       const parsed = parseShiftValueWithNote(row?.[col], note);
       const excelOtText = extractOtText(note);
       const appearance = extractCellAppearance(ws, address);
+      const forcedWfhDate = isScheduleWeekend(monthKey, day) || holidayDays.has(day);
       const workMode =
-        !parsed.status && (AUTO_WFH_START_TIMES.has(parsed.shiftStart) || isPinkishHex(appearance.fill))
+        !parsed.status && (forcedWfhDate || AUTO_WFH_START_TIMES.has(parsed.shiftStart) || isPinkishHex(appearance.fill))
           ? "WFH"
           : "";
       entries.push({
@@ -624,6 +668,7 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
         manualOtEdited: false,
         manualOtText: "",
         manualNoteText: "",
+        isHoliday: holidayDays.has(day),
       });
     });
   });
@@ -637,6 +682,7 @@ function parseSheetCandidate(workbook: any, sheetName: string, fileName: string)
       sourceFileName: fileName,
       sheetName,
       entries,
+      holidayDates: [...holidayDates].sort(),
       updatedBy: "",
       updatedAtIso: new Date().toISOString(),
     },
@@ -765,6 +811,8 @@ function isWfhEntry(entry: ShiftScheduleEntry | null) {
   if (!entry) return false;
   const base = entryBaseShift(entry);
   if (!base) return false;
+  // Weekend and imported red-date/public-holiday columns are always WFH for every working shift.
+  if (isForcedWfhDate(entry)) return true;
   if (entry.workModeOverride === "Workspace") return false;
   if (entry.workModeOverride === "WFH") return true;
   return Boolean(
@@ -1529,12 +1577,16 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                     <tr>
                       {Array.from({ length: daysInMonth }, (_, index) => {
                         const day = index + 1;
+                        const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
                         const weekend = isScheduleWeekend(selectedMonthKey, day);
+                        const holiday = Boolean(month?.holidayDates?.includes(date));
+                        const wfhDate = weekend || holiday;
                         return (
                           <th
                             key={`weekday-${day}`}
+                            title={holiday && !weekend ? "Public Holiday · WFH" : weekend ? "Weekend · WFH" : undefined}
                             className={`min-w-[92px] border-b border-r px-2 py-1 text-center text-[10px] font-black ${
-                              weekend
+                              wfhDate
                                 ? "border-red-700 bg-red-600 text-white"
                                 : "border-slate-300 bg-white text-slate-950"
                             }`}
@@ -1562,13 +1614,17 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
                     <tr>
                       {Array.from({ length: daysInMonth }, (_, index) => {
                         const day = index + 1;
+                        const date = `${selectedMonthKey}-${String(day).padStart(2, "0")}`;
                         const weekend = isScheduleWeekend(selectedMonthKey, day);
+                        const holiday = Boolean(month?.holidayDates?.includes(date));
+                        const wfhDate = weekend || holiday;
                         const isToday = selectedMonthKey === today.monthKey && day === today.day;
                         return (
                           <th
                             key={`date-${day}`}
+                            title={holiday && !weekend ? "Public Holiday · WFH" : weekend ? "Weekend · WFH" : undefined}
                             className={`min-w-[92px] border-b border-r px-2 py-1 text-center text-[10px] font-black ${
-                              weekend
+                              wfhDate
                                 ? "border-red-700 bg-red-600 text-white"
                                 : isToday
                                   ? "border-violet-400 bg-violet-100 text-violet-900"
