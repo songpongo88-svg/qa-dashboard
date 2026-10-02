@@ -3820,32 +3820,19 @@ export default function App() {
   });
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
 
-  // qa-dashboard-refresh-on-activation-v166
+  // qa-dashboard-refresh-on-activation-v167
+  // Keep the Dashboard live without reloading on every browser focus/tab switch.
+  // Returning to Dashboard only refreshes when the current QA data is older than 60 seconds.
   const previousActiveTabRef = useRef<AppTab | null>(null);
   useEffect(() => {
     const previousTab = previousActiveTabRef.current;
     previousActiveTabRef.current = activeTab;
     if (activeTab !== "dashboard" || previousTab === "dashboard") return;
-    refreshQaDashboardData();
-  }, [activeTab, refreshQaDashboardData]);
 
-  useEffect(() => {
-    let lastRefreshAt = 0;
-    const refreshWhenVisible = () => {
-      if (activeTab !== "dashboard" || document.visibilityState === "hidden") return;
-      const now = Date.now();
-      if (now - lastRefreshAt < 3000) return;
-      lastRefreshAt = now;
-      refreshQaDashboardData();
-    };
-
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [activeTab, refreshQaDashboardData]);
+    const lastRefreshAt = Number(qaDataRefreshKey || 0);
+    const isStale = !Number.isFinite(lastRefreshAt) || lastRefreshAt <= 0 || Date.now() - lastRefreshAt >= 60000;
+    if (isStale) refreshQaDashboardData();
+  }, [activeTab, qaDataRefreshKey, refreshQaDashboardData]);
   const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<WorkspaceTabKey[]>(() => {
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY) || "[]");
