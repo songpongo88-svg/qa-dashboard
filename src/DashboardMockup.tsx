@@ -6430,11 +6430,16 @@ export default function DashboardMockup({
       return;
     }
 
+    // Do not clear an Agent selection while a refresh is still resolving.
+    // Agent Performance uses the last complete snapshot immediately, so the case list
+    // must never flash to 0 cases just because the visible-agent list is transient.
+    if (isLoading || !allCases.length) return;
+
     if (selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
-  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList, overviewSelfOnly]);
+  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList, overviewSelfOnly, isLoading, allCases.length]);
 
   const effectiveSelectedAgent =
     overviewSelfOnly && overviewAgentScopeList.length
