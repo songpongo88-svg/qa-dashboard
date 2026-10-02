@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T04:34:00.000Z",
-  "reason": "ตรวจการแก้ build compatibility ของ draft persistence test เพื่อให้ deploy UI icon selector ได้ ไม่มีการเปลี่ยนเนื้อหาคู่มือ",
+  "reviewedAt": "2026-10-02T04:42:00.000Z",
+  "reason": "ตรวจการปรับ test draft persistence ให้รองรับ Node 20 เพื่อให้ deploy icon selector ได้ โดยไม่เปลี่ยนพฤติกรรมผู้ใช้หรือคู่มือ",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -289,7 +289,7 @@
     "scripts/sync-v13-rowdata.mjs": "9f98a43be94809668dc809621d7f46fdd3984e0cd7456f9129f09d42fdcdaf9e",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
-    "scripts/test-draft-persistence.mjs": "943c92866ab31731f4db7c0f8641cef75c7e88346dfa1699c83e28c7599924e0",
+    "scripts/test-draft-persistence.mjs": "e9697c6b3e18f5e44fdfae3b69c37d262036638a169807cf0a17c027f7ce7adf",
     "scripts/test-draft-queue-navigation.mjs": "886240a22aa46a15e9ec0ecbb26fc61c5f72ea1d43492667170e49b3c80ddf09",
     "scripts/test-knowledge.mjs": "edf7933d14e2137c42e97d77c2ff7ec0f363a0f0d1d666d1d54e3d4c7884ccca",
     "scripts/test-monthly-coaching.mjs": "cc130b62a58a6f7f7c6d7476aea10b1b36f70e8865a4f76abf134cd2c335b9bf",
