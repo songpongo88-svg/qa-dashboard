@@ -131,6 +131,7 @@ type AppealDraftTopic = {
 type DashboardWorkbookCacheV155 = {
   cacheKey: string;
   cases: CaseItem[];
+  noCaseEvaluations: StoredEvaluation[];
   appealMergeCount: number;
   cachedAt: number;
 };
@@ -5004,6 +5005,7 @@ export default function DashboardMockup({
   canViewAgentsInOverview = false,
   canViewAnalytics = false,
   dataRefreshKey,
+  onRefreshData,
   analyticsContent,
   onEffectiveCasesChange,
   onSelectedAgentChange,
@@ -5029,6 +5031,7 @@ export default function DashboardMockup({
   canViewAgentsInOverview?: boolean;
   canViewAnalytics?: boolean;
   dataRefreshKey?: number;
+  onRefreshData?: () => void;
   analyticsContent?: React.ReactNode;
   onEffectiveCasesChange?: (cases: any[]) => void;
   onSelectedAgentChange?: (agentName: string) => void;
@@ -5044,7 +5047,7 @@ export default function DashboardMockup({
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
 
-  const [allCases, setAllCases] = useState<CaseItem[]>([]);
+  const [allCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
   const markCaseAppealSubmitted = (caseId: string) => {
     const submittedIds = new Set(splitAppealCaseIds(caseId));
     setAllCases((cases) => cases.map((item) =>
@@ -5054,9 +5057,12 @@ export default function DashboardMockup({
     ));
     dashboardWorkbookCacheV155 = null;
   };
-  const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>([]);
+  const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>(() => dashboardWorkbookCacheV155?.noCaseEvaluations || []);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [lastLoadedAt, setLastLoadedAt] = useState(() => dashboardWorkbookCacheV155?.cachedAt || 0);
+  const [loadRetryNonce, setLoadRetryNonce] = useState(0);
+  const loadRetriesRef = useRef({ key: dataRefreshKey, count: 0 });
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() => {
     const requestedMonth = String(externalSelectedMonthKey || "").trim();
@@ -5400,22 +5406,26 @@ export default function DashboardMockup({
   };
 
   useEffect(() => {
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    if (loadRetriesRef.current.key !== dataRefreshKey) loadRetriesRef.current = { key: dataRefreshKey, count: 0 };
     const loadWorkbook = async () => {
       let evaluationCases: CaseItem[] = [];
+      let loadedNoCaseEvaluations: StoredEvaluation[] = [];
       let evaluationCasesPromise: Promise<CaseItem[]> | null = null;
       const cacheKey = String(dataRefreshKey ?? "default");
       const loadEvaluationCases = () => {
         if (!evaluationCasesPromise) {
-          evaluationCasesPromise = fetchStoredEvaluations(300)
-            .then(mapStoredEvaluationsToCaseItems)
-            .catch((error) => {
-              console.warn("Stored QA evaluations could not be loaded before RawData merge", error);
-              return [];
+          evaluationCasesPromise = fetchStoredEvaluations(300, { strict: true })
+            .then((records) => {
+              loadedNoCaseEvaluations = records.filter((item) => isNoCaseEvaluation(item) && isQaDashboardSupportedMonthKey(getStoredEvaluationMonthKey(item)));
+              return mapStoredEvaluationsToCaseItems(records);
             });
         }
         return evaluationCasesPromise;
       };
       const applyLoadedWorkbook = (nextCases: CaseItem[], nextAppealMergeCount: number) => {
+        if (cancelled) return;
         const supportedCases = nextCases.filter((item) => isQaDashboardSupportedMonthKey(item.monthKey));
         // Never keep an empty workbook result as a reusable cache. A transient read
         // failure used to leave Cases in Current View empty until a full browser refresh.
@@ -5423,12 +5433,16 @@ export default function DashboardMockup({
           ? {
               cacheKey,
               cases: supportedCases,
+              noCaseEvaluations: loadedNoCaseEvaluations,
               appealMergeCount: nextAppealMergeCount,
               cachedAt: Date.now(),
             }
           : null;
         setAllCases(supportedCases);
+        setNoCaseEvaluations(loadedNoCaseEvaluations);
         setAppealMergeCount(nextAppealMergeCount);
+        setLastLoadedAt(Date.now());
+        loadRetriesRef.current.count = 0;
       };
 
       try {
@@ -5442,19 +5456,12 @@ export default function DashboardMockup({
           Date.now() - dashboardWorkbookCacheV155.cachedAt < 15000
         ) {
           setAllCases(dashboardWorkbookCacheV155.cases.filter((item) => isQaDashboardSupportedMonthKey(item.monthKey)));
+          setNoCaseEvaluations(dashboardWorkbookCacheV155.noCaseEvaluations || []);
           setAppealMergeCount(dashboardWorkbookCacheV155.appealMergeCount);
+          setLastLoadedAt(dashboardWorkbookCacheV155.cachedAt);
           setLoadError("");
           setIsLoading(false);
           return;
-        }
-
-        if (
-          dashboardWorkbookCacheV155 &&
-          (dashboardWorkbookCacheV155.cacheKey !== cacheKey ||
-            !dashboardWorkbookCacheV155.cases.length ||
-            Date.now() - dashboardWorkbookCacheV155.cachedAt >= 15000)
-        ) {
-          dashboardWorkbookCacheV155 = null;
         }
 
         const v8Response = { ok: false } as Response;
@@ -6338,41 +6345,24 @@ export default function DashboardMockup({
         );
         applyLoadedWorkbook(mergedCases, appealMap.size);
       } catch (error: any) {
-        console.error("Load Error:", error);
-        if (evaluationCases.length) {
-          applyLoadedWorkbook(evaluationCases, 0);
-          setLoadError("");
-          return;
+        if (cancelled) return;
+        console.error("Dashboard refresh failed; keeping the last complete result", error);
+        setLoadError("อัปเดตข้อมูลไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง");
+        if (loadRetriesRef.current.count < 2 && navigator.onLine !== false) {
+          loadRetriesRef.current.count += 1;
+          retryTimer = window.setTimeout(() => setLoadRetryNonce((value) => value + 1), 15_000);
         }
-        setLoadError(error?.message || "เนเธซเธฅเธ”เนเธเธฅเน Excel เนเธกเนเธชเธณเน€เธฃเนเธ");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     loadWorkbook();
-  }, [dataRefreshKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchStoredEvaluations(300)
-      .then((records) => {
-        if (!cancelled) {
-          setNoCaseEvaluations(
-            records.filter(
-              (item) => isNoCaseEvaluation(item) && isQaDashboardSupportedMonthKey(getStoredEvaluationMonthKey(item))
-            )
-          );
-        }
-      })
-      .catch((error) => {
-        console.warn("No Case monthly results could not be loaded", error);
-        if (!cancelled) setNoCaseEvaluations([]);
-      });
     return () => {
       cancelled = true;
+      window.clearTimeout(retryTimer);
     };
-  }, [dataRefreshKey]);
+  }, [dataRefreshKey, loadRetryNonce]);
 
   const visibleAgentList = useMemo(() => {
     const scopedCases = overviewAgentScopeList.length
@@ -7660,19 +7650,26 @@ export default function DashboardMockup({
     </div>
   );
 
-  if (isLoading) {
+  const refreshStatus = (
+    <div data-dashboard-refresh-state={isLoading ? "loading" : loadError ? "error" : "idle"} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-xs text-slate-600">
+      <span role="status" aria-live="polite">
+        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${lastLoadedAt ? " · ยังแสดงข้อมูลเดิมอยู่" : ""}` : `อัปเดตล่าสุด ${lastLoadedAt ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(lastLoadedAt) : "—"} · อัปเดตอัตโนมัติทุก 5 นาที`}
+      </span>
+      <button type="button" disabled={isLoading} onClick={() => { loadRetriesRef.current.count = 0; if (onRefreshData) onRefreshData(); else setLoadRetryNonce((value) => value + 1); }} className="rounded-lg border border-sky-200 px-3 py-1.5 font-bold text-sky-700 disabled:opacity-50">อัปเดตข้อมูล</button>
+    </div>
+  );
+
+  if (isLoading && !lastLoadedAt) {
     return <LoadingMascot message="กำลังโหลดข้อมูล" subMessage="กรุณารอสักครู่..." />;
   }
 
-  if (loadError) {
+  if (loadError && !lastLoadedAt) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6">
         <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
           <div className="text-lg font-semibold">{"โหลดไฟล์ไม่สำเร็จ"}</div>
           <div className="mt-2 text-sm">{loadError}</div>
-          <div className="mt-3 text-sm text-slate-600">
-            {"ตรวจสอบว่าไฟล์อยู่ใน public ครบตามชื่อที่กำหนด: QA_RawData_January-February2026.xlsx / QA_RawData_March-May2026.xlsx / Appeal ROWDATA.xlsx"}
-          </div>
+          <div className="mt-3">{refreshStatus}</div>
         </div>
       </div>
     );
@@ -7723,6 +7720,7 @@ export default function DashboardMockup({
         subtitle="ดูภาพรวม วิเคราะห์แนวโน้ม และตรวจรายละเอียดเคสในพื้นที่เดียว"
       />
       <WeekdayDashboardLayout>
+      <div className="mx-auto max-w-[1720px] px-6 pt-4 lg:px-8">{refreshStatus}</div>
       {false ? (
       <div>
         {songkranTheme ? <SongkranBackdrop /> : null}

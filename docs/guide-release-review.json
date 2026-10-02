@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T05:48:00.000Z",
-  "reason": "ตรวจการย้าย No Case และ Test Case เป็นไอคอนเล็กบนหัว Section A พร้อม Tooltip แล้ว ไม่มีการเปลี่ยนเงื่อนไขการใช้งานหรือเนื้อหาคู่มือ",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-10-02T05:25:38.309Z",
+  "reason": "ตรวจคู่มือการอัปเดต Dashboard ทุก 5 นาที เก็บข้อมูลล่าสุดเมื่อโหลดขัดข้อง และปุ่มอัปเดตข้อมูลโดยไม่รีโหลดหน้า",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "dashboard"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -14,6 +16,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
+    "api/google-drive-download.js": "ec788b84e98042ba6036d8c1820be79f34f15f03144ae3111529aaf2b1cd32b2",
     "api/google-drive-upload.js": "d8387ef78f0c4dd6a33e3d5b780d2c3dc091b905e0f34368198355725d677971",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
@@ -93,7 +96,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "8376a0e7548fb40b705973879fc6c727f996376952a51f3b806d73c8a83db842",
+    "package.json": "4dcfa210ec8cce2b3a6bf6043c0a50b06aee0f81721bd5a4303b550d5947be62",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -287,6 +290,7 @@
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "4c4a8af7c60c4f6adcde922ecec746c76649590ea878ac6da022eb04423ede40",
     "scripts/sync-v13-rowdata.mjs": "9f98a43be94809668dc809621d7f46fdd3984e0cd7456f9129f09d42fdcdaf9e",
+    "scripts/test-dashboard-refresh.mjs": "fbcd49aca4574b72992901404bba823c75a865f12a06b6a6abfc201ff83551c5",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
     "scripts/test-draft-persistence.mjs": "e9697c6b3e18f5e44fdfae3b69c37d262036638a169807cf0a17c027f7ce7adf",
@@ -298,7 +302,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "2c3ab65722125d35cefb7729b924c089bec53e68a3627e61da4ec844dc2216f6",
+    "src/App.tsx": "6e9b76b59c3bf847410bdca275feeeed091e4f2c3cebb2200b8d837faefbb505",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
     "src/AppealRequestsMockup.tsx": "a88e15c948af00e99e9ba62ab9187b5332a20f46ddd1f7df5a3e7a08f9065e2b",
@@ -308,7 +312,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "b59d19ae9db00556c339e15f399be2f6341559609093f14de04ec39d537bd9af",
-    "src/DashboardMockup.tsx": "12c68fce4fe23aa1423f7b753fcd126d0cf34264d63d64b068c43bdb5dc52c08",
+    "src/DashboardMockup.tsx": "6b0c267ff304e04f0138ecdbf402bcdb44846332189f4630f4373a0245dbe632",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "fed78c07733f3c80e350c5e0ae1173f17968942014d3058643857cac9a7dd27b",
@@ -353,7 +357,8 @@
     "src/coachingStore.ts": "33a96b0dfd06e42f3c2dc58671aa01f9551044ddac63dec98ef6f4f01c10cd76",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
-    "src/evaluationStore.ts": "c125160768528c0f86b0fe6bd029ab4305a715f48433d679bbaa71219e173008",
+    "src/evaluationStore.ts": "10839ef4573993fa62e0c1f47f453afd8115957e1de13b2218ba5c07ce117873",
+    "src/evidencePreviewPdf.ts": "ae6b53a0e0be99ad5a75e359cf0b8cb71bfc74c234712bc06309895e119e62a9",
     "src/finalSignedCasePdf.ts": "f99fd97a35ab570d3091b65b5c5b842cbfe87c1d6f00e70c9eacec67fa8ed342",
     "src/finalSignedPdfRenderer.ts": "629a2d503f58275ffc778542d3716ea57fae3831ce4e8c560cabf290906aca6d",
     "src/firebaseClient.ts": "860d60f9e7ae95dabc407bc6fefddfce1409edf493d01d6e9194287d7c27bd75",
@@ -364,7 +369,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "835e452563e34f208edbd9c8ecbe2f7e2a4ce74f11ffd6cc8df6c2c71046d448",
-    "src/knowledge/manual.json": "cd0f80f85ea1a6a2b1d609ec969b808c5050092e163e42bd8e38c7bcdc100280",
+    "src/knowledge/manual.json": "7a89deac3ebc405ef6db138289fdfadb18d976541679bdd24f41296ca17aecd6",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
@@ -410,6 +415,7 @@
     "src/stickyNoteStore.ts": "fb848e980df87ae2703d780c626af8021114f9526f36e53001af67e2fcd13e9d",
     "src/themePickerCollections.css": "3341c4a9f6d14a4ea79de53dd67d824bec3ebf0c0c4bb960136deb202a5deca5",
     "src/usageLog.ts": "9560516d1a6e98c93fa3cafc67469d806c8f5525f3d69fbbe1efa4276627d127",
+    "src/useDashboardAutoRefresh.ts": "3445dab85a3d25c38b5990641c99c4519b7b8cd235c1110ed645e8703c03b16c",
     "src/userRoleStore.ts": "8ce86433aa8ad29c345b7ec0a32b1bd8d0650293da2d54bac55272a00a4c265c",
     "src/usernamePolicyMigrationStore.ts": "4b25fe45aa4c758169b579b8aaebe1cb5106589540f953f09284426ccfa05d04",
     "src/weather/Weather.tsx": "3c07b6823318c635de56e6fcca30a510b01d9cae64b6a2987a6d11dc7bafdc71",
@@ -421,8 +427,6 @@
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
-    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
-    "src/evidencePreviewPdf.ts": "ae6b53a0e0be99ad5a75e359cf0b8cb71bfc74c234712bc06309895e119e62a9",
-    "api/google-drive-download.js": "ec788b84e98042ba6036d8c1820be79f34f15f03144ae3111529aaf2b1cd32b2"
+    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735"
   }
 }
