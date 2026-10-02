@@ -3185,64 +3185,66 @@ export default function CreateEvaluationMockup({
                               </button>
                             </div>
 
-                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                              <label className="block">
-                                <span className={labelClass}>Phone Number</span>
+                            <div className="grid grid-cols-2 gap-3">
+                              <label className="col-span-2 min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Phone Number</span>
                                 <input
                                   value={call.phoneNumber}
                                   onChange={(event) => updateCallLog(call.id, { phoneNumber: event.target.value })}
-                                  className={inputClass}
+                                  className={`${inputClass} min-w-0`}
                                   placeholder="เช่น 0966541149"
                                 />
                               </label>
-                              <label className="block">
-                                <span className={labelClass}>Call Type</span>
+
+                              <label className="min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Call Type</span>
                                 <select
                                   value={call.direction}
                                   onChange={(event) => updateCallLog(call.id, { direction: event.target.value === "Inbound" ? "Inbound" : "Outbound" })}
-                                  className={inputClass}
+                                  className={`${inputClass} min-w-0 px-2.5 text-[13px]`}
                                 >
                                   <option value="Outbound">Outbound</option>
                                   <option value="Inbound">Inbound</option>
                                 </select>
                               </label>
-                              <label className="block">
-                                <span className={labelClass}>Call Date</span>
+
+                              <label className="min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Duration</span>
+                                <input
+                                  value={call.duration}
+                                  onChange={(event) => updateCallLog(call.id, { duration: event.target.value })}
+                                  className={`${inputClass} min-w-0 px-2.5 text-[13px]`}
+                                  placeholder="เช่น 03:42"
+                                />
+                              </label>
+
+                              <label className="min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Call Date</span>
                                 <input
                                   type="date"
                                   value={call.callDate}
                                   onChange={(event) => updateCallLog(call.id, { callDate: event.target.value })}
-                                  className={inputClass}
+                                  className={`${inputClass} min-w-0 px-2 text-[12px]`}
                                 />
                               </label>
-                              <label className="block">
-                                <span className={labelClass}>Call Time</span>
+
+                              <label className="min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Call Time</span>
                                 <input
                                   type="time"
                                   step="1"
                                   value={call.callTime}
                                   onChange={(event) => updateCallLog(call.id, { callTime: event.target.value })}
-                                  className={inputClass}
+                                  className={`${inputClass} min-w-0 px-2 text-[12px]`}
                                 />
                               </label>
-                            </div>
 
-                            <div className="mt-3 grid gap-3 md:grid-cols-[180px_1fr]">
-                              <label className="block">
-                                <span className={labelClass}>Duration</span>
-                                <input
-                                  value={call.duration}
-                                  onChange={(event) => updateCallLog(call.id, { duration: event.target.value })}
-                                  className={inputClass}
-                                  placeholder="เช่น 03:42"
-                                />
-                              </label>
-                              <label className="block">
-                                <span className={labelClass}>Note</span>
+                              <label className="col-span-2 min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Note</span>
                                 <input
                                   value={call.note || ""}
                                   onChange={(event) => updateCallLog(call.id, { note: event.target.value })}
-                                  className={inputClass}
+                                  className={`${inputClass} min-w-0`}
                                   placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"
                                 />
                               </label>
