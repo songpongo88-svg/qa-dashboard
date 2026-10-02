@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02T05:34:51.704Z",
-  "reason": "ตรวจ Dashboard เก็บข้อมูลล่าสุดขณะโหลดหรือขัดข้อง ตรวจการเปลี่ยนแปลงทุก 5 นาทีโดยอ่านเฉพาะรายการล่าสุดและจำนวนก่อนโหลดเคสทั้งชุด",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "dashboard"
-  ],
+  "reviewedAt": "2026-10-02T06:45:00.000Z",
+  "reason": "แก้ Agent Performance ให้คลิกชื่อแล้วกรอง Case Records จาก snapshot เดิมโดยไม่สลับมุมมอง Analytics และไม่ล้าง Agent ระหว่าง refresh; การ Submit Evaluation ยัง refresh ทันทีเหมือนเดิม",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -302,7 +300,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "1ef85ca00751469dd1758c4221295205dc1f72ff6a6f0edb8b8380e8ac16a9bb",
+    "src/App.tsx": "a1b427f4df04276d3c7ae1f5a0588750699fffc13f2960cf5d6ff006135ba1a0",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
     "src/AppealRequestsMockup.tsx": "a88e15c948af00e99e9ba62ab9187b5332a20f46ddd1f7df5a3e7a08f9065e2b",
@@ -312,7 +310,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "b59d19ae9db00556c339e15f399be2f6341559609093f14de04ec39d537bd9af",
-    "src/DashboardMockup.tsx": "eeef44034a4e152fb56594e41a9888e0f7f21d4a3daf8c01040e18379fce8786",
+    "src/DashboardMockup.tsx": "0d8045e5666f78508ad1b81e844287d81b7ec5670f35216e1fe8aa0d0fbc7029",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "fed78c07733f3c80e350c5e0ae1173f17968942014d3058643857cac9a7dd27b",
@@ -331,7 +329,7 @@
     "src/ScheduleMockup.tsx": "30c1b182d5c42a3c76782fd8f929387ce2636770df4b51507040f1ea24fc3ebe",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "6fd5d0594f26692dddb0f094b63d1c57a007f638bd74f14d4d0a15560ed70334",
-    "src/SummaryMockup.tsx": "a5071cf630f451daeb5a6530519d0d669babbfc8bf0858490b85964304f8ab52",
+    "src/SummaryMockup.tsx": "b3991f4f7e040e6690e2f76d92909c9e411eb006df6ad96dd5aee62ff89ef2f3",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
     "src/TeamChatV2.tsx": "11b3cf1cb691af71b4e100635b8ec4450d48122ab662a090ed6ff5e5ae26e3d3",
