@@ -11,7 +11,9 @@ import {
   isTestCaseEvaluation,
   excludeTestEvaluations,
   upsertStoredEvaluation,
+  uploadCallRecordingFile,
   type StoredEvaluation,
+  type StoredEvaluationCallLog,
   type StoredEvaluationTopic,
   type StoredEvaluationType,
 } from "./evaluationStore";
@@ -48,6 +50,12 @@ type TopicState = {
   score: number | null;
   reason: string;
   deductions?: DraftDeductionTag[];
+};
+
+type EditableCallLog = StoredEvaluationCallLog & {
+  uploadStatus?: "idle" | "uploading" | "uploaded" | "failed";
+  uploadError?: string;
+  localPreviewUrl?: string;
 };
 
 type EvidenceFile = {
@@ -88,6 +96,7 @@ type EvaluationDraft = {
   caseDescription: string;
   processReference?: string;
   evidenceUrl: string;
+  callLogs?: StoredEvaluationCallLog[];
   noCaseForMonth?: boolean;
   isTestCase?: boolean;
   criticalError: boolean;
@@ -136,6 +145,7 @@ export type EvaluationSubmitPayload = {
   caseDescription: string;
   processReference: string;
   evidenceUrls: string[];
+  callLogs: StoredEvaluationCallLog[];
   finalScore: number;
   grade: string;
   criticalError: boolean;
@@ -178,6 +188,7 @@ type EvaluateTabMemory = {
   processReference: string;
   evidenceUrl: string;
   evidenceFiles: EvidenceFile[];
+  callLogs: EditableCallLog[];
   noCaseForMonth: boolean;
   isTestCase: boolean;
   criticalError: boolean;
@@ -203,6 +214,7 @@ function writeEvaluateTabMemory(nextMemory: EvaluateTabMemory) {
   evaluateTabMemory = {
     ...nextMemory,
     evidenceFiles: [...nextMemory.evidenceFiles],
+    callLogs: (nextMemory.callLogs || []).map((item) => ({ ...item })),
     topicState: { ...nextMemory.topicState },
     expandedGroups: { ...nextMemory.expandedGroups },
   };
@@ -210,6 +222,82 @@ function writeEvaluateTabMemory(nextMemory: EvaluateTabMemory) {
 
 function clearEvaluateTabMemory() {
   evaluateTabMemory = null;
+}
+
+function callLogId() {
+  return `call-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function formatCallDuration(totalSeconds: number) {
+  const seconds = Math.max(0, Math.round(totalSeconds || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remain = seconds % 60;
+  return hours > 0
+    ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remain).padStart(2, "0")}`
+    : `${String(minutes).padStart(2, "0")}:${String(remain).padStart(2, "0")}`;
+}
+
+function parseCallRecordingFileName(fileName: string) {
+  let decoded = fileName;
+  try {
+    decoded = decodeURIComponent(fileName);
+  } catch {
+    decoded = fileName;
+  }
+
+  const dateTime = decoded.match(/(20\d{6})[_-](\d{6})/);
+  const directionMatch = decoded.match(/(?:^|[_-])(outbound|out|inbound|in)(?:[_-]|\.|$)/i);
+  const phones = decoded.match(/\+?\d{9,15}/g) || [];
+  const direction: "Outbound" | "Inbound" =
+    directionMatch && /^in/i.test(directionMatch[1]) ? "Inbound" : "Outbound";
+  const phoneNumber = direction === "Outbound"
+    ? (phones[phones.length - 1] || phones[0] || "")
+    : (phones[0] || phones[phones.length - 1] || "");
+
+  let callDate = "";
+  let callTime = "";
+  if (dateTime) {
+    const date = dateTime[1];
+    const time = dateTime[2];
+    callDate = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+    callTime = `${time.slice(0, 2)}:${time.slice(2, 4)}:${time.slice(4, 6)}`;
+  }
+
+  return { direction, phoneNumber, callDate, callTime };
+}
+
+async function readAudioDuration(file: File) {
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise<string>((resolve) => {
+      const audio = document.createElement("audio");
+      const done = (value: string) => {
+        audio.removeAttribute("src");
+        audio.load();
+        resolve(value);
+      };
+      audio.preload = "metadata";
+      audio.onloadedmetadata = () => done(Number.isFinite(audio.duration) ? formatCallDuration(audio.duration) : "");
+      audio.onerror = () => done("");
+      audio.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function callLogSummary(callLogs: Array<Pick<StoredEvaluationCallLog, "direction" | "phoneNumber" | "callDate" | "callTime" | "duration" | "recordingUrl">>) {
+  return (callLogs || []).map((item, index) => {
+    const parts = [
+      `${index + 1}. ${item.direction || "Outbound"}`,
+      item.phoneNumber || "No phone",
+      [item.callDate, item.callTime].filter(Boolean).join(" "),
+      item.duration ? `Duration ${item.duration}` : "",
+      item.recordingUrl ? "Voice Recording: Available" : "",
+    ].filter(Boolean);
+    return parts.join(" | ");
+  }).join("\n");
 }
 
 const FALLBACK_AGENT_NAMES = [
@@ -878,6 +966,7 @@ export default function CreateEvaluationMockup({
   const [processReference, setProcessReference] = useState(() => readEvaluateTabMemory()?.processReference || "");
   const [evidenceUrl, setEvidenceUrl] = useState(() => readEvaluateTabMemory()?.evidenceUrl || "");
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>(() => readEvaluateTabMemory()?.evidenceFiles || []);
+  const [callLogs, setCallLogs] = useState<EditableCallLog[]>(() => readEvaluateTabMemory()?.callLogs || []);
   const [evidenceUploadMessage, setEvidenceUploadMessage] = useState("");
   const [noCaseForMonth, setNoCaseForMonth] = useState(
     () => Boolean(readEvaluateTabMemory()?.noCaseForMonth)
@@ -956,6 +1045,7 @@ export default function CreateEvaluationMockup({
       processReference,
       evidenceUrl,
       evidenceFiles,
+      callLogs,
       noCaseForMonth,
       isTestCase,
       criticalError,
@@ -982,6 +1072,7 @@ export default function CreateEvaluationMockup({
     processReference,
     evidenceUrl,
     evidenceFiles,
+    callLogs,
     noCaseForMonth,
     isTestCase,
     criticalError,
