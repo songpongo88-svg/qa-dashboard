@@ -671,7 +671,7 @@ async function buildImageEvidencePdf(files: File[], caseId: string) {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
   const maxWidth = pageWidth - margin * 2;
-  const headerHeight = 22;
+  const headerHeight = 26;
   const maxHeight = pageHeight - headerHeight - 12;
 
   for (let index = 0; index < files.length; index += 1) {
@@ -686,7 +686,7 @@ async function buildImageEvidencePdf(files: File[], caseId: string) {
     const x = (pageWidth - width) / 2;
     const y = headerHeight + (maxHeight - height) / 2;
     doc.setFont("THSarabunNew", "bold"); doc.setFontSize(16); doc.setTextColor(45, 32, 68);
-    doc.text(`หลักฐานประกอบการประเมิน | Case ID: ${caseId}`, margin, 12);
+    doc.text(`หลักฐานประกอบการประเมิน | Case ID: ${caseId}`, 12.5, 16.5);
     doc.addImage(imageToJpegDataUrl(image), "JPEG", x, y, width, height, undefined, "FAST");
   }
 
