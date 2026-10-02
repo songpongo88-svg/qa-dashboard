@@ -28,6 +28,7 @@ export type ShiftScheduleEntry = {
   manualOtEdited?: boolean;
   manualOtText?: string;
   manualNoteText?: string;
+  isHoliday?: boolean;
 };
 
 export type ShiftScheduleMonth = {
@@ -35,6 +36,7 @@ export type ShiftScheduleMonth = {
   sourceFileName: string;
   sheetName: string;
   entries: ShiftScheduleEntry[];
+  holidayDates?: string[];
   updatedBy: string;
   updatedAtIso: string;
 };
@@ -97,10 +99,12 @@ export async function saveScheduleMonth(value: ShiftScheduleMonth) {
     manualOtEdited: Boolean(entry.manualOtEdited),
     manualOtText: String(entry.manualOtText || ""),
     manualNoteText: String(entry.manualNoteText || ""),
+    isHoliday: Boolean(entry.isHoliday),
   }));
   await setDoc(doc(firebaseDb, COLLECTION, value.monthKey), {
     ...value,
     entries: cleanEntries,
+    holidayDates: [...new Set((value.holidayDates || []).map((item) => String(item || "")).filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item)))].sort(),
     updatedAtServer: serverTimestamp(),
   });
 }
