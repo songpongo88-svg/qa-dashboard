@@ -34,18 +34,22 @@ function parseWav(buffer: ArrayBuffer) {
     const chunkId = readAscii(view, offset, 4);
     const chunkSize = view.getUint32(offset + 4, true);
     const payloadOffset = offset + 8;
-    if (payloadOffset + chunkSize > view.byteLength + 1) break;
+    const availableSize = Math.max(0, view.byteLength - payloadOffset);
 
-    if (chunkId === "fmt " && chunkSize >= 16) {
+    if (chunkId === "fmt " && chunkSize >= 16 && availableSize >= 16) {
       audioFormat = view.getUint16(payloadOffset, true);
       sampleRate = view.getUint32(payloadOffset + 4, true);
       blockAlign = view.getUint16(payloadOffset + 12, true);
     } else if (chunkId === "data") {
+      // Some phone-recording WAV files declare a data chunk slightly larger
+      // than the bytes that were actually written. Keep the available bytes
+      // instead of rejecting the whole recording so GSM playback can still be repaired.
       dataOffset = payloadOffset;
-      dataSize = Math.min(chunkSize, Math.max(0, view.byteLength - payloadOffset));
+      dataSize = Math.min(chunkSize || availableSize, availableSize);
       break;
     }
 
+    if (chunkSize > availableSize) break;
     offset = payloadOffset + chunkSize + (chunkSize % 2);
   }
 
