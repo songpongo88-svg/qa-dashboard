@@ -248,11 +248,11 @@ function drawEvidencePage(
     angle: 35,
   });
 
-  doc.addImage(PDF_LOGO, "PNG", 5.5, 4.2, 5.2, 5.2, "qa-evidence-logo", "FAST");
+  doc.addImage(PDF_LOGO, "PNG", 4.2, 2.2, 5.2, 5.2, "qa-evidence-logo", "FAST");
   doc.setFont("THSarabunNew", "normal");
   doc.setFontSize(9);
   doc.setTextColor(77, 60, 100);
-  doc.text("Robinhood Quality Assurance", 12, 7.8);
+  doc.text("Robinhood Quality Assurance", 10.3, 5.9);
 
   doc.setDrawColor(226, 220, 236);
   doc.setLineWidth(0.2);
