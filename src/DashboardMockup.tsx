@@ -5006,6 +5006,7 @@ export default function DashboardMockup({
   canViewAnalytics = false,
   dataRefreshKey,
   onRefreshData,
+  dataCheckedAt = 0,
   analyticsContent,
   onEffectiveCasesChange,
   onSelectedAgentChange,
@@ -5032,6 +5033,7 @@ export default function DashboardMockup({
   canViewAnalytics?: boolean;
   dataRefreshKey?: number;
   onRefreshData?: () => void;
+  dataCheckedAt?: number;
   analyticsContent?: React.ReactNode;
   onEffectiveCasesChange?: (cases: any[]) => void;
   onSelectedAgentChange?: (agentName: string) => void;
@@ -7653,7 +7655,7 @@ export default function DashboardMockup({
   const refreshStatus = (
     <div data-dashboard-refresh-state={isLoading ? "loading" : loadError ? "error" : "idle"} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-xs text-slate-600">
       <span role="status" aria-live="polite">
-        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${lastLoadedAt ? " · ยังแสดงข้อมูลเดิมอยู่" : ""}` : `อัปเดตล่าสุด ${lastLoadedAt ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(lastLoadedAt) : "—"} · อัปเดตอัตโนมัติทุก 5 นาที`}
+        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${lastLoadedAt ? " · ยังแสดงข้อมูลเดิมอยู่" : ""}` : `ตรวจข้อมูลล่าสุด ${Math.max(lastLoadedAt, dataCheckedAt) ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(Math.max(lastLoadedAt, dataCheckedAt)) : "—"} · ตรวจอัปเดตอัตโนมัติทุก 5 นาที`}
       </span>
       <button type="button" disabled={isLoading} onClick={() => { loadRetriesRef.current.count = 0; if (onRefreshData) onRefreshData(); else setLoadRetryNonce((value) => value + 1); }} className="rounded-lg border border-sky-200 px-3 py-1.5 font-bold text-sky-700 disabled:opacity-50">อัปเดตข้อมูล</button>
     </div>

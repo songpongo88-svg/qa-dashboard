@@ -25,6 +25,7 @@ import TrainingAttendanceMockup from "./TrainingAttendanceMockup";
 import ScheduleMockup, { ScheduleSidebarCard } from "./ScheduleMockup";
 import { upsertStoredEvaluation, isTestCaseEvaluation, invalidateStoredEvaluationCache } from "./evaluationStore";
 import { useDashboardAutoRefresh } from "./useDashboardAutoRefresh";
+import { fetchDashboardRevision } from "./dashboardRevision";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
 import CallHistoryMockup from "./CallHistoryMockup";
@@ -3800,6 +3801,7 @@ export default function App() {
     const stored = Number(window.localStorage.getItem(QA_DATA_REFRESH_STORAGE_KEY) || 0);
     return Number.isFinite(stored) ? stored : 0;
   });
+  const [qaDataCheckedAt, setQaDataCheckedAt] = useState(0);
 
   const refreshQaDashboardData = useCallback(() => {
     const nextKey = Date.now();
@@ -3822,7 +3824,7 @@ export default function App() {
   });
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
 
-  useDashboardAutoRefresh(Boolean(currentUser) && activeTab === "dashboard", qaDataRefreshKey, refreshQaDashboardData);
+  useDashboardAutoRefresh(Boolean(currentUser) && activeTab === "dashboard", qaDataRefreshKey, refreshQaDashboardData, fetchDashboardRevision, setQaDataCheckedAt);
   const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<WorkspaceTabKey[]>(() => {
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY) || "[]");
@@ -7355,6 +7357,7 @@ export default function App() {
               canViewAgentsInOverview={overviewAgentSelectionAllowed}
               canViewAnalytics={analyticsAllowed}
               onRefreshData={refreshQaDashboardData}
+              dataCheckedAt={qaDataCheckedAt}
               dataRefreshKey={qaDataRefreshKey}
               analyticsContent={analyticsAllowed ? (
                 <SummaryMockup

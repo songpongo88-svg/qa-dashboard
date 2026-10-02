@@ -48,10 +48,10 @@ const table=()=>document.querySelector('[data-unified-case-explorer-v160]')?.tex
 const status=()=>document.querySelector('[data-dashboard-refresh-state]');
 let resolveRead;
 try {
-  const remote={read:async()=>{throw new Error('offline');},calls:0};globalThis.__refreshRemote=remote;
-  const storeBundle=await build({stdin:{contents:"export {fetchStoredEvaluations,invalidateStoredEvaluationCache} from './src/evaluationStore';",resolveDir:rootDir,loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env':JSON.stringify({VITE_FIREBASE_API_KEY:'test',VITE_FIREBASE_PROJECT_ID:'test',VITE_FIREBASE_APP_ID:'test'})},plugins:[{name:'fake-firestore',setup(b){
-    b.onResolve({filter:/^firebase\//},args=>({path:args.path,namespace:'remote-fixture'}));
-    b.onLoad({filter:/.*/,namespace:'remote-fixture'},args=>({loader:'js',contents:args.path==='firebase/app'?'export const initializeApp=()=>({}),getApps=()=>[];':args.path==='firebase/storage'?'export const getDownloadURL=()=>{},getStorage=()=>{},ref=()=>{},uploadBytes=()=>{};':`export const collection=()=>({}),deleteDoc=()=>{},doc=()=>({}),getFirestore=()=>({}),limit=n=>n,orderBy=()=>({}),query=()=>({}),setDoc=()=>{},startAfter=()=>({});export async function getDocs(){globalThis.__refreshRemote.calls++;return globalThis.__refreshRemote.read();}`}));
+  const remote={read:async()=>{throw new Error('offline');},calls:0,count:2,countCalls:0,queries:[]};globalThis.__refreshRemote=remote;
+  const storeBundle=await build({stdin:{contents:"export {fetchStoredEvaluations,invalidateStoredEvaluationCache} from './src/evaluationStore';export {fetchDashboardRevision} from './src/dashboardRevision';",resolveDir:rootDir,loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env':JSON.stringify({VITE_FIREBASE_API_KEY:'test',VITE_FIREBASE_PROJECT_ID:'test',VITE_FIREBASE_APP_ID:'test'})},plugins:[{name:'fake-firestore',setup(b){
+    b.onResolve({filter:/^(firebase\/|\.\/firebaseClient$)/},args=>({path:args.path,namespace:'remote-fixture'}));
+    b.onLoad({filter:/.*/,namespace:'remote-fixture'},args=>({loader:'js',contents:args.path==='./firebaseClient'?'export const firebaseDb={};':args.path==='firebase/app'?'export const initializeApp=()=>({}),getApps=()=>[];':args.path==='firebase/storage'?'export const getDownloadURL=()=>{},getStorage=()=>{},ref=()=>{},uploadBytes=()=>{};':`export const collection=(_,name)=>({name}),deleteDoc=()=>{},doc=()=>({}),getFirestore=()=>({}),limit=n=>n,orderBy=()=>({}),query=(source,...args)=>({source,args}),setDoc=()=>{},startAfter=()=>({});export async function getDocs(ref){globalThis.__refreshRemote.calls++;globalThis.__refreshRemote.queries.push(ref);return globalThis.__refreshRemote.read();}export async function getCountFromServer(){globalThis.__refreshRemote.countCalls++;return{data:()=>({count:globalThis.__refreshRemote.count})};}`}));
   }}]});
   const storePath=path.join(temp,'store.mjs');await fs.writeFile(storePath,storeBundle.outputFiles[0].text);
   const store=await import(pathToFileURL(storePath));
@@ -61,6 +61,12 @@ try {
   remote.read=async()=>({docs:[]});
   assert.deepEqual(await store.fetchStoredEvaluations(300,{strict:true}),[]);
   await store.fetchStoredEvaluations(300,{strict:true});assert.equal(remote.calls,3,'successful reads are deduplicated');
+  remote.queries=[];let changedAt='2026-10-02T05:00:00Z';remote.read=async()=>({docs:[{id:'latest',data:()=>({updated_at:changedAt})}]});
+  const firstRevision=await store.fetchDashboardRevision();changedAt='2026-10-02T05:10:00Z';
+  const editedRevision=await store.fetchDashboardRevision();assert.notEqual(editedRevision,firstRevision,'an edit changes the revision');
+  remote.count--;assert.notEqual(await store.fetchDashboardRevision(),editedRevision,'deleting an older record is detected by the count');
+  assert.ok(remote.queries.every(ref=>ref.args.includes(1)),'change checks read at most one result per collection');assert.equal(remote.countCalls,6);
+  console.log('PASS inexpensive change checks detect edits and deletions without reading the whole case/event history');
   store.invalidateStoredEvaluationCache();remote.read=()=>new Promise(()=>{});
   const actualSetTimeout=globalThis.setTimeout;globalThis.setTimeout=(fn,ms,...args)=>ms===20_000?(queueMicrotask(fn),0):actualSetTimeout(fn,ms,...args);
   try {await assert.rejects(store.fetchStoredEvaluations(300,{strict:true}),/20 วินาที/);}finally{globalThis.setTimeout=actualSetTimeout;store.invalidateStoredEvaluationCache();delete globalThis.__refreshRemote;}
@@ -121,8 +127,8 @@ try {
   window.setInterval=(fn,ms)=>{const id=++seq;intervals.set(id,{fn,ms});return id;};window.clearInterval=id=>intervals.delete(id);
   Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>visible?'visible':'hidden'});
   const doRefresh=()=>{refreshes++;};
-  function Poller({active,keyValue}){useDashboardAutoRefresh(active,keyValue,doRefresh);return null;}
-  const pollRender=async(active,keyValue)=>act(async()=>root.render(React.createElement(Poller,{active,keyValue})));
+  function Poller({active,keyValue,revisionReader,onChecked}){useDashboardAutoRefresh(active,keyValue,doRefresh,revisionReader,onChecked);return null;}
+  const pollRender=async(active,keyValue,extra={})=>act(async()=>root.render(React.createElement(Poller,{active,keyValue,...extra})));
   await pollRender(true,now);now+=4*60_000;
   await act(async()=>window.dispatchEvent(new Event('focus')));assert.equal(refreshes,0,'frequent tab switches do not trigger extra reads');
   now+=60_000;await act(async()=>{for(const t of intervals.values())t.fn();});assert.equal(refreshes,1,'open Dashboard refreshes after five minutes');
@@ -130,6 +136,12 @@ try {
   visible=false;now+=5*60_000;await act(async()=>{for(const t of intervals.values())t.fn();});assert.equal(refreshes,1);
   visible=true;await act(async()=>document.dispatchEvent(new Event('visibilitychange')));assert.equal(refreshes,2);
   await pollRender(false,now);assert.equal(intervals.size,0,'other work tabs do not poll Dashboard');
+  let revisionCode='A',checks=0;const revisionReader=async()=>revisionCode;const onChecked=()=>checks++;
+  await pollRender(true,now,{revisionReader,onChecked});
+  const tick=async()=>act(async()=>{now+=5*60_000;for(const t of intervals.values())t.fn();await flush();});
+  await tick();assert.equal(refreshes,3);await tick();assert.equal(refreshes,3,'unchanged records skip a full workbook/data reload');assert.equal(checks,2,'last checked time still updates when data is unchanged');
+  revisionCode='B';await tick();assert.equal(refreshes,4,'changed results refresh the full snapshot');
+  console.log('PASS five-minute checks skip unchanged snapshots and publish the actual check time');
   await act(async()=>root.unmount());window.setInterval=originalInterval;window.clearInterval=originalClear;Date.now=originalNow;
   console.log('PASS five-minute visible-page polling, focus throttling, hidden-tab pause and cleanup');
 } finally {
