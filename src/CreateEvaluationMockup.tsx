@@ -2877,60 +2877,72 @@ export default function CreateEvaluationMockup({
                   )}
                 </label>
 
-                <label
-                  className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 transition ${
-                    noCaseForMonth
-                      ? "border-violet-300 bg-violet-50 shadow-sm"
-                      : "border-slate-200 bg-slate-50 hover:border-violet-200"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={noCaseForMonth}
-                    disabled={isTestCase}
-                    onChange={(event) => {
-                      const checked = event.target.checked;
-                      setNoCaseForMonth(checked);
-                      if (checked) {
-                        setCaseId("");
-                        setWaitingTime("");
-                        setServiceTime("");
-                        setCaseUrl("");
-                        setInquiry("");
-                        setCaseDescription("");
-                        setProcessReference("");
-                        setEvidenceUrl("");
-                        setEvidenceFiles([]);
-                        setCallLogs([]);
-                        setCriticalError(false);
-                      }
-                    }}
-                    className="mt-1 h-5 w-5 accent-violet-700"
-                  />
-                  <span>
-                    <span className="block text-sm font-black text-slate-950">
-                      ไม่มีเคสสำหรับประเมินในเดือนนี้
-                    </span>
-                    <span className="mt-1 block text-xs font-semibold leading-5 text-slate-600">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      aria-pressed={noCaseForMonth}
+                      disabled={isTestCase}
+                      onClick={() => {
+                        const checked = !noCaseForMonth;
+                        setNoCaseForMonth(checked);
+                        if (checked) {
+                          setCaseId("");
+                          setWaitingTime("");
+                          setServiceTime("");
+                          setCaseUrl("");
+                          setInquiry("");
+                          setCaseDescription("");
+                          setProcessReference("");
+                          setEvidenceUrl("");
+                          setEvidenceFiles([]);
+                          setCallLogs([]);
+                          setCriticalError(false);
+                        }
+                      }}
+                      className={`flex h-[74px] w-[92px] flex-col items-center justify-center gap-1.5 rounded-2xl border transition ${
+                        noCaseForMonth
+                          ? "border-violet-500 bg-violet-600 text-white shadow-[0_8px_20px_rgba(124,58,237,0.2)]"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50"
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M8 12h8" />
+                      </svg>
+                      <span className="text-[11px] font-black">No Case</span>
+                    </button>
+                    <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-xl border border-slate-200 bg-slate-950 px-3 py-2 text-xs font-semibold leading-5 text-white opacity-0 shadow-xl transition group-hover:opacity-100">
                       บันทึกคะแนน 0 และคำนวณ Grade ตามเกณฑ์ของเดือนที่เลือก โดยจำนวนเคสยังคงเป็น 0
-                    </span>
-                  </span>
-                </label>
+                    </div>
+                  </div>
 
-                <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-                  <input
-                    type="checkbox"
-                    checked={isTestCase}
-                    disabled={noCaseForMonth || Boolean(activeSubmittedRecordId)}
-                    onChange={(event) => setIsTestCase(event.target.checked)}
-                    className="mt-1 h-5 w-5 accent-amber-600 disabled:opacity-50"
-                  />
-                  <span>
-                    <span className="block text-sm font-bold text-amber-900">Test Case — เคสทดสอบ</span>
-                    <span className="mt-1 block text-xs leading-5 text-amber-800">บันทึกและเปิด Case Detail ได้ แต่ไม่นับคะแนนหรือจำนวนเคสในผลจริง ใช้ Case ID ที่ไม่ซ้ำกับเคสเดิม</span>
-                    {activeSubmittedRecordId ? <span className="mt-1 block text-xs text-slate-600">เคสที่บันทึกแล้วจะคงประเภทเดิม</span> : null}
-                  </span>
-                </label>
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      aria-pressed={isTestCase}
+                      disabled={noCaseForMonth || Boolean(activeSubmittedRecordId)}
+                      onClick={() => setIsTestCase((current) => !current)}
+                      className={`flex h-[74px] w-[92px] flex-col items-center justify-center gap-1.5 rounded-2xl border transition ${
+                        isTestCase
+                          ? "border-amber-500 bg-amber-500 text-white shadow-[0_8px_20px_rgba(245,158,11,0.22)]"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-amber-300 hover:bg-amber-50"
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M9 3h6" />
+                        <path d="M10 9l-4.5 8.2A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-2.8L14 9" />
+                        <path d="M8.5 14h7" />
+                      </svg>
+                      <span className="text-[11px] font-black">Test Case</span>
+                    </button>
+                    <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-xl border border-slate-200 bg-slate-950 px-3 py-2 text-xs font-semibold leading-5 text-white opacity-0 shadow-xl transition group-hover:opacity-100">
+                      {activeSubmittedRecordId
+                        ? "เคสที่บันทึกแล้วจะคงประเภทเดิม ไม่สามารถเปลี่ยนเป็น Test Case ได้"
+                        : "บันทึกและเปิด Case Detail ได้ แต่ไม่นับคะแนนหรือจำนวนเคสในผลจริง ใช้ Case ID ที่ไม่ซ้ำกับเคสเดิม"}
+                    </div>
+                  </div>
+                </div>
 
                 <div className={`grid gap-3 ${noCaseForMonth ? "grid-cols-1" : "grid-cols-2"}`}>
                   {!noCaseForMonth ? (
