@@ -291,10 +291,11 @@ async function readAudioDuration(file: File) {
   }
 }
 
-function callLogSummary(callLogs: Array<Pick<StoredEvaluationCallLog, "direction" | "phoneNumber" | "callDate" | "callTime" | "duration" | "recordingUrl">>) {
+function callLogSummary(callLogs: Array<Pick<StoredEvaluationCallLog, "direction" | "contactType" | "phoneNumber" | "callDate" | "callTime" | "duration" | "recordingUrl">>) {
   return (callLogs || []).map((item, index) => {
     const parts = [
       `${index + 1}. ${item.direction || "Outbound"}`,
+      item.contactType ? `Contact ${item.contactType}` : "",
       item.phoneNumber || "No phone",
       [item.callDate, item.callTime].filter(Boolean).join(" "),
       item.duration ? `Duration ${item.duration}` : "",
@@ -3483,6 +3484,28 @@ export default function CreateEvaluationMockup({
                               </label>
 
                               <label className="min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Contact Type</span>
+                                <select
+                                  value={call.contactType || ""}
+                                  onChange={(event) => {
+                                    const value = event.target.value;
+                                    updateCallLog(call.id, {
+                                      contactType:
+                                        value === "Customer" || value === "Rider" || value === "Merchant"
+                                          ? value
+                                          : undefined,
+                                    });
+                                  }}
+                                  className={`${inputClass} min-w-0 px-2.5 text-[13px]`}
+                                >
+                                  <option value="">Select Type</option>
+                                  <option value="Customer">Customer</option>
+                                  <option value="Rider">Rider</option>
+                                  <option value="Merchant">Merchant</option>
+                                </select>
+                              </label>
+
+                              <label className="min-w-0">
                                 <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Duration</span>
                                 <input
                                   value={call.duration}
@@ -3502,7 +3525,7 @@ export default function CreateEvaluationMockup({
                                 />
                               </label>
 
-                              <label className="min-w-0">
+                              <label className="col-span-2 min-w-0">
                                 <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Call Time</span>
                                 <input
                                   type="text"
