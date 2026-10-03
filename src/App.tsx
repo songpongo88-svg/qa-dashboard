@@ -4917,6 +4917,10 @@ export default function App() {
           id: compactCentralStoreText(item.id),
           phoneNumber: compactCentralStoreText(item.phoneNumber),
           direction: item.direction === "Inbound" ? "Inbound" : "Outbound",
+          contactType:
+            item.contactType === "Customer" || item.contactType === "Rider" || item.contactType === "Merchant"
+              ? item.contactType
+              : undefined,
           callDate: compactCentralStoreText(item.callDate),
           callTime: compactCentralStoreText(item.callTime),
           duration: compactCentralStoreText(item.duration),
