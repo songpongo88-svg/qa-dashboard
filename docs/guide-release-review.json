@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-03T05:02:00.000Z",
-  "reason": "ตรวจ Dashboard ให้เริ่มและคงเดือนปัจจุบันแม้ยังไม่มีเคสประเมิน พร้อมป้องกัน Analytics ถอยกลับไปเดือนล่าสุดที่มีข้อมูล และทดสอบเดือนปัจจุบันแบบ 0 เคส",
+  "reviewedAt": "2026-10-03T05:17:00.000Z",
+  "reason": "ตรวจ Dashboard ให้เริ่มและคงเดือนปัจจุบันแม้ยังไม่มีเคสประเมิน พร้อมป้องกัน Analytics ถอยกลับไปเดือนล่าสุดที่มีข้อมูล โดยใช้ชุดทดสอบ Dashboard เดิมของระบบตรวจ regression",
   "contentChanged": true,
   "reviewedChapters": [
     "dashboard"
@@ -290,7 +290,7 @@
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "4c4a8af7c60c4f6adcde922ecec746c76649590ea878ac6da022eb04423ede40",
     "scripts/sync-v13-rowdata.mjs": "9f98a43be94809668dc809621d7f46fdd3984e0cd7456f9129f09d42fdcdaf9e",
-    "scripts/test-dashboard-case-navigation.mjs": "8bd1871dfafc318ca89dac66184e549cd0054a1eef6a970236f8518ef048fb1f",
+    "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-refresh.mjs": "97a2ec6ad365f4c17bd93d63d015fca9fa7aeec539dc9409538e8cb38e381391",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
