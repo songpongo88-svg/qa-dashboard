@@ -4886,10 +4886,11 @@ function SlideOverCaseDetail({
                 <div className="space-y-3 p-4">
                   {caseItem.callLogs.map((call, index) => (
                     <div key={call.id || `call-${index}`} className="rounded-[16px] border border-slate-200 bg-slate-50/70 p-4">
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
                         {[
                           { label: "Call", value: `#${index + 1}` },
-                          { label: "Type", value: call.direction || "-" },
+                          { label: "Call Type", value: call.direction || "-" },
+                          { label: "Contact Type", value: call.contactType || "-" },
                           { label: "Phone Number", value: call.phoneNumber || "-" },
                           { label: "Date / Time", value: [call.callDate, call.callTime].filter(Boolean).join(" ") || "-" },
                           { label: "Duration", value: call.duration || "-" },
