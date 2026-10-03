@@ -2060,17 +2060,30 @@ function AnalyticsAgentPerformanceV92({
               <div className="text-[15px] font-semibold text-slate-900">
                 {allAgentsMode
                   ? "Agent Performance (All Agents)"
-                  : "Individual Agent Analysis"}
+                  : `Agent Performance — ${buildSuspendedAgentLabel(selectedAgent, accountProfiles)}`}
               </div>
               <div className="mt-1 text-[10px] font-normal text-slate-500">
                 {periodLabel || "Current selection"} ·{" "}
-                {allAgentsMode && agentSortTab === "alphabetical"
-                  ? "Sorted by Agent name A–Z"
-                  : "Ranked by average score"}
+                {allAgentsMode
+                  ? agentSortTab === "alphabetical"
+                    ? "Sorted by Agent name A–Z"
+                    : "Ranked by average score"
+                  : "Selected Agent"}
               </div>
             </div>
-            <div className="rounded-full bg-violet-50 px-3 py-1.5 text-[10px] font-medium text-violet-700">
-              {rows.length} Agent{rows.length === 1 ? "" : "s"}
+            <div className="flex flex-wrap items-center gap-2">
+              {!allAgentsMode && canSelectAgent ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectAgent("all")}
+                  className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-violet-700 transition hover:bg-violet-50"
+                >
+                  View All Agents
+                </button>
+              ) : null}
+              <div className="rounded-full bg-violet-50 px-3 py-1.5 text-[10px] font-medium text-violet-700">
+                {rows.length} Agent{rows.length === 1 ? "" : "s"}
+              </div>
             </div>
           </div>
 
