@@ -3106,10 +3106,13 @@ export default function SummaryMockup({
     if (!embedded || analysisMode !== "monthly") return;
     const requestedMonth = String(externalSelectedMonth || "").trim();
     if (!/^\d{4}-\d{2}$/.test(requestedMonth)) return;
-    if (selectedPeriods.length > 1) return;
-    if (selectedPeriods.length === 1 && selectedPeriods[0] === requestedMonth) return;
-    setSelectedPeriods([requestedMonth]);
-  }, [analysisMode, embedded, externalSelectedMonth, selectedPeriods]);
+
+    setSelectedPeriods((currentPeriods) => {
+      if (currentPeriods.length > 1) return currentPeriods;
+      if (currentPeriods.length === 1 && currentPeriods[0] === requestedMonth) return currentPeriods;
+      return [requestedMonth];
+    });
+  }, [analysisMode, embedded, externalSelectedMonth]);
 
   useEffect(() => {
     if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
