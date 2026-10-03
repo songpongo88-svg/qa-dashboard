@@ -161,7 +161,6 @@ try{
   const sameIdDetail=document.querySelector('[data-case-detail-workspace-v54]')?.textContent||'';
   assert.ok(sameIdDetail.includes('Agent B'));assert.ok(!sameIdDetail.includes('Agent A'),'same Case ID resolves using the link owner');
   console.log('PASS shared/detail links work outside active filters while unauthorized and unknown targets remain blocked');
-
 }finally{
   try{await act(async()=>root.unmount());}catch{}
   globalThis.fetch=originalFetch;dom.window.close();await fs.rm(temp,{recursive:true,force:true});delete globalThis.__caseNavigationFixture;
