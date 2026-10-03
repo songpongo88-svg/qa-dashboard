@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-03T04:31:30.000Z",
+  "reviewedAt": "2026-10-03T04:34:00.000Z",
   "reason": "ตรวจการซิงก์ Agent ระหว่าง KPI และ Agent Performance ให้แสดงชื่อ Agent เดียวกัน พร้อมปุ่ม View All Agents เพื่อกลับคะแนนรวมโดยไม่ต้อง Reset ทั้งหน้า",
   "contentChanged": true,
   "reviewedChapters": [
@@ -290,7 +290,7 @@
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "4c4a8af7c60c4f6adcde922ecec746c76649590ea878ac6da022eb04423ede40",
     "scripts/sync-v13-rowdata.mjs": "9f98a43be94809668dc809621d7f46fdd3984e0cd7456f9129f09d42fdcdaf9e",
-    "scripts/test-dashboard-case-navigation.mjs": "394420267a55c8bba528dc47ae59591ee4c2d94acc07f07f95154521f9ec9381",
+    "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-refresh.mjs": "97a2ec6ad365f4c17bd93d63d015fca9fa7aeec539dc9409538e8cb38e381391",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
