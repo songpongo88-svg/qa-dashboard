@@ -161,6 +161,19 @@ try{
   const sameIdDetail=document.querySelector('[data-case-detail-workspace-v54]')?.textContent||'';
   assert.ok(sameIdDetail.includes('Agent B'));assert.ok(!sameIdDetail.includes('Agent A'),'same Case ID resolves using the link owner');
   console.log('PASS shared/detail links work outside active filters while unauthorized and unknown targets remain blocked');
+
+  await act(async()=>root.unmount());root=createRoot(document.getElementById('root'));
+  const nowForMonthDefault=new Date();
+  const currentMonthKey=`${nowForMonthDefault.getFullYear()}-${String(nowForMonthDefault.getMonth()+1).padStart(2,'0')}`;
+  const previousMonthDate=new Date(nowForMonthDefault.getFullYear(),nowForMonthDefault.getMonth()-1,1);
+  const previousMonthKey=`${previousMonthDate.getFullYear()}-${String(previousMonthDate.getMonth()+1).padStart(2,'0')}`;
+  const currentMonthLabel=new Date(nowForMonthDefault.getFullYear(),nowForMonthDefault.getMonth(),1).toLocaleString('en-US',{month:'long',year:'numeric'});
+  fixture.read=async()=>[sample('AA900006','Agent A',previousMonthKey)];
+  await act(async()=>{root.render(React.createElement(Summary,{currentUser:qaUser,externalSelectedMonth:currentMonthKey,externalSelectedWeek:'all',canViewAllAgents:true,canViewAllTeams:true,dataRefreshKey:99}));await flush();});await settle();await settle();
+  const monthOptionLabels=[...document.querySelectorAll('option')].map(node=>node.textContent.trim());
+  assert.ok(monthOptionLabels.includes(currentMonthLabel),'current month remains selectable even when it has zero evaluated cases: '+JSON.stringify(monthOptionLabels));
+  assert.ok(document.body.textContent.includes(currentMonthLabel),'current month remains the active monthly view instead of falling back to the latest month with cases');
+  console.log('PASS current calendar month remains visible and active with zero evaluated cases');
 }finally{
   try{await act(async()=>root.unmount());}catch{}
   globalThis.fetch=originalFetch;dom.window.close();await fs.rm(temp,{recursive:true,force:true});delete globalThis.__caseNavigationFixture;
