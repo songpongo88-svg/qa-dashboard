@@ -613,6 +613,33 @@ function getCurrentMonthKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+const DASHBOARD_SELECTED_MONTH_SESSION_KEY = "qa_case_selected_month_v134";
+const DASHBOARD_CALENDAR_MONTH_SESSION_KEY = "qa_dashboard_calendar_month_v169";
+
+function getInitialDashboardMonthKey() {
+  const currentMonthKey = getCurrentMonthKey();
+  if (typeof window === "undefined") return currentMonthKey;
+
+  const storedCalendarMonth = window.sessionStorage.getItem(DASHBOARD_CALENDAR_MONTH_SESSION_KEY);
+  const storedSelectedMonth = window.sessionStorage.getItem(DASHBOARD_SELECTED_MONTH_SESSION_KEY) || "";
+
+  if (storedCalendarMonth !== currentMonthKey) {
+    window.sessionStorage.setItem(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, currentMonthKey);
+    window.sessionStorage.setItem(DASHBOARD_SELECTED_MONTH_SESSION_KEY, currentMonthKey);
+    window.sessionStorage.setItem("qa_case_selected_year_v163", currentMonthKey.slice(0, 4));
+    window.sessionStorage.setItem("qa_case_selected_week_v134", "all");
+    window.sessionStorage.setItem("qa_analytics_selected_month_v134", currentMonthKey);
+    window.sessionStorage.setItem("qa_analytics_selected_week_v134", "all");
+    window.sessionStorage.setItem("qa_analytics_mode_v134", "monthly");
+    window.sessionStorage.setItem("qa_analytics_periods_v134", "[]");
+    return currentMonthKey;
+  }
+
+  return /^\d{4}-\d{2}$/.test(storedSelectedMonth) || storedSelectedMonth === "all"
+    ? storedSelectedMonth
+    : currentMonthKey;
+}
+
 function formatWorkSimNumber(value: unknown) {
   const digits = String(value || "").replace(/\D+/g, "");
   if (!digits) return "—";
@@ -3867,7 +3894,7 @@ export default function App() {
     setCaseFilterResetKey((key) => key + 1);
   }, []);
   const [caseSelectedMonth, setCaseSelectedMonth] = useState(
-    () => window.sessionStorage.getItem("qa_case_selected_month_v134") || getCurrentMonthKey()
+    () => getInitialDashboardMonthKey()
   );
   const [caseSelectedWeek, setCaseSelectedWeek] = useState(
     () => window.sessionStorage.getItem("qa_case_selected_week_v134") || "all"
@@ -3892,7 +3919,8 @@ export default function App() {
 
   useEffect(() => {
     window.sessionStorage.setItem("qa_case_selected_agent_v134", caseSelectedAgent);
-    window.sessionStorage.setItem("qa_case_selected_month_v134", caseSelectedMonth);
+    window.sessionStorage.setItem(DASHBOARD_SELECTED_MONTH_SESSION_KEY, caseSelectedMonth);
+    window.sessionStorage.setItem(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, getCurrentMonthKey());
     window.sessionStorage.setItem("qa_case_selected_week_v134", caseSelectedWeek);
     window.sessionStorage.setItem("qa_case_selected_year_v163", caseSelectedYear);
   }, [caseSelectedAgent, caseSelectedMonth, caseSelectedWeek, caseSelectedYear]);
@@ -3951,6 +3979,21 @@ export default function App() {
     setAccountMenuValue("");
     setUserAdminSection("maintenance");
     setShareLinkMessage("");
+
+    const currentDashboardMonth = getCurrentMonthKey();
+    setCaseSelectedMonth(currentDashboardMonth);
+    setCaseSelectedYear(currentDashboardMonth.slice(0, 4));
+    setCaseSelectedWeek("all");
+    setAnalyticsSelectedMonth(currentDashboardMonth);
+    setAnalyticsSelectedWeek("all");
+    window.sessionStorage.setItem(DASHBOARD_CALENDAR_MONTH_SESSION_KEY, currentDashboardMonth);
+    window.sessionStorage.setItem(DASHBOARD_SELECTED_MONTH_SESSION_KEY, currentDashboardMonth);
+    window.sessionStorage.setItem("qa_case_selected_year_v163", currentDashboardMonth.slice(0, 4));
+    window.sessionStorage.setItem("qa_case_selected_week_v134", "all");
+    window.sessionStorage.setItem("qa_analytics_selected_month_v134", currentDashboardMonth);
+    window.sessionStorage.setItem("qa_analytics_selected_week_v134", "all");
+    window.sessionStorage.setItem("qa_analytics_mode_v134", "monthly");
+    window.sessionStorage.setItem("qa_analytics_periods_v134", "[]");
 
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, "dashboard");
     window.sessionStorage.setItem(
