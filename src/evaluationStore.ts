@@ -83,6 +83,7 @@ export type StoredEvaluationCallLog = {
   id: string;
   phoneNumber: string;
   direction: "Outbound" | "Inbound";
+  contactType?: "Customer" | "Rider" | "Merchant";
   callDate: string;
   callTime: string;
   duration: string;
@@ -245,6 +246,10 @@ function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
       id: compactStoredText(item.id, 200),
       phoneNumber: compactStoredText(item.phoneNumber, 100),
       direction: item.direction === "Inbound" ? "Inbound" : "Outbound",
+      contactType:
+        item.contactType === "Customer" || item.contactType === "Rider" || item.contactType === "Merchant"
+          ? item.contactType
+          : undefined,
       callDate: compactStoredText(item.callDate, 40),
       callTime: compactStoredText(item.callTime, 40),
       duration: compactStoredText(item.duration, 40),
@@ -470,6 +475,14 @@ function toEvaluation(row: any): StoredEvaluation {
           id: String(item?.id || `call-${index + 1}`),
           phoneNumber: String(item?.phoneNumber || item?.phone_number || ""),
           direction: item?.direction === "Inbound" ? "Inbound" : "Outbound",
+          contactType:
+            item?.contactType === "Customer" || item?.contact_type === "Customer"
+              ? "Customer"
+              : item?.contactType === "Rider" || item?.contact_type === "Rider"
+                ? "Rider"
+                : item?.contactType === "Merchant" || item?.contact_type === "Merchant"
+                  ? "Merchant"
+                  : undefined,
           callDate: String(item?.callDate || item?.call_date || ""),
           callTime: String(item?.callTime || item?.call_time || ""),
           duration: String(item?.duration || ""),
