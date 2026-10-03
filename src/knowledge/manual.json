@@ -217,7 +217,7 @@
         },
         {
           "title": "ตรวจ Call Log และ Voice Recording",
-          "body": "ถ้าเคสมี Call Log ระบบจะแสดงประเภทสาย เบอร์โทร วันเวลา ระยะเวลา หมายเหตุ และปุ่มฟัง Voice Recording ใน Case Detail โดยไม่มีปุ่ม Download ส่วน Case Detail PDF จะแสดงข้อมูล Call Log และข้อความว่า Voice Recording มีอยู่ใน QA Dashboard แต่จะไม่ฝังไฟล์เสียง หากเคสไม่มี Call Log หัวข้อนี้จะไม่แสดงทั้งบนหน้า Case Detail และใน PDF"
+          "body": "ถ้าเคสมี Call Log ระบบจะแสดง Call Type, Contact Type (Customer/Rider/Merchant), เบอร์โทร วันเวลา ระยะเวลา หมายเหตุ และปุ่มฟัง Voice Recording ใน Case Detail โดยไม่มีปุ่ม Download ส่วน Case Detail PDF จะแสดงข้อมูล Call Log และข้อความว่า Voice Recording มีอยู่ใน QA Dashboard แต่จะไม่ฝังไฟล์เสียง หากเคสไม่มี Call Log หัวข้อนี้จะไม่แสดงทั้งบนหน้า Case Detail และใน PDF"
         },
         {
           "title": "ดาวน์โหลด Case Detail PDF",
@@ -624,7 +624,7 @@
         },
         {
           "title": "เพิ่ม Call Log / Voice Recording เมื่อมีการโทร",
-          "body": "ถ้ามีไฟล์เสียง ให้กด Attach Voice ได้ทันที ระบบจะสร้าง Call Log และอ่านเบอร์โทร ประเภทสาย วันที่ เวลา และ Duration ให้อัตโนมัติ สำหรับไฟล์ WAV แบบ GSM 6.10 ระบบจะแปลงเฉพาะสำเนาสำหรับ Playback ให้เป็น WAV ที่ Browser เล่นได้ หากเป็นรายการเก่าที่เล่นไม่ได้ ระบบจะลองซ่อม Playback อัตโนมัติเมื่อเปิด Player กรณีไม่มีไฟล์เสียงให้ใช้ Manual Call"
+          "body": "ถ้ามีไฟล์เสียง ให้กด Attach Voice ได้ทันที ระบบจะสร้าง Call Log และอ่านเบอร์โทร ประเภทสาย วันที่ เวลา และ Duration ให้อัตโนมัติ จากนั้นเลือก Contact Type ของสายเป็น Customer, Rider หรือ Merchant ให้ตรงกับผู้ที่ติดต่อ สำหรับไฟล์ WAV แบบ GSM 6.10 ระบบจะแปลงเฉพาะสำเนาสำหรับ Playback ให้เป็น WAV ที่ Browser เล่นได้ หากเป็นรายการเก่าที่เล่นไม่ได้ ระบบจะลองซ่อม Playback อัตโนมัติเมื่อเปิด Player กรณีไม่มีไฟล์เสียงให้ใช้ Manual Call"
         },
         {
           "title": "แนบหลักฐานให้ถูกชนิด",
