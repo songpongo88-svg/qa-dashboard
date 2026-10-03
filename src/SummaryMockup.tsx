@@ -3103,6 +3103,15 @@ export default function SummaryMockup({
   }, [externalSelectedMonth, selectedMonth]);
 
   useEffect(() => {
+    if (!embedded || analysisMode !== "monthly") return;
+    const requestedMonth = String(externalSelectedMonth || "").trim();
+    if (!/^\d{4}-\d{2}$/.test(requestedMonth)) return;
+    if (selectedPeriods.length > 1) return;
+    if (selectedPeriods.length === 1 && selectedPeriods[0] === requestedMonth) return;
+    setSelectedPeriods([requestedMonth]);
+  }, [analysisMode, embedded, externalSelectedMonth, selectedPeriods]);
+
+  useEffect(() => {
     if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
       setSelectedWeek(externalSelectedWeek);
     }
@@ -3623,14 +3632,19 @@ export default function SummaryMockup({
         .sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
     }
     if (analysisMode === "monthly") {
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const requestedMonth = /^\d{4}-\d{2}$/.test(selectedMonth) ? selectedMonth : "";
       return Array.from(new Set([
+        currentMonthKey,
+        requestedMonth,
         ...allCases.map((item) => item.monthKey),
         ...noCaseEvaluations.map(getStoredEvaluationMonthKey),
       ].filter(Boolean)))
         .sort((a, b) => b.localeCompare(a));
     }
     return selectableYears;
-  }, [allCases, analysisMode, noCaseEvaluations, selectableYears]);
+  }, [allCases, analysisMode, noCaseEvaluations, selectableYears, selectedMonth]);
 
   const weeklyPeriodGroups = useMemo(() => {
     if (analysisMode !== "weekly") return [];
@@ -3973,7 +3987,7 @@ export default function SummaryMockup({
 
   const getPeriodDisplayLabel = (value: string) => {
     if (analysisMode === "monthly") {
-      return allCases.find((item) => item.monthKey === value)?.monthLabel || value;
+      return getMonthLabelForKey(value, allCases);
     }
     return value;
   };
