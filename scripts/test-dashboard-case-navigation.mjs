@@ -97,7 +97,7 @@ function Harness(){
   caseScope={agent,month,week,year};nonce=resetKey;
   const publish=React.useCallback(rows=>setEffectiveCases(rows),[]);
   const resetCases=bindActual(appHandlers.resetDashboardCaseFilters,{setCaseFilterResetKey:setResetKey});
-  const selectAgent=bindActual(appHandlers.agent,{setCaseSelectedAgent:setAgent,resetDashboardCaseFilters:resetCases});
+  const selectAgent=bindActual(appHandlers.agent,{setDashboardSummarySelectedAgent:setSummaryAgent,setCaseSelectedAgent:setAgent,resetDashboardCaseFilters:resetCases});
   const navigate=(tab,options={})=>{
     fixture.route=options;setWorkspace(options.workspaceKey||'dashboard');
     const id=options.params?.caseId||'';setTargetId(id);setSubTab(id?'case-detail':'overview');
@@ -123,6 +123,8 @@ try{
   const beforeNonce=nonce;
   await click(button('View Details',agentRow()));
   assert.ok(nonce>beforeNonce,'actual App callback signals a repeated selection of Agent A');
+  assert.ok(document.querySelector('[data-analytics-agent-incentive-v92]')?.textContent.includes('Agent Performance — Agent A'),'Agent Performance shows the same active Agent as Dashboard KPI scope');
+  assert.ok(button('View All Agents',document.querySelector('[data-analytics-agent-incentive-v92]')),'individual Agent view exposes a direct return to All Agents');
   assert.equal(search().value,'');assert.ok(table().includes('AA900001'));assert.ok(table().includes('AA900002'));assert.ok(!table().includes('AA900003'));
   await typeSearch('AA900003');await click(agentRow().querySelector('button'));
   assert.equal(search().value,'');assert.ok(table().includes('AA900002'),'Agent name also clears the old case filter');

@@ -7396,7 +7396,9 @@ export default function App() {
                     resetDashboardCaseFilters();
                   }}
                   onAgentPerformanceCaseSelect={(agent) => {
-                    setCaseSelectedAgent(agent);
+                    const nextAgent = agent === "all" ? "" : agent;
+                    setDashboardSummarySelectedAgent(nextAgent);
+                    setCaseSelectedAgent(nextAgent);
                     resetDashboardCaseFilters();
                   }}
                   onResetCaseFilters={resetDashboardCaseFilters}

@@ -7425,7 +7425,7 @@ export default function DashboardMockup({
     {
       label: "Quality Score (Avg.)",
       value: metricAverageDisplay,
-      note: `${metricCaseCount} case(s) in ${currentViewingMonthLabel}`,
+      note: `${metricCaseCount} case(s) in ${currentViewingMonthLabel} · ${effectiveSelectedAgent || "All Agents"}`,
       icon: "☆",
       iconTone: "bg-violet-50 text-violet-600",
       valueTone: "text-slate-900",

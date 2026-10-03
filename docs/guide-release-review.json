@@ -1,11 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-03T02:18:00.000Z",
-  "reason": "ตรวจการเพิ่ม Contact Type ใน Call Log ให้เลือก Customer, Rider หรือ Merchant พร้อมตรวจการบันทึกและการแสดงผลใน Case Detail",
+  "reviewedAt": "2026-10-03T04:34:00.000Z",
+  "reason": "ตรวจการซิงก์ Agent ระหว่าง KPI และ Agent Performance ให้แสดงชื่อ Agent เดียวกัน พร้อมปุ่ม View All Agents เพื่อกลับคะแนนรวมโดยไม่ต้อง Reset ทั้งหน้า",
   "contentChanged": true,
   "reviewedChapters": [
-    "evaluation",
-    "case-detail"
+    "dashboard"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
@@ -291,7 +290,7 @@
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "4c4a8af7c60c4f6adcde922ecec746c76649590ea878ac6da022eb04423ede40",
     "scripts/sync-v13-rowdata.mjs": "9f98a43be94809668dc809621d7f46fdd3984e0cd7456f9129f09d42fdcdaf9e",
-    "scripts/test-dashboard-case-navigation.mjs": "394420267a55c8bba528dc47ae59591ee4c2d94acc07f07f95154521f9ec9381",
+    "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-refresh.mjs": "97a2ec6ad365f4c17bd93d63d015fca9fa7aeec539dc9409538e8cb38e381391",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
@@ -304,7 +303,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "e6577c124507d47f073618fbb71ceffc4baa5e4bb8bc1a3d25be6baa8aa895c2",
+    "src/App.tsx": "80a4ce01d9ee2bb139242656152ebca3a92af5b6047ae576af41bb4700e374c5",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
     "src/AppealRequestsMockup.tsx": "a88e15c948af00e99e9ba62ab9187b5332a20f46ddd1f7df5a3e7a08f9065e2b",
@@ -314,7 +313,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "1d4ad0799b31a77557e4c3725f7c365f1fbffd62390c9e74e7c7c44d8b700a9a",
-    "src/DashboardMockup.tsx": "a5928ee1de119f756e9ae47c13eb0733f49859c21fa7e9e39bd810eebe2b7ce6",
+    "src/DashboardMockup.tsx": "186e9274cacea64e7b147624a97d81ae5fd239d371ecbb824558c6ad54577db4",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "fed78c07733f3c80e350c5e0ae1173f17968942014d3058643857cac9a7dd27b",
@@ -333,7 +332,7 @@
     "src/ScheduleMockup.tsx": "bd0431a88e2c0fd5bfcc5fcb640c6d968c3f4dbd552457a634cacb64c59c49c3",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "6fd5d0594f26692dddb0f094b63d1c57a007f638bd74f14d4d0a15560ed70334",
-    "src/SummaryMockup.tsx": "9c9b7adce1db733b0978fc0daf79b3c68b91d71e00f35678edd91b664835b260",
+    "src/SummaryMockup.tsx": "daea396c17fe0164bbfe7cebba1af27f9512d7c07c2b8d01901e34ce2f1155f6",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
     "src/TeamChatV2.tsx": "11b3cf1cb691af71b4e100635b8ec4450d48122ab662a090ed6ff5e5ae26e3d3",
@@ -373,7 +372,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "835e452563e34f208edbd9c8ecbe2f7e2a4ce74f11ffd6cc8df6c2c71046d448",
-    "src/knowledge/manual.json": "24a6f6c0779c3f79ad87be34409547b792731939387ffd80a30afdcde694b739",
+    "src/knowledge/manual.json": "9d94fb082a3a4de0808a6183de141bc8d8ba466181daeb70077b19e1610fdd9d",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
