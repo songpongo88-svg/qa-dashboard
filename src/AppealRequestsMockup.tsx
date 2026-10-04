@@ -310,6 +310,7 @@ function openCaseDetailTab(request: AppealRequest) {
     caseId: request.caseId,
   });
   if (request.agent) params.set("agent", request.agent);
+  params.set("workspace", `case:${encodeURIComponent(request.caseId.trim())}|${encodeURIComponent((request.agent || "").trim())}`);
   window.open(`${window.location.origin}${window.location.pathname}?${params.toString()}`, "_blank", "noopener,noreferrer");
 }
 
