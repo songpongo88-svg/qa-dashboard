@@ -4681,7 +4681,7 @@ export default function App() {
     const nextWorkspaceTab: WorkspaceTabKey = blockedReason
       ? "dashboard"
       : options.workspaceKey || (nextTab === "dashboard" && requestedSubTab === "case-detail"
-        ? "case-detail"
+        ? buildCaseWorkspaceKey(options.params?.caseId || "", options.params?.agent || "")
         : nextTab);
     setOpenWorkspaceTabs((current) => current.includes(nextWorkspaceTab) ? current : [...current, nextWorkspaceTab]);
     setActiveWorkspaceTab(nextWorkspaceTab);
@@ -4725,9 +4725,9 @@ export default function App() {
       : normalizedRouteWorkspaceTab;
     const nextWorkspaceTab: WorkspaceTabKey = blockedReason
       ? "dashboard"
-      : routeWorkspaceTab || (nextTab === "dashboard" && params.get("subTab") === "case-detail"
-        ? "case-detail"
-        : nextTab);
+      : nextTab === "dashboard" && params.get("caseId")?.trim()
+        ? buildCaseWorkspaceKey(params.get("caseId")!.trim(), params.get("agent")?.trim() || "")
+        : routeWorkspaceTab || nextTab;
     setOpenWorkspaceTabs((current) => current.includes(nextWorkspaceTab) ? current : [...current, nextWorkspaceTab]);
     setActiveWorkspaceTab(nextWorkspaceTab);
     applyRouteParams(nextTab, params);
