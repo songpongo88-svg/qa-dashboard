@@ -12,6 +12,15 @@ export default async function handler(req, res) {
     const fileName = body.fileName || body.name || "evidence-file";
     const contentType = body.contentType || body.mimeType || "application/octet-stream";
     const dataBase64 = body.dataBase64 || body.base64 || "";
+    if (body.uploadKind === "appeal-image") {
+      if (contentType !== "image/jpeg" || !/^[A-Za-z0-9+/]*={0,2}$/.test(dataBase64)) {
+        return res.status(400).json({ error: "Invalid appeal image" });
+      }
+      const image = Buffer.from(dataBase64, "base64");
+      if (!image.length || image.length > 1024 * 1024 || image[0] !== 0xff || image[1] !== 0xd8 || image[2] !== 0xff) {
+        return res.status(400).json({ error: "รูปหลังย่อต้องเป็น JPG และไม่เกิน 1 MB" });
+      }
+    }
     const uploadPayload = {
       ...body,
       fileName,
