@@ -2587,12 +2587,17 @@ function CaseDetailTopicTable({
 
   return (
     <div className="rounded-[28px] border border-violet-200/80 bg-white px-6 py-6 shadow-[0_18px_48px_rgba(109,40,217,0.08)]">
-      <div className="space-y-8">
+      <div className="space-y-2">
         {rows.length ? rows.map((row, index) => (
-          <div
+          <details
             key={`${row.shownTopic.code}-${index}`}
-            className="border-b border-violet-100 pb-8 last:border-b-0 last:pb-0"
+            className="group border-b border-violet-100 last:border-b-0"
           >
+            <summary className="cursor-pointer rounded-xl px-2 py-4 text-[15px] font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500">
+              {row.shownTopic.code} {row.shownTopic.label}
+              <span className="float-right ml-3 text-sm font-bold text-violet-700">{row.shownTopic.score} / {row.shownTopic.max}</span>
+            </summary>
+            <div className="pb-6 pt-2">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="text-[20px] font-bold tracking-tight text-slate-900">
@@ -2718,7 +2723,8 @@ function CaseDetailTopicTable({
                 );
               })() : null}
             </div>
-          </div>
+            </div>
+          </details>
         )) : (
           <div className="py-10 text-center text-sm text-slate-500">No topic detail available</div>
         )}
