@@ -2587,12 +2587,17 @@ function CaseDetailTopicTable({
 
   return (
     <div className="rounded-[28px] border border-violet-200/80 bg-white px-6 py-6 shadow-[0_18px_48px_rgba(109,40,217,0.08)]">
-      <div className="space-y-8">
+      <div className="space-y-2">
         {rows.length ? rows.map((row, index) => (
-          <div
+          <details
             key={`${row.shownTopic.code}-${index}`}
-            className="border-b border-violet-100 pb-8 last:border-b-0 last:pb-0"
+            className="group border-b border-violet-100 last:border-b-0"
           >
+            <summary className="cursor-pointer rounded-xl px-2 py-4 text-[15px] font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500">
+              {row.shownTopic.code} {row.shownTopic.label}
+              <span className="float-right ml-3 text-sm font-bold text-violet-700">{row.shownTopic.score} / {row.shownTopic.max}</span>
+            </summary>
+            <div className="pb-6 pt-2">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="text-[20px] font-bold tracking-tight text-slate-900">
@@ -2718,7 +2723,8 @@ function CaseDetailTopicTable({
                 );
               })() : null}
             </div>
-          </div>
+            </div>
+          </details>
         )) : (
           <div className="py-10 text-center text-sm text-slate-500">No topic detail available</div>
         )}
@@ -4764,11 +4770,12 @@ function SlideOverCaseDetail({
               </div>
             ) : null}
 
-            <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+            <div data-case-information-unified="true" className="overflow-hidden rounded-[20px] border shadow-sm" style={{ background: "var(--weekday-surface, var(--qa-theme-50, #ffffff))", borderColor: "var(--weekday-accent-soft, var(--qa-theme-200, #e2e8f0))" }}>
+            <div>
               <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base font-black text-violet-700">▣</span>
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-base font-black" style={{ background: "var(--weekday-accent-soft, var(--qa-theme-100, #ede9fe))", color: "var(--weekday-accent-strong, var(--qa-theme-700, #6d28d9))" }}>▣</span>
                 <div>
-                  <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Overview</div>
+                  <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Case Information</div>
                   <div className="mt-0.5 text-[11px] text-slate-500">ข้อมูลหลักของเคสและผลคะแนนรวม</div>
                 </div>
               </div>
@@ -4780,7 +4787,7 @@ function SlideOverCaseDetail({
                     <div className="mt-1 text-[17px] font-extrabold tracking-tight text-slate-950">{caseItem.agent || "-"}</div>
                   </div>
 
-                  <div className="rounded-[18px] border border-violet-200 bg-gradient-to-r from-violet-50 via-fuchsia-50/60 to-white p-3.5 shadow-[0_8px_20px_rgba(109,40,217,0.06)]">
+                  <div className="py-2">
                     <div className="flex items-start gap-3">
                       <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-base font-black text-white shadow-sm">◎</span>
                       <div className="min-w-0 border-l border-violet-200 pl-3">
@@ -4845,9 +4852,9 @@ function SlideOverCaseDetail({
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+            <div className="border-t border-slate-200">
               <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base font-black text-violet-700">◷</span>
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-base font-black" style={{ background: "var(--weekday-accent-soft, var(--qa-theme-100, #ede9fe))", color: "var(--weekday-accent-strong, var(--qa-theme-700, #6d28d9))" }}>◷</span>
                 <div>
                   <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Timeline / Audit Info</div>
                   <div className="mt-0.5 text-[11px] text-slate-500">เวลาให้บริการและข้อมูลผู้ประเมิน</div>
@@ -4875,7 +4882,7 @@ function SlideOverCaseDetail({
             </div>
 
             {caseItem.callLogs?.length ? (
-              <div className="overflow-hidden rounded-[20px] border border-emerald-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+              <div className="border-t border-slate-200">
                 <div className="flex items-center gap-3 border-b border-emerald-100 bg-emerald-50/70 px-4 py-3">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-base font-black text-emerald-700">☎</span>
                   <div>
@@ -4885,7 +4892,7 @@ function SlideOverCaseDetail({
                 </div>
                 <div className="space-y-3 p-4">
                   {caseItem.callLogs.map((call, index) => (
-                    <div key={call.id || `call-${index}`} className="rounded-[16px] border border-slate-200 bg-slate-50/70 p-4">
+                    <div key={call.id || `call-${index}`} className="border-b border-slate-100 py-3 last:border-b-0">
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
                         {[
                           { label: "Call", value: `#${index + 1}` },
@@ -4933,6 +4940,7 @@ function SlideOverCaseDetail({
                 </div>
               </div>
             ) : null}
+            </div>
           </section>
 
           <Panel>
