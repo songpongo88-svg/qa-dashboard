@@ -109,16 +109,16 @@ $2`,
     if (!source.includes("legacyEditCaseIdV85b")) {
       source = replaceRequired(
         source,
-        /(\s*const normalizedRouteWorkspaceTab = normalizeWorkspaceTabKey\(params\.get\("workspace"\)\);\s*\n\s*const routeWorkspaceTab = normalizedRouteWorkspaceTab === "summary" \|\| normalizedRouteWorkspaceTab === "case-detail"\s*\n\s*\? "dashboard"\s*\n\s*:\s*normalizedRouteWorkspaceTab;\s*\n)(\s*const nextWorkspaceTab: WorkspaceTabKey = blockedReason[\s\S]*?\n\s*:\s*nextTab\);)/,
+        /(\s*const normalizedRouteWorkspaceTab = normalizeWorkspaceTabKey\(params\.get\("workspace"\)\);\s*\n\s*const routeWorkspaceTab = normalizedRouteWorkspaceTab === "summary" \|\| normalizedRouteWorkspaceTab === "case-detail"\s*\n\s*\? "dashboard"\s*\n\s*:\s*normalizedRouteWorkspaceTab;\s*\n)(\s*const nextWorkspaceTab: WorkspaceTabKey = blockedReason[\s\S]*?\n\s*:\s*(?:routeWorkspaceTab \|\| )?nextTab(?:\);|;))/,
         `$1    const legacyEditCaseIdV85b = nextTab === "create-evaluation" ? String(params.get("editCaseId") || "").trim().toUpperCase() : "";
     const inferredEditWorkspaceV85b: WorkspaceTabKey | "" = legacyEditCaseIdV85b
       ? buildEditWorkspaceKey(legacyEditCaseIdV85b, String(params.get("agent") || ""))
       : "";
     const nextWorkspaceTab: WorkspaceTabKey = blockedReason
       ? "dashboard"
-      : routeWorkspaceTab || inferredEditWorkspaceV85b || (nextTab === "dashboard" && params.get("subTab") === "case-detail"
-        ? "case-detail"
-        : nextTab);`,
+      : nextTab === "dashboard" && params.get("caseId")?.trim()
+        ? buildCaseWorkspaceKey(params.get("caseId")!.trim(), params.get("agent")?.trim() || "")
+        : routeWorkspaceTab || inferredEditWorkspaceV85b || nextTab;`,
         "route edit workspace inference",
       );
     }
