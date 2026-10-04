@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-04T03:00:24.315Z",
-  "reason": "Preserve Appeal Review case labels through edit workspace build normalization",
+  "reviewedAt": "2026-10-04T03:10:33.604Z",
+  "reason": "Prefix appeal workspace case tabs with Appeal Review to distinguish normal case tabs",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -234,7 +234,7 @@
     "scripts/patch-dashboard-unified-reset-v88.mjs": "896304cf10370467f8508156483deb1d3fce3c7618f654af4e3422600d1aa85d",
     "scripts/patch-edit-tabs-process-picker-v85.mjs": "f2e02d0ede38e42c47c256e8e8ea07900c0a2776b2f2ab5a67e9ec8bb07a41df",
     "scripts/patch-edit-tabs-process-picker-v85b.mjs": "c51f59fbdab3b72b5d1966a4ef63b63dbbcad945ba29c2cb10d19432cc94813c",
-    "scripts/patch-edit-tabs-process-picker-v85c.mjs": "45d289461847e9bd913c7b6895b672d763ff4332a7a39d228d38f0047f710ba8",
+    "scripts/patch-edit-tabs-process-picker-v85c.mjs": "0dab5e7dbb332b320adeb8c22e1954948b9eceea2a019ea61befa42212734cce",
     "scripts/patch-evaluate-workspace-edit-tabs-v85.mjs": "4ea39bb382a11f2ab99073325af3be77792ac525a50e35369bb5ccc08da1c3f6",
     "scripts/patch-evaluate-workspace-v72.mjs": "98e7732f93058a4949564fd91cb1b5a0235f6c95c369f0b1217368d341576a1f",
     "scripts/patch-evaluation-last-updated-v86.mjs": "c493c9a8a877b343ca821e837a9832c471f98acfb51234563f1828164d4cdebd",
