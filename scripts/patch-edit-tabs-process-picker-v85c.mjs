@@ -53,7 +53,7 @@ import fs from "node:fs";
                 : isCaseWorkspaceTabKey(workspaceKey)
                   ? parseCaseWorkspaceKey(workspaceKey).caseId
                   : isAppealReviewWorkspaceTabKey(workspaceKey)
-                    ? (parseAppealReviewWorkspaceKey(workspaceKey).caseId || "Appeal Review")
+                    ? ("Appeal Review " + parseAppealReviewWorkspaceKey(workspaceKey).caseId).trim()
                     : WORKSPACE_TAB_LABELS[workspaceKey as AppTab | "case-detail"];
 $2`);
   }
