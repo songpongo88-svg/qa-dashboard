@@ -14,7 +14,11 @@ import fs from "node:fs";
       retained.add(
         workspaceKey === "case-detail" || isCaseWorkspaceTabKey(workspaceKey)
           ? "dashboard"
-          : workspaceKey
+          : isEditWorkspaceTabKey(workspaceKey)
+            ? "create-evaluation"
+            : isAppealReviewWorkspaceTabKey(workspaceKey)
+              ? "appeal-requests"
+              : workspaceKey as AppTab
       );
     });
     return Array.from(retained);
@@ -48,7 +52,9 @@ import fs from "node:fs";
                 ? \`Edit \${parseEditWorkspaceKey(workspaceKey).caseId}\`
                 : isCaseWorkspaceTabKey(workspaceKey)
                   ? parseCaseWorkspaceKey(workspaceKey).caseId
-                  : WORKSPACE_TAB_LABELS[workspaceKey];
+                  : isAppealReviewWorkspaceTabKey(workspaceKey)
+                    ? (parseAppealReviewWorkspaceKey(workspaceKey).caseId || "Appeal Review")
+                    : WORKSPACE_TAB_LABELS[workspaceKey as AppTab | "case-detail"];
 $2`);
   }
 
