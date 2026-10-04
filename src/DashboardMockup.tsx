@@ -1,3 +1,4 @@
+import { AppealEvidencePicker, AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
 import { WeekdayDashboardLayout } from "./WeekdayScene";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -118,6 +119,7 @@ type CaseItem = {
 };
 
 type AppealDraftTopic = {
+  evidenceImages?: AppealEvidenceImage[];
   code: string;
   label: string;
   score: number;
@@ -3788,6 +3790,7 @@ function SlideOverCaseDetail({
   const [appealDraftTopics, setAppealDraftTopics] = useState<AppealDraftTopic[]>([]);
   const [appealSubmitMessage, setAppealSubmitMessage] = useState("");
   const [appealSubmitBusy, setAppealSubmitBusy] = useState(false);
+  const [appealImageUploads, setAppealImageUploads] = useState(0);
   const [previewAsset, setPreviewAsset] = useState<{
     type: "image" | "pdf";
     url: string;
@@ -3911,6 +3914,7 @@ function SlideOverCaseDetail({
   };
 
   const closeAppealSubmitForm = () => {
+    if (appealImageUploads || appealSubmitBusy) return;
     setAppealSubmitOpen(false);
     setAppealSubmitStep(1);
     setAppealSubmitMessage("");
@@ -3940,7 +3944,7 @@ function SlideOverCaseDetail({
   };
 
   const submitAppealRequest = async () => {
-    if (!currentUser || appealSubmitBusy) return;
+    if (!currentUser || appealSubmitBusy || appealImageUploads) return;
     if (!isOwnAppealCase) {
       setAppealSubmitMessage("Only the case owner can submit an appeal for this case.");
       return;
@@ -3959,6 +3963,10 @@ function SlideOverCaseDetail({
         appealReason: topic.appealReason.trim(),
       }));
 
+    if (topicsForExport.reduce((sum, topic) => sum + (topic.evidenceImages?.length || 0), 0) > 5) {
+      setAppealSubmitMessage("แนบได้สูงสุด 5 รูปต่อคำขอ");
+      return;
+    }
     const hasAppealedTopic = topicsForExport.length > 0;
     if (!hasAppealedTopic) {
       setAppealSubmitMessage("Please enter an appeal reason for at least one topic.");
@@ -4483,6 +4491,14 @@ function SlideOverCaseDetail({
                           />
                           <span className="mt-2 block text-xs font-normal text-slate-500">เหตุผลนี้จะถูกส่งให้ QA ใช้ประกอบการพิจารณาหัวข้อนี้</span>
                         </label>
+                        <AppealEvidencePicker caseId={caseItem.caseId} topicCode={topic.code}
+                          images={topic.evidenceImages || []}
+                          totalCount={appealDraftTopics.reduce((sum, item) => sum + (item.evidenceImages?.length || 0), 0)}
+                          disabled={appealSubmitBusy || appealImageUploads > 0}
+                          onBusyChange={busy => setAppealImageUploads(count => Math.max(0, count + (busy ? 1 : -1)))}
+                          onAdd={image => setAppealDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, evidenceImages: [...(item.evidenceImages || []), image] } : item))}
+                          onRemove={id => setAppealDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, evidenceImages: (item.evidenceImages || []).filter(image => image.id !== id) } : item))}
+                        />
                       </div>
                     ))}
                   </div>
@@ -4511,6 +4527,7 @@ function SlideOverCaseDetail({
                           <div className="mt-3 rounded-xl bg-violet-50 px-4 py-3">
                             <div className="text-xs font-bold text-violet-700">เหตุผลที่ขออุทธรณ์</div>
                             <div className="mt-1 whitespace-pre-line text-sm font-normal leading-6 text-slate-700">{topic.appealReason.trim()}</div>
+                            <AppealEvidenceGallery images={topic.evidenceImages || []} />
                           </div>
                         </div>
                       ))}
@@ -4552,14 +4569,14 @@ function SlideOverCaseDetail({
                     ถัดไป: ระบุเหตุผล ({selectedAppealTopics.length})
                   </button>
                 ) : appealSubmitStep === 2 ? (
-                  <button type="button" onClick={goToAppealReviewStep} className="rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800">
+                  <button type="button" onClick={goToAppealReviewStep} disabled={appealImageUploads > 0} className="rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800">
                     ตรวจสอบก่อนส่ง
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={submitAppealRequest}
-                    disabled={appealSubmitBusy}
+                    disabled={appealSubmitBusy || appealImageUploads > 0}
                     className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
                     {appealSubmitBusy ? "กำลังส่ง..." : "ยืนยันส่งอุทธรณ์"}
