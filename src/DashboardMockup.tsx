@@ -1586,6 +1586,14 @@ function roundTo(value: number, decimals = 2) {
   return Math.round(Number(value) * factor + 1e-7) / factor;
 }
 
+function hasDisplayScore(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function formatCaseScore(value: unknown, decimals = 2) {
+  return hasDisplayScore(value) ? value.toFixed(decimals) : "—";
+}
+
 function formatFixed(value: number, decimals = 2) {
   return roundTo(value, decimals).toFixed(decimals);
 }
@@ -2258,7 +2266,7 @@ function CaseNavigatorCard({
             item.finalScore
           )}`}
         >
-          {item.finalScore.toFixed(2)}
+          {formatCaseScore(item.finalScore)}
         </span>
       </div>
 
@@ -2809,7 +2817,7 @@ function GradeMix({
                 className="flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-white bg-white px-3 py-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
               >
                 <span className="min-w-0 truncate text-xs font-semibold text-slate-800">{item.caseId}</span>
-                <span className="shrink-0 text-[10px] font-bold text-violet-700">{item.finalScore.toFixed(2)} ↗</span>
+                <span className="shrink-0 text-[10px] font-bold text-violet-700">{formatCaseScore(item.finalScore)} ↗</span>
               </button>
             ))}
           </div>
@@ -3575,7 +3583,7 @@ function QuickCaseSearchCard({
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700">
-              Score {item.finalScore.toFixed(2)}
+              Score {formatCaseScore(item.finalScore)}
             </span>
             <span className={`rounded-full border px-2.5 py-1 ${gradeTone(item.grade)}`}>
               Grade {item.grade}
@@ -4850,10 +4858,10 @@ function SlideOverCaseDetail({
                   <div className="mt-4 flex items-start justify-between gap-3">
                     <div>
                       <div className={`text-[44px] font-black leading-none tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
-                        {caseItem.finalScore.toFixed(2)}<span className="ml-2 text-base font-normal text-slate-400">/ 100</span>
+                        {formatCaseScore(caseItem.finalScore)}<span className="ml-2 text-base font-normal text-slate-400">/ 100</span>
                       </div>
                       <div className={`mt-2 text-[13px] font-extrabold ${currentGradeTone(caseItem.grade).levelText}`}>
-                        {caseItem.finalScore >= 85 ? "KPI Passed" : "KPI Not Passed"}
+                        {hasDisplayScore(caseItem.finalScore) ? (caseItem.finalScore >= 85 ? "KPI Passed" : "KPI Not Passed") : "รอข้อมูลคะแนน"}
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2">
@@ -4868,7 +4876,7 @@ function SlideOverCaseDetail({
                   {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
                     <div className="mt-3 rounded-[14px] border border-white/70 bg-white/80 px-3 py-2 text-[11px] text-slate-700 shadow-sm">
                       <span className="font-bold text-slate-900">Score Change:</span>{" "}
-                      Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
+                      Original {formatCaseScore(caseItem.previousScore)} → Revised {formatCaseScore(caseItem.finalScore)}
                     </div>
                   ) : null}
                 </div>
@@ -8919,7 +8927,7 @@ export default function DashboardMockup({
                                     {intent.english ? <span className={`mt-1 block truncate text-[10px] font-medium ${hasAppealChange ? "text-sky-600" : scorePassed ? "text-slate-500" : "text-rose-500"}`} title={intent.english}>{intent.english}</span> : null}
                                   </span>
                                   <span className="cursor-text select-text text-center font-medium text-slate-700">{item.evaluationAuditDate || item.auditTimestamp || "-"}</span>
-                                  <span className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{item.finalScore.toFixed(2)}</span>
+                                  <span className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{formatCaseScore(item.finalScore)}</span>
                                   <span className={`inline-flex h-8 w-8 cursor-text select-text items-center justify-center rounded-lg border font-bold ${gradeTone(item.grade)}`}>{item.grade}</span>
                                   <span className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${scorePassed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scorePassed ? "KPI Passed" : "KPI Not Passed"}</span>
                                 </div>
@@ -8956,7 +8964,7 @@ export default function DashboardMockup({
                                   {isTestCaseEvaluation(activeSelectedCase) ? <TestCaseBadge /> : null}
                                 </div>
                                 <div className={`rounded-full px-4 py-2 text-right ${scorePassed ? "bg-emerald-100" : "bg-rose-100"}`}>
-                                  <div className={`text-xl font-bold tabular-nums ${scorePassed ? "text-emerald-700" : "text-rose-700"}`}>{activeSelectedCase.finalScore.toFixed(2)}</div>
+                                  <div className={`text-xl font-bold tabular-nums ${scorePassed ? "text-emerald-700" : "text-rose-700"}`}>{formatCaseScore(activeSelectedCase.finalScore)}</div>
                                   <div className="text-[10px] font-semibold text-slate-500">Grade {activeSelectedCase.grade}</div>
                                 </div>
                               </div>
@@ -8964,9 +8972,9 @@ export default function DashboardMockup({
                                 <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3">
                                   <div className="text-[9px] font-bold uppercase tracking-wide text-sky-700">Appeal Updated</div>
                                   <div className="mt-1 flex items-center gap-2 text-xs font-bold text-slate-700">
-                                    <span>Original {originalScore.toFixed(2)}</span>
+                                    <span>Original {formatCaseScore(originalScore)}</span>
                                     <span className="text-sky-500">→</span>
-                                    <span className={scorePassed ? "text-emerald-700" : "text-rose-700"}>Revised {activeSelectedCase.finalScore.toFixed(2)}</span>
+                                    <span className={scorePassed ? "text-emerald-700" : "text-rose-700"}>Revised {formatCaseScore(activeSelectedCase.finalScore)}</span>
                                   </div>
                                 </div>
                               ) : null}

@@ -1,12 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-04T03:40:26.793Z",
-  "reason": "Add optional resized appeal image evidence and reviewer image preview; update submission and review instructions",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "appeal",
-    "appeal-review"
-  ],
+  "reviewedAt": "2026-10-04T04:11:12.419Z",
+  "reason": "Prevent Case Detail render crash for missing Final Score and show pending score status",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -315,7 +312,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "1d4ad0799b31a77557e4c3725f7c365f1fbffd62390c9e74e7c7c44d8b700a9a",
-    "src/DashboardMockup.tsx": "80a817aa18120429700edc3191e5c5b8402b1cd239b27098aad1a15f04606732",
+    "src/DashboardMockup.tsx": "e16189a637db600d52448db6232e1d10e97279d61a0e35acb6c949aa4b118b10",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "fed78c07733f3c80e350c5e0ae1173f17968942014d3058643857cac9a7dd27b",
