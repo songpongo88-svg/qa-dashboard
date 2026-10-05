@@ -15,6 +15,8 @@ import SignatureCenterMockup from "./SignatureCenterMockup";
 import PresentationMockup from "./PresentationMockup";
 import CoachingMockup from "./CoachingMockup";
 import MonthlyCoachingWorkspace from "./MonthlyCoachingWorkspace";
+import { fetchStoredCoachingRecords } from "./coachingStore";
+import { recordVisibleToUser } from "./monthlyCoachingModel";
 import AnnouncementHub from "./AnnouncementHub";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
@@ -3590,6 +3592,7 @@ export default function App() {
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [storedUserCandidate] = useState<CurrentUser | null>(() => readStoredUser());
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [coachingAssignmentAllowed, setCoachingAssignmentAllowed] = useState(false);
   const [sessionValidationPending, setSessionValidationPending] = useState(
     () => Boolean(storedUserCandidate)
   );
@@ -4402,6 +4405,46 @@ export default function App() {
       window.removeEventListener("qa-dashboard-data-refresh", handleLocalRefresh);
     };
   }, []);
+  useEffect(() => {
+    let active = true;
+    let timer = 0;
+
+    const refreshCoachingAssignmentAccess = async () => {
+      if (!currentUser) {
+        if (active) setCoachingAssignmentAllowed(false);
+        return;
+      }
+      try {
+        const rows = await fetchStoredCoachingRecords();
+        if (!active) return;
+        setCoachingAssignmentAllowed(
+          rows.some((record) =>
+            recordVisibleToUser(record, {
+              username: currentUser.username,
+              displayName: currentUser.displayName,
+              agentName: currentUser.agentName,
+              role: currentUser.role,
+              status: "Active",
+            })
+          )
+        );
+      } catch {
+        if (active) setCoachingAssignmentAllowed(false);
+      }
+    };
+
+    void refreshCoachingAssignmentAccess();
+    const handleRefresh = () => void refreshCoachingAssignmentAccess();
+    window.addEventListener("qa-coaching-refresh", handleRefresh);
+    timer = window.setInterval(handleRefresh, 30_000);
+
+    return () => {
+      active = false;
+      window.removeEventListener("qa-coaching-refresh", handleRefresh);
+      if (timer) window.clearInterval(timer);
+    };
+  }, [currentUser?.username, currentUser?.displayName, currentUser?.agentName, currentUser?.role]);
+
   const roleScopedAgentNames = useMemo(() => {
     if (!currentUser || roleHasAllAgentScope(currentUser.role)) return [];
     return [currentUser.agentName || currentUser.displayName || currentUser.username].filter(Boolean);
@@ -4465,7 +4508,7 @@ export default function App() {
   const currentUsernameKey = currentUser?.username?.trim().toLowerCase() || "";
   const currentDisplayNameKey = currentUser?.displayName?.trim().toLowerCase() || "";
 
-  const coachingAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewCoaching") : false;
+  const coachingAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewCoaching") || coachingAssignmentAllowed : false;
   const usageLogAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewUsageLog") : false;
   const createEvaluationAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "createEvaluation") : false;
   const takePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "takePreTest") : false;
@@ -7641,7 +7684,7 @@ export default function App() {
             dataRefreshKey={qaDataRefreshKey}
           />
         ) : activeTab === "coaching" && coachingAllowed ? (
-          currentUser?.role === 'Quality Assurance' || currentUser?.role === 'Senior' ? <MonthlyCoachingWorkspace key={currentUser.username} currentUser={currentUser} accounts={effectiveUserAccounts.map(account => ({ ...account, qaEvaluationTarget: Boolean((rolePermissions[account.role] || getDefaultRolePermissions(account.role)).qaEvaluationTarget) }))} onOpenCase={(caseId, agentName) => {
+          currentUser?.role === 'Quality Assurance' || currentUser?.role === 'Senior' || coachingAssignmentAllowed ? <MonthlyCoachingWorkspace key={currentUser.username} currentUser={currentUser} accounts={effectiveUserAccounts.map(account => ({ ...account, qaEvaluationTarget: Boolean((rolePermissions[account.role] || getDefaultRolePermissions(account.role)).qaEvaluationTarget) }))} onOpenCase={(caseId, agentName) => {
             setSelectedDashboardCaseId(caseId);
             setDashboardSubTab("case-detail");
             navigateToTab("dashboard", { params: { subTab: "case-detail", caseId, agent: agentName } });
