@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachingStore";
+import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
 
 export type FinalSignedRole = "QA" | "Supervisor" | "Senior" | "Agent";
 
@@ -88,6 +90,42 @@ function getWaivedEntry(entries: FinalSignedEntry[], role: FinalSignedRole) {
 
 function getCompletedEntry(entries: FinalSignedEntry[], role: FinalSignedRole) {
   return getSignedEntry(entries, role) || getWaivedEntry(entries, role);
+}
+
+let coachingRecordCache: { loadedAt: number; rows: StoredCoachingRecord[] } | null = null;
+
+async function getCoachingRecordsForPdf() {
+  const now = Date.now();
+  if (coachingRecordCache && now - coachingRecordCache.loadedAt < 60_000) {
+    return coachingRecordCache.rows;
+  }
+  try {
+    const rows = await fetchStoredCoachingRecords();
+    coachingRecordCache = { loadedAt: now, rows };
+    return rows;
+  } catch (error) {
+    console.warn("Final Signed PDF coaching data could not be loaded", error);
+    return coachingRecordCache?.rows || [];
+  }
+}
+
+function findMonthlyCoachingRecord(
+  rows: StoredCoachingRecord[],
+  monthKey: string,
+  agentName: string
+) {
+  const agentKey = canonicalAgentIdentityKey(agentName);
+  return rows
+    .filter((row) => row.monthKey === monthKey)
+    .filter((row) => {
+      const rowKey = canonicalAgentIdentityKey(row.agent);
+      return Boolean(agentKey && rowKey && agentKey === rowKey);
+    })
+    .sort(
+      (left, right) =>
+        new Date(right.updatedAt || right.createdAt || 0).getTime() -
+        new Date(left.updatedAt || left.createdAt || 0).getTime()
+    )[0] || null;
 }
 
 async function normalizeSignatureDataUrl(dataUrl: string) {
@@ -191,6 +229,15 @@ export async function renderFinalSignedPdf({
 }) {
   const pdf = pdfDoc || new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   if (appendPage) pdf.addPage("a4", "portrait");
+
+  const coachingEnabled = selectedDocument.monthKey >= "2026-09";
+  const coachingRecord = coachingEnabled
+    ? findMonthlyCoachingRecord(
+        await getCoachingRecordsForPdf(),
+        selectedDocument.monthKey,
+        selectedDocument.agentName
+      )
+    : null;
 
   try {
     registerTHSarabunNew(pdf);
@@ -536,7 +583,8 @@ export async function renderFinalSignedPdf({
   const formatTopicMax = (value: number) => Number.isFinite(value) ? (Number.isInteger(value) ? String(value) : value.toFixed(2)) : "-";
 
   drawTopicHeader();
-  const topicRowH = Math.min(8, (bottom - y - acknowledgementH) / Math.max(1, topicStats.length));
+  const topicReserve = coachingEnabled ? 0 : acknowledgementH;
+  const topicRowH = Math.min(8, (bottom - y - topicReserve) / Math.max(1, topicStats.length));
   const topicFontSize = Math.min(7.6, topicRowH * 1.45);
   if (!topicStats.length) {
     drawCell(left, y, tableW, topicRowH, "No topic score data for this document", [250,247,253], { size: 8.2, align: "center", bold: true, color: muted, maxLines: 1 });
@@ -560,7 +608,299 @@ export async function renderFinalSignedPdf({
     });
   }
 
-  // The acknowledgement is always the final section, immediately after topics.
+  if (coachingEnabled) {
+    const coachingSubtitle = `${selectedDocument.agentName} • ${selectedDocument.monthLabel}`;
+    const coachingSoft: [number, number, number] = [252, 248, 255];
+    const coachingLabel: [number, number, number] = [245, 240, 250];
+    const coachingLineHeight = 4.1;
+
+    const startCoachingPage = (continued = false) => {
+      pdf.addPage("a4", "portrait");
+      y = 10;
+      drawHeader(
+        continued ? "Monthly Coaching (continued)" : "Monthly Coaching",
+        coachingSubtitle
+      );
+    };
+
+    const ensureCoachingSpace = (height: number) => {
+      if (y + height <= bottom - 4) return;
+      startCoachingPage(true);
+    };
+
+    const cleanCoachingText = (value: unknown) =>
+      String(value ?? "")
+        .replace(/\r\n?/g, "\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+    const formatCoachingDate = (value: unknown) => {
+      const raw = cleanCoachingText(value);
+      const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+    };
+
+    const drawCoachingTextBlock = (label: string, value: unknown) => {
+      const text = cleanCoachingText(value);
+      if (!text) return;
+      let lines = (() => {
+        setTemplateFont(8.2, false, black);
+        return pdf.splitTextToSize(text, tableW - 6) as string[];
+      })();
+      let firstChunk = true;
+      while (lines.length) {
+        const availableHeight = bottom - 4 - y;
+        const maxLineCount = Math.max(
+          1,
+          Math.floor((availableHeight - 7.0 - 3.4) / coachingLineHeight)
+        );
+        if (availableHeight < 15 || maxLineCount < 1) {
+          startCoachingPage(true);
+          continue;
+        }
+        const chunk = lines.slice(0, maxLineCount);
+        lines = lines.slice(chunk.length);
+        const labelText = firstChunk ? label : `${label} (continued)`;
+        drawCell(left, y, tableW, 6.6, labelText, coachingLabel, {
+          bold: true,
+          size: 8.3,
+          align: "left",
+          maxLines: 1,
+        });
+        y += 6.6;
+        const bodyH = Math.max(7.2, chunk.length * coachingLineHeight + 3.2);
+        drawCell(left, y, tableW, bodyH, chunk.join("\n"), coachingSoft, {
+          size: 8.2,
+          align: "left",
+          valign: "top",
+          maxLines: Math.max(1, chunk.length),
+          lineHeight: coachingLineHeight,
+        });
+        y += bodyH + 1.8;
+        firstChunk = false;
+        if (lines.length) startCoachingPage(true);
+      }
+    };
+
+    const drawCoachingPair = (
+      leftLabel: string,
+      leftValue: unknown,
+      rightLabel: string,
+      rightValue: unknown
+    ) => {
+      const leftText = cleanCoachingText(leftValue) || "-";
+      const rightText = cleanCoachingText(rightValue) || "-";
+      ensureCoachingSpace(14);
+      const half = tableW / 2;
+      drawCell(left, y, half * 0.34, 6.5, leftLabel, purple, {
+        bold: true,
+        color: [255,255,255],
+        size: 7.6,
+        align: "center",
+        maxLines: 2,
+      });
+      drawCell(left + half * 0.34, y, half * 0.66, 6.5, leftText, valueWhite, {
+        bold: true,
+        size: 7.8,
+        align: "center",
+        maxLines: 2,
+      });
+      drawCell(left + half, y, half * 0.34, 6.5, rightLabel, purple, {
+        bold: true,
+        color: [255,255,255],
+        size: 7.6,
+        align: "center",
+        maxLines: 2,
+      });
+      drawCell(left + half + half * 0.34, y, half * 0.66, 6.5, rightText, valueWhite, {
+        bold: true,
+        size: 7.8,
+        align: "center",
+        maxLines: 2,
+      });
+      y += 7.3;
+    };
+
+    const drawCoachingSectionTitle = (title: string) => {
+      ensureCoachingSpace(9);
+      drawSection(title);
+    };
+
+    startCoachingPage(false);
+
+    if (!coachingRecord) {
+      drawCell(
+        left,
+        y,
+        tableW,
+        15,
+        "ยังไม่มีข้อมูล Coaching ที่บันทึกไว้สำหรับ Agent และเดือนนี้",
+        coachingSoft,
+        { size: 9.2, align: "center", bold: true, color: muted, maxLines: 2 }
+      );
+      y += 17;
+    } else {
+      drawCoachingSectionTitle("Coaching Overview");
+      drawCoachingPair("Status", coachingRecord.status, "Result", coachingRecord.result);
+      drawCoachingPair(
+        "Evaluated Cases",
+        coachingRecord.evaluatedCases,
+        "Average Score",
+        Number.isFinite(Number(coachingRecord.averageScore))
+          ? Number(coachingRecord.averageScore).toFixed(2)
+          : "-"
+      );
+      drawCoachingPair("Grade", coachingRecord.grade, "Critical Errors", coachingRecord.criticalErrors);
+      drawCoachingPair(
+        "Coaching Date",
+        formatCoachingDate(coachingRecord.coachingDate),
+        "Coached By",
+        coachingRecord.coachedBy
+      );
+      drawCoachingPair("Team", coachingRecord.team, "Senior", coachingRecord.seniorName);
+      drawCoachingTextBlock("Case References", (coachingRecord.caseReferences || []).join(", "));
+
+      drawCoachingSectionTitle("QA Summary / Recommended Topics");
+      drawCoachingTextBlock("QA Summary", coachingRecord.qaSummary);
+      drawCoachingTextBlock(
+        "Recommended Topics",
+        (coachingRecord.recommendedTopics || []).map((item, index) => `${index + 1}. ${item}`).join("\n")
+      );
+      drawCoachingTextBlock("Strengths", coachingRecord.strengths);
+      drawCoachingTextBlock("Main Issues", coachingRecord.mainIssues);
+      drawCoachingTextBlock("Repeated Issues", coachingRecord.repeatedIssues);
+      drawCoachingTextBlock("Coaching Recommendation", coachingRecord.coachingRecommendation);
+
+      if (coachingRecord.topicSnapshot?.length) {
+        drawCoachingSectionTitle("Topic Snapshot");
+        coachingRecord.topicSnapshot.forEach((topic, index) => {
+          drawCoachingTextBlock(
+            `${index + 1}. ${topic.label || topic.key}`,
+            [
+              `Average Score: ${Number(topic.averageScore || 0).toFixed(2)} / ${Number(topic.maxScore || 0).toFixed(2)}`,
+              `Performance: ${Number(topic.percentage || 0).toFixed(2)}%`,
+              `Deducted Cases: ${Number(topic.deductedCases || 0)}`,
+              topic.caseIds?.length ? `Case IDs: ${topic.caseIds.join(", ")}` : "",
+            ].filter(Boolean).join("\n")
+          );
+        });
+      }
+
+      const meeting = coachingRecord.appointment;
+      drawCoachingSectionTitle("Coaching Appointment");
+      if (meeting) {
+        drawCoachingPair(
+          "Appointment Date",
+          formatCoachingDate(meeting.date),
+          "Start Time",
+          meeting.startTime
+        );
+        drawCoachingPair(
+          "Duration",
+          meeting.duration ? `${meeting.duration} นาที` : "-",
+          "Method",
+          meeting.method
+        );
+        drawCoachingTextBlock("MS Teams URL", meeting.url);
+        drawCoachingTextBlock("Other Channel Detail", meeting.other);
+        drawCoachingTextBlock(
+          "Participants",
+          (meeting.participants || []).map((item, index) => `${index + 1}. ${item}`).join("\n")
+        );
+        drawCoachingTextBlock(
+          "Agenda",
+          (meeting.agenda || []).filter(Boolean).map((item, index) => `${index + 1}. ${item}`).join("\n")
+        );
+        drawCoachingTextBlock("Appointment Note", meeting.note);
+      } else {
+        drawCoachingTextBlock("Appointment", "ยังไม่มีข้อมูลนัดหมาย Coaching");
+      }
+
+      const actual = coachingRecord.actualCoaching;
+      drawCoachingSectionTitle("Coaching Result by Senior");
+      if (actual) {
+        drawCoachingPair(
+          "Actual Date",
+          formatCoachingDate(actual.date),
+          "Actual Time",
+          [actual.startTime, actual.endTime].filter(Boolean).join(" - ")
+        );
+        drawCoachingTextBlock(
+          "Topics Discussed",
+          (actual.topics || []).map((item, index) => `${index + 1}. ${item}`).join("\n")
+        );
+        drawCoachingTextBlock("Senior Coaching Note", actual.note);
+        drawCoachingTextBlock("Senior Final Note", actual.finalNote);
+        drawCoachingTextBlock("Reason for No Action Plan", actual.noPlanReason);
+      } else {
+        drawCoachingTextBlock("Coaching Result", "ยังไม่มีผล Coaching จาก Senior");
+      }
+
+      drawCoachingSectionTitle("Action Plan");
+      if (coachingRecord.actions?.length) {
+        coachingRecord.actions.forEach((action, index) => {
+          drawCoachingTextBlock(
+            `Action ${index + 1}: ${action.topic || "ไม่ระบุหัวข้อ"}`,
+            [
+              action.issue ? `ปัญหาที่พบ: ${action.issue}` : "",
+              action.plan ? `Action Plan: ${action.plan}` : "",
+              action.owner ? `ผู้รับผิดชอบ: ${action.owner}` : "",
+              action.dueDate ? `กำหนดส่ง: ${formatCoachingDate(action.dueDate)}` : "",
+              action.expectedResult ? `ผลที่คาดหวัง: ${action.expectedResult}` : "",
+              action.followUpNote ? `บันทึกติดตาม: ${action.followUpNote}` : "",
+              action.status ? `สถานะ: ${action.status}` : "",
+            ].filter(Boolean).join("\n")
+          );
+        });
+      } else {
+        drawCoachingTextBlock("Action Plan", coachingRecord.actionPlan || "ยังไม่มี Action Plan");
+      }
+
+      if (coachingRecord.checklistItems?.length) {
+        drawCoachingSectionTitle("Coaching Checklist");
+        coachingRecord.checklistItems.forEach((item, index) => {
+          drawCoachingTextBlock(
+            `${index + 1}. ${item.title}`,
+            [
+              `Status: ${item.completed ? "Completed" : "Pending"}`,
+              item.caseIds?.length ? `Case IDs: ${item.caseIds.join(", ")}` : "",
+              item.feedback ? `Feedback: ${item.feedback}` : "",
+              item.examples?.length ? `Examples: ${item.examples.join(" | ")}` : "",
+            ].filter(Boolean).join("\n")
+          );
+        });
+      }
+
+      drawCoachingSectionTitle("QA Review / Follow-up");
+      drawCoachingTextBlock("QA Review Comment", coachingRecord.qaReviewComment);
+      drawCoachingTextBlock("Follow-up Date", formatCoachingDate(coachingRecord.followUpDate));
+      drawCoachingTextBlock("General Feedback", coachingRecord.generalFeedback);
+      drawCoachingTextBlock("Agent Response", coachingRecord.agentResponse);
+      drawCoachingTextBlock("Agreed Action Plan", coachingRecord.agreedActionPlan);
+      drawCoachingTextBlock("Additional Note", coachingRecord.additionalNote);
+
+      if (coachingRecord.attachments?.length) {
+        drawCoachingSectionTitle("Attachments");
+        coachingRecord.attachments.forEach((attachment, index) => {
+          drawCoachingTextBlock(
+            `${index + 1}. ${attachment.name || "Attachment"}`,
+            [
+              attachment.uploadedBy ? `Uploaded by: ${attachment.uploadedBy}` : "",
+              attachment.uploadedAt ? `Uploaded at: ${formatDateTime(attachment.uploadedAt)}` : "",
+              attachment.url ? `URL: ${attachment.url}` : "",
+            ].filter(Boolean).join("\n")
+          );
+        });
+      }
+    }
+
+    // The acknowledgement/signature must always be the final document section.
+    pdf.addPage("a4", "portrait");
+    y = 10;
+  }
+
+  // The acknowledgement is always the final section.
   drawSection("Acknowledgement / Signature");
   drawCell(left, y, tableW, 5.4, "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", [255,255,255], { size: 7.2, align: "left", color: muted, maxLines: 1 });
   y += 6.2;
