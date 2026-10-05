@@ -29,6 +29,8 @@ type HubUser = {
 type AnnouncementHubProps = {
   currentUser: HubUser;
   users: HubUser[];
+  shortcutVisible: boolean;
+  onOpenShortcut: () => void;
 };
 
 type HubView = "inbox" | "control" | "analytics";
@@ -546,6 +548,8 @@ function emptyDraft(user: HubUser): StoredAnnouncement {
 export default function AnnouncementHub({
   currentUser,
   users,
+  shortcutVisible,
+  onOpenShortcut,
 }: AnnouncementHubProps) {
   const [announcements, setAnnouncements] = useState<StoredAnnouncement[]>([]);
   const [receipts, setReceipts] = useState<AnnouncementReceipt[]>([]);
@@ -577,6 +581,10 @@ export default function AnnouncementHub({
 
   const manageAllowed = canManageAnnouncements(currentUser);
   const currentUsername = normalize(currentUser.username);
+
+  useEffect(() => {
+    if (!shortcutVisible) setHubOpen(false);
+  }, [shortcutVisible]);
 
   useEffect(() => {
     setMediaDescriptionOpen(false);
@@ -1381,23 +1389,30 @@ export default function AnnouncementHub({
         tickerTarget
       ) : null}
 
-      <button
+      {shortcutVisible ? <button
         type="button"
         data-announcement-delivery-v3="true"
         onClick={() => {
+          onOpenShortcut();
           setHubOpen(true);
           setView("inbox");
         }}
-        className="fixed bottom-5 right-5 z-[80] flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-violet-700 to-fuchsia-600 text-2xl text-white shadow-[0_18px_48px_rgba(109,40,217,0.38)] transition hover:-translate-y-1"
+        className="dashboard-announcement-shortcut grid place-items-center rounded-full border border-violet-200 bg-white text-violet-700 shadow-[0_8px_24px_rgba(76,29,149,0.15)] transition hover:-translate-y-0.5 hover:bg-violet-50"
         title="ประกาศและกล่องข้อความ"
+        aria-label="ประกาศและกล่องข้อความ"
+        aria-haspopup="dialog"
+        aria-expanded={hubOpen}
       >
-        <span aria-hidden="true">🔔</span>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+          <path d="M10 21h4M12 2v1" />
+        </svg>
         {unreadAnnouncements.length ? (
           <span className="absolute -right-1 -top-1 inline-flex min-h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-rose-600 px-1.5 text-[10px] font-black text-white">
             {unreadAnnouncements.length > 99 ? "99+" : unreadAnnouncements.length}
           </span>
         ) : null}
-      </button>
+      </button> : null}
 
       {popupMessage && mediaOnlyMode ? (
         spotlightMedia ? (
@@ -1514,9 +1529,9 @@ export default function AnnouncementHub({
         </div>
       ) : null}
 
-      {hubOpen ? (
+      {shortcutVisible && hubOpen ? (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-md sm:p-6">
-          <div className="flex max-h-[94vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-[34px] border border-white/30 bg-[#f7f5ff] shadow-[0_40px_120px_rgba(15,23,42,0.5)]">
+          <div role="dialog" aria-label="ประกาศและกล่องข้อความ" className="flex max-h-[94vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-[34px] border border-white/30 bg-[#f7f5ff] shadow-[0_40px_120px_rgba(15,23,42,0.5)]">
             <header className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200">

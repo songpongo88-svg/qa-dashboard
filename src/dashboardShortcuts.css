@@ -5,10 +5,35 @@
   --qa-shortcut-size: 48px;
   --qa-shortcut-chat-size: 56px;
   --qa-shortcut-gap: 16px;
+  --qa-shortcut-chat-offset: 0px;
+  --qa-shortcut-announcement-offset: 0px;
+  --qa-shortcut-kpi-offset: 0px;
   --qa-shortcut-right: calc(var(--qa-shortcut-edge) + (var(--qa-shortcut-chat-size) - var(--qa-shortcut-size)) / 2);
-  --qa-shortcut-kpi-bottom: calc(var(--qa-shortcut-bottom) + var(--qa-shortcut-chat-size) + var(--qa-shortcut-gap));
-  --qa-shortcut-guide-bottom: calc(var(--qa-shortcut-kpi-bottom) + var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+  --qa-shortcut-announcement-bottom: calc(var(--qa-shortcut-bottom) + var(--qa-shortcut-chat-offset));
+  --qa-shortcut-kpi-bottom: calc(var(--qa-shortcut-announcement-bottom) + var(--qa-shortcut-announcement-offset));
+  --qa-shortcut-guide-bottom: calc(var(--qa-shortcut-kpi-bottom) + var(--qa-shortcut-kpi-offset));
   --qa-shortcut-coaching-bottom: calc(var(--qa-shortcut-guide-bottom) + var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+}
+
+/* Only visible launchers reserve a slot; completed KPI notices leave no gap. */
+:root:has(.dashboard-chat-widget) {
+  --qa-shortcut-chat-offset: calc(var(--qa-shortcut-chat-size) + var(--qa-shortcut-gap));
+}
+:root:has(.dashboard-announcement-shortcut) {
+  --qa-shortcut-announcement-offset: calc(var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+}
+:root:has([data-retained-workspace-tab="dashboard"][aria-hidden="false"] .qmk-launcher) {
+  --qa-shortcut-kpi-offset: calc(var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+}
+
+.dashboard-announcement-shortcut {
+  position: fixed;
+  right: var(--qa-shortcut-right);
+  bottom: var(--qa-shortcut-announcement-bottom);
+  z-index: 82;
+  width: var(--qa-shortcut-size);
+  height: var(--qa-shortcut-size);
+  padding: 0;
 }
 
 .dashboard-coaching-shortcut {
