@@ -7487,6 +7487,12 @@ export default function App() {
         <AnnouncementHub
           currentUser={currentUser}
           users={effectiveUserAccounts}
+          shortcutVisible={dashboardShortcutsVisible}
+          onOpenShortcut={() => {
+            setFloatingChatOpen(false);
+            setGuideDrawerOpen(false);
+            setCoachingAppointmentsOpen(false);
+          }}
         />
 
         <div data-workspace-tabs-draggable-v46="true" data-case-workspace-tabs-v54="true" className="qa-workspace-tabs-v36 sticky top-0 z-[70] border-b border-violet-200 bg-gradient-to-r from-white via-violet-50/80 to-fuchsia-50/70 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
