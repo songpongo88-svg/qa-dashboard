@@ -24,7 +24,7 @@ import {
   getRubricForDate,
   type RubricTopic,
 } from "./lib/rubricVersions";
-import { buildDeductionAnalysis, deductionError, deductionOptions, deductionPointOptions, deductionTotal, subtopicDeductionStatuses, topicScoreForDate, usesAutomaticDeductionScoring, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
+import { buildDeductionAnalysis, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
 import { readDraftQueue, writeDraftQueue } from "./lib/evaluation/draftPersistence";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
@@ -36,6 +36,12 @@ import {
   readCachedStickyNote,
   saveStoredStickyNote,
 } from "./stickyNoteStore";
+import {
+  createEvaluationIssueTag,
+  fetchEvaluationIssueTags,
+  normalizeEvaluationIssueTagName,
+  type EvaluationIssueTag,
+} from "./evaluationTagStore";
 import {
   RichTextContent,
   RichTextEditor,
@@ -50,6 +56,8 @@ import { prepareVoiceRecordingForBrowser } from "./gsmMsWav";
 type TopicState = {
   score: number | null;
   reason: string;
+  issueTags?: string[];
+  // Legacy field kept so older submitted cases can be edited without losing history.
   deductions?: DraftDeductionTag[];
 };
 
@@ -794,7 +802,7 @@ function compactEvidenceForStorage(urls: string[]) {
 
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
-    acc[topic.code] = { score: null, reason: "", deductions: [] };
+    acc[topic.code] = { score: null, reason: "", issueTags: [], deductions: [] };
     return acc;
   }, {});
 }
@@ -918,6 +926,72 @@ function compareSubmittedRecordsNewestFirst(left: EvaluationRecord, right: Evalu
   return getSubmittedRecordTimeMs(right) - getSubmittedRecordTimeMs(left);
 }
 
+function buildIssueTagAnalysis(records: EvaluationRecord[]) {
+  const cases = records.filter((record) => record.evaluationType !== "no_case_month" && record.caseId);
+  const detailRows = cases.flatMap((record) =>
+    (record.topics || []).flatMap((topic) =>
+      (topic.issueTags || []).map((tag) => ({
+        "Case Date": record.auditDate,
+        "Case ID": record.caseId,
+        "Agent Name": record.agentName,
+        "QA Scheme": record.qaScheme,
+        "Topic Code": topic.code,
+        "Topic": topic.title,
+        "Issue Tag": tag,
+      }))
+    )
+  );
+
+  const groups = new Map<string, {
+    qaScheme: string;
+    topicCode: string;
+    topicTitle: string;
+    tag: string;
+    caseIds: Set<string>;
+  }>();
+
+  detailRows.forEach((row) => {
+    const key = JSON.stringify([
+      row["QA Scheme"],
+      row["Topic Code"],
+      normalizeEvaluationIssueTagName(row["Issue Tag"]),
+    ]);
+    const group = groups.get(key) || {
+      qaScheme: row["QA Scheme"],
+      topicCode: row["Topic Code"],
+      topicTitle: row["Topic"],
+      tag: row["Issue Tag"],
+      caseIds: new Set<string>(),
+    };
+    group.caseIds.add(row["Case ID"]);
+    groups.set(key, group);
+  });
+
+  const summaryRows = [...groups.values()]
+    .map((group) => {
+      const evaluatedCases = cases.filter(
+        (record) =>
+          record.qaScheme === group.qaScheme &&
+          (record.topics || []).some((topic) => topic.code === group.topicCode)
+      ).length;
+      const affectedCases = group.caseIds.size;
+      return {
+        "QA Scheme": group.qaScheme,
+        "Topic Code": group.topicCode,
+        "Topic": group.topicTitle,
+        "Issue Tag": group.tag,
+        "Affected Cases": affectedCases,
+        "Evaluated Cases": evaluatedCases,
+        "Cases With Tag (%)": evaluatedCases
+          ? Math.round((affectedCases / evaluatedCases) * 10000) / 100
+          : 0,
+      };
+    })
+    .sort((left, right) => right["Affected Cases"] - left["Affected Cases"]);
+
+  return { detailRows, summaryRows };
+}
+
 function AutoGrowTextarea({ value, onChange, onPaste, placeholder, className, minRows = 3 }: AutoGrowTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -1007,6 +1081,10 @@ export default function CreateEvaluationMockup({
   });
   const [stickyNoteMessage, setStickyNoteMessage] = useState("");
   const [stickyNoteReady, setStickyNoteReady] = useState(false);
+  const [issueTagCatalog, setIssueTagCatalog] = useState<EvaluationIssueTag[]>([]);
+  const [issueTagDrafts, setIssueTagDrafts] = useState<Record<string, string>>({});
+  const [issueTagMessages, setIssueTagMessages] = useState<Record<string, string>>({});
+  const [issueTagSaving, setIssueTagSaving] = useState<Record<string, boolean>>({});
   const stickyNoteDirtyRef = useRef(false);
   const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
   const [draftQueueLoading, setDraftQueueLoading] = useState(true);
@@ -1049,10 +1127,8 @@ export default function CreateEvaluationMockup({
   const [topicState, setTopicState] = useState<Record<string, TopicState>>(
     () => readEvaluateTabMemory()?.topicState || buildInitialTopicState(topics)
   );
-  const automaticScoring = usesAutomaticDeductionScoring(auditDate);
-  const scoreOf = (topic: RubricTopic) => topicScoreForDate(
-    topic, topicState[topic.code]?.score ?? null, auditDate, topicState[topic.code]?.deductions
-  );
+  // Keep the original manual score entry. Tags are analysis metadata only.
+  const scoreOf = (topic: RubricTopic) => topicState[topic.code]?.score ?? null;
 
   useEffect(() => {
     writeEvaluateTabMemory({
@@ -1194,6 +1270,20 @@ export default function CreateEvaluationMockup({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    void fetchEvaluationIssueTags()
+      .then((tags) => {
+        if (!cancelled) setIssueTagCatalog(tags);
+      })
+      .catch((error) => {
+        console.warn("Evaluation issue tags could not be loaded", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     setTopicState((current) => {
       const next = buildInitialTopicState(topics);
       topics.forEach((topic) => {
@@ -1286,9 +1376,6 @@ export default function CreateEvaluationMockup({
     [auditDate, noCaseForMonth, topicState, topics]
   );
   const missingScoreText = missingScoreTopics.map((topic) => topic.code).join(", ");
-  const invalidDeductionTopic = noCaseForMonth ? null : topics.find((topic) =>
-    deductionError(topic, scoreOf(topic), topicState[topic.code]?.deductions, automaticScoring)
-  );
   const completedTopics = useMemo(
     () => noCaseForMonth
       ? 0
@@ -1356,6 +1443,7 @@ export default function CreateEvaluationMockup({
     topics.forEach((topic) => {
       base[`${topic.code} Score`] = scoreOf(topic) ?? "-";
       base[`${topic.code} Comment`] = richTextToPlainText(topicState[topic.code]?.reason) || "-";
+      base[`${topic.code} Tags`] = (topicState[topic.code]?.issueTags || []).join(" | ") || "-";
     });
 
     return base;
@@ -1547,13 +1635,6 @@ export default function CreateEvaluationMockup({
       return;
     }
 
-    if (invalidDeductionTopic) {
-      const message = `${invalidDeductionTopic.code} ${invalidDeductionTopic.title}: ${deductionError(invalidDeductionTopic, scoreOf(invalidDeductionTopic), topicState[invalidDeductionTopic.code]?.deductions, automaticScoring)}`;
-      setDraftMessage(message);
-      window.alert(message);
-      return;
-    }
-
     const normalizedSubmitCaseId = normalizeCaseId(caseId);
     if (!noCaseForMonth && !normalizedSubmitCaseId) {
       setDraftMessage("Please enter Case ID before submitting the evaluation.");
@@ -1635,6 +1716,7 @@ export default function CreateEvaluationMockup({
       topic,
       score: Number(scoreOf(topic) || 0),
       reason: topicState[topic.code]?.reason || "",
+      issueTags: [...new Set((topicState[topic.code]?.issueTags || []).map((tag) => String(tag || "").trim()).filter(Boolean))],
       deductions: (topicState[topic.code]?.deductions || []).map((entry) => ({
         subtopic: entry.subtopic,
         points: Number(entry.points),
@@ -1647,6 +1729,7 @@ export default function CreateEvaluationMockup({
       max: item.topic.max,
       score: item.score,
       comment: item.reason,
+      issueTags: item.issueTags,
       deductions: item.deductions,
     }));
     const strengths = topicSummaries
@@ -1888,24 +1971,85 @@ export default function CreateEvaluationMockup({
     }));
   }
 
-  function updateDeduction(code: string, index: number, patch: Partial<DraftDeductionTag>) {
-    setTopicState((current) => ({
-      ...current,
-      [code]: {
-        ...current[code],
-        deductions: (current[code]?.deductions || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item),
-      },
-    }));
+  function toggleIssueTag(code: string, tagName: string) {
+    const normalized = normalizeEvaluationIssueTagName(tagName);
+    setTopicState((current) => {
+      const selected = current[code]?.issueTags || [];
+      const exists = selected.some((tag) => normalizeEvaluationIssueTagName(tag) === normalized);
+      return {
+        ...current,
+        [code]: {
+          ...current[code],
+          issueTags: exists
+            ? selected.filter((tag) => normalizeEvaluationIssueTagName(tag) !== normalized)
+            : [...selected, tagName],
+        },
+      };
+    });
   }
 
-  function removeDeduction(code: string, index: number) {
-    setTopicState((current) => ({
-      ...current,
-      [code]: {
-        ...current[code],
-        deductions: (current[code]?.deductions || []).filter((_, itemIndex) => itemIndex !== index),
-      },
-    }));
+  async function addIssueTag(topic: RubricTopic) {
+    const key = `${activeRubric.code}:${topic.code}`;
+    const tagName = String(issueTagDrafts[key] || "").trim().replace(/\s+/g, " ");
+    if (!tagName) {
+      setIssueTagMessages((current) => ({ ...current, [key]: "กรุณาระบุชื่อ Tag" }));
+      return;
+    }
+
+    const normalized = normalizeEvaluationIssueTagName(tagName);
+    const duplicate = issueTagCatalog.find((tag) => tag.normalizedName === normalized);
+    if (duplicate) {
+      const sameTopic = duplicate.rubricCode === activeRubric.code && duplicate.topicCode === topic.code;
+      if (sameTopic) {
+        setTopicState((current) => {
+          const selected = current[topic.code]?.issueTags || [];
+          const alreadySelected = selected.some((tag) => normalizeEvaluationIssueTagName(tag) === normalized);
+          return {
+            ...current,
+            [topic.code]: {
+              ...current[topic.code],
+              issueTags: alreadySelected ? selected : [...selected, duplicate.name],
+            },
+          };
+        });
+        setIssueTagMessages((current) => ({ ...current, [key]: `Tag “${duplicate.name}” มีอยู่แล้ว เลือก Tag เดิมให้แล้ว` }));
+      } else {
+        setIssueTagMessages((current) => ({
+          ...current,
+          [key]: `Tag “${duplicate.name}” มีอยู่แล้วใน Topic ${duplicate.topicCode}${duplicate.topicTitle ? ` — ${duplicate.topicTitle}` : ""}`,
+        }));
+      }
+      return;
+    }
+
+    setIssueTagSaving((current) => ({ ...current, [key]: true }));
+    setIssueTagMessages((current) => ({ ...current, [key]: "" }));
+    try {
+      const created = await createEvaluationIssueTag({
+        name: tagName,
+        rubricCode: activeRubric.code,
+        topicCode: topic.code,
+        topicTitle: topic.title,
+        createdBy: currentUser?.username || currentUser?.displayName || "",
+      });
+      setIssueTagCatalog((current) => [...current, created]);
+      setTopicState((current) => ({
+        ...current,
+        [topic.code]: {
+          ...current[topic.code],
+          issueTags: [...(current[topic.code]?.issueTags || []), created.name],
+        },
+      }));
+      setIssueTagDrafts((current) => ({ ...current, [key]: "" }));
+      setIssueTagMessages((current) => ({ ...current, [key]: `เพิ่ม Tag “${created.name}” แล้ว` }));
+    } catch (error) {
+      setIssueTagMessages((current) => ({
+        ...current,
+        [key]: error instanceof Error ? error.message : "ไม่สามารถเพิ่ม Tag ได้",
+      }));
+    } finally {
+      setIssueTagSaving((current) => ({ ...current, [key]: false }));
+    }
   }
 
   function addCallLog() {
@@ -2293,6 +2437,7 @@ export default function CreateEvaluationMockup({
         const topic = record.topics.find((item) => item.code === code);
         row[`${code} Score`] = topic?.score ?? "";
         row[`${code} Comment`] = richTextToPlainText(topic?.comment ?? "");
+        row[`${code} Tags`] = (topic?.issueTags || []).join(" | ");
       });
 
       return row;
@@ -2403,6 +2548,7 @@ export default function CreateEvaluationMockup({
       nextTopicState[topic.code] = {
         score: Number(topic.score || 0),
         reason: topic.comment || "",
+        issueTags: [...new Set((topic.issueTags || []).map((tag) => String(tag || "").trim()).filter(Boolean))],
         deductions: (topic.deductions || []).map((entry) => ({ ...entry })),
       };
     });
@@ -2510,8 +2656,13 @@ export default function CreateEvaluationMockup({
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(detailRows), "Deduction_Detail");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Deduction_Summary");
     }
+    const issueTagAnalysis = buildIssueTagAnalysis(filteredSubmitted);
+    if (issueTagAnalysis.detailRows.length) {
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(issueTagAnalysis.detailRows), "Issue_Tag_Detail");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(issueTagAnalysis.summaryRows), "Issue_Tag_Summary");
+    }
     downloadWorkbook(workbook, `QA_Evaluation_RowData_${reportDateFrom || "start"}_${reportDateTo || "end"}.xlsx`);
-    setReportMessage(`Exported ${filteredRaw.length} RawData row(s) and ${filteredSubmitted.length} submitted evaluation row(s). ${detailRows.length} tagged deduction(s) included.`);
+    setReportMessage(`Exported ${filteredRaw.length} RawData row(s), ${filteredSubmitted.length} submitted evaluation row(s), and ${issueTagAnalysis.detailRows.length} issue tag record(s).`);
   }
 
   async function createAndUploadEvidencePdfV2(sourceFiles: File[], existingId?: string, existingSourcePreviewUrls?: string[]) {
@@ -3711,9 +3862,11 @@ export default function CreateEvaluationMockup({
                           <div className="overflow-hidden rounded-xl border border-emerald-200 bg-white lg:rounded-t-none lg:border-t-0">
                             {groupTopics.map((topic, index) => {
                               const selectedScore = scoreOf(topic);
-                              const deductions = topicState[topic.code]?.deductions || [];
-                              const deductionChoices = deductionOptions(topic);
-                              const deductionProblem = deductionError(topic, selectedScore, deductions, automaticScoring);
+                              const tagKey = `${activeRubric.code}:${topic.code}`;
+                              const availableIssueTags = issueTagCatalog.filter(
+                                (tag) => tag.active && tag.rubricCode === activeRubric.code && tag.topicCode === topic.code
+                              );
+                              const selectedIssueTags = topicState[topic.code]?.issueTags || [];
                               return (
                                 <div key={topic.code} className={`border-b border-emerald-100 px-4 py-4 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-emerald-50/35"}`}>
                                   <div className="grid gap-3 lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px] lg:items-start">
@@ -3727,25 +3880,19 @@ export default function CreateEvaluationMockup({
                                     </div>
                                     <div className="block">
                                       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Score</span>
-                                      {automaticScoring ? (
-                                        <div aria-label={`คะแนนหัวข้อ ${topic.code} คำนวณอัตโนมัติ`} aria-live="polite" className="mt-1 w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-black text-emerald-950 lg:mt-0">
-                                          {selectedScore}/{topic.max}
-                                        </div>
-                                      ) : (
-                                        <select
-                                          aria-label={`คะแนนหัวข้อ ${topic.code}`}
-                                          value={selectedScore ?? ""}
-                                          onChange={(event) => updateTopic(topic.code, { score: event.target.value === "" ? null : Number(event.target.value) })}
-                                          className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2.5 text-sm font-black text-slate-950 shadow-inner outline-none transition focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100 lg:mt-0"
-                                        >
-                                          <option value="">- Select -</option>
-                                          {scoreOptions(topic.max).map((score) => (
-                                            <option key={score} value={score}>{score}</option>
-                                          ))}
-                                        </select>
-                                      )}
+                                      <select
+                                        aria-label={`คะแนนหัวข้อ ${topic.code}`}
+                                        value={selectedScore ?? ""}
+                                        onChange={(event) => updateTopic(topic.code, { score: event.target.value === "" ? null : Number(event.target.value) })}
+                                        className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2.5 text-sm font-black text-slate-950 shadow-inner outline-none transition focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100 lg:mt-0"
+                                      >
+                                        <option value="">- Select -</option>
+                                        {scoreOptions(topic.max).map((score) => (
+                                          <option key={score} value={score}>{score}</option>
+                                        ))}
+                                      </select>
                                       <div className={`mt-1 text-[11px] font-bold ${selectedScore === null ? "text-amber-700" : "text-emerald-700"}`}>
-                                        {selectedScore === null ? `Score not selected / ${topic.max}` : automaticScoring ? "คำนวณจากคะแนนที่หัก" : `Score ${selectedScore}/${topic.max}`}
+                                        {selectedScore === null ? `Score not selected / ${topic.max}` : `Score ${selectedScore}/${topic.max}`}
                                       </div>
                                     </div>
                                     <div>
@@ -3753,70 +3900,90 @@ export default function CreateEvaluationMockup({
                                       <div className="mt-1 inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 lg:mt-0">{topic.max}</div>
                                     </div>
                                   </div>
-                                  {automaticScoring || deductions.length > 0 ? (
                                   <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <span className="text-sm font-black text-amber-950">จุดที่หัก (หัวข้อย่อย)</span>
-                                      <span className="text-sm font-bold text-amber-900">
-                                        หักรวม {deductionTotal(deductions)}{automaticScoring ? ` / สูงสุด ${topic.max}` : selectedScore === null ? "" : ` / ${topic.max - selectedScore}`} คะแนน
-                                      </span>
+                                      <span className="text-sm font-black text-amber-950">Tag ประเด็นที่พบ</span>
+                                      <span className="text-xs font-bold text-amber-800">{selectedIssueTags.length} Tag ที่เลือก</span>
                                     </div>
-                                    <p className="mt-2 text-xs text-amber-900">เลือกเฉพาะหัวข้อย่อยที่ถูกหักคะแนน ข้อที่ไม่หักไม่ต้องเลือก</p>
-                                    <div className="mt-2 space-y-2">
-                                      {deductions.map((item, deductionIndex) => (
-                                        <div key={deductionIndex} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_100px_auto] sm:items-end">
-                                          <label className="min-w-0 text-xs font-bold text-slate-700">
-                                            หัวข้อย่อย
-                                            <select
-                                              value={item.subtopic}
-                                              onChange={(event) => updateDeduction(topic.code, deductionIndex, { subtopic: event.target.value })}
-                                              className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900"
-                                            >
-                                              <option value="">เลือกจุดที่หัก</option>
-                                              {deductionChoices.map((choice) => (
-                                                <option key={choice} value={choice} disabled={deductions.some((other, otherIndex) => otherIndex !== deductionIndex && other.subtopic === choice)}>{choice}</option>
-                                              ))}
-                                            </select>
-                                          </label>
-                                          <label className="text-xs font-bold text-slate-700">
-                                            คะแนนที่หัก
-                                            <select
-                                              value={item.points ?? ""}
-                                              onChange={(event) => updateDeduction(topic.code, deductionIndex, { points: event.target.value === "" ? null : Number(event.target.value) })}
-                                              className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900"
-                                              aria-label={`คะแนนที่หัก ${topic.code} รายการ ${deductionIndex + 1}`}
-                                            >
-                                              <option value="">เลือกคะแนน</option>
-                                              {deductionPointOptions(topic, deductions, deductionIndex, automaticScoring || selectedScore === null ? topic.max : topic.max - selectedScore).map((points) => (
-                                                <option key={points} value={points}>{points}</option>
-                                              ))}
-                                            </select>
-                                          </label>
-                                          <button type="button" onClick={() => removeDeduction(topic.code, deductionIndex)} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50" aria-label={`ลบจุดที่หัก ${topic.code} รายการ ${deductionIndex + 1}`}>ลบ</button>
-                                        </div>
-                                      ))}
+                                    <p className="mt-2 text-xs leading-5 text-amber-900">
+                                      Tag ใช้สำหรับวิเคราะห์แนวโน้มและเปอร์เซ็นต์ภายหลังเท่านั้น ไม่กระทบคะแนนหัวข้อนี้
+                                    </p>
+
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {availableIssueTags.length ? availableIssueTags.map((tag) => {
+                                        const selected = selectedIssueTags.some(
+                                          (value) => normalizeEvaluationIssueTagName(value) === tag.normalizedName
+                                        );
+                                        return (
+                                          <button
+                                            key={tag.id}
+                                            type="button"
+                                            aria-pressed={selected}
+                                            onClick={() => toggleIssueTag(topic.code, tag.name)}
+                                            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                                              selected
+                                                ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+                                                : "border-amber-200 bg-white text-amber-900 hover:border-amber-400 hover:bg-amber-100"
+                                            }`}
+                                          >
+                                            {tag.name}
+                                          </button>
+                                        );
+                                      }) : (
+                                        <span className="text-xs font-semibold text-slate-500">ยังไม่มี Tag ในหัวข้อนี้ เพิ่ม Tag แรกได้ด้านล่าง</span>
+                                      )}
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateTopic(topic.code, { deductions: [...deductions, { subtopic: "", points: null }] })}
-                                      disabled={deductions.length >= deductionChoices.length || deductionTotal(deductions) >= (automaticScoring || selectedScore === null ? topic.max : topic.max - selectedScore)}
-                                      className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >+ เพิ่มจุดที่หัก</button>
-                                    {selectedScore !== null ? (
-                                      <div className="mt-3 grid gap-2 sm:grid-cols-2" aria-label={`สถานะหัวข้อย่อย ${topic.code}`}>
-                                        {subtopicDeductionStatuses(topic, selectedScore, deductions).map((entry) => (
-                                          <div key={entry.subtopic} className="flex flex-wrap items-start justify-between gap-1 rounded-lg border border-amber-100 bg-white px-3 py-2 text-xs text-slate-800">
-                                            <span className="min-w-0 flex-1">{entry.subtopic}</span>
-                                            <span className={`font-extrabold ${entry.status === "deducted" ? "text-rose-700" : entry.status === "not_deducted" ? "text-emerald-700" : "text-slate-500"}`}>
-                                              {entry.status === "deducted" ? `หัก ${entry.points} คะแนน` : entry.status === "not_deducted" ? "ไม่หัก · 0 คะแนน" : "รอระบุจุดที่หักให้ครบ"}
-                                            </span>
-                                          </div>
-                                        ))}
+
+                                    {selectedIssueTags.some(
+                                      (name) => !availableIssueTags.some((tag) => tag.normalizedName === normalizeEvaluationIssueTagName(name))
+                                    ) ? (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {selectedIssueTags
+                                          .filter((name) => !availableIssueTags.some((tag) => tag.normalizedName === normalizeEvaluationIssueTagName(name)))
+                                          .map((name) => (
+                                            <button
+                                              key={name}
+                                              type="button"
+                                              aria-pressed="true"
+                                              onClick={() => toggleIssueTag(topic.code, name)}
+                                              className="rounded-full border border-amber-500 bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm"
+                                            >
+                                              {name}
+                                            </button>
+                                          ))}
                                       </div>
                                     ) : null}
-                                    {deductionProblem ? <p role="alert" className="mt-2 text-xs font-bold text-rose-700">{deductionProblem}</p> : null}
+
+                                    <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                                      <input
+                                        value={issueTagDrafts[tagKey] || ""}
+                                        onChange={(event) => {
+                                          setIssueTagDrafts((current) => ({ ...current, [tagKey]: event.target.value }));
+                                          setIssueTagMessages((current) => ({ ...current, [tagKey]: "" }));
+                                        }}
+                                        onKeyDown={(event) => {
+                                          if (event.key !== "Enter") return;
+                                          event.preventDefault();
+                                          void addIssueTag(topic);
+                                        }}
+                                        placeholder="พิมพ์ชื่อ Tag ที่ต้องการเพิ่ม..."
+                                        className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => void addIssueTag(topic)}
+                                        disabled={Boolean(issueTagSaving[tagKey])}
+                                        className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {issueTagSaving[tagKey] ? "กำลังเพิ่ม..." : "+ เพิ่ม Tag"}
+                                      </button>
+                                    </div>
+                                    {issueTagMessages[tagKey] ? (
+                                      <p className={`mt-2 text-xs font-bold ${issueTagMessages[tagKey].includes("เพิ่ม Tag") || issueTagMessages[tagKey].includes("เลือก Tag เดิม") ? "text-emerald-700" : "text-rose-700"}`}>
+                                        {issueTagMessages[tagKey]}
+                                      </p>
+                                    ) : null}
                                   </div>
-                                  ) : null}
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
                                     <RichTextEditor
@@ -4105,6 +4272,16 @@ export default function CreateEvaluationMockup({
                             <div className="border-t border-emerald-100 px-4 py-3">
                               <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluation Comment</div>
                               <RichTextContent value={topic.comment} className="mt-1 whitespace-pre-line text-sm font-semibold leading-6 text-slate-700" />
+                            </div>
+                          ) : null}
+                          {topic.issueTags?.length ? (
+                            <div className="border-t border-amber-100 bg-amber-50/50 px-4 py-3">
+                              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-800">Issue Tags</div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {topic.issueTags.map((tag) => (
+                                  <span key={tag} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900">{tag}</span>
+                                ))}
+                              </div>
                             </div>
                           ) : null}
                           {topic.deductions?.length ? (
