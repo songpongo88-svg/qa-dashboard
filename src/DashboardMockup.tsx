@@ -6843,8 +6843,15 @@ export default function DashboardMockup({
     [activeSelectedCase, caseAgentDirectory]
   );
 
+  // selected-case-refresh-stability-v1
   useEffect(() => {
     if (dashboardSubTab === "case-detail" && externalSelectedCaseId) return;
+
+    // Keep the current selection while a refresh is resolving or temporarily
+    // failing. Clearing it here used to make Selected Case disappear and not
+    // return after the case list was repopulated.
+    if (isLoading || loadError) return;
+
     if (!caseExplorerCases.length) {
       if (selectedCaseKey !== "") setSelectedCaseKey("");
       if (slideOverOpen) setSlideOverOpen(false);
@@ -6858,7 +6865,7 @@ export default function DashboardMockup({
       setSelectedCaseKey("");
       setSlideOverOpen(false);
     }
-  }, [caseExplorerCases, selectedCaseKey, slideOverOpen, dashboardSubTab, externalSelectedCaseId]);
+  }, [caseExplorerCases, selectedCaseKey, slideOverOpen, dashboardSubTab, externalSelectedCaseId, isLoading, loadError]);
 
   const isAllAgentsView = !effectiveSelectedAgent;
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
