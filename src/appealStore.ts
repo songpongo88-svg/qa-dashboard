@@ -160,7 +160,12 @@ export async function writeAppealEvent(
   const details = payload.details && typeof payload.details === "object" ? payload.details : {};
   const requestId = String((details as any).requestId || payload.id || payload.case_id || now);
   const docId = sanitizeId(`${eventType}-${requestId}`);
-  const fullReviewerName = canonicalizeAgentName(user.agentName || user.displayName);
+  const reviewerNameCandidates = [user.agentName, user.displayName]
+    .map((value) => canonicalizeAgentName(value || ""))
+    .filter(Boolean)
+    .sort((a, b) => b.split(/\s+/).length - a.split(/\s+/).length);
+  const fullReviewerName = reviewerNameCandidates[0] || canonicalizeAgentName(user.username || "");
+  // appeal-reviewer-loading-fix-v64-store
 
   await setDoc(
     doc(firebaseDb, APPEAL_EVENTS_COLLECTION, docId),
@@ -172,7 +177,7 @@ export async function writeAppealEvent(
       // Keep the canonical reviewer name in both identity fields so downstream
       // Case Detail / Appeal PDF exports never lose the QA reviewer when
       // agentName is empty but displayName is available.
-      agent_name: fullReviewerName || canonicalizeAgentName(user.agentName),
+      agent_name: fullReviewerName,
       tab: payload.tab || "",
       case_id: payload.case_id || "",
       target_agent: canonicalizeAgentName(payload.target_agent),
