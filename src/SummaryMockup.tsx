@@ -3542,10 +3542,11 @@ export default function SummaryMockup({
     return names;
   }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, noCaseEvaluations, roleScopedAgentList, selectedMonth]);
 
-  // data-agent-selection-no-auto-reset-v120
-  // Keep an explicitly selected Agent pinned even while month/week/year options
-  // are recalculating. A temporarily missing option must show No Data instead
-  // of silently switching the filter back to All Agents.
+  // data-agent-selection-no-auto-reset-v121
+  // Keep self-scoped roles (for example Admin Live Chat) pinned to their own
+  // Agent without repeatedly notifying the parent on every render. Repeated
+  // notifications used to increment the Dashboard case-filter reset key and
+  // immediately clear a case after the user selected it.
   useEffect(() => {
     if (!roleScopedAgentList.length) return;
 
@@ -3553,8 +3554,16 @@ export default function SummaryMockup({
     if (lockedAgent && !isSameAgent(selectedAgent || "", lockedAgent)) {
       setSelectedAgent(lockedAgent);
     }
-    onSelectedAgentChange?.(lockedAgent || "all");
+
+    const externalAgent = String(externalSelectedAgent || "").trim();
+    if (
+      lockedAgent &&
+      (!externalAgent || !isSameAgent(externalAgent, lockedAgent))
+    ) {
+      onSelectedAgentChange?.(lockedAgent);
+    }
   }, [
+    externalSelectedAgent,
     selectedAgent,
     onSelectedAgentChange,
     roleScopedAgentList,
