@@ -131,7 +131,7 @@ export function coachingSaveError(role: string, previous: StoredCoachingRecord |
   if (next.status === 'QA Reviewed' && !next.qaReviewComment?.trim()) return 'กรุณาระบุเหตุผลที่ส่งคืนผู้ Coaching';
   if (next.status === 'Action Plan Submitted') {
     const result = next.actualCoaching;
-    if (!result?.date || !result.startTime || !result.endTime || result.endTime <= result.startTime || !result.finalNote.trim()) return 'กรุณาระบุวันที่ เวลาเริ่ม–สิ้นสุด และ Senior Final Note ให้ครบ';
+    if (!result?.date || !result.startTime || !result.endTime || result.endTime <= result.startTime || !result.finalNote.trim()) return 'กรุณาระบุวันที่ เวลาเริ่ม–สิ้นสุด และ Final Coaching Note ให้ครบ';
     const topics = previous?.recommendedTopics || [];
     const actions = next.actions || [];
     if (actions.some(a => !topics.includes(a.topic) || !a.plan.trim() || !a.owner.trim() || !a.dueDate)) return 'กรุณากรอกหัวข้อ แผน ผู้รับผิดชอบ และกำหนดส่งให้ครบ';
@@ -183,5 +183,5 @@ export function manualCoachingSummary(record?: StoredCoachingRecord | null) {
   return typeof record?.qaSummary === 'string' ? record.qaSummary : record?.generalFeedback || '';
 }
 export function coachingStatusLabel(status?: string) {
-  return ({Draft:'ฉบับร่าง', 'Waiting Appointment':'รอนัดหมาย', 'Appointment Scheduled':'นัดหมายแล้ว', 'Waiting Senior':'รอผลจาก Senior', 'Coaching In Progress':'กำลัง Coaching', 'Action Plan Submitted':'รอ QA ตรวจแผน', 'QA Reviewed':'แก้ไขแผน', 'Follow-up Next Month':'ติดตามเดือนถัดไป', Closed:'ปิดเคสแล้ว', 'No Coaching Required':'ไม่ต้อง Coaching'} as Record<string,string>)[status || ''] || status || 'ยังไม่สร้าง';
+  return ({Draft:'ฉบับร่าง', 'Waiting Appointment':'รอนัดหมาย', 'Appointment Scheduled':'นัดหมายแล้ว', 'Waiting Senior':'รอผลจากผู้ Coaching', 'Coaching In Progress':'กำลัง Coaching', 'Action Plan Submitted':'รอ QA ตรวจแผน', 'QA Reviewed':'แก้ไขแผน', 'Follow-up Next Month':'ติดตามเดือนถัดไป', Closed:'ปิดเคสแล้ว', 'No Coaching Required':'ไม่ต้อง Coaching'} as Record<string,string>)[status || ''] || status || 'ยังไม่สร้าง';
 }
