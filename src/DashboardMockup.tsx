@@ -2540,7 +2540,11 @@ function CaseDetailTopicTable({
   const displayCodeSet = new Set(displayRevisedTopicCodes);
   const rubric = RUBRIC_VERSIONS.find((version) => version.code === qaScheme);
 
-  const rows = topics
+  // case-detail-topics-safe-array-v1
+  // Some refreshed/cached case records can temporarily arrive without a topics
+  // array. Never let that transient shape crash the whole Dashboard.
+  const safeTopics = Array.isArray(topics) ? topics : [];
+  const rows = safeTopics
     .map((originalTopic) => {
       const revisedTopic =
         reviewStatus === "Revised" && revisedTopics?.length
