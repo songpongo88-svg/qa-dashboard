@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T06:38:00.000Z",
-  "reason": "Review stale Coaching preparation recovery when QA sends to assigned coach",
+  "reviewedAt": "2026-10-05T06:54:44.802Z",
+  "reason": "Review persistence of selected Coaching owner across save, remount and reload; workflow behavior only",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -315,7 +315,7 @@
     "src/DashboardMockup.tsx": "8305cfb89f5d31a52e4daa4fb5f1cc5cfebfb9eddf5e2821c13d568004f4f9a1",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
-    "src/MonthlyCoachingWorkspace.tsx": "788583b6c229a28ef44ababdf61c42a389b8059ecbebf4b5ef878914adccc891",
+    "src/MonthlyCoachingWorkspace.tsx": "1c8fa095f7b379f4c693a45084fe89ad56dc5b869085b4dcf1bb9deb1b3c7695",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
     "src/PageHero.tsx": "6e5621714c19abd9580783ff982edea6bd897bdc5342ae30303c24639f4e12e9",
     "src/PreTestMockup.tsx": "9608f60c5b579a3929931d20a366e5462013a452d61c7bc4e570e73afc2baeef",
@@ -393,7 +393,7 @@
     "src/main.tsx": "c9aaa8eb57a7010b44576c96728c99bc4489e0a6b057fa84991f8e35a59ec78b",
     "src/maintenanceControlStore.ts": "d0c12948692277202e21f1e3907b255b40cb2ba629488c20677719a91b70945f",
     "src/monthlyCoaching.css": "1e9dfbc55b21694ab4e2a1e392d3b00d69e42802a96483e0d381b3fa77e3bfff",
-    "src/monthlyCoachingModel.ts": "17f792cd4bdf20c2df40900ca67dc485e4c7038637425214c758a96e6e38c88b",
+    "src/monthlyCoachingModel.ts": "201447d5a29df9fdecc8215f4a4a51ee8ddfc94dc43ce4dd3612a489c35eab9b",
     "src/monthlyKpiNotice.css": "f42fe91dc578ad90f70139c24649da6068cf8cfb8a4ff3c3edb9221f7d308eda",
     "src/officialPdf.ts": "3efdeea4304b590d4b1d33480c62a72725a15cf36c628db6ff0ed95a7eeb1648",
     "src/pages/EvaluationStudioPage.tsx": "7dbbc681d3e6f03446440a5d238f9fb4ff93536150f25dd47d4b1952e548b9ff",
