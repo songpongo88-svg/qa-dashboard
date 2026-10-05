@@ -57,3 +57,38 @@
   :root:is([data-qa-theme^="festival-"],[data-qa-theme^="weekday-"]) #root,
   :root:is([data-qa-theme^="festival-"],[data-qa-theme^="weekday-"]) .qa-global-sidebar-v39{transition:background-image .22s ease,background-color .22s ease,border-color .22s ease}
 }
+
+/* Illustrated Festival Collection: shared artwork from picker to workspace. */
+:root[data-qa-theme="festival-new-year"] { --qa-festival-scene:url("/festivals/festival-new-year.svg"); }
+:root[data-qa-theme="festival-valentine"] { --qa-festival-scene:url("/festivals/festival-valentine.svg"); }
+:root[data-qa-theme="festival-songkran"] { --qa-festival-scene:url("/festivals/festival-songkran.svg"); }
+:root[data-qa-theme="festival-halloween"] { --qa-festival-scene:url("/festivals/festival-halloween.svg"); }
+:root[data-qa-theme="festival-loy-krathong"] { --qa-festival-scene:url("/festivals/festival-loy-krathong.svg"); }
+:root[data-qa-theme="festival-christmas"] { --qa-festival-scene:url("/festivals/festival-christmas.svg"); }
+
+:root[data-qa-theme^="festival-"] #root {
+  background-image:linear-gradient(rgb(255 255 255/.94),rgb(255 255 255/.94)),var(--qa-festival-scene)!important;
+  background-size:cover!important;
+}
+:root[data-qa-theme^="festival-"] [data-qa-theme-surface-v1="true"] {
+  background-image:none!important;
+  background-color:#fff!important;
+}
+:root[data-qa-theme^="festival-"] .qa-global-sidebar-v39 {
+  background-image:linear-gradient(180deg,var(--qa-theme-950),var(--qa-theme-900))!important;
+  background-size:cover!important;
+  border-right:1px solid rgb(255 255 255/.12);
+}
+:root[data-qa-theme="festival-halloween"] .qa-global-sidebar-v39 {
+  background-image:linear-gradient(180deg,#28203f,#49304d)!important;
+}
+:root[data-qa-theme^="festival-"] [data-unified-robinhood-hero-v156="true"] {
+  background-image:linear-gradient(90deg,rgb(22 21 42/.8),rgb(22 21 42/.35)),var(--qa-festival-scene)!important;
+  background-size:cover!important;
+  background-position:75% center!important;
+  color:#fff!important;
+}
+:root[data-qa-theme^="festival-"] [data-unified-robinhood-hero-v156="true"] :is([class*="text-violet-"],[class*="text-fuchsia-"]) {color:#f8f4ff!important;}
+@media print {
+  :root[data-qa-theme^="festival-"] #root {background:#fff!important;}
+}
