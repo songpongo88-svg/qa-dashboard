@@ -3594,6 +3594,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [coachingAssignmentAllowed, setCoachingAssignmentAllowed] = useState(false);
   const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
+  const [coachingAppointmentsOpen, setCoachingAppointmentsOpen] = useState(false);
   const [sessionValidationPending, setSessionValidationPending] = useState(
     () => Boolean(storedUserCandidate)
   );
@@ -3856,6 +3857,12 @@ export default function App() {
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
 
   useDashboardAutoRefresh(Boolean(currentUser) && activeTab === "dashboard", qaDataRefreshKey, refreshQaDashboardData, fetchDashboardRevision, setQaDataCheckedAt);
+
+  useEffect(() => {
+    if (activeTab !== "dashboard" || dashboardSubTab !== "overview") {
+      setCoachingAppointmentsOpen(false);
+    }
+  }, [activeTab, dashboardSubTab]);
   const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<WorkspaceTabKey[]>(() => {
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY) || "[]");
@@ -7501,57 +7508,6 @@ export default function App() {
             <TermsWorkspace user={currentUser} management canManage={termsManageAllowed} />
           ) : activeTab === "dashboard" ? (
             <>
-              {dashboardSubTab === "overview" && dashboardCoachingAppointments.length ? (
-                <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
-                  <section className="overflow-hidden rounded-[22px] border border-violet-200 bg-white shadow-[0_12px_32px_rgba(88,28,135,0.08)]">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-violet-100 px-4 py-3">
-                      <div>
-                        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">Coaching Appointment</div>
-                        <div className="mt-0.5 text-sm font-black text-slate-900">นัดหมาย Coaching ที่เกี่ยวข้องกับคุณ</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => activateWorkspaceTab("coaching")}
-                        className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-800 transition hover:bg-violet-100"
-                      >
-                        ดู Coaching
-                      </button>
-                    </div>
-                    <div className="divide-y divide-slate-100">
-                      {dashboardCoachingAppointments.map((record) => {
-                        const meeting = record.appointment!;
-                        const endTime = coachingEndTime(meeting.startTime, Number(meeting.duration || 0));
-                        const coach = record.coachName || record.coachedBy || record.seniorName || "-";
-                        const dateLabel = /^\d{4}-\d{2}-\d{2}$/.test(meeting.date || "")
-                          ? meeting.date.split("-").reverse().join("/")
-                          : meeting.date || "-";
-                        return (
-                          <div key={record.id} className="grid gap-2 px-4 py-3 text-xs sm:grid-cols-[120px_150px_minmax(0,1fr)_170px] sm:items-center">
-                            <div>
-                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">วันที่</div>
-                              <div className="mt-0.5 font-black text-slate-800">{dateLabel}</div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">เวลา</div>
-                              <div className="mt-0.5 font-black text-slate-800">
-                                {meeting.startTime || "-"}{endTime ? `–${endTime}` : ""}
-                              </div>
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">ผู้ Coaching</div>
-                              <div className="mt-0.5 truncate font-black text-slate-800">{coach}</div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">ช่องทาง</div>
-                              <div className="mt-0.5 truncate font-black text-slate-800">{meeting.method || "-"}</div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-                </div>
-              ) : null}
               <DashboardMockup
               currentUser={currentUser}
               caseAgentDirectory={caseAgentDirectory}
@@ -7814,6 +7770,87 @@ export default function App() {
           )}
         </WorkspaceKeepAlive>
       </div>
+      {activeTab === "dashboard" && dashboardSubTab === "overview" && dashboardCoachingAppointments.length ? (
+        <>
+          {coachingAppointmentsOpen ? (
+            <section
+              className="fixed bottom-[228px] right-[86px] z-[84] w-[min(390px,calc(100vw-7rem))] overflow-hidden rounded-[22px] border border-violet-200 bg-white shadow-[0_20px_55px_rgba(76,29,149,0.22)]"
+              aria-label="Coaching appointments"
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-violet-100 bg-violet-50/80 px-4 py-3">
+                <div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.16em] text-violet-600">Coaching Appointment</div>
+                  <div className="mt-0.5 text-sm font-black text-slate-900">นัดหมายที่เกี่ยวข้องกับคุณ</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCoachingAppointmentsOpen(false)}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white hover:text-slate-700"
+                  aria-label="ปิดนัดหมาย Coaching"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="max-h-[330px] divide-y divide-slate-100 overflow-y-auto">
+                {dashboardCoachingAppointments.map((record) => {
+                  const meeting = record.appointment!;
+                  const endTime = coachingEndTime(meeting.startTime, Number(meeting.duration || 0));
+                  const coach = record.coachName || record.coachedBy || record.seniorName || "-";
+                  const dateLabel = /^\d{4}-\d{2}-\d{2}$/.test(meeting.date || "")
+                    ? meeting.date.split("-").reverse().join("/")
+                    : meeting.date || "-";
+                  return (
+                    <div key={record.id} className="px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-black text-slate-900">
+                            {dateLabel} · {meeting.startTime || "-"}{endTime ? `–${endTime}` : ""}
+                          </div>
+                          <div className="mt-1 truncate text-xs font-semibold text-slate-600">
+                            {coach} · {meeting.method || "-"}
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-violet-50 px-2 py-1 text-[9px] font-black text-violet-700">
+                          {record.status === "Appointment Scheduled" ? "นัดหมายแล้ว" : record.status}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="border-t border-violet-100 bg-slate-50/70 px-4 py-3 text-right">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCoachingAppointmentsOpen(false);
+                    activateWorkspaceTab("coaching");
+                  }}
+                  className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-black text-white transition hover:bg-violet-800"
+                >
+                  เปิด Coaching
+                </button>
+              </div>
+            </section>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setCoachingAppointmentsOpen((open) => !open)}
+            className="fixed bottom-[232px] right-[31px] z-[83] grid h-11 w-11 place-items-center rounded-full border border-violet-200 bg-white text-violet-700 shadow-[0_8px_24px_rgba(76,29,149,0.15)] transition hover:-translate-y-0.5 hover:bg-violet-50"
+            aria-label="ดูนัดหมาย Coaching"
+            title="นัดหมาย Coaching"
+            aria-expanded={coachingAppointmentsOpen}
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M16 3v4M8 3v4M3 10h18" />
+              <path d="M8 14h3M8 17h6" />
+            </svg>
+            <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full border-2 border-white bg-violet-700 px-1.5 py-0.5 text-[9px] font-black text-white">
+              {dashboardCoachingAppointments.length}
+            </span>
+          </button>
+        </>
+      ) : null}
       {activeTab !== "user-guide" && <button type="button" className="guide-help-button" aria-label="คู่มือหน้านี้" title="คู่มือหน้านี้" aria-haspopup="dialog" aria-expanded={guideDrawerOpen} onClick={() => setGuideDrawerOpen(true)}>
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
           <path d="M12 5.5C9.4 3.8 6.1 3.2 3 4v15c3.1-.8 6.4-.2 9 1.5 2.6-1.7 5.9-2.3 9-1.5V4c-3.1-.8-6.4-.2-9 1.5Z" />
@@ -7821,6 +7858,38 @@ export default function App() {
         </svg>
       </button>}
       {guideDrawerOpen && <GuideDrawer user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} context={activeTab === "dashboard" && dashboardSubTab === "case-detail" ? "case-detail" : activeWorkspaceTab} onClose={closeGuideDrawer} />}
+      {teamChatAllowed ? (
+        <FloatingChatWidget
+          open={floatingChatOpen}
+          currentUser={currentUser}
+          messages={chatMessages}
+          onlineUsers={onlineUsers}
+          unreadCounts={chatUnreadCounts}
+          totalUnread={totalChatUnreadCount}
+          onToggle={() => {
+            const nextOpen = !floatingChatOpen;
+            setFloatingChatOpen(nextOpen);
+            if (nextOpen) {
+              void sendPresence();
+              void loadChatData();
+            }
+          }}
+          onOpenFullChat={() => {
+            setFloatingChatOpen(false);
+            navigateToTab("team-chat", { workspaceKey: "team-chat" });
+            void sendPresence();
+            void loadChatData();
+          }}
+          onSendMessage={async (message, toUser) => {
+            await sendChatMessage(message, toUser);
+            await loadChatData();
+          }}
+          onRefresh={() => {
+            void sendPresence();
+            void loadChatData();
+          }}
+        />
+      ) : null}
       </TermsAccessBoundary>
     </>
   );
