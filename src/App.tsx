@@ -2,6 +2,7 @@ import ThemePreview, { WEEKDAY_LABELS, FESTIVAL_LABELS } from "./ThemePreview";
 import { WEEKDAY_IDS } from "./weekdayCollection.mjs";
 import { WeatherCollection, WeatherSidebarLabel } from "./weather/Weather";
 import "./themePickerCollections.css";
+import "./dashboardShortcuts.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
@@ -3157,9 +3158,9 @@ function FloatingChatWidget({
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[80] flex flex-col items-end gap-3">
+    <div className="dashboard-chat-widget">
       {open ? (
-        <div className="w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.24)]">
+        <div role="dialog" aria-label="Team Chat" className="dashboard-chat-panel w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.24)]">
           <div className="bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 py-4 text-white">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -3337,8 +3338,10 @@ function FloatingChatWidget({
       <button
         type="button"
         onClick={onToggle}
-        className="group relative flex h-16 min-w-16 items-center justify-center rounded-full bg-gradient-to-br from-violet-700 via-fuchsia-600 to-rose-500 px-5 text-white shadow-[0_18px_45px_rgba(109,40,217,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(109,40,217,0.42)]"
+        className="dashboard-chat-launcher group relative flex items-center justify-center rounded-full bg-gradient-to-br from-violet-700 via-fuchsia-600 to-rose-500 text-white shadow-[0_18px_45px_rgba(109,40,217,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(109,40,217,0.42)]"
         aria-label="Open floating team chat"
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
         <span className="text-sm font-black">{open ? "Chat" : "Chat"}</span>
         {totalUnread > 0 ? (
@@ -3858,11 +3861,6 @@ export default function App() {
 
   useDashboardAutoRefresh(Boolean(currentUser) && activeTab === "dashboard", qaDataRefreshKey, refreshQaDashboardData, fetchDashboardRevision, setQaDataCheckedAt);
 
-  useEffect(() => {
-    if (activeTab !== "dashboard" || dashboardSubTab !== "overview") {
-      setCoachingAppointmentsOpen(false);
-    }
-  }, [activeTab, dashboardSubTab]);
   const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<WorkspaceTabKey[]>(() => {
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY) || "[]");
@@ -3880,6 +3878,17 @@ export default function App() {
       ? stored
       : (activeTab as WorkspaceTabKey) || "dashboard";
   });
+  const dashboardShortcutsVisible = activeTab === "dashboard" && activeWorkspaceTab === "dashboard";
+
+  useEffect(() => {
+    if (!dashboardShortcutsVisible || dashboardSubTab !== "overview") {
+      setCoachingAppointmentsOpen(false);
+    }
+    if (!dashboardShortcutsVisible) {
+      setFloatingChatOpen(false);
+      setGuideDrawerOpen(false);
+    }
+  }, [dashboardShortcutsVisible, dashboardSubTab]);
   const [sidebarGroupsOpen, setSidebarGroupsOpen] = useState<Record<string, boolean>>(() => {
     const defaults = { performance: true, qa: false, appeals: false, quality: false, tools: false, workspace: false, admin: false, system: false, account: false };
     try {
@@ -7819,11 +7828,11 @@ export default function App() {
           )}
         </WorkspaceKeepAlive>
       </div>
-      {activeTab === "dashboard" && dashboardSubTab === "overview" && dashboardCoachingAppointments.length ? (
+      {dashboardShortcutsVisible && dashboardSubTab === "overview" && dashboardCoachingAppointments.length ? (
         <>
           {coachingAppointmentsOpen ? (
             <section
-              className="fixed bottom-[228px] right-[86px] z-[84] w-[min(390px,calc(100vw-7rem))] overflow-hidden rounded-[22px] border border-violet-200 bg-white shadow-[0_20px_55px_rgba(76,29,149,0.22)]"
+              className="dashboard-coaching-panel w-[min(390px,calc(100vw-7rem))] overflow-hidden rounded-[22px] border border-violet-200 bg-white shadow-[0_20px_55px_rgba(76,29,149,0.22)]"
               aria-label="Coaching appointments"
             >
               <div className="flex items-start justify-between gap-3 border-b border-violet-100 bg-violet-50/80 px-4 py-3">
@@ -7883,8 +7892,12 @@ export default function App() {
           ) : null}
           <button
             type="button"
-            onClick={() => setCoachingAppointmentsOpen((open) => !open)}
-            className="fixed bottom-[232px] right-[31px] z-[83] grid h-11 w-11 place-items-center rounded-full border border-violet-200 bg-white text-violet-700 shadow-[0_8px_24px_rgba(76,29,149,0.15)] transition hover:-translate-y-0.5 hover:bg-violet-50"
+            onClick={() => {
+              setFloatingChatOpen(false);
+              setGuideDrawerOpen(false);
+              setCoachingAppointmentsOpen((open) => !open);
+            }}
+            className="dashboard-coaching-shortcut grid place-items-center rounded-full border border-violet-200 bg-white text-violet-700 shadow-[0_8px_24px_rgba(76,29,149,0.15)] transition hover:-translate-y-0.5 hover:bg-violet-50"
             aria-label="ดูนัดหมาย Coaching"
             title="นัดหมาย Coaching"
             aria-expanded={coachingAppointmentsOpen}
@@ -7900,14 +7913,18 @@ export default function App() {
           </button>
         </>
       ) : null}
-      {activeTab !== "user-guide" && <button type="button" className="guide-help-button" aria-label="คู่มือหน้านี้" title="คู่มือหน้านี้" aria-haspopup="dialog" aria-expanded={guideDrawerOpen} onClick={() => setGuideDrawerOpen(true)}>
+      {dashboardShortcutsVisible && <button type="button" className="guide-help-button" aria-label="คู่มือหน้านี้" title="คู่มือหน้านี้" aria-haspopup="dialog" aria-expanded={guideDrawerOpen} onClick={() => {
+        setFloatingChatOpen(false);
+        setCoachingAppointmentsOpen(false);
+        setGuideDrawerOpen(true);
+      }}>
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
           <path d="M12 5.5C9.4 3.8 6.1 3.2 3 4v15c3.1-.8 6.4-.2 9 1.5 2.6-1.7 5.9-2.3 9-1.5V4c-3.1-.8-6.4-.2-9 1.5Z" />
           <path d="M12 5.5v15M6 8h3M6 11h3M15 8h3M15 11h3" />
         </svg>
       </button>}
-      {guideDrawerOpen && <GuideDrawer user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} context={activeTab === "dashboard" && dashboardSubTab === "case-detail" ? "case-detail" : activeWorkspaceTab} onClose={closeGuideDrawer} />}
-      {teamChatAllowed ? (
+      {dashboardShortcutsVisible && guideDrawerOpen && <GuideDrawer user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} context={dashboardSubTab === "case-detail" ? "case-detail" : activeWorkspaceTab} onClose={closeGuideDrawer} />}
+      {dashboardShortcutsVisible && teamChatAllowed ? (
         <FloatingChatWidget
           open={floatingChatOpen}
           currentUser={currentUser}
@@ -7917,6 +7934,8 @@ export default function App() {
           totalUnread={totalChatUnreadCount}
           onToggle={() => {
             const nextOpen = !floatingChatOpen;
+            setCoachingAppointmentsOpen(false);
+            setGuideDrawerOpen(false);
             setFloatingChatOpen(nextOpen);
             if (nextOpen) {
               void sendPresence();
