@@ -17,11 +17,39 @@ export function seniorFor(accounts: CoachingAccount[], agent: CoachingAccount) {
   const matches = accounts.filter(a => a.role === 'Senior' && a.status !== 'Suspended' && [a.username, a.displayName, a.agentName].some(value => sameIdentity(value, agent.teamLead)));
   return matches.length === 1 ? matches[0] : null;
 }
-export function visibleCoachingAgents(accounts: CoachingAccount[], currentUser?: CoachingAccount | null) {
+export function isAssignedCoach(record: StoredCoachingRecord | null | undefined, actor: CoachingAccount | null | undefined) {
+  if (!record || !actor) return false;
+  const coachId = String(record.coachId || record.seniorId || '').trim().toLowerCase();
+  if (coachId && coachId === actor.username.trim().toLowerCase()) return true;
+  const coachName = record.coachName || record.coachedBy || record.seniorName || '';
+  return [actor.username, actor.displayName, actor.agentName].some(value => sameIdentity(value, coachName));
+}
+
+export function isCoachingParticipant(record: StoredCoachingRecord | null | undefined, actor: CoachingAccount | null | undefined) {
+  if (!record || !actor) return false;
+  if (belongsToAgent(actor, record.agentId, record.agent)) return true;
+  if (isAssignedCoach(record, actor)) return true;
+  return (record.appointment?.participants || []).some(name =>
+    [actor.username, actor.displayName, actor.agentName].some(value => sameIdentity(value, name))
+  );
+}
+
+export function recordVisibleToUser(record: StoredCoachingRecord | null | undefined, actor: CoachingAccount | null | undefined) {
+  if (!record || !actor || actor.status === 'Suspended') return false;
+  return actor.role === 'Quality Assurance' || isCoachingParticipant(record, actor);
+}
+
+export function visibleCoachingAgents(accounts: CoachingAccount[], currentUser?: CoachingAccount | null, records: StoredCoachingRecord[] = []) {
   if (!currentUser) return [];
   const actor = accounts.find(a => a.username.toLowerCase() === currentUser.username.toLowerCase() && a.status !== 'Suspended');
-  if (!actor || actor.role !== currentUser.role || !['Quality Assurance', 'Senior'].includes(actor.role)) return [];
-  return accounts.filter(a => a.status !== 'Suspended' && (a.qaEvaluationTarget ?? ['Admin Live Chat', 'Virtual Rider'].includes(a.role)) && (actor.role === 'Quality Assurance' || seniorFor(accounts, a)?.username === actor.username));
+  if (!actor || actor.role !== currentUser.role) return [];
+  const targets = accounts.filter(a => a.status !== 'Suspended' && (a.qaEvaluationTarget ?? ['Admin Live Chat', 'Virtual Rider'].includes(a.role)));
+  if (actor.role === 'Quality Assurance') return targets;
+  return targets.filter(target =>
+    records.some(record =>
+      belongsToAgent(target, record.agentId, record.agent) && recordVisibleToUser(record, actor)
+    )
+  );
 }
 export const monthlyCoachingId = (username: string, month: string) => `coaching-${encodeURIComponent(username.trim().toLowerCase())}-${month}`;
 export const COACHING_WORKFLOW_START = '2026-09';
@@ -46,10 +74,13 @@ export function formFromRecord(record?: StoredCoachingRecord | null): CoachingFo
 }
 export function allowedCoachingStatuses(role: string, record?: StoredCoachingRecord | null): CoachingRecordStatus[] {
   if (record && record.monthKey < COACHING_WORKFLOW_START) return [];
-  if (role === 'Senior') return record && seniorEditing.includes(record.status) ? ['Coaching In Progress', 'Action Plan Submitted'] : [];
+  if (role === 'Senior' || role === 'Assigned Coach') {
+    return record && seniorEditing.includes(record.status) ? ['Coaching In Progress', 'Action Plan Submitted'] : [];
+  }
   if (role !== 'Quality Assurance') return [];
   if (!record || preparation.includes(record.status)) return [...preparation, 'Waiting Senior', 'No Coaching Required'];
-  if (record.status === 'Action Plan Submitted') return ['Follow-up Next Month', 'QA Reviewed'];
+  if (record.status === 'Action Plan Submitted') return ['Action Plan Submitted', 'Follow-up Next Month', 'QA Reviewed'];
+  if (record.status === 'Waiting Senior' || record.status === 'Coaching In Progress' || record.status === 'QA Reviewed') return [record.status];
   if (['Follow-up Next Month', 'Coached', 'Completed'].includes(record.status)) return ['Closed'];
   return [];
 }
@@ -57,28 +88,47 @@ export function restoreCoachingForm(record: StoredCoachingRecord | undefined, dr
   const saved = formFromRecord(record);
   if (!draft) return saved;
   const allowed = allowedCoachingStatuses(role, record);
-  if (role === 'Quality Assurance') return { ...saved, ...(allowed.includes('Draft') ? { summary: draft.summary ?? saved.summary, topics: draft.topics || saved.topics, appointment: { ...saved.appointment, ...draft.appointment }, attachments: draft.attachments || saved.attachments } : {}), ...(allowed.includes('QA Reviewed') ? { review: draft.review ?? saved.review } : {}) };
+  if (role === 'Quality Assurance') return {
+    ...saved,
+    ...(allowed.includes('Draft') || (record && allowed.includes(record.status))
+      ? { summary: draft.summary ?? saved.summary, topics: draft.topics || saved.topics, appointment: { ...saved.appointment, ...draft.appointment }, attachments: draft.attachments || saved.attachments }
+      : {}),
+    ...(allowed.includes('QA Reviewed') ? { review: draft.review ?? saved.review } : {})
+  };
   return allowed.includes('Coaching In Progress') ? { ...saved, result: { ...saved.result, ...draft.result }, actions: draft.actions || saved.actions, attachments: draft.attachments || saved.attachments } : saved;
 }
 export function mergeMonthlyCoachingSave(previous: StoredCoachingRecord | null, next: StoredCoachingRecord, role: string): StoredCoachingRecord {
   if (!previous) return next;
-  const merged = { ...previous, agentId: previous.agentId || next.agentId, seniorId: previous.seniorId || next.seniorId, seniorName: previous.seniorName || previous.coachedBy || next.seniorName, teamId: previous.teamId || previous.team || next.teamId, status: next.status, updatedAt: next.updatedAt };
-  if (role === 'Senior') return { ...merged, actualCoaching: next.actualCoaching, actions: next.actions, coachingDate: next.actualCoaching?.date || previous.coachingDate, attachments: next.attachments };
-  if (preparation.includes(previous.status)) return { ...merged, qaSummary: next.qaSummary, recommendedTopics: next.recommendedTopics, appointment: next.appointment, attachments: next.attachments, evaluatedCases: next.evaluatedCases, averageScore: next.averageScore, grade: next.grade, criticalErrors: next.criticalErrors, caseReferences: next.caseReferences, topicSnapshot: next.topicSnapshot };
+  const merged = {
+    ...previous,
+    agentId: previous.agentId || next.agentId,
+    seniorId: next.seniorId || previous.seniorId,
+    seniorName: next.seniorName || previous.seniorName,
+    coachId: next.coachId || previous.coachId,
+    coachName: next.coachName || previous.coachName,
+    coachedBy: next.coachedBy || previous.coachedBy,
+    teamId: previous.teamId || previous.team || next.teamId,
+    status: next.status,
+    updatedAt: next.updatedAt
+  };
+  if (role === 'Senior' || role === 'Assigned Coach') return { ...merged, actualCoaching: next.actualCoaching, actions: next.actions, coachingDate: next.actualCoaching?.date || previous.coachingDate, attachments: next.attachments };
+  if (preparation.includes(previous.status) || (role === 'Quality Assurance' && next.status === previous.status)) {
+    return { ...merged, qaSummary: next.qaSummary, recommendedTopics: next.recommendedTopics, appointment: next.appointment, attachments: next.attachments, evaluatedCases: next.evaluatedCases, averageScore: next.averageScore, grade: next.grade, criticalErrors: next.criticalErrors, caseReferences: next.caseReferences, topicSnapshot: next.topicSnapshot, qaReviewComment: next.qaReviewComment };
+  }
   return { ...merged, qaReviewComment: next.qaReviewComment };
 }
 export function coachingSaveError(role: string, previous: StoredCoachingRecord | null, next: StoredCoachingRecord) {
   if (next.monthKey < COACHING_WORKFLOW_START) return 'ระบบ Coaching ใหม่เริ่มกันยายน 2026 เดือนก่อนหน้าเป็นประวัติอ่านอย่างเดียว';
   if (!allowedCoachingStatuses(role, previous).includes(next.status)) return 'สถานะเปลี่ยนแล้ว หรือบัญชีนี้ไม่มีสิทธิ์ทำรายการ กรุณาโหลดข้อมูลล่าสุด';
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(next.monthKey)) return 'กรุณาเลือกเดือนและปี';
-  if (next.status === 'Waiting Senior' && (!next.qaSummary?.trim() || !next.recommendedTopics?.length || !next.seniorId)) return 'กรุณาระบุ QA Summary หัวข้อ Coaching และ Senior ผู้ดูแลก่อนส่ง';
+  if (next.status === 'Waiting Senior' && (!next.qaSummary?.trim() || !next.recommendedTopics?.length || !next.coachId)) return 'กรุณาระบุ QA Summary หัวข้อ Coaching และผู้ Coaching ก่อนส่ง';
   if (['Appointment Scheduled', 'Waiting Senior'].includes(next.status)) {
     const meeting = next.appointment;
     if (!meeting?.date || !meeting.startTime || !Number.isFinite(meeting.duration) || meeting.duration <= 0 || meeting.duration > 1440) return 'กรุณาระบุวัน เวลา และระยะเวลานัดหมายให้ครบ';
     if (meeting.method === 'MS Teams') { try { if (new URL(meeting.url).protocol !== 'https:') return 'กรุณาระบุลิงก์ประชุมแบบ https'; } catch { return 'กรุณาระบุลิงก์ประชุม MS Teams'; } }
     if (meeting.method === 'Other' && !meeting.other.trim()) return 'กรุณาระบุรายละเอียดช่องทางนัดหมาย';
   }
-  if (next.status === 'QA Reviewed' && !next.qaReviewComment?.trim()) return 'กรุณาระบุเหตุผลที่ส่งคืน Senior';
+  if (next.status === 'QA Reviewed' && !next.qaReviewComment?.trim()) return 'กรุณาระบุเหตุผลที่ส่งคืนผู้ Coaching';
   if (next.status === 'Action Plan Submitted') {
     const result = next.actualCoaching;
     if (!result?.date || !result.startTime || !result.endTime || result.endTime <= result.startTime || !result.finalNote.trim()) return 'กรุณาระบุวันที่ เวลาเริ่ม–สิ้นสุด และ Senior Final Note ให้ครบ';
@@ -102,8 +152,8 @@ export function followUpLabel(current: { percentage: number; deductedCases: numb
   return 'No Change';
 }
 
-export function coachingEvaluationScope(accounts: CoachingAccount[], user: CoachingAccount | null | undefined, evaluations: StoredEvaluation[], current = currentCoachingMonth()) {
-  const allowed = visibleCoachingAgents(accounts, user);
+export function coachingEvaluationScope(accounts: CoachingAccount[], user: CoachingAccount | null | undefined, evaluations: StoredEvaluation[], current = currentCoachingMonth(), records: StoredCoachingRecord[] = []) {
+  const allowed = visibleCoachingAgents(accounts, user, records);
   const rowsByAgent = new Map<string, StoredEvaluation[]>();
   const months = new Set<string>();
   for (const row of evaluations) {
