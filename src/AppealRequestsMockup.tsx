@@ -446,6 +446,14 @@ export default function AppealRequestsMockup({
           decision,
           reviewSummary: reviewSummary.trim(),
           reviewedAt: new Date().toISOString(),
+          // Persist reviewer metadata with the review itself. This is the
+          // authoritative source used by Dashboard / Case Detail / PDF.
+          reviewedBy:
+            currentUser?.agentName ||
+            currentUser?.displayName ||
+            currentUser?.username ||
+            "",
+          reviewedByUsername: currentUser?.username || "",
           topics: topicsForReview,
           submittedBy: selectedRequest.submittedBy,
           submittedByUsername: selectedRequest.submittedByUsername,
