@@ -370,6 +370,107 @@ function createThemeCard(options: {
   return button;
 }
 
+function showFestivalPreview(festival: Festival, opener: HTMLButtonElement) {
+  if (document.querySelector(".qa-festival-preview-overlay")) return;
+  const overlay = document.createElement("div");
+  overlay.className = "qa-festival-preview-overlay";
+  const dialog = document.createElement("section");
+  dialog.className = "qa-festival-preview-dialog";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "qa-festival-preview-title");
+  const heading = document.createElement("h2");
+  heading.id = "qa-festival-preview-title";
+  heading.textContent = festival.label + " · ตัวอย่างธีม";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "qa-festival-preview-close";
+  close.textContent = "ปิดตัวอย่าง";
+  const header = document.createElement("header");
+  header.append(heading, close);
+  const image = document.createElement("img");
+  image.src = `/festivals/${festival.id}.svg`;
+  image.alt = `ภาพบรรยากาศ ${festival.label}`;
+  const sample = document.createElement("div");
+  sample.className = "qa-festival-preview-sample";
+  sample.style.setProperty("--festival-preview-accent", festival.color);
+  const title = document.createElement("strong");
+  title.textContent = "QA Dashboard";
+  const note = document.createElement("p");
+  note.textContent = "ภาพและสีใช้ร่วมกันบนการ์ด ส่วนหัว และ Sidebar";
+  const metrics = document.createElement("div");
+  metrics.className = "qa-festival-preview-metrics";
+  for (const [label, value, status] of [["Quality Score", "92.50%", "pass"], ["KPI Passed", "18", "pass"], ["KPI Not Passed", "2", "fail"]]) {
+    const card = document.createElement("div");
+    const name = document.createElement("span");
+    name.textContent = label;
+    const number = document.createElement("strong");
+    number.textContent = value;
+    number.dataset.status = status;
+    card.append(name, number);
+    metrics.append(card);
+  }
+  const disclaimer = document.createElement("p");
+  disclaimer.className = "qa-festival-preview-note";
+  disclaimer.textContent = "ข้อมูลจำลองสำหรับดูธีม · ระบบเปิดใช้อัตโนมัติตามช่วงเทศกาล";
+  sample.append(title, note, metrics, disclaimer);
+  dialog.append(header, image, sample);
+  overlay.append(dialog);
+  const picker = document.querySelector<HTMLElement>('section[role="dialog"][aria-labelledby="qa-theme-picker-title"]');
+  const previouslyInert = picker?.inert;
+  if (picker) picker.inert = true;
+  const remove = () => {
+    overlay.remove();
+    document.removeEventListener("keydown", onKey, true);
+    if (picker) picker.inert = Boolean(previouslyInert);
+    if (opener.isConnected) opener.focus();
+  };
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Escape" || event.key === "Tab") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.key === "Escape") remove(); else close.focus();
+    }
+  };
+  close.addEventListener("click", remove);
+  overlay.addEventListener("click", (event) => { if (event.target === overlay) remove(); });
+  document.addEventListener("keydown", onKey, true);
+  document.body.append(overlay);
+  close.focus();
+}
+
+function createFestivalCard(festival: Festival, subtitle: string, selected: boolean) {
+  const card = document.createElement("div");
+  card.dataset.qaSeasonalAdded = "true";
+  card.dataset.qaThemeCollection = "festival";
+  card.dataset.qaFestivalCard = festival.id;
+  card.className = "qa-festival-collection-card";
+  card.dataset.selected = String(selected);
+  card.style.setProperty("--festival-preview-accent", festival.color);
+  const image = document.createElement("img");
+  image.src = `/festivals/${festival.id}.svg`;
+  image.alt = "";
+  image.loading = "lazy";
+  const content = document.createElement("div");
+  const title = document.createElement("strong");
+  title.textContent = festival.label;
+  const status = document.createElement("span");
+  status.className = "qa-festival-card-status";
+  status.textContent = selected ? "กำลังใช้งาน" : "เปิดตามช่วงเทศกาล";
+  const date = document.createElement("p");
+  date.textContent = subtitle.replace("Locked • ", "");
+  const preview = document.createElement("button");
+  preview.type = "button";
+  preview.dataset.qaCustomThemeCard = festival.id;
+  preview.className = "qa-festival-card-preview";
+  preview.textContent = "ดูตัวอย่าง";
+  preview.setAttribute("aria-label", `ดูตัวอย่าง ${festival.label}`);
+  preview.addEventListener("click", () => showFestivalPreview(festival, preview));
+  content.append(title, status, date, preview);
+  card.append(image, content);
+  return card;
+}
+
 let renderingPicker = false;
 function renderExtraThemeCards() {
   if (renderingPicker) return;
@@ -392,12 +493,7 @@ function renderExtraThemeCards() {
           : `Locked • เปิด ${formatThaiDate(fromEpochDay(availability.start))} – ${formatThaiDate(fromEpochDay(availability.end))}`
         : "Locked • รอปฏิทินเทศกาลปีถัดไป";
 
-      grid.append(createThemeCard({
-        theme: festival,
-        subtitle,
-        disabled: !isOpen,
-        selected: activeFestivalId === festival.id,
-      }));
+      grid.append(createFestivalCard(festival, subtitle, activeFestivalId === festival.id));
     }
 
     grid.append(createHeading("เลือกครั้งเดียว · เปลี่ยนตามวันประเทศไทยอัตโนมัติ", "weekday"));
