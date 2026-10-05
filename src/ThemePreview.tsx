@@ -22,7 +22,7 @@ export default function ThemePreview({ themeId, option }: {
     {weekday >= 0 ? <span style={{
       backgroundImage: 'url("/weekday-scenes-v3.png")', backgroundSize: 'auto 700%',
       backgroundPosition: `78% ${weekday / 6 * 100}%`,
-    }} /> : festivalColor ? <span style={{ background: `linear-gradient(135deg, #fff, ${festivalColor})`, borderLeft: `6px solid ${festivalColor}` }} />
+    }} /> : festivalColor ? <span style={{ backgroundImage: `url("/festivals/${themeId}.svg")`, backgroundSize: "cover", backgroundPosition: "75% center" }} />
       : option.patternImage ? <span style={{ backgroundImage: `url("${option.patternImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: option.swatches[2] }} />
         : <span className="qa-active-theme-swatches">{option.swatches.map((color, index) => <i key={`${color}-${index}`} style={{ backgroundColor: color, width: index === 1 ? 10 : 6 }} />)}</span>}
   </span>;
