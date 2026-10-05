@@ -39,6 +39,8 @@ type AppealRequest = {
   status: "Pending" | "Approved" | "Rejected" | "Reset";
   reviewSummary?: string;
   reviewedAt?: string;
+  reviewedBy?: string;
+  reviewedByUsername?: string;
   submittedByUsername?: string;
   topics: AppealTopic[];
 };
@@ -215,7 +217,18 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         status,
         reviewSummary: String(review?.details?.reviewSummary || ""),
         reviewedAt: firstStoredAppealDateTime(review?.details?.reviewedAt, review?.created_at),
-        submittedByUsername: String(log.details?.submittedByUsername || ""),
+        reviewedBy: String(
+          review?.details?.reviewedBy ||
+          review?.agent_name ||
+          review?.display_name ||
+          ""
+        ).trim(),
+        reviewedByUsername: String(
+          review?.details?.reviewedByUsername ||
+          review?.username ||
+          ""
+        ).trim(),
+        submittedByUsername: String(log.details?.submittedByUsername || log.username || ""),
         topics: appealedTopics,
       };
     });
