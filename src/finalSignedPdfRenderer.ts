@@ -49,6 +49,14 @@ export type FinalSignedIncentive = {
   label?: string;
 };
 
+export type FinalSignedPdfSource = {
+  document: FinalSignedDocumentData;
+  entries: FinalSignedEntry[];
+  incentive: FinalSignedIncentive;
+  documentRef: string;
+  roleSignerNames: Record<FinalSignedRole, string>;
+};
+
 const SIGNATURE_FLOW: FinalSignedRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const CASE_TARGET = 10;
 const KPI_TARGET = 85;

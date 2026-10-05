@@ -6,6 +6,7 @@
   "scripts": {
     "generate:meta": "node ./scripts/generate-build-meta.mjs",
     "test:monthly-signature-pdf": "TZ=Asia/Bangkok node ./scripts/test-monthly-signature-pdf.mjs",
+    "test:bulk-monthly-pdf": "TZ=Asia/Bangkok node ./scripts/test-bulk-monthly-pdf.mjs",
     "patch:dashboard-grade": "node ./scripts/patch-dashboard-overall-grade.mjs",
     "patch:announcement-media-history": "node ./scripts/patch-announcement-media-history.mjs",
     "patch:bulk-case-pdf": "node ./scripts/patch-bulk-case-detail-pdf.mjs",
@@ -63,7 +64,7 @@
     "test:monthly-coaching": "node ./scripts/test-monthly-coaching.mjs",
     "test:dashboard-refresh": "node ./scripts/test-dashboard-refresh.mjs",
     "test:dashboard-case-navigation": "node ./scripts/test-dashboard-case-navigation.mjs",
-    "test:release": "npm run test:draft-persistence && npm run test:draft-queue-navigation && npm run test:dashboard-refresh && npm run test:dashboard-case-navigation && npm run test:monthly-coaching && npm run test:deduction-tags && npm run test:deploy-theme-data && npm run test:knowledge && npm run test:weather && npm run test:rich-text-toolbar && npm run test:weekday-collection && npm run test:monthly-signature-pdf",
+    "test:release": "npm run test:draft-persistence && npm run test:draft-queue-navigation && npm run test:dashboard-refresh && npm run test:dashboard-case-navigation && npm run test:monthly-coaching && npm run test:deduction-tags && npm run test:deploy-theme-data && npm run test:knowledge && npm run test:weather && npm run test:rich-text-toolbar && npm run test:weekday-collection && npm run test:monthly-signature-pdf && npm run test:bulk-monthly-pdf",
     "build:app": "npm run patch:case-pdf-page-numbers && node ./scripts/patch-evaluate-workspace-edit-tabs-v85.mjs && node ./scripts/patch-process-firestore-nested-arrays-v72.mjs && vite build"
   },
   "dependencies": {

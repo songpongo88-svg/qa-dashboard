@@ -40,6 +40,27 @@ function patchRenderer() {
     "renderer type"
   );
 
+  source = replaceRequired(source,
+    `  const coachingRecord = coachingEnabled\n`,
+    `  const coachingRecord = coachingEnabled && renderMode !== "acknowledgement"\n`,
+    "coaching lookup only during summary"
+  );
+  source = replaceRequired(source,
+    `  const topicReserve = coachingEnabled ? 0 : acknowledgementH;`,
+    `  const topicReserve = renderMode === "full" && !coachingRecord ? acknowledgementH : 0;`,
+    "reserve signature space without coaching"
+  );
+  source = replaceRequired(source,
+    `  if (coachingEnabled) {\n`,
+    `  if (coachingEnabled && coachingRecord) {\n`,
+    "omit empty coaching page"
+  );
+  source = replaceRequired(source,
+    `    // Acknowledgement / Signature always starts after all Coaching content.\n    pdf.addPage("a4", "portrait");\n    y = 10;`,
+    `    // Only a full report needs an acknowledgement page here. Bulk summary\n    // mode must end on Coaching, without leaving an empty page before cases.\n    if (renderMode === "full") {\n      pdf.addPage("a4", "portrait");\n      y = 10;\n    }`,
+    "no empty acknowledgement page in summary"
+  );
+
   source = replaceRequired(
     source,
     `  drawHeader(
@@ -85,6 +106,12 @@ function patchFinalAdapter() {
   let source = fs.readFileSync(finalPath, "utf8");
   if (source.includes(`// ${marker}-adapter`)) return;
 
+  source = replaceRequired(source,
+    `type FinalSignedEntry, type FinalSignedRole }`,
+    `type FinalSignedEntry, type FinalSignedRole, type FinalSignedPdfSource }`,
+    "adapter source type import"
+  );
+
   source = replaceRequired(
     source,
     `  allMonthRows,
@@ -93,6 +120,8 @@ function patchFinalAdapter() {
     `  allMonthRows,
   appendPage,
   renderMode = "full",
+  source: providedSource,
+  onSourceLoaded,
 }: {`,
     "adapter arguments"
   );
@@ -105,9 +134,22 @@ function patchFinalAdapter() {
     `  allMonthRows: StoredSignatureDocument[];
   appendPage: boolean;
   renderMode?: "full" | "summary" | "acknowledgement";
+  source?: FinalSignedPdfSource;
+  onSourceLoaded?: (source: FinalSignedPdfSource) => void;
 }) {
-  // ${marker}-adapter`,
+  // ${marker}-adapter
+  // September introduced Coaching. Preserve the original Jan-August cover.
+  if (monthKey < "2026-09") {
+    if (renderMode === "acknowledgement") return false;
+    renderMode = "full";
+  }`,
     "adapter type"
+  );
+
+  source = replaceRequired(source,
+    `    const finalSource = await loadSignatureCenterFinalSignedSource(monthKey, agentName);\n    if (!finalSource) return false;`,
+    `    const finalSource = providedSource || await loadSignatureCenterFinalSignedSource(monthKey, agentName, [], allMonthRows);\n    if (!finalSource) return false;\n    onSourceLoaded?.(finalSource);`,
+    "reuse one source for summary, case order and signatures"
   );
 
   source = source.replaceAll(
@@ -125,6 +167,22 @@ function patchBulkOrder() {
   let source = fs.readFileSync(bulkPath, "utf8");
   if (source.includes(`// ${marker}-bulk`)) return;
 
+  source = replaceRequired(source,
+    `import { canonicalAgentIdentityKey } from "./lib/agentIdentity";`,
+    `import { canonicalAgentIdentityKey } from "./lib/agentIdentity";\nimport { orderCasesByMonthlyList } from "./lib/monthlyPdfExport";\nimport type { FinalSignedPdfSource } from "./finalSignedPdfRenderer";`,
+    "bulk source imports"
+  );
+  source = replaceRequired(source,
+    `  const { index: finalSignedIndex, allMonthRows } = await loadFinalSignedDocumentIndex(monthKey).catch((error) => {\n    console.warn("Load Final Signed PDF data failed", error);\n    return { index: new Map(), allMonthRows: [] };\n  });`,
+    `  const { index: finalSignedIndex, allMonthRows } = await loadFinalSignedDocumentIndex(monthKey);`,
+    "stop export when saved signatures cannot be read"
+  );
+  source = replaceRequired(source,
+    `  for (const group of groups) {`,
+    `  for (const group of groups) {\n    let monthlySource: FinalSignedPdfSource | undefined;`,
+    "per-agent source snapshot"
+  );
+
   source = replaceRequired(
     source,
     `      allMonthRows: referenceMonthRows,
@@ -134,12 +192,19 @@ function patchBulkOrder() {
     `      allMonthRows: referenceMonthRows,
       appendPage: hasWrittenContent,
       renderMode: "summary",
+      onSourceLoaded: (source) => { monthlySource = source; },
     });
     // ${marker}-bulk
     // Required order per Agent:
     // Monthly QA Dashboard -> Monthly Coaching -> Case Detail -> Acknowledgement / Signature.
     if (appended) hasWrittenContent = true;`,
     "summary render mode"
+  );
+
+  source = replaceRequired(source,
+    `    for (const sourceCase of groupCases) {`,
+    `    const orderedGroupCases = monthKey >= "2026-09"\n      ? orderCasesByMonthlyList(groupCases, monthlySource?.document.cases || [])\n      : groupCases;\n\n    for (const sourceCase of orderedGroupCases) {`,
+    "cases follow the displayed monthly sequence"
   );
 
   source = replaceRequired(
@@ -167,6 +232,7 @@ function patchBulkOrder() {
       allMonthRows: referenceMonthRows,
       appendPage: hasWrittenContent,
       renderMode: "acknowledgement",
+      source: monthlySource,
     });
     if (acknowledgementAppended) hasWrittenContent = true;
   }
