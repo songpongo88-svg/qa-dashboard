@@ -274,13 +274,17 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
     const snapshot = await transaction.get(reference);
     const previous = snapshot.exists() ? toRecord(snapshot.data(), snapshot.id) : null;
     const versionChanged = (previous?.updatedAt ?? null) !== expectedUpdatedAt;
-    const recoverableQaPreparation =
+    const recoverableQaSave =
       actor.role === 'Quality Assurance' &&
-      expectedUpdatedAt === null &&
       Boolean(previous) &&
-      ['Draft', 'Waiting Appointment', 'Appointment Scheduled'].includes(previous!.status) &&
-      ['Draft', 'Waiting Appointment', 'Appointment Scheduled', 'Waiting Senior'].includes(record.status);
-    if (versionChanged && !recoverableQaPreparation) {
+      (
+        (
+          ['Draft', 'Waiting Appointment', 'Appointment Scheduled'].includes(previous!.status) &&
+          ['Draft', 'Waiting Appointment', 'Appointment Scheduled', 'Waiting Senior'].includes(record.status)
+        ) ||
+        (previous!.status === 'Waiting Senior' && record.status === 'Waiting Senior')
+      );
+    if (versionChanged && !recoverableQaSave) {
       throw new Error('Coaching นี้มีข้อมูลใหม่แล้ว กรุณากดโหลดข้อมูลล่าสุดก่อนบันทึก ข้อความที่กรอกยังอยู่ในฟอร์ม');
     }
     if (previous && (!belongsToAgent(target, previous.agentId, previous.agent) || previous.monthKey !== record.monthKey)) throw new Error('ไม่สามารถเปลี่ยน Admin หรือเดือนของ Coaching เดิม');
