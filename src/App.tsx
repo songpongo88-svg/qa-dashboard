@@ -4486,8 +4486,7 @@ export default function App() {
         const leftKey = `${left.appointment?.date || ""}T${left.appointment?.startTime || "23:59"}`;
         const rightKey = `${right.appointment?.date || ""}T${right.appointment?.startTime || "23:59"}`;
         return leftKey.localeCompare(rightKey);
-      })
-      .slice(0, 3);
+      });
   }, [coachingRecords, currentUser]);
 
   const roleScopedAgentNames = useMemo(() => {
