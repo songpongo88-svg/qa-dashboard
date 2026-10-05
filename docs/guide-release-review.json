@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T06:16:00.000Z",
-  "reason": "Review showing all upcoming Coaching appointments in the floating dashboard panel; UI behavior only",
+  "reviewedAt": "2026-10-05T06:38:00.000Z",
+  "reason": "Review stale Coaching preparation recovery when QA sends to assigned coach",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -354,7 +354,7 @@
     "src/coachingCanonicalStore.ts": "91f66eade41fee2b043a24cd34c404dde3a43b5cc80871583a82ac7381c6ac9e",
     "src/coachingHistoricalStore.ts": "7a7097bc7ea733777855caf99174665d73666c2870d46f30abdc10b49bbd533f",
     "src/coachingScheduleStore.ts": "01e8db30db622950753aeff5a2753bfed43b9a7b1da6dca3afd0cc8d6f2a9243",
-    "src/coachingStore.ts": "2239123e69fa14c4cd03e95e881167a812f0af08f8ebceeb9f5db193f1c01fd3",
+    "src/coachingStore.ts": "f4aa85d34af405043c495be1831bfdab9679240a6c319f9db7c15b2ec58fea2c",
     "src/dashboardRevision.ts": "51cd5d455b3ce02ca90b371a10f5fba981ff196df057ddd03622a716401f5a50",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
