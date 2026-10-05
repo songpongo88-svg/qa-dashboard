@@ -2,7 +2,7 @@ import { collection, doc, getDocs, runTransaction, serverTimestamp, setDoc } fro
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 
-import { belongsToAgent, visibleCoachingAgents, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
+import { belongsToAgent, isAssignedCoach, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
 
 const COACHING_COLLECTION = "qa_coaching_records";
 const COACHING_CACHE_KEY = "qa-dashboard:coaching-records-cache:v1";
@@ -66,6 +66,8 @@ export type StoredCoachingRecord = {
   agentId?: string;
   seniorId?: string;
   seniorName?: string;
+  coachId?: string;
+  coachName?: string;
   teamId?: string;
   qaSummary?: string;
   recommendedTopics?: string[];
@@ -170,7 +172,7 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
     additionalNote: String(row?.additionalNote || row?.additional_note || ""),
     createdAt: String(row?.createdAt || row?.created_at || ""),
     updatedAt: String(row?.updatedAt || row?.updated_at || ""),
-    agentId: String(row?.agentId || ''), seniorId: String(row?.seniorId || ''), seniorName: String(row?.seniorName || ''), teamId: String(row?.teamId || ''),
+    agentId: String(row?.agentId || ''), seniorId: String(row?.seniorId || ''), seniorName: String(row?.seniorName || ''), coachId: String(row?.coachId || row?.coach_id || ''), coachName: String(row?.coachName || row?.coach_name || ''), teamId: String(row?.teamId || ''),
     ...(typeof row?.qaSummary === 'string' ? { qaSummary: row.qaSummary } : {}), recommendedTopics: toStringArray(row?.recommendedTopics),
     ...(row?.appointment && typeof row.appointment === 'object' ? { appointment: row.appointment } : {}),
     ...(row?.actualCoaching && typeof row.actualCoaching === 'object' ? { actualCoaching: row.actualCoaching } : {}),
@@ -263,16 +265,28 @@ export async function upsertStoredCoachingRecord(
 
 // Scoped application workflow. Database rules are managed separately by the existing app.
 export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, actor: CoachingAccount, accounts: CoachingAccount[], expectedUpdatedAt: string | null) {
-  const target = visibleCoachingAgents(accounts, actor).find(account => belongsToAgent(account, record.agentId, record.agent));
-  if (!target) throw new Error('บัญชีนี้ไม่มีสิทธิ์แก้ Coaching ของ Admin ที่เลือก');
+  const target = accounts
+    .filter(account => account.status !== 'Suspended' && (account.qaEvaluationTarget ?? ['Admin Live Chat', 'Virtual Rider'].includes(account.role)))
+    .find(account => belongsToAgent(account, record.agentId, record.agent));
+  if (!target) throw new Error('ไม่พบ Agent สำหรับ Coaching ที่เลือก');
   const reference = doc(firebaseDb, COACHING_COLLECTION, safeDocId(record.id));
   const saved = await runTransaction(firebaseDb, async transaction => {
     const snapshot = await transaction.get(reference);
     const previous = snapshot.exists() ? toRecord(snapshot.data(), snapshot.id) : null;
     if ((previous?.updatedAt ?? null) !== expectedUpdatedAt) throw new Error('Coaching นี้มีข้อมูลใหม่แล้ว กรุณากดโหลดข้อมูลล่าสุดก่อนบันทึก ข้อความที่กรอกยังอยู่ในฟอร์ม');
     if (previous && (!belongsToAgent(target, previous.agentId, previous.agent) || previous.monthKey !== record.monthKey)) throw new Error('ไม่สามารถเปลี่ยน Admin หรือเดือนของ Coaching เดิม');
-    const next = mergeMonthlyCoachingSave(previous, record, actor.role);
-    const error = coachingSaveError(actor.role, previous, next); if (error) throw new Error(error);
+
+    const workflowRole = actor.role === 'Quality Assurance'
+      ? 'Quality Assurance'
+      : isAssignedCoach(previous || record, actor)
+        ? 'Assigned Coach'
+        : actor.role;
+    if (workflowRole !== 'Quality Assurance' && workflowRole !== 'Assigned Coach') {
+      throw new Error('บัญชีนี้ดูนัดหมายได้ แต่ไม่มีสิทธิ์แก้ผล Coaching');
+    }
+
+    const next = mergeMonthlyCoachingSave(previous, record, workflowRole);
+    const error = coachingSaveError(workflowRole, previous, next); if (error) throw new Error(error);
     const normalized = JSON.parse(JSON.stringify({ ...next, id: reference.id, updatedAt: new Date().toISOString() })) as StoredCoachingRecord;
     transaction.set(reference, { ...normalized, updatedAtServer: serverTimestamp() }, { merge: true });
     return normalized;
