@@ -71,22 +71,9 @@ function patchRenderer() {
 
   source = replaceRequired(
     source,
-    `  pdf.text(
-    \`Document Ref. ${pdfDocumentRef} | Generated: ${formatDateTime(generatedAt)} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}\`,
-    left + tableW,
-    pageH - 5.4,
-    { align: "right" }
-  );
-
-  const safeAgentFileName =`,
-    `  pdf.text(
-    \`Document Ref. ${pdfDocumentRef} | Generated: ${formatDateTime(generatedAt)} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}\`,
-    left + tableW,
-    pageH - 5.4,
-    { align: "right" }
-  );
-  }
-
+    `  const safeAgentFileName =`,
+    `  }
+  
   const safeAgentFileName =`,
     "acknowledgement end"
   );
