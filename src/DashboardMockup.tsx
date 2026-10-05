@@ -546,11 +546,15 @@ function buildAppealOutcomeMap(
           request.agent ||
           ""
       ).trim(),
-      reviewedBy: String(
-        reviewedEvent?.agent_name ||
+      reviewedBy: canonicalizeAgentName(
+        reviewedEvent?.details?.reviewedBy ||
+          reviewedEvent?.details?.reviewerName ||
+          reviewedEvent?.details?.qaName ||
+          reviewedEvent?.agent_name ||
           reviewedEvent?.display_name ||
+          reviewedEvent?.username ||
           ""
-      ).trim(),
+      ),
       requestId: String(request.requestId || "").trim(),
       reviewedTopics,
     });
