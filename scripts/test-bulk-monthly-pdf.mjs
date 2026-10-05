@@ -101,7 +101,7 @@ try {
     assert.equal(await readFile(resolve(temporary, file), "utf8"), first, `patch is idempotent: ${file}`);
   }
   const entry = resolve(temporary, "export-entry.ts");
-  await writeFile(entry, `export { generateBulkCaseDetailPdf } from "./src/bulkCaseDetailPdf";\nexport { renderFinalSignedPdf } from "./src/finalSignedPdfRenderer";`);
+  await writeFile(entry, `export { generateBulkCaseDetailPdf } from "./src/bulkCaseDetailPdf";\nexport { renderFinalSignedPdf } from "./src/finalSignedPdfRenderer";\nexport { loadSignatureCenterFinalSignedSource } from "./src/SignatureCenterMockup";`);
   const bundle = resolve(temporary, "export.mjs");
   await build({ entryPoints: [entry], outfile: bundle, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", define: { "window.setTimeout": "globalThis.setTimeout" }, plugins: [{
     name: "read-only-pdf-fixtures",
@@ -137,7 +137,7 @@ try {
       const fixture = globalThis.__monthlyPdfFixture = { ...scenario, evaluations, signatureReads: 0, pdfs: [] };
       // A fresh renderer import prevents a different fixture's Coaching cache
       // from being reused. Production still caches within a single export.
-      const { generateBulkCaseDetailPdf } = await import(`${pathToFileURL(bundle).href}?fixture=${scenario.label}`);
+      const { generateBulkCaseDetailPdf, renderFinalSignedPdf, loadSignatureCenterFinalSignedSource } = await import(`${pathToFileURL(bundle).href}?fixture=${scenario.label}`);
       const input = { cases: [...evaluations].reverse(), monthKey, weekLabel: scenario.weekLabel || "" };
       if (scenario.signatureError) {
         await assert.rejects(generateBulkCaseDetailPdf(input), /Signature read unavailable/);
@@ -163,11 +163,12 @@ try {
         assert.equal(monthly.page, 1);
         assert.equal(acknowledgements.length, 1, "exactly one acknowledgement per Agent");
         const acknowledgement = acknowledgements[0];
+        assert.equal(acknowledgement.page, 1, "signatures stay on the original monthly dashboard page");
+        const topicHeading = text.find((call) => call.value === "Monthly Topic Performance");
+        assert.ok(acknowledgement.y > topicHeading.y, "acknowledgement follows the monthly topic table");
         if (monthKey < "2026-09") {
-          assert.equal(acknowledgement.page, 1, "Jan-Aug signature stays on its original monthly cover");
           assert.ok(!text.some((call) => call.value.startsWith("Monthly Coaching")));
         } else {
-          assert.equal(acknowledgement.page, pdf.getNumberOfPages(), "acknowledgement is the final page");
           const coachingPages = text.filter((call) => call.value.startsWith("Monthly Coaching"));
           assert.equal(coachingPages.length > 0, !!scenario.coaching.length, "no empty coaching page");
           if (coachingPages.length) {
@@ -180,6 +181,7 @@ try {
         const panels = pdf.fixtureCalls.filter((call) => call.method === "rect" && call.page === acknowledgement.page && call.fill.toLowerCase() === "#7030a0" && Math.abs(call.values[2] - 45) < 0.02);
         assert.equal(panels.length, 4, "all four signature blocks retained");
         assert.equal(new Set(panels.map((call) => call.values[1])).size, 1, "one horizontal signature row");
+        assert.ok(panels.every((call) => call.values[1] + 23.2 <= 289), "signature row fits above the footer");
         const images = pdf.fixtureCalls.filter((call) => call.method === "addImage" && call.page === acknowledgement.page);
         assert.equal(images.length, scenario.expectedSigned, "stored signature images retained; pending roles stay unsigned");
         assert.ok(images.every((call) => call.values[0] === pixel), "original signature bytes preserved");
@@ -191,6 +193,30 @@ try {
           assert.ok(text.some((call) => call.page === acknowledgement.page && call.x === center && call.value === expectedName), `signer retained in ${role} column`);
         }
         assert.ok(text.some((call) => call.value.includes(`Signed: ${scenario.expectedSigned}/4`)), "footer shows the actual signature count");
+
+        // The Signature Center button calls the same renderer directly. Verify
+        // that path independently, including Coaching continuation pages.
+        const source = await loadSignatureCenterFinalSignedSource(monthKey, names.Agent, [], scenario.signatures);
+        assert.ok(source, "the monthly source is available");
+        const monthlyResult = await renderFinalSignedPdf({ ...source, generatedAt: "2026-10-05T08:00:00Z" });
+        const monthlyPdf = monthlyResult.pdf;
+        const monthlyText = textCalls(monthlyPdf);
+        const monthlyAcknowledgements = monthlyText.filter((call) => call.value === "Acknowledgement / Signature");
+        assert.equal(monthlyAcknowledgements.length, 1);
+        assert.equal(monthlyAcknowledgements[0].page, 1, "standalone monthly signatures stay on page one");
+        const monthlyCoaching = monthlyText.filter((call) => call.value.startsWith("Monthly Coaching"));
+        assert.equal(monthlyCoaching.length > 0, monthKey >= "2026-09" && !!scenario.coaching.length);
+        if (monthlyCoaching.length) assert.equal(monthlyCoaching[0].page, 2);
+        assert.equal(monthlyPdf.getNumberOfPages(), 1 + monthlyCoaching.length, "no separate acknowledgement page in the monthly PDF");
+        const monthlyPanels = monthlyPdf.fixtureCalls.filter((call) => call.method === "rect" && call.page === 1 && call.fill.toLowerCase() === "#7030a0" && Math.abs(call.values[2] - 45) < 0.02);
+        assert.deepEqual(monthlyPanels.map((call) => call.values), panels.map((call) => call.values), "monthly and bulk use the original identical signature geometry");
+        const monthlyImages = monthlyPdf.fixtureCalls.filter((call) => call.method === "addImage");
+        assert.deepEqual(monthlyImages.map((call) => call.values), images.map((call) => call.values), "monthly and bulk retain identical signature images");
+        assert.equal(fixture.signatureReads, 1, "standalone source reuses the saved-signature snapshot");
+        if (output) {
+          await mkdir(resolve(output), { recursive: true });
+          await writeFile(resolve(output, `monthly-${scenario.label}.pdf`), Buffer.from(monthlyPdf.output("arraybuffer")));
+        }
       }
       if (output) {
         await mkdir(resolve(output), { recursive: true });
@@ -217,8 +243,10 @@ try {
     assert.equal(fixture.signatureReads, 1);
     assert.equal(covers.length, 2);
     assert.equal(acknowledgements.length, 2);
-    assert.equal(acknowledgements[0].page + 1, covers[1].page, "each Agent's signature ends before the next Agent's cover");
-    assert.equal(acknowledgements[1].page, fixture.pdfs[0].getNumberOfPages());
+    assert.deepEqual(acknowledgements.map((call) => call.page), covers.map((call) => call.page), "each Agent's signatures remain on their own monthly dashboard");
+    const casePages = text.filter((call) => call.value === "Case Detail").map((call) => call.page);
+    assert.equal(casePages.filter((page) => page < covers[1].page).length, 10, "the first Agent's cases finish before the next cover");
+    assert.equal(casePages.filter((page) => page > covers[1].page).length, 10, "the second Agent's cases follow their cover and Coaching");
     assert.ok(text.some((call) => call.page === acknowledgements[0].page && call.value === secondAgent));
     assert.ok(text.some((call) => call.page === acknowledgements[1].page && call.value === names.Agent));
     assert.equal(fixture.pdfs[0].fixtureCalls.filter((call) => call.method === "addImage").length, 8);
