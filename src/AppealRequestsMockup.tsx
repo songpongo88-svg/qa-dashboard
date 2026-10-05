@@ -454,6 +454,7 @@ export default function AppealRequestsMockup({
             currentUser?.username ||
             "",
           reviewedByUsername: currentUser?.username || "",
+          // appeal-reviewer-loading-fix-v64-requests
           topics: topicsForReview,
           submittedBy: selectedRequest.submittedBy,
           submittedByUsername: selectedRequest.submittedByUsername,
