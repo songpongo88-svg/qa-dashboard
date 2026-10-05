@@ -161,7 +161,16 @@ export function coachingEvaluationScope(accounts: CoachingAccount[], user: Coach
     if (row.isTestCase || row.evaluationType === 'no_case_month' || !Number.isFinite(row.finalScore) || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month > current) continue;
     const matches = allowed.filter(a => belongsToAgent(a, row.targetUsername, row.agentName));
     if (matches.length !== 1) continue;
-    const id = matches[0].username;
+    const target = matches[0];
+    if (user?.role !== 'Quality Assurance') {
+      const visibleRecord = records.some(record =>
+        record.monthKey === month &&
+        belongsToAgent(target, record.agentId, record.agent) &&
+        recordVisibleToUser(record, user)
+      );
+      if (!visibleRecord) continue;
+    }
+    const id = target.username;
     rowsByAgent.set(id, [...(rowsByAgent.get(id) || []), row]);
     months.add(month);
   }
