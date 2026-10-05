@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T05:45:00.000Z",
-  "reason": "Review floating Coaching appointment launcher and restored floating Team Chat control; guide workflow unchanged",
+  "reviewedAt": "2026-10-05T05:53:00.000Z",
+  "reason": "Review Coaching assignment creation, validation messaging, and assigned-coach Inbox task",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -301,7 +301,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "0595daff09fe20ce3b0928667061183c62311e301185eef8d763015a8df19d4f",
+    "src/App.tsx": "16aa7ea15a122a571dd70834886f691521e4e7551628e25866535b98bee23de7",
     "src/AppealEvidence.tsx": "3b34a743345fb2a95b5a3770d2c1fba3fb6771a99e9cd1b413e30514d0581b1d",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
@@ -315,7 +315,7 @@
     "src/DashboardMockup.tsx": "8305cfb89f5d31a52e4daa4fb5f1cc5cfebfb9eddf5e2821c13d568004f4f9a1",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
-    "src/MonthlyCoachingWorkspace.tsx": "cfbb63a8190c330860354af8f9c0d4b5479131b623a8d989b70176497eee2df1",
+    "src/MonthlyCoachingWorkspace.tsx": "788583b6c229a28ef44ababdf61c42a389b8059ecbebf4b5ef878914adccc891",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
     "src/PageHero.tsx": "6e5621714c19abd9580783ff982edea6bd897bdc5342ae30303c24639f4e12e9",
     "src/PreTestMockup.tsx": "9608f60c5b579a3929931d20a366e5462013a452d61c7bc4e570e73afc2baeef",
