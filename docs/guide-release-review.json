@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T08:35:00.000Z",
-  "reason": "Reviewed Appeal reviewer attribution fix: actual review event only, no hardcoded QA fallback; no guide flow changes",
+  "reviewedAt": "2026-10-05T09:05:00.000Z",
+  "reason": "Reviewed monthly bulk PDF page order: Dashboard, Coaching, Case Details, then existing Acknowledgement/Signature; no guide flow changes",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -94,7 +94,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "ba321b21d7709f629b2994d02549d05d4fa573074a25cc57d0b28c3a07c7299a",
+    "package.json": "83fba8f0e3f220d47acf99c4c9bb5c0311b51db2c9b4f6115c47430646e37bcf",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -431,6 +431,7 @@
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
     "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
-    "src/evaluationTagStore.ts": "810829fe9cbe45c405578a95147d7c323d83193fb4f2a9470572c5571e138bc3"
+    "src/evaluationTagStore.ts": "810829fe9cbe45c405578a95147d7c323d83193fb4f2a9470572c5571e138bc3",
+    "scripts/patch-bulk-case-pdf-section-order-v14.mjs": "6ff2472fd668972de1cdb25eb9287f155a05341d947dfced4121a85fb473dad2"
   }
 }
