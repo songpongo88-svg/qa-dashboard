@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T09:12:00.000Z",
-  "reason": "Reviewed monthly bulk PDF build order patch: Dashboard, Coaching, Case Details, then unchanged Acknowledgement/Signature",
+  "reviewedAt": "2026-10-05T09:18:00.000Z",
+  "reason": "Reviewed corrected monthly bulk PDF section-order patch; Acknowledgement layout unchanged and moved after Case Detail pages",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -432,6 +432,6 @@
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
     "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
     "src/evaluationTagStore.ts": "810829fe9cbe45c405578a95147d7c323d83193fb4f2a9470572c5571e138bc3",
-    "scripts/patch-bulk-case-pdf-section-order-v14.mjs": "6ff2472fd668972de1cdb25eb9287f155a05341d947dfced4121a85fb473dad2"
+    "scripts/patch-bulk-case-pdf-section-order-v14.mjs": "1f690c8ee54c239ba7b1fd8d848995360b7ebf9c51b2acfcf090214b7beadb7f"
   }
 }
