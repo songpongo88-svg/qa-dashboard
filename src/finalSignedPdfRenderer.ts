@@ -698,15 +698,23 @@ export async function renderFinalSignedPdf({
       drawPlainHeading("นัดหมาย Coaching");
       if (meeting) {
         drawPlainField("วันที่นัดหมาย", formatCoachingDate(meeting.date) || "-");
-        drawPlainField("เวลาเริ่ม", meeting.startTime || "-");
-        drawPlainField("ระยะเวลา", meeting.duration ? `${meeting.duration} นาที` : "-");
-        drawPlainField("เวลาสิ้นสุด", meeting.startTime && meeting.duration ? (() => {
-          const [h, m] = String(meeting.startTime).split(":").map(Number);
-          if (!Number.isFinite(h) || !Number.isFinite(m)) return "";
-          const total = h * 60 + m + Number(meeting.duration);
-          return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-        })() : "");
-        drawPlainField("ช่องทาง", meeting.method || "-");
+        const appointmentTimeSummary = (() => {
+          const start = String(meeting.startTime || "").trim();
+          const duration = Number(meeting.duration || 0);
+          let end = "";
+          if (start && Number.isFinite(duration) && duration > 0) {
+            const [h, m] = start.split(":").map(Number);
+            if (Number.isFinite(h) && Number.isFinite(m)) {
+              const total = h * 60 + m + duration;
+              end = `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+            }
+          }
+          const timeRange = start && end ? `${start}–${end}` : start || end || "-";
+          const durationText = duration > 0 ? ` (${duration} นาที)` : "";
+          const methodText = String(meeting.method || "").trim();
+          return `${timeRange}${durationText}${methodText ? ` ${methodText}` : ""}`;
+        })();
+        drawPlainField("เวลา / ช่องทาง", appointmentTimeSummary);
         drawPlainField("ผู้ Coaching", coachName || "-");
         if (meeting.method === "MS Teams") drawPlainField("MS Teams", meeting.url);
         if (meeting.method === "Other") drawPlainField("รายละเอียดช่องทาง", meeting.other);
