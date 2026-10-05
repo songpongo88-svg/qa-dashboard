@@ -6401,7 +6401,6 @@ export default function App() {
         setSelectedAgentGlobal(initialAgentScope);
         setSelectedMonthGlobal(getCurrentMonthKey());
         setSelectedWeekGlobal("all");
-        void loadRoleOverrides();
 
         if (profilePasswordKind === "temporary") {
           resetChangePasswordState();
@@ -6503,7 +6502,6 @@ export default function App() {
     setSelectedAgentGlobal(initialAgentScope);
     setSelectedMonthGlobal(getCurrentMonthKey());
     setSelectedWeekGlobal("all");
-    void loadRoleOverrides();
 
     if ((firebaseProfilePasswordRecord || centralPasswordRecord)?.kind === "temporary") {
       resetChangePasswordState();
@@ -7037,6 +7035,22 @@ export default function App() {
           </div>
         </div>
       </>
+    );
+  }
+
+  // access-rules-ready-gate-v1
+  // Do not render Dashboard/navigation with fallback permissions while the
+  // persistent role rules are still resolving. This prevents Admin menus and
+  // scoped data from flashing, disappearing, or being recalculated twice.
+  if (!accessRulesReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4">
+        <div className="rounded-[28px] border border-violet-100 bg-white px-8 py-7 text-center shadow-[0_20px_60px_rgba(88,28,135,0.12)]">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-violet-100 border-t-violet-700" />
+          <div className="mt-4 text-base font-bold text-slate-900">Loading access rules</div>
+          <div className="mt-1 text-sm text-slate-500">กำลังตรวจสอบ Role และสิทธิ์ก่อนแสดงข้อมูล</div>
+        </div>
+      </div>
     );
   }
 
