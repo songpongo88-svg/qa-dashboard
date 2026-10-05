@@ -15,8 +15,8 @@ import SignatureCenterMockup from "./SignatureCenterMockup";
 import PresentationMockup from "./PresentationMockup";
 import CoachingMockup from "./CoachingMockup";
 import MonthlyCoachingWorkspace from "./MonthlyCoachingWorkspace";
-import { fetchStoredCoachingRecords } from "./coachingStore";
-import { recordVisibleToUser } from "./monthlyCoachingModel";
+import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachingStore";
+import { coachingEndTime, recordVisibleToUser } from "./monthlyCoachingModel";
 import AnnouncementHub from "./AnnouncementHub";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
@@ -3593,6 +3593,7 @@ export default function App() {
   const [storedUserCandidate] = useState<CurrentUser | null>(() => readStoredUser());
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [coachingAssignmentAllowed, setCoachingAssignmentAllowed] = useState(false);
+  const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
   const [sessionValidationPending, setSessionValidationPending] = useState(
     () => Boolean(storedUserCandidate)
   );
@@ -4417,6 +4418,7 @@ export default function App() {
       try {
         const rows = await fetchStoredCoachingRecords();
         if (!active) return;
+        setCoachingRecords(rows);
         setCoachingAssignmentAllowed(
           rows.some((record) =>
             recordVisibleToUser(record, {
@@ -4429,7 +4431,10 @@ export default function App() {
           )
         );
       } catch {
-        if (active) setCoachingAssignmentAllowed(false);
+        if (active) {
+          setCoachingAssignmentAllowed(false);
+          setCoachingRecords([]);
+        }
       }
     };
 
@@ -4444,6 +4449,39 @@ export default function App() {
       if (timer) window.clearInterval(timer);
     };
   }, [currentUser?.username, currentUser?.displayName, currentUser?.agentName, currentUser?.role]);
+
+  const dashboardCoachingAppointments = useMemo(() => {
+    if (!currentUser) return [];
+
+    const actor = {
+      username: currentUser.username,
+      displayName: currentUser.displayName,
+      agentName: currentUser.agentName,
+      role: currentUser.role,
+      status: "Active" as const,
+    };
+
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Bangkok",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    return coachingRecords
+      .filter((record) => recordVisibleToUser(record, actor))
+      .filter((record) => {
+        const date = String(record.appointment?.date || "").trim();
+        if (!date || date < today) return false;
+        return !["Closed", "No Coaching Required"].includes(record.status);
+      })
+      .sort((left, right) => {
+        const leftKey = `${left.appointment?.date || ""}T${left.appointment?.startTime || "23:59"}`;
+        const rightKey = `${right.appointment?.date || ""}T${right.appointment?.startTime || "23:59"}`;
+        return leftKey.localeCompare(rightKey);
+      })
+      .slice(0, 3);
+  }, [coachingRecords, currentUser]);
 
   const roleScopedAgentNames = useMemo(() => {
     if (!currentUser || roleHasAllAgentScope(currentUser.role)) return [];
@@ -4508,7 +4546,11 @@ export default function App() {
   const currentUsernameKey = currentUser?.username?.trim().toLowerCase() || "";
   const currentDisplayNameKey = currentUser?.displayName?.trim().toLowerCase() || "";
 
-  const coachingAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewCoaching") || coachingAssignmentAllowed : false;
+  const coachingAllowed = currentUser
+    ? currentUser.role === "Admin Live Chat" ||
+      hasRolePermission(currentUser, rolePermissions, "viewCoaching") ||
+      coachingAssignmentAllowed
+    : false;
   const usageLogAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewUsageLog") : false;
   const createEvaluationAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "createEvaluation") : false;
   const takePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "takePreTest") : false;
@@ -7458,7 +7500,59 @@ export default function App() {
           ) : activeTab === "terms-management" && termsManageAllowed ? (
             <TermsWorkspace user={currentUser} management canManage={termsManageAllowed} />
           ) : activeTab === "dashboard" ? (
-            <DashboardMockup
+            <>
+              {dashboardSubTab === "overview" && dashboardCoachingAppointments.length ? (
+                <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
+                  <section className="overflow-hidden rounded-[22px] border border-violet-200 bg-white shadow-[0_12px_32px_rgba(88,28,135,0.08)]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-violet-100 px-4 py-3">
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">Coaching Appointment</div>
+                        <div className="mt-0.5 text-sm font-black text-slate-900">นัดหมาย Coaching ที่เกี่ยวข้องกับคุณ</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => activateWorkspaceTab("coaching")}
+                        className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-800 transition hover:bg-violet-100"
+                      >
+                        ดู Coaching
+                      </button>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {dashboardCoachingAppointments.map((record) => {
+                        const meeting = record.appointment!;
+                        const endTime = coachingEndTime(meeting.startTime, Number(meeting.duration || 0));
+                        const coach = record.coachName || record.coachedBy || record.seniorName || "-";
+                        const dateLabel = /^\d{4}-\d{2}-\d{2}$/.test(meeting.date || "")
+                          ? meeting.date.split("-").reverse().join("/")
+                          : meeting.date || "-";
+                        return (
+                          <div key={record.id} className="grid gap-2 px-4 py-3 text-xs sm:grid-cols-[120px_150px_minmax(0,1fr)_170px] sm:items-center">
+                            <div>
+                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">วันที่</div>
+                              <div className="mt-0.5 font-black text-slate-800">{dateLabel}</div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">เวลา</div>
+                              <div className="mt-0.5 font-black text-slate-800">
+                                {meeting.startTime || "-"}{endTime ? `–${endTime}` : ""}
+                              </div>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">ผู้ Coaching</div>
+                              <div className="mt-0.5 truncate font-black text-slate-800">{coach}</div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">ช่องทาง</div>
+                              <div className="mt-0.5 truncate font-black text-slate-800">{meeting.method || "-"}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </div>
+              ) : null}
+              <DashboardMockup
               currentUser={currentUser}
               caseAgentDirectory={caseAgentDirectory}
               dashboardSubTab={dashboardSubTab}
@@ -7573,6 +7667,7 @@ export default function App() {
                 });
               }}
             />
+            </>
           ) : activeTab === "appeal" ? (
           <AppealMockup
             currentUser={currentUser}
@@ -7684,7 +7779,7 @@ export default function App() {
             dataRefreshKey={qaDataRefreshKey}
           />
         ) : activeTab === "coaching" && coachingAllowed ? (
-          currentUser?.role === 'Quality Assurance' || currentUser?.role === 'Senior' || coachingAssignmentAllowed ? <MonthlyCoachingWorkspace key={currentUser.username} currentUser={currentUser} accounts={effectiveUserAccounts.map(account => ({ ...account, qaEvaluationTarget: Boolean((rolePermissions[account.role] || getDefaultRolePermissions(account.role)).qaEvaluationTarget) }))} onOpenCase={(caseId, agentName) => {
+          currentUser?.role === 'Quality Assurance' || currentUser?.role === 'Senior' || currentUser?.role === 'Admin Live Chat' || coachingAssignmentAllowed ? <MonthlyCoachingWorkspace key={currentUser.username} currentUser={currentUser} accounts={effectiveUserAccounts.map(account => ({ ...account, qaEvaluationTarget: Boolean((rolePermissions[account.role] || getDefaultRolePermissions(account.role)).qaEvaluationTarget) }))} onOpenCase={(caseId, agentName) => {
             setSelectedDashboardCaseId(caseId);
             setDashboardSubTab("case-detail");
             navigateToTab("dashboard", { params: { subTab: "case-detail", caseId, agent: agentName } });
