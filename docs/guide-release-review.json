@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T07:01:04.037Z",
-  "reason": "Review QA Coaching send retry against stale preparation state; no user-guide content change",
+  "reviewedAt": "2026-10-05T07:34:00.000Z",
+  "reason": "Review Dashboard defensive topic-array guard for transient cached case data; no guide flow changes",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -312,7 +312,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "8d5c99a67a237058ffcf102c312c8cdc3d0778e8ac96ff89b4a53052c558ea05",
-    "src/DashboardMockup.tsx": "8305cfb89f5d31a52e4daa4fb5f1cc5cfebfb9eddf5e2821c13d568004f4f9a1",
+    "src/DashboardMockup.tsx": "3e2578160cf8e73b30caf8b5465d2c70d881a2bf0bb50ef85ca0cb68741f0ddf",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "1c8fa095f7b379f4c693a45084fe89ad56dc5b869085b4dcf1bb9deb1b3c7695",
