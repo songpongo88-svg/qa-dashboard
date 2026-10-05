@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T03:42:00.000Z",
-  "reason": "Review Admin Live Chat self-scoped Agent synchronization fix; guide steps remain unchanged",
+  "reviewedAt": "2026-10-05T04:18:00.000Z",
+  "reason": "Review manual QA scoring with user-managed issue tags and duplicate-name protection; guide workflow remains unchanged",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -311,7 +311,7 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
-    "src/CreateEvaluationMockup.tsx": "1d4ad0799b31a77557e4c3725f7c365f1fbffd62390c9e74e7c7c44d8b700a9a",
+    "src/CreateEvaluationMockup.tsx": "8d5c99a67a237058ffcf102c312c8cdc3d0778e8ac96ff89b4a53052c558ea05",
     "src/DashboardMockup.tsx": "8305cfb89f5d31a52e4daa4fb5f1cc5cfebfb9eddf5e2821c13d568004f4f9a1",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
@@ -358,7 +358,7 @@
     "src/dashboardRevision.ts": "51cd5d455b3ce02ca90b371a10f5fba981ff196df057ddd03622a716401f5a50",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
-    "src/evaluationStore.ts": "4f222fbd97d4df55cdf03875822fc033dcb7a6d07609cbad845881d12f35745e",
+    "src/evaluationStore.ts": "041707bf13f426f63f1b8fc43cc2c2cc433b7b1e5d0053c9516fec5d278a87ee",
     "src/evidencePreviewPdf.ts": "53a344d00db402295f7f3ae8defa99443e6f00e7973fd264396cfd9154c88f8d",
     "src/finalSignedCasePdf.ts": "f99fd97a35ab570d3091b65b5c5b842cbfe87c1d6f00e70c9eacec67fa8ed342",
     "src/finalSignedPdfRenderer.ts": "629a2d503f58275ffc778542d3716ea57fae3831ce4e8c560cabf290906aca6d",
@@ -430,6 +430,7 @@
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
-    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735"
+    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
+    "src/evaluationTagStore.ts": "810829fe9cbe45c405578a95147d7c323d83193fb4f2a9470572c5571e138bc3"
   }
 }
