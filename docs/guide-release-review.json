@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T07:52:00.000Z",
-  "reason": "Reviewed appeal QA reviewer metadata persistence and PDF display fix; no user guide flow changes",
+  "reviewedAt": "2026-10-05T07:58:00.000Z",
+  "reason": "Reviewed finalized appeal QA reviewer persistence and build idempotency; no user guide flow changes",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -305,7 +305,7 @@
     "src/AppealEvidence.tsx": "3b34a743345fb2a95b5a3770d2c1fba3fb6771a99e9cd1b413e30514d0581b1d",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
-    "src/AppealRequestsMockup.tsx": "5fa1b5419831e8630da528d4faca805e6a18c4344331b5b9c8c1bda8c5b4ea02",
+    "src/AppealRequestsMockup.tsx": "78021b72fdb7faaa1dd78ec0f94abac2961759ebf3fdaffb05b71d8e7abab256",
     "src/AutoDeployRefresh.tsx": "1e7cb76eb6f7f5dc368f109fbae6a02afd67b3782e07f86c3b9a2e97f259ffab",
     "src/CallHistoryMockup.tsx": "0912eed518dc4eb804602674110484e2f043498d05f0003542d935f201bf8046",
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
@@ -343,7 +343,7 @@
     "src/WeekdayScene.tsx": "ced6fa5a2a7e48c5e98648c8b5bb70cce47db1f0b8045e1dbe355ad8f523f7e9",
     "src/announcementStore.ts": "941a9ab265796b172ebffb0e1b3d420c4da8142b8df1f212bf205c987a459238",
     "src/announcementTicker.css": "a50df53eca311d493d8c4214748e77dc3f2d094ff5f798334b34921069af55e8",
-    "src/appealStore.ts": "267c0c59b855444abe6d62b23d64aa9907adabc596b805ebbcfe9511d9d21bec",
+    "src/appealStore.ts": "c84797209a8fe9ba83afc85ce552558e1a8536067fa96b22b08cfc03f4115c7c",
     "src/appealSummaryPdf.ts": "3b8d76e436c80d61319802f88be327c6110a4d83748a6295e4abeda713b9037c",
     "src/bulkCaseDetailPdf.ts": "041a9f3b433f17a94b7e2babf8c9843e4f0300a635bce6a4488d6029036b0750",
     "src/cartoonTheme.css": "d6748736b56145608cbb7caa1e78d765a4687f631c42ef956b5ea777c0e08385",
