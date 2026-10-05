@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T05:31:00.000Z",
-  "reason": "Review Admin Coaching tab access and compact Dashboard Coaching appointment panel; no guide flow changes required",
+  "reviewedAt": "2026-10-05T05:39:00.000Z",
+  "reason": "Review compact Coaching appointment time/channel line in Monthly PDF",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -361,7 +361,7 @@
     "src/evaluationStore.ts": "041707bf13f426f63f1b8fc43cc2c2cc433b7b1e5d0053c9516fec5d278a87ee",
     "src/evidencePreviewPdf.ts": "53a344d00db402295f7f3ae8defa99443e6f00e7973fd264396cfd9154c88f8d",
     "src/finalSignedCasePdf.ts": "f99fd97a35ab570d3091b65b5c5b842cbfe87c1d6f00e70c9eacec67fa8ed342",
-    "src/finalSignedPdfRenderer.ts": "e99fbf3bf380ec6dd04e7caed78d703ccd8c08f897b944d1c96fdf9cf9fd0773",
+    "src/finalSignedPdfRenderer.ts": "ea1fc935df2ff7ad9f98c366abacd066555438c54f15f4c1d06f355b3f0ead6c",
     "src/firebaseClient.ts": "860d60f9e7ae95dabc407bc6fefddfce1409edf493d01d6e9194287d7c27bd75",
     "src/gsmMsWav.ts": "6d0009c1ccdf712d2f22ea980e278b0970c67db71e2064703987e7ca582e5b46",
     "src/index.css": "bef1080a551bb63a4444810010d29f54a41e48be11a7af80dbc97c297b79b0ba",
