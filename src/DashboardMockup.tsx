@@ -6088,7 +6088,7 @@ export default function DashboardMockup({
                 "QA",
                 "Reviewer Name",
               ], "") ?? "").trim();
-              return reviewer || "Songpon Phothong";
+              return reviewer;
             })(),
             reviewSummary: String(getFirstAvailableHeaderValue(appealHelper, row, [
               "Appeal Review Summary",
