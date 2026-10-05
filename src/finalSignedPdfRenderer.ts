@@ -610,9 +610,7 @@ export async function renderFinalSignedPdf({
 
   if (coachingEnabled) {
     const coachingSubtitle = `${selectedDocument.agentName} • ${selectedDocument.monthLabel}`;
-    const coachingSoft: [number, number, number] = [252, 248, 255];
-    const coachingLabel: [number, number, number] = [245, 240, 250];
-    const coachingLineHeight = 4.1;
+    const coachingLineHeight = 4.2;
 
     const startCoachingPage = (continued = false) => {
       pdf.addPage("a4", "portrait");
@@ -621,11 +619,6 @@ export async function renderFinalSignedPdf({
         continued ? "Monthly Coaching (continued)" : "Monthly Coaching",
         coachingSubtitle
       );
-    };
-
-    const ensureCoachingSpace = (height: number) => {
-      if (y + height <= bottom - 4) return;
-      startCoachingPage(true);
     };
 
     const cleanCoachingText = (value: unknown) =>
@@ -641,208 +634,114 @@ export async function renderFinalSignedPdf({
       return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
     };
 
-    const drawCoachingTextBlock = (label: string, value: unknown) => {
+    const ensureCoachingSpace = (height: number) => {
+      if (y + height <= bottom - 5) return;
+      startCoachingPage(true);
+    };
+
+    const drawPlainHeading = (title: string) => {
+      if (!cleanCoachingText(title)) return;
+      ensureCoachingSpace(9);
+      setTemplateFont(10.3, true, purple);
+      pdf.text(title, left, y + 4.6);
+      pdf.setDrawColor(purple[0], purple[1], purple[2]);
+      pdf.setLineWidth(0.35);
+      pdf.line(left, y + 6.1, left + tableW, y + 6.1);
+      y += 9;
+    };
+
+    const drawPlainField = (label: string, value: unknown) => {
       const text = cleanCoachingText(value);
       if (!text) return;
-      let lines = (() => {
-        setTemplateFont(8.2, false, black);
-        return pdf.splitTextToSize(text, tableW - 6) as string[];
-      })();
+      setTemplateFont(8.5, false, black);
+      let lines = pdf.splitTextToSize(text, tableW - 38) as string[];
       let firstChunk = true;
       while (lines.length) {
-        const availableHeight = bottom - 4 - y;
-        const maxLineCount = Math.max(
-          1,
-          Math.floor((availableHeight - 7.0 - 3.4) / coachingLineHeight)
-        );
-        if (availableHeight < 15 || maxLineCount < 1) {
+        const available = bottom - 5 - y;
+        const maxLines = Math.max(1, Math.floor((available - 2) / coachingLineHeight));
+        if (available < 8) {
           startCoachingPage(true);
           continue;
         }
-        const chunk = lines.slice(0, maxLineCount);
+        const chunk = lines.slice(0, maxLines);
         lines = lines.slice(chunk.length);
-        const labelText = firstChunk ? label : `${label} (continued)`;
-        drawCell(left, y, tableW, 6.6, labelText, coachingLabel, {
-          bold: true,
-          size: 8.3,
-          align: "left",
-          maxLines: 1,
+        ensureCoachingSpace(Math.max(6.5, chunk.length * coachingLineHeight + 1));
+        setTemplateFont(8.4, true, muted);
+        pdf.text(firstChunk ? label : `${label} (ต่อ)`, left, y + 3.6);
+        setTemplateFont(8.6, false, black);
+        chunk.forEach((lineText, index) => {
+          pdf.text(lineText, left + 37, y + 3.6 + index * coachingLineHeight);
         });
-        y += 6.6;
-        const bodyH = Math.max(7.2, chunk.length * coachingLineHeight + 3.2);
-        drawCell(left, y, tableW, bodyH, chunk.join("\n"), coachingSoft, {
-          size: 8.2,
-          align: "left",
-          valign: "top",
-          maxLines: Math.max(1, chunk.length),
-          lineHeight: coachingLineHeight,
-        });
-        y += bodyH + 1.8;
+        y += Math.max(6.5, chunk.length * coachingLineHeight + 1);
         firstChunk = false;
         if (lines.length) startCoachingPage(true);
       }
     };
 
-    const drawCoachingPair = (
-      leftLabel: string,
-      leftValue: unknown,
-      rightLabel: string,
-      rightValue: unknown
-    ) => {
-      const leftText = cleanCoachingText(leftValue) || "-";
-      const rightText = cleanCoachingText(rightValue) || "-";
-      ensureCoachingSpace(14);
-      const half = tableW / 2;
-      drawCell(left, y, half * 0.34, 6.5, leftLabel, purple, {
-        bold: true,
-        color: [255,255,255],
-        size: 7.6,
-        align: "center",
-        maxLines: 2,
-      });
-      drawCell(left + half * 0.34, y, half * 0.66, 6.5, leftText, valueWhite, {
-        bold: true,
-        size: 7.8,
-        align: "center",
-        maxLines: 2,
-      });
-      drawCell(left + half, y, half * 0.34, 6.5, rightLabel, purple, {
-        bold: true,
-        color: [255,255,255],
-        size: 7.6,
-        align: "center",
-        maxLines: 2,
-      });
-      drawCell(left + half + half * 0.34, y, half * 0.66, 6.5, rightText, valueWhite, {
-        bold: true,
-        size: 7.8,
-        align: "center",
-        maxLines: 2,
-      });
-      y += 7.3;
-    };
-
-    const drawCoachingSectionTitle = (title: string) => {
-      ensureCoachingSpace(9);
-      drawSection(title);
+    const drawPlainList = (label: string, values: unknown[]) => {
+      const cleaned = values.map(cleanCoachingText).filter(Boolean);
+      if (!cleaned.length) return;
+      drawPlainField(label, cleaned.map((item, index) => `${index + 1}. ${item}`).join("\n"));
     };
 
     startCoachingPage(false);
 
     if (!coachingRecord) {
-      drawCell(
-        left,
-        y,
-        tableW,
-        15,
-        "ยังไม่มีข้อมูล Coaching ที่บันทึกไว้สำหรับ Agent และเดือนนี้",
-        coachingSoft,
-        { size: 9.2, align: "center", bold: true, color: muted, maxLines: 2 }
-      );
-      y += 17;
+      setTemplateFont(9.5, true, muted);
+      pdf.text("ยังไม่มีข้อมูล Coaching ที่บันทึกไว้สำหรับ Agent และเดือนนี้", left, y + 6);
+      y += 11;
     } else {
-      drawCoachingSectionTitle("Coaching Overview");
-      drawCoachingPair("Status", coachingRecord.status, "Result", coachingRecord.result);
-      drawCoachingPair(
-        "Evaluated Cases",
-        coachingRecord.evaluatedCases,
-        "Average Score",
-        Number.isFinite(Number(coachingRecord.averageScore))
-          ? Number(coachingRecord.averageScore).toFixed(2)
-          : "-"
-      );
-      drawCoachingPair("Grade", coachingRecord.grade, "Critical Errors", coachingRecord.criticalErrors);
-      drawCoachingPair(
-        "Coaching Date",
-        formatCoachingDate(coachingRecord.coachingDate),
-        "Coached By",
-        coachingRecord.coachedBy
-      );
-      drawCoachingPair("Team", coachingRecord.team, "Senior", coachingRecord.seniorName);
-      drawCoachingTextBlock("Case References", (coachingRecord.caseReferences || []).join(", "));
-
-      drawCoachingSectionTitle("QA Summary / Recommended Topics");
-      drawCoachingTextBlock("QA Summary", coachingRecord.qaSummary);
-      drawCoachingTextBlock(
-        "Recommended Topics",
-        (coachingRecord.recommendedTopics || []).map((item, index) => `${index + 1}. ${item}`).join("\n")
-      );
-      drawCoachingTextBlock("Strengths", coachingRecord.strengths);
-      drawCoachingTextBlock("Main Issues", coachingRecord.mainIssues);
-      drawCoachingTextBlock("Repeated Issues", coachingRecord.repeatedIssues);
-      drawCoachingTextBlock("Coaching Recommendation", coachingRecord.coachingRecommendation);
-
-      if (coachingRecord.topicSnapshot?.length) {
-        drawCoachingSectionTitle("Topic Snapshot");
-        coachingRecord.topicSnapshot.forEach((topic, index) => {
-          drawCoachingTextBlock(
-            `${index + 1}. ${topic.label || topic.key}`,
-            [
-              `Average Score: ${Number(topic.averageScore || 0).toFixed(2)} / ${Number(topic.maxScore || 0).toFixed(2)}`,
-              `Performance: ${Number(topic.percentage || 0).toFixed(2)}%`,
-              `Deducted Cases: ${Number(topic.deductedCases || 0)}`,
-              topic.caseIds?.length ? `Case IDs: ${topic.caseIds.join(", ")}` : "",
-            ].filter(Boolean).join("\n")
-          );
-        });
-      }
-
       const meeting = coachingRecord.appointment;
-      drawCoachingSectionTitle("Coaching Appointment");
+      const coachName = coachingRecord.coachName || coachingRecord.coachedBy || coachingRecord.seniorName || "";
+
+      // Appointment is intentionally the first content immediately under Monthly Coaching.
+      drawPlainHeading("นัดหมาย Coaching");
       if (meeting) {
-        drawCoachingPair(
-          "Appointment Date",
-          formatCoachingDate(meeting.date),
-          "Start Time",
-          meeting.startTime
-        );
-        drawCoachingPair(
-          "Duration",
-          meeting.duration ? `${meeting.duration} นาที` : "-",
-          "Method",
-          meeting.method
-        );
-        drawCoachingTextBlock("MS Teams URL", meeting.url);
-        drawCoachingTextBlock("Other Channel Detail", meeting.other);
-        drawCoachingTextBlock(
-          "Participants",
-          (meeting.participants || []).map((item, index) => `${index + 1}. ${item}`).join("\n")
-        );
-        drawCoachingTextBlock(
-          "Agenda",
-          (meeting.agenda || []).filter(Boolean).map((item, index) => `${index + 1}. ${item}`).join("\n")
-        );
-        drawCoachingTextBlock("Appointment Note", meeting.note);
+        drawPlainField("วันที่นัดหมาย", formatCoachingDate(meeting.date) || "-");
+        drawPlainField("เวลาเริ่ม", meeting.startTime || "-");
+        drawPlainField("ระยะเวลา", meeting.duration ? `${meeting.duration} นาที` : "-");
+        drawPlainField("เวลาสิ้นสุด", meeting.startTime && meeting.duration ? (() => {
+          const [h, m] = String(meeting.startTime).split(":").map(Number);
+          if (!Number.isFinite(h) || !Number.isFinite(m)) return "";
+          const total = h * 60 + m + Number(meeting.duration);
+          return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+        })() : "");
+        drawPlainField("ช่องทาง", meeting.method || "-");
+        drawPlainField("ผู้ Coaching", coachName || "-");
+        if (meeting.method === "MS Teams") drawPlainField("MS Teams", meeting.url);
+        if (meeting.method === "Other") drawPlainField("รายละเอียดช่องทาง", meeting.other);
+        drawPlainList("ผู้เข้าร่วม", meeting.participants || []);
+        drawPlainList("Agenda / แผนที่จะคุย", (meeting.agenda || []).filter(Boolean));
+        drawPlainField("หมายเหตุ", meeting.note);
       } else {
-        drawCoachingTextBlock("Appointment", "ยังไม่มีข้อมูลนัดหมาย Coaching");
+        drawPlainField("สถานะ", "ยังไม่มีข้อมูลนัดหมาย Coaching");
       }
+
+      drawPlainHeading("QA สรุปและแนะนำหัวข้อการ Coaching");
+      drawPlainField("สรุปภาพรวม", coachingRecord.qaSummary);
+      drawPlainList("หัวข้อที่แนะนำ", coachingRecord.recommendedTopics || []);
 
       const actual = coachingRecord.actualCoaching;
-      drawCoachingSectionTitle("Coaching Result by Senior");
-      if (actual) {
-        drawCoachingPair(
-          "Actual Date",
-          formatCoachingDate(actual.date),
-          "Actual Time",
-          [actual.startTime, actual.endTime].filter(Boolean).join(" - ")
-        );
-        drawCoachingTextBlock(
-          "Topics Discussed",
-          (actual.topics || []).map((item, index) => `${index + 1}. ${item}`).join("\n")
-        );
-        drawCoachingTextBlock("Senior Coaching Note", actual.note);
-        drawCoachingTextBlock("Senior Final Note", actual.finalNote);
-        drawCoachingTextBlock("Reason for No Action Plan", actual.noPlanReason);
-      } else {
-        drawCoachingTextBlock("Coaching Result", "ยังไม่มีผล Coaching จาก Senior");
+      if (actual && (
+        actual.date || actual.startTime || actual.endTime ||
+        actual.topics?.length || actual.note || actual.finalNote || actual.noPlanReason
+      )) {
+        drawPlainHeading("ผล Coaching และ Action Plan โดยผู้ Coaching");
+        drawPlainField("วันที่ Coaching จริง", formatCoachingDate(actual.date));
+        drawPlainField("เวลา Coaching จริง", [actual.startTime, actual.endTime].filter(Boolean).join(" - "));
+        drawPlainList("หัวข้อที่คุยจริง", actual.topics || []);
+        drawPlainField("Coaching Note", actual.note);
+        drawPlainField("Final Coaching Note", actual.finalNote);
+        drawPlainField("เหตุผลที่ไม่ต้องทำ Action Plan", actual.noPlanReason);
       }
 
-      drawCoachingSectionTitle("Action Plan");
       if (coachingRecord.actions?.length) {
+        drawPlainHeading("Action Plan");
         coachingRecord.actions.forEach((action, index) => {
-          drawCoachingTextBlock(
-            `Action ${index + 1}: ${action.topic || "ไม่ระบุหัวข้อ"}`,
+          drawPlainField(
+            `Action ${index + 1}`,
             [
+              action.topic ? `หัวข้อ: ${action.topic}` : "",
               action.issue ? `ปัญหาที่พบ: ${action.issue}` : "",
               action.plan ? `Action Plan: ${action.plan}` : "",
               action.owner ? `ผู้รับผิดชอบ: ${action.owner}` : "",
@@ -854,36 +753,30 @@ export async function renderFinalSignedPdf({
           );
         });
       } else {
-        drawCoachingTextBlock("Action Plan", coachingRecord.actionPlan || "ยังไม่มี Action Plan");
+        drawPlainField("Action Plan", coachingRecord.actionPlan);
       }
 
-      if (coachingRecord.checklistItems?.length) {
-        drawCoachingSectionTitle("Coaching Checklist");
-        coachingRecord.checklistItems.forEach((item, index) => {
-          drawCoachingTextBlock(
-            `${index + 1}. ${item.title}`,
-            [
-              `Status: ${item.completed ? "Completed" : "Pending"}`,
-              item.caseIds?.length ? `Case IDs: ${item.caseIds.join(", ")}` : "",
-              item.feedback ? `Feedback: ${item.feedback}` : "",
-              item.examples?.length ? `Examples: ${item.examples.join(" | ")}` : "",
-            ].filter(Boolean).join("\n")
-          );
-        });
+      if (
+        coachingRecord.qaReviewComment ||
+        coachingRecord.followUpDate ||
+        coachingRecord.generalFeedback ||
+        coachingRecord.agentResponse ||
+        coachingRecord.agreedActionPlan ||
+        coachingRecord.additionalNote
+      ) {
+        drawPlainHeading("QA Review / Follow-up");
+        drawPlainField("QA Review Comment", coachingRecord.qaReviewComment);
+        drawPlainField("Follow-up Date", formatCoachingDate(coachingRecord.followUpDate));
+        drawPlainField("General Feedback", coachingRecord.generalFeedback);
+        drawPlainField("Agent Response", coachingRecord.agentResponse);
+        drawPlainField("Agreed Action Plan", coachingRecord.agreedActionPlan);
+        drawPlainField("Additional Note", coachingRecord.additionalNote);
       }
-
-      drawCoachingSectionTitle("QA Review / Follow-up");
-      drawCoachingTextBlock("QA Review Comment", coachingRecord.qaReviewComment);
-      drawCoachingTextBlock("Follow-up Date", formatCoachingDate(coachingRecord.followUpDate));
-      drawCoachingTextBlock("General Feedback", coachingRecord.generalFeedback);
-      drawCoachingTextBlock("Agent Response", coachingRecord.agentResponse);
-      drawCoachingTextBlock("Agreed Action Plan", coachingRecord.agreedActionPlan);
-      drawCoachingTextBlock("Additional Note", coachingRecord.additionalNote);
 
       if (coachingRecord.attachments?.length) {
-        drawCoachingSectionTitle("Attachments");
+        drawPlainHeading("เอกสาร / ไฟล์ประกอบ");
         coachingRecord.attachments.forEach((attachment, index) => {
-          drawCoachingTextBlock(
+          drawPlainField(
             `${index + 1}. ${attachment.name || "Attachment"}`,
             [
               attachment.uploadedBy ? `Uploaded by: ${attachment.uploadedBy}` : "",
@@ -895,7 +788,7 @@ export async function renderFinalSignedPdf({
       }
     }
 
-    // The acknowledgement/signature must always be the final document section.
+    // Acknowledgement / Signature always starts after all Coaching content.
     pdf.addPage("a4", "portrait");
     y = 10;
   }
