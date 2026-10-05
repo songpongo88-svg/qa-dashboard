@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T04:18:00.000Z",
-  "reason": "Review manual QA scoring with user-managed issue tags and duplicate-name protection; guide workflow remains unchanged",
+  "reviewedAt": "2026-10-05T04:36:00.000Z",
+  "reason": "Review Coaching participant picker UX; permissions and workflow remain unchanged",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -315,7 +315,7 @@
     "src/DashboardMockup.tsx": "8305cfb89f5d31a52e4daa4fb5f1cc5cfebfb9eddf5e2821c13d568004f4f9a1",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
-    "src/MonthlyCoachingWorkspace.tsx": "fed78c07733f3c80e350c5e0ae1173f17968942014d3058643857cac9a7dd27b",
+    "src/MonthlyCoachingWorkspace.tsx": "d57b34a37bba4cc4b2ae0b59977ae601f4b485e031ed5b7cd24401cb3276b0be",
     "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
     "src/PageHero.tsx": "6e5621714c19abd9580783ff982edea6bd897bdc5342ae30303c24639f4e12e9",
     "src/PreTestMockup.tsx": "9608f60c5b579a3929931d20a366e5462013a452d61c7bc4e570e73afc2baeef",
