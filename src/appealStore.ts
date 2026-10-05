@@ -169,7 +169,10 @@ export async function writeAppealEvent(
       username: user.username || "",
       display_name: fullReviewerName,
       role: user.role || "",
-      agent_name: canonicalizeAgentName(user.agentName),
+      // Keep the canonical reviewer name in both identity fields so downstream
+      // Case Detail / Appeal PDF exports never lose the QA reviewer when
+      // agentName is empty but displayName is available.
+      agent_name: fullReviewerName || canonicalizeAgentName(user.agentName),
       tab: payload.tab || "",
       case_id: payload.case_id || "",
       target_agent: canonicalizeAgentName(payload.target_agent),
