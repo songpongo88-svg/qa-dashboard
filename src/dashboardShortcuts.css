@@ -1,0 +1,72 @@
+/* All Dashboard launchers share one vertical rhythm and center line. */
+:root {
+  --qa-shortcut-edge: 20px;
+  --qa-shortcut-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  --qa-shortcut-size: 48px;
+  --qa-shortcut-chat-size: 56px;
+  --qa-shortcut-gap: 16px;
+  --qa-shortcut-right: calc(var(--qa-shortcut-edge) + (var(--qa-shortcut-chat-size) - var(--qa-shortcut-size)) / 2);
+  --qa-shortcut-kpi-bottom: calc(var(--qa-shortcut-bottom) + var(--qa-shortcut-chat-size) + var(--qa-shortcut-gap));
+  --qa-shortcut-guide-bottom: calc(var(--qa-shortcut-kpi-bottom) + var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+  --qa-shortcut-coaching-bottom: calc(var(--qa-shortcut-guide-bottom) + var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+}
+
+.dashboard-coaching-shortcut {
+  position: fixed;
+  right: var(--qa-shortcut-right);
+  bottom: var(--qa-shortcut-coaching-bottom);
+  z-index: 83;
+  width: var(--qa-shortcut-size);
+  height: var(--qa-shortcut-size);
+  padding: 0;
+}
+
+.dashboard-coaching-panel {
+  position: fixed;
+  right: calc(var(--qa-shortcut-edge) + var(--qa-shortcut-chat-size) + var(--qa-shortcut-gap));
+  bottom: var(--qa-shortcut-bottom);
+  z-index: 84;
+  max-height: calc(100dvh - var(--qa-shortcut-bottom) - 20px);
+  overflow-y: auto;
+}
+
+.dashboard-chat-widget {
+  position: fixed;
+  bottom: var(--qa-shortcut-bottom);
+  right: var(--qa-shortcut-edge);
+  z-index: 85;
+}
+
+.dashboard-chat-launcher {
+  width: var(--qa-shortcut-chat-size);
+  height: var(--qa-shortcut-chat-size);
+  padding: 0;
+}
+
+.dashboard-chat-panel {
+  position: absolute;
+  right: calc(var(--qa-shortcut-chat-size) + var(--qa-shortcut-gap));
+  bottom: 0;
+  max-height: calc(100dvh - var(--qa-shortcut-bottom) - 20px);
+  overflow-y: auto;
+}
+
+@media (max-width: 600px) {
+  :root { --qa-shortcut-edge: 12px; }
+  .dashboard-chat-panel {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: var(--qa-shortcut-kpi-bottom);
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - var(--qa-shortcut-kpi-bottom) - 12px);
+  }
+  .dashboard-coaching-panel {
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--qa-shortcut-coaching-bottom) + var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+    width: auto;
+    max-height: calc(100dvh - var(--qa-shortcut-coaching-bottom) - var(--qa-shortcut-size) - var(--qa-shortcut-gap) - 12px);
+  }
+}

@@ -1,8 +1,8 @@
 .qa-monthly-kpi { position: absolute; width: 0; height: 0; color: #242039; font-family: inherit; }
-.qa-monthly-kpi .qmk-launcher { position: fixed; right: 26px; bottom: 104px; z-index: 81; }
+.qa-monthly-kpi .qmk-launcher { position: fixed; right: var(--qa-shortcut-right); bottom: var(--qa-shortcut-kpi-bottom); z-index: 81; }
 .qa-monthly-kpi button { font: inherit; cursor: pointer; }
 .qa-monthly-kpi button:focus-visible { outline: 3px solid #a78bfa; outline-offset: 3px; }
-.qa-monthly-kpi .qmk-launcher button { position: relative; display: grid; width: 54px; height: 54px; place-items: center; border: 3px solid #fff; border-radius: 50%; padding: 7px 6px 5px; background: linear-gradient(145deg, #7c3aed, #a21caf); color: #fff; box-shadow: 0 12px 30px #5b21b640; transition: transform .18s ease, box-shadow .18s ease; }
+.qa-monthly-kpi .qmk-launcher button { position: relative; display: grid; width: var(--qa-shortcut-size); height: var(--qa-shortcut-size); place-items: center; border: 3px solid #fff; border-radius: 50%; padding: 5px 4px 4px; background: linear-gradient(145deg, #7c3aed, #a21caf); color: #fff; box-shadow: 0 12px 30px #5b21b640; transition: transform .18s ease, box-shadow .18s ease; }
 .qa-monthly-kpi .qmk-launcher button:hover { transform: translateY(-2px); box-shadow: 0 16px 34px #5b21b650; }
 .qa-monthly-kpi .qmk-launcher button svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .qa-monthly-kpi .qmk-launcher button > span { margin-top: -3px; font-size: 8px; font-weight: 700; letter-spacing: .08em; line-height: 1; }
@@ -48,7 +48,6 @@
 .qa-monthly-kpi .qmk-agent-nav button:disabled { cursor: not-allowed; border-color: #ebe7f1; color: #aaa3b7; background: #f6f4f8; }
 .qa-monthly-kpi .qmk-agent-nav span { min-width: 35px; text-align: center; font-variant-numeric: tabular-nums; }
 @media (max-width: 420px) {
-  .qa-monthly-kpi .qmk-launcher { right: 22px; bottom: 99px; }
   .qa-monthly-kpi .qmk-header, .qa-monthly-kpi .qmk-body, .qa-monthly-kpi .qmk-footer { padding-left: 18px; padding-right: 18px; }
   .qa-monthly-kpi .qmk-header { padding-right: 58px; }
   .qa-monthly-kpi .qmk-number { font-size: 26px; }

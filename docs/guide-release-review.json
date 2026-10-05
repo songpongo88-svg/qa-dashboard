@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-05T09:24:00.000Z",
-  "reason": "Reviewed monthly PDF order and Weekly export compatibility; monthly is Dashboard, Coaching, Case Details, then unchanged Acknowledgement/Signature",
+  "reviewedAt": "2026-10-05T08:57:16.756Z",
+  "reason": "Reviewed floating icons only in the selected Dashboard workspace, aligned positions with 16px gaps, and panels closing when switching to other workspaces including individual case tabs.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -209,6 +209,7 @@
     "scripts/patch-bulk-case-pdf-final-signed-v8.mjs": "d5966794d73c6f32af916ba23085c119401e9d88549c2d84b219c7e650b3b442",
     "scripts/patch-bulk-case-pdf-permission.mjs": "40b8a5c85e672ea0ac72364320426ef656dad2c5427da92ed0b36122148af3b3",
     "scripts/patch-bulk-case-pdf-role-scopes-v2.mjs": "e1638f3d97a383ec440ca128158697d822eebe9755ca74226b8cece26c00d3a1",
+    "scripts/patch-bulk-case-pdf-section-order-v14.mjs": "1f690c8ee54c239ba7b1fd8d848995360b7ebf9c51b2acfcf090214b7beadb7f",
     "scripts/patch-bulk-case-pdf-signature-fallback-v10.mjs": "f09f588f6ce5c5107188962fe400b33f603974d775fbef9e5808a087ff00f29a",
     "scripts/patch-bulk-case-pdf-signature-match-v11.mjs": "14ddd3641ed7c67a990518da8fc13de42fdfeb68c181d9de82a79e569ec65138",
     "scripts/patch-bulk-case-pdf-weekly-v4.mjs": "7f4ddb0ad64b16325b26d4526b16eaca8096e14a161a9a42b10e0a508f39938f",
@@ -301,7 +302,7 @@
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "5dafbc4360dea0a7aac1640b0620ea0ce139e6d03ef94343e37b814500fef6a1",
     "src/AnnouncementHub.tsx": "d8918dbcb207061f65c46abc807eabd093e105327be73636b49faa971b2a8714",
-    "src/App.tsx": "12e962f9aa9d6b7452a1120194813e1527e71ca19f1c97c0d2f1cfe5e6fca50a",
+    "src/App.tsx": "700771f5a0de2819c8db5ca61e90dde7c29edd5600c32d60d3536fac71a9d5f4",
     "src/AppealEvidence.tsx": "3b34a743345fb2a95b5a3770d2c1fba3fb6771a99e9cd1b413e30514d0581b1d",
     "src/AppealMockup.tsx": "941c292f5eaecbb07212ee7fb3f29fc0ddf53684da7dcbb5798d207e5ee42d46",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
@@ -356,9 +357,11 @@
     "src/coachingScheduleStore.ts": "01e8db30db622950753aeff5a2753bfed43b9a7b1da6dca3afd0cc8d6f2a9243",
     "src/coachingStore.ts": "bc1f047be3db88b6e7c2364c2467cf9751c9792d65e1d20e63d709b49f99a7b7",
     "src/dashboardRevision.ts": "51cd5d455b3ce02ca90b371a10f5fba981ff196df057ddd03622a716401f5a50",
+    "src/dashboardShortcuts.css": "d5b87862cf0698c8f8bdc3616aa3f0783dd1227e9c4599fcc320c61f41c617e2",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
     "src/evaluationStore.ts": "041707bf13f426f63f1b8fc43cc2c2cc433b7b1e5d0053c9516fec5d278a87ee",
+    "src/evaluationTagStore.ts": "810829fe9cbe45c405578a95147d7c323d83193fb4f2a9470572c5571e138bc3",
     "src/evidencePreviewPdf.ts": "53a344d00db402295f7f3ae8defa99443e6f00e7973fd264396cfd9154c88f8d",
     "src/finalSignedCasePdf.ts": "f99fd97a35ab570d3091b65b5c5b842cbfe87c1d6f00e70c9eacec67fa8ed342",
     "src/finalSignedPdfRenderer.ts": "ea1fc935df2ff7ad9f98c366abacd066555438c54f15f4c1d06f355b3f0ead6c",
@@ -370,7 +373,7 @@
     "src/knowledge/UserGuide.tsx": "791e93b6ffc0df6bb1acc6b82d451742169c7b97b27354e4e43c8e013272b653",
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
-    "src/knowledge/knowledge.css": "835e452563e34f208edbd9c8ecbe2f7e2a4ce74f11ffd6cc8df6c2c71046d448",
+    "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
     "src/knowledge/manual.json": "ae16b547a32692be0ad7b30a54af5e0c2d98d9fb77a52c281354d01ea95f87a0",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
@@ -394,7 +397,7 @@
     "src/maintenanceControlStore.ts": "d0c12948692277202e21f1e3907b255b40cb2ba629488c20677719a91b70945f",
     "src/monthlyCoaching.css": "1e9dfbc55b21694ab4e2a1e392d3b00d69e42802a96483e0d381b3fa77e3bfff",
     "src/monthlyCoachingModel.ts": "201447d5a29df9fdecc8215f4a4a51ee8ddfc94dc43ce4dd3612a489c35eab9b",
-    "src/monthlyKpiNotice.css": "f42fe91dc578ad90f70139c24649da6068cf8cfb8a4ff3c3edb9221f7d308eda",
+    "src/monthlyKpiNotice.css": "086b583d5cebd56da759369ffdf38bb1b480c27963b989ba1a156041e6dfeb49",
     "src/officialPdf.ts": "3efdeea4304b590d4b1d33480c62a72725a15cf36c628db6ff0ed95a7eeb1648",
     "src/pages/EvaluationStudioPage.tsx": "7dbbc681d3e6f03446440a5d238f9fb4ff93536150f25dd47d4b1952e548b9ff",
     "src/passwordResetStore.ts": "91777ff1e43e6e0f3d91425e3c41eca2e4c1ef198cc082241cebd4cffa995531",
@@ -430,8 +433,6 @@
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weeklyCaseSummaryPdf.ts": "8a4b2cc48ffa79088e7badab2fc34398e9a54785bc6621bef6b2617f561a92ef",
-    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
-    "src/evaluationTagStore.ts": "810829fe9cbe45c405578a95147d7c323d83193fb4f2a9470572c5571e138bc3",
-    "scripts/patch-bulk-case-pdf-section-order-v14.mjs": "1f690c8ee54c239ba7b1fd8d848995360b7ebf9c51b2acfcf090214b7beadb7f"
+    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735"
   }
 }
