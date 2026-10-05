@@ -16,7 +16,7 @@ import PresentationMockup from "./PresentationMockup";
 import CoachingMockup from "./CoachingMockup";
 import MonthlyCoachingWorkspace from "./MonthlyCoachingWorkspace";
 import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachingStore";
-import { coachingEndTime, recordVisibleToUser } from "./monthlyCoachingModel";
+import { coachingEndTime, isAssignedCoach, recordVisibleToUser } from "./monthlyCoachingModel";
 import AnnouncementHub from "./AnnouncementHub";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
@@ -787,7 +787,7 @@ type PasswordRecord = {
 
 type InboxTaskItem = {
   id: string;
-  type: "appeal" | "appeal-result" | "appeal-override" | "password" | "evaluation";
+  type: "appeal" | "appeal-result" | "appeal-override" | "password" | "evaluation" | "coaching";
   title: string;
   description: string;
   badge: string;
@@ -5157,6 +5157,46 @@ export default function App() {
       const v8CaseUploadTasks = await buildV8CaseUploadInboxTasks(currentUser, effectiveUserAccounts, readIds);
       nextTasks.push(...v8CaseUploadTasks);
 
+      const coachingRows = await fetchStoredCoachingRecords({ allowCache: false }).catch(() => []);
+      const coachingActor = {
+        username: currentUser.username,
+        displayName: currentUser.displayName,
+        agentName: currentUser.agentName,
+        role: currentUser.role,
+        status: "Active" as const,
+      };
+      coachingRows
+        .filter((record) => isAssignedCoach(record, coachingActor))
+        .filter((record) => ["Waiting Senior", "QA Reviewed"].includes(record.status))
+        .forEach((record) => {
+          const meeting = record.appointment;
+          const dateText = meeting?.date
+            ? (/^\d{4}-\d{2}-\d{2}$/.test(meeting.date)
+                ? meeting.date.split("-").reverse().join("/")
+                : meeting.date)
+            : "-";
+          const endTime = meeting ? coachingEndTime(meeting.startTime, Number(meeting.duration || 0)) : "";
+          const timeText = meeting?.startTime
+            ? `${meeting.startTime}${endTime ? `–${endTime}` : ""}`
+            : "-";
+          const id = `coaching-${record.id}-${record.status}-${record.coachId || currentUser.username}`;
+          nextTasks.push({
+            id,
+            type: "coaching",
+            title: record.status === "QA Reviewed"
+              ? `Coaching returned: ${record.agent}`
+              : `Coaching assigned: ${record.agent}`,
+            description: record.status === "QA Reviewed"
+              ? `QA ส่ง Coaching กลับมาให้แก้ไข • ${dateText} • ${timeText}`
+              : `คุณถูกเลือกเป็นผู้ Coaching • ${dateText} • ${timeText} • ${meeting?.method || "-"}`,
+            badge: "Coaching",
+            count: 1,
+            unread: !readIds.includes(id),
+            actionLabel: "Open Coaching",
+            agentName: record.agent,
+          });
+        });
+
       if (appealRequestsAllowed) {
         appealRequests
           .filter((item) => item.status === "Pending")
@@ -6077,6 +6117,16 @@ export default function App() {
       resetChangePasswordState();
       setChangePasswordPromptReason(task.description);
       setShowChangePasswordModal(true);
+      return;
+    }
+
+    if (task.type === "coaching") {
+      setSelectedAgentGlobal(task.agentName || "");
+      navigateToTab("coaching", {
+        params: {
+          agent: task.agentName || "",
+        },
+      });
       return;
     }
 
