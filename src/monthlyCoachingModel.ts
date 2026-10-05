@@ -7,7 +7,7 @@ export type CoachingAction = { id: string; topic: string; issue: string; plan: s
 export type CoachingAttachment = { name: string; url: string; path: string; uploadedBy: string; uploadedAt: string };
 export type CoachingAppointment = { date: string; startTime: string; duration: number; method: string; url: string; other: string; participants: string[]; agenda: string[]; note: string };
 export type CoachingResult = { date: string; startTime: string; endTime: string; topics: string[]; note: string; finalNote: string; noPlanReason: string };
-export type CoachingForm = { summary: string; topics: string[]; appointment: CoachingAppointment; result: CoachingResult; actions: CoachingAction[]; review: string; attachments: CoachingAttachment[] };
+export type CoachingForm = { summary: string; topics: string[]; coachId: string; appointment: CoachingAppointment; result: CoachingResult; actions: CoachingAction[]; review: string; attachments: CoachingAttachment[] };
 export const COACHING_STATUSES: CoachingRecordStatus[] = ['Draft', 'Waiting Appointment', 'Appointment Scheduled', 'Waiting Senior', 'Coaching In Progress', 'Action Plan Submitted', 'QA Reviewed', 'Follow-up Next Month', 'Closed', 'No Coaching Required'];
 const preparation: CoachingRecordStatus[] = ['Draft', 'Waiting Appointment', 'Appointment Scheduled'];
 const seniorEditing: CoachingRecordStatus[] = ['Waiting Senior', 'Coaching In Progress', 'QA Reviewed'];
@@ -65,12 +65,12 @@ export function initialCoachingMonth(view: { periodVersion?: number; month?: str
   return view?.periodVersion === 2 && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month || '') ? view.month! : current;
 }
 export function blankCoachingForm(): CoachingForm {
-  return { summary: '', topics: [], appointment: { date: '', startTime: '', duration: 60, method: 'Face to Face', url: '', other: '', participants: [], agenda: [''], note: '' }, result: { date: '', startTime: '', endTime: '', topics: [], note: '', finalNote: '', noPlanReason: '' }, actions: [], review: '', attachments: [] };
+  return { summary: '', topics: [], coachId: '', appointment: { date: '', startTime: '', duration: 60, method: 'Face to Face', url: '', other: '', participants: [], agenda: [''], note: '' }, result: { date: '', startTime: '', endTime: '', topics: [], note: '', finalNote: '', noPlanReason: '' }, actions: [], review: '', attachments: [] };
 }
 export function formFromRecord(record?: StoredCoachingRecord | null): CoachingForm {
   const empty = blankCoachingForm();
   if (!record) return empty;
-  return { summary: manualCoachingSummary(record), topics: record.recommendedTopics || [], appointment: { ...empty.appointment, ...record.appointment }, result: { ...empty.result, ...record.actualCoaching }, actions: record.actions || [], review: record.qaReviewComment || '', attachments: record.attachments || [] };
+  return { summary: manualCoachingSummary(record), topics: record.recommendedTopics || [], coachId: String(record.coachId || ''), appointment: { ...empty.appointment, ...record.appointment }, result: { ...empty.result, ...record.actualCoaching }, actions: record.actions || [], review: record.qaReviewComment || '', attachments: record.attachments || [] };
 }
 export function allowedCoachingStatuses(role: string, record?: StoredCoachingRecord | null): CoachingRecordStatus[] {
   if (record && record.monthKey < COACHING_WORKFLOW_START) return [];
@@ -91,7 +91,7 @@ export function restoreCoachingForm(record: StoredCoachingRecord | undefined, dr
   if (role === 'Quality Assurance') return {
     ...saved,
     ...(allowed.includes('Draft') || (record && allowed.includes(record.status))
-      ? { summary: draft.summary ?? saved.summary, topics: draft.topics || saved.topics, appointment: { ...saved.appointment, ...draft.appointment }, attachments: draft.attachments || saved.attachments }
+      ? { summary: draft.summary ?? saved.summary, topics: draft.topics || saved.topics, coachId: draft.coachId ?? saved.coachId, appointment: { ...saved.appointment, ...draft.appointment }, attachments: draft.attachments || saved.attachments }
       : {}),
     ...(allowed.includes('QA Reviewed') ? { review: draft.review ?? saved.review } : {})
   };
