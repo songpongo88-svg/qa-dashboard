@@ -11,6 +11,7 @@ import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchStoredEvaluations, excludeTestEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIdentity";
+import { resolveMonthlySignatureDocument } from "./lib/monthlyPdfExport";
 import {
   clearStoredSignatureConfirm,
   deleteStoredSignatureLibraryEntry,
@@ -19,6 +20,7 @@ import {
   saveStoredSignatureConfirm,
   saveStoredSignatureDocument,
   saveStoredSignatureLibraryEntry,
+  type StoredSignatureDocument,
 } from "./signatureStore";
 
 type CurrentUser = {
