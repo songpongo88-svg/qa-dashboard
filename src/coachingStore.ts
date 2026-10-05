@@ -273,7 +273,16 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
   const saved = await runTransaction(firebaseDb, async transaction => {
     const snapshot = await transaction.get(reference);
     const previous = snapshot.exists() ? toRecord(snapshot.data(), snapshot.id) : null;
-    if ((previous?.updatedAt ?? null) !== expectedUpdatedAt) throw new Error('Coaching นี้มีข้อมูลใหม่แล้ว กรุณากดโหลดข้อมูลล่าสุดก่อนบันทึก ข้อความที่กรอกยังอยู่ในฟอร์ม');
+    const versionChanged = (previous?.updatedAt ?? null) !== expectedUpdatedAt;
+    const recoverableQaPreparation =
+      actor.role === 'Quality Assurance' &&
+      expectedUpdatedAt === null &&
+      Boolean(previous) &&
+      ['Draft', 'Waiting Appointment', 'Appointment Scheduled'].includes(previous!.status) &&
+      ['Draft', 'Waiting Appointment', 'Appointment Scheduled', 'Waiting Senior'].includes(record.status);
+    if (versionChanged && !recoverableQaPreparation) {
+      throw new Error('Coaching นี้มีข้อมูลใหม่แล้ว กรุณากดโหลดข้อมูลล่าสุดก่อนบันทึก ข้อความที่กรอกยังอยู่ในฟอร์ม');
+    }
     if (previous && (!belongsToAgent(target, previous.agentId, previous.agent) || previous.monthKey !== record.monthKey)) throw new Error('ไม่สามารถเปลี่ยน Admin หรือเดือนของ Coaching เดิม');
 
     const workflowRole = actor.role === 'Quality Assurance'
