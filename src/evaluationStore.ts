@@ -76,6 +76,7 @@ export type StoredEvaluationTopic = {
   max: number;
   score: number;
   comment: string;
+  issueTags?: string[];
   deductions?: DeductionTag[];
 };
 
@@ -264,6 +265,7 @@ function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
       ...topic,
       title: compactStoredText(topic.title, 2000),
       comment: compactStoredText(topic.comment),
+      issueTags: (topic.issueTags || []).map((tag) => compactStoredText(tag, 500)).filter(Boolean),
       deductions: (topic.deductions || []).map((entry) => ({
         subtopic: compactStoredText(entry.subtopic, 2000),
         points: entry.points,
@@ -295,6 +297,11 @@ function toTopics(value: unknown): StoredEvaluationTopic[] {
     max: Number(item?.max || 0),
     score: Number(item?.score || 0),
     comment: String(item?.comment || item?.reason || ""),
+    issueTags: Array.isArray(item?.issueTags || item?.issue_tags)
+      ? (item?.issueTags || item?.issue_tags)
+        .map((tag: any) => String(tag || "").trim())
+        .filter(Boolean)
+      : [],
     deductions: Array.isArray(item?.deductions)
       ? item.deductions
         .map((entry: any) => ({ subtopic: String(entry?.subtopic || ""), points: Number(entry?.points) }))
@@ -851,6 +858,7 @@ function recoverRemoteEvaluationFromLocal(remote: StoredEvaluation, local: Store
       return {
         ...topic,
         comment: preferLocalEvaluationText(topic.comment, localTopic.comment),
+        issueTags: topic.issueTags?.length ? topic.issueTags : localTopic.issueTags,
       };
     }),
     rawDataPreview: Object.fromEntries(
