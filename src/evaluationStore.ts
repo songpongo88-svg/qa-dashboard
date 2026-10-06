@@ -1,6 +1,6 @@
 ﻿import { initializeApp, getApps } from "firebase/app";
 import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc, startAfter, type QueryDocumentSnapshot } from "firebase/firestore";
-import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "firebase/storage";
+import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { getEvaluationAgentFullName } from "./lib/userNames";
 import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
@@ -1122,25 +1122,41 @@ export async function uploadCallRecordingFile(
   const objectRef = storageRef(storage, path);
 
   onProgress?.(5);
+  const uploadTask = uploadBytesResumable(objectRef, file, { contentType: file.type || "audio/wav" });
   let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let resetTimeout: () => void = () => {};
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = globalThis.setTimeout(
-      () => reject(new Error("Voice upload timed out after 20 seconds.")),
-      20000
-    );
+    resetTimeout = () => {
+      if (timeoutId) globalThis.clearTimeout(timeoutId);
+      timeoutId = globalThis.setTimeout(() => {
+        reject(new Error("อัปโหลดไฟล์เสียงไม่มีความคืบหน้าเป็นเวลา 20 วินาที"));
+        uploadTask.cancel();
+      }, 20000);
+    };
+    resetTimeout();
   });
+  let transferred = 0;
+  const unsubscribe = uploadTask.on("state_changed", (snapshot) => {
+    if (snapshot.bytesTransferred > transferred) {
+      transferred = snapshot.bytesTransferred;
+      resetTimeout();
+    }
+    onProgress?.(Math.max(5, Math.min(95, snapshot.totalBytes ? snapshot.bytesTransferred / snapshot.totalBytes * 95 : 5)));
+  }, () => {});
 
   try {
     const snapshot = await Promise.race([
-      uploadBytes(objectRef, file, { contentType: file.type || "audio/wav" }),
+      uploadTask,
       timeoutPromise,
     ]);
     onProgress?.(95);
-    const url = await getDownloadURL(snapshot.ref);
+    resetTimeout();
+    const url = await Promise.race([getDownloadURL(snapshot.ref), timeoutPromise]);
     onProgress?.(100);
     return url;
   } finally {
     if (timeoutId) globalThis.clearTimeout(timeoutId);
+    unsubscribe();
   }
 }
 

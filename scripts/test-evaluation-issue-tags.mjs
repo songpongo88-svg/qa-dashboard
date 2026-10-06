@@ -143,6 +143,7 @@ function managementUi(store, catalog) {
     clearEvaluateTabMemory() {}, todayInputValue: () => "2026-10-06", topics: [{ code: "1" }],
     buildInitialTopicState: () => ({ "1": { score: null, reason: "", issueTags: [], deductions: [] } }),
     setCallLogs: (fn) => fn([]), setEvidenceFiles: (fn) => fn([]),
+    callRecordingUploads: { current: new Map() },
   };
   const ignoredSetters = ["AgentName", "AuditDate", "WaitingTime", "ServiceTime", "CaseId", "CaseUrl", "Inquiry", "CaseDescription", "ProcessReference", "EvidenceUrl", "NoCaseForMonth", "IsTestCase", "CriticalError", "EvaluationStartedAt", "EvaluationSubmittedAt", "EvaluationStatus", "DraftSavedAt", "ActiveDraftId", "ActiveSubmittedRecordId"];
   ignoredSetters.forEach((name) => { bindings["set" + name] = () => {}; });

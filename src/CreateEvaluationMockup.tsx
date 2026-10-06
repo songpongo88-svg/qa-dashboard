@@ -53,6 +53,8 @@ import {
 } from "./richText";
 import { ProcessReferenceDisplay, ProcessReferenceSelector } from "./processLibrary";
 import { prepareVoiceRecordingForBrowser } from "./gsmMsWav";
+import { uploadEvidenceFileToDrive } from "./googleDriveUpload";
+import { callLogsForDraft, callLogsForSubmit, restoreDraftCallLogs, type DraftCallLog, type EditableCallLog } from "./callRecordingState";
 // process-library-v65
 
 type TopicState = {
@@ -61,15 +63,6 @@ type TopicState = {
   issueTags?: string[];
   // Legacy field kept so older submitted cases can be edited without losing history.
   deductions?: DraftDeductionTag[];
-};
-
-type EditableCallLog = StoredEvaluationCallLog & {
-  uploadStatus?: "idle" | "uploading" | "uploaded" | "failed";
-  uploadError?: string;
-  uploadProgress?: number;
-  localPreviewUrl?: string;
-  playbackRepairing?: boolean;
-  playbackError?: string;
 };
 
 type EvidenceFile = {
@@ -110,7 +103,7 @@ type EvaluationDraft = {
   caseDescription: string;
   processReference?: string;
   evidenceUrl: string;
-  callLogs?: StoredEvaluationCallLog[];
+  callLogs?: DraftCallLog[];
   noCaseForMonth?: boolean;
   isTestCase?: boolean;
   criticalError: boolean;
@@ -716,31 +709,6 @@ function googleDrivePlaybackUrl(webViewLink: string, fileName: string) {
   return `/api/google-drive-download?id=${encodeURIComponent(match[1])}&inline=1&name=${encodeURIComponent(fileName || "voice-recording")}`;
 }
 
-async function uploadEvidenceFileToDrive(file: File, caseId: string) {
-  const dataBase64 = await fileToBase64Payload(file);
-  const contentType = file.type || "application/octet-stream";
-  const response = await fetch("/api/google-drive-upload", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      fileName: file.name,
-      name: file.name,
-      contentType,
-      mimeType: contentType,
-      caseId: caseId || "draft-case",
-      dataBase64,
-      base64: dataBase64,
-    }),
-  });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || !payload.webViewLink) {
-    throw new Error(payload.error || "Upload to Google Drive failed.");
-  }
-
-  return String(payload.webViewLink);
-}
-
 function formatFileSize(size: number) {
   if (!Number.isFinite(size) || size <= 0) return "0 MB";
   return `${(size / 1024 / 1024).toFixed(2)} MB`;
@@ -1065,6 +1033,8 @@ export default function CreateEvaluationMockup({
   const [evidenceUrl, setEvidenceUrl] = useState(() => readEvaluateTabMemory()?.evidenceUrl || "");
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>(() => readEvaluateTabMemory()?.evidenceFiles || []);
   const [callLogs, setCallLogs] = useState<EditableCallLog[]>(() => readEvaluateTabMemory()?.callLogs || []);
+  const callRecordingUploads = useRef(new Map<string, { file: File; promise: Promise<string> }>());
+  const callRecordingSaveInProgressRef = useRef(false);
   const [evidenceUploadMessage, setEvidenceUploadMessage] = useState("");
   const [noCaseForMonth, setNoCaseForMonth] = useState(
     () => Boolean(readEvaluateTabMemory()?.noCaseForMonth)
@@ -1511,7 +1481,7 @@ export default function CreateEvaluationMockup({
     window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
   }
 
-  function buildCurrentDraft(savedAt: string, savedAtMs: number): EvaluationDraft {
+  async function buildCurrentDraft(savedAt: string, savedAtMs: number): Promise<EvaluationDraft> {
     const draftId = noCaseForMonth
       ? makeNoCaseEvaluationId(agentName, selectedMonthKey)
       : makeDraftId(caseId, auditDate);
@@ -1528,7 +1498,7 @@ export default function CreateEvaluationMockup({
       caseDescription,
       processReference,
       evidenceUrl,
-      callLogs: callLogs.map(({ uploadStatus: _uploadStatus, uploadError: _uploadError, localPreviewUrl: _localPreviewUrl, ...item }) => item),
+      callLogs: await callLogsForDraft(callLogs),
       noCaseForMonth,
       isTestCase,
       criticalError,
@@ -1546,6 +1516,14 @@ export default function CreateEvaluationMockup({
 
   function loadDraftIntoForm(draft: EvaluationDraft) {
     const normalizedDraft = normalizeDraft(draft);
+    let restoredCalls: EditableCallLog[];
+    try {
+      restoredCalls = restoreDraftCallLogs(normalizedDraft.callLogs || []);
+    } catch {
+      setDraftMessage("เปิดไฟล์เสียงใน Draft ไม่สำเร็จ Draft ยังอยู่ในรายการเดิม กรุณาลองอีกครั้ง");
+      return;
+    }
+    callRecordingUploads.current.clear();
     setAgentName(canonicalizeAgentName(normalizedDraft.agentName));
     setAuditDate(normalizedDraft.auditDate || todayInputValue());
     setWaitingTime(normalizedDraft.waitingTime || "");
@@ -1556,7 +1534,10 @@ export default function CreateEvaluationMockup({
     setCaseDescription(normalizedDraft.caseDescription || "");
     setProcessReference(normalizedDraft.processReference || "");
     setEvidenceUrl(normalizedDraft.evidenceUrl || "");
-    setCallLogs((normalizedDraft.callLogs || []).map((item) => ({ ...item, uploadStatus: item.recordingUrl ? "uploaded" : "idle" })));
+    setCallLogs((current) => {
+      current.forEach((call) => { if (call.localPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(call.localPreviewUrl); });
+      return restoredCalls;
+    });
     setNoCaseForMonth(Boolean(normalizedDraft.noCaseForMonth));
     setIsTestCase(isTestCaseEvaluation(normalizedDraft) && !normalizedDraft.noCaseForMonth);
     setCriticalError(Boolean(normalizedDraft.criticalError));
@@ -1604,6 +1585,7 @@ export default function CreateEvaluationMockup({
 
   function resetEvaluationForm() {
     clearEvaluateTabMemory();
+    callRecordingUploads.current.clear();
     setAgentName("");
     setAuditDate(todayInputValue());
     setWaitingTime("");
@@ -1723,6 +1705,20 @@ export default function CreateEvaluationMockup({
       return;
     }
 
+    let savedCallLogs: StoredEvaluationCallLog[];
+    if (callRecordingSaveInProgressRef.current) return;
+    callRecordingSaveInProgressRef.current = true;
+    try {
+      if (callLogs.some((call) => call.recordingFile)) setDraftMessage("กำลังบันทึกไฟล์เสียงให้ครบทุก Call ก่อนบันทึกเคส...");
+      savedCallLogs = noCaseForMonth ? [] : await callLogsForSubmit(callLogs, (call) => startCallRecordingUpload(call.id, call.recordingFile!));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "ยังไม่ได้บันทึกเคส กรุณาตรวจสอบไฟล์เสียง";
+      setDraftMessage(message);
+      window.alert(message);
+      return;
+    } finally {
+      callRecordingSaveInProgressRef.current = false;
+    }
     const now = new Date();
     const submittedAt = formatTimestamp(now);
     const noCaseRecordId = makeNoCaseEvaluationId(agentName, selectedMonthKey);
@@ -1787,9 +1783,7 @@ export default function CreateEvaluationMockup({
       evidenceUrls: noCaseForMonth
         ? []
         : evidencePreviewValue.split(/\n+/).map((item) => item.trim()).filter(Boolean),
-      callLogs: noCaseForMonth
-        ? []
-        : callLogs.map(({ uploadStatus: _uploadStatus, uploadError: _uploadError, localPreviewUrl: _localPreviewUrl, ...item }) => item),
+      callLogs: savedCallLogs,
       finalScore: noCaseForMonth || criticalError ? 0 : finalScore,
       grade,
       criticalError: noCaseForMonth ? false : criticalError,
@@ -1922,8 +1916,9 @@ export default function CreateEvaluationMockup({
     const now = new Date();
     const savedAt = formatTimestamp(now);
     const savedAtMs = now.getTime();
-    const draft = buildCurrentDraft(savedAt, savedAtMs);
+    let draft: EvaluationDraft;
     try {
+      draft = await buildCurrentDraft(savedAt, savedAtMs);
       const savedDrafts = await readDraftQueue<EvaluationDraft>();
       const nextDrafts = [draft, ...savedDrafts.filter((item) => (item.draftId || makeDraftId(item.caseId, item.auditDate)) !== draft.draftId)];
       await persistDrafts(nextDrafts);
@@ -1935,7 +1930,8 @@ export default function CreateEvaluationMockup({
     setEvaluationStartedAt(draft.evaluationStartedAt);
     setEvaluationStatus("Draft");
     setDraftSavedAt(savedAt);
-    setDraftMessage(`Draft saved for ${draft.caseId || "Untitled Case"} at ${savedAt}`);
+    const pendingVoiceCount = draft.callLogs?.filter((call) => call.pendingRecording).length || 0;
+    setDraftMessage(`Draft saved for ${draft.caseId || "Untitled Case"} at ${savedAt}${pendingVoiceCount ? ` • เก็บไฟล์เสียง ${pendingVoiceCount} ไฟล์ไว้ใน Draft แล้ว ยังไม่ได้อัปโหลดเข้าระบบกลาง` : ""}`);
     setWorkspaceView("drafts");
   }
 
@@ -2130,11 +2126,45 @@ export default function CreateEvaluationMockup({
   }
 
   function removeCallLog(id: string) {
+    callRecordingUploads.current.delete(id);
     setCallLogs((current) => {
       const target = current.find((item) => item.id === id);
       if (target?.localPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(target.localPreviewUrl);
       return current.filter((item) => item.id !== id);
     });
+  }
+
+  function updateRecordingUpload(id: string, file: File, patch: Partial<EditableCallLog>) {
+    setCallLogs((current) => current.map((item) => item.id === id && item.recordingFile === file ? { ...item, ...patch } : item));
+  }
+
+  function startCallRecordingUpload(id: string, file: File): Promise<string> {
+    const existing = callRecordingUploads.current.get(id);
+    if (existing?.file === file) return existing.promise;
+    updateRecordingUpload(id, file, { uploadStatus: "uploading", uploadError: "", uploadProgress: 0 });
+    const promise = (async () => {
+      try {
+        let recordingUrl: string;
+        try {
+          recordingUrl = await uploadCallRecordingFile(file, caseId || "draft-case", (uploadProgress) => updateRecordingUpload(id, file, { uploadProgress }));
+        } catch {
+          updateRecordingUpload(id, file, { uploadProgress: 0, uploadError: "กำลังลองอัปโหลดไฟล์เสียงผ่านช่องทางสำรอง..." });
+          const driveLink = await uploadEvidenceFileToDrive(file, caseId || "draft-case");
+          recordingUrl = googleDrivePlaybackUrl(driveLink, file.name);
+          if (!recordingUrl) throw new Error("อัปโหลดสำรองแล้วแต่ยังไม่ได้รับลิงก์ไฟล์เสียง");
+        }
+        if (callRecordingUploads.current.get(id)?.file !== file) throw new Error("รายการไฟล์เสียงถูกเปลี่ยน กรุณาตรวจสอบแล้ว Submit อีกครั้ง");
+        updateRecordingUpload(id, file, { recordingUrl, recordingFile: undefined, uploadStatus: "uploaded", uploadError: "", uploadProgress: 100 });
+        return recordingUrl;
+      } catch (error) {
+        updateRecordingUpload(id, file, { uploadStatus: "failed", uploadProgress: 0, uploadError: error instanceof Error ? error.message : "อัปโหลดไฟล์เสียงไม่สำเร็จ" });
+        throw error;
+      } finally {
+        if (callRecordingUploads.current.get(id)?.file === file) callRecordingUploads.current.delete(id);
+      }
+    })();
+    callRecordingUploads.current.set(id, { file, promise });
+    return promise;
   }
 
   async function handleNewCallRecordingFiles(files: FileList | null) {
@@ -2195,6 +2225,7 @@ export default function CreateEvaluationMockup({
           recordingName: file.name,
           recordingType: playbackFile.type || "audio/wav",
           localPreviewUrl,
+          recordingFile: playbackFile,
           uploadStatus: "uploading",
           uploadError: "",
           uploadProgress: 0,
@@ -2202,44 +2233,7 @@ export default function CreateEvaluationMockup({
         },
       ]);
 
-      try {
-        const recordingUrl = await uploadCallRecordingFile(
-          playbackFile,
-          caseId || "draft-case",
-          (uploadProgress) => updateCallLog(id, { uploadProgress })
-        );
-        updateCallLog(id, {
-          recordingUrl,
-          recordingName: file.name,
-          recordingType: playbackFile.type || "audio/wav",
-          uploadStatus: "uploaded",
-          uploadError: "",
-          uploadProgress: 100,
-        });
-      } catch (firebaseError) {
-        try {
-          updateCallLog(id, { uploadProgress: 0, uploadError: "Firebase ช้า กำลังลองสำรองผ่าน Google Drive..." });
-          const driveLink = await uploadEvidenceFileToDrive(playbackFile, caseId || "draft-case");
-          const fallbackUrl = googleDrivePlaybackUrl(driveLink, playbackFile.name);
-          if (!fallbackUrl) throw new Error("ไม่พบ Google Drive file id");
-          updateCallLog(id, {
-            recordingUrl: fallbackUrl,
-            recordingName: file.name,
-            recordingType: playbackFile.type || "audio/wav",
-            uploadStatus: "uploaded",
-            uploadError: "",
-            uploadProgress: 100,
-          });
-        } catch (driveError) {
-          const firstMessage = firebaseError instanceof Error ? firebaseError.message : "Firebase upload failed";
-          const secondMessage = driveError instanceof Error ? driveError.message : "Google Drive upload failed";
-          updateCallLog(id, {
-            uploadStatus: "failed",
-            uploadProgress: 0,
-            uploadError: `${firstMessage} / สำรองไม่สำเร็จ: ${secondMessage}`,
-          });
-        }
-      }
+      void startCallRecordingUpload(id, playbackFile).catch(() => {});
     }
   }
 
@@ -2277,6 +2271,8 @@ export default function CreateEvaluationMockup({
         recordingName: file.name,
         recordingType: playbackFile.type || "audio/wav",
         localPreviewUrl,
+        recordingFile: playbackFile,
+        recordingUrl: "",
         uploadStatus: "uploading",
         uploadError: "",
         uploadProgress: 0,
@@ -2284,44 +2280,7 @@ export default function CreateEvaluationMockup({
       };
     }));
 
-    try {
-      const recordingUrl = await uploadCallRecordingFile(
-        playbackFile,
-        caseId || "draft-case",
-        (uploadProgress) => updateCallLog(id, { uploadProgress })
-      );
-      updateCallLog(id, {
-        recordingUrl,
-        recordingName: file.name,
-        recordingType: playbackFile.type || "audio/wav",
-        uploadStatus: "uploaded",
-        uploadError: "",
-        uploadProgress: 100,
-      });
-    } catch (firebaseError) {
-      try {
-        updateCallLog(id, { uploadProgress: 0, uploadError: "Firebase ช้า กำลังลองสำรองผ่าน Google Drive..." });
-        const driveLink = await uploadEvidenceFileToDrive(playbackFile, caseId || "draft-case");
-        const fallbackUrl = googleDrivePlaybackUrl(driveLink, playbackFile.name);
-        if (!fallbackUrl) throw new Error("ไม่พบ Google Drive file id");
-        updateCallLog(id, {
-          recordingUrl: fallbackUrl,
-          recordingName: file.name,
-          recordingType: playbackFile.type || "audio/wav",
-          uploadStatus: "uploaded",
-          uploadError: "",
-          uploadProgress: 100,
-        });
-      } catch (driveError) {
-        const firstMessage = firebaseError instanceof Error ? firebaseError.message : "Firebase upload failed";
-        const secondMessage = driveError instanceof Error ? driveError.message : "Google Drive upload failed";
-        updateCallLog(id, {
-          uploadStatus: "failed",
-          uploadProgress: 0,
-          uploadError: `${firstMessage} / สำรองไม่สำเร็จ: ${secondMessage}`,
-        });
-      }
-    }
+    await startCallRecordingUpload(id, playbackFile).catch(() => {});
   }
 
   async function repairCallRecordingPlayback(id: string) {
@@ -2351,6 +2310,8 @@ export default function CreateEvaluationMockup({
 
       updateCallLog(id, {
         localPreviewUrl,
+        recordingFile: playbackFile,
+        recordingUrl: "",
         duration: duration || call.duration,
         recordingType: playbackFile.type || "audio/wav",
         playbackRepairing: false,
@@ -2359,25 +2320,7 @@ export default function CreateEvaluationMockup({
         uploadProgress: 0,
       });
 
-      try {
-        const recordingUrl = await uploadCallRecordingFile(
-          playbackFile,
-          caseId || "draft-case",
-          (uploadProgress) => updateCallLog(id, { uploadProgress })
-        );
-        updateCallLog(id, {
-          recordingUrl,
-          uploadStatus: "uploaded",
-          uploadProgress: 100,
-          uploadError: "",
-        });
-      } catch (error) {
-        updateCallLog(id, {
-          uploadStatus: "uploaded",
-          uploadProgress: 100,
-          uploadError: "",
-        });
-      }
+      await startCallRecordingUpload(id, playbackFile).catch(() => {});
     } catch (error) {
       updateCallLog(id, {
         playbackRepairing: false,
@@ -3792,7 +3735,10 @@ export default function CreateEvaluationMockup({
                                 <div className="mt-3 text-xs font-black text-emerald-700">Voice Recording uploaded</div>
                               ) : null}
                               {call.uploadStatus === "failed" ? (
-                                <div className="mt-3 text-xs font-black text-rose-700">{call.uploadError || "อัปโหลดไฟล์เสียงไม่สำเร็จ"}</div>
+                                <div className="mt-3 space-y-2">
+                                  <div className="text-xs font-black text-rose-700">{call.uploadError || "อัปโหลดไฟล์เสียงไม่สำเร็จ"}</div>
+                                  {call.recordingFile ? <button type="button" className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-black text-emerald-800" onClick={() => { void startCallRecordingUpload(call.id, call.recordingFile!).catch(() => {}); }}>ลองอัปโหลดอีกครั้ง</button> : null}
+                                </div>
                               ) : null}
 
                               {playableUrl ? (
@@ -3811,7 +3757,7 @@ export default function CreateEvaluationMockup({
                                     }}
                                   />
                                   <div className="mt-2 text-[11px] font-semibold text-slate-500">
-                                    ฟังได้ในระบบ • ไม่มีปุ่ม Download
+                                    {call.recordingUrl && !call.recordingFile ? "บันทึกไฟล์เสียงในระบบแล้ว • ไม่มีปุ่ม Download" : "ตัวอย่างไฟล์จากเครื่อง • ยังไม่ได้บันทึกเสียงกับเคส"}
                                   </div>
                                   {call.playbackRepairing ? (
                                     <div className="mt-2 text-[11px] font-black text-amber-700">
