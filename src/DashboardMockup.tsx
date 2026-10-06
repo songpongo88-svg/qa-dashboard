@@ -42,8 +42,7 @@ import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
 import MonthlyKpiNotice from "./MonthlyKpiNotice";
 import { fetchStoredRolePermissions } from "./userRoleStore";
 import { ProcessReferenceDisplay } from "./processLibrary";
-import { subtopicDeductionStatuses, type DeductionTag } from "./lib/evaluation/deductionTags";
-import { RUBRIC_VERSIONS } from "./lib/rubricVersions";
+import { type DeductionTag } from "./lib/evaluation/deductionTags";
 import { buildEvidencePreviewPdf, downloadEvidenceUrl } from "./evidencePreviewPdf";
 // process-library-v65
 // evaluation-last-updated-v87-dashboard
@@ -59,6 +58,7 @@ type Topic = {
   max: number;
   pct: number;
   deductions?: DeductionTag[];
+  issueTags?: string[];
   comment?: string;
   appealReason?: string;
 };
@@ -1450,6 +1450,18 @@ function formatAuditDateForDisplay(value: any): string {
   return `${day}/${month}/${year}`;
 }
 
+function normalizeCaseIssueTags(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? value.split("|") : [];
+  const names = new Set<string>();
+  return values.filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().replace(/\s+/g, " "))
+    .filter((name) => {
+      const key = name.toLocaleLowerCase("th-TH");
+      if (!name || names.has(key)) return false;
+      names.add(key); return true;
+    });
+}
+
 function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[] {
   return records
     .map((record) => {
@@ -1469,6 +1481,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
           pct: master.max > 0 ? Math.round(((Number.isFinite(score) ? score : 0) / master.max) * 100) : 0,
           comment: matched?.comment || "",
           deductions: matched?.deductions || [],
+          issueTags: normalizeCaseIssueTags(matched?.issueTags),
         };
       });
       const finalScoreVal = Number(record.finalScore || topics.reduce((sum, topic) => sum + topic.score, 0));
@@ -2509,8 +2522,6 @@ function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
 
 function CaseDetailTopicTable({
   topics,
-  qaScheme,
-  showSubtopicStatuses,
   revisedTopics,
   reviewStatus,
   displayRevisedTopicCodes = [],
@@ -2524,8 +2535,6 @@ function CaseDetailTopicTable({
   originalAuditDate,
 }: {
   topics: Topic[];
-  qaScheme?: string;
-  showSubtopicStatuses?: boolean;
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
   displayRevisedTopicCodes?: string[];
@@ -2542,7 +2551,6 @@ function CaseDetailTopicTable({
   const [openTopicCode, setOpenTopicCode] = useState<string | null>(null);
   // case-detail-original-comment-metadata-v1
   const displayCodeSet = new Set(displayRevisedTopicCodes);
-  const rubric = RUBRIC_VERSIONS.find((version) => version.code === qaScheme);
 
   // case-detail-topics-safe-array-v1
   // Some refreshed/cached case records can temporarily arrive without a topics
@@ -2587,6 +2595,7 @@ function CaseDetailTopicTable({
         appealReviewTopic,
         rejectedReviewTopic,
         shownTopic,
+        issueTags: normalizeCaseIssueTags(shownTopic.issueTags ?? originalTopic.issueTags),
         changed,
         pct,
         statusLabel,
@@ -2599,6 +2608,7 @@ function CaseDetailTopicTable({
       appealReviewTopic?: AppealReviewedTopic;
       rejectedReviewTopic?: AppealReviewedTopic;
       shownTopic: Topic;
+      issueTags: string[];
       changed: boolean;
       pct: number;
       statusLabel: string;
@@ -2721,39 +2731,18 @@ function CaseDetailTopicTable({
                   </div>
                 </div>
               )}
-              {showSubtopicStatuses ? (() => {
-                const rubricTopic = rubric?.topics.find((topic) => topic.code === row.originalTopic.code);
-                const statuses = rubricTopic
-                  ? subtopicDeductionStatuses(rubricTopic, row.originalTopic.score, row.originalTopic.deductions)
-                  : [];
-                const complete = statuses.length > 0 && statuses.every((entry) => entry.status !== "unknown");
-                if (!rubricTopic && !row.originalTopic.deductions?.length) return null;
-                return (
-                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-900">
-                    <div className="font-extrabold">{row.changed ? "สถานะหัวข้อย่อยจากผลประเมินเดิม" : "สถานะหัวข้อย่อย"}</div>
-                    {statuses.length ? (
-                      <div className="mt-3 space-y-2">
-                        {statuses.map((entry) => (
-                          <div key={entry.subtopic} className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-200 pb-2 last:border-b-0 last:pb-0">
-                            <span className="min-w-0 flex-1">{entry.subtopic}</span>
-                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold ${entry.status === "deducted" ? "bg-rose-100 text-rose-800" : entry.status === "not_deducted" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}`}>
-                              {entry.status === "deducted" ? `หัก ${entry.points} คะแนน` : entry.status === "not_deducted" ? "ไม่หัก · 0 คะแนน" : "ไม่มีข้อมูลจุดที่หัก"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : row.originalTopic.deductions?.map((entry) => (
-                      <div key={entry.subtopic} className="mt-2 flex flex-wrap justify-between gap-2">
-                        <span>{entry.subtopic}</span><span className="font-extrabold text-rose-800">หัก {entry.points} คะแนน</span>
-                      </div>
+              {row.issueTags.length ? (
+                <div className="rounded-[20px] border border-amber-200 bg-amber-50/60 px-4 py-4">
+                  <div className="text-sm font-extrabold text-amber-950">Tag ประเด็นที่พบ</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {row.issueTags.map((name) => (
+                      <span key={name} className="max-w-full break-words rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-950">
+                        {name}
+                      </span>
                     ))}
-                    {rubricTopic && !complete ? (
-                      <p className="mt-3 text-xs text-slate-600">ข้อมูลจุดที่หักของผลประเมินนี้ยังไม่ครบ จึงไม่สรุปว่าหัวข้อย่อยที่ไม่มีแท็กเป็นข้อที่ไม่หัก</p>
-                    ) : null}
-                    {row.changed ? <p className="mt-2 text-xs text-slate-600">สถานะนี้อ้างอิงคะแนนก่อนการทบทวนผล</p> : null}
                   </div>
-                );
-              })() : null}
+                </div>
+              ) : null}
             </div>
             </div>
           </details>
@@ -3233,7 +3222,7 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
               topics: existing.topics?.map((rawTopic) => {
                 const storedTopic = item.topics?.find((topic) => topic.code === rawTopic.code);
                 return storedTopic && storedTopic.score === rawTopic.score && storedTopic.max === rawTopic.max
-                  ? { ...rawTopic, deductions: storedTopic.deductions }
+                  ? { ...rawTopic, deductions: storedTopic.deductions, issueTags: storedTopic.issueTags ?? rawTopic.issueTags }
                   : rawTopic;
               }) || existing.topics,
             });
@@ -5011,8 +5000,6 @@ function SlideOverCaseDetail({
               <CaseDetailTopicTable
                 key={caseItem.key}
                 topics={caseItem.topics}
-                qaScheme={caseItem.qaScheme}
-                showSubtopicStatuses={caseItem.monthKey >= "2026-10"}
                 revisedTopics={caseItem.revisedTopics}
                 reviewStatus={caseItem.reviewStatus}
                 displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
@@ -5574,6 +5561,7 @@ export default function DashboardMockup({
                     max: topic.max,
                     pct: topic.max > 0 ? Math.round(((Number.isFinite(score) ? score : 0) / topic.max) * 100) : 0,
                     comment: String(v8Helper.getValue(row, `${topic.code} Revised Comment`) || v8Helper.getValue(row, `${topic.code} Comment`) || "").trim(),
+                    issueTags: normalizeCaseIssueTags(v8Helper.getValue(row, `${topic.code} Tags`)),
                   };
                 });
 
@@ -6180,6 +6168,7 @@ export default function DashboardMockup({
                 max: topic.max,
                 pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
                 comment: commentVal ? String(commentVal).trim() : "",
+                issueTags: normalizeCaseIssueTags(rawHelper.getValue(row, `${topic.code} Tags`)),
               };
             });
 

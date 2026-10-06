@@ -1280,12 +1280,6 @@ export default function CreateEvaluationMockup({
       setIssueTagCatalog(tags);
       setIssueTagMessages((current) => {
         const next = { ...current };
-        for (const tag of tags) {
-          const key = `${tag.rubricCode}:${tag.topicCode}`;
-          if (!tag.syncStatus && next[key]?.includes("รอซิงก์") && next[key]?.includes(`“${tag.name}”`)) {
-            next[key] = tag.active ? `Tag “${tag.name}” พร้อมใช้ซ้ำในหัวข้อนี้แล้ว` : `ลบ Tag “${tag.name}” จากคลังแล้ว`;
-          }
-        }
         for (const tag of conflicts) next[`${tag.rubricCode}:${tag.topicCode}`] = tag.syncError || "ชื่อ Tag ซ้ำ กรุณาใช้ชื่ออื่น";
         return next;
       });
@@ -2030,9 +2024,7 @@ export default function CreateEvaluationMockup({
       }
       setIssueTagMessages((current) => ({
         ...current,
-        [key]: changed.syncStatus === "pending"
-          ? `${active ? "คืน" : "ลบ"} Tag “${tag.name}” ${active ? "เข้ารายการ" : "ออกจากรายการ"}แล้ว รอซิงก์เข้าคลังกลาง`
-          : active ? `คืน Tag “${tag.name}” แล้ว เลือกใช้ซ้ำได้` : `ลบ Tag “${tag.name}” จากคลังแล้ว`,
+        [key]: active ? `คืน Tag “${tag.name}” แล้ว เลือกใช้ซ้ำได้` : `ลบ Tag “${tag.name}” ออกจากรายการแล้ว`,
       }));
     } catch (error) {
       setIssueTagMessages((current) => ({ ...current, [key]: error instanceof Error ? error.message : "ไม่สามารถจัดการ Tag ได้" }));
@@ -2102,9 +2094,7 @@ export default function CreateEvaluationMockup({
       setIssueTagDrafts((current) => ({ ...current, [key]: "" }));
       setIssueTagMessages((current) => ({
         ...current,
-        [key]: created.syncStatus === "pending"
-          ? `เลือกใช้ Tag “${created.name}” แล้ว รอซิงก์เข้าคลังกลางเมื่อระบบกลับมาพร้อม`
-          : `เพิ่ม Tag “${created.name}” แล้ว`,
+        [key]: `เพิ่ม Tag “${created.name}” แล้ว`,
       }));
     } catch (error) {
       setIssueTagMessages((current) => ({
@@ -4000,7 +3990,6 @@ export default function CreateEvaluationMockup({
                                               }`}
                                             >
                                               {tag.name}
-                                              {tag.syncStatus === "pending" ? <span className="ml-1 opacity-80">(รอซิงก์)</span> : null}
                                             </button>
                                             {issueTagManaging[tagKey] ? (
                                               <button type="button" aria-label={`ลบ Tag ${tag.name} จากคลัง`} disabled={Boolean(issueTagChanging[tag.id])} onClick={() => void changeIssueTagAvailability(topic, tag, false)} className="h-7 w-7 rounded-full border border-rose-200 bg-white text-base font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
@@ -4022,7 +4011,7 @@ export default function CreateEvaluationMockup({
                                             <div className="text-xs font-bold text-slate-600">Tag ที่ลบ</div>
                                             {removedIssueTags.map((tag) => (
                                               <div key={tag.id} className="flex flex-wrap items-center gap-2 text-xs">
-                                                <span className="font-semibold text-slate-500">{tag.name}{tag.syncStatus === "pending" ? " (รอซิงก์)" : ""}</span>
+                                                <span className="font-semibold text-slate-500">{tag.name}</span>
                                                 <button type="button" aria-label={`คืน Tag ${tag.name} เข้าคลัง`} disabled={Boolean(issueTagChanging[tag.id])} onClick={() => void changeIssueTagAvailability(topic, tag, true)} className="rounded-md border border-slate-200 bg-white px-2 py-1 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{issueTagChanging[tag.id] ? "กำลังคืน..." : "คืน Tag"}</button>
                                               </div>
                                             ))}
@@ -4076,7 +4065,7 @@ export default function CreateEvaluationMockup({
                                       </button>
                                     </div>
                                     {issueTagMessages[tagKey] ? (
-                                      <p role="status" className={`mt-2 text-xs font-bold ${issueTagMessages[tagKey].includes("รอซิงก์") ? "text-amber-800" : issueTagMessages[tagKey].includes("เพิ่ม Tag") || issueTagMessages[tagKey].includes("เลือก Tag เดิม") || issueTagMessages[tagKey].includes("พร้อมใช้ซ้ำ") || issueTagMessages[tagKey].startsWith("ลบ Tag") || issueTagMessages[tagKey].startsWith("คืน Tag") ? "text-emerald-700" : "text-rose-700"}`}>
+                                      <p role="status" className={`mt-2 text-xs font-bold ${issueTagMessages[tagKey].startsWith("เพิ่ม Tag “") || issueTagMessages[tagKey].includes("เลือก Tag เดิม") || issueTagMessages[tagKey].startsWith("ลบ Tag “") || issueTagMessages[tagKey].startsWith("คืน Tag “") ? "text-emerald-700" : "text-rose-700"}`}>
                                         {issueTagMessages[tagKey]}
                                       </p>
                                     ) : null}
