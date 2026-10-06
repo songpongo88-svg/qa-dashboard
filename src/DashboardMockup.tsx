@@ -2520,6 +2520,21 @@ function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
   return scoreChanged || commentChanged;
 }
 
+function CaseDetailIssueTags({ tags }: { tags: string[] }) {
+  if (!tags.length) return null;
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
+      <span className="text-[13px] font-semibold text-slate-600">Tag ที่พบปัญหา :</span>
+      {tags.map((name) => (
+        <span key={name} className="max-w-full break-words rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-950">
+          {name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function CaseDetailTopicTable({
   topics,
   revisedTopics,
@@ -2688,6 +2703,7 @@ function CaseDetailTopicTable({
                     <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
                       <RichTextContent value={row.originalTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
                     </div>
+                    <CaseDetailIssueTags tags={row.issueTags} />
                   </div>
 
                   <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">
@@ -2729,20 +2745,9 @@ function CaseDetailTopicTable({
                   <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
                     <RichTextContent value={row.shownTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
                   </div>
+                  <CaseDetailIssueTags tags={row.issueTags} />
                 </div>
               )}
-              {row.issueTags.length ? (
-                <div className="rounded-[20px] border border-amber-200 bg-amber-50/60 px-4 py-4">
-                  <div className="text-sm font-extrabold text-amber-950">Tag ประเด็นที่พบ</div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {row.issueTags.map((name) => (
-                      <span key={name} className="max-w-full break-words rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-950">
-                        {name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
             </div>
             </div>
           </details>
