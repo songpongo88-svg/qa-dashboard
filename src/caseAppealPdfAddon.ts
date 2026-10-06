@@ -1,5 +1,6 @@
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { richTextToPlainText } from "./richText";
+import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
 
 type PdfVariant = "original" | "appeal";
 
@@ -199,12 +200,16 @@ export async function generateCasePdfWithAppealHistory({
       code: plain(topic?.code, code),
       label: plain(topic?.label || revised?.label || reviewed?.label, ""),
     });
+    const tagTopic = caseItem.reviewStatus === "Revised" && revisedCodes.has(code) && changedTopic(topic, revised)
+      ? revised
+      : topic;
     const combinedComment = [
       `<div><strong>Original Score: ${scoreText(originalTopicScore)} / ${scoreText(numeric(topic?.max))}</strong></div>`,
       `<div><strong>Revised Score: ${scoreText(revisedTopicScore)} / ${scoreText(maxScore)}</strong></div>`,
       "<div><br></div>",
       "<div><strong>Original Comment</strong></div>",
       `<div>${pdfHtml(topic?.comment)}</div>`,
+      caseIssueTagsPdfHtml(tagTopic?.issueTags ?? topic?.issueTags),
       "<hr>",
       `<div><strong>Admin: ${pdfHtml(appealAdmin)}</strong></div>`,
       `<div><strong>Appeal Submit: ${pdfHtml(appealSubmit || "-")}</strong></div>`,
@@ -221,6 +226,7 @@ export async function generateCasePdfWithAppealHistory({
       max: maxScore,
       pct: maxScore > 0 ? (revisedTopicScore / maxScore) * 100 : 0,
       comment: combinedComment,
+      pdfIssueTagsIncluded: true,
     };
   });
 

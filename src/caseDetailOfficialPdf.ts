@@ -2,6 +2,7 @@
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
 import { parseRichTextRuns, richTextToPlainText, type RichTextRun } from "./richText";
+import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
 
 type PdfVariant = "original" | "appeal";
 
@@ -1068,6 +1069,12 @@ export async function generateOfficialCaseDetailPdf({
 
     const descriptionLines = splitTextLines(description, wOf(1), BODY_TEXT_SIZE);
     const commentLines = layoutRichTextLines(comment, wOf(6), SMALL_BODY_TEXT_SIZE);
+    const issueTagsHtml = active.pdfIssueTagsIncluded
+      ? ""
+      : caseIssueTagsPdfHtml(active.issueTags ?? topic.issueTags);
+    if (issueTagsHtml) {
+      commentLines.push([], ...layoutRichTextLines(issueTagsHtml, wOf(6), SMALL_BODY_TEXT_SIZE));
+    }
     const appealLines = includeAppeal ? layoutRichTextLines(appealReason, wOf(7), SMALL_BODY_TEXT_SIZE) : [];
     const baseRowH = includeAppeal ? 24 : 18;
 
