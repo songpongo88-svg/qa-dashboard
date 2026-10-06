@@ -7,6 +7,7 @@ const ISSUE_TAG_CACHE_KEY = "qa-dashboard:evaluation-issue-tags:v1";
 const ISSUE_TAG_PENDING_PREFIX = "qa-dashboard:evaluation-issue-tags:pending:v1:";
 const READ_CACHE_MS = 60_000;
 const RETRY_BASE_MS = 60_000;
+const CREATE_WAIT_MS = 1_500;
 
 export type EvaluationIssueTag = {
   id: string;
@@ -182,6 +183,34 @@ function sharedTag(tag: EvaluationIssueTag) {
   return shared;
 }
 
+function queueForLocalUse(tag: EvaluationIssueTag) {
+  const duplicate = tagSnapshot().tags.find((item) => item.normalizedName === tag.normalizedName);
+  if (duplicate) {
+    if (!sameTopic(duplicate, tag)) throw new Error(duplicateMessage(duplicate));
+    return duplicate;
+  }
+  const pendingTag: EvaluationIssueTag = { ...tag, syncStatus: "pending" };
+  savePendingTag(pendingTag); notifyTags(); scheduleRetry();
+  return pendingTag;
+}
+
+function finishCreationWithoutBlocking(operation: Promise<EvaluationIssueTag>, tag: EvaluationIssueTag) {
+  if (typeof window === "undefined") return operation;
+  return new Promise<EvaluationIssueTag>((resolve, reject) => {
+    // Covers both a hung transaction and a catalog read ahead of it in the
+    // operation queue. A late commit still confirms and clears this same ID.
+    const timer = window.setTimeout(() => {
+      console.warn("Evaluation issue Tag creation still waiting; using local queue", { waitMs: CREATE_WAIT_MS });
+      try { resolve(queueForLocalUse(tag)); } catch (error) { reject(error); }
+    }, CREATE_WAIT_MS);
+    operation.then((created) => {
+      window.clearTimeout(timer); resolve(created);
+    }, (error) => {
+      window.clearTimeout(timer); reject(error);
+    });
+  });
+}
+
 async function syncTags(pending: EvaluationIssueTag[]) {
   const settingsRef = doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, ISSUE_TAG_DOCUMENT);
   const result = await runTransaction(firebaseDb, async (transaction) => {
@@ -284,14 +313,14 @@ export async function createEvaluationIssueTag(input: {
   const name = normalizeTagName(input.name);
   if (!name) throw new Error("กรุณาระบุชื่อ Tag");
   const normalizedName = normalizeEvaluationIssueTagName(name);
-  return exclusive(async () => {
-    const createdTag: EvaluationIssueTag = {
-      id: safeTagId(name), name, normalizedName,
-      rubricCode: String(input.rubricCode || "").trim(),
-      topicCode: String(input.topicCode || "").trim(),
-      topicTitle: String(input.topicTitle || "").trim(),
-      active: true, createdAt: new Date().toISOString(), createdBy: String(input.createdBy || "").trim(),
-    };
+  const createdTag: EvaluationIssueTag = {
+    id: safeTagId(name), name, normalizedName,
+    rubricCode: String(input.rubricCode || "").trim(),
+    topicCode: String(input.topicCode || "").trim(),
+    topicTitle: String(input.topicTitle || "").trim(),
+    active: true, createdAt: new Date().toISOString(), createdBy: String(input.createdBy || "").trim(),
+  };
+  const operation = exclusive(async () => {
     const duplicate = tagSnapshot().tags.find((tag) => tag.normalizedName === normalizedName);
     if (duplicate) {
       if (!sameTopic(duplicate, createdTag)) throw new Error(duplicateMessage(duplicate));
@@ -306,14 +335,23 @@ export async function createEvaluationIssueTag(input: {
         if (conflict) throw new Error(conflict.syncError);
         return result.tags.find((tag) => tag.normalizedName === normalizedName)!;
       } catch (error) {
-        // Authorization and duplicate errors stay errors. Only temporary
-        // service failures can result in a locally queued Tag.
+        // Known authorization and duplicate errors stay errors. Temporary
+        // failures use the same durable queue as the wait deadline.
         if (!isTemporaryTagError(error)) throw error;
         deferSync(error);
       }
     }
-    const pendingTag: EvaluationIssueTag = { ...createdTag, syncStatus: "pending" };
-    savePendingTag(pendingTag); notifyTags(); scheduleRetry();
-    return pendingTag;
+    return queueForLocalUse(createdTag);
+  }).catch((error) => {
+    const queued = readPendingTags().find((tag) => tag.id === createdTag.id && tag.syncStatus === "pending");
+    if (queued) {
+      // A permission or duplicate rejection can arrive after the UI's deadline.
+      // Keep that failure visible rather than claiming the local Tag was shared.
+      savePendingTag({ ...queued, syncStatus: "conflict", syncError: error instanceof Error ? error.message : "ไม่สามารถซิงก์ Tag เข้าคลังกลางได้" });
+      notifyTags();
+      console.warn("Evaluation issue Tag creation rejected after local selection", { code: error?.code });
+    }
+    throw error;
   });
+  return finishCreationWithoutBlocking(operation, createdTag);
 }

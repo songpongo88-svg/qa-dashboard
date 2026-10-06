@@ -13,6 +13,18 @@ const pendingPrefix = "qa-dashboard:evaluation-issue-tags:pending:v1:";
 const input = (name = "Test", topicCode = "1") => ({ name, topicCode, rubricCode: "QA-2026-08", topicTitle: "Process", createdBy: "Test QA" });
 const error = (code) => Object.assign(new Error(code === "resource-exhausted" ? "Quota exceeded." : code), { code });
 const pendingKeys = () => [...storage.keys()].filter((key) => key.startsWith(pendingPrefix));
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+function gate() {
+  let open;
+  const promise = new Promise((resolve) => { open = resolve; });
+  return { promise, open };
+}
+function expireCreationWait() {
+  const entry = [...timers.entries()].find(([, timer]) => timer.delay <= 2_000);
+  assert.ok(entry, "Tag creation must stop waiting when Firebase never responds");
+  const [id, timer] = entry;
+  timers.delete(id); clock += timer.delay; timer.callback();
+}
 let storage, fixture, timers, events, clock, storageFull;
 const originalNow = Date.now;
 const originalWindow = globalThis.window;
@@ -39,9 +51,15 @@ function loadStore() {
   const snapshot = () => ({ exists: () => fixture.tags.length > 0, data: () => ({ tags: structuredClone(fixture.tags) }) });
   const firestore = {
     doc: () => ({ path: "qa_system_settings/evaluation_issue_tags" }), serverTimestamp: () => "test-timestamp",
-    async getDoc() { fixture.reads++; if (fixture.failure) throw fixture.failure; return snapshot(); },
+    async getDoc() {
+      fixture.reads++;
+      if (fixture.readGate) await fixture.readGate.promise;
+      if (fixture.failure) throw fixture.failure;
+      return snapshot();
+    },
     async runTransaction(db, callback) {
       fixture.transactions++;
+      if (fixture.transactionGate) await fixture.transactionGate.promise;
       if (fixture.failure) throw fixture.failure;
       let write;
       const result = await callback({
@@ -116,6 +134,92 @@ try {
   assert.equal(pendingKeys().length, 0);
   await assert.rejects(store.createEvaluationIssueTag(input("test", "2")), /Topic 1/);
   console.log("PASS online Tag save, normalization, duplicate scope and read deduplication");
+
+  reset(); store = loadStore(); fixture.readGate = gate();
+  const hangingCatalog = store.fetchEvaluationIssueTags();
+  await tick();
+  const waitingForCatalog = exerciseEvaluate(store);
+  await tick(); expireCreationWait();
+  const catalogWaitState = await waitingForCatalog;
+  assert.equal(fixture.writes, 0);
+  assert.equal(pendingKeys().length, 1);
+  const catalogWaitId = catalogWaitState.catalog[0].id;
+  fixture.readGate.open();
+  await hangingCatalog;
+  await store.fetchEvaluationIssueTags();
+  assert.equal(pendingKeys().length, 0);
+  assert.equal(fixture.tags[0].id, catalogWaitId);
+  console.log("PASS never-settling catalog read releases the real Add Tag button and preserves the Tag");
+
+  reset(); store = loadStore(); fixture.transactionGate = gate();
+  let settledSnapshot;
+  const stopHangingSubscription = store.subscribeEvaluationIssueTags((snapshot) => { settledSnapshot = snapshot; });
+  const waitingForCommit = exerciseEvaluate(store);
+  await tick(); expireCreationWait();
+  const commitWaitState = await waitingForCommit;
+  const commitWaitId = commitWaitState.catalog[0].id;
+  const secondWhileWaiting = store.createEvaluationIssueTag(input("Another"));
+  await tick(); expireCreationWait();
+  const secondQueuedTag = await secondWhileWaiting;
+  assert.equal(pendingKeys().length, 2, "another Tag remains usable while the first transaction is hung");
+  assert.equal(fixture.writes, 0, "local selection cannot be presented as a confirmed cloud save");
+  fixture.transactionGate.open();
+  await store.fetchEvaluationIssueTags();
+  assert.equal(pendingKeys().length, 0);
+  assert.equal(fixture.tags.length, 2);
+  assert.equal(fixture.tags.find((tag) => tag.name === "Test").id, commitWaitId);
+  assert.equal(fixture.tags.find((tag) => tag.name === "Another").id, secondQueuedTag.id);
+  assert.ok(settledSnapshot.tags.every((tag) => !tag.syncStatus));
+  assert.equal(timers.size, 0);
+  stopHangingSubscription();
+  console.log("PASS hung transactions release multiple additions and late commits clear only confirmed Tags");
+
+  reset(); store = loadStore(); fixture.transactionGate = gate();
+  let deniedSnapshot;
+  const stopDeniedSubscription = store.subscribeEvaluationIssueTags((snapshot) => { deniedSnapshot = snapshot; });
+  const lateDenied = exerciseEvaluate(store);
+  await tick(); expireCreationWait();
+  await lateDenied;
+  fixture.failure = error("permission-denied"); fixture.transactionGate.open();
+  await store.fetchEvaluationIssueTags();
+  assert.equal(fixture.writes, 0);
+  assert.equal(deniedSnapshot.conflicts.length, 1, "a late authorization rejection is shown instead of a shared-save success");
+  assert.match(deniedSnapshot.conflicts[0].syncError, /permission-denied/);
+  assert.equal(JSON.parse(storage.get(pendingKeys()[0])).syncStatus, "conflict");
+  stopDeniedSubscription();
+  console.log("PASS late permission failures remain visible and never become a shared save");
+
+  reset(); store = loadStore(); fixture.readGate = gate();
+  const delayedDuplicateRead = store.fetchEvaluationIssueTags();
+  await tick();
+  const delayedDuplicateCreate = exerciseEvaluate(store);
+  await tick(); expireCreationWait();
+  await delayedDuplicateCreate;
+  fixture.tags = [{ ...input("TEST", "2"), id: "shared-other-topic", normalizedName: "test", active: true, createdAt: "" }];
+  let lateDuplicateSnapshot;
+  const stopLateDuplicate = store.subscribeEvaluationIssueTags((snapshot) => { lateDuplicateSnapshot = snapshot; });
+  fixture.readGate.open();
+  await delayedDuplicateRead;
+  await store.fetchEvaluationIssueTags();
+  assert.equal(fixture.writes, 0);
+  assert.equal(lateDuplicateSnapshot.conflicts.length, 1);
+  assert.match(lateDuplicateSnapshot.conflicts[0].syncError, /Topic 2/);
+  stopLateDuplicate();
+  console.log("PASS late catalog duplicates remain assigned to their original Topic and surface a conflict");
+
+  reset(); store = loadStore(); fixture.readGate = gate();
+  const fullStorageRead = store.fetchEvaluationIssueTags();
+  await tick();
+  storageFull = true;
+  const fullStorageCreation = assert.rejects(store.createEvaluationIssueTag(input()), /ยังเก็บ Tag ที่รอซิงก์ไม่ได้/);
+  await tick(); expireCreationWait();
+  await fullStorageCreation;
+  assert.equal(pendingKeys().length, 0);
+  fixture.failure = error("resource-exhausted"); fixture.readGate.open();
+  await fullStorageRead;
+  await tick();
+  assert.equal(fixture.writes, 0);
+  console.log("PASS stalled requests with full browser storage never report a durable local save");
 
   reset(); store = loadStore(); fixture.failure = error("resource-exhausted");
   let latest;
