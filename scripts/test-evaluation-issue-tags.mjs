@@ -66,6 +66,11 @@ function loadStore() {
         async get() { fixture.reads++; return snapshot(); },
         set(ref, value) { write = structuredClone(value); },
       });
+      const commitGate = fixture.commitGate;
+      if (commitGate) {
+        await commitGate.promise;
+        if (commitGate.failure) throw commitGate.failure;
+      }
       if (fixture.commitFailure) throw fixture.commitFailure;
       if (write) { fixture.tags = write.tags; fixture.writes++; }
       return result;
@@ -83,8 +88,10 @@ function loadStore() {
 const uiSource = fs.readFileSync(new URL("../src/CreateEvaluationMockup.tsx", import.meta.url), "utf8");
 const uiTree = ts.createSourceFile("Evaluate.tsx", uiSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 let addHandler;
+const managementHandlers = [];
 function findHandler(node) {
   if (ts.isFunctionDeclaration(node) && node.name?.text === "addIssueTag") addHandler = node;
+  if (ts.isFunctionDeclaration(node) && ["toggleIssueTag", "changeIssueTagAvailability", "resetEvaluationForm"].includes(node.name?.text)) managementHandlers.push(node);
   ts.forEachChild(node, findHandler);
 }
 findHandler(uiTree);
@@ -121,6 +128,31 @@ async function exerciseEvaluate(store) {
   return state;
 }
 
+function managementUi(store, catalog) {
+  const state = {
+    catalog, topics: { "1": { score: 20, reason: "Existing assessment", issueTags: [], deductions: [{ subtopic: "Process", points: 10 }] } },
+    messages: {}, changing: {}, drafts: { "QA-2026-08:1": "Old input" }, managing: { "QA-2026-08:1": true },
+  };
+  const setter = (key) => (next) => { state[key] = typeof next === "function" ? next(state[key]) : next; };
+  const bindings = {
+    activeRubric: { code: "QA-2026-08" }, issueTagChanging: state.changing,
+    setTopicState: setter("topics"), setIssueTagCatalog: setter("catalog"), setIssueTagMessages: setter("messages"),
+    setIssueTagChanging: setter("changing"), setIssueTagDrafts: setter("drafts"), setIssueTagManaging: setter("managing"),
+    setEvaluationIssueTagActive: store.setEvaluationIssueTagActive,
+    normalizeEvaluationIssueTagName: store.normalizeEvaluationIssueTagName,
+    clearEvaluateTabMemory() {}, todayInputValue: () => "2026-10-06", topics: [{ code: "1" }],
+    buildInitialTopicState: () => ({ "1": { score: null, reason: "", issueTags: [], deductions: [] } }),
+    setCallLogs: (fn) => fn([]), setEvidenceFiles: (fn) => fn([]),
+  };
+  const ignoredSetters = ["AgentName", "AuditDate", "WaitingTime", "ServiceTime", "CaseId", "CaseUrl", "Inquiry", "CaseDescription", "ProcessReference", "EvidenceUrl", "NoCaseForMonth", "IsTestCase", "CriticalError", "EvaluationStartedAt", "EvaluationSubmittedAt", "EvaluationStatus", "DraftSavedAt", "ActiveDraftId", "ActiveSubmittedRecordId"];
+  ignoredSetters.forEach((name) => { bindings["set" + name] = () => {}; });
+  const handlerSource = managementHandlers.map((node) => node.getText()).join("\n") + "\nexport { toggleIssueTag, changeIssueTagAvailability, resetEvaluationForm };";
+  const handlerCode = ts.transpileModule(handlerSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const handlers = {};
+  Function("exports", ...Object.keys(bindings), handlerCode)(handlers, ...Object.values(bindings));
+  return { state, ...handlers };
+}
+
 try {
   reset();
   let store = loadStore();
@@ -134,6 +166,143 @@ try {
   assert.equal(pendingKeys().length, 0);
   await assert.rejects(store.createEvaluationIssueTag(input("test", "2")), /Topic 1/);
   console.log("PASS online Tag save, normalization, duplicate scope and read deduplication");
+
+  const reusable = fixture.tags[0];
+  const reuseUi = managementUi(store, await store.fetchEvaluationIssueTags());
+  const beforeReuseWrites = fixture.writes;
+  reuseUi.toggleIssueTag("1", reusable.name);
+  assert.deepEqual(reuseUi.state.topics["1"].issueTags, ["Test"]);
+  reuseUi.toggleIssueTag("1", reusable.name);
+  assert.deepEqual(reuseUi.state.topics["1"].issueTags, []);
+  assert.equal(reuseUi.state.catalog[0].active, true, "deselecting a Tag never removes it from the shared catalog");
+  reuseUi.resetEvaluationForm();
+  assert.equal(reuseUi.state.catalog[0].id, reusable.id, "the actual new-case reset retains reusable Tags");
+  assert.deepEqual(reuseUi.state.drafts, {});
+  assert.deepEqual(reuseUi.state.messages, {});
+  assert.deepEqual(reuseUi.state.managing, {});
+  reuseUi.toggleIssueTag("1", reusable.name);
+  assert.deepEqual(reuseUi.state.topics["1"].issueTags, ["Test"]);
+  assert.equal(fixture.writes, beforeReuseWrites, "using a Tag in the next case needs no catalog write");
+  console.log("PASS real case deselection, form reset and reuse retain the catalog without extra writes");
+
+  const deleteUi = managementUi(store, await store.fetchEvaluationIssueTags());
+  deleteUi.toggleIssueTag("1", reusable.name);
+  const previousCase = structuredClone(deleteUi.state.topics);
+  await deleteUi.changeIssueTagAvailability({ code: "1" }, reusable, false);
+  assert.deepEqual(deleteUi.state.topics["1"].issueTags, []);
+  assert.equal(deleteUi.state.topics["1"].score, 20);
+  assert.equal(deleteUi.state.topics["1"].reason, "Existing assessment");
+  assert.deepEqual(deleteUi.state.topics["1"].deductions, [{ subtopic: "Process", points: 10 }]);
+  assert.deepEqual(previousCase["1"].issueTags, ["Test"], "previous case snapshots remain untouched");
+  assert.equal(fixture.tags[0].active, false);
+  assert.equal(deleteUi.state.changing[reusable.id], false);
+  await assert.rejects(store.createEvaluationIssueTag(input()), /ถูกลบจากคลัง/);
+  const restoredTag = await store.setEvaluationIssueTagActive(deleteUi.state.catalog[0], true);
+  assert.equal(restoredTag.id, reusable.id);
+  assert.equal(fixture.tags[0].active, true);
+  assert.equal(fixture.tags.length, 1);
+  assert.ok(fixture.tags.every((tag) => !tag.syncAction && !tag.syncRevision && !tag.syncStatus));
+  console.log("PASS actual catalog removal clears only the current case selection, preserves scores/history and restores the same ID");
+
+  reset(); store = loadStore(); navigator.onLine = false;
+  const offlineTag = await store.createEvaluationIssueTag(input());
+  const removedOffline = await store.setEvaluationIssueTagActive(offlineTag, false);
+  assert.equal(removedOffline.active, false);
+  assert.equal((await store.fetchEvaluationIssueTags()).filter((tag) => tag.active).length, 0);
+  assert.equal(fixture.transactions, 0);
+  store = loadStore();
+  assert.equal((await store.fetchEvaluationIssueTags())[0].active, false, "removal survives a reload before syncing");
+  navigator.onLine = true;
+  await store.fetchEvaluationIssueTags();
+  assert.equal(fixture.tags[0].active, false);
+  assert.equal(pendingKeys().length, 0);
+  await assert.rejects(store.createEvaluationIssueTag(input()), /ถูกลบจากคลัง/);
+  await store.setEvaluationIssueTagActive(fixture.tags[0], true);
+  assert.equal(fixture.tags[0].id, offlineTag.id);
+  assert.equal(fixture.tags[0].active, true);
+  console.log("PASS offline removal persists, syncs as a tombstone and requires an explicit restore");
+
+  reset(); store = loadStore(); fixture.transactionGate = gate();
+  const lateCreate = store.createEvaluationIssueTag(input());
+  await tick(); expireCreationWait();
+  const lateCreated = await lateCreate;
+  const queuedDelete = store.setEvaluationIssueTagActive(lateCreated, false);
+  await tick(); expireCreationWait();
+  await queuedDelete;
+  let lateDeleteSnapshot;
+  const stopLateDelete = store.subscribeEvaluationIssueTags((snapshot) => { lateDeleteSnapshot = snapshot; });
+  fixture.transactionGate.open();
+  await store.fetchEvaluationIssueTags();
+  assert.equal(fixture.tags.length, 1);
+  assert.equal(fixture.tags[0].active, false, "a late create must never erase a later deletion");
+  assert.ok(lateDeleteSnapshot.tags.every((tag) => !tag.active));
+  assert.equal(pendingKeys().length, 0);
+  stopLateDelete();
+  console.log("PASS deleting during a hung creation remains deleted after the late commit");
+
+  reset(); store = loadStore(); fixture.transactionGate = gate();
+  const pendingCreate = store.createEvaluationIssueTag(input());
+  await tick(); expireCreationWait();
+  const pendingCreated = await pendingCreate;
+  const pendingDelete = store.setEvaluationIssueTagActive(pendingCreated, false);
+  await tick(); expireCreationWait();
+  const pendingDeleted = await pendingDelete;
+  const pendingRestore = store.setEvaluationIssueTagActive(pendingDeleted, true);
+  await tick(); expireCreationWait();
+  await pendingRestore;
+  fixture.transactionGate.open();
+  await store.fetchEvaluationIssueTags();
+  assert.equal(fixture.tags.length, 1);
+  assert.equal(fixture.tags[0].active, true, "the latest restore supersedes queued removal");
+  assert.equal(pendingKeys().length, 0);
+  console.log("PASS restore supersedes removal while an earlier transaction is still hung");
+
+  for (const failureCode of [null, "resource-exhausted", "permission-denied"]) {
+    reset(); store = loadStore();
+    const confirmedTag = await store.createEvaluationIssueTag(input());
+    const delayedCommit = gate();
+    if (failureCode) delayedCommit.failure = error(failureCode);
+    fixture.commitGate = delayedCommit;
+    const delayedRemove = store.setEvaluationIssueTagActive(confirmedTag, false);
+    await tick(); expireCreationWait();
+    const locallyRemoved = await delayedRemove;
+    const latestRestore = store.setEvaluationIssueTagActive(locallyRemoved, true);
+    await tick(); expireCreationWait();
+    await latestRestore;
+    const restoreRevision = JSON.parse(storage.get(pendingKeys()[0])).syncRevision;
+    const restoreSnapshots = [];
+    const stopRestore = store.subscribeEvaluationIssueTags((snapshot) => restoreSnapshots.push(snapshot));
+    fixture.commitGate = null; delayedCommit.open();
+    await store.fetchEvaluationIssueTags();
+    assert.ok(restoreSnapshots.every((snapshot) => snapshot.tags[0].active), "a stale removal must never hide the Tag again after restoration");
+    const queued = pendingKeys().map((key) => JSON.parse(storage.get(key)));
+    assert.ok(queued.every((tag) => tag.active && tag.syncRevision === restoreRevision), "a late removal result cannot replace the newer queued restore");
+    clock += 60_000;
+    await store.fetchEvaluationIssueTags();
+    assert.equal(fixture.tags[0].active, true);
+    assert.equal(pendingKeys().length, 0);
+    stopRestore();
+  }
+  console.log("PASS late removal commits and quota/permission failures preserve the newer restore revision");
+
+  reset(); store = loadStore(); navigator.onLine = false;
+  const legacyTag = { id: "legacy-tag", ...input(), normalizedName: "test", active: true, createdAt: "2026-10-05T00:00:00.000Z", syncStatus: "pending" };
+  storage.set(pendingPrefix + legacyTag.id, JSON.stringify(legacyTag));
+  assert.equal((await store.fetchEvaluationIssueTags())[0].syncAction, "create");
+  navigator.onLine = true;
+  await store.fetchEvaluationIssueTags();
+  assert.equal(pendingKeys().length, 0);
+  assert.equal(fixture.tags[0].id, legacyTag.id);
+  console.log("PASS Tags queued before management support still sync and clear their legacy queue records");
+
+  reset(); store = loadStore();
+  const protectedTag = await store.createEvaluationIssueTag(input());
+  fixture.failure = error("permission-denied");
+  await assert.rejects(store.setEvaluationIssueTagActive(protectedTag, false), /permission-denied/);
+  assert.equal(fixture.tags[0].active, true);
+  assert.equal(pendingKeys().length, 0);
+  assert.equal((await store.fetchEvaluationIssueTags())[0].active, true);
+  console.log("PASS removal permission failures leave the shared and local Tag active");
 
   reset(); store = loadStore(); fixture.readGate = gate();
   const hangingCatalog = store.fetchEvaluationIssueTags();

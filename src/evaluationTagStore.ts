@@ -21,6 +21,8 @@ export type EvaluationIssueTag = {
   createdBy: string;
   syncStatus?: "pending" | "conflict";
   syncError?: string;
+  syncAction?: "create" | "archive" | "restore";
+  syncRevision?: string;
 };
 
 export type EvaluationIssueTagSnapshot = {
@@ -66,7 +68,11 @@ function normalizeStoredTag(value: any): EvaluationIssueTag | null {
     createdAt: String(value?.createdAt || ""),
     createdBy: String(value?.createdBy || ""),
     ...(value?.syncStatus === "pending" || value?.syncStatus === "conflict"
-      ? { syncStatus: value.syncStatus, syncError: String(value.syncError || "") } : {}),
+      ? {
+          syncStatus: value.syncStatus, syncError: String(value.syncError || ""),
+          syncAction: value.syncAction === "archive" || value.syncAction === "restore" ? value.syncAction : "create",
+          syncRevision: String(value.syncRevision || ""),
+        } : {}),
   };
 }
 
@@ -121,11 +127,18 @@ function savePendingTag(tag: EvaluationIssueTag) {
 
 function tagSnapshot(): EvaluationIssueTagSnapshot {
   const pending = readPendingTags();
+  const tags = new Map((knownTags ?? readCachedIssueTags()).map((tag) => [tag.normalizedName, tag]));
+  // Local removal/restoration must override the last confirmed catalog while
+  // waiting for Firebase. A stale creation must never revive a removed Tag.
+  const changes = pending.filter((tag) => tag.syncStatus !== "conflict")
+    .sort((left, right) => Number(left.syncAction !== "create") - Number(right.syncAction !== "create"));
+  for (const tag of changes) {
+    const current = tags.get(tag.normalizedName);
+    if (current && (!sameTopic(current, tag) || tag.syncAction === "create")) continue;
+    tags.set(tag.normalizedName, tag);
+  }
   return {
-    tags: normalizeStoredTags([
-      ...(knownTags ?? readCachedIssueTags()),
-      ...pending.filter((tag) => tag.syncStatus !== "conflict"),
-    ]),
+    tags: [...tags.values()],
     conflicts: pending.filter((tag) => tag.syncStatus === "conflict"),
   };
 }
@@ -179,29 +192,41 @@ function sameTopic(left: EvaluationIssueTag, right: EvaluationIssueTag) {
 }
 
 function sharedTag(tag: EvaluationIssueTag) {
-  const { syncStatus, syncError, ...shared } = tag;
+  const { syncStatus, syncError, syncAction, syncRevision, ...shared } = tag;
   return shared;
 }
 
-function queueForLocalUse(tag: EvaluationIssueTag) {
+function removedTagMessage(tag: EvaluationIssueTag) {
+  return `Tag “${tag.name}” ถูกลบจากคลังแล้ว เปิด “จัดการ Tag” แล้วกด “คืน Tag” เพื่อใช้ชื่อเดิม`;
+}
+
+function queueForLocalUse(tag: EvaluationIssueTag, priorRevision?: string) {
+  if (tag.syncAction && tag.syncAction !== "create") {
+    const newer = readPendingTags().find((item) => item.id === tag.id && item.syncRevision !== tag.syncRevision);
+    if (newer && newer.syncRevision !== priorRevision) return newer;
+  }
   const duplicate = tagSnapshot().tags.find((item) => item.normalizedName === tag.normalizedName);
   if (duplicate) {
     if (!sameTopic(duplicate, tag)) throw new Error(duplicateMessage(duplicate));
-    return duplicate;
+    if (!tag.syncAction || tag.syncAction === "create") {
+      if (!duplicate.active) throw new Error(removedTagMessage(duplicate));
+      return duplicate;
+    }
+    if (duplicate.active === tag.active) return duplicate;
   }
   const pendingTag: EvaluationIssueTag = { ...tag, syncStatus: "pending" };
   savePendingTag(pendingTag); notifyTags(); scheduleRetry();
   return pendingTag;
 }
 
-function finishCreationWithoutBlocking(operation: Promise<EvaluationIssueTag>, tag: EvaluationIssueTag) {
+function finishTagChangeWithoutBlocking(operation: Promise<EvaluationIssueTag>, tag: EvaluationIssueTag, priorRevision?: string) {
   if (typeof window === "undefined") return operation;
   return new Promise<EvaluationIssueTag>((resolve, reject) => {
     // Covers both a hung transaction and a catalog read ahead of it in the
-    // operation queue. A late commit still confirms and clears this same ID.
+    // operation queue. A late result must retain a newer change to this Tag.
     const timer = window.setTimeout(() => {
-      console.warn("Evaluation issue Tag creation still waiting; using local queue", { waitMs: CREATE_WAIT_MS });
-      try { resolve(queueForLocalUse(tag)); } catch (error) { reject(error); }
+      console.warn("Evaluation issue Tag change still waiting; using local queue", { waitMs: CREATE_WAIT_MS });
+      try { resolve(queueForLocalUse(tag, priorRevision)); } catch (error) { reject(error); }
     }, CREATE_WAIT_MS);
     operation.then((created) => {
       window.clearTimeout(timer); resolve(created);
@@ -216,17 +241,25 @@ async function syncTags(pending: EvaluationIssueTag[]) {
   const result = await runTransaction(firebaseDb, async (transaction) => {
     const snapshot = await transaction.get(settingsRef);
     const tags = snapshot.exists() ? normalizeStoredTags(snapshot.data()?.tags) : [];
-    const resolved: string[] = [];
+    const resolved: EvaluationIssueTag[] = [];
     const conflicts: EvaluationIssueTag[] = [];
     let changed = false;
-    for (const tag of pending) {
-      const duplicate = tags.find((item) => item.normalizedName === tag.normalizedName);
+    for (const tag of [...pending].sort((left, right) => Number(Boolean(left.syncAction && left.syncAction !== "create")) - Number(Boolean(right.syncAction && right.syncAction !== "create")))) {
+      const index = tags.findIndex((item) => item.normalizedName === tag.normalizedName);
+      const duplicate = tags[index];
       if (duplicate && !sameTopic(duplicate, tag)) {
         conflicts.push({ ...tag, syncStatus: "conflict", syncError: duplicateMessage(duplicate) });
         continue;
       }
+      if (duplicate && !duplicate.active && (!tag.syncAction || tag.syncAction === "create")) {
+        conflicts.push({ ...tag, syncStatus: "conflict", syncError: removedTagMessage(duplicate) });
+        continue;
+      }
       if (!duplicate) { tags.push(sharedTag(tag)); changed = true; }
-      resolved.push(tag.id);
+      else if (tag.syncAction && tag.syncAction !== "create" && duplicate.active !== tag.active) {
+        tags[index] = { ...duplicate, active: tag.active }; changed = true;
+      }
+      resolved.push(tag);
     }
     if (changed) {
       transaction.set(settingsRef, {
@@ -240,11 +273,14 @@ async function syncTags(pending: EvaluationIssueTag[]) {
   // retain every Tag across reloads, without claiming a shared save succeeded.
   knownTags = result.tags;
   writeCachedIssueTags(result.tags);
-  for (const id of result.resolved) {
-    try { window.localStorage.removeItem(ISSUE_TAG_PENDING_PREFIX + id); } catch {}
+  for (const tag of result.resolved) {
+    const queued = readPendingTags().find((item) => item.id === tag.id);
+    if (queued && queued.syncRevision === tag.syncRevision) {
+      try { window.localStorage.removeItem(ISSUE_TAG_PENDING_PREFIX + tag.id); } catch {}
+    }
   }
   for (const tag of result.conflicts) {
-    if (readPendingTags().some((pendingTag) => pendingTag.id === tag.id)) savePendingTag(tag);
+    if (readPendingTags().some((item) => item.id === tag.id && item.syncRevision === tag.syncRevision)) savePendingTag(tag);
   }
   if (retryTimer !== undefined && !readPendingTags().some((tag) => tag.syncStatus !== "conflict")) {
     window.clearTimeout(retryTimer); retryTimer = undefined;
@@ -252,6 +288,15 @@ async function syncTags(pending: EvaluationIssueTag[]) {
   lastReadAt = Date.now(); retryAt = 0; retryDelay = RETRY_BASE_MS; syncBlocked = false;
   notifyTags();
   return result;
+}
+
+function retainFailedChange(tag: EvaluationIssueTag, error: unknown) {
+  const queued = readPendingTags().find((item) => item.id === tag.id && item.syncRevision === tag.syncRevision && item.syncStatus === "pending");
+  if (queued) {
+    savePendingTag({ ...queued, syncStatus: "conflict", syncError: error instanceof Error ? error.message : "ไม่สามารถซิงก์ Tag เข้าคลังกลางได้" });
+    notifyTags();
+    console.warn("Evaluation issue Tag change rejected after local selection", { code: (error as { code?: string })?.code });
+  }
 }
 
 export function subscribeEvaluationIssueTags(listener: (snapshot: EvaluationIssueTagSnapshot) => void) {
@@ -319,11 +364,13 @@ export async function createEvaluationIssueTag(input: {
     topicCode: String(input.topicCode || "").trim(),
     topicTitle: String(input.topicTitle || "").trim(),
     active: true, createdAt: new Date().toISOString(), createdBy: String(input.createdBy || "").trim(),
+    syncAction: "create", syncRevision: safeTagId("change"),
   };
   const operation = exclusive(async () => {
     const duplicate = tagSnapshot().tags.find((tag) => tag.normalizedName === normalizedName);
     if (duplicate) {
       if (!sameTopic(duplicate, createdTag)) throw new Error(duplicateMessage(duplicate));
+      if (!duplicate.active) throw new Error(removedTagMessage(duplicate));
       return duplicate;
     }
     if (!isOffline() && Date.now() >= retryAt) {
@@ -343,15 +390,40 @@ export async function createEvaluationIssueTag(input: {
     }
     return queueForLocalUse(createdTag);
   }).catch((error) => {
-    const queued = readPendingTags().find((tag) => tag.id === createdTag.id && tag.syncStatus === "pending");
-    if (queued) {
-      // A permission or duplicate rejection can arrive after the UI's deadline.
-      // Keep that failure visible rather than claiming the local Tag was shared.
-      savePendingTag({ ...queued, syncStatus: "conflict", syncError: error instanceof Error ? error.message : "ไม่สามารถซิงก์ Tag เข้าคลังกลางได้" });
-      notifyTags();
-      console.warn("Evaluation issue Tag creation rejected after local selection", { code: error?.code });
-    }
+    retainFailedChange(createdTag, error);
     throw error;
   });
-  return finishCreationWithoutBlocking(operation, createdTag);
+  return finishTagChangeWithoutBlocking(operation, createdTag);
+}
+
+export async function setEvaluationIssueTagActive(tag: EvaluationIssueTag, active: boolean) {
+  const priorRevision = readPendingTags().find((item) => item.id === tag.id)?.syncRevision;
+  const changedTag: EvaluationIssueTag = {
+    ...sharedTag(tag), active, syncAction: active ? "restore" : "archive", syncRevision: safeTagId("change"),
+  };
+  const operation = exclusive(async () => {
+    const duplicate = tagSnapshot().tags.find((item) => item.normalizedName === tag.normalizedName);
+    if (duplicate && !sameTopic(duplicate, tag)) throw new Error(duplicateMessage(duplicate));
+    const newer = readPendingTags().find((item) => item.id === tag.id && item.syncRevision !== changedTag.syncRevision);
+    // Skip an older queued change after a later remove/restore has replaced it.
+    // The record present before this call is still a valid target for the change.
+    if (newer && newer.syncRevision !== priorRevision) return newer;
+    if (!isOffline() && Date.now() >= retryAt) {
+      try {
+        const result = await syncTags([
+          ...readPendingTags().filter((item) => item.syncStatus !== "conflict" && item.id !== tag.id), changedTag,
+        ]);
+        const conflict = result.conflicts.find((item) => item.id === tag.id);
+        if (conflict) throw new Error(conflict.syncError);
+        return result.tags.find((item) => item.normalizedName === tag.normalizedName)!;
+      } catch (error) {
+        if (!isTemporaryTagError(error)) throw error;
+        deferSync(error);
+      }
+    }
+    return queueForLocalUse(changedTag, priorRevision);
+  }).catch((error) => {
+    retainFailedChange(changedTag, error); throw error;
+  });
+  return finishTagChangeWithoutBlocking(operation, changedTag, priorRevision);
 }
