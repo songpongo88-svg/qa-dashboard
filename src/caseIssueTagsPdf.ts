@@ -18,5 +18,5 @@ export function caseIssueTagsPdfHtml(value: unknown): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;"));
-  return `<div><strong>Tag ที่พบปัญหา :</strong> ${escaped.join(" • ")}</div>`;
+  return `<div><span style="color:#7030a0"><strong>Tag ที่พบปัญหา :</strong> ${escaped.join(" • ")}</span></div>`;
 }
