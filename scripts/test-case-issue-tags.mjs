@@ -37,6 +37,17 @@ function loadDeclarations(file, names, bindings = {}) {
   return Function(...Object.keys(bindings), compiled)(...Object.values(bindings));
 }
 
+function assertTagsAtEndOfOriginalComment(container, comment, tags) {
+  const heading = [...container.querySelectorAll("div")].find((node) => node.textContent === "Original Comment");
+  assert.ok(heading, "the Original Comment heading exists");
+  const card = heading.parentElement;
+  const tagRow = card.lastElementChild;
+  assert.ok(tagRow.textContent.startsWith("Tag ที่พบปัญหา :"), "the Tag row is at the end of the same Original Comment card");
+  assert.ok(tagRow.previousElementSibling.textContent.includes(comment), "saved comment and deduction text remain before the Tag row");
+  assert.deepEqual([...tagRow.children].slice(1).map((node) => node.textContent), tags, "selected Tag names follow the label in the same row");
+  assert.ok(!container.textContent.includes("Tag ประเด็นที่พบ"), "the separate Tag heading has been removed");
+}
+
 const dom = new JSDOM("<div id='root'></div>", { url: "https://qa.test" });
 const globals = ["window", "document", "HTMLElement", "Event", "MouseEvent"];
 const originals = new Map(globals.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -59,7 +70,7 @@ try {
   const record = JSON.parse(JSON.stringify({
     id: "tag-case", caseId: "AA900021", agentName: "Agent A", auditDate: "2026-10-06", finalScore: 86,
     submittedAt: "2026-10-06T06:00:00Z", evidenceUrls: [], qaScheme: "QA-2026-08",
-    topics: [{ code: "2", title: "Answer Quality", max: 20, score: 6, comment: "เหตุผลเดิม", issueTags: [firstTag, secondTag], deductions: [] }],
+    topics: [{ code: "2", title: "Answer Quality", max: 20, score: 6, comment: "เหตุผลเดิม\nจุดที่หักคือ: ข้อมูลไม่ครบ\nหัก 14 คะแนน", issueTags: [firstTag, secondTag], deductions: [] }],
   }));
   const stored = mapStoredEvaluationsToCaseItems([record])[0];
   assert.deepEqual(stored.topics.find((topic) => topic.code === "2").issueTags, [firstTag, secondTag]);
@@ -88,16 +99,28 @@ try {
   assert.ok(!details.textContent.includes("สถานะหัวข้อย่อย"));
   assert.ok(!details.textContent.includes("ไม่มีข้อมูลจุดที่หัก"));
   assert.equal(document.querySelectorAll("[class*='border-amber-300']").length, 2);
-  console.log("PASS opening the real Case Detail topic displays selected Tags without sync badges or the removed status panel");
+  assertTagsAtEndOfOriginalComment(details, "หัก 14 คะแนน", [firstTag, secondTag]);
+  console.log("PASS opening the real Case Detail topic shows inline Tags after deduction text inside Original Comment");
 
   const revisedTopic = { ...merged.topics.find((topic) => topic.code === "2"), score: 10, comment: "เหตุผลหลังอุทธรณ์" };
   delete revisedTopic.issueTags;
   await act(async () => root.render(React.createElement(CaseDetailTopicTable, { topics: merged.topics, reviewStatus: "Revised", revisedTopics: [revisedTopic], displayRevisedTopicCodes: ["2"] })));
   assert.ok(document.body.textContent.includes(firstTag), "an appeal with no replacement Tags retains the saved case selections");
+  assertTagsAtEndOfOriginalComment(details, revisedTopic.comment, [firstTag, secondTag]);
+  for (const appealStatus of ["Approved", "Rejected"]) {
+    await act(async () => root.render(React.createElement(CaseDetailTopicTable, {
+      topics: merged.topics, reviewStatus: "Revised", revisedTopics: [revisedTopic], displayRevisedTopicCodes: ["2"], appealStatus,
+      appealReviewedTopics: [{ code: "2", appealReason: "ขอตรวจข้อมูล", comment: revisedTopic.comment }],
+    })));
+    assertTagsAtEndOfOriginalComment(details, "หัก 14 คะแนน", [firstTag, secondTag]);
+    assert.ok(document.body.textContent.includes("Appeal Reason"), "the appeal explanation remains available");
+  }
+  console.log("PASS approved and rejected appeals keep saved Tags inside their Original Comment card");
   const empty = structuredClone(merged.topics);
   empty.forEach((topic) => { delete topic.issueTags; });
   await act(async () => root.render(React.createElement(CaseDetailTopicTable, { topics: empty })));
-  assert.ok(!document.body.textContent.includes("Tag ประเด็นที่พบ"), "historical cases without selected Tags show no invented or empty Tag panel");
+  assert.ok(!document.body.textContent.includes("Tag ที่พบปัญหา :"), "historical cases without selected Tags show no invented or empty Tag row");
+  assert.equal(document.querySelectorAll("[class*='border-amber-300']").length, 0);
   assert.deepEqual(normalizeCaseIssueTags("เกิน SLA | ข้อมูลไม่ครบ | เกิน SLA"), ["เกิน SLA", "ข้อมูลไม่ครบ"]);
   console.log("PASS appeal fallback, empty historical cases and explicitly exported Tag names remain accurate");
 } finally {

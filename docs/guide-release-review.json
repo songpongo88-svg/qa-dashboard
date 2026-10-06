@@ -1,10 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-06T06:26:43.463Z",
-  "reason": "Verified immediate issue Tag completion feedback without sync badges, saved Tag mapping and workbook merge, real Case Detail topic rendering and appeal fallback; removed the subtopic status panel and updated Evaluate and Case Detail guidance.",
+  "reviewedAt": "2026-10-06T06:55:38.979Z",
+  "reason": "Verified saved issue Tags appear inline after deduction text inside Original Comment for normal, approved and rejected cases; empty cases have no Tag row and saved names and scores are preserved. Updated Case Detail guidance.",
   "contentChanged": true,
   "reviewedChapters": [
-    "evaluation",
     "case-detail"
   ],
   "termsVersions": {
@@ -293,7 +292,7 @@
     "scripts/sync-v13-excel-data-only.mjs": "4c4a8af7c60c4f6adcde922ecec746c76649590ea878ac6da022eb04423ede40",
     "scripts/sync-v13-rowdata.mjs": "9f98a43be94809668dc809621d7f46fdd3984e0cd7456f9129f09d42fdcdaf9e",
     "scripts/test-bulk-monthly-pdf.mjs": "3c3ee777207156f5c52db045ab2be6df9d6953a94f7af608c7b6e7cc4ab2d577",
-    "scripts/test-case-issue-tags.mjs": "99bd14bde0193cb58dd30d0726ff3cbb4eea4389bee2f4643d2eb2d6cc59aee7",
+    "scripts/test-case-issue-tags.mjs": "11e492a9ff27d26c6b9118b2a47aa90e917632c29f6ae5d72b26ba663f305b50",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-refresh.mjs": "97a2ec6ad365f4c17bd93d63d015fca9fa7aeec539dc9409538e8cb38e381391",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
@@ -319,7 +318,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "b35224159e13ce9a3f3c83d99211d0b6f5914c043baa73a52d98e6c545e9202e",
     "src/CreateEvaluationMockup.tsx": "2387c05a7385ad0d2101dff3c96c7442cd9a49640fe624f1bf10dea8e9b30b83",
-    "src/DashboardMockup.tsx": "bf037c79226da6803fc01d104c1e80109bd7fef9871992ae812c70f6c4b472f7",
+    "src/DashboardMockup.tsx": "3c79c946f8cceb82f8c38a8e3f785aac0f8755a3d826d00d1f3c59c9b76accf2",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "1c8fa095f7b379f4c693a45084fe89ad56dc5b869085b4dcf1bb9deb1b3c7695",
@@ -380,7 +379,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "6d416033682d39d7124cbc8232546dfee8ce83ea3f53d442097bd9be57ba5546",
+    "src/knowledge/manual.json": "ffdc2c917021a135f7a21c77378e7dbb7fdc50cf9c49f94fa113ad59ce675454",
     "src/knowledge/model.ts": "66f495235e03a0fb83079e2f4c38884e445cf9ad2c84f4b277a64b55d1de9059",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
