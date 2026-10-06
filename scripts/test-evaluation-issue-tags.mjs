@@ -123,7 +123,7 @@ async function exerciseEvaluate(store) {
   assert.equal(state.topics["1"].reason, "Existing assessment");
   assert.equal(state.saving["QA-2026-08:1"], false);
   assert.equal(state.drafts["QA-2026-08:1"], "");
-  assert.match(state.messages["QA-2026-08:1"], /รอซิงก์/);
+  assert.equal(state.messages["QA-2026-08:1"], "เพิ่ม Tag “Test” แล้ว", "local completion is acknowledged without a sync badge");
   assert.ok(!state.messages["QA-2026-08:1"].includes("Quota exceeded"));
   return state;
 }
