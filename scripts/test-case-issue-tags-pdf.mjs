@@ -43,11 +43,16 @@ try {
             super(...args);
             this.fixtureCalls = [];
             globalThis.__caseTagPdfFixtures.push(this);
+            const setTextColor = this.setTextColor.bind(this);
+            this.setTextColor = (...color) => {
+              this.fixtureTextColor = color;
+              return setTextColor(...color);
+            };
             for (const method of ["text", "line"]) {
               const original = this[method].bind(this);
               this[method] = (...values) => {
                 this.fixtureCalls.push({ method, values, page: this.getCurrentPageInfo().pageNumber,
-                  fontSize: this.getFontSize(), width: method === "text" ? this.getTextWidth(String(values[0])) : 0 });
+                  fontSize: this.getFontSize(), color: [...(this.fixtureTextColor || [])], width: method === "text" ? this.getTextWidth(String(values[0])) : 0 });
                 return original(...values);
               };
             }
@@ -75,6 +80,16 @@ try {
   for (const tag of tags) assert.ok(normal.text.includes(tag), `saved literal Tag retained: ${tag}`);
   assert.equal(normal.text.split("เกิน SLA").length - 1, 1, "duplicate selections appear once");
   assert.ok(normal.text.indexOf("หัก 14 คะแนน") < normal.text.indexOf(label), "Tags follow the deduction text");
+  const assertPurpleTags = (rendered) => {
+    const tagStart = rendered.calls.findIndex((call) => String(call.values[0]).includes(label));
+    assert.ok(tagStart >= 0, "the saved Tag row is present");
+    const tagCalls = rendered.calls.slice(tagStart).filter((call) => String(call.values[0]).includes(label) || tags.some((tag) => String(call.values[0]).includes(tag)));
+    assert.ok(tagCalls.length >= 2, "both the label and selected Tag names are drawn");
+    tagCalls.forEach((call) => assert.deepEqual(call.color, [112, 48, 160], "Tag label and names use the document's purple color"));
+    const deduction = rendered.calls.find((call) => String(call.values[0]).includes("หัก 14 คะแนน"));
+    assert.deepEqual(deduction.color, [0, 0, 0], "deduction text retains its original black color");
+  };
+  assertPurpleTags(normal);
   const underlinedText = normal.calls.find((call) => String(call.values[0]).includes("ข้อความต้นฉบับ"));
   assert.ok(normal.pdf.fixtureCalls.some((call) => call.method === "line" &&
     Math.abs(call.values[0] - underlinedText.values[1]) < 0.01 &&
@@ -91,6 +106,7 @@ try {
     assert.ok(rendered.text.indexOf("หัก 14 คะแนน") < rendered.text.indexOf(label));
     assert.ok(rendered.text.indexOf(label) < rendered.text.indexOf("Appeal Reason"), "Tags stay inside Original Comment, before appeal explanations");
     for (const tag of tags) assert.ok(rendered.text.includes(tag), "appeals without replacement Tags retain saved case Tags");
+    assertPurpleTags(rendered);
   }
   console.log("PASS original and appeal downloads place Tags inside Original Comment for approved and rejected appeals");
 
@@ -109,6 +125,8 @@ try {
   const paginated = await generate(long, "original", "paginated-tags");
   assert.ok(paginated.pdf.getNumberOfPages() > 1);
   const tagBodyCalls = paginated.calls.filter((call) => call.values[1] >= 130 && Math.abs(call.fontSize - 5.95) < 0.01);
+  const tagStart = tagBodyCalls.findIndex((call) => String(call.values[0]).includes(label));
+  tagBodyCalls.slice(tagStart).forEach((call) => assert.deepEqual(call.color, [112, 48, 160], "wrapped Tag text keeps its purple color on continuation pages"));
   const compactText = tagBodyCalls.map((call) => String(call.values[0])).join("").replace(/\s/g, "");
   for (const tag of long.topics[0].issueTags) assert.ok(compactText.includes(tag.replace(/\s/g, "")), "long wrapped names are retained completely across pages");
   const start = paginated.calls.findIndex((call) => String(call.values[0]).includes(label));
