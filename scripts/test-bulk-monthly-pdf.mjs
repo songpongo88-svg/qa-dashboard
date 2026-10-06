@@ -63,7 +63,7 @@ function fixtures(monthKey = "2026-09", agent = names.Agent) {
     inquiry: "Fixture inquiry", inquiryTh: "กรณีทดสอบการเรียงหน้า", teamName: "Fixture Team",
     rawDataPreview: { Senior: names.Senior, Supervisor: names.Supervisor, Team: "Fixture Team" },
     evaluatorName: names.QA, finalScore: 88, grade: "B",
-    topics: [30, 20, 25, 25].map((max, topic) => ({ code: String(topic + 1), title: `หัวข้อทดสอบ ${topic + 1}`, max, score: max - 3, comment: "รายละเอียดทดสอบ" })),
+    topics: [30, 20, 25, 25].map((max, topic) => ({ code: String(topic + 1), title: `หัวข้อทดสอบ ${topic + 1}`, max, score: max - 3, comment: "รายละเอียดทดสอบ", issueTags: topic === 0 ? ["เกิน SLA"] : [] })),
   }));
 }
 
@@ -152,6 +152,8 @@ try {
       const caseHeadings = text.filter((call) => call.value === "Case Detail");
       assert.equal(result.caseCount, 10);
       assert.equal(caseHeadings.length, 10, "all cases retained");
+      assert.equal(text.filter((call) => call.value.includes("Tag ที่พบปัญหา :")).length, 10, "Gen Case Detail includes the saved Tag row for each tagged case");
+      assert.equal(text.filter((call) => call.value.includes("เกิน SLA")).length, 10, "saved Tag names appear once per case in the combined export");
       assert.equal(fixture.signatureReads, scenario.weekLabel ? 0 : 1, "one saved-signature snapshot per export");
       for (let page = 1; page <= pdf.getNumberOfPages(); page++) {
         assert.ok(text.some((call) => call.page === page && !call.value.startsWith("Page ") && call.value !== "Robinhood Quality Assurance"), `no blank page ${page}`);
