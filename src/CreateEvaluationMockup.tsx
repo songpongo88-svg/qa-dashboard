@@ -39,6 +39,7 @@ import {
 import {
   createEvaluationIssueTag,
   fetchEvaluationIssueTags,
+  subscribeEvaluationIssueTags,
   normalizeEvaluationIssueTagName,
   type EvaluationIssueTag,
 } from "./evaluationTagStore";
@@ -1271,6 +1272,21 @@ export default function CreateEvaluationMockup({
 
   useEffect(() => {
     let cancelled = false;
+    const unsubscribe = subscribeEvaluationIssueTags(({ tags, conflicts }) => {
+      if (cancelled) return;
+      setIssueTagCatalog(tags);
+      setIssueTagMessages((current) => {
+        const next = { ...current };
+        for (const tag of tags) {
+          const key = `${tag.rubricCode}:${tag.topicCode}`;
+          if (!tag.syncStatus && next[key]?.includes("รอซิงก์") && next[key]?.includes(`“${tag.name}”`)) {
+            next[key] = `เพิ่ม Tag “${tag.name}” เข้าคลังกลางแล้ว`;
+          }
+        }
+        for (const tag of conflicts) next[`${tag.rubricCode}:${tag.topicCode}`] = tag.syncError || "ชื่อ Tag ซ้ำ กรุณาใช้ชื่ออื่น";
+        return next;
+      });
+    });
     void fetchEvaluationIssueTags()
       .then((tags) => {
         if (!cancelled) setIssueTagCatalog(tags);
@@ -1280,6 +1296,7 @@ export default function CreateEvaluationMockup({
       });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 
@@ -1990,6 +2007,7 @@ export default function CreateEvaluationMockup({
 
   async function addIssueTag(topic: RubricTopic) {
     const key = `${activeRubric.code}:${topic.code}`;
+    if (issueTagSaving[key]) return;
     const tagName = String(issueTagDrafts[key] || "").trim().replace(/\s+/g, " ");
     if (!tagName) {
       setIssueTagMessages((current) => ({ ...current, [key]: "กรุณาระบุชื่อ Tag" }));
@@ -2032,16 +2050,21 @@ export default function CreateEvaluationMockup({
         topicTitle: topic.title,
         createdBy: currentUser?.username || currentUser?.displayName || "",
       });
-      setIssueTagCatalog((current) => [...current, created]);
+      setIssueTagCatalog((current) => [...current.filter((tag) => tag.normalizedName !== created.normalizedName), created]);
       setTopicState((current) => ({
         ...current,
         [topic.code]: {
           ...current[topic.code],
-          issueTags: [...(current[topic.code]?.issueTags || []), created.name],
+          issueTags: [...(current[topic.code]?.issueTags || []).filter((name) => normalizeEvaluationIssueTagName(name) !== created.normalizedName), created.name],
         },
       }));
       setIssueTagDrafts((current) => ({ ...current, [key]: "" }));
-      setIssueTagMessages((current) => ({ ...current, [key]: `เพิ่ม Tag “${created.name}” แล้ว` }));
+      setIssueTagMessages((current) => ({
+        ...current,
+        [key]: created.syncStatus === "pending"
+          ? `เลือกใช้ Tag “${created.name}” แล้ว รอซิงก์เข้าคลังกลางเมื่อระบบกลับมาพร้อม`
+          : `เพิ่ม Tag “${created.name}” แล้ว`,
+      }));
     } catch (error) {
       setIssueTagMessages((current) => ({
         ...current,
@@ -3927,6 +3950,7 @@ export default function CreateEvaluationMockup({
                                             }`}
                                           >
                                             {tag.name}
+                                            {tag.syncStatus === "pending" ? <span className="ml-1 opacity-80">(รอซิงก์)</span> : null}
                                           </button>
                                         );
                                       }) : (
@@ -3979,7 +4003,7 @@ export default function CreateEvaluationMockup({
                                       </button>
                                     </div>
                                     {issueTagMessages[tagKey] ? (
-                                      <p className={`mt-2 text-xs font-bold ${issueTagMessages[tagKey].includes("เพิ่ม Tag") || issueTagMessages[tagKey].includes("เลือก Tag เดิม") ? "text-emerald-700" : "text-rose-700"}`}>
+                                      <p role="status" className={`mt-2 text-xs font-bold ${issueTagMessages[tagKey].includes("รอซิงก์") ? "text-amber-800" : issueTagMessages[tagKey].includes("เพิ่ม Tag") || issueTagMessages[tagKey].includes("เลือก Tag เดิม") ? "text-emerald-700" : "text-rose-700"}`}>
                                         {issueTagMessages[tagKey]}
                                       </p>
                                     ) : null}
