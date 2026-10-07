@@ -46,8 +46,8 @@ if (!source.includes(`// ${marker}`)) {
 
   source = replaceOnce(
     source,
-    `              previousScore,\n              finalScore,\n              reviewStatus: appealDecision === "Approved" && changedTopics.length ? "Revised" : "Original",\n              appealDecision,\n              grade: scoreToGrade(finalScore, monthKey),`,
-    `              previousScore,\n              finalScore: effectiveFinalScore,\n              reviewStatus: appealDecision === "Approved" && changedTopics.length ? "Revised" : "Original",\n              appealDecision,\n              grade: scoreToGrade(effectiveFinalScore, monthKey),`,
+    `              previousScore,\n              finalScore,\n              reviewStatus: appealDecision !== "Rejected" && changedTopics.length ? "Revised" : "Original",\n              appealDecision,\n              grade: scoreToGrade(finalScore, monthKey),`,
+    `              previousScore,\n              finalScore: effectiveFinalScore,\n              reviewStatus: appealDecision !== "Rejected" && changedTopics.length ? "Revised" : "Original",\n              appealDecision,\n              grade: scoreToGrade(effectiveFinalScore, monthKey),`,
     "static appeal final score and grade"
   );
 
@@ -103,7 +103,7 @@ if (!source.includes(`// ${marker}`)) {
   source = replaceOnce(
     source,
     `            <div>\n              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">\n                Search Case ID\n              </label>`,
-    `            <div>\n              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">\n                Decision\n              </label>\n              <select\n                value={selectedDecision}\n                onChange={(e) => setSelectedDecision(e.target.value as "all" | AppealDecision)}\n                className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"\n              >\n                <option value="all">All Decisions</option>\n                <option value="Approved">Approved</option>\n                <option value="Rejected">Rejected</option>\n              </select>\n            </div>\n\n            <div>\n              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">\n                Search Case ID\n              </label>`,
+    `            <div>\n              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">\n                Decision\n              </label>\n              <select\n                value={selectedDecision}\n                onChange={(e) => setSelectedDecision(e.target.value as "all" | AppealDecision)}\n                className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"\n              >\n                <option value="all">All Decisions</option>\n                <option value="Approved">Approved</option>\n                <option value="Rejected">Rejected</option>\n                <option value="Partially Approved">Partially Approved</option>\n              </select>\n            </div>\n\n            <div>\n              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">\n                Search Case ID\n              </label>`,
     "Decision filter control"
   );
 

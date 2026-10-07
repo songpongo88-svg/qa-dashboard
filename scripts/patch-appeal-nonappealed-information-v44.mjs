@@ -11,7 +11,9 @@ function patchAppealPdfContext() {
   let source = fs.readFileSync(appealPath, "utf8");
   if (source.includes(`// ${marker}-context`)) return;
 
-  const generatedAnchor = `      const generated = await generateOfficialCaseDetailPdf({`;
+  const generatedAnchor = source.includes("const generated = await generateCasePdfWithAppealHistory({")
+    ? `      const generated = await generateCasePdfWithAppealHistory({`
+    : `      const generated = await generateOfficialCaseDetailPdf({`;
   const generatedIndex = source.indexOf(generatedAnchor);
   if (generatedIndex < 0) {
     console.warn("Appeal PDF v44: generate PDF anchor not found; skipping context patch.");

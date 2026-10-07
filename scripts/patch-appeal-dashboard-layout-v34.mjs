@@ -30,12 +30,15 @@ if (!source.includes(`// ${marker}`)) {
     "static appeal effective score parity"
   );
 
+  // New reviews already calculate their score from individually approved topics.
+  if (!source.includes("const finalScore = appealScoreAfterReview(request.topics, previousScore);")) {
   source = replaceOnce(
     source,
     `            const finalScoreFromTopics = topics.reduce((sum, topic) => sum + Number(topic.score || 0), 0);\n            const approvedFinalScore = Number.isFinite(finalScoreFromTopics) && finalScoreFromTopics > 0\n              ? finalScoreFromTopics\n              : previousScore;\n            const finalScore = appealDecision === "Rejected" ? previousScore : approvedFinalScore;`,
     `            const approvedScoreDelta = changedTopics.reduce(\n              (sum, topic) => sum + (Number(topic.score || 0) - Number(topic.originalScore ?? topic.score ?? 0)),\n              0\n            );\n            const finalScore =\n              appealDecision === "Rejected"\n                ? previousScore\n                : Number((previousScore + approvedScoreDelta).toFixed(2));`,
     "firebase appeal effective score parity"
   );
+  }
 
   source = source.replace(
     `      <div className="grid gap-6 xl:grid-cols-[390px_minmax(0,1fr)]">`,

@@ -297,8 +297,8 @@ function normalizeHistoryRecord(id: string, row: any): QaTypingChallengeHistoryR
           "dashboard props"
         );
         next = mustReplace(this, next,
-          '  appealStatus?: "Approved" | "Rejected";\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealReviewedAt?: string;\n  originalQaName?: string;\n  originalAuditDate?: string;\n}) {',
-          '  appealStatus?: "Approved" | "Rejected";\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealReviewedAt?: string;\n  originalQaName?: string;\n  originalAuditDate?: string;\n  caseId?: string;\n  targetUsername?: string;\n}) {',
+          '  appealStatus?: AppealDecision;\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealReviewedAt?: string;\n  originalQaName?: string;\n  originalAuditDate?: string;\n}) {',
+          '  appealStatus?: AppealDecision;\n  appealReviewedTopics?: AppealReviewedTopic[] | null;\n  appealSubmittedBy?: string;\n  appealSubmittedAt?: string;\n  appealReviewedBy?: string;\n  appealReviewedAt?: string;\n  originalQaName?: string;\n  originalAuditDate?: string;\n  caseId?: string;\n  targetUsername?: string;\n}) {',
           "dashboard prop types"
         );
         next = mustReplace(this, next,

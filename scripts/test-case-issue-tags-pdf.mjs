@@ -110,6 +110,22 @@ try {
   }
   console.log("PASS original and appeal downloads place Tags inside Original Comment for approved and rejected appeals");
 
+  const mixed = { ...structuredClone(base), appealStatus: "Partially Approved", reviewStatus: "Revised", finalScore: 90, previousScore: 86,
+    displayRevisedTopicCodes: ["1"], revisedTopics: [{ ...base.topics[0], score: 10, comment: "Approved topic explanation" }],
+    appealReviewedTopics: [
+      { ...base.topics[0], decision: "Approved", comment: "Approved topic explanation", appealReason: "Appeal topic one" },
+      { ...base.topics[1], decision: "Rejected", comment: "Rejected topic explanation", appealReason: "Appeal topic two" },
+    ] };
+  const mixedPdf = await generate(mixed, "original", "mixed-decisions");
+  assert.ok(mixedPdf.text.includes("Partially Approved"));
+  assert.ok(mixedPdf.text.includes("Decision: Approved"));
+  assert.ok(mixedPdf.text.includes("Decision: Rejected"));
+  assert.ok(mixedPdf.text.includes("Reject Reason"));
+  assert.ok(mixedPdf.text.includes("Revised Score: 80.00 / 80.00"), "rejected topic keeps its original score");
+  assert.ok(mixedPdf.text.includes("Revised Score: 10.00 / 20.00"), "approved topic uses the revised score");
+  assertPurpleTags(mixedPdf);
+  console.log("PASS actual mixed-decision PDF shows both outcomes, approved revised score, rejected original score and purple Tags");
+
   const empty = structuredClone(base);
   empty.topics.forEach((topic) => { delete topic.issueTags; });
   assert.ok(!(await generate(empty)).text.includes(label), "historical untagged cases have no invented Tag row");

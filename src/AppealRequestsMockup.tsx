@@ -1,3 +1,4 @@
+import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, type AppealTopicDecision } from "./appealReview";
 import { AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
@@ -8,6 +9,7 @@ import PageHero from "./PageHero";
 type AppealTopic = {
   evidenceImages?: AppealEvidenceImage[];
   code: string;
+  decision?: AppealTopicDecision;
   label: string;
   score: number;
   max: number;
@@ -36,7 +38,7 @@ type AppealRequest = {
   caseDescription: string;
   caseUrl: string;
   rawDataSourceName: string;
-  status: "Pending" | "Approved" | "Rejected" | "Reset";
+  status: "Pending" | "Approved" | "Rejected" | "Partially Approved" | "Reset";
   reviewSummary?: string;
   reviewedAt?: string;
   reviewedBy?: string;
@@ -126,19 +128,11 @@ function isAppealedTopic(topic?: AppealTopic | null) {
 }
 
 function appealFinalScoreFromTopics(topics: AppealTopic[], originalFinalScore: number) {
-  return topics.reduce((sum, topic) => {
-    const revisedScore = toNumber(topic.revisedScore, Number.NaN);
-    if (Number.isNaN(revisedScore)) return sum;
-    return sum + (revisedScore - toNumber(topic.score));
-  }, originalFinalScore);
+  return appealScoreAfterReview(topics, originalFinalScore);
 }
 
 function appealGradeFromScore(score: number) {
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
+  return score >= 90 ? "A" : score >= 85 ? "B" : score >= 80 ? "C" : "D";
 }
 function scoreOptions(max: number) {
   const safeMax = Math.max(0, Math.floor(Number(max) || 0));
@@ -172,7 +166,9 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         .map((topic) => {
           const original = baseTopics.find(item => item.code === topic.code);
           topic = { ...topic, evidenceImages: original?.evidenceImages || topic.evidenceImages || [] };
-          if (reviewDecision !== "Rejected") return topic;
+          const decision = review ? getAppealTopicDecision(topic, reviewDecision) : undefined;
+          topic = { ...topic, decision };
+          if (decision !== "Rejected") return topic;
           return {
             ...topic,
             revisedScore: undefined,
@@ -190,11 +186,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         (Number.isNaN(reviewedAtTime) || resetAtTime > reviewedAtTime);
       const status = isResetAfterSubmit
         ? "Reset"
-        : review?.details?.decision === "Rejected"
-          ? "Rejected"
-          : review
-            ? "Approved"
-            : "Pending";
+        : review ? summarizeAppealDecisions(appealedTopics) : "Pending";
 
       return {
         requestId,
@@ -248,7 +240,7 @@ function buildAppealResetHistory(logs: UsageLogEvent[]) {
 }
 
 function exportAppealRows(requests: AppealRequest[]) {
-  const reviewed = requests.filter((item) => item.status === "Approved" || item.status === "Rejected");
+  const reviewed = requests.filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved");
   const topicCodes = Array.from(
     new Set(reviewed.flatMap((item) => item.topics.filter(isAppealedTopic).map((topic) => topic.code)))
   ).sort((a, b) => Number(a) - Number(b));
@@ -271,6 +263,7 @@ function exportAppealRows(requests: AppealRequest[]) {
     "Case URL",
   ];
   const topicHeaders = topicCodes.flatMap((code) => [
+    `${code} Decision`,
     `${code} Score`,
     `${code} Revised Score`,
     `${code} Comment`,
@@ -282,14 +275,14 @@ function exportAppealRows(requests: AppealRequest[]) {
   const rows = reviewed.map((item) => {
     const appealTopics = item.topics.filter(isAppealedTopic);
     const topicMap = new Map(appealTopics.map((topic) => [topic.code, topic]));
-    const approvedFinalScore = item.status === "Approved" ? appealFinalScoreFromTopics(appealTopics, item.finalScore) : item.finalScore;
+    const approvedFinalScore = appealFinalScoreFromTopics(appealTopics, item.finalScore);
     const row: Record<string, unknown> = {
       "Case ID": item.caseId,
       "Agent Name": item.agent,
       "Audit Date": item.auditDate,
       "Week Label": item.weekLabel,
       "Final Score": approvedFinalScore,
-      Grade: item.status === "Approved" ? appealGradeFromScore(approvedFinalScore) : item.grade,
+      Grade: item.status !== "Rejected" ? appealGradeFromScore(approvedFinalScore) : item.grade,
       "Appeal Decision": item.status,
       "Appeal Version": "Revised 1",
       "Appeal Submit Date & Time": formatDateTime(item.submittedAt),
@@ -303,11 +296,12 @@ function exportAppealRows(requests: AppealRequest[]) {
 
     topicCodes.forEach((code) => {
       const topic = topicMap.get(code);
+      row[`${code} Decision`] = topic?.decision ?? "";
       row[`${code} Score`] = topic?.score ?? "";
-      row[`${code} Revised Score`] = item.status === "Approved" ? topic?.revisedScore ?? topic?.score ?? "" : "";
+      row[`${code} Revised Score`] = topic?.decision === "Approved" ? topic?.revisedScore ?? topic?.score ?? "" : "";
       row[`${code} Comment`] = topic?.comment ?? "";
-      row[`${code} Revised Comment`] = item.status === "Approved" ? topic?.revisedComment ?? "" : "";
-      row[`${code} Reject Reason`] = item.status === "Rejected" ? topic?.rejectReason ?? "" : "";
+      row[`${code} Revised Comment`] = topic?.decision === "Approved" ? topic?.revisedComment ?? "" : "";
+      row[`${code} Reject Reason`] = topic?.decision === "Rejected" ? topic?.rejectReason ?? "" : "";
       row[`${code} Appeal Reason`] = isAppealedTopic(topic) ? topic?.appealReason ?? "" : "";
     });
 
@@ -341,7 +335,7 @@ export default function AppealRequestsMockup({
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [draftTopics, setDraftTopics] = useState<AppealTopic[]>([]);
-  const [decision, setDecision] = useState<"Approved" | "Rejected">("Rejected");
+  const decision = summarizeAppealDecisions(draftTopics.filter(isAppealedTopic));
   const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -351,7 +345,7 @@ export default function AppealRequestsMockup({
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
   const pendingRequests = requests.filter((item) => item.status === "Pending");
-  const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected");
+  const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved");
   const resetRequests = requests.filter((item) => item.status === "Reset");
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
@@ -380,10 +374,9 @@ export default function AppealRequestsMockup({
     setSelectedRequestId(selectedRequest.requestId);
     setDraftTopics(selectedRequest.topics.map((topic) => ({
       ...topic,
-      revisedScore: selectedRequest.status === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
+      revisedScore: topic.decision === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
       rejectReason: topic.rejectReason || "",
     })));
-    setDecision(selectedRequest.status === "Approved" ? "Approved" : "Rejected");
     setReviewSummary(selectedRequest.reviewSummary || "");
   }, [selectedRequest?.requestId]);
 
@@ -393,55 +386,27 @@ export default function AppealRequestsMockup({
       window.alert("Please enter Review Summary before saving.");
       return;
     }
-    if (decision === "Approved") {
-      const invalidTopic = draftTopics.find((topic) => {
-        const revisedScore = toNumber(topic.revisedScore, Number.NaN);
-        return Number.isNaN(revisedScore) || revisedScore < 0 || revisedScore > topic.max;
-      });
-      if (invalidTopic) {
-        window.alert(`Revised score for ${invalidTopic.code} must be between 0 and ${invalidTopic.max}.`);
-        return;
-      }
-    } else {
-      const missingReasonTopic = draftTopics.find((topic) => !String(topic.rejectReason || "").trim());
-      if (missingReasonTopic) {
-        window.alert(`Please enter Reject Reason for ${missingReasonTopic.code} before saving.`);
-        return;
-      }
+    let review;
+    try {
+      review = prepareAppealReview(draftTopics.filter(isAppealedTopic), selectedRequest.finalScore);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "กรุณาตรวจผลทบทวนแต่ละหัวข้อ");
+      return;
     }
-
-    const topicsForReview: AppealTopic[] = draftTopics.map((topic) => {
-      if (decision === "Approved") {
-        return {
-          code: topic.code,
-          label: topic.label,
-          score: topic.score,
-          max: topic.max,
-          comment: String(topic.comment || ""),
-          wantsAppeal: topic.wantsAppeal === true,
-          appealReason: String(topic.appealReason || ""),
-          revisedScore: topic.revisedScore ?? topic.score,
-          revisedComment: String(topic.revisedComment || "").trim(),
-          rejectReason: "",
-        };
-      }
-      return {
-        code: topic.code,
-        label: topic.label,
-        score: topic.score,
-        max: topic.max,
-        comment: String(topic.comment || ""),
-        wantsAppeal: topic.wantsAppeal === true,
-        appealReason: String(topic.appealReason || ""),
-        rejectReason: String(topic.rejectReason || "").trim(),
-      };
-    });
+    const topicsForReview = review.topics.map(topic => ({
+      code: topic.code, label: topic.label, score: topic.score, max: topic.max,
+      comment: String(topic.comment || ""), wantsAppeal: true,
+      appealReason: String(topic.appealReason || ""), decision: topic.decision,
+      ...(topic.decision === "Approved"
+        ? { revisedScore: topic.revisedScore, revisedComment: topic.revisedComment, rejectReason: "" }
+        : { rejectReason: topic.rejectReason }),
+    }));
     const confirmed = window.confirm(
       [
         `Confirm ${decision} for appeal case ${selectedRequest.caseId}?`,
         "",
         "After saving, this task will move out of Pending and the case owner will receive an Inbox notification.",
-        decision === "Approved"
+        decision !== "Rejected"
           ? "Approved revised scores will update Dashboard / Case Detail from Firebase appeal events after refresh."
           : "Rejected appeals will not change Dashboard or Summary scores.",
       ].join("\n")
@@ -456,7 +421,7 @@ export default function AppealRequestsMockup({
         target_agent: selectedRequest.agent,
         details: {
           requestId: selectedRequest.requestId,
-          decision,
+          decision: review.decision,
           reviewSummary: reviewSummary.trim(),
           reviewedAt: new Date().toISOString(),
           // Persist reviewer metadata with the review itself. This is the
@@ -474,10 +439,8 @@ export default function AppealRequestsMockup({
           notificationTarget: selectedRequest.submittedByUsername || selectedRequest.submittedBy || selectedRequest.agent,
           notificationTemplate: {
             subject: `Appeal result for case ${selectedRequest.caseId}`,
-            body:
-              decision === "Approved"
-                ? `Your appeal for case ${selectedRequest.caseId} has been approved. Dashboard / Case Detail will show the revised score after refresh.`
-                : `Your appeal for case ${selectedRequest.caseId} has been rejected. Dashboard and Summary scores were not changed.`,
+            body: `ผลอุทธรณ์เคส ${selectedRequest.caseId}: ${review.decision}. ` +
+              topicsForReview.map(topic => `หัวข้อ ${topic.code}: ${topic.decision}`).join(" • "),
           },
         },
       });
@@ -486,13 +449,11 @@ export default function AppealRequestsMockup({
         return;
       }
 
-      setMessage(
-        decision === "Approved"
-          ? `Approved appeal for ${selectedRequest.caseId}. Revised score was saved and will show on Dashboard / Case Detail after refresh.`
-          : `Rejected appeal for ${selectedRequest.caseId}. Result task was sent to the case owner and scores were not changed.`
-      );
+      setMessage(`บันทึกผล ${review.decision} ของเคส ${selectedRequest.caseId} แล้ว คะแนนรวม ${review.finalScore.toFixed(2)}`);
       await loadRequests();
       onTasksChanged?.();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "บันทึกผลทบทวนไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setBusy(false);
     }
@@ -693,12 +654,25 @@ export default function AppealRequestsMockup({
                     .filter(isAppealedTopic)
                     .map((topic) => (
                       <div key={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label={`ผลพิจารณาหัวข้อ ${topic.code}`}>
+                          {(["Approved", "Rejected"] as const).map(value => (
+                            <button key={value} type="button" aria-pressed={topic.decision === value}
+                              disabled={busy || selectedRequest.status !== "Pending"}
+                              onClick={() => setDraftTopics(current => current.map(item => item.code === topic.code ? { ...item, decision: value } : item))}
+                              className={`rounded-xl border px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${topic.decision === value
+                                ? value === "Approved" ? "border-emerald-600 bg-emerald-600 text-white" : "border-rose-600 bg-rose-600 text-white"
+                                : "border-slate-200 bg-white text-slate-600 hover:border-violet-300"}`}>
+                              {value === "Approved" ? "✓ Approved" : "× Reject"}
+                            </button>
+                          ))}
+                          {!topic.decision && <span className="text-xs font-semibold text-amber-700">รอเลือกผลพิจารณา</span>}
+                        </div>
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div>
                             <div className="text-base font-extrabold text-slate-950">{topic.code} {topic.label}</div>
                             <div className="mt-1 text-xs font-semibold text-slate-500">Original {topic.score}/{topic.max}</div>
                           </div>
-                          {decision === "Approved" ? (
+                          {topic.decision === "Approved" ? (
                             <label className="w-44 text-[11px] font-bold uppercase tracking-[0.12em] text-violet-700">
                               Revised Score
                               <select
@@ -736,7 +710,7 @@ export default function AppealRequestsMockup({
                             <AppealEvidenceGallery images={topic.evidenceImages || []} />
                           </div>
                         </div>
-                        {decision === "Approved" ? (
+                        {topic.decision === "Approved" ? (
                           <div className="mt-4">
                             <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700" htmlFor={`revised-comment-${topic.code}`}>
                               Revised Comment
@@ -770,7 +744,7 @@ export default function AppealRequestsMockup({
                               Approve จะนำ Revised Score และ Revised Comment ไปใช้คำนวณและแสดงใน Case Detail
                             </div>
                           </div>
-                        ) : (
+                        ) : topic.decision === "Rejected" ? (
                           <div className="mt-4">
                             <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-rose-700" htmlFor={`reject-reason-${topic.code}`}>
                               Reject Reason <span className="text-rose-600">*</span>
@@ -804,44 +778,19 @@ export default function AppealRequestsMockup({
                               Reject Reason ใช้อธิบายผลการพิจารณาเท่านั้น ไม่ถือเป็น Revised Comment และไม่เปลี่ยนคะแนนเดิม
                             </div>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     ))}
                 </div>
 
                 <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Review Decision</div>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      aria-pressed={decision === "Approved"}
-                      disabled={selectedRequest.status !== "Pending"}
-                      onClick={() => setDecision("Approved")}
-                      className={`rounded-2xl border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${
-                        decision === "Approved"
-                          ? "border-emerald-400 bg-emerald-600 text-white shadow-sm"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"
-                      }`}
-                    >
-                      <div className="text-sm font-extrabold">✓ Approve</div>
-                      <div className={`mt-1 text-xs ${decision === "Approved" ? "text-emerald-50" : "text-slate-500"}`}>ปรับคะแนนและ Comment ตามผลทบทวน</div>
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={decision === "Rejected"}
-                      disabled={selectedRequest.status !== "Pending"}
-                      onClick={() => setDecision("Rejected")}
-                      className={`rounded-2xl border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-70 ${
-                        decision === "Rejected"
-                          ? "border-rose-400 bg-rose-600 text-white shadow-sm"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50"
-                      }`}
-                    >
-                      <div className="text-sm font-extrabold">× Reject</div>
-                      <div className={`mt-1 text-xs ${decision === "Rejected" ? "text-rose-50" : "text-slate-500"}`}>ยืนยันคะแนนและ Original Comment เดิม</div>
-                    </button>
+                  <div className="text-sm font-bold text-violet-700">สรุปผลรายหัวข้อ: {decision === "Pending" ? "ยังพิจารณาไม่ครบ" : decision}</div>
+                  <div className="mt-2 text-sm text-slate-700">
+                    Approved {draftTopics.filter(topic => topic.decision === "Approved").length} •
+                    Reject {draftTopics.filter(topic => topic.decision === "Rejected").length} •
+                    คะแนนหลังทบทวน {appealFinalScoreFromTopics(draftTopics, selectedRequest.finalScore).toFixed(2)} •
+                    KPI {appealFinalScoreFromTopics(draftTopics, selectedRequest.finalScore) >= 85 ? "Passed" : "Not Passed"}
                   </div>
-
                   <div className="mt-4">
                     <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700" htmlFor="appeal-review-summary">
                       Review Summary <span className="text-rose-600">*</span>

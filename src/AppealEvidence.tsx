@@ -44,14 +44,21 @@ export async function uploadAppealImage(file: File, caseId: string, topicCode: s
     reader.readAsDataURL(blob);
   });
   const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
-  const response = await fetch("/api/google-drive-upload", {
+  let response: Response;
+  try { response = await fetch("/api/google-drive-upload", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ uploadKind: "appeal-image", fileName: name, contentType: "image/jpeg", caseId: "appeal-" + caseId + "-" + topicCode, dataBase64 }),
     signal: AbortSignal.timeout(60000),
-  });
+  }); } catch (error) {
+    if (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)) {
+      throw new Error("อัปโหลดรูปใช้เวลานานเกินไป กดลองอัปโหลดอีกครั้ง");
+    }
+    throw new Error("เชื่อมต่ออัปโหลดรูปไม่ได้ ตรวจการเชื่อมต่อแล้วกดลองอัปโหลดอีกครั้ง");
+  }
   const data = await response.json().catch(() => ({}));
   const id = String(data.id || "").trim();
-  if (!response.ok || !/^[A-Za-z0-9_-]+$/.test(id)) throw new Error(data.error || "อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่");
+  if (!response.ok) throw new Error(data.error || `อัปโหลดรูปไม่สำเร็จ (HTTP ${response.status}) กดลองอัปโหลดอีกครั้ง`);
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("ไม่ได้รับรหัสรูปที่อัปโหลด กดลองอัปโหลดอีกครั้ง");
   return { id, name, size: blob.size, width, height, url: "/api/google-drive-download?inline=1&id=" + encodeURIComponent(id) };
 }
 
@@ -98,13 +105,22 @@ export function AppealEvidencePicker({ caseId, topicCode, images, totalCount, di
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failedFiles, setFailedFiles] = useState<File[]>([]);
   const lock = useRef(false);
   const choose = async (files: File[]) => {
     if (!files.length || lock.current || disabled) return;
     if (files.length + totalCount > APPEAL_IMAGE_LIMIT) { setError("แนบได้สูงสุด 5 รูปรวมทุก Topic ต่อคำขอ"); return; }
     lock.current = true; setBusy(true); onBusyChange(true); setError("");
-    try { for (const file of files) onAdd(await uploadAppealImage(file, caseId, topicCode)); }
-    catch (e) { setError(e instanceof Error ? e.message : "อัปโหลดไม่สำเร็จ"); }
+    const pending: File[] = [];
+    const failures: string[] = [];
+    try {
+      for (const file of files) {
+        try { onAdd(await uploadAppealImage(file, caseId, topicCode)); }
+        catch (e) { pending.push(file); failures.push(`${file.name}: ${e instanceof Error ? e.message : "อัปโหลดไม่สำเร็จ"}`); }
+      }
+      setFailedFiles(pending);
+      setError(failures.join("\n"));
+    }
     finally { lock.current = false; setBusy(false); onBusyChange(false); }
   };
   return <div className="mt-4 border-t border-violet-100 pt-4">
@@ -114,7 +130,11 @@ export function AppealEvidencePicker({ caseId, topicCode, images, totalCount, di
       <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || disabled || totalCount >= APPEAL_IMAGE_LIMIT} className="sr-only" onChange={e => { const files = Array.from(e.currentTarget.files || []); e.currentTarget.value = ""; void choose(files); }} />
     </label>
     <div className="mt-2 text-xs leading-5 text-slate-500">JPG, PNG, WEBP · สูงสุด 5 รูปรวมทุก Topic · ต้นฉบับไม่เกิน 20 MB/รูป<br />ระบบย่ออัตโนมัติ ไม่เกิน 1,600 px และ 1 MB/รูป · กดรูปเพื่อดูภาพใหญ่</div>
-    {error && <div role="alert" className="mt-2 text-sm text-rose-600">{error}</div>}
+    {error && <div role="alert" className="mt-2 whitespace-pre-line text-sm text-rose-600">{error}</div>}
+    {failedFiles.length > 0 && <button type="button" disabled={busy || disabled}
+      onClick={() => void choose(failedFiles)} className="mt-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700 disabled:opacity-50">
+      ลองอัปโหลดอีกครั้ง ({failedFiles.length} รูป)
+    </button>}
     <AppealEvidenceGallery images={images} onRemove={busy || disabled ? undefined : onRemove} />
   </div>;
 }

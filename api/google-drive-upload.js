@@ -1,3 +1,12 @@
+function driveFileId(value) {
+  const text = String(value || "").trim();
+  try {
+    const url = new URL(text);
+    if (!["drive.google.com", "docs.google.com"].includes(url.hostname)) return "";
+    return url.pathname.match(/\/d\/([A-Za-z0-9_-]+)/)?.[1] || url.searchParams.get("id") || "";
+  } catch { return ""; }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -47,7 +56,9 @@ export default async function handler(req, res) {
       : data.data && typeof data.data === "object"
         ? data.data
         : {};
-    const id = data.id || data.fileId || nested.id || nested.fileId || "";
+    const idCandidates = [data.id, data.fileId, nested.id, nested.fileId,
+      ...[data.webViewLink, data.url, data.fileUrl, data.link, nested.webViewLink, nested.url, nested.fileUrl, nested.link].map(driveFileId)];
+    const id = idCandidates.map(value => String(value || "").trim()).find(value => /^[A-Za-z0-9_-]+$/.test(value)) || "";
     const webViewLink =
       data.webViewLink ||
       data.url ||
@@ -63,6 +74,12 @@ export default async function handler(req, res) {
       return res.status(502).json({
         error: "Google Drive upload completed but no file link was returned",
       });
+    }
+
+    // Image galleries need the file ID for their inline download URL. Legacy
+    // upload scripts sometimes return only the Drive link, so resolve it above.
+    if (body.uploadKind === "appeal-image" && !id) {
+      return res.status(502).json({ error: "อัปโหลดรูปแล้ว แต่ไม่ได้รับรหัสไฟล์จาก Google Drive กรุณาลองใหม่" });
     }
 
     return res.status(200).json({
