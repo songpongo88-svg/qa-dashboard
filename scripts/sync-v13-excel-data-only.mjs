@@ -224,7 +224,7 @@ async function fetchCollectionRows(collectionName, orderField) {
 
 async function fetchEvaluations() {
   const rows = await fetchCollectionRows("qa_evaluations", "submitted_at");
-  return rows.map((item) => normalizeEvaluation(item, item.id)).filter((item) => normalizeKey(item.caseId));
+  return rows.filter((item) => !item.deleted_at).map((item) => normalizeEvaluation(item, item.id)).filter((item) => normalizeKey(item.caseId));
 }
 
 async function fetchAppealRequests() {

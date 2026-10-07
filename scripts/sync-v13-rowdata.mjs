@@ -147,6 +147,7 @@ async function fetchEvaluations() {
     query(collection(db, "qa_evaluations"), orderBy("submitted_at", "desc"), limit(MAX_FETCH))
   );
   return snapshot.docs
+    .filter((item) => !item.data().deleted_at)
     .map((item) => normalizeEvaluation({ id: item.id, ...item.data() }, item.id))
     .filter((item) => normalizeCaseId(item.caseId));
 }

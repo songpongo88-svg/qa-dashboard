@@ -1,5 +1,5 @@
 ﻿import { initializeApp, getApps } from "firebase/app";
-import { collection, deleteDoc, doc, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, setDoc, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, doc, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, setDoc, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { getEvaluationAgentFullName } from "./lib/userNames";
@@ -135,6 +135,7 @@ export type StoredEvaluation = {
   submittedAt: string;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string;
 };
 
 type CachedRemoteEvaluationRequest = {
@@ -516,6 +517,7 @@ function toEvaluation(row: any): StoredEvaluation {
     submittedAt: String(row.submitted_at || row.created_at || ""),
     createdAt: String(row.created_at || ""),
     updatedAt: String(row.updated_at || ""),
+    deletedAt: String(row.deleted_at || ""),
   };
 }
 
@@ -601,6 +603,7 @@ function toLocalEvaluation(row: any): StoredEvaluation {
     submittedAt,
     createdAt: submittedAt,
     updatedAt: submittedAt,
+    deletedAt: normalizeLocalString(localField(row, "deletedAt", "deleted_at")),
   };
 }
 
@@ -738,8 +741,8 @@ function evaluationIdentityValues(item: Pick<StoredEvaluation, "id" | "evaluatio
   ].map((value) => String(value || "").trim()).filter(Boolean);
 }
 
-function isDeletedEvaluation(item: Pick<StoredEvaluation, "id" | "evaluationKey" | "caseId">, deletedIds = readDeletedEvaluationIds()) {
-  return evaluationIdentityValues(item).some((value) => deletedIds.has(value));
+function isDeletedEvaluation(item: Pick<StoredEvaluation, "id" | "evaluationKey" | "caseId" | "deletedAt">, deletedIds = readDeletedEvaluationIds()) {
+  return Boolean(item.deletedAt) || evaluationIdentityValues(item).some((value) => deletedIds.has(value));
 }
 
 function removeEvaluationFromStorage(id: string, caseId?: string) {
@@ -774,7 +777,7 @@ function removeEvaluationFromStorage(id: string, caseId?: string) {
     }
   };
 
-  removeFromKey(LOCAL_EVALUATION_HISTORY_KEY);
+  LOCAL_EVALUATION_HISTORY_KEYS.forEach(removeFromKey);
   removeFromKey(REMOTE_EVALUATION_CACHE_KEY);
 }
 
@@ -874,8 +877,12 @@ function recoverRemoteEvaluationFromLocal(remote: StoredEvaluation, local: Store
 function mergeEvaluationSources(remote: StoredEvaluation[], local: StoredEvaluation[]) {
   const merged = new Map<string, StoredEvaluation>();
   const deletedIds = readDeletedEvaluationIds();
+  // A central deletion wins over stale browser backups, including on other devices.
+  // Match the evaluation identity so a newly evaluated case can still be used.
+  const centrallyDeletedIds = new Set(remote.filter(item => item.deletedAt)
+    .flatMap(item => [item.id, item.evaluationKey].filter(Boolean)));
   local.forEach((item) => {
-    if (isDeletedEvaluation(item, deletedIds)) return;
+    if (isDeletedEvaluation(item, deletedIds) || [item.id, item.evaluationKey].some(id => centrallyDeletedIds.has(id))) return;
     merged.set(item.evaluationKey || item.id, item);
   });
   remote.forEach((item) => {
@@ -938,6 +945,9 @@ function fromEvaluation(record: StoredEvaluation) {
     evaluator_name: record.evaluatorName || "",
     submitted_at: record.submittedAt || now,
     updated_at: now,
+    // An explicit save restores this evaluation without losing its original data.
+    deleted_at: null,
+    deletion_source: null,
   };
 }
 
@@ -1344,7 +1354,7 @@ function saveEvaluationLocally(record: StoredEvaluation) {
       (item) => !evaluationIdentityValues(item).some((identity) => recordIdentities.has(identity))
     );
     const nextLocal = limitEvaluationScopes([localRecord, ...currentLocal], MAX_EVALUATION_LIMIT);
-    window.localStorage.setItem(LOCAL_EVALUATION_HISTORY_KEY, JSON.stringify(nextLocal));
+    window.localStorage.setItem(LOCAL_EVALUATION_HISTORY_KEYS[1], JSON.stringify(nextLocal));
     forgetDeletedEvaluationMarkers(localRecord);
     clearRemoteEvaluationReadCache();
   } catch (error) {
@@ -1397,21 +1407,78 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
 export async function deleteStoredEvaluation(id: string, caseId?: string) {
   const normalizedId = String(id || "").trim();
   if (!normalizedId) throw new Error("Evaluation id is required.");
-
-  removeEvaluationFromStorage(normalizedId, caseId);
-
-  if (!isFirebaseEvaluationConfigured()) return;
-
-  try {
-    const db = getFirebaseEvaluationDb();
-    if (!db) return;
-
-    const documentId = normalizedId.replace(/[\\/#?\[\]]/g, "_");
-    await deleteDoc(doc(db, FIREBASE_EVALUATION_COLLECTION, documentId));
-    clearRemoteEvaluationReadCache();
-  } catch (error) {
-    console.warn("Firebase evaluation delete skipped", error);
+  if (isFirebaseEvaluationConfigured()) {
+    try {
+      await markEvaluationDeleted(normalizedId, "confirmed_delete", caseId);
+    } catch (error) {
+      throw new Error("ลบเคสไม่สำเร็จ ข้อมูลเดิมยังอยู่ กรุณาลองอีกครั้ง", { cause: error });
+    }
   }
+  // Only report/remove locally after the central deletion is confirmed.
+  removeEvaluationFromStorage(normalizedId, caseId);
+  clearRemoteEvaluationReadCache();
+}
+
+async function markEvaluationDeleted(id: string, source: "confirmed_delete" | "legacy_browser_delete", expectedCaseId?: string) {
+  const db = getFirebaseEvaluationDb();
+  if (!db) throw new Error("ไม่สามารถตรวจสอบข้อมูลส่วนกลางได้");
+  const documentId = id.replace(/[\\/#?\[\]]/g, "_");
+  return runTransaction(db, async transaction => {
+    let reference = doc(db, FIREBASE_EVALUATION_COLLECTION, documentId);
+    let snapshot = await transaction.get(reference);
+    if (!snapshot.exists() && expectedCaseId) {
+      const candidates = await getDocsFromServer(query(collection(db, FIREBASE_EVALUATION_COLLECTION),
+        where("case_id", "in", [expectedCaseId])));
+      const match = candidates.docs.find(item => item.id === id || item.data().id === id || item.data().evaluation_key === id);
+      if (match) {
+        reference = doc(db, FIREBASE_EVALUATION_COLLECTION, match.id);
+        snapshot = await transaction.get(reference);
+      } else if (candidates.docs.some(item => !item.data().deleted_at)) {
+        throw new Error("ไม่พบรายการที่เลือกในข้อมูลส่วนกลาง กรุณาอัปเดตข้อมูลก่อนลบ");
+      }
+    }
+    if (!snapshot.exists()) return { changed: false, caseId: expectedCaseId || "" };
+    const data = snapshot.data();
+    const caseId = String(data.case_id || "");
+    if (expectedCaseId && caseId.trim().toUpperCase() !== expectedCaseId.trim().toUpperCase()) {
+      throw new Error("เคสต้นทางไม่ตรงกับรายการที่เลือก กรุณาอัปเดตข้อมูลก่อนลบ");
+    }
+    if (data.deleted_at) return { changed: false, caseId };
+    // Preserve evaluation data, Call Logs and appeal history; only its active state changes.
+    const now = new Date().toISOString();
+    transaction.update(reference, { deleted_at: now, deletion_source: source, updated_at: now });
+    return { changed: true, caseId };
+  }, { maxAttempts: 3 });
+}
+
+let deletedEvaluationRecovery: Promise<{ changed: number; pending: number }> | null = null;
+
+// The old delete handler recorded an exact evaluation ID, then failed on an
+// undefined history key before reaching Firebase. Complete those confirmed
+// operations once, without replaying broad case-ID markers onto newer records.
+// Call only for signed-in users with the existing createEvaluation permission.
+export function reconcileDeletedEvaluations() {
+  if (deletedEvaluationRecovery) return deletedEvaluationRecovery;
+  deletedEvaluationRecovery = (async () => {
+    if (!isFirebaseEvaluationConfigured()) return { changed: 0, pending: 0 };
+    const ids = [...readDeletedEvaluationIds()].filter(id => !id.startsWith("case:"));
+    let changed = 0;
+    let pending = 0;
+    for (let index = 0; index < ids.length; index += 4) {
+      const results = await Promise.allSettled(ids.slice(index, index + 4).map(async id => {
+        const result = await markEvaluationDeleted(id, "legacy_browser_delete");
+        forgetDeletedEvaluationMarkers({ id, evaluationKey: id, caseId: result.caseId });
+        return result.changed;
+      }));
+      for (const result of results) {
+        if (result.status === "fulfilled") changed += Number(result.value);
+        else pending++;
+      }
+    }
+    if (changed) clearRemoteEvaluationReadCache();
+    return { changed, pending };
+  })().finally(() => { deletedEvaluationRecovery = null; });
+  return deletedEvaluationRecovery;
 }
 
 async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[], localEvaluations: StoredEvaluation[]) {
@@ -1455,7 +1522,7 @@ export async function fetchStoredEvaluationsForCases(caseIds: readonly string[])
         collection(db, FIREBASE_EVALUATION_COLLECTION), where("case_id", "in", batch)
       ))));
       records.push(...snapshots.flatMap(snapshot => snapshot.docs
-        .map(item => toEvaluation({ id: item.id, ...item.data() })).filter(isStoredEvaluationRecord)));
+        .map(item => toEvaluation({ ...item.data(), id: item.id })).filter(item => isStoredEvaluationRecord(item) && !item.deletedAt)));
     }
     return records;
   };
@@ -1494,14 +1561,14 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
             firestoreLimit(pageLimit)
           ));
           const page = snapshot.docs
-            .map((item) => toEvaluation({ id: item.id, ...item.data() }))
+            .map((item) => toEvaluation({ ...item.data(), id: item.id }))
             .filter(isStoredEvaluationRecord);
           records.push(...page);
-          realCount += page.filter((item) => !isTestCaseEvaluation(item)).length;
+          realCount += page.filter((item) => !item.deletedAt && !isTestCaseEvaluation(item)).length;
           if (snapshot.docs.length < pageLimit) break;
           cursor = snapshot.docs[snapshot.docs.length - 1];
         }
-        return limitEvaluationScopes(records, safeLimit);
+        return [...limitEvaluationScopes(records.filter(item => !item.deletedAt), safeLimit), ...records.filter(item => item.deletedAt)];
       } catch (error) {
         console.warn("Load Firebase evaluations failed", error);
         throw error;
