@@ -1,5 +1,5 @@
 ﻿import { initializeApp, getApps } from "firebase/app";
-import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc, startAfter, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, setDoc, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { getEvaluationAgentFullName } from "./lib/userNames";
@@ -1435,6 +1435,38 @@ async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[
   }
 
   return restored;
+}
+
+// Check exact cases outside the recent-result window. A browser cache or a
+// failed/offline read must never be evidence that a case was deleted.
+export async function fetchStoredEvaluationsForCases(caseIds: readonly string[]) {
+  const ids = [...new Set(caseIds.map(id => String(id || "").trim().toUpperCase()).filter(Boolean))];
+  if (!ids.length) return [];
+  if (!isFirebaseEvaluationConfigured()) {
+    return readLocalEvaluationHistory().filter(item => ids.includes(item.caseId.trim().toUpperCase()));
+  }
+  const db = getFirebaseEvaluationDb();
+  if (!db) throw new Error("ไม่สามารถตรวจสอบเคสต้นทางได้");
+  const batches = Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) => ids.slice(index * 30, index * 30 + 30));
+  const records: StoredEvaluation[] = [];
+  const read = async () => {
+    for (let index = 0; index < batches.length; index += 4) {
+      const snapshots = await Promise.all(batches.slice(index, index + 4).map(batch => getDocsFromServer(query(
+        collection(db, FIREBASE_EVALUATION_COLLECTION), where("case_id", "in", batch)
+      ))));
+      records.push(...snapshots.flatMap(snapshot => snapshot.docs
+        .map(item => toEvaluation({ id: item.id, ...item.data() })).filter(isStoredEvaluationRecord)));
+    }
+    return records;
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([read(), new Promise<StoredEvaluation[]>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("ตรวจสอบเคสต้นทางไม่สำเร็จ กรุณาลองอัปเดตข้อมูลอีกครั้ง")), 20_000);
+    })]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, options: { strict?: boolean } = {}) {

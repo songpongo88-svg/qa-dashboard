@@ -9,6 +9,7 @@ import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
+import { fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
@@ -3841,11 +3842,18 @@ export default function App() {
   const refreshQaDashboardData = useCallback(() => {
     const nextKey = Date.now();
     invalidateStoredEvaluationCache();
+    clearAppealEventReadCache();
     setQaDataRefreshKey(nextKey);
     try { window.localStorage.setItem(QA_DATA_REFRESH_STORAGE_KEY, String(nextKey)); } catch { /* Refresh still works without browser storage. */ }
     window.dispatchEvent(new CustomEvent("qa-dashboard-data-refresh", { detail: nextKey }));
     return nextKey;
   }, []);
+
+  useEffect(() => {
+    const refreshDeletedCase = () => { refreshQaDashboardData(); };
+    window.addEventListener("qa-dashboard:evaluation-deleted", refreshDeletedCase);
+    return () => window.removeEventListener("qa-dashboard:evaluation-deleted", refreshDeletedCase);
+  }, [refreshQaDashboardData]);
 
   const [activeTab, setActiveTab] = useState<AppTab>(() => {
     try {
@@ -5155,13 +5163,14 @@ export default function App() {
     }
 
     try {
-      const [logs, passwordRecord] = await Promise.all([
+      const [logs, passwordRecord, appealLogs] = await Promise.all([
         fetchUsageLogsByEventTypes(INBOX_EVENT_TYPES, 1500),
         getCentralPasswordRecord(currentUser.username),
+        fetchAppealEvents(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset"], { limit: 2000 }),
       ]);
       const readIds = readInboxReadIds(currentUser);
       const nextTasks: InboxTaskItem[] = [];
-      const appealRequests = buildAppealRequests(logs);
+      const appealRequests = buildAppealRequests(appealLogs);
       const v8CaseUploadTasks = await buildV8CaseUploadInboxTasks(currentUser, effectiveUserAccounts, readIds);
       nextTasks.push(...v8CaseUploadTasks);
 
@@ -5240,7 +5249,7 @@ export default function App() {
       }
 
       if (false && appealRequestsAllowed) {
-        const pendingCount = buildAppealRequests(logs).filter((item) => item.status === "Pending").length;
+        const pendingCount = appealRequests.filter((item) => item.status === "Pending").length;
         if (pendingCount > 0) {
           const id = `appeal-review-${pendingCount}`;
           nextTasks.push({
@@ -5467,8 +5476,9 @@ export default function App() {
       }
 
       setInboxTasks(nextTasks);
-    } catch {
-      setInboxTasks([]);
+    } catch (error) {
+      // Preserve the last verified Inbox while a source-case check is unavailable.
+      console.warn("Inbox refresh failed", error);
     }
   };
 
@@ -5833,7 +5843,13 @@ export default function App() {
       void loadInboxTasks();
     }, INBOX_POLL_INTERVAL_MS);
 
-    return () => window.clearInterval(timer);
+    const reloadAfterCaseChange = () => { void loadInboxTasks(); };
+    window.addEventListener("qa-dashboard-data-refresh", reloadAfterCaseChange);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("qa-dashboard-data-refresh", reloadAfterCaseChange);
+    };
   }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked, effectiveUserAccounts]);
 
   // password reset shortcut badge polling

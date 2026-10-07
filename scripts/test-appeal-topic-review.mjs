@@ -109,7 +109,7 @@ assert.deepEqual(baseCase.topics.map(topic => topic.score), [29, 16, 20, 17]);
 console.log("PASS real Dashboard event merge updates only approved topics and crosses KPI 85 using the existing grade policy");
 
 const dom = new JSDOM("<div id='root'></div>", { url: "https://qa.test" });
-const keys = ["window", "document", "HTMLElement", "Event", "MouseEvent", "HTMLTextAreaElement", "HTMLSelectElement", "CustomEvent"];
+const keys = ["window", "document", "HTMLElement", "HTMLInputElement", "Event", "MouseEvent", "HTMLTextAreaElement", "HTMLSelectElement", "CustomEvent"];
 const originals = new Map(keys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 keys.forEach(key => { globalThis[key] = dom.window[key]; });
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -291,6 +291,8 @@ try {
   globalThis.__appealStoredDocs = new Map([["qa_appeal_events/legacy-submission", submission], ["qa_appeal_events/legacy-review", reviewEvent]]);
   const storeOutput = resolve(temp, "store.mjs");
   await build({ entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-firestore-boundary", setup(builder) {
+    builder.onResolve({ filter: /^\.\/appealCaseAvailability$/ }, () => ({ path: "available-cases", namespace: "fixture" }));
+    builder.onLoad({ filter: /^available-cases$/, namespace: "fixture" }, () => ({ loader: "js", contents: "export async function checkAppealSourceCases(events){return events}" }));
     builder.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: "firestore", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/firebaseClient$/ }, () => ({ path: "client", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/lib\/agentIdentity$/ }, () => ({ path: "identity", namespace: "fixture" }));

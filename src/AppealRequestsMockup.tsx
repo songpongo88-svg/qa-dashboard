@@ -6,6 +6,7 @@ import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import PageHero from "./PageHero";
+import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 
 type AppealTopic = {
   evidenceImages?: AppealEvidenceImage[];
@@ -153,6 +154,7 @@ function scoreOptions(max: number) {
 }
 
 export function buildAppealRequests(logs: UsageLogEvent[]) {
+  logs = logs.filter(log => !log.source_case_unavailable);
   const reviews = new Map<string, UsageLogEvent[]>();
   const resets = new Map<string, UsageLogEvent>();
   const eventTime = (log: UsageLogEvent) => {
@@ -383,6 +385,7 @@ export default function AppealRequestsMockup({
   const [listTab, setListTab] = useState<AppealListTab>("pending");
 
   const requests = useMemo(() => buildAppealRequests(logs), [logs]);
+  const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
   const pendingRequests = requests.filter((item) => item.status === "Pending");
@@ -411,6 +414,9 @@ export default function AppealRequestsMockup({
 
   useEffect(() => {
     void loadRequests();
+    const reload = () => { void loadRequests(); };
+    window.addEventListener("qa-dashboard-data-refresh", reload);
+    return () => window.removeEventListener("qa-dashboard-data-refresh", reload);
   }, []);
 
   useEffect(() => {
@@ -485,6 +491,15 @@ export default function AppealRequestsMockup({
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(latestLogs).find(item => item.requestId === preview.requestId);
+      if (latestLogs.some(log => log.source_case_unavailable && String(log.details?.requestId || "") === preview.requestId)) {
+        setLogs(latestLogs);
+        setSavePreview(null);
+        setEditingReview(false);
+        setNotice({ kind: "validation", title: "เคสต้นทางถูกลบแล้ว", caseId: preview.caseId,
+          message: "คำขอนี้ถูกนำออกจากรายการรอพิจารณาและไม่พักคะแนน ไม่สามารถบันทึกผลอุทธรณ์ได้" });
+        onTasksChanged?.();
+        return;
+      }
       if (!latest || latest.status === "Reset" ||
           (latest.reviewId !== preview.reviewId &&
             ((latest.reviewId || "") !== preview.previousReviewId || latest.reviewedAt !== preview.previousReviewedAt))) {
@@ -714,11 +729,17 @@ export default function AppealRequestsMockup({
             {!selectedRequest ? (
               <div className="flex h-full min-h-[520px] items-center justify-center rounded-3xl border border-dashed border-violet-200 bg-violet-50/50 p-8 text-center">
                 <div>
+                  {unavailableSelectedRequest ? <>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">เคสต้นทางถูกลบแล้ว</div>
+                    <div className="mt-2 text-2xl font-extrabold text-slate-950">{unavailableSelectedRequest.case_id}</div>
+                    <div className="mt-2 max-w-md text-sm leading-6 text-slate-600">คำขออุทธรณ์ของเคสนี้ถูกนำออกจากรายการรอพิจารณาและไม่พักคะแนน</div>
+                  </> : <>
                   <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">No Task Opened</div>
                   <div className="mt-2 text-2xl font-extrabold text-slate-950">Select a task from Inbox</div>
                   <div className="mt-2 max-w-md text-sm leading-6 text-slate-600">
                     Choose an appeal task on the left to open the case details, review requested topics, and save the result.
                   </div>
+                  </>}
                 </div>
               </div>
             ) : (
