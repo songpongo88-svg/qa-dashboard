@@ -12,6 +12,7 @@ import { generateBulkCaseDetailPdf } from "./bulkCaseDetailPdf";
 import { RichTextContent, richTextToPlainText } from "./richText";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
+import { getAppealScoreHold, withAppealScoreState, type AppealScoreState } from "./pendingAppealScore";
 import {
   fetchStoredEvaluations,
   getEvaluationLastUpdatedAt,
@@ -69,7 +70,7 @@ type AppealReviewedTopic = Topic & {
   appealReason?: string;
 };
 
-type CaseItem = {
+type CaseItem = AppealScoreState & {
   isTestCase?: boolean;
   hasAppealHistory?: boolean;
   key: string;
@@ -3754,7 +3755,7 @@ function SlideOverCaseDetail({
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
   onShareCaseDetail?: (caseId: string, agentName?: string) => void;
-  onAppealSubmitted?: (caseId: string) => void;
+  onAppealSubmitted?: (caseId: string, agentName?: string) => void;
 }) {
   if (!open || !caseItem) return null;
 
@@ -4023,7 +4024,7 @@ function SlideOverCaseDetail({
       }
 
       setAppealRequestExists(true);
-      onAppealSubmitted?.(caseItem.caseId);
+      onAppealSubmitted?.(caseItem.caseId, caseItem.agent);
       setAppealSubmitOpen(false);
       setAppealSubmitStep(1);
       setAppealSubmitMessage("ส่งคำขออุทธรณ์ให้ Songpon ตรวจสอบเรียบร้อยแล้ว");
@@ -5093,13 +5094,19 @@ export default function DashboardMockup({
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
 
   const [allCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
-  const markCaseAppealSubmitted = (caseId: string) => {
+  const markCaseAppealSubmitted = (caseId: string, agentName?: string) => {
     const submittedIds = new Set(splitAppealCaseIds(caseId));
-    setAllCases((cases) => cases.map((item) =>
-      splitAppealCaseIds(item.caseId).some((id) => submittedIds.has(id))
-        ? { ...item, hasAppealHistory: true }
-        : item
-    ));
+    setAllCases((cases) => {
+      const owner = agentName || cases.find(item =>
+        splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)))?.agent;
+      const previousCount = Math.max(0, ...cases.filter(item => isSameCanonicalAgent(item.agent, owner))
+        .map(item => item.pendingAppealCaseCount || 0));
+      return cases.map(item => isSameCanonicalAgent(item.agent, owner) ? {
+        ...item,
+        pendingAppealCaseCount: previousCount + submittedIds.size,
+        hasAppealHistory: item.hasAppealHistory || splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)),
+      } : item);
+    });
     dashboardWorkbookCacheV155 = null;
   };
   const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>(() => dashboardWorkbookCacheV155?.noCaseEvaluations || []);
@@ -6110,6 +6117,7 @@ export default function DashboardMockup({
 
         let appealOutcomeMap = new Map<string, AppealOutcomeItem>();
         let appealTimelineMap = new Map<string, AppealTimelineItem>();
+        let appealScoreRequests: ReturnType<typeof buildAppealRequests> | null = null;
 
         try {
           const reviewedLogs = await fetchAppealEvents(
@@ -6121,6 +6129,7 @@ export default function DashboardMockup({
             { limit: 2000, forceRefresh: true }
           ) as UsageLogEvent[];
 
+          appealScoreRequests = buildAppealRequests(reviewedLogs);
           buildAppealHistoryCaseIds(reviewedLogs).forEach((caseId) => appealHistoryCaseIds.add(caseId));
           appealTimelineMap = buildAppealTimelineMap(reviewedLogs);
 
@@ -6397,7 +6406,7 @@ export default function DashboardMockup({
         const mergedCases = applyAppealMapsToCaseItems(
           canonicalCases, appealMap, appealOutcomeMap, appealHistoryCaseIds, appealTimelineMap
         );
-        applyLoadedWorkbook(mergedCases, appealMap.size);
+        applyLoadedWorkbook(withAppealScoreState(mergedCases, appealScoreRequests), appealMap.size);
       } catch (error: any) {
         if (cancelled) return;
         console.error("Dashboard refresh failed; keeping the last complete result", error);
@@ -6879,6 +6888,9 @@ export default function DashboardMockup({
 
   const isAllAgentsView = !effectiveSelectedAgent;
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
+  const appealScoreHold = useMemo(() => getAppealScoreHold(
+    isAllAgentsView ? dashboardCases : agentCases
+  ), [isAllAgentsView, dashboardCases, agentCases]);
 
   const metricAverageDisplay = summary.averageDisplay;
   const metricCaseCount = dashboardCases.length;
@@ -7548,6 +7560,12 @@ export default function DashboardMockup({
     },
   ];
 
+  const displayedOverviewKpiItems = overviewKpiItemsV93.map(item =>
+    appealScoreHold && ["Quality Score (Avg.)", "KPI Status", "Overall Grade"].includes(item.label)
+      ? { ...item, value: appealScoreHold.label, note: appealScoreHold.message,
+          icon: "…", iconTone: "bg-amber-50 text-amber-600", valueTone: "text-amber-700" }
+      : item);
+
   const performanceSummaryItems: PerformanceSummaryItem[] = [
     {
       label: "Average Score",
@@ -8077,12 +8095,12 @@ export default function DashboardMockup({
                     data-kpi-quality-score-target={KPI_QUALITY_SCORE_TARGET}
                     className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
                   >
-                    {overviewKpiItemsV93.map((item) => (
-                      <div key={item.label} className="rounded-[18px] border border-violet-200/80 bg-gradient-to-br from-white via-white to-violet-50/80 p-5 shadow-[0_9px_24px_rgba(76,29,149,0.09)]">
+                    {displayedOverviewKpiItems.map((item) => (
+                      <div key={item.label} data-dashboard-metric={item.label} data-appeal-score-state={appealScoreHold && item.value === appealScoreHold.label ? "held" : "ready"} className="rounded-[18px] border border-violet-200/80 bg-gradient-to-br from-white via-white to-violet-50/80 p-5 shadow-[0_9px_24px_rgba(76,29,149,0.09)]">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-[11px] font-semibold text-slate-600">{item.label}</div>
-                            <div className={`mt-2 truncate text-[28px] font-bold tracking-tight ${item.valueTone}`}>{item.value}</div>
+                            <div className={`mt-2 font-bold tracking-tight ${appealScoreHold && item.value === appealScoreHold.label ? "text-lg" : "truncate text-[28px]"} ${item.valueTone}`}>{item.value}</div>
                           </div>
                           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-normal ${item.iconTone}`}>{item.icon}</div>
                         </div>

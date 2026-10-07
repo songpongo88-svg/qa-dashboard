@@ -18,6 +18,8 @@ import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
 import PageHero from "./PageHero";
 import { canonicalAgentIdentityKey, canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
+import { getAppealScoreHold, withAppealScoreState, type AppealScoreState } from "./pendingAppealScore";
+import AppealScoreHoldNotice from "./AppealScoreHoldNotice";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -30,7 +32,7 @@ type Topic = {
   comment?: string;
 };
 
-type CaseItem = {
+type CaseItem = AppealScoreState & {
   key: string;
   evaluationKey: string;
   agent: string;
@@ -1917,6 +1919,7 @@ function AnalyticsAgentPerformanceV92({
     return [...names.values()]
       .map((agent) => {
         const agentCases = cases.filter((item) => isSameAgent(item.agent, agent));
+        const appealScoreHold = getAppealScoreHold(agentCases);
         const caseCount = agentCases.length;
         const average = caseCount
           ? Number(
@@ -1979,6 +1982,7 @@ function AnalyticsAgentPerformanceV92({
           agent,
           displayName,
           initials,
+          appealScoreHold,
           caseCount,
           average,
           grade,
@@ -1998,9 +2002,11 @@ function AnalyticsAgentPerformanceV92({
       .filter((row) => row.caseCount > 0 || row.hasNoCaseMonthlyResult)
       .sort(
         (left, right) =>
+          Number(Boolean(left.appealScoreHold)) - Number(Boolean(right.appealScoreHold)) ||
+          (left.appealScoreHold && right.appealScoreHold ? left.displayName.localeCompare(right.displayName) :
           right.average - left.average ||
           right.caseCount - left.caseCount ||
-          left.displayName.localeCompare(right.displayName)
+          left.displayName.localeCompare(right.displayName))
       );
   }, [accountProfiles, agentNames, cases, monthKey, monthlyMode, noCaseAgentNames]);
 
@@ -2027,6 +2033,7 @@ function AnalyticsAgentPerformanceV92({
   }, [rows, allAgentsMode, agentSortTab]);
   // data-topic-status-allagents-incentive-v131-fix
   const incentiveText = (row: (typeof rows)[number]) => {
+    if (row.appealScoreHold) return row.appealScoreHold.label;
     const notEligibleText = allAgentsMode ? "฿0 (Not Eligible)" : "Not Eligible";
     if (!monthlyMode) return "Monthly only";
     if (row.hasNoCaseMonthlyResult) {
@@ -2138,10 +2145,11 @@ function AnalyticsAgentPerformanceV92({
               {visibleRows.map((row, index) => (
                 <tr
                   key={row.agent}
+                  data-agent-score-state={row.appealScoreHold ? "held" : "ready"}
                   className="border-t border-slate-100 bg-white transition hover:bg-violet-50/40"
                 >
                   <td className="px-4 py-3 text-center text-slate-400">
-                    {index + 1}
+                    {row.appealScoreHold ? "—" : index + 1}
                   </td>
                   <td className="px-3 py-3">
                     <button
@@ -2164,13 +2172,15 @@ function AnalyticsAgentPerformanceV92({
                     {row.caseCount}
                   </td>
                   <td className="px-3 py-3 text-center font-medium text-slate-800">
-                    {row.caseCount || row.hasNoCaseMonthlyResult ? row.average.toFixed(2) : "—"}
+                    {row.appealScoreHold ? <span className="text-xs text-amber-700" title={row.appealScoreHold.message}>{row.appealScoreHold.label}</span> : row.caseCount || row.hasNoCaseMonthlyResult ? row.average.toFixed(2) : "—"}
                   </td>
                   <td className="px-3 py-3 text-center">
                     <span
                       className={
                         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " +
-                        (row.kpiPending
+                        (row.appealScoreHold
+                          ? "bg-amber-50 text-amber-700"
+                          : row.kpiPending
                           ? "bg-slate-100 text-slate-500"
                           : row.hasNoCaseMonthlyResult
                           ? "bg-rose-50 text-rose-600"
@@ -2181,7 +2191,9 @@ function AnalyticsAgentPerformanceV92({
                               : "bg-rose-50 text-rose-600")
                       }
                     >
-                      {row.kpiPending
+                      {row.appealScoreHold
+                        ? row.appealScoreHold.label
+                        : row.kpiPending
                         ? `รอครบ 10 เคส (${row.caseCount}/10)`
                         : row.hasNoCaseMonthlyResult
                         ? "● Not Passed"
@@ -2196,12 +2208,12 @@ function AnalyticsAgentPerformanceV92({
                     <span
                       className={
                         "inline-flex rounded-full border px-2.5 py-1 font-medium " +
-                        (row.gradeReady
+                        (row.appealScoreHold ? "border-amber-200 bg-amber-50 text-amber-700" : row.gradeReady
                           ? getGradeTone(row.grade)
                           : "border-slate-200 bg-slate-50 text-slate-400")
                       }
                     >
-                      {row.gradeReady ? row.grade : "—"}
+                      {row.appealScoreHold ? "—" : row.gradeReady ? row.grade : "—"}
                     </span>
                   </td>
                   <td
@@ -2298,6 +2310,7 @@ function AnalyticsOverviewV89({
         )
         .filter(Boolean)
     ).size;
+  const appealScoreHold = getAppealScoreHold(cases);
   const evaluationTarget =
     monthlyMode && !individualMode
       ? Math.max(
@@ -2617,14 +2630,19 @@ function AnalyticsOverviewV89({
     },
   ];
 
+  const displayedMetricItems = metricItems.map(item => appealScoreHold && item.title !== "Cases Evaluated"
+    ? { ...item, value: appealScoreHold.label, note: appealScoreHold.message, valueTone: "text-amber-700" }
+    : item);
+
   return (
     <div
       data-analytics-overview-v89="true"
+      data-appeal-score-state={appealScoreHold ? "held" : "ready"}
       data-kpi-status-average-v91="true"
       className="space-y-5"
     >
       {!hideSummaryCards ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {metricItems.map(
+        {displayedMetricItems.map(
           (item) => (
             <div
               key={item.title}
@@ -2636,7 +2654,7 @@ function AnalyticsOverviewV89({
                     {item.title}
                   </div>
                   <div
-                    className={`mt-2 text-[28px] font-semibold tracking-tight ${item.valueTone}`}
+                    className={`mt-2 ${appealScoreHold && item.value === appealScoreHold.label ? "text-lg" : "text-[28px]"} font-semibold tracking-tight ${item.valueTone}`}
                   >
                     {item.value}
                   </div>
@@ -2698,7 +2716,7 @@ function AnalyticsOverviewV89({
           </div>
 
           <div className="mt-4 h-[230px]">
-            {pointRows.length ? (
+            {appealScoreHold ? <AppealScoreHoldNotice hold={appealScoreHold} /> : pointRows.length ? (
               <>
                 <svg
                   viewBox="0 0 720 220"
@@ -2817,7 +2835,7 @@ function AnalyticsOverviewV89({
             Distribution from the current selection
           </div>
 
-          <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-center xl:flex-col 2xl:flex-row">
+          {appealScoreHold ? <div className="mt-5"><AppealScoreHoldNotice hold={appealScoreHold} /></div> : <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-center xl:flex-col 2xl:flex-row">
             <div
               className="relative h-36 w-36 shrink-0 rounded-full"
               style={{
@@ -2869,12 +2887,12 @@ function AnalyticsOverviewV89({
                 </div>
               )}
             </div>
-          </div>
+          </div>}
         </div>
         </div>
       </section>
 
-      {detailContent}
+      {appealScoreHold ? <AppealScoreHoldNotice hold={appealScoreHold} /> : detailContent}
 
     </div>
   );
@@ -3338,12 +3356,14 @@ export default function SummaryMockup({
           });
         }
 
+        let appealScoreRequests: ReturnType<typeof buildAppealRequests> | null = null;
         try {
           const reviewedLogs = await fetchUsageLogsByEventTypes([
             "appeal_request_submitted",
             "appeal_request_reviewed",
             "appeal_request_reset",
           ], 2000);
+          appealScoreRequests = buildAppealRequests(reviewedLogs);
           buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
             appealMap.set(caseId, item);
           });
@@ -3502,6 +3522,9 @@ export default function SummaryMockup({
         const rawMonthKeys = new Set(mappedCases.map((item) => item.monthKey).filter(Boolean));
         const evaluationCasesForMerge = evaluationCases.filter((item) => !rawMonthKeys.has(item.monthKey));
         [...evaluationCasesForMerge, ...mappedCases].forEach((item) => {
+          latestByEvaluationKey.set(buildCaseMergeKey(item), item);
+        });
+        withAppealScoreState([...latestByEvaluationKey.values()], appealScoreRequests).forEach(item => {
           latestByEvaluationKey.set(buildCaseMergeKey(item), item);
         });
         setAllCases([...latestByEvaluationKey.values()]);
@@ -4269,6 +4292,7 @@ export default function SummaryMockup({
   }, [allCases, accountProfiles]);
 
   const summaryCards = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
+  const appealScoreHold = useMemo(() => getAppealScoreHold(filteredCases), [filteredCases]);
   const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);
 
   const comparisonRows = useMemo(() => {
@@ -4921,7 +4945,7 @@ export default function SummaryMockup({
     canViewAllTeams ||
     canViewOwnTeam;
   const analyticsCanExport =
-    canExportAnalytics;
+    canExportAnalytics && !appealScoreHold;
   const analyticsTeamOptions = useMemo(() => {
     const names = Array.from(
       new Set(
@@ -5080,6 +5104,7 @@ export default function SummaryMockup({
 
             return {
               agent,
+              appealScoreHold: getAppealScoreHold(agentCases),
               caseCount: agentSummary.caseCount,
               avgScore: agentSummary.avgScore,
               grade: agentSummary.grade,
@@ -5138,6 +5163,7 @@ export default function SummaryMockup({
 
         return {
           teamName,
+          appealScoreHold: getAppealScoreHold(cases),
           cases,
           agents,
           caseCount: summary.caseCount,
@@ -6218,6 +6244,7 @@ export default function SummaryMockup({
   };
 
   function exportCurrentAnalyticsExcel() {
+    if (appealScoreHold) return;
     const workbook = XLSX.utils.book_new();
     const periodLabel = effectivePeriodLabels.join(" | ") || "Current Period";
     const summarySheet = XLSX.utils.json_to_sheet([{
@@ -6261,6 +6288,7 @@ export default function SummaryMockup({
   }
 
   async function generateSummaryReportPdf() {
+    if (appealScoreHold) return;
     await ensureSarabunPdfFont();
 
     const reportSummary = summarizeCases(filteredCases);
@@ -8265,6 +8293,7 @@ export default function SummaryMockup({
 
   async function generateTeamPerformancePdf() {
     if (!teamSelectedMonth) return;
+    if (teamPerformanceRows.some(row => row.appealScoreHold)) return;
 
     await ensureSarabunPdfFont();
 
@@ -9351,10 +9380,10 @@ export default function SummaryMockup({
                        <div className="min-w-0"><div className="truncate font-medium text-slate-900">{row.teamName}</div><div className="mt-1 text-[10px] font-normal text-slate-500">{row.completedAgentCount} completed target</div></div>
                        <div className="text-center font-normal text-slate-600">{row.agentCount}</div>
                        <div className="text-center font-normal text-slate-600">{row.caseCount}</div>
-                       <div className="text-center font-medium text-violet-700">{row.avgScore === null ? "-" : row.avgScore.toFixed(2)}</div>
-                       <div className="text-center font-medium text-emerald-700">{row.passedKpiCount}/{row.agentCount}</div>
-                       <div className="text-center font-medium text-slate-700">{row.grade || "-"}</div>
-                       <div className="text-right font-medium text-violet-700">฿{row.incentiveTotal.toLocaleString("en-US")}</div>
+                       <div className="text-center font-medium text-violet-700">{row.appealScoreHold ? <span className="text-[10px] text-amber-700">{row.appealScoreHold.label}</span> : row.avgScore === null ? "-" : row.avgScore.toFixed(2)}</div>
+                       <div className="text-center font-medium text-emerald-700">{row.appealScoreHold ? "—" : `${row.passedKpiCount}/${row.agentCount}`}</div>
+                       <div className="text-center font-medium text-slate-700">{row.appealScoreHold ? "—" : row.grade || "-"}</div>
+                       <div className="text-right font-medium text-violet-700">{row.appealScoreHold ? "—" : `฿${row.incentiveTotal.toLocaleString("en-US")}`}</div>
                        <div className="text-center text-violet-600">{open ? "⌃" : "›"}</div>
                      </button>
                   );
@@ -9364,7 +9393,7 @@ export default function SummaryMockup({
               {selectedTeamPerformance ? (
                 <div className="grid gap-5 xl:grid-cols-2">
                   <Panel>
-                    <PanelHeader title={`${selectedTeamPerformance.teamName} · Agents`} subtitle={`${selectedTeamPerformance.caseCount} Cases · Average ${selectedTeamPerformance.avgScore === null ? "-" : selectedTeamPerformance.avgScore.toFixed(2)} · KPI ${selectedTeamPerformance.passedKpiCount}/${selectedTeamPerformance.agentCount} · Incentive ฿${selectedTeamPerformance.incentiveTotal.toLocaleString("en-US")}`} />
+                    <PanelHeader title={`${selectedTeamPerformance.teamName} · Agents`} subtitle={selectedTeamPerformance.appealScoreHold ? selectedTeamPerformance.appealScoreHold.message : `${selectedTeamPerformance.caseCount} Cases · Average ${selectedTeamPerformance.avgScore === null ? "-" : selectedTeamPerformance.avgScore.toFixed(2)} · KPI ${selectedTeamPerformance.passedKpiCount}/${selectedTeamPerformance.agentCount} · Incentive ฿${selectedTeamPerformance.incentiveTotal.toLocaleString("en-US")}`} />
                     <PanelBody>
                       <div className="overflow-hidden rounded-xl border border-slate-200">
                                                 {selectedTeamPerformance.agents.map((agent) => (
@@ -9382,9 +9411,9 @@ export default function SummaryMockup({
                           >
                             <div className="truncate font-normal text-slate-700">{buildSuspendedAgentLabel(agent.agent, accountProfiles)}</div>
                             <div className="text-center text-slate-500">{agent.caseCount}</div>
-                            <div className="text-center font-medium text-violet-700">{agent.avgScore.toFixed(2)}</div>
-                            <div title={!agent.completed ? `รอครบ 10 เคส (${agent.caseCount}/10)` : undefined} className={"text-center font-medium " + (!agent.completed ? "text-slate-500" : agent.kpiPassed ? "text-emerald-700" : "text-rose-600")}>{!agent.completed ? "—" : agent.kpiPassed ? "Passed" : "Not Passed"}</div>
-                            <div className="text-right font-medium text-violet-700">{agent.completed ? "฿" + agent.incentiveCash.toLocaleString("en-US") : "Pending " + agent.caseCount + "/" + CASE_TARGET}</div>
+                            <div className="text-center font-medium text-violet-700" title={agent.appealScoreHold?.message}>{agent.appealScoreHold ? "—" : agent.avgScore.toFixed(2)}</div>
+                            <div title={agent.appealScoreHold?.message || (!agent.completed ? `รอครบ 10 เคส (${agent.caseCount}/10)` : undefined)} className={"text-center font-medium " + (agent.appealScoreHold ? "text-amber-700" : !agent.completed ? "text-slate-500" : agent.kpiPassed ? "text-emerald-700" : "text-rose-600")}>{agent.appealScoreHold ? agent.appealScoreHold.label : !agent.completed ? "—" : agent.kpiPassed ? "Passed" : "Not Passed"}</div>
+                            <div className="text-right font-medium text-violet-700">{agent.appealScoreHold ? "—" : agent.completed ? "฿" + agent.incentiveCash.toLocaleString("en-US") : "Pending " + agent.caseCount + "/" + CASE_TARGET}</div>
                           </button>
                         ))}
                       </div>
@@ -9392,7 +9421,7 @@ export default function SummaryMockup({
                   </Panel>
                   <Panel>
                     <PanelHeader title={`${selectedTeamPerformance.teamName} · Topics`} subtitle="คะแนนเฉลี่ยรายหัวข้อของเดือนที่เลือก" />
-                    <PanelBody><TopicTable topics={selectedTeamPerformance.topics} /></PanelBody>
+                    <PanelBody>{selectedTeamPerformance.appealScoreHold ? <AppealScoreHoldNotice hold={selectedTeamPerformance.appealScoreHold} /> : <TopicTable topics={selectedTeamPerformance.topics} />}</PanelBody>
                   </Panel>
                 </div>
               ) : null}
@@ -9431,7 +9460,7 @@ export default function SummaryMockup({
                 <button
                   type="button"
                   onClick={generateTeamPerformancePdf}
-                  disabled={!teamSelectedMonth || (isAdminRole && !currentUserTeamName)}
+                  disabled={!teamSelectedMonth || teamPerformanceRows.some(row => row.appealScoreHold) || (isAdminRole && !currentUserTeamName)}
                   className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Generate Team PDF
@@ -10242,7 +10271,7 @@ export default function SummaryMockup({
               }}
             />
             {isComparisonMode ? (
-              <Panel>
+              appealScoreHold ? <AppealScoreHoldNotice hold={appealScoreHold} /> : <Panel>
                 <PanelHeader title="Period Comparison" subtitle={`เปรียบเทียบ ${effectivePeriodLabels.join(" · ")}`} />
                 <PanelBody><SummaryTable rows={comparisonRowsWithDelta} firstColLabel={reportModeName} /></PanelBody>
               </Panel>
