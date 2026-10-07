@@ -28,6 +28,7 @@ import PreTestMockup from "./PreTestMockup";
 import TrainingAttendanceMockup from "./TrainingAttendanceMockup";
 import ScheduleMockup, { ScheduleSidebarCard } from "./ScheduleMockup";
 import { upsertStoredEvaluation, isTestCaseEvaluation, invalidateStoredEvaluationCache } from "./evaluationStore";
+import { useDeletedEvaluationRecovery } from "./useDeletedEvaluationRecovery";
 import { useDashboardAutoRefresh } from "./useDashboardAutoRefresh";
 import { fetchDashboardRevision } from "./dashboardRevision";
 import PageHero from "./PageHero";
@@ -4576,6 +4577,10 @@ export default function App() {
     : false;
   const usageLogAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewUsageLog") : false;
   const createEvaluationAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "createEvaluation") : false;
+  const deletedEvaluationRecovery = useDeletedEvaluationRecovery(
+    Boolean(currentUser && accessRulesReady && !sessionValidationPending && createEvaluationAllowed),
+    refreshQaDashboardData
+  );
   const takePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "takePreTest") : false;
   const managePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "managePreTest") : false;
   const viewPreTestResultsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewPreTestResults") : false;
@@ -7429,6 +7434,11 @@ export default function App() {
             <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} className="mt-2 flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10" aria-label={globalSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
           </div>
         </aside>
+
+        {deletedEvaluationRecovery.error ? <div className="fixed right-6 bottom-6 z-[140] max-w-sm rounded-2xl border border-amber-200 bg-white p-4 text-sm text-slate-800 shadow-lg" role="alert">
+          <p>{deletedEvaluationRecovery.error}</p>
+          <button type="button" onClick={deletedEvaluationRecovery.retry} className="mt-3 rounded-xl bg-violet-700 px-4 py-2 font-bold text-white">ลองอีกครั้ง</button>
+        </div> : null}
 
         {sidebarPermissionNotice ? <div className="qa-sidebar-permission-toast-v39 fixed right-6 top-24 z-[140] flex w-[min(360px,calc(100vw-2rem))] items-start gap-3 rounded-2xl border border-amber-200 bg-white p-4 text-slate-800 shadow-[0_18px_45px_rgba(30,41,59,0.22)]" role="status" aria-live="polite">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
