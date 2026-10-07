@@ -67,11 +67,12 @@
     "test:monthly-coaching": "node ./scripts/test-monthly-coaching.mjs",
     "test:dashboard-refresh": "node ./scripts/test-dashboard-refresh.mjs",
     "test:dashboard-case-navigation": "node ./scripts/test-dashboard-case-navigation.mjs",
-    "test:release": "npm run test:appeal-topic-review && npm run test:appeal-evidence-upload && npm run test:call-recording-save && npm run test:draft-persistence && npm run test:draft-queue-navigation && npm run test:dashboard-refresh && npm run test:dashboard-case-navigation && npm run test:monthly-coaching && npm run test:deduction-tags && npm run test:evaluation-issue-tags && npm run test:case-issue-tags && npm run test:case-issue-tags-pdf && npm run test:deploy-theme-data && npm run test:knowledge && npm run test:weather && npm run test:rich-text-toolbar && npm run test:weekday-collection && npm run test:monthly-signature-pdf && npm run test:bulk-monthly-pdf",
+    "test:release": "npm run test:appeal-topic-review && npm run test:appeal-evidence-upload && npm run test:call-recording-save && npm run test:draft-persistence && npm run test:draft-queue-navigation && npm run test:dashboard-refresh && npm run test:dashboard-case-navigation && npm run test:dashboard-pending-appeal && npm run test:monthly-coaching && npm run test:deduction-tags && npm run test:evaluation-issue-tags && npm run test:case-issue-tags && npm run test:case-issue-tags-pdf && npm run test:deploy-theme-data && npm run test:knowledge && npm run test:weather && npm run test:rich-text-toolbar && npm run test:weekday-collection && npm run test:monthly-signature-pdf && npm run test:bulk-monthly-pdf",
     "build:app": "npm run patch:case-pdf-page-numbers && node ./scripts/patch-evaluate-workspace-edit-tabs-v85.mjs && node ./scripts/patch-process-firestore-nested-arrays-v72.mjs && vite build",
     "test:call-recording-save": "node ./scripts/test-call-recording-save.mjs",
     "test:appeal-topic-review": "node ./scripts/test-appeal-topic-review.mjs",
-    "test:appeal-evidence-upload": "node ./scripts/test-appeal-evidence-upload.mjs"
+    "test:appeal-evidence-upload": "node ./scripts/test-appeal-evidence-upload.mjs",
+    "test:dashboard-pending-appeal": "node ./scripts/test-dashboard-pending-appeal.mjs"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.2.4",

@@ -184,7 +184,9 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const reviewTopics = Array.isArray(review?.details?.topics) ? (review?.details?.topics as AppealTopic[]) : null;
       const baseTopics = Array.isArray(log.details?.topics) ? (log.details?.topics as AppealTopic[]) : [];
       const reviewDecision = String(review?.details?.decision || "");
-      const appealedTopics = (reviewTopics || baseTopics)
+      const appealedTopics = (baseTopics.length
+        ? baseTopics.map(original => ({ ...original, ...(reviewTopics?.find(topic => topic.code === original.code) || {}) }))
+        : reviewTopics || [])
         .filter(isAppealedTopic)
         .map((topic) => {
           const original = baseTopics.find(item => item.code === topic.code);
