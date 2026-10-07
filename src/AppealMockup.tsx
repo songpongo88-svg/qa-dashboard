@@ -1,3 +1,5 @@
+import { generateCasePdfWithAppealHistory } from "./caseAppealPdfAddon";
+import { getAppealTopicDecision, appealScoreAfterReview, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
@@ -11,9 +13,9 @@ import LoadingMascot from "./LoadingMascot";
 import { richTextToPlainText } from "./richText";
 
 type ReviewStatus = "Original" | "Revised";
-type AppealDecision = "Approved" | "Rejected";
 
 type Topic = {
+  decision?: AppealTopicDecision;
   code: string;
   label: string;
   score: number;
@@ -181,6 +183,7 @@ function normalizeCaseId(value: unknown) {
 
 function normalizeAppealDecision(value: unknown): AppealDecision {
   const normalized = normalizeText(value);
+  if (normalized === "partially approved") return "Partially Approved";
   return normalized === "rejected" || normalized === "reject" || normalized.includes("ปฏิเสธ")
     ? "Rejected"
     : "Approved";
@@ -1216,31 +1219,19 @@ function AppealedTopicsCorporateTable({
   topics: Topic[];
   decision: AppealDecision;
 }) {
-  const topicRows = [
-    {
-      label: "Appeal Reason",
-      tone: "text-amber-700",
-      getValue: (topic: Topic) => sanitizeDisplayText(topic.appealReason, "-"),
-    },
-    {
-      label: "Original Comment",
-      tone: "text-slate-600",
-      getValue: (topic: Topic) => sanitizeDisplayText(topic.originalComment, "No evaluation comment"),
-    },
-    {
-      label: decision === "Rejected" ? "Reject Reason" : "Revised Comment",
-      tone: decision === "Rejected" ? "text-rose-700" : "text-violet-700",
-      getValue: (topic: Topic) =>
-        decision === "Rejected"
-          ? sanitizeDisplayText(topic.rejectReason, "No reject reason")
-          : sanitizeDisplayText(topic.comment, "No revised comment"),
-    },
-  ];
+
 
   return (
     <div className="space-y-4">
       {topics.length ? (
         topics.map((topic, index) => {
+          const topicDecision = getAppealTopicDecision(topic, decision);
+          const topicRows = [
+            { label: "Appeal Reason", tone: "text-amber-700", getValue: (item: Topic) => sanitizeDisplayText(item.appealReason, "-") },
+            { label: "Original Comment", tone: "text-slate-600", getValue: (item: Topic) => sanitizeDisplayText(item.originalComment, "No evaluation comment") },
+            { label: topicDecision === "Rejected" ? "Reject Reason" : "Revised Comment", tone: "text-violet-700",
+              getValue: (item: Topic) => sanitizeDisplayText(topicDecision === "Rejected" ? item.rejectReason : item.comment, "-") },
+          ];
           const originalScore = Number(topic.originalScore ?? topic.score);
           const revisedScore = Number(topic.score);
           const diff = revisedScore - originalScore;
@@ -1264,6 +1255,7 @@ function AppealedTopicsCorporateTable({
                         {topic.code}
                       </span>
                       <h4 className="text-base font-extrabold text-slate-950">{topic.label}</h4>
+                      <span className={"text-xs font-bold " + (topicDecision === "Rejected" ? "text-rose-700" : "text-emerald-700")}>{topicDecision}</span>
                     </div>
                   </div>
                 </div>
@@ -1590,15 +1582,16 @@ export default function AppealMockup({
                   ""
               ).trim();
 
+              const topicDecision = getAppealTopicDecision({ decision: appealHelper.getValue(row, `${master.code} Decision`) }, appealDecision);
               const revisedScoreCandidate =
-                appealDecision === "Approved"
+                topicDecision === "Approved"
                   ? appealHelper.getValue(row, `${master.code} Revised Score`) ??
                     appealHelper.getValue(row, `${master.code} Final Score`) ??
                     appealHelper.getValue(row, `${master.code} Score`)
                   : null;
 
               const revisedCommentCandidate =
-                appealDecision === "Approved"
+                topicDecision === "Approved"
                   ? appealHelper.getValue(row, `${master.code} Revised Comment`) ??
                     appealHelper.getValue(row, `${master.code} Comment`)
                   : null;
@@ -1628,7 +1621,7 @@ export default function AppealMockup({
 
               const appealed = Boolean(appealReason && !isNoAppealReason(appealReason));
               const changed =
-                appealDecision === "Approved" &&
+                topicDecision === "Approved" &&
                 appealed &&
                 isRealTopicChanged(
                   originalScore,
@@ -1638,6 +1631,7 @@ export default function AppealMockup({
                 );
 
               return {
+                decision: topicDecision,
                 code: master.code,
                 label: master.label,
                 score: revisedScore,
@@ -1667,7 +1661,7 @@ export default function AppealMockup({
               inquiry,
               previousScore,
               finalScore,
-              reviewStatus: appealDecision === "Approved" && changedTopics.length ? "Revised" : "Original",
+              reviewStatus: appealDecision !== "Rejected" && changedTopics.length ? "Revised" : "Original",
               appealDecision,
               grade: scoreToGrade(finalScore, monthKey),
               appealVersion: String(appealVersionRaw ?? "-").trim() || "-",
@@ -1705,7 +1699,7 @@ export default function AppealMockup({
           )) as UsageLogEvent[];
 
           const firebaseAppealRequests = (buildAppealRequests(appealEvents) as any[])
-            .filter((request) => request.status === "Approved" || request.status === "Rejected")
+            .filter((request) => request.status === "Approved" || request.status === "Rejected" || request.status === "Partially Approved")
             .flatMap((request) =>
               splitAppealCaseIds(request.caseId).map((caseId) => ({
                 ...request,
@@ -1797,8 +1791,9 @@ export default function AppealMockup({
                   ""
               ).trim();
 
+              const topicDecision = getAppealTopicDecision(requestTopic, appealDecision);
               const revisedScoreCandidate =
-                appealDecision === "Approved"
+                topicDecision === "Approved"
                   ? requestTopic?.revisedScore ??
                     requestTopic?.finalScore ??
                     requestTopic?.score ??
@@ -1806,7 +1801,7 @@ export default function AppealMockup({
                   : null;
 
               const revisedCommentCandidate =
-                appealDecision === "Approved"
+                topicDecision === "Approved"
                   ? requestTopic?.revisedComment ??
                     requestTopic?.comment ??
                     ""
@@ -1837,7 +1832,7 @@ export default function AppealMockup({
                 requestTopic?.wantsAppeal === true ||
                 Boolean(appealReason && !isNoAppealReason(appealReason));
               const changed =
-                appealDecision === "Approved" &&
+                topicDecision === "Approved" &&
                 appealed &&
                 isRealTopicChanged(
                   originalScore,
@@ -1847,6 +1842,7 @@ export default function AppealMockup({
                 );
 
               return {
+                decision: topicDecision,
                 code: master.code,
                 label: master.label,
                 score: revisedScore,
@@ -1864,11 +1860,7 @@ export default function AppealMockup({
 
             const appealedTopics = topics.filter((topic) => topic.appealed);
             const changedTopics = topics.filter((topic) => topic.changed);
-            const finalScoreFromTopics = topics.reduce((sum, topic) => sum + Number(topic.score || 0), 0);
-            const approvedFinalScore = Number.isFinite(finalScoreFromTopics) && finalScoreFromTopics > 0
-              ? finalScoreFromTopics
-              : previousScore;
-            const finalScore = appealDecision === "Rejected" ? previousScore : approvedFinalScore;
+            const finalScore = appealScoreAfterReview(request.topics, previousScore);
 
             const reviewedAtRaw = request.reviewedAt || request.submittedAt || "";
             const appealTimestampRank = new Date(reviewedAtRaw).getTime();
@@ -1884,7 +1876,7 @@ export default function AppealMockup({
               inquiry,
               previousScore,
               finalScore,
-              reviewStatus: appealDecision === "Approved" ? "Revised" : "Original",
+              reviewStatus: appealDecision !== "Rejected" ? "Revised" : "Original",
               appealDecision,
               grade: scoreToGrade(finalScore, monthKey),
               appealVersion: "Firebase",
@@ -2147,7 +2139,7 @@ export default function AppealMockup({
         };
       });
 
-      const generated = await generateOfficialCaseDetailPdf({
+      const generated = await generateCasePdfWithAppealHistory({
         caseItem: {
           ...selectedCase,
           monthLabel: formatMonthKeyLabel(selectedCase.monthKey),
@@ -2156,19 +2148,25 @@ export default function AppealMockup({
           inquiryEn: "",
           caseDescription: selectedCase.inquiry,
           topics: originalTopics,
+          appealReviewedTopics: selectedRevision.appealedTopics.map(topic => ({
+            ...topic, decision: getAppealTopicDecision(topic, selectedRevision.appealDecision),
+            comment: getAppealTopicDecision(topic, selectedRevision.appealDecision) === "Rejected" ? topic.rejectReason || "" : topic.comment || "",
+          })),
           revisedTopics,
           displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),
           previousScore: selectedRevision.previousScore,
           finalScore: selectedRevision.finalScore,
           grade: selectedRevision.grade,
-          reviewStatus: "Revised",
-          appealStatus: "Approved",
-          commentStatus: "Approved",
+          // appeal-topic-table-parity-v42-status
+          reviewStatus: selectedRevision.reviewStatus,
+          appealStatus: selectedRevision.appealDecision,
+          commentStatus: selectedRevision.appealDecision,
           appealVersion: selectedRevision.appealVersion || "Firebase",
           remark: selectedRevision.appealReviewSummary || "Approved Appeal",
         },
         currentUser,
         pdfVariant: "appeal",
+        fallback: generateOfficialCaseDetailPdf,
       });
 
       const safeCaseId = normalizeCaseId(selectedCase.caseId) || "Appeal";

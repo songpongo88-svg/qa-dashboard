@@ -58,12 +58,13 @@ try {
   const identity = loadDeclarations("../src/lib/agentIdentity.ts", ["canonicalizeAgentName", "canonicalAgentIdentityKey"]);
   const timestamps = loadDeclarations("../src/evaluationStore.ts", ["getOriginalEvaluationTimestamp", "getEvaluationLastUpdatedAt"]);
   const scope = loadDeclarations("../src/lib/evaluationScope.ts", ["isTestCaseEvaluation"]);
+  const appealReview = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision"]);
   const policy = loadDeclarations("../src/lib/scoreIncentivePolicy.ts", ["scoreToGrade"]);
   const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "richTextToPlainText"], { React });
   const { mapStoredEvaluationsToCaseItems, mergeRawAndStoredEvaluationCases, normalizeCaseIssueTags, CaseDetailTopicTable } = loadDeclarations(
     "../src/DashboardMockup.tsx",
     ["mapStoredEvaluationsToCaseItems", "mergeRawAndStoredEvaluationCases", "normalizeCaseIssueTags", "CaseDetailTopicTable"],
-    { React, useState, ...identity, ...timestamps, ...scope, ...policy, ...richText },
+    { React, useState, ...identity, ...timestamps, ...scope, ...policy, ...richText, ...appealReview },
   );
   const firstTag = "ความถูกต้องของสถานะ ยอดเงิน และระยะเวลา";
   const secondTag = "ข้อมูลไม่ครบ";

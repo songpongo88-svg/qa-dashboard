@@ -19,7 +19,9 @@ function patchAppealPdfAdminDirectory() {
     `${importAnchor}\nimport { fetchStoredUserProfiles } from "./userRoleStore"; // ${marker}`
   );
 
-  const generateAnchor = `      const generated = await generateOfficialCaseDetailPdf({`;
+  const generateAnchor = source.includes("const generated = await generateCasePdfWithAppealHistory({")
+    ? `      const generated = await generateCasePdfWithAppealHistory({`
+    : `      const generated = await generateOfficialCaseDetailPdf({`;
   const generateIndex = source.indexOf(generateAnchor);
   if (generateIndex < 0) {
     throw new Error("Appeal PDF v53: PDF generation anchor not found.");

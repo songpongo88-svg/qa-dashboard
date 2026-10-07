@@ -1,3 +1,4 @@
+import { getAppealTopicDecision } from "./appealReview";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { richTextToPlainText } from "./richText";
 import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
@@ -107,6 +108,7 @@ function hasResolvedAppeal(caseItem: any) {
   return (
     caseItem?.appealStatus === "Approved" ||
     caseItem?.appealStatus === "Rejected" ||
+    caseItem?.appealStatus === "Partially Approved" ||
     caseItem?.reviewStatus === "Revised" ||
     Boolean(caseItem?.revisedTopics?.length) ||
     Boolean(caseItem?.appealReviewedTopics?.length)
@@ -141,8 +143,8 @@ export async function generateCasePdfWithAppealHistory({
     });
   }
 
-  const status = caseItem.appealStatus === "Rejected" ? "Rejected" : "Approved";
-  const approved = status === "Approved";
+  const status = caseItem.appealStatus === "Rejected" ? "Rejected" : caseItem.appealStatus === "Partially Approved" ? "Partially Approved" : "Approved";
+  const approved = status !== "Rejected";
   const originalTopics = Array.isArray(caseItem.topics) ? caseItem.topics : [];
   const revisedTopics = Array.isArray(caseItem.revisedTopics) ? caseItem.revisedTopics : [];
   const reviewedTopics = Array.isArray(caseItem.appealReviewedTopics) ? caseItem.appealReviewedTopics : [];
@@ -180,8 +182,10 @@ export async function generateCasePdfWithAppealHistory({
     );
     if (!isAppealedTopic) return topic;
 
+    const topicDecision = getAppealTopicDecision(reviewed, status);
+    const topicApproved = topicDecision === "Approved";
     const originalTopicScore = numeric(topic?.score);
-    const revisedTopicScore = approved && revised && hasValue(revised.score)
+    const revisedTopicScore = topicApproved && revised && hasValue(revised.score)
       ? numeric(revised.score, originalTopicScore)
       : originalTopicScore;
     const maxScore = numeric(revised?.max, numeric(topic?.max));
@@ -189,18 +193,18 @@ export async function generateCasePdfWithAppealHistory({
       reviewed?.appealReason || revised?.appealReason,
       "ไม่พบ Appeal Reason"
     );
-    const revisedComment = approved
+    const revisedComment = topicApproved
       ? plain(revised?.comment || reviewed?.comment, "ไม่พบ Revised Comment")
       : plain(
           reviewed?.comment || caseItem.appealReviewSummary,
           "Appeal Rejected - คะแนนและผลการประเมินคงเดิม"
         );
-    const revisedLabel = approved ? "Revised Comment" : "Revised Comment (Rejected)";
+    const revisedLabel = topicApproved ? "Revised Comment" : "Reject Reason";
     appealTopicUpdates.push({
       code: plain(topic?.code, code),
       label: plain(topic?.label || revised?.label || reviewed?.label, ""),
     });
-    const tagTopic = caseItem.reviewStatus === "Revised" && revisedCodes.has(code) && changedTopic(topic, revised)
+    const tagTopic = topicApproved && caseItem.reviewStatus === "Revised" && revisedCodes.has(code) && changedTopic(topic, revised)
       ? revised
       : topic;
     const combinedComment = [
@@ -217,6 +221,7 @@ export async function generateCasePdfWithAppealHistory({
       "<hr>",
       `<div><strong>QA: ${pdfHtml(appealQa)}</strong></div>`,
       `<div><strong>Appeal Result: ${pdfHtml(appealResult || "-")}</strong></div>`,
+      `<div><strong>Decision: ${topicDecision || "-"}</strong></div>`,
       `<div><span style="color:#dc2626"><strong>${revisedLabel}</strong><br>${pdfHtml(revisedComment)}</span></div>`,
     ].join("");
 

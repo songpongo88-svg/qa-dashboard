@@ -264,7 +264,7 @@ if (!pdfSource.includes(pdfMarker)) {
     label(6, y, 1, secondSelectionRowH, "Case Grade");
     value(7, y, 1, secondSelectionRowH, grade, LIGHT_PURPLE, { align: "center", valign: "middle", size: 8.2, maxLines: 1 });`,
     `    label(4, y, 1, secondSelectionRowH, hasAppealUpdate ? "Appeal Status" : "Final Score");
-    value(5, y, 1, secondSelectionRowH, appealStatusText, LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 6.5 : 8.2, maxLines: fitLinesForHeight(secondSelectionRowH, hasAppealUpdate ? 6.5 : 8.2, 0.46, 4), color: hasAppealUpdate ? (caseItem.pdfAppealStatus === "Approved" ? [21, 128, 61] : [220, 38, 38]) : (reportKpiStatus === "Passed" ? [21, 128, 61] : [220, 38, 38]) });
+    value(5, y, 1, secondSelectionRowH, appealStatusText, LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 6.5 : 8.2, maxLines: fitLinesForHeight(secondSelectionRowH, hasAppealUpdate ? 6.5 : 8.2, 0.46, 4), color: hasAppealUpdate ? (caseItem.pdfAppealStatus === "Approved" ? [21, 128, 61] : caseItem.pdfAppealStatus === "Partially Approved" ? [180, 83, 9] : [220, 38, 38]) : (reportKpiStatus === "Passed" ? [21, 128, 61] : [220, 38, 38]) });
     label(6, y, 1, secondSelectionRowH, hasAppealUpdate ? "Reviewed Date" : "Case Grade");
     value(7, y, 1, secondSelectionRowH, reviewedDateText, LIGHT_PURPLE, { align: "center", valign: "middle", size: hasAppealUpdate ? 5.8 : 8.2, maxLines: fitLinesForHeight(secondSelectionRowH, hasAppealUpdate ? 5.8 : 8.2, 0.46, 4), color: hasAppealUpdate ? undefined : (reportKpiStatus === "Passed" ? [21, 128, 61] : [220, 38, 38]) });`
   );

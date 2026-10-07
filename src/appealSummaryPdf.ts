@@ -1,8 +1,10 @@
+import { getAppealTopicDecision, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { richTextToPlainText } from "./richText";
 
 type AppealSummaryTopic = {
+  decision?: AppealTopicDecision;
   code: string;
   label: string;
   max: number;
@@ -21,7 +23,7 @@ export type GenerateAppealSummaryPdfInput = {
   inquiry?: string;
   appealSubmitDateTime?: string;
   appealResultDateTime?: string;
-  appealDecision: "Approved" | "Rejected";
+  appealDecision: AppealDecision;
   appealRound: number;
   reviewSummary?: string;
   previousScore: number;
@@ -305,10 +307,11 @@ export async function generateAppealSummaryPdf(input: GenerateAppealSummaryPdfIn
   }
 
   input.appealedTopics.forEach((topic, index) => {
+    const topicDecision = getAppealTopicDecision(topic, input.appealDecision);
     const topicLabel = `${topic.code} ${plain(topic.label)}`;
     const appealReasonLines = wrapText(topic.appealReason || "-", contentW - 16);
     const originalCommentLines = wrapText(topic.originalComment || "-", contentW - 16);
-    const reviewLabel = input.appealDecision === "Rejected" ? "Reject Reason" : "Revised Comment";
+    const reviewLabel = topicDecision === "Rejected" ? "Reject Reason" : "Revised Comment";
     const reviewCommentLines = wrapText(topic.reviewComment || "-", contentW - 16);
 
     const blockH =
@@ -326,9 +329,9 @@ export async function generateAppealSummaryPdf(input: GenerateAppealSummaryPdfIn
     setTextColor(TEXT);
     doc.text(`${index + 1}. ${topicLabel}`, margin + 5, y + 7);
 
-    const badgeText = input.appealDecision;
-    const badgeBg = input.appealDecision === "Approved" ? GREEN_BG : RED_BG;
-    const badgeTextColor = input.appealDecision === "Approved" ? GREEN_TEXT : RED_TEXT;
+    const badgeText = topicDecision || "-";
+    const badgeBg = topicDecision === "Approved" ? GREEN_BG : RED_BG;
+    const badgeTextColor = topicDecision === "Approved" ? GREEN_TEXT : RED_TEXT;
     setFillColor(badgeBg);
     doc.roundedRect(pageW - margin - 28, y + 3, 23, 7, 3, 3, "F");
     setFont("bold");
@@ -340,7 +343,7 @@ export async function generateAppealSummaryPdf(input: GenerateAppealSummaryPdfIn
     doc.setFontSize(8.2);
     setTextColor(PURPLE);
     const originalTopicScore = safeNumber(topic.originalScore);
-    const finalTopicScore = input.appealDecision === "Rejected" ? originalTopicScore : safeNumber(topic.finalScore);
+    const finalTopicScore = topicDecision === "Rejected" ? originalTopicScore : safeNumber(topic.finalScore);
     doc.text(
       `Score: ${originalTopicScore.toFixed(2)}/${safeNumber(topic.max).toFixed(0)} -> ${finalTopicScore.toFixed(2)}/${safeNumber(topic.max).toFixed(0)}`,
       margin + 5,
@@ -370,7 +373,7 @@ export async function generateAppealSummaryPdf(input: GenerateAppealSummaryPdfIn
 
     drawTextSection("Appeal Reason", appealReasonLines, PURPLE);
     drawTextSection("Original Comment", originalCommentLines, MUTED);
-    drawTextSection(reviewLabel, reviewCommentLines, input.appealDecision === "Rejected" ? RED_TEXT : BLUE_TEXT);
+    drawTextSection(reviewLabel, reviewCommentLines, topicDecision === "Rejected" ? RED_TEXT : BLUE_TEXT);
 
     y += blockH + 5;
   });

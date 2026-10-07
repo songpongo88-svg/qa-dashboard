@@ -5268,7 +5268,7 @@ export default function App() {
       }
 
       appealRequests
-        .filter((item) => item.status === "Approved" || item.status === "Rejected")
+        .filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved")
         .filter((item) => {
           const currentIdentities = [
             currentUser.username,
@@ -5285,34 +5285,17 @@ export default function App() {
         .forEach((item) => {
           const id = `appeal-result-${item.requestId}-${item.status}-${item.reviewedAt || "reviewed"}`;
           nextTasks.push({
-            id,
-            type: "appeal-result",
-            title: `Appeal result: ${item.caseId}`,
-            description:
-              item.status === "Approved"
-                ? "Your appeal was approved. Overview and Analytics scores were updated automatically."
-                : "Your appeal was rejected. Open the case detail to review the decision summary.",
-            badge: item.status,
-            count: 1,
-            unread: !readIds.includes(id),
-            actionLabel: "Open case detail",
-            caseId: item.caseId,
-            agentName: item.agent,
+            id, type: "appeal-result", title: `Appeal result: ${item.caseId}`,
+            description: `ผลพิจารณา: ${item.status} • ` + item.topics.map(topic => `หัวข้อ ${topic.code}: ${topic.decision}`).join(" • "),
+            badge: item.status, count: 1, unread: !readIds.includes(id), actionLabel: "Open Case Detail",
+            caseId: item.caseId, agentName: item.agent,
             mailTemplate: {
-              subject: `เน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’เน€เธเธเน€เธเธเน€เธโ€”เน€เธยเน€เธเธเน€เธโ€เน€เธยเน€เธโฌเน€เธยเน€เธเธ ${item.caseId}`,
-              to: item.submittedBy || item.agent || currentUser.displayName || currentUser.username,
-              from: "Quality Assurance / Songpon Phothong",
-              status: item.status,
-              body: [
-                `เน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’: ${item.status === "Approved" ? "เน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธย" : "เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธย"}`,
-                `Case ID: ${item.caseId}`,
-                `Agent: ${item.agent || "-"}`,
-                item.reviewSummary ? `เน€เธเธเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’: ${item.reviewSummary}` : "เน€เธเธเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’: เน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธเธ’เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€เน€เธเธเน€เธเธ’เน€เธเธเน€เธเธ…เน€เธเธเน€เธโฌเน€เธเธเน€เธเธ•เน€เธเธเน€เธโ€เน€เธโฌเน€เธยเน€เธเธเน€เธโฌเน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธโ€ขเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธเธเน€เธเธ…เน€เธโฌเน€เธยเน€เธเธ”เน€เธยเน€เธเธเน€เธโฌเน€เธโ€ขเน€เธเธ”เน€เธเธ",
-              ],
-              footer:
-                item.status === "Approved"
-                  ? "เน€เธเธเน€เธเธเน€เธเธ’เน€เธเธเน€เธโฌเน€เธเธเน€เธโ€ขเน€เธเธ: เน€เธโฌเน€เธยเน€เธเธเน€เธโ€”เน€เธเธ•เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธโ€“เน€เธเธเน€เธยเน€เธยเน€เธเธ“เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธย Dashboard เน€เธยเน€เธเธ…เน€เธเธ Summary เน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธยเน€เธยเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”"
-                  : "เน€เธเธเน€เธเธเน€เธเธ’เน€เธเธเน€เธโฌเน€เธเธเน€เธโ€ขเน€เธเธ: เน€เธโฌเน€เธยเน€เธเธเน€เธโ€”เน€เธเธ•เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธย Dashboard เน€เธยเน€เธเธ…เน€เธเธ Summary",
+              subject: `ผลอุทธรณ์เคส ${item.caseId}`, to: item.submittedBy || item.agent,
+              from: "QA Dashboard System", status: item.status,
+              body: [`Case ID: ${item.caseId}`, `Agent: ${item.agent || "-"}`, `ผลพิจารณา: ${item.status}`,
+                ...item.topics.map(topic => `หัวข้อ ${topic.code}: ${topic.decision} • ${topic.decision === "Rejected" ? topic.rejectReason || "" : topic.revisedComment || ""}`),
+                `Review Summary: ${item.reviewSummary || "-"}`],
+              footer: "เปิด Case Detail เพื่อตรวจคะแนนล่าสุดและผลพิจารณาแต่ละหัวข้อ",
             },
           });
         });

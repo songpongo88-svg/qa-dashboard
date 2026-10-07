@@ -1,3 +1,4 @@
+import { getAppealTopicDecision, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 import { AppealEvidencePicker, AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
 import { WeekdayDashboardLayout } from "./WeekdayScene";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -64,6 +65,7 @@ type Topic = {
 };
 
 type AppealReviewedTopic = Topic & {
+  decision?: AppealTopicDecision;
   appealReason?: string;
 };
 
@@ -107,7 +109,7 @@ type CaseItem = {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
   displayRevisedTopicCodes?: string[];
-  appealStatus?: "Approved" | "Rejected";
+  appealStatus?: AppealDecision;
   appealReviewSummary?: string;
   appealSubmittedAt?: string;
   appealReviewedAt?: string;
@@ -167,13 +169,13 @@ type AppealMergeItem = {
   reviewedBy?: string;
   reviewSummary?: string;
   reviewedTopics?: Topic[];
-  status?: "Approved" | "Rejected";
+  status?: AppealDecision;
   source?: "excel" | "firebase";
 };
 
 type AppealOutcomeItem = {
   caseId: string;
-  status: "Approved" | "Rejected";
+  status: AppealDecision;
   reviewSummary: string;
   submittedAt: string;
   reviewedAt: string;
@@ -415,7 +417,7 @@ function buildApprovedAppealMergeMap(
   const latestRequests = buildLatestAppealRequestMap(logs);
 
   latestRequests.forEach((request, caseId) => {
-    if (request.status !== "Approved") return;
+    if (request.status !== "Approved" && request.status !== "Partially Approved") return;
 
     const revisedTopics: Topic[] = [];
     const displayRevisedTopicCodes: string[] = [];
@@ -423,6 +425,7 @@ function buildApprovedAppealMergeMap(
     let scoreDelta = 0;
 
     (Array.isArray(request.topics) ? request.topics : []).forEach((matched: any) => {
+      if (getAppealTopicDecision(matched, request.status) !== "Approved") return;
       const master = getTopicMasterByMonth(
         rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
       ).find((item) => item.code === matched.code);
@@ -497,7 +500,7 @@ function buildAppealOutcomeMap(
   });
 
   latestRequests.forEach((request, caseId) => {
-    if (request.status !== "Approved" && request.status !== "Rejected") return;
+    if (request.status !== "Approved" && request.status !== "Rejected" && request.status !== "Partially Approved") return;
     const submittedEvent = submittedEvents.get(String(request.requestId || ""));
     const reviewedEvent = reviewedEvents.get(String(request.requestId || ""));
 
@@ -510,7 +513,7 @@ function buildAppealOutcomeMap(
     (Array.isArray(request.topics) ? request.topics : []).forEach((matched: any) => {
       const appealReason = String(matched.appealReason || "").trim();
       const reviewFeedback = String(
-        request.status === "Rejected"
+        getAppealTopicDecision(matched, request.status) === "Rejected"
           ? matched.rejectReason || matched.revisedComment || ""
           : matched.revisedComment || ""
       ).trim();
@@ -523,6 +526,7 @@ function buildAppealOutcomeMap(
       const safeScore = Number.isFinite(originalScore) ? originalScore : 0;
 
       reviewedTopics.push({
+        decision: getAppealTopicDecision(matched, request.status),
         code: master.code,
         label: master.label,
         score: safeScore,
@@ -2553,7 +2557,7 @@ function CaseDetailTopicTable({
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
   displayRevisedTopicCodes?: string[];
-  appealStatus?: "Approved" | "Rejected";
+  appealStatus?: AppealDecision;
   appealReviewedTopics?: AppealReviewedTopic[] | null;
   appealSubmittedBy?: string;
   appealSubmittedAt?: string;
@@ -2578,10 +2582,10 @@ function CaseDetailTopicTable({
           ? revisedTopics.find((item) => item.code === originalTopic.code)
           : undefined;
       const appealReviewTopic =
-        appealStatus === "Approved" || appealStatus === "Rejected"
+        appealStatus === "Approved" || appealStatus === "Rejected" || appealStatus === "Partially Approved"
           ? appealReviewedTopics?.find((item) => item.code === originalTopic.code)
           : undefined;
-      const rejectedReviewTopic = appealStatus === "Rejected" ? appealReviewTopic : undefined;
+      const rejectedReviewTopic = getAppealTopicDecision(appealReviewTopic, appealStatus) === "Rejected" ? appealReviewTopic : undefined;
       const allowedToShowRevised = displayCodeSet.has(originalTopic.code);
       const changed =
         reviewStatus === "Revised" &&
@@ -2717,20 +2721,21 @@ function CaseDetailTopicTable({
                     </div>
                   </div>
 
-                  <div className={`rounded-[20px] border px-4 py-4 ${appealStatus === "Rejected" ? "border-rose-200 bg-rose-50/80" : "border-violet-200 bg-violet-50"}`}>
-                    <div className={`space-y-1 text-[13px] font-semibold ${appealStatus === "Rejected" ? "text-rose-800" : "text-violet-800"}`}>
+                  <div className={`rounded-[20px] border px-4 py-4 ${row.rejectedReviewTopic ? "border-rose-200 bg-rose-50/80" : "border-violet-200 bg-violet-50"}`}>
+                    <div className={`space-y-1 text-[13px] font-semibold ${row.rejectedReviewTopic ? "text-rose-800" : "text-violet-800"}`}>
                       <div><span className="font-extrabold">QA:</span> {appealReviewedBy || "-"}</div>
                       <div><span className="font-extrabold">Appeal Result:</span> {formatBangkokDateTime(appealReviewedAt || null)}</div>
+                      <div><span className="font-extrabold">Decision:</span> {getAppealTopicDecision(row.appealReviewTopic, appealStatus)}</div>
                     </div>
-                    <div className={`mt-4 text-[13px] font-semibold ${appealStatus === "Rejected" ? "text-rose-700" : "text-violet-700"}`}>
-                      {appealStatus === "Rejected" ? "Reject Reason" : "Revised Comment"}
+                    <div className={`mt-4 text-[13px] font-semibold ${row.rejectedReviewTopic ? "text-rose-700" : "text-violet-700"}`}>
+                      {row.rejectedReviewTopic ? "Reject Reason" : "Revised Comment"}
                     </div>
-                    <div className={`mt-2 whitespace-pre-line leading-7 ${appealStatus === "Rejected" ? "text-rose-800" : "text-violet-700"}`}>
+                    <div className={`mt-2 whitespace-pre-line leading-7 ${row.rejectedReviewTopic ? "text-rose-800" : "text-violet-700"}`}>
                       <RichTextContent
-                        value={appealStatus === "Rejected"
+                        value={row.rejectedReviewTopic
                           ? row.appealReviewTopic.comment
                           : row.revisedTopic?.comment || row.appealReviewTopic.comment}
-                        fallback={appealStatus === "Rejected" ? "ไม่พบ Reject Reason" : "ยังไม่มี Revised Comment"}
+                        fallback={row.rejectedReviewTopic ? "ไม่พบ Reject Reason" : "ยังไม่มี Revised Comment"}
                       />
                     </div>
                   </div>
@@ -3754,7 +3759,7 @@ function SlideOverCaseDetail({
   if (!open || !caseItem) return null;
 
   const hasAppealCase =
-    caseItem.appealStatus === "Approved" ||
+    (caseItem.appealStatus === "Approved" || caseItem.appealStatus === "Partially Approved") ||
     caseItem.appealStatus === "Rejected" ||
     caseItem.reviewStatus === "Revised" ||
     !!caseItem.revisedTopics?.length ||
@@ -4793,11 +4798,11 @@ function SlideOverCaseDetail({
                   </div>
                 ) : null}
               </div>
-            ) : caseItem.appealStatus === "Approved" ? (
+            ) : caseItem.appealStatus === "Approved" || caseItem.appealStatus === "Partially Approved" ? (
               <div className="rounded-[18px] border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 shadow-sm">
-                <div className="text-sm font-extrabold text-emerald-700">Appeal Approved</div>
+                <div className="text-sm font-extrabold text-emerald-700">Appeal {caseItem.appealStatus}</div>
                 <div className="mt-1 text-sm font-semibold leading-6">
-                  ผลการพิจารณาอุทธรณ์ได้รับการอนุมัติ และถูกนำมาใช้ใน Case Detail แล้ว
+                  {caseItem.appealStatus === "Partially Approved" ? "อนุมัติบางหัวข้อ คะแนนปรับเฉพาะข้อที่ Approved ส่วนข้อที่ Reject คงคะแนนเดิม" : "ผลการพิจารณาอุทธรณ์ได้รับการอนุมัติ และถูกนำมาใช้ใน Case Detail แล้ว"}
                 </div>
                 {caseItem.appealReviewedAt ? (
                   <div className="mt-2 text-xs font-semibold text-emerald-600">Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}</div>
@@ -5851,6 +5856,8 @@ export default function DashboardMockup({
           );
 
           topicMaster.forEach((topic) => {
+            const topicDecision = getAppealTopicDecision({ decision: appealHelper.getValue(row, `${topic.code} Decision`) });
+            const rejectReasonRaw = appealHelper.getValue(row, `${topic.code} Reject Reason`);
             const originalScoreRaw = appealHelper.getValue(row, `${topic.code} Score`);
             const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
             const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
@@ -5945,10 +5952,11 @@ export default function DashboardMockup({
               const reviewedScore = hasRevisedScore
                 ? Number(revisedScoreRaw)
                 : Number(originalScoreRaw ?? 0);
-              const reviewedComment = hasRevisedComment
+              const reviewedComment = topicDecision === "Rejected" ? String(rejectReasonRaw || "").trim() : hasRevisedComment
                 ? String(revisedCommentRaw).trim()
                 : String(originalCommentRaw ?? "").trim();
               reviewedTopics.push({
+                ...(topicDecision ? { decision: topicDecision } : {}),
                 code: topic.code,
                 label: topic.label,
                 score: Number.isFinite(reviewedScore) ? reviewedScore : 0,
@@ -5961,7 +5969,7 @@ export default function DashboardMockup({
               });
             }
 
-            if (!hasRevisedScore && !hasRevisedComment) return;
+            if (topicDecision === "Rejected" || (!hasRevisedScore && !hasRevisedComment)) return;
 
             const score = hasRevisedScore ? Number(revisedScoreRaw) : Number(originalScoreRaw ?? 0);
             const comment = hasRevisedComment
@@ -6094,7 +6102,7 @@ export default function DashboardMockup({
                 "QA Scheme",
                 "Status",
               ], "") ?? "").trim().toLowerCase();
-              return rawStatus === "rejected" || rawStatus === "reject" ? "Rejected" : "Approved";
+              return rawStatus === "partially approved" ? "Partially Approved" : rawStatus === "rejected" || rawStatus === "reject" ? "Rejected" : "Approved";
             })(),
             source: "excel",
           });
@@ -7462,6 +7470,7 @@ export default function DashboardMockup({
         : `Grade ${monthlyAgentGrade || "-"} · Not Eligible`
     : `${kpiScopeSummary.caseCount}/${dashboardEvaluationTarget} evaluated · Complete the monthly target first`;
   const approvedAppealCount = dashboardCases.filter((item) => item.appealStatus === "Approved").length;
+  const partialAppealCount = dashboardCases.filter((item) => item.appealStatus === "Partially Approved").length;
   const rejectedAppealCount = dashboardCases.filter((item) => item.appealStatus === "Rejected").length;
   const overviewKpiItemsV93 = [
     {
@@ -7496,11 +7505,11 @@ export default function DashboardMockup({
     },
     {
       label: "Appeal Results",
-      value: String(approvedAppealCount + rejectedAppealCount),
-      note: `${approvedAppealCount} Approved · ${rejectedAppealCount} Rejected`,
+      value: String(approvedAppealCount + partialAppealCount + rejectedAppealCount),
+      note: `${approvedAppealCount} Approved · ${partialAppealCount} Partially Approved · ${rejectedAppealCount} Rejected`,
       icon: "↻",
-      iconTone: approvedAppealCount + rejectedAppealCount ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500",
-      valueTone: approvedAppealCount + rejectedAppealCount ? "text-emerald-700" : "text-slate-600",
+      iconTone: approvedAppealCount + partialAppealCount + rejectedAppealCount ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500",
+      valueTone: approvedAppealCount + partialAppealCount + rejectedAppealCount ? "text-emerald-700" : "text-slate-600",
     },
     {
       // dashboard-overall-grade-all-agents-final-v156
@@ -8892,7 +8901,7 @@ export default function DashboardMockup({
                               const isSelected = activeSelectedCase?.key === item.key;
                               const intent = splitCaseNavigatorIntent(item.inquiryTh, item.inquiryEn);
                               const scorePassed = item.finalScore >= KPI_QUALITY_SCORE_TARGET;
-                              const hasAppealChange = item.appealStatus === "Approved" || item.reviewStatus === "Revised";
+                              const hasAppealChange = (item.appealStatus === "Approved" || item.appealStatus === "Partially Approved") || item.reviewStatus === "Revised";
                               return (
                                 <div
                                   key={item.key}
@@ -8952,7 +8961,7 @@ export default function DashboardMockup({
                         {activeSelectedCase ? (() => {
                           const intent = splitCaseNavigatorIntent(activeSelectedCase.inquiryTh, activeSelectedCase.inquiryEn);
                           const scorePassed = activeSelectedCase.finalScore >= KPI_QUALITY_SCORE_TARGET;
-                          const hasAppealChange = activeSelectedCase.appealStatus === "Approved" || activeSelectedCase.reviewStatus === "Revised";
+                          const hasAppealChange = (activeSelectedCase.appealStatus === "Approved" || activeSelectedCase.appealStatus === "Partially Approved") || activeSelectedCase.reviewStatus === "Revised";
                           const originalScore = typeof activeSelectedCase.previousScore === "number" ? activeSelectedCase.previousScore : activeSelectedCase.finalScore;
                           const selectedStatusLabel = activeSelectedCase.appealStatus || activeSelectedCase.reviewStatus;
                           const selectedStatusTone = activeSelectedCase.appealStatus === "Rejected"
