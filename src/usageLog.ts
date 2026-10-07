@@ -11,6 +11,7 @@ type UsageLogUser = {
 } | null;
 
 export type UsageLogEvent = {
+  source_case_unavailable?: boolean;
   id?: string;
   created_at?: string;
   event_type: string;

@@ -9,6 +9,7 @@
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
+import { checkAppealSourceCases } from "./appealCaseAvailability";
 
 export type AppealLogUser = {
   username?: string;
@@ -33,6 +34,7 @@ export type AppealLogEvent = {
   user_agent?: string;
   page_url?: string;
   session_login_at?: string;
+  source_case_unavailable?: boolean;
 };
 
 type FetchOptions = number | {
@@ -102,7 +104,7 @@ function normalizeFetchOptions(options: FetchOptions | undefined) {
   };
 }
 
-function clearAppealEventReadCache() {
+export function clearAppealEventReadCache() {
   appealEventReadCache.clear();
 }
 
@@ -155,6 +157,11 @@ export async function writeAppealEvent(
   payload: Partial<AppealLogEvent> = {}
 ) {
   if (!user || !isAppealEventType(eventType)) return false;
+
+  if (eventType === "appeal_request_submitted" || eventType === "appeal_request_reviewed") {
+    const [checked] = await checkAppealSourceCases([{ ...payload, event_type: eventType }]);
+    if (checked.source_case_unavailable) throw new Error("เคสต้นทางถูกลบแล้ว ไม่สามารถยื่นหรือบันทึกผลอุทธรณ์ของเคสนี้ได้");
+  }
 
   const now = new Date().toISOString();
   const details = payload.details && typeof payload.details === "object" ? payload.details : {};
@@ -223,10 +230,11 @@ export async function fetchAppealEvents(
         )
       );
 
-      return snapshot.docs
+      const events = snapshot.docs
         .map((item) => toAppealLogEvent(item.id, item.data()))
         .filter((item) => cleanEventTypes.includes(item.event_type))
         .slice(offset, offset + limit);
+      return checkAppealSourceCases(events);
     }
   );
 }
