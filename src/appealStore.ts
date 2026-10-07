@@ -159,7 +159,12 @@ export async function writeAppealEvent(
   const now = new Date().toISOString();
   const details = payload.details && typeof payload.details === "object" ? payload.details : {};
   const requestId = String((details as any).requestId || payload.id || payload.case_id || now);
-  const docId = sanitizeId(`${eventType}-${requestId}`);
+  // Keep each review revision. Reusing its ID makes a retry idempotent while
+  // preserving the original submission and all earlier review documents.
+  const reviewId = eventType === "appeal_request_reviewed"
+    ? String(details.reviewId || `${Date.now()}-${crypto.randomUUID()}`)
+    : "";
+  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}`);
   const reviewerNameCandidates = [user.agentName, user.displayName]
     .map((value) => canonicalizeAgentName(value || ""))
     .filter(Boolean)
@@ -181,7 +186,7 @@ export async function writeAppealEvent(
       tab: payload.tab || "",
       case_id: payload.case_id || "",
       target_agent: canonicalizeAgentName(payload.target_agent),
-      details,
+      details: reviewId ? { ...details, reviewId } : details,
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
       page_url: typeof window !== "undefined" ? window.location.href : "",
       session_login_at: user.loginAt || "",

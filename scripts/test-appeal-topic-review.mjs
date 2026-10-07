@@ -135,8 +135,11 @@ try {
     builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "hero" ? "export default function Hero(){return null}" : `
       export async function fetchAppealEvents(){return globalThis.__appealFixtureLogs}
       export async function writeAppealEvent(user,event_type,payload){
+        if(globalThis.__appealFixtureFailure === 'before'){globalThis.__appealFixtureFailure='';throw new Error('offline')}
         const event={...payload,event_type,created_at:new Date().toISOString()};
-        globalThis.__appealFixtureWrites.push(event);globalThis.__appealFixtureLogs.unshift(event);return true;
+        globalThis.__appealFixtureWrites.push(event);globalThis.__appealFixtureLogs.unshift(event);
+        if(globalThis.__appealFixtureFailure === 'after'){globalThis.__appealFixtureFailure='';throw new Error('acknowledgement lost')}
+        return true;
       }` }));
   } }] });
   const { default: ReviewComponent } = await import(pathToFileURL(output).href);
@@ -167,6 +170,10 @@ try {
   await setText("revised-comment-3", "New follow-up explanation");
   await setText("appeal-review-summary", "Mixed review summary");
   await click([...document.querySelectorAll("button")].find(button => button.textContent === "Save Review"));
+  assert.equal(globalThis.__appealFixtureWrites.length, 0, "confirmation opens before any write");
+  assert.ok(document.querySelector("dialog").textContent.includes("82.00 → 86.00"));
+  assert.ok(document.querySelector("dialog").textContent.includes("Grade B"));
+  await click([...document.querySelectorAll("dialog button")].find(button => button.textContent === "ยืนยันบันทึก"));
   assert.equal(globalThis.__appealFixtureWrites.length, 1, globalThis.__appealAlert);
   const saved = globalThis.__appealFixtureWrites[0];
   assert.equal(saved.details.decision, "Partially Approved");
@@ -178,10 +185,144 @@ try {
   assert.equal(saved.details.reviewedBy, "Test Reviewer");
   assert.equal(requestFunctions.buildAppealRequests(globalThis.__appealFixtureLogs)[0].status, "Partially Approved");
   console.log("PASS real Appeal Review UI independently selects three decisions and saves one complete mixed review with reviewer identity");
+  const button = text => [...document.querySelectorAll("button")].find(node => node.textContent === text);
+  assert.ok(document.querySelector("dialog").textContent.includes("บันทึกผลอุทธรณ์เรียบร้อย"));
+  await click(button("รับทราบ"));
+  assert.ok(groups().every(group => [...group.querySelectorAll("button")].every(node => node.disabled)));
+  await click(button("แก้ไขผลอุทธรณ์"));
+  await setText("appeal-review-summary", "Unsaved cancellation");
+  await click(button("ยกเลิกการแก้ไข"));
+  assert.equal(document.getElementById("appeal-review-summary").value, "Mixed review summary");
+  assert.equal(globalThis.__appealFixtureWrites.length, 1);
+  await click(button("แก้ไขผลอุทธรณ์"));
+  await click(groups()[0].querySelectorAll("button")[1]);
+  await click(groups()[1].querySelectorAll("button")[0]);
+  await click(groups()[2].querySelectorAll("button")[1]);
+  await setScore(groups()[1], 19);
+  await setText("reject-reason-1", "Keep original process score");
+  await setText("revised-comment-2", "Reconsidered answer score");
+  await setText("reject-reason-3", "Keep original follow-up score");
+  await setText("appeal-review-summary", "Corrected mixed review");
+  await click(button("Save Review"));
+  assert.ok(document.querySelector("dialog").textContent.includes("86.00 → 85.00"));
+  await click(button("กลับไปแก้ไข"));
+  assert.equal(document.querySelector("dialog"), null);
+  assert.equal(document.getElementById("appeal-review-summary").value, "Corrected mixed review");
+  await click(button("Save Review"));
+  globalThis.__appealFixtureFailure = "before";
+  await click(button("ยืนยันบันทึก"));
+  assert.ok(document.querySelector('[role="alertdialog"]').textContent.includes("ผลที่กรอกยังอยู่"));
+  assert.equal(globalThis.__appealFixtureWrites.length, 1);
+  await click(button("กลับไปตรวจสอบ"));
+  await act(async () => {
+    const confirm = button("ยืนยันบันทึก");
+    confirm.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    confirm.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  assert.equal(globalThis.__appealFixtureWrites.length, 2, "double click creates one revision");
+  const edited = globalThis.__appealFixtureWrites[1];
+  assert.equal(edited.details.requestId, submission.details.requestId);
+  assert.equal(edited.details.previousReviewId, saved.details.reviewId);
+  assert.equal(edited.details.reviewAction, "edited");
+  assert.equal(edited.details.reviewVersion, 2);
+  assert.notEqual(edited.details.reviewId, saved.details.reviewId);
+  assert.deepEqual(edited.details.topics.map(topic => topic.decision), ["Rejected", "Approved", "Rejected"]);
+  assert.equal(helper.appealScoreAfterReview(edited.details.topics, 82), 85);
+  const current = requestFunctions.buildAppealRequests([saved, submission, edited])[0];
+  assert.equal(current.reviewSummary, "Corrected mixed review");
+  assert.equal(current.reviewHistory.length, 2);
+  assert.equal(current.reviewHistory[1].reviewSummary, "Mixed review summary");
+  requestFunctions.exportAppealRows([current]);
+  assert.equal(globalThis.__exportedAppeals[0]["Final Score"], 85);
+  assert.equal(globalThis.__exportedAppeals[0]["1 Revised Score"], "");
+  const revisedMap = dashboard.buildApprovedAppealMergeMap([saved, submission, edited], monthMap);
+  const revisedOutcome = dashboard.buildAppealOutcomeMap([saved, submission, edited], monthMap);
+  const updated = dashboard.applyAppealMapsToCaseItems([baseCase], revisedMap, revisedOutcome)[0];
+  assert.equal(updated.finalScore, 85, "recalculate against original 82, not previous 86");
+  assert.equal(updated.grade, "B");
+  assert.deepEqual(updated.topics.map(topic => topic.score), [29, 16, 20, 17], "original topic scores remain intact");
+  assert.deepEqual(revisedMap.get(submission.case_id).revisedTopics.map(topic => [topic.code, topic.score]), [["2", 19]]);
+  await click(button("รับทราบ"));
+  assert.ok(document.body.textContent.includes("ประวัติการพิจารณา (2 ครั้ง)"));
+  console.log("PASS edit prefill, cancel, before/after preview, offline retry, double-click protection, preserved history and latest Dashboard/export score 86 → 85");
+
+  await click(button("แก้ไขผลอุทธรณ์"));
+  await click(groups()[1].querySelectorAll("button")[1]);
+  await setText("reject-reason-2", "Keep all original scores");
+  await setText("appeal-review-summary", "All topics rejected after correction");
+  await click(button("Save Review"));
+  assert.ok(document.querySelector("dialog").textContent.includes("85.00 → 82.00"));
+  assert.ok(document.querySelector("dialog").textContent.includes("ไม่ผ่าน KPI"));
+  globalThis.__appealFixtureFailure = "after";
+  await click(button("ยืนยันบันทึก"));
+  assert.equal(globalThis.__appealFixtureWrites.length, 3);
+  await click(button("กลับไปตรวจสอบ"));
+  await click(button("ยืนยันบันทึก"));
+  assert.equal(globalThis.__appealFixtureWrites.length, 3, "acknowledgement retry detects already saved revision");
+  assert.ok(document.querySelector("dialog").textContent.includes("แก้ไขผลอุทธรณ์เรียบร้อย"));
+  const rejected = requestFunctions.buildAppealRequests(globalThis.__appealFixtureLogs)[0];
+  assert.equal(rejected.status, "Rejected");
+  assert.equal(rejected.reviewHistory.length, 3);
+  assert.equal(dashboard.applyAppealMapsToCaseItems([baseCase], dashboard.buildApprovedAppealMergeMap(globalThis.__appealFixtureLogs, monthMap), dashboard.buildAppealOutcomeMap(globalThis.__appealFixtureLogs, monthMap))[0].finalScore, 82);
+  await click(button("รับทราบ"));
+  await click(button("แก้ไขผลอุทธรณ์"));
+  await setText("appeal-review-summary", "");
+  await click(button("Save Review"));
+  assert.ok(document.querySelector('[role="alertdialog"]').textContent.includes("กรุณากรอก Review Summary"));
+  await click(button("กลับไปตรวจสอบ"));
+  await setText("appeal-review-summary", "Ready for another correction");
+  await click(button("Save Review"));
+  const external = { ...globalThis.__appealFixtureWrites[2], id: "external-review", created_at: new Date(Date.now()+1000).toISOString(), details: {
+    ...globalThis.__appealFixtureWrites[2].details, reviewId: "external-review", reviewVersion: 4, reviewSummary: "Changed in another tab",
+  } };
+  globalThis.__appealFixtureLogs.unshift(external);
+  await click(button("ยืนยันบันทึก"));
+  assert.ok(document.querySelector('[role="alertdialog"]').textContent.includes("คำขอนี้มีการเปลี่ยนแปลง"));
+  assert.equal(globalThis.__appealFixtureWrites.length, 3);
+  await click(button("กลับไปตรวจสอบ"));
+  await click(button("แก้ไขผลอุทธรณ์"));
+  await click(button("Save Review"));
+  globalThis.__appealFixtureLogs.unshift({ ...reset, created_at: new Date(Date.now()+2000).toISOString() });
+  await click(button("ยืนยันบันทึก"));
+  assert.equal(globalThis.__appealFixtureWrites.length, 3, "Reset cannot be revived by saving a stale edit");
+  assert.ok(document.querySelector('[role="alertdialog"]').textContent.includes("Reset"));
+  console.log("PASS rejecting a previously approved topic restores original scores; saved-but-unacknowledged retry is idempotent; validation, newer reviews and Reset block stale saves");
+
+  globalThis.__appealStoredDocs = new Map([["qa_appeal_events/legacy-submission", submission], ["qa_appeal_events/legacy-review", reviewEvent]]);
+  const storeOutput = resolve(temp, "store.mjs");
+  await build({ entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-firestore-boundary", setup(builder) {
+    builder.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: "firestore", namespace: "fixture" }));
+    builder.onResolve({ filter: /^\.\/firebaseClient$/ }, () => ({ path: "client", namespace: "fixture" }));
+    builder.onResolve({ filter: /^\.\/lib\/agentIdentity$/ }, () => ({ path: "identity", namespace: "fixture" }));
+    builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "client" ? "export const firebaseDb={}" : args.path === "identity" ? "export const canonicalizeAgentName=value=>String(value||'')" : `
+      export const collection=(_db,name)=>name;
+      export const doc=(_db,name,id)=>name+'/'+id;
+      export const query=(...values)=>values;
+      export const limit=value=>value;
+      export const orderBy=(...values)=>values;
+      export async function setDoc(path,data){globalThis.__appealStoredDocs.set(path,structuredClone(data))}
+      export async function getDocs(){return {docs:[...globalThis.__appealStoredDocs.entries()].sort((a,b)=>b[1].created_at.localeCompare(a[1].created_at)).map(([path,data])=>({id:path.split('/').pop(),data:()=>structuredClone(data)}))}}
+    ` }));
+  } }] });
+  const store = await import(pathToFileURL(storeOutput).href);
+  const user = { username: "fixture-qa", displayName: "Test Reviewer" };
+  await store.writeAppealEvent(user, "appeal_request_reviewed", edited);
+  assert.equal(globalThis.__appealStoredDocs.size, 3, "new review retains legacy review document");
+  await store.writeAppealEvent(user, "appeal_request_reviewed", edited);
+  assert.equal(globalThis.__appealStoredDocs.size, 3, "same review ID updates only its own retry document");
+  assert.deepEqual(globalThis.__appealStoredDocs.get("qa_appeal_events/legacy-review"), reviewEvent);
+  const persisted = requestFunctions.buildAppealRequests(await store.fetchAppealEvents(undefined, {forceRefresh:true,limit:2000}))[0];
+  assert.equal(persisted.reviewHistory.length, 2);
+  assert.equal(persisted.reviewId, edited.details.reviewId);
+  assert.equal(persisted.reviewSummary, "Corrected mixed review");
+  assert.equal(helper.appealScoreAfterReview(persisted.topics, 82), 85);
+  console.log("PASS real appealStore writes append review revisions, keeps legacy records, reuses retry IDs and reads the latest persisted result");
 } finally {
   await act(async () => root.unmount());
   await rm(temp, { recursive: true, force: true });
   dom.window.close();
   for (const [key, descriptor] of originals) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key];
   delete globalThis.IS_REACT_ACT_ENVIRONMENT;
+  delete globalThis.__appealStoredDocs;
+  delete globalThis.__appealFixtureFailure;
 }

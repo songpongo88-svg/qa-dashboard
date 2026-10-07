@@ -1,6 +1,7 @@
 import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, type AppealTopicDecision } from "./appealReview";
 import { AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
-import React, { useEffect, useMemo, useState } from "react";
+import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNotice } from "./AppealReviewDialog";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
@@ -44,6 +45,18 @@ type AppealRequest = {
   reviewedBy?: string;
   reviewedByUsername?: string;
   submittedByUsername?: string;
+  reviewId?: string;
+  reviewVersion?: number;
+  reviewHistory: AppealReviewHistoryItem[];
+  topics: AppealTopic[];
+};
+
+type AppealReviewHistoryItem = {
+  reviewId: string;
+  reviewedAt: string;
+  reviewedBy: string;
+  decision: string;
+  reviewSummary: string;
   topics: AppealTopic[];
 };
 
@@ -140,23 +153,33 @@ function scoreOptions(max: number) {
 }
 
 export function buildAppealRequests(logs: UsageLogEvent[]) {
-  const reviews = new Map<string, UsageLogEvent>();
+  const reviews = new Map<string, UsageLogEvent[]>();
   const resets = new Map<string, UsageLogEvent>();
+  const eventTime = (log: UsageLogEvent) => {
+    const parsed = new Date(String(log.created_at || log.details?.reviewedAt || log.details?.resetAt || "")).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
   logs.forEach((log) => {
     const requestId = getRequestId(log);
-    if (log.event_type === "appeal_request_reviewed" && requestId && !reviews.has(requestId)) {
-      reviews.set(requestId, log);
+    if (log.event_type === "appeal_request_reviewed" && requestId) {
+      const history = reviews.get(requestId) || [];
+      history.push(log);
+      reviews.set(requestId, history);
     }
-    if (log.event_type === "appeal_request_reset" && requestId && !resets.has(requestId)) {
+    if (log.event_type === "appeal_request_reset" && requestId &&
+        (!resets.has(requestId) || eventTime(log) > eventTime(resets.get(requestId)!))) {
       resets.set(requestId, log);
     }
   });
+  reviews.forEach(history => history.sort((a, b) => eventTime(b) - eventTime(a) ||
+    toNumber(b.details?.reviewVersion) - toNumber(a.details?.reviewVersion)));
 
   return logs
     .filter((log) => log.event_type === "appeal_request_submitted")
     .map((log): AppealRequest => {
       const requestId = getRequestId(log);
-      const review = reviews.get(requestId);
+      const history = reviews.get(requestId) || [];
+      const review = history[0];
       const reset = resets.get(requestId);
       const reviewTopics = Array.isArray(review?.details?.topics) ? (review?.details?.topics as AppealTopic[]) : null;
       const baseTopics = Array.isArray(log.details?.topics) ? (log.details?.topics as AppealTopic[]) : [];
@@ -221,6 +244,18 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
           ""
         ).trim(),
         submittedByUsername: String(log.details?.submittedByUsername || log.username || ""),
+        reviewId: String(review?.details?.reviewId || review?.id || ""),
+        reviewVersion: toNumber(review?.details?.reviewVersion, history.length),
+        reviewHistory: history.map(item => ({
+          reviewId: String(item.details?.reviewId || item.id || item.created_at || ""),
+          reviewedAt: firstStoredAppealDateTime(item.details?.reviewedAt, item.created_at),
+          reviewedBy: String(item.details?.reviewedBy || item.agent_name || item.display_name || item.username || ""),
+          decision: String(item.details?.decision || ""),
+          reviewSummary: String(item.details?.reviewSummary || ""),
+          topics: (Array.isArray(item.details?.topics) ? item.details.topics as AppealTopic[] : [])
+            .filter(isAppealedTopic)
+            .map(topic => ({ ...topic, decision: getAppealTopicDecision(topic, item.details?.decision) })),
+        })),
         topics: appealedTopics,
       };
     });
@@ -339,6 +374,10 @@ export default function AppealRequestsMockup({
   const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingReview, setEditingReview] = useState(false);
+  const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
+  const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
+  const savingRef = useRef(false);
   const [listTab, setListTab] = useState<AppealListTab>("pending");
 
   const requests = useMemo(() => buildAppealRequests(logs), [logs]);
@@ -349,6 +388,8 @@ export default function AppealRequestsMockup({
   const resetRequests = requests.filter((item) => item.status === "Reset");
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
+  const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
+  const canReview = selectedRequest?.status === "Pending" || (isReviewed && editingReview);
 
   const loadRequests = async () => {
     try {
@@ -358,10 +399,11 @@ export default function AppealRequestsMockup({
         "appeal_request_reviewed",
         "appeal_request_reset",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
+      return true;
     } catch (error) {
       console.warn("Load appeal requests failed", error);
-      setLogs([]);
-      setMessage("Unable to load appeal requests from Firebase. Please refresh and try again.");
+      setMessage("โหลดคำขออุทธรณ์ไม่สำเร็จ กรุณาลองโหลดข้อมูลอีกครั้ง");
+      return false;
     }
   };
 
@@ -378,21 +420,54 @@ export default function AppealRequestsMockup({
       rejectReason: topic.rejectReason || "",
     })));
     setReviewSummary(selectedRequest.reviewSummary || "");
-  }, [selectedRequest?.requestId]);
+    setEditingReview(false);
+  }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt]);
 
-  const submitReview = async () => {
-    if (!selectedRequest || selectedRequest.status !== "Pending") return;
+  const cancelReviewEdit = () => {
+    if (!selectedRequest || busy) return;
+    setDraftTopics(selectedRequest.topics.map(topic => ({ ...topic,
+      revisedScore: topic.decision === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
+    })));
+    setReviewSummary(selectedRequest.reviewSummary || "");
+    setEditingReview(false);
+  };
+
+  const submitReview = () => {
+    if (!selectedRequest || !canReview || busy) return;
     if (!reviewSummary.trim()) {
-      window.alert("Please enter Review Summary before saving.");
+      setNotice({ kind: "validation", title: "ยังบันทึกผลไม่ได้", caseId: selectedRequest.caseId,
+        message: "กรุณากรอก Review Summary เพื่อสรุปเหตุผลการพิจารณาอุทธรณ์ก่อนบันทึก" });
       return;
     }
     let review;
     try {
       review = prepareAppealReview(draftTopics.filter(isAppealedTopic), selectedRequest.finalScore);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "กรุณาตรวจผลทบทวนแต่ละหัวข้อ");
+      setNotice({ kind: "validation", title: "กรุณาตรวจสอบผลแต่ละข้อ", caseId: selectedRequest.caseId,
+        message: error instanceof Error ? error.message : "กรุณาตรวจผลทบทวนแต่ละหัวข้อ" });
       return;
     }
+    setSavePreview({
+      requestId: selectedRequest.requestId, caseId: selectedRequest.caseId, agent: selectedRequest.agent,
+      isEdit: Boolean(isReviewed), previousReviewId: selectedRequest.reviewId || "",
+      previousReviewedAt: selectedRequest.reviewedAt,
+      reviewId: crypto.randomUUID(), reviewVersion: (selectedRequest.reviewVersion || 0) + 1,
+      beforeScore: isReviewed ? appealFinalScoreFromTopics(selectedRequest.topics, selectedRequest.finalScore) : selectedRequest.finalScore,
+      reviewSummary: reviewSummary.trim(), review,
+      topicRows: review.topics.map(topic => {
+        const previous = selectedRequest.topics.find(item => item.code === topic.code);
+        return { code: topic.code, label: topic.label || "", decision: topic.decision!,
+          beforeScore: previous?.decision === "Approved" ? toNumber(previous.revisedScore, previous.score) : topic.score,
+          afterScore: topic.decision === "Approved" ? toNumber(topic.revisedScore, topic.score) : topic.score,
+          max: topic.max, feedback: String(topic.decision === "Approved" ? topic.revisedComment : topic.rejectReason) };
+      }),
+    });
+  };
+
+  const confirmReview = async () => {
+    if (!savePreview || !selectedRequest || busy || savingRef.current) return;
+    const preview = savePreview;
+    const review = preview.review;
     const topicsForReview = review.topics.map(topic => ({
       code: topic.code, label: topic.label, score: topic.score, max: topic.max,
       comment: String(topic.comment || ""), wantsAppeal: true,
@@ -401,29 +476,37 @@ export default function AppealRequestsMockup({
         ? { revisedScore: topic.revisedScore, revisedComment: topic.revisedComment, rejectReason: "" }
         : { rejectReason: topic.rejectReason }),
     }));
-    const confirmed = window.confirm(
-      [
-        `Confirm ${decision} for appeal case ${selectedRequest.caseId}?`,
-        "",
-        "After saving, this task will move out of Pending and the case owner will receive an Inbox notification.",
-        decision !== "Rejected"
-          ? "Approved revised scores will update Dashboard / Case Detail from Firebase appeal events after refresh."
-          : "Rejected appeals will not change Dashboard or Summary scores.",
-      ].join("\n")
-    );
-    if (!confirmed) return;
-
+    savingRef.current = true;
     setBusy(true);
     try {
-      const reviewSaved = await writeAppealEvent(currentUser, "appeal_request_reviewed", {
+      const latestLogs = await fetchAppealEvents([
+        "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
+      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
+      const latest = buildAppealRequests(latestLogs).find(item => item.requestId === preview.requestId);
+      if (!latest || latest.status === "Reset" ||
+          (latest.reviewId !== preview.reviewId &&
+            ((latest.reviewId || "") !== preview.previousReviewId || latest.reviewedAt !== preview.previousReviewedAt))) {
+        setLogs(latestLogs);
+        setSavePreview(null);
+        setEditingReview(false);
+        setNotice({ kind: "validation", title: "คำขอนี้มีการเปลี่ยนแปลง", caseId: preview.caseId,
+          message: "มีการแก้ผลหรือ Reset คำขอนี้ระหว่างที่คุณเปิดอยู่ กรุณาตรวจผลล่าสุดแล้วเปิดแก้ไขอีกครั้งก่อนบันทึก" });
+        return;
+      }
+      const reviewedAt = new Date().toISOString();
+      const payload = {
         tab: "appeal-requests",
-        case_id: selectedRequest.caseId,
-        target_agent: selectedRequest.agent,
+        case_id: preview.caseId,
+        target_agent: preview.agent,
         details: {
-          requestId: selectedRequest.requestId,
+          requestId: preview.requestId,
+          reviewId: preview.reviewId,
+          reviewVersion: preview.reviewVersion,
+          previousReviewId: preview.previousReviewId,
+          reviewAction: preview.isEdit ? "edited" : "created",
           decision: review.decision,
-          reviewSummary: reviewSummary.trim(),
-          reviewedAt: new Date().toISOString(),
+          reviewSummary: preview.reviewSummary,
+          reviewedAt,
           // Persist reviewer metadata with the review itself. This is the
           // authoritative source used by Dashboard / Case Detail / PDF.
           reviewedBy:
@@ -438,23 +521,36 @@ export default function AppealRequestsMockup({
           submittedByUsername: selectedRequest.submittedByUsername,
           notificationTarget: selectedRequest.submittedByUsername || selectedRequest.submittedBy || selectedRequest.agent,
           notificationTemplate: {
-            subject: `Appeal result for case ${selectedRequest.caseId}`,
-            body: `ผลอุทธรณ์เคส ${selectedRequest.caseId}: ${review.decision}. ` +
+            subject: `${preview.isEdit ? "แก้ไขผลอุทธรณ์" : "ผลอุทธรณ์"} เคส ${preview.caseId}`,
+            body: `ผลอุทธรณ์เคส ${preview.caseId}: ${review.decision}. ` +
               topicsForReview.map(topic => `หัวข้อ ${topic.code}: ${topic.decision}`).join(" • "),
           },
         },
-      });
-      if (!reviewSaved) {
-        setMessage("Save review เนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเนเธญเธตเธเธเธฃเธฑเนเธ");
-        return;
+      };
+      if (latest.reviewId !== preview.reviewId) {
+        const reviewSaved = await writeAppealEvent(currentUser, "appeal_request_reviewed", payload);
+        if (!reviewSaved) throw new Error("review-save-failed");
+        setLogs([{ ...payload, event_type: "appeal_request_reviewed", created_at: reviewedAt },
+          ...latestLogs.filter(event => event.details?.reviewId !== preview.reviewId)]);
+      } else {
+        setLogs(latestLogs);
       }
-
-      setMessage(`บันทึกผล ${review.decision} ของเคส ${selectedRequest.caseId} แล้ว คะแนนรวม ${review.finalScore.toFixed(2)}`);
-      await loadRequests();
-      onTasksChanged?.();
+      setEditingReview(false);
+      setSavePreview(null);
+      setNotice({ kind: "success", title: preview.isEdit ? "แก้ไขผลอุทธรณ์เรียบร้อย" : "บันทึกผลอุทธรณ์เรียบร้อย",
+        caseId: preview.caseId, decision: review.decision, finalScore: review.finalScore,
+        message: preview.isEdit ? "คำขอเดิมใช้ผลที่แก้ไขล่าสุดแล้ว ผลก่อนหน้ายังอยู่ในประวัติการพิจารณา" : "บันทึกผลรายข้อแล้ว หากต้องแก้ผล ให้เปิดรายละเอียดคำขอเดิมแล้วกดแก้ไขผลอุทธรณ์" });
+      try {
+        onTasksChanged?.();
+      } catch (error) { console.warn("Refresh appeal tasks failed", error); }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "บันทึกผลทบทวนไม่สำเร็จ กรุณาลองใหม่");
+      const code = String((error as { code?: string })?.code || "");
+      setNotice({ kind: "error", title: "บันทึกผลอุทธรณ์ไม่สำเร็จ", caseId: preview.caseId,
+        message: code.includes("permission-denied")
+          ? "บัญชีนี้ไม่มีสิทธิ์บันทึกผลอุทธรณ์ กรุณาตรวจสิทธิ์กับผู้ดูแลระบบ ผลที่กรอกยังอยู่"
+          : "เชื่อมต่อหรือบันทึกข้อมูลไม่สำเร็จ ผลที่กรอกยังอยู่ กรุณาตรวจอินเทอร์เน็ตแล้วลองยืนยันบันทึกอีกครั้ง" });
     } finally {
+      savingRef.current = false;
       setBusy(false);
     }
   };
@@ -657,8 +753,11 @@ export default function AppealRequestsMockup({
                         <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label={`ผลพิจารณาหัวข้อ ${topic.code}`}>
                           {(["Approved", "Rejected"] as const).map(value => (
                             <button key={value} type="button" aria-pressed={topic.decision === value}
-                              disabled={busy || selectedRequest.status !== "Pending"}
-                              onClick={() => setDraftTopics(current => current.map(item => item.code === topic.code ? { ...item, decision: value } : item))}
+                              disabled={busy || !canReview}
+                              onClick={() => setDraftTopics(current => current.map(item => item.code === topic.code ? {
+                                ...item, decision: value,
+                                ...(value === "Approved" ? { revisedScore: item.revisedScore ?? item.score } : {}),
+                              } : item))}
                               className={`rounded-xl border px-4 py-2 text-sm font-bold transition disabled:opacity-60 ${topic.decision === value
                                 ? value === "Approved" ? "border-emerald-600 bg-emerald-600 text-white" : "border-rose-600 bg-rose-600 text-white"
                                 : "border-slate-200 bg-white text-slate-600 hover:border-violet-300"}`}>
@@ -677,7 +776,7 @@ export default function AppealRequestsMockup({
                               Revised Score
                               <select
                                 value={topic.revisedScore ?? topic.score}
-                                disabled={selectedRequest.status !== "Pending"}
+                                disabled={busy || !canReview}
                                 onChange={(event) => {
                                   const value = Number(event.target.value);
                                   setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedScore: value } : item));
@@ -732,7 +831,7 @@ export default function AppealRequestsMockup({
                               rows={3}
                               data-auto-resize-review="true"
                               value={topic.revisedComment || ""}
-                              disabled={selectedRequest.status !== "Pending"}
+                              disabled={busy || !canReview}
                               onChange={(event) => {
                                 const value = event.target.value;
                                 setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedComment: value } : item));
@@ -766,7 +865,7 @@ export default function AppealRequestsMockup({
                               rows={3}
                               data-auto-resize-review="true"
                               value={topic.rejectReason || ""}
-                              disabled={selectedRequest.status !== "Pending"}
+                              disabled={busy || !canReview}
                               onChange={(event) => {
                                 const value = event.target.value;
                                 setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, rejectReason: value } : item));
@@ -812,15 +911,32 @@ export default function AppealRequestsMockup({
                       rows={3}
                       data-auto-resize-review="true"
                       value={reviewSummary}
-                      disabled={selectedRequest.status !== "Pending"}
+                      disabled={busy || !canReview}
                       onChange={(event) => setReviewSummary(event.target.value)}
                       className="mt-2 min-h-[88px] w-full resize-none overflow-hidden rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
                       placeholder="Appeal review summary"
                     />
                   </div>
+                  {selectedRequest.reviewHistory.length > 0 && (
+                    <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      <summary className="cursor-pointer text-sm font-bold text-violet-700">ประวัติการพิจารณา ({selectedRequest.reviewHistory.length} ครั้ง)</summary>
+                      <div className="mt-3 space-y-3">{selectedRequest.reviewHistory.map((item, index) => (
+                        <div key={`${item.reviewId}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                          <div className="font-bold text-slate-800">ครั้งที่ {selectedRequest.reviewHistory.length - index}{index === 0 ? " · ผลล่าสุด" : ""} · {item.decision}</div>
+                          <div className="mt-1 text-xs text-slate-500">{formatDateTime(item.reviewedAt)} · {item.reviewedBy || "-"}</div>
+                          <div className="mt-2 font-semibold">คะแนนรวม {appealFinalScoreFromTopics(item.topics, selectedRequest.finalScore).toFixed(2)} / 100</div>
+                          {item.topics.map(topic => <div key={topic.code} className="mt-2 text-xs leading-6"><span className="font-bold">{topic.code} {topic.label} · {topic.decision === "Rejected" ? "Reject" : "Approved"}</span><div className="whitespace-pre-wrap break-words">{topic.decision === "Rejected" ? topic.rejectReason || topic.revisedComment || "-" : topic.revisedComment || "-"}</div></div>)}
+                          <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-6">Review Summary: {item.reviewSummary || "-"}</p>
+                        </div>
+                      ))}</div>
+                    </details>
+                  )}
+                  {editingReview && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">กำลังแก้ไขผลอุทธรณ์เดิม กรุณากด Save Review เพื่อบันทึกผลใหม่</p>}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
                     <div className="flex flex-wrap gap-2">
+                      {isReviewed && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
+                      {editingReview && <button type="button" disabled={busy} onClick={cancelReviewEdit} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">ยกเลิกการแก้ไข</button>}
                       <button
                         type="button"
                         disabled={busy}
@@ -831,7 +947,7 @@ export default function AppealRequestsMockup({
                       </button>
                       <button
                         type="button"
-                        disabled={busy || selectedRequest.status !== "Pending"}
+                        disabled={busy || !canReview}
                         onClick={submitReview}
                         className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                       >
@@ -845,6 +961,8 @@ export default function AppealRequestsMockup({
           </div>
         </div>
       </div>
+      <AppealReviewDialog preview={savePreview} notice={notice} busy={busy} onConfirm={() => void confirmReview()}
+        onBack={() => setSavePreview(null)} onDismiss={() => setNotice(null)} />
     </div>
   );
 }
