@@ -379,7 +379,7 @@ export default function AppealRequestsMockup({
   currentUser: any;
   allowReview?: boolean;
   allowedAgentNames?: string[] | null;
-  seniorOptions?: { username: string; displayName: string }[];
+  seniorOptions?: { username: string; displayName: string; agentNames?: string[] }[];
   onTasksChanged?: () => void;
 }) {
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
@@ -422,6 +422,13 @@ export default function AppealRequestsMockup({
   const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
+  const eligibleSeniorOptions = useMemo(() => {
+    const key = String(selectedRequest?.agent || "").replace(/\s+/g, "").toLowerCase();
+    if (!key) return [];
+    return seniorOptions.filter(senior =>
+      (senior.agentNames || []).some(name => String(name || "").replace(/\s+/g, "").toLowerCase() === key)
+    );
+  }, [selectedRequest?.agent, seniorOptions]);
   const pendingRequests = requests.filter((item) => item.status === "Pending");
   const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved");
   const resetRequests = requests.filter((item) => item.status === "Reset");
@@ -491,8 +498,8 @@ export default function AppealRequestsMockup({
     const seniorUsername = currentUser?.role === "Senior"
       ? String(currentUser.username || "")
       : discussionRecipient;
-    if (!seniorUsername) {
-      setDiscussionMessage("กรุณาเลือก Senior ที่จะส่งคำถามหรือหลักฐานให้");
+    if (!seniorUsername || (allowReview && !eligibleSeniorOptions.some(senior => senior.username === seniorUsername))) {
+      setDiscussionMessage("กรุณาเลือก Senior ที่รับผิดชอบทีมของเคสนี้");
       return;
     }
     setDiscussionBusy(true);
@@ -1065,9 +1072,10 @@ export default function AppealRequestsMockup({
                               onChange={event => setDiscussionRecipient(event.target.value)}
                               className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
                             >
-                              <option value="">เลือก Senior</option>
-                              {seniorOptions.map(senior => <option key={senior.username} value={senior.username}>{senior.displayName}</option>)}
+                              <option value="">เลือก Senior ของทีมนี้</option>
+                              {eligibleSeniorOptions.map(senior => <option key={senior.username} value={senior.username}>{senior.displayName}</option>)}
                             </select>
+                            {!eligibleSeniorOptions.length ? <span className="mt-1 block text-xs text-rose-700">ยังไม่พบ Senior ที่ผูกกับทีมของเคสนี้ กรุณาตรวจข้อมูลทีมก่อนส่ง</span> : null}
                           </label>
                         )}
                       </div>
