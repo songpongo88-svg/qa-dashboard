@@ -65,6 +65,7 @@ type Topic = {
   comment?: string;
   appealReason?: string;
   evidenceImages?: AppealEvidenceImage[];
+  qaEvidenceImages?: AppealEvidenceImage[];
 };
 
 type AppealReviewedTopic = Topic & {
@@ -458,6 +459,7 @@ function buildApprovedAppealMergeMap(
         comment: String(matched.revisedComment || matched.comment || "").trim(),
         appealReason: String(matched.appealReason || "").trim(),
         evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
+        qaEvidenceImages: Array.isArray(matched.qaEvidenceImages) ? matched.qaEvidenceImages : [],
       });
 
       if (isAppealTopicChanged(matched)) {
@@ -539,6 +541,7 @@ function buildAppealOutcomeMap(
         comment: reviewFeedback,
         appealReason,
         evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
+        qaEvidenceImages: Array.isArray(matched.qaEvidenceImages) ? matched.qaEvidenceImages : [],
       });
     });
 
@@ -2749,6 +2752,17 @@ function CaseDetailTopicTable({
                         fallback={row.rejectedReviewTopic ? "ไม่พบ Reject Reason" : "ยังไม่มี Revised Comment"}
                       />
                     </div>
+                    {row.appealReviewTopic.qaEvidenceImages?.length ? (
+                      <div className="mt-3 border-t border-violet-200 pt-3">
+                        <div className="text-[13px] font-semibold">รูปหลักฐานที่ QA แนบประกอบ {row.rejectedReviewTopic ? "Reject Reason" : "Revised Comment"}</div>
+                        <AppealEvidenceGallery
+                          images={row.appealReviewTopic.qaEvidenceImages}
+                          caseId={caseId}
+                          startIndex={(appealReviewedTopics || []).reduce((total, topic) => total + (topic.evidenceImages?.length || 0), 0) +
+                            appealEvidenceStartIndex((appealReviewedTopics || []).map(topic => ({ code: topic.code, evidenceImages: topic.qaEvidenceImages || [] })), row.appealReviewTopic.code)}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </>
               ) : (
