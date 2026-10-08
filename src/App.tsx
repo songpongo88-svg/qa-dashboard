@@ -4617,7 +4617,20 @@ export default function App() {
   const appealSeniorOptions = useMemo(() =>
     effectiveUserAccounts
       .filter(account => account.role === "Senior")
-      .map(account => ({ username: account.username, displayName: account.displayName || account.agentName || account.username })),
+      .map(account => {
+        const team = String(account.teamName || "").trim().toLowerCase();
+        const name = String(account.agentName || account.displayName || "").trim().toLowerCase();
+        const agentNames = effectiveUserAccounts
+          .filter(member =>
+            (Boolean(team) && String(member.teamName || "").trim().toLowerCase() === team) ||
+            (Boolean(name) && String(member.teamLead || "").trim().toLowerCase() === name))
+          .flatMap(member => [member.agentName, member.displayName].map(value => String(value || "").trim()).filter(Boolean));
+        return {
+          username: account.username,
+          displayName: account.displayName || account.agentName || account.username,
+          agentNames,
+        };
+      }),
     [effectiveUserAccounts]
   );
   const appealOverrideAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "appealOverride") : false;
