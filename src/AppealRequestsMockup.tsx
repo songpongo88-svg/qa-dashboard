@@ -58,6 +58,12 @@ type AppealRequest = {
   reviewId?: string;
   reviewVersion?: number;
   reviewHistory: AppealReviewHistoryItem[];
+  cancelledAdditionalRounds?: {
+    roundId: string;
+    reason: string;
+    cancelledBy: string;
+    cancelledAt: string;
+  }[];
   topics: AppealTopic[];
   additionalRound?: {
     roundId: string;
@@ -336,6 +342,15 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         reviewId: String(review?.details?.reviewId || review?.id || ""),
         reviewVersion: toNumber(review?.details?.reviewVersion, history.length),
         additionalRound,
+        cancelledAdditionalRounds: (cancelledRounds.get(requestId) || [])
+          .slice()
+          .sort((a, b) => eventTime(b) - eventTime(a))
+          .map(item => ({
+            roundId: String(item.details?.roundId || ""),
+            reason: String(item.details?.reason || ""),
+            cancelledBy: String(item.details?.cancelledBy || item.display_name || ""),
+            cancelledAt: String(item.details?.cancelledAt || item.created_at || ""),
+          })),
         reviewHistory: history.map(item => ({
           reviewId: String(item.details?.reviewId || item.id || item.created_at || ""),
           reviewedAt: firstStoredAppealDateTime(item.details?.reviewedAt, item.created_at),
@@ -1079,7 +1094,7 @@ export default function AppealRequestsMockup({
     }
   };
 
-  const pendingCount = requests.filter((item) => item.status === "Pending").length;
+  const pendingCount = requests.filter((item) => item.status === "Pending" || Boolean(item.additionalRound?.submitted)).length;
   const reviewedCount = reviewedRequests.length;
   const resetCount = resetRequests.length;
 
@@ -1651,6 +1666,21 @@ export default function AppealRequestsMockup({
                         </div>
                       )}
                     </div>
+                  ) : null}
+                  {selectedRequest.cancelledAdditionalRounds?.length ? (
+                    <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                        ประวัติยกเลิกรอบอุทธรณ์เพิ่มเติม ({selectedRequest.cancelledAdditionalRounds.length})
+                      </summary>
+                      <div className="mt-3 space-y-2">
+                        {selectedRequest.cancelledAdditionalRounds.map(item => (
+                          <div key={item.roundId} className="rounded-lg border border-slate-200 bg-white p-3 text-xs leading-6">
+                            <div>ยกเลิกโดย {item.cancelledBy || "QA"} · {formatDateTime(item.cancelledAt)}</div>
+                            <div className="whitespace-pre-wrap font-semibold">{item.reason || "-"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   ) : null}
                   {selectedRequest.reviewHistory.length > 0 && (
                     <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
