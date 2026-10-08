@@ -159,6 +159,7 @@ export async function writeAppealEvent(
   payload: Partial<AppealLogEvent> = {}
 ) {
   if (!user || !isAppealEventType(eventType)) return false;
+  if (String(user.role || "") === "Senior" && ["appeal_request_reviewed", "appeal_request_reset"].includes(eventType)) return false;
   if (eventType === "appeal_internal_message" && !["Senior", "Quality Assurance"].includes(String(user.role || ""))) return false;
 
   if (eventType === "appeal_request_submitted" || eventType === "appeal_request_reviewed") {
