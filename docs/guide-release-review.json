@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T06:36:21.800Z",
-  "reason": "Reviewed case-ID sequence labels for appeal evidence in submit, review, Case Detail, and PDF; original uploaded images, data, and manual flow remain unchanged.",
+  "reviewedAt": "2026-10-08T06:38:06.137Z",
+  "reason": "Rechecked QA Access plugin compatibility after adding display-only appeal evidence sequence labels; no guide content changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -325,7 +325,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "cf8869f24169ce2a37d4237c4b56070c093bb4cd41bbd83bc8dc1b8fccc47426",
     "src/CreateEvaluationMockup.tsx": "ffec619b522feed1e8f8ab0cbe61bae0d4834c8a9baef516d8ca8a08570527a0",
-    "src/DashboardMockup.tsx": "1283feb4ea29965423af6a0abcd7b1fa7b4a91308c6569b27e1822d5d80c8baa",
+    "src/DashboardMockup.tsx": "368141325e96e9fe1a383efe04185cbfcce77e01b0adb1c2d9918e3a73eafea4",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "1c8fa095f7b379f4c693a45084fe89ad56dc5b869085b4dcf1bb9deb1b3c7695",
