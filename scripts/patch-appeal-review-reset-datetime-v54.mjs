@@ -315,8 +315,8 @@ function patchAppealReviewTable() {
     );
     source = replaceOnce(
       source,
-      "  }, [logs, allowedAgentNames]);",
-      "  }, [logs, allowedAgentNames, externalCaseDetailCases]);",
+      "  }, [logs, allowedAgentNames, assignedRequestIds]);",
+      "  }, [logs, allowedAgentNames, assignedRequestIds, externalCaseDetailCases]);",
       "Appeal Review scoped projection dependencies"
     );
   } else {
