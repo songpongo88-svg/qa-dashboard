@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { appealEvidenceDisplayName } from "./appealEvidenceNaming";
 
 export type AppealEvidenceImage = { id: string; name: string; size: number; width: number; height: number; url: string };
 export const APPEAL_IMAGE_LIMIT = 5;
@@ -62,7 +63,12 @@ export async function uploadAppealImage(file: File, caseId: string, topicCode: s
   return { id, name, size: blob.size, width, height, url: "/api/google-drive-download?inline=1&id=" + encodeURIComponent(id) };
 }
 
-export function AppealEvidenceGallery({ images = [], onRemove }: { images?: AppealEvidenceImage[]; onRemove?: (id: string) => void }) {
+export function AppealEvidenceGallery({ images = [], onRemove, caseId, startIndex = 0 }: {
+  images?: AppealEvidenceImage[];
+  onRemove?: (id: string) => void;
+  caseId?: string;
+  startIndex?: number;
+}) {
   const [index, setIndex] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -79,28 +85,30 @@ export function AppealEvidenceGallery({ images = [], onRemove }: { images?: Appe
   }, [index]);
   useEffect(() => { setFailed(false); }, [index, images]);
   const image = index === null ? undefined : images[index];
+  const displayName = (item: AppealEvidenceImage, position: number) =>
+    (caseId ? appealEvidenceDisplayName(caseId, startIndex + position + 1) : "") || item.name;
   if (!images.length) return null;
   return <div className="mt-3">
     <div className="flex flex-wrap gap-3">{images.map((item, i) => <div key={item.id} className="relative w-40 rounded-xl border border-violet-100 bg-white p-2">
-      <button type="button" onClick={() => setIndex(i)} className="block w-full text-left" aria-label={"ดูรูป " + item.name}>
-        <img src={item.url} alt={item.name} loading="lazy" className="h-24 w-full rounded-lg bg-slate-100 object-contain" />
-        <span className="mt-2 block truncate text-xs font-semibold">{item.name}</span>
+      <button type="button" onClick={() => setIndex(i)} className="block w-full text-left" aria-label={"ดูรูป " + displayName(item, i)}>
+        <img src={item.url} alt={displayName(item, i)} loading="lazy" className="h-24 w-full rounded-lg bg-slate-100 object-contain" />
+        <span className="mt-2 block truncate text-xs font-semibold" title={displayName(item, i)}>{displayName(item, i)}</span>
         <span className="block text-[11px] text-slate-500">{Math.ceil(item.size / 1024)} KB · ดูภาพใหญ่</span>
       </button>
-      {onRemove && <button type="button" onClick={() => { setIndex(null); onRemove(item.id); }} aria-label={"ลบรูป " + item.name} className="absolute right-1 top-1 rounded-full border bg-white px-2 text-slate-600">×</button>}
+      {onRemove && <button type="button" onClick={() => { setIndex(null); onRemove(item.id); }} aria-label={"ลบรูป " + displayName(item, i)} className="absolute right-1 top-1 rounded-full border bg-white px-2 text-slate-600">×</button>}
     </div>)}</div>
     {image && createPortal(<div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 p-4" onClick={() => setIndex(null)}>
       <div role="dialog" aria-modal="true" aria-label="ดูรูปภาพหลักฐาน" className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl bg-white p-4" onClick={e => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between gap-3"><span className="truncate font-bold">{image.name}</span><button ref={closeRef} type="button" onClick={() => setIndex(null)} className="rounded-xl border px-4 py-2">ปิด</button></div>
-        {failed ? <div role="alert" className="p-8 text-center">โหลดรูปไม่สำเร็จ <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-violet-700 underline">เปิดรูปอีกครั้ง</a></div> : <div className="min-h-0 overflow-auto"><img src={image.url} alt={image.name} onError={() => setFailed(true)} className="mx-auto max-h-[70vh] object-contain" /></div>}
+        <div className="mb-3 flex items-center justify-between gap-3"><span className="truncate font-bold">{displayName(image, index ?? 0)}</span><button ref={closeRef} type="button" onClick={() => setIndex(null)} className="rounded-xl border px-4 py-2">ปิด</button></div>
+        {failed ? <div role="alert" className="p-8 text-center">โหลดรูปไม่สำเร็จ <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-violet-700 underline">เปิดรูปอีกครั้ง</a></div> : <div className="min-h-0 overflow-auto"><img src={image.url} alt={displayName(image, index ?? 0)} onError={() => setFailed(true)} className="mx-auto max-h-[70vh] object-contain" /></div>}
         <div className="mt-3 flex items-center justify-center gap-4"><button type="button" disabled={index === 0} onClick={() => setIndex(i => Math.max(0, (i || 0) - 1))}>← ก่อนหน้า</button><span>{(index || 0) + 1} / {images.length}</span><button type="button" disabled={index === images.length - 1} onClick={() => setIndex(i => Math.min(images.length - 1, (i || 0) + 1))}>ถัดไป →</button></div>
       </div>
     </div>, document.body)}
   </div>;
 }
 
-export function AppealEvidencePicker({ caseId, topicCode, images, totalCount, disabled, onAdd, onRemove, onBusyChange }: {
-  caseId: string; topicCode: string; images: AppealEvidenceImage[]; totalCount: number; disabled: boolean;
+export function AppealEvidencePicker({ caseId, topicCode, images, totalCount, disabled, onAdd, onRemove, onBusyChange, startIndex = 0 }: {
+  caseId: string; topicCode: string; images: AppealEvidenceImage[]; totalCount: number; disabled: boolean; startIndex?: number;
   onAdd: (image: AppealEvidenceImage) => void; onRemove: (id: string) => void; onBusyChange: (busy: boolean) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -135,6 +143,6 @@ export function AppealEvidencePicker({ caseId, topicCode, images, totalCount, di
       onClick={() => void choose(failedFiles)} className="mt-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700 disabled:opacity-50">
       ลองอัปโหลดอีกครั้ง ({failedFiles.length} รูป)
     </button>}
-    <AppealEvidenceGallery images={images} onRemove={busy || disabled ? undefined : onRemove} />
+    <AppealEvidenceGallery images={images} caseId={caseId} startIndex={startIndex} onRemove={busy || disabled ? undefined : onRemove} />
   </div>;
 }
