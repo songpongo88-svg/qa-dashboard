@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T07:35:04.419Z",
-  "reason": "Reviewed QA appeal image and internal QA/Senior messaging integration and build compatibility; original guide steps unchanged.",
+  "reviewedAt": "2026-10-08T07:36:49.764Z",
+  "reason": "Reviewed compatibility of appeal-review table/date patch with QA evidence and QA-to-Senior private discussion, retaining team scope and role restrictions.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -197,7 +197,7 @@
     "scripts/patch-appeal-review-information-v56.mjs": "3846df9c4de029af50f42c012ced8025fc3aa83ca4025c43b8f5fab0c2443395",
     "scripts/patch-appeal-review-information-visual-v61.mjs": "1dcf869e8fffc8af56ce9cee4c8ed2dc14d1c410e81bda2c25057beff447508a",
     "scripts/patch-appeal-review-layout-v58.mjs": "5aece3f9495ad963d578bc1d743a00f046cced05338682657cf609eb989873e8",
-    "scripts/patch-appeal-review-reset-datetime-v54.mjs": "9c82de1ca6adcf7998585bae2d3e2450c6c4d4fc5b841625165d49f929d7a195",
+    "scripts/patch-appeal-review-reset-datetime-v54.mjs": "915469947e345d28b5ff54c1167c3446e6f34478abb8c76eabfbaff22219146c",
     "scripts/patch-appeal-review-reviewed-time-caseid-v60.mjs": "7b064fbdd2538c1e7d65f3400ff4b5465b12e31f043719c15443e595ae2f7421",
     "scripts/patch-appeal-review-workspace-tabs-v59.mjs": "c00fd6c731495c15401e4870d81a7e58e8a27e58146bd92a79608d2e2c0469d2",
     "scripts/patch-appeal-reviewer-loading-fix-v64.mjs": "548f51aa2205def87cb94b6ed8270be3f5e90f90d99e72de962edf767f75b4ed",
