@@ -116,6 +116,9 @@ type CaseItem = AppealScoreState & {
   appealStatus?: AppealDecision;
   appealReviewSummary?: string;
   appealSubmittedAt?: string;
+  appealAdditionalOpenedAt?: string;
+  appealAdditionalSubmittedAt?: string;
+  appealAdditionalReviewedAt?: string;
   appealReviewedAt?: string;
   appealSubmittedBy?: string;
   appealReviewedBy?: string;
@@ -182,6 +185,9 @@ type AppealOutcomeItem = {
   status: AppealDecision;
   reviewSummary: string;
   submittedAt: string;
+  additionalOpenedAt: string;
+  additionalSubmittedAt: string;
+  additionalReviewedAt: string;
   reviewedAt: string;
   submittedBy: string;
   reviewedBy: string;
@@ -545,11 +551,17 @@ function buildAppealOutcomeMap(
       });
     });
 
+    const lastAdditional = [...(request.additionalHistory || [])].sort(
+      (a, b) => Date.parse(b.openedAt) - Date.parse(a.openedAt)
+    )[0];
     map.set(caseId, {
       caseId,
       status: request.status,
       reviewSummary: String(request.reviewSummary || "").trim(),
       submittedAt: formatCaseDetailDateTime(request.submittedAt),
+      additionalOpenedAt: lastAdditional ? formatCaseDetailDateTime(lastAdditional.openedAt) : "",
+      additionalSubmittedAt: lastAdditional?.submittedAt ? formatCaseDetailDateTime(lastAdditional.submittedAt) : "",
+      additionalReviewedAt: lastAdditional?.reviewedAt ? formatCaseDetailDateTime(lastAdditional.reviewedAt) : "",
       reviewedAt: formatCaseDetailDateTime(request.reviewedAt),
       submittedBy: String(
         submittedEvent?.agent_name ||
@@ -610,6 +622,9 @@ function applyAppealMapsToCaseItems(
       appealStatus: effectiveStatus,
       appealReviewSummary: loggedOutcome?.reviewSummary || mergedAppeal?.reviewSummary || "",
       appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",
+      appealAdditionalOpenedAt: loggedOutcome?.additionalOpenedAt || "",
+      appealAdditionalSubmittedAt: loggedOutcome?.additionalSubmittedAt || "",
+      appealAdditionalReviewedAt: loggedOutcome?.additionalReviewedAt || "",
       appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",
       appealSubmittedBy: loggedOutcome?.submittedBy || mergedAppeal?.submittedBy || item.agent || "",
       appealReviewedBy: loggedOutcome?.reviewedBy || mergedAppeal?.reviewedBy || "",
@@ -2556,6 +2571,9 @@ function CaseDetailTopicTable({
   appealReviewedTopics,
   appealSubmittedBy,
   appealSubmittedAt,
+  appealAdditionalOpenedAt,
+  appealAdditionalSubmittedAt,
+  appealAdditionalReviewedAt,
   appealReviewedBy,
   appealReviewedAt,
   originalQaName,
@@ -2569,6 +2587,9 @@ function CaseDetailTopicTable({
   appealReviewedTopics?: AppealReviewedTopic[] | null;
   appealSubmittedBy?: string;
   appealSubmittedAt?: string;
+  appealAdditionalOpenedAt?: string;
+  appealAdditionalSubmittedAt?: string;
+  appealAdditionalReviewedAt?: string;
   appealReviewedBy?: string;
   appealReviewedAt?: string;
   originalQaName?: string;
@@ -2721,7 +2742,9 @@ function CaseDetailTopicTable({
                   <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">
                     <div className="space-y-1 text-[13px] font-semibold text-amber-950">
                       <div><span className="font-extrabold">Admin:</span> {appealSubmittedBy || "-"}</div>
-                      <div><span className="font-extrabold">Appeal Submit:</span> {formatBangkokDateTime(appealSubmittedAt || null)}</div>
+                      <div><span className="font-extrabold">Original Appeal Submit:</span> {formatBangkokDateTime(appealSubmittedAt || null)}</div>
+                      {appealAdditionalOpenedAt ? <div><span className="font-extrabold">Additional Round Opened:</span> {formatBangkokDateTime(appealAdditionalOpenedAt)}</div> : null}
+                      {appealAdditionalSubmittedAt ? <div><span className="font-extrabold">Additional Appeal Submit:</span> {formatBangkokDateTime(appealAdditionalSubmittedAt)}</div> : null}
                     </div>
                     <div className="mt-4 text-[13px] font-semibold text-amber-700">Appeal Reason</div>
                     <div className="mt-2 whitespace-pre-line leading-7 text-amber-950">
@@ -2739,6 +2762,7 @@ function CaseDetailTopicTable({
                     <div className={`space-y-1 text-[13px] font-semibold ${row.rejectedReviewTopic ? "text-rose-800" : "text-violet-800"}`}>
                       <div><span className="font-extrabold">QA:</span> {appealReviewedBy || "-"}</div>
                       <div><span className="font-extrabold">Appeal Result:</span> {formatBangkokDateTime(appealReviewedAt || null)}</div>
+                      {appealAdditionalReviewedAt ? <div><span className="font-extrabold">Additional Appeal Reviewed:</span> {formatBangkokDateTime(appealAdditionalReviewedAt)}</div> : null}
                       <div><span className="font-extrabold">Decision:</span> {getAppealTopicDecision(row.appealReviewTopic, appealStatus)}</div>
                     </div>
                     <div className={`mt-4 text-[13px] font-semibold ${row.rejectedReviewTopic ? "text-rose-700" : "text-violet-700"}`}>
@@ -5105,6 +5129,9 @@ function SlideOverCaseDetail({
                 appealReviewedTopics={caseItem.appealReviewedTopics}
                 appealSubmittedBy={caseItem.appealSubmittedBy}
                 appealSubmittedAt={caseItem.appealSubmittedAt}
+                appealAdditionalOpenedAt={caseItem.appealAdditionalOpenedAt}
+                appealAdditionalSubmittedAt={caseItem.appealAdditionalSubmittedAt}
+                appealAdditionalReviewedAt={caseItem.appealAdditionalReviewedAt}
                 appealReviewedBy={caseItem.appealReviewedBy}
                 appealReviewedAt={caseItem.appealReviewedAt}
                 originalQaName={caseItem.evaluatorName}
