@@ -1343,6 +1343,75 @@ export default function AppealRequestsMockup({
                       placeholder="Appeal review summary"
                     />
                   </div>
+                  {selectedRequest.additionalRound ? (
+                    <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                      <div className="text-sm font-extrabold text-sky-900">Appeal เพิ่มเติม — รอบที่ {selectedRequest.reviewHistory.length + 1}</div>
+                      <div className="mt-1 text-xs text-sky-800">
+                        เปิดโดย {selectedRequest.additionalRound.openedBy || "QA"} · {formatDateTime(selectedRequest.additionalRound.openedAt)}
+                      </div>
+                      <div className="mt-2 whitespace-pre-wrap text-sm text-sky-950">{selectedRequest.additionalRound.note}</div>
+                      <div className="mt-2 text-xs font-bold text-sky-900">
+                        Topic {selectedRequest.additionalRound.topics.map(topic => topic.code).join(", ")}
+                      </div>
+                      <div className="mt-3 rounded-xl bg-white p-3 text-sm font-semibold text-sky-800">
+                        {selectedRequest.additionalRound.submitted
+                          ? "ได้รับเหตุผลและหลักฐานเพิ่มเติมแล้ว QA สามารถพิจารณารอบนี้ได้"
+                          : "รอ Agent ส่งข้อมูลเพิ่มเติมจากหน้า Case Detail คะแนนเดิมยังไม่เปลี่ยน"}
+                      </div>
+                    </div>
+                  ) : null}
+                  {allowReview && isReviewed && !selectedRequest.additionalRound ? (
+                    <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/70 p-4">
+                      {!additionalOpen ? (
+                        <button type="button" disabled={busy} onClick={() => setAdditionalOpen(true)}
+                          className="rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-800 hover:bg-violet-100 disabled:opacity-50">
+                          + เปิดรอบอุทธรณ์เพิ่มเติม
+                        </button>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="text-sm font-extrabold text-violet-900">เปิดรอบอุทธรณ์ใหม่ — เฉพาะ QA</div>
+                          <div className="text-xs leading-5 text-violet-800">
+                            เลือกได้ทั้งหัวข้อเดิมหรือหัวข้อที่ยังไม่เคยยื่น โดยผลรอบก่อนและคะแนนที่อนุมัติไว้จะไม่เปลี่ยนจนกว่าจะพิจารณารอบใหม่
+                          </div>
+                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-xl border border-violet-200 bg-white p-3">
+                            {availableAppealTopics.map(topic => (
+                              <label key={topic.code} className="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
+                                <input type="checkbox" className="mt-1 accent-violet-700"
+                                  disabled={busy}
+                                  checked={additionalCodes.includes(topic.code)}
+                                  onChange={event => setAdditionalCodes(current =>
+                                    event.target.checked ? [...current, topic.code] : current.filter(code => code !== topic.code))} />
+                                <span>
+                                  <span className="font-bold">{topic.code} {topic.label}</span>
+                                  <span className="ml-2 text-xs text-slate-500">
+                                    {selectedRequest.topics.some(row => row.code === topic.code) ? "เคยอุทธรณ์แล้ว" : "ยังไม่เคยอุทธรณ์"}
+                                  </span>
+                                </span>
+                              </label>
+                            ))}
+                            {!availableAppealTopics.length ? <p className="text-sm text-rose-700">ไม่พบรายการ Topic จากเคสต้นทาง</p> : null}
+                          </div>
+                          <label className="block text-xs font-bold text-violet-800">
+                            เหตุผลที่ QA อนุญาตให้เปิดรอบเพิ่มเติม
+                            <textarea rows={2} value={additionalNote} disabled={busy}
+                              onChange={event => setAdditionalNote(event.target.value)}
+                              className="mt-1 block w-full rounded-xl border border-violet-200 bg-white p-3 text-sm"
+                              placeholder="เช่น ได้รับ Call Log ใหม่หลังปิดผลรอบแรก" />
+                          </label>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <button type="button" disabled={busy} onClick={() => {
+                              setAdditionalOpen(false); setAdditionalCodes([]); setAdditionalNote("");
+                            }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">ยกเลิก</button>
+                            <button type="button" disabled={busy || !additionalCodes.length || !additionalNote.trim()}
+                              onClick={() => void openAdditionalAppealRound()}
+                              className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+                              ยืนยันเปิดรอบเพิ่มเติม
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                   {selectedRequest.reviewHistory.length > 0 && (
                     <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                       <summary className="cursor-pointer text-sm font-bold text-violet-700">ประวัติการพิจารณา ({selectedRequest.reviewHistory.length} ครั้ง)</summary>
@@ -1366,7 +1435,7 @@ export default function AppealRequestsMockup({
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
                     <div className="flex flex-wrap gap-2">
-                      {allowReview && isReviewed && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
+                      {allowReview && isReviewed && !selectedRequest.additionalRound && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
                       {editingReview && <button type="button" disabled={busy} onClick={cancelReviewEdit} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">ยกเลิกการแก้ไข</button>}
                       {allowReview && <button
                         type="button"
