@@ -1,3 +1,4 @@
+import octoberRubric from "./lib/october2026Rubric.json";
 import React, { useEffect, useMemo, useState } from "react";
 import PageHero from "./PageHero";
 import {
@@ -26,7 +27,7 @@ type Section = {
 };
 
 type RubricVersion = {
-  key: "JAN_FEB_2026" | "MARCH_2026" | "APR_2026" | "JUNE_2026" | "AUGUST_2026";
+  key: "JAN_FEB_2026" | "MARCH_2026" | "APR_2026" | "JUNE_2026" | "AUGUST_2026" | "OCTOBER_2026";
   label: string;
   subtitle: string;
   effectiveFrom: string;
@@ -42,6 +43,7 @@ const RUBRIC_SHARE_CODES: Record<RubricVersion["key"], string> = {
   APR_2026: "QA-2026-04",
   JUNE_2026: "QA-2026-06",
   AUGUST_2026: "QA-2026-08",
+  OCTOBER_2026: "QA-2026-10",
 };
 
 function getRubricKeyFromShareCode(rubricCode?: string): RubricVersion["key"] | null {
@@ -652,8 +654,9 @@ const AUGUST_2026_RUBRIC_SOURCE = RUBRIC_VERSIONS.find((rubric) => rubric.code =
 const AUGUST_2026_RUBRIC: RubricVersion = {
   key: "AUGUST_2026",
   label: "August 2026 - Admin Live Chat Criteria & Scoring",
-  subtitle: "Effective 01 August 2026 onward",
+  subtitle: "Effective 01 August – 30 September 2026",
   effectiveFrom: "2026-08-01",
+  effectiveTo: "2026-09-30",
   sourceLabel: "QA Admin Live Chat Criteria & Scoring — August 2026",
   totalScore: AUGUST_2026_RUBRIC_SOURCE.totalScore,
   sections: RUBRIC_GROUP_LABELS.map((group, index) => {
@@ -1190,6 +1193,25 @@ const AUGUST_FOCUS_TABLE_ROWS: FocusTableRow[] = [
   },
 ];
 
+const OCTOBER_2026_RUBRIC_SOURCE = RUBRIC_VERSIONS.find((rubric) => rubric.code === "QA-2026-10")!;
+const OCTOBER_2026_RUBRIC: RubricVersion = {
+  ...AUGUST_2026_RUBRIC,
+  key: "OCTOBER_2026",
+  label: OCTOBER_2026_RUBRIC_SOURCE.name,
+  subtitle: "Effective 01 October 2026 onward · Topic 1.5 SLA Updated",
+  effectiveFrom: "2026-10-01",
+  effectiveTo: undefined,
+  sourceLabel: "QA Admin Live Chat Criteria & Scoring — October 2026 (Topic 1.5 SLA Updated)",
+};
+const OCTOBER_FOCUS_TABLE_ROWS: FocusTableRow[] = AUGUST_FOCUS_TABLE_ROWS.map((row) => ({
+  ...row,
+  focusNo: `${row.categoryCode}.${row.focusNo}`,
+  ...(row.categoryCode === "1" && row.focusNo === "5" ? {
+    reviewGuide: octoberRubric.reviewGuide,
+    examples: octoberRubric.examples,
+  } : {}),
+}));
+
 type RubricWorkbookTab = "focus" | "deduction";
 
 function RubricWorkbook({
@@ -1629,6 +1651,7 @@ const RUBRICS: RubricVersion[] = [
   APR_2026_RUBRIC,
   JUNE_2026_RUBRIC,
   AUGUST_2026_RUBRIC,
+  OCTOBER_2026_RUBRIC,
 ];
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
@@ -1696,7 +1719,8 @@ function getAutoRubricKey() {
   const dd = String(today.getDate()).padStart(2, "0");
   const todayIso = `${yyyy}-${mm}-${dd}`;
 
-  if (isDateInRange(todayIso, "2026-08-01")) return "AUGUST_2026";
+  if (isDateInRange(todayIso, "2026-10-01")) return "OCTOBER_2026";
+  if (isDateInRange(todayIso, "2026-08-01", "2026-09-30")) return "AUGUST_2026";
   if (isDateInRange(todayIso, "2026-06-01", "2026-07-31")) return "JUNE_2026";
   if (isDateInRange(todayIso, "2026-04-03", "2026-05-31")) return "APR_2026";
   if (isDateInRange(todayIso, "2026-03-11", "2026-03-31")) return "MARCH_2026";
@@ -1847,7 +1871,7 @@ export default function QARubricMockup({
                   Effective Rubric Version
                 </div>
                 <div className="mt-1 text-sm text-slate-500">
-                  เดือนมิถุนายน–กรกฎาคมใช้เกณฑ์เดิม และตั้งแต่ 1 สิงหาคม 2026 ใช้เกณฑ์ Admin Live Chat Criteria &amp; Scoring ฉบับล่าสุด
+                  เกณฑ์สิงหาคมใช้ถึง 30 กันยายน 2026 และตั้งแต่ 1 ตุลาคม 2026 ใช้เกณฑ์ใหม่ที่ปรับเงื่อนไข SLA หัวข้อ 1.5
                 </div>
               </div>
 
@@ -1916,6 +1940,24 @@ export default function QARubricMockup({
           />
         ) : null}
 
+        {selectedKey === "OCTOBER_2026" ? (
+          <>
+            <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900">
+              <h3 className="font-bold">เงื่อนไข SLA ใหม่ · หัวข้อ 1.5</h3>
+              <p className="mt-2">{octoberRubric.slaChecklist}</p>
+              <p className="mt-2">{octoberRubric.severityRule}</p>
+              <p className="mt-2">บันทึกหลักฐานโดยระบุ Accept / First Reply / Close SLA และเวลาที่ใช้ตรวจ หากข้อมูลไม่ครบให้ระบุว่าตรวจไม่ได้ ห้ามคาดเดา</p>
+            </div>
+            <RubricWorkbook
+              workbookLabel="October 2026 Rubric Workbook"
+              effectiveDate="01/10/2026"
+              rubricSource={OCTOBER_2026_RUBRIC_SOURCE}
+              focusRows={OCTOBER_FOCUS_TABLE_ROWS}
+              deductionGuide={octoberRubric.deductionGuide}
+            />
+          </>
+        ) : null}
+
         {selectedKey === "AUGUST_2026" ? (
           <RubricWorkbook
             workbookLabel="August 2026 Rubric Workbook"
@@ -1962,7 +2004,7 @@ export default function QARubricMockup({
           </div>
         ) : null}
 
-        <div className={selectedKey === "JUNE_2026" || selectedKey === "AUGUST_2026" ? "hidden" : "space-y-5"}>
+        <div className={selectedKey === "JUNE_2026" || selectedKey === "AUGUST_2026" || selectedKey === "OCTOBER_2026" ? "hidden" : "space-y-5"}>
           {activeRubric.sections.map((section) => (
             <div
               key={section.id}
