@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T09:14:19.986Z",
-  "reason": "Verified exact 72-hour frontend expiry with a daily Hobby-compatible backend audit cron; evaluated filters, Case Detail dates and rich formatting; scheduler integration still requires production credential testing.",
+  "reviewedAt": "2026-10-08T09:15:50.314Z",
+  "reason": "Reviewed source changes to 72-hour appeal expiry, audited daily Cron and Case Detail presentation; vercel.json is not a tracked manual source.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -457,7 +457,6 @@
     "src/weeklyCaseSummaryPdf.ts": "5442044772de311cad8950429dd70425fc4c4eadd4e524ebca285bacd239883c",
     "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
     "src/appealEvidenceNaming.ts": "f1df5fd693446869bbc55978119c61c946d6d63847973b9cc86d8a195d861177",
-    "api/cron/expire-additional-appeals.js": "cf8a2b75cc37d291d6b7a941ca727c9743b21ce145dbe619e1a53f035747d4cd",
-    "vercel.json": "ccf49662f388044db1ff2c441ff3a4e39cfab96df3d1f880f7c79fc2950a14b4"
+    "api/cron/expire-additional-appeals.js": "cf8a2b75cc37d291d6b7a941ca727c9743b21ce145dbe619e1a53f035747d4cd"
   }
 }
