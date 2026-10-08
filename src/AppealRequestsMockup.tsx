@@ -580,7 +580,7 @@ export default function AppealRequestsMockup({
   };
 
   const confirmReview = async () => {
-    if (!savePreview || !selectedRequest || busy || savingRef.current) return;
+    if (!allowReview || !savePreview || !selectedRequest || busy || savingRef.current) return;
     const preview = savePreview;
     const review = preview.review;
     const topicsForReview = review.topics.map(topic => ({
@@ -681,7 +681,7 @@ export default function AppealRequestsMockup({
   };
 
   const resetRequest = async () => {
-    if (!selectedRequest || busy) return;
+    if (!allowReview || !selectedRequest || busy) return;
     const confirmed = window.confirm(`Reset appeal request for ${selectedRequest.caseId}? This will allow the case owner to submit a new appeal request again.`);
     if (!confirmed) return;
 
