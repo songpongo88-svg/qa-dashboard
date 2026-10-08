@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T08:04:26.522Z",
-  "reason": "Reviewed QA-only additional appeal rounds, Senior/Supervisor selection and invitation access, Agent follow-up evidence, and prior score/history preservation. Guide prose unchanged.",
+  "reviewedAt": "2026-10-08T08:05:38.101Z",
+  "reason": "Reviewed role-recipient dropdown and additional QA-controlled appeal round implementation, including Agent follow-up and preservation of original scores, plus build-script compatibility.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -197,7 +197,7 @@
     "scripts/patch-appeal-review-information-v56.mjs": "3846df9c4de029af50f42c012ced8025fc3aa83ca4025c43b8f5fab0c2443395",
     "scripts/patch-appeal-review-information-visual-v61.mjs": "1dcf869e8fffc8af56ce9cee4c8ed2dc14d1c410e81bda2c25057beff447508a",
     "scripts/patch-appeal-review-layout-v58.mjs": "5aece3f9495ad963d578bc1d743a00f046cced05338682657cf609eb989873e8",
-    "scripts/patch-appeal-review-reset-datetime-v54.mjs": "915469947e345d28b5ff54c1167c3446e6f34478abb8c76eabfbaff22219146c",
+    "scripts/patch-appeal-review-reset-datetime-v54.mjs": "ed5e4c5cfe4c7d88c34d86e9cef465e5b3e4760907a8a85827b64c777434cf13",
     "scripts/patch-appeal-review-reviewed-time-caseid-v60.mjs": "7b064fbdd2538c1e7d65f3400ff4b5465b12e31f043719c15443e595ae2f7421",
     "scripts/patch-appeal-review-workspace-tabs-v59.mjs": "60ec2c041a713e10e2c1cd0b4dc30b5d95c7564b6c8a49d1028dd198bdd966c9",
     "scripts/patch-appeal-reviewer-loading-fix-v64.mjs": "548f51aa2205def87cb94b6ed8270be3f5e90f90d99e72de962edf767f75b4ed",
