@@ -63,6 +63,7 @@ type Topic = {
   issueTags?: string[];
   comment?: string;
   appealReason?: string;
+  evidenceImages?: AppealEvidenceImage[];
 };
 
 type AppealReviewedTopic = Topic & {
@@ -455,6 +456,7 @@ function buildApprovedAppealMergeMap(
           : 0,
         comment: String(matched.revisedComment || matched.comment || "").trim(),
         appealReason: String(matched.appealReason || "").trim(),
+        evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
       });
 
       if (isAppealTopicChanged(matched)) {
@@ -535,6 +537,7 @@ function buildAppealOutcomeMap(
         pct: master.max > 0 ? Math.round((safeScore / master.max) * 100) : 0,
         comment: reviewFeedback,
         appealReason,
+        evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
       });
     });
 
@@ -2720,6 +2723,12 @@ function CaseDetailTopicTable({
                     <div className="mt-2 whitespace-pre-line leading-7 text-amber-950">
                       <RichTextContent value={row.appealReviewTopic.appealReason} fallback="ไม่พบ Appeal Reason" />
                     </div>
+                    {row.appealReviewTopic.evidenceImages?.length ? (
+                      <div className="mt-3 border-t border-amber-200 pt-3">
+                        <div className="text-[13px] font-semibold text-amber-800">รูปภาพหลักฐานการอุทธรณ์</div>
+                        <AppealEvidenceGallery images={row.appealReviewTopic.evidenceImages} />
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className={`rounded-[20px] border px-4 py-4 ${row.rejectedReviewTopic ? "border-rose-200 bg-rose-50/80" : "border-violet-200 bg-violet-50"}`}>
