@@ -161,7 +161,7 @@ export async function writeAppealEvent(
   payload: Partial<AppealLogEvent> = {}
 ) {
   if (!user || !isAppealEventType(eventType)) return false;
-  if (String(user.role || "") === "Senior" && ["appeal_request_reviewed", "appeal_request_reset"].includes(eventType)) return false;
+  if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return false;
   if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return false;
   if (eventType === "appeal_additional_round_opened" && String(user.role || "") !== "Quality Assurance") return false;
 
@@ -186,7 +186,11 @@ export async function writeAppealEvent(
     ? String(details.roundId || "") : "";
   if (["appeal_additional_round_opened", "appeal_additional_evidence_submitted"].includes(eventType) &&
       !/^[a-zA-Z0-9_-]{8,100}$/.test(roundId)) throw new Error("Appeal round ID is invalid");
-  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}${roundId ? `-${roundId}` : ""}`);
+  const submissionId = eventType === "appeal_additional_evidence_submitted" ? String(details.submissionId || "") : "";
+  if (eventType === "appeal_additional_evidence_submitted" && !/^[a-zA-Z0-9_-]{8,100}$/.test(submissionId)) {
+    throw new Error("Appeal evidence submission ID is invalid");
+  }
+  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}${roundId ? `-${roundId}` : ""}${submissionId ? `-${submissionId}` : ""}`);
   const reviewerNameCandidates = [user.agentName, user.displayName]
     .map((value) => canonicalizeAgentName(value || ""))
     .filter(Boolean)
