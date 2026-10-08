@@ -3760,6 +3760,46 @@ function CaseActionTooltip({
   );
 }
 
+// Display QA's original wording, paragraphs and simple **bold** markup without
+// treating user-supplied review text as executable HTML.
+function AppealReviewSummaryPanel({ value, status }: { value: string; status: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const source = String(value || "").trim();
+  if (!source) return null;
+  const isHtml = /<\/?(?:div|p|br|strong|b|em|span|ul|ol|li)\b/i.test(source);
+  const structured = source
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]*(?=\*\*(?:Topic\s*\d+|สรุปผลอุทธรณ์|สรุปผลการอุทธรณ์|Final Score|Critical Error))/gi, "\n\n")
+    .trim();
+  const paragraphs = structured.split(/\n{2,}/).map(text => text.trim()).filter(Boolean);
+  const renderInline = (text: string) => text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={index} className="font-extrabold">{part.slice(2, -2)}</strong>
+      : <React.Fragment key={index}>{part}</React.Fragment>
+  );
+  const dark = status === "Rejected";
+  return (
+    <div className={"mt-3 rounded-xl border bg-white/85 p-3 text-sm leading-7 " + (dark ? "border-rose-200 text-rose-900" : "border-emerald-200 text-emerald-900")}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-extrabold">Review Summary</span>
+        <button type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(previous => !previous)}
+          className={"rounded-lg border bg-white px-3 py-1 text-xs font-bold hover:opacity-80 " + (dark ? "border-rose-200 text-rose-700" : "border-emerald-200 text-emerald-700")}>
+          {expanded ? "ย่อรายละเอียด ▲" : "ดูรายละเอียด ▼"}
+        </button>
+      </div>
+      {expanded ? (
+        <div className="mt-3 space-y-3 border-t border-current/10 pt-3">
+          {isHtml ? <RichTextContent value={source} preserveWhitespace className="break-words leading-7" /> : paragraphs.map((paragraph, i) => (
+            <p key={i} className="whitespace-pre-wrap break-words leading-7">{renderInline(paragraph)}</p>
+          ))}
+        </div>
+      ) : <p className="mt-1 text-xs opacity-75">กดดูรายละเอียดเพื่ออ่านผลการพิจารณาฉบับเต็ม</p>}
+    </div>
+  );
+}
+
 function SlideOverCaseDetail({
   open,
   embedded = false,
@@ -4849,12 +4889,7 @@ function SlideOverCaseDetail({
                 {caseItem.appealReviewedAt ? (
                   <div className="mt-2 text-xs font-semibold text-rose-600">Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}</div>
                 ) : null}
-                {caseItem.appealReviewSummary ? (
-                  <div className="mt-2 rounded-xl border border-rose-200 bg-white/80 px-3 py-2 text-sm leading-6 text-rose-800">
-                    <span className="font-extrabold">Review Summary:</span>{" "}
-                    {caseItem.appealReviewSummary}
-                  </div>
-                ) : null}
+                <AppealReviewSummaryPanel value={caseItem.appealReviewSummary || ""} status="Rejected" />
               </div>
             ) : caseItem.appealStatus === "Approved" || caseItem.appealStatus === "Partially Approved" ? (
               <div className="rounded-[18px] border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 shadow-sm">
@@ -4865,12 +4900,7 @@ function SlideOverCaseDetail({
                 {caseItem.appealReviewedAt ? (
                   <div className="mt-2 text-xs font-semibold text-emerald-600">Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}</div>
                 ) : null}
-                {caseItem.appealReviewSummary ? (
-                  <div className="mt-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm leading-6 text-emerald-800">
-                    <span className="font-extrabold">Review Summary:</span>{" "}
-                    {caseItem.appealReviewSummary}
-                  </div>
-                ) : null}
+                <AppealReviewSummaryPanel value={caseItem.appealReviewSummary || ""} status={caseItem.appealStatus || ""} />
               </div>
             ) : null}
 
