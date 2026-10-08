@@ -55,6 +55,8 @@ export const APPEAL_EVENT_TYPES = new Set([
   "appeal_request_reviewed",
   "appeal_request_reset",
   "appeal_internal_message",
+  "appeal_additional_round_opened",
+  "appeal_additional_evidence_submitted",
   "appeal_case_override_added",
   "appeal_case_override_removed",
 ]);
@@ -161,8 +163,9 @@ export async function writeAppealEvent(
   if (!user || !isAppealEventType(eventType)) return false;
   if (String(user.role || "") === "Senior" && ["appeal_request_reviewed", "appeal_request_reset"].includes(eventType)) return false;
   if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return false;
+  if (eventType === "appeal_additional_round_opened" && String(user.role || "") !== "Quality Assurance") return false;
 
-  if (eventType === "appeal_request_submitted" || eventType === "appeal_request_reviewed") {
+  if (["appeal_request_submitted", "appeal_request_reviewed", "appeal_additional_round_opened", "appeal_additional_evidence_submitted"].includes(eventType)) {
     const [checked] = await checkAppealSourceCases([{ ...payload, event_type: eventType }]);
     if (checked.source_case_unavailable) throw new Error("เคสต้นทางถูกลบแล้ว ไม่สามารถยื่นหรือบันทึกผลอุทธรณ์ของเคสนี้ได้");
   }
@@ -179,7 +182,11 @@ export async function writeAppealEvent(
   if (eventType === "appeal_internal_message" && !/^[a-zA-Z0-9_-]{8,100}$/.test(messageId)) {
     throw new Error("Internal appeal message requires a unique message ID");
   }
-  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}`);
+  const roundId = ["appeal_additional_round_opened", "appeal_additional_evidence_submitted"].includes(eventType)
+    ? String(details.roundId || "") : "";
+  if (["appeal_additional_round_opened", "appeal_additional_evidence_submitted"].includes(eventType) &&
+      !/^[a-zA-Z0-9_-]{8,100}$/.test(roundId)) throw new Error("Appeal round ID is invalid");
+  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}${roundId ? `-${roundId}` : ""}`);
   const reviewerNameCandidates = [user.agentName, user.displayName]
     .map((value) => canonicalizeAgentName(value || ""))
     .filter(Boolean)
