@@ -4595,7 +4595,39 @@ export default function App() {
   const manualUpdateTrainingAttendanceAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "manualUpdateTrainingAttendance") : false;
   const exportTrainingAttendanceAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "exportTrainingAttendance") : false;
   const trainingAttendanceAllowed = Boolean(currentUser) && (viewTrainingCheckInAllowed || viewTrainingAttendanceAllowed);
-  const appealRequestsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "reviewAppeals") : false;
+  const appealReviewActionAllowed = currentUser?.role === "Quality Assurance" && hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
+  // Senior can respond to internal QA discussion but cannot edit appeal decisions.
+  const appealRequestsAllowed = appealReviewActionAllowed || ["Senior", "Supervisor"].includes(String(currentUser?.role || ""));
+  const appealSeniorAgentNames = useMemo(() => {
+    if (!["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return null;
+    const seniorAccount = effectiveUserAccounts.find(account =>
+      account.username.toLowerCase() === String(currentUser.username || "").toLowerCase()
+    );
+    const team = String(seniorAccount?.teamName || "").trim().toLowerCase();
+    const seniorName = String(seniorAccount?.agentName || seniorAccount?.displayName || "").trim().toLowerCase();
+    if (!team && !seniorName) return [];
+    return effectiveUserAccounts
+      .filter(account => {
+        const accountTeam = String(account.teamName || "").trim().toLowerCase();
+        const accountLead = String(account.teamLead || "").trim().toLowerCase();
+        return (Boolean(team) && accountTeam === team) || (Boolean(seniorName) && accountLead === seniorName);
+      })
+      .flatMap(account => [account.agentName, account.displayName].map(value => String(value || "").trim()).filter(Boolean));
+  }, [currentUser, effectiveUserAccounts]);
+  // All active Senior and Supervisor accounts are available as discussion recipients.
+  // Selecting a recipient grants discussion access, not score/review permissions.
+  const appealSeniorOptions = useMemo(() =>
+    effectiveUserAccounts
+      .filter(account => ["Senior", "Supervisor"].includes(String(account.role || "")))
+      .map(account => ({
+        username: account.username,
+        displayName: account.displayName || account.agentName || account.username,
+        role: String(account.role || ""),
+      }))
+      .sort((left, right) => left.role.localeCompare(right.role) ||
+        left.displayName.localeCompare(right.displayName)),
+    [effectiveUserAccounts]
+  );
   const appealOverrideAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "appealOverride") : false;
   const rubricAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewRubric") : false;
   const rubricManageAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "manageRubric") : false;
@@ -7741,7 +7773,14 @@ export default function App() {
             canExportTrainingAttendance={exportTrainingAttendanceAllowed}
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
-          <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
+          <AppealRequestsMockup
+            currentUser={currentUser}
+            allowReview={appealReviewActionAllowed}
+            allowedAgentNames={appealSeniorAgentNames}
+            seniorOptions={appealSeniorOptions}
+            additionalCaseTopics={dashboardEffectiveCases || []}
+            onTasksChanged={loadInboxTasks}
+          />
         ) : activeTab === "appeal-override" && appealOverrideAllowed ? (
           <AppealOverrideMockup currentUser={currentUser} />
         ) : activeTab === "task-inbox" ? (

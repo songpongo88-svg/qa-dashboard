@@ -6,6 +6,7 @@
   orderBy,
   query,
   setDoc,
+  where,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
@@ -53,6 +54,10 @@ export const APPEAL_EVENT_TYPES = new Set([
   "appeal_request_submitted",
   "appeal_request_reviewed",
   "appeal_request_reset",
+  "appeal_internal_message",
+  "appeal_additional_round_opened",
+  "appeal_additional_evidence_submitted",
+  "appeal_additional_reason_option_added",
   "appeal_case_override_added",
   "appeal_case_override_removed",
 ]);
@@ -157,8 +162,19 @@ export async function writeAppealEvent(
   payload: Partial<AppealLogEvent> = {}
 ) {
   if (!user || !isAppealEventType(eventType)) return false;
+  if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return false;
+  if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return false;
+  if (eventType === "appeal_additional_round_opened" && String(user.role || "") !== "Quality Assurance") return false;
+  if (eventType === "appeal_additional_reason_option_added" && String(user.role || "") !== "Quality Assurance") return false;
+  if (eventType === "appeal_additional_reason_option_added") {
+    const reason = String(payload.details?.reason || "").trim();
+    if (!reason || reason.length > 180) throw new Error("เหตุผลต้องมีความยาวไม่เกิน 180 ตัวอักษร");
+    if (!/^[a-zA-Z0-9_-]{8,100}$/.test(String(payload.details?.optionId || ""))) {
+      throw new Error("Invalid appeal reason option ID");
+    }
+  }
 
-  if (eventType === "appeal_request_submitted" || eventType === "appeal_request_reviewed") {
+  if (["appeal_request_submitted", "appeal_request_reviewed", "appeal_additional_round_opened", "appeal_additional_evidence_submitted"].includes(eventType)) {
     const [checked] = await checkAppealSourceCases([{ ...payload, event_type: eventType }]);
     if (checked.source_case_unavailable) throw new Error("เคสต้นทางถูกลบแล้ว ไม่สามารถยื่นหรือบันทึกผลอุทธรณ์ของเคสนี้ได้");
   }
@@ -171,7 +187,22 @@ export async function writeAppealEvent(
   const reviewId = eventType === "appeal_request_reviewed"
     ? String(details.reviewId || `${Date.now()}-${crypto.randomUUID()}`)
     : "";
-  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}`);
+  const messageId = eventType === "appeal_internal_message" ? String(details.messageId || "") : "";
+  if (eventType === "appeal_internal_message" && !/^[a-zA-Z0-9_-]{8,100}$/.test(messageId)) {
+    throw new Error("Internal appeal message requires a unique message ID");
+  }
+  const roundId = ["appeal_additional_round_opened", "appeal_additional_evidence_submitted"].includes(eventType)
+    ? String(details.roundId || "") : "";
+  if (["appeal_additional_round_opened", "appeal_additional_evidence_submitted"].includes(eventType) &&
+      !/^[a-zA-Z0-9_-]{8,100}$/.test(roundId)) throw new Error("Appeal round ID is invalid");
+  const submissionId = eventType === "appeal_additional_evidence_submitted" ? String(details.submissionId || "") : "";
+  if (eventType === "appeal_additional_evidence_submitted" && !/^[a-zA-Z0-9_-]{8,100}$/.test(submissionId)) {
+    throw new Error("Appeal evidence submission ID is invalid");
+  }
+  const reasonOptionId = eventType === "appeal_additional_reason_option_added" ? String(details.optionId || "") : "";
+  const docId = sanitizeId(reasonOptionId
+    ? `${eventType}-${reasonOptionId}`
+    : `${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}${roundId ? `-${roundId}` : ""}${submissionId ? `-${submissionId}` : ""}`);
   const reviewerNameCandidates = [user.agentName, user.displayName]
     .map((value) => canonicalizeAgentName(value || ""))
     .filter(Boolean)
@@ -205,6 +236,56 @@ export async function writeAppealEvent(
 
   clearAppealEventReadCache();
   return true;
+}
+
+// Read a single appeal's private discussion by requestId rather than mixing
+// conversation traffic into the latest 2,000 scored appeal events.
+// Authorized recipients may see an out-of-team appeal only after QA
+// explicitly directs an internal message to their account.
+export async function fetchAssignedAppealRequestIds(username: string): Promise<string[]> {
+  const target = String(username || "").trim();
+  if (!target) return [];
+  const snapshot = await getDocs(query(
+    collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+    where("details.seniorUsername", "==", target),
+    firestoreLimit(500)
+  ));
+  return [...new Set(snapshot.docs
+    .map(item => toAppealLogEvent(item.id, item.data()))
+    .filter(event => event.event_type === "appeal_internal_message")
+    .map(event => String(event.details?.requestId || "").trim())
+    .filter(Boolean))];
+}
+
+// Reasons are shared between QA sessions and kept outside the scored appeal
+// event list. Only QA can create options; reading does not change case history.
+export async function fetchAdditionalAppealReasonOptions(): Promise<string[]> {
+  const snapshot = await getDocs(query(
+    collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+    where("event_type", "==", "appeal_additional_reason_option_added"),
+    firestoreLimit(200)
+  ));
+  const options = snapshot.docs
+    .map(item => String(item.data()?.details?.reason || "").trim())
+    .filter(Boolean);
+  return [...new Map(options.map(reason => [reason.toLocaleLowerCase("th"), reason])).values()]
+    .sort((a, b) => a.localeCompare(b, "th"));
+}
+
+export async function fetchAppealDiscussionEvents(requestId: string): Promise<AppealLogEvent[]> {
+  const target = String(requestId || "").trim();
+  if (!target) return [];
+  const snapshot = await getDocs(
+    query(
+      collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+      where("details.requestId", "==", target),
+      firestoreLimit(500)
+    )
+  );
+  return snapshot.docs
+    .map(item => toAppealLogEvent(item.id, item.data()))
+    .filter(event => event.event_type === "appeal_internal_message")
+    .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || "")));
 }
 
 export async function fetchAppealEvents(

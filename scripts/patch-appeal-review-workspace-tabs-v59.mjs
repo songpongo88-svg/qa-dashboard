@@ -18,12 +18,27 @@ function patchAppealReviewComponent() {
   let source = fs.readFileSync(reviewPath, "utf8");
   if (source.includes(`// ${marker}-review`)) return;
 
+  if (source.includes("  allowReview = false,")) {
+    source = replaceRequired(
+      source,
+      `  agentDirectory = [],\n  externalCaseDetailCases = [],`,
+      `  agentDirectory = [],\n  externalCaseDetailCases = [],\n  externalRequestId,\n  onOpenRequestWorkspace,`,
+      "Extended Appeal Review workspace props"
+    );
+    source = replaceRequired(
+      source,
+      `  externalCaseDetailCases?: any[];\n  allowReview?: boolean;`,
+      `  externalCaseDetailCases?: any[];\n  externalRequestId?: string;\n  onOpenRequestWorkspace?: (requestId: string, caseId: string) => void;\n  allowReview?: boolean;\n  // ${marker}-review`,
+      "Extended Appeal Review workspace types"
+    );
+  } else {
   source = replaceRequired(
     source,
     `  currentUser,\n  agentDirectory,\n  externalCaseDetailCases,\n  onTasksChanged,\n}: {\n  currentUser: any;\n  agentDirectory?: CaseAgentDirectoryEntry[];\n  externalCaseDetailCases?: any[];\n  onTasksChanged?: () => void;`,
     `  currentUser,\n  agentDirectory,\n  externalCaseDetailCases,\n  externalRequestId,\n  onOpenRequestWorkspace,\n  onTasksChanged,\n}: {\n  currentUser: any;\n  agentDirectory?: CaseAgentDirectoryEntry[];\n  externalCaseDetailCases?: any[];\n  externalRequestId?: string;\n  onOpenRequestWorkspace?: (requestId: string, caseId: string) => void;\n  onTasksChanged?: () => void;\n  // ${marker}-review`,
     "Appeal Review workspace props"
   );
+  }
 
   source = replaceRequired(
     source,
@@ -112,12 +127,9 @@ function patchAppWorkspaceTabs() {
     "Appeal workspace tab label"
   );
 
-  source = replaceRequired(
-    source,
-    `          <AppealRequestsMockup\n            currentUser={currentUser}\n            agentDirectory={caseAgentDirectory /* appeal-review-information-action-v55-app */}\n            externalCaseDetailCases={dashboardEffectiveCases || []}\n            onTasksChanged={loadInboxTasks}\n          />`,
-    `          <AppealRequestsMockup\n            currentUser={currentUser}\n            agentDirectory={caseAgentDirectory /* appeal-review-information-action-v55-app */}\n            externalCaseDetailCases={dashboardEffectiveCases || []}\n            externalRequestId={isAppealReviewWorkspaceTabKey(activeWorkspaceTab) ? parseAppealReviewWorkspaceKey(activeWorkspaceTab).requestId : ""}\n            onOpenRequestWorkspace={(requestId, caseId) => {\n              const workspaceKey = buildAppealReviewWorkspaceKey(requestId, caseId);\n              navigateToTab("appeal-requests", {\n                workspaceKey,\n                params: { requestId: "" },\n              });\n            }}\n            onTasksChanged={loadInboxTasks}\n          />`,
-    "Appeal Review workspace wiring"
-  );
+  const reviewWorkspacePropsAnchor = `            externalCaseDetailCases={dashboardEffectiveCases || []}\n`;
+  const reviewWorkspaceProps = `            externalCaseDetailCases={dashboardEffectiveCases || []}\n            externalRequestId={isAppealReviewWorkspaceTabKey(activeWorkspaceTab) ? parseAppealReviewWorkspaceKey(activeWorkspaceTab).requestId : ""}\n            onOpenRequestWorkspace={(requestId, caseId) => {\n              const workspaceKey = buildAppealReviewWorkspaceKey(requestId, caseId);\n              navigateToTab("appeal-requests", {\n                workspaceKey,\n                params: { requestId: "" },\n              });\n            }}\n`;
+  source = replaceRequired(source, reviewWorkspacePropsAnchor, reviewWorkspaceProps, "Appeal Review workspace wiring");
 
   fs.writeFileSync(appPath, source, "utf8");
 }

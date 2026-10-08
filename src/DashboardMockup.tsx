@@ -65,6 +65,7 @@ type Topic = {
   comment?: string;
   appealReason?: string;
   evidenceImages?: AppealEvidenceImage[];
+  qaEvidenceImages?: AppealEvidenceImage[];
 };
 
 type AppealReviewedTopic = Topic & {
@@ -458,6 +459,7 @@ function buildApprovedAppealMergeMap(
         comment: String(matched.revisedComment || matched.comment || "").trim(),
         appealReason: String(matched.appealReason || "").trim(),
         evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
+        qaEvidenceImages: Array.isArray(matched.qaEvidenceImages) ? matched.qaEvidenceImages : [],
       });
 
       if (isAppealTopicChanged(matched)) {
@@ -539,6 +541,7 @@ function buildAppealOutcomeMap(
         comment: reviewFeedback,
         appealReason,
         evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
+        qaEvidenceImages: Array.isArray(matched.qaEvidenceImages) ? matched.qaEvidenceImages : [],
       });
     });
 
@@ -2749,6 +2752,17 @@ function CaseDetailTopicTable({
                         fallback={row.rejectedReviewTopic ? "ไม่พบ Reject Reason" : "ยังไม่มี Revised Comment"}
                       />
                     </div>
+                    {row.appealReviewTopic.qaEvidenceImages?.length ? (
+                      <div className="mt-3 border-t border-violet-200 pt-3">
+                        <div className="text-[13px] font-semibold">รูปหลักฐานที่ QA แนบประกอบ {row.rejectedReviewTopic ? "Reject Reason" : "Revised Comment"}</div>
+                        <AppealEvidenceGallery
+                          images={row.appealReviewTopic.qaEvidenceImages}
+                          caseId={caseId}
+                          startIndex={(appealReviewedTopics || []).reduce((total, topic) => total + (topic.evidenceImages?.length || 0), 0) +
+                            appealEvidenceStartIndex((appealReviewedTopics || []).map(topic => ({ code: topic.code, evidenceImages: topic.qaEvidenceImages || [] })), row.appealReviewTopic.code)}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </>
               ) : (
@@ -3810,6 +3824,12 @@ function SlideOverCaseDetail({
   const [verifiedImageUrls, setVerifiedImageUrls] = useState<string[]>([]);
   const [verifiedImagePdfUrls, setVerifiedImagePdfUrls] = useState<{ rawUrl: string; url: string; label: string }[]>([]);
   const [appealRequestExists, setAppealRequestExists] = useState(false);
+  const [appealAdditionalRound, setAppealAdditionalRound] = useState<{
+    requestId: string;
+    roundId: string;
+    submitted: boolean;
+    topics: AppealDraftTopic[];
+  } | null>(null);
   const [appealOverrideAllowed, setAppealOverrideAllowed] = useState(false);
   const [appealSubmitOpen, setAppealSubmitOpen] = useState(false);
   const [appealSubmitStep, setAppealSubmitStep] = useState<1 | 2 | 3>(1);
@@ -3843,20 +3863,25 @@ function SlideOverCaseDetail({
   const isAppealObserverRoleV32 = isQualityAssuranceRole(currentUser?.role) && !isOwnAppealCase;
   const isAppealWindowOpenLive = !!appealDeadline && appealClockNowV32 <= appealDeadline.getTime();
   const appealCountdownV32 = formatAppealCountdownV32(appealDeadline, appealClockNowV32);
+  const canSubmitAdditionalEvidence = isOwnAppealCase &&
+    Boolean(appealAdditionalRound) && !appealAdditionalRound?.submitted;
   const canSubmitAppeal =
     isOwnAppealCase &&
     (isAppealWindowOpenLive || appealOverrideAllowed) &&
     !appealRequestExists;
   const shouldShowAppealActionV32 =
-    !appealRequestExists && (isOwnAppealCase || isAppealObserverRoleV32);
-  const appealActionDisabledV32 = !canSubmitAppeal;
+    canSubmitAdditionalEvidence ||
+    (!appealRequestExists && (isOwnAppealCase || isAppealObserverRoleV32));
+  const appealActionDisabledV32 = !(canSubmitAppeal || canSubmitAdditionalEvidence);
   const appealActionLabelV32 =
+    canSubmitAdditionalEvidence ? "ส่งหลักฐานอุทธรณ์เพิ่มเติม" :
     appealOverrideAllowed && !isAppealWindowOpenLive
       ? "Appeal Override"
       : appealCountdownV32.expired
         ? "หมดเวลาอุทธรณ์"
         : "Appeal · " + appealCountdownV32.text;
   const appealActionToneV32 =
+    canSubmitAdditionalEvidence ? "border-sky-300 bg-sky-50 text-sky-800" :
     appealOverrideAllowed && !isAppealWindowOpenLive
       ? "border-amber-300 bg-amber-50 text-amber-800"
       : appealCountdownV32.level === "critical"
@@ -3866,7 +3891,9 @@ function SlideOverCaseDetail({
           : appealCountdownV32.level === "expired"
             ? "border-slate-200 bg-slate-100 text-slate-500"
             : "border-teal-200 bg-teal-50 text-teal-700";
-  const appealActionTooltipV32 = isAppealObserverRoleV32
+  const appealActionTooltipV32 = canSubmitAdditionalEvidence
+    ? "QA อนุญาตให้ส่งเหตุผลและรูปภาพเพิ่มเติมเฉพาะหัวข้อที่เปิดรอบใหม่"
+    : isAppealObserverRoleV32
     ? "ดูเวลาคงเหลือสำหรับ Appeal เท่านั้น · Role Quality Assurance ไม่สามารถ Submit Appeal แทนผู้ถูกประเมินได้"
     : appealCountdownV32.expired && !appealOverrideAllowed
       ? "หมดเวลาอุทธรณ์แล้ว"
@@ -3882,6 +3909,8 @@ function SlideOverCaseDetail({
           "appeal_request_submitted",
           "appeal_request_reviewed",
           "appeal_request_reset",
+          "appeal_additional_round_opened",
+          "appeal_additional_evidence_submitted",
         ], { limit: 2000, forceRefresh: true });
 
         const overrideLogs = await fetchAppealEvents([
@@ -3891,13 +3920,24 @@ function SlideOverCaseDetail({
 
         const logs = [...appealLogs, ...overrideLogs] as UsageLogEvent[];
         if (cancelled) return;
-        setAppealRequestExists(
-          buildAppealRequests(logs).some(
-            (item) =>
-              item.status !== "Reset" &&
-              String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
-          )
+        const caseRequests = buildAppealRequests(logs);
+        const matching = caseRequests.find(
+          item => item.status !== "Reset" &&
+            String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
         );
+        setAppealRequestExists(Boolean(matching));
+        setAppealAdditionalRound(matching?.additionalRound ? {
+          requestId: matching.requestId,
+          roundId: matching.additionalRound.roundId,
+          submitted: matching.additionalRound.submitted,
+          topics: matching.additionalRound.topics.map(topic => ({
+            code: topic.code, label: topic.label,
+            score: topic.score, max: topic.max,
+            comment: topic.comment, wantsAppeal: true,
+            appealReason: topic.appealReason || "",
+            evidenceImages: topic.evidenceImages || [],
+          })),
+        } : null);
         setAppealOverrideAllowed(
           buildAppealCaseOverrides(logs).some(
             (item) => String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
@@ -3906,6 +3946,7 @@ function SlideOverCaseDetail({
       } catch {
         if (!cancelled) {
           setAppealRequestExists(false);
+          setAppealAdditionalRound(null);
           setAppealOverrideAllowed(false);
         }
       }
@@ -3924,14 +3965,15 @@ function SlideOverCaseDetail({
 
   const openAppealSubmitForm = () => {
     setAppealDraftTopics(
-      caseItem.topics.map((topic) => ({
+      (canSubmitAdditionalEvidence ? appealAdditionalRound?.topics || [] : caseItem.topics).map((topic) => ({
         code: topic.code,
         label: topic.label,
         score: topic.score,
         max: topic.max,
         comment: topic.comment,
-        wantsAppeal: false,
-        appealReason: NO_APPEAL_TEXT,
+        wantsAppeal: canSubmitAdditionalEvidence,
+        appealReason: canSubmitAdditionalEvidence ? (topic.appealReason || "") : NO_APPEAL_TEXT,
+        evidenceImages: canSubmitAdditionalEvidence ? topic.evidenceImages || [] : [],
       }))
     );
     setAppealSubmitMessage("");
@@ -3976,7 +4018,7 @@ function SlideOverCaseDetail({
       return;
     }
 
-    if (!canSubmitAppeal) {
+    if (!canSubmitAppeal && !canSubmitAdditionalEvidence) {
       setAppealSubmitMessage("This case is not available for appeal submission.");
       return;
     }
@@ -4001,12 +4043,14 @@ function SlideOverCaseDetail({
 
     setAppealSubmitBusy(true);
     try {
-      const appealSaved = await writeAppealEvent(currentUser, "appeal_request_submitted", {
+      const appealSaved = await writeAppealEvent(currentUser,
+        canSubmitAdditionalEvidence ? "appeal_additional_evidence_submitted" : "appeal_request_submitted", {
         tab: "dashboard",
         case_id: caseItem.caseId,
         target_agent: caseItem.agent,
         details: {
-          requestId: `appeal-${caseItem.caseId}-${Date.now()}`,
+          requestId: canSubmitAdditionalEvidence ? appealAdditionalRound!.requestId : `appeal-${caseItem.caseId}-${Date.now()}`,
+          ...(canSubmitAdditionalEvidence ? { roundId: appealAdditionalRound!.roundId, submissionId: crypto.randomUUID() } : {}),
           caseId: caseItem.caseId,
           agent: caseItem.agent,
           auditDate: caseItem.auditDate,
@@ -4034,10 +4078,11 @@ function SlideOverCaseDetail({
       }
 
       setAppealRequestExists(true);
+      if (canSubmitAdditionalEvidence) setAppealAdditionalRound(previous => previous ? { ...previous, submitted: true } : null);
       onAppealSubmitted?.(caseItem.caseId, caseItem.agent, caseItem.monthKey);
       setAppealSubmitOpen(false);
       setAppealSubmitStep(1);
-      setAppealSubmitMessage("ส่งคำขออุทธรณ์ให้ Songpon ตรวจสอบเรียบร้อยแล้ว");
+      setAppealSubmitMessage(canSubmitAdditionalEvidence ? "ส่งหลักฐานเพิ่มเติมให้ QA เรียบร้อยแล้ว" : "ส่งคำขออุทธรณ์ให้ QA ตรวจสอบเรียบร้อยแล้ว");
     } finally {
       setAppealSubmitBusy(false);
     }
@@ -4706,7 +4751,7 @@ function SlideOverCaseDetail({
                   <CaseActionTooltip text={appealActionTooltipV32}>
                     <button
                       type="button"
-                      onClick={canSubmitAppeal ? openAppealSubmitForm : undefined}
+                      onClick={(canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
                       disabled={appealActionDisabledV32}
                       aria-disabled={appealActionDisabledV32}
                       className={

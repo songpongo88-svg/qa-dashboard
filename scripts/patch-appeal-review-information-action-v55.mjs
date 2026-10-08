@@ -46,12 +46,27 @@ function patchAppealReviewInformationAndAction() {
     "Case Detail target username projection"
   );
 
+  if (source.includes("  allowReview = false,")) {
+    source = replaceOnce(
+      source,
+      `  currentUser,\n  externalCaseDetailCases = [],`,
+      `  currentUser,\n  agentDirectory = [],\n  externalCaseDetailCases = [],`,
+      "Appeal Review Agent directory property (extended)"
+    );
+    source = replaceOnce(
+      source,
+      `  currentUser: any;\n  externalCaseDetailCases?: any[];`,
+      `  currentUser: any;\n  agentDirectory?: CaseAgentDirectoryEntry[];\n  externalCaseDetailCases?: any[];`,
+      "Appeal Review Agent directory type (extended)"
+    );
+  } else {
   source = replaceOnce(
     source,
     `  currentUser,\n  externalCaseDetailCases,\n  onTasksChanged,\n}: {\n  currentUser: any;\n  externalCaseDetailCases?: any[];\n  onTasksChanged?: () => void;`,
     `  currentUser,\n  agentDirectory,\n  externalCaseDetailCases,\n  onTasksChanged,\n}: {\n  currentUser: any;\n  agentDirectory?: CaseAgentDirectoryEntry[];\n  externalCaseDetailCases?: any[];\n  onTasksChanged?: () => void;`,
     "Appeal Review Agent directory property"
   );
+  }
 
   source = replaceOnce(
     source,
@@ -62,8 +77,8 @@ function patchAppealReviewInformationAndAction() {
 
   source = replaceOnce(
     source,
-    `  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;\n  const pendingRequests = requests.filter((item) => item.status === "Pending");`,
-    `  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;\n  const isReviewDetailOpen = Boolean(selectedRequest && detailRequestId === selectedRequest.requestId);\n  const selectedAppealedTopics = selectedRequest?.topics.filter(isAppealedTopic) || [];\n  const selectedCurrentScore = (selectedRequest?.status === "Approved" || selectedRequest?.status === "Partially Approved")\n    ? appealFinalScoreFromTopics(selectedAppealedTopics, selectedRequest.finalScore)\n    : selectedRequest?.finalScore || 0;\n  const selectedCurrentGrade = selectedRequest\n    ? appealGradeFromScore(selectedCurrentScore)\n    : "-";\n  const selectedAgentTeam = resolveCaseAgentTeam(selectedRequest, agentDirectory || []);\n  const pendingRequests = requests.filter((item) => item.status === "Pending");`,
+    `  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;`,
+    `  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;\n  const isReviewDetailOpen = Boolean(selectedRequest && detailRequestId === selectedRequest.requestId);\n  const selectedAppealedTopics = selectedRequest?.topics.filter(isAppealedTopic) || [];\n  const selectedCurrentScore = (selectedRequest?.status === "Approved" || selectedRequest?.status === "Partially Approved")\n    ? appealFinalScoreFromTopics(selectedAppealedTopics, selectedRequest.finalScore)\n    : selectedRequest?.finalScore || 0;\n  const selectedCurrentGrade = selectedRequest\n    ? appealGradeFromScore(selectedCurrentScore)\n    : "-";\n  const selectedAgentTeam = resolveCaseAgentTeam(selectedRequest, agentDirectory || []);`,
     "Appeal Review Information values"
   );
 

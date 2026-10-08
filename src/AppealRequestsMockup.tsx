@@ -1,16 +1,17 @@
 import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, type AppealTopicDecision } from "./appealReview";
-import { AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
+import { AppealEvidenceGallery, AppealEvidencePicker, type AppealEvidenceImage } from "./AppealEvidence";
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNotice } from "./AppealReviewDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
-import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
+import { fetchAdditionalAppealReasonOptions, fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import PageHero from "./PageHero";
 import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 
 type AppealTopic = {
   evidenceImages?: AppealEvidenceImage[];
+  qaEvidenceImages?: AppealEvidenceImage[];
   code: string;
   decision?: AppealTopicDecision;
   label: string;
@@ -24,6 +25,13 @@ type AppealTopic = {
   rejectReason?: string;
 };
 
+const DEFAULT_ADDITIONAL_APPEAL_REASONS = [
+  "ได้รับหลักฐานเพิ่มเติมหลังพิจารณา",
+  "ขอให้ตรวจสอบหัวข้อเดิมอีกครั้ง",
+  "พบหัวข้อที่ยังไม่เคยยื่นอุทธรณ์",
+  "ตรวจพบข้อมูลหรือคะแนนที่อาจคลาดเคลื่อน",
+  "ได้รับคำขอตรวจสอบเพิ่มเติมจาก Senior / Supervisor",
+] as const;
 const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
 const LEGACY_NO_APPEAL_TEXT = "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน";
 
@@ -51,6 +59,15 @@ type AppealRequest = {
   reviewVersion?: number;
   reviewHistory: AppealReviewHistoryItem[];
   topics: AppealTopic[];
+  additionalRound?: {
+    roundId: string;
+    openedAt: string;
+    openedBy: string;
+    note: string;
+    topics: AppealTopic[];
+    submitted: boolean;
+    submittedAt: string;
+  } | null;
 };
 
 type AppealReviewHistoryItem = {
@@ -158,12 +175,24 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
   logs = logs.filter(log => !log.source_case_unavailable);
   const reviews = new Map<string, UsageLogEvent[]>();
   const resets = new Map<string, UsageLogEvent>();
+  const openedRounds = new Map<string, UsageLogEvent[]>();
+  const submittedEvidence = new Map<string, UsageLogEvent[]>();
   const eventTime = (log: UsageLogEvent) => {
     const parsed = new Date(String(log.created_at || log.details?.reviewedAt || log.details?.resetAt || "")).getTime();
     return Number.isNaN(parsed) ? 0 : parsed;
   };
   logs.forEach((log) => {
     const requestId = getRequestId(log);
+    if (log.event_type === "appeal_additional_round_opened" && requestId) {
+      const history = openedRounds.get(requestId) || [];
+      history.push(log);
+      openedRounds.set(requestId, history);
+    }
+    if (log.event_type === "appeal_additional_evidence_submitted" && requestId) {
+      const history = submittedEvidence.get(requestId) || [];
+      history.push(log);
+      submittedEvidence.set(requestId, history);
+    }
     if (log.event_type === "appeal_request_reviewed" && requestId) {
       const history = reviews.get(requestId) || [];
       history.push(log);
@@ -184,16 +213,60 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const history = reviews.get(requestId) || [];
       const review = history[0];
       const reset = resets.get(requestId);
+      const latestRound = [...(openedRounds.get(requestId) || [])].sort((a,b) => eventTime(b)-eventTime(a))[0];
+      const latestRoundId = String(latestRound?.details?.roundId || "");
+      const roundAlreadyReviewed = Boolean(latestRoundId) &&
+        history.some(item => String(item.details?.roundId || "") === latestRoundId);
+      const additionalSubmission = latestRoundId
+        ? [...(submittedEvidence.get(requestId) || [])]
+            .filter(item => String(item.details?.roundId || "") === latestRoundId)
+            .sort((a, b) => eventTime(b) - eventTime(a))[0]
+        : undefined;
+      const openTopics = Array.isArray(latestRound?.details?.topics)
+        ? latestRound.details.topics as AppealTopic[] : [];
+      const submittedTopics = Array.isArray(additionalSubmission?.details?.topics)
+        ? additionalSubmission.details.topics as AppealTopic[] : [];
+      const additionalRound = !roundAlreadyReviewed && latestRoundId && history.length && !reset
+        ? {
+            roundId: latestRoundId,
+            openedAt: String(latestRound?.details?.openedAt || latestRound?.created_at || ""),
+            openedBy: String(latestRound?.details?.openedBy || latestRound?.display_name || ""),
+            note: String(latestRound?.details?.note || ""),
+            submitted: Boolean(additionalSubmission),
+            submittedAt: String(additionalSubmission?.details?.submittedAt || ""),
+            topics: openTopics.map(topic => ({
+              ...topic,
+              ...(submittedTopics.find(row => row.code === topic.code) || {}),
+              decision: undefined,
+              revisedScore: undefined,
+              revisedComment: "",
+              rejectReason: "",
+            })),
+          }
+        : null;
       const reviewTopics = Array.isArray(review?.details?.topics) ? (review?.details?.topics as AppealTopic[]) : null;
       const baseTopics = Array.isArray(log.details?.topics) ? (log.details?.topics as AppealTopic[]) : [];
       const reviewDecision = String(review?.details?.decision || "");
-      const appealedTopics = (baseTopics.length
-        ? baseTopics.map(original => ({ ...original, ...(reviewTopics?.find(topic => topic.code === original.code) || {}) }))
-        : reviewTopics || [])
+      // A reviewed additional round may include a topic absent from the original
+      // submission. Merge by code instead of dropping new topics or doubling deltas.
+      const sourceTopics = baseTopics.length
+        ? [
+            ...baseTopics.map(original => ({
+              ...original,
+              ...(reviewTopics?.find(topic => topic.code === original.code) || {}),
+            })),
+            ...(reviewTopics || []).filter(topic => !baseTopics.some(original => original.code === topic.code)),
+          ]
+        : reviewTopics || [];
+      const appealedTopics = sourceTopics
         .filter(isAppealedTopic)
         .map((topic) => {
           const original = baseTopics.find(item => item.code === topic.code);
-          topic = { ...topic, evidenceImages: original?.evidenceImages || topic.evidenceImages || [] };
+          topic = {
+            ...topic,
+            evidenceImages: topic.evidenceImages?.length ? topic.evidenceImages : original?.evidenceImages || [],
+            qaEvidenceImages: topic.qaEvidenceImages || [],
+          };
           const decision = review ? getAppealTopicDecision(topic, reviewDecision) : undefined;
           topic = { ...topic, decision };
           if (decision !== "Rejected") return topic;
@@ -251,6 +324,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         submittedByUsername: String(log.details?.submittedByUsername || log.username || ""),
         reviewId: String(review?.details?.reviewId || review?.id || ""),
         reviewVersion: toNumber(review?.details?.reviewVersion, history.length),
+        additionalRound,
         reviewHistory: history.map(item => ({
           reviewId: String(item.details?.reviewId || item.id || item.created_at || ""),
           reviewedAt: firstStoredAppealDateTime(item.details?.reviewedAt, item.created_at),
@@ -370,35 +444,173 @@ function openCaseDetailTab(request: AppealRequest) {
 
 export default function AppealRequestsMockup({
   currentUser,
+  allowReview = false,
+  allowedAgentNames = null,
+  seniorOptions = [],
+  additionalCaseTopics = [],
   onTasksChanged,
 }: {
   currentUser: any;
+  allowReview?: boolean;
+  allowedAgentNames?: string[] | null;
+  seniorOptions?: { username: string; displayName: string; role?: string }[];
+  additionalCaseTopics?: any[];
   onTasksChanged?: () => void;
 }) {
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
+  const [discussionLogs, setDiscussionLogs] = useState<UsageLogEvent[]>([]);
+  const [assignedRequestIds, setAssignedRequestIds] = useState<string[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [draftTopics, setDraftTopics] = useState<AppealTopic[]>([]);
   const decision = summarizeAppealDecisions(draftTopics.filter(isAppealedTopic));
   const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [qaImageUploads, setQaImageUploads] = useState(0);
+  const [discussionImages, setDiscussionImages] = useState<AppealEvidenceImage[]>([]);
+  const [discussionText, setDiscussionText] = useState("");
+  const [discussionTopic, setDiscussionTopic] = useState("");
+  const [discussionRecipient, setDiscussionRecipient] = useState("");
+  const [discussionUploads, setDiscussionUploads] = useState(0);
+  const [discussionBusy, setDiscussionBusy] = useState(false);
+  const [discussionMessage, setDiscussionMessage] = useState("");
+  const [additionalOpen, setAdditionalOpen] = useState(false);
+  const [additionalCodes, setAdditionalCodes] = useState<string[]>([]);
+  const [additionalNote, setAdditionalNote] = useState("");
+  const [additionalReason, setAdditionalReason] = useState("");
+  const [savedAdditionalReasons, setSavedAdditionalReasons] = useState<string[]>([]);
+  const [addingReason, setAddingReason] = useState(false);
+  const [newReason, setNewReason] = useState("");
+  const [reasonSaving, setReasonSaving] = useState(false);
+  const [reasonNotice, setReasonNotice] = useState("");
   const [editingReview, setEditingReview] = useState(false);
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
   const savingRef = useRef(false);
   const [listTab, setListTab] = useState<AppealListTab>("pending");
 
-  const requests = useMemo(() => buildAppealRequests(logs), [logs]);
+  const requests = useMemo(() => {
+    const all = buildAppealRequests(logs);
+    if (allowedAgentNames === null) return all;
+    const agentKeys = new Set(allowedAgentNames.map(name => name.replace(/\s+/g, "").toLowerCase()));
+    const invites = new Set(assignedRequestIds);
+    return all.filter(request =>
+      agentKeys.has(String(request.agent || "").replace(/\s+/g, "").toLowerCase()) ||
+      invites.has(request.requestId));
+  }, [logs, allowedAgentNames, assignedRequestIds]);
+
+  useEffect(() => {
+    if (!["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return;
+    let cancelled = false;
+    void fetchAssignedAppealRequestIds(String(currentUser?.username || ""))
+      .then(ids => { if (!cancelled) setAssignedRequestIds(ids); })
+      .catch(error => console.warn("Unable to load assigned appeal discussions", error));
+    return () => { cancelled = true; };
+  }, [currentUser?.role, currentUser?.username]);
+  const discussionEvents = useMemo(() => discussionLogs
+    .filter(log => log.event_type === "appeal_internal_message" &&
+      String(log.details?.requestId || "") === selectedRequestId &&
+      !log.source_case_unavailable)
+    .filter(log => !["Senior", "Supervisor"].includes(String(currentUser?.role || "")) ||
+      [String(log.details?.seniorUsername || "").toLowerCase(), String(log.username || "").toLowerCase()]
+        .includes(String(currentUser.username || "").toLowerCase()))
+    .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || ""))),
+    [discussionLogs, selectedRequestId, currentUser?.role, currentUser?.username]
+  );
   const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
-  const pendingRequests = requests.filter((item) => item.status === "Pending");
-  const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved");
+  const eligibleSeniorOptions = seniorOptions;
+  const availableAppealTopics = useMemo(() => {
+    const result = new Map<string, AppealTopic>();
+    const selected = selectedRequest;
+    if (!selected) return [] as AppealTopic[];
+    const targetCase = additionalCaseTopics.find(row =>
+      String(row?.caseId || "").replace(/\s+/g, "").toUpperCase() ===
+      String(selected.caseId || "").replace(/\s+/g, "").toUpperCase()
+    );
+    if (Array.isArray(targetCase?.topics)) {
+      for (const row of targetCase.topics) {
+        if (!row?.code) continue;
+        result.set(String(row.code), {
+          code: String(row.code),
+          label: String(row.label || ""),
+          score: toNumber(row.score),
+          max: toNumber(row.max),
+          comment: String(row.comment || ""),
+          wantsAppeal: true,
+          appealReason: "",
+        });
+      }
+    }
+    // Preserve the original baseline of already reviewed topics even if
+    // the dashboard currently shows their adjusted score.
+    selected.topics.forEach(topic => result.set(topic.code, { ...topic }));
+    return [...result.values()].sort((a, b) =>
+      String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
+  }, [additionalCaseTopics, selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.caseId]);
+
+  const draftForRequest = (request: AppealRequest) => {
+    if (!request.additionalRound) return request.topics.map(topic => ({
+      ...topic,
+      revisedScore: topic.decision === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
+      rejectReason: topic.rejectReason || "",
+    }));
+    const latestRound = request.additionalRound;
+    const codes = new Set(latestRound.topics.map(topic => topic.code));
+    const priorTopics = request.topics.filter(topic => !codes.has(topic.code));
+    const selectedTopics = latestRound.topics.map(topic => {
+      const original = request.topics.find(item => item.code === topic.code);
+      return {
+        ...(original || topic),
+        ...topic,
+        decision: undefined,
+        revisedScore: undefined,
+        revisedComment: "",
+        rejectReason: "",
+        wantsAppeal: true,
+      };
+    });
+    return [...priorTopics, ...selectedTopics];
+  };
+
+  const additionalReasonOptions = useMemo(() => {
+    const byName = new Map<string, string>();
+    for (const reason of [...DEFAULT_ADDITIONAL_APPEAL_REASONS, ...savedAdditionalReasons]) {
+      const clean = String(reason || "").trim();
+      if (clean && !byName.has(clean.toLocaleLowerCase("th"))) byName.set(clean.toLocaleLowerCase("th"), clean);
+    }
+    return [...byName.values()];
+  }, [savedAdditionalReasons]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!allowReview) return;
+    void fetchAdditionalAppealReasonOptions()
+      .then(options => { if (!cancelled) setSavedAdditionalReasons(options); })
+      .catch(error => {
+        console.warn("Could not load custom additional appeal reasons", error);
+        if (!cancelled) setReasonNotice("โหลดเหตุผลที่เพิ่มไว้ไม่สำเร็จ กรุณาลองใหม่");
+      });
+    return () => { cancelled = true; };
+  }, [allowReview]);
+
+  const pendingRequests = requests.filter(item => item.status === "Pending" || Boolean(item.additionalRound));
+  const reviewedRequests = requests.filter(item => !item.additionalRound && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
   const resetRequests = requests.filter((item) => item.status === "Reset");
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
-  const canReview = selectedRequest?.status === "Pending" || (isReviewed && editingReview);
+  // An approved/rejected review closes internal messaging until QA explicitly
+  // opens an additional round; older messages remain visible as audit history.
+  const canSendDiscussion = Boolean(selectedRequest) && (
+    selectedRequest?.status === "Pending" || Boolean(selectedRequest?.additionalRound)
+  );
+  const canReview = allowReview && (
+    selectedRequest?.status === "Pending" ||
+    Boolean(selectedRequest?.additionalRound?.submitted) ||
+    (isReviewed && editingReview && !selectedRequest?.additionalRound)
+  );
 
   const loadRequests = async () => {
     try {
@@ -407,6 +619,8 @@ export default function AppealRequestsMockup({
         "appeal_request_submitted",
         "appeal_request_reviewed",
         "appeal_request_reset",
+        "appeal_additional_round_opened",
+        "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
       return true;
     } catch (error) {
@@ -426,26 +640,204 @@ export default function AppealRequestsMockup({
   useEffect(() => {
     if (!selectedRequest) return;
     setSelectedRequestId(selectedRequest.requestId);
-    setDraftTopics(selectedRequest.topics.map((topic) => ({
-      ...topic,
-      revisedScore: topic.decision === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
-      rejectReason: topic.rejectReason || "",
-    })));
+    setDraftTopics(draftForRequest(selectedRequest));
     setReviewSummary(selectedRequest.reviewSummary || "");
     setEditingReview(false);
-  }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt]);
+    setDiscussionImages([]);
+    setDiscussionText("");
+    setDiscussionTopic("");
+    setDiscussionRecipient("");
+    setDiscussionMessage("");
+    setAdditionalOpen(false);
+    setAdditionalCodes([]);
+    setAdditionalNote("");
+    setAdditionalReason("");
+    setAddingReason(false);
+    setNewReason("");
+    setReasonNotice("");
+  }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt, selectedRequest?.additionalRound?.roundId, selectedRequest?.additionalRound?.submittedAt]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDiscussionLogs([]);
+    if (selectedRequestId) {
+      void fetchAppealDiscussionEvents(selectedRequestId)
+        .then(events => { if (!cancelled) setDiscussionLogs(events as UsageLogEvent[]); })
+        .catch(error => { if (!cancelled) console.warn("Load private appeal discussion failed", error); });
+    }
+    return () => { cancelled = true; };
+  }, [selectedRequestId]);
+
+  const saveAdditionalAppealReason = async () => {
+    if (!allowReview || reasonSaving || busy) return;
+    const clean = newReason.trim().replace(/\s+/g, " ");
+    if (!clean || clean.length > 180) {
+      setReasonNotice("กรุณากรอกเหตุผลไม่เกิน 180 ตัวอักษร");
+      return;
+    }
+    const matched = additionalReasonOptions.find(
+      option => option.toLocaleLowerCase("th") === clean.toLocaleLowerCase("th")
+    );
+    if (matched) {
+      setAdditionalReason(matched);
+      setNewReason("");
+      setAddingReason(false);
+      setReasonNotice("เหตุผลนี้มีในรายการแล้ว");
+      return;
+    }
+    setReasonSaving(true);
+    setReasonNotice("");
+    try {
+      const added = await writeAppealEvent(currentUser, "appeal_additional_reason_option_added", {
+        tab: "appeal-requests",
+        details: {
+          reason: clean,
+          optionId: crypto.randomUUID(),
+          createdBy: String(currentUser?.username || ""),
+          createdAt: new Date().toISOString(),
+        },
+      });
+      if (!added) throw new Error("QA permission required");
+      const refreshed = await fetchAdditionalAppealReasonOptions();
+      setSavedAdditionalReasons(refreshed);
+      setAdditionalReason(clean);
+      setNewReason("");
+      setAddingReason(false);
+      setReasonNotice("เพิ่มเหตุผลลงรายการกลางเรียบร้อยแล้ว");
+    } catch (error) {
+      console.error("Save additional appeal reason failed", error);
+      setReasonNotice("เพิ่มเหตุผลไม่สำเร็จ กรุณาลองอีกครั้ง");
+    } finally {
+      setReasonSaving(false);
+    }
+  };
+
+  const openAdditionalAppealRound = async () => {
+    if (!allowReview || !selectedRequest || !isReviewed || selectedRequest.additionalRound ||
+        busy || reasonSaving || !additionalCodes.length || !additionalReason ||
+        !additionalReasonOptions.includes(additionalReason)) return;
+    const selected = availableAppealTopics.filter(row => additionalCodes.includes(row.code));
+    if (selected.length !== additionalCodes.length || !selected.length) {
+      setMessage("ไม่พบหัวข้อที่เลือกในข้อมูลประเมินของเคสนี้");
+      return;
+    }
+    const current = selectedRequest;
+    setBusy(true);
+    try {
+      const freshLogs = await fetchAppealEvents([
+        "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
+        "appeal_additional_round_opened", "appeal_additional_evidence_submitted",
+      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
+      const fresh = buildAppealRequests(freshLogs).find(row => row.requestId === current.requestId);
+      if (!fresh || fresh.status === "Reset" || fresh.additionalRound ||
+          fresh.reviewId !== current.reviewId) {
+        setLogs(freshLogs);
+        setMessage("เคสมีการเปลี่ยนแปลง กรุณา Refresh และตรวจสอบก่อนเปิดรอบใหม่");
+        return;
+      }
+      const roundId = crypto.randomUUID();
+      const openedAt = new Date().toISOString();
+      const saved = await writeAppealEvent(currentUser, "appeal_additional_round_opened", {
+        tab: "appeal-requests",
+        case_id: current.caseId,
+        target_agent: current.agent,
+        details: {
+          requestId: current.requestId,
+          roundId,
+          previousReviewId: current.reviewId,
+          openedAt,
+          openedBy: String(currentUser?.agentName || currentUser?.displayName || currentUser?.username || ""),
+          reason: additionalReason,
+          note: additionalNote.trim()
+            ? `${additionalReason} — ${additionalNote.trim()}`
+            : additionalReason,
+          topics: selected.map(row => ({
+            code: row.code, label: row.label, score: row.score, max: row.max,
+            comment: row.comment || "",
+            wantsAppeal: true,
+            appealReason: "",
+            evidenceImages: [],
+          })),
+        },
+      });
+      if (!saved) throw new Error("เพิ่มเติมไม่ได้");
+      setAdditionalOpen(false);
+      setAdditionalCodes([]);
+      setAdditionalNote("");
+      setAdditionalReason("");
+      setMessage("เปิดรอบอุทธรณ์เพิ่มเติมแล้ว รอเจ้าของเคสส่งเหตุผลและหลักฐานจาก Case Detail");
+      await loadRequests();
+      onTasksChanged?.();
+    } catch (error) {
+      console.error("Open additional appeal round failed", error);
+      setMessage("ไม่สามารถเปิดรอบเพิ่มเติมได้ กรุณาลองอีกครั้ง");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const cancelReviewEdit = () => {
     if (!selectedRequest || busy) return;
-    setDraftTopics(selectedRequest.topics.map(topic => ({ ...topic,
-      revisedScore: topic.decision === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
-    })));
+    setDraftTopics(draftForRequest(selectedRequest));
     setReviewSummary(selectedRequest.reviewSummary || "");
     setEditingReview(false);
   };
 
+  const sendDiscussion = async () => {
+    if (!selectedRequest || !canSendDiscussion || discussionBusy || discussionUploads || busy) return;
+    if (!allowReview && !["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return;
+    const text = discussionText.trim();
+    if (!text && !discussionImages.length) {
+      setDiscussionMessage("กรุณาระบุข้อความหรือแนบรูปภาพก่อนส่ง");
+      return;
+    }
+    const seniorUsername = ["Senior", "Supervisor"].includes(String(currentUser?.role || ""))
+      ? String(currentUser.username || "")
+      : discussionRecipient;
+    if (!seniorUsername || (allowReview && !eligibleSeniorOptions.some(senior => senior.username === seniorUsername))) {
+      setDiscussionMessage("กรุณาเลือกผู้รับ Role Senior หรือ Supervisor");
+      return;
+    }
+    setDiscussionBusy(true);
+    setDiscussionMessage("");
+    const sentAt = new Date().toISOString();
+    const messageId = crypto.randomUUID();
+    try {
+      const saved = await writeAppealEvent(currentUser, "appeal_internal_message", {
+        tab: "appeal-requests",
+        case_id: selectedRequest.caseId,
+        target_agent: selectedRequest.agent,
+        details: {
+          requestId: selectedRequest.requestId,
+          messageId,
+          sentAt,
+          seniorUsername,
+          topicCode: discussionTopic,
+          message: text,
+          evidenceImages: [...discussionImages],
+          senderName: String(currentUser?.agentName || currentUser?.displayName || currentUser?.username || ""),
+          senderRole: String(currentUser?.role || ""),
+        },
+      });
+      if (!saved) throw new Error("User does not have internal appeal messaging permission");
+      setDiscussionText("");
+      setDiscussionImages([]);
+      setDiscussionMessage("ส่งข้อความและรูปหลักฐานเรียบร้อยแล้ว");
+      setDiscussionLogs(await fetchAppealDiscussionEvents(selectedRequest.requestId) as UsageLogEvent[]);
+    } catch (error) {
+      console.error("Save appeal discussion failed:", error);
+      setDiscussionMessage("ส่งข้อความไม่สำเร็จ ข้อความและภาพที่แนบยังอยู่ กรุณาลองใหม่");
+    } finally {
+      setDiscussionBusy(false);
+    }
+  };
+
   const submitReview = () => {
-    if (!selectedRequest || !canReview || busy) return;
+    if (!selectedRequest || !canReview || busy || qaImageUploads > 0) return;
+    if (selectedRequest.additionalRound && !selectedRequest.additionalRound.submitted) {
+      setMessage("ต้องรอ Agent ส่งเหตุผลและหลักฐานเพิ่มเติมก่อนจึงจะพิจารณาได้");
+      return;
+    }
     if (!reviewSummary.trim()) {
       setNotice({ kind: "validation", title: "ยังบันทึกผลไม่ได้", caseId: selectedRequest.caseId,
         message: "กรุณากรอก Review Summary เพื่อสรุปเหตุผลการพิจารณาอุทธรณ์ก่อนบันทึก" });
@@ -461,7 +853,7 @@ export default function AppealRequestsMockup({
     }
     setSavePreview({
       requestId: selectedRequest.requestId, caseId: selectedRequest.caseId, agent: selectedRequest.agent,
-      isEdit: Boolean(isReviewed), previousReviewId: selectedRequest.reviewId || "",
+      isEdit: Boolean(isReviewed && !selectedRequest.additionalRound), previousReviewId: selectedRequest.reviewId || "",
       previousReviewedAt: selectedRequest.reviewedAt,
       reviewId: crypto.randomUUID(), reviewVersion: (selectedRequest.reviewVersion || 0) + 1,
       beforeScore: isReviewed ? appealFinalScoreFromTopics(selectedRequest.topics, selectedRequest.finalScore) : selectedRequest.finalScore,
@@ -477,13 +869,15 @@ export default function AppealRequestsMockup({
   };
 
   const confirmReview = async () => {
-    if (!savePreview || !selectedRequest || busy || savingRef.current) return;
+    if (!allowReview || !savePreview || !selectedRequest || busy || savingRef.current) return;
     const preview = savePreview;
     const review = preview.review;
     const topicsForReview = review.topics.map(topic => ({
       code: topic.code, label: topic.label, score: topic.score, max: topic.max,
       comment: String(topic.comment || ""), wantsAppeal: true,
       appealReason: String(topic.appealReason || ""), decision: topic.decision,
+      evidenceImages: Array.isArray(topic.evidenceImages) ? topic.evidenceImages : [],
+      qaEvidenceImages: Array.isArray(topic.qaEvidenceImages) ? topic.qaEvidenceImages : [],
       ...(topic.decision === "Approved"
         ? { revisedScore: topic.revisedScore, revisedComment: topic.revisedComment, rejectReason: "" }
         : { rejectReason: topic.rejectReason }),
@@ -493,6 +887,7 @@ export default function AppealRequestsMockup({
     try {
       const latestLogs = await fetchAppealEvents([
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
+        "appeal_additional_round_opened", "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(latestLogs).find(item => item.requestId === preview.requestId);
       if (latestLogs.some(log => log.source_case_unavailable && String(log.details?.requestId || "") === preview.requestId)) {
@@ -505,6 +900,8 @@ export default function AppealRequestsMockup({
         return;
       }
       if (!latest || latest.status === "Reset" ||
+          (selectedRequest.additionalRound?.roundId || "") !== (latest.additionalRound?.roundId || "") ||
+          (selectedRequest.additionalRound && !latest.additionalRound?.submitted) ||
           (latest.reviewId !== preview.reviewId &&
             ((latest.reviewId || "") !== preview.previousReviewId || latest.reviewedAt !== preview.previousReviewedAt))) {
         setLogs(latestLogs);
@@ -524,7 +921,8 @@ export default function AppealRequestsMockup({
           reviewId: preview.reviewId,
           reviewVersion: preview.reviewVersion,
           previousReviewId: preview.previousReviewId,
-          reviewAction: preview.isEdit ? "edited" : "created",
+          reviewAction: selectedRequest.additionalRound ? "additional_round" : preview.isEdit ? "edited" : "created",
+          ...(selectedRequest.additionalRound ? { roundId: selectedRequest.additionalRound.roundId } : {}),
           decision: review.decision,
           reviewSummary: preview.reviewSummary,
           reviewedAt,
@@ -577,7 +975,7 @@ export default function AppealRequestsMockup({
   };
 
   const resetRequest = async () => {
-    if (!selectedRequest || busy) return;
+    if (!allowReview || !selectedRequest || busy) return;
     const confirmed = window.confirm(`Reset appeal request for ${selectedRequest.caseId}? This will allow the case owner to submit a new appeal request again.`);
     if (!confirmed) return;
 
@@ -656,7 +1054,7 @@ export default function AppealRequestsMockup({
           <div className="border-r border-violet-100 p-5">
             <div className="mb-3 flex gap-2">
               <button type="button" onClick={loadRequests} className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">Refresh</button>
-              <button type="button" onClick={() => exportAppealRows(requests)} className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800">Export Appeal ROWDATA</button>
+              {allowReview && <button type="button" onClick={() => exportAppealRows(requests)} className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800">Export Appeal ROWDATA</button>}
             </div>
             <div className="mb-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Task Inbox</div>
@@ -866,6 +1264,17 @@ export default function AppealRequestsMockup({
                               className="mt-2 min-h-[92px] w-full resize-none overflow-hidden rounded-xl border border-violet-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
                               placeholder="ระบุ Comment หลังแก้ไขผลประเมิน"
                             />
+                            <AppealEvidencePicker
+                              caseId={selectedRequest.caseId}
+                              topicCode={`qa-review-${topic.code}`}
+                              images={topic.qaEvidenceImages || []}
+                              totalCount={draftTopics.reduce((count, row) => count + (row.qaEvidenceImages?.length || 0), 0)}
+                              startIndex={selectedRequest.topics.reduce((count, row) => count + (row.evidenceImages?.length || 0), 0) + appealEvidenceStartIndex(draftTopics.map(row => ({ code: row.code, evidenceImages: row.qaEvidenceImages || [] })), topic.code)}
+                              disabled={busy || !canReview || qaImageUploads > 0}
+                              onBusyChange={uploading => setQaImageUploads(count => Math.max(0, count + (uploading ? 1 : -1)))}
+                              onAdd={image => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: [...(item.qaEvidenceImages || []), image] } : item))}
+                              onRemove={id => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: (item.qaEvidenceImages || []).filter(image => image.id !== id) } : item))}
+                            />
                             <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-800">
                               Approve จะนำ Revised Score และ Revised Comment ไปใช้คำนวณและแสดงใน Case Detail
                             </div>
@@ -900,6 +1309,17 @@ export default function AppealRequestsMockup({
                               className="mt-2 min-h-[92px] w-full resize-none overflow-hidden rounded-xl border border-rose-200 px-3 py-2 text-sm outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-100 disabled:bg-slate-100"
                               placeholder="ระบุเหตุผลที่ยืนยันผลประเมินและคะแนนเดิม"
                             />
+                            <AppealEvidencePicker
+                              caseId={selectedRequest.caseId}
+                              topicCode={`qa-review-${topic.code}`}
+                              images={topic.qaEvidenceImages || []}
+                              totalCount={draftTopics.reduce((count, row) => count + (row.qaEvidenceImages?.length || 0), 0)}
+                              startIndex={selectedRequest.topics.reduce((count, row) => count + (row.evidenceImages?.length || 0), 0) + appealEvidenceStartIndex(draftTopics.map(row => ({ code: row.code, evidenceImages: row.qaEvidenceImages || [] })), topic.code)}
+                              disabled={busy || !canReview || qaImageUploads > 0}
+                              onBusyChange={uploading => setQaImageUploads(count => Math.max(0, count + (uploading ? 1 : -1)))}
+                              onAdd={image => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: [...(item.qaEvidenceImages || []), image] } : item))}
+                              onRemove={id => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: (item.qaEvidenceImages || []).filter(image => image.id !== id) } : item))}
+                            />
                             <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold leading-5 text-rose-800">
                               Reject Reason ใช้อธิบายผลการพิจารณาเท่านั้น ไม่ถือเป็น Revised Comment และไม่เปลี่ยนคะแนนเดิม
                             </div>
@@ -908,6 +1328,100 @@ export default function AppealRequestsMockup({
                       </div>
                     ))}
                 </div>
+
+                <section aria-label="QA and Senior internal appeal discussion" className="rounded-3xl border border-sky-200 bg-sky-50/70 p-5">
+                  <div className="text-sm font-extrabold text-sky-900">QA ↔ Senior — คำถามและหลักฐานภายใน</div>
+                  <p className="mt-1 text-xs leading-6 text-sky-700">
+                    ข้อมูลนี้เก็บเฉพาะหน้า Appeal Review และไม่แสดงใน Case Detail หรือ PDF รายงาน
+                  </p>
+                  <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto">
+                    {discussionEvents.map((log) => {
+                      const details = log.details || {};
+                      const photos = Array.isArray(details.evidenceImages)
+                        ? details.evidenceImages as AppealEvidenceImage[] : [];
+                      return (
+                        <div key={String(details.messageId || log.id || log.created_at)} className="rounded-2xl border border-sky-100 bg-white p-4">
+                          <div className="flex flex-wrap justify-between gap-2 text-xs font-semibold text-slate-600">
+                            <span>{String(details.senderName || log.agent_name || log.display_name || log.username || "-")} · {String(details.senderRole || log.role || "-")}</span>
+                            <span>{formatDateTime(String(details.sentAt || log.created_at || ""))}</span>
+                          </div>
+                          {details.topicCode ? <div className="mt-1 text-xs font-bold text-sky-700">Topic {String(details.topicCode)}</div> : null}
+                          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">{String(details.message || "")}</p>
+                          {photos.length ? <AppealEvidenceGallery images={photos} caseId={selectedRequest.caseId} /> : null}
+                        </div>
+                      );
+                    })}
+                    {!discussionEvents.length ? <p className="rounded-xl bg-white p-4 text-sm text-slate-500">ยังไม่มีข้อความหรือรูปภาพที่ส่งระหว่าง QA กับ Senior</p> : null}
+                  </div>
+                  {(allowReview || ["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) ? (
+                    <div className="mt-4 space-y-3 border-t border-sky-200 pt-4">
+                      {!canSendDiscussion ? (
+                        <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-600">
+                          เคสนี้พิจารณาเสร็จแล้ว จึงปิดการเลือก Senior / Supervisor และการส่งข้อความใหม่
+                          หากต้องตรวจสอบเพิ่มเติม QA สามารถเปิดรอบอุทธรณ์เพิ่มเติมได้
+                        </div>
+                      ) : null}
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="text-xs font-bold text-sky-800">
+                          หัวข้อที่ต้องการสอบถาม
+                          <select
+                            value={discussionTopic}
+                            disabled={discussionBusy || !canSendDiscussion}
+                            onChange={event => setDiscussionTopic(event.target.value)}
+                            className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
+                          >
+                            <option value="">ทั้งเคส</option>
+                            {selectedRequest.topics.map(topic => <option key={topic.code} value={topic.code}>{topic.code} {topic.label}</option>)}
+                          </select>
+                        </label>
+                        {allowReview && (
+                          <label className="text-xs font-bold text-sky-800">
+                            ส่งถึง Senior / Supervisor
+                            <select
+                              value={discussionRecipient}
+                              disabled={discussionBusy || !canSendDiscussion}
+                              onChange={event => setDiscussionRecipient(event.target.value)}
+                              className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
+                            >
+                              <option value="">เลือก Senior / Supervisor</option>
+                              {eligibleSeniorOptions.map(senior => <option key={senior.username} value={senior.username}>{senior.displayName} ({senior.role || "Senior"})</option>)}
+                            </select>
+                            {!eligibleSeniorOptions.length ? <span className="mt-1 block text-xs text-rose-700">ไม่พบ User Role Senior หรือ Supervisor ใน User Directory</span> : null}
+                          </label>
+                        )}
+                      </div>
+                      <label className="block text-xs font-bold text-sky-800">
+                        ข้อความ / คำถาม / คำตอบ
+                        <textarea
+                          rows={3}
+                          value={discussionText}
+                          disabled={discussionBusy || !canSendDiscussion}
+                          onChange={event => setDiscussionText(event.target.value)}
+                          placeholder="พิมพ์คำถามหรือคำตอบสำหรับ QA และ Senior เท่านั้น"
+                          className="mt-1 block w-full resize-y rounded-xl border border-sky-200 bg-white p-3 text-sm leading-6 text-slate-800"
+                        />
+                      </label>
+                      <AppealEvidencePicker
+                        caseId={selectedRequest.caseId}
+                        topicCode={`internal-${discussionTopic || "all"}`}
+                        images={discussionImages}
+                        totalCount={discussionImages.length}
+                        disabled={discussionBusy || discussionUploads > 0 || !canSendDiscussion}
+                        onBusyChange={uploading => setDiscussionUploads(count => Math.max(0, count + (uploading ? 1 : -1)))}
+                        onAdd={image => setDiscussionImages(current => [...current, image])}
+                        onRemove={id => setDiscussionImages(current => current.filter(image => image.id !== id))}
+                      />
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span role="status" className="text-xs font-semibold text-sky-800">{discussionMessage}</span>
+                        <button type="button"
+                          disabled={discussionBusy || discussionUploads > 0 || !canSendDiscussion || (!discussionText.trim() && !discussionImages.length)}
+                          onClick={() => void sendDiscussion()}
+                          className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-bold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-40"
+                        >{discussionBusy ? "กำลังส่ง..." : "ส่งข้อความและหลักฐาน"}</button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
 
                 <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
                   <div className="text-sm font-bold text-violet-700">สรุปผลรายหัวข้อ: {decision === "Pending" ? "ยังพิจารณาไม่ครบ" : decision}</div>
@@ -944,6 +1458,123 @@ export default function AppealRequestsMockup({
                       placeholder="Appeal review summary"
                     />
                   </div>
+                  {selectedRequest.additionalRound ? (
+                    <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                      <div className="text-sm font-extrabold text-sky-900">Appeal เพิ่มเติม — รอบที่ {selectedRequest.reviewHistory.length + 1}</div>
+                      <div className="mt-1 text-xs text-sky-800">
+                        เปิดโดย {selectedRequest.additionalRound.openedBy || "QA"} · {formatDateTime(selectedRequest.additionalRound.openedAt)}
+                      </div>
+                      <div className="mt-2 whitespace-pre-wrap text-sm text-sky-950">{selectedRequest.additionalRound.note}</div>
+                      <div className="mt-2 text-xs font-bold text-sky-900">
+                        Topic {selectedRequest.additionalRound.topics.map(topic => topic.code).join(", ")}
+                      </div>
+                      <div className="mt-3 rounded-xl bg-white p-3 text-sm font-semibold text-sky-800">
+                        {selectedRequest.additionalRound.submitted
+                          ? "ได้รับเหตุผลและหลักฐานเพิ่มเติมแล้ว QA สามารถพิจารณารอบนี้ได้"
+                          : "รอ Agent ส่งข้อมูลเพิ่มเติมจากหน้า Case Detail คะแนนเดิมยังไม่เปลี่ยน"}
+                      </div>
+                    </div>
+                  ) : null}
+                  {allowReview && isReviewed && !selectedRequest.additionalRound ? (
+                    <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/70 p-4">
+                      {!additionalOpen ? (
+                        <button type="button" disabled={busy} onClick={() => setAdditionalOpen(true)}
+                          className="rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-800 hover:bg-violet-100 disabled:opacity-50">
+                          + เปิดรอบอุทธรณ์เพิ่มเติม
+                        </button>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="text-sm font-extrabold text-violet-900">เปิดรอบอุทธรณ์ใหม่ — เฉพาะ QA</div>
+                          <div className="text-xs leading-5 text-violet-800">
+                            เลือกได้ทั้งหัวข้อเดิมหรือหัวข้อที่ยังไม่เคยยื่น โดยผลรอบก่อนและคะแนนที่อนุมัติไว้จะไม่เปลี่ยนจนกว่าจะพิจารณารอบใหม่
+                          </div>
+                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-xl border border-violet-200 bg-white p-3">
+                            {availableAppealTopics.map(topic => (
+                              <label key={topic.code} className="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
+                                <input type="checkbox" className="mt-1 accent-violet-700"
+                                  disabled={busy}
+                                  checked={additionalCodes.includes(topic.code)}
+                                  onChange={event => setAdditionalCodes(current =>
+                                    event.target.checked ? [...current, topic.code] : current.filter(code => code !== topic.code))} />
+                                <span>
+                                  <span className="font-bold">{topic.code} {topic.label}</span>
+                                  <span className="ml-2 text-xs text-slate-500">
+                                    {selectedRequest.topics.some(row => row.code === topic.code) ? "เคยอุทธรณ์แล้ว" : "ยังไม่เคยอุทธรณ์"}
+                                  </span>
+                                </span>
+                              </label>
+                            ))}
+                            {!availableAppealTopics.length ? <p className="text-sm text-rose-700">ไม่พบรายการ Topic จากเคสต้นทาง</p> : null}
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-xs font-bold text-violet-800" htmlFor="additional-appeal-reason">
+                              เหตุผลที่ QA อนุญาตให้เปิดรอบเพิ่มเติม <span className="text-rose-600">*</span>
+                            </label>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <select
+                                id="additional-appeal-reason"
+                                value={additionalReason}
+                                disabled={busy || reasonSaving}
+                                onChange={event => { setAdditionalReason(event.target.value); setReasonNotice(""); }}
+                                className="min-w-[220px] flex-1 rounded-xl border border-violet-200 bg-white p-3 text-sm text-slate-800 disabled:bg-slate-100"
+                              >
+                                <option value="">เลือกเหตุผลเปิดรอบเพิ่มเติม</option>
+                                {additionalReasonOptions.map(reason => (
+                                  <option key={reason} value={reason}>{reason}</option>
+                                ))}
+                              </select>
+                              <button type="button" disabled={busy || reasonSaving}
+                                onClick={() => { setAddingReason(open => !open); setReasonNotice(""); }}
+                                className="rounded-xl border border-violet-300 bg-white px-3 py-3 text-xs font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">
+                                {addingReason ? "ปิด" : "+ เพิ่มเหตุผล"}
+                              </button>
+                            </div>
+                            {addingReason ? (
+                              <div className="rounded-xl border border-violet-200 bg-white p-3">
+                                <label htmlFor="new-additional-appeal-reason" className="block text-xs font-bold text-violet-800">
+                                  เพิ่มเหตุผลใหม่ให้ใช้ได้ในครั้งต่อไป
+                                </label>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <input id="new-additional-appeal-reason" type="text"
+                                    maxLength={180} value={newReason}
+                                    disabled={busy || reasonSaving}
+                                    onChange={event => setNewReason(event.target.value)}
+                                    onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void saveAdditionalAppealReason(); } }}
+                                    placeholder="ระบุเหตุผลใหม่"
+                                    className="min-w-[220px] flex-1 rounded-lg border border-violet-200 px-3 py-2 text-sm" />
+                                  <button type="button"
+                                    disabled={busy || reasonSaving || !newReason.trim()}
+                                    onClick={() => void saveAdditionalAppealReason()}
+                                    className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+                                    {reasonSaving ? "กำลังบันทึก..." : "บันทึกเหตุผล"}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                            {reasonNotice ? <div role="status" className="text-xs font-semibold text-violet-700">{reasonNotice}</div> : null}
+                            <label className="block text-xs font-bold text-violet-800">
+                              รายละเอียดเพิ่มเติม (ถ้ามี)
+                              <textarea rows={2} value={additionalNote} disabled={busy || reasonSaving}
+                                onChange={event => setAdditionalNote(event.target.value)}
+                                className="mt-1 block w-full rounded-xl border border-violet-200 bg-white p-3 text-sm"
+                                placeholder="ระบุข้อมูลประกอบ เช่น หมายเลข Call Log หรือเหตุผลเฉพาะเคส" />
+                            </label>
+                          </div>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <button type="button" disabled={busy} onClick={() => {
+                              setAdditionalOpen(false); setAdditionalCodes([]); setAdditionalNote("");
+                              setAdditionalReason(""); setAddingReason(false); setNewReason(""); setReasonNotice("");
+                            }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">ยกเลิก</button>
+                            <button type="button" disabled={busy || reasonSaving || !additionalCodes.length || !additionalReason}
+                              onClick={() => void openAdditionalAppealRound()}
+                              className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+                              ยืนยันเปิดรอบเพิ่มเติม
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                   {selectedRequest.reviewHistory.length > 0 && (
                     <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                       <summary className="cursor-pointer text-sm font-bold text-violet-700">ประวัติการพิจารณา ({selectedRequest.reviewHistory.length} ครั้ง)</summary>
@@ -958,28 +1589,33 @@ export default function AppealRequestsMockup({
                       ))}</div>
                     </details>
                   )}
+                  {draftTopics.some(topic => (topic.qaEvidenceImages?.length || 0) > 0) ? (
+                    <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+                      รูปของ QA จะบันทึกพร้อม Revised Comment / Reject Reason และแสดงใน Case Detail และ PDF หลังบันทึกผล
+                    </div>
+                  ) : null}
                   {editingReview && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">กำลังแก้ไขผลอุทธรณ์เดิม กรุณากด Save Review เพื่อบันทึกผลใหม่</p>}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
                     <div className="flex flex-wrap gap-2">
-                      {isReviewed && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
+                      {allowReview && isReviewed && !selectedRequest.additionalRound && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
                       {editingReview && <button type="button" disabled={busy} onClick={cancelReviewEdit} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">ยกเลิกการแก้ไข</button>}
-                      <button
+                      {allowReview && <button
                         type="button"
                         disabled={busy}
                         onClick={resetRequest}
                         className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                       >
                         Reset This Task
-                      </button>
-                      <button
+                      </button>}
+                      {allowReview && <button
                         type="button"
-                        disabled={busy || !canReview}
+                        disabled={busy || !canReview || qaImageUploads > 0}
                         onClick={submitReview}
                         className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                       >
                         {busy ? "Saving..." : "Save Review"}
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </div>
