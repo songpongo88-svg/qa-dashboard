@@ -118,8 +118,9 @@ export const RUBRIC_VERSIONS: RubricVersionDefinition[] = [
   {
     code: "QA-2026-08",
     name: "August 2026 - Admin Live Chat Criteria & Scoring",
-    status: "Active",
+    status: "Ended",
     startDate: "2026-08-01",
+    endDate: "2026-09-30",
     totalScore: 100,
     topics: [
       {
@@ -213,6 +214,22 @@ export const RUBRIC_VERSIONS: RubricVersionDefinition[] = [
     ],
   },
 ];
+
+// Keep historical versions intact; October changes conditions only.
+const augustRubric = RUBRIC_VERSIONS.find((rubric) => rubric.code === "QA-2026-08")!;
+RUBRIC_VERSIONS.push({
+  ...augustRubric,
+  code: "QA-2026-10",
+  name: "October 2026 - Admin Live Chat Criteria & Scoring (SLA Updated)",
+  status: "Active",
+  startDate: "2026-10-01",
+  endDate: undefined,
+  topics: augustRubric.topics.map((topic) => ({
+    ...topic,
+    focusItems: topic.focusItems ? [...topic.focusItems] : undefined,
+    ...(topic.code === "1" ? { reviewGuide: "ดูว่าแอดมินทำตาม Process และเวลาที่กำหนดหรือไม่ ได้แก่ รับแชทไม่เกิน 5 นาที ตอบกลับการสนทนาครั้งแรกไม่เกิน 2 นาที (ตรวจเฉพาะ First Reply ครั้งแรกของเคส ไม่ใช้ SLA 2 นาทีตรวจทุกข้อความ) และปิดแชทไม่เกิน 4 นาทีหลังแอดมินให้ข้อมูลหรือดำเนินการที่จำเป็นครบถ้วนครั้งสุดท้าย โดยหากเคสยังต้องรอข้อมูล รอติดตาม หรือมีขั้นตอนที่ต้องดำเนินการต่อตาม Process ยังไม่เริ่มนับ Close SLA รวมถึงโทรออกหรือประสานงานตาม Process ส่งต่อถูกทีม และปิดเคสเมื่อให้ข้อมูลหรือแจ้งขั้นตอนถัดไปครบแล้ว", examples: "ไม่ทำตาม Process, รับแชทเกิน 5 นาที, First Reply ครั้งแรกเกิน 2 นาที, ปิดแชทเกิน 4 นาทีหลังข้อมูลหรือการดำเนินการที่จำเป็นครบถ้วน, ไม่โทรออกตามเงื่อนไข, ส่งต่อผิดทีม, ส่งต่อข้อมูลไม่ครบ หรือปิดเคสทั้งที่ยังไม่มีแนวทางต่อ" } : {}),
+  })),
+});
 
 export function formatRubricDate(value?: string) {
   if (!value) return "Present";
