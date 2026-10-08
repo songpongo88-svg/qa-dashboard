@@ -1165,7 +1165,7 @@ export async function generateOfficialCaseDetailPdf({
     ...(Array.isArray(caseItem.topics) ? caseItem.topics : []),
   ]) {
     const code = String(source?.code || "").trim();
-    if (code && !appealEvidenceByTopic.has(code) && Array.isArray(source?.evidenceImages) && source.evidenceImages.length) {
+    if (code && !appealEvidenceByTopic.has(code) && ((Array.isArray(source?.evidenceImages) && source.evidenceImages.length) || (Array.isArray(source?.qaEvidenceImages) && source.qaEvidenceImages.length))) {
       appealEvidenceByTopic.set(code, source);
     }
   }
@@ -1243,6 +1243,64 @@ export async function generateOfficialCaseDetailPdf({
           });
         }
         y += rowHeight + 3;
+      }
+      const qaPhotos = Array.isArray(evidenceTopic.qaEvidenceImages) ? evidenceTopic.qaEvidenceImages as any[] : [];
+      if (qaPhotos.length) {
+        drawWideRichTextRow({
+          labelText: String(evidenceTopic.decision || caseItem.appealStatus) === "Rejected" ? "Reject Reason" : "Revised Comment",
+          text: evidenceTopic.comment || "QA review evidence",
+          size: BODY_TEXT_SIZE,
+          leading: BODY_LINE_SPACING,
+          minH: 10,
+          padY: 4,
+        });
+        y += 3;
+        const agentImageCount = orderedEvidenceTopics.reduce((total, row) =>
+          total + (Array.isArray(row.evidenceImages) ? row.evidenceImages.length : 0), 0
+        );
+        for (let imageIndex = 0; imageIndex < qaPhotos.length; imageIndex++) {
+          const photo = qaPhotos[imageIndex];
+          let encodedImage = "";
+          let imageError = "";
+          try {
+            encodedImage = await loadAppealEvidenceJpeg(photo);
+          } catch (error) {
+            imageError = error instanceof Error ? error.message : "Image unavailable";
+            console.warn("Cannot embed QA appeal evidence in PDF", error);
+          }
+          const w = Math.max(1, num(photo?.width, 1));
+          const h = Math.max(1, num(photo?.height, 1));
+          const scale = Math.min((fullW - 12) / w, 140 / h);
+          const imageWidth = encodedImage ? w * scale : 0;
+          const imageHeight = encodedImage ? h * scale : 0;
+          const blockHeight = encodedImage ? imageHeight + 13 : 23;
+          if (bottom - y < blockHeight + 3) {
+            doc.addPage();
+            y = top;
+          }
+          rect(left, y, fullW, blockHeight, WHITE);
+          const fileLabel = appealEvidenceDisplayName(
+            String(caseItem.caseId || ""),
+            agentImageCount + appealEvidenceStartIndex(
+              orderedEvidenceTopics.map(row => ({ code: row.code, evidenceImages: row.qaEvidenceImages || [] })),
+              String(evidenceTopic.code)
+            ) + imageIndex + 1
+          ) || safeText(photo?.name, "qa-evidence.jpg");
+          writeText("QA Evidence - " + fileLabel, left + 3, y + 1, fullW - 6, 7, {
+            size: BODY_TEXT_SIZE,
+            bold: true,
+            maxLines: 1,
+          });
+          if (encodedImage) {
+            doc.addImage(encodedImage, "JPEG", left + (fullW - imageWidth) / 2, y + 9, imageWidth, imageHeight);
+          } else {
+            writeText("Unable to load QA evidence: " + imageError, left + 3, y + 9, fullW - 6, 12, {
+              size: BODY_TEXT_SIZE,
+              color: [180, 35, 35],
+            });
+          }
+          y += blockHeight + 3;
+        }
       }
       y += 2;
     }
