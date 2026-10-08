@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T07:36:49.764Z",
-  "reason": "Reviewed compatibility of appeal-review table/date patch with QA evidence and QA-to-Senior private discussion, retaining team scope and role restrictions.",
+  "reviewedAt": "2026-10-08T07:38:28.160Z",
+  "reason": "Reviewed Appeal Review v55 metadata patch compatibility with scoped Senior access and QA evidence; no existing guide contents edited.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -191,7 +191,7 @@
     "scripts/patch-appeal-pdf-review-detail-v43.mjs": "56347a53a33211bd97749433faa40b274f0dd4640b0aa758466110e4545e13f5",
     "scripts/patch-appeal-review-datetime-color-v62.mjs": "fbc6206b26bd8f5c23114f1cd2fd55b6f6086f04222777339e60a6aa55929414",
     "scripts/patch-appeal-review-fixed-datetime-v63.mjs": "53f6c2947a63858314020cab40441982fb8501286ffe6d44e62e50d6564fa704",
-    "scripts/patch-appeal-review-information-action-v55.mjs": "c1e59e451c742fffc59713f05aa501cbaf37c302f7caab3494c99141afb7bd38",
+    "scripts/patch-appeal-review-information-action-v55.mjs": "e06a21be441b153c4b9254a8c840f02fb0e387c07d1800370a4c64b22aa509d0",
     "scripts/patch-appeal-review-information-plain-v57.mjs": "0490f34e0919e6542e735026e52e7000cd92f6f69416ae95b049523812c24bf7",
     "scripts/patch-appeal-review-information-v54.mjs": "4f2d77626e55a6d6200af4033c44da601d49993326bbd35ec1ba575dbdf5aab5",
     "scripts/patch-appeal-review-information-v56.mjs": "3846df9c4de029af50f42c012ced8025fc3aa83ca4025c43b8f5fab0c2443395",
