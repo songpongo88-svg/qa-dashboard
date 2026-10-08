@@ -1017,6 +1017,93 @@ export default function AppealRequestsMockup({
                     ))}
                 </div>
 
+                <section aria-label="QA and Senior internal appeal discussion" className="rounded-3xl border border-sky-200 bg-sky-50/70 p-5">
+                  <div className="text-sm font-extrabold text-sky-900">QA ↔ Senior — คำถามและหลักฐานภายใน</div>
+                  <p className="mt-1 text-xs leading-6 text-sky-700">
+                    ข้อมูลนี้เก็บเฉพาะหน้า Appeal Review และไม่แสดงใน Case Detail หรือ PDF รายงาน
+                  </p>
+                  <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto">
+                    {discussionEvents.map((log) => {
+                      const details = log.details || {};
+                      const photos = Array.isArray(details.evidenceImages)
+                        ? details.evidenceImages as AppealEvidenceImage[] : [];
+                      return (
+                        <div key={String(details.messageId || log.id || log.created_at)} className="rounded-2xl border border-sky-100 bg-white p-4">
+                          <div className="flex flex-wrap justify-between gap-2 text-xs font-semibold text-slate-600">
+                            <span>{String(details.senderName || log.agent_name || log.display_name || log.username || "-")} · {String(details.senderRole || log.role || "-")}</span>
+                            <span>{formatDateTime(String(details.sentAt || log.created_at || ""))}</span>
+                          </div>
+                          {details.topicCode ? <div className="mt-1 text-xs font-bold text-sky-700">Topic {String(details.topicCode)}</div> : null}
+                          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">{String(details.message || "")}</p>
+                          {photos.length ? <AppealEvidenceGallery images={photos} caseId={selectedRequest.caseId} /> : null}
+                        </div>
+                      );
+                    })}
+                    {!discussionEvents.length ? <p className="rounded-xl bg-white p-4 text-sm text-slate-500">ยังไม่มีข้อความหรือรูปภาพที่ส่งระหว่าง QA กับ Senior</p> : null}
+                  </div>
+                  {(allowReview || currentUser?.role === "Senior") ? (
+                    <div className="mt-4 space-y-3 border-t border-sky-200 pt-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="text-xs font-bold text-sky-800">
+                          หัวข้อที่ต้องการสอบถาม
+                          <select
+                            value={discussionTopic}
+                            disabled={discussionBusy}
+                            onChange={event => setDiscussionTopic(event.target.value)}
+                            className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
+                          >
+                            <option value="">ทั้งเคส</option>
+                            {selectedRequest.topics.map(topic => <option key={topic.code} value={topic.code}>{topic.code} {topic.label}</option>)}
+                          </select>
+                        </label>
+                        {allowReview && (
+                          <label className="text-xs font-bold text-sky-800">
+                            ส่งถึง Senior
+                            <select
+                              value={discussionRecipient}
+                              disabled={discussionBusy}
+                              onChange={event => setDiscussionRecipient(event.target.value)}
+                              className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
+                            >
+                              <option value="">เลือก Senior</option>
+                              {seniorOptions.map(senior => <option key={senior.username} value={senior.username}>{senior.displayName}</option>)}
+                            </select>
+                          </label>
+                        )}
+                      </div>
+                      <label className="block text-xs font-bold text-sky-800">
+                        ข้อความ / คำถาม / คำตอบ
+                        <textarea
+                          rows={3}
+                          value={discussionText}
+                          disabled={discussionBusy}
+                          onChange={event => setDiscussionText(event.target.value)}
+                          placeholder="พิมพ์คำถามหรือคำตอบสำหรับ QA และ Senior เท่านั้น"
+                          className="mt-1 block w-full resize-y rounded-xl border border-sky-200 bg-white p-3 text-sm leading-6 text-slate-800"
+                        />
+                      </label>
+                      <AppealEvidencePicker
+                        caseId={selectedRequest.caseId}
+                        topicCode={`internal-${discussionTopic || "all"}`}
+                        images={discussionImages}
+                        totalCount={discussionImages.length}
+                        disabled={discussionBusy || discussionUploads > 0}
+                        onBusyChange={uploading => setDiscussionUploads(count => Math.max(0, count + (uploading ? 1 : -1)))}
+                        onAdd={image => setDiscussionImages(current => [...current, image])}
+                        onRemove={id => setDiscussionImages(current => current.filter(image => image.id !== id))}
+                      />
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span role="status" className="text-xs font-semibold text-sky-800">{discussionMessage}</span>
+                        <button type="button"
+                          disabled={discussionBusy || discussionUploads > 0 || (!discussionText.trim() && !discussionImages.length)}
+                          onClick={() => void sendDiscussion()}
+                          className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-bold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-40"
+                        >{discussionBusy ? "กำลังส่ง..." : "ส่งข้อความและหลักฐาน"}</button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+
                 <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
                   <div className="text-sm font-bold text-violet-700">สรุปผลรายหัวข้อ: {decision === "Pending" ? "ยังพิจารณาไม่ครบ" : decision}</div>
                   <div className="mt-2 text-sm text-slate-700">
