@@ -77,8 +77,8 @@ function patchAppealReviewInformationAndAction() {
 
   source = replaceOnce(
     source,
-    `  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;\n  const pendingRequests = requests.filter((item) => item.status === "Pending");`,
-    `  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;\n  const isReviewDetailOpen = Boolean(selectedRequest && detailRequestId === selectedRequest.requestId);\n  const selectedAppealedTopics = selectedRequest?.topics.filter(isAppealedTopic) || [];\n  const selectedCurrentScore = (selectedRequest?.status === "Approved" || selectedRequest?.status === "Partially Approved")\n    ? appealFinalScoreFromTopics(selectedAppealedTopics, selectedRequest.finalScore)\n    : selectedRequest?.finalScore || 0;\n  const selectedCurrentGrade = selectedRequest\n    ? appealGradeFromScore(selectedCurrentScore)\n    : "-";\n  const selectedAgentTeam = resolveCaseAgentTeam(selectedRequest, agentDirectory || []);\n  const pendingRequests = requests.filter((item) => item.status === "Pending");`,
+    `  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;`,
+    `  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;\n  const isReviewDetailOpen = Boolean(selectedRequest && detailRequestId === selectedRequest.requestId);\n  const selectedAppealedTopics = selectedRequest?.topics.filter(isAppealedTopic) || [];\n  const selectedCurrentScore = (selectedRequest?.status === "Approved" || selectedRequest?.status === "Partially Approved")\n    ? appealFinalScoreFromTopics(selectedAppealedTopics, selectedRequest.finalScore)\n    : selectedRequest?.finalScore || 0;\n  const selectedCurrentGrade = selectedRequest\n    ? appealGradeFromScore(selectedCurrentScore)\n    : "-";\n  const selectedAgentTeam = resolveCaseAgentTeam(selectedRequest, agentDirectory || []);`,
     "Appeal Review Information values"
   );
 
