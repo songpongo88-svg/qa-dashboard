@@ -5,7 +5,7 @@ import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNoti
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
-import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
+import { fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import PageHero from "./PageHero";
 import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 
@@ -383,6 +383,7 @@ export default function AppealRequestsMockup({
   onTasksChanged?: () => void;
 }) {
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
+  const [discussionLogs, setDiscussionLogs] = useState<UsageLogEvent[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [draftTopics, setDraftTopics] = useState<AppealTopic[]>([]);
   const decision = summarizeAppealDecisions(draftTopics.filter(isAppealedTopic));
@@ -409,7 +410,7 @@ export default function AppealRequestsMockup({
     const agentKeys = new Set(allowedAgentNames.map(name => name.replace(/\s+/g, "").toLowerCase()));
     return all.filter(request => agentKeys.has(String(request.agent || "").replace(/\s+/g, "").toLowerCase()));
   }, [logs, allowedAgentNames]);
-  const discussionEvents = useMemo(() => logs
+  const discussionEvents = useMemo(() => discussionLogs
     .filter(log => log.event_type === "appeal_internal_message" &&
       String(log.details?.requestId || "") === selectedRequestId &&
       !log.source_case_unavailable)
@@ -417,7 +418,7 @@ export default function AppealRequestsMockup({
       [String(log.details?.seniorUsername || "").toLowerCase(), String(log.username || "").toLowerCase()]
         .includes(String(currentUser.username || "").toLowerCase()))
     .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || ""))),
-    [logs, selectedRequestId, currentUser?.role, currentUser?.username]
+    [discussionLogs, selectedRequestId, currentUser?.role, currentUser?.username]
   );
   const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
@@ -444,7 +445,6 @@ export default function AppealRequestsMockup({
         "appeal_request_submitted",
         "appeal_request_reviewed",
         "appeal_request_reset",
-        "appeal_internal_message",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
       return true;
     } catch (error) {
@@ -477,6 +477,17 @@ export default function AppealRequestsMockup({
     setDiscussionRecipient("");
     setDiscussionMessage("");
   }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDiscussionLogs([]);
+    if (selectedRequestId) {
+      void fetchAppealDiscussionEvents(selectedRequestId)
+        .then(events => { if (!cancelled) setDiscussionLogs(events as UsageLogEvent[]); })
+        .catch(error => { if (!cancelled) console.warn("Load private appeal discussion failed", error); });
+    }
+    return () => { cancelled = true; };
+  }, [selectedRequestId]);
 
   const cancelReviewEdit = () => {
     if (!selectedRequest || busy) return;
@@ -527,7 +538,7 @@ export default function AppealRequestsMockup({
       setDiscussionText("");
       setDiscussionImages([]);
       setDiscussionMessage("ส่งข้อความและรูปหลักฐานเรียบร้อยแล้ว");
-      await loadRequests();
+      setDiscussionLogs(await fetchAppealDiscussionEvents(selectedRequest.requestId) as UsageLogEvent[]);
     } catch (error) {
       console.error("Save appeal discussion failed:", error);
       setDiscussionMessage("ส่งข้อความไม่สำเร็จ ข้อความและภาพที่แนบยังอยู่ กรุณาลองใหม่");
