@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { appealEvidenceDisplayName } from "./appealEvidenceNaming";
 
@@ -63,6 +63,36 @@ export async function uploadAppealImage(file: File, caseId: string, topicCode: s
   return { id, name, size: blob.size, width, height, url: "/api/google-drive-download?inline=1&id=" + encodeURIComponent(id) };
 }
 
+// The watermark belongs to the preview only. Uploaded Drive assets and thumbnail
+// images are intentionally untouched so the original evidence stays intact.
+function AppealEvidenceWatermark({ caseId }: { caseId?: string }) {
+  const patternId = useId().replace(/:/g, "");
+  const caseLabel = String(caseId || "").trim().toUpperCase();
+
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      className="pointer-events-none absolute inset-0 h-full w-full select-none"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      style={{ opacity: 0.16 }}
+    >
+      <defs>
+        <pattern id={patternId} patternUnits="userSpaceOnUse" width="420" height="112" patternTransform="rotate(-34)">
+          <text x="10" y="35" fill="#92263c" fontSize="14" fontWeight="700" fontFamily="Kanit, Noto Sans Thai, sans-serif">
+            ใช้สำหรับเป็นหลักฐานส่งพิจารณายื่นอุทธรณ์
+          </text>
+          <text x="10" y="59" fill="#92263c" fontSize="14" fontWeight="700" fontFamily="Kanit, Noto Sans Thai, sans-serif">
+            {caseLabel ? `Case ID: ${caseLabel}` : "หลักฐานประกอบการอุทธรณ์"}
+          </text>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+    </svg>
+  );
+}
+
 export function AppealEvidenceGallery({ images = [], onRemove, caseId, startIndex = 0 }: {
   images?: AppealEvidenceImage[];
   onRemove?: (id: string) => void;
@@ -100,7 +130,19 @@ export function AppealEvidenceGallery({ images = [], onRemove, caseId, startInde
     {image && createPortal(<div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 p-4" onClick={() => setIndex(null)}>
       <div role="dialog" aria-modal="true" aria-label="ดูรูปภาพหลักฐาน" className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl bg-white p-4" onClick={e => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between gap-3"><span className="truncate font-bold">{displayName(image, index ?? 0)}</span><button ref={closeRef} type="button" onClick={() => setIndex(null)} className="rounded-xl border px-4 py-2">ปิด</button></div>
-        {failed ? <div role="alert" className="p-8 text-center">โหลดรูปไม่สำเร็จ <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-violet-700 underline">เปิดรูปอีกครั้ง</a></div> : <div className="min-h-0 overflow-auto"><img src={image.url} alt={displayName(image, index ?? 0)} onError={() => setFailed(true)} className="mx-auto max-h-[70vh] object-contain" /></div>}
+        {failed ? <div role="alert" className="p-8 text-center">โหลดรูปไม่สำเร็จ <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-violet-700 underline">เปิดรูปอีกครั้ง</a></div> : (
+          <div className="min-h-0 overflow-auto">
+            <div className="relative mx-auto w-fit max-w-full overflow-hidden rounded-lg">
+              <img
+                src={image.url}
+                alt={displayName(image, index ?? 0)}
+                onError={() => setFailed(true)}
+                className="block max-h-[70vh] max-w-full object-contain"
+              />
+              <AppealEvidenceWatermark caseId={caseId} />
+            </div>
+          </div>
+        )}
         <div className="mt-3 flex items-center justify-center gap-4"><button type="button" disabled={index === 0} onClick={() => setIndex(i => Math.max(0, (i || 0) - 1))}>← ก่อนหน้า</button><span>{(index || 0) + 1} / {images.length}</span><button type="button" disabled={index === images.length - 1} onClick={() => setIndex(i => Math.min(images.length - 1, (i || 0) + 1))}>ถัดไป →</button></div>
       </div>
     </div>, document.body)}
