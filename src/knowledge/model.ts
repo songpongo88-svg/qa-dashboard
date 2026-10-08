@@ -1,3 +1,4 @@
+import { formatPdfDateTime } from "../lib/pdfDates";
 import terms from "./terms.json";
 import buildMeta from "../../public/build-meta.json";
 
@@ -39,7 +40,5 @@ export function validateTermsInput(input: AcceptTermsInput) {
   if ((input.signatureSource === "none") !== !input.signatureDataUrl) throw new Error("กรุณาตรวจสอบลายเซ็นก่อนยืนยัน");
 }
 export function formatKnowledgeDate(value: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "medium" }).format(date) : value;
+  return formatPdfDateTime(value, "—");
 }

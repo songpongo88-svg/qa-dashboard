@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+const temp = await mkdtemp(resolve('.pdf-dates-test-'));
+try {
+  const bundle = resolve(temp, 'dates.mjs');
+  await build({ stdin: { contents: 'export * from "./src/lib/pdfDates"; export { generateCasePdfWithAppealHistory } from "./src/caseAppealPdfAddon";', resolveDir: process.cwd(), loader: 'ts' }, outfile: bundle, bundle: true, platform: 'node', format: 'esm', packages: 'external', logLevel: 'silent' });
+  const { formatPdfDate, formatPdfDateTime, formatPdfDateOrTime, generateCasePdfWithAppealHistory } = await import(pathToFileURL(bundle));
+  assert.equal(formatPdfDateTime('08/10/2026 11:39:53'), '08/10/2026 11:39:53');
+  assert.equal(formatPdfDateTime('07/10/2026 16:35:15'), '07/10/2026 16:35:15');
+  assert.equal(formatPdfDateTime('21/09/2026 10:12'), '21/09/2026 10:12:00');
+  assert.equal(formatPdfDate('7/9/2569'), '07/09/2026');
+  assert.equal(formatPdfDate('2026-09-07'), '07/09/2026');
+  assert.equal(formatPdfDateTime('2026-10-08T04:39:53Z'), '08/10/2026 11:39:53');
+  assert.equal(formatPdfDateTime('2026-10-08T11:39:53+07:00'), '08/10/2026 11:39:53');
+  assert.equal(formatPdfDateTime('2026-09-30T18:00:00Z'), '01/10/2026 01:00:00');
+  assert.equal(formatPdfDateTime('2026-10-08T11:39:53'), '08/10/2026 11:39:53');
+  assert.equal(formatPdfDateOrTime('08/10/2026'), '08/10/2026');
+  assert.equal(formatPdfDateOrTime('08/10/2026 11:39:53'), '08/10/2026 11:39:53');
+  assert.equal(formatPdfDate(45930), '30/09/2025');
+  assert.equal(formatPdfDate('31/02/2026'), '31/02/2026', 'invalid dates are never silently moved into March');
+  assert.equal(formatPdfDateTime(undefined), '-');
+  assert.equal(formatPdfDateTime('', ''), '');
+  const fixture = { caseId: 'DATE-REGRESSION', appealStatus: 'Approved', appealSubmittedAt: '07/10/2026 16:35:15', appealReviewedAt: '08/10/2026 11:39:53', topics: [{ code: '1', score: 24, max: 30, comment: 'original' }], revisedTopics: [{ code: '1', score: 30, max: 30, comment: 'revised' }], appealReviewedTopics: [{ code: '1', decision: 'Approved', appealReason: 'reason', revisedComment: 'revised', revisedScore: 30 }] };
+  const original = JSON.stringify(fixture);
+  let rendered;
+  await generateCasePdfWithAppealHistory({ caseItem: fixture, fallback: async input => { rendered = input.caseItem; return {}; } });
+  const output = JSON.stringify(rendered);
+  assert.ok(output.includes('07/10/2026 16:35:15'));
+  assert.ok(output.includes('08/10/2026 11:39:53'));
+  assert.ok(!output.includes('10/07/2026') && !output.includes('10/08/2026'));
+  assert.equal(JSON.stringify(fixture), original, 'PDF formatting cannot mutate stored evaluation data');
+  console.log('PASS PDF dates: DD/MM/YYYY, Bangkok timezone, Gregorian year, normalized appeal timestamps, no data mutation');
+} finally { await rm(temp, { recursive: true, force: true }); }

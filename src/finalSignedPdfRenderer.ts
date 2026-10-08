@@ -1,3 +1,4 @@
+import { formatPdfDate, formatPdfDateTime } from "./lib/pdfDates";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachingStore";
@@ -82,10 +83,7 @@ function formatBahtAmount(value: number) {
 }
 
 function formatDateTime(value: string) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+  return formatPdfDateTime(value);
 }
 
 function getSignedEntry(entries: FinalSignedEntry[], role: FinalSignedRole) {
@@ -563,7 +561,7 @@ export async function renderFinalSignedPdf({
     const kpiStatus = !item ? "-" : isKpiFail ? "Not Passed" : "Passed";
     drawCellsByWidth(left, y, rowH, [
       { value: index + 1, width: caseColWidths[0], fill, options: { size: 7.3, align: "center", bold: true, maxLines: 1 } },
-      { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1 } },
+      { value: formatPdfDate(item?.auditDate), width: caseColWidths[1], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1 } },
       { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1 } },
       { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 6.8, align: "left", bold: true, maxLines: 2, lineHeight: 3.45 } },
       { value: item ? Number(item.finalScore || 0).toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 7.3, align: "center", bold: true, maxLines: 1 } },
@@ -766,9 +764,7 @@ export async function renderFinalSignedPdf({
         .trim();
 
     const formatCoachingDate = (value: unknown) => {
-      const raw = cleanCoachingText(value);
-      const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+      return formatPdfDate(value, "");
     };
 
     const ensureCoachingSpace = (height: number) => {

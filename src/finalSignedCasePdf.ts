@@ -1,3 +1,4 @@
+import { formatPdfDate, formatPdfDateTime } from "./lib/pdfDates";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import {
@@ -48,19 +49,11 @@ export async function loadFinalSignedDocumentIndex(monthKey: string) {
 }
 
 function fmtDate(value: unknown) {
-  const date = new Date(String(value || ""));
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("th-TH", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatPdfDateTime(value);
 }
 
 function caseDate(item: any) {
-  return String(item?.caseDate || item?.auditDate || item?.evaluationAuditDate || "-");
+  return formatPdfDate(item?.caseDate || item?.auditDate || item?.evaluationAuditDate);
 }
 
 function activeTopics(item: any) {

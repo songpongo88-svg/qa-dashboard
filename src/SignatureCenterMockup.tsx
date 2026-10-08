@@ -1,3 +1,4 @@
+import { formatPdfDate, formatPdfDateTime } from "./lib/pdfDates";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -1421,10 +1422,7 @@ function canSignRoleByDate(monthKey: string, entries: SignatureEntry[], role: Si
 }
 
 function formatDateTime(value: string) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+  return formatPdfDateTime(value);
 }
 
 function formatDateOnly(value: Date | string | null | undefined) {
@@ -1854,7 +1852,7 @@ function generatePaymentExcelFile(
     ["Total Cash Amount (THB)", totalCashAmount],
     ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", totalPromoAmount]] : []),
     ["Payment Cutoff", formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString())],
-    ["Generated At", new Date().toLocaleString("th-TH")],
+    ["Generated At", formatPdfDateTime(new Date())],
     ["Document Rule", "Include only 4 Signed or approved 3 Signed + 1 Agent Waived (Resigned) completed by day 15 with no pending Appeal. Late completion moves to the next payment cycle."],
     [],
     ["Signature Validation"],
@@ -2222,7 +2220,7 @@ function generatePaymentPdfFile(
     ["Total Cash Amount (THB)", formatBahtAmount(totalCashAmount)],
     ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", formatBahtAmount(totalPromoAmount)]] : []),
     ["Payment Cutoff", paymentCutoff],
-    ["Generated At", new Date().toLocaleString("th-TH")],
+    ["Generated At", formatPdfDateTime(new Date())],
     ["Document Rule", "Include only 4 Signed or approved 3 Signed + 1 Agent Waived (Resigned) completed by day 15 with no pending Appeal. Late completion moves to the next payment cycle."],
   ];
 
@@ -3836,7 +3834,7 @@ export default function SignatureCenterMockup({
         const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
         drawCellsByWidth(left, y, rowH, [
           { value: index + 1, width: caseColWidths[0], fill, options: { size: 7.5, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 7.1, align: "center", bold: true, maxLines: 1 } },
+          { value: formatPdfDate(item?.auditDate), width: caseColWidths[1], fill, options: { size: 7.1, align: "center", bold: true, maxLines: 1 } },
           { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 7.1, align: "center", bold: true, maxLines: 1 } },
           { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 7.0, align: "left", bold: true, maxLines: 2, lineHeight: 3.55 } },
           { value: item ? item.finalScore.toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 7.5, align: "center", bold: true, maxLines: 1 } },
@@ -4253,7 +4251,7 @@ export default function SignatureCenterMockup({
       caseX = officialLeft;
       const rowValues = [
         String(index + 1),
-        item.auditDate || "-",
+        formatPdfDate(item.auditDate),
         item.caseId || "-",
         item.inquiry || "-",
         item.finalScore.toFixed(2),
@@ -4492,7 +4490,7 @@ export default function SignatureCenterMockup({
       cellX = tableX;
       [
         String(index + 1),
-        item.auditDate || "-",
+        formatPdfDate(item.auditDate),
         item.caseId || "-",
         item.inquiry || "-",
         item.finalScore.toFixed(2),
@@ -4666,7 +4664,7 @@ export default function SignatureCenterMockup({
       pdf.rect(left, rowY - 5, right - left, 10, "FD");
 
       text(String(i + 1), left + 3, rowY, 9, true);
-      text(item?.auditDate || "-", left + 15, rowY, 9);
+      text(formatPdfDate(item?.auditDate), left + 15, rowY, 9);
       text(item?.caseId || "-", left + 43, rowY, 9, true);
       const inquiryLines = pdf.splitTextToSize(item?.inquiry || "-", 66);
       text(Array.isArray(inquiryLines) ? inquiryLines[0] : String(inquiryLines), left + 72, rowY, 9);

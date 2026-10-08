@@ -52,6 +52,7 @@ try {
     assert.ok(headings.every((item, index) => !index || item.y > headings[index - 1].y), "topic performance precedes acknowledgement");
     assert.ok(text.every(c => c.page === (scenario.append ? 2 : 1)), "all content stays on the same document page");
     for (const item of cases) assert.ok(text.some(c => c.value === item.caseId), `case retained: ${item.caseId}`);
+    assert.ok(text.some(c => c.value === "01/08/2026") || !cases.length, "case dates use Gregorian DD/MM/YYYY");
     const topicHeadingY = headings[3].y;
     for (let index = 1; index <= scenario.topics; index++) assert.ok(text.some(c => c.value === `Topic fixture ${index}` && c.y > topicHeadingY), `topic retained: ${index}`);
     const panels = calls.rect.filter(c => c.fill.toLowerCase() === "#7030a0" && Math.abs(c.args[2] - 45) < 0.02);
@@ -79,8 +80,8 @@ try {
       near(dateLines[0].args[2], x + w - 2, "original dotted line end");
       assert.ok(text.some(c => c.value === "วันที่" && c.x > x && c.x < x + w && Math.abs(c.y - (dateLineY - .25)) < .02), "วันที่ label retained");
       if (scenario.signed.includes(roles[index])) {
-        const date = panelText.find(c => c.value === "12/9/69 11:29");
-        assert.ok(date, "signed datetime retained");
+        const date = panelText.find(c => c.value === "12/09/2026 11:29:00");
+        assert.ok(date, "signed datetime uses DD/MM/YYYY and Bangkok time");
         near(date.x, centerX, "date centered on signature axis");
         near(date.y, dateLineY - .5, "date above dotted line");
         const image = calls.addImage.find(c => Math.abs(c.args[2] + c.args[4] / 2 - centerX) < .02);
