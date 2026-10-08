@@ -500,8 +500,8 @@ export default function AppealRequestsMockup({
     const selected = selectedRequest;
     if (!selected) return [] as AppealTopic[];
     const targetCase = additionalCaseTopics.find(row =>
-      String(row?.caseId || "").replace(/\\s+/g, "").toUpperCase() ===
-      String(selected.caseId || "").replace(/\\s+/g, "").toUpperCase()
+      String(row?.caseId || "").replace(/\s+/g, "").toUpperCase() ===
+      String(selected.caseId || "").replace(/\s+/g, "").toUpperCase()
     );
     if (Array.isArray(targetCase?.topics)) {
       for (const row of targetCase.topics) {
@@ -523,6 +523,30 @@ export default function AppealRequestsMockup({
     return [...result.values()].sort((a, b) =>
       String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
   }, [additionalCaseTopics, selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.caseId]);
+
+  const draftForRequest = (request: AppealRequest) => {
+    if (!request.additionalRound) return request.topics.map(topic => ({
+      ...topic,
+      revisedScore: topic.decision === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
+      rejectReason: topic.rejectReason || "",
+    }));
+    const latestRound = request.additionalRound;
+    const codes = new Set(latestRound.topics.map(topic => topic.code));
+    const priorTopics = request.topics.filter(topic => !codes.has(topic.code));
+    const selectedTopics = latestRound.topics.map(topic => {
+      const original = request.topics.find(item => item.code === topic.code);
+      return {
+        ...(original || topic),
+        ...topic,
+        decision: undefined,
+        revisedScore: undefined,
+        revisedComment: "",
+        rejectReason: "",
+        wantsAppeal: true,
+      };
+    });
+    return [...priorTopics, ...selectedTopics];
+  };
 
   const pendingRequests = requests.filter((item) => item.status === "Pending");
   const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved");
@@ -562,11 +586,7 @@ export default function AppealRequestsMockup({
   useEffect(() => {
     if (!selectedRequest) return;
     setSelectedRequestId(selectedRequest.requestId);
-    setDraftTopics(selectedRequest.topics.map((topic) => ({
-      ...topic,
-      revisedScore: topic.decision === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
-      rejectReason: topic.rejectReason || "",
-    })));
+    setDraftTopics(draftForRequest(selectedRequest));
     setReviewSummary(selectedRequest.reviewSummary || "");
     setEditingReview(false);
     setDiscussionImages([]);
@@ -651,9 +671,7 @@ export default function AppealRequestsMockup({
 
   const cancelReviewEdit = () => {
     if (!selectedRequest || busy) return;
-    setDraftTopics(selectedRequest.topics.map(topic => ({ ...topic,
-      revisedScore: topic.decision === "Rejected" ? undefined : topic.revisedScore ?? topic.score,
-    })));
+    setDraftTopics(draftForRequest(selectedRequest));
     setReviewSummary(selectedRequest.reviewSummary || "");
     setEditingReview(false);
   };
@@ -709,6 +727,10 @@ export default function AppealRequestsMockup({
 
   const submitReview = () => {
     if (!selectedRequest || !canReview || busy || qaImageUploads > 0) return;
+    if (selectedRequest.additionalRound && !selectedRequest.additionalRound.submitted) {
+      setMessage("ต้องรอ Agent ส่งเหตุผลและหลักฐานเพิ่มเติมก่อนจึงจะพิจารณาได้");
+      return;
+    }
     if (!reviewSummary.trim()) {
       setNotice({ kind: "validation", title: "ยังบันทึกผลไม่ได้", caseId: selectedRequest.caseId,
         message: "กรุณากรอก Review Summary เพื่อสรุปเหตุผลการพิจารณาอุทธรณ์ก่อนบันทึก" });
@@ -724,7 +746,7 @@ export default function AppealRequestsMockup({
     }
     setSavePreview({
       requestId: selectedRequest.requestId, caseId: selectedRequest.caseId, agent: selectedRequest.agent,
-      isEdit: Boolean(isReviewed), previousReviewId: selectedRequest.reviewId || "",
+      isEdit: Boolean(isReviewed && !selectedRequest.additionalRound), previousReviewId: selectedRequest.reviewId || "",
       previousReviewedAt: selectedRequest.reviewedAt,
       reviewId: crypto.randomUUID(), reviewVersion: (selectedRequest.reviewVersion || 0) + 1,
       beforeScore: isReviewed ? appealFinalScoreFromTopics(selectedRequest.topics, selectedRequest.finalScore) : selectedRequest.finalScore,
@@ -769,6 +791,8 @@ export default function AppealRequestsMockup({
         return;
       }
       if (!latest || latest.status === "Reset" ||
+          (selectedRequest.additionalRound?.roundId || "") !== (latest.additionalRound?.roundId || "") ||
+          (selectedRequest.additionalRound && !latest.additionalRound?.submitted) ||
           (latest.reviewId !== preview.reviewId &&
             ((latest.reviewId || "") !== preview.previousReviewId || latest.reviewedAt !== preview.previousReviewedAt))) {
         setLogs(latestLogs);
@@ -788,7 +812,8 @@ export default function AppealRequestsMockup({
           reviewId: preview.reviewId,
           reviewVersion: preview.reviewVersion,
           previousReviewId: preview.previousReviewId,
-          reviewAction: preview.isEdit ? "edited" : "created",
+          reviewAction: selectedRequest.additionalRound ? "additional_round" : preview.isEdit ? "edited" : "created",
+          ...(selectedRequest.additionalRound ? { roundId: selectedRequest.additionalRound.roundId } : {}),
           decision: review.decision,
           reviewSummary: preview.reviewSummary,
           reviewedAt,
