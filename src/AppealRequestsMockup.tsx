@@ -58,6 +58,12 @@ type AppealRequest = {
   reviewId?: string;
   reviewVersion?: number;
   reviewHistory: AppealReviewHistoryItem[];
+  cancelledAdditionalRounds?: {
+    roundId: string;
+    reason: string;
+    cancelledBy: string;
+    cancelledAt: string;
+  }[];
   topics: AppealTopic[];
   additionalRound?: {
     roundId: string;
@@ -176,6 +182,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
   const reviews = new Map<string, UsageLogEvent[]>();
   const resets = new Map<string, UsageLogEvent>();
   const openedRounds = new Map<string, UsageLogEvent[]>();
+  const cancelledRounds = new Map<string, UsageLogEvent[]>();
   const submittedEvidence = new Map<string, UsageLogEvent[]>();
   const eventTime = (log: UsageLogEvent) => {
     const parsed = new Date(String(log.created_at || log.details?.reviewedAt || log.details?.resetAt || "")).getTime();
@@ -187,6 +194,11 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const history = openedRounds.get(requestId) || [];
       history.push(log);
       openedRounds.set(requestId, history);
+    }
+    if (log.event_type === "appeal_additional_round_cancelled" && requestId) {
+      const history = cancelledRounds.get(requestId) || [];
+      history.push(log);
+      cancelledRounds.set(requestId, history);
     }
     if (log.event_type === "appeal_additional_evidence_submitted" && requestId) {
       const history = submittedEvidence.get(requestId) || [];
@@ -215,6 +227,11 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const reset = resets.get(requestId);
       const latestRound = [...(openedRounds.get(requestId) || [])].sort((a,b) => eventTime(b)-eventTime(a))[0];
       const latestRoundId = String(latestRound?.details?.roundId || "");
+      const roundWasCancelled = Boolean(latestRoundId) &&
+        (cancelledRounds.get(requestId) || []).some(item =>
+          String(item.details?.roundId || "") === latestRoundId &&
+          eventTime(item) >= eventTime(latestRound!)
+        );
       const roundAlreadyReviewed = Boolean(latestRoundId) &&
         history.some(item => String(item.details?.roundId || "") === latestRoundId);
       const additionalSubmission = latestRoundId
@@ -226,7 +243,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         ? latestRound.details.topics as AppealTopic[] : [];
       const submittedTopics = Array.isArray(additionalSubmission?.details?.topics)
         ? additionalSubmission.details.topics as AppealTopic[] : [];
-      const additionalRound = !roundAlreadyReviewed && latestRoundId && history.length && !reset
+      const additionalRound = !roundAlreadyReviewed && !roundWasCancelled && latestRoundId && history.length && !reset
         ? {
             roundId: latestRoundId,
             openedAt: String(latestRound?.details?.openedAt || latestRound?.created_at || ""),
@@ -325,6 +342,15 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         reviewId: String(review?.details?.reviewId || review?.id || ""),
         reviewVersion: toNumber(review?.details?.reviewVersion, history.length),
         additionalRound,
+        cancelledAdditionalRounds: (cancelledRounds.get(requestId) || [])
+          .slice()
+          .sort((a, b) => eventTime(b) - eventTime(a))
+          .map(item => ({
+            roundId: String(item.details?.roundId || ""),
+            reason: String(item.details?.reason || ""),
+            cancelledBy: String(item.details?.cancelledBy || item.display_name || ""),
+            cancelledAt: String(item.details?.cancelledAt || item.created_at || ""),
+          })),
         reviewHistory: history.map(item => ({
           reviewId: String(item.details?.reviewId || item.id || item.created_at || ""),
           reviewedAt: firstStoredAppealDateTime(item.details?.reviewedAt, item.created_at),
@@ -595,8 +621,8 @@ export default function AppealRequestsMockup({
     return () => { cancelled = true; };
   }, [allowReview]);
 
-  const pendingRequests = requests.filter(item => item.status === "Pending" || Boolean(item.additionalRound));
-  const reviewedRequests = requests.filter(item => !item.additionalRound && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
+  const pendingRequests = requests.filter(item => item.status === "Pending" || Boolean(item.additionalRound?.submitted));
+  const reviewedRequests = requests.filter(item => !item.additionalRound?.submitted && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
   const resetRequests = requests.filter((item) => item.status === "Reset");
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
@@ -620,6 +646,7 @@ export default function AppealRequestsMockup({
         "appeal_request_reviewed",
         "appeal_request_reset",
         "appeal_additional_round_opened",
+        "appeal_additional_round_cancelled",
         "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
       return true;
@@ -726,7 +753,7 @@ export default function AppealRequestsMockup({
     try {
       const freshLogs = await fetchAppealEvents([
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
-        "appeal_additional_round_opened", "appeal_additional_evidence_submitted",
+        "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const fresh = buildAppealRequests(freshLogs).find(row => row.requestId === current.requestId);
       if (!fresh || fresh.status === "Reset" || fresh.additionalRound ||
@@ -887,7 +914,7 @@ export default function AppealRequestsMockup({
     try {
       const latestLogs = await fetchAppealEvents([
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
-        "appeal_additional_round_opened", "appeal_additional_evidence_submitted",
+        "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(latestLogs).find(item => item.requestId === preview.requestId);
       if (latestLogs.some(log => log.source_case_unavailable && String(log.details?.requestId || "") === preview.requestId)) {
@@ -974,6 +1001,64 @@ export default function AppealRequestsMockup({
     }
   };
 
+  const cancelAdditionalRound = async () => {
+    if (!allowReview || !selectedRequest?.additionalRound || busy) return;
+    const target = selectedRequest;
+    const round = target.additionalRound;
+    const reason = window.prompt(
+      `ยกเลิกรอบอุทธรณ์เพิ่มเติมของเคส ${target.caseId} เท่านั้น (ไม่ Reset ผลรอบเดิม)\nระบุเหตุผล:`,
+      "ยกเลิกรอบทดสอบระบบ"
+    );
+    if (reason === null) return;
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      setMessage("กรุณาระบุเหตุผลที่ยกเลิก");
+      return;
+    }
+    if (!window.confirm(
+      `ยืนยันยกเลิกรอบเพิ่มเติมของเคส ${target.caseId}?\nผล Approved / Rejected เดิม คะแนน และประวัติจะคงอยู่`
+    )) return;
+
+    setBusy(true);
+    try {
+      const latestLogs = await fetchAppealEvents([
+        "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
+        "appeal_additional_round_opened", "appeal_additional_round_cancelled",
+        "appeal_additional_evidence_submitted",
+      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
+      const current = buildAppealRequests(latestLogs).find(item => item.requestId === target.requestId);
+      if (!current?.additionalRound || current.additionalRound.roundId !== round.roundId ||
+          current.reviewId !== target.reviewId) {
+        setLogs(latestLogs);
+        setMessage("รอบอุทธรณ์มีการเปลี่ยนแปลง กรุณาตรวจสอบข้อมูลล่าสุดก่อนยกเลิก");
+        return;
+      }
+      const saved = await writeAppealEvent(currentUser, "appeal_additional_round_cancelled", {
+        tab: "appeal-requests",
+        case_id: target.caseId,
+        target_agent: target.agent,
+        details: {
+          requestId: target.requestId,
+          roundId: round.roundId,
+          caseId: target.caseId,
+          cancelledAt: new Date().toISOString(),
+          cancelledBy: String(currentUser?.displayName || currentUser?.username || ""),
+          reason: trimmedReason,
+          previousReviewId: target.reviewId || "",
+        },
+      });
+      if (!saved) throw new Error("QA cannot cancel additional appeal round");
+      await loadRequests();
+      setMessage(`ยกเลิกเฉพาะรอบเพิ่มเติมของ ${target.caseId} แล้ว ผลพิจารณาและคะแนนเดิมคงอยู่`);
+      onTasksChanged?.();
+    } catch (error) {
+      console.error("Cancel additional appeal round failed", error);
+      setMessage("ยกเลิกรอบเพิ่มเติมไม่สำเร็จ กรุณาลองอีกครั้ง");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const resetRequest = async () => {
     if (!allowReview || !selectedRequest || busy) return;
     const confirmed = window.confirm(`Reset appeal request for ${selectedRequest.caseId}? This will allow the case owner to submit a new appeal request again.`);
@@ -1009,7 +1094,7 @@ export default function AppealRequestsMockup({
     }
   };
 
-  const pendingCount = requests.filter((item) => item.status === "Pending").length;
+  const pendingCount = requests.filter((item) => item.status === "Pending" || Boolean(item.additionalRound?.submitted)).length;
   const reviewedCount = reviewedRequests.length;
   const resetCount = resetRequests.length;
 
@@ -1468,6 +1553,13 @@ export default function AppealRequestsMockup({
                       <div className="mt-2 text-xs font-bold text-sky-900">
                         Topic {selectedRequest.additionalRound.topics.map(topic => topic.code).join(", ")}
                       </div>
+                      {allowReview ? (
+                        <button type="button" disabled={busy}
+                          onClick={() => void cancelAdditionalRound()}
+                          className="mt-3 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+                          ยกเลิกรอบอุทธรณ์เพิ่มเติม
+                        </button>
+                      ) : null}
                       <div className="mt-3 rounded-xl bg-white p-3 text-sm font-semibold text-sky-800">
                         {selectedRequest.additionalRound.submitted
                           ? "ได้รับเหตุผลและหลักฐานเพิ่มเติมแล้ว QA สามารถพิจารณารอบนี้ได้"
@@ -1574,6 +1666,21 @@ export default function AppealRequestsMockup({
                         </div>
                       )}
                     </div>
+                  ) : null}
+                  {selectedRequest.cancelledAdditionalRounds?.length ? (
+                    <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                        ประวัติยกเลิกรอบอุทธรณ์เพิ่มเติม ({selectedRequest.cancelledAdditionalRounds.length})
+                      </summary>
+                      <div className="mt-3 space-y-2">
+                        {selectedRequest.cancelledAdditionalRounds.map(item => (
+                          <div key={item.roundId} className="rounded-lg border border-slate-200 bg-white p-3 text-xs leading-6">
+                            <div>ยกเลิกโดย {item.cancelledBy || "QA"} · {formatDateTime(item.cancelledAt)}</div>
+                            <div className="whitespace-pre-wrap font-semibold">{item.reason || "-"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   ) : null}
                   {selectedRequest.reviewHistory.length > 0 && (
                     <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
