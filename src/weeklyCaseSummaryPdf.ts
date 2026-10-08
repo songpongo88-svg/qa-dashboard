@@ -1,9 +1,10 @@
+import { formatPdfDate } from "./lib/pdfDates";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 
 function caseDate(item: any) {
-  return String(item?.caseDate || item?.auditDate || item?.evaluationAuditDate || "-");
+  return formatPdfDate(item?.caseDate || item?.auditDate || item?.evaluationAuditDate);
 }
 
 function activeTopics(item: any) {

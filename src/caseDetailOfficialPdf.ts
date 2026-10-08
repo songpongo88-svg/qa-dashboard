@@ -1,3 +1,4 @@
+import { formatPdfDate, formatPdfDateOrTime, formatPdfDateTime } from "./lib/pdfDates";
 ﻿import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
@@ -701,9 +702,7 @@ export async function generateOfficialCaseDetailPdf({
   };
 
   const formatCallDateForPdf = (value: unknown) => {
-    const raw = safeText(value, "");
-    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    return match ? `${match[3]}/${match[2]}/${match[1]}` : raw;
+    return formatPdfDate(value, "");
   };
 
   const drawCallLogSection = () => {
@@ -776,11 +775,11 @@ export async function generateOfficialCaseDetailPdf({
     value(6, y, 2, firstSelectionRowH, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 7.4 });
     y += firstSelectionRowH;
 
-    const auditText = caseItem.auditTimestamp || caseItem.auditDate;
-    const lastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
+    const auditText = formatPdfDateOrTime(caseItem.auditTimestamp || caseItem.auditDate);
+    const lastUpdatedText = formatPdfDateTime(caseItem.lastUpdatedAt, "");
     const auditLabelText = lastUpdatedText ? "Audit Date\nLast Updated" : "Audit Date";
     const auditValueText = lastUpdatedText ? `${auditText}\n${lastUpdatedText}` : auditText;
-    const caseDateText = caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp || "-";
+    const caseDateText = formatPdfDate(caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp);
     const secondSelectionRowH = autoRowHeight(
       [
         { value: auditValueText, w: wOf(1), size: 6.2, padY: lastUpdatedText ? 5.2 : 4 },
@@ -904,8 +903,8 @@ export async function generateOfficialCaseDetailPdf({
     value(6, y, 2, appealSelectionRowH, caseItem.appealVersion || "REV1", LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 7.2 });
     y += appealSelectionRowH;
 
-    const appealAuditText = caseItem.auditTimestamp || caseItem.auditDate;
-    const appealLastUpdatedText = safeText(caseItem.lastUpdatedAt, "");
+    const appealAuditText = formatPdfDateOrTime(caseItem.auditTimestamp || caseItem.auditDate);
+    const appealLastUpdatedText = formatPdfDateTime(caseItem.lastUpdatedAt, "");
     const appealAuditLabelText = appealLastUpdatedText ? "Audit Date\nLast Updated" : "Audit Date";
     const appealAuditValueText = appealLastUpdatedText ? `${appealAuditText}\n${appealLastUpdatedText}` : appealAuditText;
     const appealSecondRowH = autoRowHeight(

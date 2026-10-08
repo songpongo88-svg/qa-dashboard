@@ -1,3 +1,4 @@
+import { formatPdfDate } from "./lib/pdfDates";
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -20,7 +21,7 @@ function toDate(v: unknown) {
 function weekStart(d: Date) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = x.getDay(); x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day)); return x; }
 function weekKey(d: Date) { return weekStart(d).toISOString().slice(0, 10); }
 function addDays(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
-function dLabel(d: Date) { return d.toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" }); }
+function dLabel(d: Date) { return formatPdfDate(d); }
 function wLabel(w: string) { if (!w) return "-"; const s = new Date(`${w}T00:00:00`); return `${dLabel(s)} - ${dLabel(addDays(s, 6))}`; }
 function avg(a: number[]) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0; }
 

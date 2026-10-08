@@ -1,3 +1,4 @@
+import { formatPdfDate } from "./lib/pdfDates";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
@@ -3970,8 +3971,8 @@ export default function CorporateUserDirectoryProfile({
     if (kind !== "offboarding") {
       section("Account Lifecycle");
       add("Status", lifecycleLabel(savedMeta.lifecycleMode, user.status));
-      add("Effective Date", thaiDate(savedMeta.effectiveDate));
-      add("End Date", thaiDate(savedMeta.endDate));
+      add("Effective Date", formatPdfDate(savedMeta.effectiveDate));
+      add("End Date", formatPdfDate(savedMeta.endDate));
       add("Reason", savedMeta.suspendReason);
       add("Approver", savedMeta.approver);
     }

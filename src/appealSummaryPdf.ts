@@ -1,3 +1,4 @@
+import { formatPdfDate, formatPdfDateTime } from "./lib/pdfDates";
 import { getAppealTopicDecision, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
@@ -230,10 +231,10 @@ export async function generateAppealSummaryPdf(input: GenerateAppealSummaryPdfIn
   const rightX = margin + 9 + colW;
   drawLabelValue(leftX, y + 7, colW - 4, "Case ID", input.caseId);
   drawLabelValue(rightX, y + 7, colW - 4, "Agent", input.agent);
-  drawLabelValue(leftX, y + 18, colW - 4, "Case Date", input.caseDate);
+  drawLabelValue(leftX, y + 18, colW - 4, "Case Date", formatPdfDate(input.caseDate));
   drawLabelValue(rightX, y + 18, colW - 4, "Month / Period", input.monthLabel);
-  drawLabelValue(leftX, y + 29, colW - 4, "Appeal Submit", input.appealSubmitDateTime || "-");
-  drawLabelValue(rightX, y + 29, colW - 4, "Appeal Result", input.appealResultDateTime || "-");
+  drawLabelValue(leftX, y + 29, colW - 4, "Appeal Submit", formatPdfDateTime(input.appealSubmitDateTime));
+  drawLabelValue(rightX, y + 29, colW - 4, "Appeal Result", formatPdfDateTime(input.appealResultDateTime));
   drawLabelValue(leftX, y + 40, colW - 4, "Decision", input.appealDecision);
   drawLabelValue(rightX, y + 40, colW - 4, "Appeal Round", String(input.appealRound || 1));
   y += 52;

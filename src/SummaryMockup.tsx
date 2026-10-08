@@ -1,3 +1,4 @@
+import { formatPdfDateTime } from "./lib/pdfDates";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
@@ -6258,7 +6259,7 @@ export default function SummaryMockup({
       "Total Incentive": formatCurrencyTHB(getTotalIncentiveForCases(filteredCases)),
       "Overall Grade": summaryCards.grade,
       "Exported By": String(currentUser?.displayName || currentUser?.username || "-"),
-      "Exported At": new Date().toLocaleString("en-GB"),
+      "Exported At": formatPdfDateTime(new Date()),
     }]);
     const caseSheet = XLSX.utils.json_to_sheet(filteredCases.length ? filteredCases.map((item) => ({
       "Case ID": item.caseId,
@@ -6654,7 +6655,7 @@ export default function SummaryMockup({
       ],
       [
         "Generated On",
-        new Date().toLocaleString("en-GB"),
+        formatPdfDateTime(new Date()),
         "Report Mode",
         isComparisonMode ? "Comparison" : "Single Period",
       ],

@@ -63,13 +63,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
     return pdf.splitTextToSize(String(value ?? "-"), Math.max(4, width));
   };
 
-  const shortDate = (value: unknown) => {
-    const raw = String(value || "").trim();
-    if (!raw) return "-";
-    const date = new Date(raw);
-    if (Number.isNaN(date.getTime())) return raw;
-    return date.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
-  };
+  const shortDate = (value: unknown) => formatPdfDate(value);
 
   const drawHeader = () => {
     pdf.setFillColor(purple[0], purple[1], purple[2]);

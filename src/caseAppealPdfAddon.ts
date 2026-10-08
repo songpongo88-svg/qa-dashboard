@@ -1,3 +1,4 @@
+import { formatPdfDateTime } from "./lib/pdfDates";
 import { getAppealTopicDecision } from "./appealReview";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { richTextToPlainText } from "./richText";
@@ -53,26 +54,7 @@ function pdfHtml(value: unknown, fallback = "-") {
 }
 
 function formatBangkokDateTime(value: unknown) {
-  const raw = plain(value, "");
-  if (!raw) return "";
-
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return raw;
-
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Bangkok",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((item) => item.type === type)?.value || "";
-
-  return `${part("day")}/${part("month")}/${part("year")} ${part("hour")}:${part("minute")}:${part("second")}`;
+  return formatPdfDateTime(value, "");
 }
 
 function numeric(value: unknown, fallback = 0) {
