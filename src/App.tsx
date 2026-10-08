@@ -4597,9 +4597,9 @@ export default function App() {
   const trainingAttendanceAllowed = Boolean(currentUser) && (viewTrainingCheckInAllowed || viewTrainingAttendanceAllowed);
   const appealReviewActionAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "reviewAppeals") : false;
   // Senior can respond to internal QA discussion but cannot edit appeal decisions.
-  const appealRequestsAllowed = appealReviewActionAllowed || currentUser?.role === "Senior";
+  const appealRequestsAllowed = appealReviewActionAllowed || ["Senior", "Supervisor"].includes(String(currentUser?.role || ""));
   const appealSeniorAgentNames = useMemo(() => {
-    if (currentUser?.role !== "Senior") return null;
+    if (!["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return null;
     const seniorAccount = effectiveUserAccounts.find(account =>
       account.username.toLowerCase() === String(currentUser.username || "").toLowerCase()
     );
@@ -4614,23 +4614,18 @@ export default function App() {
       })
       .flatMap(account => [account.agentName, account.displayName].map(value => String(value || "").trim()).filter(Boolean));
   }, [currentUser, effectiveUserAccounts]);
+  // All active Senior and Supervisor accounts are available as discussion recipients.
+  // Selecting a recipient grants discussion access, not score/review permissions.
   const appealSeniorOptions = useMemo(() =>
     effectiveUserAccounts
-      .filter(account => account.role === "Senior")
-      .map(account => {
-        const team = String(account.teamName || "").trim().toLowerCase();
-        const name = String(account.agentName || account.displayName || "").trim().toLowerCase();
-        const agentNames = effectiveUserAccounts
-          .filter(member =>
-            (Boolean(team) && String(member.teamName || "").trim().toLowerCase() === team) ||
-            (Boolean(name) && String(member.teamLead || "").trim().toLowerCase() === name))
-          .flatMap(member => [member.agentName, member.displayName].map(value => String(value || "").trim()).filter(Boolean));
-        return {
-          username: account.username,
-          displayName: account.displayName || account.agentName || account.username,
-          agentNames,
-        };
-      }),
+      .filter(account => ["Senior", "Supervisor"].includes(String(account.role || "")))
+      .map(account => ({
+        username: account.username,
+        displayName: account.displayName || account.agentName || account.username,
+        role: String(account.role || ""),
+      }))
+      .sort((left, right) => left.role.localeCompare(right.role) ||
+        left.displayName.localeCompare(right.displayName)),
     [effectiveUserAccounts]
   );
   const appealOverrideAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "appealOverride") : false;
