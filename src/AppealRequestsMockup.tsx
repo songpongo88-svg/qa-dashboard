@@ -831,7 +831,7 @@ export default function AppealRequestsMockup({
                           </div>
                           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
                             <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-700">Appeal Reason</div>
-                            {topic.appealReason || "-"}
+                            <div className="whitespace-pre-wrap break-words">{topic.appealReason || "-"}</div>
                             <AppealEvidenceGallery images={topic.evidenceImages || []} />
                           </div>
                         </div>

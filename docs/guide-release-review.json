@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T04:05:45.808Z",
-  "reason": "Reviewed October SLA rubric conditions, September cutoff, unchanged score weights, historical references and Evaluate Audit Date selection.",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "rubrics"
-  ],
+  "reviewedAt": "2026-10-08T04:32:49.901Z",
+  "reason": "Reviewed Appeal Reason and Investigation Findings web-only line-break preservation; Case Detail PDF rendering remains unchanged.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
   },
@@ -56,7 +54,7 @@
     "build/evaluationAgentFocusPopupPatch.js": "1fd27ed287c97fad494e2dead5f81a73c8cbfb0078e88d336d6dc07d74f6a07d",
     "build/finalSignedPdfDateFormatPatch.js": "69c7073d0c42d9f1d3f1bd7314c108b99d265245829c0c410d06810a26f9b535",
     "build/firestoreQuotaProtectionPatch.js": "edb2dc177016fffe6493501bc5c3b21cd7409ab85cb1d24730a7dc541a5aa997",
-    "build/investigationFindingsPatch.js": "b15d2671da2c1cd00ccb0726498aa16e26cac2c38c4bac61ccf093e053ab001f",
+    "build/investigationFindingsPatch.js": "1dfab6b2b39fc31fe57405a09b637068fee5281a92478abab63ff24939d29f0b",
     "build/officialPdfStandardsPatch.js": "d1f3f38ea5981963928325919f58ae18cd62f561cccaed6e4079c4c81dc8ec23",
     "build/processReferenceNotePdfPatch.js": "1776b99cc4842a56add8b0c5e80c1a0ac94c5cca7d1f5dd20c625a858a00603b",
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
@@ -317,7 +315,7 @@
     "src/AppealEvidence.tsx": "9c6f52b1b5ffeeda232260f0f8eb3772aff83cc7fd7b7caf1cfed3a3018bb919",
     "src/AppealMockup.tsx": "6a797ff168d961287277792e932ec7cf111c175ed74554941c4b30472e389a14",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
-    "src/AppealRequestsMockup.tsx": "952aa8a5ac9ebcd54ebe7e03358988e8c5092183a82ae6f2e1347853249e8295",
+    "src/AppealRequestsMockup.tsx": "6e1663d99696baaf10adc6724815cccd397cea9da4040906b20e0b229c5e0d22",
     "src/AppealReviewDialog.tsx": "9fd7486c9e03008c5c11db0f9be597c56bbe36d810d0e5922ee85f8244fa4af9",
     "src/AppealScoreHoldNotice.tsx": "efad66ceace2acc153516f5aec423a51934b6ec36651a76afabf016c0075caf8",
     "src/AutoDeployRefresh.tsx": "1e7cb76eb6f7f5dc368f109fbae6a02afd67b3782e07f86c3b9a2e97f259ffab",
@@ -377,7 +375,7 @@
     "src/dashboardShortcuts.css": "f6b4ec63f9f99e58337fcbf1890a91d68c1ac92c898a611238b8c0204f3d0362",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
-    "src/evaluationStore.ts": "31ca61cc196794e7feede827917f020479e12285ad979caddac4b72b27922492",
+    "src/evaluationStore.ts": "dd14b9ef12fc9e9873eb1d37c70e32bb4309d3ac4e9d1bffff7691efb70b7eef",
     "src/evaluationTagStore.ts": "55f956c44387922ab93b4a1e55c2c696a958f977b731a5d08fb7e52816f48ed2",
     "src/evidencePreviewPdf.ts": "53a344d00db402295f7f3ae8defa99443e6f00e7973fd264396cfd9154c88f8d",
     "src/finalSignedCasePdf.ts": "f99fd97a35ab570d3091b65b5c5b842cbfe87c1d6f00e70c9eacec67fa8ed342",
