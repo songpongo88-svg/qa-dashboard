@@ -53,6 +53,7 @@ export const APPEAL_EVENT_TYPES = new Set([
   "appeal_request_submitted",
   "appeal_request_reviewed",
   "appeal_request_reset",
+  "appeal_internal_message",
   "appeal_case_override_added",
   "appeal_case_override_removed",
 ]);
@@ -157,6 +158,7 @@ export async function writeAppealEvent(
   payload: Partial<AppealLogEvent> = {}
 ) {
   if (!user || !isAppealEventType(eventType)) return false;
+  if (eventType === "appeal_internal_message" && !["Senior", "Quality Assurance"].includes(String(user.role || ""))) return false;
 
   if (eventType === "appeal_request_submitted" || eventType === "appeal_request_reviewed") {
     const [checked] = await checkAppealSourceCases([{ ...payload, event_type: eventType }]);
@@ -171,7 +173,11 @@ export async function writeAppealEvent(
   const reviewId = eventType === "appeal_request_reviewed"
     ? String(details.reviewId || `${Date.now()}-${crypto.randomUUID()}`)
     : "";
-  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}`);
+  const messageId = eventType === "appeal_internal_message" ? String(details.messageId || "") : "";
+  if (eventType === "appeal_internal_message" && !/^[a-zA-Z0-9_-]{8,100}$/.test(messageId)) {
+    throw new Error("Internal appeal message requires a unique message ID");
+  }
+  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}`);
   const reviewerNameCandidates = [user.agentName, user.displayName]
     .map((value) => canonicalizeAgentName(value || ""))
     .filter(Boolean)
