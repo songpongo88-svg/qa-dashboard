@@ -126,7 +126,9 @@ try {
   assert.ok(document.body.textContent.includes("Revised 3"));
   console.log("PASS Case Detail renders each topic's decision and correct approval/rejection comment");
 
-  globalThis.__appealFixtureLogs = [submission];
+  const olderSubmission={...submission,id:'older-submission',case_id:'AA990069',created_at:'2026-10-07T01:00:00Z',details:{...submission.details,requestId:'older-appeal',submittedAt:'2026-10-07T01:00:00Z'}};
+  const newerSubmission={...submission,id:'newer-submission',case_id:'AA990071',created_at:'2026-10-07T03:00:00Z',details:{...submission.details,requestId:'newer-appeal',submittedAt:'2026-10-07T03:00:00Z'}};
+  globalThis.__appealFixtureLogs = [newerSubmission,submission,olderSubmission];
   globalThis.__appealFixtureWrites = [];
   const output = resolve(temp, "review.mjs");
   await build({ entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-storage-boundary", setup(builder) {
@@ -145,6 +147,12 @@ try {
   const { default: ReviewComponent } = await import(pathToFileURL(output).href);
   await act(async () => root.render(React.createElement(ReviewComponent, { currentUser: { username: "fixture-qa", displayName: "Test Reviewer" }, externalRequestId: submission.details.requestId })));
   const click = async element => { assert.ok(element, "UI element exists"); await act(async () => element.dispatchEvent(new MouseEvent("click", { bubbles: true }))); };
+  const requestRows=[...document.querySelectorAll('tbody tr')].filter(row=>/AA9900(?:69|70|71)/.test(row.textContent));
+  const orderedCases=(requestRows.length ? requestRows : [...document.querySelectorAll('button')]).map(node=>node.textContent.match(/AA9900(?:69|70|71)/)?.[0]).filter(Boolean);
+  assert.deepEqual(orderedCases,['AA990069','AA990070','AA990071'],'Appeal Review renders oldest submissions first regardless of database order');
+  globalThis.__appealFixtureLogs=[submission];
+  await act(async()=>window.dispatchEvent(new CustomEvent('qa-dashboard-data-refresh')));
+  console.log('PASS actual Appeal Review orders requests by submission time, oldest first');
   if (!document.querySelector('[role="group"]')) await click([...document.querySelectorAll("button")].find(button => button.textContent.includes(submission.case_id)));
   const groups = () => [...document.querySelectorAll('[role="group"]')].filter(node => node.getAttribute("aria-label").startsWith("ผลพิจารณาหัวข้อ"));
   assert.equal(groups().length, 3);
