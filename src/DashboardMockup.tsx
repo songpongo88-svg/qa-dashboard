@@ -2545,7 +2545,6 @@ function CaseDetailIssueTags({ tags }: { tags: string[] }) {
 }
 
 function CaseDetailTopicTable({
-  caseId,
   topics,
   revisedTopics,
   reviewStatus,
@@ -2559,7 +2558,6 @@ function CaseDetailTopicTable({
   originalQaName,
   originalAuditDate,
 }: {
-  caseId: string;
   topics: Topic[];
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
@@ -5023,7 +5021,6 @@ function SlideOverCaseDetail({
               ) : null}
               <CaseDetailTopicTable
                 key={caseItem.key}
-                caseId={caseItem.caseId}
                 topics={caseItem.topics}
                 revisedTopics={caseItem.revisedTopics}
                 reviewStatus={caseItem.reviewStatus}
