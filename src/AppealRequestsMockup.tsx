@@ -240,13 +240,26 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const reviewTopics = Array.isArray(review?.details?.topics) ? (review?.details?.topics as AppealTopic[]) : null;
       const baseTopics = Array.isArray(log.details?.topics) ? (log.details?.topics as AppealTopic[]) : [];
       const reviewDecision = String(review?.details?.decision || "");
-      const appealedTopics = (baseTopics.length
-        ? baseTopics.map(original => ({ ...original, ...(reviewTopics?.find(topic => topic.code === original.code) || {}) }))
-        : reviewTopics || [])
+      // A reviewed additional round may include a topic absent from the original
+      // submission. Merge by code instead of dropping new topics or doubling deltas.
+      const sourceTopics = baseTopics.length
+        ? [
+            ...baseTopics.map(original => ({
+              ...original,
+              ...(reviewTopics?.find(topic => topic.code === original.code) || {}),
+            })),
+            ...(reviewTopics || []).filter(topic => !baseTopics.some(original => original.code === topic.code)),
+          ]
+        : reviewTopics || [];
+      const appealedTopics = sourceTopics
         .filter(isAppealedTopic)
         .map((topic) => {
           const original = baseTopics.find(item => item.code === topic.code);
-          topic = { ...topic, evidenceImages: original?.evidenceImages || topic.evidenceImages || [], qaEvidenceImages: topic.qaEvidenceImages || [] };
+          topic = {
+            ...topic,
+            evidenceImages: topic.evidenceImages?.length ? topic.evidenceImages : original?.evidenceImages || [],
+            qaEvidenceImages: topic.qaEvidenceImages || [],
+          };
           const decision = review ? getAppealTopicDecision(topic, reviewDecision) : undefined;
           topic = { ...topic, decision };
           if (decision !== "Rejected") return topic;
@@ -771,6 +784,7 @@ export default function AppealRequestsMockup({
       code: topic.code, label: topic.label, score: topic.score, max: topic.max,
       comment: String(topic.comment || ""), wantsAppeal: true,
       appealReason: String(topic.appealReason || ""), decision: topic.decision,
+      evidenceImages: Array.isArray(topic.evidenceImages) ? topic.evidenceImages : [],
       qaEvidenceImages: Array.isArray(topic.qaEvidenceImages) ? topic.qaEvidenceImages : [],
       ...(topic.decision === "Approved"
         ? { revisedScore: topic.revisedScore, revisedComment: topic.revisedComment, rejectReason: "" }
