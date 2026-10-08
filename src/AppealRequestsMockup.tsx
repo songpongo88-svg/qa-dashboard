@@ -32,6 +32,15 @@ const DEFAULT_ADDITIONAL_APPEAL_REASONS = [
   "ตรวจพบข้อมูลหรือคะแนนที่อาจคลาดเคลื่อน",
   "ได้รับคำขอตรวจสอบเพิ่มเติมจาก Senior / Supervisor",
 ] as const;
+export const ADDITIONAL_APPEAL_WINDOW_MS = 72 * 60 * 60 * 1000;
+export function appealAdditionalDeadline(openedAt: string): string {
+  const opened = Date.parse(String(openedAt || ""));
+  return Number.isFinite(opened) ? new Date(opened + ADDITIONAL_APPEAL_WINDOW_MS).toISOString() : "";
+}
+export function isAdditionalAppealExpired(openedAt: string, asOf = Date.now()): boolean {
+  const deadline = Date.parse(appealAdditionalDeadline(openedAt));
+  return Number.isFinite(deadline) && asOf >= deadline;
+}
 const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
 const LEGACY_NO_APPEAL_TEXT = "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน";
 
@@ -58,6 +67,8 @@ type AppealRequest = {
   reviewId?: string;
   reviewVersion?: number;
   reviewHistory: AppealReviewHistoryItem[];
+  lastAdditionalStatus?: "Pending (Additional)" | "Cancelled (Additional)" | "Expired (Additional)" | "";
+  additionalHistory?: { roundId: string; openedAt: string; submittedAt: string; reviewedAt: string; closedStatus: string }[];
   cancelledAdditionalRounds?: {
     roundId: string;
     reason: string;
@@ -68,6 +79,7 @@ type AppealRequest = {
   additionalRound?: {
     roundId: string;
     openedAt: string;
+    expiresAt: string;
     openedBy: string;
     note: string;
     topics: AppealTopic[];
@@ -183,6 +195,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
   const resets = new Map<string, UsageLogEvent>();
   const openedRounds = new Map<string, UsageLogEvent[]>();
   const cancelledRounds = new Map<string, UsageLogEvent[]>();
+  const expiredRounds = new Map<string, UsageLogEvent[]>();
   const submittedEvidence = new Map<string, UsageLogEvent[]>();
   const eventTime = (log: UsageLogEvent) => {
     const parsed = new Date(String(log.created_at || log.details?.reviewedAt || log.details?.resetAt || "")).getTime();
@@ -199,6 +212,11 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const history = cancelledRounds.get(requestId) || [];
       history.push(log);
       cancelledRounds.set(requestId, history);
+    }
+    if (log.event_type === "appeal_additional_round_expired" && requestId) {
+      const history = expiredRounds.get(requestId) || [];
+      history.push(log);
+      expiredRounds.set(requestId, history);
     }
     if (log.event_type === "appeal_additional_evidence_submitted" && requestId) {
       const history = submittedEvidence.get(requestId) || [];
@@ -234,19 +252,34 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         );
       const roundAlreadyReviewed = Boolean(latestRoundId) &&
         history.some(item => String(item.details?.roundId || "") === latestRoundId);
+      const latestOpenedAt = String(latestRound?.details?.openedAt || latestRound?.created_at || "");
+      const latestExpiresAt = String(latestRound?.details?.expiresAt || appealAdditionalDeadline(latestOpenedAt));
+      const latestExpiryMs = Date.parse(latestExpiresAt);
       const additionalSubmission = latestRoundId
         ? [...(submittedEvidence.get(requestId) || [])]
-            .filter(item => String(item.details?.roundId || "") === latestRoundId)
+            .filter(item =>
+              String(item.details?.roundId || "") === latestRoundId &&
+              (!Number.isFinite(latestExpiryMs) || eventTime(item) <= latestExpiryMs)
+            )
             .sort((a, b) => eventTime(b) - eventTime(a))[0]
         : undefined;
+      const roundWasExpired = Boolean(latestRoundId) && !additionalSubmission && !roundAlreadyReviewed &&
+        ((Number.isFinite(latestExpiryMs) && Date.now() >= latestExpiryMs) ||
+          (expiredRounds.get(requestId) || []).some(item => String(item.details?.roundId || "") === latestRoundId));
+      const lastAdditionalStatus: AppealRequest["lastAdditionalStatus"] = !latestRoundId || roundAlreadyReviewed
+        ? ""
+        : roundWasCancelled ? "Cancelled (Additional)"
+        : roundWasExpired ? "Expired (Additional)"
+        : additionalSubmission ? "Pending (Additional)" : "";
       const openTopics = Array.isArray(latestRound?.details?.topics)
         ? latestRound.details.topics as AppealTopic[] : [];
       const submittedTopics = Array.isArray(additionalSubmission?.details?.topics)
         ? additionalSubmission.details.topics as AppealTopic[] : [];
-      const additionalRound = !roundAlreadyReviewed && !roundWasCancelled && latestRoundId && history.length && !reset
+      const additionalRound = !roundAlreadyReviewed && !roundWasCancelled && !roundWasExpired && latestRoundId && history.length && !reset
         ? {
             roundId: latestRoundId,
-            openedAt: String(latestRound?.details?.openedAt || latestRound?.created_at || ""),
+            openedAt: latestOpenedAt,
+            expiresAt: latestExpiresAt,
             openedBy: String(latestRound?.details?.openedBy || latestRound?.display_name || ""),
             note: String(latestRound?.details?.note || ""),
             submitted: Boolean(additionalSubmission),
@@ -342,6 +375,25 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         reviewId: String(review?.details?.reviewId || review?.id || ""),
         reviewVersion: toNumber(review?.details?.reviewVersion, history.length),
         additionalRound,
+        lastAdditionalStatus: isResetAfterSubmit ? "" : lastAdditionalStatus,
+        additionalHistory: (openedRounds.get(requestId) || []).map(opened => {
+          const roundId = String(opened.details?.roundId || "");
+          const submission = (submittedEvidence.get(requestId) || [])
+            .find(event => String(event.details?.roundId || "") === roundId);
+          const reviewed = history.find(event => String(event.details?.roundId || "") === roundId);
+          const cancelled = (cancelledRounds.get(requestId) || []).find(event => String(event.details?.roundId || "") === roundId);
+          const expired = (expiredRounds.get(requestId) || []).find(event => String(event.details?.roundId || "") === roundId);
+          return {
+            roundId,
+            openedAt: String(opened.details?.openedAt || opened.created_at || ""),
+            submittedAt: String(submission?.details?.submittedAt || submission?.created_at || ""),
+            reviewedAt: String(reviewed?.details?.reviewedAt || reviewed?.created_at || ""),
+            closedStatus: reviewed ? String(reviewed.details?.decision || "Reviewed") :
+              cancelled ? "Cancelled (Additional)" : expired ? "Expired (Additional)" :
+              (roundId === latestRoundId && roundWasExpired) ? "Expired (Additional)" :
+              submission ? "Pending (Additional)" : "Opened",
+          };
+        }),
         cancelledAdditionalRounds: (cancelledRounds.get(requestId) || [])
           .slice()
           .sort((a, b) => eventTime(b) - eventTime(a))
@@ -621,8 +673,9 @@ export default function AppealRequestsMockup({
     return () => { cancelled = true; };
   }, [allowReview]);
 
-  const pendingRequests = requests.filter(item => item.status === "Pending" || Boolean(item.additionalRound?.submitted));
-  const reviewedRequests = requests.filter(item => !item.additionalRound?.submitted && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
+  const pendingRequests = requests.filter(item => item.status === "Pending" || item.lastAdditionalStatus === "Pending (Additional)");
+  const reviewedRequests = requests.filter(item =>
+    !item.lastAdditionalStatus && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
   const resetRequests = requests.filter((item) => item.status === "Reset");
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
@@ -647,6 +700,7 @@ export default function AppealRequestsMockup({
         "appeal_request_reset",
         "appeal_additional_round_opened",
         "appeal_additional_round_cancelled",
+        "appeal_additional_round_expired",
         "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
       return true;
@@ -753,7 +807,7 @@ export default function AppealRequestsMockup({
     try {
       const freshLogs = await fetchAppealEvents([
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
-        "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_evidence_submitted",
+        "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const fresh = buildAppealRequests(freshLogs).find(row => row.requestId === current.requestId);
       if (!fresh || fresh.status === "Reset" || fresh.additionalRound ||
@@ -914,7 +968,7 @@ export default function AppealRequestsMockup({
     try {
       const latestLogs = await fetchAppealEvents([
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
-        "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_evidence_submitted",
+        "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(latestLogs).find(item => item.requestId === preview.requestId);
       if (latestLogs.some(log => log.source_case_unavailable && String(log.details?.requestId || "") === preview.requestId)) {
@@ -1094,7 +1148,7 @@ export default function AppealRequestsMockup({
     }
   };
 
-  const pendingCount = requests.filter((item) => item.status === "Pending" || Boolean(item.additionalRound?.submitted)).length;
+  const pendingCount = pendingRequests.length;
   const reviewedCount = reviewedRequests.length;
   const resetCount = resetRequests.length;
 
