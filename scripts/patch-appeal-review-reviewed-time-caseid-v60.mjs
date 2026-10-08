@@ -23,7 +23,7 @@ function patchAppealReview() {
   source = replaceRequired(source, helperAnchor, helper + helperAnchor, "Case ID helper");
 
   // Add Reviewed Date & Time in Information directly after Submitted Date & Time.
-  const infoSubmitted = `<div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Submitted Date & Time</div><div className="font-semibold text-slate-900">{formatDateTime(selectedRequest.submittedAt)}</div></div>`;
+  const infoSubmitted = `<div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Original Appeal Submit</div><div className="font-semibold text-slate-900">{formatDateTime(selectedRequest.submittedAt)}</div></div>`;
   source = replaceRequired(
     source,
     infoSubmitted,
@@ -49,7 +49,7 @@ function patchAppealReview() {
 
   source = source.replace(`colSpan={8}`, `colSpan={9}`);
 
-  const submittedCell = `<td className="whitespace-nowrap px-2 py-3 text-[10px] text-slate-600">{formatDateTime(item.submittedAt)}</td>`;
+  const submittedCell = `<td className="whitespace-nowrap px-2 py-3 text-[10px] text-slate-600">{formatDateTime(item.additionalRound?.submittedAt || item.submittedAt)}</td>`;
   source = replaceRequired(
     source,
     submittedCell,
