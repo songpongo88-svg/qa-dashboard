@@ -144,6 +144,25 @@ function topicAppealReason(topic: any, revised: any, isRevised: boolean) {
   );
 }
 
+// Appeal images are stored in the submission event and uploaded as JPEG files.
+// Embed the bytes in PDFs rather than printing short-lived download URLs.
+async function loadAppealEvidenceJpeg(image: any): Promise<string> {
+  const id = String(image?.id || "").trim();
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("Invalid appeal evidence image ID");
+  const response = await fetch("/api/google-drive-download?inline=1&id=" + encodeURIComponent(id), {
+    credentials: "same-origin",
+  });
+  if (!response.ok) throw new Error(`Appeal evidence unavailable (HTTP ${response.status})`);
+  const blob = await response.blob();
+  if (!blob.size || blob.size > 5 * 1024 * 1024) throw new Error("Invalid appeal evidence image");
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read appeal evidence image"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function generateOfficialCaseDetailPdf({
   caseItem,
   currentUser,
@@ -1136,6 +1155,91 @@ export async function generateOfficialCaseDetailPdf({
       if (commentIndex < commentLines.length || appealIndex < appealLines.length) newTopicPage();
     }
   });
+
+  // Display appeal evidence for Approved, Rejected and Partially Approved
+  // without changing the original topic table or its QA assessment.
+  const appealEvidenceByTopic = new Map<string, any>();
+  for (const source of [
+    ...(Array.isArray(caseItem.appealReviewedTopics) ? caseItem.appealReviewedTopics : []),
+    ...(Array.isArray(caseItem.topics) ? caseItem.topics : []),
+  ]) {
+    const code = String(source?.code || "").trim();
+    if (code && !appealEvidenceByTopic.has(code) && Array.isArray(source?.evidenceImages) && source.evidenceImages.length) {
+      appealEvidenceByTopic.set(code, source);
+    }
+  }
+
+  if (appealEvidenceByTopic.size > 0) {
+    setWidths(topWidths);
+    if (bottom - y < 18) {
+      doc.addPage();
+      y = top;
+    }
+    y += 3;
+    purpleRow(y, 7, "Appeal Reason & Evidence Images");
+    y += 10;
+
+    for (const evidenceTopic of appealEvidenceByTopic.values()) {
+      if (bottom - y < 22) {
+        doc.addPage();
+        y = top;
+      }
+      purpleRow(y, 7, `Topic ${safeText(evidenceTopic.code)} - ${safeText(evidenceTopic.label)}`);
+      y += 9;
+      drawWideRichTextRow({
+        labelText: "Appeal Reason",
+        text: evidenceTopic.appealReason || "ไม่พบ Appeal Reason",
+        size: BODY_TEXT_SIZE,
+        leading: BODY_LINE_SPACING,
+        minH: 10,
+        padY: 4,
+      });
+      y += 2;
+
+      const images = evidenceTopic.evidenceImages as any[];
+      for (let index = 0; index < images.length; index += 1) {
+        const evidence = images[index];
+        let jpegData = "";
+        let loadError = "";
+        try {
+          jpegData = await loadAppealEvidenceJpeg(evidence);
+        } catch (error) {
+          loadError = error instanceof Error ? error.message : "Image unavailable";
+          console.warn("Cannot embed appeal evidence in PDF:", evidence?.id, error);
+        }
+
+        const originalW = Math.max(1, num(evidence?.width, 1));
+        const originalH = Math.max(1, num(evidence?.height, 1));
+        const availableW = fullW - 12;
+        const imageWidth = jpegData ? Math.min(availableW, 138 * originalW / originalH) : 0;
+        const imageHeight = jpegData ? imageWidth * originalH / originalW : 0;
+        const rowHeight = jpegData ? imageHeight + 12 : 23;
+
+        if (bottom - y < rowHeight + 2) {
+          doc.addPage();
+          y = top;
+        }
+        rect(left, y, fullW, rowHeight, WHITE);
+        const title = `Evidence Image ${index + 1}/${images.length}: ${safeText(evidence?.name, "image.jpg")}`;
+        writeText(title, left + 3, y + 1, fullW - 6, 7, {
+          size: BODY_TEXT_SIZE,
+          bold: true,
+          maxLines: 1,
+        });
+        if (jpegData) {
+          const imageX = left + (fullW - imageWidth) / 2;
+          doc.addImage(jpegData, "JPEG", imageX, y + 9, imageWidth, imageHeight);
+        } else {
+          writeText(`Unable to load attached image: ${loadError}`, left + 3, y + 9, fullW - 6, 12, {
+            size: BODY_TEXT_SIZE,
+            color: [180, 35, 35],
+          });
+        }
+        y += rowHeight + 3;
+      }
+      y += 2;
+    }
+  }
 
   return {
     blob: doc.output("blob"),
