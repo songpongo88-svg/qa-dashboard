@@ -52,6 +52,15 @@ type AppealRequest = {
   reviewVersion?: number;
   reviewHistory: AppealReviewHistoryItem[];
   topics: AppealTopic[];
+  additionalRound?: {
+    roundId: string;
+    openedAt: string;
+    openedBy: string;
+    note: string;
+    topics: AppealTopic[];
+    submitted: boolean;
+    submittedAt: string;
+  } | null;
 };
 
 type AppealReviewHistoryItem = {
@@ -159,12 +168,24 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
   logs = logs.filter(log => !log.source_case_unavailable);
   const reviews = new Map<string, UsageLogEvent[]>();
   const resets = new Map<string, UsageLogEvent>();
+  const openedRounds = new Map<string, UsageLogEvent[]>();
+  const submittedEvidence = new Map<string, UsageLogEvent[]>();
   const eventTime = (log: UsageLogEvent) => {
     const parsed = new Date(String(log.created_at || log.details?.reviewedAt || log.details?.resetAt || "")).getTime();
     return Number.isNaN(parsed) ? 0 : parsed;
   };
   logs.forEach((log) => {
     const requestId = getRequestId(log);
+    if (log.event_type === "appeal_additional_round_opened" && requestId) {
+      const history = openedRounds.get(requestId) || [];
+      history.push(log);
+      openedRounds.set(requestId, history);
+    }
+    if (log.event_type === "appeal_additional_evidence_submitted" && requestId) {
+      const history = submittedEvidence.get(requestId) || [];
+      history.push(log);
+      submittedEvidence.set(requestId, history);
+    }
     if (log.event_type === "appeal_request_reviewed" && requestId) {
       const history = reviews.get(requestId) || [];
       history.push(log);
@@ -185,6 +206,37 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const history = reviews.get(requestId) || [];
       const review = history[0];
       const reset = resets.get(requestId);
+      const latestRound = [...(openedRounds.get(requestId) || [])].sort((a,b) => eventTime(b)-eventTime(a))[0];
+      const latestRoundId = String(latestRound?.details?.roundId || "");
+      const roundAlreadyReviewed = Boolean(latestRoundId) &&
+        history.some(item => String(item.details?.roundId || "") === latestRoundId);
+      const additionalSubmission = latestRoundId
+        ? [...(submittedEvidence.get(requestId) || [])]
+            .filter(item => String(item.details?.roundId || "") === latestRoundId)
+            .sort((a, b) => eventTime(b) - eventTime(a))[0]
+        : undefined;
+      const openTopics = Array.isArray(latestRound?.details?.topics)
+        ? latestRound.details.topics as AppealTopic[] : [];
+      const submittedTopics = Array.isArray(additionalSubmission?.details?.topics)
+        ? additionalSubmission.details.topics as AppealTopic[] : [];
+      const additionalRound = !roundAlreadyReviewed && latestRoundId && history.length && !reset
+        ? {
+            roundId: latestRoundId,
+            openedAt: String(latestRound?.details?.openedAt || latestRound?.created_at || ""),
+            openedBy: String(latestRound?.details?.openedBy || latestRound?.display_name || ""),
+            note: String(latestRound?.details?.note || ""),
+            submitted: Boolean(additionalSubmission),
+            submittedAt: String(additionalSubmission?.details?.submittedAt || ""),
+            topics: openTopics.map(topic => ({
+              ...topic,
+              ...(submittedTopics.find(row => row.code === topic.code) || {}),
+              decision: undefined,
+              revisedScore: undefined,
+              revisedComment: "",
+              rejectReason: "",
+            })),
+          }
+        : null;
       const reviewTopics = Array.isArray(review?.details?.topics) ? (review?.details?.topics as AppealTopic[]) : null;
       const baseTopics = Array.isArray(log.details?.topics) ? (log.details?.topics as AppealTopic[]) : [];
       const reviewDecision = String(review?.details?.decision || "");
@@ -252,6 +304,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         submittedByUsername: String(log.details?.submittedByUsername || log.username || ""),
         reviewId: String(review?.details?.reviewId || review?.id || ""),
         reviewVersion: toNumber(review?.details?.reviewVersion, history.length),
+        additionalRound,
         reviewHistory: history.map(item => ({
           reviewId: String(item.details?.reviewId || item.id || item.created_at || ""),
           reviewedAt: firstStoredAppealDateTime(item.details?.reviewedAt, item.created_at),
