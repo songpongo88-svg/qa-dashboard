@@ -3910,6 +3910,7 @@ function SlideOverCaseDetail({
           "appeal_request_reviewed",
           "appeal_request_reset",
           "appeal_additional_round_opened",
+          "appeal_additional_round_cancelled",
           "appeal_additional_evidence_submitted",
         ], { limit: 2000, forceRefresh: true });
 
