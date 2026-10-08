@@ -74,8 +74,6 @@ function AppealEvidenceWatermark({ caseId }: { caseId?: string }) {
       aria-hidden="true"
       focusable="false"
       className="pointer-events-none absolute inset-0 h-full w-full select-none"
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
       style={{ opacity: 0.16 }}
     >
       <defs>
