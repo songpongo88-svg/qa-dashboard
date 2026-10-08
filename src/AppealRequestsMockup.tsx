@@ -5,7 +5,7 @@ import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNoti
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
-import { fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent } from "./appealStore";
+import { fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import PageHero from "./PageHero";
 import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 
@@ -384,6 +384,7 @@ export default function AppealRequestsMockup({
 }) {
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
   const [discussionLogs, setDiscussionLogs] = useState<UsageLogEvent[]>([]);
+  const [assignedRequestIds, setAssignedRequestIds] = useState<string[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [draftTopics, setDraftTopics] = useState<AppealTopic[]>([]);
   const decision = summarizeAppealDecisions(draftTopics.filter(isAppealedTopic));
@@ -408,8 +409,20 @@ export default function AppealRequestsMockup({
     const all = buildAppealRequests(logs);
     if (allowedAgentNames === null) return all;
     const agentKeys = new Set(allowedAgentNames.map(name => name.replace(/\s+/g, "").toLowerCase()));
-    return all.filter(request => agentKeys.has(String(request.agent || "").replace(/\s+/g, "").toLowerCase()));
-  }, [logs, allowedAgentNames]);
+    const invites = new Set(assignedRequestIds);
+    return all.filter(request =>
+      agentKeys.has(String(request.agent || "").replace(/\s+/g, "").toLowerCase()) ||
+      invites.has(request.requestId));
+  }, [logs, allowedAgentNames, assignedRequestIds]);
+
+  useEffect(() => {
+    if (!["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return;
+    let cancelled = false;
+    void fetchAssignedAppealRequestIds(String(currentUser?.username || ""))
+      .then(ids => { if (!cancelled) setAssignedRequestIds(ids); })
+      .catch(error => console.warn("Unable to load assigned appeal discussions", error));
+    return () => { cancelled = true; };
+  }, [currentUser?.role, currentUser?.username]);
   const discussionEvents = useMemo(() => discussionLogs
     .filter(log => log.event_type === "appeal_internal_message" &&
       String(log.details?.requestId || "") === selectedRequestId &&
