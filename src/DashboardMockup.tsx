@@ -25,7 +25,7 @@ import {
   type StoredEvaluation,
   type StoredEvaluationCallLog,
 } from "./evaluationStore";
-import { buildAppealRequests } from "./AppealRequestsMockup";
+import { appealAdditionalDeadline, buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
 import TestCaseBadge from "./TestCaseBadge";
@@ -116,6 +116,9 @@ type CaseItem = AppealScoreState & {
   appealStatus?: AppealDecision;
   appealReviewSummary?: string;
   appealSubmittedAt?: string;
+  appealAdditionalOpenedAt?: string;
+  appealAdditionalSubmittedAt?: string;
+  appealAdditionalReviewedAt?: string;
   appealReviewedAt?: string;
   appealSubmittedBy?: string;
   appealReviewedBy?: string;
@@ -182,6 +185,9 @@ type AppealOutcomeItem = {
   status: AppealDecision;
   reviewSummary: string;
   submittedAt: string;
+  additionalOpenedAt: string;
+  additionalSubmittedAt: string;
+  additionalReviewedAt: string;
   reviewedAt: string;
   submittedBy: string;
   reviewedBy: string;
@@ -545,11 +551,17 @@ function buildAppealOutcomeMap(
       });
     });
 
+    const lastAdditional = [...(request.additionalHistory || [])].sort(
+      (a, b) => Date.parse(b.openedAt) - Date.parse(a.openedAt)
+    )[0];
     map.set(caseId, {
       caseId,
       status: request.status,
       reviewSummary: String(request.reviewSummary || "").trim(),
       submittedAt: formatCaseDetailDateTime(request.submittedAt),
+      additionalOpenedAt: lastAdditional ? formatCaseDetailDateTime(lastAdditional.openedAt) : "",
+      additionalSubmittedAt: lastAdditional?.submittedAt ? formatCaseDetailDateTime(lastAdditional.submittedAt) : "",
+      additionalReviewedAt: lastAdditional?.reviewedAt ? formatCaseDetailDateTime(lastAdditional.reviewedAt) : "",
       reviewedAt: formatCaseDetailDateTime(request.reviewedAt),
       submittedBy: String(
         submittedEvent?.agent_name ||
@@ -610,6 +622,9 @@ function applyAppealMapsToCaseItems(
       appealStatus: effectiveStatus,
       appealReviewSummary: loggedOutcome?.reviewSummary || mergedAppeal?.reviewSummary || "",
       appealSubmittedAt: appealTimeline?.submittedAt || loggedOutcome?.submittedAt || mergedAppeal?.submittedAt || "",
+      appealAdditionalOpenedAt: loggedOutcome?.additionalOpenedAt || "",
+      appealAdditionalSubmittedAt: loggedOutcome?.additionalSubmittedAt || "",
+      appealAdditionalReviewedAt: loggedOutcome?.additionalReviewedAt || "",
       appealReviewedAt: appealTimeline?.reviewedAt || loggedOutcome?.reviewedAt || mergedAppeal?.reviewedAt || "",
       appealSubmittedBy: loggedOutcome?.submittedBy || mergedAppeal?.submittedBy || item.agent || "",
       appealReviewedBy: loggedOutcome?.reviewedBy || mergedAppeal?.reviewedBy || "",
@@ -2556,6 +2571,9 @@ function CaseDetailTopicTable({
   appealReviewedTopics,
   appealSubmittedBy,
   appealSubmittedAt,
+  appealAdditionalOpenedAt,
+  appealAdditionalSubmittedAt,
+  appealAdditionalReviewedAt,
   appealReviewedBy,
   appealReviewedAt,
   originalQaName,
@@ -2569,6 +2587,9 @@ function CaseDetailTopicTable({
   appealReviewedTopics?: AppealReviewedTopic[] | null;
   appealSubmittedBy?: string;
   appealSubmittedAt?: string;
+  appealAdditionalOpenedAt?: string;
+  appealAdditionalSubmittedAt?: string;
+  appealAdditionalReviewedAt?: string;
   appealReviewedBy?: string;
   appealReviewedAt?: string;
   originalQaName?: string;
@@ -2721,7 +2742,9 @@ function CaseDetailTopicTable({
                   <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">
                     <div className="space-y-1 text-[13px] font-semibold text-amber-950">
                       <div><span className="font-extrabold">Admin:</span> {appealSubmittedBy || "-"}</div>
-                      <div><span className="font-extrabold">Appeal Submit:</span> {formatBangkokDateTime(appealSubmittedAt || null)}</div>
+                      <div><span className="font-extrabold">Original Appeal Submit:</span> {formatBangkokDateTime(appealSubmittedAt || null)}</div>
+                      {appealAdditionalOpenedAt ? <div><span className="font-extrabold">Additional Round Opened:</span> {formatBangkokDateTime(appealAdditionalOpenedAt)}</div> : null}
+                      {appealAdditionalSubmittedAt ? <div><span className="font-extrabold">Additional Appeal Submit:</span> {formatBangkokDateTime(appealAdditionalSubmittedAt)}</div> : null}
                     </div>
                     <div className="mt-4 text-[13px] font-semibold text-amber-700">Appeal Reason</div>
                     <div className="mt-2 whitespace-pre-line leading-7 text-amber-950">
@@ -2739,6 +2762,7 @@ function CaseDetailTopicTable({
                     <div className={`space-y-1 text-[13px] font-semibold ${row.rejectedReviewTopic ? "text-rose-800" : "text-violet-800"}`}>
                       <div><span className="font-extrabold">QA:</span> {appealReviewedBy || "-"}</div>
                       <div><span className="font-extrabold">Appeal Result:</span> {formatBangkokDateTime(appealReviewedAt || null)}</div>
+                      {appealAdditionalReviewedAt ? <div><span className="font-extrabold">Additional Appeal Reviewed:</span> {formatBangkokDateTime(appealAdditionalReviewedAt)}</div> : null}
                       <div><span className="font-extrabold">Decision:</span> {getAppealTopicDecision(row.appealReviewTopic, appealStatus)}</div>
                     </div>
                     <div className={`mt-4 text-[13px] font-semibold ${row.rejectedReviewTopic ? "text-rose-700" : "text-violet-700"}`}>
@@ -3760,6 +3784,46 @@ function CaseActionTooltip({
   );
 }
 
+// Display QA's original wording, paragraphs and simple **bold** markup without
+// treating user-supplied review text as executable HTML.
+function AppealReviewSummaryPanel({ value, status }: { value: string; status: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const source = String(value || "").trim();
+  if (!source) return null;
+  const isHtml = /<\/?(?:div|p|br|strong|b|em|span|ul|ol|li)\b/i.test(source);
+  const structured = source
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]*(?=\*\*(?:Topic\s*\d+|สรุปผลอุทธรณ์|สรุปผลการอุทธรณ์|Final Score|Critical Error))/gi, "\n\n")
+    .trim();
+  const paragraphs = structured.split(/\n{2,}/).map(text => text.trim()).filter(Boolean);
+  const renderInline = (text: string) => text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={index} className="font-extrabold">{part.slice(2, -2)}</strong>
+      : <React.Fragment key={index}>{part}</React.Fragment>
+  );
+  const dark = status === "Rejected";
+  return (
+    <div className={"mt-3 rounded-xl border bg-white/85 p-3 text-sm leading-7 " + (dark ? "border-rose-200 text-rose-900" : "border-emerald-200 text-emerald-900")}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-extrabold">Review Summary</span>
+        <button type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(previous => !previous)}
+          className={"rounded-lg border bg-white px-3 py-1 text-xs font-bold hover:opacity-80 " + (dark ? "border-rose-200 text-rose-700" : "border-emerald-200 text-emerald-700")}>
+          {expanded ? "ย่อรายละเอียด ▲" : "ดูรายละเอียด ▼"}
+        </button>
+      </div>
+      {expanded ? (
+        <div className="mt-3 space-y-3 border-t border-current/10 pt-3">
+          {isHtml ? <RichTextContent value={source} preserveWhitespace className="break-words leading-7" /> : paragraphs.map((paragraph, i) => (
+            <p key={i} className="whitespace-pre-wrap break-words leading-7">{renderInline(paragraph)}</p>
+          ))}
+        </div>
+      ) : <p className="mt-1 text-xs opacity-75">กดดูรายละเอียดเพื่ออ่านผลการพิจารณาฉบับเต็ม</p>}
+    </div>
+  );
+}
+
 function SlideOverCaseDetail({
   open,
   embedded = false,
@@ -3827,6 +3891,8 @@ function SlideOverCaseDetail({
   const [appealAdditionalRound, setAppealAdditionalRound] = useState<{
     requestId: string;
     roundId: string;
+    openedAt: string;
+    expiresAt: string;
     submitted: boolean;
     topics: AppealDraftTopic[];
   } | null>(null);
@@ -3854,17 +3920,19 @@ function SlideOverCaseDetail({
   const [appealClockNowV32, setAppealClockNowV32] = useState(() => Date.now());
   useEffect(() => {
     setAppealClockNowV32(Date.now());
-    if (!appealDeadline) return;
+    if (!appealDeadline && !appealAdditionalRound?.expiresAt) return;
     const timer = window.setInterval(() => setAppealClockNowV32(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [caseItem.caseId, appealDeadline?.getTime()]);
+  }, [caseItem.caseId, appealDeadline?.getTime(), appealAdditionalRound?.expiresAt]);
 
   const isOwnAppealCase = isCurrentUserCaseOwner(currentUser, caseItem.agent);
   const isAppealObserverRoleV32 = isQualityAssuranceRole(currentUser?.role) && !isOwnAppealCase;
   const isAppealWindowOpenLive = !!appealDeadline && appealClockNowV32 <= appealDeadline.getTime();
   const appealCountdownV32 = formatAppealCountdownV32(appealDeadline, appealClockNowV32);
+  const additionalExpiryTime = Date.parse(appealAdditionalRound?.expiresAt || "");
+  const additionalIsExpired = Number.isFinite(additionalExpiryTime) && appealClockNowV32 >= additionalExpiryTime;
   const canSubmitAdditionalEvidence = isOwnAppealCase &&
-    Boolean(appealAdditionalRound) && !appealAdditionalRound?.submitted;
+    Boolean(appealAdditionalRound) && !appealAdditionalRound?.submitted && !additionalIsExpired;
   const canSubmitAppeal =
     isOwnAppealCase &&
     (isAppealWindowOpenLive || appealOverrideAllowed) &&
@@ -3911,6 +3979,7 @@ function SlideOverCaseDetail({
           "appeal_request_reset",
           "appeal_additional_round_opened",
           "appeal_additional_round_cancelled",
+          "appeal_additional_round_expired",
           "appeal_additional_evidence_submitted",
         ], { limit: 2000, forceRefresh: true });
 
@@ -3930,6 +3999,9 @@ function SlideOverCaseDetail({
         setAppealAdditionalRound(matching?.additionalRound ? {
           requestId: matching.requestId,
           roundId: matching.additionalRound.roundId,
+          openedAt: matching.additionalRound.openedAt,
+          expiresAt: matching.additionalRound.expiresAt ||
+            appealAdditionalDeadline(matching.additionalRound.openedAt),
           submitted: matching.additionalRound.submitted,
           topics: matching.additionalRound.topics.map(topic => ({
             code: topic.code, label: topic.label,
@@ -4044,6 +4116,23 @@ function SlideOverCaseDetail({
 
     setAppealSubmitBusy(true);
     try {
+      if (canSubmitAdditionalEvidence && appealAdditionalRound) {
+        const freshEvents = await fetchAppealEvents([
+          "appeal_request_submitted", "appeal_request_reviewed",
+          "appeal_additional_round_opened", "appeal_additional_round_cancelled",
+          "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
+        ], { limit: 2000, forceRefresh: true });
+        const current = buildAppealRequests(freshEvents as UsageLogEvent[]).find(
+          item => item.requestId === appealAdditionalRound.requestId
+        );
+        if (!current?.additionalRound ||
+            current.additionalRound.roundId !== appealAdditionalRound.roundId ||
+            current.additionalRound.submitted ||
+            Date.now() >= Date.parse(current.additionalRound.expiresAt)) {
+          setAppealSubmitMessage("สิทธิ์ยื่นเพิ่มเติมหมดอายุหรือมีการเปลี่ยนแปลง กรุณาโหลดเคสใหม่");
+          return;
+        }
+      }
       const appealSaved = await writeAppealEvent(currentUser,
         canSubmitAdditionalEvidence ? "appeal_additional_evidence_submitted" : "appeal_request_submitted", {
         tab: "dashboard",
@@ -4849,12 +4938,7 @@ function SlideOverCaseDetail({
                 {caseItem.appealReviewedAt ? (
                   <div className="mt-2 text-xs font-semibold text-rose-600">Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}</div>
                 ) : null}
-                {caseItem.appealReviewSummary ? (
-                  <div className="mt-2 rounded-xl border border-rose-200 bg-white/80 px-3 py-2 text-sm leading-6 text-rose-800">
-                    <span className="font-extrabold">Review Summary:</span>{" "}
-                    {caseItem.appealReviewSummary}
-                  </div>
-                ) : null}
+                <AppealReviewSummaryPanel value={caseItem.appealReviewSummary || ""} status="Rejected" />
               </div>
             ) : caseItem.appealStatus === "Approved" || caseItem.appealStatus === "Partially Approved" ? (
               <div className="rounded-[18px] border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 shadow-sm">
@@ -4865,12 +4949,7 @@ function SlideOverCaseDetail({
                 {caseItem.appealReviewedAt ? (
                   <div className="mt-2 text-xs font-semibold text-emerald-600">Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}</div>
                 ) : null}
-                {caseItem.appealReviewSummary ? (
-                  <div className="mt-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm leading-6 text-emerald-800">
-                    <span className="font-extrabold">Review Summary:</span>{" "}
-                    {caseItem.appealReviewSummary}
-                  </div>
-                ) : null}
+                <AppealReviewSummaryPanel value={caseItem.appealReviewSummary || ""} status={caseItem.appealStatus || ""} />
               </div>
             ) : null}
 
@@ -5075,6 +5154,9 @@ function SlideOverCaseDetail({
                 appealReviewedTopics={caseItem.appealReviewedTopics}
                 appealSubmittedBy={caseItem.appealSubmittedBy}
                 appealSubmittedAt={caseItem.appealSubmittedAt}
+                appealAdditionalOpenedAt={caseItem.appealAdditionalOpenedAt}
+                appealAdditionalSubmittedAt={caseItem.appealAdditionalSubmittedAt}
+                appealAdditionalReviewedAt={caseItem.appealAdditionalReviewedAt}
                 appealReviewedBy={caseItem.appealReviewedBy}
                 appealReviewedAt={caseItem.appealReviewedAt}
                 originalQaName={caseItem.evaluatorName}
@@ -6186,6 +6268,10 @@ export default function DashboardMockup({
               "appeal_request_submitted",
               "appeal_request_reviewed",
               "appeal_request_reset",
+              "appeal_additional_round_opened",
+              "appeal_additional_round_cancelled",
+              "appeal_additional_round_expired",
+              "appeal_additional_evidence_submitted",
             ],
             { limit: 2000, forceRefresh: true }
           ) as UsageLogEvent[];

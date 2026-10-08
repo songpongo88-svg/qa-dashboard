@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-additional-appeals",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

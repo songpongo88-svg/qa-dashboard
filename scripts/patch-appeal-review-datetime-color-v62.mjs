@@ -51,8 +51,8 @@ function patchAppealReview() {
   // The list table had Submitted at 10px and Reviewed at 9px. Make them identical.
   source = replaceRequired(
     source,
-    `<td className="whitespace-nowrap px-2 py-3 text-[10px] tabular-nums text-slate-600">{formatDateTime(item.submittedAt)}</td>`,
-    `<td className="whitespace-nowrap px-2 py-3 text-[10px] tabular-nums text-slate-600" style={{ fontVariantNumeric: "tabular-nums", fontFeatureSettings: '\"tnum\" 1' }}>{formatDateTime(item.submittedAt)}</td>`,
+    `<td className="whitespace-nowrap px-2 py-3 text-[10px] tabular-nums text-slate-600">{formatDateTime(item.additionalRound?.submittedAt || item.submittedAt)}</td>`,
+    `<td className="whitespace-nowrap px-2 py-3 text-[10px] tabular-nums text-slate-600" style={{ fontVariantNumeric: "tabular-nums", fontFeatureSettings: '\"tnum\" 1' }}>{formatDateTime(item.additionalRound?.submittedAt || item.submittedAt)}</td>`,
     "Submitted table datetime"
   );
   source = replaceRequired(

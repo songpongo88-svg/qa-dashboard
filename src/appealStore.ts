@@ -57,6 +57,7 @@ export const APPEAL_EVENT_TYPES = new Set([
   "appeal_internal_message",
   "appeal_additional_round_opened",
   "appeal_additional_round_cancelled",
+  "appeal_additional_round_expired",
   "appeal_additional_evidence_submitted",
   "appeal_additional_reason_option_added",
   "appeal_case_override_added",
@@ -163,8 +164,9 @@ export async function writeAppealEvent(
   payload: Partial<AppealLogEvent> = {}
 ) {
   if (!user || !isAppealEventType(eventType)) return false;
-  if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened", "appeal_additional_round_cancelled"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return false;
+  if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return false;
   if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return false;
+  if (eventType === "appeal_additional_round_expired") return false; // The scheduled server endpoint alone records expiry.
   if (eventType === "appeal_additional_round_opened" && String(user.role || "") !== "Quality Assurance") return false;
   if (eventType === "appeal_additional_reason_option_added" && String(user.role || "") !== "Quality Assurance") return false;
   if (eventType === "appeal_additional_reason_option_added") {
@@ -192,9 +194,9 @@ export async function writeAppealEvent(
   if (eventType === "appeal_internal_message" && !/^[a-zA-Z0-9_-]{8,100}$/.test(messageId)) {
     throw new Error("Internal appeal message requires a unique message ID");
   }
-  const roundId = ["appeal_additional_round_opened", "appeal_additional_evidence_submitted", "appeal_additional_round_cancelled"].includes(eventType)
+  const roundId = ["appeal_additional_round_opened", "appeal_additional_evidence_submitted", "appeal_additional_round_cancelled", "appeal_additional_round_expired"].includes(eventType)
     ? String(details.roundId || "") : "";
-  if (["appeal_additional_round_opened", "appeal_additional_evidence_submitted", "appeal_additional_round_cancelled"].includes(eventType) &&
+  if (["appeal_additional_round_opened", "appeal_additional_evidence_submitted", "appeal_additional_round_cancelled", "appeal_additional_round_expired"].includes(eventType) &&
       !/^[a-zA-Z0-9_-]{8,100}$/.test(roundId)) throw new Error("Appeal round ID is invalid");
   if (eventType === "appeal_additional_round_cancelled" &&
     (!String(details.reason || "").trim() || !String(details.cancelledAt || "").trim())) {

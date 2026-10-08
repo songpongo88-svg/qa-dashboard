@@ -68,7 +68,7 @@ function patchAppealReviewComponent() {
   source = replaceRequired(
     source,
     `<div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Status</div><div className="font-semibold text-slate-900">{selectedRequest.status || "-"}</div></div>`,
-    `<div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Status</div><div className={"font-extrabold " + (selectedRequest.additionalRound?.submitted ? "text-amber-700" : selectedRequest.status === "Approved" ? "text-emerald-700" : selectedRequest.status === "Pending" ? "text-amber-700" : selectedRequest.status === "Rejected" ? "text-rose-700" : selectedRequest.status === "Reset" ? "text-sky-700" : "text-slate-900")}>{selectedRequest.additionalRound?.submitted ? "Pending (Additional)" : selectedRequest.status || "-"}</div></div>`,
+    `<div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Status</div><div className={"font-extrabold " + (selectedRequest.lastAdditionalStatus === "Pending (Additional)" ? "text-amber-700" : selectedRequest.lastAdditionalStatus === "Expired (Additional)" ? "text-orange-700" : selectedRequest.lastAdditionalStatus === "Cancelled (Additional)" ? "text-slate-600" : selectedRequest.status === "Approved" ? "text-emerald-700" : selectedRequest.status === "Pending" ? "text-amber-700" : selectedRequest.status === "Rejected" ? "text-rose-700" : selectedRequest.status === "Reset" ? "text-sky-700" : "text-slate-900")}>{selectedRequest.lastAdditionalStatus || selectedRequest.status || "-"}</div></div>`,
     "Information status color"
   );
 
