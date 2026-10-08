@@ -160,7 +160,7 @@ export async function writeAppealEvent(
 ) {
   if (!user || !isAppealEventType(eventType)) return false;
   if (String(user.role || "") === "Senior" && ["appeal_request_reviewed", "appeal_request_reset"].includes(eventType)) return false;
-  if (eventType === "appeal_internal_message" && !["Senior", "Quality Assurance"].includes(String(user.role || ""))) return false;
+  if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return false;
 
   if (eventType === "appeal_request_submitted" || eventType === "appeal_request_reviewed") {
     const [checked] = await checkAppealSourceCases([{ ...payload, event_type: eventType }]);
@@ -217,6 +217,23 @@ export async function writeAppealEvent(
 
 // Read a single appeal's private discussion by requestId rather than mixing
 // conversation traffic into the latest 2,000 scored appeal events.
+// Authorized recipients may see an out-of-team appeal only after QA
+// explicitly directs an internal message to their account.
+export async function fetchAssignedAppealRequestIds(username: string): Promise<string[]> {
+  const target = String(username || "").trim();
+  if (!target) return [];
+  const snapshot = await getDocs(query(
+    collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+    where("details.seniorUsername", "==", target),
+    firestoreLimit(500)
+  ));
+  return [...new Set(snapshot.docs
+    .map(item => toAppealLogEvent(item.id, item.data()))
+    .filter(event => event.event_type === "appeal_internal_message")
+    .map(event => String(event.details?.requestId || "").trim())
+    .filter(Boolean))];
+}
+
 export async function fetchAppealDiscussionEvents(requestId: string): Promise<AppealLogEvent[]> {
   const target = String(requestId || "").trim();
   if (!target) return [];
