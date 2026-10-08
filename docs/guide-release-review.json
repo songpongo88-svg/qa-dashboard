@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T09:12:39.505Z",
-  "reason": "Reviewed 72-hour additional appeal expiration with scheduled server job, outcome filters, split original/additional dates, and formatted collapsible Review Summary; guide content and case score/history unchanged.",
+  "reviewedAt": "2026-10-08T09:14:19.986Z",
+  "reason": "Verified exact 72-hour frontend expiry with a daily Hobby-compatible backend audit cron; evaluated filters, Case Detail dates and rich formatting; scheduler integration still requires production credential testing.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -458,6 +458,6 @@
     "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
     "src/appealEvidenceNaming.ts": "f1df5fd693446869bbc55978119c61c946d6d63847973b9cc86d8a195d861177",
     "api/cron/expire-additional-appeals.js": "cf8a2b75cc37d291d6b7a941ca727c9743b21ce145dbe619e1a53f035747d4cd",
-    "vercel.json": "b85875cc4422035cce09ed86d44d24d3dd6d92608bfd3b601316019247d9e0d2"
+    "vercel.json": "ccf49662f388044db1ff2c441ff3a4e39cfab96df3d1f880f7c79fc2950a14b4"
   }
 }
