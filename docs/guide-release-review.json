@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T07:33:54.245Z",
-  "reason": "Reviewed new appeal QA decision evidence, internal QA-Senior discussion restricted to Appeal Review, team-scoped Senior access, and case/PDF isolation; legacy guide content left unchanged.",
+  "reviewedAt": "2026-10-08T07:35:04.419Z",
+  "reason": "Reviewed QA appeal image and internal QA/Senior messaging integration and build compatibility; original guide steps unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -216,7 +216,7 @@
     "scripts/patch-bulk-main-pdf-parity-v28.mjs": "a4fd76ae3087f810808e219a299bf223002291065bd4232f6f33ca7bdb1891a6",
     "scripts/patch-bulk-weekly-summary-v29b.mjs": "ca4453e564135f931a2134c2d3cbdeb1496be366683f831ff5a9852ab1e8f137",
     "scripts/patch-case-detail-approved-appeal-reason-v38.mjs": "41bbaab21aaa0e109a433658776b24d32d5cc5cf106c6bba863bd4a7f9682cf3",
-    "scripts/patch-case-main-pdf-appeal-history-v27.mjs": "61710b64d00113237ffdbdda21f6bc7df594fe7f7ceb3ca377bb70ea100b80e0",
+    "scripts/patch-case-main-pdf-appeal-history-v27.mjs": "f71fa24dcb3de241d870026113bd0bf60c947f44666e4085a8a5ab2d61057676",
     "scripts/patch-case-pdf-agent-center-filename-v6.mjs": "909ab14cb373dd624141fc682ea552726cb0560f0f19f8bdb8b9a5d0c26782bc",
     "scripts/patch-case-pdf-agent-team-spacing-v4.mjs": "0c354b63001f533e563707445b62a8a089068918e4847a27118e547b9d5f0fac",
     "scripts/patch-case-pdf-agent-team-tight-v5.mjs": "15cd4b65d8d33abfce907c779c2b25222475801e64655a52e9d99f2a9fbc95ed",
