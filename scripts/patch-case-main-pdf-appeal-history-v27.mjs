@@ -61,6 +61,11 @@ if (!source.includes(topicTypeWithReason) && !source.includes(`  appealReason?: 
   evidenceImages?: AppealEvidenceImage[];
 };
 
+type AppealReviewedTopic`) && !source.includes(`  appealReason?: string;
+  evidenceImages?: AppealEvidenceImage[];
+  qaEvidenceImages?: AppealEvidenceImage[];
+};
+
 type AppealReviewedTopic`)) {
   if (!source.includes(topicTypeAnchor)) {
     throw new Error("Topic appealReason type anchor was not found in DashboardMockup.tsx");
@@ -75,6 +80,9 @@ const firebaseRevisedWithReason = `        comment: String(matched.revisedCommen
       });`;
 if (!source.includes(firebaseRevisedWithReason) && !source.includes(`        appealReason: String(matched.appealReason || "").trim(),
         evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
+      });`) && !source.includes(`        appealReason: String(matched.appealReason || "").trim(),
+        evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
+        qaEvidenceImages: Array.isArray(matched.qaEvidenceImages) ? matched.qaEvidenceImages : [],
       });`)) {
   if (!source.includes(firebaseRevisedComment)) {
     throw new Error("Firebase revised topic anchor was not found in DashboardMockup.tsx");
