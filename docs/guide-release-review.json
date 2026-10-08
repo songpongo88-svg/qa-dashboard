@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T04:31:32.980Z",
+  "reviewedAt": "2026-10-08T04:32:49.901Z",
   "reason": "Reviewed Appeal Reason and Investigation Findings web-only line-break preservation; Case Detail PDF rendering remains unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -315,7 +315,7 @@
     "src/AppealEvidence.tsx": "9c6f52b1b5ffeeda232260f0f8eb3772aff83cc7fd7b7caf1cfed3a3018bb919",
     "src/AppealMockup.tsx": "6a797ff168d961287277792e932ec7cf111c175ed74554941c4b30472e389a14",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
-    "src/AppealRequestsMockup.tsx": "17ffd0a0442ac4da5481d21276ca3633cd822519cc5bee6737e44df912b6f750",
+    "src/AppealRequestsMockup.tsx": "6e1663d99696baaf10adc6724815cccd397cea9da4040906b20e0b229c5e0d22",
     "src/AppealReviewDialog.tsx": "9fd7486c9e03008c5c11db0f9be597c56bbe36d810d0e5922ee85f8244fa4af9",
     "src/AppealScoreHoldNotice.tsx": "efad66ceace2acc153516f5aec423a51934b6ec36651a76afabf016c0075caf8",
     "src/AutoDeployRefresh.tsx": "1e7cb76eb6f7f5dc368f109fbae6a02afd67b3782e07f86c3b9a2e97f259ffab",
