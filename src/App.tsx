@@ -4595,7 +4595,7 @@ export default function App() {
   const manualUpdateTrainingAttendanceAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "manualUpdateTrainingAttendance") : false;
   const exportTrainingAttendanceAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "exportTrainingAttendance") : false;
   const trainingAttendanceAllowed = Boolean(currentUser) && (viewTrainingCheckInAllowed || viewTrainingAttendanceAllowed);
-  const appealReviewActionAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "reviewAppeals") : false;
+  const appealReviewActionAllowed = currentUser?.role === "Quality Assurance" && hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
   // Senior can respond to internal QA discussion but cannot edit appeal decisions.
   const appealRequestsAllowed = appealReviewActionAllowed || ["Senior", "Supervisor"].includes(String(currentUser?.role || ""));
   const appealSeniorAgentNames = useMemo(() => {
