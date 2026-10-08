@@ -25,7 +25,7 @@ import {
   type StoredEvaluation,
   type StoredEvaluationCallLog,
 } from "./evaluationStore";
-import { buildAppealRequests } from "./AppealRequestsMockup";
+import { appealAdditionalDeadline, buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
 import TestCaseBadge from "./TestCaseBadge";
@@ -3891,6 +3891,8 @@ function SlideOverCaseDetail({
   const [appealAdditionalRound, setAppealAdditionalRound] = useState<{
     requestId: string;
     roundId: string;
+    openedAt: string;
+    expiresAt: string;
     submitted: boolean;
     topics: AppealDraftTopic[];
   } | null>(null);
@@ -3918,17 +3920,19 @@ function SlideOverCaseDetail({
   const [appealClockNowV32, setAppealClockNowV32] = useState(() => Date.now());
   useEffect(() => {
     setAppealClockNowV32(Date.now());
-    if (!appealDeadline) return;
+    if (!appealDeadline && !appealAdditionalRound?.expiresAt) return;
     const timer = window.setInterval(() => setAppealClockNowV32(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [caseItem.caseId, appealDeadline?.getTime()]);
+  }, [caseItem.caseId, appealDeadline?.getTime(), appealAdditionalRound?.expiresAt]);
 
   const isOwnAppealCase = isCurrentUserCaseOwner(currentUser, caseItem.agent);
   const isAppealObserverRoleV32 = isQualityAssuranceRole(currentUser?.role) && !isOwnAppealCase;
   const isAppealWindowOpenLive = !!appealDeadline && appealClockNowV32 <= appealDeadline.getTime();
   const appealCountdownV32 = formatAppealCountdownV32(appealDeadline, appealClockNowV32);
+  const additionalExpiryTime = Date.parse(appealAdditionalRound?.expiresAt || "");
+  const additionalIsExpired = Number.isFinite(additionalExpiryTime) && appealClockNowV32 >= additionalExpiryTime;
   const canSubmitAdditionalEvidence = isOwnAppealCase &&
-    Boolean(appealAdditionalRound) && !appealAdditionalRound?.submitted;
+    Boolean(appealAdditionalRound) && !appealAdditionalRound?.submitted && !additionalIsExpired;
   const canSubmitAppeal =
     isOwnAppealCase &&
     (isAppealWindowOpenLive || appealOverrideAllowed) &&
@@ -3994,6 +3998,9 @@ function SlideOverCaseDetail({
         setAppealAdditionalRound(matching?.additionalRound ? {
           requestId: matching.requestId,
           roundId: matching.additionalRound.roundId,
+          openedAt: matching.additionalRound.openedAt,
+          expiresAt: matching.additionalRound.expiresAt ||
+            appealAdditionalDeadline(matching.additionalRound.openedAt),
           submitted: matching.additionalRound.submitted,
           topics: matching.additionalRound.topics.map(topic => ({
             code: topic.code, label: topic.label,
@@ -4108,6 +4115,23 @@ function SlideOverCaseDetail({
 
     setAppealSubmitBusy(true);
     try {
+      if (canSubmitAdditionalEvidence && appealAdditionalRound) {
+        const freshEvents = await fetchAppealEvents([
+          "appeal_request_submitted", "appeal_request_reviewed",
+          "appeal_additional_round_opened", "appeal_additional_round_cancelled",
+          "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
+        ], { limit: 2000, forceRefresh: true });
+        const current = buildAppealRequests(freshEvents as UsageLogEvent[]).find(
+          item => item.requestId === appealAdditionalRound.requestId
+        );
+        if (!current?.additionalRound ||
+            current.additionalRound.roundId !== appealAdditionalRound.roundId ||
+            current.additionalRound.submitted ||
+            Date.now() >= Date.parse(current.additionalRound.expiresAt)) {
+          setAppealSubmitMessage("สิทธิ์ยื่นเพิ่มเติมหมดอายุหรือมีการเปลี่ยนแปลง กรุณาโหลดเคสใหม่");
+          return;
+        }
+      }
       const appealSaved = await writeAppealEvent(currentUser,
         canSubmitAdditionalEvidence ? "appeal_additional_evidence_submitted" : "appeal_request_submitted", {
         tab: "dashboard",
