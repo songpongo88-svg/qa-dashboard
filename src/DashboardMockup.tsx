@@ -4050,7 +4050,7 @@ function SlideOverCaseDetail({
         target_agent: caseItem.agent,
         details: {
           requestId: canSubmitAdditionalEvidence ? appealAdditionalRound!.requestId : `appeal-${caseItem.caseId}-${Date.now()}`,
-          ...(canSubmitAdditionalEvidence ? { roundId: appealAdditionalRound!.roundId } : {}),
+          ...(canSubmitAdditionalEvidence ? { roundId: appealAdditionalRound!.roundId, submissionId: crypto.randomUUID() } : {}),
           caseId: caseItem.caseId,
           agent: caseItem.agent,
           auditDate: caseItem.auditDate,
