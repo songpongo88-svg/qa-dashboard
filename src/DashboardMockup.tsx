@@ -3979,6 +3979,7 @@ function SlideOverCaseDetail({
           "appeal_request_reset",
           "appeal_additional_round_opened",
           "appeal_additional_round_cancelled",
+          "appeal_additional_round_expired",
           "appeal_additional_evidence_submitted",
         ], { limit: 2000, forceRefresh: true });
 
@@ -6267,6 +6268,10 @@ export default function DashboardMockup({
               "appeal_request_submitted",
               "appeal_request_reviewed",
               "appeal_request_reset",
+              "appeal_additional_round_opened",
+              "appeal_additional_round_cancelled",
+              "appeal_additional_round_expired",
+              "appeal_additional_evidence_submitted",
             ],
             { limit: 2000, forceRefresh: true }
           ) as UsageLogEvent[];
