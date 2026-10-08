@@ -4,6 +4,7 @@ import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
 import { parseRichTextRuns, richTextToPlainText, type RichTextRun } from "./richText";
 import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
+import { appealEvidenceDisplayName, appealEvidenceStartIndex } from "./appealEvidenceNaming";
 
 type PdfVariant = "original" | "appeal";
 
@@ -1179,7 +1180,10 @@ export async function generateOfficialCaseDetailPdf({
     purpleRow(y, 7, "Appeal Reason & Evidence Images");
     y += 10;
 
-    for (const evidenceTopic of appealEvidenceByTopic.values()) {
+    const orderedEvidenceTopics = [...appealEvidenceByTopic.values()].sort((a, b) =>
+      String(a.code).localeCompare(String(b.code), undefined, { numeric: true })
+    );
+    for (const evidenceTopic of orderedEvidenceTopics) {
       if (bottom - y < 22) {
         doc.addPage();
         y = top;
@@ -1220,7 +1224,10 @@ export async function generateOfficialCaseDetailPdf({
           y = top;
         }
         rect(left, y, fullW, rowHeight, WHITE);
-        const title = `Evidence Image ${index + 1}/${images.length}: ${safeText(evidence?.name, "image.jpg")}`;
+        const title = appealEvidenceDisplayName(
+          String(caseItem.caseId || ""),
+          appealEvidenceStartIndex(orderedEvidenceTopics, String(evidenceTopic.code)) + index + 1
+        ) || safeText(evidence?.name, "image.jpg");
         writeText(title, left + 3, y + 1, fullW - 6, 7, {
           size: BODY_TEXT_SIZE,
           bold: true,
