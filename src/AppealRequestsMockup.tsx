@@ -427,12 +427,14 @@ export default function AppealRequestsMockup({
   allowReview = false,
   allowedAgentNames = null,
   seniorOptions = [],
+  additionalCaseTopics = [],
   onTasksChanged,
 }: {
   currentUser: any;
   allowReview?: boolean;
   allowedAgentNames?: string[] | null;
   seniorOptions?: { username: string; displayName: string; role?: string }[];
+  additionalCaseTopics?: any[];
   onTasksChanged?: () => void;
 }) {
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
@@ -452,6 +454,9 @@ export default function AppealRequestsMockup({
   const [discussionUploads, setDiscussionUploads] = useState(0);
   const [discussionBusy, setDiscussionBusy] = useState(false);
   const [discussionMessage, setDiscussionMessage] = useState("");
+  const [additionalOpen, setAdditionalOpen] = useState(false);
+  const [additionalCodes, setAdditionalCodes] = useState<string[]>([]);
+  const [additionalNote, setAdditionalNote] = useState("");
   const [editingReview, setEditingReview] = useState(false);
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
@@ -490,13 +495,46 @@ export default function AppealRequestsMockup({
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
   const eligibleSeniorOptions = seniorOptions;
+  const availableAppealTopics = useMemo(() => {
+    const result = new Map<string, AppealTopic>();
+    const selected = selectedRequest;
+    if (!selected) return [] as AppealTopic[];
+    const targetCase = additionalCaseTopics.find(row =>
+      String(row?.caseId || "").replace(/\\s+/g, "").toUpperCase() ===
+      String(selected.caseId || "").replace(/\\s+/g, "").toUpperCase()
+    );
+    if (Array.isArray(targetCase?.topics)) {
+      for (const row of targetCase.topics) {
+        if (!row?.code) continue;
+        result.set(String(row.code), {
+          code: String(row.code),
+          label: String(row.label || ""),
+          score: toNumber(row.score),
+          max: toNumber(row.max),
+          comment: String(row.comment || ""),
+          wantsAppeal: true,
+          appealReason: "",
+        });
+      }
+    }
+    // Preserve the original baseline of already reviewed topics even if
+    // the dashboard currently shows their adjusted score.
+    selected.topics.forEach(topic => result.set(topic.code, { ...topic }));
+    return [...result.values()].sort((a, b) =>
+      String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
+  }, [additionalCaseTopics, selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.caseId]);
+
   const pendingRequests = requests.filter((item) => item.status === "Pending");
   const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved");
   const resetRequests = requests.filter((item) => item.status === "Reset");
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
-  const canReview = allowReview && (selectedRequest?.status === "Pending" || (isReviewed && editingReview));
+  const canReview = allowReview && (
+    selectedRequest?.status === "Pending" ||
+    Boolean(selectedRequest?.additionalRound?.submitted) ||
+    (isReviewed && editingReview && !selectedRequest?.additionalRound)
+  );
 
   const loadRequests = async () => {
     try {
@@ -536,7 +574,10 @@ export default function AppealRequestsMockup({
     setDiscussionTopic("");
     setDiscussionRecipient("");
     setDiscussionMessage("");
-  }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt]);
+    setAdditionalOpen(false);
+    setAdditionalCodes([]);
+    setAdditionalNote("");
+  }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt, selectedRequest?.additionalRound?.roundId, selectedRequest?.additionalRound?.submittedAt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -548,6 +589,65 @@ export default function AppealRequestsMockup({
     }
     return () => { cancelled = true; };
   }, [selectedRequestId]);
+
+  const openAdditionalAppealRound = async () => {
+    if (!allowReview || !selectedRequest || !isReviewed || selectedRequest.additionalRound ||
+        busy || !additionalCodes.length || !additionalNote.trim()) return;
+    const selected = availableAppealTopics.filter(row => additionalCodes.includes(row.code));
+    if (selected.length !== additionalCodes.length || !selected.length) {
+      setMessage("ไม่พบหัวข้อที่เลือกในข้อมูลประเมินของเคสนี้");
+      return;
+    }
+    const current = selectedRequest;
+    setBusy(true);
+    try {
+      const freshLogs = await fetchAppealEvents([
+        "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
+        "appeal_additional_round_opened", "appeal_additional_evidence_submitted",
+      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
+      const fresh = buildAppealRequests(freshLogs).find(row => row.requestId === current.requestId);
+      if (!fresh || fresh.status === "Reset" || fresh.additionalRound ||
+          fresh.reviewId !== current.reviewId) {
+        setLogs(freshLogs);
+        setMessage("เคสมีการเปลี่ยนแปลง กรุณา Refresh และตรวจสอบก่อนเปิดรอบใหม่");
+        return;
+      }
+      const roundId = crypto.randomUUID();
+      const openedAt = new Date().toISOString();
+      const saved = await writeAppealEvent(currentUser, "appeal_additional_round_opened", {
+        tab: "appeal-requests",
+        case_id: current.caseId,
+        target_agent: current.agent,
+        details: {
+          requestId: current.requestId,
+          roundId,
+          previousReviewId: current.reviewId,
+          openedAt,
+          openedBy: String(currentUser?.agentName || currentUser?.displayName || currentUser?.username || ""),
+          note: additionalNote.trim(),
+          topics: selected.map(row => ({
+            code: row.code, label: row.label, score: row.score, max: row.max,
+            comment: row.comment || "",
+            wantsAppeal: true,
+            appealReason: "",
+            evidenceImages: [],
+          })),
+        },
+      });
+      if (!saved) throw new Error("เพิ่มเติมไม่ได้");
+      setAdditionalOpen(false);
+      setAdditionalCodes([]);
+      setAdditionalNote("");
+      setMessage("เปิดรอบอุทธรณ์เพิ่มเติมแล้ว รอเจ้าของเคสส่งเหตุผลและหลักฐานจาก Case Detail");
+      await loadRequests();
+      onTasksChanged?.();
+    } catch (error) {
+      console.error("Open additional appeal round failed", error);
+      setMessage("ไม่สามารถเปิดรอบเพิ่มเติมได้ กรุณาลองอีกครั้ง");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const cancelReviewEdit = () => {
     if (!selectedRequest || busy) return;
