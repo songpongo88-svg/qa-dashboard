@@ -376,7 +376,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         reviewVersion: toNumber(review?.details?.reviewVersion, history.length),
         additionalRound,
         lastAdditionalStatus: isResetAfterSubmit ? "" : lastAdditionalStatus,
-        additionalHistory: (openedRounds.get(requestId) || []).map(opened => {
+        additionalHistory: [...(openedRounds.get(requestId) || [])].sort((a, b) => eventTime(b) - eventTime(a)).map(opened => {
           const roundId = String(opened.details?.roundId || "");
           const submission = (submittedEvidence.get(requestId) || [])
             .find(event => String(event.details?.roundId || "") === roundId);
