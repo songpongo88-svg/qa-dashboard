@@ -1355,12 +1355,18 @@ export default function AppealRequestsMockup({
                   </div>
                   {(allowReview || ["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) ? (
                     <div className="mt-4 space-y-3 border-t border-sky-200 pt-4">
+                      {!canSendDiscussion ? (
+                        <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-600">
+                          เคสนี้พิจารณาเสร็จแล้ว จึงปิดการเลือก Senior / Supervisor และการส่งข้อความใหม่
+                          หากต้องตรวจสอบเพิ่มเติม QA สามารถเปิดรอบอุทธรณ์เพิ่มเติมได้
+                        </div>
+                      ) : null}
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="text-xs font-bold text-sky-800">
                           หัวข้อที่ต้องการสอบถาม
                           <select
                             value={discussionTopic}
-                            disabled={discussionBusy}
+                            disabled={discussionBusy || !canSendDiscussion}
                             onChange={event => setDiscussionTopic(event.target.value)}
                             className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
                           >
@@ -1370,10 +1376,10 @@ export default function AppealRequestsMockup({
                         </label>
                         {allowReview && (
                           <label className="text-xs font-bold text-sky-800">
-                            ส่งถึง Senior
+                            ส่งถึง Senior / Supervisor
                             <select
                               value={discussionRecipient}
-                              disabled={discussionBusy}
+                              disabled={discussionBusy || !canSendDiscussion}
                               onChange={event => setDiscussionRecipient(event.target.value)}
                               className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
                             >
@@ -1389,7 +1395,7 @@ export default function AppealRequestsMockup({
                         <textarea
                           rows={3}
                           value={discussionText}
-                          disabled={discussionBusy}
+                          disabled={discussionBusy || !canSendDiscussion}
                           onChange={event => setDiscussionText(event.target.value)}
                           placeholder="พิมพ์คำถามหรือคำตอบสำหรับ QA และ Senior เท่านั้น"
                           className="mt-1 block w-full resize-y rounded-xl border border-sky-200 bg-white p-3 text-sm leading-6 text-slate-800"
@@ -1400,7 +1406,7 @@ export default function AppealRequestsMockup({
                         topicCode={`internal-${discussionTopic || "all"}`}
                         images={discussionImages}
                         totalCount={discussionImages.length}
-                        disabled={discussionBusy || discussionUploads > 0}
+                        disabled={discussionBusy || discussionUploads > 0 || !canSendDiscussion}
                         onBusyChange={uploading => setDiscussionUploads(count => Math.max(0, count + (uploading ? 1 : -1)))}
                         onAdd={image => setDiscussionImages(current => [...current, image])}
                         onRemove={id => setDiscussionImages(current => current.filter(image => image.id !== id))}
@@ -1408,7 +1414,7 @@ export default function AppealRequestsMockup({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span role="status" className="text-xs font-semibold text-sky-800">{discussionMessage}</span>
                         <button type="button"
-                          disabled={discussionBusy || discussionUploads > 0 || (!discussionText.trim() && !discussionImages.length)}
+                          disabled={discussionBusy || discussionUploads > 0 || !canSendDiscussion || (!discussionText.trim() && !discussionImages.length)}
                           onClick={() => void sendDiscussion()}
                           className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-bold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-40"
                         >{discussionBusy ? "กำลังส่ง..." : "ส่งข้อความและหลักฐาน"}</button>
@@ -1500,18 +1506,66 @@ export default function AppealRequestsMockup({
                             ))}
                             {!availableAppealTopics.length ? <p className="text-sm text-rose-700">ไม่พบรายการ Topic จากเคสต้นทาง</p> : null}
                           </div>
-                          <label className="block text-xs font-bold text-violet-800">
-                            เหตุผลที่ QA อนุญาตให้เปิดรอบเพิ่มเติม
-                            <textarea rows={2} value={additionalNote} disabled={busy}
-                              onChange={event => setAdditionalNote(event.target.value)}
-                              className="mt-1 block w-full rounded-xl border border-violet-200 bg-white p-3 text-sm"
-                              placeholder="เช่น ได้รับ Call Log ใหม่หลังปิดผลรอบแรก" />
-                          </label>
+                          <div className="space-y-2">
+                            <label className="block text-xs font-bold text-violet-800" htmlFor="additional-appeal-reason">
+                              เหตุผลที่ QA อนุญาตให้เปิดรอบเพิ่มเติม <span className="text-rose-600">*</span>
+                            </label>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <select
+                                id="additional-appeal-reason"
+                                value={additionalReason}
+                                disabled={busy || reasonSaving}
+                                onChange={event => { setAdditionalReason(event.target.value); setReasonNotice(""); }}
+                                className="min-w-[220px] flex-1 rounded-xl border border-violet-200 bg-white p-3 text-sm text-slate-800 disabled:bg-slate-100"
+                              >
+                                <option value="">เลือกเหตุผลเปิดรอบเพิ่มเติม</option>
+                                {additionalReasonOptions.map(reason => (
+                                  <option key={reason} value={reason}>{reason}</option>
+                                ))}
+                              </select>
+                              <button type="button" disabled={busy || reasonSaving}
+                                onClick={() => { setAddingReason(open => !open); setReasonNotice(""); }}
+                                className="rounded-xl border border-violet-300 bg-white px-3 py-3 text-xs font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">
+                                {addingReason ? "ปิด" : "+ เพิ่มเหตุผล"}
+                              </button>
+                            </div>
+                            {addingReason ? (
+                              <div className="rounded-xl border border-violet-200 bg-white p-3">
+                                <label htmlFor="new-additional-appeal-reason" className="block text-xs font-bold text-violet-800">
+                                  เพิ่มเหตุผลใหม่ให้ใช้ได้ในครั้งต่อไป
+                                </label>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <input id="new-additional-appeal-reason" type="text"
+                                    maxLength={180} value={newReason}
+                                    disabled={busy || reasonSaving}
+                                    onChange={event => setNewReason(event.target.value)}
+                                    onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void saveAdditionalAppealReason(); } }}
+                                    placeholder="ระบุเหตุผลใหม่"
+                                    className="min-w-[220px] flex-1 rounded-lg border border-violet-200 px-3 py-2 text-sm" />
+                                  <button type="button"
+                                    disabled={busy || reasonSaving || !newReason.trim()}
+                                    onClick={() => void saveAdditionalAppealReason()}
+                                    className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
+                                    {reasonSaving ? "กำลังบันทึก..." : "บันทึกเหตุผล"}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                            {reasonNotice ? <div role="status" className="text-xs font-semibold text-violet-700">{reasonNotice}</div> : null}
+                            <label className="block text-xs font-bold text-violet-800">
+                              รายละเอียดเพิ่มเติม (ถ้ามี)
+                              <textarea rows={2} value={additionalNote} disabled={busy || reasonSaving}
+                                onChange={event => setAdditionalNote(event.target.value)}
+                                className="mt-1 block w-full rounded-xl border border-violet-200 bg-white p-3 text-sm"
+                                placeholder="ระบุข้อมูลประกอบ เช่น หมายเลข Call Log หรือเหตุผลเฉพาะเคส" />
+                            </label>
+                          </div>
                           <div className="flex flex-wrap justify-end gap-2">
                             <button type="button" disabled={busy} onClick={() => {
                               setAdditionalOpen(false); setAdditionalCodes([]); setAdditionalNote("");
+                              setAdditionalReason(""); setAddingReason(false); setNewReason(""); setReasonNotice("");
                             }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">ยกเลิก</button>
-                            <button type="button" disabled={busy || !additionalCodes.length || !additionalNote.trim()}
+                            <button type="button" disabled={busy || reasonSaving || !additionalCodes.length || !additionalReason}
                               onClick={() => void openAdditionalAppealRound()}
                               className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
                               ยืนยันเปิดรอบเพิ่มเติม
