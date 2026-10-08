@@ -46,12 +46,27 @@ function patchAppealReviewInformationAndAction() {
     "Case Detail target username projection"
   );
 
+  if (source.includes("  allowReview = false,")) {
+    source = replaceOnce(
+      source,
+      `  currentUser,\n  externalCaseDetailCases = [],`,
+      `  currentUser,\n  agentDirectory = [],\n  externalCaseDetailCases = [],`,
+      "Appeal Review Agent directory property (extended)"
+    );
+    source = replaceOnce(
+      source,
+      `  currentUser: any;\n  externalCaseDetailCases?: any[];`,
+      `  currentUser: any;\n  agentDirectory?: CaseAgentDirectoryEntry[];\n  externalCaseDetailCases?: any[];`,
+      "Appeal Review Agent directory type (extended)"
+    );
+  } else {
   source = replaceOnce(
     source,
     `  currentUser,\n  externalCaseDetailCases,\n  onTasksChanged,\n}: {\n  currentUser: any;\n  externalCaseDetailCases?: any[];\n  onTasksChanged?: () => void;`,
     `  currentUser,\n  agentDirectory,\n  externalCaseDetailCases,\n  onTasksChanged,\n}: {\n  currentUser: any;\n  agentDirectory?: CaseAgentDirectoryEntry[];\n  externalCaseDetailCases?: any[];\n  onTasksChanged?: () => void;`,
     "Appeal Review Agent directory property"
   );
+  }
 
   source = replaceOnce(
     source,
