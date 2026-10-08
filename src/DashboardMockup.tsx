@@ -1,5 +1,6 @@
 import { getAppealTopicDecision, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 import { AppealEvidencePicker, AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
+import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import { WeekdayDashboardLayout } from "./WeekdayScene";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -2544,6 +2545,7 @@ function CaseDetailIssueTags({ tags }: { tags: string[] }) {
 }
 
 function CaseDetailTopicTable({
+  caseId,
   topics,
   revisedTopics,
   reviewStatus,
@@ -2557,6 +2559,7 @@ function CaseDetailTopicTable({
   originalQaName,
   originalAuditDate,
 }: {
+  caseId: string;
   topics: Topic[];
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
@@ -2726,7 +2729,7 @@ function CaseDetailTopicTable({
                     {row.appealReviewTopic.evidenceImages?.length ? (
                       <div className="mt-3 border-t border-amber-200 pt-3">
                         <div className="text-[13px] font-semibold text-amber-800">รูปภาพหลักฐานการอุทธรณ์</div>
-                        <AppealEvidenceGallery images={row.appealReviewTopic.evidenceImages} />
+                        <AppealEvidenceGallery images={row.appealReviewTopic.evidenceImages} caseId={caseId} startIndex={appealEvidenceStartIndex(appealReviewedTopics, row.appealReviewTopic.code)} />
                       </div>
                     ) : null}
                   </div>
@@ -4518,6 +4521,7 @@ function SlideOverCaseDetail({
                         </label>
                         <AppealEvidencePicker caseId={caseItem.caseId} topicCode={topic.code}
                           images={topic.evidenceImages || []}
+                          startIndex={appealEvidenceStartIndex(appealDraftTopics, topic.code)}
                           totalCount={appealDraftTopics.reduce((sum, item) => sum + (item.evidenceImages?.length || 0), 0)}
                           disabled={appealSubmitBusy || appealImageUploads > 0}
                           onBusyChange={busy => setAppealImageUploads(count => Math.max(0, count + (busy ? 1 : -1)))}
@@ -4552,7 +4556,7 @@ function SlideOverCaseDetail({
                           <div className="mt-3 rounded-xl bg-violet-50 px-4 py-3">
                             <div className="text-xs font-bold text-violet-700">เหตุผลที่ขออุทธรณ์</div>
                             <div className="mt-1 whitespace-pre-line text-sm font-normal leading-6 text-slate-700">{topic.appealReason.trim()}</div>
-                            <AppealEvidenceGallery images={topic.evidenceImages || []} />
+                            <AppealEvidenceGallery images={topic.evidenceImages || []} caseId={caseItem.caseId} startIndex={appealEvidenceStartIndex(selectedAppealTopics, topic.code)} />
                           </div>
                         </div>
                       ))}
@@ -5019,6 +5023,7 @@ function SlideOverCaseDetail({
               ) : null}
               <CaseDetailTopicTable
                 key={caseItem.key}
+                caseId={caseItem.caseId}
                 topics={caseItem.topics}
                 revisedTopics={caseItem.revisedTopics}
                 reviewStatus={caseItem.reviewStatus}
