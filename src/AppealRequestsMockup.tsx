@@ -379,7 +379,7 @@ export default function AppealRequestsMockup({
   currentUser: any;
   allowReview?: boolean;
   allowedAgentNames?: string[] | null;
-  seniorOptions?: { username: string; displayName: string; agentNames?: string[] }[];
+  seniorOptions?: { username: string; displayName: string; role?: string }[];
   onTasksChanged?: () => void;
 }) {
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
@@ -414,7 +414,7 @@ export default function AppealRequestsMockup({
     .filter(log => log.event_type === "appeal_internal_message" &&
       String(log.details?.requestId || "") === selectedRequestId &&
       !log.source_case_unavailable)
-    .filter(log => currentUser?.role !== "Senior" ||
+    .filter(log => !["Senior", "Supervisor"].includes(String(currentUser?.role || "")) ||
       [String(log.details?.seniorUsername || "").toLowerCase(), String(log.username || "").toLowerCase()]
         .includes(String(currentUser.username || "").toLowerCase()))
     .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || ""))),
@@ -423,13 +423,7 @@ export default function AppealRequestsMockup({
   const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
-  const eligibleSeniorOptions = useMemo(() => {
-    const key = String(selectedRequest?.agent || "").replace(/\s+/g, "").toLowerCase();
-    if (!key) return [];
-    return seniorOptions.filter(senior =>
-      (senior.agentNames || []).some(name => String(name || "").replace(/\s+/g, "").toLowerCase() === key)
-    );
-  }, [selectedRequest?.agent, seniorOptions]);
+  const eligibleSeniorOptions = seniorOptions;
   const pendingRequests = requests.filter((item) => item.status === "Pending");
   const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved");
   const resetRequests = requests.filter((item) => item.status === "Reset");
@@ -500,17 +494,17 @@ export default function AppealRequestsMockup({
 
   const sendDiscussion = async () => {
     if (!selectedRequest || discussionBusy || discussionUploads || busy) return;
-    if (!allowReview && currentUser?.role !== "Senior") return;
+    if (!allowReview && !["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return;
     const text = discussionText.trim();
     if (!text && !discussionImages.length) {
       setDiscussionMessage("กรุณาระบุข้อความหรือแนบรูปภาพก่อนส่ง");
       return;
     }
-    const seniorUsername = currentUser?.role === "Senior"
+    const seniorUsername = ["Senior", "Supervisor"].includes(String(currentUser?.role || ""))
       ? String(currentUser.username || "")
       : discussionRecipient;
     if (!seniorUsername || (allowReview && !eligibleSeniorOptions.some(senior => senior.username === seniorUsername))) {
-      setDiscussionMessage("กรุณาเลือก Senior ที่รับผิดชอบทีมของเคสนี้");
+      setDiscussionMessage("กรุณาเลือกผู้รับ Role Senior หรือ Supervisor");
       return;
     }
     setDiscussionBusy(true);
@@ -1059,7 +1053,7 @@ export default function AppealRequestsMockup({
                     })}
                     {!discussionEvents.length ? <p className="rounded-xl bg-white p-4 text-sm text-slate-500">ยังไม่มีข้อความหรือรูปภาพที่ส่งระหว่าง QA กับ Senior</p> : null}
                   </div>
-                  {(allowReview || currentUser?.role === "Senior") ? (
+                  {(allowReview || ["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) ? (
                     <div className="mt-4 space-y-3 border-t border-sky-200 pt-4">
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="text-xs font-bold text-sky-800">
@@ -1083,10 +1077,10 @@ export default function AppealRequestsMockup({
                               onChange={event => setDiscussionRecipient(event.target.value)}
                               className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
                             >
-                              <option value="">เลือก Senior ของทีมนี้</option>
-                              {eligibleSeniorOptions.map(senior => <option key={senior.username} value={senior.username}>{senior.displayName}</option>)}
+                              <option value="">เลือก Senior / Supervisor</option>
+                              {eligibleSeniorOptions.map(senior => <option key={senior.username} value={senior.username}>{senior.displayName} ({senior.role || "Senior"})</option>)}
                             </select>
-                            {!eligibleSeniorOptions.length ? <span className="mt-1 block text-xs text-rose-700">ยังไม่พบ Senior ที่ผูกกับทีมของเคสนี้ กรุณาตรวจข้อมูลทีมก่อนส่ง</span> : null}
+                            {!eligibleSeniorOptions.length ? <span className="mt-1 block text-xs text-rose-700">ไม่พบ User Role Senior หรือ Supervisor ใน User Directory</span> : null}
                           </label>
                         )}
                       </div>
