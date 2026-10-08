@@ -561,8 +561,8 @@ export default function AppealRequestsMockup({
     return [...priorTopics, ...selectedTopics];
   };
 
-  const pendingRequests = requests.filter((item) => item.status === "Pending");
-  const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected" || item.status === "Partially Approved");
+  const pendingRequests = requests.filter(item => item.status === "Pending" || Boolean(item.additionalRound));
+  const reviewedRequests = requests.filter(item => !item.additionalRound && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
   const resetRequests = requests.filter((item) => item.status === "Reset");
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
