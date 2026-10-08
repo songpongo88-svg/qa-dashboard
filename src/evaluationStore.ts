@@ -285,7 +285,7 @@ function canonicalizeRawPreview(preview: Record<string, string | number>) {
   return Object.fromEntries(
     Object.entries(preview || {}).map(([key, value]) => [
       key,
-      typeof value === "string" ? canonicalizeAgentName(value) : value,
+      typeof value === "string" && key !== "Investigation Findings" ? canonicalizeAgentName(value) : value,
     ])
   ) as Record<string, string | number>;
 }
