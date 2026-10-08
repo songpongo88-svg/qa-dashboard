@@ -57,6 +57,7 @@ export const APPEAL_EVENT_TYPES = new Set([
   "appeal_internal_message",
   "appeal_additional_round_opened",
   "appeal_additional_evidence_submitted",
+  "appeal_additional_reason_option_added",
   "appeal_case_override_added",
   "appeal_case_override_removed",
 ]);
@@ -164,6 +165,14 @@ export async function writeAppealEvent(
   if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return false;
   if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return false;
   if (eventType === "appeal_additional_round_opened" && String(user.role || "") !== "Quality Assurance") return false;
+  if (eventType === "appeal_additional_reason_option_added" && String(user.role || "") !== "Quality Assurance") return false;
+  if (eventType === "appeal_additional_reason_option_added") {
+    const reason = String(payload.details?.reason || "").trim();
+    if (!reason || reason.length > 180) throw new Error("เหตุผลต้องมีความยาวไม่เกิน 180 ตัวอักษร");
+    if (!/^[a-zA-Z0-9_-]{8,100}$/.test(String(payload.details?.optionId || ""))) {
+      throw new Error("Invalid appeal reason option ID");
+    }
+  }
 
   if (["appeal_request_submitted", "appeal_request_reviewed", "appeal_additional_round_opened", "appeal_additional_evidence_submitted"].includes(eventType)) {
     const [checked] = await checkAppealSourceCases([{ ...payload, event_type: eventType }]);
@@ -190,7 +199,10 @@ export async function writeAppealEvent(
   if (eventType === "appeal_additional_evidence_submitted" && !/^[a-zA-Z0-9_-]{8,100}$/.test(submissionId)) {
     throw new Error("Appeal evidence submission ID is invalid");
   }
-  const docId = sanitizeId(`${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}${roundId ? `-${roundId}` : ""}${submissionId ? `-${submissionId}` : ""}`);
+  const reasonOptionId = eventType === "appeal_additional_reason_option_added" ? String(details.optionId || "") : "";
+  const docId = sanitizeId(reasonOptionId
+    ? `${eventType}-${reasonOptionId}`
+    : `${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}${roundId ? `-${roundId}` : ""}${submissionId ? `-${submissionId}` : ""}`);
   const reviewerNameCandidates = [user.agentName, user.displayName]
     .map((value) => canonicalizeAgentName(value || ""))
     .filter(Boolean)
@@ -243,6 +255,21 @@ export async function fetchAssignedAppealRequestIds(username: string): Promise<s
     .filter(event => event.event_type === "appeal_internal_message")
     .map(event => String(event.details?.requestId || "").trim())
     .filter(Boolean))];
+}
+
+// Reasons are shared between QA sessions and kept outside the scored appeal
+// event list. Only QA can create options; reading does not change case history.
+export async function fetchAdditionalAppealReasonOptions(): Promise<string[]> {
+  const snapshot = await getDocs(query(
+    collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+    where("event_type", "==", "appeal_additional_reason_option_added"),
+    firestoreLimit(200)
+  ));
+  const options = snapshot.docs
+    .map(item => String(item.data()?.details?.reason || "").trim())
+    .filter(Boolean);
+  return [...new Map(options.map(reason => [reason.toLocaleLowerCase("th"), reason])).values()]
+    .sort((a, b) => a.localeCompare(b, "th"));
 }
 
 export async function fetchAppealDiscussionEvents(requestId: string): Promise<AppealLogEvent[]> {
