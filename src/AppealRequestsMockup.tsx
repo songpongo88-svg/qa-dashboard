@@ -567,6 +567,8 @@ export default function AppealRequestsMockup({
         "appeal_request_submitted",
         "appeal_request_reviewed",
         "appeal_request_reset",
+        "appeal_additional_round_opened",
+        "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
       return true;
     } catch (error) {
@@ -779,6 +781,7 @@ export default function AppealRequestsMockup({
     try {
       const latestLogs = await fetchAppealEvents([
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
+        "appeal_additional_round_opened", "appeal_additional_evidence_submitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(latestLogs).find(item => item.requestId === preview.requestId);
       if (latestLogs.some(log => log.source_case_unavailable && String(log.details?.requestId || "") === preview.requestId)) {
