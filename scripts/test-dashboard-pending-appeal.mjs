@@ -140,6 +140,24 @@ try {
   fixture.fail=false;fixture.events=[resubmittedReview,...fixture.events];await render({agent:'Fixture Agent A',refresh:8});
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='ready'&&row('Fixture Agent A').textContent.includes('90.80'),'retry rechecks events and unlocks');
   console.log('PASS Reset, resubmission, failed appeal-status read and successful retry never substitute zero or expose an unconfirmed summary');
+
+  const septemberCase={...sample('AA993001','Fixture Agent A'),auditDate:'2026-09-06',caseDate:'2026-09-06',evaluationMonthKey:'2026-09'};
+  const septemberAppeal={...submit(1),case_id:'AA993001',created_at:'2026-10-07T09:35:15Z',details:{...submit(1).details,requestId:'september-appeal-in-october',auditDate:'06/09/2026'}};
+  fixture.evaluations.push(septemberCase);
+  fixture.events=[septemberAppeal];
+  await render({agent:'Fixture Agent A',month:'2026-10',refresh:9});
+  await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='ready','September appeal does not hold October');
+  assert.equal(metric('Quality Score (Avg.)').dataset.appealScoreState,'ready');
+  await render({agent:'Fixture Agent A',month:'2026-09',refresh:9});
+  await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='held','September still holds its own pending appeal');
+  assert.ok(metric('Quality Score (Avg.)').textContent.includes('1 เคส'));
+  const twoMonths=withAppealScoreState([{agent:'Fixture Agent A',caseId:'AA993001',monthKey:'2026-09'},{agent:'Fixture Agent A',caseId:'AA991001',monthKey:'2026-10'}],buildAppealRequests([septemberAppeal,submit(1)]));
+  assert.equal(getAppealScoreHold(twoMonths).pendingCount,2,'multi-month overview counts each month once');
+  assert.equal(getAppealScoreHold(twoMonths.filter(item=>item.monthKey==='2026-10')).pendingCount,1);
+  const missingAuditDate={...septemberAppeal,details:{...septemberAppeal.details,auditDate:''}};
+  const sourceFallback=withAppealScoreState([{agent:'Fixture Agent A',caseId:'AA993001',monthKey:'2026-09'},{agent:'Fixture Agent A',caseId:'AA991001',monthKey:'2026-10'}],buildAppealRequests([missingAuditDate]));
+  assert.equal(getAppealScoreHold(sourceFallback.filter(item=>item.monthKey==='2026-10')),null,'missing appeal date uses source month, never submit month');
+  console.log('PASS actual Dashboard and Agent Performance: September appeal submitted in October holds September only; October stays visible; multi-month counts and source-date fallback remain correct');
 } finally {
   await act(async()=>root.unmount());
   globalThis.fetch=originalFetch;

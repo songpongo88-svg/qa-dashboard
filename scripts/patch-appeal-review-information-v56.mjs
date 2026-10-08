@@ -32,7 +32,7 @@ function patchAppealReview() {
   source = replaceRequired(
     source,
     `      .sort((a, b) => {\n        const timeA = new Date(a.submittedAt).getTime();\n        const timeB = new Date(b.submittedAt).getTime();\n        return (Number.isNaN(timeB) ? 0 : timeB) - (Number.isNaN(timeA) ? 0 : timeA);\n      });`,
-    `      .sort((a, b) =>\n        parseAppealReviewSubmittedTime(b.submittedAt) -\n        parseAppealReviewSubmittedTime(a.submittedAt)\n      );`,
+    `      .sort((a, b) => {\n        const timeA = parseAppealReviewSubmittedTime(a.submittedAt) || Number.MAX_SAFE_INTEGER;\n        const timeB = parseAppealReviewSubmittedTime(b.submittedAt) || Number.MAX_SAFE_INTEGER;\n        return timeA - timeB || a.requestId.localeCompare(b.requestId);\n      });`,
     "Submitted Date & Time sorting"
   );
 

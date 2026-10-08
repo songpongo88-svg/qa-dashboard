@@ -3755,7 +3755,7 @@ function SlideOverCaseDetail({
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
   onShareCaseDetail?: (caseId: string, agentName?: string) => void;
-  onAppealSubmitted?: (caseId: string, agentName?: string) => void;
+  onAppealSubmitted?: (caseId: string, agentName?: string, monthKey?: string) => void;
 }) {
   if (!open || !caseItem) return null;
 
@@ -4024,7 +4024,7 @@ function SlideOverCaseDetail({
       }
 
       setAppealRequestExists(true);
-      onAppealSubmitted?.(caseItem.caseId, caseItem.agent);
+      onAppealSubmitted?.(caseItem.caseId, caseItem.agent, caseItem.monthKey);
       setAppealSubmitOpen(false);
       setAppealSubmitStep(1);
       setAppealSubmitMessage("ส่งคำขออุทธรณ์ให้ Songpon ตรวจสอบเรียบร้อยแล้ว");
@@ -5094,15 +5094,19 @@ export default function DashboardMockup({
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
 
   const [allCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
-  const markCaseAppealSubmitted = (caseId: string, agentName?: string) => {
+  const markCaseAppealSubmitted = (caseId: string, agentName?: string, monthKey?: string) => {
     const submittedIds = new Set(splitAppealCaseIds(caseId));
     setAllCases((cases) => {
       const owner = agentName || cases.find(item =>
         splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)))?.agent;
-      const previousCount = Math.max(0, ...cases.filter(item => isSameCanonicalAgent(item.agent, owner))
+      const submittedMonth = monthKey || cases.find(item => isSameCanonicalAgent(item.agent, owner) &&
+        splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)))?.monthKey;
+      const inSubmittedMonth = (item: CaseItem) => isSameCanonicalAgent(item.agent, owner) && item.monthKey === submittedMonth;
+      const previousCount = Math.max(0, ...cases.filter(inSubmittedMonth)
         .map(item => item.pendingAppealCaseCount || 0));
-      return cases.map(item => isSameCanonicalAgent(item.agent, owner) ? {
+      return cases.map(item => inSubmittedMonth(item) ? {
         ...item,
+        appealScoreMonthKey: submittedMonth,
         pendingAppealCaseCount: previousCount + submittedIds.size,
         hasAppealHistory: item.hasAppealHistory || splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)),
       } : item);
@@ -6888,9 +6892,7 @@ export default function DashboardMockup({
 
   const isAllAgentsView = !effectiveSelectedAgent;
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
-  const appealScoreHold = useMemo(() => getAppealScoreHold(
-    isAllAgentsView ? dashboardCases : agentCases
-  ), [isAllAgentsView, dashboardCases, agentCases]);
+  const appealScoreHold = useMemo(() => getAppealScoreHold(dashboardCases), [dashboardCases]);
 
   const metricAverageDisplay = summary.averageDisplay;
   const metricCaseCount = dashboardCases.length;

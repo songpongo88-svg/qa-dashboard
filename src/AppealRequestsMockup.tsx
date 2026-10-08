@@ -262,6 +262,9 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         })),
         topics: appealedTopics,
       };
+    }).sort((a, b) => {
+      const submittedTime = (value: string) => Date.parse(value) || Number.MAX_SAFE_INTEGER;
+      return submittedTime(a.submittedAt) - submittedTime(b.submittedAt) || a.requestId.localeCompare(b.requestId);
     });
 }
 

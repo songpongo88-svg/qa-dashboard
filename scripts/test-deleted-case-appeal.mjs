@@ -106,7 +106,7 @@ try{
   let checked=await events();let requests=app.buildAppealRequests(checked);
   assert.deepEqual(requests.map(item=>item.caseId),['AA990802']);
   assert.equal(checked.find(item=>item.case_id===deleted.case_id).source_case_unavailable,true);
-  const caseRows=[{agent:'Fixture Agent A',caseId:'AA990803',finalScore:90}];
+  const caseRows=[{agent:'Fixture Agent A',caseId:'AA990803',monthKey:'2026-10',finalScore:90}];
   assert.equal(app.getAppealScoreHold(app.withAppealScoreState(caseRows,requests)).pendingCount,1);
   const approved={event_type:'appeal_request_reviewed',case_id:alive.case_id,target_agent:alive.target_agent,created_at:'2026-10-07T02:00:00Z',details:{requestId:alive.details.requestId,decision:'Approved',topics:topics.map(topic=>({...topic,decision:'Approved',revisedScore:32,revisedComment:'Corrected'}))}};
   fixture.events.set('alive-review',approved);
