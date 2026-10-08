@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T07:43:42.220Z",
-  "reason": "Reviewed request-scoped read path for QA/Senior internal conversations, preserving normal appeal review fetch limits and preventing case/PDF display.",
+  "reviewedAt": "2026-10-08T07:45:32.662Z",
+  "reason": "Validated QA reviewer-only save/reset guards and Senior internal discussion permissions while retaining evidence and report isolation.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -316,7 +316,7 @@
     "src/AppealEvidence.tsx": "ee9fb844fcc20c11e1f1776b354157eb818ccdebfe38d529abc9be9c376b0cc3",
     "src/AppealMockup.tsx": "6a797ff168d961287277792e932ec7cf111c175ed74554941c4b30472e389a14",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
-    "src/AppealRequestsMockup.tsx": "e0c847e4554bac50b234a0471423a0aff34659da833d9dea08e9e924b836395c",
+    "src/AppealRequestsMockup.tsx": "255b0d0e1b05c4f579a7e598597507e615a4657fdce63e98a50405db6db5eb18",
     "src/AppealReviewDialog.tsx": "9fd7486c9e03008c5c11db0f9be597c56bbe36d810d0e5922ee85f8244fa4af9",
     "src/AppealScoreHoldNotice.tsx": "efad66ceace2acc153516f5aec423a51934b6ec36651a76afabf016c0075caf8",
     "src/AutoDeployRefresh.tsx": "1e7cb76eb6f7f5dc368f109fbae6a02afd67b3782e07f86c3b9a2e97f259ffab",
@@ -358,7 +358,7 @@
     "src/announcementTicker.css": "a50df53eca311d493d8c4214748e77dc3f2d094ff5f798334b34921069af55e8",
     "src/appealCaseAvailability.ts": "90f2f4b68a75ac62d69234e68eb6d6e442887c8741979645074147e990fd1fbe",
     "src/appealReview.ts": "34f6945aef695da35e237d805e81868ddb9d4f689c8dd8968fad1d7aaa306eb1",
-    "src/appealStore.ts": "dd33b608d5359e48c342d436c7ff8a4665d1f3c105197038c3f3bd864b2c8b6e",
+    "src/appealStore.ts": "c2eb9f04b364c707dfc3a1bec3452a2f78a5409426690ff7484953de21df7086",
     "src/appealSummaryPdf.ts": "3f11c8a2e6d3b2a4997675b6bb2167129eb5619a24e3d16bc70129b3c73a129b",
     "src/bulkCaseDetailPdf.ts": "041a9f3b433f17a94b7e2babf8c9843e4f0300a635bce6a4488d6029036b0750",
     "src/callRecordingState.ts": "aa1a60ff66293c77832defa28831b3b73aeb98c47307fa1a562e185630bb9629",
