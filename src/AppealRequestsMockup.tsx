@@ -5,7 +5,7 @@ import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNoti
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
-import { fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent } from "./appealStore";
+import { fetchAdditionalAppealReasonOptions, fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import PageHero from "./PageHero";
 import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 
@@ -25,6 +25,13 @@ type AppealTopic = {
   rejectReason?: string;
 };
 
+const DEFAULT_ADDITIONAL_APPEAL_REASONS = [
+  "ได้รับหลักฐานเพิ่มเติมหลังพิจารณา",
+  "ขอให้ตรวจสอบหัวข้อเดิมอีกครั้ง",
+  "พบหัวข้อที่ยังไม่เคยยื่นอุทธรณ์",
+  "ตรวจพบข้อมูลหรือคะแนนที่อาจคลาดเคลื่อน",
+  "ได้รับคำขอตรวจสอบเพิ่มเติมจาก Senior / Supervisor",
+] as const;
 const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
 const LEGACY_NO_APPEAL_TEXT = "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน";
 
@@ -470,6 +477,12 @@ export default function AppealRequestsMockup({
   const [additionalOpen, setAdditionalOpen] = useState(false);
   const [additionalCodes, setAdditionalCodes] = useState<string[]>([]);
   const [additionalNote, setAdditionalNote] = useState("");
+  const [additionalReason, setAdditionalReason] = useState("");
+  const [savedAdditionalReasons, setSavedAdditionalReasons] = useState<string[]>([]);
+  const [addingReason, setAddingReason] = useState(false);
+  const [newReason, setNewReason] = useState("");
+  const [reasonSaving, setReasonSaving] = useState(false);
+  const [reasonNotice, setReasonNotice] = useState("");
   const [editingReview, setEditingReview] = useState(false);
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
@@ -561,12 +574,38 @@ export default function AppealRequestsMockup({
     return [...priorTopics, ...selectedTopics];
   };
 
+  const additionalReasonOptions = useMemo(() => {
+    const byName = new Map<string, string>();
+    for (const reason of [...DEFAULT_ADDITIONAL_APPEAL_REASONS, ...savedAdditionalReasons]) {
+      const clean = String(reason || "").trim();
+      if (clean && !byName.has(clean.toLocaleLowerCase("th"))) byName.set(clean.toLocaleLowerCase("th"), clean);
+    }
+    return [...byName.values()];
+  }, [savedAdditionalReasons]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!allowReview) return;
+    void fetchAdditionalAppealReasonOptions()
+      .then(options => { if (!cancelled) setSavedAdditionalReasons(options); })
+      .catch(error => {
+        console.warn("Could not load custom additional appeal reasons", error);
+        if (!cancelled) setReasonNotice("โหลดเหตุผลที่เพิ่มไว้ไม่สำเร็จ กรุณาลองใหม่");
+      });
+    return () => { cancelled = true; };
+  }, [allowReview]);
+
   const pendingRequests = requests.filter(item => item.status === "Pending" || Boolean(item.additionalRound));
   const reviewedRequests = requests.filter(item => !item.additionalRound && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
   const resetRequests = requests.filter((item) => item.status === "Reset");
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
+  // An approved/rejected review closes internal messaging until QA explicitly
+  // opens an additional round; older messages remain visible as audit history.
+  const canSendDiscussion = Boolean(selectedRequest) && (
+    selectedRequest?.status === "Pending" || Boolean(selectedRequest?.additionalRound)
+  );
   const canReview = allowReview && (
     selectedRequest?.status === "Pending" ||
     Boolean(selectedRequest?.additionalRound?.submitted) ||
@@ -612,6 +651,10 @@ export default function AppealRequestsMockup({
     setAdditionalOpen(false);
     setAdditionalCodes([]);
     setAdditionalNote("");
+    setAdditionalReason("");
+    setAddingReason(false);
+    setNewReason("");
+    setReasonNotice("");
   }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt, selectedRequest?.additionalRound?.roundId, selectedRequest?.additionalRound?.submittedAt]);
 
   useEffect(() => {
@@ -625,9 +668,54 @@ export default function AppealRequestsMockup({
     return () => { cancelled = true; };
   }, [selectedRequestId]);
 
+  const saveAdditionalAppealReason = async () => {
+    if (!allowReview || reasonSaving || busy) return;
+    const clean = newReason.trim().replace(/\s+/g, " ");
+    if (!clean || clean.length > 180) {
+      setReasonNotice("กรุณากรอกเหตุผลไม่เกิน 180 ตัวอักษร");
+      return;
+    }
+    const matched = additionalReasonOptions.find(
+      option => option.toLocaleLowerCase("th") === clean.toLocaleLowerCase("th")
+    );
+    if (matched) {
+      setAdditionalReason(matched);
+      setNewReason("");
+      setAddingReason(false);
+      setReasonNotice("เหตุผลนี้มีในรายการแล้ว");
+      return;
+    }
+    setReasonSaving(true);
+    setReasonNotice("");
+    try {
+      const added = await writeAppealEvent(currentUser, "appeal_additional_reason_option_added", {
+        tab: "appeal-requests",
+        details: {
+          reason: clean,
+          optionId: crypto.randomUUID(),
+          createdBy: String(currentUser?.username || ""),
+          createdAt: new Date().toISOString(),
+        },
+      });
+      if (!added) throw new Error("QA permission required");
+      const refreshed = await fetchAdditionalAppealReasonOptions();
+      setSavedAdditionalReasons(refreshed);
+      setAdditionalReason(clean);
+      setNewReason("");
+      setAddingReason(false);
+      setReasonNotice("เพิ่มเหตุผลลงรายการกลางเรียบร้อยแล้ว");
+    } catch (error) {
+      console.error("Save additional appeal reason failed", error);
+      setReasonNotice("เพิ่มเหตุผลไม่สำเร็จ กรุณาลองอีกครั้ง");
+    } finally {
+      setReasonSaving(false);
+    }
+  };
+
   const openAdditionalAppealRound = async () => {
     if (!allowReview || !selectedRequest || !isReviewed || selectedRequest.additionalRound ||
-        busy || !additionalCodes.length || !additionalNote.trim()) return;
+        busy || reasonSaving || !additionalCodes.length || !additionalReason ||
+        !additionalReasonOptions.includes(additionalReason)) return;
     const selected = availableAppealTopics.filter(row => additionalCodes.includes(row.code));
     if (selected.length !== additionalCodes.length || !selected.length) {
       setMessage("ไม่พบหัวข้อที่เลือกในข้อมูลประเมินของเคสนี้");
@@ -659,7 +747,10 @@ export default function AppealRequestsMockup({
           previousReviewId: current.reviewId,
           openedAt,
           openedBy: String(currentUser?.agentName || currentUser?.displayName || currentUser?.username || ""),
-          note: additionalNote.trim(),
+          reason: additionalReason,
+          note: additionalNote.trim()
+            ? `${additionalReason} — ${additionalNote.trim()}`
+            : additionalReason,
           topics: selected.map(row => ({
             code: row.code, label: row.label, score: row.score, max: row.max,
             comment: row.comment || "",
@@ -673,6 +764,7 @@ export default function AppealRequestsMockup({
       setAdditionalOpen(false);
       setAdditionalCodes([]);
       setAdditionalNote("");
+      setAdditionalReason("");
       setMessage("เปิดรอบอุทธรณ์เพิ่มเติมแล้ว รอเจ้าของเคสส่งเหตุผลและหลักฐานจาก Case Detail");
       await loadRequests();
       onTasksChanged?.();
@@ -692,7 +784,7 @@ export default function AppealRequestsMockup({
   };
 
   const sendDiscussion = async () => {
-    if (!selectedRequest || discussionBusy || discussionUploads || busy) return;
+    if (!selectedRequest || !canSendDiscussion || discussionBusy || discussionUploads || busy) return;
     if (!allowReview && !["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return;
     const text = discussionText.trim();
     if (!text && !discussionImages.length) {
