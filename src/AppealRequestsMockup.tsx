@@ -371,9 +371,15 @@ function openCaseDetailTab(request: AppealRequest) {
 
 export default function AppealRequestsMockup({
   currentUser,
+  allowReview = false,
+  allowedAgentNames = null,
+  seniorOptions = [],
   onTasksChanged,
 }: {
   currentUser: any;
+  allowReview?: boolean;
+  allowedAgentNames?: string[] | null;
+  seniorOptions?: { username: string; displayName: string }[];
   onTasksChanged?: () => void;
 }) {
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
@@ -384,13 +390,35 @@ export default function AppealRequestsMockup({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [qaImageUploads, setQaImageUploads] = useState(0);
+  const [discussionImages, setDiscussionImages] = useState<AppealEvidenceImage[]>([]);
+  const [discussionText, setDiscussionText] = useState("");
+  const [discussionTopic, setDiscussionTopic] = useState("");
+  const [discussionRecipient, setDiscussionRecipient] = useState("");
+  const [discussionUploads, setDiscussionUploads] = useState(0);
+  const [discussionBusy, setDiscussionBusy] = useState(false);
+  const [discussionMessage, setDiscussionMessage] = useState("");
   const [editingReview, setEditingReview] = useState(false);
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
   const savingRef = useRef(false);
   const [listTab, setListTab] = useState<AppealListTab>("pending");
 
-  const requests = useMemo(() => buildAppealRequests(logs), [logs]);
+  const requests = useMemo(() => {
+    const all = buildAppealRequests(logs);
+    if (allowedAgentNames === null) return all;
+    const agentKeys = new Set(allowedAgentNames.map(name => name.replace(/\s+/g, "").toLowerCase()));
+    return all.filter(request => agentKeys.has(String(request.agent || "").replace(/\s+/g, "").toLowerCase()));
+  }, [logs, allowedAgentNames]);
+  const discussionEvents = useMemo(() => logs
+    .filter(log => log.event_type === "appeal_internal_message" &&
+      String(log.details?.requestId || "") === selectedRequestId &&
+      !log.source_case_unavailable)
+    .filter(log => currentUser?.role !== "Senior" ||
+      [String(log.details?.seniorUsername || "").toLowerCase(), String(log.username || "").toLowerCase()]
+        .includes(String(currentUser.username || "").toLowerCase()))
+    .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || ""))),
+    [logs, selectedRequestId, currentUser?.role, currentUser?.username]
+  );
   const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
@@ -400,7 +428,7 @@ export default function AppealRequestsMockup({
   const visibleRequests =
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
-  const canReview = selectedRequest?.status === "Pending" || (isReviewed && editingReview);
+  const canReview = allowReview && (selectedRequest?.status === "Pending" || (isReviewed && editingReview));
 
   const loadRequests = async () => {
     try {
@@ -409,6 +437,7 @@ export default function AppealRequestsMockup({
         "appeal_request_submitted",
         "appeal_request_reviewed",
         "appeal_request_reset",
+        "appeal_internal_message",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
       return true;
     } catch (error) {
@@ -435,6 +464,11 @@ export default function AppealRequestsMockup({
     })));
     setReviewSummary(selectedRequest.reviewSummary || "");
     setEditingReview(false);
+    setDiscussionImages([]);
+    setDiscussionText("");
+    setDiscussionTopic("");
+    setDiscussionRecipient("");
+    setDiscussionMessage("");
   }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt]);
 
   const cancelReviewEdit = () => {
@@ -444,6 +478,55 @@ export default function AppealRequestsMockup({
     })));
     setReviewSummary(selectedRequest.reviewSummary || "");
     setEditingReview(false);
+  };
+
+  const sendDiscussion = async () => {
+    if (!selectedRequest || discussionBusy || discussionUploads || busy) return;
+    if (!allowReview && currentUser?.role !== "Senior") return;
+    const text = discussionText.trim();
+    if (!text && !discussionImages.length) {
+      setDiscussionMessage("กรุณาระบุข้อความหรือแนบรูปภาพก่อนส่ง");
+      return;
+    }
+    const seniorUsername = currentUser?.role === "Senior"
+      ? String(currentUser.username || "")
+      : discussionRecipient;
+    if (!seniorUsername) {
+      setDiscussionMessage("กรุณาเลือก Senior ที่จะส่งคำถามหรือหลักฐานให้");
+      return;
+    }
+    setDiscussionBusy(true);
+    setDiscussionMessage("");
+    const sentAt = new Date().toISOString();
+    const messageId = crypto.randomUUID();
+    try {
+      const saved = await writeAppealEvent(currentUser, "appeal_internal_message", {
+        tab: "appeal-requests",
+        case_id: selectedRequest.caseId,
+        target_agent: selectedRequest.agent,
+        details: {
+          requestId: selectedRequest.requestId,
+          messageId,
+          sentAt,
+          seniorUsername,
+          topicCode: discussionTopic,
+          message: text,
+          evidenceImages: [...discussionImages],
+          senderName: String(currentUser?.agentName || currentUser?.displayName || currentUser?.username || ""),
+          senderRole: String(currentUser?.role || ""),
+        },
+      });
+      if (!saved) throw new Error("User does not have internal appeal messaging permission");
+      setDiscussionText("");
+      setDiscussionImages([]);
+      setDiscussionMessage("ส่งข้อความและรูปหลักฐานเรียบร้อยแล้ว");
+      await loadRequests();
+    } catch (error) {
+      console.error("Save appeal discussion failed:", error);
+      setDiscussionMessage("ส่งข้อความไม่สำเร็จ ข้อความและภาพที่แนบยังอยู่ กรุณาลองใหม่");
+    } finally {
+      setDiscussionBusy(false);
+    }
   };
 
   const submitReview = () => {
@@ -659,7 +742,7 @@ export default function AppealRequestsMockup({
           <div className="border-r border-violet-100 p-5">
             <div className="mb-3 flex gap-2">
               <button type="button" onClick={loadRequests} className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">Refresh</button>
-              <button type="button" onClick={() => exportAppealRows(requests)} className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800">Export Appeal ROWDATA</button>
+              {allowReview && <button type="button" onClick={() => exportAppealRows(requests)} className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800">Export Appeal ROWDATA</button>}
             </div>
             <div className="mb-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Task Inbox</div>
@@ -992,24 +1075,24 @@ export default function AppealRequestsMockup({
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
                     <div className="flex flex-wrap gap-2">
-                      {isReviewed && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
+                      {allowReview && isReviewed && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
                       {editingReview && <button type="button" disabled={busy} onClick={cancelReviewEdit} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">ยกเลิกการแก้ไข</button>}
-                      <button
+                      {allowReview && <button
                         type="button"
                         disabled={busy}
                         onClick={resetRequest}
                         className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                       >
                         Reset This Task
-                      </button>
-                      <button
+                      </button>}
+                      {allowReview && <button
                         type="button"
                         disabled={busy || !canReview || qaImageUploads > 0}
                         onClick={submitReview}
                         className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                       >
                         {busy ? "Saving..." : "Save Review"}
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </div>
