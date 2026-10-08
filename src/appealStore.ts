@@ -6,6 +6,7 @@
   orderBy,
   query,
   setDoc,
+  where,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
@@ -211,6 +212,24 @@ export async function writeAppealEvent(
 
   clearAppealEventReadCache();
   return true;
+}
+
+// Read a single appeal's private discussion by requestId rather than mixing
+// conversation traffic into the latest 2,000 scored appeal events.
+export async function fetchAppealDiscussionEvents(requestId: string): Promise<AppealLogEvent[]> {
+  const target = String(requestId || "").trim();
+  if (!target) return [];
+  const snapshot = await getDocs(
+    query(
+      collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+      where("details.requestId", "==", target),
+      firestoreLimit(500)
+    )
+  );
+  return snapshot.docs
+    .map(item => toAppealLogEvent(item.id, item.data()))
+    .filter(event => event.event_type === "appeal_internal_message")
+    .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || "")));
 }
 
 export async function fetchAppealEvents(
