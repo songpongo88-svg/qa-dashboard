@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T05:04:04.308Z",
-  "reason": "Reviewed PDF dates DD/MM/YYYY Gregorian, Bangkok timestamps, no reparsing normalized appeal timestamps; scores, content and signatures unchanged.",
+  "reviewedAt": "2026-10-08T06:19:19.558Z",
+  "reason": "Reviewed Case Detail and PDF appeal-evidence presentation for Approved, Rejected, and Partially Approved reviews; no changes to guide instructions or evaluation rules.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -325,7 +325,7 @@
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "cf8869f24169ce2a37d4237c4b56070c093bb4cd41bbd83bc8dc1b8fccc47426",
     "src/CreateEvaluationMockup.tsx": "ffec619b522feed1e8f8ab0cbe61bae0d4834c8a9baef516d8ca8a08570527a0",
-    "src/DashboardMockup.tsx": "93595bd9eab0895ae06dc3db8fd7598c060539f22f4c5eded0465f7dc5f5aa2c",
+    "src/DashboardMockup.tsx": "266c36d6f5194736066ba48bff2c8dcb6e80a9f1556bd3b2bbdc4e4c4d0d5f12",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "1c8fa095f7b379f4c693a45084fe89ad56dc5b869085b4dcf1bb9deb1b3c7695",
@@ -364,7 +364,7 @@
     "src/callRecordingState.ts": "aa1a60ff66293c77832defa28831b3b73aeb98c47307fa1a562e185630bb9629",
     "src/cartoonTheme.css": "d6748736b56145608cbb7caa1e78d765a4687f631c42ef956b5ea777c0e08385",
     "src/caseAppealPdfAddon.ts": "8295958b887e0f98b39c774421613df11e2c0963a71e4c9cc71307138a80170c",
-    "src/caseDetailOfficialPdf.ts": "823ef9d75bc25bd8b3fd1d493d53aaa48c57ff4f15641cc7bb8e821e9da5c7fd",
+    "src/caseDetailOfficialPdf.ts": "4a9e01926178e21d5259fe22af2f172f55ff1a0536291261af40d88483764b07",
     "src/caseIssueTagsPdf.ts": "8cb00a21ba12ed34a16686192b367f658a48902cc38b38f51f74f47d52c63d34",
     "src/chatRealtimeStore.ts": "bb91970a0ced12b34d39ba8695be0218014136aa0c21551dbb1292bbb682abc2",
     "src/coachingAttachmentUpload.ts": "0dfcbab10fce8e446f5cd14ebd1c7af3e0607ce1d73d592a9a38ac1e6839ee4a",
