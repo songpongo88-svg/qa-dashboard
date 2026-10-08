@@ -1,5 +1,6 @@
 import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, type AppealTopicDecision } from "./appealReview";
 import { AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
+import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNotice } from "./AppealReviewDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -626,7 +627,7 @@ export default function AppealRequestsMockup({
           <section className="border-b border-violet-100 p-5" aria-label="รูปภาพหลักฐานคำขออุทธรณ์">
             <div className="text-sm font-bold text-violet-700">รูปภาพหลักฐาน · {selectedRequest.caseId}</div>
             {selectedRequest.topics.filter(topic => topic.evidenceImages?.length).map(topic => (
-              <div key={topic.code} className="mt-3"><div className="text-xs font-semibold">{topic.code} {topic.label}</div><AppealEvidenceGallery images={topic.evidenceImages || []} /></div>
+              <div key={topic.code} className="mt-3"><div className="text-xs font-semibold">{topic.code} {topic.label}</div><AppealEvidenceGallery images={topic.evidenceImages || []} caseId={selectedRequest.caseId} startIndex={appealEvidenceStartIndex(selectedRequest.topics, topic.code)} /></div>
             ))}
           </section>
         ) : null}
@@ -832,7 +833,7 @@ export default function AppealRequestsMockup({
                           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
                             <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-700">Appeal Reason</div>
                             <div className="whitespace-pre-wrap break-words">{topic.appealReason || "-"}</div>
-                            <AppealEvidenceGallery images={topic.evidenceImages || []} />
+                            <AppealEvidenceGallery images={topic.evidenceImages || []} caseId={selectedRequest.caseId} startIndex={appealEvidenceStartIndex(selectedRequest.topics, topic.code)} />
                           </div>
                         </div>
                         {topic.decision === "Approved" ? (
