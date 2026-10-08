@@ -1,5 +1,5 @@
 import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, type AppealTopicDecision } from "./appealReview";
-import { AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
+import { AppealEvidenceGallery, AppealEvidencePicker, type AppealEvidenceImage } from "./AppealEvidence";
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNotice } from "./AppealReviewDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +11,7 @@ import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 
 type AppealTopic = {
   evidenceImages?: AppealEvidenceImage[];
+  qaEvidenceImages?: AppealEvidenceImage[];
   code: string;
   decision?: AppealTopicDecision;
   label: string;
@@ -193,7 +194,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         .filter(isAppealedTopic)
         .map((topic) => {
           const original = baseTopics.find(item => item.code === topic.code);
-          topic = { ...topic, evidenceImages: original?.evidenceImages || topic.evidenceImages || [] };
+          topic = { ...topic, evidenceImages: original?.evidenceImages || topic.evidenceImages || [], qaEvidenceImages: topic.qaEvidenceImages || [] };
           const decision = review ? getAppealTopicDecision(topic, reviewDecision) : undefined;
           topic = { ...topic, decision };
           if (decision !== "Rejected") return topic;
@@ -382,6 +383,7 @@ export default function AppealRequestsMockup({
   const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [qaImageUploads, setQaImageUploads] = useState(0);
   const [editingReview, setEditingReview] = useState(false);
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
@@ -445,7 +447,7 @@ export default function AppealRequestsMockup({
   };
 
   const submitReview = () => {
-    if (!selectedRequest || !canReview || busy) return;
+    if (!selectedRequest || !canReview || busy || qaImageUploads > 0) return;
     if (!reviewSummary.trim()) {
       setNotice({ kind: "validation", title: "ยังบันทึกผลไม่ได้", caseId: selectedRequest.caseId,
         message: "กรุณากรอก Review Summary เพื่อสรุปเหตุผลการพิจารณาอุทธรณ์ก่อนบันทึก" });
@@ -484,6 +486,7 @@ export default function AppealRequestsMockup({
       code: topic.code, label: topic.label, score: topic.score, max: topic.max,
       comment: String(topic.comment || ""), wantsAppeal: true,
       appealReason: String(topic.appealReason || ""), decision: topic.decision,
+      qaEvidenceImages: Array.isArray(topic.qaEvidenceImages) ? topic.qaEvidenceImages : [],
       ...(topic.decision === "Approved"
         ? { revisedScore: topic.revisedScore, revisedComment: topic.revisedComment, rejectReason: "" }
         : { rejectReason: topic.rejectReason }),
@@ -866,6 +869,17 @@ export default function AppealRequestsMockup({
                               className="mt-2 min-h-[92px] w-full resize-none overflow-hidden rounded-xl border border-violet-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
                               placeholder="ระบุ Comment หลังแก้ไขผลประเมิน"
                             />
+                            <AppealEvidencePicker
+                              caseId={selectedRequest.caseId}
+                              topicCode={`qa-review-${topic.code}`}
+                              images={topic.qaEvidenceImages || []}
+                              totalCount={draftTopics.reduce((count, row) => count + (row.qaEvidenceImages?.length || 0), 0)}
+                              startIndex={selectedRequest.topics.reduce((count, row) => count + (row.evidenceImages?.length || 0), 0) + appealEvidenceStartIndex(draftTopics.map(row => ({ code: row.code, evidenceImages: row.qaEvidenceImages || [] })), topic.code)}
+                              disabled={busy || !canReview || qaImageUploads > 0}
+                              onBusyChange={uploading => setQaImageUploads(count => Math.max(0, count + (uploading ? 1 : -1)))}
+                              onAdd={image => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: [...(item.qaEvidenceImages || []), image] } : item))}
+                              onRemove={id => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: (item.qaEvidenceImages || []).filter(image => image.id !== id) } : item))}
+                            />
                             <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-800">
                               Approve จะนำ Revised Score และ Revised Comment ไปใช้คำนวณและแสดงใน Case Detail
                             </div>
@@ -899,6 +913,17 @@ export default function AppealRequestsMockup({
                               }}
                               className="mt-2 min-h-[92px] w-full resize-none overflow-hidden rounded-xl border border-rose-200 px-3 py-2 text-sm outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-100 disabled:bg-slate-100"
                               placeholder="ระบุเหตุผลที่ยืนยันผลประเมินและคะแนนเดิม"
+                            />
+                            <AppealEvidencePicker
+                              caseId={selectedRequest.caseId}
+                              topicCode={`qa-review-${topic.code}`}
+                              images={topic.qaEvidenceImages || []}
+                              totalCount={draftTopics.reduce((count, row) => count + (row.qaEvidenceImages?.length || 0), 0)}
+                              startIndex={selectedRequest.topics.reduce((count, row) => count + (row.evidenceImages?.length || 0), 0) + appealEvidenceStartIndex(draftTopics.map(row => ({ code: row.code, evidenceImages: row.qaEvidenceImages || [] })), topic.code)}
+                              disabled={busy || !canReview || qaImageUploads > 0}
+                              onBusyChange={uploading => setQaImageUploads(count => Math.max(0, count + (uploading ? 1 : -1)))}
+                              onAdd={image => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: [...(item.qaEvidenceImages || []), image] } : item))}
+                              onRemove={id => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: (item.qaEvidenceImages || []).filter(image => image.id !== id) } : item))}
                             />
                             <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold leading-5 text-rose-800">
                               Reject Reason ใช้อธิบายผลการพิจารณาเท่านั้น ไม่ถือเป็น Revised Comment และไม่เปลี่ยนคะแนนเดิม
@@ -958,6 +983,11 @@ export default function AppealRequestsMockup({
                       ))}</div>
                     </details>
                   )}
+                  {draftTopics.some(topic => (topic.qaEvidenceImages?.length || 0) > 0) ? (
+                    <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+                      รูปของ QA จะบันทึกพร้อม Revised Comment / Reject Reason และแสดงใน Case Detail และ PDF หลังบันทึกผล
+                    </div>
+                  ) : null}
                   {editingReview && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">กำลังแก้ไขผลอุทธรณ์เดิม กรุณากด Save Review เพื่อบันทึกผลใหม่</p>}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
@@ -974,7 +1004,7 @@ export default function AppealRequestsMockup({
                       </button>
                       <button
                         type="button"
-                        disabled={busy || !canReview}
+                        disabled={busy || !canReview || qaImageUploads > 0}
                         onClick={submitReview}
                         className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                       >
