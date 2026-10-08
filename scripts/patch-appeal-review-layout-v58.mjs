@@ -74,8 +74,8 @@ function patchAppealReviewLayout() {
     `<td className="whitespace-nowrap px-2 py-3 text-[10px] text-slate-600">{item.auditDate || "-"}</td>`
   );
   table = table.replace(
-    `<td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">{formatDateTime(item.submittedAt)}</td>`,
-    `<td className="whitespace-nowrap px-2 py-3 text-[10px] text-slate-600">{formatDateTime(item.submittedAt)}</td>`
+    `<td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">{formatDateTime(item.additionalRound?.submittedAt || item.submittedAt)}</td>`,
+    `<td className="whitespace-nowrap px-2 py-3 text-[10px] text-slate-600">{formatDateTime(item.additionalRound?.submittedAt || item.submittedAt)}</td>`
   );
   table = table.replace(
     `<td className="px-3 py-3"><span className={"inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold " + appealReviewStatusTone(item.status)}>{item.status}</span></td>`,
