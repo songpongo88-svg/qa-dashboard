@@ -7778,6 +7778,7 @@ export default function App() {
             allowReview={appealReviewActionAllowed}
             allowedAgentNames={appealSeniorAgentNames}
             seniorOptions={appealSeniorOptions}
+            additionalCaseTopics={dashboardEffectiveCases || []}
             onTasksChanged={loadInboxTasks}
           />
         ) : activeTab === "appeal-override" && appealOverrideAllowed ? (
