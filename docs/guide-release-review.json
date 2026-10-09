@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T03:08:00.000Z",
-  "reason": "Reviewed Appeal Report routing fix: dedicated Appeal Revised PDF path; no user guide content change.",
+  "reviewedAt": "2026-10-09T03:19:05.048Z",
+  "reason": "Reviewed Evaluate issue Tag compatibility across rubric revisions; existing tags preserved without changing QA topic scores or guide content.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -324,7 +324,7 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "cf8869f24169ce2a37d4237c4b56070c093bb4cd41bbd83bc8dc1b8fccc47426",
-    "src/CreateEvaluationMockup.tsx": "ffec619b522feed1e8f8ab0cbe61bae0d4834c8a9baef516d8ca8a08570527a0",
+    "src/CreateEvaluationMockup.tsx": "b4bb8c3ee37d8f29ac618543e65b76779d4b3a2ebeb5ad33983071166bd2251d",
     "src/DashboardMockup.tsx": "3606efd1901a9ef7f8397a3197b27357e8e874b7c8f54e11d3ed7b47c52437fc",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
