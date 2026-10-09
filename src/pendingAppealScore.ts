@@ -1,4 +1,5 @@
 import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
+import { isAppealAwaitingReview } from "./appealWorkflow";
 
 export type AppealScoreState = {
   pendingAppealCaseCount?: number;
@@ -86,7 +87,7 @@ export function withAppealScoreState<T extends DatedCase & AppealScoreState>(
     caseIds(item.caseId).map(id => `${canonicalAgentIdentityKey(item.agent)}|${id}|${monthForCase(item)}`)));
   const pendingByAgentMonth = new Map<string, number>();
   for (const [key, { request, month }] of latest) {
-    if (request.editingDraft || (request.status !== "Pending" && !request.additionalRound?.submitted) || testCases.has(key)) continue;
+    if (!isAppealAwaitingReview(request) || testCases.has(key)) continue;
     const agent = canonicalAgentIdentityKey(request.agent);
     const scope = `${agent}|${month}`;
     pendingByAgentMonth.set(scope, (pendingByAgentMonth.get(scope) || 0) + 1);
