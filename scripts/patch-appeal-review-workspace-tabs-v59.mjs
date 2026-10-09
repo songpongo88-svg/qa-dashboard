@@ -55,6 +55,19 @@ function patchAppealReviewComponent() {
       "fallback workspace request id source");
   }
 
+  // A case workspace must open the actual review form, not the informational preview.
+  // v55 gates that form behind detailRequestId; an independently opened workspace
+  // has a request ID but no Action-button click to populate that local state.
+  source = replaceRequired(
+    source,
+    `  const isReviewDetailOpen = Boolean(selectedRequest && detailRequestId === selectedRequest.requestId);`,
+    `  const isReviewDetailOpen = Boolean(selectedRequest && (
+    detailRequestId === selectedRequest.requestId ||
+    (standaloneRequestId && selectedRequest.requestId === standaloneRequestId)
+  ));`,
+    "workspace opens full Appeal Review detail"
+  );
+
   source = replaceRequired(
     source,
     `                              openAppealReviewTab(item);`,
