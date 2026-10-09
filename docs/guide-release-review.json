@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reviewedAt": "2026-10-09T04:00:00.000Z",
-  "reason": "Reviewed draft self-service appeal access requests, editable appeals and latest-round status filters; work remains on isolated branch pending validation.",
+  "reason": "Review appeal feature work in isolated branch; no production changes, further validation required.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -317,7 +317,7 @@
     "src/AppealEvidence.tsx": "ee9fb844fcc20c11e1f1776b354157eb818ccdebfe38d529abc9be9c376b0cc3",
     "src/AppealMockup.tsx": "6a797ff168d961287277792e932ec7cf111c175ed74554941c4b30472e389a14",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
-    "src/AppealRequestsMockup.tsx": "b64b867daf3e2d92ee7a452c434ab4963a1dc824821a67c1d820d35e4fdfd724",
+    "src/AppealRequestsMockup.tsx": "b9d7e8b8141a243d7f45d4563316dcc08711a4aea30039c5b5f59738cb66cfbc",
     "src/AppealReviewDialog.tsx": "9fd7486c9e03008c5c11db0f9be597c56bbe36d810d0e5922ee85f8244fa4af9",
     "src/AppealScoreHoldNotice.tsx": "efad66ceace2acc153516f5aec423a51934b6ec36651a76afabf016c0075caf8",
     "src/AutoDeployRefresh.tsx": "1e7cb76eb6f7f5dc368f109fbae6a02afd67b3782e07f86c3b9a2e97f259ffab",
