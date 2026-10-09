@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T10:44:47.480Z",
-  "reason": "Reviewed atomic additional appeal permission fallback when Firestore document reads are restricted, with retry and diagnostic checks",
+  "reviewedAt": "2026-10-09T10:49:35.046Z",
+  "reason": "Reviewed additional appeal approval atomic fallback and topic test mock without changing manual content",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -292,7 +292,7 @@
     "scripts/sync-v13-excel-data-only.mjs": "d3b1eb63b3cce5ad0ebc83c47fec6f8b426e5bae3db073dc6c53abb606628b47",
     "scripts/sync-v13-rowdata.mjs": "a777f7348ca4bf130904421f22b029d7e61ceecb9b3b41f193eef2a050859567",
     "scripts/test-appeal-evidence-upload.mjs": "f24c2fa08ad45e2e1162c04433ac087d6eaa257ec6690851d4a1fb4db77d16e6",
-    "scripts/test-appeal-topic-review.mjs": "0943b7b55597aa028fcf2d3fa104ecdaeb51bb328dda812a8fff425b435179ca",
+    "scripts/test-appeal-topic-review.mjs": "6e4e15050cd348fde9427ad6c5ce674879c0cb7283daa5602300a7cee84268be",
     "scripts/test-appeal-workflow.mjs": "88761e6a3836427c275967c8fe5e1c29fe9fd3d80f76ef060f1dcb2e8e139d1e",
     "scripts/test-bulk-monthly-pdf.mjs": "821bb390d76448f1404b8963ccc985f94544fab1f8bea8fa74063632122cf151",
     "scripts/test-call-recording-save.mjs": "aa0426966c535350965505aab2873978d65743c342f6d0b05de7717dda62c73f",
