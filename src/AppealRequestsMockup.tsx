@@ -602,7 +602,7 @@ export default function AppealRequestsMockup({
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
   const savingRef = useRef(false);
-  const [listTab, setListTab] = useState<AppealListTab>("reviewed");
+  const [listTab, setListTab] = useState<AppealListTab>("pending");
   const [statusFilter, setStatusFilter] = useState("All");
 
   useEffect(() => {
