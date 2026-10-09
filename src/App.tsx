@@ -9,6 +9,7 @@ import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
+import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
 import { fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
@@ -797,6 +798,7 @@ type InboxTaskItem = {
   count: number;
   unread: boolean;
   actionLabel: string;
+  appealRequestId?: string;
   caseId?: string;
   agentName?: string;
   mailTemplate?: {
@@ -4614,8 +4616,8 @@ export default function App() {
   const exportTrainingAttendanceAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "exportTrainingAttendance") : false;
   const trainingAttendanceAllowed = Boolean(currentUser) && (viewTrainingCheckInAllowed || viewTrainingAttendanceAllowed);
   const appealReviewActionAllowed = currentUser?.role === "Quality Assurance" && hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
-  // Senior can respond to internal QA discussion but cannot edit appeal decisions.
-  const appealRequestsAllowed = appealReviewActionAllowed || ["Senior", "Supervisor"].includes(String(currentUser?.role || ""));
+  // Every signed-in role can track its scoped cases. Decisions remain QA-only.
+  const appealRequestsAllowed = Boolean(currentUser);
   const appealSeniorAgentNames = useMemo(() => {
     if (!["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return null;
     const seniorAccount = effectiveUserAccounts.find(account =>
@@ -5221,7 +5223,7 @@ export default function App() {
       const [logs, passwordRecord, appealLogs] = await Promise.all([
         fetchUsageLogsByEventTypes(INBOX_EVENT_TYPES, 1500),
         getCentralPasswordRecord(currentUser.username),
-        fetchAppealEvents(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset", "appeal_additional_access_requested", "appeal_additional_access_decided", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted"], { limit: 2000 }),
+        fetchAppealEvents(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset", "appeal_additional_access_requested", "appeal_additional_access_decided", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted", "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted"], { limit: 2000 }),
       ]);
       const readIds = readInboxReadIds(currentUser);
       const nextTasks: InboxTaskItem[] = [];
@@ -5233,10 +5235,11 @@ export default function App() {
       for (const item of appealRequests) {
         const ownerIdentities = [item.agent, item.submittedBy, item.submittedByUsername]
           .map(value => String(value || "").replace(/\\s+/g, "").toLocaleLowerCase("th")).filter(Boolean);
-        if (!ownerIdentities.some(value => inboxIdentities.includes(value))) continue;
+        if (!scopeAppealRequests([item], { ...currentUser, role: "Admin" }).length) continue;
+        const workflowStatus = appealWorkflowStatus(item);
         const access = item.additionalAccessRequest;
         const round = item.additionalRound;
-        if (access?.status === "Pending") {
+        if (workflowStatus === "Request Additional Appeal" && access) {
           const id = `additional-access-pending-${item.requestId}-${access.requestId}`;
           nextTasks.push({
             id, type: "appeal-result", badge: "รอ QA อนุมัติ",
@@ -5245,7 +5248,7 @@ export default function App() {
             count: 1, unread: !readIds.includes(id), actionLabel: "เปิด Case Detail",
             caseId: item.caseId, agentName: item.agent,
           });
-        } else if (access?.status === "Rejected") {
+        } else if (workflowStatus === "Additional Request Rejected" && access) {
           const id = `additional-access-rejected-${item.requestId}-${access.requestId}`;
           nextTasks.push({
             id, type: "appeal-result", badge: "ไม่อนุมัติสิทธิ์",
@@ -5254,7 +5257,7 @@ export default function App() {
             count: 1, unread: !readIds.includes(id), actionLabel: "ดูผลใน Case Detail",
             caseId: item.caseId, agentName: item.agent,
           });
-        } else if (round && !round.submitted) {
+        } else if (workflowStatus === "Awaiting Additional Submission" && round) {
           const expiresAt = Date.parse(String(round.expiresAt || ""));
           const stillActive = Number.isFinite(expiresAt) && expiresAt > Date.now();
           const id = `additional-access-${stillActive ? "approved" : "expired"}-${item.requestId}-${round.roundId}`;
@@ -5326,20 +5329,21 @@ export default function App() {
           });
         });
 
-      if (appealRequestsAllowed) {
+      if (appealReviewActionAllowed) {
         appealRequests
-          .filter((item) => item.status === "Pending")
+          .filter((item) => ["Pending", "Pending (Additional)", "Request Additional Appeal", "Approved (Access)"].includes(appealWorkflowStatus(item)) && !item.editingDraft)
           .forEach((item) => {
-            const id = `appeal-review-${item.requestId}-${item.caseId}`;
+            const id = `appeal-review-${item.requestId}-${item.caseId}-${appealWorkflowStatus(item)}-${item.additionalRound?.roundId || item.additionalAccessRequest?.requestId || "original"}`;
             nextTasks.push({
               id,
               type: "appeal",
-              title: `Appeal request: ${item.caseId}`,
-              description: `${item.agent || "Case owner"} submitted an appeal request. Open Case Detail to review the case before making a decision.`,
+              title: `${appealWorkflowLabel(appealWorkflowStatus(item))}: ${item.caseId}`,
+              description: `${item.agent || "Case owner"} · ${appealWorkflowLabel(appealWorkflowStatus(item))}`,
               badge: "Review",
               count: 1,
               unread: !readIds.includes(id),
-              actionLabel: "Open case detail",
+              actionLabel: "เปิด Appeal Review",
+              appealRequestId: item.requestId,
               caseId: item.caseId,
               agentName: item.agent,
               mailTemplate: {
@@ -6183,7 +6187,10 @@ export default function App() {
 
     if (task.type === "appeal") {
       if (appealRequestsAllowed) {
-        navigateToTab("appeal-requests");
+        navigateToTab("appeal-requests", task.appealRequestId ? {
+          workspaceKey: `appeal-review:${encodeURIComponent(task.appealRequestId)}|${encodeURIComponent(task.caseId || "")}` as WorkspaceTabKey,
+          params: { requestId: "" },
+        } : undefined);
       }
       return;
     }
@@ -7516,7 +7523,7 @@ export default function App() {
                 <button type="button" onClick={() => handleReviewMenuChange("appeal")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "appeal" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeals</span> : null}</button>
                 {createEvaluationAllowed ? <button type="button" onClick={() => handleReviewMenuChange("create-evaluation")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "create-evaluation" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Create Evaluation</span> : null}</button> : null}
                 {preTestAllowed ? <button type="button" onClick={() => handleReviewMenuChange("pre-test")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "pre-test" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="m13 7 4 4"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Pre-Test</span> : null}</button> : null}
-                {appealRequestsAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-requests")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "appeal-requests" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Review Queue</span> : null}</button> : null}
+                {appealRequestsAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-requests")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "appeal-requests" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeal Review</span> : null}</button> : null}
                 {rubricAllowed ? <button type="button" onClick={() => handleReviewMenuChange("rubric")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "rubric" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Rubric</span> : null}</button> : null}
                 {trainingAttendanceAllowed ? <button type="button" onClick={() => handleReviewMenuChange("training-attendance")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "training-attendance" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Training Attendance</span> : null}</button> : null}
               </div>

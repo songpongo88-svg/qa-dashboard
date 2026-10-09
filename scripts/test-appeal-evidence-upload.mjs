@@ -49,7 +49,7 @@ const NativeURL = globalThis.URL;
 globalThis.URL = class extends NativeURL { static createObjectURL() { return "blob:fixture"; } static revokeObjectURL(value) { revoked.push(value); } };
 globalThis.Image = class { naturalWidth = 4000; naturalHeight = 2400; async decode() {} };
 const encodedSizes = [];
-dom.window.HTMLCanvasElement.prototype.getContext = () => ({ fillStyle: "", fillRect() {}, drawImage() {} });
+dom.window.HTMLCanvasElement.prototype.getContext = () => ({ fillStyle: "", fillRect() {}, drawImage() {}, save() {}, restore() {}, translate() {}, rotate() {}, fillText() {} });
 dom.window.HTMLCanvasElement.prototype.toBlob = function(callback, type) {
   encodedSizes.push({ width: this.width, height: this.height, type });
   callback(new dom.window.Blob([jpeg], { type }));

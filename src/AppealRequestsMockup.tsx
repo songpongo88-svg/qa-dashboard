@@ -5,8 +5,12 @@ import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNoti
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
-import { fetchAdditionalAppealReasonOptions, fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent } from "./appealStore";
+import { fetchAdditionalAppealReasonOptions, fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent, writeAdditionalAppealAccessDecision } from "./appealStore";
+import { APPEAL_WORKFLOW_STATUSES, appealWorkflowStatus, appealWorkflowLabel, appealWorkflowTone, appealWorkflowActivityAt, scopeAppealRequests } from "./appealWorkflow";
 import PageHero from "./PageHero";
+import AppealWorkflowNotice from "./AppealWorkflowNotice";
+import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
+import { scoreToGrade } from "./lib/scoreIncentivePolicy"; // appeal-review-information-newtab-v56
 import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 
 type AppealTopic = {
@@ -44,11 +48,24 @@ export function isAdditionalAppealExpired(openedAt: string, asOf = Date.now()): 
 const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
 const LEGACY_NO_APPEAL_TEXT = "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน";
 
+// data-analytics-appeal-notify-v20
+const QA_ANALYTICS_REFRESH_STORAGE_KEY = "qa-dashboard-data-refresh-key";
+
+function notifyQaAnalyticsDataChanged() {
+  if (typeof window === "undefined") return;
+  const nextKey = Date.now();
+  window.localStorage.setItem(QA_ANALYTICS_REFRESH_STORAGE_KEY, String(nextKey));
+  window.dispatchEvent(new CustomEvent("qa-dashboard-data-refresh", { detail: nextKey }));
+}
+
 type AppealRequest = {
   requestId: string;
   caseId: string;
   agent: string;
+  targetUsername?: string;
   auditDate: string;
+  auditTimestamp?: string;
+  // appeal-pdf-final-v47-requests
   weekLabel: string;
   submittedBy: string;
   submittedAt: string;
@@ -100,8 +117,6 @@ type AppealReviewHistoryItem = {
   topics: AppealTopic[];
 };
 
-type AppealListTab = "pending" | "reviewed" | "reset";
-
 type AppealResetHistoryItem = {
   requestId: string;
   caseId: string;
@@ -151,6 +166,18 @@ function appealSubmittedAtFromRequestId(value: unknown) {
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 }
 
+function parseAppealReviewSubmittedTime(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+  const ddmmyyyy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (ddmmyyyy) {
+    const [, day, month, year, hour = "0", minute = "0", second = "0"] = ddmmyyyy;
+    return Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+  }
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -180,6 +207,54 @@ function isAppealedTopic(topic?: AppealTopic | null) {
   return topic.wantsAppeal === true || Boolean(reason && !isNoAppealReason(reason));
 }
 
+const APPEAL_REVIEW_BILINGUAL_TOPICS: Record<string, [string, string]> = {
+  "1": ["การปฏิบัติตามกระบวนการและนโยบาย", "Process & Policy Compliance"],
+  "2": ["คุณภาพคำตอบและการวิเคราะห์ปัญหา", "Answer Quality & Problem Analysis"],
+  "3": ["การจัดการเคสและการติดตามผล", "Case Handling & Follow-up"],
+  "4": ["ทักษะการสื่อสาร", "Communication Skills"],
+  "1.1": ["มาตรฐานการทักทายและปิดการสนทนา", "Greeting & Closing Standard"],
+  "1.2": ["การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", "PDPA & Policy Compliance"],
+  "1.3": ["การปฏิบัติตามกระบวนการและ SLA", "Process & SLA Compliance"],
+  "2.1": ["ความถูกต้องของคำตอบ", "Answer Accuracy"],
+  "2.2": ["ความครบถ้วนของคำตอบ", "Answer Completeness"],
+  "2.3": ["ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", "Clear Steps & Official Sources"],
+  "3.1": ["การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", "Problem Analysis & Resolution"],
+  "3.2": ["Ownership และการแจ้ง Next Step", "Ownership & Next Step"],
+  "4.1": ["โครงสร้างข้อความและความอ่านง่าย", "Message Structure & Readability"],
+  "4.2": ["ความกระชับและความถูกต้องของภาษา", "Conciseness & Language Accuracy"],
+  "4.3": ["น้ำเสียงและความเหมาะสมตามสถานการณ์", "Tone & Context Appropriateness"],
+};
+
+function splitAppealReviewCaseIds(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return ["-"];
+  const parts = raw.split(/\s*,\s*|\n+/g).map((item) => item.trim()).filter(Boolean);
+  return parts.length ? parts : [raw];
+}
+
+// appeal-review-reviewed-time-caseid-v60
+
+function appealReviewFixedDateTimeParts(value: unknown) {
+  const formatted = formatDateTime(value);
+  const parts = String(formatted || "-").trim().split(/\s+/g);
+  return {
+    datePart: parts[0] || "-",
+    timePart: parts.slice(1).join(" "),
+  };
+}
+
+// appeal-review-fixed-datetime-v63
+
+function appealReviewTopicLine(topic: AppealTopic, index: number) {
+  const code = String(topic.code || "-").trim();
+  const mapped = APPEAL_REVIEW_BILINGUAL_TOPICS[code];
+  const description = mapped
+    ? mapped[0] + " (" + mapped[1] + ")"
+    : String(topic.label || "-").trim();
+  return String(index + 1) + ". Topic " + code + " " + description;
+}
+
+// appeal-review-information-plain-v57
 function appealFinalScoreFromTopics(topics: AppealTopic[], originalFinalScore: number) {
   return appealScoreAfterReview(topics, originalFinalScore);
 }
@@ -192,7 +267,7 @@ function scoreOptions(max: number) {
   return Array.from({ length: safeMax + 1 }, (_, index) => index);
 }
 
-export function buildAppealRequests(logs: UsageLogEvent[]) {
+export function buildAppealRequests(logs: UsageLogEvent[], asOf = Date.now()) {
   logs = logs.filter(log => !log.source_case_unavailable);
   const reviews = new Map<string, UsageLogEvent[]>();
   const resets = new Map<string, UsageLogEvent>();
@@ -262,14 +337,14 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const activeEditTopics = Array.isArray(latestEditEvent?.details?.topics) ? latestEditEvent.details.topics as AppealTopic[] : [];
       const accessEvents = [...(additionalAccessEvents.get(requestId) || [])].sort((a,b)=>eventTime(a)-eventTime(b));
       const latestAccessRequest = [...accessEvents].reverse().find(event=>event.event_type==="appeal_additional_access_requested");
-      const latestAccessDecision = latestAccessRequest && accessEvents.find(event=>event.event_type==="appeal_additional_access_decided" && eventTime(event)>eventTime(latestAccessRequest) && String(event.details?.accessId||"")===String(latestAccessRequest.details?.accessId||""));
+      const latestAccessDecision = latestAccessRequest && [...accessEvents].reverse().find(event=>event.event_type==="appeal_additional_access_decided" && eventTime(event)>=eventTime(latestAccessRequest) && String(event.details?.accessId||"")===String(latestAccessRequest.details?.accessId||""));
       const additionalAccessRequest = latestAccessRequest ? {
         requestId: String(latestAccessRequest.details?.accessId || ""),
         reason: String(latestAccessRequest.details?.reason || ""),
         topics: Array.isArray(latestAccessRequest.details?.topicCodes) ? latestAccessRequest.details.topicCodes as string[] : [],
-        requestedAt: String(latestAccessRequest.created_at || ""),
+        requestedAt: String(latestAccessRequest.details?.requestedAt || latestAccessRequest.created_at || ""),
         status: (latestAccessDecision ? (latestAccessDecision.details?.approved ? "Approved" : "Rejected") : "Pending") as "Pending" | "Approved" | "Rejected",
-        decidedAt: String(latestAccessDecision?.created_at || ""),
+        decidedAt: String(latestAccessDecision?.details?.decidedAt || latestAccessDecision?.created_at || ""),
         decisionReason: String(latestAccessDecision?.details?.reason || ""),
       } : null;
       const reset = resets.get(requestId);
@@ -285,16 +360,14 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const latestOpenedAt = String(latestRound?.details?.openedAt || latestRound?.created_at || "");
       const latestExpiresAt = String(latestRound?.details?.expiresAt || appealAdditionalDeadline(latestOpenedAt));
       const latestExpiryMs = Date.parse(latestExpiresAt);
-      const additionalSubmission = latestRoundId
-        ? [...(submittedEvidence.get(requestId) || [])]
-            .filter(item =>
-              String(item.details?.roundId || "") === latestRoundId &&
-              (!Number.isFinite(latestExpiryMs) || eventTime(item) <= latestExpiryMs)
-            )
-            .sort((a, b) => eventTime(b) - eventTime(a))[0]
-        : undefined;
+      const roundSubmissions = latestRoundId ? (submittedEvidence.get(requestId) || []).filter(item =>
+        String(item.details?.roundId || "") === latestRoundId && eventTime(item) >= eventTime(latestRound!)) : [];
+      const timelySubmission = roundSubmissions.some(item =>
+        !Number.isFinite(latestExpiryMs) || eventTime(item) < latestExpiryMs);
+      const additionalSubmission = timelySubmission
+        ? [...roundSubmissions].sort((a, b) => eventTime(b) - eventTime(a))[0] : undefined;
       const roundWasExpired = Boolean(latestRoundId) && !additionalSubmission && !roundAlreadyReviewed &&
-        ((Number.isFinite(latestExpiryMs) && Date.now() >= latestExpiryMs) ||
+        ((Number.isFinite(latestExpiryMs) && asOf >= latestExpiryMs) ||
           (expiredRounds.get(requestId) || []).some(item => String(item.details?.roundId || "") === latestRoundId));
       const lastAdditionalStatus: AppealRequest["lastAdditionalStatus"] = !latestRoundId || roundAlreadyReviewed
         ? ""
@@ -313,8 +386,8 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
             openedBy: String(latestRound?.details?.openedBy || latestRound?.display_name || ""),
             note: String(latestRound?.details?.note || ""),
             submitted: Boolean(additionalSubmission),
-            submittedAt: String(additionalSubmission?.details?.submittedAt || ""),
-            topics: openTopics.map(topic => ({
+            submittedAt: String(additionalSubmission?.details?.submittedAt || additionalSubmission?.created_at || ""),
+            topics: (additionalSubmission ? submittedTopics.filter(topic => openTopics.some(allowed => allowed.code === topic.code)) : openTopics).map(topic => ({
               ...topic,
               ...(submittedTopics.find(row => row.code === topic.code) || {}),
               decision: undefined,
@@ -377,10 +450,19 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         additionalAccessRequest,
         caseId: String(log.case_id || log.details?.caseId || ""),
         agent: String(log.target_agent || log.details?.agent || ""),
+        targetUsername: String(log.details?.targetUsername || log.details?.agentUsername || ""),
         auditDate: String(log.details?.auditDate || ""),
+        auditTimestamp: String(
+          log.details?.auditTimestamp ||
+          log.details?.evaluationAuditDate ||
+          log.details?.auditDate ||
+          ""
+        ),
         weekLabel: String(log.details?.weekLabel || ""),
         submittedBy: String(log.details?.submittedBy || log.display_name || ""),
         submittedAt: firstStoredAppealDateTime(
+          latestEditEvent?.event_type === "appeal_submission_resubmitted" && !latestEditEvent.details?.roundId
+            ? latestEditEvent.details?.submittedAt || latestEditEvent.created_at : "",
           log.details?.submittedAt,
           log.created_at,
           appealSubmittedAtFromRequestId(requestId)
@@ -543,6 +625,62 @@ function exportAppealRows(requests: AppealRequest[]) {
   XLSX.writeFile(workbook, `Appeal_ROWDATA_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
+function normalizeAppealReviewCaseId(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, "").trim().toUpperCase();
+}
+
+function normalizeAppealReviewAgent(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function mergeRequestWithCaseDetail(
+  request: AppealRequest,
+  externalCaseDetailCases: readonly any[]
+): AppealRequest {
+  const caseId = normalizeAppealReviewCaseId(request.caseId);
+  const candidates = externalCaseDetailCases.filter((item) =>
+    normalizeAppealReviewCaseId(item?.caseId) === caseId
+  );
+  const agent = normalizeAppealReviewAgent(request.agent);
+  const sourceCase = candidates.find((item) =>
+    normalizeAppealReviewAgent(item?.agent) === agent
+  ) || candidates[0];
+  if (!sourceCase) return request;
+  const sourceValue = (...values: unknown[]) =>
+    values.map((value) => String(value ?? "").trim()).find(Boolean) || "";
+  return {
+    ...request,
+    targetUsername: sourceValue(sourceCase.targetUsername, request.targetUsername),
+    auditDate: sourceValue(sourceCase.caseDate, sourceCase.auditDate, request.auditDate),
+    auditTimestamp: sourceValue(
+      sourceCase.evaluationAuditDate, sourceCase.auditTimestamp, request.auditTimestamp
+    ),
+    submittedAt: sourceValue(request.submittedAt, sourceCase.appealSubmittedAt),
+    reviewedAt: sourceValue(request.reviewedAt, sourceCase.appealReviewedAt),
+  };
+}
+
+function getAppealReviewMonthKey(request: AppealRequest) {
+  for (const value of [request.auditDate, request.auditTimestamp, request.submittedAt]) {
+    const text = String(value || "").trim();
+    const thaiDate = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (thaiDate) return thaiDate[3] + "-" + thaiDate[2].padStart(2, "0");
+    const isoDate = text.match(/^(\d{4})-(\d{2})-/);
+    if (isoDate) return isoDate[1] + "-" + isoDate[2];
+  }
+  return "unknown";
+}
+
+function formatAppealReviewMonth(monthKey: string) {
+  const match = monthKey.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "Unknown Month";
+  return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(
+    new Date(Number(match[1]), Number(match[2]) - 1, 1)
+  );
+}
+
+// appeal-review-table-v54
+
 function openCaseDetailTab(request: AppealRequest) {
   const params = new URLSearchParams({
     tab: "dashboard",
@@ -556,24 +694,36 @@ function openCaseDetailTab(request: AppealRequest) {
 
 export default function AppealRequestsMockup({
   currentUser,
-  allowReview = false,
+  agentDirectory = [],
+  externalCaseDetailCases = [],
+  externalRequestId,
+  onOpenRequestWorkspace,
+  allowReview: reviewPermission = false,
   allowedAgentNames = null,
   seniorOptions = [],
   additionalCaseTopics = [],
   onTasksChanged,
 }: {
   currentUser: any;
+  agentDirectory?: CaseAgentDirectoryEntry[];
+  externalCaseDetailCases?: any[];
+  externalRequestId?: string;
+  onOpenRequestWorkspace?: (requestId: string, caseId: string) => void;
   allowReview?: boolean;
+  // appeal-review-workspace-tabs-v59-review
   allowedAgentNames?: string[] | null;
   seniorOptions?: { username: string; displayName: string; role?: string }[];
   additionalCaseTopics?: any[];
   onTasksChanged?: () => void;
 }) {
+  const allowReview = reviewPermission && currentUser?.role === "Quality Assurance";
+  const canDiscuss = ["Quality Assurance", "Senior", "Supervisor"].includes(String(currentUser?.role || ""));
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [discussionLogs, setDiscussionLogs] = useState<UsageLogEvent[]>([]);
   const [assignedRequestIds, setAssignedRequestIds] = useState<string[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState("");
+  const [detailRequestId, setDetailRequestId] = useState("");
   const [draftTopics, setDraftTopics] = useState<AppealTopic[]>([]);
   const decision = summarizeAppealDecisions(draftTopics.filter(isAppealedTopic));
   const [reviewSummary, setReviewSummary] = useState("");
@@ -602,22 +752,23 @@ export default function AppealRequestsMockup({
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
   const savingRef = useRef(false);
-  const [listTab, setListTab] = useState<AppealListTab>("pending");
+  const standaloneRequestId = String(externalRequestId || "").trim();
+  const [selectedAgentFilter, setSelectedAgentFilter] = useState("");
+  const [selectedMonthFilter, setSelectedMonthFilter] = useState("all");
+  const [searchCaseId, setSearchCaseId] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [accessDecision, setAccessDecision] = useState<"approve" | "reject" | null>(null);
+  const [accessDecisionReason, setAccessDecisionReason] = useState("");
+  const accessSavingRef = useRef(false);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNowTick(Date.now()), 60 * 1000);
     return () => window.clearInterval(interval);
   }, []);
   const requests = useMemo(() => {
-    const all = buildAppealRequests(logs);
-    if (allowedAgentNames === null) return all;
-    const agentKeys = new Set(allowedAgentNames.map(name => name.replace(/\s+/g, "").toLowerCase()));
-    const invites = new Set(assignedRequestIds);
-    return all.filter(request =>
-      agentKeys.has(String(request.agent || "").replace(/\s+/g, "").toLowerCase()) ||
-      invites.has(request.requestId));
-  }, [logs, allowedAgentNames, assignedRequestIds, nowTick]);
+    const all = buildAppealRequests(logs).map(request => mergeRequestWithCaseDetail(request, externalCaseDetailCases || []));
+    return scopeAppealRequests(all, currentUser, allowedAgentNames, assignedRequestIds);
+  }, [logs, currentUser?.username, currentUser?.role, currentUser?.agentName, currentUser?.displayName, allowedAgentNames, assignedRequestIds, nowTick, externalCaseDetailCases]);
 
   useEffect(() => {
     if (!["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return;
@@ -627,7 +778,7 @@ export default function AppealRequestsMockup({
       .catch(error => console.warn("Unable to load assigned appeal discussions", error));
     return () => { cancelled = true; };
   }, [currentUser?.role, currentUser?.username]);
-  const discussionEvents = useMemo(() => discussionLogs
+  const discussionEvents = useMemo(() => (canDiscuss ? discussionLogs : [])
     .filter(log => log.event_type === "appeal_internal_message" &&
       String(log.details?.requestId || "") === selectedRequestId &&
       !log.source_case_unavailable)
@@ -635,11 +786,30 @@ export default function AppealRequestsMockup({
       [String(log.details?.seniorUsername || "").toLowerCase(), String(log.username || "").toLowerCase()]
         .includes(String(currentUser.username || "").toLowerCase()))
     .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || ""))),
-    [discussionLogs, selectedRequestId, currentUser?.role, currentUser?.username]
+    [discussionLogs, selectedRequestId, canDiscuss, currentUser?.role, currentUser?.username]
   );
   const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
-  const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
+  const resetHistory = useMemo(() => {
+    const permittedIds = new Set(requests.map(request => request.requestId));
+    return buildAppealResetHistory(logs).filter(item => permittedIds.has(item.requestId));
+  }, [logs, requests]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId && !item.editingDraft) || null;
+  useEffect(() => {
+    if (!standaloneRequestId) return;
+    setSelectedRequestId(requests.some(item => item.requestId === standaloneRequestId && !item.editingDraft) ? standaloneRequestId : "");
+  }, [standaloneRequestId, requests]);
+  const isReviewDetailOpen = Boolean(selectedRequest && (
+    detailRequestId === selectedRequest.requestId ||
+    (standaloneRequestId && selectedRequest.requestId === standaloneRequestId)
+  ));
+  const selectedAppealedTopics = selectedRequest?.topics.filter(isAppealedTopic) || [];
+  const selectedCurrentScore = (selectedRequest?.status === "Approved" || selectedRequest?.status === "Partially Approved")
+    ? appealFinalScoreFromTopics(selectedAppealedTopics, selectedRequest.finalScore)
+    : selectedRequest?.finalScore || 0;
+  const selectedCurrentGrade = selectedRequest
+    ? scoreToGrade(selectedCurrentScore, getAppealReviewMonthKey(selectedRequest))
+    : "-";
+  const selectedAgentTeam = resolveCaseAgentTeam(selectedRequest, agentDirectory || []);
   const eligibleSeniorOptions = seniorOptions;
   const availableAppealTopics = useMemo(() => {
     const result = new Map<string, AppealTopic>();
@@ -715,30 +885,33 @@ export default function AppealRequestsMockup({
     return () => { cancelled = true; };
   }, [allowReview]);
 
-  const activeRequests = requests.filter(item => !item.editingDraft);
-  const latestRequestsByCase = [...activeRequests].sort((a,b)=> Date.parse(b.additionalHistory?.[0]?.openedAt || b.submittedAt || "") - Date.parse(a.additionalHistory?.[0]?.openedAt || a.submittedAt || ""))
-    .filter((item,index,all)=>all.findIndex(other=>other.caseId.trim().toLowerCase()===item.caseId.trim().toLowerCase())===index);
-  const expiredAdditionalRequests = latestRequestsByCase.filter(item => item.lastAdditionalStatus === "Expired (Additional)");
-  const cancelledAdditionalRequests = latestRequestsByCase.filter(item => item.lastAdditionalStatus === "Cancelled (Additional)");
-  const pendingRequests = activeRequests.filter(item => item.status === "Pending" || item.lastAdditionalStatus === "Pending (Additional)");
+  const latestRequestsByCase = [...requests].sort((a,b) => (Date.parse(b.submittedAt) || 0) - (Date.parse(a.submittedAt) || 0))
+    .filter((item,index,all) => all.findIndex(other => other.caseId.trim().toLowerCase() === item.caseId.trim().toLowerCase() && other.agent === item.agent) === index)
+    .filter(item => !item.editingDraft)
+    .sort((a,b) => (Date.parse(appealWorkflowActivityAt(a)) || 0) - (Date.parse(appealWorkflowActivityAt(b)) || 0));
+  const pendingRequests = latestRequestsByCase.filter(item => ["Pending", "Pending (Additional)"].includes(appealWorkflowStatus(item)));
   const reviewedRequests = latestRequestsByCase.filter(item =>
-    !item.lastAdditionalStatus && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
+    ["Approved", "Rejected", "Partially Approved"].includes(appealWorkflowStatus(item)));
   const resetRequests = latestRequestsByCase.filter((item) => item.status === "Reset");
-  const workflowRequests = latestRequestsByCase.filter(item => item.additionalAccessRequest?.status === "Pending" && !item.additionalRound);
+  const workflowRequests = latestRequestsByCase.filter(item => appealWorkflowStatus(item) === "Request Additional Appeal");
   // Preserve the latest submitted/reviewed round for all-status history; drafts are excluded only while editing.
-  const visibleRequests = statusFilter === "__reviewed" ? reviewedRequests : statusFilter === "Pending" ? pendingRequests : statusFilter === "All" ? latestRequestsByCase :
-    statusFilter === "Request Additional Appeal" ? workflowRequests :
-    latestRequestsByCase.filter(item => (item.lastAdditionalStatus || item.status) === statusFilter);
+  const agentOptions = [...new Set(requests.map(item => item.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const monthOptions = [...new Set(requests.map(getAppealReviewMonthKey).filter(item=>item!=="unknown"))].sort((a,b)=>b.localeCompare(a));
+  const visibleRequestsUnfiltered = statusFilter === "All" ? latestRequestsByCase :
+    latestRequestsByCase.filter(item => appealWorkflowStatus(item) === statusFilter);
+  const visibleRequests = visibleRequestsUnfiltered.filter(item => (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
+  const selectedWorkflowStatus = selectedRequest ? appealWorkflowStatus(selectedRequest) : "";
+  const isPermissionTask = ["Request Additional Appeal", "Approved (Access)"].includes(selectedWorkflowStatus);
   // An approved/rejected review closes internal messaging until QA explicitly
   // opens an additional round; older messages remain visible as audit history.
-  const canSendDiscussion = Boolean(selectedRequest) && (
+  const canSendDiscussion = canDiscuss && Boolean(selectedRequest) && (
     selectedRequest?.status === "Pending" || Boolean(selectedRequest?.additionalRound)
   );
   const canReview = allowReview && (
     selectedRequest?.status === "Pending" ||
     Boolean(selectedRequest?.additionalRound?.submitted) ||
-    (isReviewed && editingReview && !selectedRequest?.additionalRound)
+    (isReviewed && editingReview && !selectedRequest?.additionalRound && !isPermissionTask)
   );
 
   const loadRequests = async () => {
@@ -776,7 +949,10 @@ export default function AppealRequestsMockup({
   }, []);
 
   useEffect(() => {
-    if (!selectedRequest) return;
+    if (!selectedRequest) {
+      setDetailRequestId("");
+      return;
+    }
     setSelectedRequestId(selectedRequest.requestId);
     setDraftTopics(draftForRequest(selectedRequest));
     setReviewSummary(selectedRequest.reviewSummary || "");
@@ -793,18 +969,18 @@ export default function AppealRequestsMockup({
     setAddingReason(false);
     setNewReason("");
     setReasonNotice("");
-  }, [selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.reviewedAt, selectedRequest?.additionalRound?.roundId, selectedRequest?.additionalRound?.submittedAt]);
+  }, [selectedRequest?.requestId, selectedRequest?.submittedAt, selectedRequest?.reviewId, selectedRequest?.reviewedAt, selectedRequest?.additionalRound?.roundId, selectedRequest?.additionalRound?.submittedAt]);
 
   useEffect(() => {
     let cancelled = false;
     setDiscussionLogs([]);
-    if (selectedRequestId) {
+    if (selectedRequestId && canDiscuss) {
       void fetchAppealDiscussionEvents(selectedRequestId)
         .then(events => { if (!cancelled) setDiscussionLogs(events as UsageLogEvent[]); })
         .catch(error => { if (!cancelled) console.warn("Load private appeal discussion failed", error); });
     }
     return () => { cancelled = true; };
-  }, [selectedRequestId]);
+  }, [selectedRequestId, canDiscuss]);
 
   const saveAdditionalAppealReason = async () => {
     if (!allowReview || reasonSaving || busy) return;
@@ -851,7 +1027,7 @@ export default function AppealRequestsMockup({
   };
 
   const openAdditionalAppealRound = async () => {
-    if (!allowReview || !selectedRequest || !isReviewed || selectedRequest.additionalRound ||
+    if (!allowReview || !selectedRequest || !isReviewed || selectedRequest.additionalRound || isPermissionTask ||
         busy || reasonSaving || !additionalCodes.length || !additionalReason ||
         !additionalReasonOptions.includes(additionalReason)) return;
     const selected = availableAppealTopics.filter(row => additionalCodes.includes(row.code));
@@ -908,6 +1084,7 @@ export default function AppealRequestsMockup({
       setMessage("เปิดรอบอุทธรณ์เพิ่มเติมแล้ว รอเจ้าของเคสส่งเหตุผลและหลักฐานจาก Case Detail");
       await loadRequests();
       onTasksChanged?.();
+      notifyQaAnalyticsDataChanged();
     } catch (error) {
       console.error("Open additional appeal round failed", error);
       setMessage("ไม่สามารถเปิดรอบเพิ่มเติมได้ กรุณาลองอีกครั้ง");
@@ -919,12 +1096,16 @@ export default function AppealRequestsMockup({
   const decideAdditionalAccess = async (approved: boolean) => {
     const selected = selectedRequest;
     const access = selected?.additionalAccessRequest;
-    if (!allowReview || !selected || !access || access.status !== "Pending" || busy) return;
-    const decisionReason = window.prompt(
-      approved ? "เหตุผลที่อนุญาตให้ยื่นเพิ่มเติม" : "เหตุผลที่ไม่อนุญาต",
-      approved ? "อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม" : ""
-    );
-    if (!decisionReason?.trim()) return;
+    const repair = approved && access?.status === "Approved" && !selected?.additionalRound;
+    if (!allowReview || !selected || !access || (access.status !== "Pending" && !repair) || busy || accessSavingRef.current) return;
+    const decisionReason = accessDecisionReason.trim();
+    if (!decisionReason) return;
+    const allowedTopics = availableAppealTopics.filter(topic => access.topics.includes(topic.code));
+    if (approved && (!allowedTopics.length || allowedTopics.length !== new Set(access.topics).size)) {
+      setMessage("หัวข้อที่ขอไม่ครบ กรุณาตรวจสอบข้อมูลเคสก่อนอนุญาต");
+      return;
+    }
+    accessSavingRef.current = true;
     setBusy(true);
     try {
       const freshLogs = await fetchAppealEvents([
@@ -935,46 +1116,48 @@ export default function AppealRequestsMockup({
         "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(freshLogs).find(row => row.requestId === selected.requestId);
-      if (!latest || latest.editingDraft || latest.additionalRound ||
+      if (!latest || latest.status === "Reset" || latest.editingDraft || latest.additionalRound ||
+          latest.reviewId !== selected.reviewId ||
           latest.additionalAccessRequest?.requestId !== access.requestId ||
-          latest.additionalAccessRequest.status !== "Pending") {
+          latest.additionalAccessRequest.status !== access.status) {
         setLogs(freshLogs);
-        setMessage("คำขอมีการเปลี่ยนแปลง กรุณาโหลดข้อมูลใหม่");
+        setAccessDecision(null);
+        setMessage("คำขอมีการเปลี่ยนแปลง กรุณาตรวจสอบสถานะล่าสุด");
         return;
       }
-      const saved = await writeAppealEvent(currentUser, "appeal_additional_access_decided", {
-        tab: "appeal-requests", case_id: selected.caseId, target_agent: selected.agent,
-        details: {
+      // Repair old partial approvals using their original approval time. Opening
+      // a missing round must not silently grant another three days.
+      const openedAt = repair ? access.decidedAt || "" : new Date().toISOString();
+      if (!Number.isFinite(Date.parse(openedAt))) throw new Error("Approval time is missing");
+      const payload = { tab: "appeal-requests", case_id: selected.caseId, target_agent: selected.agent };
+      const saved = await writeAdditionalAppealAccessDecision(currentUser, {
+        ...payload, details: {
           requestId: selected.requestId, accessId: access.requestId, approved,
-          reason: decisionReason.trim(), decidedAt: new Date().toISOString(), workflowId: crypto.randomUUID(),
-        }
-      });
+          reason: decisionReason, decidedAt: openedAt, workflowId: access.requestId,
+        },
+      }, approved ? {
+        ...payload, details: {
+          requestId: selected.requestId, roundId: access.requestId,
+          previousReviewId: selected.reviewId || "", accessId: access.requestId,
+          openedAt, expiresAt: appealAdditionalDeadline(openedAt),
+          openedBy: String(currentUser?.agentName || currentUser?.displayName || currentUser?.username || ""),
+          reason: decisionReason, note: access.reason,
+          topics: allowedTopics.map(topic => ({ code: topic.code, label: topic.label,
+            score: topic.score, max: topic.max, comment: topic.comment || "",
+            wantsAppeal: true, appealReason: "", evidenceImages: [],
+          })),
+        },
+      } : undefined);
       if (!saved) throw new Error("QA permission required");
-      if (approved) {
-        const allowedTopics = availableAppealTopics.filter(topic => access.topics.includes(topic.code));
-        if (!allowedTopics.length || allowedTopics.length !== access.topics.length) throw new Error("หัวข้อที่ขอไม่ครบ กรุณาตรวจสอบก่อนเปิดสิทธิ์");
-        const openedAt = new Date().toISOString();
-        const roundSaved = await writeAppealEvent(currentUser, "appeal_additional_round_opened", {
-          tab: "appeal-requests", case_id: selected.caseId, target_agent: selected.agent,
-          details: {
-            requestId: selected.requestId, roundId: crypto.randomUUID(),
-            previousReviewId: selected.reviewId || "",
-            accessId: access.requestId,
-            openedAt, expiresAt: appealAdditionalDeadline(openedAt),
-            openedBy: String(currentUser?.displayName || currentUser?.username || ""),
-            reason: decisionReason.trim(), note: access.reason,
-            topics: allowedTopics.map(topic => ({...topic, wantsAppeal: true, appealReason: "", evidenceImages: []})),
-          }
-        });
-        if (!roundSaved) throw new Error("Unable to open appeal round");
-      }
+      setAccessDecision(null);
       await loadRequests();
-      setMessage(approved ? "อนุญาตแล้ว Admin สามารถยื่นเพิ่มเติมได้ภายใน 72 ชั่วโมง" : "บันทึกผลไม่อนุญาตแล้ว");
+      setMessage(approved ? "เปิดสิทธิ์แล้ว Admin ยื่นเพิ่มจาก Case Detail ได้ภายใน 3 วันหลังอนุมัติ" : "บันทึกผลไม่อนุญาตให้ยื่นเพิ่มแล้ว");
       onTasksChanged?.();
+      notifyQaAnalyticsDataChanged();
     } catch (error) {
       console.error("Additional appeal access decision failed", error);
-      setMessage("บันทึกคำตอบไม่สำเร็จ กรุณาตรวจสอบสถานะก่อนลองอีกครั้ง");
-    } finally { setBusy(false); }
+      setMessage("บันทึกไม่สำเร็จ คำขอยังไม่เปลี่ยนสถานะ กรุณาตรวจสอบก่อนลองอีกครั้ง");
+    } finally { accessSavingRef.current = false; setBusy(false); }
   };
 
   const cancelReviewEdit = () => {
@@ -1089,6 +1272,8 @@ export default function AppealRequestsMockup({
       const latestLogs = await fetchAppealEvents([
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
         "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
+        "appeal_additional_access_requested", "appeal_additional_access_decided",
+        "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(latestLogs).find(item => item.requestId === preview.requestId);
       if (latestLogs.some(log => log.source_case_unavailable && String(log.details?.requestId || "") === preview.requestId)) {
@@ -1098,9 +1283,13 @@ export default function AppealRequestsMockup({
         setNotice({ kind: "validation", title: "เคสต้นทางถูกลบแล้ว", caseId: preview.caseId,
           message: "คำขอนี้ถูกนำออกจากรายการรอพิจารณาและไม่พักคะแนน ไม่สามารถบันทึกผลอุทธรณ์ได้" });
         onTasksChanged?.();
+      notifyQaAnalyticsDataChanged();
         return;
       }
       if (!latest || latest.editingDraft || latest.status === "Reset" ||
+          ["Request Additional Appeal", "Approved (Access)", "Awaiting Additional Submission"].includes(appealWorkflowStatus(latest)) ||
+          latest.submittedAt !== selectedRequest.submittedAt ||
+          (latest.additionalRound?.submittedAt || "") !== (selectedRequest.additionalRound?.submittedAt || "") ||
           (selectedRequest.additionalRound?.roundId || "") !== (latest.additionalRound?.roundId || "") ||
           (selectedRequest.additionalRound && !latest.additionalRound?.submitted) ||
           (latest.reviewId !== preview.reviewId &&
@@ -1162,6 +1351,7 @@ export default function AppealRequestsMockup({
         message: preview.isEdit ? "คำขอเดิมใช้ผลที่แก้ไขล่าสุดแล้ว ผลก่อนหน้ายังอยู่ในประวัติการพิจารณา" : "บันทึกผลรายข้อแล้ว หากต้องแก้ผล ให้เปิดรายละเอียดคำขอเดิมแล้วกดแก้ไขผลอุทธรณ์" });
       try {
         onTasksChanged?.();
+      notifyQaAnalyticsDataChanged();
       } catch (error) { console.warn("Refresh appeal tasks failed", error); }
     } catch (error) {
       const code = String((error as { code?: string })?.code || "");
@@ -1225,6 +1415,7 @@ export default function AppealRequestsMockup({
       await loadRequests();
       setMessage(`ยกเลิกเฉพาะรอบเพิ่มเติมของ ${target.caseId} แล้ว ผลพิจารณาและคะแนนเดิมคงอยู่`);
       onTasksChanged?.();
+      notifyQaAnalyticsDataChanged();
     } catch (error) {
       console.error("Cancel additional appeal round failed", error);
       setMessage("ยกเลิกรอบเพิ่มเติมไม่สำเร็จ กรุณาลองอีกครั้ง");
@@ -1250,6 +1441,7 @@ export default function AppealRequestsMockup({
           resetAt: new Date().toISOString(),
           resetBy: currentUser?.displayName || currentUser?.username || "",
           reason: "Reset by Songpon to allow the case owner to submit again.",
+          clearAppealWatermark: true,
         },
       });
       if (!resetSaved) {
@@ -1258,11 +1450,13 @@ export default function AppealRequestsMockup({
       }
 
       setSelectedRequestId("");
+      setDetailRequestId("");
       setDraftTopics([]);
       setReviewSummary("");
-      setMessage(`Reset ${selectedRequest.caseId}. The case owner can submit this case again if the appeal window is still open.`);
+      setMessage(`Reset ${selectedRequest.caseId}. APPEAL watermark was removed and the case owner can submit again while the appeal window is open.`);
       await loadRequests();
       onTasksChanged?.();
+      notifyQaAnalyticsDataChanged();
     } finally {
       setBusy(false);
     }
@@ -1290,112 +1484,129 @@ export default function AppealRequestsMockup({
         ) : null}
 
 
-        <div className="grid gap-4 border-b border-violet-100 p-5 md:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Total Requests</div>
-            <div className="mt-2 text-3xl font-extrabold text-slate-950">{requests.length}</div>
-          </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-700">Pending</div>
-            <div className="mt-2 text-3xl font-extrabold text-amber-700">{pendingCount}</div>
-          </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">Reviewed</div>
-            <div className="mt-2 text-3xl font-extrabold text-emerald-700">{reviewedCount}</div>
-          </div>
-          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-sky-700">Reset History</div>
-            <div className="mt-2 text-3xl font-extrabold text-sky-700">{resetHistory.length}</div>
-          </div>
-        </div>
+        <div
+          className={standaloneRequestId
+            ? "grid min-h-[640px] grid-cols-1 gap-0"
+            : "grid min-h-[640px] gap-0 xl:grid-cols-[minmax(0,1.42fr)_minmax(520px,0.98fr)]"
+          }
+          data-appeal-review-layout="appeal-review-layout-v58"
+        >
+          <div className={standaloneRequestId ? "hidden" : "min-w-0 border-r border-violet-100 p-5"}>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Appeal Cases</div>
+                <div className="mt-1 text-sm text-slate-600">เลือกเคสจากตารางเพื่อเปิดรายละเอียดและพิจารณา</div>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={loadRequests} className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">Refresh</button>
+                {allowReview && <button type="button" onClick={() => exportAppealRows(requests)} className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800">Export Appeal ROWDATA</button>}
+              </div>
+            </div>
 
-        <div className="grid min-h-[640px] gap-0 lg:grid-cols-[430px_minmax(0,1fr)]">
-          <div className="border-r border-violet-100 p-5">
-            <div className="mb-3 flex gap-2">
-              <button type="button" onClick={loadRequests} className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">Refresh</button>
-              {allowReview && <button type="button" onClick={() => exportAppealRows(requests)} className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800">Export Appeal ROWDATA</button>}
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Agent</label>
+                <select value={selectedAgentFilter} onChange={(event) => { setSelectedAgentFilter(event.target.value); setSelectedRequestId(""); setDetailRequestId(""); }} className="w-full rounded-2xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-400">
+                  <option value="">All Agents</option>
+                  {agentOptions.map((agent) => <option key={agent} value={agent}>{agent}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Month</label>
+                <select value={selectedMonthFilter} onChange={(event) => { setSelectedMonthFilter(event.target.value); setSelectedRequestId(""); setDetailRequestId(""); }} className="w-full rounded-2xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-400">
+                  <option value="all">All Months</option>
+                  {monthOptions.map((month) => <option key={month} value={month}>{formatAppealReviewMonth(month)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status</label>
+                <select aria-label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setSelectedRequestId(""); setDetailRequestId(""); }} className="w-full rounded-2xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-400">
+                  <option value="All">ทุกสถานะ</option>
+                  {APPEAL_WORKFLOW_STATUSES.map(status => <option key={status} value={status}>{appealWorkflowLabel(status)} ({latestRequestsByCase.filter(item => appealWorkflowStatus(item) === status).length})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search Case ID</label>
+                <input value={searchCaseId} onChange={(event) => setSearchCaseId(event.target.value)} placeholder="เช่น AA207397" className="w-full rounded-2xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-400" />
+              </div>
             </div>
-            <div className="mb-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
-              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Task Inbox</div>
-              <div className="mt-1 text-sm text-slate-600">Click a task subject to open and review details.</div>
+
+            <div className="my-4 rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3 text-sm text-violet-900">
+              <span className="font-semibold">{selectedMonthFilter === "all" ? "All Months" : formatAppealReviewMonth(selectedMonthFilter)}</span>
+              <span className="text-slate-500"> • {visibleRequests.length} case(s)</span>
             </div>
-            <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
-              {[
-                { key: "pending" as const, label: "Pending", count: pendingCount },
-                { key: "reviewed" as const, label: "Reviewed", count: reviewedCount },
-                { key: "reset" as const, label: "Reset", count: resetCount },
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => {
-                    setListTab(item.key);
-                    setStatusFilter(item.key === "pending" ? "Pending" : item.key === "reviewed" ? "__reviewed" : "Reset");
-                    setSelectedRequestId("");
-                  }}
-                  className={`rounded-xl px-3 py-2 text-xs font-black transition ${
-                    listTab === item.key
-                      ? "bg-violet-700 text-white shadow-sm"
-                      : "bg-white text-slate-600 hover:bg-violet-50 hover:text-violet-700"
-                  }`}
-                >
-                  {item.label} <span className="ml-1">{item.count}</span>
-                </button>
-              ))}
-            </div>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <label htmlFor="appeal-status-filter" className="text-xs font-bold text-slate-600">Status</label>
-              <select id="appeal-status-filter" value={statusFilter} onChange={event=>{setStatusFilter(event.target.value);setSelectedRequestId("");}} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                {["All","Pending","__reviewed","Approved","Rejected","Partially Approved","Cancelled (Additional)","Expired (Additional)","Request Additional Appeal","Reset"].map(status=><option key={status} value={status}>{status === "__reviewed" ? "Reviewed" : status}</option>)}
-              </select>
-            </div>
-            {historyLoading ? <p className="mb-3 rounded-xl bg-violet-50 p-3 text-sm font-semibold text-violet-700">กำลังโหลดประวัติอุทธรณ์...</p> : null}
-            {historyError ? <p role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{historyError}</p> : null}
-            <div className="space-y-3">
-              {visibleRequests.map((item) => (
-                <button
-                  key={item.requestId}
-                  type="button"
-                  onClick={() => setSelectedRequestId(item.requestId)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    selectedRequest?.requestId === item.requestId
-                      ? "border-violet-400 bg-violet-50"
-                      : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/60"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700">Appeal Review Task</div>
-                      <div className="mt-1 text-sm font-extrabold text-slate-950">Appeal Request - {item.caseId}</div>
-                      <div className="mt-1 text-xs text-slate-500">{item.agent}</div>
-                    </div>
-                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                      item.status === "Pending"
-                        ? "border-amber-200 bg-amber-50 text-amber-700"
-                        : item.status === "Approved"
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : item.status === "Reset"
-                            ? "border-sky-200 bg-sky-50 text-sky-700"
-                            : "border-rose-200 bg-rose-50 text-rose-700"
-                    }`}>
-                      {item.status}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs text-slate-500">Submitted: {formatDateTime(item.submittedAt)}</div>
-                  <div className="mt-2 text-xs font-semibold text-violet-700">
-                    {item.topics.filter(isAppealedTopic).length} appealed topic(s)
-                  </div>
-                </button>
-              ))}
-              {!visibleRequests.length ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-                  No {listTab} appeal requests in this view. Try another tab.
-                </div>
-              ) : null}
+
+            <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white">
+              <div className="max-h-[650px] overflow-y-auto overflow-x-hidden">
+                <table className="w-full table-fixed border-collapse text-left">
+                  <colgroup>
+                    <col className="w-[12%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[6%]" />
+                    <col className="w-[4%]" />
+                    <col className="w-[5%]" />
+                  </colgroup>
+                  <thead className="sticky top-0 z-10 bg-slate-50">
+                    <tr className="border-b border-slate-200">
+                      <th className="px-2 py-3 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Case ID</th>
+                      <th className="px-2 py-3 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Agent</th>
+                      <th className="px-2 py-3 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Case Date</th>
+                      <th className="px-2 py-3 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Updated</th>
+                      <th className="px-2 py-3 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Reviewed</th>
+                      <th className="px-2 py-3 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Status</th>
+                      <th className="px-2 py-3 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Original</th>
+                      <th className="px-2 py-3 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Grade</th>
+                      <th className="py-3 pl-3 pr-5 text-center text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Topics</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {!visibleRequests.length ? (
+                      <tr><td colSpan={9} className="px-5 py-10 text-center text-sm text-slate-500">ไม่พบข้อมูลเคส</td></tr>
+                    ) : visibleRequests.map((item) => (
+                      <tr key={item.requestId} onClick={() => { setSelectedRequestId(item.requestId); setDetailRequestId(""); }} className={"cursor-pointer transition " + (selectedRequest?.requestId === item.requestId ? "bg-sky-50 ring-1 ring-inset ring-sky-400" : "bg-white hover:bg-slate-50")}>
+                        <td className="px-2 py-3 text-[11px] font-extrabold text-slate-950">
+                          <button
+                            type="button"
+                            title="Open Appeal Review workspace tab"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onOpenRequestWorkspace?.(item.requestId, item.caseId);
+                            }}
+                            className="inline-flex max-w-full items-start gap-1 text-left font-extrabold text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900"
+                          >
+                            <span className="min-w-0 leading-4">
+                              {splitAppealReviewCaseIds(item.caseId).map((caseIdPart, index) => (
+                                <span key={caseIdPart + index} className="block whitespace-nowrap">{caseIdPart}</span>
+                              ))}
+                            </span>
+                            <span aria-hidden="true" className="mt-0.5 shrink-0 text-[10px]">↗</span>
+                          </button>
+                        </td>
+                        <td title={item.agent || "-"} className="truncate px-2 py-3 text-[11px] font-semibold text-slate-800">{item.agent || "-"}</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-[10px] text-slate-600">{item.auditDate || "-"}</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-[10px] tabular-nums text-slate-600" style={{ fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>{formatDateTime(appealWorkflowActivityAt(item))}</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-[10px] tabular-nums text-slate-600" style={{ fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>{formatDateTime(item.reviewedAt)}</td>
+                        <td className="px-2 py-3"><span className={"inline-flex max-w-full rounded-xl border px-2 py-1 text-[9px] font-extrabold leading-4 " + appealWorkflowTone(appealWorkflowStatus(item))}>{appealWorkflowLabel(appealWorkflowStatus(item))}</span></td>
+                        <td className="px-2 py-3 text-[10px] font-bold text-slate-800">{item.finalScore.toFixed(2)}</td>
+                        <td className="px-2 py-3 text-[10px] font-extrabold text-violet-800">{item.grade || "-"}</td>
+                        <td className="py-3 pl-3 pr-5 text-center text-[10px] font-bold text-slate-700">{item.topics.filter(isAppealedTopic).length}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/70 px-4 py-3 text-xs text-slate-500">
+                <span>Showing {visibleRequests.length} appeal review case(s)</span>
+                <span className="font-semibold text-slate-700">Select a row for Information • Click Case ID to open a workspace tab</span>
+              </div>
             </div>
           </div>
 
-          <div className="p-5">
+          <div className={standaloneRequestId ? "p-5" : "p-5 xl:pt-[210px]"}>
             {!selectedRequest ? (
               <div className="flex h-full min-h-[520px] items-center justify-center rounded-3xl border border-dashed border-violet-200 bg-violet-50/50 p-8 text-center">
                 <div>
@@ -1404,22 +1615,123 @@ export default function AppealRequestsMockup({
                     <div className="mt-2 text-2xl font-extrabold text-slate-950">{unavailableSelectedRequest.case_id}</div>
                     <div className="mt-2 max-w-md text-sm leading-6 text-slate-600">คำขออุทธรณ์ของเคสนี้ถูกนำออกจากรายการรอพิจารณาและไม่พักคะแนน</div>
                   </> : <>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">No Task Opened</div>
-                  <div className="mt-2 text-2xl font-extrabold text-slate-950">Select a task from Inbox</div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">Information</div>
+                  <div className="mt-2 text-2xl font-extrabold text-slate-950">Select a case from Appeal Cases</div>
                   <div className="mt-2 max-w-md text-sm leading-6 text-slate-600">
-                    Choose an appeal task on the left to open the case details, review requested topics, and save the result.
+                    เลือกแถวเพื่อดูข้อมูลสรุปของเคส หรือคลิก Case ID เพื่อเปิดรายละเอียดอุทธรณ์
                   </div>
                   </>}
                 </div>
               </div>
+            ) : !isReviewDetailOpen ? (
+              <section className="min-h-[520px] min-w-0" data-appeal-review-information="appeal-review-information-plain-v57">
+                {/* // appeal-review-information-visual-v61 */}
+                {/* // appeal-review-datetime-color-v62 */}
+                <div className="border-b border-slate-200 pb-4">
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">Information</div>
+                  <div className="mt-2 text-2xl font-extrabold text-slate-950">{selectedRequest.caseId}</div>
+                  <div className="mt-1 text-xs font-semibold text-slate-500">ข้อมูลคำขออุทธรณ์ของเคสที่เลือก</div>
+                </div>
+
+                {selectedRequest ? <AppealWorkflowNotice request={selectedRequest} canReview={allowReview}
+                  isOwner={scopeAppealRequests([selectedRequest], { ...currentUser, role: "Admin" }).length > 0}
+                  busy={busy} onCaseDetail={() => openCaseDetailTab(selectedRequest)}
+                  onDecision={approved => { setAccessDecision(approved ? "approve" : "reject"); setAccessDecisionReason(approved ? selectedRequest.additionalAccessRequest?.decisionReason || "อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม" : ""); }}
+                  onReview={() => setDetailRequestId(selectedRequest.requestId)} /> : null}
+                <div className="divide-y divide-slate-100">
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Case ID</div><div className="font-extrabold text-purple-700">{selectedRequest.caseId || "-"}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Agent</div><div className="font-semibold text-slate-950">{selectedRequest.agent || "-"}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Team</div><div className="font-semibold text-slate-800">{selectedAgentTeam.teamName || "-"}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Status</div><div className="font-extrabold">{appealWorkflowLabel(selectedWorkflowStatus)}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Case Date</div><div className="font-extrabold tabular-nums text-sky-700">{selectedRequest.auditDate || "-"}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Audit Date</div><div className="font-extrabold tabular-nums text-sky-700">{selectedRequest.auditTimestamp || selectedRequest.auditDate || "-"}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Submitted By</div><div className="font-semibold text-purple-700">{selectedRequest.submittedByUsername || selectedRequest.submittedBy || "-"}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Original Appeal Submit</div><div className="font-extrabold text-purple-700">
+                      {(() => {
+                        const { datePart, timePart } = appealReviewFixedDateTimeParts(selectedRequest.submittedAt);
+                        return (
+                          <span className="inline-grid grid-cols-[80px_64px] items-center gap-2 whitespace-nowrap text-left text-[14px] leading-5">
+                            <span className="inline-flex">
+                              {datePart.split("").map((char, index) => <span key={"submitted-date-" + index} className="inline-block w-[8px] text-center">{char}</span>)}
+                            </span>
+                            <span className="inline-flex">
+                              {timePart.split("").map((char, index) => <span key={"submitted-time-" + index} className="inline-block w-[8px] text-center">{char}</span>)}
+                            </span>
+                          </span>
+                        );
+                      })()}
+                    </div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Reviewed Date & Time</div><div className={"font-extrabold " + (selectedRequest.status === "Approved" ? "text-emerald-700" : selectedRequest.status === "Rejected" ? "text-rose-700" : selectedRequest.status === "Reset" ? "text-sky-700" : "text-slate-400")}>
+                      {(() => {
+                        const { datePart, timePart } = appealReviewFixedDateTimeParts(selectedRequest.reviewedAt);
+                        return (
+                          <span className="inline-grid grid-cols-[80px_64px] items-center gap-2 whitespace-nowrap text-left text-[14px] leading-5">
+                            <span className="inline-flex">
+                              {datePart.split("").map((char, index) => <span key={"reviewed-date-" + index} className="inline-block w-[8px] text-center">{char}</span>)}
+                            </span>
+                            <span className="inline-flex">
+                              {timePart.split("").map((char, index) => <span key={"reviewed-time-" + index} className="inline-block w-[8px] text-center">{char}</span>)}
+                            </span>
+                          </span>
+                        );
+                      })()}
+                    </div></div>
+                  {selectedRequest.additionalHistory?.length ? (
+                    <>
+                      <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Additional Round Opened</div><div className="font-semibold text-slate-900">{formatDateTime(selectedRequest.additionalHistory[0].openedAt)}</div></div>
+                      <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Additional Appeal Submit</div><div className="font-semibold text-slate-900">{selectedRequest.additionalHistory[0].submittedAt ? formatDateTime(selectedRequest.additionalHistory[0].submittedAt) : "ยังไม่ได้ยื่น"}</div></div>
+                      <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Additional Appeal Reviewed</div><div className="font-semibold text-slate-900">{selectedRequest.additionalHistory[0].reviewedAt ? formatDateTime(selectedRequest.additionalHistory[0].reviewedAt) : "-"}</div></div>
+                    </>
+                  ) : null}
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Intent</div><div className="min-w-0 font-semibold leading-6 text-slate-950">{selectedRequest.inquiry || "-"}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Original Score</div><div className="font-extrabold tabular-nums text-slate-600">{selectedRequest.finalScore.toFixed(2)}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Current Score</div><div className={"font-extrabold tabular-nums " + (selectedCurrentScore >= 85 ? "text-emerald-700" : "text-rose-700")}>{selectedCurrentScore.toFixed(2)}</div></div>
+                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Current Grade</div><div className={"font-extrabold " + (selectedCurrentGrade === "A" ? "text-emerald-700" : selectedCurrentGrade === "B" ? "text-sky-700" : selectedCurrentGrade === "C" ? "text-amber-700" : selectedCurrentGrade === "D" ? "text-orange-700" : selectedCurrentGrade === "F" ? "text-rose-700" : "text-slate-700")}>{selectedCurrentGrade || "-"}</div></div>
+                </div>
+
+                <div className="border-t border-slate-200 pt-4">
+                  <div className="text-sm font-extrabold text-slate-950">Appealed Topics: {selectedAppealedTopics.length} Topics</div>
+                  <div className="mt-2 overflow-x-auto pb-2">
+                    <div className="min-w-max space-y-1.5">
+                      {selectedAppealedTopics.length ? selectedAppealedTopics.map((topic, index) => (
+                        <div key={topic.code} className="whitespace-nowrap text-[11px] font-semibold leading-5 text-slate-700 xl:text-xs">
+                          {appealReviewTopicLine(topic, index)}
+                        </div>
+                      )) : (
+                        <div className="whitespace-nowrap text-[11px] font-semibold text-slate-500">-</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
             ) : (
               <div className="space-y-5">
+                {selectedRequest ? <AppealWorkflowNotice request={selectedRequest} canReview={allowReview}
+                  isOwner={scopeAppealRequests([selectedRequest], { ...currentUser, role: "Admin" }).length > 0}
+                  busy={busy} onCaseDetail={() => openCaseDetailTab(selectedRequest)}
+                  onDecision={approved => { setAccessDecision(approved ? "approve" : "reject"); setAccessDecisionReason(approved ? selectedRequest.additionalAccessRequest?.decisionReason || "อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม" : ""); }}
+                  onReview={() => setDetailRequestId(selectedRequest.requestId)} /> : null}
+                {/* appeal-review-information-action-v55 */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setDetailRequestId("")}
+                    className="rounded-xl border border-violet-200 bg-white px-4 py-2 text-xs font-extrabold text-violet-700 hover:bg-violet-100"
+                  >
+                    ← Back to Information
+                  </button>
+                  <div className="text-right">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Appeal Detail</div>
+                    <div className="text-sm font-extrabold text-slate-900">{selectedRequest.caseId}</div>
+                  </div>
+                </div>
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-700">Review Case</div>
                       <div className="mt-2 text-2xl font-extrabold text-slate-950">{selectedRequest.caseId}</div>
                       <div className="mt-1 text-sm text-slate-600">{selectedRequest.agent} / Case Date {selectedRequest.auditDate || "-"}</div>
+                      <div className="mt-1 text-xs text-slate-500">Audit Date {selectedRequest.auditTimestamp || selectedRequest.auditDate || "-"}</div>
                       <div className="mt-1 text-xs text-slate-500">Submitted by {selectedRequest.submittedBy || "-"} at {formatDateTime(selectedRequest.submittedAt)}</div>
                       <button
                         type="button"
@@ -1438,20 +1750,9 @@ export default function AppealRequestsMockup({
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">{selectedRequest.inquiry || "-"}</div>
                 </div>
 
-                {selectedRequest.additionalAccessRequest?.status === "Pending" && (
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-                    <h3 className="text-sm font-bold text-violet-900">คำขอเปิดสิทธิ์อุทธรณ์เพิ่มเติม</h3>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{selectedRequest.additionalAccessRequest.reason}</p>
-                    <p className="mt-1 text-xs text-violet-700">หัวข้อที่ขอ: {selectedRequest.additionalAccessRequest.topics.join(", ")}</p>
-                    {allowReview && <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" disabled={busy} onClick={() => void decideAdditionalAccess(true)} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">อนุญาต (72 ชั่วโมง)</button>
-                      <button type="button" disabled={busy} onClick={() => void decideAdditionalAccess(false)} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">ไม่อนุญาต</button>
-                    </div>}
-                  </div>
-                )}
                 <div className="space-y-3">
                   {draftTopics
-                    .filter(isAppealedTopic)
+                    .filter(topic => !isPermissionTask && selectedWorkflowStatus !== "Awaiting Additional Submission" && isAppealedTopic(topic))
                     .map((topic) => (
                       <div key={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label={`ผลพิจารณาหัวข้อ ${topic.code}`}>
@@ -1608,7 +1909,7 @@ export default function AppealRequestsMockup({
                     ))}
                 </div>
 
-                <section aria-label="QA and Senior internal appeal discussion" className="rounded-3xl border border-sky-200 bg-sky-50/70 p-5">
+                {canDiscuss ? <section aria-label="QA and Senior internal appeal discussion" className="rounded-3xl border border-sky-200 bg-sky-50/70 p-5">
                   <div className="text-sm font-extrabold text-sky-900">QA ↔ Senior — คำถามและหลักฐานภายใน</div>
                   <p className="mt-1 text-xs leading-6 text-sky-700">
                     ข้อมูลนี้เก็บเฉพาะหน้า Appeal Review และไม่แสดงใน Case Detail หรือ PDF รายงาน
@@ -1700,7 +2001,7 @@ export default function AppealRequestsMockup({
                       </div>
                     </div>
                   ) : null}
-                </section>
+                </section> : null}
 
                 <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
                   <div className="text-sm font-bold text-violet-700">สรุปผลรายหัวข้อ: {decision === "Pending" ? "ยังพิจารณาไม่ครบ" : decision}</div>
@@ -1775,7 +2076,7 @@ export default function AppealRequestsMockup({
                       </div>
                     </div>
                   ) : null}
-                  {allowReview && isReviewed && !selectedRequest.additionalRound ? (
+                  {allowReview && isReviewed && !selectedRequest.additionalRound && !isPermissionTask ? (
                     <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/70 p-4">
                       {!additionalOpen ? (
                         <button type="button" disabled={busy} onClick={() => setAdditionalOpen(true)}
@@ -1928,11 +2229,11 @@ export default function AppealRequestsMockup({
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
                     <div className="flex flex-wrap gap-2">
-                      {allowReview && isReviewed && !selectedRequest.additionalRound && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
+                      {allowReview && isReviewed && !selectedRequest.additionalRound && !isPermissionTask && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
                       {editingReview && <button type="button" disabled={busy} onClick={cancelReviewEdit} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">ยกเลิกการแก้ไข</button>}
                       {allowReview && <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || selectedRequest.status === "Reset"}
                         onClick={resetRequest}
                         className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                       >
@@ -1954,6 +2255,22 @@ export default function AppealRequestsMockup({
           </div>
         </div>
       </div>
+      {accessDecision && selectedRequest ? (
+        <div role="dialog" aria-modal="true" aria-labelledby="appeal-access-decision-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <h2 id="appeal-access-decision-title" className="text-lg font-extrabold text-violet-900">{accessDecision === "approve" ? "อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม" : "ไม่อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม"}</h2>
+            <p className="mt-2 text-sm text-slate-600">เคส {selectedRequest.caseId} · หัวข้อ {selectedRequest.additionalAccessRequest?.topics.join(", ")}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{accessDecision === "approve" ? "เปิดให้เจ้าของเคสยื่นเหตุผลและหลักฐานภายใน 3 วันหลังอนุมัติ เมื่อยื่นแล้วจึงเข้าคิว QA พิจารณาผล" : "บันทึกเหตุผลเพื่อให้เจ้าของเคสตรวจสอบได้"}</p>
+            <label htmlFor="appeal-access-decision-reason" className="mt-4 block text-sm font-bold">เหตุผล</label>
+            <textarea id="appeal-access-decision-reason" autoFocus disabled={busy} value={accessDecisionReason} onChange={event => setAccessDecisionReason(event.target.value)} className="mt-2 min-h-[100px] w-full rounded-xl border border-violet-200 p-3 text-sm" />
+            {message ? <p role="alert" className="mt-2 text-sm text-rose-700">{message}</p> : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" disabled={busy} onClick={() => setAccessDecision(null)} className="rounded-xl border px-4 py-2 text-sm font-bold">กลับ</button>
+              <button type="button" disabled={busy || !accessDecisionReason.trim()} onClick={() => void decideAdditionalAccess(accessDecision === "approve")} className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? "กำลังบันทึก..." : "ยืนยันบันทึกสิทธิ์"}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <AppealReviewDialog preview={savePreview} notice={notice} busy={busy} onConfirm={() => void confirmReview()}
         onBack={() => setSavePreview(null)} onDismiss={() => setNotice(null)} />
     </div>

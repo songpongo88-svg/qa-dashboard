@@ -6,6 +6,7 @@
   orderBy,
   query,
   setDoc,
+  runTransaction,
   where,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
@@ -163,15 +164,15 @@ function toAppealLogEvent(id: string, row: any): AppealLogEvent {
   };
 }
 
-export async function writeAppealEvent(
+async function prepareAppealEvent(
   user: AppealLogUser,
   eventType: string,
   payload: Partial<AppealLogEvent> = {}
 ) {
-  if (!user || !isAppealEventType(eventType)) return false;
-  if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_access_decided"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return false;
-  if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return false;
-  if (eventType === "appeal_additional_round_expired") return false; // The scheduled server endpoint alone records expiry.
+  if (!user || !isAppealEventType(eventType)) return null;
+  if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_access_decided"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return null;
+  if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return null;
+  if (eventType === "appeal_additional_round_expired") return null; // The scheduled server endpoint alone records expiry.
   if (["appeal_additional_access_requested", "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted"].includes(eventType) && !String(user.username || "").trim()) return false;
   if (eventType === "appeal_additional_access_requested" && (!String(payload.details?.requestId || "").trim() || !String(payload.details?.reason || "").trim())) throw new Error("ต้องระบุเคสและเหตุผลที่ขออุทธรณ์เพิ่มเติม");
   if (eventType === "appeal_additional_round_opened" && String(user.role || "") !== "Quality Assurance") return false;
@@ -226,9 +227,9 @@ export async function writeAppealEvent(
   const fullReviewerName = reviewerNameCandidates[0] || canonicalizeAgentName(user.username || "");
   // appeal-reviewer-loading-fix-v64-store
 
-  await setDoc(
-    doc(firebaseDb, APPEAL_EVENTS_COLLECTION, docId),
-    {
+  return {
+    reference: doc(firebaseDb, APPEAL_EVENTS_COLLECTION, docId),
+    data: {
       event_type: eventType,
       username: user.username || "",
       display_name: fullReviewerName,
@@ -247,10 +248,47 @@ export async function writeAppealEvent(
       created_at: now,
       updated_at: now,
     },
-    { merge: true }
-  );
+  };
+}
 
+function notifyAppealChanged() {
   clearAppealEventReadCache();
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("qa-dashboard-data-refresh"));
+}
+
+export async function writeAppealEvent(user: AppealLogUser, eventType: string, payload: Partial<AppealLogEvent> = {}) {
+  const prepared = await prepareAppealEvent(user, eventType, payload);
+  if (!prepared) return false;
+  await setDoc(prepared.reference, prepared.data, { merge: true });
+  notifyAppealChanged();
+  return true;
+}
+
+// Permission approval and its 72-hour round become visible together. A failed
+// write cannot leave the owner with an approval but no usable submission form.
+export async function writeAdditionalAppealAccessDecision(user: AppealLogUser,
+  decision: Partial<AppealLogEvent>, round?: Partial<AppealLogEvent>) {
+  if (user?.role !== "Quality Assurance") return false;
+  if (Boolean(decision.details?.approved) !== Boolean(round)) throw new Error("Approval requires its additional appeal round");
+  if (round && (!Array.isArray(round.details?.topics) || !round.details.topics.length ||
+      round.details.requestId !== decision.details?.requestId || round.details.accessId !== decision.details?.accessId))
+    throw new Error("Additional appeal topics and permission must belong to the same request");
+  const preparedDecision = await prepareAppealEvent(user, "appeal_additional_access_decided", decision);
+  const preparedRound = round ? await prepareAppealEvent(user, "appeal_additional_round_opened", round) : null;
+  if (!preparedDecision || (round && !preparedRound)) return false;
+  await runTransaction(firebaseDb, async transaction => {
+    const existingDecision = await transaction.get(preparedDecision.reference);
+    const existingRound = preparedRound ? await transaction.get(preparedRound.reference) : null;
+    if (existingDecision.exists()) {
+      const stored = existingDecision.data().details;
+      if (stored.approved !== decision.details?.approved) throw new Error("Permission already decided");
+      // Retrying a saved approval never changes its deadline or creates a second round.
+      if (!preparedRound || existingRound?.exists()) return;
+    }
+    transaction.set(preparedDecision.reference, preparedDecision.data, { merge: true });
+    if (preparedRound && !existingRound?.exists()) transaction.set(preparedRound.reference, preparedRound.data, { merge: true });
+  });
+  notifyAppealChanged();
   return true;
 }
 

@@ -26,6 +26,7 @@ import {
   type StoredEvaluationCallLog,
 } from "./evaluationStore";
 import { appealAdditionalDeadline, buildAppealRequests } from "./AppealRequestsMockup";
+import { appealWorkflowStatus, appealWorkflowLabel } from "./appealWorkflow";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
 import TestCaseBadge from "./TestCaseBadge";
@@ -2578,6 +2579,8 @@ function CaseDetailTopicTable({
   appealReviewedAt,
   originalQaName,
   originalAuditDate,
+  caseId,
+  targetUsername,
 }: {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
@@ -2594,6 +2597,8 @@ function CaseDetailTopicTable({
   appealReviewedAt?: string;
   originalQaName?: string;
   originalAuditDate?: string;
+  caseId?: string;
+  targetUsername?: string;
 }) {
   const [allTopicsOpen, setAllTopicsOpen] = useState(false);
   const [openTopicCode, setOpenTopicCode] = useState<string | null>(null);
@@ -3954,7 +3959,7 @@ function SlideOverCaseDetail({
   const canRequestAdditionalAppeal = isOwnAppealCase && Boolean(appealExistingRequest) &&
     ["Approved","Rejected","Partially Approved"].includes(appealExistingRequest?.status || "") &&
     !appealExistingRequest?.additionalRound;
-  const isAdditionalAccessPending = appealExistingRequest?.additionalAccessRequest?.status === "Pending";
+  const isAdditionalAccessPending = appealExistingRequest ? ["Request Additional Appeal", "Approved (Access)"].includes(appealWorkflowStatus(appealExistingRequest)) : false;
   const canEditExistingAppeal = canEditPendingAppeal || canEditAdditionalAppeal || Boolean(appealExistingRequest?.editingDraft);
   const shouldShowAppealActionV32 =
     canSubmitAdditionalEvidence || canEditExistingAppeal || canRequestAdditionalAppeal ||
@@ -4014,10 +4019,11 @@ function SlideOverCaseDetail({
         const logs = [...appealLogs, ...overrideLogs] as UsageLogEvent[];
         if (cancelled) return;
         const caseRequests = buildAppealRequests(logs);
-        const matching = caseRequests.find(
-          item => item.status !== "Reset" &&
-            String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
-        );
+        const latestRequest = caseRequests.filter(item =>
+          String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase() &&
+          isSameCanonicalAgent(item.agent, caseItem.agent)
+        ).sort((a,b) => (Date.parse(b.submittedAt) || 0) - (Date.parse(a.submittedAt) || 0))[0];
+        const matching = latestRequest?.status === "Reset" ? undefined : latestRequest;
         setAppealRequestExists(Boolean(matching));
         setAppealExistingRequest(matching || null);
         setAppealAdditionalRound(matching?.additionalRound ? {
@@ -4055,9 +4061,11 @@ function SlideOverCaseDetail({
     setAppealDraftTopics([]);
     setAppealSubmitMessage("");
     void checkAppealRequest();
-
+    const refreshAppeal = () => { void checkAppealRequest(); };
+    window.addEventListener("qa-dashboard-data-refresh", refreshAppeal);
     return () => {
       cancelled = true;
+      window.removeEventListener("qa-dashboard-data-refresh", refreshAppeal);
     };
   }, [caseItem.caseId]);
 
@@ -4587,6 +4595,12 @@ function SlideOverCaseDetail({
         </div>
       ) : null}
 
+      {isOwnAppealCase && appealExistingRequest && !appealAdditionalRound ? (
+        <div role="status" className="mx-auto my-3 w-full max-w-[1500px] rounded-2xl border border-violet-200 bg-violet-50 px-5 py-3 text-sm text-violet-900">
+          <span className="font-bold">{appealWorkflowLabel(appealWorkflowStatus(appealExistingRequest))}</span>
+          {appealExistingRequest.additionalAccessRequest?.decisionReason && appealWorkflowStatus(appealExistingRequest) === "Additional Request Rejected" ? <p className="mt-1 whitespace-pre-wrap">{appealExistingRequest.additionalAccessRequest.decisionReason}</p> : null}
+        </div>
+      ) : null}
       {isOwnAppealCase && appealAdditionalRound && !appealAdditionalRound.submitted ? (
         <div role="status" className={`mx-auto my-3 w-full max-w-[1500px] rounded-2xl border px-5 py-4 ${additionalIsExpired ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -5340,6 +5354,8 @@ function SlideOverCaseDetail({
                 appealReviewedAt={caseItem.appealReviewedAt}
                 originalQaName={caseItem.evaluatorName}
                 originalAuditDate={caseItem.auditTimestamp}
+                caseId={caseItem.caseId}
+                targetUsername={caseItem.targetUsername}
               />
             </PanelBody>
           </Panel>

@@ -11,7 +11,7 @@ type CaseLinkedEvent = {
   details?: Record<string, unknown>;
   source_case_unavailable?: boolean;
 };
-const CASE_EVENTS = new Set(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset"]);
+const CASE_EVENTS = new Set(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened", "appeal_additional_evidence_submitted"]);
 let staticCaseIndex: Promise<CaseIdentity[]> | undefined;
 
 function normalizedCaseId(value: unknown) {
@@ -67,7 +67,7 @@ export async function checkAppealSourceCases<T extends CaseLinkedEvent>(events: 
   } catch (error) {
     // An unavailable case lookup must not erase appeal history from the review list.
     console.warn("Source case lookup unavailable; preserving appeal audit history", error);
-    return [...events];
+    throw error;
   }
   const sourceCases = [...staticCases, ...stored.flatMap(item => splitCaseIds(item.caseId)
     .map(caseId => ({ caseId, agent: item.agentName })))];
@@ -75,7 +75,7 @@ export async function checkAppealSourceCases<T extends CaseLinkedEvent>(events: 
     if (!CASE_EVENTS.has(event.event_type)) return event;
     const ids = splitCaseIds(event.case_id || event.details?.caseId);
     return { ...event, source_case_unavailable: Boolean(ids.length) &&
-      ids.every(id => !sourceCases.some(item => normalizedCaseId(item.caseId) === id)) };
+      ids.every(id => !sourceCases.some(item => matches(event, item, id))) };
   });
 }
 

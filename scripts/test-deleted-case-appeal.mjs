@@ -136,7 +136,7 @@ try{
 
   fixture.offline=true;await assert.rejects(events(),/server unavailable/);
   fixture.offline=false;assert.equal((await events()).find(item=>item.case_id===deleted.case_id).source_case_unavailable,true,'failed reads are evicted and retry succeeds');
-  await assert.rejects(app.writeAppealEvent({username:'fixture-qa'},'appeal_request_reviewed',{...approved,case_id:deleted.case_id,target_agent:deleted.target_agent}),/เคสต้นทางถูกลบ/);
+  await assert.rejects(app.writeAppealEvent({username:'fixture-qa',role:'Quality Assurance'},'appeal_request_reviewed',{...approved,case_id:deleted.case_id,target_agent:deleted.target_agent}),/เคสต้นทางถูกลบ/);
   await assert.rejects(app.writeAppealEvent({username:'fixture-agent'},'appeal_request_submitted',deleted),/เคสต้นทางถูกลบ/);
   assert.equal(fixture.writes.length,0);
   console.log('PASS unavailable server never becomes a deletion; deleted source blocks fresh submissions and reviews without writes');
@@ -145,13 +145,13 @@ try{
   window.history.replaceState({},'',`?tab=appeal-requests&workspace=${encodeURIComponent('appeal-review:deleted-request|'+deleted.case_id)}`);
   root=createRoot(document.getElementById('root'));
   const user={username:'fixture-qa',displayName:'Fixture Reviewer',role:'Quality Assurance'};
-  await act(async()=>root.render(React.createElement(app.Review,{currentUser:user,externalRequestId:'deleted-request'})));await settle();
+  await act(async()=>root.render(React.createElement(app.Review,{currentUser:user,allowReview:true,externalRequestId:'deleted-request'})));await settle();
   assert.ok(document.body.textContent.includes('เคสต้นทางถูกลบแล้ว'));
   assert.ok(document.body.textContent.includes('ไม่พักคะแนน'));
   assert.ok(!document.querySelector('table')?.textContent.includes(deleted.case_id));
   assert.equal(button('Save Review'),undefined);
   window.history.replaceState({},'','?tab=appeal-requests');
-  await act(async()=>root.render(React.createElement(app.Review,{currentUser:user,externalRequestId:'alive-request'})));
+  await act(async()=>root.render(React.createElement(app.Review,{currentUser:user,allowReview:true,externalRequestId:'alive-request'})));
   await settle();
   if(!button('Save Review')){
     const caseButton=[...document.querySelectorAll('button')].find(node=>node.textContent.includes(alive.case_id));
@@ -179,7 +179,7 @@ try{
   fixture.cases.set(alive.case_id,record(alive.case_id));
   await act(async()=>root.render(React.createElement(app.Dashboard,{currentUser:user,dashboardSubTab:'overview',externalSelectedAgent:'Fixture Agent A',externalSelectedMonthKey:'2026-10',externalSelectedYear:'2026',canViewAgentsInOverview:true,dataRefreshKey:92})));await settle();
   assert.ok(document.querySelector('[data-dashboard-metric="Quality Score (Avg.)"]')?.textContent.includes('รอผลอุทธรณ์'));
-  assert.equal(await app.writeAppealEvent({username:'fixture-qa'},'appeal_request_reviewed',approved),true);
+  assert.equal(await app.writeAppealEvent({username:'fixture-qa',role:'Quality Assurance'},'appeal_request_reviewed',approved),true);
   assert.equal(fixture.writes.length,1,'the live source still permits a normal review');
   assert.ok(!Object.hasOwn(fixture.writes[0].data,'source_case_unavailable'),'view metadata never changes persisted history');
   console.log('PASS real Dashboard displays score after orphan removal and holds again if the actual source case returns with an active appeal');
