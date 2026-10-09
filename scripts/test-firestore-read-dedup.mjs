@@ -28,7 +28,10 @@ try {
       b.onLoad({filter: /.*/, namespace: "mock"}, args => ({
         loader: "js", contents: args.path === "client" ? "export const firebaseDb={};" : `
           export const collection=(_db,name)=>name, doc=(_db,name,id)=>name+"/"+id;
-          export const serverTimestamp=()=>0;
+          export const serverTimestamp=()=>0, getFirestore=()=>({}), limit=(v)=>v,
+            query=(...args)=>args, where=(...args)=>args, orderBy=(...args)=>args,
+            startAfter=()=>null;
+          export async function getDocsFromServer(){return getDocs();}
           export async function getDocs(){
             globalThis.__coachingReadFixture.reads++;
             return {docs:[...globalThis.__coachingReadFixture.docs].map(([id,data])=>({id,data:()=>structuredClone(data)}))};
