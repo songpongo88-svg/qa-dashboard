@@ -5221,11 +5221,68 @@ export default function App() {
       const [logs, passwordRecord, appealLogs] = await Promise.all([
         fetchUsageLogsByEventTypes(INBOX_EVENT_TYPES, 1500),
         getCentralPasswordRecord(currentUser.username),
-        fetchAppealEvents(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset"], { limit: 2000 }),
+        fetchAppealEvents(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset", "appeal_additional_access_requested", "appeal_additional_access_decided", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted"], { limit: 2000 }),
       ]);
       const readIds = readInboxReadIds(currentUser);
       const nextTasks: InboxTaskItem[] = [];
       const appealRequests = buildAppealRequests(appealLogs);
+      // Surface additional-appeal permission decisions in the case owner's own Inbox.
+      // This is a live projection of existing appeal events, not a new notification database.
+      const inboxIdentities = [currentUser.username, currentUser.displayName, currentUser.agentName]
+        .map(value => String(value || "").replace(/\\s+/g, "").toLocaleLowerCase("th")).filter(Boolean);
+      for (const item of appealRequests) {
+        const ownerIdentities = [item.agent, item.submittedBy, item.submittedByUsername]
+          .map(value => String(value || "").replace(/\\s+/g, "").toLocaleLowerCase("th")).filter(Boolean);
+        if (!ownerIdentities.some(value => inboxIdentities.includes(value))) continue;
+        const access = item.additionalAccessRequest;
+        const round = item.additionalRound;
+        if (access?.status === "Pending") {
+          const id = `additional-access-pending-${item.requestId}-${access.requestId}`;
+          nextTasks.push({
+            id, type: "appeal-result", badge: "รอ QA อนุมัติ",
+            title: `รออนุมัติสิทธิ์อุทธรณ์เพิ่มเติม: ${item.caseId}`,
+            description: `ส่งคำขอแล้ว · หัวข้อ ${access.topics.join(", ")} · รอ QA ตรวจสอบสิทธิ์`,
+            count: 1, unread: !readIds.includes(id), actionLabel: "เปิด Case Detail",
+            caseId: item.caseId, agentName: item.agent,
+          });
+        } else if (access?.status === "Rejected") {
+          const id = `additional-access-rejected-${item.requestId}-${access.requestId}`;
+          nextTasks.push({
+            id, type: "appeal-result", badge: "ไม่อนุมัติสิทธิ์",
+            title: `คำขออุทธรณ์เพิ่มเติมไม่ผ่าน: ${item.caseId}`,
+            description: `QA ไม่อนุมัติสิทธิ์ · ${access.decisionReason || "เปิดเคสเพื่อดูรายละเอียด"}`,
+            count: 1, unread: !readIds.includes(id), actionLabel: "ดูผลใน Case Detail",
+            caseId: item.caseId, agentName: item.agent,
+          });
+        } else if (round && !round.submitted) {
+          const expiresAt = Date.parse(String(round.expiresAt || ""));
+          const stillActive = Number.isFinite(expiresAt) && expiresAt > Date.now();
+          const id = `additional-access-${stillActive ? "approved" : "expired"}-${item.requestId}-${round.roundId}`;
+          nextTasks.push({
+            id, type: "appeal-result",
+            badge: stillActive ? "อนุมัติสิทธิ์แล้ว" : "สิทธิ์หมดอายุ",
+            title: `${stillActive ? "ยื่นอุทธรณ์เพิ่มเติมได้แล้ว" : "สิทธิ์ยื่นเพิ่มเติมหมดอายุ"}: ${item.caseId}`,
+            description: stillActive
+              ? `QA อนุมัติแล้ว · หัวข้อ ${round.topics.map(topic => topic.code).join(", ")} · ยื่นก่อน ${formatInboxDateTime(round.expiresAt)}`
+              : `หมดเวลายื่นอุทธรณ์เพิ่มเติม · ${formatInboxDateTime(round.expiresAt)}`,
+            count: 1, unread: !readIds.includes(id),
+            actionLabel: stillActive ? "ไปยื่นอุทธรณ์เพิ่มเติม" : "เปิดดูสถานะเคส",
+            caseId: item.caseId, agentName: item.agent,
+            mailTemplate: {
+              subject: `${stillActive ? "QA อนุมัติสิทธิ์ยื่นเพิ่มเติมแล้ว" : "สิทธิ์ยื่นอุทธรณ์เพิ่มเติมหมดอายุ"} — ${item.caseId}`,
+              to: item.agent, from: "QA Dashboard", status: stillActive ? "Approved (Access)" : "Expired (Access)",
+              body: [
+                `Case ID: ${item.caseId}`,
+                `หัวข้อที่เปิดสิทธิ์: ${round.topics.map(topic => topic.code).join(", ")}`,
+                `เวลาเริ่มสิทธิ์: ${formatInboxDateTime(round.openedAt)}`,
+                `หมดเขต: ${formatInboxDateTime(round.expiresAt)}`,
+                "กลับไปที่ Case Detail แล้วกด ยื่นอุทธรณ์เพิ่มเติม เพื่อกรอกเหตุผลและแนบหลักฐาน",
+              ],
+            },
+          });
+        }
+      }
+
       const v8CaseUploadTasks = await buildV8CaseUploadInboxTasks(currentUser, effectiveUserAccounts, readIds);
       nextTasks.push(...v8CaseUploadTasks);
 
