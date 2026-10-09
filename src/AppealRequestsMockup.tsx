@@ -749,6 +749,8 @@ export default function AppealRequestsMockup({
         "appeal_additional_round_cancelled",
         "appeal_additional_round_expired",
         "appeal_additional_evidence_submitted",
+        "appeal_additional_access_requested", "appeal_additional_access_decided",
+        "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
       return true;
     } catch (error) {
@@ -903,6 +905,67 @@ export default function AppealRequestsMockup({
     } finally {
       setBusy(false);
     }
+  };
+
+  const decideAdditionalAccess = async (approved: boolean) => {
+    const selected = selectedRequest;
+    const access = selected?.additionalAccessRequest;
+    if (!allowReview || !selected || !access || access.status !== "Pending" || busy) return;
+    const decisionReason = window.prompt(
+      approved ? "เหตุผลที่อนุญาตให้ยื่นเพิ่มเติม" : "เหตุผลที่ไม่อนุญาต",
+      approved ? "อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม" : ""
+    );
+    if (!decisionReason?.trim()) return;
+    setBusy(true);
+    try {
+      const freshLogs = await fetchAppealEvents([
+        "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
+        "appeal_additional_access_requested", "appeal_additional_access_decided",
+        "appeal_additional_round_opened", "appeal_additional_round_cancelled",
+        "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
+        "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
+      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
+      const latest = buildAppealRequests(freshLogs).find(row => row.requestId === selected.requestId);
+      if (!latest || latest.editingDraft || latest.additionalRound ||
+          latest.additionalAccessRequest?.requestId !== access.requestId ||
+          latest.additionalAccessRequest.status !== "Pending") {
+        setLogs(freshLogs);
+        setMessage("คำขอมีการเปลี่ยนแปลง กรุณาโหลดข้อมูลใหม่");
+        return;
+      }
+      const saved = await writeAppealEvent(currentUser, "appeal_additional_access_decided", {
+        tab: "appeal-requests", case_id: selected.caseId, target_agent: selected.agent,
+        details: {
+          requestId: selected.requestId, accessId: access.requestId, approved,
+          reason: decisionReason.trim(), decidedAt: new Date().toISOString(), workflowId: crypto.randomUUID(),
+        }
+      });
+      if (!saved) throw new Error("QA permission required");
+      if (approved) {
+        const allowedTopics = availableAppealTopics.filter(topic => access.topics.includes(topic.code));
+        if (!allowedTopics.length || allowedTopics.length !== access.topics.length) throw new Error("หัวข้อที่ขอไม่ครบ กรุณาตรวจสอบก่อนเปิดสิทธิ์");
+        const openedAt = new Date().toISOString();
+        const roundSaved = await writeAppealEvent(currentUser, "appeal_additional_round_opened", {
+          tab: "appeal-requests", case_id: selected.caseId, target_agent: selected.agent,
+          details: {
+            requestId: selected.requestId, roundId: crypto.randomUUID(),
+            previousReviewId: selected.reviewId || "",
+            accessId: access.requestId,
+            openedAt, expiresAt: appealAdditionalDeadline(openedAt),
+            openedBy: String(currentUser?.displayName || currentUser?.username || ""),
+            reason: decisionReason.trim(), note: access.reason,
+            topics: allowedTopics.map(topic => ({...topic, wantsAppeal: true, appealReason: "", evidenceImages: []})),
+          }
+        });
+        if (!roundSaved) throw new Error("Unable to open appeal round");
+      }
+      await loadRequests();
+      setMessage(approved ? "อนุญาตแล้ว Admin สามารถยื่นเพิ่มเติมได้ภายใน 72 ชั่วโมง" : "บันทึกผลไม่อนุญาตแล้ว");
+      onTasksChanged?.();
+    } catch (error) {
+      console.error("Additional appeal access decision failed", error);
+      setMessage("บันทึกคำตอบไม่สำเร็จ กรุณาตรวจสอบสถานะก่อนลองอีกครั้ง");
+    } finally { setBusy(false); }
   };
 
   const cancelReviewEdit = () => {
@@ -1364,6 +1427,17 @@ export default function AppealRequestsMockup({
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">{selectedRequest.inquiry || "-"}</div>
                 </div>
 
+                {selectedRequest.additionalAccessRequest?.status === "Pending" && (
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                    <h3 className="text-sm font-bold text-violet-900">คำขอเปิดสิทธิ์อุทธรณ์เพิ่มเติม</h3>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{selectedRequest.additionalAccessRequest.reason}</p>
+                    <p className="mt-1 text-xs text-violet-700">หัวข้อที่ขอ: {selectedRequest.additionalAccessRequest.topics.join(", ")}</p>
+                    {allowReview && <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" disabled={busy} onClick={() => void decideAdditionalAccess(true)} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">อนุญาต (72 ชั่วโมง)</button>
+                      <button type="button" disabled={busy} onClick={() => void decideAdditionalAccess(false)} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">ไม่อนุญาต</button>
+                    </div>}
+                  </div>
+                )}
                 <div className="space-y-3">
                   {draftTopics
                     .filter(isAppealedTopic)
