@@ -1156,7 +1156,15 @@ export default function AppealRequestsMockup({
       notifyQaAnalyticsDataChanged();
     } catch (error) {
       console.error("Additional appeal access decision failed", error);
-      setMessage("บันทึกไม่สำเร็จ คำขอยังไม่เปลี่ยนสถานะ กรุณาตรวจสอบก่อนลองอีกครั้ง");
+      const errorCode = String((error as { code?: string })?.code || "");
+      const errorText = String((error as Error)?.message || "");
+      setMessage(errorText.includes("เคสต้นทางถูกลบ")
+        ? "ไม่สามารถอนุมัติได้ เนื่องจากไม่พบเคสต้นทาง กรุณาตรวจสอบข้อมูลเคส"
+        : errorCode.includes("permission-denied")
+          ? "Firebase ปฏิเสธสิทธิ์บันทึกข้อมูล (permission-denied) กรุณาตรวจสอบสิทธิ์เขียน qa_appeal_events คำขอยังไม่เปลี่ยนสถานะ"
+          : errorCode.includes("unavailable") || errorCode.includes("deadline-exceeded")
+            ? "เชื่อมต่อฐานข้อมูลไม่สำเร็จ กรุณาตรวจสอบเครือข่ายแล้วลองใหม่ คำขอยังไม่เปลี่ยนสถานะ"
+            : `บันทึกไม่สำเร็จ คำขอยังไม่เปลี่ยนสถานะ (${errorCode || errorText.slice(0, 90) || "ไม่ทราบสาเหตุ"})`);
     } finally { accessSavingRef.current = false; setBusy(false); }
   };
 
