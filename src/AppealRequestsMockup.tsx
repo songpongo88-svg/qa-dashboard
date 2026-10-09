@@ -578,6 +578,8 @@ export default function AppealRequestsMockup({
   const decision = summarizeAppealDecisions(draftTopics.filter(isAppealedTopic));
   const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
   const [busy, setBusy] = useState(false);
   const [qaImageUploads, setQaImageUploads] = useState(0);
   const [discussionImages, setDiscussionImages] = useState<AppealEvidenceImage[]>([]);
@@ -600,8 +602,8 @@ export default function AppealRequestsMockup({
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
   const savingRef = useRef(false);
-  const [listTab, setListTab] = useState<AppealListTab>("pending");
-  const [statusFilter, setStatusFilter] = useState("Pending");
+  const [listTab, setListTab] = useState<AppealListTab>("reviewed");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   useEffect(() => {
     const interval = window.setInterval(() => setNowTick(Date.now()), 60 * 1000);
@@ -723,6 +725,7 @@ export default function AppealRequestsMockup({
     !item.lastAdditionalStatus && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
   const resetRequests = latestRequestsByCase.filter((item) => item.status === "Reset");
   const workflowRequests = latestRequestsByCase.filter(item => item.additionalAccessRequest?.status === "Pending" && !item.additionalRound);
+  // Preserve the latest submitted/reviewed round for all-status history; drafts are excluded only while editing.
   const visibleRequests = statusFilter === "__reviewed" ? reviewedRequests : statusFilter === "Pending" ? pendingRequests : statusFilter === "All" ? latestRequestsByCase :
     statusFilter === "Request Additional Appeal" ? workflowRequests :
     latestRequestsByCase.filter(item => (item.lastAdditionalStatus || item.status) === statusFilter);
@@ -740,6 +743,8 @@ export default function AppealRequestsMockup({
 
   const loadRequests = async () => {
     try {
+      setHistoryLoading(true);
+      setHistoryError("");
       setMessage("");
       setLogs(await fetchAppealEvents([
         "appeal_request_submitted",
@@ -755,8 +760,11 @@ export default function AppealRequestsMockup({
       return true;
     } catch (error) {
       console.warn("Load appeal requests failed", error);
+      setHistoryError("โหลดประวัติอุทธรณ์ไม่สำเร็จ กรุณากด Refresh อีกครั้ง");
       setMessage("โหลดคำขออุทธรณ์ไม่สำเร็จ กรุณาลองโหลดข้อมูลอีกครั้ง");
       return false;
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -1341,6 +1349,8 @@ export default function AppealRequestsMockup({
                 {["All","Pending","__reviewed","Approved","Rejected","Partially Approved","Cancelled (Additional)","Expired (Additional)","Request Additional Appeal","Reset"].map(status=><option key={status} value={status}>{status === "__reviewed" ? "Reviewed" : status}</option>)}
               </select>
             </div>
+            {historyLoading ? <p className="mb-3 rounded-xl bg-violet-50 p-3 text-sm font-semibold text-violet-700">กำลังโหลดประวัติอุทธรณ์...</p> : null}
+            {historyError ? <p role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{historyError}</p> : null}
             <div className="space-y-3">
               {visibleRequests.map((item) => (
                 <button
