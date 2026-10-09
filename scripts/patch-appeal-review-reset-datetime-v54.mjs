@@ -333,10 +333,6 @@ function patchAppealReviewTable() {
   // Keep those semantics rather than replacing them with the old v54 list filter.
   if (source.includes("const latestRequestsByCase =") && source.includes("const visibleRequests = statusFilter")) {
     source = source.replace(
-      '  const [statusFilter, setStatusFilter] = useState("Pending");',
-      '  const [statusFilter, setStatusFilter] = useState("Pending");\n  const [selectedAgentFilter, setSelectedAgentFilter] = useState("");\n  const [selectedMonthFilter, setSelectedMonthFilter] = useState("all");\n  const [searchCaseId, setSearchCaseId] = useState("");'
-    );
-    source = source.replace(
       '  const visibleRequests = statusFilter === "__reviewed"',
       '  const agentOptions = [...new Set(requests.map(item => item.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b));\n  const monthOptions = [...new Set(requests.map(getAppealReviewMonthKey).filter(item=>item!=="unknown"))].sort((a,b)=>b.localeCompare(a));\n  const visibleRequestsUnfiltered = statusFilter === "__reviewed"'
     );
