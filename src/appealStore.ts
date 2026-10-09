@@ -45,6 +45,7 @@ type FetchOptions = number | {
   offset?: number;
   cacheTtlMs?: number;
   forceRefresh?: boolean;
+  requestId?: string;
 };
 
 const APPEAL_EVENTS_COLLECTION = "qa_appeal_events";
@@ -115,6 +116,7 @@ function normalizeFetchOptions(options: FetchOptions | undefined) {
     offset,
     cacheTtlMs,
     forceRefresh: parsed.forceRefresh === true,
+    requestId: typeof parsed === "number" ? "" : String(parsed.requestId || "").trim(),
   };
 }
 
@@ -384,25 +386,38 @@ export async function fetchAppealEvents(
   const cleanEventTypes = eventTypes.map((item) => item.trim()).filter(isAppealEventType);
   if (!cleanEventTypes.length) return [];
 
-  const { limit, offset, cacheTtlMs, forceRefresh } = normalizeFetchOptions(options);
+  const { limit, offset, cacheTtlMs, forceRefresh, requestId } = normalizeFetchOptions(options);
   const sortedTypes = [...cleanEventTypes].sort().join(",");
+  const scopedLimit = Math.min(limit + offset, 250);
 
   return cachedAppealEventRequest(
-    `firebase-appeal-events:${sortedTypes}:${limit}:${offset}`,
+    `firebase-appeal-events:${sortedTypes}:${limit}:${offset}:${requestId}`,
     cacheTtlMs,
     forceRefresh,
     async () => {
-      const snapshot = await getDocs(
-        query(
+      // Approval checks only the selected request, not the last 2,000 events
+      // for every agent. A one-field equality query avoids composite indexes.
+      const snapshot = await getDocs(requestId
+        ? query(
+          collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+          where("details.requestId", "==", requestId),
+          firestoreLimit(scopedLimit)
+        )
+        : query(
           collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
           orderBy("created_at", "desc"),
           firestoreLimit(limit + offset)
         )
       );
-
+      // Never approve from an incomplete history; a missing Reset or newer
+      // approval would make the authorization check unsafe.
+      if (requestId && snapshot.docs.length === scopedLimit) {
+        throw new Error("คำขอนี้มีประวัติมากเกินขีดจำกัด กรุณาติดต่อ QA เพื่อตรวจสอบก่อนอนุมัติ");
+      }
       const events = snapshot.docs
         .map((item) => toAppealLogEvent(item.id, item.data()))
         .filter((item) => cleanEventTypes.includes(item.event_type))
+        .sort((a,b) => (Date.parse(String(b.created_at || "")) || 0) - (Date.parse(String(a.created_at || "")) || 0))
         .slice(offset, offset + limit);
       return checkAppealSourceCases(events);
     }
