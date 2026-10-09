@@ -4009,12 +4009,12 @@ function SlideOverCaseDetail({
           "appeal_additional_evidence_submitted",
           "appeal_additional_access_requested", "appeal_additional_access_decided",
           "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
-        ], { limit: 2000, forceRefresh: true });
+        ], { limit: 250, caseId: caseItem.caseId, forceRefresh: true });
 
         const overrideLogs = await fetchAppealEvents([
           "appeal_case_override_added",
           "appeal_case_override_removed",
-        ], { limit: 1000, forceRefresh: true });
+        ], { limit: 250, caseId: caseItem.caseId, forceRefresh: true });
 
         const logs = [...appealLogs, ...overrideLogs] as UsageLogEvent[];
         if (cancelled) return;
