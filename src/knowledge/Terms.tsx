@@ -5,6 +5,8 @@ import { downloadTermsPdf } from "./pdf";
 import "./knowledge.css";
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : "ไม่สามารถเชื่อมต่อข้อมูลได้ กรุณาลองอีกครั้ง";
+// One-time operational deferral: resume T&C v1.1 at 15:00 Asia/Bangkok on 09 Oct 2026.
+const TERMS_V11_RESUME_AT = Date.parse("2026-10-09T15:00:00+07:00");
 export function TermsText({ document: content = CURRENT_TERMS }: { document?: TermsDocument }) {
   return <article className="knowledge-prose">
     <p>{content.introduction}</p>
@@ -44,6 +46,13 @@ function SignaturePad({ onChange }: { onChange: (image: string) => void }) {
 export function TermsAccessBoundary({ user, onLogout, children, repository = termsRepository }: {
   user: KnowledgeUser; onLogout: () => void; children: React.ReactNode; repository?: TermsRepository;
 }) {
+  const [termsGateActive, setTermsGateActive] = useState(() => Date.now() >= TERMS_V11_RESUME_AT);
+  useEffect(() => {
+    if (termsGateActive) return;
+    const delay = Math.max(0, TERMS_V11_RESUME_AT - Date.now());
+    const timeoutId = window.setTimeout(() => setTermsGateActive(true), delay);
+    return () => window.clearTimeout(timeoutId);
+  }, [termsGateActive]);
   const [state, setState] = useState<"loading" | "required" | "accepted" | "error">("loading");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -58,6 +67,8 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
   const scroll = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
+    // Avoid Firestore reads and signing requests during the temporary quota window.
+    if (!termsGateActive) return;
     let alive = true;
     setState("loading"); setError(""); setRead(false); setConfirmed(false); setSignature(""); setSource("none"); setSaved([]);
     Promise.all([repository.current(user), documentHash(CURRENT_TERMS)]).then(([record, hash]) => {
@@ -66,7 +77,7 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
       setState(record ? "accepted" : "required");
     }).catch((reason) => { if (alive) { setError(errorText(reason)); setState("error"); } });
     return () => { alive = false; };
-  }, [user.username, attempt, repository]);
+  }, [user.username, attempt, repository, termsGateActive]);
   useEffect(() => {
     if (state !== "required") return;
     heading.current?.focus();
@@ -91,7 +102,7 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
     }
     finally { setBusy(false); }
   };
-  if (state === "accepted") return <>{children}</>;
+  if (!termsGateActive || state === "accepted") return <>{children}</>;
   if (state === "loading") {
     return (
       <main
