@@ -218,20 +218,42 @@ function writeCache(rows: StoredCoachingRecord[]) {
   }
 }
 
-export async function fetchStoredCoachingRecords(options: { allowCache?: boolean } = {}) {
-  try {
-    const snapshot = await getDocs(collection(firebaseDb, COACHING_COLLECTION));
-    const rows = snapshot.docs
-      .map((item) => toRecord(item.data(), item.id))
-      .filter((item) => item.id && item.agent && item.monthKey);
-    writeCache(rows);
-    return sortRecords(rows);
-  } catch (error) {
-    if (options.allowCache === false) throw error;
-    const cached = readCache();
-    if (cached.length) return cached;
-    throw error;
+// A loaded collection is reused for short-lived UI summaries and the Inbox.
+// Explicit fresh reads still reach Firestore for editing / conflict checks.
+const COACHING_READ_TTL_MS = 5 * 60_000;
+let recentCoachingRecords: { rows: StoredCoachingRecord[]; expiresAt: number } | null = null;
+let pendingCoachingRead: Promise<StoredCoachingRecord[]> | null = null;
+
+function updateCoachingReadCache(rows: StoredCoachingRecord[]) {
+  const sorted = sortRecords(rows);
+  recentCoachingRecords = { rows: sorted, expiresAt: Date.now() + COACHING_READ_TTL_MS };
+  writeCache(sorted);
+}
+
+export async function fetchStoredCoachingRecords(options: { allowCache?: boolean; forceRefresh?: boolean } = {}) {
+  if (!options.forceRefresh && recentCoachingRecords && Date.now() < recentCoachingRecords.expiresAt) {
+    return recentCoachingRecords.rows;
   }
+  if (pendingCoachingRead) return pendingCoachingRead;
+  const request = (async () => {
+    try {
+      const snapshot = await getDocs(collection(firebaseDb, COACHING_COLLECTION));
+      const rows = snapshot.docs
+        .map((item) => toRecord(item.data(), item.id))
+        .filter((item) => item.id && item.agent && item.monthKey);
+      updateCoachingReadCache(rows);
+      return recentCoachingRecords!.rows;
+    } catch (error) {
+      if (options.allowCache === false) throw error;
+      if (recentCoachingRecords?.rows.length) return recentCoachingRecords.rows;
+      const cached = readCache();
+      if (cached.length) return cached;
+      throw error;
+    }
+  })();
+  pendingCoachingRead = request;
+  try { return await request; }
+  finally { if (pendingCoachingRead === request) pendingCoachingRead = null; }
 }
 
 export async function upsertStoredCoachingRecord(
@@ -259,7 +281,8 @@ export async function upsertStoredCoachingRecord(
   );
 
   const cached = readCache().filter((item) => item.id !== normalized.id);
-  writeCache([normalized, ...cached]);
+  updateCoachingReadCache([normalized, ...cached]);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("qa-coaching-refresh"));
   return normalized;
 }
 
@@ -304,7 +327,7 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
     transaction.set(reference, { ...normalized, updatedAtServer: serverTimestamp() }, { merge: true });
     return normalized;
   });
-  writeCache([saved, ...readCache().filter(row => row.id !== saved.id)]);
+  updateCoachingReadCache([saved, ...readCache().filter(row => row.id !== saved.id)]);
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('qa-coaching-refresh'));
   return saved;
 }
