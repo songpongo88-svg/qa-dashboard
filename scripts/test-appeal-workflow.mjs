@@ -20,7 +20,7 @@ const { createRoot } = await import("react-dom/client");
 const { Simulate } = await import("react-dom/test-utils");
 const root = createRoot(document.getElementById("root"));
 const storeMock = `
-  export async function fetchAppealEvents(types){return globalThis.__workflowFixture.logs.filter(event=>!types||types.includes(event.event_type))}
+  export async function fetchAppealEvents(types,options){globalThis.__workflowFixture.lastAppealFetch=options;return globalThis.__workflowFixture.logs.filter(event=>(!types||types.includes(event.event_type))&&(!options?.requestId||event.details?.requestId===options.requestId))}
   export async function fetchAdditionalAppealReasonOptions(){return []}
   export async function fetchAssignedAppealRequestIds(){return globalThis.__workflowFixture.assigned}
   export async function fetchAppealDiscussionEvents(){globalThis.__workflowFixture.discussionReads=(globalThis.__workflowFixture.discussionReads||0)+1;return []}
@@ -137,6 +137,8 @@ try {
   assert.equal(fixture.writes.length, 0, "offline approval saves neither half");
   await click(button("ยืนยันบันทึกสิทธิ์"));
   assert.equal(fixture.writes.length, 2);
+  assert.equal(fixture.lastAppealFetch.requestId, "appeal-AA990001-test", "approval reads only the selected appeal request");
+  assert.ok(fixture.lastAppealFetch.limit <= 250, "approval never scans 2,000 appeal events");
   const opened = fixture.writes.find(row => row.event_type === "appeal_additional_round_opened");
   assert.equal(Date.parse(opened.details.expiresAt) - Date.parse(opened.details.openedAt), 72 * 3600000);
   assert.equal(appealWorkflowStatus(buildAppealRequests(fixture.logs)[stages.indexOf("Request Additional Appeal")]), "Awaiting Additional Submission");
@@ -175,7 +177,7 @@ try {
     builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "client" ? "export const firebaseDb={}" : args.path === "available" ? "export async function checkAppealSourceCases(events){return events}" : `
       export const doc=(_db,name,id)=>name+'/'+id, collection=(_db,name)=>name, query=(...a)=>a, limit=a=>a, orderBy=(...a)=>a, where=(field,op,value)=>({field,op,value});
       export async function setDoc(path,data){globalThis.__workflowFixture.docs.set(path,structuredClone(data))}
-      export async function getDocs(q){const condition=q.find(part=>part?.field==='details.accessId');return {docs:[...globalThis.__workflowFixture.docs.entries()].filter(([id,data])=>!condition||data.details?.accessId===condition.value).map(([id,data])=>({id,data:()=>data}))}}
+      export async function getDocs(q){const condition=q.find(part=>part?.field==='details.accessId'||part?.field==='details.requestId');globalThis.__workflowFixture.lastDbQuery=q;return {docs:[...globalThis.__workflowFixture.docs.entries()].filter(([id,data])=>!condition||data.details?.[condition.field.split('.').at(-1)]===condition.value).map(([id,data])=>({id,data:()=>data}))}}
       export function writeBatch(){const writes=[];return {set:(path,data)=>writes.push([path,data]),commit:async()=>{const f=globalThis.__workflowFixture;if(f.batchFail)throw new Error('batch failed');for(const [path,data]of writes)f.docs.set(path,structuredClone(data));}}}
       export async function runTransaction(_db,callback){const f=globalThis.__workflowFixture;if(f.transactionReadDenied){const error=new Error('document get denied');error.code='permission-denied';throw error;}const writes=[];const value=await callback({get:async path=>({exists:()=>f.docs.has(path),data:()=>f.docs.get(path)}),set:(path,data)=>writes.push([path,data])});if(f.transactionFail){f.transactionFail=false;throw new Error('transaction failed')}for(const [path,data] of writes)f.docs.set(path,structuredClone(data));return value}
     ` }));
@@ -188,6 +190,9 @@ try {
   assert.equal(fixture.docs.size, 0);
   assert.equal(await store.writeAdditionalAppealAccessDecision(qa, decision, round), true);
   assert.equal(fixture.docs.size, 2);
+  const scoped = await store.fetchAppealEvents(["appeal_additional_access_decided", "appeal_additional_round_opened"], { requestId: "request-atomic", limit: 250, forceRefresh: true });
+  assert.equal(scoped.length, 2, "request-scoped query returns only matching appeal events");
+  assert.ok(fixture.lastDbQuery.some(part => part?.field === "details.requestId"), "request-scoped query is server-filtered");
   const saved = structuredClone([...fixture.docs.values()]);
   await store.writeAdditionalAppealAccessDecision(qa, decision, { ...round, details: { ...round.details, openedAt: at(10), expiresAt: at(82) } });
   assert.deepEqual([...fixture.docs.values()], saved, "retry does not renew deadline");

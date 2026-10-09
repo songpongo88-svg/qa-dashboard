@@ -943,7 +943,7 @@ export default function AppealRequestsMockup({
 
   useEffect(() => {
     void loadRequests();
-    const reload = () => { void loadRequests(); };
+    const reload = () => { if (!accessSavingRef.current) void loadRequests(); };
     window.addEventListener("qa-dashboard-data-refresh", reload);
     return () => window.removeEventListener("qa-dashboard-data-refresh", reload);
   }, []);
@@ -1114,13 +1114,16 @@ export default function AppealRequestsMockup({
         "appeal_additional_round_opened", "appeal_additional_round_cancelled",
         "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
         "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
-      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
+      ], { limit: 250, requestId: selected.requestId, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(freshLogs).find(row => row.requestId === selected.requestId);
       if (!latest || latest.status === "Reset" || latest.editingDraft || latest.additionalRound ||
           latest.reviewId !== selected.reviewId ||
           latest.additionalAccessRequest?.requestId !== access.requestId ||
           latest.additionalAccessRequest.status !== access.status) {
-        setLogs(freshLogs);
+        setLogs(previous => [
+          ...previous.filter(item => String(item.details?.requestId || "") !== selected.requestId),
+          ...freshLogs,
+        ]);
         setAccessDecision(null);
         setMessage("คำขอมีการเปลี่ยนแปลง กรุณาตรวจสอบสถานะล่าสุด");
         return;
@@ -1130,12 +1133,13 @@ export default function AppealRequestsMockup({
       const openedAt = repair ? access.decidedAt || "" : new Date().toISOString();
       if (!Number.isFinite(Date.parse(openedAt))) throw new Error("Approval time is missing");
       const payload = { tab: "appeal-requests", case_id: selected.caseId, target_agent: selected.agent };
-      const saved = await writeAdditionalAppealAccessDecision(currentUser, {
+      const decisionPayload = {
         ...payload, details: {
           requestId: selected.requestId, accessId: access.requestId, approved,
           reason: decisionReason, decidedAt: openedAt, workflowId: access.requestId,
         },
-      }, approved ? {
+      };
+      const roundPayload = approved ? {
         ...payload, details: {
           requestId: selected.requestId, roundId: access.requestId,
           previousReviewId: selected.reviewId || "", accessId: access.requestId,
@@ -1147,10 +1151,18 @@ export default function AppealRequestsMockup({
             wantsAppeal: true, appealReason: "", evidenceImages: [],
           })),
         },
-      } : undefined);
+      } : undefined;
+      const saved = await writeAdditionalAppealAccessDecision(currentUser, decisionPayload, roundPayload);
       if (!saved) throw new Error("QA permission required");
+      // The atomic commit has succeeded. Project the committed decision without
+      // another 2,000-document fetch that may hit the read quota after writing.
+      const savedAt = new Date().toISOString();
+      setLogs(previous => [
+        ...previous,
+        { ...decisionPayload, event_type: "appeal_additional_access_decided", created_at: savedAt },
+        ...(roundPayload ? [{ ...roundPayload, event_type: "appeal_additional_round_opened", created_at: savedAt }] : []),
+      ]);
       setAccessDecision(null);
-      await loadRequests();
       setMessage(approved ? "เปิดสิทธิ์แล้ว Admin ยื่นเพิ่มจาก Case Detail ได้ภายใน 3 วันหลังอนุมัติ" : "บันทึกผลไม่อนุญาตให้ยื่นเพิ่มแล้ว");
       onTasksChanged?.();
       notifyQaAnalyticsDataChanged();
@@ -1158,7 +1170,9 @@ export default function AppealRequestsMockup({
       console.error("Additional appeal access decision failed", error);
       const errorCode = String((error as { code?: string })?.code || "");
       const errorText = String((error as Error)?.message || "");
-      setMessage(errorText.includes("เคสต้นทางถูกลบ")
+      setMessage(errorCode.includes("resource-exhausted")
+        ? "Firestore ใช้ทรัพยากรหรือโควตาถึงขีดจำกัดแล้ว ยังไม่ได้อนุมัติสิทธิ์ กรุณาตรวจสอบ Usage ใน Firebase และรอให้โควตากลับมาใช้งานได้"
+        : errorText.includes("เคสต้นทางถูกลบ")
         ? "ไม่สามารถอนุมัติได้ เนื่องจากไม่พบเคสต้นทาง กรุณาตรวจสอบข้อมูลเคส"
         : errorCode.includes("permission-denied")
           ? "Firebase ปฏิเสธสิทธิ์บันทึกข้อมูล (permission-denied) กรุณาตรวจสอบสิทธิ์เขียน qa_appeal_events คำขอยังไม่เปลี่ยนสถานะ"
