@@ -1,11 +1,14 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T03:19:05.048Z",
-  "reason": "Reviewed Evaluate issue Tag compatibility across rubric revisions; existing tags preserved without changing QA topic scores or guide content.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-10-09T03:23:44.312Z",
+  "reason": "Reviewed T&C version 1.1 for 72-hour additional appeals, cancellation, evidence and internal reviewer access; retains prior version acknowledgements.",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "all"
+  ],
   "termsVersions": {
-    "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a"
+    "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
+    "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
   },
   "sourceHashes": {
     ".github/workflows/audit-jan-feb-rawdata.yml": "8fc156e416ea0729eb9b6e92578ef34ac3582d5d6ce567bcc7c67b72303594e0",
@@ -394,7 +397,7 @@
     "src/knowledge/manual.json": "64129fbcd1519aa73a1c9615d9b93a2abb75720dfbd60260dbe34059a7b5b345",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
-    "src/knowledge/terms.json": "204ddfab82b7ba816dd42554af37e681172520f79d5b7824bbedf981f68a98a6",
+    "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
     "src/knowledge/termsStore.ts": "5bf8aafc2a04bf4f4d9cd8ad3d45279f669618c52c2a0b1aa7bb9dc40a9f773b",
     "src/lib/agentIdentity.ts": "70c539e0462821d5101b3ea05f91678a13286b9ddea0f446ce17810a2b9269ad",
     "src/lib/caseAgentTeam.ts": "94d14a47c7de8a83f80df00c93f5662161b32e0e43421a76cd31a822268888b5",
