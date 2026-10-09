@@ -97,9 +97,9 @@ export async function uploadAppealImage(file: File, caseId: string, topicCode: s
 
 // Legacy images were uploaded before baked-in watermarks existed. Only those images
 // receive a preview overlay. Newly uploaded images must not be watermarked twice.
-function AppealEvidenceWatermark({ caseId }: { caseId?: string }) {
+export function EvidenceWatermarkOverlay({ caseId, type = "appeal" }: { caseId?: string; type?: EvidenceWatermarkType }) {
   const patternId = useId().replace(/:/g, "");
-  const caseLabel = String(caseId || "").trim().toUpperCase();
+  const [purposeText, caseLabel] = evidenceWatermarkLines(String(caseId || ""), type);
 
   return (
     <svg
@@ -111,10 +111,10 @@ function AppealEvidenceWatermark({ caseId }: { caseId?: string }) {
       <defs>
         <pattern id={patternId} patternUnits="userSpaceOnUse" width="420" height="112" patternTransform="rotate(-34)">
           <text x="10" y="35" fill="#92263c" fontSize="14" fontWeight="700" fontFamily="Kanit, Noto Sans Thai, sans-serif">
-            ใช้สำหรับเป็นหลักฐานส่งพิจารณายื่นอุทธรณ์
+            {purposeText}
           </text>
           <text x="10" y="59" fill="#92263c" fontSize="14" fontWeight="700" fontFamily="Kanit, Noto Sans Thai, sans-serif">
-            {caseLabel ? `Case ID: ${caseLabel}` : "หลักฐานประกอบการอุทธรณ์"}
+            {caseLabel}
           </text>
         </pattern>
       </defs>
@@ -151,7 +151,7 @@ export function AppealEvidenceGallery({ images = [], onRemove, caseId, startInde
   return <div className="mt-3">
     <div className="flex flex-wrap gap-3">{images.map((item, i) => <div key={item.id} className="relative w-40 rounded-xl border border-violet-100 bg-white p-2">
       <button type="button" onClick={() => setIndex(i)} className="block w-full text-left" aria-label={"ดูรูป " + displayName(item, i)}>
-        <img src={item.url} alt={displayName(item, i)} loading="lazy" className="h-24 w-full rounded-lg bg-slate-100 object-contain" />
+        <div className="relative overflow-hidden rounded-lg"><img src={item.url} alt={displayName(item, i)} loading="lazy" className="h-24 w-full rounded-lg bg-slate-100 object-contain" />{!item.watermarked ? <EvidenceWatermarkOverlay caseId={caseId} type="appeal" /> : null}</div>
         <span className="mt-2 block truncate text-xs font-semibold" title={displayName(item, i)}>{displayName(item, i)}</span>
         <span className="block text-[11px] text-slate-500">{Math.ceil(item.size / 1024)} KB · ดูภาพใหญ่</span>
       </button>
@@ -169,7 +169,7 @@ export function AppealEvidenceGallery({ images = [], onRemove, caseId, startInde
                 onError={() => setFailed(true)}
                 className="block max-h-[70vh] max-w-full object-contain"
               />
-              {!image.watermarked ? <AppealEvidenceWatermark caseId={caseId} /> : null}
+              {!image.watermarked ? <EvidenceWatermarkOverlay caseId={caseId} type="appeal" /> : null}
             </div>
           </div>
         )}
