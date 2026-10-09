@@ -601,7 +601,7 @@ export default function AppealRequestsMockup({
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
   const savingRef = useRef(false);
   const [listTab, setListTab] = useState<AppealListTab>("pending");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("Pending");
 
   useEffect(() => {
     const interval = window.setInterval(() => setNowTick(Date.now()), 60 * 1000);
@@ -723,7 +723,7 @@ export default function AppealRequestsMockup({
     !item.lastAdditionalStatus && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
   const resetRequests = latestRequestsByCase.filter((item) => item.status === "Reset");
   const workflowRequests = latestRequestsByCase.filter(item => item.additionalAccessRequest?.status === "Pending" && !item.additionalRound);
-  const visibleRequests = statusFilter === "Pending" ? pendingRequests : statusFilter === "All" ? latestRequestsByCase :
+  const visibleRequests = statusFilter === "__reviewed" ? reviewedRequests : statusFilter === "Pending" ? pendingRequests : statusFilter === "All" ? latestRequestsByCase :
     statusFilter === "Request Additional Appeal" ? workflowRequests :
     latestRequestsByCase.filter(item => (item.lastAdditionalStatus || item.status) === statusFilter);
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
@@ -1321,7 +1321,7 @@ export default function AppealRequestsMockup({
                   type="button"
                   onClick={() => {
                     setListTab(item.key);
-                    setStatusFilter(item.key === "pending" ? "Pending" : item.key === "reviewed" ? "All" : "Reset");
+                    setStatusFilter(item.key === "pending" ? "Pending" : item.key === "reviewed" ? "__reviewed" : "Reset");
                     setSelectedRequestId("");
                   }}
                   className={`rounded-xl px-3 py-2 text-xs font-black transition ${
@@ -1337,7 +1337,7 @@ export default function AppealRequestsMockup({
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <label htmlFor="appeal-status-filter" className="text-xs font-bold text-slate-600">Status</label>
               <select id="appeal-status-filter" value={statusFilter} onChange={event=>{setStatusFilter(event.target.value);setSelectedRequestId("");}} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                {["All","Pending","Approved","Rejected","Partially Approved","Cancelled (Additional)","Expired (Additional)","Request Additional Appeal","Reset"].map(status=><option key={status} value={status}>{status}</option>)}
+                {["All","Pending","__reviewed","Approved","Rejected","Partially Approved","Cancelled (Additional)","Expired (Additional)","Request Additional Appeal","Reset"].map(status=><option key={status} value={status}>{status === "__reviewed" ? "Reviewed" : status}</option>)}
               </select>
             </div>
             <div className="space-y-3">
