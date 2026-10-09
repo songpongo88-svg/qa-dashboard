@@ -1,5 +1,5 @@
 import { getAppealTopicDecision, type AppealDecision, type AppealTopicDecision } from "./appealReview";
-import { AppealEvidencePicker, AppealEvidenceGallery, type AppealEvidenceImage } from "./AppealEvidence";
+import { AppealEvidencePicker, AppealEvidenceGallery, EvidenceWatermarkOverlay, type AppealEvidenceImage } from "./AppealEvidence";
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import { WeekdayDashboardLayout } from "./WeekdayScene";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -3693,9 +3693,11 @@ function getSafeCaseImagePreviewUrl(rawUrl: string) {
 function SafeCaseImagePreview({
   url,
   title,
+  caseId,
 }: {
   url: string;
   title: string;
+  caseId?: string;
 }) {
   const safeUrl = getSafeCaseImagePreviewUrl(url);
   const [imageFailed, setImageFailed] = useState(false);
@@ -3724,14 +3726,17 @@ function SafeCaseImagePreview({
   if (isDirectImage && !imageFailed) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-        <img
-          key={safeUrl}
-          src={safeUrl}
-          alt={title}
-          className="max-h-[78vh] max-w-full rounded-2xl object-contain shadow-lg"
-          referrerPolicy="no-referrer"
-          onError={() => setImageFailed(true)}
-        />
+        <div className="relative inline-block max-w-full overflow-hidden rounded-2xl shadow-lg">
+          <img
+            key={safeUrl}
+            src={safeUrl}
+            alt={title}
+            className="block max-h-[78vh] max-w-full object-contain"
+            referrerPolicy="no-referrer"
+            onError={() => setImageFailed(true)}
+          />
+          <EvidenceWatermarkOverlay caseId={caseId} type="qa" />
+        </div>
         {isDriveUrl ? (
           <a
             href={url}
@@ -4409,7 +4414,7 @@ function SlideOverCaseDetail({
         link.remove();
         return;
       }
-      await downloadEvidenceUrl(sourceUrl, fileName);
+      await downloadEvidenceUrl(sourceUrl, fileName, previewAsset.type === "image" ? caseItem.caseId : undefined);
     } catch (error) {
       console.error("Download preview file failed:", error);
       alert("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -4556,7 +4561,7 @@ function SlideOverCaseDetail({
                   ) : null}
 
                   <div className="flex h-full w-full items-center justify-center overflow-auto">
-                    <SafeCaseImagePreview url={previewAsset.url} title={previewAsset.title} />
+                    <SafeCaseImagePreview url={previewAsset.url} title={previewAsset.title} caseId={caseItem.caseId} />
                   </div>
 
                   {previewAsset.items && previewAsset.items.length > 1 ? (

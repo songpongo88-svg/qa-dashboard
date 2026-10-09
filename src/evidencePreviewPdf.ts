@@ -1,6 +1,7 @@
 import { jsPDF } from "./officialPdf";
 import { PDF_LOGO } from "./pdfLogo";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { resizeAppealImage } from "./AppealEvidence";
 
 type EvidencePdfResult = {
   blob: Blob;
@@ -136,8 +137,10 @@ function imageToAnalysisCanvas(image: HTMLImageElement) {
   return canvas;
 }
 
-async function imageBlobToPage(blob: Blob): Promise<RenderedEvidencePage> {
-  const dataUrl = await blobToDataUrl(blob);
+async function imageBlobToPage(blob: Blob, caseId: string): Promise<RenderedEvidencePage> {
+  const original = new File([blob], "case-evidence.jpg", { type: blob.type || "image/jpeg" });
+  const stamped = await resizeAppealImage(original, caseId, "qa");
+  const dataUrl = await blobToDataUrl(stamped.blob);
   const image = await loadImage(dataUrl);
   const analysisCanvas = imageToAnalysisCanvas(image);
   return {
@@ -187,7 +190,7 @@ async function pdfBlobToPages(blob: Blob): Promise<RenderedEvidencePage[]> {
   return pages;
 }
 
-async function blobToRenderedPages(blob: Blob, sourceUrl: string) {
+async function blobToRenderedPages(blob: Blob, sourceUrl: string, caseId: string) {
   const type = String(blob.type || "").toLowerCase();
   const looksPdf =
     type.includes("pdf") ||
@@ -197,7 +200,7 @@ async function blobToRenderedPages(blob: Blob, sourceUrl: string) {
     try {
       return await pdfBlobToPages(blob);
     } catch {
-      if (type.startsWith("image/")) return [await imageBlobToPage(blob)];
+      if (type.startsWith("image/")) return [await imageBlobToPage(blob, caseId)];
       throw new Error("Cannot render evidence PDF.");
     }
   }
@@ -234,6 +237,7 @@ function drawEvidencePage(
     watermarkY = imageY + height * watermarkRatio;
   }
 
+  if (page.mode === "page") {
   const passed = Number(finalScore) >= 85;
   // Approx. 11% visual strength on white: clearer than before while keeping evidence readable.
   const watermarkColor: [number, number, number] = passed
@@ -247,6 +251,8 @@ function drawEvidencePage(
     align: "center",
     angle: 35,
   });
+
+  }
 
   doc.addImage(PDF_LOGO, "PNG", 4.2, 2.2, 5.2, 5.2, "qa-evidence-logo", "FAST");
   doc.setFont("THSarabunNew", "normal");
@@ -274,7 +280,7 @@ export async function buildEvidencePreviewPdf(
   const renderedPages: RenderedEvidencePage[] = [];
   for (const source of sources) {
     const blob = await fetchEvidenceBlob(source);
-    renderedPages.push(...(await blobToRenderedPages(blob, source)));
+    renderedPages.push(...(await blobToRenderedPages(blob, source, caseId)));
   }
   if (!renderedPages.length) throw new Error("No evidence page found.");
 
@@ -299,13 +305,15 @@ export async function buildEvidencePreviewPdf(
   };
 }
 
-export async function downloadEvidenceUrl(rawUrl: string, fileName: string) {
+export async function downloadEvidenceUrl(rawUrl: string, fileName: string, caseId?: string) {
   const blob = await fetchEvidenceBlob(rawUrl);
-  const objectUrl = URL.createObjectURL(blob);
+  const isImage = ["image/jpeg", "image/png", "image/webp"].includes(blob.type);
+  const image = caseId && isImage ? await resizeAppealImage(new File([blob], fileName, {type: blob.type}), caseId, "qa") : null;
+  const objectUrl = URL.createObjectURL(image?.blob || blob);
   try {
     const link = document.createElement("a");
     link.href = objectUrl;
-    link.download = fileName || "Evidence_Attachment.pdf";
+    link.download = image ? (fileName.replace(/\.[^.]+$/, "") + ".jpg") : (fileName || "Evidence_Attachment.pdf");
     link.style.display = "none";
     document.body.appendChild(link);
     link.click();
