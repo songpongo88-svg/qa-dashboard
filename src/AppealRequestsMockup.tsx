@@ -856,11 +856,14 @@ export default function AppealRequestsMockup({
     const priorTopics = request.topics.filter(topic => !codes.has(topic.code));
     const selectedTopics = latestRound.topics.map(topic => {
       const original = request.topics.find(item => item.code === topic.code);
+      const latestScore = original?.decision === "Approved" && String(original.revisedScore ?? "").trim() !== ""
+        ? toNumber(original.revisedScore, original.score)
+        : original?.score ?? topic.score;
       return {
         ...(original || topic),
         ...topic,
         decision: undefined,
-        revisedScore: undefined,
+        revisedScore: latestScore,
         revisedComment: "",
         rejectReason: "",
         wantsAppeal: true,
