@@ -113,13 +113,16 @@ export function firestoreQuotaProtectionPatch() {
         this.error("Firestore quota protection could not find post-evaluation inbox handling.");
       }
 
-      next = replaceOrThrow(
-        this,
-        next,
-        `  }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked, effectiveUserAccounts]);`,
-        `  }, [currentUser, appealRequestsAllowed, maintenanceBlocked, effectiveUserAccounts]);`,
-        "inbox effect dependencies"
-      );
+      // The Inbox effect now uses the low-frequency, visible-page polling
+      // dependency list directly. Keep this guard compatible with both the
+      // previous source and the new already-optimized source.
+      const oldInboxDeps = `  }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked, effectiveUserAccounts]);`;
+      const newInboxDeps = `  }, [currentUser, appealRequestsAllowed, maintenanceBlocked, effectiveUserAccounts]);`;
+      if (next.includes(oldInboxDeps)) {
+        next = next.replace(oldInboxDeps, newInboxDeps);
+      } else if (!next.includes(newInboxDeps)) {
+        this.error("Firestore quota protection could not find inbox effect dependencies.");
+      }
 
       const oldSessionStart = `  useEffect(() => {\n    if (!currentUser?.sessionId || !currentUser.username) return;\n\n    let cancelled = false;\n\n    const checkCentralSession = async () => {\n      try {`;
       const newSessionStart = `  useEffect(() => {\n    if (!currentUser?.sessionId || !currentUser.username || currentUser.sessionId.startsWith("local-")) return;\n\n    let cancelled = false;\n    let lastCentralCheckAt = 0;\n\n    const checkCentralSession = async (force = false) => {\n      const now = Date.now();\n      if (!force && now - lastCentralCheckAt < SESSION_CHECK_INTERVAL_MS) return;\n      lastCentralCheckAt = now;\n      try {`;
