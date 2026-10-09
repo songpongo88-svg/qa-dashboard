@@ -32,7 +32,7 @@ const storeMock = `
   }`;
 try {
   const output = resolve(temp, "review.mjs");
-  await build({ entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "isolated-workflow-boundaries", setup(builder) {
+  await build({ jsx: "automatic", entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "isolated-workflow-boundaries", setup(builder) {
     builder.onResolve({ filter: /^\.\/appealStore$/ }, () => ({ path: "store", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/userRoleStore$/ }, () => ({ path: "profiles", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/PageHero$/ }, () => ({ path: "hero", namespace: "fixture" }));
@@ -167,10 +167,80 @@ try {
   assert.equal(fixture.writes.length, countBefore, "QA cannot save a stale preview while the owner has pulled the appeal back for editing");
   assert.ok(document.querySelector('[role="alertdialog"]').textContent.includes("คำขอนี้มีการเปลี่ยนแปลง"));
   console.log("PASS fresh workflow check prevents QA saving a review after owner withdrawal");
+  // Repeating the same topic appends an Action, while carried-forward topics
+  // remain part of the score snapshot without appearing as a new submission.
+  const repeatedId = "appeal-AA994444-test";
+  const repeatedRound = "round-repeated";
+  const originalTopic = { ...topic, score: 18, max: 30, appealReason: "Original appeal reason\nOriginal second line" };
+  const otherTopic = { ...topic, code: "2", score: 14, max: 20, appealReason: "Other topic original reason" };
+  const firstResult = [{ ...originalTopic, decision: "Approved", revisedScore: 20, revisedComment: "First QA comment" }, { ...otherTopic, decision: "Approved", revisedScore: 16, revisedComment: "Other QA comment" }];
+  const repeatedEvent = (event_type, hours, details) => ({ event_type, created_at: at(hours), case_id: "AA994444", target_agent: "Alpha Agent", details: { requestId: repeatedId, ...details } });
+  const repeatedPending = [
+    repeatedEvent("appeal_request_submitted", -100, { topics: [originalTopic, otherTopic], finalScore: 80, auditDate: "2026-09-01", submittedBy: "Alpha Agent", submittedAt: at(-100) }),
+    repeatedEvent("appeal_request_reviewed", -90, { topics: firstResult, reviewId: "review-first", reviewedBy: "First Reviewer", reviewedAt: at(-90), decision: "Approved", reviewSummary: "First review" }),
+    repeatedEvent("appeal_additional_round_opened", -2, { roundId: repeatedRound, openedAt: at(-2), expiresAt: appealAdditionalDeadline(at(-2)), topics: [{ ...originalTopic, appealReason: "" }] }),
+    repeatedEvent("appeal_additional_evidence_submitted", -1, { roundId: repeatedRound, submittedBy: "Alpha Agent", submittedAt: at(-1), topics: [{ ...originalTopic, appealReason: "New appeal reason\nNew second line" }] }),
+  ];
+  const unchanged = JSON.stringify(repeatedPending);
+  const projectedPending = buildAppealRequests([...repeatedPending].reverse(), now)[0];
+  assert.equal(projectedPending.actionHistory.length, 2);
+  assert.equal(projectedPending.actionHistory[0].topics[0].appealReason, originalTopic.appealReason);
+  assert.equal(projectedPending.actionHistory[0].topics[0].revisedComment, "First QA comment");
+  assert.equal(projectedPending.actionHistory[1].topics[0].appealReason, "New appeal reason\nNew second line");
+  assert.equal(projectedPending.actionHistory[1].topics[0].decision, undefined);
+  assert.equal(JSON.stringify(repeatedPending), unchanged, "history projection never mutates old events");
+  fixture.logs = structuredClone(repeatedPending);
+  fixture.writes = [];
+  await render(qa, { key: "repeated-action", externalRequestId: repeatedId });
+  const firstAction = document.querySelector('[aria-label="ประวัติ Action หัวข้อ 1"] [data-appeal-action="1"]');
+  assert.ok(firstAction.textContent.includes("Original appeal reason") && firstAction.textContent.includes("First QA comment"));
+  assert.equal(firstAction.querySelector("textarea,select,button[aria-pressed]"), null, "old Action is read-only");
+  assert.ok(document.body.textContent.includes("Action 2 — อุทธรณ์เพิ่มเติม"));
+  assert.equal(document.getElementById("appeal-review-summary").value, "", "additional QA summary starts fresh");
+  const activeGroup = document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]');
+  assert.equal(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 2"]'), null, "unrelated old topic cannot be re-reviewed in this round");
+  await click([...activeGroup.querySelectorAll("button")].find(node => node.textContent.includes("Approved")));
+  await select(activeGroup.parentElement.querySelector("select"), "22");
+  for (const [id, value] of [["revised-comment-1", "Second QA comment"], ["appeal-review-summary", "Second review"]]) {
+    await act(async () => { const input = document.getElementById(id); input.value = value; Simulate.change(input); });
+  }
+  await click(button("Save Review"));
+  await click(button("ยืนยันบันทึก"));
+  const secondResult = fixture.writes.at(-1);
+  assert.equal(secondResult.details.roundId, repeatedRound);
+  assert.deepEqual(secondResult.details.actionTopicCodes, ["1"]);
+  assert.equal(secondResult.details.topics.find(topic => topic.code === "2").revisedComment, "Other QA comment");
+  assert.equal(secondResult.details.topics.find(topic => topic.code === "1").appealReason, "New appeal reason\nNew second line");
+  const afterSecond = buildAppealRequests(fixture.logs)[0];
+  assert.equal(afterSecond.actionHistory[1].topics.length, 1, "carried results do not create fake appeals in Action 2");
+  assert.equal(afterSecond.actionHistory[1].reviews[0].finalScore, 86);
+  assert.equal(afterSecond.actionHistory[0].reviews[0].finalScore, 84);
+  await click(button("รับทราบ"));
+  await click(button("แก้ไขผลอุทธรณ์"));
+  assert.equal(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 2"]'), null);
+  await act(async () => { const input = document.getElementById("revised-comment-1"); input.value = "Corrected second QA comment"; Simulate.change(input); });
+  await click(button("Save Review"));
+  await click(button("ยืนยันบันทึก"));
+  const corrected = buildAppealRequests(fixture.logs)[0];
+  assert.equal(corrected.actionHistory.length, 2, "QA edit stays within the same Action");
+  assert.equal(corrected.actionHistory[1].reviews.length, 2);
+  assert.equal(corrected.actionHistory[1].reviews[0].topics[0].revisedComment, "Second QA comment");
+  assert.equal(corrected.actionHistory[1].reviews[1].topics[0].revisedComment, "Corrected second QA comment");
+  assert.equal(fixture.writes.at(-1).details.roundId, repeatedRound, "editing additional QA result retains its round identity");
+  const legacyEdit = { ...fixture.writes.at(-1), details: { ...fixture.writes.at(-1).details, roundId: "" } };
+  const legacyHistory = buildAppealRequests([...repeatedPending, secondResult, legacyEdit])[0].actionHistory;
+  assert.equal(legacyHistory[1].reviews.length, 2, "legacy QA edit follows previousReviewId into the additional Action");
+  const evidenceEdit = repeatedEvent("appeal_submission_resubmitted", -0.8, { roundId: repeatedRound, submittedAt: at(-0.8), submittedBy: "Alpha Agent", topics: [{ ...originalTopic, appealReason: "Edited new reason" }] });
+  const submissionHistory = buildAppealRequests([...repeatedPending, evidenceEdit], now)[0].actionHistory;
+  assert.equal(submissionHistory.length, 2);
+  assert.equal(submissionHistory[1].submissions.length, 2);
+  assert.equal(submissionHistory[1].submissions[0].topics[0].appealReason, "New appeal reason\nNew second line");
+  assert.equal(submissionHistory[1].topics[0].appealReason, "Edited new reason");
+  console.log("PASS repeated-topic Actions: old/new reasons and QA results, fresh summary, unchanged carried topic, cumulative score, QA edits, legacy edits and submission revisions");
   await act(async () => root.unmount());
 
   const storeOutput = resolve(temp, "store.mjs");
-  await build({ entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "transaction-boundary", setup(builder) {
+  await build({ jsx: "automatic", entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "transaction-boundary", setup(builder) {
     builder.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: "db", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/firebaseClient$/ }, () => ({ path: "client", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/appealCaseAvailability$/ }, () => ({ path: "available", namespace: "fixture" }));

@@ -9,6 +9,8 @@ import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
 import { generateCasePdfWithAppealHistory } from "./caseAppealPdfAddon";
+import AppealActionTimeline from "./AppealActionTimeline";
+import type { AppealAction } from "./appealActionHistory";
 import { generateBulkCaseDetailPdf } from "./bulkCaseDetailPdf";
 import { RichTextContent, richTextToPlainText } from "./richText";
 import { type UsageLogEvent } from "./usageLog";
@@ -126,6 +128,7 @@ type CaseItem = AppealScoreState & {
   // appeal-review-reset-datetime-v54-dashboard
   appealRequestId?: string;
   appealReviewedTopics?: AppealReviewedTopic[] | null;
+  appealActionHistory?: AppealAction[];
 };
 
 type AppealDraftTopic = {
@@ -194,6 +197,7 @@ type AppealOutcomeItem = {
   reviewedBy: string;
   requestId: string;
   reviewedTopics: Topic[];
+  actionHistory: AppealAction[];
 };
 
 type AppealTimelineItem = {
@@ -582,6 +586,7 @@ function buildAppealOutcomeMap(
       ),
       requestId: String(request.requestId || "").trim(),
       reviewedTopics,
+      actionHistory: request.actionHistory,
     });
   });
 
@@ -630,6 +635,7 @@ function applyAppealMapsToCaseItems(
       appealSubmittedBy: loggedOutcome?.submittedBy || mergedAppeal?.submittedBy || item.agent || "",
       appealReviewedBy: loggedOutcome?.reviewedBy || mergedAppeal?.reviewedBy || "",
       appealRequestId: loggedOutcome?.requestId || "",
+      appealActionHistory: loggedOutcome?.actionHistory || [],
       appealReviewedTopics: loggedOutcome?.reviewedTopics?.length
         ? loggedOutcome.reviewedTopics
         : mergedAppeal?.reviewedTopics?.length
@@ -2568,6 +2574,7 @@ function CaseDetailTopicTable({
   revisedTopics,
   reviewStatus,
   displayRevisedTopicCodes = [],
+  appealActionHistory = [],
   appealStatus,
   appealReviewedTopics,
   appealSubmittedBy,
@@ -2586,6 +2593,7 @@ function CaseDetailTopicTable({
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
   displayRevisedTopicCodes?: string[];
+  appealActionHistory?: readonly AppealAction[];
   appealStatus?: AppealDecision;
   appealReviewedTopics?: AppealReviewedTopic[] | null;
   appealSubmittedBy?: string;
@@ -2744,6 +2752,7 @@ function CaseDetailTopicTable({
                     <CaseDetailIssueTags tags={row.issueTags} />
                   </div>
 
+                  {!appealActionHistory.some(action => action.topics.some(topic => topic.code === row.shownTopic.code)) && <>
                   <div className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-4 py-4">
                     <div className="space-y-1 text-[13px] font-semibold text-amber-950">
                       <div><span className="font-extrabold">Admin:</span> {appealSubmittedBy || "-"}</div>
@@ -2793,6 +2802,7 @@ function CaseDetailTopicTable({
                       </div>
                     ) : null}
                   </div>
+                  </>}
                 </>
               ) : (
                 <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
@@ -2807,6 +2817,7 @@ function CaseDetailTopicTable({
                   <CaseDetailIssueTags tags={row.issueTags} />
                 </div>
               )}
+              <AppealActionTimeline actions={appealActionHistory} topicCode={row.shownTopic.code} caseId={caseId} />
             </div>
             </div>
           </details>
@@ -5343,6 +5354,7 @@ function SlideOverCaseDetail({
                 revisedTopics={caseItem.revisedTopics}
                 reviewStatus={caseItem.reviewStatus}
                 displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
+                appealActionHistory={appealExistingRequest?.actionHistory || caseItem.appealActionHistory}
                 appealStatus={caseItem.appealStatus}
                 appealReviewedTopics={caseItem.appealReviewedTopics}
                 appealSubmittedBy={caseItem.appealSubmittedBy}

@@ -12,6 +12,8 @@ import AppealWorkflowNotice from "./AppealWorkflowNotice";
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy"; // appeal-review-information-newtab-v56
 import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
+import AppealActionTimeline from "./AppealActionTimeline";
+import { buildAppealActionHistory, type AppealAction } from "./appealActionHistory";
 
 type AppealTopic = {
   evidenceImages?: AppealEvidenceImage[];
@@ -84,6 +86,7 @@ type AppealRequest = {
   reviewId?: string;
   reviewVersion?: number;
   reviewHistory: AppealReviewHistoryItem[];
+  actionHistory: AppealAction[];
   editingDraft?: boolean;
   activeEditTopics?: AppealTopic[];
   additionalAccessRequest?: { requestId: string; reason: string; topics: string[]; requestedAt: string; status: "Pending" | "Approved" | "Rejected"; decidedAt?: string; decisionReason?: string } | null;
@@ -490,6 +493,7 @@ export function buildAppealRequests(logs: UsageLogEvent[], asOf = Date.now()) {
         submittedByUsername: String(log.details?.submittedByUsername || log.username || ""),
         reviewId: String(review?.details?.reviewId || review?.id || ""),
         reviewVersion: toNumber(review?.details?.reviewVersion, history.length),
+        actionHistory: buildAppealActionHistory(logs, requestId, asOf),
         additionalRound,
         lastAdditionalStatus: isResetAfterSubmit ? "" : lastAdditionalStatus,
         additionalHistory: [...(openedRounds.get(requestId) || [])].sort((a, b) => eventTime(b) - eventTime(a)).map(opened => {
@@ -913,6 +917,10 @@ export default function AppealRequestsMockup({
     Boolean(selectedRequest?.additionalRound?.submitted) ||
     (isReviewed && editingReview && !selectedRequest?.additionalRound && !isPermissionTask)
   );
+  const currentAction = selectedRequest?.additionalRound
+    ? selectedRequest.actionHistory.find(action => action.roundId === selectedRequest.additionalRound?.roundId)
+    : selectedRequest?.actionHistory.find(action => action.reviews.some(review => review.reviewId === selectedRequest.reviewId)) || selectedRequest?.actionHistory[0];
+  const canReviewTopic = (code: string) => canReview && (!(selectedRequest?.additionalRound || editingReview) || Boolean(currentAction?.topics.some(topic => topic.code === code)));
 
   const loadRequests = async () => {
     try {
@@ -955,7 +963,7 @@ export default function AppealRequestsMockup({
     }
     setSelectedRequestId(selectedRequest.requestId);
     setDraftTopics(draftForRequest(selectedRequest));
-    setReviewSummary(selectedRequest.reviewSummary || "");
+    setReviewSummary(selectedRequest.additionalRound ? "" : selectedRequest.reviewSummary || "");
     setEditingReview(false);
     setDiscussionImages([]);
     setDiscussionText("");
@@ -1334,7 +1342,8 @@ export default function AppealRequestsMockup({
           reviewVersion: preview.reviewVersion,
           previousReviewId: preview.previousReviewId,
           reviewAction: selectedRequest.additionalRound ? "additional_round" : preview.isEdit ? "edited" : "created",
-          ...(selectedRequest.additionalRound ? { roundId: selectedRequest.additionalRound.roundId } : {}),
+          ...(currentAction?.roundId ? { roundId: currentAction.roundId } : {}),
+          actionTopicCodes: currentAction?.topics.map(topic => topic.code) || topicsForReview.map(topic => topic.code),
           decision: review.decision,
           reviewSummary: preview.reviewSummary,
           reviewedAt,
@@ -1774,9 +1783,19 @@ export default function AppealRequestsMockup({
 
                 <div className="space-y-3">
                   {draftTopics
-                    .filter(topic => !isPermissionTask && selectedWorkflowStatus !== "Awaiting Additional Submission" && isAppealedTopic(topic))
+                    .filter(isAppealedTopic)
                     .map((topic) => (
                       <div key={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        {!canReviewTopic(topic.code) && <div className="mb-4">
+                          <div className="text-base font-extrabold text-slate-950">{topic.code} {topic.label}</div>
+                          <div className="mt-1 text-xs font-bold text-violet-700">คะแนนล่าสุด {topic.decision === "Approved" ? topic.revisedScore ?? topic.score : topic.score} / {topic.max}</div>
+                          <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm leading-6 text-slate-700"><div className="mb-1 text-xs font-bold text-slate-500">Original Comment</div><div className="whitespace-pre-wrap break-words">{topic.comment || "-"}</div></div>
+                        </div>}
+                        <AppealActionTimeline actions={selectedRequest.actionHistory} topicCode={topic.code} caseId={selectedRequest.caseId}
+                          excludeActionId={canReviewTopic(topic.code) && !editingReview ? currentAction?.actionId : undefined} />
+                        {canReviewTopic(topic.code) && <div className="mt-4 rounded-2xl border border-violet-200 p-4">
+                        <div className="mb-4 text-sm font-extrabold text-violet-800">{editingReview ? "แก้ไขผล " : ""}Action {currentAction?.actionNumber || 1} — {currentAction?.roundId ? "อุทธรณ์เพิ่มเติม" : "อุทธรณ์ครั้งแรก"}</div>
+                        <div className="mb-4 text-xs text-slate-600">ผู้ยื่น: {currentAction?.submittedBy || selectedRequest.submittedBy || "-"} · {formatDateTime(currentAction?.submittedAt || selectedRequest.submittedAt)}</div>
                         <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label={`ผลพิจารณาหัวข้อ ${topic.code}`}>
                           {(["Approved", "Rejected"] as const).map(value => (
                             <button key={value} type="button" aria-pressed={topic.decision === value}
@@ -1927,6 +1946,7 @@ export default function AppealRequestsMockup({
                             </div>
                           </div>
                         ) : null}
+                        </div>}
                       </div>
                     ))}
                 </div>
