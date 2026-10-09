@@ -47,7 +47,10 @@ function loadStaticCaseIndex() {
 export async function checkAppealSourceCases<T extends CaseLinkedEvent>(events: readonly T[]): Promise<T[]> {
   const linked = events.filter(event => CASE_EVENTS.has(event.event_type));
   if (!linked.length) return [...events];
-  const staticCases = await loadStaticCaseIndex();
+  const staticCases = await loadStaticCaseIndex().catch(error => {
+    console.warn("Static appeal source case index unavailable; checking stored cases instead", error);
+    return [] as CaseIdentity[];
+  });
   const matches = (event: CaseLinkedEvent, item: CaseIdentity, id: string) =>
     normalizedCaseId(item.caseId) === id &&
     (!(event.target_agent || event.details?.agent) || isSameCanonicalAgent(item.agent, event.target_agent || event.details?.agent));
@@ -58,14 +61,21 @@ export async function checkAppealSourceCases<T extends CaseLinkedEvent>(events: 
     // Query its original combined value as well as the individual IDs.
     return missing.length ? [...missing, String(sourceId || "").trim().toUpperCase()] : [];
   }))];
-  const stored = await fetchStoredEvaluationsForCases(neededIds);
+  let stored: Awaited<ReturnType<typeof fetchStoredEvaluationsForCases>>;
+  try {
+    stored = neededIds.length ? await fetchStoredEvaluationsForCases(neededIds) : [];
+  } catch (error) {
+    // An unavailable case lookup must not erase appeal history from the review list.
+    console.warn("Source case lookup unavailable; preserving appeal audit history", error);
+    return [...events];
+  }
   const sourceCases = [...staticCases, ...stored.flatMap(item => splitCaseIds(item.caseId)
     .map(caseId => ({ caseId, agent: item.agentName })))];
   return events.map(event => {
     if (!CASE_EVENTS.has(event.event_type)) return event;
     const ids = splitCaseIds(event.case_id || event.details?.caseId);
     return { ...event, source_case_unavailable: Boolean(ids.length) &&
-      ids.every(id => !sourceCases.some(item => matches(event, item, id))) };
+      ids.every(id => !sourceCases.some(item => normalizedCaseId(item.caseId) === id)) };
   });
 }
 
