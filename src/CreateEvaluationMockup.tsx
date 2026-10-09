@@ -2041,7 +2041,8 @@ export default function CreateEvaluationMockup({
     const normalized = normalizeEvaluationIssueTagName(tagName);
     const duplicate = issueTagCatalog.find((tag) => tag.normalizedName === normalized);
     if (duplicate) {
-      const sameTopic = duplicate.rubricCode === activeRubric.code && duplicate.topicCode === topic.code;
+      // Existing tags belong to a QA topic, not a specific monthly rubric version.
+      const sameTopic = duplicate.topicCode === topic.code;
       if (sameTopic) {
         if (!duplicate.active) {
           setIssueTagMessages((current) => ({ ...current, [key]: `Tag “${duplicate.name}” ถูกลบจากคลังแล้ว เปิด “จัดการ Tag” แล้วกด “คืน Tag” เพื่อใช้ชื่อเดิม` }));
@@ -3864,11 +3865,11 @@ export default function CreateEvaluationMockup({
                               const selectedScore = scoreOf(topic);
                               const tagKey = `${activeRubric.code}:${topic.code}`;
                               const availableIssueTags = issueTagCatalog.filter(
-                                (tag) => tag.active && tag.rubricCode === activeRubric.code && tag.topicCode === topic.code
+                                (tag) => tag.active && tag.topicCode === topic.code
                               );
                               const selectedIssueTags = topicState[topic.code]?.issueTags || [];
                               const removedIssueTags = issueTagCatalog.filter(
-                                (tag) => !tag.active && tag.rubricCode === activeRubric.code && tag.topicCode === topic.code
+                                (tag) => !tag.active && tag.topicCode === topic.code
                               );
                               return (
                                 <div key={topic.code} className={`border-b border-emerald-100 px-4 py-4 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-emerald-50/35"}`}>
