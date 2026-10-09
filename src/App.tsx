@@ -738,7 +738,7 @@ const DEFAULT_MAINTENANCE_STATE: MaintenanceState = {
   updatedBy: "",
 };
 const MAINTENANCE_POLL_INTERVAL_MS = 5 * 60 * 1000;
-const INBOX_POLL_INTERVAL_MS = 2 * 60 * 1000;
+const INBOX_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const USER_ACCESS_EVENT_TYPES = [
   "user_role_updated",
   "user_profile_saved",
@@ -4455,13 +4455,13 @@ export default function App() {
     let active = true;
     let timer = 0;
 
-    const refreshCoachingAssignmentAccess = async () => {
+    const refreshCoachingAssignmentAccess = async (forceRefresh = false) => {
       if (!currentUser) {
         if (active) setCoachingAssignmentAllowed(false);
         return;
       }
       try {
-        const rows = await fetchStoredCoachingRecords();
+        const rows = await fetchStoredCoachingRecords({ forceRefresh });
         if (!active) return;
         setCoachingRecords(rows);
         setCoachingAssignmentAllowed(
@@ -4484,13 +4484,18 @@ export default function App() {
     };
 
     void refreshCoachingAssignmentAccess();
-    const handleRefresh = () => void refreshCoachingAssignmentAccess();
+    const handleRefresh = () => void refreshCoachingAssignmentAccess(true);
+    const pollIfVisible = () => {
+      if (document.visibilityState === "visible") void refreshCoachingAssignmentAccess();
+    };
     window.addEventListener("qa-coaching-refresh", handleRefresh);
-    timer = window.setInterval(handleRefresh, 30_000);
+    window.addEventListener("focus", pollIfVisible);
+    timer = window.setInterval(pollIfVisible, 5 * 60_000);
 
     return () => {
       active = false;
       window.removeEventListener("qa-coaching-refresh", handleRefresh);
+      window.removeEventListener("focus", pollIfVisible);
       if (timer) window.clearInterval(timer);
     };
   }, [currentUser?.username, currentUser?.displayName, currentUser?.agentName, currentUser?.role]);
@@ -5289,7 +5294,7 @@ export default function App() {
       const v8CaseUploadTasks = await buildV8CaseUploadInboxTasks(currentUser, effectiveUserAccounts, readIds);
       nextTasks.push(...v8CaseUploadTasks);
 
-      const coachingRows = await fetchStoredCoachingRecords({ allowCache: false }).catch(() => []);
+      const coachingRows = await fetchStoredCoachingRecords().catch(() => []);
       const coachingActor = {
         username: currentUser.username,
         displayName: currentUser.displayName,
@@ -5955,18 +5960,20 @@ export default function App() {
     }
 
     void loadInboxTasks();
-    const timer = window.setInterval(() => {
-      void loadInboxTasks();
-    }, INBOX_POLL_INTERVAL_MS);
-
+    const pollIfVisible = () => {
+      if (document.visibilityState === "visible") void loadInboxTasks();
+    };
+    const timer = window.setInterval(pollIfVisible, INBOX_POLL_INTERVAL_MS);
     const reloadAfterCaseChange = () => { void loadInboxTasks(); };
     window.addEventListener("qa-dashboard-data-refresh", reloadAfterCaseChange);
+    document.addEventListener("visibilitychange", pollIfVisible);
 
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("qa-dashboard-data-refresh", reloadAfterCaseChange);
+      document.removeEventListener("visibilitychange", pollIfVisible);
     };
-  }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked, effectiveUserAccounts]);
+  }, [currentUser, appealRequestsAllowed, maintenanceBlocked, effectiveUserAccounts]);
 
   // password reset shortcut badge polling
   useEffect(() => {

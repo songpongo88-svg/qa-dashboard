@@ -5,8 +5,10 @@ import { downloadTermsPdf } from "./pdf";
 import "./knowledge.css";
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : "ไม่สามารถเชื่อมต่อข้อมูลได้ กรุณาลองอีกครั้ง";
-// One-time operational deferral: resume T&C v1.1 at 15:00 Asia/Bangkok on 09 Oct 2026.
-const TERMS_V11_RESUME_AT = Date.parse("2026-10-09T15:00:00+07:00");
+// Temporary pause of the mandatory T&C gate due to Firestore daily quota.
+// Keep v1.1 and all centrally stored acceptances untouched. On 01 Nov, check
+// each user's existing acceptance before asking only outstanding users to sign.
+export const TERMS_V11_RESUME_AT = Date.parse("2026-11-01T00:00:00+07:00");
 export function TermsText({ document: content = CURRENT_TERMS }: { document?: TermsDocument }) {
   return <article className="knowledge-prose">
     <p>{content.introduction}</p>
