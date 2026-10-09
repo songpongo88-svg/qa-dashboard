@@ -253,8 +253,46 @@ export async function generateCasePdfWithAppealHistory({
       : `${safeCaseId}_Case_Main_Report.pdf`,
   };
 
-  // Keep the existing Original PDF renderer and inject appeal data into its
-  // purple table. No separate report template is created.
+  // A dedicated Appeal Report must use the Appeal / Revised template.
+  // The original PDF renderer is reserved for original/main case reports.
+  // Keep the appealed-topic metadata intact for the reviewed-topic table.
+  if (pdfVariant === "appeal") {
+    return fallback({
+      caseItem: {
+        ...caseItem,
+        monthLabel: caseItem.monthLabel,
+        topics: originalTopics,
+        revisedTopics,
+        appealReviewedTopics: reviewedTopics,
+        displayRevisedTopicCodes: Array.from(new Set([
+          ...Array.from(revisedCodes),
+          ...reviewedTopics.map((topic: any) => String(topic?.code || "")),
+        ])).filter(Boolean),
+        nonAppealedTopics: Array.isArray(caseItem.nonAppealedTopics)
+          ? caseItem.nonAppealedTopics
+          : originalTopics.filter((topic: any) =>
+              !appealTopicUpdates.some((appealed) => appealed.code === String(topic?.code))
+            ),
+        reviewStatus: "Revised",
+        appealStatus: status,
+        appealReviewSummary: caseItem.appealReviewSummary || caseItem.remark || "",
+        previousScore: originalFinalScore,
+        finalScore: revisedFinalScore,
+        grade: revisedGrade,
+        appealSubmittedBy: appealAdmin,
+        appealSubmittedAt: caseItem.appealSubmittedAt,
+        appealReviewedBy: appealQa,
+        appealReviewedAt: caseItem.appealReviewedAt,
+      },
+      currentUser,
+      pdfVariant: "appeal",
+      pdfDoc,
+      appendPage,
+      suppressOutput,
+    });
+  }
+
+  // Preserve the existing consolidated Main/Original case PDF behavior.
   return fallback({
     caseItem: updatedCaseItem,
     currentUser,

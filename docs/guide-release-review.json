@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-08T10:25:53.224Z",
-  "reason": "Reviewed QA Access case-link build transform compatibility with original and additional appeal dates; preserve case-link popup, 72-hour expiry, Appeal Review filters and summary formatting.",
+  "reviewedAt": "2026-10-09T03:08:00.000Z",
+  "reason": "Reviewed Appeal Report routing fix: dedicated Appeal Revised PDF path; no user guide content change.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -363,7 +363,7 @@
     "src/bulkCaseDetailPdf.ts": "041a9f3b433f17a94b7e2babf8c9843e4f0300a635bce6a4488d6029036b0750",
     "src/callRecordingState.ts": "aa1a60ff66293c77832defa28831b3b73aeb98c47307fa1a562e185630bb9629",
     "src/cartoonTheme.css": "d6748736b56145608cbb7caa1e78d765a4687f631c42ef956b5ea777c0e08385",
-    "src/caseAppealPdfAddon.ts": "8295958b887e0f98b39c774421613df11e2c0963a71e4c9cc71307138a80170c",
+    "src/caseAppealPdfAddon.ts": "c5803ade671d9332aae5330810f8faeafae9a02c116e041929bd942f4afbc348",
     "src/caseDetailOfficialPdf.ts": "d988a4394e8b082ba31104cf7e7475bc7794f17ecf9e6a0bd2a2c34feea42f5c",
     "src/caseIssueTagsPdf.ts": "8cb00a21ba12ed34a16686192b367f658a48902cc38b38f51f74f47d52c63d34",
     "src/chatRealtimeStore.ts": "bb91970a0ced12b34d39ba8695be0218014136aa0c21551dbb1292bbb682abc2",
