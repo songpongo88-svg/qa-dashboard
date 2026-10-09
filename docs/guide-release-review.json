@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T04:00:00.000Z",
-  "reason": "Review appeal feature work in isolated branch; no production changes, further validation required.",
+  "reviewedAt": "2026-10-09T05:00:00.000Z",
+  "reason": "Reviewed compatibility update to Appeal Review legacy build patch for new status filters",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -198,7 +198,7 @@
     "scripts/patch-appeal-review-information-v56.mjs": "3846df9c4de029af50f42c012ced8025fc3aa83ca4025c43b8f5fab0c2443395",
     "scripts/patch-appeal-review-information-visual-v61.mjs": "c45f642b1c5a913e82364f14b7d55c8a19b39e256acf9d3fa85207592255ca07",
     "scripts/patch-appeal-review-layout-v58.mjs": "08eaea36051364fb6fc87b320ae7cdeb6c632e50e76ce5de62239f7ed1a3e960",
-    "scripts/patch-appeal-review-reset-datetime-v54.mjs": "54466ee749c364ce09349049ec7a28619d055e253dcddcbc02bdfc3a6bbb07ab",
+    "scripts/patch-appeal-review-reset-datetime-v54.mjs": "85e7b8a081e60782383950350a220eefb9eab909ecdb3e33a01a875d90e77e0f",
     "scripts/patch-appeal-review-reviewed-time-caseid-v60.mjs": "0c0506884b8a2553a208910e1f2831c377df918ed96c164aea832f7b8b522111",
     "scripts/patch-appeal-review-workspace-tabs-v59.mjs": "bb1bff4f0c7c21c714359d726443d934dbe33e5f27d7ede90167a9fcb5692ffd",
     "scripts/patch-appeal-reviewer-loading-fix-v64.mjs": "548f51aa2205def87cb94b6ed8270be3f5e90f90d99e72de962edf767f75b4ed",
