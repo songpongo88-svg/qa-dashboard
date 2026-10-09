@@ -80,7 +80,15 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
       const record = await repository.accept(user, { confirmed, readToEnd: read, signatureDataUrl: signature, signatureSource: source });
       if (!isCurrentAcceptance(record, user.username, await documentHash(CURRENT_TERMS))) throw new Error("ยังยืนยันการบันทึกไม่ได้ กรุณาลองอีกครั้ง");
       setState("accepted");
-    } catch (reason) { setError(errorText(reason)); }
+    } catch (reason) {
+      const code = String((reason as { code?: string })?.code || "").toLowerCase();
+      const message = String((reason as { message?: string })?.message || "");
+      if (code.includes("resource-exhausted") || /quota exceeded|resource.exhausted/i.test(message)) {
+        setError("Firebase มีการใช้งานเกินโควตาชั่วคราว จึงยังบันทึกการยอมรับ T&C ไม่สำเร็จ ระบบยังไม่ได้ยืนยันการลงนาม กรุณารอจนโควตากลับมาใช้งานได้แล้วจึงลองใหม่ หลีกเลี่ยงการกดซ้ำหลายครั้ง");
+      } else {
+        setError(errorText(reason));
+      }
+    }
     finally { setBusy(false); }
   };
   if (state === "accepted") return <>{children}</>;
