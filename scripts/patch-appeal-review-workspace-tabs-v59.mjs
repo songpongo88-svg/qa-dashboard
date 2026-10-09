@@ -40,12 +40,20 @@ function patchAppealReviewComponent() {
   );
   }
 
-  source = replaceRequired(
-    source,
-    `  const standaloneRequestId = useMemo(() => {\n    if (typeof window === "undefined") return "";\n    return new URLSearchParams(window.location.search).get("requestId") || "";\n  }, []);`,
-    `  const standaloneRequestId = String(externalRequestId || "").trim();`,
-    "workspace request id source"
-  );
+  if (source.includes('  const standaloneRequestId = useMemo(() => {')) {
+    source = replaceRequired(source,
+      `  const standaloneRequestId = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("requestId") || "";
+  }, []);`,
+      `  const standaloneRequestId = String(externalRequestId || "").trim();`,
+      "workspace request id source");
+  } else if (!source.includes('  const standaloneRequestId =')) {
+    source = replaceRequired(source,
+      '  const [listTab, setListTab] = useState<AppealListTab>("pending");',
+      '  const standaloneRequestId = String(externalRequestId || "").trim();\\n  const [listTab, setListTab] = useState<AppealListTab>("pending");',
+      "fallback workspace request id source");
+  }
 
   source = replaceRequired(
     source,
