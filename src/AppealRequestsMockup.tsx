@@ -1349,6 +1349,8 @@ export default function AppealRequestsMockup({
                 {["All","Pending","__reviewed","Approved","Rejected","Partially Approved","Cancelled (Additional)","Expired (Additional)","Request Additional Appeal","Reset"].map(status=><option key={status} value={status}>{status === "__reviewed" ? "Reviewed" : status}</option>)}
               </select>
             </div>
+            {historyLoading ? <p className="mb-3 rounded-xl bg-violet-50 p-3 text-sm font-semibold text-violet-700">กำลังโหลดประวัติอุทธรณ์...</p> : null}
+            {historyError ? <p role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{historyError}</p> : null}
             <div className="space-y-3">
               {visibleRequests.map((item) => (
                 <button
