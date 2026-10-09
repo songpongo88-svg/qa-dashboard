@@ -4414,7 +4414,7 @@ function SlideOverCaseDetail({
         link.remove();
         return;
       }
-      await downloadEvidenceUrl(sourceUrl, fileName);
+      await downloadEvidenceUrl(sourceUrl, fileName, previewAsset.type === "image" ? caseItem.caseId : undefined);
     } catch (error) {
       console.error("Download preview file failed:", error);
       alert("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
