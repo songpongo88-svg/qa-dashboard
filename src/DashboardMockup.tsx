@@ -4587,6 +4587,29 @@ function SlideOverCaseDetail({
         </div>
       ) : null}
 
+      {isOwnAppealCase && appealAdditionalRound && !appealAdditionalRound.submitted ? (
+        <div role="status" className={`mx-auto my-3 w-full max-w-[1500px] rounded-2xl border px-5 py-4 ${additionalIsExpired ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className={`font-extrabold ${additionalIsExpired ? "text-rose-800" : "text-emerald-800"}`}>
+                {additionalIsExpired ? "สิทธิ์อุทธรณ์เพิ่มเติมหมดอายุแล้ว" : "QA อนุมัติสิทธิ์อุทธรณ์เพิ่มเติมแล้ว"}
+              </div>
+              <p className="mt-1 text-sm text-slate-700">
+                หัวข้อ: {appealAdditionalRound.topics.map(topic => topic.code).join(", ")}
+                {" · "}อนุมัติ: {new Date(appealAdditionalRound.openedAt).toLocaleString("en-GB", {timeZone:"Asia/Bangkok"})}
+                {" · "}หมดเขต: {new Date(appealAdditionalRound.expiresAt).toLocaleString("en-GB", {timeZone:"Asia/Bangkok"})}
+              </p>
+            </div>
+            {!additionalIsExpired ? (
+              <button type="button" onClick={openAppealSubmitForm}
+                className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-extrabold text-white hover:bg-emerald-800">
+                ยื่นอุทธรณ์เพิ่มเติมตอนนี้ →
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {additionalAccessModalOpen ? (
         <div role="presentation" className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/65 p-4">
           <div role="dialog" aria-modal="true" aria-labelledby="additional-access-title"
