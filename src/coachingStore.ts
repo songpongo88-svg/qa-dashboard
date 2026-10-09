@@ -231,7 +231,7 @@ function updateCoachingReadCache(rows: StoredCoachingRecord[]) {
 }
 
 export async function fetchStoredCoachingRecords(options: { allowCache?: boolean; forceRefresh?: boolean } = {}) {
-  if (!options.forceRefresh && recentCoachingRecords && Date.now() < recentCoachingRecords.expiresAt) {
+  if (options.allowCache !== false && !options.forceRefresh && recentCoachingRecords && Date.now() < recentCoachingRecords.expiresAt) {
     return recentCoachingRecords.rows;
   }
   if (pendingCoachingRead) return pendingCoachingRead;
