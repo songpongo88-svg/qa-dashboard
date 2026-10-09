@@ -233,7 +233,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       events.push(log);
       additionalAccessEvents.set(requestId, events);
     }
-    if (log.event_type === "appeal_additional_evidence_submitted" && requestId) {
+    if ((log.event_type === "appeal_additional_evidence_submitted" || (log.event_type === "appeal_submission_resubmitted" && Boolean(log.details?.roundId))) && requestId) {
       const history = submittedEvidence.get(requestId) || [];
       history.push(log);
       submittedEvidence.set(requestId, history);
@@ -637,7 +637,7 @@ export default function AppealRequestsMockup({
   );
   const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
-  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
+  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId && !item.editingDraft) || null;
   const eligibleSeniorOptions = seniorOptions;
   const availableAppealTopics = useMemo(() => {
     const result = new Map<string, AppealTopic>();
@@ -723,7 +723,6 @@ export default function AppealRequestsMockup({
     !item.lastAdditionalStatus && ["Approved", "Rejected", "Partially Approved"].includes(item.status));
   const resetRequests = latestRequestsByCase.filter((item) => item.status === "Reset");
   const workflowRequests = latestRequestsByCase.filter(item => item.additionalAccessRequest?.status === "Pending" && !item.additionalRound);
-  const baseVisibleRequests = listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
   const visibleRequests = statusFilter === "Pending" ? pendingRequests : statusFilter === "All" ? latestRequestsByCase :
     statusFilter === "Request Additional Appeal" ? workflowRequests :
     latestRequestsByCase.filter(item => (item.lastAdditionalStatus || item.status) === statusFilter);
@@ -1259,6 +1258,7 @@ export default function AppealRequestsMockup({
                   type="button"
                   onClick={() => {
                     setListTab(item.key);
+                    setStatusFilter(item.key === "pending" ? "Pending" : item.key === "reviewed" ? "All" : "Reset");
                     setSelectedRequestId("");
                   }}
                   className={`rounded-xl px-3 py-2 text-xs font-black transition ${
