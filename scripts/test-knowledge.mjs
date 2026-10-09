@@ -108,7 +108,15 @@ try {
   const fakeRepo = { ...k.termsRepository, current: async () => null, accept: async () => { calls++; if (calls === 1) throw new Error('write denied'); return accepted; } };
   Object.defineProperty(dom.window.HTMLElement.prototype, 'scrollHeight', { configurable: true, get: () => 900 });
   Object.defineProperty(dom.window.HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 200 });
-  await act(async () => root.render(h(k.TermsAccessBoundary, { user, onLogout() {}, repository: fakeRepo }, h('div', { id: 'protected' }, 'Workspace'))));
+  const nativeDateNow = Date.now;
+  try {
+    Date.now = () => Date.parse('2026-10-20T12:00:00+07:00');
+    await act(async () => root.render(h(k.TermsAccessBoundary, { key: 'deferred', user, onLogout() {}, repository: fakeRepo }, h('div', { id: 'protected' }, 'Workspace'))));
+    assert.ok(document.getElementById('protected'), 'workspace must be accessible before November 1');
+    assert.equal(document.querySelector('.terms-gate'), null, 'T&C modal is paused, not falsely accepted');
+    Date.now = () => Date.parse('2026-11-01T00:00:01+07:00');
+    await act(async () => root.render(h(k.TermsAccessBoundary, { key: 'resumed', user, onLogout() {}, repository: fakeRepo }, h('div', { id: 'protected' }, 'Workspace'))));
+  } finally { Date.now = nativeDateNow; }
   await settle(() => button('รับทราบและยอมรับ'));
   assert.equal(document.getElementById('protected'), null); assert.equal(document.querySelector('input[type=checkbox]').disabled, true);
   await act(async () => { const scroll = document.querySelector('.terms-scroll'); scroll.scrollTop = 700; scroll.dispatchEvent(new Event('scroll', { bubbles: true })); });
