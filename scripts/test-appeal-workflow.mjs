@@ -9,7 +9,7 @@ import { JSDOM } from "jsdom";
 const temp = await mkdtemp(resolve(".appeal-workflow-test-"));
 const dom = new JSDOM('<div id="root"></div>', { url: "https://qa.test/" });
 const previous = new Map();
-for (const key of ["window", "document", "navigator", "HTMLElement", "HTMLInputElement", "HTMLSelectElement", "HTMLTextAreaElement", "Event", "MouseEvent", "CustomEvent"]) {
+for (const key of ["window", "document", "navigator", "HTMLElement", "HTMLInputElement", "HTMLSelectElement", "HTMLTextAreaElement", "Event", "MouseEvent", "CustomEvent", "DOMParser", "Node"]) {
   previous.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
   Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] });
 }
@@ -192,7 +192,7 @@ try {
   fixture.logs = structuredClone(repeatedPending);
   fixture.writes = [];
   await render(qa, { key: "repeated-action", externalRequestId: repeatedId });
-  const firstAction = document.querySelector('[aria-label="ประวัติ Action หัวข้อ 1"] [data-appeal-action="1"]');
+  const firstAction = document.querySelector('[aria-label="Appeal Actions"] [data-appeal-action="1"]');
   assert.ok(firstAction.textContent.includes("Original appeal reason") && firstAction.textContent.includes("First QA comment"));
   assert.equal(firstAction.querySelector("textarea,select,button[aria-pressed]"), null, "old Action is read-only");
   assert.ok(document.body.textContent.includes("Action 2 — อุทธรณ์เพิ่มเติม"));
@@ -237,6 +237,45 @@ try {
   assert.equal(submissionHistory[1].submissions[0].topics[0].appealReason, "New appeal reason\nNew second line");
   assert.equal(submissionHistory[1].topics[0].appealReason, "Edited new reason");
   console.log("PASS repeated-topic Actions: old/new reasons and QA results, fresh summary, unchanged carried topic, cumulative score, QA edits, legacy edits and submission revisions");
+
+  // A later Action can appeal a different topic. Both rounds must remain
+  // visible as consecutive case-level Actions, including for read-only roles.
+  const differentId = "appeal-AA994445-test";
+  const differentRound = "round-different-topic";
+  const firstOnly = { ...originalTopic, comment: "&amp;lt;div&amp;gt;Original topic one&amp;lt;/div&amp;gt;" };
+  const freshTopic = { ...otherTopic, label: "Answer Accuracy", wantsAppeal: false, appealReason: "ไม่อุทธรณ์หัวข้อนี้",
+    comment: '<div>ตรวจสอบข้อมูล</div><div><br></div><div><span style="font-weight: bold;" onclick="bad()">จุดที่หักคือ</span><br>คำอธิบายเดิม<script>bad()</script></div>' };
+  const newReason = "ขออนุญาตยื่นเพิ่มเติมค่ะ\nตรวจสอบหัวข้อใหม่";
+  const differentEvent = (event_type, hours, details) => ({ event_type, created_at: at(hours), case_id: "AA994445", target_agent: "Alpha Agent", details: { requestId: differentId, ...details } });
+  const differentPending = [
+    differentEvent("appeal_request_submitted", -100, { topics: [firstOnly, freshTopic], finalScore: 80, auditDate: "2026-09-01", submittedBy: "Alpha Agent", submittedAt: at(-100) }),
+    differentEvent("appeal_request_reviewed", -90, { topics: [{ ...firstOnly, decision: "Approved", revisedScore: 20, revisedComment: "First QA comment" }], reviewId: "review-different-first", reviewedBy: "First Reviewer", reviewedAt: at(-90), decision: "Approved", reviewSummary: "First review" }),
+    differentEvent("appeal_additional_round_opened", -2, { roundId: differentRound, openedAt: at(-2), expiresAt: appealAdditionalDeadline(at(-2)), topics: [{ ...freshTopic, wantsAppeal: true, appealReason: "" }] }),
+    differentEvent("appeal_additional_evidence_submitted", -1, { roundId: differentRound, submittedBy: "Alpha Agent", submittedAt: at(-1), topics: [{ ...freshTopic, wantsAppeal: true, appealReason: newReason }] }),
+  ];
+  const differentUnchanged = JSON.stringify(differentPending);
+  for (const [role, canEdit] of [[qa, true], [{ username: "lead", agentName: "Team Lead", role: "Senior" }, false]]) {
+    fixture.logs = structuredClone(differentPending);
+    fixture.writes = [];
+    await render(role, { key: `different-topic-${canEdit}`, externalRequestId: differentId, allowedAgentNames: ["Alpha Agent"] });
+    const actions = document.querySelector('[aria-label="Appeal Actions"]');
+    assert.deepEqual([...actions.querySelectorAll('[data-appeal-action]')].map(node => node.getAttribute('data-appeal-action')), ["1", "2"], "each case-level Action appears once in order, even for a new topic");
+    const [first, second] = actions.querySelectorAll('[data-appeal-action]');
+    assert.ok(first.textContent.includes("Original appeal reason") && first.textContent.includes("First QA comment"));
+    assert.ok(!first.textContent.includes(newReason.split("\n")[0]), "new reason never overwrites or leaks into the previous Action");
+    assert.ok(newReason.split("\n").every(line => second.textContent.includes(line)) && second.textContent.includes("Answer Accuracy"));
+    assert.ok(!second.textContent.includes("Original appeal reason"), "new topic belongs only to its own Action");
+    assert.ok(!actions.textContent.includes("<div>") && !actions.textContent.includes("&lt;div") && !actions.textContent.includes("<span"), "raw and multiply encoded HTML comments are rendered as readable content");
+    assert.ok(first.textContent.includes("Original topic one"));
+    assert.ok(second.textContent.includes("ตรวจสอบข้อมูล") && second.textContent.includes("คำอธิบายเดิม"));
+    assert.ok(second.querySelector('span[style*="font-weight: bold"]'), "original emphasis is preserved");
+    assert.equal(second.querySelector('script,[onclick]'), null, "HTML is sanitized after entity decoding");
+    assert.equal(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]'), null, "old topic is read-only");
+    assert.equal(Boolean(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 2"]')), canEdit);
+    assert.equal(fixture.writes.length, 0, "displaying Actions does not rewrite any stored event");
+  }
+  assert.equal(JSON.stringify(differentPending), differentUnchanged);
+  console.log("PASS different-topic Actions remain consecutive for QA and Senior; raw/encoded original comments render safely without changing saved data");
   await act(async () => root.unmount());
 
   const storeOutput = resolve(temp, "store.mjs");

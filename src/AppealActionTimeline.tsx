@@ -32,11 +32,12 @@ function ReviewResult({ review, topicCode, caseId }: { review: AppealActionRevie
   </div>;
 }
 
-export default function AppealActionTimeline({ actions, topicCode, caseId, excludeActionId }: {
+export default function AppealActionTimeline({ actions, topicCode, caseId, excludeActionId, showOriginalComment = false }: {
   actions: readonly AppealAction[];
   topicCode?: string;
   caseId?: string;
   excludeActionId?: string;
+  showOriginalComment?: boolean;
 }) {
   const visible = actions.filter(action => action.actionId !== excludeActionId && (!topicCode || action.topics.some(topic => topic.code === topicCode)));
   if (!visible.length) return null;
@@ -50,11 +51,17 @@ export default function AppealActionTimeline({ actions, topicCode, caseId, exclu
         </div>
         {action.submittedAt ? <div className="mb-3 text-xs text-slate-600">ผู้ยื่น: {action.submittedBy || "-"} · {dateTime(action.submittedAt)}</div> : <div className="mb-3 text-xs text-slate-600">เปิดสิทธิ์: {dateTime(action.openedAt)} · ยังไม่ได้ยื่นข้อความอุทธรณ์</div>}
         <div className="space-y-3">
-          {action.topics.filter(topic => !topicCode || topic.code === topicCode).map(topic => <div key={topic.code} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          {action.topics.filter(topic => !topicCode || topic.code === topicCode).map(topic => <div key={topic.code} className="space-y-2">
             {!topicCode && <div className="mb-2 text-sm font-bold text-slate-800">Topic {topic.code} {topic.label}</div>}
+            {showOriginalComment && <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-xs font-bold text-slate-500">Original Comment</div>
+              <RichTextContent value={topic.comment} decodeEntities className="mt-2 break-words text-sm leading-6 text-slate-700" />
+            </div>}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <div className="text-xs font-bold text-amber-700">Appeal Reason · Action {action.actionNumber}</div>
             <RichTextContent value={topic.appealReason} className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-amber-950" fallback="ยังไม่ได้ยื่นข้อความอุทธรณ์" />
             <AppealEvidenceGallery images={topic.evidenceImages || []} caseId={caseId} startIndex={appealEvidenceStartIndex(action.topics, topic.code)} />
+            </div>
           </div>)}
           {latestReview && <ReviewResult review={latestReview} topicCode={topicCode} caseId={caseId} />}
         </div>

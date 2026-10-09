@@ -9,6 +9,9 @@ export function appealRequestsOriginalCommentCleanupPatch() {
       const renderMarker = '{topic.comment || "-"}';
       const componentMarker = "export default function AppealRequestsMockup";
 
+      // Current review and history cards render through the shared rich-text sanitizer.
+      if (!code.includes(renderMarker) && code.includes('<RichTextContent value={topic.comment}')) return null;
+
       if (!code.includes(renderMarker)) {
         throw new Error("[appeal-requests-original-comment-cleanup] Original Comment render marker not found");
       }
@@ -48,7 +51,7 @@ export function appealRequestsOriginalCommentCleanupPatch() {
 `;
 
       let next = code.replace(componentMarker, helper + componentMarker);
-      next = next.replace(
+      next = next.replaceAll(
         renderMarker,
         '<span className="whitespace-pre-line">{cleanAppealReviewComment(topic.comment) || "-"}</span>'
       );

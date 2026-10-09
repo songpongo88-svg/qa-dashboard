@@ -207,8 +207,18 @@ const RICH_TEXT_SURFACE_CLASS = [
   "[&_hr]:my-4 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-slate-300",
 ].join(" ");
 
-export function RichTextContent({ value, fallback = "-", className = "", preserveWhitespace = false }: { value: unknown; fallback?: string; className?: string; preserveWhitespace?: boolean }) {
-  const html = sanitizeRichTextHtml(value, preserveWhitespace);
+export function RichTextContent({ value, fallback = "-", className = "", preserveWhitespace = false, decodeEntities = false }: { value: unknown; fallback?: string; className?: string; preserveWhitespace?: boolean; decodeEntities?: boolean }) {
+  let source = String(value ?? "");
+  if (decodeEntities && typeof document !== "undefined") {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const textarea = document.createElement("textarea");
+      textarea.innerHTML = source;
+      const decoded = textarea.value;
+      if (decoded === source) break;
+      source = decoded;
+    }
+  }
+  const html = sanitizeRichTextHtml(source, preserveWhitespace);
   if (!hasRichTextContent(html)) return <div className={className}>{fallback}</div>;
   return <div className={`${RICH_TEXT_SURFACE_CLASS} ${className}`} style={preserveWhitespace ? { whiteSpace: "pre-wrap" } : undefined} dangerouslySetInnerHTML={{ __html: html }} />;
 }
