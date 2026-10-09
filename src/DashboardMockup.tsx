@@ -3895,6 +3895,11 @@ function SlideOverCaseDetail({
   const [appealRequestExists, setAppealRequestExists] = useState(false);
   const [appealExistingRequest, setAppealExistingRequest] = useState<ReturnType<typeof buildAppealRequests>[number] | null>(null);
   const [appealAccessBusy, setAppealAccessBusy] = useState(false);
+  const [additionalAccessModalOpen, setAdditionalAccessModalOpen] = useState(false);
+  const [additionalAccessTopicCodes, setAdditionalAccessTopicCodes] = useState<string[]>([]);
+  const [additionalAccessReason, setAdditionalAccessReason] = useState("");
+  const [additionalAccessError, setAdditionalAccessError] = useState("");
+
   const [appealAdditionalRound, setAppealAdditionalRound] = useState<{
     requestId: string;
     roundId: string;
@@ -4104,26 +4109,32 @@ function SlideOverCaseDetail({
 
   const requestAdditionalAppealAccess = async () => {
     if (!currentUser || !appealExistingRequest || !canRequestAdditionalAppeal || isAdditionalAccessPending || appealAccessBusy) return;
-    const codesInput = window.prompt("ระบุรหัสหัวข้อที่ต้องการยื่นเพิ่มเติม คั่นด้วยเครื่องหมายจุลภาค เช่น 1.1, 1.5");
-    if (codesInput === null) return;
-    const topicCodes = [...new Set(codesInput.split(",").map(code=>code.trim()).filter(Boolean))];
-    const knownCodes = new Set(caseItem.topics.map(topic=>String(topic.code)));
-    if (!topicCodes.length || topicCodes.some(code=>!knownCodes.has(code))) {
-      window.alert("กรุณาระบุรหัสหัวข้อที่มีอยู่ในเคสนี้ให้ถูกต้อง"); return;
+    const topicCodes = [...new Set(additionalAccessTopicCodes)];
+    const knownCodes = new Set(caseItem.topics.map(topic => String(topic.code)));
+    if (!topicCodes.length || topicCodes.some(code => !knownCodes.has(code))) {
+      setAdditionalAccessError("กรุณาเลือกหัวข้อประเมินอย่างน้อย 1 หัวข้อ"); return;
     }
-    const reason = window.prompt("ระบุเหตุผลที่ขอยื่นอุทธรณ์เพิ่มเติม");
-    if (!reason?.trim()) return;
+    const reason = additionalAccessReason.trim();
+    if (!reason) { setAdditionalAccessError("กรุณาระบุเหตุผลที่ขอเปิดสิทธิ์อุทธรณ์เพิ่มเติม"); return; }
     setAppealAccessBusy(true);
+    setAdditionalAccessError("");
     try {
+      const accessId = crypto.randomUUID();
+      const requestedAt = new Date().toISOString();
       const saved = await writeAppealEvent(currentUser,"appeal_additional_access_requested",{
         tab:"dashboard",case_id:caseItem.caseId,target_agent:caseItem.agent,
-        details:{requestId:appealExistingRequest.requestId,accessId:crypto.randomUUID(),workflowId:crypto.randomUUID(),caseId:caseItem.caseId,topicCodes,reason:reason.trim(),requestedAt:new Date().toISOString()}
+        details:{requestId:appealExistingRequest.requestId,accessId,workflowId:crypto.randomUUID(),caseId:caseItem.caseId,topicCodes,reason,requestedAt}
       });
       if (!saved) throw new Error("Could not save request");
-      setAppealExistingRequest(previous=>previous ? {...previous,additionalAccessRequest:{requestId:"",reason:reason.trim(),topics:topicCodes,requestedAt:new Date().toISOString(),status:"Pending"}} : previous);
-      window.alert("ส่งคำขอเปิดสิทธิ์ถึง QA แล้ว");
-    } catch(error){console.error("Appeal access request failed",error);window.alert("ส่งคำขอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");}
-    finally{setAppealAccessBusy(false);}
+      setAppealExistingRequest(previous=>previous ? {...previous,additionalAccessRequest:{requestId:accessId,reason,topics:topicCodes,requestedAt,status:"Pending"}} : previous);
+      setAdditionalAccessModalOpen(false);
+      setAdditionalAccessTopicCodes([]);
+      setAdditionalAccessReason("");
+      setAppealSubmitMessage("ส่งคำขอเปิดสิทธิ์อุทธรณ์เพิ่มเติมให้ QA พิจารณาแล้ว");
+    } catch(error){
+      console.error("Appeal access request failed",error);
+      setAdditionalAccessError("ส่งคำขอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally { setAppealAccessBusy(false); }
   };
 
   const startAppealEdit = async () => {
@@ -4576,6 +4587,64 @@ function SlideOverCaseDetail({
         </div>
       ) : null}
 
+      {additionalAccessModalOpen ? (
+        <div role="presentation" className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/65 p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="additional-access-title"
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-2xl">
+            <header className="flex items-start justify-between gap-4 border-b border-violet-100 bg-violet-50/70 px-5 py-4">
+              <div>
+                <h2 id="additional-access-title" className="text-lg font-extrabold text-violet-900">ขอสิทธิ์ยื่นอุทธรณ์เพิ่มเติม</h2>
+                <p className="mt-1 text-xs font-semibold text-slate-600">Case ID: {caseItem.caseId} · เลือกได้ทั้งหัวข้อเดิมที่เคยยื่นและหัวข้อใหม่</p>
+              </div>
+              <button type="button" disabled={appealAccessBusy} onClick={() => setAdditionalAccessModalOpen(false)}
+                aria-label="ปิดหน้าต่าง" className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-lg text-slate-600">×</button>
+            </header>
+            <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-5">
+              <div>
+                <div className="text-sm font-extrabold text-slate-900">เลือกหัวข้อที่ต้องการเปิดสิทธิ์</div>
+                <p className="mt-1 text-xs text-slate-500">หัวข้อที่เคยอนุมัติหรือปฏิเสธในรอบก่อน สามารถขอยื่นซ้ำได้</p>
+                <div className="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-2">
+                  {caseItem.topics.map(topic => {
+                    const code = String(topic.code);
+                    const checked = additionalAccessTopicCodes.includes(code);
+                    return (
+                      <label key={code} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${checked ? "border-violet-300 bg-violet-50" : "border-transparent hover:bg-slate-50"}`}>
+                        <input type="checkbox" checked={checked} disabled={appealAccessBusy}
+                          onChange={event => setAdditionalAccessTopicCodes(previous => event.target.checked
+                            ? [...previous, code] : previous.filter(item => item !== code))}
+                          className="mt-1 h-4 w-4 accent-violet-700" />
+                        <span className="min-w-0 text-sm font-semibold text-slate-800">{code} — {topic.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <label className="block">
+                <span className="text-sm font-extrabold text-slate-900">เหตุผลที่ต้องการยื่นอุทธรณ์เพิ่มเติม</span>
+                <textarea value={additionalAccessReason} disabled={appealAccessBusy}
+                  onChange={event => setAdditionalAccessReason(event.target.value)} rows={4}
+                  placeholder="ระบุเหตุผลเพื่อให้ QA พิจารณาอนุมัติสิทธิ์"
+                  className="mt-2 w-full resize-y rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-violet-400" />
+              </label>
+              <p className="rounded-xl bg-sky-50 p-3 text-xs leading-6 text-sky-800">
+                หลัง QA อนุมัติสิทธิ์แล้ว ระบบจะเปิดให้ยื่นอุทธรณ์รอบใหม่ภายใน 72 ชั่วโมงนับจากเวลาอนุมัติ
+                และยังต้องส่งผลอุทธรณ์ให้ QA พิจารณาอีกครั้ง
+              </p>
+              {additionalAccessError ? <p role="alert" className="text-sm font-semibold text-rose-700">{additionalAccessError}</p> : null}
+            </div>
+            <footer className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+              <button type="button" disabled={appealAccessBusy} onClick={() => setAdditionalAccessModalOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700">ยกเลิก</button>
+              <button type="button" disabled={appealAccessBusy || !additionalAccessTopicCodes.length || !additionalAccessReason.trim()}
+                onClick={() => void requestAdditionalAppealAccess()}
+                className="rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                {appealAccessBusy ? "กำลังส่ง..." : "ส่งคำขอให้ QA อนุมัติ"}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+
       {appealSubmitOpen ? (
         <div data-appeal-submit-workspace-v1="true" className="fixed inset-0 z-[130] flex flex-col bg-[#f8f6ff]">
           <header className="shrink-0 border-b border-violet-100 bg-white shadow-sm">
@@ -4928,7 +4997,7 @@ function SlideOverCaseDetail({
                   <CaseActionTooltip text={appealActionTooltipV32}>
                     <button
                       type="button"
-                      onClick={canEditExistingAppeal ? ()=>void startAppealEdit() : canRequestAdditionalAppeal && !isAdditionalAccessPending ? ()=>void requestAdditionalAppealAccess() : (canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
+                      onClick={canEditExistingAppeal ? ()=>void startAppealEdit() : canRequestAdditionalAppeal && !isAdditionalAccessPending ? ()=>{ setAdditionalAccessTopicCodes([]); setAdditionalAccessReason(""); setAdditionalAccessError(""); setAdditionalAccessModalOpen(true); } : (canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
                       disabled={appealActionDisabledV32}
                       aria-disabled={appealActionDisabledV32}
                       className={
