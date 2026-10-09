@@ -857,6 +857,7 @@ export default function AppealRequestsMockup({
       const freshLogs = await fetchAppealEvents([
         "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
         "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
+        "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
       ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
       const fresh = buildAppealRequests(freshLogs).find(row => row.requestId === current.requestId);
       if (!fresh || fresh.status === "Reset" || fresh.additionalRound ||
@@ -1091,7 +1092,7 @@ export default function AppealRequestsMockup({
         onTasksChanged?.();
         return;
       }
-      if (!latest || latest.status === "Reset" ||
+      if (!latest || latest.editingDraft || latest.status === "Reset" ||
           (selectedRequest.additionalRound?.roundId || "") !== (latest.additionalRound?.roundId || "") ||
           (selectedRequest.additionalRound && !latest.additionalRound?.submitted) ||
           (latest.reviewId !== preview.reviewId &&
