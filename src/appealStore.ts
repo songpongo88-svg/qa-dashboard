@@ -7,6 +7,7 @@
   query,
   setDoc,
   runTransaction,
+  writeBatch,
   where,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
@@ -276,18 +277,52 @@ export async function writeAdditionalAppealAccessDecision(user: AppealLogUser,
   const preparedDecision = await prepareAppealEvent(user, "appeal_additional_access_decided", decision);
   const preparedRound = round ? await prepareAppealEvent(user, "appeal_additional_round_opened", round) : null;
   if (!preparedDecision || (round && !preparedRound)) return false;
-  await runTransaction(firebaseDb, async transaction => {
-    const existingDecision = await transaction.get(preparedDecision.reference);
-    const existingRound = preparedRound ? await transaction.get(preparedRound.reference) : null;
-    if (existingDecision.exists()) {
-      const stored = existingDecision.data().details;
-      if (stored.approved !== decision.details?.approved) throw new Error("Permission already decided");
-      // Retrying a saved approval never changes its deadline or creates a second round.
-      if (!preparedRound || existingRound?.exists()) return;
+  try {
+    await runTransaction(firebaseDb, async transaction => {
+      const existingDecision = await transaction.get(preparedDecision.reference);
+      const existingRound = preparedRound ? await transaction.get(preparedRound.reference) : null;
+      if (existingDecision.exists()) {
+        const stored = existingDecision.data().details;
+        if (stored.approved !== decision.details?.approved) throw new Error("Permission already decided");
+        // Retrying a saved approval never changes its deadline or creates a second round.
+        if (!preparedRound || existingRound?.exists()) return;
+      }
+      transaction.set(preparedDecision.reference, preparedDecision.data, { merge: true });
+      if (preparedRound && !existingRound?.exists()) transaction.set(preparedRound.reference, preparedRound.data, { merge: true });
+    });
+  } catch (error) {
+    // Deployed rules can allow collection queries and writes while denying the
+    // individual document get() required by transactions. The fallback remains
+    // atomic and does not bypass Firestore write authorization.
+    if (String((error as { code?: string })?.code || "") !== "permission-denied") throw error;
+    const accessId = String(decision.details?.accessId || "").trim();
+    const requestId = String(decision.details?.requestId || "").trim();
+    if (!accessId || !requestId) throw error;
+    const snapshot = await getDocs(query(
+      collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+      where("details.accessId", "==", accessId),
+      firestoreLimit(30)
+    ));
+    const matches = snapshot.docs.map(item => item.data()).filter(item =>
+      String(item?.details?.requestId || "") === requestId);
+    const previousDecision = matches.find(item => item.event_type === "appeal_additional_access_decided");
+    const previousRound = matches.find(item => item.event_type === "appeal_additional_round_opened");
+    if (previousDecision) {
+      if (Boolean(previousDecision.details?.approved) !== Boolean(decision.details?.approved)) {
+        throw new Error("Permission already decided");
+      }
+      if (preparedRound && !previousRound &&
+          String(previousDecision.details?.decidedAt || "") !== String(round?.details?.openedAt || "")) {
+        throw new Error("Original approval time does not match");
+      }
     }
-    transaction.set(preparedDecision.reference, preparedDecision.data, { merge: true });
-    if (preparedRound && !existingRound?.exists()) transaction.set(preparedRound.reference, preparedRound.data, { merge: true });
-  });
+    if (!previousDecision || (preparedRound && !previousRound)) {
+      const batch = writeBatch(firebaseDb);
+      if (!previousDecision) batch.set(preparedDecision.reference, preparedDecision.data, { merge: true });
+      if (preparedRound && !previousRound) batch.set(preparedRound.reference, preparedRound.data, { merge: true });
+      await batch.commit();
+    }
+  }
   notifyAppealChanged();
   return true;
 }

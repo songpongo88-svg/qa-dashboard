@@ -322,6 +322,7 @@ try {
       export const limit=value=>value;
       export const orderBy=(...values)=>values;
       export const where=(...values)=>values;
+      export function writeBatch(){const writes=[];return{set:(path,data)=>writes.push([path,data]),commit:async()=>{for(const [path,data] of writes)globalThis.__appealStoredDocs.set(path,structuredClone(data))}}}
       export async function runTransaction(_db,callback){const writes=[];const result=await callback({get:async path=>({exists:()=>globalThis.__appealStoredDocs.has(path),data:()=>globalThis.__appealStoredDocs.get(path)}),set:(path,data)=>writes.push([path,data])});for(const [path,data] of writes)globalThis.__appealStoredDocs.set(path,structuredClone(data));return result}
       export async function setDoc(path,data){globalThis.__appealStoredDocs.set(path,structuredClone(data))}
       export async function getDocs(){return {docs:[...globalThis.__appealStoredDocs.entries()].sort((a,b)=>b[1].created_at.localeCompare(a[1].created_at)).map(([path,data])=>({id:path.split('/').pop(),data:()=>structuredClone(data)}))}}
