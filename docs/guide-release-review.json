@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T07:00:00.000Z",
-  "reason": "Correct appeal source lookup fallback and review-history visibility; clarify loading errors without changing appeal records.",
+  "reviewedAt": "2026-10-09T07:10:00.000Z",
+  "reason": "Verified restored Appeal Review build anchor while preserving all-status view and history load fixes",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -317,7 +317,7 @@
     "src/AppealEvidence.tsx": "5e5343841af4e913382e1864d61ef3f36e9c700e28066686568f2ad9a5cc588a",
     "src/AppealMockup.tsx": "6a797ff168d961287277792e932ec7cf111c175ed74554941c4b30472e389a14",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
-    "src/AppealRequestsMockup.tsx": "69d3c66f59a79d6bf961b91e42622f3339e0d630155f9fdec2a29e5473753b76",
+    "src/AppealRequestsMockup.tsx": "faab45d76f896b29a4fecf72d26c8f006fffc33a51cae5de7699b938b3433114",
     "src/AppealReviewDialog.tsx": "9fd7486c9e03008c5c11db0f9be597c56bbe36d810d0e5922ee85f8244fa4af9",
     "src/AppealScoreHoldNotice.tsx": "efad66ceace2acc153516f5aec423a51934b6ec36651a76afabf016c0075caf8",
     "src/AutoDeployRefresh.tsx": "1e7cb76eb6f7f5dc368f109fbae6a02afd67b3782e07f86c3b9a2e97f259ffab",
