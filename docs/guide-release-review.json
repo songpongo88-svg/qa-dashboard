@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T05:00:00.000Z",
-  "reason": "Reviewed compatibility update to Appeal Review legacy build patch for new status filters",
+  "reviewedAt": "2026-10-09T05:10:00.000Z",
+  "reason": "Reviewed Appeal Review v55 patch compatibility with editing drafts.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -192,7 +192,7 @@
     "scripts/patch-appeal-pdf-review-detail-v43.mjs": "56347a53a33211bd97749433faa40b274f0dd4640b0aa758466110e4545e13f5",
     "scripts/patch-appeal-review-datetime-color-v62.mjs": "cc4484b70499ea75402df89a5b97c18509874a63028e7bce4e3d292736b331d3",
     "scripts/patch-appeal-review-fixed-datetime-v63.mjs": "53f6c2947a63858314020cab40441982fb8501286ffe6d44e62e50d6564fa704",
-    "scripts/patch-appeal-review-information-action-v55.mjs": "5e223e00fb1ab8e4af8515eae3f9019467d9b473c25023881509eb02e8e054e6",
+    "scripts/patch-appeal-review-information-action-v55.mjs": "4c6dd75298f1648d884322e45e5448f383b039a3789431076ed1843d690ea3c0",
     "scripts/patch-appeal-review-information-plain-v57.mjs": "50e05e3d3a82bc15da32fab975ffa9d7bc8ee67e86f8dfb21dbd9e9f1ead0a64",
     "scripts/patch-appeal-review-information-v54.mjs": "4f2d77626e55a6d6200af4033c44da601d49993326bbd35ec1ba575dbdf5aab5",
     "scripts/patch-appeal-review-information-v56.mjs": "3846df9c4de029af50f42c012ced8025fc3aa83ca4025c43b8f5fab0c2443395",
