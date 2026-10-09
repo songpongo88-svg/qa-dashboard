@@ -90,8 +90,8 @@ export function firestoreQuotaProtectionPatch() {
       next = replaceOrThrow(
         this,
         next,
-        `const MAINTENANCE_POLL_INTERVAL_MS = 5 * 60 * 1000;\nconst INBOX_POLL_INTERVAL_MS = 2 * 60 * 1000;`,
-        `const MAINTENANCE_POLL_INTERVAL_MS = 15 * 60 * 1000;\n// Inbox/password badges are convenience data. Keep core QA writes ahead of background polling.\nconst INBOX_POLL_INTERVAL_MS = 60 * 60 * 1000;`,
+        `const MAINTENANCE_POLL_INTERVAL_MS = 5 * 60 * 1000;\nconst INBOX_POLL_INTERVAL_MS = 5 * 60 * 1000;`,
+        `const MAINTENANCE_POLL_INTERVAL_MS = 15 * 60 * 1000;\n// Five-minute Inbox checks run only while visible and share cached Coaching/Appeal data.\nconst INBOX_POLL_INTERVAL_MS = 5 * 60 * 1000;`,
         "background polling intervals"
       );
 
