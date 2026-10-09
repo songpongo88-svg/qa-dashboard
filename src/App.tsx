@@ -2950,108 +2950,126 @@ function ReleaseNotesModal({
 function TaskInboxMockup({
   tasks,
   onOpenTask,
+  onMarkRead,
 }: {
   tasks: InboxTaskItem[];
   onOpenTask: (task: InboxTaskItem) => void;
+  onMarkRead: (id: string) => void;
 }) {
-  const unreadTasks = tasks.filter((item) => item.unread).length;
-  const totalActions = tasks.reduce((sum, item) => sum + item.count, 0);
+  const [selectedId, setSelectedId] = useState("");
+  const [inboxFilter, setInboxFilter] = useState<"all" | "unread">("all");
+  const [searchText, setSearchText] = useState("");
+  const [showMobileDetail, setShowMobileDetail] = useState(false);
+  const unreadCount = tasks.filter(task => task.unread).length;
+  const visibleTasks = tasks.filter(task =>
+    (inboxFilter === "all" || task.unread) &&
+    (!searchText.trim() || [task.title, task.description, task.badge, task.caseId, task.agentName, task.mailTemplate?.subject]
+      .some(value => String(value || "").toLocaleLowerCase("th").includes(searchText.trim().toLocaleLowerCase("th"))))
+  );
+  const selectedTask = tasks.find(task => task.id === selectedId) || null;
+
+  const selectTask = (task: InboxTaskItem) => {
+    setSelectedId(task.id);
+    setShowMobileDetail(true);
+    if (task.unread) onMarkRead(task.id);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-white to-[#f3e8ff] px-5 py-6 lg:px-8">
-      <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
+    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-white to-[#f3e8ff] px-3 py-4 sm:px-5 lg:px-8">
+      <div className="mx-auto max-w-[1600px] overflow-hidden rounded-[26px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
         <PageHero
           eyebrow="Workspace"
           title="Inbox"
-          subtitle="รวมงานใหม่ ผล QA การแจ้งเตือนรหัสผ่าน และงานตรวจสอบไว้ในที่เดียว"
+          subtitle="อ่านรายการและดำเนินการจากพื้นที่เดียว"
           workspaceTitle="QA Inbox"
-          workspaceSubtitle="เปิดอ่านรายการเพื่อล้างแจ้งเตือนและไปยังงานที่เกี่ยวข้อง"
+          workspaceSubtitle="คลิกรายการด้านซ้ายเพื่อดูรายละเอียดด้านขวา"
         />
-
-        <div className="grid gap-4 border-b border-violet-100 bg-violet-50/60 px-5 py-5 md:grid-cols-3">
-          <div className="rounded-3xl border border-violet-100 bg-white p-5">
-            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Unread Items</div>
-            <div className="mt-3 text-4xl font-black text-slate-950">{unreadTasks}</div>
-          </div>
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 md:col-span-2">
-            <div className="text-sm font-black text-slate-950">Inbox Summary</div>
-            <div className="mt-2 text-sm leading-6 text-slate-600">
-              You have {tasks.length} inbox item(s) and {totalActions} related action(s). Opening an unread item marks it as read and lowers the inbox badge.
+        <div className="grid min-h-[min(75vh,780px)] lg:grid-cols-[minmax(300px,36%)_minmax(0,64%)]">
+          <section aria-label="Inbox list" className={`min-w-0 border-violet-100 lg:border-r ${showMobileDetail ? "hidden lg:flex" : "flex"} flex-col`}>
+            <div className="sticky top-0 z-10 border-b border-violet-100 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-extrabold text-slate-900">รายการที่ได้รับ <span className="text-violet-700">({tasks.length})</span></h2>
+                <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">{unreadCount} ยังไม่อ่าน</span>
+              </div>
+              <label className="mt-3 block">
+                <span className="sr-only">ค้นหา Inbox</span>
+                <input value={searchText} onChange={event => setSearchText(event.target.value)}
+                  placeholder="ค้นหาเลขเคส ผู้ส่ง หรือข้อความ"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+              </label>
+              <div className="mt-3 flex items-center gap-2">
+                {([{ key: "all", label: "ทั้งหมด" }, { key: "unread", label: "ยังไม่อ่าน" }] as const).map(option => (
+                  <button key={option.key} type="button" onClick={() => setInboxFilter(option.key)}
+                    aria-pressed={inboxFilter === option.key}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${inboxFilter === option.key ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-600 hover:bg-violet-50"}`}>{option.label}</button>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="grid gap-4 p-5 lg:grid-cols-2">
-          {tasks.map((task) => (
-            <button
-              key={task.id}
-              type="button"
-              onClick={() => onOpenTask(task)}
-              className={`group rounded-[28px] border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_18px_40px_rgba(88,28,135,0.12)] ${
-                task.unread ? "border-violet-200 bg-white" : "border-slate-200 bg-slate-50/70"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-violet-700">
-                      {task.badge}
-                    </div>
-                    <div
-                      className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] ${
-                        task.unread ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-500"
-                      }`}
-                    >
-                      {task.unread ? "Unread" : "Read"}
-                    </div>
-                  </div>
-                  <div className={`mt-3 text-xl font-black ${task.unread ? "text-slate-950" : "text-slate-600"}`}>
-                    {task.title}
-                  </div>
-                  <div className="mt-2 text-sm leading-6 text-slate-600">{task.description}</div>
-                </div>
-                <span className="inline-flex min-w-12 items-center justify-center rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-3 py-2 text-lg font-black text-white">
-                  {task.count}
-                </span>
-              </div>
-              <div className="mt-4 text-sm font-black text-violet-700 transition group-hover:translate-x-1">
-                {task.actionLabel}
-              </div>
-              {task.mailTemplate ? (
-                <div className="mt-5 rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-inner">
-                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
-                    <div>
-                      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Internal Inbox Notice</div>
-                      <div className="mt-1 text-[17px] font-black text-slate-950">{task.mailTemplate.subject}</div>
-                    </div>
-                    <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black text-violet-700">
-                      {task.mailTemplate.status}
+            <div className="max-h-[70vh] flex-1 overflow-y-auto">
+              {visibleTasks.map(task => (
+                <button key={task.id} type="button" onClick={() => selectTask(task)}
+                  aria-pressed={selectedId === task.id}
+                  className={`relative flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-violet-50/70 ${selectedId === task.id ? "bg-violet-50" : "bg-white"}`}>
+                  <span className={`absolute bottom-0 left-0 top-0 w-[3px] ${selectedId === task.id ? "bg-violet-600" : "bg-transparent"}`} />
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-extrabold text-violet-800">{String(task.badge || task.title || "I").slice(0,2).toUpperCase()}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className={`truncate text-xs ${task.unread ? "font-extrabold text-slate-900" : "font-semibold text-slate-600"}`}>{task.badge} · {task.agentName || "QA Dashboard"}</span>
+                      {task.unread ? <span className="h-2 w-2 shrink-0 rounded-full bg-violet-600" aria-label="ยังไม่อ่าน" /> : null}
                     </span>
-                  </div>
-                  <div className="mt-3 grid gap-2 text-xs font-semibold text-slate-500 sm:grid-cols-2">
-                    <div>To: <span className="text-slate-800">{task.mailTemplate.to || "-"}</span></div>
-                    <div>From: <span className="text-slate-800">{task.mailTemplate.from || "-"}</span></div>
-                  </div>
-                  <div className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
-                    {task.mailTemplate.body.map((line, index) => (
-                      <p key={`${task.id}-mail-line-${index}`}>{line}</p>
-                    ))}
-                  </div>
-                  {task.mailTemplate.footer ? (
-                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
-                      {task.mailTemplate.footer}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </button>
-          ))}
-
-          {!tasks.length ? (
-            <div className="rounded-[28px] border border-dashed border-violet-200 bg-violet-50/60 p-8 text-center text-sm font-semibold text-slate-500 lg:col-span-2">
-              Your inbox is clear. New QA results, password alerts, or review work will appear here.
+                    <span className={`mt-1 block truncate text-sm ${task.unread ? "font-extrabold text-slate-950" : "font-semibold text-slate-700"}`}>{task.caseId ? task.caseId + " · " : ""}{task.title}</span>
+                    <span className="mt-0.5 block truncate text-xs text-slate-500">{task.description}</span>
+                    {task.count > 1 ? <span className="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{task.count} รายการ</span> : null}
+                  </span>
+                </button>
+              ))}
+              {!visibleTasks.length ? <p className="px-5 py-12 text-center text-sm text-slate-500">ไม่มีรายการตามตัวกรองที่เลือก</p> : null}
             </div>
-          ) : null}
+          </section>
+          <section aria-label="Inbox detail" className={`min-w-0 ${showMobileDetail ? "block" : "hidden lg:block"}`}>
+            {selectedTask ? (
+              <div className="max-h-[78vh] overflow-y-auto p-4 sm:p-6 lg:p-8">
+                <button type="button" onClick={() => setShowMobileDetail(false)}
+                  className="mb-4 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-violet-700 lg:hidden">← กลับไป Inbox</button>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-bold text-violet-700">{selectedTask.badge}</span>
+                  <span className="text-xs font-semibold text-slate-500">{selectedTask.unread ? "ยังไม่อ่าน" : "อ่านแล้ว"} · {selectedTask.count} รายการ</span>
+                </div>
+                <h2 className="mt-4 text-xl font-extrabold text-slate-950 sm:text-2xl">{selectedTask.title}</h2>
+                {selectedTask.caseId ? <p className="mt-2 text-sm font-bold text-violet-700">Case ID: {selectedTask.caseId}</p> : null}
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-600">{selectedTask.description}</p>
+                {selectedTask.mailTemplate ? (
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <h3 className="text-base font-extrabold text-slate-900">{selectedTask.mailTemplate.subject}</h3>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-violet-700">{selectedTask.mailTemplate.status}</span>
+                    </div>
+                    <div className="mt-3 space-y-1 text-xs text-slate-600">
+                      <p>จาก: {selectedTask.mailTemplate.from || "-"}</p>
+                      <p>ถึง: {selectedTask.mailTemplate.to || "-"}</p>
+                    </div>
+                    <div className="mt-4 space-y-3 border-t border-slate-200 pt-4 text-sm leading-7 text-slate-700">
+                      {selectedTask.mailTemplate.body.map((line,index) => <p key={index}>{line}</p>)}
+                    </div>
+                    {selectedTask.mailTemplate.footer ? <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{selectedTask.mailTemplate.footer}</p> : null}
+                  </div>
+                ) : null}
+                <div className="mt-6 border-t border-slate-200 pt-5">
+                  <button type="button" onClick={() => onOpenTask(selectedTask)}
+                    className="rounded-xl bg-violet-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-violet-800">
+                    {selectedTask.actionLabel || "เปิดดำเนินการ"} →
+                  </button>
+                  <p className="mt-3 text-xs leading-5 text-slate-500">ดำเนินการด้วยขั้นตอนและสิทธิ์ของระบบเดิม เพื่อไม่ให้เกิดการอนุมัติหรือบันทึกเคสซ้ำ</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-full min-h-[420px] flex-col items-center justify-center p-8 text-center">
+                <div className="rounded-2xl bg-violet-50 p-5 text-3xl">✉</div>
+                <h2 className="mt-4 text-lg font-extrabold text-slate-800">เลือกรายการจาก Inbox</h2>
+                <p className="mt-2 text-sm text-slate-500">รายละเอียดจะปรากฏที่นี่ โดยไม่ต้องเปิดการ์ดขนาดใหญ่</p>
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </div>
@@ -7787,6 +7805,7 @@ export default function App() {
           <TaskInboxMockup
             tasks={inboxTasks}
             onOpenTask={handleOpenInboxTask}
+            onMarkRead={markInboxTaskRead}
           />
         ) : activeTab === "team-chat" ? (
           <TeamChatMockup
