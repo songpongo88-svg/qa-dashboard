@@ -173,10 +173,11 @@ try {
     builder.onResolve({ filter: /^\.\/firebaseClient$/ }, () => ({ path: "client", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/appealCaseAvailability$/ }, () => ({ path: "available", namespace: "fixture" }));
     builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "client" ? "export const firebaseDb={}" : args.path === "available" ? "export async function checkAppealSourceCases(events){return events}" : `
-      export const doc=(_db,name,id)=>name+'/'+id, collection=(_db,name)=>name, query=(...a)=>a, limit=a=>a, orderBy=(...a)=>a, where=(...a)=>a;
+      export const doc=(_db,name,id)=>name+'/'+id, collection=(_db,name)=>name, query=(...a)=>a, limit=a=>a, orderBy=(...a)=>a, where=(field,op,value)=>({field,op,value});
       export async function setDoc(path,data){globalThis.__workflowFixture.docs.set(path,structuredClone(data))}
-      export async function getDocs(){return {docs:[]}}
-      export async function runTransaction(_db,callback){const f=globalThis.__workflowFixture,writes=[];const value=await callback({get:async path=>({exists:()=>f.docs.has(path),data:()=>f.docs.get(path)}),set:(path,data)=>writes.push([path,data])});if(f.transactionFail){f.transactionFail=false;throw new Error('transaction failed')}for(const [path,data] of writes)f.docs.set(path,structuredClone(data));return value}
+      export async function getDocs(q){const condition=q.find(part=>part?.field==='details.accessId');return {docs:[...globalThis.__workflowFixture.docs.entries()].filter(([id,data])=>!condition||data.details?.accessId===condition.value).map(([id,data])=>({id,data:()=>data}))}}
+      export function writeBatch(){const writes=[];return {set:(path,data)=>writes.push([path,data]),commit:async()=>{const f=globalThis.__workflowFixture;if(f.batchFail)throw new Error('batch failed');for(const [path,data]of writes)f.docs.set(path,structuredClone(data));}}}
+      export async function runTransaction(_db,callback){const f=globalThis.__workflowFixture;if(f.transactionReadDenied){const error=new Error('document get denied');error.code='permission-denied';throw error;}const writes=[];const value=await callback({get:async path=>({exists:()=>f.docs.has(path),data:()=>f.docs.get(path)}),set:(path,data)=>writes.push([path,data])});if(f.transactionFail){f.transactionFail=false;throw new Error('transaction failed')}for(const [path,data] of writes)f.docs.set(path,structuredClone(data));return value}
     ` }));
   } }] });
   const store = await import(pathToFileURL(storeOutput).href);
@@ -193,7 +194,22 @@ try {
   await assert.rejects(store.writeAdditionalAppealAccessDecision(qa, { ...decision, details: { ...decision.details, approved: false } }), /already decided/);
   assert.equal(await store.writeAdditionalAppealAccessDecision({ ...qa, role: "Admin" }, decision, round), false);
   await assert.rejects(store.writeAdditionalAppealAccessDecision(qa, decision), /requires/);
-  console.log("PASS real store transaction commits both events, preserves retry deadline, rejects conflicting decisions and enforces QA-only writes");
+  const fallbackDecision = { ...decision, details: { ...decision.details, requestId: "request-fallback", accessId: "access-fallback", workflowId: "access-fallback" } };
+  const fallbackRound = { ...round, details: { ...round.details, requestId: "request-fallback", accessId: "access-fallback", roundId: "access-fallback" } };
+  fixture.transactionReadDenied = true;
+  const baselineCount = fixture.docs.size;
+  assert.equal(await store.writeAdditionalAppealAccessDecision(qa, fallbackDecision, fallbackRound), true);
+  assert.equal(fixture.docs.size, baselineCount + 2, "batch fallback atomically saves approval and its 72h round");
+  const fallbackSaved = structuredClone([...fixture.docs.values()]);
+  assert.equal(await store.writeAdditionalAppealAccessDecision(qa, fallbackDecision, {
+    ...fallbackRound, details: { ...fallbackRound.details, openedAt: at(10), expiresAt: at(82) }
+  }), true);
+  assert.deepEqual([...fixture.docs.values()], fallbackSaved, "batch fallback retry cannot extend the deadline");
+  await assert.rejects(store.writeAdditionalAppealAccessDecision(qa, {
+    ...fallbackDecision, details: { ...fallbackDecision.details, approved: false }
+  }), /already decided/);
+  fixture.transactionReadDenied = false;
+  console.log("PASS transaction, restricted-document-read atomic fallback, no deadline extension and conflict detection");
 } finally {
   await rm(temp, { recursive: true, force: true });
   dom.window.close();
