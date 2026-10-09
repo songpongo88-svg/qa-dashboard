@@ -10,6 +10,8 @@ type AppealRequestState = {
   agent: string;
   caseId: string;
   status: string;
+  editingDraft?: boolean;
+  additionalRound?: { submitted: boolean } | null;
   auditDate?: string;
   submittedAt?: string;
   reviewedAt?: string;
@@ -84,7 +86,7 @@ export function withAppealScoreState<T extends DatedCase & AppealScoreState>(
     caseIds(item.caseId).map(id => `${canonicalAgentIdentityKey(item.agent)}|${id}|${monthForCase(item)}`)));
   const pendingByAgentMonth = new Map<string, number>();
   for (const [key, { request, month }] of latest) {
-    if (request.status !== "Pending" || testCases.has(key)) continue;
+    if (request.editingDraft || (request.status !== "Pending" && !request.additionalRound?.submitted) || testCases.has(key)) continue;
     const agent = canonicalAgentIdentityKey(request.agent);
     const scope = `${agent}|${month}`;
     pendingByAgentMonth.set(scope, (pendingByAgentMonth.get(scope) || 0) + 1);

@@ -15,7 +15,7 @@ function replaceRequired(source, before, after, label) {
 
 function patchAppealReviewLayout() {
   let source = fs.readFileSync(reviewPath, "utf8");
-  if (source.includes(`// ${marker}`)) return;
+  if (source.includes(`// ${marker}`) || source.includes(`data-appeal-review-layout="${marker}"`)) return;
 
   // In a standalone request tab, hide the case list and use the full width for the working detail.
   source = replaceRequired(

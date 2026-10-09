@@ -1,5 +1,6 @@
 // original-comment-metadata-compat-v1
 function mustReplace(context, code, search, replacement, label) {
+  if (code.includes(replacement)) return code;
   if (!code.includes(search)) context.error(`QA Access case-link v2 missing ${label}`);
   return code.replace(search, replacement);
 }

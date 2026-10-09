@@ -109,7 +109,7 @@ export default async function handler(req, res) {
             type === "appeal_request_reviewed") return true;
         if (type !== "appeal_additional_evidence_submitted") return false;
         const submitted = Date.parse(detail(event, "submittedAt") || event.createdAt);
-        return Number.isFinite(submitted) && submitted <= deadline;
+        return Number.isFinite(submitted) && submitted < deadline;
       });
       if (alreadyFinalized) { skipped += 1; continue; }
       const docId = ["appeal_additional_round_expired", candidate.requestId, candidate.roundId]

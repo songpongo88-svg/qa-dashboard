@@ -92,7 +92,7 @@ try {
   assert.equal(stale.chapters[0].title, chapter.title); assert.ok(stale.stale.includes(chapter.id)); assert.equal(stale.chapters[0].revision, 1);
   assert.equal(k.mock.docs.has('qa_user_guide_history/' + chapter.id + '__1'), true);
   const onlyAgent = k.MANUAL.chapters.filter((row) => k.canReadChapter(row, { viewDashboard: true, submitAppeal: true }));
-  assert.equal(onlyAgent.some((row) => row.id === 'appeal-review'), false);
+  assert.equal(onlyAgent.some((row) => row.id === 'appeal-review'), true, 'every role can read the guide for its scoped Appeal Review');
   assert.equal(onlyAgent.some((row) => row.id === 'administration'), false);
   assert.ok(k.findChapters(onlyAgent, 'Last Updated').some(chapter=>chapter.id==='case-detail'));
   assert.equal(k.contextualChapter('case:AA0000|Test', onlyAgent), 'case-detail');

@@ -91,6 +91,8 @@ const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "ri
 const dashboard = loadDeclarations("../src/DashboardMockup.tsx", ["buildApprovedAppealMergeMap", "buildAppealOutcomeMap", "applyAppealMapsToCaseItems", "CaseDetailTopicTable"], {
   ...helper, ...requestFunctions, ...policy, React, useState,
   ...richText,
+  AppealEvidenceGallery: () => null,
+  appealEvidenceStartIndex: () => 0,
   canonicalizeAgentName: value => String(value || ""),
 });
 const monthMap = new Map([[submission.case_id, "2026-10"]]);
@@ -133,9 +135,15 @@ try {
   const output = resolve(temp, "review.mjs");
   await build({ entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-storage-boundary", setup(builder) {
     builder.onResolve({ filter: /^\.\/appealStore$/ }, () => ({ path: "store", namespace: "fixture" }));
+    builder.onResolve({ filter: /^\.\/userRoleStore$/ }, () => ({ path: "profiles", namespace: "fixture" }));
+    builder.onLoad({ filter: /^profiles$/, namespace: "fixture" }, () => ({ loader: "js", contents: "export async function fetchStoredUserProfiles(){return []}" }));
     builder.onResolve({ filter: /^\.\/PageHero$/ }, () => ({ path: "hero", namespace: "fixture" }));
     builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "hero" ? "export default function Hero(){return null}" : `
       export async function fetchAppealEvents(){return globalThis.__appealFixtureLogs}
+      export async function fetchAdditionalAppealReasonOptions(){return []}
+      export async function fetchAssignedAppealRequestIds(){return []}
+      export async function fetchAppealDiscussionEvents(){return []}
+      export async function writeAdditionalAppealAccessDecision(){throw new Error('not used in score-review fixture')}
       export async function writeAppealEvent(user,event_type,payload){
         if(globalThis.__appealFixtureFailure === 'before'){globalThis.__appealFixtureFailure='';throw new Error('offline')}
         const event={...payload,event_type,created_at:new Date().toISOString()};
@@ -145,7 +153,7 @@ try {
       }` }));
   } }] });
   const { default: ReviewComponent } = await import(pathToFileURL(output).href);
-  await act(async () => root.render(React.createElement(ReviewComponent, { currentUser: { username: "fixture-qa", displayName: "Test Reviewer" }, externalRequestId: submission.details.requestId })));
+  await act(async () => root.render(React.createElement(ReviewComponent, { currentUser: { username: "fixture-qa", displayName: "Test Reviewer", role: "Quality Assurance" }, allowReview: true })));
   const click = async element => { assert.ok(element, "UI element exists"); await act(async () => element.dispatchEvent(new MouseEvent("click", { bubbles: true }))); };
   const requestRows=[...document.querySelectorAll('tbody tr')].filter(row=>/AA9900(?:69|70|71)/.test(row.textContent));
   const orderedCases=(requestRows.length ? requestRows : [...document.querySelectorAll('button')]).map(node=>node.textContent.match(/AA9900(?:69|70|71)/)?.[0]).filter(Boolean);
@@ -153,7 +161,10 @@ try {
   globalThis.__appealFixtureLogs=[submission];
   await act(async()=>window.dispatchEvent(new CustomEvent('qa-dashboard-data-refresh')));
   console.log('PASS actual Appeal Review orders requests by submission time, oldest first');
-  if (!document.querySelector('[role="group"]')) await click([...document.querySelectorAll("button")].find(button => button.textContent.includes(submission.case_id)));
+  if (!document.querySelector('[role="group"]')) {
+    await click([...document.querySelectorAll('tbody tr')].find(row => row.textContent.includes(submission.case_id)));
+    await click([...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'พิจารณาอุทธรณ์'));
+  }
   const groups = () => [...document.querySelectorAll('[role="group"]')].filter(node => node.getAttribute("aria-label").startsWith("ผลพิจารณาหัวข้อ"));
   assert.equal(groups().length, 3);
   const setText = async (id, value) => { const element = document.getElementById(id); assert.ok(element, id); await act(async () => {
@@ -310,15 +321,17 @@ try {
       export const query=(...values)=>values;
       export const limit=value=>value;
       export const orderBy=(...values)=>values;
+      export const where=(...values)=>values;
+      export async function runTransaction(_db,callback){const writes=[];const result=await callback({get:async path=>({exists:()=>globalThis.__appealStoredDocs.has(path),data:()=>globalThis.__appealStoredDocs.get(path)}),set:(path,data)=>writes.push([path,data])});for(const [path,data] of writes)globalThis.__appealStoredDocs.set(path,structuredClone(data));return result}
       export async function setDoc(path,data){globalThis.__appealStoredDocs.set(path,structuredClone(data))}
       export async function getDocs(){return {docs:[...globalThis.__appealStoredDocs.entries()].sort((a,b)=>b[1].created_at.localeCompare(a[1].created_at)).map(([path,data])=>({id:path.split('/').pop(),data:()=>structuredClone(data)}))}}
     ` }));
   } }] });
   const store = await import(pathToFileURL(storeOutput).href);
-  const user = { username: "fixture-qa", displayName: "Test Reviewer" };
-  await store.writeAppealEvent(user, "appeal_request_reviewed", edited);
+  const user = { username: "fixture-qa", displayName: "Test Reviewer", role: "Quality Assurance" };
+  await act(async () => { await store.writeAppealEvent(user, "appeal_request_reviewed", edited); });
   assert.equal(globalThis.__appealStoredDocs.size, 3, "new review retains legacy review document");
-  await store.writeAppealEvent(user, "appeal_request_reviewed", edited);
+  await act(async () => { await store.writeAppealEvent(user, "appeal_request_reviewed", edited); });
   assert.equal(globalThis.__appealStoredDocs.size, 3, "same review ID updates only its own retry document");
   assert.deepEqual(globalThis.__appealStoredDocs.get("qa_appeal_events/legacy-review"), reviewEvent);
   const persisted = requestFunctions.buildAppealRequests(await store.fetchAppealEvents(undefined, {forceRefresh:true,limit:2000}))[0];
