@@ -51,7 +51,7 @@ function patchAppealReviewComponent() {
   } else if (!source.includes('  const standaloneRequestId =')) {
     source = replaceRequired(source,
       '  const [listTab, setListTab] = useState<AppealListTab>("pending");',
-      '  const standaloneRequestId = String(externalRequestId || "").trim();\\n  const [listTab, setListTab] = useState<AppealListTab>("pending");',
+      '  const standaloneRequestId = String(externalRequestId || "").trim();\n  const [listTab, setListTab] = useState<AppealListTab>("pending");',
       "fallback workspace request id source");
   }
 
