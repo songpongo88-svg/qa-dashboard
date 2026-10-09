@@ -24,7 +24,7 @@ import {
   getRubricForDate,
   type RubricTopic,
 } from "./lib/rubricVersions";
-import { buildDeductionAnalysis, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
+import { buildDeductionAnalysis, topicScoreForDate, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
 import { readDraftQueue, writeDraftQueue } from "./lib/evaluation/draftPersistence";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
