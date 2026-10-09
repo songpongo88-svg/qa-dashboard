@@ -1,13 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T09:05:32.235Z",
-  "reason": "ตรวจการพักยืนยันรับทราบ ลงนาม และรอบจ่ายระหว่างอุทธรณ์รอบแรกหรือรอบเพิ่มรอผล QA พร้อมตรวจข้อมูลล่าสุดก่อนบันทึกและกรณีอ่านสถานะไม่สำเร็จ",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "deadlines",
-    "appeal",
-    "signatures"
-  ],
+  "reviewedAt": "2026-10-09T09:25:55.740Z",
+  "reason": "ตรวจแก้ Draft Queue เปิดไม่สำเร็จจาก import ฟังก์ชันคำนวณคะแนนที่ขาด ทดสอบการแสดงฉบับร่างกันยายนและตุลาคมโดยไม่แก้คะแนนข้อความหรือไฟล์เสียงเดิม ขั้นตอนใช้งานไม่เปลี่ยน",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -309,7 +305,7 @@
     "scripts/test-deleted-case-appeal.mjs": "5ab01dfdf1f30ca878dc57ddcee02a6c1607ecdfda3e6616c98251eca35a4e5f",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
     "scripts/test-draft-persistence.mjs": "e9697c6b3e18f5e44fdfae3b69c37d262036638a169807cf0a17c027f7ce7adf",
-    "scripts/test-draft-queue-navigation.mjs": "886240a22aa46a15e9ec0ecbb26fc61c5f72ea1d43492667170e49b3c80ddf09",
+    "scripts/test-draft-queue-navigation.mjs": "d12e94c226573ef7364ceebfca5923fc002b41984fab1452e7b9384f6cad62ba",
     "scripts/test-evaluation-issue-tags.mjs": "d6e615df93012ab5d884234e53e4f1cc3a78e8e7f819406ef44d1727615109db",
     "scripts/test-knowledge.mjs": "0983b5b315a6af5c356697ca47eb7e1eea7efe91f8b80b521ba214755238e740",
     "scripts/test-monthly-coaching.mjs": "e8bb0a71da0e4b5edcde97a13376328738c0e14f7908f8620c32f4281bf2cfcf",
@@ -333,7 +329,7 @@
     "src/CaseWatermarks.tsx": "5a81fd54ee4eb75bf29ca6ff018dbd226f7cb2cf08f718786b101a261165de0e",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CorporateUserDirectoryProfile.tsx": "cf8869f24169ce2a37d4237c4b56070c093bb4cd41bbd83bc8dc1b8fccc47426",
-    "src/CreateEvaluationMockup.tsx": "b4bb8c3ee37d8f29ac618543e65b76779d4b3a2ebeb5ad33983071166bd2251d",
+    "src/CreateEvaluationMockup.tsx": "61d580ad5f05755e8d88473b1316a2e970f7e1241a40b1d6cd46dbed4e19bcf8",
     "src/DashboardMockup.tsx": "84acbfe838d8c773a7fda8ed7ea7e609ec9d3ebc595b6216b8e329823e21e8e5",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
