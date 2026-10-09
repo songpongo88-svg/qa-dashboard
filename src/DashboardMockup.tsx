@@ -4070,6 +4070,26 @@ function SlideOverCaseDetail({
     setAppealSubmitOpen(true);
   };
 
+  const saveAppealEditingDraft = async () => {
+    if (!currentUser || !appealExistingRequest?.editingDraft || appealSubmitBusy || appealImageUploads) return;
+    setAppealSubmitBusy(true);
+    try {
+      const saved = await writeAppealEvent(currentUser, "appeal_submission_draft_saved", {
+        tab:"dashboard", case_id:caseItem.caseId, target_agent:caseItem.agent,
+        details: {
+          requestId:appealExistingRequest.requestId,workflowId:crypto.randomUUID(),
+          ...(appealExistingRequest.additionalRound?.submitted ? {roundId:appealExistingRequest.additionalRound.roundId} : {}),
+          topics:appealDraftTopics,savedAt:new Date().toISOString(),
+        }
+      });
+      if (!saved) throw new Error("draft save failed");
+      setAppealExistingRequest(previous=>previous?{...previous,activeEditTopics:appealDraftTopics.map(topic=>({...topic}))}:previous);
+      setAppealSubmitOpen(false);
+      setAppealSubmitMessage("");
+    }catch(error){console.error("Save appeal draft failed",error);setAppealSubmitMessage("บันทึกฉบับร่างไม่สำเร็จ กรุณาลองอีกครั้ง");}
+    finally{setAppealSubmitBusy(false);}
+  };
+
   const closeAppealSubmitForm = () => {
     if (appealImageUploads || appealSubmitBusy) return;
     setAppealSubmitOpen(false);
@@ -4773,6 +4793,9 @@ function SlideOverCaseDetail({
                 ยกเลิกและกลับไป Case Detail
               </button>
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                {appealExistingRequest?.editingDraft ? (
+                  <button type="button" disabled={appealSubmitBusy || appealImageUploads > 0} onClick={() => void saveAppealEditingDraft()} className="rounded-xl border border-violet-300 bg-violet-50 px-5 py-2.5 text-sm font-semibold text-violet-800 disabled:opacity-50">บันทึกฉบับร่าง</button>
+                ) : null}
                 {appealSubmitStep > 1 ? (
                   <button
                     type="button"
@@ -4800,7 +4823,7 @@ function SlideOverCaseDetail({
                     disabled={appealSubmitBusy || appealImageUploads > 0}
                     className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
-                    {appealSubmitBusy ? "กำลังส่ง..." : "ยืนยันส่งอุทธรณ์"}
+                    {appealSubmitBusy ? "กำลังส่ง..." : canEditExistingAppeal ? "ส่งอุทธรณ์อีกครั้ง" : "ยืนยันส่งอุทธรณ์"}
                   </button>
                 )}
               </div>
