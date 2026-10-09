@@ -39,7 +39,9 @@ function loadDeclarations(file, names, bindings = {}) {
 }
 
 const helper = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision", "summarizeAppealDecisions", "appealScoreAfterReview", "prepareAppealReview"]);
+const actionHistory = loadDeclarations("../src/appealActionHistory.ts", ["buildAppealActionHistory"], helper);
 const requestFunctions = loadDeclarations("../src/AppealRequestsMockup.tsx", ["buildAppealRequests", "exportAppealRows"], {
+  ...actionHistory,
   ...helper, XLSX: { utils: { json_to_sheet: rows => rows, book_new: () => ({}), book_append_sheet: (_book, sheet) => { globalThis.__exportedAppeals = sheet; } }, writeFile() {} },
 });
 const topics = [
@@ -88,7 +90,11 @@ console.log("PASS saved mixed decisions, evidence, old all-approved/all-rejected
 
 const policy = loadDeclarations("../src/lib/scoreIncentivePolicy.ts", ["scoreToGrade"]);
 const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "richTextToPlainText"], { React });
+const actionTimeline = loadDeclarations("../src/AppealActionTimeline.tsx", ["AppealActionTimeline"], {
+  React, ...richText, AppealEvidenceGallery: () => null, appealEvidenceStartIndex: () => 0,
+});
 const dashboard = loadDeclarations("../src/DashboardMockup.tsx", ["buildApprovedAppealMergeMap", "buildAppealOutcomeMap", "applyAppealMapsToCaseItems", "CaseDetailTopicTable"], {
+  ...actionTimeline,
   ...helper, ...requestFunctions, ...policy, React, useState,
   ...richText,
   AppealEvidenceGallery: () => null,
@@ -133,7 +139,7 @@ try {
   globalThis.__appealFixtureLogs = [newerSubmission,submission,olderSubmission];
   globalThis.__appealFixtureWrites = [];
   const output = resolve(temp, "review.mjs");
-  await build({ entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-storage-boundary", setup(builder) {
+  await build({ jsx: "automatic", entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-storage-boundary", setup(builder) {
     builder.onResolve({ filter: /^\.\/appealStore$/ }, () => ({ path: "store", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/userRoleStore$/ }, () => ({ path: "profiles", namespace: "fixture" }));
     builder.onLoad({ filter: /^profiles$/, namespace: "fixture" }, () => ({ loader: "js", contents: "export async function fetchStoredUserProfiles(){return []}" }));
@@ -309,7 +315,7 @@ try {
 
   globalThis.__appealStoredDocs = new Map([["qa_appeal_events/legacy-submission", submission], ["qa_appeal_events/legacy-review", reviewEvent]]);
   const storeOutput = resolve(temp, "store.mjs");
-  await build({ entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-firestore-boundary", setup(builder) {
+  await build({ jsx: "automatic", entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-firestore-boundary", setup(builder) {
     builder.onResolve({ filter: /^\.\/appealCaseAvailability$/ }, () => ({ path: "available-cases", namespace: "fixture" }));
     builder.onLoad({ filter: /^available-cases$/, namespace: "fixture" }, () => ({ loader: "js", contents: "export async function checkAppealSourceCases(events){return events}" }));
     builder.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: "firestore", namespace: "fixture" }));

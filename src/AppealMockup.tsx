@@ -6,6 +6,8 @@ import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
 import PageHero from "./PageHero";
 import { scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { buildAppealRequests } from "./AppealRequestsMockup";
+import AppealActionTimeline from "./AppealActionTimeline";
+import type { AppealAction } from "./appealActionHistory";
 import { fetchAppealEvents } from "./appealStore";
 import { type UsageLogEvent } from "./usageLog";
 import { canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
@@ -47,6 +49,7 @@ type AppealRevisionItem = {
 };
 
 type AppealCaseItem = {
+  appealActionHistory?: AppealAction[];
   key: string;
   caseId: string;
   agent: string;
@@ -1694,6 +1697,8 @@ export default function AppealMockup({
               "appeal_request_submitted",
               "appeal_request_reviewed",
               "appeal_request_reset",
+              "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
+              "appeal_submission_resubmitted",
             ],
             { limit: 2000, forceRefresh: true }
           )) as UsageLogEvent[];
@@ -1887,6 +1892,7 @@ export default function AppealMockup({
               caseUrl,
               appealRound: 1,
               rewriteHistory: [],
+              appealActionHistory: request.actionHistory,
               appealSourceIndex: mapped.length + firebaseIndex + 1,
               appealVersionRank: 9999,
               appealTimestampRank: Number.isNaN(appealTimestampRank) ? Date.now() : appealTimestampRank,
@@ -2672,6 +2678,11 @@ export default function AppealMockup({
                 activeRound={selectedRevision?.appealRound ?? selectedCase.appealRound}
                 onSelectRound={setSelectedAppealRound}
               />
+
+              {selectedCase.appealActionHistory?.length ? <Panel>
+                <PanelHeader title="Appeal Actions" subtitle="เหตุผลและผลพิจารณาแต่ละรอบ เรียงจากครั้งแรก" />
+                <PanelBody><AppealActionTimeline actions={selectedCase.appealActionHistory} caseId={selectedCase.caseId} /></PanelBody>
+              </Panel> : null}
 
               <Panel>
                 <PanelHeader

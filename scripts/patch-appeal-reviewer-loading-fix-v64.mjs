@@ -35,12 +35,16 @@ function patchAppealMockup() {
     "AppealMockup non-blocking initial render and reviewer profile map"
   );
 
-  source = replaceRequired(
-    source,
-    `          const appealEvents = (await fetchAppealEvents(\n            [\n              "appeal_request_submitted",\n              "appeal_request_reviewed",\n              "appeal_request_reset",\n            ],\n            { limit: 2000, forceRefresh: true }\n          )) as UsageLogEvent[];`,
-    `          const appealEvents = (await Promise.race([\n            fetchAppealEvents(\n              [\n                "appeal_request_submitted",\n                "appeal_request_reviewed",\n                "appeal_request_reset",\n              ],\n              { limit: 2000, forceRefresh: true }\n            ),\n            new Promise<UsageLogEvent[]>((_, reject) =>\n              window.setTimeout(() => reject(new Error("Firebase appeal load timeout after 8 seconds")), 8000)\n            ),\n          ])) as UsageLogEvent[];`,
-    "AppealMockup Firebase timeout"
-  );
+  // Keep the complete event list, including additional Actions, when adding
+  // the existing timeout to an unpatched Appeal Cases component.
+  const appealLoad = source.match(/const appealEvents = \(await (fetchAppealEvents\([\s\S]*?\n          \))\) as UsageLogEvent\[\];/);
+  if (!appealLoad) throw new Error("Appeal v64 missing anchor: AppealMockup Firebase timeout");
+  source = source.replace(appealLoad[0], `const appealEvents = (await Promise.race([
+            ${appealLoad[1]},
+            new Promise<UsageLogEvent[]>((_, reject) =>
+              window.setTimeout(() => reject(new Error("Firebase appeal load timeout after 8 seconds")), 8000)
+            ),
+          ])) as UsageLogEvent[];`);
 
   source = replaceRequired(
     source,

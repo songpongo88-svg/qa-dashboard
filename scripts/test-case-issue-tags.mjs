@@ -64,7 +64,7 @@ try {
   const { mapStoredEvaluationsToCaseItems, mergeRawAndStoredEvaluationCases, normalizeCaseIssueTags, CaseDetailTopicTable } = loadDeclarations(
     "../src/DashboardMockup.tsx",
     ["mapStoredEvaluationsToCaseItems", "mergeRawAndStoredEvaluationCases", "normalizeCaseIssueTags", "CaseDetailTopicTable"],
-    { React, useState, ...identity, ...timestamps, ...scope, ...policy, ...richText, ...appealReview },
+    { React, useState, ...identity, ...timestamps, ...scope, ...policy, ...richText, ...appealReview, AppealActionTimeline: () => null },
   );
   const firstTag = "ความถูกต้องของสถานะ ยอดเงิน และระยะเวลา";
   const secondTag = "ข้อมูลไม่ครบ";
