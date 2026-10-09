@@ -200,6 +200,7 @@ try {
   const activeGroup = document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]');
   assert.equal(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 2"]'), null, "unrelated old topic cannot be re-reviewed in this round");
   await click([...activeGroup.querySelectorAll("button")].find(node => node.textContent.includes("Approved")));
+  assert.equal(activeGroup.parentElement.querySelector("select").value, "20", "additional Revised Score starts from the latest saved approval, not the original 18");
   await select(activeGroup.parentElement.querySelector("select"), "22");
   for (const [id, value] of [["revised-comment-1", "Second QA comment"], ["appeal-review-summary", "Second review"]]) {
     await act(async () => { const input = document.getElementById(id); input.value = value; Simulate.change(input); });
@@ -237,6 +238,24 @@ try {
   assert.equal(submissionHistory[1].submissions[0].topics[0].appealReason, "New appeal reason\nNew second line");
   assert.equal(submissionHistory[1].topics[0].appealReason, "Edited new reason");
   console.log("PASS repeated-topic Actions: old/new reasons and QA results, fresh summary, unchanged carried topic, cumulative score, QA edits, legacy edits and submission revisions");
+
+  for (const [previousDecision, previousScore, expected] of [["Approved", 24, 24], ["Approved", 0, 0], ["Approved", "24", 24], ["Rejected", 30, 18]]) {
+    fixture.logs = structuredClone(repeatedPending);
+    fixture.logs[1].details.topics[0] = { ...fixture.logs[1].details.topics[0], decision: previousDecision, revisedScore: previousScore, rejectReason: "Previous rejected reason" };
+    fixture.writes = [];
+    await render(qa, { key: `latest-score-${previousDecision}-${typeof previousScore}-${previousScore}`, externalRequestId: repeatedId });
+    const group = document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]');
+    await click([...group.querySelectorAll("button")].find(node => node.textContent.includes("Approved")));
+    assert.equal(group.parentElement.querySelector("select").value, String(expected), "prefill uses the latest effective score, including zero and numeric strings");
+    for (const [id, value] of [["revised-comment-1", "Review keeps the latest score"], ["appeal-review-summary", "No score change in this round"]]) {
+      await act(async () => { const input = document.getElementById(id); input.value = value; Simulate.change(input); });
+    }
+    await click(button("Save Review"));
+    const total = 80 + expected - 18 + 16 - 14;
+    assert.ok(document.querySelector('[role="dialog"]').textContent.includes(`คะแนนรวม ${total.toFixed(2)} → ${total.toFixed(2)} / 100`), "keeping the prefilled score neither loses nor double-counts prior score changes");
+    assert.equal(fixture.writes.length, 0);
+  }
+  console.log("PASS additional Revised Score starts from the latest approved value (24, zero, numeric string), rejected stale values are ignored, and unchanged scores keep the same total");
 
   // A later Action can appeal a different topic. Both rounds must remain
   // visible as consecutive case-level Actions, including for read-only roles.
