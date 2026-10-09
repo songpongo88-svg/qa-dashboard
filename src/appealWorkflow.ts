@@ -21,6 +21,15 @@ export const APPEAL_WORKFLOW_STATUSES = [
   "Expired (Additional)", "Reset",
 ] as const;
 
+export function isAppealAwaitingReview(request: {
+  status: string;
+  editingDraft?: boolean;
+  additionalRound?: { submitted: boolean } | null;
+}): boolean {
+  return !request.editingDraft &&
+    (request.status === "Pending" || Boolean(request.additionalRound?.submitted));
+}
+
 export function appealWorkflowStatus(request: AppealWorkflowRequest): string {
   if (request.status === "Reset") return "Reset";
   if (request.editingDraft) return "Draft";

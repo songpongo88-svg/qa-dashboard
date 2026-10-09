@@ -9,6 +9,7 @@ import { renderFinalSignedPdf } from "./finalSignedPdfRenderer";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
+import { appealWorkflowStatus, isAppealAwaitingReview } from "./appealWorkflow";
 import { fetchStoredEvaluations, excludeTestEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIdentity";
@@ -113,6 +114,31 @@ type PendingAppealCase = {
   status: string;
   submittedAt: string;
 };
+
+function buildPendingSignatureAppealCaseMap(logs: UsageLogEvent[]) {
+  const map = new Map<string, PendingAppealCase>();
+  buildAppealRequests(logs).filter(isAppealAwaitingReview).forEach((request) => {
+    const caseId = normalizeText(request.caseId);
+    if (!caseId) return;
+    map.set(caseId, {
+      caseId,
+      agent: request.agent,
+      status: appealWorkflowStatus(request),
+      submittedAt: request.additionalRound?.submittedAt || request.submittedAt,
+    });
+  });
+  return map;
+}
+
+class SignatureAppealHoldError extends Error {}
+
+function signatureAppealReviewKey(logs: UsageLogEvent[], documents: SignatureDocument[]) {
+  const caseIds = new Set(documents.flatMap((doc) => doc.cases.map((item) => item.caseId)));
+  return JSON.stringify(buildAppealRequests(logs)
+    .filter((request) => caseIds.has(request.caseId) && request.reviewId)
+    .map((request) => [request.requestId, request.reviewId, request.reviewedAt, request.status])
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+}
 
 type SignatureApprovedAppeal = {
   caseId: string;
@@ -2493,6 +2519,7 @@ export default function SignatureCenterMockup({
 }) {
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
   const [appealLogs, setAppealLogs] = useState<UsageLogEvent[]>([]);
+  const [appealStatusVerified, setAppealStatusVerified] = useState(false);
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
   const [signatureLibrary, setSignatureLibrary] = useState<Record<string, string>>(() => readSignatureLibraryStore());
   const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
@@ -2546,12 +2573,16 @@ export default function SignatureCenterMockup({
   useEffect(() => {
     let alive = true;
     const loadAppeals = async () => {
+      setAppealStatusVerified(false);
       try {
-        const logs = await fetchAppealEvents();
-        if (alive) setAppealLogs(logs);
+        const logs = await fetchAppealEvents(undefined, { forceRefresh: true });
+        if (alive) {
+          setAppealLogs(logs);
+          setAppealStatusVerified(true);
+        }
       } catch (error) {
         console.warn("Signature Center appeal logs failed", error);
-        if (alive) setAppealLogs([]);
+        if (alive) setAppealStatusVerified(false);
       }
     };
     void loadAppeals();
@@ -2742,20 +2773,7 @@ export default function SignatureCenterMockup({
   }, [documents]);
 
   const pendingAppealCaseMap = useMemo(() => {
-    const map = new Map<string, PendingAppealCase>();
-    buildAppealRequests(appealLogs)
-      .filter((request) => request.status === "Pending")
-      .forEach((request) => {
-        const caseId = normalizeText(request.caseId);
-        if (!caseId) return;
-        map.set(caseId, {
-          caseId,
-          agent: request.agent,
-          status: request.status,
-          submittedAt: request.submittedAt,
-        });
-      });
-    return map;
+    return buildPendingSignatureAppealCaseMap(appealLogs);
   }, [appealLogs]);
 
   const visibleDocuments = useMemo(() => {
@@ -2912,11 +2930,11 @@ export default function SignatureCenterMockup({
   }, [documents, selectedMonth]);
 
   const selectedMonthPaymentDocs = useMemo(() => {
-    if (selectedMonth === "all") return [];
+    if (selectedMonth === "all" || !appealStatusVerified) return [];
     return documents
       .filter((doc) => doc.monthKey === selectedMonth)
       .filter((doc) => isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
-  }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
+  }, [appealStatusVerified, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const selectedMonthExportDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
@@ -2929,14 +2947,15 @@ export default function SignatureCenterMockup({
   }, [selectedMonth, selectedMonthExportDocs]);
 
   const selectedMonthLateSignedDocs = useMemo(() => {
-    if (selectedMonth === "all") return [];
+    if (selectedMonth === "all" || !appealStatusVerified) return [];
     return documents
       .filter((doc) => doc.monthKey === selectedMonth)
       .filter((doc) => isLateSignedDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
-  }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
+  }, [appealStatusVerified, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const rolePendingCounts = useMemo(() => {
     const counts: Record<SignRole, number> = { QA: 0, Supervisor: 0, Senior: 0, Agent: 0 };
+    if (!appealStatusVerified) return counts;
     const sourceDocs = documents
       .filter((doc) => selectedMonth === "all" || doc.monthKey === selectedMonth)
       .filter((doc) => canMonitorDocument(currentUser, doc));
@@ -2952,10 +2971,10 @@ export default function SignatureCenterMockup({
     });
 
     return counts;
-  }, [currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
+  }, [appealStatusVerified, currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   useEffect(() => {
-    if (!documents.length || !accounts.length) return;
+    if (!appealStatusVerified || !documents.length || !accounts.length) return;
     let alive = true;
 
     const syncResignedUserWaivers = async () => {
@@ -3018,7 +3037,7 @@ export default function SignatureCenterMockup({
     return () => {
       alive = false;
     };
-  }, [accounts, confirmedDocs, documents, pendingAppealCaseMap, signatures]);
+  }, [accounts, appealStatusVerified, confirmedDocs, documents, pendingAppealCaseMap, signatures]);
 
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
 
@@ -3041,12 +3060,12 @@ export default function SignatureCenterMockup({
   const selectedPendingAppeals = selectedDocument
     ? selectedDocument.cases.filter((item) => pendingAppealCaseMap.has(item.caseId))
     : [];
-  const hasPendingAppeal = selectedPendingAppeals.length > 0;
+  const hasPendingAppeal = !appealStatusVerified || selectedPendingAppeals.length > 0;
   const pendingRoles = getPendingRoles(selectedEntries);
   const lastSignedRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(selectedEntries, role)));
   const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(selectedEntries, role))).length;
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
-  const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete);
+  const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete && !hasPendingAppeal);
   const previewConfirmed = Boolean(selectedDocument && (confirmedDocs[selectedDocument.id] || isHistoricalPaidPeriod(selectedDocument.monthKey)));
   const workflowReadyToSign = Boolean(
     selectedDocument &&
@@ -3061,8 +3080,10 @@ export default function SignatureCenterMockup({
     canSignIdentity(currentUser, selectedDocument, "Agent")
   );
   const confirmBlockedReason = selectedDocument && !previewConfirmed
-    ? hasPendingAppeal
-      ? "มีเคสยื่น Appeal ที่รอ Approved อยู่ จึงยังยืนยันรับทราบไม่ได้"
+    ? !appealStatusVerified
+      ? "ยังตรวจสอบสถานะอุทธรณ์ไม่สำเร็จ กรุณากดอัปเดตข้อมูลก่อนยืนยันรับทราบ"
+      : hasPendingAppeal
+      ? "มีอุทธรณ์รอบแรกหรือรอบเพิ่มเติมรอผล QA จึงยังยืนยันรับทราบไม่ได้"
       : !isAfterAppealPeriod(selectedDocument.monthKey)
         ? "เปิดให้ยืนยันรับทราบหลังวันที่ 10 ของเดือนถัดไป"
         : !canSignIdentity(currentUser, selectedDocument, "Agent")
@@ -3140,13 +3161,38 @@ export default function SignatureCenterMockup({
       const pendingRoles = getPendingRoles(entries);
       if (count === SIGNATURE_FLOW.length) complete += 1;
       else pending += 1;
-      if (count === SIGNATURE_FLOW.length && doc.eligibleByScore) ready += 1;
-      if (pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) myTurn += 1;
+      const appealResolved = appealStatusVerified && !doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
+      if (appealResolved && count === SIGNATURE_FLOW.length && doc.eligibleByScore) ready += 1;
+      if (appealResolved && pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) myTurn += 1;
     });
     return { total: visibleDocuments.length, complete, pending, ready, myTurn };
-  }, [currentUser, signatures, visibleDocuments]);
+  }, [appealStatusVerified, currentUser, pendingAppealCaseMap, signatures, visibleDocuments]);
+
+  const assertAppealsResolved = async (targetDocuments: SignatureDocument[]) => {
+    let logs: UsageLogEvent[];
+    try {
+      logs = await fetchAppealEvents(undefined, { forceRefresh: true });
+    } catch (error) {
+      setAppealStatusVerified(false);
+      throw new SignatureAppealHoldError("ตรวจสอบสถานะอุทธรณ์ล่าสุดไม่สำเร็จ กรุณากดอัปเดตข้อมูลแล้วลองอีกครั้ง");
+    }
+    setAppealLogs((previous) => JSON.stringify(previous) === JSON.stringify(logs) ? previous : logs);
+    setAppealStatusVerified(true);
+    const pending = buildPendingSignatureAppealCaseMap(logs);
+    if (targetDocuments.some((doc) => !isHistoricalPaidPeriod(doc.monthKey) &&
+      doc.cases.some((item) => pending.has(item.caseId)))) {
+      throw new SignatureAppealHoldError("มีอุทธรณ์รอบแรกหรือรอบเพิ่มเติมรอผล QA กรุณารอผลก่อนยืนยันรับทราบ ลงนาม หรือส่งออกข้อมูลจ่าย");
+    }
+    if (signatureAppealReviewKey(appealLogs, targetDocuments) !== signatureAppealReviewKey(logs, targetDocuments)) {
+      setAppealStatusVerified(false);
+      throw new SignatureAppealHoldError("ผลอุทธรณ์มีการเปลี่ยนแปลง กรุณากดอัปเดตข้อมูลแล้วตรวจคะแนนล่าสุดก่อนทำรายการอีกครั้ง");
+    }
+  };
 
   const persistDocumentSignatures = async (docId: string, entries: SignatureEntry[], confirmedAt = "") => {
+    const document = documents.find((item) => item.id === docId);
+    if (!document) throw new SignatureAppealHoldError("ไม่พบเอกสาร กรุณากดอัปเดตข้อมูล");
+    await assertAppealsResolved([document]);
     await saveStoredSignatureDocument(docId, entries, confirmedAt);
   };
 
@@ -3154,6 +3200,7 @@ export default function SignatureCenterMockup({
     if (!selectedDocument || !confirmAvailable || hasPendingAppeal) return;
     const confirmedAt = new Date().toISOString();
     try {
+      await assertAppealsResolved([selectedDocument]);
       await saveStoredSignatureConfirm(selectedDocument.id, confirmedAt);
       setConfirmedDocs((previous) => ({
         ...previous,
@@ -3161,12 +3208,13 @@ export default function SignatureCenterMockup({
       }));
     } catch (error) {
       console.warn("Save remote signature confirm failed", error);
-      window.alert("บันทึกการยืนยันรับทราบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      window.alert(error instanceof SignatureAppealHoldError ? error.message : "บันทึกการยืนยันรับทราบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
     }
   };
 
   const saveDrawnSignature = async (role: SignRole, signatureDataUrl: string, saveToSavedLibrary = false) => {
     if (!selectedDocument) return false;
+    if (hasPendingAppeal) return false;
     if (!canSignIdentity(currentUser, selectedDocument, role)) {
       window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
       return false;
@@ -3188,7 +3236,7 @@ export default function SignatureCenterMockup({
       await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
     } catch (error) {
       console.warn("Save remote signature failed", error);
-      window.alert("บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      window.alert(error instanceof SignatureAppealHoldError ? error.message : "บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       return false;
     }
 
@@ -3233,7 +3281,7 @@ export default function SignatureCenterMockup({
       await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
     } catch (error) {
       console.warn("Save remote signature failed", error);
-      window.alert("บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      window.alert(error instanceof SignatureAppealHoldError ? error.message : "บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       return false;
     }
 
@@ -3252,6 +3300,7 @@ export default function SignatureCenterMockup({
 
   const openSignaturePad = (role: SignRole) => {
     if (!selectedDocument) return;
+    if (hasPendingAppeal) return;
     if (role === "Agent" && !previewConfirmed && !getSignedEntry(selectedEntries, "Agent")) {
       window.alert("กรุณากดยืนยันรับทราบข้อมูลก่อน แล้วจึงกดเซ็นในช่อง Agent ผู้ถูกประเมิน");
       return;
@@ -4638,7 +4687,7 @@ export default function SignatureCenterMockup({
       line("หมายเหตุ: เดือน Jan-Apr เป็นรอบประวัติของเอกสาร ระบบแสดงสถานะ Completed อัตโนมัติ", 10);
     }
     if (hasPendingAppeal) {
-      line(`หมายเหตุ: มี ${selectedPendingAppeals.length} เคสที่ยื่น Appeal และรอ Approved จึงยังไม่สามารถยืนยันรับทราบหรือเซ็นได้`, 10);
+      line(`หมายเหตุ: มี ${selectedPendingAppeals.length} เคสอุทธรณ์รอผล QA จึงยังไม่สามารถยืนยันรับทราบหรือเซ็นได้`, 10);
     }
 
     y += 3;
@@ -4719,7 +4768,7 @@ export default function SignatureCenterMockup({
     window.setTimeout(() => setPdfMessage(""), 3500);
   };
 
-  const generatePaymentExcel = () => {
+  const generatePaymentExcel = async () => {
     if (selectedMonth === "all") {
       window.alert("กรุณาเลือกเดือนก่อน Generate Excel");
       return;
@@ -4729,6 +4778,7 @@ export default function SignatureCenterMockup({
       return;
     }
     try {
+      await assertAppealsResolved(selectedMonthPaymentExportDocs);
       generatePaymentExcelFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
       setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
       window.setTimeout(() => setPaymentMessage(""), 3500);
@@ -4738,7 +4788,7 @@ export default function SignatureCenterMockup({
     }
   };
 
-  const generatePaymentPdf = () => {
+  const generatePaymentPdf = async () => {
     if (selectedMonth === "all") {
       window.alert("กรุณาเลือกเดือนก่อน Generate Payment PDF");
       return;
@@ -4748,6 +4798,7 @@ export default function SignatureCenterMockup({
       return;
     }
     try {
+      await assertAppealsResolved(selectedMonthPaymentExportDocs);
       const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
       setPaymentMessage(`Generated ${fileName}`);
       window.setTimeout(() => setPaymentMessage(""), 3500);
@@ -5789,7 +5840,7 @@ export default function SignatureCenterMockup({
               <option value="my-turn">My Signature Pending</option>
               <option value="pending">Pending Signature</option>
               <option value="ready">Ready for Incentive Payment</option>
-              <option value="appeal-pending">มี Appeal รอ Approved</option>
+              <option value="appeal-pending">มีอุทธรณ์รอผล QA</option>
               <option value="expired">เกินวันที่ 15 / ไม่ครบ</option>
             </select>
           </div>
@@ -5803,7 +5854,7 @@ export default function SignatureCenterMockup({
               const isMyPendingTurn =
                 docPendingRoles.some((role) => canSignIdentity(currentUser, doc, role)) &&
                 isSigningAllowedByDate(doc.monthKey) &&
-                !doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
+                appealStatusVerified && !doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
               const selected = selectedDocument?.id === doc.id;
               return (
                 <button
@@ -5923,9 +5974,11 @@ export default function SignatureCenterMockup({
 
             {hasPendingAppeal ? (
               <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-rose-800 shadow-[0_18px_40px_rgba(225,29,72,0.08)]">
-                <div className="text-base font-black">มีเคส Appeal รอ Approved</div>
+                <div className="text-base font-black">{appealStatusVerified ? "มีอุทธรณ์รอผล QA" : "ยังตรวจสอบสถานะอุทธรณ์ไม่สำเร็จ"}</div>
                 <div className="mt-1 text-sm font-semibold leading-6">
-                  เอกสารยังโชว์ได้และ Generate PDF ได้ แต่ยังยืนยันรับทราบไม่ได้ และยังเซ็นไม่ได้จนกว่า Appeal จะถูก Approved หรือ Rejected ครบทุกเคส
+                  {appealStatusVerified
+                    ? "มีอุทธรณ์รอบแรกหรือรอบเพิ่มเติมรอพิจารณา เอกสารยังดูและดาวน์โหลดได้ กรุณารอ QA ตัดสินครบทุกเคสก่อนยืนยันรับทราบ ลงนาม หรือส่งออกข้อมูลจ่าย"
+                    : "กรุณากดอัปเดตข้อมูล ระบบจะเปิดการยืนยันรับทราบ ลงนาม และส่งออกข้อมูลจ่ายเมื่อยืนยันสถานะอุทธรณ์ได้แล้ว"}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedPendingAppeals.map((item) => (
@@ -6281,7 +6334,7 @@ export default function SignatureCenterMockup({
                       getTimelineStatus(selectedDocument.monthKey) === "Signature Deadline Passed" &&
                       !completed &&
                       !activeResetAfterDeadline;
-                    const canOpenSignaturePad = (!completed && allowSign) || canAddFirstDrawnSignature;
+                    const canOpenSignaturePad = !hasPendingAppeal && ((!completed && allowSign) || canAddFirstDrawnSignature);
                     const waitingForAutomaticWaiver =
                       role === "Agent" &&
                       !completed &&
