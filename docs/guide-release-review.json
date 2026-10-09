@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T03:30:35.554Z",
-  "reason": "Reviewed T&C quota error handling: preserve server-authenticated acceptance, prevent unverified access, and show clear retry guidance.",
+  "reviewedAt": "2026-10-09T03:43:26.331Z",
+  "reason": "Reviewed one-day operational T&C 1.1 gate deferral until 15:00 Bangkok, automatically resumes with server-verifiable acceptance; no change to T&C document.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -387,7 +387,7 @@
     "src/gsmMsWav.ts": "6d0009c1ccdf712d2f22ea980e278b0970c67db71e2064703987e7ca582e5b46",
     "src/index.css": "bef1080a551bb63a4444810010d29f54a41e48be11a7af80dbc97c297b79b0ba",
     "src/knowledge/PdfReader.tsx": "eeef5fda3c22a96bd1497b193a833fa65727e5232046e14751b3e29bd4effeb9",
-    "src/knowledge/Terms.tsx": "3b4a83579092f5aeea7cde16e231d6690a0c4304c9b2e3d5c0a53a66f176e930",
+    "src/knowledge/Terms.tsx": "e74ab207bae0e4c04f82df7023fbf2f50ff43b05d5ffb5843e4c114cfc43c312",
     "src/knowledge/UserGuide.tsx": "791e93b6ffc0df6bb1acc6b82d451742169c7b97b27354e4e43c8e013272b653",
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
