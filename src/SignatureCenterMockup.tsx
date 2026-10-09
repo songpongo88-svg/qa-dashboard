@@ -9,6 +9,7 @@ import { renderFinalSignedPdf } from "./finalSignedPdfRenderer";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
+import { getAppealTopicDecision } from "./appealReview";
 import { appealWorkflowStatus, isAppealAwaitingReview } from "./appealWorkflow";
 import { fetchStoredEvaluations, excludeTestEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
@@ -894,7 +895,7 @@ function isSignatureAppealTopicChanged(topic: {
 function buildSignatureApprovedAppealMap(logs: UsageLogEvent[]) {
   const map = new Map<string, SignatureApprovedAppeal>();
   buildAppealRequests(logs)
-    .filter((item) => item.status === "Approved")
+    .filter((item) => ["Approved", "Partially Approved", "Rejected"].includes(item.status))
     .sort(
       (a, b) =>
         new Date(a.reviewedAt || a.submittedAt || "").getTime() -
@@ -906,15 +907,19 @@ function buildSignatureApprovedAppealMap(logs: UsageLogEvent[]) {
       const previousScore = Number(request.finalScore || 0);
       let scoreDelta = 0;
       const revisedTopics = request.topics
-        .filter(isSignatureAppealTopicChanged)
         .map((topic) => {
-          const originalScore = Number(topic.score || 0);
+          const decision = getAppealTopicDecision(topic, request.status);
+          if (decision !== "Approved" && !(decision === "Rejected" && topic.originalScore !== undefined)) return null;
+          const originalScore = Number(topic.originalScore ?? topic.score ?? 0);
           const revisedScore =
+            decision === "Approved" &&
+            topic.revisedScore !== undefined &&
             topic.revisedScore !== null &&
             topic.revisedScore !== "" &&
             !Number.isNaN(Number(topic.revisedScore))
               ? Number(topic.revisedScore)
-              : originalScore;
+              : Number(topic.score ?? 0);
+          if (!isSignatureAppealTopicChanged({ ...topic, score: originalScore, revisedScore, revisedComment: decision === "Approved" ? topic.revisedComment : topic.retainedComment })) return null;
           const max = Number(topic.max || 0);
           if (!Number.isFinite(originalScore) || !Number.isFinite(revisedScore) || !Number.isFinite(max) || max <= 0) return null;
           scoreDelta += revisedScore - originalScore;

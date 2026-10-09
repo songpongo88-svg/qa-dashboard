@@ -432,7 +432,7 @@ function buildApprovedAppealMergeMap(
   const latestRequests = buildLatestAppealRequestMap(logs);
 
   latestRequests.forEach((request, caseId) => {
-    if (request.status !== "Approved" && request.status !== "Partially Approved") return;
+    if (!["Approved", "Partially Approved", "Rejected"].includes(request.status)) return;
 
     const revisedTopics: Topic[] = [];
     const displayRevisedTopicCodes: string[] = [];
@@ -440,20 +440,22 @@ function buildApprovedAppealMergeMap(
     let scoreDelta = 0;
 
     (Array.isArray(request.topics) ? request.topics : []).forEach((matched: any) => {
-      if (getAppealTopicDecision(matched, request.status) !== "Approved") return;
+      const decision = getAppealTopicDecision(matched, request.status);
+      if (decision !== "Approved" && !(decision === "Rejected" && matched.originalScore !== undefined)) return;
       const master = getTopicMasterByMonth(
         rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
       ).find((item) => item.code === matched.code);
 
       if (!master) return;
 
-      const originalScore = Number(matched.score ?? 0);
+      const originalScore = Number(matched.originalScore ?? matched.score ?? 0);
       const hasRevisedScore =
         matched.revisedScore !== null &&
         matched.revisedScore !== undefined &&
         matched.revisedScore !== "" &&
         !Number.isNaN(Number(matched.revisedScore));
-      const revisedScore = hasRevisedScore ? Number(matched.revisedScore) : originalScore;
+      const revisedScore = decision === "Approved" && hasRevisedScore ? Number(matched.revisedScore) : Number(matched.score ?? 0);
+      const effectiveComment = decision === "Approved" ? matched.revisedComment : matched.retainedComment;
 
       if (Number.isFinite(originalScore) && Number.isFinite(revisedScore)) {
         scoreDelta += revisedScore - originalScore;
@@ -467,13 +469,13 @@ function buildApprovedAppealMergeMap(
         pct: master.max > 0
           ? Math.round(((Number.isFinite(revisedScore) ? revisedScore : 0) / master.max) * 100)
           : 0,
-        comment: String(matched.revisedComment || matched.comment || "").trim(),
+        comment: String(effectiveComment || matched.comment || "").trim(),
         appealReason: String(matched.appealReason || "").trim(),
         evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
         qaEvidenceImages: Array.isArray(matched.qaEvidenceImages) ? matched.qaEvidenceImages : [],
       });
 
-      if (isAppealTopicChanged(matched)) {
+      if (isAppealTopicChanged({ ...matched, score: originalScore, revisedScore, revisedComment: effectiveComment })) {
         displayRevisedTopicCodes.push(master.code);
       }
     });
@@ -646,7 +648,7 @@ function applyAppealMapsToCaseItems(
             }) || null,
     };
 
-    if (!mergedAppeal || effectiveStatus === "Rejected") {
+    if (!mergedAppeal || (effectiveStatus === "Rejected" && mergedAppeal.source !== "firebase")) {
       return nextItem;
     }
 

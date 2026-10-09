@@ -9,6 +9,7 @@ import {
 } from "./evaluationStore";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
+import { getAppealTopicDecision } from "./appealReview";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
@@ -460,7 +461,7 @@ async function applyFirebaseAppeals(rows: StoredEvaluation[], excelCaseIds: Set<
     const caseId = normalizeCaseId(item.caseId);
     if (!caseId || excelCaseIds.has(caseId)) return item;
     const request = latest.get(caseId);
-    if (!request || request.status !== "Approved") return item;
+    if (!request || !["Approved", "Partially Approved", "Rejected"].includes(request.status)) return item;
 
     const monthKey = item.evaluationMonthKey || getStoredEvaluationMonthKey(item) || monthKeyFromDate(item.auditDate || item.auditTimestamp);
     const master = getTopicMaster(monthKey);
@@ -468,15 +469,18 @@ async function applyFirebaseAppeals(rows: StoredEvaluation[], excelCaseIds: Set<
     let delta = 0;
 
     (Array.isArray(request.topics) ? request.topics : []).forEach((topic: any) => {
-      const originalScore = numeric(topic?.score) ?? 0;
-      const revisedScore = numeric(topic?.revisedScore);
-      const changed = revisedScore !== null || String(topic?.revisedComment || "").trim() !== "";
+      const decision = getAppealTopicDecision(topic, request.status);
+      if (decision !== "Approved" && !(decision === "Rejected" && topic.originalScore !== undefined)) return;
+      const originalScore = numeric(topic?.originalScore ?? topic?.score) ?? 0;
+      const revisedScore = decision === "Approved" ? numeric(topic?.revisedScore) : numeric(topic?.score);
+      const effectiveComment = decision === "Approved" ? topic?.revisedComment : topic?.retainedComment;
+      const changed = revisedScore !== null || String(effectiveComment || "").trim() !== "";
       if (!changed) return;
-      const effectiveScore = revisedScore ?? originalScore;
+      const effectiveScore = revisedScore ?? numeric(topic?.score) ?? originalScore;
       delta += effectiveScore - originalScore;
       revisedByCode.set(String(topic.code || ""), {
         score: effectiveScore,
-        comment: String(topic.revisedComment || topic.comment || "").trim(),
+        comment: String(effectiveComment || topic.comment || "").trim(),
       });
     });
 

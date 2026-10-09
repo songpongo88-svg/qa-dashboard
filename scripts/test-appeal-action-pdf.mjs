@@ -70,6 +70,21 @@ try {
     assert.ok(!text.includes("PRIVATE_INTERNAL_MESSAGE"), "internal QA/Senior discussion never enters reports");
   }
   console.log("PASS real Main and Appeal PDF render all Actions, old/new reasons, QA revisions, rejected/new topics, long-text pagination and internal discussion exclusion");
+  const retainedRows = [rows[0], { ...rows[1], details: { ...rows[1].details, topics: [{ ...firstReview, revisedScore: 24 }] } }, rows[2], rows[3],
+    event("appeal_request_reviewed", -8, { roundId: "round-2", topics: [{ ...secondTopic, score: 24, originalScore: 18, retainedComment: "FIRST_QA_COMMENT", decision: "Rejected", rejectReason: "KEEP_PREVIOUS_APPROVED_SCORE" }], reviewId: "retained-reject", decision: "Rejected", reviewedAt: at(-8), reviewedBy: "Second QA", reviewSummary: "RETAINED_SUMMARY" }),
+  ];
+  const retainedActions = buildAppealActionHistory(retainedRows, requestId, Date.parse(at(80)));
+  assert.equal(retainedActions[1].topics[0].score, 24);
+  assert.equal(retainedActions[1].reviews[0].finalScore, 94);
+  const retainedCase = { ...caseItem, topics: [topic], appealStatus: "Rejected", revisedTopics: [{ ...topic, score: 24, comment: "FIRST_QA_COMMENT" }], appealReviewedTopics: [{ ...topic, score: 24, decision: "Rejected", comment: "KEEP_PREVIOUS_APPROVED_SCORE" }], appealActionHistory: retainedActions };
+  for (const pdfVariant of ["original", "appeal"]) {
+    globalThis.__actionPdfTexts.length = 0;
+    await generateCasePdfWithAppealHistory({ caseItem: retainedCase, pdfVariant, fallback: generateOfficialCaseDetailPdf });
+    const text = globalThis.__actionPdfTexts.flat(Infinity).join(" ");
+    assert.ok(text.includes("KEEP_PREVIOUS_APPROVED_SCORE") && /Score\s+24\s*\/\s*30/.test(text), `${pdfVariant} PDF shows rejection at the retained 24/30`);
+    assert.ok(text.includes("FIRST_QA_COMMENT") && text.includes("94.00"));
+  }
+  console.log("PASS Main and Appeal PDFs preserve the previous approval and show the rejected additional Action at 24/30 with total 94");
 } finally {
   await rm(temp, { recursive: true, force: true });
   delete globalThis.__actionPdfTexts;

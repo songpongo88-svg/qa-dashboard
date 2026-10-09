@@ -195,7 +195,7 @@ try {
   const firstAction = document.querySelector('[aria-label="Appeal Actions"] [data-appeal-action="1"]');
   assert.ok(firstAction.textContent.includes("Original appeal reason") && firstAction.textContent.includes("First QA comment"));
   assert.equal(firstAction.querySelector("textarea,select,button[aria-pressed]"), null, "old Action is read-only");
-  assert.ok(document.body.textContent.includes("Action 2 — อุทธรณ์เพิ่มเติม"));
+  assert.ok(document.body.textContent.includes("Appeal Reason · Action 2"));
   assert.equal(document.getElementById("appeal-review-summary").value, "", "additional QA summary starts fresh");
   const activeGroup = document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]');
   assert.equal(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 2"]'), null, "unrelated old topic cannot be re-reviewed in this round");
@@ -257,6 +257,54 @@ try {
   }
   console.log("PASS additional Revised Score starts from the latest approved value (24, zero, numeric string), rejected stale values are ignored, and unchanged scores keep the same total");
 
+  fixture.logs = structuredClone(repeatedPending);
+  fixture.logs[1].details.topics[0].revisedScore = 24;
+  fixture.writes = [];
+  await render(qa, { key: "reject-additional-retains-score", externalRequestId: repeatedId });
+  let topicCard = document.querySelector('[data-appeal-topic="1"]');
+  let group = topicCard.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]');
+  assert.equal(topicCard.querySelectorAll('h3').length, 1, "one Topic title serves all rounds");
+  assert.equal([...topicCard.querySelectorAll('div')].filter(node => node.textContent === "Original Comment").length, 1, "original comment is shown once per Topic");
+  assert.deepEqual([...topicCard.querySelectorAll('[data-appeal-action]')].map(node => node.getAttribute('data-appeal-action')), ["1", "2"]);
+  assert.ok(group.parentElement.textContent.includes("24 / 30"), "pending round starts at the latest score before any decision is clicked");
+  await click([...group.querySelectorAll('button')].find(node => node.textContent.includes('Approved')));
+  await select(group.parentElement.querySelector('select'), "26");
+  await click([...group.querySelectorAll('button')].find(node => node.textContent.includes('Reject')));
+  assert.ok(group.parentElement.textContent.includes("24 / 30"), "Reject ignores the unapproved 26 and preserves the prior approved 24");
+  for (const [id, value] of [["reject-reason-1", "No further score change"], ["appeal-review-summary", "Keep the previously approved score"]]) {
+    await act(async () => { const input = document.getElementById(id); input.value = value; Simulate.change(input); });
+  }
+  await click(button("Save Review"));
+  assert.ok(document.querySelector('[role="dialog"]').textContent.includes("คะแนนรวม 88.00 → 88.00 / 100"));
+  await click(button("ยืนยันบันทึก"));
+  const retainedReview = fixture.writes.at(-1);
+  const retainedTopic = retainedReview.details.topics.find(topic => topic.code === "1");
+  assert.equal(retainedTopic.decision, "Rejected");
+  assert.equal(retainedTopic.score, 24);
+  assert.equal(retainedTopic.originalScore, 18);
+  assert.equal(retainedTopic.retainedComment, "First QA comment");
+  assert.ok(!Object.hasOwn(retainedTopic, "revisedScore"), "rejected score edits are not persisted");
+  const retained = buildAppealRequests(fixture.logs)[0];
+  assert.equal(retained.actionHistory[0].topics[0].revisedScore, 24, "prior approval remains unchanged");
+  assert.equal(retained.actionHistory[1].topics[0].score, 24);
+  assert.equal(retained.actionHistory[1].reviews[0].finalScore, 88);
+  await click(button("รับทราบ"));
+  await render(qa, { key: "retained-score-information" });
+  await click([...document.querySelectorAll('tbody tr')].find(node => node.textContent.includes("AA994444")));
+  const currentScoreLabel = [...document.querySelectorAll('div')].find(node => node.textContent === "Current Score");
+  assert.equal(currentScoreLabel.nextElementSibling.textContent, "88.00", "case summary keeps the retained total after saved rejection");
+  await render(qa, { key: "retained-score-edit", externalRequestId: repeatedId });
+  await click(button("แก้ไขผลอุทธรณ์"));
+  topicCard = document.querySelector('[data-appeal-topic="1"]');
+  assert.deepEqual([...topicCard.querySelectorAll('[data-appeal-action]')].map(node => node.getAttribute('data-appeal-action')), ["1", "2"], "editing keeps each Action shown once");
+  assert.ok(topicCard.textContent.includes("No further score change"), "saved QA result stays available while editing");
+  group = topicCard.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]');
+  assert.equal(group.querySelectorAll('button').length, 2, "QA can still choose Approved or Reject when editing an Action");
+  assert.ok(group.parentElement.textContent.includes("24 / 30"), "saved rejection reopens at the retained score");
+  await click([...group.querySelectorAll('button')].find(node => node.textContent.includes('Approved')));
+  assert.equal(group.parentElement.querySelector('select').value, "24");
+  console.log("PASS one Topic card with consecutive Actions and one Original Comment; pending and rejected additional rounds retain 24, ignore unsaved 26, save total 88, and keep QA decision controls");
+
   // A later Action can appeal a different topic. Both rounds must remain
   // visible as consecutive case-level Actions, including for read-only roles.
   const differentId = "appeal-AA994445-test";
@@ -282,13 +330,13 @@ try {
     const [first, second] = actions.querySelectorAll('[data-appeal-action]');
     assert.ok(first.textContent.includes("Original appeal reason") && first.textContent.includes("First QA comment"));
     assert.ok(!first.textContent.includes(newReason.split("\n")[0]), "new reason never overwrites or leaks into the previous Action");
-    assert.ok(newReason.split("\n").every(line => second.textContent.includes(line)) && second.textContent.includes("Answer Accuracy"));
+    assert.ok(newReason.split("\n").every(line => second.textContent.includes(line)) && second.closest('[data-appeal-topic]').textContent.includes("Answer Accuracy"));
     assert.ok(!second.textContent.includes("Original appeal reason"), "new topic belongs only to its own Action");
     assert.ok(!actions.textContent.includes("<div>") && !actions.textContent.includes("&lt;div") && !actions.textContent.includes("<span"), "raw and multiply encoded HTML comments are rendered as readable content");
-    assert.ok(first.textContent.includes("Original topic one"));
-    assert.ok(second.textContent.includes("ตรวจสอบข้อมูล") && second.textContent.includes("คำอธิบายเดิม"));
-    assert.ok(second.querySelector('span[style*="font-weight: bold"]'), "original emphasis is preserved");
-    assert.equal(second.querySelector('script,[onclick]'), null, "HTML is sanitized after entity decoding");
+    assert.ok(first.closest('[data-appeal-topic]').textContent.includes("Original topic one"));
+    assert.ok(second.closest('[data-appeal-topic]').textContent.includes("ตรวจสอบข้อมูล") && second.closest('[data-appeal-topic]').textContent.includes("คำอธิบายเดิม"));
+    assert.ok(second.closest('[data-appeal-topic]').querySelector('span[style*="font-weight: bold"]'), "original emphasis is preserved");
+    assert.equal(second.closest('[data-appeal-topic]').querySelector('script,[onclick]'), null, "HTML is sanitized after entity decoding");
     assert.equal(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]'), null, "old topic is read-only");
     assert.equal(Boolean(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 2"]')), canEdit);
     assert.equal(fixture.writes.length, 0, "displaying Actions does not rewrite any stored event");

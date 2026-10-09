@@ -116,6 +116,59 @@ assert.equal(merged.appealStatus, "Partially Approved");
 assert.deepEqual(baseCase.topics.map(topic => topic.score), [29, 16, 20, 17]);
 console.log("PASS real Dashboard event merge updates only approved topics and crosses KPI 85 using the existing grade policy");
 
+const additionalRetained = { ...reviewEvent, id: "additional-reject", created_at: "2026-10-07T03:10:00Z", details: {
+  ...reviewEvent.details, roundId: "additional-retained", reviewId: "additional-reject", decision: "Partially Approved",
+  topics: result.topics.map(topic => topic.code === "1" ? { ...topic, originalScore: topic.score, score: 31, decision: "Rejected", revisedScore: undefined, revisedComment: "", retainedComment: "Revised 1", rejectReason: "No further adjustment" } : topic),
+} };
+const retainedLogs = [additionalRetained, ...logs];
+const retainedMerge = dashboard.buildApprovedAppealMergeMap(retainedLogs, monthMap);
+const retainedOutcome = dashboard.buildAppealOutcomeMap(retainedLogs, monthMap);
+const retainedCase = dashboard.applyAppealMapsToCaseItems([baseCase], retainedMerge, retainedOutcome)[0];
+assert.equal(retainedCase.finalScore, 86, "rejecting additional evidence preserves previously approved total");
+assert.equal(retainedCase.revisedTopics.find(topic => topic.code === "1").score, 31);
+assert.equal(retainedCase.revisedTopics.find(topic => topic.code === "1").comment, "Revised 1", "operating comment remains the previous approval");
+assert.equal(retainedCase.appealReviewedTopics.find(topic => topic.code === "1").decision, "Rejected");
+assert.equal(retainedCase.appealReviewedTopics.find(topic => topic.code === "1").comment, "No further adjustment", "new rejection reason stays separate");
+const onlyRetained = { ...additionalRetained, details: { ...additionalRetained.details, decision: "Rejected", topics: [additionalRetained.details.topics[0]] } };
+const onlySubmission = { ...submission, details: { ...submission.details, topics: [topics[0]] } };
+const onlyRetainedMap = dashboard.buildApprovedAppealMergeMap([onlyRetained, onlySubmission], monthMap);
+assert.equal(onlyRetainedMap.get(submission.case_id).finalScore, 84, "an all-rejected additional round still applies the retained score delta");
+const onlyRetainedCase = dashboard.applyAppealMapsToCaseItems([baseCase], onlyRetainedMap, dashboard.buildAppealOutcomeMap([onlyRetained, onlySubmission], monthMap))[0];
+assert.equal(onlyRetainedCase.finalScore, 84, "a Rejected latest status must not discard the retained Dashboard score");
+assert.equal(onlyRetainedCase.revisedTopics[0].score, 31);
+assert.equal(onlyRetainedCase.appealStatus, "Rejected");
+console.log("PASS Dashboard, current Case Detail scores and comments preserve prior approvals after additional rejection, including an all-rejected round");
+
+const summary = loadDeclarations("../src/SummaryMockup.tsx", ["buildApprovedAppealMergeMap"], { ...helper, ...requestFunctions });
+const signature = loadDeclarations("../src/SignatureCenterMockup.tsx", ["buildSignatureApprovedAppealMap"], { ...helper, ...requestFunctions });
+const coaching = loadDeclarations("../src/coachingCanonicalStore.ts", ["applyFirebaseAppeals"], {
+  ...helper, ...requestFunctions, ...policy,
+  fetchAppealEvents: async () => globalThis.__scoreConsumerLogs,
+  getStoredEvaluationMonthKey: record => record.evaluationMonthKey,
+});
+const furtherApproved = { ...onlyRetained, details: { ...onlyRetained.details, decision: "Approved", topics: [{ ...onlyRetained.details.topics[0], decision: "Approved", revisedScore: 33, revisedComment: "Further approved" }] } };
+for (const [scenario, consumerLogs, expectedScore, expectedTotal, expectedComment] of [
+  ["mixed additional rejection", retainedLogs, 31, 86, "Revised 1"],
+  ["all-rejected additional round", [onlyRetained, onlySubmission], 31, 84, "Revised 1"],
+  ["additional approval", [furtherApproved, onlySubmission], 33, 86, "Further approved"],
+]) {
+  const summaryResult = summary.buildApprovedAppealMergeMap(consumerLogs, monthMap).get(submission.case_id);
+  assert.equal(summaryResult.finalScore, expectedTotal, `${scenario}: Summary uses original evaluation as the total baseline`);
+  assert.equal(summaryResult.revisedTopics.find(topic => topic.code === "1").score, expectedScore);
+  assert.equal(summaryResult.revisedTopics.find(topic => topic.code === "1").comment, expectedComment);
+  const signatureResult = signature.buildSignatureApprovedAppealMap(consumerLogs).get(submission.case_id);
+  assert.equal(signatureResult.finalScore, expectedTotal, `${scenario}: signature document total`);
+  assert.equal(signatureResult.topics.find(topic => topic.code === "1").score, expectedScore);
+  globalThis.__scoreConsumerLogs = consumerLogs;
+  const coached = (await coaching.applyFirebaseAppeals([{ ...baseCase, evaluationMonthKey: "2026-10" }], new Set()))[0];
+  assert.equal(coached.finalScore, expectedTotal, `${scenario}: coaching score`);
+  assert.equal(coached.topics.find(topic => topic.code === "1").comment, expectedComment);
+  requestFunctions.exportAppealRows(requestFunctions.buildAppealRequests(consumerLogs));
+  assert.equal(globalThis.__exportedAppeals[0]["Final Score"], expectedTotal);
+  assert.equal(globalThis.__exportedAppeals[0].Grade, expectedTotal >= 85 ? "B" : "C");
+}
+console.log("PASS Summary, signature documents, Coaching and exported scores/grades preserve prior approvals on Reject and use cumulative original baselines on a new approval");
+
 const dom = new JSDOM("<div id='root'></div>", { url: "https://qa.test" });
 const keys = ["window", "document", "HTMLElement", "HTMLInputElement", "Event", "MouseEvent", "HTMLTextAreaElement", "HTMLSelectElement", "CustomEvent"];
 const originals = new Map(keys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
