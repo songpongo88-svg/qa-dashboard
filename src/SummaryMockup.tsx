@@ -13,6 +13,7 @@ import {
   type StoredEvaluation,
 } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
+import { getAppealTopicDecision } from "./appealReview";
 import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
 import { getIncentiveByGrade, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
@@ -87,7 +88,7 @@ function buildApprovedAppealMergeMap(
   rawCaseMonthKeyMap: Map<string, string>
 ) {
   const approvedRequests = buildAppealRequests(logs)
-    .filter((item) => item.status === "Approved")
+    .filter((item) => ["Approved", "Partially Approved", "Rejected"].includes(item.status))
     .sort(
       (a, b) =>
         new Date(a.reviewedAt || a.submittedAt || "").getTime() -
@@ -103,18 +104,23 @@ function buildApprovedAppealMergeMap(
     let scoreDelta = 0;
     const revisedTopics = request.topics
       .map((matched) => {
-        if (!matched || !isApprovedAppealTopicChanged(matched)) return null;
+        const decision = getAppealTopicDecision(matched, request.status);
+        if (decision !== "Approved" && !(decision === "Rejected" && matched.originalScore !== undefined)) return null;
         const master = getTopicMasterByMonth(
           rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
         ).find((item) => item.code === matched.code);
         if (!master) return null;
         const revisedScore =
+          decision === "Approved" &&
+          matched.revisedScore !== undefined &&
           matched.revisedScore !== null &&
           matched.revisedScore !== "" &&
           !Number.isNaN(Number(matched.revisedScore))
             ? Number(matched.revisedScore)
             : Number(matched.score || 0);
-        const originalScore = Number(matched.score || 0);
+        const originalScore = Number(matched.originalScore ?? matched.score ?? 0);
+        const effectiveComment = decision === "Approved" ? matched.revisedComment : matched.retainedComment;
+        if (!isApprovedAppealTopicChanged({ ...matched, score: originalScore, revisedScore, revisedComment: effectiveComment })) return null;
         if (Number.isFinite(originalScore) && Number.isFinite(revisedScore)) {
           scoreDelta += revisedScore - originalScore;
         }
@@ -124,7 +130,7 @@ function buildApprovedAppealMergeMap(
           score: revisedScore,
           max: master.max,
           pct: Number(((revisedScore / master.max) * 100).toFixed(2)),
-          comment: String(matched.revisedComment || matched.comment || "").trim(),
+          comment: String(effectiveComment || matched.comment || "").trim(),
         } as Topic;
       })
       .filter(Boolean) as Topic[];

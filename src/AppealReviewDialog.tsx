@@ -17,6 +17,7 @@ export type AppealReviewSavePreview = {
     finalScore: number;
     topics: {
       code: string; label?: string; score: number; max: number; decision?: AppealTopicDecision;
+      originalScore?: number; retainedComment?: string;
       comment?: string; appealReason?: string; revisedScore?: number | string;
       revisedComment?: string; rejectReason?: string;
     }[];

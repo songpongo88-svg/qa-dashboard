@@ -12,7 +12,7 @@ import AppealWorkflowNotice from "./AppealWorkflowNotice";
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy"; // appeal-review-information-newtab-v56
 import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
-import AppealActionTimeline from "./AppealActionTimeline";
+import AppealActionTimeline, { AppealActionReviewHistory } from "./AppealActionTimeline";
 import { buildAppealActionHistory, type AppealAction } from "./appealActionHistory";
 import { RichTextContent } from "./richText";
 
@@ -23,6 +23,8 @@ type AppealTopic = {
   decision?: AppealTopicDecision;
   label: string;
   score: number;
+  originalScore?: number;
+  retainedComment?: string;
   max: number;
   comment?: string;
   wantsAppeal?: boolean;
@@ -598,7 +600,7 @@ function exportAppealRows(requests: AppealRequest[]) {
       "Audit Date": item.auditDate,
       "Week Label": item.weekLabel,
       "Final Score": approvedFinalScore,
-      Grade: item.status !== "Rejected" ? appealGradeFromScore(approvedFinalScore) : item.grade,
+      Grade: appealGradeFromScore(approvedFinalScore),
       "Appeal Decision": item.status,
       "Appeal Version": "Revised 1",
       "Appeal Submit Date & Time": formatDateTime(item.submittedAt),
@@ -808,7 +810,7 @@ export default function AppealRequestsMockup({
     (standaloneRequestId && selectedRequest.requestId === standaloneRequestId)
   ));
   const selectedAppealedTopics = selectedRequest?.topics.filter(isAppealedTopic) || [];
-  const selectedCurrentScore = (selectedRequest?.status === "Approved" || selectedRequest?.status === "Partially Approved")
+  const selectedCurrentScore = (selectedRequest?.status === "Approved" || selectedRequest?.status === "Partially Approved" || selectedRequest?.status === "Rejected")
     ? appealFinalScoreFromTopics(selectedAppealedTopics, selectedRequest.finalScore)
     : selectedRequest?.finalScore || 0;
   const selectedCurrentGrade = selectedRequest
@@ -862,6 +864,11 @@ export default function AppealRequestsMockup({
       return {
         ...(original || topic),
         ...topic,
+        originalScore: original?.originalScore ?? original?.score ?? topic.score,
+        score: latestScore,
+        retainedComment: original?.decision === "Approved"
+          ? original.revisedComment || original.comment || ""
+          : original?.retainedComment || original?.comment || topic.comment || "",
         decision: undefined,
         revisedScore: latestScore,
         revisedComment: "",
@@ -925,6 +932,10 @@ export default function AppealRequestsMockup({
     ? selectedRequest.actionHistory.find(action => action.roundId === selectedRequest.additionalRound?.roundId)
     : selectedRequest?.actionHistory.find(action => action.reviews.some(review => review.reviewId === selectedRequest.reviewId)) || selectedRequest?.actionHistory[0];
   const canReviewTopic = (code: string) => canReview && (!(selectedRequest?.additionalRound || editingReview) || Boolean(currentAction?.topics.some(topic => topic.code === code)));
+  const displayTopics = [...new Map([
+    ...(selectedRequest?.actionHistory.flatMap(action => action.topics) || []), ...draftTopics,
+  ].map(topic => [topic.code, topic])).values()].filter(topic => isAppealedTopic(topic) || selectedRequest?.actionHistory.some(action => action.topics.some(item => item.code === topic.code)))
+    .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
 
   const loadRequests = async () => {
     try {
@@ -1292,6 +1303,7 @@ export default function AppealRequestsMockup({
     const review = preview.review;
     const topicsForReview = review.topics.map(topic => ({
       code: topic.code, label: topic.label, score: topic.score, max: topic.max,
+      ...(topic.originalScore !== undefined ? { originalScore: topic.originalScore, retainedComment: topic.retainedComment || "" } : {}),
       comment: String(topic.comment || ""), wantsAppeal: true,
       appealReason: String(topic.appealReason || ""), decision: topic.decision,
       evidenceImages: Array.isArray(topic.evidenceImages) ? topic.evidenceImages : [],
@@ -1787,19 +1799,31 @@ export default function AppealRequestsMockup({
 
                 <section aria-label="Appeal Actions" className="space-y-4">
                   <div className="text-base font-extrabold text-slate-950">Appeal Actions — ประวัติอุทธรณ์แต่ละรอบ</div>
-                  <AppealActionTimeline actions={selectedRequest.actionHistory} caseId={selectedRequest.caseId} showOriginalComment
-                    excludeActionId={canReview && !editingReview ? currentAction?.actionId : undefined} />
-                  {canReview && <section data-appeal-action={currentAction?.actionNumber || 1} aria-label={`พิจารณา Action ${currentAction?.actionNumber || 1}`} className="rounded-3xl border border-violet-200 bg-white p-5 shadow-sm">
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <h4 className="text-sm font-extrabold text-violet-800">{editingReview ? "แก้ไขผล " : ""}Action {currentAction?.actionNumber || 1} — {currentAction?.roundId ? "อุทธรณ์เพิ่มเติม" : "อุทธรณ์ครั้งแรก"}</h4>
-                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">{editingReview ? "กำลังแก้ไขผล QA" : "รอ QA พิจารณา"}</span>
+                  <div aria-label="รอบอุทธรณ์ของเคส" className="flex flex-wrap gap-3 text-xs text-slate-600">
+                    {selectedRequest.actionHistory.map(action => <span key={action.actionId}>Action {action.actionNumber} · หัวข้อ {action.topics.map(topic => topic.code).join(", ") || "-"}</span>)}
+                  </div>
+                  {displayTopics.map(topic => <section key={topic.code} data-appeal-topic={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 className="text-base font-extrabold text-slate-950">Topic {topic.code} {topic.label}</h3>
+                    <div className="mt-3 border-b border-dashed border-slate-200 pb-4 text-sm leading-6 text-slate-700">
+                      <div className="mb-1 text-xs font-bold text-slate-500">Original Comment</div>
+                      <RichTextContent value={topic.comment} decodeEntities className="break-words" />
                     </div>
-                    <div className="mb-4 text-xs text-slate-600">ผู้ยื่น: {currentAction?.submittedBy || selectedRequest.submittedBy || "-"} · {formatDateTime(currentAction?.submittedAt || selectedRequest.submittedAt)}</div>
-                    <div className="space-y-4">
-                      {draftTopics
-                        .filter(topic => isAppealedTopic(topic) && canReviewTopic(topic.code))
-                        .map((topic) => (
-                        <div key={topic.code} className="rounded-2xl border border-slate-200 p-4">
+                    <AppealActionTimeline actions={selectedRequest.actionHistory} topicCode={topic.code} caseId={selectedRequest.caseId} compact
+                      excludeActionId={canReviewTopic(topic.code) ? currentAction?.actionId : undefined} />
+                    {canReviewTopic(topic.code) && <section data-appeal-action={currentAction?.actionNumber || 1} aria-label={`พิจารณา Action ${currentAction?.actionNumber || 1} หัวข้อ ${topic.code}`} className="border-t border-dashed border-slate-200 pt-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="text-sm font-extrabold text-violet-800">Appeal Reason · Action {currentAction?.actionNumber || 1}</h4>
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">{editingReview ? "กำลังแก้ไขผล QA" : "รอ QA พิจารณา"}</span>
+                      </div>
+                      <div className="mb-3 text-xs text-slate-600">ผู้ยื่น: {currentAction?.submittedBy || selectedRequest.submittedBy || "-"} · {formatDateTime(currentAction?.submittedAt || selectedRequest.submittedAt)}</div>
+                      <RichTextContent value={topic.appealReason} className="whitespace-pre-wrap break-words text-sm leading-6" />
+                      <AppealEvidenceGallery images={topic.evidenceImages || []} caseId={selectedRequest.caseId} startIndex={appealEvidenceStartIndex(selectedRequest.topics, topic.code)} />
+                      {editingReview && Boolean(currentAction?.reviews.length) && <details className="mt-3 text-xs text-slate-600">
+                        <summary className="cursor-pointer font-bold">ผล QA ที่บันทึกไว้ใน Action นี้ ({currentAction?.reviews.length})</summary>
+                        <div className="mt-2"><AppealActionReviewHistory reviews={currentAction?.reviews || []} topicCode={topic.code} caseId={selectedRequest.caseId} /></div>
+                      </details>}
+                      <div className="mt-4 border-t border-dashed border-slate-200 pt-4">
+                        <div className="mb-3 text-xs font-semibold text-violet-800">QA: {currentUser?.agentName || currentUser?.displayName || currentUser?.username || "-"} · {editingReview ? "แก้ไขผล" : "กำลังพิจารณา"} Action {currentAction?.actionNumber || 1}</div>
                         <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label={`ผลพิจารณาหัวข้อ ${topic.code}`}>
                           {(["Approved", "Rejected"] as const).map(value => (
                             <button key={value} type="button" aria-pressed={topic.decision === value}
@@ -1818,8 +1842,7 @@ export default function AppealRequestsMockup({
                         </div>
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div>
-                            <div className="text-base font-extrabold text-slate-950">{topic.code} {topic.label}</div>
-                            <div className="mt-1 text-xs font-semibold text-slate-500">Original {topic.score}/{topic.max}</div>
+                            <div className="text-xs font-semibold text-slate-500">คะแนนก่อนรอบนี้ {topic.score}/{topic.max}</div>
                           </div>
                           {topic.decision === "Approved" ? (
                             <label className="w-44 text-[11px] font-bold uppercase tracking-[0.12em] text-violet-700">
@@ -1841,23 +1864,12 @@ export default function AppealRequestsMockup({
                               </select>
                             </label>
                           ) : (
-                            <div className="min-w-[176px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+                            <div className="min-w-[176px] text-right">
                               <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Score After Review</div>
                               <div className="mt-1 text-lg font-extrabold text-slate-950">{topic.score} / {topic.max}</div>
-                              <div className="mt-1 text-[11px] font-bold text-slate-500">🔒 Original Score</div>
+                              <div className="mt-1 text-[11px] font-bold text-slate-500">🔒 คงคะแนนก่อนรอบนี้</div>
                             </div>
                           )}
-                        </div>
-                        <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                            <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Original Comment</div>
-                            <RichTextContent value={topic.comment} decodeEntities className="break-words" />
-                          </div>
-                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-                            <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-700">Appeal Reason</div>
-                            <RichTextContent value={topic.appealReason} className="whitespace-pre-wrap break-words" />
-                            <AppealEvidenceGallery images={topic.evidenceImages || []} caseId={selectedRequest.caseId} startIndex={appealEvidenceStartIndex(selectedRequest.topics, topic.code)} />
-                          </div>
                         </div>
                         {topic.decision === "Approved" ? (
                           <div className="mt-4">
@@ -1901,7 +1913,7 @@ export default function AppealRequestsMockup({
                               onRemove={id => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: (item.qaEvidenceImages || []).filter(image => image.id !== id) } : item))}
                             />
                             <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-800">
-                              Approve จะนำ Revised Score และ Revised Comment ไปใช้คำนวณและแสดงใน Case Detail
+                              Approve ใช้คะแนนและความเห็นที่ปรับในรอบนี้
                             </div>
                           </div>
                         ) : topic.decision === "Rejected" ? (
@@ -1946,14 +1958,13 @@ export default function AppealRequestsMockup({
                               onRemove={id => setDraftTopics(items => items.map(item => item.code === topic.code ? { ...item, qaEvidenceImages: (item.qaEvidenceImages || []).filter(image => image.id !== id) } : item))}
                             />
                             <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold leading-5 text-rose-800">
-                              Reject Reason ใช้อธิบายผลการพิจารณาเท่านั้น ไม่ถือเป็น Revised Comment และไม่เปลี่ยนคะแนนเดิม
+                              Reject คงคะแนนก่อนเริ่มรอบนี้ และบันทึกเหตุผลแยกจากผลรอบก่อน
                             </div>
                           </div>
                         ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </section>}
+                      </div>
+                    </section>}
+                  </section>)}
                 </section>
 
                 {canDiscuss ? <section aria-label="QA and Senior internal appeal discussion" className="rounded-3xl border border-sky-200 bg-sky-50/70 p-5">

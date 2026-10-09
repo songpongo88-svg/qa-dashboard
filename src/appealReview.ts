@@ -4,6 +4,10 @@ export type AppealDecision = AppealTopicDecision | "Partially Approved";
 type ReviewTopic = {
   code: string;
   score: number;
+  // Additional rounds keep their starting score in `score`, and retain the
+  // original evaluation baseline separately for cumulative calculation.
+  originalScore?: number;
+  retainedComment?: string;
   max: number;
   decision?: AppealTopicDecision;
   revisedScore?: number | string;
@@ -28,10 +32,12 @@ export function summarizeAppealDecisions(topics: Array<{ decision?: unknown }>):
 
 export function appealScoreAfterReview(topics: ReviewTopic[], originalFinalScore: number): number {
   const score = topics.reduce((total, topic) => {
-    if (topic.decision !== "Approved") return total;
+    if (topic.decision !== "Approved" && !(topic.decision === "Rejected" && topic.originalScore !== undefined)) return total;
+    const original = Number(topic.originalScore ?? topic.score);
+    if (topic.decision === "Rejected") return total + Number(topic.score) - original;
     const revised = Number(topic.revisedScore);
     return Number.isFinite(revised) && String(topic.revisedScore ?? "").trim() !== ""
-      ? total + revised - Number(topic.score)
+      ? total + revised - original
       : total;
   }, originalFinalScore);
   return Math.round(score * 100) / 100;

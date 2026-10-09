@@ -1787,7 +1787,7 @@ export default function AppealMockup({
               const requestTopic: any = requestTopicMap.get(master.code);
 
               const originalScore =
-                Number(rawHelper.getValue(rawRow || [], `${master.code} Score`) ?? requestTopic?.score ?? 0) || 0;
+                Number(rawHelper.getValue(rawRow || [], `${master.code} Score`) ?? requestTopic?.originalScore ?? requestTopic?.score ?? 0) || 0;
 
               const originalComment = String(
                 rawHelper.getValue(rawRow || [], `${master.code} Comment`) ??
@@ -1803,14 +1803,14 @@ export default function AppealMockup({
                     requestTopic?.finalScore ??
                     requestTopic?.score ??
                     null
-                  : null;
+                  : requestTopic?.originalScore !== undefined ? requestTopic.score : null;
 
               const revisedCommentCandidate =
                 topicDecision === "Approved"
                   ? requestTopic?.revisedComment ??
                     requestTopic?.comment ??
                     ""
-                  : null;
+                  : requestTopic?.originalScore !== undefined ? requestTopic.retainedComment : null;
 
               const appealReason = String(requestTopic?.appealReason ?? "").trim();
               const rejectReason = String(
@@ -1837,7 +1837,7 @@ export default function AppealMockup({
                 requestTopic?.wantsAppeal === true ||
                 Boolean(appealReason && !isNoAppealReason(appealReason));
               const changed =
-                topicDecision === "Approved" &&
+                (topicDecision === "Approved" || requestTopic?.originalScore !== undefined) &&
                 appealed &&
                 isRealTopicChanged(
                   originalScore,

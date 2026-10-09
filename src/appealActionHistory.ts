@@ -6,6 +6,8 @@ export type AppealActionTopic = {
   code: string;
   label: string;
   score: number;
+  originalScore?: number;
+  retainedComment?: string;
   max: number;
   comment?: string;
   wantsAppeal?: boolean;
@@ -75,6 +77,9 @@ function reviewedTopics(source: AppealActionTopic[], review?: UsageLogEvent) {
     const result = topics(review).find(item => item.code === topic.code);
     return {
       ...topic,
+      score: result?.score ?? topic.score,
+      originalScore: result?.originalScore,
+      retainedComment: result?.retainedComment,
       decision: review ? getAppealTopicDecision(result, review.details?.decision) : undefined,
       revisedScore: result?.revisedScore,
       revisedComment: result?.revisedComment || "",
