@@ -328,17 +328,25 @@ function patchAppealReviewTable() {
   );
   }
 
-  source = replaceOnce(
-    source,
-    `  const resetRequests = requests.filter((item) => item.status === "Reset");\n  const visibleRequests =\n    listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;`,
-    `  const resetRequests = requests.filter((item) => item.status === "Reset");\n  const agentOptions = useMemo(\n    () => [...new Set(requests.map((item) => item.agent).filter(Boolean))].sort((a, b) => a.localeCompare(b)),\n    [requests]\n  );\n  const monthOptions = useMemo(\n    () => [...new Set(requests.map(getAppealReviewMonthKey).filter((item) => item !== "unknown"))].sort((a, b) => b.localeCompare(a)),\n    [requests]\n  );\n  const visibleRequests = useMemo(() => {\n    const keyword = searchCaseId.trim().toUpperCase();\n    return requests\n      .filter((item) => {\n        const lifecycle = item.lastAdditionalStatus;
-        const effectiveStatus = lifecycle === "Pending (Additional)" ? "pending"
-          : lifecycle === "Cancelled (Additional)" ? "cancelled additional"
-          : lifecycle === "Expired (Additional)" ? "expired additional"
-          : item.status.toLowerCase();
-        if (listTab !== "all" && effectiveStatus !== listTab) return false;\n        if (selectedAgentFilter && item.agent !== selectedAgentFilter) return false;\n        if (selectedMonthFilter !== "all" && getAppealReviewMonthKey(item) !== selectedMonthFilter) return false;\n        if (keyword && !item.caseId.toUpperCase().includes(keyword)) return false;\n        return true;\n      })\n      .sort((a, b) => {\n        const timeA = new Date(a.submittedAt).getTime();\n        const timeB = new Date(b.submittedAt).getTime();\n        return (Number.isNaN(timeB) ? 0 : timeB) - (Number.isNaN(timeA) ? 0 : timeA);\n      });\n  }, [requests, listTab, searchCaseId, selectedAgentFilter, selectedMonthFilter]);`,
-    "Appeal Review table filters"
-  );
+  // Compatibility with the latest-round Status filter and agent edit draft workflow.
+  // The source now already provides latestRequestsByCase and visibleRequests.
+  // Keep those semantics rather than replacing them with the old v54 list filter.
+  if (source.includes("const latestRequestsByCase =") && source.includes("const visibleRequests = statusFilter")) {
+    source = source.replace(
+      '  const [statusFilter, setStatusFilter] = useState("Pending");',
+      '  const [statusFilter, setStatusFilter] = useState("Pending");\n  const [selectedAgentFilter, setSelectedAgentFilter] = useState("");\n  const [selectedMonthFilter, setSelectedMonthFilter] = useState("all");\n  const [searchCaseId, setSearchCaseId] = useState("");'
+    );
+    source = source.replace(
+      '  const visibleRequests = statusFilter === "__reviewed"',
+      '  const agentOptions = [...new Set(requests.map(item => item.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b));\n  const monthOptions = [...new Set(requests.map(getAppealReviewMonthKey).filter(item=>item!=="unknown"))].sort((a,b)=>b.localeCompare(a));\n  const visibleRequestsUnfiltered = statusFilter === "__reviewed"'
+    );
+    source = source.replace(
+      'latestRequestsByCase.filter(item => (item.lastAdditionalStatus || item.status) === statusFilter);',
+      'latestRequestsByCase.filter(item => (item.lastAdditionalStatus || item.status) === statusFilter);\n  const visibleRequests = visibleRequestsUnfiltered.filter(item => (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));'
+    );
+  } else {
+    throw new Error("Appeal v54: Expected latest-round Status filter not found");
+  }
 
   source = replaceOnce(
     source,
