@@ -3888,6 +3888,8 @@ function SlideOverCaseDetail({
   const [verifiedImageUrls, setVerifiedImageUrls] = useState<string[]>([]);
   const [verifiedImagePdfUrls, setVerifiedImagePdfUrls] = useState<{ rawUrl: string; url: string; label: string }[]>([]);
   const [appealRequestExists, setAppealRequestExists] = useState(false);
+  const [appealExistingRequest, setAppealExistingRequest] = useState<ReturnType<typeof buildAppealRequests>[number] | null>(null);
+  const [appealAccessBusy, setAppealAccessBusy] = useState(false);
   const [appealAdditionalRound, setAppealAdditionalRound] = useState<{
     requestId: string;
     roundId: string;
@@ -3937,12 +3939,21 @@ function SlideOverCaseDetail({
     isOwnAppealCase &&
     (isAppealWindowOpenLive || appealOverrideAllowed) &&
     !appealRequestExists;
+  const canEditPendingAppeal = isOwnAppealCase && appealExistingRequest?.status === "Pending" && !appealExistingRequest.additionalRound?.submitted;
+  const canEditAdditionalAppeal = isOwnAppealCase && Boolean(appealExistingRequest?.additionalRound?.submitted) && !appealExistingRequest?.editingDraft;
+  const canRequestAdditionalAppeal = isOwnAppealCase && Boolean(appealExistingRequest) &&
+    ["Approved","Rejected","Partially Approved"].includes(appealExistingRequest?.status || "") &&
+    !appealExistingRequest?.additionalRound;
+  const isAdditionalAccessPending = appealExistingRequest?.additionalAccessRequest?.status === "Pending";
+  const canEditExistingAppeal = canEditPendingAppeal || canEditAdditionalAppeal || Boolean(appealExistingRequest?.editingDraft);
   const shouldShowAppealActionV32 =
-    canSubmitAdditionalEvidence ||
+    canSubmitAdditionalEvidence || canEditExistingAppeal || canRequestAdditionalAppeal ||
     (!appealRequestExists && (isOwnAppealCase || isAppealObserverRoleV32));
-  const appealActionDisabledV32 = !(canSubmitAppeal || canSubmitAdditionalEvidence);
+  const appealActionDisabledV32 = !(canSubmitAppeal || canSubmitAdditionalEvidence || canEditExistingAppeal || (canRequestAdditionalAppeal && !isAdditionalAccessPending));
   const appealActionLabelV32 =
-    canSubmitAdditionalEvidence ? "ส่งหลักฐานอุทธรณ์เพิ่มเติม" :
+    canEditExistingAppeal ? "แก้ไขเหตุผลอุทธรณ์" :
+    canSubmitAdditionalEvidence ? "ยื่นอุทธรณ์เพิ่มเติม" :
+    canRequestAdditionalAppeal ? (isAdditionalAccessPending ? "รอ QA อนุมัติสิทธิ์" : "ขอยื่นอุทธรณ์เพิ่มเติม") :
     appealOverrideAllowed && !isAppealWindowOpenLive
       ? "Appeal Override"
       : appealCountdownV32.expired
@@ -3981,6 +3992,8 @@ function SlideOverCaseDetail({
           "appeal_additional_round_cancelled",
           "appeal_additional_round_expired",
           "appeal_additional_evidence_submitted",
+          "appeal_additional_access_requested", "appeal_additional_access_decided",
+          "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
         ], { limit: 2000, forceRefresh: true });
 
         const overrideLogs = await fetchAppealEvents([
@@ -3996,6 +4009,7 @@ function SlideOverCaseDetail({
             String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
         );
         setAppealRequestExists(Boolean(matching));
+        setAppealExistingRequest(matching || null);
         setAppealAdditionalRound(matching?.additionalRound ? {
           requestId: matching.requestId,
           roundId: matching.additionalRound.roundId,
@@ -4019,6 +4033,7 @@ function SlideOverCaseDetail({
       } catch {
         if (!cancelled) {
           setAppealRequestExists(false);
+          setAppealExistingRequest(null);
           setAppealAdditionalRound(null);
           setAppealOverrideAllowed(false);
         }
@@ -4037,16 +4052,17 @@ function SlideOverCaseDetail({
   }, [caseItem.caseId]);
 
   const openAppealSubmitForm = () => {
+    const editingTopics = appealExistingRequest?.activeEditTopics?.length ? appealExistingRequest.activeEditTopics : appealExistingRequest?.additionalRound?.submitted ? appealExistingRequest.additionalRound.topics : appealExistingRequest?.topics;
     setAppealDraftTopics(
-      (canSubmitAdditionalEvidence ? appealAdditionalRound?.topics || [] : caseItem.topics).map((topic) => ({
+      (canEditExistingAppeal && editingTopics?.length ? editingTopics : canSubmitAdditionalEvidence ? appealAdditionalRound?.topics || [] : caseItem.topics).map((topic) => ({
         code: topic.code,
         label: topic.label,
         score: topic.score,
         max: topic.max,
         comment: topic.comment,
-        wantsAppeal: canSubmitAdditionalEvidence,
-        appealReason: canSubmitAdditionalEvidence ? (topic.appealReason || "") : NO_APPEAL_TEXT,
-        evidenceImages: canSubmitAdditionalEvidence ? topic.evidenceImages || [] : [],
+        wantsAppeal: canEditExistingAppeal ? (topic.wantsAppeal ?? Boolean(topic.appealReason)) : canSubmitAdditionalEvidence,
+        appealReason: canEditExistingAppeal || canSubmitAdditionalEvidence ? (topic.appealReason || "") : NO_APPEAL_TEXT,
+        evidenceImages: canEditExistingAppeal || canSubmitAdditionalEvidence ? topic.evidenceImages || [] : [],
       }))
     );
     setAppealSubmitMessage("");
@@ -4054,11 +4070,72 @@ function SlideOverCaseDetail({
     setAppealSubmitOpen(true);
   };
 
+  const saveAppealEditingDraft = async () => {
+    if (!currentUser || !appealExistingRequest?.editingDraft || appealSubmitBusy || appealImageUploads) return;
+    setAppealSubmitBusy(true);
+    try {
+      const saved = await writeAppealEvent(currentUser, "appeal_submission_draft_saved", {
+        tab:"dashboard", case_id:caseItem.caseId, target_agent:caseItem.agent,
+        details: {
+          requestId:appealExistingRequest.requestId,workflowId:crypto.randomUUID(),
+          ...(appealExistingRequest.additionalRound?.submitted ? {roundId:appealExistingRequest.additionalRound.roundId} : {}),
+          topics:appealDraftTopics,savedAt:new Date().toISOString(),
+        }
+      });
+      if (!saved) throw new Error("draft save failed");
+      setAppealExistingRequest(previous=>previous?{...previous,activeEditTopics:appealDraftTopics.map(topic=>({...topic}))}:previous);
+      setAppealSubmitOpen(false);
+      setAppealSubmitMessage("");
+    }catch(error){console.error("Save appeal draft failed",error);setAppealSubmitMessage("บันทึกฉบับร่างไม่สำเร็จ กรุณาลองอีกครั้ง");}
+    finally{setAppealSubmitBusy(false);}
+  };
+
   const closeAppealSubmitForm = () => {
     if (appealImageUploads || appealSubmitBusy) return;
     setAppealSubmitOpen(false);
     setAppealSubmitStep(1);
     setAppealSubmitMessage("");
+  };
+
+  const requestAdditionalAppealAccess = async () => {
+    if (!currentUser || !appealExistingRequest || !canRequestAdditionalAppeal || isAdditionalAccessPending || appealAccessBusy) return;
+    const codesInput = window.prompt("ระบุรหัสหัวข้อที่ต้องการยื่นเพิ่มเติม คั่นด้วยเครื่องหมายจุลภาค เช่น 1.1, 1.5");
+    if (codesInput === null) return;
+    const topicCodes = [...new Set(codesInput.split(",").map(code=>code.trim()).filter(Boolean))];
+    const knownCodes = new Set(caseItem.topics.map(topic=>String(topic.code)));
+    if (!topicCodes.length || topicCodes.some(code=>!knownCodes.has(code))) {
+      window.alert("กรุณาระบุรหัสหัวข้อที่มีอยู่ในเคสนี้ให้ถูกต้อง"); return;
+    }
+    const reason = window.prompt("ระบุเหตุผลที่ขอยื่นอุทธรณ์เพิ่มเติม");
+    if (!reason?.trim()) return;
+    setAppealAccessBusy(true);
+    try {
+      const saved = await writeAppealEvent(currentUser,"appeal_additional_access_requested",{
+        tab:"dashboard",case_id:caseItem.caseId,target_agent:caseItem.agent,
+        details:{requestId:appealExistingRequest.requestId,accessId:crypto.randomUUID(),workflowId:crypto.randomUUID(),caseId:caseItem.caseId,topicCodes,reason:reason.trim(),requestedAt:new Date().toISOString()}
+      });
+      if (!saved) throw new Error("Could not save request");
+      setAppealExistingRequest(previous=>previous ? {...previous,additionalAccessRequest:{requestId:"",reason:reason.trim(),topics:topicCodes,requestedAt:new Date().toISOString(),status:"Pending"}} : previous);
+      window.alert("ส่งคำขอเปิดสิทธิ์ถึง QA แล้ว");
+    } catch(error){console.error("Appeal access request failed",error);window.alert("ส่งคำขอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");}
+    finally{setAppealAccessBusy(false);}
+  };
+
+  const startAppealEdit = async () => {
+    if (!currentUser || !appealExistingRequest || !canEditExistingAppeal || appealAccessBusy) return;
+    if (!appealExistingRequest.editingDraft) {
+      setAppealAccessBusy(true);
+      try {
+        const saved=await writeAppealEvent(currentUser,"appeal_submission_edit_started",{
+          tab:"dashboard",case_id:caseItem.caseId,target_agent:caseItem.agent,
+          details:{requestId:appealExistingRequest.requestId,workflowId:crypto.randomUUID(),roundId:appealExistingRequest.additionalRound?.submitted ? appealExistingRequest.additionalRound.roundId : "",startedAt:new Date().toISOString(),topics:appealExistingRequest.additionalRound?.submitted ? appealExistingRequest.additionalRound.topics : appealExistingRequest.topics}
+        });
+        if(!saved) throw new Error("Unable to start appeal edit");
+        setAppealExistingRequest(previous=>previous?{...previous,editingDraft:true}:previous);
+      }catch(error){console.error(error);window.alert("ไม่สามารถดึงอุทธรณ์กลับมาแก้ไขได้ กรุณาลองอีกครั้ง");return;}
+      finally{setAppealAccessBusy(false);}
+    }
+    openAppealSubmitForm();
   };
 
   const selectedAppealTopics = appealDraftTopics.filter((topic) => topic.wantsAppeal);
@@ -4091,7 +4168,7 @@ function SlideOverCaseDetail({
       return;
     }
 
-    if (!canSubmitAppeal && !canSubmitAdditionalEvidence) {
+    if (!canSubmitAppeal && !canSubmitAdditionalEvidence && !canEditExistingAppeal) {
       setAppealSubmitMessage("This case is not available for appeal submission.");
       return;
     }
@@ -4134,13 +4211,14 @@ function SlideOverCaseDetail({
         }
       }
       const appealSaved = await writeAppealEvent(currentUser,
-        canSubmitAdditionalEvidence ? "appeal_additional_evidence_submitted" : "appeal_request_submitted", {
+        canEditExistingAppeal ? "appeal_submission_resubmitted" : canSubmitAdditionalEvidence ? "appeal_additional_evidence_submitted" : "appeal_request_submitted", {
         tab: "dashboard",
         case_id: caseItem.caseId,
         target_agent: caseItem.agent,
         details: {
-          requestId: canSubmitAdditionalEvidence ? appealAdditionalRound!.requestId : `appeal-${caseItem.caseId}-${Date.now()}`,
+          requestId: canEditExistingAppeal ? appealExistingRequest!.requestId : canSubmitAdditionalEvidence ? appealAdditionalRound!.requestId : `appeal-${caseItem.caseId}-${Date.now()}`,
           ...(canSubmitAdditionalEvidence ? { roundId: appealAdditionalRound!.roundId, submissionId: crypto.randomUUID() } : {}),
+          ...(canEditExistingAppeal ? { workflowId: crypto.randomUUID(), ...(appealExistingRequest?.additionalRound?.submitted ? {roundId: appealExistingRequest.additionalRound.roundId} : {}) } : {}),
           caseId: caseItem.caseId,
           agent: caseItem.agent,
           auditDate: caseItem.auditDate,
@@ -4169,6 +4247,7 @@ function SlideOverCaseDetail({
 
       setAppealRequestExists(true);
       if (canSubmitAdditionalEvidence) setAppealAdditionalRound(previous => previous ? { ...previous, submitted: true } : null);
+      if (canEditExistingAppeal) setAppealExistingRequest(null);
       onAppealSubmitted?.(caseItem.caseId, caseItem.agent, caseItem.monthKey);
       setAppealSubmitOpen(false);
       setAppealSubmitStep(1);
@@ -4714,6 +4793,9 @@ function SlideOverCaseDetail({
                 ยกเลิกและกลับไป Case Detail
               </button>
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                {appealExistingRequest?.editingDraft ? (
+                  <button type="button" disabled={appealSubmitBusy || appealImageUploads > 0} onClick={() => void saveAppealEditingDraft()} className="rounded-xl border border-violet-300 bg-violet-50 px-5 py-2.5 text-sm font-semibold text-violet-800 disabled:opacity-50">บันทึกฉบับร่าง</button>
+                ) : null}
                 {appealSubmitStep > 1 ? (
                   <button
                     type="button"
@@ -4741,7 +4823,7 @@ function SlideOverCaseDetail({
                     disabled={appealSubmitBusy || appealImageUploads > 0}
                     className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
-                    {appealSubmitBusy ? "กำลังส่ง..." : "ยืนยันส่งอุทธรณ์"}
+                    {appealSubmitBusy ? "กำลังส่ง..." : canEditExistingAppeal ? "ส่งอุทธรณ์อีกครั้ง" : "ยืนยันส่งอุทธรณ์"}
                   </button>
                 )}
               </div>
@@ -4841,7 +4923,7 @@ function SlideOverCaseDetail({
                   <CaseActionTooltip text={appealActionTooltipV32}>
                     <button
                       type="button"
-                      onClick={(canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
+                      onClick={canEditExistingAppeal ? ()=>void startAppealEdit() : canRequestAdditionalAppeal && !isAdditionalAccessPending ? ()=>void requestAdditionalAppealAccess() : (canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
                       disabled={appealActionDisabledV32}
                       aria-disabled={appealActionDisabledV32}
                       className={

@@ -59,6 +59,11 @@ export const APPEAL_EVENT_TYPES = new Set([
   "appeal_additional_round_cancelled",
   "appeal_additional_round_expired",
   "appeal_additional_evidence_submitted",
+  "appeal_additional_access_requested",
+  "appeal_additional_access_decided",
+  "appeal_submission_edit_started",
+  "appeal_submission_draft_saved",
+  "appeal_submission_resubmitted",
   "appeal_additional_reason_option_added",
   "appeal_case_override_added",
   "appeal_case_override_removed",
@@ -164,9 +169,11 @@ export async function writeAppealEvent(
   payload: Partial<AppealLogEvent> = {}
 ) {
   if (!user || !isAppealEventType(eventType)) return false;
-  if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return false;
+  if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_access_decided"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return false;
   if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return false;
   if (eventType === "appeal_additional_round_expired") return false; // The scheduled server endpoint alone records expiry.
+  if (["appeal_additional_access_requested", "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted"].includes(eventType) && !String(user.username || "").trim()) return false;
+  if (eventType === "appeal_additional_access_requested" && (!String(payload.details?.requestId || "").trim() || !String(payload.details?.reason || "").trim())) throw new Error("ต้องระบุเคสและเหตุผลที่ขออุทธรณ์เพิ่มเติม");
   if (eventType === "appeal_additional_round_opened" && String(user.role || "") !== "Quality Assurance") return false;
   if (eventType === "appeal_additional_reason_option_added" && String(user.role || "") !== "Quality Assurance") return false;
   if (eventType === "appeal_additional_reason_option_added") {
@@ -207,9 +214,11 @@ export async function writeAppealEvent(
     throw new Error("Appeal evidence submission ID is invalid");
   }
   const reasonOptionId = eventType === "appeal_additional_reason_option_added" ? String(details.optionId || "") : "";
+  const workflowId = ["appeal_additional_access_requested", "appeal_additional_access_decided", "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted"].includes(eventType) ? String(details.workflowId || "") : "";
+  if (workflowId && !/^[a-zA-Z0-9_-]{8,100}$/.test(workflowId)) throw new Error("Invalid appeal workflow event ID");
   const docId = sanitizeId(reasonOptionId
     ? `${eventType}-${reasonOptionId}`
-    : `${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}${roundId ? `-${roundId}` : ""}${submissionId ? `-${submissionId}` : ""}`);
+    : `${eventType}-${requestId}${reviewId ? `-${reviewId}` : ""}${messageId ? `-${messageId}` : ""}${roundId ? `-${roundId}` : ""}${submissionId ? `-${submissionId}` : ""}${workflowId ? `-${workflowId}` : ""}`);
   const reviewerNameCandidates = [user.agentName, user.displayName]
     .map((value) => canonicalizeAgentName(value || ""))
     .filter(Boolean)
