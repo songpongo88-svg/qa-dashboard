@@ -46,12 +46,13 @@ type FetchOptions = number | {
   cacheTtlMs?: number;
   forceRefresh?: boolean;
   requestId?: string;
+  caseId?: string;
 };
 
 const APPEAL_EVENTS_COLLECTION = "qa_appeal_events";
 const DEFAULT_APPEAL_EVENT_LIMIT = 500;
 const MAX_APPEAL_EVENT_LIMIT = 2000;
-const APPEAL_EVENT_READ_CACHE_TTL_MS = 30 * 1000;
+const APPEAL_EVENT_READ_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export const APPEAL_EVENT_TYPES = new Set([
   "appeal_request_submitted",
@@ -117,6 +118,7 @@ function normalizeFetchOptions(options: FetchOptions | undefined) {
     cacheTtlMs,
     forceRefresh: parsed.forceRefresh === true,
     requestId: typeof parsed === "number" ? "" : String(parsed.requestId || "").trim(),
+    caseId: typeof parsed === "number" ? "" : String(parsed.caseId || "").trim(),
   };
 }
 
@@ -386,32 +388,29 @@ export async function fetchAppealEvents(
   const cleanEventTypes = eventTypes.map((item) => item.trim()).filter(isAppealEventType);
   if (!cleanEventTypes.length) return [];
 
-  const { limit, offset, cacheTtlMs, forceRefresh, requestId } = normalizeFetchOptions(options);
+  const { limit, offset, cacheTtlMs, forceRefresh, requestId, caseId } = normalizeFetchOptions(options);
   const sortedTypes = [...cleanEventTypes].sort().join(",");
   const scopedLimit = Math.min(limit + offset, 250);
 
   return cachedAppealEventRequest(
-    `firebase-appeal-events:${sortedTypes}:${limit}:${offset}:${requestId}`,
+    `firebase-appeal-events:${sortedTypes}:${limit}:${offset}:${requestId}:${caseId}`,
     cacheTtlMs,
     forceRefresh,
     async () => {
       // Approval checks only the selected request, not the last 2,000 events
       // for every agent. A one-field equality query avoids composite indexes.
       const snapshot = await getDocs(requestId
-        ? query(
-          collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
-          where("details.requestId", "==", requestId),
-          firestoreLimit(scopedLimit)
-        )
-        : query(
-          collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
-          orderBy("created_at", "desc"),
-          firestoreLimit(limit + offset)
-        )
+        ? query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+          where("details.requestId", "==", requestId), firestoreLimit(scopedLimit))
+        : caseId
+          ? query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+            where("case_id", "==", caseId), firestoreLimit(scopedLimit))
+          : query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+            orderBy("created_at", "desc"), firestoreLimit(limit + offset))
       );
       // Never approve from an incomplete history; a missing Reset or newer
       // approval would make the authorization check unsafe.
-      if (requestId && snapshot.docs.length === scopedLimit) {
+      if ((requestId || caseId) && snapshot.docs.length === scopedLimit) {
         throw new Error("คำขอนี้มีประวัติมากเกินขีดจำกัด กรุณาติดต่อ QA เพื่อตรวจสอบก่อนอนุมัติ");
       }
       const events = snapshot.docs
