@@ -24,7 +24,7 @@ const storeMock = `
   export async function fetchAdditionalAppealReasonOptions(){return []}
   export async function fetchAssignedAppealRequestIds(){return globalThis.__workflowFixture.assigned}
   export async function fetchAppealDiscussionEvents(){globalThis.__workflowFixture.discussionReads=(globalThis.__workflowFixture.discussionReads||0)+1;return []}
-  export async function writeAppealEvent(user,event_type,payload){const event={...payload,event_type,created_at:new Date().toISOString()};globalThis.__workflowFixture.logs.push(event);globalThis.__workflowFixture.writes.push(event);return true}
+  export async function writeAppealEvent(user,event_type,payload){const event={...payload,event_type,created_at:new Date().toISOString()};const f=globalThis.__workflowFixture;f.logs.push(event);f.writes.push(event);if(f.failAfterReview&&event_type==='appeal_request_reviewed'){f.failAfterReview=false;throw new Error('acknowledgement lost')}return true}
   export async function writeAdditionalAppealAccessDecision(user,decision,round){
     const fixture=globalThis.__workflowFixture;if(fixture.fail){fixture.fail=false;throw new Error('offline')}
     const at=new Date().toISOString();const events=[{...decision,event_type:'appeal_additional_access_decided',created_at:at},...(round?[{...round,event_type:'appeal_additional_round_opened',created_at:at}]:[])];
@@ -206,7 +206,14 @@ try {
     await act(async () => { const input = document.getElementById(id); input.value = value; Simulate.change(input); });
   }
   await click(button("Save Review"));
+  fixture.failAfterReview = true;
   await click(button("ยืนยันบันทึก"));
+  const savedAdditionalWrites = fixture.writes.length;
+  assert.ok(document.querySelector('[role="alertdialog"]').textContent.includes("บันทึกผลอุทธรณ์ไม่สำเร็จ"));
+  await click(button("กลับไปตรวจสอบ"));
+  await click(button("ยืนยันบันทึก"));
+  assert.equal(fixture.writes.length, savedAdditionalWrites, "additional review retry recognizes its saved result after the round closes and does not append a duplicate");
+  assert.ok(document.querySelector('[role="dialog"]').textContent.includes("บันทึกผลอุทธรณ์เรียบร้อย"));
   const secondResult = fixture.writes.at(-1);
   assert.equal(secondResult.details.roundId, repeatedRound);
   assert.deepEqual(secondResult.details.actionTopicCodes, ["1"]);

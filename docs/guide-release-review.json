@@ -1,12 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-09T15:50:45.776Z",
-  "reason": "Additional appeal rejection retains the previously approved score across cases, summaries and reports; each Topic now presents one chronological card with QA controls and complete review history",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "case-detail",
-    "appeal-review"
-  ],
+  "reviewedAt": "2026-10-11T01:44:35.596Z",
+  "reason": "Verified the existing Appeal Review steps: complete summaries save using stored appeal metadata rather than Case Detail display dates; fresh checks remain scoped to the request and genuine changes, Reset and safe retries stay protected",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -296,8 +293,8 @@
     "scripts/sync-v13-rowdata.mjs": "a777f7348ca4bf130904421f22b029d7e61ceecb9b3b41f193eef2a050859567",
     "scripts/test-appeal-action-pdf.mjs": "bcd58283577848a55435ae44af2a4df10325d841377c137e4be6e1e973445ab6",
     "scripts/test-appeal-evidence-upload.mjs": "f24c2fa08ad45e2e1162c04433ac087d6eaa257ec6690851d4a1fb4db77d16e6",
-    "scripts/test-appeal-topic-review.mjs": "7c062c316153604b49766e45d12a762d7792f4add21e2b111ff451487c8bacfd",
-    "scripts/test-appeal-workflow.mjs": "e04abb01995a465b23dbd5c974d3f04080d699d9b689e2a5eb20e5092840b055",
+    "scripts/test-appeal-topic-review.mjs": "787105adec13dab954f56ec5b23f03ecf878dc11c05b7c79604d2af7ae1e90f9",
+    "scripts/test-appeal-workflow.mjs": "4a2ddd0cb1a0f8a3569db9ea7a73503ecdd5914a0fe2747f7f5157d38377e44a",
     "scripts/test-bulk-monthly-pdf.mjs": "821bb390d76448f1404b8963ccc985f94544fab1f8bea8fa74063632122cf151",
     "scripts/test-call-recording-save.mjs": "aa0426966c535350965505aab2873978d65743c342f6d0b05de7717dda62c73f",
     "scripts/test-case-issue-tags-pdf.mjs": "6f835314097f820f3628f41694090a18bdd3653e63462192e5b832e89ed1f1fd",
@@ -326,8 +323,8 @@
     "src/AppealEvidence.tsx": "5e5343841af4e913382e1864d61ef3f36e9c700e28066686568f2ad9a5cc588a",
     "src/AppealMockup.tsx": "647942473e453d38a5adba307f3374cf7a410037a907ccf55076bbd924f04d8e",
     "src/AppealOverrideMockup.tsx": "aa0cbff6f56159984254fc36726953dd79674d1c87fea0e3fff67410685a4445",
-    "src/AppealRequestsMockup.tsx": "6780e3aac429ba3d6603f1f0d3ae6793566c7def60471c301284764a88db4c71",
-    "src/AppealReviewDialog.tsx": "40a279c85e42355492904937d999b15056ec2d737913943d77601ea9e3675d6a",
+    "src/AppealRequestsMockup.tsx": "13acca639552ae133b93d532c14d3811dabe4fc87063b1a923237da31390c26c",
+    "src/AppealReviewDialog.tsx": "809a6b451f9fdf2b1611c9b5d8f04ab2f1da13ce30eb4369ddf8a25f15565e55",
     "src/AppealScoreHoldNotice.tsx": "efad66ceace2acc153516f5aec423a51934b6ec36651a76afabf016c0075caf8",
     "src/AppealWorkflowNotice.tsx": "cae944a8e28f8db54039da79cdc1389526700d568635e3001610e5acaf9d3df8",
     "src/AutoDeployRefresh.tsx": "1e7cb76eb6f7f5dc368f109fbae6a02afd67b3782e07f86c3b9a2e97f259ffab",
