@@ -3,6 +3,8 @@ import { getAppealTopicDecision } from "./appealReview";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { richTextToPlainText } from "./richText";
 import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
+import { latestTopicAppealReview, topicAppealActions } from "./appealActionPdfHtml";
+import type { AppealAction } from "./appealActionHistory";
 
 type PdfVariant = "original" | "appeal";
 
@@ -132,6 +134,8 @@ export async function generateCasePdfWithAppealHistory({
   const reviewedTopics = Array.isArray(caseItem.appealReviewedTopics) ? caseItem.appealReviewedTopics : [];
   const revisedMap = new Map(revisedTopics.map((topic: any) => [String(topic?.code), topic]));
   const reviewedMap = new Map(reviewedTopics.map((topic: any) => [String(topic?.code), topic]));
+  const actions: AppealAction[] = Array.isArray(caseItem.appealActionHistory) ? caseItem.appealActionHistory : [];
+  const latestActionReview = actions.flatMap(action => action.reviews).slice().sort((a, b) => (Date.parse(a.reviewedAt) || 0) - (Date.parse(b.reviewedAt) || 0)).at(-1);
   const revisedCodes = new Set((caseItem.displayRevisedTopicCodes || []).map((code: unknown) => String(code)));
   const appealTopicUpdates: Array<{
     code: string;
@@ -143,9 +147,9 @@ export async function generateCasePdfWithAppealHistory({
   const originalFinalScore = hasPreviousScore
     ? Number(caseItem.previousScore)
     : calculatedOriginal || numeric(caseItem.finalScore);
-  const revisedFinalScore = approved ? numeric(caseItem.finalScore, originalFinalScore) : originalFinalScore;
+  const revisedFinalScore = latestActionReview ? numeric(latestActionReview.finalScore, numeric(caseItem.finalScore, originalFinalScore)) : approved ? numeric(caseItem.finalScore, originalFinalScore) : originalFinalScore;
   const originalGrade = scoreToGrade(originalFinalScore, caseItem.monthKey);
-  const revisedGrade = approved
+  const revisedGrade = latestActionReview ? scoreToGrade(revisedFinalScore, caseItem.monthKey) : approved
     ? String(caseItem.grade || scoreToGrade(revisedFinalScore, caseItem.monthKey))
     : originalGrade;
   const appealAdmin = plain(caseItem.appealSubmittedBy || caseItem.agent, "-");
@@ -157,7 +161,11 @@ export async function generateCasePdfWithAppealHistory({
     const code = String(topic?.code);
     const revised = revisedMap.get(code) as any;
     const reviewed = reviewedMap.get(code) as any;
+    const latestReview = latestTopicAppealReview(actions, code);
+    const latestTopic = latestReview?.topics.find(row => String(row.code) === code);
+    const hasTopicHistory = topicAppealActions(actions, code).length > 0;
     const isAppealedTopic = Boolean(
+      hasTopicHistory ||
       reviewed ||
       revisedCodes.has(code) ||
       changedTopic(topic, revised)
@@ -167,10 +175,10 @@ export async function generateCasePdfWithAppealHistory({
     const topicDecision = getAppealTopicDecision(reviewed, status);
     const topicApproved = topicDecision === "Approved";
     const originalTopicScore = numeric(topic?.score);
-    const revisedTopicScore = topicApproved && revised && hasValue(revised.score)
+    const revisedTopicScore = latestTopic ? numeric(latestTopic.decision === 'Approved' ? latestTopic.revisedScore ?? latestTopic.score : latestTopic.score, originalTopicScore) : topicApproved && revised && hasValue(revised.score)
       ? numeric(revised.score, originalTopicScore)
       : originalTopicScore;
-    const maxScore = numeric(revised?.max, numeric(topic?.max));
+    const maxScore = numeric(latestTopic?.max, numeric(revised?.max, numeric(topic?.max)));
     const appealReason = plain(
       reviewed?.appealReason || revised?.appealReason,
       "ไม่พบ Appeal Reason"
@@ -196,7 +204,7 @@ export async function generateCasePdfWithAppealHistory({
       "<div><strong>Original Comment</strong></div>",
       `<div>${pdfHtml(topic?.comment)}</div>`,
       caseIssueTagsPdfHtml(tagTopic?.issueTags ?? topic?.issueTags),
-      "<hr>",
+      ...(!hasTopicHistory ? ["<hr>",
       `<div><strong>Admin: ${pdfHtml(appealAdmin)}</strong></div>`,
       `<div><strong>Appeal Submit: ${pdfHtml(appealSubmit || "-")}</strong></div>`,
       `<div><span style="color:#dc2626"><strong>Appeal Reason</strong><br>${pdfHtml(appealReason)}</span></div>`,
@@ -205,6 +213,7 @@ export async function generateCasePdfWithAppealHistory({
       `<div><strong>Appeal Result: ${pdfHtml(appealResult || "-")}</strong></div>`,
       `<div><strong>Decision: ${topicDecision || "-"}</strong></div>`,
       `<div><span style="color:#dc2626"><strong>${revisedLabel}</strong><br>${pdfHtml(revisedComment)}</span></div>`,
+      ] : []),
     ].join("");
 
     return {
@@ -261,7 +270,10 @@ export async function generateCasePdfWithAppealHistory({
       caseItem: {
         ...caseItem,
         monthLabel: caseItem.monthLabel,
-        topics: originalTopics,
+        topics: originalTopics.map((topic: any) => ({
+          ...topic,
+          pdfAppealDetailHtml: updatedTopics.find((row: any) => String(row.code) === String(topic.code))?.comment,
+        })),
         revisedTopics,
         appealReviewedTopics: reviewedTopics,
         displayRevisedTopicCodes: Array.from(new Set([

@@ -22,3 +22,4 @@
 .mc-pdf-tooltip{position:fixed;z-index:10000;width:312px;max-width:calc(100vw - 16px);padding:10px 12px;border-radius:8px;background:#173b59;color:#fff;box-shadow:0 4px 14px #173b5933;font:12px/1.6 CoachingKanit,Kanit,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;pointer-events:none}
 .mc-roster .mc-tabs button{font-size:11px;padding:8px 4px}
 .mc-agenda-row textarea{font-size:11px;padding:4px 20px 4px 5px;min-height:29px}
+.mc-avatar{overflow:hidden}.mc-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
