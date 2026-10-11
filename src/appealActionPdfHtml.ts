@@ -5,7 +5,7 @@ import { richTextToPlainText } from './richText';
 const html = (value: unknown) => richTextToPlainText(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;').replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
 const field = (label: string, value: unknown) => `<div><strong>${label}: ${html(value || '-')}</strong></div>`;
 const body = (label: string, value: unknown) => `<div><span style="color:#dc2626"><strong>${label}</strong><br>${html(value || '-')}</span></div>`;
-const separator = '<div><br></div><div style="color:#94a3b8">- - - - - - - - - - - - - - -</div><div><br></div>';
+const separator = '<hr>';
 const topicIn = (rows: AppealActionTopic[], code: string) => rows.find(topic => String(topic.code) === code);
 
 export function topicAppealActions(actions: readonly AppealAction[], code: string) {

@@ -70,7 +70,7 @@ try {
     let renderedCase;
     const generated = await generateCasePdfWithAppealHistory({ caseItem, pdfVariant, fallback: input => { renderedCase = input.caseItem;return generateOfficialCaseDetailPdf(input); } });
     assert.ok(generated.blob.size > 10000, "real PDF bytes generated");
-    assert.ok(globalThis.__actionPdfDoc.getNumberOfPages() >= 3, "long reasons paginate");
+    assert.ok(globalThis.__actionPdfDoc.getNumberOfPages() >= 2, "long reasons paginate with compact separators");
     const text = globalThis.__actionPdfTexts.flat(Infinity).join(" ");
     for (const expected of ["ORIGINAL_EVALUATION", "ขั้นตอนการทำงานเดิม", "เนื่องจากไรเดอร์ถามแค่งานไม่เข้า", "Action 1", "Action 2", "Action 3", "Action 4", "Action 5", "FIRST_APPEAL_REASON", "SECOND_APPEAL_REASON", "FINAL_REASON_LINE", "FIRST_QA_COMMENT", "SECOND_QA_COMMENT", "CORRECTED_SECOND_QA_COMMENT", "THIRD_QA_REJECT_REASON"]) {
       assert.ok(text.replace(/\s/g, '').includes(expected.replace(/\s/g, '')), `${pdfVariant} PDF preserves ${expected}`);

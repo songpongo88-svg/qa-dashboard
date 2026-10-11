@@ -1105,7 +1105,7 @@ export async function generateOfficialCaseDetailPdf({
     if (topicHistory) {
       const historyLines = layoutRichTextLines(topicHistory, wOf(includeAppeal ? 7 : 6), SMALL_BODY_TEXT_SIZE);
       if (includeAppeal) { appealLines.splice(0, appealLines.length, ...historyLines);commentLines.length = 0; }
-      else commentLines.push([], ...historyLines);
+      else commentLines.push(...historyLines);
     }
 
     let commentIndex = 0;
