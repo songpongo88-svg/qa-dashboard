@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { JSDOM } from "jsdom";
 
 const temp = await mkdtemp(resolve(".appeal-action-pdf-test-"));
+const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://pdf.test/' });
+for (const key of ['document', 'DOMParser', 'Node']) globalThis[key] = dom.window[key];
 globalThis.__actionPdfTexts = [];
+globalThis.__actionPdfPositions = [];
+globalThis.__actionPdfImages = [];
+const productionTemplate = (await readFile(resolve('src/caseDetailOfficialPdf.ts'), 'utf8')).includes('case-main-pdf-original-template-v34');
 try {
   const output = resolve(temp, "actions.mjs");
   await build({
@@ -17,7 +23,7 @@ try {
         import {createRequire} from 'node:module';
         const {jsPDF:RealPdf}=createRequire(import.meta.url)('jspdf');
         export class jsPDF extends RealPdf {
-          constructor(...args){super(...args);const text=this.text.bind(this);this.text=(value,...rest)=>{globalThis.__actionPdfTexts.push(value);return text(value,...rest)};globalThis.__actionPdfDoc=this;}
+          constructor(...args){super(...args);const text=this.text.bind(this);this.text=(value,...rest)=>{globalThis.__actionPdfTexts.push(value);globalThis.__actionPdfPositions.push({value:String(value),x:rest[0],y:rest[1],page:this.getCurrentPageInfo().pageNumber});return text(value,...rest)};const addImage=this.addImage.bind(this);this.addImage=(...args)=>{globalThis.__actionPdfImages.push(args);return addImage(...args)};globalThis.__actionPdfDoc=this;}
         }
       ` }));
     } }],
@@ -25,7 +31,7 @@ try {
   const { buildAppealActionHistory, generateOfficialCaseDetailPdf, generateCasePdfWithAppealHistory } = await import(pathToFileURL(output).href);
   const requestId = "appeal-AA304253-fixture";
   const at = hours => new Date(Date.parse("2026-10-09T00:00:00Z") + hours * 3600000).toISOString();
-  const topic = { code: "1", label: "Process", score: 18, max: 30, comment: "ORIGINAL_EVALUATION", wantsAppeal: true, appealReason: "FIRST_APPEAL_REASON\nSecond line" };
+  const topic = { code: "1", label: "Process", score: 18, max: 30, comment: "ORIGINAL_EVALUATION ขั้นตอนการทำงานเดิม", wantsAppeal: true, appealReason: "FIRST_APPEAL_REASON\nเนื่องจากไรเดอร์ถามแค่งานไม่เข้า\nSecond line" };
   const event = (event_type, hours, details) => ({ event_type, created_at: at(hours), case_id: "AA304253", target_agent: "Fixture Agent", details: { requestId, ...details } });
   const firstReview = { ...topic, decision: "Approved", revisedScore: 20, revisedComment: "FIRST_QA_COMMENT" };
   const secondTopic = { ...topic, appealReason: "SECOND_APPEAL_REASON\n" + Array.from({ length: 90 }, (_, index) => `Evidence line ${index + 1}`).join("\n") + "\nFINAL_REASON_LINE" };
@@ -60,14 +66,30 @@ try {
   const caseItem = { caseId: "AA304253", agent: "Fixture Agent", monthKey: "2026-09", auditDate: "09/10/2026", finalScore: 94, previousScore: 88, grade: "A", appealStatus: "Partially Approved", reviewStatus: "Revised", topics: [topic, other], revisedTopics: [{ ...topic, score: 24, comment: "CORRECTED_SECOND_QA_COMMENT" }], appealReviewedTopics: [{ ...topic, decision: "Approved", comment: "CORRECTED_SECOND_QA_COMMENT" }, { ...other, decision: "Rejected", comment: "THIRD_QA_REJECT_REASON" }], displayRevisedTopicCodes: ["1"], appealActionHistory: actions };
   for (const pdfVariant of ["original", "appeal"]) {
     globalThis.__actionPdfTexts.length = 0;
-    const generated = await generateCasePdfWithAppealHistory({ caseItem, pdfVariant, fallback: generateOfficialCaseDetailPdf });
+    globalThis.__actionPdfPositions.length = 0;
+    let renderedCase;
+    const generated = await generateCasePdfWithAppealHistory({ caseItem, pdfVariant, fallback: input => { renderedCase = input.caseItem;return generateOfficialCaseDetailPdf(input); } });
     assert.ok(generated.blob.size > 10000, "real PDF bytes generated");
     assert.ok(globalThis.__actionPdfDoc.getNumberOfPages() >= 3, "long reasons paginate");
     const text = globalThis.__actionPdfTexts.flat(Infinity).join(" ");
-    for (const expected of ["Action 1", "Action 2", "Action 3", "Action 4", "Action 5", "FIRST_APPEAL_REASON", "SECOND_APPEAL_REASON", "FINAL_REASON_LINE", "FIRST_QA_COMMENT", "SECOND_QA_COMMENT", "CORRECTED_SECOND_QA_COMMENT", "THIRD_QA_REJECT_REASON", "94.00"]) {
-      assert.ok(text.includes(expected), `${pdfVariant} PDF preserves ${expected}`);
+    for (const expected of ["ORIGINAL_EVALUATION", "ขั้นตอนการทำงานเดิม", "เนื่องจากไรเดอร์ถามแค่งานไม่เข้า", "Action 1", "Action 2", "Action 3", "Action 4", "Action 5", "FIRST_APPEAL_REASON", "SECOND_APPEAL_REASON", "FINAL_REASON_LINE", "FIRST_QA_COMMENT", "SECOND_QA_COMMENT", "CORRECTED_SECOND_QA_COMMENT", "THIRD_QA_REJECT_REASON"]) {
+      assert.ok(text.replace(/\s/g, '').includes(expected.replace(/\s/g, '')), `${pdfVariant} PDF preserves ${expected}`);
     }
+    assert.equal(pdfVariant === 'original' ? renderedCase.pdfReportScoreOverride : renderedCase.finalScore, 94, 'latest review supplies the total score');
+    if (productionTemplate || pdfVariant === 'appeal') assert.ok(text.includes('94.00'), 'production report header renders the latest total');
     assert.ok(!text.includes("PRIVATE_INTERNAL_MESSAGE"), "internal QA/Senior discussion never enters reports");
+    assert.ok(!text.includes('Initial Appeal') && !text.includes('Additional Appeal') && !text.includes('Score after review'), 'no duplicate purple Action appendix');
+    const actionLabels = globalThis.__actionPdfPositions.filter(row =>  /Action \d+\b/.test(row.value));
+    assert.deepEqual(actionLabels.map(row => Number(row.value.match(/Action (\d+)/)[1])), [1, 2, 4, 5, 3], 'Actions stay ordered inside their own topic');
+    assert.ok(actionLabels.every(row => row.x > globalThis.__actionPdfDoc.internal.pageSize.getWidth() / 2), 'Action headings render in the existing topic detail column');
+    assert.equal((text.replace(/\s/g, '').match(/ORIGINAL_EVALUATION/g) || []).length, 1, 'original evaluation stays once in the topic');
+    assert.equal((text.replace(/\s/g, '').match(/FIRST_APPEAL_REASON/g) || []).length, 1, 'old appeal reason appears once');
+    assert.equal((text.replace(/\s/g, '').match(/SECOND_APPEAL_REASON/g) || []).length, 1, 'additional appeal reason appears once');
+    for (let index = 1; index <= 90; index++) assert.ok(text.replace(/\s/g, '').includes(`Evidenceline${index}`), `long appeal line ${index} survives pagination`);
+    if (process.env.ACTION_PDF_CHECK_DIR) {
+      await mkdir(process.env.ACTION_PDF_CHECK_DIR, { recursive: true });
+      await writeFile(resolve(process.env.ACTION_PDF_CHECK_DIR, `fixture-${pdfVariant}.pdf`), new Uint8Array(await generated.blob.arrayBuffer()));
+    }
   }
   console.log("PASS real Main and Appeal PDF render all Actions, old/new reasons, QA revisions, rejected/new topics, long-text pagination and internal discussion exclusion");
   const retainedRows = [rows[0], { ...rows[1], details: { ...rows[1].details, topics: [{ ...firstReview, revisedScore: 24 }] } }, rows[2], rows[3],
@@ -79,14 +101,43 @@ try {
   const retainedCase = { ...caseItem, topics: [topic], appealStatus: "Rejected", revisedTopics: [{ ...topic, score: 24, comment: "FIRST_QA_COMMENT" }], appealReviewedTopics: [{ ...topic, score: 24, decision: "Rejected", comment: "KEEP_PREVIOUS_APPROVED_SCORE" }], appealActionHistory: retainedActions };
   for (const pdfVariant of ["original", "appeal"]) {
     globalThis.__actionPdfTexts.length = 0;
-    await generateCasePdfWithAppealHistory({ caseItem: retainedCase, pdfVariant, fallback: generateOfficialCaseDetailPdf });
+    let renderedCase;
+    await generateCasePdfWithAppealHistory({ caseItem: retainedCase, pdfVariant, fallback: input => { renderedCase = input.caseItem;return generateOfficialCaseDetailPdf(input); } });
     const text = globalThis.__actionPdfTexts.flat(Infinity).join(" ");
-    assert.ok(text.includes("KEEP_PREVIOUS_APPROVED_SCORE") && /Score\s+24\s*\/\s*30/.test(text), `${pdfVariant} PDF shows rejection at the retained 24/30`);
-    assert.ok(text.includes("FIRST_QA_COMMENT") && text.includes("94.00"));
+    assert.ok(text.replace(/\s/g, '').includes('KEEP_PREVIOUS_APPROVED_SCORE') && /Score\s+24\s*\/\s*30/.test(text), `${pdfVariant} PDF shows rejection at the retained 24/30`);
+    assert.ok(text.includes("FIRST_QA_COMMENT"));
+    assert.equal(pdfVariant === 'original' ? renderedCase.pdfReportScoreOverride : renderedCase.finalScore, 94);
+    if (productionTemplate || pdfVariant === 'appeal') assert.ok(text.includes('94.00'));
   }
   console.log("PASS Main and Appeal PDFs preserve the previous approval and show the rejected additional Action at 24/30 with total 94");
+  const withEvidence = structuredClone(actions);
+  const image = id => ({ id, width: 40, height: 40, name: `${id}.png` });
+  withEvidence[0].submissions[0].topics[0].evidenceImages = [image('appeal_one')];
+  withEvidence[1].submissions[0].topics[0].evidenceImages = [image('appeal_two')];
+  withEvidence[1].submissions.unshift({ submittedBy: 'Earlier Submitter', submittedAt: at(-9.5), topics: [{ ...secondTopic, appealReason: 'EARLIER_SAVED_REASON', evidenceImages: [image('appeal_earlier')] }] });
+  withEvidence[1].reviews[0].topics[0].qaEvidenceImages = [image('qa_two')];
+  const actualFetch = globalThis.fetch;
+  const imageBytes = await readFile(resolve('public/robinhood-logo.png'));
+  globalThis.FileReader = dom.window.FileReader;
+  try {
+    for (const pdfVariant of ['original', 'appeal']) {
+      const imageReads = [];
+      globalThis.fetch = async url => { imageReads.push(new URL(url, 'https://pdf.test').searchParams.get('id'));return { ok: true, blob: async () => new dom.window.Blob([imageBytes], { type: 'image/png' }) }; };
+      globalThis.__actionPdfTexts.length = 0;
+      globalThis.__actionPdfImages.length = 0;
+      await generateCasePdfWithAppealHistory({ caseItem: { ...caseItem, appealActionHistory: withEvidence }, pdfVariant, fallback: generateOfficialCaseDetailPdf });
+      assert.deepEqual(imageReads, ['appeal_one', 'appeal_earlier', 'appeal_two', 'qa_two'], 'each saved submission and QA image is fetched once in its own Action');
+      assert.equal(globalThis.__actionPdfImages.length, 4, 'all original, additional, earlier submission and QA evidence embeds in the real PDF');
+      assert.ok(globalThis.__actionPdfTexts.flat(Infinity).join('').replace(/\s/g, '').includes('EARLIER_SAVED_REASON'), 'earlier saved submission text is retained inline');
+    }
+  } finally { globalThis.fetch = actualFetch;delete globalThis.FileReader; }
+  console.log('PASS Main and Appeal PDFs retain every submitted and QA evidence image without duplicate text or missing saved submissions');
 } finally {
   await rm(temp, { recursive: true, force: true });
   delete globalThis.__actionPdfTexts;
   delete globalThis.__actionPdfDoc;
+  delete globalThis.__actionPdfPositions;
+  delete globalThis.__actionPdfImages;
+  dom.window.close();
+  for (const key of ['document', 'DOMParser', 'Node']) delete globalThis[key];
 }

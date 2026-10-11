@@ -78,7 +78,7 @@ try {
   const waiting = projected.find(row => appealWorkflowStatus(row) === "Awaiting Additional Submission");
   assert.equal(withAppealScoreState([{agent: submitted.agent, caseId: submitted.caseId, monthKey: "2026-09", finalScore: 85}], [submitted])[0].pendingAppealCaseCount, 1, "submitted additional appeals hold the score until QA reviews");
   assert.equal(withAppealScoreState([{agent: submitted.agent, caseId: submitted.caseId, monthKey: "2026-09", finalScore: 85}], [{...submitted, editingDraft: true}])[0].pendingAppealCaseCount, 0, "withdrawn drafts do not stay in the QA score hold");
-  assert.equal(withAppealScoreState([{agent: waiting.agent, caseId: waiting.caseId, monthKey: "2026-09", finalScore: 85}], [waiting])[0].pendingAppealCaseCount, 0, "waiting for owner submission keeps the previous score available");
+  assert.equal(withAppealScoreState([{agent: waiting.agent, caseId: waiting.caseId, monthKey: "2026-09", finalScore: 85}], [waiting])[0].pendingAppealCaseCount, 1, "waiting for owner submission keeps the latest score provisional until the additional appeal is resolved");
   const editedLogs = events("AA991111", "Pending (Additional)");
   const editedRequestId = editedLogs[0].details.requestId;
   editedLogs.push({ event_type: "appeal_submission_resubmitted", created_at: at(74), details: { requestId: editedRequestId, roundId: "round-AA991111", topics: [{ ...topic, appealReason: "แก้ไขหลังยื่นทันเวลา" }] } });

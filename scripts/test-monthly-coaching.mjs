@@ -7,7 +7,7 @@ import { JSDOM } from 'jsdom';
 
 const ActualDate=Date;let testNow='2026-09-30T12:00:00Z';globalThis.Date=class extends ActualDate { constructor(...args){super(...(args.length?args:[testNow]));} static now(){return new ActualDate(testNow).valueOf();} };
 const rootDir = new URL('../', import.meta.url).pathname;
-const fixture = { records: new Map(), evaluations: [], readError: false, downloads: [], pdfs: [], pdfText: [], pdfDocs: [] };
+const fixture = { records: new Map(), evaluations: [], readError: false, downloads: [], pdfs: [], pdfText: [], pdfDocs: [], profilePhotos: new Map(), photoReads: [] };
 globalThis.__monthlyCoachingFixture = fixture;
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: 'https://coaching.test/' });
 for (const key of ['window','document','HTMLElement','HTMLInputElement','HTMLTextAreaElement','Event','MouseEvent','File','FileReader','sessionStorage','localStorage']) globalThis[key] = dom.window[key];
@@ -20,13 +20,13 @@ URL.createObjectURL=blob=>{fixture.pdfs.push(blob);return 'blob:https://coaching
 dom.window.HTMLAnchorElement.prototype.click=function(){fixture.downloads.push({name:this.download,href:this.href});};
 const temp = await fs.mkdtemp(path.join(rootDir, '.coaching-test-'));
 const bundle = await build({ stdin: { contents: `import React, {act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Workspace from './src/MonthlyCoachingWorkspace'; export {React,act,Simulate,createRoot,Workspace}; export * from './src/monthlyCoachingModel'; export * from './src/coachingStore'; export * from './src/coachingAttachmentUpload'; export * from './src/monthlyCoachingPayment'; export * from './src/monthlyCoachingPdf'; export * from './src/finalSignedPdfRenderer'; export * from './src/Time24Input'; export {default as DateTime24Input} from './src/DateTime24Input';`, resolveDir: rootDir, loader: 'tsx' }, bundle: true, loader:{'.css':'empty'}, external: ['react', 'react-dom', 'react-dom/*'], platform: 'node', format: 'esm', write: false, banner: { js: "import { createRequire as testRequire } from 'node:module'; const require = testRequire(import.meta.url);" }, plugins: [{name:'test-services',setup(b){
-  b.onResolve({filter:/^(firebase\/firestore|\.\/firebaseClient|\.\/coachingCanonicalStore|\.\/evaluationStore)$/},args=>({path:args.path,namespace:'test-service'}));
+  b.onResolve({filter:/^(firebase\/firestore|\.\/firebaseClient|\.\/coachingCanonicalStore|\.\/evaluationStore|\.\/profilePhotoStore)$/},args=>({path:args.path,namespace:'test-service'}));
   b.onLoad({filter:/\/finalSignedPdfRenderer\.ts$/},async args=>{
     let source=await fs.readFile(args.path,'utf8');
     source=source.replace('  if (appendPage) pdf.addPage("a4", "portrait");', '  if (appendPage) pdf.addPage("a4", "portrait"); const f=globalThis.__monthlyCoachingFixture;f.pdfDocs.push(pdf);const text=pdf.text.bind(pdf);pdf.text=(value,...args)=>{f.pdfText.push({value:String(value),pdf,pageRef:pdf.internal.pages[pdf.getCurrentPageInfo().pageNumber],page:pdf.getCurrentPageInfo().pageNumber,y:args[1]});return text(value,...args);};');
     return {contents:source,loader:'ts'};
   });
-  b.onLoad({filter:/.*/,namespace:'test-service'},args=>({contents: args.path==='firebase/firestore' ? `const f=globalThis.__monthlyCoachingFixture; export const collection=(_,name)=>({name}); export const doc=(_,name,id)=>({name,id}); export const serverTimestamp=()=>0; export async function getDocs(){if(f.readError)throw new Error('offline');return {docs:[...f.records].map(([id,row])=>({id,data:()=>structuredClone(row)}))};} export async function getDocsFromServer(){f.serverReads=(f.serverReads||0)+1;return getDocs();} export async function setDoc(ref,row){f.records.set(ref.id,structuredClone(row));} export async function runTransaction(_,fn){const writes=[];const result=await fn({get:async ref=>({id:ref.id,exists:()=>f.records.has(ref.id),data:()=>structuredClone(f.records.get(ref.id))}),set:(ref,row)=>writes.push([ref.id,structuredClone(row)])});writes.forEach(([id,row])=>f.records.set(id,row));return result;}` : args.path==='./firebaseClient' ? `export const firebaseDb={};` : args.path==='./coachingCanonicalStore' ? `export const fetchCanonicalCoachingEvaluations=async()=>structuredClone(globalThis.__monthlyCoachingFixture.evaluations);` : `export const getStoredEvaluationMonthKey=row=>row.evaluationMonthKey;`, loader:'js'}));
+  b.onLoad({filter:/.*/,namespace:'test-service'},args=>({contents: args.path==='firebase/firestore' ? `const f=globalThis.__monthlyCoachingFixture; export const collection=(_,name)=>({name}); export const doc=(_,name,id)=>({name,id}); export const serverTimestamp=()=>0; export async function getDocs(){if(f.readError)throw new Error('offline');return {docs:[...f.records].map(([id,row])=>({id,data:()=>structuredClone(row)}))};} export async function getDocsFromServer(){f.serverReads=(f.serverReads||0)+1;return getDocs();} export async function setDoc(ref,row){f.records.set(ref.id,structuredClone(row));} export async function runTransaction(_,fn){const writes=[];const result=await fn({get:async ref=>({id:ref.id,exists:()=>f.records.has(ref.id),data:()=>structuredClone(f.records.get(ref.id))}),set:(ref,row)=>writes.push([ref.id,structuredClone(row)])});writes.forEach(([id,row])=>f.records.set(id,row));return result;}` : args.path==='./firebaseClient' ? `export const firebaseDb={};` : args.path==='./coachingCanonicalStore' ? `export const fetchCanonicalCoachingEvaluations=async()=>structuredClone(globalThis.__monthlyCoachingFixture.evaluations);` : args.path==='./profilePhotoStore' ? `export const fetchStoredProfilePhoto=async username=>{const f=globalThis.__monthlyCoachingFixture;f.photoReads.push(username);return f.profilePhotos.get(username)||null;};` : `export const getStoredEvaluationMonthKey=row=>row.evaluationMonthKey;`, loader:'js'}));
 }}] });
 const bundlePath = path.join(temp,'test.mjs'); await fs.writeFile(bundlePath,bundle.outputFiles[0].text);
 const m = await import(pathToFileURL(bundlePath));
@@ -87,7 +87,24 @@ async function chooseAgent(name='Agent A Full Name') { const row=[...document.qu
 async function tickTopic(topic) {const checkbox=[...document.querySelectorAll('label')].find(e=>e.textContent.startsWith(topic)&&e.querySelector('input[type=checkbox]')&&!e.querySelector('input').disabled)?.querySelector('input');assert.ok(checkbox);await act(async()=>{checkbox.checked=true;Simulate.change(checkbox);await flush();});}
 try {
   sessionStorage.setItem('qa-dashboard:monthly-coaching:view:qa',JSON.stringify({periodVersion:2,month}));
+  const firstPhoto='data:image/png;base64,PROFILE_PHOTO_A';
+  const secondPhoto='data:image/png;base64,PROFILE_PHOTO_B';
+  fixture.profilePhotos.set('agent-a',{photoDataUrl:firstPhoto});
   await mount(qa); await chooseAgent();
+  assert.equal(document.querySelector('.mc-profile .mc-avatar img')?.getAttribute('src'),firstPhoto);
+  assert.equal(document.querySelector('.mc-person.selected .mc-avatar img')?.getAttribute('src'),firstPhoto);
+  assert.equal(fixture.photoReads.filter(username=>username==='agent-a').length,1,'header and roster share one profile read');
+  assert.equal(document.querySelectorAll('.mc-person:not(.selected) .mc-avatar img').length,0,'missing photo keeps initials');
+  fixture.profilePhotos.set('agent-a',{photoDataUrl:secondPhoto});
+  await act(async()=>{window.dispatchEvent(new dom.window.CustomEvent('qa-profile-photo-updated',{detail:{username:'agent-a'}}));await flush();});
+  assert.equal(document.querySelector('.mc-profile .mc-avatar img')?.getAttribute('src'),secondPhoto);
+  assert.equal(document.querySelector('.mc-person.selected .mc-avatar img')?.getAttribute('src'),secondPhoto);
+  await act(async()=>{Simulate.error(document.querySelector('.mc-profile .mc-avatar img'));await flush();});
+  assert.equal(document.querySelector('.mc-profile .mc-avatar img'),null,'broken profile photo falls back to initials');
+  fixture.profilePhotos.delete('agent-a');
+  await act(async()=>{window.dispatchEvent(new dom.window.CustomEvent('qa-profile-photo-updated',{detail:{username:'agent-a'}}));await flush();});
+  assert.equal(document.querySelectorAll('.mc-avatar img').length,0,'removing profile photo updates both Coaching avatars');
+  console.log('PASS Coaching profile photos: shared read, header/roster parity, live profile updates and missing/broken image fallback');
   assert.ok(!rosterText().includes('No Results'));assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),scoped.months);
   const evidenceDate=caseId=>[...document.querySelectorAll('.mc-evidence-card tbody tr')].find(row=>row.querySelector('button')?.textContent===caseId)?.cells[1].textContent;
   assert.equal(evidenceDate('AA100'),'23/09/2026','Case Date comes from the same stored field as Case Detail, without a preview copy');

@@ -2,8 +2,9 @@ import { formatPdfDate, formatPdfDateOrTime, formatPdfDateTime } from "./lib/pdf
 ﻿import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
-import { parseRichTextRuns, richTextToPlainText, type RichTextRun } from "./richText";
+import { parseRichTextRuns, richTextToPlainText, sanitizeRichTextHtml, type RichTextRun } from "./richText";
 import type { AppealAction } from "./appealActionHistory";
+import { appealActionTopicPdfHtml, appealActionPdfEvidence } from "./appealActionPdfHtml";
 import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
 import { appealEvidenceDisplayName, appealEvidenceStartIndex } from "./appealEvidenceNaming";
 
@@ -1097,6 +1098,15 @@ export async function generateOfficialCaseDetailPdf({
     }
     const appealLines = includeAppeal ? layoutRichTextLines(appealReason, wOf(7), SMALL_BODY_TEXT_SIZE) : [];
     const baseRowH = includeAppeal ? 24 : 18;
+    // Keep all Actions inside the existing topic; this also runs after the production table patches.
+    const inlineActions = appealActionTopicPdfHtml(caseItem.appealActionHistory || [], String(topic.code));
+    const originalComment = includeAppeal && inlineActions ? `<div><strong>Original Comment</strong></div>${sanitizeRichTextHtml(topic.comment || "-")}${caseIssueTagsPdfHtml(active.issueTags ?? topic.issueTags)}` : "";
+    const topicHistory = inlineActions ? originalComment + inlineActions : includeAppeal ? topic.pdfAppealDetailHtml || "" : "";
+    if (topicHistory) {
+      const historyLines = layoutRichTextLines(topicHistory, wOf(includeAppeal ? 7 : 6), SMALL_BODY_TEXT_SIZE);
+      if (includeAppeal) { appealLines.splice(0, appealLines.length, ...historyLines);commentLines.length = 0; }
+      else commentLines.push([], ...historyLines);
+    }
 
     let commentIndex = 0;
     let appealIndex = 0;
@@ -1307,61 +1317,24 @@ export async function generateOfficialCaseDetailPdf({
     }
   }
 
-  const appealActions: AppealAction[] = Array.isArray(caseItem.appealActionHistory) ? caseItem.appealActionHistory : [];
-  if (appealActions.length) {
-    setWidths(topWidths);
-    const actionRow = (labelText: string, text: unknown) => {
-      drawWideRichTextRow({ labelText, text: text || "-", size: BODY_TEXT_SIZE, leading: BODY_LINE_SPACING, minH: 10, padY: 4 });
-      y += 2;
-    };
-    const actionPhotos = async (photos: any[], prefix: string) => {
-      for (let index = 0; index < photos.length; index++) {
-        const photo = photos[index];
-        let encoded = "";
-        try { encoded = await loadAppealEvidenceJpeg(photo); } catch (error) { console.warn("Cannot embed appeal Action evidence", error); }
-        const w = Math.max(1, num(photo?.width, 1));
-        const h = Math.max(1, num(photo?.height, 1));
-        const scale = Math.min((fullW - 12) / w, 140 / h);
-        const imageW = encoded ? w * scale : 0;
-        const imageH = encoded ? h * scale : 0;
-        const blockH = encoded ? imageH + 13 : 23;
-        if (bottom - y < blockH + 3) { doc.addPage(); y = top; }
-        rect(left, y, fullW, blockH, WHITE);
-        writeText(`${prefix} - Image ${index + 1}`, left + 3, y + 1, fullW - 6, 7, { size: BODY_TEXT_SIZE, bold: true, maxLines: 1 });
-        if (encoded) doc.addImage(encoded, "JPEG", left + (fullW - imageW) / 2, y + 9, imageW, imageH);
-        else writeText("Unable to load attached image", left + 3, y + 9, fullW - 6, 12, { size: BODY_TEXT_SIZE, color: [180, 35, 35] });
-        y += blockH + 3;
-      }
-    };
-    for (const action of appealActions) {
-      if (bottom - y < 24) { doc.addPage(); y = top; }
-      purpleRow(y, 7, `Action ${action.actionNumber} - ${action.roundId ? "Additional Appeal" : "Initial Appeal"}`);
-      y += 10;
-      actionRow("Status", action.status);
-      actionRow("Submitted by", `${action.submittedBy || "-"} · ${formatPdfDateTime(action.submittedAt, "-")}`);
-      for (const topic of action.topics) {
-        actionRow(`Topic ${topic.code} · Appeal Reason`, topic.appealReason || "ยังไม่ได้ยื่นข้อความอุทธรณ์");
-        await actionPhotos(topic.evidenceImages || [], `Action ${action.actionNumber} · Topic ${topic.code} · Appeal Evidence`);
-      }
-      for (const [index, version] of action.submissions.slice(0, -1).entries()) {
-        actionRow(`Action ${action.actionNumber} · Earlier submission ${index + 1}`, `${version.submittedBy || "-"} · ${formatPdfDateTime(version.submittedAt, "-")}`);
-        for (const topic of version.topics) {
-          actionRow(`Topic ${topic.code} · Earlier Appeal Reason`, topic.appealReason);
-          await actionPhotos(topic.evidenceImages || [], `Action ${action.actionNumber} · Earlier Appeal Evidence`);
-        }
-      }
-      for (const [index, review] of action.reviews.entries()) {
-        actionRow(`QA Review ${index + 1}${index === action.reviews.length - 1 ? " · Latest" : " · Previous"}`, `${review.reviewedBy || "-"} · ${formatPdfDateTime(review.reviewedAt, "-")}`);
-        for (const topic of review.topics) {
-          actionRow(`Topic ${topic.code} · ${topic.decision || "-"}`, `Score ${topic.decision === "Approved" ? topic.revisedScore ?? topic.score : topic.score} / ${topic.max}`);
-          actionRow(topic.decision === "Rejected" ? "Reject Reason" : "Revised Comment", topic.decision === "Rejected" ? topic.rejectReason : topic.revisedComment);
-          await actionPhotos(topic.qaEvidenceImages || [], `Action ${action.actionNumber} · QA Evidence`);
-        }
-        actionRow("Score after review", `${review.finalScore.toFixed(2)} / 100`);
-        actionRow("Review Summary", review.reviewSummary);
-      }
-      y += 3;
-    }
+  // Evidence stays available without repeating the appeal text outside its topic.
+  const actionEvidence = appealActionPdfEvidence(caseItem.appealActionHistory || []);
+  if (actionEvidence.length) setWidths(topWidths);
+  for (const { photo, label } of actionEvidence) {
+    let encoded = "";
+    try { encoded = await loadAppealEvidenceJpeg(photo); } catch (error) { console.warn("Cannot embed appeal Action evidence", error); }
+    const w = Math.max(1, num(photo?.width, 1));
+    const h = Math.max(1, num(photo?.height, 1));
+    const scale = Math.min((fullW - 12) / w, 140 / h);
+    const imageW = encoded ? w * scale : 0;
+    const imageH = encoded ? h * scale : 0;
+    const blockH = encoded ? imageH + 13 : 23;
+    if (bottom - y < blockH + 3) { doc.addPage(); y = top; }
+    rect(left, y, fullW, blockH, WHITE);
+    writeText(label, left + 3, y + 1, fullW - 6, 7, { size: BODY_TEXT_SIZE, bold: true, maxLines: 2 });
+    if (encoded) doc.addImage(encoded, "JPEG", left + (fullW - imageW) / 2, y + 9, imageW, imageH);
+    else writeText("Unable to load attached image", left + 3, y + 9, fullW - 6, 12, { size: BODY_TEXT_SIZE, color: [180, 35, 35] });
+    y += blockH + 3;
   }
 
   return {
