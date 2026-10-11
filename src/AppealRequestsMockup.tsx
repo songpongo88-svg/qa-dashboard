@@ -1280,11 +1280,24 @@ export default function AppealRequestsMockup({
         message: error instanceof Error ? error.message : "กรุณาตรวจผลทบทวนแต่ละหัวข้อ" });
       return;
     }
+    // Display dates can come from Case Detail; concurrency checks must use the
+    // stored appeal events that the reviewer actually opened.
+    const storedRequest = buildAppealRequests(logs).find(item => item.requestId === selectedRequest.requestId);
+    if (!storedRequest) {
+      setNotice({ kind: "validation", title: "ไม่พบประวัติคำขอนี้", caseId: selectedRequest.caseId,
+        message: "กรุณาโหลดคำขออุทธรณ์ล่าสุดก่อนบันทึกผล" });
+      return;
+    }
     setSavePreview({
       requestId: selectedRequest.requestId, caseId: selectedRequest.caseId, agent: selectedRequest.agent,
-      isEdit: Boolean(isReviewed && !selectedRequest.additionalRound), previousReviewId: selectedRequest.reviewId || "",
-      previousReviewedAt: selectedRequest.reviewedAt,
-      reviewId: crypto.randomUUID(), reviewVersion: (selectedRequest.reviewVersion || 0) + 1,
+      isEdit: Boolean(isReviewed && !selectedRequest.additionalRound), previousReviewId: storedRequest.reviewId || "",
+      previousReviewedAt: storedRequest.reviewedAt,
+      requestSnapshot: {
+        submittedAt: storedRequest.submittedAt,
+        additionalRoundId: storedRequest.additionalRound?.roundId || "",
+        additionalSubmittedAt: storedRequest.additionalRound?.submittedAt || "",
+      },
+      reviewId: crypto.randomUUID(), reviewVersion: (storedRequest.reviewVersion || 0) + 1,
       beforeScore: isReviewed ? appealFinalScoreFromTopics(selectedRequest.topics, selectedRequest.finalScore) : selectedRequest.finalScore,
       reviewSummary: reviewSummary.trim(), review,
       topicRows: review.topics.map(topic => {
@@ -1301,6 +1314,10 @@ export default function AppealRequestsMockup({
     if (!allowReview || !savePreview || !selectedRequest || busy || savingRef.current) return;
     const preview = savePreview;
     const review = preview.review;
+    const updateRequestLogs = (events: UsageLogEvent[]) => setLogs(current => [
+      ...events,
+      ...current.filter(log => String(log.details?.requestId || "") !== preview.requestId),
+    ]);
     const topicsForReview = review.topics.map(topic => ({
       code: topic.code, label: topic.label, score: topic.score, max: topic.max,
       ...(topic.originalScore !== undefined ? { originalScore: topic.originalScore, retainedComment: topic.retainedComment || "" } : {}),
@@ -1320,10 +1337,11 @@ export default function AppealRequestsMockup({
         "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
         "appeal_additional_access_requested", "appeal_additional_access_decided",
         "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
-      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
+      ], { requestId: preview.requestId, limit: 250, forceRefresh: true }) as UsageLogEvent[];
       const latest = buildAppealRequests(latestLogs).find(item => item.requestId === preview.requestId);
+      const alreadySaved = latest?.reviewId === preview.reviewId;
       if (latestLogs.some(log => log.source_case_unavailable && String(log.details?.requestId || "") === preview.requestId)) {
-        setLogs(latestLogs);
+        updateRequestLogs(latestLogs);
         setSavePreview(null);
         setEditingReview(false);
         setNotice({ kind: "validation", title: "เคสต้นทางถูกลบแล้ว", caseId: preview.caseId,
@@ -1334,13 +1352,13 @@ export default function AppealRequestsMockup({
       }
       if (!latest || latest.editingDraft || latest.status === "Reset" ||
           ["Request Additional Appeal", "Approved (Access)", "Awaiting Additional Submission"].includes(appealWorkflowStatus(latest)) ||
-          latest.submittedAt !== selectedRequest.submittedAt ||
-          (latest.additionalRound?.submittedAt || "") !== (selectedRequest.additionalRound?.submittedAt || "") ||
-          (selectedRequest.additionalRound?.roundId || "") !== (latest.additionalRound?.roundId || "") ||
-          (selectedRequest.additionalRound && !latest.additionalRound?.submitted) ||
-          (latest.reviewId !== preview.reviewId &&
-            ((latest.reviewId || "") !== preview.previousReviewId || latest.reviewedAt !== preview.previousReviewedAt))) {
-        setLogs(latestLogs);
+          (!alreadySaved && (
+            latest.submittedAt !== preview.requestSnapshot.submittedAt ||
+            (latest.additionalRound?.submittedAt || "") !== preview.requestSnapshot.additionalSubmittedAt ||
+            (latest.additionalRound?.roundId || "") !== preview.requestSnapshot.additionalRoundId ||
+            (preview.requestSnapshot.additionalRoundId && !latest.additionalRound?.submitted) ||
+            (latest.reviewId || "") !== preview.previousReviewId || latest.reviewedAt !== preview.previousReviewedAt))) {
+        updateRequestLogs(latestLogs);
         setSavePreview(null);
         setEditingReview(false);
         setNotice({ kind: "validation", title: "คำขอนี้มีการเปลี่ยนแปลง", caseId: preview.caseId,
@@ -1386,10 +1404,10 @@ export default function AppealRequestsMockup({
       if (latest.reviewId !== preview.reviewId) {
         const reviewSaved = await writeAppealEvent(currentUser, "appeal_request_reviewed", payload);
         if (!reviewSaved) throw new Error("review-save-failed");
-        setLogs([{ ...payload, event_type: "appeal_request_reviewed", created_at: reviewedAt },
+        updateRequestLogs([{ ...payload, event_type: "appeal_request_reviewed", created_at: reviewedAt },
           ...latestLogs.filter(event => event.details?.reviewId !== preview.reviewId)]);
       } else {
-        setLogs(latestLogs);
+        updateRequestLogs(latestLogs);
       }
       setEditingReview(false);
       setSavePreview(null);

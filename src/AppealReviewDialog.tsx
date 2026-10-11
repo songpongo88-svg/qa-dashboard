@@ -8,6 +8,11 @@ export type AppealReviewSavePreview = {
   isEdit: boolean;
   previousReviewId: string;
   previousReviewedAt?: string;
+  requestSnapshot: {
+    submittedAt: string;
+    additionalRoundId: string;
+    additionalSubmittedAt: string;
+  };
   reviewId: string;
   reviewVersion: number;
   beforeScore: number;

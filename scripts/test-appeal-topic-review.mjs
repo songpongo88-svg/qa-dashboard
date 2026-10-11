@@ -191,6 +191,7 @@ try {
   const newerSubmission={...submission,id:'newer-submission',case_id:'AA990071',created_at:'2026-10-07T03:00:00Z',details:{...submission.details,requestId:'newer-appeal',submittedAt:'2026-10-07T03:00:00Z'}};
   globalThis.__appealFixtureLogs = [newerSubmission,submission,olderSubmission];
   globalThis.__appealFixtureWrites = [];
+  globalThis.__appealFixtureReads = [];
   const output = resolve(temp, "review.mjs");
   await build({ jsx: "automatic", entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-storage-boundary", setup(builder) {
     builder.onResolve({ filter: /^\.\/appealStore$/ }, () => ({ path: "store", namespace: "fixture" }));
@@ -198,7 +199,13 @@ try {
     builder.onLoad({ filter: /^profiles$/, namespace: "fixture" }, () => ({ loader: "js", contents: "export async function fetchStoredUserProfiles(){return []}" }));
     builder.onResolve({ filter: /^\.\/PageHero$/ }, () => ({ path: "hero", namespace: "fixture" }));
     builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "hero" ? "export default function Hero(){return null}" : `
-      export async function fetchAppealEvents(){return globalThis.__appealFixtureLogs}
+      export async function fetchAppealEvents(types,options){
+        globalThis.__appealFixtureReads.push(options);
+        const outOfWindow=globalThis.__appealReadWindowRequestId;
+        globalThis.__appealReadWindowRequestId='';
+        return globalThis.__appealFixtureLogs.filter(event=>(!types||types.includes(event.event_type))&&
+          (options?.requestId ? event.details?.requestId===options.requestId : event.details?.requestId!==outOfWindow));
+      }
       export async function fetchAdditionalAppealReasonOptions(){return []}
       export async function fetchAssignedAppealRequestIds(){return []}
       export async function fetchAppealDiscussionEvents(){return []}
@@ -212,12 +219,14 @@ try {
       }` }));
   } }] });
   const { default: ReviewComponent } = await import(pathToFileURL(output).href);
-  await act(async () => root.render(React.createElement(ReviewComponent, { currentUser: { username: "fixture-qa", displayName: "Test Reviewer", role: "Quality Assurance" }, allowReview: true })));
+  await act(async () => root.render(React.createElement(ReviewComponent, { currentUser: { username: "fixture-qa", displayName: "Test Reviewer", role: "Quality Assurance" }, allowReview: true,
+    externalCaseDetailCases: [{ caseId: submission.case_id, agent: "Test Agent", appealReviewedAt: "-" }],
+  })));
   const click = async element => { assert.ok(element, "UI element exists"); await act(async () => element.dispatchEvent(new MouseEvent("click", { bubbles: true }))); };
   const requestRows=[...document.querySelectorAll('tbody tr')].filter(row=>/AA9900(?:69|70|71)/.test(row.textContent));
   const orderedCases=(requestRows.length ? requestRows : [...document.querySelectorAll('button')]).map(node=>node.textContent.match(/AA9900(?:69|70|71)/)?.[0]).filter(Boolean);
   assert.deepEqual(orderedCases,['AA990069','AA990070','AA990071'],'Appeal Review renders oldest submissions first regardless of database order');
-  globalThis.__appealFixtureLogs=[submission];
+  globalThis.__appealFixtureLogs=[submission,newerSubmission];
   await act(async()=>window.dispatchEvent(new CustomEvent('qa-dashboard-data-refresh')));
   console.log('PASS actual Appeal Review orders requests by submission time, oldest first');
   if (!document.querySelector('[role="group"]')) {
@@ -251,8 +260,13 @@ try {
   assert.equal(globalThis.__appealFixtureWrites.length, 0, "confirmation opens before any write");
   assert.ok(document.querySelector("dialog").textContent.includes("82.00 → 86.00"));
   assert.ok(document.querySelector("dialog").textContent.includes("Grade B"));
+  globalThis.__appealReadWindowRequestId = submission.details.requestId;
   await click([...document.querySelectorAll("dialog button")].find(button => button.textContent === "ยืนยันบันทึก"));
   assert.equal(globalThis.__appealFixtureWrites.length, 1, globalThis.__appealAlert);
+  const freshRead = globalThis.__appealFixtureReads.filter(options => options?.requestId === submission.details.requestId).at(-1);
+  assert.equal(freshRead.limit, 250);
+  assert.equal(freshRead.forceRefresh, true);
+  assert.ok([...document.querySelectorAll('tbody tr')].some(row => row.textContent.includes(newerSubmission.case_id)), "a scoped confirmation keeps other requests in the list");
   const saved = globalThis.__appealFixtureWrites[0];
   assert.equal(saved.details.decision, "Partially Approved");
   assert.deepEqual(saved.details.topics.map(topic => topic.decision), ["Approved", "Rejected", "Approved"]);
@@ -262,6 +276,7 @@ try {
   assert.ok(!Object.hasOwn(saved.details.topics[1], "revisedScore"));
   assert.equal(saved.details.reviewedBy, "Test Reviewer");
   assert.equal(requestFunctions.buildAppealRequests(globalThis.__appealFixtureLogs)[0].status, "Partially Approved");
+  console.log("PASS filled Review Summary saves with Case Detail display dates, checks the selected request outside the global window and preserves other requests");
   console.log("PASS real Appeal Review UI independently selects three decisions and saves one complete mixed review with reviewer identity");
   const button = text => [...document.querySelectorAll("button")].find(node => node.textContent === text);
   assert.ok(document.querySelector("dialog").textContent.includes("บันทึกผลอุทธรณ์เรียบร้อย"));
