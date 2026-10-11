@@ -7,7 +7,7 @@ import { JSDOM } from 'jsdom';
 
 const ActualDate=Date;let testNow='2026-09-30T12:00:00Z';globalThis.Date=class extends ActualDate { constructor(...args){super(...(args.length?args:[testNow]));} static now(){return new ActualDate(testNow).valueOf();} };
 const rootDir = new URL('../', import.meta.url).pathname;
-const fixture = { records: new Map(), evaluations: [], readError: false };
+const fixture = { records: new Map(), evaluations: [], readError: false, downloads: [], pdfs: [], pdfText: [] };
 globalThis.__monthlyCoachingFixture = fixture;
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: 'https://coaching.test/' });
 for (const key of ['window','document','HTMLElement','HTMLInputElement','HTMLTextAreaElement','Event','MouseEvent','File','FileReader','sessionStorage','localStorage']) globalThis[key] = dom.window[key];
@@ -15,9 +15,17 @@ if (typeof globalThis.navigator === 'undefined') {
   Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true, writable: true });
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+const createObjectURL=URL.createObjectURL,revokeObjectURL=URL.revokeObjectURL;
+URL.createObjectURL=blob=>{fixture.pdfs.push(blob);return 'blob:https://coaching.test/pdf';};URL.revokeObjectURL=()=>{};
+dom.window.HTMLAnchorElement.prototype.click=function(){fixture.downloads.push({name:this.download,href:this.href});};
 const temp = await fs.mkdtemp(path.join(rootDir, '.coaching-test-'));
-const bundle = await build({ stdin: { contents: `import React, {act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Workspace from './src/MonthlyCoachingWorkspace'; export {React,act,Simulate,createRoot,Workspace}; export * from './src/monthlyCoachingModel'; export * from './src/coachingStore'; export * from './src/coachingAttachmentUpload'; export * from './src/monthlyCoachingPayment';`, resolveDir: rootDir, loader: 'tsx' }, bundle: true, loader:{'.css':'empty'}, external: ['react', 'react-dom', 'react-dom/*'], platform: 'node', format: 'esm', write: false, banner: { js: "import { createRequire as testRequire } from 'node:module'; const require = testRequire(import.meta.url);" }, plugins: [{name:'test-services',setup(b){
+const bundle = await build({ stdin: { contents: `import React, {act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Workspace from './src/MonthlyCoachingWorkspace'; export {React,act,Simulate,createRoot,Workspace}; export * from './src/monthlyCoachingModel'; export * from './src/coachingStore'; export * from './src/coachingAttachmentUpload'; export * from './src/monthlyCoachingPayment'; export * from './src/monthlyCoachingPdf';`, resolveDir: rootDir, loader: 'tsx' }, bundle: true, loader:{'.css':'empty'}, external: ['react', 'react-dom', 'react-dom/*'], platform: 'node', format: 'esm', write: false, banner: { js: "import { createRequire as testRequire } from 'node:module'; const require = testRequire(import.meta.url);" }, plugins: [{name:'test-services',setup(b){
   b.onResolve({filter:/^(firebase\/firestore|\.\/firebaseClient|\.\/coachingCanonicalStore|\.\/evaluationStore)$/},args=>({path:args.path,namespace:'test-service'}));
+  b.onLoad({filter:/\/monthlyCoachingPdf\.ts$/},async args=>{
+    let source=await fs.readFile(args.path,'utf8');
+    source=source.replace("  const pdf = new jsPDF({ unit: 'mm', format: 'a4' });", "  const pdf = new jsPDF({ unit: 'mm', format: 'a4' }); const text=pdf.text.bind(pdf);pdf.text=(value,...args)=>{globalThis.__monthlyCoachingFixture.pdfText.push({value:String(value),page:pdf.getCurrentPageInfo().pageNumber,y:args[1]});return text(value,...args);};");
+    return {contents:source,loader:'ts'};
+  });
   b.onLoad({filter:/.*/,namespace:'test-service'},args=>({contents: args.path==='firebase/firestore' ? `const f=globalThis.__monthlyCoachingFixture; export const collection=(_,name)=>({name}); export const doc=(_,name,id)=>({name,id}); export const serverTimestamp=()=>0; export async function getDocs(){if(f.readError)throw new Error('offline');return {docs:[...f.records].map(([id,row])=>({id,data:()=>structuredClone(row)}))};} export async function getDocsFromServer(){f.serverReads=(f.serverReads||0)+1;return getDocs();} export async function setDoc(ref,row){f.records.set(ref.id,structuredClone(row));} export async function runTransaction(_,fn){const writes=[];const result=await fn({get:async ref=>({id:ref.id,exists:()=>f.records.has(ref.id),data:()=>structuredClone(f.records.get(ref.id))}),set:(ref,row)=>writes.push([ref.id,structuredClone(row)])});writes.forEach(([id,row])=>f.records.set(id,row));return result;}` : args.path==='./firebaseClient' ? `export const firebaseDb={};` : args.path==='./coachingCanonicalStore' ? `export const fetchCanonicalCoachingEvaluations=async()=>structuredClone(globalThis.__monthlyCoachingFixture.evaluations);` : `export const getStoredEvaluationMonthKey=row=>row.evaluationMonthKey;`, loader:'js'}));
 }}] });
 const bundlePath = path.join(temp,'test.mjs'); await fs.writeFile(bundlePath,bundle.outputFiles[0].text);
@@ -160,7 +168,53 @@ try {
   await fill(named('เดือน Coaching'),'2026-09');assert.ok(named('QA Summary'));
   await mount(seniorA);assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),['2026-09','2026-10'],'Senior sees months assigned through their Coaching records');assert.ok(!rosterText().includes('Agent B Full Name'));assert.equal(named('QA Summary').readOnly,true);
   fixture.records.set('b-scoped',{id:'b-scoped',agentId:agentB.username,agent:agentB.agentName,monthKey:month,status:'Waiting Senior',coachId:seniorB.username,updatedAt:new Date().toISOString()});await mount(seniorB);assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),['2026-09']);assert.ok(!rosterText().includes('Agent A Full Name'));
+  const qaOther={username:'qa-other',displayName:'Other QA',agentName:'Other QA',role:'Quality Assurance'};accounts.push(qaOther);
+  const selfCoach={...fixture.records.get(id),status:'Waiting Senior',coachId:qa.username,coachName:qa.displayName,qaOwnerId:qa.username,qaOwnerName:qa.displayName,qaReviewComment:'',qaReviewedAt:'',updatedAt:new Date().toISOString()};
+  fixture.records.set(id,selfCoach);
+  fixture.records.set('b-scoped',{...selfCoach,id:'b-scoped',agentId:agentB.username,agent:agentB.agentName,coachId:seniorB.username,coachName:seniorB.displayName,qaOwnerId:qaOther.username,qaOwnerName:qaOther.displayName,status:'Action Plan Submitted',appointment:{...selfCoach.appointment,participants:[seniorA.displayName]}});
+  assert.equal(m.isAssignedCoach({...selfCoach,coachId:seniorB.username,coachName:seniorA.displayName},seniorA),false,'an explicit Coach ID wins over a similar or old name');
+  sessionStorage.setItem('qa-dashboard:monthly-coaching:view:qa',JSON.stringify({periodVersion:2,month,listView:'tasks'}));
+  await mount(qa);
+  assert.ok(rosterText().includes('Agent A Full Name'));assert.ok(!rosterText().includes('Agent B Full Name'),'another QA owner has a separate task queue');
+  assert.equal(named('Final Coaching Note').disabled,false,'a QA assigned as Coach can record actual results');
+  assert.equal(named('QA Summary').readOnly,true);
+  await fill(named('Final Coaching Note'),'Self-assigned QA Coach completed Verify and SLA');
+  await click(button('ส่ง Action Plan ให้ QA'));
+  assert.equal(fixture.records.get(id).status,'Action Plan Submitted');assert.equal(fixture.records.get(id).actualCoaching.finalNote,'Self-assigned QA Coach completed Verify and SLA');assert.equal(fixture.records.get(id).qaSummary,selfCoach.qaSummary);assert.equal(fixture.records.get(id).qaOwnerId,qa.username);
+  const beforeHistory=JSON.stringify([...fixture.records]);
+  await click(button('History รวม Admin'));
+  assert.ok(rosterText().includes('Agent A Full Name'));assert.ok(rosterText().includes('Agent B Full Name'));
+  assert.equal(JSON.stringify([...fixture.records]),beforeHistory,'changing queue/history never rewrites tasks');
+  const saved=fixture.records.get(id);fixture.records.set(id,{...saved,qaSummary:'สรุป QA ล่าสุดสำหรับ Agent A เท่านั้น',updatedAt:new Date(Date.now()+1000).toISOString()});
+  await click(named('ดาวน์โหลด Coaching PDF Agent A Full Name'));
+  assert.equal(fixture.downloads.length,1);assert.equal(fixture.downloads[0].name,'Coaching_2026-09_agent-a.pdf');
+  assert.equal(new TextDecoder().decode(new Uint8Array(await fixture.pdfs[0].arrayBuffer()).slice(0,4)),'%PDF');
+  assert.ok(fixture.pdfText.some(call=>call.value.includes('สรุป QA ล่าสุดสำหรับ Agent A เท่านั้น')),'download uses the newest saved summary');
+  assert.ok(fixture.pdfText.some(call=>call.value.includes('Self-assigned QA Coach completed')));
+  assert.ok(!fixture.pdfText.some(call=>call.value.includes('Agent B Full Name')),'one User never inherits another User PDF');
+  const output=process.argv.find(arg=>arg.startsWith('--output-dir='))?.slice(13);
+  if(output){await fs.mkdir(output,{recursive:true});await fs.writeFile(path.join(output,fixture.downloads[0].name),new Uint8Array(await fixture.pdfs[0].arrayBuffer()));}
+  fixture.readError=true;await click(named('ดาวน์โหลด Coaching PDF Agent A Full Name'));assert.equal(fixture.downloads.length,1,'failed fresh server read cannot export a cached Coaching file');fixture.readError=false;
+  sessionStorage.setItem('qa-dashboard:monthly-coaching:view:qa-other',JSON.stringify({periodVersion:2,month,listView:'tasks'}));await mount(qaOther);
+  assert.ok(!rosterText().includes('Agent A Full Name'));assert.ok(rosterText().includes('Agent B Full Name'));
+  const assignedA={...fixture.records.get(id),status:'Waiting Senior',coachId:seniorA.username,coachName:seniorA.displayName};fixture.records.set(id,assignedA);
+  sessionStorage.setItem('qa-dashboard:monthly-coaching:view:lead-a',JSON.stringify({periodVersion:2,month,listView:'tasks'}));await mount(seniorA);
+  assert.ok(rosterText().includes('Agent A Full Name'));assert.ok(!rosterText().includes('Agent B Full Name'),'being invited to another task grants history access, not ownership');
+  await click(button('History รวม Admin'));assert.ok(rosterText().includes('Agent B Full Name'));
+  await chooseAgent('Agent B Full Name');assert.equal(named('Final Coaching Note').disabled,true,'history remains read-only for an unassigned Coach');
+  fixture.records.set(id,{...assignedA,coachId:seniorB.username,coachName:seniorB.displayName,appointment:{...assignedA.appointment,participants:[]}});
+  await click(named('ดาวน์โหลด Coaching PDF Agent A Full Name'));
+  assert.equal(fixture.downloads.length,1,'a stale page rechecks the selected month and refuses a reassigned Coach PDF');
+  const startLong=fixture.pdfText.length;
+  const longRecord={...saved,qaSummary:'สรุปผลการ Coaching และตรวจสอบความเข้าใจตามขั้นตอน '.repeat(130),actions:[{...saved.actions[0],topic:'ขั้นตอนการทำงานและนโยบาย Process and Policy Compliance '.repeat(8),issue:'ตรวจสอบข้อมูลผู้ติดต่อให้ครบถ้วน',plan:'ฝึกทบทวนข้อมูลและบันทึกผลในทุกเคส '.repeat(160)}]};
+  const longPdf=m.renderMonthlyCoachingPdf(longRecord,agentA,septemberRows.filter(row=>row.targetUsername===agentA.username));
+  assert.ok(longPdf.getNumberOfPages()>3,'long Thai summaries and plans continue across pages');
+  assert.ok(fixture.pdfText.slice(startLong).every(call=>Number.isFinite(call.y)&&call.y<=278||call.y===289),'all report text stays inside the body or footer');
+  assert.ok(fixture.pdfText.slice(startLong).some(call=>call.value.includes('ปัญหาที่พบ')));
+  assert.throws(()=>m.renderMonthlyCoachingPdf(saved,agentB,[]),/ไม่ตรงกับ Admin/);
+  console.log('PASS long Thai Coaching PDF pagination, wrapped topic titles and User identity guard');
+  console.log('PASS per-person Task queues and accessible all-Admin History, authoritative Coach IDs, QA-as-Coach store transaction, real per-User monthly PDF bytes, latest content, failed reads and revoked access');
   console.log('PASS evaluated-role scope, empty/test/no-case/future exclusion, exact identity, scoped month options, manual-only QA text');
   console.log('PASS January–August 2026 historical completion, read-only save guards, September boundary, Gregorian month order, current-month reset and Senior scope');
   console.log('PASS Monthly Coaching: QA draft, unsaved tab restore, appointment, Senior team isolation, read-only QA fields, multiple plans, return/accept, next-month follow-up, history, duplicate prevention, stale-write rejection and ownership preservation');
-} finally { if(root)await act(async()=>root.unmount());dom.window.close();globalThis.Date=ActualDate;await fs.rm(temp,{recursive:true,force:true});delete globalThis.__monthlyCoachingFixture; }
+} finally { if(root)await act(async()=>root.unmount());dom.window.close();globalThis.Date=ActualDate;URL.createObjectURL=createObjectURL;URL.revokeObjectURL=revokeObjectURL;await fs.rm(temp,{recursive:true,force:true});delete globalThis.__monthlyCoachingFixture; }

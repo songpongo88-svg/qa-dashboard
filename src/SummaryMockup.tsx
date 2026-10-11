@@ -14,7 +14,9 @@ import {
 } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { getAppealTopicDecision } from "./appealReview";
-import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
+// data-analytics-appeal-source-refresh-v20
+import { type UsageLogEvent } from "./usageLog";
+import { fetchAppealEvents } from "./appealStore";
 import { getIncentiveByGrade, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
@@ -3365,11 +3367,7 @@ export default function SummaryMockup({
 
         let appealScoreRequests: ReturnType<typeof buildAppealRequests> | null = null;
         try {
-          const reviewedLogs = await fetchUsageLogsByEventTypes([
-            "appeal_request_submitted",
-            "appeal_request_reviewed",
-            "appeal_request_reset",
-          ], 2000);
+          const reviewedLogs = await fetchAppealEvents(undefined, { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
           appealScoreRequests = buildAppealRequests(reviewedLogs);
           buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
             appealMap.set(caseId, item);
