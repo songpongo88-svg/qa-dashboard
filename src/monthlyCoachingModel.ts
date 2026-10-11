@@ -53,6 +53,28 @@ export function visibleCoachingAgents(accounts: CoachingAccount[], currentUser?:
 }
 export const monthlyCoachingId = (username: string, month: string) => `coaching-${encodeURIComponent(username.trim().toLowerCase())}-${month}`;
 export const COACHING_WORKFLOW_START = '2026-09';
+export const isCoachingAccepted = (status?: string) => ['Follow-up Next Month', 'Closed', 'Coached', 'Completed'].includes(status || '');
+export function coachingDeadline(month: string) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return '';
+  const [year, monthNumber] = month.split('-').map(Number);
+  return new Date(Date.UTC(year, monthNumber, 15, 16, 59, 59, 999)).toISOString();
+}
+export function coachingResultError(record: Pick<StoredCoachingRecord, 'actualCoaching' | 'actions' | 'recommendedTopics'>) {
+  const result = record.actualCoaching;
+  if (!result?.date || !/^\d{4}-\d{2}-\d{2}$/.test(result.date) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(result.startTime || '') ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(result.endTime || '') ||
+      result.endTime <= result.startTime || !result.finalNote?.trim() ||
+      !Number.isFinite(Date.parse(`${result.date}T${result.endTime}:00+07:00`))) {
+    return 'กรุณาระบุวันที่ เวลาเริ่ม–สิ้นสุด และ Final Coaching Note ให้ครบ';
+  }
+  const topics = record.recommendedTopics || [];
+  const actions = record.actions || [];
+  if (actions.some(a => !topics.includes(a.topic) || !a.plan?.trim() || !a.owner?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(a.dueDate || ''))) return 'กรุณากรอกหัวข้อ แผน ผู้รับผิดชอบ และกำหนดส่งให้ครบ';
+  if (topics.some(topic => !actions.some(a => a.topic === topic)) && !result.noPlanReason?.trim()) return 'กรุณากรอก Action Plan ทุกหัวข้อ หรือระบุเหตุผลที่ไม่ต้องทำแผน';
+  if (!result.topics?.length && !result.noPlanReason?.trim()) return 'กรุณาเลือกหัวข้อที่คุยจริง';
+  return '';
+}
 export const HISTORICAL_COACHING_MONTHS = Array.from({ length: 8 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
 export const isHistoricalCoachingMonth = (month: string) => HISTORICAL_COACHING_MONTHS.includes(month);
 export const coachingDisplayStatus = (month: string, status?: string) => isHistoricalCoachingMonth(month) ? 'Coaching แล้ว' : status;
@@ -81,7 +103,9 @@ export function allowedCoachingStatuses(role: string, record?: StoredCoachingRec
   if (!record || preparation.includes(record.status)) return [...preparation, 'Waiting Senior', 'No Coaching Required'];
   if (record.status === 'Action Plan Submitted') return ['Action Plan Submitted', 'Follow-up Next Month', 'QA Reviewed'];
   if (record.status === 'Waiting Senior' || record.status === 'Coaching In Progress' || record.status === 'QA Reviewed') return [record.status];
-  if (['Follow-up Next Month', 'Coached', 'Completed'].includes(record.status)) return ['Closed'];
+  if (record.status === 'Follow-up Next Month') return ['Follow-up Next Month', 'Closed'];
+  if (record.status === 'Closed') return ['Closed'];
+  if (['Coached', 'Completed'].includes(record.status)) return [record.status, 'Closed'];
   return [];
 }
 export function restoreCoachingForm(record: StoredCoachingRecord | undefined, draft: CoachingForm | null, role: string) {
@@ -93,7 +117,7 @@ export function restoreCoachingForm(record: StoredCoachingRecord | undefined, dr
     ...(allowed.includes('Draft') || (record && allowed.includes(record.status))
       ? { summary: draft.summary ?? saved.summary, topics: draft.topics || saved.topics, coachId: draft.coachId ?? saved.coachId, appointment: { ...saved.appointment, ...draft.appointment }, attachments: draft.attachments || saved.attachments }
       : {}),
-    ...(allowed.includes('QA Reviewed') ? { review: draft.review ?? saved.review } : {})
+    ...(allowed.includes('QA Reviewed') || allowed.includes('Closed') ? { review: draft.review ?? saved.review } : {})
   };
   return allowed.includes('Coaching In Progress') ? { ...saved, result: { ...saved.result, ...draft.result }, actions: draft.actions || saved.actions, attachments: draft.attachments || saved.attachments } : saved;
 }
@@ -111,7 +135,9 @@ export function mergeMonthlyCoachingSave(previous: StoredCoachingRecord | null, 
     status: next.status,
     updatedAt: next.updatedAt
   };
-  if (role === 'Senior' || role === 'Assigned Coach') return { ...merged, actualCoaching: next.actualCoaching, actions: next.actions, coachingDate: next.actualCoaching?.date || previous.coachingDate, attachments: next.attachments };
+  if (role === 'Senior' || role === 'Assigned Coach') return { ...merged,
+    seniorId: previous.seniorId, seniorName: previous.seniorName, coachId: previous.coachId, coachName: previous.coachName, coachedBy: previous.coachedBy,
+    actualCoaching: next.actualCoaching, actions: next.actions, coachingDate: next.actualCoaching?.date || previous.coachingDate, attachments: next.attachments };
   if (preparation.includes(previous.status) || (role === 'Quality Assurance' && next.status === previous.status)) {
     return { ...merged, qaSummary: next.qaSummary, recommendedTopics: next.recommendedTopics, appointment: next.appointment, attachments: next.attachments, evaluatedCases: next.evaluatedCases, averageScore: next.averageScore, grade: next.grade, criticalErrors: next.criticalErrors, caseReferences: next.caseReferences, topicSnapshot: next.topicSnapshot, qaReviewComment: next.qaReviewComment };
   }
@@ -129,14 +155,10 @@ export function coachingSaveError(role: string, previous: StoredCoachingRecord |
     if (meeting.method === 'Other' && !meeting.other.trim()) return 'กรุณาระบุรายละเอียดช่องทางนัดหมาย';
   }
   if (next.status === 'QA Reviewed' && !next.qaReviewComment?.trim()) return 'กรุณาระบุเหตุผลที่ส่งคืนผู้ Coaching';
-  if (next.status === 'Action Plan Submitted') {
-    const result = next.actualCoaching;
-    if (!result?.date || !result.startTime || !result.endTime || result.endTime <= result.startTime || !result.finalNote.trim()) return 'กรุณาระบุวันที่ เวลาเริ่ม–สิ้นสุด และ Final Coaching Note ให้ครบ';
-    const topics = previous?.recommendedTopics || [];
-    const actions = next.actions || [];
-    if (actions.some(a => !topics.includes(a.topic) || !a.plan.trim() || !a.owner.trim() || !a.dueDate)) return 'กรุณากรอกหัวข้อ แผน ผู้รับผิดชอบ และกำหนดส่งให้ครบ';
-    if (topics.some(topic => !actions.some(a => a.topic === topic)) && !result.noPlanReason.trim()) return 'กรุณากรอก Action Plan ทุกหัวข้อ หรือระบุเหตุผลที่ไม่ต้องทำแผน';
-    if (!result.topics.length && !result.noPlanReason.trim()) return 'กรุณาเลือกหัวข้อที่คุยจริง';
+  if (next.status === 'Action Plan Submitted' || isCoachingAccepted(next.status)) {
+    if (!next.qaSummary?.trim() || !next.recommendedTopics?.length) return 'กรุณาบันทึก QA สรุปและแนะนำหัวข้อการ Coaching ให้ครบ';
+    const resultError = coachingResultError(next); if (resultError) return resultError;
+    if (isCoachingAccepted(next.status) && !next.qaReviewComment?.trim()) return 'กรุณาระบุข้อสรุป QA Review ก่อนรับแผนหรือปิดเคส';
   }
   return '';
 }

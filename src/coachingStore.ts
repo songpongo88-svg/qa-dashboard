@@ -1,8 +1,8 @@
-import { collection, doc, getDocs, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, getDocsFromServer, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 
-import { belongsToAgent, isAssignedCoach, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
+import { belongsToAgent, isAssignedCoach, isCoachingAccepted, coachingResultError, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
 
 const COACHING_COLLECTION = "qa_coaching_records";
 const COACHING_CACHE_KEY = "qa-dashboard:coaching-records-cache:v1";
@@ -75,6 +75,8 @@ export type StoredCoachingRecord = {
   actualCoaching?: CoachingResult;
   actions?: CoachingAction[];
   qaReviewComment?: string;
+  qaReviewedAt?: string;
+  qaReviewedBy?: string;
   attachments?: CoachingAttachment[];
 };
 
@@ -177,6 +179,7 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
     ...(row?.appointment && typeof row.appointment === 'object' ? { appointment: row.appointment } : {}),
     ...(row?.actualCoaching && typeof row.actualCoaching === 'object' ? { actualCoaching: row.actualCoaching } : {}),
     actions: Array.isArray(row?.actions) ? row.actions : [], qaReviewComment: String(row?.qaReviewComment || ''), attachments: Array.isArray(row?.attachments) ? row.attachments : [],
+    qaReviewedAt: String(row?.qaReviewedAt || ''), qaReviewedBy: String(row?.qaReviewedBy || ''),
   };
 }
 
@@ -223,6 +226,7 @@ function writeCache(rows: StoredCoachingRecord[]) {
 const COACHING_READ_TTL_MS = 5 * 60_000;
 let recentCoachingRecords: { rows: StoredCoachingRecord[]; expiresAt: number } | null = null;
 let pendingCoachingRead: Promise<StoredCoachingRecord[]> | null = null;
+let pendingCoachingForced = false;
 
 function updateCoachingReadCache(rows: StoredCoachingRecord[]) {
   const sorted = sortRecords(rows);
@@ -234,17 +238,18 @@ export async function fetchStoredCoachingRecords(options: { allowCache?: boolean
   if (options.allowCache !== false && !options.forceRefresh && recentCoachingRecords && Date.now() < recentCoachingRecords.expiresAt) {
     return recentCoachingRecords.rows;
   }
-  if (pendingCoachingRead) return pendingCoachingRead;
+  if (pendingCoachingRead && (!options.forceRefresh || pendingCoachingForced)) return pendingCoachingRead;
   const request = (async () => {
     try {
-      const snapshot = await getDocs(collection(firebaseDb, COACHING_COLLECTION));
+      const reference = collection(firebaseDb, COACHING_COLLECTION);
+      const snapshot = await (options.forceRefresh ? getDocsFromServer(reference) : getDocs(reference));
       const rows = snapshot.docs
         .map((item) => toRecord(item.data(), item.id))
         .filter((item) => item.id && item.agent && item.monthKey);
       updateCoachingReadCache(rows);
       return recentCoachingRecords!.rows;
     } catch (error) {
-      if (options.allowCache === false) throw error;
+      if (options.allowCache === false || options.forceRefresh) throw error;
       if (recentCoachingRecords?.rows.length) return recentCoachingRecords.rows;
       const cached = readCache();
       if (cached.length) return cached;
@@ -252,6 +257,7 @@ export async function fetchStoredCoachingRecords(options: { allowCache?: boolean
     }
   })();
   pendingCoachingRead = request;
+  pendingCoachingForced = Boolean(options.forceRefresh);
   try { return await request; }
   finally { if (pendingCoachingRead === request) pendingCoachingRead = null; }
 }
@@ -323,7 +329,15 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
 
     const next = mergeMonthlyCoachingSave(previous, record, workflowRole);
     const error = coachingSaveError(workflowRole, previous, next); if (error) throw new Error(error);
-    const normalized = JSON.parse(JSON.stringify({ ...next, id: reference.id, updatedAt: new Date().toISOString() })) as StoredCoachingRecord;
+    const now = new Date().toISOString();
+    const accepted = workflowRole === 'Quality Assurance' && isCoachingAccepted(next.status);
+    const previouslyAccepted = previous && isCoachingAccepted(previous.status) && previous.qaReviewComment?.trim() &&
+      previous.qaSummary?.trim() && previous.recommendedTopics?.length && !coachingResultError(previous);
+    const reviewMetadata = accepted ? {
+      qaReviewedAt: previouslyAccepted ? previous!.qaReviewedAt || previous!.updatedAt : now,
+      qaReviewedBy: previouslyAccepted && previous!.qaReviewedBy ? previous!.qaReviewedBy : actor.displayName || actor.username,
+    } : { qaReviewedAt: previous?.qaReviewedAt || '', qaReviewedBy: previous?.qaReviewedBy || '' };
+    const normalized = JSON.parse(JSON.stringify({ ...next, ...reviewMetadata, id: reference.id, updatedAt: now })) as StoredCoachingRecord;
     transaction.set(reference, { ...normalized, updatedAtServer: serverTimestamp() }, { merge: true });
     return normalized;
   });
