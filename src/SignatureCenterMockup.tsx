@@ -15,6 +15,9 @@ import { fetchStoredEvaluations, excludeTestEvaluations, type StoredEvaluation }
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIdentity";
 import { resolveMonthlySignatureDocument } from "./lib/monthlyPdfExport";
+import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachingStore";
+import { monthlyCoachingPaymentStatus } from "./monthlyCoachingPayment";
+import { COACHING_WORKFLOW_START } from "./monthlyCoachingModel";
 import {
   clearStoredSignatureConfirm,
   deleteStoredSignatureLibraryEntry,
@@ -91,6 +94,7 @@ type SignatureDocument = {
   monthKey: string;
   monthLabel: string;
   agentName: string;
+  agentId?: string;
   seniorName: string;
   supervisorName: string;
   qaName: string;
@@ -118,7 +122,8 @@ type PendingAppealCase = {
 
 function buildPendingSignatureAppealCaseMap(logs: UsageLogEvent[]) {
   const map = new Map<string, PendingAppealCase>();
-  buildAppealRequests(logs).filter(isAppealAwaitingReview).forEach((request) => {
+  buildAppealRequests(logs).filter((request) => isAppealAwaitingReview(request) ||
+    ["Awaiting Additional Submission", "Approved (Access)"].includes(appealWorkflowStatus(request))).forEach((request) => {
     const caseId = normalizeText(request.caseId);
     if (!caseId) return;
     map.set(caseId, {
@@ -1658,7 +1663,8 @@ function savePdfFile(pdf: jsPDF, fileName: string) {
 function isPaymentReadyDocument(
   doc: SignatureDocument,
   entries: SignatureEntry[],
-  pendingAppealCaseMap: Map<string, PendingAppealCase>
+  pendingAppealCaseMap: Map<string, PendingAppealCase>,
+  coachingRecords: StoredCoachingRecord[] = []
 ) {
   const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
   const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
@@ -1670,13 +1676,15 @@ function isPaymentReadyDocument(
     const signed = getSignedEntry(entries, role);
     return Boolean(signed) && isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
   });
-  return signedComplete && signedWithinCycle && !hasPending;
+  return signedComplete && signedWithinCycle && !hasPending &&
+    monthlyCoachingPaymentStatus(doc.monthKey, doc.agentName, coachingRecords, doc.agentId).onTime;
 }
 
 function isLateSignedDocument(
   doc: SignatureDocument,
   entries: SignatureEntry[],
-  pendingAppealCaseMap: Map<string, PendingAppealCase>
+  pendingAppealCaseMap: Map<string, PendingAppealCase>,
+  coachingRecords: StoredCoachingRecord[] = []
 ) {
   const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
   const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
@@ -1688,7 +1696,8 @@ function isLateSignedDocument(
     const signed = getSignedEntry(entries, role);
     return Boolean(signed) && !isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
   });
-  return signedComplete && hasLateCompletion && !hasPending;
+  const coaching = monthlyCoachingPaymentStatus(doc.monthKey, doc.agentName, coachingRecords, doc.agentId);
+  return signedComplete && (hasLateCompletion || !coaching.onTime) && !hasPending && coaching.complete;
 }
 
 function getSignatureValidationRoleText(
@@ -1796,7 +1805,9 @@ function generatePaymentExcelFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
-  const exportRuleText = "Include only 4 Signed or 3 Signed + 1 Agent Waived (Resigned) completed by day 15";
+  const exportRuleText = monthKey >= COACHING_WORKFLOW_START
+    ? "4 Signed / Agent Waived + Coaching and QA Review by day 15; no open Appeal"
+    : "Include only 4 Signed or 3 Signed + 1 Agent Waived (Resigned) completed by day 15";
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const criticalCases = 0;
@@ -1947,7 +1958,9 @@ function generatePaymentPdfFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
-  const exportRuleText = "4 Signed or 3 Signed + 1 Agent Waived (Resigned) by day 15";
+  const exportRuleText = monthKey >= COACHING_WORKFLOW_START
+    ? "4 Signed / Agent Waived + Coaching and QA Review by day 15; no open Appeal"
+    : "4 Signed or 3 Signed + 1 Agent Waived (Resigned) by day 15";
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
@@ -2525,6 +2538,9 @@ export default function SignatureCenterMockup({
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
   const [appealLogs, setAppealLogs] = useState<UsageLogEvent[]>([]);
   const [appealStatusVerified, setAppealStatusVerified] = useState(false);
+  const [appealClock, setAppealClock] = useState(() => Date.now());
+  const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
+  const [coachingStatusVerified, setCoachingStatusVerified] = useState(false);
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
   const [signatureLibrary, setSignatureLibrary] = useState<Record<string, string>>(() => readSignatureLibraryStore());
   const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
@@ -2593,6 +2609,35 @@ export default function SignatureCenterMockup({
     void loadAppeals();
     return () => {
       alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const deadlines = buildAppealRequests(appealLogs).flatMap(request =>
+      request.additionalRound && !request.additionalRound.submitted && request.additionalRound.expiresAt
+        ? [Date.parse(request.additionalRound.expiresAt)] : []).filter(time => Number.isFinite(time) && time > Date.now());
+    if (!deadlines.length) return;
+    const timer = window.setTimeout(() => setAppealClock(Date.now()), Math.min(2_147_483_647, Math.min(...deadlines) - Date.now() + 25));
+    return () => window.clearTimeout(timer);
+  }, [appealLogs, appealClock]);
+
+  useEffect(() => {
+    let alive = true;
+    const loadCoaching = async () => {
+      try {
+        const records = await fetchStoredCoachingRecords({ allowCache: false, forceRefresh: true });
+        if (alive) { setCoachingRecords(records); setCoachingStatusVerified(true); }
+      } catch {
+        if (alive) setCoachingStatusVerified(false);
+      }
+    };
+    void loadCoaching();
+    window.addEventListener('qa-coaching-refresh', loadCoaching);
+    window.addEventListener('qa-dashboard-data-refresh', loadCoaching);
+    return () => {
+      alive = false;
+      window.removeEventListener('qa-coaching-refresh', loadCoaching);
+      window.removeEventListener('qa-dashboard-data-refresh', loadCoaching);
     };
   }, []);
 
@@ -2675,7 +2720,9 @@ export default function SignatureCenterMockup({
         Array.from(docMap.values()).forEach((doc) => {
           const canonicalName = canonicalAgentName(doc.agentName);
           const canonicalId = `${doc.monthKey}::${canonicalName}`;
-          const normalizedDoc = sortSignatureDocumentCases({ ...doc, id: canonicalId, agentName: canonicalName });
+          const owners = accounts.filter(account => [account.agentName, account.displayName, account.username].some(identity => isSamePerson(identity, canonicalName)));
+          const normalizedDoc = sortSignatureDocumentCases({ ...doc, id: canonicalId, agentName: canonicalName,
+            ...(owners.length === 1 ? { agentId: owners[0].username } : {}) });
           const existing = canonicalDocMap.get(canonicalId);
           if (!existing) {
             canonicalDocMap.set(canonicalId, normalizedDoc);
@@ -2779,7 +2826,7 @@ export default function SignatureCenterMockup({
 
   const pendingAppealCaseMap = useMemo(() => {
     return buildPendingSignatureAppealCaseMap(appealLogs);
-  }, [appealLogs]);
+  }, [appealLogs, appealClock]);
 
   const visibleDocuments = useMemo(() => {
     return documents.filter((doc) => canViewDocument(currentUser, doc, effectiveEntriesForDoc(doc, signatures)));
@@ -2795,9 +2842,11 @@ export default function SignatureCenterMockup({
       const timeline = getTimelineStatus(doc.monthKey);
       const statusMatch =
         statusFilter === "all" ||
-        (statusFilter === "my-turn" && pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) ||
+        (statusFilter === "my-turn" && appealStatusVerified && !doc.cases.some(item => pendingAppealCaseMap.has(item.caseId)) &&
+          pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) ||
         (statusFilter === "preview" && !confirmedDocs[doc.id] && !isHistoricalPaidPeriod(doc.monthKey)) ||
-        (statusFilter === "ready" && isComplete && doc.eligibleByScore) ||
+        (statusFilter === "ready" && doc.eligibleByScore && (coachingStatusVerified || doc.monthKey < COACHING_WORKFLOW_START) &&
+          isPaymentReadyDocument(doc, entries, pendingAppealCaseMap, coachingRecords)) ||
         (statusFilter === "pending" && !isComplete) ||
         (statusFilter === "expired" && timeline === "Signature Deadline Passed" && !isComplete) ||
         (statusFilter === "appeal-pending" && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId)));
@@ -2819,7 +2868,7 @@ export default function SignatureCenterMockup({
         );
       return statusMatch && monthMatch && keywordMatch;
     }).sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-  }, [confirmedDocs, currentUser, documents, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
+  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, confirmedDocs, currentUser, documents, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
 
   const historyFilteredDocuments = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -2935,11 +2984,11 @@ export default function SignatureCenterMockup({
   }, [documents, selectedMonth]);
 
   const selectedMonthPaymentDocs = useMemo(() => {
-    if (selectedMonth === "all" || !appealStatusVerified) return [];
+    if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
     return documents
       .filter((doc) => doc.monthKey === selectedMonth)
-      .filter((doc) => isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
-  }, [appealStatusVerified, documents, pendingAppealCaseMap, selectedMonth, signatures]);
+      .filter((doc) => isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap, coachingRecords));
+  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const selectedMonthExportDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
@@ -2952,11 +3001,11 @@ export default function SignatureCenterMockup({
   }, [selectedMonth, selectedMonthExportDocs]);
 
   const selectedMonthLateSignedDocs = useMemo(() => {
-    if (selectedMonth === "all" || !appealStatusVerified) return [];
+    if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
     return documents
       .filter((doc) => doc.monthKey === selectedMonth)
-      .filter((doc) => isLateSignedDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
-  }, [appealStatusVerified, documents, pendingAppealCaseMap, selectedMonth, signatures]);
+      .filter((doc) => isLateSignedDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap, coachingRecords));
+  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const rolePendingCounts = useMemo(() => {
     const counts: Record<SignRole, number> = { QA: 0, Supervisor: 0, Senior: 0, Agent: 0 };
@@ -3070,7 +3119,9 @@ export default function SignatureCenterMockup({
   const lastSignedRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(selectedEntries, role)));
   const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getCompletedEntry(selectedEntries, role))).length;
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
-  const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete && !hasPendingAppeal);
+  const selectedCoachingStatus = selectedDocument ? monthlyCoachingPaymentStatus(selectedDocument.monthKey, selectedDocument.agentName, coachingRecords, selectedDocument.agentId) : null;
+  const selectedCoachingVerified = coachingStatusVerified || Boolean(selectedDocument && selectedDocument.monthKey < COACHING_WORKFLOW_START);
+  const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete && !hasPendingAppeal && selectedCoachingVerified && selectedCoachingStatus?.onTime);
   const previewConfirmed = Boolean(selectedDocument && (confirmedDocs[selectedDocument.id] || isHistoricalPaidPeriod(selectedDocument.monthKey)));
   const workflowReadyToSign = Boolean(
     selectedDocument &&
@@ -3088,7 +3139,7 @@ export default function SignatureCenterMockup({
     ? !appealStatusVerified
       ? "ยังตรวจสอบสถานะอุทธรณ์ไม่สำเร็จ กรุณากดอัปเดตข้อมูลก่อนยืนยันรับทราบ"
       : hasPendingAppeal
-      ? "มีอุทธรณ์รอบแรกหรือรอบเพิ่มเติมรอผล QA จึงยังยืนยันรับทราบไม่ได้"
+      ? "รอบอุทธรณ์ยังไม่สิ้นสุด จึงยังยืนยันรับทราบไม่ได้"
       : !isAfterAppealPeriod(selectedDocument.monthKey)
         ? "เปิดให้ยืนยันรับทราบหลังวันที่ 10 ของเดือนถัดไป"
         : !canSignIdentity(currentUser, selectedDocument, "Agent")
@@ -3167,11 +3218,12 @@ export default function SignatureCenterMockup({
       if (count === SIGNATURE_FLOW.length) complete += 1;
       else pending += 1;
       const appealResolved = appealStatusVerified && !doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
-      if (appealResolved && count === SIGNATURE_FLOW.length && doc.eligibleByScore) ready += 1;
+      if (appealResolved && doc.eligibleByScore && (coachingStatusVerified || doc.monthKey < COACHING_WORKFLOW_START) &&
+          isPaymentReadyDocument(doc, entries, pendingAppealCaseMap, coachingRecords)) ready += 1;
       if (appealResolved && pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) myTurn += 1;
     });
     return { total: visibleDocuments.length, complete, pending, ready, myTurn };
-  }, [appealStatusVerified, currentUser, pendingAppealCaseMap, signatures, visibleDocuments]);
+  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, currentUser, pendingAppealCaseMap, signatures, visibleDocuments]);
 
   const assertAppealsResolved = async (targetDocuments: SignatureDocument[]) => {
     let logs: UsageLogEvent[];
@@ -3186,7 +3238,7 @@ export default function SignatureCenterMockup({
     const pending = buildPendingSignatureAppealCaseMap(logs);
     if (targetDocuments.some((doc) => !isHistoricalPaidPeriod(doc.monthKey) &&
       doc.cases.some((item) => pending.has(item.caseId)))) {
-      throw new SignatureAppealHoldError("มีอุทธรณ์รอบแรกหรือรอบเพิ่มเติมรอผล QA กรุณารอผลก่อนยืนยันรับทราบ ลงนาม หรือส่งออกข้อมูลจ่าย");
+      throw new SignatureAppealHoldError("รอบอุทธรณ์ยังไม่สิ้นสุด กรุณารอผล QA หรือรอหมดช่วงยื่นเพิ่ม 3 วันโดยไม่มีการยื่นเพิ่มเติม ก่อนยืนยันรับทราบ ลงนาม หรือส่งออกข้อมูลจ่าย");
     }
     if (signatureAppealReviewKey(appealLogs, targetDocuments) !== signatureAppealReviewKey(logs, targetDocuments)) {
       setAppealStatusVerified(false);
@@ -4773,7 +4825,27 @@ export default function SignatureCenterMockup({
     window.setTimeout(() => setPdfMessage(""), 3500);
   };
 
+  const paymentDocumentsForExport = async () => {
+    let records = coachingRecords;
+    if (selectedMonth >= COACHING_WORKFLOW_START) {
+      try {
+        records = await fetchStoredCoachingRecords({ allowCache: false, forceRefresh: true });
+        setCoachingRecords(records);
+        setCoachingStatusVerified(true);
+      } catch {
+        setCoachingStatusVerified(false);
+        throw new Error("ตรวจผล Coaching / QA Review ล่าสุดไม่สำเร็จ กรุณาอัปเดตข้อมูลก่อนส่งออก Payment");
+      }
+    }
+    const eligible = selectedMonthAllDocs.filter(doc =>
+      isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap, records));
+    if (!eligible.length) throw new Error("ยังไม่มี Agent ที่ลงนามและมีผล Coaching / QA Review ครบภายในวันที่ 15 ของรอบนี้");
+    await assertAppealsResolved(eligible);
+    return eligible;
+  };
+
   const generatePaymentExcel = async () => {
+    if (currentUser.role !== "Quality Assurance") return;
     if (selectedMonth === "all") {
       window.alert("กรุณาเลือกเดือนก่อน Generate Excel");
       return;
@@ -4783,8 +4855,8 @@ export default function SignatureCenterMockup({
       return;
     }
     try {
-      await assertAppealsResolved(selectedMonthPaymentExportDocs);
-      generatePaymentExcelFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
+      const eligible = await paymentDocumentsForExport();
+      generatePaymentExcelFile(selectedMonth, eligible, signatures, selectedMonthAllDocs);
       setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
       window.setTimeout(() => setPaymentMessage(""), 3500);
     } catch (error) {
@@ -4794,6 +4866,7 @@ export default function SignatureCenterMockup({
   };
 
   const generatePaymentPdf = async () => {
+    if (currentUser.role !== "Quality Assurance") return;
     if (selectedMonth === "all") {
       window.alert("กรุณาเลือกเดือนก่อน Generate Payment PDF");
       return;
@@ -4803,8 +4876,8 @@ export default function SignatureCenterMockup({
       return;
     }
     try {
-      await assertAppealsResolved(selectedMonthPaymentExportDocs);
-      const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
+      const eligible = await paymentDocumentsForExport();
+      const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, selectedMonthAllDocs);
       setPaymentMessage(`Generated ${fileName}`);
       window.setTimeout(() => setPaymentMessage(""), 3500);
     } catch (error) {
@@ -5977,12 +6050,17 @@ export default function SignatureCenterMockup({
               </div>
             </div>
 
+            {selectedDocument && selectedDocument.monthKey >= COACHING_WORKFLOW_START && (!selectedCoachingVerified || !selectedCoachingStatus?.onTime) ? (
+              <p role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Monthly Payment: {selectedCoachingVerified ? selectedCoachingStatus?.reason : "ยังตรวจผล Coaching / QA Review ล่าสุดไม่สำเร็จ กรุณาอัปเดตข้อมูล"}
+              </p>
+            ) : null}
             {hasPendingAppeal ? (
               <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-rose-800 shadow-[0_18px_40px_rgba(225,29,72,0.08)]">
-                <div className="text-base font-black">{appealStatusVerified ? "มีอุทธรณ์รอผล QA" : "ยังตรวจสอบสถานะอุทธรณ์ไม่สำเร็จ"}</div>
+                <div className="text-base font-black">{appealStatusVerified ? "รอบอุทธรณ์ยังไม่สิ้นสุด" : "ยังตรวจสอบสถานะอุทธรณ์ไม่สำเร็จ"}</div>
                 <div className="mt-1 text-sm font-semibold leading-6">
                   {appealStatusVerified
-                    ? "มีอุทธรณ์รอบแรกหรือรอบเพิ่มเติมรอพิจารณา เอกสารยังดูและดาวน์โหลดได้ กรุณารอ QA ตัดสินครบทุกเคสก่อนยืนยันรับทราบ ลงนาม หรือส่งออกข้อมูลจ่าย"
+                    ? "เอกสารยังดูและดาวน์โหลดได้ แต่ยังยืนยันรับทราบ ลงนาม หรือส่งออกข้อมูลจ่ายไม่ได้ เพราะมีเคสรอผล QA หรืออยู่ในช่วงรอ Admin ยื่นเพิ่มภายใน 3 วัน หากยื่นแล้วต้องรอ QA พิจารณาครบทุกเคส หากไม่ยื่น ระบบปลดล็อกเมื่อหมดเวลา หรือเมื่อยกเลิกรอบเพิ่มเติม"
                     : "กรุณากดอัปเดตข้อมูล ระบบจะเปิดการยืนยันรับทราบ ลงนาม และส่งออกข้อมูลจ่ายเมื่อยืนยันสถานะอุทธรณ์ได้แล้ว"}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">

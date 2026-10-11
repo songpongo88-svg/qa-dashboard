@@ -16,9 +16,9 @@ if (typeof globalThis.navigator === 'undefined') {
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const temp = await fs.mkdtemp(path.join(rootDir, '.coaching-test-'));
-const bundle = await build({ stdin: { contents: `import React, {act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Workspace from './src/MonthlyCoachingWorkspace'; export {React,act,Simulate,createRoot,Workspace}; export * from './src/monthlyCoachingModel'; export * from './src/coachingStore'; export * from './src/coachingAttachmentUpload';`, resolveDir: rootDir, loader: 'tsx' }, bundle: true, loader:{'.css':'empty'}, external: ['react', 'react-dom', 'react-dom/*'], platform: 'node', format: 'esm', write: false, banner: { js: "import { createRequire as testRequire } from 'node:module'; const require = testRequire(import.meta.url);" }, plugins: [{name:'test-services',setup(b){
+const bundle = await build({ stdin: { contents: `import React, {act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Workspace from './src/MonthlyCoachingWorkspace'; export {React,act,Simulate,createRoot,Workspace}; export * from './src/monthlyCoachingModel'; export * from './src/coachingStore'; export * from './src/coachingAttachmentUpload'; export * from './src/monthlyCoachingPayment';`, resolveDir: rootDir, loader: 'tsx' }, bundle: true, loader:{'.css':'empty'}, external: ['react', 'react-dom', 'react-dom/*'], platform: 'node', format: 'esm', write: false, banner: { js: "import { createRequire as testRequire } from 'node:module'; const require = testRequire(import.meta.url);" }, plugins: [{name:'test-services',setup(b){
   b.onResolve({filter:/^(firebase\/firestore|\.\/firebaseClient|\.\/coachingCanonicalStore|\.\/evaluationStore)$/},args=>({path:args.path,namespace:'test-service'}));
-  b.onLoad({filter:/.*/,namespace:'test-service'},args=>({contents: args.path==='firebase/firestore' ? `const f=globalThis.__monthlyCoachingFixture; export const collection=(_,name)=>({name}); export const doc=(_,name,id)=>({name,id}); export const serverTimestamp=()=>0; export async function getDocs(){if(f.readError)throw new Error('offline');return {docs:[...f.records].map(([id,row])=>({id,data:()=>structuredClone(row)}))};} export async function setDoc(ref,row){f.records.set(ref.id,structuredClone(row));} export async function runTransaction(_,fn){const writes=[];const result=await fn({get:async ref=>({id:ref.id,exists:()=>f.records.has(ref.id),data:()=>structuredClone(f.records.get(ref.id))}),set:(ref,row)=>writes.push([ref.id,structuredClone(row)])});writes.forEach(([id,row])=>f.records.set(id,row));return result;}` : args.path==='./firebaseClient' ? `export const firebaseDb={};` : args.path==='./coachingCanonicalStore' ? `export const fetchCanonicalCoachingEvaluations=async()=>structuredClone(globalThis.__monthlyCoachingFixture.evaluations);` : `export const getStoredEvaluationMonthKey=row=>row.evaluationMonthKey;`, loader:'js'}));
+  b.onLoad({filter:/.*/,namespace:'test-service'},args=>({contents: args.path==='firebase/firestore' ? `const f=globalThis.__monthlyCoachingFixture; export const collection=(_,name)=>({name}); export const doc=(_,name,id)=>({name,id}); export const serverTimestamp=()=>0; export async function getDocs(){if(f.readError)throw new Error('offline');return {docs:[...f.records].map(([id,row])=>({id,data:()=>structuredClone(row)}))};} export async function getDocsFromServer(){f.serverReads=(f.serverReads||0)+1;return getDocs();} export async function setDoc(ref,row){f.records.set(ref.id,structuredClone(row));} export async function runTransaction(_,fn){const writes=[];const result=await fn({get:async ref=>({id:ref.id,exists:()=>f.records.has(ref.id),data:()=>structuredClone(f.records.get(ref.id))}),set:(ref,row)=>writes.push([ref.id,structuredClone(row)])});writes.forEach(([id,row])=>f.records.set(id,row));return result;}` : args.path==='./firebaseClient' ? `export const firebaseDb={};` : args.path==='./coachingCanonicalStore' ? `export const fetchCanonicalCoachingEvaluations=async()=>structuredClone(globalThis.__monthlyCoachingFixture.evaluations);` : `export const getStoredEvaluationMonthKey=row=>row.evaluationMonthKey;`, loader:'js'}));
 }}] });
 const bundlePath = path.join(temp,'test.mjs'); await fs.writeFile(bundlePath,bundle.outputFiles[0].text);
 const m = await import(pathToFileURL(bundlePath));
@@ -33,6 +33,8 @@ const accounts = [
 ];
 const [qa,seniorA,seniorB,agentA,agentB]=accounts;
 const month='2026-09';
+const assigned=[{agentId:'agent-a',agent:'Agent A',monthKey:month,coachId:'lead-a',appointment:{participants:[]}},{agentId:'agent-b',agent:'Agent B',monthKey:month,coachId:'lead-ann',appointment:{participants:[]}}];
+accounts.push({username:'guest',displayName:'Guest QA',agentName:'Guest QA',role:'Supervisor'});
 fixture.evaluations=[{id:'a-1',caseId:'AA100',auditDate:'2026-09-23',auditTimestamp:'2026-09-30T12:00:00Z',targetUsername:'agent-a',agentName:'Agent A',evaluationMonthKey:month,finalScore:80,criticalError:false,topics:[{code:'1',title:'Verify',score:20,max:30},{code:'2',title:'SLA',score:15,max:20}]},{id:'b-1',caseId:'BB100',targetUsername:'agent-b',agentName:'Agent B',evaluationMonthKey:month,finalScore:90,topics:[{code:'1',title:'Verify',score:30,max:30}]}];
 const septemberRows=structuredClone(fixture.evaluations);
 fixture.evaluations.push(...Array.from({length:8},(_,i)=>({...septemberRows[0],id:`legacy-${i}`,evaluationMonthKey:`2026-${String(i+1).padStart(2,'0')}`})));
@@ -45,7 +47,7 @@ const scoped=m.coachingEvaluationScope(allAccounts,qa,noisy,'2026-09');
 assert.deepEqual(scoped.agents.map(a=>a.username),['agent-a','agent-b','custom-role']);
 assert.deepEqual(scoped.months,Array.from({length:9},(_,i)=>`2026-${String(i+1).padStart(2,'0')}`));
 assert.equal(scoped.rowsByAgent.get('agent-a').length,9);
-assert.deepEqual(m.coachingEvaluationScope(allAccounts,seniorB,noisy,'2026-09').months,['2026-09']);
+assert.deepEqual(m.coachingEvaluationScope(allAccounts,seniorB,noisy,'2026-09',assigned).months,['2026-09']);
 assert.equal(m.resolveCoachingMonth('2026-12',scoped.months,'2026-09'),'2026-09');
 assert.equal(m.resolveCoachingMonth('2027-01',[],'2026-09'),'');
 assert.equal(m.formFromRecord({mainIssues:'AUTO GENERATED CASE DESCRIPTION'}).summary,'');
@@ -54,8 +56,8 @@ assert.equal(m.manualCoachingSummary({generalFeedback:'Manual legacy note',mainI
 assert.equal(m.manualCoachingSummary({qaSummary:'',generalFeedback:'Manual legacy note'}),'','clearing a saved QA summary must not bring the old note back');
 assert.equal(m.coachingEvaluationScope([...accounts,{...agentA,username:'duplicate-name'}],qa,[{...septemberRows[0],targetUsername:''}],'2026-09').agents.length,0,'ambiguous names excluded');
 assert.deepEqual(m.visibleCoachingAgents(accounts,qa).map(a=>a.username),['agent-a','agent-b','unevaluated']);
-assert.deepEqual(m.visibleCoachingAgents(accounts,seniorA).map(a=>a.username),['agent-a','unevaluated'],'partial Senior names must never grant another team');
-assert.deepEqual(m.visibleCoachingAgents(accounts,seniorB).map(a=>a.username),['agent-b']);
+assert.deepEqual(m.visibleCoachingAgents(accounts,seniorA,assigned).map(a=>a.username),['agent-a'],'partial Senior names must never grant another team');
+assert.deepEqual(m.visibleCoachingAgents(accounts,seniorB,assigned).map(a=>a.username),['agent-b']);
 assert.deepEqual(m.visibleCoachingAgents(accounts,{...agentA,role:'Quality Assurance'}),[]);
 assert.deepEqual(m.visibleCoachingAgents(accounts.map(a=>a.username==='qa'?{...a,status:'Suspended'}:a),qa),[]);
 assert.equal(m.belongsToAgent(agentA,'agent-b','Agent A'),false,'explicit IDs take precedence over matching names');
@@ -67,6 +69,7 @@ let root;
 const flush = () => new Promise(resolve=>setTimeout(resolve,0));
 async function mount(user) { if(root) await act(async()=>root.unmount()); root=createRoot(document.getElementById('root')); await act(async()=>{root.render(React.createElement(Workspace,{currentUser:user,accounts}));await flush();}); }
 const text = () => document.body.textContent;
+const rosterText = () => [...document.querySelectorAll('.mc-person')].map(node=>node.textContent).join(' ');
 const button = title => [...document.querySelectorAll('button')].find(e=>e.textContent.trim()===title);
 async function click(element) { assert.ok(element,'button exists'); assert.equal(element.disabled,false,'button enabled'); await act(async()=>{Simulate.click(element);await flush();}); }
 async function fill(element,value) { assert.ok(element,'field exists'); await act(async()=>{element.value=value;Simulate.change(element);await flush();}); }
@@ -77,7 +80,7 @@ async function tickTopic(topic) {const checkbox=[...document.querySelectorAll('l
 try {
   sessionStorage.setItem('qa-dashboard:monthly-coaching:view:qa',JSON.stringify({periodVersion:2,month}));
   await mount(qa); await chooseAgent();
-  assert.ok(!text().includes('No Results'));assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),scoped.months);
+  assert.ok(!rosterText().includes('No Results'));assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),scoped.months);
   const evidenceDate=caseId=>[...document.querySelectorAll('.mc-evidence-card tbody tr')].find(row=>row.querySelector('button')?.textContent===caseId)?.cells[1].textContent;
   assert.equal(evidenceDate('AA100'),'23/09/2026','Case Date comes from the same stored field as Case Detail, without a preview copy');
   fixture.evaluations[0].rawDataPreview={'Case Date':'2026-09-22'};
@@ -98,29 +101,32 @@ try {
   fixture.records.set('legacy-record',{id:'legacy-record',agentId:'agent-a',agent:'Agent A',monthKey:'2026-08',status:'Completed',mainIssues:'AUTO GENERATED CASE DESCRIPTION',generalFeedback:'Manually written legacy note',updatedAt:'2026-08-31T00:00:00Z'});await click(button('โหลดข้อมูลล่าสุด'));assert.ok(!text().includes('AUTO GENERATED CASE DESCRIPTION'));assert.ok(text().includes('Manually written legacy note'));
   await fill(named('QA Summary'),'QA summary retained across tabs'); await tickTopic('Verify'); await tickTopic('SLA');
   await fill(field('วันที่นัดหมาย'),'2026-09-28'); await fill(field('เวลาเริ่ม (24 ชั่วโมง)'),'14:00');
-  await fill(field('ผู้เข้าร่วมเพิ่มเติม'),'Guest QA,');assert.equal(field('ผู้เข้าร่วมเพิ่มเติม').value,'Guest QA,','comma stays editable');
+  await fill(named('เลือกผู้ Coaching'),'lead-a');await fill(named('เลือกผู้เข้าร่วมเพิ่มเติม'),'Guest QA');await click(button('+ เพิ่ม'));
   await fill(named('Agenda 1'),'Review Verify'); await click(button('+ เพิ่ม Agenda')); await fill(named('Agenda 2'),'Review SLA');
   await mount(qa);
   assert.equal(named('QA Summary').value,'QA summary retained across tabs','unsaved text survives tab unmount and remount');
   assert.equal(named('Agenda 2').value,'Review SLA');
   await click(button('บันทึก Draft')); assert.equal(fixture.records.size,2);
   const id=m.monthlyCoachingId(agentA.username,month);
-  assert.equal(fixture.records.get(id).qaSummary,'QA summary retained across tabs');assert.equal(field('ผู้เข้าร่วมเพิ่มเติม').value,'Guest QA','default Admin/Senior do not duplicate in additional participants');assert.ok(fixture.records.get(id).appointment.participants.includes('Guest QA'));
-  await click(button('นัดหมาย')); await click(button('ส่งให้ Senior'));
+  assert.equal(fixture.records.get(id).qaSummary,'QA summary retained across tabs');assert.equal(named('เลือกผู้เข้าร่วมเพิ่มเติม').value,'','added participants reset the selection');assert.ok(fixture.records.get(id).appointment.participants.includes('Guest QA'));
+  await click(button('นัดหมาย')); await click(button('ส่งให้ผู้ Coaching'));
   assert.equal(fixture.records.get(id).status,'Waiting Senior'); assert.equal(fixture.records.size,2,'one monthly record reused through transitions');
   sessionStorage.setItem('qa-dashboard:monthly-coaching:view:lead-a',JSON.stringify({periodVersion:2,month}));
-  await mount(seniorA); assert.ok(!text().includes('Agent B Full Name')); await chooseAgent();
+  await mount(seniorA); assert.ok(!rosterText().includes('Agent B Full Name')); await chooseAgent();
   assert.equal(named('QA Summary').readOnly,true); assert.equal(field('วันที่นัดหมาย').disabled,true);
   await fill(field('วันที่ Coaching จริง'),'2026-09-28');await fill(field('เวลาเริ่มจริง'),'14:00');await fill(field('เวลาสิ้นสุดจริง'),'15:00');
-  await fill(named('Senior Final Note'),'Discussed both topics');await tickTopic('Verify');await tickTopic('SLA');
+  await fill(named('Final Coaching Note'),'Discussed both topics');await tickTopic('Verify');await tickTopic('SLA');
   await click(button('ส่ง Action Plan ให้ QA')); assert.equal(fixture.records.get(id).status,'Waiting Senior','missing plans cannot submit');
   for(let i=0;i<2;i++){await click(button('+ เพิ่ม Action Plan'));await fill(field('Action Plan',i),`Plan ${i+1}`);await fill(field('กำหนดส่ง',i),'2026-10-15');}
   await mount(seniorA); assert.equal(field('Action Plan',1).value,'Plan 2','Senior plan survives switching tabs');
   await click(button('ส่ง Action Plan ให้ QA')); assert.equal(fixture.records.get(id).status,'Action Plan Submitted');
-  await mount(qa); await click(button('ส่งคืน Senior')); assert.equal(fixture.records.get(id).status,'Action Plan Submitted','return requires a review comment');
-  await fill(named('QA Review Comment'),'Add measurable follow-up'); await click(button('ส่งคืน Senior')); assert.equal(fixture.records.get(id).status,'QA Reviewed');
+  await mount(qa); await click(button('ส่งคืนผู้ Coaching')); assert.equal(fixture.records.get(id).status,'Action Plan Submitted','return requires a review comment');
+  await fill(named('QA Review Comment'),'Add measurable follow-up'); await click(button('ส่งคืนผู้ Coaching')); assert.equal(fixture.records.get(id).status,'QA Reviewed');
   await mount(seniorA); assert.equal(named('QA Review Comment').value,'Add measurable follow-up');await click(button('ส่ง Action Plan ให้ QA'));
-  await mount(qa); await click(button('รับแผน'));assert.equal(fixture.records.get(id).status,'Follow-up Next Month');
+  await mount(qa);await fill(named('QA Review Comment'),'');await click(button('รับแผน'));assert.equal(fixture.records.get(id).status,'Action Plan Submitted','QA acceptance requires a review summary');await fill(named('QA Review Comment'),'Checked both topics and accepted the Action Plan');await click(button('รับแผน'));assert.equal(fixture.records.get(id).status,'Follow-up Next Month');
+  const accepted=fixture.records.get(id);assert.equal(accepted.qaReviewedAt,new Date(testNow).toISOString());assert.equal(accepted.qaReviewedBy,qa.displayName);assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[accepted],agentA.username).onTime,true);assert.ok(text().includes('15/10/2026'));
+  testNow='2026-10-16T03:00:00Z';const closed=await m.saveMonthlyCoachingRecord({...accepted,status:'Closed',qaReviewedAt:'1900-01-01T00:00:00Z'},qa,accounts,accepted.updatedAt);assert.equal(closed.qaReviewedAt,accepted.qaReviewedAt,'closing later retains the actual first QA acceptance time and ignores a client-supplied date');assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[closed],agentA.username).onTime,true);testNow='2026-09-30T12:00:00Z';
+  const withoutReview={...closed,qaReviewComment:'',qaReviewedAt:''};fixture.records.set(id,withoutReview);await mount(qa);await fill(named('QA Review Comment'),'QA verified the completed Coaching');await click(button('บันทึก QA Review'));assert.equal(fixture.records.get(id).qaReviewedBy,qa.displayName,'QA can complete the required review on an already closed record');
   const previous=structuredClone(fixture.records.get(id));
   testNow='2026-10-15T12:00:00Z';fixture.evaluations.push({...septemberRows[0],id:'october-1',evaluationMonthKey:'2026-10'});await click(button('โหลดข้อมูลล่าสุด'));await fill(named('เดือน Coaching'),'2026-10');assert.ok(text().includes('ประวัติการ Coaching ล่าสุด (September 2026)'));assert.ok(text().includes('Plan 1'));assert.equal(named('QA Summary').value,'');
   await fill(named('QA Summary'),'October new record');await click(button('บันทึก Draft'));assert.equal(fixture.records.size,3);assert.deepEqual(fixture.records.get(id),previous,'next month must not modify previous month');
@@ -130,7 +136,7 @@ try {
   await assert.rejects(()=>m.saveMonthlyCoachingRecord({...old,status:'Coaching In Progress'},seniorB,accounts,old.updatedAt),/ไม่มีสิทธิ์/);
   const malicious={...old,qaSummary:'altered by senior',agentId:'agent-b',team:'Wrong Team',seniorId:'lead-ann',actions:[{id:'x',plan:'New plan'}]};
   const merged=m.mergeMonthlyCoachingSave(old,malicious,'Senior');assert.equal(merged.qaSummary,old.qaSummary);assert.equal(merged.agentId,'agent-a');assert.equal(merged.team,'Team A');assert.equal(merged.seniorId,'lead-a');
-  fixture.readError=true;await assert.rejects(()=>m.fetchStoredCoachingRecords({allowCache:false}),/offline/);fixture.readError=false;
+  await m.fetchStoredCoachingRecords({forceRefresh:true});assert.ok(fixture.serverReads>0,'forceRefresh uses a server-only Coaching read');fixture.readError=true;await assert.rejects(()=>m.fetchStoredCoachingRecords({allowCache:false}),/offline/);await assert.rejects(()=>m.fetchStoredCoachingRecords({forceRefresh:true}),/offline/,'a failed fresh read never falls back to cached Payment eligibility');fixture.readError=false;
   assert.equal(m.currentCoachingMonth(new Date('2026-08-31T17:00:00Z')),'2026-09','Bangkok midnight uses the new Gregorian month');
   assert.equal(m.initialCoachingMonth({month:'2025-08'},month),month,'migrate the old cached year once');
   assert.equal(m.initialCoachingMonth({periodVersion:2,month:'2026-08'},month),'2026-08','keep intentional period selections');
@@ -138,7 +144,7 @@ try {
   for (const legacyMonth of m.HISTORICAL_COACHING_MONTHS) {
     await fill(named('เดือน Coaching'),legacyMonth);
     await click(button('ข้อมูล Coaching'));
-    assert.equal(named('QA Summary'),null,'historical period has no new workflow form');
+    assert.equal(Boolean(named('QA Summary')),false,'historical period has no new workflow form');
     assert.equal(button('บันทึก Draft'),undefined);
     assert.ok([...document.querySelectorAll('aside button')].filter(e=>e.textContent.includes('Full Name')).every(e=>e.textContent.includes('Coaching แล้ว')));
     await mount(qa);assert.equal(named('เดือน Coaching').value,legacyMonth,'history selection survives tab navigation');
@@ -152,8 +158,8 @@ try {
   await click(button('เดือนปัจจุบัน'));assert.equal(named('เดือน Coaching').value,'2026-10');
   assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),[...scoped.months,'2026-10']);
   await fill(named('เดือน Coaching'),'2026-09');assert.ok(named('QA Summary'));
-  await mount(seniorA);await fill(named('เดือน Coaching'),'2026-08');assert.ok(!text().includes('Agent B Full Name'));assert.equal(named('QA Summary'),null);
-  await mount(seniorB);assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),['2026-09']);assert.ok(!text().includes('Agent A Full Name'));
+  await mount(seniorA);assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),['2026-09','2026-10'],'Senior sees months assigned through their Coaching records');assert.ok(!rosterText().includes('Agent B Full Name'));assert.equal(named('QA Summary').readOnly,true);
+  fixture.records.set('b-scoped',{id:'b-scoped',agentId:agentB.username,agent:agentB.agentName,monthKey:month,status:'Waiting Senior',coachId:seniorB.username,updatedAt:new Date().toISOString()});await mount(seniorB);assert.deepEqual([...named('เดือน Coaching').options].map(o=>o.value),['2026-09']);assert.ok(!rosterText().includes('Agent A Full Name'));
   console.log('PASS evaluated-role scope, empty/test/no-case/future exclusion, exact identity, scoped month options, manual-only QA text');
   console.log('PASS January–August 2026 historical completion, read-only save guards, September boundary, Gregorian month order, current-month reset and Senior scope');
   console.log('PASS Monthly Coaching: QA draft, unsaved tab restore, appointment, Senior team isolation, read-only QA fields, multiple plans, return/accept, next-month follow-up, history, duplicate prevention, stale-write rejection and ownership preservation');

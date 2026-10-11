@@ -5,13 +5,15 @@ import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import React, { act } from "react";
 import { JSDOM } from "jsdom";
+import viteConfig from "../vite.config.js";
 
 const temporary = await mkdtemp(resolve(".signature-appeal-test-"));
 const NativeDate = globalThis.Date;
 const now = NativeDate.parse("2026-10-12T03:00:00Z");
+let clock = now;
 globalThis.Date = class extends NativeDate {
-  constructor(...args) { super(...(args.length ? args : [now])); }
-  static now() { return now; }
+  constructor(...args) { super(...(args.length ? args : [clock])); }
+  static now() { return clock; }
 };
 const dom = new JSDOM('<div id="root"></div>', {
   url: "https://qa.test/?month=2026-09&doc=2026-09%3A%3AFixture%20Agent%20A",
@@ -24,11 +26,12 @@ for (const key of ["window", "document", "navigator", "HTMLElement", "Event", "M
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 dom.window.HTMLElement.prototype.scrollIntoView = function() {};
 const fixture = globalThis.__signatureAppealFixture = {
-  logs: [], writes: [], reads: [], alerts: [], stored: [], failed: false, exports: 0,
+  logs: [], writes: [], reads: [], alerts: [], stored: [], failed: false, exports: [], pdfText: [], coachingReads: [], coachingFailed: false,
 };
 const originalWarn = console.warn;
 const originalError = console.error;
-const expectedFailure = args => args.some(value => value?.constructor?.name === "SignatureAppealHoldError" || value?.message === "offline fixture");
+const expectedFailure = args => args.some(value => value?.constructor?.name === "SignatureAppealHoldError" || value?.message === "offline fixture" ||
+  /^(ยังไม่มี Agent ที่ลงนาม|ตรวจผล Coaching \/ QA Review ล่าสุดไม่สำเร็จ)/.test(value?.message || ''));
 console.warn = (...args) => { if (!expectedFailure(args)) originalWarn(...args); };
 console.error = (...args) => { if (!expectedFailure(args)) originalError(...args); };
 window.alert = message => fixture.alerts.push(String(message));
@@ -63,6 +66,12 @@ fixture.evaluations = [agent, "Fixture Agent B"].flatMap((name, owner) => Array.
   evaluatorName: names.QA, inquiry: "ข้อมูลทดสอบ", topics: [topic],
 })));
 const signed = role => ({ role, signerName: names[role], signedBy: names[role], status: "Signed", signedAt: at(-1) });
+const coaching = name => ({ id: `coaching-${name}`, agent: name, agentId: name, monthKey: '2026-09',
+  status: 'Follow-up Next Month', updatedAt: at(-1), qaReviewedAt: at(-1), qaReviewedBy: names.QA,
+  qaSummary: 'QA recommends Process', recommendedTopics: ['Process'], qaReviewComment: 'Reviewed and accepted',
+  actualCoaching: { date: '2026-10-11', startTime: '14:00', endTime: '15:00', topics: ['Process'], finalNote: 'Coached Process', noPlanReason: '' },
+  actions: [{ topic: 'Process', plan: 'Check Process each case', owner: name, dueDate: '2026-10-20' }] });
+fixture.coaching = [coaching(agent), coaching('Fixture Agent B')];
 const storeMock = `
   export async function fetchAppealEvents(types,options){const f=globalThis.__signatureAppealFixture;
     f.reads.push({types,options});if(f.failed)throw new Error('offline fixture');
@@ -90,39 +99,55 @@ try {
           export async function clearStoredSignatureConfirm(){}
         `,
         "./paymentCarryOverStore": "export async function fetchPaymentCarryOverStates(){return {}};export async function markPaymentCarryOverExported(input){return input}",
+        "./coachingStore": `export async function fetchStoredCoachingRecords(options){const f=globalThis.__signatureAppealFixture;f.coachingReads.push(options);if(f.coachingFailed)throw new Error('offline fixture');return structuredClone(f.coaching)}`,
         "./evaluationStore": "export async function fetchStoredEvaluations(){return globalThis.__signatureAppealFixture.evaluations};export async function fetchStoredEvaluationsForCases(){return globalThis.__signatureAppealFixture.evaluations};export const getStoredEvaluationMonthKey=record=>record.auditDate?.slice(0,7)||'';export const excludeTestEvaluations=records=>records.filter(record=>!record.isTestCase)",
         "./userRoleStore": "export async function fetchStoredUserProfiles(){return []}",
         "./PageHero": "export default function Hero(){return null}",
       };
-      builder.onResolve({ filter: /^\.\/(appealStore|signatureStore|paymentCarryOverStore|evaluationStore|userRoleStore|PageHero)$/ },
+      builder.onResolve({ filter: /^\.\/(appealStore|signatureStore|paymentCarryOverStore|coachingStore|evaluationStore|userRoleStore|PageHero)$/ },
         args => ({ path: args.path, namespace: "fixture" }));
       builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: mocks[args.path] }));
       builder.onLoad({ filter: /\/SignatureCenterMockup\.tsx$/ }, async args => {
         let source = await readFile(args.path, "utf8");
+        for (const plugin of viteConfig.plugins.flat().filter(plugin => /signature-payment/.test(plugin.name))) {
+          const transformed = await plugin.transform(source, args.path);
+          if (transformed) source = typeof transformed === 'string' ? transformed : transformed.code;
+        }
+        const paymentStart = source.indexOf('function generatePaymentPdfFile(');
+        const paymentEnd = source.indexOf('\nfunction SignaturePill', paymentStart);
+        let paymentSource = source.slice(paymentStart, paymentEnd);
+        paymentSource = paymentSource.replace(/(const pdf = new jsPDF\([^\n]+;)/, `$1
+          const originalText = pdf.text.bind(pdf);
+          pdf.text = (value, ...args) => { globalThis.__signatureAppealFixture.pdfText.push(String(value)); return originalText(value, ...args); };`);
+        source = source.slice(0, paymentStart) + paymentSource + source.slice(paymentEnd);
+        source = source.replace(/(function savePdfFile\([^)]*\) \{)/, `$1 globalThis.__signatureAppealFixture.exports.push({fileName, bytes:pdf.output('arraybuffer')}); return;`);
+        source = source.replace(/(function downloadBlob\([^)]*\) \{)/, `$1 globalThis.__signatureAppealFixture.exports.push({fileName, blob}); return;`);
         source = source.replace("  if (loading) {", `
-          globalThis.__signatureAppealFixture.actions={confirmPreview,signRole,saveDrawnSignature,generatePaymentExcel,generatePaymentPdf,openWorkspaceDetail};
-          globalThis.__signatureAppealFixture.view={hasPendingAppeal,confirmAvailable,workflowReadyToSign,selectedDocument,selectedMonthPaymentExportDocs,appealStatusVerified};
+          globalThis.__signatureAppealFixture.actions={confirmPreview,signRole,saveDrawnSignature,generatePaymentExcel,generatePaymentPdf,openWorkspaceDetail,setSelectedMonth};
+          globalThis.__signatureAppealFixture.view={hasPendingAppeal,confirmAvailable,workflowReadyToSign,selectedDocument,selectedMonthPaymentExportDocs,appealStatusVerified,coachingStatusVerified,paymentMessage};
           if (loading) {`);
-        return { loader: "tsx", contents: source + "\nexport {buildPendingSignatureAppealCaseMap,isPaymentReadyDocument,isLateSignedDocument};" };
+        const carryOverExport = source.includes('function getCarryOverPaymentCycle(') ? ',getCarryOverPaymentCycle' : '';
+        return { loader: "tsx", contents: source + `\nexport {buildPendingSignatureAppealCaseMap,isPaymentReadyDocument,isLateSignedDocument${carryOverExport}};` };
       });
     } }],
   });
-  const { default: SignatureCenter, buildPendingSignatureAppealCaseMap, isPaymentReadyDocument, isLateSignedDocument } = await import(pathToFileURL(output).href);
-  const doc = { monthKey: "2026-09", cases: [{ caseId }], eligibleByScore: true };
+  const { default: SignatureCenter, buildPendingSignatureAppealCaseMap, isPaymentReadyDocument, isLateSignedDocument, getCarryOverPaymentCycle } = await import(pathToFileURL(output).href);
+  const doc = { monthKey: "2026-09", agentName: agent, agentId: agent, cases: [{ caseId }], eligibleByScore: true };
   const allSigned = Object.keys(names).map(signed);
   for (const [label, logs, held] of [
     ["initial pending", [submission], true], ["reviewed", oldResult, false],
     ["permission requested", [...oldResult, access], false],
-    ["awaiting submission", [...oldResult, access, approved, opened], false],
+    ["approved access awaiting opening", [...oldResult, access, approved], true],
+    ["awaiting submission", [...oldResult, access, approved, opened], true],
     ["additional submitted", pendingAdditional, true], ["additional reviewed", complete, false],
     ["additional cancelled", [...pendingAdditional, event("appeal_additional_round_cancelled", 0, { roundId: "round-1" })], false],
     ["additional expired", [...oldResult, { ...opened, created_at: at(-74), details: { ...opened.details, openedAt: at(-74), expiresAt: at(-2) } }], false],
   ]) {
     const map = buildPendingSignatureAppealCaseMap(logs);
     assert.equal(map.has(caseId), held, label);
-    assert.equal(isPaymentReadyDocument(doc, allSigned, map), !held, `${label}: payment eligibility`);
-    assert.equal(isPaymentReadyDocument({ ...doc, cases: [{ caseId: "AA992000" }] }, allSigned, map), true, "another agent's document stays eligible");
-    assert.equal(isLateSignedDocument(doc, allSigned.map(entry => ({ ...entry, signedAt: "2026-10-16T03:00:00Z" })), map), !held, `${label}: late payment eligibility`);
+    assert.equal(isPaymentReadyDocument(doc, allSigned, map, fixture.coaching), !held, `${label}: payment eligibility`);
+    assert.equal(isPaymentReadyDocument({ ...doc, cases: [{ caseId: "AA992000" }] }, allSigned, map, fixture.coaching), true, "another agent's document stays eligible");
+    assert.equal(isLateSignedDocument(doc, allSigned.map(entry => ({ ...entry, signedAt: "2026-10-16T03:00:00Z" })), map, fixture.coaching), !held, `${label}: late payment eligibility`);
   }
   assert.equal(buildPendingSignatureAppealCaseMap(pendingAdditional).get(caseId).status, "Pending (Additional)");
   const afterDeadline = [...pendingAdditional, { ...opened, created_at: at(-100), details: { ...opened.details, openedAt: at(-100), expiresAt: at(-28) } },
@@ -140,17 +165,17 @@ try {
   const mount = async (role, logs, entries = [], failed = false) => {
     if (root) await act(async () => root.unmount());
     window.localStorage.clear(); window.sessionStorage.clear();
-    fixture.logs = logs; fixture.writes = []; fixture.reads = []; fixture.alerts = []; fixture.failed = failed;
-    fixture.stored = entries.length ? [{ docId: "2026-09::" + agent, entries, confirmedAt: at(-1) }] : [];
+    fixture.logs = logs; fixture.writes = []; fixture.reads = []; fixture.alerts = []; fixture.failed = failed; fixture.exports = []; fixture.pdfText = [];
+    fixture.stored = [...(entries.length ? [{ docId: "2026-09::" + agent, entries, confirmedAt: at(-1) }] : []), ...(fixture.extraStored || [])];
     fixture.view = null;
     root = createRoot(document.getElementById("root"));
     await act(async () => root.render(React.createElement(SignatureCenter, { accounts,
       currentUser: { username: names[role], displayName: names[role], agentName: names[role], role: role === "QA" ? "Quality Assurance" : role } })));
-    await settle(() => fixture.view?.selectedDocument && !document.body.textContent.includes("กำลังโหลด Signature Center") && fixture.reads.length >= 2);
+    await settle(() => fixture.view?.selectedDocument && !document.body.textContent.includes("กำลังโหลด Signature Center") && fixture.reads.length >= 2 && (fixture.view.coachingStatusVerified || fixture.coachingFailed));
     await act(async () => fixture.actions.openWorkspaceDetail("2026-09::" + agent));
   };
-  for (const role of Object.keys(names)) {
-    await mount(role, pendingAdditional);
+  for (const logs of [[...oldResult, access, approved, opened], pendingAdditional]) for (const role of Object.keys(names)) {
+    await mount(role, logs);
     assert.equal(fixture.view.hasPendingAppeal, true, `${role}: additional hold`);
     assert.equal(fixture.view.workflowReadyToSign, false, `${role}: no signing workflow`);
     const confirm = [...document.querySelectorAll("button")].find(button => button.textContent.trim() === "ยืนยันรับทราบข้อมูล");
@@ -163,13 +188,13 @@ try {
     assert.equal(fixture.writes.length, 0, `${role}: no signature or confirmation persisted`);
   }
   console.log("PASS all four roles blocked in the rendered UI and actual acknowledgement/signature handlers");
-  for (const [role, action, entries] of [
+  for (const changedLogs of [[...oldResult, access, approved, opened], pendingAdditional]) for (const [role, action, entries] of [
     ["Agent", "confirm", []], ["QA", "sign", []], ["QA", "ink", [signed("QA")]],
     ["QA", "excel", allSigned], ["QA", "pdf", allSigned],
   ]) {
     await mount(role, oldResult, entries);
     assert.equal(fixture.view.hasPendingAppeal, false);
-    fixture.logs = pendingAdditional;
+    fixture.logs = changedLogs;
     await act(async () => {
       if (action === "confirm") await fixture.actions.confirmPreview();
       if (action === "sign") assert.equal(await fixture.actions.signRole(role, "fixture-ink"), false);
@@ -202,8 +227,88 @@ try {
   assert.equal(fixture.writes.length, 1, "reviewed additional round releases signing");
   await mount("Agent", [...oldResult, access, approved, opened]);
   await act(async () => fixture.actions.confirmPreview());
-  assert.equal(fixture.writes.length, 1, "permission-only stage preserves signing against the reviewed result");
-  console.log("PASS final review unlocks signing; changed reviews require refreshed scores; permission-only stages remain usable");
+  assert.equal(fixture.writes.length, 0, "approved additional window blocks signing before the Admin submits");
+  await mount("Agent", [...oldResult, { ...opened, details: { ...opened.details, openedAt: at(-73), expiresAt: at(-1) }, created_at: at(-73) }]);
+  await act(async () => fixture.actions.confirmPreview());
+  assert.equal(fixture.writes.length, 1, "an unsubmitted 72-hour window expires and releases acknowledgement");
+  const schedule = window.setTimeout.bind(window);
+  let expireWindow;
+  window.setTimeout = (callback, delay, ...args) => delay > 60_000 ? (expireWindow = callback, 0) : schedule(callback, delay, ...args);
+  await mount('Agent', [...oldResult, access, approved, opened]);
+  assert.ok(expireWindow);
+  clock = now + 72 * 3600000;
+  await act(async () => expireWindow());
+  assert.equal(fixture.view.hasPendingAppeal, false, 'the open Signature page releases an unsubmitted round automatically at the deadline');
+  window.setTimeout = schedule;
+  clock = now;
+  console.log("PASS approved additional window blocks all roles; expiry without submission and final QA decision unlock signing; changed reviews require fresh scores");
+
+  const accepted = coaching(agent);
+  for (const [label, changed] of [
+    ['missing Coaching', []], ['another month', [{ ...accepted, monthKey: '2026-10' }]],
+    ['another Agent ID', [{ ...accepted, agentId: 'different-user' }]],
+    ['missing QA summary', [{ ...accepted, qaSummary: '' }]], ['missing topics', [{ ...accepted, recommendedTopics: [] }]],
+    ['missing result', [{ ...accepted, actualCoaching: undefined }]], ['missing Action Plan', [{ ...accepted, actions: [] }]],
+    ['missing QA Review', [{ ...accepted, qaReviewComment: '' }]], ['returned plan', [{ ...accepted, status: 'QA Reviewed' }]],
+    ['pending QA Review', [{ ...accepted, status: 'Action Plan Submitted' }]],
+    ['late QA Review', [{ ...accepted, qaReviewedAt: '2026-10-15T17:00:00Z' }]],
+  ]) {
+    assert.equal(isPaymentReadyDocument(doc, allSigned, new Map(), changed), false, label);
+  }
+  assert.equal(isPaymentReadyDocument(doc, allSigned, new Map(), [{ ...accepted, qaReviewedAt: '2026-10-15T16:59:59.999Z' }]), true, 'Bangkok deadline includes the last millisecond of day 15');
+  assert.equal(isPaymentReadyDocument({ ...doc, monthKey: '2026-08' }, allSigned.map(entry => ({...entry, signedAt:'2026-09-12T03:00:00Z'})), new Map(), []), true, 'historical paid periods do not require retrospective Coaching');
+  fixture.coaching = [];
+  fixture.extraStored = [{ docId:'2026-09::Fixture Agent B', entries:allSigned.map(entry=>entry.role==='Agent'?{...entry,signerName:'Fixture Agent B',signedBy:'Fixture Agent B'}:entry), confirmedAt:at(-1) }];
+  await mount('QA', oldResult, allSigned);
+  assert.equal(fixture.view.selectedMonthPaymentExportDocs.length, 0);
+  await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent.startsWith('Tracking (')).click());
+  await act(async () => fixture.actions.openWorkspaceDetail('2026-09::'+agent));
+  assert.ok(document.body.textContent.includes('ยังไม่มี Coaching ของเดือนนี้'));
+  assert.ok([...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === 'Monthly Payment PDF').disabled);
+  fixture.coaching = [accepted];
+  await act(async () => window.dispatchEvent(new Event('qa-coaching-refresh')));
+  await settle(() => fixture.view.selectedMonthPaymentExportDocs.length === 1);
+  await act(async () => fixture.actions.generatePaymentPdf());
+  assert.equal(fixture.exports.length, 1);
+  const pdfBytes = fixture.exports[0].bytes || await fixture.exports[0].blob.arrayBuffer();
+  assert.equal(new TextDecoder().decode(new Uint8Array(pdfBytes).slice(0, 4)), '%PDF');
+  assert.ok(fixture.pdfText.some(text => text.includes(agent)), 'the production PDF includes the qualified Agent');
+  assert.ok(!fixture.pdfText.some(text => text.includes('Fixture Agent B')), 'an Agent without completed Coaching is absent from the PDF');
+  const freshReadCount = fixture.coachingReads.length;
+  fixture.coaching = [];
+  await act(async () => fixture.actions.generatePaymentPdf());
+  assert.equal(fixture.exports.length, 1, 'stale ready UI cannot export after Coaching is removed or changed');
+  assert.ok(fixture.coachingReads.length > freshReadCount);
+  assert.deepEqual(fixture.coachingReads.at(-1), {allowCache:false,forceRefresh:true});
+  assert.equal(fixture.view.selectedMonthPaymentExportDocs.length, 0);
+  fixture.coaching = [accepted];
+  await mount('QA', oldResult, allSigned);
+  fixture.coachingFailed = true;
+  await act(async () => fixture.actions.generatePaymentExcel());
+  assert.equal(fixture.exports.length, 0);
+  assert.equal(fixture.view.coachingStatusVerified, false);
+  assert.ok(fixture.view.paymentMessage.includes('ตรวจผล Coaching'));
+  fixture.coachingFailed = false;
+  console.log('PASS same Agent/month Coaching, summary, Action Plan, accepted QA Review and Bangkok day-15 cutoff gate real production PDF names; stale and failed reads cannot export');
+  if (getCarryOverPaymentCycle) {
+    const lateSignatures = allSigned.map(entry => ({ ...entry, signedAt: '2026-10-16T03:00:00Z' }));
+    assert.equal(getCarryOverPaymentCycle(doc, lateSignatures, []), '', 'carry-over cannot bypass missing Coaching');
+    assert.equal(getCarryOverPaymentCycle(doc, lateSignatures, [accepted]), '2026-10');
+    const lateReview = { ...accepted, qaReviewedAt: '2026-10-16T03:00:00Z' };
+    assert.equal(getCarryOverPaymentCycle(doc, allSigned, [lateReview]), '2026-10', 'a late QA Review does not enter the original payment cycle');
+    fixture.coaching = [accepted];
+    fixture.extraStored = [];
+    await mount('QA', oldResult, lateSignatures);
+    await act(async () => fixture.actions.setSelectedMonth('2026-10'));
+    await settle(() => fixture.view.selectedMonthPaymentExportDocs.length === 1);
+    assert.equal(fixture.view.selectedMonthPaymentExportDocs[0].carryOverFrom, '2026-09');
+    await act(async () => fixture.actions.generatePaymentPdf());
+    assert.equal(fixture.exports.length, 1, 'eligible carry-over remains in the actual payment PDF');
+    fixture.coaching = [];
+    await act(async () => fixture.actions.generatePaymentPdf());
+    assert.equal(fixture.exports.length, 1, 'fresh Coaching verification also protects carry-over PDF names');
+    console.log('PASS production prebuild preserves carry-over payment selection and fresh Coaching/QA Review gates');
+  }
 } finally {
   if (root) await act(async () => root.unmount());
   dom.window.close();

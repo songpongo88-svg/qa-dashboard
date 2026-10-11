@@ -32,6 +32,7 @@ const stubs = {
   signatureStore,
   coachingStore: `export const fetchStoredCoachingRecords = async () => globalThis.__monthlyPdfFixture.coaching;`,
   evaluationStore: `export const fetchStoredEvaluations = async () => globalThis.__monthlyPdfFixture.evaluations;
+    export const getStoredEvaluationMonthKey = record => record.auditDate?.slice(0, 7) || '';
     export const excludeTestEvaluations = (rows) => rows;`,
   appealStore: `export const fetchAppealEvents = async () => [];`,
   AppealRequestsMockup: `export default () => null; export const buildAppealRequests = () => [];`,
