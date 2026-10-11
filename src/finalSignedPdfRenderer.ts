@@ -223,6 +223,7 @@ export async function renderFinalSignedPdf({
   pdfDoc,
   appendPage = false,
   generatedAt = new Date().toISOString(),
+  coachingRecordOverride,
 }: {
   document: FinalSignedDocumentData;
   entries: FinalSignedEntry[];
@@ -232,18 +233,19 @@ export async function renderFinalSignedPdf({
   pdfDoc?: jsPDF;
   appendPage?: boolean;
   generatedAt?: string;
+  coachingRecordOverride?: StoredCoachingRecord;
 }) {
   const pdf = pdfDoc || new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   if (appendPage) pdf.addPage("a4", "portrait");
 
   const coachingEnabled = selectedDocument.monthKey >= "2026-09";
-  const coachingRecord = coachingEnabled
+  const coachingRecord = coachingRecordOverride || (coachingEnabled
     ? findMonthlyCoachingRecord(
         await getCoachingRecordsForPdf(),
         selectedDocument.monthKey,
         selectedDocument.agentName
       )
-    : null;
+    : null);
 
   try {
     registerTHSarabunNew(pdf);
@@ -743,7 +745,8 @@ export async function renderFinalSignedPdf({
 
   // Coaching follows the complete monthly dashboard, including signatures,
   // and always starts on a new page.
-  if (coachingEnabled && coachingRecord) {
+  let coachingFirstPage: number | null = null;
+  if (coachingRecord) {
     const coachingSubtitle = `${selectedDocument.agentName} • ${selectedDocument.monthLabel}`;
     const coachingLineHeight = 4.2;
 
@@ -817,6 +820,7 @@ export async function renderFinalSignedPdf({
       drawPlainField(label, cleaned.map((item, index) => `${index + 1}. ${item}`).join("\n"));
     };
 
+    coachingFirstPage = pdf.getNumberOfPages() + 1;
     startCoachingPage(false);
 
     const meeting = coachingRecord.appointment;
@@ -926,5 +930,5 @@ export async function renderFinalSignedPdf({
 
   const safeAgentFileName = selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
   const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}_${pdfDocumentRef}.pdf`;
-  return { pdf, fileName, documentRef: pdfDocumentRef };
+  return { pdf, fileName, documentRef: pdfDocumentRef, coachingFirstPage };
 }

@@ -1,3 +1,4 @@
+import DateTime24Input from './DateTime24Input';
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -1863,11 +1864,10 @@ export default function AnnouncementHub({
                           </div>
                           <label className="mt-4 block">
                             <span className="mb-2 block text-xs font-black text-slate-500">แสดงถึง</span>
-                            <input
-                              type="datetime-local"
+                            <DateTime24Input
                               value={draft.endsAt}
                               min={localDateTimeInput(new Date())}
-                              onChange={(event) => setDraft({ ...draft, endsAt: event.target.value })}
+                              onValueChange={value => setDraft({ ...draft, endsAt: value })}
                               className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 sm:max-w-sm"
                             />
                           </label>

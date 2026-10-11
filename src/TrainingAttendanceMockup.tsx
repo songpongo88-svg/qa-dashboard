@@ -1,3 +1,4 @@
+import Time24Input from './Time24Input';
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
@@ -561,8 +562,8 @@ export default function TrainingAttendanceMockup({
                   <input value={sessionDraft.round} onChange={(event) => setSessionDraft({ ...sessionDraft, round: event.target.value })} className="rounded-2xl border border-violet-100 px-4 py-3 text-sm font-bold" placeholder="Round" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="time" value={sessionDraft.startTime} onChange={(event) => setSessionDraft({ ...sessionDraft, startTime: event.target.value })} className="rounded-2xl border border-violet-100 px-4 py-3 text-sm font-bold" />
-                  <input type="time" value={sessionDraft.endTime} onChange={(event) => setSessionDraft({ ...sessionDraft, endTime: event.target.value })} className="rounded-2xl border border-violet-100 px-4 py-3 text-sm font-bold" />
+                  <Time24Input aria-label="เวลาเริ่ม Training (24 ชั่วโมง)" value={sessionDraft.startTime} onValueChange={(value) => setSessionDraft({ ...sessionDraft, startTime: value })} className="rounded-2xl border border-violet-100 px-4 py-3 text-sm font-bold" />
+                  <Time24Input aria-label="เวลาสิ้นสุด Training (24 ชั่วโมง)" value={sessionDraft.endTime} onValueChange={(value) => setSessionDraft({ ...sessionDraft, endTime: value })} className="rounded-2xl border border-violet-100 px-4 py-3 text-sm font-bold" />
                 </div>
                 <input value={sessionDraft.trainer} onChange={(event) => setSessionDraft({ ...sessionDraft, trainer: event.target.value })} className="rounded-2xl border border-violet-100 px-4 py-3 text-sm font-bold" placeholder="Trainer" />
                 <select value={sessionDraft.status} onChange={(event) => setSessionDraft({ ...sessionDraft, status: event.target.value as TrainingSession["status"] })} className="rounded-2xl border border-violet-100 px-4 py-3 text-sm font-bold">

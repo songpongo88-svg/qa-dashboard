@@ -1,3 +1,4 @@
+import DateTime24Input from './DateTime24Input';
 import { formatPdfDateTime } from "./lib/pdfDates";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
@@ -1406,15 +1407,6 @@ export default function PreTestMockup({
     setWorkspaceTab("sets");
   }
 
-  function updateEditorSchedulePart(field: "availableFrom" | "availableUntil", part: "date" | "time", value: string) {
-    if (!editorSet) return;
-    const fallbackDate = field === "availableFrom" ? new Date() : new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const localValue = formatDateTimeLocalInput(editorSet[field]) || formatDateTimeLocalInput(fallbackDate.toISOString());
-    const [datePart, timePart] = localValue.split("T");
-    const nextLocalValue = part === "date" ? `${value}T${timePart || "09:00"}` : `${datePart}T${value}`;
-    setEditorSet({ ...editorSet, [field]: parseDateTimeLocalInput(nextLocalValue) });
-  }
-
   async function saveEditorSet() {
     if (!editorSet) return;
     const cleanQuestions = editorSet.questions
@@ -2181,11 +2173,9 @@ export default function PreTestMockup({
                         <div className="text-base font-black text-slate-950">ช่วงเวลาเปิดแบบทดสอบ</div>
                         <p className="mt-1 text-xs font-semibold text-slate-500">กำหนดเวลาเริ่มและสิ้นสุดเพียงชุดเดียว เมื่อพ้นเวลาสิ้นสุดระบบจะปิดแบบทดสอบอัตโนมัติ</p>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        <Field label="วันที่เริ่ม"><input type="date" value={formatDateTimeLocalInput(editorSet.availableFrom).slice(0, 10)} onChange={(event) => updateEditorSchedulePart("availableFrom", "date", event.target.value)} className={FORM_INPUT_CLASS} /></Field>
-                        <Field label="เวลาเริ่ม"><input type="time" value={formatDateTimeLocalInput(editorSet.availableFrom).slice(11, 16)} onChange={(event) => updateEditorSchedulePart("availableFrom", "time", event.target.value)} className={FORM_INPUT_CLASS} /></Field>
-                        <Field label="วันที่สิ้นสุด"><input type="date" value={formatDateTimeLocalInput(editorSet.availableUntil).slice(0, 10)} onChange={(event) => updateEditorSchedulePart("availableUntil", "date", event.target.value)} className={FORM_INPUT_CLASS} /></Field>
-                        <Field label="เวลาสิ้นสุด"><input type="time" value={formatDateTimeLocalInput(editorSet.availableUntil).slice(11, 16)} onChange={(event) => updateEditorSchedulePart("availableUntil", "time", event.target.value)} className={FORM_INPUT_CLASS} /></Field>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <Field label="วันที่และเวลาเริ่ม"><DateTime24Input key={`${editorSet.id}:start`} value={formatDateTimeLocalInput(editorSet.availableFrom)} onValueChange={value => setEditorSet({ ...editorSet, availableFrom: parseDateTimeLocalInput(value) })} className={FORM_INPUT_CLASS} dateLabel="วันที่เริ่ม" timeLabel="เวลาเริ่ม (24 ชั่วโมง)" /></Field>
+                        <Field label="วันที่และเวลาสิ้นสุด"><DateTime24Input key={`${editorSet.id}:end`} value={formatDateTimeLocalInput(editorSet.availableUntil)} onValueChange={value => setEditorSet({ ...editorSet, availableUntil: parseDateTimeLocalInput(value) })} className={FORM_INPUT_CLASS} dateLabel="วันที่สิ้นสุด" timeLabel="เวลาสิ้นสุด (24 ชั่วโมง)" /></Field>
                       </div>
 
                       <div className="flex flex-col gap-2 rounded-2xl bg-slate-950 px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between">

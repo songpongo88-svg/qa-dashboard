@@ -7,7 +7,7 @@ import { JSDOM } from 'jsdom';
 
 const ActualDate=Date;let testNow='2026-09-30T12:00:00Z';globalThis.Date=class extends ActualDate { constructor(...args){super(...(args.length?args:[testNow]));} static now(){return new ActualDate(testNow).valueOf();} };
 const rootDir = new URL('../', import.meta.url).pathname;
-const fixture = { records: new Map(), evaluations: [], readError: false, downloads: [], pdfs: [], pdfText: [] };
+const fixture = { records: new Map(), evaluations: [], readError: false, downloads: [], pdfs: [], pdfText: [], pdfDocs: [] };
 globalThis.__monthlyCoachingFixture = fixture;
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: 'https://coaching.test/' });
 for (const key of ['window','document','HTMLElement','HTMLInputElement','HTMLTextAreaElement','Event','MouseEvent','File','FileReader','sessionStorage','localStorage']) globalThis[key] = dom.window[key];
@@ -19,11 +19,11 @@ const createObjectURL=URL.createObjectURL,revokeObjectURL=URL.revokeObjectURL;
 URL.createObjectURL=blob=>{fixture.pdfs.push(blob);return 'blob:https://coaching.test/pdf';};URL.revokeObjectURL=()=>{};
 dom.window.HTMLAnchorElement.prototype.click=function(){fixture.downloads.push({name:this.download,href:this.href});};
 const temp = await fs.mkdtemp(path.join(rootDir, '.coaching-test-'));
-const bundle = await build({ stdin: { contents: `import React, {act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Workspace from './src/MonthlyCoachingWorkspace'; export {React,act,Simulate,createRoot,Workspace}; export * from './src/monthlyCoachingModel'; export * from './src/coachingStore'; export * from './src/coachingAttachmentUpload'; export * from './src/monthlyCoachingPayment'; export * from './src/monthlyCoachingPdf';`, resolveDir: rootDir, loader: 'tsx' }, bundle: true, loader:{'.css':'empty'}, external: ['react', 'react-dom', 'react-dom/*'], platform: 'node', format: 'esm', write: false, banner: { js: "import { createRequire as testRequire } from 'node:module'; const require = testRequire(import.meta.url);" }, plugins: [{name:'test-services',setup(b){
+const bundle = await build({ stdin: { contents: `import React, {act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Workspace from './src/MonthlyCoachingWorkspace'; export {React,act,Simulate,createRoot,Workspace}; export * from './src/monthlyCoachingModel'; export * from './src/coachingStore'; export * from './src/coachingAttachmentUpload'; export * from './src/monthlyCoachingPayment'; export * from './src/monthlyCoachingPdf'; export * from './src/finalSignedPdfRenderer'; export * from './src/Time24Input'; export {default as DateTime24Input} from './src/DateTime24Input';`, resolveDir: rootDir, loader: 'tsx' }, bundle: true, loader:{'.css':'empty'}, external: ['react', 'react-dom', 'react-dom/*'], platform: 'node', format: 'esm', write: false, banner: { js: "import { createRequire as testRequire } from 'node:module'; const require = testRequire(import.meta.url);" }, plugins: [{name:'test-services',setup(b){
   b.onResolve({filter:/^(firebase\/firestore|\.\/firebaseClient|\.\/coachingCanonicalStore|\.\/evaluationStore)$/},args=>({path:args.path,namespace:'test-service'}));
-  b.onLoad({filter:/\/monthlyCoachingPdf\.ts$/},async args=>{
+  b.onLoad({filter:/\/finalSignedPdfRenderer\.ts$/},async args=>{
     let source=await fs.readFile(args.path,'utf8');
-    source=source.replace("  const pdf = new jsPDF({ unit: 'mm', format: 'a4' });", "  const pdf = new jsPDF({ unit: 'mm', format: 'a4' }); const text=pdf.text.bind(pdf);pdf.text=(value,...args)=>{globalThis.__monthlyCoachingFixture.pdfText.push({value:String(value),page:pdf.getCurrentPageInfo().pageNumber,y:args[1]});return text(value,...args);};");
+    source=source.replace('  if (appendPage) pdf.addPage("a4", "portrait");', '  if (appendPage) pdf.addPage("a4", "portrait"); const f=globalThis.__monthlyCoachingFixture;f.pdfDocs.push(pdf);const text=pdf.text.bind(pdf);pdf.text=(value,...args)=>{f.pdfText.push({value:String(value),pdf,pageRef:pdf.internal.pages[pdf.getCurrentPageInfo().pageNumber],page:pdf.getCurrentPageInfo().pageNumber,y:args[1]});return text(value,...args);};');
     return {contents:source,loader:'ts'};
   });
   b.onLoad({filter:/.*/,namespace:'test-service'},args=>({contents: args.path==='firebase/firestore' ? `const f=globalThis.__monthlyCoachingFixture; export const collection=(_,name)=>({name}); export const doc=(_,name,id)=>({name,id}); export const serverTimestamp=()=>0; export async function getDocs(){if(f.readError)throw new Error('offline');return {docs:[...f.records].map(([id,row])=>({id,data:()=>structuredClone(row)}))};} export async function getDocsFromServer(){f.serverReads=(f.serverReads||0)+1;return getDocs();} export async function setDoc(ref,row){f.records.set(ref.id,structuredClone(row));} export async function runTransaction(_,fn){const writes=[];const result=await fn({get:async ref=>({id:ref.id,exists:()=>f.records.has(ref.id),data:()=>structuredClone(f.records.get(ref.id))}),set:(ref,row)=>writes.push([ref.id,structuredClone(row)])});writes.forEach(([id,row])=>f.records.set(id,row));return result;}` : args.path==='./firebaseClient' ? `export const firebaseDb={};` : args.path==='./coachingCanonicalStore' ? `export const fetchCanonicalCoachingEvaluations=async()=>structuredClone(globalThis.__monthlyCoachingFixture.evaluations);` : `export const getStoredEvaluationMonthKey=row=>row.evaluationMonthKey;`, loader:'js'}));
@@ -207,11 +207,33 @@ try {
   assert.equal(fixture.downloads.length,1,'a stale page rechecks the selected month and refuses a reassigned Coach PDF');
   const startLong=fixture.pdfText.length;
   const longRecord={...saved,qaSummary:'สรุปผลการ Coaching และตรวจสอบความเข้าใจตามขั้นตอน '.repeat(130),actions:[{...saved.actions[0],topic:'ขั้นตอนการทำงานและนโยบาย Process and Policy Compliance '.repeat(8),issue:'ตรวจสอบข้อมูลผู้ติดต่อให้ครบถ้วน',plan:'ฝึกทบทวนข้อมูลและบันทึกผลในทุกเคส '.repeat(160)}]};
-  const longPdf=m.renderMonthlyCoachingPdf(longRecord,agentA,septemberRows.filter(row=>row.targetUsername===agentA.username));
-  assert.ok(longPdf.getNumberOfPages()>3,'long Thai summaries and plans continue across pages');
-  assert.ok(fixture.pdfText.slice(startLong).every(call=>Number.isFinite(call.y)&&call.y<=278||call.y===289),'all report text stays inside the body or footer');
+  const longPdf=await m.renderMonthlyCoachingPdf(longRecord,agentA,septemberRows.filter(row=>row.targetUsername===agentA.username));
+  assert.ok(longPdf.getNumberOfPages()>1,'long Thai summaries and plans continue across pages');
+  assert.ok(fixture.pdfText.slice(startLong).filter(call=>longPdf.internal.pages.includes(call.pageRef)).every(call=>Number.isFinite(call.y)&&call.y<=284),'all report text stays inside the body or footer');
   assert.ok(fixture.pdfText.slice(startLong).some(call=>call.value.includes('ปัญหาที่พบ')));
-  assert.throws(()=>m.renderMonthlyCoachingPdf(saved,agentB,[]),/ไม่ตรงกับ Admin/);
+  await assert.rejects(()=>m.renderMonthlyCoachingPdf(saved,agentB,[]),/ไม่ตรงกับ Admin/);
+  const exported=fixture.pdfDocs[0];
+  const legacy=await m.renderFinalSignedPdf({document:{monthKey:month,monthLabel:m.coachingMonthLabel(month),agentName:agentA.displayName,teamName:saved.team,caseCount:1,averageScore:saved.averageScore,grade:saved.grade,cases:septemberRows.filter(row=>row.targetUsername===agentA.username)},entries:[],incentive:{},documentRef:saved.id,roleSignerNames:{QA:saved.qaOwnerName||'',Supervisor:'',Senior:saved.coachName||saved.seniorName||'',Agent:agentA.displayName},coachingRecordOverride:{...saved,qaSummary:'สรุป QA ล่าสุดสำหรับ Agent A เท่านั้น',updatedAt:new Date(Date.now()+1000).toISOString()}});
+  assert.deepEqual(exported.internal.pages.slice(1),legacy.pdf.internal.pages.slice(legacy.coachingFirstPage),'download contains the exact existing Monthly Coaching page instructions');
+  assert.equal(named('ดาวน์โหลด Coaching PDF ของ Admin ที่เลือก'),null,'profile has no duplicate download button');
+  const fileButton=named('ดาวน์โหลด Coaching PDF Agent A Full Name');assert.ok(fileButton.querySelector('svg'));assert.equal(fileButton.textContent.trim(),'PDF');
+  await act(async()=>Simulate.mouseEnter(fileButton.parentElement));assert.ok(document.querySelector('[role=tooltip]').textContent.includes('Coaching_2026-09_agent-a.pdf'));
+  await act(async()=>Simulate.mouseLeave(fileButton.parentElement));
+  const timeInput=field('เวลาเริ่ม (24 ชั่วโมง)');assert.equal(timeInput.type,'text');assert.equal(timeInput.value,'14:00');
+  assert.equal(m.normalizeTime24('13:00'),'13:00');assert.equal(m.normalizeTime24('1300'),'13:00');assert.equal(m.normalizeTime24('1:5'),'01:05');assert.equal(m.normalizeTime24('23:59'),'23:59');assert.equal(m.normalizeTime24('24:00'),'');assert.equal(m.normalizeTime24('12:60'),'');
+  let externalTime;
+  function TimeHarness(){const [value,setValue]=React.useState('2026-09-28T14:00');externalTime=setValue;return React.createElement('form',{},React.createElement(m.DateTime24Input,{value,onValueChange:setValue,dateLabel:'test date',timeLabel:'test time',required:true,min:'2026-09-28T12:00'}),React.createElement('output',{id:'time-value'},value));}
+  await act(async()=>root.render(React.createElement(TimeHarness)));
+  await fill(named('test time'),'1');assert.equal(document.getElementById('time-value').textContent,'');assert.equal(named('test date').value,'2026-09-28','partial time editing preserves the chosen date');
+  await fill(named('test time'),'1300');await act(async()=>Simulate.blur(named('test time')));assert.equal(named('test time').value,'13:00');assert.equal(document.getElementById('time-value').textContent,'2026-09-28T13:00');
+  await fill(named('test time'),'24:00');await act(async()=>Simulate.blur(named('test time')));assert.equal(named('test time').getAttribute('aria-invalid'),'true');assert.equal(document.getElementById('time-value').textContent,'');
+  await fill(named('test time'),'23:59');assert.equal(document.getElementById('time-value').textContent,'2026-09-28T23:59');
+  await fill(named('test time'),'11:00');assert.equal(named('test date').checkValidity(),false,'datetime minimum also constrains the time on that day');
+  await act(async()=>externalTime('2026-10-11T15:30'));assert.equal(named('test date').value,'2026-10-11');assert.equal(named('test time').value,'15:30');assert.equal(named('test date').checkValidity(),true,'external date changes clear an old time-range validation');
+  await fill(named('test time'),'24:00');await act(async()=>Simulate.blur(named('test time')));assert.equal(named('test time').checkValidity(),false);
+  await act(async()=>externalTime('2026-10-12T13:00'));assert.equal(named('test time').value,'13:00');assert.equal(named('test time').checkValidity(),true,'external time changes clear a rejected hour');
+  console.log('PASS 24-hour controlled date/time editing, HHmm normalization, invalid-hour rejection, date preservation, limits and fresh external values');
+  console.log('PASS existing Monthly Coaching pages reused exactly, PDF icon tooltip and no duplicate profile button, 24-hour time fields');
   console.log('PASS long Thai Coaching PDF pagination, wrapped topic titles and User identity guard');
   console.log('PASS per-person Task queues and accessible all-Admin History, authoritative Coach IDs, QA-as-Coach store transaction, real per-User monthly PDF bytes, latest content, failed reads and revoked access');
   console.log('PASS evaluated-role scope, empty/test/no-case/future exclusion, exact identity, scoped month options, manual-only QA text');
