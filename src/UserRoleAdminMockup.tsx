@@ -1,3 +1,4 @@
+import DateTime24Input from './DateTime24Input';
 import React, { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
@@ -3178,11 +3179,10 @@ function MaintenancePanel({
                 <span className="text-xs font-medium text-slate-600">
                   วันและเวลาเริ่ม Maintenance
                 </span>
-                <input
-                  type="datetime-local"
+                <DateTime24Input
                   value={scheduledStartAt}
-                  onChange={(event) =>
-                    setScheduledStartAt(event.target.value)
+                  onValueChange={(value) =>
+                    setScheduledStartAt(value)
                   }
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
                 />
@@ -3214,11 +3214,10 @@ function MaintenancePanel({
                   <span className="text-xs font-medium text-slate-600">
                     วันและเวลาเปิดระบบกลับ
                   </span>
-                  <input
-                    type="datetime-local"
+                  <DateTime24Input
                     value={scheduledEndAt}
-                    onChange={(event) =>
-                      setScheduledEndAt(event.target.value)
+                    onValueChange={(value) =>
+                      setScheduledEndAt(value)
                     }
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
                   />
