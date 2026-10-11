@@ -16,7 +16,8 @@ dom.window.HTMLDialogElement.prototype.showModal = function(){this.open=true;};
 dom.window.HTMLDialogElement.prototype.close = function(){this.open=false;};
 dom.window.HTMLElement.prototype.scrollIntoView = function(){};
 dom.window.scrollTo = function(){};
-const fixture = {events:[], fail:false, published:[]};
+const NativeDate=Date;let clock=Date.now();globalThis.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}};
+const fixture = {events:[], fail:false, published:[], reads:[]};
 globalThis.__pendingAppealFixture = fixture;
 const topics = [
   {code:'1',label:'Process',score:31,max:35,comment:'Original process',wantsAppeal:true,appealReason:'Review process'},
@@ -46,7 +47,7 @@ new Function('fs',adapter.replace(/^import fs from .*;\s*$/m,''))({readFileSync:
 const bundle = await build({stdin:{contents:"import React,{act} from 'react';import {Simulate} from 'react-dom/test-utils';import {createRoot} from 'react-dom/client';import Dashboard from './src/DashboardMockup';import Summary from './src/SummaryMockup';import {withAppealScoreState,getAppealScoreHold} from './src/pendingAppealScore';import {buildAppealRequests} from './src/AppealRequestsMockup';export {React,act,Simulate,createRoot,Dashboard,Summary,withAppealScoreState,getAppealScoreHold,buildAppealRequests};",resolveDir:rootDir,loader:'tsx'},bundle:true,jsx:'automatic',define:{'import.meta.env':'{}'},platform:'node',format:'esm',write:false,logLevel:'silent',loader:{'.css':'empty'},external:['react','react-dom','react-dom/*','jspdf'],banner:{js:"import {createRequire as testRequire} from 'node:module';const require=testRequire(import.meta.url);"},plugins:[{name:'pending-appeal-boundaries',setup(b){
   b.onLoad({filter:/\/(DashboardMockup|SummaryMockup)\.tsx$/},args=>({loader:'tsx',contents:sources.get('src/'+path.basename(args.path))}));
   b.onLoad({filter:/\/evaluationStore\.ts$/},async args=>({loader:'ts',contents:replaceFunction(await fs.readFile(args.path,'utf8'),'fetchStoredEvaluations','{ return globalThis.__pendingAppealFixture.evaluations; }')}));
-  b.onLoad({filter:/\/appealStore\.ts$/},async args=>({loader:'ts',contents:replaceFunction(await fs.readFile(args.path,'utf8'),'fetchAppealEvents','{ if(globalThis.__pendingAppealFixture.fail) throw new Error("offline fixture"); return globalThis.__pendingAppealFixture.events; }')}));
+  b.onLoad({filter:/\/appealStore\.ts$/},async args=>({loader:'ts',contents:replaceFunction(await fs.readFile(args.path,'utf8'),'fetchAppealEvents','{ const f=globalThis.__pendingAppealFixture;f.reads.push(eventTypes);if(f.fail)throw new Error("offline fixture");return f.events.filter(event=>eventTypes.includes(event.event_type)); }')}));
   b.onLoad({filter:/\/userRoleStore\.ts$/},async args=>{let source=await fs.readFile(args.path,'utf8');source=replaceFunction(source,'fetchStoredRolePermissions','{ return []; }');source=replaceFunction(source,'fetchStoredUserProfiles','{ return []; }');return{loader:'ts',contents:source};});
   b.onResolve({filter:/^\.\/PageHero$/},()=>({path:'hero',namespace:'fixture'}));
   b.onResolve({filter:/\?url$/},()=>({path:'asset',namespace:'fixture'}));
@@ -82,10 +83,10 @@ try {
 
   await render({});
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='held','pending A row');
-  assert.ok(row('Fixture Agent A').textContent.includes('รอผลอุทธรณ์'));
+  assert.ok(row('Fixture Agent A').textContent.includes('รอ QA พิจารณา'));
   assert.ok(!row('Fixture Agent A').textContent.includes('90.00'));
   assert.ok(row('Fixture Agent B').textContent.includes('96.00'));
-  assert.ok(metric('Quality Score (Avg.)').textContent.includes('รอผลอุทธรณ์'));
+  assert.ok(metric('Quality Score (Avg.)').textContent.includes('รอ QA พิจารณา'));
   assert.ok(metric('Quality Score (Avg.)').textContent.includes('3 เคส'));
   assert.equal(metric('Cases Evaluated').dataset.appealScoreState,'ready');
   assert.equal(metric('Overall Grade').dataset.appealScoreState,'held');
@@ -158,9 +159,54 @@ try {
   const sourceFallback=withAppealScoreState([{agent:'Fixture Agent A',caseId:'AA993001',monthKey:'2026-09'},{agent:'Fixture Agent A',caseId:'AA991001',monthKey:'2026-10'}],buildAppealRequests([missingAuditDate]));
   assert.equal(getAppealScoreHold(sourceFallback.filter(item=>item.monthKey==='2026-10')),null,'missing appeal date uses source month, never submit month');
   console.log('PASS actual Dashboard and Agent Performance: September appeal submitted in October holds September only; October stays visible; multi-month counts and source-date fallback remain correct');
+
+  const originalClock=clock;
+  const at=hours=>new Date(clock+hours*3600000).toISOString();
+  const base=submissions[0], decided=review(base);
+  const extra=(event_type,hours,details)=>({event_type,case_id:base.case_id,target_agent:'Fixture Agent A',created_at:at(hours),details:{requestId:base.details.requestId,...details}});
+  const access=extra('appeal_additional_access_requested',-3,{accessId:'access-1',topicCodes:['1'],requestedAt:at(-3)});
+  const approved=extra('appeal_additional_access_decided',-2,{accessId:'access-1',approved:true,decidedAt:at(-2)});
+  const opened=extra('appeal_additional_round_opened',-2,{roundId:'round-1',openedAt:at(-2),expiresAt:at(70),topics:topics.slice(0,1)});
+  const evidence=extra('appeal_additional_evidence_submitted',-1,{roundId:'round-1',submittedAt:at(-1),topics:topics.slice(0,1)});
+  const baseLogs=[base,decided];
+  for(const [events,label,refresh] of [
+    [[...baseLogs,access],'รอ QA อนุมัติยื่นเพิ่ม',10],
+    [[...baseLogs,access,approved],'อนุมัติแล้ว · รอเปิดสิทธิ์',11],
+    [[...baseLogs,access,approved,opened],'อนุมัติแล้ว · รอ Admin ยื่นเพิ่ม',12],
+    [[...baseLogs,access,approved,opened,evidence],'ยื่นเพิ่มแล้ว · รอ QA พิจารณา',13],
+  ]) {
+    fixture.events=events;await render({agent:'Fixture Agent A',refresh});
+    await waitFor(()=>row('Fixture Agent A')?.textContent.includes(label),label);
+    assert.equal(metric('Quality Score (Avg.)').dataset.appealScoreState,'held');
+    assert.ok(metric('Quality Score (Avg.)').textContent.includes(label));
+    assert.ok(!row('Fixture Agent A').textContent.includes('90.40'));
+  }
+  const additionalDecision=extra('appeal_request_reviewed',0,{roundId:'round-1',reviewId:'additional-reviewed',decision:'Rejected',topics:[{...topics[0],decision:'Rejected',rejectReason:'Keep score'}]});
+  fixture.events=[...baseLogs,access,approved,opened,evidence,additionalDecision];await render({agent:'Fixture Agent A',refresh:14});
+  await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='ready','additional QA result releases score');
+  const schedule=window.setTimeout.bind(window);let expires;
+  window.setTimeout=(callback,delay,...args)=>delay>60_000?(expires=callback,0):schedule(callback,delay,...args);
+  fixture.events=[...baseLogs,access,approved,opened];await render({agent:'Fixture Agent A',refresh:15});
+  await waitFor(()=>row('Fixture Agent A')?.textContent.includes('รอ Admin ยื่นเพิ่ม'),'unsubmitted additional window');
+  assert.ok(expires,'Dashboard schedules the additional appeal cutoff');
+  clock+=71*3600000;
+  await act(async()=>expires());
+  await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='ready','expiry without submission refreshes the score automatically');
+  window.setTimeout=schedule;
+  fixture.events=[...baseLogs,access,approved,opened,evidence];await render({agent:'Fixture Agent A',refresh:16});
+  await waitFor(()=>row('Fixture Agent A')?.textContent.includes('ยื่นเพิ่มแล้ว · รอ QA พิจารณา'),'submitted additional appeal still holds after expiry');
+  const cancelled=extra('appeal_additional_round_cancelled',0,{roundId:'round-1'});
+  fixture.events=[...fixture.events,cancelled];await render({agent:'Fixture Agent A',refresh:17});
+  await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='ready','cancellation restores summary');
+  clock=originalClock;
+  const mixed=withAppealScoreState(directCases,buildAppealRequests([...baseLogs,access,approved,opened,submissions[1]]));
+  assert.equal(getAppealScoreHold(mixed).label,'รอบอุทธรณ์ยังไม่สิ้นสุด','mixed stages never pretend they are all QA reviews');
+  assert.ok(getAppealScoreHold(mixed).message.includes('รอ Admin ยื่นเพิ่ม'));
+  console.log('PASS actual Dashboard and Agent Performance show permission, approved-open, awaiting submission and QA-review states; QA result, cancellation and automatic 72-hour expiry release scores; timely submissions stay held after expiry');
+
 } finally {
   await act(async()=>root.unmount());
-  globalThis.fetch=originalFetch;
+  globalThis.fetch=originalFetch;globalThis.Date=NativeDate;
   dom.window.close();
   delete globalThis.__pendingAppealFixture;
   await fs.rm(temp,{recursive:true,force:true});

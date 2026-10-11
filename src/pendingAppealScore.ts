@@ -1,24 +1,23 @@
 import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
-import { isAppealAwaitingReview } from "./appealWorkflow";
+import { appealWorkflowLabel, appealWorkflowStatus, type AppealWorkflowRequest } from "./appealWorkflow";
 
 export type AppealScoreState = {
   pendingAppealCaseCount?: number;
   appealScoreUnverified?: boolean;
   appealScoreMonthKey?: string;
+  pendingAppealStatusCounts?: Record<string, number>;
+  appealScoreDeadlineAt?: string;
 };
 
-type AppealRequestState = {
-  agent: string;
-  caseId: string;
-  status: string;
-  editingDraft?: boolean;
-  additionalRound?: { submitted: boolean } | null;
+type AppealRequestState = Omit<AppealWorkflowRequest, 'requestId'> & {
+  requestId?: string;
   auditDate?: string;
   submittedAt?: string;
   reviewedAt?: string;
 };
 
 export type AppealScoreHold = { label: string; message: string; pendingCount: number };
+const openStatuses = new Set(['Pending', 'Pending (Additional)', 'Request Additional Appeal', 'Awaiting Additional Submission', 'Approved (Access)']);
 
 function caseIds(value: string) {
   const text = String(value || "");
@@ -85,29 +84,45 @@ export function withAppealScoreState<T extends DatedCase & AppealScoreState>(
   };
   const testCases = new Set(cases.filter(item => item.isTestCase).flatMap(item =>
     caseIds(item.caseId).map(id => `${canonicalAgentIdentityKey(item.agent)}|${id}|${monthForCase(item)}`)));
-  const pendingByAgentMonth = new Map<string, number>();
+  const pendingByAgentMonth = new Map<string, Record<string, number>>();
+  const deadlineByAgentMonth = new Map<string, string>();
   for (const [key, { request, month }] of latest) {
-    if (!isAppealAwaitingReview(request) || testCases.has(key)) continue;
+    const status = appealWorkflowStatus({ ...request, requestId: request.requestId || '' });
+    const expiryTime = request.additionalRound && !request.additionalRound.submitted
+      ? Date.parse(request.additionalRound.expiresAt || '') || Date.parse(request.additionalRound.openedAt) + 72 * 3600000 : NaN;
+    const deadline = Number.isFinite(expiryTime) ? new Date(expiryTime).toISOString() : '';
+    if (!openStatuses.has(status) || testCases.has(key) || (deadline && Date.parse(deadline) <= Date.now())) continue;
     const agent = canonicalAgentIdentityKey(request.agent);
     const scope = `${agent}|${month}`;
-    pendingByAgentMonth.set(scope, (pendingByAgentMonth.get(scope) || 0) + 1);
+    const counts = pendingByAgentMonth.get(scope) || {};
+    counts[status] = (counts[status] || 0) + 1;
+    pendingByAgentMonth.set(scope, counts);
+    if (deadline && (!deadlineByAgentMonth.has(scope) || deadline < deadlineByAgentMonth.get(scope)!)) deadlineByAgentMonth.set(scope, deadline);
   }
-  return cases.map(item => ({ ...item,
+  return cases.map(item => {
+    const scope = `${canonicalAgentIdentityKey(item.agent)}|${monthForCase(item)}`;
+    const counts = item.isTestCase ? {} : pendingByAgentMonth.get(scope) || {};
+    return { ...item,
     appealScoreMonthKey: monthForCase(item),
-    pendingAppealCaseCount: item.isTestCase ? 0 :
-      pendingByAgentMonth.get(`${canonicalAgentIdentityKey(item.agent)}|${monthForCase(item)}`) || 0,
+    pendingAppealStatusCounts: counts,
+    pendingAppealCaseCount: Object.values(counts).reduce((sum, count) => sum + count, 0),
+    appealScoreDeadlineAt: item.isTestCase ? '' : deadlineByAgentMonth.get(scope) || '',
     appealScoreUnverified: false,
-  }));
+  }; });
 }
 
 export function getAppealScoreHold(cases: readonly ({ agent: string; isTestCase?: boolean } & AppealScoreState)[]): AppealScoreHold | null {
   const counts = new Map<string, number>();
+  const statusesByScope = new Map<string, Record<string, number>>();
   let unverified = false;
   for (const item of cases) {
     if (item.isTestCase) continue;
     unverified ||= Boolean(item.appealScoreUnverified);
     const agent = `${canonicalAgentIdentityKey(item.agent)}|${item.appealScoreMonthKey || "unknown"}`;
     counts.set(agent, Math.max(counts.get(agent) || 0, item.pendingAppealCaseCount || 0));
+    const statuses = statusesByScope.get(agent) || {};
+    for (const [status, count] of Object.entries(item.pendingAppealStatusCounts || {})) statuses[status] = Math.max(statuses[status] || 0, count);
+    statusesByScope.set(agent, statuses);
   }
   const pendingCount = [...counts.values()].reduce((sum, count) => sum + count, 0);
   if (unverified) return {
@@ -115,9 +130,16 @@ export function getAppealScoreHold(cases: readonly ({ agent: string; isTestCase?
     message: "ยังแสดงคะแนนสรุปไม่ได้ กรุณากดอัปเดตข้อมูลเพื่อตรวจสอบสถานะอุทธรณ์อีกครั้ง",
     pendingCount,
   };
+  const statuses = new Set([...statusesByScope.values()].flatMap(counts => Object.keys(counts)));
+  if (pendingCount && !statuses.size) statuses.add('Pending');
   return pendingCount ? {
-    label: "รอผลอุทธรณ์",
-    message: `ยังมี Appeal รอพิจารณา ${pendingCount} เคส คะแนนจะแสดงเมื่อพิจารณา Approved หรือ Reject ครบทุกข้อของทุกเคส`,
+    label: statuses.size === 1 ? appealWorkflowLabel([...statuses][0]) : "รอบอุทธรณ์ยังไม่สิ้นสุด",
+    message: `ยังไม่สรุปคะแนน ${pendingCount} เคส · ${[...statuses].map(appealWorkflowLabel).join(' / ')} คะแนนจะสรุปเมื่อ QA พิจารณาครบ หรือหมดเวลายื่นเพิ่มโดยไม่มีการยื่น`,
     pendingCount,
   } : null;
+}
+
+export function nextAppealScoreDeadline(cases: readonly AppealScoreState[]): number | null {
+  const deadlines = cases.map(item => Date.parse(item.appealScoreDeadlineAt || '')).filter(Number.isFinite);
+  return deadlines.length ? Math.min(...deadlines) : null;
 }

@@ -15,7 +15,7 @@ import { generateBulkCaseDetailPdf } from "./bulkCaseDetailPdf";
 import { RichTextContent, richTextToPlainText } from "./richText";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
-import { getAppealScoreHold, withAppealScoreState, type AppealScoreState } from "./pendingAppealScore";
+import { getAppealScoreHold, withAppealScoreState, nextAppealScoreDeadline, type AppealScoreState } from "./pendingAppealScore";
 import {
   fetchStoredEvaluations,
   getEvaluationLastUpdatedAt,
@@ -5467,6 +5467,15 @@ export default function DashboardMockup({
   const [lastLoadedAt, setLastLoadedAt] = useState(() => dashboardWorkbookCacheV155?.cachedAt || 0);
   const [loadRetryNonce, setLoadRetryNonce] = useState(0);
   const loadRetriesRef = useRef({ key: dataRefreshKey, count: 0 });
+  useEffect(() => {
+    const deadline = nextAppealScoreDeadline(allCases);
+    if (deadline === null) return;
+    const timer = window.setTimeout(() => {
+      dashboardWorkbookCacheV155 = null;
+      setLoadRetryNonce(value => value + 1);
+    }, Math.min(2_147_483_647, Math.max(0, deadline - Date.now()) + 25));
+    return () => window.clearTimeout(timer);
+  }, [allCases]);
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() => {
     const requestedMonth = String(externalSelectedMonthKey || "").trim();
@@ -6481,6 +6490,8 @@ export default function DashboardMockup({
               "appeal_additional_round_cancelled",
               "appeal_additional_round_expired",
               "appeal_additional_evidence_submitted",
+              "appeal_additional_access_requested", "appeal_additional_access_decided",
+              "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
             ],
             { limit: 2000, forceRefresh: true }
           ) as UsageLogEvent[];

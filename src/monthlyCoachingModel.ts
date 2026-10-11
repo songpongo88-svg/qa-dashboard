@@ -20,7 +20,7 @@ export function seniorFor(accounts: CoachingAccount[], agent: CoachingAccount) {
 export function isAssignedCoach(record: StoredCoachingRecord | null | undefined, actor: CoachingAccount | null | undefined) {
   if (!record || !actor) return false;
   const coachId = String(record.coachId || record.seniorId || '').trim().toLowerCase();
-  if (coachId && coachId === actor.username.trim().toLowerCase()) return true;
+  if (coachId) return coachId === actor.username.trim().toLowerCase();
   const coachName = record.coachName || record.coachedBy || record.seniorName || '';
   return [actor.username, actor.displayName, actor.agentName].some(value => sameIdentity(value, coachName));
 }
@@ -32,6 +32,24 @@ export function isCoachingParticipant(record: StoredCoachingRecord | null | unde
   return (record.appointment?.participants || []).some(name =>
     [actor.username, actor.displayName, actor.agentName].some(value => sameIdentity(value, name))
   );
+}
+
+export function coachingSaveRole(record: StoredCoachingRecord | null | undefined, actor: CoachingAccount, status?: CoachingRecordStatus) {
+  if (isAssignedCoach(record, actor) && (status ? ['Coaching In Progress', 'Action Plan Submitted'].includes(status) : seniorEditing.includes(record!.status))) return 'Assigned Coach';
+  return actor.role;
+}
+
+export function coachingTaskFor(record: StoredCoachingRecord | null | undefined, actor: CoachingAccount, rows: StoredEvaluation[] = []) {
+  if (record && record.monthKey < COACHING_WORKFLOW_START) return false;
+  if (isAssignedCoach(record, actor) && seniorEditing.includes(record!.status)) return true;
+  if (actor.role !== 'Quality Assurance') return false;
+  if (record?.qaOwnerId && record.qaOwnerId.trim().toLowerCase() !== actor.username.trim().toLowerCase()) return false;
+  if (!record?.qaOwnerId) {
+    const evaluators = [...new Set(rows.map(row => row.evaluatorName).filter(Boolean))];
+    if (evaluators.length && !evaluators.some(name => [actor.username, actor.displayName, actor.agentName].some(value => sameIdentity(value, name)))) return false;
+  }
+  return !record || preparation.includes(record.status) || ['Action Plan Submitted', 'Follow-up Next Month'].includes(record.status) ||
+    (isCoachingAccepted(record.status) && !record.qaReviewComment?.trim());
 }
 
 export function recordVisibleToUser(record: StoredCoachingRecord | null | undefined, actor: CoachingAccount | null | undefined) {

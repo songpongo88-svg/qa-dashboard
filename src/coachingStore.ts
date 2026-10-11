@@ -2,7 +2,7 @@ import { collection, doc, getDocs, getDocsFromServer, runTransaction, serverTime
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 
-import { belongsToAgent, isAssignedCoach, isCoachingAccepted, coachingResultError, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
+import { belongsToAgent, isAssignedCoach, coachingSaveRole, isCoachingAccepted, coachingResultError, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
 
 const COACHING_COLLECTION = "qa_coaching_records";
 const COACHING_CACHE_KEY = "qa-dashboard:coaching-records-cache:v1";
@@ -77,6 +77,8 @@ export type StoredCoachingRecord = {
   qaReviewComment?: string;
   qaReviewedAt?: string;
   qaReviewedBy?: string;
+  qaOwnerId?: string;
+  qaOwnerName?: string;
   attachments?: CoachingAttachment[];
 };
 
@@ -180,6 +182,7 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
     ...(row?.actualCoaching && typeof row.actualCoaching === 'object' ? { actualCoaching: row.actualCoaching } : {}),
     actions: Array.isArray(row?.actions) ? row.actions : [], qaReviewComment: String(row?.qaReviewComment || ''), attachments: Array.isArray(row?.attachments) ? row.attachments : [],
     qaReviewedAt: String(row?.qaReviewedAt || ''), qaReviewedBy: String(row?.qaReviewedBy || ''),
+    qaOwnerId: String(row?.qaOwnerId || ''), qaOwnerName: String(row?.qaOwnerName || ''),
   };
 }
 
@@ -318,11 +321,7 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
     }
     if (previous && (!belongsToAgent(target, previous.agentId, previous.agent) || previous.monthKey !== record.monthKey)) throw new Error('ไม่สามารถเปลี่ยน Admin หรือเดือนของ Coaching เดิม');
 
-    const workflowRole = actor.role === 'Quality Assurance'
-      ? 'Quality Assurance'
-      : isAssignedCoach(previous || record, actor)
-        ? 'Assigned Coach'
-        : actor.role;
+    const workflowRole = coachingSaveRole(previous || record, actor, record.status);
     if (workflowRole !== 'Quality Assurance' && workflowRole !== 'Assigned Coach') {
       throw new Error('บัญชีนี้ดูนัดหมายได้ แต่ไม่มีสิทธิ์แก้ผล Coaching');
     }
@@ -337,7 +336,9 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
       qaReviewedAt: previouslyAccepted ? previous!.qaReviewedAt || previous!.updatedAt : now,
       qaReviewedBy: previouslyAccepted && previous!.qaReviewedBy ? previous!.qaReviewedBy : actor.displayName || actor.username,
     } : { qaReviewedAt: previous?.qaReviewedAt || '', qaReviewedBy: previous?.qaReviewedBy || '' };
-    const normalized = JSON.parse(JSON.stringify({ ...next, ...reviewMetadata, id: reference.id, updatedAt: now })) as StoredCoachingRecord;
+    const qaOwnerId = previous?.qaOwnerId || (workflowRole === 'Quality Assurance' ? actor.username : '');
+    const qaOwnerName = previous?.qaOwnerName || (workflowRole === 'Quality Assurance' ? actor.displayName || actor.username : '');
+    const normalized = JSON.parse(JSON.stringify({ ...next, ...reviewMetadata, qaOwnerId, qaOwnerName, id: reference.id, updatedAt: now })) as StoredCoachingRecord;
     transaction.set(reference, { ...normalized, updatedAtServer: serverTimestamp() }, { merge: true });
     return normalized;
   });
