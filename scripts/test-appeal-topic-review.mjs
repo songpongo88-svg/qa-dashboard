@@ -90,6 +90,10 @@ console.log("PASS saved mixed decisions, evidence, old all-approved/all-rejected
 
 const policy = loadDeclarations("../src/lib/scoreIncentivePolicy.ts", ["scoreToGrade"]);
 const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "richTextToPlainText"], { React });
+const rubric = {};
+Function("exports", ts.transpileModule(fs.readFileSync(new URL("../src/lib/rubricVersions.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText)(rubric);
 const actionTimeline = loadDeclarations("../src/AppealActionTimeline.tsx", ["AppealActionTimeline"], {
   React, ...richText, AppealEvidenceGallery: () => null, appealEvidenceStartIndex: () => 0,
 });
@@ -97,6 +101,7 @@ const dashboard = loadDeclarations("../src/DashboardMockup.tsx", ["buildApproved
   ...actionTimeline,
   ...helper, ...requestFunctions, ...policy, React, useState,
   ...richText,
+  getCaseDetailTopicTitle: rubric.getCaseDetailTopicTitle,
   AppealEvidenceGallery: () => null,
   appealEvidenceStartIndex: () => 0,
   canonicalizeAgentName: value => String(value || ""),
