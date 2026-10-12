@@ -49,6 +49,28 @@ export type AppealAction = {
   reviews: AppealActionReview[];
 };
 
+export type TopicAppealAction = AppealAction & { topicActionNumber?: number };
+
+/** Number actual submissions independently per topic while retaining round IDs. */
+export function topicAppealActions(actions: readonly AppealAction[], code: string): TopicAppealAction[] {
+  const matches = (topic: AppealActionTopic) => String(topic.code) === code;
+  let submittedCount = 0;
+  return actions.filter(action => action.topics.some(matches) ||
+    action.submissions.some(row => row.topics.some(matches)) || action.reviews.some(row => row.topics.some(matches)))
+    .slice().sort((a, b) => a.actionNumber - b.actionNumber).map(action => {
+      const submissions = action.submissions.map(row => ({ ...row, topics: row.topics.filter(matches) })).filter(row => row.topics.length);
+      const reviews = action.reviews.map(row => ({ ...row, topics: row.topics.filter(matches) })).filter(row => row.topics.length);
+      const topic = action.topics.find(matches) || submissions.at(-1)?.topics[0] || reviews.at(-1)?.topics[0];
+      const submitted = submissions.length > 0 || reviews.length > 0 || Boolean(action.submittedAt && action.topics.some(matches));
+      return { ...action, topicActionNumber: submitted ? ++submittedCount : undefined,
+        topics: topic ? [topic] : [], submissions, reviews };
+    });
+}
+
+export function topicAppealActionNumber(actions: readonly AppealAction[], code: string, actionId?: string) {
+  return topicAppealActions(actions, code).find(action => action.actionId === actionId)?.topicActionNumber;
+}
+
 function time(event: UsageLogEvent) {
   return Date.parse(String(event.created_at || event.details?.reviewedAt || event.details?.submittedAt || event.details?.openedAt || "")) || 0;
 }

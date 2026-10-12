@@ -39,7 +39,7 @@ function loadDeclarations(file, names, bindings = {}) {
 }
 
 const helper = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision", "summarizeAppealDecisions", "appealScoreAfterReview", "prepareAppealReview"]);
-const actionHistory = loadDeclarations("../src/appealActionHistory.ts", ["buildAppealActionHistory"], helper);
+const actionHistory = loadDeclarations("../src/appealActionHistory.ts", ["buildAppealActionHistory", "topicAppealActions", "topicAppealActionNumber"], helper);
 const requestFunctions = loadDeclarations("../src/AppealRequestsMockup.tsx", ["buildAppealRequests", "exportAppealRows"], {
   ...actionHistory,
   ...helper, XLSX: { utils: { json_to_sheet: rows => rows, book_new: () => ({}), book_append_sheet: (_book, sheet) => { globalThis.__exportedAppeals = sheet; } }, writeFile() {} },
@@ -95,7 +95,7 @@ Function("exports", ts.transpileModule(fs.readFileSync(new URL("../src/lib/rubri
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText)(rubric);
 const actionTimeline = loadDeclarations("../src/AppealActionTimeline.tsx", ["AppealActionTimeline"], {
-  React, ...richText, AppealEvidenceGallery: () => null, appealEvidenceStartIndex: () => 0,
+  React, ...richText, ...actionHistory, AppealEvidenceGallery: () => null, appealEvidenceStartIndex: () => 0,
 });
 const dashboard = loadDeclarations("../src/DashboardMockup.tsx", ["buildApprovedAppealMergeMap", "buildAppealOutcomeMap", "applyAppealMapsToCaseItems", "CaseDetailTopicTable"], {
   ...actionTimeline,

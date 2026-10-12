@@ -13,7 +13,7 @@ import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAg
 import { scoreToGrade } from "./lib/scoreIncentivePolicy"; // appeal-review-information-newtab-v56
 import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 import AppealActionTimeline, { AppealActionReviewHistory } from "./AppealActionTimeline";
-import { buildAppealActionHistory, type AppealAction } from "./appealActionHistory";
+import { buildAppealActionHistory, topicAppealActions, topicAppealActionNumber, type AppealAction } from "./appealActionHistory";
 import { RichTextContent } from "./richText";
 
 type AppealTopic = {
@@ -932,6 +932,7 @@ export default function AppealRequestsMockup({
     ? selectedRequest.actionHistory.find(action => action.roundId === selectedRequest.additionalRound?.roundId)
     : selectedRequest?.actionHistory.find(action => action.reviews.some(review => review.reviewId === selectedRequest.reviewId)) || selectedRequest?.actionHistory[0];
   const canReviewTopic = (code: string) => canReview && (!(selectedRequest?.additionalRound || editingReview) || Boolean(currentAction?.topics.some(topic => topic.code === code)));
+  const currentTopicActionNumber = (code: string) => topicAppealActionNumber(selectedRequest?.actionHistory || [], code, currentAction?.actionId) || 1;
   const displayTopics = [...new Map([
     ...(selectedRequest?.actionHistory.flatMap(action => action.topics) || []), ...draftTopics,
   ].map(topic => [topic.code, topic])).values()].filter(topic => isAppealedTopic(topic) || selectedRequest?.actionHistory.some(action => action.topics.some(item => item.code === topic.code)))
@@ -1816,9 +1817,12 @@ export default function AppealRequestsMockup({
                 </div>
 
                 <section aria-label="Appeal Actions" className="space-y-4">
-                  <div className="text-base font-extrabold text-slate-950">Appeal Actions — ประวัติอุทธรณ์แต่ละรอบ</div>
-                  <div aria-label="รอบอุทธรณ์ของเคส" className="flex flex-wrap gap-3 text-xs text-slate-600">
-                    {selectedRequest.actionHistory.map(action => <span key={action.actionId}>Action {action.actionNumber} · หัวข้อ {action.topics.map(topic => topic.code).join(", ") || "-"}</span>)}
+                  <div className="text-base font-extrabold text-slate-950">Appeal Actions — ประวัติอุทธรณ์แยกตามหัวข้อ</div>
+                  <div aria-label="Action แยกตามหัวข้อ" className="flex flex-wrap gap-3 text-xs text-slate-600">
+                    {displayTopics.map(topic => {
+                      const numbers = topicAppealActions(selectedRequest.actionHistory, topic.code).flatMap(action => action.topicActionNumber ? [`Action ${action.topicActionNumber}`] : []);
+                      return <span key={topic.code}>หัวข้อ {topic.code} · {numbers.join(", ") || "รอยื่นครั้งแรก"}</span>;
+                    })}
                   </div>
                   {displayTopics.map(topic => <section key={topic.code} data-appeal-topic={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h3 className="text-base font-extrabold text-slate-950">Topic {topic.code} {topic.label}</h3>
@@ -1828,9 +1832,9 @@ export default function AppealRequestsMockup({
                     </div>
                     <AppealActionTimeline actions={selectedRequest.actionHistory} topicCode={topic.code} caseId={selectedRequest.caseId} compact
                       excludeActionId={canReviewTopic(topic.code) ? currentAction?.actionId : undefined} />
-                    {canReviewTopic(topic.code) && <section data-appeal-action={currentAction?.actionNumber || 1} aria-label={`พิจารณา Action ${currentAction?.actionNumber || 1} หัวข้อ ${topic.code}`} className="border-t border-dashed border-slate-200 pt-4">
+                    {canReviewTopic(topic.code) && <section data-appeal-action={currentTopicActionNumber(topic.code)} aria-label={`พิจารณา Action ${currentTopicActionNumber(topic.code)} หัวข้อ ${topic.code}`} className="border-t border-dashed border-slate-200 pt-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <h4 className="text-sm font-extrabold text-violet-800">Appeal Reason · Action {currentAction?.actionNumber || 1}</h4>
+                        <h4 className="text-sm font-extrabold text-violet-800">Appeal Reason · Action {currentTopicActionNumber(topic.code)}</h4>
                         <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">{editingReview ? "กำลังแก้ไขผล QA" : "รอ QA พิจารณา"}</span>
                       </div>
                       <div className="mb-3 text-xs text-slate-600">ผู้ยื่น: {currentAction?.submittedBy || selectedRequest.submittedBy || "-"} · {formatDateTime(currentAction?.submittedAt || selectedRequest.submittedAt)}</div>
@@ -1841,7 +1845,7 @@ export default function AppealRequestsMockup({
                         <div className="mt-2"><AppealActionReviewHistory reviews={currentAction?.reviews || []} topicCode={topic.code} caseId={selectedRequest.caseId} /></div>
                       </details>}
                       <div className="mt-4 border-t border-dashed border-slate-200 pt-4">
-                        <div className="mb-3 text-xs font-semibold text-violet-800">QA: {currentUser?.agentName || currentUser?.displayName || currentUser?.username || "-"} · {editingReview ? "แก้ไขผล" : "กำลังพิจารณา"} Action {currentAction?.actionNumber || 1}</div>
+                        <div className="mb-3 text-xs font-semibold text-violet-800">QA: {currentUser?.agentName || currentUser?.displayName || currentUser?.username || "-"} · {editingReview ? "แก้ไขผล" : "กำลังพิจารณา"} Action {currentTopicActionNumber(topic.code)}</div>
                         <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label={`ผลพิจารณาหัวข้อ ${topic.code}`}>
                           {(["Approved", "Rejected"] as const).map(value => (
                             <button key={value} type="button" aria-pressed={topic.decision === value}
