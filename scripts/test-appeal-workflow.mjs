@@ -333,7 +333,7 @@ try {
     fixture.writes = [];
     await render(role, { key: `different-topic-${canEdit}`, externalRequestId: differentId, allowedAgentNames: ["Alpha Agent"] });
     const actions = document.querySelector('[aria-label="Appeal Actions"]');
-    assert.deepEqual([...actions.querySelectorAll('[data-appeal-action]')].map(node => node.getAttribute('data-appeal-action')), ["1", "2"], "each case-level Action appears once in order, even for a new topic");
+    assert.deepEqual([...actions.querySelectorAll('[data-appeal-action]')].map(node => node.getAttribute('data-appeal-action')), ["1", "1"], "the first submission of each topic starts at Action 1 for both QA and Senior");
     const [first, second] = actions.querySelectorAll('[data-appeal-action]');
     assert.ok(first.textContent.includes("Original appeal reason") && first.textContent.includes("First QA comment"));
     assert.ok(!first.textContent.includes(newReason.split("\n")[0]), "new reason never overwrites or leaks into the previous Action");

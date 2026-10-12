@@ -15,7 +15,7 @@ const productionTemplate = (await readFile(resolve('src/caseDetailOfficialPdf.ts
 try {
   const output = resolve(temp, "actions.mjs");
   await build({
-    stdin: { contents: "export {buildAppealActionHistory} from './src/appealActionHistory'; export {generateOfficialCaseDetailPdf} from './src/caseDetailOfficialPdf'; export {generateCasePdfWithAppealHistory} from './src/caseAppealPdfAddon';", resolveDir: process.cwd(), loader: "ts" },
+    stdin: { contents: "export {buildAppealActionHistory, topicAppealActions, topicAppealActionNumber} from './src/appealActionHistory'; export {generateOfficialCaseDetailPdf} from './src/caseDetailOfficialPdf'; export {generateCasePdfWithAppealHistory} from './src/caseAppealPdfAddon';", resolveDir: process.cwd(), loader: "ts" },
     outfile: output, bundle: true, jsx: "automatic", platform: "node", format: "esm", packages: "external", logLevel: "silent",
     plugins: [{ name: "observe-real-pdf-renderer", setup(builder) {
       builder.onResolve({ filter: /^jspdf$/ }, () => ({ path: "pdf", namespace: "fixture" }));
@@ -28,7 +28,7 @@ try {
       ` }));
     } }],
   });
-  const { buildAppealActionHistory, generateOfficialCaseDetailPdf, generateCasePdfWithAppealHistory } = await import(pathToFileURL(output).href);
+  const { buildAppealActionHistory, topicAppealActions, topicAppealActionNumber, generateOfficialCaseDetailPdf, generateCasePdfWithAppealHistory } = await import(pathToFileURL(output).href);
   const requestId = "appeal-AA304253-fixture";
   const at = hours => new Date(Date.parse("2026-10-09T00:00:00Z") + hours * 3600000).toISOString();
   const topic = { code: "1", label: "Process", score: 18, max: 30, comment: "ORIGINAL_EVALUATION ขั้นตอนการทำงานเดิม", wantsAppeal: true, appealReason: "FIRST_APPEAL_REASON\nเนื่องจากไรเดอร์ถามแค่งานไม่เข้า\nSecond line" };
@@ -62,6 +62,17 @@ try {
   assert.equal(actions[4].topics[0].appealReason, "", "permission does not copy an old appeal reason into a new Action");
   assert.equal(actions[2].reviews[0].finalScore, 94);
   assert.equal(JSON.stringify(rows), unchanged);
+  const unchangedActions = JSON.stringify(actions);
+  assert.deepEqual(topicAppealActions(actions, "1").map(action => action.topicActionNumber), [1, 2, undefined, undefined], "cancelled and expired unsubmitted permissions do not consume a topic Action number");
+  assert.deepEqual(topicAppealActions(actions, "2").map(action => action.topicActionNumber), [1], "a new topic begins at Action 1 after earlier rounds of other topics");
+  assert.equal(topicAppealActionNumber(actions, "2", actions[2].actionId), 1);
+  const mixedHistory = buildAppealActionHistory([...rows,
+    event("appeal_additional_round_opened", 81, { roundId: "mixed-next", openedAt: at(81), expiresAt: at(153), topics: [topic, other] }),
+    event("appeal_additional_evidence_submitted", 82, { roundId: "mixed-next", submittedAt: at(82), submittedBy: "Mixed Submitter", topics: [topic, other] }),
+  ], requestId, Date.parse(at(83)));
+  assert.equal(topicAppealActions(mixedHistory, "1").at(-1).topicActionNumber, 3, "a real submission follows two previous submissions despite cancelled or expired permissions");
+  assert.equal(topicAppealActions(mixedHistory, "2").at(-1).topicActionNumber, 2, "the same mixed round has an independent number for the second topic");
+  assert.equal(JSON.stringify(actions), unchangedActions, "display numbering never rewrites the original history, scores or round identifiers");
 
   const caseItem = { caseId: "AA304253", agent: "Fixture Agent", monthKey: "2026-09", auditDate: "09/10/2026", finalScore: 94, previousScore: 88, grade: "A", appealStatus: "Partially Approved", reviewStatus: "Revised", topics: [topic, other], revisedTopics: [{ ...topic, score: 24, comment: "CORRECTED_SECOND_QA_COMMENT" }], appealReviewedTopics: [{ ...topic, decision: "Approved", comment: "CORRECTED_SECOND_QA_COMMENT" }, { ...other, decision: "Rejected", comment: "THIRD_QA_REJECT_REASON" }], displayRevisedTopicCodes: ["1"], appealActionHistory: actions };
   for (const pdfVariant of ["original", "appeal"]) {
@@ -72,7 +83,7 @@ try {
     assert.ok(generated.blob.size > 10000, "real PDF bytes generated");
     assert.ok(globalThis.__actionPdfDoc.getNumberOfPages() >= 2, "long reasons paginate with compact separators");
     const text = globalThis.__actionPdfTexts.flat(Infinity).join(" ");
-    for (const expected of ["ORIGINAL_EVALUATION", "ขั้นตอนการทำงานเดิม", "เนื่องจากไรเดอร์ถามแค่งานไม่เข้า", "Action 1", "Action 2", "Action 3", "Action 4", "Action 5", "FIRST_APPEAL_REASON", "SECOND_APPEAL_REASON", "FINAL_REASON_LINE", "FIRST_QA_COMMENT", "SECOND_QA_COMMENT", "CORRECTED_SECOND_QA_COMMENT", "THIRD_QA_REJECT_REASON"]) {
+    for (const expected of ["ORIGINAL_EVALUATION", "ขั้นตอนการทำงานเดิม", "เนื่องจากไรเดอร์ถามแค่งานไม่เข้า", "Action 1", "Action 2", "Cancelled (Additional)", "Expired (Additional)", "FIRST_APPEAL_REASON", "SECOND_APPEAL_REASON", "FINAL_REASON_LINE", "FIRST_QA_COMMENT", "SECOND_QA_COMMENT", "CORRECTED_SECOND_QA_COMMENT", "THIRD_QA_REJECT_REASON"]) {
       assert.ok(text.replace(/\s/g, '').includes(expected.replace(/\s/g, '')), `${pdfVariant} PDF preserves ${expected}`);
     }
     assert.equal(pdfVariant === 'original' ? renderedCase.pdfReportScoreOverride : renderedCase.finalScore, 94, 'latest review supplies the total score');
@@ -80,7 +91,7 @@ try {
     assert.ok(!text.includes("PRIVATE_INTERNAL_MESSAGE"), "internal QA/Senior discussion never enters reports");
     assert.ok(!text.includes('Initial Appeal') && !text.includes('Additional Appeal') && !text.includes('Score after review'), 'no duplicate purple Action appendix');
     const actionLabels = globalThis.__actionPdfPositions.filter(row =>  /Action \d+\b/.test(row.value));
-    assert.deepEqual(actionLabels.map(row => Number(row.value.match(/Action (\d+)/)[1])), [1, 2, 4, 5, 3], 'Actions stay ordered inside their own topic');
+    assert.deepEqual(actionLabels.map(row => Number(row.value.match(/Action (\d+)/)[1])), [1, 2, 1], 'each topic starts at Action 1; actual submissions stay ordered and permissions have no Action number');
     assert.ok(actionLabels.every(row => row.x > globalThis.__actionPdfDoc.internal.pageSize.getWidth() / 2), 'Action headings render in the existing topic detail column');
     assert.equal((text.replace(/\s/g, '').match(/ORIGINAL_EVALUATION/g) || []).length, 1, 'original evaluation stays once in the topic');
     assert.equal((text.replace(/\s/g, '').match(/FIRST_APPEAL_REASON/g) || []).length, 1, 'old appeal reason appears once');

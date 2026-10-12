@@ -2,7 +2,7 @@ import React from "react";
 import { AppealEvidenceGallery } from "./AppealEvidence";
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import { RichTextContent } from "./richText";
-import type { AppealAction, AppealActionReview } from "./appealActionHistory";
+import { topicAppealActions, type AppealAction, type AppealActionReview } from "./appealActionHistory";
 
 function dateTime(value: string) {
   if (!value) return "-";
@@ -44,14 +44,18 @@ export default function AppealActionTimeline({ actions, topicCode, caseId, exclu
   showOriginalComment?: boolean;
   compact?: boolean;
 }) {
-  const visible = actions.filter(action => action.actionId !== excludeActionId && (!topicCode || action.topics.some(topic => topic.code === topicCode)));
+  const topicCodes = topicCode ? [topicCode] : [...new Set(actions.flatMap(action => [
+    ...action.topics, ...action.submissions.flatMap(row => row.topics), ...action.reviews.flatMap(row => row.topics),
+  ].map(topic => topic.code)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const visible = topicCodes.flatMap(code => topicAppealActions(actions, code)
+    .filter(action => action.actionId !== excludeActionId));
   if (!visible.length) return null;
   return <ol aria-label={topicCode ? `ประวัติ Action หัวข้อ ${topicCode}` : "ประวัติ Action อุทธรณ์"} className={compact ? "space-y-0" : "space-y-4"}>
     {visible.map(action => {
       const latestReview = action.reviews.at(-1);
-      return <li key={action.actionId} data-appeal-action={action.actionNumber} className={compact ? "border-t border-dashed border-slate-200 py-4 first:border-t-0" : "rounded-2xl border border-slate-200 bg-white p-4"}>
+      return <li key={`${action.actionId}:${action.topics[0]?.code}`} data-appeal-action={action.topicActionNumber} className={compact ? "border-t border-dashed border-slate-200 py-4 first:border-t-0" : "rounded-2xl border border-slate-200 bg-white p-4"}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-sm font-extrabold text-slate-900">{compact ? `Appeal Reason · Action ${action.actionNumber}` : `Action ${action.actionNumber} — ${action.roundId ? `อุทธรณ์เพิ่มเติมครั้งที่ ${action.actionNumber - 1}` : "อุทธรณ์ครั้งแรก"}`}</h4>
+          <h4 className="text-sm font-extrabold text-slate-900">{action.topicActionNumber ? `Appeal Reason · Action ${action.topicActionNumber}` : "สิทธิ์ยื่นอุทธรณ์เพิ่มเติม"}</h4>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{action.status === "Pending" ? "รอ QA พิจารณา" : action.status === "Awaiting Additional Submission" ? "รอยื่นเพิ่มเติม" : action.status}</span>
         </div>
         {action.submittedAt ? <div className="mb-3 text-xs text-slate-600">ผู้ยื่น: {action.submittedBy || "-"} · {dateTime(action.submittedAt)}</div> : <div className="mb-3 text-xs text-slate-600">เปิดสิทธิ์: {dateTime(action.openedAt)} · ยังไม่ได้ยื่นข้อความอุทธรณ์</div>}
@@ -63,7 +67,6 @@ export default function AppealActionTimeline({ actions, topicCode, caseId, exclu
               <RichTextContent value={topic.comment} decodeEntities className="mt-2 break-words text-sm leading-6 text-slate-700" />
             </div>}
             <div className={compact ? "py-1" : "rounded-2xl border border-amber-200 bg-amber-50 p-4"}>
-            {!compact && <div className="text-xs font-bold text-amber-700">Appeal Reason · Action {action.actionNumber}</div>}
             <RichTextContent value={topic.appealReason} className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-amber-950" fallback="ยังไม่ได้ยื่นข้อความอุทธรณ์" />
             <AppealEvidenceGallery images={topic.evidenceImages || []} caseId={caseId} startIndex={appealEvidenceStartIndex(action.topics, topic.code)} />
             </div>

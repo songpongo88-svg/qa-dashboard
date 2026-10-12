@@ -1,4 +1,5 @@
-import type { AppealAction, AppealActionReview, AppealActionSubmission, AppealActionTopic } from './appealActionHistory';
+import { topicAppealActions, topicAppealActionNumber, type AppealAction, type AppealActionReview, type AppealActionSubmission, type AppealActionTopic } from './appealActionHistory';
+export { topicAppealActions } from './appealActionHistory';
 import { formatPdfDateTime } from './lib/pdfDates';
 import { richTextToPlainText } from './richText';
 
@@ -8,11 +9,6 @@ const body = (label: string, value: unknown) => `<div><span style="color:#dc2626
 const separator = '<hr>';
 const topicIn = (rows: AppealActionTopic[], code: string) => rows.find(topic => String(topic.code) === code);
 
-export function topicAppealActions(actions: readonly AppealAction[], code: string) {
-  return actions.filter(action => topicIn(action.topics, code) || action.submissions.some(row => topicIn(row.topics, code)) || action.reviews.some(row => topicIn(row.topics, code)))
-    .slice().sort((a, b) => a.actionNumber - b.actionNumber);
-}
-
 export function latestTopicAppealReview(actions: readonly AppealAction[], code: string) {
   return actions.flatMap(action => action.reviews).filter(review => topicIn(review.topics, code))
     .slice().sort((a, b) => (Date.parse(a.reviewedAt) || 0) - (Date.parse(b.reviewedAt) || 0)).at(-1);
@@ -21,7 +17,8 @@ export function latestTopicAppealReview(actions: readonly AppealAction[], code: 
 /** One chronological history inside the existing topic cell; never changes stored appeals. */
 export function appealActionTopicPdfHtml(actions: readonly AppealAction[], code: string) {
   return topicAppealActions(actions, code).map(action => {
-    const sections = [separator, `<div><strong>Appeal Reason · Action ${action.actionNumber}</strong></div>`];
+    const heading = action.topicActionNumber ? `Appeal Reason · Action ${action.topicActionNumber}` : 'สิทธิ์ยื่นอุทธรณ์เพิ่มเติม';
+    const sections = [separator, `<div><strong>${heading}</strong></div>`];
     const submissions = action.submissions.length ? action.submissions : action.submittedAt ? [{ submittedAt: action.submittedAt, submittedBy: action.submittedBy, topics: action.topics }] : [];
     const events: Array<{ kind: 'submission' | 'review'; at: string; row: AppealActionSubmission | AppealActionReview }> = [
       ...submissions.filter(row => topicIn(row.topics, code)).map(row => ({ kind: 'submission' as const, at: row.submittedAt, row })),
@@ -52,10 +49,10 @@ export function appealActionPdfEvidence(actions: readonly AppealAction[]) {
   for (const action of actions) {
     const submissions = action.submissions.length ? action.submissions : action.submittedAt ? [{ topics: action.topics }] : [];
     for (const [index, row] of submissions.entries()) for (const topic of row.topics) {
-      for (const [image, photo] of (topic.evidenceImages || []).entries()) images.push({ photo, label: `Action ${action.actionNumber} · Topic ${topic.code} · Appeal Evidence${submissions.length > 1 ? ` · Submission ${index + 1}` : ''} - Image ${image + 1}` });
+      for (const [image, photo] of (topic.evidenceImages || []).entries()) images.push({ photo, label: `Action ${topicAppealActionNumber(actions, topic.code, action.actionId)} · Topic ${topic.code} · Appeal Evidence${submissions.length > 1 ? ` · Submission ${index + 1}` : ''} - Image ${image + 1}` });
     }
     for (const [index, review] of action.reviews.entries()) for (const topic of review.topics) {
-      for (const [image, photo] of (topic.qaEvidenceImages || []).entries()) images.push({ photo, label: `Action ${action.actionNumber} · Topic ${topic.code} · QA Evidence${action.reviews.length > 1 ? ` · Review ${index + 1}` : ''} - Image ${image + 1}` });
+      for (const [image, photo] of (topic.qaEvidenceImages || []).entries()) images.push({ photo, label: `Action ${topicAppealActionNumber(actions, topic.code, action.actionId)} · Topic ${topic.code} · QA Evidence${action.reviews.length > 1 ? ` · Review ${index + 1}` : ''} - Image ${image + 1}` });
     }
   }
   return images;
