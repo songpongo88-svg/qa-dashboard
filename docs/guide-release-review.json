@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-12T05:59:33.715Z",
-  "reason": "Reviewed additional appeal countdown and watermark presentation; no guide workflow content change.",
+  "reviewedAt": "2026-10-12T06:01:12.139Z",
+  "reason": "Reviewed revised Additional Appeal watermark and retained Reset exclusion; guide workflow unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -330,7 +330,7 @@
     "src/AutoDeployRefresh.tsx": "1e7cb76eb6f7f5dc368f109fbae6a02afd67b3782e07f86c3b9a2e97f259ffab",
     "src/AutoResizeTextarea.tsx": "30d02644f17ebe27f209f902823f81914b806d0b19d3582dbf261c190400714a",
     "src/CallHistoryMockup.tsx": "0912eed518dc4eb804602674110484e2f043498d05f0003542d935f201bf8046",
-    "src/CaseWatermarks.tsx": "a5e8c65529223bf1f3101a2569c5f8b47a2bc520dcb52aba90d117c2208026ea",
+    "src/CaseWatermarks.tsx": "44f98bdb7a693ebc494d9484ce8edf9f12af5c46e9dc891530895cae7010993b",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
     "src/CorporateUserDirectoryProfile.tsx": "cf8869f24169ce2a37d4237c4b56070c093bb4cd41bbd83bc8dc1b8fccc47426",
