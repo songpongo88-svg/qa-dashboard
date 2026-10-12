@@ -13,8 +13,9 @@ export function getCaseWatermarkLabels(item: WatermarkCase): string[] {
   const labels: string[] = [];
   if (isTestCaseEvaluation(item)) labels.push("TEST");
   if (item.appealAdditionalActive) labels.push("ADDITIONAL APPEAL");
+  // appeal-reset-clears-watermark-v54
   else if (item.hasAppealHistory || item.appealRequestId || item.reviewStatus === "Revised" ||
-    /^(Pending|Approved|Rejected|Reset)$/i.test(item.appealStatus || "")) labels.push("APPEAL");
+    /^(Pending|Approved|Rejected)$/i.test(item.appealStatus || "")) labels.push("APPEAL");
   return labels;
 }
 
