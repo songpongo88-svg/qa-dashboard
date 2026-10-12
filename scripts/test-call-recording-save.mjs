@@ -75,7 +75,7 @@ function form(primary) {
       setDraftInbox: setter(state, "drafts"), submitPreview: state.preview, submitInProgress: false,
       prepareVoiceRecordingForBrowser: async (file) => ({ file, converted: false }), readAudioDuration: async () => "02:06",
       async uploadCallRecordingFile(file, caseId, progress) { state.primaryCalls.push(file.name); progress?.(15); return primary(file, caseId); },
-      validateAgentSelected: () => true, missingScoreTopics: [], missingScoreText: "", noCaseForMonth: false,
+      monthlyResult: {editable:true,locked:false,message:""}, validateAgentSelected: () => true, missingScoreTopics: [], missingScoreText: "", noCaseForMonth: false,
       caseId: "AA900080", agentName: "Agent Fixture", auditDate: "2026-10-06", selectedMonthKey: "2026-10",
       selectedAgentOption: { username: "fixture", displayName: "Agent Fixture", agentName: "Agent Fixture", role: "Agent" },
       fetchStoredEvaluations: async () => [], loadRawDataReportRecords: async () => [],

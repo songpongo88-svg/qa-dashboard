@@ -17,6 +17,7 @@ import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIde
 import { resolveMonthlySignatureDocument } from "./lib/monthlyPdfExport";
 import { fetchStoredCoachingRecords, type StoredCoachingRecord } from "./coachingStore";
 import { monthlyCoachingPaymentStatus } from "./monthlyCoachingPayment";
+import { monthlyResultKey, monthlyResultScope } from "./monthlyResultLockStore";
 import { COACHING_WORKFLOW_START } from "./monthlyCoachingModel";
 import {
   clearStoredSignatureConfirm,
@@ -123,7 +124,7 @@ type PendingAppealCase = {
 function buildPendingSignatureAppealCaseMap(logs: UsageLogEvent[]) {
   const map = new Map<string, PendingAppealCase>();
   buildAppealRequests(logs).filter((request) => isAppealAwaitingReview(request) ||
-    ["Awaiting Additional Submission", "Approved (Access)"].includes(appealWorkflowStatus(request))).forEach((request) => {
+    ["Request Additional Appeal", "Awaiting Additional Submission", "Approved (Access)", "Draft"].includes(appealWorkflowStatus(request))).forEach((request) => {
     const caseId = normalizeText(request.caseId);
     if (!caseId) return;
     map.set(caseId, {
@@ -2544,6 +2545,9 @@ export default function SignatureCenterMockup({
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
   const [signatureLibrary, setSignatureLibrary] = useState<Record<string, string>>(() => readSignatureLibraryStore());
   const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
+  const [resultLockedDocs, setResultLockedDocs] = useState<Record<string, string>>({});
+  const [resultRevisionDocs, setResultRevisionDocs] = useState<Record<string, string>>({});
+  const [signatureResultVerified, setSignatureResultVerified] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedYear, setSelectedYear] = useState("all");
@@ -2757,7 +2761,15 @@ export default function SignatureCenterMockup({
     const loadRemoteSignatures = async () => {
       try {
         const storedDocs = await fetchStoredSignatureDocuments();
-        if (!alive || !storedDocs.length) return;
+        if (!alive) return;
+        setSignatureResultVerified(true);
+        setResultRevisionDocs(Object.fromEntries(storedDocs.flatMap(doc => {
+          const index = doc.docId.indexOf("::");
+          const scope = monthlyResultScope({ monthKey: doc.docId.slice(0, index), agentName: doc.docId.slice(index + 2) });
+          return scope ? [[monthlyResultKey(scope), doc.resultRevision || ""]] : [];
+        })));
+        setResultLockedDocs(Object.fromEntries(storedDocs.filter(doc => doc.resultLockedAt || doc.confirmedAt)
+          .map(doc => [doc.docId, doc.resultLockedAt || doc.confirmedAt || ""])));
 
         setSignatures((previous) => {
           const next = { ...previous };
@@ -2783,6 +2795,7 @@ export default function SignatureCenterMockup({
           return next;
         });
       } catch (error) {
+        if (alive) setSignatureResultVerified(false);
         console.warn("Load remote signatures failed", error);
       }
     };
@@ -3131,12 +3144,15 @@ export default function SignatureCenterMockup({
   const confirmAvailable = Boolean(
     selectedDocument &&
     !previewConfirmed &&
+    signatureResultVerified &&
     !hasPendingAppeal &&
     isAfterAppealPeriod(selectedDocument.monthKey) &&
     canSignIdentity(currentUser, selectedDocument, "Agent")
   );
   const confirmBlockedReason = selectedDocument && !previewConfirmed
-    ? !appealStatusVerified
+    ? !signatureResultVerified
+      ? "ยังตรวจสอบผลประจำเดือนไม่สำเร็จ กรุณาอัปเดตข้อมูลก่อนยืนยันรับทราบ"
+      : !appealStatusVerified
       ? "ยังตรวจสอบสถานะอุทธรณ์ไม่สำเร็จ กรุณากดอัปเดตข้อมูลก่อนยืนยันรับทราบ"
       : hasPendingAppeal
       ? "รอบอุทธรณ์ยังไม่สิ้นสุด จึงยังยืนยันรับทราบไม่ได้"
@@ -3258,14 +3274,17 @@ export default function SignatureCenterMockup({
     const confirmedAt = new Date().toISOString();
     try {
       await assertAppealsResolved([selectedDocument]);
-      await saveStoredSignatureConfirm(selectedDocument.id, confirmedAt);
+      await saveStoredSignatureConfirm(selectedDocument.id, confirmedAt, {
+        expectedRevision: resultRevisionDocs[monthlyResultKey({ agentName: selectedDocument.agentName, monthKey: selectedDocument.monthKey })] || "", confirmedBy: currentUser.username,
+      });
+      setResultLockedDocs(previous => ({ ...previous, [selectedDocument.id]: previous[selectedDocument.id] || confirmedAt }));
       setConfirmedDocs((previous) => ({
         ...previous,
         [selectedDocument.id]: confirmedAt,
       }));
     } catch (error) {
       console.warn("Save remote signature confirm failed", error);
-      window.alert(error instanceof SignatureAppealHoldError ? error.message : "บันทึกการยืนยันรับทราบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      window.alert(error instanceof Error ? error.message : "บันทึกการยืนยันรับทราบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -3507,8 +3526,14 @@ export default function SignatureCenterMockup({
     window.setTimeout(() => setShareMessage(""), 3000);
   };
 
-  const resetDocument = () => {
+  const resetDocument = async () => {
     if (!selectedDocument || isHistoricalPaidPeriod(selectedDocument.monthKey)) return;
+    try {
+      await clearStoredSignatureConfirm(selectedDocument.id, []);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "รีเซ็ตเอกสารไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return;
+    }
     setSignatures((previous) => {
       const next = { ...previous };
       delete next[selectedDocument.id];
@@ -3518,9 +3543,6 @@ export default function SignatureCenterMockup({
       const next = { ...previous };
       delete next[selectedDocument.id];
       return next;
-    });
-    void clearStoredSignatureConfirm(selectedDocument.id, []).catch((error) => {
-      console.warn("Reset remote signature document failed", error);
     });
   };
 
@@ -6098,6 +6120,12 @@ export default function SignatureCenterMockup({
                   <span className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-black text-emerald-700">Preview Confirmed</span>
                 )}
               </div>
+
+              <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
+                {resultLockedDocs[selectedDocument.id] || (previewConfirmed && !isHistoricalPaidPeriod(selectedDocument.monthKey))
+                  ? "Agent ยืนยันรับทราบและล็อกผลเดือนนี้แล้ว ทุก Role แก้ไขเคส คะแนน หรือยื่นอุทธรณ์ไม่ได้ การ Reset ลายเซ็นไม่ปลดล็อกผล"
+                  : "เมื่อ Agent ยืนยันรับทราบแล้ว จะไม่สามารถยื่นอุทธรณ์หรือแก้ไขเคสและผลการประเมินของเดือนนี้ได้อีก"}
+              </p>
 
               {(() => {
                 const previewCases = selectedDocument.cases.slice(0, 10);

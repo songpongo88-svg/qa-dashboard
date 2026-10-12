@@ -135,8 +135,8 @@ try {
   const doc = { monthKey: "2026-09", agentName: agent, agentId: agent, cases: [{ caseId }], eligibleByScore: true };
   const allSigned = Object.keys(names).map(signed);
   for (const [label, logs, held] of [
-    ["initial pending", [submission], true], ["reviewed", oldResult, false],
-    ["permission requested", [...oldResult, access], false],
+    ["initial pending", [submission], true], ["withdrawn for editing", [submission, event("appeal_submission_edit_started", -1, { topics: [topic] })], true], ["reviewed", oldResult, false],
+    ["permission requested", [...oldResult, access], true],
     ["approved access awaiting opening", [...oldResult, access, approved], true],
     ["awaiting submission", [...oldResult, access, approved, opened], true],
     ["additional submitted", pendingAdditional, true], ["additional reviewed", complete, false],
@@ -174,7 +174,7 @@ try {
     await settle(() => fixture.view?.selectedDocument && !document.body.textContent.includes("กำลังโหลด Signature Center") && fixture.reads.length >= 2 && (fixture.view.coachingStatusVerified || fixture.coachingFailed));
     await act(async () => fixture.actions.openWorkspaceDetail("2026-09::" + agent));
   };
-  for (const logs of [[...oldResult, access, approved, opened], pendingAdditional]) for (const role of Object.keys(names)) {
+  for (const logs of [[...oldResult, access], [...oldResult, access, approved, opened], pendingAdditional]) for (const role of Object.keys(names)) {
     await mount(role, logs);
     assert.equal(fixture.view.hasPendingAppeal, true, `${role}: additional hold`);
     assert.equal(fixture.view.workflowReadyToSign, false, `${role}: no signing workflow`);
@@ -188,7 +188,7 @@ try {
     assert.equal(fixture.writes.length, 0, `${role}: no signature or confirmation persisted`);
   }
   console.log("PASS all four roles blocked in the rendered UI and actual acknowledgement/signature handlers");
-  for (const changedLogs of [[...oldResult, access, approved, opened], pendingAdditional]) for (const [role, action, entries] of [
+  for (const changedLogs of [[...oldResult, access], [...oldResult, access, approved, opened], pendingAdditional]) for (const [role, action, entries] of [
     ["Agent", "confirm", []], ["QA", "sign", []], ["QA", "ink", [signed("QA")]],
     ["QA", "excel", allSigned], ["QA", "pdf", allSigned],
   ]) {

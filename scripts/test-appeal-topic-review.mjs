@@ -1,3 +1,4 @@
+import { unlockedMonthlyResultFixture } from "./fixtures/unlocked-monthly-result.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
@@ -198,7 +199,7 @@ try {
   globalThis.__appealFixtureWrites = [];
   globalThis.__appealFixtureReads = [];
   const output = resolve(temp, "review.mjs");
-  await build({ jsx: "automatic", entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-storage-boundary", setup(builder) {
+  await build({ jsx: "automatic", entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [unlockedMonthlyResultFixture(), { name: "fixture-storage-boundary", setup(builder) {
     builder.onResolve({ filter: /^\.\/appealStore$/ }, () => ({ path: "store", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/userRoleStore$/ }, () => ({ path: "profiles", namespace: "fixture" }));
     builder.onLoad({ filter: /^profiles$/, namespace: "fixture" }, () => ({ loader: "js", contents: "export async function fetchStoredUserProfiles(){return []}" }));
@@ -388,13 +389,13 @@ try {
 
   globalThis.__appealStoredDocs = new Map([["qa_appeal_events/legacy-submission", submission], ["qa_appeal_events/legacy-review", reviewEvent]]);
   const storeOutput = resolve(temp, "store.mjs");
-  await build({ jsx: "automatic", entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "fixture-firestore-boundary", setup(builder) {
+  await build({ jsx: "automatic", entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [unlockedMonthlyResultFixture({storage:true,sourceCases:true}), { name: "fixture-firestore-boundary", setup(builder) {
     builder.onResolve({ filter: /^\.\/appealCaseAvailability$/ }, () => ({ path: "available-cases", namespace: "fixture" }));
     builder.onLoad({ filter: /^available-cases$/, namespace: "fixture" }, () => ({ loader: "js", contents: "export async function checkAppealSourceCases(events){return events}" }));
     builder.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: "firestore", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/firebaseClient$/ }, () => ({ path: "client", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/lib\/agentIdentity$/ }, () => ({ path: "identity", namespace: "fixture" }));
-    builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "client" ? "export const firebaseDb={}" : args.path === "identity" ? "export const canonicalizeAgentName=value=>String(value||'')" : `
+    builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "client" ? "export const firebaseDb={}" : args.path === "identity" ? "export const canonicalizeAgentName=value=>String(value||'');export const canonicalAgentIdentityKey=value=>String(value||'').toLowerCase()" : `
       export const collection=(_db,name)=>name;
       export const doc=(_db,name,id)=>name+'/'+id;
       export const query=(...values)=>values;
@@ -404,6 +405,7 @@ try {
       export function writeBatch(){const writes=[];return{set:(path,data)=>writes.push([path,data]),commit:async()=>{for(const [path,data] of writes)globalThis.__appealStoredDocs.set(path,structuredClone(data))}}}
       export async function runTransaction(_db,callback){const writes=[];const result=await callback({get:async path=>({exists:()=>globalThis.__appealStoredDocs.has(path),data:()=>globalThis.__appealStoredDocs.get(path)}),set:(path,data)=>writes.push([path,data])});for(const [path,data] of writes)globalThis.__appealStoredDocs.set(path,structuredClone(data));return result}
       export async function setDoc(path,data){globalThis.__appealStoredDocs.set(path,structuredClone(data))}
+      export const getDocsFromServer=(...args)=>getDocs(...args);
       export async function getDocs(){return {docs:[...globalThis.__appealStoredDocs.entries()].sort((a,b)=>b[1].created_at.localeCompare(a[1].created_at)).map(([path,data])=>({id:path.split('/').pop(),data:()=>structuredClone(data)}))}}
     ` }));
   } }] });

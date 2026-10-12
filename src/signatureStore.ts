@@ -1,8 +1,7 @@
-import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocsFromServer, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
-
-const SIGNATURE_DOCUMENT_COLLECTION = "qa_signature_documents";
+import { canonicalSignatureDocId, monthlyResultScope, MonthlyResultLockCheckError, notifyMonthlyResultChanged, prepareMonthlyResultReferences, readMonthlyResultReferences, resultLockedAt, signatureDocumentReference, SIGNATURE_DOCUMENT_COLLECTION } from "./monthlyResultLockStore";
 const SIGNATURE_LIBRARY_COLLECTION = "qa_signature_library";
 
 export type StoredSignatureEntry = {
@@ -25,6 +24,8 @@ export type StoredSignatureDocument = {
   docId: string;
   entries: StoredSignatureEntry[];
   confirmedAt?: string;
+  resultLockedAt?: string;
+  resultRevision?: string;
   updatedAt?: string;
 };
 
@@ -34,15 +35,6 @@ function safeDocId(value: unknown) {
     .replace(/\//g, "__")
     .replace(/\s+/g, " ")
     || "unknown";
-}
-
-function canonicalSignatureDocId(value: unknown) {
-  const text = String(value || "").trim();
-  const separatorIndex = text.indexOf("::");
-  if (separatorIndex < 0) return text;
-  const monthKey = text.slice(0, separatorIndex);
-  const agentName = canonicalizeAgentName(text.slice(separatorIndex + 2));
-  return `${monthKey}::${agentName}`;
 }
 
 function toStoredDocument(row: any, fallbackId = ""): StoredSignatureDocument {
@@ -71,6 +63,8 @@ function toStoredDocument(row: any, fallbackId = ""): StoredSignatureDocument {
         (entry.status === "Pending" || entry.status === "Waived" || entry.signedAt)
       ),
     confirmedAt: String(row.confirmedAt || row.confirmed_at || ""),
+    resultLockedAt: resultLockedAt(row),
+    resultRevision: String(row.resultRevision || ""),
     updatedAt: String(row.updatedAt || row.updated_at || ""),
   };
 }
@@ -106,7 +100,7 @@ function sanitizeEntries(entries: StoredSignatureEntry[] = []) {
 }
 
 export async function fetchStoredSignatureDocuments() {
-  const snapshot = await getDocs(collection(firebaseDb, SIGNATURE_DOCUMENT_COLLECTION));
+  const snapshot = await getDocsFromServer(collection(firebaseDb, SIGNATURE_DOCUMENT_COLLECTION));
   const documents = snapshot.docs
     .map((item) => toStoredDocument(item.data(), item.id))
     .filter((item) => item.docId);
@@ -126,6 +120,8 @@ export async function fetchStoredSignatureDocuments() {
         ...item,
         entries: [...entries.values()],
         confirmedAt: item.confirmedAt || current.confirmedAt,
+        resultLockedAt: current.resultLockedAt || item.resultLockedAt,
+        resultRevision: item.resultRevision || current.resultRevision,
       });
     });
   return [...merged.values()];
@@ -174,34 +170,51 @@ export async function saveStoredSignatureDocument(docId: string, entries: Stored
   );
 }
 
-export async function saveStoredSignatureConfirm(docId: string, confirmedAt: string) {
+export async function saveStoredSignatureConfirm(docId: string, confirmedAt: string, options: { expectedRevision: string; confirmedBy?: string }) {
+  if (typeof options?.expectedRevision !== "string") throw new MonthlyResultLockCheckError();
   const canonicalDocId = canonicalSignatureDocId(docId);
-  const now = new Date().toISOString();
-  await setDoc(
-    doc(firebaseDb, SIGNATURE_DOCUMENT_COLLECTION, safeDocId(canonicalDocId)),
-    {
+  const separator = canonicalDocId.indexOf("::");
+  const scope = monthlyResultScope({ monthKey: canonicalDocId.slice(0, separator), agentName: canonicalDocId.slice(separator + 2) });
+  if (!scope) throw new Error("ไม่พบ Agent หรือเดือนของเอกสาร");
+  const references = await prepareMonthlyResultReferences([scope], true);
+  await runTransaction(firebaseDb, async transaction => {
+    const snapshots = await readMonthlyResultReferences(transaction, references, true);
+    const canonical = snapshots[references.findIndex(item => item.canonical)];
+    const previous = (canonical?.exists() ? canonical : snapshots.find(snapshot => snapshot.exists()))?.data() || {};
+    if (String(previous.resultRevision || "") !== options.expectedRevision) {
+      throw new Error("ข้อมูลเคสหรืออุทธรณ์มีการเปลี่ยนแปลง กรุณาอัปเดตข้อมูลแล้วตรวจคะแนนล่าสุดก่อนยืนยันรับทราบ");
+    }
+    const lockedAt = snapshots.map(snapshot => snapshot.exists() ? resultLockedAt(snapshot.data()) : "").find(Boolean) || confirmedAt;
+    transaction.set(signatureDocumentReference(canonicalDocId), {
       docId: canonicalDocId,
       confirmedAt,
-      updatedAt: now,
+      resultLockedAt: lockedAt,
+      ...(previous.resultLockedBy || options.confirmedBy ? { resultLockedBy: previous.resultLockedBy || options.confirmedBy } : {}),
+      updatedAt: new Date().toISOString(),
       updatedAtServer: serverTimestamp(),
-    },
-    { merge: true }
-  );
+    }, { merge: true });
+  });
+  notifyMonthlyResultChanged();
 }
 
 export async function clearStoredSignatureConfirm(docId: string, entries: StoredSignatureEntry[] = []) {
   const canonicalDocId = canonicalSignatureDocId(docId);
-  const now = new Date().toISOString();
   const cleanEntries = sanitizeEntries(entries);
-  await setDoc(
-    doc(firebaseDb, SIGNATURE_DOCUMENT_COLLECTION, safeDocId(canonicalDocId)),
-    {
+  // Reset affects signatures/acknowledgement only. Preserve the original result
+  // lock, including documents confirmed before resultLockedAt was introduced.
+  await runTransaction(firebaseDb, async transaction => {
+    const reference = signatureDocumentReference(canonicalDocId);
+    const snapshot = await transaction.get(reference);
+    const lockedAt = snapshot.exists() ? resultLockedAt(snapshot.data()) : "";
+    transaction.set(reference, {
       docId: canonicalDocId,
       entries: cleanEntries,
       confirmedAt: deleteField(),
-      updatedAt: now,
+      confirmed_at: deleteField(),
+      ...(lockedAt ? { resultLockedAt: lockedAt } : {}),
+      updatedAt: new Date().toISOString(),
       updatedAtServer: serverTimestamp(),
-    },
-    { merge: true }
-  );
+    }, { merge: true });
+  });
+  notifyMonthlyResultChanged();
 }

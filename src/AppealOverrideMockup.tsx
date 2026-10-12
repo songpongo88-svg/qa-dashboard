@@ -38,7 +38,7 @@ function findHeaderIndex(headers: unknown[], expected: string) {
 }
 
 async function loadCaseOwnerMap() {
-  const owners = new Map<string, string>();
+  const owners = new Map<string, { agent: string; monthKey: string }>();
   await Promise.all(
     RAW_DATA_FILE_NAMES.map(async (fileName) => {
       try {
@@ -57,12 +57,19 @@ async function loadCaseOwnerMap() {
         const headers = rows[headerIndex];
         const caseIdIndex = findHeaderIndex(headers, "Case ID");
         const agentIndex = findHeaderIndex(headers, "Agent Name");
+        const auditIndex = findHeaderIndex(headers, "Audit Date");
         if (caseIdIndex < 0 || agentIndex < 0) return;
 
         rows.slice(headerIndex + 1).forEach((row) => {
           const caseId = normalizeCaseId(row[caseIdIndex]);
           const agent = String(row[agentIndex] || "").trim();
-          if (caseId && agent) owners.set(caseId, agent);
+          const audit = row[auditIndex];
+          const date = audit instanceof Date ? audit : typeof audit === "number" ? XLSX.SSF.parse_date_code(audit) : null;
+          const monthKey = date instanceof Date
+            ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+            : date ? `${date.y}-${String(date.m).padStart(2, "0")}` : String(audit || "").match(/^\d{4}-\d{2}/)?.[0]
+              || String(audit || "").replace(/^(\d{2})\/(\d{2})\/(\d{4}).*$/, "$3-$2");
+          if (caseId && agent) owners.set(caseId, { agent, monthKey });
         });
       } catch {
         // Ignore missing optional RawData files.
@@ -123,13 +130,14 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
   const [caseIdInput, setCaseIdInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [manualAgentInput, setManualAgentInput] = useState("");
-  const [caseOwnerMap, setCaseOwnerMap] = useState<Map<string, string>>(new Map());
+  const [caseOwnerMap, setCaseOwnerMap] = useState<Map<string, { agent: string; monthKey: string }>>(new Map());
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const overrides = useMemo(() => buildAppealCaseOverrides(logs), [logs]);
   const existingCaseIds = useMemo(() => new Set(overrides.map((item) => item.caseId)), [overrides]);
-  const selectedCaseOwner = caseOwnerMap.get(normalizeCaseId(caseIdInput)) || "";
+  const selectedCaseScope = caseOwnerMap.get(normalizeCaseId(caseIdInput));
+  const selectedCaseOwner = selectedCaseScope?.agent || "";
 
   const loadOverrides = async () => {
     try {
@@ -167,43 +175,53 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
 
     setBusy(true);
     setMessage("");
-    const addedAt = new Date().toISOString();
-    await writeAppealEvent(currentUser, "appeal_case_override_added", {
-      tab: "appeal-override",
-      case_id: caseId,
-      target_agent: targetAgent,
-      details: {
-        caseId,
-        targetAgent,
-        note: noteInput.trim(),
-        addedAt,
-        addedBy: currentUser.displayName || currentUser.username,
-      },
-    });
-    setCaseIdInput("");
-    setNoteInput("");
-    setManualAgentInput("");
-    await loadOverrides();
-    setMessage(`${caseId} can now submit appeal after deadline. Task sent to ${targetAgent}.`);
-    setBusy(false);
+    try {
+      const addedAt = new Date().toISOString();
+      await writeAppealEvent(currentUser, "appeal_case_override_added", {
+        tab: "appeal-override",
+        case_id: caseId,
+        target_agent: targetAgent,
+        details: {
+          caseId,
+          monthKey: selectedCaseScope?.monthKey || "",
+          targetAgent,
+          note: noteInput.trim(),
+          addedAt,
+          addedBy: currentUser.displayName || currentUser.username,
+        },
+      });
+      setCaseIdInput("");
+      setNoteInput("");
+      setManualAgentInput("");
+      await loadOverrides();
+      setMessage(`${caseId} can now submit appeal after deadline. Task sent to ${targetAgent}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "เปิดสิทธิ์อุทธรณ์ไม่สำเร็จ");
+    } finally { setBusy(false); }
   };
 
   const removeOverride = async (caseId: string) => {
     if (!currentUser || busy) return;
     setBusy(true);
     setMessage("");
-    await writeAppealEvent(currentUser, "appeal_case_override_removed", {
-      tab: "appeal-override",
-      case_id: caseId,
-      details: {
-        caseId,
-        removedAt: new Date().toISOString(),
-        removedBy: currentUser.displayName || currentUser.username,
-      },
-    });
-    await loadOverrides();
-    setMessage(`${caseId} override was removed.`);
-    setBusy(false);
+    try {
+      const source = caseOwnerMap.get(normalizeCaseId(caseId));
+      await writeAppealEvent(currentUser, "appeal_case_override_removed", {
+        tab: "appeal-override",
+        case_id: caseId,
+        target_agent: source?.agent || overrides.find(item => item.caseId === caseId)?.targetAgent || "",
+        details: {
+          caseId,
+          monthKey: source?.monthKey || "",
+          removedAt: new Date().toISOString(),
+          removedBy: currentUser.displayName || currentUser.username,
+        },
+      });
+      await loadOverrides();
+      setMessage(`${caseId} override was removed.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "ยกเลิกสิทธิ์อุทธรณ์ไม่สำเร็จ");
+    } finally { setBusy(false); }
   };
 
   return (
