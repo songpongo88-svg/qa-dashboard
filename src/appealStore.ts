@@ -2,17 +2,20 @@
   collection,
   doc,
   getDocs,
+  getDocsFromServer,
   limit as firestoreLimit,
   orderBy,
   query,
   setDoc,
   runTransaction,
-  writeBatch,
   where,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { checkAppealSourceCases } from "./appealCaseAvailability";
+import { fetchStoredEvaluationsForCases } from "./evaluationStore";
+import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
+import { monthlyResultScope, MonthlyResultLockCheckError, prepareMonthlyResultReferences, readMonthlyResultReferences, touchMonthlyResults } from "./monthlyResultLockStore";
 
 export type AppealLogUser = {
   username?: string;
@@ -261,10 +264,37 @@ function notifyAppealChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("qa-dashboard-data-refresh"));
 }
 
+async function prepareAppealMonthlyReferences(payload: Partial<AppealLogEvent>) {
+  const caseId = String(payload.case_id || payload.details?.caseId || "").trim();
+  const requestId = String(payload.details?.requestId || "").trim();
+  const caseIds = [...new Set([caseId, ...(caseId.match(/[A-Za-z]{1,6}\d{3,}/g) || [])].filter(Boolean))];
+  const [cases, events] = await Promise.all([
+    caseIds.length ? fetchStoredEvaluationsForCases(caseIds) : Promise.resolve([]),
+    requestId || caseId ? getDocsFromServer(query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+      where(requestId ? "details.requestId" : "case_id", "==", requestId || caseId), firestoreLimit(500))) : Promise.resolve(null),
+  ]);
+  const requestedOwner = canonicalAgentIdentityKey(payload.target_agent || payload.details?.agent);
+  const sourceRows = cases.filter(item => !requestedOwner || canonicalAgentIdentityKey(item.agentName) === requestedOwner);
+  const originalRows = events?.docs.map(item => item.data()).filter(row => row.event_type === "appeal_request_submitted") || [];
+  const scopes = [...sourceRows, ...originalRows, payload].map(monthlyResultScope)
+    .filter((scope): scope is NonNullable<typeof scope> => Boolean(scope));
+  if (!scopes.length) throw new MonthlyResultLockCheckError();
+  return prepareMonthlyResultReferences(scopes);
+}
+
 export async function writeAppealEvent(user: AppealLogUser, eventType: string, payload: Partial<AppealLogEvent> = {}) {
   const prepared = await prepareAppealEvent(user, eventType, payload);
   if (!prepared) return false;
-  await setDoc(prepared.reference, prepared.data, { merge: true });
+  if (eventType === "appeal_additional_reason_option_added") {
+    await setDoc(prepared.reference, prepared.data, { merge: true });
+  } else {
+    const references = await prepareAppealMonthlyReferences(payload);
+    await runTransaction(firebaseDb, async transaction => {
+      await readMonthlyResultReferences(transaction, references);
+      transaction.set(prepared.reference, prepared.data, { merge: true });
+      touchMonthlyResults(transaction, references);
+    });
+  }
   notifyAppealChanged();
   return true;
 }
@@ -281,10 +311,12 @@ export async function writeAdditionalAppealAccessDecision(user: AppealLogUser,
   const preparedDecision = await prepareAppealEvent(user, "appeal_additional_access_decided", decision);
   const preparedRound = round ? await prepareAppealEvent(user, "appeal_additional_round_opened", round) : null;
   if (!preparedDecision || (round && !preparedRound)) return false;
+  const references = await prepareAppealMonthlyReferences(decision);
   try {
     await runTransaction(firebaseDb, async transaction => {
       const existingDecision = await transaction.get(preparedDecision.reference);
       const existingRound = preparedRound ? await transaction.get(preparedRound.reference) : null;
+      await readMonthlyResultReferences(transaction, references);
       if (existingDecision.exists()) {
         const stored = existingDecision.data().details;
         if (stored.approved !== decision.details?.approved) throw new Error("Permission already decided");
@@ -293,6 +325,7 @@ export async function writeAdditionalAppealAccessDecision(user: AppealLogUser,
       }
       transaction.set(preparedDecision.reference, preparedDecision.data, { merge: true });
       if (preparedRound && !existingRound?.exists()) transaction.set(preparedRound.reference, preparedRound.data, { merge: true });
+      touchMonthlyResults(transaction, references);
     });
   } catch (error) {
     // Deployed rules can allow collection queries and writes while denying the
@@ -321,10 +354,12 @@ export async function writeAdditionalAppealAccessDecision(user: AppealLogUser,
       }
     }
     if (!previousDecision || (preparedRound && !previousRound)) {
-      const batch = writeBatch(firebaseDb);
-      if (!previousDecision) batch.set(preparedDecision.reference, preparedDecision.data, { merge: true });
-      if (preparedRound && !previousRound) batch.set(preparedRound.reference, preparedRound.data, { merge: true });
-      await batch.commit();
+      await runTransaction(firebaseDb, async transaction => {
+        await readMonthlyResultReferences(transaction, references);
+        if (!previousDecision) transaction.set(preparedDecision.reference, preparedDecision.data, { merge: true });
+        if (preparedRound && !previousRound) transaction.set(preparedRound.reference, preparedRound.data, { merge: true });
+        touchMonthlyResults(transaction, references);
+      });
     }
   }
   notifyAppealChanged();

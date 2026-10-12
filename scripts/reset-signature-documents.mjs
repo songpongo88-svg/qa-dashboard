@@ -53,6 +53,8 @@ for (const item of docs) {
       docId,
       entries: [],
       confirmedAt: deleteField(),
+      ...((item.resultLockedAt || item.confirmedAt || item.confirmed_at)
+        ? { resultLockedAt: item.resultLockedAt || item.confirmedAt || item.confirmed_at } : {}),
       resetAt: new Date().toISOString(),
       resetAtServer: serverTimestamp(),
       updatedAt: new Date().toISOString(),

@@ -15,6 +15,8 @@ import { generateBulkCaseDetailPdf } from "./bulkCaseDetailPdf";
 import { RichTextContent, richTextToPlainText } from "./richText";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
+import { useMonthlyResultLock } from "./useMonthlyResultLock";
+import { MonthlyResultLockedError, MonthlyResultLockCheckError } from "./monthlyResultLockStore";
 import { getAppealScoreHold, withAppealScoreState, nextAppealScoreDeadline, type AppealScoreState } from "./pendingAppealScore";
 import {
   fetchStoredEvaluations,
@@ -3981,19 +3983,21 @@ function SlideOverCaseDetail({
   const appealCountdownV32 = formatAppealCountdownV32(appealDeadline, appealClockNowV32);
   const additionalExpiryTime = Date.parse(appealAdditionalRound?.expiresAt || "");
   const additionalIsExpired = Number.isFinite(additionalExpiryTime) && appealClockNowV32 >= additionalExpiryTime;
-  const canSubmitAdditionalEvidence = isOwnAppealCase &&
+  const monthlyResult = useMonthlyResultLock(caseItem.agent, caseItem.monthKey);
+  const canSubmitAdditionalEvidence = monthlyResult.editable && isOwnAppealCase &&
     Boolean(appealAdditionalRound) && !appealAdditionalRound?.submitted && !additionalIsExpired;
   const canSubmitAppeal =
+    monthlyResult.editable &&
     isOwnAppealCase &&
     (isAppealWindowOpenLive || appealOverrideAllowed) &&
     !appealRequestExists;
-  const canEditPendingAppeal = isOwnAppealCase && appealExistingRequest?.status === "Pending" && !appealExistingRequest.additionalRound?.submitted;
-  const canEditAdditionalAppeal = isOwnAppealCase && Boolean(appealExistingRequest?.additionalRound?.submitted) && !appealExistingRequest?.editingDraft;
-  const canRequestAdditionalAppeal = isOwnAppealCase && Boolean(appealExistingRequest) &&
+  const canEditPendingAppeal = monthlyResult.editable && isOwnAppealCase && appealExistingRequest?.status === "Pending" && !appealExistingRequest.additionalRound?.submitted;
+  const canEditAdditionalAppeal = monthlyResult.editable && isOwnAppealCase && Boolean(appealExistingRequest?.additionalRound?.submitted) && !appealExistingRequest?.editingDraft;
+  const canRequestAdditionalAppeal = monthlyResult.editable && isOwnAppealCase && Boolean(appealExistingRequest) &&
     ["Approved","Rejected","Partially Approved"].includes(appealExistingRequest?.status || "") &&
     !appealExistingRequest?.additionalRound;
   const isAdditionalAccessPending = appealExistingRequest ? ["Request Additional Appeal", "Approved (Access)"].includes(appealWorkflowStatus(appealExistingRequest)) : false;
-  const canEditExistingAppeal = canEditPendingAppeal || canEditAdditionalAppeal || Boolean(appealExistingRequest?.editingDraft);
+  const canEditExistingAppeal = monthlyResult.editable && (canEditPendingAppeal || canEditAdditionalAppeal || Boolean(appealExistingRequest?.editingDraft));
   const shouldShowAppealActionV32 =
     canSubmitAdditionalEvidence || canEditExistingAppeal || canRequestAdditionalAppeal ||
     (!appealRequestExists && (isOwnAppealCase || isAppealObserverRoleV32));
@@ -4103,6 +4107,7 @@ function SlideOverCaseDetail({
   }, [caseItem.caseId]);
 
   const openAppealSubmitForm = () => {
+    if (!monthlyResult.editable) { setAppealSubmitMessage(monthlyResult.message); return; }
     const editingTopics = appealExistingRequest?.activeEditTopics?.length ? appealExistingRequest.activeEditTopics : appealExistingRequest?.additionalRound?.submitted ? appealExistingRequest.additionalRound.topics : appealExistingRequest?.topics;
     setAppealDraftTopics(
       (canEditExistingAppeal && editingTopics?.length ? editingTopics : canSubmitAdditionalEvidence ? appealAdditionalRound?.topics || [] : caseItem.topics).map((topic) => ({
@@ -4122,7 +4127,7 @@ function SlideOverCaseDetail({
   };
 
   const saveAppealEditingDraft = async () => {
-    if (!currentUser || !appealExistingRequest?.editingDraft || appealSubmitBusy || appealImageUploads) return;
+    if (!monthlyResult.editable || !currentUser || !appealExistingRequest?.editingDraft || appealSubmitBusy || appealImageUploads) return;
     setAppealSubmitBusy(true);
     try {
       const saved = await writeAppealEvent(currentUser, "appeal_submission_draft_saved", {
@@ -4137,7 +4142,7 @@ function SlideOverCaseDetail({
       setAppealExistingRequest(previous=>previous?{...previous,activeEditTopics:appealDraftTopics.map(topic=>({...topic}))}:previous);
       setAppealSubmitOpen(false);
       setAppealSubmitMessage("");
-    }catch(error){console.error("Save appeal draft failed",error);setAppealSubmitMessage("บันทึกฉบับร่างไม่สำเร็จ กรุณาลองอีกครั้ง");}
+    }catch(error){console.error("Save appeal draft failed",error);setAppealSubmitMessage(error instanceof MonthlyResultLockedError || error instanceof MonthlyResultLockCheckError ? error.message : "บันทึกฉบับร่างไม่สำเร็จ กรุณาลองอีกครั้ง");}
     finally{setAppealSubmitBusy(false);}
   };
 
@@ -4174,7 +4179,7 @@ function SlideOverCaseDetail({
       setAppealSubmitMessage("ส่งคำขอเปิดสิทธิ์อุทธรณ์เพิ่มเติมให้ QA พิจารณาแล้ว");
     } catch(error){
       console.error("Appeal access request failed",error);
-      setAdditionalAccessError("ส่งคำขอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setAdditionalAccessError(error instanceof MonthlyResultLockedError || error instanceof MonthlyResultLockCheckError ? error.message : "ส่งคำขอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
     } finally { setAppealAccessBusy(false); }
   };
 
@@ -4220,6 +4225,7 @@ function SlideOverCaseDetail({
 
   const submitAppealRequest = async () => {
     if (!currentUser || appealSubmitBusy || appealImageUploads) return;
+    if (!monthlyResult.editable) { setAppealSubmitMessage(monthlyResult.message); return; }
     if (!isOwnAppealCase) {
       setAppealSubmitMessage("Only the case owner can submit an appeal for this case.");
       return;
@@ -4309,6 +4315,9 @@ function SlideOverCaseDetail({
       setAppealSubmitOpen(false);
       setAppealSubmitStep(1);
       setAppealSubmitMessage(canSubmitAdditionalEvidence ? "ส่งหลักฐานเพิ่มเติมให้ QA เรียบร้อยแล้ว" : "ส่งคำขออุทธรณ์ให้ QA ตรวจสอบเรียบร้อยแล้ว");
+    } catch (error) {
+      setAppealSubmitMessage(error instanceof MonthlyResultLockedError || error instanceof MonthlyResultLockCheckError
+        ? error.message : "ส่งคำขออุทธรณ์ไม่สำเร็จ กรุณาลองอีกครั้ง");
     } finally {
       setAppealSubmitBusy(false);
     }
@@ -5063,6 +5072,7 @@ function SlideOverCaseDetail({
                   </button>
                 </CaseActionTooltip>
 
+                {monthlyResult.message ? <p role="status" className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{monthlyResult.message}</p> : null}
                 {shouldShowAppealActionV32 ? (
                   <CaseActionTooltip text={appealActionTooltipV32}>
                     <button
@@ -7258,6 +7268,7 @@ export default function DashboardMockup({
     if (!selectedCaseKey) return null;
     return caseExplorerCases.find((item) => item.key === selectedCaseKey) || null;
   }, [caseExplorerCases, selectedCaseKey, dashboardSubTab, externalSelectedCaseId, detailTargetCase]);
+  const selectedCaseResult = useMonthlyResultLock(activeSelectedCase?.agent || "", activeSelectedCase?.monthKey || "");
 
   const selectedCaseTeam = useMemo(
     () => resolveCaseAgentTeam(activeSelectedCase, caseAgentDirectory),
@@ -9460,8 +9471,9 @@ export default function DashboardMockup({
                                   <button
                                     type="button"
                                     onClick={() => onOpenEvaluationEdit?.(activeSelectedCase.caseId, activeSelectedCase.agent)}
-                                    className="w-full cursor-pointer rounded-xl border border-[#155B83] bg-[#F3F8FB] px-4 py-3 text-sm font-black text-[#155B83] shadow-sm transition hover:bg-[#E5F0F5]"
-                                    title="เปิดแบบประเมินเคสนี้ในโหมดแก้ไขคะแนน"
+                                    disabled={!selectedCaseResult.editable}
+                                    className="w-full cursor-pointer rounded-xl border border-[#155B83] bg-[#F3F8FB] px-4 py-3 text-sm font-black text-[#155B83] shadow-sm transition hover:bg-[#E5F0F5] disabled:cursor-not-allowed disabled:opacity-50"
+                                    title={selectedCaseResult.message || "เปิดแบบประเมินเคสนี้ในโหมดแก้ไขคะแนน"}
                                   >
                                     Edit Evaluation
                                   </button>

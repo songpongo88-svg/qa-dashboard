@@ -15,6 +15,8 @@ import { findUnavailableAppealForRoute } from "./appealCaseAvailability";
 import AppealActionTimeline, { AppealActionReviewHistory } from "./AppealActionTimeline";
 import { buildAppealActionHistory, topicAppealActions, topicAppealActionNumber, type AppealAction } from "./appealActionHistory";
 import { RichTextContent } from "./richText";
+import { useMonthlyResultLock } from "./useMonthlyResultLock";
+import { MonthlyResultLockedError, MonthlyResultLockCheckError } from "./monthlyResultLockStore";
 
 type AppealTopic = {
   evidenceImages?: AppealEvidenceImage[];
@@ -801,6 +803,8 @@ export default function AppealRequestsMockup({
     return buildAppealResetHistory(logs).filter(item => permittedIds.has(item.requestId));
   }, [logs, requests]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId && !item.editingDraft) || null;
+  const monthlyResult = useMonthlyResultLock(selectedRequest?.agent || "", selectedRequest ? getAppealReviewMonthKey(selectedRequest) : "");
+  const canModifyRequest = allowReview && monthlyResult.editable;
   useEffect(() => {
     if (!standaloneRequestId) return;
     setSelectedRequestId(requests.some(item => item.requestId === standaloneRequestId && !item.editingDraft) ? standaloneRequestId : "");
@@ -920,10 +924,10 @@ export default function AppealRequestsMockup({
   const isPermissionTask = ["Request Additional Appeal", "Approved (Access)"].includes(selectedWorkflowStatus);
   // An approved/rejected review closes internal messaging until QA explicitly
   // opens an additional round; older messages remain visible as audit history.
-  const canSendDiscussion = canDiscuss && Boolean(selectedRequest) && (
+  const canSendDiscussion = monthlyResult.editable && canDiscuss && Boolean(selectedRequest) && (
     selectedRequest?.status === "Pending" || Boolean(selectedRequest?.additionalRound)
   );
-  const canReview = allowReview && (
+  const canReview = canModifyRequest && (
     selectedRequest?.status === "Pending" ||
     Boolean(selectedRequest?.additionalRound?.submitted) ||
     (isReviewed && editingReview && !selectedRequest?.additionalRound && !isPermissionTask)
@@ -1051,7 +1055,7 @@ export default function AppealRequestsMockup({
   };
 
   const openAdditionalAppealRound = async () => {
-    if (!allowReview || !selectedRequest || !isReviewed || selectedRequest.additionalRound || isPermissionTask ||
+    if (!canModifyRequest || !selectedRequest || !isReviewed || selectedRequest.additionalRound || isPermissionTask ||
         busy || reasonSaving || !additionalCodes.length || !additionalReason ||
         !additionalReasonOptions.includes(additionalReason)) return;
     const selected = availableAppealTopics.filter(row => additionalCodes.includes(row.code));
@@ -1121,7 +1125,7 @@ export default function AppealRequestsMockup({
     const selected = selectedRequest;
     const access = selected?.additionalAccessRequest;
     const repair = approved && access?.status === "Approved" && !selected?.additionalRound;
-    if (!allowReview || !selected || !access || (access.status !== "Pending" && !repair) || busy || accessSavingRef.current) return;
+    if (!canModifyRequest || !selected || !access || (access.status !== "Pending" && !repair) || busy || accessSavingRef.current) return;
     const decisionReason = accessDecisionReason.trim();
     if (!decisionReason) return;
     const allowedTopics = availableAppealTopics.filter(topic => access.topics.includes(topic.code));
@@ -1312,7 +1316,7 @@ export default function AppealRequestsMockup({
   };
 
   const confirmReview = async () => {
-    if (!allowReview || !savePreview || !selectedRequest || busy || savingRef.current) return;
+    if (!canModifyRequest || !savePreview || !selectedRequest || busy || savingRef.current) return;
     const preview = savePreview;
     const review = preview.review;
     const updateRequestLogs = (events: UsageLogEvent[]) => setLogs(current => [
@@ -1422,7 +1426,7 @@ export default function AppealRequestsMockup({
     } catch (error) {
       const code = String((error as { code?: string })?.code || "");
       setNotice({ kind: "error", title: "บันทึกผลอุทธรณ์ไม่สำเร็จ", caseId: preview.caseId,
-        message: code.includes("permission-denied")
+        message: error instanceof MonthlyResultLockedError || error instanceof MonthlyResultLockCheckError ? error.message : code.includes("permission-denied")
           ? "บัญชีนี้ไม่มีสิทธิ์บันทึกผลอุทธรณ์ กรุณาตรวจสิทธิ์กับผู้ดูแลระบบ ผลที่กรอกยังอยู่"
           : "เชื่อมต่อหรือบันทึกข้อมูลไม่สำเร็จ ผลที่กรอกยังอยู่ กรุณาตรวจอินเทอร์เน็ตแล้วลองยืนยันบันทึกอีกครั้ง" });
     } finally {
@@ -1432,7 +1436,7 @@ export default function AppealRequestsMockup({
   };
 
   const cancelAdditionalRound = async () => {
-    if (!allowReview || !selectedRequest?.additionalRound || busy) return;
+    if (!canModifyRequest || !selectedRequest?.additionalRound || busy) return;
     const target = selectedRequest;
     const round = target.additionalRound;
     const reason = window.prompt(
@@ -1491,7 +1495,7 @@ export default function AppealRequestsMockup({
   };
 
   const resetRequest = async () => {
-    if (!allowReview || !selectedRequest || busy) return;
+    if (!canModifyRequest || !selectedRequest || busy) return;
     const confirmed = window.confirm(`Reset appeal request for ${selectedRequest.caseId}? This will allow the case owner to submit a new appeal request again.`);
     if (!confirmed) return;
 
@@ -1699,7 +1703,7 @@ export default function AppealRequestsMockup({
                   <div className="mt-1 text-xs font-semibold text-slate-500">ข้อมูลคำขออุทธรณ์ของเคสที่เลือก</div>
                 </div>
 
-                {selectedRequest ? <AppealWorkflowNotice request={selectedRequest} canReview={allowReview}
+                {selectedRequest ? <AppealWorkflowNotice request={selectedRequest} canReview={canModifyRequest}
                   isOwner={scopeAppealRequests([selectedRequest], { ...currentUser, role: "Admin" }).length > 0}
                   busy={busy} onCaseDetail={() => openCaseDetailTab(selectedRequest)}
                   onDecision={approved => { setAccessDecision(approved ? "approve" : "reject"); setAccessDecisionReason(approved ? selectedRequest.additionalAccessRequest?.decisionReason || "อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม" : ""); }}
@@ -1772,7 +1776,7 @@ export default function AppealRequestsMockup({
               </section>
             ) : (
               <div className="space-y-5">
-                {selectedRequest ? <AppealWorkflowNotice request={selectedRequest} canReview={allowReview}
+                {selectedRequest ? <AppealWorkflowNotice request={selectedRequest} canReview={canModifyRequest}
                   isOwner={scopeAppealRequests([selectedRequest], { ...currentUser, role: "Admin" }).length > 0}
                   busy={busy} onCaseDetail={() => openCaseDetailTab(selectedRequest)}
                   onDecision={approved => { setAccessDecision(approved ? "approve" : "reject"); setAccessDecisionReason(approved ? selectedRequest.additionalAccessRequest?.decisionReason || "อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม" : ""); }}
@@ -2306,14 +2310,15 @@ export default function AppealRequestsMockup({
                     </div>
                   ) : null}
                   {editingReview && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">กำลังแก้ไขผลอุทธรณ์เดิม กรุณากด Save Review เพื่อบันทึกผลใหม่</p>}
+                  {monthlyResult.message ? <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">{monthlyResult.message}</p> : null}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
                     <div className="flex flex-wrap gap-2">
-                      {allowReview && isReviewed && !selectedRequest.additionalRound && !isPermissionTask && !editingReview && <button type="button" disabled={busy} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
+                      {allowReview && isReviewed && !selectedRequest.additionalRound && !isPermissionTask && !editingReview && <button type="button" disabled={busy || !canModifyRequest} onClick={() => setEditingReview(true)} className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-50">แก้ไขผลอุทธรณ์</button>}
                       {editingReview && <button type="button" disabled={busy} onClick={cancelReviewEdit} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">ยกเลิกการแก้ไข</button>}
                       {allowReview && <button
                         type="button"
-                        disabled={busy || selectedRequest.status === "Reset"}
+                        disabled={busy || !canModifyRequest || selectedRequest.status === "Reset"}
                         onClick={resetRequest}
                         className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                       >

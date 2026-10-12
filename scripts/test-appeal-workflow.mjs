@@ -1,3 +1,4 @@
+import { unlockedMonthlyResultFixture } from "./fixtures/unlocked-monthly-result.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -32,7 +33,7 @@ const storeMock = `
   }`;
 try {
   const output = resolve(temp, "review.mjs");
-  await build({ jsx: "automatic", entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "isolated-workflow-boundaries", setup(builder) {
+  await build({ jsx: "automatic", entryPoints: ["src/AppealRequestsMockup.tsx"], outfile: output, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [unlockedMonthlyResultFixture(), { name: "isolated-workflow-boundaries", setup(builder) {
     builder.onResolve({ filter: /^\.\/appealStore$/ }, () => ({ path: "store", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/userRoleStore$/ }, () => ({ path: "profiles", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/PageHero$/ }, () => ({ path: "hero", namespace: "fixture" }));
@@ -353,16 +354,17 @@ try {
   await act(async () => root.unmount());
 
   const storeOutput = resolve(temp, "store.mjs");
-  await build({ jsx: "automatic", entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [{ name: "transaction-boundary", setup(builder) {
+  await build({ jsx: "automatic", entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [unlockedMonthlyResultFixture({storage:true,sourceCases:true}), { name: "transaction-boundary", setup(builder) {
     builder.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: "db", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/firebaseClient$/ }, () => ({ path: "client", namespace: "fixture" }));
     builder.onResolve({ filter: /^\.\/appealCaseAvailability$/ }, () => ({ path: "available", namespace: "fixture" }));
     builder.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ loader: "js", contents: args.path === "client" ? "export const firebaseDb={}" : args.path === "available" ? "export async function checkAppealSourceCases(events){return events}" : `
       export const doc=(_db,name,id)=>name+'/'+id, collection=(_db,name)=>name, query=(...a)=>a, limit=a=>a, orderBy=(...a)=>a, where=(field,op,value)=>({field,op,value});
       export async function setDoc(path,data){globalThis.__workflowFixture.docs.set(path,structuredClone(data))}
+      export const getDocsFromServer=(...args)=>getDocs(...args);
       export async function getDocs(q){const condition=q.find(part=>part?.field==='details.accessId'||part?.field==='details.requestId');globalThis.__workflowFixture.lastDbQuery=q;return {docs:[...globalThis.__workflowFixture.docs.entries()].filter(([id,data])=>!condition||data.details?.[condition.field.split('.').at(-1)]===condition.value).map(([id,data])=>({id,data:()=>data}))}}
       export function writeBatch(){const writes=[];return {set:(path,data)=>writes.push([path,data]),commit:async()=>{const f=globalThis.__workflowFixture;if(f.batchFail)throw new Error('batch failed');for(const [path,data]of writes)f.docs.set(path,structuredClone(data));}}}
-      export async function runTransaction(_db,callback){const f=globalThis.__workflowFixture;if(f.transactionReadDenied){const error=new Error('document get denied');error.code='permission-denied';throw error;}const writes=[];const value=await callback({get:async path=>({exists:()=>f.docs.has(path),data:()=>f.docs.get(path)}),set:(path,data)=>writes.push([path,data])});if(f.transactionFail){f.transactionFail=false;throw new Error('transaction failed')}for(const [path,data] of writes)f.docs.set(path,structuredClone(data));return value}
+      export async function runTransaction(_db,callback){const f=globalThis.__workflowFixture;const writes=[];const value=await callback({get:async path=>{if(f.transactionReadDenied){const error=new Error('document get denied');error.code='permission-denied';throw error;}return {exists:()=>f.docs.has(path),data:()=>f.docs.get(path)}},set:(path,data)=>writes.push([path,data])});if(f.transactionFail){f.transactionFail=false;throw new Error('transaction failed')}if(f.batchFail)throw new Error('batch failed');for(const [path,data] of writes)f.docs.set(path,structuredClone(data));return value}
     ` }));
   } }] });
   const store = await import(pathToFileURL(storeOutput).href);

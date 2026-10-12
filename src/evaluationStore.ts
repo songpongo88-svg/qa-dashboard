@@ -1,10 +1,11 @@
 ﻿import { initializeApp, getApps } from "firebase/app";
-import { collection, doc, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, setDoc, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, doc, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { getEvaluationAgentFullName } from "./lib/userNames";
 import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
 import type { DeductionTag } from "./lib/evaluation/deductionTags";
+import { monthlyResultScope, MonthlyResultLockCheckError, MonthlyResultLockedError, prepareMonthlyResultReferences, readMonthlyResultReferences, touchMonthlyResults } from "./monthlyResultLockStore";
 export { isTestCaseEvaluation, excludeTestEvaluations } from "./lib/evaluationScope";
 
 const env = (import.meta as any).env || {};
@@ -1370,6 +1371,11 @@ function toFirebaseEvaluation(record: StoredEvaluation) {
 }
 
 export async function upsertStoredEvaluation(record: StoredEvaluation) {
+  const scope = monthlyResultScope(record);
+  if (isFirebaseEvaluationConfigured()) {
+    if (!scope) throw new MonthlyResultLockCheckError();
+    await prepareMonthlyResultReferences([scope]);
+  }
   const recordWithUploadedEvidence = await uploadEvaluationEvidenceAttachments(record);
 
   const localRecord = compactStoredRecord({
@@ -1377,9 +1383,8 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
     submittedAt: record.submittedAt || new Date().toISOString(),
   });
 
-  saveEvaluationLocally(localRecord);
-
   if (!isFirebaseEvaluationConfigured()) {
+    saveEvaluationLocally(localRecord);
     console.warn("Firebase evaluation store is not configured. Saved locally on this browser.");
     return;
   }
@@ -1391,16 +1396,22 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
     const documentId = String(localRecord.id || localRecord.evaluationKey || localRecord.caseId || Date.now())
       .replace(/[\\/#?\[\]]/g, "_");
 
-    await setDoc(
-      doc(db, FIREBASE_EVALUATION_COLLECTION, documentId),
-      toFirebaseEvaluation({ ...localRecord, id: documentId }),
-      { merge: true }
-    );
+    const reference = doc(db, FIREBASE_EVALUATION_COLLECTION, documentId);
+    await runTransaction(db, async transaction => {
+      const existing = await transaction.get(reference);
+      const previousScope = existing.exists() ? monthlyResultScope(existing.data()) : null;
+      const references = await prepareMonthlyResultReferences([scope!, ...(previousScope ? [previousScope] : [])]);
+      await readMonthlyResultReferences(transaction, references);
+      transaction.set(reference, toFirebaseEvaluation({ ...localRecord, id: documentId }), { merge: true });
+      touchMonthlyResults(transaction, references);
+    });
 
+    saveEvaluationLocally(localRecord);
     clearRemoteEvaluationReadCache();
     forgetDeletedEvaluationMarkers({ ...localRecord, id: documentId });
   } catch (error) {
-    console.warn("Firebase evaluation save failed. Saved locally on this browser.", error);
+    console.warn("Firebase evaluation save failed; evaluation remains in the form.", error);
+    throw error;
   }
 }
 
@@ -1411,6 +1422,7 @@ export async function deleteStoredEvaluation(id: string, caseId?: string) {
     try {
       await markEvaluationDeleted(normalizedId, "confirmed_delete", caseId);
     } catch (error) {
+      if (error instanceof MonthlyResultLockedError || error instanceof MonthlyResultLockCheckError) throw error;
       throw new Error("ลบเคสไม่สำเร็จ ข้อมูลเดิมยังอยู่ กรุณาลองอีกครั้ง", { cause: error });
     }
   }
@@ -1444,9 +1456,14 @@ async function markEvaluationDeleted(id: string, source: "confirmed_delete" | "l
       throw new Error("เคสต้นทางไม่ตรงกับรายการที่เลือก กรุณาอัปเดตข้อมูลก่อนลบ");
     }
     if (data.deleted_at) return { changed: false, caseId };
+    const scope = monthlyResultScope(data);
+    if (!scope) throw new MonthlyResultLockCheckError();
+    const references = await prepareMonthlyResultReferences([scope]);
+    await readMonthlyResultReferences(transaction, references);
     // Preserve evaluation data, Call Logs and appeal history; only its active state changes.
     const now = new Date().toISOString();
     transaction.update(reference, { deleted_at: now, deletion_source: source, updated_at: now });
+    touchMonthlyResults(transaction, references);
     return { changed: true, caseId };
   }, { maxAttempts: 3 });
 }

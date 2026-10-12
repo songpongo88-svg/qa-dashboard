@@ -3,6 +3,8 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import TestCaseBadge, { TestCaseNotice } from "./TestCaseBadge";
+import { useMonthlyResultLock } from "./useMonthlyResultLock";
+import { monthlyResultScope, MonthlyResultLockCheckError, prepareMonthlyResultReferences } from "./monthlyResultLockStore";
 import {
   deleteStoredEvaluation,
   fetchStoredEvaluations,
@@ -1178,6 +1180,7 @@ export default function CreateEvaluationMockup({
     [agentName, availableAgentOptions]
   );
   const selectedMonthKey = useMemo(() => getEvaluationMonthKey(auditDate) || todayInputValue().slice(0, 7), [auditDate]);
+  const monthlyResult = useMonthlyResultLock(agentName, selectedMonthKey);
   useEffect(() => {
     if (selectedAgentOption && agentName !== selectedAgentOption.agentName) {
       setAgentName(selectedAgentOption.agentName);
@@ -1626,6 +1629,7 @@ export default function CreateEvaluationMockup({
 
   async function submitEvaluation() {
     if (!validateAgentSelected("submitting the evaluation")) return;
+    if (!monthlyResult.editable) { setDraftMessage(monthlyResult.message || "กรุณารอการตรวจสอบผลประจำเดือน"); return; }
 
     if (missingScoreTopics.length) {
       const message = `Please select score for every topic before submitting. Missing: ${missingScoreText}`;
@@ -2519,7 +2523,17 @@ export default function CreateEvaluationMockup({
     }
   }
 
-  function openSubmittedRecord(record: EvaluationRecord) {
+  async function openSubmittedRecord(record: EvaluationRecord) {
+    try {
+      const scope = monthlyResultScope(record);
+      if (!scope) throw new MonthlyResultLockCheckError();
+      await prepareMonthlyResultReferences([scope]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "เปิดแก้ไขเคสไม่สำเร็จ";
+      setReportMessage(message);
+      setDraftMessage(message);
+      return;
+    }
     setActiveSubmittedRecordId(record.recordId);
     setAgentName(record.agentName || record.targetDisplayName || "");
     setAuditDate(record.auditDate || todayInputValue());
@@ -2930,7 +2944,7 @@ export default function CreateEvaluationMockup({
                 <button
                   type="button"
                   onClick={submitEvaluation}
-                  disabled={Boolean(missingScoreTopics.length)}
+                  disabled={Boolean(missingScoreTopics.length) || !monthlyResult.editable}
                   className="col-span-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(16,185,129,0.24)] transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none"
                 >
                   Submit Evaluation
@@ -2938,6 +2952,7 @@ export default function CreateEvaluationMockup({
               </div>
             </div>
           </div>
+          {monthlyResult.message ? <p role="status" className="mx-5 my-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">{monthlyResult.message}</p> : null}
           {activeSubmittedRecordId ? (
             <div className="mx-5 mb-5 mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950 sm:flex-row sm:items-center sm:justify-between">
               <span>
