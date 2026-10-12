@@ -61,10 +61,14 @@ try {
   const appealReview = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision"]);
   const policy = loadDeclarations("../src/lib/scoreIncentivePolicy.ts", ["scoreToGrade"]);
   const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "richTextToPlainText"], { React });
+  const rubric = {};
+  Function("exports", ts.transpileModule(fs.readFileSync(new URL("../src/lib/rubricVersions.ts", import.meta.url), "utf8"), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText)(rubric);
   const { mapStoredEvaluationsToCaseItems, mergeRawAndStoredEvaluationCases, normalizeCaseIssueTags, CaseDetailTopicTable } = loadDeclarations(
     "../src/DashboardMockup.tsx",
     ["mapStoredEvaluationsToCaseItems", "mergeRawAndStoredEvaluationCases", "normalizeCaseIssueTags", "CaseDetailTopicTable"],
-    { React, useState, ...identity, ...timestamps, ...scope, ...policy, ...richText, ...appealReview, AppealActionTimeline: () => null },
+    { React, useState, ...identity, ...timestamps, ...scope, ...policy, ...richText, ...appealReview, getCaseDetailTopicTitle: rubric.getCaseDetailTopicTitle, AppealActionTimeline: () => null },
   );
   const firstTag = "ความถูกต้องของสถานะ ยอดเงิน และระยะเวลา";
   const secondTag = "ข้อมูลไม่ครบ";

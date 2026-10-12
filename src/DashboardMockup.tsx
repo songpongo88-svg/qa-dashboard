@@ -45,6 +45,7 @@ import {
 import { canonicalAgentIdentityKey, canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
 import { calculateMonthlyKpi, selectMonthlyKpiCases } from "./lib/monthlyKpi";
+import { getCaseDetailTopicTitle } from "./lib/rubricVersions";
 import MonthlyKpiNotice from "./MonthlyKpiNotice";
 import { fetchStoredRolePermissions } from "./userRoleStore";
 import { ProcessReferenceDisplay } from "./processLibrary";
@@ -2573,6 +2574,8 @@ function CaseDetailIssueTags({ tags }: { tags: string[] }) {
 
 function CaseDetailTopicTable({
   topics,
+  monthKey = "",
+  qaScheme,
   revisedTopics,
   reviewStatus,
   displayRevisedTopicCodes = [],
@@ -2592,6 +2595,8 @@ function CaseDetailTopicTable({
   targetUsername,
 }: {
   topics: Topic[];
+  monthKey?: string;
+  qaScheme?: string;
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
   displayRevisedTopicCodes?: string[];
@@ -2658,6 +2663,7 @@ function CaseDetailTopicTable({
         appealReviewTopic,
         rejectedReviewTopic,
         shownTopic,
+        displayLabel: getCaseDetailTopicTitle(shownTopic.code, shownTopic.label, monthKey, qaScheme),
         issueTags: normalizeCaseIssueTags(shownTopic.issueTags ?? originalTopic.issueTags),
         changed,
         pct,
@@ -2671,6 +2677,7 @@ function CaseDetailTopicTable({
       appealReviewTopic?: AppealReviewedTopic;
       rejectedReviewTopic?: AppealReviewedTopic;
       shownTopic: Topic;
+      displayLabel: string;
       issueTags: string[];
       changed: boolean;
       pct: number;
@@ -2699,14 +2706,14 @@ function CaseDetailTopicTable({
               setOpenTopicCode(allTopicsOpen ? row.shownTopic.code : openTopicCode === row.shownTopic.code ? null : row.shownTopic.code);
               setAllTopicsOpen(false);
             }} className="cursor-pointer rounded-xl px-2 py-4 text-[15px] font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500">
-              {row.shownTopic.code} {row.shownTopic.label}
+              {row.shownTopic.code} {row.displayLabel}
               <span className="float-right ml-3 text-sm font-bold text-violet-700">{row.shownTopic.score} / {row.shownTopic.max}</span>
             </summary>
             <div className="pb-6 pt-2">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="text-[20px] font-bold tracking-tight text-slate-900">
-                  {row.shownTopic.code} {row.shownTopic.label}
+                  {row.shownTopic.code} {row.displayLabel}
                 </div>
                 {row.changed && row.revisedTopic ? (
                   <div className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-violet-700">
@@ -5353,6 +5360,8 @@ function SlideOverCaseDetail({
               <CaseDetailTopicTable
                 key={caseItem.key}
                 topics={caseItem.topics}
+                monthKey={caseItem.monthKey}
+                qaScheme={caseItem.qaScheme}
                 revisedTopics={caseItem.revisedTopics}
                 reviewStatus={caseItem.reviewStatus}
                 displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}

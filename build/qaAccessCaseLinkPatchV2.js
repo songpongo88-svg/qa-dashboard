@@ -304,10 +304,10 @@ function normalizeHistoryRecord(id: string, row: any): QaTypingChallengeHistoryR
         );
         next = mustReplace(this, next,
           `                <div className="text-[20px] font-bold tracking-tight text-slate-900">
-                  {row.shownTopic.code} {row.shownTopic.label}
+                  {row.shownTopic.code} {row.displayLabel}
                 </div>`,
           `                <div className="text-[20px] font-bold tracking-tight text-slate-900">
-                  {row.shownTopic.code} {row.shownTopic.label}
+                  {row.shownTopic.code} {row.displayLabel}
                 </div>
                 {String(row.shownTopic.code) === "4" ? (
                   <QaAccessCaseHistoryPopup caseId={caseId} username={targetUsername} />

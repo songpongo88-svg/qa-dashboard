@@ -242,6 +242,14 @@ export function formatRubricDate(value?: string) {
   });
 }
 
+export function getCaseDetailTopicTitle(code: string, fallback: string, monthKey = "", qaScheme?: string) {
+  const rubric = RUBRIC_VERSIONS.find((version) => version.code === qaScheme) ||
+    (/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey) && monthKey >= "2026-06"
+      ? getRubricForDate(`${monthKey}-01`)
+      : undefined);
+  return rubric?.topics.find((topic) => topic.code === String(code).trim())?.title || fallback;
+}
+
 export function getRubricForDate(value?: string) {
   const target = value ? new Date(`${value}T00:00:00`).getTime() : Date.now();
   if (Number.isNaN(target)) return RUBRIC_VERSIONS.find((rubric) => rubric.status === "Active") || RUBRIC_VERSIONS[0];
