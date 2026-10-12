@@ -34,6 +34,7 @@
   transform: rotate(-12deg);
 }
 .qa-case-watermark--appeal { color: rgb(79 70 229 / 19%); }
+.qa-case-watermark--additional-appeal { color: rgb(79 70 229 / 19%); font-size: clamp(11px, 1.25vw, 17px); letter-spacing: 0.04em; }
 .qa-case-watermark--test { color: rgb(217 119 6 / 21%); }
 
 /* qa-kanit-font-v32 */
