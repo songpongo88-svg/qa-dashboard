@@ -123,6 +123,7 @@ type CaseItem = AppealScoreState & {
   appealAdditionalOpenedAt?: string;
   appealAdditionalSubmittedAt?: string;
   appealAdditionalReviewedAt?: string;
+  appealAdditionalActive?: { expiresAt: string; submitted: boolean } | null;
   appealReviewedAt?: string;
   appealSubmittedBy?: string;
   appealReviewedBy?: string;
@@ -1371,12 +1372,24 @@ function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const deadline = getAppealDeadline(caseItem.auditDateObj);
 
+  const additional = caseItem.appealAdditionalActive;
+  const additionalExpiryMs = Date.parse(additional?.expiresAt || "");
   useEffect(() => {
     setNowMs(Date.now());
-    if (!deadline) return;
+    if (!deadline && !additional) return;
     const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [caseItem.caseId, deadline?.getTime()]);
+  }, [caseItem.caseId, deadline?.getTime(), additional?.expiresAt, additional?.submitted]);
+
+  if (additional) {
+    if (additional.submitted) return <div className="mt-1 text-[11px] font-extrabold text-sky-700">Additional Appeal · รอ QA พิจารณา</div>;
+    const remaining = additionalExpiryMs - nowMs;
+    if (!Number.isFinite(remaining) || remaining <= 0) return <div className="mt-1 text-[11px] font-extrabold text-slate-500">Additional Appeal · หมดเวลายื่นเพิ่มเติม</div>;
+    const secondsLeft = Math.floor(remaining / 1000);
+    const daysLeft = Math.floor(secondsLeft / 86400);
+    const hms = [Math.floor((secondsLeft % 86400) / 3600), Math.floor((secondsLeft % 3600) / 60), secondsLeft % 60].map(n => String(n).padStart(2, "0")).join(":");
+    return <div className={`mt-1 text-[11px] font-extrabold tabular-nums ${remaining <= 86400000 ? "text-rose-600" : "text-amber-600"}`}>Additional Appeal · เหลือ {daysLeft} วัน {hms}</div>;
+  }
 
   if (caseItem.hasAppealHistory || caseItem.appealStatus) {
     return <div className="mt-1 text-[11px] font-extrabold text-sky-600">Appeal · ใช้งานแล้ว</div>;
@@ -6782,7 +6795,20 @@ export default function DashboardMockup({
         const mergedCases = applyAppealMapsToCaseItems(
           canonicalCases, appealMap, appealOutcomeMap, appealHistoryCaseIds, appealTimelineMap
         );
-        applyLoadedWorkbook(withAppealScoreState(mergedCases, appealScoreRequests), appealMap.size);
+        const requestsByCase = new Map<string, { expiresAt: string; submitted: boolean }>();
+        (appealScoreRequests || []).forEach(request => {
+          if (request.status === "Reset" || !request.additionalRound) return;
+          const round = request.additionalRound;
+          splitAppealCaseIds(request.caseId).forEach(caseId => requestsByCase.set(caseId, {
+            expiresAt: round.expiresAt || appealAdditionalDeadline(round.openedAt),
+            submitted: Boolean(round.submitted),
+          }));
+        });
+        const casesWithAdditionalAppeal = withAppealScoreState(mergedCases, appealScoreRequests).map(item => ({
+          ...item,
+          appealAdditionalActive: requestsByCase.get(normalizeAppealCaseId(item.caseId)) || null,
+        }));
+        applyLoadedWorkbook(casesWithAdditionalAppeal, appealMap.size);
       } catch (error: any) {
         if (cancelled) return;
         console.error("Dashboard refresh failed; keeping the last complete result", error);
