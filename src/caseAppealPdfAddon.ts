@@ -1,7 +1,7 @@
 import { formatPdfDateTime } from "./lib/pdfDates";
 import { getAppealTopicDecision } from "./appealReview";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
-import { richTextToPlainText } from "./richText";
+import { richTextToPlainText, sanitizeRichTextHtml } from "./richText";
 import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
 import { latestTopicAppealReview, topicAppealActions } from "./appealActionPdfHtml";
 import type { AppealAction } from "./appealActionHistory";
@@ -202,7 +202,7 @@ export async function generateCasePdfWithAppealHistory({
       `<div><strong>Revised Score: ${scoreText(revisedTopicScore)} / ${scoreText(maxScore)}</strong></div>`,
       "<div><br></div>",
       "<div><strong>Original Comment</strong></div>",
-      `<div>${pdfHtml(topic?.comment)}</div>`,
+      `<div>${sanitizeRichTextHtml(topic?.comment || "-", true)}</div>`,
       caseIssueTagsPdfHtml(tagTopic?.issueTags ?? topic?.issueTags),
       ...(!hasTopicHistory ? ["<hr>",
       `<div><strong>Admin: ${pdfHtml(appealAdmin)}</strong></div>`,

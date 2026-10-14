@@ -6,13 +6,35 @@ export type RichTextRun = {
   italic?: boolean;
   underline?: boolean;
   color?: string;
+  image?: RichTextImage;
 };
+
+export type RichTextImage = { id: string; url: string; width: number; height: number; caseId: string; name?: string };
+
+function safeRichTextImage(element: HTMLElement): RichTextImage | null {
+  try {
+    const url = new URL(element.getAttribute("src") || "", "https://qa.local");
+    const id = url.searchParams.get("id") || "";
+    const caseId = element.getAttribute("data-case-id") || "";
+    const ownOrigin = typeof document !== "undefined" ? document.location?.origin : "";
+    if ((url.origin !== "https://qa.local" && url.origin !== ownOrigin) || url.pathname !== "/api/google-drive-download" ||
+      !/^[A-Za-z0-9_-]+$/.test(id) || url.searchParams.get("watermark") !== "qa-v2" ||
+      !caseId || caseId !== url.searchParams.get("caseId")) return null;
+    return { id, url: url.pathname + url.search, caseId, name: element.getAttribute("alt") || "รูปหลักฐาน QA",
+      width: Math.min(1600, Math.max(1, Number(element.getAttribute("width")) || 800)),
+      height: Math.min(1600, Math.max(1, Number(element.getAttribute("height")) || 600)) };
+  } catch { return null; }
+}
+
+export function richTextImageHtml(image: RichTextImage) {
+  return `<img src="${escapeHtml(image.url)}" data-case-id="${escapeHtml(image.caseId)}" width="${image.width}" height="${image.height}" alt="${escapeHtml(image.name || "รูปหลักฐาน QA")}">`;
+}
 
 const BLOCK_TAGS = new Set(["DIV", "P", "LI", "UL", "OL"]);
 const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED"]);
 const ALLOWED_TAGS = new Set([
   "DIV", "P", "BR", "STRONG", "B", "EM", "I", "U", "SPAN", "UL", "OL", "LI",
-  "TABLE", "THEAD", "TBODY", "TFOOT", "TR", "TD", "TH", "HR",
+  "TABLE", "THEAD", "TBODY", "TFOOT", "TR", "TD", "TH", "HR", "IMG",
 ]);
 const COLOR_OPTIONS = ["#111827", "#dc2626", "#ea580c", "#16a34a", "#2563eb", "#7c3aed"];
 
@@ -26,7 +48,7 @@ function escapeHtml(value: string) {
 }
 
 function looksLikeRichText(value: string) {
-  return /<\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li|font|table|thead|tbody|tfoot|tr|td|th|hr)\b/i.test(value);
+  return /<\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li|font|table|thead|tbody|tfoot|tr|td|th|hr|img)\b/i.test(value);
 }
 
 function normalizeColor(value: string) {
@@ -67,6 +89,18 @@ export function sanitizeRichTextHtml(value: unknown, preserveWhitespace = false)
     if (SKIP_TAGS.has(tagName)) return;
 
     const normalizedTag = tagName === "FONT" ? "SPAN" : tagName;
+    if (normalizedTag === "IMG") {
+      const image = safeRichTextImage(element);
+      if (!image) return;
+      const safeImage = document.createElement("img");
+      safeImage.setAttribute("src", image.url);
+      safeImage.setAttribute("data-case-id", image.caseId);
+      safeImage.setAttribute("width", String(image.width));
+      safeImage.setAttribute("height", String(image.height));
+      safeImage.setAttribute("alt", image.name || "รูปหลักฐาน QA");
+      target.appendChild(safeImage);
+      return;
+    }
     if (!ALLOWED_TAGS.has(normalizedTag)) {
       Array.from(element.childNodes).forEach((child) => appendSafeNode(child, target));
       return;
@@ -103,10 +137,10 @@ export function parseRichTextRuns(value: unknown, preserveWhitespace = false): R
   const parsed = new DOMParser().parseFromString(`<body>${source}</body>`, "text/html");
   const runs: RichTextRun[] = [];
   const pushRun = (run: RichTextRun) => {
-    if (!run.text) return;
+    if (!run.text && !run.image) return;
     const previous = runs[runs.length - 1];
     if (
-      previous &&
+      previous && !previous.image && !run.image &&
       previous.bold === run.bold &&
       previous.italic === run.italic &&
       previous.underline === run.underline &&
@@ -126,6 +160,11 @@ export function parseRichTextRuns(value: unknown, preserveWhitespace = false): R
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const element = node as HTMLElement;
     const tagName = element.tagName.toUpperCase();
+    if (tagName === "IMG") {
+      const image = safeRichTextImage(element);
+      if (image) pushRun({ text: "", image });
+      return;
+    }
     if (tagName === "BR") {
       pushRun({ text: "\n", ...style });
       return;
@@ -181,7 +220,11 @@ export function parseRichTextRuns(value: unknown, preserveWhitespace = false): R
   if (!preserveWhitespace && runs[runs.length - 1]?.text.endsWith("\n")) {
     runs[runs.length - 1].text = runs[runs.length - 1].text.replace(/\n+$/, "");
   }
-  return runs.filter((run) => run.text);
+  return runs.filter((run) => run.text || run.image);
+}
+
+export function richTextImages(value: unknown): RichTextImage[] {
+  return parseRichTextRuns(value, true).flatMap(run => run.image ? [run.image] : []);
 }
 
 export function richTextToPlainText(value: unknown, preserveWhitespace = false) {
@@ -196,7 +239,7 @@ export function richTextToPlainText(value: unknown, preserveWhitespace = false) 
 }
 
 export function hasRichTextContent(value: unknown) {
-  return Boolean(richTextToPlainText(value)) || /<(?:table|hr)\b/i.test(sanitizeRichTextHtml(value));
+  return Boolean(richTextToPlainText(value)) || /<(?:table|hr|img)\b/i.test(sanitizeRichTextHtml(value));
 }
 
 const RICH_TEXT_SURFACE_CLASS = [
@@ -205,6 +248,7 @@ const RICH_TEXT_SURFACE_CLASS = [
   "[&_td]:min-w-[72px] [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-2",
   "[&_th]:min-w-[72px] [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-2 [&_th]:font-bold",
   "[&_hr]:my-4 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-slate-300",
+  "[&_img]:my-3 [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-slate-200",
 ].join(" ");
 
 export function RichTextContent({ value, fallback = "-", className = "", preserveWhitespace = false, decodeEntities = false }: { value: unknown; fallback?: string; className?: string; preserveWhitespace?: boolean; decodeEntities?: boolean }) {
@@ -416,6 +460,9 @@ export function RichTextEditor({
   tone = "emerald",
   editorLabel = "ช่องข้อความ",
   preserveWhitespace = false,
+  onImagePaste,
+  onImageBusyChange,
+  imageCaseId = "",
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -424,11 +471,24 @@ export function RichTextEditor({
   tone?: "emerald" | "amber" | "violet";
   editorLabel?: string;
   preserveWhitespace?: boolean;
+  onImagePaste?: (file: File) => Promise<RichTextImage>;
+  onImageBusyChange?: (busy: boolean) => void;
+  imageCaseId?: string;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const selectionRef = useRef<Range | null>(null);
   const onChangeRef = useRef(onChange);
   const valueRef = useRef(value);
+  const imagePasteRef = useRef(onImagePaste);
+  const imageScopeRef = useRef(imageCaseId);
+  const imageBusyCallbackRef = useRef(onImageBusyChange);
+  const imageBusyRef = useRef(false);
+  const aliveRef = useRef(true);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState("");
+  imagePasteRef.current = onImagePaste;
+  imageScopeRef.current = imageCaseId;
+  imageBusyCallbackRef.current = onImageBusyChange;
   onChangeRef.current = onChange;
   valueRef.current = value;
   const ringClass = tone === "amber" ? "focus-within:border-amber-500 focus-within:ring-amber-100" : tone === "violet" ? "focus-within:border-violet-500 focus-within:ring-violet-100" : "focus-within:border-emerald-600 focus-within:ring-emerald-100";
@@ -472,7 +532,7 @@ export function RichTextEditor({
     const safeHtml = sanitizeRichTextHtml(editor.innerHTML, preserveWhitespace);
     // Keep existing plain-text reasons byte-for-byte until the user changes them.
     if (safeHtml === sanitizeRichTextHtml(valueRef.current, preserveWhitespace)) return;
-    if (preserveWhitespace && !editor.querySelector("strong, b, em, i, u, [style], table, hr, ul, ol, li")) {
+    if (preserveWhitespace && !editor.querySelector("strong, b, em, i, u, [style], table, hr, ul, ol, li, img")) {
       onChangeRef.current(editorPlainText(editor));
       return;
     }
@@ -492,22 +552,83 @@ export function RichTextEditor({
   };
 
   useEffect(() => {
+    aliveRef.current = true;
     const editor = editorRef.current;
     const captureSelection = () => {
       if (document.activeElement === editor) rememberSelection();
     };
     document.addEventListener("selectionchange", captureSelection);
     return () => {
+      aliveRef.current = false;
+      if (imageBusyRef.current) { imageBusyRef.current = false; imageBusyCallbackRef.current?.(false); }
       document.removeEventListener("selectionchange", captureSelection);
       if (editor && activeEditorTarget?.element === editor) setActiveEditorTarget(null);
     };
   }, []);
 
+  const paste = async (event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (imageBusyRef.current) return;
+    const copiedHtml = event.clipboardData.getData("text/html");
+    const copiedImages = onImagePaste ? richTextImages(copiedHtml) : [];
+    if (copiedImages.length) {
+      if (copiedImages.some(image => image.caseId !== imageScopeRef.current)) { setImageError("รูปหลักฐานเป็นของ Case ID อื่น กรุณา Copy รูปต้นฉบับแล้ววางใหม่"); return; }
+      // Copying an already-stamped image inside the app keeps its durable ID
+      // instead of stamping the clipboard bitmap a second time.
+      document.execCommand("insertHTML", false, sanitizeRichTextHtml(copiedHtml, true));
+      rememberSelection(); commit(); return;
+    }
+    const files = Array.from(event.clipboardData.items || []).filter(item => item.kind === "file" && item.type.startsWith("image/"))
+      .map(item => item.getAsFile()).filter((file): file is File => Boolean(file));
+    if (!files.length) files.push(...Array.from(event.clipboardData.files || []).filter(file => file.type.startsWith("image/")));
+    if (files.length && imagePasteRef.current) {
+      rememberSelection();
+      const originalScope = imageScopeRef.current;
+      imageBusyRef.current = true; setImageBusy(true); setImageError(""); imageBusyCallbackRef.current?.(true);
+      try {
+        // Finish each upload before inserting it. Failed files never become broken saved images.
+        for (const file of files) {
+          const image = await imagePasteRef.current(file);
+          if (!aliveRef.current) return;
+          if (originalScope !== imageScopeRef.current) throw new Error("Case ID เปลี่ยนระหว่างอัปโหลด กรุณาวางรูปในเคสที่ต้องการอีกครั้ง");
+          const editor = editorRef.current;
+          if (!editor) return;
+          // Native editing commands require an editable target even while the
+          // rest of the asynchronous paste is guarded from user edits.
+          editor.setAttribute("contenteditable", "true");
+          editor.focus(); restoreSelection();
+          const html = sanitizeRichTextHtml(richTextImageHtml(image), true);
+          if (!document.execCommand("insertHTML", false, html)) {
+            const selection = window.getSelection();
+            const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+            if (!range) throw new Error("ไม่พบตำแหน่งวางรูป กรุณาคลิกในข้อความแล้วลองใหม่");
+            range.deleteContents();
+            const fragment = range.createContextualFragment(html), last = fragment.lastChild;
+            range.insertNode(fragment);
+            if (last) range.setStartAfter(last);
+            range.collapse(true); selection!.removeAllRanges(); selection!.addRange(range);
+          }
+          rememberSelection(); commit();
+          editor.setAttribute("contenteditable", "false");
+        }
+      } catch (error) {
+        if (aliveRef.current) setImageError(error instanceof Error ? error.message : "วางรูปไม่สำเร็จ กรุณาลองใหม่");
+      } finally {
+        if (imageBusyRef.current) { imageBusyRef.current = false; imageBusyCallbackRef.current?.(false); }
+        if (aliveRef.current) setImageBusy(false);
+      }
+      return;
+    }
+    document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+    rememberSelection(); commit();
+  };
+
   return (
     <div className={`mt-2 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-inner transition focus-within:ring-4 ${ringClass}`}>
       <div
         ref={editorRef}
-        contentEditable
+        contentEditable={!imageBusy}
+        aria-busy={imageBusy}
         suppressContentEditableWarning
         role="textbox"
         aria-multiline="true"
@@ -531,16 +652,13 @@ export function RichTextEditor({
           activateEditor();
           rememberSelection();
         }}
-        onPaste={(event) => {
-          event.preventDefault();
-          const text = event.clipboardData.getData("text/plain");
-          document.execCommand("insertText", false, text);
-          rememberSelection();
-          commit();
-        }}
+        onPaste={(event) => { void paste(event); }}
         className={`prose prose-sm max-w-none overflow-y-auto px-4 py-3 text-sm font-normal leading-6 text-slate-900 outline-none empty:before:pointer-events-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)] [&_div]:min-h-[1.5em] [&_p]:my-1 [&_u]:underline ${RICH_TEXT_SURFACE_CLASS}`}
         style={{ minHeight, whiteSpace: preserveWhitespace ? "pre-wrap" : undefined }}
       />
+      {onImagePaste ? <div className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500" role="status">
+        {imageBusy ? "กำลังใส่ลายน้ำและอัปโหลดรูป…" : imageError || "Ctrl+V เพื่อวางรูประหว่างข้อความ · รูปมีลายน้ำและ Case ID อัตโนมัติ"}
+      </div> : null}
     </div>
   );
 }

@@ -52,7 +52,7 @@ const assessmentDisplayHelperBody = `function AssessmentReasonTextDisplay({
   const rawText = String(value ?? "");
   if (!rawText) return <div className={className}>{fallback}</div>;
 
-  const looksLikeLegacyRichText = /<\\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li|font|table|thead|tbody|tfoot|tr|td|th|hr)\\b/i.test(rawText);
+  const looksLikeLegacyRichText = /<\\/?(?:div|p|br|strong|b|em|i|u|span|ul|ol|li|font|table|thead|tbody|tfoot|tr|td|th|hr|img)\\b/i.test(rawText);
   if (looksLikeLegacyRichText) {
     return <RichTextContent value={rawText} fallback={fallback} className={className} preserveWhitespace />;
   }

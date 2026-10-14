@@ -176,10 +176,12 @@ try{
   fixture.cases.delete('same-id-other-owner');
   await act(async()=>root.render(React.createElement(app.Dashboard,{currentUser:user,dashboardSubTab:'overview',externalSelectedAgent:'Fixture Agent A',externalSelectedMonthKey:'2026-10',externalSelectedYear:'2026',canViewAgentsInOverview:true,dataRefreshKey:91})));await settle();
   const metric=document.querySelector('[data-dashboard-metric="Quality Score (Avg.)"]');
-  assert.ok(metric?.textContent.includes('90.00'));assert.ok(!metric?.textContent.includes('รอผลอุทธรณ์'));
+  assert.ok(metric?.textContent.includes('90.00'));assert.equal(metric?.dataset.appealScoreState,'ready');
   fixture.cases.set(alive.case_id,record(alive.case_id));
   await act(async()=>root.render(React.createElement(app.Dashboard,{currentUser:user,dashboardSubTab:'overview',externalSelectedAgent:'Fixture Agent A',externalSelectedMonthKey:'2026-10',externalSelectedYear:'2026',canViewAgentsInOverview:true,dataRefreshKey:92})));await settle();
-  assert.ok(document.querySelector('[data-dashboard-metric="Quality Score (Avg.)"]')?.textContent.includes('รอผลอุทธรณ์'));
+  const heldMetric=document.querySelector('[data-dashboard-metric="Quality Score (Avg.)"]');
+  assert.equal(heldMetric?.dataset.appealScoreState,'held');
+  assert.ok(!heldMetric?.textContent.includes('90.00'),'an active appeal never exposes a final score after the source case returns');
   assert.equal(await app.writeAppealEvent({username:'fixture-qa',role:'Quality Assurance'},'appeal_request_reviewed',approved),true);
   assert.equal(fixture.writes.length,1,'the live source still permits a normal review');
   assert.ok(!Object.hasOwn(fixture.writes[0].data,'source_case_unavailable'),'view metadata never changes persisted history');

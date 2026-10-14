@@ -13,8 +13,8 @@ const path = new URL('../src/CreateEvaluationMockup.tsx', import.meta.url);
 const source = fs.readFileSync(path, 'utf8');
 // The workspace prebuild puts Submit Evaluation on one JSX line before Vite runs.
 const afterPrebuild = source.replace(
-  /onClick=\{submitEvaluation\}\s+disabled=\{Boolean\(missingScoreTopics\.length\)\}/,
-  'onClick={submitEvaluation} disabled={Boolean(missingScoreTopics.length)}',
+  /(onClick=\{submitEvaluation\})\s+(disabled=\{Boolean\(missingScoreTopics\.length\)(?:\s*\|\|\s*!monthlyResult\.editable)?\})/,
+  '$1 $2',
 );
 const transformed = draftQueueIsolationPatch().transform(afterPrebuild, path.pathname)?.code;
 assert.ok(transformed, 'production transform must succeed');

@@ -107,7 +107,8 @@ if (!source.includes(excelRevisedWithReason)) {
 const originalPdfLabel = "                    Original PDF";
 const mainPdfLabel = '                    {hasAppealCase ? "Main PDF" : "Original PDF"}';
 const caseDetailPdfLabel = "                    Case Detail PDF - {caseItem.caseId}";
-if (!source.includes(caseDetailPdfLabel)) {
+const compactCaseDetailPdfLabel = 'label={`Case Detail PDF - ${caseItem.caseId}`}';
+if (!source.includes(caseDetailPdfLabel) && !source.includes(compactCaseDetailPdfLabel)) {
   if (source.includes(mainPdfLabel)) {
     source = source.replace(mainPdfLabel, caseDetailPdfLabel);
   } else if (source.includes(originalPdfLabel)) {
