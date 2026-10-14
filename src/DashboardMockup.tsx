@@ -36,6 +36,7 @@ import PageHero from "./PageHero";
 import TestCaseBadge from "./TestCaseBadge";
 import CaseWatermarks from "./CaseWatermarks";
 import { isStampedEvidenceUrl } from "./evidenceWatermark";
+import CaseAppealHeaderAction from "./CaseAppealHeaderAction";
 import LoadingMascot from "./LoadingMascot";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import {
@@ -4008,41 +4009,55 @@ function SlideOverCaseDetail({
   const canRequestAdditionalAppeal = monthlyResult.editable && isOwnAppealCase && Boolean(appealExistingRequest) &&
     ["Approved","Rejected","Partially Approved"].includes(appealExistingRequest?.status || "") &&
     !appealExistingRequest?.additionalRound;
-  const isAdditionalAccessPending = appealExistingRequest ? ["Request Additional Appeal", "Approved (Access)"].includes(appealWorkflowStatus(appealExistingRequest)) : false;
+  const additionalWorkflowStatusV32 = appealExistingRequest ? appealWorkflowStatus(appealExistingRequest) : "";
+  const isAdditionalAccessPending = ["Request Additional Appeal", "Approved (Access)"].includes(additionalWorkflowStatusV32);
+  const isAdditionalAccessApprovedV32 = additionalWorkflowStatusV32 === "Approved (Access)";
   const canEditExistingAppeal = monthlyResult.editable && (canEditPendingAppeal || canEditAdditionalAppeal || Boolean(appealExistingRequest?.editingDraft));
   const shouldShowAppealActionV32 =
     canSubmitAdditionalEvidence || canEditExistingAppeal || canRequestAdditionalAppeal ||
+    Boolean(appealAdditionalRound) || isAdditionalAccessPending ||
     (!appealRequestExists && (isOwnAppealCase || isAppealObserverRoleV32));
   const appealActionDisabledV32 = !(canSubmitAppeal || canSubmitAdditionalEvidence || canEditExistingAppeal || (canRequestAdditionalAppeal && !isAdditionalAccessPending));
   const appealActionLabelV32 =
     canEditExistingAppeal ? "แก้ไขเหตุผลอุทธรณ์" :
     canSubmitAdditionalEvidence ? "ยื่นอุทธรณ์เพิ่มเติม" :
-    canRequestAdditionalAppeal ? (isAdditionalAccessPending ? "รอ QA อนุมัติสิทธิ์" : "ขอยื่นอุทธรณ์เพิ่มเติม") :
+    isAdditionalAccessApprovedV32 ? "อนุมัติแล้ว · รอเปิดสิทธิ์" :
+    isAdditionalAccessPending ? "รอ QA อนุมัติสิทธิ์" :
+    canRequestAdditionalAppeal ? "ขอยื่นอุทธรณ์เพิ่มเติม" :
+    appealAdditionalRound?.submitted ? "ยื่นเพิ่มแล้ว · รอ QA พิจารณา" :
+    appealAdditionalRound ? (additionalIsExpired && !appealAdditionalRound.submitted ? "หมดเวลายื่นอุทธรณ์เพิ่มเติม" : "ยื่นอุทธรณ์เพิ่มเติม") :
     appealOverrideAllowed && !isAppealWindowOpenLive
       ? "Appeal Override"
       : appealCountdownV32.expired
         ? "หมดเวลาอุทธรณ์"
-        : "Appeal · " + appealCountdownV32.text;
-  const appealActionToneV32 =
-    canSubmitAdditionalEvidence ? "border-sky-300 bg-sky-50 text-sky-800" :
-    appealOverrideAllowed && !isAppealWindowOpenLive
-      ? "border-amber-300 bg-amber-50 text-amber-800"
-      : appealCountdownV32.level === "critical"
-        ? "border-rose-300 bg-rose-50 text-rose-700"
-        : appealCountdownV32.level === "warning"
-          ? "border-amber-300 bg-amber-50 text-amber-800"
-          : appealCountdownV32.level === "expired"
-            ? "border-slate-200 bg-slate-100 text-slate-500"
-            : "border-teal-200 bg-teal-50 text-teal-700";
-  const appealActionTooltipV32 = canSubmitAdditionalEvidence
-    ? "QA อนุญาตให้ส่งเหตุผลและรูปภาพเพิ่มเติมเฉพาะหัวข้อที่เปิดรอบใหม่"
+        : "Appeal";
+  const additionalCountdownV32 = formatAppealCountdownV32(Number.isFinite(additionalExpiryTime) ? new Date(additionalExpiryTime) : null, appealClockNowV32);
+  const appealActionCountdownV32 = canEditExistingAppeal || canRequestAdditionalAppeal || isAdditionalAccessPending || appealAdditionalRound?.submitted
+    ? undefined : appealAdditionalRound ? additionalCountdownV32.text : appealOverrideAllowed && !isAppealWindowOpenLive ? undefined : appealCountdownV32.text;
+  const appealHeaderIconV32 = canEditExistingAppeal ? "edit" : isAdditionalAccessPending ? "waiting" :
+    additionalIsExpired && !appealAdditionalRound?.submitted ? "expired" :
+    canRequestAdditionalAppeal || appealAdditionalRound ? "additional" : appealCountdownV32.expired && !appealOverrideAllowed ? "expired" : "appeal";
+  const appealHeaderToneV32 = isAdditionalAccessPending || additionalIsExpired && !appealAdditionalRound?.submitted ? "slate" :
+    canEditExistingAppeal || canRequestAdditionalAppeal ? "violet" : appealAdditionalRound ? "sky" :
+    appealOverrideAllowed && !isAppealWindowOpenLive ? "amber" : appealCountdownV32.level === "critical" ? "rose" :
+    appealCountdownV32.level === "warning" ? "amber" : appealCountdownV32.expired ? "slate" : "teal";
+  const appealActionTooltipV32 = monthlyResult.message
+    ? monthlyResult.message
+    : canEditExistingAppeal ? "แก้ไขเหตุผลหรือหลักฐานในรอบเดิม แล้วตรวจสอบก่อนยืนยันส่งใหม่"
+    : isAdditionalAccessApprovedV32 ? "QA อนุมัติแล้ว อยู่ระหว่างรอเปิดสิทธิ์ กำหนด 72 ชั่วโมงอ้างอิงเวลาอนุมัติเดิม"
+    : isAdditionalAccessPending ? "ส่งคำขอแล้ว อยู่ระหว่าง QA ตรวจสอบ ยังไม่เริ่มนับเวลา 3 วัน"
+    : canRequestAdditionalAppeal ? "เลือกหัวข้อและระบุเหตุผลเพื่อขอสิทธิ์ QA ต้องอนุมัติก่อน จึงยื่นเหตุผลและหลักฐานเพิ่มเติมได้"
+    : appealAdditionalRound?.submitted ? "ได้รับเหตุผลและหลักฐานเพิ่มเติมแล้ว อยู่ระหว่าง QA พิจารณาผลของรอบนี้"
+    : appealAdditionalRound ? (additionalIsExpired && !appealAdditionalRound.submitted
+      ? "ครบกำหนด 72 ชั่วโมงหลัง QA อนุมัติแล้ว ไม่สามารถส่งเพิ่มเติมในรอบนี้ได้"
+      : "ส่งเหตุผลและรูปภาพเฉพาะหัวข้อที่ QA เปิดให้ยื่นเพิ่ม ภายใน 72 ชั่วโมงหลังอนุมัติ")
     : isAppealObserverRoleV32
-    ? "ดูเวลาคงเหลือสำหรับ Appeal เท่านั้น · Role Quality Assurance ไม่สามารถ Submit Appeal แทนผู้ถูกประเมินได้"
+    ? "บัญชี QA ดูข้อมูลได้ แต่ไม่สามารถยื่นอุทธรณ์แทนเจ้าของเคสได้"
     : appealCountdownV32.expired && !appealOverrideAllowed
       ? "หมดเวลาอุทธรณ์แล้ว"
       : appealOverrideAllowed && !isAppealWindowOpenLive
         ? "เคสนี้ได้รับสิทธิ์ Late Appeal Override"
-        : "ส่งคำขออุทธรณ์เคสนี้ · " + appealCountdownV32.text;
+        : "ยื่นอุทธรณ์ผลประเมินของเคสนี้ภายในกำหนดเวลาที่แสดง";
   useEffect(() => {
     let cancelled = false;
 
@@ -5015,14 +5030,13 @@ function SlideOverCaseDetail({
                 {hasAppealCase ? <CaseHeaderAction label="Open Appeal" tooltip="เปิดรายละเอียดเคสอุทธรณ์" icon="appeal" tone="violet" onClick={() => onOpenAppealCase?.(caseItem.caseId, caseItem.agent)} /> : null}
                 <CaseHeaderAction label="Share Link" tooltip={shareCopied ? "คัดลอกลิงก์แล้ว" : "แชร์ลิงก์รายละเอียดเคส"} icon="share" tone="violet" onClick={() => { onShareCaseDetail?.(caseItem.caseId, caseItem.agent); setShareCopied(true); window.setTimeout(() => setShareCopied(false), 3000); }} />
                 <CaseHeaderAction label={`Case Detail PDF - ${caseItem.caseId}`} tooltip={`ดาวน์โหลดรายงาน ${caseItem.caseId} (PDF)`} icon="pdf" tone="amber" onClick={() => handleGenerateCaseDetailPdf("original")} />
-                {!monthlyResult.locked && shouldShowAppealActionV32 ? <CaseActionTooltip text={appealActionTooltipV32}>
-                  <button type="button" onClick={canEditExistingAppeal ? () => void startAppealEdit() : canRequestAdditionalAppeal && !isAdditionalAccessPending ? () => { setAdditionalAccessTopicCodes([]); setAdditionalAccessReason(""); setAdditionalAccessError(""); setAdditionalAccessModalOpen(true); } : (canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
-                    disabled={appealActionDisabledV32} aria-disabled={appealActionDisabledV32}
-                    className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${appealActionToneV32}`}>
-                    <span aria-hidden="true">＋</span><span>{appealActionLabelV32}</span>
-                    {isAppealObserverRoleV32 ? <span className="text-[9px] uppercase">View only</span> : null}
-                  </button>
-                </CaseActionTooltip> : null}
+                {!monthlyResult.locked && shouldShowAppealActionV32 ? <CaseAppealHeaderAction
+                  key={`${caseItem.caseId}:${caseItem.agent}`}
+                  label={appealActionLabelV32} detail={appealActionTooltipV32} countdown={appealActionCountdownV32}
+                  icon={appealHeaderIconV32} tone={appealHeaderToneV32} viewOnly={isAppealObserverRoleV32}
+                  actionDisabled={appealActionDisabledV32}
+                  onAction={canEditExistingAppeal ? () => void startAppealEdit() : canRequestAdditionalAppeal && !isAdditionalAccessPending ? () => { setAdditionalAccessTopicCodes([]); setAdditionalAccessReason(""); setAdditionalAccessError(""); setAdditionalAccessModalOpen(true); } : (canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
+                /> : null}
                 {String(caseItem.caseImageUrl || "").trim() ? <CaseHeaderAction label="Preview Image" tooltip={evidencePreviewBusy ? "กำลังเตรียมภาพหลักฐาน…" : "ดูภาพหลักฐานพร้อมลายน้ำ"} icon="image" tone="sky" disabled={evidencePreviewBusy} onClick={() => void openStandardEvidencePreview()} /> : null}
                 {availablePdfUrls.filter(item => !String(item.label || "").toLowerCase().includes("original pdf")).map(item => <CaseHeaderAction key={item.label} label={item.label} tooltip={`เปิด ${item.label}`} icon="pdf" tone="amber" onClick={() => setPreviewAsset({ type: "pdf", url: item.url, title: item.label, downloadUrl: item.url })} />)}
                 <CaseHeaderAction label="Close Tab" tooltip="ปิดแท็บ Case Detail" icon="close" onClick={onClose} />
