@@ -4878,7 +4878,7 @@ export default function SignatureCenterMockup({
     }
     try {
       const eligible = await paymentDocumentsForExport();
-      generatePaymentExcelFile(selectedMonth, eligible, signatures, selectedMonthAllDocs);
+      generatePaymentExcelFile(selectedMonth, eligible, signatures, documents);
       setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
       window.setTimeout(() => setPaymentMessage(""), 3500);
     } catch (error) {
@@ -4899,7 +4899,7 @@ export default function SignatureCenterMockup({
     }
     try {
       const eligible = await paymentDocumentsForExport();
-      const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, selectedMonthAllDocs);
+      const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, documents);
       setPaymentMessage(`Generated ${fileName}`);
       window.setTimeout(() => setPaymentMessage(""), 3500);
     } catch (error) {

@@ -9,14 +9,16 @@ export function signatureDocumentRefMatchWebPatch() {
 
       // The web UI uses the full `documents` collection to calculate Document Ref.
       // Pass that exact collection to generated Payment PDF / Excel as the reference source.
+      // Eligibility is refreshed before export, so its local variable can change.
+      // Keep the reference source independent of that variable's name.
       next = next.replace(
-        "generatePaymentExcelFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);",
-        "generatePaymentExcelFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, documents);"
+        /(generatePayment(?:Excel|Pdf)File\(\s*selectedMonth,\s*[\w$]+,\s*signatures,\s*)selectedMonthAllDocs(\s*\))/g,
+        "$1documents$2"
       );
-      next = next.replace(
-        "generatePaymentPdfFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);",
-        "generatePaymentPdfFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, documents);"
-      );
+      const exportCalls = [...next.matchAll(/generatePayment(?:Excel|Pdf)File\(\s*selectedMonth,\s*[\w$]+,\s*signatures,\s*([\w$]+)\s*\)/g)];
+      if (exportCalls.length !== 2 || exportCalls.some((call) => call[1] !== "documents")) {
+        throw new Error("Monthly Payment Document Ref: both export handlers must use the same documents collection as the web UI.");
+      }
 
       // Excel: keep monthly totals scoped to the selected month, while Document Ref. uses all documents
       // so it matches the current web UI exactly.

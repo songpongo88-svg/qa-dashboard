@@ -110,8 +110,8 @@ if (!source.includes(marker)) {
 
   source = replaceOnce(
     source,
-    `      generatePaymentExcelFile(selectedMonth, eligible, signatures, selectedMonthAllDocs);\n      setPaymentMessage(`,
-    `      generatePaymentExcelFile(selectedMonth, eligible, signatures, selectedMonthAllDocs);\n      await markCurrentCarryOversExported(eligible);\n      setPaymentMessage(`,
+    `      generatePaymentExcelFile(selectedMonth, eligible, signatures, documents);\n      setPaymentMessage(`,
+    `      generatePaymentExcelFile(selectedMonth, eligible, signatures, documents);\n      await markCurrentCarryOversExported(eligible);\n      setPaymentMessage(`,
     "excel export carry-over persistence"
   );
 
@@ -124,8 +124,8 @@ if (!source.includes(marker)) {
 
   source = replaceOnce(
     source,
-    `      const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, selectedMonthAllDocs);\n      setPaymentMessage(`,
-    `      const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, selectedMonthAllDocs);\n      await markCurrentCarryOversExported(eligible);\n      setPaymentMessage(`,
+    `      const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, documents);\n      setPaymentMessage(`,
+    `      const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, documents);\n      await markCurrentCarryOversExported(eligible);\n      setPaymentMessage(`,
     "pdf export carry-over persistence"
   );
 
