@@ -1,17 +1,16 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { appealEvidenceDisplayName } from "./appealEvidenceNaming";
+import { EVIDENCE_WATERMARK, EVIDENCE_WATERMARK_VERSION, evidenceWatermarkLines as standardWatermarkLines, paintEvidenceWatermark } from "./evidenceWatermark";
 
 export type EvidenceWatermarkType = "qa" | "appeal";
-export type AppealEvidenceImage = { id: string; name: string; size: number; width: number; height: number; url: string; watermarked?: boolean; watermarkType?: EvidenceWatermarkType };
+export type AppealEvidenceImage = { id: string; name: string; size: number; width: number; height: number; url: string; watermarked?: boolean; watermarkType?: EvidenceWatermarkType; watermarkVersion?: string };
 export const APPEAL_IMAGE_LIMIT = 5;
 export const APPEAL_IMAGE_BYTES = 1024 * 1024;
 
 export function evidenceWatermarkLines(caseId: string, type: EvidenceWatermarkType): [string, string] {
-  return [
-    type === "appeal" ? "ใช้สำหรับเป็นหลักฐานส่งพิจารณายื่นอุทธรณ์" : "ใช้สำหรับเป็นหลักฐานประเมินเคส QA",
-    `Case ID: ${String(caseId || "").trim().toUpperCase()}`,
-  ];
+  void type;
+  return standardWatermarkLines(caseId);
 }
 
 // Paint the established diagonal 16%-opacity watermark into the uploaded JPEG itself.
@@ -30,7 +29,7 @@ export async function resizeAppealImage(
     await image.decode().catch(() => { throw new Error("อ่านรูปไม่สำเร็จ กรุณาเลือกรูปใหม่"); });
     if (!image.naturalWidth || !image.naturalHeight) throw new Error("รูปภาพไม่ถูกต้อง");
     await document.fonts?.load('700 14px Kanit').catch(() => undefined);
-    const [purpose, caseLabel] = evidenceWatermarkLines(caseId, watermarkType);
+    void watermarkType;
     let scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
     for (let pass = 0; pass < 5; pass++) {
       const width = Math.max(1, Math.round(image.naturalWidth * scale));
@@ -42,21 +41,7 @@ export async function resizeAppealImage(
       ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, width, height);
       ctx.drawImage(image, 0, 0, width, height);
 
-      ctx.save();
-      ctx.globalAlpha = 0.16;
-      ctx.fillStyle = "#92263c";
-      ctx.font = "700 14px Kanit, 'Noto Sans Thai', sans-serif";
-      // Match the original 420 × 112 CSS-pixel SVG tile, rotated -34 degrees.
-      ctx.translate(width / 2, height / 2);
-      ctx.rotate(-34 * Math.PI / 180);
-      const extent = Math.hypot(width, height) + 600;
-      for (let x = -extent; x <= extent; x += 420) {
-        for (let y = -extent; y <= extent; y += 112) {
-          ctx.fillText(purpose, x + 10, y + 35);
-          ctx.fillText(caseLabel, x + 10, y + 59);
-        }
-      }
-      ctx.restore();
+      paintEvidenceWatermark(ctx, width, height, caseId);
       for (const quality of [0.9, 0.8, 0.7, 0.6]) {
         const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
           b => b ? resolve(b) : reject(new Error("ย่อรูปไม่สำเร็จ")), "image/jpeg", quality));
@@ -68,8 +53,8 @@ export async function resizeAppealImage(
   } finally { URL.revokeObjectURL(objectUrl); }
 }
 
-export async function uploadAppealImage(file: File, caseId: string, topicCode: string): Promise<AppealEvidenceImage> {
-  const { blob, width, height } = await resizeAppealImage(file, caseId, "appeal");
+export async function uploadAppealImage(file: File, caseId: string, topicCode: string, watermarkType: EvidenceWatermarkType = "appeal"): Promise<AppealEvidenceImage> {
+  const { blob, width, height } = await resizeAppealImage(file, caseId, watermarkType);
   const dataBase64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
@@ -80,7 +65,7 @@ export async function uploadAppealImage(file: File, caseId: string, topicCode: s
   let response: Response;
   try { response = await fetch("/api/google-drive-upload", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uploadKind: "appeal-image", fileName: name, contentType: "image/jpeg", caseId: "appeal-" + caseId + "-" + topicCode, dataBase64 }),
+    body: JSON.stringify({ uploadKind: "appeal-image", fileName: name, contentType: "image/jpeg", caseId: watermarkType + "-" + caseId + "-" + topicCode, dataBase64 }),
     signal: AbortSignal.timeout(60000),
   }); } catch (error) {
     if (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)) {
@@ -92,7 +77,7 @@ export async function uploadAppealImage(file: File, caseId: string, topicCode: s
   const id = String(data.id || "").trim();
   if (!response.ok) throw new Error(data.error || `อัปโหลดรูปไม่สำเร็จ (HTTP ${response.status}) กดลองอัปโหลดอีกครั้ง`);
   if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("ไม่ได้รับรหัสรูปที่อัปโหลด กดลองอัปโหลดอีกครั้ง");
-  return { id, name, size: blob.size, width, height, url: "/api/google-drive-download?inline=1&id=" + encodeURIComponent(id), watermarked: true, watermarkType: "appeal" };
+  return { id, name, size: blob.size, width, height, url: "/api/google-drive-download?inline=1&id=" + encodeURIComponent(id) + "&watermark=" + EVIDENCE_WATERMARK_VERSION + "&caseId=" + encodeURIComponent(caseId.trim().toUpperCase()), watermarked: true, watermarkType, watermarkVersion: EVIDENCE_WATERMARK_VERSION };
 }
 
 // Legacy images were uploaded before baked-in watermarks existed. Only those images
@@ -106,14 +91,14 @@ export function EvidenceWatermarkOverlay({ caseId, type = "appeal" }: { caseId?:
       aria-hidden="true"
       focusable="false"
       className="pointer-events-none absolute inset-0 h-full w-full select-none"
-      style={{ opacity: 0.16 }}
+      style={{ opacity: EVIDENCE_WATERMARK.opacity }}
     >
       <defs>
-        <pattern id={patternId} patternUnits="userSpaceOnUse" width="420" height="112" patternTransform="rotate(-34)">
-          <text x="10" y="35" fill="#92263c" fontSize="14" fontWeight="700" fontFamily="Kanit, Noto Sans Thai, sans-serif">
+        <pattern id={patternId} patternUnits="userSpaceOnUse" width={EVIDENCE_WATERMARK.tileWidth} height={EVIDENCE_WATERMARK.tileHeight} patternTransform={`rotate(${EVIDENCE_WATERMARK.angle})`}>
+          <text x="10" y="35" fill={EVIDENCE_WATERMARK.color} fontSize={EVIDENCE_WATERMARK.fontSize} fontWeight="700" fontFamily="Kanit, Noto Sans Thai, sans-serif">
             {purposeText}
           </text>
-          <text x="10" y="59" fill="#92263c" fontSize="14" fontWeight="700" fontFamily="Kanit, Noto Sans Thai, sans-serif">
+          <text x="10" y="59" fill={EVIDENCE_WATERMARK.color} fontSize={EVIDENCE_WATERMARK.fontSize} fontWeight="700" fontFamily="Kanit, Noto Sans Thai, sans-serif">
             {caseLabel}
           </text>
         </pattern>

@@ -55,7 +55,7 @@ export function draftQueueIsolationPatch() {
       if (/onClick=\{saveDraft\}\s+disabled=\{Boolean\(missingScoreTopics\.length\)\}/.test(next)) {
         throw new Error("Draft Queue isolation patch failed: Save Draft button is still disabled for incomplete scores");
       }
-      if (!next.includes('onClick={submitEvaluation} disabled={Boolean(missingScoreTopics.length)}')) {
+      if (!/onClick=\{submitEvaluation\}\s+disabled=\{Boolean\(missingScoreTopics\.length\)(?:\s*\|\|\s*!monthlyResult\.editable)?\}/.test(next)) {
         throw new Error("Draft Queue isolation patch failed: Submit score validation was changed unexpectedly");
       }
       if (next === original) {

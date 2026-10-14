@@ -2,7 +2,8 @@ import { formatPdfDate, formatPdfDateOrTime, formatPdfDateTime } from "./lib/pdf
 ﻿import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
-import { parseRichTextRuns, richTextToPlainText, sanitizeRichTextHtml, type RichTextRun } from "./richText";
+import { parseRichTextRuns, richTextImages, richTextToPlainText, sanitizeRichTextHtml, type RichTextRun } from "./richText";
+import { paintPdfEvidenceWatermark } from "./evidenceWatermark";
 import type { AppealAction } from "./appealActionHistory";
 import { appealActionTopicPdfHtml, appealActionPdfEvidence } from "./appealActionPdfHtml";
 import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
@@ -176,6 +177,26 @@ export async function generateOfficialCaseDetailPdf({
   const includeAppeal = pdfVariant === "appeal" && caseItem.reviewStatus === "Revised";
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   registerTHSarabunNew(doc as any);
+
+  // Fetch only the unique durable image IDs used in the saved rich-text fields.
+  const inlineImages = new Map<string, { dataUrl: string; width: number; height: number }>();
+  const visitedImageSources = new WeakSet<object>();
+  const collectInlineImages = (value: unknown) => {
+    if (typeof value === "string" && /<img\b/i.test(value)) {
+      richTextImages(value).forEach(image => { if (!inlineImages.has(image.url)) inlineImages.set(image.url, { dataUrl: "", width: image.width, height: image.height }); });
+    } else if (value && typeof value === "object" && !visitedImageSources.has(value)) {
+      visitedImageSources.add(value);
+      Object.values(value).forEach(collectInlineImages);
+    }
+  };
+  collectInlineImages(caseItem);
+  await Promise.all([...inlineImages.entries()].map(async ([url, image]) => {
+    const id = new URL(url, "https://qa.local").searchParams.get("id");
+    try { image.dataUrl = await loadAppealEvidenceJpeg({ id }); }
+    catch { throw new Error("โหลดรูปใน Assessment Reason ไม่สำเร็จ กรุณาลองดาวน์โหลด PDF อีกครั้ง"); }
+  }));
+
+  type PdfImageRun = RichTextRun & { pdfImageWidth?: number; pdfImageHeight?: number };
 
   const setFont = (style: "normal" | "bold" | "italic" | "bolditalic" = "normal") => {
     try {
@@ -430,8 +451,7 @@ export async function generateOfficialCaseDetailPdf({
     Boolean(leftRun.underline) === Boolean(rightRun.underline) &&
     String(leftRun.color || "").toLowerCase() === String(rightRun.color || "").toLowerCase();
 
-  const layoutRichTextLines = (value: unknown, w: number, size: number): RichTextRun[][] => {
-    const sourceRuns = parseRichTextRuns(value);
+  const layoutTextRuns = (sourceRuns: RichTextRun[], w: number, size: number): RichTextRun[][] => {
     const runs = sourceRuns.length ? sourceRuns : [{ text: "-" }];
     const fullText = runs.map((run) => run.text).join("");
     const maxWidth = Math.max(2, w - TEXT_INNER_PAD_X * 2 - TEXT_WRAP_SAFETY);
@@ -570,6 +590,41 @@ export async function generateOfficialCaseDetailPdf({
     return lines.length ? lines : [[{ text: "-" }]];
   };
 
+  const layoutRichTextLines = (value: unknown, w: number, size: number): RichTextRun[][] => {
+    const runs = parseRichTextRuns(value);
+    if (!runs.some(run => run.image)) return layoutTextRuns(runs, w, size);
+    const lines: RichTextRun[][] = [];
+    let textRuns: RichTextRun[] = [];
+    const flush = () => { if (textRuns.some(run => run.text)) lines.push(...layoutTextRuns(textRuns, w, size)); textRuns = []; };
+    runs.forEach(run => {
+      if (!run.image) { textRuns.push(run); return; }
+      flush();
+      const image = inlineImages.get(run.image.url);
+      if (!image?.dataUrl) throw new Error("ไม่พบรูปใน Assessment Reason สำหรับ PDF");
+      const ratio = image.width / image.height;
+      const imageWidth = Math.min(w - TEXT_INNER_PAD_X * 2, 110 * ratio);
+      lines.push([{ ...run, pdfImageWidth: imageWidth, pdfImageHeight: imageWidth / ratio } as PdfImageRun]);
+    });
+    flush();
+    return lines;
+  };
+
+  const richLineHeight = (line: RichTextRun[], size: number, leading: number) => {
+    const image = line.find(run => run.image) as PdfImageRun | undefined;
+    return image ? (image.pdfImageHeight || 0) + 4 : lineHeight(size, leading);
+  };
+  const richLinesHeight = (lines: RichTextRun[][], size: number, leading: number) =>
+    lines.reduce((height, line) => height + richLineHeight(line, size, leading), 0);
+  const fitRichLines = (lines: RichTextRun[][], start: number, height: number, size: number, leading: number, padding: number) => {
+    let count = 0, used = padding;
+    for (let index = start; index < lines.length; index++) {
+      const next = richLineHeight(lines[index], size, leading);
+      if (used + next > height) break;
+      used += next; count++;
+    }
+    return count;
+  };
+
   const drawRichTextLines = (
     lines: RichTextRun[][],
     x: number,
@@ -581,12 +636,20 @@ export async function generateOfficialCaseDetailPdf({
     valign: "top" | "middle" = "top"
   ) => {
     const lineH = lineHeight(size, leading);
-    const blockH = lines.length * lineH;
+    const blockH = richLinesHeight(lines, size, leading);
     const startY = valign === "middle" ? yy + Math.max(2.2, (h - blockH) / 2 + lineH * 0.78) : yy + 3.8;
-
-    lines.forEach((line, lineIndex) => {
+    let offsetY = 0;
+    lines.forEach((line) => {
       let currentX = x + TEXT_INNER_PAD_X;
-      const baselineY = startY + lineIndex * lineH;
+      const baselineY = startY + offsetY;
+      const imageRun = line.find(run => run.image) as PdfImageRun | undefined;
+      offsetY += richLineHeight(line, size, leading);
+      if (imageRun?.image) {
+        const image = inlineImages.get(imageRun.image.url)!;
+        const imageW = imageRun.pdfImageWidth!, imageH = imageRun.pdfImageHeight!;
+        doc.addImage(image.dataUrl, "JPEG", x + (w - imageW) / 2, baselineY - lineH * 0.78 + 1, imageW, imageH);
+        return;
+      }
       line.forEach((run) => {
         setFont(richRunFontStyle(run));
         doc.setFontSize(size);
@@ -643,13 +706,13 @@ export async function generateOfficialCaseDetailPdf({
     const lines = layoutRichTextLines(text, wOf(1, 7), size);
     let index = 0;
     while (index < lines.length) {
-      if (bottom - y < minH) {
+      if (bottom - y < Math.max(minH, richLineHeight(lines[index], size, leading) + padY)) {
         doc.addPage();
         y = top;
       }
-      const fitCount = Math.max(1, fitLinesForHeight(bottom - y, size, leading, padY));
+      const fitCount = Math.max(1, fitRichLines(lines, index, bottom - y, size, leading, padY));
       const chunk = lines.slice(index, index + fitCount);
-      const rowH = Math.max(minH, chunk.length * lineHeight(size, leading) + padY);
+      const rowH = Math.max(minH, richLinesHeight(chunk, size, leading) + padY);
       label(0, y, 1, rowH, index === 0 ? labelText : `${labelText}\n(cont.)`);
       drawRichTextCell(1, y, 7, rowH, chunk, LIGHT_PURPLE, size, leading, "top");
       y += rowH;
@@ -1113,12 +1176,16 @@ export async function generateOfficialCaseDetailPdf({
     let firstChunk = true;
 
     while (firstChunk || commentIndex < commentLines.length || appealIndex < appealLines.length) {
-      if (bottom - y < baseRowH) newTopicPage();
+      const nextHeight = Math.max(baseRowH,
+        commentLines[commentIndex] ? richLineHeight(commentLines[commentIndex], SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING) + TOPIC_ROW_PAD_Y : 0,
+        appealLines[appealIndex] ? richLineHeight(appealLines[appealIndex], SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING) + TOPIC_ROW_PAD_Y : 0);
+      if (bottom - y < nextHeight) newTopicPage();
 
       const availableH = Math.max(baseRowH, bottom - y);
-      const bodyFit = Math.max(1, fitLinesForHeight(availableH, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, TOPIC_ROW_PAD_Y));
-      const commentChunk = commentLines.slice(commentIndex, commentIndex + bodyFit);
-      const appealChunk = includeAppeal ? appealLines.slice(appealIndex, appealIndex + bodyFit) : [];
+      const commentFit = fitRichLines(commentLines, commentIndex, availableH, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, TOPIC_ROW_PAD_Y);
+      const appealFit = fitRichLines(appealLines, appealIndex, availableH, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, TOPIC_ROW_PAD_Y);
+      const commentChunk = commentLines.slice(commentIndex, commentIndex + commentFit);
+      const appealChunk = includeAppeal ? appealLines.slice(appealIndex, appealIndex + appealFit) : [];
       const visibleComment = commentChunk.length > 0 ? commentChunk : [[{ text: " " }]];
       const visibleAppeal = includeAppeal ? (appealChunk.length > 0 ? appealChunk : [[{ text: " " }]]) : [];
       const descriptionText = firstChunk ? description : "ต่อจากหน้าก่อน";
@@ -1128,8 +1195,8 @@ export async function generateOfficialCaseDetailPdf({
         Math.max(
           baseRowH,
           TOPIC_ROW_PAD_Y + descriptionChunkLines.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING),
-          TOPIC_ROW_PAD_Y + visibleComment.length * lineHeight(SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING),
-          includeAppeal ? TOPIC_ROW_PAD_Y + visibleAppeal.length * lineHeight(SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING) : 0
+          TOPIC_ROW_PAD_Y + richLinesHeight(visibleComment, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING),
+          includeAppeal ? TOPIC_ROW_PAD_Y + richLinesHeight(visibleAppeal, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING) : 0
         )
       );
       const shortDescription = descriptionChunkLines.length <= 2;
@@ -1247,6 +1314,7 @@ export async function generateOfficialCaseDetailPdf({
         if (jpegData) {
           const imageX = left + (fullW - imageWidth) / 2;
           doc.addImage(jpegData, "JPEG", imageX, y + 9, imageWidth, imageHeight);
+          if (!evidence.watermarked) paintPdfEvidenceWatermark(doc, imageX, y + 9, imageWidth, imageHeight, String(caseItem.caseId || ""), originalW);
         } else {
           writeText(`Unable to load attached image: ${loadError}`, left + 3, y + 9, fullW - 6, 12, {
             size: BODY_TEXT_SIZE,
@@ -1304,6 +1372,7 @@ export async function generateOfficialCaseDetailPdf({
           });
           if (encodedImage) {
             doc.addImage(encodedImage, "JPEG", left + (fullW - imageWidth) / 2, y + 9, imageWidth, imageHeight);
+            if (!photo.watermarked) paintPdfEvidenceWatermark(doc, left + (fullW - imageWidth) / 2, y + 9, imageWidth, imageHeight, String(caseItem.caseId || ""), w);
           } else {
             writeText("Unable to load QA evidence: " + imageError, left + 3, y + 9, fullW - 6, 12, {
               size: BODY_TEXT_SIZE,
@@ -1332,7 +1401,10 @@ export async function generateOfficialCaseDetailPdf({
     if (bottom - y < blockH + 3) { doc.addPage(); y = top; }
     rect(left, y, fullW, blockH, WHITE);
     writeText(label, left + 3, y + 1, fullW - 6, 7, { size: BODY_TEXT_SIZE, bold: true, maxLines: 2 });
-    if (encoded) doc.addImage(encoded, "JPEG", left + (fullW - imageW) / 2, y + 9, imageW, imageH);
+    if (encoded) {
+      doc.addImage(encoded, "JPEG", left + (fullW - imageW) / 2, y + 9, imageW, imageH);
+      if (!photo.watermarked) paintPdfEvidenceWatermark(doc, left + (fullW - imageW) / 2, y + 9, imageW, imageH, String(caseItem.caseId || ""), w);
+    }
     else writeText("Unable to load attached image", left + 3, y + 9, fullW - 6, 12, { size: BODY_TEXT_SIZE, color: [180, 35, 35] });
     y += blockH + 3;
   }

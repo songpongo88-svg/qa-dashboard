@@ -52,7 +52,10 @@ import {
   RichTextToolbar,
   hasRichTextContent,
   richTextToPlainText,
+  richTextImages,
 } from "./richText";
+import { uploadAppealImage, EvidenceWatermarkOverlay } from "./AppealEvidence";
+import { buildEvidencePreviewPdf } from "./evidencePreviewPdf";
 import { ProcessReferenceDisplay, ProcessReferenceSelector } from "./processLibrary";
 import { prepareVoiceRecordingForBrowser } from "./gsmMsWav";
 import { uploadEvidenceFileToDrive } from "./googleDriveUpload";
@@ -676,32 +679,13 @@ function safePdfEvidenceName(caseId: string) {
 }
 
 async function buildImageEvidencePdf(files: File[], caseId: string) {
-  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 10;
-  const maxWidth = pageWidth - margin * 2;
-  const headerHeight = 26;
-  const maxHeight = pageHeight - headerHeight - 12;
-
-  for (let index = 0; index < files.length; index += 1) {
-    if (index > 0) doc.addPage();
-    const file = files[index];
-    const dataUrl = await fileToDataUrl(file);
-    const image = await loadImageFromDataUrl(dataUrl);
-    const imageRatio = image.width / image.height || 1;
-    const boxRatio = maxWidth / maxHeight;
-    const width = imageRatio > boxRatio ? maxWidth : maxHeight * imageRatio;
-    const height = imageRatio > boxRatio ? maxWidth / imageRatio : maxHeight;
-    const x = (pageWidth - width) / 2;
-    const y = headerHeight + (maxHeight - height) / 2;
-    doc.setFont("THSarabunNew", "bold"); doc.setFontSize(16); doc.setTextColor(45, 32, 68);
-    doc.text(`หลักฐานประกอบการประเมิน | Case ID: ${caseId}`, 12.5, 16.5);
-    doc.addImage(imageToJpegDataUrl(image), "JPEG", x, y, width, height, undefined, "FAST");
+  const urls = files.map(file => URL.createObjectURL(file));
+  try {
+    const result = await buildEvidencePreviewPdf(urls, caseId, 0);
+    return new File([result.blob], safePdfEvidenceName(caseId), { type: "application/pdf" });
+  } finally {
+    urls.forEach(url => URL.revokeObjectURL(url));
   }
-
-  const blob = doc.output("blob");
-  return new File([blob], safePdfEvidenceName(caseId), { type: "application/pdf" });
 }
 
 function googleDrivePlaybackUrl(webViewLink: string, fileName: string) {
@@ -1050,6 +1034,8 @@ export default function CreateEvaluationMockup({
   );
   const [draftSavedAt, setDraftSavedAt] = useState(() => readEvaluateTabMemory()?.draftSavedAt || "");
   const [draftMessage, setDraftMessage] = useState(() => readEvaluateTabMemory()?.draftMessage || "");
+  const inlineImageUploadsRef = useRef(0);
+  const [inlineImageUploads, setInlineImageUploads] = useState(0);
   const [stickyNote, setStickyNote] = useState(() => {
     return readCachedStickyNote(stickyNoteOwner);
   });
@@ -1627,7 +1613,33 @@ export default function CreateEvaluationMockup({
     setIssueTagManaging({});
   }
 
+  function validateAssessmentImages() {
+    if (inlineImageUploadsRef.current) { setDraftMessage("กรุณารอให้วางรูปและอัปโหลดเสร็จก่อนบันทึก"); return false; }
+    if (noCaseForMonth) return true;
+    const imageCaseId = normalizeCaseId(caseId).toUpperCase();
+    if (Object.values(topicState).some(topic => richTextImages(topic.reason).some(image => image.caseId !== imageCaseId))) {
+      setDraftMessage("Case ID ไม่ตรงกับลายน้ำรูปใน Assessment Reason กรุณาลบรูปของเคสเดิมแล้ววางรูปใหม่");
+      return false;
+    }
+    return true;
+  }
+
+  const assessmentImageBusyChanged = (busy: boolean) => {
+    inlineImageUploadsRef.current = Math.max(0, inlineImageUploadsRef.current + (busy ? 1 : -1));
+    setInlineImageUploads(inlineImageUploadsRef.current);
+  };
+
+  async function pasteAssessmentImage(file: File, topicCode: string) {
+    const imageCaseId = normalizeCaseId(caseId).toUpperCase();
+    if (!imageCaseId || !agentName) throw new Error("เลือก Agent และกรอก Case ID ก่อนวางรูป");
+    if (!monthlyResult.editable) throw new Error(monthlyResult.message || "กรุณารอการตรวจสอบผลประจำเดือน");
+    await prepareMonthlyResultReferences([{ agentName, monthKey: selectedMonthKey }]);
+    const image = await uploadAppealImage(file, imageCaseId, topicCode, "qa");
+    return { ...image, caseId: imageCaseId };
+  }
+
   async function submitEvaluation() {
+    if (!validateAssessmentImages()) return;
     if (!validateAgentSelected("submitting the evaluation")) return;
     if (!monthlyResult.editable) { setDraftMessage(monthlyResult.message || "กรุณารอการตรวจสอบผลประจำเดือน"); return; }
 
@@ -1809,6 +1821,7 @@ export default function CreateEvaluationMockup({
 
   async function confirmSubmitEvaluation() {
     if (!submitPreview || submitInProgress) return;
+    if (!validateAssessmentImages()) return;
     const { record, draftId } = submitPreview;
     setSubmitInProgress(true);
     setDraftMessage("Submitting evaluation. Please wait...");
@@ -1908,6 +1921,7 @@ export default function CreateEvaluationMockup({
 
   async function saveDraft() {
     if (draftQueueLoading) return;
+    if (!validateAssessmentImages()) return;
     if (!validateAgentSelected("saving draft")) return;
 
     if (missingScoreTopics.length) {
@@ -2354,7 +2368,7 @@ export default function CreateEvaluationMockup({
 
     let pdfFile: File;
     try {
-      pdfFile = pdfFiles.length === 1 ? pdfFiles[0] : await buildImageEvidencePdf(imageFiles, caseId || "draft-case");
+      pdfFile = await buildImageEvidencePdf(sourceFiles, caseId || "draft-case");
     } catch (error) {
       setEvidenceUploadMessage(error instanceof Error ? error.message : "รวมไฟล์เป็น PDF ไม่สำเร็จ");
       return;
@@ -2690,7 +2704,7 @@ export default function CreateEvaluationMockup({
 
     let pdfFile: File;
     try {
-      pdfFile = pdfFiles.length === 1 ? pdfFiles[0] : await buildImageEvidencePdf(imageFiles, caseId || "draft-case");
+      pdfFile = await buildImageEvidencePdf(sourceFiles, caseId || "draft-case");
     } catch (error) {
       setEvidenceUploadMessage(error instanceof Error ? error.message : "รวมไฟล์เป็น PDF ไม่สำเร็จ");
       return;
@@ -3468,7 +3482,7 @@ export default function CreateEvaluationMockup({
                               Combined PDF Preview • รวม {sourceCount} ไฟล์เป็น PDF เดียว {pageCount} หน้า
                             </div>
                             {isImage ? (
-                              <img src={file.previewUrl} alt={file.name} className="max-h-56 w-full bg-white object-contain" />
+                              <div className="relative overflow-hidden"><img src={file.previewUrl} alt={file.name} className="max-h-56 w-full bg-white object-contain" /><EvidenceWatermarkOverlay caseId={normalizeCaseId(caseId)} type="qa" /></div>
                             ) : isPdf ? (
                               <iframe src={file.previewUrl} title={file.name} className="h-56 w-full bg-white" />
                             ) : (
@@ -3496,7 +3510,7 @@ export default function CreateEvaluationMockup({
                                           ×
                                         </button>
                                         {file.sourcePreviewUrls?.[sourceIndex] && file.sourceFiles?.[sourceIndex]?.type.startsWith("image/") ? (
-                                          <img src={file.sourcePreviewUrls[sourceIndex]} alt={sourceName} className="h-12 w-12 rounded-lg border border-slate-200 object-contain" />
+                                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg"><img src={file.sourcePreviewUrls[sourceIndex]} alt={sourceName} className="h-12 w-12 rounded-lg border border-slate-200 object-contain" /><EvidenceWatermarkOverlay caseId={normalizeCaseId(caseId)} type="qa" /></div>
                                         ) : (
                                           <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-[10px] font-black text-slate-500">PDF</div>
                                         )}
@@ -4039,6 +4053,9 @@ export default function CreateEvaluationMockup({
                                       onChange={(reason) => updateTopic(topic.code, { reason })}
                                       editorLabel={`Assessment Reason · ${topic.code}`}
                                       preserveWhitespace
+                                      imageCaseId={normalizeCaseId(caseId).toUpperCase()}
+                                      onImagePaste={(file) => pasteAssessmentImage(file, topic.code)}
+                                      onImageBusyChange={assessmentImageBusyChanged}
                                       minHeight={108}
                                       placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..."
                                     />
@@ -4122,7 +4139,7 @@ export default function CreateEvaluationMockup({
                 <button
                   type="button"
                   onClick={saveDraft}
-                  disabled={draftQueueLoading}
+                  disabled={draftQueueLoading || inlineImageUploads > 0}
                   className="w-full rounded-xl border border-emerald-300 bg-white px-5 py-3.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
                 >
                   Save Draft
@@ -4356,7 +4373,7 @@ export default function CreateEvaluationMockup({
               <button
                 type="button"
                 onClick={confirmSubmitEvaluation}
-                disabled={submitInProgress}
+                disabled={submitInProgress || inlineImageUploads > 0}
                 className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(4,120,87,0.22)] transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
               >
                 {submitInProgress ? "Submitting..." : "OK, Confirm Submit"}

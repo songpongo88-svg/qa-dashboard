@@ -2,6 +2,7 @@ import { jsPDF } from "./officialPdf";
 import { PDF_LOGO } from "./pdfLogo";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { resizeAppealImage } from "./AppealEvidence";
+import { EVIDENCE_WATERMARK_VERSION, isStampedEvidenceUrl, paintEvidenceWatermark } from "./evidenceWatermark";
 
 type EvidencePdfResult = {
   blob: Blob;
@@ -14,7 +15,6 @@ type RenderedEvidencePage = {
   width: number;
   height: number;
   mode: "page" | "image";
-  watermarkYRatio?: number;
 };
 
 function safeCaseId(value: string) {
@@ -73,92 +73,26 @@ function blobToDataUrl(blob: Blob) {
   });
 }
 
-function findQuietWatermarkYRatio(canvas: HTMLCanvasElement) {
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context || canvas.width < 10 || canvas.height < 10) return 0.5;
-
-  const candidates = [0.34, 0.46, 0.58, 0.7];
-  const xStart = Math.floor(canvas.width * 0.14);
-  const xEnd = Math.ceil(canvas.width * 0.86);
-  const bandHeight = Math.max(16, Math.floor(canvas.height * 0.13));
-  const step = Math.max(4, Math.floor(Math.max(canvas.width, canvas.height) / 240));
-
-  let bestRatio = 0.5;
-  let bestScore = Number.POSITIVE_INFINITY;
-
-  for (const ratio of candidates) {
-    const centerY = Math.floor(canvas.height * ratio);
-    const yStart = Math.max(0, centerY - Math.floor(bandHeight / 2));
-    const yEnd = Math.min(canvas.height, centerY + Math.floor(bandHeight / 2));
-    let darkPixels = 0;
-    let samples = 0;
-    let darkness = 0;
-    const sampleWidth = Math.max(1, xEnd - xStart);
-    const sampleHeight = Math.max(1, yEnd - yStart);
-    const pixels = context.getImageData(xStart, yStart, sampleWidth, sampleHeight).data;
-
-    for (let localY = 0; localY < sampleHeight; localY += step) {
-      for (let localX = 0; localX < sampleWidth; localX += step) {
-        const offset = (localY * sampleWidth + localX) * 4;
-        const luminance =
-          0.2126 * pixels[offset] +
-          0.7152 * pixels[offset + 1] +
-          0.0722 * pixels[offset + 2];
-        if (luminance < 232) darkPixels += 1;
-        darkness += 255 - luminance;
-        samples += 1;
-      }
-    }
-
-    if (!samples) continue;
-    const darkRatio = darkPixels / samples;
-    const averageDarkness = darkness / samples;
-    const score = darkRatio * 1000 + averageDarkness;
-    if (score < bestScore) {
-      bestScore = score;
-      bestRatio = ratio;
-    }
-  }
-
-  return bestRatio;
-}
-
-function imageToAnalysisCanvas(image: HTMLImageElement) {
-  const maxWidth = 1100;
-  const scale = Math.min(1, maxWidth / Math.max(image.naturalWidth || image.width || 1, 1));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * scale));
-  canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * scale));
-  const context = canvas.getContext("2d");
-  if (!context) return null;
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  return canvas;
-}
-
-async function imageBlobToPage(blob: Blob, caseId: string): Promise<RenderedEvidencePage> {
+async function imageBlobToPage(blob: Blob, caseId: string, alreadyStamped = false): Promise<RenderedEvidencePage> {
   const original = new File([blob], "case-evidence.jpg", { type: blob.type || "image/jpeg" });
-  const stamped = await resizeAppealImage(original, caseId, "qa");
-  const dataUrl = await blobToDataUrl(stamped.blob);
+  const stamped = alreadyStamped ? blob : (await resizeAppealImage(original, caseId, "qa")).blob;
+  const dataUrl = await blobToDataUrl(stamped);
   const image = await loadImage(dataUrl);
-  const analysisCanvas = imageToAnalysisCanvas(image);
-  return {
-    dataUrl,
-    width: image.naturalWidth || image.width || 1,
-    height: image.naturalHeight || image.height || 1,
-    mode: "image",
-    watermarkYRatio: analysisCanvas ? findQuietWatermarkYRatio(analysisCanvas) : 0.5,
-  };
+  return { dataUrl, width: image.naturalWidth || image.width || 1,
+    height: image.naturalHeight || image.height || 1, mode: "image" };
 }
 
-async function pdfBlobToPages(blob: Blob): Promise<RenderedEvidencePage[]> {
+async function pdfBlobToPages(blob: Blob, caseId: string): Promise<RenderedEvidencePage[]> {
   const engine = await import("pdfjs-dist");
   engine.GlobalWorkerOptions.workerSrc = workerUrl;
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const loadingTask = engine.getDocument({ data: bytes, useSystemFonts: false });
   const pdf = await loadingTask.promise;
   const pages: RenderedEvidencePage[] = [];
+  const marker = `QA_EVIDENCE_WATERMARK:${EVIDENCE_WATERMARK_VERSION}:${caseId.trim().toUpperCase()}`;
+  const metadata = await pdf.getMetadata().catch(() => null);
+  const alreadyStamped = String((metadata?.info as any)?.Keywords || "").includes(marker);
+  await document.fonts?.load('700 14px Kanit').catch(() => undefined);
 
   try {
     for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
@@ -174,12 +108,12 @@ async function pdfBlobToPages(blob: Blob): Promise<RenderedEvidencePage[]> {
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvas, canvasContext: context, viewport }).promise;
+      if (!alreadyStamped) paintEvidenceWatermark(context, canvas.width, canvas.height, caseId);
       pages.push({
         dataUrl: canvas.toDataURL("image/jpeg", 0.9),
         width: canvas.width,
         height: canvas.height,
         mode: "page",
-        watermarkYRatio: findQuietWatermarkYRatio(canvas),
       });
       page.cleanup();
     }
@@ -198,13 +132,13 @@ async function blobToRenderedPages(blob: Blob, sourceUrl: string, caseId: string
     sourceUrl.toLowerCase().includes("drive.google.com/file/");
   if (looksPdf) {
     try {
-      return await pdfBlobToPages(blob);
-    } catch {
-      if (type.startsWith("image/")) return [await imageBlobToPage(blob, caseId)];
-      throw new Error("Cannot render evidence PDF.");
+      return await pdfBlobToPages(blob, caseId);
+    } catch (error) {
+      if (type.startsWith("image/")) return [await imageBlobToPage(blob, caseId, isStampedEvidenceUrl(sourceUrl, caseId))];
+      throw new Error("Cannot render evidence PDF.", { cause: error });
     }
   }
-  return [await imageBlobToPage(blob)];
+  return [await imageBlobToPage(blob, caseId, isStampedEvidenceUrl(sourceUrl, caseId))];
 }
 
 function drawEvidencePage(
@@ -217,8 +151,8 @@ function drawEvidencePage(
 ) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const watermarkRatio = Math.min(0.72, Math.max(0.3, page.watermarkYRatio ?? 0.5));
-  let watermarkY = pageH * watermarkRatio;
+  void finalScore;
+  void caseId;
 
   if (page.mode === "page") {
     doc.addImage(page.dataUrl, "JPEG", 0, 0, pageW, pageH, undefined, "FAST");
@@ -234,24 +168,6 @@ function drawEvidencePage(
     const height = ratio > boxRatio ? maxW / ratio : maxH;
     const imageY = top + (maxH - height) / 2;
     doc.addImage(page.dataUrl, "JPEG", (pageW - width) / 2, imageY, width, height, undefined, "FAST");
-    watermarkY = imageY + height * watermarkRatio;
-  }
-
-  if (page.mode === "page") {
-  const passed = Number(finalScore) >= 85;
-  // Approx. 11% visual strength on white: clearer than before while keeping evidence readable.
-  const watermarkColor: [number, number, number] = passed
-    ? [226, 243, 232]
-    : [249, 226, 226];
-
-  doc.setFont("THSarabunNew", "bold");
-  doc.setFontSize(52);
-  doc.setTextColor(...watermarkColor);
-  doc.text(safeCaseId(caseId), pageW / 2, watermarkY, {
-    align: "center",
-    angle: 35,
-  });
-
   }
 
   doc.addImage(PDF_LOGO, "PNG", 4.2, 2.2, 5.2, 5.2, "qa-evidence-logo", "FAST");
@@ -290,7 +206,7 @@ export async function buildEvidencePreviewPdf(
     title: `Evidence Attachment - ${safeCaseId(caseId)}`,
     subject: "Robinhood Quality Assurance Evidence Attachment",
     author: "Robinhood Quality Assurance",
-    keywords: `QA Evidence, ${safeCaseId(caseId)}`,
+    keywords: `QA Evidence, ${safeCaseId(caseId)}, QA_EVIDENCE_WATERMARK:${EVIDENCE_WATERMARK_VERSION}:${caseId.trim().toUpperCase()}`,
   });
 
   renderedPages.forEach((page, index) => {
@@ -308,7 +224,7 @@ export async function buildEvidencePreviewPdf(
 export async function downloadEvidenceUrl(rawUrl: string, fileName: string, caseId?: string) {
   const blob = await fetchEvidenceBlob(rawUrl);
   const isImage = ["image/jpeg", "image/png", "image/webp"].includes(blob.type);
-  const image = caseId && isImage ? await resizeAppealImage(new File([blob], fileName, {type: blob.type}), caseId, "qa") : null;
+  const image = caseId && isImage && !isStampedEvidenceUrl(rawUrl, caseId) ? await resizeAppealImage(new File([blob], fileName, {type: blob.type}), caseId, "qa") : null;
   const objectUrl = URL.createObjectURL(image?.blob || blob);
   try {
     const link = document.createElement("a");

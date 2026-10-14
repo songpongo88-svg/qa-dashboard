@@ -35,6 +35,7 @@ import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
 import TestCaseBadge from "./TestCaseBadge";
 import CaseWatermarks from "./CaseWatermarks";
+import { isStampedEvidenceUrl } from "./evidenceWatermark";
 import LoadingMascot from "./LoadingMascot";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import {
@@ -3775,7 +3776,7 @@ function SafeCaseImagePreview({
             referrerPolicy="no-referrer"
             onError={() => setImageFailed(true)}
           />
-          <EvidenceWatermarkOverlay caseId={caseId} type="qa" />
+          {!isStampedEvidenceUrl(url, caseId || "") ? <EvidenceWatermarkOverlay caseId={caseId} type="qa" /> : null}
         </div>
         {isDriveUrl ? (
           <a
@@ -3821,12 +3822,23 @@ function CaseActionTooltip({
       {children}
       <span
         role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-[180] mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-xl group-hover:block group-focus-within:block"
+        className="pointer-events-none absolute right-0 top-full z-[180] mt-2 hidden w-max max-w-[min(320px,85vw)] whitespace-normal rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold leading-5 text-white shadow-xl group-hover:block group-focus-within:block"
       >
         {text}
       </span>
     </span>
   );
+}
+
+function CaseHeaderAction({ label, tooltip, icon, tone = "slate", href, onClick, disabled = false }: {
+  label: string; tooltip: string; icon: "open" | "share" | "pdf" | "image" | "close" | "appeal";
+  tone?: "slate" | "emerald" | "violet" | "amber" | "sky"; href?: string; onClick?: () => void; disabled?: boolean;
+}) {
+  const tones = { slate: "border-slate-200 text-slate-600 hover:bg-slate-50", emerald: "border-emerald-200 text-emerald-700 hover:bg-emerald-50", violet: "border-violet-200 text-violet-700 hover:bg-violet-50", amber: "border-amber-200 text-amber-700 hover:bg-amber-50", sky: "border-sky-200 text-sky-700 hover:bg-sky-50" };
+  const paths = { open: "M14 3h7v7M21 3l-9 9M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5", share: "M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2", pdf: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h6", image: "M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM3 17l6-6 4 4 3-3 5 5M8 7h.01", close: "M6 6l12 12M6 18L18 6", appeal: "M12 3v18M3 12h18" };
+  const content = <><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-[17px] w-[17px]"><path d={paths[icon]} /></svg><span className="sr-only">{label}</span></>;
+  const className = `inline-flex h-9 w-9 items-center justify-center rounded-xl border bg-white shadow-sm transition focus:outline-none focus:ring-4 focus:ring-violet-100 disabled:cursor-wait disabled:opacity-50 ${tones[tone]}`;
+  return <CaseActionTooltip text={tooltip}>{href ? <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={className}>{content}</a> : <button type="button" aria-label={label} onClick={onClick} disabled={disabled} className={className}>{content}</button>}</CaseActionTooltip>;
 }
 
 // Display QA's original wording, paragraphs and simple **bold** markup without
@@ -4429,15 +4441,7 @@ function SlideOverCaseDetail({
     } catch (error) {
       console.error("Prepare Evidence PDF preview failed:", error);
 
-      if (verifiedImagePdfUrls.length) {
-        setPreviewAsset({
-          type: "pdf",
-          url: verifiedImagePdfUrls[0].url,
-          title: verifiedImagePdfUrls[0].label,
-          downloadUrl: verifiedImagePdfUrls[0].downloadUrl || verifiedImagePdfUrls[0].url,
-          downloadName: `${caseItem.caseId}_Evidence_Attachment.pdf`,
-        });
-      } else if (verifiedImageUrls.length) {
+      if (verifiedImageUrls.length) {
         setPreviewAsset({
           type: "image",
           url: verifiedImageUrls[0],
@@ -4448,7 +4452,7 @@ function SlideOverCaseDetail({
           downloadName: `${caseItem.caseId}_Evidence_Attachment`,
         });
       } else {
-        alert("เตรียมไฟล์หลักฐาน PDF ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        alert("เตรียมภาพหลักฐานพร้อมลายน้ำไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       }
     } finally {
       setEvidencePreviewBusy(false);
@@ -4991,160 +4995,37 @@ function SlideOverCaseDetail({
           className={embedded ? "sticky top-[49px] z-30 border-b border-violet-100 bg-white/95 backdrop-blur-sm" : "sticky top-0 z-30 border-b border-violet-100 bg-white/95 backdrop-blur-sm"}
         >
           <div className="mx-auto flex w-full max-w-[1460px] flex-col gap-3 px-4 py-3 lg:px-5">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div data-case-review-header="compact" className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-700">Case Review</div>
-                <div className="mt-1 flex flex-wrap items-center gap-2.5">
-                  <div className="truncate text-[24px] font-extrabold leading-none tracking-tight text-slate-950 lg:text-[28px]">
-                    {caseItem.caseId}
-                  </div>
+                <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-violet-700">Case Review</div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <div className="text-[24px] font-extrabold leading-none tracking-tight text-slate-950">{caseItem.caseId}</div>
                   {isTestCaseEvaluation(caseItem) ? <TestCaseBadge /> : null}
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
-                    <span aria-hidden="true">▣</span>
-                    {caseItem.weekLabel || "-"}
-                  </span>
-                  {appealRequestExists ? (
-                    <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-                      Appeal Submitted
-                    </span>
-                  ) : null}
-                  {appealOverrideAllowed && !isAppealWindowOpenLive ? (
-                    <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-700">
-                      Appeal Override
-                    </span>
-                  ) : null}
+                  {monthlyResult.locked ? <CaseActionTooltip text={monthlyResult.message}>
+                    <span role="status" tabIndex={0} className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800"><span aria-hidden="true">▣</span>ยืนยันรับทราบแล้ว · ดูอย่างเดียว</span>
+                  </CaseActionTooltip> : monthlyResult.message ? <CaseActionTooltip text={monthlyResult.message}>
+                    <span role="status" tabIndex={0} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800">ตรวจสอบสถานะไม่สำเร็จ</span>
+                  </CaseActionTooltip> : null}
+                  {appealRequestExists ? <span className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700">Appeal Submitted</span> : null}
                 </div>
+                <div className="mt-2 text-[11px] text-slate-500">{caseItem.weekLabel || "-"}</div>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                {caseItem.caseUrl ? (
-                  <CaseActionTooltip text="เปิดเคสในระบบต้นทาง">
-                    <a
-                      href={caseItem.caseUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-200/90 bg-gradient-to-b from-white to-emerald-50 px-4 text-[12px] font-extrabold text-emerald-700 shadow-[0_8px_22px_rgba(16,185,129,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-[0_12px_28px_rgba(16,185,129,0.16)] focus:outline-none focus:ring-4 focus:ring-emerald-100"
-                    >
-                      <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">↗</span>
-                      Open Case
-                    </a>
-                  </CaseActionTooltip>
-                ) : null}
-
-                {hasAppealCase ? (
-                  <CaseActionTooltip text="เปิดรายละเอียดเคสอุทธรณ์">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenAppealCase?.(caseItem.caseId, caseItem.agent);
-                      }}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-[12px] font-extrabold text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-100"
-                    >
-                      <span aria-hidden="true" className="text-base">◉</span>
-                      Open Appeal
-                    </button>
-                  </CaseActionTooltip>
-                ) : null}
-
-                <CaseActionTooltip text="แชร์ลิงก์รายละเอียดเคส">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onShareCaseDetail?.(caseItem.caseId, caseItem.agent);
-                      setShareCopied(true);
-                      window.setTimeout(() => setShareCopied(false), 3000);
-                    }}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-indigo-200/90 bg-gradient-to-b from-white to-indigo-50 px-4 text-[12px] font-extrabold text-indigo-700 shadow-[0_8px_22px_rgba(79,70,229,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-[0_12px_28px_rgba(79,70,229,0.16)] focus:outline-none focus:ring-4 focus:ring-indigo-100"
-                  >
-                    <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">⌯</span>
-                    Share Link
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:justify-end" role="group" aria-label="การทำรายการของเคส">
+                {caseItem.caseUrl ? <CaseHeaderAction label="Open Case" tooltip="เปิดเคสในระบบต้นทาง" icon="open" tone="emerald" href={caseItem.caseUrl} /> : null}
+                {hasAppealCase ? <CaseHeaderAction label="Open Appeal" tooltip="เปิดรายละเอียดเคสอุทธรณ์" icon="appeal" tone="violet" onClick={() => onOpenAppealCase?.(caseItem.caseId, caseItem.agent)} /> : null}
+                <CaseHeaderAction label="Share Link" tooltip={shareCopied ? "คัดลอกลิงก์แล้ว" : "แชร์ลิงก์รายละเอียดเคส"} icon="share" tone="violet" onClick={() => { onShareCaseDetail?.(caseItem.caseId, caseItem.agent); setShareCopied(true); window.setTimeout(() => setShareCopied(false), 3000); }} />
+                <CaseHeaderAction label={`Case Detail PDF - ${caseItem.caseId}`} tooltip={`ดาวน์โหลดรายงาน ${caseItem.caseId} (PDF)`} icon="pdf" tone="amber" onClick={() => handleGenerateCaseDetailPdf("original")} />
+                {!monthlyResult.locked && shouldShowAppealActionV32 ? <CaseActionTooltip text={appealActionTooltipV32}>
+                  <button type="button" onClick={canEditExistingAppeal ? () => void startAppealEdit() : canRequestAdditionalAppeal && !isAdditionalAccessPending ? () => { setAdditionalAccessTopicCodes([]); setAdditionalAccessReason(""); setAdditionalAccessError(""); setAdditionalAccessModalOpen(true); } : (canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
+                    disabled={appealActionDisabledV32} aria-disabled={appealActionDisabledV32}
+                    className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border px-3 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${appealActionToneV32}`}>
+                    <span aria-hidden="true">＋</span><span>{appealActionLabelV32}</span>
+                    {isAppealObserverRoleV32 ? <span className="text-[9px] uppercase">View only</span> : null}
                   </button>
-                </CaseActionTooltip>
-
-                <CaseActionTooltip text="ดาวน์โหลดรายงานฉบับเต็ม (PDF)">
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateCaseDetailPdf("original")}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-amber-200/90 bg-gradient-to-b from-white to-amber-50 px-4 text-[12px] font-extrabold text-amber-700 shadow-[0_8px_22px_rgba(217,119,6,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_12px_28px_rgba(217,119,6,0.16)] focus:outline-none focus:ring-4 focus:ring-amber-100"
-                  >
-                    <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">▤</span>
-                    Case Detail PDF - {caseItem.caseId}
-                  </button>
-                </CaseActionTooltip>
-
-                {monthlyResult.message ? <p role="status" className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{monthlyResult.message}</p> : null}
-                {shouldShowAppealActionV32 ? (
-                  <CaseActionTooltip text={appealActionTooltipV32}>
-                    <button
-                      type="button"
-                      onClick={canEditExistingAppeal ? ()=>void startAppealEdit() : canRequestAdditionalAppeal && !isAdditionalAccessPending ? ()=>{ setAdditionalAccessTopicCodes([]); setAdditionalAccessReason(""); setAdditionalAccessError(""); setAdditionalAccessModalOpen(true); } : (canSubmitAppeal || canSubmitAdditionalEvidence) ? openAppealSubmitForm : undefined}
-                      disabled={appealActionDisabledV32}
-                      aria-disabled={appealActionDisabledV32}
-                      className={
-                        "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-[12px] font-extrabold shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-inset ring-white/70 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-violet-100/70 " +
-                        appealActionToneV32 +
-                        (appealActionDisabledV32
-                          ? " cursor-not-allowed opacity-80"
-                          : " hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.13)]")
-                      }
-                    >
-                      <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/75 text-[13px] shadow-sm">＋</span>
-                      <span>{appealActionLabelV32}</span>
-                      {isAppealObserverRoleV32 ? (
-                        <span className="rounded-full border border-current/20 bg-white/75 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide shadow-sm">
-                          View only
-                        </span>
-                      ) : null}
-                    </button>
-                  </CaseActionTooltip>
-                ) : null}
-
-
-                {String(caseItem.caseImageUrl || "").trim() ? (
-                  <CaseActionTooltip text="ดูภาพตัวอย่างของเคส">
-                    <button
-                      type="button"
-                      onClick={() => void openStandardEvidencePreview()}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-sky-200/90 bg-gradient-to-b from-white to-sky-50 px-4 text-[12px] font-extrabold text-sky-700 shadow-[0_8px_22px_rgba(14,165,233,0.10)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-[0_12px_28px_rgba(14,165,233,0.16)] focus:outline-none focus:ring-4 focus:ring-sky-100"
-                    >
-                      <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">▧</span>
-                      {evidencePreviewBusy ? "Preparing PDF..." : "Preview Image"}
-                    </button>
-                  </CaseActionTooltip>
-                ) : null}
-
-                {availablePdfUrls
-                  .filter((item) => !String(item.label || "").toLowerCase().includes("original pdf"))
-                  .map((item) => (
-                    <CaseActionTooltip key={item.label} text={`เปิด ${item.label}`}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviewAsset({
-                            type: "pdf",
-                            url: item.url,
-                            title: item.label,
-                            downloadUrl: item.url,
-                          })
-                        }
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-3 text-[12px] font-extrabold text-amber-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-50"
-                      >
-                        <span aria-hidden="true" className="text-base">▤</span>
-                        {item.label}
-                      </button>
-                    </CaseActionTooltip>
-                  ))}
-
-                <CaseActionTooltip text="ปิดแท็บ Case Detail">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 px-4 text-[12px] font-extrabold text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-inset ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-200 hover:from-white hover:to-rose-50 hover:text-rose-700 hover:shadow-[0_12px_28px_rgba(244,63,94,0.12)] focus:outline-none focus:ring-4 focus:ring-rose-100"
-                  >
-                    <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-[13px] shadow-sm">×</span>
-                    Close Tab
-                  </button>
-                </CaseActionTooltip>
+                </CaseActionTooltip> : null}
+                {String(caseItem.caseImageUrl || "").trim() ? <CaseHeaderAction label="Preview Image" tooltip={evidencePreviewBusy ? "กำลังเตรียมภาพหลักฐาน…" : "ดูภาพหลักฐานพร้อมลายน้ำ"} icon="image" tone="sky" disabled={evidencePreviewBusy} onClick={() => void openStandardEvidencePreview()} /> : null}
+                {availablePdfUrls.filter(item => !String(item.label || "").toLowerCase().includes("original pdf")).map(item => <CaseHeaderAction key={item.label} label={item.label} tooltip={`เปิด ${item.label}`} icon="pdf" tone="amber" onClick={() => setPreviewAsset({ type: "pdf", url: item.url, title: item.label, downloadUrl: item.url })} />)}
+                <CaseHeaderAction label="Close Tab" tooltip="ปิดแท็บ Case Detail" icon="close" onClick={onClose} />
               </div>
             </div>
 
