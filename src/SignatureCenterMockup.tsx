@@ -1439,6 +1439,14 @@ function canMonitorDocument(currentUser: CurrentUser, doc: SignatureDocument) {
   return canSignIdentity(currentUser, doc, "Agent");
 }
 
+function canExportMonthlyPayment(currentUser: CurrentUser) {
+  return currentUser.role === "Quality Assurance" || currentUser.role === "Supervisor";
+}
+
+function canExportMonthlyPaymentDocument(currentUser: CurrentUser, doc: SignatureDocument) {
+  return canExportMonthlyPayment(currentUser) && canMonitorDocument(currentUser, doc);
+}
+
 function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string, now = new Date()): SignatureStepStatus {
   if (getWaivedEntry(entries, role)) return "Waived";
   if (getSignedEntry(entries, role)) return "Signed";
@@ -3000,8 +3008,9 @@ export default function SignatureCenterMockup({
     if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
     return documents
       .filter((doc) => doc.monthKey === selectedMonth)
+      .filter((doc) => canExportMonthlyPaymentDocument(currentUser, doc))
       .filter((doc) => isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap, coachingRecords));
-  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, documents, pendingAppealCaseMap, selectedMonth, signatures]);
+  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const selectedMonthExportDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
@@ -3017,8 +3026,9 @@ export default function SignatureCenterMockup({
     if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];
     return documents
       .filter((doc) => doc.monthKey === selectedMonth)
+      .filter((doc) => canExportMonthlyPaymentDocument(currentUser, doc))
       .filter((doc) => isLateSignedDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap, coachingRecords));
-  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, documents, pendingAppealCaseMap, selectedMonth, signatures]);
+  }, [appealStatusVerified, coachingStatusVerified, coachingRecords, currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const rolePendingCounts = useMemo(() => {
     const counts: Record<SignRole, number> = { QA: 0, Supervisor: 0, Senior: 0, Agent: 0 };
@@ -3108,7 +3118,7 @@ export default function SignatureCenterMockup({
 
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
 
-  const canGeneratePaymentExcel = selectedMonth !== "all";
+  const canGenerateMonthlyPayment = canExportMonthlyPayment(currentUser) && selectedMonth !== "all" && selectedMonthPaymentExportDocs.length > 0;
 
   const selectedDocumentSource = selectedDocumentId
     ? documents.find((item) => item.id === selectedDocumentId) || null
@@ -4861,13 +4871,17 @@ export default function SignatureCenterMockup({
     }
     const eligible = selectedMonthAllDocs.filter(doc =>
       isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap, records));
-    if (!eligible.length) throw new Error("ยังไม่มี Agent ที่ลงนามและมีผล Coaching / QA Review ครบภายในวันที่ 15 ของรอบนี้");
-    await assertAppealsResolved(eligible);
-    return eligible;
+    const scopedEligible = eligible.filter(doc => canExportMonthlyPaymentDocument(currentUser, doc));
+    if (!scopedEligible.length) throw new Error("ยังไม่มี Agent ที่ลงนามและมีผล Coaching / QA Review ครบภายในวันที่ 15 ของรอบนี้");
+    await assertAppealsResolved(scopedEligible);
+    return scopedEligible;
   };
 
   const generatePaymentExcel = async () => {
-    if (currentUser.role !== "Quality Assurance") return;
+    if (!canExportMonthlyPayment(currentUser)) {
+      window.alert("เฉพาะ Quality Assurance และ Supervisor เท่านั้นที่ดาวน์โหลด Monthly Payment ได้");
+      return;
+    }
     if (selectedMonth === "all") {
       window.alert("กรุณาเลือกเดือนก่อน Generate Excel");
       return;
@@ -4888,7 +4902,10 @@ export default function SignatureCenterMockup({
   };
 
   const generatePaymentPdf = async () => {
-    if (currentUser.role !== "Quality Assurance") return;
+    if (!canExportMonthlyPayment(currentUser)) {
+      window.alert("เฉพาะ Quality Assurance และ Supervisor เท่านั้นที่ดาวน์โหลด Monthly Payment ได้");
+      return;
+    }
     if (selectedMonth === "all") {
       window.alert("กรุณาเลือกเดือนก่อน Generate Payment PDF");
       return;
@@ -5015,7 +5032,7 @@ export default function SignatureCenterMockup({
                       title="Monthly Payment PDF"
                       aria-label="Monthly Payment PDF"
                       onClick={generatePaymentPdf}
-                      disabled={selectedMonth === "all" || !selectedMonthPaymentExportDocs.length}
+                      disabled={!canGenerateMonthlyPayment}
                       className={`flex w-full items-center rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(124,58,237,0.20)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(124,58,237,0.28)] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none ${
                         actionSidebarMode === "expanded"
                           ? "gap-2.5 px-2.5 py-2.5 text-left"
@@ -5044,7 +5061,7 @@ export default function SignatureCenterMockup({
                       title="Monthly Payment Excel"
                       aria-label="Monthly Payment Excel"
                       onClick={generatePaymentExcel}
-                      disabled={selectedMonth === "all" || !selectedMonthPaymentExportDocs.length}
+                      disabled={!canGenerateMonthlyPayment}
                       className={`flex w-full items-center rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-xs font-semibold text-emerald-700 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-[0_8px_18px_rgba(16,185,129,0.14)] disabled:cursor-not-allowed disabled:border-slate-200 disabled:from-slate-100 disabled:to-slate-100 disabled:text-slate-400 disabled:shadow-none ${
                         actionSidebarMode === "expanded"
                           ? "gap-2.5 px-2.5 py-2.5 text-left"

@@ -16,6 +16,7 @@ for (const key of ["window", "document", "navigator", "HTMLElement", "Node"]) {
 }
 window.setTimeout = () => 0;
 const fixture = globalThis.__paymentRefFixture = { texts: [], files: [], workbook: null, pdf: null, errors: [], marked: [] };
+window.alert = message => fixture.errors.push(String(message));
 dom.window.HTMLAnchorElement.prototype.click = function () {
   fixture.files.push(this.download);
 };
@@ -76,9 +77,9 @@ try {
         const pdf = exportHandler(source, "generatePaymentPdf");
         source = source.replace("export default function SignatureCenterMockup", "function SignatureCenterMockup");
         return { loader: "tsx", contents: source + `
-          export {getMonthlyDocumentRef,getDocumentIncentive};
-          export async function runExport(kind,monthKey,referenceDocs,eligibleDocs,signatureEntries){
-            const currentUser={role:'Quality Assurance'},selectedMonth=monthKey,documents=referenceDocs;
+          export {getMonthlyDocumentRef,getDocumentIncentive,canExportMonthlyPaymentDocument};
+          export async function runExport(kind,monthKey,referenceDocs,eligibleDocs,signatureEntries,currentUser={role:'Quality Assurance'}){
+            const selectedMonth=monthKey,documents=referenceDocs;
             const selectedMonthAllDocs=documents.filter(doc=>doc.monthKey===monthKey),selectedMonthPaymentExportDocs=eligibleDocs,signatures=signatureEntries;
             const paymentDocumentsForExport=async()=>eligibleDocs,setPaymentMessage=message=>globalThis.__paymentRefFixture.errors.push(message);
             const markCurrentCarryOversExported=async docs=>globalThis.__paymentRefFixture.marked.push(docs.map(doc=>doc.id));
@@ -156,6 +157,22 @@ try {
     }
   }
   console.log("PASS real UI export handlers, all 12 months, earlier year, filtered payment rows, chronological numbering, PDF/Excel parity, leading zeros and month-scoped totals");
+  const supervisor = {role:'Supervisor',displayName:'Fixture Supervisor',username:'fixture-supervisor'};
+  const supervised = {...october[0],supervisorName:supervisor.displayName};
+  const otherSupervisor = {...october[1],supervisorName:'Other Supervisor'};
+  assert.equal(app.canExportMonthlyPaymentDocument(supervisor,supervised),true);
+  assert.equal(app.canExportMonthlyPaymentDocument(supervisor,otherSupervisor),false);
+  for (const kind of ['pdf','excel']) {
+    fixture.files=[];fixture.errors=[];fixture.marked=[];
+    await app.runExport(kind,'2026-10',allDocs,[supervised],signatures,supervisor);
+    assert.equal(fixture.files.length,1,'Supervisor downloads a real '+kind+' file');
+    for (const role of ['Agent','Senior','Admin','Unknown']) {
+      fixture.files=[];
+      await app.runExport(kind,'2026-10',allDocs,[supervised],signatures,{role});
+      assert.equal(fixture.files.length,0,role+' cannot bypass the '+kind+' handler');
+    }
+  }
+  console.log('PASS Supervisor real PDF/Excel downloads, document scope and denied-role handler guards');
   console.log("PASS production carry-over prebuild, original performance-month references and export bookkeeping");
   console.log("PASS build compatibility for refreshed/legacy eligibility variables and fail-fast on an unknown reference source");
 } finally {

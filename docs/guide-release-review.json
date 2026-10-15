@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-15T06:20:55.510Z",
-  "reason": "Reviewed Special Collection: three photorealistic full UI themes, per-account active usage and permanent 180-minute unlock, offline retry and preview behavior",
+  "reviewedAt": "2026-10-15T07:19:41.378Z",
+  "reason": "Reviewed Supervisor Monthly Payment PDF and Excel downloads, assigned-document scope, ready-payment and fresh Coaching/appeal checks, and unchanged global Document Ref numbering",
   "contentChanged": true,
   "reviewedChapters": [
-    "profile"
+    "signatures"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -279,7 +279,7 @@
     "scripts/patch-selected-case-appeal-countdown-v64.mjs": "494a635b3bdca894b26a0aa0884d01db42e9ed91d8875a51e520abc1d34f4204",
     "scripts/patch-selected-case-audit-inline-v90.mjs": "8964ded3aa4d2ed4600db918f6eec357dcb8260d797f7af72f46278ae9b89ea2",
     "scripts/patch-signature-dashboard-source-parity-v26.mjs": "b420c8b7f2a8feca9ffc4a949075407771bdf4698eafa1417d1b9b082955e91e",
-    "scripts/patch-signature-late-carryover-v90.mjs": "8f3b2066df6480bb1d47e970b1001242845996236a3489c2bf46ca4fc2b7f600",
+    "scripts/patch-signature-late-carryover-v90.mjs": "e0e414f45011de6b5597e78af322939d235f47a50e1fa142aa42dee9e540f59b",
     "scripts/patch-signature-resigned-carry-forward-v19.mjs": "6dd91ca2cedf84e33d453bbf4bd8d0b51a606426805e17db14eba9d0cb0ea23c",
     "scripts/patch-v83-pre-evaluate-workspace-compat.mjs": "694fac1f464f5ee0b9e515ba6da97d9006d225206de80c98fdefa4444f876b9a",
     "scripts/patch-weekly-summary-body-font-v30.mjs": "168e5ef0f41174c6f27935675e3719fc446e01d172b15c9aa0f93b91c515b34a",
@@ -317,10 +317,10 @@
     "scripts/test-monthly-coaching.mjs": "04d7cf6b097d48a5af15f1864469727cb4a47dcc7860cf3e18a89e08d33f7671",
     "scripts/test-monthly-result-lock.mjs": "275ac86a4849f035302012c586ba0b6be39c93d452c624596dbeb446f001b011",
     "scripts/test-monthly-signature-pdf.mjs": "9905f766878080429fb5bb6231fc8ab433f4b61fa13b2363c385c43a3e0f7016",
-    "scripts/test-payment-document-ref.mjs": "43285d6b03566eb4ec518d0ff7f91cb67bc60419bc9b255cdfcdf499f2b982f4",
+    "scripts/test-payment-document-ref.mjs": "b3ac8cd094ba6a1e94b6b571c1db529fc939d5201b6d9039a3c2202750d675ba",
     "scripts/test-pdf-dates.mjs": "b13ed1e04faecd3eca4f08e8a36a4b66bcbeb1aa7636b2a1da01c7fb7472d32b",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
-    "scripts/test-signature-appeal-hold.mjs": "8dbe29d257778c167ed50b70f4a88916cd5a67277f741a82fde4cfd363b7e951",
+    "scripts/test-signature-appeal-hold.mjs": "8dc8728c973d76f3ec0abdb54be46e15a213ed9a5698f36b19f2963ca72fe11a",
     "scripts/test-special-themes.mjs": "5532e7c8c0f0fdd0b5d99056eea79b033ecf2b2fbd790f8be1fdc24a55f024a7",
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "9e0a347ae83d99b37350c03b22bf57a0148f77bd785199e367e1f18f6518a30a",
@@ -362,7 +362,7 @@
     "src/QaTypingGate.tsx": "b6ca32a92ebc9756385c3f570c82963794a086f443f2e6549b65e7aaac039dfe",
     "src/ScheduleMockup.tsx": "bd0431a88e2c0fd5bfcc5fcb640c6d968c3f4dbd552457a634cacb64c59c49c3",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
-    "src/SignatureCenterMockup.tsx": "adffcb56081b168f9e6748a4b3b040ca05bed495bde5eae010ba435d05adbae7",
+    "src/SignatureCenterMockup.tsx": "15f5c78f3bc9254e702034af8eb171fba03f1b8ad9762b5a603c1f6019600d2e",
     "src/SummaryMockup.tsx": "13d4c63021dabedd6c5885aa2e79e4a5f45defeca80686c9dc164d278f37d00a",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
@@ -416,7 +416,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "d626f40bddff4d925b1cf0699876d99178f2d9c22dcf98df3991668bdd4913f1",
+    "src/knowledge/manual.json": "a1f9469565c094c44f7d24488b37e54977ae66a8e36b9b3c711a7f16d25109f8",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
