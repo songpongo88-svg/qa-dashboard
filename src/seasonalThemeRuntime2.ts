@@ -1,4 +1,5 @@
 import { WEEKDAY_COLLECTION_ID, isWeekdayPreference, getBangkokWeekdayTheme, resolveWeekdayPreference, millisecondsUntilBangkokMidnight } from "./weekdayCollection.mjs";
+import { isSpecialTheme } from "./specialThemes/model.mjs";
 // Seasonal theme runtime v2
 // Appearance-only behavior. It does not touch QA data, permissions, scoring, or workflow logic.
 
@@ -232,8 +233,11 @@ function applyEffectiveTheme() {
 
   try {
     const weatherSelected = getCustomPreference() === "weather-auto";
-    const activeFestival = weatherSelected ? null : getActiveFestival();
-    const effectiveTheme = weatherSelected ? "robinhood" : activeFestival?.id || getPreferredTheme();
+    const preferred = getPreferredTheme();
+    const specialSelected = isSpecialTheme(preferred) && document.documentElement.dataset.qaSpecialUnlocked === "true";
+    const activeFestival = weatherSelected || specialSelected ? null : getActiveFestival();
+    const effectiveTheme = weatherSelected ? "robinhood" : specialSelected ? preferred
+      : activeFestival?.id || (isSpecialTheme(preferred) ? "robinhood" : preferred);
 
     if (document.documentElement.dataset.qaTheme !== effectiveTheme) {
       document.documentElement.dataset.qaTheme = effectiveTheme;
@@ -601,7 +605,7 @@ function installThemeHooks() {
   });
   themeAttributeObserver.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["data-qa-theme"],
+    attributeFilter: ["data-qa-theme", "data-qa-special-unlocked"],
   });
 }
 

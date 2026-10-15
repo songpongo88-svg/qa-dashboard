@@ -14,12 +14,12 @@ const festivalColors: Record<string, string> = {
 };
 
 export default function ThemePreview({ themeId, option }: {
-  themeId: string; option: { swatches: readonly string[]; patternImage?: string };
+  themeId: string; option: { swatches: readonly string[]; patternImage?: string; sceneImage?: string };
 }) {
   const weekday = WEEKDAY_IDS.indexOf(themeId);
   const festivalColor = festivalColors[themeId];
   return <span aria-hidden="true" data-theme-preview={themeId} className="qa-active-theme-preview">
-    {weekday >= 0 ? <span style={{
+    {option.sceneImage ? <span style={{ backgroundImage: `url("${option.sceneImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} /> : weekday >= 0 ? <span style={{
       backgroundImage: 'url("/weekday-scenes-v3.png")', backgroundSize: 'auto 700%',
       backgroundPosition: `78% ${weekday / 6 * 100}%`,
     }} /> : festivalColor ? <span style={{ backgroundImage: `url("/festivals/${themeId}.svg")`, backgroundSize: "cover", backgroundPosition: "75% center" }} />

@@ -1,4 +1,7 @@
 import ThemePreview, { WEEKDAY_LABELS, FESTIVAL_LABELS } from "./ThemePreview";
+import { SpecialCollection } from "./specialThemes/SpecialCollection";
+import { useSpecialThemeUsage, type SpecialUsage } from "./specialThemes/usage";
+import { SPECIAL_THEMES, SPECIAL_UNLOCK_MS, isSpecialTheme } from "./specialThemes/model.mjs";
 import { WEEKDAY_IDS } from "./weekdayCollection.mjs";
 import { WeatherCollection, WeatherSidebarLabel } from "./weather/Weather";
 import "./themePickerCollections.css";
@@ -315,13 +318,17 @@ type QaThemeId =
   | "honey-bear"
   | "bunny-melody"
   | "froggy-green"
-  | "starry-cat";
+  | "starry-cat"
+  | "special-coastal"
+  | "special-volcanic"
+  | "special-misty";
 
 type QaThemeOption = {
   id: QaThemeId;
   label: string;
   swatches: [string, string, string];
   patternImage?: string;
+  sceneImage?: string;
   description?: string;
 };
 
@@ -343,8 +350,8 @@ const PASSWORD_RECORD_KEY = "qa_password_records";
 const QA_THEME_STORAGE_KEY = "qa-dashboard:theme-v1";
 const QA_CUSTOM_THEME_STORAGE_KEY = "qa-dashboard:custom-theme-v1";
 const QA_THEME_USAGE_CACHE_KEY = "qa-dashboard:theme-usage-cache-v1";
-type QaThemeCollectionId = "color" | "character" | "festival" | "weekday" | "weather";
-const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "character", "festival", "weekday", "weather"];
+type QaThemeCollectionId = "color" | "character" | "festival" | "weekday" | "weather" | "special";
+const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "character", "festival", "weekday", "weather", "special"];
 const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "robinhood", label: "Robinhood Purple", swatches: ["#7027a9", "#4c1d78", "#d946a8"] },
   { id: "pink", label: "Pink Blossom", swatches: ["#db2777", "#9d174d", "#fb72b6"] },
@@ -360,6 +367,8 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "bunny-melody", label: "My Melody", swatches: ["#fb7185", "#a21caf", "#fce7f3"], patternImage: "/theme-bunny-melody.png", description: "My Melody · หัวใจและดอกไม้" },
   { id: "froggy-green", label: "Keroppi", swatches: ["#4ade80", "#15803d", "#a7f3d0"], patternImage: "/theme-froggy-green.png", description: "Keroppi · ใบบัวและฟองน้ำ" },
   { id: "starry-cat", label: "Kuromi", swatches: ["#8b5cf6", "#312e81", "#f9a8d4"], patternImage: "/theme-starry-cat.png", description: "Kuromi · พระจันทร์และดาว" },
+  ...SPECIAL_THEMES.map((theme) => ({ id: theme.id as QaThemeId, label: theme.label,
+    swatches: theme.swatches as [string, string, string], sceneImage: theme.image, description: theme.description })),
 ];
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
@@ -414,7 +423,8 @@ const CENTRAL_EVALUATION_TEXT_LIMIT = 32000;
 function readStoredQaTheme(): QaThemeId {
   try {
     const stored = window.localStorage.getItem(QA_THEME_STORAGE_KEY);
-    return QA_THEME_OPTIONS.some((theme) => theme.id === stored)
+    // Special themes restore only after the current account's unlock has been checked.
+    return !isSpecialTheme(stored) && QA_THEME_OPTIONS.some((theme) => theme.id === stored)
       ? stored as QaThemeId
       : "robinhood";
   } catch {
@@ -436,6 +446,7 @@ function readThemeUsageCache(): QaThemeUsagePercent | null {
       festival: Number(values.festival) || 0,
       weekday: Number(values.weekday) || 0,
       weather: Number(values.weather) || 0,
+      special: Number(values.special) || 0,
     };
   } catch {
     return null;
@@ -464,6 +475,7 @@ function themeCollectionFromProfile(row: any): QaThemeCollectionId {
   if (preference === "weekday-auto" || /^weekday-/.test(preference)) return "weekday";
 
   const themeId = String(row?.themeId || row?.theme_id || "robinhood") as QaThemeId;
+  if (isSpecialTheme(themeId)) return "special";
   return QA_THEME_OPTIONS.find((theme) => theme.id === themeId)?.patternImage ? "character" : "color";
 }
 
@@ -476,8 +488,13 @@ function getCurrentThemePreferenceSnapshot(themeId: QaThemeId) {
   }
 
   const root = document.documentElement;
+  const activeSpecial = root.dataset.qaSpecialUnlocked === "true" && isSpecialTheme(root.dataset.qaTheme);
+  if (activeSpecial) themeId = root.dataset.qaTheme as QaThemeId;
+  else if (isSpecialTheme(themeId)) themeId = "robinhood";
   const collection: QaThemeCollectionId =
-    root.dataset.qaWeatherCollection === "auto"
+    activeSpecial
+      ? "special"
+      : root.dataset.qaWeatherCollection === "auto"
       ? "weather"
       : Boolean(root.dataset.qaFestivalOverride)
         ? "festival"
@@ -3379,11 +3396,13 @@ function FloatingChatWidget({
 function ThemePickerModal({
   open,
   selectedTheme,
+  specialUsage,
   onSelect,
   onClose,
 }: {
   open: boolean;
   selectedTheme: QaThemeId;
+  specialUsage: SpecialUsage;
   onSelect: (theme: QaThemeId) => void;
   onClose: () => void;
 }) {
@@ -3398,6 +3417,7 @@ function ThemePickerModal({
       festival: 0,
       weekday: 0,
       weather: 0,
+      special: 0,
     }
   );
   const [themeUsageReady, setThemeUsageReady] = useState(() => Boolean(cachedThemeUsage));
@@ -3415,6 +3435,7 @@ function ThemePickerModal({
         festival: 0,
         weekday: 0,
         weather: 0,
+        special: 0,
       };
       activeProfiles.forEach((row: any) => {
         counts[themeCollectionFromProfile(row)] += 1;
@@ -3425,6 +3446,7 @@ function ThemePickerModal({
         festival: total ? Math.round((counts.festival / total) * 100) : 0,
         weekday: total ? Math.round((counts.weekday / total) * 100) : 0,
         weather: total ? Math.round((counts.weather / total) * 100) : 0,
+        special: total ? Math.round((counts.special / total) * 100) : 0,
       };
       setThemeUsagePercent(nextPercent);
       writeThemeUsageCache(nextPercent);
@@ -3451,7 +3473,8 @@ function ThemePickerModal({
       setFestivalOverride(Boolean(document.documentElement.dataset.qaFestivalOverride));
     };
     sync();
-    setCollection(document.documentElement.dataset.qaWeatherCollection === "auto" ? "weather"
+    setCollection(document.documentElement.dataset.qaSpecialTheme ? "special"
+      : document.documentElement.dataset.qaWeatherCollection === "auto" ? "weather"
       : document.documentElement.dataset.qaFestivalOverride ? "festival"
       : document.documentElement.dataset.qaWeekdayCollection === "auto" ? "weekday"
       : QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme)?.patternImage ? "character" : "color");
@@ -3517,6 +3540,7 @@ function ThemePickerModal({
               ["festival", "Festival Collection"],
               ["weekday", "7 Days Collection"],
               ["weather", "Weather Collection"],
+              ["special", "Special Collection"],
             ].map(([id, label], index, items) => (
               <button key={id} id={`qa-collection-tab-${id}`} type="button" role="tab"
                 aria-selected={collection === id} aria-controls="qa-theme-collection-panel"
@@ -3543,7 +3567,10 @@ function ThemePickerModal({
           data-qa-picker-collection={collection}
           className="qa-theme-collection-panel grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
           <WeatherCollection />
-          {QA_THEME_OPTIONS.map((theme) => {
+          <SpecialCollection usage={specialUsage} selectedTheme={selectedTheme} onSelect={(id) => {
+            if (specialUsage.ready && specialUsage.unlocked) onSelect(id as QaThemeId);
+          }} />
+          {QA_THEME_OPTIONS.filter((theme) => !isSpecialTheme(theme.id)).map((theme) => {
             const selected = theme.id === selectedTheme && !customCollectionSelected && !festivalOverride && document.documentElement.dataset.qaWeatherCollection !== "auto";
             return (
               <button
@@ -3617,6 +3644,7 @@ export default function App() {
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [storedUserCandidate] = useState<CurrentUser | null>(() => readStoredUser());
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const specialUsage = useSpecialThemeUsage(currentUser?.username);
   const [coachingAssignmentAllowed, setCoachingAssignmentAllowed] = useState(false);
   const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
   const [coachingAppointmentsOpen, setCoachingAppointmentsOpen] = useState(false);
@@ -3726,7 +3754,9 @@ export default function App() {
   const activeThemePreviewOption = QA_THEME_OPTIONS.find(theme => theme.id === effectiveThemeId) || activeThemeOption;
   const activeWeekdayIndex = WEEKDAY_IDS.indexOf(effectiveThemeId);
   const sidebarThemeLabel =
-    FESTIVAL_LABELS[effectiveThemeId]
+    isSpecialTheme(effectiveThemeId)
+      ? `Special · ${activeThemePreviewOption.label}`
+      : FESTIVAL_LABELS[effectiveThemeId]
       ? `Festival · ${FESTIVAL_LABELS[effectiveThemeId]}`
       : activeWeekdayIndex >= 0
         ? `7 Days · วัน${WEEKDAY_LABELS[activeWeekdayIndex]}`
@@ -3742,6 +3772,25 @@ export default function App() {
       // Theme still applies for the current session when storage is unavailable.
     }
   }, [selectedTheme]);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.dataset.qaSpecialUnlocked = currentUser && specialUsage.unlocked ? "true" : "false";
+    const syncSkin = () => {
+      const id = root.dataset.qaTheme || "";
+      if (root.dataset.qaSpecialUnlocked === "true" && isSpecialTheme(id)) {
+        if (root.dataset.qaSpecialTheme !== id) root.dataset.qaSpecialTheme = id;
+      } else if (root.dataset.qaSpecialTheme) delete root.dataset.qaSpecialTheme;
+    };
+    syncSkin();
+    const observer = new MutationObserver(syncSkin);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-qa-theme", "data-qa-special-unlocked"] });
+    return () => { observer.disconnect(); delete root.dataset.qaSpecialTheme; root.dataset.qaSpecialUnlocked = "false"; };
+  }, [currentUser?.username, specialUsage.unlocked]);
+
+  useEffect(() => {
+    if ((!currentUser?.username || specialUsage.ready && !specialUsage.unlocked) && isSpecialTheme(selectedTheme)) setSelectedTheme("robinhood");
+  }, [currentUser?.username, specialUsage.ready, specialUsage.unlocked, selectedTheme]);
 
   const lastThemePreferenceSignatureRef = useRef("");
 
@@ -3760,8 +3809,11 @@ export default function App() {
           const storedPreference = String(profile.themePreference || profile.theme_preference || "");
           const hasStoredTheme = QA_THEME_OPTIONS.some((theme) => theme.id === storedThemeId);
 
-          if (hasStoredTheme) {
+          const storedThemeAllowed = !isSpecialTheme(storedThemeId) || Number(profile.specialThemeUsageMs) >= SPECIAL_UNLOCK_MS;
+          if (hasStoredTheme && storedThemeAllowed) {
             setSelectedTheme(storedThemeId as QaThemeId);
+          } else if (hasStoredTheme) {
+            setSelectedTheme("robinhood");
           }
 
           try {
@@ -7574,6 +7626,7 @@ export default function App() {
       <ThemePickerModal
         open={themePickerOpen}
         selectedTheme={selectedTheme}
+        specialUsage={specialUsage}
         onSelect={setSelectedTheme}
         onClose={() => setThemePickerOpen(false)}
       />
