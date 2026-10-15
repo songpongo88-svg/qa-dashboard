@@ -87,6 +87,12 @@ try {
   await build({ entryPoints: ["src/SignatureCenterMockup.tsx"], outfile: output, bundle: true,
     platform: "node", format: "esm", packages: "external", define: { "import.meta.env": "{}" }, logLevel: "silent",
     plugins: [{ name: "signature-appeal-boundaries", setup(builder) {
+      builder.onResolve({filter:/^xlsx$/},()=>({path:'xlsx',namespace:'payment-workbook-fixture'}));
+      builder.onLoad({filter:/.*/,namespace:'payment-workbook-fixture'},()=>({loader:'js',contents:`
+        import {createRequire} from 'node:module';const xlsx=createRequire(import.meta.url)('xlsx');
+        export const utils=xlsx.utils,SSF=xlsx.SSF,read=xlsx.read,write=xlsx.write;
+        export function writeFile(book,fileName){globalThis.__signatureAppealFixture.workbook=book;globalThis.__signatureAppealFixture.exports.push({fileName,bytes:xlsx.write(book,{type:'array',bookType:'xlsx'})});}
+      `}));
       const mocks = {
         "./appealStore": storeMock,
         "./signatureStore": `
@@ -309,6 +315,37 @@ try {
     assert.equal(fixture.exports.length, 1, 'fresh Coaching verification also protects carry-over PDF names');
     console.log('PASS production prebuild preserves carry-over payment selection and fresh Coaching/QA Review gates');
   }
+  fixture.coaching = [accepted,coaching('Fixture Agent B')];
+  fixture.evaluations = fixture.evaluations.map(record=>record.agentName==='Fixture Agent B'
+    ? {...record,rawDataPreview:{Supervisor:'Other Supervisor'}} : record);
+  fixture.extraStored = [{docId:'2026-09::Fixture Agent B',entries:allSigned.map(entry=>entry.role==='Agent'
+    ? {...entry,signerName:'Fixture Agent B',signedBy:'Fixture Agent B'}
+    : entry.role==='Supervisor'?{...entry,signerName:'Other Supervisor',signedBy:'Other Supervisor'}:entry),confirmedAt:at(-1)}];
+  await mount('Supervisor',oldResult,allSigned);
+  assert.deepEqual(fixture.view.selectedMonthPaymentExportDocs.map(doc=>doc.agentName),[agent],'Supervisor sees only assigned ready payment documents');
+  for (const [label,expectedCount,signature] of [['Monthly Payment PDF',1,'%PDF'],['Monthly Payment Excel',2,'PK']]) {
+    const downloadButton=document.querySelector(`button[aria-label="${label}"]`);
+    assert.ok(downloadButton&&!downloadButton.disabled,'Supervisor '+label+' is enabled');
+    await act(async()=>downloadButton.click());
+    await settle(()=>fixture.exports.length===expectedCount);
+    const file=fixture.exports.at(-1),bytes=file.bytes||await file.blob.arrayBuffer();
+    assert.ok(new TextDecoder().decode(new Uint8Array(bytes).slice(0,4)).startsWith(signature),'real '+label+' bytes downloaded');
+  }
+  assert.ok(!fixture.pdfText.some(text=>text.includes('Fixture Agent B')),'other Supervisor agent is absent from PDF payment rows');
+  const exportedRows=fixture.workbook.Sheets.Payment_Cycle_Detail||fixture.workbook.Sheets.Monthly_Team_Summary;
+  assert.ok(!JSON.stringify(exportedRows).includes('Fixture Agent B'),'other Supervisor agent is absent from Excel payment rows');
+  fixture.coaching=[];
+  await act(async()=>fixture.actions.generatePaymentPdf());
+  assert.equal(fixture.exports.length,2,'Supervisor cannot export stale Coaching data');
+  fixture.coaching=[accepted];
+  for (const role of ['Agent','Senior']) {
+    await mount(role,oldResult,allSigned);
+    for (const label of ['Monthly Payment PDF','Monthly Payment Excel']) assert.ok(document.querySelector(`button[aria-label="${label}"]`).disabled,role+' payment button is disabled');
+    await act(async()=>fixture.actions.generatePaymentPdf());
+    assert.equal(fixture.exports.length,0,role+' cannot call the payment action directly');
+    assert.ok(fixture.alerts.some(message=>message.includes('Quality Assurance')),'denied action explains permission');
+  }
+  console.log('PASS real Supervisor buttons download PDF/Excel, respect assigned-document scope and fresh Coaching gates; Agent/Senior controls stay locked');
 } finally {
   if (root) await act(async () => root.unmount());
   dom.window.close();

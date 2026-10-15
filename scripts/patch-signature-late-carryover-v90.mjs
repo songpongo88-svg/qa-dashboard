@@ -59,10 +59,11 @@ if (!source.includes(marker)) {
 
   newPaymentSelection = currentPaymentReadyMemo + newPaymentSelection.slice(newPaymentSelection.indexOf("\n\n  const selectedMonthCarryOverDocs"));
   newPaymentSelection = newPaymentSelection
+    .replace('return documents.filter((doc) => {', 'return documents.filter((doc) => canExportMonthlyPaymentDocument(currentUser, doc)).filter((doc) => {')
     .replace('if (selectedMonth === "all" || !appealStatusVerified) return [];', 'if (selectedMonth === "all" || !appealStatusVerified || (!coachingStatusVerified && selectedMonth >= COACHING_WORKFLOW_START)) return [];')
     .replace('isLateSignedDocument(doc, entries, pendingAppealCaseMap)', 'isLateSignedDocument(doc, entries, pendingAppealCaseMap, coachingRecords)')
     .replace('getCarryOverPaymentCycle(doc, entries)', 'getCarryOverPaymentCycle(doc, entries, coachingRecords)')
-    .replace('[appealStatusVerified, documents, paymentCarryOverStates, pendingAppealCaseMap, selectedMonth, signatures]', '[appealStatusVerified, coachingStatusVerified, coachingRecords, documents, paymentCarryOverStates, pendingAppealCaseMap, selectedMonth, signatures]');
+    .replace('[appealStatusVerified, documents, paymentCarryOverStates, pendingAppealCaseMap, selectedMonth, signatures]', '[appealStatusVerified, coachingStatusVerified, coachingRecords, currentUser, documents, paymentCarryOverStates, pendingAppealCaseMap, selectedMonth, signatures]');
 
   source = replaceOnce(source, oldPaymentSelection, newPaymentSelection, "payment export selection");
 
