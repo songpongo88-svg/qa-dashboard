@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type RichTextRun = {
   text: string;
@@ -248,10 +249,89 @@ const RICH_TEXT_SURFACE_CLASS = [
   "[&_td]:min-w-[72px] [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-2",
   "[&_th]:min-w-[72px] [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-2 [&_th]:font-bold",
   "[&_hr]:my-4 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-slate-300",
-  "[&_img]:my-3 [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-slate-200",
+  "[&_img]:my-3 [&_img]:block [&_img]:h-auto [&_img]:w-auto [&_img]:max-h-40 [&_img]:max-w-[min(100%,240px)] [&_img]:object-contain [&_img]:rounded-lg [&_img]:border [&_img]:border-slate-200",
 ].join(" ");
 
+// These controls belong to the read-only view. Saved HTML keeps the original
+// dimensions and URL so editing, copying and PDF export retain the full image.
+function richTextPreviewHtml(html: string) {
+  if (!html.includes("<img ") || typeof document === "undefined") return html;
+  const content = document.createElement("div");
+  content.innerHTML = html;
+  content.querySelectorAll("img").forEach((image) => {
+    image.setAttribute("role", "button");
+    image.setAttribute("aria-haspopup", "dialog");
+    image.setAttribute("tabindex", "0");
+    image.setAttribute("aria-label", `ดูภาพใหญ่: ${image.alt || "รูปหลักฐาน QA"}`);
+    image.setAttribute("title", "คลิกเพื่อดูภาพใหญ่");
+    image.setAttribute("loading", "lazy");
+  });
+  return content.innerHTML;
+}
+
+function RichTextImagePreview({ image, onClose }: { image: RichTextImage; onClose: () => void }) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      } else if (event.key === "Tab") {
+        const controls = dialogRef.current?.querySelectorAll<HTMLElement>("button, a[href]");
+        if (!controls?.length) return;
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (!dialogRef.current?.contains(document.activeElement) || (event.shiftKey && document.activeElement === first)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div data-rich-text-image-preview="true" className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/75 p-4" onClick={(event) => { event.stopPropagation(); onClose(); }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="flex max-h-[90vh] w-full max-w-5xl flex-col gap-3 rounded-2xl bg-white p-4 text-slate-900 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 id={titleId} className="break-words font-bold">{image.name || "รูปหลักฐาน QA"}</h2>
+            <p className="text-sm text-slate-500">Case ID: {image.caseId}</p>
+          </div>
+          <button ref={closeRef} type="button" onClick={onClose} className="shrink-0 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">ปิด</button>
+        </div>
+        <div className="min-h-0 overflow-auto rounded-xl bg-slate-100 p-2">
+          {failed ? <div role="alert" className="p-6 text-center text-sm">
+            โหลดรูปไม่สำเร็จ <a href={image.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-700 underline">เปิดรูปอีกครั้ง</a>
+          </div> : <img src={image.url} alt={image.name || "รูปหลักฐาน QA"} width={image.width} height={image.height} onError={() => setFailed(true)} className="mx-auto block h-auto max-h-[70vh] w-auto max-w-full object-contain" />}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function RichTextContent({ value, fallback = "-", className = "", preserveWhitespace = false, decodeEntities = false }: { value: unknown; fallback?: string; className?: string; preserveWhitespace?: boolean; decodeEntities?: boolean }) {
+  const [preview, setPreview] = useState<RichTextImage | null>(null);
+  const closePreview = useCallback(() => setPreview(null), []);
+  useEffect(closePreview, [value, closePreview]);
   let source = String(value ?? "");
   if (decodeEntities && typeof document !== "undefined") {
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -264,7 +344,28 @@ export function RichTextContent({ value, fallback = "-", className = "", preserv
   }
   const html = sanitizeRichTextHtml(source, preserveWhitespace);
   if (!hasRichTextContent(html)) return <div className={className}>{fallback}</div>;
-  return <div className={`${RICH_TEXT_SURFACE_CLASS} ${className}`} style={preserveWhitespace ? { whiteSpace: "pre-wrap" } : undefined} dangerouslySetInnerHTML={{ __html: html }} />;
+  const openImage = (target: EventTarget | null, container: HTMLElement) => {
+    if (!(target instanceof HTMLElement) || target.tagName !== "IMG" || !container.contains(target)) return;
+    const image = safeRichTextImage(target);
+    if (!image) return;
+    target.focus({ preventScroll: true });
+    setPreview(image);
+    return true;
+  };
+  return <>
+    <div className={`${RICH_TEXT_SURFACE_CLASS} [&_img]:cursor-zoom-in [&_img]:focus-visible:outline [&_img]:focus-visible:outline-2 [&_img]:focus-visible:outline-blue-600 ${className}`}
+      style={preserveWhitespace ? { whiteSpace: "pre-wrap" } : undefined}
+      onClick={(event) => { if (openImage(event.target, event.currentTarget)) event.stopPropagation(); }}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && event.target instanceof HTMLElement && event.target.tagName === "IMG") {
+          event.preventDefault();
+          event.stopPropagation();
+          openImage(event.target, event.currentTarget);
+        }
+      }}
+      dangerouslySetInnerHTML={{ __html: richTextPreviewHtml(html) }} />
+    {preview && <RichTextImagePreview key={preview.url} image={preview} onClose={closePreview} />}
+  </>;
 }
 
 type RichTextEditorTarget = {
