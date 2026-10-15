@@ -2,6 +2,8 @@ import React from "react";
 import { WeatherHero } from "./weather/Weather";
 import { useWeather } from "./weather/store";
 import WeekdayScene, { useWeekdayScene } from "./WeekdayScene";
+import { useSpecialTheme } from "./specialThemes/state";
+import { SpecialThemeHero } from "./specialThemes/SpecialCollection";
 
 type PageHeroProps = {
   eyebrow: string;
@@ -22,6 +24,8 @@ export default function PageHero({
 }: PageHeroProps) {
   const weekdayScene = useWeekdayScene();
   const weather = useWeather();
+  const specialTheme = useSpecialTheme();
+  if (specialTheme) return <SpecialThemeHero theme={specialTheme} title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (weather.enabled) return <WeatherHero title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (weekdayScene) return <WeekdayScene scene={weekdayScene} title={title} />;
   return (

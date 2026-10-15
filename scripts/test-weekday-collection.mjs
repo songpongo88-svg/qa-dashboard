@@ -3,6 +3,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 import * as calendar from "../src/weekdayCollection.mjs";
+import { isSpecialTheme } from "../src/specialThemes/model.mjs";
 
 const { getBangkokWeekdayTheme, millisecondsUntilBangkokMidnight, resolveWeekdayPreference } = calendar;
 for (let day = 0; day < 7; day++) {
@@ -31,7 +32,7 @@ function runtimeHarness({ custom = "", base = "ocean", blocked = false } = {}) {
     static now() { return now; }
   }
   const context = vm.createContext({
-    Date: Clock, Intl, console,
+    Date: Clock, Intl, console, isSpecialTheme,
     CustomEvent: class { constructor(type,options){ this.type=type; this.detail=options?.detail; } },
     document: { documentElement: root, body: {}, hidden: false, querySelector: () => null, addEventListener: (name, fn) => { listeners[name] = fn; } },
     localStorage: {
@@ -44,7 +45,7 @@ function runtimeHarness({ custom = "", base = "ocean", blocked = false } = {}) {
     clearTimeout: () => {}, setInterval: () => 1, requestAnimationFrame: (fn) => fn(),
     window: { dispatchEvent: event => { listeners[event.type]?.(event); return true; }, addEventListener: (name, fn) => { listeners[name] = fn; } },
   });
-  const source = fs.readFileSync(new URL("../src/seasonalThemeRuntime2.ts", import.meta.url), "utf8").replace(/^import .*?;\n/, "").replace(/export \{\};?/, "");
+  const source = fs.readFileSync(new URL("../src/seasonalThemeRuntime2.ts", import.meta.url), "utf8").replace(/^import .*?;\n/gm, "").replace(/export \{\};?/, "");
   const calendarSource = fs.readFileSync(new URL("../src/weekdayCollection.mjs", import.meta.url), "utf8").replaceAll("export ", "");
   const exposed = calendarSource + "\n" + source + "\n globalThis.testApi = { applyEffectiveTheme, select: () => { sessionCustomTheme = WEEKDAY_COLLECTION_ID; applyEffectiveTheme(); } };";
   vm.runInContext(ts.transpileModule(exposed, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText, context);
@@ -75,6 +76,14 @@ assert.equal(weather.root.dataset.qaFestivalOverride,"");
 const ordinary = runtimeHarness();
 ordinary.api.applyEffectiveTheme();
 assert.equal(ordinary.root.dataset.qaTheme, "ocean");
+const special = runtimeHarness({ base: "special-volcanic" });
+special.api.applyEffectiveTheme();
+assert.equal(special.root.dataset.qaTheme, "robinhood", "a locally stored Special theme cannot bypass the account lock");
+special.root.dataset.qaSpecialUnlocked = "true";
+special.setDate("2026-12-25T05:00:00Z");
+special.api.applyEffectiveTheme();
+assert.equal(special.root.dataset.qaTheme, "special-volcanic", "an unlocked Special choice stays selected during a festival");
+assert.equal(special.root.dataset.qaFestivalOverride, "");
 const unavailable = runtimeHarness({ blocked: true });
 unavailable.api.select();
 assert.equal(unavailable.root.dataset.qaTheme, "weekday-monday");
