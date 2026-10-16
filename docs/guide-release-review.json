@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-16T10:11:53.484Z",
-  "reason": "Open announcement images in an authenticated full article tab with all media, durable refresh and original audience checks; verify reader and error recovery",
+  "reviewedAt": "2026-10-16T10:33:47.992Z",
+  "reason": "Theme restoration now waits for account hydration and Special eligibility before saving; reviewed refresh and reconnect instructions",
   "contentChanged": true,
   "reviewedChapters": [
-    "inbox"
+    "profile"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -98,7 +98,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "383f7e184491e184f73a28f9796c0bbc3ed27d106b3c7908a74514bab323ef50",
+    "package.json": "ac59a703cba4d717b3c5f17107f1717a55d5c00aa6d2cefd40deb3c5bd29ddc9",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -324,11 +324,12 @@
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
     "scripts/test-signature-appeal-hold.mjs": "8dc8728c973d76f3ec0abdb54be46e15a213ed9a5698f36b19f2963ca72fe11a",
     "scripts/test-special-themes.mjs": "587ff463153c36e9d89ec07efbcff28f7f41187b5a332587e0f21d00ab76e72a",
+    "scripts/test-theme-preference.mjs": "ac9b9e9a4d7aa2332cc593e74cc7dd5402f0074a764f24527dcce7aa6cc8b507",
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "b3821278990324dadecd2e9139074498bf36dd828efc68f1ea560027b92a5bee",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "1d105dda5aae38f7a6868ba5eba07f3938402d0bd07610e607dd42de27d40849",
-    "src/App.tsx": "f71cf8a94e75005dd3270e9898ba14d59e947d05ea1a73a4f83832b33ff2426f",
+    "src/App.tsx": "72b9e9317173e78b84d9bc2955d70e1284cfbdca180d8273878124fe2a2204a5",
     "src/AppealActionTimeline.tsx": "475d834b112355769084a8fe7fd53a89a96791553de2e081ea5861c13ed29757",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -429,7 +430,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "38c403c564c13512bb8c30d043fb30d57282c26d72e69f0ae548c2b33ba3943b",
+    "src/knowledge/manual.json": "ec4a6cf436ab0a6a84a2ce5e072df4ee4aef5bb93c6ab9e45f51dfa0739ce1de",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",

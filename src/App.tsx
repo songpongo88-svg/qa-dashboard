@@ -481,18 +481,18 @@ function themeCollectionFromProfile(row: any): QaThemeCollectionId {
   return QA_THEME_OPTIONS.find((theme) => theme.id === themeId)?.patternImage ? "character" : "color";
 }
 
-function getCurrentThemePreferenceSnapshot(themeId: QaThemeId) {
+function getCurrentThemePreferenceSnapshot(themeId: QaThemeId, fallbackPreference = "") {
   let customPreference = "";
   try {
     customPreference = window.localStorage.getItem(QA_CUSTOM_THEME_STORAGE_KEY) || "";
   } catch {
-    customPreference = "";
+    customPreference = fallbackPreference;
   }
 
   const root = document.documentElement;
-  const activeSpecial = root.dataset.qaSpecialUnlocked === "true" && isSpecialTheme(root.dataset.qaTheme);
-  if (activeSpecial) themeId = root.dataset.qaTheme as QaThemeId;
-  else if (isSpecialTheme(themeId)) themeId = "robinhood";
+  const specialAllowed = root.dataset.qaSpecialUnlocked === "true";
+  const activeSpecial = specialAllowed && isSpecialTheme(themeId) && !customPreference;
+  if (isSpecialTheme(themeId) && !specialAllowed) themeId = "robinhood";
   const collection: QaThemeCollectionId =
     activeSpecial
       ? "special"
@@ -530,6 +530,156 @@ async function persistUserThemePreference(
     },
     { merge: true }
   );
+}
+
+function useUserThemePreference(username: string | undefined, specialUsage: SpecialUsage) {
+  const [selectedTheme, setSelectedTheme] = useState<QaThemeId>(() => readStoredQaTheme());
+  const [restoredForUser, setRestoredForUser] = useState("");
+  const [appearanceRevision, setAppearanceRevision] = useState(0);
+  const selectionRevisionRef = useRef(0);
+  const accountEpochRef = useRef(0);
+  const sessionPreferenceRef = useRef("");
+  const lastSignatureRef = useRef("");
+  const saveQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    accountEpochRef.current += 1;
+    setRestoredForUser("");
+    lastSignatureRef.current = "";
+    if (!username) {
+      setSelectedTheme(readStoredQaTheme());
+      return;
+    }
+    let cancelled = false, restored = false, loading = false;
+    const selectionRevision = selectionRevisionRef.current;
+    const restore = async () => {
+      if (loading || restored) return;
+      loading = true;
+      try {
+        const profileSnapshot = await getDoc(doc(firebaseDb, "qa_user_profiles", username));
+        if (cancelled) return;
+        const profile = profileSnapshot.data() || {};
+        const storedThemeId = String(profile.themeId || profile.theme_id || "");
+        const storedPreference = String(profile.themePreference || profile.theme_preference || "");
+        const hasStoredTheme = QA_THEME_OPTIONS.some(theme => theme.id === storedThemeId);
+        const allowed = !isSpecialTheme(storedThemeId) || hasSpecialThemeAccess(profile);
+
+        // A choice made while the profile is loading takes precedence over that read.
+        if (selectionRevisionRef.current === selectionRevision) {
+          setSelectedTheme(hasStoredTheme && allowed ? storedThemeId as QaThemeId : readStoredQaTheme());
+          sessionPreferenceRef.current = storedPreference === "weather-auto" || storedPreference === "weekday-auto" || /^weekday-/.test(storedPreference) ? storedPreference : "";
+          try {
+            if (storedPreference === "weather-auto" || storedPreference === "weekday-auto" || /^weekday-/.test(storedPreference)) {
+              window.localStorage.setItem(QA_CUSTOM_THEME_STORAGE_KEY, storedPreference);
+            } else if (hasStoredTheme) {
+              window.localStorage.removeItem(QA_CUSTOM_THEME_STORAGE_KEY);
+            }
+          } catch { /* The runtime can still apply the preference for this session. */ }
+          if (hasStoredTheme || storedPreference) {
+            lastSignatureRef.current = [username, storedThemeId, storedPreference, themeCollectionFromProfile(profile)].join("|");
+          }
+        }
+        restored = true;
+        setRestoredForUser(username);
+        setAppearanceRevision(revision => revision + 1);
+      } catch (error) {
+        // Never write a temporary default over an unread account preference.
+        console.warn("User theme preference restore skipped", error);
+      } finally { loading = false; }
+    };
+    void restore();
+    window.addEventListener("online", restore);
+    return () => { cancelled = true; accountEpochRef.current += 1; window.removeEventListener("online", restore); };
+  }, [username]);
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.qaTheme = selectedTheme;
+    // Initial rendering uses a safe fallback; only a restored account can replace storage.
+    if (username && restoredForUser === username) {
+      try { window.localStorage.setItem(QA_THEME_STORAGE_KEY, selectedTheme); }
+      catch { /* Theme still applies when storage is unavailable. */ }
+    }
+  }, [selectedTheme, username, restoredForUser]);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.dataset.qaSpecialUnlocked = username && specialUsage.ready && specialUsage.unlocked ? "true" : "false";
+    const syncSkin = () => {
+      const id = root.dataset.qaTheme || "";
+      if (root.dataset.qaSpecialUnlocked === "true" && isSpecialTheme(id)) {
+        if (root.dataset.qaSpecialTheme !== id) root.dataset.qaSpecialTheme = id;
+      } else if (root.dataset.qaSpecialTheme) delete root.dataset.qaSpecialTheme;
+    };
+    syncSkin();
+    const observer = new MutationObserver(syncSkin);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-qa-theme", "data-qa-special-unlocked"] });
+    return () => { observer.disconnect(); delete root.dataset.qaSpecialTheme; root.dataset.qaSpecialUnlocked = "false"; };
+  }, [username, specialUsage.ready, specialUsage.unlocked]);
+
+  useEffect(() => {
+    if (restoredForUser === username && specialUsage.ready && !specialUsage.unlocked && isSpecialTheme(selectedTheme)) {
+      setSelectedTheme("robinhood");
+    }
+  }, [username, restoredForUser, specialUsage.ready, specialUsage.unlocked, selectedTheme]);
+
+  useEffect(() => {
+    if (!username || restoredForUser !== username) return;
+    // Notify runtimes after React has committed the restored base theme to storage.
+    window.dispatchEvent(new CustomEvent("qa-appearance-change", { detail: { preference: sessionPreferenceRef.current, restoredForUser: true } }));
+  }, [username, restoredForUser, appearanceRevision]);
+
+  useEffect(() => {
+    if (!username || restoredForUser !== username) return;
+    // A temporary rendering fallback is never a new preference for a Special theme.
+    if (isSpecialTheme(selectedTheme) && (!specialUsage.ready || !specialUsage.unlocked)) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof window.setTimeout> | undefined;
+    const sync = (event?: Event) => {
+      const preference = (event as CustomEvent | undefined)?.detail?.preference;
+      if (typeof preference === "string") sessionPreferenceRef.current = preference;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        const snapshot = getCurrentThemePreferenceSnapshot(selectedTheme, sessionPreferenceRef.current);
+        const signature = [username, snapshot.themeId, snapshot.themePreference, snapshot.themeCollection].join("|");
+        if (lastSignatureRef.current === signature) return;
+        lastSignatureRef.current = signature;
+        const accountEpoch = accountEpochRef.current;
+        saveQueueRef.current = saveQueueRef.current.then(async () => {
+          if (accountEpochRef.current !== accountEpoch) return;
+          try {
+            await persistUserThemePreference(username, snapshot);
+            window.dispatchEvent(new Event("qa-theme-usage-updated"));
+          } catch (error) {
+            if (accountEpochRef.current === accountEpoch && lastSignatureRef.current === signature) lastSignatureRef.current = "";
+            console.warn("User theme preference save skipped", error);
+          }
+        });
+      }, 0);
+    };
+    window.addEventListener("qa-appearance-change", sync);
+    window.addEventListener("online", sync);
+    sync();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener("qa-appearance-change", sync);
+      window.removeEventListener("online", sync);
+    };
+  }, [username, restoredForUser, selectedTheme, specialUsage.ready, specialUsage.unlocked, appearanceRevision]);
+
+  const selectTheme = (themeId: QaThemeId) => {
+    if (isSpecialTheme(themeId) && (!specialUsage.ready || !specialUsage.unlocked)) return;
+    selectionRevisionRef.current += 1;
+    sessionPreferenceRef.current = "";
+    try {
+      window.localStorage.setItem(QA_THEME_STORAGE_KEY, themeId);
+      window.localStorage.removeItem(QA_CUSTOM_THEME_STORAGE_KEY);
+    } catch {}
+    setSelectedTheme(themeId);
+    setAppearanceRevision(revision => revision + 1);
+  };
+  return [selectedTheme, selectTheme] as const;
 }
 
 const VALID_APP_TABS = new Set<AppTab>([
@@ -3644,11 +3794,11 @@ function ThemePickerModal({
 
 export default function App() {
   const [globalSidebarCollapsed, setGlobalSidebarCollapsed] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState<QaThemeId>(() => readStoredQaTheme());
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [storedUserCandidate] = useState<CurrentUser | null>(() => readStoredUser());
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const specialUsage = useSpecialThemeUsage(currentUser?.username);
+  const [selectedTheme, setSelectedTheme] = useUserThemePreference(currentUser?.username, specialUsage);
   const [coachingAssignmentAllowed, setCoachingAssignmentAllowed] = useState(false);
   const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
   const [coachingAppointmentsOpen, setCoachingAppointmentsOpen] = useState(false);
@@ -3767,131 +3917,6 @@ export default function App() {
         : sidebarThemeCollection === "weather"
           ? "Weather Collection"
           : activeThemePreviewOption.label;
-
-  useLayoutEffect(() => {
-    document.documentElement.dataset.qaTheme = selectedTheme;
-    try {
-      window.localStorage.setItem(QA_THEME_STORAGE_KEY, selectedTheme);
-    } catch {
-      // Theme still applies for the current session when storage is unavailable.
-    }
-  }, [selectedTheme]);
-
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    root.dataset.qaSpecialUnlocked = currentUser && specialUsage.unlocked ? "true" : "false";
-    const syncSkin = () => {
-      const id = root.dataset.qaTheme || "";
-      if (root.dataset.qaSpecialUnlocked === "true" && isSpecialTheme(id)) {
-        if (root.dataset.qaSpecialTheme !== id) root.dataset.qaSpecialTheme = id;
-      } else if (root.dataset.qaSpecialTheme) delete root.dataset.qaSpecialTheme;
-    };
-    syncSkin();
-    const observer = new MutationObserver(syncSkin);
-    observer.observe(root, { attributes: true, attributeFilter: ["data-qa-theme", "data-qa-special-unlocked"] });
-    return () => { observer.disconnect(); delete root.dataset.qaSpecialTheme; root.dataset.qaSpecialUnlocked = "false"; };
-  }, [currentUser?.username, specialUsage.unlocked]);
-
-  useEffect(() => {
-    if ((!currentUser?.username || specialUsage.ready && !specialUsage.unlocked) && isSpecialTheme(selectedTheme)) setSelectedTheme("robinhood");
-  }, [currentUser?.username, specialUsage.ready, specialUsage.unlocked, selectedTheme]);
-
-  const lastThemePreferenceSignatureRef = useRef("");
-
-  useEffect(() => {
-    if (!currentUser?.username) return;
-    let cancelled = false;
-
-    const restoreUserThemePreference = async () => {
-      try {
-        const profileSnapshot = await getDoc(doc(firebaseDb, "qa_user_profiles", currentUser.username));
-        if (cancelled) return;
-
-        if (profileSnapshot.exists()) {
-          const profile = profileSnapshot.data() as any;
-          const storedThemeId = String(profile.themeId || profile.theme_id || "");
-          const storedPreference = String(profile.themePreference || profile.theme_preference || "");
-          const hasStoredTheme = QA_THEME_OPTIONS.some((theme) => theme.id === storedThemeId);
-
-          const storedThemeAllowed = !isSpecialTheme(storedThemeId) || hasSpecialThemeAccess(profile);
-          if (hasStoredTheme && storedThemeAllowed) {
-            setSelectedTheme(storedThemeId as QaThemeId);
-          } else if (hasStoredTheme) {
-            setSelectedTheme("robinhood");
-          }
-
-          try {
-            if (storedPreference === "weather-auto" || storedPreference === "weekday-auto" || /^weekday-/.test(storedPreference)) {
-              window.localStorage.setItem(QA_CUSTOM_THEME_STORAGE_KEY, storedPreference);
-            } else if (hasStoredTheme) {
-              window.localStorage.removeItem(QA_CUSTOM_THEME_STORAGE_KEY);
-            }
-          } catch {
-            // Keep the current session preference if storage is unavailable.
-          }
-
-          if (hasStoredTheme || storedPreference) {
-            const signature = [
-              currentUser.username,
-              hasStoredTheme ? storedThemeId : selectedTheme,
-              storedPreference,
-              themeCollectionFromProfile(profile),
-            ].join("|");
-            lastThemePreferenceSignatureRef.current = signature;
-            window.dispatchEvent(new CustomEvent("qa-appearance-change", {
-              detail: { preference: storedPreference || storedThemeId, restoredForUser: true },
-            }));
-            return;
-          }
-        }
-
-        const initialSnapshot = getCurrentThemePreferenceSnapshot(selectedTheme);
-        await persistUserThemePreference(currentUser.username, initialSnapshot);
-        if (cancelled) return;
-        lastThemePreferenceSignatureRef.current = [
-          currentUser.username,
-          initialSnapshot.themeId,
-          initialSnapshot.themePreference,
-          initialSnapshot.themeCollection,
-        ].join("|");
-        window.dispatchEvent(new Event("qa-theme-usage-updated"));
-      } catch (error) {
-        console.warn("User theme preference restore skipped", error);
-      }
-    };
-
-    void restoreUserThemePreference();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUser?.username]);
-
-  useEffect(() => {
-    if (!currentUser?.username) return;
-
-    const syncThemePreferenceToUser = () => {
-      window.setTimeout(() => {
-        const snapshot = getCurrentThemePreferenceSnapshot(selectedTheme);
-        const signature = [
-          currentUser.username,
-          snapshot.themeId,
-          snapshot.themePreference,
-          snapshot.themeCollection,
-        ].join("|");
-        if (lastThemePreferenceSignatureRef.current === signature) return;
-        lastThemePreferenceSignatureRef.current = signature;
-        void persistUserThemePreference(currentUser.username, snapshot)
-          .then(() => window.dispatchEvent(new Event("qa-theme-usage-updated")))
-          .catch((error) => {
-            lastThemePreferenceSignatureRef.current = "";
-            console.warn("User theme preference save skipped", error);
-          });
-      }, 0);
-    };
-
-    window.addEventListener("qa-appearance-change", syncThemePreferenceToUser);
-    return () => window.removeEventListener("qa-appearance-change", syncThemePreferenceToUser);
-  }, [currentUser?.username, selectedTheme]);
 
   // data-create-evaluation-multitab-v5
   const [maintenanceState, setMaintenanceState] = useState<MaintenanceState>(DEFAULT_MAINTENANCE_STATE);
