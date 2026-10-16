@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-16T04:52:08.115Z",
-  "reason": "ตรวจ UI คอมและมือถือ การนำ Tag ออก คืนกลับ ยืนยันบันทึก คงคะแนน ประวัติรอบเพิ่มเติม Reset และ Tag ปัจจุบันใน Case Detail PDF RawData และ Issue Tag Analysis",
+  "reviewedAt": "2026-10-16T07:54:08.374Z",
+  "reason": "ตรวจสรุปอุทธรณ์ราย Topic Action และความเข้ากันได้กับ QA Access build transform ครบทั้ง props types และ case values",
   "contentChanged": true,
   "reviewedChapters": [
-    "appeal-review",
-    "case-detail"
+    "case-detail",
+    "appeal-review"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -297,7 +297,7 @@
     "scripts/sync-v13-rowdata.mjs": "a777f7348ca4bf130904421f22b029d7e61ceecb9b3b41f193eef2a050859567",
     "scripts/test-appeal-action-pdf.mjs": "092a30f7f67e8843ce8f02ccc6d88395364cc7c10fafe7d773bcf2832c3af941",
     "scripts/test-appeal-evidence-upload.mjs": "f24c2fa08ad45e2e1162c04433ac087d6eaa257ec6690851d4a1fb4db77d16e6",
-    "scripts/test-appeal-topic-review.mjs": "ec84f0caad9a4b784cd2837ec62595cb6f145c53945767caf510cae8437f01a5",
+    "scripts/test-appeal-topic-review.mjs": "00292d1b1bb98a80dcf187b31588e0a3f0f99fe9c2baab9f116035f47c8dbfec",
     "scripts/test-appeal-workflow.mjs": "10bb1047860508632c053b173633062cab510fa3906411aeadcd726d0db9e796",
     "scripts/test-assessment-inline-images.mjs": "849ba8936f3178095cdac77ae3aef7f5ab9b4f2495d0cbeb1c44e9c00e68c704",
     "scripts/test-bulk-monthly-pdf.mjs": "c208842bd72e1825615041ac6398fc100b6cdba40628b71d49a0a7ef0855ffc6",
@@ -347,7 +347,7 @@
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
     "src/CorporateUserDirectoryProfile.tsx": "cf8869f24169ce2a37d4237c4b56070c093bb4cd41bbd83bc8dc1b8fccc47426",
     "src/CreateEvaluationMockup.tsx": "205c271cb49f59781229727f49df3499bb43b2cd372c0af6cba4b3d6d696d7e3",
-    "src/DashboardMockup.tsx": "a18e87cada3540fa94df1114736c92948d424d55416215c00a51f6076a98d555",
+    "src/DashboardMockup.tsx": "34a2fc637fa206bba691dfa832af5b26d7ad6a280d9d730b434cff1e19e4e537",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
@@ -427,7 +427,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "9d6151a04cc6741a9ce59d5163fabcaca4e7a68c586e1c924ea79cace2444711",
+    "src/knowledge/manual.json": "8ec10d7f140de9bbdc3593927032d8d4ed233cc2d4ad7aef5e4adff9b7fce1ab",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",

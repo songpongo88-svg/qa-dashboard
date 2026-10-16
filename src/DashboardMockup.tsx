@@ -2600,6 +2600,7 @@ function CaseDetailTopicTable({
   reviewStatus,
   displayRevisedTopicCodes = [],
   appealActionHistory = [],
+  appealReviewSummary,
   appealStatus,
   appealReviewedTopics,
   appealSubmittedBy,
@@ -2621,6 +2622,7 @@ function CaseDetailTopicTable({
   reviewStatus?: ReviewStatus;
   displayRevisedTopicCodes?: string[];
   appealActionHistory?: readonly AppealAction[];
+  appealReviewSummary?: string;
   appealStatus?: AppealDecision;
   appealReviewedTopics?: AppealReviewedTopic[] | null;
   appealSubmittedBy?: string;
@@ -2819,6 +2821,10 @@ function CaseDetailTopicTable({
                         fallback={row.rejectedReviewTopic ? "ไม่พบ Reject Reason" : "ยังไม่มี Revised Comment"}
                       />
                     </div>
+                    {String(appealReviewSummary || "").trim() ? <div data-appeal-review-summary="legacy-topic" className="mt-3 border-t border-slate-200 pt-3 text-xs leading-6">
+                      <div className="font-bold">Review Summary</div>
+                      <RichTextContent value={appealReviewSummary} preserveWhitespace className="mt-1 break-words" />
+                    </div> : null}
                     {row.appealReviewTopic.qaEvidenceImages?.length ? (
                       <div className="mt-3 border-t border-violet-200 pt-3">
                         <div className="text-[13px] font-semibold">รูปหลักฐานที่ QA แนบประกอบ {row.rejectedReviewTopic ? "Reject Reason" : "Revised Comment"}</div>
@@ -3845,44 +3851,15 @@ function CaseHeaderAction({ label, tooltip, icon, tone = "slate", href, onClick,
   return <CaseActionTooltip text={tooltip}>{href ? <a href={href} target="_blank" rel="noreferrer" aria-label={label} className={className}>{content}</a> : <button type="button" aria-label={label} onClick={onClick} disabled={disabled} className={className}>{content}</button>}</CaseActionTooltip>;
 }
 
-// Display QA's original wording, paragraphs and simple **bold** markup without
-// treating user-supplied review text as executable HTML.
-function AppealReviewSummaryPanel({ value, status }: { value: string; status: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const source = String(value || "").trim();
-  if (!source) return null;
-  const isHtml = /<\/?(?:div|p|br|strong|b|em|span|ul|ol|li)\b/i.test(source);
-  const structured = source
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t]*(?=\*\*(?:Topic\s*\d+|สรุปผลอุทธรณ์|สรุปผลการอุทธรณ์|Final Score|Critical Error))/gi, "\n\n")
-    .trim();
-  const paragraphs = structured.split(/\n{2,}/).map(text => text.trim()).filter(Boolean);
-  const renderInline = (text: string) => text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
-    part.startsWith("**") && part.endsWith("**")
-      ? <strong key={index} className="font-extrabold">{part.slice(2, -2)}</strong>
-      : <React.Fragment key={index}>{part}</React.Fragment>
-  );
-  const dark = status === "Rejected";
-  return (
-    <div className={"mt-3 rounded-xl border bg-white/85 p-3 text-sm leading-7 " + (dark ? "border-rose-200 text-rose-900" : "border-emerald-200 text-emerald-900")}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-extrabold">Review Summary</span>
-        <button type="button"
-          aria-expanded={expanded}
-          onClick={() => setExpanded(previous => !previous)}
-          className={"rounded-lg border bg-white px-3 py-1 text-xs font-bold hover:opacity-80 " + (dark ? "border-rose-200 text-rose-700" : "border-emerald-200 text-emerald-700")}>
-          {expanded ? "ย่อรายละเอียด ▲" : "ดูรายละเอียด ▼"}
-        </button>
-      </div>
-      {expanded ? (
-        <div className="mt-3 space-y-3 border-t border-current/10 pt-3">
-          {isHtml ? <RichTextContent value={source} preserveWhitespace className="break-words leading-7" /> : paragraphs.map((paragraph, i) => (
-            <p key={i} className="whitespace-pre-wrap break-words leading-7">{renderInline(paragraph)}</p>
-          ))}
-        </div>
-      ) : <p className="mt-1 text-xs opacity-75">กดดูรายละเอียดเพื่ออ่านผลการพิจารณาฉบับเต็ม</p>}
-    </div>
-  );
+// The case header keeps a compact status; review text belongs to its Topic/Action.
+function CaseAppealStatusBadge({ status, additional }: { status?: AppealDecision; additional?: { submitted: boolean } | null }) {
+  const label = additional ? `Additional Appeal · ${additional.submitted ? "Pending" : "Open"}`
+    : status ? `Appeal ${status}` : "Appeal Submitted";
+  const tone = additional || !status ? "border-amber-200 bg-amber-50 text-amber-800"
+    : status === "Rejected" ? "border-rose-200 bg-rose-50 text-rose-700"
+    : status === "Approved" ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-violet-200 bg-violet-50 text-violet-700";
+  return <span data-case-appeal-status={additional ? "additional" : status || "Pending"} className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${tone}`}>{label}</span>;
 }
 
 function SlideOverCaseDetail({
@@ -5025,7 +5002,7 @@ function SlideOverCaseDetail({
                   </CaseActionTooltip> : monthlyResult.message ? <CaseActionTooltip text={monthlyResult.message}>
                     <span role="status" tabIndex={0} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800">ตรวจสอบสถานะไม่สำเร็จ</span>
                   </CaseActionTooltip> : null}
-                  {appealRequestExists ? <span className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700">Appeal Submitted</span> : null}
+                  {appealRequestExists || caseItem.appealStatus || caseItem.appealAdditionalActive ? <CaseAppealStatusBadge status={caseItem.appealStatus} additional={caseItem.appealAdditionalActive} /> : null}
                 </div>
                 <div className="mt-2 text-[11px] text-slate-500">{caseItem.weekLabel || "-"}</div>
               </div>
@@ -5063,30 +5040,7 @@ function SlideOverCaseDetail({
         </div>
 
         <div className={embedded ? "space-y-3 p-3 lg:p-4" : "flex-1 overflow-y-auto space-y-3 p-3 lg:p-4"}>
-          <section data-case-detail-priority-v53="true" data-case-detail-compact-v54="true" data-case-detail-overview-v55="true" className="mx-auto w-full max-w-[1460px] space-y-3">
-            {caseItem.appealStatus === "Rejected" ? (
-              <div className="rounded-[18px] border border-rose-300 bg-rose-50 px-4 py-3 text-rose-800 shadow-sm">
-                <div className="text-sm font-extrabold text-rose-700">Appeal Rejected</div>
-                <div className="mt-1 text-sm font-semibold leading-6">
-                  คำขออุทธรณ์ของเคสนี้ไม่ได้รับการอนุมัติ คะแนนและผลการประเมินยังคงเป็นข้อมูลเดิม
-                </div>
-                {caseItem.appealReviewedAt ? (
-                  <div className="mt-2 text-xs font-semibold text-rose-600">Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}</div>
-                ) : null}
-                <AppealReviewSummaryPanel value={caseItem.appealReviewSummary || ""} status="Rejected" />
-              </div>
-            ) : caseItem.appealStatus === "Approved" || caseItem.appealStatus === "Partially Approved" ? (
-              <div className="rounded-[18px] border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 shadow-sm">
-                <div className="text-sm font-extrabold text-emerald-700">Appeal {caseItem.appealStatus}</div>
-                <div className="mt-1 text-sm font-semibold leading-6">
-                  {caseItem.appealStatus === "Partially Approved" ? "อนุมัติบางหัวข้อ คะแนนปรับเฉพาะข้อที่ Approved ส่วนข้อที่ Reject คงคะแนนเดิม" : "ผลการพิจารณาอุทธรณ์ได้รับการอนุมัติ และถูกนำมาใช้ใน Case Detail แล้ว"}
-                </div>
-                {caseItem.appealReviewedAt ? (
-                  <div className="mt-2 text-xs font-semibold text-emerald-600">Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}</div>
-                ) : null}
-                <AppealReviewSummaryPanel value={caseItem.appealReviewSummary || ""} status={caseItem.appealStatus || ""} />
-              </div>
-            ) : null}
+          <section data-case-detail-priority-v53="true" data-case-detail-compact-v54="true" data-case-detail-overview-v55="true" data-case-appeal-summary-placement="topic-action" className="mx-auto w-full max-w-[1460px] space-y-3">
 
             <div data-case-information-unified="true" className="overflow-hidden rounded-[20px] border shadow-sm" style={{ background: "var(--weekday-surface, var(--qa-theme-50, #ffffff))", borderColor: "var(--weekday-accent-soft, var(--qa-theme-200, #e2e8f0))" }}>
             <div>
@@ -5288,6 +5242,7 @@ function SlideOverCaseDetail({
                 reviewStatus={caseItem.reviewStatus}
                 displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
                 appealActionHistory={appealExistingRequest?.actionHistory || caseItem.appealActionHistory}
+                appealReviewSummary={caseItem.appealReviewSummary}
                 appealStatus={caseItem.appealStatus}
                 appealReviewedTopics={caseItem.appealReviewedTopics}
                 appealSubmittedBy={caseItem.appealSubmittedBy}

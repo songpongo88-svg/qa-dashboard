@@ -232,6 +232,42 @@ try {
   assert.ok(document.body.textContent.includes("Revised 3"));
   console.log("PASS Case Detail renders each topic's decision and correct approval/rejection comment");
 
+  const reviewAt = (event_type, time, details) => ({ event_type, case_id: submission.case_id, target_agent: "Test Agent", created_at: `2026-10-07T${time}:00Z`, details: { requestId: submission.details.requestId, ...details } });
+  const firstTopicApproved = { ...result.topics[0], revisedScore: 31 };
+  const firstTopicRetained = { ...firstTopicApproved, score: 31, originalScore: 29, decision: "Rejected", revisedScore: undefined, revisedComment: undefined, retainedComment: firstTopicApproved.revisedComment, rejectReason: "KEEP_PREVIOUS_TOPIC_RESULT" };
+  const newTopicApproved = { ...topics[1], decision: "Approved", revisedScore: 18, revisedComment: "NEW_TOPIC_APPROVED" };
+  const actionSummaryLogs = [onlySubmission,
+    reviewAt("appeal_request_reviewed", "02:10", { reviewId: "summary-first", decision: "Approved", topics: [firstTopicApproved], reviewSummary: "FIRST_TOPIC_FIRST_SUMMARY" }),
+    reviewAt("appeal_additional_round_opened", "03:00", { roundId: "summary-repeat", topics: [topics[0]], openedAt: "2026-10-07T03:00:00Z", expiresAt: "2026-10-10T03:00:00Z" }),
+    reviewAt("appeal_additional_evidence_submitted", "03:01", { roundId: "summary-repeat", topics: [topics[0]] }),
+    reviewAt("appeal_request_reviewed", "03:02", { roundId: "summary-repeat", reviewId: "summary-reject", decision: "Rejected", topics: [firstTopicRetained], reviewSummary: "FIRST_TOPIC_REJECT_SUMMARY" }),
+    reviewAt("appeal_additional_round_opened", "04:00", { roundId: "summary-new-topic", topics: [topics[1]], openedAt: "2026-10-07T04:00:00Z", expiresAt: "2026-10-10T04:00:00Z" }),
+    reviewAt("appeal_additional_evidence_submitted", "04:01", { roundId: "summary-new-topic", topics: [topics[1]] }),
+    reviewAt("appeal_request_reviewed", "04:02", { roundId: "summary-new-topic", reviewId: "summary-latest", decision: "Partially Approved", topics: [firstTopicRetained, newTopicApproved], reviewSummary: "SECOND_TOPIC_OWN_SUMMARY" }),
+  ];
+  const actionSummarySnapshot = JSON.stringify(actionSummaryLogs);
+  const summaryCase = dashboard.applyAppealMapsToCaseItems([baseCase], dashboard.buildApprovedAppealMergeMap(actionSummaryLogs, monthMap), dashboard.buildAppealOutcomeMap(actionSummaryLogs, monthMap))[0];
+  assert.equal(summaryCase.finalScore, 86);
+  await act(async () => root.render(React.createElement(dashboard.CaseDetailTopicTable, summaryCase)));
+  const topicDetails = [...document.querySelectorAll("details.group")];
+  assert.ok(topicDetails[0].textContent.includes("FIRST_TOPIC_FIRST_SUMMARY"));
+  assert.ok(topicDetails[0].textContent.includes("FIRST_TOPIC_REJECT_SUMMARY"));
+  assert.ok(!topicDetails[0].textContent.includes("SECOND_TOPIC_OWN_SUMMARY"), "the latest whole-case summary must not replace a previous topic's Action summaries");
+  assert.ok(topicDetails[1].textContent.includes("SECOND_TOPIC_OWN_SUMMARY"));
+  assert.ok(!topicDetails[1].textContent.includes("FIRST_TOPIC_FIRST_SUMMARY"));
+  assert.equal(topicDetails[0].textContent.split("Review Summary:").length - 1, 2, "one summary per saved Action");
+  assert.equal(topicDetails[1].textContent.split("Review Summary:").length - 1, 1, "the new topic starts its own history");
+  assert.equal(document.querySelectorAll('[data-appeal-review-summary="legacy-topic"]').length, 0, "Action history suppresses the legacy summary fallback");
+  assert.equal(JSON.stringify(actionSummaryLogs), actionSummarySnapshot);
+  for (const status of ["Approved", "Rejected"]) {
+    const legacy = { ...summaryCase, appealActionHistory: [], appealStatus: status, appealReviewSummary: "LEGACY_REVIEW_SUMMARY", appealReviewedTopics: summaryCase.appealReviewedTopics.map(topic => ({ ...topic, decision: status })) };
+    await act(async () => root.render(React.createElement(dashboard.CaseDetailTopicTable, legacy)));
+    const summaries = [...document.querySelectorAll('[data-appeal-review-summary="legacy-topic"]')];
+    assert.equal(summaries.length, 2, `${status}: old requests without Action records keep their summary under the reviewed topics`);
+    assert.ok(summaries.every(node => node.closest("details.group") && node.textContent.includes("LEGACY_REVIEW_SUMMARY")));
+  }
+  console.log("PASS Case Detail keeps each Topic/Action's own Approved/Reject summary, isolates a new topic, preserves scores/history, and retains legacy summaries without duplicate fallbacks");
+
   const olderSubmission={...submission,id:'older-submission',case_id:'AA990069',created_at:'2026-10-07T01:00:00Z',details:{...submission.details,requestId:'older-appeal',submittedAt:'2026-10-07T01:00:00Z'}};
   const newerSubmission={...submission,id:'newer-submission',case_id:'AA990071',created_at:'2026-10-07T03:00:00Z',details:{...submission.details,requestId:'newer-appeal',submittedAt:'2026-10-07T03:00:00Z'}};
   globalThis.__appealFixtureLogs = [newerSubmission,submission,olderSubmission];
