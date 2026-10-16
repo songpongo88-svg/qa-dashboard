@@ -71,6 +71,10 @@ try {
   }
   const stages = APPEAL_WORKFLOW_STATUSES.filter(value => value !== "Partially Approved" && value !== "Rejected");
   fixture.logs = stages.flatMap((stage, index) => events(`AA990${String(index).padStart(3, "0")}`, stage));
+  fixture.logs[0].details.topics = [{ ...topic, evidenceImages: [{
+    id: "evidence-original", name: "original.png", size: 1024, width: 1, height: 1,
+    url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+  }] }];
   const projected = buildAppealRequests(fixture.logs, now);
   assert.deepEqual(projected.map(appealWorkflowStatus).sort(), [...stages].sort());
   assert.equal(projected.find(row => appealWorkflowStatus(row) === "Awaiting Additional Submission").status, "Approved", "permission never changes the scored review result");
@@ -96,18 +100,41 @@ try {
   const click = async element => { assert.ok(element, "expected UI control exists"); await act(async () => element.dispatchEvent(new MouseEvent("click", { bubbles: true }))); };
   const button = text => [...document.querySelectorAll("button")].find(node => node.textContent.trim() === text);
   const select = async (element, value) => { await act(async () => { element.value = value; element.dispatchEvent(new Event("change", { bubbles: true })); }); };
+  await render(qa, { allowReview: false });
+  assert.equal(document.querySelector('select[aria-label="Status"]').value, "All");
+  assert.equal(document.querySelector('option[value="QaPending"]'), null);
   await render(qa);
-  assert.equal(rows().length, stages.length + 1);
   const filter = document.querySelector('select[aria-label="Status"]');
+  assert.equal(filter.value, "QaPending", "QA defaults to its tasks when review permission finishes loading");
+  assert.equal(rows().length, 5, "the inbox includes initial/additional reviews, permission requests and incomplete legacy approvals");
+  const inboxCases = rows().map(row => row.querySelector("td").textContent.replace("↗", "").trim());
+  assert.deepEqual(new Set(inboxCases), new Set(["AA990000", "AA993333", "AA990001", "AA990003", "AA990004"]));
+  assert.ok(inboxCases.indexOf("AA990000") < inboxCases.indexOf("AA990001"), "old initial reviews precede recent permission requests");
+  assert.ok(inboxCases.indexOf("AA990001") < inboxCases.indexOf("AA990003"), "older permission requests precede recent additional submissions");
+  await click(rows().find(row => row.textContent.includes("AA990000")));
+  assert.equal(document.querySelector('[aria-label="รูปภาพหลักฐานคำขออุทธรณ์"]'), null, "selecting a case never creates a gallery above the list");
+  assert.equal(document.querySelectorAll('button[aria-label^="ดูรูป "]').length, 0, "Information stays compact without duplicate evidence");
+  await click(button("เปิดรายละเอียดอุทธรณ์ ↗"));
+  const evidenceButton = document.querySelector('[data-appeal-topic="1"] button[aria-label^="ดูรูป "]');
+  await click(evidenceButton);
+  assert.equal(document.querySelector('[aria-label="ดูรูปภาพหลักฐาน"] img').src, fixture.logs[0].details.topics[0].evidenceImages[0].url, "the Topic/Action viewer opens the original saved evidence URL");
+  await click(button("ปิด"));
+  await select(filter, "All");
+  assert.equal(rows().length, stages.length + 1);
+  await click(button("Refresh"));
+  assert.equal(filter.value, "All", "refresh preserves an explicitly selected history filter");
+  assert.equal(rows().length, stages.length + 1);
   for (const stage of stages) {
     await select(filter, stage);
     assert.equal(rows().length, stage === "Pending" ? 2 : 1, `real Status dropdown filters ${stage}`);
   }
   await select(filter, "All");
-  console.log("PASS actual production component Status control filters every stage using the displayed status");
+  console.log("PASS QA task default, delayed permission, oldest tasks first, explicit history selection, every Status filter and Topic/Action evidence without a duplicate list gallery");
 
   for (const role of ["Admin Live Chat", "Admin", "Agent", "Custom Role"]) {
     await render({ username: "alpha", agentName: "Alpha Agent", role });
+    assert.equal(document.querySelector('select[aria-label="Status"]').value, "All", `${role} keeps its full scoped history by default`);
+    assert.equal(document.querySelector('option[value="QaPending"]'), null);
     assert.ok(rows().length);
     assert.ok(rows().every(row => !row.textContent.includes("Bravo Agent")));
     await click(rows().find(row => row.textContent.includes("อนุมัติแล้ว · รอ Admin ยื่นเพิ่ม")));
@@ -145,6 +172,9 @@ try {
   assert.equal(appealWorkflowStatus(buildAppealRequests(fixture.logs)[stages.indexOf("Request Additional Appeal")]), "Awaiting Additional Submission");
   await render(qa, { externalRequestId: submitted.requestId });
   assert.ok(document.querySelector('[aria-label="ขั้นตอนอุทธรณ์ปัจจุบัน"]').textContent.includes("ยื่นเพิ่มแล้ว"), "deep link opens the actual selected request");
+  const completed = projected.find(row => appealWorkflowStatus(row) === "Approved");
+  await render(qa, { externalRequestId: completed.requestId });
+  assert.ok(document.querySelector('[aria-label="ขั้นตอนอุทธรณ์ปัจจุบัน"]').textContent.includes("อนุมัติผลอุทธรณ์"), "completed-case deep links remain accessible outside the default QA task filter");
   const incomplete = projected.find(row => appealWorkflowStatus(row) === "Approved (Access)");
   await render(qa, { externalRequestId: incomplete.requestId });
   await click(button("เปิดสิทธิ์ที่อนุมัติค้าง"));
@@ -298,6 +328,7 @@ try {
   assert.equal(retained.actionHistory[1].reviews[0].finalScore, 88);
   await click(button("รับทราบ"));
   await render(qa, { key: "retained-score-information" });
+  await select(document.querySelector('select[aria-label="Status"]'), "All");
   await click([...document.querySelectorAll('tbody tr')].find(node => node.textContent.includes("AA994444")));
   const currentScoreLabel = [...document.querySelectorAll('div')].find(node => node.textContent === "Current Score");
   assert.equal(currentScoreLabel.nextElementSibling.textContent, "88.00", "case summary keeps the retained total after saved rejection");

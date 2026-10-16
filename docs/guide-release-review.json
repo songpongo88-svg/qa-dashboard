@@ -1,10 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-16T07:54:08.374Z",
-  "reason": "ตรวจสรุปอุทธรณ์ราย Topic Action และความเข้ากันได้กับ QA Access build transform ครบทั้ง props types และ case values",
+  "reviewedAt": "2026-10-16T08:22:06.475Z",
+  "reason": "Default QA actionable appeal inbox and scope evidence to each Topic Action; verified role filters, images and existing history access",
   "contentChanged": true,
   "reviewedChapters": [
-    "case-detail",
     "appeal-review"
   ],
   "termsVersions": {
@@ -298,7 +297,7 @@
     "scripts/test-appeal-action-pdf.mjs": "092a30f7f67e8843ce8f02ccc6d88395364cc7c10fafe7d773bcf2832c3af941",
     "scripts/test-appeal-evidence-upload.mjs": "f24c2fa08ad45e2e1162c04433ac087d6eaa257ec6690851d4a1fb4db77d16e6",
     "scripts/test-appeal-topic-review.mjs": "00292d1b1bb98a80dcf187b31588e0a3f0f99fe9c2baab9f116035f47c8dbfec",
-    "scripts/test-appeal-workflow.mjs": "10bb1047860508632c053b173633062cab510fa3906411aeadcd726d0db9e796",
+    "scripts/test-appeal-workflow.mjs": "21a08d794144b961d090a8d119468891a325183e127da266e4b716c13bfe4021",
     "scripts/test-assessment-inline-images.mjs": "849ba8936f3178095cdac77ae3aef7f5ab9b4f2495d0cbeb1c44e9c00e68c704",
     "scripts/test-bulk-monthly-pdf.mjs": "c208842bd72e1825615041ac6398fc100b6cdba40628b71d49a0a7ef0855ffc6",
     "scripts/test-call-recording-save.mjs": "2fe5289994b8b6300c9c9d0aea8de29b540b401f336d08819ce33bd9c3c77b04",
@@ -334,7 +333,7 @@
     "src/AppealIssueTags.tsx": "62fa947120cc314ebf3b8153a2fada6ad07aac32fc74a7ebb7fdc432e8a8c4a5",
     "src/AppealMockup.tsx": "8b2eb22ac3142b72895a6bf13c5d43c025949b00d33ad20fef23d882161b614a",
     "src/AppealOverrideMockup.tsx": "7bf80aeae4041d6613eb98ada6e1dcd21600a8f02d9f48bc030da6225b6f0075",
-    "src/AppealRequestsMockup.tsx": "e910fe8ad0ffffec51a0b15f4fb6b2a7ec178f36533abda715f8ab86c48ce4cc",
+    "src/AppealRequestsMockup.tsx": "f8b213eb84bf63d4b504922d2c3fbe2ea6765f1ba66e62fe83733d089e6ff84a",
     "src/AppealReviewDialog.tsx": "b5669410ea8719adca6dcfa159add0c454a610214cd287e76cc61528a727e33c",
     "src/AppealScoreHoldNotice.tsx": "efad66ceace2acc153516f5aec423a51934b6ec36651a76afabf016c0075caf8",
     "src/AppealWorkflowNotice.tsx": "0fbdcfdf832715f99467ff93fc8d2c974acb44da2e618b21239af12c656c88dd",
@@ -387,7 +386,7 @@
     "src/appealReview.ts": "75f7add042ee34d0da4b9e8adef5d15f039ab1fe316dca2d80d1e6adebc5e147",
     "src/appealStore.ts": "16d7d95eb6e540b05acf2ebe7a6a99fe8d12005c7279d31bede7ffba71c711dc",
     "src/appealSummaryPdf.ts": "3f11c8a2e6d3b2a4997675b6bb2167129eb5619a24e3d16bc70129b3c73a129b",
-    "src/appealWorkflow.ts": "a33b9627baf577f01a954b19a428fe456f97c4f4bba8cc212b024f95be8e30d9",
+    "src/appealWorkflow.ts": "4d483bad3eb86409f526fdbd21ab95a0ded470daab05f9f4c1a8f7a150c924ff",
     "src/bulkCaseDetailPdf.ts": "041a9f3b433f17a94b7e2babf8c9843e4f0300a635bce6a4488d6029036b0750",
     "src/callRecordingState.ts": "aa1a60ff66293c77832defa28831b3b73aeb98c47307fa1a562e185630bb9629",
     "src/cartoonTheme.css": "d6748736b56145608cbb7caa1e78d765a4687f631c42ef956b5ea777c0e08385",
@@ -427,7 +426,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "8ec10d7f140de9bbdc3593927032d8d4ed233cc2d4ad7aef5e4adff9b7fce1ab",
+    "src/knowledge/manual.json": "87afa8589def313f92b2054e855e1184c419c3ee70de898206fbacefdaa054dc",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
