@@ -1,6 +1,7 @@
 import DateTime24Input from './DateTime24Input';
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import AnnouncementDetail, { announcementDetailUrl, type AnnouncementReaderUser } from "./AnnouncementDetail";
 import {
   deleteStoredAnnouncement,
   fetchAnnouncementReceipts,
@@ -450,17 +451,16 @@ function priorityClasses(priority: AnnouncementPriority) {
   };
 }
 
-function MediaPreview({ media, spotlight = false }: { media: AnnouncementMedia; spotlight?: boolean }) {
+function MediaPreview({ media, announcement, spotlight = false }: { media: AnnouncementMedia; announcement?: StoredAnnouncement; spotlight?: boolean }) {
   if (media.type === "image") {
-    return (
-      <a href={media.url} target="_blank" rel="noreferrer">
+    const image = (
         <img
           src={media.url}
           alt={media.label || "Announcement media"}
           className={spotlight ? "max-h-[72vh] w-full rounded-[26px] bg-slate-950 object-contain" : "max-h-[360px] w-full rounded-2xl border border-slate-200 bg-slate-50 object-contain"}
         />
-      </a>
     );
+    return announcement?.id ? <a href={announcementDetailUrl(announcement.id, media.id)} target="_blank" rel="noopener noreferrer" aria-label={`เปิดรูปและประกาศฉบับเต็ม: ${announcement.title}`}>{image}</a> : image;
   }
 
   if (media.type === "video") {
@@ -546,7 +546,18 @@ function emptyDraft(user: HubUser): StoredAnnouncement {
   };
 }
 
-export default function AnnouncementHub({
+function canReadAnnouncementDetail(item: StoredAnnouncement, user: AnnouncementReaderUser) {
+  return canManageAnnouncements(user) || (!item.archived && matchesTarget(item, user));
+}
+
+export default function AnnouncementHub(props: AnnouncementHubProps) {
+  const [route] = useState(() => new URLSearchParams(window.location.search));
+  const id = route.get("announcement")?.trim() || "";
+  return id ? createPortal(<AnnouncementDetail announcementId={id} mediaId={route.get("media") || ""} currentUser={props.currentUser} canRead={canReadAnnouncementDetail} />, document.body)
+    : <AnnouncementWorkspace {...props} />;
+}
+
+function AnnouncementWorkspace({
   currentUser,
   users,
   shortcutVisible,
@@ -1429,18 +1440,19 @@ export default function AnnouncementHub({
               </button>
 
               {spotlightMedia.type === "image" ? (
-                <button
-                  type="button"
-                  onClick={() => setMediaDescriptionOpen((current) => !current)}
+                <a
+                  href={announcementDetailUrl(popupMessage.id, spotlightMedia.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="block cursor-pointer bg-transparent p-0"
-                  aria-label="เปิดหรือปิดรายละเอียดประกาศ"
+                  aria-label={`เปิดรูปและประกาศฉบับเต็ม: ${popupMessage.title}`}
                 >
                   <img
                     src={spotlightMedia.url}
                     alt={spotlightMedia.label || popupMessage.title}
                     className="block max-h-[92vh] max-w-[94vw] object-contain"
                   />
-                </button>
+                </a>
               ) : (
                 <video
                   src={spotlightMedia.url}
@@ -1487,7 +1499,7 @@ export default function AnnouncementHub({
             {spotlightMode ? (
               <div className="flex h-[calc(94vh-92px)] flex-col overflow-hidden bg-slate-950">
                 <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-6">
-                  {spotlightMedia ? <div className="w-full"><MediaPreview media={spotlightMedia} spotlight /></div> : <div className="text-white">ไม่พบ Media</div>}
+                  {spotlightMedia ? <div className="w-full"><MediaPreview media={spotlightMedia} announcement={popupMessage} spotlight /></div> : <div className="text-white">ไม่พบ Media</div>}
                 </div>
                 {popupMessage.body ? (
                   <details className="border-t border-white/10 bg-slate-900 px-5 py-3 text-white">
@@ -1497,14 +1509,14 @@ export default function AnnouncementHub({
                 ) : null}
                 {popupMessage.media.length > 1 ? (
                   <div className="flex gap-3 overflow-x-auto border-t border-white/10 bg-slate-900 p-3">
-                    {popupMessage.media.slice(1).map((media) => <div key={media.id} className="min-w-[180px] max-w-[260px]"><MediaPreview media={media} /></div>)}
+                    {popupMessage.media.slice(1).map((media) => <div key={media.id} className="min-w-[180px] max-w-[260px]"><MediaPreview media={media} announcement={popupMessage} /></div>)}
                   </div>
                 ) : null}
               </div>
             ) : (
               <div className="max-h-[62vh] overflow-y-auto p-7">
                 <div className="whitespace-pre-wrap text-base leading-8 text-slate-700">{popupMessage.body}</div>
-                {popupMessage.media.length ? <div className="mt-6 space-y-4">{popupMessage.media.map((media) => <MediaPreview key={media.id} media={media} />)}</div> : null}
+                {popupMessage.media.length ? <div className="mt-6 space-y-4">{popupMessage.media.map((media) => <MediaPreview key={media.id} media={media} announcement={popupMessage} />)}</div> : null}
               </div>
             )}
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-7 py-5">
@@ -1649,7 +1661,7 @@ export default function AnnouncementHub({
                   <div className="min-h-[420px] rounded-[28px] border border-violet-100 bg-white p-6 shadow-sm">
                     {selectedMessage ? (
                       <>
-                        {selectedMessage.media[0]?.type === "image" ? <img src={selectedMessage.media[0].url} alt={selectedMessage.media[0].label || selectedMessage.title} className="mb-6 max-h-[420px] w-full rounded-[26px] bg-slate-950 object-contain" /> : null}
+                        {selectedMessage.media[0]?.type === "image" ? <div className="mb-6"><MediaPreview media={selectedMessage.media[0]} announcement={selectedMessage} /></div> : null}
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
                             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">
@@ -1679,7 +1691,7 @@ export default function AnnouncementHub({
                         {selectedMessage.media.length ? (
                           <div className="mt-6 space-y-4">
                             {selectedMessage.media.map((media) => (
-                              <MediaPreview key={media.id} media={media} />
+                              <MediaPreview key={media.id} media={media} announcement={selectedMessage} />
                             ))}
                           </div>
                         ) : null}
