@@ -47,6 +47,11 @@ export function appealWorkflowStatus(request: AppealWorkflowRequest): string {
   return request.lastAdditionalStatus || request.status;
 }
 
+export function isAppealQaTask(request: AppealWorkflowRequest): boolean {
+  return ["Pending", "Pending (Additional)", "Request Additional Appeal", "Approved (Access)"]
+    .includes(appealWorkflowStatus(request));
+}
+
 export function appealWorkflowLabel(status: string): string {
   const labels: Record<string, string> = {
     All: "ทุกสถานะ", Pending: "รอ QA พิจารณา", Draft: "ดึงกลับแก้ไข",

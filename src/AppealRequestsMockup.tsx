@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAdditionalAppealReasonOptions, fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent, writeAdditionalAppealAccessDecision } from "./appealStore";
-import { APPEAL_WORKFLOW_STATUSES, appealWorkflowStatus, appealWorkflowLabel, appealWorkflowTone, appealWorkflowActivityAt, scopeAppealRequests } from "./appealWorkflow";
+import { APPEAL_WORKFLOW_STATUSES, appealWorkflowStatus, appealWorkflowLabel, appealWorkflowTone, appealWorkflowActivityAt, isAppealQaTask, scopeAppealRequests } from "./appealWorkflow";
 import PageHero from "./PageHero";
 import AppealWorkflowNotice from "./AppealWorkflowNotice";
 import { resolveCaseAgentTeam, type CaseAgentDirectoryEntry } from "./lib/caseAgentTeam";
@@ -781,7 +781,10 @@ export default function AppealRequestsMockup({
   const [selectedAgentFilter, setSelectedAgentFilter] = useState("");
   const [selectedMonthFilter, setSelectedMonthFilter] = useState("all");
   const [searchCaseId, setSearchCaseId] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedStatusFilter, setStatusFilter] = useState<string | null>(null);
+  // Derive the default until explicitly selected, including while permissions load.
+  const statusFilter = selectedStatusFilter === "QaPending" && !allowReview
+    ? "All" : selectedStatusFilter ?? (allowReview ? "QaPending" : "All");
   const [accessDecision, setAccessDecision] = useState<"approve" | "reject" | null>(null);
   const [accessDecisionReason, setAccessDecisionReason] = useState("");
   const accessSavingRef = useRef(false);
@@ -951,6 +954,7 @@ export default function AppealRequestsMockup({
     .filter(item => !item.editingDraft)
     .sort((a,b) => (Date.parse(appealWorkflowActivityAt(a)) || 0) - (Date.parse(appealWorkflowActivityAt(b)) || 0));
   const pendingRequests = latestRequestsByCase.filter(item => ["Pending", "Pending (Additional)"].includes(appealWorkflowStatus(item)));
+  const qaPendingRequests = latestRequestsByCase.filter(isAppealQaTask);
   const reviewedRequests = latestRequestsByCase.filter(item =>
     ["Approved", "Rejected", "Partially Approved"].includes(appealWorkflowStatus(item)));
   const resetRequests = latestRequestsByCase.filter((item) => item.status === "Reset");
@@ -959,7 +963,8 @@ export default function AppealRequestsMockup({
   const agentOptions = [...new Set(requests.map(item => item.agent).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const monthOptions = [...new Set(requests.map(getAppealReviewMonthKey).filter(item=>item!=="unknown"))].sort((a,b)=>b.localeCompare(a));
   const visibleRequestsUnfiltered = statusFilter === "All" ? latestRequestsByCase :
-    latestRequestsByCase.filter(item => appealWorkflowStatus(item) === statusFilter);
+    statusFilter === "QaPending" ? qaPendingRequests :
+      latestRequestsByCase.filter(item => appealWorkflowStatus(item) === statusFilter);
   const visibleRequests = visibleRequestsUnfiltered.filter(item => (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
   const selectedWorkflowStatus = selectedRequest ? appealWorkflowStatus(selectedRequest) : "";
@@ -1588,22 +1593,13 @@ export default function AppealRequestsMockup({
           title="Appeal Review"
           subtitle="ตรวจคำขออุทธรณ์และบันทึกผลอนุมัติหรือปฏิเสธ"
         />
-        {selectedRequest?.topics.some(topic => topic.evidenceImages?.length) ? (
-          <section className="border-b border-violet-100 p-5" aria-label="รูปภาพหลักฐานคำขออุทธรณ์">
-            <div className="text-sm font-bold text-violet-700">รูปภาพหลักฐาน · {selectedRequest.caseId}</div>
-            {selectedRequest.topics.filter(topic => topic.evidenceImages?.length).map(topic => (
-              <div key={topic.code} className="mt-3"><div className="text-xs font-semibold">{topic.code} {topic.label}</div><AppealEvidenceGallery images={topic.evidenceImages || []} caseId={selectedRequest.caseId} startIndex={appealEvidenceStartIndex(selectedRequest.topics, topic.code)} /></div>
-            ))}
-          </section>
-        ) : null}
-
-
         <div
           className={standaloneRequestId
             ? "grid min-h-[640px] grid-cols-1 gap-0"
             : "grid min-h-[640px] gap-0 xl:grid-cols-[minmax(0,1.42fr)_minmax(520px,0.98fr)]"
           }
           data-appeal-review-layout="appeal-review-layout-v58"
+          data-appeal-evidence-scope="topic-action"
         >
           <div className={standaloneRequestId ? "hidden" : "min-w-0 border-r border-violet-100 p-5"}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -1635,6 +1631,7 @@ export default function AppealRequestsMockup({
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status</label>
                 <select aria-label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setSelectedRequestId(""); setDetailRequestId(""); }} className="w-full rounded-2xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-400">
+                  {allowReview && <option value="QaPending">รอฉันดำเนินการ ({qaPendingRequests.length})</option>}
                   <option value="All">ทุกสถานะ</option>
                   {APPEAL_WORKFLOW_STATUSES.map(status => <option key={status} value={status}>{appealWorkflowLabel(status)} ({latestRequestsByCase.filter(item => appealWorkflowStatus(item) === status).length})</option>)}
                 </select>
@@ -1679,7 +1676,7 @@ export default function AppealRequestsMockup({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {!visibleRequests.length ? (
-                      <tr><td colSpan={9} className="px-5 py-10 text-center text-sm text-slate-500">ไม่พบข้อมูลเคส</td></tr>
+                      <tr><td colSpan={9} className="px-5 py-10 text-center text-sm text-slate-500">{statusFilter === "QaPending" ? "ไม่มีเคสรอคุณดำเนินการในตัวกรองนี้" : "ไม่พบข้อมูลเคส"}</td></tr>
                     ) : visibleRequests.map((item) => (
                       <tr key={item.requestId} onClick={() => { setSelectedRequestId(item.requestId); setDetailRequestId(""); }} className={"cursor-pointer transition " + (selectedRequest?.requestId === item.requestId ? "bg-sky-50 ring-1 ring-inset ring-sky-400" : "bg-white hover:bg-slate-50")}>
                         <td className="px-2 py-3 text-[11px] font-extrabold text-slate-950">
