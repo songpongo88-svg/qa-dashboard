@@ -3,7 +3,7 @@ import { useFestivalTheme } from "./festivalThemes/store";
 import { FestivalIcon } from "./festivalThemes/Festival";
 import { SpecialCollection } from "./specialThemes/SpecialCollection";
 import { useSpecialThemeUsage, type SpecialUsage } from "./specialThemes/usage";
-import { SPECIAL_THEMES, SPECIAL_UNLOCK_MS, isSpecialTheme } from "./specialThemes/model.mjs";
+import { SPECIAL_THEMES, hasSpecialThemeAccess, isSpecialTheme } from "./specialThemes/model.mjs";
 import { WEEKDAY_IDS } from "./weekdayCollection.mjs";
 import { WeatherCollection, WeatherSidebarLabel } from "./weather/Weather";
 import "./themePickerCollections.css";
@@ -3813,7 +3813,7 @@ export default function App() {
           const storedPreference = String(profile.themePreference || profile.theme_preference || "");
           const hasStoredTheme = QA_THEME_OPTIONS.some((theme) => theme.id === storedThemeId);
 
-          const storedThemeAllowed = !isSpecialTheme(storedThemeId) || Number(profile.specialThemeUsageMs) >= SPECIAL_UNLOCK_MS;
+          const storedThemeAllowed = !isSpecialTheme(storedThemeId) || hasSpecialThemeAccess(profile);
           if (hasStoredTheme && storedThemeAllowed) {
             setSelectedTheme(storedThemeId as QaThemeId);
           } else if (hasStoredTheme) {

@@ -50,6 +50,10 @@ html .qa-theme-collection-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); 
 .qa-special-unlock-progress strong { font-size:13px; font-weight:500; }
 .qa-special-unlock-progress span,.qa-special-unlock-progress p { font-size:11px; line-height:1.7; }
 .qa-special-unlock-progress p { margin:8px 0 0; color:#526477; }
+.qa-special-unlock-progress .qa-special-quest-deadline { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; margin:0 0 12px; padding-bottom:10px; border-bottom:1px solid #d8dbe9; }
+.qa-special-quest-deadline strong { font-size:11px; }
+.qa-special-quest-deadline time { font-size:12px; font-weight:500; color:inherit; }
+.qa-special-unlock-progress[data-qa-special-quest-state="expired"] [role="status"] { font-weight:500; }
 .qa-special-unlock-progress progress { display:block; width:100%; height:7px; margin-top:12px; border:0; border-radius:8px; overflow:hidden; appearance:none; background:#dde0eb; }
 .qa-special-unlock-progress progress::-webkit-progress-bar { background:#dde0eb; }
 .qa-special-unlock-progress progress::-webkit-progress-value { background:#7650a1; border-radius:8px; }
