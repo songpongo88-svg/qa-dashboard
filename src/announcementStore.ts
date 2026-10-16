@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   serverTimestamp,
@@ -184,6 +185,12 @@ function normalizeReceipt(value: any, fallbackId = ""): AnnouncementReceipt {
 export async function fetchStoredAnnouncements() {
   const snapshot = await getDocs(collection(firebaseDb, ANNOUNCEMENT_COLLECTION));
   return normalizeAnnouncementSnapshot(snapshot.docs);
+}
+
+export async function fetchStoredAnnouncement(id: string): Promise<StoredAnnouncement | null> {
+  if (!id.trim() || id.includes("/")) return null;
+  const snapshot = await getDoc(doc(firebaseDb, ANNOUNCEMENT_COLLECTION, id));
+  return snapshot.exists() ? normalizeAnnouncement(snapshot.data(), snapshot.id) : null;
 }
 
 function normalizeAnnouncementSnapshot(
