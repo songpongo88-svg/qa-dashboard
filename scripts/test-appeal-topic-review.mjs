@@ -39,7 +39,7 @@ function loadDeclarations(file, names, bindings = {}) {
   return Function(...Object.keys(bindings), compiled)(...Object.values(bindings));
 }
 
-const helper = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision", "summarizeAppealDecisions", "appealScoreAfterReview", "prepareAppealReview"]);
+const helper = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision", "summarizeAppealDecisions", "appealScoreAfterReview", "prepareAppealReview", "appealIssueTagsBeforeReview", "appealTopicIssueTags", "appealIssueTagChanges", "appealIssueTagsChanged", "normalizeAppealIssueTags", "applyAppealIssueTagReviews"]);
 const actionHistory = loadDeclarations("../src/appealActionHistory.ts", ["buildAppealActionHistory", "topicAppealActions", "topicAppealActionNumber"], helper);
 const requestFunctions = loadDeclarations("../src/AppealRequestsMockup.tsx", ["buildAppealRequests", "exportAppealRows"], {
   ...actionHistory,
@@ -50,7 +50,7 @@ const topics = [
   { code: "2", label: "Answer", score: 16, max: 20, comment: "Original answer", wantsAppeal: true, appealReason: "Check answer" },
   { code: "3", label: "Follow-up", score: 20, max: 25, comment: "Original follow-up", wantsAppeal: true, appealReason: "Check follow-up" },
   { code: "4", label: "Communication", score: 17, max: 20, comment: "Original communication", wantsAppeal: false, appealReason: "ไม่อุทธรณ์หัวข้อนี้" },
-];
+].map((topic, index) => ({ ...topic, issueTags: [["ตรวจขั้นตอน", "เกิน SLA"], ["คำตอบคลาดเคลื่อน"], ["ติดตามล่าช้า"], []][index] }));
 const submission = { id: "submit-fixture", event_type: "appeal_request_submitted", case_id: "AA990070", target_agent: "Test Agent", created_at: "2026-10-07T02:00:00Z", details: {
   requestId: "fixture-1791338400000", topics, finalScore: 82, grade: "C", auditDate: "2026-10-06", submittedBy: "Test Agent", submittedByUsername: "test-agent",
 } };
@@ -90,13 +90,14 @@ assert.equal(globalThis.__exportedAppeals[0]["2 Revised Score"], "");
 console.log("PASS saved mixed decisions, evidence, old all-approved/all-rejected reviews, Reset and per-topic row export remain consistent");
 
 const policy = loadDeclarations("../src/lib/scoreIncentivePolicy.ts", ["scoreToGrade"]);
-const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "richTextToPlainText"], { React });
+const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "richTextToPlainText"], { React, ...React });
 const rubric = {};
 Function("exports", ts.transpileModule(fs.readFileSync(new URL("../src/lib/rubricVersions.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText)(rubric);
+const tagComponents = loadDeclarations("../src/AppealIssueTags.tsx", ["AppealIssueTagHistory", "AppealIssueTagEditor"], { React, ...helper });
 const actionTimeline = loadDeclarations("../src/AppealActionTimeline.tsx", ["AppealActionTimeline"], {
-  React, ...richText, ...actionHistory, AppealEvidenceGallery: () => null, appealEvidenceStartIndex: () => 0,
+  React, ...richText, ...actionHistory, ...tagComponents, AppealEvidenceGallery: () => null, appealEvidenceStartIndex: () => 0,
 });
 const dashboard = loadDeclarations("../src/DashboardMockup.tsx", ["buildApprovedAppealMergeMap", "buildAppealOutcomeMap", "applyAppealMapsToCaseItems", "CaseDetailTopicTable"], {
   ...actionTimeline,
@@ -175,6 +176,44 @@ for (const [scenario, consumerLogs, expectedScore, expectedTotal, expectedCommen
 }
 console.log("PASS Summary, signature documents, Coaching and exported scores/grades preserve prior approvals on Reject and use cumulative original baselines on a new approval");
 
+const tagReview = helper.prepareAppealReview(choices.map(topic => ({ ...topic, revisedScore: topic.score,
+  revisedIssueTags: topic.code === "1" ? ["เกิน SLA"] : [], revisedComment: topic.comment,
+})), 82);
+assert.equal(tagReview.finalScore, 82, "removing Tags does not recalculate manual scores");
+assert.ok(!Object.hasOwn(tagReview.topics[1], "revisedIssueTags"), "Reject discards stale Tag edits");
+assert.throws(() => helper.prepareAppealReview([{ ...choices[0], revisedIssueTags: ["new-unapproved-tag"] }], 82), /Tag.*ก่อนรอบนี้/);
+assert.equal(helper.appealTopicIssueTags({}), undefined, "legacy requests have an unknown snapshot");
+assert.deepEqual(helper.appealTopicIssueTags({ issueTags: ["original"], decision: "Approved", revisedIssueTags: [] }), [], "an intentional empty selection never restores the original");
+const tagEvent = { ...reviewEvent, details: { ...reviewEvent.details, topics: tagReview.topics } };
+const tagLogs = [tagEvent, submission];
+const tagRequest = requestFunctions.buildAppealRequests(tagLogs)[0];
+const currentTagRecords = helper.applyAppealIssueTagReviews([baseCase], [tagRequest]);
+assert.deepEqual(currentTagRecords[0].topics.slice(0, 3).map(topic => topic.issueTags), [["เกิน SLA"], ["คำตอบคลาดเคลื่อน"], []]);
+assert.deepEqual(helper.applyAppealIssueTagReviews([baseCase], requestFunctions.buildAppealRequests([reset, ...tagLogs]))[0].topics, baseCase.topics, "Reset uses original stored Tags");
+assert.deepEqual(topics[0].issueTags, ["ตรวจขั้นตอน", "เกิน SLA"], "the evaluation and submitted snapshots are immutable");
+for (const consumer of [dashboard.buildApprovedAppealMergeMap, summary.buildApprovedAppealMergeMap]) {
+  const row = consumer(tagLogs, monthMap).get(submission.case_id);
+  assert.equal(row.finalScore, 82);
+  assert.deepEqual(row.revisedTopics.find(topic => topic.code === "1").issueTags, ["เกิน SLA"]);
+  assert.deepEqual(row.revisedTopics.find(topic => topic.code === "3").issueTags, []);
+}
+assert.deepEqual(signature.buildSignatureApprovedAppealMap(tagLogs).get(submission.case_id).topics.find(topic => topic.code === "3").issueTags, []);
+globalThis.__scoreConsumerLogs = tagLogs;
+assert.deepEqual((await coaching.applyFirebaseAppeals([{ ...baseCase, evaluationMonthKey: "2026-10" }], new Set()))[0].topics.find(topic => topic.code === "3").issueTags, []);
+requestFunctions.exportAppealRows([tagRequest]);
+assert.equal(globalThis.__exportedAppeals[0]["1 Original Issue Tags"], "ตรวจขั้นตอน | เกิน SLA");
+assert.equal(globalThis.__exportedAppeals[0]["1 Current Issue Tags"], "เกิน SLA");
+assert.equal(globalThis.__exportedAppeals[0]["1 Removed Issue Tags"], "ตรวจขั้นตอน");
+const retainedTagTopic = { ...tagReview.topics[0], originalScore: topics[0].score, retainedIssueTags: ["เกิน SLA"], decision: "Rejected", revisedIssueTags: [], rejectReason: "No further change" };
+const retainedTagEvent = { ...tagEvent, created_at: "2026-10-07T04:00:00Z", details: { ...tagEvent.details, decision: "Rejected", topics: [retainedTagTopic, tagReview.topics[1], { ...tagReview.topics[2], originalScore: topics[2].score, retainedIssueTags: [], decision: "Rejected", rejectReason: "Keep prior outcome" }] } };
+const retainedTagLogs = [retainedTagEvent, ...tagLogs];
+const retainedTagRequest = requestFunctions.buildAppealRequests(retainedTagLogs)[0];
+assert.deepEqual(helper.applyAppealIssueTagReviews([baseCase], [retainedTagRequest])[0].topics.slice(0, 3).map(topic => topic.issueTags), [["เกิน SLA"], ["คำตอบคลาดเคลื่อน"], []], "additional rejection preserves previous removals");
+assert.deepEqual(dashboard.buildApprovedAppealMergeMap(retainedTagLogs, monthMap).get(submission.case_id).revisedTopics.find(topic => topic.code === "3").issueTags, []);
+assert.deepEqual(tagRequest.actionHistory[0].reviews[0].topics[0].issueTags, topics[0].issueTags);
+assert.deepEqual(tagRequest.actionHistory[0].reviews[0].topics[2].revisedIssueTags, []);
+console.log("PASS Tag-only approval, all-removed Tags, Reject, additional rejection, immutable history, Reset and every data consumer preserve effective Tags without changing scores");
+
 const dom = new JSDOM("<div id='root'></div>", { url: "https://qa.test" });
 const keys = ["window", "document", "HTMLElement", "HTMLInputElement", "Event", "MouseEvent", "HTMLTextAreaElement", "HTMLSelectElement", "CustomEvent"];
 const originals = new Map(keys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -237,7 +276,7 @@ try {
   console.log('PASS actual Appeal Review orders requests by submission time, oldest first');
   if (!document.querySelector('[role="group"]')) {
     await click([...document.querySelectorAll('tbody tr')].find(row => row.textContent.includes(submission.case_id)));
-    await click([...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'พิจารณาอุทธรณ์'));
+    await click([...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'เปิดรายละเอียดอุทธรณ์ ↗'));
   }
   const groups = () => [...document.querySelectorAll('[role="group"]')].filter(node => node.getAttribute("aria-label").startsWith("ผลพิจารณาหัวข้อ"));
   assert.equal(groups().length, 3);
@@ -248,6 +287,13 @@ try {
   await click(groups()[0].querySelectorAll("button")[0]);
   await click(groups()[1].querySelectorAll("button")[1]);
   await click(groups()[2].querySelectorAll("button")[0]);
+  const tagEditor = code => document.querySelector(`[data-appeal-tag-editor="${code}"]`);
+  assert.equal(tagEditor("2").querySelectorAll("button").length, 0, "Rejected topics cannot remove Tags");
+  await click(tagEditor("1").querySelector('button[aria-label^="เอา Tag ตรวจขั้นตอน"]'));
+  await click([...tagEditor("1").querySelectorAll("button")].find(button => button.textContent.includes("คืน Tag")));
+  assert.ok(tagEditor("1").querySelector('button[aria-label^="เอา Tag ตรวจขั้นตอน"]'), "Undo restores the original Tag");
+  await click(tagEditor("1").querySelector('button[aria-label^="เอา Tag ตรวจขั้นตอน"]'));
+  await click(tagEditor("3").querySelector('button[aria-label^="เอา Tag"]'));
   const setScore = async (group, value) => {
     const select = group.parentElement.querySelector("select");
     assert.ok(select);
@@ -278,6 +324,10 @@ try {
   assert.deepEqual(saved.details.topics.map(topic => topic.decision), ["Approved", "Rejected", "Approved"]);
   assert.equal(saved.details.topics[0].revisedScore, 31);
   assert.equal(saved.details.topics[2].revisedScore, 22);
+  assert.deepEqual(saved.details.topics[0].issueTags, topics[0].issueTags);
+  assert.deepEqual(saved.details.topics[0].revisedIssueTags, ["เกิน SLA"]);
+  assert.deepEqual(saved.details.topics[2].revisedIssueTags, []);
+  assert.ok(!Object.hasOwn(saved.details.topics[1], "revisedIssueTags"));
   assert.equal(helper.appealScoreAfterReview(saved.details.topics, 82), 86);
   assert.ok(!Object.hasOwn(saved.details.topics[1], "revisedScore"));
   assert.equal(saved.details.reviewedBy, "Test Reviewer");

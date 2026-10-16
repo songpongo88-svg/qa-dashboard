@@ -1,5 +1,5 @@
 import { generateCasePdfWithAppealHistory } from "./caseAppealPdfAddon";
-import { getAppealTopicDecision, appealScoreAfterReview, type AppealDecision, type AppealTopicDecision } from "./appealReview";
+import { getAppealTopicDecision, appealScoreAfterReview, appealTopicIssueTags, appealIssueTagsChanged, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
@@ -26,6 +26,8 @@ type Topic = {
   comment?: string;
   originalScore?: number;
   originalComment?: string;
+  issueTags?: string[];
+  originalIssueTags?: string[];
   appealReason?: string;
   rejectReason?: string;
   appealed?: boolean;
@@ -1626,12 +1628,12 @@ export default function AppealMockup({
               const changed =
                 topicDecision === "Approved" &&
                 appealed &&
-                isRealTopicChanged(
+                (isRealTopicChanged(
                   originalScore,
                   revisedScore,
                   originalComment,
                   revisedComment
-                );
+                ) || Boolean(requestTopic && appealIssueTagsChanged(requestTopic)));
 
               return {
                 decision: topicDecision,
@@ -1643,6 +1645,8 @@ export default function AppealMockup({
                 comment: revisedComment,
                 originalScore,
                 originalComment,
+                ...(Array.isArray(requestTopic?.issueTags) ? { originalIssueTags: requestTopic.issueTags } : {}),
+                ...(requestTopic && appealTopicIssueTags(requestTopic, appealDecision) !== undefined ? { issueTags: appealTopicIssueTags(requestTopic, appealDecision) } : {}),
                 appealReason,
                 rejectReason,
                 appealed,
@@ -2129,6 +2133,7 @@ export default function AppealMockup({
           score: originalScore,
           pct: max > 0 ? Math.round((originalScore / max) * 100) : 0,
           comment: String(topic.originalComment || topic.comment || "").trim(),
+          issueTags: topic.originalIssueTags ?? topic.issueTags,
         };
       });
 

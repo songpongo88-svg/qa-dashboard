@@ -1,4 +1,5 @@
 import React from "react";
+import { AppealIssueTagHistory } from "./AppealIssueTags";
 import { AppealEvidenceGallery } from "./AppealEvidence";
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import { RichTextContent } from "./richText";
@@ -23,6 +24,7 @@ function ReviewResult({ review, topicCode, caseId, compact = false }: { review: 
       </div>
       <div className="mt-2 text-xs font-bold text-violet-700">{topic.decision === "Rejected" ? "Reject Reason" : "Revised Comment"}</div>
       <RichTextContent value={topic.decision === "Rejected" ? topic.rejectReason : topic.revisedComment} className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800" fallback="-" />
+      <AppealIssueTagHistory topic={topic} />
       <AppealEvidenceGallery images={topic.qaEvidenceImages || []} caseId={caseId} startIndex={review.topics.reduce((total, item) => total + (item.evidenceImages?.length || 0), 0) + appealEvidenceStartIndex(review.topics.map(item => ({ code: item.code, evidenceImages: item.qaEvidenceImages || [] })), topic.code)} />
     </div>)}
     <div className="border-t border-violet-200 pt-2 text-xs leading-6 text-violet-900">

@@ -1,4 +1,4 @@
-import { getAppealTopicDecision, type AppealDecision, type AppealTopicDecision } from "./appealReview";
+import { getAppealTopicDecision, appealTopicIssueTags, appealIssueTagsChanged, type AppealIssueTagFields, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 import { AppealEvidencePicker, AppealEvidenceGallery, EvidenceWatermarkOverlay, type AppealEvidenceImage } from "./AppealEvidence";
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import { WeekdayDashboardLayout } from "./WeekdayScene";
@@ -138,7 +138,7 @@ type CaseItem = AppealScoreState & {
   appealActionHistory?: AppealAction[];
 };
 
-type AppealDraftTopic = {
+type AppealDraftTopic = AppealIssueTagFields & {
   evidenceImages?: AppealEvidenceImage[];
   code: string;
   label: string;
@@ -227,7 +227,7 @@ function downloadGeneratedPdfFile(result: { blob: Blob; fileName: string }) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-function isAppealTopicChanged(topic: { score?: number; revisedScore?: number | string; revisedComment?: string }) {
+function isAppealTopicChanged(topic: AppealIssueTagFields & { score?: number; revisedScore?: number | string; revisedComment?: string }) {
   const revisedScore =
     topic.revisedScore !== null &&
     topic.revisedScore !== "" &&
@@ -237,7 +237,7 @@ function isAppealTopicChanged(topic: { score?: number; revisedScore?: number | s
   const originalScore = Number(topic.score ?? 0);
   const scoreChanged = revisedScore !== undefined && Math.abs(revisedScore - originalScore) > 0.0001;
   const commentChanged = String(topic.revisedComment || "").trim() !== "";
-  return scoreChanged || commentChanged;
+  return scoreChanged || commentChanged || appealIssueTagsChanged(topic);
 }
 
 function normalizeAppealCaseId(value: unknown) {
@@ -477,6 +477,7 @@ function buildApprovedAppealMergeMap(
           ? Math.round(((Number.isFinite(revisedScore) ? revisedScore : 0) / master.max) * 100)
           : 0,
         comment: String(effectiveComment || matched.comment || "").trim(),
+        ...(appealTopicIssueTags(matched, request.status) !== undefined ? { issueTags: appealTopicIssueTags(matched, request.status) } : {}),
         appealReason: String(matched.appealReason || "").trim(),
         evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
         qaEvidenceImages: Array.isArray(matched.qaEvidenceImages) ? matched.qaEvidenceImages : [],
@@ -559,6 +560,7 @@ function buildAppealOutcomeMap(
         max: master.max,
         pct: master.max > 0 ? Math.round((safeScore / master.max) * 100) : 0,
         comment: reviewFeedback,
+        ...(appealTopicIssueTags(matched, request.status) !== undefined ? { issueTags: appealTopicIssueTags(matched, request.status) } : {}),
         appealReason,
         evidenceImages: Array.isArray(matched.evidenceImages) ? matched.evidenceImages : [],
         qaEvidenceImages: Array.isArray(matched.qaEvidenceImages) ? matched.qaEvidenceImages : [],
@@ -2572,7 +2574,7 @@ function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
   const scoreChanged = Number(originalTopic.score) !== Number(revisedTopic.score);
   const commentChanged = hasMeaningfulTextChange(originalTopic.comment, revisedTopic.comment);
 
-  return scoreChanged || commentChanged;
+  return scoreChanged || commentChanged || appealIssueTagsChanged({ issueTags: originalTopic.issueTags, decision: "Approved", revisedIssueTags: revisedTopic.issueTags });
 }
 
 function CaseDetailIssueTags({ tags }: { tags: string[] }) {
@@ -4144,6 +4146,7 @@ function SlideOverCaseDetail({
         score: topic.score,
         max: topic.max,
         comment: topic.comment,
+        ...(Array.isArray(topic.issueTags) ? { issueTags: [...topic.issueTags] } : {}),
         wantsAppeal: canEditExistingAppeal ? (topic.wantsAppeal ?? Boolean(topic.appealReason)) : canSubmitAdditionalEvidence,
         appealReason: canEditExistingAppeal || canSubmitAdditionalEvidence ? (topic.appealReason || "") : NO_APPEAL_TEXT,
         evidenceImages: canEditExistingAppeal || canSubmitAdditionalEvidence ? topic.evidenceImages || [] : [],

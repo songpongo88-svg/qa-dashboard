@@ -2,9 +2,11 @@ import { topicAppealActions, topicAppealActionNumber, type AppealAction, type Ap
 export { topicAppealActions } from './appealActionHistory';
 import { formatPdfDateTime } from './lib/pdfDates';
 import { richTextToPlainText } from './richText';
+import { appealTopicIssueTags, appealIssueTagChanges } from './appealReview';
 
 const html = (value: unknown) => richTextToPlainText(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;').replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
 const field = (label: string, value: unknown) => `<div><strong>${label}: ${html(value || '-')}</strong></div>`;
+const tagField = (label: string, tags: string[]) => `<div><strong>${label}: ${(tags.join(' • ') || 'ไม่มี Tag ที่พบปัญหา').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;')}</strong></div>`;
 const body = (label: string, value: unknown) => `<div><span style="color:#dc2626"><strong>${label}</strong><br>${html(value || '-')}</span></div>`;
 const separator = '<hr>';
 const topicIn = (rows: AppealActionTopic[], code: string) => rows.find(topic => String(topic.code) === code);
@@ -38,6 +40,10 @@ export function appealActionTopicPdfHtml(actions: readonly AppealAction[], code:
         sections.push(separator, field('QA', row.reviewedBy), field('Appeal Result', formatPdfDateTime(row.reviewedAt, '-')),
           field('Decision', `${topic.decision || row.decision} · Score ${score} / ${topic.max}`),
           body(rejected ? 'Reject Reason' : 'Revised Comment', rejected ? topic.rejectReason : topic.revisedComment || topic.retainedComment || topic.comment));
+        const tags = appealTopicIssueTags(topic, row.decision);
+        if (tags !== undefined) sections.push(tagField('Tag หลังทบทวน', tags));
+        const removed = appealIssueTagChanges(topic);
+        if (removed.length) sections.push(tagField('Tag ที่นำออก', removed));
       }
     }
     return sections.join('');

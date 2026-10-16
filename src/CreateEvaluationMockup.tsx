@@ -29,6 +29,9 @@ import {
 import { buildDeductionAnalysis, topicScoreForDate, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
 import { readDraftQueue, writeDraftQueue } from "./lib/evaluation/draftPersistence";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
+import { fetchAppealEvents } from "./appealStore";
+import { buildAppealRequests } from "./AppealRequestsMockup";
+import { applyAppealIssueTagReviews } from "./appealReview";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 import { withConsistentUserNames } from "./lib/userNames";
@@ -2662,9 +2665,25 @@ export default function CreateEvaluationMockup({
     const submittedSource = storedRecords.length ? storedRecords : evaluationHistory;
     const filteredSubmitted = filterRecordsByReportDate(excludeTestEvaluations(submittedSource));
     const filteredRaw = filterRawRecordsByReportDate(excludeTestEvaluations(rawRecords));
+    let currentTagRecords = filteredSubmitted;
+    try {
+      const caseIds = [...new Set(filteredSubmitted.filter(record => record.topics.some(topic => topic.issueTags?.length)).map(record => String(record.caseId || "").trim()).filter(Boolean))];
+      const logs = [];
+      // Read complete histories only for cases included in this export, with
+      // bounded concurrency so large date ranges do not flood the event store.
+      for (let offset = 0; offset < caseIds.length; offset += 8) {
+        const histories = await Promise.all(caseIds.slice(offset, offset + 8).map(caseId => fetchAppealEvents(undefined, { caseId, forceRefresh: true })));
+        logs.push(...histories.flat());
+      }
+      currentTagRecords = applyAppealIssueTagReviews(filteredSubmitted, buildAppealRequests(logs));
+    } catch (error) {
+      console.error("Read reviewed issue tags for export failed", error);
+      setReportMessage("ตรวจผล Tag หลังอุทธรณ์ไม่สำเร็จ กรุณาลอง Export อีกครั้ง");
+      return;
+    }
     const exportRows = [
       ...filteredRaw.map((record) => record.rowData),
-      ...buildRowDataRows(filteredSubmitted),
+      ...buildRowDataRows(currentTagRecords),
     ];
     if (!exportRows.length) {
       setReportMessage("No RawData or submitted evaluations found in this date range.");
@@ -2682,7 +2701,7 @@ export default function CreateEvaluationMockup({
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(detailRows), "Deduction_Detail");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Deduction_Summary");
     }
-    const issueTagAnalysis = buildIssueTagAnalysis(filteredSubmitted);
+    const issueTagAnalysis = buildIssueTagAnalysis(currentTagRecords);
     if (issueTagAnalysis.detailRows.length) {
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(issueTagAnalysis.detailRows), "Issue_Tag_Detail");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(issueTagAnalysis.summaryRows), "Issue_Tag_Summary");

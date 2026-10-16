@@ -1,4 +1,7 @@
-import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, type AppealTopicDecision } from "./appealReview";
+import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, appealIssueTagChanges, appealTopicIssueTags, normalizeAppealIssueTags, type AppealIssueTagFields, type AppealTopicDecision } from "./appealReview";
+import AppealIssueTagEditor from "./AppealIssueTags";
+import AppealInformationCard from "./AppealInformationCard";
+import { fetchStoredEvaluationsForCases } from "./evaluationStore";
 import { AppealEvidenceGallery, AppealEvidencePicker, type AppealEvidenceImage } from "./AppealEvidence";
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNotice } from "./AppealReviewDialog";
@@ -17,8 +20,12 @@ import { buildAppealActionHistory, topicAppealActions, topicAppealActionNumber, 
 import { RichTextContent } from "./richText";
 import { useMonthlyResultLock } from "./useMonthlyResultLock";
 import { MonthlyResultLockedError, MonthlyResultLockCheckError } from "./monthlyResultLockStore";
+// Existing build migrations remain applied by the compact Information renderer:
+// appeal-review-information-plain-v57
+// appeal-review-information-visual-v61
+// appeal-review-datetime-color-v62
 
-type AppealTopic = {
+type AppealTopic = AppealIssueTagFields & {
   evidenceImages?: AppealEvidenceImage[];
   qaEvidenceImages?: AppealEvidenceImage[];
   code: string;
@@ -590,6 +597,9 @@ function exportAppealRows(requests: AppealRequest[]) {
     `${code} Revised Comment`,
     `${code} Reject Reason`,
     `${code} Appeal Reason`,
+    `${code} Original Issue Tags`,
+    `${code} Current Issue Tags`,
+    `${code} Removed Issue Tags`,
   ]);
 
   const rows = reviewed.map((item) => {
@@ -623,6 +633,9 @@ function exportAppealRows(requests: AppealRequest[]) {
       row[`${code} Revised Comment`] = topic?.decision === "Approved" ? topic?.revisedComment ?? "" : "";
       row[`${code} Reject Reason`] = topic?.decision === "Rejected" ? topic?.rejectReason ?? "" : "";
       row[`${code} Appeal Reason`] = isAppealedTopic(topic) ? topic?.appealReason ?? "" : "";
+      row[`${code} Original Issue Tags`] = topic?.issueTags?.join(" | ") ?? "";
+      row[`${code} Current Issue Tags`] = topic ? appealTopicIssueTags(topic, item.status)?.join(" | ") ?? "" : "";
+      row[`${code} Removed Issue Tags`] = topic ? appealIssueTagChanges(topic).join(" | ") : "";
     });
 
     return row;
@@ -734,6 +747,9 @@ export default function AppealRequestsMockup({
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [detailRequestId, setDetailRequestId] = useState("");
   const [draftTopics, setDraftTopics] = useState<AppealTopic[]>([]);
+  const [sourceTags, setSourceTags] = useState<{ caseId: string; topics: Array<Pick<AppealTopic, "code" | "issueTags">>; loading: boolean; error: boolean }>({ caseId: "", topics: [], loading: false, error: false });
+  const [tagReadAttempt, setTagReadAttempt] = useState(0);
+  const sourceTagCache = useRef(new Map<string, Array<Pick<AppealTopic, "code" | "issueTags">>>());
   const decision = summarizeAppealDecisions(draftTopics.filter(isAppealedTopic));
   const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
@@ -821,6 +837,29 @@ export default function AppealRequestsMockup({
     ? scoreToGrade(selectedCurrentScore, getAppealReviewMonthKey(selectedRequest))
     : "-";
   const selectedAgentTeam = resolveCaseAgentTeam(selectedRequest, agentDirectory || []);
+  const sourceCaseId = String(selectedRequest?.caseId || "").replace(/\s+/g, "").toUpperCase();
+  const dashboardSourceCase = additionalCaseTopics.find(row => String(row.caseId || "").replace(/\s+/g, "").toUpperCase() === sourceCaseId);
+  const hydrateTopicTags = (topic: AppealTopic): AppealTopic => {
+    if (Array.isArray(topic.issueTags)) return topic;
+    const source = dashboardSourceCase?.topics?.find((row: any) => String(row.code) === topic.code)
+      || (sourceTags.caseId === sourceCaseId ? sourceTags.topics.find(row => String(row.code) === topic.code) : undefined);
+    return source ? { ...topic, issueTags: normalizeAppealIssueTags(source.issueTags) } : topic;
+  };
+  useEffect(() => {
+    if (!isReviewDetailOpen || !allowReview || !sourceCaseId || !selectedAppealedTopics.some(topic => !Array.isArray(topic.issueTags)) || dashboardSourceCase) return;
+    const cached = sourceTagCache.current.get(sourceCaseId);
+    if (cached) { setSourceTags({ caseId: sourceCaseId, topics: cached, loading: false, error: false }); return; }
+    let cancelled = false;
+    setSourceTags({ caseId: sourceCaseId, topics: [], loading: true, error: false });
+    void fetchStoredEvaluationsForCases([sourceCaseId]).then(records => {
+      const source = records.filter(row => String(row.caseId || "").replace(/\s+/g, "").toUpperCase() === sourceCaseId)
+        .sort((a, b) => Date.parse(b.updatedAt || b.createdAt || "") - Date.parse(a.updatedAt || a.createdAt || ""))[0];
+      const topics = source?.topics || [];
+      sourceTagCache.current.set(sourceCaseId, topics);
+      if (!cancelled) setSourceTags({ caseId: sourceCaseId, topics, loading: false, error: false });
+    }).catch(() => { if (!cancelled) setSourceTags({ caseId: sourceCaseId, topics: [], loading: false, error: true }); });
+    return () => { cancelled = true; };
+  }, [isReviewDetailOpen, allowReview, sourceCaseId, selectedRequest?.requestId, Boolean(dashboardSourceCase), tagReadAttempt]);
   const eligibleSeniorOptions = seniorOptions;
   const availableAppealTopics = useMemo(() => {
     const result = new Map<string, AppealTopic>();
@@ -839,6 +878,7 @@ export default function AppealRequestsMockup({
           score: toNumber(row.score),
           max: toNumber(row.max),
           comment: String(row.comment || ""),
+          issueTags: normalizeAppealIssueTags(row.issueTags),
           wantsAppeal: true,
           appealReason: "",
         });
@@ -846,10 +886,10 @@ export default function AppealRequestsMockup({
     }
     // Preserve the original baseline of already reviewed topics even if
     // the dashboard currently shows their adjusted score.
-    selected.topics.forEach(topic => result.set(topic.code, { ...topic }));
+    selected.topics.forEach(topic => result.set(topic.code, { ...result.get(topic.code), ...hydrateTopicTags(topic) }));
     return [...result.values()].sort((a, b) =>
       String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
-  }, [additionalCaseTopics, selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.caseId]);
+  }, [additionalCaseTopics, selectedRequest?.requestId, selectedRequest?.reviewId, selectedRequest?.caseId, sourceTags]);
 
   const draftForRequest = (request: AppealRequest) => {
     if (!request.additionalRound) return request.topics.map(topic => ({
@@ -873,6 +913,8 @@ export default function AppealRequestsMockup({
         retainedComment: original?.decision === "Approved"
           ? original.revisedComment || original.comment || ""
           : original?.retainedComment || original?.comment || topic.comment || "",
+        ...(appealTopicIssueTags(original || topic) !== undefined ? { retainedIssueTags: appealTopicIssueTags(original || topic) } : {}),
+        revisedIssueTags: undefined,
         decision: undefined,
         revisedScore: latestScore,
         revisedComment: "",
@@ -1279,7 +1321,7 @@ export default function AppealRequestsMockup({
     }
     let review;
     try {
-      review = prepareAppealReview(draftTopics.filter(isAppealedTopic), selectedRequest.finalScore);
+      review = prepareAppealReview(draftTopics.filter(isAppealedTopic).map(hydrateTopicTags), selectedRequest.finalScore);
     } catch (error) {
       setNotice({ kind: "validation", title: "กรุณาตรวจสอบผลแต่ละข้อ", caseId: selectedRequest.caseId,
         message: error instanceof Error ? error.message : "กรุณาตรวจผลทบทวนแต่ละหัวข้อ" });
@@ -1325,13 +1367,15 @@ export default function AppealRequestsMockup({
     ]);
     const topicsForReview = review.topics.map(topic => ({
       code: topic.code, label: topic.label, score: topic.score, max: topic.max,
+      ...(Array.isArray(topic.issueTags) ? { issueTags: normalizeAppealIssueTags(topic.issueTags) } : {}),
+      ...(Array.isArray(topic.retainedIssueTags) ? { retainedIssueTags: normalizeAppealIssueTags(topic.retainedIssueTags) } : {}),
       ...(topic.originalScore !== undefined ? { originalScore: topic.originalScore, retainedComment: topic.retainedComment || "" } : {}),
       comment: String(topic.comment || ""), wantsAppeal: true,
       appealReason: String(topic.appealReason || ""), decision: topic.decision,
       evidenceImages: Array.isArray(topic.evidenceImages) ? topic.evidenceImages : [],
       qaEvidenceImages: Array.isArray(topic.qaEvidenceImages) ? topic.qaEvidenceImages : [],
       ...(topic.decision === "Approved"
-        ? { revisedScore: topic.revisedScore, revisedComment: topic.revisedComment, rejectReason: "" }
+        ? { revisedScore: topic.revisedScore, revisedComment: topic.revisedComment, rejectReason: "", ...(Array.isArray(topic.revisedIssueTags) ? { revisedIssueTags: topic.revisedIssueTags } : {}) }
         : { rejectReason: topic.rejectReason }),
     }));
     savingRef.current = true;
@@ -1676,7 +1720,7 @@ export default function AppealRequestsMockup({
             </div>
           </div>
 
-          <div className={standaloneRequestId ? "p-5" : "p-5 xl:pt-[210px]"}>
+          <div className="min-w-0 p-5">
             {!selectedRequest ? (
               <div className="flex h-full min-h-[520px] items-center justify-center rounded-3xl border border-dashed border-violet-200 bg-violet-50/50 p-8 text-center">
                 <div>
@@ -1694,86 +1738,16 @@ export default function AppealRequestsMockup({
                 </div>
               </div>
             ) : !isReviewDetailOpen ? (
-              <section className="min-h-[520px] min-w-0" data-appeal-review-information="appeal-review-information-plain-v57">
-                {/* // appeal-review-information-visual-v61 */}
-                {/* // appeal-review-datetime-color-v62 */}
-                <div className="border-b border-slate-200 pb-4">
-                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">Information</div>
-                  <div className="mt-2 text-2xl font-extrabold text-slate-950">{selectedRequest.caseId}</div>
-                  <div className="mt-1 text-xs font-semibold text-slate-500">ข้อมูลคำขออุทธรณ์ของเคสที่เลือก</div>
-                </div>
-
-                {selectedRequest ? <AppealWorkflowNotice request={selectedRequest} canReview={canModifyRequest}
+              <AppealInformationCard request={selectedRequest} teamName={selectedAgentTeam.teamName || "-"}
+                workflowLabel={appealWorkflowLabel(selectedWorkflowStatus)} workflowTone={appealWorkflowTone(selectedWorkflowStatus)}
+                currentScore={selectedCurrentScore} currentGrade={selectedCurrentGrade}
+                topics={selectedAppealedTopics.map(appealReviewTopicLine)} formatDateTime={formatDateTime}
+                onOpenReview={() => onOpenRequestWorkspace ? onOpenRequestWorkspace(selectedRequest.requestId, selectedRequest.caseId) : setDetailRequestId(selectedRequest.requestId)}
+                workflow={<AppealWorkflowNotice request={selectedRequest} canReview={canModifyRequest} compact hideReviewAction
                   isOwner={scopeAppealRequests([selectedRequest], { ...currentUser, role: "Admin" }).length > 0}
                   busy={busy} onCaseDetail={() => openCaseDetailTab(selectedRequest)}
                   onDecision={approved => { setAccessDecision(approved ? "approve" : "reject"); setAccessDecisionReason(approved ? selectedRequest.additionalAccessRequest?.decisionReason || "อนุญาตให้ยื่นอุทธรณ์เพิ่มเติม" : ""); }}
-                  onReview={() => setDetailRequestId(selectedRequest.requestId)} /> : null}
-                <div className="divide-y divide-slate-100">
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Case ID</div><div className="font-extrabold text-purple-700">{selectedRequest.caseId || "-"}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Agent</div><div className="font-semibold text-slate-950">{selectedRequest.agent || "-"}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Team</div><div className="font-semibold text-slate-800">{selectedAgentTeam.teamName || "-"}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Status</div><div className="font-extrabold">{appealWorkflowLabel(selectedWorkflowStatus)}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Case Date</div><div className="font-extrabold tabular-nums text-sky-700">{selectedRequest.auditDate || "-"}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Audit Date</div><div className="font-extrabold tabular-nums text-sky-700">{selectedRequest.auditTimestamp || selectedRequest.auditDate || "-"}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Submitted By</div><div className="font-semibold text-purple-700">{selectedRequest.submittedByUsername || selectedRequest.submittedBy || "-"}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Original Appeal Submit</div><div className="font-extrabold text-purple-700">
-                      {(() => {
-                        const { datePart, timePart } = appealReviewFixedDateTimeParts(selectedRequest.submittedAt);
-                        return (
-                          <span className="inline-grid grid-cols-[80px_64px] items-center gap-2 whitespace-nowrap text-left text-[14px] leading-5">
-                            <span className="inline-flex">
-                              {datePart.split("").map((char, index) => <span key={"submitted-date-" + index} className="inline-block w-[8px] text-center">{char}</span>)}
-                            </span>
-                            <span className="inline-flex">
-                              {timePart.split("").map((char, index) => <span key={"submitted-time-" + index} className="inline-block w-[8px] text-center">{char}</span>)}
-                            </span>
-                          </span>
-                        );
-                      })()}
-                    </div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Reviewed Date & Time</div><div className={"font-extrabold " + (selectedRequest.status === "Approved" ? "text-emerald-700" : selectedRequest.status === "Rejected" ? "text-rose-700" : selectedRequest.status === "Reset" ? "text-sky-700" : "text-slate-400")}>
-                      {(() => {
-                        const { datePart, timePart } = appealReviewFixedDateTimeParts(selectedRequest.reviewedAt);
-                        return (
-                          <span className="inline-grid grid-cols-[80px_64px] items-center gap-2 whitespace-nowrap text-left text-[14px] leading-5">
-                            <span className="inline-flex">
-                              {datePart.split("").map((char, index) => <span key={"reviewed-date-" + index} className="inline-block w-[8px] text-center">{char}</span>)}
-                            </span>
-                            <span className="inline-flex">
-                              {timePart.split("").map((char, index) => <span key={"reviewed-time-" + index} className="inline-block w-[8px] text-center">{char}</span>)}
-                            </span>
-                          </span>
-                        );
-                      })()}
-                    </div></div>
-                  {selectedRequest.additionalHistory?.length ? (
-                    <>
-                      <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Additional Round Opened</div><div className="font-semibold text-slate-900">{formatDateTime(selectedRequest.additionalHistory[0].openedAt)}</div></div>
-                      <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Additional Appeal Submit</div><div className="font-semibold text-slate-900">{selectedRequest.additionalHistory[0].submittedAt ? formatDateTime(selectedRequest.additionalHistory[0].submittedAt) : "ยังไม่ได้ยื่น"}</div></div>
-                      <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Additional Appeal Reviewed</div><div className="font-semibold text-slate-900">{selectedRequest.additionalHistory[0].reviewedAt ? formatDateTime(selectedRequest.additionalHistory[0].reviewedAt) : "-"}</div></div>
-                    </>
-                  ) : null}
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Intent</div><div className="min-w-0 font-semibold leading-6 text-slate-950">{selectedRequest.inquiry || "-"}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Original Score</div><div className="font-extrabold tabular-nums text-slate-600">{selectedRequest.finalScore.toFixed(2)}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Current Score</div><div className={"font-extrabold tabular-nums " + (selectedCurrentScore >= 85 ? "text-emerald-700" : "text-rose-700")}>{selectedCurrentScore.toFixed(2)}</div></div>
-                  <div className="grid grid-cols-[155px_minmax(0,1fr)] gap-4 py-3 text-sm"><div className="font-bold text-slate-500">Current Grade</div><div className={"font-extrabold " + (selectedCurrentGrade === "A" ? "text-emerald-700" : selectedCurrentGrade === "B" ? "text-sky-700" : selectedCurrentGrade === "C" ? "text-amber-700" : selectedCurrentGrade === "D" ? "text-orange-700" : selectedCurrentGrade === "F" ? "text-rose-700" : "text-slate-700")}>{selectedCurrentGrade || "-"}</div></div>
-                </div>
-
-                <div className="border-t border-slate-200 pt-4">
-                  <div className="text-sm font-extrabold text-slate-950">Appealed Topics: {selectedAppealedTopics.length} Topics</div>
-                  <div className="mt-2 overflow-x-auto pb-2">
-                    <div className="min-w-max space-y-1.5">
-                      {selectedAppealedTopics.length ? selectedAppealedTopics.map((topic, index) => (
-                        <div key={topic.code} className="whitespace-nowrap text-[11px] font-semibold leading-5 text-slate-700 xl:text-xs">
-                          {appealReviewTopicLine(topic, index)}
-                        </div>
-                      )) : (
-                        <div className="whitespace-nowrap text-[11px] font-semibold text-slate-500">-</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </section>
+                  onReview={() => setDetailRequestId(selectedRequest.requestId)} />} />
             ) : (
               <div className="space-y-5">
                 {selectedRequest ? <AppealWorkflowNotice request={selectedRequest} canReview={canModifyRequest}
@@ -1897,6 +1871,11 @@ export default function AppealRequestsMockup({
                             </div>
                           )}
                         </div>
+                        <AppealIssueTagEditor topic={hydrateTopicTags(topic)} disabled={busy || !canReviewTopic(topic.code)}
+                          loading={sourceTags.caseId === sourceCaseId && sourceTags.loading}
+                          error={sourceTags.caseId === sourceCaseId && sourceTags.error}
+                          onRetry={() => { sourceTagCache.current.delete(sourceCaseId); setTagReadAttempt(value => value + 1); }}
+                          onChange={tags => setDraftTopics(current => current.map(item => item.code === topic.code ? { ...hydrateTopicTags(item), revisedIssueTags: tags } : item))} />
                         {topic.decision === "Approved" ? (
                           <div className="mt-4">
                             <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700" htmlFor={`revised-comment-${topic.code}`}>
