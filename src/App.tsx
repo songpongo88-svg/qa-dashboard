@@ -1,4 +1,6 @@
 import ThemePreview, { WEEKDAY_LABELS, FESTIVAL_LABELS } from "./ThemePreview";
+import { useFestivalTheme } from "./festivalThemes/store";
+import { FestivalIcon } from "./festivalThemes/Festival";
 import { SpecialCollection } from "./specialThemes/SpecialCollection";
 import { useSpecialThemeUsage, type SpecialUsage } from "./specialThemes/usage";
 import { SPECIAL_THEMES, SPECIAL_UNLOCK_MS, isSpecialTheme } from "./specialThemes/model.mjs";
@@ -676,6 +678,8 @@ function formatWorkSimNumber(value: unknown) {
 }
 
 function SidebarGlyph({ name }: { name: string }) {
+  const festival = useFestivalTheme();
+  if (festival && !["key", "logout"].includes(name)) return <FestivalIcon themeId={festival.id} kind={name} className="h-5 w-5 shrink-0" />;
   const paths: Record<string, string> = {
     dashboard: "M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z",
     chart: "M4 19V9 M10 19V5 M16 19v-7 M2 19h20",
