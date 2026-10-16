@@ -33,6 +33,7 @@ import { appealAdditionalDeadline, buildAppealRequests } from "./AppealRequestsM
 import { appealWorkflowStatus, appealWorkflowLabel } from "./appealWorkflow";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
+import { FestivalMetricIcon } from "./festivalThemes/Festival";
 import TestCaseBadge from "./TestCaseBadge";
 import CaseWatermarks from "./CaseWatermarks";
 import { isStampedEvidenceUrl } from "./evidenceWatermark";
@@ -8408,7 +8409,7 @@ export default function DashboardMockup({
                             <div className="text-[11px] font-semibold text-slate-600">{item.label}</div>
                             <div className={`mt-2 font-bold tracking-tight ${appealScoreHold && item.value === appealScoreHold.label ? "text-lg" : "truncate text-[28px]"} ${item.valueTone}`}>{item.value}</div>
                           </div>
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-normal ${item.iconTone}`}>{item.icon}</div>
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-normal ${item.iconTone}`}><FestivalMetricIcon kind={item.label} fallback={item.icon} /></div>
                         </div>
                         <div className="mt-2 text-[10px] font-medium leading-5 text-slate-600">{item.note}</div>
                       </div>

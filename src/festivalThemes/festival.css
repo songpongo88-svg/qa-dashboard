@@ -1,0 +1,104 @@
+/* Festival and Special share the live material renderer, with separate tokens. */
+:is(html:root[data-qa-festival-theme="festival-new-year"], [data-qa-festival-preview="festival-new-year"]) {
+  --special-scene:url('/festivals/festival-new-year.webp');--special-page:#132538;--special-card:rgba(12,31,51,.96);--special-solid:#13283d;--special-inset:#1a354b;
+  --special-ink:#fff6e4;--special-muted:#c6d2dc;--special-accent:#e4bd75;--special-accent-ink:#172c40;--special-line:#bda36e99;--special-rule:#8aa3b34d;--special-sidebar:#0b2135;--special-edge:#e8bd76;
+  --special-shadow:0 8px 24px #020a1552,inset 0 1px 0 #e3bc7959;--special-card-art:radial-gradient(ellipse at 100% 0,#d9ae541c,transparent 65%);--festival-wash:#07182b70;--festival-nav:#edcc8c;--festival-nav-ink:#172c40;
+  --qa-theme-50:#13283d;--qa-theme-100:#1d364b;--qa-theme-200:#59728a;--qa-theme-300:#d1ad6a;--qa-theme-400:#e5c788;--qa-theme-500:#d6b16a;--qa-theme-600:#e4bd75;--qa-theme-700:#e8c783;--qa-theme-800:#eacc91;--qa-theme-900:#fff0ce;--qa-theme-950:#fff6e4;--qa-theme-highlight:#e4bd75;
+}
+:is(html:root[data-qa-festival-theme="festival-valentine"], [data-qa-festival-preview="festival-valentine"]) {
+  --special-scene:url('/festivals/festival-valentine.webp');--special-page:#f9e3ec;--special-card:rgba(255,248,251,.97);--special-solid:#fff7fa;--special-inset:#ffeaf1;
+  --special-ink:#661a34;--special-muted:#83576a;--special-accent:#be1743;--special-accent-ink:#fff;--special-line:#f5b9cb;--special-rule:#d684a454;--special-sidebar:#942449;--special-edge:#f3b0c5;
+  --special-shadow:0 8px 24px #9b26431c,inset 0 1px 0 #fff;--special-card-art:radial-gradient(ellipse at 100% 110%,#f7b2ca3b,transparent 58%);--festival-wash:#ffe5eedb;--festival-nav:#ffe1ec;--festival-nav-ink:#7c1235;
+  --qa-theme-50:#fff4f8;--qa-theme-100:#ffe5ef;--qa-theme-200:#fac8da;--qa-theme-300:#f2a0be;--qa-theme-400:#e9759b;--qa-theme-500:#dc3e71;--qa-theme-600:#be1743;--qa-theme-700:#9d183e;--qa-theme-800:#841b39;--qa-theme-900:#691b32;--qa-theme-950:#491325;--qa-theme-highlight:#e65384;
+}
+:is(html:root[data-qa-festival-theme="festival-songkran"], [data-qa-festival-preview="festival-songkran"]) {
+  --special-scene:url('/festivals/festival-songkran.webp');--special-page:#cdf0f6;--special-card:rgba(241,253,255,.95);--special-solid:#effcff;--special-inset:#d9f5fb;
+  --special-ink:#073b57;--special-muted:#37677c;--special-accent:#007b98;--special-accent-ink:#fff;--special-line:#fff;--special-rule:#3699b749;--special-sidebar:#06445e;--special-edge:#7be0f1;
+  --special-shadow:0 8px 24px #08678325,inset 0 1px 0 #fff;--special-card-art:radial-gradient(ellipse at 100% 110%,#50d7ee2b,transparent 55%);--festival-wash:#d8f6fbd4;--festival-nav:#b7f1ff;--festival-nav-ink:#07425b;
+  --qa-theme-50:#effcff;--qa-theme-100:#d9f5fb;--qa-theme-200:#b4e7f1;--qa-theme-300:#83d6e5;--qa-theme-400:#42bbd2;--qa-theme-500:#119db9;--qa-theme-600:#007b98;--qa-theme-700:#09637e;--qa-theme-800:#08516b;--qa-theme-900:#073e58;--qa-theme-950:#062e44;--qa-theme-highlight:#13a8c5;
+}
+:is(html:root[data-qa-festival-theme="festival-halloween"], [data-qa-festival-preview="festival-halloween"]) {
+  --special-scene:url('/festivals/festival-halloween.webp');--special-page:#eddecf;--special-card:rgba(255,248,237,.97);--special-solid:#fff7eb;--special-inset:#f4e8dc;
+  --special-ink:#422d25;--special-muted:#765c4d;--special-accent:#b94c13;--special-accent-ink:#fff;--special-line:#d5a16e;--special-rule:#ab754b4d;--special-sidebar:#554335;--special-edge:#eaa35a;
+  --special-shadow:0 8px 24px #71401c24,inset 0 1px 0 #fff;--special-card-art:radial-gradient(ellipse at 100% 110%,#f1bc6e23,transparent 55%);--festival-wash:#f4e4cfe3;--festival-nav:#ff9f46;--festival-nav-ink:#3c2419;
+  --qa-theme-50:#fff7eb;--qa-theme-100:#fbead5;--qa-theme-200:#f2d1ad;--qa-theme-300:#e9b379;--qa-theme-400:#dc8b48;--qa-theme-500:#c96924;--qa-theme-600:#b94c13;--qa-theme-700:#964214;--qa-theme-800:#783817;--qa-theme-900:#543021;--qa-theme-950:#392217;--qa-theme-highlight:#df822f;
+}
+:is(html:root[data-qa-festival-theme="festival-loy-krathong"], [data-qa-festival-preview="festival-loy-krathong"]) {
+  --special-scene:url('/festivals/festival-loy-krathong.webp');--special-page:#dae8f5;--special-card:rgba(249,251,255,.97);--special-solid:#f7fbff;--special-inset:#e8f1fc;
+  --special-ink:#123968;--special-muted:#506580;--special-accent:#e8c57d;--special-accent-ink:#143663;--special-line:#cda454;--special-rule:#6f96bd4d;--special-sidebar:#234b7f;--special-edge:#edcb86;
+  --special-shadow:0 8px 24px #1d477922,inset 0 1px 0 #fff;--special-card-art:radial-gradient(ellipse at 100% 110%,#e8c77c24,transparent 55%);--festival-wash:#dcebf7dc;--festival-nav:#f0d28d;--festival-nav-ink:#163967;
+  --qa-theme-50:#f7fbff;--qa-theme-100:#e5effb;--qa-theme-200:#c3d7f1;--qa-theme-300:#a4bde1;--qa-theme-400:#7899cc;--qa-theme-500:#4e77b1;--qa-theme-600:#315e9a;--qa-theme-700:#284d81;--qa-theme-800:#23436f;--qa-theme-900:#18375e;--qa-theme-950:#11284a;--qa-theme-highlight:#c19745;
+}
+:is(html:root[data-qa-festival-theme="festival-christmas"], [data-qa-festival-preview="festival-christmas"]) {
+  --special-scene:url('/festivals/festival-christmas.webp');--special-page:#f0eddf;--special-card:rgba(255,251,240,.97);--special-solid:#fffaf0;--special-inset:#efeee2;
+  --special-ink:#153b2f;--special-muted:#5b6b5b;--special-accent:#14563d;--special-accent-ink:#fffdf5;--special-line:#c9aa6c;--special-rule:#849d7e47;--special-sidebar:#0a3d2c;--special-edge:#d5ba74;
+  --special-shadow:0 8px 24px #26473621,inset 0 1px 0 #fff;--special-card-art:radial-gradient(ellipse at 100% 110%,#e6cc842b,transparent 55%);--festival-wash:#f5f0e0df;--festival-nav:#edce87;--festival-nav-ink:#123b2d;--festival-compare:#a71d36;--festival-compare-ink:#fff;
+  --qa-theme-50:#fafbf2;--qa-theme-100:#edf2e3;--qa-theme-200:#cedec4;--qa-theme-300:#a7c5a4;--qa-theme-400:#7ca782;--qa-theme-500:#4e885f;--qa-theme-600:#14563d;--qa-theme-700:#154a35;--qa-theme-800:#123e2f;--qa-theme-900:#0e3227;--qa-theme-950:#09251e;--qa-theme-highlight:#c2984c;
+}
+:is(html:root[data-qa-festival-theme], [data-qa-festival-preview]) {--special-radius:16px;--festival-compare:var(--special-accent);--festival-compare-ink:var(--special-accent-ink);}
+:is(html:root[data-qa-festival-theme="festival-christmas"], [data-qa-festival-preview="festival-christmas"]) {--festival-compare:#a71d36;--festival-compare-ink:#fff;}
+.qa-festival-icon {display:inline-block;width:24px;height:24px;flex:0 0 auto;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 1px 1px #ffffff45);}
+.qa-festival-hero {position:relative;min-height:270px;padding:24px clamp(20px,3vw,40px) 30px;background:linear-gradient(90deg,var(--special-card),transparent 78%),var(--special-scene) center 42%/cover;color:var(--special-ink);border-bottom:1px solid var(--special-line);}
+.qa-festival-hero-brand {display:flex;gap:10px;align-items:center;}.qa-festival-hero-brand > img {border-radius:11px;}.qa-festival-hero-brand strong {font-size:15px;font-weight:500;}.qa-festival-hero-brand small {display:block;font-size:9px;letter-spacing:.17em;}
+.qa-festival-hero-content {display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:25px;}.qa-festival-hero-content > div:first-child {max-width:680px;}.qa-festival-hero-content > div > small {font-size:11px;letter-spacing:.1em;}.qa-festival-hero h1 {font-size:clamp(27px,3vw,42px);line-height:1.3;margin:8px 0;font-weight:600;}.qa-festival-hero p {font-size:13px;line-height:1.8;}
+.qa-festival-hero-badge {display:flex;align-items:center;gap:11px;flex-shrink:0;padding:11px 16px;background:var(--special-card);border:1px solid var(--special-line);border-radius:12px;box-shadow:var(--special-shadow);}.qa-festival-hero-badge strong {font-size:16px;font-weight:500;}.qa-festival-hero-badge small {display:block;font-size:11px;margin-top:4px;}
+@media screen {
+  html:root[data-qa-festival-theme] body {background-image:linear-gradient(var(--festival-wash),var(--festival-wash)),var(--special-scene)!important;background-position:center top!important;background-size:cover!important;}
+  html:root[data-qa-festival-theme] .qa-global-sidebar-v39 {background-image:linear-gradient(145deg,#ffffff0c,transparent)!important;color:#fff!important;}
+  html:root[data-qa-festival-theme] .qa-global-sidebar-v39 button.bg-white {background:var(--festival-nav)!important;color:var(--festival-nav-ink)!important;border-color:var(--special-edge)!important;}
+  html:root[data-qa-festival-theme] .qa-global-sidebar-v39 [class*="text-violet-"] {color:#e6eef5!important;}
+  html:root[data-qa-festival-theme] #root .qa-global-sidebar-v39 button.bg-white {color:var(--festival-nav-ink)!important;}
+  html:root[data-qa-festival-theme="festival-new-year"] #root .qa-global-sidebar-v39 button.bg-white .qa-festival-icon {filter:brightness(.48);}
+  html:root[data-qa-festival-theme] #root :is([class~="bg-[#f8f6ff]"],[class~="bg-[#f7f8fc]"]) {background-color:transparent!important;}
+  html:root[data-qa-festival-theme] #root [data-qa-dashboard-control-center-v163] > .bg-gradient-to-r {background:var(--special-sidebar)!important;border-inline-start:3px solid var(--special-edge);box-shadow:var(--special-shadow)!important;}
+  html:root[data-qa-festival-theme] #root [data-qa-dashboard-control-center-v163] > .bg-gradient-to-r :is(.text-white,[class*="text-violet-"]) {color:#fff!important;}
+  html:root[data-qa-festival-theme] #root [data-qa-dashboard-control-center-v163] .bg-sky-50 {background:var(--special-inset)!important;border-color:var(--special-rule)!important;}
+  html:root[data-qa-festival-theme] #root [data-qa-dashboard-control-center-v163] .border-sky-100 {border-color:var(--special-rule)!important;}
+  html:root[data-qa-festival-theme] #root .qa-workspace-tabs-v36 .bg-gradient-to-r {background:var(--special-accent)!important;color:var(--special-accent-ink)!important;}
+  html:root[data-qa-festival-theme] #root .qa-workspace-tabs-v36 .bg-gradient-to-r :is(button,span) {color:var(--special-accent-ink)!important;}
+  html:root[data-qa-festival-theme] [data-festival-hero] {background:linear-gradient(90deg,var(--special-card),transparent 78%),var(--special-scene) center 42%/cover!important;color:var(--special-ink)!important;}
+  html:root[data-qa-festival-theme] #root button[data-festival-action] {background:var(--special-inset)!important;color:var(--special-ink)!important;border:1px solid var(--special-rule)!important;box-shadow:0 3px 10px #18344012!important;}
+  html:root[data-qa-festival-theme] #root button:is([data-festival-action="search"],[data-festival-action="save"]) {background:var(--special-accent)!important;color:var(--special-accent-ink)!important;}
+  html:root[data-qa-festival-theme] #root button[data-festival-action="compare"] {background:var(--festival-compare)!important;color:var(--festival-compare-ink)!important;}
+  html:root[data-qa-festival-theme] #root button[data-festival-action]:hover:not(:disabled) {filter:brightness(1.045);border-color:var(--special-accent)!important;}
+  html:root[data-qa-festival-theme] #root [data-overview-kpi-grid-v93] > [data-dashboard-metric] {border-color:var(--special-line)!important;}
+  html:root[data-qa-festival-theme="festival-new-year"] {color-scheme:dark;}
+  html:root[data-qa-festival-theme="festival-new-year"] #root :is(.bg-emerald-50,.bg-green-50,.bg-emerald-100,.bg-green-100) {background-color:#193d32!important;}
+  html:root[data-qa-festival-theme="festival-new-year"] #root :is(.text-emerald-600,.text-emerald-700,.text-emerald-800,.text-green-700) {color:#83dfaa!important;}
+  html:root[data-qa-festival-theme="festival-new-year"] #root :is(.bg-rose-50,.bg-red-50,.bg-rose-100,.bg-red-100) {background-color:#482a30!important;}
+  html:root[data-qa-festival-theme="festival-new-year"] #root :is(.text-rose-600,.text-rose-700,.text-rose-800,.text-red-700) {color:#ffaaa9!important;}
+  html:root[data-qa-festival-theme="festival-new-year"] #root :is(.text-violet-700,.text-violet-800,.text-violet-900,.text-violet-950) {color:#f0d292!important;}
+  html:root[data-qa-festival-theme="festival-new-year"] #root button:is([data-festival-action="search"],[data-festival-action="compare"],[data-festival-action="save"])::before {filter:brightness(.48);}
+}
+:is(html:root[data-qa-festival-theme], [data-qa-festival-preview]) [data-festival-action]::before {content:"";display:inline-block;width:23px;height:23px;flex:0 0 23px;margin-inline-end:7px;background-position:center;background-repeat:no-repeat;background-size:contain;vertical-align:middle;}
+[data-festival-action="search"]::before {background-image:var(--festival-icon-search);}[data-festival-action="reset"]::before {background-image:var(--festival-icon-reset);}[data-festival-action="export"]::before {background-image:var(--festival-icon-export);}[data-festival-action="compare"]::before {background-image:var(--festival-icon-compare);}[data-festival-action="refresh"]::before {background-image:var(--festival-icon-refresh);}[data-festival-action="save"]::before {background-image:var(--festival-icon-save);}
+html:root[data-qa-festival-theme] button[data-festival-action] > svg:first-child:not([class*="animate-spin"]) {display:none;}
+html:root[data-qa-festival-theme] button[data-festival-action]:is([aria-busy="true"],:has(> .animate-spin))::before {display:none;}
+
+/* The picker and preview consume the same photos, icon paths and materials. */
+.qa-festival-collection-card {background:var(--special-solid);border-color:var(--special-rule);border-radius:16px;box-shadow:var(--special-shadow);}
+#qa-theme-collection-panel[data-qa-picker-collection="festival"] {grid-auto-rows:max-content;}
+.qa-festival-collection-card > img {height:130px;object-position:center 42%;}
+.qa-festival-collection-card strong {color:var(--special-ink);}.qa-festival-collection-card p,.qa-festival-card-status {color:var(--special-muted);}
+.qa-festival-collection-card .qa-festival-card-preview {background:var(--special-inset);border-color:var(--special-rule);color:var(--special-ink);}
+.qa-festival-card-title {display:flex;align-items:center;gap:8px;}.qa-festival-card-swatches {display:flex;gap:7px;margin-bottom:12px;}.qa-festival-card-swatches i {width:23px;height:23px;border-radius:6px;border:1px solid var(--special-rule);background:var(--special-sidebar);}.qa-festival-card-swatches i:nth-child(2) {background:var(--special-inset);}.qa-festival-card-swatches i:nth-child(3) {background:var(--special-accent);}
+.qa-festival-preview-overlay {z-index:10000;}.qa-festival-preview-dialog {width:min(1120px,100%);max-height:92dvh;}.qa-festival-preview-dialog > header {position:sticky;top:0;z-index:2;}
+.qa-festival-sample {display:grid;grid-template-columns:175px minmax(0,1fr);background:var(--special-page);color:var(--special-ink);}
+.qa-festival-sample-nav {padding:18px 12px;background:var(--special-sidebar);color:#fff;}.qa-festival-sample-brand {display:flex;align-items:center;gap:8px;margin-bottom:22px;font-size:12px;}.qa-festival-sample-brand img {width:28px;border-radius:7px;}.qa-festival-sample-nav > div:not(:first-child) {display:flex;align-items:center;gap:8px;padding:11px 8px;margin:5px 0;border-radius:9px;background:#ffffff09;font-size:11px;}.qa-festival-sample-nav [data-active="true"] {background:var(--festival-nav)!important;color:var(--festival-nav-ink);}
+.qa-festival-sample-main {min-width:0;}.qa-festival-sample .qa-festival-hero {min-height:200px;padding:22px;background:linear-gradient(90deg,var(--special-card),transparent 80%),var(--special-scene) center/cover;}.qa-festival-sample .qa-festival-hero h1 {font-size:28px;}.qa-festival-sample-body {padding:16px;}.qa-festival-sample-card {padding:15px;background:var(--special-card);background-image:var(--special-card-art);border:1px solid var(--special-line);border-radius:var(--special-radius);box-shadow:var(--special-shadow);color:var(--special-ink);}
+.qa-festival-sample-actions {display:flex;flex-wrap:wrap;gap:7px;margin:12px 0;}.qa-festival-sample-actions button {border:1px solid var(--special-rule);padding:9px 11px;border-radius:8px;background:var(--special-inset);color:var(--special-ink);font:500 11px Kanit,sans-serif;}.qa-festival-sample-actions button:first-child {background:var(--special-accent);color:var(--special-accent-ink);}.qa-festival-sample-actions button:last-child {background:var(--festival-compare);color:var(--festival-compare-ink);}
+.qa-festival-sample-filters {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}.qa-festival-sample-filters span {padding:9px;border:1px solid var(--special-rule);border-radius:7px;background:var(--special-inset);font-size:10px;}
+.qa-festival-sample-metrics {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-top:14px;}.qa-festival-sample-metrics .qa-festival-sample-card {padding:12px;}.qa-festival-sample-metrics small {display:block;min-height:29px;font-size:10px;}.qa-festival-sample-metrics strong {display:block;font-size:24px;margin-top:8px;}.qa-festival-sample-metrics img {margin-bottom:8px;}.qa-festival-sample-table {margin-top:14px;overflow:auto;}.qa-festival-sample-table table {width:100%;border-collapse:collapse;font-size:10px;}.qa-festival-sample-table th,.qa-festival-sample-table td {padding:9px;border-bottom:1px solid var(--special-rule);text-align:left;}.qa-festival-sample-table th {background:var(--special-inset);}.qa-festival-sample-table [data-status="pass"] {color:#15803d;}.qa-festival-sample-table [data-status="fail"] {color:#be123c;}
+.qa-festival-sample-note {display:block;margin-top:12px;padding:8px;font-size:10px;color:var(--special-muted);}
+[data-qa-festival-preview="festival-new-year"] .qa-festival-sample-table [data-status="pass"] {color:#83dfaa;}[data-qa-festival-preview="festival-new-year"] .qa-festival-sample-table [data-status="fail"] {color:#ffaaa9;}
+@media(max-width:650px) {
+  .qa-festival-hero-content {flex-direction:column;align-items:flex-start;gap:14px;}.qa-festival-hero {min-height:290px;background-position:65% center;}.qa-festival-hero-content p {font-size:12px;}.qa-festival-hero-badge {padding:8px 12px;}.qa-festival-hero-badge strong {font-size:13px;}
+  .qa-festival-sample {grid-template-columns:1fr;}.qa-festival-sample-nav {display:none;}.qa-festival-sample-metrics {grid-template-columns:repeat(2,minmax(0,1fr));}.qa-festival-sample-body {padding:12px;}.qa-festival-sample .qa-festival-hero {padding:18px;}.qa-festival-sample-filters {gap:5px;}.qa-festival-sample-filters span {font-size:9px;padding:8px 5px;}
+  .qa-festival-sample .qa-festival-hero {min-height:240px;background-position:75% center;}
+  html:root[data-qa-festival-theme] [data-festival-hero] {background-position:75% center!important;}
+  html:root[data-qa-festival-theme] body {background-attachment:scroll!important;}
+}
+@media print {
+  html:root[data-qa-festival-theme] {--special-ink:#172033;--special-muted:#475569;color-scheme:light;}
+  .qa-festival-preview-overlay,[data-festival-action]::before,.qa-festival-icon {display:none!important;}
+}

@@ -4,6 +4,7 @@ import vm from "node:vm";
 import ts from "typescript";
 import * as calendar from "../src/weekdayCollection.mjs";
 import { isSpecialTheme } from "../src/specialThemes/model.mjs";
+import { festivalThemeFor } from "../src/festivalThemes/model.mjs";
 
 const { getBangkokWeekdayTheme, millisecondsUntilBangkokMidnight, resolveWeekdayPreference } = calendar;
 for (let day = 0; day < 7; day++) {
@@ -32,7 +33,7 @@ function runtimeHarness({ custom = "", base = "ocean", blocked = false } = {}) {
     static now() { return now; }
   }
   const context = vm.createContext({
-    Date: Clock, Intl, console, isSpecialTheme,
+    Date: Clock, Intl, console, isSpecialTheme, festivalThemeFor, installFestivalControlIcons: () => () => {},
     CustomEvent: class { constructor(type,options){ this.type=type; this.detail=options?.detail; } },
     document: { documentElement: root, body: {}, hidden: false, querySelector: () => null, addEventListener: (name, fn) => { listeners[name] = fn; } },
     localStorage: {
@@ -62,10 +63,12 @@ assert.equal(h.root.dataset.qaTheme, "weekday-tuesday");
 h.setDate("2026-12-25T05:00:00Z");
 h.api.applyEffectiveTheme();
 assert.equal(h.root.dataset.qaTheme, "festival-christmas");
+assert.equal(h.root.dataset.qaFestivalTheme, "festival-christmas");
 assert.equal(h.stored.get(customKey), "weekday-auto");
 h.setDate("2027-01-10T05:00:00Z");
 h.api.applyEffectiveTheme();
 assert.equal(h.root.dataset.qaTheme, "weekday-sunday");
+assert.equal(h.root.dataset.qaFestivalTheme, undefined);
 h.stored.delete(customKey);
 h.listeners.storage({ key: customKey });
 assert.equal(h.root.dataset.qaTheme, "ocean");
@@ -84,6 +87,20 @@ special.setDate("2026-12-25T05:00:00Z");
 special.api.applyEffectiveTheme();
 assert.equal(special.root.dataset.qaTheme, "special-volcanic", "an unlocked Special choice stays selected during a festival");
 assert.equal(special.root.dataset.qaFestivalOverride, "");
+for (const [date, id] of [
+  ['2026-01-01', 'festival-new-year'], ['2026-02-14', 'festival-valentine'],
+  ['2026-04-14', 'festival-songkran'], ['2026-10-31', 'festival-halloween'],
+  ['2026-11-24', 'festival-loy-krathong'], ['2026-12-25', 'festival-christmas'],
+]) {
+  const festival = runtimeHarness();
+  festival.setDate(date + 'T05:00:00Z'); festival.api.applyEffectiveTheme();
+  assert.equal(festival.root.dataset.qaTheme, id);
+  assert.equal(festival.root.dataset.qaFestivalTheme, id);
+  assert.equal(festival.stored.get(baseKey), 'ocean', 'automatic festival does not overwrite the account preference');
+  festival.setDate('2026-09-15T05:00:00Z'); festival.api.applyEffectiveTheme();
+  assert.equal(festival.root.dataset.qaTheme, 'ocean');
+  assert.equal(festival.root.dataset.qaFestivalTheme, undefined);
+}
 const unavailable = runtimeHarness({ blocked: true });
 unavailable.api.select();
 assert.equal(unavailable.root.dataset.qaTheme, "weekday-monday");

@@ -1,5 +1,9 @@
 import { WEEKDAY_COLLECTION_ID, isWeekdayPreference, getBangkokWeekdayTheme, resolveWeekdayPreference, millisecondsUntilBangkokMidnight } from "./weekdayCollection.mjs";
 import { isSpecialTheme } from "./specialThemes/model.mjs";
+import { festivalThemeFor } from "./festivalThemes/model.mjs";
+import { festivalIconUrl } from "./festivalThemes/icons.mjs";
+import { openFestivalPreview } from "./festivalThemes/preview";
+import { installFestivalControlIcons } from "./festivalThemes/controlIcons";
 // Seasonal theme runtime v2
 // Appearance-only behavior. It does not touch QA data, permissions, scoring, or workflow logic.
 
@@ -242,6 +246,11 @@ function applyEffectiveTheme() {
     if (document.documentElement.dataset.qaTheme !== effectiveTheme) {
       document.documentElement.dataset.qaTheme = effectiveTheme;
     }
+    if (festivalThemeFor(effectiveTheme)) {
+      if (document.documentElement.dataset.qaFestivalTheme !== effectiveTheme) document.documentElement.dataset.qaFestivalTheme = effectiveTheme;
+    } else {
+      delete document.documentElement.dataset.qaFestivalTheme;
+    }
 
     document.documentElement.dataset.qaFestivalOverride = activeFestival?.id || "";
     document.documentElement.dataset.qaWeekdayCollection = isWeekdayPreference(getCustomPreference()) ? "auto" : "";
@@ -375,72 +384,7 @@ function createThemeCard(options: {
 }
 
 function showFestivalPreview(festival: Festival, opener: HTMLButtonElement) {
-  if (document.querySelector(".qa-festival-preview-overlay")) return;
-  const overlay = document.createElement("div");
-  overlay.className = "qa-festival-preview-overlay";
-  const dialog = document.createElement("section");
-  dialog.className = "qa-festival-preview-dialog";
-  dialog.setAttribute("role", "dialog");
-  dialog.setAttribute("aria-modal", "true");
-  dialog.setAttribute("aria-labelledby", "qa-festival-preview-title");
-  const heading = document.createElement("h2");
-  heading.id = "qa-festival-preview-title";
-  heading.textContent = festival.label + " · ตัวอย่างธีม";
-  const close = document.createElement("button");
-  close.type = "button";
-  close.className = "qa-festival-preview-close";
-  close.textContent = "ปิดตัวอย่าง";
-  const header = document.createElement("header");
-  header.append(heading, close);
-  const image = document.createElement("img");
-  image.src = `/festivals/${festival.id}.svg`;
-  image.alt = `ภาพบรรยากาศ ${festival.label}`;
-  const sample = document.createElement("div");
-  sample.className = "qa-festival-preview-sample";
-  sample.style.setProperty("--festival-preview-accent", festival.color);
-  const title = document.createElement("strong");
-  title.textContent = "QA Dashboard";
-  const note = document.createElement("p");
-  note.textContent = "ภาพและสีใช้ร่วมกันบนการ์ด ส่วนหัว และ Sidebar";
-  const metrics = document.createElement("div");
-  metrics.className = "qa-festival-preview-metrics";
-  for (const [label, value, status] of [["Quality Score", "92.50%", "pass"], ["KPI Passed", "18", "pass"], ["KPI Not Passed", "2", "fail"]]) {
-    const card = document.createElement("div");
-    const name = document.createElement("span");
-    name.textContent = label;
-    const number = document.createElement("strong");
-    number.textContent = value;
-    number.dataset.status = status;
-    card.append(name, number);
-    metrics.append(card);
-  }
-  const disclaimer = document.createElement("p");
-  disclaimer.className = "qa-festival-preview-note";
-  disclaimer.textContent = "ข้อมูลจำลองสำหรับดูธีม · ระบบเปิดใช้อัตโนมัติตามช่วงเทศกาล";
-  sample.append(title, note, metrics, disclaimer);
-  dialog.append(header, image, sample);
-  overlay.append(dialog);
-  const picker = document.querySelector<HTMLElement>('section[role="dialog"][aria-labelledby="qa-theme-picker-title"]');
-  const previouslyInert = picker?.inert;
-  if (picker) picker.inert = true;
-  const remove = () => {
-    overlay.remove();
-    document.removeEventListener("keydown", onKey, true);
-    if (picker) picker.inert = Boolean(previouslyInert);
-    if (opener.isConnected) opener.focus();
-  };
-  const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape" || event.key === "Tab") {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (event.key === "Escape") remove(); else close.focus();
-    }
-  };
-  close.addEventListener("click", remove);
-  overlay.addEventListener("click", (event) => { if (event.target === overlay) remove(); });
-  document.addEventListener("keydown", onKey, true);
-  document.body.append(overlay);
-  close.focus();
+  openFestivalPreview(festival.id, opener);
 }
 
 function createFestivalCard(festival: Festival, subtitle: string, selected: boolean) {
@@ -448,16 +392,27 @@ function createFestivalCard(festival: Festival, subtitle: string, selected: bool
   card.dataset.qaSeasonalAdded = "true";
   card.dataset.qaThemeCollection = "festival";
   card.dataset.qaFestivalCard = festival.id;
+  card.dataset.qaFestivalPreview = festival.id;
   card.className = "qa-festival-collection-card";
   card.dataset.selected = String(selected);
   card.style.setProperty("--festival-preview-accent", festival.color);
   const image = document.createElement("img");
-  image.src = `/festivals/${festival.id}.svg`;
+  image.src = festivalThemeFor(festival.id)?.image || "";
   image.alt = "";
   image.loading = "lazy";
+  image.width = 600;
+  image.height = 200;
   const content = document.createElement("div");
   const title = document.createElement("strong");
   title.textContent = festival.label;
+  const titleRow = document.createElement("div");
+  titleRow.className = "qa-festival-card-title";
+  const motif = document.createElement("img");
+  motif.className = "qa-festival-icon";
+  motif.src = festivalIconUrl(festival.id, "dashboard");
+  motif.alt = "";
+  motif.setAttribute("aria-hidden", "true");
+  titleRow.append(motif, title);
   const status = document.createElement("span");
   status.className = "qa-festival-card-status";
   status.textContent = selected ? "กำลังใช้งาน" : "เปิดตามช่วงเทศกาล";
@@ -470,7 +425,13 @@ function createFestivalCard(festival: Festival, subtitle: string, selected: bool
   preview.textContent = "ดูตัวอย่าง";
   preview.setAttribute("aria-label", `ดูตัวอย่าง ${festival.label}`);
   preview.addEventListener("click", () => showFestivalPreview(festival, preview));
-  content.append(title, status, date, preview);
+  const description = document.createElement("p");
+  description.textContent = festivalThemeFor(festival.id)?.description || "";
+  const swatches = document.createElement("div");
+  swatches.className = "qa-festival-card-swatches";
+  swatches.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < 3; i++) swatches.append(document.createElement("i"));
+  content.append(titleRow, status, description, date, swatches, preview);
   card.append(image, content);
   return card;
 }
@@ -612,6 +573,7 @@ function installThemeHooks() {
 function startSeasonalThemeRuntime() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
+  installFestivalControlIcons();
   installThemeHooks();
   window.addEventListener("qa-appearance-change", (event: Event) => {
     const detail = (event as CustomEvent).detail;

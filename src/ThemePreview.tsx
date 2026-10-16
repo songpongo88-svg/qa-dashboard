@@ -1,5 +1,6 @@
 import React from 'react';
 import { WEEKDAY_IDS } from './weekdayCollection.mjs';
+import { festivalThemeFor } from './festivalThemes/model.mjs';
 
 export const WEEKDAY_LABELS = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
 export const FESTIVAL_LABELS: Record<string, string> = {
@@ -22,7 +23,7 @@ export default function ThemePreview({ themeId, option }: {
     {option.sceneImage ? <span style={{ backgroundImage: `url("${option.sceneImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} /> : weekday >= 0 ? <span style={{
       backgroundImage: 'url("/weekday-scenes-v3.png")', backgroundSize: 'auto 700%',
       backgroundPosition: `78% ${weekday / 6 * 100}%`,
-    }} /> : festivalColor ? <span style={{ backgroundImage: `url("/festivals/${themeId}.svg")`, backgroundSize: "cover", backgroundPosition: "75% center" }} />
+    }} /> : festivalColor ? <span style={{ backgroundImage: `url("${festivalThemeFor(themeId)?.image}")`, backgroundSize: "cover", backgroundPosition: "70% center" }} />
       : option.patternImage ? <span style={{ backgroundImage: `url("${option.patternImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: option.swatches[2] }} />
         : <span className="qa-active-theme-swatches">{option.swatches.map((color, index) => <i key={`${color}-${index}`} style={{ backgroundColor: color, width: index === 1 ? 10 : 6 }} />)}</span>}
   </span>;
