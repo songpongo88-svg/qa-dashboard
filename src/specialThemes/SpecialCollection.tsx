@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SPECIAL_THEMES, SPECIAL_UNLOCK_MS } from './model.mjs';
+import { SPECIAL_THEMES, SPECIAL_UNLOCK_MS, SPECIAL_QUEST_DEADLINE } from './model.mjs';
 import type { SpecialUsage } from './usage';
 import './specialThemes.css';
 
@@ -44,12 +44,15 @@ export function SpecialCollection({ usage, selectedTheme, onSelect }: {
   const [preview, setPreview] = useState<Theme | null>(null);
   const minutes = Math.floor(usage.activeMs / 60000);
   const remaining = Math.max(0, Math.ceil((SPECIAL_UNLOCK_MS - usage.activeMs) / 60000));
+  const expired = usage.ready && usage.expired && !usage.unlocked;
   return <section data-qa-theme-collection="special" className="qa-special-collection">
     <div className="qa-special-collection-heading"><div><span className="qa-special-eyebrow">SPECIAL COLLECTION</span><h3>บรรยากาศพิเศษ สำหรับพื้นที่ทำงานของคุณ</h3><p>ภาพสมจริง พร้อมการ์ด เมนู ปุ่ม และตารางที่ออกแบบตามแต่ละธีม</p></div><LockIcon unlocked={usage.unlocked} /></div>
-    <div className="qa-special-unlock-progress">
-      <div><strong>{usage.unlocked ? 'ปลดล็อกครบทั้ง 3 ธีมแล้ว' : `ใช้งานสะสม ${minutes} / 180 นาที`}</strong><span role="status">{!usage.ready ? 'กำลังตรวจเวลาใช้งาน…' : usage.unlocked ? 'เลือกสลับใช้ได้ทุกเมื่อ' : remaining ? `อีก ${remaining} นาทีปลดล็อกทั้งคอลเลกชัน` : 'กำลังบันทึกเพื่อปลดล็อก…'}</span></div>
+    <div className="qa-special-unlock-progress" data-qa-special-quest-state={!usage.ready ? 'loading' : usage.unlocked ? 'unlocked' : expired ? 'expired' : 'open'}>
+      <p className="qa-special-quest-deadline"><strong>สิ้นสุดเควส</strong><time dateTime={SPECIAL_QUEST_DEADLINE}>31 ธันวาคม 2026 เวลา 23:59 น. (เวลาไทย)</time></p>
+      <div><strong>{usage.unlocked ? 'ปลดล็อกครบทั้ง 3 ธีมแล้ว' : `ใช้งานสะสม ${minutes} / 180 นาที`}</strong><span role="status">{!usage.ready ? 'กำลังตรวจสิทธิ์และเวลาใช้งาน…' : usage.unlocked ? 'ใช้ธีมต่อได้หลังหมดเขต' : expired ? 'หมดเวลาปลดล็อก' : remaining ? `อีก ${remaining} นาทีปลดล็อกทั้งคอลเลกชัน` : 'ครบเวลาแล้ว · กำลังบันทึกเพื่อปลดล็อก…'}</span></div>
       <progress value={usage.activeMs} max={SPECIAL_UNLOCK_MS} aria-label="เวลาใช้งานสะสมสำหรับปลดล็อก Special Collection" />
       <p>สะสมแยกตามบัญชี ข้ามวันได้ · นับเฉพาะช่วงใช้งาน ไม่รวมเวลาซ่อนแท็บหรือไม่มีการใช้งานเกิน 5 นาที</p>
+      <p>{expired ? 'สะสมไม่ครบภายในกำหนด จึงไม่สามารถปลดล็อกคอลเลกชันนี้ได้แล้ว' : 'สะสมครบ 180 นาทีภายในกำหนด รับสิทธิ์ใช้ทั้ง 3 ธีมต่อได้ หลังหมดเขตจะไม่เปิดรับผู้ปลดล็อกใหม่'}</p>
       {usage.syncPending && <p role="status">เก็บเวลาไว้ในอุปกรณ์แล้ว กำลังรอบันทึกเข้าบัญชี</p>}
     </div>
     <div className="qa-special-theme-grid">{SPECIAL_THEMES.map(theme => {
@@ -58,7 +61,7 @@ export function SpecialCollection({ usage, selectedTheme, onSelect }: {
         <img src={theme.image} loading="lazy" alt={`บรรยากาศ${theme.thai}`} width="600" height="338" />
         <div><div className="qa-special-theme-card-title"><h4>{theme.label}</h4>{!usage.unlocked && <LockIcon />}</div><span>{theme.thai}</span><p>{theme.description}</p>
           <div className="qa-special-material-sample" aria-hidden="true"><i /><i /><i /><span /></div>
-          <div className="qa-special-card-actions"><button type="button" data-qa-custom-theme-card="special-preview" onClick={() => setPreview(theme)}>ดูตัวอย่าง</button><button type="button" data-qa-special-apply={theme.id} disabled={!usage.ready || !usage.unlocked} aria-pressed={selected} onClick={() => { if (usage.ready && usage.unlocked) onSelect(theme.id); }}>{selected ? 'กำลังใช้งาน' : usage.unlocked ? 'ใช้ธีมนี้' : 'ปลดล็อกที่ 180 นาที'}</button></div>
+          <div className="qa-special-card-actions"><button type="button" data-qa-custom-theme-card="special-preview" onClick={() => setPreview(theme)}>ดูตัวอย่าง</button><button type="button" data-qa-special-apply={theme.id} disabled={!usage.ready || !usage.unlocked} aria-pressed={selected} onClick={() => { if (usage.ready && usage.unlocked) onSelect(theme.id); }}>{selected ? 'กำลังใช้งาน' : usage.unlocked ? 'ใช้ธีมนี้' : expired ? 'หมดเวลาปลดล็อก' : 'ปลดล็อกที่ 180 นาที'}</button></div>
         </div>
       </article>;
     })}</div>
