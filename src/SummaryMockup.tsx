@@ -13,7 +13,7 @@ import {
   type StoredEvaluation,
 } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
-import { getAppealTopicDecision } from "./appealReview";
+import { getAppealTopicDecision, appealTopicIssueTags, appealIssueTagsChanged, type AppealIssueTagFields } from "./appealReview";
 // data-analytics-appeal-source-refresh-v20
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
@@ -34,6 +34,7 @@ type Topic = {
   max: number;
   pct: number;
   comment?: string;
+  issueTags?: string[];
 };
 
 type CaseItem = AppealScoreState & {
@@ -67,7 +68,7 @@ type AppealMergeItem = {
   displayRevisedTopicCodes: string[];
 };
 
-function isApprovedAppealTopicChanged(topic: {
+function isApprovedAppealTopicChanged(topic: AppealIssueTagFields & {
   score?: number;
   revisedScore?: number | string;
   revisedComment?: string;
@@ -81,7 +82,7 @@ function isApprovedAppealTopicChanged(topic: {
   const originalScore = Number(topic.score ?? 0);
   return (
     (revisedScore !== undefined && Math.abs(revisedScore - originalScore) > 0.0001) ||
-    String(topic.revisedComment || "").trim() !== ""
+    String(topic.revisedComment || "").trim() !== "" || appealIssueTagsChanged(topic)
   );
 }
 
@@ -133,6 +134,7 @@ function buildApprovedAppealMergeMap(
           max: master.max,
           pct: Number(((revisedScore / master.max) * 100).toFixed(2)),
           comment: String(effectiveComment || matched.comment || "").trim(),
+          ...(appealTopicIssueTags(matched, request.status) !== undefined ? { issueTags: appealTopicIssueTags(matched, request.status) } : {}),
         } as Topic;
       })
       .filter(Boolean) as Topic[];
@@ -852,7 +854,7 @@ function getLatestAppealRows(appealDataRows: any[][], helper: ReturnType<typeof 
 function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
   if (!revisedTopics?.length) return topics;
   const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
-  return topics.map((topic) => revisedMap.get(topic.code) || topic);
+  return topics.map((topic) => ({ ...topic, ...revisedMap.get(topic.code) }));
 }
 
 function roundToTwo(value: number) {

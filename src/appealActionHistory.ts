@@ -1,8 +1,8 @@
 import type { UsageLogEvent } from "./usageLog";
 import type { AppealEvidenceImage } from "./AppealEvidence";
-import { appealScoreAfterReview, getAppealTopicDecision, summarizeAppealDecisions, type AppealTopicDecision } from "./appealReview";
+import { appealScoreAfterReview, getAppealTopicDecision, summarizeAppealDecisions, type AppealTopicDecision, type AppealIssueTagFields } from "./appealReview";
 
-export type AppealActionTopic = {
+export type AppealActionTopic = AppealIssueTagFields & {
   code: string;
   label: string;
   score: number;
@@ -102,6 +102,9 @@ function reviewedTopics(source: AppealActionTopic[], review?: UsageLogEvent) {
       score: result?.score ?? topic.score,
       originalScore: result?.originalScore,
       retainedComment: result?.retainedComment,
+      ...(Array.isArray(result?.issueTags) ? { issueTags: result.issueTags } : {}),
+      ...(Array.isArray(result?.retainedIssueTags) ? { retainedIssueTags: result.retainedIssueTags } : {}),
+      ...(Array.isArray(result?.revisedIssueTags) ? { revisedIssueTags: result.revisedIssueTags } : {}),
       decision: review ? getAppealTopicDecision(result, review.details?.decision) : undefined,
       revisedScore: result?.revisedScore,
       revisedComment: result?.revisedComment || "",

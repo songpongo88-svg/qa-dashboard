@@ -9,7 +9,7 @@ import {
 } from "./evaluationStore";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
-import { getAppealTopicDecision } from "./appealReview";
+import { getAppealTopicDecision, appealTopicIssueTags } from "./appealReview";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
@@ -465,7 +465,7 @@ async function applyFirebaseAppeals(rows: StoredEvaluation[], excelCaseIds: Set<
 
     const monthKey = item.evaluationMonthKey || getStoredEvaluationMonthKey(item) || monthKeyFromDate(item.auditDate || item.auditTimestamp);
     const master = getTopicMaster(monthKey);
-    const revisedByCode = new Map<string, { score: number; comment: string }>();
+    const revisedByCode = new Map<string, { score: number; comment: string; issueTags?: string[] }>();
     let delta = 0;
 
     (Array.isArray(request.topics) ? request.topics : []).forEach((topic: any) => {
@@ -481,6 +481,7 @@ async function applyFirebaseAppeals(rows: StoredEvaluation[], excelCaseIds: Set<
       revisedByCode.set(String(topic.code || ""), {
         score: effectiveScore,
         comment: String(effectiveComment || topic.comment || "").trim(),
+        ...(appealTopicIssueTags(topic, request.status) !== undefined ? { issueTags: appealTopicIssueTags(topic, request.status) } : {}),
       });
     });
 
@@ -490,11 +491,13 @@ async function applyFirebaseAppeals(rows: StoredEvaluation[], excelCaseIds: Set<
       const base = baseMap.get(topic.code);
       const revised = revisedByCode.get(topic.code);
       return {
+        ...base,
         code: topic.code,
         title: base?.title || topic.title,
         max: topic.max,
         score: revised?.score ?? Number(base?.score ?? topic.max),
         comment: revised?.comment || base?.comment || "",
+        ...(Array.isArray(revised?.issueTags) ? { issueTags: revised.issueTags } : {}),
       };
     });
     const originalFinalScore = numeric(request.finalScore) ?? Number(item.finalScore || 0);

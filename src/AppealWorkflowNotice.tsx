@@ -1,10 +1,11 @@
 import React from "react";
 import { appealWorkflowLabel, appealWorkflowStatus, appealWorkflowTone, type AppealWorkflowRequest } from "./appealWorkflow";
 
-export default function AppealWorkflowNotice({ request, canReview, isOwner, busy, onCaseDetail, onDecision, onReview }: {
+export default function AppealWorkflowNotice({ request, canReview, isOwner, busy, onCaseDetail, onDecision, onReview, compact = false, hideReviewAction = false }: {
   request: AppealWorkflowRequest & { additionalAccessRequest?: (AppealWorkflowRequest["additionalAccessRequest"] & { reason?: string; topics?: string[]; decisionReason?: string }) };
   canReview: boolean; isOwner: boolean; busy: boolean;
   onCaseDetail: () => void; onDecision: (approved: boolean) => void; onReview: () => void;
+  compact?: boolean; hideReviewAction?: boolean;
 }) {
   const status = appealWorkflowStatus(request);
   const guidance: Record<string, string> = {
@@ -19,19 +20,19 @@ export default function AppealWorkflowNotice({ request, canReview, isOwner, busy
     Reset: "คำขอถูกรีเซ็ตแล้ว เปิด Case Detail เพื่อตรวจสิทธิ์ยื่นอุทธรณ์อีกครั้ง",
   };
   const deadline = request.additionalRound?.expiresAt;
-  return <section aria-label="ขั้นตอนอุทธรณ์ปัจจุบัน" className={`my-4 rounded-2xl border p-4 ${appealWorkflowTone(status)}`}>
-    <div className="text-sm font-extrabold">{appealWorkflowLabel(status)}</div>
-    <p className="mt-2 text-sm leading-6">{guidance[status] || "พิจารณาเรียบร้อยแล้ว ดูผลรายหัวข้อและประวัติของเคสได้"}</p>
+  return <section aria-label="ขั้นตอนอุทธรณ์ปัจจุบัน" className={`${compact ? "mb-3 rounded-xl border p-3 text-xs [&_p]:text-xs [&_button]:text-xs [&_button]:px-3 [&_button]:py-2" : "my-4 rounded-2xl border p-4"} ${appealWorkflowTone(status)}`}>
+    {!compact && <div className="text-sm font-extrabold">{appealWorkflowLabel(status)}</div>}
+    <p className={`${compact ? "" : "mt-2 "}text-sm leading-6`}>{guidance[status] || "พิจารณาเรียบร้อยแล้ว ดูผลรายหัวข้อและประวัติของเคสได้"}</p>
     {deadline && !request.additionalRound?.submitted ? <p className="mt-2 text-sm font-bold">หมดเขตยื่นเพิ่ม: {new Date(deadline).toLocaleString("en-GB", { timeZone: "Asia/Bangkok", hour12: false }).replace(",", "")}</p> : null}
     {request.additionalAccessRequest?.reason && ["Request Additional Appeal", "Additional Request Rejected", "Approved (Access)"].includes(status) ? <div className="mt-2 whitespace-pre-wrap text-sm leading-6">หัวข้อที่ขอ: {request.additionalAccessRequest.topics?.join(", ") || "-"}<br />{request.additionalAccessRequest.reason}</div> : null}
     {status === "Additional Request Rejected" && request.additionalAccessRequest?.decisionReason ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6">เหตุผลจาก QA: {request.additionalAccessRequest.decisionReason}</p> : null}
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="mt-3 flex flex-wrap gap-2 empty:hidden">
       {canReview && status === "Request Additional Appeal" ? <>
         <button type="button" disabled={busy} onClick={() => onDecision(true)} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">อนุญาตให้ยื่นเพิ่ม (3 วัน)</button>
         <button type="button" disabled={busy} onClick={() => onDecision(false)} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">ไม่อนุญาตให้ยื่นเพิ่ม</button>
       </> : null}
       {canReview && status === "Approved (Access)" ? <button type="button" disabled={busy} onClick={() => onDecision(true)} className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">เปิดสิทธิ์ที่อนุมัติค้าง</button> : null}
-      {canReview && ["Pending", "Pending (Additional)"].includes(status) ? <button type="button" disabled={busy} onClick={onReview} className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">พิจารณาอุทธรณ์</button> : null}
+      {canReview && !hideReviewAction && ["Pending", "Pending (Additional)"].includes(status) ? <button type="button" disabled={busy} onClick={onReview} className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">พิจารณาอุทธรณ์</button> : null}
       {isOwner && status === "Awaiting Additional Submission" ? <button type="button" disabled={busy} onClick={onCaseDetail} className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">ยื่นอุทธรณ์เพิ่มเติม</button> : null}
     </div>
   </section>;

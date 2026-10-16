@@ -33,9 +33,10 @@ try {
   const at = hours => new Date(Date.parse("2026-10-09T00:00:00Z") + hours * 3600000).toISOString();
   const topic = { code: "1", label: "Process", score: 18, max: 30, comment: "ORIGINAL_EVALUATION ขั้นตอนการทำงานเดิม", wantsAppeal: true, appealReason: "FIRST_APPEAL_REASON\nเนื่องจากไรเดอร์ถามแค่งานไม่เข้า\nSecond line" };
   const event = (event_type, hours, details) => ({ event_type, created_at: at(hours), case_id: "AA304253", target_agent: "Fixture Agent", details: { requestId, ...details } });
-  const firstReview = { ...topic, decision: "Approved", revisedScore: 20, revisedComment: "FIRST_QA_COMMENT" };
+  topic.issueTags = ["FIRST_REMOVED_TAG", "SECOND_REMOVED_TAG"];
+  const firstReview = { ...topic, decision: "Approved", revisedScore: 20, revisedComment: "FIRST_QA_COMMENT", revisedIssueTags: ["SECOND_REMOVED_TAG"] };
   const secondTopic = { ...topic, appealReason: "SECOND_APPEAL_REASON\n" + Array.from({ length: 90 }, (_, index) => `Evidence line ${index + 1}`).join("\n") + "\nFINAL_REASON_LINE" };
-  const secondReview = { ...secondTopic, decision: "Approved", revisedScore: 23, revisedComment: "SECOND_QA_COMMENT" };
+  const secondReview = { ...secondTopic, decision: "Approved", revisedScore: 23, revisedComment: "SECOND_QA_COMMENT", retainedIssueTags: ["SECOND_REMOVED_TAG"], revisedIssueTags: [] };
   const other = { code: "2", label: "Answer", score: 14, max: 20, comment: "OTHER_ORIGINAL", wantsAppeal: true, appealReason: "THIRD_ACTION_NEW_TOPIC" };
   const rows = [
     event("appeal_request_submitted", -100, { topics: [topic], finalScore: 88, submittedAt: at(-100), submittedBy: "First Submitter" }),
@@ -83,6 +84,9 @@ try {
     assert.ok(generated.blob.size > 10000, "real PDF bytes generated");
     assert.ok(globalThis.__actionPdfDoc.getNumberOfPages() >= 2, "long reasons paginate with compact separators");
     const text = globalThis.__actionPdfTexts.flat(Infinity).join(" ");
+    assert.ok(text.includes("Tag หลังทบทวน"));
+    assert.ok(text.includes("FIRST_REMOVED_TAG"), "the first removal remains in its review history");
+    assert.ok(text.includes("SECOND_REMOVED_TAG"), "a later removal remains in its own review history");
     for (const expected of ["ORIGINAL_EVALUATION", "ขั้นตอนการทำงานเดิม", "เนื่องจากไรเดอร์ถามแค่งานไม่เข้า", "Action 1", "Action 2", "Cancelled (Additional)", "Expired (Additional)", "FIRST_APPEAL_REASON", "SECOND_APPEAL_REASON", "FINAL_REASON_LINE", "FIRST_QA_COMMENT", "SECOND_QA_COMMENT", "CORRECTED_SECOND_QA_COMMENT", "THIRD_QA_REJECT_REASON"]) {
       assert.ok(text.replace(/\s/g, '').includes(expected.replace(/\s/g, '')), `${pdfVariant} PDF preserves ${expected}`);
     }

@@ -63,7 +63,8 @@ try {
   const { generateOfficialCaseDetailPdf, generateCasePdfWithAppealHistory } = await import(pathToFileURL(bundle).href);
   async function generate(caseItem, pdfVariant = "original", name = "") {
     const snapshot = structuredClone(caseItem);
-    const result = await generateCasePdfWithAppealHistory({ caseItem, pdfVariant, fallback: generateOfficialCaseDetailPdf });
+    let renderedCase;
+    const result = await generateCasePdfWithAppealHistory({ caseItem, pdfVariant, fallback: input => { renderedCase = input.caseItem; return generateOfficialCaseDetailPdf(input); } });
     const pdf = pdfs.at(-1);
     const calls = pdf.fixtureCalls.filter((call) => call.method === "text");
     const text = calls.map((call) => String(call.values[0])).join("");
@@ -72,7 +73,7 @@ try {
     assert.equal(bytes.subarray(0, 4).toString(), "%PDF");
     assert.ok(result.fileName.includes(caseItem.caseId), "the Case ID remains in the download filename");
     if (output && name) { await mkdir(output, { recursive: true }); await writeFile(resolve(output, name + ".pdf"), bytes); }
-    return { pdf, calls, text };
+    return { pdf, calls, text, renderedCase };
   }
 
   const normal = await generate(base, "original", "normal-tags");
@@ -104,7 +105,7 @@ try {
     assert.equal(rendered.text.split(label).length - 1, 1, "appeal Tags are never duplicated by the renderer and adapter");
     assert.ok(rendered.text.indexOf("Original Comment") < rendered.text.indexOf("หัก 14 คะแนน"));
     assert.ok(rendered.text.indexOf("หัก 14 คะแนน") < rendered.text.indexOf(label));
-    assert.ok(rendered.text.indexOf(label) < rendered.text.indexOf("Appeal Reason"), "Tags stay inside Original Comment, before appeal explanations");
+    assert.ok(rendered.text.indexOf(label) < rendered.text.indexOf("Appeal Reason", rendered.text.indexOf(label)), "Tags stay inside Original Comment, before the topic's appeal explanation");
     for (const tag of tags) assert.ok(rendered.text.includes(tag), "appeals without replacement Tags retain saved case Tags");
     assertPurpleTags(rendered);
   }
@@ -117,7 +118,7 @@ try {
       { ...base.topics[1], decision: "Rejected", comment: "Rejected topic explanation", appealReason: "Appeal topic two" },
     ] };
   const mixedPdf = await generate(mixed, "original", "mixed-decisions");
-  assert.ok(mixedPdf.text.includes("Partially Approved"));
+  assert.equal(mixedPdf.renderedCase.appealStatus, "Partially Approved");
   assert.ok(mixedPdf.text.includes("Decision: Approved"));
   assert.ok(mixedPdf.text.includes("Decision: Rejected"));
   assert.ok(mixedPdf.text.includes("Reject Reason"));
@@ -133,6 +134,22 @@ try {
     revisedTopics: [{ ...base.topics[0], score: 10, comment: "ความคิดเห็นใหม่", issueTags: [] }] };
   assert.ok(!(await generate(cleared)).text.includes(label), "an explicitly empty replacement selection stays empty");
   console.log("PASS untagged history and explicitly cleared replacement Tags remain empty");
+
+  for (const pdfVariant of ["original", "appeal"]) for (const selectedTags of [[tags[1]], []]) {
+    const tagOnly = { ...structuredClone(base), reviewStatus: "Revised", appealStatus: "Approved", displayRevisedTopicCodes: ["1"],
+      revisedTopics: [{ ...base.topics[0], issueTags: selectedTags }],
+      appealReviewedTopics: [{ ...base.topics[0], decision: "Approved", appealReason: "TAG_ONLY_REVIEW" }],
+    };
+    const rendered = await generate(tagOnly, pdfVariant);
+    const html = new DOMParser().parseFromString(rendered.renderedCase.topics[0].pdfAppealDetailHtml || rendered.renderedCase.topics[0].comment, "text/html");
+    const tagRow = [...html.querySelectorAll("div")].find(node => node.textContent.startsWith(label));
+    assert.equal(tagRow?.textContent || "", selectedTags.length ? `${label} ${selectedTags.join(" • ")}` : "");
+    assert.equal(rendered.renderedCase.topics[0].score, base.topics[0].score, "Tag-only correction preserves the topic score");
+    const rejectedAdditional = { ...tagOnly, appealStatus: "Rejected", appealReviewedTopics: [{ ...tagOnly.appealReviewedTopics[0], decision: "Rejected", comment: "Keep previous approval" }] };
+    const retained = await generate(rejectedAdditional, pdfVariant);
+    assert.equal(retained.text.includes(label), selectedTags.length > 0, "additional rejection keeps an explicitly cleared selection empty");
+  }
+  console.log("PASS Tag-only approvals and retained additional rejections use the latest Tags in both PDF downloads, including an empty selection");
 
   const long = structuredClone(base);
   long.topics = [long.topics[0]];

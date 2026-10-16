@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { type AppealTopicDecision, type AppealDecision } from "./appealReview";
+import { type AppealTopicDecision, type AppealDecision, type AppealIssueTagFields } from "./appealReview";
+import { AppealIssueTagHistory } from "./AppealIssueTags";
 
 export type AppealReviewSavePreview = {
   requestId: string;
@@ -20,12 +21,12 @@ export type AppealReviewSavePreview = {
   review: {
     decision: AppealDecision;
     finalScore: number;
-    topics: {
+    topics: (AppealIssueTagFields & {
       code: string; label?: string; score: number; max: number; decision?: AppealTopicDecision;
       originalScore?: number; retainedComment?: string;
       comment?: string; appealReason?: string; revisedScore?: number | string;
       revisedComment?: string; rejectReason?: string;
-    }[];
+    })[];
   };
   topicRows: {
     code: string;
@@ -112,7 +113,7 @@ export default function AppealReviewDialog({ preview, notice, busy, onConfirm, o
               <tbody>{preview.topicRows.map(topic => (
                 <React.Fragment key={topic.code}>
                   <tr className="border-t border-slate-200"><td className="p-3 font-bold">{topic.code} {topic.label}</td><td className={`p-3 font-bold ${topic.decision === "Approved" ? "text-emerald-700" : "text-rose-700"}`}>{topic.decision === "Approved" ? "Approved" : "Reject"}</td><td className="whitespace-nowrap p-3 text-right font-bold">{topic.beforeScore} → {topic.afterScore} / {topic.max}</td></tr>
-                  <tr><td colSpan={3} className="break-words px-3 pb-3 text-xs leading-6 text-slate-600"><span className="font-bold">{topic.decision === "Approved" ? "ความเห็นหลังทบทวน: " : "เหตุผลที่ไม่อนุมัติ: "}</span>{topic.feedback}</td></tr>
+                  <tr><td colSpan={3} className="break-words px-3 pb-3 text-xs leading-6 text-slate-600"><span className="font-bold">{topic.decision === "Approved" ? "ความเห็นหลังทบทวน: " : "เหตุผลที่ไม่อนุมัติ: "}</span>{topic.feedback}<AppealIssueTagHistory topic={preview.review.topics.find(row => row.code === topic.code)!} /></td></tr>
                 </React.Fragment>
               ))}</tbody>
             </table>

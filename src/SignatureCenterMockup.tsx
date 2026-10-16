@@ -9,7 +9,7 @@ import { renderFinalSignedPdf } from "./finalSignedPdfRenderer";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
-import { getAppealTopicDecision } from "./appealReview";
+import { getAppealTopicDecision, appealTopicIssueTags, appealIssueTagsChanged, type AppealIssueTagFields } from "./appealReview";
 import { appealWorkflowStatus, isAppealAwaitingReview } from "./appealWorkflow";
 import { fetchStoredEvaluations, excludeTestEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
@@ -87,6 +87,7 @@ type SignatureCaseDetail = {
     title: string;
     max: number;
     score: number;
+    issueTags?: string[];
   }>;
 };
 
@@ -880,7 +881,7 @@ function createZeroCaseDocument(monthKey: string, account: UserAccountSnapshot):
   return { ...base, documentHash: createDocumentHash(base) };
 }
 
-function isSignatureAppealTopicChanged(topic: {
+function isSignatureAppealTopicChanged(topic: AppealIssueTagFields & {
   score?: number;
   revisedScore?: number | string;
   revisedComment?: string;
@@ -894,7 +895,7 @@ function isSignatureAppealTopicChanged(topic: {
   const originalScore = Number(topic.score ?? 0);
   return (
     (revisedScore !== undefined && Math.abs(revisedScore - originalScore) > 0.0001) ||
-    String(topic.revisedComment || "").trim() !== ""
+    String(topic.revisedComment || "").trim() !== "" || appealIssueTagsChanged(topic)
   );
 }
 
@@ -934,6 +935,7 @@ function buildSignatureApprovedAppealMap(logs: UsageLogEvent[]) {
             title: normalizeText((topic as any).title || topic.label),
             max,
             score: revisedScore,
+            ...(appealTopicIssueTags(topic, request.status) !== undefined ? { issueTags: appealTopicIssueTags(topic, request.status) } : {}),
           };
         })
         .filter(Boolean) as SignatureCaseDetail["topics"];
@@ -971,6 +973,7 @@ function applySignatureAppealTopics(
           title: revised.title || topic.title,
           max: Number(revised.max || topic.max || 0),
           score: Number(revised.score || 0),
+          ...(Array.isArray(revised.issueTags) ? { issueTags: revised.issueTags } : {}),
         }
       : topic;
   });

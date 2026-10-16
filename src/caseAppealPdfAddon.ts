@@ -1,5 +1,5 @@
 import { formatPdfDateTime } from "./lib/pdfDates";
-import { getAppealTopicDecision } from "./appealReview";
+import { getAppealTopicDecision, appealTopicIssueTags, appealIssueTagsChanged } from "./appealReview";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { richTextToPlainText, sanitizeRichTextHtml } from "./richText";
 import { caseIssueTagsPdfHtml } from "./caseIssueTagsPdf";
@@ -104,7 +104,7 @@ function changedTopic(original: any, revised: any) {
   const scoreChanged = hasValue(revised.score) && numeric(revised.score) !== numeric(original?.score);
   const originalComment = plain(original?.comment, "");
   const revisedComment = plain(revised?.comment, "");
-  return scoreChanged || Boolean(revisedComment && revisedComment !== originalComment);
+  return scoreChanged || Boolean(revisedComment && revisedComment !== originalComment) || appealIssueTagsChanged({ issueTags: original?.issueTags, revisedIssueTags: revised.issueTags, decision: "Approved" });
 }
 
 export async function generateCasePdfWithAppealHistory({
@@ -194,9 +194,9 @@ export async function generateCasePdfWithAppealHistory({
       code: plain(topic?.code, code),
       label: plain(topic?.label || revised?.label || reviewed?.label, ""),
     });
-    const tagTopic = topicApproved && caseItem.reviewStatus === "Revised" && revisedCodes.has(code) && changedTopic(topic, revised)
-      ? revised
-      : topic;
+    const currentTags = latestTopic ? appealTopicIssueTags(latestTopic) : undefined;
+    const tagTopic = currentTags !== undefined ? { issueTags: currentTags }
+      : caseItem.reviewStatus === "Revised" && revisedCodes.has(code) && changedTopic(topic, revised) ? revised : topic;
     const combinedComment = [
       `<div><strong>Original Score: ${scoreText(originalTopicScore)} / ${scoreText(numeric(topic?.max))}</strong></div>`,
       `<div><strong>Revised Score: ${scoreText(revisedTopicScore)} / ${scoreText(maxScore)}</strong></div>`,

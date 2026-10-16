@@ -58,9 +58,9 @@ try {
   const identity = loadDeclarations("../src/lib/agentIdentity.ts", ["canonicalizeAgentName", "canonicalAgentIdentityKey"]);
   const timestamps = loadDeclarations("../src/evaluationStore.ts", ["getOriginalEvaluationTimestamp", "getEvaluationLastUpdatedAt"]);
   const scope = loadDeclarations("../src/lib/evaluationScope.ts", ["isTestCaseEvaluation"]);
-  const appealReview = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision"]);
+  const appealReview = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision", "appealIssueTagsChanged"]);
   const policy = loadDeclarations("../src/lib/scoreIncentivePolicy.ts", ["scoreToGrade"]);
-  const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "richTextToPlainText"], { React });
+  const richText = loadDeclarations("../src/richText.tsx", ["RichTextContent", "richTextToPlainText"], { React, ...React });
   const rubric = {};
   Function("exports", ts.transpileModule(fs.readFileSync(new URL("../src/lib/rubricVersions.ts", import.meta.url), "utf8"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
@@ -121,6 +121,16 @@ try {
     assert.ok(document.body.textContent.includes("Appeal Reason"), "the appeal explanation remains available");
   }
   console.log("PASS approved and rejected appeals keep saved Tags inside their Original Comment card");
+  const originalTaggedTopic = merged.topics.find(topic => topic.code === "2");
+  for (const selectedTags of [[firstTag], []]) {
+    await act(async () => root.render(React.createElement(CaseDetailTopicTable, {
+      topics: merged.topics, reviewStatus: "Revised", revisedTopics: [{ ...originalTaggedTopic, issueTags: selectedTags }],
+      displayRevisedTopicCodes: ["2"], appealStatus: "Approved",
+    })));
+    assert.equal(document.querySelectorAll("[class*='border-amber-300']").length, selectedTags.length, "Tag-only corrections apply even when score and comment are unchanged");
+    assert.ok(document.body.textContent.includes("6 / 20"), "Tag-only changes preserve the displayed score");
+  }
+  console.log("PASS real Case Detail applies Tag-only removals and intentionally empty selections without restoring original Tags");
   const empty = structuredClone(merged.topics);
   empty.forEach((topic) => { delete topic.issueTags; });
   await act(async () => root.render(React.createElement(CaseDetailTopicTable, { topics: empty })));
