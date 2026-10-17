@@ -38,7 +38,7 @@ const db = {
   },
   serverTimestamp: () => 'server-time', firebaseDb: {},
 };
-const app = evaluate(parts.join('\n') + '\nexport { useUserThemePreference };', { ...React, ...model, ...db });
+const app = evaluate(parts.join('\n') + '\nexport { useUserThemePreference };', { ...React, ...model, ...db, restoreCharacterCollection: () => {} });
 let root, latest, stopRuntime;
 const usage = (unlocked = false, ready = true) => ({ ready, unlocked, activeMs: unlocked ? model.SPECIAL_UNLOCK_MS : 0 });
 function Probe({ username, specialUsage }) { latest = app.useUserThemePreference(username, specialUsage); return null; }

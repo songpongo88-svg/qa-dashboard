@@ -2,6 +2,9 @@ import ThemePreview, { WEEKDAY_LABELS, FESTIVAL_LABELS } from "./ThemePreview";
 import { useFestivalTheme } from "./festivalThemes/store";
 import { FestivalIcon } from "./festivalThemes/Festival";
 import { SpecialCollection } from "./specialThemes/SpecialCollection";
+import { CharacterCollection } from "./characterThemes/CharacterCollection";
+import { restoreCharacterCollection, useCharacterCollectionAccount, type CharacterCollectionState } from "./characterThemes/account";
+import { characterThemeFor } from "./characterThemes/model.mjs";
 import { useSpecialThemeUsage, type SpecialUsage } from "./specialThemes/usage";
 import { SPECIAL_THEMES, hasSpecialThemeAccess, isSpecialTheme } from "./specialThemes/model.mjs";
 import { WEEKDAY_IDS } from "./weekdayCollection.mjs";
@@ -559,6 +562,7 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
         const profileSnapshot = await getDoc(doc(firebaseDb, "qa_user_profiles", username));
         if (cancelled) return;
         const profile = profileSnapshot.data() || {};
+        restoreCharacterCollection(username, profile);
         const storedThemeId = String(profile.themeId || profile.theme_id || "");
         const storedPreference = String(profile.themePreference || profile.theme_preference || "");
         const hasStoredTheme = QA_THEME_OPTIONS.some(theme => theme.id === storedThemeId);
@@ -847,7 +851,7 @@ function SidebarGlyph({ name }: { name: string }) {
     users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M3 21c0-5 2-8 6-8s6 3 6 8 M17 7h4 M19 5v4",
     clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2",
     key: "M8 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M10 13l8-8 2 2-2 2 2 2-3 3-2-2-3 3",
-    theme: "M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4 0",
+    theme: "M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h3a6 6 0 0 0-3-9z",
     logout: "M10 4H4v16h6 M14 8l4 4-4 4 M18 12H9",
   };
   return <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.document} /></svg>;
@@ -3551,12 +3555,14 @@ function ThemePickerModal({
   open,
   selectedTheme,
   specialUsage,
+  characterVersion,
   onSelect,
   onClose,
 }: {
   open: boolean;
   selectedTheme: QaThemeId;
   specialUsage: SpecialUsage;
+  characterVersion: CharacterCollectionState;
   onSelect: (theme: QaThemeId) => void;
   onClose: () => void;
 }) {
@@ -3724,7 +3730,8 @@ function ThemePickerModal({
           <SpecialCollection usage={specialUsage} selectedTheme={selectedTheme} onSelect={(id) => {
             if (specialUsage.ready && specialUsage.unlocked) onSelect(id as QaThemeId);
           }} />
-          {QA_THEME_OPTIONS.filter((theme) => !isSpecialTheme(theme.id)).map((theme) => {
+          <CharacterCollection version={characterVersion} selectedTheme={selectedTheme} onSelect={id => onSelect(id as QaThemeId)} />
+          {QA_THEME_OPTIONS.filter((theme) => !isSpecialTheme(theme.id) && !(theme.patternImage && characterVersion.version === 2)).map((theme) => {
             const selected = theme.id === selectedTheme && !customCollectionSelected && !festivalOverride && document.documentElement.dataset.qaWeatherCollection !== "auto";
             return (
               <button
@@ -3797,6 +3804,7 @@ export default function App() {
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [storedUserCandidate] = useState<CurrentUser | null>(() => readStoredUser());
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const characterVersion = useCharacterCollectionAccount(currentUser?.username);
   const specialUsage = useSpecialThemeUsage(currentUser?.username);
   const [selectedTheme, setSelectedTheme] = useUserThemePreference(currentUser?.username, specialUsage);
   const [coachingAssignmentAllowed, setCoachingAssignmentAllowed] = useState(false);
@@ -3908,7 +3916,9 @@ export default function App() {
   const activeThemePreviewOption = QA_THEME_OPTIONS.find(theme => theme.id === effectiveThemeId) || activeThemeOption;
   const activeWeekdayIndex = WEEKDAY_IDS.indexOf(effectiveThemeId);
   const sidebarThemeLabel =
-    isSpecialTheme(effectiveThemeId)
+    characterVersion.version === 2 && characterThemeFor(effectiveThemeId)
+      ? `Character V2 · ${activeThemePreviewOption.label}`
+      : isSpecialTheme(effectiveThemeId)
       ? `Special · ${activeThemePreviewOption.label}`
       : FESTIVAL_LABELS[effectiveThemeId]
       ? `Festival · ${FESTIVAL_LABELS[effectiveThemeId]}`
@@ -7553,7 +7563,7 @@ export default function App() {
               }`}
             >
               <WeatherSidebarLabel />
-              <ThemePreview themeId={effectiveThemeId} option={activeThemePreviewOption} />
+              <ThemePreview themeId={effectiveThemeId} option={activeThemePreviewOption} characterVersion={characterVersion.version} />
               {!globalSidebarCollapsed ? (
                 <>
                   <span className="qa-sidebar-label min-w-0 flex-1">
@@ -7656,6 +7666,7 @@ export default function App() {
         open={themePickerOpen}
         selectedTheme={selectedTheme}
         specialUsage={specialUsage}
+        characterVersion={characterVersion}
         onSelect={setSelectedTheme}
         onClose={() => setThemePickerOpen(false)}
       />

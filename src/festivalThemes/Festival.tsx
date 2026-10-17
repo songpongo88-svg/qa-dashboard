@@ -1,13 +1,17 @@
 import React from 'react';
 import { useFestivalTheme } from './store';
 import { festivalIconUrl } from './icons.mjs';
+import { useCharacterTheme } from '../characterThemes/store';
+import { CharacterIcon } from '../characterThemes/Character';
 
 export function FestivalIcon({ themeId, kind, className = '' }: { themeId: string; kind: string; className?: string }) {
   return <img data-festival-icon={kind} src={festivalIconUrl(themeId, kind)} alt="" aria-hidden="true" width="24" height="24" className={`qa-festival-icon ${className}`} />;
 }
 export function FestivalMetricIcon({ kind, fallback }: { kind: string; fallback: React.ReactNode }) {
   const theme = useFestivalTheme();
+  const character = useCharacterTheme();
   const meaning = /quality|score/i.test(kind) ? 'score' : /kpi/i.test(kind) ? 'kpi' : /cases/i.test(kind) ? 'cases' : /appeal/i.test(kind) ? 'appealResult' : 'grade';
+  if (character) return <CharacterIcon themeId={character.id} kind={meaning === 'appealResult' ? 'appeal' : meaning === 'kpi' ? 'grade' : meaning} />;
   return theme ? <FestivalIcon themeId={theme.id} kind={meaning} /> : <>{fallback}</>;
 }
 export function FestivalHero({ theme, title, eyebrow, subtitle }: {

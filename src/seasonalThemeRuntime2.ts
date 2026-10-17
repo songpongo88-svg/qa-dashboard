@@ -1,5 +1,6 @@
 import { WEEKDAY_COLLECTION_ID, isWeekdayPreference, getBangkokWeekdayTheme, resolveWeekdayPreference, millisecondsUntilBangkokMidnight } from "./weekdayCollection.mjs";
 import { isSpecialTheme } from "./specialThemes/model.mjs";
+import { characterThemeFor } from "./characterThemes/model.mjs";
 import { festivalThemeFor } from "./festivalThemes/model.mjs";
 import { festivalIconUrl } from "./festivalThemes/icons.mjs";
 import { openFestivalPreview } from "./festivalThemes/preview";
@@ -239,7 +240,8 @@ function applyEffectiveTheme() {
     const weatherSelected = getCustomPreference() === "weather-auto";
     const preferred = getPreferredTheme();
     const specialSelected = isSpecialTheme(preferred) && document.documentElement.dataset.qaSpecialUnlocked === "true";
-    const activeFestival = weatherSelected || specialSelected ? null : getActiveFestival();
+    const characterSelected = document.documentElement.dataset.qaCharacterVersion === "2" && Boolean(characterThemeFor(preferred));
+    const activeFestival = weatherSelected || specialSelected || characterSelected ? null : getActiveFestival();
     const effectiveTheme = weatherSelected ? "robinhood" : specialSelected ? preferred
       : activeFestival?.id || (isSpecialTheme(preferred) ? "robinhood" : preferred);
 
@@ -566,7 +568,7 @@ function installThemeHooks() {
   });
   themeAttributeObserver.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["data-qa-theme", "data-qa-special-unlocked"],
+    attributeFilter: ["data-qa-theme", "data-qa-special-unlocked", "data-qa-character-version"],
   });
 }
 
