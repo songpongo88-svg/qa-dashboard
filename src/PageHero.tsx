@@ -6,6 +6,8 @@ import { useSpecialTheme } from "./specialThemes/state";
 import { SpecialThemeHero } from "./specialThemes/SpecialCollection";
 import { useFestivalTheme } from "./festivalThemes/store";
 import { FestivalHero } from "./festivalThemes/Festival";
+import { useCharacterTheme } from "./characterThemes/store";
+import { CharacterHero } from "./characterThemes/Character";
 
 type PageHeroProps = {
   eyebrow: string;
@@ -28,7 +30,9 @@ export default function PageHero({
   const weather = useWeather();
   const specialTheme = useSpecialTheme();
   const festivalTheme = useFestivalTheme();
+  const characterTheme = useCharacterTheme();
   if (specialTheme) return <SpecialThemeHero theme={specialTheme} title={title} eyebrow={eyebrow} subtitle={subtitle} />;
+  if (characterTheme) return <CharacterHero theme={characterTheme} title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (festivalTheme) return <FestivalHero theme={festivalTheme} title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (weather.enabled) return <WeatherHero title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (weekdayScene) return <WeekdayScene scene={weekdayScene} title={title} />;

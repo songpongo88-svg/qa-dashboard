@@ -10,6 +10,8 @@ import "./weekdayThemeEditorial.css";
 import "./festivalThemes/festival.css";
 import "./seasonalThemeRuntime2";
 import "./deleteUserDirectoryPatch";
+import { installCharacterThemeRuntime } from "./characterThemes/runtime";
+installCharacterThemeRuntime();
 
 // data-root-error-boundary-v149
 class RootErrorBoundary extends React.Component<
