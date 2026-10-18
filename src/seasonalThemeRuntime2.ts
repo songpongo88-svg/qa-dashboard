@@ -1,6 +1,5 @@
 import { WEEKDAY_COLLECTION_ID, isWeekdayPreference, getBangkokWeekdayTheme, resolveWeekdayPreference, millisecondsUntilBangkokMidnight } from "./weekdayCollection.mjs";
 import { isSpecialTheme } from "./specialThemes/model.mjs";
-import { characterThemeFor } from "./characterThemes/model.mjs";
 import { festivalThemeFor } from "./festivalThemes/model.mjs";
 import { festivalIconUrl } from "./festivalThemes/icons.mjs";
 import { openFestivalPreview } from "./festivalThemes/preview";
@@ -165,9 +164,8 @@ function getFestivalWindow(festival: Festival, year: number) {
   };
 }
 
-function getActiveFestival() {
-  const today = getBangkokToday();
-  const todayEpoch = toEpochDay(today);
+function getActiveFestivalAtDay(todayEpoch: number) {
+  const today = fromEpochDay(todayEpoch);
   const candidates: Array<{
     festival: Festival;
     distance: number;
@@ -193,6 +191,10 @@ function getActiveFestival() {
   return candidates[0]?.festival || null;
 }
 
+function getActiveFestival() {
+  return getActiveFestivalAtDay(toEpochDay(getBangkokToday()));
+}
+
 function getFestivalAvailability(festival: Festival) {
   const today = getBangkokToday();
   const todayEpoch = toEpochDay(today);
@@ -200,10 +202,26 @@ function getFestivalAvailability(festival: Festival) {
     .map((year) => getFestivalWindow(festival, year))
     .filter((window): window is NonNullable<ReturnType<typeof getFestivalWindow>> => Boolean(window));
 
-  const current = windows.find((window) => todayEpoch >= window.start && todayEpoch <= window.end);
+  // Cards show the days the theme ACTUALLY takes over, not the broader
+  // eligibility window. Neighbouring festivals can overlap (Christmas / NY).
+  const effectiveWindows = windows.flatMap((window) => {
+    const periods: Array<{ start: number; end: number }> = [];
+    let periodStart: number | null = null;
+    for (let day = window.start; day <= window.end + 1; day++) {
+      const isEffective = day <= window.end && getActiveFestivalAtDay(day)?.id === festival.id;
+      if (isEffective && periodStart === null) periodStart = day;
+      if (!isEffective && periodStart !== null) {
+        periods.push({ start: periodStart, end: day - 1 });
+        periodStart = null;
+      }
+    }
+    return periods;
+  });
+
+  const current = effectiveWindows.find((window) => todayEpoch >= window.start && todayEpoch <= window.end);
   if (current) return { active: true, ...current };
 
-  const next = windows
+  const next = effectiveWindows
     .filter((window) => window.start > todayEpoch)
     .sort((a, b) => a.start - b.start)[0];
 
@@ -240,10 +258,11 @@ function applyEffectiveTheme() {
     const weatherSelected = getCustomPreference() === "weather-auto";
     const preferred = getPreferredTheme();
     const specialSelected = isSpecialTheme(preferred) && document.documentElement.dataset.qaSpecialUnlocked === "true";
-    const characterSelected = document.documentElement.dataset.qaCharacterVersion === "2" && Boolean(characterThemeFor(preferred));
-    const activeFestival = weatherSelected || specialSelected || characterSelected ? null : getActiveFestival();
-    const effectiveTheme = weatherSelected ? "robinhood" : specialSelected ? preferred
-      : activeFestival?.id || (isSpecialTheme(preferred) ? "robinhood" : preferred);
+    // Scheduled festivals temporarily override every Collection without
+    // altering the user's saved choice (restored after the festival).
+    const activeFestival = getActiveFestival();
+    const effectiveTheme = activeFestival?.id || (weatherSelected ? "robinhood"
+      : specialSelected ? preferred : (isSpecialTheme(preferred) ? "robinhood" : preferred));
 
     if (document.documentElement.dataset.qaTheme !== effectiveTheme) {
       document.documentElement.dataset.qaTheme = effectiveTheme;
@@ -389,7 +408,11 @@ function showFestivalPreview(festival: Festival, opener: HTMLButtonElement) {
   openFestivalPreview(festival.id, opener);
 }
 
-function createFestivalCard(festival: Festival, subtitle: string, selected: boolean) {
+function createFestivalCard(
+  festival: Festival,
+  availability: ReturnType<typeof getFestivalAvailability>,
+  selected: boolean
+) {
   const card = document.createElement("div");
   card.dataset.qaSeasonalAdded = "true";
   card.dataset.qaThemeCollection = "festival";
@@ -417,9 +440,17 @@ function createFestivalCard(festival: Festival, subtitle: string, selected: bool
   titleRow.append(motif, title);
   const status = document.createElement("span");
   status.className = "qa-festival-card-status";
-  status.textContent = selected ? "กำลังใช้งาน" : "เปิดตามช่วงเทศกาล";
-  const date = document.createElement("p");
-  date.textContent = subtitle.replace("Locked • ", "");
+  status.textContent = selected ? "กำลังใช้งานอัตโนมัติ"
+    : availability?.active ? "อยู่ในช่วงแสดงธีมอัตโนมัติ" : "รอเปลี่ยนธีมอัตโนมัติ";
+  const date = document.createElement("div");
+  date.className = "qa-festival-card-schedule";
+  const dateLabel = document.createElement("span");
+  dateLabel.textContent = selected ? "ช่วงที่ระบบแสดงธีมนี้" : "ระบบจะเปลี่ยนเป็นธีมนี้อัตโนมัติ";
+  const dateRange = document.createElement("strong");
+  dateRange.textContent = availability
+    ? `${formatThaiDate(fromEpochDay(availability.start))} – ${formatThaiDate(fromEpochDay(availability.end))}`
+    : "รอกำหนดวันเทศกาล";
+  date.append(dateLabel, dateRange);
   const preview = document.createElement("button");
   preview.type = "button";
   preview.dataset.qaCustomThemeCard = festival.id;
@@ -453,14 +484,8 @@ function renderExtraThemeCards() {
 
     for (const festival of festivals) {
       const availability = getFestivalAvailability(festival);
-      const isOpen = Boolean(availability?.active);
-      const subtitle = availability
-        ? isOpen
-          ? `เปิดอัตโนมัติ • ${formatThaiDate(fromEpochDay(availability.start))} – ${formatThaiDate(fromEpochDay(availability.end))}`
-          : `Locked • เปิด ${formatThaiDate(fromEpochDay(availability.start))} – ${formatThaiDate(fromEpochDay(availability.end))}`
-        : "Locked • รอปฏิทินเทศกาลปีถัดไป";
-
-      grid.append(createFestivalCard(festival, subtitle, activeFestivalId === festival.id));
+      const selected = document.documentElement.dataset.qaTheme === festival.id;
+      grid.append(createFestivalCard(festival, availability, selected));
     }
 
     grid.append(createHeading("เลือกครั้งเดียว · เปลี่ยนตามวันประเทศไทยอัตโนมัติ", "weekday"));
