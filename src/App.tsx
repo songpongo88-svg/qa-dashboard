@@ -501,13 +501,11 @@ function getCurrentThemePreferenceSnapshot(themeId: QaThemeId, fallbackPreferenc
       ? "special"
       : root.dataset.qaWeatherCollection === "auto"
       ? "weather"
-      : Boolean(root.dataset.qaFestivalOverride)
-        ? "festival"
-        : root.dataset.qaWeekdayCollection === "auto"
-          ? "weekday"
-          : QA_THEME_OPTIONS.find((theme) => theme.id === themeId)?.patternImage
-            ? "character"
-            : "color";
+      : root.dataset.qaWeekdayCollection === "auto"
+        ? "weekday"
+        : QA_THEME_OPTIONS.find((theme) => theme.id === themeId)?.patternImage
+          ? "character"
+          : "color";
 
   return {
     themeId,
@@ -3633,9 +3631,9 @@ function ThemePickerModal({
       setFestivalOverride(Boolean(document.documentElement.dataset.qaFestivalOverride));
     };
     sync();
-    setCollection(document.documentElement.dataset.qaSpecialTheme ? "special"
+    setCollection(document.documentElement.dataset.qaFestivalOverride ? "festival"
+      : document.documentElement.dataset.qaSpecialTheme ? "special"
       : document.documentElement.dataset.qaWeatherCollection === "auto" ? "weather"
-      : document.documentElement.dataset.qaFestivalOverride ? "festival"
       : document.documentElement.dataset.qaWeekdayCollection === "auto" ? "weekday"
       : QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme)?.patternImage ? "character" : "color");
     const observer = new MutationObserver(sync);
