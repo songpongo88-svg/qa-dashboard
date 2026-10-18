@@ -1,11 +1,11 @@
 import React from 'react';
 import { CHARACTER_THEMES } from './model.mjs';
-import { characterIconUrl } from './icons.mjs';
+import { characterIconStyle, characterPropFor } from './icons.mjs';
 import './character.css';
 
 type Theme = typeof CHARACTER_THEMES[number];
 export function CharacterIcon({ themeId, kind, className = '' }: { themeId: string; kind: string; className?: string }) {
-  return <img className={`qa-character-icon ${className}`} src={characterIconUrl(themeId, kind)} width="28" height="28" alt="" aria-hidden="true" />;
+  return <span className={`qa-character-icon ${className}`} data-character-icon={characterPropFor(kind)} data-character-icon-kind={kind} style={characterIconStyle(themeId, kind) as React.CSSProperties} aria-hidden="true" />;
 }
 export function CharacterHero({ theme, title, eyebrow, subtitle }: { theme: Theme; title: string; eyebrow: string; subtitle?: string }) {
   return <header data-unified-robinhood-hero-v156="true" data-character-hero={theme.id} className="qa-character-hero">

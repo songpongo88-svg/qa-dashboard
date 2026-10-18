@@ -11,7 +11,7 @@ import ts from 'typescript';
 import {isSpecialTheme} from '../src/specialThemes/model.mjs';
 import * as weekday from '../src/weekdayCollection.mjs';
 
-const dom = new JSDOM('<div id="root"></div><div id="controls"><button id="search"><svg></svg>Search</button><button id="export" disabled>Download PDF</button><button id="danger">Reset This Task</button><input value="AA990501"></div>', {url:'https://qa.test/',pretendToBeVisual:true});
+const dom = new JSDOM('<div id="root"></div><div id="controls"><button id="search"><svg></svg>Search</button><button id="export" disabled>Download PDF</button><button id="danger">Reset This Task</button><input value="AA990501"></div><div data-rich-text-toolbar="true"><button id="format-table" aria-label="Add table"><svg></svg></button></div><button id="wrapped-view"><span><svg></svg></span>View Detail</button>', {url:'https://qa.test/',pretendToBeVisual:true});
 for (const key of ['window','document','MutationObserver','Event','MouseEvent','CustomEvent','HTMLElement','HTMLDialogElement','localStorage']) globalThis[key]=dom.window[key];
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};
@@ -72,8 +72,9 @@ try {
     assert.ok(fs.statSync(resolve('public'+theme.art)).size>20000);assert.equal(fs.readFileSync(resolve('public'+theme.art)).subarray(8,12).toString(),'WEBP');
     await click(`[data-character-card="${theme.id}"] .qa-character-card-actions button:last-child`);await flush();
     assert.equal(document.documentElement.dataset.qaCharacterTheme,theme.id);assert.ok(document.querySelector(`[data-character-hero="${theme.id}"]`));
-    assert.equal(search.dataset.characterAction,'search');assert.ok(search.style.getPropertyValue('--character-control-icon').includes('data:image/svg+xml'));
-    const icons=['search','export','appeal','coaching','score'].map(kind=>app.characterIconUrl(theme.id,kind));assert.equal(new Set(icons).size,icons.length);
+    assert.equal(document.querySelector('#format-table svg').dataset.characterProp,undefined,'rich text format tools retain their own icons');assert.equal(document.querySelector('#wrapped-view svg').dataset.characterProp,'view','existing wrapper icon stays in its original slot');
+  assert.equal(search.dataset.characterAction,'search');assert.equal(svg.dataset.characterProp,'search');assert.ok(svg.style.getPropertyValue('--character-prop-position'));assert.equal(search.style.paddingInlineStart,'','existing control padding stays intact');
+    const icons=['search','export','appeal','coaching','score'].map(kind=>app.characterIconUrl(theme.id,kind));assert.equal(new Set(icons).size,icons.length);const atlas=fs.readFileSync(resolve(`public/characters-v2/icons/${theme.id}.webp`));assert.equal(atlas.subarray(8,12).toString(),'WEBP');assert.ok(atlas.length>20000,'real 3D prop atlas exists');
   }
   await click('#search');assert.equal(searchClicks,1);assert.equal(search.querySelector('svg'),svg,'original handlers and child nodes preserved');
   assert.equal(document.getElementById('export').disabled,true);assert.equal(document.getElementById('danger').hasAttribute('data-character-action'),false);assert.equal(document.querySelector('#controls input').value,'AA990501');
@@ -95,6 +96,13 @@ try {
   await render(undefined);assert.equal(document.documentElement.dataset.qaCharacterTheme,undefined);
   console.log('PASS reload, account switching, stale responses, pending upgrade isolation, and clean exit to weather/festival/logout');
 
+  const actions=await import('../src/characterThemes/actions.mjs');
+  assert.equal(actions.characterActionFor('Appeal Review'),'history');
+  assert.equal(actions.characterActionFor('View Detail'),'view');
+  for(const label of ['Approve','Reject','Delete','🗑 Delete','Collapse Sidebar','Not Passed'])assert.equal(actions.characterActionFor(label),'',label+' keeps its original semantic icon');
+  for(const [key,value]of Object.entries({'dashboard':'overview','create-evaluation':'edit','appeal-requests':'history','coaching':'coaching','signature-center':'edit','user-guide':'library','schedule':'clock','admin-roles':'security'}))assert.equal(actions.characterNavigationAction(key),value);
+  const css=fs.readFileSync('src/characterThemes/character.css','utf8');assert.doesNotMatch(css,/padding-inline-start|button\[data-character-action\]::after/,'no inserted icons or geometry changes');assert.doesNotMatch(css,/button\[class\*=["']bg-white/,'hover class cannot select every sidebar row');
+  console.log('PASS exact navigation purpose, untouched danger/expansion icons, real prop atlases and no layout-changing button decoration');
   const source=fs.readFileSync('src/App.tsx','utf8');assert.match(source,/restoreCharacterCollection\(username, profile\)/);assert.match(source,/useCharacterCollectionAccount\(currentUser\?\.username\)/);assert.match(source,/characterVersion=\{characterVersion\}/);
   assert.match(fs.readFileSync('src/PageHero.tsx','utf8'),/if \(characterTheme\) return <CharacterHero/);
   console.log('PASS actual App hydration, picker version and all-workspace PageHero are connected to the production feature');
