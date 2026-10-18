@@ -81,6 +81,9 @@ html:root[data-qa-festival-theme] button[data-festival-action]:is([aria-busy="tr
 .qa-festival-collection-card > img {height:130px;object-position:center 42%;}
 .qa-festival-collection-card strong {color:var(--special-ink);}.qa-festival-collection-card p,.qa-festival-card-status {color:var(--special-muted);}
 .qa-festival-collection-card .qa-festival-card-preview {background:var(--special-inset);border-color:var(--special-rule);color:var(--special-ink);}
+.qa-festival-card-schedule {display:flex;flex-direction:column;gap:3px;margin:8px 0 12px;padding:10px 11px;background:var(--special-inset);border:1px solid var(--special-rule);border-radius:10px;min-height:53px;}
+.qa-festival-card-schedule span {font-size:10px;line-height:1.4;color:var(--special-muted);}
+.qa-festival-collection-card .qa-festival-card-schedule strong {font-size:12px;font-weight:600;line-height:1.5;color:var(--special-ink);}
 .qa-festival-card-title {display:flex;align-items:center;gap:8px;}.qa-festival-card-swatches {display:flex;gap:7px;margin-bottom:12px;}.qa-festival-card-swatches i {width:23px;height:23px;border-radius:6px;border:1px solid var(--special-rule);background:var(--special-sidebar);}.qa-festival-card-swatches i:nth-child(2) {background:var(--special-inset);}.qa-festival-card-swatches i:nth-child(3) {background:var(--special-accent);}
 .qa-festival-preview-overlay {z-index:10000;}.qa-festival-preview-dialog {width:min(1120px,100%);max-height:92dvh;}.qa-festival-preview-dialog > header {position:sticky;top:0;z-index:2;}
 .qa-festival-sample {display:grid;grid-template-columns:175px minmax(0,1fr);background:var(--special-page);color:var(--special-ink);}
