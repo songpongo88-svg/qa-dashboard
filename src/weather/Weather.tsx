@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useFestivalTheme } from '../festivalThemes/store';
 import { WEATHER_STATES, sceneFor, sceneUrl } from './model.mjs';
 import { chooseCity, chooseWeather, refreshWeather, useWeather, type City } from './store';
 import './weather.css';
@@ -54,7 +55,9 @@ export function WeatherCollection() {
   </section>;
 }
 export function WeatherSidebarLabel() {
-  const weather = useWeather(); if (!weather.enabled) return null;
+  const weather = useWeather();
+  const festivalTheme = useFestivalTheme();
+  if (!weather.enabled || festivalTheme) return null;
   const scene = sceneFor(weather.data,weather.now);
   return <span className="weather-sidebar-label"><small>Weather Collection</small><strong>{scene.icon} {weather.data ? Math.round(weather.data.temp)+'°C' : 'กำลังโหลด…'}</strong><span>{weather.data?.location.label || 'ตำแหน่งระดับเมือง'}</span></span>;
 }
