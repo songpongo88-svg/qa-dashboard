@@ -9,6 +9,10 @@ import { useSpecialThemeUsage, type SpecialUsage } from "./specialThemes/usage";
 import { SPECIAL_THEMES, hasSpecialThemeAccess, isSpecialTheme } from "./specialThemes/model.mjs";
 import { WEEKDAY_IDS } from "./weekdayCollection.mjs";
 import { WeatherCollection, WeatherSidebarLabel } from "./weather/Weather";
+import { useLoginAppearance } from "./loginThemes/appearance";
+import { loginThemeStyle } from "./loginThemes/model.mjs";
+import { LoginFeatureIcon } from "./loginThemes/LoginFeatureIcon";
+import "./loginThemes/login.css";
 import "./themePickerCollections.css";
 import "./dashboardShortcuts.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -681,7 +685,7 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
     setSelectedTheme(themeId);
     setAppearanceRevision(revision => revision + 1);
   };
-  return [selectedTheme, selectTheme] as const;
+  return [selectedTheme, selectTheme, Boolean(username) && restoredForUser === username, sessionPreferenceRef.current] as const;
 }
 
 const VALID_APP_TABS = new Set<AppTab>([
@@ -3804,7 +3808,14 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const characterVersion = useCharacterCollectionAccount(currentUser?.username);
   const specialUsage = useSpecialThemeUsage(currentUser?.username);
-  const [selectedTheme, setSelectedTheme] = useUserThemePreference(currentUser?.username, specialUsage);
+  const [selectedTheme, setSelectedTheme, themePreferenceReady, themePreference] = useUserThemePreference(currentUser?.username, specialUsage);
+  const loginTheme = useLoginAppearance({
+    authenticated: Boolean(currentUser),
+    ready: themePreferenceReady && characterVersion.ready && (!isSpecialTheme(selectedTheme) || (specialUsage.ready && specialUsage.unlocked)),
+    themeId: selectedTheme,
+    preference: themePreference,
+    characterVersion: characterVersion.version,
+  });
   const [coachingAssignmentAllowed, setCoachingAssignmentAllowed] = useState(false);
   const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
   const [coachingAppointmentsOpen, setCoachingAppointmentsOpen] = useState(false);
@@ -7307,48 +7318,49 @@ export default function App() {
           onSubmit={handleForgotPasswordReset}
         />
 
-        <div data-login-flow-v4 className="relative min-h-screen overflow-hidden bg-[#f5f2fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8" style={{ fontFamily: "'Kanit', sans-serif" }}>
-          <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-fuchsia-300/20 blur-3xl" />
+        <div data-login-flow-v4 data-login-theme={loginTheme.id} data-login-collection={loginTheme.collection} data-login-character-version={loginTheme.characterVersion || undefined} className="qa-themed-login relative min-h-screen overflow-hidden bg-[#f5f2fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8" style={loginThemeStyle(loginTheme) as React.CSSProperties}>
+          <div className="qa-login-glow pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl" />
+          <div className="qa-login-glow pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-fuchsia-300/20 blur-3xl" />
 
           <div className="relative mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-[1180px] items-center justify-center">
-            <div className="grid w-full max-w-[1040px] overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_30px_90px_rgba(76,29,149,0.16)] lg:grid-cols-[0.92fr_1.08fr]">
-              <section className="relative hidden overflow-hidden bg-gradient-to-br from-[#28104f] via-violet-900 to-fuchsia-700 p-9 text-white lg:flex lg:flex-col lg:justify-between">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.10),transparent_28%)]" />
+            <div className="qa-login-shell grid w-full max-w-[1040px] overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_30px_90px_rgba(76,29,149,0.16)] lg:grid-cols-[0.92fr_1.08fr]">
+              <section className="qa-login-visual relative hidden overflow-hidden bg-gradient-to-br from-[#28104f] via-violet-900 to-fuchsia-700 p-9 text-white lg:flex lg:flex-col lg:justify-between">
+                <div className="qa-login-scene" aria-hidden="true" />
+                <div className="qa-login-shade" aria-hidden="true" />
                 <div className="relative z-10">
                   <div className="flex items-start justify-between gap-5">
-                    <div className="flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/20 bg-white/10 shadow-[0_18px_45px_rgba(15,23,42,0.20)] backdrop-blur-sm">
+                    <div className="qa-login-brand-logo flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/20 bg-white/10 shadow-[0_18px_45px_rgba(15,23,42,0.20)] backdrop-blur-sm">
                       <img src="/robinhood-logo.png" alt="Robinhood QA" className="h-16 w-16 object-contain drop-shadow-lg" />
                     </div>
-                    <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.22em] text-violet-100">
+                    <span className="qa-login-badge rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.22em] text-violet-100">
                       Secure Workspace
                     </span>
                   </div>
-                  <div className="mt-10 max-w-md">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-violet-200">Robinhood Quality Assurance</div>
+                  <div className="qa-login-brand-copy mt-10 max-w-md">
+                    <div className="qa-login-eyebrow text-[11px] font-medium uppercase tracking-[0.24em] text-violet-200">Robinhood Quality Assurance</div>
                     <h1 className="mt-4 text-[40px] font-semibold leading-[1.08] tracking-tight">QA Operations Center</h1>
-                    <p className="mt-5 max-w-sm text-sm leading-7 text-violet-100/90">ติดตามผลประเมิน จัดการเคส และควบคุมงานสำคัญจากพื้นที่เดียว</p>
+                    <p className="qa-login-subtitle mt-5 max-w-sm text-sm leading-7 text-violet-100/90">ติดตามผลประเมิน จัดการเคส และควบคุมงานสำคัญจากพื้นที่เดียว</p>
                   </div>
-                  <div className="mt-10 grid gap-3">
-                    {[["01", "Performance", "Score, KPI and monthly trends"], ["02", "QA Review", "Evaluation, appeal and case detail"], ["03", "Operations", "Access control and work queue"]].map(([number, title, description]) => (
-                      <div key={number} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 backdrop-blur-sm">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-xs font-semibold text-violet-100">{number}</span>
-                        <div><div className="text-sm font-medium text-white">{title}</div><div className="mt-0.5 text-xs text-violet-200/80">{description}</div></div>
+                  <div className="qa-login-feature-list mt-10 grid gap-3">
+                    {[["01", "Performance", "Score, KPI and monthly trends"], ["02", "QA Review", "Evaluation, appeal and case detail"], ["03", "Operations", "Access control and work queue"]].map(([number, title, description], index) => (
+                      <div key={number} className="qa-login-feature-card flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 backdrop-blur-sm">
+                        <span className="qa-login-feature-icon flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-xs font-semibold text-violet-100" aria-hidden="true"><LoginFeatureIcon theme={loginTheme} index={index} /></span>
+                        <div><div className="qa-login-feature-title text-sm font-medium text-white">{title}</div><div className="qa-login-feature-description mt-0.5 text-xs text-violet-200/80">{description}</div></div>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="relative z-10 mt-10 flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-violet-200/80"><span>Central secure session</span><span>2-hour inactivity policy</span></div>
+                <div className="qa-login-visual-footer relative z-10 mt-10 flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-violet-200/80"><span>Central secure session</span><span>2-hour inactivity policy</span></div>
               </section>
 
-              <section className="relative bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
+              <section className="qa-login-form relative bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
                 <div className="mx-auto w-full max-w-[430px]">
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-violet-100 bg-violet-50 shadow-sm lg:hidden"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-11 w-11 object-contain" /></div>
-                    <div className="ml-auto rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{loginStep === "username" ? "Step 1 of 2" : "Step 2 of 2"}</div>
+                    <div className="qa-login-theme-mobile flex h-16 w-16 items-center justify-center rounded-[22px] border border-violet-100 bg-violet-50 shadow-sm lg:hidden"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-11 w-11 object-contain" /></div>
+                    <div className="qa-login-step ml-auto rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{loginStep === "username" ? "Step 1 of 2" : "Step 2 of 2"}</div>
                   </div>
 
-                  <div className="mt-8">
+                  <div className="qa-login-heading mt-8">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-violet-600">{loginStep === "username" ? "Account verification" : "Secure sign in"}</div>
                     <h2 className="mt-2 text-[32px] font-semibold tracking-tight text-slate-950">{loginStep === "username" ? "Welcome back" : "Enter your password"}</h2>
 
@@ -7358,11 +7370,11 @@ export default function App() {
 
                   {loginStep === "username" ? (
                     <div className="mt-8">
-                      <label className="mb-2 block text-sm font-medium text-slate-800">Username</label>
+                      <label htmlFor="qa-login-username" className="mb-2 block text-sm font-medium text-slate-800">Username</label>
                       <div className="relative">
                         <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">@</span>
-                        <input type="text" autoComplete="username" autoFocus value={username} onChange={(event) => { setUsername(event.target.value); setLoginUsernameStatus("idle"); setLoginError(""); }} placeholder="Enter username" className={`w-full rounded-2xl border bg-slate-50 py-4 pl-10 pr-12 text-[15px] font-medium text-slate-950 outline-none transition focus:bg-white focus:ring-4 ${loginUsernameStatus === "invalid" ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100" : "border-slate-200 focus:border-violet-500 focus:ring-violet-100"}`} />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2">{loginUsernameStatus === "checking" ? <span className="block h-5 w-5 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" /> : null}</span>
+                        <input id="qa-login-username" type="text" autoComplete="username" aria-invalid={loginUsernameStatus === "invalid"} autoFocus value={username} onChange={(event) => { setUsername(event.target.value); setLoginUsernameStatus("idle"); setLoginError(""); }} placeholder="Enter username" className={`w-full rounded-2xl border bg-slate-50 py-4 pl-10 pr-12 text-[15px] font-medium text-slate-950 outline-none transition focus:bg-white focus:ring-4 ${loginUsernameStatus === "invalid" ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100" : "border-slate-200 focus:border-violet-500 focus:ring-violet-100"}`} />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2">{loginUsernameStatus === "checking" ? <span className="qa-login-spinner block h-5 w-5 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" /> : null}</span>
                       </div>
                       <div className="mt-3 min-h-[20px]">
                         {loginUsernameStatus === "checking" ? (
@@ -7375,19 +7387,19 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="mt-8">
-                      <div className="flex items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3">
+                      <div className="qa-login-verified flex items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3">
                         <div className="min-w-0"><div className="text-[10px] font-medium uppercase tracking-[0.16em] text-violet-500">Verified account</div><div className="mt-1 truncate text-sm font-semibold text-slate-900">{verifiedLoginDisplayName || username}</div><div className="truncate text-xs text-slate-500">@{username}</div></div>
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">✓</span>
                       </div>
                       <div className="mt-5"><label className="mb-2 block text-sm font-medium text-slate-800">Password</label><PasswordVisibilityInput value={password} onChange={(value) => { setPassword(value); setLoginError(""); setTemporaryLoginNotice(""); }} placeholder="Enter password" ariaLabel="Login Password" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-[15px] font-medium text-slate-950 outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100" /></div>
                       <div className="mt-3 min-h-[44px]">{loginSubmitting ? <div className="flex items-center gap-2 text-sm text-violet-600"><span className="h-4 w-4 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" />กำลังเข้าสู่ระบบ...</div> : temporaryLoginNotice ? <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{temporaryLoginNotice}</div> : loginError ? <div className="text-sm font-medium text-rose-600">{loginError}</div> : <div className="text-xs text-slate-400">ระบบจะเข้าสู่ระบบทันทีเมื่อรหัสผ่านถูกต้อง</div>}</div>
-                      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"><input type="checkbox" checked={rememberLogin} onChange={(event) => setRememberLogin(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-violet-600" /><span><span className="block text-sm font-medium text-slate-800">Remember this account</span><span className="mt-0.5 block text-xs text-slate-500">จดจำ Username โดยไม่จัดเก็บรหัสผ่าน</span></span></label>
+                      <label className="qa-login-remember mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"><input type="checkbox" checked={rememberLogin} onChange={(event) => setRememberLogin(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-violet-600" /><span><span className="block text-sm font-medium text-slate-800">Remember this account</span><span className="mt-0.5 block text-xs text-slate-500">จดจำ Username โดยไม่จัดเก็บรหัสผ่าน</span></span></label>
                       <div className="mt-5 flex items-center justify-between gap-3"><button type="button" onClick={() => { automaticLoginRequestRef.current += 1; setLoginStep("username"); setLoginUsernameStatus("idle"); setVerifiedLoginDisplayName(""); setPassword(""); setLoginError(""); setTemporaryLoginNotice(""); }} className="text-sm font-medium text-slate-500 hover:text-slate-900">← Change Username</button><button type="button" onClick={() => { setForgotUsernameInput(username); setShowForgotPasswordModal(true); }} className="text-sm font-medium text-violet-700 hover:text-violet-900">Forgot Password</button></div>
                     </div>
                   )}
 
                   <div className="mt-8 border-t border-slate-100 pt-5">
-                    <VersionPill meta={buildMeta} className="w-full" />
+                    <VersionPill meta={buildMeta} className="qa-login-version w-full" />
                     <div className="mt-4 flex items-center justify-between gap-4 text-[11px] text-slate-400">
                       <span>Secure access verified by Firebase</span>
                       <span className="whitespace-nowrap">Session: 2 hours</span>
