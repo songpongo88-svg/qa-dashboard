@@ -74,8 +74,9 @@ h.listeners.storage({ key: customKey });
 assert.equal(h.root.dataset.qaTheme, "ocean");
 const weather = runtimeHarness({custom:"weather-auto"});
 weather.setDate("2026-12-25T05:00:00Z"); weather.api.applyEffectiveTheme();
-assert.equal(weather.root.dataset.qaTheme,"robinhood");
-assert.equal(weather.root.dataset.qaFestivalOverride,"");
+assert.equal(weather.root.dataset.qaTheme,"festival-christmas");
+assert.equal(weather.root.dataset.qaFestivalOverride,"festival-christmas");
+assert.equal(weather.stored.get(customKey),"weather-auto");
 const ordinary = runtimeHarness();
 ordinary.api.applyEffectiveTheme();
 assert.equal(ordinary.root.dataset.qaTheme, "ocean");
@@ -85,8 +86,11 @@ assert.equal(special.root.dataset.qaTheme, "robinhood", "a locally stored Specia
 special.root.dataset.qaSpecialUnlocked = "true";
 special.setDate("2026-12-25T05:00:00Z");
 special.api.applyEffectiveTheme();
-assert.equal(special.root.dataset.qaTheme, "special-volcanic", "an unlocked Special choice stays selected during a festival");
-assert.equal(special.root.dataset.qaFestivalOverride, "");
+assert.equal(special.root.dataset.qaTheme, "festival-christmas", "scheduled Festival also temporarily overrides an unlocked Special choice");
+assert.equal(special.root.dataset.qaFestivalOverride, "festival-christmas");
+assert.equal(special.stored.get(baseKey), "special-volcanic");
+special.setDate("2027-01-10T05:00:00Z"); special.api.applyEffectiveTheme();
+assert.equal(special.root.dataset.qaTheme, "special-volcanic", "restore the entitled Special selection after Festival ends");
 for (const [date, id] of [
   ['2026-01-01', 'festival-new-year'], ['2026-02-14', 'festival-valentine'],
   ['2026-04-14', 'festival-songkran'], ['2026-10-31', 'festival-halloween'],

@@ -1,0 +1,59 @@
+/* Login-only skin. No account, session, evaluation or dashboard styles change. */
+@font-face { font-family:'QA Login Kanit';font-style:normal;font-weight:400;src:url('/fonts/Kanit-Regular.ttf') format('truetype');font-display:swap; }
+@font-face { font-family:'QA Login Kanit';font-style:normal;font-weight:500 900;src:url('/fonts/Kanit-SemiBold.ttf') format('truetype');font-display:swap; }
+#root .qa-themed-login {
+  background:linear-gradient(130deg,var(--login-pale),#fff 54%,var(--login-pale))!important;
+  color:#172033;isolation:isolate;font-family:'QA Login Kanit','Kanit',sans-serif!important;
+}
+#root .qa-themed-login .qa-login-glow { background:var(--login-accent)!important;opacity:.12; }
+#root .qa-themed-login .qa-login-shell { background:var(--login-pale)!important;border-radius:34px!important;box-shadow:0 28px 85px color-mix(in srgb,var(--login-deep) 17%,transparent)!important; }
+#root .qa-themed-login .qa-login-visual { background:linear-gradient(145deg,var(--login-deep),var(--login-accent))!important;color:#fff!important;isolation:isolate; }
+.qa-login-scene { position:absolute;inset:0;z-index:-2;background-image:var(--login-scene);background-size:var(--login-scene-size);background-position:var(--login-scene-position);background-repeat:no-repeat;pointer-events:none; }
+.qa-login-shade { position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,color-mix(in srgb,var(--login-deep) 94%,transparent),color-mix(in srgb,var(--login-deep) 68%,transparent) 52%,transparent 100%);pointer-events:none; }
+[data-login-collection="color"] .qa-login-shade { background:radial-gradient(ellipse at 90% 100%,#ffffff24,transparent 65%),repeating-linear-gradient(155deg,transparent 0 110px,#ffffff05 112px 114px,transparent 116px 230px); }
+[data-login-character-version="1"] .qa-login-scene { opacity:.22;background-size:460px auto;background-repeat:repeat; }
+[data-login-character-version="2"] .qa-login-scene { left:auto;right:0;width:auto;height:100%;aspect-ratio:.35; }
+[data-login-character-version="2"] .qa-login-shade { background:linear-gradient(90deg,color-mix(in srgb,var(--login-deep) 96%,transparent),color-mix(in srgb,var(--login-deep) 74%,transparent) 58%,color-mix(in srgb,var(--login-deep) 38%,transparent) 85%,#00000008); }
+#root .qa-themed-login .qa-login-visual :is(.qa-login-eyebrow,.qa-login-subtitle,.qa-login-visual-footer,.qa-login-badge,.qa-login-feature-description) { color:#ffffffe8!important; }
+#root .qa-themed-login .qa-login-visual :is(h1,.qa-login-feature-title) { color:#fff!important; }
+.qa-login-feature-card { background:linear-gradient(100deg,color-mix(in srgb,var(--login-deep) 48%,#ffffff18),#ffffff24)!important;border-color:#ffffff40!important;box-shadow:0 3px 12px #00000008; }
+.qa-login-feature-icon { color:#fff7d7!important;min-width:36px;background:#ffffff17!important; }
+.qa-login-feature-icon > :is(img,svg,.qa-character-icon,.qa-login-prop) { display:block;width:29px;height:29px;filter:drop-shadow(0 2px 2px #0003); }
+.qa-login-feature-icon > .qa-character-icon { width:34px;height:34px; }
+.qa-login-prop { background-repeat:no-repeat; }
+.qa-login-prop svg { width:100%;height:100%; }
+.qa-login-prop[data-login-prop-ready="true"] svg { opacity:0; }
+#root .qa-themed-login .qa-login-form { background:linear-gradient(140deg,#fffffffa,var(--login-pale))!important;color:#172033!important; }
+#root .qa-themed-login .qa-login-form :is(.text-violet-500,.text-violet-600,.text-violet-700) { color:var(--login-accent)!important; }
+#root .qa-themed-login .qa-login-form .text-violet-900 { color:var(--login-deep)!important; }
+#root .qa-themed-login .qa-login-form button[class*="text-violet"]:hover { color:var(--login-deep)!important; }
+#root .qa-themed-login .qa-login-form input:not([type="checkbox"]) { color:#172033!important;background:#ffffffed!important;border-color:color-mix(in srgb,var(--login-accent) 30%,#dce1e7)!important; }
+#root .qa-themed-login .qa-login-form input:not([type="checkbox"]):focus { border-color:var(--login-accent)!important;--tw-ring-color:color-mix(in srgb,var(--login-accent) 13%,transparent)!important;outline:none; }
+#root .qa-themed-login .qa-login-form input.border-rose-300 { border-color:#fda4af!important; }
+#root .qa-themed-login .qa-login-form input.border-rose-300:focus { --tw-ring-color:#ffe4e6!important; }
+#root .qa-themed-login .qa-login-form input[type="checkbox"] { accent-color:var(--login-accent); }
+#root .qa-themed-login .qa-login-form :is(.qa-login-step,.qa-login-version,.qa-login-verified,.qa-login-remember) { border-color:color-mix(in srgb,var(--login-accent) 16%,#e7e9ef)!important;background:color-mix(in srgb,var(--login-pale) 76%,#fff)!important; }
+#root .qa-themed-login .qa-login-form .qa-login-spinner { border-top-color:var(--login-accent)!important; }
+#root .qa-themed-login .qa-login-form button:focus-visible { outline:2px solid var(--login-accent);outline-offset:4px; }
+#root .qa-themed-login .qa-login-form .qa-login-theme-mobile { display:none; }
+/* Stack the same content on smaller screens; the desktop geometry is retained. */
+@media (max-width:1023px) {
+  #root .qa-themed-login .qa-login-visual { display:flex!important;flex-direction:column;padding:22px 24px; }
+  .qa-login-brand-logo { width:54px!important;height:54px!important;border-radius:17px!important; }
+  .qa-login-brand-logo img { width:38px!important;height:38px!important; }
+  .qa-login-brand-copy { margin-top:19px!important;max-width:none!important; }
+  .qa-login-brand-copy h1 { font-size:27px!important;margin-top:8px!important; }
+  .qa-login-brand-copy .qa-login-subtitle { margin-top:9px!important;line-height:1.6!important;font-size:12px!important; }
+  .qa-login-feature-list { grid-template-columns:repeat(3,minmax(0,1fr));margin-top:18px!important;gap:8px!important; }
+  .qa-login-feature-card { flex-direction:column;align-items:flex-start!important;gap:7px!important;padding:10px!important;border-radius:12px!important; }
+  .qa-login-feature-icon { height:26px!important;width:26px!important;min-width:26px!important;border-radius:8px!important; }
+  .qa-login-feature-icon > :is(img,svg,.qa-character-icon,.qa-login-prop) { width:24px!important;height:24px!important; }
+  .qa-login-feature-title { font-size:11px!important; }
+  .qa-login-feature-description,.qa-login-visual-footer { display:none!important; }
+  .qa-login-badge { font-size:8px!important;padding:7px 9px!important; }
+  #root .qa-themed-login .qa-login-form { padding-top:24px; }
+  #root .qa-themed-login .qa-login-form .qa-login-heading { margin-top:20px; }
+  .qa-login-shade { background:linear-gradient(90deg,color-mix(in srgb,var(--login-deep) 95%,transparent),color-mix(in srgb,var(--login-deep) 55%,transparent) 62%,#00000012); }
+}
+@media (prefers-reduced-motion:reduce) { .qa-themed-login * { transition:none!important; } }
+@media (forced-colors:active) { .qa-login-scene,.qa-login-shade { display:none; }.qa-login-feature-card { border:1px solid CanvasText!important; }.qa-login-prop svg { opacity:1!important; } }
