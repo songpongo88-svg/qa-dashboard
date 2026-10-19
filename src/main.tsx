@@ -12,6 +12,8 @@ import "./seasonalThemeRuntime2";
 import "./deleteUserDirectoryPatch";
 import { installCharacterThemeRuntime } from "./characterThemes/runtime";
 installCharacterThemeRuntime();
+import { installSpecialThemeRuntime } from "./specialThemes/runtime";
+installSpecialThemeRuntime();
 
 // data-root-error-boundary-v149
 class RootErrorBoundary extends React.Component<

@@ -1,0 +1,4 @@
+[data-process-picker-portal] > [role="dialog"] { position:fixed!important; inset:0!important; z-index:2147481000!important; display:flex; align-items:center; justify-content:center; padding:clamp(10px,3vw,28px); background:rgba(15,28,42,.64)!important; }
+[data-process-picker-portal] > [role="dialog"] > div { width:min(780px,100%); max-height:calc(100dvh - 32px); min-height:0; background:#fff; color:#17334b; border-radius:20px; box-shadow:0 24px 90px #071d3b55; }
+[data-process-picker-portal] [data-process-selected-summary] { flex-shrink:0; }
+@media(max-width:600px) { [data-process-picker-portal] > [role="dialog"] > div { max-height:calc(100dvh - 20px); border-radius:16px; } }

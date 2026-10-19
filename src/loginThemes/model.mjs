@@ -92,7 +92,7 @@ export function resolveLoginTheme(appearance, environment = {}) {
   }
   const special = specialThemeFor(id);
   if (special) {
-    const pale = { 'special-coastal': '#edfafa', 'special-volcanic': '#faf4ef', 'special-misty': '#edf5f2' }[id];
+    const pale = { 'special-coastal': '#edfafa', 'special-volcanic': '#f1f8ff', 'special-misty': '#edf5f2' }[id];
     return skin(id, 'special', [special.swatches[0], special.swatches[1], pale], { image: special.image });
   }
   // A manually previewed/legacy Festival id cannot persist beyond its schedule.

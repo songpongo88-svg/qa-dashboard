@@ -26,6 +26,10 @@ replaceExact(
   "source marker",
 );
 
+if (!source.includes('import { ProcessSlidePickerPortal }')) {
+  source = 'import { ProcessSlidePickerPortal } from "./ProcessSlidePickerPortal";\n' + source;
+}
+
 replaceRegex(
   /function ProcessSlideModalV68\(\{ meta, onClose \}: \{ meta: ProcessReferenceMeta \| null; onClose: \(\) => void \}\) \{[\s\S]*?\n\}\n\nexport function ProcessReferenceSelector/,
   readSnippet("modal") + "\nexport function ProcessReferenceSelector",
