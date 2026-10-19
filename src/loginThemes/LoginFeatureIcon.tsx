@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { CharacterIcon } from '../characterThemes/Character';
 import { characterIconAtlas } from '../characterThemes/icons.mjs';
 import { FestivalIcon } from '../festivalThemes/Festival';
+import { specialIconAtlas, specialIconStyle } from '../specialThemes/icons.mjs';
 
 // Decorative icons keep the existing 36px slot. Labels retain the meaning.
 const PROP_SLOTS = ['chart', 'document', 'shield', 'shell', 'wave', 'compass', 'rock', 'ember', 'mountain', 'leaf', 'cloud', 'drop', 'umbrella', 'sun', 'moon', 'star', 'wind', 'heart', 'flower', 'gear'];
 export function LoginFeatureIcon({ theme, index }: { theme: { id: string; collection: string; characterVersion?: number; weatherScene?: string }; index: number }) {
   const useProps = ['special', 'weather', 'weekday'].includes(theme.collection);
-  const atlas = useProps ? '/login-themes/props.webp' : theme.collection === 'character' && theme.characterVersion === 2 ? characterIconAtlas(theme.id) : '';
+  const atlas = theme.collection === 'special' ? specialIconAtlas(theme.id) : useProps ? '/login-themes/props.webp' : theme.collection === 'character' && theme.characterVersion === 2 ? characterIconAtlas(theme.id) : '';
   const [loadedAtlas, setLoadedAtlas] = useState('');
   const propsReady = loadedAtlas === atlas;
   useEffect(() => {
@@ -22,7 +23,8 @@ export function LoginFeatureIcon({ theme, index }: { theme: { id: string; collec
     ? <CharacterIcon themeId={theme.id} kind={(theme.id === 'doraemon-blue' ? ['history', 'library', 'view'] : ['overview', 'view', 'library'])[index]} />
     : <>{String(index + 1).padStart(2, '0')}</>;
   if (theme.collection === 'festival') return <FestivalIcon themeId={theme.id} kind={['dashboard', 'evaluate', 'document'][index]} />;
-  const kind = theme.collection === 'special' ? (theme.id === 'special-coastal' ? ['shell', 'wave', 'compass'] : theme.id === 'special-volcanic' ? ['rock', 'ember', 'mountain'] : ['mountain', 'leaf', 'cloud'])[index]
+  if (theme.collection === 'special' && propsReady) return <span className="qa-login-prop qa-special-icon" data-special-icon-ready="true" style={specialIconStyle(theme.id, ['dashboard', 'evaluate', 'permissions'][index]) as React.CSSProperties} aria-hidden="true" />;
+  const kind = theme.collection === 'special' ? (theme.id === 'special-coastal' ? ['shell', 'wave', 'compass'] : theme.id === 'special-volcanic' ? ['mountain', 'flower', 'cloud'] : ['mountain', 'leaf', 'cloud'])[index]
     : theme.collection === 'weather' ? (/night/.test(theme.weatherScene || '') ? ['moon', 'star', 'cloud'] : /rain|storm/.test(theme.weatherScene || '') ? ['drop', 'umbrella', 'cloud'] : /cloud|fog/.test(theme.weatherScene || '') ? ['cloud', 'wind', 'drop'] : ['sun', 'cloud', 'chart'])[index]
     : theme.collection === 'weekday' ? (index === 0 ? ({ 'weekday-monday': 'sun', 'weekday-tuesday': 'flower', 'weekday-wednesday': 'leaf', 'weekday-thursday': 'leaf', 'weekday-friday': 'drop', 'weekday-saturday': 'flower', 'weekday-sunday': 'heart' }[theme.id] || 'sun') : ['sun', 'chart', 'shield'][index]) : ['chart', 'document', 'shield'][index];
   const paths: Record<string, React.ReactNode> = {

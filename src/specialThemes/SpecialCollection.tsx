@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SPECIAL_THEMES, SPECIAL_UNLOCK_MS, SPECIAL_QUEST_DEADLINE } from './model.mjs';
 import type { SpecialUsage } from './usage';
+import { SpecialIcon } from './SpecialIcon';
 import './specialThemes.css';
 
 type Theme = typeof SPECIAL_THEMES[number];
@@ -9,12 +10,12 @@ export function LockIcon({ unlocked = false }: { unlocked?: boolean }) {
 }
 function ThemeSample({ theme }: { theme: Theme }) {
   return <div className="qa-special-sample" data-qa-special-preview={theme.id}>
-    <div className="qa-special-sample-nav"><img src="/robinhood-logo.png" alt="Robinhood" width="28" height="28" /><strong>QA Dashboard</strong><span className="qa-special-primary">Dashboard</span><span>Case Detail</span></div>
+    <div className="qa-special-sample-nav"><img src="/robinhood-logo.png" alt="Robinhood" width="28" height="28" /><strong>QA Dashboard</strong><span className="qa-special-primary"><SpecialIcon themeId={theme.id} kind="dashboard" /> Dashboard</span><span><SpecialIcon themeId={theme.id} kind="appeal-cases" /> Case Detail</span></div>
     <div className="qa-special-sample-hero"><small>SPECIAL COLLECTION</small><h3>{theme.label}</h3><span>{theme.thai}</span></div>
     <div className="qa-special-sample-body">
       <div className="qa-special-sample-filters"><span>October 2026</span><span>All Teams</span><span>All Agents</span></div>
-      <div className="qa-special-sample-metrics">{[['Average QA', ''], ['Cases Reviewed', ''], ['Passed', 'pass'], ['Not Passed', 'fail']].map(([label, status]) => <div key={label} className="qa-special-ui-card"><span>{label}</span><strong data-status={status}>—</strong></div>)}</div>
-      <div className="qa-special-sample-charts">{['Quality Score Trend', 'Topic Performance'].map(label => <section key={label} className="qa-special-ui-card"><strong>{label}</strong><div className="qa-special-chart-placeholder" aria-hidden="true"><i /><i /><i /><i /><i /></div></section>)}</div>
+      <div className="qa-special-sample-metrics">{[['Quality Score', 'dashboard'], ['KPI Status', 'pre-test'], ['Cases Evaluated', 'evaluate'], ['Appeal Results', 'appeal-review'], ['Overall Grade', 'rubrics']].map(([label, kind]) => <div key={label} className="qa-special-ui-card"><span><SpecialIcon themeId={theme.id} kind={kind} /> {label}</span><strong>—</strong></div>)}</div>
+      <div className="qa-special-sample-charts">{['Quality Score Trend', 'Topic Performance'].map(label => <section key={label} className="qa-special-ui-card"><strong><SpecialIcon themeId={theme.id} kind="dashboard" /> {label}</strong><div className="qa-special-chart-placeholder" aria-hidden="true"><i /><i /><i /><i /><i /></div></section>)}</div>
       <div className="qa-special-ui-card qa-special-sample-table"><strong>Recent Cases</strong><table><thead><tr>{['Case ID', 'Agent', 'Score', 'KPI Status'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{[0, 1].map(row => <tr key={row}><td>—</td><td>—</td><td>—</td><td>—</td></tr>)}</tbody></table></div>
       <small className="qa-special-sample-note">ตัวอย่างหน้าตาธีม · ไม่มีข้อมูลเคสจริง</small>
     </div>

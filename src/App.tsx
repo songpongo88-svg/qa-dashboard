@@ -7763,7 +7763,7 @@ export default function App() {
                 className={`group flex shrink-0 items-center rounded-xl border transition ${workspaceKey === "dashboard" ? "cursor-default" : "cursor-grab active:cursor-grabbing"} ${isActive ? "border-violet-500 bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"}`}
               >
                 {workspaceKey !== "dashboard" ? <span className={`ml-2 text-xs ${isActive ? "text-violet-100" : "text-slate-400"}`} aria-hidden="true">⠿</span> : null}
-                <button type="button" role="tab" aria-selected={isActive} aria-label={`Open ${label}`} onClick={() => activateWorkspaceTab(workspaceKey)} className="max-w-[220px] truncate px-3 py-2 text-xs font-bold">{label}</button>
+                <button type="button" role="tab" data-qa-nav-key={isCaseWorkspaceTabKey(workspaceKey) ? "case-detail" : workspaceKey} aria-selected={isActive} aria-label={`Open ${label}`} onClick={() => activateWorkspaceTab(workspaceKey)} className="max-w-[220px] truncate px-3 py-2 text-xs font-bold">{label}</button>
                 {workspaceKey !== "dashboard" ? <button type="button" onClick={() => closeWorkspaceTab(workspaceKey)} aria-label={`Close ${label} tab`} className={`mr-1 flex h-6 w-6 items-center justify-center rounded-lg text-sm font-black transition ${isActive ? "text-violet-100 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-violet-100 hover:text-violet-700"}`}>×</button> : <span className={`mr-2 text-[9px] font-bold ${isActive ? "text-violet-200" : "text-slate-400"}`}>PIN</span>}
               </div>;
             })}

@@ -5,6 +5,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import * as model from '../src/specialThemes/model.mjs';
+import * as specialIcons from '../src/specialThemes/icons.mjs';
 
 const { activeInterval, mergeUsage, mergeSpecialThemeUsage, hasSpecialThemeAccess, isSpecialQuestOpen, usageMs, SPECIAL_QUEST_DEADLINE_MS: deadline, SPECIAL_UNLOCK_MS: target, SPECIAL_IDLE_MS, SPECIAL_THEMES } = model;
 assert.equal(usageMs(NaN), 0); assert.equal(usageMs(-1), 0); assert.equal(usageMs(Infinity), 0);
@@ -90,7 +91,8 @@ function load(file, dependencies) {
   return output;
 }
 const usage = load('src/specialThemes/usage.ts', { react: React, 'firebase/firestore': firestore, '../firebaseClient': { firebaseDb: {} }, './model.mjs': model });
-const ui = load('src/specialThemes/SpecialCollection.tsx', { react: React, './model.mjs': model });
+const iconUi = load('src/specialThemes/SpecialIcon.tsx', { react: React, './icons.mjs': specialIcons });
+const ui = load('src/specialThemes/SpecialCollection.tsx', { react: React, './model.mjs': model, './SpecialIcon': iconUi });
 let latest, selections = [];
 function Probe({ username, copies = 1 }) {
   latest = usage.useSpecialThemeUsage(username);
