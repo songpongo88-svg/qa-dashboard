@@ -1,5 +1,5 @@
 import React from 'react';
-import { WEEKDAY_IDS } from './weekdayCollection.mjs';
+import { weekdayThemeFor } from './weekdayThemes/model.mjs';
 import { festivalThemeFor } from './festivalThemes/model.mjs';
 import { characterThemeFor } from './characterThemes/model.mjs';
 
@@ -19,13 +19,13 @@ export default function ThemePreview({ themeId, option, characterVersion = 1 }: 
   themeId: string; option: { swatches: readonly string[]; patternImage?: string; sceneImage?: string };
   characterVersion?: number;
 }) {
-  const weekday = WEEKDAY_IDS.indexOf(themeId);
+  const weekday = weekdayThemeFor(themeId);
   const festivalColor = festivalColors[themeId];
   const character = characterVersion === 2 ? characterThemeFor(themeId) : null;
   return <span aria-hidden="true" data-theme-preview={themeId} className="qa-active-theme-preview">
-    {character ? <span style={{ backgroundImage: `url("${character.art}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: character.pale }} /> : option.sceneImage ? <span style={{ backgroundImage: `url("${option.sceneImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} /> : weekday >= 0 ? <span style={{
-      backgroundImage: 'url("/weekday-scenes-v3.png")', backgroundSize: 'auto 700%',
-      backgroundPosition: `78% ${weekday / 6 * 100}%`,
+    {character ? <span style={{ backgroundImage: `url("${character.art}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: character.pale }} /> : option.sceneImage ? <span style={{ backgroundImage: `url("${option.sceneImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} /> : weekday ? <span style={{
+      backgroundImage: `url("${weekday.image}")`, backgroundSize: 'cover',
+      backgroundPosition: '70% center',
     }} /> : festivalColor ? <span style={{ backgroundImage: `url("${festivalThemeFor(themeId)?.image}")`, backgroundSize: "cover", backgroundPosition: "70% center" }} />
       : option.patternImage ? <span style={{ backgroundImage: `url("${option.patternImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: option.swatches[2] }} />
         : <span className="qa-active-theme-swatches">{option.swatches.map((color, index) => <i key={`${color}-${index}`} style={{ backgroundColor: color, width: index === 1 ? 10 : 6 }} />)}</span>}

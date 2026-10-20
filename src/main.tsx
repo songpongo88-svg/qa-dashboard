@@ -14,6 +14,8 @@ import { installCharacterThemeRuntime } from "./characterThemes/runtime";
 installCharacterThemeRuntime();
 import { installSpecialThemeRuntime } from "./specialThemes/runtime";
 installSpecialThemeRuntime();
+import { installWeekdayThemeRuntime } from "./weekdayThemes/runtime";
+installWeekdayThemeRuntime();
 
 // data-root-error-boundary-v149
 class RootErrorBoundary extends React.Component<
