@@ -10,7 +10,7 @@ html:root #root [data-case-record-filters] button:focus-visible { outline:2px so
 html:root #root .qa-case-record-filter-icon > :is(svg,img,span) { width:20px; height:20px; flex:none; }
 .qa-case-record-filter-count { display:inline-flex; align-items:center; justify-content:center; min-width:22px; padding:2px 5px; border-radius:6px; font-size:10px; font-variant-numeric:tabular-nums; background:color-mix(in srgb,currentColor 10%,transparent); }
 html:root[data-qa-festival-theme="festival-new-year"] [data-case-record-filters] button[aria-pressed="true"] .qa-case-record-filter-icon { filter:brightness(.45); }
-.qa-case-record-grid { grid-template-columns:110px 95px minmax(130px,.8fr) minmax(220px,1.6fr) 80px 110px 60px 90px; }
+.qa-case-record-grid { grid-template-columns:95px 90px 110px minmax(130px,.8fr) minmax(220px,1.6fr) 80px 60px 110px; }
 html:root #root #qa-unified-case-explorer-v160 [data-case-record-header-v163] > [data-case-record-column] { color:#fff!important; }
 @media (prefers-reduced-motion:reduce) { html:root #root [data-case-record-filters] button { transition:none; } }
 @media (forced-colors:active) {
