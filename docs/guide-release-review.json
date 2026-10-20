@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-20T10:23:25.845Z",
-  "reason": "Reviewed the seven approved daily scenes and semantic 3D icons across tabs, Case Information, Coaching, chooser and Login. Profile guide now documents selecting the existing automatic 7 Days collection; Bangkok midnight, Festival restore, saved rights and KPI meanings remain unchanged.",
+  "reviewedAt": "2026-10-20T10:29:27.293Z",
+  "reason": "Reviewed the seven approved scenes, daily card materials and semantic icons across tabs, Case Information, Coaching, chooser and Login. Atlas frames stay within their cells to avoid neighboring prop edges. Profile guide documents the existing automatic 7 Days selection; Bangkok midnight, Festival restore, saved rights and KPI meanings remain unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
     "profile"
@@ -330,7 +330,7 @@
     "scripts/test-theme-preference.mjs": "c8c955c967d256127c39eb9355b07529b0e99ae6138761ca064eff2c216c6678",
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "928260a50faa0673bca889f08ea674472b45f87ef432ed4a3285c3673c611c7b",
-    "scripts/test-weekday-ui.mjs": "3064184694312fd063765a2b18ef167a391032bbdeaa2a4ad85559235e53b314",
+    "scripts/test-weekday-ui.mjs": "3c9ac4d1dd3fc99fd79c9dc3079c50ae9a33613fe8fe48c34b11636e1ff6d9ac",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "1d105dda5aae38f7a6868ba5eba07f3938402d0bd07610e607dd42de27d40849",
     "src/App.tsx": "9ac5aa69a0d8bc372d9b91b88a2c1bd6dae4ddf2a84c05b3f204351273adc840",
@@ -529,7 +529,7 @@
     "src/weekdayThemeEditorial.css": "91f9471674c02f83ad6423d238f07b8bbe52675246a1b135cd7c6135e4126871",
     "src/weekdayThemeProfessional.css": "ce1ae14348954aab140e6a14526c7f72ca3dcfb1dff96e021399fb0198cc11ac",
     "src/weekdayThemes/WeekdayIcon.tsx": "36433f4e267d6ea8c843a2c38fcd0287755192eda133427718789179ac04d4a2",
-    "src/weekdayThemes/iconGeometry.mjs": "6260337b26f0f3d35551f36633b070889a7be1db438b8f97719177696f558695",
+    "src/weekdayThemes/iconGeometry.mjs": "07c9dfb17847e082b2d4ba5a8eb2be5ee4606347f7226fd5fbd5653611ae5131",
     "src/weekdayThemes/icons.mjs": "6610256c3cc2184d2ba495549b720d8c6e8b30ea17734af8810f3ca00bb2f250",
     "src/weekdayThemes/model.mjs": "a9527ae2a057a0467fc5903bae54ab00503cb0f28162ca72c2d08a6c482a61a8",
     "src/weekdayThemes/redesign.css": "1662cbcbe93fc442a21cabd911e0b7756e11cd639aeaeda3196ba39405126d20",

@@ -15,7 +15,12 @@ for (const theme of model.WEEKDAY_THEMES) {
   for(const file of [theme.image,theme.atlas]) { const bytes=fs.statSync('public'+file).size;assert.ok(bytes>10000&&bytes<700000,file); }
   const frames=WEEKDAY_ICON_FRAMES[theme.id];assert.equal(frames.length,16);
   assert.equal(new Set(icons.WEEKDAY_ICON_KINDS.map(kind=>icons.weekdayIconPosition(kind,theme.id))).size,16);
-  for(const [x,y,size] of frames) { assert.ok(x-size/2>=0&&y-size/2>=0);assert.ok(x+size/2<=WEEKDAY_ATLAS_SIZE+.01&&y+size/2<=WEEKDAY_ATLAS_SIZE+.01); }
+  frames.forEach(([x,y,size],index) => {
+    const left=Math.round(index%4*WEEKDAY_ATLAS_SIZE/4),right=Math.round((index%4+1)*WEEKDAY_ATLAS_SIZE/4);
+    const top=Math.round(Math.floor(index/4)*WEEKDAY_ATLAS_SIZE/4),bottom=Math.round((Math.floor(index/4)+1)*WEEKDAY_ATLAS_SIZE/4);
+    assert.ok(x-size/2>=left-.01&&y-size/2>=top-.01,'frame stays inside its atlas cell');
+    assert.ok(x+size/2<=right+.01&&y+size/2<=bottom+.01,'neighboring props cannot bleed into this frame');
+  });
 }
 assert.equal(model.weekdayThemeFor('festival-christmas'),null);
 for(const label of ['Reject','Approve','Delete Case','Cancel','Close Tab','ลบ Slide','อนุมัติ','ปฏิเสธ','Not Passed','Pending']) assert.equal(icons.weekdayActionFor(label),'',label);
