@@ -22,9 +22,16 @@ export function appealActionTopicPdfHtml(actions: readonly AppealAction[], code:
     const heading = action.topicActionNumber ? `Appeal Reason · Action ${action.topicActionNumber}` : 'สิทธิ์ยื่นอุทธรณ์เพิ่มเติม';
     const sections = [separator, `<div><strong>${heading}</strong></div>`];
     const submissions = action.submissions.length ? action.submissions : action.submittedAt ? [{ submittedAt: action.submittedAt, submittedBy: action.submittedBy, topics: action.topics }] : [];
+    // Keep historical QA edits in the audit log, but show only the latest
+    // saved review for this Action + Topic in the exported PDF.
+    const latestReview = action.reviews.filter(row => topicIn(row.topics, code))
+      .reduce<AppealActionReview | undefined>((latest, row) => {
+        if (!latest) return row;
+        return (Date.parse(row.reviewedAt) || 0) >= (Date.parse(latest.reviewedAt) || 0) ? row : latest;
+      }, undefined);
     const events: Array<{ kind: 'submission' | 'review'; at: string; row: AppealActionSubmission | AppealActionReview }> = [
       ...submissions.filter(row => topicIn(row.topics, code)).map(row => ({ kind: 'submission' as const, at: row.submittedAt, row })),
-      ...action.reviews.filter(row => topicIn(row.topics, code)).map(row => ({ kind: 'review' as const, at: row.reviewedAt, row })),
+      ...(latestReview ? [{ kind: 'review' as const, at: latestReview.reviewedAt, row: latestReview }] : []),
     ];
     events.sort((a, b) => (Date.parse(a.at) || 0) - (Date.parse(b.at) || 0) || (a.kind === b.kind ? 0 : a.kind === 'submission' ? -1 : 1));
     if (!events.length) sections.push(field('Status', action.status), field('Opened', formatPdfDateTime(action.openedAt, '-')));

@@ -87,7 +87,7 @@ try {
     assert.ok(text.includes("Tag หลังทบทวน"));
     assert.ok(text.includes("FIRST_REMOVED_TAG"), "the first removal remains in its review history");
     assert.ok(text.includes("SECOND_REMOVED_TAG"), "a later removal remains in its own review history");
-    for (const expected of ["ORIGINAL_EVALUATION", "ขั้นตอนการทำงานเดิม", "เนื่องจากไรเดอร์ถามแค่งานไม่เข้า", "Action 1", "Action 2", "Cancelled (Additional)", "Expired (Additional)", "FIRST_APPEAL_REASON", "SECOND_APPEAL_REASON", "FINAL_REASON_LINE", "FIRST_QA_COMMENT", "SECOND_QA_COMMENT", "CORRECTED_SECOND_QA_COMMENT", "THIRD_QA_REJECT_REASON"]) {
+    for (const expected of ["ORIGINAL_EVALUATION", "ขั้นตอนการทำงานเดิม", "เนื่องจากไรเดอร์ถามแค่งานไม่เข้า", "Action 1", "Action 2", "Cancelled (Additional)", "Expired (Additional)", "FIRST_APPEAL_REASON", "SECOND_APPEAL_REASON", "FINAL_REASON_LINE", "FIRST_QA_COMMENT", "CORRECTED_SECOND_QA_COMMENT", "THIRD_QA_REJECT_REASON"]) {
       assert.ok(text.replace(/\s/g, '').includes(expected.replace(/\s/g, '')), `${pdfVariant} PDF preserves ${expected}`);
     }
     assert.equal(pdfVariant === 'original' ? renderedCase.pdfReportScoreOverride : renderedCase.finalScore, 94, 'latest review supplies the total score');
@@ -100,6 +100,7 @@ try {
     assert.equal((text.replace(/\s/g, '').match(/ORIGINAL_EVALUATION/g) || []).length, 1, 'original evaluation stays once in the topic');
     assert.equal((text.replace(/\s/g, '').match(/FIRST_APPEAL_REASON/g) || []).length, 1, 'old appeal reason appears once');
     assert.equal((text.replace(/\s/g, '').match(/SECOND_APPEAL_REASON/g) || []).length, 1, 'additional appeal reason appears once');
+    assert.equal((text.match(/SECOND_QA_COMMENT/g) || []).length, 1, 'the corrected review is present without its superseded review');
     for (let index = 1; index <= 90; index++) assert.ok(text.replace(/\s/g, '').includes(`Evidenceline${index}`), `long appeal line ${index} survives pagination`);
     if (process.env.ACTION_PDF_CHECK_DIR) {
       await mkdir(process.env.ACTION_PDF_CHECK_DIR, { recursive: true });
@@ -107,6 +108,34 @@ try {
     }
   }
   console.log("PASS real Main and Appeal PDF render all Actions, old/new reasons, QA revisions, rejected/new topics, long-text pagination and internal discussion exclusion");
+  // AA315961: three edits of one Action + Topic keep only the latest Review in
+  // the Main/Appeal PDF, but never delete any stored review events.
+  const revisionRows = [
+    rows[0], rows[1],
+    event("appeal_request_reviewed", -89, { previousReviewId: "review-first", reviewId: "review-edit-2", topics: [{ ...firstReview, revisedScore: 26, revisedComment: "OBSOLETE_REVIEW_190948" }], decision: "Approved", reviewedAt: at(-89), reviewedBy: "Earlier QA" }),
+    event("appeal_request_reviewed", -88, { previousReviewId: "review-edit-2", reviewId: "review-edit-3", topics: [{ ...firstReview, revisedScore: 30, revisedComment: "LATEST_REVIEW_191223" }], decision: "Approved", reviewedAt: at(-88), reviewedBy: "Latest QA" }),
+  ];
+  const revisedActions = buildAppealActionHistory([...revisionRows].reverse(), requestId, Date.parse(at(0)));
+  assert.equal(revisedActions.length, 1);
+  assert.equal(revisedActions[0].reviews.length, 3, 'all 3 versions stay in audit history');
+  const savedHistory = JSON.stringify(revisedActions);
+  const tripleCase = { ...caseItem, topics: [topic], revisedTopics: [{ ...topic, score: 30, comment: "LATEST_REVIEW_191223" }], appealReviewedTopics: [{ ...topic, decision: "Approved", comment: "LATEST_REVIEW_191223" }], appealActionHistory: revisedActions, appealStatus: "Approved", finalScore: 100 };
+  for (const pdfVariant of ["original", "appeal"]) {
+    globalThis.__actionPdfTexts.length = 0;
+    const generated = await generateCasePdfWithAppealHistory({ caseItem: tripleCase, pdfVariant, fallback: generateOfficialCaseDetailPdf });
+    assert.ok(generated.blob.size > 10000);
+    const text = globalThis.__actionPdfTexts.flat(Infinity).join(" ").replace(/\s/g, "");
+    assert.equal((text.match(/LATEST_REVIEW_191223/g) || []).length, 1, 'latest QA edit appears only once');
+    assert.ok(!text.includes('OBSOLETE_REVIEW_190948'), 'middle QA edit is not printed');
+    assert.ok(!text.includes('FIRST_QA_COMMENT'), 'original QA decision is not printed');
+    assert.equal((text.match(/FIRST_APPEAL_REASON/g) || []).length, 1, 'Admin Appeal Reason is preserved');
+    assert.ok(text.includes('ORIGINAL_EVALUATION'), 'Original Comment is preserved');
+    assert.equal((text.match(/Action1/g) || []).length, 1, 'one Action heading');
+    assert.ok(text.includes('LatestQA'), 'latest reviewer is shown');
+  }
+  assert.equal(JSON.stringify(revisedActions), savedHistory, 'PDF projection leaves event history unchanged');
+  console.log('PASS AA315961 triple QA edit prints latest review only, preserving original, reason and history');
+
   const retainedRows = [rows[0], { ...rows[1], details: { ...rows[1].details, topics: [{ ...firstReview, revisedScore: 24 }] } }, rows[2], rows[3],
     event("appeal_request_reviewed", -8, { roundId: "round-2", topics: [{ ...secondTopic, score: 24, originalScore: 18, retainedComment: "FIRST_QA_COMMENT", decision: "Rejected", rejectReason: "KEEP_PREVIOUS_APPROVED_SCORE" }], reviewId: "retained-reject", decision: "Rejected", reviewedAt: at(-8), reviewedBy: "Second QA", reviewSummary: "RETAINED_SUMMARY" }),
   ];

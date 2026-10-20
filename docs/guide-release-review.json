@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-20T10:29:27.293Z",
-  "reason": "Reviewed the seven approved scenes, daily card materials and semantic icons across tabs, Case Information, Coaching, chooser and Login. Atlas frames stay within their cells to avoid neighboring prop edges. Profile guide documents the existing automatic 7 Days selection; Bangkok midnight, Festival restore, saved rights and KPI meanings remain unchanged.",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "profile"
-  ],
+  "reviewedAt": "2026-10-20T12:21:17.105Z",
+  "reason": "Reviewed Appeal Review Main and Appeal PDFs to show the latest QA edit per Action and Topic, without affecting submissions, original evaluations, separate appeal Actions or the preserved audit history; guide text remains unchanged.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -295,7 +293,7 @@
     "scripts/sync-v13-excel-data-only.mjs": "d3b1eb63b3cce5ad0ebc83c47fec6f8b426e5bae3db073dc6c53abb606628b47",
     "scripts/sync-v13-rowdata.mjs": "a777f7348ca4bf130904421f22b029d7e61ceecb9b3b41f193eef2a050859567",
     "scripts/test-announcement-detail.mjs": "ed946c13c4df19cf6d07aac17633b7687fc5ca600c8f11dd63e8f558a247e4df",
-    "scripts/test-appeal-action-pdf.mjs": "092a30f7f67e8843ce8f02ccc6d88395364cc7c10fafe7d773bcf2832c3af941",
+    "scripts/test-appeal-action-pdf.mjs": "9eb71f9502f7debe7b59d21f6846b095eaa30c1bff61f4239d18a341931d7c7a",
     "scripts/test-appeal-evidence-upload.mjs": "f24c2fa08ad45e2e1162c04433ac087d6eaa257ec6690851d4a1fb4db77d16e6",
     "scripts/test-appeal-topic-review.mjs": "00292d1b1bb98a80dcf187b31588e0a3f0f99fe9c2baab9f116035f47c8dbfec",
     "scripts/test-appeal-workflow.mjs": "21a08d794144b961d090a8d119468891a325183e127da266e4b716c13bfe4021",
@@ -389,7 +387,7 @@
     "src/announcementStore.ts": "1162c7923dd736474706152e42e9bd92e5083825d78ca09aa2c3a40cadd73cbd",
     "src/announcementTicker.css": "a50df53eca311d493d8c4214748e77dc3f2d094ff5f798334b34921069af55e8",
     "src/appealActionHistory.ts": "58bb0ab1b18eba2a26d2b2a7c601fc6ff2256770dd7890a4fdcba42d3684b864",
-    "src/appealActionPdfHtml.ts": "ed27f38d6fece9e28b5e5be999aef0b2b201da861382ef949660d1bd038804a3",
+    "src/appealActionPdfHtml.ts": "8ec79efd214c35d6136b1b43e666481d70e6732fd2e72d80a279a75f5a5c913e",
     "src/appealCaseAvailability.ts": "337b4e89ab0425a12efd5cb726f27f4572d192554f36e0a70d303f8ab5503301",
     "src/appealEvidenceNaming.ts": "f1df5fd693446869bbc55978119c61c946d6d63847973b9cc86d8a195d861177",
     "src/appealReview.ts": "75f7add042ee34d0da4b9e8adef5d15f039ab1fe316dca2d80d1e6adebc5e147",
