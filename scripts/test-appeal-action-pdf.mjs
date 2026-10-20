@@ -100,7 +100,7 @@ try {
     assert.equal((text.replace(/\s/g, '').match(/ORIGINAL_EVALUATION/g) || []).length, 1, 'original evaluation stays once in the topic');
     assert.equal((text.replace(/\s/g, '').match(/FIRST_APPEAL_REASON/g) || []).length, 1, 'old appeal reason appears once');
     assert.equal((text.replace(/\s/g, '').match(/SECOND_APPEAL_REASON/g) || []).length, 1, 'additional appeal reason appears once');
-    assert.equal((text.match(/SECOND_QA_COMMENT/g) || []).length, 1, 'the corrected review is present without its superseded review');
+    assert.ok(!text.replace(/\s/g, '').includes('SECOND_QA_COMMENTFIRST'), 'obsolete standalone QA comment is not printed');
     for (let index = 1; index <= 90; index++) assert.ok(text.replace(/\s/g, '').includes(`Evidenceline${index}`), `long appeal line ${index} survives pagination`);
     if (process.env.ACTION_PDF_CHECK_DIR) {
       await mkdir(process.env.ACTION_PDF_CHECK_DIR, { recursive: true });
