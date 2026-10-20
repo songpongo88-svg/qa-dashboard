@@ -66,6 +66,36 @@ try{
  assert.ok(document.body.textContent.includes('โหลดรูปภาพไม่สำเร็จ'));assert.ok(document.body.textContent.includes('รายละเอียดบรรทัดสุดท้าย'));
  await click([...document.querySelectorAll('button')].find(b=>b.textContent==='ลองโหลดรูปอีกครั้ง'));assert.ok(document.querySelector('[data-announcement-image] img'));
  console.log('PASS missing record, failed request plus retry, and image failure plus retry retain a useful page and full details');
+ // Regression: clicking an announcement image keeps opening a new tab, but its
+ // isolated announcement reader must not show the dashboard KPI modal behind it.
+ const kpiOut=resolve(temp,'monthly-kpi.mjs');
+ await build({entryPoints:['src/MonthlyKpiNotice.tsx'],outfile:kpiOut,bundle:true,format:'esm',platform:'node',packages:'external',loader:{'.css':'empty'},logLevel:'silent'});
+ const {default:MonthlyKpiNotice}=await import(pathToFileURL(kpiOut));
+ const kpiHost=document.createElement('div');document.body.append(kpiHost);
+ const kpiRoot=createRoot(kpiHost);
+ const kpiProps={cases:[],agent:'Alpha Agent',monthKey:'2026-10',monthLabel:'October 2026',viewer:'alpha',autoOpen:true};
+ const dialogProto=dom.window.HTMLDialogElement.prototype;
+ const originalShowModal=dialogProto.showModal,originalCloseDialog=dialogProto.close;
+ dialogProto.showModal=function(){this.setAttribute('open','')};
+ dialogProto.close=function(){this.removeAttribute('open')};
+ try {
+   window.history.replaceState({},'',url.pathname+url.search);
+   await act(async()=>kpiRoot.render(React.createElement(MonthlyKpiNotice,kpiProps)));
+   await act(async()=>new Promise(done=>setTimeout(done,300)));
+   assert.equal(kpiHost.querySelector('[data-monthly-kpi-notice]'),null,'no KPI launcher or popup is mounted in the opened announcement tab');
+   window.history.replaceState({},'','/?tab=dashboard');
+   await act(async()=>kpiRoot.render(React.createElement(MonthlyKpiNotice,kpiProps)));
+   await act(async()=>new Promise(done=>setTimeout(done,300)));
+   assert.ok(kpiHost.querySelector('[data-monthly-kpi-notice]'),'normal dashboard retains KPI notice');
+   assert.equal(kpiHost.querySelector('.qmk-dialog')?.open,true,'normal dashboard retains automatic KPI popup');
+   window.history.replaceState({},'',url.pathname+url.search);
+   await act(async()=>kpiRoot.render(React.createElement(MonthlyKpiNotice,kpiProps)));
+   assert.equal(kpiHost.querySelector('.qmk-dialog'),null,'navigating to the full announcement removes KPI popup');
+   console.log('PASS announcement image tab suppresses KPI notice while normal Dashboard KPI notification still works');
+ } finally {
+   await act(async()=>kpiRoot.unmount());kpiHost.remove();
+   dialogProto.showModal=originalShowModal;dialogProto.close=originalCloseDialog;
+ }
  // Exercise the real store query independently of the UI boundary.
  const dbOut=resolve(temp,'store.mjs');
  await build({entryPoints:['src/announcementStore.ts'],outfile:dbOut,bundle:true,format:'esm',platform:'node',logLevel:'silent',plugins:[{name:'single-document-fixture',setup(b){b.onResolve({filter:/^firebase\/firestore$/},()=>({path:'db',namespace:'db'}));b.onResolve({filter:/^\.\/firebaseClient$/},()=>({path:'client',namespace:'db'}));b.onLoad({filter:/.*/,namespace:'db'},a=>({contents:a.path==='client'?'export const firebaseDb={}':`export const doc=(_db,col,id)=>({col,id});export const getDoc=async ref=>{globalThis.__singleAnnouncementRead=ref;return {id:ref.id,exists:()=>ref.id==='stored',data:()=>({title:'Saved',body:'Full detail',media:[{id:'img',url:'${pixel}',type:'image'}]})}};export const collection=()=>{};export const getDocs=()=>{throw new Error('Collection scan forbidden')};export const deleteDoc=()=>{};export const onSnapshot=()=>{};export const serverTimestamp=()=>{};export const setDoc=()=>{};`,loader:'js'}))}}]});

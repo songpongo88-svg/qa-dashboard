@@ -1,12 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-19T14:59:12.378Z",
-  "reason": "Reviewed Special internal UI, action icons and Fuji Dawn with unchanged account and quest rules; verified shared cards, readable headers and status colors, body-level multi-slide chooser, 42 component views and 100 Login variants.",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "profile",
-    "evaluation"
-  ],
+  "reviewedAt": "2026-10-20T08:06:57.346Z",
+  "reason": "Reviewed announcement image detail isolation from monthly KPI notifications. The new tab preserves its full announcement view, while the original Dashboard retains its automatic KPI notice; no user-guide instructions changed.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -295,7 +292,7 @@
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "d3b1eb63b3cce5ad0ebc83c47fec6f8b426e5bae3db073dc6c53abb606628b47",
     "scripts/sync-v13-rowdata.mjs": "a777f7348ca4bf130904421f22b029d7e61ceecb9b3b41f193eef2a050859567",
-    "scripts/test-announcement-detail.mjs": "8ed2f4d9bcb5cdbbf2d435dfff5d10e9ce87affa9342f37d0674d8c4d7c135da",
+    "scripts/test-announcement-detail.mjs": "ed946c13c4df19cf6d07aac17633b7687fc5ca600c8f11dd63e8f558a247e4df",
     "scripts/test-appeal-action-pdf.mjs": "092a30f7f67e8843ce8f02ccc6d88395364cc7c10fafe7d773bcf2832c3af941",
     "scripts/test-appeal-evidence-upload.mjs": "f24c2fa08ad45e2e1162c04433ac087d6eaa257ec6690851d4a1fb4db77d16e6",
     "scripts/test-appeal-topic-review.mjs": "00292d1b1bb98a80dcf187b31588e0a3f0f99fe9c2baab9f116035f47c8dbfec",
@@ -358,7 +355,7 @@
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "105090e895d35e8525fc42cb8bb95d2726fc820c32bbc1948d6e774cc8c4a1df",
-    "src/MonthlyKpiNotice.tsx": "c9445e8983c6d032632d233183d6ec2051e34ce03171ddcd75180b8d436103e5",
+    "src/MonthlyKpiNotice.tsx": "f99ad56e012035bbecfdad83df02a792d1671b9c02554ca932ead92764aa3f58",
     "src/PageHero.tsx": "487682c5704e9634de17c638ac98772021c4b4819cf9e7e38cf5c9ab9fe105db",
     "src/PreTestMockup.tsx": "7e8b9a000276931dea99e471ee254e35f24af7287c71cdc9304b246a9a7b4d40",
     "src/PresentationBuilderMockup.tsx": "a165160a1a74d93b1e3c4f21c232b10ad926a1ccd5ccf97291dc0dd48d35afdc",

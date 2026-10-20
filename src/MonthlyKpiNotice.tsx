@@ -65,6 +65,10 @@ export default function MonthlyKpiNotice({
   const storageKey = monthlyKpiNoticeKey(`${viewer}${canBrowseAgents ? ":qa-all" : ""}`, activeName, monthKey);
   const message = getMonthlyKpiMessage(result);
   const showAgentBrowser = canBrowseAgents && availableAgents.length > 1;
+  // Announcement artwork opens a dedicated browser tab (?announcement=...).
+  // Keep its full-page reader free of the dashboard's monthly KPI dialog.
+  const isAnnouncementDetailPage = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).has("announcement");
 
   useEffect(() => {
     // Workspaces are kept mounted while hidden. Never open a top-layer dialog
@@ -79,7 +83,7 @@ export default function MonthlyKpiNotice({
   }, []);
 
   useEffect(() => {
-    if (!workspaceVisible || !viewer) { setOpen(false); return; }
+    if (isAnnouncementDetailPage || !workspaceVisible || !viewer) { setOpen(false); return; }
     let seen = shownRef.current.get(storageKey);
     try { seen = window.sessionStorage.getItem(storageKey) || seen; } catch { /* Memory fallback for blocked storage. */ }
     if (!autoOpen || seen === snapshot) return;
@@ -90,15 +94,18 @@ export default function MonthlyKpiNotice({
       setOpen(true);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [autoOpen, snapshot, storageKey, viewer, workspaceVisible]);
+  }, [autoOpen, isAnnouncementDetailPage, snapshot, storageKey, viewer, workspaceVisible]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open && workspaceVisible && !dialog.open) dialog.showModal();
-    if ((!open || !workspaceVisible) && dialog.open) dialog.close();
+    if (open && workspaceVisible && !isAnnouncementDetailPage && !dialog.open) dialog.showModal();
+    if ((!open || !workspaceVisible || isAnnouncementDetailPage) && dialog.open) dialog.close();
     return () => { if (dialog.open) dialog.close(); };
-  }, [open, workspaceVisible]);
+  }, [isAnnouncementDetailPage, open, workspaceVisible]);
+
+  // The dedicated announcement tab should contain only the announcement.
+  if (isAnnouncementDetailPage) return null;
 
   return (
     <div ref={rootRef} className="qa-monthly-kpi" data-monthly-kpi-notice="true">
