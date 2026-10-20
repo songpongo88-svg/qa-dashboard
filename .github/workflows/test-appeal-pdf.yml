@@ -1,0 +1,23 @@
+name: Appeal PDF Regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/appealActionPdfHtml.ts"
+      - "scripts/test-appeal-action-pdf.mjs"
+      - ".github/workflows/test-appeal-pdf.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify latest Appeal Review in Main and Appeal PDFs
+        run: npm run test:appeal-action-pdf

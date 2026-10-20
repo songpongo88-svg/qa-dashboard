@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-20T12:21:17.105Z",
-  "reason": "Reviewed Appeal Review Main and Appeal PDFs to show the latest QA edit per Action and Topic, without affecting submissions, original evaluations, separate appeal Actions or the preserved audit history; guide text remains unchanged.",
+  "reviewedAt": "2026-10-20T12:23:54.803Z",
+  "reason": "Added a narrowly scoped automated Appeal PDF regression job to verify the newly reviewed Action/Topic latest-review-only rendering; guide content and procedures remain unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -533,6 +533,7 @@
     "src/weekdayThemes/redesign.css": "1662cbcbe93fc442a21cabd911e0b7756e11cd639aeaeda3196ba39405126d20",
     "src/weekdayThemes/runtime.ts": "4bc931a5da4aa47f2f24d134808ec7da91858ac59433ad10990e79f4a94620e3",
     "src/weeklyCaseSummaryPdf.ts": "5442044772de311cad8950429dd70425fc4c4eadd4e524ebca285bacd239883c",
-    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735"
+    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
+    ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0"
   }
 }
