@@ -4,6 +4,8 @@ import { festivalThemeFor } from "./festivalThemes/model.mjs";
 import { festivalIconUrl } from "./festivalThemes/icons.mjs";
 import { openFestivalPreview } from "./festivalThemes/preview";
 import { installFestivalControlIcons } from "./festivalThemes/controlIcons";
+import { weekdayThemeFor } from './weekdayThemes/model.mjs';
+import { weekdayIconStyle } from './weekdayThemes/icons.mjs';
 // Seasonal theme runtime v2
 // Appearance-only behavior. It does not touch QA data, permissions, scoring, or workflow logic.
 
@@ -510,7 +512,9 @@ function renderExtraThemeCards() {
     const preview = collection.firstElementChild as HTMLElement;
     preview.className = "qa-weekday-collection-preview";
     preview.style.cssText = "";
-    preview.style.setProperty("--day-photo-position", String(weekdayThemes.indexOf(todayTheme) / 6 * 100) + "%");
+    preview.style.backgroundImage = `url("${weekdayThemeFor(todayTheme.id)!.image}")`;
+    preview.style.backgroundSize = "cover";
+    preview.style.backgroundPosition = "70% center";
     grid.append(collection);
 
     const days = document.createElement("div");
@@ -525,13 +529,21 @@ function renderExtraThemeCards() {
       const photo = document.createElement("span");
       photo.className = "qa-weekday-image-thumbnail";
       photo.setAttribute("aria-hidden", "true");
-      photo.style.backgroundPosition = "78% " + (weekdayThemes.indexOf(theme) / 6 * 100) + "%";
+      const appearance = weekdayThemeFor(theme.id)!;
+      photo.style.backgroundImage = `url("${appearance.image}")`;
+      photo.style.backgroundPosition = "70% center";
+      photo.style.backgroundSize = "cover";
+      const prop = document.createElement("span");
+      prop.className = "qa-weekday-picker-prop";
+      prop.setAttribute("aria-hidden", "true");
+      for (const [key, value] of Object.entries(weekdayIconStyle(theme.id, "dashboard"))) prop.style.setProperty(key, String(value));
+      photo.append(prop);
       const caption = document.createElement("span");
       caption.className = "qa-weekday-image-caption";
       const name = document.createElement("strong");
-      name.textContent = theme.label.replace("สวัสดี", "");
+      name.textContent = theme.label.replace("สวัสดี", "") + " · " + appearance.label;
       const note = document.createElement("span");
-      note.textContent = "เปลี่ยนให้อัตโนมัติเมื่อถึงวันนี้";
+      note.textContent = appearance.material;
       caption.append(name, note);
       item.append(photo, caption);
       if (theme.id === todayTheme.id) {

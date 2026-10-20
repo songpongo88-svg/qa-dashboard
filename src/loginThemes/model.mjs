@@ -1,6 +1,7 @@
 import { characterThemeFor } from '../characterThemes/model.mjs';
 import { festivalThemeFor } from '../festivalThemes/model.mjs';
 import { specialThemeFor } from '../specialThemes/model.mjs';
+import { weekdayThemeFor } from '../weekdayThemes/model.mjs';
 import { WEEKDAY_IDS, getBangkokWeekdayTheme, isWeekdayPreference } from '../weekdayCollection.mjs';
 
 // This cache contains appearance only. It is never an account, entitlement or
@@ -81,7 +82,7 @@ export function resolveLoginTheme(appearance, environment = {}) {
   const id = record.preference === 'weekday-auto' || WEEKDAY_IDS.includes(record.themeId) ? getBangkokWeekdayTheme(environment.now ? new Date(environment.now) : new Date()) : record.themeId;
   const weekday = WEEKDAY_IDS.indexOf(id);
   if (weekday >= 0) return skin(id, 'weekday', WEEKDAY_LOGIN_PALETTES[weekday], {
-    image: '/login-themes/weekdays.webp', size: '400% 200%', position: `${(weekday % 4) * 100 / 3}% ${Math.floor(weekday / 4) * 100}%`, weekday,
+    image: weekdayThemeFor(id).image, size: 'cover', position: '70% center', weekday,
   });
   const character = characterThemeFor(id);
   if (character) {
