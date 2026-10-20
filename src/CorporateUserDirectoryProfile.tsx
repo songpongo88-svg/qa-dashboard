@@ -3914,6 +3914,21 @@ export default function CorporateUserDirectoryProfile({
     setToast("คัดลอกข้อมูลติดต่อแล้ว");
   };
 
+  const copyWorkSim = async (value: string) => {
+    const number = String(value || "").trim();
+    if (!number) {
+      setToast("ไม่พบเบอร์ Work SIM สำหรับคัดลอก");
+      return;
+    }
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(number);
+      setToast("คัดลอกเบอร์ Work SIM แล้ว");
+    } catch {
+      setToast("คัดลอกอัตโนมัติไม่สำเร็จ กรุณาลองอีกครั้ง");
+    }
+  };
+
   const exportUserPdf = (kind: "profile" | "suspension" | "offboarding") => {
     if (!user) return;
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
@@ -4737,18 +4752,18 @@ export default function CorporateUserDirectoryProfile({
                             );
 
                             return (
-                              <button
+                              <div
                                 key={device.id}
-                                type="button"
-                                title={`เปิดข้อมูลอุปกรณ์เครื่องที่ ${index + 1}`}
-                                onClick={() =>
-                                  setSelectedDeviceId(
-                                    device.id
-                                  )
-                                }
-                                className="flex w-full flex-col gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50 lg:flex-row lg:items-center"
+                                className="relative flex w-full flex-col gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50 lg:flex-row lg:items-center"
                               >
-                                <div className="min-w-[220px]">
+                                <button
+                                  type="button"
+                                  title={`เปิดข้อมูลอุปกรณ์เครื่องที่ ${index + 1}`}
+                                  aria-label={`เปิดข้อมูลอุปกรณ์เครื่องที่ ${index + 1}`}
+                                  onClick={() => setSelectedDeviceId(device.id)}
+                                  className="absolute inset-0 z-0 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-violet-500"
+                                />
+                                <div className="pointer-events-none relative z-10 min-w-[220px]">
                                   <div className="text-[10px] font-medium text-violet-600">
                                     Device {index + 1}
                                   </div>
@@ -4770,22 +4785,35 @@ export default function CorporateUserDirectoryProfile({
                                 </div>
 
                                 {details.length ? (
-                                  <div className="grid flex-1 gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-4">
+                                  <div className="pointer-events-none relative z-10 grid flex-1 gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-4">
                                     {details.map(
                                       ([label, value]) => (
                                         <div key={label}>
                                           <div className="text-[9px] text-slate-400">
                                             {label}
                                           </div>
-                                          <div className="mt-1 break-words text-[11px] font-medium text-slate-800">
-                                            {value}
-                                          </div>
+                                          {label === "Work SIM" ? (
+                                            <button
+                                              type="button"
+                                              title="คลิกเพื่อคัดลอกเบอร์ Work SIM"
+                                              aria-label="คัดลอกเบอร์ Work SIM"
+                                              onClick={() => void copyWorkSim(String(value))}
+                                              className="pointer-events-auto group mt-1 inline-flex max-w-full cursor-copy items-center gap-1 rounded-md px-1 py-0.5 -ml-1 text-left text-[11px] font-medium text-slate-800 transition hover:bg-violet-50 hover:text-violet-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500"
+                                            >
+                                              <span className="break-all">{value}</span>
+                                              <span aria-hidden="true" className="text-violet-500 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">⧉</span>
+                                            </button>
+                                          ) : (
+                                            <div className="mt-1 break-words text-[11px] font-medium text-slate-800">
+                                              {value}
+                                            </div>
+                                          )}
                                         </div>
                                       )
                                     )}
                                   </div>
                                 ) : null}
-                              </button>
+                              </div>
                             );
                           })}
                         </div>

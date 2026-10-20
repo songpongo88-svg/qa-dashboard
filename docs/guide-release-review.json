@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-20T08:06:57.346Z",
-  "reason": "Reviewed announcement image detail isolation from monthly KPI notifications. The new tab preserves its full announcement view, while the original Dashboard retains its automatic KPI notice; no user-guide instructions changed.",
+  "reviewedAt": "2026-10-20T09:22:25.199Z",
+  "reason": "Reviewed the read-only User Directory device card: Work SIM now has one-click copy with hover and keyboard focus while the separate device row selection and all other Profile fields remain unchanged. Existing user-guide steps are still accurate.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -348,7 +348,7 @@
     "src/CaseWatermarks.tsx": "44f98bdb7a693ebc494d9484ce8edf9f12af5c46e9dc891530895cae7010993b",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
-    "src/CorporateUserDirectoryProfile.tsx": "cf8869f24169ce2a37d4237c4b56070c093bb4cd41bbd83bc8dc1b8fccc47426",
+    "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "205c271cb49f59781229727f49df3499bb43b2cd372c0af6cba4b3d6d696d7e3",
     "src/DashboardMockup.tsx": "34a2fc637fa206bba691dfa832af5b26d7ad6a280d9d730b434cff1e19e4e537",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
