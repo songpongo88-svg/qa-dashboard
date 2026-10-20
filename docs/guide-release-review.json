@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-20T16:32:05.134Z",
-  "reason": "Reviewed Cases in Current View: Audit Date leads eight aligned columns. All/appeals controls use the Collection icons and palette. Filtering includes pending/rejected/additional records within existing access and scope; KPI/PDF totals and new-ID search behavior are preserved. Updated Dashboard guide.",
+  "reviewedAt": "2026-10-20T16:37:45.365Z",
+  "reason": "Reviewed Audit Date-first Case Records and themed All/appeals controls. Actual Dashboard tests preserve scope, KPI, PDF and ID search. Header labels retain white contrast across all Collections; Dashboard guide updated.",
   "contentChanged": true,
   "reviewedChapters": [
     "dashboard"
@@ -406,7 +406,7 @@
     "src/caseDetailOfficialPdf.ts": "db2d3351f5866c54bf3c013b9523b275e081632e17c258745f8320db1341cdad",
     "src/caseIssueTagsPdf.ts": "8cb00a21ba12ed34a16686192b367f658a48902cc38b38f51f74f47d52c63d34",
     "src/caseRecordFilter.ts": "55ca0943da4f8aa2f4dcabf8cf9f3ac21aae038633c4850b97b03a9264583355",
-    "src/caseRecordFilters.css": "f9c8b1af3b6945d27773ef56650d166e9bba9f75f703f0f458cf4ad71758d245",
+    "src/caseRecordFilters.css": "9bf5b7d8bb39a4522285e4d3ba550360500e011284dfb3ad0400bfe3ae881c09",
     "src/characterThemes/Character.tsx": "deca44997eb7e58c6368d171e586ae1680468c0786086a7d31b3ea686be3bbc2",
     "src/characterThemes/CharacterCollection.tsx": "8b322be196cfd3914e059447a233abf21110618387ba60c51fb136914b558cb5",
     "src/characterThemes/account.ts": "08625292ca0188e1d4968fd49ca3147925c1e4dee277058462b860f8fd66d34f",
