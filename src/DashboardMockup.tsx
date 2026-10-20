@@ -9183,14 +9183,14 @@ export default function DashboardMockup({
                             style={{ background: "linear-gradient(90deg, #3b0764 0%, #6b21a8 52%, #312e81 100%)" }}
                           >
                             <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-cyan-300" />
+                            <span data-case-record-column="case-id">Case ID</span>
+                            <span data-case-record-column="case-date" className="pl-1 text-center">Case Date</span>
                             <span data-case-record-column="audit-date" className="text-center">Audit Date</span>
-                                  <span data-case-record-column="case-id">Case ID</span>
-                                  <span data-case-record-column="agent">Agent</span>
-                                  <span data-case-record-column="intent">Intent</span>
-                                  <span data-case-record-column="score" className="text-center text-violet-50">Score</span>
-                                  <span data-case-record-column="kpi-status" className="text-center leading-3 text-violet-50">KPI<br />Status</span>
-                                  <span data-case-record-column="grade" className="text-center text-violet-50">Grade</span>
-                                  <span data-case-record-column="case-date" className="pl-1 text-center">Case Date</span>
+                            <span data-case-record-column="agent">Agent</span>
+                            <span data-case-record-column="intent">Intent</span>
+                            <span data-case-record-column="score" className="text-center text-violet-50">Score</span>
+                            <span data-case-record-column="grade" className="text-center text-violet-50">Grade</span>
+                            <span data-case-record-column="kpi-status" className="text-center leading-3 text-violet-50">KPI<br />Status</span>
                           </div>
                           <div className="mt-2 max-h-[500px] space-y-2 overflow-y-auto pr-1">
                             {caseExplorerCases.length ? caseExplorerCases.map((item) => {
@@ -9229,11 +9229,12 @@ export default function DashboardMockup({
                                 >
                                   <CaseWatermarks item={item} />
                                   <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${hasAppealChange ? "bg-sky-500" : scorePassed ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                  <span data-case-record-column="audit-date" className="min-w-0 cursor-text select-text break-words pl-1 text-center text-[11px] leading-4 font-medium text-slate-700">{item.evaluationAuditDate || item.auditTimestamp || "-"}</span>
                                   <span data-case-record-column="case-id" className="min-w-0 cursor-text select-text">
                                     <span className="block font-bold text-slate-950">{item.caseId}</span>
                                     {isSelected ? <span className="mt-1 block text-[9px] font-bold text-violet-700">Selected case</span> : hasAppealChange ? <span className="mt-1 block text-[9px] font-bold text-sky-700">Appeal updated</span> : null}
                                   </span>
+                                  <span data-case-record-column="case-date" className="cursor-text select-text pl-1 text-center font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
+                                  <span data-case-record-column="audit-date" className="min-w-0 cursor-text select-text break-words pl-1 text-center text-[11px] leading-4 font-medium text-slate-700">{item.evaluationAuditDate || item.auditTimestamp || "-"}</span>
                                   <span data-case-record-column="agent" className="min-w-0 cursor-text select-text">
                                     <span className="block truncate font-semibold text-slate-800">{item.agent || "-"}</span>
                                   </span>
@@ -9242,9 +9243,8 @@ export default function DashboardMockup({
                                     {intent.english ? <span className={`mt-1 block truncate text-[10px] font-medium ${hasAppealChange ? "text-sky-600" : scorePassed ? "text-slate-500" : "text-rose-500"}`} title={intent.english}>{intent.english}</span> : null}
                                   </span>
                                   <span data-case-record-column="score" className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{formatCaseScore(item.finalScore)}</span>
-                                  <span data-case-record-column="kpi-status" className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${scorePassed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scorePassed ? "KPI Passed" : "KPI Not Passed"}</span>
                                   <span data-case-record-column="grade" className={`inline-flex h-8 w-8 cursor-text select-text items-center justify-center rounded-lg border font-bold ${gradeTone(item.grade)}`}>{item.grade}</span>
-                                  <span data-case-record-column="case-date" className="cursor-text select-text pl-1 text-center font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
+                                  <span data-case-record-column="kpi-status" className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${scorePassed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scorePassed ? "KPI Passed" : "KPI Not Passed"}</span>
                                 </div>
                               );
                             }) : (
