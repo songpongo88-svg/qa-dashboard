@@ -34,6 +34,8 @@ import { appealWorkflowStatus, appealWorkflowLabel } from "./appealWorkflow";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
 import { FestivalMetricIcon } from "./festivalThemes/Festival";
+import CaseRecordFilterButtons from "./CaseRecordFilterButtons";
+import { filterCaseRecords, isAppealCaseRecord, type CaseRecordFilter } from "./caseRecordFilter";
 import TestCaseBadge from "./TestCaseBadge";
 import CaseWatermarks from "./CaseWatermarks";
 import { isStampedEvidenceUrl } from "./evidenceWatermark";
@@ -5435,6 +5437,7 @@ export default function DashboardMockup({
     };
   }, [currentUser?.role]);
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
+  const [caseRecordFilter, setCaseRecordFilter] = useState<CaseRecordFilter>("all");
   const [caseSearchSubmitNonce, setCaseSearchSubmitNonce] = useState(0);
   const [caseSearchFeedback, setCaseSearchFeedback] = useState<"idle" | "found" | "multiple" | "not-found">("idle");
   const caseSearchHandledNonceRef = useRef(0);
@@ -5658,6 +5661,7 @@ export default function DashboardMockup({
     setCaseIdSearch(normalized);
     setCaseSearchFeedback("idle");
     if (normalized) {
+      setCaseRecordFilter("all");
       setSelectedWeek("all");
       onSelectedWeekChange?.("all");
       setSelectedTopicCode("");
@@ -5674,6 +5678,7 @@ export default function DashboardMockup({
   // dashboard-case-navigation-v1
   const clearCaseSearch = useCallback(() => {
     setCaseIdSearch("");
+    setCaseRecordFilter("all");
     setSelectedCaseKey("");
     setSlideOverOpen(false);
     setCaseSearchHistoryOpen(false);
@@ -7046,7 +7051,7 @@ export default function DashboardMockup({
     return [...nextCases].sort(compareCaseAuditDateAndWaitingTime);
   }, [dashboardCasesBase, overviewMode]);
 
-  const caseExplorerCases = useMemo(() => {
+  const caseExplorerCandidates = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
     if (!keyword) {
       return caseExplorerCasesBase.filter((item) =>
@@ -7059,6 +7064,9 @@ export default function DashboardMockup({
       .filter((item) => String(item.caseId || "").toLowerCase().includes(keyword))
       .sort(compareCaseAuditDateAndWaitingTime);
   }, [authorizedSearchCases, caseIdSearch, caseExplorerCasesBase, overviewMode]);
+
+  const caseExplorerAppealCount = useMemo(() => caseExplorerCandidates.filter(isAppealCaseRecord).length, [caseExplorerCandidates]);
+  const caseExplorerCases = useMemo(() => filterCaseRecords(caseExplorerCandidates, caseRecordFilter), [caseExplorerCandidates, caseRecordFilter]);
 
   useEffect(() => {
     if (!caseSearchSubmitNonce || caseSearchHandledNonceRef.current === caseSearchSubmitNonce) return;
@@ -7957,6 +7965,7 @@ export default function DashboardMockup({
           value={caseIdSearch}
           onChange={(event) => {
             setCaseIdSearch(event.target.value);
+            setCaseRecordFilter("all");
             setSelectedCaseKey("");
             setSlideOverOpen(false);
             setCaseSearchFeedback("idle");
@@ -8305,6 +8314,7 @@ export default function DashboardMockup({
                         value={caseIdSearch}
                         onChange={(event) => {
                           setCaseIdSearch(event.target.value);
+            setCaseRecordFilter("all");
                           setSelectedCaseKey("");
                           setSlideOverOpen(false);
                           setCaseSearchFeedback("idle");
@@ -9117,6 +9127,9 @@ export default function DashboardMockup({
                               ? `Topic ${selectedTopicCode}: แสดงเฉพาะเคสที่ถูกหักในหัวข้อนี้`
                               : "รายการเคสที่ตรงกับตัวกรองปัจจุบัน · เลือกเคสเพื่อดูรายละเอียด"}
                         </p>
+                        <div className="mt-3">
+                          <CaseRecordFilterButtons value={caseRecordFilter} onChange={setCaseRecordFilter} allCount={caseExplorerCandidates.length} appealCount={caseExplorerAppealCount} />
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {qaCanGenerateAllCasePdf && (isWeeklyCasePdfView || (isMonthlyView && selectedMonthKey !== "all")) ? (
@@ -9157,27 +9170,27 @@ export default function DashboardMockup({
                         {selectedTopicCode ? (
                           <button type="button" onClick={() => setSelectedTopicCode("")} className="rounded-full border border-violet-300 bg-white px-3 py-2 text-xs font-bold text-violet-800">Clear Topic</button>
                         ) : null}
-                        <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">{caseExplorerCases.length} Cases</span>
+                        <span data-case-record-count="true" role="status" className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">{caseExplorerCases.length} Cases</span>
                       </div>
                     </div>
 
                     <div className="grid min-w-0 xl:grid-cols-[minmax(0,2.5fr)_minmax(340px,0.85fr)]">
                       <div className="min-w-0 overflow-x-auto border-b border-slate-200 xl:border-b-0 xl:border-r">
-                        <div className="min-w-[980px] bg-slate-50/80 p-3">
+                        <div className="min-w-[1020px] bg-slate-50/80 p-3">
                           <div
                             data-case-record-header-v163="true"
-                            className="relative grid grid-cols-[90px_95px_minmax(130px,0.8fr)_minmax(220px,1.6fr)_90px_80px_60px_110px] items-center gap-2 overflow-hidden rounded-2xl border border-violet-400/70 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_8px_22px_rgba(76,29,149,0.18)]"
+                            className="relative grid qa-case-record-grid items-center gap-2 overflow-hidden rounded-2xl border border-violet-400/70 px-4 py-3 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-[0_8px_22px_rgba(76,29,149,0.18)]"
                             style={{ background: "linear-gradient(90deg, #3b0764 0%, #6b21a8 52%, #312e81 100%)" }}
                           >
                             <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-cyan-300" />
-                            <span className="pl-1 text-center">Case Date</span>
-                            <span>Case ID</span>
-                            <span>Agent</span>
-                            <span>Intent</span>
-                            <span className="text-center">Audit Date</span>
-                            <span className="text-center text-violet-50">Score</span>
-                            <span className="text-center text-violet-50">Grade</span>
-                            <span className="text-center leading-3 text-violet-50">KPI<br />Status</span>
+                            <span data-case-record-column="audit-date" className="text-center">Audit Date</span>
+                                  <span data-case-record-column="case-id">Case ID</span>
+                                  <span data-case-record-column="agent">Agent</span>
+                                  <span data-case-record-column="intent">Intent</span>
+                                  <span data-case-record-column="score" className="text-center text-violet-50">Score</span>
+                                  <span data-case-record-column="kpi-status" className="text-center leading-3 text-violet-50">KPI<br />Status</span>
+                                  <span data-case-record-column="grade" className="text-center text-violet-50">Grade</span>
+                                  <span data-case-record-column="case-date" className="pl-1 text-center">Case Date</span>
                           </div>
                           <div className="mt-2 max-h-[500px] space-y-2 overflow-y-auto pr-1">
                             {caseExplorerCases.length ? caseExplorerCases.map((item) => {
@@ -9188,6 +9201,7 @@ export default function DashboardMockup({
                               return (
                                 <div
                                   key={item.key}
+                                  data-case-record-id={item.caseId}
                                   role="button"
                                   tabIndex={0}
                                   onClick={() => {
@@ -9203,7 +9217,7 @@ export default function DashboardMockup({
                                     setSelectedCaseKey(item.key);
                                     setSlideOverOpen(false);
                                   }}
-                                  className={`qa-case-watermark-card group relative grid w-full cursor-pointer grid-cols-[90px_95px_minmax(130px,0.8fr)_minmax(220px,1.6fr)_90px_80px_60px_110px] items-center gap-2 overflow-hidden rounded-2xl border px-4 py-3 text-left text-xs transition-all duration-200 ${
+                                  className={`qa-case-watermark-card group relative grid w-full cursor-pointer qa-case-record-grid items-center gap-2 overflow-hidden rounded-2xl border px-4 py-3 text-left text-xs transition-all duration-200 ${
                                     isSelected
                                       ? "border-violet-400 bg-gradient-to-r from-violet-50 via-white to-white shadow-[0_8px_22px_rgba(109,40,217,0.12)]"
                                       : hasAppealChange
@@ -9215,26 +9229,26 @@ export default function DashboardMockup({
                                 >
                                   <CaseWatermarks item={item} />
                                   <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${hasAppealChange ? "bg-sky-500" : scorePassed ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                  <span className="cursor-text select-text pl-1 text-center font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
-                                  <span className="min-w-0 cursor-text select-text">
+                                  <span data-case-record-column="audit-date" className="min-w-0 cursor-text select-text break-words pl-1 text-center text-[11px] leading-4 font-medium text-slate-700">{item.evaluationAuditDate || item.auditTimestamp || "-"}</span>
+                                  <span data-case-record-column="case-id" className="min-w-0 cursor-text select-text">
                                     <span className="block font-bold text-slate-950">{item.caseId}</span>
                                     {isSelected ? <span className="mt-1 block text-[9px] font-bold text-violet-700">Selected case</span> : hasAppealChange ? <span className="mt-1 block text-[9px] font-bold text-sky-700">Appeal updated</span> : null}
                                   </span>
-                                  <span className="min-w-0 cursor-text select-text">
+                                  <span data-case-record-column="agent" className="min-w-0 cursor-text select-text">
                                     <span className="block truncate font-semibold text-slate-800">{item.agent || "-"}</span>
                                   </span>
-                                  <span className="min-w-0 cursor-text select-text">
+                                  <span data-case-record-column="intent" className="min-w-0 cursor-text select-text">
                                     <span className={`block truncate font-semibold ${hasAppealChange ? "text-sky-900" : scorePassed ? "text-slate-900" : "text-rose-700"}`} title={intent.thai}>{intent.thai}</span>
                                     {intent.english ? <span className={`mt-1 block truncate text-[10px] font-medium ${hasAppealChange ? "text-sky-600" : scorePassed ? "text-slate-500" : "text-rose-500"}`} title={intent.english}>{intent.english}</span> : null}
                                   </span>
-                                  <span className="cursor-text select-text text-center font-medium text-slate-700">{item.evaluationAuditDate || item.auditTimestamp || "-"}</span>
-                                  <span className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{formatCaseScore(item.finalScore)}</span>
-                                  <span className={`inline-flex h-8 w-8 cursor-text select-text items-center justify-center rounded-lg border font-bold ${gradeTone(item.grade)}`}>{item.grade}</span>
-                                  <span className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${scorePassed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scorePassed ? "KPI Passed" : "KPI Not Passed"}</span>
+                                  <span data-case-record-column="score" className={`w-fit cursor-text select-text rounded-full px-2.5 py-2 font-bold tabular-nums ${scorePassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{formatCaseScore(item.finalScore)}</span>
+                                  <span data-case-record-column="kpi-status" className={`w-fit cursor-text select-text rounded-full border px-2.5 py-1 text-[10px] font-bold ${scorePassed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scorePassed ? "KPI Passed" : "KPI Not Passed"}</span>
+                                  <span data-case-record-column="grade" className={`inline-flex h-8 w-8 cursor-text select-text items-center justify-center rounded-lg border font-bold ${gradeTone(item.grade)}`}>{item.grade}</span>
+                                  <span data-case-record-column="case-date" className="cursor-text select-text pl-1 text-center font-medium text-slate-700">{item.caseDate || item.auditDate || "-"}</span>
                                 </div>
                               );
                             }) : (
-                              <div className="px-5 py-16 text-center text-sm font-medium text-slate-500">ไม่พบเคสตามขอบเขตที่เลือก</div>
+                              <div className="px-5 py-16 text-center text-sm font-medium text-slate-500">{caseRecordFilter === "appeals" ? "ไม่พบเคสอุทธรณ์ตามตัวกรองปัจจุบัน" : "ไม่พบเคสตามขอบเขตที่เลือก"}</div>
                             )}
                           </div>
                         </div>

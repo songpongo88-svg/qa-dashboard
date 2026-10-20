@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-20T12:25:25.624Z",
-  "reason": "Adjusted Appeal PDF regression assertion to account for PDF text chunk wrapping while retaining latest QA decision coverage; guide content unchanged.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-10-20T16:32:05.134Z",
+  "reason": "Reviewed Cases in Current View: Audit Date leads eight aligned columns. All/appeals controls use the Collection icons and palette. Filtering includes pending/rejected/additional records within existing access and scope; KPI/PDF totals and new-ID search behavior are preserved. Updated Dashboard guide.",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "dashboard"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -15,6 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
+    ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
     "api/cron/expire-additional-appeals.js": "8138305c1e5afc454288c969d0b51bd3290740884287cf690805961060df1485",
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
@@ -96,7 +99,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "f87d5c15e76e4cf0e26f46dd2060f30eb495dbf3e9d44076b7665331f38cc61a",
+    "package.json": "00fbbc1aba8698def39329f8e0a28f8a054954fe58d7a2355ba08f892d8a9bb4",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -302,6 +305,7 @@
     "scripts/test-call-recording-save.mjs": "2fe5289994b8b6300c9c9d0aea8de29b540b401f336d08819ce33bd9c3c77b04",
     "scripts/test-case-issue-tags-pdf.mjs": "37f798a65fb7781fc08aac5e48292cb5dbc1e31cb5ce8e5e312f751ec59b7159",
     "scripts/test-case-issue-tags.mjs": "e575b1711295f13855ef31c1082ec58ead5fd9c63b44004706a5a9a03902e998",
+    "scripts/test-case-record-filter.mjs": "c00e35516f2383c28ed7c3f241cf85eca6d68df85695ab82a197b01438911392",
     "scripts/test-character-themes.mjs": "d387c20cea7a8a4e54b16d2ee2c09a4d16ee2fb7a506601a36a2f02f84f6379e",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-pending-appeal.mjs": "c3a7e3e26f944603695f4ec27427b8d6d28fc8ced0aaeff94aed326e751f6d60",
@@ -346,12 +350,13 @@
     "src/AutoResizeTextarea.tsx": "30d02644f17ebe27f209f902823f81914b806d0b19d3582dbf261c190400714a",
     "src/CallHistoryMockup.tsx": "0912eed518dc4eb804602674110484e2f043498d05f0003542d935f201bf8046",
     "src/CaseAppealHeaderAction.tsx": "650d9ff3656a2c7a7c8bc92296de6c18756ca94f046dbf1d0f0f64f03afddac8",
+    "src/CaseRecordFilterButtons.tsx": "7427f4bfb3de75f40f42e37f2d7a215b7ceaf33cee1a8dc5aec2fc832eef1d5c",
     "src/CaseWatermarks.tsx": "44f98bdb7a693ebc494d9484ce8edf9f12af5c46e9dc891530895cae7010993b",
     "src/CoachingMockup.tsx": "e964a1424a70add17dba79d570534c506b5310b385b87fc5e06207dbf473d362",
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "205c271cb49f59781229727f49df3499bb43b2cd372c0af6cba4b3d6d696d7e3",
-    "src/DashboardMockup.tsx": "34a2fc637fa206bba691dfa832af5b26d7ad6a280d9d730b434cff1e19e4e537",
+    "src/DashboardMockup.tsx": "0672a76f78f1019c509580ba79f732c7f5f2fdbab640f3ae12c08a177b230cc1",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
@@ -400,6 +405,8 @@
     "src/caseAppealPdfAddon.ts": "eaf8cb693bc13932d7cb845904204e5faef470c8051c26973e1ff5d3a97e319d",
     "src/caseDetailOfficialPdf.ts": "db2d3351f5866c54bf3c013b9523b275e081632e17c258745f8320db1341cdad",
     "src/caseIssueTagsPdf.ts": "8cb00a21ba12ed34a16686192b367f658a48902cc38b38f51f74f47d52c63d34",
+    "src/caseRecordFilter.ts": "55ca0943da4f8aa2f4dcabf8cf9f3ac21aae038633c4850b97b03a9264583355",
+    "src/caseRecordFilters.css": "f9c8b1af3b6945d27773ef56650d166e9bba9f75f703f0f458cf4ad71758d245",
     "src/characterThemes/Character.tsx": "deca44997eb7e58c6368d171e586ae1680468c0786086a7d31b3ea686be3bbc2",
     "src/characterThemes/CharacterCollection.tsx": "8b322be196cfd3914e059447a233abf21110618387ba60c51fb136914b558cb5",
     "src/characterThemes/account.ts": "08625292ca0188e1d4968fd49ca3147925c1e4dee277058462b860f8fd66d34f",
@@ -443,7 +450,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "5b93a6788208e5f7787bdaea07fe1b672af5fb853db949edcac931254b089859",
+    "src/knowledge/manual.json": "9cf1ffe040715e0e5fda30879dff6ea656b2cbff03e2aa17931befa4630392e2",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -533,7 +540,6 @@
     "src/weekdayThemes/redesign.css": "1662cbcbe93fc442a21cabd911e0b7756e11cd639aeaeda3196ba39405126d20",
     "src/weekdayThemes/runtime.ts": "4bc931a5da4aa47f2f24d134808ec7da91858ac59433ad10990e79f4a94620e3",
     "src/weeklyCaseSummaryPdf.ts": "5442044772de311cad8950429dd70425fc4c4eadd4e524ebca285bacd239883c",
-    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735",
-    ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0"
+    "vite.config.js": "6c45d461468c23d2181cca756875470b8efdfb0ef09c8f97363ff3b6bf4a0735"
   }
 }

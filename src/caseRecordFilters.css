@@ -1,0 +1,18 @@
+/* Collection palettes and native prop icons; workspace tabs retain their geometry. */
+[data-case-record-filters] { --case-filter-active:var(--qa-theme-700,#6d28d9); --case-filter-active-ink:#fff; --case-filter-ink:var(--qa-theme-800,#5b21b6); --case-filter-surface:var(--qa-theme-50,#f5f3ff); --case-filter-hover:var(--qa-theme-100,#ede9fe); --case-filter-line:var(--qa-theme-200,#ddd6fe); display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px; max-width:100%; padding:4px; border:1px solid var(--case-filter-line); border-radius:14px; background:var(--case-filter-surface); font-family:Kanit,sans-serif; }
+html:root:is([data-qa-special-theme],[data-qa-festival-theme]) [data-case-record-filters] { --case-filter-active:var(--special-accent); --case-filter-active-ink:var(--special-accent-ink,#fff); --case-filter-ink:var(--special-ink); --case-filter-surface:var(--special-solid); --case-filter-hover:var(--special-inset); --case-filter-line:var(--special-rule); }
+html:root[data-qa-character-theme]:not([data-qa-festival-theme]) [data-case-record-filters] { --case-filter-active:var(--character-deep); --case-filter-ink:var(--character-deep); --case-filter-surface:var(--character-pale); --case-filter-hover:var(--character-line); --case-filter-line:var(--character-line); }
+html:root #root [data-case-record-filters] button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:36px; padding:7px 11px; border:1px solid transparent; border-radius:10px; background:transparent; color:var(--case-filter-ink); font-size:11px; font-weight:600; line-height:1.4; white-space:nowrap; cursor:pointer; transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease; }
+html:root #root [data-case-record-filters] button[aria-pressed="true"] { background:var(--case-filter-active); border-color:var(--case-filter-active); color:var(--case-filter-active-ink); box-shadow:0 2px 6px color-mix(in srgb,var(--case-filter-active) 20%,transparent); }
+html:root #root [data-case-record-filters] button[aria-pressed="false"]:hover { background:var(--case-filter-hover); border-color:var(--case-filter-line); }
+html:root #root [data-case-record-filters] button:focus-visible { outline:2px solid var(--case-filter-active); outline-offset:3px; }
+.qa-case-record-filter-icon { display:inline-flex; align-items:center; justify-content:center; flex:0 0 20px; width:20px; height:20px; }
+html:root #root .qa-case-record-filter-icon > :is(svg,img,span) { width:20px; height:20px; flex:none; }
+.qa-case-record-filter-count { display:inline-flex; align-items:center; justify-content:center; min-width:22px; padding:2px 5px; border-radius:6px; font-size:10px; font-variant-numeric:tabular-nums; background:color-mix(in srgb,currentColor 10%,transparent); }
+html:root[data-qa-festival-theme="festival-new-year"] [data-case-record-filters] button[aria-pressed="true"] .qa-case-record-filter-icon { filter:brightness(.45); }
+.qa-case-record-grid { grid-template-columns:110px 95px minmax(130px,.8fr) minmax(220px,1.6fr) 80px 110px 60px 90px; }
+@media (prefers-reduced-motion:reduce) { html:root #root [data-case-record-filters] button { transition:none; } }
+@media (forced-colors:active) {
+  html:root #root [data-case-record-filters] button { border:1px solid ButtonText; }
+  html:root #root [data-case-record-filters] button[aria-pressed="true"] { border:2px solid Highlight; }
+}
