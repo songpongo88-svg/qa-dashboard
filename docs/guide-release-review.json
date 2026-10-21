@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-21T04:10:01.340Z",
-  "reason": "Reviewed Ink & Paper across Login and all workspaces, account-specific owner preview and server-confirmed publication switch. Profile guide explains opt-in visibility, persistence and fallback without QA workflow changes.",
+  "reviewedAt": "2026-10-21T04:22:41.768Z",
+  "reason": "Reviewed private LINE DRAWING COLLECTION and Ink & Paper across Login, four real workspaces and owner-only picker. Added ink styling for KPI/process dialogs and Coaching; verified shared-browser login isolation, persistence, publication failure and previous Collections.",
   "contentChanged": true,
   "reviewedChapters": [
     "profile"
@@ -306,7 +306,7 @@
     "scripts/test-case-issue-tags-pdf.mjs": "37f798a65fb7781fc08aac5e48292cb5dbc1e31cb5ce8e5e312f751ec59b7159",
     "scripts/test-case-issue-tags.mjs": "e575b1711295f13855ef31c1082ec58ead5fd9c63b44004706a5a9a03902e998",
     "scripts/test-case-record-filter.mjs": "373d87815c153c9c731ae2f136785b8bf4c2f17b2a0f33ef31f1c39acc6570fd",
-    "scripts/test-character-themes.mjs": "d387c20cea7a8a4e54b16d2ee2c09a4d16ee2fb7a506601a36a2f02f84f6379e",
+    "scripts/test-character-themes.mjs": "05681b273ae2fe564bf1a64960658928dcbc88ea464043da98b378cf45336f2b",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-pending-appeal.mjs": "c3a7e3e26f944603695f4ec27427b8d6d28fc8ced0aaeff94aed326e751f6d60",
     "scripts/test-dashboard-refresh.mjs": "8085dbebdf969f4546d0ac3d085b8dfa66781370abdd9c901595824bf25e3a55",
@@ -332,8 +332,8 @@
     "scripts/test-special-ui.mjs": "a9f4245a213f59fc12bd2df1faf116a7990bf8ae32160fb379016518ec4b17f4",
     "scripts/test-theme-preference.mjs": "811ef9a9098268f0fc93d94778ba66364c37a77ae0b381f9b4628b54a96761a3",
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
-    "scripts/test-weekday-collection.mjs": "928260a50faa0673bca889f08ea674472b45f87ef432ed4a3285c3673c611c7b",
-    "scripts/test-weekday-ui.mjs": "3c9ac4d1dd3fc99fd79c9dc3079c50ae9a33613fe8fe48c34b11636e1ff6d9ac",
+    "scripts/test-weekday-collection.mjs": "3dde89715a982b1ffcad591b5e96b223a6572318ebfb2598d9251f281096868e",
+    "scripts/test-weekday-ui.mjs": "0eb3d61f10a30b428fc9976fcc57512ee90555227c6d8bea671d539f077e2375",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "1d105dda5aae38f7a6868ba5eba07f3938402d0bd07610e607dd42de27d40849",
     "src/App.tsx": "204234087fb1ce50af00081e19e16081d422a05930545f6b1b0357951ea9420a",
@@ -475,7 +475,7 @@
     "src/lib/userNames.ts": "00f2b64bd5c44b63960e01f1c420cf01e85bb1b57ab9f1768b7c2de8a5ccbf1f",
     "src/lineDrawing/LineDrawing.tsx": "5c06b3e54c06a3be571bdf8f97272c0d4e74d7cfa5242984af3669ebe9b0b073",
     "src/lineDrawing/icons.mjs": "1a2e39362cd42a6a4476c30d507f46759b00f8f617a91582732ab6e91327e429",
-    "src/lineDrawing/ink.css": "d2d207ff91db6ec03e352f0dd985fecf1ffe9d0005801199191a3ff2bd1ac074",
+    "src/lineDrawing/ink.css": "d32f463c59c3a2aed2a0cd4943fc89de6a3329bcf90b81f89c688a7547b6a2c0",
     "src/lineDrawing/model.mjs": "5a0fdd61030a4cd5f66ffc1a9c7305ea07b77c357185a8ed6dd3a03d3b879b1e",
     "src/lineDrawing/release.ts": "cd055728dac68bc324f9c70bba87a61e051e2a3e3cee73760ffc696ab40511db",
     "src/lineDrawing/runtime.ts": "97f03f0ed23d884db1baa6d8eec3f3c440fea159ae77bf9489b48eb34b29c1fd",

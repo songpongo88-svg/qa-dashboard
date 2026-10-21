@@ -1,3 +1,4 @@
+import {isLineDrawingTheme} from '../src/lineDrawing/model.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {mkdtemp, rm} from 'node:fs/promises';
@@ -111,7 +112,7 @@ try {
   const seasonalAst=ts.createSourceFile('seasonal.ts',seasonalSource,ts.ScriptTarget.Latest,true);
   const seasonalFunctions=seasonalAst.statements.filter(n=>ts.isFunctionDeclaration(n)&&['getCustomPreference','getPreferredTheme','applyEffectiveTheme'].includes(n.name?.text)).map(n=>n.getText()).join('\n');
   const seasonalJs=ts.transpileModule(`const CUSTOM_THEME_STORAGE_KEY='qa-dashboard:custom-theme-v1',BASE_THEME_STORAGE_KEY='qa-dashboard:theme-v1';let sessionCustomTheme,applyingTheme=false;${seasonalFunctions};export {applyEffectiveTheme}`,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
-  const deps={...weekday,isSpecialTheme,characterThemeFor:app.characterThemeFor,getActiveFestival:()=>({id:'festival-halloween'}),festivalThemeFor:()=>null,requestThemePickerRefresh:()=>{}};
+  const deps={...weekday,isLineDrawingTheme,isSpecialTheme,characterThemeFor:app.characterThemeFor,getActiveFestival:()=>({id:'festival-halloween'}),festivalThemeFor:()=>null,requestThemePickerRefresh:()=>{}};
   const calendar=Function('exports',...Object.keys(deps),seasonalJs+';return exports;')({},...Object.values(deps));
   localStorage.setItem('qa-dashboard:theme-v1','kitty-pink');localStorage.removeItem('qa-dashboard:custom-theme-v1');
   await act(async()=>{document.documentElement.dataset.qaCharacterVersion='1';calendar.applyEffectiveTheme();});assert.equal(document.documentElement.dataset.qaTheme,'festival-halloween','V1 retains its original seasonal behavior');
