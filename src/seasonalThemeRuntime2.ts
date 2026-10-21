@@ -501,7 +501,7 @@ function renderExtraThemeCards() {
       theme: { id: WEEKDAY_COLLECTION_ID, label: "7 Days · ธีมประจำวันอัตโนมัติ", emoji: "", color: todayTheme.color },
       subtitle: selected && activeFestivalId
         ? "เลือกไว้แล้ว • จะกลับมาใช้อัตโนมัติเมื่อจบเทศกาล"
-        : "จันทร์–อาทิตย์ • เปลี่ยนตามวันประเทศไทย • จำไว้ในเครื่องนี้",
+        : "จันทร์–อาทิตย์ • เปลี่ยนตามวันประเทศไทย",
       selected,
       onClick: () => {
         sessionCustomTheme = WEEKDAY_COLLECTION_ID;

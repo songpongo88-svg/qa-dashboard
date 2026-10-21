@@ -51,7 +51,6 @@ export function WeatherCollection() {
     <div className="weather-preview" style={{backgroundImage:`url("${sceneUrl(preview)}")`}}><img src="/robinhood-logo.png" alt="Robinhood" width="32" height="32"/><span>ภาพตัวอย่างธีม</span><strong>{WEATHER_STATES.find(row=>row[0]===preview)?.[1] || ({'night-cloudy':'Night + Cloudy','night-rain':'Night + Rain'} as Record<string,string>)[preview]}</strong></div>
     <div className="weather-scene-grid">{WEATHER_STATES.map(([id,en,th])=><button key={id} data-qa-custom-theme-card="weather-preview" aria-pressed={preview===id} onClick={()=>setPreview(id)}><img loading="lazy" src={sceneUrl(id)} alt="" /><strong>{en}</strong><small>{th}{weather.enabled&&state.id===id?' · กำลังใช้งาน':''}</small></button>)}</div>
     <div className="weather-night-examples"><button data-qa-custom-theme-card="weather-preview" onClick={()=>setPreview('night-cloudy')}>ดู Night + Cloudy</button><button data-qa-custom-theme-card="weather-preview" onClick={()=>setPreview('night-rain')}>ดู Night + Rain</button></div>
-    <p className="weather-collection-note">ภาพฉากเมืองเป็นภาพประกอบสภาพอากาศ อุณหภูมิและข้อมูลบนหัวหน้ามาจากพื้นที่ที่เลือก ภาพตัวอย่างไม่เปลี่ยนข้อมูลอากาศจริง</p>
   </section>;
 }
 export function WeatherSidebarLabel() {

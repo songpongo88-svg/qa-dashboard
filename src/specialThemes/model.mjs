@@ -8,7 +8,7 @@ export const SPECIAL_THEMES = [
   { id: 'special-coastal', label: 'Coastal Serenity', thai: 'ทะเลชายหาด', image: '/special-themes/coastal.webp',
     swatches: ['#08758a', '#073c50', '#8ddde1'], description: 'กระจกสีทะเล · แสงสะท้อนน้ำ · โทนเทอร์ควอยซ์' },
   { id: 'special-volcanic', label: 'Fuji Dawn', thai: 'ภูเขาไฟฟูจิ ประเทศญี่ปุ่น', image: '/special-themes/fuji.webp',
-    swatches: ['#286694', '#173e66', '#e8f4ff'], description: 'ฟูจิและซากุระยามเช้า · ผิวการ์ดขาวฟ้า · ไอคอนญี่ปุ่น 3 มิติ' },
+    swatches: ['#286694', '#173e66', '#e8f4ff'], description: 'ฟูจิและซากุระยามเช้า' },
   { id: 'special-misty', label: 'Misty Highlands', thai: 'ทะเลหมอก', image: '/special-themes/misty.webp',
     swatches: ['#306960', '#173f3d', '#b9d4d5'], description: 'กระจกฝ้า · มิติแนวเขา · โทนเขียวสน' },
 ];
