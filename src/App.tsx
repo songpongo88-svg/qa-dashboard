@@ -1,3 +1,6 @@
+import { LineDrawingCollection } from './lineDrawing/LineDrawing';
+import { useLineDrawingRelease, type LineDrawingRelease } from './lineDrawing/release';
+import { LINE_DRAWING_THEME, isLineDrawingTheme } from './lineDrawing/model.mjs';
 import ThemePreview, { WEEKDAY_LABELS, FESTIVAL_LABELS } from "./ThemePreview";
 import { useFestivalTheme } from "./festivalThemes/store";
 import { FestivalIcon } from "./festivalThemes/Festival";
@@ -330,7 +333,8 @@ type QaThemeId =
   | "starry-cat"
   | "special-coastal"
   | "special-volcanic"
-  | "special-misty";
+  | "special-misty"
+  | "line-drawing-ink-paper";
 
 type QaThemeOption = {
   id: QaThemeId;
@@ -359,8 +363,8 @@ const PASSWORD_RECORD_KEY = "qa_password_records";
 const QA_THEME_STORAGE_KEY = "qa-dashboard:theme-v1";
 const QA_CUSTOM_THEME_STORAGE_KEY = "qa-dashboard:custom-theme-v1";
 const QA_THEME_USAGE_CACHE_KEY = "qa-dashboard:theme-usage-cache-v1";
-type QaThemeCollectionId = "color" | "character" | "festival" | "weekday" | "weather" | "special";
-const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "character", "festival", "weekday", "weather", "special"];
+type QaThemeCollectionId = "color" | "character" | "festival" | "weekday" | "weather" | "special" | "line-drawing";
+const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "character", "festival", "weekday", "weather", "special", "line-drawing"];
 const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "robinhood", label: "Robinhood Purple", swatches: ["#7027a9", "#4c1d78", "#d946a8"] },
   { id: "pink", label: "Pink Blossom", swatches: ["#db2777", "#9d174d", "#fb72b6"] },
@@ -378,6 +382,7 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "starry-cat", label: "Kuromi", swatches: ["#8b5cf6", "#312e81", "#f9a8d4"], patternImage: "/theme-starry-cat.png", description: "Kuromi · พระจันทร์และดาว" },
   ...SPECIAL_THEMES.map((theme) => ({ id: theme.id as QaThemeId, label: theme.label,
     swatches: theme.swatches as [string, string, string], sceneImage: theme.image, description: theme.description })),
+  { id: LINE_DRAWING_THEME.id as QaThemeId, label: LINE_DRAWING_THEME.label, swatches: LINE_DRAWING_THEME.swatches as [string,string,string], sceneImage: LINE_DRAWING_THEME.image, description: LINE_DRAWING_THEME.description },
 ];
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
@@ -433,7 +438,7 @@ function readStoredQaTheme(): QaThemeId {
   try {
     const stored = window.localStorage.getItem(QA_THEME_STORAGE_KEY);
     // Special themes restore only after the current account's unlock has been checked.
-    return !isSpecialTheme(stored) && QA_THEME_OPTIONS.some((theme) => theme.id === stored)
+    return !isSpecialTheme(stored) && !isLineDrawingTheme(stored) && QA_THEME_OPTIONS.some((theme) => theme.id === stored)
       ? stored as QaThemeId
       : "robinhood";
   } catch {
@@ -456,6 +461,7 @@ function readThemeUsageCache(): QaThemeUsagePercent | null {
       weekday: Number(values.weekday) || 0,
       weather: Number(values.weather) || 0,
       special: Number(values.special) || 0,
+      "line-drawing": Number(values["line-drawing"]) || 0,
     };
   } catch {
     return null;
@@ -484,6 +490,7 @@ function themeCollectionFromProfile(row: any): QaThemeCollectionId {
   if (preference === "weekday-auto" || /^weekday-/.test(preference)) return "weekday";
 
   const themeId = String(row?.themeId || row?.theme_id || "robinhood") as QaThemeId;
+  if (isLineDrawingTheme(themeId)) return "line-drawing";
   if (isSpecialTheme(themeId)) return "special";
   return QA_THEME_OPTIONS.find((theme) => theme.id === themeId)?.patternImage ? "character" : "color";
 }
@@ -498,10 +505,12 @@ function getCurrentThemePreferenceSnapshot(themeId: QaThemeId, fallbackPreferenc
 
   const root = document.documentElement;
   const specialAllowed = root.dataset.qaSpecialUnlocked === "true";
+  const activeLine = isLineDrawingTheme(themeId) && root.dataset.qaLineDrawingAllowed === "true" && !customPreference;
+  if (isLineDrawingTheme(themeId) && !activeLine) themeId = "robinhood";
   const activeSpecial = specialAllowed && isSpecialTheme(themeId) && !customPreference;
   if (isSpecialTheme(themeId) && !specialAllowed) themeId = "robinhood";
   const collection: QaThemeCollectionId =
-    activeSpecial
+    activeLine ? "line-drawing" : activeSpecial
       ? "special"
       : root.dataset.qaWeatherCollection === "auto"
       ? "weather"
@@ -537,7 +546,7 @@ async function persistUserThemePreference(
   );
 }
 
-function useUserThemePreference(username: string | undefined, specialUsage: SpecialUsage) {
+function useUserThemePreference(username: string | undefined, specialUsage: SpecialUsage, lineRelease: Pick<LineDrawingRelease, "allowed" | "ready"> = { allowed: false, ready: false }) {
   const [selectedTheme, setSelectedTheme] = useState<QaThemeId>(() => readStoredQaTheme());
   const [restoredForUser, setRestoredForUser] = useState("");
   const [appearanceRevision, setAppearanceRevision] = useState(0);
@@ -599,13 +608,18 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
   }, [username]);
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.qaTheme = selectedTheme;
+    document.documentElement.dataset.qaLineDrawingAllowed = lineRelease.allowed ? "true" : "false";
+    document.documentElement.dataset.qaTheme = isLineDrawingTheme(selectedTheme) && !lineRelease.allowed ? "robinhood" : selectedTheme;
     // Initial rendering uses a safe fallback; only a restored account can replace storage.
-    if (username && restoredForUser === username) {
+    if (username && restoredForUser === username && !(isLineDrawingTheme(selectedTheme) && !lineRelease.allowed)) {
       try { window.localStorage.setItem(QA_THEME_STORAGE_KEY, selectedTheme); }
       catch { /* Theme still applies when storage is unavailable. */ }
     }
-  }, [selectedTheme, username, restoredForUser]);
+  }, [selectedTheme, username, restoredForUser, lineRelease.allowed]);
+
+  useEffect(() => {
+    if (username && restoredForUser === username && lineRelease.ready && !lineRelease.allowed && isLineDrawingTheme(selectedTheme)) setSelectedTheme("robinhood");
+  }, [username, restoredForUser, lineRelease.ready, lineRelease.allowed, selectedTheme]);
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -636,6 +650,7 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
 
   useEffect(() => {
     if (!username || restoredForUser !== username) return;
+    if (isLineDrawingTheme(selectedTheme) && !lineRelease.allowed) return;
     // A temporary rendering fallback is never a new preference for a Special theme.
     if (isSpecialTheme(selectedTheme) && (!specialUsage.ready || !specialUsage.unlocked)) return;
     let cancelled = false;
@@ -672,9 +687,10 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
       window.removeEventListener("qa-appearance-change", sync);
       window.removeEventListener("online", sync);
     };
-  }, [username, restoredForUser, selectedTheme, specialUsage.ready, specialUsage.unlocked, appearanceRevision]);
+  }, [username, restoredForUser, selectedTheme, specialUsage.ready, specialUsage.unlocked, appearanceRevision, lineRelease.allowed]);
 
   const selectTheme = (themeId: QaThemeId) => {
+    if (isLineDrawingTheme(themeId) && !lineRelease.allowed) return;
     if (isSpecialTheme(themeId) && (!specialUsage.ready || !specialUsage.unlocked)) return;
     selectionRevisionRef.current += 1;
     sessionPreferenceRef.current = "";
@@ -685,7 +701,7 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
     setSelectedTheme(themeId);
     setAppearanceRevision(revision => revision + 1);
   };
-  return [selectedTheme, selectTheme, Boolean(username) && restoredForUser === username, sessionPreferenceRef.current] as const;
+  return [isLineDrawingTheme(selectedTheme) && !lineRelease.allowed ? "robinhood" as QaThemeId : selectedTheme, selectTheme, Boolean(username) && restoredForUser === username && !(isLineDrawingTheme(selectedTheme) && !lineRelease.allowed && !lineRelease.ready), sessionPreferenceRef.current] as const;
 }
 
 const VALID_APP_TABS = new Set<AppTab>([
@@ -3554,6 +3570,7 @@ function FloatingChatWidget({
 }
 
 function ThemePickerModal({
+  lineRelease,
   open,
   selectedTheme,
   specialUsage,
@@ -3565,6 +3582,7 @@ function ThemePickerModal({
   selectedTheme: QaThemeId;
   specialUsage: SpecialUsage;
   characterVersion: CharacterCollectionState;
+  lineRelease: LineDrawingRelease;
   onSelect: (theme: QaThemeId) => void;
   onClose: () => void;
 }) {
@@ -3580,6 +3598,7 @@ function ThemePickerModal({
       weekday: 0,
       weather: 0,
       special: 0,
+      "line-drawing": 0,
     }
   );
   const [themeUsageReady, setThemeUsageReady] = useState(() => Boolean(cachedThemeUsage));
@@ -3598,6 +3617,7 @@ function ThemePickerModal({
         weekday: 0,
         weather: 0,
         special: 0,
+        "line-drawing": 0,
       };
       activeProfiles.forEach((row: any) => {
         counts[themeCollectionFromProfile(row)] += 1;
@@ -3609,6 +3629,7 @@ function ThemePickerModal({
         weekday: total ? Math.round((counts.weekday / total) * 100) : 0,
         weather: total ? Math.round((counts.weather / total) * 100) : 0,
         special: total ? Math.round((counts.special / total) * 100) : 0,
+        "line-drawing": total ? Math.round((counts["line-drawing"] / total) * 100) : 0,
       };
       setThemeUsagePercent(nextPercent);
       writeThemeUsageCache(nextPercent);
@@ -3636,6 +3657,7 @@ function ThemePickerModal({
     };
     sync();
     setCollection(document.documentElement.dataset.qaFestivalOverride ? "festival"
+      : document.documentElement.dataset.qaLineDrawingTheme ? "line-drawing"
       : document.documentElement.dataset.qaSpecialTheme ? "special"
       : document.documentElement.dataset.qaWeatherCollection === "auto" ? "weather"
       : document.documentElement.dataset.qaWeekdayCollection === "auto" ? "weekday"
@@ -3653,6 +3675,7 @@ function ThemePickerModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, open]);
 
+  useEffect(() => { if (!lineRelease.allowed && collection === "line-drawing") setCollection("color"); }, [lineRelease.allowed, collection]);
   if (!open) return null;
 
   return (
@@ -3703,6 +3726,7 @@ function ThemePickerModal({
               ["weekday", "7 Days Collection"],
               ["weather", "Weather Collection"],
               ["special", "Special Collection"],
+              ...(lineRelease.allowed ? [["line-drawing", "Line Drawing Collection"]] : []),
             ].map(([id, label], index, items) => (
               <button key={id} id={`qa-collection-tab-${id}`} type="button" role="tab"
                 aria-selected={collection === id} aria-controls="qa-theme-collection-panel"
@@ -3728,12 +3752,13 @@ function ThemePickerModal({
         <div id="qa-theme-collection-panel" role="tabpanel" aria-labelledby={`qa-collection-tab-${collection}`}
           data-qa-picker-collection={collection}
           className="qa-theme-collection-panel grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
+          <LineDrawingCollection release={lineRelease} selectedTheme={selectedTheme} onSelect={id => onSelect(id as QaThemeId)} />
           <WeatherCollection />
           <SpecialCollection usage={specialUsage} selectedTheme={selectedTheme} onSelect={(id) => {
             if (specialUsage.ready && specialUsage.unlocked) onSelect(id as QaThemeId);
           }} />
           <CharacterCollection version={characterVersion} selectedTheme={selectedTheme} onSelect={id => onSelect(id as QaThemeId)} />
-          {QA_THEME_OPTIONS.filter((theme) => !isSpecialTheme(theme.id) && !(theme.patternImage && characterVersion.version === 2)).map((theme) => {
+          {QA_THEME_OPTIONS.filter((theme) => !isSpecialTheme(theme.id) && !isLineDrawingTheme(theme.id) && !(theme.patternImage && characterVersion.version === 2)).map((theme) => {
             const selected = theme.id === selectedTheme && !customCollectionSelected && !festivalOverride && document.documentElement.dataset.qaWeatherCollection !== "auto";
             return (
               <button
@@ -3808,14 +3833,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const characterVersion = useCharacterCollectionAccount(currentUser?.username);
   const specialUsage = useSpecialThemeUsage(currentUser?.username);
-  const [selectedTheme, setSelectedTheme, themePreferenceReady, themePreference] = useUserThemePreference(currentUser?.username, specialUsage);
-  const loginTheme = useLoginAppearance({
-    authenticated: Boolean(currentUser),
-    ready: themePreferenceReady && characterVersion.ready && (!isSpecialTheme(selectedTheme) || (specialUsage.ready && specialUsage.unlocked)),
-    themeId: selectedTheme,
-    preference: themePreference,
-    characterVersion: characterVersion.version,
-  });
+  const lineDrawingRelease = useLineDrawingRelease(currentUser);
+  const [selectedTheme, setSelectedTheme, themePreferenceReady, themePreference] = useUserThemePreference(currentUser?.username, specialUsage, lineDrawingRelease);
   const [coachingAssignmentAllowed, setCoachingAssignmentAllowed] = useState(false);
   const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
   const [coachingAppointmentsOpen, setCoachingAppointmentsOpen] = useState(false);
@@ -3825,6 +3844,16 @@ export default function App() {
   const [username, setUsername] = useState(
     () => window.localStorage.getItem(REMEMBERED_USERNAME_KEY) || ""
   );
+  const loginTheme = useLoginAppearance({
+    authenticated: Boolean(currentUser),
+    accountUsername: currentUser?.username || "",
+    loginUsername: username,
+    lineDrawingPublished: lineDrawingRelease.ready && lineDrawingRelease.published,
+    ready: themePreferenceReady && characterVersion.ready && (!isSpecialTheme(selectedTheme) || (specialUsage.ready && specialUsage.unlocked)),
+    themeId: selectedTheme,
+    preference: themePreference,
+    characterVersion: characterVersion.version,
+  });
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginStep, setLoginStep] = useState<"username" | "password">("username");
@@ -3925,7 +3954,7 @@ export default function App() {
   const activeThemePreviewOption = QA_THEME_OPTIONS.find(theme => theme.id === effectiveThemeId) || activeThemeOption;
   const activeWeekdayIndex = WEEKDAY_IDS.indexOf(effectiveThemeId);
   const sidebarThemeLabel =
-    characterVersion.version === 2 && characterThemeFor(effectiveThemeId)
+    isLineDrawingTheme(effectiveThemeId) ? "Line Drawing · Ink & Paper" : characterVersion.version === 2 && characterThemeFor(effectiveThemeId)
       ? `Character V2 · ${activeThemePreviewOption.label}`
       : isSpecialTheme(effectiveThemeId)
       ? `Special · ${activeThemePreviewOption.label}`
@@ -7355,6 +7384,7 @@ export default function App() {
 
               <section className="qa-login-form relative bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
                 <div className="mx-auto w-full max-w-[430px]">
+                  {loginTheme.collection === "line-drawing" ? <div className="qa-ink-login-brand"><img src="/line-drawing/face.svg" alt=""/><img src="/line-drawing/logo.svg" alt="QA Dashboard"/></div> : null}
                   <div className="flex items-start justify-between gap-4">
                     <div className="qa-login-theme-mobile flex h-16 w-16 items-center justify-center rounded-[22px] border border-violet-100 bg-violet-50 shadow-sm lg:hidden"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-11 w-11 object-contain" /></div>
                     <div className="qa-login-step ml-auto rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{loginStep === "username" ? "Step 1 of 2" : "Step 2 of 2"}</div>
@@ -7675,6 +7705,7 @@ export default function App() {
       <ThemePickerModal
         open={themePickerOpen}
         selectedTheme={selectedTheme}
+        lineRelease={lineDrawingRelease}
         specialUsage={specialUsage}
         characterVersion={characterVersion}
         onSelect={setSelectedTheme}

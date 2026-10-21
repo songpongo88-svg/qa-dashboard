@@ -1,3 +1,4 @@
+import { isLineDrawingTheme, isLineDrawingOwner, LINE_DRAWING_THEME } from '../lineDrawing/model.mjs';
 import { characterThemeFor } from '../characterThemes/model.mjs';
 import { festivalThemeFor } from '../festivalThemes/model.mjs';
 import { specialThemeFor } from '../specialThemes/model.mjs';
@@ -24,12 +25,13 @@ export const WEEKDAY_LOGIN_PALETTES = [
   ['#c32949', '#821f38', '#fff0f0'],
 ];
 export const LOGIN_WEATHER_SCENES = new Set(['clear', 'hot', 'partly-cloudy', 'cloudy', 'light-rain', 'rain', 'thunderstorm', 'fog', 'sunshower', 'night', 'night-cloudy', 'night-rain', 'night-thunderstorm', 'night-fog']);
-const validTheme = id => COLOR_LOGIN_THEMES.some(row => row[0] === id) || characterThemeFor(id) || specialThemeFor(id) || festivalThemeFor(id) || WEEKDAY_IDS.includes(id);
+const validTheme = id => isLineDrawingTheme(id) || COLOR_LOGIN_THEMES.some(row => row[0] === id) || characterThemeFor(id) || specialThemeFor(id) || festivalThemeFor(id) || WEEKDAY_IDS.includes(id);
 
 export function normalizeLoginAppearance(value) {
   if (!value || value.version !== 1 || typeof value.themeId !== 'string' || !validTheme(value.themeId)) return null;
   return {
     version: 1, themeId: value.themeId,
+    ...(isLineDrawingTheme(value.themeId) ? { lineDrawingOwnerSkin: value.lineDrawingOwnerSkin === true || isLineDrawingOwner(value.lineDrawingAccount) } : {}),
     preference: value.preference === 'weather-auto' ? 'weather-auto' : isWeekdayPreference(value.preference) ? 'weekday-auto' : '',
     characterVersion: value.characterVersion === 2 ? 2 : 1,
   };
@@ -78,6 +80,13 @@ export function resolveLoginTheme(appearance, environment = {}) {
       : /cloud|fog/.test(scene) ? ['#466e8a', '#344e63', '#f1f7fb']
       : ['#0877b8', '#155786', '#f4faff'];
     return skin('weather-' + scene, 'weather', palette, { image: `/weather/${scene}.webp`, weatherScene: scene });
+  }
+  if (isLineDrawingTheme(record.themeId)) {
+    // This remembered account is only a login skin, never a theme entitlement.
+    const typed = typeof environment.loginUsername === 'string' ? environment.loginUsername.trim().toLowerCase() : '';
+    const privateOwnerSkin = record.lineDrawingOwnerSkin === true && (!typed || isLineDrawingOwner(typed));
+    if (environment.lineDrawingPublished === true || privateOwnerSkin) return skin(record.themeId, 'line-drawing', LINE_DRAWING_THEME.swatches, { image: LINE_DRAWING_THEME.image, position: 'center' });
+    return skin('robinhood', 'color', COLOR_LOGIN_THEMES[0].slice(1), {});
   }
   const id = record.preference === 'weekday-auto' || WEEKDAY_IDS.includes(record.themeId) ? getBangkokWeekdayTheme(environment.now ? new Date(environment.now) : new Date()) : record.themeId;
   const weekday = WEEKDAY_IDS.indexOf(id);

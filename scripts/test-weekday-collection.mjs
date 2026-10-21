@@ -1,3 +1,4 @@
+import {isLineDrawingTheme} from '../src/lineDrawing/model.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
@@ -33,7 +34,7 @@ function runtimeHarness({ custom = "", base = "ocean", blocked = false } = {}) {
     static now() { return now; }
   }
   const context = vm.createContext({
-    Date: Clock, Intl, console, isSpecialTheme, festivalThemeFor, installFestivalControlIcons: () => () => {},
+    Date: Clock, Intl, console, isLineDrawingTheme, isSpecialTheme, festivalThemeFor, installFestivalControlIcons: () => () => {},
     CustomEvent: class { constructor(type,options){ this.type=type; this.detail=options?.detail; } },
     document: { documentElement: root, body: {}, hidden: false, querySelector: () => null, addEventListener: (name, fn) => { listeners[name] = fn; } },
     localStorage: {

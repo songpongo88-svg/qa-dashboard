@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import * as model from '../src/specialThemes/model.mjs';
 import * as weekday from '../src/weekdayCollection.mjs';
+import * as lineDrawing from '../src/lineDrawing/model.mjs';
 
 // Exercise the production hook and preference snapshot against delayed profile reads.
 const source = fs.readFileSync(process.env.THEME_PREFERENCE_SOURCE || new URL('../src/App.tsx', import.meta.url), 'utf8');
@@ -38,12 +39,13 @@ const db = {
   },
   serverTimestamp: () => 'server-time', firebaseDb: {},
 };
-const app = evaluate(parts.join('\n') + '\nexport { useUserThemePreference };', { ...React, ...model, ...db, restoreCharacterCollection: () => {} });
+const app = evaluate(parts.join('\n') + '\nexport { useUserThemePreference, QA_THEME_OPTIONS };', { ...React, ...model, ...lineDrawing, ...db, restoreCharacterCollection: () => {} });
+assert.equal(app.QA_THEME_OPTIONS[0].id,'robinhood','legacy fallback cannot expose a private collection');
 let root, latest, stopRuntime;
 const usage = (unlocked = false, ready = true) => ({ ready, unlocked, activeMs: unlocked ? model.SPECIAL_UNLOCK_MS : 0 });
-function Probe({ username, specialUsage }) { latest = app.useUserThemePreference(username, specialUsage); return null; }
+function Probe({ username, specialUsage, lineRelease }) { latest = app.useUserThemePreference(username, specialUsage, lineRelease); return null; }
 const flush = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
-async function render(username, specialUsage) { await act(async () => root.render(React.createElement(Probe, { username, specialUsage }))); await flush(); }
+async function render(username, specialUsage, lineRelease = { ready: true, allowed: false }) { await act(async () => root.render(React.createElement(Probe, { username, specialUsage, lineRelease }))); await flush(); }
 async function resolveRead(username) {
   const index = reads.findIndex(r => r.username === username); assert.ok(index >= 0, `pending read: ${username}`);
   await act(async () => reads.splice(index, 1)[0].resolve()); await flush();
@@ -54,7 +56,7 @@ async function start(theme = 'special-coastal') {
   for (const name of Object.keys(document.documentElement.dataset)) delete document.documentElement.dataset[name];
   localStorage.setItem('qa-dashboard:theme-v1', theme);
   const runtime = evaluate(`const CUSTOM_THEME_STORAGE_KEY='qa-dashboard:custom-theme-v1', BASE_THEME_STORAGE_KEY='qa-dashboard:theme-v1'; let sessionCustomTheme, applyingTheme=false; ${runtimeParts.join('\n')} export { applyEffectiveTheme };`, {
-    ...model, ...weekday, getActiveFestival: () => null, festivalThemeFor: () => null, requestThemePickerRefresh: () => {},
+    ...model, ...lineDrawing, ...weekday, getActiveFestival: () => null, festivalThemeFor: () => null, requestThemePickerRefresh: () => {},
   });
   const onAppearance = event => { if (!event.detail?.applied) runtime.applyEffectiveTheme(); };
   const observer = new MutationObserver(() => runtime.applyEffectiveTheme());
@@ -136,6 +138,23 @@ try {
     assert.equal(profiles.get('auto').themePreference, '', 'selecting the same base theme exits an automatic collection');
   }
   console.log('PASS weather/weekday choices restore, and selecting the same base theme clears the automatic choice');
+  const ink=lineDrawing.LINE_DRAWING_THEME_ID;
+  await start(ink);profiles.set('Songpon',{themeId:ink,themeCollection:'line-drawing',themePreference:''});
+  await render('Songpon',usage(false),{ready:false,allowed:true});await resolveRead('Songpon');
+  assert.equal(latest[0],ink);assert.equal(currentTheme(),ink);assert.equal(document.documentElement.dataset.qaLineDrawingAllowed,'true');
+  await act(async()=>latest[1]('pink'));await flush();await act(async()=>latest[1](ink));await flush();
+  assert.equal(profiles.get('Songpon').themeCollection,'line-drawing');
+  await act(async()=>root.unmount());root=createRoot(document.getElementById('root'));
+  await render('Songpon',usage(false),{ready:true,allowed:true});await resolveRead('Songpon');assert.equal(currentTheme(),ink,'Ink survives refresh');
+  await render('private-other',usage(false),{ready:false,allowed:false});profiles.set('private-other',{themeId:ink,themeCollection:'line-drawing'});await resolveRead('private-other');
+  assert.equal(latest[0],'robinhood');assert.equal(profiles.get('private-other').themeId,ink,'pending release cannot overwrite saved profile');
+  await render('private-other',usage(false),{ready:true,allowed:false});await flush();
+  assert.equal(currentTheme(),'robinhood');assert.equal(profiles.get('private-other').themeId,'robinhood');
+  await act(async()=>latest[1](ink));await flush();assert.equal(currentTheme(),'robinhood','hidden theme cannot be selected');
+  await render('private-other',usage(false),{ready:true,allowed:true});await act(async()=>latest[1](ink));await flush();assert.equal(currentTheme(),ink);
+  await render('private-other',usage(false),{ready:true,allowed:false});await flush();assert.equal(currentTheme(),'robinhood','revoking publication removes active ink');
+  console.log('PASS Ink owner restore, refresh, collection persistence, fail-closed loading, hidden selection guard, public opt-in and revocation');
+
 } finally {
   console.warn = originalWarn;
   if (root) await act(async () => root.unmount());

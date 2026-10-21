@@ -13,19 +13,19 @@ function rootAppearance() {
   const weatherScene = weather !== 'night' ? weather : /cloud/.test(base || '') ? 'night-cloudy' : /rain|sunshower/.test(base || '') ? 'night-rain' : base === 'thunderstorm' ? 'night-thunderstorm' : base === 'fog' ? 'night-fog' : 'night';
   return { festivalId: root.dataset.qaFestivalOverride || '', weatherScene, now: Date.now() };
 }
-export function useLoginAppearance({ authenticated, ready, themeId, preference, characterVersion }: {
-  authenticated: boolean; ready: boolean; themeId: string; preference: string; characterVersion: 1 | 2;
+export function useLoginAppearance({ authenticated, ready, themeId, preference, characterVersion, accountUsername = '', loginUsername = '', lineDrawingPublished = false }: {
+  authenticated: boolean; ready: boolean; themeId: string; preference: string; characterVersion: 1 | 2; accountUsername?: string; loginUsername?: string; lineDrawingPublished?: boolean;
 }) {
   const [state, setState] = useState(() => ({ appearance: initialLoginAppearance(browserStorage), environment: rootAppearance() }));
   useLayoutEffect(() => {
     const sync = () => {
       let remembered = null;
       if (authenticated && ready) {
-        remembered = writeLoginAppearance(browserStorage, { version: 1, themeId, preference, characterVersion });
+        remembered = writeLoginAppearance(browserStorage, { version: 1, themeId, preference, characterVersion, lineDrawingAccount: accountUsername });
       } else if (!authenticated) {
         remembered = readLoginAppearance(browserStorage);
       }
-      const environment = rootAppearance();
+      const environment = { ...rootAppearance(), loginUsername, lineDrawingPublished };
       setState(current => {
         const next = { appearance: remembered || current.appearance, environment };
         // Root appearance events can arrive together; do not add a render loop.
@@ -44,6 +44,6 @@ export function useLoginAppearance({ authenticated, ready, themeId, preference, 
       window.removeEventListener('qa-appearance-change', sync); window.removeEventListener('storage', sync);
       document.removeEventListener('visibilitychange', sync);
     };
-  }, [authenticated, ready, themeId, preference, characterVersion]);
+  }, [authenticated, ready, themeId, preference, characterVersion, accountUsername, loginUsername, lineDrawingPublished]);
   return resolveLoginTheme(state.appearance, state.environment);
 }

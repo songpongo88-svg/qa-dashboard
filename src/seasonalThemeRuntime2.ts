@@ -1,3 +1,4 @@
+import { isLineDrawingTheme } from './lineDrawing/model.mjs';
 import { WEEKDAY_COLLECTION_ID, isWeekdayPreference, getBangkokWeekdayTheme, resolveWeekdayPreference, millisecondsUntilBangkokMidnight } from "./weekdayCollection.mjs";
 import { isSpecialTheme } from "./specialThemes/model.mjs";
 import { festivalThemeFor } from "./festivalThemes/model.mjs";
@@ -258,7 +259,8 @@ function applyEffectiveTheme() {
 
   try {
     const weatherSelected = getCustomPreference() === "weather-auto";
-    const preferred = getPreferredTheme();
+    const remembered = getPreferredTheme();
+    const preferred = isLineDrawingTheme(remembered) && document.documentElement.dataset.qaLineDrawingAllowed !== "true" ? "robinhood" : remembered;
     const specialSelected = isSpecialTheme(preferred) && document.documentElement.dataset.qaSpecialUnlocked === "true";
     // Scheduled festivals temporarily override every Collection without
     // altering the user's saved choice (restored after the festival).

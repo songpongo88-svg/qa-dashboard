@@ -22,6 +22,17 @@ const brokenStorage = { getItem() { throw new Error('blocked'); }, setItem() { t
 assert.deepEqual(model.initialLoginAppearance(brokenStorage), model.defaultLoginAppearance());
 assert.deepEqual(model.writeLoginAppearance(brokenStorage, sanitized), sanitized);
 console.log('PASS malformed/unknown appearance is rejected; cache stores no account, password, permission or entitlement data; blocked storage has a safe fallback');
+const ink='line-drawing-ink-paper';
+const ownerInk=model.normalizeLoginAppearance(appearance(ink,{lineDrawingAccount:'Songpon'}));
+assert.equal(ownerInk.lineDrawingOwnerSkin,true);assert.equal(ownerInk.lineDrawingAccount,undefined,'no username is stored in appearance');
+assert.equal(model.resolveLoginTheme(ownerInk,{loginUsername:'Songpon'}).collection,'line-drawing');
+assert.equal(model.resolveLoginTheme(ownerInk,{loginUsername:'other-qa'}).id,'robinhood','private art hides when switching to another username');
+const otherInk=model.normalizeLoginAppearance(appearance(ink,{lineDrawingAccount:'other-qa'}));
+assert.equal(model.resolveLoginTheme(otherInk,{}).id,'robinhood');
+assert.equal(model.resolveLoginTheme(otherInk,{lineDrawingPublished:true}).collection,'line-drawing');
+assert.equal(model.resolveLoginTheme(otherInk,{lineDrawingPublished:'true'}).id,'robinhood');
+console.log('PASS private owner login skin, shared-browser username isolation, server-published skin and appearance minimization');
+
 
 for (const [id] of model.COLOR_LOGIN_THEMES) assert.equal(model.resolveLoginTheme(appearance(id)).collection, 'color');
 for (const theme of CHARACTER_THEMES) {

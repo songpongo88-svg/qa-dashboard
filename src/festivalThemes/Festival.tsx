@@ -1,3 +1,5 @@
+import { useLineDrawingTheme } from '../lineDrawing/state';
+import { InkIcon } from '../lineDrawing/LineDrawing';
 import React from 'react';
 import { useFestivalTheme } from './store';
 import { festivalIconUrl } from './icons.mjs';
@@ -12,11 +14,13 @@ export function FestivalIcon({ themeId, kind, className = '' }: { themeId: strin
   return <img data-festival-icon={kind} src={festivalIconUrl(themeId, kind)} alt="" aria-hidden="true" width="24" height="24" className={`qa-festival-icon ${className}`} />;
 }
 export function FestivalMetricIcon({ kind, fallback }: { kind: string; fallback: React.ReactNode }) {
+  const ink = useLineDrawingTheme();
   const theme = useFestivalTheme();
   const character = useCharacterTheme();
   const special = useSpecialTheme();
   const weekday = useWeekdayScene();
   const meaning = /quality|score/i.test(kind) ? 'score' : /kpi/i.test(kind) ? 'kpi' : /cases/i.test(kind) ? 'cases' : /appeal/i.test(kind) ? 'appealResult' : 'grade';
+  if (ink) return <InkIcon kind={meaning === 'appealResult' ? 'review' : meaning} />;
   if (character) return <CharacterIcon themeId={character.id} kind={meaning === 'appealResult' ? 'appeal' : meaning === 'kpi' ? 'grade' : meaning} />;
   if (special && !theme) return <SpecialIcon themeId={special.id} kind={meaning === 'score' ? 'dashboard' : meaning === 'kpi' ? 'pre-test' : meaning === 'cases' ? 'evaluate' : meaning === 'appealResult' ? 'appeal-review' : 'rubrics'} />;
   if (weekday && !theme) return <WeekdayIcon themeId={weekday.id} kind={meaning} />;
