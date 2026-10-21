@@ -366,7 +366,6 @@ const QA_THEME_USAGE_CACHE_KEY = "qa-dashboard:theme-usage-cache-v1";
 type QaThemeCollectionId = "color" | "character" | "festival" | "weekday" | "weather" | "special" | "line-drawing";
 const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "character", "festival", "weekday", "weather", "special", "line-drawing"];
 const QA_THEME_OPTIONS: QaThemeOption[] = [
-  { id: LINE_DRAWING_THEME.id as QaThemeId, label: LINE_DRAWING_THEME.label, swatches: LINE_DRAWING_THEME.swatches as [string,string,string], sceneImage: LINE_DRAWING_THEME.image, description: LINE_DRAWING_THEME.description },
   { id: "robinhood", label: "Robinhood Purple", swatches: ["#7027a9", "#4c1d78", "#d946a8"] },
   { id: "pink", label: "Pink Blossom", swatches: ["#db2777", "#9d174d", "#fb72b6"] },
   { id: "yellow", label: "Sunshine Yellow", swatches: ["#ca8a04", "#854d0e", "#facc15"] },
@@ -383,6 +382,7 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "starry-cat", label: "Kuromi", swatches: ["#8b5cf6", "#312e81", "#f9a8d4"], patternImage: "/theme-starry-cat.png", description: "Kuromi · พระจันทร์และดาว" },
   ...SPECIAL_THEMES.map((theme) => ({ id: theme.id as QaThemeId, label: theme.label,
     swatches: theme.swatches as [string, string, string], sceneImage: theme.image, description: theme.description })),
+  { id: LINE_DRAWING_THEME.id as QaThemeId, label: LINE_DRAWING_THEME.label, swatches: LINE_DRAWING_THEME.swatches as [string,string,string], sceneImage: LINE_DRAWING_THEME.image, description: LINE_DRAWING_THEME.description },
 ];
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;

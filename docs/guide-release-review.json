@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-21T04:22:41.768Z",
-  "reason": "Reviewed private LINE DRAWING COLLECTION and Ink & Paper across Login, four real workspaces and owner-only picker. Added ink styling for KPI/process dialogs and Coaching; verified shared-browser login isolation, persistence, publication failure and previous Collections.",
+  "reviewedAt": "2026-10-21T04:25:32.656Z",
+  "reason": "Reviewed private Ink & Paper, all ink UI surfaces and persisted owner-only publication. Verified the legacy Robinhood fallback stays first so incomplete theme metadata cannot expose the private collection; tests cover both delayed restoration and account changes.",
   "contentChanged": true,
   "reviewedChapters": [
     "profile"
@@ -330,13 +330,13 @@
     "scripts/test-signature-appeal-hold.mjs": "8dc8728c973d76f3ec0abdb54be46e15a213ed9a5698f36b19f2963ca72fe11a",
     "scripts/test-special-themes.mjs": "c9b305f3b2e4c334e683c9ca74d2621b6f39618a86cf6e0ed75b0cd2bb002f84",
     "scripts/test-special-ui.mjs": "a9f4245a213f59fc12bd2df1faf116a7990bf8ae32160fb379016518ec4b17f4",
-    "scripts/test-theme-preference.mjs": "811ef9a9098268f0fc93d94778ba66364c37a77ae0b381f9b4628b54a96761a3",
+    "scripts/test-theme-preference.mjs": "599c4d24c3603ce6bb6310c264df62031991049e4e7b147f411924cc55c7cfc8",
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "3dde89715a982b1ffcad591b5e96b223a6572318ebfb2598d9251f281096868e",
     "scripts/test-weekday-ui.mjs": "0eb3d61f10a30b428fc9976fcc57512ee90555227c6d8bea671d539f077e2375",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "1d105dda5aae38f7a6868ba5eba07f3938402d0bd07610e607dd42de27d40849",
-    "src/App.tsx": "204234087fb1ce50af00081e19e16081d422a05930545f6b1b0357951ea9420a",
+    "src/App.tsx": "d9b1dd6e48a48e5708d48ed02b33c2be894b58500605d17b2d25f8e2258a4dde",
     "src/AppealActionTimeline.tsx": "475d834b112355769084a8fe7fd53a89a96791553de2e081ea5861c13ed29757",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
