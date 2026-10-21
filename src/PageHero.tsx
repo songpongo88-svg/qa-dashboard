@@ -1,3 +1,5 @@
+import { useLineDrawingTheme } from './lineDrawing/state';
+import { InkHero } from './lineDrawing/LineDrawing';
 import React from "react";
 import { WeatherHero } from "./weather/Weather";
 import { useWeather } from "./weather/store";
@@ -26,11 +28,13 @@ export default function PageHero({
   workspaceSubtitle = "Corporate dashboard for audit tracking and case review",
   className = "",
 }: PageHeroProps) {
+  const inkTheme = useLineDrawingTheme();
   const weekdayScene = useWeekdayScene();
   const weather = useWeather();
   const specialTheme = useSpecialTheme();
   const festivalTheme = useFestivalTheme();
   const characterTheme = useCharacterTheme();
+  if (inkTheme) return <InkHero title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (specialTheme) return <SpecialThemeHero theme={specialTheme} title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (characterTheme) return <CharacterHero theme={characterTheme} title={title} eyebrow={eyebrow} subtitle={subtitle} />;
   if (festivalTheme) return <FestivalHero theme={festivalTheme} title={title} eyebrow={eyebrow} subtitle={subtitle} />;

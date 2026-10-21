@@ -1,0 +1,40 @@
+// Small scalable pen drawings; masks inherit the control's text/status colour.
+export const INK_PATHS = Object.freeze({
+  dashboard:'M3 28 3.3 14 8 14.3 8.2 28M12 28 12.1 9 17 9.2 17.2 28M21 28 21.2 3 26 3.3 26.2 28M1 30 30 29.8M7 9 18 3 17 7M18 3 13 3',
+  evaluate:'m5 22 15-18q2-2 4 0l3 3q2 2 0 4L11 27l-8 3 2-8zm0 0 6 5M18 7l6 5M3 30l5-1',
+  cases:'M2 9 2.4 27 29 27.2 29.2 9 15 9 12 5 3 5.4 2 9M16 16h11v7h-5l-4 4v-4h-2z',
+  review:'M6 2 20 2.3 26 8 25.8 30 6 29.8 6 2M19 3v6h7M10 12h10M10 16h7m-7 6 4 4 9-9',
+  late:'M26 10a12 12 0 1 0 1 12M26 3v8h-8M15 7l.2 9 6 3',
+  coaching:'M3 5h18v13h-9l-7 5v-5H3zM23 13h6v13h-3v4l-6-4h-5v-5',
+  test:'M7 3h19v27H7zM11 9l2 2 4-5M11 17l2 2 4-5M11 25l2 2 4-5M20 9h3m-3 8h3m-3 8h3',
+  rubrics:'M2 5q7-3 14 1 7-4 14-1v23q-7-3-14 1-7-4-14-1zM16 6v23M6 10h6m-6 5h6m-6 5h6m8-10h6m-6 5h6m-6 5h6',
+  training:'M3 3h27v18H3zM10 9l5-3 6 3-6 3zM10 9v5q5 4 11 0V9M4 30v-3q4-6 8 0v3m8 0v-3q4-6 8 0v3M7 20v4m17-4v4',
+  slides:'M2 4h28M4 5v19h24V5M8 10h10M8 14h15M8 18h9M16 24v6m-6 0 6-6 6 6',
+  signatures:'M5 2h20v13M5 2v28h17M9 10h10M9 14h6m-6 8q3-7 3 0 5-5 3 0h5m1-3 7-8 3 3-7 8-5 2z',
+  guide:'M2 5q7-3 14 1 7-4 14-1v23q-7-3-14 1-7-4-14-1zM16 6v23M21 4v13l3-2 3 2V4',
+  schedule:'M4 6h24v24H4zM4 13h24M10 2v8m12-8v8M9 18h3v3H9zm10 0h3v3h-3zM9 25h3m7 0h3',
+  calls:'M9 3 4 7q-2 10 15 21 4 2 8-3l-7-6-4 3q-6-3-7-7l4-4z',
+  chat:'M16 3C0 3-3 19 7 24l-3 6 9-4c22 3 24-23 3-23zM8 14h.2m8 0h.2m8 0h.2',
+  inbox:'M2 19 8 7h16l6 12v10H2zM2 19h9l2 5h6l2-5h9',
+  history:'M12 3a10 10 0 1 0 0 20 10 10 0 0 0 0-20M12 7v7l5 3M25 5h5m-5 6h5m-5 6h5M20 26h10m-10 4h10',
+  password:'M13 16a7 7 0 1 0-9-9 7 7 0 0 0 9 9l4 4 3-3 4 4 3-3-8-8M7 7h.2M26 2v7h-7',
+  users:'M8 3a5 5 0 1 0 0 10A5 5 0 0 0 8 3M1 29v-6q7-12 14 0v6M24 3a5 5 0 1 0 0 10 5 5 0 0 0 0-10M17 29v-6q7-12 14 0v6',
+  permissions:'M13 2 2 7v8q0 10 11 15 11-5 11-15V7zM9 14l3 3 6-7M27 10h4m-2 0v17m-3-5h3m-3 4h3',
+  terms:'M6 2h14l6 6v22H6zM19 2v8h7M10 14h9M10 19h5m-4 5 4 3 7-8',
+  settings:'m12 2 8 0 1 5 4 2 5-1 2 7-4 3v4l3 4-6 4-4-3-4 1-2 4-7-3 1-5-2-3-5-1 1-7 5-1 3-3zM16 11a5 5 0 1 0 0 10 5 5 0 0 0 0-10',
+  profile:'M2 4h28v25H2zM16 8a8 8 0 1 0 0 16 8 8 0 0 0 0-16M12 14v2m8-2v2m-8 3q4 4 8-1M15 5l-1-4m5 3 2-3',
+  themes:'M2 4h28v25H2zM9 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6M22 25V15m-1 6-3-3m4 1 3-3M17 15q-4-5 0-6 0-4 4-2 5-3 6 2 5 2 1 6-2 3-6 1-5 3-5-1',
+  search:'M14 3a10 10 0 1 0 0 20 10 10 0 0 0 0-20M21 21l9 9',
+  preview:'M1 16Q16-3 31 16 16 34 1 16zM16 8a8 8 0 1 0 0 16 8 8 0 0 0 0-16M14 11q-3 3-1 5',
+  save:'M4 2h21l5 5v23H3zM9 2v10h15V2M9 30V19h15v11M19 4v5',
+  export:'M5 2h15l6 6v10M5 2v28h14M19 2v7h7M24 16v14m-5-5 5 5 6-5M9 13h10M9 18h7',
+  upload:'M4 20v9h25v-9M16 24V3m-7 7 7-7 7 7',
+  delete:'M4 8h25M12 3h10v5M7 9l1 21h17l2-21M13 13v12m7-12v12',
+  logout:'M15 3H4v26h11M11 16h19m-7-7 7 7-7 7',
+  lock:'M7 13h19v17H7zM11 13V8q5-11 10 0v5M16 20v4',
+  back:'M30 16H3M12 5 3 16l9 11',
+});
+const aliases={chart:'dashboard',score:'dashboard',kpi:'test',grade:'rubrics',appealResult:'review','appeal-cases':'cases','appeal-review':'review','late-appeal':'late','pre-test':'test','login-log':'history','password-reset':'password',theme:'themes',document:'cases',edit:'evaluate',image:'preview',view:'preview',pdf:'export',download:'export',clock:'schedule',check:'test',signature:'signatures',people:'users',key:'password',guide:'guide'};
+export const inkKind=value=>Object.hasOwn(INK_PATHS,value)?value:aliases[value]||'cases';
+export function inkIconUrl(kind){const d=INK_PATHS[inkKind(kind)];return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='${d}' fill='none' stroke='#000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/><path d='${d}' transform='translate(.18 -.12)' fill='none' stroke='#000' opacity='.22' stroke-width='.6'/></svg>`)}")`;}
+export function inkNavigationKind(key){return {'create-evaluation':'evaluate','case-detail':'cases',appeal:'cases','appeal-requests':'review','appeal-override':'late','pre-test':'test',rubric:'rubrics','training-attendance':'training','presentation-builder':'slides','signature-center':'signatures','user-guide':'guide',schedule:'schedule','call-history':'calls','team-chat':'chat','task-inbox':'inbox','usage-log':'history','reset-password':'password','admin-users':'users','admin-roles':'permissions','terms-management':'terms','system-setup':'settings','change-password':'password','theme':'themes'}[key]||inkKind(key);}

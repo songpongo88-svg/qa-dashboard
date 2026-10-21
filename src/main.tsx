@@ -16,6 +16,8 @@ import { installSpecialThemeRuntime } from "./specialThemes/runtime";
 installSpecialThemeRuntime();
 import { installWeekdayThemeRuntime } from "./weekdayThemes/runtime";
 installWeekdayThemeRuntime();
+import { installLineDrawingRuntime } from "./lineDrawing/runtime";
+installLineDrawingRuntime();
 
 // data-root-error-boundary-v149
 class RootErrorBoundary extends React.Component<
