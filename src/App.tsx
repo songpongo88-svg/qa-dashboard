@@ -1,3 +1,4 @@
+import { InkLoginArtwork, InkLoginForm } from './lineDrawing/InkLogin';
 import { LineDrawingCollection } from './lineDrawing/LineDrawing';
 import { useLineDrawingRelease, type LineDrawingRelease } from './lineDrawing/release';
 import { LINE_DRAWING_THEME, isLineDrawingTheme } from './lineDrawing/model.mjs';
@@ -3815,8 +3816,8 @@ function ThemePickerModal({
           })}
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs font-normal text-slate-500 sm:px-6">
-          <span>ระบบจะจำ Theme ตามบัญชีผู้ใช้และอุปกรณ์โดยอัตโนมัติ</span>
+        <footer className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs font-normal text-slate-500 sm:px-6">
+
           <button type="button" onClick={onClose} className="rounded-xl bg-slate-900 px-4 py-2 font-medium text-white transition hover:bg-violet-800">
             เสร็จแล้ว
           </button>
@@ -6926,7 +6927,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (currentUser || loginStep !== "password" || showForgotPasswordModal || loginSubmitting) return;
+    if (currentUser || loginStep !== "password" || showForgotPasswordModal || loginSubmitting || loginTheme.collection === "line-drawing") return;
 
     const typedPassword = password.trim();
     const requestId = ++automaticLoginRequestRef.current;
@@ -6948,7 +6949,7 @@ export default function App() {
     }, temporaryLoginNotice ? 350 : 700);
 
     return () => window.clearTimeout(timer);
-  }, [currentUser, loginStep, password, showForgotPasswordModal, temporaryLoginNotice]);
+  }, [currentUser, loginStep, password, showForgotPasswordModal, temporaryLoginNotice, loginTheme.collection]);
 
   const handleForgotPasswordReset = () => {
     void handleForgotPasswordRequest();
@@ -7379,12 +7380,32 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <div className="qa-login-visual-footer relative z-10 mt-10 flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-violet-200/80"><span>Central secure session</span><span>2-hour inactivity policy</span></div>
+                <div className="qa-login-visual-footer relative z-10 mt-10 flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-violet-200/80"><span>2-hour inactivity policy</span></div>
               </section>
 
+              {loginTheme.collection === "line-drawing" ? <InkLoginArtwork /> : null}
               <section className="qa-login-form relative bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
-                <div className="mx-auto w-full max-w-[430px]">
-                  {loginTheme.collection === "line-drawing" ? <div className="qa-ink-login-brand"><img src="/line-drawing/face.svg" alt=""/><img src="/line-drawing/logo.svg" alt="QA Dashboard"/></div> : null}
+                {loginTheme.collection === "line-drawing" ? <InkLoginForm
+                  username={username} password={password}
+                  verified={loginStep === "password" && loginUsernameStatus === "valid"}
+                  checking={loginUsernameStatus === "checking"} submitting={loginSubmitting}
+                  remember={rememberLogin} error={loginError} notice={temporaryLoginNotice}
+                  maintenance={maintenanceState.enabled ? <div className="qa-ink-login-maintenance">{maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message}</div> : null}
+                  onUsernameChange={value => {
+                    usernameValidationRequestRef.current += 1;
+                    automaticLoginRequestRef.current += 1;
+                    setUsername(value); setLoginStep("username"); setLoginUsernameStatus("idle");
+                    setVerifiedLoginDisplayName(""); setPassword(""); setLoginError(""); setTemporaryLoginNotice("");
+                  }}
+                  onPasswordChange={value => { setPassword(value); setLoginError(""); setTemporaryLoginNotice(""); }}
+                  onRememberChange={setRememberLogin}
+                  onForgotPassword={() => { setForgotUsernameInput(username); setShowForgotPasswordModal(true); }}
+                  onSubmit={async () => {
+                    if (loginStep !== "password" || loginUsernameStatus !== "valid" || loginSubmitting) return;
+                    setLoginSubmitting(true);
+                    try { await handleLoginAsync(); } catch { setLoginError("ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง"); } finally { setLoginSubmitting(false); }
+                  }}
+                /> : <div className="mx-auto w-full max-w-[430px]">
                   <div className="flex items-start justify-between gap-4">
                     <div className="qa-login-theme-mobile flex h-16 w-16 items-center justify-center rounded-[22px] border border-violet-100 bg-violet-50 shadow-sm lg:hidden"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-11 w-11 object-contain" /></div>
                     <div className="qa-login-step ml-auto rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{loginStep === "username" ? "Step 1 of 2" : "Step 2 of 2"}</div>
@@ -7431,12 +7452,12 @@ export default function App() {
                   <div className="mt-8 border-t border-slate-100 pt-5">
                     <VersionPill meta={buildMeta} className="qa-login-version w-full" />
                     <div className="mt-4 flex items-center justify-between gap-4 text-[11px] text-slate-400">
-                      <span>Secure access verified by Firebase</span>
                       <span className="whitespace-nowrap">Session: 2 hours</span>
                     </div>
                   </div>
-                </div>
+                </div>}
               </section>
+              {loginTheme.collection === "line-drawing" ? <div className="qa-ink-login-meta"><VersionPill meta={buildMeta} /><span>Session: 2 hours</span></div> : null}
             </div>
           </div>
         </div>

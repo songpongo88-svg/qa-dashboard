@@ -35,7 +35,7 @@ function ThemePreviewDialog({ theme, onClose }: { theme: Theme; onClose: () => v
       const rect = event.currentTarget.getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose();
     }}>
-    <header><div><strong id="qa-special-preview-title">{theme.label}</strong><span>ภาพพื้นหลัง การ์ด เมนู ปุ่ม และตารางของธีม</span></div><button type="button" autoFocus data-qa-custom-theme-card="special-preview" onClick={onClose} aria-label="ปิดภาพตัวอย่าง">ปิดตัวอย่าง</button></header>
+    <header><div><strong id="qa-special-preview-title">{theme.label}</strong></div><button type="button" autoFocus data-qa-custom-theme-card="special-preview" onClick={onClose} aria-label="ปิดภาพตัวอย่าง">ปิดตัวอย่าง</button></header>
     <ThemeSample theme={theme} />
   </dialog>;
 }
@@ -47,7 +47,7 @@ export function SpecialCollection({ usage, selectedTheme, onSelect }: {
   const remaining = Math.max(0, Math.ceil((SPECIAL_UNLOCK_MS - usage.activeMs) / 60000));
   const expired = usage.ready && usage.expired && !usage.unlocked;
   return <section data-qa-theme-collection="special" className="qa-special-collection">
-    <div className="qa-special-collection-heading"><div><span className="qa-special-eyebrow">SPECIAL COLLECTION</span><h3>บรรยากาศพิเศษ สำหรับพื้นที่ทำงานของคุณ</h3><p>ภาพสมจริง พร้อมการ์ด เมนู ปุ่ม และตารางที่ออกแบบตามแต่ละธีม</p></div><LockIcon unlocked={usage.unlocked} /></div>
+    <div className="qa-special-collection-heading"><div><span className="qa-special-eyebrow">SPECIAL COLLECTION</span><h3>บรรยากาศพิเศษ สำหรับพื้นที่ทำงานของคุณ</h3></div><LockIcon unlocked={usage.unlocked} /></div>
     <div className="qa-special-unlock-progress" data-qa-special-quest-state={!usage.ready ? 'loading' : usage.unlocked ? 'unlocked' : expired ? 'expired' : 'open'}>
       <p className="qa-special-quest-deadline"><strong>สิ้นสุดเควส</strong><time dateTime={SPECIAL_QUEST_DEADLINE}>31 ธันวาคม 2026 เวลา 23:59 น. (เวลาไทย)</time></p>
       <div><strong>{usage.unlocked ? 'ปลดล็อกครบทั้ง 3 ธีมแล้ว' : `ใช้งานสะสม ${minutes} / 180 นาที`}</strong><span role="status">{!usage.ready ? 'กำลังตรวจสิทธิ์และเวลาใช้งาน…' : usage.unlocked ? 'ใช้ธีมต่อได้หลังหมดเขต' : expired ? 'หมดเวลาปลดล็อก' : remaining ? `อีก ${remaining} นาทีปลดล็อกทั้งคอลเลกชัน` : 'ครบเวลาแล้ว · กำลังบันทึกเพื่อปลดล็อก…'}</span></div>

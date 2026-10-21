@@ -5,7 +5,7 @@ export const LINE_DRAWING_THEME = Object.freeze({
   id: LINE_DRAWING_THEME_ID, label: 'Ink & Paper', collection: LINE_DRAWING_COLLECTION,
   swatches: ['#202b55', '#111a3a', '#f7f3e9'],
   image: '/line-drawing/scene.svg',
-  description: 'ลายปากกาบนกระดาษ · ต่อยอดจากภาพวาดของคุณ',
+  description: 'ลายปากกาบนกระดาษ',
 });
 export const isLineDrawingTheme = value => value === LINE_DRAWING_THEME_ID;
 export const isLineDrawingOwner = value => typeof value === 'string' && value.trim().toLowerCase() === LINE_DRAWING_OWNER;

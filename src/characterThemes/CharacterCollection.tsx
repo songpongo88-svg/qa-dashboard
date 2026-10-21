@@ -30,16 +30,16 @@ function CharacterPreview({ initialTheme, onClose }: { initialTheme: Theme; onCl
       const rect = event.currentTarget.getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close();
     }}>
-    <header><div><strong id="qa-character-preview-title">Character Collection V2 · ดูตัวอย่าง</strong><p>ภาพ 3D หลายท่าทาง พร้อมเมนู การ์ด ปุ่ม และไอคอนของแต่ละธีม</p></div><button type="button" onClick={close} autoFocus aria-label="ปิดตัวอย่าง Character V2">ปิดตัวอย่าง</button></header>
+    <header><div><strong id="qa-character-preview-title">Character Collection V2 · ดูตัวอย่าง</strong></div><button type="button" onClick={close} autoFocus aria-label="ปิดตัวอย่าง Character V2">ปิดตัวอย่าง</button></header>
     <nav aria-label="เลือกธีมสำหรับดูตัวอย่าง">{CHARACTER_THEMES.map(item => <button key={item.id} type="button" aria-pressed={item.id === theme.id} onClick={() => setTheme(item)}>{item.label}</button>)}</nav>
-    <CharacterSample theme={theme} /><footer>การดูตัวอย่างไม่อัปเดตเวอร์ชันและไม่เปลี่ยนธีมที่คุณใช้อยู่</footer>
+    <CharacterSample theme={theme} />
   </dialog>;
 }
 export function CharacterCollection({ version, selectedTheme, onSelect }: { version: CharacterCollectionState; selectedTheme: string; onSelect: (id: string) => void }) {
   const [preview, setPreview] = useState<Theme | null>(null);
   return <section data-qa-theme-collection="character" className="qa-character-collection" data-character-collection-version={version.version}>
     <div className="qa-character-update-panel">
-      <div><span className="qa-character-update-eyebrow">CHARACTER COLLECTION · V2</span><h3>{version.version === 2 ? 'คาแรกเตอร์ 3D สำหรับพื้นที่ทำงานของคุณ' : 'ดีไซน์ 3D พร้อมให้อัปเดตเมื่อคุณพร้อม'}</h3><p>ตัวละคร 3D พร้อมการ์ดและไอคอนของใช้ประจำธีม โดยคงตำแหน่งเมนูและขนาดปุ่มเดิม</p><span className="qa-character-version-status" role="status">{!version.ready ? 'กำลังตรวจเวอร์ชันของบัญชี' : `กำลังใช้งาน V${version.version}`}</span><small>{version.version === 2 ? 'บันทึกเวอร์ชัน V2 ให้บัญชีของคุณแล้ว' : 'ยังใช้ V1 ต่อได้ การดูตัวอย่างและการรีเฟรชจะไม่อัปเดตให้เอง'}</small></div>
+      <div><span className="qa-character-update-eyebrow">CHARACTER COLLECTION · V2</span><h3>{version.version === 2 ? 'คาแรกเตอร์ 3D สำหรับพื้นที่ทำงานของคุณ' : 'ดีไซน์ 3D พร้อมให้อัปเดตเมื่อคุณพร้อม'}</h3><span className="qa-character-version-status" role="status">{!version.ready ? 'กำลังตรวจเวอร์ชันของบัญชี' : `กำลังใช้งาน V${version.version}`}</span></div>
       <div className="qa-character-update-actions"><button type="button" onClick={() => setPreview(characterThemeFor(selectedTheme) || CHARACTER_THEMES[0])}>ดูตัวอย่าง V2</button>{version.version === 1 ? <button type="button" disabled={!version.ready || version.saving} onClick={() => { void upgradeCharacterCollection(); }}>{version.saving ? 'กำลังบันทึก…' : 'อัปเดต Collection'}</button> : <span className="qa-character-update-complete">อัปเดตแล้ว ✓</span>}<small>อัปเดตเฉพาะบัญชีของคุณ</small></div>
       {version.error ? <p className="qa-character-update-error" role="alert">{version.error}</p> : null}
     </div>

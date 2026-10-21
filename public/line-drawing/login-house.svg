@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 650" fill="none" stroke="#202b55" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+<defs><filter id="pen" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.1"/></filter><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(37)"><path d="M0 0v8" stroke-width=".8"/></pattern></defs>
+<g filter="url(#pen)"><path fill="url(#hatch)" opacity=".7" d="m64 49 171-18 20 91-178 15zM40 144l36-91 3 192-29 4z"/>
+<path d="m36 146 39-99 163-18 22 98-224 19 12 103 209-16 3-106M75 47l2 90 183-10M40 141l36-90 163-20 22 96M48 247l31-4-2-106M129 241l-1-75 36-4 2 75M123 167l43-6m-37 3 2 72m-2-61 28-7m-28 15 29-9m-28 17 27-7m-27 16 28-8m-26 17 24-7m-24 14 24-6m-23 14 22-7"/>
+<path d="m99 154 1 26 24-2-1-27zm44-5 1 25 23-2-1-26zm45-5 1 26 25-3-2-26zM94 153l30-4m18 0 27-3m17-2 30-5M50 154l4 79m5-84 5 84"/>
+<path d="M20 254q14-20 27-11m-15-1q-18-31-16-5-8-17-9 4m18-5q-1-30-8-24-5 9 6 24m-4-10q-16-18-14-2 1 10 14 16M260 230q13-35 17-11 3-27 10-24 8 6-2 30m-12 7q26-41 29-28 0 17-25 35m-8-4q9-20 18-24m-19 25 22-11m-6 17q22-15 25-4M14 263l24-8m-7 9 20-8m-7 9 20-7m202-17 22-5m-15 12 26-7M8 273q89-30 149-31 62-2 165-16M115 246C83 330 63 495 32 608M166 243c1 89 21 219 86 361"/>
+<path stroke-dasharray="7 10" stroke-width=".8" opacity=".7" d="M114 259C99 374 77 503 55 584M164 255c8 117 25 229 64 319"/>
+<path d="m91 282 1 57m-5-63q5-10 10 0 1 10-9 7-8-10 2-15m-28 91 1 90m-6-99q10-9 12 1-1 12-11 8-10-8 1-13m-34 118 1 105m-8-117q12-10 17 2 3 13-10 15-17-2-7-16M201 310l1 96m-7-105q10-11 15 0 3 11-10 13-12-6-5-13M233 489l1 133m-7-143q11-12 18 0 5 14-11 17-17-3-8-17"/>
+<path stroke-width="1" d="m10 615 13-33-3 26 18-16-11 22 25-11m-12 11 11-30-4 24 14-9M229 630l-13-24 20 15-8-29 16 26 7-17 1 26 18-14m-14 14 22-5M46 578l10-27-2 23 14-12M7 622l26-7m230 16 35-11M18 280l9-4m3-6 11-4m241-10 11-5"/>
+</g></svg>
