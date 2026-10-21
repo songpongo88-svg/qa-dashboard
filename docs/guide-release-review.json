@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-20T16:51:21.843Z",
-  "reason": "Reviewed Case Records column order: Case ID, Case Date, Audit Date, Agent, Intent, Score, Grade, KPI Status; preserve themed appeal filters and existing data scope.",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "dashboard"
-  ],
+  "reviewedAt": "2026-10-21T05:53:36.047Z",
+  "reason": "Reviewed Appeal Cases undefined requestTopic runtime crash fix; Excel import only, no user workflow or guide content changes.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -340,7 +338,7 @@
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
     "src/AppealIssueTags.tsx": "62fa947120cc314ebf3b8153a2fada6ad07aac32fc74a7ebb7fdc432e8a8c4a5",
-    "src/AppealMockup.tsx": "8b2eb22ac3142b72895a6bf13c5d43c025949b00d33ad20fef23d882161b614a",
+    "src/AppealMockup.tsx": "390308fd57f0589198f3fe74e81359638515f3611a7ab787143ee66882bba372",
     "src/AppealOverrideMockup.tsx": "7bf80aeae4041d6613eb98ada6e1dcd21600a8f02d9f48bc030da6225b6f0075",
     "src/AppealRequestsMockup.tsx": "f8b213eb84bf63d4b504922d2c3fbe2ea6765f1ba66e62fe83733d089e6ff84a",
     "src/AppealReviewDialog.tsx": "b5669410ea8719adca6dcfa159add0c454a610214cd287e76cc61528a727e33c",
