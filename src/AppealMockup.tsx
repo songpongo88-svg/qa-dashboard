@@ -1633,7 +1633,7 @@ export default function AppealMockup({
                   revisedScore,
                   originalComment,
                   revisedComment
-                ) || Boolean(requestTopic && appealIssueTagsChanged(requestTopic)));
+                ));
 
               return {
                 decision: topicDecision,
@@ -1645,8 +1645,6 @@ export default function AppealMockup({
                 comment: revisedComment,
                 originalScore,
                 originalComment,
-                ...(Array.isArray(requestTopic?.issueTags) ? { originalIssueTags: requestTopic.issueTags } : {}),
-                ...(requestTopic && appealTopicIssueTags(requestTopic, appealDecision) !== undefined ? { issueTags: appealTopicIssueTags(requestTopic, appealDecision) } : {}),
                 appealReason,
                 rejectReason,
                 appealed,

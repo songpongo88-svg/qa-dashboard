@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-21T04:25:32.656Z",
-  "reason": "Reviewed private Ink & Paper, all ink UI surfaces and persisted owner-only publication. Verified the legacy Robinhood fallback stays first so incomplete theme metadata cannot expose the private collection; tests cover both delayed restoration and account changes.",
+  "reviewedAt": "2026-10-21T09:07:05.657Z",
+  "reason": "Reviewed private Ink & Paper across Login and workspaces, owner-only persisted publication and legacy theme fallback; retained current Appeal Cases Excel import hotfix without workflow changes.",
   "contentChanged": true,
   "reviewedChapters": [
     "profile"
@@ -341,7 +341,7 @@
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
     "src/AppealIssueTags.tsx": "62fa947120cc314ebf3b8153a2fada6ad07aac32fc74a7ebb7fdc432e8a8c4a5",
-    "src/AppealMockup.tsx": "8b2eb22ac3142b72895a6bf13c5d43c025949b00d33ad20fef23d882161b614a",
+    "src/AppealMockup.tsx": "390308fd57f0589198f3fe74e81359638515f3611a7ab787143ee66882bba372",
     "src/AppealOverrideMockup.tsx": "7bf80aeae4041d6613eb98ada6e1dcd21600a8f02d9f48bc030da6225b6f0075",
     "src/AppealRequestsMockup.tsx": "f8b213eb84bf63d4b504922d2c3fbe2ea6765f1ba66e62fe83733d089e6ff84a",
     "src/AppealReviewDialog.tsx": "b5669410ea8719adca6dcfa159add0c454a610214cd287e76cc61528a727e33c",
