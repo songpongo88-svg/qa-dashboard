@@ -1,3 +1,4 @@
+import { WORKFLOW_STATUS } from "./workflowStatusLabels";
 import { formatPdfDate, formatPdfDateTime } from "./lib/pdfDates";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -1367,7 +1368,7 @@ function getPendingRoleText(_doc: SignatureDocument, entries: SignatureEntry[]) 
   const pendingRoles = getPendingRoles(entries);
   return pendingRoles.length
     ? pendingRoles.map(roleThaiLabel).join(", ")
-    : "เซ็นครบแล้ว";
+    : "All Signatures Completed";
 }
 
 function roleThaiLabel(role: SignRole) {
@@ -1632,7 +1633,7 @@ function getWorkspaceStatusLabel(status: WorkspaceStatus) {
   if (status === "signed") return "Signed";
   if (status === "expired") return "Expired";
   if (status === "in-progress") return "In Progress";
-  return "Pending";
+  return WORKFLOW_STATUS.awaitingSignatures;
 }
 
 function getWorkspaceStatusClass(status: WorkspaceStatus) {
@@ -1746,7 +1747,7 @@ function getSignatureValidationStatus(
   });
 
   if (pendingRoles.length) {
-    return `Pending ${pendingRoles.map(roleThaiLabel).join(", ")}`;
+    return `${WORKFLOW_STATUS.awaitingSignatures} · ${pendingRoles.map(role => role === "QA" ? "QA Reviewer" : role === "Senior" ? "Senior / Team Lead" : role).join(", ")}`;
   }
 
   const hasResignedWaiver = Boolean(getWaivedEntry(entries, "Agent"));
@@ -2494,37 +2495,37 @@ const SIGNING_STAGE_OPTIONS = [
   {
     value: "all",
     label: "All Stages",
-    description: "แสดงเอกสารทุกขั้นตอนในกระบวนการลงนาม",
+    description: "Documents at every signing stage.",
   },
   {
     value: "preview",
-    label: "Awaiting Confirmation",
-    description: "รอ Agent ผู้ถูกประเมินยืนยันรับทราบผลก่อนเริ่มลงนาม",
+    label: WORKFLOW_STATUS.awaitingAcknowledgment,
+    description: "Awaiting Agent acknowledgment before signatures can begin.",
   },
   {
     value: "my-turn",
     label: "My Turn to Sign",
-    description: "แสดงเฉพาะเอกสารที่ถึงคิวของคุณลงนามแล้ว",
+    description: "Documents awaiting your signature.",
   },
   {
     value: "pending",
-    label: "Awaiting Signatures",
-    description: "เอกสารยังมีอย่างน้อยหนึ่ง Role ที่ต้องลงนาม",
+    label: WORKFLOW_STATUS.awaitingSignatures,
+    description: "Awaiting one or more required signatures.",
   },
   {
     value: "ready",
-    label: "Ready for Payment",
-    description: "เอกสารลงนามครบและผ่านเงื่อนไขพร้อมจ่าย Incentive",
+    label: WORKFLOW_STATUS.readyForPayment,
+    description: "All required signatures and incentive payment requirements are complete.",
   },
   {
     value: "appeal-pending",
-    label: "Appeal Pending",
-    description: "เอกสารมีเคส Appeal ที่ยังรอผลอนุมัติหรือปฏิเสธ",
+    label: WORKFLOW_STATUS.appealInProgress,
+    description: "Appeal in Progress. Final results are not yet available.",
   },
   {
     value: "expired",
     label: "Overdue",
-    description: "เอกสารเลยกำหนดลงนามและยังดำเนินการไม่ครบ",
+    description: "Signing deadline passed. Required actions are incomplete.",
   },
 ] as const;
 
@@ -3164,15 +3165,15 @@ export default function SignatureCenterMockup({
   );
   const confirmBlockedReason = selectedDocument && !previewConfirmed
     ? !signatureResultVerified
-      ? "ยังตรวจสอบผลประจำเดือนไม่สำเร็จ กรุณาอัปเดตข้อมูลก่อนยืนยันรับทราบ"
+      ? "Monthly Result Status Verification Failed. Refresh before acknowledging."
       : !appealStatusVerified
-      ? "ยังตรวจสอบสถานะอุทธรณ์ไม่สำเร็จ กรุณากดอัปเดตข้อมูลก่อนยืนยันรับทราบ"
+      ? "Score Verification Failed. Refresh before acknowledging."
       : hasPendingAppeal
-      ? "รอบอุทธรณ์ยังไม่สิ้นสุด จึงยังยืนยันรับทราบไม่ได้"
+      ? "Appeal in Progress. Acknowledgment is unavailable until the appeal is complete."
       : !isAfterAppealPeriod(selectedDocument.monthKey)
-        ? "เปิดให้ยืนยันรับทราบหลังวันที่ 10 ของเดือนถัดไป"
+        ? "Acknowledgment Opens After the 10th of the Following Month"
         : !canSignIdentity(currentUser, selectedDocument, "Agent")
-          ? "เฉพาะ Agent ผู้ถูกประเมินเท่านั้นที่กดยืนยันรับทราบได้"
+          ? "Only the Evaluated Agent Can Acknowledge Results"
           : ""
     : "";
   const timeline = selectedDocument ? getTimelineStatus(selectedDocument.monthKey) : "-";
@@ -3260,18 +3261,18 @@ export default function SignatureCenterMockup({
       logs = await fetchAppealEvents(undefined, { forceRefresh: true });
     } catch (error) {
       setAppealStatusVerified(false);
-      throw new SignatureAppealHoldError("ตรวจสอบสถานะอุทธรณ์ล่าสุดไม่สำเร็จ กรุณากดอัปเดตข้อมูลแล้วลองอีกครั้ง");
+      throw new SignatureAppealHoldError("Score Verification Failed. Refresh and try again.");
     }
     setAppealLogs((previous) => JSON.stringify(previous) === JSON.stringify(logs) ? previous : logs);
     setAppealStatusVerified(true);
     const pending = buildPendingSignatureAppealCaseMap(logs);
     if (targetDocuments.some((doc) => !isHistoricalPaidPeriod(doc.monthKey) &&
       doc.cases.some((item) => pending.has(item.caseId)))) {
-      throw new SignatureAppealHoldError("รอบอุทธรณ์ยังไม่สิ้นสุด กรุณารอผล QA หรือรอหมดช่วงยื่นเพิ่ม 3 วันโดยไม่มีการยื่นเพิ่มเติม ก่อนยืนยันรับทราบ ลงนาม หรือส่งออกข้อมูลจ่าย");
+      throw new SignatureAppealHoldError("Appeal in Progress. Wait for QA review or the additional submission window to close before acknowledgment, signatures or payment export.");
     }
     if (signatureAppealReviewKey(appealLogs, targetDocuments) !== signatureAppealReviewKey(logs, targetDocuments)) {
       setAppealStatusVerified(false);
-      throw new SignatureAppealHoldError("ผลอุทธรณ์มีการเปลี่ยนแปลง กรุณากดอัปเดตข้อมูลแล้วตรวจคะแนนล่าสุดก่อนทำรายการอีกครั้ง");
+      throw new SignatureAppealHoldError("Appeal Results Updated. Refresh and review the latest scores before continuing.");
     }
   };
 
@@ -3459,8 +3460,8 @@ export default function SignatureCenterMockup({
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const pendingRoles = getPendingRoles(entries);
     const latestStatus = pendingRoles.length
-      ? `${SIGNATURE_FLOW.length - pendingRoles.length}/4 role ลงนามแล้ว`
-      : "เอกสารลงนามครบแล้ว";
+      ? `${SIGNATURE_FLOW.length - pendingRoles.length}/4 Roles Signed`
+      : "All Signatures Completed";
 
     const text = pendingRoles.length
       ? [
@@ -3469,7 +3470,7 @@ export default function SignatureCenterMockup({
           `เดือน: ${selectedDocument.monthLabel}`,
           `Agent: ${selectedDocument.agentName}`,
           "",
-          `สถานะล่าสุด: ${latestStatus}`,
+          `Latest Status: ${latestStatus}`,
           "ผู้ที่ยังต้องลงนาม:",
           ...pendingRoles.map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`),
           "",
@@ -3484,7 +3485,7 @@ export default function SignatureCenterMockup({
           `เดือน: ${selectedDocument.monthLabel}`,
           `Agent: ${selectedDocument.agentName}`,
           "",
-          "สถานะล่าสุด: เอกสารลงนามครบแล้ว",
+          "Latest Status: All Signatures Completed",
           "",
           "กดลิงก์นี้เพื่อเปิดเอกสาร:",
           createSignatureShareLink(selectedDocument, null),
@@ -3517,15 +3518,15 @@ export default function SignatureCenterMockup({
       `เอกสาร Signature เดือน ${selectedDocument.monthLabel}`,
       `Agent: ${selectedDocument.agentName}`,
       "",
-      "สถานะการลงนาม:",
+      "Signature Status:",
       ...lines,
       "",
-      pendingLines.length ? "ผู้ที่ยังไม่ลงนาม:" : "สถานะ: ลงนามครบแล้ว",
+      pendingLines.length ? "Awaiting Signatures:" : "Status: All Signatures Completed",
       ...(pendingLines.length ? pendingLines : []),
       "",
       pendingLines.length
         ? "รบกวนผู้ที่ยังไม่ลงนาม เข้าระบบเพื่อเซ็นเอกสารให้เรียบร้อยค่ะ/ครับ"
-        : "เอกสารนี้ลงนามครบแล้วค่ะ/ครับ",
+        : "All Signatures Completed",
     ].join("\n");
 
     try {
@@ -4776,10 +4777,10 @@ export default function SignatureCenterMockup({
     });
 
     if (isHistoricalPaidPeriod(selectedDocument.monthKey)) {
-      line("หมายเหตุ: เดือน Jan-Apr เป็นรอบประวัติของเอกสาร ระบบแสดงสถานะ Completed อัตโนมัติ", 10);
+      line("Historical Period: January–April · Completed", 10);
     }
     if (hasPendingAppeal) {
-      line(`หมายเหตุ: มี ${selectedPendingAppeals.length} เคสอุทธรณ์รอผล QA จึงยังไม่สามารถยืนยันรับทราบหรือเซ็นได้`, 10);
+      line(`Appeal in Progress · ${selectedPendingAppeals.length} case(s) pending. Acknowledgment and signatures are unavailable.`, 10);
     }
 
     y += 3;
@@ -4869,7 +4870,7 @@ export default function SignatureCenterMockup({
         setCoachingStatusVerified(true);
       } catch {
         setCoachingStatusVerified(false);
-        throw new Error("ตรวจผล Coaching / QA Review ล่าสุดไม่สำเร็จ กรุณาอัปเดตข้อมูลก่อนส่งออก Payment");
+        throw new Error("Coaching / QA Review Verification Failed. Refresh before exporting payment.");
       }
     }
     const eligible = selectedMonthAllDocs.filter(doc =>
@@ -4933,8 +4934,8 @@ export default function SignatureCenterMockup({
       <div className="flex min-h-[45vh] items-center justify-center">
         <div className="rounded-[28px] border border-violet-200 bg-white px-8 py-7 text-center shadow-[0_24px_70px_rgba(109,40,217,0.12)]">
           <div className="mx-auto h-11 w-11 animate-spin rounded-full border-4 border-violet-100 border-t-violet-700" />
-          <div className="mt-3 text-lg font-black text-violet-800">กำลังโหลด Signature Center</div>
-          <div className="mt-1 text-sm text-slate-500">ระบบกำลังเตรียมเอกสารที่ต้องรับทราบ</div>
+          <div className="mt-3 text-lg font-black text-violet-800">Loading Signature Center</div>
+          <div className="mt-1 text-sm text-slate-500">Preparing acknowledgment documents</div>
         </div>
       </div>
     );
@@ -5483,7 +5484,7 @@ export default function SignatureCenterMockup({
                     <span>
                       <span className="block text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400">Document Status</span>
                       <span className="mt-0.5 block">
-                        {quickFilter === "all" ? "All Status" : quickFilter === "pending" ? "Pending" : quickFilter === "signed" ? "Signed" : quickFilter === "in-progress" ? "In Progress" : "Overdue"}
+                        {quickFilter === "all" ? "All Statuses" : quickFilter === "pending" ? "Pending" : quickFilter === "signed" ? "Signed" : quickFilter === "in-progress" ? "In Progress" : "Overdue"}
                       </span>
                     </span>
                     <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
@@ -5491,11 +5492,11 @@ export default function SignatureCenterMockup({
                   <div className="absolute right-0 top-[calc(100%+8px)] z-[90] w-[280px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
                     <div className="px-3 pb-2 pt-1">
                       <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">Document Status</div>
-                      <div className="mt-0.5 text-[11px] font-normal text-slate-500">เลือกสถานะโดยรวมของเอกสาร</div>
+                      <div className="mt-0.5 text-[11px] font-normal text-slate-500">Select Document Status</div>
                     </div>
                     {([
-                      ["all", "All Status", "แสดงเอกสารทุกสถานะ"],
-                      ["pending", "Pending", "ยังไม่มีผู้ลงนามหรือกำลังรอเริ่มลงนาม"],
+                      ["all", "All Statuses", "All Document Statuses"],
+                      ["pending", "Pending", "Awaiting Signatures"],
                       ["signed", "Signed", "ลงนามครบทุก Role แล้ว"],
                       ["in-progress", "In Progress", "ลงนามแล้วบาง Role และยังดำเนินการไม่ครบ"],
                       ["expired", "Overdue", "เลยกำหนดลงนามและยังไม่ครบ"],
@@ -5956,12 +5957,12 @@ export default function SignatureCenterMockup({
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
               <option value="all">All Workflow Statuses</option>
-              <option value="preview">รอ Confirm Preview</option>
+              <option value="preview">Awaiting Acknowledgment</option>
               <option value="my-turn">My Signature Pending</option>
               <option value="pending">Pending Signature</option>
               <option value="ready">Ready for Incentive Payment</option>
-              <option value="appeal-pending">มีอุทธรณ์รอผล QA</option>
-              <option value="expired">เกินวันที่ 15 / ไม่ครบ</option>
+              <option value="appeal-pending">Appeal in Progress</option>
+              <option value="expired">Overdue / Incomplete</option>
             </select>
           </div>
 
@@ -5998,7 +5999,7 @@ export default function SignatureCenterMockup({
                         <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black ${
                           isMyPendingTurn ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"
                         }`}>
-                          รอเซ็น {docPendingRoles.length} role
+                          Awaiting Signatures {docPendingRoles.length} role
                         </div>
                       ) : null}
                     </div>
@@ -6012,10 +6013,10 @@ export default function SignatureCenterMockup({
                   {documentView === "history" ? (
                     <div className="mt-3 space-y-1 text-xs font-bold leading-5">
                       <div className="text-emerald-700">
-                        เซ็นแล้ว: {docSignedRoles.length ? docSignedRoles.map(roleThaiLabel).join(", ") : "-"}
+                        Signed: {docSignedRoles.length ? docSignedRoles.map(role => role).join(", ") : "-"}
                       </div>
                       <div className="text-rose-700">
-                        ยังเหลือ: {docPendingRoles.length ? docPendingRoles.map((role) => `${roleThaiLabel(role)} (${getRoleSigner(doc, role)})`).join(", ") : "ครบแล้ว"}
+                        Awaiting Signatures: {docPendingRoles.length ? docPendingRoles.map((role) => `${role} (${getRoleSigner(doc, role)})`).join(", ") : "All Signatures Completed"}
                       </div>
                     </div>
                   ) : null}
@@ -6094,16 +6095,16 @@ export default function SignatureCenterMockup({
 
             {selectedDocument && selectedDocument.monthKey >= COACHING_WORKFLOW_START && (!selectedCoachingVerified || !selectedCoachingStatus?.onTime) ? (
               <p role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                Monthly Payment: {selectedCoachingVerified ? selectedCoachingStatus?.reason : "ยังตรวจผล Coaching / QA Review ล่าสุดไม่สำเร็จ กรุณาอัปเดตข้อมูล"}
+                Monthly Payment: {selectedCoachingVerified ? selectedCoachingStatus?.reason : "ยังCoaching / QA Review Verification Failed กรุณาอัปเดตข้อมูล"}
               </p>
             ) : null}
             {hasPendingAppeal ? (
               <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-rose-800 shadow-[0_18px_40px_rgba(225,29,72,0.08)]">
-                <div className="text-base font-black">{appealStatusVerified ? "รอบอุทธรณ์ยังไม่สิ้นสุด" : "ยังตรวจสอบสถานะอุทธรณ์ไม่สำเร็จ"}</div>
+                <div className="text-base font-black">{appealStatusVerified ? WORKFLOW_STATUS.appealInProgress : WORKFLOW_STATUS.verificationFailed}</div>
                 <div className="mt-1 text-sm font-semibold leading-6">
                   {appealStatusVerified
-                    ? "เอกสารยังดูและดาวน์โหลดได้ แต่ยังยืนยันรับทราบ ลงนาม หรือส่งออกข้อมูลจ่ายไม่ได้ เพราะมีเคสรอผล QA หรืออยู่ในช่วงรอ Admin ยื่นเพิ่มภายใน 3 วัน หากยื่นแล้วต้องรอ QA พิจารณาครบทุกเคส หากไม่ยื่น ระบบปลดล็อกเมื่อหมดเวลา หรือเมื่อยกเลิกรอบเพิ่มเติม"
-                    : "กรุณากดอัปเดตข้อมูล ระบบจะเปิดการยืนยันรับทราบ ลงนาม และส่งออกข้อมูลจ่ายเมื่อยืนยันสถานะอุทธรณ์ได้แล้ว"}
+                    ? "Appeal in Progress. Documents remain available to view and download. Acknowledgment, signatures and payment export resume after all reviews or additional submission windows are complete."
+                    : "Refresh to verify the appeal status. Acknowledgment, signatures and payment export resume after successful verification."}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedPendingAppeals.map((item) => (
@@ -6359,7 +6360,7 @@ export default function SignatureCenterMockup({
                     <div className="mt-1 text-xl font-black text-slate-950">Independent Role Signing After Appeal Closure</div>
                     {!previewConfirmed ? (
                       <div className="mt-1 text-xs font-bold text-amber-600">
-                        Agent ต้องกดยืนยันรับทราบก่อนลงนามของตัวเอง แต่ Role อื่นลงนามได้โดยไม่ต้องรอ Agent
+                        Awaiting Agent Acknowledgment · Other roles may sign independently.
                       </div>
                     ) : null}
                   </div>
@@ -6397,8 +6398,8 @@ export default function SignatureCenterMockup({
                       </div>
                       <div className="mt-1 text-lg font-black text-slate-950">
                         {pendingRoles.length
-                          ? `ยังรอลงนาม ${pendingRoles.length} role`
-                          : "เอกสารลงนามครบแล้ว"}
+                          ? `Awaiting Signatures · ${pendingRoles.length} role(s)`
+                          : "All Signatures Completed"}
                       </div>
                       <div className="mt-1 text-sm font-bold text-slate-600">
                         {pendingRoles.length
@@ -6493,7 +6494,7 @@ export default function SignatureCenterMockup({
                               Signed by {signed.signedBy} • {formatDateTime(signed.signedAt)}
                             </div>
                           ) : isAgentBlockedByConfirm ? (
-                            <div className="mt-1 text-xs font-semibold text-amber-600">Agent ต้องกดยืนยันรับทราบก่อนลงนาม</div>
+                            <div className="mt-1 text-xs font-semibold text-amber-600">Awaiting Agent Acknowledgment</div>
                           ) : status === "Locked" ? (
                             <div className="mt-1 text-xs font-semibold text-slate-400">เปิดเซ็นหลังวันที่ 10 ของเดือนถัดไป</div>
                           ) : activeResetAfterDeadline ? (
@@ -6502,7 +6503,7 @@ export default function SignatureCenterMockup({
                             </div>
                           ) : resetWindowExpired ? (
                             <div className="mt-1 text-xs font-semibold text-rose-600">
-                              รอบรีเซ็ตหมดอายุแล้ว กด Reset ใหม่ได้
+                              Reset Window Expired · Reset is available again.
                             </div>
                           ) : null}
                         </div>
@@ -6519,10 +6520,10 @@ export default function SignatureCenterMockup({
                             }`}
                           >
                             {waived
-                              ? "ยกเว้นลายเซ็นแล้ว"
+                              ? "Signature Waived"
                               : signed
                               ? signed.signatureDataUrl
-                                ? "เอกสารลงนามแล้ว"
+                                ? "Signed"
                                 : canAddFirstDrawnSignature
                                   ? savedSignatureDataUrl
                                     ? "ตรวจสอบลายเซ็นเดิม"
@@ -6537,10 +6538,10 @@ export default function SignatureCenterMockup({
                                     ? "วาดและลงนามล่าช้า"
                                     : "วาดและลงนาม"
                                 : status === "Locked"
-                                  ? "ยังไม่เปิดให้เซ็น"
+                                  ? "Signing Not Open"
                                   : status === "Expired"
-                                    ? "เกินกำหนด"
-                                    : "รอผู้เกี่ยวข้อง"}
+                                    ? "Overdue"
+                                    : "Awaiting Required Signer"}
                           </button>
                           {canResetRoleAfterDeadline ? (
                             <button

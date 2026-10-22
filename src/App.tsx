@@ -26,6 +26,7 @@ import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
 import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
+import { WORKFLOW_STATUS, coachingStatusText } from "./workflowStatusLabels";
 import { fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
@@ -5377,7 +5378,7 @@ export default function App() {
         if (workflowStatus === "Request Additional Appeal" && access) {
           const id = `additional-access-pending-${item.requestId}-${access.requestId}`;
           nextTasks.push({
-            id, type: "appeal-result", badge: "รอ QA อนุมัติ",
+            id, type: "appeal-result", badge: appealWorkflowLabel(workflowStatus),
             title: `รออนุมัติสิทธิ์อุทธรณ์เพิ่มเติม: ${item.caseId}`,
             description: `ส่งคำขอแล้ว · หัวข้อ ${access.topics.join(", ")} · รอ QA ตรวจสอบสิทธิ์`,
             count: 1, unread: !readIds.includes(id), actionLabel: "เปิด Case Detail",
@@ -5386,7 +5387,7 @@ export default function App() {
         } else if (workflowStatus === "Additional Request Rejected" && access) {
           const id = `additional-access-rejected-${item.requestId}-${access.requestId}`;
           nextTasks.push({
-            id, type: "appeal-result", badge: "ไม่อนุมัติสิทธิ์",
+            id, type: "appeal-result", badge: appealWorkflowLabel(workflowStatus),
             title: `คำขออุทธรณ์เพิ่มเติมไม่ผ่าน: ${item.caseId}`,
             description: `QA ไม่อนุมัติสิทธิ์ · ${access.decisionReason || "เปิดเคสเพื่อดูรายละเอียด"}`,
             count: 1, unread: !readIds.includes(id), actionLabel: "ดูผลใน Case Detail",
@@ -5398,7 +5399,7 @@ export default function App() {
           const id = `additional-access-${stillActive ? "approved" : "expired"}-${item.requestId}-${round.roundId}`;
           nextTasks.push({
             id, type: "appeal-result",
-            badge: stillActive ? "อนุมัติสิทธิ์แล้ว" : "สิทธิ์หมดอายุ",
+            badge: stillActive ? WORKFLOW_STATUS.awaitingAdditional : WORKFLOW_STATUS.additionalExpired,
             title: `${stillActive ? "ยื่นอุทธรณ์เพิ่มเติมได้แล้ว" : "สิทธิ์ยื่นเพิ่มเติมหมดอายุ"}: ${item.caseId}`,
             description: stillActive
               ? `QA อนุมัติแล้ว · หัวข้อ ${round.topics.map(topic => topic.code).join(", ")} · ยื่นก่อน ${formatInboxDateTime(round.expiresAt)}`
@@ -5408,7 +5409,7 @@ export default function App() {
             caseId: item.caseId, agentName: item.agent,
             mailTemplate: {
               subject: `${stillActive ? "QA อนุมัติสิทธิ์ยื่นเพิ่มเติมแล้ว" : "สิทธิ์ยื่นอุทธรณ์เพิ่มเติมหมดอายุ"} — ${item.caseId}`,
-              to: item.agent, from: "QA Dashboard", status: stillActive ? "Approved (Access)" : "Expired (Access)",
+              to: item.agent, from: "QA Dashboard", status: stillActive ? WORKFLOW_STATUS.awaitingAdditional : WORKFLOW_STATUS.additionalExpired,
               body: [
                 `Case ID: ${item.caseId}`,
                 `หัวข้อที่เปิดสิทธิ์: ${round.topics.map(topic => topic.code).join(", ")}`,
@@ -5456,7 +5457,7 @@ export default function App() {
             description: record.status === "QA Reviewed"
               ? `QA ส่ง Coaching กลับมาให้แก้ไข • ${dateText} • ${timeText}`
               : `คุณถูกเลือกเป็นผู้ Coaching • ${dateText} • ${timeText} • ${meeting?.method || "-"}`,
-            badge: "Coaching",
+            badge: coachingStatusText(record.status),
             count: 1,
             unread: !readIds.includes(id),
             actionLabel: "Open Coaching",
@@ -5485,7 +5486,7 @@ export default function App() {
                 subject: `Appeal request waiting: ${item.caseId}`,
                 to: currentUser.displayName || currentUser.username,
                 from: "QA Dashboard System",
-                status: "Pending Review",
+                status: appealWorkflowLabel(appealWorkflowStatus(item)),
                 body: [
                   `Case ID: ${item.caseId}`,
                   `Agent: ${item.agent || "-"}`,
@@ -5547,11 +5548,11 @@ export default function App() {
           nextTasks.push({
             id, type: "appeal-result", title: `Appeal result: ${item.caseId}`,
             description: `ผลพิจารณา: ${item.status} • ` + item.topics.map(topic => `หัวข้อ ${topic.code}: ${topic.decision}`).join(" • "),
-            badge: item.status, count: 1, unread: !readIds.includes(id), actionLabel: "Open Case Detail",
+            badge: appealWorkflowLabel(item.status), count: 1, unread: !readIds.includes(id), actionLabel: "Open Case Detail",
             caseId: item.caseId, agentName: item.agent,
             mailTemplate: {
               subject: `ผลอุทธรณ์เคส ${item.caseId}`, to: item.submittedBy || item.agent,
-              from: "QA Dashboard System", status: item.status,
+              from: "QA Dashboard System", status: appealWorkflowLabel(item.status),
               body: [`Case ID: ${item.caseId}`, `Agent: ${item.agent || "-"}`, `ผลพิจารณา: ${item.status}`,
                 ...item.topics.map(topic => `หัวข้อ ${topic.code}: ${topic.decision} • ${topic.decision === "Rejected" ? topic.rejectReason || "" : topic.revisedComment || ""}`),
                 `Review Summary: ${item.reviewSummary || "-"}`],

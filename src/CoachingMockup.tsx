@@ -1,3 +1,4 @@
+import { coachingStatusText } from "./workflowStatusLabels";
 import { officialPdfPrintStyles } from "./officialPdf";
 import { PDF_LOGO } from "./pdfLogo";
 import React, {
@@ -1514,7 +1515,7 @@ th { background:#f5f3ff; color:#4c1d95; }
               >
                 {STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {status === 'All' ? 'All Statuses' : coachingStatusText(status)}
                   </option>
                 ))}
               </select>
@@ -2241,9 +2242,9 @@ th { background:#f5f3ff; color:#4c1d95; }
                                   )
                                 )}`}
                               >
-                                {recordDisplayStatus(
+                                {coachingStatusText(recordDisplayStatus(
                                   record
-                                )}
+                                ))}
                               </span>
                             </td>
                             <td className="whitespace-nowrap px-4 py-4">

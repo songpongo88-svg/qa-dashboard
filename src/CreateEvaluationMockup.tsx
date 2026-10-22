@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ClipboardE
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
+import { evaluationStatusLabel, WORKFLOW_STATUS, workflowStatusTone } from "./workflowStatusLabels";
 import TestCaseBadge, { TestCaseNotice } from "./TestCaseBadge";
 import { useMonthlyResultLock } from "./useMonthlyResultLock";
 import { monthlyResultScope, MonthlyResultLockCheckError, prepareMonthlyResultReferences } from "./monthlyResultLockStore";
@@ -1197,24 +1198,24 @@ export default function CreateEvaluationMockup({
     if (!agentName.trim()) return null;
     if (agentQuotaLoading) {
       return {
-        text: "สถานะการประเมิน: กำลังตรวจจำนวนเคสของ Agent นี้",
+        text: "Checking Evaluation Count",
         className: "border-slate-200 bg-slate-50 text-slate-600",
       };
     }
     if (selectedAgentCaseCount <= 0) {
       return {
-        text: "สถานะการประเมิน: ยังไม่พบเคสประเมินของ Agent นี้ในเดือนที่เลือก",
+        text: "Not Started · No evaluations in the selected month",
         className: "border-slate-200 bg-slate-50 text-slate-600",
       };
     }
     if (selectedAgentCaseCount < 10) {
       return {
-        text: `สถานะการประเมิน: ประเมินแล้ว ${selectedAgentCaseCount}/10 เคส ขาดอีก ${10 - selectedAgentCaseCount} เคส`,
+        text: `In Progress · ${selectedAgentCaseCount}/10 cases evaluated · ${10 - selectedAgentCaseCount} remaining`,
         className: "border-amber-200 bg-amber-50 text-amber-800",
       };
     }
     return {
-      text: `สถานะการประเมิน: ครบเป้าแล้ว ${selectedAgentCaseCount}/10 เคส`,
+      text: `Target Completed · ${selectedAgentCaseCount}/10 cases evaluated`,
       className: "border-emerald-200 bg-emerald-50 text-emerald-800",
     };
   }, [agentName, agentQuotaLoading, selectedAgentCaseCount]);
@@ -2961,8 +2962,8 @@ export default function CreateEvaluationMockup({
                   </div>
                   <div className="mt-1 text-sm font-semibold text-slate-500">Evaluator: <span className="font-black text-slate-800">{evaluatorName}</span></div>
                 </div>
-                <div className="inline-flex w-fit rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-black text-emerald-800 shadow-sm">
-                  {evaluationStatus}
+                <div data-workflow-status="true" className={`inline-flex max-w-full rounded-xl border px-3 py-1 text-xs font-black leading-relaxed shadow-sm ${workflowStatusTone(evaluationStatusLabel(evaluationStatus, Boolean(activeSubmittedRecordId), Boolean(selectedAgentOption) && !draftSavedAt))}`}>
+                  {evaluationStatusLabel(evaluationStatus, Boolean(activeSubmittedRecordId), Boolean(selectedAgentOption) && !draftSavedAt)}
                 </div>
               </div>
 
@@ -3045,7 +3046,7 @@ export default function CreateEvaluationMockup({
             </div>
             <div className="p-5">
               {draftQueueLoading ? (
-                <div className="rounded-[20px] border border-sky-200 bg-sky-50 px-5 py-8 text-center text-sm font-semibold text-slate-700">กำลังโหลด Draft ที่บันทึกไว้...</div>
+                <div className="rounded-[20px] border border-sky-200 bg-sky-50 px-5 py-8 text-center text-sm font-semibold text-slate-700">Loading Saved Drafts...</div>
               ) : draftInbox.length ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {draftInbox.map((draft) => {
@@ -3591,7 +3592,7 @@ export default function CreateEvaluationMockup({
                                   </div>
                                 </div>
                               ) : null}
-                              {file.uploadStatus === "pending" ? <div className="text-[11px] font-black text-amber-600">กำลังอัปโหลด PDF เข้า Google Drive...</div> : null}
+                              {file.uploadStatus === "pending" ? <div className="text-[11px] font-black text-amber-600">Uploading PDF to Google Drive...</div> : null}
                               {file.uploadStatus === "uploaded" ? (
                                 <a href={file.storedUrl} target="_blank" rel="noreferrer" className="block truncate text-[11px] font-black text-emerald-700 underline">
                                   เปิดลิงก์ Google Drive
@@ -3840,7 +3841,7 @@ export default function CreateEvaluationMockup({
                                   </div>
                                   {call.playbackRepairing ? (
                                     <div className="mt-2 text-[11px] font-black text-amber-700">
-                                      กำลังแปลงไฟล์เสียงเดิมให้เล่นบน Browser ได้...
+                                      Preparing Audio Playback...
                                     </div>
                                   ) : null}
                                   {call.playbackError ? (
@@ -4177,7 +4178,7 @@ export default function CreateEvaluationMockup({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Status</div>
-                    <div className="mt-1 text-sm font-black text-slate-950">{evaluationStatus}</div>
+                    <div className="mt-1 text-sm font-black text-slate-950">{evaluationStatusLabel(evaluationStatus, Boolean(activeSubmittedRecordId), Boolean(selectedAgentOption) && !draftSavedAt)}</div>
                   </div>
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                     <div className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">QA Scheme</div>

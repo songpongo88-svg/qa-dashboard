@@ -1,3 +1,4 @@
+import { workflowStatusTextTone } from "./workflowStatusLabels";
 import { formatPdfDateTime } from "./lib/pdfDates";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -2205,7 +2206,7 @@ function AnalyticsAgentPerformanceV92({
                       {row.appealScoreHold
                         ? row.appealScoreHold.label
                         : row.kpiPending
-                        ? `รอครบ 10 เคส (${row.caseCount}/10)`
+                        ? `Evaluation Incomplete · ${row.caseCount}/10 cases`
                         : row.hasNoCaseMonthlyResult
                         ? "● Not Passed"
                         : !row.caseCount
@@ -2557,7 +2558,7 @@ function AnalyticsOverviewV89({
             ? "Passed"
             : "Not Passed",
       note: kpiPending
-        ? "รอประเมินครบ 10 เคสต่อคน · ยังไม่สรุป KPI"
+        ? "Evaluation Incomplete · Awaiting 10 cases per Agent"
         : hasNoCaseMonthlyResult
         ? `Average 0.00% · KPI Target ${PERFORMANCE_KPI_TARGET}%`
         : !hasKpiData
@@ -2642,7 +2643,7 @@ function AnalyticsOverviewV89({
   ];
 
   const displayedMetricItems = metricItems.map(item => appealScoreHold && item.title !== "Cases Evaluated"
-    ? { ...item, value: appealScoreHold.label, note: appealScoreHold.message, valueTone: "text-amber-700" }
+    ? { ...item, value: appealScoreHold.label, note: appealScoreHold.message, valueTone: workflowStatusTextTone(appealScoreHold.label) }
     : item);
 
   return (
@@ -9419,7 +9420,7 @@ export default function SummaryMockup({
                             <div className="truncate font-normal text-slate-700">{buildSuspendedAgentLabel(agent.agent, accountProfiles)}</div>
                             <div className="text-center text-slate-500">{agent.caseCount}</div>
                             <div className="text-center font-medium text-violet-700" title={agent.appealScoreHold?.message}>{agent.appealScoreHold ? "—" : agent.avgScore.toFixed(2)}</div>
-                            <div title={agent.appealScoreHold?.message || (!agent.completed ? `รอครบ 10 เคส (${agent.caseCount}/10)` : undefined)} className={"text-center font-medium " + (agent.appealScoreHold ? "text-amber-700" : !agent.completed ? "text-slate-500" : agent.kpiPassed ? "text-emerald-700" : "text-rose-600")}>{agent.appealScoreHold ? agent.appealScoreHold.label : !agent.completed ? "—" : agent.kpiPassed ? "Passed" : "Not Passed"}</div>
+                            <div title={agent.appealScoreHold?.message || (!agent.completed ? `Evaluation Incomplete · ${agent.caseCount}/10 cases` : undefined)} className={"text-center font-medium " + (agent.appealScoreHold ? "text-amber-700" : !agent.completed ? "text-slate-500" : agent.kpiPassed ? "text-emerald-700" : "text-rose-600")}>{agent.appealScoreHold ? agent.appealScoreHold.label : !agent.completed ? "—" : agent.kpiPassed ? "Passed" : "Not Passed"}</div>
                             <div className="text-right font-medium text-violet-700">{agent.appealScoreHold ? "—" : agent.completed ? "฿" + agent.incentiveCash.toLocaleString("en-US") : "Pending " + agent.caseCount + "/" + CASE_TARGET}</div>
                           </button>
                         ))}
@@ -9495,7 +9496,7 @@ export default function SummaryMockup({
                   </div>
                 ) : (
                   <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-sm font-medium text-amber-800">
-                    ยังไม่ได้กำหนดทีมสำหรับบัญชีนี้
+                    Team Not Assigned
                   </div>
                 )
               ) : (

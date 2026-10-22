@@ -84,11 +84,11 @@ try {
 
   await render({});
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='held','pending A row');
-  assert.ok(row('Fixture Agent A').textContent.includes('รอ QA พิจารณา'));
+  assert.ok(row('Fixture Agent A').textContent.includes('Awaiting QA Review'));
   assert.ok(!row('Fixture Agent A').textContent.includes('90.00'));
   assert.ok(row('Fixture Agent B').textContent.includes('96.00'));
-  assert.ok(metric('Quality Score (Avg.)').textContent.includes('รอ QA พิจารณา'));
-  assert.ok(metric('Quality Score (Avg.)').textContent.includes('3 เคส'));
+  assert.ok(metric('Quality Score (Avg.)').textContent.includes('Awaiting QA Review'));
+  assert.ok(metric('Quality Score (Avg.)').textContent.includes('3 cases'));
   assert.equal(metric('Cases Evaluated').dataset.appealScoreState,'ready');
   assert.equal(metric('Overall Grade').dataset.appealScoreState,'held');
   assert.equal(document.querySelector('[data-analytics-overview-v89]').dataset.appealScoreState,'held');
@@ -99,7 +99,7 @@ try {
   await render({agent:'Fixture Agent A',week:narrowWeek});
   await waitFor(()=>document.querySelector('[data-analytics-agent-incentive-v92]')?.textContent.includes('Agent Performance — Fixture Agent A'),'selected A');
   await waitFor(()=>metric('Cases Evaluated')?.textContent.includes('9/10'),'week excludes another pending case');
-  assert.ok(metric('Quality Score (Avg.)').textContent.includes('3 เคส'),'pending appeal outside the visible week still holds the score');
+  assert.ok(metric('Quality Score (Avg.)').textContent.includes('3 cases'),'pending appeal outside the visible week still holds the score');
   const search=document.querySelector('[data-search-evaluation-primary-v166] input');
   await act(async()=>{search.value='AA991000';Simulate.change(search);});
   assert.equal(metric('Quality Score (Avg.)').dataset.appealScoreState,'held','searching a non-appealed case cannot unhide summary score');
@@ -115,10 +115,10 @@ try {
   const incomplete=review(submissions[0]);delete incomplete.details.topics[1].decision;
   fixture.events=[incomplete,...submissions];await render({agent:'Fixture Agent A',refresh:2});
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='held','incomplete topic remains pending');
-  assert.ok(metric('Quality Score (Avg.)').textContent.includes('3 เคส'));
+  assert.ok(metric('Quality Score (Avg.)').textContent.includes('3 cases'));
   fixture.events=[review(submissions[0],'Partially Approved',2),review(submissions[1],'Rejected'),...submissions];
   await render({agent:'Fixture Agent A',refresh:3});
-  await waitFor(()=>metric('Quality Score (Avg.)')?.textContent.includes('1 เคส'),'one appeal still pending');
+  await waitFor(()=>metric('Quality Score (Avg.)')?.textContent.includes('1 case'),'one appeal still pending');
   assert.equal(row('Fixture Agent A').dataset.agentScoreState,'held');
   fixture.events=[review(submissions[2]),...fixture.events];await render({agent:'Fixture Agent A',refresh:4});
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='ready'&&row('Fixture Agent A').textContent.includes('90.80'),'final review unlocks latest score');
@@ -136,7 +136,7 @@ try {
   fixture.events=[resubmit,...fixture.events];await render({agent:'Fixture Agent A',refresh:6});
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='held','resubmit hides score again');
   fixture.fail=true;await render({agent:'Fixture Agent A',refresh:7});
-  await waitFor(()=>metric('Quality Score (Avg.)')?.textContent.includes('ตรวจสอบผลอุทธรณ์ไม่สำเร็จ'),'offline status does not expose score');
+  await waitFor(()=>metric('Quality Score (Avg.)')?.textContent.includes('Score Verification Failed'),'offline status does not expose score');
   assert.ok(!row('Fixture Agent A').textContent.includes('90.40'));
   const resubmittedReview=review(resubmit);resubmittedReview.created_at='2026-10-07T05:00:00Z';
   fixture.fail=false;fixture.events=[resubmittedReview,...fixture.events];await render({agent:'Fixture Agent A',refresh:8});
@@ -152,7 +152,7 @@ try {
   assert.equal(metric('Quality Score (Avg.)').dataset.appealScoreState,'ready');
   await render({agent:'Fixture Agent A',month:'2026-09',refresh:9});
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='held','September still holds its own pending appeal');
-  assert.ok(metric('Quality Score (Avg.)').textContent.includes('1 เคส'));
+  assert.ok(metric('Quality Score (Avg.)').textContent.includes('1 case'));
   const twoMonths=withAppealScoreState([{agent:'Fixture Agent A',caseId:'AA993001',monthKey:'2026-09'},{agent:'Fixture Agent A',caseId:'AA991001',monthKey:'2026-10'}],buildAppealRequests([septemberAppeal,submit(1)]));
   assert.equal(getAppealScoreHold(twoMonths).pendingCount,2,'multi-month overview counts each month once');
   assert.equal(getAppealScoreHold(twoMonths.filter(item=>item.monthKey==='2026-10')).pendingCount,1);
@@ -171,10 +171,10 @@ try {
   const evidence=extra('appeal_additional_evidence_submitted',-1,{roundId:'round-1',submittedAt:at(-1),topics:topics.slice(0,1)});
   const baseLogs=[base,decided];
   for(const [events,label,refresh] of [
-    [[...baseLogs,access],'รอ QA อนุมัติยื่นเพิ่ม',10],
-    [[...baseLogs,access,approved],'อนุมัติแล้ว · รอเปิดสิทธิ์',11],
-    [[...baseLogs,access,approved,opened],'อนุมัติแล้ว · รอ Admin ยื่นเพิ่ม',12],
-    [[...baseLogs,access,approved,opened,evidence],'ยื่นเพิ่มแล้ว · รอ QA พิจารณา',13],
+    [[...baseLogs,access],'Awaiting QA Approval',10],
+    [[...baseLogs,access,approved],'Access Activation Pending',11],
+    [[...baseLogs,access,approved,opened],'Awaiting Additional Submission',12],
+    [[...baseLogs,access,approved,opened,evidence],'Additional Appeal Under Review',13],
   ]) {
     fixture.events=events;await render({agent:'Fixture Agent A',refresh});
     await waitFor(()=>row('Fixture Agent A')?.textContent.includes(label),label);
@@ -188,21 +188,21 @@ try {
   const schedule=window.setTimeout.bind(window);let expires;
   window.setTimeout=(callback,delay,...args)=>delay>60_000?(expires=callback,0):schedule(callback,delay,...args);
   fixture.events=[...baseLogs,access,approved,opened];await render({agent:'Fixture Agent A',refresh:15});
-  await waitFor(()=>row('Fixture Agent A')?.textContent.includes('รอ Admin ยื่นเพิ่ม'),'unsubmitted additional window');
+  await waitFor(()=>row('Fixture Agent A')?.textContent.includes('Awaiting Additional Submission'),'unsubmitted additional window');
   assert.ok(expires,'Dashboard schedules the additional appeal cutoff');
   clock+=71*3600000;
   await act(async()=>expires());
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='ready','expiry without submission refreshes the score automatically');
   window.setTimeout=schedule;
   fixture.events=[...baseLogs,access,approved,opened,evidence];await render({agent:'Fixture Agent A',refresh:16});
-  await waitFor(()=>row('Fixture Agent A')?.textContent.includes('ยื่นเพิ่มแล้ว · รอ QA พิจารณา'),'submitted additional appeal still holds after expiry');
+  await waitFor(()=>row('Fixture Agent A')?.textContent.includes('Additional Appeal Under Review'),'submitted additional appeal still holds after expiry');
   const cancelled=extra('appeal_additional_round_cancelled',0,{roundId:'round-1'});
   fixture.events=[...fixture.events,cancelled];await render({agent:'Fixture Agent A',refresh:17});
   await waitFor(()=>row('Fixture Agent A')?.dataset.agentScoreState==='ready','cancellation restores summary');
   clock=originalClock;
   const mixed=withAppealScoreState(directCases,buildAppealRequests([...baseLogs,access,approved,opened,submissions[1]]));
-  assert.equal(getAppealScoreHold(mixed).label,'รอบอุทธรณ์ยังไม่สิ้นสุด','mixed stages never pretend they are all QA reviews');
-  assert.ok(getAppealScoreHold(mixed).message.includes('รอ Admin ยื่นเพิ่ม'));
+  assert.equal(getAppealScoreHold(mixed).label,'Appeal in Progress','mixed stages never pretend they are all QA reviews');
+  assert.ok(getAppealScoreHold(mixed).message.includes('Awaiting Additional Submission'));
   console.log('PASS actual Dashboard and Agent Performance show permission, approved-open, awaiting submission and QA-review states; QA result, cancellation and automatic 72-hour expiry release scores; timely submissions stay held after expiry');
 
 } finally {

@@ -1,3 +1,4 @@
+import { appealStatusLabel, workflowStatusTone } from "./workflowStatusLabels";
 import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
 
 export type AppealWorkflowRequest = {
@@ -52,32 +53,9 @@ export function isAppealQaTask(request: AppealWorkflowRequest): boolean {
     .includes(appealWorkflowStatus(request));
 }
 
-export function appealWorkflowLabel(status: string): string {
-  const labels: Record<string, string> = {
-    All: "ทุกสถานะ", Pending: "รอ QA พิจารณา", Draft: "ดึงกลับแก้ไข",
-    "Request Additional Appeal": "รอ QA อนุมัติยื่นเพิ่ม",
-    "Awaiting Additional Submission": "อนุมัติแล้ว · รอ Admin ยื่นเพิ่ม",
-    "Pending (Additional)": "ยื่นเพิ่มแล้ว · รอ QA พิจารณา",
-    "Approved (Access)": "อนุมัติแล้ว · รอเปิดสิทธิ์",
-    "Additional Request Rejected": "ไม่อนุญาตให้ยื่นเพิ่ม",
-    Approved: "อนุมัติผลอุทธรณ์", Rejected: "ไม่อนุมัติผลอุทธรณ์",
-    "Partially Approved": "อนุมัติผลบางหัวข้อ",
-    "Cancelled (Additional)": "ยกเลิกรอบเพิ่มเติม",
-    "Expired (Additional)": "หมดเวลายื่นเพิ่มเติม", Reset: "รีเซ็ตอุทธรณ์",
-  };
-  return labels[status] || status;
-}
+export function appealWorkflowLabel(status: string): string { return appealStatusLabel(status); }
 
-export function appealWorkflowTone(status: string): string {
-  if (["Pending", "Pending (Additional)", "Request Additional Appeal"].includes(status))
-    return "border-amber-200 bg-amber-50 text-amber-800";
-  if (["Awaiting Additional Submission", "Approved (Access)"].includes(status))
-    return "border-violet-200 bg-violet-50 text-violet-800";
-  if (status === "Approved") return "border-emerald-200 bg-emerald-50 text-emerald-800";
-  if (["Rejected", "Additional Request Rejected"].includes(status))
-    return "border-rose-200 bg-rose-50 text-rose-800";
-  return "border-slate-200 bg-slate-50 text-slate-700";
-}
+export function appealWorkflowTone(status: string): string { return workflowStatusTone(appealStatusLabel(status)); }
 
 export function appealWorkflowActivityAt(request: AppealWorkflowRequest): string {
   const round = request.additionalRound || request.additionalHistory?.[0];

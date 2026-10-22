@@ -1,3 +1,4 @@
+import { WORKFLOW_STATUS, workflowStatusTone, workflowStatusTextTone } from "./workflowStatusLabels";
 import { getAppealTopicDecision, appealTopicIssueTags, appealIssueTagsChanged, type AppealIssueTagFields, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 import { AppealEvidencePicker, AppealEvidenceGallery, EvidenceWatermarkOverlay, type AppealEvidenceImage } from "./AppealEvidence";
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
@@ -1355,7 +1356,7 @@ function formatAppealCountdownV32(deadline: Date | null, nowMs: number) {
 
   const remainingMs = deadline.getTime() - nowMs;
   if (remainingMs <= 0) {
-    return { text: "หมดเวลาอุทธรณ์", level: "expired" as const, expired: true };
+    return { text: WORKFLOW_STATUS.appealExpired, level: "expired" as const, expired: true };
   }
 
   const totalSeconds = Math.floor(remainingMs / 1000);
@@ -1391,26 +1392,26 @@ function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {
   }, [caseItem.caseId, deadline?.getTime(), additional?.expiresAt, additional?.submitted]);
 
   if (additional) {
-    if (additional.submitted) return <div className="mt-1 text-[11px] font-extrabold text-sky-700">Additional Appeal · รอ QA พิจารณา</div>;
+    if (additional.submitted) return <div className="mt-1 text-[11px] font-extrabold text-sky-700">Additional Appeal · Awaiting QA Review</div>;
     const remaining = additionalExpiryMs - nowMs;
-    if (!Number.isFinite(remaining) || remaining <= 0) return <div className="mt-1 text-[11px] font-extrabold text-slate-500">Additional Appeal · หมดเวลายื่นเพิ่มเติม</div>;
+    if (!Number.isFinite(remaining) || remaining <= 0) return <div className="mt-1 text-[11px] font-extrabold text-slate-500">Additional Appeal Expired</div>;
     const secondsLeft = Math.floor(remaining / 1000);
     const daysLeft = Math.floor(secondsLeft / 86400);
     const hms = [Math.floor((secondsLeft % 86400) / 3600), Math.floor((secondsLeft % 3600) / 60), secondsLeft % 60].map(n => String(n).padStart(2, "0")).join(":");
-    return <div className={`mt-1 text-[11px] font-extrabold tabular-nums ${remaining <= 86400000 ? "text-rose-600" : "text-amber-600"}`}>Additional Appeal · เหลือ {daysLeft} วัน {hms}</div>;
+    return <div className={`mt-1 text-[11px] font-extrabold tabular-nums ${remaining <= 86400000 ? "text-rose-600" : "text-amber-600"}`}>Additional Appeal · {daysLeft}d {hms} remaining</div>;
   }
 
   if (caseItem.hasAppealHistory || caseItem.appealStatus) {
-    return <div className="mt-1 text-[11px] font-extrabold text-sky-600">Appeal · ใช้งานแล้ว</div>;
+    return <div className="mt-1 text-[11px] font-extrabold text-sky-600">Appeal Submitted</div>;
   }
 
   if (!deadline) {
-    return <div className="mt-1 text-[11px] font-bold text-slate-400">Appeal · ไม่พบกำหนดเวลา</div>;
+    return <div className="mt-1 text-[11px] font-bold text-slate-400">Appeal Deadline Unavailable</div>;
   }
 
   const remainingMs = deadline.getTime() - nowMs;
   if (remainingMs <= 0) {
-    return <div className="mt-1 text-[11px] font-extrabold text-slate-500">Appeal · หมดเวลาอุทธรณ์</div>;
+    return <div className="mt-1 text-[11px] font-extrabold text-slate-500">Appeal Expired</div>;
   }
 
   const totalSeconds = Math.floor(remainingMs / 1000);
@@ -1419,7 +1420,7 @@ function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   const clock = [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
-  const text = days > 0 ? `เหลือ ${days} วัน ${clock}` : `เหลือ ${clock}`;
+  const text = days > 0 ? `${days}d ${clock} remaining` : `${clock} remaining`;
   const tone = remainingMs <= 24 * 60 * 60 * 1000
     ? "text-rose-600"
     : remainingMs <= 3 * 24 * 60 * 60 * 1000
@@ -3855,13 +3856,9 @@ function CaseHeaderAction({ label, tooltip, icon, tone = "slate", href, onClick,
 
 // The case header keeps a compact status; review text belongs to its Topic/Action.
 function CaseAppealStatusBadge({ status, additional }: { status?: AppealDecision; additional?: { submitted: boolean } | null }) {
-  const label = additional ? `Additional Appeal · ${additional.submitted ? "Pending" : "Open"}`
-    : status ? `Appeal ${status}` : "Appeal Submitted";
-  const tone = additional || !status ? "border-amber-200 bg-amber-50 text-amber-800"
-    : status === "Rejected" ? "border-rose-200 bg-rose-50 text-rose-700"
-    : status === "Approved" ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-    : "border-violet-200 bg-violet-50 text-violet-700";
-  return <span data-case-appeal-status={additional ? "additional" : status || "Pending"} className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${tone}`}>{label}</span>;
+  const label = additional ? (additional.submitted ? WORKFLOW_STATUS.additionalReview : WORKFLOW_STATUS.awaitingAdditional)
+    : appealWorkflowLabel(status || "Pending");
+  return <span data-case-appeal-status={additional ? "additional" : status || "Pending"} className={`max-w-full rounded-xl border px-2.5 py-1 text-[10px] font-semibold leading-relaxed ${workflowStatusTone(label)}`}>{label}</span>;
 }
 
 function SlideOverCaseDetail({
@@ -4001,17 +3998,17 @@ function SlideOverCaseDetail({
     (!appealRequestExists && (isOwnAppealCase || isAppealObserverRoleV32));
   const appealActionDisabledV32 = !(canSubmitAppeal || canSubmitAdditionalEvidence || canEditExistingAppeal || (canRequestAdditionalAppeal && !isAdditionalAccessPending));
   const appealActionLabelV32 =
-    canEditExistingAppeal ? "แก้ไขเหตุผลอุทธรณ์" :
-    canSubmitAdditionalEvidence ? "ยื่นอุทธรณ์เพิ่มเติม" :
-    isAdditionalAccessApprovedV32 ? "อนุมัติแล้ว · รอเปิดสิทธิ์" :
-    isAdditionalAccessPending ? "รอ QA อนุมัติสิทธิ์" :
-    canRequestAdditionalAppeal ? "ขอยื่นอุทธรณ์เพิ่มเติม" :
-    appealAdditionalRound?.submitted ? "ยื่นเพิ่มแล้ว · รอ QA พิจารณา" :
-    appealAdditionalRound ? (additionalIsExpired && !appealAdditionalRound.submitted ? "หมดเวลายื่นอุทธรณ์เพิ่มเติม" : "ยื่นอุทธรณ์เพิ่มเติม") :
+    canEditExistingAppeal ? "Edit Appeal" :
+    canSubmitAdditionalEvidence ? "Submit Additional Appeal" :
+    isAdditionalAccessApprovedV32 ? WORKFLOW_STATUS.activationPending :
+    isAdditionalAccessPending ? WORKFLOW_STATUS.awaitingApproval :
+    canRequestAdditionalAppeal ? "Request Additional Appeal" :
+    appealAdditionalRound?.submitted ? WORKFLOW_STATUS.additionalReview :
+    appealAdditionalRound ? (additionalIsExpired && !appealAdditionalRound.submitted ? WORKFLOW_STATUS.additionalExpired : "Submit Additional Appeal") :
     appealOverrideAllowed && !isAppealWindowOpenLive
       ? "Appeal Override"
       : appealCountdownV32.expired
-        ? "หมดเวลาอุทธรณ์"
+        ? WORKFLOW_STATUS.appealExpired
         : "Appeal";
   const additionalCountdownV32 = formatAppealCountdownV32(Number.isFinite(additionalExpiryTime) ? new Date(additionalExpiryTime) : null, appealClockNowV32);
   const appealActionCountdownV32 = canEditExistingAppeal || canRequestAdditionalAppeal || isAdditionalAccessPending || appealAdditionalRound?.submitted
@@ -4026,17 +4023,17 @@ function SlideOverCaseDetail({
   const appealActionTooltipV32 = monthlyResult.message
     ? monthlyResult.message
     : canEditExistingAppeal ? "แก้ไขเหตุผลหรือหลักฐานในรอบเดิม แล้วตรวจสอบก่อนยืนยันส่งใหม่"
-    : isAdditionalAccessApprovedV32 ? "QA อนุมัติแล้ว อยู่ระหว่างรอเปิดสิทธิ์ กำหนด 72 ชั่วโมงอ้างอิงเวลาอนุมัติเดิม"
-    : isAdditionalAccessPending ? "ส่งคำขอแล้ว อยู่ระหว่าง QA ตรวจสอบ ยังไม่เริ่มนับเวลา 3 วัน"
-    : canRequestAdditionalAppeal ? "เลือกหัวข้อและระบุเหตุผลเพื่อขอสิทธิ์ QA ต้องอนุมัติก่อน จึงยื่นเหตุผลและหลักฐานเพิ่มเติมได้"
-    : appealAdditionalRound?.submitted ? "ได้รับเหตุผลและหลักฐานเพิ่มเติมแล้ว อยู่ระหว่าง QA พิจารณาผลของรอบนี้"
+    : isAdditionalAccessApprovedV32 ? "Access Activation Pending. The 72-hour window starts at the original QA approval time."
+    : isAdditionalAccessPending ? "Awaiting QA Approval. The 3-day submission window has not started."
+    : canRequestAdditionalAppeal ? "Select topics and give a reason to request additional appeal access. QA approval is required before submitting additional evidence."
+    : appealAdditionalRound?.submitted ? "Additional Appeal Under Review. Additional reasons and evidence have been received."
     : appealAdditionalRound ? (additionalIsExpired && !appealAdditionalRound.submitted
-      ? "ครบกำหนด 72 ชั่วโมงหลัง QA อนุมัติแล้ว ไม่สามารถส่งเพิ่มเติมในรอบนี้ได้"
-      : "ส่งเหตุผลและรูปภาพเฉพาะหัวข้อที่ QA เปิดให้ยื่นเพิ่ม ภายใน 72 ชั่วโมงหลังอนุมัติ")
+      ? "Additional Appeal Expired. The 72-hour submission window has closed."
+      : "Submit reasons and images for the approved topics within 72 hours of QA approval.")
     : isAppealObserverRoleV32
     ? "บัญชี QA ดูข้อมูลได้ แต่ไม่สามารถยื่นอุทธรณ์แทนเจ้าของเคสได้"
     : appealCountdownV32.expired && !appealOverrideAllowed
-      ? "หมดเวลาอุทธรณ์แล้ว"
+      ? "Appeal Expired"
       : appealOverrideAllowed && !isAppealWindowOpenLive
         ? "เคสนี้ได้รับสิทธิ์ Late Appeal Override"
         : "ยื่นอุทธรณ์ผลประเมินของเคสนี้ภายในกำหนดเวลาที่แสดง";
@@ -4650,7 +4647,7 @@ function SlideOverCaseDetail({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className={`font-extrabold ${additionalIsExpired ? "text-rose-800" : "text-emerald-800"}`}>
-                {additionalIsExpired ? "สิทธิ์อุทธรณ์เพิ่มเติมหมดอายุแล้ว" : "QA อนุมัติสิทธิ์อุทธรณ์เพิ่มเติมแล้ว"}
+                {additionalIsExpired ? "Additional Appeal Expired" : "Additional Appeal Access Approved"}
               </div>
               <p className="mt-1 text-sm text-slate-700">
                 หัวข้อ: {appealAdditionalRound.topics.map(topic => topic.code).join(", ")}
@@ -5000,9 +4997,9 @@ function SlideOverCaseDetail({
                   <div className="text-[24px] font-extrabold leading-none tracking-tight text-slate-950">{caseItem.caseId}</div>
                   {isTestCaseEvaluation(caseItem) ? <TestCaseBadge /> : null}
                   {monthlyResult.locked ? <CaseActionTooltip text={monthlyResult.message}>
-                    <span role="status" tabIndex={0} className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800"><span aria-hidden="true">▣</span>ยืนยันรับทราบแล้ว · ดูอย่างเดียว</span>
+                    <span role="status" tabIndex={0} className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800"><span aria-hidden="true">▣</span>Acknowledged · View Only</span>
                   </CaseActionTooltip> : monthlyResult.message ? <CaseActionTooltip text={monthlyResult.message}>
-                    <span role="status" tabIndex={0} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800">ตรวจสอบสถานะไม่สำเร็จ</span>
+                    <span role="status" tabIndex={0} className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800">Status Verification Failed</span>
                   </CaseActionTooltip> : null}
                   {appealRequestExists || caseItem.appealStatus || caseItem.appealAdditionalActive ? <CaseAppealStatusBadge status={caseItem.appealStatus} additional={caseItem.appealAdditionalActive} /> : null}
                 </div>
@@ -7836,7 +7833,7 @@ export default function DashboardMockup({
   const displayedOverviewKpiItems = overviewKpiItemsV93.map(item =>
     appealScoreHold && ["Quality Score (Avg.)", "KPI Status", "Overall Grade"].includes(item.label)
       ? { ...item, value: appealScoreHold.label, note: appealScoreHold.message,
-          icon: "…", iconTone: "bg-amber-50 text-amber-600", valueTone: "text-amber-700" }
+          icon: "…", iconTone: workflowStatusTone(appealScoreHold.label), valueTone: workflowStatusTextTone(appealScoreHold.label) }
       : item);
 
   const performanceSummaryItems: PerformanceSummaryItem[] = [
@@ -9260,7 +9257,7 @@ export default function DashboardMockup({
                           const scorePassed = activeSelectedCase.finalScore >= KPI_QUALITY_SCORE_TARGET;
                           const hasAppealChange = (activeSelectedCase.appealStatus === "Approved" || activeSelectedCase.appealStatus === "Partially Approved") || activeSelectedCase.reviewStatus === "Revised";
                           const originalScore = typeof activeSelectedCase.previousScore === "number" ? activeSelectedCase.previousScore : activeSelectedCase.finalScore;
-                          const selectedStatusLabel = activeSelectedCase.appealStatus || activeSelectedCase.reviewStatus;
+                          const selectedStatusLabel = activeSelectedCase.appealStatus ? appealWorkflowLabel(activeSelectedCase.appealStatus) : activeSelectedCase.reviewStatus;
                           const selectedStatusTone = activeSelectedCase.appealStatus === "Rejected"
                             ? "border-rose-200 bg-rose-50 text-rose-700"
                             : activeSelectedCase.appealStatus === "Approved"
@@ -9300,7 +9297,7 @@ export default function DashboardMockup({
                               </div>
                               <div className="mt-3 grid grid-cols-2 gap-2">
                                 <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Agent</div><div className="mt-1 truncate text-xs font-bold text-slate-900">{activeSelectedCase.agent || "-"}</div></div>
-                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Review Status</div><span className={`mt-1 inline-flex w-fit rounded-full border px-2.5 py-1 text-[10px] font-bold ${selectedStatusTone}`}>{selectedStatusLabel}</span></div>
+                                <div className="rounded-xl border border-slate-300 bg-white p-3"><div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Review Status</div><span data-workflow-status="true" className={`mt-1 inline-flex max-w-full rounded-xl border px-2.5 py-1 text-[10px] font-bold leading-relaxed ${selectedStatusTone}`}>{selectedStatusLabel}</span></div>
                                 <div data-case-team-field="lead" className="min-w-0 rounded-xl border border-slate-300 bg-white p-3">
                                   <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Team Lead</div>
                                   <div className="mt-1 break-words text-xs font-bold leading-5 text-slate-900">{selectedCaseTeam.teamLead || "ยังไม่ระบุ"}</div>

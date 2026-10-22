@@ -1,3 +1,4 @@
+import { coachingStatusText } from "./workflowStatusLabels";
 import { formatPdfDate, formatPdfDateTime } from "./lib/pdfDates";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
@@ -854,7 +855,7 @@ export async function renderFinalSignedPdf({
       drawPlainList("Agenda / แผนที่จะคุย", (meeting.agenda || []).filter(Boolean));
       drawPlainField("หมายเหตุ", meeting.note);
     } else {
-      drawPlainField("สถานะ", "ยังไม่มีข้อมูลนัดหมาย Coaching");
+      drawPlainField("Status", "Awaiting Appointment");
     }
 
     drawPlainHeading("QA สรุปและแนะนำหัวข้อการ Coaching");
@@ -888,7 +889,7 @@ export async function renderFinalSignedPdf({
             action.dueDate ? `กำหนดส่ง: ${formatCoachingDate(action.dueDate)}` : "",
             action.expectedResult ? `ผลที่คาดหวัง: ${action.expectedResult}` : "",
             action.followUpNote ? `บันทึกติดตาม: ${action.followUpNote}` : "",
-            action.status ? `สถานะ: ${action.status}` : "",
+            action.status ? `Status: ${coachingStatusText(action.status)}` : "",
           ].filter(Boolean).join("\n")
         );
       });

@@ -1,3 +1,4 @@
+import { WORKFLOW_STATUS } from "./workflowStatusLabels";
 import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, appealIssueTagChanges, appealTopicIssueTags, normalizeAppealIssueTags, type AppealIssueTagFields, type AppealTopicDecision } from "./appealReview";
 import AppealIssueTagEditor from "./AppealIssueTags";
 import AppealInformationCard from "./AppealInformationCard";
@@ -1156,7 +1157,7 @@ export default function AppealRequestsMockup({
       setAdditionalCodes([]);
       setAdditionalNote("");
       setAdditionalReason("");
-      setMessage("เปิดรอบอุทธรณ์เพิ่มเติมแล้ว รอเจ้าของเคสส่งเหตุผลและหลักฐานจาก Case Detail");
+      setMessage("Awaiting Additional Submission. The case owner can submit reasons and evidence from Case Detail.");
       await loadRequests();
       onTasksChanged?.();
       notifyQaAnalyticsDataChanged();
@@ -1238,7 +1239,7 @@ export default function AppealRequestsMockup({
         ...(roundPayload ? [{ ...roundPayload, event_type: "appeal_additional_round_opened", created_at: savedAt }] : []),
       ]);
       setAccessDecision(null);
-      setMessage(approved ? "เปิดสิทธิ์แล้ว Admin ยื่นเพิ่มจาก Case Detail ได้ภายใน 3 วันหลังอนุมัติ" : "บันทึกผลไม่อนุญาตให้ยื่นเพิ่มแล้ว");
+      setMessage(approved ? "Additional Appeal Access Approved. Submit from Case Detail within 3 days of approval." : "Additional Appeal Request Rejected.");
       onTasksChanged?.();
       notifyQaAnalyticsDataChanged();
     } catch (error) {
@@ -1631,8 +1632,8 @@ export default function AppealRequestsMockup({
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status</label>
                 <select aria-label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setSelectedRequestId(""); setDetailRequestId(""); }} className="w-full rounded-2xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-400">
-                  {allowReview && <option value="QaPending">รอฉันดำเนินการ ({qaPendingRequests.length})</option>}
-                  <option value="All">ทุกสถานะ</option>
+                  {allowReview && <option value="QaPending">My Pending Tasks ({qaPendingRequests.length})</option>}
+                  <option value="All">All Statuses</option>
                   {APPEAL_WORKFLOW_STATUSES.map(status => <option key={status} value={status}>{appealWorkflowLabel(status)} ({latestRequestsByCase.filter(item => appealWorkflowStatus(item) === status).length})</option>)}
                 </select>
               </div>
@@ -1701,7 +1702,7 @@ export default function AppealRequestsMockup({
                         <td className="whitespace-nowrap px-2 py-3 text-[10px] text-slate-600">{item.auditDate || "-"}</td>
                         <td className="whitespace-nowrap px-2 py-3 text-[10px] tabular-nums text-slate-600" style={{ fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>{formatDateTime(appealWorkflowActivityAt(item))}</td>
                         <td className="whitespace-nowrap px-2 py-3 text-[10px] tabular-nums text-slate-600" style={{ fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>{formatDateTime(item.reviewedAt)}</td>
-                        <td className="px-2 py-3"><span className={"inline-flex max-w-full rounded-xl border px-2 py-1 text-[9px] font-extrabold leading-4 " + appealWorkflowTone(appealWorkflowStatus(item))}>{appealWorkflowLabel(appealWorkflowStatus(item))}</span></td>
+                        <td className="px-2 py-3"><span data-workflow-status="true" className={"inline-flex max-w-full break-words rounded-xl border px-2 py-1 text-[9px] font-extrabold leading-4 " + appealWorkflowTone(appealWorkflowStatus(item))}>{appealWorkflowLabel(appealWorkflowStatus(item))}</span></td>
                         <td className="px-2 py-3 text-[10px] font-bold text-slate-800">{item.finalScore.toFixed(2)}</td>
                         <td className="px-2 py-3 text-[10px] font-extrabold text-violet-800">{item.grade || "-"}</td>
                         <td className="py-3 pl-3 pr-5 text-center text-[10px] font-bold text-slate-700">{item.topics.filter(isAppealedTopic).length}</td>
@@ -1724,7 +1725,7 @@ export default function AppealRequestsMockup({
                   {unavailableSelectedRequest ? <>
                     <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">เคสต้นทางถูกลบแล้ว</div>
                     <div className="mt-2 text-2xl font-extrabold text-slate-950">{unavailableSelectedRequest.case_id}</div>
-                    <div className="mt-2 max-w-md text-sm leading-6 text-slate-600">คำขออุทธรณ์ของเคสนี้ถูกนำออกจากรายการรอพิจารณาและไม่พักคะแนน</div>
+                    <div className="mt-2 max-w-md text-sm leading-6 text-slate-600">Appeal Removed · This request is no longer awaiting review and does not hold scores.</div>
                   </> : <>
                   <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">Information</div>
                   <div className="mt-2 text-2xl font-extrabold text-slate-950">Select a case from Appeal Cases</div>
@@ -1796,7 +1797,7 @@ export default function AppealRequestsMockup({
                   <div aria-label="Action แยกตามหัวข้อ" className="flex flex-wrap gap-3 text-xs text-slate-600">
                     {displayTopics.map(topic => {
                       const numbers = topicAppealActions(selectedRequest.actionHistory, topic.code).flatMap(action => action.topicActionNumber ? [`Action ${action.topicActionNumber}`] : []);
-                      return <span key={topic.code}>หัวข้อ {topic.code} · {numbers.join(", ") || "รอยื่นครั้งแรก"}</span>;
+                      return <span key={topic.code}>หัวข้อ {topic.code} · {numbers.join(", ") || "Awaiting Initial Submission"}</span>;
                     })}
                   </div>
                   {displayTopics.map(topic => <section key={topic.code} data-appeal-topic={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1810,7 +1811,7 @@ export default function AppealRequestsMockup({
                     {canReviewTopic(topic.code) && <section data-appeal-action={currentTopicActionNumber(topic.code)} aria-label={`พิจารณา Action ${currentTopicActionNumber(topic.code)} หัวข้อ ${topic.code}`} className="border-t border-dashed border-slate-200 pt-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <h4 className="text-sm font-extrabold text-violet-800">Appeal Reason · Action {currentTopicActionNumber(topic.code)}</h4>
-                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">{editingReview ? "กำลังแก้ไขผล QA" : "รอ QA พิจารณา"}</span>
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">{editingReview ? WORKFLOW_STATUS.editing : WORKFLOW_STATUS.awaitingReview}</span>
                       </div>
                       <div className="mb-3 text-xs text-slate-600">ผู้ยื่น: {currentAction?.submittedBy || selectedRequest.submittedBy || "-"} · {formatDateTime(currentAction?.submittedAt || selectedRequest.submittedAt)}</div>
                       <RichTextContent value={topic.appealReason} className="whitespace-pre-wrap break-words text-sm leading-6" />
@@ -1835,7 +1836,7 @@ export default function AppealRequestsMockup({
                               {value === "Approved" ? "✓ Approved" : "× Reject"}
                             </button>
                           ))}
-                          {!topic.decision && <span className="text-xs font-semibold text-amber-700">รอเลือกผลพิจารณา</span>}
+                          {!topic.decision && <span className="text-xs font-semibold text-amber-700">Awaiting Decision</span>}
                         </div>
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div>
@@ -2100,11 +2101,11 @@ export default function AppealRequestsMockup({
                   </div>
                   {selectedRequest.lastAdditionalStatus === "Expired (Additional)" ? (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">
-                      Expired (Additional) — ครบ 72 ชั่วโมงโดยไม่มีการยื่นเพิ่ม คะแนนและผลรอบก่อนยังคงเดิม
+                      Additional Appeal Expired · No additional submission received within 72 hours. Previous results are retained.
                     </div>
                   ) : selectedRequest.lastAdditionalStatus === "Cancelled (Additional)" ? (
                     <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700">
-                      Cancelled (Additional) — ยกเลิกเฉพาะรอบเพิ่มเติม ผลรอบก่อนยังคงเดิม
+                      Additional Appeal Cancelled · Previous results are retained.
                     </div>
                   ) : null}
                   {selectedRequest.additionalRound ? (
@@ -2285,7 +2286,7 @@ export default function AppealRequestsMockup({
                       รูปของ QA จะบันทึกพร้อม Revised Comment / Reject Reason และแสดงใน Case Detail และ PDF หลังบันทึกผล
                     </div>
                   ) : null}
-                  {editingReview && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">กำลังแก้ไขผลอุทธรณ์เดิม กรุณากด Save Review เพื่อบันทึกผลใหม่</p>}
+                  {editingReview && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">Editing in Progress. Select Save Review to save the updated appeal decision.</p>}
                   {monthlyResult.message ? <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">{monthlyResult.message}</p> : null}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
