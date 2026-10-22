@@ -607,22 +607,24 @@ function AnnouncementWorkspace({
     return () => observer.disconnect();
   }, []);
 
-  // Firestore snapshots supply both initial and real-time data. Do not fetch
-  // both entire collections again every 30 seconds or after every write.
+  // Listen once for announcements; receipts for the current user unless an
+  // authorized manager explicitly opens the full analytics view.
+  useEffect(() => subscribeStoredAnnouncements(
+    setAnnouncements,
+    (error) => console.warn("Announcement live update failed", error)
+  ), []);
+
+  const receiptScope = manageAllowed && shortcutVisible && hubOpen && view === "analytics"
+    ? "" : currentUsername;
   useEffect(() => {
-    const stopAnnouncements = subscribeStoredAnnouncements(
-      setAnnouncements,
-      (error) => console.warn("Announcement live update failed", error)
-    );
-    const stopReceipts = subscribeAnnouncementReceipts(
+    // Clear the prior scope before installing the replacement listener.
+    setReceipts([]);
+    return subscribeAnnouncementReceipts(
       setReceipts,
-      (error) => console.warn("Announcement receipt live update failed", error)
+      (error) => console.warn("Announcement receipt live update failed", error),
+      receiptScope
     );
-    return () => {
-      stopAnnouncements();
-      stopReceipts();
-    };
-  }, [currentUsername]);
+  }, [receiptScope]);
 
   useEffect(() => {
     let minuteTimer = 0;
