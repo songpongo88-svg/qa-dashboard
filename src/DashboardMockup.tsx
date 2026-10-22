@@ -6384,7 +6384,7 @@ export default function DashboardMockup({
               "appeal_additional_access_requested", "appeal_additional_access_decided",
               "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
             ],
-            { limit: 2000, forceRefresh: true }
+            { limit: 2000 }
           ) as UsageLogEvent[];
 
           appealScoreRequests = buildAppealRequests(reviewedLogs);
