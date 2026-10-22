@@ -5,6 +5,8 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  query,
+  where,
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
@@ -256,10 +258,15 @@ function normalizeReceiptSnapshot(
 
 export function subscribeAnnouncementReceipts(
   onChange: (items: AnnouncementReceipt[]) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  username = ""
 ) {
+  // Inbox needs only its owner's receipts. Full history is reserved for
+  // the manager's analytics view so counts/export are not truncated.
+  const receipts = collection(firebaseDb, RECEIPT_COLLECTION);
+  const normalizedUsername = String(username || "").trim().toLowerCase();
   return onSnapshot(
-    collection(firebaseDb, RECEIPT_COLLECTION),
+    normalizedUsername ? query(receipts, where("username", "==", normalizedUsername)) : receipts,
     (snapshot) => onChange(normalizeReceiptSnapshot(snapshot.docs)),
     (error) => onError?.(error)
   );
