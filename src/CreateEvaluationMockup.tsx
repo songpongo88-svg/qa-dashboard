@@ -8,6 +8,7 @@ import { monthlyResultScope, MonthlyResultLockCheckError, prepareMonthlyResultRe
 import {
   deleteStoredEvaluation,
   fetchStoredEvaluations,
+  fetchStoredEvaluationsForCases,
   getStoredEvaluationMonthKey,
   isNoCaseEvaluation,
   isTestCaseEvaluation,
@@ -100,6 +101,8 @@ type AutoGrowTextareaProps = {
 
 type EvaluationDraft = {
   draftId?: string;
+  // Preserve the existing evaluation ID for failed Edit Case drafts.
+  activeSubmittedRecordId?: string;
   title?: string;
   agentName: string;
   auditDate: string;
@@ -1479,6 +1482,7 @@ export default function CreateEvaluationMockup({
       : makeDraftId(caseId, auditDate);
     return {
       draftId,
+      activeSubmittedRecordId: activeSubmittedRecordId || "",
       title: `${noCaseForMonth ? "No Case Monthly Result" : caseId || "Untitled Case"} - ${agentName || "No agent selected"}`,
       agentName: canonicalizeAgentName(agentName),
       auditDate,
@@ -1539,7 +1543,7 @@ export default function CreateEvaluationMockup({
     setTopicState((current) => ({ ...current, ...(normalizedDraft.topicState || {}) }));
     setDraftSavedAt(normalizedDraft.savedAt || "");
     setActiveDraftId(normalizedDraft.draftId || "");
-    setActiveSubmittedRecordId("");
+    setActiveSubmittedRecordId(normalizedDraft.activeSubmittedRecordId || "");
     setDraftMessage(normalizedDraft.savedAt ? `Loaded draft saved at ${normalizedDraft.savedAt}` : "Loaded saved draft");
   }
 
@@ -1660,7 +1664,9 @@ export default function CreateEvaluationMockup({
     }
     try {
       const [stored, rawRecords] = await Promise.all([
-        fetchStoredEvaluations(500),
+        noCaseForMonth
+          ? fetchStoredEvaluations(500, { strict: true })
+          : fetchStoredEvaluationsForCases([normalizedSubmitCaseId]),
         loadRawDataReportRecords(),
       ]);
       const agentValues = buildAgentMatchValues(agentName, selectedAgentOption);
@@ -1915,8 +1921,32 @@ export default function CreateEvaluationMockup({
     } catch (error) {
       const message = error instanceof Error ? error.message : "Submit failed. Please try again.";
       console.error("Confirm submit failed", error);
-      setDraftMessage(message);
-      window.alert(message);
+      if (/quota[ -]?exceeded|resource[ -]?exhausted/i.test(message)) {
+        try {
+          // IndexedDB drafts do not consume Firestore Reads/Writes. Keep Edit Case
+          // record IDs so reopening this draft updates, rather than duplicates.
+          const now = new Date();
+          const savedAt = formatTimestamp(now);
+          const draft = await buildCurrentDraft(savedAt, now.getTime());
+          const savedDrafts = await readDraftQueue<EvaluationDraft>();
+          await persistDrafts([draft, ...savedDrafts.filter((item) =>
+            (item.draftId || makeDraftId(item.caseId, item.auditDate)) !== draft.draftId
+          )]);
+          setActiveDraftId(draft.draftId || "");
+          setDraftSavedAt(savedAt);
+          const notice = `Firestore quota exceeded. Central save was not completed. Draft saved locally at ${savedAt}. Keep this browser's Draft Queue until the central save succeeds.`;
+          setDraftMessage(notice);
+          window.alert(notice);
+        } catch (draftError) {
+          console.error("Local backup draft failed", draftError);
+          const notice = "Firestore quota exceeded and the local Draft could not be saved. Keep this tab open and copy your assessment before leaving.";
+          setDraftMessage(notice);
+          window.alert(notice);
+        }
+      } else {
+        setDraftMessage(message);
+        window.alert(message);
+      }
     } finally {
       setSubmitInProgress(false);
     }

@@ -3369,7 +3369,7 @@ export default function SummaryMockup({
 
         let appealScoreRequests: ReturnType<typeof buildAppealRequests> | null = null;
         try {
-          const reviewedLogs = await fetchAppealEvents(undefined, { limit: 2000, forceRefresh: true }) as UsageLogEvent[];
+          const reviewedLogs = await fetchAppealEvents(undefined, { limit: 2000 }) as UsageLogEvent[];
           appealScoreRequests = buildAppealRequests(reviewedLogs);
           buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
             appealMap.set(caseId, item);

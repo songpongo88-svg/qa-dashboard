@@ -4,8 +4,6 @@ import { createPortal } from "react-dom";
 import AnnouncementDetail, { announcementDetailUrl, type AnnouncementReaderUser } from "./AnnouncementDetail";
 import {
   deleteStoredAnnouncement,
-  fetchAnnouncementReceipts,
-  fetchStoredAnnouncements,
   subscribeAnnouncementReceipts,
   subscribeStoredAnnouncements,
   upsertAnnouncementReceipt,
@@ -100,7 +98,6 @@ const STATUS_LABELS: Record<string, string> = {
   Archived: "เก็บถาวร",
 };
 
-const POLL_MS = 30_000;
 const SESSION_SNOOZE_KEY = "qa-announcement-session-snooze-v1";
 
 function normalize(value: unknown) {
@@ -610,43 +607,24 @@ function AnnouncementWorkspace({
     return () => observer.disconnect();
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [nextAnnouncements, nextReceipts] = await Promise.all([
-        fetchStoredAnnouncements(),
-        fetchAnnouncementReceipts(),
-      ]);
-      setAnnouncements(nextAnnouncements);
-      setReceipts(nextReceipts);
-    } catch (error) {
-      console.warn("Announcement polling failed", error);
-    }
-  };
+  // Listen once for announcements; receipts for the current user unless an
+  // authorized manager explicitly opens the full analytics view.
+  useEffect(() => subscribeStoredAnnouncements(
+    setAnnouncements,
+    (error) => console.warn("Announcement live update failed", error)
+  ), []);
 
+  const receiptScope = manageAllowed && shortcutVisible && hubOpen && view === "analytics"
+    ? "" : currentUsername;
   useEffect(() => {
-    void loadData();
-    const stopAnnouncements = subscribeStoredAnnouncements(
-      setAnnouncements,
-      (error) => console.warn("Announcement live update failed", error)
-    );
-    const stopReceipts = subscribeAnnouncementReceipts(
+    // Clear the prior scope before installing the replacement listener.
+    setReceipts([]);
+    return subscribeAnnouncementReceipts(
       setReceipts,
-      (error) => console.warn("Announcement receipt live update failed", error)
+      (error) => console.warn("Announcement receipt live update failed", error),
+      receiptScope
     );
-    const timer = window.setInterval(() => void loadData(), POLL_MS);
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void loadData();
-    };
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      stopAnnouncements();
-      stopReceipts();
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [currentUsername]);
+  }, [receiptScope]);
 
   useEffect(() => {
     let minuteTimer = 0;
@@ -794,7 +772,7 @@ function AnnouncementWorkspace({
         )
           ? current?.reminderReadAt || ""
           : "",
-      }).then(() => void loadData());
+      });
     }
   }, [
     myAnnouncements,
@@ -858,7 +836,7 @@ function AnnouncementWorkspace({
             : "",
       reminderReadAt: kind === "reminder" ? now : reminderReadAt,
     });
-    await loadData();
+    // The Firestore listener refreshes the UI after this write.
   };
 
   const acknowledgePopup = async () => {
@@ -994,7 +972,7 @@ function AnnouncementWorkspace({
           : "ส่ง Popup เข้าคิวผู้รับทันทีแล้ว"
       );
       setDraft(emptyDraft(currentUser));
-      await loadData();
+      // The Firestore listener refreshes the UI after this write.
     } catch (error) {
       setSaveMessage(
         error instanceof Error ? error.message : "บันทึกประกาศไม่สำเร็จ"
@@ -1008,7 +986,7 @@ function AnnouncementWorkspace({
     if (!window.confirm(`ลบประกาศ "${item.title}" ใช่หรือไม่`)) return;
     await deleteStoredAnnouncement(item.id);
     if (draft.id === item.id) setDraft(emptyDraft(currentUser));
-    await loadData();
+    // The Firestore listener refreshes the UI after this write.
   };
 
   const editAnnouncement = (item: StoredAnnouncement) => {

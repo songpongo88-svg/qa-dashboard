@@ -989,7 +989,7 @@ export default function AppealRequestsMockup({
   ].map(topic => [topic.code, topic])).values()].filter(topic => isAppealedTopic(topic) || selectedRequest?.actionHistory.some(action => action.topics.some(item => item.code === topic.code)))
     .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
 
-  const loadRequests = async () => {
+  const loadRequests = async (forceRefresh = false) => {
     try {
       setHistoryLoading(true);
       setHistoryError("");
@@ -1004,7 +1004,7 @@ export default function AppealRequestsMockup({
         "appeal_additional_evidence_submitted",
         "appeal_additional_access_requested", "appeal_additional_access_decided",
         "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
-      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
+      ], { limit: 2000, forceRefresh }) as UsageLogEvent[]);
       return true;
     } catch (error) {
       console.warn("Load appeal requests failed", error);
@@ -1608,7 +1608,7 @@ export default function AppealRequestsMockup({
                 <div className="mt-1 text-sm text-slate-600">เลือกเคสจากตารางเพื่อเปิดรายละเอียดและพิจารณา</div>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={loadRequests} className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">Refresh</button>
+                <button type="button" onClick={() => void loadRequests(true)} className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">Refresh</button>
                 {allowReview && <button type="button" onClick={() => exportAppealRows(requests)} className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800">Export Appeal ROWDATA</button>}
               </div>
             </div>
