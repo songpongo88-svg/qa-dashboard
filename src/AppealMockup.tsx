@@ -1702,7 +1702,7 @@ export default function AppealMockup({
               "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
               "appeal_submission_resubmitted",
             ],
-            { limit: 2000, forceRefresh: true }
+            { limit: 2000 }
           )) as UsageLogEvent[];
 
           const firebaseAppealRequests = (buildAppealRequests(appealEvents) as any[])
