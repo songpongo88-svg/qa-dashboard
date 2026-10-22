@@ -24,6 +24,7 @@ export type QaEvaluationProgress = {
   completedCount: number;
   targetCount: number;
   statusText: string;
+  mode?: "evaluation" | "edit";
   startedAt: string;
   updatedAt: string;
   expiresAt: string;
@@ -58,6 +59,7 @@ function normalizeProgress(row: any): QaEvaluationProgress | null {
     completedCount,
     targetCount,
     statusText: String(row?.statusText || "").trim(),
+    mode: row?.mode === "edit" ? "edit" : "evaluation",
     startedAt: String(row?.startedAt || row?.updatedAt || "").trim(),
     updatedAt: String(row?.updatedAt || "").trim(),
     expiresAt: String(row?.expiresAt || "").trim(),
@@ -81,6 +83,7 @@ export async function setQaEvaluationProgress(input: QaEvaluationProgressInput) 
     completedCount: Math.max(0, Math.floor(Number(input.completedCount) || 0)),
     targetCount: Math.max(1, Math.floor(Number(input.targetCount) || 10)),
     statusText: String(input.statusText || "").trim(),
+    mode: input.mode === "edit" ? "edit" : "evaluation",
     updatedAt,
     expiresAt,
     updatedAtServer: serverTimestamp(),

@@ -61,7 +61,7 @@ export default function CaseAppealHeaderAction({ label, detail, countdown, viewO
 
   return <>
     <button ref={trigger} type="button" data-case-appeal-action="icon" data-appeal-icon={icon}
-      data-action-disabled={actionDisabled} aria-label={viewOnly ? label + " — ดูข้อมูลเท่านั้น" : label}
+      data-action-disabled={actionDisabled} aria-label={viewOnly ? label + " — View Only" : label}
       aria-describedby={open ? tooltipId : undefined} aria-expanded={canAct ? undefined : open}
       aria-controls={open && !canAct ? tooltipId : undefined} aria-haspopup={canAct ? "dialog" : undefined}
       className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm transition focus:outline-none focus:ring-4 focus:ring-violet-100 ${toneClasses[tone]}`}
@@ -77,9 +77,9 @@ export default function CaseAppealHeaderAction({ label, detail, countdown, viewO
     </button>
     {open ? createPortal(<div ref={tooltip} id={tooltipId} role="tooltip" style={position}
       className="pointer-events-none fixed z-[180] rounded-xl bg-slate-900 px-4 py-3 text-[12px] leading-5 text-white shadow-xl">
-      <div className="font-semibold">{label}</div>
+      <div className="break-words font-semibold">{label}</div>
       {countdown ? <div className="mt-1.5 flex items-center gap-1.5 tabular-nums" data-appeal-countdown="true"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-3.5 w-3.5 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>{countdown}</div> : null}
-      {viewOnly ? <div className="mt-1.5">ดูข้อมูลเท่านั้น · View only</div> : actionDisabled ? <div className="mt-1.5">ดูสถานะเท่านั้น</div> : null}
+      {viewOnly ? <div className="mt-1.5">View Only</div> : actionDisabled ? <div className="mt-1.5">Status Only</div> : null}
       <div className="mt-2 text-[11px] text-slate-200">{detail}</div>
     </div>, document.body) : null}
   </>;

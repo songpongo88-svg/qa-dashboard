@@ -3,8 +3,8 @@ import { firebaseDb } from "./firebaseClient";
 import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIdentity";
 
 export const SIGNATURE_DOCUMENT_COLLECTION = "qa_signature_documents";
-export const MONTHLY_RESULT_LOCK_MESSAGE = "Agent ยืนยันรับทราบผลเดือนนี้แล้ว ไม่สามารถยื่นอุทธรณ์หรือแก้ไขเคสและคะแนนได้อีก";
-export const MONTHLY_RESULT_LOCK_CHECK_MESSAGE = "ตรวจสอบการล็อกผลประจำเดือนไม่สำเร็จ กรุณาอัปเดตข้อมูลแล้วลองอีกครั้ง";
+export const MONTHLY_RESULT_LOCK_MESSAGE = "Acknowledged · Monthly Results Locked. Appeals, case edits and score changes are closed.";
+export const MONTHLY_RESULT_LOCK_CHECK_MESSAGE = "Monthly Result Status Verification Failed. Refresh and try again.";
 
 export type MonthlyResultScope = { agentName: string; monthKey: string };
 export type MonthlyResultLock = MonthlyResultScope & { lockedAt: string; revision: string };

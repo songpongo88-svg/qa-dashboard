@@ -1,3 +1,4 @@
+import { coachingStatusText } from "./workflowStatusLabels";
 import { getStoredEvaluationMonthKey, type StoredEvaluation } from './evaluationStore';
 import { canonicalAgentIdentityKey } from './lib/agentIdentity';
 import type { StoredCoachingRecord, CoachingRecordStatus } from './coachingStore';
@@ -222,9 +223,7 @@ export function resolveCoachingMonth(requested: string, months: string[], curren
 export function manualCoachingSummary(record?: StoredCoachingRecord | null) {
   return typeof record?.qaSummary === 'string' ? record.qaSummary : record?.generalFeedback || '';
 }
-export function coachingStatusLabel(status?: string) {
-  return ({Draft:'ฉบับร่าง', 'Waiting Appointment':'รอนัดหมาย', 'Appointment Scheduled':'นัดหมายแล้ว', 'Waiting Senior':'รอผลจากผู้ Coaching', 'Coaching In Progress':'กำลัง Coaching', 'Action Plan Submitted':'รอ QA ตรวจแผน', 'QA Reviewed':'แก้ไขแผน', 'Follow-up Next Month':'ติดตามเดือนถัดไป', Closed:'ปิดเคสแล้ว', 'No Coaching Required':'ไม่ต้อง Coaching'} as Record<string,string>)[status || ''] || status || 'ยังไม่สร้าง';
-}
+export function coachingStatusLabel(status?: string) { return coachingStatusText(status); }
 
 export function monthlyCoachingPdfFileName(month: string, username: string) {
   return `Coaching_${month}_${username.replace(/[^a-zA-Z0-9ก-๙._-]+/g, '_')}.pdf`;

@@ -1,3 +1,4 @@
+import { appealStatusLabel } from "./workflowStatusLabels";
 import { formatPdfDate, formatPdfDateOrTime, formatPdfDateTime } from "./lib/pdfDates";
 ﻿import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
@@ -1043,9 +1044,9 @@ export async function generateOfficialCaseDetailPdf({
     y += caseUrlRowH;
 
     label(0, y, 1, 8, "Appeal Status");
-    value(1, y, 1, 8, caseItem.appealStatus || "Approved", LIGHT_PURPLE, { align: "center", maxLines: 1 });
+    value(1, y, 1, 8, appealStatusLabel(caseItem.appealStatus || "Approved"), LIGHT_PURPLE, { align: "center", maxLines: 2 });
     label(2, y, 1, 8, "Comment Status");
-    value(3, y, 1, 8, caseItem.commentStatus || "Approved", LIGHT_PURPLE, { align: "center", maxLines: 1 });
+    value(3, y, 1, 8, appealStatusLabel(caseItem.commentStatus || "Approved"), LIGHT_PURPLE, { align: "center", maxLines: 2 });
     label(4, y, 1, 8, "Review Type");
     value(5, y, 3, 8, "Revised", LIGHT_PURPLE, { align: "center", maxLines: 1 });
     y += 8;

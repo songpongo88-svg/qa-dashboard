@@ -24,7 +24,7 @@ export default function CaseWatermarks({ item }: { item: WatermarkCase }) {
   if (!labels.length) return null;
   return (
     <div className="qa-case-watermarks" data-count={labels.length} role="img"
-      aria-label={labels.map((label) => label === "TEST" ? "เคสทดสอบ ไม่นับในผลประเมินจริง" : label === "ADDITIONAL APPEAL" ? "อยู่ระหว่างอุทธรณ์เพิ่มเติม" : "เคสนี้เคยยื่นอุทธรณ์").join(" · ")}>
+      aria-label={labels.map((label) => label === "TEST" ? "Test Case — Excluded from Evaluation Results" : label === "ADDITIONAL APPEAL" ? "Additional Appeal in Progress" : "Appeal Case").join(" · ")}>
       {labels.map((label) => (
         <span key={label} aria-hidden="true" className={`qa-case-watermark qa-case-watermark--${label.toLowerCase().replace(/\s+/g, "-")}`}>{label}</span>
       ))}

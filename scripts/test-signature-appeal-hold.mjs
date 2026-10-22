@@ -31,7 +31,7 @@ const fixture = globalThis.__signatureAppealFixture = {
 const originalWarn = console.warn;
 const originalError = console.error;
 const expectedFailure = args => args.some(value => value?.constructor?.name === "SignatureAppealHoldError" || value?.message === "offline fixture" ||
-  /^(ยังไม่มี Agent ที่ลงนาม|ตรวจผล Coaching \/ QA Review ล่าสุดไม่สำเร็จ)/.test(value?.message || ''));
+  /^(ยังไม่มี Agent ที่ลงนาม|Coaching \/ QA Review Verification Failed)/.test(value?.message || ''));
 console.warn = (...args) => { if (!expectedFailure(args)) originalWarn(...args); };
 console.error = (...args) => { if (!expectedFailure(args)) originalError(...args); };
 window.alert = message => fixture.alerts.push(String(message));
@@ -177,7 +177,7 @@ try {
     root = createRoot(document.getElementById("root"));
     await act(async () => root.render(React.createElement(SignatureCenter, { accounts,
       currentUser: { username: names[role], displayName: names[role], agentName: names[role], role: role === "QA" ? "Quality Assurance" : role } })));
-    await settle(() => fixture.view?.selectedDocument && !document.body.textContent.includes("กำลังโหลด Signature Center") && fixture.reads.length >= 2 && (fixture.view.coachingStatusVerified || fixture.coachingFailed));
+    await settle(() => fixture.view?.selectedDocument && !document.body.textContent.includes("Loading Signature Center") && fixture.reads.length >= 2 && (fixture.view.coachingStatusVerified || fixture.coachingFailed));
     await act(async () => fixture.actions.openWorkspaceDetail("2026-09::" + agent));
   };
   for (const logs of [[...oldResult, access], [...oldResult, access, approved, opened], pendingAdditional]) for (const role of Object.keys(names)) {
@@ -227,7 +227,7 @@ try {
   fixture.logs = complete;
   await act(async () => assert.equal(await fixture.actions.signRole("QA", "fixture-ink"), false));
   assert.equal(fixture.writes.length, 0, "new review cannot sign stale scores");
-  assert.ok(fixture.alerts.some(message => message.includes("คะแนนล่าสุด")));
+  assert.ok(fixture.alerts.some(message => message.includes("Appeal Results Updated")));
   await mount("QA", complete);
   await act(async () => assert.equal(await fixture.actions.signRole("QA", "fixture-ink"), true));
   assert.equal(fixture.writes.length, 1, "reviewed additional round releases signing");
@@ -269,7 +269,7 @@ try {
   assert.equal(fixture.view.selectedMonthPaymentExportDocs.length, 0);
   await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent.startsWith('Tracking (')).click());
   await act(async () => fixture.actions.openWorkspaceDetail('2026-09::'+agent));
-  assert.ok(document.body.textContent.includes('ยังไม่มี Coaching ของเดือนนี้'));
+  assert.ok(document.body.textContent.includes('Coaching Not Created'));
   assert.ok([...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === 'Monthly Payment PDF').disabled);
   fixture.coaching = [accepted];
   await act(async () => window.dispatchEvent(new Event('qa-coaching-refresh')));
@@ -293,7 +293,7 @@ try {
   await act(async () => fixture.actions.generatePaymentExcel());
   assert.equal(fixture.exports.length, 0);
   assert.equal(fixture.view.coachingStatusVerified, false);
-  assert.ok(fixture.view.paymentMessage.includes('ตรวจผล Coaching'));
+  assert.ok(fixture.view.paymentMessage.includes('Coaching / QA Review Verification Failed'));
   fixture.coachingFailed = false;
   console.log('PASS same Agent/month Coaching, summary, Action Plan, accepted QA Review and Bangkok day-15 cutoff gate real production PDF names; stale and failed reads cannot export');
   if (getCarryOverPaymentCycle) {

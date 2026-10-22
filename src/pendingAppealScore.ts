@@ -1,3 +1,4 @@
+import { WORKFLOW_STATUS, formatCaseCount } from "./workflowStatusLabels";
 import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
 import { appealWorkflowLabel, appealWorkflowStatus, type AppealWorkflowRequest } from "./appealWorkflow";
 
@@ -126,15 +127,15 @@ export function getAppealScoreHold(cases: readonly ({ agent: string; isTestCase?
   }
   const pendingCount = [...counts.values()].reduce((sum, count) => sum + count, 0);
   if (unverified) return {
-    label: "ตรวจสอบผลอุทธรณ์ไม่สำเร็จ",
-    message: "ยังแสดงคะแนนสรุปไม่ได้ กรุณากดอัปเดตข้อมูลเพื่อตรวจสอบสถานะอุทธรณ์อีกครั้ง",
+    label: WORKFLOW_STATUS.verificationFailed,
+    message: "Scores are unavailable until the appeal status is verified. Refresh to try again.",
     pendingCount,
   };
   const statuses = new Set([...statusesByScope.values()].flatMap(counts => Object.keys(counts)));
   if (pendingCount && !statuses.size) statuses.add('Pending');
   return pendingCount ? {
-    label: statuses.size === 1 ? appealWorkflowLabel([...statuses][0]) : "รอบอุทธรณ์ยังไม่สิ้นสุด",
-    message: `ยังไม่สรุปคะแนน ${pendingCount} เคส · ${[...statuses].map(appealWorkflowLabel).join(' / ')} คะแนนจะสรุปเมื่อ QA พิจารณาครบ หรือหมดเวลายื่นเพิ่มโดยไม่มีการยื่น`,
+    label: statuses.size === 1 ? appealWorkflowLabel([...statuses][0]) : WORKFLOW_STATUS.appealInProgress,
+    message: `${formatCaseCount(pendingCount)} pending · ${[...statuses].map(appealWorkflowLabel).join(' / ')}. Scores will be available after all reviews or additional submission windows are complete.`,
     pendingCount,
   } : null;
 }

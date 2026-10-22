@@ -137,18 +137,18 @@ try {
     assert.equal(document.querySelector('option[value="QaPending"]'), null);
     assert.ok(rows().length);
     assert.ok(rows().every(row => !row.textContent.includes("Bravo Agent")));
-    await click(rows().find(row => row.textContent.includes("อนุมัติแล้ว · รอ Admin ยื่นเพิ่ม")));
-    assert.ok(button("ยื่นอุทธรณ์เพิ่มเติม"));
-    assert.equal(button("อนุญาตให้ยื่นเพิ่ม (3 วัน)"), undefined);
+    await click(rows().find(row => row.textContent.includes("Awaiting Additional Submission")));
+    assert.ok(button("Submit Additional Appeal"));
+    assert.equal(button("Approve Additional Access (3 Days)"), undefined);
     assert.equal(document.querySelector('[aria-label="QA and Senior internal appeal discussion"]'), null);
-    await click(button("ยื่นอุทธรณ์เพิ่มเติม"));
+    await click(button("Submit Additional Appeal"));
     assert.ok(fixture.openedUrl.includes("subTab=case-detail") && fixture.openedUrl.includes("caseId=AA990002"));
   }
   for (const role of ["Senior", "Supervisor"]) {
     await render({ username: "lead", agentName: "Team Lead", role }, { allowedAgentNames: ["Alpha Agent"] });
     assert.ok(rows().every(row => !row.textContent.includes("Bravo Agent")));
-    await click(rows().find(row => row.textContent.includes("รอ QA อนุมัติยื่นเพิ่ม")));
-    assert.equal(button("อนุญาตให้ยื่นเพิ่ม (3 วัน)"), undefined, `${role} cannot approve even when allowReview prop is true`);
+    await click(rows().find(row => row.textContent.includes("Awaiting QA Approval")));
+    assert.equal(button("Approve Additional Access (3 Days)"), undefined, `${role} cannot approve even when allowReview prop is true`);
   }
   const all = buildAppealRequests(fixture.logs, now);
   assert.equal(scopeAppealRequests(all, { ...qa, role: "Senior" }, []).length, 0, "missing team never widens scope");
@@ -156,8 +156,8 @@ try {
   console.log("PASS QA, Admin Live Chat, Admin, Agent, custom role, Senior and Supervisor scope and action permissions");
 
   await render(qa);
-  await click(rows().find(row => row.textContent.includes("รอ QA อนุมัติยื่นเพิ่ม")));
-  await click(button("อนุญาตให้ยื่นเพิ่ม (3 วัน)"));
+  await click(rows().find(row => row.textContent.includes("Awaiting QA Approval")));
+  await click(button("Approve Additional Access (3 Days)"));
   fixture.fail = true;
   const originalError = console.error; console.error = () => {};
   await click(button("ยืนยันบันทึกสิทธิ์"));
@@ -171,13 +171,13 @@ try {
   assert.equal(Date.parse(opened.details.expiresAt) - Date.parse(opened.details.openedAt), 72 * 3600000);
   assert.equal(appealWorkflowStatus(buildAppealRequests(fixture.logs)[stages.indexOf("Request Additional Appeal")]), "Awaiting Additional Submission");
   await render(qa, { externalRequestId: submitted.requestId });
-  assert.ok(document.querySelector('[aria-label="ขั้นตอนอุทธรณ์ปัจจุบัน"]').textContent.includes("ยื่นเพิ่มแล้ว"), "deep link opens the actual selected request");
+  assert.ok(document.querySelector('[aria-label="Current Appeal Status"]').textContent.includes("Additional Appeal Under Review"), "deep link opens the actual selected request");
   const completed = projected.find(row => appealWorkflowStatus(row) === "Approved");
   await render(qa, { externalRequestId: completed.requestId });
-  assert.ok(document.querySelector('[aria-label="ขั้นตอนอุทธรณ์ปัจจุบัน"]').textContent.includes("อนุมัติผลอุทธรณ์"), "completed-case deep links remain accessible outside the default QA task filter");
+  assert.ok(document.querySelector('[aria-label="Current Appeal Status"]').textContent.includes("Approved"), "completed-case deep links remain accessible outside the default QA task filter");
   const incomplete = projected.find(row => appealWorkflowStatus(row) === "Approved (Access)");
   await render(qa, { externalRequestId: incomplete.requestId });
-  await click(button("เปิดสิทธิ์ที่อนุมัติค้าง"));
+  await click(button("Activate Approved Access"));
   await click(button("ยืนยันบันทึกสิทธิ์"));
   const recovered = fixture.writes.find(row => row.event_type === "appeal_additional_round_opened" && row.details.requestId === incomplete.requestId);
   assert.equal(recovered.details.openedAt, incomplete.additionalAccessRequest.decidedAt, "legacy partial approval recovery uses the original approval time");

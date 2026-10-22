@@ -1,3 +1,4 @@
+import { appealStatusLabel } from "./workflowStatusLabels";
 import { generateCasePdfWithAppealHistory } from "./caseAppealPdfAddon";
 import { getAppealTopicDecision, appealScoreAfterReview, appealTopicIssueTags, appealIssueTagsChanged, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 ﻿import React, { useEffect, useMemo, useState } from "react";
@@ -827,7 +828,7 @@ function AppealClosedBanner() {
           <div className="mt-2 text-2xl font-extrabold tracking-tight">
             This appeal has been finalized
           </div>
-          <div className="mt-2 text-sm leading-6 text-white/95">เคสนี้ได้พิจารณาอุทธรณ์เสร็จสิ้นแล้ว และไม่สามารถยื่นอุทธรณ์เพิ่มเติมได้อีก</div>
+          <div className="mt-2 text-sm leading-6 text-white/95">Appeal Closed · Review is complete and additional appeals are unavailable.</div>
         </div>
 
         <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-4 backdrop-blur-sm">
@@ -2461,8 +2462,8 @@ export default function AppealMockup({
                           selectedCaseUsesNewPolicy ? "New Criteria" : "Previous Criteria"
                         }`
                       : selectedCaseUsesNewPolicy
-                        ? `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} • New Criteria`
-                        : `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} • Previous Criteria`
+                        ? `${appealStatusLabel(selectedRevision?.reviewStatus ?? selectedCase.reviewStatus)} • New Criteria`
+                        : `${appealStatusLabel(selectedRevision?.reviewStatus ?? selectedCase.reviewStatus)} • Previous Criteria`
                   }
                 />
               </div>
@@ -2516,7 +2517,7 @@ export default function AppealMockup({
                           Review Status
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
-                          {selectedRevision?.reviewStatus ?? selectedCase.reviewStatus}
+                          {appealStatusLabel(selectedRevision?.reviewStatus ?? selectedCase.reviewStatus)}
                         </div>
                       </div>
 
