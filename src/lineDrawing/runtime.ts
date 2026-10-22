@@ -38,9 +38,12 @@ export function installLineDrawingRuntime(){
       if(card.closest(excluded+',.qa-global-sidebar-v39,button,table,[role="tablist"]'))return;
       const classes=[...card.classList];
       const neutral=classes.some(c=>/^(bg-white(?:\/\d+)?|from-white|from-violet-50|from-fuchsia-50)$/.test(c));
+      // Translucent panels depend on the background and foreground underneath.
+      // Keep that pair intact instead of putting white text on opaque paper.
+      const overlay=classes.some(c=>/^bg-white\/\d+$/.test(c));
       const rounded=classes.some(c=>/^rounded(?:-|$)/.test(c));
-      if(card.matches('[data-dashboard-metric],[data-case-information-unified],[data-qa-dashboard-control-center-v163]')||(rounded&&neutral&&classes.some(c=>/^border(?:-|$)/.test(c))))mark(card,'inkSurface','card');
-      else if(neutral&&classes.includes('border-b'))mark(card,'inkSurface','header');
+      if(card.matches('[data-dashboard-metric],[data-case-information-unified],[data-qa-dashboard-control-center-v163]')||(rounded&&neutral&&classes.some(c=>/^border(?:-|$)/.test(c))))mark(card,'inkSurface',overlay?'overlay':'card');
+      else if(neutral&&classes.includes('border-b'))mark(card,'inkSurface',overlay?'overlay':'header');
     });
     decorated.forEach(node=>{if(!keep.has(node))clear(node);});decorated.clear();keep.forEach(node=>decorated.add(node));
   };

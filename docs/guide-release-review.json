@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-21T10:12:05.658Z",
-  "reason": "Reviewed the shared two-step Login for every collection: actual App markup hides Password in Step 1, account validation enables Step 2, and the existing password effect automatically signs in without a theme-specific button. Tested visibility, remember, recovery, account changes and cancellation. Ink artwork and private publication are unchanged.",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "profile"
-  ],
+  "reviewedAt": "2026-10-22T03:00:46.409Z",
+  "reason": "Verified Ink and Paper transparent panels retain their readable background and foreground in Evaluation, Submit Preview and Calls. This visual contrast correction does not change user workflows, permissions or guide content.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -319,7 +317,7 @@
     "scripts/test-festival-themes.mjs": "e3fbc9cc06625fbd62958085cc1337a83c9dfecf44fac3f2f69f2a42720f1555",
     "scripts/test-firestore-read-dedup.mjs": "aacc7d7402ff5647ec3b3555259b92207523b38893986edca621bde1fd9d54d3",
     "scripts/test-knowledge.mjs": "20a97b62cd015904af2aaa454ab93c29568785b4999af609dfe4c64b1c266509",
-    "scripts/test-line-drawing.mjs": "3ecc7ac5efb56e0e96cbaf81876f4592b08fda20ce759b3a3dde99b1e72c905a",
+    "scripts/test-line-drawing.mjs": "4392e5b9be0114889516f1014601311834c57ee04fe5145415db426edd3adcb0",
     "scripts/test-login-themes.mjs": "e25f6129a940e599235d312a9c1c43d795b91fc2193006d3eff8012a83b487e0",
     "scripts/test-monthly-coaching.mjs": "04d7cf6b097d48a5af15f1864469727cb4a47dcc7860cf3e18a89e08d33f7671",
     "scripts/test-monthly-result-lock.mjs": "275ac86a4849f035302012c586ba0b6be39c93d452c624596dbeb446f001b011",
@@ -476,10 +474,10 @@
     "src/lineDrawing/InkLogin.tsx": "b3e1735a23dc6f500ec8bda160668335923fb98512749084551bfe2b990424f8",
     "src/lineDrawing/LineDrawing.tsx": "685ee6dab355129695414a24f9e8c51e5617d54d377ac33106b4209da4964e2c",
     "src/lineDrawing/icons.mjs": "1a2e39362cd42a6a4476c30d507f46759b00f8f617a91582732ab6e91327e429",
-    "src/lineDrawing/ink.css": "b823d6b50aef5ad197516562c206212e8acb75198ec9e0485334159feceeaa5f",
+    "src/lineDrawing/ink.css": "c4da0e34f7887d288e2d50005b5c36f83553e4378ebfef229eea69deecc436f0",
     "src/lineDrawing/model.mjs": "1dbedc82681087987da8c233d9630a11ad7051e4125a22635edf1589c7a4ae26",
     "src/lineDrawing/release.ts": "cd055728dac68bc324f9c70bba87a61e051e2a3e3cee73760ffc696ab40511db",
-    "src/lineDrawing/runtime.ts": "97f03f0ed23d884db1baa6d8eec3f3c440fea159ae77bf9489b48eb34b29c1fd",
+    "src/lineDrawing/runtime.ts": "f20541d1da77637be955316122d293ece96ae6f0fca3bb3cf8c07cce4e4a349e",
     "src/lineDrawing/state.ts": "f99ba247c1682f3e9cad6a1db9d80363228fa2825916ccc0924db4f723bd3424",
     "src/loginThemes/LoginFeatureIcon.tsx": "52f8f2ddc419e542cd7192cb190a9c765dcce60cd9f34476dca97a7bfc36966e",
     "src/loginThemes/appearance.ts": "269f30cc57a52f689ef79d32d0bf0b84658d544d502ddd5fc59ff7a25c3a4902",

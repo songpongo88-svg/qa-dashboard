@@ -53,6 +53,38 @@ const element=document.documentElement;element.dataset.qaTheme=model.LINE_DRAWIN
 element.dataset.qaLineDrawingAllowed='true';await flush();assert.equal(element.dataset.qaLineDrawingTheme,model.LINE_DRAWING_THEME_ID);assert.equal(save.querySelector('svg').dataset.inkIconKind,'save');assert.equal(fixture.querySelector('[role="tab"] svg').dataset.inkIconKind,'review');assert.equal(document.getElementById('card').dataset.inkSurface,'card');assert.equal(save.querySelector('path'),originalPath);save.click();assert.equal(saved,1);assert.equal(document.getElementById('reject').querySelector('svg').dataset.inkIconKind,undefined,'semantic reject stays intact');
 const late=document.createElement('button');late.innerHTML='<svg><path/></svg>Preview';fixture.append(late);await flush();assert.equal(late.querySelector('svg').dataset.inkIconKind,'preview');element.dataset.qaTheme='pink';await flush();assert.equal(fixture.querySelectorAll('[data-ink-icon-kind],[data-ink-surface]').length,0);assert.equal(save.querySelector('path'),originalPath);stop();
 console.log('PASS unique vector icons, authorization gate, mounted-later tabs, original React children/handlers, semantic colors and full theme cleanup');
+// Use the real dark headers: their pale text depends on translucent panels.
+function sourceHeader(file,classes){
+ const source=fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');
+ const tree=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);let markup;
+ function walk(node){if(ts.isJsxElement(node)){const value=node.openingElement.attributes.properties.find(p=>p.name?.getText(tree)==='className')?.initializer;if(value&&ts.isStringLiteral(value)&&value.text.startsWith(classes))markup=node.getText(tree);}ts.forEachChild(node,walk);}
+ walk(tree);assert.ok(markup,file+' header');return markup;
+}
+const liveHeader=sourceHeader('src/CreateEvaluationMockup.tsx','bg-gradient-to-br from-emerald-800 via-emerald-700');
+const submitHeader=sourceHeader('src/CreateEvaluationMockup.tsx','flex flex-col gap-4 bg-gradient-to-r from-slate-950 via-emerald-900');
+const callsHeader=sourceHeader('src/CallHistoryMockup.tsx','grid gap-4 border-b border-violet-100 bg-gradient-to-r from-slate-950');
+const scoreSource='function ScoreFixture({score,grade,criticalError}){const finalScore=score,activeRubric={totalScore:100},submitPreview={record:{evaluationType:"case",pdfButtonLabel:"Download PDF"}},callHistory=[1,2,3],missedCount=1,incomingCount=1,outgoingCount=1;return <section className="rounded-3xl border bg-white">'+liveHeader+submitHeader+callsHeader+'</section>;}';
+const scoreJs=ts.transpileModule(scoreSource,{compilerOptions:{jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText;
+const ScoreFixture=Function('React',scoreJs+';return ScoreFixture;')(React);
+root=createRoot(fixture);element.dataset.qaTheme=model.LINE_DRAWING_THEME_ID;
+const stopScores=installLineDrawingRuntime();
+try{
+ for(const sample of [{score:0,grade:'D',criticalError:false},{score:85,grade:'A',criticalError:false},{score:95,grade:'D',criticalError:true}]){
+  await act(async()=>root.render(React.createElement(ScoreFixture,sample)));await flush();
+  const label=[...fixture.querySelectorAll('span')].find(n=>n.textContent==='Current Grade');
+  assert.ok(label);assert.equal(label.nextElementSibling.textContent,sample.grade);
+  assert.equal(label.parentElement.dataset.inkSurface,'overlay','Current Grade must retain its translucent surface with its pale foreground');
+  assert.equal(label.parentElement.parentElement.querySelector('.text-6xl').textContent,String(sample.criticalError?0:sample.score));
+  const panels=[...fixture.querySelectorAll('[class~="bg-white/10"]')];assert.equal(panels.length,6);
+  panels.forEach(panel=>assert.equal(panel.dataset.inkSurface,'overlay','Submit Preview and Calls retain their pale foreground/background pair'));
+  assert.equal(fixture.firstElementChild.dataset.inkSurface,'card','opaque cards still receive paper');
+ }
+ const portal=document.createElement('div');portal.dataset.processPickerPortal='true';portal.innerHTML='<div class="rounded-xl border bg-white/10 text-white">Process</div>';document.body.append(portal);await flush();
+ assert.equal(portal.firstElementChild.dataset.inkSurface,'overlay');
+ portal.firstElementChild.classList.replace('bg-white/10','bg-white');await flush();assert.equal(portal.firstElementChild.dataset.inkSurface,'card','class changes refresh the surface type');
+ element.dataset.qaTheme='pink';await flush();assert.equal(document.querySelectorAll('[data-ink-surface]').length,0,'theme exit clears cards and portal overlays');portal.remove();
+}finally{stopScores();await act(async()=>root.unmount());}
+console.log('PASS real Evaluation, Submit Preview and Calls markup: translucent text panels, score updates, opaque paper cards, portal changes and theme cleanup');
 // Exercise the actual App Login markup, including its collection branches.
 const appSource=fs.readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
 const appTree=ts.createSourceFile('App.tsx',appSource,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
