@@ -443,7 +443,7 @@ async function applyFirebaseAppeals(rows: StoredEvaluation[], excelCaseIds: Set<
   try {
     logs = await fetchAppealEvents(
       ["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset"],
-      { limit: 2000, forceRefresh: true }
+      { limit: 2000 }
     );
   } catch {
     return rows;
