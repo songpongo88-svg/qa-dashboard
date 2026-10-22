@@ -82,6 +82,28 @@ type CachedAppealEventRequest = {
 };
 
 const appealEventReadCache = new Map<string, CachedAppealEventRequest>();
+// Share identical unscoped Firestore snapshots across consumers with different
+// event-type filters. Explicit approval/request checks remain server-scoped.
+const appealCollectionSnapshotCache = new Map<number, {
+  expiresAt: number;
+  promise: ReturnType<typeof getDocs>;
+}>();
+
+function recentAppealSnapshot(maxDocs: number, forceRefresh: boolean) {
+  const now = Date.now();
+  const cached = appealCollectionSnapshotCache.get(maxDocs);
+  if (!forceRefresh && cached && cached.expiresAt > now) return cached.promise;
+  const request = getDocs(query(
+    collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+    orderBy("created_at", "desc"),
+    firestoreLimit(maxDocs)
+  )).catch(error => {
+    if (appealCollectionSnapshotCache.get(maxDocs)?.promise === request) appealCollectionSnapshotCache.delete(maxDocs);
+    throw error;
+  });
+  appealCollectionSnapshotCache.set(maxDocs, { expiresAt: now + APPEAL_EVENT_READ_CACHE_TTL_MS, promise: request });
+  return request;
+}
 
 export function isAppealEventType(eventType: string) {
   return APPEAL_EVENT_TYPES.has(String(eventType || "").trim());
@@ -127,6 +149,7 @@ function normalizeFetchOptions(options: FetchOptions | undefined) {
 
 export function clearAppealEventReadCache() {
   appealEventReadCache.clear();
+  appealCollectionSnapshotCache.clear();
 }
 
 async function cachedAppealEventRequest(
@@ -434,15 +457,13 @@ export async function fetchAppealEvents(
     async () => {
       // Approval checks only the selected request, not the last 2,000 events
       // for every agent. A one-field equality query avoids composite indexes.
-      const snapshot = await getDocs(requestId
-        ? query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
-          where("details.requestId", "==", requestId), firestoreLimit(scopedLimit))
+      const snapshot = requestId
+        ? await getDocs(query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+          where("details.requestId", "==", requestId), firestoreLimit(scopedLimit)))
         : caseId
-          ? query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
-            where("case_id", "==", caseId), firestoreLimit(scopedLimit))
-          : query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
-            orderBy("created_at", "desc"), firestoreLimit(limit + offset))
-      );
+          ? await getDocs(query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
+            where("case_id", "==", caseId), firestoreLimit(scopedLimit)))
+          : await recentAppealSnapshot(limit + offset, forceRefresh);
       // Never approve from an incomplete history; a missing Reset or newer
       // approval would make the authorization check unsafe.
       if ((requestId || caseId) && snapshot.docs.length === scopedLimit) {
