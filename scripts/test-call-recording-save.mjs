@@ -65,7 +65,7 @@ const fileOne = fixtureFile("first.wav", 11);
 const fileTwo = fixtureFile("second.wav", 22);
 const setter = (state, key) => (next) => { state[key] = typeof next === "function" ? next(state[key]) : next; };
 
-function form(primary) {
+function form(primary, prepare = async (file) => ({ file, converted: false })) {
   const state = { callLogs: [], uploads: { current: new Map() }, submitLock: { current: false }, message: "", preview: null, saved: [], primaryCalls: [], history: [], drafts: [] };
   function handlers() {
     const bindings = {
@@ -73,7 +73,7 @@ function form(primary) {
       callRecordingSaveInProgressRef: state.submitLock, setCallLogs: setter(state, "callLogs"),
       setDraftMessage: setter(state, "message"), setSubmitPreview: setter(state, "preview"),
       setDraftInbox: setter(state, "drafts"), submitPreview: state.preview, submitInProgress: false,
-      prepareVoiceRecordingForBrowser: async (file) => ({ file, converted: false }), readAudioDuration: async () => "02:06",
+      prepareVoiceRecordingForBrowser: prepare, readAudioDuration: async () => "02:06",
       async uploadCallRecordingFile(file, caseId, progress) { state.primaryCalls.push(file.name); progress?.(15); return primary(file, caseId); },
       monthlyResult: {editable:true,locked:false,message:""}, validateAgentSelected: () => true, missingScoreTopics: [], missingScoreText: "", noCaseForMonth: false,
       inlineImageUploadsRef: {current:0}, richTextImages: () => [],
@@ -127,6 +127,20 @@ try {
   assert.ok(requests.every(({ payload, bytes }) => !Object.hasOwn(payload, "base64") && bytes < 4_500_000), "a 2:06 PCM recording no longer becomes a 5.4 MB request");
   assert.deepEqual(fallback.state.preview.record.callLogs.map((call) => call.recordingUrl.split("&")[0]), ["/api/google-drive-download?id=voice_one", "/api/google-drive-download?id=voice_two"]);
   console.log("PASS both 2:06 voices use independent Drive requests with one Base64 copy, below the payload limit");
+
+  // GSM 6.10 WAV expands about tenfold when decoded into browser-playable PCM.
+  // The recording stored in Drive must be the small original, not the preview.
+  const compactGsm = fixtureFile("long-call.wav", 9, 2_000_000);
+  const expandedPcm = fixtureFile("long-call.playback.wav", 9, 11_000_000);
+  const gsm = form(async () => { throw new Error("Firebase unavailable"); }, async () => ({ file: expandedPcm, converted: true, durationSeconds: 607 }));
+  await gsm.handlers().handleNewCallRecordingFiles([compactGsm]);
+  await gsm.handlers().submitEvaluation();
+  assert.equal(requests[2].payload.fileName, "long-call.wav", "upload uses the small GSM source");
+  assert.ok(requests[2].bytes < 4_400_000, "ten-minute GSM call stays below the Drive fallback payload limit");
+  assert.equal(gsm.state.callLogs[0].duration, "10:07");
+  assert.equal(gsm.state.callLogs[0].recordingName, "long-call.wav");
+  assert.ok(gsm.state.callLogs[0].localPreviewUrl, "decoded preview stays available in the editor");
+  console.log("PASS 10:07 GSM recording uploads the compact source while keeping its decoded browser preview");
 
   globalThis.fetch = async () => ({ ok: false, status: 413, json: async () => { throw new Error("HTML error response"); } });
   const partial = form(async (file) => { if (file.name === "first.wav") return "https://audio.test/first.wav"; throw new Error("stalled"); });
@@ -187,7 +201,9 @@ try {
   function visit(node) { if (ts.isJsxExpression(node) && node.expression?.getText().startsWith("caseItem.callLogs?.length ?")) voiceMarkup = node.expression.getText(); ts.forEachChild(node, visit); }
   visit(dashboardTree); assert.ok(voiceMarkup);
   const viewCode = ts.transpileModule(`return (${voiceMarkup});`, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const html = renderToStaticMarkup(Function("React", "caseItem", viewCode)(React, caseItem));
+  const html = renderToStaticMarkup(Function("React", "caseItem", "VoiceRecordingPlayer", viewCode)(
+    React, caseItem, ({ url }) => React.createElement("audio", { src: url })
+  ));
   const dom = new JSDOM(html);
   assert.deepEqual([...dom.window.document.querySelectorAll("audio")].map((node) => node.getAttribute("src")), ["https://audio.test/first.wav", "https://audio.test/second.wav"]);
   console.log("PASS reopening the serialized case through the real Dashboard mapper renders both Case Detail players");
