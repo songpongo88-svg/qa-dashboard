@@ -32,7 +32,7 @@ if (source.includes("// evaluate-dedicated-edit-memory-v85b") && !source.include
   fs.writeFileSync(file, source);
 }
 
-await import("./patch-evaluate-workspace-v72.mjs");
+if (!source.includes("// evaluate-workspace-actions-v72")) await import("./patch-evaluate-workspace-v72.mjs");
 
 source = fs.readFileSync(file, "utf8");
 if (source.includes("// evaluate-dedicated-edit-memory-v85b") && !source.includes("// evaluate-edit-tab-cancel-v85")) {
@@ -63,6 +63,24 @@ if (source.includes("// evaluate-dedicated-edit-memory-v85b") && !source.include
 
 // Add browser-wide Capture Evidence bridge after the Evaluate workspace has reached
 // its final build-time shape, so the Section B controls are patched only once.
+if (durableCancel || fs.readFileSync(file, "utf8").includes("beginEvaluationEdit")) {
+  const finalCancel = durableCancel || `  async function cancelSubmittedEdit() {
+    const editingCaseId = caseId || "current case";
+    try { await cancelEvaluationEdit(activeSubmittedRecordId, activeEditToken, currentUser?.username || ""); }
+    catch (error) { setDraftMessage(error instanceof Error ? error.message : "Cancel Edit failed. Please retry."); return; }
+    resetEvaluationForm();
+    setActiveSubmittedRecordId("");
+    setSubmitPreview(null);
+    setWorkspaceView("report");
+    setDraftMessage("Edit cancelled. The saved result is available again.");
+    if (isDedicatedEditWorkspaceV85b) onCancelEdit?.();
+  }
+`;
+  source = fs.readFileSync(file, "utf8");
+  source = source.replace(/  function cancelSubmittedEdit\(\) \{[\s\S]*?\n  \}\n/, finalCancel);
+  fs.writeFileSync(file, source);
+}
+
 await import("./patch-evidence-browser-capture-v96.mjs");
 
 // Normalize the legacy Appeal timestamp anchors before applying the latest evaluation timestamp logic.
@@ -96,20 +114,3 @@ await import("./patch-active-theme-preview-v92.mjs");
 // Monthly Payment PDF uses consistent typography across section titles, headers and body cells.
 await import("./patch-monthly-payment-pdf-typography-v93.mjs");
 
-if (durableCancel || fs.readFileSync(file, "utf8").includes("beginEvaluationEdit")) {
-  const finalCancel = durableCancel || `  async function cancelSubmittedEdit() {
-    const editingCaseId = caseId || "current case";
-    try { await cancelEvaluationEdit(activeSubmittedRecordId, activeEditToken, currentUser?.username || ""); }
-    catch (error) { setDraftMessage(error instanceof Error ? error.message : "Cancel Edit failed. Please retry."); return; }
-    resetEvaluationForm();
-    setActiveSubmittedRecordId("");
-    setSubmitPreview(null);
-    setWorkspaceView("report");
-    setDraftMessage("Edit cancelled. The saved result is available again.");
-    if (isDedicatedEditWorkspaceV85b) onCancelEdit?.();
-  }
-`;
-  source = fs.readFileSync(file, "utf8");
-  source = source.replace(/  function cancelSubmittedEdit\(\) \{[\s\S]*?\n  \}\n/, finalCancel);
-  fs.writeFileSync(file, source);
-}
