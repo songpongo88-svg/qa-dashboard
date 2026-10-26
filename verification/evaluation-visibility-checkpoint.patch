@@ -1,0 +1,888 @@
+diff --git a/build/qaEvaluationProgressPatch.js b/build/qaEvaluationProgressPatch.js
+index 1a2c25f..f571939 100644
+--- a/build/qaEvaluationProgressPatch.js
++++ b/build/qaEvaluationProgressPatch.js
+@@ -28,7 +28,58 @@ export function qaEvaluationProgressPatch() {
+           this.error("QA evaluation progress patch could not find Agent quota loading effect.");
+         }
+ 
+-        const progressLogic = `  const qaEvaluationProgressSnapshotRef = useRef({\n    completedCount: selectedAgentCaseCount,\n    mode: (activeSubmittedRecordId ? "edit" : "evaluation") as "edit" | "evaluation",\n    statusText: agentQuotaStatus?.text || "",\n  });\n  qaEvaluationProgressSnapshotRef.current = {\n    completedCount: selectedAgentCaseCount,\n    mode: (activeSubmittedRecordId ? "edit" : "evaluation") as "edit" | "evaluation",\n    statusText: agentQuotaStatus?.text || "",\n  };\n\n  useEffect(() => {\n    const targetUsername = String(selectedAgentOption?.username || "").trim();\n    const evaluatorUsername = String(currentUser?.username || "").trim();\n    if (!targetUsername || !evaluatorUsername) return;\n\n    const startedAt = new Date().toISOString();\n    const publishProgress = () => {\n      const snapshot = qaEvaluationProgressSnapshotRef.current;\n      void setQaEvaluationProgress({\n        username: targetUsername,\n        displayName: String(selectedAgentOption?.agentName || selectedAgentOption?.displayName || agentName || targetUsername).trim(),\n        role: String(selectedAgentOption?.role || "Agent").trim(),\n        evaluatorUsername,\n        evaluatorName: String(currentUser?.displayName || currentUser?.agentName || evaluatorUsername).trim(),\n        completedCount: snapshot.completedCount,\n        mode: snapshot.mode,\n        targetCount: 10,\n        statusText: snapshot.statusText,\n        startedAt,\n      }).catch((error) => console.warn("QA evaluation progress publish failed", error));\n    };\n\n    publishProgress();\n    const heartbeat = window.setInterval(publishProgress, 30_000);\n    return () => {\n      window.clearInterval(heartbeat);\n      void clearQaEvaluationProgress(targetUsername, evaluatorUsername).catch((error) =>\n        console.warn("QA evaluation progress cleanup failed", error)\n      );\n    };\n  }, [\n    agentName,\n    currentUser?.agentName,\n    currentUser?.displayName,\n    currentUser?.username,\n    selectedAgentOption?.agentName,\n    selectedAgentOption?.displayName,\n    selectedAgentOption?.role,\n    selectedAgentOption?.username,\n  ]);\n\n  useEffect(() => {\n    const targetUsername = String(selectedAgentOption?.username || "").trim();\n    const evaluatorUsername = String(currentUser?.username || "").trim();\n    if (!targetUsername || !evaluatorUsername) return;\n    void setQaEvaluationProgress({\n      username: targetUsername,\n      displayName: String(selectedAgentOption?.agentName || selectedAgentOption?.displayName || agentName || targetUsername).trim(),\n      role: String(selectedAgentOption?.role || "Agent").trim(),\n      evaluatorUsername,\n      evaluatorName: String(currentUser?.displayName || currentUser?.agentName || evaluatorUsername).trim(),\n      completedCount: selectedAgentCaseCount,\n      mode: activeSubmittedRecordId ? "edit" : "evaluation",\n      targetCount: 10,\n      statusText: agentQuotaStatus?.text || "",\n    }).catch((error) => console.warn("QA evaluation progress update failed", error));\n  }, [\n    agentName,\n    agentQuotaStatus?.text,\n    activeSubmittedRecordId,\n    currentUser?.agentName,\n    currentUser?.displayName,\n    currentUser?.username,\n    selectedAgentCaseCount,\n    selectedAgentOption?.agentName,\n    selectedAgentOption?.displayName,\n    selectedAgentOption?.role,\n    selectedAgentOption?.username,\n  ]);\n\n`;
++        const progressLogic = `  const qaEvaluationProgressContextRef = useRef("");
++  if (!qaEvaluationProgressContextRef.current) {
++    const key = "qa-evaluation-tab:" + String(currentUser?.username || "");
++    try { qaEvaluationProgressContextRef.current = sessionStorage.getItem(key) || crypto.randomUUID(); sessionStorage.setItem(key, qaEvaluationProgressContextRef.current); }
++    catch { qaEvaluationProgressContextRef.current = crypto.randomUUID(); }
++  }
++  const qaEvaluationProgressContext = qaEvaluationProgressContextRef.current + "|" + selectedMonthKey + "|" + activeSubmittedRecordId;
++  const qaEvaluationProgressEnabled = Boolean(selectedAgentOption?.username) && monthlyResult.editable && workspaceView === "form" && evaluationStatus !== "Submitted";
++  const qaEvaluationProgressSnapshotRef = useRef({ completedCount: selectedAgentCaseCount, mode: "evaluation" as "edit" | "evaluation", statusText: "", isTestCase: false, enabled: false });
++  qaEvaluationProgressSnapshotRef.current = { completedCount: selectedAgentCaseCount, mode: activeSubmittedRecordId ? "edit" : "evaluation", statusText: agentQuotaStatus?.text || "", isTestCase, enabled: qaEvaluationProgressEnabled };
++  useEffect(() => {
++    const targetUsername = String(selectedAgentOption?.username || "").trim();
++    const evaluatorUsername = String(currentUser?.username || "").trim();
++    if (!targetUsername || !evaluatorUsername || !qaEvaluationProgressEnabled) return;
++    const startedAt = new Date().toISOString();
++    const publishProgress = () => {
++      const snapshot = qaEvaluationProgressSnapshotRef.current;
++      if (!snapshot.enabled) return;
++      void setQaEvaluationProgress({ username: targetUsername,
++        displayName: String(selectedAgentOption?.agentName || selectedAgentOption?.displayName || agentName || targetUsername).trim(),
++        role: String(selectedAgentOption?.role || "Agent").trim(), evaluatorUsername,
++        evaluatorName: String(currentUser?.displayName || currentUser?.agentName || evaluatorUsername).trim(),
++        completedCount: snapshot.completedCount, mode: snapshot.mode, targetCount: 10, statusText: snapshot.statusText,
++        monthKey: selectedMonthKey, evaluationId: activeSubmittedRecordId, caseId: activeSubmittedRecordId ? caseId : "", contextId: qaEvaluationProgressContext, isTestCase: snapshot.isTestCase, startedAt,
++      }).catch((error) => console.warn("QA evaluation progress publish failed", error));
++    };
++    publishProgress();
++    const heartbeat = window.setInterval(publishProgress, 30_000);
++    return () => {
++      window.clearInterval(heartbeat);
++      void clearQaEvaluationProgress(targetUsername, evaluatorUsername, qaEvaluationProgressContext).catch((error) => console.warn("QA evaluation progress cleanup failed", error));
++    };
++  }, [agentName, currentUser?.agentName, currentUser?.displayName, currentUser?.username,
++    selectedAgentOption?.agentName, selectedAgentOption?.displayName, selectedAgentOption?.role, selectedAgentOption?.username,
++    qaEvaluationProgressContext, qaEvaluationProgressEnabled]);
++  useEffect(() => {
++    const targetUsername = String(selectedAgentOption?.username || "").trim();
++    const evaluatorUsername = String(currentUser?.username || "").trim();
++    if (!targetUsername || !evaluatorUsername || !qaEvaluationProgressEnabled) return;
++    void setQaEvaluationProgress({ username: targetUsername,
++      displayName: String(selectedAgentOption?.agentName || selectedAgentOption?.displayName || agentName || targetUsername).trim(),
++      role: String(selectedAgentOption?.role || "Agent").trim(), evaluatorUsername,
++      evaluatorName: String(currentUser?.displayName || currentUser?.agentName || evaluatorUsername).trim(),
++      completedCount: selectedAgentCaseCount, mode: activeSubmittedRecordId ? "edit" : "evaluation", targetCount: 10,
++      statusText: agentQuotaStatus?.text || "", monthKey: selectedMonthKey, evaluationId: activeSubmittedRecordId,
++      caseId: activeSubmittedRecordId ? caseId : "", contextId: qaEvaluationProgressContext, isTestCase,
++    }).catch((error) => console.warn("QA evaluation progress update failed", error));
++  }, [agentName, agentQuotaStatus?.text, currentUser?.agentName, currentUser?.displayName, currentUser?.username,
++    selectedAgentCaseCount, selectedAgentOption?.agentName, selectedAgentOption?.displayName, selectedAgentOption?.role,
++    selectedAgentOption?.username, qaEvaluationProgressContext, qaEvaluationProgressEnabled, isTestCase]);
++
++`;
+ 
+         next = next.replace(quotaEffectAnchor, `${progressLogic}${quotaEffectAnchor}`);
+ 
+diff --git a/src/App.tsx b/src/App.tsx
+index bb104a0..84caa6a 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -27,6 +27,7 @@ import AppealMockup from "./AppealMockup";
+ import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
+ import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
+ import { WORKFLOW_STATUS, coachingStatusText } from "./workflowStatusLabels";
++import EvaluationActivityProvider from "./EvaluationActivityProvider";
+ import { fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
+ import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
+ import QARubricMockup from "./QARubricMockup";
+@@ -5237,6 +5238,7 @@ export default function App() {
+ 
+     try {
+       await upsertStoredEvaluation({
++        editingWorkflowToken: payload.editingWorkflowToken,
+         id: evaluationId,
+         evaluationKey,
+         isTestCase: isTestCaseEvaluation(payload),
+@@ -7563,7 +7565,7 @@ export default function App() {
+   ];
+ 
+   return (
+-    <>
++    <EvaluationActivityProvider>
+       <TermsAccessBoundary key={currentUser.username} user={{ ...currentUser, teamName: workspaceTeamName }} onLogout={handleLogout}>
+         <style>{`
+           :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "296px"}; }
+@@ -8240,6 +8242,6 @@ export default function App() {
+         />
+       ) : null}
+       </TermsAccessBoundary>
+-    </>
++    </EvaluationActivityProvider>
+   );
+ }
+diff --git a/src/AppealMockup.tsx b/src/AppealMockup.tsx
+index 4ebb29e..09e7705 100644
+--- a/src/AppealMockup.tsx
++++ b/src/AppealMockup.tsx
+@@ -1,3 +1,5 @@
++import { useEvaluationActivity } from "./EvaluationActivityContext";
++import { evaluationCaseBlocked } from "./evaluationActivity";
+ import { appealStatusLabel } from "./workflowStatusLabels";
+ import { generateCasePdfWithAppealHistory } from "./caseAppealPdfAddon";
+ import { getAppealTopicDecision, appealScoreAfterReview, appealTopicIssueTags, appealIssueTagsChanged, type AppealDecision, type AppealTopicDecision } from "./appealReview";
+@@ -1324,6 +1326,7 @@ export default function AppealMockup({
+   onSelectedAgentChange?: (agentName: string) => void;
+   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
+ }) {
++  const evaluationActivity = useEvaluationActivity();
+   const [allCases, setAllCases] = useState<AppealCaseItem[]>([]);
+   const [isLoading, setIsLoading] = useState(true);
+   const [loadError, setLoadError] = useState("");
+@@ -2018,12 +2021,14 @@ export default function AppealMockup({
+     return cases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
+   }, [allCases, effectiveSelectedAgent, selectedMonthKey, roleScopedAgentList]);
+ 
+-  const filteredCases = useMemo(() => {
++  const unmaskedFilteredCases = useMemo(() => {
+     const keyword = searchCaseId.trim().toLowerCase();
+     if (!keyword) return baseVisibleCases;
+     return baseVisibleCases.filter((item) => item.caseId.toLowerCase().includes(keyword));
+   }, [baseVisibleCases, searchCaseId]);
+ 
++  const filteredCases = useMemo(() => unmaskedFilteredCases.filter(item => !evaluationCaseBlocked(item, evaluationActivity, currentUser)), [unmaskedFilteredCases, evaluationActivity, currentUser?.role]);
++
+   useEffect(() => {
+     if (!filteredCases.length) {
+       setSelectedCaseKey("");
+@@ -2082,7 +2087,7 @@ export default function AppealMockup({
+     onSelectedAgentChange,
+   ]);
+ 
+-  const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey) || null;
++  const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey && !evaluationCaseBlocked(item, evaluationActivity, currentUser)) || null;
+   const selectedRevision = selectedCase
+     ? selectedCase.rewriteHistory.find((item) => item.appealRound === selectedAppealRound) ||
+       selectedCase.rewriteHistory[selectedCase.rewriteHistory.length - 1] ||
+diff --git a/src/AppealRequestsMockup.tsx b/src/AppealRequestsMockup.tsx
+index e44a246..f859e3a 100644
+--- a/src/AppealRequestsMockup.tsx
++++ b/src/AppealRequestsMockup.tsx
+@@ -1,3 +1,5 @@
++import { useEvaluationActivity } from "./EvaluationActivityContext";
++import { evaluationCaseBlocked } from "./evaluationActivity";
+ import { WORKFLOW_STATUS } from "./workflowStatusLabels";
+ import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, appealIssueTagChanges, appealTopicIssueTags, normalizeAppealIssueTags, type AppealIssueTagFields, type AppealTopicDecision } from "./appealReview";
+ import AppealIssueTagEditor from "./AppealIssueTags";
+@@ -739,6 +741,7 @@ export default function AppealRequestsMockup({
+   additionalCaseTopics?: any[];
+   onTasksChanged?: () => void;
+ }) {
++  const evaluationActivity = useEvaluationActivity();
+   const allowReview = reviewPermission && currentUser?.role === "Quality Assurance";
+   const canDiscuss = ["Quality Assurance", "Senior", "Supervisor"].includes(String(currentUser?.role || ""));
+   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
+@@ -822,7 +825,7 @@ export default function AppealRequestsMockup({
+     const permittedIds = new Set(requests.map(request => request.requestId));
+     return buildAppealResetHistory(logs).filter(item => permittedIds.has(item.requestId));
+   }, [logs, requests]);
+-  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId && !item.editingDraft) || null;
++  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId && !item.editingDraft && !evaluationCaseBlocked({ ...item, monthKey: getAppealReviewMonthKey(item) }, evaluationActivity, currentUser)) || null;
+   const monthlyResult = useMonthlyResultLock(selectedRequest?.agent || "", selectedRequest ? getAppealReviewMonthKey(selectedRequest) : "");
+   const canModifyRequest = allowReview && monthlyResult.editable;
+   useEffect(() => {
+@@ -966,7 +969,7 @@ export default function AppealRequestsMockup({
+   const visibleRequestsUnfiltered = statusFilter === "All" ? latestRequestsByCase :
+     statusFilter === "QaPending" ? qaPendingRequests :
+       latestRequestsByCase.filter(item => appealWorkflowStatus(item) === statusFilter);
+-  const visibleRequests = visibleRequestsUnfiltered.filter(item => (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));
++  const visibleRequests = visibleRequestsUnfiltered.filter(item => !evaluationCaseBlocked({ ...item, monthKey: getAppealReviewMonthKey(item) }, evaluationActivity, currentUser) && (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));
+   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
+   const selectedWorkflowStatus = selectedRequest ? appealWorkflowStatus(selectedRequest) : "";
+   const isPermissionTask = ["Request Additional Appeal", "Approved (Access)"].includes(selectedWorkflowStatus);
+diff --git a/src/CreateEvaluationMockup.tsx b/src/CreateEvaluationMockup.tsx
+index db79fa1..58ef901 100644
+--- a/src/CreateEvaluationMockup.tsx
++++ b/src/CreateEvaluationMockup.tsx
+@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
+ import { jsPDF } from "jspdf";
+ import PageHero from "./PageHero";
+ import { evaluationStatusLabel, WORKFLOW_STATUS, workflowStatusTone } from "./workflowStatusLabels";
++import { beginEvaluationEdit, cancelEvaluationEdit } from "./evaluationEditingStore";
+ import TestCaseBadge, { TestCaseNotice } from "./TestCaseBadge";
+ import { useMonthlyResultLock } from "./useMonthlyResultLock";
+ import { monthlyResultScope, MonthlyResultLockCheckError, prepareMonthlyResultReferences } from "./monthlyResultLockStore";
+@@ -104,6 +105,7 @@ type EvaluationDraft = {
+   draftId?: string;
+   // Preserve the existing evaluation ID for failed Edit Case drafts.
+   activeSubmittedRecordId?: string;
++  editingWorkflowToken?: string;
+   title?: string;
+   agentName: string;
+   auditDate: string;
+@@ -144,6 +146,7 @@ type EvaluationCurrentUser = {
+ };
+ 
+ export type EvaluationSubmitPayload = {
++  editingWorkflowToken?: string;
+   recordId?: string;
+   evaluationKey?: string;
+   evaluationType?: StoredEvaluationType;
+@@ -218,6 +221,7 @@ type EvaluateTabMemory = {
+   draftMessage: string;
+   activeDraftId: string;
+   activeSubmittedRecordId: string;
++  activeEditToken: string;
+   workspaceView: EvaluationWorkspaceView;
+   topicState: Record<string, TopicState>;
+   expandedGroups: Record<string, boolean>;
+@@ -1061,6 +1065,7 @@ export default function CreateEvaluationMockup({
+   const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState(
+     () => readEvaluateTabMemory()?.activeSubmittedRecordId || ""
+   );
++  const [activeEditToken, setActiveEditToken] = useState(() => readEvaluateTabMemory()?.activeEditToken || "");
+   const [workspaceView, setWorkspaceView] = useState<EvaluationWorkspaceView>(
+     () => readEvaluateTabMemory()?.workspaceView || "form"
+   );
+@@ -1123,6 +1128,7 @@ export default function CreateEvaluationMockup({
+       draftMessage,
+       activeDraftId,
+       activeSubmittedRecordId,
++      activeEditToken,
+       workspaceView,
+       topicState,
+       expandedGroups,
+@@ -1150,6 +1156,7 @@ export default function CreateEvaluationMockup({
+     draftMessage,
+     activeDraftId,
+     activeSubmittedRecordId,
++    activeEditToken,
+     workspaceView,
+     topicState,
+     expandedGroups,
+@@ -1484,6 +1491,7 @@ export default function CreateEvaluationMockup({
+     return {
+       draftId,
+       activeSubmittedRecordId: activeSubmittedRecordId || "",
++      editingWorkflowToken: activeEditToken || "",
+       title: `${noCaseForMonth ? "No Case Monthly Result" : caseId || "Untitled Case"} - ${agentName || "No agent selected"}`,
+       agentName: canonicalizeAgentName(agentName),
+       auditDate,
+@@ -1511,8 +1519,14 @@ export default function CreateEvaluationMockup({
+     };
+   }
+ 
+-  function loadDraftIntoForm(draft: EvaluationDraft) {
++  async function loadDraftIntoForm(draft: EvaluationDraft) {
+     const normalizedDraft = normalizeDraft(draft);
++    let editToken = "";
++    if (normalizedDraft.activeSubmittedRecordId) {
++      try { editToken = await startEditingWorkflow(normalizedDraft.activeSubmittedRecordId, normalizedDraft.agentName, normalizedDraft.caseId, getEvaluationMonthKey(normalizedDraft.auditDate), Boolean(normalizedDraft.isTestCase), normalizedDraft.editingWorkflowToken); }
++      catch (error) { setDraftMessage(error instanceof Error ? error.message : "Edit status could not be verified."); return; }
++    }
++    setActiveEditToken(editToken);
+     let restoredCalls: EditableCallLog[];
+     try {
+       restoredCalls = restoreDraftCallLogs(normalizedDraft.callLogs || []);
+@@ -1564,8 +1578,11 @@ export default function CreateEvaluationMockup({
+     setDraftMessage("Draft deleted. The current form stays open until you start another draft.");
+   }
+ 
+-  function cancelSubmittedEdit() {
++  async function cancelSubmittedEdit() {
+     const editingCaseId = caseId || "current case";
++    try { await cancelEvaluationEdit(activeSubmittedRecordId, activeEditToken, currentUser?.username || ""); }
++    catch (error) { setDraftMessage(error instanceof Error ? error.message : "Cancel Edit failed. Please retry."); return; }
++    resetEvaluationForm();
+     setActiveSubmittedRecordId("");
+     setSubmitPreview(null);
+     setWorkspaceView("report");
+@@ -1615,6 +1632,7 @@ export default function CreateEvaluationMockup({
+     setDraftSavedAt("");
+     setActiveDraftId("");
+     setActiveSubmittedRecordId("");
++    setActiveEditToken("");
+     setTopicState(buildInitialTopicState(topics));
+     setIssueTagDrafts({});
+     setIssueTagMessages({});
+@@ -1647,6 +1665,7 @@ export default function CreateEvaluationMockup({
+   }
+ 
+   async function submitEvaluation() {
++    if (activeSubmittedRecordId && !activeEditToken) { setDraftMessage("Checking Edit Status. Please reopen the saved case before submitting."); return; }
+     if (!validateAssessmentImages()) return;
+     if (!validateAgentSelected("submitting the evaluation")) return;
+     if (!monthlyResult.editable) { setDraftMessage(monthlyResult.message || "กรุณารอการตรวจสอบผลประจำเดือน"); return; }
+@@ -1780,6 +1799,7 @@ export default function CreateEvaluationMockup({
+       .slice(0, 3)
+       .map((item) => `${item.topic.code} ${item.topic.title}: ${item.score}/${item.topic.max}`);
+     const historyRecord: EvaluationRecord = {
++      editingWorkflowToken: activeSubmittedRecordId ? activeEditToken : undefined,
+       recordId:
+         activeSubmittedRecordId ||
+         (noCaseForMonth ? noCaseRecordId : `${caseId || "UNTITLED"}-${now.getTime()}`),
+@@ -2571,11 +2591,18 @@ export default function CreateEvaluationMockup({
+     }
+   }
+ 
++  async function startEditingWorkflow(id: string, name: string, editingCaseId: string, month: string, test: boolean, token?: string) {
++    const option = availableAgentOptions.find(item => canonicalizeAgentName(item.agentName || item.displayName) === canonicalizeAgentName(name));
++    return beginEvaluationEdit({ evaluationId: id, caseId: editingCaseId, username: option?.username || name, displayName: canonicalizeAgentName(name), monthKey: month, evaluatorUsername: currentUser?.username || "", evaluatorName, isTestCase: test, editToken: token });
++  }
++
+   async function openSubmittedRecord(record: EvaluationRecord) {
+     try {
+       const scope = monthlyResultScope(record);
+       if (!scope) throw new MonthlyResultLockCheckError();
+       await prepareMonthlyResultReferences([scope]);
++      const token = await startEditingWorkflow(record.recordId, record.agentName || record.targetDisplayName, record.caseId, scope.monthKey, isTestCaseEvaluation(record));
++      setActiveEditToken(token);
+     } catch (error) {
+       const message = error instanceof Error ? error.message : "เปิดแก้ไขเคสไม่สำเร็จ";
+       setReportMessage(message);
+@@ -3065,7 +3092,7 @@ export default function CreateEvaluationMockup({
+                         <div className="mt-3 text-xs font-semibold text-slate-600">Saved at: <span className="font-black text-slate-900">{draft.savedAt || "-"}</span></div>
+                         <div className="mt-1 text-xs font-semibold text-slate-600">Score: <span className="font-black text-slate-900">{draft.criticalError ? 0 : draftScore}/{draftRubric.totalScore}</span></div>
+                         <div className="mt-4 flex gap-2">
+-                          <button type="button" onClick={() => { loadDraftIntoForm(draft); setWorkspaceView("form"); }} className="flex-1 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-sky-800">
++                          <button type="button" onClick={() => { void loadDraftIntoForm(draft); }} className="flex-1 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-sky-800">
+                             Open Draft
+                           </button>
+                           <button type="button" onClick={() => deleteDraft(draftId)} className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-black text-rose-700 transition hover:bg-rose-50">
+diff --git a/src/DashboardMockup.tsx b/src/DashboardMockup.tsx
+index 473bb44..ac7ea53 100644
+--- a/src/DashboardMockup.tsx
++++ b/src/DashboardMockup.tsx
+@@ -1,3 +1,6 @@
++import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
++import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
++import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
+ import { WORKFLOW_STATUS, workflowStatusTone, workflowStatusTextTone } from "./workflowStatusLabels";
+ import { getAppealTopicDecision, appealTopicIssueTags, appealIssueTagsChanged, type AppealIssueTagFields, type AppealDecision, type AppealTopicDecision } from "./appealReview";
+ import { AppealEvidencePicker, AppealEvidenceGallery, EvidenceWatermarkOverlay, type AppealEvidenceImage } from "./AppealEvidence";
+@@ -3882,6 +3885,7 @@ function SlideOverCaseDetail({
+   onShareCaseDetail?: (caseId: string, agentName?: string) => void;
+   onAppealSubmitted?: (caseId: string, agentName?: string, monthKey?: string) => void;
+ }) {
++  const caseEvaluationActivity = useEvaluationActivity();
+   if (!open || !caseItem) return null;
+ 
+   const hasAppealCase =
+@@ -4483,6 +4487,7 @@ function SlideOverCaseDetail({
+ 
+   const handleGenerateCaseDetailPdf = async (pdfVariant: "original" | "appeal" = "original") => {
+     try {
++      await assertEvaluationCaseVisible(caseItem, currentUser);
+       const officialPdf = await generateCasePdfWithAppealHistory({
+         caseItem,
+         currentUser,
+@@ -5057,7 +5062,9 @@ function SlideOverCaseDetail({
+                         <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">Intent</div>
+                         {(() => {
+                           const detailIntent = splitCaseNavigatorIntent(caseItem.inquiryTh, caseItem.inquiryEn);
+-                          return (
++                          if (evaluationCaseBlocked(caseItem, caseEvaluationActivity, currentUser)) return <EvaluationActivityUnavailable label={caseEvaluationActivity.ready ? "Editing in Progress" : "Evaluation Status Unavailable"} />;
++
++  return (
+                             <>
+                               <div className="mt-1 whitespace-pre-line text-[15px] font-extrabold leading-6 text-slate-900">{detailIntent.thai}</div>
+                               {detailIntent.english ? (
+@@ -5326,7 +5333,9 @@ export default function DashboardMockup({
+   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
+ 
+-  const [allCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
++  const evaluationActivity = useEvaluationActivity();
++  const [sourceCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
++  const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
+   const markCaseAppealSubmitted = (caseId: string, agentName?: string, monthKey?: string) => {
+     const submittedIds = new Set(splitAppealCaseIds(caseId));
+     setAllCases((cases) => {
+@@ -7062,8 +7071,9 @@ export default function DashboardMockup({
+       .sort(compareCaseAuditDateAndWaitingTime);
+   }, [authorizedSearchCases, caseIdSearch, caseExplorerCasesBase, overviewMode]);
+ 
+-  const caseExplorerAppealCount = useMemo(() => caseExplorerCandidates.filter(isAppealCaseRecord).length, [caseExplorerCandidates]);
+-  const caseExplorerCases = useMemo(() => filterCaseRecords(caseExplorerCandidates, caseRecordFilter), [caseExplorerCandidates, caseRecordFilter]);
++  const visibleCaseExplorerCandidates = useMemo(() => caseExplorerCandidates.filter(item => !evaluationCaseBlocked(item, evaluationActivity, currentUser)), [caseExplorerCandidates, evaluationActivity, currentUser?.role]);
++  const caseExplorerAppealCount = useMemo(() => visibleCaseExplorerCandidates.filter(isAppealCaseRecord).length, [visibleCaseExplorerCandidates]);
++  const caseExplorerCases = useMemo(() => filterCaseRecords(visibleCaseExplorerCandidates, caseRecordFilter), [visibleCaseExplorerCandidates, caseRecordFilter]);
+ 
+   useEffect(() => {
+     if (!caseSearchSubmitNonce || caseSearchHandledNonceRef.current === caseSearchSubmitNonce) return;
+@@ -7160,7 +7170,11 @@ export default function DashboardMockup({
+ 
+   const isAllAgentsView = !effectiveSelectedAgent;
+   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
+-  const appealScoreHold = useMemo(() => getAppealScoreHold(dashboardCases), [dashboardCases]);
++  const appealScoreHold = useMemo(() => {
++    const agents = effectiveSelectedAgent ? [effectiveSelectedAgent] : overviewAgentScopeList.length ? overviewAgentScopeList : [...new Set([...allCases.map(row => row.agent), ...evaluationActivity.records.map(row => row.displayName)])];
++    const months = selectedMonthKey && selectedMonthKey !== "all" ? [selectedMonthKey] : [...new Set(dashboardCases.map(row => row.monthKey))];
++    return evaluationScopeHold(evaluationActivity, agents, months) || getAppealScoreHold(dashboardCases);
++  }, [dashboardCases, evaluationActivity, effectiveSelectedAgent, overviewAgentScopeList, allCases, selectedMonthKey]);
+ 
+   const metricAverageDisplay = summary.averageDisplay;
+   const metricCaseCount = dashboardCases.length;
+diff --git a/src/EvaluationActivityContext.tsx b/src/EvaluationActivityContext.tsx
+new file mode 100644
+index 0000000..25920f0
+--- /dev/null
++++ b/src/EvaluationActivityContext.tsx
+@@ -0,0 +1,12 @@
++import React, { createContext, useContext } from 'react';
++import type { EvaluationActivityState } from './evaluationActivity';
++export const EMPTY_EVALUATION_ACTIVITY: EvaluationActivityState = { ready: true, error: false, records: [], now: 0 };
++export const EvaluationActivityContext = createContext<EvaluationActivityState | undefined>(undefined);
++export const useOptionalEvaluationActivity = () => useContext(EvaluationActivityContext);
++export const useEvaluationActivity = () => useContext(EvaluationActivityContext) || EMPTY_EVALUATION_ACTIVITY;
++export function EvaluationActivityUnavailable({ label = 'Editing in Progress' }: { label?: string }) {
++  return <div role="status" data-evaluation-case-blocked="true" className="my-4 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-800">
++    <div className="text-base font-semibold">{label}</div>
++    <p className="mt-2 text-sm leading-6">QA is updating this case. Case details and downloads will be available after the updated evaluation is saved.</p>
++  </div>;
++}
+diff --git a/src/EvaluationActivityProvider.tsx b/src/EvaluationActivityProvider.tsx
+new file mode 100644
+index 0000000..01d8454
+--- /dev/null
++++ b/src/EvaluationActivityProvider.tsx
+@@ -0,0 +1,12 @@
++import React, { useSyncExternalStore } from 'react';
++import { EvaluationActivityContext } from './EvaluationActivityContext';
++import { configureEvaluationResultRefresh, getEvaluationActivitySnapshot, subscribeEvaluationActivity } from './evaluationActivityStore';
++import { refreshStoredEvaluation } from './evaluationStore';
++configureEvaluationResultRefresh(async id => {
++  await refreshStoredEvaluation(id);
++  window.dispatchEvent(new CustomEvent('qa-dashboard-data-refresh', { detail: Date.now() }));
++});
++export default function EvaluationActivityProvider({ children }: { children: React.ReactNode }) {
++  const state = useSyncExternalStore(subscribeEvaluationActivity, getEvaluationActivitySnapshot, getEvaluationActivitySnapshot);
++  return <EvaluationActivityContext.Provider value={state}>{children}</EvaluationActivityContext.Provider>;
++}
+diff --git a/src/QaEvaluationProgressNotice.tsx b/src/QaEvaluationProgressNotice.tsx
+index 0fd30a9..8349f42 100644
+--- a/src/QaEvaluationProgressNotice.tsx
++++ b/src/QaEvaluationProgressNotice.tsx
+@@ -1,4 +1,6 @@
+ import { WORKFLOW_STATUS } from "./workflowStatusLabels";
++import { useOptionalEvaluationActivity } from "./EvaluationActivityContext";
++import { isEvaluationActivityActive } from "./evaluationActivity";
+ import React, { useEffect, useMemo, useState } from "react";
+ import {
+   subscribeQaEvaluationProgress,
+@@ -29,16 +31,17 @@ export default function QaEvaluationProgressNotice({
+   const username = String(currentUser?.username || "").trim();
+   const [progress, setProgress] = useState<QaEvaluationProgress | null>(null);
+   const [nowTick, setNowTick] = useState(Date.now());
++  const activity = useOptionalEvaluationActivity();
+ 
+   useEffect(() => {
+     setProgress(null);
+-    if (!username) return;
++    if (!username || activity) return;
+     return subscribeQaEvaluationProgress(
+       username,
+       (nextProgress) => setProgress(nextProgress),
+       (error) => console.warn("QA evaluation progress subscribe failed", error)
+     );
+-  }, [username]);
++  }, [username, Boolean(activity)]);
+ 
+   useEffect(() => {
+     const timer = window.setInterval(() => setNowTick(Date.now()), 10_000);
+@@ -46,11 +49,12 @@ export default function QaEvaluationProgressNotice({
+   }, []);
+ 
+   const activeProgress = useMemo(() => {
++    if (activity) return activity.records.filter(row => row.username.toLowerCase() === username.toLowerCase() && isEvaluationActivityActive(row, activity.now)).sort((a, b) => Number(b.persistent) - Number(a.persistent) || b.updatedAt.localeCompare(a.updatedAt))[0] || null;
+     if (!progress) return null;
+     const expiresAt = new Date(progress.expiresAt).getTime();
+     if (!Number.isFinite(expiresAt) || expiresAt <= nowTick) return null;
+     return progress;
+-  }, [progress, nowTick]);
++  }, [progress, nowTick, activity, username]);
+ 
+   if (!activeProgress) return null;
+ 
+diff --git a/src/SummaryMockup.tsx b/src/SummaryMockup.tsx
+index 401f552..1a06d53 100644
+--- a/src/SummaryMockup.tsx
++++ b/src/SummaryMockup.tsx
+@@ -1,3 +1,6 @@
++import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
++import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
++import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
+ import { workflowStatusTextTone } from "./workflowStatusLabels";
+ import { formatPdfDateTime } from "./lib/pdfDates";
+ import React, { useEffect, useMemo, useRef, useState } from "react";
+@@ -2966,7 +2969,9 @@ export default function SummaryMockup({
+   onSelectedWeekChange?: (week: string) => void;
+   onSelectedYearChange?: (year: string) => void;
+ }) {
+-  const [allCases, setAllCases] = useState<CaseItem[]>([]);
++  const evaluationActivity = useEvaluationActivity();
++  const [sourceCases, setAllCases] = useState<CaseItem[]>([]);
++  const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
+   const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>([]);
+   const [appealMergeCount, setAppealMergeCount] = useState(0);
+   const [isLoading, setIsLoading] = useState(true);
+@@ -4300,7 +4305,11 @@ export default function SummaryMockup({
+   }, [allCases, accountProfiles]);
+ 
+   const summaryCards = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
+-  const appealScoreHold = useMemo(() => getAppealScoreHold(filteredCases), [filteredCases]);
++  const appealScoreHold = useMemo(() => {
++    const agents = effectiveSelectedAgent !== "all" ? [effectiveSelectedAgent] : [...new Set(periodScopedCases.map(row => row.agent))];
++    const months = /^\d{4}-\d{2}$/.test(selectedMonth) ? [selectedMonth] : [...new Set(periodScopedCases.map(row => row.monthKey))];
++    return evaluationScopeHold(evaluationActivity, agents, months) || getAppealScoreHold(filteredCases);
++  }, [filteredCases, evaluationActivity, effectiveSelectedAgent, periodScopedCases, selectedMonth]);
+   const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);
+ 
+   const comparisonRows = useMemo(() => {
+@@ -6297,6 +6306,7 @@ export default function SummaryMockup({
+ 
+   async function generateSummaryReportPdf() {
+     if (appealScoreHold) return;
++    await assertEvaluationScopeComplete([...new Set(filteredCases.map(row => row.agent))], [...new Set(filteredCases.map(row => row.monthKey))]);
+     await ensureSarabunPdfFont();
+ 
+     const reportSummary = summarizeCases(filteredCases);
+diff --git a/src/evaluationActivity.ts b/src/evaluationActivity.ts
+new file mode 100644
+index 0000000..4e6a912
+--- /dev/null
++++ b/src/evaluationActivity.ts
+@@ -0,0 +1,77 @@
++import { canonicalAgentIdentityKey } from './lib/agentIdentity';
++import { WORKFLOW_STATUS } from './workflowStatusLabels';
++
++export const EVALUATION_ACTIVITY_COLLECTION = 'qa_evaluation_progress';
++export const EVALUATION_STATUS_UNAVAILABLE = 'Evaluation Status Unavailable';
++export type EvaluationActivity = {
++  id: string; username: string; displayName: string; evaluatorUsername: string; evaluatorName: string;
++  mode: 'evaluation' | 'edit'; monthKey: string; evaluationId: string; caseId: string;
++  persistent: boolean; isTestCase: boolean; editToken: string;
++  completedCount: number; targetCount: number; statusText: string;
++  startedAt: string; updatedAt: string; expiresAt: string;
++};
++export type EvaluationActivityState = { ready: boolean; error: boolean; records: readonly EvaluationActivity[]; now: number };
++export type EvaluationScoreState = { evaluationHoldLabel?: string; evaluationCaseEditing?: boolean };
++export type EvaluationCaseScope = { id?: string; key?: string; recordId?: string; evaluationKey?: string;
++  agent?: string; agentName?: string; targetUsername?: string; targetDisplayName?: string;
++  caseId?: string; monthKey?: string; evaluationMonthKey?: string; auditDate?: string; auditTimestamp?: string; isTestCase?: boolean };
++export type EvaluationHold = { label: string; message: string; pendingCount: number };
++export const evaluationActivityId = (value: string) => value.trim().replace(/[\\/#?\[\]]/g, '_').toLowerCase();
++export const evaluationEditDocId = (id: string) => `edit::${evaluationActivityId(id)}`;
++export function evaluationProgressDocId(username: string, evaluator: string, context = '') {
++  return context ? `active::${evaluationActivityId(evaluator)}::${evaluationActivityId(context)}` : username.trim().replace(/\//g, '__').replace(/\s+/g, ' ').toLowerCase();
++}
++export function evaluationActivityMonth(row: EvaluationCaseScope) {
++  for (const value of [row.monthKey, row.evaluationMonthKey, row.auditTimestamp, row.auditDate]) {
++    const text = String(value || '');
++    const iso = text.match(/^(\d{4}-(?:0[1-9]|1[0-2]))(?:$|[-T])/);
++    if (iso) return iso[1];
++    const display = text.match(/^\d{1,2}[/.\-](\d{1,2})[/.\-](\d{4})/);
++    if (display) return `${Number(display[2]) >= 2400 ? Number(display[2]) - 543 : display[2]}-${display[1].padStart(2, '0')}`;
++  }
++  return '';
++}
++export function normalizeEvaluationActivity(row: any, id: string): EvaluationActivity | null {
++  const username = String(row?.username || '').trim(), evaluator = String(row?.editorUsername || row?.evaluatorUsername || '').trim();
++  if (!username || !evaluator) return null;
++  return { id, username, evaluatorUsername: evaluator, displayName: String(row.displayName || username), evaluatorName: String(row.evaluatorName || evaluator),
++    mode: row.mode === 'edit' ? 'edit' : 'evaluation', persistent: row.workflowEdit === true,
++    monthKey: String(row.monthKey || ''), evaluationId: String(row.evaluationId || ''), caseId: String(row.caseId || ''),
++    editToken: String(row.editToken || ''), isTestCase: row.isTestCase === true,
++    completedCount: Math.max(0, Number(row.completedCount) || 0), targetCount: Math.max(1, Number(row.targetCount) || 10), statusText: String(row.statusText || ''),
++    startedAt: String(row.startedAt || row.updatedAt || ''), updatedAt: String(row.updatedAt || ''), expiresAt: String(row.expiresAt || '') };
++}
++export const isEvaluationActivityActive = (row: EvaluationActivity, now: number) => row.persistent || Date.parse(row.expiresAt) > now;
++const sameAgent = (activity: EvaluationActivity, name: string) => Boolean(name) && (activity.username.toLowerCase() === name.toLowerCase()
++  || canonicalAgentIdentityKey(activity.displayName) === canonicalAgentIdentityKey(name));
++export function activityMatchesCase(activity: EvaluationActivity, row: EvaluationCaseScope) {
++  if (activity.mode !== 'edit') return false;
++  if (activity.evaluationId && [row.id, row.key, row.recordId, row.evaluationKey].includes(activity.evaluationId)) return true;
++  return Boolean(activity.caseId && row.caseId) && activity.caseId.replace(/\s/g, '').toUpperCase() === row.caseId!.replace(/\s/g, '').toUpperCase()
++    && activity.monthKey === evaluationActivityMonth(row) && sameAgent(activity, row.agent || row.agentName || row.targetDisplayName || row.targetUsername || '');
++}
++export function evaluationScopeHold(state: EvaluationActivityState, agents: readonly string[], months: readonly string[]): EvaluationHold | null {
++  if (!state.ready || state.error) return { label: EVALUATION_STATUS_UNAVAILABLE, message: 'Evaluation status could not be verified. Refresh before viewing final scores.', pendingCount: 0 };
++  const matches = state.records.filter(row => !row.isTestCase && isEvaluationActivityActive(row, state.now) && months.includes(row.monthKey) && agents.some(agent => sameAgent(row, agent)));
++  if (!matches.length) return null;
++  const editing = matches.some(row => row.mode === 'edit');
++  return { label: editing ? WORKFLOW_STATUS.editing : WORKFLOW_STATUS.evaluating,
++    message: editing ? 'QA is updating an evaluation in this audit period. Scores will be available after the updated result is saved.'
++      : 'QA is evaluating cases in this audit period. Scores will be available after submission.', pendingCount: new Set(matches.map(row => `${row.username}|${row.monthKey}`)).size };
++}
++export function withEvaluationActivity<T extends EvaluationCaseScope>(cases: readonly T[], state: EvaluationActivityState): (T & EvaluationScoreState)[] {
++  return cases.map(row => ({ ...row,
++    evaluationCaseEditing: state.records.some(activity => isEvaluationActivityActive(activity, state.now) && activityMatchesCase(activity, row)),
++    evaluationHoldLabel: row.isTestCase ? undefined : evaluationScopeHold(state, [row.agent || row.agentName || row.targetDisplayName || row.targetUsername || ''], [evaluationActivityMonth(row)])?.label }));
++}
++export function evaluationScoreHold(cases: readonly EvaluationScoreState[]): EvaluationHold | null {
++  const labels = new Set(cases.map(row => row.evaluationHoldLabel).filter(Boolean));
++  if (!labels.size) return null;
++  const label = labels.has(EVALUATION_STATUS_UNAVAILABLE) ? EVALUATION_STATUS_UNAVAILABLE : labels.has(WORKFLOW_STATUS.editing) ? WORKFLOW_STATUS.editing : WORKFLOW_STATUS.evaluating;
++  return { label, message: label === EVALUATION_STATUS_UNAVAILABLE ? 'Evaluation status could not be verified. Refresh before viewing final scores.'
++    : 'QA is working on evaluations in this audit period. Scores will be available after the result is saved.', pendingCount: 0 };
++}
++export function evaluationCaseBlocked(row: EvaluationCaseScope, state: EvaluationActivityState, user?: { role?: string } | null) {
++  if (user?.role === 'Quality Assurance') return false;
++  return !state.ready || state.error || state.records.some(activity => isEvaluationActivityActive(activity, state.now) && activityMatchesCase(activity, row));
++}
+diff --git a/src/evaluationActivityStore.ts b/src/evaluationActivityStore.ts
+new file mode 100644
+index 0000000..2676522
+--- /dev/null
++++ b/src/evaluationActivityStore.ts
+@@ -0,0 +1,39 @@
++import { collection, getDocsFromServer, onSnapshot } from 'firebase/firestore';
++import { firebaseDb } from './firebaseClient';
++import { EVALUATION_ACTIVITY_COLLECTION, normalizeEvaluationActivity, type EvaluationActivity, type EvaluationActivityState } from './evaluationActivity';
++let state: EvaluationActivityState = { ready: false, error: false, records: [], now: Date.now() };
++const listeners = new Set<() => void>();
++let stop: (() => void) | null = null, timer: ReturnType<typeof setInterval> | undefined;
++let revision: string | null = null, refreshResult: ((id: string) => Promise<void>) | null = null, sequence = 0;
++export function configureEvaluationResultRefresh(handler: (id: string) => Promise<void>) { refreshResult = handler; }
++const publish = (next: EvaluationActivityState) => { state = next; listeners.forEach(listener => listener()); };
++export const getEvaluationActivitySnapshot = () => state;
++export function subscribeEvaluationActivity(listener: () => void) {
++  listeners.add(listener);
++  if (!stop) {
++    stop = onSnapshot(collection(firebaseDb, EVALUATION_ACTIVITY_COLLECTION), { includeMetadataChanges: true }, snapshot => {
++      if (snapshot.metadata.fromCache) { publish({ ...state, ready: false, now: Date.now() }); return; }
++      if (snapshot.metadata.hasPendingWrites) return;
++      const records = snapshot.docs.map(item => normalizeEvaluationActivity(item.data(), item.id)).filter((row): row is EvaluationActivity => Boolean(row));
++      const latest = snapshot.docs.find(item => item.id === '__result_revision')?.data();
++      const nextRevision = String(latest?.revision || latest?.updatedAt || '');
++      const changed = revision !== null && nextRevision !== revision && Boolean(latest?.evaluationId);
++      revision = nextRevision;
++      const current = ++sequence;
++      void (async () => {
++        try { if (changed) await refreshResult?.(String(latest.evaluationId)); }
++        catch { if (current === sequence) publish({ ...state, ready: false, error: true, now: Date.now() }); return; }
++        if (current === sequence) publish({ ready: true, error: false, records, now: Date.now() });
++      })();
++    }, () => publish({ ...state, ready: false, error: true, now: Date.now() }));
++    timer = setInterval(() => { if (state.records.some(row => !row.persistent)) publish({ ...state, now: Date.now() }); }, 30_000);
++  }
++  return () => { listeners.delete(listener); if (!listeners.size) {
++    stop?.(); stop = null; clearInterval(timer); revision = null; sequence++;
++    state = { ready: false, error: false, records: [], now: Date.now() };
++  } };
++}
++export async function fetchEvaluationActivity(): Promise<EvaluationActivityState> {
++  const snapshot = await getDocsFromServer(collection(firebaseDb, EVALUATION_ACTIVITY_COLLECTION));
++  return { ready: true, error: false, now: Date.now(), records: snapshot.docs.map(item => normalizeEvaluationActivity(item.data(), item.id)).filter((row): row is EvaluationActivity => Boolean(row)) };
++}
+diff --git a/src/evaluationEditingStore.ts b/src/evaluationEditingStore.ts
+new file mode 100644
+index 0000000..0f578d3
+--- /dev/null
++++ b/src/evaluationEditingStore.ts
+@@ -0,0 +1,47 @@
++import { doc, runTransaction, serverTimestamp, type Firestore, type Transaction } from 'firebase/firestore';
++import { firebaseDb } from './firebaseClient';
++import { prepareMonthlyResultReferences, readMonthlyResultReferences } from './monthlyResultLockStore';
++import { EVALUATION_ACTIVITY_COLLECTION, evaluationEditDocId, evaluationCaseBlocked, evaluationScopeHold, type EvaluationCaseScope } from './evaluationActivity';
++import { fetchEvaluationActivity } from './evaluationActivityStore';
++export class EvaluationInProgressError extends Error {
++  constructor(message = 'Editing in Progress. Reopen this case after QA saves the updated evaluation.') { super(message); this.name = 'EvaluationInProgressError'; }
++}
++export const evaluationEditReference = (id: string, db: Firestore = firebaseDb) => doc(db, EVALUATION_ACTIVITY_COLLECTION, evaluationEditDocId(id));
++export async function beginEvaluationEdit(input: { evaluationId: string; caseId: string; username: string; displayName: string; monthKey: string;
++  evaluatorUsername: string; evaluatorName: string; isTestCase?: boolean; editToken?: string }): Promise<string> {
++  if (!input.evaluationId || !input.username || !input.monthKey || !input.evaluatorUsername) throw new EvaluationInProgressError('Evaluation edit could not be started. Refresh and reopen the case.');
++  const references = await prepareMonthlyResultReferences([{ agentName: input.displayName, monthKey: input.monthKey }]);
++  const token = input.editToken || crypto.randomUUID();
++  return runTransaction(firebaseDb, async transaction => {
++    const reference = evaluationEditReference(input.evaluationId), existing = await transaction.get(reference);
++    const row = existing.exists() ? existing.data() : null;
++    if (row && String(row.editorUsername).toLowerCase() !== input.evaluatorUsername.toLowerCase()) throw new EvaluationInProgressError('Editing in Progress. Another QA is updating this case.');
++    if (input.editToken && (!row || row.editToken !== input.editToken)) throw new EvaluationInProgressError('Edit Session Ended. Reopen the latest saved case before editing.');
++    await readMonthlyResultReferences(transaction, references);
++    if (row) return String(row.editToken);
++    transaction.set(reference, { workflowEdit: true, mode: 'edit', evaluationId: input.evaluationId, caseId: input.caseId,
++      username: input.username, displayName: input.displayName, monthKey: input.monthKey,
++      editorUsername: input.evaluatorUsername, evaluatorName: input.evaluatorName, editToken: token,
++      isTestCase: Boolean(input.isTestCase), startedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedAtServer: serverTimestamp() });
++    return token;
++  });
++}
++export async function readEvaluationEditForSave(transaction: Transaction, db: Firestore, evaluationId: string, token = '', evaluatorUsername = '') {
++  const reference = evaluationEditReference(evaluationId, db), snapshot = await transaction.get(reference);
++  const lock = snapshot.exists() ? snapshot.data() : null;
++  if (token && (!lock || lock.editToken !== token)) throw new EvaluationInProgressError('Edit Session Ended. Reopen the latest saved case before submitting.');
++  if (lock && (!token || lock.editToken !== token || String(lock.editorUsername).toLowerCase() !== evaluatorUsername.toLowerCase())) throw new EvaluationInProgressError();
++  return lock ? reference : null;
++}
++export async function cancelEvaluationEdit(evaluationId: string, token: string, evaluatorUsername: string) {
++  if (!token) throw new EvaluationInProgressError('Edit status is not verified. Reopen this case before cancelling.');
++  await runTransaction(firebaseDb, async transaction => { const reference = await readEvaluationEditForSave(transaction, firebaseDb, evaluationId, token, evaluatorUsername); if (reference) transaction.delete(reference); });
++}
++export async function assertEvaluationCaseVisible(row: EvaluationCaseScope, user?: { role?: string } | null) {
++  if (user?.role === 'Quality Assurance') return;
++  if (evaluationCaseBlocked(row, await fetchEvaluationActivity(), user)) throw new EvaluationInProgressError();
++}
++export async function assertEvaluationScopeComplete(agents: readonly string[], months: readonly string[]) {
++  const hold = evaluationScopeHold(await fetchEvaluationActivity(), agents, months);
++  if (hold) throw new EvaluationInProgressError(`${hold.label}. ${hold.message}`);
++}
+diff --git a/src/evaluationStore.ts b/src/evaluationStore.ts
+index f4e9860..7e3eca3 100644
+--- a/src/evaluationStore.ts
++++ b/src/evaluationStore.ts
+@@ -1,11 +1,12 @@
+ ﻿import { initializeApp, getApps } from "firebase/app";
+-import { collection, doc, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
++import { collection, doc, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
+ import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
+ import { canonicalizeAgentName } from "./lib/agentIdentity";
+ import { getEvaluationAgentFullName } from "./lib/userNames";
+ import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
+ import type { DeductionTag } from "./lib/evaluation/deductionTags";
+ import { monthlyResultScope, MonthlyResultLockCheckError, MonthlyResultLockedError, prepareMonthlyResultReferences, readMonthlyResultReferences, touchMonthlyResults } from "./monthlyResultLockStore";
++import { readEvaluationEditForSave } from "./evaluationEditingStore";
+ export { isTestCaseEvaluation, excludeTestEvaluations } from "./lib/evaluationScope";
+ 
+ const env = (import.meta as any).env || {};
+@@ -98,6 +99,7 @@ export type StoredEvaluationCallLog = {
+ export type StoredEvaluationType = "case" | "no_case_month";
+ 
+ export type StoredEvaluation = {
++  editingWorkflowToken?: string;
+   id: string;
+   evaluationKey: string;
+   evaluationType?: StoredEvaluationType;
+@@ -1370,7 +1372,8 @@ function toFirebaseEvaluation(record: StoredEvaluation) {
+   };
+ }
+ 
+-export async function upsertStoredEvaluation(record: StoredEvaluation) {
++export async function upsertStoredEvaluation(input: StoredEvaluation) {
++  const { editingWorkflowToken = "", ...record } = input;
+   const scope = monthlyResultScope(record);
+   if (isFirebaseEvaluationConfigured()) {
+     if (!scope) throw new MonthlyResultLockCheckError();
+@@ -1399,10 +1402,13 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
+     const reference = doc(db, FIREBASE_EVALUATION_COLLECTION, documentId);
+     await runTransaction(db, async transaction => {
+       const existing = await transaction.get(reference);
++      const editReference = await readEvaluationEditForSave(transaction, db, documentId, editingWorkflowToken, record.evaluatorUsername);
+       const previousScope = existing.exists() ? monthlyResultScope(existing.data()) : null;
+       const references = await prepareMonthlyResultReferences([scope!, ...(previousScope ? [previousScope] : [])]);
+       await readMonthlyResultReferences(transaction, references);
+       transaction.set(reference, toFirebaseEvaluation({ ...localRecord, id: documentId }), { merge: true });
++      if (editReference) transaction.delete(editReference);
++      transaction.set(doc(db, "qa_evaluation_progress", "__result_revision"), { resultRevision: true, evaluationId: documentId, revision: crypto.randomUUID(), updatedAt: new Date().toISOString() });
+       touchMonthlyResults(transaction, references);
+     });
+ 
+@@ -1608,3 +1614,19 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
+ 
+   return limitEvaluationScopes(localSources, safeLimit);
+ }
++
++// Refresh a committed result without re-reading every evaluation for every viewer.
++export async function refreshStoredEvaluation(id: string) {
++  const db = getFirebaseEvaluationDb();
++  if (!db) throw new Error("Evaluation store is unavailable.");
++  const snapshot = await getDocFromServer(doc(db, FIREBASE_EVALUATION_COLLECTION, id));
++  if (!snapshot.exists()) throw new Error("Saved evaluation could not be verified.");
++  const updated = toEvaluation({ ...snapshot.data(), id: snapshot.id });
++  const identities = new Set(evaluationIdentityValues(updated));
++  for (const [key, cached] of remoteEvaluationReadCache) {
++    const limit = Number(key.split(":").at(-1)) || DEFAULT_EVALUATION_LIMIT;
++    remoteEvaluationReadCache.set(key, { expiresAt: Date.now() + REMOTE_EVALUATION_READ_CACHE_TTL_MS,
++      promise: cached.promise.then(rows => limitEvaluationScopes([updated, ...rows.filter(row => !evaluationIdentityValues(row).some(value => identities.has(value)))], limit)) });
++  }
++  return updated;
++}
+diff --git a/src/pendingAppealScore.ts b/src/pendingAppealScore.ts
+index a33a442..36e1063 100644
+--- a/src/pendingAppealScore.ts
++++ b/src/pendingAppealScore.ts
+@@ -1,8 +1,9 @@
+ import { WORKFLOW_STATUS, formatCaseCount } from "./workflowStatusLabels";
++import { evaluationScoreHold, type EvaluationScoreState } from "./evaluationActivity";
+ import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
+ import { appealWorkflowLabel, appealWorkflowStatus, type AppealWorkflowRequest } from "./appealWorkflow";
+ 
+-export type AppealScoreState = {
++export type AppealScoreState = EvaluationScoreState & {
+   pendingAppealCaseCount?: number;
+   appealScoreUnverified?: boolean;
+   appealScoreMonthKey?: string;
+@@ -113,6 +114,8 @@ export function withAppealScoreState<T extends DatedCase & AppealScoreState>(
+ }
+ 
+ export function getAppealScoreHold(cases: readonly ({ agent: string; isTestCase?: boolean } & AppealScoreState)[]): AppealScoreHold | null {
++  const evaluationHold = evaluationScoreHold(cases.filter(item => !item.isTestCase));
++  if (evaluationHold) return evaluationHold;
+   const counts = new Map<string, number>();
+   const statusesByScope = new Map<string, Record<string, number>>();
+   let unverified = false;
+diff --git a/src/qaEvaluationProgressStore.ts b/src/qaEvaluationProgressStore.ts
+index 162bc13..2ca2324 100644
+--- a/src/qaEvaluationProgressStore.ts
++++ b/src/qaEvaluationProgressStore.ts
+@@ -11,6 +11,7 @@ import {
+   where,
+ } from "firebase/firestore";
+ import { firebaseDb } from "./firebaseClient";
++import { evaluationProgressDocId } from "./evaluationActivity";
+ 
+ const QA_EVALUATION_PROGRESS_COLLECTION = "qa_evaluation_progress";
+ export const QA_EVALUATION_PROGRESS_TTL_MS = 90 * 1000;
+@@ -25,6 +26,7 @@ export type QaEvaluationProgress = {
+   targetCount: number;
+   statusText: string;
+   mode?: "evaluation" | "edit";
++  monthKey?: string; evaluationId?: string; caseId?: string; contextId?: string; isTestCase?: boolean;
+   startedAt: string;
+   updatedAt: string;
+   expiresAt: string;
+@@ -60,6 +62,7 @@ function normalizeProgress(row: any): QaEvaluationProgress | null {
+     targetCount,
+     statusText: String(row?.statusText || "").trim(),
+     mode: row?.mode === "edit" ? "edit" : "evaluation",
++    monthKey: String(row?.monthKey || ""), evaluationId: String(row?.evaluationId || ""), caseId: String(row?.caseId || ""), contextId: String(row?.contextId || ""), isTestCase: row?.isTestCase === true,
+     startedAt: String(row?.startedAt || row?.updatedAt || "").trim(),
+     updatedAt: String(row?.updatedAt || "").trim(),
+     expiresAt: String(row?.expiresAt || "").trim(),
+@@ -84,6 +87,7 @@ export async function setQaEvaluationProgress(input: QaEvaluationProgressInput)
+     targetCount: Math.max(1, Math.floor(Number(input.targetCount) || 10)),
+     statusText: String(input.statusText || "").trim(),
+     mode: input.mode === "edit" ? "edit" : "evaluation",
++    monthKey: String(input.monthKey || ""), evaluationId: String(input.evaluationId || ""), caseId: String(input.caseId || ""), contextId: String(input.contextId || ""), isTestCase: Boolean(input.isTestCase),
+     updatedAt,
+     expiresAt,
+     updatedAtServer: serverTimestamp(),
+@@ -91,22 +95,24 @@ export async function setQaEvaluationProgress(input: QaEvaluationProgressInput)
+   if (input.startedAt) payload.startedAt = input.startedAt;
+ 
+   await setDoc(
+-    doc(firebaseDb, QA_EVALUATION_PROGRESS_COLLECTION, safeDocId(username)),
++    doc(firebaseDb, QA_EVALUATION_PROGRESS_COLLECTION, evaluationProgressDocId(username, evaluatorUsername, input.contextId)),
+     payload,
+     { merge: true }
+   );
+ }
+ 
+-export async function clearQaEvaluationProgress(username: string, evaluatorUsername?: string) {
++export async function clearQaEvaluationProgress(username: string, evaluatorUsername?: string, contextId = "") {
+   const normalizedUsername = String(username || "").trim();
+   if (!normalizedUsername) return;
+ 
+-  const progressRef = doc(firebaseDb, QA_EVALUATION_PROGRESS_COLLECTION, safeDocId(normalizedUsername));
++  const progressRef = doc(firebaseDb, QA_EVALUATION_PROGRESS_COLLECTION, evaluationProgressDocId(normalizedUsername, evaluatorUsername || "", contextId));
+   if (evaluatorUsername) {
+     const snap = await getDoc(progressRef);
+     if (!snap.exists()) return;
+     const currentEvaluator = String(snap.data()?.evaluatorUsername || "").trim().toLowerCase();
+     if (currentEvaluator !== String(evaluatorUsername).trim().toLowerCase()) return;
++    if (String(snap.data()?.username || "").trim().toLowerCase() !== normalizedUsername.toLowerCase()) return;
++    if (contextId && snap.data()?.contextId !== contextId) return;
+   }
+   await deleteDoc(progressRef);
+ }
+diff --git a/src/workflowStatusLabels.ts b/src/workflowStatusLabels.ts
+index 6086edf..e60478f 100644
+--- a/src/workflowStatusLabels.ts
++++ b/src/workflowStatusLabels.ts
+@@ -9,7 +9,7 @@ export const WORKFLOW_STATUS = Object.freeze({
+   additionalRejected: 'Additional Appeal Request Rejected', additionalCancelled: 'Additional Appeal Cancelled',
+   additionalExpired: 'Additional Appeal Expired', appealExpired: 'Appeal Expired',
+   appealInProgress: 'Appeal in Progress', appealReset: 'Appeal Reset',
+-  verificationFailed: 'Score Verification Failed', awaitingAcknowledgment: 'Awaiting Acknowledgment',
++  evaluationUnavailable: 'Evaluation Status Unavailable', verificationFailed: 'Score Verification Failed', awaitingAcknowledgment: 'Awaiting Acknowledgment',
+   awaitingSignatures: 'Awaiting Signatures', readyForPayment: 'Ready for Payment',
+ });
+ export const APPEAL_STATUS_LABELS: Readonly<Record<string, string>> = Object.freeze({
+@@ -77,7 +77,7 @@ const STATUS_TONES: Readonly<Record<string, string>> = Object.freeze({
+   [WORKFLOW_STATUS.approved]: 'emerald', [WORKFLOW_STATUS.partiallyApproved]: 'emerald',
+   [WORKFLOW_STATUS.submitted]: 'emerald', [WORKFLOW_STATUS.readyForPayment]: 'emerald',
+   [WORKFLOW_STATUS.rejected]: 'rose', [WORKFLOW_STATUS.additionalRejected]: 'rose',
+-  [WORKFLOW_STATUS.verificationFailed]: 'rose',
++  [WORKFLOW_STATUS.verificationFailed]: 'rose', [WORKFLOW_STATUS.evaluationUnavailable]: 'rose',
+ });
+ const TONE_CLASSES: Readonly<Record<string, string>> = Object.freeze({
+   sky: 'border-sky-200 bg-sky-50 text-sky-800', amber: 'border-amber-200 bg-amber-50 text-amber-800',
