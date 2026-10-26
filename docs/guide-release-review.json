@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-26T09:07:42.788Z",
-  "reason": "Reviewed generated cancellation before optional build modules can exit early",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "evaluation"
-  ],
+  "reviewedAt": "2026-10-26T09:25:26.302Z",
+  "reason": "Verified evaluation and case-detail voice guide remains correct: save compact GSM originals and convert playback copies locally; no new user steps.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -302,7 +300,7 @@
     "scripts/test-appeal-workflow.mjs": "935df0559c9b6ac9686b9324d0a7c11aec917c41bb78cfe34b3b591f774b785a",
     "scripts/test-assessment-inline-images.mjs": "849ba8936f3178095cdac77ae3aef7f5ab9b4f2495d0cbeb1c44e9c00e68c704",
     "scripts/test-bulk-monthly-pdf.mjs": "c208842bd72e1825615041ac6398fc100b6cdba40628b71d49a0a7ef0855ffc6",
-    "scripts/test-call-recording-save.mjs": "251581fea96d859a523004681cf4038390ebb9271ce35f4b618bc2edaedd39b3",
+    "scripts/test-call-recording-save.mjs": "e960c04b98c3c6764436398d9fe8326e81e6df1555d3943941f7de23e6ae9ea7",
     "scripts/test-case-issue-tags-pdf.mjs": "37f798a65fb7781fc08aac5e48292cb5dbc1e31cb5ce8e5e312f751ec59b7159",
     "scripts/test-case-issue-tags.mjs": "e575b1711295f13855ef31c1082ec58ead5fd9c63b44004706a5a9a03902e998",
     "scripts/test-case-record-filter.mjs": "373d87815c153c9c731ae2f136785b8bf4c2f17b2a0f33ef31f1c39acc6570fd",
@@ -359,8 +357,8 @@
     "src/CoachingMockup.tsx": "6239dfc59b9996b7fd749e69800775866c42b9a36268436db0b03f914f0f41e2",
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
-    "src/CreateEvaluationMockup.tsx": "56564b6268e25c7e234aa5be7e65b1ded88c10edd4c3dc9142bb3376b72c9597",
-    "src/DashboardMockup.tsx": "c94215b0c5af6fb4e308d248c945e792c6d3f562f2c14bb8b3d5f1cf1637c828",
+    "src/CreateEvaluationMockup.tsx": "bcb0a529afe87016218a9f85307b31543d16fa0a883386db71e6bd8cc8f03711",
+    "src/DashboardMockup.tsx": "712bdf16f3aab3ab9dbc89cae6d9f53a4e0dd3da32241e40509f5a70a54e9483",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
@@ -393,6 +391,7 @@
     "src/TrainingAttendanceMockup.tsx": "ee06591f02edb8b914af12503b4f5bfb519ca33fa4233174e7916ea5711295ea",
     "src/UsageLogMockup.tsx": "7c26f15c9b9db69e1f6037bebde934ba3c490db98d8ba6071362bc91a9d89e0b",
     "src/UserRoleAdminMockup.tsx": "7befa0fea3f218c70acb40f953bf3e375cb909c2cfd1fd98f7b13e9ac1ae6f5c",
+    "src/VoiceRecordingPlayer.tsx": "a8a8189ce69706ae64dfa8440f717195ba942cead346930cd3410ea51593b630",
     "src/WeekdayScene.tsx": "34ef75f3e9ce9e51fb047bae274d6f4ad3418e9c1a03abfdc8144e605113fb38",
     "src/announcementDetail.css": "96a37b49d6c3b43bbe34b3cd27d73de4b92b2b38a43e131a9e66b2e8a416d7c5",
     "src/announcementStore.ts": "d1e36a47931a337e5e041511d97c75fec14228e56815770091daee546b6d80e6",

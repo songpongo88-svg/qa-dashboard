@@ -2223,11 +2223,17 @@ export default function CreateEvaluationMockup({
         let recordingUrl: string;
         try {
           recordingUrl = await uploadCallRecordingFile(file, caseId || "draft-case", (uploadProgress) => updateRecordingUpload(id, file, { uploadProgress }));
-        } catch {
+        } catch (primaryError) {
           updateRecordingUpload(id, file, { uploadProgress: 0, uploadError: "กำลังลองอัปโหลดไฟล์เสียงผ่านช่องทางสำรอง..." });
-          const driveLink = await uploadEvidenceFileToDrive(file, caseId || "draft-case");
-          recordingUrl = googleDrivePlaybackUrl(driveLink, file.name);
-          if (!recordingUrl) throw new Error("อัปโหลดสำรองแล้วแต่ยังไม่ได้รับลิงก์ไฟล์เสียง");
+          try {
+            const driveLink = await uploadEvidenceFileToDrive(file, caseId || "draft-case");
+            recordingUrl = googleDrivePlaybackUrl(driveLink, file.name);
+            if (!recordingUrl) throw new Error("อัปโหลดสำรองแล้วแต่ยังไม่ได้รับลิงก์ไฟล์เสียง");
+          } catch (fallbackError) {
+            const primaryMessage = primaryError instanceof Error ? primaryError.message : "ไม่ทราบสาเหตุ";
+            const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "ไม่ทราบสาเหตุ";
+            throw new Error(`อัปโหลดเสียงไม่สำเร็จ • ช่องทางหลัก: ${primaryMessage} • ช่องทางสำรอง: ${fallbackMessage}`);
+          }
         }
         if (callRecordingUploads.current.get(id)?.file !== file) throw new Error("รายการไฟล์เสียงถูกเปลี่ยน กรุณาตรวจสอบแล้ว Submit อีกครั้ง");
         updateRecordingUpload(id, file, { recordingUrl, recordingFile: undefined, uploadStatus: "uploaded", uploadError: "", uploadProgress: 100 });
@@ -2299,9 +2305,11 @@ export default function CreateEvaluationMockup({
           note: "",
           recordingUrl: "",
           recordingName: file.name,
-          recordingType: playbackFile.type || "audio/wav",
+          recordingType: file.type || playbackFile.type || "audio/wav",
           localPreviewUrl,
-          recordingFile: playbackFile,
+          // Keep the compact original GSM WAV for upload; the expanded PCM
+          // version is needed only for local browser playback.
+          recordingFile: file,
           uploadStatus: "uploading",
           uploadError: "",
           uploadProgress: 0,
@@ -2309,7 +2317,7 @@ export default function CreateEvaluationMockup({
         },
       ]);
 
-      void startCallRecordingUpload(id, playbackFile).catch(() => {});
+      void startCallRecordingUpload(id, file).catch(() => {});
     }
   }
 
@@ -2345,9 +2353,9 @@ export default function CreateEvaluationMockup({
         callTime: parsed.callTime || item.callTime,
         duration: duration || item.duration,
         recordingName: file.name,
-        recordingType: playbackFile.type || "audio/wav",
+        recordingType: file.type || playbackFile.type || "audio/wav",
         localPreviewUrl,
-        recordingFile: playbackFile,
+        recordingFile: file,
         recordingUrl: "",
         uploadStatus: "uploading",
         uploadError: "",
@@ -2356,7 +2364,7 @@ export default function CreateEvaluationMockup({
       };
     }));
 
-    await startCallRecordingUpload(id, playbackFile).catch(() => {});
+    await startCallRecordingUpload(id, file).catch(() => {});
   }
 
   async function repairCallRecordingPlayback(id: string) {
@@ -2383,20 +2391,22 @@ export default function CreateEvaluationMockup({
       const duration = prepared.durationSeconds
         ? formatCallDuration(prepared.durationSeconds)
         : await readAudioDuration(playbackFile);
+      const uploadSource = call.recordingFile || playbackFile;
 
       updateCallLog(id, {
         localPreviewUrl,
-        recordingFile: playbackFile,
-        recordingUrl: "",
+        ...(call.recordingUrl ? {} : { recordingFile: uploadSource, recordingUrl: "" }),
         duration: duration || call.duration,
         recordingType: playbackFile.type || "audio/wav",
         playbackRepairing: false,
         playbackError: "",
-        uploadStatus: "uploading",
-        uploadProgress: 0,
+        uploadStatus: call.recordingUrl ? "uploaded" : "uploading",
+        uploadProgress: call.recordingUrl ? 100 : 0,
       });
 
-      await startCallRecordingUpload(id, playbackFile).catch(() => {});
+      // Existing saved GSM recordings only need a playable local copy.
+      // Uploading expanded PCM again would inflate the attachment and can fail.
+      if (!call.recordingUrl) await startCallRecordingUpload(id, uploadSource).catch(() => {});
     } catch (error) {
       updateCallLog(id, {
         playbackRepairing: false,
@@ -3696,7 +3706,7 @@ export default function CreateEvaluationMockup({
                   {callLogs.length ? (
                     <div className="space-y-3">
                       {callLogs.map((call, index) => {
-                        const playableUrl = call.recordingUrl || call.localPreviewUrl || "";
+                        const playableUrl = call.localPreviewUrl || call.recordingUrl || "";
                         return (
                           <div key={call.id} className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                             <button

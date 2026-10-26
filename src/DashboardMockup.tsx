@@ -7,6 +7,7 @@ import { AppealEvidencePicker, AppealEvidenceGallery, EvidenceWatermarkOverlay, 
 import { appealEvidenceStartIndex } from "./appealEvidenceNaming";
 import { WeekdayDashboardLayout } from "./WeekdayScene";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import VoiceRecordingPlayer from "./VoiceRecordingPlayer";
 import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -5192,14 +5193,7 @@ function CaseDetailContent({
                             </div>
                             <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">Available</span>
                           </div>
-                          <audio
-                            controls
-                            controlsList="nodownload noplaybackrate"
-                            preload="metadata"
-                            src={call.recordingUrl}
-                            className="w-full"
-                            onContextMenu={(event) => event.preventDefault()}
-                          />
+                          <VoiceRecordingPlayer url={call.recordingUrl} name={call.recordingName || "voice-recording.wav"} type={call.recordingType} />
                           <div className="mt-2 text-[10px] font-semibold text-slate-500">Playback only • Download is not provided in Case Detail</div>
                         </div>
                       ) : null}
