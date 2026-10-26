@@ -1,3 +1,5 @@
+import { useEvaluationActivity } from "./EvaluationActivityContext";
+import { evaluationCaseBlocked } from "./evaluationActivity";
 import { InkLoginArtwork } from './lineDrawing/InkLogin';
 import { LineDrawingCollection } from './lineDrawing/LineDrawing';
 import { useLineDrawingRelease, type LineDrawingRelease } from './lineDrawing/release';
@@ -27,6 +29,7 @@ import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
 import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
 import { WORKFLOW_STATUS, coachingStatusText } from "./workflowStatusLabels";
+import EvaluationActivityProvider from "./EvaluationActivityProvider";
 import { fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
@@ -3145,10 +3148,12 @@ function ReleaseNotesModal({
 }
 
 function TaskInboxMockup({
+  currentUser,
   tasks,
   onOpenTask,
   onMarkRead,
 }: {
+  currentUser?: { role?: string };
   tasks: InboxTaskItem[];
   onOpenTask: (task: InboxTaskItem) => void;
   onMarkRead: (id: string) => void;
@@ -3157,13 +3162,15 @@ function TaskInboxMockup({
   const [inboxFilter, setInboxFilter] = useState<"all" | "unread">("all");
   const [searchText, setSearchText] = useState("");
   const [showMobileDetail, setShowMobileDetail] = useState(false);
-  const unreadCount = tasks.filter(task => task.unread).length;
-  const visibleTasks = tasks.filter(task =>
+  const activity = useEvaluationActivity();
+  const readableTasks = tasks.filter(task => !task.caseId || !evaluationCaseBlocked(task, activity, currentUser));
+  const unreadCount = readableTasks.filter(task => task.unread).length;
+  const visibleTasks = readableTasks.filter(task =>
     (inboxFilter === "all" || task.unread) &&
     (!searchText.trim() || [task.title, task.description, task.badge, task.caseId, task.agentName, task.mailTemplate?.subject]
       .some(value => String(value || "").toLocaleLowerCase("th").includes(searchText.trim().toLocaleLowerCase("th"))))
   );
-  const selectedTask = tasks.find(task => task.id === selectedId) || null;
+  const selectedTask = readableTasks.find(task => task.id === selectedId) || null;
 
   const selectTask = (task: InboxTaskItem) => {
     setSelectedId(task.id);
@@ -5237,6 +5244,7 @@ export default function App() {
 
     try {
       await upsertStoredEvaluation({
+        editingWorkflowToken: payload.editingWorkflowToken,
         id: evaluationId,
         evaluationKey,
         isTestCase: isTestCaseEvaluation(payload),
@@ -7563,7 +7571,7 @@ export default function App() {
   ];
 
   return (
-    <>
+    <EvaluationActivityProvider>
       <TermsAccessBoundary key={currentUser.username} user={{ ...currentUser, teamName: workspaceTeamName }} onLogout={handleLogout}>
         <style>{`
           :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "296px"}; }
@@ -8011,6 +8019,7 @@ export default function App() {
           <AppealOverrideMockup currentUser={currentUser} />
         ) : activeTab === "task-inbox" ? (
           <TaskInboxMockup
+            currentUser={currentUser}
             tasks={inboxTasks}
             onOpenTask={handleOpenInboxTask}
             onMarkRead={markInboxTaskRead}
@@ -8240,6 +8249,6 @@ export default function App() {
         />
       ) : null}
       </TermsAccessBoundary>
-    </>
+    </EvaluationActivityProvider>
   );
 }

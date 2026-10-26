@@ -1,8 +1,9 @@
 import { WORKFLOW_STATUS, formatCaseCount } from "./workflowStatusLabels";
+import { evaluationScoreHold, type EvaluationScoreState } from "./evaluationActivity";
 import { canonicalAgentIdentityKey } from "./lib/agentIdentity";
 import { appealWorkflowLabel, appealWorkflowStatus, type AppealWorkflowRequest } from "./appealWorkflow";
 
-export type AppealScoreState = {
+export type AppealScoreState = EvaluationScoreState & {
   pendingAppealCaseCount?: number;
   appealScoreUnverified?: boolean;
   appealScoreMonthKey?: string;
@@ -113,6 +114,8 @@ export function withAppealScoreState<T extends DatedCase & AppealScoreState>(
 }
 
 export function getAppealScoreHold(cases: readonly ({ agent: string; isTestCase?: boolean } & AppealScoreState)[]): AppealScoreHold | null {
+  const evaluationHold = evaluationScoreHold(cases.filter(item => !item.isTestCase));
+  if (evaluationHold) return evaluationHold;
   const counts = new Map<string, number>();
   const statusesByScope = new Map<string, Record<string, number>>();
   let unverified = false;

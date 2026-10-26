@@ -1,4 +1,6 @@
 import { WORKFLOW_STATUS } from "./workflowStatusLabels";
+import { useOptionalEvaluationActivity } from "./EvaluationActivityContext";
+import { isEvaluationActivityActive } from "./evaluationActivity";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   subscribeQaEvaluationProgress,
@@ -29,16 +31,17 @@ export default function QaEvaluationProgressNotice({
   const username = String(currentUser?.username || "").trim();
   const [progress, setProgress] = useState<QaEvaluationProgress | null>(null);
   const [nowTick, setNowTick] = useState(Date.now());
+  const activity = useOptionalEvaluationActivity();
 
   useEffect(() => {
     setProgress(null);
-    if (!username) return;
+    if (!username || activity) return;
     return subscribeQaEvaluationProgress(
       username,
       (nextProgress) => setProgress(nextProgress),
       (error) => console.warn("QA evaluation progress subscribe failed", error)
     );
-  }, [username]);
+  }, [username, Boolean(activity)]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowTick(Date.now()), 10_000);
@@ -46,11 +49,12 @@ export default function QaEvaluationProgressNotice({
   }, []);
 
   const activeProgress = useMemo(() => {
+    if (activity) return activity.records.filter(row => row.username.toLowerCase() === username.toLowerCase() && isEvaluationActivityActive(row, activity.now)).sort((a, b) => Number(b.persistent) - Number(a.persistent) || b.updatedAt.localeCompare(a.updatedAt))[0] || null;
     if (!progress) return null;
     const expiresAt = new Date(progress.expiresAt).getTime();
     if (!Number.isFinite(expiresAt) || expiresAt <= nowTick) return null;
     return progress;
-  }, [progress, nowTick]);
+  }, [progress, nowTick, activity, username]);
 
   if (!activeProgress) return null;
 
@@ -86,7 +90,7 @@ export default function QaEvaluationProgressNotice({
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/70 p-3">
+        {activeProgress.mode !== "edit" ? <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/70 p-3">
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs font-bold text-slate-600">Monthly Evaluation Progress</span>
             <span className="text-sm font-black text-sky-700">{completed}/{target} cases</span>
@@ -101,7 +105,7 @@ export default function QaEvaluationProgressNotice({
             <span>{remaining > 0 ? `${remaining} cases remaining` : "Target Completed"}</span>
             <span>{completion}%</span>
           </div>
-        </div>
+        </div> : null}
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <div className="rounded-xl bg-slate-50 px-3 py-2">

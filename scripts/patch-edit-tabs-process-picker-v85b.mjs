@@ -268,7 +268,7 @@ $2`,
       );
     }
 
-    source = replaceRequired(
+    if (!source.includes("async function cancelSubmittedEdit()")) source = replaceRequired(
       source,
       /  function cancelSubmittedEdit\(\) \{[\s\S]*?\n  \}\n/,
       `  function cancelSubmittedEdit() {

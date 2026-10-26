@@ -79,9 +79,9 @@ function form(primary) {
       inlineImageUploadsRef: {current:0}, richTextImages: () => [],
       caseId: "AA900080", agentName: "Agent Fixture", auditDate: "2026-10-06", selectedMonthKey: "2026-10",
       selectedAgentOption: { username: "fixture", displayName: "Agent Fixture", agentName: "Agent Fixture", role: "Agent" },
-      fetchStoredEvaluations: async () => [], loadRawDataReportRecords: async () => [],
+      fetchStoredEvaluationsForCases: async () => [], fetchStoredEvaluations: async () => [], loadRawDataReportRecords: async () => [],
       currentUser: { username: "qa-fixture" }, evaluatorName: "QA Fixture", canonicalizeAgentName: (value) => String(value || ""),
-      activeDraftId: "", activeSubmittedRecordId: "", draftQueueLoading: false,
+      activeDraftId: "", activeSubmittedRecordId: "", activeEditToken: "", draftQueueLoading: false,
       topics: [{ code: "1", title: "Process", max: 100 }], topicState: { "1": { score: 87, reason: "Saved comment", issueTags: ["เกิน SLA"], deductions: [] } },
       scoreOf: () => 87, activeRubric: { code: "QA-2026-08", name: "QA" }, rubricPeriod: "2026", finalScore: 87, grade: "B", criticalError: false,
       waitingTime: "", serviceTime: "", caseUrl: "", inquiry: "Inquiry", caseDescription: "Description", processReference: "", evidenceUrl: "", evidencePreviewValue: "", previewColumns: {},
@@ -89,7 +89,7 @@ function form(primary) {
       evaluationHistory: state.history, persistHistory: setter(state, "history"), resetEvaluationForm() {},
       onSubmitEvaluation: async (record) => state.saved.push(JSON.parse(JSON.stringify(record))),
     };
-    for (const key of ["ActiveDraftId", "ActiveSubmittedRecordId", "EvaluationStartedAt", "EvaluationSubmittedAt", "EvaluationStatus", "DraftSavedAt", "WorkspaceView", "SubmitInProgress", "AgentName", "AuditDate", "WaitingTime", "ServiceTime", "CaseId", "CaseUrl", "Inquiry", "CaseDescription", "ProcessReference", "EvidenceUrl", "NoCaseForMonth", "IsTestCase", "CriticalError", "TopicState"]) bindings["set" + key] = () => {};
+    for (const key of ["ActiveDraftId", "ActiveSubmittedRecordId", "ActiveEditToken", "EvaluationStartedAt", "EvaluationSubmittedAt", "EvaluationStatus", "DraftSavedAt", "WorkspaceView", "SubmitInProgress", "AgentName", "AuditDate", "WaitingTime", "ServiceTime", "CaseId", "CaseUrl", "Inquiry", "CaseDescription", "ProcessReference", "EvidenceUrl", "NoCaseForMonth", "IsTestCase", "CriticalError", "TopicState"]) bindings["set" + key] = () => {};
     return declarations("../src/CreateEvaluationMockup.tsx", ["handleNewCallRecordingFiles", "handleCallRecordingFile", "startCallRecordingUpload", "submitEvaluation", "confirmSubmitEvaluation", "saveDraft", "loadDraftIntoForm", "removeCallLog"], bindings);
   }
   return { state, handlers };

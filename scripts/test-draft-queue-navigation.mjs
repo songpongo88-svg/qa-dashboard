@@ -25,7 +25,7 @@ const backButton = backLabel >= 0 && buttonStart >= 0 ? transformed.slice(button
 assert.ok(backButton, 'Draft Queue Back to Form button must exist');
 assert.match(backButton, /onClick=\{\(\) => setWorkspaceView\("form"\)\}/);
 assert.doesNotMatch(backButton, /resetEvaluationForm|loadDraftIntoForm/, 'returning from Draft Queue must preserve unsaved text');
-assert.match(transformed, /onClick=\{\(\) => \{ loadDraftIntoForm\(draft\); setWorkspaceView\("form"\); \}\}/, 'Open Draft may intentionally replace the form');
+assert.match(transformed, /onClick=\{\(\) => \{ void loadDraftIntoForm\(draft\); \}\}/, 'Open Draft may intentionally replace the form');
 console.log('PASS Draft Queue Back to Form preserves unfinished form');
 
 // Render the production Draft Queue JSX with the imports from the same module.

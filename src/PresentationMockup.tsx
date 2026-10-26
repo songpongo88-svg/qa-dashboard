@@ -1,3 +1,6 @@
+import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
+import { evaluationActivityMonth, evaluationScopeHold } from "./evaluationActivity";
+import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import { fetchStoredEvaluations, excludeTestEvaluations, StoredEvaluation } from "./evaluationStore";
@@ -286,6 +289,7 @@ function copyTextToClipboard(text: string) {
 }
 
 export default function PresentationMockup({ currentUser, roleScopedAgentNames, dataRefreshKey = 0 }: PresentationMockupProps) {
+  const evaluationActivity = useEvaluationActivity();
   const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -351,6 +355,9 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
   const lowTopics = useMemo(() => [...topicRows].sort((a, b) => a.percent - b.percent).slice(0, 5), [topicRows]);
   const agentRows = useMemo(() => buildAgentRows(currentCases).slice(0, 5), [currentCases]);
   const monthRows = useMemo(() => buildMonthRows(scopedEvaluations).slice(0, 3), [scopedEvaluations]);
+  const scoreAgents = useMemo(() => roleScopedAgentNames?.length ? roleScopedAgentNames : [...new Set([...scopedEvaluations.map(row => row.agentName || row.targetDisplayName || row.targetUsername), ...evaluationActivity.records.map(row => row.displayName)])], [roleScopedAgentNames, scopedEvaluations, evaluationActivity.records]);
+  const scoreMonths = useMemo(() => [...new Set([...currentCases, ...previousCases].map(evaluationActivityMonth).concat(monthRows.map(row => row.key), selectedWeek ? [formatIsoDate(selectedWeek.start).slice(0, 7), formatIsoDate(selectedWeek.end).slice(0, 7)] : []))], [selectedWeek, previousWeek, monthRows]);
+  const evaluationHold = evaluationScopeHold(evaluationActivity, scoreAgents, scoreMonths);
   const actionTargets = lowTopics.slice(0, 3);
   const slideSummary = useMemo(
     () => buildSlideSummaryText({ week: selectedWeek, previousWeek, goodTopics, lowTopics }),
@@ -362,13 +369,17 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
   };
 
   const handleCopySummary = useCallback(async () => {
+    try { await assertEvaluationScopeComplete(scoreAgents, scoreMonths); }
+    catch (error) { setStatusMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     await copyTextToClipboard(slideSummary);
     setStatusMessage("คัดลอก Slide Summary แล้ว");
     window.setTimeout(() => setStatusMessage(""), 2200);
-  }, [slideSummary]);
+  }, [slideSummary, scoreAgents, scoreMonths]);
 
-  const handleExportPdf = useCallback(() => {
+  const handleExportPdf = useCallback(async () => {
     if (!selectedWeek) return;
+    try { await assertEvaluationScopeComplete(scoreAgents, scoreMonths); }
+    catch (error) { setStatusMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     registerTHSarabunNew(doc);
     doc.setFont("THSarabunNew", "bold");
@@ -478,6 +489,8 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
     doc.setFontSize(12);
     doc.setTextColor(49, 20, 99);
     doc.text(truncateText(slideSummary, 155), 20, 192);
+    try { await assertEvaluationScopeComplete(scoreAgents, scoreMonths); }
+    catch (error) { setStatusMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     doc.save(`qa-performance-${selectedWeek.key}.pdf`);
     setStatusMessage("Export PDF แล้ว");
     window.setTimeout(() => setStatusMessage(""), 2200);
@@ -497,6 +510,8 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
     sections.topicPerformance,
     selectedWeek,
     slideSummary,
+    scoreAgents,
+    scoreMonths,
   ]);
 
   return (
@@ -589,7 +604,7 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
                 <button
                   type="button"
                   onClick={handleExportPdf}
-                  disabled={!selectedWeek || loading}
+                  disabled={!selectedWeek || loading || Boolean(evaluationHold)}
                   className="rounded-2xl bg-violet-700 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   5. Generate / Export PDF
@@ -597,7 +612,7 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
                 <button
                   type="button"
                   onClick={handleCopySummary}
-                  disabled={!selectedWeek || loading}
+                  disabled={!selectedWeek || loading || Boolean(evaluationHold)}
                   className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-black text-violet-800 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:text-slate-300"
                 >
                   6. Copy Slide Summary
@@ -605,7 +620,7 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-[24px] border border-violet-100 bg-slate-100 p-3">
+            {evaluationHold ? <EvaluationActivityUnavailable label={evaluationHold.label} /> : <div className="overflow-x-auto rounded-[24px] border border-violet-100 bg-slate-100 p-3">
               <div className="h-[648px] w-[1152px] overflow-hidden rounded-[8px] bg-white">
                 <div style={{ transform: "scale(0.72)", transformOrigin: "top left", width: 1600, height: 900 }}>
                   <DashboardStyleSlide
@@ -713,13 +728,13 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
                 </div>
               </div>
               </div>
-            </div>
+            </div>}
           </div>
 
           <aside className="space-y-4">
             <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
               <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Slide Summary</div>
-              <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{slideSummary}</p>
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{evaluationHold?.label || slideSummary}</p>
               {statusMessage ? <div className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-700">{statusMessage}</div> : null}
             </div>
 

@@ -1,4 +1,7 @@
-import { workflowStatusTextTone } from "./workflowStatusLabels";
+import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
+import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
+import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
+import { workflowStatusTone, workflowStatusTextTone } from "./workflowStatusLabels";
 import { formatPdfDateTime } from "./lib/pdfDates";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -2191,7 +2194,7 @@ function AnalyticsAgentPerformanceV92({
                       className={
                         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " +
                         (row.appealScoreHold
-                          ? "bg-amber-50 text-amber-700"
+                          ? workflowStatusTone(row.appealScoreHold.label)
                           : row.kpiPending
                           ? "bg-slate-100 text-slate-500"
                           : row.hasNoCaseMonthlyResult
@@ -2966,7 +2969,9 @@ export default function SummaryMockup({
   onSelectedWeekChange?: (week: string) => void;
   onSelectedYearChange?: (year: string) => void;
 }) {
-  const [allCases, setAllCases] = useState<CaseItem[]>([]);
+  const evaluationActivity = useEvaluationActivity();
+  const [sourceCases, setAllCases] = useState<CaseItem[]>([]);
+  const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
   const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>([]);
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -4300,7 +4305,11 @@ export default function SummaryMockup({
   }, [allCases, accountProfiles]);
 
   const summaryCards = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
-  const appealScoreHold = useMemo(() => getAppealScoreHold(filteredCases), [filteredCases]);
+  const currentEvaluationScope = useMemo(() => ({
+    agents: effectiveSelectedAgent !== "all" ? [effectiveSelectedAgent] : roleScopedAgentList.length ? roleScopedAgentList : [...new Set([...periodScopedCases.map(row => row.agent), ...evaluationActivity.records.map(row => row.displayName)])],
+    months: /^\d{4}-\d{2}$/.test(selectedMonth) ? [selectedMonth] : [...new Set([...periodScopedCases.map(row => row.monthKey), ...evaluationActivity.records.map(row => row.monthKey).filter(month => selectedYear === "all" || month.startsWith(selectedYear + "-"))])],
+  }), [evaluationActivity, effectiveSelectedAgent, periodScopedCases, selectedMonth, selectedYear, roleScopedAgentList]);
+  const appealScoreHold = useMemo(() => evaluationScopeHold(evaluationActivity, currentEvaluationScope.agents, currentEvaluationScope.months) || getAppealScoreHold(filteredCases), [evaluationActivity, currentEvaluationScope, filteredCases]);
   const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);
 
   const comparisonRows = useMemo(() => {
@@ -6251,7 +6260,9 @@ export default function SummaryMockup({
     }
   };
 
-  function exportCurrentAnalyticsExcel() {
+  async function exportCurrentAnalyticsExcel() {
+    try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     if (appealScoreHold) return;
     const workbook = XLSX.utils.book_new();
     const periodLabel = effectivePeriodLabels.join(" | ") || "Current Period";
@@ -6291,12 +6302,16 @@ export default function SummaryMockup({
     XLSX.utils.book_append_sheet(workbook, caseSheet, "Cases");
     XLSX.utils.book_append_sheet(workbook, topicSheet, "Topics");
     const safePeriod = periodLabel.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 70) || "Current_View";
+    try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     XLSX.writeFile(workbook, `QA_Analytics_${safePeriod}.xlsx`);
     setAnalyticsExportOpen(false);
   }
 
   async function generateSummaryReportPdf() {
     if (appealScoreHold) return;
+    try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     await ensureSarabunPdfFont();
 
     const reportSummary = summarizeCases(filteredCases);
@@ -8295,6 +8310,8 @@ export default function SummaryMockup({
       `QA_${reportModeName}_${isComparisonMode ? "Comparison_" : ""}${selectedAgentFilePart}_${selectedPeriodFilePart}.pdf`;
 
 
+    try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     doc.save(fileName);
     setReportPdfDialogOpen(false);
   }
@@ -8302,6 +8319,8 @@ export default function SummaryMockup({
   async function generateTeamPerformancePdf() {
     if (!teamSelectedMonth) return;
     if (teamPerformanceRows.some(row => row.appealScoreHold)) return;
+    try { await assertEvaluationScopeComplete(teamPerformanceRows.flatMap(row => row.cases.map(item => item.agent)), buildRecentMonthKeys(teamSelectedMonth, 3)); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
 
     await ensureSarabunPdfFont();
 

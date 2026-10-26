@@ -28,7 +28,61 @@ export function qaEvaluationProgressPatch() {
           this.error("QA evaluation progress patch could not find Agent quota loading effect.");
         }
 
-        const progressLogic = `  const qaEvaluationProgressSnapshotRef = useRef({\n    completedCount: selectedAgentCaseCount,\n    mode: (activeSubmittedRecordId ? "edit" : "evaluation") as "edit" | "evaluation",\n    statusText: agentQuotaStatus?.text || "",\n  });\n  qaEvaluationProgressSnapshotRef.current = {\n    completedCount: selectedAgentCaseCount,\n    mode: (activeSubmittedRecordId ? "edit" : "evaluation") as "edit" | "evaluation",\n    statusText: agentQuotaStatus?.text || "",\n  };\n\n  useEffect(() => {\n    const targetUsername = String(selectedAgentOption?.username || "").trim();\n    const evaluatorUsername = String(currentUser?.username || "").trim();\n    if (!targetUsername || !evaluatorUsername) return;\n\n    const startedAt = new Date().toISOString();\n    const publishProgress = () => {\n      const snapshot = qaEvaluationProgressSnapshotRef.current;\n      void setQaEvaluationProgress({\n        username: targetUsername,\n        displayName: String(selectedAgentOption?.agentName || selectedAgentOption?.displayName || agentName || targetUsername).trim(),\n        role: String(selectedAgentOption?.role || "Agent").trim(),\n        evaluatorUsername,\n        evaluatorName: String(currentUser?.displayName || currentUser?.agentName || evaluatorUsername).trim(),\n        completedCount: snapshot.completedCount,\n        mode: snapshot.mode,\n        targetCount: 10,\n        statusText: snapshot.statusText,\n        startedAt,\n      }).catch((error) => console.warn("QA evaluation progress publish failed", error));\n    };\n\n    publishProgress();\n    const heartbeat = window.setInterval(publishProgress, 30_000);\n    return () => {\n      window.clearInterval(heartbeat);\n      void clearQaEvaluationProgress(targetUsername, evaluatorUsername).catch((error) =>\n        console.warn("QA evaluation progress cleanup failed", error)\n      );\n    };\n  }, [\n    agentName,\n    currentUser?.agentName,\n    currentUser?.displayName,\n    currentUser?.username,\n    selectedAgentOption?.agentName,\n    selectedAgentOption?.displayName,\n    selectedAgentOption?.role,\n    selectedAgentOption?.username,\n  ]);\n\n  useEffect(() => {\n    const targetUsername = String(selectedAgentOption?.username || "").trim();\n    const evaluatorUsername = String(currentUser?.username || "").trim();\n    if (!targetUsername || !evaluatorUsername) return;\n    void setQaEvaluationProgress({\n      username: targetUsername,\n      displayName: String(selectedAgentOption?.agentName || selectedAgentOption?.displayName || agentName || targetUsername).trim(),\n      role: String(selectedAgentOption?.role || "Agent").trim(),\n      evaluatorUsername,\n      evaluatorName: String(currentUser?.displayName || currentUser?.agentName || evaluatorUsername).trim(),\n      completedCount: selectedAgentCaseCount,\n      mode: activeSubmittedRecordId ? "edit" : "evaluation",\n      targetCount: 10,\n      statusText: agentQuotaStatus?.text || "",\n    }).catch((error) => console.warn("QA evaluation progress update failed", error));\n  }, [\n    agentName,\n    agentQuotaStatus?.text,\n    activeSubmittedRecordId,\n    currentUser?.agentName,\n    currentUser?.displayName,\n    currentUser?.username,\n    selectedAgentCaseCount,\n    selectedAgentOption?.agentName,\n    selectedAgentOption?.displayName,\n    selectedAgentOption?.role,\n    selectedAgentOption?.username,\n  ]);\n\n`;
+        const progressLogic = `  const qaEvaluationProgressContextRef = useRef("");
+  if (!qaEvaluationProgressContextRef.current) {
+    const key = "qa-evaluation-tab:" + String(currentUser?.username || "");
+    try { qaEvaluationProgressContextRef.current = sessionStorage.getItem(key) || crypto.randomUUID(); sessionStorage.setItem(key, qaEvaluationProgressContextRef.current); }
+    catch { qaEvaluationProgressContextRef.current = crypto.randomUUID(); }
+  }
+  const qaEvaluationProgressContext = qaEvaluationProgressContextRef.current + "|" + selectedAgentOption?.username + "|" + selectedMonthKey + "|" + activeSubmittedRecordId;
+  const qaEvaluationProgressEnabled = Boolean(selectedAgentOption?.username) && monthlyResult.editable && workspaceView === "form" && evaluationStatus !== "Submitted";
+  const qaEvaluationLeaseRef = useRef("");
+  const qaEvaluationProgressSnapshotRef = useRef({ completedCount: selectedAgentCaseCount, mode: "evaluation" as "edit" | "evaluation", statusText: "", isTestCase: false, enabled: false });
+  qaEvaluationProgressSnapshotRef.current = { completedCount: selectedAgentCaseCount, mode: activeSubmittedRecordId ? "edit" : "evaluation", statusText: agentQuotaStatus?.text || "", isTestCase, enabled: qaEvaluationProgressEnabled };
+  useEffect(() => {
+    const targetUsername = String(selectedAgentOption?.username || "").trim();
+    const evaluatorUsername = String(currentUser?.username || "").trim();
+    if (!targetUsername || !evaluatorUsername || !qaEvaluationProgressEnabled) return;
+    const leaseToken = crypto.randomUUID();
+    qaEvaluationLeaseRef.current = leaseToken;
+    const startedAt = new Date().toISOString();
+    const publishProgress = () => {
+      const snapshot = qaEvaluationProgressSnapshotRef.current;
+      if (!snapshot.enabled) return;
+      void setQaEvaluationProgress({ username: targetUsername,
+        displayName: String(selectedAgentOption?.agentName || selectedAgentOption?.displayName || agentName || targetUsername).trim(),
+        role: String(selectedAgentOption?.role || "Agent").trim(), evaluatorUsername,
+        evaluatorName: String(currentUser?.displayName || currentUser?.agentName || evaluatorUsername).trim(),
+        completedCount: snapshot.completedCount, mode: snapshot.mode, targetCount: 10, statusText: snapshot.statusText,
+        monthKey: selectedMonthKey, evaluationId: activeSubmittedRecordId, caseId: activeSubmittedRecordId ? caseId : "", contextId: qaEvaluationProgressContext, leaseToken: qaEvaluationLeaseRef.current, isTestCase: snapshot.isTestCase, startedAt,
+      }).catch((error) => console.warn("QA evaluation progress publish failed", error));
+    };
+    publishProgress();
+    const heartbeat = window.setInterval(publishProgress, 30_000);
+    return () => {
+      window.clearInterval(heartbeat);
+      void clearQaEvaluationProgress(targetUsername, evaluatorUsername, qaEvaluationProgressContext, leaseToken).catch((error) => console.warn("QA evaluation progress cleanup failed", error));
+    };
+  }, [agentName, currentUser?.agentName, currentUser?.displayName, currentUser?.username,
+    selectedAgentOption?.agentName, selectedAgentOption?.displayName, selectedAgentOption?.role, selectedAgentOption?.username,
+    qaEvaluationProgressContext, qaEvaluationProgressEnabled]);
+  useEffect(() => {
+    const targetUsername = String(selectedAgentOption?.username || "").trim();
+    const evaluatorUsername = String(currentUser?.username || "").trim();
+    if (!targetUsername || !evaluatorUsername || !qaEvaluationProgressEnabled) return;
+    void setQaEvaluationProgress({ username: targetUsername,
+      displayName: String(selectedAgentOption?.agentName || selectedAgentOption?.displayName || agentName || targetUsername).trim(),
+      role: String(selectedAgentOption?.role || "Agent").trim(), evaluatorUsername,
+      evaluatorName: String(currentUser?.displayName || currentUser?.agentName || evaluatorUsername).trim(),
+      completedCount: selectedAgentCaseCount, mode: activeSubmittedRecordId ? "edit" : "evaluation", targetCount: 10,
+      statusText: agentQuotaStatus?.text || "", monthKey: selectedMonthKey, evaluationId: activeSubmittedRecordId,
+      caseId: activeSubmittedRecordId ? caseId : "", contextId: qaEvaluationProgressContext, isTestCase,
+    }).catch((error) => console.warn("QA evaluation progress update failed", error));
+  }, [agentName, agentQuotaStatus?.text, currentUser?.agentName, currentUser?.displayName, currentUser?.username,
+    selectedAgentCaseCount, selectedAgentOption?.agentName, selectedAgentOption?.displayName, selectedAgentOption?.role,
+    selectedAgentOption?.username, qaEvaluationProgressContext, qaEvaluationProgressEnabled, isTestCase]);
+
+`;
 
         next = next.replace(quotaEffectAnchor, `${progressLogic}${quotaEffectAnchor}`);
 

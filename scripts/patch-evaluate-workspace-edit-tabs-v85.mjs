@@ -2,6 +2,19 @@ import fs from "node:fs";
 
 const file = "src/CreateEvaluationMockup.tsx";
 let source = fs.readFileSync(file, "utf8");
+const durableCancel = source.match(/  async function cancelSubmittedEdit\(\) \{[\s\S]*?\n  \}\n/)?.[0];
+if (durableCancel) {
+  source = source.replace(durableCancel, `  function cancelSubmittedEdit() {
+    const editingCaseId = caseId || "current case";
+    setActiveSubmittedRecordId("");
+    setSubmitPreview(null);
+    setWorkspaceView("report");
+    setDraftMessage(\`Edit cancelled for \${editingCaseId}. No changes were saved.\`);
+  }
+`);
+  fs.writeFileSync(file, source);
+}
+
 
 // The legacy workspace patch expects the original cancel handler. Restore that shape
 // temporarily, let v72 rebuild the action bar, then re-apply dedicated Edit-tab behavior.
@@ -82,3 +95,21 @@ await import("./patch-active-theme-preview-v92.mjs");
 
 // Monthly Payment PDF uses consistent typography across section titles, headers and body cells.
 await import("./patch-monthly-payment-pdf-typography-v93.mjs");
+
+if (durableCancel || fs.readFileSync(file, "utf8").includes("beginEvaluationEdit")) {
+  const finalCancel = durableCancel || `  async function cancelSubmittedEdit() {
+    const editingCaseId = caseId || "current case";
+    try { await cancelEvaluationEdit(activeSubmittedRecordId, activeEditToken, currentUser?.username || ""); }
+    catch (error) { setDraftMessage(error instanceof Error ? error.message : "Cancel Edit failed. Please retry."); return; }
+    resetEvaluationForm();
+    setActiveSubmittedRecordId("");
+    setSubmitPreview(null);
+    setWorkspaceView("report");
+    setDraftMessage("Edit cancelled. The saved result is available again.");
+    if (isDedicatedEditWorkspaceV85b) onCancelEdit?.();
+  }
+`;
+  source = fs.readFileSync(file, "utf8");
+  source = source.replace(/  function cancelSubmittedEdit\(\) \{[\s\S]*?\n  \}\n/, finalCancel);
+  fs.writeFileSync(file, source);
+}
