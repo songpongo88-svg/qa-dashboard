@@ -19,6 +19,8 @@ function load(file, deps = {}) {
 }
 const labels = load('src/workflowStatusLabels.ts');
 const identity = load('src/lib/agentIdentity.ts');
+const activityModel = load('src/evaluationActivity.ts', { './workflowStatusLabels': labels, './lib/agentIdentity': identity });
+const activityContext = load('src/EvaluationActivityContext.tsx');
 const workflow = load('src/appealWorkflow.ts', { './workflowStatusLabels': labels, './lib/agentIdentity': identity });
 const english = value => assert.doesNotMatch(value, /[\u0e00-\u0e7f]/);
 for (const status of workflow.APPEAL_WORKFLOW_STATUSES) {
@@ -44,7 +46,7 @@ assert.match(labels.workflowStatusTone(labels.WORKFLOW_STATUS.verificationFailed
 assert.match(labels.workflowStatusTone(labels.WORKFLOW_STATUS.editing), /text-sky/);
 console.log('PASS canonical and legacy English labels, distinct workflow stages, counts and semantic colors');
 
-const pending = load('src/pendingAppealScore.ts', { './workflowStatusLabels': labels, './lib/agentIdentity': identity, './appealWorkflow': workflow });
+const pending = load('src/pendingAppealScore.ts', { './workflowStatusLabels': labels, './lib/agentIdentity': identity, './appealWorkflow': workflow, './evaluationActivity': activityModel });
 const cases = [
   { agent: 'Fixture Agent', caseId: 'QA123', monthKey: '2026-09', finalScore: 92 },
   { agent: 'Fixture Agent', caseId: 'QA124', monthKey: '2026-09', finalScore: 88 },
@@ -93,19 +95,20 @@ assert.ok(badgeDeclaration);
 const CaseBadge = Function('React', 'WORKFLOW_STATUS', 'appealWorkflowLabel', 'workflowStatusTone', compile(badgeDeclaration.getText(dashboardTree)) + ';return CaseAppealStatusBadge;')(React, labels.WORKFLOW_STATUS, workflow.appealWorkflowLabel, labels.workflowStatusTone);
 const rows = new Map(), listeners = new Map(), writes = [];
 const snapshot = key => ({ exists: () => rows.has(key), data: () => rows.get(key) });
-function emit(key) { for (const callback of listeners.get(key) || []) callback(snapshot(key)); }
+function emit(key) { for (const callback of listeners.get(key) || []) callback(snapshot(key)); for (const callback of listeners.get('*') || []) callback(); }
 const firestore = {
   doc: (_db, ...parts) => parts.join('/'), serverTimestamp: () => '<server>',
   async setDoc(key, value) { rows.set(key, { ...rows.get(key), ...value }); writes.push(value); emit(key); },
   async getDoc(key) { return snapshot(key); },
   async deleteDoc(key) { rows.delete(key); emit(key); },
+  async runTransaction(db,callback){return callback({get:async key=>snapshot(key),delete:key=>{rows.delete(key);emit(key)}})},
   onSnapshot(key, callback) {
     const callbacks = listeners.get(key) || new Set(); callbacks.add(callback); listeners.set(key, callbacks);
     callback(snapshot(key)); return () => callbacks.delete(callback);
   },
 };
-const store = load('src/qaEvaluationProgressStore.ts', { 'firebase/firestore': firestore, './firebaseClient': { firebaseDb: {} } });
-const Notice = load('src/QaEvaluationProgressNotice.tsx', { './workflowStatusLabels': labels, './qaEvaluationProgressStore': store }).default;
+const store = load('src/qaEvaluationProgressStore.ts', { 'firebase/firestore': firestore, './firebaseClient': { firebaseDb: {} }, './evaluationActivity': activityModel });
+const Notice = load('src/QaEvaluationProgressNotice.tsx', { './workflowStatusLabels': labels, './qaEvaluationProgressStore': store, './EvaluationActivityContext': activityContext, './evaluationActivity': activityModel }).default;
 const AppealNotice = load('src/AppealWorkflowNotice.tsx', { './appealWorkflow': workflow }).default;
 const root = createRoot(document.getElementById('root'));
 try {
@@ -138,25 +141,31 @@ try {
   window.clearInterval = id => timers.delete(id);
   const source = fs.readFileSync(new URL('../src/CreateEvaluationMockup.tsx', import.meta.url), 'utf8');
   const patched = qaEvaluationProgressPatch().transform.call({ error: message => { throw Error(message); } }, source, '/src/CreateEvaluationMockup.tsx').code;
-  const start = patched.indexOf('  const qaEvaluationProgressSnapshotRef =');
+  const start = patched.indexOf('  const qaEvaluationProgressContextRef =');
   const end = patched.indexOf('  useEffect(() => {\n    let cancelled = false;\n    setAgentQuotaLoading(true);', start);
   assert.ok(start >= 0 && end > start);
   const publisherSource = `function Publisher({editing=false}) {
     const {useEffect,useRef}=React;
+    const selectedMonthKey='2026-10',monthlyResult={editable:true},workspaceView='form',evaluationStatus='Draft',isTestCase=false,caseId='AA123';
     const agentName='Fixture Agent',selectedAgentOption={username:'agent-a',agentName,displayName:agentName,role:'Admin Live Chat'},selectedAgentCaseCount=3;
     const agentQuotaStatus={text:'In Progress · 3/10 cases'},currentUser={username:'qa-fixture',displayName:'QA Fixture'},activeSubmittedRecordId=editing?'saved-case':'';
     ${patched.slice(start, end)}
     return null;
   }`;
   const Publisher = Function('React', 'setQaEvaluationProgress', 'clearQaEvaluationProgress', compile(publisherSource) + ';return Publisher;')(React, store.setQaEvaluationProgress, store.clearQaEvaluationProgress);
-  const Harness = ({ editing = false, username = 'agent-a' }) => React.createElement(React.Fragment, null,
-    React.createElement(Publisher, { editing }), React.createElement(Notice, { currentUser: { username } }));
+  const Harness = ({ editing = false, username = 'agent-a' }) => {
+    const [revision,setRevision]=React.useState(0);
+    React.useEffect(()=>{const callback=()=>setRevision(value=>value+1);const callbacks=listeners.get('*')||new Set();callbacks.add(callback);listeners.set('*',callbacks);callback();return()=>callbacks.delete(callback)},[]);
+    const value={ready:true,error:false,now:Date.now(),records:[...rows].map(([id,row])=>activityModel.normalizeEvaluationActivity(row,id)).filter(Boolean)};
+    return React.createElement(activityContext.EvaluationActivityContext.Provider,{value},React.createElement(Publisher,{editing}),React.createElement(Notice,{currentUser:{username}}));
+  };
   await act(async () => root.render(React.createElement(Harness)));
-  const key = 'qa_evaluation_progress/agent-a';
+  let key = [...rows.keys()].find(key=>key.startsWith('qa_evaluation_progress/active::'));
   assert.equal(rows.get(key).mode, 'evaluation');
   assert.ok(document.querySelector('[data-qa-evaluation-status="evaluating"]'));
   assert.match(document.querySelector('[role="status"]').textContent, /Evaluation in Progress/);
   await act(async () => root.render(React.createElement(Harness, { editing: true })));
+  key = [...rows.keys()].find(key=>rows.get(key).mode==='edit');
   assert.equal(rows.get(key).mode, 'edit', 'same selected agent publishes the edit mode immediately');
   assert.match(document.querySelector('[role="status"]').textContent, /Editing in Progress/);
   english(document.querySelector('[role="status"]').textContent);
@@ -169,8 +178,8 @@ try {
   const legacy = { ...rows.get(key) }; delete legacy.mode; rows.set(key, legacy);
   await act(async () => root.render(React.createElement(Notice, { currentUser: { username: 'agent-a' } })));
   // Unmounting Publisher clears its progress. Restore a legacy document without mode.
-  rows.set(key, legacy);
-  await act(async () => emit(key));
+  const legacyKey='qa_evaluation_progress/agent-a';rows.set(legacyKey, legacy);
+  await act(async () => emit(legacyKey));
   assert.ok(document.querySelector('[data-qa-evaluation-status="evaluating"]'), 'legacy progress defaults to evaluation');
   await act(async () => root.unmount());
   assert.equal(timers.size, 0, 'all heartbeat and notice timers clean up');

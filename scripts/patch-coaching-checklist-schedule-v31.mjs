@@ -366,7 +366,7 @@ const feedbackBlock = String.raw`            {workspaceTab === "feedback" ? (
 source = source.slice(0, feedbackStart) + feedbackBlock + source.slice(evidenceStart);
 
 // Add a simple appointment table below the filter/actions area.
-const scheduleInsertAnchor = `        </section>\n\n        {!selectedAgent ? (`;
+const scheduleInsertAnchor = source.includes("{evaluationHold ? <EvaluationActivityUnavailable") ? `        </section>\n\n        {evaluationHold ? <EvaluationActivityUnavailable label={evaluationHold.label} /> : !selectedAgent ? (` : `        </section>\n\n        {!selectedAgent ? (`;
 if (!source.includes(scheduleInsertAnchor)) throw new Error("Coaching v31 schedule UI insertion anchor not found");
 const scheduleUi = String.raw`        </section>
 

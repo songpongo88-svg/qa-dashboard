@@ -1,3 +1,6 @@
+import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
+import { evaluationScopeHold } from "./evaluationActivity";
+import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { WORKFLOW_STATUS } from "./workflowStatusLabels";
 import { formatPdfDate, formatPdfDateTime } from "./lib/pdfDates";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -2548,6 +2551,7 @@ export default function SignatureCenterMockup({
   currentUser: CurrentUser;
   accounts?: UserAccountSnapshot[];
 }) {
+  const evaluationActivity = useEvaluationActivity();
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
   const [appealLogs, setAppealLogs] = useState<UsageLogEvent[]>([]);
   const [appealStatusVerified, setAppealStatusVerified] = useState(false);
@@ -3127,7 +3131,8 @@ export default function SignatureCenterMockup({
   const selectedDocumentSource = selectedDocumentId
     ? documents.find((item) => item.id === selectedDocumentId) || null
     : null;
-  const selectedDocument = selectedDocumentSource ? sortSignatureDocumentCases(selectedDocumentSource) : null;
+  const selectedEvaluationHold = selectedDocumentSource ? evaluationScopeHold(evaluationActivity, [selectedDocumentSource.agentName], [selectedDocumentSource.monthKey]) : null;
+  const selectedDocument = selectedDocumentSource && !selectedEvaluationHold ? sortSignatureDocumentCases(selectedDocumentSource) : null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
   const selectedAgentAccount = selectedDocument ? findAccountForAgent(accounts, selectedDocument.agentName) : undefined;
   const selectedAgentUsesAutoWaiver = isResignedAccountForAutoWaiver(selectedAgentAccount);
@@ -3256,6 +3261,7 @@ export default function SignatureCenterMockup({
   }, [appealStatusVerified, coachingStatusVerified, coachingRecords, currentUser, pendingAppealCaseMap, signatures, visibleDocuments]);
 
   const assertAppealsResolved = async (targetDocuments: SignatureDocument[]) => {
+    await assertEvaluationScopeComplete([...new Set(targetDocuments.map(row => row.agentName))], [...new Set(targetDocuments.map(row => row.monthKey))]);
     let logs: UsageLogEvent[];
     try {
       logs = await fetchAppealEvents(undefined, { forceRefresh: true });
@@ -3562,6 +3568,8 @@ export default function SignatureCenterMockup({
 
   const generatePdf = async () => {
     if (!selectedDocument) return;
+    try { await assertEvaluationScopeComplete([selectedDocument.agentName], [selectedDocument.monthKey]); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     {
       // The Signature Center button uses this shared renderer as its only active
       // Final Signed PDF path. Keep the legacy inline renderer below unreachable
@@ -3581,6 +3589,8 @@ export default function SignatureCenterMockup({
           Agent: getRoleSigner(selectedDocument, "Agent"),
         },
       });
+      try { await assertEvaluationScopeComplete([selectedDocument.agentName], [selectedDocument.monthKey]); }
+      catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
       downloadBlob(sharedResult.pdf.output("blob"), sharedResult.fileName);
       setPdfMessage(`Generated ${sharedResult.fileName}`);
       window.setTimeout(() => setPdfMessage(""), 3500);
@@ -4969,6 +4979,7 @@ export default function SignatureCenterMockup({
           subtitle="ติดตามเอกสารลงนาม แยกตามเดือนและสถานะ พร้อมตรวจสอบผู้ที่ยังต้องดำเนินการ"
         />
         <main className="min-w-0 bg-[#f3f0fa] p-4 sm:p-6">
+          {selectedEvaluationHold ? <EvaluationActivityUnavailable label={selectedEvaluationHold.label} /> : null}
           <div
             className={`grid items-start gap-5 ${
               actionSidebarMode === "expanded"
@@ -5600,7 +5611,7 @@ export default function SignatureCenterMockup({
                                 <div className="min-w-0">
                                   <div className="truncate text-sm font-semibold text-slate-950">{doc.agentName}</div>
                                   <div className="mt-0.5 truncate text-xs font-normal text-slate-500">
-                                    {doc.teamName || "-"} • {doc.caseCount} เคส • {doc.averageScore.toFixed(2)}
+                                    {doc.teamName || "-"} • {doc.caseCount} เคส • {evaluationScopeHold(evaluationActivity, [doc.agentName], [doc.monthKey])?.label || doc.averageScore.toFixed(2)}
                                   </div>
                                 </div>
                                 <div className="min-w-0 overflow-hidden">
@@ -6007,7 +6018,7 @@ export default function SignatureCenterMockup({
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{count}/4 signed</span>
-                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Score {doc.averageScore.toFixed(2)}</span>
+                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Score {evaluationScopeHold(evaluationActivity, [doc.agentName], [doc.monthKey])?.label || doc.averageScore.toFixed(2)}</span>
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{getTimelineStatus(doc.monthKey)}</span>
                   </div>
                   {documentView === "history" ? (

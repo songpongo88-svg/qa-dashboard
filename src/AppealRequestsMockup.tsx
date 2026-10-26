@@ -1,3 +1,5 @@
+import { useEvaluationActivity } from "./EvaluationActivityContext";
+import { evaluationCaseBlocked } from "./evaluationActivity";
 import { WORKFLOW_STATUS } from "./workflowStatusLabels";
 import { getAppealTopicDecision, summarizeAppealDecisions, appealScoreAfterReview, prepareAppealReview, appealIssueTagChanges, appealTopicIssueTags, normalizeAppealIssueTags, type AppealIssueTagFields, type AppealTopicDecision } from "./appealReview";
 import AppealIssueTagEditor from "./AppealIssueTags";
@@ -739,6 +741,7 @@ export default function AppealRequestsMockup({
   additionalCaseTopics?: any[];
   onTasksChanged?: () => void;
 }) {
+  const evaluationActivity = useEvaluationActivity();
   const allowReview = reviewPermission && currentUser?.role === "Quality Assurance";
   const canDiscuss = ["Quality Assurance", "Senior", "Supervisor"].includes(String(currentUser?.role || ""));
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
@@ -822,7 +825,7 @@ export default function AppealRequestsMockup({
     const permittedIds = new Set(requests.map(request => request.requestId));
     return buildAppealResetHistory(logs).filter(item => permittedIds.has(item.requestId));
   }, [logs, requests]);
-  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId && !item.editingDraft) || null;
+  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId && !item.editingDraft && !evaluationCaseBlocked({ ...item, monthKey: getAppealReviewMonthKey(item) }, evaluationActivity, currentUser)) || null;
   const monthlyResult = useMonthlyResultLock(selectedRequest?.agent || "", selectedRequest ? getAppealReviewMonthKey(selectedRequest) : "");
   const canModifyRequest = allowReview && monthlyResult.editable;
   useEffect(() => {
@@ -966,7 +969,7 @@ export default function AppealRequestsMockup({
   const visibleRequestsUnfiltered = statusFilter === "All" ? latestRequestsByCase :
     statusFilter === "QaPending" ? qaPendingRequests :
       latestRequestsByCase.filter(item => appealWorkflowStatus(item) === statusFilter);
-  const visibleRequests = visibleRequestsUnfiltered.filter(item => (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));
+  const visibleRequests = visibleRequestsUnfiltered.filter(item => !evaluationCaseBlocked({ ...item, monthKey: getAppealReviewMonthKey(item) }, evaluationActivity, currentUser) && (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
   const selectedWorkflowStatus = selectedRequest ? appealWorkflowStatus(selectedRequest) : "";
   const isPermissionTask = ["Request Additional Appeal", "Approved (Access)"].includes(selectedWorkflowStatus);

@@ -5,12 +5,14 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  runTransaction,
   query,
   serverTimestamp,
   setDoc,
   where,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { evaluationProgressDocId } from "./evaluationActivity";
 
 const QA_EVALUATION_PROGRESS_COLLECTION = "qa_evaluation_progress";
 export const QA_EVALUATION_PROGRESS_TTL_MS = 90 * 1000;
@@ -25,6 +27,7 @@ export type QaEvaluationProgress = {
   targetCount: number;
   statusText: string;
   mode?: "evaluation" | "edit";
+  monthKey?: string; evaluationId?: string; caseId?: string; contextId?: string; leaseToken?: string; isTestCase?: boolean;
   startedAt: string;
   updatedAt: string;
   expiresAt: string;
@@ -60,6 +63,7 @@ function normalizeProgress(row: any): QaEvaluationProgress | null {
     targetCount,
     statusText: String(row?.statusText || "").trim(),
     mode: row?.mode === "edit" ? "edit" : "evaluation",
+    monthKey: String(row?.monthKey || ""), evaluationId: String(row?.evaluationId || ""), caseId: String(row?.caseId || ""), contextId: String(row?.contextId || ""), leaseToken: String(row?.leaseToken || ""), isTestCase: row?.isTestCase === true,
     startedAt: String(row?.startedAt || row?.updatedAt || "").trim(),
     updatedAt: String(row?.updatedAt || "").trim(),
     expiresAt: String(row?.expiresAt || "").trim(),
@@ -84,6 +88,7 @@ export async function setQaEvaluationProgress(input: QaEvaluationProgressInput) 
     targetCount: Math.max(1, Math.floor(Number(input.targetCount) || 10)),
     statusText: String(input.statusText || "").trim(),
     mode: input.mode === "edit" ? "edit" : "evaluation",
+    monthKey: String(input.monthKey || ""), evaluationId: String(input.evaluationId || ""), caseId: String(input.caseId || ""), contextId: String(input.contextId || ""), leaseToken: String(input.leaseToken || ""), isTestCase: Boolean(input.isTestCase),
     updatedAt,
     expiresAt,
     updatedAtServer: serverTimestamp(),
@@ -91,24 +96,26 @@ export async function setQaEvaluationProgress(input: QaEvaluationProgressInput) 
   if (input.startedAt) payload.startedAt = input.startedAt;
 
   await setDoc(
-    doc(firebaseDb, QA_EVALUATION_PROGRESS_COLLECTION, safeDocId(username)),
+    doc(firebaseDb, QA_EVALUATION_PROGRESS_COLLECTION, evaluationProgressDocId(username, evaluatorUsername, input.contextId)),
     payload,
     { merge: true }
   );
 }
 
-export async function clearQaEvaluationProgress(username: string, evaluatorUsername?: string) {
-  const normalizedUsername = String(username || "").trim();
-  if (!normalizedUsername) return;
-
-  const progressRef = doc(firebaseDb, QA_EVALUATION_PROGRESS_COLLECTION, safeDocId(normalizedUsername));
-  if (evaluatorUsername) {
-    const snap = await getDoc(progressRef);
-    if (!snap.exists()) return;
-    const currentEvaluator = String(snap.data()?.evaluatorUsername || "").trim().toLowerCase();
-    if (currentEvaluator !== String(evaluatorUsername).trim().toLowerCase()) return;
-  }
-  await deleteDoc(progressRef);
+export async function clearQaEvaluationProgress(username: string, evaluatorUsername?: string, contextId = "", leaseToken = "") {
+  const target = username.trim().toLowerCase();
+  if (!target) return;
+  const reference = doc(firebaseDb, QA_EVALUATION_PROGRESS_COLLECTION, evaluationProgressDocId(username, evaluatorUsername || "", contextId));
+  await runTransaction(firebaseDb, async transaction => {
+    const snapshot = await transaction.get(reference);
+    if (!snapshot.exists()) return;
+    const row = snapshot.data();
+    if (row.workflowEdit || String(row.username || "").trim().toLowerCase() !== target) return;
+    if (evaluatorUsername && String(row.evaluatorUsername || "").toLowerCase() !== evaluatorUsername.toLowerCase()) return;
+    if (contextId && row.contextId !== contextId) return;
+    if (leaseToken && row.leaseToken !== leaseToken) return;
+    transaction.delete(reference);
+  });
 }
 
 export async function clearQaEvaluationProgressByEvaluator(evaluatorUsername: string) {
@@ -121,7 +128,7 @@ export async function clearQaEvaluationProgressByEvaluator(evaluatorUsername: st
       where("evaluatorUsername", "==", normalizedEvaluator)
     )
   );
-  await Promise.all(snapshot.docs.map((item) => deleteDoc(item.ref)));
+  await Promise.all(snapshot.docs.map(item => { const row = item.data(); return clearQaEvaluationProgress(String(row.username || ""), normalizedEvaluator, String(row.contextId || ""), String(row.leaseToken || "")); }));
 }
 
 export function subscribeQaEvaluationProgress(

@@ -1,3 +1,6 @@
+import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
+import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
+import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { WORKFLOW_STATUS, workflowStatusTone, workflowStatusTextTone } from "./workflowStatusLabels";
 import { getAppealTopicDecision, appealTopicIssueTags, appealIssueTagsChanged, type AppealIssueTagFields, type AppealDecision, type AppealTopicDecision } from "./appealReview";
 import { AppealEvidencePicker, AppealEvidenceGallery, EvidenceWatermarkOverlay, type AppealEvidenceImage } from "./AppealEvidence";
@@ -3861,7 +3864,14 @@ function CaseAppealStatusBadge({ status, additional }: { status?: AppealDecision
   return <span data-case-appeal-status={additional ? "additional" : status || "Pending"} className={`max-w-full rounded-xl border px-2.5 py-1 text-[10px] font-semibold leading-relaxed ${workflowStatusTone(label)}`}>{label}</span>;
 }
 
-function SlideOverCaseDetail({
+function SlideOverCaseDetail(props: React.ComponentProps<typeof CaseDetailContent>) {
+  const activity = useEvaluationActivity();
+  if (!props.open || !props.caseItem) return null;
+  if (evaluationCaseBlocked(props.caseItem, activity, props.currentUser)) return <EvaluationActivityUnavailable label={activity.ready ? "Editing in Progress" : "Evaluation Status Unavailable"} />;
+  return <CaseDetailContent {...props} />;
+}
+
+function CaseDetailContent({
   open,
   embedded = false,
   caseItem,
@@ -4483,6 +4493,7 @@ function SlideOverCaseDetail({
 
   const handleGenerateCaseDetailPdf = async (pdfVariant: "original" | "appeal" = "original") => {
     try {
+      await assertEvaluationCaseVisible(caseItem, currentUser);
       const officialPdf = await generateCasePdfWithAppealHistory({
         caseItem,
         currentUser,
@@ -4490,6 +4501,7 @@ function SlideOverCaseDetail({
         fallback: generateOfficialCaseDetailPdf,
       });
 
+      await assertEvaluationCaseVisible(caseItem, currentUser);
       downloadGeneratedPdfFile(officialPdf);
 
       const pdfUrl = URL.createObjectURL(officialPdf.blob);
@@ -4511,7 +4523,7 @@ function SlideOverCaseDetail({
       onGeneratePdf?.(caseItem.caseId, caseItem.agent, officialPdf.fileSuffix);
     } catch (error) {
       console.error("Generate Case Detail PDF failed:", error);
-      alert("Generate PDF ไม่สำเร็จ กรุณาเปิด Console เพื่อตรวจสอบ error");
+      alert(error instanceof Error ? error.message : "Generate PDF failed. Please retry.");
     }
   };
 
@@ -5326,7 +5338,9 @@ export default function DashboardMockup({
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
 
-  const [allCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
+  const evaluationActivity = useEvaluationActivity();
+  const [sourceCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
+  const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
   const markCaseAppealSubmitted = (caseId: string, agentName?: string, monthKey?: string) => {
     const submittedIds = new Set(splitAppealCaseIds(caseId));
     setAllCases((cases) => {
@@ -7062,8 +7076,9 @@ export default function DashboardMockup({
       .sort(compareCaseAuditDateAndWaitingTime);
   }, [authorizedSearchCases, caseIdSearch, caseExplorerCasesBase, overviewMode]);
 
-  const caseExplorerAppealCount = useMemo(() => caseExplorerCandidates.filter(isAppealCaseRecord).length, [caseExplorerCandidates]);
-  const caseExplorerCases = useMemo(() => filterCaseRecords(caseExplorerCandidates, caseRecordFilter), [caseExplorerCandidates, caseRecordFilter]);
+  const visibleCaseExplorerCandidates = useMemo(() => caseExplorerCandidates.filter(item => !evaluationCaseBlocked(item, evaluationActivity, currentUser)), [caseExplorerCandidates, evaluationActivity, currentUser?.role]);
+  const caseExplorerAppealCount = useMemo(() => visibleCaseExplorerCandidates.filter(isAppealCaseRecord).length, [visibleCaseExplorerCandidates]);
+  const caseExplorerCases = useMemo(() => filterCaseRecords(visibleCaseExplorerCandidates, caseRecordFilter), [visibleCaseExplorerCandidates, caseRecordFilter]);
 
   useEffect(() => {
     if (!caseSearchSubmitNonce || caseSearchHandledNonceRef.current === caseSearchSubmitNonce) return;
@@ -7160,7 +7175,11 @@ export default function DashboardMockup({
 
   const isAllAgentsView = !effectiveSelectedAgent;
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
-  const appealScoreHold = useMemo(() => getAppealScoreHold(dashboardCases), [dashboardCases]);
+  const appealScoreHold = useMemo(() => {
+    const agents = effectiveSelectedAgent ? [effectiveSelectedAgent] : overviewAgentScopeList.length ? overviewAgentScopeList : [...new Set([...allCases.map(row => row.agent), ...evaluationActivity.records.map(row => row.displayName)])];
+    const months = selectedMonthKey && selectedMonthKey !== "all" ? [selectedMonthKey] : [...new Set(dashboardCases.map(row => row.monthKey))];
+    return evaluationScopeHold(evaluationActivity, agents, months) || getAppealScoreHold(dashboardCases);
+  }, [dashboardCases, evaluationActivity, effectiveSelectedAgent, overviewAgentScopeList, allCases, selectedMonthKey]);
 
   const metricAverageDisplay = summary.averageDisplay;
   const metricCaseCount = dashboardCases.length;

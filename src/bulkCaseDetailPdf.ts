@@ -1,3 +1,4 @@
+import { assertEvaluationCasesVisible } from "./evaluationEditingStore";
 import { jsPDF } from "jspdf";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
 
@@ -128,6 +129,7 @@ export async function generateBulkCaseDetailPdf({
   monthKey,
   onProgress,
 }: BulkCaseDetailPdfInput) {
+  await assertEvaluationCasesVisible(cases, currentUser);
   const orderedCases = dedupeLatestCases(cases);
   if (!orderedCases.length) throw new Error("ไม่พบเคสสำหรับเดือนที่เลือก");
 
@@ -153,6 +155,7 @@ export async function generateBulkCaseDetailPdf({
     }
   }
 
+  await assertEvaluationCasesVisible(cases, currentUser);
   const monthLabel = orderedCases.find((item) => String(item?.monthLabel || "").trim())?.monthLabel || monthKey;
   return {
     blob: doc.output("blob"),

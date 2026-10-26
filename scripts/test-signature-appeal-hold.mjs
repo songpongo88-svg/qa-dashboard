@@ -1,3 +1,4 @@
+import { unlockedMonthlyResultFixture } from "./fixtures/unlocked-monthly-result.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -86,7 +87,7 @@ try {
   const output = resolve(temporary, "signature.mjs");
   await build({ entryPoints: ["src/SignatureCenterMockup.tsx"], outfile: output, bundle: true,
     platform: "node", format: "esm", packages: "external", define: { "import.meta.env": "{}" }, logLevel: "silent",
-    plugins: [{ name: "signature-appeal-boundaries", setup(builder) {
+    plugins: [unlockedMonthlyResultFixture(),{ name: "signature-appeal-boundaries", setup(builder) {
       builder.onResolve({filter:/^xlsx$/},()=>({path:'xlsx',namespace:'payment-workbook-fixture'}));
       builder.onLoad({filter:/.*/,namespace:'payment-workbook-fixture'},()=>({loader:'js',contents:`
         import {createRequire} from 'node:module';const xlsx=createRequire(import.meta.url)('xlsx');

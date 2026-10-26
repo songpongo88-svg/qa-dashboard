@@ -1,3 +1,6 @@
+import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
+import { evaluationCaseBlocked, evaluationScopeHold } from "./evaluationActivity";
+import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { coachingStatusText } from "./workflowStatusLabels";
 import { officialPdfPrintStyles } from "./officialPdf";
 import { PDF_LOGO } from "./pdfLogo";
@@ -787,6 +790,7 @@ export default function CoachingMockup({
   onSelectedAgentChange,
   onSelectedMonthChange,
 }: CoachingMockupProps) {
+  const evaluationActivity = useEvaluationActivity();
   const [evaluations, setEvaluations] = useState<
     StoredEvaluation[]
   >([]);
@@ -1023,6 +1027,7 @@ export default function CoachingMockup({
 
   const previousKey =
     previousMonthKey(selectedMonth);
+  const evaluationHold = selectedAgent ? evaluationScopeHold(evaluationActivity, [selectedAgent], [selectedMonth, previousKey]) : null;
   const previousRows = useMemo(
     () =>
       selectedAgentRows.filter(
@@ -1097,6 +1102,7 @@ export default function CoachingMockup({
   ]);
 
   const generateCoaching = () => {
+    if (evaluationHold) return;
     if (
       !selectedAgent ||
       !selectedMonth ||
@@ -1205,6 +1211,7 @@ export default function CoachingMockup({
 
     setIsSaving(true);
     try {
+      await assertEvaluationScopeComplete([selectedAgent], [selectedMonth, previousKey]);
       const saved =
         await upsertStoredCoachingRecord(record);
       setActiveRecord(saved);
@@ -1241,7 +1248,8 @@ export default function CoachingMockup({
     await saveRecord("Completed");
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    if (evaluationHold) return;
     const record = buildRecord(
       activeRecord?.status || "Draft"
     );
@@ -1276,6 +1284,8 @@ export default function CoachingMockup({
       return;
     }
     win.opener = null;
+    try { await assertEvaluationScopeComplete([selectedAgent], [selectedMonth, previousKey]); }
+    catch (error) { win.close(); setSaveMessage(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
 
     win.document.write(`<!doctype html>
 <html>
@@ -1526,7 +1536,7 @@ th { background:#f5f3ff; color:#4c1d95; }
             <button
               type="button"
               onClick={generateCoaching}
-              disabled={!monthlyRows.length}
+              disabled={!monthlyRows.length || Boolean(evaluationHold)}
               className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Generate Coaching
@@ -1534,7 +1544,7 @@ th { background:#f5f3ff; color:#4c1d95; }
             <button
               type="button"
               onClick={() => void saveRecord("Draft")}
-              disabled={!draft || isSaving}
+              disabled={!draft || isSaving || Boolean(evaluationHold)}
               className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50 disabled:opacity-40"
             >
               Save Coaching Record
@@ -1544,7 +1554,7 @@ th { background:#f5f3ff; color:#4c1d95; }
               onClick={() =>
                 setShowCoachedModal(true)
               }
-              disabled={!draft}
+              disabled={!draft || Boolean(evaluationHold)}
               className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-40"
             >
               Mark as Coached
@@ -1552,7 +1562,7 @@ th { background:#f5f3ff; color:#4c1d95; }
             <button
               type="button"
               onClick={exportPdf}
-              disabled={!draft}
+              disabled={!draft || Boolean(evaluationHold)}
               className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-900 disabled:opacity-40"
             >
               Export PDF
@@ -1586,7 +1596,7 @@ th { background:#f5f3ff; color:#4c1d95; }
           ) : null}
         </section>
 
-        {!selectedAgent ? (
+        {evaluationHold ? <EvaluationActivityUnavailable label={evaluationHold.label} /> : !selectedAgent ? (
           <section className="rounded-[30px] border border-dashed border-violet-200 bg-white p-10 text-center shadow-sm">
             <div className="text-xl font-black text-slate-900">
               กรุณาเลือก Agent ที่ต้องการวิเคราะห์
@@ -2291,7 +2301,7 @@ th { background:#f5f3ff; color:#4c1d95; }
         )}
       </div>
 
-      {selectedCase ? (
+      {selectedCase && !evaluationCaseBlocked(selectedCase, evaluationActivity, currentUser) ? (
         <ModalShell
           title={`Case Detail: ${selectedCase.caseId}`}
           subtitle={`${selectedCase.agentName ||
@@ -2393,7 +2403,7 @@ th { background:#f5f3ff; color:#4c1d95; }
         </ModalShell>
       ) : null}
 
-      {showCoachedModal && draft ? (
+      {showCoachedModal && draft && !evaluationHold ? (
         <ModalShell
           title="Mark as Coached"
           subtitle="บันทึกข้อมูลหลังพูดคุย Coaching กับ Agent"

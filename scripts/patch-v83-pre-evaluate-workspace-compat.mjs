@@ -26,7 +26,7 @@ if (!source.includes(marker)) {
     setDraftMessage(\`Edit cancelled for \${editingCaseId}. No changes were saved.\`);
   }
 `;
-  if (!source.includes(patched)) throw new Error("v83 compatibility could not find patched cancel handler");
+  if (!source.includes(patched) && !source.includes("async function cancelSubmittedEdit()")) throw new Error("v83 compatibility could not find patched cancel handler");
   source = source.replace(patched, original);
   fs.writeFileSync(file, source);
   console.log("Restored Evaluate cancel anchor for workspace v72 compatibility");

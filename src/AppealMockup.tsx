@@ -1,3 +1,6 @@
+import { assertEvaluationCaseVisible } from "./evaluationEditingStore";
+import { useEvaluationActivity } from "./EvaluationActivityContext";
+import { evaluationCaseBlocked } from "./evaluationActivity";
 import { appealStatusLabel } from "./workflowStatusLabels";
 import { generateCasePdfWithAppealHistory } from "./caseAppealPdfAddon";
 import { getAppealTopicDecision, appealScoreAfterReview, appealTopicIssueTags, appealIssueTagsChanged, type AppealDecision, type AppealTopicDecision } from "./appealReview";
@@ -1324,6 +1327,7 @@ export default function AppealMockup({
   onSelectedAgentChange?: (agentName: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
 }) {
+  const evaluationActivity = useEvaluationActivity();
   const [allCases, setAllCases] = useState<AppealCaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -2018,11 +2022,13 @@ export default function AppealMockup({
     return cases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
   }, [allCases, effectiveSelectedAgent, selectedMonthKey, roleScopedAgentList]);
 
-  const filteredCases = useMemo(() => {
+  const unmaskedFilteredCases = useMemo(() => {
     const keyword = searchCaseId.trim().toLowerCase();
     if (!keyword) return baseVisibleCases;
     return baseVisibleCases.filter((item) => item.caseId.toLowerCase().includes(keyword));
   }, [baseVisibleCases, searchCaseId]);
+
+  const filteredCases = useMemo(() => unmaskedFilteredCases.filter(item => !evaluationCaseBlocked(item, evaluationActivity, currentUser)), [unmaskedFilteredCases, evaluationActivity, currentUser?.role]);
 
   useEffect(() => {
     if (!filteredCases.length) {
@@ -2082,7 +2088,7 @@ export default function AppealMockup({
     onSelectedAgentChange,
   ]);
 
-  const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey) || null;
+  const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey && !evaluationCaseBlocked(item, evaluationActivity, currentUser)) || null;
   const selectedRevision = selectedCase
     ? selectedCase.rewriteHistory.find((item) => item.appealRound === selectedAppealRound) ||
       selectedCase.rewriteHistory[selectedCase.rewriteHistory.length - 1] ||
@@ -2123,6 +2129,7 @@ export default function AppealMockup({
     setPdfMessage("กำลังสร้าง Appeal PDF...");
 
     try {
+      await assertEvaluationCaseVisible(selectedCase, currentUser);
       const originalTopics = selectedCase.allTopics.map((topic) => {
         const originalScore = Number(topic.originalScore ?? topic.score ?? 0);
         const max = Number(topic.max || 0);
@@ -2182,6 +2189,7 @@ export default function AppealMockup({
       const safeCaseId = normalizeCaseId(selectedCase.caseId) || "Appeal";
       const fileName = `${safeCaseId}_Appeal_Report.pdf`;
 
+      await assertEvaluationCaseVisible(selectedCase, currentUser);
       downloadGeneratedAppealPdf(generated.blob, fileName);
       onGeneratePdf?.(selectedCase.caseId, selectedCase.agent, "appeal");
 

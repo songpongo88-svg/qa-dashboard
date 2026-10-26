@@ -9,7 +9,7 @@ export const WORKFLOW_STATUS = Object.freeze({
   additionalRejected: 'Additional Appeal Request Rejected', additionalCancelled: 'Additional Appeal Cancelled',
   additionalExpired: 'Additional Appeal Expired', appealExpired: 'Appeal Expired',
   appealInProgress: 'Appeal in Progress', appealReset: 'Appeal Reset',
-  verificationFailed: 'Score Verification Failed', awaitingAcknowledgment: 'Awaiting Acknowledgment',
+  evaluationUnavailable: 'Evaluation Status Unavailable', verificationFailed: 'Score Verification Failed', awaitingAcknowledgment: 'Awaiting Acknowledgment',
   awaitingSignatures: 'Awaiting Signatures', readyForPayment: 'Ready for Payment',
 });
 export const APPEAL_STATUS_LABELS: Readonly<Record<string, string>> = Object.freeze({
@@ -77,7 +77,7 @@ const STATUS_TONES: Readonly<Record<string, string>> = Object.freeze({
   [WORKFLOW_STATUS.approved]: 'emerald', [WORKFLOW_STATUS.partiallyApproved]: 'emerald',
   [WORKFLOW_STATUS.submitted]: 'emerald', [WORKFLOW_STATUS.readyForPayment]: 'emerald',
   [WORKFLOW_STATUS.rejected]: 'rose', [WORKFLOW_STATUS.additionalRejected]: 'rose',
-  [WORKFLOW_STATUS.verificationFailed]: 'rose',
+  [WORKFLOW_STATUS.verificationFailed]: 'rose', [WORKFLOW_STATUS.evaluationUnavailable]: 'rose',
 });
 const TONE_CLASSES: Readonly<Record<string, string>> = Object.freeze({
   sky: 'border-sky-200 bg-sky-50 text-sky-800', amber: 'border-amber-200 bg-amber-50 text-amber-800',

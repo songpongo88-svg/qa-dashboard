@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { evaluationStatusLabel, WORKFLOW_STATUS, workflowStatusTone } from "./workflowStatusLabels";
+import { beginEvaluationEdit, cancelEvaluationEdit } from "./evaluationEditingStore";
 import TestCaseBadge, { TestCaseNotice } from "./TestCaseBadge";
 import { useMonthlyResultLock } from "./useMonthlyResultLock";
 import { monthlyResultScope, MonthlyResultLockCheckError, prepareMonthlyResultReferences } from "./monthlyResultLockStore";
@@ -104,6 +105,7 @@ type EvaluationDraft = {
   draftId?: string;
   // Preserve the existing evaluation ID for failed Edit Case drafts.
   activeSubmittedRecordId?: string;
+  editingWorkflowToken?: string;
   title?: string;
   agentName: string;
   auditDate: string;
@@ -144,6 +146,7 @@ type EvaluationCurrentUser = {
 };
 
 export type EvaluationSubmitPayload = {
+  editingWorkflowToken?: string;
   recordId?: string;
   evaluationKey?: string;
   evaluationType?: StoredEvaluationType;
@@ -218,6 +221,7 @@ type EvaluateTabMemory = {
   draftMessage: string;
   activeDraftId: string;
   activeSubmittedRecordId: string;
+  activeEditToken: string;
   workspaceView: EvaluationWorkspaceView;
   topicState: Record<string, TopicState>;
   expandedGroups: Record<string, boolean>;
@@ -1061,6 +1065,7 @@ export default function CreateEvaluationMockup({
   const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState(
     () => readEvaluateTabMemory()?.activeSubmittedRecordId || ""
   );
+  const [activeEditToken, setActiveEditToken] = useState(() => readEvaluateTabMemory()?.activeEditToken || "");
   const [workspaceView, setWorkspaceView] = useState<EvaluationWorkspaceView>(
     () => readEvaluateTabMemory()?.workspaceView || "form"
   );
@@ -1123,6 +1128,7 @@ export default function CreateEvaluationMockup({
       draftMessage,
       activeDraftId,
       activeSubmittedRecordId,
+      activeEditToken,
       workspaceView,
       topicState,
       expandedGroups,
@@ -1150,6 +1156,7 @@ export default function CreateEvaluationMockup({
     draftMessage,
     activeDraftId,
     activeSubmittedRecordId,
+    activeEditToken,
     workspaceView,
     topicState,
     expandedGroups,
@@ -1484,6 +1491,7 @@ export default function CreateEvaluationMockup({
     return {
       draftId,
       activeSubmittedRecordId: activeSubmittedRecordId || "",
+      editingWorkflowToken: activeEditToken || "",
       title: `${noCaseForMonth ? "No Case Monthly Result" : caseId || "Untitled Case"} - ${agentName || "No agent selected"}`,
       agentName: canonicalizeAgentName(agentName),
       auditDate,
@@ -1511,7 +1519,7 @@ export default function CreateEvaluationMockup({
     };
   }
 
-  function loadDraftIntoForm(draft: EvaluationDraft) {
+  async function loadDraftIntoForm(draft: EvaluationDraft) {
     const normalizedDraft = normalizeDraft(draft);
     let restoredCalls: EditableCallLog[];
     try {
@@ -1520,6 +1528,12 @@ export default function CreateEvaluationMockup({
       setDraftMessage("เปิดไฟล์เสียงใน Draft ไม่สำเร็จ Draft ยังอยู่ในรายการเดิม กรุณาลองอีกครั้ง");
       return;
     }
+    let editToken = "";
+    if (normalizedDraft.activeSubmittedRecordId) {
+      try { editToken = await startEditingWorkflow(normalizedDraft.activeSubmittedRecordId, normalizedDraft.agentName, normalizedDraft.caseId, getEvaluationMonthKey(normalizedDraft.auditDate), Boolean(normalizedDraft.isTestCase), normalizedDraft.editingWorkflowToken); }
+      catch (error) { setDraftMessage(error instanceof Error ? error.message : "Edit status could not be verified."); return; }
+    }
+    setActiveEditToken(editToken);
     callRecordingUploads.current.clear();
     setAgentName(canonicalizeAgentName(normalizedDraft.agentName));
     setAuditDate(normalizedDraft.auditDate || todayInputValue());
@@ -1545,6 +1559,7 @@ export default function CreateEvaluationMockup({
     setDraftSavedAt(normalizedDraft.savedAt || "");
     setActiveDraftId(normalizedDraft.draftId || "");
     setActiveSubmittedRecordId(normalizedDraft.activeSubmittedRecordId || "");
+    setWorkspaceView("form");
     setDraftMessage(normalizedDraft.savedAt ? `Loaded draft saved at ${normalizedDraft.savedAt}` : "Loaded saved draft");
   }
 
@@ -1564,8 +1579,11 @@ export default function CreateEvaluationMockup({
     setDraftMessage("Draft deleted. The current form stays open until you start another draft.");
   }
 
-  function cancelSubmittedEdit() {
+  async function cancelSubmittedEdit() {
     const editingCaseId = caseId || "current case";
+    try { await cancelEvaluationEdit(activeSubmittedRecordId, activeEditToken, currentUser?.username || ""); }
+    catch (error) { setDraftMessage(error instanceof Error ? error.message : "Cancel Edit failed. Please retry."); return; }
+    resetEvaluationForm();
     setActiveSubmittedRecordId("");
     setSubmitPreview(null);
     setWorkspaceView("report");
@@ -1615,6 +1633,7 @@ export default function CreateEvaluationMockup({
     setDraftSavedAt("");
     setActiveDraftId("");
     setActiveSubmittedRecordId("");
+    setActiveEditToken("");
     setTopicState(buildInitialTopicState(topics));
     setIssueTagDrafts({});
     setIssueTagMessages({});
@@ -1647,6 +1666,7 @@ export default function CreateEvaluationMockup({
   }
 
   async function submitEvaluation() {
+    if (activeSubmittedRecordId && !activeEditToken) { setDraftMessage("Checking Edit Status. Please reopen the saved case before submitting."); return; }
     if (!validateAssessmentImages()) return;
     if (!validateAgentSelected("submitting the evaluation")) return;
     if (!monthlyResult.editable) { setDraftMessage(monthlyResult.message || "กรุณารอการตรวจสอบผลประจำเดือน"); return; }
@@ -1780,6 +1800,7 @@ export default function CreateEvaluationMockup({
       .slice(0, 3)
       .map((item) => `${item.topic.code} ${item.topic.title}: ${item.score}/${item.topic.max}`);
     const historyRecord: EvaluationRecord = {
+      editingWorkflowToken: activeSubmittedRecordId ? activeEditToken : undefined,
       recordId:
         activeSubmittedRecordId ||
         (noCaseForMonth ? noCaseRecordId : `${caseId || "UNTITLED"}-${now.getTime()}`),
@@ -1858,6 +1879,7 @@ export default function CreateEvaluationMockup({
             record.evaluationMonthKey ||
             getEvaluationMonthKey(record.auditDate);
           const recordAgentValues = buildAgentMatchValues(record.agentName);
+          try {
           const storedRecords = await fetchStoredEvaluations(500);
           const supersededNoCaseRecords = storedRecords.filter(
             (item) =>
@@ -1870,6 +1892,7 @@ export default function CreateEvaluationMockup({
               deleteStoredEvaluation(item.id || item.evaluationKey)
             )
           );
+          } catch (error) { console.warn("Saved evaluation retained; No Case cleanup will retry later", error); }
         }
       }
 
@@ -2571,11 +2594,18 @@ export default function CreateEvaluationMockup({
     }
   }
 
+  async function startEditingWorkflow(id: string, name: string, editingCaseId: string, month: string, test: boolean, token?: string) {
+    const option = availableAgentOptions.find(item => canonicalizeAgentName(item.agentName || item.displayName) === canonicalizeAgentName(name));
+    return beginEvaluationEdit({ evaluationId: id, caseId: editingCaseId, username: option?.username || name, displayName: canonicalizeAgentName(name), monthKey: month, evaluatorUsername: currentUser?.username || "", evaluatorName, isTestCase: test, editToken: token });
+  }
+
   async function openSubmittedRecord(record: EvaluationRecord) {
     try {
       const scope = monthlyResultScope(record);
       if (!scope) throw new MonthlyResultLockCheckError();
       await prepareMonthlyResultReferences([scope]);
+      const token = await startEditingWorkflow(record.recordId, record.agentName || record.targetDisplayName, record.caseId, scope.monthKey, isTestCaseEvaluation(record));
+      setActiveEditToken(token);
     } catch (error) {
       const message = error instanceof Error ? error.message : "เปิดแก้ไขเคสไม่สำเร็จ";
       setReportMessage(message);
@@ -3065,7 +3095,7 @@ export default function CreateEvaluationMockup({
                         <div className="mt-3 text-xs font-semibold text-slate-600">Saved at: <span className="font-black text-slate-900">{draft.savedAt || "-"}</span></div>
                         <div className="mt-1 text-xs font-semibold text-slate-600">Score: <span className="font-black text-slate-900">{draft.criticalError ? 0 : draftScore}/{draftRubric.totalScore}</span></div>
                         <div className="mt-4 flex gap-2">
-                          <button type="button" onClick={() => { loadDraftIntoForm(draft); setWorkspaceView("form"); }} className="flex-1 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-sky-800">
+                          <button type="button" onClick={() => { void loadDraftIntoForm(draft); }} className="flex-1 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-sky-800">
                             Open Draft
                           </button>
                           <button type="button" onClick={() => deleteDraft(draftId)} className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-black text-rose-700 transition hover:bg-rose-50">

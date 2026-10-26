@@ -1,11 +1,12 @@
 ﻿import { initializeApp, getApps } from "firebase/app";
-import { collection, doc, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, doc, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { getEvaluationAgentFullName } from "./lib/userNames";
 import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
 import type { DeductionTag } from "./lib/evaluation/deductionTags";
 import { monthlyResultScope, MonthlyResultLockCheckError, MonthlyResultLockedError, prepareMonthlyResultReferences, readMonthlyResultReferences, touchMonthlyResults } from "./monthlyResultLockStore";
+import { readEvaluationEditForSave } from "./evaluationEditingStore";
 export { isTestCaseEvaluation, excludeTestEvaluations } from "./lib/evaluationScope";
 
 const env = (import.meta as any).env || {};
@@ -98,6 +99,7 @@ export type StoredEvaluationCallLog = {
 export type StoredEvaluationType = "case" | "no_case_month";
 
 export type StoredEvaluation = {
+  editingWorkflowToken?: string;
   id: string;
   evaluationKey: string;
   evaluationType?: StoredEvaluationType;
@@ -1370,7 +1372,8 @@ function toFirebaseEvaluation(record: StoredEvaluation) {
   };
 }
 
-export async function upsertStoredEvaluation(record: StoredEvaluation) {
+export async function upsertStoredEvaluation(input: StoredEvaluation) {
+  const { editingWorkflowToken = "", ...record } = input;
   const scope = monthlyResultScope(record);
   if (isFirebaseEvaluationConfigured()) {
     if (!scope) throw new MonthlyResultLockCheckError();
@@ -1399,10 +1402,13 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
     const reference = doc(db, FIREBASE_EVALUATION_COLLECTION, documentId);
     await runTransaction(db, async transaction => {
       const existing = await transaction.get(reference);
+      const editReference = await readEvaluationEditForSave(transaction, db, documentId, editingWorkflowToken, record.evaluatorUsername);
       const previousScope = existing.exists() ? monthlyResultScope(existing.data()) : null;
       const references = await prepareMonthlyResultReferences([scope!, ...(previousScope ? [previousScope] : [])]);
       await readMonthlyResultReferences(transaction, references);
       transaction.set(reference, toFirebaseEvaluation({ ...localRecord, id: documentId }), { merge: true });
+      if (editReference) transaction.delete(editReference);
+      transaction.set(doc(db, "qa_evaluation_progress", "__result_revision::" + encodeURIComponent(record.evaluatorUsername || "qa")), { resultRevision: true, evaluationId: documentId, revision: crypto.randomUUID(), updatedAt: new Date().toISOString() });
       touchMonthlyResults(transaction, references);
     });
 
@@ -1450,6 +1456,7 @@ async function markEvaluationDeleted(id: string, source: "confirmed_delete" | "l
       }
     }
     if (!snapshot.exists()) return { changed: false, caseId: expectedCaseId || "" };
+    await readEvaluationEditForSave(transaction, db, reference.id);
     const data = snapshot.data();
     const caseId = String(data.case_id || "");
     if (expectedCaseId && caseId.trim().toUpperCase() !== expectedCaseId.trim().toUpperCase()) {
@@ -1607,4 +1614,20 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
   }
 
   return limitEvaluationScopes(localSources, safeLimit);
+}
+
+// Refresh a committed result without re-reading every evaluation for every viewer.
+export async function refreshStoredEvaluation(id: string) {
+  const db = getFirebaseEvaluationDb();
+  if (!db) throw new Error("Evaluation store is unavailable.");
+  const snapshot = await getDocFromServer(doc(db, FIREBASE_EVALUATION_COLLECTION, id));
+  if (!snapshot.exists()) throw new Error("Saved evaluation could not be verified.");
+  const updated = toEvaluation({ ...snapshot.data(), id: snapshot.id });
+  const identities = new Set(evaluationIdentityValues(updated));
+  for (const [key, cached] of remoteEvaluationReadCache) {
+    const limit = Number(key.split(":").at(-1)) || DEFAULT_EVALUATION_LIMIT;
+    remoteEvaluationReadCache.set(key, { expiresAt: Date.now() + REMOTE_EVALUATION_READ_CACHE_TTL_MS,
+      promise: cached.promise.then(rows => limitEvaluationScopes([updated, ...rows.filter(row => !evaluationIdentityValues(row).some(value => identities.has(value)))], limit)) });
+  }
+  return updated;
 }
