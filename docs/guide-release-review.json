@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-26T09:25:26.302Z",
-  "reason": "Verified evaluation and case-detail voice guide remains correct: save compact GSM originals and convert playback copies locally; no new user steps.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-10-27T02:33:04.228Z",
+  "reason": "Added Investigation Findings expand and collapse instructions for the Case Detail panel",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "case-detail"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -57,7 +59,7 @@
     "build/evaluationAgentFocusPopupPatch.js": "f1ac67626646f9996161fe70514f2aee7899ae35ba73585d9bdf1d12d474498b",
     "build/finalSignedPdfDateFormatPatch.js": "69c7073d0c42d9f1d3f1bd7314c108b99d265245829c0c410d06810a26f9b535",
     "build/firestoreQuotaProtectionPatch.js": "6e9a9bdf1f2457ed34130cd1772c100512dd3042c002f387e28d7d60b91eb42b",
-    "build/investigationFindingsPatch.js": "1dfab6b2b39fc31fe57405a09b637068fee5281a92478abab63ff24939d29f0b",
+    "build/investigationFindingsPatch.js": "c10da3f19b17bba45bd49bd011d0308bc00264e59524662516d9726f02e1c79e",
     "build/officialPdfStandardsPatch.js": "d1f3f38ea5981963928325919f58ae18cd62f561cccaed6e4079c4c81dc8ec23",
     "build/processReferenceNotePdfPatch.js": "1776b99cc4842a56add8b0c5e80c1a0ac94c5cca7d1f5dd20c625a858a00603b",
     "build/processReferenceReportTextPatch.js": "e1fed041d9dbf2ccd90a865b5df4c77652f57e8410140fd237f1c918635d5242",
@@ -362,6 +364,7 @@
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
+    "src/InvestigationFindingsCollapsible.tsx": "9cf0de99545b852cbb703b2c30117b3cf912ebb12a17d827d88aac4e058b43b2",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/MaintenanceRuntime.tsx": "088634349d5d289951ba19e7419e905810e4a88176e43d12000f96aa63f45244",
     "src/MonthlyCoachingWorkspace.tsx": "1e216022c16d7484c6cc4a13b11096e703775566737961a9c558661b99e8c483",
@@ -458,7 +461,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "28319a0170a1be4f8e47a1f5ec073b4fca7850d635c428cce5a643f32e4365af",
+    "src/knowledge/manual.json": "0475d5ed224b726f4ba50ab63b1adc4ccaaae443a46c197982940834fae8ac74",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
