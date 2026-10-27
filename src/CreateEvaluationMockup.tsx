@@ -1,3 +1,4 @@
+import StickyNotePopup from "./StickyNotePopup";
 import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ClipboardEvent as ReactClipboardEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -4237,12 +4238,24 @@ export default function CreateEvaluationMockup({
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-[24px] border border-amber-200 bg-white shadow-[0_18px_42px_rgba(217,119,6,0.12)]">
-              <div className="border-b border-amber-100 bg-gradient-to-r from-amber-50 via-yellow-50 to-white px-5 py-4">
-                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-700">Sticky Note</div>
-                <div className="mt-1 text-sm font-bold text-slate-600">พื้นที่วางข้อความชั่วคราว ใช้คัดลอกไปตอบเคสได้เร็วขึ้น</div>
+            <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Preview RawData Row</div>
+              <div className="mt-4 max-h-[360px] overflow-auto rounded-xl border border-slate-200">
+                {Object.entries(previewColumns).slice(0, 22).map(([key, value], index) => (
+                  <div key={key} className={`grid grid-cols-[130px_1fr] border-b border-slate-200 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
+                    <div className="bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{displayFieldLabel(key)}</div>
+                    <div className="break-words px-3 py-2 text-xs font-bold text-slate-800">{String(value)}</div>
+                  </div>
+                ))}
               </div>
-              <div className="space-y-3 p-5">
+            </div>
+          </div>
+        </div>
+        </>
+        ) : null}
+      </div>
+      {workspaceView === "form" ? <StickyNotePopup owner={stickyNoteOwner}>
+              <div className="space-y-3">
                 <RichTextEditor
                   value={stickyNote}
                   onChange={(nextNote) => {
@@ -4285,24 +4298,7 @@ export default function CreateEvaluationMockup({
                   </div>
                 ) : null}
               </div>
-            </div>
-
-            <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Preview RawData Row</div>
-              <div className="mt-4 max-h-[360px] overflow-auto rounded-xl border border-slate-200">
-                {Object.entries(previewColumns).slice(0, 22).map(([key, value], index) => (
-                  <div key={key} className={`grid grid-cols-[130px_1fr] border-b border-slate-200 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
-                    <div className="bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{displayFieldLabel(key)}</div>
-                    <div className="break-words px-3 py-2 text-xs font-bold text-slate-800">{String(value)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-        </>
-        ) : null}
-      </div>
+      </StickyNotePopup> : null}
       {submitPreview ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
           <div className="mx-auto max-w-[1180px] overflow-hidden rounded-[28px] border border-white/30 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
