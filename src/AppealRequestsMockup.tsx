@@ -780,6 +780,8 @@ export default function AppealRequestsMockup({
   const [editingReview, setEditingReview] = useState(false);
   const [savePreview, setSavePreview] = useState<AppealReviewSavePreview | null>(null);
   const [notice, setNotice] = useState<AppealReviewNotice | null>(null);
+  const [assignedOnly, setAssignedOnly] = useState(["Senior", "Supervisor"].includes(String(currentUser?.role || "")));
+  const discussionRef = useRef<HTMLElement>(null);
   const savingRef = useRef(false);
   const standaloneRequestId = String(externalRequestId || "").trim();
   const [selectedAgentFilter, setSelectedAgentFilter] = useState("");
@@ -969,7 +971,7 @@ export default function AppealRequestsMockup({
   const visibleRequestsUnfiltered = statusFilter === "All" ? latestRequestsByCase :
     statusFilter === "QaPending" ? qaPendingRequests :
       latestRequestsByCase.filter(item => appealWorkflowStatus(item) === statusFilter);
-  const visibleRequests = visibleRequestsUnfiltered.filter(item => !evaluationCaseBlocked({ ...item, monthKey: getAppealReviewMonthKey(item) }, evaluationActivity, currentUser) && (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));
+  const visibleRequests = visibleRequestsUnfiltered.filter(item => (!assignedOnly || assignedRequestIds.includes(item.requestId)) && !evaluationCaseBlocked({ ...item, monthKey: getAppealReviewMonthKey(item) }, evaluationActivity, currentUser) && (!selectedAgentFilter || item.agent===selectedAgentFilter) && (selectedMonthFilter==="all" || getAppealReviewMonthKey(item)===selectedMonthFilter) && (!searchCaseId.trim() || item.caseId.toUpperCase().includes(searchCaseId.trim().toUpperCase())));
   const isReviewed = selectedRequest?.status === "Approved" || selectedRequest?.status === "Rejected" || selectedRequest?.status === "Partially Approved";
   const selectedWorkflowStatus = selectedRequest ? appealWorkflowStatus(selectedRequest) : "";
   const isPermissionTask = ["Request Additional Appeal", "Approved (Access)"].includes(selectedWorkflowStatus);
@@ -1060,6 +1062,12 @@ export default function AppealRequestsMockup({
     }
     return () => { cancelled = true; };
   }, [selectedRequestId, canDiscuss]);
+
+  useEffect(() => {
+    if (!selectedRequest || new URLSearchParams(window.location.search).get("discussion") !== "1") return;
+    const timer = window.setTimeout(() => { discussionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); discussionRef.current?.focus({ preventScroll: true }); }, 100);
+    return () => window.clearTimeout(timer);
+  }, [selectedRequest?.requestId]);
 
   const saveAdditionalAppealReason = async () => {
     if (!allowReview || reasonSaving || busy) return;
@@ -1309,6 +1317,7 @@ export default function AppealRequestsMockup({
       setDiscussionImages([]);
       setDiscussionMessage("ส่งข้อความและรูปหลักฐานเรียบร้อยแล้ว");
       setDiscussionLogs(await fetchAppealDiscussionEvents(selectedRequest.requestId) as UsageLogEvent[]);
+      onTasksChanged?.();
     } catch (error) {
       console.error("Save appeal discussion failed:", error);
       setDiscussionMessage("ส่งข้อความไม่สำเร็จ ข้อความและภาพที่แนบยังอยู่ กรุณาลองใหม่");
@@ -1634,6 +1643,7 @@ export default function AppealRequestsMockup({
               </div>
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status</label>
+                {["Senior", "Supervisor"].includes(String(currentUser?.role || "")) ? <button type="button" aria-pressed={assignedOnly} onClick={() => setAssignedOnly(value => !value)} className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800">{assignedOnly ? "Assigned to Me ✓" : "All Accessible Cases"}</button> : null}
                 <select aria-label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setSelectedRequestId(""); setDetailRequestId(""); }} className="w-full rounded-2xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-400">
                   {allowReview && <option value="QaPending">My Pending Tasks ({qaPendingRequests.length})</option>}
                   <option value="All">All Statuses</option>
@@ -1973,7 +1983,7 @@ export default function AppealRequestsMockup({
                   </section>)}
                 </section>
 
-                {canDiscuss ? <section aria-label="QA and Senior internal appeal discussion" className="rounded-3xl border border-sky-200 bg-sky-50/70 p-5">
+                {canDiscuss ? <section ref={discussionRef} tabIndex={-1} aria-label="QA and Senior internal appeal discussion" className="rounded-3xl border border-sky-200 bg-sky-50/70 p-5">
                   <div className="text-sm font-extrabold text-sky-900">QA ↔ Senior — คำถามและหลักฐานภายใน</div>
                   <p className="mt-1 text-xs leading-6 text-sky-700">
                     ข้อมูลนี้เก็บเฉพาะหน้า Appeal Review และไม่แสดงใน Case Detail หรือ PDF รายงาน
