@@ -478,3 +478,13 @@ export async function fetchAppealEvents(
     }
   );
 }
+
+// Reuse discussion events for Inbox tasks; never expose the internal thread to Agents.
+export async function fetchAppealDiscussionInboxEvents(user: { username: string; role: string }): Promise<AppealLogEvent[]> {
+  if (!["Quality Assurance", "Senior", "Supervisor"].includes(user.role)) return [];
+  const snapshot = user.role === "Quality Assurance"
+    ? await recentAppealSnapshot(2000, false)
+    : await getDocs(query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION), where("details.seniorUsername", "==", user.username), firestoreLimit(500)));
+  const messages = snapshot.docs.map(item => toAppealLogEvent(item.id, item.data())).filter(event => event.event_type === "appeal_internal_message");
+  return checkAppealSourceCases(messages);
+}

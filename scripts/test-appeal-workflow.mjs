@@ -146,6 +146,7 @@ try {
   }
   for (const role of ["Senior", "Supervisor"]) {
     await render({ username: "lead", agentName: "Team Lead", role }, { allowedAgentNames: ["Alpha Agent"] });
+    if (button("Assigned to Me ✓")) await click(button("Assigned to Me ✓"));
     assert.ok(rows().every(row => !row.textContent.includes("Bravo Agent")));
     await click(rows().find(row => row.textContent.includes("Awaiting QA Approval")));
     assert.equal(button("Approve Additional Access (3 Days)"), undefined, `${role} cannot approve even when allowReview prop is true`);

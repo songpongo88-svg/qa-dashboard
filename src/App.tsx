@@ -1,3 +1,4 @@
+import { buildAppealDiscussionTasks } from "./appealDiscussionTasks";
 import { useEvaluationActivity } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked } from "./evaluationActivity";
 import { InkLoginArtwork } from './lineDrawing/InkLogin';
@@ -30,7 +31,7 @@ import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMocku
 import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
 import { WORKFLOW_STATUS, coachingStatusText } from "./workflowStatusLabels";
 import EvaluationActivityProvider from "./EvaluationActivityProvider";
-import { fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
+import { fetchAppealDiscussionInboxEvents, fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
@@ -989,7 +990,7 @@ type PasswordRecord = {
 
 type InboxTaskItem = {
   id: string;
-  type: "appeal" | "appeal-result" | "appeal-override" | "password" | "evaluation" | "coaching";
+  type: "appeal-discussion" | "appeal" | "appeal-result" | "appeal-override" | "password" | "evaluation" | "coaching";
   title: string;
   description: string;
   badge: string;
@@ -5364,13 +5365,14 @@ export default function App() {
     }
 
     try {
-      const [logs, passwordRecord, appealLogs] = await Promise.all([
+      const [logs, passwordRecord, appealLogs, discussionInboxLogs] = await Promise.all([
         fetchUsageLogsByEventTypes(INBOX_EVENT_TYPES, 1500),
         getCentralPasswordRecord(currentUser.username),
         fetchAppealEvents(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset", "appeal_additional_access_requested", "appeal_additional_access_decided", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted", "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted"], { limit: 2000 }),
+        fetchAppealDiscussionInboxEvents(currentUser),
       ]);
       const readIds = readInboxReadIds(currentUser);
-      const nextTasks: InboxTaskItem[] = [];
+      const nextTasks: InboxTaskItem[] = buildAppealDiscussionTasks(discussionInboxLogs, currentUser, readIds);
       const appealRequests = buildAppealRequests(appealLogs);
       // Surface additional-appeal permission decisions in the case owner's own Inbox.
       // This is a live projection of existing appeal events, not a new notification database.
@@ -6330,6 +6332,14 @@ export default function App() {
   const handleOpenInboxTask = async (task: InboxTaskItem) => {
     markInboxTaskRead(task.id);
     setInboxReturnTitle(task.title);
+
+    if (task.type === "appeal-discussion") {
+      if (appealRequestsAllowed && task.appealRequestId) navigateToTab("appeal-requests", {
+        workspaceKey: `appeal-review:${encodeURIComponent(task.appealRequestId)}|${encodeURIComponent(task.caseId || "")}` as WorkspaceTabKey,
+        params: { requestId: task.appealRequestId, discussion: "1" },
+      });
+      return;
+    }
 
     if (task.type === "appeal") {
       if (appealRequestsAllowed) {
