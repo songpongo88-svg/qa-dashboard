@@ -74,6 +74,6 @@ export function scopeAppealRequests<T extends AppealWorkflowRequest>(requests: T
   const teamRole = ["Senior", "Supervisor"].includes(String(user.role || ""));
   const names = new Set((teamRole ? allowedAgentNames || [] : []).map(canonicalAgentIdentityKey));
   if (own) names.add(own);
-  const assigned = new Set(teamRole ? assignedRequestIds : []);
+  const assigned = new Set(assignedRequestIds);
   return requests.filter(request => names.has(canonicalAgentIdentityKey(request.agent)) || assigned.has(request.requestId));
 }

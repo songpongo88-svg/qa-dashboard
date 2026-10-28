@@ -202,7 +202,13 @@ async function prepareAppealEvent(
 ) {
   if (!user || !isAppealEventType(eventType)) return null;
   if (["appeal_request_reviewed", "appeal_request_reset", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_access_decided"].includes(eventType) && String(user.role || "") !== "Quality Assurance") return null;
-  if (eventType === "appeal_internal_message" && !["Senior", "Supervisor", "Quality Assurance"].includes(String(user.role || ""))) return null;
+  if (eventType === "appeal_internal_message" && user.role !== "Quality Assurance") {
+    const messages = await fetchAppealDiscussionEvents(String(payload.details?.requestId || ""));
+    if (String(payload.details?.seniorUsername || "") !== user.username || !messages.some(event =>
+      event.username !== user.username && event.details?.senderRole === "Quality Assurance" &&
+      event.details?.seniorUsername === user.username &&
+      (!payload.details?.threadId || event.details?.threadId === payload.details.threadId))) return null;
+  }
   if (eventType === "appeal_additional_round_expired") return null; // The scheduled server endpoint alone records expiry.
   if (["appeal_additional_access_requested", "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted"].includes(eventType) && !String(user.username || "").trim()) return false;
   if (eventType === "appeal_additional_access_requested" && (!String(payload.details?.requestId || "").trim() || !String(payload.details?.reason || "").trim())) throw new Error("ต้องระบุเคสและเหตุผลที่ขออุทธรณ์เพิ่มเติม");
@@ -322,6 +328,43 @@ export async function writeAppealEvent(user: AppealLogUser, eventType: string, p
   return true;
 }
 
+// Updates retain the message's identity and original sender. Reassignment removes
+// the original recipient's Inbox query match rather than creating a second task.
+export async function updateAppealDiscussionMessage(user: AppealLogUser, original: AppealLogEvent, payload: Partial<AppealLogEvent>) {
+  if (!user?.username || original.username !== user.username || original.event_type !== "appeal_internal_message") return false;
+  const requestId = String(original.details?.requestId || "");
+  const messageId = String(original.details?.messageId || "");
+  if (!requestId || !messageId || payload.details?.requestId !== requestId || payload.case_id !== original.case_id || payload.target_agent !== original.target_agent) return false;
+  if (user.role !== "Quality Assurance" && payload.details?.seniorUsername !== original.details?.seniorUsername) return false;
+  const prepared = await prepareAppealEvent(user, "appeal_internal_message", {...payload, details: {...payload.details, messageId}});
+  if (!prepared) return false;
+  const references = await prepareAppealMonthlyReferences(payload);
+  const snapshot = await getDocsFromServer(query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION), where("details.requestId", "==", requestId), firestoreLimit(500)));
+  const stored = snapshot.docs.find(item => item.data()?.details?.messageId === messageId && item.data()?.event_type === "appeal_internal_message");
+  if (!stored || stored.data().username !== user.username) throw new Error("Message owner does not match");
+  const current = stored.data();
+  if (String(current.details?.revisionId || "") !== String(original.details?.revisionId || "")) throw new Error("Message changed. Reload before editing.");
+  const now = new Date().toISOString();
+  await runTransaction(firebaseDb, async transaction => {
+    await readMonthlyResultReferences(transaction, references);
+    transaction.set(stored.ref, {
+      ...current,
+      details: {...current.details, ...payload.details, senderRole: current.details?.senderRole || current.role, senderName: current.details?.senderName || current.display_name || user.username, messageId, sentAt: current.details?.sentAt || current.created_at,
+        threadId: current.details?.threadId || (current.details?.senderRole === "Quality Assurance" ? messageId : ""),
+        editedAt: now, revisionId: crypto.randomUUID(),
+        revisions: [...(Array.isArray(current.details?.revisions) ? current.details.revisions : []), {
+          message: current.details?.message || "", topicCode: current.details?.topicCode || "",
+          seniorUsername: current.details?.seniorUsername || "", evidenceImages: current.details?.evidenceImages || [],
+          editedAt: now, editedBy: user.username,
+        }],
+      }, updated_at: now,
+    });
+    touchMonthlyResults(transaction, references);
+  });
+  notifyAppealChanged();
+  return true;
+}
+
 // Permission approval and its 72-hour round become visible together. A failed
 // write cannot leave the owner with an approval but no usable submission form.
 export async function writeAdditionalAppealAccessDecision(user: AppealLogUser,
@@ -423,19 +466,25 @@ export async function fetchAdditionalAppealReasonOptions(): Promise<string[]> {
     .sort((a, b) => a.localeCompare(b, "th"));
 }
 
-export async function fetchAppealDiscussionEvents(requestId: string): Promise<AppealLogEvent[]> {
+export async function fetchAppealDiscussionEvents(requestId: string, viewer?: AppealLogUser): Promise<AppealLogEvent[]> {
   const target = String(requestId || "").trim();
   if (!target) return [];
   const snapshot = await getDocs(
     query(
       collection(firebaseDb, APPEAL_EVENTS_COLLECTION),
       where("details.requestId", "==", target),
+      ...(viewer && viewer.role !== "Quality Assurance" ? [where("details.seniorUsername", "==", viewer.username || "")] : []),
       firestoreLimit(500)
     )
   );
   return snapshot.docs
     .map(item => toAppealLogEvent(item.id, item.data()))
     .filter(event => event.event_type === "appeal_internal_message")
+    .map(event => {
+      if (!viewer || viewer.role === "Quality Assurance") return event;
+      const {revisions, ...details} = event.details || {};
+      return {...event, details};
+    })
     .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || "")));
 }
 
@@ -479,12 +528,16 @@ export async function fetchAppealEvents(
   );
 }
 
-// Reuse discussion events for Inbox tasks; never expose the internal thread to Agents.
+// Each account receives only discussions explicitly addressed to it.
 export async function fetchAppealDiscussionInboxEvents(user: { username: string; role: string }): Promise<AppealLogEvent[]> {
-  if (!["Quality Assurance", "Senior", "Supervisor"].includes(user.role)) return [];
+  if (!user.username) return [];
   const snapshot = user.role === "Quality Assurance"
     ? await recentAppealSnapshot(2000, false)
     : await getDocs(query(collection(firebaseDb, APPEAL_EVENTS_COLLECTION), where("details.seniorUsername", "==", user.username), firestoreLimit(500)));
-  const messages = snapshot.docs.map(item => toAppealLogEvent(item.id, item.data())).filter(event => event.event_type === "appeal_internal_message");
+  const messages = snapshot.docs.map(item => toAppealLogEvent(item.id, item.data())).filter(event => event.event_type === "appeal_internal_message").map(event => {
+    if (user.role === "Quality Assurance") return event;
+    const {revisions, ...details} = event.details || {};
+    return {...event, details};
+  });
   return checkAppealSourceCases(messages);
 }
