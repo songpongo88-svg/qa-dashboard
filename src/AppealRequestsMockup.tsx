@@ -1,3 +1,4 @@
+import AutoResizeReviewTextarea from "./AutoResizeReviewTextarea";
 import { discussionRecipients, visibleDiscussionEvents } from "./appealDiscussionAccess";
 import { useEvaluationActivity } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked } from "./evaluationActivity";
@@ -756,7 +757,6 @@ export default function AppealRequestsMockup({
   const [tagReadAttempt, setTagReadAttempt] = useState(0);
   const sourceTagCache = useRef(new Map<string, Array<Pick<AppealTopic, "code" | "issueTags">>>());
   const decision = summarizeAppealDecisions(draftTopics.filter(isAppealedTopic));
-  const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
@@ -1031,7 +1031,6 @@ export default function AppealRequestsMockup({
     }
     setSelectedRequestId(selectedRequest.requestId);
     setDraftTopics(draftForRequest(selectedRequest));
-    setReviewSummary(selectedRequest.additionalRound ? "" : selectedRequest.reviewSummary || "");
     setEditingReview(false);
     setDiscussionImages([]);
     setDiscussionText("");
@@ -1269,7 +1268,6 @@ export default function AppealRequestsMockup({
   const cancelReviewEdit = () => {
     if (!selectedRequest || busy) return;
     setDraftTopics(draftForRequest(selectedRequest));
-    setReviewSummary(selectedRequest.reviewSummary || "");
     setEditingReview(false);
   };
 
@@ -1338,11 +1336,6 @@ export default function AppealRequestsMockup({
       setMessage("ต้องรอ Agent ส่งเหตุผลและหลักฐานเพิ่มเติมก่อนจึงจะพิจารณาได้");
       return;
     }
-    if (!reviewSummary.trim()) {
-      setNotice({ kind: "validation", title: "ยังบันทึกผลไม่ได้", caseId: selectedRequest.caseId,
-        message: "กรุณากรอก Review Summary เพื่อสรุปเหตุผลการพิจารณาอุทธรณ์ก่อนบันทึก" });
-      return;
-    }
     let review;
     try {
       review = prepareAppealReview(draftTopics.filter(isAppealedTopic).map(hydrateTopicTags), selectedRequest.finalScore);
@@ -1370,7 +1363,7 @@ export default function AppealRequestsMockup({
       },
       reviewId: crypto.randomUUID(), reviewVersion: (storedRequest.reviewVersion || 0) + 1,
       beforeScore: isReviewed ? appealFinalScoreFromTopics(selectedRequest.topics, selectedRequest.finalScore) : selectedRequest.finalScore,
-      reviewSummary: reviewSummary.trim(), review,
+      review,
       topicRows: review.topics.map(topic => {
         const previous = selectedRequest.topics.find(item => item.code === topic.code);
         return { code: topic.code, label: topic.label || "", decision: topic.decision!,
@@ -1452,7 +1445,6 @@ export default function AppealRequestsMockup({
           ...(currentAction?.roundId ? { roundId: currentAction.roundId } : {}),
           actionTopicCodes: currentAction?.topics.map(topic => topic.code) || topicsForReview.map(topic => topic.code),
           decision: review.decision,
-          reviewSummary: preview.reviewSummary,
           reviewedAt,
           // Persist reviewer metadata with the review itself. This is the
           // authoritative source used by Dashboard / Case Detail / PDF.
@@ -1590,7 +1582,6 @@ export default function AppealRequestsMockup({
       setSelectedRequestId("");
       setDetailRequestId("");
       setDraftTopics([]);
-      setReviewSummary("");
       setMessage(`Reset ${selectedRequest.caseId}. APPEAL watermark was removed and the case owner can submit again while the appeal window is open.`);
       await loadRequests();
       onTasksChanged?.();
@@ -1898,20 +1889,8 @@ export default function AppealRequestsMockup({
                             <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700" htmlFor={`revised-comment-${topic.code}`}>
                               Revised Comment
                             </label>
-                            <textarea
+                            <AutoResizeReviewTextarea
                               id={`revised-comment-${topic.code}`}
-                              onPaste={(event) => {
-                                requestAnimationFrame(() => {
-                                  const target = event.currentTarget;
-                                  target.style.height = "auto";
-                                  target.style.height = `${target.scrollHeight}px`;
-                                });
-                              }}
-                              onInput={(event) => {
-                                const target = event.currentTarget;
-                                target.style.height = "auto";
-                                target.style.height = `${target.scrollHeight}px`;
-                              }}
                               rows={3}
                               data-auto-resize-review="true"
                               value={topic.revisedComment || ""}
@@ -1943,20 +1922,8 @@ export default function AppealRequestsMockup({
                             <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-rose-700" htmlFor={`reject-reason-${topic.code}`}>
                               Reject Reason <span className="text-rose-600">*</span>
                             </label>
-                            <textarea
+                            <AutoResizeReviewTextarea
                               id={`reject-reason-${topic.code}`}
-                              onPaste={(event) => {
-                                requestAnimationFrame(() => {
-                                  const target = event.currentTarget;
-                                  target.style.height = "auto";
-                                  target.style.height = `${target.scrollHeight}px`;
-                                });
-                              }}
-                              onInput={(event) => {
-                                const target = event.currentTarget;
-                                target.style.height = "auto";
-                                target.style.height = `${target.scrollHeight}px`;
-                              }}
                               rows={3}
                               data-auto-resize-review="true"
                               value={topic.rejectReason || ""}
@@ -2100,33 +2067,6 @@ export default function AppealRequestsMockup({
                     Reject {draftTopics.filter(topic => topic.decision === "Rejected").length} •
                     คะแนนหลังทบทวน {appealFinalScoreFromTopics(draftTopics, selectedRequest.finalScore).toFixed(2)} •
                     KPI {appealFinalScoreFromTopics(draftTopics, selectedRequest.finalScore) >= 85 ? "Passed" : "Not Passed"}
-                  </div>
-                  <div className="mt-4">
-                    <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700" htmlFor="appeal-review-summary">
-                      Review Summary <span className="text-rose-600">*</span>
-                    </label>
-                    <textarea
-                      id="appeal-review-summary"
-                      onPaste={(event) => {
-                        requestAnimationFrame(() => {
-                          const target = event.currentTarget;
-                          target.style.height = "auto";
-                          target.style.height = `${target.scrollHeight}px`;
-                        });
-                      }}
-                      onInput={(event) => {
-                        const target = event.currentTarget;
-                        target.style.height = "auto";
-                        target.style.height = `${target.scrollHeight}px`;
-                      }}
-                      rows={3}
-                      data-auto-resize-review="true"
-                      value={reviewSummary}
-                      disabled={busy || !canReview}
-                      onChange={(event) => setReviewSummary(event.target.value)}
-                      className="mt-2 min-h-[88px] w-full resize-none overflow-hidden rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
-                      placeholder="Appeal review summary"
-                    />
                   </div>
                   {selectedRequest.lastAdditionalStatus === "Expired (Additional)" ? (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">
@@ -2305,7 +2245,6 @@ export default function AppealRequestsMockup({
                           <div className="mt-1 text-xs text-slate-500">{formatDateTime(item.reviewedAt)} · {item.reviewedBy || "-"}</div>
                           <div className="mt-2 font-semibold">คะแนนรวม {appealFinalScoreFromTopics(item.topics, selectedRequest.finalScore).toFixed(2)} / 100</div>
                           {item.topics.map(topic => <div key={topic.code} className="mt-2 text-xs leading-6"><span className="font-bold">{topic.code} {topic.label} · {topic.decision === "Rejected" ? "Reject" : "Approved"}</span><div className="whitespace-pre-wrap break-words">{topic.decision === "Rejected" ? topic.rejectReason || topic.revisedComment || "-" : topic.revisedComment || "-"}</div></div>)}
-                          <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-6">Review Summary: {item.reviewSummary || "-"}</p>
                         </div>
                       ))}</div>
                     </details>

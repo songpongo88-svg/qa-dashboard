@@ -33,12 +33,13 @@ function loadDeclarations(file, names, bindings = {}) {
   }
   names.forEach(include);
   names.forEach((name) => assert.ok(selected.has(name), `real ${name} exists`));
-  const compiled = ts.transpileModule([...selected.values()].join("\n") + `\nreturn {${names.join(",")}};`, {
+  const compiled = ts.transpileModule([...selected.entries()].sort(([a], [b]) => declarations.get(a).node.pos - declarations.get(b).node.pos).map(([, text]) => text).join("\n") + `\nreturn {${names.join(",")}};`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, module: ts.ModuleKind.None },
   }).outputText;
   return Function(...Object.keys(bindings), compiled)(...Object.values(bindings));
 }
 
+const workflowLabels = loadDeclarations("../src/workflowStatusLabels.ts", ["appealStatusLabel", "workflowStatusTone", "WORKFLOW_STATUS"]);
 const helper = loadDeclarations("../src/appealReview.ts", ["getAppealTopicDecision", "summarizeAppealDecisions", "appealScoreAfterReview", "prepareAppealReview", "appealIssueTagsBeforeReview", "appealTopicIssueTags", "appealIssueTagChanges", "appealIssueTagsChanged", "normalizeAppealIssueTags", "applyAppealIssueTagReviews"]);
 const actionHistory = loadDeclarations("../src/appealActionHistory.ts", ["buildAppealActionHistory", "topicAppealActions", "topicAppealActionNumber"], helper);
 const requestFunctions = loadDeclarations("../src/AppealRequestsMockup.tsx", ["buildAppealRequests", "exportAppealRows"], {
@@ -97,10 +98,10 @@ Function("exports", ts.transpileModule(fs.readFileSync(new URL("../src/lib/rubri
 }).outputText)(rubric);
 const tagComponents = loadDeclarations("../src/AppealIssueTags.tsx", ["AppealIssueTagHistory", "AppealIssueTagEditor"], { React, ...helper });
 const actionTimeline = loadDeclarations("../src/AppealActionTimeline.tsx", ["AppealActionTimeline"], {
-  React, ...richText, ...actionHistory, ...tagComponents, AppealEvidenceGallery: () => null, appealEvidenceStartIndex: () => 0,
+  React, ...workflowLabels, ...richText, ...actionHistory, ...tagComponents, AppealEvidenceGallery: () => null, appealEvidenceStartIndex: () => 0,
 });
 const dashboard = loadDeclarations("../src/DashboardMockup.tsx", ["buildApprovedAppealMergeMap", "buildAppealOutcomeMap", "applyAppealMapsToCaseItems", "CaseDetailTopicTable"], {
-  ...actionTimeline,
+  ...workflowLabels, ...actionTimeline,
   ...helper, ...requestFunctions, ...policy, React, useState,
   ...richText,
   getCaseDetailTopicTitle: rubric.getCaseDetailTopicTitle,
@@ -250,23 +251,16 @@ try {
   assert.equal(summaryCase.finalScore, 86);
   await act(async () => root.render(React.createElement(dashboard.CaseDetailTopicTable, summaryCase)));
   const topicDetails = [...document.querySelectorAll("details.group")];
-  assert.ok(topicDetails[0].textContent.includes("FIRST_TOPIC_FIRST_SUMMARY"));
-  assert.ok(topicDetails[0].textContent.includes("FIRST_TOPIC_REJECT_SUMMARY"));
-  assert.ok(!topicDetails[0].textContent.includes("SECOND_TOPIC_OWN_SUMMARY"), "the latest whole-case summary must not replace a previous topic's Action summaries");
-  assert.ok(topicDetails[1].textContent.includes("SECOND_TOPIC_OWN_SUMMARY"));
-  assert.ok(!topicDetails[1].textContent.includes("FIRST_TOPIC_FIRST_SUMMARY"));
-  assert.equal(topicDetails[0].textContent.split("Review Summary:").length - 1, 2, "one summary per saved Action");
-  assert.equal(topicDetails[1].textContent.split("Review Summary:").length - 1, 1, "the new topic starts its own history");
-  assert.equal(document.querySelectorAll('[data-appeal-review-summary="legacy-topic"]').length, 0, "Action history suppresses the legacy summary fallback");
+  assert.ok(topicDetails.every(node => !node.textContent.includes("Review Summary") && !node.textContent.includes("_SUMMARY")), "saved summaries are hidden from every Topic/Action");
   assert.equal(JSON.stringify(actionSummaryLogs), actionSummarySnapshot);
   for (const status of ["Approved", "Rejected"]) {
     const legacy = { ...summaryCase, appealActionHistory: [], appealStatus: status, appealReviewSummary: "LEGACY_REVIEW_SUMMARY", appealReviewedTopics: summaryCase.appealReviewedTopics.map(topic => ({ ...topic, decision: status })) };
     await act(async () => root.render(React.createElement(dashboard.CaseDetailTopicTable, legacy)));
     const summaries = [...document.querySelectorAll('[data-appeal-review-summary="legacy-topic"]')];
-    assert.equal(summaries.length, 2, `${status}: old requests without Action records keep their summary under the reviewed topics`);
+    assert.equal(summaries.length, 0, `${status}: legacy summaries are also hidden`);
     assert.ok(summaries.every(node => node.closest("details.group") && node.textContent.includes("LEGACY_REVIEW_SUMMARY")));
   }
-  console.log("PASS Case Detail keeps each Topic/Action's own Approved/Reject summary, isolates a new topic, preserves scores/history, and retains legacy summaries without duplicate fallbacks");
+  console.log("PASS Case Detail hides Review Summary from current and legacy Topic/Actions while preserving stored history and scores");
 
   const olderSubmission={...submission,id:'older-submission',case_id:'AA990069',created_at:'2026-10-07T01:00:00Z',details:{...submission.details,requestId:'older-appeal',submittedAt:'2026-10-07T01:00:00Z'}};
   const newerSubmission={...submission,id:'newer-submission',case_id:'AA990071',created_at:'2026-10-07T03:00:00Z',details:{...submission.details,requestId:'newer-appeal',submittedAt:'2026-10-07T03:00:00Z'}};
@@ -290,6 +284,7 @@ try {
       export async function fetchAdditionalAppealReasonOptions(){return []}
       export async function fetchAssignedAppealRequestIds(){return []}
       export async function fetchAppealDiscussionEvents(){return []}
+      export async function updateAppealDiscussionMessage(){throw new Error("Discussion editing is tested in the workflow suite")}
       export async function writeAdditionalAppealAccessDecision(){throw new Error('not used in score-review fixture')}
       export async function writeAppealEvent(user,event_type,payload){
         if(globalThis.__appealFixtureFailure === 'before'){globalThis.__appealFixtureFailure='';throw new Error('offline')}
@@ -343,7 +338,6 @@ try {
   await setText("revised-comment-1", "New process explanation");
   await setText("reject-reason-2", "Original answer is correct");
   await setText("revised-comment-3", "New follow-up explanation");
-  await setText("appeal-review-summary", "Mixed review summary");
   await click([...document.querySelectorAll("button")].find(button => button.textContent === "Save Review"));
   assert.equal(globalThis.__appealFixtureWrites.length, 0, "confirmation opens before any write");
   assert.ok(document.querySelector("dialog").textContent.includes("82.00 → 86.00"));
@@ -368,16 +362,15 @@ try {
   assert.ok(!Object.hasOwn(saved.details.topics[1], "revisedScore"));
   assert.equal(saved.details.reviewedBy, "Test Reviewer");
   assert.equal(requestFunctions.buildAppealRequests(globalThis.__appealFixtureLogs)[0].status, "Partially Approved");
-  console.log("PASS filled Review Summary saves with Case Detail display dates, checks the selected request outside the global window and preserves other requests");
+  console.log("PASS per-topic feedback saves without Review Summary with Case Detail display dates, checks the selected request outside the global window and preserves other requests");
   console.log("PASS real Appeal Review UI independently selects three decisions and saves one complete mixed review with reviewer identity");
   const button = text => [...document.querySelectorAll("button")].find(node => node.textContent === text);
   assert.ok(document.querySelector("dialog").textContent.includes("บันทึกผลอุทธรณ์เรียบร้อย"));
   await click(button("รับทราบ"));
   assert.ok(groups().every(group => [...group.querySelectorAll("button")].every(node => node.disabled)));
   await click(button("แก้ไขผลอุทธรณ์"));
-  await setText("appeal-review-summary", "Unsaved cancellation");
   await click(button("ยกเลิกการแก้ไข"));
-  assert.equal(document.getElementById("appeal-review-summary").value, "Mixed review summary");
+  assert.equal(document.getElementById("appeal-review-summary"), null);
   assert.equal(globalThis.__appealFixtureWrites.length, 1);
   await click(button("แก้ไขผลอุทธรณ์"));
   await click(groups()[0].querySelectorAll("button")[1]);
@@ -387,12 +380,11 @@ try {
   await setText("reject-reason-1", "Keep original process score");
   await setText("revised-comment-2", "Reconsidered answer score");
   await setText("reject-reason-3", "Keep original follow-up score");
-  await setText("appeal-review-summary", "Corrected mixed review");
   await click(button("Save Review"));
   assert.ok(document.querySelector("dialog").textContent.includes("86.00 → 85.00"));
   await click(button("กลับไปแก้ไข"));
   assert.equal(document.querySelector("dialog"), null);
-  assert.equal(document.getElementById("appeal-review-summary").value, "Corrected mixed review");
+  assert.equal(document.getElementById("appeal-review-summary"), null);
   await click(button("Save Review"));
   globalThis.__appealFixtureFailure = "before";
   await click(button("ยืนยันบันทึก"));
@@ -414,9 +406,9 @@ try {
   assert.deepEqual(edited.details.topics.map(topic => topic.decision), ["Rejected", "Approved", "Rejected"]);
   assert.equal(helper.appealScoreAfterReview(edited.details.topics, 82), 85);
   const current = requestFunctions.buildAppealRequests([saved, submission, edited])[0];
-  assert.equal(current.reviewSummary, "Corrected mixed review");
+  assert.equal(current.reviewSummary, "");
   assert.equal(current.reviewHistory.length, 2);
-  assert.equal(current.reviewHistory[1].reviewSummary, "Mixed review summary");
+  assert.equal(current.reviewHistory[1].reviewSummary, "");
   requestFunctions.exportAppealRows([current]);
   assert.equal(globalThis.__exportedAppeals[0]["Final Score"], 85);
   assert.equal(globalThis.__exportedAppeals[0]["1 Revised Score"], "");
@@ -434,7 +426,6 @@ try {
   await click(button("แก้ไขผลอุทธรณ์"));
   await click(groups()[1].querySelectorAll("button")[1]);
   await setText("reject-reason-2", "Keep all original scores");
-  await setText("appeal-review-summary", "All topics rejected after correction");
   await click(button("Save Review"));
   assert.ok(document.querySelector("dialog").textContent.includes("85.00 → 82.00"));
   assert.ok(document.querySelector("dialog").textContent.includes("ไม่ผ่าน KPI"));
@@ -451,11 +442,9 @@ try {
   assert.equal(dashboard.applyAppealMapsToCaseItems([baseCase], dashboard.buildApprovedAppealMergeMap(globalThis.__appealFixtureLogs, monthMap), dashboard.buildAppealOutcomeMap(globalThis.__appealFixtureLogs, monthMap))[0].finalScore, 82);
   await click(button("รับทราบ"));
   await click(button("แก้ไขผลอุทธรณ์"));
-  await setText("appeal-review-summary", "");
   await click(button("Save Review"));
-  assert.ok(document.querySelector('[role="alertdialog"]').textContent.includes("กรุณากรอก Review Summary"));
-  await click(button("กลับไปตรวจสอบ"));
-  await setText("appeal-review-summary", "Ready for another correction");
+  assert.ok(document.querySelector("dialog"), "Save Review works without a summary");
+  await click(button("กลับไปแก้ไข"));
   await click(button("Save Review"));
   const external = { ...globalThis.__appealFixtureWrites[2], id: "external-review", created_at: new Date(Date.now()+1000).toISOString(), details: {
     ...globalThis.__appealFixtureWrites[2].details, reviewId: "external-review", reviewVersion: 4, reviewSummary: "Changed in another tab",
@@ -505,7 +494,7 @@ try {
   const persisted = requestFunctions.buildAppealRequests(await store.fetchAppealEvents(undefined, {forceRefresh:true,limit:2000}))[0];
   assert.equal(persisted.reviewHistory.length, 2);
   assert.equal(persisted.reviewId, edited.details.reviewId);
-  assert.equal(persisted.reviewSummary, "Corrected mixed review");
+  assert.equal(persisted.reviewSummary, "");
   assert.equal(helper.appealScoreAfterReview(persisted.topics, 82), 85);
   console.log("PASS real appealStore writes append review revisions, keeps legacy records, reuses retry IDs and reads the latest persisted result");
 } finally {

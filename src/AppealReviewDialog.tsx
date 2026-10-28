@@ -17,7 +17,6 @@ export type AppealReviewSavePreview = {
   reviewId: string;
   reviewVersion: number;
   beforeScore: number;
-  reviewSummary: string;
   review: {
     decision: AppealDecision;
     finalScore: number;
@@ -123,7 +122,6 @@ export default function AppealReviewDialog({ preview, notice, busy, onConfirm, o
             <div className="mt-2 text-xl font-extrabold">คะแนนรวม {preview.beforeScore.toFixed(2)} → {preview.review.finalScore.toFixed(2)} / 100</div>
             <div className="mt-1 text-sm font-semibold">Grade {gradeFromScore(preview.review.finalScore)} · {preview.review.finalScore >= 85 ? "ผ่าน KPI" : "ไม่ผ่าน KPI"} (เกณฑ์ 85%)</div>
           </div>
-          <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4"><div className="text-sm font-bold text-violet-800">สรุปเหตุผลการพิจารณา</div><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{preview.reviewSummary}</p></div>
         </div>
       )}
       <div className="sticky bottom-0 flex flex-wrap justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">

@@ -2763,7 +2763,7 @@ export default function AppealMockup({
                         </div>
                       </div>
 
-                      <div className="grid gap-4 xl:grid-cols-2">
+                      <div className="grid gap-4">
                         <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.035)]">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
                             Customer Inquiry
@@ -2773,14 +2773,6 @@ export default function AppealMockup({
                           </div>
                         </div>
 
-                        <div className="rounded-[22px] border border-violet-200 bg-gradient-to-br from-violet-50 to-white px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-700">
-                            Appeal Review Summary
-                          </div>
-                          <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                            {sanitizeDisplayText(selectedRevision?.appealReviewSummary)}
-                          </div>
-                        </div>
                       </div>
 
                       <AppealedTopicsCorporateTable

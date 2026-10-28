@@ -75,7 +75,7 @@
     "test:announcement-detail": "node ./scripts/test-announcement-detail.mjs",
     "test:appeal-workflow": "node ./scripts/test-appeal-workflow.mjs",
     "test:signature-appeal-hold": "TZ=Asia/Bangkok node ./scripts/test-signature-appeal-hold.mjs",
-    "test:appeal-topic-review": "node ./scripts/test-appeal-topic-review.mjs",
+    "test:appeal-topic-review": "node ./scripts/test-appeal-topic-review.mjs && node ./scripts/test-auto-resize-review-textarea.mjs",
     "test:appeal-evidence-upload": "node ./scripts/test-appeal-evidence-upload.mjs",
     "test:dashboard-pending-appeal": "node ./scripts/test-dashboard-pending-appeal.mjs",
     "test:deleted-case-appeal": "node ./scripts/test-deleted-case-appeal.mjs",
