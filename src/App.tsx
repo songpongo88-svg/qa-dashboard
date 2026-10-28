@@ -4778,15 +4778,15 @@ export default function App() {
       })
       .flatMap(account => [account.agentName, account.displayName].map(value => String(value || "").trim()).filter(Boolean));
   }, [currentUser, effectiveUserAccounts]);
-  // All active Senior and Supervisor accounts are available as discussion recipients.
+  // The Review filters this directory to Senior/Supervisor and the exact case owner.
   // Selecting a recipient grants discussion access, not score/review permissions.
   const appealSeniorOptions = useMemo(() =>
     effectiveUserAccounts
-      .filter(account => ["Senior", "Supervisor"].includes(String(account.role || "")))
       .map(account => ({
         username: account.username,
         displayName: account.displayName || account.agentName || account.username,
         role: String(account.role || ""),
+        agentName: account.agentName || "",
       }))
       .sort((left, right) => left.role.localeCompare(right.role) ||
         left.displayName.localeCompare(right.displayName)),

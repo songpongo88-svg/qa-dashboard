@@ -24,8 +24,9 @@ const storeMock = `
   export async function fetchAppealEvents(types,options){globalThis.__workflowFixture.lastAppealFetch=options;return globalThis.__workflowFixture.logs.filter(event=>(!types||types.includes(event.event_type))&&(!options?.requestId||event.details?.requestId===options.requestId))}
   export async function fetchAdditionalAppealReasonOptions(){return []}
   export async function fetchAssignedAppealRequestIds(){return globalThis.__workflowFixture.assigned}
-  export async function fetchAppealDiscussionEvents(){globalThis.__workflowFixture.discussionReads=(globalThis.__workflowFixture.discussionReads||0)+1;return []}
-  export async function writeAppealEvent(user,event_type,payload){const event={...payload,event_type,created_at:new Date().toISOString()};const f=globalThis.__workflowFixture;f.logs.push(event);f.writes.push(event);if(f.failAfterReview&&event_type==='appeal_request_reviewed'){f.failAfterReview=false;throw new Error('acknowledgement lost')}return true}
+  export async function fetchAppealDiscussionEvents(requestId){globalThis.__workflowFixture.discussionReads=(globalThis.__workflowFixture.discussionReads||0)+1;return globalThis.__workflowFixture.logs.filter(row=>row.event_type==='appeal_internal_message'&&row.details?.requestId===requestId)}
+  export async function updateAppealDiscussionMessage(user,original,payload){const f=globalThis.__workflowFixture;if(f.editFail)throw new Error('offline');const row=f.logs.find(row=>row.details?.messageId===original.details?.messageId);Object.assign(row,{...payload,username:original.username,details:{...payload.details,messageId:original.details.messageId,threadId:original.details.threadId||original.details.messageId,revisionId:'edited-revision',editedAt:new Date().toISOString()}});f.writes.push(row);return true}
+  export async function writeAppealEvent(user,event_type,payload){const event={...payload,event_type,username:user.username,created_at:new Date().toISOString()};const f=globalThis.__workflowFixture;f.logs.push(event);f.writes.push(event);if(f.failAfterReview&&event_type==='appeal_request_reviewed'){f.failAfterReview=false;throw new Error('acknowledgement lost')}return true}
   export async function writeAdditionalAppealAccessDecision(user,decision,round){
     const fixture=globalThis.__workflowFixture;if(fixture.fail){fixture.fail=false;throw new Error('offline')}
     const at=new Date().toISOString();const events=[{...decision,event_type:'appeal_additional_access_decided',created_at:at},...(round?[{...round,event_type:'appeal_additional_round_opened',created_at:at}]:[])];
@@ -383,8 +384,51 @@ try {
   }
   assert.equal(JSON.stringify(differentPending), differentUnchanged);
   console.log("PASS different-topic Actions remain consecutive for QA and Senior; raw/encoded original comments render safely without changing saved data");
-  await act(async () => root.unmount());
 
+  assert.equal(scopeAppealRequests([{requestId:"assigned-owner-case",caseId:"AA998888",agent:"Old display name",status:"Pending"}],{username:"agent-a",agentName:"New display name",role:"Admin Live Chat"},null,["assigned-owner-case"]).length,1,"named assignment survives owner display-name changes");
+  fixture.logs = events("AA998888", "Pending");
+  fixture.writes = [];
+  const discussionRequest = fixture.logs[0].details.requestId;
+  const recipientAccounts = [
+    {username:"lead-a",displayName:"Lead A",role:"Senior"},
+    {username:"agent-a",displayName:"Alpha Agent",agentName:"Alpha Agent",role:"Admin Live Chat"},
+    {username:"agent-b",displayName:"Other Agent",role:"Admin Live Chat"},
+  ];
+  await render(qa, {key:"discussion-qa",externalRequestId:discussionRequest,seniorOptions:recipientAccounts});
+  const discussionSection=()=>document.querySelector('section[aria-label="QA and Senior internal appeal discussion"]');
+  const recipientSelect=()=>discussionSection().querySelectorAll('select')[1];
+  assert.deepEqual([...recipientSelect().options].map(option=>option.value),["","lead-a","agent-a"]);
+  await select(recipientSelect(),"lead-a");
+  await act(async()=>Simulate.change(discussionSection().querySelector('textarea'),{target:{value:"Original question"}}));
+  await click(button("ส่งข้อความและหลักฐาน"));
+  assert.equal(fixture.writes.at(-1).details.seniorUsername,"lead-a");
+  await click(button("แก้ไขข้อความ / ผู้รับ"));
+  await select(recipientSelect(),"agent-a");
+  await act(async()=>Simulate.change(discussionSection().querySelector('textarea'),{target:{value:"Updated owner question"}}));
+  fixture.editFail=true;
+  await click(button("บันทึกการแก้ไข"));
+  assert.equal(discussionSection().querySelector('textarea').value,"Updated owner question","failed edit keeps form");
+  assert.equal(fixture.logs.find(row=>row.event_type==='appeal_internal_message').details.seniorUsername,"lead-a");
+  fixture.editFail=false;
+  await click(button("บันทึกการแก้ไข"));
+  assert.equal(fixture.logs.filter(row=>row.event_type==='appeal_internal_message').length,1,"editing replaces the original message");
+  assert.equal(fixture.writes.at(-1).details.seniorUsername,"agent-a");
+  const privateSenior={...fixture.writes.at(-1),username:"qa",details:{...fixture.writes.at(-1).details,messageId:"private-senior",threadId:"private-senior",seniorUsername:"lead-a",message:"Private senior evidence"}};
+  fixture.logs.push(privateSenior);
+  await render({username:"agent-a",agentName:"Alpha Agent",role:"Admin Live Chat"},{key:"discussion-agent",externalRequestId:discussionRequest,seniorOptions:recipientAccounts});
+  assert.ok(discussionSection().textContent.includes("Updated owner question"));
+  assert.ok(!discussionSection().textContent.includes("Private senior evidence"));
+  assert.equal(button("แก้ไขข้อความ / ผู้รับ"),undefined,"recipient cannot edit QA question");
+  await click(button("ตอบคำถามนี้"));
+  await act(async()=>Simulate.change(discussionSection().querySelector('textarea'),{target:{value:"Owner response"}}));
+  await click(button("ส่งข้อความและหลักฐาน"));
+  assert.equal(fixture.writes.at(-1).details.senderRole,"Admin Live Chat");
+  assert.equal(fixture.writes.at(-1).details.seniorUsername,"agent-a");
+  assert.equal(fixture.writes.at(-1).details.threadId,fixture.logs.find(row=>row.details?.message==='Updated owner question').details.threadId);
+  assert.equal(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]'),null,"Agent cannot decide the appeal");
+  console.log("PASS actual Review UI: exact case owner only, edit text and recipient, failed save retains data, owner reply and Senior thread privacy");
+
+  await act(async () => root.unmount());
   const storeOutput = resolve(temp, "store.mjs");
   await build({ jsx: "automatic", entryPoints: ["src/appealStore.ts"], outfile: storeOutput, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", plugins: [unlockedMonthlyResultFixture({storage:true,sourceCases:true}), { name: "transaction-boundary", setup(builder) {
     builder.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: "db", namespace: "fixture" }));
@@ -394,7 +438,7 @@ try {
       export const doc=(_db,name,id)=>name+'/'+id, collection=(_db,name)=>name, query=(...a)=>a, limit=a=>a, orderBy=(...a)=>a, where=(field,op,value)=>({field,op,value});
       export async function setDoc(path,data){globalThis.__workflowFixture.docs.set(path,structuredClone(data))}
       export const getDocsFromServer=(...args)=>getDocs(...args);
-      export async function getDocs(q){const condition=q.find(part=>part?.field==='details.accessId'||part?.field==='details.requestId');globalThis.__workflowFixture.lastDbQuery=q;return {docs:[...globalThis.__workflowFixture.docs.entries()].filter(([id,data])=>!condition||data.details?.[condition.field.split('.').at(-1)]===condition.value).map(([id,data])=>({id,data:()=>data}))}}
+      export async function getDocs(q){const condition=q.find(part=>part?.field==='details.accessId'||part?.field==='details.requestId');globalThis.__workflowFixture.lastDbQuery=q;return {docs:[...globalThis.__workflowFixture.docs.entries()].filter(([id,data])=>!condition||data.details?.[condition.field.split('.').at(-1)]===condition.value).map(([id,data])=>({id,ref:id,data:()=>data}))}}
       export function writeBatch(){const writes=[];return {set:(path,data)=>writes.push([path,data]),commit:async()=>{const f=globalThis.__workflowFixture;if(f.batchFail)throw new Error('batch failed');for(const [path,data]of writes)f.docs.set(path,structuredClone(data));}}}
       export async function runTransaction(_db,callback){const f=globalThis.__workflowFixture;const writes=[];const value=await callback({get:async path=>{if(f.transactionReadDenied){const error=new Error('document get denied');error.code='permission-denied';throw error;}return {exists:()=>f.docs.has(path),data:()=>f.docs.get(path)}},set:(path,data)=>writes.push([path,data])});if(f.transactionFail){f.transactionFail=false;throw new Error('transaction failed')}if(f.batchFail)throw new Error('batch failed');for(const [path,data] of writes)f.docs.set(path,structuredClone(data));return value}
     ` }));
@@ -432,6 +476,24 @@ try {
   }), /already decided/);
   fixture.transactionReadDenied = false;
   console.log("PASS transaction, restricted-document-read atomic fallback, no deadline extension and conflict detection");
+  fixture.docs.clear();
+  const storedQuestion={event_type:"appeal_internal_message",username:qa.username,created_at:at(-1),case_id:"AA998888",target_agent:"Alpha Agent",details:{requestId:"message-edit-request",messageId:"message-original",seniorUsername:"lead-a",senderRole:"Quality Assurance",message:"Before",sentAt:at(-1)}};
+  const originalPath="qa_appeal_events/message-to-edit";
+  fixture.docs.set(originalPath,structuredClone(storedQuestion));
+  const updatedPayload={...storedQuestion,details:{...storedQuestion.details,seniorUsername:"agent-a",recipientRole:"Admin Live Chat",message:"After"}};
+  fixture.transactionFail=true;
+  await assert.rejects(store.updateAppealDiscussionMessage(qa,storedQuestion,updatedPayload),/transaction failed/);
+  assert.equal(fixture.docs.get(originalPath).details.message,"Before");
+  assert.equal(await store.updateAppealDiscussionMessage({...qa,username:"qa-other"},storedQuestion,updatedPayload),false);
+  assert.equal(await store.updateAppealDiscussionMessage(qa,storedQuestion,updatedPayload),true);
+  const edited=fixture.docs.get(originalPath);
+  assert.equal(edited.username,qa.username);assert.equal(edited.created_at,storedQuestion.created_at);
+  assert.equal(edited.details.messageId,"message-original");assert.equal(edited.details.seniorUsername,"agent-a");
+  assert.equal(edited.details.revisions[0].message,"Before");assert.ok(edited.details.revisionId);
+  await assert.rejects(store.updateAppealDiscussionMessage(qa,storedQuestion,updatedPayload),/Message changed/);
+  assert.equal(await store.writeAppealEvent({username:"lead-a",role:"Senior"},"appeal_internal_message",{...updatedPayload,details:{...updatedPayload.details,messageId:"reply-revoked",seniorUsername:"lead-a"}}),false,"former recipient cannot reply after reassignment");
+  assert.equal(await store.writeAppealEvent({username:"agent-a",role:"Admin Live Chat"},"appeal_internal_message",{...updatedPayload,details:{...updatedPayload.details,messageId:"reply-owner",senderRole:"Admin Live Chat",threadId:edited.details.threadId}}),true,"assigned owner can reply");
+  console.log("PASS real store: owner-only edits, same record, preserved original timestamp/history, failed transaction, stale edit and revoked-recipient reply");
 } finally {
   await rm(temp, { recursive: true, force: true });
   dom.window.close();

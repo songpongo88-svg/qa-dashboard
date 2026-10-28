@@ -1,3 +1,4 @@
+import { discussionRecipients, visibleDiscussionEvents } from "./appealDiscussionAccess";
 import { useEvaluationActivity } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked } from "./evaluationActivity";
 import { WORKFLOW_STATUS } from "./workflowStatusLabels";
@@ -11,7 +12,7 @@ import AppealReviewDialog, { type AppealReviewSavePreview, type AppealReviewNoti
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
-import { fetchAdditionalAppealReasonOptions, fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, writeAppealEvent, writeAdditionalAppealAccessDecision } from "./appealStore";
+import { fetchAdditionalAppealReasonOptions, fetchAssignedAppealRequestIds, fetchAppealDiscussionEvents, fetchAppealEvents, updateAppealDiscussionMessage, writeAppealEvent, writeAdditionalAppealAccessDecision } from "./appealStore";
 import { APPEAL_WORKFLOW_STATUSES, appealWorkflowStatus, appealWorkflowLabel, appealWorkflowTone, appealWorkflowActivityAt, isAppealQaTask, scopeAppealRequests } from "./appealWorkflow";
 import PageHero from "./PageHero";
 import AppealWorkflowNotice from "./AppealWorkflowNotice";
@@ -737,13 +738,13 @@ export default function AppealRequestsMockup({
   allowReview?: boolean;
   // appeal-review-workspace-tabs-v59-review
   allowedAgentNames?: string[] | null;
-  seniorOptions?: { username: string; displayName: string; role?: string }[];
+  seniorOptions?: { username: string; displayName: string; role?: string; agentName?: string }[];
   additionalCaseTopics?: any[];
   onTasksChanged?: () => void;
 }) {
   const evaluationActivity = useEvaluationActivity();
   const allowReview = reviewPermission && currentUser?.role === "Quality Assurance";
-  const canDiscuss = ["Quality Assurance", "Senior", "Supervisor"].includes(String(currentUser?.role || ""));
+  const canDiscuss = Boolean(currentUser?.username);
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [discussionLogs, setDiscussionLogs] = useState<UsageLogEvent[]>([]);
@@ -768,6 +769,8 @@ export default function AppealRequestsMockup({
   const [discussionUploads, setDiscussionUploads] = useState(0);
   const [discussionBusy, setDiscussionBusy] = useState(false);
   const [discussionMessage, setDiscussionMessage] = useState("");
+  const [replyToDiscussion, setReplyToDiscussion] = useState<UsageLogEvent | null>(null);
+  const [editingDiscussion, setEditingDiscussion] = useState<UsageLogEvent | null>(null);
   const [additionalOpen, setAdditionalOpen] = useState(false);
   const [additionalCodes, setAdditionalCodes] = useState<string[]>([]);
   const [additionalNote, setAdditionalNote] = useState("");
@@ -805,23 +808,15 @@ export default function AppealRequestsMockup({
   }, [logs, currentUser?.username, currentUser?.role, currentUser?.agentName, currentUser?.displayName, allowedAgentNames, assignedRequestIds, nowTick, externalCaseDetailCases]);
 
   useEffect(() => {
-    if (!["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return;
+    if (!currentUser?.username || currentUser.role === "Quality Assurance") return;
     let cancelled = false;
     void fetchAssignedAppealRequestIds(String(currentUser?.username || ""))
       .then(ids => { if (!cancelled) setAssignedRequestIds(ids); })
       .catch(error => console.warn("Unable to load assigned appeal discussions", error));
     return () => { cancelled = true; };
   }, [currentUser?.role, currentUser?.username]);
-  const discussionEvents = useMemo(() => (canDiscuss ? discussionLogs : [])
-    .filter(log => log.event_type === "appeal_internal_message" &&
-      String(log.details?.requestId || "") === selectedRequestId &&
-      !log.source_case_unavailable)
-    .filter(log => !["Senior", "Supervisor"].includes(String(currentUser?.role || "")) ||
-      [String(log.details?.seniorUsername || "").toLowerCase(), String(log.username || "").toLowerCase()]
-        .includes(String(currentUser.username || "").toLowerCase()))
-    .sort((a, b) => Date.parse(String(a.created_at || "")) - Date.parse(String(b.created_at || ""))),
-    [discussionLogs, selectedRequestId, canDiscuss, currentUser?.role, currentUser?.username]
-  );
+  const discussionEvents = useMemo(() => visibleDiscussionEvents(discussionLogs, currentUser, selectedRequestId),
+    [discussionLogs, selectedRequestId, currentUser?.role, currentUser?.username]);
   const unavailableSelectedRequest = findUnavailableAppealForRoute(logs, selectedRequestId, window.location.search);
   const resetHistory = useMemo(() => {
     const permittedIds = new Set(requests.map(request => request.requestId));
@@ -869,7 +864,7 @@ export default function AppealRequestsMockup({
     }).catch(() => { if (!cancelled) setSourceTags({ caseId: sourceCaseId, topics: [], loading: false, error: true }); });
     return () => { cancelled = true; };
   }, [isReviewDetailOpen, allowReview, sourceCaseId, selectedRequest?.requestId, Boolean(dashboardSourceCase), tagReadAttempt]);
-  const eligibleSeniorOptions = seniorOptions;
+  const eligibleSeniorOptions = discussionRecipients(seniorOptions, selectedRequest);
   const availableAppealTopics = useMemo(() => {
     const result = new Map<string, AppealTopic>();
     const selected = selectedRequest;
@@ -1042,6 +1037,8 @@ export default function AppealRequestsMockup({
     setDiscussionText("");
     setDiscussionTopic("");
     setDiscussionRecipient("");
+    setEditingDiscussion(null);
+    setReplyToDiscussion(null);
     setDiscussionMessage("");
     setAdditionalOpen(false);
     setAdditionalCodes([]);
@@ -1056,12 +1053,12 @@ export default function AppealRequestsMockup({
     let cancelled = false;
     setDiscussionLogs([]);
     if (selectedRequestId && canDiscuss) {
-      void fetchAppealDiscussionEvents(selectedRequestId)
+      void fetchAppealDiscussionEvents(selectedRequestId, currentUser)
         .then(events => { if (!cancelled) setDiscussionLogs(events as UsageLogEvent[]); })
         .catch(error => { if (!cancelled) console.warn("Load private appeal discussion failed", error); });
     }
     return () => { cancelled = true; };
-  }, [selectedRequestId, canDiscuss]);
+  }, [selectedRequestId, canDiscuss, currentUser?.username, currentUser?.role]);
 
   useEffect(() => {
     if (!selectedRequest || new URLSearchParams(window.location.search).get("discussion") !== "1") return;
@@ -1278,17 +1275,17 @@ export default function AppealRequestsMockup({
 
   const sendDiscussion = async () => {
     if (!selectedRequest || !canSendDiscussion || discussionBusy || discussionUploads || busy) return;
-    if (!allowReview && !["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) return;
+    if (!allowReview && !discussionEvents.some(event => String(event.details?.seniorUsername || "") === currentUser?.username && event.details?.senderRole === "Quality Assurance")) return;
     const text = discussionText.trim();
     if (!text && !discussionImages.length) {
       setDiscussionMessage("กรุณาระบุข้อความหรือแนบรูปภาพก่อนส่ง");
       return;
     }
-    const seniorUsername = ["Senior", "Supervisor"].includes(String(currentUser?.role || ""))
+    const seniorUsername = !allowReview
       ? String(currentUser.username || "")
       : discussionRecipient;
     if (!seniorUsername || (allowReview && !eligibleSeniorOptions.some(senior => senior.username === seniorUsername))) {
-      setDiscussionMessage("กรุณาเลือกผู้รับ Role Senior หรือ Supervisor");
+      setDiscussionMessage("กรุณาเลือก Senior / Supervisor หรือเจ้าของเคส");
       return;
     }
     setDiscussionBusy(true);
@@ -1296,7 +1293,7 @@ export default function AppealRequestsMockup({
     const sentAt = new Date().toISOString();
     const messageId = crypto.randomUUID();
     try {
-      const saved = await writeAppealEvent(currentUser, "appeal_internal_message", {
+      const payload = {
         tab: "appeal-requests",
         case_id: selectedRequest.caseId,
         target_agent: selectedRequest.agent,
@@ -1305,18 +1302,27 @@ export default function AppealRequestsMockup({
           messageId,
           sentAt,
           seniorUsername,
+          recipientName: eligibleSeniorOptions.find(person => person.username === seniorUsername)?.displayName || "",
+          recipientRole: eligibleSeniorOptions.find(person => person.username === seniorUsername)?.role || editingDiscussion?.details?.recipientRole || currentUser?.role || "",
+          threadId: editingDiscussion ? String(editingDiscussion.details?.threadId || "") : allowReview ? messageId : String((replyToDiscussion || [...discussionEvents].reverse().find(event => event.details?.senderRole === "Quality Assurance" && event.details?.seniorUsername === seniorUsername))?.details?.threadId || ""),
           topicCode: discussionTopic,
           message: text,
           evidenceImages: [...discussionImages],
           senderName: String(currentUser?.agentName || currentUser?.displayName || currentUser?.username || ""),
           senderRole: String(currentUser?.role || ""),
         },
-      });
+      };
+      const saved = editingDiscussion
+        ? await updateAppealDiscussionMessage(currentUser, editingDiscussion, payload)
+        : await writeAppealEvent(currentUser, "appeal_internal_message", payload);
       if (!saved) throw new Error("User does not have internal appeal messaging permission");
+      setEditingDiscussion(null);
+      setReplyToDiscussion(null);
       setDiscussionText("");
       setDiscussionImages([]);
-      setDiscussionMessage("ส่งข้อความและรูปหลักฐานเรียบร้อยแล้ว");
-      setDiscussionLogs(await fetchAppealDiscussionEvents(selectedRequest.requestId) as UsageLogEvent[]);
+      setDiscussionMessage(editingDiscussion ? "บันทึกการแก้ไขเรียบร้อยแล้ว" : "ส่งข้อความและรูปหลักฐานเรียบร้อยแล้ว");
+      try { setDiscussionLogs(await fetchAppealDiscussionEvents(selectedRequest.requestId, currentUser) as UsageLogEvent[]); }
+      catch (error) { console.warn("Discussion saved; refresh failed", error); setDiscussionMessage("บันทึกแล้ว แต่โหลดข้อความล่าสุดไม่สำเร็จ กรุณารีเฟรช"); }
       onTasksChanged?.();
     } catch (error) {
       console.error("Save appeal discussion failed:", error);
@@ -1984,7 +1990,7 @@ export default function AppealRequestsMockup({
                 </section>
 
                 {canDiscuss ? <section ref={discussionRef} tabIndex={-1} aria-label="QA and Senior internal appeal discussion" className="rounded-3xl border border-sky-200 bg-sky-50/70 p-5">
-                  <div className="text-sm font-extrabold text-sky-900">QA ↔ Senior — คำถามและหลักฐานภายใน</div>
+                  <div className="text-sm font-extrabold text-sky-900">QA ↔ ผู้รับ — คำถามและหลักฐาน</div>
                   <p className="mt-1 text-xs leading-6 text-sky-700">
                     ข้อมูลนี้เก็บเฉพาะหน้า Appeal Review และไม่แสดงใน Case Detail หรือ PDF รายงาน
                   </p>
@@ -2002,19 +2008,29 @@ export default function AppealRequestsMockup({
                           {details.topicCode ? <div className="mt-1 text-xs font-bold text-sky-700">Topic {String(details.topicCode)}</div> : null}
                           <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">{String(details.message || "")}</p>
                           {photos.length ? <AppealEvidenceGallery images={photos} caseId={selectedRequest.caseId} /> : null}
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-sky-800">
+                            <span>ถึง: {details.senderRole !== "Quality Assurance" ? "QA" : String(details.recipientName || seniorOptions.find(person => person.username === details.seniorUsername)?.displayName || details.seniorUsername || "QA")}{details.editedAt ? " · Edited" : ""}</span>
+                            {!allowReview && details.senderRole === "Quality Assurance" && details.seniorUsername === currentUser?.username && canSendDiscussion ? <button type="button" className="rounded-xl border border-sky-200 px-3 py-1 font-bold" disabled={discussionBusy} onClick={() => { setReplyToDiscussion(log); setEditingDiscussion(null); setDiscussionTopic(String(details.topicCode || "")); }}>ตอบคำถามนี้</button> : null}
+                            {log.username === currentUser?.username && canSendDiscussion ? <button type="button" disabled={discussionBusy} className="rounded-xl border border-sky-200 px-3 py-1 font-bold disabled:opacity-40" onClick={() => {
+                              setEditingDiscussion(log); setDiscussionText(String(details.message || "")); setDiscussionTopic(String(details.topicCode || ""));
+                              setDiscussionRecipient(String(details.seniorUsername || "")); setDiscussionImages(photos); setDiscussionMessage("");
+                            }}>แก้ไขข้อความ{allowReview ? " / ผู้รับ" : ""}</button> : null}
+                          </div>
                         </div>
                       );
                     })}
-                    {!discussionEvents.length ? <p className="rounded-xl bg-white p-4 text-sm text-slate-500">ยังไม่มีข้อความหรือรูปภาพที่ส่งระหว่าง QA กับ Senior</p> : null}
+                    {!discussionEvents.length ? <p className="rounded-xl bg-white p-4 text-sm text-slate-500">ยังไม่มีข้อความหรือรูปภาพ</p> : null}
                   </div>
-                  {(allowReview || ["Senior", "Supervisor"].includes(String(currentUser?.role || ""))) ? (
+                  {(allowReview || discussionEvents.some(event => event.details?.seniorUsername === currentUser?.username && event.details?.senderRole === "Quality Assurance")) ? (
                     <div className="mt-4 space-y-3 border-t border-sky-200 pt-4">
                       {!canSendDiscussion ? (
                         <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-600">
-                          เคสนี้พิจารณาเสร็จแล้ว จึงปิดการเลือก Senior / Supervisor และการส่งข้อความใหม่
+                          เคสนี้พิจารณาเสร็จแล้ว จึงปิดการเลือกผู้รับ หรือเจ้าของเคส และการส่งข้อความใหม่
                           หากต้องตรวจสอบเพิ่มเติม QA สามารถเปิดรอบอุทธรณ์เพิ่มเติมได้
                         </div>
                       ) : null}
+                      {replyToDiscussion && !editingDiscussion ? <div className="rounded-xl bg-white p-3 text-xs text-sky-800">ตอบคำถาม: {String(replyToDiscussion.details?.message || "(Evidence attached)")}</div> : null}
+                      {editingDiscussion ? <div className="flex items-center justify-between text-sm font-bold text-sky-800">แก้ไขข้อความที่ส่งแล้ว<button type="button" disabled={discussionBusy} onClick={() => { setEditingDiscussion(null); setDiscussionText(""); setDiscussionImages([]); setDiscussionTopic(""); setDiscussionRecipient(""); }}>ยกเลิกการแก้ไข</button></div> : null}
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="text-xs font-bold text-sky-800">
                           หัวข้อที่ต้องการสอบถาม
@@ -2030,14 +2046,14 @@ export default function AppealRequestsMockup({
                         </label>
                         {allowReview && (
                           <label className="text-xs font-bold text-sky-800">
-                            ส่งถึง Senior / Supervisor
+                            ส่งถึง
                             <select
                               value={discussionRecipient}
                               disabled={discussionBusy || !canSendDiscussion}
                               onChange={event => setDiscussionRecipient(event.target.value)}
                               className="mt-1 block w-full rounded-xl border border-sky-200 bg-white p-2 text-sm text-slate-800"
                             >
-                              <option value="">เลือก Senior / Supervisor</option>
+                              <option value="">เลือก Senior / Supervisor หรือเจ้าของเคส</option>
                               {eligibleSeniorOptions.map(senior => <option key={senior.username} value={senior.username}>{senior.displayName} ({senior.role || "Senior"})</option>)}
                             </select>
                             {!eligibleSeniorOptions.length ? <span className="mt-1 block text-xs text-rose-700">ไม่พบ User Role Senior หรือ Supervisor ใน User Directory</span> : null}
@@ -2051,7 +2067,7 @@ export default function AppealRequestsMockup({
                           value={discussionText}
                           disabled={discussionBusy || !canSendDiscussion}
                           onChange={event => setDiscussionText(event.target.value)}
-                          placeholder="พิมพ์คำถามหรือคำตอบสำหรับ QA และ Senior เท่านั้น"
+                          placeholder="พิมพ์คำถามหรือคำตอบ"
                           className="mt-1 block w-full resize-y rounded-xl border border-sky-200 bg-white p-3 text-sm leading-6 text-slate-800"
                         />
                       </label>
@@ -2071,7 +2087,7 @@ export default function AppealRequestsMockup({
                           disabled={discussionBusy || discussionUploads > 0 || !canSendDiscussion || (!discussionText.trim() && !discussionImages.length)}
                           onClick={() => void sendDiscussion()}
                           className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-bold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-40"
-                        >{discussionBusy ? "กำลังส่ง..." : "ส่งข้อความและหลักฐาน"}</button>
+                        >{discussionBusy ? "กำลังบันทึก..." : editingDiscussion ? "บันทึกการแก้ไข" : "ส่งข้อความและหลักฐาน"}</button>
                       </div>
                     </div>
                   ) : null}
