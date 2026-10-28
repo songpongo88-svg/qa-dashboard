@@ -277,20 +277,6 @@ export async function generateAppealSummaryPdf(input: GenerateAppealSummaryPdfIn
   });
   y += 31;
 
-  // Review summary
-  const reviewLines = wrapText(input.reviewSummary || "-", contentW - 10);
-  const reviewH = Math.max(18, 11 + reviewLines.length * 4.2);
-  roundedBox(margin, y, contentW, reviewH, LIGHT_PURPLE);
-  setFont("bold");
-  doc.setFontSize(7.4);
-  setTextColor(PURPLE);
-  doc.text("Appeal Review Summary", margin + 5, y + 6);
-  setFont("normal");
-  doc.setFontSize(9);
-  setTextColor(TEXT);
-  reviewLines.forEach((line, index) => doc.text(line, margin + 5, y + 11 + index * 4.2));
-  y += reviewH + 7;
-
   // Appealed topics only
   setFont("bold");
   doc.setFontSize(12);

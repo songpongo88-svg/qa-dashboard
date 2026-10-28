@@ -30,7 +30,6 @@ function ReviewResult({ review, topicCode, caseId, compact = false }: { review: 
     </div>)}
     <div className="border-t border-violet-200 pt-2 text-xs leading-6 text-violet-900">
       <div className="font-bold">คะแนนรวมหลังพิจารณา {review.finalScore.toFixed(2)} / 100</div>
-      <div className="whitespace-pre-wrap break-words">Review Summary: {review.reviewSummary || "-"}</div>
     </div>
   </div>;
 }

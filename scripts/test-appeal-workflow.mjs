@@ -188,7 +188,7 @@ try {
   const pending = projected.find(row => appealWorkflowStatus(row) === "Pending");
   await render(qa, { externalRequestId: pending.requestId });
   await click([...document.querySelectorAll('[role="group"] button')].find(node => node.textContent.trim().endsWith("Reject")));
-  for (const id of ["reject-reason-1", "appeal-review-summary"]) {
+  for (const id of ["reject-reason-1"]) {
     const input = document.getElementById(id);
     assert.ok(input);
     await act(async () => { input.value = "ตรวจสอบเหตุผลแล้ว"; Simulate.change(input); });
@@ -229,13 +229,13 @@ try {
   assert.ok(firstAction.textContent.includes("Original appeal reason") && firstAction.textContent.includes("First QA comment"));
   assert.equal(firstAction.querySelector("textarea,select,button[aria-pressed]"), null, "old Action is read-only");
   assert.ok(document.body.textContent.includes("Appeal Reason · Action 2"));
-  assert.equal(document.getElementById("appeal-review-summary").value, "", "additional QA summary starts fresh");
+  assert.equal(document.getElementById("appeal-review-summary"), null, "Review Summary is no longer required or rendered");
   const activeGroup = document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]');
   assert.equal(document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 2"]'), null, "unrelated old topic cannot be re-reviewed in this round");
   await click([...activeGroup.querySelectorAll("button")].find(node => node.textContent.includes("Approved")));
   assert.equal(activeGroup.parentElement.querySelector("select").value, "20", "additional Revised Score starts from the latest saved approval, not the original 18");
   await select(activeGroup.parentElement.querySelector("select"), "22");
-  for (const [id, value] of [["revised-comment-1", "Second QA comment"], ["appeal-review-summary", "Second review"]]) {
+  for (const [id, value] of [["revised-comment-1", "Second QA comment"]]) {
     await act(async () => { const input = document.getElementById(id); input.value = value; Simulate.change(input); });
   }
   await click(button("Save Review"));
@@ -287,7 +287,7 @@ try {
     const group = document.querySelector('[aria-label="ผลพิจารณาหัวข้อ 1"]');
     await click([...group.querySelectorAll("button")].find(node => node.textContent.includes("Approved")));
     assert.equal(group.parentElement.querySelector("select").value, String(expected), "prefill uses the latest effective score, including zero and numeric strings");
-    for (const [id, value] of [["revised-comment-1", "Review keeps the latest score"], ["appeal-review-summary", "No score change in this round"]]) {
+    for (const [id, value] of [["revised-comment-1", "Review keeps the latest score"]]) {
       await act(async () => { const input = document.getElementById(id); input.value = value; Simulate.change(input); });
     }
     await click(button("Save Review"));
@@ -311,7 +311,7 @@ try {
   await select(group.parentElement.querySelector('select'), "26");
   await click([...group.querySelectorAll('button')].find(node => node.textContent.includes('Reject')));
   assert.ok(group.parentElement.textContent.includes("24 / 30"), "Reject ignores the unapproved 26 and preserves the prior approved 24");
-  for (const [id, value] of [["reject-reason-1", "No further score change"], ["appeal-review-summary", "Keep the previously approved score"]]) {
+  for (const [id, value] of [["reject-reason-1", "No further score change"]]) {
     await act(async () => { const input = document.getElementById(id); input.value = value; Simulate.change(input); });
   }
   await click(button("Save Review"));

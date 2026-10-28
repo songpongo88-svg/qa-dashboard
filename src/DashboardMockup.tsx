@@ -2828,10 +2828,6 @@ function CaseDetailTopicTable({
                         fallback={row.rejectedReviewTopic ? "ไม่พบ Reject Reason" : "ยังไม่มี Revised Comment"}
                       />
                     </div>
-                    {String(appealReviewSummary || "").trim() ? <div data-appeal-review-summary="legacy-topic" className="mt-3 border-t border-slate-200 pt-3 text-xs leading-6">
-                      <div className="font-bold">Review Summary</div>
-                      <RichTextContent value={appealReviewSummary} preserveWhitespace className="mt-1 break-words" />
-                    </div> : null}
                     {row.appealReviewTopic.qaEvidenceImages?.length ? (
                       <div className="mt-3 border-t border-violet-200 pt-3">
                         <div className="text-[13px] font-semibold">รูปหลักฐานที่ QA แนบประกอบ {row.rejectedReviewTopic ? "Reject Reason" : "Revised Comment"}</div>
