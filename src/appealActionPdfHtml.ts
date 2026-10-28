@@ -6,7 +6,7 @@ import { appealTopicIssueTags, appealIssueTagChanges } from './appealReview';
 
 const html = (value: unknown) => richTextToPlainText(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;').replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
 const field = (label: string, value: unknown) => `<div><strong>${label}: ${html(value || '-')}</strong></div>`;
-const tagField = (label: string, tags: string[]) => `<div><strong>${label}: ${(tags.join(' • ') || 'ไม่มี Tag ที่พบปัญหา').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;')}</strong></div>`;
+const tagField = (label: string, tags: string[]) => `<div><br></div><div><strong>${label}: ${(tags.join(' • ') || 'ไม่มี Tag ที่พบปัญหา').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;')}</strong></div>`;
 const body = (label: string, value: unknown) => `<div><span style="color:#dc2626"><strong>${label}</strong><br>${html(value || '-')}</span></div>`;
 const separator = '<hr>';
 const topicIn = (rows: AppealActionTopic[], code: string) => rows.find(topic => String(topic.code) === code);
