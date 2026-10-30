@@ -424,7 +424,6 @@ function AnalyticsCompareDashboardV2({
                               : null;
                             const topicTitle = splitAnalyticsTopicTitle(String(topic?.label || topic?.code || "Topic"));
                             return (
-                              <React.Fragment key={String(topic?.code || topicIndex)}>
                               <tr key={String(topic?.code || topicIndex)} className={topicIndex % 2 === 0 ? "bg-white" : "bg-violet-50/65"}>
                                 <td className="border-t border-violet-100 px-3 py-4">
                                   <div className="flex items-start gap-2">
@@ -453,8 +452,6 @@ function AnalyticsCompareDashboardV2({
                                   {formatDelta(rowDelta)}
                                 </td>
                               </tr>
-                              <AnalyticsTagTopicTableRow topicCode={String(topic?.code || "")} colSpan={reports.length + 2} />
-                              </React.Fragment>
                             );
                           })}
                         </tbody>
@@ -534,6 +531,8 @@ function AnalyticsCompareDashboardV2({
           </div>
         </div>
       </section>
+
+      <AnalyticsTagPanel topics={topicGroups.flatMap((group: any) => group?.topics || [])} />
 
       <section className="relative overflow-hidden rounded-[24px] border border-violet-200 bg-white shadow-[0_12px_34px_rgba(76,29,149,0.08)]">
         <div className="pointer-events-none absolute -left-20 -top-32 h-48 w-48 rounded-full bg-violet-200/80" />
