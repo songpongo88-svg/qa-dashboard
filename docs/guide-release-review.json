@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-30T09:00:41.875Z",
-  "reason": "Reviewed Tag rubric hints using shared official focus rows, October SLA, hover focus touch pinning and dismissal",
+  "reviewedAt": "2026-10-30T09:11:56.990Z",
+  "reason": "Reviewed unadorned Tag labels; hover focus and tap Rubrics descriptions remain available",
   "contentChanged": true,
   "reviewedChapters": [
     "dashboard",
@@ -396,7 +396,7 @@
     "src/StickyNotePopup.tsx": "fedb5e1066137ee5b7be1b4db0d1145376d4d64b3821a5029bb060aa84a9326c",
     "src/SummaryMockup.tsx": "c7b4f3ccfb063c881e2e5df59f5ec9509aa4c5c68e227b729bd3ab17ab9d49b3",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
-    "src/TagRubricHint.tsx": "628d908f5872580838e535281ab8b147855b8b2015068e32db5da852e0cfd5f6",
+    "src/TagRubricHint.tsx": "511447a8e67a8526cc2ca50a6b8e60c3c828542518b6a62743e790829e3b3001",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
     "src/TeamChatV2.tsx": "11b3cf1cb691af71b4e100635b8ec4450d48122ab662a090ed6ff5e5ae26e3d3",
     "src/TestCaseBadge.tsx": "be994414f5eba45575cc416caae97dd80cbfc30c55e191cca4eeaad635a5f52a",

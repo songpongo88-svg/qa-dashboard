@@ -32,7 +32,7 @@ export default function TagRubricHint({topicCode,name}:{topicCode:string;name:st
     return()=>{clearTimeout(timer.current);window.removeEventListener('resize',place);window.removeEventListener('scroll',place,true);document.removeEventListener('pointerdown',dismiss);document.removeEventListener('keydown',escape);};
   },[open]);
   return <>
-    <button ref={trigger} type="button" className="text-left underline decoration-dotted underline-offset-4" style={{font:'inherit',color:'inherit'}} aria-describedby={open?id:undefined} aria-expanded={open}
+    <button ref={trigger} type="button" className="text-left no-underline" style={{font:'inherit',color:'inherit'}} aria-describedby={open?id:undefined} aria-expanded={open}
       onMouseEnter={show} onMouseLeave={leave} onFocus={()=>{focused.current=true;show();}} onBlur={()=>{focused.current=false;leave();}}
       onClick={()=>{clearTimeout(timer.current);setPinned(!pinned);setOpen(!pinned);}}>{name}</button>
     {open?createPortal(<div ref={popup} id={id} role="tooltip" onMouseEnter={show} onMouseLeave={leave}
