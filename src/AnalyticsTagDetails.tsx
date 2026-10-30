@@ -40,29 +40,32 @@ export function AnalyticsTagScope({periods,refreshKey,children}:{periods:TagPeri
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
-export function AnalyticsTagTopicDetails({topicCode}:{topicCode:string}){
+type TagTopic={code:string;label?:string};
+export function AnalyticsTagPanel({topics}:{topics:TagTopic[]}){
   const data=useContext(Context);
-  if(!data)return null;
-  const report=buildTopicTagRates(data.periods,String(topicCode),data.catalog);
+  const contentId=React.useId();
+  if(!data||!data.periods.some(period=>period.cases.some(tagCaseEligible)))return null;
   const compare=data.periods.length>1;
-  if(data.status==='ready'&&!report.periods.some(period=>period.total))return null;
-  return <details open={data.open} className="min-w-0 w-full max-w-full rounded-xl border border-violet-200 bg-white text-left" data-analytics-tag-topic={topicCode}>
-    <summary onClick={event=>{event.preventDefault();data.toggle();}} aria-expanded={data.open} className="cursor-pointer rounded-xl px-3 py-2 text-sm font-semibold text-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500">ดู Tag (%)</summary>
-    <div className="border-t border-violet-100 px-3 pb-3">
-      {data.status!=='ready'?<div role="status" className="py-3 text-sm text-slate-500">{data.status==='loading'?'Loading Tags…':'Unable to load Tags. Refresh to retry.'}</div>:!report.rows.length?<div className="py-3 text-sm text-slate-500">No Tag Data</div>:<div className="max-w-full overflow-x-auto"><table className="w-full text-sm" aria-label={`Tag percentages for Topic ${topicCode}`}>
-        <thead><tr className="border-b border-violet-100 text-xs text-slate-500"><th scope="col" className="whitespace-nowrap min-w-[160px] py-3 pr-3 text-left font-medium">Tag ที่พบปัญหา</th>{report.periods.map((period,index)=><th key={index} scope="col" className="whitespace-nowrap min-w-[85px] px-2 py-3 text-right font-medium">{compare?period.label:'พบในเคส (%)'}</th>)}</tr></thead>
-        <tbody>{report.rows.map(row=><tr key={row.name} className="border-b border-slate-100 last:border-0"><td className="whitespace-nowrap py-3 pr-3 text-slate-700">{row.name}</td>{row.values.map((value,index)=>{
-          const previous=index?row.values[index-1].pct:null;
-          const tone=compare&&index&&previous!==null&&value.pct!==null?(value.pct<previous?'text-emerald-700':value.pct>previous?'text-rose-600':'text-slate-500'):'text-violet-700';
-          return <td key={index} className={`whitespace-nowrap px-2 py-3 text-right text-base font-semibold tabular-nums ${tone}`}>{value.pct===null?'—':`${value.pct.toFixed(2)}%`}</td>;
-        })}</tr>)}</tbody>
+  const groups=[...new Map(topics.map(topic=>[String(topic.code),topic])).values()]
+    .sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}))
+    .map(topic=>({topic,report:buildTopicTagRates(data.periods,String(topic.code),data.catalog)}))
+    .filter(group=>group.report.periods.some(period=>period.total));
+  return <section className="mt-5 min-w-0 overflow-hidden rounded-2xl border border-violet-200 bg-white text-left" data-analytics-tag-panel="true">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-violet-100 px-5 py-4">
+      <div><h3 className="text-base font-semibold text-slate-800">Tag ที่พบปัญหา</h3><div className="mt-1 text-xs text-slate-500">{compare?'สัดส่วนเคสที่พบ Tag · เปรียบเทียบรายช่วงเวลา':'สัดส่วนเคสที่พบ Tag · แยกตามหัวข้อประเมิน'}</div></div>
+      <button type="button" onClick={data.toggle} aria-expanded={data.open} aria-controls={contentId} className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500"><span aria-hidden="true">{data.open?'▴':'▾'}</span>{data.open?'ซ่อน Tag ทั้งหมด':'แสดง Tag ทั้งหมด'}</button>
+    </div>
+    <div id={contentId} hidden={!data.open}>
+      {data.status!=='ready'?<div role="status" className="px-5 py-5 text-sm text-slate-500">{data.status==='loading'?'Loading Tags…':'Unable to load Tags. Refresh to retry.'}</div>:!groups.some(group=>group.report.rows.length)?<div className="px-5 py-5 text-sm text-slate-500">No Tag Data</div>:<div className="max-w-full overflow-x-auto"><table className="w-full text-sm" aria-label="Tag percentages by topic">
+        <thead className="bg-violet-50 text-xs text-slate-600"><tr><th scope="col" className="min-w-[200px] px-5 py-3 text-left font-semibold">หัวข้อประเมิน</th><th scope="col" className="whitespace-nowrap px-5 py-3 text-left font-semibold">Tag ที่พบปัญหา</th>{data.periods.map((period,index)=><th key={index} scope="col" className="whitespace-nowrap px-5 py-3 text-right font-semibold">{compare?period.label:'พบในเคส (%)'}</th>)}</tr></thead>
+        {groups.filter(group=>group.report.rows.length).map(({topic,report})=><tbody key={topic.code} data-analytics-tag-topic={topic.code} className="border-t border-violet-200">{report.rows.map((row,rowIndex)=><tr key={row.name} className="border-b border-slate-100 last:border-0">
+          {rowIndex===0?<th scope="rowgroup" rowSpan={report.rows.length} className="w-[27%] min-w-[200px] bg-violet-50/50 px-5 py-4 text-left align-top font-medium text-slate-700"><span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-sm font-semibold text-violet-700">{topic.code}</span><div>{topic.label||topic.code}</div></th>:null}
+          <td className="whitespace-nowrap px-5 py-3 text-slate-700">{row.name}</td>{row.values.map((value,index)=>{
+            const previous=index?row.values[index-1].pct:null;
+            const tone=compare&&index&&previous!==null&&value.pct!==null?(value.pct<previous?'text-emerald-700':value.pct>previous?'text-rose-600':'text-slate-500'):'text-violet-700';
+            return <td key={index} className={`whitespace-nowrap px-5 py-3 text-right text-base font-semibold tabular-nums ${tone}`}>{value.pct===null?'—':`${value.pct.toFixed(2)}%`}</td>;
+          })}</tr>)}</tbody>)}
       </table></div>}
     </div>
-  </details>;
-}
-
-export function AnalyticsTagTopicTableRow({topicCode,colSpan}:{topicCode:string;colSpan:number}){
-  const data=useContext(Context);
-  if(!data?.periods.some(period=>period.cases.some(tagCaseEligible)))return null;
-  return <tr><td colSpan={colSpan} className="border-t border-violet-100 px-3 pb-3"><AnalyticsTagTopicDetails topicCode={topicCode}/></td></tr>;
+  </section>;
 }
