@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-28T03:57:57.373Z",
-  "reason": "Removed Review Summary presentation and requirement, retained historic data, fitted saved appeal feedback and grouped PDF Tag rows",
+  "reviewedAt": "2026-10-29T02:40:25.928Z",
+  "reason": "Reviewed numeric per-topic Tag case percentages in Dashboard and Compare, latest appeal Tags, October boundary and lazy scoped reads",
   "contentChanged": true,
   "reviewedChapters": [
-    "appeal-review",
-    "case-detail"
+    "dashboard",
+    "analytics"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -37,11 +37,12 @@
     "build/analyticsCompareSequentialDifferencesPatch.js": "f8a9b6a978eca97f4ec87c8fdd46fdd88d198d12e1ba5658fc1eb82267ef40ce",
     "build/analyticsCompareSinglePeriodPdfParityPatch.js": "dd8fd5dfb0e9f9c11ecde7318abd66329c17c5bbff333dfaf9b4657417dea8d6",
     "build/analyticsCompareTopicReportPatch.js": "0524c4bcdf04fd976350e2421287a6bb4c295d0d3e0524d9162d2a8c912203f7",
-    "build/analyticsCompareUiRedesignPatch.js": "c0cd7ff1febe9af822d884787d1fa7057748a0e621d3bc0d7645c3a3d8d99eb8",
+    "build/analyticsCompareUiRedesignPatch.js": "933c265362c17c7d4993e60b4aad6084b4394b5a9e1245043b97e5e75682078c",
     "build/analyticsIntentScoreDriverSummaryPatch.js": "0e597d73fad545036e233acf40ab4a33d66af7a6dd4bd6da04d055482937d384",
     "build/analyticsScoreDriversPatch.js": "070ccc4dc9ccd9d7cd745b768479cf3bb26b13709006f9beef32f265f81d79db",
     "build/analyticsScoreDriversSummaryPatch.js": "be3e079ea61ea80d0ce8a11cc250426fc78e4a058f6f62297b4e363b00eec106",
     "build/analyticsSinglePeriodScoreDriversPatch.js": "3acccc87c07e14c26981ef55895da8d134d38090299c282859bc2d68048bcd24",
+    "build/analyticsTagDetailsPatch.js": "78546858f616221461435e5457feef978b934734f1d2eb9954f0b2da944b26ab",
     "build/appealRequestsOriginalCommentCleanupPatch.js": "48b64f3944dcb59bb6ead3022ff0c0458fb7ee3ca3cae4ed8e81f32fc2c502c5",
     "build/appealReviewHtmlCleanupPatch.js": "9876474e31c0944fd8ac582791a0431a03599eb44ef82dca41ddb64a90d8019e",
     "build/assessmentReasonRawTextPatch.js": "055926b6f3549803a49315ffde422a4863dc5121529a295ecdaf73d8b0d4bd85",
@@ -101,7 +102,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "bbc82702e9dea7321952aa622c6929bde1d1bd6ada06b82b331f82f8fb212d07",
+    "package.json": "c013b38712c9c0f73b27687e3acd8ed33aa3028f8551610e7004a87f09e43333",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -297,6 +298,8 @@
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "d3b1eb63b3cce5ad0ebc83c47fec6f8b426e5bae3db073dc6c53abb606628b47",
     "scripts/sync-v13-rowdata.mjs": "a777f7348ca4bf130904421f22b029d7e61ceecb9b3b41f193eef2a050859567",
+    "scripts/test-analytics-tag-rates.mjs": "d4d25244c2bfcefdf6de6b276c3bd2a1d8f7418af501d3eba8e8eb5198d764ce",
+    "scripts/test-analytics-tag-ui.mjs": "c40729d1cbeab517c0f28b60b07fd139502dc2c77c1983f9a1f8c62a3de8fc73",
     "scripts/test-announcement-detail.mjs": "ed946c13c4df19cf6d07aac17633b7687fc5ca600c8f11dd63e8f558a247e4df",
     "scripts/test-appeal-action-pdf.mjs": "a8f3e33e8aaeeaf5ce74d86ce6f9c06a3c7473922206cc62c29859769a3e566f",
     "scripts/test-appeal-discussion-tasks.mjs": "03e452e60860e67e53300a3f281a2e5318032d608059a82c4ad0d6ea0f5b7ed9",
@@ -341,6 +344,7 @@
     "scripts/test-weekday-collection.mjs": "3dde89715a982b1ffcad591b5e96b223a6572318ebfb2598d9251f281096868e",
     "scripts/test-weekday-ui.mjs": "0eb3d61f10a30b428fc9976fcc57512ee90555227c6d8bea671d539f077e2375",
     "scripts/test-workflow-status-labels.mjs": "f76a5b37ab971fb1c3fd7c5b567d20495bc1679311889ed2007c525dee688eb9",
+    "src/AnalyticsTagDetails.tsx": "1a8aeed07dfd9024ff09519207d2906d157dd020b40bead561d625c5cc33d0ef",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "6979e9a16669bd487c15071fe28e6b66e23b6b66342dac99079018bba9b1ec52",
     "src/App.tsx": "b9f4159b9c4ab4b03b981690a6acedfb37178b25596992cd4b2693d27cd59b6f",
@@ -402,6 +406,7 @@
     "src/UserRoleAdminMockup.tsx": "7befa0fea3f218c70acb40f953bf3e375cb909c2cfd1fd98f7b13e9ac1ae6f5c",
     "src/VoiceRecordingPlayer.tsx": "a8a8189ce69706ae64dfa8440f717195ba942cead346930cd3410ea51593b630",
     "src/WeekdayScene.tsx": "34ef75f3e9ce9e51fb047bae274d6f4ad3418e9c1a03abfdc8144e605113fb38",
+    "src/analyticsTagRates.ts": "e421ff2b4e3d9d9ec7f502f23bb35982d658735d932d461a9f0313f03a644ec2",
     "src/announcementDetail.css": "96a37b49d6c3b43bbe34b3cd27d73de4b92b2b38a43e131a9e66b2e8a416d7c5",
     "src/announcementStore.ts": "d1e36a47931a337e5e041511d97c75fec14228e56815770091daee546b6d80e6",
     "src/announcementTicker.css": "a50df53eca311d493d8c4214748e77dc3f2d094ff5f798334b34921069af55e8",
@@ -469,7 +474,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "0d981032984f2d346222d36c2bca146ef9f6a0faad5480b88497bda78e13078c",
+    "src/knowledge/manual.json": "e8ac3498dc1a2c8d27a82f3bd4af73976325d6d704f219673195e08a999a3b2f",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -568,6 +573,6 @@
     "src/weekdayThemes/runtime.ts": "4bc931a5da4aa47f2f24d134808ec7da91858ac59433ad10990e79f4a94620e3",
     "src/weeklyCaseSummaryPdf.ts": "5442044772de311cad8950429dd70425fc4c4eadd4e524ebca285bacd239883c",
     "src/workflowStatusLabels.ts": "4dc42c2d40eef69741efe959b032901416c0002d949e8c8d031294d154f9c529",
-    "vite.config.js": "70f8ccd153d7744227408457700f11c6e02ca093babdddf6f4a844c38d8857e2"
+    "vite.config.js": "6c1edb8b06b2fc6f6a1d1d0ddf05ca33f8597e9609890dfce45c34a7f54dc9ab"
   }
 }
