@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const temp=await mkdtemp(resolve('.tag-rates-test-'));
+try{
+const output=resolve(temp,'rates.mjs');await build({entryPoints:['src/analyticsTagRates.ts'],bundle:true,platform:'node',format:'esm',outfile:output});
+const {buildTopicTagRates:rates,hydrateTagCases:hydrate}=await import(pathToFileURL(output));
+const catalog=[{name:'Opening',topicCode:'1',active:true},{name:'Coordination',topicCode:'1',active:true},{name:'Other topic',topicCode:'2',active:true},{name:'Archived',topicCode:'1',active:false}];
+const item=(i,tags=[],agent='Agent A')=>({caseId:'AA'+i,agent,monthKey:'2026-10',topics:[{code:'1',score:24,max:30,issueTags:tags},{code:'2',issueTags:['Other topic']}]});
+const cases=Array.from({length:10},(_,i)=>item(i,i<2?['Coordination',' coordination ']:[]));
+let report=rates([{label:'October',cases}], '1',catalog);
+assert.deepEqual(report.rows.map(row=>row.name),['Opening','Coordination']);
+assert.equal(report.rows[0].values[0].pct,0);assert.equal(report.rows[1].values[0].pct,20);assert.equal(report.rows[1].values[0].total,10);
+assert.equal(rates([{label:'dup',cases:[...cases,cases[0]]}],'1',catalog).rows[1].values[0].pct,20);
+assert.equal(rates([{label:'team',cases:[item(1,['Coordination']),item(1,[],'Agent B')]}],'1',catalog).rows[1].values[0].pct,50);
+report=rates([{label:'September',cases:cases.map(row=>({...row,monthKey:'2026-09'}))},{label:'October',cases}],'1',catalog);
+assert.equal(report.rows[1].values[0].pct,null);assert.equal(report.rows[1].values[1].pct,20);
+assert.equal(rates([{label:'empty',cases:[]}],'1',catalog).rows[0].values[0].pct,null);
+assert.equal(rates([{label:'archived',cases:[item(1,['Archived'])]}],'1',catalog).rows.find(row=>row.name==='Archived').values[0].pct,100);
+const before=item(1,['Opening','Coordination']);const snapshot=JSON.stringify(before);
+const records=[{caseId:'AA1',agentName:'Agent A',topics:[{code:'1',issueTags:['Opening','Coordination']}]},{caseId:'AA1',agentName:'Agent B',topics:[{code:'1',issueTags:['Wrong Owner']}]}];
+const approved={caseId:'AA1',agent:'Agent A',status:'Approved',submittedAt:'2026-10-01',topics:[{code:'1',decision:'Approved',issueTags:['Opening','Coordination'],revisedIssueTags:['Opening']}]};
+let result=hydrate([before],records,[approved]);assert.deepEqual(result[0].topics[0].issueTags,['Opening']);assert.equal(result[0].topics[0].score,24);assert.equal(JSON.stringify(before),snapshot);
+assert.deepEqual(hydrate([before],records,[{...approved,topics:[{...approved.topics[0],revisedIssueTags:[]}]}])[0].topics[0].issueTags,[]);
+assert.deepEqual(hydrate([before],records,[{...approved,status:'Rejected',topics:[{code:'1',decision:'Rejected',issueTags:['Coordination'],retainedIssueTags:['Opening']}]}])[0].topics[0].issueTags,['Opening']);
+assert.deepEqual(hydrate([before],records,[{...approved,agent:'Agent B'}])[0].topics[0].issueTags,['Opening','Coordination']);
+assert.deepEqual(hydrate([{...before,reviewStatus:'Revised',revisedTopics:[{code:'1',issueTags:[]}]}],records,[{...approved,status:'Reset'}])[0].topics[0].issueTags,['Opening','Coordination']);
+report=rates([{label:'W1',cases:cases.slice(0,5)},{label:'W2',cases:cases.slice(5)}],'1',catalog);assert.deepEqual(report.rows[1].values.map(v=>v.pct),[40,0]);
+console.log('PASS Tag percentages: zero/no-error cases, deduplication, topic/Agent/period isolation, October start, no-data periods, archived Tags and immutable appeal updates');
+}finally{await rm(temp,{recursive:true,force:true})}
