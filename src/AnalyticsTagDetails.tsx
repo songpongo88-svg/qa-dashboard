@@ -48,7 +48,7 @@ export function AnalyticsTagPanel({topics}:{topics:TagTopic[]}){
   const compare=data.periods.length>1;
   const groups=[...new Map(topics.map(topic=>[String(topic.code),topic])).values()]
     .sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}))
-    .map(topic=>({topic,report:buildTopicTagRates(data.periods,String(topic.code),data.catalog)}))
+    .map(topic=>{const report=buildTopicTagRates(data.periods,String(topic.code),data.catalog);return {topic,report:{...report,rows:[...report.rows].sort((a,b)=>(b.values.at(-1)?.pct ?? -1)-(a.values.at(-1)?.pct ?? -1))}};})
     .filter(group=>group.report.periods.some(period=>period.total));
   return <section className="mt-5 min-w-0 overflow-hidden rounded-2xl border border-violet-200 bg-white text-left" data-analytics-tag-panel="true">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-violet-100 px-5 py-4">
@@ -58,13 +58,13 @@ export function AnalyticsTagPanel({topics}:{topics:TagTopic[]}){
     <div id={contentId} hidden={!data.open}>
       {data.status!=='ready'?<div role="status" className="px-5 py-5 text-sm text-slate-500">{data.status==='loading'?'Loading Tags…':'Unable to load Tags. Refresh to retry.'}</div>:!groups.some(group=>group.report.rows.length)?<div className="px-5 py-5 text-sm text-slate-500">No Tag Data</div>:<div className="max-w-full overflow-x-auto"><table className="w-full text-sm" aria-label="Tag percentages by topic">
         <thead className="bg-violet-50 text-xs text-slate-600"><tr><th scope="col" className="min-w-[200px] px-5 py-3 text-left font-semibold">หัวข้อประเมิน</th><th scope="col" className="whitespace-nowrap px-5 py-3 text-left font-semibold">Tag ที่พบปัญหา</th>{data.periods.map((period,index)=><th key={index} scope="col" className="whitespace-nowrap px-5 py-3 text-right font-semibold">{compare?period.label:'พบในเคส (%)'}</th>)}</tr></thead>
-        {groups.filter(group=>group.report.rows.length).map(({topic,report})=><tbody key={topic.code} data-analytics-tag-topic={topic.code} className="border-t border-violet-200">{report.rows.map((row,rowIndex)=><tr key={row.name} className="border-b border-slate-100 last:border-0">
+        {groups.filter(group=>group.report.rows.length).map(({topic,report})=><tbody key={topic.code} data-analytics-tag-topic={topic.code} className="border-t border-violet-200">{report.rows.map((row,rowIndex)=>{const latest=row.values.at(-1)?.pct;const top=latest!=null&&latest>0&&latest===report.rows[0]?.values.at(-1)?.pct;return <tr key={row.name} data-top-tag={top?"true":undefined} className="border-b border-slate-100 last:border-0">
           {rowIndex===0?<th scope="rowgroup" rowSpan={report.rows.length} className="w-[27%] min-w-[200px] bg-violet-50/50 px-5 py-4 text-left align-top font-medium text-slate-700"><span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-sm font-semibold text-violet-700">{topic.code}</span><div>{topic.label||topic.code}</div></th>:null}
-          <td className="whitespace-nowrap px-5 py-3 text-slate-700">{row.name}</td>{row.values.map((value,index)=>{
+          <td className={`whitespace-nowrap px-5 py-3 ${top?"font-bold text-violet-700":"text-slate-700"}`}>{row.name}</td>{row.values.map((value,index)=>{
             const previous=index?row.values[index-1].pct:null;
             const tone=compare&&index&&previous!==null&&value.pct!==null?(value.pct<previous?'text-emerald-700':value.pct>previous?'text-rose-600':'text-slate-500'):'text-violet-700';
-            return <td key={index} className={`whitespace-nowrap px-5 py-3 text-right text-base font-semibold tabular-nums ${tone}`}>{value.pct===null?'—':`${value.pct.toFixed(2)}%`}</td>;
-          })}</tr>)}</tbody>)}
+            return <td key={index} className={`whitespace-nowrap px-5 py-3 text-right text-base font-semibold tabular-nums ${top&&index===row.values.length-1?"font-bold text-violet-700":tone}`}>{value.pct===null?'—':`${value.pct.toFixed(2)}%`}</td>;
+          })}</tr>;})}</tbody>)}
       </table></div>}
     </div>
   </section>;
