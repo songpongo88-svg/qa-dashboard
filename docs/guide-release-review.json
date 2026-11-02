@@ -1,11 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-30T09:11:56.990Z",
-  "reason": "Reviewed unadorned Tag labels; hover focus and tap Rubrics descriptions remain available",
+  "reviewedAt": "2026-11-02T10:14:34.599Z",
+  "reason": "QA Access Check now stops on completed-unit mistakes above the allowance, preserves input and time, and requires explicit restart; verified Word/Sentence, IME, timeout and history races with the updated guide.",
   "contentChanged": true,
   "reviewedChapters": [
-    "dashboard",
-    "analytics"
+    "qa-access-check"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -102,7 +101,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "204cb281000872bc63302747a406c43f672f3165c54460b3296c10cdfa439ba8",
-    "package.json": "c013b38712c9c0f73b27687e3acd8ed33aa3028f8551610e7004a87f09e43333",
+    "package.json": "c0e4399fd629f5e4fb4514206266f47f0eb096ea8996b8ce14dad5243b1ee8fe",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -335,6 +334,7 @@
     "scripts/test-monthly-signature-pdf.mjs": "9905f766878080429fb5bb6231fc8ab433f4b61fa13b2363c385c43a3e0f7016",
     "scripts/test-payment-document-ref.mjs": "b3ac8cd094ba6a1e94b6b571c1db529fc939d5201b6d9039a3c2202750d675ba",
     "scripts/test-pdf-dates.mjs": "b13ed1e04faecd3eca4f08e8a36a4b66bcbeb1aa7636b2a1da01c7fb7472d32b",
+    "scripts/test-qa-typing-gate.mjs": "81b2199b350993771d64645c1feb2315e8983bd7828cf9995e2c7931e651c258",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
     "scripts/test-signature-appeal-hold.mjs": "415897f4ba8e67db482db74b208cad2316baf5f0ad844635d9a4d67e33ce4b2d",
     "scripts/test-special-themes.mjs": "c9b305f3b2e4c334e683c9ca74d2621b6f39618a86cf6e0ed75b0cd2bb002f84",
@@ -389,7 +389,7 @@
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
     "src/QaTypingChallengeAdmin.tsx": "085567987673c56b265237703b573adb8be75b40cb6d338fac5f1a5dc088d7f7",
     "src/QaTypingChallengeWorkspace.tsx": "0ab378e90ef6484ba5b77e4a42c25acf61d149a688f6c2889e9c3554e5cd724b",
-    "src/QaTypingGate.tsx": "b6ca32a92ebc9756385c3f570c82963794a086f443f2e6549b65e7aaac039dfe",
+    "src/QaTypingGate.tsx": "5eb6017d5ddf5e126d8ecfa04a8b920980352c68ec3027df143abb807345efdc",
     "src/ScheduleMockup.tsx": "bd0431a88e2c0fd5bfcc5fcb640c6d968c3f4dbd552457a634cacb64c59c49c3",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "5cd3fa99fb5ebacab157022dfb4d00735503897f9c42a5ca604713850513f4cd",
@@ -475,7 +475,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "1f91ab432aca00b9e85fadd5242e07cde454cb654ca1b4d20a9ff82693678022",
+    "src/knowledge/manual.json": "d871bc0577806160611c89c6f2e4f85666c488f3b34698d8cb4dcd3dca2d8309",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",

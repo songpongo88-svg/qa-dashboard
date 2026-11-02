@@ -28,6 +28,15 @@ function splitTypedUnits(value: string, mode: QaTypingChallengeMode) {
     .filter(Boolean);
 }
 
+function splitCompletedUnits(value: string, mode: QaTypingChallengeMode) {
+  // The last unit is still editable until a space/newline commits it.
+  const units = value.replace(/\r/g, "").split(mode === "sentence" ? "\n" : /\s+/);
+  units.pop();
+  return units.map((item) => item.trim()).filter(Boolean);
+}
+
+type AttemptPhase = "active" | "failed" | "timeout" | "checking";
+
 function formatCountdown(seconds: number) {
   const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
   const minutes = Math.floor(safeSeconds / 60);
@@ -52,8 +61,14 @@ export default function QaTypingGate({
   const [typedText, setTypedText] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(60);
   const [message, setMessage] = useState("");
-  const [checking, setChecking] = useState(false);
-  const timeoutHistoryRecordedRef = useRef(false);
+  const [attemptPhase, setAttemptPhase] = useState<AttemptPhase>("active");
+  const attemptPhaseRef = useRef<AttemptPhase>("active");
+  const secondsLeftRef = useRef(60);
+  const attemptVersionRef = useRef(0);
+  const passHistoryRecordedRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const checking = attemptPhase === "checking";
+  const needsRestart = attemptPhase === "failed" || attemptPhase === "timeout";
 
   useEffect(() => {
     setQueue([]);
@@ -66,20 +81,29 @@ export default function QaTypingGate({
   }, [username]);
 
   useEffect(() => {
+    attemptVersionRef.current += 1;
+    attemptPhaseRef.current = "active";
+    secondsLeftRef.current = challenge?.timeLimitSeconds || 60;
+    passHistoryRecordedRef.current = false;
     setTypedText("");
-    setSecondsLeft(challenge?.timeLimitSeconds || 60);
+    setSecondsLeft(secondsLeftRef.current);
     setMessage("");
-    setChecking(false);
-    timeoutHistoryRecordedRef.current = false;
-  }, [challenge?.id, challenge?.assignedAt, challenge?.word, challenge?.mode, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
+    setAttemptPhase("active");
+  }, [username, challenge?.id, challenge?.assignedAt, challenge?.word, challenge?.mode, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
 
   useEffect(() => {
-    if (!enabled || !challenge || secondsLeft <= 0) return;
+    if (!enabled || !challenge || attemptPhase !== "active" || secondsLeft <= 0) return;
     const timer = window.setInterval(() => {
-      setSecondsLeft((current) => Math.max(0, current - 1));
+      if (attemptPhaseRef.current !== "active") return;
+      secondsLeftRef.current = Math.max(0, secondsLeftRef.current - 1);
+      setSecondsLeft(secondsLeftRef.current);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [enabled, challenge, secondsLeft > 0]);
+  }, [enabled, challenge, attemptPhase, secondsLeft > 0]);
+
+  useEffect(() => {
+    if (enabled && attemptPhase === "active") textareaRef.current?.focus();
+  }, [enabled, challenge?.id, attemptPhase]);
 
   const saveAttemptHistory = async (
     result: QaTypingChallengeHistoryResult,
@@ -109,15 +133,29 @@ export default function QaTypingGate({
     });
   };
 
-  useEffect(() => {
-    if (!challenge || secondsLeft !== 0 || timeoutHistoryRecordedRef.current) return;
-    timeoutHistoryRecordedRef.current = true;
-    setMessage("หมดเวลา กรุณากดเริ่มใหม่และพิมพ์อีกครั้ง");
-    const units = splitTypedUnits(typedText, challenge.mode);
-    void saveAttemptHistory("Timeout", units, challenge.timeLimitSeconds || 60).catch((error) => {
-      console.warn("QA typing timeout history save failed", error);
+  const finishAttempt = (result: "Fail" | "Timeout", units: string[]) => {
+    if (!challenge || attemptPhaseRef.current !== "active") return;
+    // End synchronously so input, verify and timeout cannot record the same round twice.
+    const phase = result === "Fail" ? "failed" : "timeout";
+    attemptPhaseRef.current = phase;
+    setAttemptPhase(phase);
+    const mistakes = units.length - countCorrectUnits(units, challenge.word);
+    const unitLabel = challenge.mode === "sentence" ? "รอบ" : "คำ";
+    setMessage(result === "Fail"
+      ? `พิมพ์ผิด ${mistakes} ${unitLabel} เกินเกณฑ์ที่กำหนด (ผิดได้ไม่เกิน ${challenge.allowedMistakes} ${unitLabel}) กรุณากด “เริ่มพิมพ์ใหม่” เพื่อเริ่มรอบใหม่`
+      : "หมดเวลาแล้ว กรุณากด “เริ่มพิมพ์ใหม่” เพื่อเริ่มรอบใหม่");
+    const usedSeconds = result === "Timeout"
+      ? challenge.timeLimitSeconds || 60
+      : (challenge.timeLimitSeconds || 60) - secondsLeftRef.current;
+    void saveAttemptHistory(result, units, usedSeconds).catch((error) => {
+      console.warn("QA typing attempt history save failed", error);
     });
-  }, [challenge, secondsLeft, typedText]);
+  };
+
+  useEffect(() => {
+    if (!enabled || !challenge || secondsLeft !== 0 || secondsLeftRef.current !== 0) return;
+    finishAttempt("Timeout", splitTypedUnits(typedText, challenge.mode));
+  }, [enabled, challenge, secondsLeft, typedText]);
 
   const typedUnits = useMemo(
     () => challenge ? splitTypedUnits(typedText, challenge.mode) : [],
@@ -134,14 +172,31 @@ export default function QaTypingGate({
   const contentLabel = isSentence ? "ประโยค" : "คำ";
 
   const resetAttempt = () => {
+    if (attemptPhaseRef.current === "checking") return;
+    attemptVersionRef.current += 1;
+    attemptPhaseRef.current = "active";
+    secondsLeftRef.current = challenge.timeLimitSeconds || 60;
+    passHistoryRecordedRef.current = false;
     setTypedText("");
-    setSecondsLeft(challenge.timeLimitSeconds || 60);
+    setSecondsLeft(secondsLeftRef.current);
     setMessage("");
-    timeoutHistoryRecordedRef.current = false;
+    setAttemptPhase("active");
+    textareaRef.current?.focus();
+  };
+
+  const updateTypedText = (value: string, isComposing = false) => {
+    if (attemptPhaseRef.current !== "active" || secondsLeftRef.current <= 0) return;
+    setTypedText(value);
+    if (message) setMessage("");
+    if (isComposing) return;
+    const units = splitCompletedUnits(value, challenge.mode);
+    if (units.length - countCorrectUnits(units, challenge.word) > challenge.allowedMistakes) {
+      finishAttempt("Fail", units);
+    }
   };
 
   const verify = async () => {
-    if (checking) return;
+    if (attemptPhaseRef.current !== "active" || secondsLeftRef.current <= 0) return;
     const units = splitTypedUnits(typedText, challenge.mode);
     if (units.length !== challenge.repeatCount) {
       setMessage(`ยังไม่ผ่าน — ต้องพิมพ์ให้ครบ ${challenge.repeatCount} ${unitLabel} ปัจจุบันพิมพ์ ${units.length} ${unitLabel}`);
@@ -150,33 +205,33 @@ export default function QaTypingGate({
 
     const correctCount = countCorrectUnits(units, challenge.word);
     const mistakes = Math.max(0, units.length - correctCount);
-    const timeUsedSeconds = Math.max(0, (challenge.timeLimitSeconds || 60) - secondsLeft);
+    const timeUsedSeconds = Math.max(0, (challenge.timeLimitSeconds || 60) - secondsLeftRef.current);
 
     if (mistakes > challenge.allowedMistakes) {
-      try {
-        await saveAttemptHistory("Fail", units, timeUsedSeconds);
-      } catch (error) {
-        console.warn("QA typing fail history save failed", error);
-      }
-      setMessage(`ยังไม่ผ่าน — พบ${unitLabel}ที่ไม่ตรง ${mistakes} ${unitLabel} เกินเกณฑ์ที่กำหนด กรุณาพิมพ์ใหม่อีกครั้ง`);
-      setTypedText("");
-      setSecondsLeft(challenge.timeLimitSeconds || 60);
-      timeoutHistoryRecordedRef.current = false;
+      finishAttempt("Fail", units);
       return;
     }
 
-    setChecking(true);
+    const attemptVersion = attemptVersionRef.current;
+    attemptPhaseRef.current = "checking";
+    setAttemptPhase("checking");
     setMessage(queue.length > 1 ? "ผ่านรายการนี้แล้ว กำลังไปรายการถัดไป..." : "ผ่านการตรวจสอบครบแล้ว กำลังเปิดผล QA...");
     try {
-      try {
-        await saveAttemptHistory("Pass", units, timeUsedSeconds);
-      } catch (historyError) {
-        console.warn("QA typing pass history save failed", historyError);
+      if (!passHistoryRecordedRef.current) {
+        passHistoryRecordedRef.current = true;
+        try {
+          await saveAttemptHistory("Pass", units, timeUsedSeconds);
+        } catch (historyError) {
+          console.warn("QA typing pass history save failed", historyError);
+        }
       }
+      if (attemptVersionRef.current !== attemptVersion) return;
       await completeQaTypingChallenge(username, challenge.id);
     } catch (error) {
       console.warn("QA typing challenge queue completion failed", error);
-      setChecking(false);
+      if (attemptVersionRef.current !== attemptVersion) return;
+      attemptPhaseRef.current = "active";
+      setAttemptPhase("active");
       setMessage("ไม่สามารถบันทึกการผ่านรายการนี้ได้ กรุณาลองตรวจสอบอีกครั้ง");
     }
   };
@@ -259,12 +314,10 @@ export default function QaTypingGate({
 
             <div className="mt-4 flex items-stretch gap-3">
               <textarea
+                ref={textareaRef}
                 value={typedText}
-                onChange={(event) => {
-                  if (secondsLeft <= 0) return;
-                  setTypedText(event.target.value);
-                  if (message) setMessage("");
-                }}
+                onChange={(event) => updateTypedText(event.target.value, Boolean((event.nativeEvent as InputEvent).isComposing))}
+                onCompositionEnd={(event) => updateTypedText(event.currentTarget.value)}
                 onPaste={(event) => {
                   event.preventDefault();
                   setMessage("ห้าม Copy / Paste กรุณาพิมพ์ด้วยตนเอง");
@@ -277,7 +330,7 @@ export default function QaTypingGate({
                 }}
                 onContextMenu={(event) => event.preventDefault()}
                 onKeyDown={blockClipboardShortcut}
-                disabled={secondsLeft <= 0 || checking}
+                disabled={secondsLeft <= 0 || attemptPhase !== "active"}
                 autoFocus
                 spellCheck={false}
                 autoComplete="off"
@@ -285,17 +338,19 @@ export default function QaTypingGate({
                 className={`flex-1 resize-none rounded-2xl border-2 border-violet-400 bg-white px-4 py-3 font-bold text-slate-950 outline-none transition focus:border-violet-600 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 ${isSentence ? "min-h-[150px] text-base leading-7" : "min-h-[90px] text-lg"}`}
               />
               <div className="flex w-[112px] shrink-0 flex-col gap-2">
-                <div className={`flex flex-1 items-center justify-center rounded-2xl px-3 text-2xl font-black text-white ${secondsLeft > 10 ? "bg-emerald-500" : secondsLeft > 0 ? "bg-amber-500" : "bg-rose-500"}`}>
+                <div role="timer" aria-label="เวลาที่เหลือ" className={`flex flex-1 items-center justify-center rounded-2xl px-3 text-2xl font-black text-white ${secondsLeft > 10 ? "bg-emerald-500" : secondsLeft > 0 ? "bg-amber-500" : "bg-rose-500"}`}>
                   {formatCountdown(secondsLeft)}
                 </div>
-                <button
+                {!needsRestart ? <button
                   type="button"
                   onClick={resetAttempt}
-                  className="flex h-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-2xl font-black text-white shadow-sm transition hover:brightness-105"
+                  disabled={checking}
+                  className="flex h-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-2xl font-black text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label="เริ่มพิมพ์ใหม่"
+                  title="เริ่มพิมพ์ใหม่"
                 >
                   ↻
-                </button>
+                </button> : null}
               </div>
             </div>
 
@@ -313,12 +368,22 @@ export default function QaTypingGate({
             </div>
 
             {message ? (
-              <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-bold ${message.startsWith("ผ่าน") ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+              <div role={needsRestart ? "alert" : "status"} className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-bold ${message.startsWith("ผ่าน") ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
                 {message}
+                {needsRestart ? (
+                  <button
+                    type="button"
+                    onClick={resetAttempt}
+                    className="mt-3 block rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
+                  >
+                    ↻ เริ่มพิมพ์ใหม่
+                  </button>
+                ) : null}
               </div>
             ) : (
               <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-xs font-semibold leading-5 text-violet-700">
                 ระบบจะตรวจ {isSentence ? "ประโยคเต็มทีละรอบ โดยตรวจตัวอักษรและการเว้นวรรคภายในประโยค" : "จำนวนคำและการสะกดตามคำที่กำหนด"} โดยอนุญาตให้ผิดได้ไม่เกิน {challenge.allowedMistakes} {unitLabel} ภายในเวลา {formatCountdown(challenge.timeLimitSeconds || 60)}
+                {" "}{isSentence ? "ตรวจคำผิดเมื่อกด Enter จบแต่ละรอบ" : "ตรวจคำผิดเมื่อกดเว้นวรรคหรือ Enter จบแต่ละคำ"} หากผิดเกินเกณฑ์ ระบบจะหยุดรอบและรอให้กด “เริ่มพิมพ์ใหม่”
                 {queue.length > 1 ? ` • เมื่อผ่านแล้วจะไปรายการถัดไปอัตโนมัติ (${queue.length - 1} รายการรออยู่)` : ""}
               </div>
             )}
@@ -327,7 +392,7 @@ export default function QaTypingGate({
               <button
                 type="button"
                 onClick={() => void verify()}
-                disabled={checking || secondsLeft <= 0 || typedUnits.length < challenge.repeatCount}
+                disabled={attemptPhase !== "active" || secondsLeft <= 0 || typedUnits.length < challenge.repeatCount}
                 className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-sm font-black text-white shadow-[0_12px_30px_rgba(109,40,217,0.24)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {checking ? "กำลังตรวจสอบ..." : queue.length > 1 ? "✓ ตรวจสอบและไปรายการถัดไป" : "✓ ตรวจสอบ"}
