@@ -1748,7 +1748,8 @@ function isPaymentReadyDocument(
     const signed = getSignedEntry(entries, role);
     return Boolean(signed) && isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
   });
-  return signedComplete && signedWithinCycle && !hasPending &&
+  // May 2026 only: permit exporting completed historical signatures after the original signing deadline.
+  return signedComplete && (signedWithinCycle || doc.monthKey === "2026-05") && !hasPending &&
     monthlyCoachingPaymentStatus(doc.monthKey, doc.agentName, coachingRecords, doc.agentId).onTime;
 }
 
