@@ -17,6 +17,7 @@ export function analyticsCompareUiRedesignPatch() {
       if (!cleanId.endsWith("/src/SummaryMockup.tsx")) return null;
 
       let next = code;
+      const yearlyWorkspaceEnd = code.includes("yearly-team-summary-in-place") ? "          )}\n" : "";
 
       const compareUi = String.raw`
 function AnalyticsCompareDashboardV2({
@@ -653,8 +654,8 @@ function AnalyticsCompareDashboardV2({
       next = replaceOrThrow(
         this,
         next,
-        `            {isComparisonMode ? (\n              appealScoreHold ? <AppealScoreHoldNotice hold={appealScoreHold} /> : <Panel>\n                <PanelHeader title="Period Comparison" subtitle={\`เปรียบเทียบ \${effectivePeriodLabels.join(" · ")}\`} />\n                <PanelBody><SummaryTable rows={comparisonRowsWithDelta} firstColLabel={reportModeName} /></PanelBody>\n              </Panel>\n            ) : null}\n          </div>\n          <div\n            data-analytics-filterbar-v89="true"`,
-        `            {isComparisonMode ? (\n              appealScoreHold ? <AppealScoreHoldNotice hold={appealScoreHold} /> : <Panel>\n                <PanelHeader title="Period Comparison" subtitle={\`เปรียบเทียบ \${effectivePeriodLabels.join(" · ")}\`} />\n                <PanelBody><SummaryTable rows={comparisonRowsWithDelta} firstColLabel={reportModeName} /></PanelBody>\n              </Panel>\n            ) : null}\n            </div>\n          </div>\n          <div\n            data-analytics-filterbar-v89="true"`,
+        `            {isComparisonMode ? (\n              appealScoreHold ? <AppealScoreHoldNotice hold={appealScoreHold} /> : <Panel>\n                <PanelHeader title="Period Comparison" subtitle={\`เปรียบเทียบ \${effectivePeriodLabels.join(" · ")}\`} />\n                <PanelBody><SummaryTable rows={comparisonRowsWithDelta} firstColLabel={reportModeName} /></PanelBody>\n              </Panel>\n            ) : null}\n          </div>\n${yearlyWorkspaceEnd}          <div\n            data-analytics-filterbar-v89="true"`,
+        `            {isComparisonMode ? (\n              appealScoreHold ? <AppealScoreHoldNotice hold={appealScoreHold} /> : <Panel>\n                <PanelHeader title="Period Comparison" subtitle={\`เปรียบเทียบ \${effectivePeriodLabels.join(" · ")}\`} />\n                <PanelBody><SummaryTable rows={comparisonRowsWithDelta} firstColLabel={reportModeName} /></PanelBody>\n              </Panel>\n            ) : null}\n            </div>\n          </div>\n${yearlyWorkspaceEnd}          <div\n            data-analytics-filterbar-v89="true"`,
         "compare workspace end"
       );
 

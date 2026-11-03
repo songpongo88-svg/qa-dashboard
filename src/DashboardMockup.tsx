@@ -91,6 +91,7 @@ type AppealReviewedTopic = Topic & {
 
 type CaseItem = AppealScoreState & {
   isTestCase?: boolean;
+  criticalError?: boolean;
   hasAppealHistory?: boolean;
   key: string;
   evaluationKey: string;
@@ -1566,6 +1567,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
         evaluationKey,
         qaScheme: record.qaScheme,
         isTestCase: isTestCaseEvaluation(record),
+        criticalError: record.criticalError === true,
         agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
         sourceAgentName: canonicalizeAgentName(record.agentName || record.targetDisplayName || ""),
         seniorName: String(record.rawDataPreview?.Senior || record.rawDataPreview?.["Team Lead"] || ""),
@@ -5970,6 +5972,7 @@ export async function loadCanonicalReportData(): Promise<CanonicalReportData> {
               key: evaluationKey,
               evaluationKey,
               isTestCase: isTestCaseEvaluation({ "Test Case": rawHelper.getValue(row, "Test Case") }),
+              criticalError: /^(1|true|yes|y|ใช่)$/i.test(String(getFirstAvailableHeaderValue(rawHelper, row, ["Critical Flag", "Critical Error"], "")).trim()),
               agent,
               sourceAgentName: canonicalizeAgentName(String(rawHelper.getValue(row, "Agent Name") || "")),
               seniorName: String(getFirstAvailableHeaderValue(rawHelper, row, ["Senior", "Team Lead", "Team Leader"], "")),

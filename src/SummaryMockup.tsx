@@ -1,11 +1,12 @@
-import { loadCanonicalReportData } from "./DashboardMockup";
-import { createMonthlyTeamSummaryPdf } from "./monthlyTeamSummaryPdf";
+import { loadCanonicalReportData, type CanonicalReportCase } from "./DashboardMockup";
+import YearlyTeamSummary from "./YearlyTeamSummary";
+import { buildYearlyTeamReport, createYearlyTeamSummaryXlsx, yearlyMonthKeys } from "./yearlyTeamSummaryData";
 import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
 import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { workflowStatusTone, workflowStatusTextTone } from "./workflowStatusLabels";
 import { formatPdfDateTime } from "./lib/pdfDates";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -2973,6 +2974,7 @@ export default function SummaryMockup({
 }) {
   const evaluationActivity = useEvaluationActivity();
   const [sourceCases, setAllCases] = useState<CaseItem[]>([]);
+  const [yearlyData, setYearlyData] = useState<{ loading: boolean; error: string; cases: CanonicalReportCase[] }>({ loading: true, error: "", cases: [] });
   const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
   const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>([]);
   const [appealMergeCount, setAppealMergeCount] = useState(0);
@@ -3010,17 +3012,24 @@ export default function SummaryMockup({
   const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
-  const [reportPdfDialogOpen, setReportPdfDialogOpen] = useState(false);
-  const [reportSummaryMonth, setReportSummaryMonth] = useState("");
-  const [monthlyReportBusy, setMonthlyReportBusy] = useState(false);
-  const [monthlyReportError, setMonthlyReportError] = useState("");
-  const [reportPdfView, setReportPdfView] = useState<SummaryView>("monthly-dashboard");
   const [analyticsCustomizeOpen, setAnalyticsCustomizeOpen] = useState(false);
   // data-workspace-view-state-v134
   const [analysisMode, setAnalysisMode] = useState<"weekly" | "monthly" | "yearly">(() => {
     const saved = window.sessionStorage.getItem("qa_analytics_mode_v134");
     return saved === "weekly" || saved === "yearly" ? saved : "monthly";
   });
+  useEffect(() => {
+    if (analysisMode !== "yearly") return;
+    let active = true;
+    setYearlyData(previous => ({ ...previous, loading: true, error: "" }));
+    void loadCanonicalReportData().then(result => {
+      if (active) setYearlyData({ loading: false, error: "", cases: result.cases });
+    }).catch(error => {
+      if (active) setYearlyData(previous => ({ ...previous, loading: false,
+        error: error instanceof Error ? error.message : "โหลดข้อมูล Yearly ไม่สำเร็จ กรุณาลองรีเฟรช" }));
+    });
+    return () => { active = false; };
+  }, [analysisMode, dataRefreshKey]);
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>(() => {
     try {
       const saved = JSON.parse(window.sessionStorage.getItem("qa_analytics_periods_v134") || "[]");
@@ -4967,7 +4976,7 @@ export default function SummaryMockup({
     canViewAllTeams ||
     canViewOwnTeam;
   const analyticsCanExport =
-    canExportAnalytics && !appealScoreHold;
+    canExportAnalytics && (analysisMode === "yearly" || !appealScoreHold);
   const analyticsTeamOptions = useMemo(() => {
     const names = Array.from(
       new Set(
@@ -6265,7 +6274,64 @@ export default function SummaryMockup({
     }
   };
 
+  const yearlyTeam = !analyticsCanSelectAllTeams && canViewOwnTeam ? currentUserTeamName : selectedTeam;
+  const yearlyScopeError = !analyticsCanSelectAllTeams && canViewOwnTeam && !yearlyTeam
+    ? "ไม่พบทีมที่ได้รับสิทธิ์ กรุณาตรวจสอบข้อมูลบัญชี" : "";
+  const withinYearlyAgentScope = useCallback((agent: string) =>
+    (!roleScopedAgentList.length || roleScopedAgentList.some(name => isSameAgent(name, agent))) &&
+    (effectiveSelectedAgent === "all" || isSameAgent(effectiveSelectedAgent, agent)) &&
+    (yearlyTeam === "all" || normalizeText(getSummaryTeamName(getAccountStatus(agent, accountProfiles))) === normalizeText(yearlyTeam)),
+    [roleScopedAgentList, effectiveSelectedAgent, yearlyTeam, accountProfiles]);
+  const yearlyAgentNames = useMemo(() => getUniqueNormalizedAgents([
+    ...availableAgents, ...yearlyData.cases.map(item => item.sourceAgentName || item.agent),
+    ...evaluationActivity.records.map(item => item.displayName),
+  ]).filter(withinYearlyAgentScope), [availableAgents, yearlyData.cases, evaluationActivity.records, withinYearlyAgentScope]);
+  const yearlyYears = useMemo(() => {
+    const years = effectivePeriodKeys.filter(key => /^\d{4}$/.test(key));
+    return years.length ? years.slice().sort() : [String(new Date().getFullYear())];
+  }, [effectivePeriodKeys]);
+  const yearlyReports = useMemo(() => {
+    const cases = withEvaluationActivity(yearlyData.cases, evaluationActivity).filter(item => withinYearlyAgentScope(item.agent));
+    return yearlyYears.map(year => buildYearlyTeamReport(cases, year, { agentNames: yearlyAgentNames,
+      scopeHold: (agents, months) => evaluationScopeHold(evaluationActivity, agents, months) }));
+  }, [yearlyData.cases, evaluationActivity, withinYearlyAgentScope, yearlyYears, yearlyAgentNames]);
+  async function loadYearlyExportReports() {
+    if (!canExportAnalytics) throw new Error("ไม่มีสิทธิ์ส่งออกรายงาน");
+    if (yearlyScopeError) throw new Error(yearlyScopeError);
+    const { cases: freshCases } = await loadCanonicalReportData();
+    setYearlyData({ loading: false, error: "", cases: freshCases });
+    const cases = withEvaluationActivity(freshCases, evaluationActivity).filter(item => withinYearlyAgentScope(item.agent));
+    const agentNames = getUniqueNormalizedAgents([...yearlyAgentNames, ...cases.map(item => item.sourceAgentName || item.agent)]);
+    const reports = yearlyYears.map(year => buildYearlyTeamReport(cases, year, { agentNames,
+      scopeHold: (agents, months) => evaluationScopeHold(evaluationActivity, agents, months) }));
+    const hold = reports.find(report => report.hold)?.hold;
+    if (hold) throw new Error(hold.label);
+    const months = yearlyYears.flatMap(yearlyMonthKeys);
+    await assertEvaluationScopeComplete(agentNames, months);
+    return { reports, agentNames, months };
+  }
+
   async function exportCurrentAnalyticsExcel() {
+    if (analysisMode === "yearly") {
+      try {
+        const { reports, agentNames, months } = await loadYearlyExportReports();
+        const result = await createYearlyTeamSummaryXlsx(reports, {
+          team: yearlyTeam === "all" ? "All Teams" : yearlyTeam,
+          agent: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent,
+        });
+        await assertEvaluationScopeComplete(agentNames, months);
+        const url = URL.createObjectURL(new Blob([result.bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+        const link = document.createElement("a");
+        link.href = url; link.download = result.fileName;
+        document.body.appendChild(link); link.click(); link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setAnalyticsExportOpen(false);
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "ส่งออก Yearly ไม่สำเร็จ กรุณาลองอีกครั้ง");
+      }
+      return;
+    }
+
     try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
     catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     if (appealScoreHold) return;
@@ -6311,53 +6377,6 @@ export default function SummaryMockup({
     catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     XLSX.writeFile(workbook, `QA_Analytics_${safePeriod}.xlsx`);
     setAnalyticsExportOpen(false);
-  }
-
-  const openMonthlyTeamSummary = () => {
-    const currentMonth = /^\d{4}-\d{2}$/.test(selectedMonth) ? selectedMonth
-      : analysisMode === "monthly" ? effectivePeriodKeys[effectivePeriodKeys.length - 1] : "";
-    setReportSummaryMonth(currentMonth || monthOptions[0]?.value || "");
-    setMonthlyReportError("");
-    setAnalyticsExportOpen(false);
-    setReportPdfDialogOpen(true);
-  };
-
-  async function generateMonthlyTeamSummary() {
-    if (!analyticsCanExport || monthlyReportBusy) return;
-    setMonthlyReportBusy(true);
-    setMonthlyReportError("");
-    try {
-      if (!reportSummaryMonth) throw new Error("กรุณาเลือกเดือนที่ต้องการออกรายงาน");
-      const { cases } = await loadCanonicalReportData();
-      const reportTeam = !analyticsCanSelectAllTeams && canViewOwnTeam ? currentUserTeamName : selectedTeam;
-      if (!analyticsCanSelectAllTeams && canViewOwnTeam && !reportTeam) throw new Error("ไม่พบทีมที่ได้รับสิทธิ์ กรุณาตรวจสอบข้อมูลบัญชี");
-      const withinAgentScope = (agent: string) =>
-        (!roleScopedAgentList.length || roleScopedAgentList.some(name => isSameAgent(name, agent))) &&
-        (effectiveSelectedAgent === "all" || isSameAgent(effectiveSelectedAgent, agent)) &&
-        (reportTeam === "all" || normalizeText(getSummaryTeamName(getAccountStatus(agent, accountProfiles))) === normalizeText(reportTeam));
-      const monthlyCases = excludeTestEvaluations(cases).filter(item => item.monthKey === reportSummaryMonth && withinAgentScope(item.agent));
-      const agents = [...new Set([
-        ...monthlyCases.map(item => item.agent),
-        ...evaluationActivity.records.map(item => item.displayName).filter(withinAgentScope),
-        ...(effectiveSelectedAgent !== "all" ? [effectiveSelectedAgent] : roleScopedAgentList),
-      ])];
-      const hold = evaluationScopeHold(evaluationActivity, agents, [reportSummaryMonth]) || getAppealScoreHold(monthlyCases);
-      if (hold) throw new Error(hold.label || "ข้อมูลเดือนนี้ยังรอการประเมินหรือผลอุทธรณ์");
-      await assertEvaluationScopeComplete(agents, [reportSummaryMonth]);
-      const result = createMonthlyTeamSummaryPdf({
-        cases: monthlyCases, monthKey: reportSummaryMonth,
-        agentLabel: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent,
-        teamLabel: reportTeam === "all" ? "All Teams" : reportTeam,
-        generatedBy: String(currentUser?.displayName || currentUser?.name || currentUser?.username || "-"),
-      });
-      await assertEvaluationScopeComplete(agents, [reportSummaryMonth]);
-      result.pdf.save(result.fileName);
-      setReportPdfDialogOpen(false);
-    } catch (error) {
-      setMonthlyReportError(error instanceof Error ? error.message : "สร้างรายงานรายเดือนไม่สำเร็จ กรุณาลองอีกครั้ง");
-    } finally {
-      setMonthlyReportBusy(false);
-    }
   }
 
   async function generateSummaryReportPdf() {
@@ -8365,7 +8384,6 @@ export default function SummaryMockup({
     try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
     catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
     doc.save(fileName);
-    setReportPdfDialogOpen(false);
   }
 
   async function generateTeamPerformancePdf() {
@@ -9163,7 +9181,6 @@ export default function SummaryMockup({
                     {analyticsExportOpen && analyticsCanExport ? (
                       <div className="absolute right-0 top-[calc(100%+8px)] z-[520] w-64 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-slate-700 shadow-2xl">
                         <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Export Current Report</div>
-                        <button type="button" onClick={openMonthlyTeamSummary} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium text-violet-800 hover:bg-violet-50"><span>Monthly Team Summary PDF</span><span>›</span></button>
                         <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-violet-50 hover:text-violet-700"><span>PDF</span><span>›</span></button>
                         <button type="button" onClick={exportCurrentAnalyticsExcel} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-violet-50 hover:text-violet-700"><span>Excel</span><span>›</span></button>
                       </div>
@@ -9274,29 +9291,6 @@ export default function SummaryMockup({
             dashboardControlTarget
           )
         : null}
-      {reportPdfDialogOpen ? (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-slate-950/60 p-4" onKeyDown={event => { if (event.key === "Escape" && !monthlyReportBusy) setReportPdfDialogOpen(false); }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="monthly-team-summary-title" className="w-full max-w-xl overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-2xl">
-            <div className="bg-violet-800 px-5 py-4 text-white">
-              <h2 id="monthly-team-summary-title" className="text-xl font-semibold">Monthly Team Summary</h2>
-              <p className="mt-1 text-sm text-violet-100">รายงานสรุปทั้งเดือน รูปแบบเดียวกับ Yearly Team Summary</p>
-            </div>
-            <div className="space-y-4 p-5">
-              <label className="block text-sm font-medium text-slate-700">เดือนที่ต้องการออกรายงาน
-                <select autoFocus value={reportSummaryMonth} onChange={event => setReportSummaryMonth(event.target.value)} disabled={monthlyReportBusy} className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-4 py-3">
-                  {monthOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </label>
-              <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Agent: {effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent}<br />Team: {selectedTeam === "all" ? "All Teams" : selectedTeam}<br />รายงานรวมทุกสัปดาห์ในเดือนที่เลือก</p>
-              {monthlyReportError ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{monthlyReportError}</p> : null}
-              <div className="flex justify-end gap-2">
-                <button type="button" disabled={monthlyReportBusy} onClick={() => setReportPdfDialogOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">Cancel</button>
-                <button type="button" disabled={monthlyReportBusy || !reportSummaryMonth} onClick={() => void generateMonthlyTeamSummary()} className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{monthlyReportBusy ? "Generating…" : "Generate Monthly PDF"}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {songkranTheme && !embedded ? <SongkranBackdrop /> : null}
       {!embedded ? (
@@ -9344,7 +9338,6 @@ export default function SummaryMockup({
               {analyticsExportOpen && analyticsCanExport ? (
                 <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
                   <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">Export Current View</div>
-                        <button type="button" onClick={openMonthlyTeamSummary} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium text-violet-800 hover:bg-violet-50"><span>Monthly Team Summary PDF</span><span>›</span></button>
                   <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-normal text-slate-700 hover:bg-violet-50 hover:text-violet-700"><span>PDF</span><span>›</span></button>
                   <button type="button" onClick={exportCurrentAnalyticsExcel} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-normal text-slate-700 hover:bg-violet-50 hover:text-violet-700"><span>Excel</span><span>›</span></button>
                 </div>
@@ -10206,6 +10199,12 @@ export default function SummaryMockup({
               </div>
             ) : null}
           </div>
+          {/* yearly-team-summary-in-place */}
+          {analysisMode === "yearly" ? (
+            yearlyData.loading ? <div role="status" className="rounded-2xl bg-white p-6 text-slate-600">กำลังโหลด Yearly Team Summary...</div>
+            : yearlyData.error || yearlyScopeError ? <div role="alert" className="rounded-2xl bg-rose-50 p-6 text-rose-700">{yearlyData.error || yearlyScopeError}</div>
+            : <YearlyTeamSummary reports={yearlyReports} team={yearlyTeam === "all" ? "All Teams" : yearlyTeam} agent={effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent} />
+          ) : (
           <div data-analytics-overview-logic-v90="true" data-analytics-readable-v128="true" className="min-w-0 space-y-5">
             <AnalyticsOverviewV89
               summary={summaryCards}
@@ -10332,6 +10331,7 @@ export default function SummaryMockup({
               </Panel>
             ) : null}
           </div>
+          )}
           <div
             data-analytics-filterbar-v89="true"
             className="hidden"
