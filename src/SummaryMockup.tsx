@@ -1,6 +1,7 @@
 import { loadCanonicalReportData, type CanonicalReportCase } from "./DashboardMockup";
 import YearlyTeamSummary from "./YearlyTeamSummary";
 import { buildYearlyTeamReport, createYearlyTeamSummaryXlsx, yearlyMonthKeys } from "./yearlyTeamSummaryData";
+import { createYearlyTeamSummaryPdf } from "./yearlyTeamSummaryPdf";
 import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
 import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
@@ -6380,6 +6381,23 @@ export default function SummaryMockup({
   }
 
   async function generateSummaryReportPdf() {
+    if (analysisMode === "yearly") {
+      try {
+        // Reuse the exact strict, appeal-verified, 12-month report source used by Yearly Excel.
+        const { reports, agentNames, months } = await loadYearlyExportReports();
+        await ensureSarabunPdfFont();
+        const result = createYearlyTeamSummaryPdf(reports, {
+          team: yearlyTeam === "all" ? "All Teams" : yearlyTeam,
+          agent: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent,
+        });
+        await assertEvaluationScopeComplete(agentNames, months);
+        result.pdf.save(result.fileName);
+        setAnalyticsExportOpen(false);
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "ส่งออก Yearly PDF ไม่สำเร็จ กรุณาลองอีกครั้ง");
+      }
+      return;
+    }
     if (appealScoreHold) return;
     try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
     catch (error) { window.alert(error instanceof Error ? error.message : "Evaluation status could not be verified."); return; }
