@@ -9,6 +9,7 @@ import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { renderFinalSignedPdf } from "./finalSignedPdfRenderer";
+import { loadCanonicalReportData } from "./DashboardMockup";
 // final-signed-shared-renderer-v12
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
@@ -1277,6 +1278,61 @@ function buildDocumentsFromStoredEvaluations(
       return { ...base, documentHash: createDocumentHash(base) };
     })
     .sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName, "th"));
+}
+
+// signature-canonical-report-source: use the Dashboard's complete case snapshot.
+export async function loadCanonicalSignatureDocuments(accounts: UserAccountSnapshot[] = []) {
+  const { cases: sourceCases } = await loadCanonicalReportData();
+  const documents = new Map<string, SignatureDocument>();
+  excludeTestEvaluations(sourceCases).forEach(item => {
+    const agentName = canonicalAgentName(item.sourceAgentName || item.agent);
+    const monthKey = item.monthKey;
+    if (!agentName || !isDashboardReportingMonth(monthKey)) return;
+    const id = `${monthKey}::${agentName}`;
+    const identityKey = `${monthKey}::${canonicalAgentIdentityKey(agentName)}`;
+    let document = documents.get(identityKey);
+    if (!document) {
+      const account = findAccountForAgent(accounts, agentName);
+      document = {
+        id, monthKey, monthLabel: getMonthLabel(monthKey), agentName,
+        ...(account ? { agentId: account.username } : {}),
+        seniorName: resolveSeniorNameForAgent(account, item.seniorName || ""),
+        supervisorName: resolveSupervisorName(item.supervisorName || ""),
+        qaName: safeName(item.evaluatorName, getQaSignerNameByMonth(monthKey)),
+        teamName: safeName(account?.teamName || item.teamName, "-"),
+        cases: [], caseCount: 0, averageScore: 0, grade: "F",
+        eligibleByScore: false, documentHash: "",
+      };
+      documents.set(identityKey, document);
+    }
+    document.cases.push({
+      caseId: item.caseId, auditDate: item.auditDate,
+      inquiry: item.inquiryTh || item.inquiryEn || "-",
+      finalScore: item.finalScore, grade: item.grade,
+      comment: item.signatureComment || item.caseDescription || "-",
+      topics: item.topics.map(topic => ({
+        code: topic.code, title: topic.label, max: topic.max,
+        score: topic.score, issueTags: topic.issueTags,
+      })),
+    });
+  });
+  const historicalId = `2026-03::${canonicalAgentIdentityKey("Anucha Makundin")}`;
+  if (!documents.has(historicalId)) {
+    const account = findAccountForAgent(accounts, "Anucha Makundin");
+    documents.set(historicalId, createZeroCaseDocument("2026-03", account || {
+      username: "anucha", displayName: "Anucha Makundin", agentName: "Anucha Makundin",
+      role: "Admin Live Chat", teamName: "-", teamLead: "", status: "Historical",
+    }));
+  }
+  return Array.from(documents.values()).map(document => {
+    const cases = sortSignatureCasesByAuditDate(document.cases);
+    const caseCount = cases.length;
+    const averageScore = caseCount ? cases.reduce((sum, item) => sum + item.finalScore, 0) / caseCount : 0;
+    const result = { ...document, cases, caseCount, averageScore,
+      grade: scoreToGrade(averageScore, document.monthKey),
+      eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80 };
+    return { ...result, documentHash: createDocumentHash(result) };
+  }).sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName, "th"));
 }
 
 function mergeSignatureDocuments(existing: SignatureDocument, incoming: SignatureDocument): SignatureDocument {
@@ -2667,90 +2723,7 @@ export default function SignatureCenterMockup({
       try {
         setLoading(true);
         setLoadMessage("");
-        const loadedDocs: SignatureDocument[] = [];
-        const rawAppealMap = await fetchSignatureRawAppealMap().catch((error) => {
-          console.warn("Signature Center raw appeal merge skipped", error);
-          return new Map<string, SignatureApprovedAppeal>();
-        });
-        let approvedAppealMap = rawAppealMap;
-
-        // Fallback only: if no uploaded Appeal ROWDATA exists, use web approval logs.
-        if (!approvedAppealMap.size) {
-          const approvedAppealLogs = await fetchAppealEvents(
-            [
-              "appeal_request_submitted",
-              "appeal_request_reviewed",
-              "appeal_request_reset",
-            ],
-            { limit: 2000, forceRefresh: true }
-          ).catch((error) => {
-            console.warn("Signature Center approved appeal merge skipped", error);
-            return [] as UsageLogEvent[];
-          });
-          approvedAppealMap = buildSignatureApprovedAppealMap(approvedAppealLogs as UsageLogEvent[]);
-        }
-        for (const fileName of RAW_DATA_FILES) {
-          const response = await fetch(fileName, { cache: "no-store" });
-          if (!response.ok) continue;
-          const buffer = await response.arrayBuffer();
-          const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-          const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
-          loadedDocs.push(...buildDocuments(rows, accounts, approvedAppealMap));
-        }
-        const storedEvaluations = await fetchStoredEvaluations(1000, { strict: true, allMonths: true });
-        const rawMonthKeys = new Set(loadedDocs.map((doc) => doc.monthKey).filter(Boolean));
-        loadedDocs.push(
-          ...buildDocumentsFromStoredEvaluations(storedEvaluations, accounts, approvedAppealMap).filter(
-            (doc) => !rawMonthKeys.has(doc.monthKey)
-          )
-        );
-        if (!loadedDocs.length) throw new Error("ไม่พบข้อมูลจากไฟล์ QA Raw Data");
-        const docMap = new Map<string, SignatureDocument>();
-        loadedDocs.forEach((doc) => {
-          const existing = docMap.get(doc.id);
-          docMap.set(doc.id, existing ? mergeSignatureDocuments(existing, doc) : doc);
-        });
-
-        // Do not add every All Team user into monthly payment export.
-        // Payment PDF / Excel must follow the names already shown in the monthly Dashboard.
-        // Special Dashboard exception: March 2026 includes Anucha Makundin even with 0 evaluated cases.
-        const marchAnuchaKey = "2026-03::Anucha Makundin";
-        if (!docMap.has(marchAnuchaKey)) {
-          const anuchaAccount = accounts.find((account) =>
-            isSamePerson(account.agentName, "Anucha Makundin") ||
-            isSamePerson(account.displayName, "Anucha Makundin") ||
-            isSamePerson(account.username, "Anucha Makundin")
-          );
-          docMap.set(marchAnuchaKey, createZeroCaseDocument("2026-03", anuchaAccount || {
-            username: "anucha",
-            displayName: "Anucha Makundin",
-            agentName: "Anucha Makundin",
-            role: "Admin Live Chat",
-            teamName: "-",
-            teamLead: "",
-            status: "Historical",
-          }));
-        }
-
-        const canonicalDocMap = new Map<string, SignatureDocument>();
-        Array.from(docMap.values()).forEach((doc) => {
-          const canonicalName = canonicalAgentName(doc.agentName);
-          const canonicalId = `${doc.monthKey}::${canonicalName}`;
-          const owners = accounts.filter(account => [account.agentName, account.displayName, account.username].some(identity => isSamePerson(identity, canonicalName)));
-          const normalizedDoc = sortSignatureDocumentCases({ ...doc, id: canonicalId, agentName: canonicalName,
-            ...(owners.length === 1 ? { agentId: owners[0].username } : {}) });
-          const existing = canonicalDocMap.get(canonicalId);
-          if (!existing) {
-            canonicalDocMap.set(canonicalId, normalizedDoc);
-            return;
-          }
-          canonicalDocMap.set(canonicalId, mergeSignatureDocuments(existing, normalizedDoc));
-        });
-
-        const nextDocs = Array.from(canonicalDocMap.values()).map(sortSignatureDocumentCases).sort(
-          (a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName, "th")
-        );
+        const nextDocs = await loadCanonicalSignatureDocuments(accounts);
         if (!alive) return;
         setDocuments(nextDocs);
         setSelectedDocumentId((current) =>

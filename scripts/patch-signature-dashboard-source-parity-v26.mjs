@@ -13,6 +13,8 @@ if (!source.includes(requiredMarker)) {
   throw new Error("Signature Center v13 marker not found; run patch:final-signed-direct-source first");
 }
 
+// The canonical loader already applies the full Dashboard appeal/source rules.
+if (!source.includes("signature-canonical-report-source")) {
 const helperAnchor = "function applySignatureAppealTopics(";
 if (!source.includes(helperAnchor)) {
   throw new Error("Signature Center appeal helper anchor not found");
@@ -41,13 +43,15 @@ source = source.replaceAll(
   "approvedAppealMap = mergeSignatureAppealSources(rawAppealMap, buildSignatureApprovedAppealMap(approvedAppealLogs as UsageLogEvent[]));"
 );
 
+}
+
 const stateAnchor = "  const [documents, setDocuments] = useState<SignatureDocument[]>([]);";
 if (!source.includes(stateAnchor)) {
   throw new Error("Signature Center documents state anchor not found");
 }
 source = source.replace(
   stateAnchor,
-  `${stateAnchor}\n  const [signatureDataRefreshKey, setSignatureDataRefreshKey] = useState(0);`
+  `  ${marker}\n${stateAnchor}\n  const [signatureDataRefreshKey, setSignatureDataRefreshKey] = useState(0);`
 );
 
 const appealRefreshEffect = `    void loadAppeals();\n    return () => {\n      alive = false;\n    };\n  }, []);`;

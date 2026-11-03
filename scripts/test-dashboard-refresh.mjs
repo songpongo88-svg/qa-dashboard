@@ -79,7 +79,7 @@ try {
   };
   await render(0,{externalSelectedMonthKey:'2026-06'});await settle();
   assert.ok(table().includes('AA900601')&&table().includes('AA900602'),'historical June cases render in the real Dashboard');
-  assert.ok(table().includes('Monthly Report · Gen All Case PDF (2)'),'the monthly report action uses the complete June snapshot');
+  assert.ok(table().includes('Gen All Case PDF (2)'),'the monthly report action uses the complete June snapshot');
   assert.ok(document.body.textContent.includes('June 2026'),'June is available as a reporting month');
   console.log('PASS June selector, historical case list and visible monthly report count');
 

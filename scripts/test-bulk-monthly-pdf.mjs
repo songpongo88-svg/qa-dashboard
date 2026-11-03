@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
+import * as XLSX from "xlsx";
 import { finalSignedPdfDateFormatPatch } from "../build/finalSignedPdfDateFormatPatch.js";
 
 // Exercise the export after the production patch chain, including the real
@@ -33,9 +34,13 @@ const stubs = {
   coachingStore: `export const fetchStoredCoachingRecords = async () => globalThis.__monthlyPdfFixture.coaching;`,
   evaluationStore: `export const fetchStoredEvaluations = async () => globalThis.__monthlyPdfFixture.evaluations;
     export const getStoredEvaluationMonthKey = record => record.auditDate?.slice(0, 7) || '';
-    export const excludeTestEvaluations = (rows) => rows;`,
-  appealStore: `export const fetchAppealEvents = async () => [];`,
-  AppealRequestsMockup: `export default () => null; export const buildAppealRequests = () => [];`,
+    export const getOriginalEvaluationTimestamp = record => record.auditTimestamp || record.submittedAt || '';
+    export const getEvaluationLastUpdatedAt = record => record.updatedAt || '';
+    export const isNoCaseEvaluation = () => false;
+    export const isTestCaseEvaluation = record => !!record.isTestCase;
+    export const excludeTestEvaluations = rows => rows.filter(row => !row.isTestCase);`,
+  appealStore: `export const fetchAppealEvents = async () => []; export const writeAppealEvent = async () => { throw Error('Unexpected appeal write'); };`,
+  AppealRequestsMockup: `export default () => null; export const buildAppealRequests = () => []; export const appealAdditionalDeadline = value => value;`,
   jspdf: `import { jsPDF as RealPdf } from "jspdf";
     export class jsPDF extends RealPdf {
       constructor(...args) {
@@ -63,7 +68,7 @@ function fixtures(monthKey = "2026-09", agent = names.Agent) {
     caseDate: `${monthKey}-${String(index < 2 ? 6 : index + 6).padStart(2, "0")}`,
     inquiry: "Fixture inquiry", inquiryTh: "กรณีทดสอบการเรียงหน้า", teamName: "Fixture Team",
     rawDataPreview: { Senior: names.Senior, Supervisor: names.Supervisor, Team: "Fixture Team" },
-    evaluatorName: names.QA, finalScore: 88, grade: "B",
+    evaluatorName: names.QA, finalScore: 88, grade: "B", evidenceUrls: [],
     topics: [30, 20, 25, 25].map((max, topic) => ({ code: String(topic + 1), title: `หัวข้อทดสอบ ${topic + 1}`, max, score: max - 3, comment: "รายละเอียดทดสอบ", issueTags: topic === 0 ? ["เกิน SLA"] : [] })),
   }));
 }
@@ -104,9 +109,11 @@ try {
   const entry = resolve(temporary, "export-entry.ts");
   await writeFile(entry, `export { generateBulkCaseDetailPdf } from "./src/bulkCaseDetailPdf";\nexport { renderFinalSignedPdf } from "./src/finalSignedPdfRenderer";\nexport { loadSignatureCenterFinalSignedSource } from "./src/SignatureCenterMockup";`);
   const bundle = resolve(temporary, "export.mjs");
-  await build({ entryPoints: [entry], outfile: bundle, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", loader: { ".css": "empty" }, define: { "window.setTimeout": "globalThis.setTimeout" }, plugins: [{
+  await build({ entryPoints: [entry], outfile: bundle, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", loader: { ".css": "empty" }, define: { "window.setTimeout": "globalThis.setTimeout", "import.meta.env": "{}" }, plugins: [{
     name: "read-only-pdf-fixtures",
     setup(builder) {
+      builder.onResolve({ filter: /\?url$/ }, () => ({ path: "fixture-worker", namespace: "pdf-worker-fixture" }));
+      builder.onLoad({ filter: /.*/, namespace: "pdf-worker-fixture" }, () => ({ contents: 'export default "/fixture-worker.mjs";', loader: "js" }));
       builder.onResolve({ filter: /(?:^|\/)(signatureStore|coachingStore|evaluationStore|appealStore|AppealRequestsMockup|jspdf)$/ }, (args) => {
         if (args.namespace === "pdf-fixture") return { path: args.path, external: true };
         const key = args.path.split("/").pop();
@@ -121,7 +128,11 @@ try {
     },
   }] });
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(null, { status: 404 });
+  const rawWorkbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(rawWorkbook, XLSX.utils.aoa_to_sheet([["Agent Name", "Case ID", "Case Date", "Audit Date", "Final Score"]]), "Raw_Data");
+  const rawBytes = XLSX.write(rawWorkbook, { type: "buffer", bookType: "xlsx" });
+  globalThis.fetch = async url => /rawdata|rowdata/i.test(String(url))
+    ? new Response(rawBytes, { status: 200 }) : new Response(null, { status: 404 });
   try {
     for (const scenario of [
       { label: "signed-name-variants", signatures: [signedDocument()], coaching: [coaching()], expectedSigned: 4 },

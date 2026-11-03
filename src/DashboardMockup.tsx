@@ -96,6 +96,11 @@ type CaseItem = AppealScoreState & {
   evaluationKey: string;
   qaScheme?: string;
   agent: string;
+  sourceAgentName?: string;
+  seniorName?: string;
+  supervisorName?: string;
+  teamName?: string;
+  signatureComment?: string;
   targetUsername?: string;
   evaluatorName?: string;
   caseDate?: string;
@@ -1548,7 +1553,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
           issueTags: normalizeCaseIssueTags(matched?.issueTags),
         };
       });
-      const finalScoreVal = Number(record.finalScore || topics.reduce((sum, topic) => sum + topic.score, 0));
+      const finalScoreVal = Number(record.finalScore ?? topics.reduce((sum, topic) => sum + topic.score, 0));
       const evaluationKey = record.evaluationKey || `web-eval|${record.caseId}|${record.agentName}|${record.auditDate}|${record.id}`;
       const caseDateDisplay = formatAuditDateForDisplay(record.auditDate);
       const originalAuditTimestamp = getOriginalEvaluationTimestamp(record);
@@ -1562,6 +1567,11 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
         qaScheme: record.qaScheme,
         isTestCase: isTestCaseEvaluation(record),
         agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
+        sourceAgentName: canonicalizeAgentName(record.agentName || record.targetDisplayName || ""),
+        seniorName: String(record.rawDataPreview?.Senior || record.rawDataPreview?.["Team Lead"] || ""),
+        supervisorName: String(record.rawDataPreview?.Supervisor || ""),
+        teamName: String(record.rawDataPreview?.Team || record.rawDataPreview?.["Team Name"] || ""),
+        signatureComment: String(record.caseDescription || record.rawDataPreview?.["Final Comment"] || record.rawDataPreview?.Comment || ""),
         targetUsername: record.targetUsername,
         evaluatorName: String(record.evaluatorName || record.evaluatorUsername || "").trim(),
         caseDate: caseDateDisplay,
@@ -5266,696 +5276,33 @@ function CaseDetailContent({
   );
 }
 
-export default function DashboardMockup({
-  currentUser,
-  caseAgentDirectory = [],
-  dashboardSubTab,
-  caseDetailWorkspaceMode = false,
-  externalSelectedAgent,
-  externalSelectedMonthKey,
-  externalSelectedWeek,
-  externalSelectedYear,
-  externalSelectedCaseId,
-  externalSelectedCaseAgent,
-  caseFilterResetKey = 0,
-  roleScopedAgentNames,
-  canViewAgentsInOverview = false,
-  canViewAnalytics = false,
-  dataRefreshKey,
-  onRefreshData,
-  dataCheckedAt = 0,
-  analyticsContent,
-  onEffectiveCasesChange,
-  onSelectedAgentChange,
-  onSelectedMonthKeyChange,
-  onSelectedWeekChange,
-  onOpenCaseDetail,
-  onOpenEvaluationEdit,
-  onCloseCaseDetail,
-  onOpenAppealCase,
-  onGeneratePdf,
-  onShareCaseDetail,
-}: {
-  currentUser: any;
-  caseAgentDirectory?: CaseAgentDirectoryEntry[];
-  dashboardSubTab: "overview" | "case-detail";
-  caseDetailWorkspaceMode?: boolean;
-  externalSelectedAgent?: string;
-  externalSelectedMonthKey?: string;
-  externalSelectedWeek?: string;
-  externalSelectedYear?: string;
-  externalSelectedCaseId?: string;
-  externalSelectedCaseAgent?: string;
-  caseFilterResetKey?: number;
-  roleScopedAgentNames?: string[];
-  canViewAgentsInOverview?: boolean;
-  canViewAnalytics?: boolean;
-  dataRefreshKey?: number;
-  onRefreshData?: () => void;
-  dataCheckedAt?: number;
-  analyticsContent?: React.ReactNode;
-  onEffectiveCasesChange?: (cases: any[]) => void;
-  onSelectedAgentChange?: (agentName: string) => void;
-  onSelectedMonthKeyChange?: (monthKey: string) => void;
-  onSelectedWeekChange?: (week: string) => void;
-  onOpenCaseDetail?: (caseId?: string, agentName?: string) => void;
-  onOpenEvaluationEdit?: (caseId: string, agentName?: string) => void;
-  onCloseCaseDetail?: () => void;
-  onOpenAppealCase?: (caseId: string, agentName?: string) => void;
-  onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
-  onShareCaseDetail?: (caseId: string, agentName?: string) => void;
-}) {
-  const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
-  const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
-
-  const evaluationActivity = useEvaluationActivity();
-  const [sourceCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
-  const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
-  const markCaseAppealSubmitted = (caseId: string, agentName?: string, monthKey?: string) => {
-    const submittedIds = new Set(splitAppealCaseIds(caseId));
-    setAllCases((cases) => {
-      const owner = agentName || cases.find(item =>
-        splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)))?.agent;
-      const submittedMonth = monthKey || cases.find(item => isSameCanonicalAgent(item.agent, owner) &&
-        splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)))?.monthKey;
-      const inSubmittedMonth = (item: CaseItem) => isSameCanonicalAgent(item.agent, owner) && item.monthKey === submittedMonth;
-      const previousCount = Math.max(0, ...cases.filter(inSubmittedMonth)
-        .map(item => item.pendingAppealCaseCount || 0));
-      return cases.map(item => inSubmittedMonth(item) ? {
-        ...item,
-        appealScoreMonthKey: submittedMonth,
-        pendingAppealCaseCount: previousCount + submittedIds.size,
-        hasAppealHistory: item.hasAppealHistory || splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)),
-      } : item);
-    });
-    dashboardWorkbookCacheV155 = null;
+// Shared report source: Dashboard, monthly summaries and signatures use identical
+// Case Date, historical workbook, case deduplication and resolved appeal rules.
+export type CanonicalReportCase = CaseItem;
+export type CanonicalReportData = {
+  cases: CaseItem[];
+  noCaseEvaluations: StoredEvaluation[];
+  appealMergeCount: number;
+};
+export async function loadCanonicalReportData(): Promise<CanonicalReportData> {
+  let evaluationCases: CaseItem[] = [];
+  let loadedNoCaseEvaluations: StoredEvaluation[] = [];
+  let evaluationCasesPromise: Promise<CaseItem[]> | null = null;
+  const loadEvaluationCases = () => {
+    if (!evaluationCasesPromise) {
+      evaluationCasesPromise = fetchStoredEvaluations(300, { strict: true, allMonths: true })
+        .then((records) => {
+          loadedNoCaseEvaluations = records.filter((item) => isNoCaseEvaluation(item) && isQaDashboardSupportedMonthKey(getStoredEvaluationMonthKey(item)));
+          return mapStoredEvaluationsToCaseItems(records);
+        });
+    }
+    return evaluationCasesPromise;
   };
-  const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>(() => dashboardWorkbookCacheV155?.noCaseEvaluations || []);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [lastLoadedAt, setLastLoadedAt] = useState(() => dashboardWorkbookCacheV155?.cachedAt || 0);
-  const [loadRetryNonce, setLoadRetryNonce] = useState(0);
-  const loadRetriesRef = useRef({ key: dataRefreshKey, count: 0 });
-  useEffect(() => {
-    const deadline = nextAppealScoreDeadline(allCases);
-    if (deadline === null) return;
-    const timer = window.setTimeout(() => {
-      dashboardWorkbookCacheV155 = null;
-      setLoadRetryNonce(value => value + 1);
-    }, Math.min(2_147_483_647, Math.max(0, deadline - Date.now()) + 25));
-    return () => window.clearTimeout(timer);
-  }, [allCases]);
-  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
-  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() => {
-    const requestedMonth = String(externalSelectedMonthKey || "").trim();
-    return requestedMonth !== "all" && isQaDashboardSupportedMonthKey(requestedMonth)
-      ? requestedMonth
-      : currentMonthKey;
+  const buildResult = (cases: CaseItem[], appealMergeCount: number): CanonicalReportData => ({
+    cases: cases.filter(item => isQaDashboardSupportedMonthKey(item.monthKey)),
+    noCaseEvaluations: loadedNoCaseEvaluations,
+    appealMergeCount,
   });
-  const [selectedYear, setSelectedYear] = useState<string>(() => {
-    const externalYear =
-      String(externalSelectedYear || "").match(/^\d{4}$/)?.[0] ||
-      String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
-    return externalYear && externalYear >= "2026" ? externalYear : String(TODAY.getFullYear());
-  });
-  const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
-  const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
-  // bulk-case-detail-pdf-v1
-  const [bulkCasePdfBusy, setBulkCasePdfBusy] = useState(false);
-  const [bulkCasePdfProgress, setBulkCasePdfProgress] = useState("");
-  // bulk-case-pdf-role-scopes-v2
-  const [bulkCasePdfMode, setBulkCasePdfMode] = useState<"all" | "my" | "">("");
-  // bulk-case-pdf-filter-teamname-v3
-  const [bulkCasePdfSelectedTeam, setBulkCasePdfSelectedTeam] = useState(() =>
-    window.sessionStorage.getItem("qa_analytics_team_v134") || "all"
-  );
-
-  useEffect(() => {
-    const syncTeam = (event?: Event) => {
-      const detailTeam = String((event as CustomEvent)?.detail?.team || "").trim();
-      const storedTeam = window.sessionStorage.getItem("qa_analytics_team_v134") || "all";
-      setBulkCasePdfSelectedTeam(detailTeam || storedTeam);
-    };
-    window.addEventListener("qa-dashboard-team-filter-change", syncTeam);
-    return () => window.removeEventListener("qa-dashboard-team-filter-change", syncTeam);
-  }, []);
-  // bulk-case-pdf-permission-v1
-  const [bulkCasePdfPermissionEnabled, setBulkCasePdfPermissionEnabled] = useState(() =>
-    isQualityAssuranceRole(currentUser?.role)
-  );
-
-  useEffect(() => {
-    let active = true;
-    const fallback = isQualityAssuranceRole(currentUser?.role);
-    setBulkCasePdfPermissionEnabled(fallback);
-    const roleKey = String(currentUser?.role || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[-_]+/g, " ")
-      .replace(/\s+/g, " ");
-
-    void fetchStoredRolePermissions()
-      .then((rows) => {
-        if (!active) return;
-        const matched = rows.find((row) =>
-          String(row.roleName || "")
-            .trim()
-            .toLowerCase()
-            .replace(/[-_]+/g, " ")
-            .replace(/\s+/g, " ") === roleKey
-        );
-        const storedValue = matched?.permissions?.generateAllCasePdf;
-        setBulkCasePdfPermissionEnabled(
-          typeof storedValue === "boolean" ? storedValue : fallback
-        );
-      })
-      .catch(() => {
-        if (active) setBulkCasePdfPermissionEnabled(fallback);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [currentUser?.role]);
-  const [caseIdSearch, setCaseIdSearch] = useState<string>("");
-  const [caseRecordFilter, setCaseRecordFilter] = useState<CaseRecordFilter>("all");
-  const [caseSearchSubmitNonce, setCaseSearchSubmitNonce] = useState(0);
-  const [caseSearchFeedback, setCaseSearchFeedback] = useState<"idle" | "found" | "multiple" | "not-found">("idle");
-  const caseSearchHandledNonceRef = useRef(0);
-  const [caseSearchHistory, setCaseSearchHistory] = useState<string[]>([]);
-  const [caseSearchHistoryOpen, setCaseSearchHistoryOpen] = useState(false);
-  const [dateFrom, setDateFrom] = useState<string>(formatInputDate(firstDayOfCurrentMonth));
-  const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
-  const [currentPeriodNotice, setCurrentPeriodNotice] = useState("");
-  const [appealMergeCount, setAppealMergeCount] = useState(0);
-  const [overviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
-  const [dashboardSearchTarget, setDashboardSearchTarget] = useState<HTMLElement | null>(null);
-  const [selectedTopicCode, setSelectedTopicCode] = useState("");
-  const [analyticsTrendMode, setAnalyticsTrendMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
-
-  // data-analytics-dashboard-case-source-v24
-  useEffect(() => {
-    if (isLoading || loadError) return;
-    onEffectiveCasesChange?.(allCases);
-  }, [allCases, isLoading, loadError, onEffectiveCasesChange]);
-
-  const [slideOverOpen, setSlideOverOpen] = useState(false);
-
-  useEffect(() => {
-    if (!canViewAnalytics || !analyticsContent) {
-      setDashboardSearchTarget(null);
-      return;
-    }
-
-    let frameId = 0;
-    const resolveTarget = () => {
-      const target = document.getElementById("qa-dashboard-search-slot-v166");
-      if (target) {
-        setDashboardSearchTarget(target);
-        return;
-      }
-      frameId = window.requestAnimationFrame(resolveTarget);
-    };
-
-    resolveTarget();
-    return () => window.cancelAnimationFrame(frameId);
-  }, [analyticsContent, canViewAnalytics, isLoading]);
-
-
-  function closeCaseDetail() {
-    setSlideOverOpen(false);
-    setSelectedCaseKey("");
-    if (caseDetailWorkspaceMode || externalSelectedCaseId) {
-      onCloseCaseDetail?.();
-    }
-  }
-
-  useEffect(() => {
-    if (!caseDetailWorkspaceMode && !externalSelectedCaseId) {
-      setSlideOverOpen(false);
-    }
-  }, [caseDetailWorkspaceMode, externalSelectedCaseId]);
-
-  const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
-  const caseSearchHistoryStorageKey = useMemo(() => {
-    const identity = String(
-      currentUser?.username || currentUser?.email || currentUser?.displayName || currentUser?.name || "guest"
-    ).trim().toLowerCase();
-    return `${CASE_SEARCH_HISTORY_STORAGE_PREFIX}:${identity || "guest"}`;
-  }, [currentUser]);
-  const roleScopedAgentList = useMemo(
-    () => dedupeAgentNames((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
-    [roleScopedAgentNames]
-  );
-
-  const overviewCanSelectAgents =
-    dashboardSubTab === "overview" &&
-    canViewAgentsInOverview;
-  const overviewSelfOnly =
-    dashboardSubTab === "overview" &&
-    !overviewCanSelectAgents;
-  const overviewResolvedAgent = useMemo(() => {
-    const candidates = [
-      currentUser?.agentName,
-      currentUser?.displayName,
-      currentUser?.username,
-    ]
-      .map((value) => toTitleCaseName(String(value || "").trim()))
-      .filter(Boolean);
-    const matchedCase = allCases.find((item) =>
-      candidates.some((candidate) => isSameAgent(item.agent, candidate))
-    );
-    return matchedCase?.agent || candidates[0] || "";
-  }, [allCases, currentUser?.agentName, currentUser?.displayName, currentUser?.username]);
-  const overviewAgentScopeList = useMemo(
-    () =>
-      overviewSelfOnly && overviewResolvedAgent
-        ? [overviewResolvedAgent]
-        : roleScopedAgentList,
-    [overviewResolvedAgent, overviewSelfOnly, roleScopedAgentList]
-  );
-
-  useEffect(() => {
-    if (dashboardSubTab !== "overview") return;
-    if (overviewSelfOnly && overviewResolvedAgent) {
-      setSelectedAgent(overviewResolvedAgent);
-      onSelectedAgentChange?.(overviewResolvedAgent);
-    }
-  }, [
-    dashboardSubTab,
-    onSelectedAgentChange,
-    overviewResolvedAgent,
-    overviewSelfOnly,
-  ]);
-
-  const effectiveMonthKeyForAgentVisibility = useMemo(() => {
-    if (selectedMonthKey && selectedMonthKey !== "all") return selectedMonthKey;
-    return getEffectiveMonthKeyFromDateRange(dateFrom, dateTo);
-  }, [selectedMonthKey, dateFrom, dateTo]);
-
-  useEffect(() => {
-    if (overviewAgentScopeList.length || typeof externalSelectedAgent !== "string") return;
-
-    const requestedAgent = String(externalSelectedAgent || "").trim();
-    const resolvedAgent = requestedAgent
-      ? allCases.find((item) => isSameCanonicalAgent(item.agent, requestedAgent))?.agent || requestedAgent
-      : "";
-
-    if (resolvedAgent !== selectedAgent) {
-      setSelectedAgent(resolvedAgent);
-      // agent-keeps-period-v32
-      // Agent Performance and Case Records can be backed by differently-normalized
-      // names. Resolve the clicked Analytics name to the canonical Case Records name
-      // before filtering so the list never falls to 0 until a browser refresh.
-      setCaseIdSearch("");
-      setSelectedCaseKey("");
-      setSlideOverOpen(false);
-    }
-  }, [
-    externalSelectedAgent,
-    selectedAgent,
-    overviewAgentScopeList.length,
-    allCases,
-  ]);
-
-  useEffect(() => {
-    const requestedExternalMonth = String(externalSelectedMonthKey || "").trim();
-    const safeExternalMonth =
-      requestedExternalMonth === "all" || isQaDashboardSupportedMonthKey(requestedExternalMonth)
-        ? requestedExternalMonth
-        : "";
-    if (
-      safeExternalMonth &&
-      safeExternalMonth !== selectedMonthKey
-    ) {
-      setSelectedMonthKey(safeExternalMonth);
-    }
-    const requestedExternalYear =
-      String(externalSelectedYear || "").match(/^\d{4}$/)?.[0] ||
-      String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
-    const externalYear =
-      requestedExternalYear && requestedExternalYear >= "2026"
-        ? requestedExternalYear
-        : "";
-
-    // The embedded Yearly view represents the complete selected year. Clear a
-    // stale month/date range even when the shared month value was already "all".
-    if (
-      safeExternalMonth === "all" &&
-      externalYear &&
-      (dateFrom || dateTo)
-    ) {
-      setDateFrom("");
-      setDateTo("");
-    }
-
-    if (externalYear && externalYear !== selectedYear) {
-      setSelectedYear(externalYear);
-    }
-  }, [
-    dateFrom,
-    dateTo,
-    externalSelectedMonthKey,
-    externalSelectedYear,
-    selectedMonthKey,
-    selectedYear,
-  ]);
-
-  useEffect(() => {
-    if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
-      setSelectedWeek(externalSelectedWeek);
-    }
-  }, [externalSelectedWeek, selectedWeek]);
-
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(window.localStorage.getItem(caseSearchHistoryStorageKey) || "[]");
-      const normalized = Array.isArray(stored)
-        ? stored
-            .map((value) => String(value || "").trim().toUpperCase())
-            .filter(Boolean)
-            .slice(0, CASE_SEARCH_HISTORY_LIMIT)
-        : [];
-      setCaseSearchHistory([...new Set(normalized)]);
-    } catch {
-      setCaseSearchHistory([]);
-    }
-  }, [caseSearchHistoryStorageKey]);
-
-  const rememberCaseSearch = (rawCaseId: string) => {
-    const normalized = String(rawCaseId || "").trim().toUpperCase();
-    if (!normalized) return;
-
-    setCaseSearchHistory((current) => {
-      const next = [normalized, ...current.filter((value) => value !== normalized)].slice(0, CASE_SEARCH_HISTORY_LIMIT);
-      try {
-        window.localStorage.setItem(caseSearchHistoryStorageKey, JSON.stringify(next));
-      } catch {
-        // Keep the in-memory history available when browser storage is blocked.
-      }
-      return next;
-    });
-  };
-
-  const runCaseSearch = (rawCaseId = caseIdSearch) => {
-    const normalized = String(rawCaseId || "").trim().toUpperCase();
-    setCaseIdSearch(normalized);
-    setCaseSearchFeedback("idle");
-    if (normalized) {
-      setCaseRecordFilter("all");
-      setSelectedWeek("all");
-      onSelectedWeekChange?.("all");
-      setSelectedTopicCode("");
-    }
-    setSelectedCaseKey("");
-    setSlideOverOpen(false);
-    setCaseSearchHistoryOpen(false);
-    if (normalized) {
-      rememberCaseSearch(normalized);
-      setCaseSearchSubmitNonce((current) => current + 1);
-    }
-  };
-
-  // dashboard-case-navigation-v1
-  const clearCaseSearch = useCallback(() => {
-    setCaseIdSearch("");
-    setCaseRecordFilter("all");
-    setSelectedCaseKey("");
-    setSlideOverOpen(false);
-    setCaseSearchHistoryOpen(false);
-    setCaseSearchFeedback("idle");
-    setSelectedTopicCode("");
-  }, []);
-
-  // A repeated click on the same Agent is still a new navigation action.
-  // Clear only case filters; the user's Period, Team and Agent remain selected.
-  useEffect(() => {
-    clearCaseSearch();
-  }, [caseFilterResetKey, clearCaseSearch]);
-
-  useEffect(() => {
-    const pendingCaseId = caseIdSearch.trim();
-    if (!pendingCaseId || caseSearchFeedback !== "idle") return;
-
-    const timerId = window.setTimeout(() => {
-      runCaseSearch(pendingCaseId);
-    }, 350);
-
-    return () => window.clearTimeout(timerId);
-  }, [caseIdSearch, caseSearchFeedback]);
-
-  const clearCaseSearchHistory = () => {
-    setCaseSearchHistory([]);
-    try {
-      window.localStorage.removeItem(caseSearchHistoryStorageKey);
-    } catch {
-      // Clearing the visible history should still work when browser storage is blocked.
-    }
-    setCaseSearchHistoryOpen(false);
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    let retryTimer: number | undefined;
-    if (loadRetriesRef.current.key !== dataRefreshKey) loadRetriesRef.current = { key: dataRefreshKey, count: 0 };
-    const loadWorkbook = async () => {
-      let evaluationCases: CaseItem[] = [];
-      let loadedNoCaseEvaluations: StoredEvaluation[] = [];
-      let evaluationCasesPromise: Promise<CaseItem[]> | null = null;
-      const cacheKey = String(dataRefreshKey ?? "default");
-      const loadEvaluationCases = () => {
-        if (!evaluationCasesPromise) {
-          evaluationCasesPromise = fetchStoredEvaluations(300, { strict: true, allMonths: true })
-            .then((records) => {
-              loadedNoCaseEvaluations = records.filter((item) => isNoCaseEvaluation(item) && isQaDashboardSupportedMonthKey(getStoredEvaluationMonthKey(item)));
-              return mapStoredEvaluationsToCaseItems(records);
-            });
-        }
-        return evaluationCasesPromise;
-      };
-      const applyLoadedWorkbook = (nextCases: CaseItem[], nextAppealMergeCount: number) => {
-        if (cancelled) return;
-        const supportedCases = nextCases.filter((item) => isQaDashboardSupportedMonthKey(item.monthKey));
-        // Never keep an empty workbook result as a reusable cache. A transient read
-        // failure used to leave Cases in Current View empty until a full browser refresh.
-        dashboardWorkbookCacheV155 = supportedCases.length
-          ? {
-              cacheKey,
-              cases: supportedCases,
-              noCaseEvaluations: loadedNoCaseEvaluations,
-              appealMergeCount: nextAppealMergeCount,
-              cachedAt: Date.now(),
-            }
-          : null;
-        setAllCases(supportedCases);
-        setNoCaseEvaluations(loadedNoCaseEvaluations);
-        setAppealMergeCount(nextAppealMergeCount);
-        setLastLoadedAt(Date.now());
-        loadRetriesRef.current.count = 0;
-      };
-
-      try {
-        setIsLoading(true);
-        setLoadError("");
-
-        if (
-          dashboardWorkbookCacheV155 &&
-          dashboardWorkbookCacheV155.cacheKey === cacheKey &&
-          dashboardWorkbookCacheV155.cases.length > 0 &&
-          Date.now() - dashboardWorkbookCacheV155.cachedAt < 15000
-        ) {
-          setAllCases(dashboardWorkbookCacheV155.cases.filter((item) => isQaDashboardSupportedMonthKey(item.monthKey)));
-          setNoCaseEvaluations(dashboardWorkbookCacheV155.noCaseEvaluations || []);
-          setAppealMergeCount(dashboardWorkbookCacheV155.appealMergeCount);
-          setLastLoadedAt(dashboardWorkbookCacheV155.cachedAt);
-          setLoadError("");
-          setIsLoading(false);
-          return;
-        }
-
-        const v8Response = { ok: false } as Response;
-        if (v8Response.ok) {
-          const v8Buffer = await v8Response.arrayBuffer();
-          const v8Workbook = XLSX.read(v8Buffer, { type: "array", cellDates: false });
-          const v8Sheet = v8Workbook.Sheets["Effective_Data"] || v8Workbook.Sheets[v8Workbook.SheetNames[0]];
-          const v8Rows = XLSX.utils.sheet_to_json<any[]>(v8Sheet, {
-            header: 1,
-            defval: null,
-            raw: true,
-          });
-
-          const v8HeaderIndex = (() => {
-            for (let i = 0; i < v8Rows.length; i++) {
-              const row = (v8Rows[i] || []) as any[];
-              const normalized = row.map((v) => normalizeText(v));
-              if (normalized.includes("agent name") && normalized.includes("case id") && normalized.includes("final score")) return i;
-            }
-            return -1;
-          })();
-
-          if (v8HeaderIndex >= 0) {
-            const v8HeaderRow = (v8Rows[v8HeaderIndex] || []) as any[];
-            const v8DataRows = v8Rows.slice(v8HeaderIndex + 1);
-            const v8Helper = buildHeaderHelpers(v8HeaderRow);
-
-            const mapped: CaseItem[] = v8DataRows
-              .map((row, rowOffset) => {
-                const caseId = String(v8Helper.getValue(row, "Case ID") || "").trim();
-                if (!caseId) return null;
-                const agent = toTitleCaseName(String(v8Helper.getValue(row, "Agent Name") || "").trim());
-                if (!agent) return null;
-
-                const auditRaw = v8Helper.getValue(row, "Audit Date");
-                const caseDateRaw = getFirstAvailableHeaderValue(v8Helper, row, ["Case Date", "Audit Date"], auditRaw);
-                const timestampRaw = getFirstAvailableHeaderValue(v8Helper, row, ["Timestamp", "Audit Timestamp"], auditRaw);
-                const auditDateObj = excelDateToJSDate(caseDateRaw);
-                const monthDate = getReportingMonthDate(
-                  v8Helper.getValue(row, "Month Start"),
-                  v8Helper.getValue(row, "Month Label"),
-                  auditDateObj
-                );
-                const monthKey = getMonthKey(monthDate);
-                const topicMaster = getTopicMasterByMonth(monthKey);
-
-                const topics: Topic[] = topicMaster.map((topic) => {
-                  const scoreRaw =
-                    v8Helper.getValue(row, `${topic.code} Revised Score`) ??
-                    v8Helper.getValue(row, `${topic.code} Score`) ??
-                    v8Helper.getValue(row, topic.code) ??
-                    0;
-                  const score = Number(scoreRaw || 0);
-                  return {
-                    code: topic.code,
-                    label: topic.label,
-                    score: Number.isFinite(score) ? score : 0,
-                    max: topic.max,
-                    pct: topic.max > 0 ? Math.round(((Number.isFinite(score) ? score : 0) / topic.max) * 100) : 0,
-                    comment: String(v8Helper.getValue(row, `${topic.code} Revised Comment`) || v8Helper.getValue(row, `${topic.code} Comment`) || "").trim(),
-                    issueTags: normalizeCaseIssueTags(v8Helper.getValue(row, `${topic.code} Tags`)),
-                  };
-                });
-
-                const finalScoreRaw = v8Helper.getLastValue(row, "Final Score");
-                const previousScoreRaw = v8Helper.getValue(row, "Previous Score");
-                const finalScore =
-                  finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw))
-                    ? Number(finalScoreRaw)
-                    : topics.reduce((sum, topic) => sum + topic.score, 0);
-                const previousScore =
-                  previousScoreRaw !== null && previousScoreRaw !== "" && !Number.isNaN(Number(previousScoreRaw))
-                    ? Number(previousScoreRaw)
-                    : finalScore;
-
-                const latestAppealStatus = String(v8Helper.getValue(row, "Latest Appeal Status") || "").toLowerCase();
-                const changeRemark = String(v8Helper.getValue(row, "Change Remark") || "").toLowerCase();
-                const dataSource = String(v8Helper.getValue(row, "Data Source") || "").toLowerCase();
-                const isRevised =
-                  latestAppealStatus.includes("approved") ||
-                  changeRemark.includes("revis") ||
-                  dataSource.includes("appeal") ||
-                  Math.abs(finalScore - previousScore) > 0.0001;
-
-                const caseUrl = getFirstAvailableHeaderValue(v8Helper, row, ["Case URL", "Case Url", "URL"], "");
-                const rawDataSourceName = String(
-                  getFirstAvailableHeaderValue(v8Helper, row, ["RawData File", "Raw Data File", "Data Source"], V8_EFFECTIVE_FILE_NAME)
-                ).trim() || V8_EFFECTIVE_FILE_NAME;
-                const inquiry = getFirstAvailableHeaderValue(v8Helper, row, ["Customer Inquiry", "Inquiry TH", "Inquiry"], "-");
-
-                const evaluationKey = buildEvaluationKeyFromRow(
-                  v8Helper,
-                  row,
-                  caseId,
-                  agent,
-                  auditRaw,
-                  finalScore,
-                  topics
-                );
-
-                return {
-                  key: `v8-${evaluationKey}`,
-                  evaluationKey,
-                  isTestCase: isTestCaseEvaluation({ "Test Case": v8Helper.getValue(row, "Test Case") }),
-                  agent,
-                  caseDate: formatAuditDateForDisplay(caseDateRaw),
-                  evaluationAuditDate: formatAuditTimestamp(timestampRaw || auditRaw),
-                  auditDate: formatAuditDateForDisplay(caseDateRaw),
-                  auditDateObj,
-                  auditTimestamp: formatAuditTimestamp(timestampRaw),
-                  monthKey,
-                  monthLabel: getReportingMonthLabel(v8Helper.getValue(row, "Month Label"), monthDate),
-                  // weekly-case-date-v29
-                  weekLabel: getWeekLabelFromAuditDate(auditDateObj),
-                  caseId,
-                  rawDataSourceName,
-                  rawDataFileName: V8_EFFECTIVE_FILE_NAME,
-                  caseUrl: caseUrl ? String(caseUrl).trim() : "",
-                  waitingTime: formatTimeOnly(getFirstAvailableHeaderValue(v8Helper, row, ["Waiting Time", "WaitingTime"], "")),
-                  serviceTime: formatTimeOnly(getFirstAvailableHeaderValue(v8Helper, row, ["Service Time", "ServiceTime"], "")),
-                  inquiryTh: String(inquiry || "-").trim(),
-                  inquiryEn: String(inquiry || "-").trim(),
-                  caseDescription: String(getFirstAvailableHeaderValue(v8Helper, row, ["Case Description", "Case Description / เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธช เธเธณเธญเธเธดเธเธฒเธขเน€เธเธช"], "") || "").trim(),
-                  processReference: String(getFirstAvailableHeaderValue(v8Helper, row, ["Process Reference", "Process ที่ใช้เทียบ"], "") || "").trim(),
-                  caseImageUrl: normalizeAssetUrl(
-                    getFirstAvailableHeaderValue(v8Helper, row, [
-                      "Case Image URL / ภาพประกอบเคส",
-                      "ภาพประกอบเคส",
-                      "รูปภาพเคส",
-                      "รูปเคส",
-                      "ลิงก์ภาพประกอบเคส",
-                      "ลิงก์รูปภาพ",
-                      "ไฟล์แนบ",
-                      "เอกสารแนบ",
-                      "แนบรูปภาพ",
-                      "Case Image URL",
-                      "Case Image",
-                      "Image URL",
-                      "Image Link",
-                      "Attachment URL",
-                      "Case Attachment",
-                      "Attachment",
-                      "Evidence URL",
-                      "Evidence",
-                      "Screenshot",
-                      "Photo",
-                      "Picture",
-                    ], "") ||
-                    getFuzzyHeaderValue(v8HeaderRow, row, [
-                      "case image",
-                      "image url",
-                      "image link",
-                      "attachment",
-                      "evidence",
-                      "screenshot",
-                      "photo",
-                      "picture",
-                    ], "")
-                  ),
-                  casePdfUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF URL", "Case PDF"], caseId ? `/case-pdfs/${caseId}.pdf` : "")),
-                  casePdfOriginalUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF Original URL"], caseId ? `/case-pdfs/${caseId}-original.pdf` : "")),
-                  casePdfRevisedUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF Revised URL"], caseId ? `/case-pdfs/${caseId}-revised.pdf` : "")),
-                  finalScore,
-                  previousScore,
-                  grade: scoreToGrade(finalScore, monthKey),
-                  reviewStatus: isRevised ? "Revised" : "Original",
-                  topics,
-                  revisedTopics: null,
-                  displayRevisedTopicCodes: [],
-                } as CaseItem;
-              })
-              .filter(Boolean) as CaseItem[];
-
-            const validMappedCases = mapped.filter((item) => item.agent && item.caseId && item.auditDateObj);
-            evaluationCases = await loadEvaluationCases();
-            const canonicalCases = mergeRawAndStoredEvaluationCases(validMappedCases, evaluationCases);
-            applyLoadedWorkbook(
-              canonicalCases,
-              validMappedCases.filter((item) => item.reviewStatus === "Revised").length
-            );
-            setIsLoading(false);
-            return;
-          }
-        }
-
         const rawResponses = await Promise.all(
           RAW_DATA_FILE_NAMES.map(async (fileName) => ({
             fileName,
@@ -5987,9 +5334,7 @@ export default function DashboardMockup({
         if (!availableRawResponses.length) {
           evaluationCases = await loadEvaluationCases();
           if (evaluationCases.length) {
-            applyLoadedWorkbook(evaluationCases, 0);
-            setIsLoading(false);
-            return;
+            return buildResult(evaluationCases, 0);
           }
           throw new Error(`เนเธกเนเธเธเนเธเธฅเน RawData เนเธเนเธเธฅเน€เธ”เธญเธฃเน public: ${RAW_DATA_FILE_NAMES.join(", ")}`);
         }
@@ -6626,6 +5971,11 @@ export default function DashboardMockup({
               evaluationKey,
               isTestCase: isTestCaseEvaluation({ "Test Case": rawHelper.getValue(row, "Test Case") }),
               agent,
+              sourceAgentName: canonicalizeAgentName(String(rawHelper.getValue(row, "Agent Name") || "")),
+              seniorName: String(getFirstAvailableHeaderValue(rawHelper, row, ["Senior", "Team Lead", "Team Leader"], "")),
+              supervisorName: String(getFirstAvailableHeaderValue(rawHelper, row, ["Supervisor", "Sup"], "")),
+              teamName: String(getFirstAvailableHeaderValue(rawHelper, row, ["Team", "Team Name"], "")),
+              signatureComment: String(getFirstAvailableHeaderValue(rawHelper, row, ["Final Comment", "Comment", "QA Comment", "Case Description"], "")),
               evaluatorName,
               caseDate: caseDateDisplay,
               evaluationAuditDate: formatAuditTimestamp(timestampRaw || auditRaw),
@@ -6678,7 +6028,477 @@ export default function DashboardMockup({
           ...item,
           appealAdditionalActive: requestsByCase.get(normalizeAppealCaseId(item.caseId)) || null,
         }));
-        applyLoadedWorkbook(casesWithAdditionalAppeal, appealMap.size);
+        return buildResult(casesWithAdditionalAppeal, appealMap.size);
+}
+
+export default function DashboardMockup({
+  currentUser,
+  caseAgentDirectory = [],
+  dashboardSubTab,
+  caseDetailWorkspaceMode = false,
+  externalSelectedAgent,
+  externalSelectedMonthKey,
+  externalSelectedWeek,
+  externalSelectedYear,
+  externalSelectedCaseId,
+  externalSelectedCaseAgent,
+  caseFilterResetKey = 0,
+  roleScopedAgentNames,
+  canViewAgentsInOverview = false,
+  canViewAnalytics = false,
+  dataRefreshKey,
+  onRefreshData,
+  dataCheckedAt = 0,
+  analyticsContent,
+  onEffectiveCasesChange,
+  onSelectedAgentChange,
+  onSelectedMonthKeyChange,
+  onSelectedWeekChange,
+  onOpenCaseDetail,
+  onOpenEvaluationEdit,
+  onCloseCaseDetail,
+  onOpenAppealCase,
+  onGeneratePdf,
+  onShareCaseDetail,
+}: {
+  currentUser: any;
+  caseAgentDirectory?: CaseAgentDirectoryEntry[];
+  dashboardSubTab: "overview" | "case-detail";
+  caseDetailWorkspaceMode?: boolean;
+  externalSelectedAgent?: string;
+  externalSelectedMonthKey?: string;
+  externalSelectedWeek?: string;
+  externalSelectedYear?: string;
+  externalSelectedCaseId?: string;
+  externalSelectedCaseAgent?: string;
+  caseFilterResetKey?: number;
+  roleScopedAgentNames?: string[];
+  canViewAgentsInOverview?: boolean;
+  canViewAnalytics?: boolean;
+  dataRefreshKey?: number;
+  onRefreshData?: () => void;
+  dataCheckedAt?: number;
+  analyticsContent?: React.ReactNode;
+  onEffectiveCasesChange?: (cases: any[]) => void;
+  onSelectedAgentChange?: (agentName: string) => void;
+  onSelectedMonthKeyChange?: (monthKey: string) => void;
+  onSelectedWeekChange?: (week: string) => void;
+  onOpenCaseDetail?: (caseId?: string, agentName?: string) => void;
+  onOpenEvaluationEdit?: (caseId: string, agentName?: string) => void;
+  onCloseCaseDetail?: () => void;
+  onOpenAppealCase?: (caseId: string, agentName?: string) => void;
+  onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
+  onShareCaseDetail?: (caseId: string, agentName?: string) => void;
+}) {
+  const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
+
+  const evaluationActivity = useEvaluationActivity();
+  const [sourceCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
+  const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
+  const markCaseAppealSubmitted = (caseId: string, agentName?: string, monthKey?: string) => {
+    const submittedIds = new Set(splitAppealCaseIds(caseId));
+    setAllCases((cases) => {
+      const owner = agentName || cases.find(item =>
+        splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)))?.agent;
+      const submittedMonth = monthKey || cases.find(item => isSameCanonicalAgent(item.agent, owner) &&
+        splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)))?.monthKey;
+      const inSubmittedMonth = (item: CaseItem) => isSameCanonicalAgent(item.agent, owner) && item.monthKey === submittedMonth;
+      const previousCount = Math.max(0, ...cases.filter(inSubmittedMonth)
+        .map(item => item.pendingAppealCaseCount || 0));
+      return cases.map(item => inSubmittedMonth(item) ? {
+        ...item,
+        appealScoreMonthKey: submittedMonth,
+        pendingAppealCaseCount: previousCount + submittedIds.size,
+        hasAppealHistory: item.hasAppealHistory || splitAppealCaseIds(item.caseId).some(id => submittedIds.has(id)),
+      } : item);
+    });
+    dashboardWorkbookCacheV155 = null;
+  };
+  const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>(() => dashboardWorkbookCacheV155?.noCaseEvaluations || []);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [lastLoadedAt, setLastLoadedAt] = useState(() => dashboardWorkbookCacheV155?.cachedAt || 0);
+  const [loadRetryNonce, setLoadRetryNonce] = useState(0);
+  const loadRetriesRef = useRef({ key: dataRefreshKey, count: 0 });
+  useEffect(() => {
+    const deadline = nextAppealScoreDeadline(allCases);
+    if (deadline === null) return;
+    const timer = window.setTimeout(() => {
+      dashboardWorkbookCacheV155 = null;
+      setLoadRetryNonce(value => value + 1);
+    }, Math.min(2_147_483_647, Math.max(0, deadline - Date.now()) + 25));
+    return () => window.clearTimeout(timer);
+  }, [allCases]);
+  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() => {
+    const requestedMonth = String(externalSelectedMonthKey || "").trim();
+    return requestedMonth !== "all" && isQaDashboardSupportedMonthKey(requestedMonth)
+      ? requestedMonth
+      : currentMonthKey;
+  });
+  const [selectedYear, setSelectedYear] = useState<string>(() => {
+    const externalYear =
+      String(externalSelectedYear || "").match(/^\d{4}$/)?.[0] ||
+      String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
+    return externalYear && externalYear >= "2026" ? externalYear : String(TODAY.getFullYear());
+  });
+  const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
+  const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
+  // bulk-case-detail-pdf-v1
+  const [bulkCasePdfBusy, setBulkCasePdfBusy] = useState(false);
+  const [bulkCasePdfProgress, setBulkCasePdfProgress] = useState("");
+  // bulk-case-pdf-role-scopes-v2
+  const [bulkCasePdfMode, setBulkCasePdfMode] = useState<"all" | "my" | "">("");
+  // bulk-case-pdf-filter-teamname-v3
+  const [bulkCasePdfSelectedTeam, setBulkCasePdfSelectedTeam] = useState(() =>
+    window.sessionStorage.getItem("qa_analytics_team_v134") || "all"
+  );
+
+  useEffect(() => {
+    const syncTeam = (event?: Event) => {
+      const detailTeam = String((event as CustomEvent)?.detail?.team || "").trim();
+      const storedTeam = window.sessionStorage.getItem("qa_analytics_team_v134") || "all";
+      setBulkCasePdfSelectedTeam(detailTeam || storedTeam);
+    };
+    window.addEventListener("qa-dashboard-team-filter-change", syncTeam);
+    return () => window.removeEventListener("qa-dashboard-team-filter-change", syncTeam);
+  }, []);
+  // bulk-case-pdf-permission-v1
+  const [bulkCasePdfPermissionEnabled, setBulkCasePdfPermissionEnabled] = useState(() =>
+    isQualityAssuranceRole(currentUser?.role)
+  );
+
+  useEffect(() => {
+    let active = true;
+    const fallback = isQualityAssuranceRole(currentUser?.role);
+    setBulkCasePdfPermissionEnabled(fallback);
+    const roleKey = String(currentUser?.role || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ");
+
+    void fetchStoredRolePermissions()
+      .then((rows) => {
+        if (!active) return;
+        const matched = rows.find((row) =>
+          String(row.roleName || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[-_]+/g, " ")
+            .replace(/\s+/g, " ") === roleKey
+        );
+        const storedValue = matched?.permissions?.generateAllCasePdf;
+        setBulkCasePdfPermissionEnabled(
+          typeof storedValue === "boolean" ? storedValue : fallback
+        );
+      })
+      .catch(() => {
+        if (active) setBulkCasePdfPermissionEnabled(fallback);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.role]);
+  const [caseIdSearch, setCaseIdSearch] = useState<string>("");
+  const [caseRecordFilter, setCaseRecordFilter] = useState<CaseRecordFilter>("all");
+  const [caseSearchSubmitNonce, setCaseSearchSubmitNonce] = useState(0);
+  const [caseSearchFeedback, setCaseSearchFeedback] = useState<"idle" | "found" | "multiple" | "not-found">("idle");
+  const caseSearchHandledNonceRef = useRef(0);
+  const [caseSearchHistory, setCaseSearchHistory] = useState<string[]>([]);
+  const [caseSearchHistoryOpen, setCaseSearchHistoryOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState<string>(formatInputDate(firstDayOfCurrentMonth));
+  const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
+  const [currentPeriodNotice, setCurrentPeriodNotice] = useState("");
+  const [appealMergeCount, setAppealMergeCount] = useState(0);
+  const [overviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
+  const [dashboardSearchTarget, setDashboardSearchTarget] = useState<HTMLElement | null>(null);
+  const [selectedTopicCode, setSelectedTopicCode] = useState("");
+  const [analyticsTrendMode, setAnalyticsTrendMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
+
+  // data-analytics-dashboard-case-source-v24
+  useEffect(() => {
+    if (isLoading || loadError) return;
+    onEffectiveCasesChange?.(allCases);
+  }, [allCases, isLoading, loadError, onEffectiveCasesChange]);
+
+  const [slideOverOpen, setSlideOverOpen] = useState(false);
+
+  useEffect(() => {
+    if (!canViewAnalytics || !analyticsContent) {
+      setDashboardSearchTarget(null);
+      return;
+    }
+
+    let frameId = 0;
+    const resolveTarget = () => {
+      const target = document.getElementById("qa-dashboard-search-slot-v166");
+      if (target) {
+        setDashboardSearchTarget(target);
+        return;
+      }
+      frameId = window.requestAnimationFrame(resolveTarget);
+    };
+
+    resolveTarget();
+    return () => window.cancelAnimationFrame(frameId);
+  }, [analyticsContent, canViewAnalytics, isLoading]);
+
+
+  function closeCaseDetail() {
+    setSlideOverOpen(false);
+    setSelectedCaseKey("");
+    if (caseDetailWorkspaceMode || externalSelectedCaseId) {
+      onCloseCaseDetail?.();
+    }
+  }
+
+  useEffect(() => {
+    if (!caseDetailWorkspaceMode && !externalSelectedCaseId) {
+      setSlideOverOpen(false);
+    }
+  }, [caseDetailWorkspaceMode, externalSelectedCaseId]);
+
+  const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const caseSearchHistoryStorageKey = useMemo(() => {
+    const identity = String(
+      currentUser?.username || currentUser?.email || currentUser?.displayName || currentUser?.name || "guest"
+    ).trim().toLowerCase();
+    return `${CASE_SEARCH_HISTORY_STORAGE_PREFIX}:${identity || "guest"}`;
+  }, [currentUser]);
+  const roleScopedAgentList = useMemo(
+    () => dedupeAgentNames((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
+    [roleScopedAgentNames]
+  );
+
+  const overviewCanSelectAgents =
+    dashboardSubTab === "overview" &&
+    canViewAgentsInOverview;
+  const overviewSelfOnly =
+    dashboardSubTab === "overview" &&
+    !overviewCanSelectAgents;
+  const overviewResolvedAgent = useMemo(() => {
+    const candidates = [
+      currentUser?.agentName,
+      currentUser?.displayName,
+      currentUser?.username,
+    ]
+      .map((value) => toTitleCaseName(String(value || "").trim()))
+      .filter(Boolean);
+    const matchedCase = allCases.find((item) =>
+      candidates.some((candidate) => isSameAgent(item.agent, candidate))
+    );
+    return matchedCase?.agent || candidates[0] || "";
+  }, [allCases, currentUser?.agentName, currentUser?.displayName, currentUser?.username]);
+  const overviewAgentScopeList = useMemo(
+    () =>
+      overviewSelfOnly && overviewResolvedAgent
+        ? [overviewResolvedAgent]
+        : roleScopedAgentList,
+    [overviewResolvedAgent, overviewSelfOnly, roleScopedAgentList]
+  );
+
+  useEffect(() => {
+    if (dashboardSubTab !== "overview") return;
+    if (overviewSelfOnly && overviewResolvedAgent) {
+      setSelectedAgent(overviewResolvedAgent);
+      onSelectedAgentChange?.(overviewResolvedAgent);
+    }
+  }, [
+    dashboardSubTab,
+    onSelectedAgentChange,
+    overviewResolvedAgent,
+    overviewSelfOnly,
+  ]);
+
+  const effectiveMonthKeyForAgentVisibility = useMemo(() => {
+    if (selectedMonthKey && selectedMonthKey !== "all") return selectedMonthKey;
+    return getEffectiveMonthKeyFromDateRange(dateFrom, dateTo);
+  }, [selectedMonthKey, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (overviewAgentScopeList.length || typeof externalSelectedAgent !== "string") return;
+
+    const requestedAgent = String(externalSelectedAgent || "").trim();
+    const resolvedAgent = requestedAgent
+      ? allCases.find((item) => isSameCanonicalAgent(item.agent, requestedAgent))?.agent || requestedAgent
+      : "";
+
+    if (resolvedAgent !== selectedAgent) {
+      setSelectedAgent(resolvedAgent);
+      // agent-keeps-period-v32
+      // Agent Performance and Case Records can be backed by differently-normalized
+      // names. Resolve the clicked Analytics name to the canonical Case Records name
+      // before filtering so the list never falls to 0 until a browser refresh.
+      setCaseIdSearch("");
+      setSelectedCaseKey("");
+      setSlideOverOpen(false);
+    }
+  }, [
+    externalSelectedAgent,
+    selectedAgent,
+    overviewAgentScopeList.length,
+    allCases,
+  ]);
+
+  useEffect(() => {
+    const requestedExternalMonth = String(externalSelectedMonthKey || "").trim();
+    const safeExternalMonth =
+      requestedExternalMonth === "all" || isQaDashboardSupportedMonthKey(requestedExternalMonth)
+        ? requestedExternalMonth
+        : "";
+    if (
+      safeExternalMonth &&
+      safeExternalMonth !== selectedMonthKey
+    ) {
+      setSelectedMonthKey(safeExternalMonth);
+    }
+    const requestedExternalYear =
+      String(externalSelectedYear || "").match(/^\d{4}$/)?.[0] ||
+      String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
+    const externalYear =
+      requestedExternalYear && requestedExternalYear >= "2026"
+        ? requestedExternalYear
+        : "";
+
+    // The embedded Yearly view represents the complete selected year. Clear a
+    // stale month/date range even when the shared month value was already "all".
+    if (
+      safeExternalMonth === "all" &&
+      externalYear &&
+      (dateFrom || dateTo)
+    ) {
+      setDateFrom("");
+      setDateTo("");
+    }
+
+    if (externalYear && externalYear !== selectedYear) {
+      setSelectedYear(externalYear);
+    }
+  }, [
+    dateFrom,
+    dateTo,
+    externalSelectedMonthKey,
+    externalSelectedYear,
+    selectedMonthKey,
+    selectedYear,
+  ]);
+
+  useEffect(() => {
+    if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
+      setSelectedWeek(externalSelectedWeek);
+    }
+  }, [externalSelectedWeek, selectedWeek]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(caseSearchHistoryStorageKey) || "[]");
+      const normalized = Array.isArray(stored)
+        ? stored
+            .map((value) => String(value || "").trim().toUpperCase())
+            .filter(Boolean)
+            .slice(0, CASE_SEARCH_HISTORY_LIMIT)
+        : [];
+      setCaseSearchHistory([...new Set(normalized)]);
+    } catch {
+      setCaseSearchHistory([]);
+    }
+  }, [caseSearchHistoryStorageKey]);
+
+  const rememberCaseSearch = (rawCaseId: string) => {
+    const normalized = String(rawCaseId || "").trim().toUpperCase();
+    if (!normalized) return;
+
+    setCaseSearchHistory((current) => {
+      const next = [normalized, ...current.filter((value) => value !== normalized)].slice(0, CASE_SEARCH_HISTORY_LIMIT);
+      try {
+        window.localStorage.setItem(caseSearchHistoryStorageKey, JSON.stringify(next));
+      } catch {
+        // Keep the in-memory history available when browser storage is blocked.
+      }
+      return next;
+    });
+  };
+
+  const runCaseSearch = (rawCaseId = caseIdSearch) => {
+    const normalized = String(rawCaseId || "").trim().toUpperCase();
+    setCaseIdSearch(normalized);
+    setCaseSearchFeedback("idle");
+    if (normalized) {
+      setCaseRecordFilter("all");
+      setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
+      setSelectedTopicCode("");
+    }
+    setSelectedCaseKey("");
+    setSlideOverOpen(false);
+    setCaseSearchHistoryOpen(false);
+    if (normalized) {
+      rememberCaseSearch(normalized);
+      setCaseSearchSubmitNonce((current) => current + 1);
+    }
+  };
+
+  // dashboard-case-navigation-v1
+  const clearCaseSearch = useCallback(() => {
+    setCaseIdSearch("");
+    setCaseRecordFilter("all");
+    setSelectedCaseKey("");
+    setSlideOverOpen(false);
+    setCaseSearchHistoryOpen(false);
+    setCaseSearchFeedback("idle");
+    setSelectedTopicCode("");
+  }, []);
+
+  // A repeated click on the same Agent is still a new navigation action.
+  // Clear only case filters; the user's Period, Team and Agent remain selected.
+  useEffect(() => {
+    clearCaseSearch();
+  }, [caseFilterResetKey, clearCaseSearch]);
+
+  useEffect(() => {
+    const pendingCaseId = caseIdSearch.trim();
+    if (!pendingCaseId || caseSearchFeedback !== "idle") return;
+
+    const timerId = window.setTimeout(() => {
+      runCaseSearch(pendingCaseId);
+    }, 350);
+
+    return () => window.clearTimeout(timerId);
+  }, [caseIdSearch, caseSearchFeedback]);
+
+  const clearCaseSearchHistory = () => {
+    setCaseSearchHistory([]);
+    try {
+      window.localStorage.removeItem(caseSearchHistoryStorageKey);
+    } catch {
+      // Clearing the visible history should still work when browser storage is blocked.
+    }
+    setCaseSearchHistoryOpen(false);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    if (loadRetriesRef.current.key !== dataRefreshKey) loadRetriesRef.current = { key: dataRefreshKey, count: 0 };
+    const loadWorkbook = async () => {
+      const cacheKey = String(dataRefreshKey ?? "default");
+      try {
+        setIsLoading(true);
+        setLoadError("");
+        const cached = dashboardWorkbookCacheV155;
+        const result = cached && cached.cacheKey === cacheKey && cached.cases.length && Date.now() - cached.cachedAt < 15000
+          ? cached : await loadCanonicalReportData();
+        if (cancelled) return;
+        const cachedAt = "cachedAt" in result ? result.cachedAt : Date.now();
+        dashboardWorkbookCacheV155 = result.cases.length ? { ...result, cacheKey, cachedAt } : null;
+        setAllCases(result.cases);
+        setNoCaseEvaluations(result.noCaseEvaluations);
+        setAppealMergeCount(result.appealMergeCount);
+        setLastLoadedAt(cachedAt);
+        loadRetriesRef.current.count = 0;
       } catch (error: any) {
         if (cancelled) return;
         console.error("Dashboard refresh failed; keeping the last complete result", error);
@@ -6691,8 +6511,7 @@ export default function DashboardMockup({
         if (!cancelled) setIsLoading(false);
       }
     };
-
-    loadWorkbook();
+    void loadWorkbook();
     return () => {
       cancelled = true;
       window.clearTimeout(retryTimer);
@@ -9152,7 +8971,7 @@ export default function DashboardMockup({
                               <span aria-hidden="true">▤</span>
                               {bulkCasePdfBusy && bulkCasePdfMode === "all"
                                 ? `กำลัง Gen ${bulkCasePdfProgress}`
-                                : `${isWeeklyCasePdfView ? "" : "Monthly Report · "}Gen All Case PDF (${allCasePdfCases.length})`}
+                                : `Gen All Case PDF (${allCasePdfCases.length})`}
                             </button>
                             {isSeniorBulkCasePdfRole ? (
                               <button

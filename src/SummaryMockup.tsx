@@ -1,3 +1,5 @@
+import { loadCanonicalReportData } from "./DashboardMockup";
+import { createMonthlyTeamSummaryPdf } from "./monthlyTeamSummaryPdf";
 import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
 import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
@@ -3009,6 +3011,9 @@ export default function SummaryMockup({
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [reportPdfDialogOpen, setReportPdfDialogOpen] = useState(false);
+  const [reportSummaryMonth, setReportSummaryMonth] = useState("");
+  const [monthlyReportBusy, setMonthlyReportBusy] = useState(false);
+  const [monthlyReportError, setMonthlyReportError] = useState("");
   const [reportPdfView, setReportPdfView] = useState<SummaryView>("monthly-dashboard");
   const [analyticsCustomizeOpen, setAnalyticsCustomizeOpen] = useState(false);
   // data-workspace-view-state-v134
@@ -6308,6 +6313,53 @@ export default function SummaryMockup({
     setAnalyticsExportOpen(false);
   }
 
+  const openMonthlyTeamSummary = () => {
+    const currentMonth = /^\d{4}-\d{2}$/.test(selectedMonth) ? selectedMonth
+      : analysisMode === "monthly" ? effectivePeriodKeys[effectivePeriodKeys.length - 1] : "";
+    setReportSummaryMonth(currentMonth || monthOptions[0]?.value || "");
+    setMonthlyReportError("");
+    setAnalyticsExportOpen(false);
+    setReportPdfDialogOpen(true);
+  };
+
+  async function generateMonthlyTeamSummary() {
+    if (!analyticsCanExport || monthlyReportBusy) return;
+    setMonthlyReportBusy(true);
+    setMonthlyReportError("");
+    try {
+      if (!reportSummaryMonth) throw new Error("กรุณาเลือกเดือนที่ต้องการออกรายงาน");
+      const { cases } = await loadCanonicalReportData();
+      const reportTeam = !analyticsCanSelectAllTeams && canViewOwnTeam ? currentUserTeamName : selectedTeam;
+      if (!analyticsCanSelectAllTeams && canViewOwnTeam && !reportTeam) throw new Error("ไม่พบทีมที่ได้รับสิทธิ์ กรุณาตรวจสอบข้อมูลบัญชี");
+      const withinAgentScope = (agent: string) =>
+        (!roleScopedAgentList.length || roleScopedAgentList.some(name => isSameAgent(name, agent))) &&
+        (effectiveSelectedAgent === "all" || isSameAgent(effectiveSelectedAgent, agent)) &&
+        (reportTeam === "all" || normalizeText(getSummaryTeamName(getAccountStatus(agent, accountProfiles))) === normalizeText(reportTeam));
+      const monthlyCases = excludeTestEvaluations(cases).filter(item => item.monthKey === reportSummaryMonth && withinAgentScope(item.agent));
+      const agents = [...new Set([
+        ...monthlyCases.map(item => item.agent),
+        ...evaluationActivity.records.map(item => item.displayName).filter(withinAgentScope),
+        ...(effectiveSelectedAgent !== "all" ? [effectiveSelectedAgent] : roleScopedAgentList),
+      ])];
+      const hold = evaluationScopeHold(evaluationActivity, agents, [reportSummaryMonth]) || getAppealScoreHold(monthlyCases);
+      if (hold) throw new Error(hold.label || "ข้อมูลเดือนนี้ยังรอการประเมินหรือผลอุทธรณ์");
+      await assertEvaluationScopeComplete(agents, [reportSummaryMonth]);
+      const result = createMonthlyTeamSummaryPdf({
+        cases: monthlyCases, monthKey: reportSummaryMonth,
+        agentLabel: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent,
+        teamLabel: reportTeam === "all" ? "All Teams" : reportTeam,
+        generatedBy: String(currentUser?.displayName || currentUser?.name || currentUser?.username || "-"),
+      });
+      await assertEvaluationScopeComplete(agents, [reportSummaryMonth]);
+      result.pdf.save(result.fileName);
+      setReportPdfDialogOpen(false);
+    } catch (error) {
+      setMonthlyReportError(error instanceof Error ? error.message : "สร้างรายงานรายเดือนไม่สำเร็จ กรุณาลองอีกครั้ง");
+    } finally {
+      setMonthlyReportBusy(false);
+    }
+  }
+
   async function generateSummaryReportPdf() {
     if (appealScoreHold) return;
     try { await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months); }
@@ -9109,8 +9161,9 @@ export default function SummaryMockup({
                       Export
                     </button>
                     {analyticsExportOpen && analyticsCanExport ? (
-                      <div className="absolute right-0 top-[calc(100%+8px)] z-[520] w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-slate-700 shadow-2xl">
+                      <div className="absolute right-0 top-[calc(100%+8px)] z-[520] w-64 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-slate-700 shadow-2xl">
                         <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Export Current Report</div>
+                        <button type="button" onClick={openMonthlyTeamSummary} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium text-violet-800 hover:bg-violet-50"><span>Monthly Team Summary PDF</span><span>›</span></button>
                         <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-violet-50 hover:text-violet-700"><span>PDF</span><span>›</span></button>
                         <button type="button" onClick={exportCurrentAnalyticsExcel} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-violet-50 hover:text-violet-700"><span>Excel</span><span>›</span></button>
                       </div>
@@ -9221,50 +9274,24 @@ export default function SummaryMockup({
             dashboardControlTarget
           )
         : null}
-      {false && reportPdfDialogOpen ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-2xl">
-            <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-5 py-4 text-white">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-100">Export PDF</div>
-              <div className="mt-1 text-xl font-semibold">Choose Report PDF</div>
-              <div className="mt-1 text-xs text-violet-100">Select report type before generating PDF</div>
+      {reportPdfDialogOpen ? (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-slate-950/60 p-4" onKeyDown={event => { if (event.key === "Escape" && !monthlyReportBusy) setReportPdfDialogOpen(false); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="monthly-team-summary-title" className="w-full max-w-xl overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-2xl">
+            <div className="bg-violet-800 px-5 py-4 text-white">
+              <h2 id="monthly-team-summary-title" className="text-xl font-semibold">Monthly Team Summary</h2>
+              <p className="mt-1 text-sm text-violet-100">รายงานสรุปทั้งเดือน รูปแบบเดียวกับ Yearly Team Summary</p>
             </div>
-
             <div className="space-y-4 p-5">
-              <div>
-                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-violet-700">Report Type</div>
-                <select
-                  value={reportPdfView}
-                  onChange={(event) => setReportPdfView(event.target.value as SummaryView)}
-                  className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                >
-                  {reportPdfOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
+              <label className="block text-sm font-medium text-slate-700">เดือนที่ต้องการออกรายงาน
+                <select autoFocus value={reportSummaryMonth} onChange={event => setReportSummaryMonth(event.target.value)} disabled={monthlyReportBusy} className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-4 py-3">
+                  {monthOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
-                PDF will be generated in A4 portrait format using the current filters. This does not affect Case Detail PDF.
-              </div>
-
+              </label>
+              <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Agent: {effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent}<br />Team: {selectedTeam === "all" ? "All Teams" : selectedTeam}<br />รายงานรวมทุกสัปดาห์ในเดือนที่เลือก</p>
+              {monthlyReportError ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{monthlyReportError}</p> : null}
               <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setReportPdfDialogOpen(false)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={generateSummaryReportPdf}
-                  className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800"
-                >
-                  Generate PDF
-                </button>
+                <button type="button" disabled={monthlyReportBusy} onClick={() => setReportPdfDialogOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">Cancel</button>
+                <button type="button" disabled={monthlyReportBusy || !reportSummaryMonth} onClick={() => void generateMonthlyTeamSummary()} className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{monthlyReportBusy ? "Generating…" : "Generate Monthly PDF"}</button>
               </div>
             </div>
           </div>
@@ -9315,8 +9342,9 @@ export default function SummaryMockup({
                 Export
               </button>
               {analyticsExportOpen && analyticsCanExport ? (
-                <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
                   <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">Export Current View</div>
+                        <button type="button" onClick={openMonthlyTeamSummary} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium text-violet-800 hover:bg-violet-50"><span>Monthly Team Summary PDF</span><span>›</span></button>
                   <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-normal text-slate-700 hover:bg-violet-50 hover:text-violet-700"><span>PDF</span><span>›</span></button>
                   <button type="button" onClick={exportCurrentAnalyticsExcel} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-normal text-slate-700 hover:bg-violet-50 hover:text-violet-700"><span>Excel</span><span>›</span></button>
                 </div>

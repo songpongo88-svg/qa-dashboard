@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import { unlockedMonthlyResultFixture } from "./fixtures/unlocked-monthly-result.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -37,7 +38,10 @@ console.warn = (...args) => { if (!expectedFailure(args)) originalWarn(...args);
 console.error = (...args) => { if (!expectedFailure(args)) originalError(...args); };
 window.alert = message => fixture.alerts.push(String(message));
 const originalFetch = globalThis.fetch;
-globalThis.fetch = async () => new Response("", { status: 404 });
+const emptyRaw = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(emptyRaw, XLSX.utils.aoa_to_sheet([["Agent Name", "Case ID", "Case Date", "Audit Date", "Final Score"]]), "Raw_Data");
+const emptyRawBytes = XLSX.write(emptyRaw, { type: "buffer", bookType: "xlsx" });
+globalThis.fetch = async () => new Response(emptyRawBytes, { status: 200 });
 const { createRoot } = await import("react-dom/client");
 let root;
 const agent = "Fixture Agent A";
@@ -64,7 +68,7 @@ const accounts = [account(agent), account("Fixture Agent B")];
 fixture.evaluations = [agent, "Fixture Agent B"].flatMap((name, owner) => Array.from({ length: 10 }, (_, i) => ({
   id: `fixture-${owner}-${i}`, caseId: `AA99${owner + 1}${String(i).padStart(3, "0")}`, agentName: name,
   auditDate: "2026-09-20", auditTimestamp: "2026-09-20T03:00:00Z", finalScore: 90,
-  evaluatorName: names.QA, inquiry: "ข้อมูลทดสอบ", topics: [topic],
+  evaluatorName: names.QA, inquiry: "ข้อมูลทดสอบ", topics: [topic], evidenceUrls: [],
 })));
 const signed = role => ({ role, signerName: names[role], signedBy: names[role], status: "Signed", signedAt: at(-1) });
 const coaching = name => ({ id: `coaching-${name}`, agent: name, agentId: name, monthKey: '2026-09',
@@ -81,13 +85,16 @@ const storeMock = `
   export async function fetchAssignedAppealRequestIds(){return []}
   export async function fetchAppealDiscussionEvents(){return []}
   export async function writeAppealEvent(){return true}
+  export async function updateAppealDiscussionMessage(){return true}
   export async function writeAdditionalAppealAccessDecision(){return true}
 `;
 try {
   const output = resolve(temporary, "signature.mjs");
   await build({ entryPoints: ["src/SignatureCenterMockup.tsx"], outfile: output, bundle: true,
-    platform: "node", format: "esm", packages: "external", define: { "import.meta.env": "{}" }, logLevel: "silent",
+    platform: "node", format: "esm", packages: "external", loader: { ".css": "empty" }, define: { "import.meta.env": "{}" }, logLevel: "silent",
     plugins: [unlockedMonthlyResultFixture(),{ name: "signature-appeal-boundaries", setup(builder) {
+      builder.onResolve({filter:/\?url$/},()=>({path:'asset',namespace:'signature-worker-fixture'}));
+      builder.onLoad({filter:/.*/,namespace:'signature-worker-fixture'},()=>({contents:'export default "/fixture-worker.mjs";',loader:'js'}));
       builder.onResolve({filter:/^xlsx$/},()=>({path:'xlsx',namespace:'payment-workbook-fixture'}));
       builder.onLoad({filter:/.*/,namespace:'payment-workbook-fixture'},()=>({loader:'js',contents:`
         import {createRequire} from 'node:module';const xlsx=createRequire(import.meta.url)('xlsx');
@@ -107,8 +114,8 @@ try {
         `,
         "./paymentCarryOverStore": "export async function fetchPaymentCarryOverStates(){return {}};export async function markPaymentCarryOverExported(input){return input}",
         "./coachingStore": `export async function fetchStoredCoachingRecords(options){const f=globalThis.__signatureAppealFixture;f.coachingReads.push(options);if(f.coachingFailed)throw new Error('offline fixture');return structuredClone(f.coaching)}`,
-        "./evaluationStore": "export async function fetchStoredEvaluations(){return globalThis.__signatureAppealFixture.evaluations};export async function fetchStoredEvaluationsForCases(){return globalThis.__signatureAppealFixture.evaluations};export const getStoredEvaluationMonthKey=record=>record.auditDate?.slice(0,7)||'';export const excludeTestEvaluations=records=>records.filter(record=>!record.isTestCase)",
-        "./userRoleStore": "export async function fetchStoredUserProfiles(){return []}",
+        "./evaluationStore": "export async function fetchStoredEvaluations(){return globalThis.__signatureAppealFixture.evaluations};export async function fetchStoredEvaluationsForCases(){return globalThis.__signatureAppealFixture.evaluations};export const getStoredEvaluationMonthKey=record=>record.auditDate?.slice(0,7)||'';export const excludeTestEvaluations=records=>records.filter(record=>!record.isTestCase);export const isTestCaseEvaluation=record=>!!record.isTestCase;export const isNoCaseEvaluation=()=>false;export const getOriginalEvaluationTimestamp=record=>record.auditTimestamp;export const getEvaluationLastUpdatedAt=record=>record.updatedAt||''",
+        "./userRoleStore": "export async function fetchStoredUserProfiles(){return []};export async function fetchStoredRolePermissions(){return []}",
         "./PageHero": "export default function Hero(){return null}",
       };
       builder.onResolve({ filter: /^\.\/(appealStore|signatureStore|paymentCarryOverStore|coachingStore|evaluationStore|userRoleStore|PageHero)$/ },
