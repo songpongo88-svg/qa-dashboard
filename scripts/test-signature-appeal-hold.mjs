@@ -305,6 +305,8 @@ try {
   fixture.coachingFailed = false;
   console.log('PASS same Agent/month Coaching, summary, Action Plan, accepted QA Review and Bangkok day-15 cutoff gate real production PDF names; stale and failed reads cannot export');
   if (getCarryOverPaymentCycle) {
+    assert.equal(isPaymentReadyDocument({ ...doc, monthKey: '2026-05' }, allSigned, new Map(), []), true, 'May late-completed documents remain eligible for May export');
+    assert.equal(getCarryOverPaymentCycle({ ...doc, monthKey: '2026-05' }, allSigned, []), '', 'May completed documents must not carry into October or any later payment cycle');
     const lateSignatures = allSigned.map(entry => ({ ...entry, signedAt: '2026-10-16T03:00:00Z' }));
     assert.equal(getCarryOverPaymentCycle(doc, lateSignatures, []), '', 'carry-over cannot bypass missing Coaching');
     assert.equal(getCarryOverPaymentCycle(doc, lateSignatures, [accepted]), '2026-10');
