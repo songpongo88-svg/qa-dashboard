@@ -3483,7 +3483,7 @@ export default function SummaryMockup({
           } as CaseItem;
         }).filter(Boolean) as CaseItem[];
 
-        const storedEvaluations = excludeTestEvaluations(await fetchStoredEvaluations(300));
+        const storedEvaluations = excludeTestEvaluations(await fetchStoredEvaluations(300, { strict: true, allMonths: true }));
         setNoCaseEvaluations(storedEvaluations.filter(isNoCaseEvaluation));
         const evaluationCases: CaseItem[] = storedEvaluations
           .filter((record) => !isNoCaseEvaluation(record))

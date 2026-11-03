@@ -1560,8 +1560,10 @@ export async function fetchStoredEvaluationsForCases(caseIds: readonly string[])
   }
 }
 
-export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, options: { strict?: boolean } = {}) {
-  const safeLimit = normalizeEvaluationLimit(limit);
+export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, options: { strict?: boolean; allMonths?: boolean } = {}) {
+  // Reporting must retain historical months as new cases are submitted.
+  // Share the complete read across reporting views while keeping each query bounded.
+  const safeLimit = options.allMonths ? Number.MAX_SAFE_INTEGER : normalizeEvaluationLimit(limit);
   const localEvaluations = readLocalEvaluationHistory();
   const cachedEvaluations = isFirebaseEvaluationConfigured() ? [] : readRemoteEvaluationCache();
   const recoveredLocalEvaluations = isFirebaseEvaluationConfigured() ? [] : readRecoveredLocalEvaluations();
@@ -1575,9 +1577,11 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
         const records: StoredEvaluation[] = [];
         let cursor: QueryDocumentSnapshot | undefined;
         let realCount = 0;
+        const deadline = Date.now() + 20_000;
         // Page past test records to retain the same real-result window as before.
         while (realCount < safeLimit) {
-          const pageLimit = safeLimit - realCount;
+          if (Date.now() >= deadline) throw new Error("โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง");
+          const pageLimit = options.allMonths ? 300 : safeLimit - realCount;
           const snapshot = await getDocs(query(
             collection(db, FIREBASE_EVALUATION_COLLECTION),
             orderBy("submitted_at", "desc"),
@@ -1590,6 +1594,9 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
           records.push(...page);
           realCount += page.filter((item) => !item.deletedAt && !isTestCaseEvaluation(item)).length;
           if (snapshot.docs.length < pageLimit) break;
+          if (cursor?.id === snapshot.docs[snapshot.docs.length - 1].id) {
+            throw new Error("โหลดประวัติผลประเมินหน้าถัดไปไม่สำเร็จ กรุณาลองอัปเดตข้อมูลอีกครั้ง");
+          }
           cursor = snapshot.docs[snapshot.docs.length - 1];
         }
         return [...limitEvaluationScopes(records.filter(item => !item.deletedAt), safeLimit), ...records.filter(item => item.deletedAt)];

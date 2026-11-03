@@ -104,7 +104,7 @@ try {
   const entry = resolve(temporary, "export-entry.ts");
   await writeFile(entry, `export { generateBulkCaseDetailPdf } from "./src/bulkCaseDetailPdf";\nexport { renderFinalSignedPdf } from "./src/finalSignedPdfRenderer";\nexport { loadSignatureCenterFinalSignedSource } from "./src/SignatureCenterMockup";`);
   const bundle = resolve(temporary, "export.mjs");
-  await build({ entryPoints: [entry], outfile: bundle, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", define: { "window.setTimeout": "globalThis.setTimeout" }, plugins: [{
+  await build({ entryPoints: [entry], outfile: bundle, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent", loader: { ".css": "empty" }, define: { "window.setTimeout": "globalThis.setTimeout" }, plugins: [{
     name: "read-only-pdf-fixtures",
     setup(builder) {
       builder.onResolve({ filter: /(?:^|\/)(signatureStore|coachingStore|evaluationStore|appealStore|AppealRequestsMockup|jspdf)$/ }, (args) => {

@@ -2698,10 +2698,7 @@ export default function SignatureCenterMockup({
           const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
           loadedDocs.push(...buildDocuments(rows, accounts, approvedAppealMap));
         }
-        const storedEvaluations = await fetchStoredEvaluations(1000).catch((error) => {
-          console.warn("Signature Center stored evaluations skipped", error);
-          return [] as StoredEvaluation[];
-        });
+        const storedEvaluations = await fetchStoredEvaluations(1000, { strict: true, allMonths: true });
         const rawMonthKeys = new Set(loadedDocs.map((doc) => doc.monthKey).filter(Boolean));
         loadedDocs.push(
           ...buildDocumentsFromStoredEvaluations(storedEvaluations, accounts, approvedAppealMap).filter(

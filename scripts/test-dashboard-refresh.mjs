@@ -51,7 +51,7 @@ try {
   const remote={read:async()=>{throw new Error('offline');},calls:0,count:2,countCalls:0,queries:[]};globalThis.__refreshRemote=remote;
   const storeBundle=await build({stdin:{contents:"export {fetchStoredEvaluations,invalidateStoredEvaluationCache} from './src/evaluationStore';export {fetchDashboardRevision} from './src/dashboardRevision';",resolveDir:rootDir,loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env':JSON.stringify({VITE_FIREBASE_API_KEY:'test',VITE_FIREBASE_PROJECT_ID:'test',VITE_FIREBASE_APP_ID:'test'})},plugins:[{name:'fake-firestore',setup(b){
     b.onResolve({filter:/^(firebase\/|\.\/firebaseClient$)/},args=>({path:args.path,namespace:'remote-fixture'}));
-    b.onLoad({filter:/.*/,namespace:'remote-fixture'},args=>({loader:'js',contents:args.path==='./firebaseClient'?'export const firebaseDb={};':args.path==='firebase/app'?'export const initializeApp=()=>({}),getApps=()=>[];':args.path==='firebase/storage'?'export const getDownloadURL=()=>{},getStorage=()=>{},ref=()=>{},uploadBytes=()=>{},uploadBytesResumable=()=>{};':`export const documentId=()=>"__name__";export const collection=(_,name)=>({name}),deleteDoc=()=>{},doc=()=>({}),getFirestore=()=>({}),limit=n=>n,orderBy=()=>({}),query=(source,...args)=>({source,args}),setDoc=()=>{},startAfter=()=>({}),where=()=>({});export async function runTransaction(){throw new Error("Unexpected deletion in refresh fixture");}export async function getDocsFromServer(){throw new Error("Unexpected source-case query in refresh fixture");}export async function getDocs(ref){globalThis.__refreshRemote.calls++;globalThis.__refreshRemote.queries.push(ref);return globalThis.__refreshRemote.read();}export async function getCountFromServer(){globalThis.__refreshRemote.countCalls++;return{data:()=>({count:globalThis.__refreshRemote.count})};}`}));
+    b.onLoad({filter:/.*/,namespace:'remote-fixture'},args=>({loader:'js',contents:args.path==='./firebaseClient'?'export const firebaseDb={};':args.path==='firebase/app'?'export const initializeApp=()=>({}),getApps=()=>[];':args.path==='firebase/storage'?'export const getDownloadURL=()=>{},getStorage=()=>{},ref=()=>{},uploadBytes=()=>{},uploadBytesResumable=()=>{};':`export const onSnapshot=()=>()=>{},serverTimestamp=()=>"fixture";export async function getDocFromServer(){throw new Error("Unexpected document read in refresh fixture");}export const documentId=()=>"__name__";export const collection=(_,name)=>({name}),deleteDoc=()=>{},doc=()=>({}),getFirestore=()=>({}),limit=n=>n,orderBy=()=>({}),query=(source,...args)=>({source,args}),setDoc=()=>{},startAfter=()=>({}),where=()=>({});export async function runTransaction(){throw new Error("Unexpected deletion in refresh fixture");}export async function getDocsFromServer(){throw new Error("Unexpected source-case query in refresh fixture");}export async function getDocs(ref){globalThis.__refreshRemote.calls++;globalThis.__refreshRemote.queries.push(ref);return globalThis.__refreshRemote.read();}export async function getCountFromServer(){globalThis.__refreshRemote.countCalls++;return{data:()=>({count:globalThis.__refreshRemote.count})};}`}));
   }}]});
   const storePath=path.join(temp,'store.mjs');await fs.writeFile(storePath,storeBundle.outputFiles[0].text);
   const store=await import(pathToFileURL(storePath));
@@ -71,6 +71,17 @@ try {
   const actualSetTimeout=globalThis.setTimeout;globalThis.setTimeout=(fn,ms,...args)=>ms===20_000?(queueMicrotask(fn),0):actualSetTimeout(fn,ms,...args);
   try {await assert.rejects(store.fetchStoredEvaluations(300,{strict:true}),/20 วินาที/);}finally{globalThis.setTimeout=actualSetTimeout;store.invalidateStoredEvaluationCache();delete globalThis.__refreshRemote;}
   console.log('PASS real evaluation store propagates failures, evicts failed reads, deduplicates successes and bounds pending reads');
+
+  fixture.read=async options=>{
+    assert.equal(options.strict,true);
+    assert.equal(options.allMonths,true,'monthly reports must not be limited to the latest 300 evaluations');
+    return ['AA900601','AA900602'].map(caseId=>({...sample(caseId),auditDate:'2026-06-15',auditTimestamp:'2026-06-16T02:00:00Z',submittedAt:'2026-06-16T02:00:00Z',evaluationMonthKey:'2026-06'}));
+  };
+  await render(0,{externalSelectedMonthKey:'2026-06'});await settle();
+  assert.ok(table().includes('AA900601')&&table().includes('AA900602'),'historical June cases render in the real Dashboard');
+  assert.ok(table().includes('Monthly Report · Gen All Case PDF (2)'),'the monthly report action uses the complete June snapshot');
+  assert.ok(document.body.textContent.includes('June 2026'),'June is available as a reporting month');
+  console.log('PASS June selector, historical case list and visible monthly report count');
 
   fixture.read=async options=>{assert.equal(options.strict,true);return [sample('AA900001')];};
   await render(1);await settle();

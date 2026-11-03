@@ -5725,7 +5725,7 @@ export default function DashboardMockup({
       const cacheKey = String(dataRefreshKey ?? "default");
       const loadEvaluationCases = () => {
         if (!evaluationCasesPromise) {
-          evaluationCasesPromise = fetchStoredEvaluations(300, { strict: true })
+          evaluationCasesPromise = fetchStoredEvaluations(300, { strict: true, allMonths: true })
             .then((records) => {
               loadedNoCaseEvaluations = records.filter((item) => isNoCaseEvaluation(item) && isQaDashboardSupportedMonthKey(getStoredEvaluationMonthKey(item)));
               return mapStoredEvaluationsToCaseItems(records);
@@ -9152,7 +9152,7 @@ export default function DashboardMockup({
                               <span aria-hidden="true">▤</span>
                               {bulkCasePdfBusy && bulkCasePdfMode === "all"
                                 ? `กำลัง Gen ${bulkCasePdfProgress}`
-                                : `Gen All Case PDF (${allCasePdfCases.length})`}
+                                : `${isWeeklyCasePdfView ? "" : "Monthly Report · "}Gen All Case PDF (${allCasePdfCases.length})`}
                             </button>
                             {isSeniorBulkCasePdfRole ? (
                               <button
