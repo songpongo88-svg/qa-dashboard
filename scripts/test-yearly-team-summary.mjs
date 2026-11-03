@@ -183,6 +183,27 @@ try {
   assert.equal(allSheet.B29.v,"Fixture Agent B");assert.equal(allSheet.B30.v,agent);
   await fs.writeFile(path.join(rootDir,"verification/yearly-fix/Yearly_Team_Summary.xlsx"),allBytes);
   console.log("PASS All Agents annual export reconciles team totals, June totals and annual Top / Bottom with the same canonical cases");
+  // The annual PDF uses the same Yearly report source, not the generic Summary PDF.
+  dom.window.document.fonts = { check: () => true, load: async () => [] };
+  await act(async()=>button("Export").click());
+  await act(async()=>button("PDF").click());
+  await settle(()=>fixture.downloads.some(item=>item.fileName==="Yearly_Team_Summary_2026.pdf"));
+  const pdfOutput=fixture.downloads.find(item=>item.fileName==="Yearly_Team_Summary_2026.pdf");
+  assert.ok(pdfOutput?.pdf, "Yearly PDF was generated");
+  assert.ok(pdfOutput.pdf.getNumberOfPages()>=2,"Yearly PDF includes a separate paginated Agent summary");
+  const pdfContent=pdfOutput.pdf.internal.pages.flat().join(" ");
+  for(const label of ["YEARLY TEAM SUMMARY","MONTHLY TEAM TREND","June","December","AGENT SUMMARY","Fixture Agent B"]) {
+    assert.ok(pdfContent.includes(label), "Yearly PDF missing "+label);
+  }
+  assert.equal(pdfOutput.pdf.getProperties().title,"Yearly Team Summary 2026");
+  const exportedPdfCount=fixture.downloads.length;
+  fixture.fail=true;
+  await act(async()=>button("Export").click());
+  await act(async()=>button("PDF").click());
+  await settle(()=>fixture.alerts.filter(message=>message.includes("Source unavailable")).length>=2);
+  assert.equal(fixture.downloads.length,exportedPdfCount,"Failed data read cannot generate Yearly PDF");
+  fixture.fail=false;
+  console.log("PASS Yearly PDF: same strict source as Excel, January-December including June, full Agent list, multi-page and failed-source hold");
   URL.createObjectURL=nativeCreateUrl;URL.revokeObjectURL=nativeRevokeUrl;
 
 } finally {
