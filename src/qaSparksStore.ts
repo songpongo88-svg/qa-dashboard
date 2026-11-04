@@ -160,38 +160,3 @@ export async function claimFirstLoginSparks(
   if (typeof window !== "undefined") window.dispatchEvent(new Event("qa:sparks-updated"));
   return result;
 }
-/** Ready for an eventual reward catalog; no reward inventory is enabled yet. */
-export async function redeemSparks(username: string, orderId: string, rewardName: string, cost: number) {
-  if (!/^[A-Za-z0-9_-]{3,100}$/.test(orderId)) throw new Error("รหัสรายการแลกรางวัลไม่ถูกต้อง");
-  if (!Number.isSafeInteger(cost) || cost <= 0) throw new Error("จำนวน Sparks ไม่ถูกต้อง");
-  const ref = walletRef(username);
-  const historyRef = doc(ref, "history", "redeem-" + orderId);
-  const balance = await runTransaction(firebaseDb, async (tx) => {
-    const [wallet, existing] = await Promise.all([tx.get(ref), tx.get(historyRef)]);
-    const data = wallet.exists() ? wallet.data() : {};
-    if (existing.exists()) return safeBalance(data.balance);
-    const current = safeBalance(data.balance);
-    if (current < cost) throw new Error("Sparks ไม่เพียงพอสำหรับแลกรางวัล");
-    const next = current - cost;
-    const now = new Date().toISOString();
-    tx.set(ref, {
-      balance: next,
-      rewardOrders: safeBalance(data.rewardOrders) + 1,
-      updatedAt: now,
-      updatedAtServer: serverTimestamp(),
-    }, { merge: true });
-    tx.set(historyRef, {
-      createdAt: now,
-      serverCreatedAt: serverTimestamp(),
-      type: "spend",
-      source: "reward-redemption",
-      title: "Redeem Reward",
-      detail: String(rewardName || "รางวัล"),
-      amount: -cost,
-      balanceAfter: next,
-    });
-    return next;
-  });
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("qa:sparks-updated"));
-  return balance;
-}
