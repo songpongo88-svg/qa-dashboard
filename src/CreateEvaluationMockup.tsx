@@ -1591,6 +1591,24 @@ export default function CreateEvaluationMockup({
     setDraftMessage(`Edit cancelled for ${editingCaseId}. No changes were saved.`);
   }
 
+  // Saved drafts stay in IndexedDB when the evaluation form is cleared.
+  // Starting a new case must not re-open or modify the previously saved draft.
+  function startNewEvaluationFromDraftQueue() {
+    if (activeSubmittedRecordId) {
+      setDraftMessage("กำลังแก้ไขเคสที่ Submit แล้ว กรุณาใช้ Cancel Edit ก่อนเริ่มเคสใหม่");
+      return;
+    }
+    const hasCurrentCase = Boolean(
+      caseId.trim() || agentName.trim() || inquiry.trim() || caseDescription.trim()
+    );
+    if (hasCurrentCase && !window.confirm(
+      "เริ่มประเมินเคสใหม่หรือไม่?\\n\\nข้อมูลในฟอร์มปัจจุบันจะถูกล้าง แต่ Draft ที่บันทึกไว้จะยังอยู่ใน Draft Queue"
+    )) return;
+    resetEvaluationForm();
+    setWorkspaceView("form");
+    setDraftMessage("พร้อมเริ่มประเมินเคสใหม่ • Draft ที่บันทึกไว้ยังอยู่ใน Draft Queue");
+  }
+
   function validateAgentSelected(actionLabel: string) {
     if (agentName.trim()) return true;
     const message = `Please select Agent Full Name before ${actionLabel}.`;
@@ -2002,13 +2020,24 @@ export default function CreateEvaluationMockup({
       setDraftMessage("บันทึก Draft ไม่สำเร็จ กรุณาตรวจสอบพื้นที่เก็บข้อมูลในเบราว์เซอร์ก่อนออกจากหน้านี้");
       return;
     }
-    setActiveDraftId(draft.draftId || "");
-    setEvaluationStartedAt(draft.evaluationStartedAt);
-    setEvaluationStatus("Draft");
-    setDraftSavedAt(savedAt);
     const pendingVoiceCount = draft.callLogs?.filter((call) => call.pendingRecording).length || 0;
-    setDraftMessage(`Draft saved for ${draft.caseId || "Untitled Case"} at ${savedAt}${pendingVoiceCount ? ` • เก็บไฟล์เสียง ${pendingVoiceCount} ไฟล์ไว้ใน Draft แล้ว ยังไม่ได้อัปโหลดเข้าระบบกลาง` : ""}`);
-    setWorkspaceView("drafts");
+    const confirmation = `Draft saved for ${draft.caseId || "Untitled Case"} at ${savedAt}${pendingVoiceCount ? ` • เก็บไฟล์เสียง ${pendingVoiceCount} ไฟล์ไว้ใน Draft แล้ว ยังไม่ได้อัปโหลดเข้าระบบกลาง` : ""}`;
+    if (activeSubmittedRecordId) {
+      // Editing a submitted result has a separate workflow lock. Preserve it
+      // until the user explicitly resumes or cancels the edit.
+      setActiveDraftId(draft.draftId || "");
+      setEvaluationStartedAt(draft.evaluationStartedAt);
+      setEvaluationStatus("Draft");
+      setDraftSavedAt(savedAt);
+      setDraftMessage(confirmation);
+      setWorkspaceView("drafts");
+      return;
+    }
+    // Save first, then clear only the in-memory form, never the Draft Queue.
+    // This lets QA start the next case without reopening the saved case.
+    resetEvaluationForm();
+    setWorkspaceView("form");
+    setDraftMessage(`${confirmation} • พร้อมเริ่มเคสใหม่ (เปิดเคสเดิมได้จาก Draft Queue)`);
   }
 
   async function copyStickyNote() {
@@ -3081,9 +3110,14 @@ export default function CreateEvaluationMockup({
                 <div className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-100">Saved Drafts</div>
                 <div className="mt-1 text-xl font-black">Saved Draft Cases</div>
               </div>
-              <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
-                Back to Form
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
+                  Back to Form
+                </button>
+                <button type="button" data-start-new-evaluation-from-draft="true" onClick={startNewEvaluationFromDraftQueue} disabled={Boolean(activeSubmittedRecordId)} title={activeSubmittedRecordId ? "กรุณา Cancel Edit ก่อนเริ่มเคสใหม่" : "เริ่มประเมินเคสใหม่โดยเก็บ Draft ที่บันทึกไว้ทั้งหมด"} className="rounded-xl border border-emerald-200 bg-emerald-500 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50">
+                  New Evaluation
+                </button>
+              </div>
             </div>
             <div className="p-5">
               {draftQueueLoading ? (
