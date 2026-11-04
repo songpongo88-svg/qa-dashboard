@@ -67,14 +67,14 @@ if (source.includes(marker)) {
   // Inject an ordinary JavaScript function body as TypeScript source. It writes
   // metadata only; no stored Process file chunks or historical cases are deleted.
   async function applyVisibility(item, hidden) {
-    if (!processManageAllowedV85 || !canRemoveProcessFile(item, BUILTIN_VERSION.id) || managerBusyIdV85) return;
-    const action = hidden ? "นำออกจากรายการเลือก" : "นำกลับเข้าคลังไฟล์";
-    const confirmed = window.confirm(
-      action + "?\n\n" + item.name + " · Version " + item.versionLabel +
-      "\n\nไฟล์ต้นฉบับและข้อมูลอ้างอิงในเคสเก่าจะยังอยู่" +
-      (hidden ? "\nสามารถกด Restore ได้ในหน้านี้" : "")
-    );
-    if (!confirmed) return;
+    if (!processManageAllowedV85 || managerBusyIdV85) return;
+    // The confirmation happens inside ProcessFileManager (not window.confirm).
+    // Always keep at least one selectable Process when hiding the built-in file.
+    const hasAlternative = !hidden || processLibraryV84.some((row) => row.id !== item.id);
+    if (!canRemoveProcessFile(item, BUILTIN_VERSION.id, hasAlternative)) {
+      setManagerMessageV85("กรุณาเลือกไฟล์ Process อื่นไว้ก่อนซ่อนไฟล์ System Process");
+      return;
+    }
     const services = firebaseServices();
     if (!services) { setManagerMessageV85("Firebase ไม่พร้อม กรุณาลองใหม่"); return; }
     setManagerBusyIdV85(item.id);
@@ -130,6 +130,7 @@ if (source.includes(marker)) {
     '          files={managedFilesV85} busyId={managerBusyIdV85} message={managerMessageV85}',
     '          referencedIds={parsedRefs.map((item) => item.versionId)}',
     '          protectedFileId={BUILTIN_VERSION.id}',
+    '          canHideSystemProcess={processLibraryV84.some((row) => row.id !== BUILTIN_VERSION.id)}',
     '          onClose={() => setManagerOpenV85(false)}',
     '          onPreview={(file) => {',
     '            setManagerPreviewFileV85(file);',
