@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T03:27:41.586Z",
-  "reason": "Reviewed monthly All Weeks filtering in Dashboard/Analytics, month-specific dropdown options and case-date month boundaries, plus revised guide instructions; unchanged QA grade and KPI formulas.",
+  "reviewedAt": "2026-11-04T03:29:47.978Z",
+  "reason": "Reviewed All Weeks per month selection, month-scoped case breakdown, canonical Agent filter and compatibility with Analytics Compare Vite patch. No QA scoring policy changes.",
   "contentChanged": true,
   "reviewedChapters": [
     "dashboard",
@@ -35,7 +35,7 @@
     "build/analyticsComparePdfDataParityPatch.js": "32ae1b4a0bb80a93bd5961e0f514c1d7b5ee0af7bc468a327b3a0d74bf5efa5d",
     "build/analyticsComparePdfOnlyPolishPatch.js": "76ea0e807389e6f5de8251637477202a9e10903ef4ca4e1bada2114c2bfcd198",
     "build/analyticsCompareSequentialDifferencesPatch.js": "f8a9b6a978eca97f4ec87c8fdd46fdd88d198d12e1ba5658fc1eb82267ef40ce",
-    "build/analyticsCompareSinglePeriodPdfParityPatch.js": "dd8fd5dfb0e9f9c11ecde7318abd66329c17c5bbff333dfaf9b4657417dea8d6",
+    "build/analyticsCompareSinglePeriodPdfParityPatch.js": "5c0c3db88302b4f5e3211092246c8675ded9f25b5b199eb4ca22bad94c217adc",
     "build/analyticsCompareTopicReportPatch.js": "0524c4bcdf04fd976350e2421287a6bb4c295d0d3e0524d9162d2a8c912203f7",
     "build/analyticsCompareUiRedesignPatch.js": "b669ef8c1675ecf3e99baf02c4172bcd483ea9e95b4d307ea16ae39db2cc725c",
     "build/analyticsIntentScoreDriverSummaryPatch.js": "0e597d73fad545036e233acf40ab4a33d66af7a6dd4bd6da04d055482937d384",
@@ -397,7 +397,7 @@
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
     "src/StickyNotePopup.tsx": "fedb5e1066137ee5b7be1b4db0d1145376d4d64b3821a5029bb060aa84a9326c",
-    "src/SummaryMockup.tsx": "e174888f748dd5067141a6ede402c8c03a6300aa64f13630ea7af883d901a1f0",
+    "src/SummaryMockup.tsx": "47b7bb4bf102118afc2786b26a2778cd2bea7e78e6b5d61fa659ee8bee7fb8c1",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TagRubricHint.tsx": "511447a8e67a8526cc2ca50a6b8e60c3c828542518b6a62743e790829e3b3001",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
