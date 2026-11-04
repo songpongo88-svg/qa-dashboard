@@ -2,3 +2,13 @@
 [data-process-picker-portal] > [role="dialog"] > div { width:min(780px,100%); max-height:calc(100dvh - 32px); min-height:0; background:#fff; color:#17334b; border-radius:20px; box-shadow:0 24px 90px #071d3b55; }
 [data-process-picker-portal] [data-process-selected-summary] { flex-shrink:0; }
 @media(max-width:600px) { [data-process-picker-portal] > [role="dialog"] > div { max-height:calc(100dvh - 20px); border-radius:16px; } }
+
+/* Confirmation sits in the same portal as Process File Management.
+   Keep it above the library's forced z-index; Tailwind z-[280] alone
+   cannot outrank the library dialog's !important 2147481000. */
+[data-process-picker-portal] > [role="alertdialog"] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147481100 !important;
+  display: flex !important;
+}
