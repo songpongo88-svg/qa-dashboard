@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import React, { act } from "react";
 import { JSDOM } from "jsdom";
 
+await mkdir(resolve("node_modules/.cache"), { recursive: true });
 const dir = await mkdtemp(resolve("node_modules/.cache/announcement-read-stats-"));
 const dom = new JSDOM('<div id="root"></div>', {
   url: "https://qa.test/?tab=dashboard", pretendToBeVisual: true,
