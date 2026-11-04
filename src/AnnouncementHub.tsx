@@ -561,7 +561,11 @@ function AnnouncementWorkspace({
   onOpenShortcut,
 }: AnnouncementHubProps) {
   const [announcements, setAnnouncements] = useState<StoredAnnouncement[]>([]);
+  // Personal popup receipts and manager statistics use independent listeners.
   const [receipts, setReceipts] = useState<AnnouncementReceipt[]>([]);
+  const [personalReceiptsReady, setPersonalReceiptsReady] = useState(false);
+  const [analyticsReceipts, setAnalyticsReceipts] = useState<AnnouncementReceipt[]>([]);
+  const [analyticsReceiptsReady, setAnalyticsReceiptsReady] = useState(false);
   const [hubOpen, setHubOpen] = useState(false);
   const [view, setView] = useState<HubView>("inbox");
   const [draft, setDraft] = useState<StoredAnnouncement>(() =>
@@ -607,24 +611,48 @@ function AnnouncementWorkspace({
     return () => observer.disconnect();
   }, []);
 
-  // Listen once for announcements; receipts for the current user unless an
-  // authorized manager explicitly opens the full analytics view.
+  // Never clear a user's read status when opening the administrator's statistics.
   useEffect(() => subscribeStoredAnnouncements(
     setAnnouncements,
     (error) => console.warn("Announcement live update failed", error)
   ), []);
 
-  const receiptScope = manageAllowed && shortcutVisible && hubOpen && view === "analytics"
-    ? "" : currentUsername;
   useEffect(() => {
-    // Clear the prior scope before installing the replacement listener.
     setReceipts([]);
+    setPersonalReceiptsReady(false);
+    if (!currentUsername) return;
     return subscribeAnnouncementReceipts(
-      setReceipts,
-      (error) => console.warn("Announcement receipt live update failed", error),
-      receiptScope
+      (items) => {
+        setReceipts(items);
+        setPersonalReceiptsReady(true);
+      },
+      (error) => {
+        setPersonalReceiptsReady(false);
+        console.warn("Announcement personal receipt update failed", error);
+      },
+      currentUsername
     );
-  }, [receiptScope]);
+  }, [currentUsername]);
+
+  const analyticsVisible = manageAllowed && shortcutVisible && hubOpen && view === "analytics";
+  useEffect(() => {
+    if (!analyticsVisible) {
+      setAnalyticsReceipts([]);
+      setAnalyticsReceiptsReady(false);
+      return;
+    }
+    setAnalyticsReceiptsReady(false);
+    return subscribeAnnouncementReceipts(
+      (items) => {
+        setAnalyticsReceipts(items);
+        setAnalyticsReceiptsReady(true);
+      },
+      (error) => {
+        setAnalyticsReceiptsReady(false);
+        console.warn("Announcement analytics receipt update failed", error);
+      }
+    );
+  }, [analyticsVisible]);
 
   useEffect(() => {
     let minuteTimer = 0;
@@ -670,7 +698,7 @@ function AnnouncementWorkspace({
 
   const unreadAnnouncements = useMemo(
     () =>
-      myAnnouncements.filter((item) => {
+      !personalReceiptsReady ? [] : myAnnouncements.filter((item) => {
         const now = new Date();
         const receipt = myReceiptMap.get(item.id);
         if (item.deliveryModel === "immediate-reminder") {
@@ -685,11 +713,11 @@ function AnnouncementWorkspace({
         }
         return !wasRead(item, receipt);
       }),
-    [myAnnouncements, myReceiptMap, scheduleTick]
+    [myAnnouncements, myReceiptMap, scheduleTick, personalReceiptsReady]
   );
 
   useEffect(() => {
-    if (popupMessage) return;
+    if (!personalReceiptsReady || hubOpen || popupMessage) return;
     if (document.visibilityState !== "visible") return;
 
     let next: StoredAnnouncement | null = null;
@@ -782,6 +810,8 @@ function AnnouncementWorkspace({
     currentUsername,
     currentUser.displayName,
     scheduleTick,
+    personalReceiptsReady,
+    hubOpen,
   ]);
 
   const markRead = async (
@@ -1152,7 +1182,7 @@ function AnnouncementWorkspace({
   }, [users, search]);
 
   const receiptCountFor = (announcementId: string, field: "readAt" | "acknowledgedAt") =>
-    receipts.filter(
+    analyticsReceipts.filter(
       (item) => item.announcementId === announcementId && Boolean(item[field])
     ).length;
 
@@ -1404,7 +1434,7 @@ function AnnouncementWorkspace({
         ) : null}
       </button> : null}
 
-      {popupMessage && mediaOnlyMode ? (
+      {!hubOpen && popupMessage && mediaOnlyMode ? (
         spotlightMedia ? (
           <div className="pointer-events-none fixed inset-0 z-[150] flex items-center justify-center">
             <div className="pointer-events-auto relative max-h-[92vh] max-w-[94vw] overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(15,23,42,0.32)]">
@@ -1457,7 +1487,7 @@ function AnnouncementWorkspace({
             </div>
           </div>
         ) : null
-      ) : popupMessage ? (
+      ) : !hubOpen && popupMessage ? (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
           <div
             className={`overflow-hidden border border-white/20 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.5)] ${
@@ -2398,7 +2428,12 @@ function AnnouncementWorkspace({
 
               {view === "analytics" && manageAllowed ? (
                 <div className="space-y-4">
-                  {announcements.map((item) => (
+                  {!analyticsReceiptsReady ? (
+                    <p role="status" className="rounded-xl border border-violet-100 bg-white px-4 py-3 text-sm text-slate-600">
+                      กำลังโหลดสถิติการอ่านประกาศ...
+                    </p>
+                  ) : null}
+                  {analyticsReceiptsReady ? announcements.map((item) => (
                     <div
                       key={item.id}
                       className="rounded-[26px] border border-violet-100 bg-white p-5 shadow-sm"
@@ -2424,7 +2459,7 @@ function AnnouncementWorkspace({
                         </div>
                       </div>
                       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {receipts
+                        {analyticsReceipts
                           .filter(
                             (receipt) =>
                               receipt.announcementId === item.id
@@ -2448,7 +2483,7 @@ function AnnouncementWorkspace({
                           ))}
                       </div>
                     </div>
-                  ))}
+                  )) : null}
                 </div>
               ) : null}
             </div>
