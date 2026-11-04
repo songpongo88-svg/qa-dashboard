@@ -142,7 +142,7 @@ if (source.includes(marker)) {
     '        onNavigate={setManagerPreviewMetaV85}',
     '        onClose={() => { setManagerPreviewMetaV85(null); setManagerPreviewFileV85(null); }} />',
   ].join("\n");
-  replaceOnce('      <ProcessSlideModalV68 meta={previewMeta}', managerModal + '\n      <ProcessSlideModalV68 meta={previewMeta}', "manager modal");
+  replaceOnce('      <ProcessSlideModalV68 meta={previewMeta} items={parsedRefs}', managerModal + '\n      <ProcessSlideModalV68 meta={previewMeta} items={parsedRefs}', "manager modal");
 
   fs.writeFileSync(path, source);
   console.log("Applied Process File Management v85 · View / Remove / Restore with preserved historical references");
