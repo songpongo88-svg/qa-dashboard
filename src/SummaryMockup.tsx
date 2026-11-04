@@ -4982,7 +4982,7 @@ export default function SummaryMockup({
     effectiveSelectedAgent,
   ]);
 
-  const isComparisonMode = !weeklyAllWeeks && comparisonRows.length >= 2;
+  const isComparisonMode = comparisonRows.length >= 2;
   const reportModeName =
     analysisMode === "weekly" ? "Weekly" : analysisMode === "monthly" ? "Monthly" : "Yearly";
 
