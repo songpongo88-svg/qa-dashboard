@@ -36,7 +36,7 @@ export function analyticsCompareSinglePeriodPdfParityPatch() {
         this,
         next,
         `  const isComparisonMode = comparisonRows.length >= 2;`,
-        `  const isComparisonMode =\n    comparisonRows.length >= 1 &&\n    (analyticsCompareViewActiveV29 || selectedPeriods.length >= 2);`,
+        `  const isComparisonMode =\n    !weeklyAllWeeks && comparisonRows.length >= 1 &&\n    (analyticsCompareViewActiveV29 || selectedPeriods.length >= 2);`,
         "comparison mode condition"
       );
 
