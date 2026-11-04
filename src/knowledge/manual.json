@@ -2215,6 +2215,57 @@
       ]
     },
     {
+      "id": "qa-sparks",
+      "title": "QA Sparks / Reward Center",
+      "category": "บัญชี",
+      "contexts": [
+        "qa-sparks"
+      ],
+      "permissions": [],
+      "summary": "ดูหน้า My QA Sparks, Reward Center และ History ที่เตรียมไว้ตามธีม QA Dashboard",
+      "audience": "ผู้ใช้งาน QA Dashboard",
+      "updatedAt": "2026-11-04T10:15:00Z",
+      "steps": [
+        {
+          "title": "เปิด QA Sparks",
+          "body": "เปิดเมนู System → QA Sparks ในแถบด้านซ้าย ระบบเปิดเป็น Workspace Tab QA Sparks และใช้ Theme ปัจจุบันของ QA Dashboard โดยอัตโนมัติ ทั้งสี พื้นหลัง การ์ด และปุ่ม รองรับ Color, Festival, Character, Special, 7 Days, Weather และ Line Drawing ตามธีมที่ได้รับสิทธิ์ใช้งาน"
+        },
+        {
+          "title": "ดู My QA Sparks",
+          "body": "หน้า Overview แสดงสถานะเตรียมระบบ Sparks และข้อมูลสำหรับใช้เป็นพื้นที่สรุป ปัจจุบันค่า 0 และ Not set เป็นค่าเริ่มต้นของ UI ยังไม่ใช่ยอดสะสมจริง และยังไม่มีการบันทึกคะแนน Rewards ลงฐานข้อมูล"
+        },
+        {
+          "title": "เปิด Reward Center",
+          "body": "เลือกแท็บ Reward Center เพื่อดูพื้นที่แลกรางวัล ปัจจุบันไม่มีรายการรางวัลให้เลือก ปุ่มเปิดดูรางวัลถูกปิดไว้จนกว่าจะกำหนดรายการรางวัลและเงื่อนไขแลก"
+        },
+        {
+          "title": "เปิด History",
+          "body": "เลือกแท็บ History เพื่อดูโครงสร้างประวัติรับ/ใช้ Sparks เมื่อระบบสะสมจริงเริ่มทำงาน ขณะนี้แสดงสถานะว่างเพราะยังไม่มีธุรกรรม"
+        },
+        {
+          "title": "การเปิดใช้งานเพิ่มเติม",
+          "body": "ยังไม่ตั้งกติกาการได้รับ Sparks, ระดับสมาชิก หรือรายการรางวัล ไม่มีระบบ QA Learning ใน Case Detail และยังไม่เชื่อม QA Score, KPI, Incentive หรือข้อมูลการประเมินของพนักงาน เงื่อนไขทั้งหมดจะกำหนดเพิ่มเติมภายหลัง"
+        }
+      ],
+      "result": "หน้า QA Sparks พร้อมให้ตรวจสอบ UI และสลับแท็บ โดยยังไม่เปิดระบบเพิ่ม Sparks หรือแลกรางวัลจริง",
+      "tips": [
+        "เปลี่ยน Theme ได้จากตัวเลือก Theme ใน Sidebar หน้า QA Sparks จะเปลี่ยนชุดสีตามโดยไม่ต้องตั้งค่าเพิ่ม"
+      ],
+      "troubleshooting": [
+        "หากยังไม่เห็นเมนูใหม่ ให้โหลดหน้า QA Dashboard เวอร์ชันล่าสุด"
+      ],
+      "buttonGuide": {
+        "menu": "QA Sparks",
+        "buttons": [
+          "QA Sparks",
+          "Overview",
+          "Reward Center",
+          "History"
+        ],
+        "note": "หน้าใช้งานจริงขณะนี้เป็นส่วนต่อประสานงานเท่านั้น ยังไม่มีข้อมูลรางวัลหรือกติกาสะสม"
+      }
+    },
+    {
       "id": "weather",
       "title": "Weather Collection: ธีมตามอากาศจริง",
       "category": "บัญชี",
