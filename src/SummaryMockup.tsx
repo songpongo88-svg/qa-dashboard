@@ -2985,6 +2985,9 @@ export default function SummaryMockup({
   const [viewMode, setViewMode] = useState<SummaryView>("monthly-dashboard");
   // data-agent-selection-stable-v119
   const [selectedAgent, setSelectedAgent] = useState<string>(() => {
+    if (embedded && typeof externalSelectedAgent === "string") {
+      return String(externalSelectedAgent || "").trim() || "all";
+    }
     const savedAgent =
       typeof window !== "undefined"
         ? window.sessionStorage.getItem(
@@ -3992,7 +3995,9 @@ export default function SummaryMockup({
       return Number(a) - Number(b);
     });
 
+  const weeklyAllWeeks = analysisMode === "weekly" && selectedPeriods.includes("all");
   const effectivePeriodKeys = useMemo(() => {
+    if (weeklyAllWeeks) return ["all"];
     const valid = selectedPeriods.filter((period) =>
       periodOptions.includes(period)
     );
@@ -4046,9 +4051,11 @@ export default function SummaryMockup({
     selectedPeriods,
     periodOptions,
     analysisMode,
+    weeklyAllWeeks,
   ]);
 
   const getPeriodDisplayLabel = (value: string) => {
+    if (analysisMode === "weekly" && value === "all") return `All Weeks (${effectivePeriodYear})`;
     if (analysisMode === "monthly") {
       return getMonthLabelForKey(value, allCases);
     }
@@ -4056,7 +4063,7 @@ export default function SummaryMockup({
   };
 
   const effectivePeriodLabels = effectivePeriodKeys.map(getPeriodDisplayLabel);
-  const activeUnifiedPeriodKey = effectivePeriodKeys[effectivePeriodKeys.length - 1] || "";
+  const activeUnifiedPeriodKey = weeklyAllWeeks ? "all" : effectivePeriodKeys[effectivePeriodKeys.length - 1] || "";
 
   // Explicit Time View changes reset the selection; applying Compare preserves its draft.
   const changeAnalysisMode = (nextMode: "weekly" | "monthly" | "yearly") => {
@@ -4089,6 +4096,12 @@ export default function SummaryMockup({
     }
 
     if (analysisMode === "weekly") {
+      if (weeklyAllWeeks) {
+        onSelectedMonthChange?.("all");
+        onSelectedYearChange?.(effectivePeriodYear);
+        onSelectedWeekChange?.("all");
+        return;
+      }
       const matchedCase = allCases.find((item) => item.weekLabel === activeUnifiedPeriodKey);
       if (matchedCase?.monthKey) onSelectedMonthChange?.(matchedCase.monthKey);
       if (matchedCase?.yearKey) onSelectedYearChange?.(matchedCase.yearKey);
@@ -4108,6 +4121,8 @@ export default function SummaryMockup({
     onSelectedWeekChange,
     onSelectedYearChange,
     summarySection,
+    weeklyAllWeeks,
+    effectivePeriodYear,
   ]);
 
   useEffect(() => {
@@ -4160,9 +4175,11 @@ export default function SummaryMockup({
         if (normalizeText(itemTeam) !== normalizeText(selectedTeam)) return false;
       }
 
+      if (weeklyAllWeeks && effectivePeriodYear !== "all" && item.yearKey !== effectivePeriodYear) return false;
       if (effectivePeriodKeys.length) {
         if (
           analysisMode === "weekly" &&
+          !weeklyAllWeeks &&
           !effectivePeriodKeys.includes(item.weekLabel)
         ) return false;
 
@@ -4179,7 +4196,7 @@ export default function SummaryMockup({
 
       return true;
     });
-  }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList, selectedTeam, accountProfiles]);
+  }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList, selectedTeam, accountProfiles, weeklyAllWeeks, effectivePeriodYear]);
 
   const periodScopedNoCaseEvaluations = useMemo(() => {
     return noCaseEvaluations.filter((item) => {
@@ -4275,6 +4292,19 @@ export default function SummaryMockup({
       isSameAgent(item.agent, effectiveSelectedAgent)
     );
   }, [periodScopedCases, effectiveSelectedAgent]);
+
+  const weeklyBreakdownRows = useMemo(() => {
+    if (!weeklyAllWeeks) return [];
+    const weeks = [...new Set(periodScopedCases.map((item) => item.weekLabel).filter(Boolean))]
+      .sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
+    return weeks.map((weekLabel) => {
+      const cases = filteredCases.filter((item) => item.weekLabel === weekLabel);
+      const passed = cases.filter((item) => item.finalScore >= PERFORMANCE_KPI_TARGET).length;
+      return { weekLabel, count: cases.length,
+        average: cases.length ? summarizeCases(cases).avgScore : null,
+        passed, notPassed: cases.length - passed };
+    });
+  }, [weeklyAllWeeks, periodScopedCases, filteredCases]);
 
   const activeNoCaseMonthKey = useMemo(() => {
     if (
@@ -4418,6 +4448,11 @@ export default function SummaryMockup({
     }
 
     if (analysisMode === "weekly") {
+      if (weeklyAllWeeks) {
+        return groupCases(filteredCases, "week").sort(
+          (left, right) => getPeriodRowSortRank(left.label, "week") - getPeriodRowSortRank(right.label, "week")
+        );
+      }
       const referenceCase = allCases
         .filter(
           (item) =>
@@ -4572,10 +4607,13 @@ export default function SummaryMockup({
     effectiveSelectedAgent,
     roleScopedAgentList,
     selectedTeam,
+    weeklyAllWeeks,
+    filteredCases,
   ]);
 
   const qualityScoreTrendPeriodLabel =
     useMemo(() => {
+      if (weeklyAllWeeks) return `All Weeks (${effectivePeriodYear})`;
       if (
         analysisMode !== "weekly" ||
         !activeUnifiedPeriodKey
@@ -4610,6 +4648,8 @@ export default function SummaryMockup({
       activeUnifiedPeriodKey,
       allCases,
       analysisMode,
+      weeklyAllWeeks,
+      effectivePeriodYear,
     ]);
 
   const getCasesForPeriodLabel = (periodLabel: string) =>
@@ -5319,9 +5359,9 @@ export default function SummaryMockup({
       }
 
       if (analysisMode === "weekly") {
-        return effectivePeriodKeys.includes(
-          item.weekLabel
-        );
+        return weeklyAllWeeks
+          ? effectivePeriodYear === "all" || item.yearKey === effectivePeriodYear
+          : effectivePeriodKeys.includes(item.weekLabel);
       }
 
       if (analysisMode === "monthly") {
@@ -5347,6 +5387,8 @@ export default function SummaryMockup({
     accountProfiles,
     effectivePeriodKeys,
     analysisMode,
+    weeklyAllWeeks,
+    effectivePeriodYear,
   ]);
 
   const performanceStatusBaseMonthKey = useMemo(() => {
@@ -9241,6 +9283,7 @@ export default function SummaryMockup({
                         onChange={(event) => setSelectedPeriods(event.target.value ? [event.target.value] : [])}
                         className="h-12 w-full rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
                       >
+                        <option value="all">All Weeks ({effectivePeriodYear})</option>
                         {weeklyPeriodGroups.map((group, groupIndex) => (
                           <React.Fragment key={group.monthKey}>
                             <optgroup label={group.monthLabel}>
@@ -9892,6 +9935,7 @@ export default function SummaryMockup({
                       }}
                       className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
+                      <option value="all">All Weeks ({effectivePeriodYear})</option>
                       {weeklyPeriodGroups.map((group, groupIndex) => (
                         <React.Fragment key={group.monthKey}>
                           <optgroup label={group.monthLabel}>
@@ -10342,6 +10386,49 @@ export default function SummaryMockup({
                 selectAnalyticsAgent(agent);
               }}
             />
+            {weeklyAllWeeks ? (
+              <section data-weekly-all-weeks-summary="true" className="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-violet-100 bg-violet-50 px-5 py-4">
+                  <div>
+                    <div className="text-sm font-bold text-slate-900">Weekly Case Breakdown</div>
+                    <div className="mt-1 text-xs text-slate-600">
+                      {effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent} · {effectivePeriodYear} · จำนวนเคสแยกตามสัปดาห์
+                    </div>
+                  </div>
+                  <span data-weekly-all-weeks-total="true" className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-bold text-violet-700">
+                    Total {filteredCases.length} Cases
+                  </span>
+                </div>
+                <div className="max-h-[440px] overflow-auto">
+                  <table className="w-full min-w-[550px] text-xs">
+                    <thead className="sticky top-0 bg-slate-50 text-slate-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Week / Period</th>
+                        <th className="px-3 py-3 text-center">Cases</th>
+                        <th className="px-3 py-3 text-center">Average Score</th>
+                        <th className="px-3 py-3 text-center">Score ≥{PERFORMANCE_KPI_TARGET}</th>
+                        <th className="px-3 py-3 text-center">Score &lt;{PERFORMANCE_KPI_TARGET}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {weeklyBreakdownRows.map((row) => (
+                        <tr key={row.weekLabel} data-weekly-breakdown-week={row.weekLabel} className="border-t border-slate-100">
+                          <td className="px-4 py-3 font-semibold text-slate-900">{row.weekLabel}</td>
+                          <td className="px-3 py-3 text-center font-bold text-violet-700">{row.count}</td>
+                          <td className="px-3 py-3 text-center">{row.average === null ? "—" : row.average.toFixed(2)}</td>
+                          <td className="px-3 py-3 text-center text-emerald-700">{row.passed}</td>
+                          <td className="px-3 py-3 text-center text-rose-700">{row.notPassed}</td>
+                        </tr>
+                      ))}
+                      {weeklyBreakdownRows.length === 0 ? (
+                        <tr><td colSpan={5} className="px-4 py-7 text-center text-slate-500">ไม่พบเคสในช่วงที่เลือก</td></tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="border-t border-violet-100 px-5 py-2 text-[10px] text-slate-500">Score ≥{PERFORMANCE_KPI_TARGET} คือจำนวนเคสตามคะแนน ไม่ใช่สถานะ KPI รายเดือน</div>
+              </section>
+            ) : null}
             {isComparisonMode ? (
               appealScoreHold ? <AppealScoreHoldNotice hold={appealScoreHold} /> : <Panel>
                 <PanelHeader title="Period Comparison" subtitle={`เปรียบเทียบ ${effectivePeriodLabels.join(" · ")}`} />
