@@ -1,9 +1,12 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-03T13:23:28.214Z",
-  "reason": "Reviewed Yearly PDF export in the existing Yearly view against the unchanged Yearly Excel data model: strict annual QA/Apeal checks, twelve January-December months including June, year totals, Critical and Grade buckets, Top/Bottom Agent and paginated Agent summary. No Monthly PDF added.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-11-04T03:19:52.421Z",
+  "reason": "Reviewed revised Dashboard Agent filter and Weekly All Weeks case count breakdown against QA Dashboard and Analytics user guide; confirmed new filter scope, no QA scoring formula changes.",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "dashboard",
+    "analytics"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -369,7 +372,7 @@
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "9d27afdf62af0504010c7ddd5d9d2f2c05a97b2c7629df627d0da1d7a954c0fb",
-    "src/DashboardMockup.tsx": "9d5e5d1b5293e809bb52b3ede1a5468fdae7a59f444a3cb112f98f64dc2f3313",
+    "src/DashboardMockup.tsx": "6f31829cfc37407feef3d648c5236b308bcfe9b8c049b2055b0533fa58c19429",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
@@ -394,7 +397,7 @@
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
     "src/StickyNotePopup.tsx": "fedb5e1066137ee5b7be1b4db0d1145376d4d64b3821a5029bb060aa84a9326c",
-    "src/SummaryMockup.tsx": "05acfc2c46333ec699a35a4f8a1941c25198042e5e21baf29a6261db1a17fe68",
+    "src/SummaryMockup.tsx": "95e1d40b72f4258560aa9480c3cace3fc8f9769ba09e3920257201239e0ce567",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TagRubricHint.tsx": "511447a8e67a8526cc2ca50a6b8e60c3c828542518b6a62743e790829e3b3001",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
@@ -476,7 +479,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "4e72b2c789738924c190d811fbb385afcbbba6fcd648fbb3288786e019ffb7db",
+    "src/knowledge/manual.json": "e032ad70fa4df5e7d0ab689567a45c3b8e1c59e29f84cd60a7165bd8b602fbbd",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
