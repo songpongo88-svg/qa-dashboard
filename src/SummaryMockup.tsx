@@ -9294,7 +9294,7 @@ export default function SummaryMockup({
                           <React.Fragment key={group.monthKey}>
                             <optgroup label={group.monthLabel}>
                               <option value={`all-weeks:${group.monthKey}`}>All Weeks ({group.monthLabel})</option>
-                              {group.periods.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>}
+                              {group.periods.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
                             </optgroup>
                             {groupIndex < weeklyPeriodGroups.length - 1 ? (
                               <option disabled value={`__separator_${group.monthKey}`}>
