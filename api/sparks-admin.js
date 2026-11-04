@@ -52,11 +52,11 @@ function base64url(obj) {
 }
 async function getAccessToken() {
   if (accessToken && Date.now() + 60000 < tokenExpiry) return accessToken;
-  const source = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!source) fail("Sparks Admin server credentials are not configured", 503);
+  const source = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!source) fail("กรุณาตั้งค่า FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON (Firebase Service Account) ใน Vercel Production", 503);
   let account;
-  try { account = JSON.parse(source); } catch { fail("Sparks Admin credentials are malformed", 503); }
-  if (!account?.client_email || !account?.private_key) fail("Sparks Admin credentials are incomplete", 503);
+  try { account = JSON.parse(source); } catch { fail("ข้อมูล Service Account JSON ไม่ถูกต้อง กรุณาตรวจสอบการตั้งค่า Vercel", 503); }
+  if (!account?.client_email || !account?.private_key) fail("Service Account JSON ขาด client_email หรือ private_key", 503);
   const now = Math.floor(Date.now() / 1000);
   const header = base64url({ alg: "RS256", typ: "JWT" });
   const payload = base64url({
@@ -70,14 +70,19 @@ async function getAccessToken() {
   const signer = createSign("RSA-SHA256");
   signer.update(signingInput);
   signer.end();
-  const jwt = signingInput + "." + signer.sign(account.private_key).toString("base64url");
+  const jwt = signingInput + "." + signer.sign(String(account.private_key).replace(/\\n/g, "\n")).toString("base64url");
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.access_token) fail("Sparks Admin credentials cannot access Google Cloud", 503);
+  if (!response.ok || !data.access_token) {
+    // Expose only the OAuth error category, never a token or credential.
+    const code = /^[a-z_]{3,40}$/.test(String(data.error || "")) ? data.error : "authentication_failed";
+    console.error("Sparks Admin Google OAuth failed:", response.status, code);
+    fail("Google Cloud ไม่ยอมรับ Service Account (" + code + ") กรุณาตั้งค่า Firebase Admin Service Account ใหม่ใน Vercel", 503);
+  }
   accessToken = data.access_token;
   tokenExpiry = Date.now() + (Number(data.expires_in) || 3600) * 1000;
   return accessToken;
