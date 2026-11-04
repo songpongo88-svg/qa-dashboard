@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T09:05:46.573Z",
-  "reason": "Reviewed Process File Management regression: the portal CSS forces the main dialog to z-index 2147481000; Remove/Restore alertdialog now appears above it with a higher layer, confirmed via interactive React/JSDOM test. Cancel does not write data; confirm preserves metadata-only hide/restore.",
+  "reviewedAt": "2026-11-04T09:06:55.896Z",
+  "reason": "Reviewed Process Remove/Restore custom popup layering and Node 24 compatible interaction regression; changes are limited to the dialog CSS and test infrastructure, not Firestore write behavior.",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation"
@@ -590,6 +590,6 @@
     "src/ProcessFileManager.tsx": "f48a7a54cf9fb14ccdcee34d90d526f832caa5848244fcc7dfdab541449dbfe3",
     "scripts/patch-process-file-management-v85.mjs": "6600ed34a492c3c2fd65df668fdc83dbe6bfd252ecf8e2b6663d373f226054e0",
     "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad",
-    "scripts/test-process-file-confirmation.mjs": "b9d79c0d3e8b68fbd93c080cac4894b6e4ae4246669bc70a278d7a42eab0f024"
+    "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e"
   }
 }
