@@ -6322,7 +6322,7 @@ export default function DashboardMockup({
   }, [selectedMonthKey, dateFrom, dateTo]);
 
   useEffect(() => {
-    if (overviewAgentScopeList.length || typeof externalSelectedAgent !== "string") return;
+    if (overviewSelfOnly || typeof externalSelectedAgent !== "string") return;
 
     const requestedAgent = String(externalSelectedAgent || "").trim();
     const resolvedAgent = requestedAgent
@@ -6593,16 +6593,26 @@ export default function DashboardMockup({
     // must never flash to 0 cases just because the visible-agent list is transient.
     if (isLoading || !allCases.length) return;
 
-    if (selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
+    // Keep an explicitly selected Agent even when the chosen Week contains zero cases.
+    // Only reset when the Agent is outside the authorized role scope.
+    if (
+      selectedAgent &&
+      overviewAgentScopeList.length &&
+      !overviewAgentScopeList.some((agent) => isSameAgent(agent, selectedAgent))
+    ) {
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
   }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList, overviewSelfOnly, isLoading, allCases.length, dashboardSubTab, externalSelectedCaseId]);
 
+  // The embedded Analytics filter is authoritative for the overview case table.
+  // Read its selection directly so the table cannot lag behind Agent Performance.
   const effectiveSelectedAgent =
     overviewSelfOnly && overviewAgentScopeList.length
       ? overviewAgentScopeList[0]
-      : String(selectedAgent || "").trim();
+      : dashboardSubTab === "overview" && canViewAnalytics && typeof externalSelectedAgent === "string"
+        ? String(externalSelectedAgent || "").trim()
+        : String(selectedAgent || "").trim();
 
   const agentCases = useMemo(() => {
     const scopedCases = overviewAgentScopeList.length
