@@ -164,7 +164,9 @@ try {
   await settle(()=>fixture.alerts.some(message=>message.includes("Awaiting")));
   assert.equal(fixture.downloads.length,1,"a pending June appeal holds the annual export");
   const held = buildYearlyTeamReport((await loadCanonicalReportData()).cases,"2026");
-  assert.ok(held.hold);assert.throws(()=>buildYearlyTeamSummaryWorkbook([held],{team:"All Teams",agent:"All Agents"}));
+  assert.ok(held.hold);
+  assert.equal(showYearlyAgentRanking(held, "All Agents"), false, "pending annual results cannot be ranked");
+  assert.throws(()=>buildYearlyTeamSummaryWorkbook([held],{team:"All Teams",agent:"All Agents"}));
   console.log("PASS source failures and unfinished appeals block annual exports rather than publishing partial or unconfirmed scores");
   fixture.events=fixture.events.concat([{ event_type: "appeal_request_reviewed", case_id: "JUNE-START", target_agent: agent, created_at: "2026-07-03T04:00:00Z", details: { requestId: "june-appeal", reviewId: "review-1", decision: "Approved", topics: [{ ...topics[0], decision: "Approved", revisedScore: 30 }] } }]);
   const activity={ready:true,error:false,now:Date.now(),records:[{id:"edit",username:"a",displayName:agent,evaluatorUsername:"qa",evaluatorName:"QA",mode:"edit",monthKey:"2026-01",persistent:true,isTestCase:false,caseId:"JAN-AUTH"}]};
