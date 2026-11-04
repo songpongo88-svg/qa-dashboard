@@ -21,10 +21,20 @@ try{
   assert.match(css,/--qa-theme-900/, "QA Sparks active navigation/panels inherit selected theme");
   assert.match(css,/@media \(max-width: 850px\)/, "responsive layout required");
 
-  const app=await readFile("src/App.tsx","utf8");
+  const store = await readFile("src/qaSparksStore.ts", "utf8");
+  const modal = await readFile("src/FirstLoginSparksModal.tsx", "utf8");
+  assert.match(store, /runTransaction/, "first-login reward must be persisted atomically");
+  assert.match(store, /first-login-welcome-v1/, "first login grant must have a stable id");
+  assert.match(store, /"history"/, "Sparks history records must be persisted");
+  assert.match(store, /FIRST_LOGIN_REWARDS/, "prize amounts must have an explicit maximum");
+  assert.match(modal, /FRUIT_CARDS\.map/, "render ten actual fruit cards");
+  assert.match(modal, /claimFirstLoginSparks/, "fruit click must grant a persisted prize");
+  assert.match(modal, /getSparksAccount/, "popup must check existing claim");
+  assert.match(css, /qa-sparks-fruit-photo/, "fruit cards need image presentation");
+    const app=await readFile("src/App.tsx","utf8");
   for(const piece of [
     '"qa-sparks"', 'import QASparks from "./QASparks"',
-    'key: "qa-sparks"', 'icon: "gift"', '<QASparks displayName=',
+    'key: "qa-sparks"', 'icon: "gift"', '<QASparks username=',
   ])assert.ok(app.includes(piece),"App must register QA Sparks navigation: "+piece);
   const rewardsGroup=app.indexOf('id: "rewards"');
   const systemGroup=app.indexOf('id: "system"');
