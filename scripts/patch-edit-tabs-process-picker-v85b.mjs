@@ -321,7 +321,16 @@ $2`,
                 <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50/80 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#155B83]">Process File</div>
-                    <div className="text-[10px] font-black text-slate-500">{processLibraryV84.length} ไฟล์ใน Library</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] font-black text-slate-500">{processLibraryV84.length} ไฟล์ใน Library</div>
+                      {processManageAllowedV85 ? (
+                        <button type="button" data-manage-process-from-picker="true"
+                          onClick={() => { setSlidePickerOpen(false); setManagerMessageV85(""); setManagerOpenV85(true); }}
+                          className="rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-[#155B83] hover:bg-sky-100">
+                          Manage Files
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                   <select
                     value={active.id}
