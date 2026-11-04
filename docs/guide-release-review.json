@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T08:24:13.007Z",
-  "reason": "Reviewed Process File Management build patch syntax fix, with unchanged metadata-only hide/restore, dropdown sync, and historical QA references.",
+  "reviewedAt": "2026-11-04T08:54:21.764Z",
+  "reason": "Reviewed Process File Management: custom in-app confirmation, System Process version can be hidden when another selectable file remains, protects the last available Process, retains original content and historic QA references, with updated regression coverage.",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation"
@@ -481,7 +481,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "e085561c06d7ce2be9e13c0231e0dc503aea16a0958fb303d351894b738b5151",
+    "src/knowledge/manual.json": "aa6c6f4c171541c4911402cb424fa2d20b265cd18d07d58c95411a1fd7438b98",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -586,9 +586,9 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "scripts/test-announcement-read-stat-popup.mjs": "3fad6fd2e9d016e003cf558266edb358c4f1238a966fa38395447b229f37fa71",
-    "src/lib/processFileManagement.ts": "ea519e1455b79e2ecd85e7cc243c95348ae9b237e898fceca2ac4e25dae6d4eb",
-    "src/ProcessFileManager.tsx": "f12e232c102a3aa99c161665b1bf10bdbb8bc87c0f60862743d22bcf89794eb6",
-    "scripts/patch-process-file-management-v85.mjs": "ae1cbdb9b1a93021dc77b0361b18ec12e78d726e22ff74abab0bab954c71ae04",
-    "scripts/test-process-file-management.mjs": "81de8f11333643f95b8fe0f226eedeabd6bf6da1730073509099799b95b561da"
+    "src/lib/processFileManagement.ts": "f98b6763dc3e4310e854fd43bcda26b1745973b9c0c7fa1ddf0c851a0fcbb40c",
+    "src/ProcessFileManager.tsx": "f48a7a54cf9fb14ccdcee34d90d526f832caa5848244fcc7dfdab541449dbfe3",
+    "scripts/patch-process-file-management-v85.mjs": "6600ed34a492c3c2fd65df668fdc83dbe6bfd252ecf8e2b6663d373f226054e0",
+    "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad"
   }
 }
