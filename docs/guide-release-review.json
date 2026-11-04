@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T09:43:25.740Z",
-  "reason": "Moved QA Sparks to separate Rewards sidebar; removed mockup-only setup badges, placeholder descriptions, disabled action and explanation footer. Preserved empty Reward Center, History, theme variables, and no effect on QA scoring.",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "qa-sparks"
-  ],
+  "reviewedAt": "2026-11-04T10:22:58.174Z",
+  "reason": "Reviewed QA Sparks first-login fruit-card popup, wallet transaction and filtered history. Existing QA help-guide chapters are unchanged; no QA scoring or policy content was altered.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -351,7 +349,7 @@
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "abfb591219d756e868a9804215607b5ad17e3064ba8d855f84b5412b915e0796",
-    "src/App.tsx": "32e74b9637fec9ff154051655e0522d0086105c0cc316473dddd636a070287d4",
+    "src/App.tsx": "e7b3c14a1454be38fbdc4f00d3973c1455b2b50650dfc72a537833bb60ea18e7",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -591,8 +589,10 @@
     "scripts/patch-process-file-management-v85.mjs": "6600ed34a492c3c2fd65df668fdc83dbe6bfd252ecf8e2b6663d373f226054e0",
     "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad",
     "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
-    "src/QASparks.tsx": "817a0266b17fe1642bb6b5e4a510b04e02d0f8be6a637f226e9de84bea39681c",
-    "src/qaSparks.css": "08df35ce862bddd02ab6b30f96f99e6b9176ec372303edcbc23aa6bfedf1d895",
-    "scripts/test-qa-sparks-ui.mjs": "6ee5a2b6d0356af7b7c7ad3e01b2493d73eab49f556c850fd1e6ca0a83068875"
+    "src/QASparks.tsx": "abb277b096f8075858fbb4302bf65b7e686df512c82f4c4ba1a8f97aa1d135c1",
+    "src/qaSparks.css": "44b07c4cb0860f57be4d366959e3fd0d532152f369483e0dd10012c693136411",
+    "scripts/test-qa-sparks-ui.mjs": "041b4dd8bc4c2a05ba262e47d7a22db19a70b2855ef56a3fbd53b28891f2791d",
+    "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
+    "src/qaSparksStore.ts": "72d878a726455204c6b872472d8cd895484a5034e51d6701712a74828bfec759"
   }
 }
