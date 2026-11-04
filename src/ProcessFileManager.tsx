@@ -109,6 +109,9 @@ export function ProcessFileManager({
                       {referenced.has(item.id) ? (
                         <span className="text-[10px] font-bold text-violet-700">อ้างอิงในฟอร์มปัจจุบัน</span>
                       ) : null}
+                      {item.id === protectedFileId ? (
+                        <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800">System Process · เก็บไฟล์ต้นฉบับไว้</span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
@@ -117,11 +120,6 @@ export function ProcessFileManager({
                       className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-[#155B83] hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-40">
                       View File
                     </button>
-                    {item.id === protectedFileId ? (
-                      <span className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-500">
-                        System Process
-                      </span>
-                    ) : null}
                     {item.id !== protectedFileId || item.hiddenFromPicker || canHideSystemProcess ? (
                       <button type="button" disabled={Boolean(busyId)}
                         onClick={() => setPendingChange({ file: item, hidden: !item.hiddenFromPicker })}
