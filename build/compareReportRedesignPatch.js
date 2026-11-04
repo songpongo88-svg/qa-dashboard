@@ -83,6 +83,84 @@ export function compareReportRedesignPatch(){return {name:'compare-report-redesi
  if(duplicate<0||summary<0)throw Error('Original comparison summary not found');
  s=s.slice(0,duplicate)+'    }\n\n'+s.slice(summary);
  s=s.replace('PASS/FAIL follows each period Target; Difference is percentage-point change vs previous comparable period','PASS/FAIL: KPI ของช่วงนั้น | Diff: เทียบช่วงก่อนหน้า (จุดเปอร์เซ็นต์) | Tag: % ของเคสที่พบปัญหา รวมเคสไม่มี Tag ในฐาน ตั้งแต่ ต.ค. 2026');
+ // Monthly exports share the original landscape layout without changing the UI.
+ const monthlyScope=`
+    const landscapeReport = isComparisonMode || analysisMode === 'monthly';
+    const monthlyPdfCases = analysisMode === 'monthly' ? allCases.filter(item =>
+      (!roleScopedAgentList.length || roleScopedAgentList.some(agent => isSameAgent(item.agent,agent))) &&
+      (effectiveSelectedAgent === 'all' || isSameAgent(item.agent,effectiveSelectedAgent)) &&
+      (selectedTeam === 'all' || normalizeText(getCaseTeamName(item)) === normalizeText(selectedTeam))
+    ) : [];
+    const pdfMonthlyStatusRows = analysisMode === 'monthly' ? performanceStatusRows.filter(row =>
+      (!roleScopedAgentList.length || roleScopedAgentList.some(agent=>isSameAgent(row.agent,agent))) &&
+      (effectiveSelectedAgent === 'all' || isSameAgent(row.agent,effectiveSelectedAgent)) &&
+      (selectedTeam === 'all' || normalizeText(row.teamName) === normalizeText(selectedTeam))
+    ) : [];
+    const pdfMonthlyTrendRows = analysisMode === 'monthly' ? teamMonthlyAnalyticsRows.map(row=>{
+      const cases=monthlyPdfCases.filter(item=>item.monthKey===row.monthKey);
+      const summary=summarizeCases(cases);
+      return {...row,...summary,avgScore:cases.length?summary.avgScore:0};
+    }) : [];
+    if(analysisMode==='monthly'){
+      const hold=getAppealScoreHold(monthlyPdfCases.filter(item=>performanceStatusMonthKeys.includes(item.monthKey)));
+      if(hold){window.alert(hold.message);return;}
+    }
+`;
+ replace('    const reportSummary = summarizeCases(comparisonPdfSummaryCasesV32);',monthlyScope+'    const reportSummary = summarizeCases(comparisonPdfSummaryCasesV32);');
+ // Export-only scope: do not alter the on-screen watchlist or its data source.
+ s=s.replaceAll('performanceStatusRows.length','pdfMonthlyStatusRows.length').replaceAll('performanceStatusRows.forEach','pdfMonthlyStatusRows.forEach');
+ s=s.replaceAll('teamMonthlyAnalyticsRows.length','pdfMonthlyTrendRows.length').replace('...teamMonthlyAnalyticsRows,','...pdfMonthlyTrendRows,');
+ s=s.replace('comparisonTagData = isComparisonMode ?',"comparisonTagData = (isComparisonMode || analysisMode === 'monthly') ?");
+ for(const [a,b] of [
+  ['orientation: isComparisonMode ?','orientation: landscapeReport ?'],
+  ['if(isComparisonMode)doc.setFontSize','if(landscapeReport)doc.setFontSize'],
+
+  ['const halfWidth = isComparisonMode ?','const halfWidth = landscapeReport ?'],
+  ['y += isComparisonMode ? 0 : 47','y += landscapeReport ? 0 : 47'],
+  ['if (!isComparisonMode && y + 48','if (!landscapeReport && y + 48'],
+  ['const gradeBoxWidth = isComparisonMode ?','const gradeBoxWidth = landscapeReport ?'],
+  ['const statusBoxX = isComparisonMode ?','const statusBoxX = landscapeReport ?'],
+  ['const statusBoxWidth = isComparisonMode ?','const statusBoxWidth = landscapeReport ?'],
+  ['(isComparisonMode ? margin+(halfWidth+5)*2 : margin)','(landscapeReport ? margin+(halfWidth+5)*2 : margin)'],
+  ['isComparisonMode ? 16 : 24','landscapeReport ? 16 : 24'],
+  ['(isComparisonMode ? 23 : 32)','(landscapeReport ? 23 : 32)']
+ ])s=s.replaceAll(a,b);
+ // Preserve the original 3-month watchlist columns while using the landscape width.
+ replace('const statusWidths = [29, 23, 24, 24, 24, 17, 20, 25];', 'const statusWidths = [46,34,32,32,32,24,30,43].map(w=>w*contentWidth/273);');
+ s=s.replaceAll('assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months)',"assertEvaluationScopeComplete(currentEvaluationScope.agents, analysisMode==='monthly' ? [...new Set([...currentEvaluationScope.months,...performanceStatusMonthKeys])] : currentEvaluationScope.months)");
+ const pa=s.indexOf('    periodTopicReports.forEach');const pb=s.indexOf('    if (isComparisonMode) {',pa);let period=s.slice(pa,pb);
+ const endRow='        y += rowHeight;\n      });';
+ if(!period.includes(endRow))throw Error('Monthly topic row missing');
+ period=period.replace(endRow,`        y += rowHeight;
+        if(analysisMode==='monthly' && !isComparisonMode){
+          const rates=buildTopicTagRates(comparisonTagData.periods,String(topic.code),comparisonTagData.catalog);
+          const index=comparisonTagData.periods.findIndex(p=>p.label===report.label);
+          const rows=[...rates.rows].sort((a,b)=>(b.values[index]?.pct??-1)-(a.values[index]?.pct??-1));
+          const leader=rows[0]?.values[index]?.pct??0;
+          if(rows.length){
+            if(y+17>contentBottom){startNewPage();drawSectionTitle('Period Topic Detail / Tag (%)',report.label+' · '+topic.code+'. '+topic.label);drawTagPeriodHeader([report],contentWidth-28);}
+            doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(100,116,139);drawText('Tag (%) · เคสที่พบปัญหา',margin+3,y+4);y+=7;
+          }
+          for(const tag of rows){
+            doc.setFont('helvetica','normal');doc.setFontSize(10);const text=doc.splitTextToSize(tag.name,contentWidth-35);const h=Math.max(8,4+text.length*3.6);
+            if(y+h>contentBottom){startNewPage();drawSectionTitle('Period Topic Detail / Tag (%) (continued)',report.label+' · '+topic.code+'. '+topic.label);drawTagPeriodHeader([report],contentWidth-28);}
+            const rate=tag.values[index]?.pct;const top=leader>0&&rate===leader;
+            doc.setFillColor(top?246:255,top?242:255,255);doc.rect(margin,y,contentWidth,h,'F');doc.setFont('helvetica',top?'bold':'normal');doc.setTextColor(top?91:100,top?33:116,top?182:139);
+            text.forEach((line:string,j:number)=>drawText(line,margin+3,y+4+j*3.6));drawText(rate==null?'—':rate.toFixed(2)+'%',pageWidth-margin-14,y+4,{align:'center'});y+=h;
+          }
+        }
+      });`);
+
+ // Repeat the original score table header when the next topic starts a new page.
+ const ha=period.indexOf('      doc.setFillColor(109, 40, 217);',period.indexOf('const topicWidths'));
+ const hb=period.indexOf('      report.topics.forEach',ha);
+ if(ha<0||hb<0)throw Error('Monthly topic header missing');
+ const header=period.slice(ha,hb);period=period.slice(0,ha)+'      const drawPeriodTopicHeader=()=>{\n'+header+'      };\n      drawPeriodTopicHeader();\n'+period.slice(hb);
+ period=period.replace('        ensureSpace(rowHeight + 4);',`        if(y+rowHeight+(analysisMode==='monthly'&&!isComparisonMode?24:4)>contentBottom){startNewPage();drawSectionTitle('Period Topic Detail (continued)',report.label);drawPeriodTopicHeader();}`);
+ s=s.slice(0,pa)+period+s.slice(pb);
+ const trendStart=s.indexOf('      const chartRows = [');const trendEnd=s.indexOf('      doc.setFillColor',trendStart);
+ if(trendStart<0||trendEnd<0)throw Error('Monthly trend missing');s=s.slice(0,trendStart)+s.slice(trendStart,trendEnd).replace('.reverse()', '.sort((a,b)=>a.monthKey.localeCompare(b.monthKey))')+s.slice(trendEnd);
+
  // All report text is vector TH Sarabun New; chart text uses the same loaded family.
  s=s.replaceAll('64px Arial','64px THSarabunNew').replaceAll('26px Arial','26px THSarabunNew');
  return {code:`import { loadComparisonTags } from './generateComparisonPdf';\nimport { buildTopicTagRates } from './analyticsTagRates';\n`+source.slice(0,start)+s+source.slice(end),map:null};
