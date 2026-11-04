@@ -34,7 +34,7 @@ try{
     const app=await readFile("src/App.tsx","utf8");
   for(const piece of [
     '"qa-sparks"', 'import QASparks from "./QASparks"',
-    'key: "qa-sparks"', 'icon: "gift"', '<QASparks displayName=',
+    'key: "qa-sparks"', 'icon: "gift"', '<QASparks username=',
   ])assert.ok(app.includes(piece),"App must register QA Sparks navigation: "+piece);
   const rewardsGroup=app.indexOf('id: "rewards"');
   const systemGroup=app.indexOf('id: "system"');
