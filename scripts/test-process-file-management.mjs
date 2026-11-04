@@ -33,7 +33,9 @@ try {
     ["y-active", "x-active", "x-old", builtin.id], "manager shows every version but no file chunks");
   assert.deepEqual(selectedProcessFileRows(rows, builtin).map(x => x.id),
     ["x-active", builtin.id, "y-active"], "dropdown selects current version of each process name");
-  assert.equal(canRemoveProcessFile(builtin, builtin.id), false, "protected system fallback");
+  assert.equal(canRemoveProcessFile(builtin, builtin.id), false, "last selectable system fallback cannot be hidden");
+  assert.equal(canRemoveProcessFile(builtin, builtin.id, true), true,
+    "system Process can be hidden from dropdown if another Process remains selectable");
   assert.equal(canRemoveProcessFile(primary, builtin.id), true, "uploaded Process is removable");
 
   const hidden = { ...primary, ...processFileVisibilityUpdate(true, "qa", "2026-11-04T08:00:00Z") };
@@ -57,6 +59,10 @@ try {
     assert.ok(manager.includes(label), "manager must expose " + label);
   }
   assert.match(manager, /data-process-managed-version=/, "all versions are shown with stable IDs");
+  assert.match(manager, /canHideSystemProcess/, "a System Process with an alternative offers Remove");
+  assert.match(manager, /System Process · เก็บไฟล์ต้นฉบับไว้/, "System Process badge explains retention");
+  assert.match(manager, /role="alertdialog"/, "Remove and Restore confirmations use in-dashboard popup");
+  assert.doesNotMatch(patch, /window\.confirm\s*\(/, "no browser confirmation is used");
   assert.match(patch, /processFileVisibilityUpdate/, "writes only the hidden visibility metadata");
   assert.match(patch, /referencedIds=/, "current evaluation references remain visible");
   assert.ok(!/deleteDoc\s*\(|deleteObject\s*\(/.test(patch + "\n" + manager), "old Process versions are not permanently deleted");
