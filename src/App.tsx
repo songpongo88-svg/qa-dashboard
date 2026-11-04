@@ -715,7 +715,7 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
 const VALID_APP_TABS = new Set<AppTab>([
   "dashboard",
   "qa-sparks",
-  "appeal"
+  "appeal",
   "create-evaluation",
   "pre-test",
   "training-attendance",
