@@ -1624,6 +1624,11 @@ export default function CreateEvaluationMockup({
       setDraftMessage("กำลังแก้ไขเคสที่ Submit แล้ว กรุณาใช้ Cancel Edit ก่อนเริ่มเคสใหม่");
       return;
     }
+    if (evidenceFiles.some(file => file.uploadStatus !== "uploaded" || !/^https?:\/\//i.test(file.storedUrl || ""))) {
+      setWorkspaceView("form");
+      setDraftMessage("ยังมีไฟล์หลักฐานที่อัปโหลดไม่สำเร็จ กรุณาตรวจสอบไฟล์ในฟอร์มก่อนเริ่มเคสใหม่ เพื่อป้องกันหลักฐานสูญหาย");
+      return;
+    }
     const hasCurrentCase = Boolean(
       caseId.trim() || agentName.trim() || inquiry.trim() || caseDescription.trim()
     );
