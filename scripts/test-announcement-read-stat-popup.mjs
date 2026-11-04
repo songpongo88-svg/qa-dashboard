@@ -42,7 +42,7 @@ const reader = { id: "already-read__qa", announcementId: alreadyRead.id,
   immediateReadAt: recent, reminderShownAt: "", reminderReadAt: "" };
 const fixture = globalThis.__announcementStatsFixture = {
   announcements: [alreadyRead], receipts: [reader], announcementListeners: [],
-  receiptListeners: [], receiptScopes: [], writes: [],
+  receiptListeners: [], receiptScopes: [], writes: [], published: [],
   notifyReceipts() {
     for (const { callback, username } of this.receiptListeners) {
       callback(this.receipts.filter(x => !username || x.username === username));
@@ -72,7 +72,13 @@ export async function upsertAnnouncementReceipt(value) {
   f().writes.push(value);
   f().notifyReceipts();
 }
-export async function upsertStoredAnnouncement() { throw Error("not available"); }
+export async function upsertStoredAnnouncement(item) {
+  const record = { ...item, createdAt: item.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+  f().published.push(record);
+  f().announcements = [record, ...f().announcements.filter(x => x.id !== record.id)];
+  for (const callback of f().announcementListeners) callback(f().announcements);
+  return record;
+}
 export async function deleteStoredAnnouncement() { throw Error("not available"); }
 export async function fetchStoredAnnouncement() { return null; }
 `;
@@ -81,6 +87,15 @@ const click = async (button) => {
   await act(async () => button.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 };
 const button = (label) => [...document.querySelectorAll("button")].find(b => b.textContent.trim() === label);
+const fill = async (element, value) => {
+  assert.ok(element, "expected input");
+  const proto = element.tagName === "TEXTAREA" ? dom.window.HTMLTextAreaElement.prototype : dom.window.HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, "value").set;
+  await act(async () => {
+    setter.call(element, value);
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
 try {
   const out = resolve(dir, "hub.mjs");
   await build({ entryPoints: ["src/AnnouncementHub.tsx"], outfile: out,
@@ -122,6 +137,35 @@ try {
   await click(button("สถิติการอ่าน"));
   assert.equal(document.querySelector('[aria-label="ปิดประกาศ"]'), null, "reopening stats after acknowledgement does not repeat popup");
   console.log("PASS announcement read stats keeps personal receipts, shows totals and never reopens already-read popups");
+
+  // Publishing a scheduled announcement must still display its immediate first
+  // popup to the publisher, even with the management panel open.
+  await click(button("จัดการประกาศ"));
+  const titleInput = [...document.querySelectorAll("label")]
+    .find(x => x.textContent.includes("หัวข้อประกาศ"))?.querySelector("input");
+  const bodyInput = [...document.querySelectorAll("label")]
+    .find(x => x.textContent.includes("รายละเอียดเมื่อกด Media"))?.querySelector("textarea");
+  await fill(titleInput, "QA First Immediate Delivery");
+  await fill(bodyInput, "รายละเอียดประกาศใหม่");
+  await fill(document.querySelector('input[placeholder="URL รูปภาพหรือวิดีโอ"]'), "https://example.com/qa-test-image.png");
+  await click(button("เพิ่ม"));
+  const repeatToggle = [...document.querySelectorAll("button")].find(x => x.textContent.includes("แจ้งเตือนซ้ำตามกำหนด"));
+  await click(repeatToggle);
+  await click(button("บันทึก ส่งทันที และตั้งเตือน"));
+  assert.equal(fixture.published.length, 1, "announcement should save once");
+  assert.equal(fixture.published[0].showImmediately, true);
+  assert.equal(fixture.published[0].reminderEnabled, true);
+  assert.ok(new Date(fixture.published[0].reminderAt).getTime() > Date.now(), "reminder time is in the future");
+  assert.ok(document.querySelector('[aria-label="ปิดประกาศ"]'),
+    "publisher must see immediate first popup while management stays open");
+  await click(document.querySelector('[aria-label="ปิดประกาศ"]'));
+  assert.equal(document.querySelector('[aria-label="ปิดประกาศ"]'), null,
+    "first delivery should close on acknowledgement");
+  assert.ok(fixture.receipts.some(x => x.announcementId === fixture.published[0].id && Boolean(x.immediateReadAt)));
+  await click(button("สถิติการอ่าน"));
+  assert.equal(document.querySelector('[aria-label="ปิดประกาศ"]'), null,
+    "after publishing, opening statistics cannot show the first delivery again");
+  console.log("PASS first immediate popup displays once before a future scheduled reminder");
 } finally {
   await act(async () => root.unmount());
   dom.window.close();
