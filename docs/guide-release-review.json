@@ -1,11 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T06:33:26.751Z",
-  "reason": "Reviewed Yearly ranking gating: hide Top/Bottom if Agent filter is individual, fewer than two valid scored Agents, or unresolved annual evaluation/appeal hold. The same visibility rule applies in web, Excel, PDF; totals and QA scoring remain unchanged.",
+  "reviewedAt": "2026-11-04T06:43:15.204Z",
+  "reason": "Reviewed announcement statistics listener isolation, per-user read/acknowledged receipts, popup suppression during stats view and regression test. Genuine new announcements remain deliverable after closing the manager panel.",
   "contentChanged": true,
   "reviewedChapters": [
-    "dashboard",
-    "analytics"
+    "inbox"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -103,7 +102,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "d8e138da50651957249172b4c2b0a646f9bfbbe296ff22de5426d4b5a9a7c107",
-    "package.json": "d3215c9f0f72344603389a566cb3abb12831d957a7563dbc61116a2f2f0799ee",
+    "package.json": "11a2d7bd0d9885e0435176499754cc1d50f12ec256911c4b44fd5ea07258137c",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -351,7 +350,7 @@
     "scripts/test-yearly-team-summary.mjs": "e20e4296d6f7fc7456309eea751d3519a327861c66468302ac82ece5ec18d03d",
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
-    "src/AnnouncementHub.tsx": "6979e9a16669bd487c15071fe28e6b66e23b6b66342dac99079018bba9b1ec52",
+    "src/AnnouncementHub.tsx": "92b8570b298b07a0bce935701547fcb379d5fbbb03be92e07ee22b62a6434141",
     "src/App.tsx": "b9f4159b9c4ab4b03b981690a6acedfb37178b25596992cd4b2693d27cd59b6f",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
@@ -482,7 +481,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "5fa1cbbabca33d5a53eea02ff70f0a9a37747b42939850d92d2cd8ec94af339c",
+    "src/knowledge/manual.json": "0396526f92580f5f58cde6f2730a64b67445230ce43e502f17ace4dedf18172d",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -585,6 +584,7 @@
     "src/workflowStatusLabels.ts": "4dc42c2d40eef69741efe959b032901416c0002d949e8c8d031294d154f9c529",
     "src/yearlyTeamSummaryData.ts": "a133f2a7550fdb72b07004c570ac3c7166ab8544020cad85e02a0beff3dff0d9",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "scripts/test-announcement-read-stat-popup.mjs": "99da1fb8e1d14cc7113eea259282f6d1fc4ec1e999e18457829c5e7a448093a2"
   }
 }
