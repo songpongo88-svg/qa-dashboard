@@ -242,6 +242,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
           ยืนยัน <strong>{operationLabel(operation)} {fmt(Number(amount))} Sparks</strong> ให้บัญชี {selected.displayName} ใช่หรือไม่?
           <p>ระบบจะบันทึกผู้ดำเนินการ วันที่ เวลา และเหตุผลลงใน History</p>
         </div> : null}
+        {error ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
         <div className="qa-sparks-admin-actions">
           <button type="button" className="secondary" onClick={() => { if (confirm) setConfirm(false); else cancelOperation(); }} disabled={saving}>{confirm ? "กลับไปแก้ไข" : "ยกเลิก"}</button>
           {confirm ? <button type="button" onClick={() => { void submit(); }} disabled={saving}>{saving ? "กำลังบันทึก..." : "ยืนยันบันทึกคะแนน"}</button>
