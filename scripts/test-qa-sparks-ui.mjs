@@ -31,7 +31,29 @@ try{
   assert.match(modal, /claimFirstLoginSparks/, "fruit click must grant a persisted prize");
   assert.match(modal, /getSparksAccount/, "popup must check existing claim");
   assert.match(css, /qa-sparks-fruit-photo/, "fruit cards need image presentation");
-    const app=await readFile("src/App.tsx","utf8");
+    const sparksAdmin = await readFile("src/SparksAdminPanel.tsx", "utf8");
+  const sparksAdminApi = await readFile("api/sparks-admin.js", "utf8");
+  assert.match(sparksAdmin, /\/api\/sparks-admin/, "admin management must use server API");
+  assert.match(sparksAdmin, /request\("adjust"/, "adjustments must use server API");
+  assert.match(sparksAdmin, /request\("history"/, "admin can review other users' histories");
+  assert.match(sparksAdmin, /refund/, "reward refund action must be available");
+  assert.match(sparksAdminApi, /authorizeAdmin/, "server must authorize each admin request");
+  assert.match(sparksAdminApi, /qa_user_sessions/, "server must verify the stored session");
+  assert.match(sparksAdminApi, /GOOGLE_SERVICE_ACCOUNT_JSON/, "writes use server-only credentials");
+  assert.match(sparksAdminApi, /:commit/, "wallet and ledger updates must commit atomically");
+  assert.match(sparksAdminApi, /currentDocument/, "write must reject stale wallet/history versions");
+  const { default: adminApi } = await import("../api/sparks-admin.js");
+  let accessStatus = 0;
+  let accessPayload = null;
+  const response = {
+    setHeader() {},
+    status(code) { accessStatus = code; return this; },
+    json(value) { accessPayload = value; return value; },
+  };
+  await adminApi({ method: "POST", body: { action: "list", actorUsername: "ordinary-user", sessionId: "ordinary-unknown-session" } }, response);
+  assert.equal(accessStatus, 403, "non-admin cannot request another user's wallets");
+  assert.ok(accessPayload.error, "unauthorized request returns an error");
+  const app=await readFile("src/App.tsx","utf8");
   for(const piece of [
     '"qa-sparks"', 'import QASparks from "./QASparks"',
     'key: "qa-sparks"', 'icon: "gift"', '<QASparks username=',
@@ -63,6 +85,7 @@ try{
   assert.ok(!main.querySelector(".qa-sparks-notes"), "remove mockup-only explanatory box");
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
   assert.equal(main.querySelectorAll('[role="tab"]').length,3);
+  assert.ok(!main.textContent.includes("Sparks Admin"), "ordinary users must not see admin management");
   assert.ok(!main.textContent.includes("เปิดดูรางวัล"),"do not display an unusable reward button");
 
   const click=async (selector) => {

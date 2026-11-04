@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, type SparksAccount, type SparksHistoryItem } from "./qaSparksStore";
 import "./qaSparks.css";
+import SparksAdminPanel from "./SparksAdminPanel";
 
-type SparksView = "overview" | "rewards" | "history";
+type SparksView = "overview" | "rewards" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown";
 const paths: Record<SparksIconName, React.ReactNode> = {
   spark: <path d="m12 2 2.7 6.7L22 12l-7.3 3.3L12 22l-2.7-6.7L2 12l7.3-3.3z"/>,
@@ -53,7 +54,7 @@ function SparksHistory({ history, large = false }: { history: SparksHistoryItem[
   </section>;
 }
 
-export default function QASparks({ displayName = "", username = "" }: { displayName?: string; username?: string }) {
+export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "" }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string }) {
   const [view, setView] = useState<SparksView>("overview");
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
   const [error, setError] = useState("");
@@ -71,13 +72,15 @@ export default function QASparks({ displayName = "", username = "" }: { displayN
     };
     refresh();
     window.addEventListener("qa:sparks-updated", refresh);
-    return () => { active = false; window.removeEventListener("qa:sparks-updated", refresh); };
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.removeEventListener("qa:sparks-updated", refresh); window.removeEventListener("focus", refresh); };
   }, [username]);
 
   const tabs: { key: SparksView; label: string; icon: SparksIconName }[] = [
     { key: "overview", label: "Overview", icon: "grid" },
     { key: "rewards", label: "Reward Center", icon: "gift" },
     { key: "history", label: "History", icon: "clock" },
+    ...(adminAccess ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const balance = account.balance.toLocaleString();
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
@@ -123,7 +126,8 @@ export default function QASparks({ displayName = "", username = "" }: { displayN
           <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><EmptyReward/></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
         </div> : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><EmptyReward large/></section>
-        : <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>}
+        : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
+        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} /> : null}
       </div>
     </div>
   </main>;
