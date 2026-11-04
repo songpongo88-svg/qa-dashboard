@@ -7566,12 +7566,19 @@ export default function App() {
       ],
     },
     {
+      id: "rewards",
+      title: "Rewards",
+      description: "QA Sparks และสิทธิประโยชน์สำหรับผู้ใช้งาน",
+      items: [
+        { key: "qa-sparks", label: "QA Sparks", description: "ดูยอด Sparks พื้นที่แลกรางวัล และประวัติ (รอเปิดระบบสะสมจริง)", icon: "gift", allowed: true, active: activeWorkspaceTab === "qa-sparks", onClick: () => activateWorkspaceTab("qa-sparks") },
+      ],
+    },
+    {
       id: "system",
       title: "System",
       description: "ตั้งค่าการเปิดใช้งานระบบ",
       items: [
         { key: "system-setup", label: "System Setup", description: "เปิดหรือปิด Maintenance Mode และกำหนดข้อความแจ้งผู้ใช้", icon: "clock", allowed: maintenanceAdminAllowed, active: activeWorkspaceTab === "user-roles" && userAdminSection === "maintenance", onClick: () => openUserAdminSection("maintenance") },
-        { key: "qa-sparks", label: "QA Sparks", description: "ดูยอด Sparks พื้นที่แลกรางวัล และประวัติ (รอเปิดระบบสะสมจริง)", icon: "gift", allowed: true, active: activeWorkspaceTab === "qa-sparks", onClick: () => activateWorkspaceTab("qa-sparks") },
       ],
     },
     {
