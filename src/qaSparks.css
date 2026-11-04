@@ -229,3 +229,8 @@
 .qa-sparks-admin-actions button:disabled {opacity:.45;cursor:not-allowed;}
 @media(max-width:860px){.qa-sparks-admin-layout {grid-template-columns:1fr;} .qa-sparks-admin-list {max-height:220px;}.qa-sparks-admin-metrics {grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:510px){.qa-sparks-admin-header {flex-wrap:wrap;}.qa-sparks-admin-history-heading {flex-wrap:wrap;}.qa-sparks-admin-dialog {padding:16px;}}
+
+
+/* The directory remains readable when server-side Sparks credentials are unavailable. */
+.qa-sparks-admin-readonly {border:1px solid #e9c892;background:#fff7e8;color:#754f16;border-radius:12px;padding:11px 14px;font-size:12px;}
+.qa-sparks-admin-operations button:disabled,.qa-sparks-admin-history-amount button:disabled {opacity:.45;cursor:not-allowed;filter:grayscale(.5);}
