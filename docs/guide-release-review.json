@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T10:46:13.085Z",
+  "reviewedAt": "2026-11-04T10:48:40.962Z",
   "reason": "Reviewed Sparks Admin Management user-wallet list, server-side QA session authorization, credit/debit/refund audit entries and confirmation dialogs. Existing User Guide and QA scoring are unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -595,6 +595,6 @@
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
     "src/qaSparksStore.ts": "72d878a726455204c6b872472d8cd895484a5034e51d6701712a74828bfec759",
     "api/sparks-admin.js": "9055908124f56b42cae96852eb0f859d98d96031b164571c2162defd7dc9b6ac",
-    "src/SparksAdminPanel.tsx": "a5037ef8378f054fec106527f8b9487b35fbdf0a21d3611a44fc1d89a91b0575"
+    "src/SparksAdminPanel.tsx": "719503ba77d2c0671754c52fe89464bbbac0013b17f807beec0293f8a6781b95"
   }
 }
