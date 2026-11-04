@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T09:31:34.067Z",
-  "reason": "Reviewed QA Sparks as a new theme-aware UI-only workspace with Overview, Reward Center and History. Inherits existing live theme variables and sidebar navigation without a new theme preference. Rewards, transactions, earning rules, membership levels and QA Learning are not activated and QA Score/KPI/Incentive are untouched. Added UI integration regression and guide chapter.",
+  "reviewedAt": "2026-11-04T09:33:29.588Z",
+  "reason": "Verified QA Sparks navigation and workspace registration with corrected AppTab list syntax. Theme-driven module UI, empty rewards/ledger and QA scoring isolation remain unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -351,7 +351,7 @@
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "abfb591219d756e868a9804215607b5ad17e3064ba8d855f84b5412b915e0796",
-    "src/App.tsx": "432b9ab6b669ecabb52c8c259350a1d31083f43eb035ad89244e36165b40153c",
+    "src/App.tsx": "6f59fc173f37e5510f6c754e9cc1e66a09550387e57cc54f72562e5053f0ddde",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
