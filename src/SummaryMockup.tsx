@@ -4095,6 +4095,7 @@ export default function SummaryMockup({
       return;
     }
 
+    // period-master-filter-v31
     if (analysisMode === "weekly") {
       if (weeklyAllWeeks) {
         onSelectedMonthChange?.("all");
@@ -4103,7 +4104,8 @@ export default function SummaryMockup({
         return;
       }
       const matchedCase = allCases.find((item) => item.weekLabel === activeUnifiedPeriodKey);
-      if (matchedCase?.monthKey) onSelectedMonthChange?.(matchedCase.monthKey);
+      // Week is the master period; clear Month to preserve cross-month weeks.
+      onSelectedMonthChange?.("all");
       if (matchedCase?.yearKey) onSelectedYearChange?.(matchedCase.yearKey);
       onSelectedWeekChange?.(activeUnifiedPeriodKey);
       return;
