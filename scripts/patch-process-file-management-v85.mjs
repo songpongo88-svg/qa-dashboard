@@ -66,7 +66,7 @@ if (source.includes(marker)) {
 
   // Inject an ordinary JavaScript function body as TypeScript source. It writes
   // metadata only; no stored Process file chunks or historical cases are deleted.
-  function applyVisibility(item, hidden) {
+  async function applyVisibility(item, hidden) {
     if (!processManageAllowedV85 || !canRemoveProcessFile(item, BUILTIN_VERSION.id) || managerBusyIdV85) return;
     const action = hidden ? "นำออกจากรายการเลือก" : "นำกลับเข้าคลังไฟล์";
     const confirmed = window.confirm(
