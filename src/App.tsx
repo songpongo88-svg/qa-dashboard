@@ -7870,7 +7870,7 @@ export default function App() {
           ) : activeTab === "terms-management" && termsManageAllowed ? (
             <TermsWorkspace user={currentUser} management canManage={termsManageAllowed} />
           ) : activeTab === "qa-sparks" ? (
-            <QASparks username={currentUser.username} displayName={currentUser.displayName || currentUser.username} />
+            <QASparks username={currentUser.username} displayName={currentUser.displayName || currentUser.username} adminAccess={canAccessUserRoleAdmin(currentUser)} adminSessionId={currentUser.sessionId || ""} />
           ) : activeTab === "dashboard" ? (
             <>
               <DashboardMockup
