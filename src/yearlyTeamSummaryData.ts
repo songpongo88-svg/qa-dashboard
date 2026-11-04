@@ -28,7 +28,7 @@ export type YearlyTeamReport = YearlyStats & {
 // are visible under the same Team/year filter. An individual selection is not
 // a competition against itself. Preserve all case totals and scoring rules.
 export function showYearlyAgentRanking(report: YearlyTeamReport, selectedAgent: string): boolean {
-  if (selectedAgent !== "All Agents") return false;
+  if (selectedAgent !== "All Agents" || report.hold) return false;
   return report.agents.filter(item => item.caseCount > 0 && item.averageScore !== null && !item.hold).length >= 2;
 }
 
