@@ -140,6 +140,9 @@
 .qa-sparks-fruit-card.is-muted { opacity:.60; }
 .qa-sparks-fruit-card:disabled { cursor:default; }
 .qa-sparks-fruit-photo { display:block; width:100%; aspect-ratio:1.12; background-image:url("/qa-sparks-fruit-atlas.webp"); background-repeat:no-repeat; background-size:500% 200%; border-radius:12px; background-color:#35251d; }
+.qa-sparks-fruit-photo { position:relative; display:grid; place-items:center; overflow:hidden; }
+.qa-sparks-fruit-photo img { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
+.qa-sparks-fruit-photo-fallback { font-size:clamp(32px,4vw,67px); line-height:1; }
 .qa-sparks-fruit-name { display:flex; align-items:center; justify-content:center; text-align:center; min-height:34px; font-size:clamp(10px,1.1vw,13px); font-weight:600; line-height:1.15; margin-top:4px; }
 .qa-sparks-fruit-result { display:block; text-align:center; background:linear-gradient(115deg,#fbe3a3,#f6ad35); color:#4c2e15; width:100%; padding:5px 2px; border-radius:9px; font-weight:700; font-size:clamp(10px,1.15vw,14px); }
 .qa-sparks-modal-congrats { margin:15px 0 10px; text-align:center; font-size:20px; font-weight:600; color:#fff; }
