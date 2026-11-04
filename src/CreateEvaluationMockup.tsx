@@ -102,6 +102,8 @@ type AutoGrowTextareaProps = {
   minRows?: number;
 };
 
+type DraftEvidenceFile = Pick<EvidenceFile, "id" | "name" | "type" | "size" | "storedUrl" | "sourceFileNames" | "sourceFileCount" | "pageCount">;
+
 type EvaluationDraft = {
   draftId?: string;
   // Preserve the existing evaluation ID for failed Edit Case drafts.
@@ -118,6 +120,7 @@ type EvaluationDraft = {
   caseDescription: string;
   processReference?: string;
   evidenceUrl: string;
+  evidenceFiles?: DraftEvidenceFile[];
   callLogs?: DraftCallLog[];
   noCaseForMonth?: boolean;
   isTestCase?: boolean;
@@ -1504,6 +1507,17 @@ export default function CreateEvaluationMockup({
       caseDescription,
       processReference,
       evidenceUrl,
+      // Store only stable, already-uploaded URLs. Blob preview URLs expire and
+      // must never be mistaken for durable evidence saved in a Draft.
+      evidenceFiles: evidenceFiles.filter(file =>
+        file.uploadStatus === "uploaded" && /^https?:\/\//i.test(file.storedUrl || "")
+      ).map(file => ({
+        id: file.id, name: file.name, type: file.type, size: file.size,
+        storedUrl: file.storedUrl,
+        sourceFileNames: file.sourceFileNames,
+        sourceFileCount: file.sourceFileCount,
+        pageCount: file.pageCount,
+      })),
       callLogs: await callLogsForDraft(callLogs),
       noCaseForMonth,
       isTestCase,
@@ -1546,6 +1560,18 @@ export default function CreateEvaluationMockup({
     setCaseDescription(normalizedDraft.caseDescription || "");
     setProcessReference(normalizedDraft.processReference || "");
     setEvidenceUrl(normalizedDraft.evidenceUrl || "");
+    setEvidenceFiles((current) => {
+      current.forEach(file => {
+        if (file.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(file.previewUrl);
+        file.sourcePreviewUrls?.forEach(url => { if (url.startsWith("blob:")) URL.revokeObjectURL(url); });
+      });
+      return (normalizedDraft.evidenceFiles || []).filter(file => /^https?:\/\//i.test(file.storedUrl || "")).map(file => ({
+        ...file,
+        previewUrl: file.storedUrl,
+        uploadStatus: "uploaded" as const,
+        uploadError: "",
+      }));
+    });
     setCallLogs((current) => {
       current.forEach((call) => { if (call.localPreviewUrl?.startsWith("blob:")) URL.revokeObjectURL(call.localPreviewUrl); });
       return restoredCalls;
@@ -2021,16 +2047,19 @@ export default function CreateEvaluationMockup({
       return;
     }
     const pendingVoiceCount = draft.callLogs?.filter((call) => call.pendingRecording).length || 0;
+    const pendingEvidenceCount = evidenceFiles.length - (draft.evidenceFiles?.length || 0);
     const confirmation = `Draft saved for ${draft.caseId || "Untitled Case"} at ${savedAt}${pendingVoiceCount ? ` • เก็บไฟล์เสียง ${pendingVoiceCount} ไฟล์ไว้ใน Draft แล้ว ยังไม่ได้อัปโหลดเข้าระบบกลาง` : ""}`;
-    if (activeSubmittedRecordId) {
-      // Editing a submitted result has a separate workflow lock. Preserve it
-      // until the user explicitly resumes or cancels the edit.
+    if (activeSubmittedRecordId || pendingEvidenceCount > 0) {
+      // Submitted edits need an explicit cancel. Pending local evidence has no
+      // stable cloud URL, so never silently discard its browser-only preview.
       setActiveDraftId(draft.draftId || "");
       setEvaluationStartedAt(draft.evaluationStartedAt);
       setEvaluationStatus("Draft");
       setDraftSavedAt(savedAt);
-      setDraftMessage(confirmation);
-      setWorkspaceView("drafts");
+      setDraftMessage(pendingEvidenceCount > 0
+        ? `${confirmation} • มีไฟล์แนบ ${pendingEvidenceCount} ไฟล์ที่ยังไม่อัปโหลดสำเร็จ ระบบคงฟอร์มไว้เพื่อป้องกันไฟล์สูญหาย กรุณาอัปโหลดใหม่ให้สำเร็จก่อนเริ่มเคสใหม่`
+        : confirmation);
+      setWorkspaceView(pendingEvidenceCount > 0 ? "form" : "drafts");
       return;
     }
     // Save first, then clear only the in-memory form, never the Draft Queue.
