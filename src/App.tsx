@@ -7570,7 +7570,7 @@ export default function App() {
       title: "Rewards",
       description: "QA Sparks และสิทธิประโยชน์สำหรับผู้ใช้งาน",
       items: [
-        { key: "qa-sparks", label: "QA Sparks", description: "ดูยอด Sparks พื้นที่แลกรางวัล และประวัติ (รอเปิดระบบสะสมจริง)", icon: "gift", allowed: true, active: activeWorkspaceTab === "qa-sparks", onClick: () => activateWorkspaceTab("qa-sparks") },
+        { key: "qa-sparks", label: "QA Sparks", description: "ยอด Sparks รายการรางวัล และประวัติของคุณ", icon: "gift", allowed: true, active: activeWorkspaceTab === "qa-sparks", onClick: () => activateWorkspaceTab("qa-sparks") },
       ],
     },
     {
