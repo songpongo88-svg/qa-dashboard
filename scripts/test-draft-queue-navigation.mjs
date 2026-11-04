@@ -26,7 +26,12 @@ assert.ok(backButton, 'Draft Queue Back to Form button must exist');
 assert.match(backButton, /onClick=\{\(\) => setWorkspaceView\("form"\)\}/);
 assert.doesNotMatch(backButton, /resetEvaluationForm|loadDraftIntoForm/, 'returning from Draft Queue must preserve unsaved text');
 assert.match(transformed, /onClick=\{\(\) => \{ void loadDraftIntoForm\(draft\); \}\}/, 'Open Draft may intentionally replace the form');
-console.log('PASS Draft Queue Back to Form preserves unfinished form');
+const newCaseLabel = transformed.indexOf('New Evaluation', transformed.indexOf('Saved Draft Cases'));
+assert.ok(newCaseLabel >= 0, 'Saved Draft Cases must provide an explicit New Evaluation action');
+const newCaseButton = transformed.slice(transformed.lastIndexOf('<button', newCaseLabel), transformed.indexOf('</button>', newCaseLabel) + 9);
+assert.match(newCaseButton, /onClick=\{startNewEvaluationFromDraftQueue\}/, 'New Evaluation starts a new form instead of reopening a draft');
+assert.match(newCaseButton, /data-start-new-evaluation-from-draft="true"/);
+console.log('PASS Draft Queue Back to Form preserves unfinished form, and New Evaluation action exists');
 
 // Render the production Draft Queue JSX with the imports from the same module.
 // The previous navigation-only check missed a missing scoring-helper import.
@@ -38,6 +43,22 @@ function findQueue(node) {
 }
 findQueue(syntax);
 assert.ok(queue, 'production Draft Queue JSX must be found');
+const findFunction = (node, name) => {
+  if (ts.isFunctionDeclaration(node) && node.name?.text === name) return node.getText(syntax);
+  return ts.forEachChild(node, child => findFunction(child, name));
+};
+const saveFunction = findFunction(syntax, 'saveDraft');
+const newFunction = findFunction(syntax, 'startNewEvaluationFromDraftQueue');
+assert.ok(saveFunction && newFunction, 'both save and new-case functions exist');
+assert.ok(saveFunction.indexOf('await persistDrafts(nextDrafts)') > 0);
+assert.ok(saveFunction.indexOf('resetEvaluationForm()') > saveFunction.indexOf('await persistDrafts(nextDrafts)'),
+  'Save Draft may reset the form only after the backup commits');
+assert.match(saveFunction, /if \(activeSubmittedRecordId\)/, 'an active submitted edit must not be reset automatically');
+assert.match(saveFunction, /setWorkspaceView\("form"\)/, 'saved new cases immediately return to the empty form');
+assert.match(newFunction, /resetEvaluationForm\(\)/);
+assert.match(newFunction, /setWorkspaceView\("form"\)/);
+assert.doesNotMatch(newFunction, /deleteDraft|persistDrafts|writeDraftQueue/,
+  'New Evaluation must never delete or overwrite previously saved Drafts');
 const scoringImports = syntax.statements.filter(node => ts.isImportDeclaration(node) &&
   ['/lib/rubricVersions', '/lib/evaluation/deductionTags'].some(suffix => node.moduleSpecifier.text.endsWith(suffix)))
   .map(node => node.getText(syntax)).join('\n');
@@ -49,6 +70,8 @@ try {
     const isTestCaseEvaluation=()=>false;
     const makeDraftId=(caseId,auditDate)=>caseId+'::'+auditDate;
     const setWorkspaceView=()=>{};
+    const startNewEvaluationFromDraftQueue=()=>{};
+    const activeSubmittedRecordId="";
     const loadDraftIntoForm=()=>{};
     const deleteDraft=()=>{};
     export default function DraftQueueFixture({draftInbox,draftQueueLoading=false}) {
@@ -75,6 +98,7 @@ try {
   }
   assert.deepEqual(inbox, original, 'reading Draft Queue must not change draft scores, notes or deductions');
   assert.ok(renderToStaticMarkup(React.createElement(DraftQueue, { draftInbox: [] })).includes('Saved Draft Cases'));
+  assert.ok(markup.includes('New Evaluation'), 'New Evaluation should be visible in Draft Queue');
   console.log('PASS production Draft Queue cards render September manual scores, October deductions, Critical Error and incomplete drafts without modifying saved data');
 } finally {
   await rm(temporary, { recursive: true, force: true });
