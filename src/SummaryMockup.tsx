@@ -3712,59 +3712,37 @@ export default function SummaryMockup({
     return selectableYears;
   }, [allCases, analysisMode, noCaseEvaluations, selectableYears, selectedMonth]);
 
+  // Each reporting month owns an All Weeks option. A week crossing two months
+  // can appear in both groups, but a month-wide selection counts only that month's cases.
   const weeklyPeriodGroups = useMemo(() => {
     if (analysisMode !== "weekly") return [];
-
-    const grouped = new Map<
-      string,
-      {
-        monthKey: string;
-        monthLabel: string;
-        periods: string[];
-      }
-    >();
-
-    periodOptions.forEach((period) => {
-      const matchingCases = allCases
-        .filter((item) => item.weekLabel === period)
-        .sort(
-          (left, right) =>
-            (right.auditDateObj?.getTime() || 0) -
-            (left.auditDateObj?.getTime() || 0)
-        );
-
-      const referenceCase = matchingCases[0];
-      const monthKey =
-        referenceCase?.monthKey ||
-        "unknown";
-      const monthLabel =
-        referenceCase?.monthLabel ||
-        "Other";
-
-      if (!grouped.has(monthKey)) {
-        grouped.set(monthKey, {
-          monthKey,
-          monthLabel,
-          periods: [],
+    const groups = new Map<string, { monthKey: string; monthLabel: string; periods: string[] }>();
+    for (const item of allCases) {
+      const monthKey = String(item.monthKey || "");
+      if (!/^\d{4}-\d{2}$/.test(monthKey)) continue;
+      if (!groups.has(monthKey)) {
+        groups.set(monthKey, {
+          monthKey, monthLabel: getMonthLabelForKey(monthKey, allCases), periods: [],
         });
       }
-
-      grouped.get(monthKey)!.periods.push(period);
-    });
-
-    return [...grouped.values()]
-      .sort((left, right) =>
-        right.monthKey.localeCompare(left.monthKey)
-      )
+      if (item.weekLabel && item.weekLabel !== "-" && !groups.get(monthKey)!.periods.includes(item.weekLabel)) {
+        groups.get(monthKey)!.periods.push(item.weekLabel);
+      }
+    }
+    for (const item of noCaseEvaluations) {
+      const monthKey = getStoredEvaluationMonthKey(item);
+      if (!/^\d{4}-\d{2}$/.test(monthKey) || groups.has(monthKey)) continue;
+      groups.set(monthKey, {
+        monthKey, monthLabel: getMonthLabelForKey(monthKey, allCases), periods: [],
+      });
+    }
+    return [...groups.values()]
+      .sort((a, b) => b.monthKey.localeCompare(a.monthKey))
       .map((group) => ({
         ...group,
-        periods: [...group.periods].sort(
-          (left, right) =>
-            getPeriodRowSortRank(right, "week") -
-            getPeriodRowSortRank(left, "week")
-        ),
+        periods: [...group.periods].sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week")),
       }));
-  }, [analysisMode, periodOptions, allCases]);
+  }, [analysisMode, allCases, noCaseEvaluations]);
 
   const compareDraftMonthOptions = useMemo(() => {
     const monthKeys = Array.from(
@@ -3995,9 +3973,30 @@ export default function SummaryMockup({
       return Number(a) - Number(b);
     });
 
-  const weeklyAllWeeks = analysisMode === "weekly" && selectedPeriods.includes("all");
+  // A month-qualified value avoids confusing All Weeks for one month with All Weeks for a year.
+  const weeklyAllWeeksMonthKey = (() => {
+    if (analysisMode !== "weekly") return "";
+    const selected = selectedPeriods.find((period) => /^all-weeks:\d{4}-\d{2}$/.test(period));
+    if (selected) {
+      const monthKey = selected.slice("all-weeks:".length);
+      return weeklyPeriodGroups.some((group) => group.monthKey === monthKey) ? monthKey : "";
+    }
+    // Migrate a previously saved global "all" to the current/latest available month.
+    if (!selectedPeriods.includes("all")) return "";
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return weeklyPeriodGroups.find((group) => group.monthKey === currentMonth)?.monthKey ||
+      weeklyPeriodGroups[0]?.monthKey || "";
+  })();
+  const weeklyAllWeeks = Boolean(weeklyAllWeeksMonthKey);
+  const weeklyAllWeeksLabel = weeklyAllWeeks
+    ? `All Weeks (${getMonthLabelForKey(weeklyAllWeeksMonthKey, allCases)})`
+    : "";
   const effectivePeriodKeys = useMemo(() => {
-    if (weeklyAllWeeks) return ["all"];
+    if (weeklyAllWeeks) {
+      return [...(weeklyPeriodGroups.find((group) => group.monthKey === weeklyAllWeeksMonthKey)?.periods || [])]
+        .sort((a, b) => getPeriodRowSortRank(a, "week") - getPeriodRowSortRank(b, "week"));
+    }
     const valid = selectedPeriods.filter((period) =>
       periodOptions.includes(period)
     );
@@ -4052,18 +4051,22 @@ export default function SummaryMockup({
     periodOptions,
     analysisMode,
     weeklyAllWeeks,
+    weeklyAllWeeksMonthKey,
+    weeklyPeriodGroups,
   ]);
 
   const getPeriodDisplayLabel = (value: string) => {
-    if (analysisMode === "weekly" && value === "all") return `All Weeks (${effectivePeriodYear})`;
+    if (analysisMode === "weekly" && value.startsWith("all-weeks:")) {
+      return `All Weeks (${getMonthLabelForKey(value.slice("all-weeks:".length), allCases)})`;
+    }
     if (analysisMode === "monthly") {
       return getMonthLabelForKey(value, allCases);
     }
     return value;
   };
 
-  const effectivePeriodLabels = effectivePeriodKeys.map(getPeriodDisplayLabel);
-  const activeUnifiedPeriodKey = weeklyAllWeeks ? "all" : effectivePeriodKeys[effectivePeriodKeys.length - 1] || "";
+  const effectivePeriodLabels = weeklyAllWeeks ? [weeklyAllWeeksLabel] : effectivePeriodKeys.map(getPeriodDisplayLabel);
+  const activeUnifiedPeriodKey = weeklyAllWeeks ? `all-weeks:${weeklyAllWeeksMonthKey}` : effectivePeriodKeys[effectivePeriodKeys.length - 1] || "";
 
   // Explicit Time View changes reset the selection; applying Compare preserves its draft.
   const changeAnalysisMode = (nextMode: "weekly" | "monthly" | "yearly") => {
@@ -4077,9 +4080,11 @@ export default function SummaryMockup({
     setCompareDraftYear("all");
     setCompareDraftMonth("all");
     setCompareDraftPeriods(
-      effectivePeriodKeys.length
-        ? [...effectivePeriodKeys]
-        : periodOptions.slice(0, 1)
+      weeklyAllWeeks
+        ? effectivePeriodKeys.slice(0, 1)
+        : effectivePeriodKeys.length
+          ? [...effectivePeriodKeys]
+          : periodOptions.slice(0, 1)
     );
     setAnalyticsCompareOpen(true);
   };
@@ -4098,8 +4103,8 @@ export default function SummaryMockup({
     // period-master-filter-v31
     if (analysisMode === "weekly") {
       if (weeklyAllWeeks) {
-        onSelectedMonthChange?.("all");
-        onSelectedYearChange?.(effectivePeriodYear);
+        onSelectedMonthChange?.(weeklyAllWeeksMonthKey);
+        onSelectedYearChange?.(weeklyAllWeeksMonthKey.slice(0, 4));
         onSelectedWeekChange?.("all");
         return;
       }
@@ -4124,7 +4129,7 @@ export default function SummaryMockup({
     onSelectedYearChange,
     summarySection,
     weeklyAllWeeks,
-    effectivePeriodYear,
+    weeklyAllWeeksMonthKey,
   ]);
 
   useEffect(() => {
@@ -4177,7 +4182,7 @@ export default function SummaryMockup({
         if (normalizeText(itemTeam) !== normalizeText(selectedTeam)) return false;
       }
 
-      if (weeklyAllWeeks && effectivePeriodYear !== "all" && item.yearKey !== effectivePeriodYear) return false;
+      if (weeklyAllWeeks && item.monthKey !== weeklyAllWeeksMonthKey) return false;
       if (effectivePeriodKeys.length) {
         if (
           analysisMode === "weekly" &&
@@ -4198,7 +4203,7 @@ export default function SummaryMockup({
 
       return true;
     });
-  }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList, selectedTeam, accountProfiles, weeklyAllWeeks, effectivePeriodYear]);
+  }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList, selectedTeam, accountProfiles, weeklyAllWeeks, weeklyAllWeeksMonthKey]);
 
   const periodScopedNoCaseEvaluations = useMemo(() => {
     return noCaseEvaluations.filter((item) => {
@@ -4615,7 +4620,7 @@ export default function SummaryMockup({
 
   const qualityScoreTrendPeriodLabel =
     useMemo(() => {
-      if (weeklyAllWeeks) return `All Weeks (${effectivePeriodYear})`;
+      if (weeklyAllWeeks) return getMonthLabelForKey(weeklyAllWeeksMonthKey, allCases);
       if (
         analysisMode !== "weekly" ||
         !activeUnifiedPeriodKey
@@ -4651,7 +4656,7 @@ export default function SummaryMockup({
       allCases,
       analysisMode,
       weeklyAllWeeks,
-      effectivePeriodYear,
+      weeklyAllWeeksMonthKey,
     ]);
 
   const getCasesForPeriodLabel = (periodLabel: string) =>
@@ -4977,7 +4982,7 @@ export default function SummaryMockup({
     effectiveSelectedAgent,
   ]);
 
-  const isComparisonMode = comparisonRows.length >= 2;
+  const isComparisonMode = !weeklyAllWeeks && comparisonRows.length >= 2;
   const reportModeName =
     analysisMode === "weekly" ? "Weekly" : analysisMode === "monthly" ? "Monthly" : "Yearly";
 
@@ -5362,7 +5367,7 @@ export default function SummaryMockup({
 
       if (analysisMode === "weekly") {
         return weeklyAllWeeks
-          ? effectivePeriodYear === "all" || item.yearKey === effectivePeriodYear
+          ? item.monthKey === weeklyAllWeeksMonthKey
           : effectivePeriodKeys.includes(item.weekLabel);
       }
 
@@ -5390,7 +5395,7 @@ export default function SummaryMockup({
     effectivePeriodKeys,
     analysisMode,
     weeklyAllWeeks,
-    effectivePeriodYear,
+    weeklyAllWeeksMonthKey,
   ]);
 
   const performanceStatusBaseMonthKey = useMemo(() => {
@@ -9285,11 +9290,11 @@ export default function SummaryMockup({
                         onChange={(event) => setSelectedPeriods(event.target.value ? [event.target.value] : [])}
                         className="h-12 w-full rounded-xl border border-violet-200 bg-slate-50 px-4 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
                       >
-                        <option value="all">All Weeks ({effectivePeriodYear})</option>
                         {weeklyPeriodGroups.map((group, groupIndex) => (
                           <React.Fragment key={group.monthKey}>
                             <optgroup label={group.monthLabel}>
-                              {group.periods.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
+                              <option value={`all-weeks:${group.monthKey}`}>All Weeks ({group.monthLabel})</option>
+                              {group.periods.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>}
                             </optgroup>
                             {groupIndex < weeklyPeriodGroups.length - 1 ? (
                               <option disabled value={`__separator_${group.monthKey}`}>
@@ -9937,10 +9942,10 @@ export default function SummaryMockup({
                       }}
                       className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
-                      <option value="all">All Weeks ({effectivePeriodYear})</option>
                       {weeklyPeriodGroups.map((group, groupIndex) => (
                         <React.Fragment key={group.monthKey}>
                           <optgroup label={group.monthLabel}>
+                            <option value={`all-weeks:${group.monthKey}`}>All Weeks ({group.monthLabel})</option>
                             {group.periods.map((period) => (
                               <option key={period} value={period}>
                                 {getPeriodDisplayLabel(period)}
@@ -10394,7 +10399,7 @@ export default function SummaryMockup({
                   <div>
                     <div className="text-sm font-bold text-slate-900">Weekly Case Breakdown</div>
                     <div className="mt-1 text-xs text-slate-600">
-                      {effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent} · {effectivePeriodYear} · จำนวนเคสแยกตามสัปดาห์
+                      {effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent} · {getMonthLabelForKey(weeklyAllWeeksMonthKey, allCases)} · จำนวนเคสแยกตามสัปดาห์
                     </div>
                   </div>
                   <span data-weekly-all-weeks-total="true" className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-bold text-violet-700">
