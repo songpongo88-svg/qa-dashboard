@@ -26,6 +26,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
+import QASparks from "./QASparks";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
 import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
@@ -237,6 +238,7 @@ class SignatureCenterErrorBoundary extends React.Component<
 
 type AppTab =
   | "dashboard"
+  | "qa-sparks"
   | "appeal"
   | "create-evaluation"
   | "pre-test"
@@ -712,7 +714,8 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
 
 const VALID_APP_TABS = new Set<AppTab>([
   "dashboard",
-  "appeal",
+  "qa-sparks",
+  "appeal"
   "create-evaluation",
   "pre-test",
   "training-attendance",
@@ -753,6 +756,7 @@ const VALID_WORKSPACE_TAB_KEYS = new Set<WorkspaceTabKey>([
 
 const WORKSPACE_TAB_LABELS: Record<AppTab | "case-detail", string> = {
   dashboard: "QA Dashboard",
+  "qa-sparks": "QA Sparks",
   "case-detail": "Cases",
   appeal: "Appeal Cases",
   "create-evaluation": "Evaluate",
@@ -876,6 +880,7 @@ function SidebarGlyph({ name }: { name: string }) {
     clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2",
     key: "M8 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M10 13l8-8 2 2-2 2 2 2-3 3-2-2-3 3",
     theme: "M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4h3a6 6 0 0 0-3-9z",
+    gift: "M3 9h18v12H3z M2 6h20v4H2z M12 6v15 M12 6c-5 0-6-1.5-5-3s5 0 5 3z M12 6c5 0 6-1.5 5-3s-5 0-5 3z",
     logout: "M10 4H4v16h6 M14 8l4 4-4 4 M18 12H9",
   };
   return <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.document} /></svg>;
@@ -7566,6 +7571,7 @@ export default function App() {
       description: "ตั้งค่าการเปิดใช้งานระบบ",
       items: [
         { key: "system-setup", label: "System Setup", description: "เปิดหรือปิด Maintenance Mode และกำหนดข้อความแจ้งผู้ใช้", icon: "clock", allowed: maintenanceAdminAllowed, active: activeWorkspaceTab === "user-roles" && userAdminSection === "maintenance", onClick: () => openUserAdminSection("maintenance") },
+        { key: "qa-sparks", label: "QA Sparks", description: "ดูยอด Sparks พื้นที่แลกรางวัล และประวัติ (รอเปิดระบบสะสมจริง)", icon: "gift", allowed: true, active: activeWorkspaceTab === "qa-sparks", onClick: () => activateWorkspaceTab("qa-sparks") },
       ],
     },
     {
@@ -7855,6 +7861,8 @@ export default function App() {
             <TermsWorkspace user={currentUser} />
           ) : activeTab === "terms-management" && termsManageAllowed ? (
             <TermsWorkspace user={currentUser} management canManage={termsManageAllowed} />
+          ) : activeTab === "qa-sparks" ? (
+            <QASparks displayName={currentUser.displayName || currentUser.username} />
           ) : activeTab === "dashboard" ? (
             <>
               <DashboardMockup
