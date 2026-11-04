@@ -24,6 +24,14 @@ export type YearlyTeamReport = YearlyStats & {
   topAgents: YearlyAgent[];
   bottomAgents: YearlyAgent[];
 };
+// A rank is meaningful only when at least two Agents with finalized annual scores
+// are visible under the same Team/year filter. An individual selection is not
+// a competition against itself. Preserve all case totals and scoring rules.
+export function showYearlyAgentRanking(report: YearlyTeamReport, selectedAgent: string): boolean {
+  if (selectedAgent !== "All Agents") return false;
+  return report.agents.filter(item => item.caseCount > 0 && item.averageScore !== null && !item.hold).length >= 2;
+}
+
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 export const yearlyMonthKeys = (year: string) => monthNames.map((_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
 
@@ -92,21 +100,33 @@ export function buildYearlyTeamSummaryWorkbook(reports: readonly YearlyTeamRepor
       rows[index + 12] = [new Date(Number(report.year), index, 1), month.caseCount, month.averageScore ?? "", month.criticalCount,
         month.aGrade, month.bGrade, month.cGrade, month.otherGrade];
     });
-    rows[26] = ["Top / Bottom Agent by Year"];
-    rows[27] = ["Metric", "Result"];
-    rows[28] = ["Top Avg Score Agent", report.topAgents.map(item => item.agent).join(", ") || "-"];
-    rows[29] = ["Bottom Avg Score Agent", report.bottomAgents.map(item => item.agent).join(", ") || "-"];
-    rows[31] = ["Seq", "Agent", "Cases", "Avg Score", "Critical"];
-    report.agents.forEach(item => rows.push([item.sequence, item.agent, item.caseCount, item.averageScore ?? "", item.criticalCount]));
+    const showRanking = showYearlyAgentRanking(report, scope.agent);
+    const agentHeaderRow = showRanking ? 31 : 27;
+    if (showRanking) {
+      rows[26] = ["Top / Bottom Agent by Year"];
+      rows[27] = ["Metric", "Result"];
+      rows[28] = ["Top Avg Score Agent", report.topAgents.map(item => item.agent).join(", ") || "-"];
+      rows[29] = ["Bottom Avg Score Agent", report.bottomAgents.map(item => item.agent).join(", ") || "-"];
+    } else {
+      rows[26] = [`Agent Summary · ${report.year}`];
+    }
+    rows[agentHeaderRow] = ["Seq", "Agent", "Cases", "Avg Score", "Critical"];
+    report.agents.forEach((item, index) => {
+      rows[agentHeaderRow + index + 1] = [item.sequence, item.agent, item.caseCount, item.averageScore ?? "", item.criticalCount];
+    });
     const sheet = XLSX.utils.aoa_to_sheet(rows);
     // Keep totals editable in Excel; monthly averages retain full precision.
     sheet.E6 = { t: "n", v: report.caseCount, f: "SUM(B13:B24)" };
     sheet.H6 = { t: report.averageScore === null ? "s" : "n", v: report.averageScore ?? "", f: 'IF(E6=0,"",SUMPRODUCT(B13:B24,C13:C24)/E6)' };
     sheet.B8 = { t: "n", v: report.criticalCount, f: "SUM(D13:D24)" };
     sheet["!cols"] = [24, 34, 15, 19, 18, 18, 18, 18, 4, 4].map(wch => ({ wch }));
-    sheet["!rows"] = rows.map((_, index) => ({ hpt: index === 0 ? 32 : index === 1 ? 32 : index === 28 || index === 29 ? 32 : 23 }));
+    sheet["!rows"] = rows.map((_, index) => ({
+      hpt: index === 0 ? 32 : index === 1 || (showRanking && (index === 28 || index === 29)) ? 32 : 23
+    }));
     sheet["!merges"] = [0, 1, 3, 10, 26].map(r => ({ s: { r, c: 0 }, e: { r, c: 9 } }));
-    sheet["!merges"].push({ s: { r: 28, c: 1 }, e: { r: 28, c: 9 } }, { s: { r: 29, c: 1 }, e: { r: 29, c: 9 } });
+    if (showRanking) {
+      sheet["!merges"].push({ s: { r: 28, c: 1 }, e: { r: 28, c: 9 } }, { s: { r: 29, c: 1 }, e: { r: 29, c: 9 } });
+    }
     sheet["!ref"] = `A1:J${Math.max(33, rows.length)}`;
     XLSX.utils.book_append_sheet(book, sheet, reports.length === 1 ? "Yearly_Team_Summary" : `Yearly_${report.year}`);
   });
@@ -125,14 +145,16 @@ export async function createYearlyTeamSummaryXlsx(reports: readonly YearlyTeamRe
   for (let index = 0; index < reports.length; index++) {
     const path = `xl/worksheets/sheet${index + 1}.xml`;
     let xml = await zip.file(path)!.async("string");
+    const showRanking = showYearlyAgentRanking(reports[index], scope.agent);
+    const agentHeaderRow = showRanking ? 32 : 28;
     xml = xml.replace(/<c\b([^>]*\br="([A-Z]+)(\d+)"[^>]*)>/g, (_match, attributes, column, rowText) => {
       const row = Number(rowText);
       let style = 0;
       if (row === 1) style = 1;
-      else if (row === 2 || row === 29 || row === 30) style = 2;
-      else if ([4, 11, 12, 27, 28, 32].includes(row)) style = 3;
+      else if (row === 2 || (showRanking && (row === 29 || row === 30))) style = 2;
+      else if ([4, 11, 12, 27, agentHeaderRow, ...(showRanking ? [28] : [])].includes(row)) style = 3;
       else if (row >= 13 && row <= 24) style = column === "A" ? 7 : column === "C" ? (row % 2 ? 6 : 5) : row % 2 ? 4 : 0;
-      else if (row >= 33) style = column === "D" ? (row % 2 ? 6 : 5) : row % 2 ? 4 : 0;
+      else if (row > agentHeaderRow) style = column === "D" ? (row % 2 ? 6 : 5) : row % 2 ? 4 : 0;
       else if (row === 6 && column === "H") style = 5;
       else if (row === 6 || row === 8) style = 4;
       return `<c${String(attributes).replace(/\s+s="\d+"/g, "")} s="${style}">`;
