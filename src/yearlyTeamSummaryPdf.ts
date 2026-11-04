@@ -1,6 +1,6 @@
 import {reportPdfFilename} from './reportPdfFilename';
 import { jsPDF } from "jspdf";
-import type { YearlyTeamReport, YearlyStats } from "./yearlyTeamSummaryData";
+import { showYearlyAgentRanking, type YearlyTeamReport, type YearlyStats } from "./yearlyTeamSummaryData";
 
 // This PDF shares its input report models and verification gate with Yearly Excel.
 // It must not independently recalculate case totals, grades, appeal scores or rankings.
@@ -172,6 +172,7 @@ export function createYearlyTeamSummaryPdf(
         });
       });
     });
+    if (showYearlyAgentRanking(report, scope.agent)) {
     section("TOP / BOTTOM AGENT BY YEAR", 167.5);
     const rankingRows = [
       ["Top Avg Score Agent", report.topAgents],
@@ -187,6 +188,7 @@ export function createYearlyTeamSummaryPdf(
         : "-";
       draw(value, margin + 72, y + 5.6, contentWidth - 76, 8.2);
     });
+    }
 
     // Agent rows begin on a separate page, where the table can paginate
     // without clipping names or changing the source data.
