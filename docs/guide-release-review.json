@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T07:02:17.344Z",
-  "reason": "Restored the first Media Popup delivery immediately on save for eligible publisher recipients without disrupting the announcement management form; repeated scheduled reminders remain separate and viewing read statistics does not replay read announcements.",
+  "reviewedAt": "2026-11-04T07:40:11.407Z",
+  "reason": "Reviewed Save Draft workflow: queued case remains in local IndexedDB; a new case form opens after successful save; Draft Queue provides New Evaluation separate from Back to Form. Submitted-case edits and files lacking durable evidence URLs are safeguarded; score and submit rules are unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
-    "inbox"
+    "evaluation"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -102,7 +102,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "d8e138da50651957249172b4c2b0a646f9bfbbe296ff22de5426d4b5a9a7c107",
-    "package.json": "11a2d7bd0d9885e0435176499754cc1d50f12ec256911c4b44fd5ea07258137c",
+    "package.json": "48b7ab8e3eb7d63428224a3a6278fa7c79bfa3b2d31dce3e7a1542bb80e40dbe",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -322,7 +322,7 @@
     "scripts/test-deleted-case-appeal.mjs": "efbcbb15fe2e23384a8d01af056a6d36767577f7014fbf5a014c795aacf99b40",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
     "scripts/test-draft-persistence.mjs": "e9697c6b3e18f5e44fdfae3b69c37d262036638a169807cf0a17c027f7ce7adf",
-    "scripts/test-draft-queue-navigation.mjs": "6460ee88314ac869a5be9ffefd1e10921732f7210eaab59b468c0761eccc8489",
+    "scripts/test-draft-queue-navigation.mjs": "e598074815329df10da5f3bc7891cf66c36fa48be550e07a4857383ca106e34f",
     "scripts/test-evaluation-issue-tags.mjs": "d6e615df93012ab5d884234e53e4f1cc3a78e8e7f819406ef44d1727615109db",
     "scripts/test-evaluation-visibility-ui.mjs": "51dbc9ea7451004fea0f9e146dc0d9fb6ddf522e786758df866523a7ff4f6917",
     "scripts/test-evaluation-visibility.mjs": "52c8a98b1f0f870eccd90ac767c2c4a7f36de598b00c0a30dac325fca55be87a",
@@ -372,7 +372,7 @@
     "src/CoachingMockup.tsx": "6239dfc59b9996b7fd749e69800775866c42b9a36268436db0b03f914f0f41e2",
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
-    "src/CreateEvaluationMockup.tsx": "9d27afdf62af0504010c7ddd5d9d2f2c05a97b2c7629df627d0da1d7a954c0fb",
+    "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
     "src/DashboardMockup.tsx": "6f31829cfc37407feef3d648c5236b308bcfe9b8c049b2055b0533fa58c19429",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
@@ -481,7 +481,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "5c143eaf1d1300cffc40e2ec23d4e111afb08c8bde13d217c197a11df96f97ce",
+    "src/knowledge/manual.json": "ac98c6f2b12f028bdf97dd7930fec42f78df4be10544f5997be71043519004ac",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
