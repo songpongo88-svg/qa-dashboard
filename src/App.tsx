@@ -27,6 +27,7 @@ import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestam
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
+import FirstLoginSparksModal from "./FirstLoginSparksModal";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
 import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
@@ -7869,7 +7870,7 @@ export default function App() {
           ) : activeTab === "terms-management" && termsManageAllowed ? (
             <TermsWorkspace user={currentUser} management canManage={termsManageAllowed} />
           ) : activeTab === "qa-sparks" ? (
-            <QASparks displayName={currentUser.displayName || currentUser.username} />
+            <QASparks username={currentUser.username} displayName={currentUser.displayName || currentUser.username} />
           ) : activeTab === "dashboard" ? (
             <>
               <DashboardMockup
@@ -8273,6 +8274,7 @@ export default function App() {
           }}
         />
       ) : null}
+      <FirstLoginSparksModal username={currentUser.username} />
       </TermsAccessBoundary>
     </EvaluationActivityProvider>
   );
