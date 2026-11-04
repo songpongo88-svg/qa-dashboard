@@ -184,3 +184,5 @@ function currentProcessLibraryV84(rows: any[]): ProcessVersion[] {
 } else {
   console.log("Process Library multi-file v84 already applied");
 }
+
+await import("./patch-process-file-management-v85.mjs");
