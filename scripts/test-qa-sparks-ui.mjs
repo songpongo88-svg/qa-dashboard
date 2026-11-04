@@ -26,6 +26,12 @@ try{
     '"qa-sparks"', 'import QASparks from "./QASparks"',
     'key: "qa-sparks"', 'icon: "gift"', '<QASparks displayName=',
   ])assert.ok(app.includes(piece),"App must register QA Sparks navigation: "+piece);
+  const rewardsGroup=app.indexOf('id: "rewards"');
+  const systemGroup=app.indexOf('id: "system"');
+  const accountGroup=app.indexOf('id: "account"');
+  assert.ok(rewardsGroup>=0 && systemGroup>rewardsGroup && accountGroup>systemGroup, "Rewards is its own sidebar section");
+  assert.ok(app.slice(rewardsGroup,systemGroup).includes('key: "qa-sparks"'), "QA Sparks belongs in Rewards");
+  assert.ok(!app.slice(systemGroup,accountGroup).includes('key: "qa-sparks"'), "QA Sparks must not be in System");
 
   const compiled=resolve(folder,"QASparks.mjs");
   await build({
@@ -41,10 +47,13 @@ try{
   assert.ok(main.textContent.includes("My QA Sparks / Reward Center"));
   assert.ok(main.textContent.includes("ยังไม่มีของรางวัล"));
   assert.ok(main.textContent.includes("ยังไม่มีประวัติการได้รับหรือใช้ Sparks"));
-  assert.ok(main.textContent.includes("แยกจาก QA Score, KPI และ Incentive"));
+  for (const mockupOnly of ["หมายเหตุการใช้งาน", "Setup in progress", "History ready", "No rewards yet", "จะกำหนดภายหลัง", "เตรียมโครงสร้างไว้แล้ว"]) {
+    assert.ok(!main.textContent.includes(mockupOnly), "mockup-only status must not appear: " + mockupOnly);
+  }
+  assert.ok(!main.querySelector(".qa-sparks-notes"), "remove mockup-only explanatory box");
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
   assert.equal(main.querySelectorAll('[role="tab"]').length,3);
-  assert.ok(main.querySelector("button[disabled]"),"reward redemption is disabled until reward inventory exists");
+  assert.ok(!main.textContent.includes("เปิดดูรางวัล"),"do not display an unusable reward button");
 
   const click=async (selector) => {
     const el=main.querySelector(selector);
