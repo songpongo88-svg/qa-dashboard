@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ProcessSlidePickerPortal } from "./ProcessSlidePickerPortal";
 
 export type ManagedProcessFile = {
@@ -21,6 +21,7 @@ type Props = {
   message: string;
   referencedIds: string[];
   protectedFileId: string;
+  canHideSystemProcess: boolean;
   onClose: () => void;
   onPreview: (file: ManagedProcessFile) => void;
   onChangeVisibility: (file: ManagedProcessFile, hidden: boolean) => void;
@@ -35,10 +36,13 @@ function uploadedDate(value: string) {
 }
 
 export function ProcessFileManager({
-  files, busyId, message, referencedIds, protectedFileId, onClose, onPreview, onChangeVisibility,
+  files, busyId, message, referencedIds, protectedFileId, canHideSystemProcess, onClose, onPreview, onChangeVisibility,
 }: Props) {
   const [search, setSearch] = useState("");
   const [includeRemoved, setIncludeRemoved] = useState(true);
+  const [pendingChange, setPendingChange] = useState<{ file: ManagedProcessFile; hidden: boolean } | null>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (pendingChange) cancelRef.current?.focus(); }, [pendingChange]);
   const availableCount = files.filter(item => !item.hiddenFromPicker).length;
   const hiddenCount = files.length - availableCount;
   const results = useMemo(() => files.filter((item) => {
@@ -117,15 +121,20 @@ export function ProcessFileManager({
                       <span className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-500">
                         System Process
                       </span>
-                    ) : (
+                    ) : null}
+                    {item.id !== protectedFileId || item.hiddenFromPicker || canHideSystemProcess ? (
                       <button type="button" disabled={Boolean(busyId)}
-                        onClick={() => onChangeVisibility(item, !item.hiddenFromPicker)}
+                        onClick={() => setPendingChange({ file: item, hidden: !item.hiddenFromPicker })}
+                        title={item.hiddenFromPicker ? "นำไฟล์กลับเข้ารายการเลือก" : "ซ่อนไฟล์จากรายการเลือกโดยไม่ลบต้นฉบับ"}
                         className={"rounded-xl border px-3 py-2 text-xs font-black disabled:cursor-wait disabled:opacity-50 " +
                           (item.hiddenFromPicker
                             ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
                             : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100")}>
                         {busyId === item.id ? "กำลังบันทึก..." : item.hiddenFromPicker ? "Restore" : "Remove"}
                       </button>
+                    ) : (
+                      <span className="rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] font-semibold text-amber-800"
+                        title="ต้องมี Process ที่เลือกได้อย่างน้อยหนึ่งไฟล์">ต้องมีไฟล์สำรองก่อนซ่อน</span>
                     )}
                   </div>
                 </div>
@@ -144,6 +153,62 @@ export function ProcessFileManager({
           </div>
         </div>
       </div>
+      {pendingChange ? (
+        <div className="fixed inset-0 z-[280] flex items-center justify-center bg-slate-950/70 p-4"
+          role="alertdialog" aria-modal="true" aria-labelledby="process-confirm-title"
+          aria-describedby="process-confirm-description"
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === "Escape") { event.preventDefault(); setPendingChange(null); }
+          }}>
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className={"flex h-11 w-11 shrink-0 items-center justify-center rounded-xl " +
+                (pendingChange.hidden ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>
+                <span aria-hidden="true" className="text-xl">{pendingChange.hidden ? "−" : "+"}</span>
+              </div>
+              <div className="min-w-0">
+                <h3 id="process-confirm-title" className="text-lg font-black text-slate-950">
+                  {pendingChange.hidden ? "ยืนยันการซ่อนไฟล์ Process" : "ยืนยันการคืนไฟล์ Process"}
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  {pendingChange.hidden
+                    ? "ต้องการนำไฟล์นี้ออกจากรายการเลือก Process ใช่หรือไม่?"
+                    : "ต้องการนำไฟล์นี้กลับเข้ารายการเลือก Process ใช่หรือไม่?"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="break-words text-sm font-black text-slate-950">{pendingChange.file.name}</div>
+              <div className="mt-1 break-all text-xs text-slate-600">{pendingChange.file.fileName || "System Process"}</div>
+              <div className="mt-1 text-xs text-slate-600">Version {pendingChange.file.versionLabel} · {pendingChange.file.slideCount} Slides</div>
+            </div>
+            <p id="process-confirm-description" className="mt-4 text-xs font-semibold leading-6 text-slate-700">
+              ไฟล์ต้นฉบับและการอ้างอิงของเคสเก่าจะไม่ถูกลบ สามารถกด Restore เพื่อนำไฟล์กลับมาได้ทุกเมื่อ
+              {pendingChange.file.id === protectedFileId
+                ? " · ไฟล์ System Process จะยังเก็บไว้เป็นข้อมูลสำรองสำหรับเคสเก่า"
+                : ""}
+            </p>
+            <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button ref={cancelRef} type="button" onClick={() => setPendingChange(null)}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50">
+                ยกเลิก
+              </button>
+              <button type="button" disabled={Boolean(busyId)}
+                onClick={() => {
+                  if (busyId) return;
+                  const { file, hidden } = pendingChange;
+                  setPendingChange(null);
+                  onChangeVisibility(file, hidden);
+                }}
+                className={"rounded-xl px-4 py-2.5 text-sm font-black text-white shadow-sm disabled:opacity-50 " +
+                  (pendingChange.hidden ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-700 hover:bg-emerald-800")}>
+                {pendingChange.hidden ? "ยืนยันซ่อนไฟล์" : "ยืนยัน Restore"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </ProcessSlidePickerPortal>
   );
 }
