@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T06:31:08.611Z",
-  "reason": "Reviewed annual Top/Bottom Agent ranking eligibility for individual and team views, including Yearly web UI, PDF, Excel and test cases. Annual case counts, grade calculations, twelve-month trend, latest appeal results and status-hold behavior remain unchanged.",
+  "reviewedAt": "2026-11-04T06:33:26.751Z",
+  "reason": "Reviewed Yearly ranking gating: hide Top/Bottom if Agent filter is individual, fewer than two valid scored Agents, or unresolved annual evaluation/appeal hold. The same visibility rule applies in web, Excel, PDF; totals and QA scoring remain unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
     "dashboard",
@@ -348,7 +348,7 @@
     "scripts/test-weekday-collection.mjs": "3dde89715a982b1ffcad591b5e96b223a6572318ebfb2598d9251f281096868e",
     "scripts/test-weekday-ui.mjs": "0eb3d61f10a30b428fc9976fcc57512ee90555227c6d8bea671d539f077e2375",
     "scripts/test-workflow-status-labels.mjs": "f76a5b37ab971fb1c3fd7c5b567d20495bc1679311889ed2007c525dee688eb9",
-    "scripts/test-yearly-team-summary.mjs": "ad0503e179fc85c66de48ce29eb7251d036e6ab72a15e3236eaa62b8a09477c5",
+    "scripts/test-yearly-team-summary.mjs": "e20e4296d6f7fc7456309eea751d3519a327861c66468302ac82ece5ec18d03d",
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "6979e9a16669bd487c15071fe28e6b66e23b6b66342dac99079018bba9b1ec52",
@@ -583,7 +583,7 @@
     "src/weekdayThemes/runtime.ts": "4bc931a5da4aa47f2f24d134808ec7da91858ac59433ad10990e79f4a94620e3",
     "src/weeklyCaseSummaryPdf.ts": "5442044772de311cad8950429dd70425fc4c4eadd4e524ebca285bacd239883c",
     "src/workflowStatusLabels.ts": "4dc42c2d40eef69741efe959b032901416c0002d949e8c8d031294d154f9c529",
-    "src/yearlyTeamSummaryData.ts": "98a266077b4cf1c6138ad67d5a52c58525f98a04de09e7703f9deb5c8c9765d6",
+    "src/yearlyTeamSummaryData.ts": "a133f2a7550fdb72b07004c570ac3c7166ab8544020cad85e02a0beff3dff0d9",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
   }
