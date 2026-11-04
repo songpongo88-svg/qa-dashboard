@@ -1,5 +1,5 @@
 import React from "react";
-import type { YearlyTeamReport, YearlyStats } from "./yearlyTeamSummaryData";
+import { showYearlyAgentRanking, type YearlyTeamReport, type YearlyStats } from "./yearlyTeamSummaryData";
 
 const score = (row: YearlyStats) => row.hold?.label || (row.averageScore === null ? "—" : row.averageScore.toFixed(2));
 const count = (row: YearlyStats, value: number) => row.hold ? "—" : value;
@@ -25,10 +25,10 @@ export default function YearlyTeamSummary({ reports, team, agent }: { reports: r
           </tr>)}</tbody>
         </table>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full"><caption className="bg-violet-50 px-4 py-3 text-left font-semibold text-violet-900">Top / Bottom Agent by Year</caption>
+      {showYearlyAgentRanking(report, agent) ? <div data-yearly-agent-ranking="true" className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full"><caption className="bg-violet-50 px-4 py-3 text-left font-semibold text-violet-900">Top / Bottom Agent by Year</caption>
         <thead className="bg-slate-50"><tr><th scope="col" className={heading}>Metric</th><th scope="col" className={heading}>Result</th></tr></thead>
         <tbody>{[["Top Avg Score Agent", report.topAgents], ["Bottom Avg Score Agent", report.bottomAgents]].map(([label, agents]) => <tr key={String(label)} className="border-t border-slate-100"><th scope="row" className={`${cell} font-medium`}>{String(label)}</th><td className="px-4 py-3 text-sm">{report.hold?.label || (agents as YearlyTeamReport["agents"]).map(item => `${item.agent} (${item.averageScore!.toFixed(2)})`).join(", ") || "—"}</td></tr>)}</tbody>
-      </table></div>
+      </table></div> : null}
       <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full"><caption className="bg-violet-50 px-4 py-3 text-left font-semibold text-violet-900">Agent Summary · {report.year}</caption>
         <thead className="bg-slate-50"><tr>{["Seq", "Agent", "Cases", "Avg Score", "Critical"].map(label => <th key={label} scope="col" className={heading}>{label}</th>)}</tr></thead>
         <tbody>{report.agents.map(item => <tr key={item.agent} data-yearly-agent={item.agent} className="border-t border-slate-100 even:bg-slate-50/60"><td className={cell}>{item.sequence}</td><th scope="row" className={`${cell} font-medium`}>{item.agent}</th><td className={cell}>{item.caseCount}</td><td className={cell}>{score(item)}</td><td className={cell}>{count(item, item.criticalCount)}</td></tr>)}</tbody>
