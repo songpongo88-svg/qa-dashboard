@@ -53,7 +53,7 @@ assert.ok(saveFunction && newFunction, 'both save and new-case functions exist')
 assert.ok(saveFunction.indexOf('await persistDrafts(nextDrafts)') > 0);
 assert.ok(saveFunction.indexOf('resetEvaluationForm()') > saveFunction.indexOf('await persistDrafts(nextDrafts)'),
   'Save Draft may reset the form only after the backup commits');
-assert.match(saveFunction, /if \(activeSubmittedRecordId\)/, 'an active submitted edit must not be reset automatically');
+assert.match(saveFunction, /if \(activeSubmittedRecordId \|\| pendingEvidenceCount > 0\)/, 'submitted edits and pending evidence must not be reset automatically');
 assert.match(saveFunction, /setWorkspaceView\("form"\)/, 'saved new cases immediately return to the empty form');
 assert.match(newFunction, /resetEvaluationForm\(\)/);
 assert.match(newFunction, /setWorkspaceView\("form"\)/);
