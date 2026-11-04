@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T07:40:11.407Z",
-  "reason": "Reviewed Save Draft workflow: queued case remains in local IndexedDB; a new case form opens after successful save; Draft Queue provides New Evaluation separate from Back to Form. Submitted-case edits and files lacking durable evidence URLs are safeguarded; score and submit rules are unchanged.",
+  "reviewedAt": "2026-11-04T07:41:21.839Z",
+  "reason": "Reviewed Save Draft new-case regression and pending evidence safety; tests now cover combined submitted-edit and pending-evidence guard. Existing draft queue, scores and submit conditions unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation"
@@ -322,7 +322,7 @@
     "scripts/test-deleted-case-appeal.mjs": "efbcbb15fe2e23384a8d01af056a6d36767577f7014fbf5a014c795aacf99b40",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
     "scripts/test-draft-persistence.mjs": "e9697c6b3e18f5e44fdfae3b69c37d262036638a169807cf0a17c027f7ce7adf",
-    "scripts/test-draft-queue-navigation.mjs": "e598074815329df10da5f3bc7891cf66c36fa48be550e07a4857383ca106e34f",
+    "scripts/test-draft-queue-navigation.mjs": "6824d477c4bcbcfc5cb823ca2fa03109f6f285bdada91f07ccd8e5daf974bf29",
     "scripts/test-evaluation-issue-tags.mjs": "d6e615df93012ab5d884234e53e4f1cc3a78e8e7f819406ef44d1727615109db",
     "scripts/test-evaluation-visibility-ui.mjs": "51dbc9ea7451004fea0f9e146dc0d9fb6ddf522e786758df866523a7ff4f6917",
     "scripts/test-evaluation-visibility.mjs": "52c8a98b1f0f870eccd90ac767c2c4a7f36de598b00c0a30dac325fca55be87a",
