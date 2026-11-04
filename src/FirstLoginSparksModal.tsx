@@ -3,6 +3,7 @@ import { claimFirstLoginSparks, FRUIT_CARDS, getSparksAccount, randomPrizeValues
 import "./qaSparks.css";
 
 type ModalStatus = "checking" | "hidden" | "ready" | "claiming" | "revealed" | "dismissed";
+const FRUIT_EMOJI = ["🍎", "🍌", "🍊", "🍇", "🍓", "🍉", "🍍", "🥭", "🍒", "🍑"];
 const FRUIT_PHOTOS = [
   "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=360&h=330&fit=crop&auto=format&q=85",
   "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=360&h=330&fit=crop&auto=format&q=85",
@@ -87,8 +88,7 @@ export default function FirstLoginSparksModal({ username }: { username: string }
             onClick={() => { void selectCard(card, index); }} disabled={disabled}
             aria-label={card.name + (chosen && prize ? ", " + prize.amount + " Sparks" : "")}
             aria-pressed={chosen}>
-            <span className="qa-sparks-fruit-photo" aria-hidden="true"
-              style={{ backgroundImage: "url(" + FRUIT_PHOTOS[index] + ")", backgroundPosition: "center", backgroundSize: "cover" }} />
+            <span className="qa-sparks-fruit-photo" aria-hidden="true"><span className="qa-sparks-fruit-photo-fallback">{FRUIT_EMOJI[index]}</span><img src={FRUIT_PHOTOS[index]} alt="" loading="eager" onError={(event) => { event.currentTarget.style.display = "none"; }}/></span>
             <span className="qa-sparks-fruit-name">{card.name}</span>
             {chosen && status === "claiming" ? <span className="qa-sparks-fruit-result">กำลังบันทึก...</span> : null}
             {chosen && status === "revealed" && prize ? <span className="qa-sparks-fruit-result">✧ {prize.amount.toLocaleString()} Sparks</span> : null}
