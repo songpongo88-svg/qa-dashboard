@@ -577,6 +577,10 @@ function AnnouncementWorkspace({
     useState<StoredAnnouncement | null>(null);
   const [popupDeliveryKind, setPopupDeliveryKind] =
     useState<PopupDeliveryKind>("legacy");
+  // A just-published Media Popup is the only announcement allowed to appear
+  // above the management panel. Reading statistics must never trigger popups.
+  const [justPublishedAnnouncementId, setJustPublishedAnnouncementId] = useState("");
+  const [popupFromPublishedAnnouncement, setPopupFromPublishedAnnouncement] = useState(false);
   const [mediaDescriptionOpen, setMediaDescriptionOpen] = useState(false);
   const [mediaType, setMediaType] =
     useState<AnnouncementMediaType>("image");
@@ -717,12 +721,15 @@ function AnnouncementWorkspace({
   );
 
   useEffect(() => {
-    if (!personalReceiptsReady || hubOpen || popupMessage) return;
+    const showJustPublished = hubOpen && view === "control" && Boolean(justPublishedAnnouncementId);
+    if (!personalReceiptsReady || popupMessage || (hubOpen && !showJustPublished)) return;
     if (document.visibilityState !== "visible") return;
 
     let next: StoredAnnouncement | null = null;
     let nextKind: PopupDeliveryKind = "legacy";
     for (const item of myAnnouncements) {
+      // Publishing while managing announcements must not display older messages.
+      if (showJustPublished && item.id !== justPublishedAnnouncementId) continue;
       const now = new Date();
       if (
         item.popupMode === "Mailbox Only" ||
@@ -764,6 +771,8 @@ function AnnouncementWorkspace({
     if (next) {
       setPopupMessage(next);
       setPopupDeliveryKind(nextKind);
+      setPopupFromPublishedAnnouncement(showJustPublished);
+      if (next.id === justPublishedAnnouncementId) setJustPublishedAnnouncementId("");
       const current = myReceiptMap.get(next.id);
       const shownAt = new Date().toISOString();
       void upsertAnnouncementReceipt({
@@ -812,6 +821,8 @@ function AnnouncementWorkspace({
     scheduleTick,
     personalReceiptsReady,
     hubOpen,
+    view,
+    justPublishedAnnouncementId,
   ]);
 
   const markRead = async (
@@ -873,6 +884,7 @@ function AnnouncementWorkspace({
     if (!popupMessage) return;
     await markRead(popupMessage, true, popupDeliveryKind);
     setPopupMessage(null);
+    setPopupFromPublishedAnnouncement(false);
   };
 
   const readLater = () => {
@@ -884,6 +896,7 @@ function AnnouncementWorkspace({
     setSnoozedIds(next);
     saveSnoozedIds(next);
     setPopupMessage(null);
+    setPopupFromPublishedAnnouncement(false);
   };
 
   const openInboxMessage = (item: StoredAnnouncement) => {
@@ -964,7 +977,7 @@ function AnnouncementWorkspace({
           ? new Date(`${dailyEndDate}T23:59:59.999`).toISOString()
           : reminderAt || publishedAt;
 
-      await upsertStoredAnnouncement({
+      const savedAnnouncement = await upsertStoredAnnouncement({
         ...draft,
         title: draft.title.trim(),
         body: isTicker ? "" : draft.body,
@@ -985,6 +998,11 @@ function AnnouncementWorkspace({
         createdBy: currentUser.username,
         createdByName: currentUser.displayName,
       });
+      // Restore the original first-immediate-popup behavior for the publisher
+      // when the publisher is also within the intended recipient audience.
+      if (!isTicker && matchesTarget(savedAnnouncement, currentUser)) {
+        setJustPublishedAnnouncementId(savedAnnouncement.id);
+      }
       setSaveMessage(
         isTicker
           ? "แสดงข้อความบน Dashboard แล้ว"
@@ -1434,7 +1452,7 @@ function AnnouncementWorkspace({
         ) : null}
       </button> : null}
 
-      {!hubOpen && popupMessage && mediaOnlyMode ? (
+      {popupMessage && (!hubOpen || (view === "control" && popupFromPublishedAnnouncement)) && mediaOnlyMode ? (
         spotlightMedia ? (
           <div className="pointer-events-none fixed inset-0 z-[150] flex items-center justify-center">
             <div className="pointer-events-auto relative max-h-[92vh] max-w-[94vw] overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(15,23,42,0.32)]">
@@ -1487,7 +1505,7 @@ function AnnouncementWorkspace({
             </div>
           </div>
         ) : null
-      ) : !hubOpen && popupMessage ? (
+      ) : popupMessage && (!hubOpen || (view === "control" && popupFromPublishedAnnouncement)) ? (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
           <div
             className={`overflow-hidden border border-white/20 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.5)] ${
