@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T10:22:58.174Z",
-  "reason": "Reviewed QA Sparks first-login fruit-card popup, wallet transaction and filtered history. Existing QA help-guide chapters are unchanged; no QA scoring or policy content was altered.",
+  "reviewedAt": "2026-11-04T10:46:13.085Z",
+  "reason": "Reviewed Sparks Admin Management user-wallet list, server-side QA session authorization, credit/debit/refund audit entries and confirmation dialogs. Existing User Guide and QA scoring are unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -349,7 +349,7 @@
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "abfb591219d756e868a9804215607b5ad17e3064ba8d855f84b5412b915e0796",
-    "src/App.tsx": "e7b3c14a1454be38fbdc4f00d3973c1455b2b50650dfc72a537833bb60ea18e7",
+    "src/App.tsx": "73e91fca1a8548fa7f7e6cf71567884f56ff4f179407ec7520c8e3cb4a99263b",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -589,10 +589,12 @@
     "scripts/patch-process-file-management-v85.mjs": "6600ed34a492c3c2fd65df668fdc83dbe6bfd252ecf8e2b6663d373f226054e0",
     "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad",
     "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
-    "src/QASparks.tsx": "abb277b096f8075858fbb4302bf65b7e686df512c82f4c4ba1a8f97aa1d135c1",
-    "src/qaSparks.css": "44b07c4cb0860f57be4d366959e3fd0d532152f369483e0dd10012c693136411",
-    "scripts/test-qa-sparks-ui.mjs": "041b4dd8bc4c2a05ba262e47d7a22db19a70b2855ef56a3fbd53b28891f2791d",
+    "src/QASparks.tsx": "e6825a8d770201ccb536044567e2c62272712c609477a4107bc056c9debebb54",
+    "src/qaSparks.css": "acbfae551f9f4628c7f07d0a6e4c81208afced28bb571be2d73eeb71efc92790",
+    "scripts/test-qa-sparks-ui.mjs": "b0ee73f1158c92be10d47269748c40728f8843c463cdd0c5fcbca1cf7439e374",
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
-    "src/qaSparksStore.ts": "72d878a726455204c6b872472d8cd895484a5034e51d6701712a74828bfec759"
+    "src/qaSparksStore.ts": "72d878a726455204c6b872472d8cd895484a5034e51d6701712a74828bfec759",
+    "api/sparks-admin.js": "9055908124f56b42cae96852eb0f859d98d96031b164571c2162defd7dc9b6ac",
+    "src/SparksAdminPanel.tsx": "a5037ef8378f054fec106527f8b9487b35fbdf0a21d3611a44fc1d89a91b0575"
   }
 }
