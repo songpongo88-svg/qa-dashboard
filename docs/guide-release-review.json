@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T05:59:22.459Z",
-  "reason": "Reviewed scoped Monthly landscape PDF, original styling, embedded Sarabun, inline Tags, Agent/Team/role isolation, chronological trend, pagination and historical verification gates",
+  "reviewedAt": "2026-11-04T06:31:08.611Z",
+  "reason": "Reviewed annual Top/Bottom Agent ranking eligibility for individual and team views, including Yearly web UI, PDF, Excel and test cases. Annual case counts, grade calculations, twelve-month trend, latest appeal results and status-hold behavior remain unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
-    "analytics",
-    "dashboard"
+    "dashboard",
+    "analytics"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -348,7 +348,7 @@
     "scripts/test-weekday-collection.mjs": "3dde89715a982b1ffcad591b5e96b223a6572318ebfb2598d9251f281096868e",
     "scripts/test-weekday-ui.mjs": "0eb3d61f10a30b428fc9976fcc57512ee90555227c6d8bea671d539f077e2375",
     "scripts/test-workflow-status-labels.mjs": "f76a5b37ab971fb1c3fd7c5b567d20495bc1679311889ed2007c525dee688eb9",
-    "scripts/test-yearly-team-summary.mjs": "e49d2391935b64971946c9ff93983a9cc36b0ac18f1e1a12f668c11d312ccafe",
+    "scripts/test-yearly-team-summary.mjs": "ad0503e179fc85c66de48ce29eb7251d036e6ab72a15e3236eaa62b8a09477c5",
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "6979e9a16669bd487c15071fe28e6b66e23b6b66342dac99079018bba9b1ec52",
@@ -412,7 +412,7 @@
     "src/UserRoleAdminMockup.tsx": "7befa0fea3f218c70acb40f953bf3e375cb909c2cfd1fd98f7b13e9ac1ae6f5c",
     "src/VoiceRecordingPlayer.tsx": "a8a8189ce69706ae64dfa8440f717195ba942cead346930cd3410ea51593b630",
     "src/WeekdayScene.tsx": "34ef75f3e9ce9e51fb047bae274d6f4ad3418e9c1a03abfdc8144e605113fb38",
-    "src/YearlyTeamSummary.tsx": "4d201e1e5326407cba022c1fdc96457eb58761649c2a1dbe5d6805540f19a744",
+    "src/YearlyTeamSummary.tsx": "2b1618ecad55269dd22acf073524ba3471efa65cc626134f7b33ca7581a2bb7d",
     "src/analyticsTagRates.ts": "e421ff2b4e3d9d9ec7f502f23bb35982d658735d932d461a9f0313f03a644ec2",
     "src/announcementDetail.css": "96a37b49d6c3b43bbe34b3cd27d73de4b92b2b38a43e131a9e66b2e8a416d7c5",
     "src/announcementStore.ts": "d1e36a47931a337e5e041511d97c75fec14228e56815770091daee546b6d80e6",
@@ -482,7 +482,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "f869f7538db6f617b655afab1e492a32ad0f99a759f070cac41cc4ff26654f4c",
+    "src/knowledge/manual.json": "5fa1cbbabca33d5a53eea02ff70f0a9a37747b42939850d92d2cd8ec94af339c",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -583,8 +583,8 @@
     "src/weekdayThemes/runtime.ts": "4bc931a5da4aa47f2f24d134808ec7da91858ac59433ad10990e79f4a94620e3",
     "src/weeklyCaseSummaryPdf.ts": "5442044772de311cad8950429dd70425fc4c4eadd4e524ebca285bacd239883c",
     "src/workflowStatusLabels.ts": "4dc42c2d40eef69741efe959b032901416c0002d949e8c8d031294d154f9c529",
-    "src/yearlyTeamSummaryData.ts": "d08c70343886540864a3df8570a09d7d21b2d9b76cecb7b975d2daf032c45bb0",
-    "src/yearlyTeamSummaryPdf.ts": "8dc253b72d76f8efeb9155170820f7a1947eed794d2a405c57dc3563cde7f223",
+    "src/yearlyTeamSummaryData.ts": "98a266077b4cf1c6138ad67d5a52c58525f98a04de09e7703f9deb5c8c9765d6",
+    "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
   }
 }
