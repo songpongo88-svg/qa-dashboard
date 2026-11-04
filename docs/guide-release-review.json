@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T09:06:55.896Z",
-  "reason": "Reviewed Process Remove/Restore custom popup layering and Node 24 compatible interaction regression; changes are limited to the dialog CSS and test infrastructure, not Firestore write behavior.",
+  "reviewedAt": "2026-11-04T09:31:34.067Z",
+  "reason": "Reviewed QA Sparks as a new theme-aware UI-only workspace with Overview, Reward Center and History. Inherits existing live theme variables and sidebar navigation without a new theme preference. Rewards, transactions, earning rules, membership levels and QA Learning are not activated and QA Score/KPI/Incentive are untouched. Added UI integration regression and guide chapter.",
   "contentChanged": true,
   "reviewedChapters": [
-    "evaluation"
+    "qa-sparks"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -102,7 +102,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "d8e138da50651957249172b4c2b0a646f9bfbbe296ff22de5426d4b5a9a7c107",
-    "package.json": "f7ae74365dc678de65e67481649a7e4739f05eb4a0001f23b60e9e27f0a9cc68",
+    "package.json": "ca7d5b4fc719848f0ae5e35be316df320ca55e6b84b79d4a541bc5e14091ba8f",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -351,7 +351,7 @@
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "abfb591219d756e868a9804215607b5ad17e3064ba8d855f84b5412b915e0796",
-    "src/App.tsx": "b9f4159b9c4ab4b03b981690a6acedfb37178b25596992cd4b2693d27cd59b6f",
+    "src/App.tsx": "432b9ab6b669ecabb52c8c259350a1d31083f43eb035ad89244e36165b40153c",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -481,7 +481,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "f78ad8cbccca6b7c209baa9fbefaa2ff345198957f42210116805ddccbedd4c5",
+    "src/knowledge/manual.json": "8e211157124b8d54f85d83b9e7c11869ba8134440fe2cae2f579e33944476264",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -590,6 +590,9 @@
     "src/ProcessFileManager.tsx": "f48a7a54cf9fb14ccdcee34d90d526f832caa5848244fcc7dfdab541449dbfe3",
     "scripts/patch-process-file-management-v85.mjs": "6600ed34a492c3c2fd65df668fdc83dbe6bfd252ecf8e2b6663d373f226054e0",
     "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad",
-    "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e"
+    "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
+    "src/QASparks.tsx": "9d1c43f61e436036718e612f4c2faf140c870ad5eeebca62d8d1ebfaab67b993",
+    "src/qaSparks.css": "08df35ce862bddd02ab6b30f96f99e6b9176ec372303edcbc23aa6bfedf1d895",
+    "scripts/test-qa-sparks-ui.mjs": "3b82771f8a996d1ffee3124a2f42c30b0e7c8b4a7bf6ba34e96b44eb3c8867ce"
   }
 }
