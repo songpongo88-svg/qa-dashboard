@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T10:48:40.962Z",
-  "reason": "Reviewed Sparks Admin Management user-wallet list, server-side QA session authorization, credit/debit/refund audit entries and confirmation dialogs. Existing User Guide and QA scoring are unchanged.",
+  "reviewedAt": "2026-11-04T11:03:20.473Z",
+  "reason": "Reviewed Sparks admin user-directory fallback, server credential failure handling and protected adjustment controls. QA User Management and QA scoring behavior remain unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -590,11 +590,11 @@
     "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad",
     "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
     "src/QASparks.tsx": "e6825a8d770201ccb536044567e2c62272712c609477a4107bc056c9debebb54",
-    "src/qaSparks.css": "acbfae551f9f4628c7f07d0a6e4c81208afced28bb571be2d73eeb71efc92790",
-    "scripts/test-qa-sparks-ui.mjs": "b0ee73f1158c92be10d47269748c40728f8843c463cdd0c5fcbca1cf7439e374",
+    "src/qaSparks.css": "e9c745927d07ed431d143bcfef0a272afe5614a7fc0ccf54902870f17c23e7b6",
+    "scripts/test-qa-sparks-ui.mjs": "51a6edea262a18064e85655b4f1c041a72b25167b23e01c00c8f39c0c98eaf37",
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
     "src/qaSparksStore.ts": "72d878a726455204c6b872472d8cd895484a5034e51d6701712a74828bfec759",
-    "api/sparks-admin.js": "9055908124f56b42cae96852eb0f859d98d96031b164571c2162defd7dc9b6ac",
-    "src/SparksAdminPanel.tsx": "719503ba77d2c0671754c52fe89464bbbac0013b17f807beec0293f8a6781b95"
+    "api/sparks-admin.js": "8ffb89d45c76a2a9c5e0ffdf96c7ff5035e6db2ff56d11366cf0ad13a1cafc41",
+    "src/SparksAdminPanel.tsx": "9e45f872b90cdf31c1decc2f948b28d8bfe427d5a53fd02892dbe18c2e9d5e47"
   }
 }

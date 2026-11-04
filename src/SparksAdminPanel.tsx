@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./qaSparks.css";
+import { fetchStoredUserProfiles } from "./userRoleStore";
+import { getSparksAccount } from "./qaSparksStore";
+import { collection, getDocs } from "firebase/firestore";
+import { firebaseDb } from "./firebaseClient";
 
 type AdminUser = {
   username: string;
@@ -66,6 +70,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [adminReady, setAdminReady] = useState(false);
 
   const request = useCallback(async (action: "list" | "history" | "adjust", input: Record<string, unknown> = {}) => {
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
@@ -87,10 +92,50 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
       if (!active) return;
       const loaded = Array.isArray(data.users) ? data.users as AdminUser[] : [];
       setUsers(loaded);
+      setAdminReady(true);
       setChosen((previous) => loaded.some((row) => row.username === previous) ? previous : (loaded[0]?.username || ""));
       setError("");
-    }).catch((reason) => {
-      if (active) setError(reason instanceof Error ? reason.message : "ไม่สามารถโหลดรายชื่อ User ได้");
+    }).catch(async (reason) => {
+      if (!active) return;
+      setAdminReady(false);
+      const message = reason instanceof Error ? reason.message : "บริการ Sparks Admin เชื่อมต่อไม่สำเร็จ";
+      setError("ระบบจัดการคะแนนยังไม่พร้อม: " + message + " — แสดงรายชื่อจาก QA User Management แบบอ่านอย่างเดียว");
+      try {
+        const profiles = await fetchStoredUserProfiles();
+        const wallets = new Map<string, any>();
+        try {
+          const rows = await getDocs(collection(firebaseDb, "qa_sparks_wallets"));
+          rows.docs.forEach((doc) => {
+            const data = doc.data();
+            wallets.set(String(data.username || decodeURIComponent(doc.id)).trim().toLowerCase(), data);
+          });
+        } catch {
+          // Keep the QA user directory visible even when wallet reads are unavailable.
+        }
+        if (!active) return;
+        const fallbackUsers = profiles.map((profile) => {
+          const wallet = wallets.get(profile.username.trim().toLowerCase());
+          return {
+            username: profile.username,
+            displayName: profile.displayName || profile.agentName || profile.username,
+            role: profile.role,
+            status: profile.status,
+            balance: Number(wallet?.balance) || 0,
+            earned: Number(wallet?.totalEarned) || Number(wallet?.firstLogin?.amount) || 0,
+            spent: Number(wallet?.totalSpent) || 0,
+            rewardOrders: Number(wallet?.rewardOrders) || 0,
+            firstLogin: wallet?.firstLogin || null,
+          } as AdminUser;
+        });
+        fallbackUsers.sort((a, b) => a.displayName.localeCompare(b.displayName, "th"));
+        setUsers(fallbackUsers);
+        setChosen((previous) => fallbackUsers.some((row) => row.username === previous) ? previous : (fallbackUsers[0]?.username || ""));
+      } catch (directoryError) {
+        if (active) {
+          setUsers([]);
+          setError("ไม่สามารถโหลดรายชื่อจาก QA User Management: " + String(directoryError instanceof Error ? directoryError.message : "Unknown error"));
+        }
+      }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [request, revision]);
@@ -102,8 +147,33 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
     setDetail(null);
     void request("history", { targetUsername: chosen }).then((data) => {
       if (active) { setDetail(data as DetailResponse); setError(""); }
-    }).catch((reason) => {
-      if (active) setError(reason instanceof Error ? reason.message : "โหลดประวัติไม่สำเร็จ");
+    }).catch(async (reason) => {
+      if (!active) return;
+      try {
+        const account = await getSparksAccount(chosen);
+        if (!active) return;
+        const history = account.history.map((item) => ({
+          ...item,
+          performedBy: "",
+          reason: "",
+          referenceId: "",
+          status: "",
+        }));
+        setDetail({
+          username: chosen,
+          wallet: {
+            balance: account.balance,
+            earned: history.filter((item) => item.amount > 0).reduce((sum, item) => sum + item.amount, 0),
+            spent: history.filter((item) => item.amount < 0).reduce((sum, item) => sum - item.amount, 0),
+            rewardOrders: account.rewardOrders,
+            firstLogin: account.firstLogin,
+          },
+          history,
+          truncated: history.length >= 100,
+        });
+      } catch {
+        if (active) setError("ประวัติ Sparks ยังโหลดไม่ได้ เนื่องจากไม่มีสิทธิ์อ่านข้อมูล Firestore หรือบริการยังไม่พร้อม");
+      }
     }).finally(() => { if (active) setDetailLoading(false); });
     return () => { active = false; };
   }, [request, chosen, revision]);
@@ -120,6 +190,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
   const refundedIds = new Set((detail?.history || []).filter((item) => item.source === "reward-refund").map((item) => item.referenceId));
 
   function startOperation(kind: Operation, item?: AdminHistoryItem) {
+    if (!adminReady) return;
     setOperation(kind);
     setAmount(kind === "refund" && item ? String(-item.amount) : "");
     setReferenceId(kind === "refund" ? String(item?.id || "") : "");
@@ -148,7 +219,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
     setConfirm(true);
   }
   async function submit() {
-    if (!operation || !chosen || !confirm || saving) return;
+    if (!adminReady || !operation || !chosen || !confirm || saving) return;
     setSaving(true);
     setError("");
     try {
@@ -172,6 +243,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
       <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button>
     </div>
     {error ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
+    {!adminReady && !loading ? <div role="status" className="qa-sparks-admin-readonly">ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยัน Service Account สำเร็จ รายชื่อ User ด้านล่างใช้ข้อมูลเดียวกับ QA User Management</div> : null}
     {notice ? <div role="status" className="qa-sparks-admin-success">{notice}</div> : null}
     <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">
@@ -181,7 +253,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
           {filteredUsers.map((user) => <button key={user.username} type="button" role="listitem" aria-current={chosen === user.username}
             className={chosen === user.username ? "selected" : ""} onClick={() => { setChosen(user.username); setOperation(null); setFilter("all"); setNotice(""); }}>
             <span className="qa-sparks-admin-user-title">{user.displayName}<small>@{user.username} · {user.role || "User"}</small></span>
-            <span className="qa-sparks-admin-user-balance">{fmt(user.balance)} <small>Sparks</small></span>
+            <span className="qa-sparks-admin-user-balance">{adminReady ? fmt(user.balance) : "—"} <small>Sparks</small></span>
           </button>)}
           {!loading && filteredUsers.length === 0 ? <p className="qa-sparks-admin-empty">ไม่พบ User</p> : null}
           {loading ? <p className="qa-sparks-admin-empty">กำลังโหลดรายชื่อ...</p> : null}
@@ -194,14 +266,14 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
             <span className="qa-sparks-admin-status">{selected.status || "Active"}</span>
           </div>
           <div className="qa-sparks-admin-metrics">
-            <div><span>คงเหลือ</span><strong>{fmt(detail?.wallet.balance ?? selected.balance)}</strong></div>
-            <div><span>ได้รับสะสม</span><strong>{fmt(detail?.wallet.earned ?? selected.earned)}</strong></div>
-            <div><span>ใช้ไป</span><strong>{fmt(detail?.wallet.spent ?? selected.spent)}</strong></div>
-            <div><span>รายการแลก</span><strong>{fmt(detail?.wallet.rewardOrders ?? selected.rewardOrders)}</strong></div>
+            <div><span>คงเหลือ</span><strong>{detail ? fmt(detail.wallet.balance) : adminReady ? fmt(selected.balance) : "—"}</strong></div>
+            <div><span>ได้รับสะสม</span><strong>{detail ? fmt(detail.wallet.earned) : adminReady ? fmt(selected.earned) : "—"}</strong></div>
+            <div><span>ใช้ไป</span><strong>{detail ? fmt(detail.wallet.spent) : adminReady ? fmt(selected.spent) : "—"}</strong></div>
+            <div><span>รายการแลก</span><strong>{detail ? fmt(detail.wallet.rewardOrders) : adminReady ? fmt(selected.rewardOrders) : "—"}</strong></div>
           </div>
           <div className="qa-sparks-admin-operations">
-            <button type="button" onClick={() => startOperation("add")}>+ เพิ่ม Sparks</button>
-            <button type="button" onClick={() => startOperation("deduct")}>− ปรับลด Sparks</button>
+            <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องแก้การเชื่อมต่อ Google Cloud ก่อน" : ""} onClick={() => startOperation("add")}>+ เพิ่ม Sparks</button>
+            <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องแก้การเชื่อมต่อ Google Cloud ก่อน" : ""} onClick={() => startOperation("deduct")}>− ปรับลด Sparks</button>
           </div>
           <div className="qa-sparks-admin-history-heading">
             <h3>ประวัติคะแนนและการแลกรางวัล</h3>
@@ -221,7 +293,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
               </div>
               <div className="qa-sparks-admin-history-amount"><strong className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount > 0 ? "+" : ""}{fmt(entry.amount)}</strong><small>เหลือ {fmt(entry.balanceAfter)}</small>
                 {entry.source === "reward-redemption" && entry.amount < 0 && !refundedIds.has(entry.id) ?
-                  <button type="button" onClick={() => startOperation("refund", entry)}>คืน Sparks</button> : null}
+                  <button type="button" disabled={!adminReady} onClick={() => startOperation("refund", entry)}>คืน Sparks</button> : null}
               </div>
             </article>)}
           </div>

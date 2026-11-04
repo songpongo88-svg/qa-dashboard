@@ -33,6 +33,11 @@ try{
   assert.match(css, /qa-sparks-fruit-photo/, "fruit cards need image presentation");
     const sparksAdmin = await readFile("src/SparksAdminPanel.tsx", "utf8");
   const sparksAdminApi = await readFile("api/sparks-admin.js", "utf8");
+  assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");
+  assert.match(sparksAdmin, /setAdminReady\(false\)/, "Sparks adjustment must be disabled if the server is unavailable");
+  assert.match(sparksAdmin, /disabled=\{!adminReady/, "mutation controls must be disabled without server authorization");
+  assert.match(sparksAdminApi, /FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON/, "Sparks admin should support dedicated Firebase service credentials");
+
   assert.match(sparksAdmin, /\/api\/sparks-admin/, "admin management must use server API");
   assert.match(sparksAdmin, /request\("adjust"/, "adjustments must use server API");
   assert.match(sparksAdmin, /request\("history"/, "admin can review other users' histories");
