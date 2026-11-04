@@ -105,3 +105,61 @@
 @media (prefers-reduced-motion: reduce) {
   .qa-sparks-tab { transition: none; }
 }
+
+
+/* Live Sparks wallet, audit history, and premium fruit reward modal */
+.qa-sparks-history-wrap { display:flex; flex-direction:column; justify-content:center; min-height:249px; }
+.qa-sparks-history-wrap--large { min-height:430px; justify-content:flex-start; }
+.qa-sparks-history-empty-message { display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center; }
+.qa-sparks-history-empty-message h3 { font-size:15px; font-weight:600; margin:4px 0; }
+.qa-sparks-history-filters { display:flex; gap:7px; margin:4px 0 12px; flex-wrap:wrap; }
+.qa-sparks-history-filters button { border:1px solid var(--sparks-outline); background:#fff; border-radius:999px; padding:6px 12px; color:#665c66; cursor:pointer; font:inherit; font-size:11px; }
+.qa-sparks-history-filters button.active { background:var(--sparks-accent); border-color:var(--sparks-accent); color:white; }
+.qa-sparks-history-item { display:grid; grid-template-columns:1.1fr 1fr .9fr 1.2fr; gap:6px; padding:10px 9px; align-items:center; border-top:1px solid #eee7e6; font-size:11px; color:#3a3037; }
+.qa-sparks-history-item strong { font-size:11px; font-weight:600; white-space:nowrap; }
+.qa-sparks-history-item .positive { color:#26804c; }
+.qa-sparks-history-item .negative { color:#bd4058; }
+.qa-sparks-history-item small { display:block; color:#817680; font-size:10px; }
+.qa-sparks-loading { color:var(--sparks-accent); font-size:11px; }
+.qa-sparks-inline-error { padding:10px 14px; border-radius:10px; background:#fff0ed; color:#a12727; font-size:12px; }
+.qa-sparks-modal-backdrop { position:fixed; inset:0; z-index:2147482000; display:grid; place-items:center; background:rgba(16,12,16,.65); padding:18px; overflow-y:auto; font-family:"Kanit",sans-serif; }
+.qa-sparks-modal { --fruit-theme:var(--qa-theme-500,#bd702e); width:min(100%, 870px); max-height:min(94vh,1020px); overflow-y:auto; background:radial-gradient(ellipse at top,#38302c,#242123 70%); color:#fcf7ef; border:1px solid color-mix(in srgb,var(--fruit-theme) 38%,#74665c); border-radius:22px; padding:20px 24px 24px; box-shadow:0 28px 90px rgba(0,0,0,.45); }
+.qa-sparks-modal-top { display:flex; justify-content:space-between; align-items:center; }
+.qa-sparks-modal-badge { background:color-mix(in srgb,var(--fruit-theme) 35%,#3a261f); color:#ffb76b; font-size:11px; font-weight:600; padding:5px 12px; border-radius:999px; }
+.qa-sparks-modal-close { width:32px; height:32px; border-radius:50%; color:#f6ece2; border:1px solid #62534b; background:#322b29; cursor:pointer; font-size:24px; line-height:1; }
+.qa-sparks-modal-gift { font-size:26px; color:#eab455; }
+.qa-sparks-modal-heading { text-align:center; margin:4px 0 18px; }
+.qa-sparks-modal-spark { color:#f7c34a; font-size:38px; }
+.qa-sparks-modal-heading h2 { margin:0; font-size:clamp(20px,2.3vw,30px); font-weight:600; line-height:1.3; color:#fff; }
+.qa-sparks-modal-heading p { margin:5px 0; font-size:14px; color:#f4e7db; }
+.qa-sparks-modal-heading strong { font-size:18px; font-weight:600; }
+.qa-sparks-fruit-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.qa-sparks-fruit-card { position:relative; display:flex; flex-direction:column; align-items:center; min-width:0; overflow:hidden; border-radius:17px; border:1px solid color-mix(in srgb,var(--fruit-theme) 60%,#8e6637); background:linear-gradient(150deg,#332621,#1b1716); color:#fef3da; padding:5px 5px 9px; box-shadow:inset 0 0 0 1px #ffffff12,0 6px 15px #0004; cursor:pointer; transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease; font-family:inherit; }
+.qa-sparks-fruit-card:not(:disabled):hover { transform:translateY(-5px); border-color:#f1b840; box-shadow:0 10px 24px #f1b8403b; }
+.qa-sparks-fruit-card.is-selected { border:2px solid #ffd15e; padding:4px 4px 8px; box-shadow:0 0 0 2px #c88d36,0 0 30px #f6bc4e77; animation:qa-sparks-card-reveal .55s ease-out; }
+.qa-sparks-fruit-card.is-muted { opacity:.60; }
+.qa-sparks-fruit-card:disabled { cursor:default; }
+.qa-sparks-fruit-photo { display:block; width:100%; aspect-ratio:1.12; background-image:url("/qa-sparks-fruit-atlas.webp"); background-repeat:no-repeat; background-size:500% 200%; border-radius:12px; background-color:#35251d; }
+.qa-sparks-fruit-name { display:flex; align-items:center; justify-content:center; text-align:center; min-height:34px; font-size:clamp(10px,1.1vw,13px); font-weight:600; line-height:1.15; margin-top:4px; }
+.qa-sparks-fruit-result { display:block; text-align:center; background:linear-gradient(115deg,#fbe3a3,#f6ad35); color:#4c2e15; width:100%; padding:5px 2px; border-radius:9px; font-weight:700; font-size:clamp(10px,1.15vw,14px); }
+.qa-sparks-modal-congrats { margin:15px 0 10px; text-align:center; font-size:20px; font-weight:600; color:#fff; }
+.qa-sparks-modal-claim { display:block; width:100%; min-height:45px; border:0; border-radius:999px; background:linear-gradient(120deg,#fffdf6,#ead7b7); color:#6a3716; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; }
+.qa-sparks-modal-hint { margin:15px 0 9px; text-align:center; font-size:13px; font-weight:500; }
+.qa-sparks-modal-later { display:block; margin:auto; background:transparent; border:1px solid #84746c; border-radius:12px; padding:7px 24px; color:#f4e2d3; font:inherit; font-size:12px; cursor:pointer; }
+.qa-sparks-modal-footnote { text-align:center; color:#c9bdb3; font-size:11px; margin:8px 0 0; }
+.qa-sparks-modal-error { color:#ffd2ca; background:#75352e; border-radius:10px; padding:9px; font-size:12px; text-align:center; margin-top:10px; }
+@keyframes qa-sparks-card-reveal { from { transform:rotateY(70deg) scale(.87); opacity:.3; } to { transform:rotateY(0) scale(1); opacity:1; } }
+@media (max-width:700px) {
+  .qa-sparks-modal { padding:15px 12px 18px; }
+  .qa-sparks-fruit-grid { gap:5px; }
+  .qa-sparks-fruit-card { border-radius:10px; padding:3px; }
+  .qa-sparks-fruit-photo { border-radius:7px; }
+  .qa-sparks-fruit-name { font-size:9px; min-height:32px; }
+  .qa-sparks-modal-heading { margin-bottom:12px; }
+  .qa-sparks-history-head, .qa-sparks-history-item { grid-template-columns:1fr 1fr .9fr 1.1fr; font-size:9px; }
+  .qa-sparks-history-item strong { font-size:9px; white-space:normal; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .qa-sparks-fruit-card { transition:none; }
+  .qa-sparks-fruit-card.is-selected { animation:none; }
+}
