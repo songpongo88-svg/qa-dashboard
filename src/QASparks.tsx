@@ -28,16 +28,13 @@ function EmptyReward({ large = false }: { large?: boolean }) {
       <span className="qa-sparks-illustration-emblem"><SparksIcon name="gift" size={57}/></span>
       <i className="qa-sparks-flare one" /><i className="qa-sparks-flare two" />
     </div>
-    <h3>ยังไม่มีของรางวัลในขณะนี้</h3>
-    <p>ระบบแลกรางวัลเตรียมโครงสร้างไว้แล้ว<br/>รอเพิ่มรายการและเงื่อนไขการแลกภายหลัง</p>
-    <button type="button" disabled title="ยังไม่มีรายการรางวัลให้แลก"><SparksIcon name="gift" size={17}/> เปิดดูรางวัล</button>
+    <h3>ยังไม่มีของรางวัล</h3>
   </section>;
 }
 function EmptyHistory({ large = false }: { large?: boolean }) {
   return <section className={"qa-sparks-empty qa-sparks-history-empty" + (large ? " qa-sparks-empty--large" : "")} aria-label="ยังไม่มีประวัติ Sparks">
     <div className="qa-sparks-history-clock"><SparksIcon name="clock" size={49}/></div>
     <h3>ยังไม่มีประวัติการได้รับหรือใช้ Sparks</h3>
-    <p>เมื่อเปิดใช้งาน ระบบจะแสดงรายการได้รับและแลกรางวัลที่นี่</p>
     <div className="qa-sparks-history-table" role="table" aria-label="ประวัติ QA Sparks">
       <div className="qa-sparks-history-head" role="row">
         <span role="columnheader">วันที่ / เวลา</span><span role="columnheader">รายการ</span>
@@ -70,12 +67,6 @@ export default function QASparks({ displayName = "" }: { displayName?: string })
           {displayName ? <div className="qa-sparks-owner">บัญชีผู้ใช้งาน: {displayName}</div> : null}
           <div className="qa-sparks-hero-row">
             <div className="qa-sparks-balance"><SparksIcon name="spark" size={30}/><strong>0</strong><span>Sparks</span></div>
-            <div className="qa-sparks-status">
-              <span className="qa-sparks-pill"><SparksIcon name="settings" size={16}/> Setup in progress</span>
-              <span className="qa-sparks-pill"><SparksIcon name="gift" size={16}/> No rewards yet</span>
-              <span className="qa-sparks-pill"><SparksIcon name="clock" size={16}/> History ready</span>
-              <div className="qa-sparks-hero-note"><SparksIcon name="info" size={16}/> เงื่อนไขการได้รับ Sparks จะกำหนดภายหลัง</div>
-            </div>
           </div>
         </div>
         <div className="qa-sparks-hero-art" aria-hidden="true">
@@ -90,7 +81,7 @@ export default function QASparks({ displayName = "" }: { displayName?: string })
           ["Current Sparks", "0", "spark", "amber"],
           ["Available to Redeem", "0", "gift", "violet"],
           ["Reward Orders", "0", "receipt", "blue"],
-          ["Member Level", "Not set", "crown", "green"],
+          ["Member Level", "—", "crown", "green"],
         ] as const).map(([label, value, icon, tone]) => (
           <div className="qa-sparks-metric" key={label}>
             <span className={"qa-sparks-metric-icon qa-sparks-tone-"+tone}><SparksIcon name={icon} size={27}/></span>
@@ -98,7 +89,6 @@ export default function QASparks({ displayName = "" }: { displayName?: string })
           </div>
         ))}
       </section>
-      <p className="qa-sparks-placeholder-disclosure">ยอดและสถานะขณะนี้เป็นค่าเริ่มต้นของหน้า UI ยังไม่มีการกำหนดเงื่อนไขสะสมหรือเชื่อมข้อมูลการแลกรางวัลจริง</p>
 
       <nav className="qa-sparks-tabs" role="tablist" aria-label="QA Sparks sections">
         {tabs.map((tab) => (
@@ -120,12 +110,6 @@ export default function QASparks({ displayName = "" }: { displayName?: string })
         : <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><EmptyHistory large/></section>}
       </div>
 
-      <section className="qa-sparks-notes">
-        <div className="qa-sparks-notes-heading"><SparksIcon name="info" size={23}/> หมายเหตุการใช้งาน</div>
-        <ul><li>ยังไม่กำหนดเงื่อนไขการได้รับ Sparks</li><li>ยังไม่มีรายการของรางวัล</li>
-          <li>เตรียมหน้าระบบแลกรางวัลไว้เพื่อกำหนดรายละเอียดภายหลัง</li>
-          <li>QA Sparks แยกจาก QA Score, KPI และ Incentive</li></ul>
-      </section>
     </div>
   </main>;
 }
