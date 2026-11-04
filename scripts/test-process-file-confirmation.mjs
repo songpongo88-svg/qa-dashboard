@@ -14,7 +14,7 @@ const dom = new JSDOM('<!doctype html><html><head></head><body><div id="root"></
 });
 for (const name of [
   "window", "document", "HTMLElement", "MutationObserver",
-  "Event", "MouseEvent", "KeyboardEvent", "navigator",
+  "Event", "MouseEvent", "KeyboardEvent",
 ]) {
   globalThis[name] = dom.window[name];
 }
