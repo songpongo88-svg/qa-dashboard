@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T08:22:40.360Z",
-  "reason": "Reviewed Process File Management in Evaluate: version/file list and preview, confirmation before hide, metadata-only Remove/Restore, real-time dropdown sync, preserved Case Report historical references and same Firestore snapshot. Covered via regression test and updated evaluation guide.",
+  "reviewedAt": "2026-11-04T08:24:13.007Z",
+  "reason": "Reviewed Process File Management build patch syntax fix, with unchanged metadata-only hide/restore, dropdown sync, and historical QA references.",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation"
@@ -588,7 +588,7 @@
     "scripts/test-announcement-read-stat-popup.mjs": "3fad6fd2e9d016e003cf558266edb358c4f1238a966fa38395447b229f37fa71",
     "src/lib/processFileManagement.ts": "ea519e1455b79e2ecd85e7cc243c95348ae9b237e898fceca2ac4e25dae6d4eb",
     "src/ProcessFileManager.tsx": "f12e232c102a3aa99c161665b1bf10bdbb8bc87c0f60862743d22bcf89794eb6",
-    "scripts/patch-process-file-management-v85.mjs": "20cbb7e74ea00600f0dbdce1544a44ffcb309e9608765c3081144c011cc91283",
+    "scripts/patch-process-file-management-v85.mjs": "ae1cbdb9b1a93021dc77b0361b18ec12e78d726e22ff74abab0bab954c71ae04",
     "scripts/test-process-file-management.mjs": "81de8f11333643f95b8fe0f226eedeabd6bf6da1730073509099799b95b561da"
   }
 }
