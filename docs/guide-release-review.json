@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T06:43:15.204Z",
-  "reason": "Reviewed announcement statistics listener isolation, per-user read/acknowledged receipts, popup suppression during stats view and regression test. Genuine new announcements remain deliverable after closing the manager panel.",
+  "reviewedAt": "2026-11-04T06:44:23.843Z",
+  "reason": "Reviewed announcement analytics isolation and regression test environment compatibility in Vercel build; personal read receipts stay intact when opening statistics.",
   "contentChanged": true,
   "reviewedChapters": [
     "inbox"
@@ -585,6 +585,6 @@
     "src/yearlyTeamSummaryData.ts": "a133f2a7550fdb72b07004c570ac3c7166ab8544020cad85e02a0beff3dff0d9",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "scripts/test-announcement-read-stat-popup.mjs": "99da1fb8e1d14cc7113eea259282f6d1fc4ec1e999e18457829c5e7a448093a2"
+    "scripts/test-announcement-read-stat-popup.mjs": "5870fa8502b03b4b7d912ff792ac8882ea93c1f66cd6d36ce6a3437df8cde094"
   }
 }
