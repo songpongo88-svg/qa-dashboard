@@ -1,3 +1,4 @@
+import {reportPdfFilename} from './reportPdfFilename';
 import { jsPDF } from "jspdf";
 import type { YearlyTeamReport, YearlyStats } from "./yearlyTeamSummaryData";
 
@@ -223,7 +224,5 @@ export function createYearlyTeamSummaryPdf(
   pdf.setProperties({ title: "Yearly Team Summary " + reports.map(item => item.year).join(", "),
     subject: "QA annual monthly trend, agent rankings and confirmed case results",
     creator: "QA Dashboard" });
-  return { pdf, fileName: reports.length === 1
-    ? "Yearly_Team_Summary_" + reports[0].year + ".pdf"
-    : "Yearly_Team_Summary_" + reports.map(item => item.year).join("_") + ".pdf" };
+  return {pdf,fileName:reportPdfFilename('Yearly',reports.map(item=>String(item.year)),scope)};
 }

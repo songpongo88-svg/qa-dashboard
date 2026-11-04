@@ -187,8 +187,8 @@ try {
   dom.window.document.fonts = { check: () => true, load: async () => [] };
   await act(async()=>button("Export").click());
   await act(async()=>button("PDF").click());
-  await settle(()=>fixture.downloads.some(item=>item.fileName==="Yearly_Team_Summary_2026.pdf"));
-  const pdfOutput=fixture.downloads.find(item=>item.fileName==="Yearly_Team_Summary_2026.pdf");
+  await settle(()=>fixture.downloads.some(item=>item.fileName==="QA_Yearly_All_Teams_All_Agents_2026.pdf"));
+  const pdfOutput=fixture.downloads.find(item=>item.fileName==="QA_Yearly_All_Teams_All_Agents_2026.pdf");
   assert.ok(pdfOutput?.pdf, "Yearly PDF was generated");
   assert.ok(pdfOutput.pdf.getNumberOfPages()>=2,"Yearly PDF includes a separate paginated Agent summary");
   const pdfContent=pdfOutput.pdf.internal.pages.flat().join(" ");

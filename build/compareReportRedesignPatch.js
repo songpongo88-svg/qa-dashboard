@@ -9,7 +9,11 @@ export function compareReportRedesignPatch(){return {name:'compare-report-redesi
         await assertEvaluationScopeComplete(currentEvaluationScope.agents, currentEvaluationScope.months);
         const { generateComparisonPdf } = await import('./generateComparisonPdf');
         await generateComparisonPdf({
-          periods: periodTopicReports,
+          periods: periodTopicReports.map(p => ({...p, incentive:getTotalIncentiveForCases(p.cases)})),
+          fileScope: {team:selectedTeam === 'all' ? 'All Teams' : selectedTeam,agent:effectiveSelectedAgent === 'all' ? 'All Agents' : effectiveSelectedAgent},
+          analytics: comparisonChartAnalytics,
+          watchlist: analysisMode === 'monthly' ? performanceStatusRows : [],
+          supportingTrend: analysisMode === 'monthly' ? teamMonthlyAnalyticsRows : [],
           agents: effectiveSelectedAgent === 'all' ? agentComparisonRows : [{agent:effectiveSelectedAgent,values:periodTopicReports.map(p=>({period:p.label,score:p.summary.caseCount?p.summary.avgScore:null,caseCount:p.summary.caseCount}))}],
           scope: (selectedTeam === 'all' ? 'ทุกทีม' : selectedTeam) + ' / ' + (effectiveSelectedAgent === 'all' ? 'ทุกคน' : effectiveSelectedAgent),
           preparedBy: String(currentUser?.displayName || currentUser?.username || '-'),
