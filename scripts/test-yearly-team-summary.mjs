@@ -50,7 +50,7 @@ function replaceFunction(source, name, body) {
 let root;
 try {
   const bundlePath = path.join(temp, "reports.mjs");
-  await build({ stdin: { contents: `export {loadCanonicalReportData} from './src/DashboardMockup'; export {loadCanonicalSignatureDocuments} from './src/SignatureCenterMockup'; export {buildYearlyTeamReport,buildYearlyTeamSummaryWorkbook,createYearlyTeamSummaryXlsx} from './src/yearlyTeamSummaryData'; export {default as Summary} from './src/SummaryMockup'; export {EvaluationActivityContext} from './src/EvaluationActivityContext'; export {getAppealScoreHold} from './src/pendingAppealScore'; import React,{act} from 'react';import {Simulate} from 'react-dom/test-utils';import {createRoot} from 'react-dom/client';export {React,act,Simulate,createRoot};`, resolveDir: rootDir, loader: "tsx" }, outfile: bundlePath,
+  await build({ stdin: { contents: `export {loadCanonicalReportData} from './src/DashboardMockup'; export {loadCanonicalSignatureDocuments} from './src/SignatureCenterMockup'; export {buildYearlyTeamReport,buildYearlyTeamSummaryWorkbook,createYearlyTeamSummaryXlsx,showYearlyAgentRanking} from './src/yearlyTeamSummaryData'; export {default as Summary} from './src/SummaryMockup'; export {EvaluationActivityContext} from './src/EvaluationActivityContext'; export {getAppealScoreHold} from './src/pendingAppealScore'; import React,{act} from 'react';import {Simulate} from 'react-dom/test-utils';import {createRoot} from 'react-dom/client';export {React,act,Simulate,createRoot};`, resolveDir: rootDir, loader: "tsx" }, outfile: bundlePath,
     bundle: true, jsx: "automatic", platform: "node", format: "esm", packages: "external", loader: { ".css": "empty" }, define: { "import.meta.env": "{}" }, logLevel: "silent", plugins: [{ name: "report-fixtures", setup(builder) {
       builder.onResolve({ filter: /\?url$/ }, () => ({ path: "worker", namespace: "fixture-asset" }));
       builder.onLoad({ filter: /.*/, namespace: "fixture-asset" }, () => ({ contents: 'export default "/fixture-worker.mjs";', loader: "js" }));
@@ -69,7 +69,7 @@ try {
       builder.onLoad({ filter: /\/evaluationEditingStore\.ts$/ }, async args => ({ loader: "ts", contents: replaceFunction(await fs.readFile(args.path, "utf8"), "assertEvaluationScopeComplete", `{ globalThis.__yearlySummaryFixture.assertions.push({agents,months}); }`) }));
       builder.onLoad({ filter: /\/userRoleStore\.ts$/ }, async args => { let source = await fs.readFile(args.path, "utf8"); source = replaceFunction(source, "fetchStoredUserProfiles", "{ return []; }"); source = replaceFunction(source, "fetchStoredRolePermissions", "{ return []; }"); return { loader: "ts", contents: source }; });
     } }] });
-  const { loadCanonicalReportData, loadCanonicalSignatureDocuments, buildYearlyTeamReport, buildYearlyTeamSummaryWorkbook, createYearlyTeamSummaryXlsx, Summary, EvaluationActivityContext, getAppealScoreHold, React, act, Simulate, createRoot } = await import(pathToFileURL(bundlePath));
+  const { loadCanonicalReportData, loadCanonicalSignatureDocuments, buildYearlyTeamReport, buildYearlyTeamSummaryWorkbook, createYearlyTeamSummaryXlsx, showYearlyAgentRanking, Summary, EvaluationActivityContext, getAppealScoreHold, React, act, Simulate, createRoot } = await import(pathToFileURL(bundlePath));
   const source = await loadCanonicalReportData();
   const documents = await loadCanonicalSignatureDocuments();
   assert.deepEqual(source.cases.filter(item => item.monthKey === "2026-01").map(item => item.caseId), ["JAN-AUTH"]);
@@ -92,12 +92,16 @@ try {
   assert.ok(!yearly.topAgents.some(item => item.agent === "No Case Agent"));
   assert.ok(!yearly.bottomAgents.some(item => item.agent === "No Case Agent"));
   assert.equal(yearly.agents.find(item => item.agent === "No Case Agent").averageScore, null);
+  assert.equal(showYearlyAgentRanking(yearly, agent), false, "individual Agent selection cannot rank itself");
+  assert.equal(showYearlyAgentRanking(yearly, "All Agents"), false, "one Agent with actual scores cannot form a ranking");
   const uneven = buildYearlyTeamReport([record("ONE", "2026-01", 100), ...Array.from({length:9},(_,i)=>record("MANY"+i,"2026-06",80))].map(item=>({...item,agent:item.agentName,monthKey:item.auditDate.slice(0,7)})),"2026");
   assert.equal(uneven.averageScore, 82);
   const zero = buildYearlyTeamReport([{agent,caseId:"ZERO",monthKey:"2026-06",finalScore:0}],"2026");
   assert.equal(zero.averageScore, 0);assert.equal(zero.criticalCount, 0, "a numeric zero alone is not a Critical Error");
   const ties = buildYearlyTeamReport(["Alpha","Beta"].map((name,index)=>({agent:name,caseId:String(index),monthKey:"2026-06",finalScore:90})),"2026");
   assert.equal(ties.topAgents.length,2);assert.equal(ties.bottomAgents.length,2);
+  assert.equal(showYearlyAgentRanking(ties, "All Agents"), true, "two scored Agents can be compared, including legitimate ties");
+  assert.equal(showYearlyAgentRanking(ties, agent), false, "explicit individual selection hides multi-Agent ranks");
   console.log("PASS Yearly: all 12 months including June, actual-case weighted average, Critical flags, Test Case exclusion, valid zero, empty months and tied rankings");
   root = createRoot(document.getElementById("root"));
   const props = { currentUser: { username: "qa", displayName: "QA Reviewer", role: "Quality Assurance" }, externalSelectedAgent: agent, externalSelectedMonth: "2026-06", externalSelectedWeek: "W1", canViewAllAgents: true, canViewAllTeams: true, canExportAnalytics: true };
@@ -121,7 +125,8 @@ try {
   assert.deepEqual([...juneRow.children].map(cell=>cell.textContent),["June","3","63.33","1","2","0","0","1"]);
   assert.ok(document.querySelector('[data-yearly-metric="Team Cases"]').textContent.includes("6"));
   assert.ok(document.querySelector('[data-yearly-metric="Avg Score"]').textContent.includes("72.33"));
-  assert.ok(document.body.textContent.includes("Top / Bottom Agent by Year"));
+  assert.equal(document.querySelector('[data-yearly-agent-ranking]'), null,
+    "a single-Agent Yearly view must hide the Top/Bottom comparison");
   await act(async()=>button("Export").click());await act(async()=>button("Excel").click());
   await settle(()=>fixture.downloads.length===1);
   assert.equal(fixture.downloads[0].fileName,"Yearly_Team_Summary.xlsx");
@@ -137,7 +142,9 @@ try {
   assert.equal(sheet.B8.v,1);assert.equal(sheet.A11.v,"Monthly Team Trend");
   assert.equal(sheet.B18.v,3);assert.equal(sheet.C18.v,190/3);assert.equal(sheet.C18.t,"n");
   assert.equal(sheet.A13.z,"mmmm");assert.equal(sheet.C18.z,"0.00");
-  assert.equal(sheet.A27.v,"Top / Bottom Agent by Year");assert.equal(sheet.A32.v,"Seq");
+  assert.equal(sheet.A27.v,"Agent Summary · 2026");assert.equal(sheet.A28.v,"Seq");
+  assert.equal(sheet.B29.v,agent);
+  assert.ok(!XLSX.utils.sheet_to_csv(sheet).includes("Top Avg Score Agent"),"individual Yearly Excel hides Top/Bottom");
   assert.ok(!XLSX.utils.sheet_to_csv(sheet).includes("Fixture Agent B"),"export preserves the selected Agent scope");
   const {default:JSZip}=await import("jszip");const zip=await JSZip.loadAsync(bytes);
   assert.ok(!Object.keys(zip.files).some(name=>name.includes("externalLinks")),"no old workbook dependencies are exported");
@@ -173,6 +180,7 @@ try {
   console.log("PASS annual editing holds cover January–December; completed month rows remain readable and self-only Agent scope is preserved");
   await render({externalSelectedAgent:"all"});
   await settle(()=>document.querySelector('[data-yearly-metric="Team Cases"]')?.textContent.includes("7"));
+  assert.ok(document.querySelector('[data-yearly-agent-ranking]'),"All Agents with two scored Agents shows Yearly Top/Bottom");
   if (!button("Excel")) await act(async()=>button("Export").click());
   await act(async()=>button("Excel").click());
   await settle(()=>fixture.downloads.length===2);
@@ -192,7 +200,7 @@ try {
   assert.ok(pdfOutput?.pdf, "Yearly PDF was generated");
   assert.ok(pdfOutput.pdf.getNumberOfPages()>=2,"Yearly PDF includes a separate paginated Agent summary");
   const pdfContent=pdfOutput.pdf.internal.pages.flat().join(" ");
-  for(const label of ["YEARLY TEAM SUMMARY","MONTHLY TEAM TREND","June","December","AGENT SUMMARY","Fixture Agent B"]) {
+  for(const label of ["YEARLY TEAM SUMMARY","MONTHLY TEAM TREND","June","December","TOP / BOTTOM AGENT BY YEAR","AGENT SUMMARY","Fixture Agent B"]) {
     assert.ok(pdfContent.includes(label), "Yearly PDF missing "+label);
   }
   assert.ok(pdfOutput.pdf.output("arraybuffer").byteLength > 1000,"Yearly PDF has nonempty bytes");
