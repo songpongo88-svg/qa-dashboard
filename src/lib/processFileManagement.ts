@@ -20,7 +20,12 @@ export function managedProcessFileRows<T extends ProcessFileLibraryRow>(
   rows: T[],
   builtin: T,
 ): T[] {
-  const versions = rows.filter((row) => row && row.id && row.kind !== "file-chunk");
+  const versions = rows.filter((row) => row && row.id && row.kind !== "file-chunk")
+    .map((row) => row.id === builtin.id
+      // Visibility-only records for the built-in version may have no file fields.
+      // Keep the embedded fallback intact while honoring hiddenFromPicker.
+      ? { ...builtin, ...row, name: row.name || builtin.name, fileName: row.fileName || builtin.fileName }
+      : row as T);
   if (!versions.some((row) => row.id === builtin.id)) versions.push(builtin);
   return [...versions].sort(
     (a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || "")
@@ -55,9 +60,15 @@ export function selectedProcessFileRows<T extends ProcessFileLibraryRow>(
   );
 }
 
-export function canRemoveProcessFile(row: ProcessFileLibraryRow, builtinId: string): boolean {
-  // The hard-coded fallback Process must remain available for legacy cases.
-  return Boolean(row.id && row.id !== builtinId && row.kind !== "file-chunk");
+export function canRemoveProcessFile(
+  row: ProcessFileLibraryRow,
+  builtinId: string,
+  otherSelectableVersionExists = false,
+): boolean {
+  // The built-in file cannot be deleted, but may be hidden if another
+  // selectable Process remains. Its stored/embedded content stays available.
+  return Boolean(row.id && row.kind !== "file-chunk"
+    && (row.id !== builtinId || otherSelectableVersionExists));
 }
 
 export function processFileVisibilityUpdate(hidden: boolean, actor: string, timestamp: string) {
