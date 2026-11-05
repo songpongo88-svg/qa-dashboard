@@ -60,7 +60,7 @@ function TypingReliefArt({ large = false }: { large?: boolean }) {
     <g filter={gradient("shadow")} transform="rotate(8 262 156)">
       <path d="M237 123h45a10 10 0 0 1 10 10v32h14l-46 48-46-48h13v-32a10 10 0 0 1 10-10Z" fill={gradient("gold")} stroke="#fff5c1" strokeWidth="4"/>
       <text x="260" y="156" textAnchor="middle" fontWeight="900" fontSize="25" fontFamily="Kanit, sans-serif" fill="#532569">60</text>
-      <text x="260" y="180" textAnchor="middle" fontWeight="750" fontSize="16" fontFamily="Kanit, sans-serif" fill="#532569">คำ</text>
+      <text x="260" y="180" textAnchor="middle" fontWeight="750" fontSize="19" fontFamily="Kanit, sans-serif" fill="#532569">%</text>
     </g>
     <path d="m48 29 5 12 12 5-12 5-5 12-5-12-12-5 12-5Z" fill="#ffd770"/>
     <path d="m295 37 3 8 8 3-8 3-3 8-3-8-8-3 8-3Z" fill="#ffe9a7"/>
@@ -181,7 +181,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
               <h2 id={dialogId + "-title"}>Typing Relief</h2>
               <p id={dialogId + "-intro"}>ไอเทมช่วยแบ่งเบาภารกิจพิมพ์ ให้คุณมีทางเลือกก่อนเริ่ม QA Access Check</p>
               <div className="qa-sparks-reward-detail-tags">
-                <span>ลดได้สูงสุด 60 คำ</span><span>เก็บไว้ใช้ภายหลัง</span>
+                <span>ลดจำนวนคำพิมพ์ 60%</span><span>เก็บไว้ใช้ภายหลัง</span>
               </div>
             </div>
           </div>
@@ -195,18 +195,19 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
             <div className="qa-sparks-reward-detail-steps">
               <div><b>01</b><strong>แลกสิทธิ์</strong><p>ใช้ 150 Sparks เพื่อรับ Typing Relief 1 สิทธิ์ เก็บไว้ในบัญชีได้</p></div>
               <div><b>02</b><strong>รอภารกิจ QA Access</strong><p>เมื่อมีภารกิจพิมพ์ ระบบจะแสดงหน้าต่างถามว่าต้องการใช้สิทธิ์หรือไม่</p></div>
-              <div><b>03</b><strong>เลือกได้เอง</strong><p>กดใช้เพื่อลดจำนวนคำ หรือเลือกพิมพ์ตามปกติโดยไม่ใช้สิทธิ์</p></div>
+              <div><b>03</b><strong>เลือกได้เอง</strong><p>กดใช้เพื่อลดจำนวนคำพิมพ์ 60% ของภารกิจ หรือเลือกพิมพ์ตามปกติโดยไม่ใช้สิทธิ์</p></div>
             </div>
             <div className="qa-sparks-reward-detail-example">
               <div><span>ตัวอย่างภารกิจ</span><strong>100 <small>คำ</small></strong></div>
-              <span className="qa-sparks-reward-detail-example-arrow">− 60 คำ</span>
+              <span className="qa-sparks-reward-detail-example-arrow">ลด 60% (60 คำ)</span>
               <div><span>หลังใช้ Typing Relief</span><strong>40 <small>คำ</small></strong></div>
             </div>
             <h3 className="qa-sparks-reward-detail-section-title">เงื่อนไขสำคัญ</h3>
             <ul className="qa-sparks-reward-detail-rules">
               <li>สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์ ใช้ไป 1 สิทธิ์จึงซื้อเพิ่มได้อีก 1 สิทธิ์</li>
               <li>ใช้ได้เฉพาะ QA Access Check แบบพิมพ์คำ (Word Mode) ไม่ใช้กับแบบพิมพ์ประโยค</li>
-              <li>ระบบจะเหลืออย่างน้อย 1 คำให้พิมพ์ และยังต้องทำภารกิจให้ผ่านตามเงื่อนไขเดิม</li>
+              <li>จำนวนคำที่ต้องพิมพ์หลังใช้สิทธิ์คิดจาก 40% ของจำนวนคำที่ได้รับมอบหมาย โดยปัดเศษขึ้น และต้องพิมพ์อย่างน้อย 1 คำ</li>
+              <li>ยังต้องพิมพ์ตามจำนวนคำที่เหลือให้ครบ และทำภารกิจให้ผ่านตามเงื่อนไขเดิม</li>
               <li>การเก็บสิทธิ์ไว้ไม่บังคับให้ใช้ เมื่อเลือกพิมพ์ตามปกติจะไม่หักสิทธิ์หรือ Sparks</li>
             </ul>
           </div>
