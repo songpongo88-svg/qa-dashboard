@@ -35,12 +35,13 @@ export type SparksAccount = {
   memberYear: number;
   memberYearEarned: number;
   dailyCheckinClaimedDays: number[];
+  profileMakeoverClaimedAt: string;
   firstLogin: FirstLoginPrize | null;
   history: SparksHistoryItem[];
 };
 
 export const EMPTY_SPARKS_ACCOUNT: SparksAccount = {
-  balance: 0, rewardOrders: 0, typingReliefOwned: 0, memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], firstLogin: null, history: [],
+  balance: 0, rewardOrders: 0, typingReliefOwned: 0, memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], profileMakeoverClaimedAt: "", firstLogin: null, history: [],
 };
 
 export function sparksAccountKey(username: string): string {
@@ -92,6 +93,7 @@ export async function getSparksAccount(username: string): Promise<SparksAccount>
   return {
     memberYear,
     memberYearEarned: annualEarnedFromWallet(data, memberYear),
+    profileMakeoverClaimedAt: String(data.profileMakeoverClaimedAt || ""),
     dailyCheckinClaimedDays: Array.isArray(data.dailyCheckin202611Days)
       ? [...new Set(data.dailyCheckin202611Days.map(Number).filter((day: number) => Number.isInteger(day) && day >= 9 && day <= 22))].sort((a: number, b: number) => a - b) as number[]
       : [],
