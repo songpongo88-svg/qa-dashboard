@@ -583,3 +583,72 @@
 .qa-sparks-profile-quest-status.completed{background:#e8f8ed;color:#236a43}
 .qa-sparks-profile-quest-help{font-size:11px!important}
 @media(max-width:640px){.qa-sparks-profile-quest{grid-template-columns:35% minmax(0,1fr);gap:10px}.qa-sparks-profile-quest-copy>strong{font-size:19px}.qa-sparks-profile-quest-copy>small{font-size:10px}.qa-sparks-profile-quest-bottom{font-size:10px}.qa-sparks-profile-quest-detail{padding:15px}}
+
+
+/* TrueMoney 20 THB: collectible reward, individual-item inventory and Tracker. */
+.qa-money-reward-root,.qa-money-reward-root *,.qa-money-modal-backdrop,.qa-money-modal-backdrop *{box-sizing:border-box;font-family:Kanit,sans-serif}
+.qa-money-reward-root{margin-top:14px;min-width:0}
+.qa-money-reward-tile{width:100%;min-height:163px;display:grid;grid-template-columns:minmax(118px,33%) minmax(0,1fr);gap:15px;padding:9px;background:linear-gradient(115deg,#fff7f1,#fffafd);color:#502b4a;border:1px solid #ecc6d8;border-radius:17px;text-align:left;cursor:pointer;box-shadow:0 5px 16px #8e477a1b}
+.qa-money-reward-tile:hover{border-color:var(--sparks-accent,#9a4bb6);box-shadow:0 8px 22px #783f742b}
+.qa-money-reward-tile:focus-visible{outline:3px solid var(--sparks-accent,#9a4bb6);outline-offset:3px}
+.qa-money-reward-tile-art{background:radial-gradient(circle,#ffdada,#f4c4ed 70%);display:flex;align-items:center;justify-content:center;border-radius:13px;overflow:hidden}
+.qa-money-art-svg{width:100%;max-width:245px;max-height:168px}
+.qa-money-reward-tile-info{min-width:0;display:flex;justify-content:center;flex-direction:column;gap:7px;padding:8px 9px 8px 0}
+.qa-money-reward-tile-info>small{font-weight:700;font-size:10px;color:#b54a83}
+.qa-money-reward-tile-info>strong{font-size:23px;line-height:1.2;font-weight:800;color:var(--sparks-dark,#5a2c58)}
+.qa-money-reward-tile-info>span:not(.qa-money-reward-price){font-size:11px;color:#856e80}
+.qa-money-reward-price{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:7px;border-top:1px solid #f0dada;padding-top:11px;font-size:11px;color:#87677e}
+.qa-money-reward-price b{font-size:19px;color:#c47728}
+.qa-money-reward-price span{font-weight:750;color:var(--sparks-accent,#b34b97)}
+.qa-money-modal-backdrop{position:fixed;z-index:2147482000;inset:0;background:#2a142bc4;display:flex;justify-content:center;align-items:center;padding:14px;backdrop-filter:blur(7px)}
+.qa-money-modal{position:relative;max-height:94dvh;overflow-y:auto;width:min(720px,100%);border:1px solid #f0c3dc;border-radius:22px;background:#fffdfc;box-shadow:0 25px 80px #230c2a70;color:#433345}
+.qa-money-modal-close{position:absolute;right:12px;top:12px;z-index:2;width:35px;height:35px;border-radius:50%;border:1px solid #eed9e9;background:white;color:#784778;font-size:27px;cursor:pointer}
+.qa-money-modal-hero{display:grid;grid-template-columns:34% minmax(0,1fr);gap:15px;align-items:center;min-height:170px;padding:15px 45px 15px 18px;background:linear-gradient(110deg,#ffc6df,#fff1eb 60%,#fffaf5)}
+.qa-money-modal-hero .qa-money-art-svg{max-height:160px}
+.qa-money-modal-hero small{font-size:10px;letter-spacing:.08em;color:#9d4786;font-weight:750}
+.qa-money-modal-hero h2{font-size:29px;line-height:1.2;margin:6px 0;color:#612b55}
+.qa-money-modal-hero p{font-size:12px;color:#855e7b}
+.qa-money-modal-content{padding:21px 25px 26px}
+.qa-money-modal-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.qa-money-modal-stats span{border:1px solid #efdbe9;background:#fff7f8;border-radius:11px;padding:12px 7px;text-align:center;font-size:12px;color:#8c4a76;font-weight:750}
+.qa-money-modal-content h3{font-size:17px;color:#562d5b;margin:22px 0 10px}
+.qa-money-modal-content p{color:#74667b;font-size:12px;line-height:1.8;margin:6px 0}
+.qa-money-modal-claim{border:1px solid #e8d9e8;background:#fcf8fc;border-radius:12px;padding:15px;margin-top:15px}
+.qa-money-modal-claim h3{margin:2px 0 7px}
+.qa-money-modal-claim label{font-size:12px;color:#6b486b;display:block;margin:10px 0 4px}
+.qa-money-modal-claim input{width:100%;padding:12px;border:1px solid #ddc7df;border-radius:9px;max-width:360px;outline-color:var(--sparks-accent,#a54a9f)}
+.qa-money-modal-claim button,.qa-money-tracker button{border:1px solid #e2c5dd;background:#fff;color:#633763;cursor:pointer;border-radius:9px;font-size:12px;padding:9px 14px;font-weight:650}
+.qa-money-modal-claim button:last-child,.qa-money-tracker-request button,.qa-money-tracker-confirm-overlay button:last-child{background:var(--sparks-accent,#913f9c);color:white;border-color:transparent}
+.qa-money-modal-claim button:disabled,.qa-money-tracker button:disabled{opacity:.45;cursor:not-allowed}
+.qa-money-action-row{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:12px}
+.qa-money-error,.qa-money-success{font-size:12px;line-height:1.6;padding:10px 13px;border-radius:10px}
+.qa-money-error{background:#ffeded;color:#a32934;border:1px solid #e9c0c4}.qa-money-success{background:#e8f7ef;color:#277249;border:1px solid #b4dec5}
+.qa-money-inventory{display:grid;gap:11px}.qa-money-inventory-heading{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.qa-money-inventory-heading strong{font-size:15px;color:var(--sparks-dark)}
+.qa-money-inventory-heading button{padding:7px 12px;border-radius:9px;background:var(--sparks-soft);border:1px solid var(--sparks-outline);color:var(--sparks-accent);cursor:pointer}
+.qa-money-inventory>p{font-size:12px;color:#847384}
+.qa-money-item{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--sparks-outline,#e7d6ea);border-radius:12px;background:#fff;flex-wrap:wrap}
+.qa-money-item-icon{width:91px;height:83px;flex:0 0 91px;border-radius:10px;background:#ffe3ee;display:grid;place-items:center}
+.qa-money-item-desc{display:flex;flex:1;flex-direction:column;min-width:145px;gap:3px;font-size:11px;color:#806a7c}
+.qa-money-item-desc strong{font-size:15px;color:#6b3266}.qa-money-item-desc small{font-size:10px;color:#987d91}
+.qa-money-item-desc b{font-size:11px;color:#af5388}
+.qa-money-item>button{padding:10px 15px;border-radius:9px;color:white;background:var(--sparks-accent,#aa52ad);border:none;cursor:pointer}
+.qa-money-requests{border-top:1px solid #eee2ec;padding-top:13px}.qa-money-requests strong{font-size:15px}.qa-money-requests p{font-size:12px;color:#775f75}
+.qa-money-tracker{border:1px solid var(--sparks-outline,#e9d5eb);background:#fffdfc;border-radius:14px;padding:16px 18px;margin-bottom:15px}
+.qa-money-tracker>header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.qa-money-tracker h2{font-size:17px;color:var(--sparks-dark,#59335c);margin:0}
+.qa-money-tracker p{font-size:11px;color:#826b81}
+.qa-money-tracker-filters{margin:12px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.qa-money-tracker-filters button.active{background:var(--sparks-accent,#9d4caa);color:white}
+.qa-money-tracker-filters span{font-size:11px;margin-left:auto;color:#867386}
+.qa-money-tracker-list{display:grid;gap:9px}
+.qa-money-tracker-request{display:grid;grid-template-columns:1fr 1fr 1.4fr 1fr;gap:12px;align-items:center;border:1px solid #ebdfe8;padding:10px 13px;border-radius:10px;font-size:12px}
+.qa-money-tracker-request>div{display:flex;flex-direction:column;gap:4px;min-width:0;overflow-wrap:anywhere}
+.qa-money-tracker-request strong{font-size:12px;color:#5c375d}
+.qa-money-tracker-request small,.qa-money-tracker-request span{font-size:11px;color:#847284}
+.qa-money-tracker-request .paid{color:#237a4e}.qa-money-tracker-request .pending{color:#b17c27}
+.qa-money-tracker-confirm-overlay{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:15px;background:#24102dc0;backdrop-filter:blur(4px)}
+.qa-money-tracker-confirm-overlay section{width:min(500px,100%);padding:24px;background:white;border-radius:15px;border:1px solid #ebdbe9;box-shadow:0 16px 65px #1d092a70}
+.qa-money-tracker-confirm-overlay h3{font-size:18px;color:#683a6a}
+.qa-money-tracker-confirm-overlay section>div{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}
+@media(max-width:640px){.qa-money-reward-tile{grid-template-columns:35% minmax(0,1fr);gap:8px}.qa-money-reward-tile-info>strong{font-size:18px}.qa-money-modal-hero h2{font-size:21px}.qa-money-modal-stats{grid-template-columns:1fr}.qa-money-modal-content{padding:15px}.qa-money-tracker-request{grid-template-columns:repeat(2,minmax(0,1fr))}}
