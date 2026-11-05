@@ -9,7 +9,7 @@ const SESSION_POLICY = "qa-session-policy-2026-07-15-v1";
 const ADMIN_USERNAME = "songpon";
 const policyErrorCode = "SESSION_POLICY_OUTDATED";
 const TYPING_RELIEF_PRICE = 150;
-const TYPING_RELIEF_WORDS = 60;
+const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
 const TYPING_RELIEF_MAX_OWNED = 10;
 let accessToken = "";
 let tokenExpiry = 0;
@@ -279,7 +279,7 @@ async function redeemTypingRelief(body, actor) {
       const history = {
         createdAt: now, type: "spend", source: "reward-redemption",
         rewardId: "typing-relief", title: "Typing Relief Redeemed",
-        detail: "แลก Typing Relief ลดจำนวนคำพิมพ์ 60 คำ", amount: -TYPING_RELIEF_PRICE,
+        detail: "แลก Typing Relief ลดจำนวนคำพิมพ์ 60% ของภารกิจ", amount: -TYPING_RELIEF_PRICE,
         balanceAfter: nextBalance, inventoryAfter: nextOwned,
         performedBy: actor.username, requestId, status: "Completed",
       };
@@ -332,7 +332,8 @@ async function useTypingRelief(body, actor) {
       const originalWords = Number(target.repeatCount);
       if (!Number.isSafeInteger(originalWords) || originalWords < 1 || originalWords > 500) fail("จำนวนคำของภารกิจไม่ถูกต้อง", 400);
       if (intCount(wallet.typingReliefOwned) < 1) fail("ไม่มี Typing Relief คงเหลือ กรุณาแลกก่อน", 400);
-      const remainingWords = Math.max(1, originalWords - TYPING_RELIEF_WORDS);
+      // Round the remaining 40% UP so the actual reduction never exceeds 60%.
+      const remainingWords = Math.max(1, Math.ceil(originalWords * (100 - TYPING_RELIEF_DISCOUNT_PERCENT) / 100));
       const appliedWords = originalWords - remainingWords;
       entries[targetIndex] = { ...target, repeatCount: remainingWords, typingReliefUsed: true };
       const nextOwned = intCount(wallet.typingReliefOwned) - 1;
@@ -347,7 +348,7 @@ async function useTypingRelief(body, actor) {
         createdAt: now, type: "redeem", source: "reward-activation",
         rewardId: "typing-relief", title: "Typing Relief Activated",
         detail: "ใช้ Typing Relief กับ QA Access Check",
-        challengeId, originalWords, remainingWords, appliedWords,
+        challengeId, originalWords, remainingWords, appliedWords, reductionPercent: TYPING_RELIEF_DISCOUNT_PERCENT,
         amount: 0, balanceAfter: intCount(wallet.balance), inventoryAfter: nextOwned,
         performedBy: actor.username, status: "Completed",
       };
