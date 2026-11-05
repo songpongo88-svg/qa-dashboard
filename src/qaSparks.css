@@ -329,7 +329,7 @@
 .qa-sparks-reward-detail-art::before{content:"";width:220px;height:220px;position:absolute;top:-110px;left:-60px;border:2px solid #ffffff80;border-radius:50%;}
 .qa-sparks-reward-detail-heading{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:25px 53px 25px 27px;}
 .qa-sparks-reward-detail-event-label{color:#8741b2;letter-spacing:.09em;font-size:10px;font-weight:750;}
-.qa-sparks-reward-detail-heading h2{font-weight:800;color:#52215f;font-size:clamp(25px,3.1vw,37px);letter-spacing:-.03em;margin:8px 0 5px;line-height:1.2;}
+.qa-sparks-reward-detail-heading h2{font-weight:800;color:var(--sparks-dark,#52215f);font-size:clamp(25px,3.1vw,37px);letter-spacing:-.03em;margin:8px 0 5px;line-height:1.2;}
 .qa-sparks-reward-detail-heading p{margin:0;color:#766179;font-size:13px;line-height:1.65;}
 .qa-sparks-reward-detail-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;}
 .qa-sparks-reward-detail-tags span{font-size:10px;color:#652d78;font-weight:650;border-radius:999px;padding:5px 9px;background:#ffffffb9;border:1px solid #e2c6ef;}
@@ -361,7 +361,7 @@
 .qa-sparks-reward-detail-purchase-copy small{font-size:10px;color:#897687;letter-spacing:.07em;}
 .qa-sparks-reward-detail-purchase-copy strong{font-size:24px;font-weight:800;color:#ba7f1d;line-height:1.1;white-space:nowrap;}
 .qa-sparks-reward-detail-purchase-copy strong span{font-size:11px;color:#75636d;font-weight:500;}
-.qa-sparks-reward-detail-primary{font-family:inherit;min-height:42px;padding:10px 20px;border:none;border-radius:11px;background:linear-gradient(110deg,var(--qa-theme-700,#7e22ce),var(--qa-theme-600,#963ad2));color:white;font-size:12px;font-weight:750;cursor:pointer;box-shadow:0 4px 11px #7622a437;white-space:normal;}
+.qa-sparks-reward-detail-primary{font-family:inherit;min-height:42px;padding:10px 20px;border:none;border-radius:11px;background:linear-gradient(110deg,var(--sparks-accent,var(--qa-theme-700,#7e22ce)),color-mix(in srgb,var(--sparks-accent,var(--qa-theme-600,#963ad2)) 74%,#b275d7));color:white;font-size:12px;font-weight:750;cursor:pointer;box-shadow:0 4px 11px #7622a437;white-space:normal;}
 .qa-sparks-reward-detail-primary:hover:not(:disabled){filter:brightness(1.08);}
 .qa-sparks-reward-detail-primary:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
 .qa-sparks-reward-detail-secondary{font-family:inherit;min-height:42px;padding:9px 15px;border:1px solid #ded0e3;border-radius:10px;color:#674c69;background:#fff;cursor:pointer;font-size:12px;font-weight:600;}
