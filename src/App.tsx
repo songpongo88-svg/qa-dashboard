@@ -28,6 +28,7 @@ import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
 import FirstLoginSparksModal from "./FirstLoginSparksModal";
+import { ProfileMakeoverAutoClaim } from "./ProfileMakeoverQuest";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
 import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
@@ -8275,6 +8276,7 @@ export default function App() {
         />
       ) : null}
       <FirstLoginSparksModal username={currentUser.username} />
+       <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>
       </TermsAccessBoundary>
     </EvaluationActivityProvider>
   );

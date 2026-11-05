@@ -4,6 +4,7 @@ import { fetchStoredUserProfiles } from "./userRoleStore";
 import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
 import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import TrueMoneyTracker from "./TrueMoneyTracker";
 
 type AdminUser = {
   username: string;
@@ -428,6 +429,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
       ? "โควตา Firestore อาจเต็มหรือระบบถูกจำกัดอัตราการเรียกข้อมูลชั่วคราว เพื่อป้องกันการเรียกข้อมูลซ้ำ ระบบหยุดโหลด Wallet และ History เพิ่มเติมแล้ว ตรวจยอดที่ Firebase Console → Firestore → Usage ก่อน แล้วค่อยกดรีเฟรชเมื่อระบบพร้อม"
       : "ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยันสิทธิ์ผู้ดูแลสำเร็จ รายชื่อด้านล่างมาจาก QA User Management แบบอ่านอย่างเดียว"}</div> : null}
     {notice ? <div role="status" className="qa-sparks-admin-success">{notice}</div> : null}
+    <TrueMoneyTracker actorUsername={actorUsername} sessionId={sessionId} adminReady={adminReady}/>
     <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">
         <label htmlFor="qa-sparks-admin-search">ค้นหา User</label>
