@@ -262,28 +262,150 @@
 .qa-sparks-admin-user-balance small { white-space: nowrap; }
 
 
-/* Typing Relief — the first QA Sparks reward; inherits every dashboard theme. */
-.qa-sparks-reward-item{position:relative;display:flex;align-items:flex-start;gap:20px;padding:23px;border:1px solid var(--sparks-outline);border-radius:20px;background:linear-gradient(125deg,#fffefc,#fffaf1 70%,var(--sparks-soft));box-shadow:var(--sparks-shadow);font-family:"Kanit",sans-serif;}
-.qa-sparks-reward-item-icon{height:105px;width:105px;display:grid;place-items:center;flex-shrink:0;border-radius:21px;border:1px solid color-mix(in srgb,var(--sparks-accent) 17%,#f4e5d9);background:linear-gradient(145deg,#fffcf2,#f7e6cd);color:var(--sparks-accent);}
-.qa-sparks-reward-item-body{min-width:0;flex:1;}
-.qa-sparks-reward-item-category{display:block;color:var(--sparks-accent);font-size:10px;font-weight:600;letter-spacing:.07em;}
-.qa-sparks-reward-item h3{margin:4px 0 7px;color:var(--sparks-dark);font-size:22px;font-weight:600;line-height:1.35;}
-.qa-sparks-reward-item p{margin:0 0 12px;font-size:13px;line-height:1.6;color:#5e5360;}
-.qa-sparks-reward-item-pills{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0;}
-.qa-sparks-reward-item-pills span{border:1px solid var(--sparks-outline);background:#fff;border-radius:999px;padding:5px 10px;color:var(--sparks-dark);font-size:11px;font-weight:500;}
-.qa-sparks-reward-item-owned{font-size:12px;color:#6e5962;}
-.qa-sparks-reward-item-owned strong{font-size:15px;color:var(--sparks-dark);}
-.qa-sparks-reward-item-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:16px 0 9px;padding-top:14px;border-top:1px solid var(--sparks-outline);}
-.qa-sparks-reward-item-footer strong{font-size:27px;font-weight:650;line-height:1.2;color:#c67d1f;}
-.qa-sparks-reward-item-footer span{color:#71616a;font-size:12px;}
-.qa-sparks-reward-item button{font-family:inherit;cursor:pointer;border:0;background:var(--sparks-accent);color:#fff;border-radius:11px;padding:10px 18px;font-size:12px;font-weight:600;}
-.qa-sparks-reward-item button:disabled{opacity:.45;cursor:not-allowed;}
-.qa-sparks-reward-item .qa-sparks-reward-item-footnote{margin:7px 0 0;color:#816b71;font-size:11px;}
-.qa-sparks-reward-item .qa-sparks-reward-item-success{color:#148157;font-weight:600;}
-.qa-sparks-reward-confirm-overlay{position:fixed;inset:0;z-index:999;display:grid;place-items:center;padding:15px;background:#130c20ad;backdrop-filter:blur(3px);}
-.qa-sparks-reward-confirm{width:min(440px,100%);border:1px solid var(--sparks-outline);border-radius:22px;padding:24px;background:#fffdfb;box-shadow:0 18px 85px #1a123a46;}
-.qa-sparks-reward-confirm h3{font-size:20px;margin:0 0 10px;color:var(--sparks-dark);}
-.qa-sparks-reward-confirm p{margin:0 0 12px;font-size:13px;color:#5a4556;}
-.qa-sparks-reward-confirm>div{display:flex;justify-content:flex-end;gap:9px;margin-top:16px;}
-.qa-sparks-reward-confirm>div button:first-child{background:#eee5e6;color:#554859;}
-@media(max-width:640px){.qa-sparks-reward-item{flex-direction:column;padding:16px;gap:12px}.qa-sparks-reward-item-icon{width:76px;height:76px}.qa-sparks-reward-item-icon svg{width:45px;height:45px}}
+
+/* Typing Relief Event Item: the listing stays a compact collectible tile.
+   Every description, rule, and purchase action lives in its detail dialog. */
+.qa-sparks-reward-tile,
+.qa-sparks-reward-tile * ,
+.qa-sparks-reward-detail-backdrop,
+.qa-sparks-reward-detail-backdrop * { box-sizing: border-box; }
+
+.qa-sparks-reward-tile {
+  --reward-violet: color-mix(in srgb, var(--sparks-accent, #7e22ce) 70%, #6421b1);
+  display:grid; grid-template-columns:minmax(135px, 33%) minmax(0,1fr);
+  width:100%; min-height:185px; padding:11px; gap:19px;
+  text-align:left; border-radius:20px; border:1px solid color-mix(in srgb,var(--sparks-accent,#7e22ce) 22%,#f4d9bc);
+  background:linear-gradient(114deg,#fffcf8 0%,#fff9f2 55%,color-mix(in srgb,var(--sparks-soft,#f8e9ff) 50%,#fff8ef));
+  color:#38223c; font-family:"Kanit",sans-serif; box-shadow:0 6px 20px #633f7921;
+  position:relative; cursor:pointer; overflow:hidden;
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+.qa-sparks-reward-tile::before {
+  content:""; pointer-events:none; position:absolute; inset:0; border-radius:inherit;
+  background:radial-gradient(circle at 65% 0%,#ffe6a458 0,transparent 47%);
+}
+.qa-sparks-reward-tile:hover {transform:translateY(-3px);border-color:var(--sparks-accent,#7e22ce);box-shadow:0 12px 30px #7344a72b;}
+.qa-sparks-reward-tile:focus-visible { outline:3px solid var(--sparks-accent,#7e22ce); outline-offset:3px; }
+.qa-sparks-reward-tile-art{
+  display:grid; place-items:center; align-self:stretch; border-radius:16px; min-height:155px; min-width:0;
+  border:1px solid #e4cafb; overflow:hidden; position:relative;
+  background:radial-gradient(circle at 68% 26%,#fff4d6 0%,#f8e8ff 45%,#dfbcf5 100%);
+}
+.qa-sparks-reward-tile-art::before{content:"";position:absolute;width:160px;height:160px;border:1px solid #ffffffa3; border-radius:50%;left:-53px;top:-60px;}
+.qa-relief-art-svg{position:relative;width:100%;max-width:265px;min-width:0;max-height:175px;overflow:visible;filter:drop-shadow(0 2px 3px #3d16713d);}
+.qa-relief-art-svg.large{width:100%;max-width:370px;max-height:245px;}
+.qa-sparks-reward-tile-copy{position:relative;min-width:0;display:flex;flex-direction:column;gap:7px;justify-content:center;padding:9px 12px 9px 0;}
+.qa-sparks-reward-tile-kicker{display:flex;align-items:center;flex-wrap:wrap;gap:8px;color:var(--sparks-accent,#8541a9);font-size:10px;font-weight:750;letter-spacing:.07em;line-height:1.35;}
+.qa-sparks-reward-tile-new{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;color:white;background:linear-gradient(110deg,#ff6594,#cf3d7a);box-shadow:0 2px 6px #dd4d783e;font-size:9px;transform:rotate(-3deg);}
+.qa-sparks-reward-tile-name{color:var(--sparks-dark,#502453);font-size:clamp(19px,2vw,27px);font-weight:750;line-height:1.22;letter-spacing:-.03em;}
+.qa-sparks-reward-tile-subtitle{color:#786679;font-size:12px;line-height:1.6;}
+.qa-sparks-reward-tile-footer{border-top:1px solid #e9d5cf;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding-top:12px;margin-top:7px;}
+.qa-sparks-reward-tile-price{color:#b97412;font-size:22px;font-weight:800;line-height:1;white-space:nowrap;}
+.qa-sparks-reward-tile-price small{color:#6d5a68;font-size:11px;font-weight:500;}
+.qa-sparks-reward-tile-view{display:inline-flex;align-items:center;gap:5px;color:var(--sparks-accent,#7e22ce);font-weight:700;font-size:12px;white-space:nowrap;}
+.qa-sparks-reward-tile-view svg{transition:transform .2s ease;}
+.qa-sparks-reward-tile:hover .qa-sparks-reward-tile-view svg{transform:translateX(4px);}
+
+.qa-sparks-reward-detail-backdrop {
+ position:fixed;inset:0;z-index:9999;padding:20px;display:flex;justify-content:center;align-items:center;
+ background:rgba(23,10,36,.74);backdrop-filter:blur(7px);font-family:"Kanit",sans-serif;
+}
+.qa-sparks-reward-detail-modal{
+ width:min(850px,100%);max-height:min(92vh,940px);min-width:0;display:flex;flex-direction:column;
+ position:relative;border:1px solid #e9d7f4;border-radius:25px;overflow:hidden;
+ background:#fffdfa; color:#33243b; box-shadow:0 24px 110px #1307198c;
+}
+.qa-sparks-reward-detail-close{
+ position:absolute;right:15px;top:15px;z-index:3;width:35px;height:35px;border-radius:50%;
+ display:grid;place-items:center;background:#ffffffea;border:1px solid #e9d9ed;color:#543f60;cursor:pointer;box-shadow:0 3px 14px #2c16441c;
+}
+.qa-sparks-reward-detail-close:hover{background:#fbeefe;}
+.qa-sparks-reward-detail-close:focus-visible,.qa-sparks-reward-detail-primary:focus-visible,.qa-sparks-reward-detail-secondary:focus-visible{outline:3px solid #b076e2;outline-offset:3px;}
+.qa-sparks-reward-detail-hero{
+ flex:0 0 auto;display:grid;grid-template-columns:40% minmax(0,1fr);min-height:225px;
+ border-bottom:1px solid #ecd9ed;background:linear-gradient(118deg,#f0d5fb 0%,#fff1eb 65%,#fffcf7 100%);
+}
+.qa-sparks-reward-detail-art{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:225px;background:radial-gradient(circle at 50% 45%,#fff7d9,#ebc7fa 72%,#dca7f5);}
+.qa-sparks-reward-detail-art::before{content:"";width:220px;height:220px;position:absolute;top:-110px;left:-60px;border:2px solid #ffffff80;border-radius:50%;}
+.qa-sparks-reward-detail-heading{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:25px 53px 25px 27px;}
+.qa-sparks-reward-detail-event-label{color:#8741b2;letter-spacing:.09em;font-size:10px;font-weight:750;}
+.qa-sparks-reward-detail-heading h2{font-weight:800;color:#52215f;font-size:clamp(25px,3.1vw,37px);letter-spacing:-.03em;margin:8px 0 5px;line-height:1.2;}
+.qa-sparks-reward-detail-heading p{margin:0;color:#766179;font-size:13px;line-height:1.65;}
+.qa-sparks-reward-detail-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;}
+.qa-sparks-reward-detail-tags span{font-size:10px;color:#652d78;font-weight:650;border-radius:999px;padding:5px 9px;background:#ffffffb9;border:1px solid #e2c6ef;}
+.qa-sparks-reward-detail-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:23px 27px 26px;scrollbar-color:#d7b6e3 transparent;}
+.qa-sparks-reward-detail-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin-bottom:24px;}
+.qa-sparks-reward-detail-stats>div{min-width:0;background:#fcf5ef;border:1px solid #ead9d2;border-radius:13px;padding:13px 15px;display:flex;flex-direction:column;gap:5px;}
+.qa-sparks-reward-detail-stats>div>span{font-size:11px;color:#776274;}
+.qa-sparks-reward-detail-stats strong{font-size:22px;color:#512d59;font-weight:700;white-space:nowrap;}
+.qa-sparks-reward-detail-stats small{font-size:11px;font-weight:450;color:#87727f;}
+.qa-sparks-reward-detail-section-title{font-size:16px;font-weight:750;margin:19px 0 13px;color:#432750;}
+.qa-sparks-reward-detail-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;}
+.qa-sparks-reward-detail-steps>div{background:#fff;border:1px solid #ead9ef;border-radius:13px;padding:13px 14px;}
+.qa-sparks-reward-detail-steps b{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;font-size:12px;color:#fff;background:linear-gradient(140deg,#b377dd,#752aaf);margin-bottom:10px;}
+.qa-sparks-reward-detail-steps strong{font-size:12px;color:#4f285d;font-weight:700;}
+.qa-sparks-reward-detail-steps p{font-size:11px;color:#786c7e;line-height:1.7;margin:5px 0 0;}
+.qa-sparks-reward-detail-example{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;border:1px solid #ecd8ad;background:linear-gradient(110deg,#fffaf0,#fff5df);border-radius:15px;padding:14px;margin:18px 0 20px;}
+.qa-sparks-reward-detail-example>div{display:flex;flex-direction:column;gap:3px;align-items:center;min-width:100px;}
+.qa-sparks-reward-detail-example>div span{font-size:10px;color:#806275;}
+.qa-sparks-reward-detail-example strong{font-size:26px;color:#68407c;line-height:1.1;}
+.qa-sparks-reward-detail-example>div:last-child strong{color:#a9670e;}
+.qa-sparks-reward-detail-example strong small{font-size:12px;}
+.qa-sparks-reward-detail-example-arrow{font-size:12px;font-weight:750;color:#ae7419;background:#ffe8aa;padding:7px 10px;border-radius:999px;}
+.qa-sparks-reward-detail-rules{padding-left:21px;margin:0;display:grid;gap:8px;}
+.qa-sparks-reward-detail-rules li{font-size:12px;line-height:1.7;color:#66546d;}
+.qa-sparks-reward-detail-rules li::marker{color:#b789cc;}
+.qa-sparks-reward-detail-action{flex:0 0 auto;border-top:1px solid #ebddea;background:#fffdfa;padding:15px 27px;}
+.qa-sparks-reward-detail-purchase{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.qa-sparks-reward-detail-purchase-copy{display:flex;flex-direction:column;gap:3px;}
+.qa-sparks-reward-detail-purchase-copy small{font-size:10px;color:#897687;letter-spacing:.07em;}
+.qa-sparks-reward-detail-purchase-copy strong{font-size:24px;font-weight:800;color:#ba7f1d;line-height:1.1;white-space:nowrap;}
+.qa-sparks-reward-detail-purchase-copy strong span{font-size:11px;color:#75636d;font-weight:500;}
+.qa-sparks-reward-detail-primary{font-family:inherit;min-height:42px;padding:10px 20px;border:none;border-radius:11px;background:linear-gradient(110deg,var(--qa-theme-700,#7e22ce),var(--qa-theme-600,#963ad2));color:white;font-size:12px;font-weight:750;cursor:pointer;box-shadow:0 4px 11px #7622a437;white-space:normal;}
+.qa-sparks-reward-detail-primary:hover:not(:disabled){filter:brightness(1.08);}
+.qa-sparks-reward-detail-primary:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+.qa-sparks-reward-detail-secondary{font-family:inherit;min-height:42px;padding:9px 15px;border:1px solid #ded0e3;border-radius:10px;color:#674c69;background:#fff;cursor:pointer;font-size:12px;font-weight:600;}
+.qa-sparks-reward-detail-confirm{padding:2px 0;display:grid;gap:7px;}
+.qa-sparks-reward-detail-confirm strong{font-size:13px;color:#50225f;}
+.qa-sparks-reward-detail-confirm p{font-size:12px;color:#64516b;margin:0;}
+.qa-sparks-reward-detail-confirm>div{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap;}
+.qa-sparks-reward-detail-success,.qa-sparks-reward-detail-error{border-radius:10px;padding:9px 12px;font-size:12px;font-weight:600;margin-bottom:9px;}
+.qa-sparks-reward-detail-success{background:#eaf7ef;color:#1f6a42;border:1px solid #b9e2c9;}
+.qa-sparks-reward-detail-error{background:#fff1f0;color:#ac2c2c;border:1px solid #f0c2bd;}
+@media(max-width:640px){
+ .qa-sparks-reward-tile{gap:9px;grid-template-columns:minmax(100px,36%) minmax(0,1fr);min-height:146px;padding:8px;}
+ .qa-sparks-reward-tile-art{min-height:135px;}
+ .qa-sparks-reward-tile-name{font-size:20px;}
+ .qa-sparks-reward-tile-copy{gap:5px;padding-right:5px;}
+ .qa-sparks-reward-tile-subtitle{font-size:10px;}
+ .qa-sparks-reward-tile-footer{padding-top:9px;margin-top:2px;}
+ .qa-sparks-reward-tile-price{font-size:18px;}
+ .qa-sparks-reward-tile-view{font-size:10px;}
+ .qa-sparks-reward-detail-backdrop{padding:10px;align-items:center;}
+ .qa-sparks-reward-detail-modal{max-height:94dvh;border-radius:18px;}
+ .qa-sparks-reward-detail-hero{grid-template-columns:34% minmax(0,1fr);min-height:155px;}
+ .qa-sparks-reward-detail-art{min-height:155px;}
+ .qa-sparks-reward-detail-heading{padding:14px 39px 14px 13px;}
+ .qa-sparks-reward-detail-heading h2{font-size:23px;}
+ .qa-sparks-reward-detail-heading p{font-size:11px;}
+ .qa-sparks-reward-detail-event-label{font-size:9px;letter-spacing:0;}
+ .qa-sparks-reward-detail-tags span{font-size:9px;padding:4px 6px;}
+ .qa-sparks-reward-detail-close{top:9px;right:9px;}
+ .qa-sparks-reward-detail-scroll{padding:15px;}
+ .qa-sparks-reward-detail-stats{gap:6px;margin-bottom:17px;}
+ .qa-sparks-reward-detail-stats>div{padding:10px 8px;}
+ .qa-sparks-reward-detail-stats strong{font-size:17px;}
+ .qa-sparks-reward-detail-stats small{font-size:9px;}
+ .qa-sparks-reward-detail-steps{grid-template-columns:1fr;gap:7px;}
+ .qa-sparks-reward-detail-steps>div{padding:10px 12px;}
+ .qa-sparks-reward-detail-steps b{display:inline-grid;vertical-align:middle;margin:0 8px 0 0;}
+ .qa-sparks-reward-detail-steps strong{font-size:12px;}
+ .qa-sparks-reward-detail-steps p{margin-left:37px;}
+ .qa-sparks-reward-detail-action{padding:12px 15px;}
+ .qa-sparks-reward-detail-purchase-copy strong{font-size:20px;}
+ .qa-sparks-reward-detail-primary{padding:9px 12px;min-width:0;}
+}
+@media(prefers-reduced-motion:reduce){
+ .qa-sparks-reward-tile,.qa-sparks-reward-tile-view svg{transition:none!important;}
+}
+
