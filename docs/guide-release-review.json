@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-05T07:08:00.000Z",
-  "reason": "Reviewed QA Sparks seven-tier annual Member Level implementation: 2026 legacy balances reflected without a migration, 200k per Bangkok-calendar-year cap on first login and admin points, spending and reward refunds do not demote level, annual earned counter resets on January 1 while unspent balance and lifetime history remain, current member badge/7-tier progress shown in Overview. Includes access and no-over-cap unit tests and live UI integration. No QA evaluations, case records, score rubrics or existing wallet/ledger rows changed.",
+  "reviewedAt": "2026-11-05T09:30:00.000Z",
+  "reason": "Reviewed new QA Sparks Quest Center and Daily Check-in Nov 9–22, 2026 event. 14 consecutive Bangkok dates, manual +50 Sparks/day (maximum 700), no catch-up or advance claiming, missed days do not block later dates. Secure member-session authorization and server-side Bangkok date check; atomic wallet + immutable fixed-date history entry with idempotency; annual 200,000 earn cap and Member Level increment. Accessible responsive themed quest item, 14-day clickable calendar, status, and quest tab. No retroactive grants, no Firebase migration or extra wallet reads, and no QA case/rubric changes. Backend and UI unit tests passed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -100,7 +100,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "d8e138da50651957249172b4c2b0a646f9bfbbe296ff22de5426d4b5a9a7c107",
-    "package.json": "5a3ede2112bf9c28cd9194c35a0ae94a1ef25c9236dc61f8eda237bf55712575",
+    "package.json": "1d53a22cee500d4d99b217020f6469a14ac16634001c01b181f8ef145456333c",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -589,12 +589,12 @@
     "scripts/patch-process-file-management-v85.mjs": "6600ed34a492c3c2fd65df668fdc83dbe6bfd252ecf8e2b6663d373f226054e0",
     "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad",
     "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
-    "src/QASparks.tsx": "126e50d83bd47992553c402c2f9c4ecbfca5f52679c5bd1f352f0ad3aaf26a03",
-    "src/qaSparks.css": "485b9f558154a65d883271316eb9f50f15aa52b47cc944297c35882c80d816ca",
-    "scripts/test-qa-sparks-ui.mjs": "0c0a5ed8983615ad5a9b047591fad2097602d6629085e373df8c7fe7013c9d93",
+    "src/QASparks.tsx": "49bfa3189cbf09206f5b611ed007307900dc6ef7acb4fe969829cdf8a5e7d598",
+    "src/qaSparks.css": "f81877f282493bdda3f3a525f8d81ccbf7ad10211876b3e852f7c263c2d6ca99",
+    "scripts/test-qa-sparks-ui.mjs": "c5f8e87324a6e66107ca0e67175973cf2f5f764c4ccbd03a4d8ee89f68fb6309",
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
-    "src/qaSparksStore.ts": "1d20e1f2107d455ab7319e1ce420a47bfde29e94438978382686e503467d4787",
-    "api/sparks-admin.js": "fec2943fd3f968cbfabc9c49b905272ac22a488aea1f7df219f1995c55c3d2a4",
+    "src/qaSparksStore.ts": "3d44c015b1b7f150acb769d0f50fb60175457d3b0146115155fe66aab158501a",
+    "api/sparks-admin.js": "6a408ffb82d0073e7bb338df6f0a4e4a93f1ada423eaf4f70967f86d316a12a7",
     "src/SparksAdminPanel.tsx": "e3436fecd18eb9e64ec55cc96fc0dd7436913ee35b143052364aa67943d74859",
     "scripts/test-sparks-admin-session.mjs": "dd35a0a6fb1986f19355fd7f799dbdf9d16fd55c6e1b20ad22e7a0c0d0f4aa0a",
     "src/typingReliefReward.ts": "c38ea006da70964da36fb98bb9bdf9dff8c306de1abb41ac6b61214bc27a6e40",
@@ -602,6 +602,9 @@
     "scripts/test-typing-relief-reward.mjs": "a4a30d9bd97ed12f4cc241e813be9f293c0ea64520b8736cbe3557d1f85f4fb7",
     "src/qaSparksMemberLevels.ts": "e00e2bb79f3f7c48354a904d7abb91e4d9b7332250245341093d37dfe4a49ecc",
     "scripts/test-qa-sparks-member-levels.mjs": "26eadef291aaf00e27f31b5770163fcb673d8865a02d3a37dd0b22957051bdc5",
-    "scripts/test-qa-sparks-member-ui.mjs": "5c3fa26f59b87f695975f84f82591daa3c5854b0c88375a7f7049b8fca63cd37"
+    "scripts/test-qa-sparks-member-ui.mjs": "5c3fa26f59b87f695975f84f82591daa3c5854b0c88375a7f7049b8fca63cd37",
+    "src/DailyCheckinQuest.tsx": "d0769a5bb7106f2f55b9850d7ac774c15f55c8f91e0f2635494a1429dccade42",
+    "scripts/test-daily-checkin-quest.mjs": "91d6713e83123345d2f1c88c95fbd5e676a6a71a403532f63f3c78e762fbc215",
+    "scripts/test-qa-sparks-quest-ui.mjs": "0373bd6df97048795baf6564974d5a5b9a37cb695727ce872291c816b107fcfc"
   }
 }
