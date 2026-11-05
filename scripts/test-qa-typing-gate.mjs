@@ -39,8 +39,8 @@ try {
           export const subscribeQaTypingChallengeQueue = (...args) => globalThis.__qaTypingFixture.subscribe(...args);
           export const completeQaTypingChallenge = (...args) => globalThis.__qaTypingFixture.complete(...args);
           export const saveQaTypingChallengeHistory = (...args) => globalThis.__qaTypingFixture.save(...args);
-          export const TYPING_RELIEF = { id:"typing-relief", price:150, wordsReduced:60, maxOwned:10 };
-          export const typingReliefRemainingWords = (n) => Math.max(1, n-60);
+          export const TYPING_RELIEF = { id:"typing-relief", price:150, reductionPercent:60, maxOwned:10 };
+          export const typingReliefRemainingWords = (n) => Math.max(1, Math.ceil(n*0.4));
           export const fetchTypingReliefState = (...args) => globalThis.__qaTypingFixture.fetchInventory(...args);
           export const typingReliefAction = (...args) => globalThis.__qaTypingFixture.action(...args);
         ` }));
@@ -76,7 +76,7 @@ try {
           if (this.rewardState.owned <= 0) throw new Error("No Typing Relief");
           const current = this.queue[0];
           if (current.id !== input.challengeId) throw new Error("Wrong challenge");
-          const remainingWords = Math.max(1, current.repeatCount - 60);
+          const remainingWords = Math.max(1, Math.ceil(current.repeatCount * 0.4));
           const appliedWords = current.repeatCount - remainingWords;
           this.rewardState = { ...this.rewardState, owned:this.rewardState.owned - 1 };
           this.emit([{...current,repeatCount:remainingWords},...this.queue.slice(1)]);
@@ -292,7 +292,7 @@ try {
   await click(useTicket());
   assert.match(document.body.textContent, /พิมพ์แล้ว 0 \/ 40/);
   assert.equal(fixture.rewardState.owned, 0);
-  assert.equal(fixture.completions.length, 0, "using 60-word relief never skips completion of a 100-word challenge");
+  assert.equal(fixture.completions.length, 0, "using 60-percent relief never skips completion of a 100-word challenge");
   console.log("PASS use a saved ticket, 100->40, no premature QA unlock");
 
   await mount({ repeatCount: 100, timeLimitSeconds: 120 });
@@ -310,6 +310,15 @@ try {
   assert.match(document.body.textContent, /พิมพ์แล้ว 0 \/ 40/);
   assert.equal(fixture.rewardCalls.map((item) => item.action).join(","), "redeem-typing-relief,use-typing-relief");
   console.log("PASS buy during QA Access, then use one ticket, with proper balance and inventory updates");
+
+  await mount({ repeatCount: 50, timeLimitSeconds: 120 });
+  await act(async () => { fixture.rewardState = { balance: 150, owned: 1 }; });
+  await act(async () => fixture.emit([challenge({ id: "percent-50-words", repeatCount: 50, timeLimitSeconds: 120 })]));
+  assert.match(document.body.textContent, /ลดจำนวนคำพิมพ์ 60%/);
+  assert.match(document.body.textContent, /เหลือ 20 คำ/);
+  await click(useTicket());
+  assert.match(document.body.textContent, /พิมพ์แล้ว 0 \/ 20/);
+  console.log("PASS QA Access calculates 50 assigned words → 20 words after 60% relief");
   delete user.sessionId;
 
 } finally {
