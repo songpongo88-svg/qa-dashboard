@@ -1,7 +1,7 @@
 import React,{useEffect,useState,useRef} from "react";
 import {createPortal} from "react-dom";
-type Props={username:string;sessionId:string;claimed:boolean;loaded:boolean};
-export default function ProfileMakeoverQuest({username,sessionId,claimed,loaded}:Props){
+type Props={username:string;sessionId:string;claimed:boolean;loaded:boolean;enabled?:boolean};
+export default function ProfileMakeoverQuest({username,sessionId,claimed,loaded,enabled=true}:Props){
  const [open,setOpen]=useState(false),[status,setStatus]=useState<{credited:boolean;expired:boolean}|null>(null);
  const ref=useRef<HTMLButtonElement>(null);
  useEffect(()=>{
@@ -27,7 +27,9 @@ export default function ProfileMakeoverQuest({username,sessionId,claimed,loaded}
    return ()=>{document.removeEventListener("keydown",escape);ref.current?.focus()};
  },[open]);
  const done=claimed||Boolean(status?.credited);
- const ended=status?.expired || new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())>"2026-12-15";
+ const dateParts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+ const val=(key:string)=>dateParts.find(x=>x.type===key)?.value||"";
+ const ended=status?.expired || (val("year")+"-"+val("month")+"-"+val("day"))>"2026-12-15";
  return <>
   <button ref={ref} type="button" className="qa-sparks-quest-tile qa-sparks-profile-quest-item" data-quest-item="profile-makeover"
    aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(true)}>
@@ -41,7 +43,7 @@ export default function ProfileMakeoverQuest({username,sessionId,claimed,loaded}
       <span className="qa-sparks-quest-coin">✦ 150</span>
     </span>
     <span className="qa-sparks-quest-tile-details">
-      <span className="qa-sparks-quest-eyebrow"><span>SPECIAL QUEST</span><span className={"qa-sparks-quest-state "+(done?"live":ended?"finished":"upcoming")}>{done?"รับรางวัลแล้ว":ended?"สิ้นสุดแล้ว":"Auto Reward"}</span></span>
+      <span className="qa-sparks-quest-eyebrow"><span>SPECIAL QUEST</span><span className={"qa-sparks-quest-state "+(done?"live":ended?"finished":"upcoming")}>{done?"รับรางวัลแล้ว":!enabled?"พักกิจกรรม":ended?"สิ้นสุดแล้ว":"Auto Reward"}</span></span>
       <strong>Profile Makeover</strong><span className="qa-sparks-quest-tile-dates">เปลี่ยนรูปโปรไฟล์จาก Default · ถึง 15 ธ.ค. 2026</span>
       <span className="qa-sparks-quest-tile-bottom"><span><b>+150</b> Sparks ครั้งเดียว</span><span>ดูรายละเอียด ›</span></span>
     </span>
@@ -56,7 +58,7 @@ export default function ProfileMakeoverQuest({username,sessionId,claimed,loaded}
        <span className="qa-sparks-checkin-event-dates">+150 Sparks · ถึง 15 ธันวาคม 2026 เวลา 23:59 น. (เวลาไทย)</span></div></div>
     </div>
     <div className="qa-sparks-checkin-body">
-     <div className="qa-sparks-checkin-stats"><div><span>รางวัล</span><strong>150 <small>Sparks</small></strong></div><div><span>รับได้</span><strong>1 <small>ครั้ง/บัญชี</small></strong></div><div><span>สถานะ</span><strong className="qa-sparks-profile-status">{!loaded?"กำลังโหลด":done?"สำเร็จ":ended?"สิ้นสุด":"รอตรวจสอบ"}</strong></div></div>
+     <div className="qa-sparks-checkin-stats"><div><span>รางวัล</span><strong>150 <small>Sparks</small></strong></div><div><span>รับได้</span><strong>1 <small>ครั้ง/บัญชี</small></strong></div><div><span>สถานะ</span><strong className="qa-sparks-profile-status">{!loaded?"กำลังโหลด":done?"สำเร็จ":!enabled?"พักชั่วคราว":ended?"สิ้นสุด":"รอตรวจสอบ"}</strong></div></div>
      <h3 className="qa-sparks-checkin-calendar-head">วิธีเข้าร่วม</h3>
      <div className="qa-sparks-checkin-rules">
       <p>ถ้าคุณใช้รูป Default ของ QA Dashboard ให้คลิกรูปโปรไฟล์ในแถบด้านซ้าย เลือกรูปและบันทึก ระบบจะตรวจสอบรูปจริงที่บันทึกไว้ก่อนให้รางวัล</p>
@@ -64,7 +66,7 @@ export default function ProfileMakeoverQuest({username,sessionId,claimed,loaded}
       <p>ไม่ต้องกดรับรางวัล เปลี่ยนรูปอีกกี่ครั้งก็ได้รับเพียงครั้งเดียว คะแนนนับใน Member Level และเพดาน 200,000 Sparks ต่อปี</p>
       <p>เมื่อเกินวันที่ 15 ธันวาคม 2026 จะไม่สามารถรับรางวัลเพิ่มได้</p>
      </div>
-     <div className="qa-sparks-profile-note" role="status">{done?"Quest Completed · คุณได้รับ 150 QA Sparks แล้ว":ended?"กิจกรรมหมดเวลาแล้ว":"รางวัลจะเพิ่มให้อัตโนมัติเมื่อระบบตรวจพบรูปที่เปลี่ยนเองและบันทึกสิทธิ์สำเร็จ"}</div>
+     <div className="qa-sparks-profile-note" role="status">{done?"Quest Completed · คุณได้รับ 150 QA Sparks แล้ว":!enabled?"กิจกรรมถูกพักรับชั่วคราว":ended?"กิจกรรมหมดเวลาแล้ว":"รางวัลจะเพิ่มให้อัตโนมัติเมื่อระบบตรวจพบรูปที่เปลี่ยนเองและบันทึกสิทธิ์สำเร็จ"}</div>
     </div>
    </section></div>,document.body):null}
  </>;
