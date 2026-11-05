@@ -53,6 +53,10 @@ try{
   const qaSparksSource = await readFile("src/QASparks.tsx", "utf8");
   assert.match(qaSparksSource, /ownAccount=\{ownAccountSnapshot\}/, "the administrator's existing personal wallet is available for read-only fallback");
   assert.match(qaSparksSource, /useMemo/, "personal wallet snapshot is stable across QA Sparks rerenders");
+  assert.match(qaSparksSource, /getSparksMemberLevel/, "Member Level must derive from annual earned points");
+  assert.match(qaSparksSource, /MemberJourney/, "Overview must show all seven annual Member Levels");
+  assert.match(qaSparksSource, /SPARKS_ANNUAL_CAP/, "annual 200,000-Sparks limit must be explained");
+  assert.match(qaSparksSource, /walletLoaded \? `LV\./, "only show a verified member level after a wallet load");
   assert.match(sparksAdmin, /request\("reauth"/, "stale admin policy can be verified using QA password");
   assert.match(sparksAdmin, /type="password"/, "QA password re-verification must use masked password control");
   assert.match(sparksAdmin, /profiles\.filter\(\(profile\)/, "fallback directory must exclude suspended accounts");

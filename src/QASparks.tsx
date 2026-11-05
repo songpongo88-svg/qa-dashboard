@@ -3,6 +3,7 @@ import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, type SparksAccount, type Sparks
 import "./qaSparks.css";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
+import { SPARKS_ANNUAL_CAP, SPARKS_MEMBER_LEVELS, getSparksMemberLevel } from "./qaSparksMemberLevels";
 
 type SparksView = "overview" | "rewards" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown";
@@ -55,6 +56,39 @@ function SparksHistory({ history, large = false }: { history: SparksHistoryItem[
   </section>;
 }
 
+function MemberJourney({ earned, year }: { earned: number; year: number }) {
+  const member = getSparksMemberLevel(earned);
+  return <section className="qa-sparks-member-journey" aria-label="ระดับสมาชิก QA Sparks">
+    <div className="qa-sparks-member-head">
+      <div>
+        <div className="qa-sparks-member-eyebrow">ANNUAL MEMBER JOURNEY · {year}</div>
+        <h2><SparksIcon name="crown" size={21}/> LV.{member.current.level} {member.current.name}</h2>
+        <p>{member.current.thaiName} · สมาชิกเลื่อนระดับตาม Sparks ที่ได้รับสะสมในปี {year} การแลกรางวัลไม่ทำให้ระดับลดลง</p>
+      </div>
+      <div className="qa-sparks-member-points">
+        <span>คะแนนสะสมประจำปี</span>
+        <strong>{member.annualEarned.toLocaleString()} <small>/ {SPARKS_ANNUAL_CAP.toLocaleString()} Sparks</small></strong>
+        <span>{member.next ? `อีก ${member.nextRequired.toLocaleString()} คะแนน ถึง LV.${member.next.level} ${member.next.name}` : "ถึงระดับสูงสุดแล้ว · Spark Legend"}</span>
+      </div>
+    </div>
+    <div className="qa-sparks-member-progress" role="progressbar" aria-valuemin={member.current.min} aria-valuemax={member.next?.min || SPARKS_ANNUAL_CAP}
+      aria-valuenow={member.annualEarned} aria-label="ความคืบหน้าไปสู่ระดับสมาชิกถัดไป">
+      <span style={{ width: member.progress + "%", backgroundColor: member.current.color }}/>
+    </div>
+    <div className="qa-sparks-member-ladder" aria-label="ระดับสมาชิกทั้งเจ็ด">
+      {SPARKS_MEMBER_LEVELS.map((tier) => <div key={tier.level}
+        className={"qa-sparks-member-tier" + (tier.level === member.current.level ? " current" : tier.level < member.current.level ? " attained" : "")}
+        style={{ "--member-tier-color": tier.color } as React.CSSProperties}>
+        <span className="qa-sparks-member-tier-emblem"><SparksIcon name={tier.level === 7 ? "crown" : "spark"} size={16}/></span>
+        <span><strong>LV.{tier.level} {tier.name}</strong><small>{tier.min.toLocaleString()} Sparks</small></span>
+      </div>)}
+    </div>
+    <div className="qa-sparks-member-footnote">
+      <span>เพดานรับ Sparks {SPARKS_ANNUAL_CAP.toLocaleString()} คะแนน/ปี · เริ่มนับ Level ใหม่วันที่ 1 มกราคม · ยอด Sparks ที่ยังไม่ได้ใช้ยกไปปีถัดไป</span>
+    </div>
+  </section>;
+}
+
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "" }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string }) {
   const [view, setView] = useState<SparksView>("overview");
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
@@ -92,6 +126,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   ];
   const balance = account.balance.toLocaleString();
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
+  const member = getSparksMemberLevel(account.memberYearEarned);
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
       <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div></header>
@@ -113,9 +148,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           ["Current Sparks", balance, "spark", "amber"],
           ["Available to Redeem", balance, "gift", "violet"],
           ["Reward Orders", String(account.rewardOrders), "receipt", "blue"],
-          ["Member Level", "—", "crown", "green"],
+          ["Member Level", walletLoaded ? `LV.${member.current.level} ${member.current.name}` : "—", "crown", "green"],
         ] as const).map(([label, value, icon, tone]) => (
-          <div className="qa-sparks-metric" key={label}>
+          <div className={"qa-sparks-metric" + (label === "Member Level" ? " qa-sparks-member-metric" : "")} key={label}>
             <span className={"qa-sparks-metric-icon qa-sparks-tone-" + tone}><SparksIcon name={icon} size={27}/></span>
             <div><div className="qa-sparks-metric-label">{label}</div><strong>{value}</strong></div>
           </div>
@@ -131,6 +166,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         </button>)}
       </nav>
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
+        {view === "overview" && walletLoaded ? <MemberJourney earned={account.memberYearEarned} year={account.memberYear}/> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
           <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>

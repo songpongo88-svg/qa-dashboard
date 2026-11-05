@@ -11,6 +11,7 @@ const policyErrorCode = "SESSION_POLICY_OUTDATED";
 const TYPING_RELIEF_PRICE = 150;
 const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
 const TYPING_RELIEF_MAX_OWNED = 10;
+const SPARKS_ANNUAL_EARN_CAP = 200000;
 let accessToken = "";
 let tokenExpiry = 0;
 
@@ -228,6 +229,27 @@ async function authorizeRewardUser(body) {
 }
 
 const intCount = (value) => Number.isSafeInteger(Number(value)) && Number(value) >= 0 ? Number(value) : 0;
+const currentMemberYear = () => Number(new Intl.DateTimeFormat("en-US", {
+  year: "numeric", timeZone: "Asia/Bangkok",
+}).format(new Date()));
+function annualEarnedFromWallet(wallet, year = currentMemberYear()) {
+  if (intCount(wallet.memberYear) === year && wallet.memberYearEarned !== undefined) {
+    return Math.min(SPARKS_ANNUAL_EARN_CAP, intCount(wallet.memberYearEarned));
+  }
+  // QA Sparks launched in 2026. Existing wallet documents from that year lack
+  // annual counters; backfill lazily from their stored cumulative earned totals.
+  // No historical document is deleted or rewritten during a read.
+  if (year === 2026 && intCount(wallet.memberYear) < 2026) {
+    const prize = wallet.firstLogin;
+    const prizeDate = new Date(String(prize?.claimedAt || ""));
+    const prizeYear = Number.isFinite(prizeDate.getTime())
+      ? Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "Asia/Bangkok" }).format(prizeDate))
+      : 0;
+    return Math.min(SPARKS_ANNUAL_EARN_CAP, Math.max(intCount(wallet.totalEarned),
+      prizeYear === 2026 ? intCount(prize?.amount) : 0));
+  }
+  return 0;
+}
 const walletDocumentPath = (username) => path("qa_sparks_wallets", walletKey(username));
 const resourceName = (docPath) => DOCUMENTS_RESOURCE + "/" + docPath;
 const updateWrite = (docPath, updates, snap) => ({
@@ -410,6 +432,8 @@ function summary(wallet) {
     rewardOrders: balance(wallet.rewardOrders),
     earned: Math.max(initialEarn, balance(wallet.totalEarned)),
     spent: balance(wallet.totalSpent),
+    memberYear: currentMemberYear(),
+    memberYearEarned: annualEarnedFromWallet(wallet),
     firstLogin: wallet.firstLogin ? {
       cardId: String(wallet.firstLogin.cardId || ""),
       cardName: String(wallet.firstLogin.cardName || ""),
@@ -438,7 +462,7 @@ function toHistory(doc) {
 async function listUsers() {
   const [profilePages, walletPages] = await Promise.all([
     listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
-    listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin"]),
+    listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin", "memberYear", "memberYearEarned"]),
   ]);
   const wallets = new Map(walletPages.documents.map((doc) => {
     const v = recordValue(doc);
@@ -536,14 +560,21 @@ async function adjustBalance(body, admin) {
       const nextBalance = oldBalance + signedAmount;
       if (!Number.isSafeInteger(nextBalance)) fail("Sparks balance overflow", 400);
       const now = new Date().toISOString();
-      const earning = Math.max(0, balance(data.totalEarned) || balance(data.firstLogin?.amount));
+      const memberYear = currentMemberYear();
+      const earnedThisYear = annualEarnedFromWallet(data, memberYear);
+      if (operation === "add" && earnedThisYear + quantity > SPARKS_ANNUAL_EARN_CAP) {
+        fail("ไม่สามารถเพิ่ม Sparks ได้ เนื่องจากจะเกินโควตาสะสม 200,000 คะแนนต่อปี", 400);
+      }
+      const earning = Math.max(balance(data.totalEarned), balance(data.firstLogin?.amount));
       const spending = balance(data.totalSpent);
       const title = operation === "add" ? "Admin Added Sparks" : operation === "deduct" ? "Admin Deducted Sparks" : "Reward Sparks Refunded";
       const source = operation === "refund" ? "reward-refund" : "admin-" + operation;
       const updated = {
         username,
         balance: nextBalance,
-        totalEarned: earning + Math.max(0, signedAmount),
+        totalEarned: earning + (operation === "add" ? quantity : 0),
+        memberYear,
+        memberYearEarned: earnedThisYear + (operation === "add" ? quantity : 0),
         totalSpent: spending + Math.max(0, -signedAmount),
         updatedAt: now,
       };
