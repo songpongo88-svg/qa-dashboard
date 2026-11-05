@@ -605,3 +605,19 @@
 .qa-sparks-payout-side>strong{font-size:22px;color:#b77720;}
 @media(max-width:800px){.qa-sparks-items-grid{grid-template-columns:1fr;}}
 @media(max-width:640px){.qa-sparks-inventory,.qa-sparks-admin-payouts{padding:13px;}.qa-sparks-inventory-item{padding:10px;}.qa-sparks-inventory-icon{height:66px;width:66px;flex-basis:66px;}.qa-sparks-inventory-icon svg{width:59px;height:59px;}.qa-sparks-item-use-dialog{padding:22px 15px;}.qa-sparks-payout-side{align-items:flex-start;}}
+
+
+/* Admin catalog only toggles availability of announced, fixed-rule items. */
+.qa-sparks-admin-catalog{margin-top:17px;padding:22px;background:#fffdfb;border-radius:17px;border:1px solid var(--sparks-outline,#eadce6);font-family:Kanit,sans-serif;}
+.qa-sparks-admin-catalog>p{font-size:12px;color:#77677b;line-height:1.65;margin:7px 0 17px;}
+.qa-sparks-catalog-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;}
+.qa-sparks-catalog-entry{display:flex;flex-direction:column;gap:5px;padding:14px 16px;background:#fff;border:1px solid #eadce8;border-radius:13px;}
+.qa-sparks-catalog-group{font-size:10px;color:var(--sparks-accent,#8b4fae);font-weight:700;}
+.qa-sparks-catalog-entry strong{font-size:14px;color:#432954;}
+.qa-sparks-catalog-entry small{font-size:11px;color:#806f83;line-height:1.5;}
+.qa-sparks-catalog-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:7px;}
+.qa-sparks-catalog-toggle>button{font:700 11px Kanit,sans-serif;padding:7px 11px;border-radius:9px;border:1px solid #dec8e2;background:#fff;color:var(--sparks-accent,#8b4fae);cursor:pointer;}
+.qa-sparks-catalog-toggle>button:disabled{opacity:.5;cursor:default;}
+.qa-sparks-catalog-foot{color:#958391!important;font-size:11px!important;}
+.qa-sparks-admin-catalog .qa-sparks-admin-dialog textarea{display:block;font:12px Kanit,sans-serif;width:100%;min-height:77px;padding:10px;border:1px solid #e4d8e6;border-radius:9px;margin:6px 0 14px;}
+@media(max-width:750px){.qa-sparks-catalog-grid{grid-template-columns:1fr;}.qa-sparks-admin-catalog{padding:13px;}}
