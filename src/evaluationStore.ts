@@ -34,7 +34,7 @@ const DELETED_EVALUATION_IDS_KEY = "qa-dashboard:create-evaluation:deleted-ids:v
 const SUPABASE_REQUEST_TIMEOUT_MS = 2500;
 const DEFAULT_EVALUATION_LIMIT = 500;
 const MAX_EVALUATION_LIMIT = 1000;
-const REMOTE_EVALUATION_READ_CACHE_TTL_MS = 2 * 60 * 1000;
+const REMOTE_EVALUATION_READ_CACHE_TTL_MS = 5 * 60 * 1000; // Reuse unchanged reads until the Dashboard's next revision check.
 const AUTO_SYNC_LOCAL_EVALUATIONS =
   String(env.VITE_QA_AUTO_SYNC_LOCAL_EVALUATIONS || "").toLowerCase() === "true";
 const EVALUATION_SELECT_COLUMNS = [
