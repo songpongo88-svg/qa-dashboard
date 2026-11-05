@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./qaSparks.css";
 import { fetchStoredUserProfiles } from "./userRoleStore";
-import { getSparksAccount } from "./qaSparksStore";
-import { collection, getDocs } from "firebase/firestore";
+import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
+import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 
 type AdminUser = {
@@ -15,6 +15,8 @@ type AdminUser = {
   spent: number;
   rewardOrders: number;
   firstLogin: { cardName: string; amount: number; claimedAt: string } | null;
+  balanceKnown?: boolean;
+  balanceAsOf?: string;
 };
 type AdminHistoryItem = {
   id: string;
@@ -37,6 +39,43 @@ type DetailResponse = {
   truncated: boolean;
 };
 type Operation = "add" | "deduct" | "refund";
+type CachedBalance = Pick<AdminUser, "balance" | "earned" | "spent" | "rewardOrders" | "firstLogin"> & { savedAt: string };
+type OwnAccountSnapshot = SparksAccount & { lastLoadedAt: string };
+const SNAPSHOT_KEY = "qa-sparks:admin-wallet-snapshot:v1:";
+const normalizeUser = (username: string) => String(username || "").trim().toLowerCase();
+function validBalance(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+function readCachedBalances(actor: string): Map<string, CachedBalance> {
+  const cache = new Map<string, CachedBalance>();
+  if (typeof window === "undefined") return cache;
+  try {
+    const raw = window.sessionStorage.getItem(SNAPSHOT_KEY + normalizeUser(actor));
+    if (!raw) return cache;
+    const data = JSON.parse(raw);
+    if (!Number.isFinite(Date.parse(data.savedAt)) || Date.now() - Date.parse(data.savedAt) > 24 * 60 * 60 * 1000) return cache;
+    for (const item of Array.isArray(data.wallets) ? data.wallets.slice(0, 500) : []) {
+      const name = normalizeUser(item?.username);
+      if (name && validBalance(item?.balance) && validBalance(item?.earned) && validBalance(item?.spent) && validBalance(item?.rewardOrders)) {
+        cache.set(name, {
+          balance: item.balance, earned: item.earned, spent: item.spent, rewardOrders: item.rewardOrders,
+          firstLogin: item.firstLogin || null, savedAt: data.savedAt,
+        });
+      }
+    }
+  } catch { /* Browser session storage is an optional, read-only fallback. */ }
+  return cache;
+}
+function rememberBalances(actor: string, users: AdminUser[]) {
+  if (typeof window === "undefined") return;
+  const wallets = users.filter((item) => validBalance(item.balance)).slice(0, 500).map((item) => ({
+    username: item.username, balance: item.balance, earned: item.earned,
+    spent: item.spent, rewardOrders: item.rewardOrders, firstLogin: item.firstLogin,
+  }));
+  try {
+    window.sessionStorage.setItem(SNAPSHOT_KEY + normalizeUser(actor), JSON.stringify({ savedAt: new Date().toISOString(), wallets }));
+  } catch { /* A full/disabled storage must never block Sparks Admin. */ }
+}
 const fmt = (value: number) => Number(value || 0).toLocaleString("en-US");
 function thaiDate(value: string) {
   const date = new Date(value);
@@ -52,7 +91,9 @@ function createRequestId() {
     ? crypto.randomUUID()
     : "adjust-" + Date.now() + "-" + Math.random().toString(36).slice(2);
 }
-export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUsername: string; sessionId: string }) {
+export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount }: {
+  actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null;
+}) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [chosen, setChosen] = useState("");
   const [detail, setDetail] = useState<DetailResponse | null>(null);
@@ -103,6 +144,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
       const loaded = (Array.isArray(data.users) ? data.users as AdminUser[] : [])
         .filter((user) => String(user.status || "").toLowerCase() !== "suspended");
       setUsers(loaded);
+      rememberBalances(actorUsername, loaded);
       setAdminReady(true);
       setFirestoreLimited(false);
       setNeedsReauth(false);
@@ -126,31 +168,52 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
           : "ระบบจัดการคะแนนยังไม่พร้อม: " + message + " — แสดงรายชื่อจาก QA User Management แบบอ่านอย่างเดียว");
       try {
         const profiles = await fetchStoredUserProfiles();
-        const wallets = new Map<string, any>();
-        if (!quotaLimited) {
-          try {
-            const rows = await getDocs(collection(firebaseDb, "qa_sparks_wallets"));
-            rows.docs.forEach((doc) => {
-              const data = doc.data();
-              wallets.set(String(data.username || decodeURIComponent(doc.id)).trim().toLowerCase(), data);
+        // Reuse past wallet snapshots and Firestore's local cache, without
+        // making another network read when quota is exhausted.
+        const wallets = readCachedBalances(actorUsername);
+        try {
+          const rows = await getDocsFromCache(collection(firebaseDb, "qa_sparks_wallets"));
+          rows.docs.forEach((document) => {
+            const data = document.data();
+            const name = normalizeUser(String(data.username || decodeURIComponent(document.id)));
+            if (!name || !validBalance(data.balance)) return;
+            const firstLogin = data.firstLogin || null;
+            wallets.set(name, {
+              balance: data.balance,
+              earned: validBalance(data.totalEarned) ? data.totalEarned : Number(firstLogin?.amount) || 0,
+              spent: validBalance(data.totalSpent) ? data.totalSpent : 0,
+              rewardOrders: validBalance(data.rewardOrders) ? data.rewardOrders : 0,
+              firstLogin,
+              savedAt: String(data.updatedAt || ""),
             });
-          } catch {
-            // Keep the QA user directory visible when wallet reads are unavailable.
-          }
+          });
+        } catch { /* No local Firestore snapshot exists yet. */ }
+        if (ownAccount && validBalance(ownAccount.balance) && normalizeUser(actorUsername)) {
+          const history = ownAccount.history || [];
+          wallets.set(normalizeUser(actorUsername), {
+            balance: ownAccount.balance,
+            earned: history.filter((entry) => entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0),
+            spent: history.filter((entry) => entry.amount < 0).reduce((sum, entry) => sum - entry.amount, 0),
+            rewardOrders: ownAccount.rewardOrders,
+            firstLogin: ownAccount.firstLogin,
+            savedAt: ownAccount.lastLoadedAt,
+          });
         }
         if (!active) return;
         const fallbackUsers = profiles.filter((profile) => String(profile.status || "").toLowerCase() !== "suspended").map((profile) => {
-          const wallet = wallets.get(profile.username.trim().toLowerCase());
+          const wallet = wallets.get(normalizeUser(profile.username));
           return {
             username: profile.username,
             displayName: profile.displayName || profile.agentName || profile.username,
             role: profile.role,
             status: profile.status,
-            balance: Number(wallet?.balance) || 0,
-            earned: Number(wallet?.totalEarned) || Number(wallet?.firstLogin?.amount) || 0,
-            spent: Number(wallet?.totalSpent) || 0,
-            rewardOrders: Number(wallet?.rewardOrders) || 0,
+            balance: wallet?.balance ?? 0,
+            earned: wallet?.earned ?? 0,
+            spent: wallet?.spent ?? 0,
+            rewardOrders: wallet?.rewardOrders ?? 0,
             firstLogin: wallet?.firstLogin || null,
+            balanceKnown: Boolean(wallet),
+            balanceAsOf: wallet?.savedAt || "",
           } as AdminUser;
         });
         fallbackUsers.sort((a, b) => a.displayName.localeCompare(b.displayName, "th"));
@@ -164,7 +227,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
       }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [request, revision]);
+  }, [request, revision, actorUsername, ownAccount]);
 
   useEffect(() => {
     let active = true;
@@ -309,7 +372,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
           {filteredUsers.map((user) => <button key={user.username} type="button" role="listitem" aria-current={chosen === user.username}
             className={chosen === user.username ? "selected" : ""} onClick={() => { setChosen(user.username); setOperation(null); setFilter("all"); setNotice(""); }}>
             <span className="qa-sparks-admin-user-title">{user.displayName}<small>@{user.username} · {user.role || "User"}</small></span>
-            <span className="qa-sparks-admin-user-balance">{adminReady ? fmt(user.balance) : "—"} <small>Sparks</small></span>
+            <span className="qa-sparks-admin-user-balance">{adminReady || user.balanceKnown ? fmt(user.balance) : "—"} <small>Sparks{!adminReady && user.balanceKnown ? " · แคช" : ""}</small></span>
           </button>)}
           {!loading && filteredUsers.length === 0 ? <p className="qa-sparks-admin-empty">ไม่พบ User</p> : null}
           {loading ? <p className="qa-sparks-admin-empty">กำลังโหลดรายชื่อ...</p> : null}
@@ -321,11 +384,14 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
             <div><h3>{selected.displayName}</h3><p>@{selected.username} · {selected.role}</p></div>
             <span className="qa-sparks-admin-status">{selected.status || "Active"}</span>
           </div>
+          {!adminReady ? <p className="qa-sparks-admin-cached-indicator">{selected.balanceKnown
+            ? "ยอดที่เคยโหลดไว้ ไม่ใช่ยอดเรียลไทม์" + (selected.balanceAsOf ? " · ข้อมูล ณ " + thaiDate(selected.balanceAsOf) : " · ไม่ทราบเวลาล่าสุด")
+            : "ยังไม่มีข้อมูลแต้มในเครื่องของ User นี้ ต้องรอ Firestore กลับมาใช้งานจึงจะตรวจยอดจริงได้"}</p> : null}
           <div className="qa-sparks-admin-metrics">
-            <div><span>คงเหลือ</span><strong>{detail ? fmt(detail.wallet.balance) : adminReady ? fmt(selected.balance) : "—"}</strong></div>
-            <div><span>ได้รับสะสม</span><strong>{detail ? fmt(detail.wallet.earned) : adminReady ? fmt(selected.earned) : "—"}</strong></div>
-            <div><span>ใช้ไป</span><strong>{detail ? fmt(detail.wallet.spent) : adminReady ? fmt(selected.spent) : "—"}</strong></div>
-            <div><span>รายการแลก</span><strong>{detail ? fmt(detail.wallet.rewardOrders) : adminReady ? fmt(selected.rewardOrders) : "—"}</strong></div>
+            <div><span>คงเหลือ</span><strong>{detail ? fmt(detail.wallet.balance) : adminReady || selected.balanceKnown ? fmt(selected.balance) : "—"}</strong></div>
+            <div><span>ได้รับสะสม</span><strong>{detail ? fmt(detail.wallet.earned) : adminReady || selected.balanceKnown ? fmt(selected.earned) : "—"}</strong></div>
+            <div><span>ใช้ไป</span><strong>{detail ? fmt(detail.wallet.spent) : adminReady || selected.balanceKnown ? fmt(selected.spent) : "—"}</strong></div>
+            <div><span>รายการแลก</span><strong>{detail ? fmt(detail.wallet.rewardOrders) : adminReady || selected.balanceKnown ? fmt(selected.rewardOrders) : "—"}</strong></div>
           </div>
           <div className="qa-sparks-admin-operations">
             <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องแก้การเชื่อมต่อ Google Cloud ก่อน" : ""} onClick={() => startOperation("add")}>+ เพิ่ม Sparks</button>
@@ -338,7 +404,8 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
             </select>
           </div>
           {detailLoading ? <p className="qa-sparks-admin-empty">กำลังโหลด History...</p> : null}
-          {!detailLoading && history.length === 0 ? <p className="qa-sparks-admin-empty">ยังไม่มีรายการตามตัวกรอง</p> : null}
+          {!detailLoading && history.length === 0 && !firestoreLimited ? <p className="qa-sparks-admin-empty">ยังไม่มีรายการตามตัวกรอง</p> : null}
+          {firestoreLimited ? <p className="qa-sparks-admin-empty">ประวัติล่าสุดยังตรวจสอบไม่ได้ระหว่างที่ Firestore เกินโควตา</p> : null}
           <div className="qa-sparks-admin-history-list">
             {history.map((entry) => <article className="qa-sparks-admin-history-row" key={entry.id}>
               <div><strong>{entry.title}</strong><small>{thaiDate(entry.createdAt)}</small>

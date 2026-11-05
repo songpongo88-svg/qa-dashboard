@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, type SparksAccount, type SparksHistoryItem } from "./qaSparksStore";
 import "./qaSparks.css";
 import SparksAdminPanel from "./SparksAdminPanel";
@@ -57,15 +57,20 @@ function SparksHistory({ history, large = false }: { history: SparksHistoryItem[
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "" }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string }) {
   const [view, setView] = useState<SparksView>("overview");
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
+  const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
+  const [lastAccountUsername, setLastAccountUsername] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
-    if (!username) { setAccount(EMPTY_SPARKS_ACCOUNT); setError(""); return; }
+    setAccount(EMPTY_SPARKS_ACCOUNT);
+    setLastAccountLoadAt("");
+    setLastAccountUsername("");
+    if (!username) { setError(""); return; }
     let active = true;
     const refresh = () => {
       setLoading(true);
       void getSparksAccount(username).then((result) => {
-        if (active) { setAccount(result); setError(""); }
+        if (active) { setAccount(result); setLastAccountUsername(username); setLastAccountLoadAt(new Date().toISOString()); setError(""); }
       }).catch(() => {
         if (active) setError("ไม่สามารถโหลดข้อมูล Sparks ได้ กรุณาลองอีกครั้ง");
       }).finally(() => { if (active) setLoading(false); });
@@ -76,6 +81,8 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     return () => { active = false; window.removeEventListener("qa:sparks-updated", refresh); window.removeEventListener("focus", refresh); };
   }, [username]);
 
+  const ownAccountSnapshot = useMemo(() => lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase()
+    ? { ...account, lastLoadedAt: lastAccountLoadAt } : null, [account, lastAccountLoadAt, lastAccountUsername, username]);
   const tabs: { key: SparksView; label: string; icon: SparksIconName }[] = [
     { key: "overview", label: "Overview", icon: "grid" },
     { key: "rewards", label: "Reward Center", icon: "gift" },
@@ -127,7 +134,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
         </div> : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><EmptyReward large/></section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
-        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} /> : null}
+        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} /> : null}
       </div>
     </div>
   </main>;

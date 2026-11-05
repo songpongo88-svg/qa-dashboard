@@ -246,3 +246,17 @@
 .qa-sparks-admin-reauth button{font-family:inherit;background:var(--sparks-accent,#a75b2a);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600;font-size:12px;cursor:pointer;}
 .qa-sparks-admin-reauth button:disabled{opacity:.55;cursor:not-allowed;}
 .qa-sparks-admin-reauth-error{font-size:12px;color:#a22020!important;}
+
+
+/* Offline Sparks balances are historical snapshots, never current balances. */
+.qa-sparks-admin-cached-indicator {
+  margin: 10px 0 8px;
+  padding: 9px 12px;
+  border: 1px solid #e9cda1;
+  border-radius: 10px;
+  background: #fff7e9;
+  color: #78501d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.qa-sparks-admin-user-balance small { white-space: nowrap; }
