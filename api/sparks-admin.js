@@ -610,12 +610,24 @@ async function markTrueMoneyPaid(body,admin){
       const request=recordValue(requestDoc);
       if(request.status==="paid")return {updated:false,alreadyApplied:true,status:"paid"};
       if(request.status!=="pending"||request.amountTHB!==20)fail("สถานะคำขอไม่พร้อมยืนยัน",409);
+      const paidHistoryPath=path("qa_sparks_wallets",walletKey(request.username),"history","tm-paid-"+itemId);
+      const [historyDoc,walletDoc]=await Promise.all([
+        readDoc(paidHistoryPath,transaction),readDoc(walletDocumentPath(request.username),transaction),
+      ]);
+      if(historyDoc)fail("พบประวัติยืนยันโอนซ้ำ กรุณารีเฟรช Tracker",409);
       const now=new Date().toISOString();
       await firestoreRequest(":commit","POST",{transaction,writes:[
         updateWrite(requestPath,{
           status:"paid",payoutConfirmedAt:now,payoutConfirmedBy:admin.username,
           payoutConfirmedByName:admin.displayName,
         },requestDoc),
+        createWrite(paidHistoryPath,{
+          createdAt:now,type:"earn",source:"reward-payout",
+          rewardId:TRUE_MONEY.id,itemId,title:"TrueMoney 20 THB Paid",
+          detail:"Admin ยืนยันโอน TrueMoney 20 บาทสำเร็จ",
+          amount:0,balanceAfter:intCount(recordValue(walletDoc).balance),
+          performedBy:admin.username,status:"Completed",
+        }),
       ]});
       return {updated:true,status:"paid",paidAt:now};
     }catch(error){
