@@ -39,8 +39,8 @@ function State({status,expiresAt}:{status:string;expiresAt:string}){
  const current=expired?"expired":status;
  return <span className={"qa-sparks-item-status "+current}>{current==="paid"?"โอนสำเร็จ":current==="submitted"?"รอโอนเงิน":current==="expired"?"หมดอายุ":"พร้อมใช้"}</span>;
 }
-type RewardProps={username:string;sessionId:string;balance:number;loaded:boolean;onRedeem?:()=>void;};
-export function TrueMoneyRewardCard({username,sessionId,balance,loaded,onRedeem}:RewardProps){
+type RewardProps={username:string;sessionId:string;balance:number;loaded:boolean;enabled?:boolean;onRedeem?:()=>void;};
+export function TrueMoneyRewardCard({username,sessionId,balance,loaded,enabled=true,onRedeem}:RewardProps){
  const [open,setOpen]=useState(false),[confirm,setConfirm]=useState(false),[busy,setBusy]=useState(false);
  const [error,setError]=useState(""),[notice,setNotice]=useState("");
  const [theme,setTheme]=useState({accent:"#8533a8",dark:"#50245f"});
@@ -60,7 +60,7 @@ export function TrueMoneyRewardCard({username,sessionId,balance,loaded,onRedeem}
   setConfirm(false);setError("");setNotice("");setOpen(true);
  };
  const redeem=async()=>{
-  if(!loaded||balance<PRICE||busy||!username||!sessionId)return;
+  if(!loaded||!enabled||balance<PRICE||busy||!username||!sessionId)return;
   setBusy(true);setError("");
   try{
    if(!purchaseId.current)purchaseId.current=crypto.randomUUID();
@@ -118,16 +118,17 @@ export function TrueMoneyRewardCard({username,sessionId,balance,loaded,onRedeem}
       </ul>
      </div>
      <div className="qa-sparks-reward-detail-action">
+      {!enabled?<div role="status" className="qa-sparks-reward-detail-error">TrueMoney ปิดรับการแลกใหม่ชั่วคราว · Item ที่เคยแลกไว้ยังใช้ได้ตามเงื่อนไขเดิม</div>:null}
       {notice?<div role="status" className="qa-sparks-reward-detail-success">{notice}</div>:null}
       {error?<div role="alert" className="qa-sparks-reward-detail-error">{error}</div>:null}
       {confirm?<div className="qa-sparks-reward-detail-confirm"><strong>ยืนยันแลก TrueMoney 20 บาท</strong>
         <p>หัก 7,000 Sparks และรับ Item อายุ 30 วัน (ยังไม่ใช่การส่งคำขอรับเงิน)</p>
         <div><button type="button" className="qa-sparks-reward-detail-secondary" disabled={busy} onClick={()=>setConfirm(false)}>กลับ</button>
-         <button type="button" className="qa-sparks-reward-detail-primary" disabled={busy||!loaded||balance<PRICE} onClick={()=>void redeem()}>{busy?"กำลังแลก":"ยืนยันแลก 7,000 Sparks"}</button></div>
+         <button type="button" className="qa-sparks-reward-detail-primary" disabled={busy||!enabled||!loaded||balance<PRICE} onClick={()=>void redeem()}>{busy?"กำลังแลก":"ยืนยันแลก 7,000 Sparks"}</button></div>
        </div>:<div className="qa-sparks-reward-detail-purchase">
         <div className="qa-sparks-reward-detail-purchase-copy"><small>SPARKS คงเหลือ</small><strong>{loaded?balance.toLocaleString():"—"} <span>Sparks</span></strong></div>
-        <button type="button" className="qa-sparks-reward-detail-primary" disabled={!loaded||balance<PRICE||busy} onClick={()=>setConfirm(true)}>
-         {!loaded?"กำลังโหลด":balance<PRICE?"Sparks ไม่เพียงพอ":"แลก Item · 7,000 Sparks"}</button>
+        <button type="button" className="qa-sparks-reward-detail-primary" disabled={!enabled||!loaded||balance<PRICE||busy} onClick={()=>setConfirm(true)}>
+         {!enabled?"พักรับชั่วคราว":!loaded?"กำลังโหลด":balance<PRICE?"Sparks ไม่เพียงพอ":"แลก Item · 7,000 Sparks"}</button>
        </div>}
      </div>
     </section></div>,document.body):null}
