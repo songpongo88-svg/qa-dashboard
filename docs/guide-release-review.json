@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-05T09:30:00.000Z",
-  "reason": "Reviewed new QA Sparks Quest Center and Daily Check-in Nov 9–22, 2026 event. 14 consecutive Bangkok dates, manual +50 Sparks/day (maximum 700), no catch-up or advance claiming, missed days do not block later dates. Secure member-session authorization and server-side Bangkok date check; atomic wallet + immutable fixed-date history entry with idempotency; annual 200,000 earn cap and Member Level increment. Accessible responsive themed quest item, 14-day clickable calendar, status, and quest tab. No retroactive grants, no Firebase migration or extra wallet reads, and no QA case/rubric changes. Backend and UI unit tests passed.",
+  "reviewedAt": "2026-11-05T09:37:00.000Z",
+  "reason": "Reviewed new QA Sparks Quest Center and Daily Check-in Nov 9–22, 2026 event. 14 consecutive Bangkok dates, manual +50 Sparks/day (maximum 700), no catch-up or advance claiming, missed days do not block later dates. Secure member-session authorization and server-side Bangkok date check; atomic wallet + immutable fixed-date history entry with idempotency; annual 200,000 earn cap and Member Level increment. Accessible responsive themed quest item, 14-day clickable calendar, status, and quest tab. No retroactive grants, no Firebase migration or extra wallet reads, and no QA case/rubric changes. Backend and UI unit tests passed. Confirmed event modal uses selected QA theme, with QA Sparks and typing regression tests green.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -603,7 +603,7 @@
     "src/qaSparksMemberLevels.ts": "e00e2bb79f3f7c48354a904d7abb91e4d9b7332250245341093d37dfe4a49ecc",
     "scripts/test-qa-sparks-member-levels.mjs": "26eadef291aaf00e27f31b5770163fcb673d8865a02d3a37dd0b22957051bdc5",
     "scripts/test-qa-sparks-member-ui.mjs": "5c3fa26f59b87f695975f84f82591daa3c5854b0c88375a7f7049b8fca63cd37",
-    "src/DailyCheckinQuest.tsx": "d0769a5bb7106f2f55b9850d7ac774c15f55c8f91e0f2635494a1429dccade42",
+    "src/DailyCheckinQuest.tsx": "a5400f285db6f9ff98c236197b9ff99071af078941d6b7f8b604c77b70a0e09c",
     "scripts/test-daily-checkin-quest.mjs": "91d6713e83123345d2f1c88c95fbd5e676a6a71a403532f63f3c78e762fbc215",
     "scripts/test-qa-sparks-quest-ui.mjs": "0373bd6df97048795baf6564974d5a5b9a37cb695727ce872291c816b107fcfc"
   }
