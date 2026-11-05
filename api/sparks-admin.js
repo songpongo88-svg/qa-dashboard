@@ -1,4 +1,4 @@
-import { createSign, createHash, timingSafeEqual } from "node:crypto";
+import { createSign, createHash, timingSafeEqual, createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -34,6 +34,34 @@ function addBusinessDaysBangkok(fromISO,count=14){
 }
 function addThirtyDays(now=new Date()){
   return new Date(now.getTime()+TRUEMONEY_REWARD.validDays*86400000).toISOString();
+}
+/**
+ * A receiving number is personal payout data. Encrypt it at rest. The key
+ * defaults to a stable derivation of the existing server-only Firebase key;
+ * production can override with SPARKS_PAYOUT_ENCRYPTION_KEY when configured.
+ * Frontend and member inventory APIs NEVER receive the decrypted phone.
+ */
+function payoutKey(){
+ const override=process.env.SPARKS_PAYOUT_ENCRYPTION_KEY;
+ const source=process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON||process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+ let secret=String(override||"");
+ if(!secret && source){
+  try{secret=String(JSON.parse(source).private_key||"");}catch{}
+ }
+ if(!secret)fail("ตั้งค่าระบบความปลอดภัยสำหรับหมายเลขรับเงินไม่สำเร็จ",503);
+ return createHash("sha256").update("qa-sparks-truemoney-receiver-v1:"+secret).digest();
+}
+function encryptReceivingPhone(value){
+ const nonce=randomBytes(12),cipher=createCipheriv("aes-256-gcm",payoutKey(),nonce);
+ const payload=Buffer.concat([cipher.update(value,"utf8"),cipher.final()]);
+ return [nonce.toString("base64url"),payload.toString("base64url"),cipher.getAuthTag().toString("base64url")].join(".");
+}
+function decryptReceivingPhone(encrypted){
+ const parts=String(encrypted||"").split(".");
+ if(parts.length!==3)throw new Error("Encrypted recipient phone is missing");
+ const decipher=createDecipheriv("aes-256-gcm",payoutKey(),Buffer.from(parts[0],"base64url"));
+ decipher.setAuthTag(Buffer.from(parts[2],"base64url"));
+ return Buffer.concat([decipher.update(Buffer.from(parts[1],"base64url")),decipher.final()]).toString("utf8");
 }
 function safeItemId(raw){
   const id=String(raw||"");
@@ -654,7 +682,7 @@ async function useTrueMoneyItem(body,actor){
       fail("Item หมดอายุแล้ว ไม่สามารถส่งคำขอรับเงินได้",400);
    const now=new Date().toISOString(),dueDate=addBusinessDaysBangkok(now,14);
    const request={id:itemId,rewardId:TRUEMONEY_REWARD.id,username:actor.username,
-      displayName:actor.displayName,receivingPhone:phone,amountBaht:20,
+      displayName:actor.displayName,receivingPhoneEncrypted:encryptReceivingPhone(phone),amountBaht:20,
       submittedAt:now,dueDate,status:"pending",itemId};
    const history={createdAt:now,type:"earn",source:"reward-activation",
       rewardId:TRUEMONEY_REWARD.id,itemId,title:"TrueMoney 20 THB Requested",
@@ -673,7 +701,7 @@ async function listPayoutRequests(){
  return {requests:data.documents.map(recordValue)
    .filter(r=>r.rewardId===TRUEMONEY_REWARD.id)
    .map(r=>({id:String(r.id||""),username:String(r.username||""),
-    displayName:String(r.displayName||""),receivingPhone:String(r.receivingPhone||""),
+    displayName:String(r.displayName||""),receivingPhone:decryptReceivingPhone(r.receivingPhoneEncrypted),
     amountBaht:20,submittedAt:String(r.submittedAt||""),
     dueDate:String(r.dueDate||""),status:String(r.status||""),
     paidAt:String(r.paidAt||""),paidBy:String(r.paidBy||"")}))
@@ -1065,6 +1093,10 @@ async function adjustBalance(body, admin) {
         if (originalRow.source !== "reward-redemption" || !Number.isSafeInteger(Number(originalRow.amount)) || Number(originalRow.amount) >= 0) {
           fail("ไม่พบรายการแลกรางวัลที่สามารถคืนคะแนนได้", 400);
         }
+        // TrueMoney may already have an associated payable/paid request.
+        // Generic refund must never restore 7,000 Sparks for a cash reward.
+        if (originalRow.rewardId !== "typing-relief")
+          fail("TrueMoney ไม่รองรับการคืนแต้มผ่านปุ่มทั่วไป ต้องตรวจสอบสถานะ Item/การโอนก่อน", 400);
         signedAmount = -Number(originalRow.amount);
         if (originalRow.rewardId === "typing-relief") {
           if (intCount(data.typingReliefOwned) < 1) fail("ไม่สามารถคืนคะแนน Typing Relief ที่ใช้ไปแล้วได้", 400);
