@@ -105,6 +105,12 @@ try{
   const item = main.querySelector('[data-reward-item="typing-relief"]');
   const questCard = main.querySelector('[data-quest-item="daily-checkin"]');
   assert.ok(questCard, "Quest Center must display Daily Check-in in Overview");
+  const profileQuest = main.querySelector('[data-quest-item="profile-makeover"]');
+  assert.ok(profileQuest, "Profile Makeover quest is listed in Overview");
+  assert.ok(profileQuest.textContent.includes("+150"));
+  const trueMoneyReward = main.querySelector('[data-reward-item="truemoney-20"]');
+  assert.ok(trueMoneyReward, "TrueMoney Reward item is listed alongside Typing Relief");
+
   assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes("9–22"));
   await act(async () => questCard.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const questDialog = document.querySelector(".qa-sparks-checkin-modal");
@@ -146,7 +152,7 @@ try{
   }
   assert.ok(!main.querySelector(".qa-sparks-notes"), "remove mockup-only explanatory box");
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
-  assert.equal(main.querySelectorAll('[role="tab"]').length,4);
+  assert.equal(main.querySelectorAll('[role="tab"]').length,5);
   assert.ok(!main.textContent.includes("Sparks Admin"), "ordinary users must not see admin management");
   assert.ok(!main.querySelector(".qa-sparks-reward-detail-primary"), "purchase action must be inside the detail modal only");
 
