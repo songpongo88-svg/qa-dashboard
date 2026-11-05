@@ -3,7 +3,8 @@ import { createSign, createHash, timingSafeEqual } from "node:crypto";
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
 const FIRESTORE_PROJECT = "qa-dashboard-b0b5d";
-const API_ROOT = "https://firestore.googleapis.com/v1/projects/" + encodeURIComponent(FIRESTORE_PROJECT) + "/databases/(default)/documents";
+const DOCUMENTS_RESOURCE = "projects/" + FIRESTORE_PROJECT + "/databases/(default)/documents";
+const API_ROOT = "https://firestore.googleapis.com/v1/" + DOCUMENTS_RESOURCE;
 const SESSION_POLICY = "qa-session-policy-2026-07-15-v1";
 const ADMIN_USERNAME = "songpon";
 const policyErrorCode = "SESSION_POLICY_OUTDATED";
@@ -373,12 +374,12 @@ async function adjustBalance(body, admin) {
       };
       const writes = [
         {
-          update: { name: API_ROOT + "/" + walletPath, fields },
+          update: { name: DOCUMENTS_RESOURCE + "/" + walletPath, fields },
           updateMask: { fieldPaths: Object.keys(updated) },
           currentDocument: walletDoc?.updateTime ? { updateTime: walletDoc.updateTime } : { exists: false },
         },
         {
-          update: { name: API_ROOT + "/" + historyPath, fields: encodeFields(history) },
+          update: { name: DOCUMENTS_RESOURCE + "/" + historyPath, fields: encodeFields(history) },
           currentDocument: { exists: false },
         },
       ];
