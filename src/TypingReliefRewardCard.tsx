@@ -8,6 +8,7 @@ type Props = {
   balance: number;
   owned: number;
   loaded: boolean;
+  mode?: "reward" | "inventory";
 };
 
 /** A self-contained collectible illustration; no font icons, emoji, or external image requests. */
@@ -69,7 +70,7 @@ function TypingReliefArt({ large = false }: { large?: boolean }) {
   </svg>;
 }
 
-export default function TypingReliefRewardCard({ username, sessionId, balance, owned, loaded }: Props) {
+export default function TypingReliefRewardCard({ username, sessionId, balance, owned, loaded, mode = "reward" }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -152,19 +153,15 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
   };
 
   return <>
-    <button type="button" className="qa-sparks-reward-tile" data-reward-item="typing-relief" ref={triggerRef}
-      aria-label="ดูรายละเอียดของรางวัล Typing Relief ราคา 150 QA Sparks" aria-haspopup="dialog"
+    <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--typing" data-reward-item="typing-relief" ref={triggerRef}
+      aria-label={mode === "inventory" ? "เปิดรายละเอียด Typing Relief ที่มี " + effectiveOwned + " สิทธิ์" : "ดูรายละเอียดของรางวัล Typing Relief ราคา 150 QA Sparks"} aria-haspopup="dialog"
       aria-expanded={detailOpen} onClick={openDetails}>
-      <span className="qa-sparks-reward-tile-art"><TypingReliefArt/></span>
-      <span className="qa-sparks-reward-tile-copy">
-        <span className="qa-sparks-reward-tile-kicker">QA ACCESS REWARD <span className="qa-sparks-reward-tile-new">NEW</span></span>
-        <strong className="qa-sparks-reward-tile-name">Typing Relief</strong>
-        <span className="qa-sparks-reward-tile-subtitle">ไอเทมพิเศษสำหรับภารกิจ QA Access</span>
-        <span className="qa-sparks-reward-tile-footer">
-          <span className="qa-sparks-reward-tile-price"><span aria-hidden="true">✦</span> {TYPING_RELIEF.price} <small>QA Sparks</small></span>
-          <span className="qa-sparks-reward-tile-view">ดูรายละเอียด <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
-        </span>
+      <span className="qa-sparks-mini-art qa-sparks-mini-art--typing">
+        <TypingReliefArt/>
+        {mode === "inventory" ? <span className="qa-sparks-mini-quantity">×{effectiveOwned}</span> : null}
       </span>
+      <strong className="qa-sparks-mini-name">Typing Relief</strong>
+      <span className="qa-sparks-mini-value">{mode === "inventory" ? effectiveOwned + " สิทธิ์" : TYPING_RELIEF.price + " Sparks"}</span>
     </button>
 
     {detailOpen && typeof document !== "undefined" ? createPortal(
@@ -213,16 +210,20 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
           </div>
 
           <div className="qa-sparks-reward-detail-action">
+            {mode === "inventory" ? <div className="qa-sparks-reward-detail-inventory-note">
+              <strong>คุณมี {effectiveOwned} สิทธิ์</strong>
+              <p>เมื่อมีภารกิจ QA Access Check แบบ Word Mode ระบบจะให้เลือกใช้ Typing Relief ก่อนเริ่มพิมพ์</p>
+            </div> : null}
             {notice ? <div role="status" className="qa-sparks-reward-detail-success">{notice}</div> : null}
             {error ? <div role="alert" className="qa-sparks-reward-detail-error">{error}</div> : null}
-            {confirm ? <div className="qa-sparks-reward-detail-confirm">
+            {mode !== "inventory" && confirm ? <div className="qa-sparks-reward-detail-confirm">
               <strong>ยืนยันการแลก Typing Relief</strong>
               <p>ใช้ {TYPING_RELIEF.price} Sparks รับ 1 สิทธิ์ · หลังแลกคงเหลือ {effectiveBalance - TYPING_RELIEF.price} Sparks และมี {effectiveOwned + 1}/{TYPING_RELIEF.maxOwned} สิทธิ์</p>
               <div>
                 <button className="qa-sparks-reward-detail-secondary" type="button" onClick={() => setConfirm(false)} disabled={busy}>กลับไปดูรายละเอียด</button>
                 <button className="qa-sparks-reward-detail-primary" type="button" onClick={() => void purchase()} disabled={!canBuy}>{busy ? "กำลังแลก..." : "ยืนยันแลก 150 Sparks"}</button>
               </div>
-            </div> : <div className="qa-sparks-reward-detail-purchase">
+            </div> : mode === "inventory" ? null : <div className="qa-sparks-reward-detail-purchase">
               <div className="qa-sparks-reward-detail-purchase-copy"><small>YOUR BALANCE</small><strong>{loaded ? effectiveBalance.toLocaleString() : "—"} <span>Sparks</span></strong></div>
               <button className="qa-sparks-reward-detail-primary" type="button" disabled={!canBuy} onClick={() => { setError(""); setNotice(""); setConfirm(true); }}>
                 {!loaded ? "กำลังตรวจสอบยอด Sparks" : effectiveOwned >= TYPING_RELIEF.maxOwned ? "สะสมครบ 10 สิทธิ์แล้ว" : effectiveBalance < TYPING_RELIEF.price ? "Sparks ไม่เพียงพอ" : "แลก 1 สิทธิ์ · 150 Sparks"}
