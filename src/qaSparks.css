@@ -660,3 +660,128 @@
 .qa-sparks-owned-typing-item p{font-size:12px;margin:3px 0;color:#806c82}
 .qa-sparks-owned-typing-item small{font-size:11px;color:#9a8199}
 .qa-sparks-owned-typing-item>b{padding:7px 11px;border-radius:999px;background:#f5e5fc;color:var(--sparks-accent,#87439b);font-size:13px}
+
+
+/* Compact, game-like QA Sparks item inventory and shops.
+ * One 112px piece of artwork per item, with ONLY name and Sparks/quantity.
+ * Existing detail dialogs and payout/quest logic remain unchanged. */
+.qa-sparks-compact-section.qa-sparks-quest-center{
+  display:block; padding:15px 17px 18px; margin-bottom:15px; width:100%;
+  min-height:0;
+}
+.qa-sparks-compact-header{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-bottom:13px; flex-wrap:wrap;
+}
+.qa-sparks-compact-header h2{
+  display:flex; align-items:center; gap:8px; margin:0;
+  font-size:16px; font-weight:750; color:var(--sparks-dark,#512c59);
+}
+.qa-sparks-compact-header>span{
+  font-size:11px; color:var(--sparks-accent,#91529f);
+  background:var(--sparks-soft,#f7eafc); padding:4px 9px; border-radius:999px;
+}
+.qa-sparks-mini-grid{
+  display:grid; grid-template-columns:repeat(auto-fill,122px);
+  gap:13px 11px; justify-content:start; align-content:start;
+  min-width:0; width:100%;
+}
+.qa-sparks-mini-item{
+  box-sizing:border-box; width:122px; min-width:0; max-width:122px;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:4px 4px 9px; border:1px solid transparent; border-radius:13px;
+  background:transparent; box-shadow:none; font-family:Kanit,sans-serif;
+  color:var(--sparks-dark,#59305e); line-height:1.35;
+  text-align:center; cursor:pointer; transition:transform .16s ease,background .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.qa-sparks-mini-item:hover{
+  transform:translateY(-3px); background:color-mix(in srgb,var(--sparks-soft,#f7e8ff) 60%,white);
+  border-color:var(--sparks-outline,#e4c4ee); box-shadow:0 7px 16px #56325b19;
+}
+.qa-sparks-mini-item:focus-visible{
+  outline:3px solid var(--sparks-accent,#9851b5); outline-offset:2px;
+}
+.qa-sparks-mini-art{
+  box-sizing:border-box; position:relative; width:112px; height:112px;
+  display:grid; place-items:center; overflow:hidden;
+  border:1px solid #e5c5eb; border-radius:12px;
+  box-shadow:inset 0 1px 0 #ffffffac,0 3px 10px #60346b1b;
+}
+.qa-sparks-mini-art--daily{
+  background:radial-gradient(circle at 42% 22%,#ffeaff,#e3b6f4 75%);
+}
+.qa-sparks-mini-art--profile{
+  background:radial-gradient(circle at 45% 25%,#ffe2f4,#ecc4f8 75%);
+}
+.qa-sparks-mini-art--typing{
+  background:radial-gradient(circle at 42% 30%,#fdf1ff,#d4a9f2 80%);
+}
+.qa-sparks-mini-art--money{
+  background:radial-gradient(circle at 47% 29%,#ffe5ea,#efb4e2 85%);
+}
+.qa-sparks-mini-art .qa-relief-art-svg{
+  width:110px!important; height:109px!important; max-width:110px!important;
+  object-fit:contain;
+}
+.qa-sparks-mini-art .qa-money-art-svg{
+  width:112px!important; height:110px!important; max-width:112px!important;
+  max-height:110px!important;
+}
+.qa-sparks-mini-art .qa-sparks-quest-big-calendar{display:grid; place-items:center;transform:rotate(-8deg);}
+.qa-sparks-mini-art .qa-sparks-profile-avatar{display:grid;place-items:center;transform:rotate(-6deg);}
+.qa-sparks-mini-corner,.qa-sparks-mini-quantity{
+  position:absolute; right:4px; bottom:5px; display:grid; place-items:center;
+  min-width:29px; min-height:21px; padding:2px 5px; border-radius:999px;
+  border:1px solid #ffffffdb; background:linear-gradient(130deg,#ffefad,#f9bf55);
+  color:#7c480e; box-shadow:0 2px 5px #48204c40;
+  font:800 11px/1.1 Kanit,sans-serif;
+}
+.qa-sparks-mini-quantity{
+  top:4px; bottom:auto; right:4px; background:#fff9eb;
+  color:#763f7b; border-color:#edd5f4;
+}
+.qa-sparks-mini-done{
+  position:absolute;top:4px;left:4px;display:grid;place-items:center;
+  border-radius:50%;width:20px;height:20px;background:#168553;
+  border:1px solid #ffffffcc;color:#fff;font:800 12px Kanit,sans-serif;
+}
+.qa-sparks-mini-name{
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; max-width:114px; min-height:16px;
+  font-size:11px; font-weight:750; line-height:1.4; color:var(--sparks-dark,#59305e);
+  overflow-wrap:break-word;
+}
+.qa-sparks-mini-value{
+  display:block; max-width:114px; font-size:10px; font-weight:700;
+  color:var(--sparks-accent,#9a51a6); line-height:1.35;
+}
+.qa-sparks-mini-value.is-expired{color:#a18e9c}
+.qa-sparks-mini-hint{display:block;font-size:9px;color:#90788f;line-height:1.25}
+.qa-sparks-mini-item--typing,.qa-sparks-mini-item--money{margin:0!important;}
+/* Avoid a visual container from the old Reward Center components. */
+.qa-sparks-mini-grid .qa-money-reward-root{display:contents!important;margin:0!important;}
+.qa-sparks-inventory-progress,.qa-sparks-inventory-empty{
+  grid-column:1/-1; margin:0; padding:21px 12px;
+  font-family:Kanit,sans-serif; text-align:center; font-size:12px;
+  color:#897585; line-height:1.7;
+}
+.qa-sparks-inventory-empty{min-height:160px;border:1px dashed var(--sparks-outline,#dfcae5);
+  border-radius:13px;background:color-mix(in srgb,var(--sparks-soft,#f9f0fc) 35%,white);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;
+}
+.qa-sparks-inventory-empty strong{color:var(--sparks-dark,#603866);font-size:14px}
+.qa-sparks-reward-detail-inventory-note{font-family:Kanit,sans-serif;padding:12px 15px;
+  background:var(--sparks-soft,#faf2ff);border-radius:11px;
+  color:var(--sparks-dark,#5c386c);font-size:13px}
+.qa-sparks-reward-detail-inventory-note p{margin:6px 0 0;color:#806c81;font-size:11px}
+.qa-money-item-status-detail{border:1px solid #e1d4e1;background:#fffafc;border-radius:9px;padding:10px 12px}
+.qa-money-item-status-detail strong{font-size:12px;color:#5a7864}
+@media(max-width:470px){
+  .qa-sparks-mini-grid{grid-template-columns:repeat(auto-fill,112px);gap:10px 7px;}
+  .qa-sparks-mini-item{width:112px;max-width:112px;padding:3px 3px 8px;}
+  .qa-sparks-mini-art{width:104px;height:104px;}
+  .qa-sparks-mini-art .qa-relief-art-svg,.qa-sparks-mini-art .qa-money-art-svg{width:102px!important;height:102px!important;}
+  .qa-sparks-mini-name{font-size:10px;max-width:108px}
+  .qa-sparks-mini-value{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.qa-sparks-mini-item{transition:none}.qa-sparks-mini-item:hover{transform:none}}
