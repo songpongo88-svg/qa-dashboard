@@ -61,6 +61,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
   const currentDay = Number(today.slice(-2));
   const status = upcoming ? "เตรียมเปิดกิจกรรม" : finished ? "กิจกรรมสิ้นสุดแล้ว" : saved.includes(currentDay) ? "รับรางวัลวันนี้แล้ว" : "เช็กอินวันนี้ได้";
   // The short item label stays compact; full quest status is available in the calendar dialog.
+  const statusClass = upcoming ? "upcoming" : finished ? "finished" : "live";
 
   useEffect(() => {
     if (!open) return;
