@@ -98,10 +98,30 @@ try{
   assert.ok(main, "dedicated QA Sparks page rendered");
   assert.equal(main.getAttribute("data-sparks-data-mode"),"not-configured", "must not claim actual ledger data");
   assert.ok(main.textContent.includes("My QA Sparks / Reward Center"));
-  assert.ok(main.textContent.includes("Typing Relief"), "first reward item must render");
-  assert.ok(main.textContent.includes("150"), "reward price must be visible");
-  assert.ok(main.textContent.includes("60 คำ"), "word reduction must be visible");
-  assert.ok(main.textContent.includes("สะสมได้ 10 สิทธิ์"), "inventory cap must be visible");
+  const item = main.querySelector('[data-reward-item="typing-relief"]');
+  assert.ok(item, "Typing Relief must be a collectible clickable Item");
+  assert.equal(item.tagName, "BUTTON", "whole Item must be clickable");
+  assert.equal(item.getAttribute("aria-haspopup"), "dialog");
+  assert.ok(item.textContent.includes("Typing Relief") && item.textContent.includes("150"), "compact Item shows title and price");
+  assert.ok(item.textContent.includes("ดูรายละเอียด"), "Item advertises its details action");
+  assert.ok(!item.textContent.includes("วิธีใช้งาน") && !item.textContent.includes("เงื่อนไขสำคัญ"), "full explanations must not be displayed on the Item");
+  assert.ok(!main.textContent.includes("สะสมได้ 10 สิทธิ์"), "inventory rules must live inside the modal, not the Item");
+  const art = item.querySelector(".qa-relief-art-svg");
+  assert.ok(art && art.querySelectorAll("rect").length > 10, "real illustrated keyboard-and-ticket Artwork is required");
+
+  await act(async () => item.dispatchEvent(new MouseEvent("click", {bubbles:true})));
+  let detail = document.querySelector(".qa-sparks-reward-detail-modal");
+  assert.ok(detail, "clicking Item opens the Reward Detail modal");
+  assert.equal(detail.getAttribute("aria-modal"), "true");
+  assert.ok(detail.textContent.includes("วิธีใช้งาน"), "how-to belongs inside the Detail modal");
+  assert.ok(detail.textContent.includes("เงื่อนไขสำคัญ"), "reward rules belong inside the Detail modal");
+  assert.ok(detail.textContent.includes("สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์"), "10-ticket rule is explained");
+  assert.ok(detail.textContent.includes("150"), "the detail shows the actual purchase price");
+  assert.ok(detail.textContent.includes("100") && detail.textContent.includes("40"), "the detail provides a 100-to-40 example");
+  assert.ok(detail.textContent.includes("Word Mode"), "the reward's Word Mode restriction is explained");
+  assert.ok(detail.querySelector(".qa-sparks-reward-detail-primary:disabled"), "buy stays disabled unless wallet and session are verified");
+  await act(async () => detail.querySelector(".qa-sparks-reward-detail-close").dispatchEvent(new MouseEvent("click", {bubbles:true})));
+  assert.equal(document.querySelector(".qa-sparks-reward-detail-modal"), null, "detail modal closes without any purchase");
   assert.ok(main.textContent.includes("ยังไม่มีประวัติการได้รับหรือใช้ Sparks"));
   for (const mockupOnly of ["หมายเหตุการใช้งาน", "Setup in progress", "History ready", "No rewards yet", "จะกำหนดภายหลัง", "เตรียมโครงสร้างไว้แล้ว"]) {
     assert.ok(!main.textContent.includes(mockupOnly), "mockup-only status must not appear: " + mockupOnly);
@@ -110,7 +130,7 @@ try{
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
   assert.equal(main.querySelectorAll('[role="tab"]').length,3);
   assert.ok(!main.textContent.includes("Sparks Admin"), "ordinary users must not see admin management");
-  assert.ok(main.querySelector(".qa-sparks-reward-item button:disabled"), "do not enable purchase without a verified wallet and session");
+  assert.ok(!main.querySelector(".qa-sparks-reward-detail-primary"), "purchase action must be inside the detail modal only");
 
   const click=async (selector) => {
     const el=main.querySelector(selector);
@@ -125,7 +145,7 @@ try{
   await click("#qa-sparks-tab-overview");
   assert.ok(main.querySelector("#qa-sparks-panel-overview"),"overview tab returns");
 
-  console.log("PASS QA Sparks: themed Typing Relief card, 150 Sparks cost, 60-word reduction, 10-slot cap, safe disabled purchase, sidebar routing and History");
+  console.log("PASS QA Sparks: compact event Item, illustrated Artwork, clickable details with rules/how-to, safe in-modal redemption and history");
 } finally {
   await act(async()=>root.unmount());
   dom.window.close();

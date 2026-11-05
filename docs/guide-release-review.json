@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-05T05:35:00.000Z",
-  "reason": "Reviewed the first QA Sparks Reward Center item Typing Relief, 150-Sparks atomic redemption with 10-slot inventory, preserved original QA Access word/sentence restrictions, optional pre-typing offer and opt-out, one-time per-assignment 60-word reduction, successful/unspent refunds only, transactional purchase/use history, and denial of unauthorized, suspended or quota-blocked users. QA scoring rubric, existing cases, and user guide content remain unchanged.",
+  "reviewedAt": "2026-11-05T06:05:00.000Z",
+  "reason": "Reviewed cosmetic Typing Relief reward redesign: a compact, fully clickable event-style illustrated item in QA Sparks Reward Center, accessible details/how-to dialog, theme-adaptive design, and confirmation-only purchase inside the dialog. No changes to Sparks price, 10-ticket cap, 60-word reduction, existing QA Access logic, reward ledger, user profiles, evaluation rubrics, scores, cases, or previous data. Verified UI and reward transaction regression tests.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -590,15 +590,15 @@
     "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad",
     "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
     "src/QASparks.tsx": "3e736d0b93c6d5775b7c866097782ea52ba4c30f4c1bce91d8f3a968cc7d90dd",
-    "src/qaSparks.css": "43ebcdd403d0acb20cc84208b26881c5a1cf2616e5810be20d1c19d4fbfcfe60",
-    "scripts/test-qa-sparks-ui.mjs": "fa226f850c9fe591c5226aec1f3d89d39884f7f9b4a69503ab6002a1762d16ea",
+    "src/qaSparks.css": "e70c6ae9d17088a6973711435a673c470c2751feedc251f244d710c9985a2ce5",
+    "scripts/test-qa-sparks-ui.mjs": "5deed38d11fbae0e57adc0e9e8c68050bc844c22dde1addfb8201e8a0dbef696",
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
     "src/qaSparksStore.ts": "83e54f664500fa3a912a51d3184af37498b4ed3442466b209a9e4c01dfbaefcb",
     "api/sparks-admin.js": "b9264b55c36174345d776d80122ca698312cdc1cbeb84cc0c34d44eacdc31630",
     "src/SparksAdminPanel.tsx": "e3436fecd18eb9e64ec55cc96fc0dd7436913ee35b143052364aa67943d74859",
     "scripts/test-sparks-admin-session.mjs": "5c5bca7f834576a9c5ae026ff8d5c3e8dfa8e560d387218966e19ffa29343b60",
     "src/typingReliefReward.ts": "1efac23698cf84603f3f18149f9c7681156b7a44da3530ca718a4dfffa6a8d9d",
-    "src/TypingReliefRewardCard.tsx": "d262deccae7a2cd4bc81620ea9d8b49362a4a02c5df94c7c0da50a90021536de",
+    "src/TypingReliefRewardCard.tsx": "509f3c6548ab368b5c9eea50506b3807882affa79e8e6ec5a67ed97dc335851a",
     "scripts/test-typing-relief-reward.mjs": "8bd1ebf45ef2abc522ab0d139ce02c6992c3a8149661b7a80c0c88d13e2884ab"
   }
 }
