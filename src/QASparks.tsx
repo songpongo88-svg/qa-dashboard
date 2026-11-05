@@ -95,6 +95,7 @@ function MemberJourney({ earned, year }: { earned: number; year: number }) {
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "" }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string }) {
   const [view, setView] = useState<SparksView>("overview");
   const [itemsRevision,setItemsRevision] = useState(0);
+  const [catalogFlags,setCatalogFlags]=useState<Record<string,boolean>>({});
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
   const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
   const [lastAccountUsername, setLastAccountUsername] = useState("");
@@ -119,6 +120,22 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     window.addEventListener("focus", refresh);
     return () => { active = false; window.removeEventListener("qa:sparks-updated", refresh); window.removeEventListener("focus", refresh); };
   }, [username]);
+
+  useEffect(()=>{
+    if(!username||!adminSessionId)return;
+    let active=true;
+    const refresh=async()=>{
+      try{const res=await fetch("/api/sparks-admin",{
+        method:"POST",cache:"no-store",headers:{"content-type":"application/json"},
+        body:JSON.stringify({action:"get-sparks-catalog",actorUsername:username,sessionId:adminSessionId})
+      });
+      if(res.ok){const data=await res.json();if(active)setCatalogFlags(data.items||{});}
+      }catch{}
+    };
+    void refresh();
+    window.addEventListener("qa:catalog-updated",refresh);
+    return()=>{active=false;window.removeEventListener("qa:catalog-updated",refresh);}
+  },[username,adminSessionId]);
 
   const ownAccountSnapshot = useMemo(() => lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase()
     ? { ...account, lastLoadedAt: lastAccountLoadAt } : null, [account, lastAccountLoadAt, lastAccountUsername, username]);
@@ -175,19 +192,21 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {view === "overview" && walletLoaded ? <MemberJourney earned={account.memberYearEarned} year={account.memberYear}/> : null}
         {(view === "overview" || view === "quests") ? <DailyCheckinQuest
           username={username} sessionId={adminSessionId} claimedDays={account.dailyCheckinClaimedDays || []}
-          loaded={walletLoaded} profileQuestClaimed={account.profileMakeoverClaimed} display={view === "quests" ? "full" : "overview"}/> : null}
+          loaded={walletLoaded} profileQuestClaimed={account.profileMakeoverClaimed}
+          dailyEnabled={catalogFlags["daily-checkin-nov-2026"]!==false} profileEnabled={catalogFlags["profile-makeover-2026"]!==false}
+          display={view === "quests" ? "full" : "overview"}/> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
           <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2>
             <div className="qa-sparks-reward-stack">
-              <TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/>
-              <TrueMoneyRewardCard username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}
+              <TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded} enabled={catalogFlags["typing-relief"]!==false}/>
+              <TrueMoneyRewardCard username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded} enabled={catalogFlags["truemoney-20"]!==false}
                 onRedeem={()=>setItemsRevision(n=>n+1)}/>
             </div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
         </div> : view === "quests" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2>
           <div className="qa-sparks-reward-stack">
-            <TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/>
-            <TrueMoneyRewardCard username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}
+            <TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded} enabled={catalogFlags["typing-relief"]!==false}/>
+            <TrueMoneyRewardCard username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded} enabled={catalogFlags["truemoney-20"]!==false}
               onRedeem={()=>setItemsRevision(n=>n+1)}/>
           </div></section>
         : view === "items" ? <MyTrueMoneyItems username={username} sessionId={adminSessionId}
