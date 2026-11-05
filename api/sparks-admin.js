@@ -137,7 +137,6 @@ async function authorizeAdmin(body, { allowLegacyPolicy = false } = {}) {
   const session = recordValue(sessionDocument);
   if (normalize(session.username) !== ADMIN_USERNAME) fail("QA session account does not match the administrator.", 403);
   if (session.role !== "Quality Assurance") fail("QA session does not have the Quality Assurance role.", 403);
-  if (!allowLegacyPolicy && session.policyVersion !== SESSION_POLICY) throw Object.assign(new Error("QA session policy needs administrator verification."), { status: 403, code: policyErrorCode });
   if (session.status !== "active") fail("QA session was revoked. Please sign in again.", 403);
   if (!Number.isFinite(Date.parse(session.expiresAt || "")) || Date.parse(session.expiresAt || "") <= Date.now()) {
     fail("QA session has expired. Please sign in again.", 403);
@@ -148,6 +147,16 @@ async function authorizeAdmin(body, { allowLegacyPolicy = false } = {}) {
   const profileData = await findProfileByUsername(ADMIN_USERNAME);
   if (normalize(profileData.username) !== ADMIN_USERNAME || profileData.role !== "Quality Assurance" || isSuspendedProfile(profileData)) {
     fail("Sparks Admin account is not active in QA User Management or lacks the Quality Assurance role.", 403);
+  }
+  if (!allowLegacyPolicy && session.policyVersion !== SESSION_POLICY) {
+    const grant = recordValue(await readDoc(path("qa_sparks_admin_session_grants", sessionId)));
+    const approved = grant.username === ADMIN_USERNAME
+      && grant.sessionCreatedAt === session.createdAt
+      && grant.policyVersion === SESSION_POLICY
+      && grant.method === "qa-password"
+      && Number.isFinite(Date.parse(grant.expiresAt || ""))
+      && Date.parse(grant.expiresAt || "") > Date.now();
+    if (!approved) throw Object.assign(new Error("QA session policy needs administrator verification."), { status: 403, code: policyErrorCode });
   }
   return { username: ADMIN_USERNAME, displayName: String(session.displayName || "Songpon Phothong") };
 }
@@ -193,13 +202,24 @@ async function reauthorizeAdminSession(body) {
   const expected = createHash("sha256").update(storedPassword).digest();
   if (!timingSafeEqual(supplied, expected)) fail("รหัสผ่าน QA ไม่ถูกต้อง", 403);
   const sessionId = String(body.sessionId || "");
-  const documentPath = path("qa_user_sessions", sessionId);
-  const document = await readDoc(documentPath);
-  if (!document) fail("QA session not found", 403);
-  const url = new URL(API_ROOT + "/" + documentPath);
-  url.searchParams.set("updateMask.fieldPaths", "policyVersion");
-  url.searchParams.set("currentDocument.updateTime", String(document.updateTime || ""));
-  await firestoreRequest(url.toString(), "PATCH", { fields: { policyVersion: { stringValue: SESSION_POLICY } } });
+  const sessionPath = path("qa_user_sessions", sessionId);
+  const sessionDocument = await readDoc(sessionPath);
+  if (!sessionDocument) fail("QA session not found", 403);
+  const session = recordValue(sessionDocument);
+  // Keep QA's original central-session policy untouched. The server grants only
+  // a short-lived Sparks-specific permission after password verification.
+  const expiresAt = new Date(Math.min(Date.now() + 60 * 60 * 1000, Date.parse(session.expiresAt || "")));
+  if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) fail("QA session has expired", 403);
+  await firestoreRequest("/" + path("qa_sparks_admin_session_grants", sessionId), "PATCH", {
+    fields: encodeFields({
+      username: ADMIN_USERNAME,
+      sessionCreatedAt: String(session.createdAt || ""),
+      policyVersion: SESSION_POLICY,
+      method: "qa-password",
+      verifiedAt: new Date().toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    }),
+  });
   return { verified: true };
 }
 const balance = (x) => Number.isSafeInteger(Number(x)) ? Math.max(0, Number(x)) : 0;
