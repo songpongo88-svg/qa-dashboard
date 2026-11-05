@@ -71,6 +71,7 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode}
   const themeRef=useRef<HTMLDivElement>(null);
   const [theme,setTheme]=useState("#8a4398");
   const effectiveBalance=balanceAfter??balance;
+  useEffect(()=>{if(balanceAfter!==null&&balance===balanceAfter)setBalanceAfter(null);},[balance,balanceAfter]);
   const refresh=useCallback(async()=>{
     if(!username||!sessionId)return;
     const result:Detail=await api("list-my-truemoney",username,sessionId);
