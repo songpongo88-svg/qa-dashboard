@@ -98,7 +98,10 @@ try{
   assert.ok(main, "dedicated QA Sparks page rendered");
   assert.equal(main.getAttribute("data-sparks-data-mode"),"not-configured", "must not claim actual ledger data");
   assert.ok(main.textContent.includes("My QA Sparks / Reward Center"));
-  assert.ok(main.textContent.includes("ยังไม่มีของรางวัล"));
+  assert.ok(main.textContent.includes("Typing Relief"), "first reward item must render");
+  assert.ok(main.textContent.includes("150"), "reward price must be visible");
+  assert.ok(main.textContent.includes("60 คำ"), "word reduction must be visible");
+  assert.ok(main.textContent.includes("สะสมได้ 10 สิทธิ์"), "inventory cap must be visible");
   assert.ok(main.textContent.includes("ยังไม่มีประวัติการได้รับหรือใช้ Sparks"));
   for (const mockupOnly of ["หมายเหตุการใช้งาน", "Setup in progress", "History ready", "No rewards yet", "จะกำหนดภายหลัง", "เตรียมโครงสร้างไว้แล้ว"]) {
     assert.ok(!main.textContent.includes(mockupOnly), "mockup-only status must not appear: " + mockupOnly);
@@ -107,7 +110,7 @@ try{
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
   assert.equal(main.querySelectorAll('[role="tab"]').length,3);
   assert.ok(!main.textContent.includes("Sparks Admin"), "ordinary users must not see admin management");
-  assert.ok(!main.textContent.includes("เปิดดูรางวัล"),"do not display an unusable reward button");
+  assert.ok(main.querySelector(".qa-sparks-reward-item button:disabled"), "do not enable purchase without a verified wallet and session");
 
   const click=async (selector) => {
     const el=main.querySelector(selector);
@@ -122,7 +125,7 @@ try{
   await click("#qa-sparks-tab-overview");
   assert.ok(main.querySelector("#qa-sparks-panel-overview"),"overview tab returns");
 
-  console.log("PASS QA Sparks: themed UI, sidebar routing, empty Reward Center/History, active tabs, no rules or QA Learning");
+  console.log("PASS QA Sparks: themed Typing Relief card, 150 Sparks cost, 60-word reduction, 10-slot cap, safe disabled purchase, sidebar routing and History");
 } finally {
   await act(async()=>root.unmount());
   dom.window.close();
