@@ -15,6 +15,7 @@ process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = JSON.stringify({
   project_id: "qa-dashboard-b0b5d",
 });
 const policyVersion = "qa-session-policy-2026-07-15-v1";
+const nowMemberYear = Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "Asia/Bangkok" }).format(new Date()));
 const password = "test-qa-password";
 let testMode = "valid";
 let grant = null;
@@ -52,8 +53,11 @@ globalThis.fetch = async (rawUrl, opts = {}) => {
     assert.ok(historyWrite, "Atomic history document write must exist");
     assert.ok(walletWrite.update.name.startsWith("projects/qa-dashboard-b0b5d/databases/(default)/documents/"),
       "Firestore writes must use resource names instead of HTTP URLs");
-    assert.equal(walletWrite.update.fields.balance.integerValue, "100");
-    assert.equal(historyWrite.update.fields.amount.integerValue, "100");
+    const overLimitCase = testMode === "cap";
+    assert.equal(walletWrite.update.fields.balance.integerValue, overLimitCase ? "200000" : "100");
+    assert.equal(historyWrite.update.fields.amount.integerValue, overLimitCase ? "50" : "100");
+    assert.equal(walletWrite.update.fields.memberYearEarned.integerValue, overLimitCase ? "200000" : "100");
+    assert.equal(walletWrite.update.fields.memberYear.integerValue, String(nowMemberYear));
     commits++;
     return reply({ writeResults: [{}, {}] });
   }
@@ -84,6 +88,10 @@ globalThis.fetch = async (rawUrl, opts = {}) => {
   }
   if (url.includes("/qa_user_profiles?")) return reply({ documents: qaProfiles.map((profile) => stored(profile, url + "/" + profile.username)) });
   if (url.includes("/qa_sparks_wallets?")) return reply({ documents: [] });
+  if (testMode === "cap" && url.includes("/qa_sparks_wallets/activeuser") && !url.includes("/history/")) {
+    return reply(stored({ balance: 199950, memberYear: nowMemberYear, memberYearEarned: 199950,
+      totalEarned: 199950, username: "ActiveUser" }, url));
+  }
   if (url.includes("/qa_sparks_wallets/")) return reply({ error: { status: "NOT_FOUND" } }, 404);
   return reply({ error: { status: "NOT_FOUND" } }, 404);
 };
@@ -151,6 +159,22 @@ try {
   assert.equal(add.code, 200, JSON.stringify(add.result));
   assert.equal(add.result.balance, 100);
   assert.equal(commits, 1, "Wallet/history must be written in a single Firestore commit");
+  testMode = "cap";
+  const capBlocked = await invoke(req("adjust", {
+    targetUsername: "ActiveUser", operation: "add", amount: 51,
+    reason: "Must not exceed annual Sparks limit", requestId: "annual-cap-over-200k-123456",
+  }));
+  assert.equal(capBlocked.code, 400, JSON.stringify(capBlocked.result));
+  assert.ok(capBlocked.result.error.includes("200,000"));
+  assert.equal(commits, 1, "over-limit admin credit must not write anything");
+  const capExactly = await invoke(req("adjust", {
+    targetUsername: "ActiveUser", operation: "add", amount: 50,
+    reason: "Exactly up to annual 200k Sparks", requestId: "annual-cap-exact-200k-123456",
+  }));
+  assert.equal(capExactly.code, 200, JSON.stringify(capExactly.result));
+  assert.equal(capExactly.result.balance, 200000);
+  assert.equal(commits, 2, "exactly up to 200k must commit");
+  testMode = "valid";
 
   testMode = "wrong-role";
   assert.equal((await invoke()).code, 403, "Grant cannot override revoked QA role");
