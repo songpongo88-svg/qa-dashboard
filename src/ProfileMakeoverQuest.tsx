@@ -78,16 +78,16 @@ export default function ProfileMakeoverQuest({username,claimedAt,loaded}:Props){
     return()=>{document.body.style.overflow=overflow;document.removeEventListener("keydown",escape);trigger.current?.focus();};
   },[open]);
   return <>
-    <button type="button" ref={trigger} data-quest-item="profile-makeover" className="qa-sparks-profile-quest"
-      aria-label="ดูรายละเอียด Quest Profile Makeover" aria-haspopup="dialog" aria-expanded={open}
-      onClick={()=>setOpen(true)}>
-      <span className="qa-sparks-profile-quest-art"><span className="qa-sparks-profile-avatar"><svg viewBox="0 0 64 64" width="90" height="90" fill="none" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="#fff6fd" stroke="#c783d5" strokeWidth="3"/><circle cx="32" cy="25" r="11" fill="#b986d4"/><path d="M11 52c4-20 38-20 42 0" fill="#b986d4"/><path d="m47 14 3 6 7 2-7 3-3 7-3-7-7-3 7-2Z" fill="#ffce5d"/></svg></span><span className="qa-sparks-profile-quest-coin">+150</span></span>
-      <span className="qa-sparks-profile-quest-copy">
-        <span className="qa-sparks-quest-eyebrow">SPECIAL QUEST · PROFILE</span>
-        <strong>Profile Makeover</strong>
-        <small>เปลี่ยนรูปโปรไฟล์ รับ QA Sparks อัตโนมัติ</small>
-        <span className="qa-sparks-profile-quest-bottom"><span>+150 QA Sparks · ครั้งเดียว</span><span>{loaded && done?"รับรางวัลแล้ว ✓":expired?"สิ้นสุดกิจกรรม": "ดูรายละเอียด ›"}</span></span>
+    <button type="button" ref={trigger} data-quest-item="profile-makeover" className="qa-sparks-mini-item qa-sparks-mini-item--profile"
+      aria-label={"เปิดรายละเอียด Quest Profile Makeover · +150 Sparks · " + (loaded && done ? "รับรางวัลแล้ว" : expired ? "สิ้นสุดกิจกรรม" : "รอทำภารกิจ")}
+      aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(true)}>
+      <span className="qa-sparks-mini-art qa-sparks-mini-art--profile">
+        <span className="qa-sparks-profile-avatar"><svg viewBox="0 0 64 64" width="80" height="80" fill="none" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="#fff6fd" stroke="#c783d5" strokeWidth="3"/><circle cx="32" cy="25" r="11" fill="#b986d4"/><path d="M11 52c4-20 38-20 42 0" fill="#b986d4"/><path d="m47 14 3 6 7 2-7 3-3 7-3-7-7-3 7-2Z" fill="#ffce5d"/></svg></span>
+        <span className="qa-sparks-mini-corner">+150</span>
+        {loaded && done ? <span className="qa-sparks-mini-done" aria-label="รับรางวัลแล้ว">✓</span> : null}
       </span>
+      <strong className="qa-sparks-mini-name">Profile Makeover</strong>
+      <span className="qa-sparks-mini-value">+150 Sparks</span>
     </button>
     {open&&typeof document!=="undefined"?createPortal(
       <div className="qa-sparks-profile-quest-overlay" onMouseDown={event=>{if(event.target===event.currentTarget)setOpen(false);}}>
