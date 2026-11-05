@@ -43,7 +43,7 @@ try{
   assert.match(sparksAdmin, /request\("history"/, "admin can review other users' histories");
   assert.match(sparksAdmin, /refund/, "reward refund action must be available");
   assert.match(sparksAdminApi, /authorizeAdmin/, "server must authorize each admin request");
-  assert.match(sparksAdmin, /FIRESTORE_RESOURCE_EXHAUSTED/, "quota errors must be distinguished from expired sessions");
+  assert.match(sparksAdmin, /isFirestoreQuotaError/, "quota errors must be distinguished from expired sessions");
   assert.match(sparksAdmin, /getDocsFromCache/, "offline wallet fallback must use Firestore local cache without network reads");
   assert.doesNotMatch(sparksAdmin, /await getDocs\(collection\(firebaseDb, "qa_sparks_wallets"\)\)/, "fallback may not fetch full wallet collection from network");
   assert.match(sparksAdmin, /balanceKnown/, "cached balances and unknown balances must be visibly distinguished");
@@ -81,7 +81,7 @@ try{
   const app=await readFile("src/App.tsx","utf8");
   for(const piece of [
     '"qa-sparks"', 'import QASparks from "./QASparks"',
-    'key: "qa-sparks"', 'icon: "gift"', '<QASparks username=',
+    'key: "qa-sparks"', 'icon: "gift"', '<QASparks active=',
   ])assert.ok(app.includes(piece),"App must register QA Sparks navigation: "+piece);
   const rewardsGroup=app.indexOf('id: "rewards"');
   const systemGroup=app.indexOf('id: "system"');
@@ -189,3 +189,4 @@ try{
   dom.window.close();
   await rm(folder,{recursive:true,force:true});
 }
+

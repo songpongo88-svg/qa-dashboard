@@ -31,7 +31,7 @@ export default function FirstLoginSparksModal({ username }: { username: string }
     setPrize(null);
     setAmounts(randomPrizeValues());
     if (!username) return;
-    getSparksAccount(username).then((account) => {
+    getSparksAccount(username, { historyLimit: 0 }).then((account) => {
       if (active) setStatus(account.firstLogin ? "hidden" : "ready");
     }).catch((reason) => {
       console.warn("Unable to verify Sparks first-login eligibility", reason);
@@ -107,3 +107,4 @@ export default function FirstLoginSparksModal({ username }: { username: string }
     </section>
   </div>;
 }
+

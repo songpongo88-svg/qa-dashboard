@@ -17,17 +17,33 @@ export function qaAccessCheckQueueVisibilityFixPatch() {
       const cleanId = id.replace(/\\/g, "/").split("?")[0];
       if (!cleanId.endsWith("/src/qaTypingChallengeStore.ts")) return null;
 
-      let next = code;
+      let next = code.replace("import { collection,", "import { query, where, collection,");
+      // Older writer helpers also used a collection scan to resolve legacy IDs.
+      next = next.replaceAll(
+        "getDocs(collection(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION))",
+        'getDocs(query(collection(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION), where("username", "in", qaTypingUsernameAliasesV6(normalizedUsername))))'
+      );
 
-      const fetchReplacement = `async function findQaTypingChallengeDocumentsV5(username: string) {
+      const fetchReplacement = `function qaTypingUsernameAliasesV6(username: string) {
+  const name = String(username || "").trim();
+  const lower = name.toLowerCase();
+  return [...new Set([name, lower, lower.charAt(0).toUpperCase() + lower.slice(1), name.toUpperCase()])].filter(Boolean);
+}
+
+async function findQaTypingChallengeDocumentsV5(username: string) {
   const normalizedUsername = String(username || "").trim();
   if (!normalizedUsername) return [];
-
   const lookup = normalizedUsername.toLowerCase();
-  const snapshot = await getDocs(collection(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION));
-  return snapshot.docs.filter((item) =>
-    String(item.data()?.username || "").trim().toLowerCase() === lookup
-  );
+  const [snapshot, direct] = await Promise.all([
+    getDocs(query(collection(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION), where("username", "in", qaTypingUsernameAliasesV6(normalizedUsername)))),
+    getDoc(doc(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION, safeDocId(normalizedUsername))).catch(error => {
+      if (error?.code === "permission-denied") return null;
+      throw error;
+    }),
+  ]);
+  const rows = new Map(snapshot.docs.map(item => [item.id, item]));
+  if (direct?.exists() && (!direct.data()?.username || String(direct.data()?.username).trim().toLowerCase() === lookup)) rows.set(direct.id, direct);
+  return [...rows.values()];
 }
 
 function mergeQaTypingChallengeQueuesV5(username: string, rows: Array<{ data: () => any }>) {
@@ -44,15 +60,7 @@ function mergeQaTypingChallengeQueuesV5(username: string, rows: Array<{ data: ()
 export async function fetchQaTypingChallengeQueue(username: string) {
   const normalizedUsername = String(username || "").trim();
   if (!normalizedUsername) return [];
-
-  const matchingDocs = await findQaTypingChallengeDocumentsV5(normalizedUsername);
-  if (matchingDocs.length) {
-    return mergeQaTypingChallengeQueuesV5(normalizedUsername, matchingDocs);
-  }
-
-  const directSnap = await getDoc(doc(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION, safeDocId(normalizedUsername)));
-  if (!directSnap.exists()) return [];
-  return normalizeQueue(normalizedUsername, directSnap.data());
+  return mergeQaTypingChallengeQueuesV5(normalizedUsername, await findQaTypingChallengeDocumentsV5(normalizedUsername));
 }
 
 `;
@@ -71,22 +79,33 @@ export async function fetchQaTypingChallengeQueue(username: string) {
   onError?: (error: unknown) => void
 ) {
   const normalizedUsername = String(username || "").trim();
-  if (!normalizedUsername) {
-    onChange([]);
-    return () => {};
-  }
-
+  if (!normalizedUsername) { onChange([]); return () => {}; }
+  let scopedRows: Array<{ id: string; data: () => any }> = [];
+  let directRow: { id: string; data: () => any } | null = null;
+  let queryReady = false, directReady = false, disposed = false;
   const lookup = normalizedUsername.toLowerCase();
-  return onSnapshot(
-    collection(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION),
-    (snapshot) => {
-      const matchingDocs = snapshot.docs.filter((item) =>
-        String(item.data()?.username || "").trim().toLowerCase() === lookup
-      );
-      onChange(mergeQaTypingChallengeQueuesV5(normalizedUsername, matchingDocs));
-    },
-    (error) => onError?.(error)
+  const emit = () => {
+    if (disposed || !queryReady || !directReady) return;
+    const rows = new Map(scopedRows.map(item => [item.id, item]));
+    if (directRow) rows.set(directRow.id, directRow);
+    onChange(mergeQaTypingChallengeQueuesV5(normalizedUsername, [...rows.values()]));
+  };
+  const stopQuery = onSnapshot(
+    query(collection(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION), where("username", "in", qaTypingUsernameAliasesV6(normalizedUsername))),
+    snapshot => { scopedRows = snapshot.docs; queryReady = true; emit(); },
+    error => { queryReady = true; onError?.(error); emit(); }
   );
+  const stopDirect = onSnapshot(
+    doc(firebaseDb, QA_TYPING_CHALLENGE_COLLECTION, safeDocId(normalizedUsername)),
+    snapshot => {
+      directReady = true;
+      const name = String(snapshot.data()?.username || "").trim().toLowerCase();
+      directRow = snapshot.exists() && (!name || name === lookup) ? snapshot : null;
+      emit();
+    },
+    error => { directReady = true; onError?.(error); emit(); }
+  );
+  return () => { disposed = true; stopQuery(); stopDirect(); };
 }
 
 `;
@@ -175,3 +194,4 @@ export async function fetchQaTypingChallengeQueue(username: string) {
     },
   };
 }
+

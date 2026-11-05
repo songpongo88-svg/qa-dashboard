@@ -67,7 +67,7 @@ const click=async(element)=>{
 try{
  const output=resolve(dir,"SparkAdmin.mjs");
  const modules=new Map([
-  ["./userRoleStore",`export async function fetchStoredUserProfiles(){return [];}`],
+  ["./userRoleStore",`export async function fetchStoredUserProfiles(){return [];} export function readCachedUserProfiles(){return [];}`],
   ["./qaSparksStore",`export async function getSparksAccount(){return {balance:0,history:[]};}`],
   ["./firebaseClient",`export const firebaseDb={};`],
   ["firebase/firestore",`export const collection=()=>({});export const getDocsFromCache=async()=>({docs:[]});`],

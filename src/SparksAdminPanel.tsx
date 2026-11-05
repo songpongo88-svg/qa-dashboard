@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./qaSparks.css";
-import { fetchStoredUserProfiles } from "./userRoleStore";
+import { fetchStoredUserProfiles, readCachedUserProfiles } from "./userRoleStore";
 import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
 import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import TrueMoneyTracker from "./TrueMoneyTracker";
+import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
 type AdminUser = {
   username: string;
@@ -94,9 +95,11 @@ function createRequestId() {
     ? crypto.randomUUID()
     : "adjust-" + Date.now() + "-" + Math.random().toString(36).slice(2);
 }
-export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount }: {
-  actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null;
+export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount, active: panelActive = true }: {
+  actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null; active?: boolean;
 }) {
+  const ownAccountRef = useRef(ownAccount);
+  ownAccountRef.current = ownAccount;
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [chosen, setChosen] = useState("");
   const [detail, setDetail] = useState<DetailResponse | null>(null);
@@ -125,6 +128,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
   const [reauthError, setReauthError] = useState("");
 
   const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test", input: Record<string, unknown> = {}) => {
+    if (action === "list" || action === "history") assertFirestoreReadAllowed();
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const response = await fetch("/api/sparks-admin", {
       method: "POST",
@@ -137,6 +141,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
       const error = Object.assign(new Error(String(result.error || "ไม่สามารถโหลดข้อมูล Sparks ได้")), {
         code: String(result.code || ""),
       });
+      noteFirestoreReadError(error);
       throw error;
     }
     return result;
@@ -144,8 +149,9 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
 
   useEffect(() => {
     let active = true;
+    if (!panelActive) return;
     setLoading(true);
-    void request("list").then((data) => {
+    void request("list", { forceRefresh: revision > 0 }).then((data) => {
       if (!active) return;
       const loaded = (Array.isArray(data.users) ? data.users as AdminUser[] : [])
         .filter((user) => String(user.status || "").toLowerCase() !== "suspended");
@@ -163,7 +169,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
       setAdminReady(false);
       const code = (reason as Error & { code?: string })?.code || "";
       const policyMismatch = code === "SESSION_POLICY_OUTDATED";
-      const quotaLimited = code === "FIRESTORE_RESOURCE_EXHAUSTED";
+      const quotaLimited = isFirestoreQuotaError(reason);
       setFirestoreLimited(quotaLimited);
       setNeedsReauth(policyMismatch);
       const message = reason instanceof Error ? reason.message : "บริการ Sparks Admin เชื่อมต่อไม่สำเร็จ";
@@ -173,7 +179,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
           ? "กรุณายืนยันรหัสผ่าน QA อีกครั้ง เพื่อเปิดสิทธิ์จัดการ Sparks (ไม่ต้อง Logout)"
           : "ระบบจัดการคะแนนยังไม่พร้อม: " + message + " — แสดงรายชื่อจาก QA User Management แบบอ่านอย่างเดียว");
       try {
-        const profiles = await fetchStoredUserProfiles();
+        const profiles = quotaLimited ? readCachedUserProfiles() : await fetchStoredUserProfiles();
         // Reuse past wallet snapshots and Firestore's local cache, without
         // making another network read when quota is exhausted.
         const wallets = readCachedBalances(actorUsername);
@@ -194,12 +200,13 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
             });
           });
         } catch { /* No local Firestore snapshot exists yet. */ }
+        const ownAccount = ownAccountRef.current;
         if (ownAccount && validBalance(ownAccount.balance) && normalizeUser(actorUsername)) {
           const history = ownAccount.history || [];
           wallets.set(normalizeUser(actorUsername), {
             balance: ownAccount.balance,
-            earned: history.filter((entry) => entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0),
-            spent: history.filter((entry) => entry.amount < 0).reduce((sum, entry) => sum - entry.amount, 0),
+            earned: ownAccount.totalEarned ?? history.filter((entry) => entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0),
+            spent: ownAccount.totalSpent ?? history.filter((entry) => entry.amount < 0).reduce((sum, entry) => sum - entry.amount, 0),
             rewardOrders: ownAccount.rewardOrders,
             firstLogin: ownAccount.firstLogin,
             savedAt: ownAccount.lastLoadedAt,
@@ -233,18 +240,25 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
       }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [request, revision, actorUsername, ownAccount]);
+  }, [request, revision, actorUsername, panelActive]);
 
   useEffect(() => {
     let active = true;
+    if (!panelActive) return;
     if (!chosen) { setDetail(null); return; }
     setDetailLoading(true);
     setDetail(null);
     if (firestoreLimited) { setDetailLoading(false); return; }
-    void request("history", { targetUsername: chosen }).then((data) => {
+    void request("history", { targetUsername: chosen, forceRefresh: revision > 0 }).then((data) => {
       if (active) { setDetail(data as DetailResponse); setError(""); }
     }).catch(async (reason) => {
       if (!active) return;
+      if (isFirestoreQuotaError(reason)) {
+        setFirestoreLimited(true);
+        setAdminReady(false);
+        setError("Firestore จำกัดการอ่านข้อมูลชั่วคราว กรุณารอสักครู่แล้วกดรีเฟรชข้อมูล");
+        return;
+      }
       try {
         const account = await getSparksAccount(chosen);
         if (!active) return;
@@ -272,7 +286,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
       }
     }).finally(() => { if (active) setDetailLoading(false); });
     return () => { active = false; };
-  }, [request, chosen, revision, firestoreLimited]);
+  }, [request, chosen, revision, firestoreLimited, panelActive]);
 
   const selected = users.find((user) => user.username === chosen);
   const filteredUsers = useMemo(() => users.filter((user) =>
@@ -555,3 +569,4 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
     </div> : null}
   </div>;
 }
+

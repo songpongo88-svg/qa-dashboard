@@ -20,6 +20,7 @@ const password = "test-qa-password";
 let testMode = "valid";
 let grant = null;
 let commits = 0;
+const readCounts = { sessions: 0, profiles: 0, wallets: 0 };
 const typed = (value) => {
   if (value == null) return { nullValue: "NULL_VALUE" };
   if (typeof value === "number") return { integerValue: String(value) };
@@ -62,6 +63,7 @@ globalThis.fetch = async (rawUrl, opts = {}) => {
     return reply({ writeResults: [{}, {}] });
   }
   if (url.includes("/qa_user_sessions/")) {
+    readCounts.sessions++;
     if (testMode === "quota") return reply({ error: { status: "RESOURCE_EXHAUSTED", message: "Firestore daily quota exceeded" } }, 429);
     if (testMode === "missing") return reply({ error: { status: "NOT_FOUND" } }, 404);
     const data = {
@@ -86,8 +88,8 @@ globalThis.fetch = async (rawUrl, opts = {}) => {
   if (url.includes("/qa_user_profiles/suspended") || url.includes("/qa_user_profiles/Suspended")) {
     return reply(stored(qaProfiles[1], url));
   }
-  if (url.includes("/qa_user_profiles?")) return reply({ documents: qaProfiles.map((profile) => stored(profile, url + "/" + profile.username)) });
-  if (url.includes("/qa_sparks_wallets?")) return reply({ documents: [] });
+  if (url.includes("/qa_user_profiles?")) { readCounts.profiles++; return reply({ documents: qaProfiles.map((profile) => stored(profile, url + "/" + profile.username)) }); }
+  if (url.includes("/qa_sparks_wallets?")) { readCounts.wallets++; return reply({ documents: [] }); }
   if (testMode === "cap" && url.includes("/qa_sparks_wallets/activeuser") && !url.includes("/history/")) {
     return reply(stored({ balance: 199950, memberYear: nowMemberYear, memberYearEarned: 199950,
       totalEarned: 199950, username: "ActiveUser" }, url));
@@ -108,6 +110,13 @@ try {
   const good = await invoke();
   assert.equal(good.code, 200, JSON.stringify(good.result));
   assert.deepEqual(good.result.users.map((user) => user.username), ["ActiveUser", "Songpon"], "Suspended accounts must never appear in the server directory");
+  const beforeCachedRead = { ...readCounts };
+  assert.equal((await invoke()).code, 200);
+  assert.equal(readCounts.wallets, beforeCachedRead.wallets, "recent Admin list shares wallet scan");
+  assert.equal(readCounts.profiles, beforeCachedRead.profiles, "recent Admin list shares profile scan");
+  assert.equal(readCounts.sessions, beforeCachedRead.sessions + 1, "cached display data still verifies the current session");
+  assert.equal((await invoke(req("list", { forceRefresh: true }))).code, 200);
+  assert.equal(readCounts.wallets, beforeCachedRead.wallets + 1, "explicit refresh reads current data");
   const cases = [
     ["missing", "not found"],
     ["expired", "expired"],
@@ -159,6 +168,9 @@ try {
   assert.equal(add.code, 200, JSON.stringify(add.result));
   assert.equal(add.result.balance, 100);
   assert.equal(commits, 1, "Wallet/history must be written in a single Firestore commit");
+  const beforeMutationRefresh = readCounts.wallets;
+  assert.equal((await invoke()).code, 200);
+  assert.equal(readCounts.wallets, beforeMutationRefresh + 1, "successful commit invalidates cached display balances");
   testMode = "cap";
   const capBlocked = await invoke(req("adjust", {
     targetUsername: "ActiveUser", operation: "add", amount: 51,
@@ -186,3 +198,4 @@ try {
   if (priorServiceAccount === undefined) delete process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
   else process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = priorServiceAccount;
 }
+

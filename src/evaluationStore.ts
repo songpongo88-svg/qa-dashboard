@@ -1,3 +1,4 @@
+import { assertFirestoreReadAllowed, noteFirestoreReadError } from "./firestoreReadPolicy";
 ﻿import { initializeApp, getApps } from "firebase/app";
 import { collection, doc, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
@@ -203,12 +204,14 @@ async function cachedRemoteEvaluations(limit: number, request: () => Promise<Sto
   const cacheKey = `submitted-at-desc:${limit}`;
   const cached = remoteEvaluationReadCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.promise;
+  assertFirestoreReadAllowed();
 
   let timeoutId: ReturnType<typeof setTimeout>;
   const timeout = new Promise<StoredEvaluation[]>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error("โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง")), 20_000);
   });
   const promise = Promise.race([request(), timeout]).finally(() => clearTimeout(timeoutId)).catch((error) => {
+    noteFirestoreReadError(error);
     if (remoteEvaluationReadCache.get(cacheKey)?.promise === promise) remoteEvaluationReadCache.delete(cacheKey);
     throw error;
   });
@@ -1638,3 +1641,4 @@ export async function refreshStoredEvaluation(id: string) {
   }
   return updated;
 }
+

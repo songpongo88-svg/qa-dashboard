@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
 export const DASHBOARD_REFRESH_INTERVAL_MS = 5 * 60_000;
 
@@ -27,8 +28,9 @@ export function useDashboardAutoRefresh(active: boolean, refreshKey: number, ref
         if (force || revision === null || revision !== lastRevision.current) refresh();
         lastRevision.current = revision;
       } catch (error) {
-        console.warn("Dashboard change check failed; retrying the data read", error);
-        if (!disposed && document.visibilityState === "visible") refresh();
+        noteFirestoreReadError(error);
+        console.warn("Dashboard change check unavailable", error);
+        if (!isFirestoreQuotaError(error) && !disposed && document.visibilityState === "visible") refresh();
       } finally {
         checking = false;
       }
@@ -49,3 +51,4 @@ export function useDashboardAutoRefresh(active: boolean, refreshKey: number, ref
     };
   }, [active, refresh, readRevision, onChecked]);
 }
+

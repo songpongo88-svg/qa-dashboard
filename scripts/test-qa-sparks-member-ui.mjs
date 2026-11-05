@@ -38,6 +38,7 @@ try {
           contents: `
             export const EMPTY_SPARKS_ACCOUNT = { balance:0, rewardOrders:0, typingReliefOwned:0, history:[], firstLogin:null, memberYear:2026, memberYearEarned:0 };
             export const sparksAccountKey = (v) => encodeURIComponent(String(v).toLowerCase());
+            export function invalidateSparksAccount() {}
             export async function getSparksAccount() { return { ...globalThis.__memberTestWallet }; }
           `,
         }));

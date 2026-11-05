@@ -373,6 +373,10 @@ function toMaintenance(row: any): StoredMaintenanceState {
   };
 }
 
+export function readCachedUserProfiles() {
+  return readCache<StoredUserProfile>(USER_PROFILE_CACHE_KEY).map(toUserProfile);
+}
+
 export async function fetchStoredUserProfiles() {
   try {
     const snapshot = await getDocs(query(collection(firebaseDb, USER_PROFILE_COLLECTION), orderBy("username", "asc")));
@@ -482,4 +486,5 @@ export async function upsertStoredMaintenanceState(state: StoredMaintenanceState
   await setDoc(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, "global"), nextState, { merge: true });
   writeSingleCache(MAINTENANCE_CACHE_KEY, state);
 }
+
 

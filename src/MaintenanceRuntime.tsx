@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchStoredRolePermissions } from "./userRoleStore";
 import {
   DEFAULT_MAINTENANCE_CONTROL_STATE,
-  fetchMaintenanceControlState,
+  subscribeMaintenanceControlState,
+  maintenanceStateAt,
+  advanceMaintenanceSchedule,
   isMaintenanceOwnerUsername,
   MaintenanceControlState,
-  saveMaintenanceControlState,
 } from "./maintenanceControlStore";
 
 type CurrentUserSnapshot = {
@@ -15,7 +16,7 @@ type CurrentUserSnapshot = {
 };
 
 const CURRENT_USER_STORAGE_KEY = "qa_current_user";
-const RUNTIME_CHECK_INTERVAL_MS = 15_000;
+const LISTENER_RETRY_MS = 5 * 60_000;
 
 function readCurrentUser(): CurrentUserSnapshot | null {
   try {
@@ -59,6 +60,8 @@ function getCountdown(target: string, now: number) {
 
 export default function MaintenanceRuntime() {
   const syncing = useRef(false);
+  const latestControl = useRef(DEFAULT_MAINTENANCE_CONTROL_STATE);
+  const lastTransitionAttempt = useRef({ key: "", at: 0 });
   const lastUserKey = useRef("");
 
   const [control, setControl] = useState<MaintenanceControlState>(
@@ -70,86 +73,76 @@ export default function MaintenanceRuntime() {
   const [now, setNow] = useState(Date.now());
   const [loginNoticeDismissed, setLoginNoticeDismissed] = useState(false);
 
-  const syncRuntimeState = useCallback(async () => {
-    if (syncing.current) return;
+  const syncRuntimeState = useCallback(async (stored: MaintenanceControlState) => {
+    latestControl.current = stored;
+    const effective = maintenanceStateAt(stored);
+    setControl(effective);
+    if (effective === stored || syncing.current) return;
+    const key = [stored.updatedAt, stored.status, stored.scheduledStartAt, stored.scheduledEndAt].join("|");
+    if (lastTransitionAttempt.current.key === key && Date.now() - lastTransitionAttempt.current.at < 60_000) return;
+    lastTransitionAttempt.current = { key, at: Date.now() };
     syncing.current = true;
-
     try {
-      let next = await fetchMaintenanceControlState();
-      const nowTime = Date.now();
-      let transitioned = false;
-
-      const startTime = new Date(next.scheduledStartAt).getTime();
-      const endTime = new Date(next.scheduledEndAt).getTime();
-
-      if (
-        next.status === "scheduled" &&
-        Number.isFinite(startTime) &&
-        startTime <= nowTime
-      ) {
-        next = {
-          ...next,
-          enabled: true,
-          status: "active",
-          updatedAt: new Date().toISOString(),
-          updatedBy: next.updatedBy || "System Scheduler",
-        };
-        await saveMaintenanceControlState(next);
-        transitioned = true;
-      }
-
-      if (
-        next.enabled &&
-        next.autoOpenEnabled &&
-        Number.isFinite(endTime) &&
-        endTime <= nowTime
-      ) {
-        next = {
-          ...next,
-          enabled: false,
-          status: "completed",
-          updatedAt: new Date().toISOString(),
-          updatedBy: "System Scheduler",
-        };
-        await saveMaintenanceControlState(next);
-        transitioned = true;
-      }
-
-      setControl(next);
-
-      if (transitioned) {
-        window.setTimeout(() => window.location.reload(), 700);
-      }
+      const result = await advanceMaintenanceSchedule();
+      if (latestControl.current === stored) { latestControl.current = result.state; setControl(result.state); }
+      if (result.changed) window.setTimeout(() => window.location.reload(), 700);
+    } catch (error) {
+      // The cached schedule still governs the local overlay while offline.
+      console.warn("Maintenance schedule transition unavailable", error);
     } finally {
       syncing.current = false;
     }
   }, []);
 
   useEffect(() => {
-    void syncRuntimeState();
-
-    const intervalId = window.setInterval(
-      syncRuntimeState,
-      RUNTIME_CHECK_INTERVAL_MS
-    );
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void syncRuntimeState();
-      }
+    let disposed = false;
+    let stop: (() => void) | undefined;
+    let retryTimer: number | undefined;
+    let retryAt = 0;
+    const connect = () => {
+      if (disposed || Date.now() < retryAt) return;
+      stop?.();
+      stop = subscribeMaintenanceControlState(
+        state => { if (!disposed) void syncRuntimeState(state); },
+        () => {
+          retryAt = Date.now() + LISTENER_RETRY_MS;
+          retryTimer = window.setTimeout(() => {
+            if (document.visibilityState === "visible") connect();
+          }, LISTENER_RETRY_MS);
+        }
+      );
     };
-
-    window.addEventListener("focus", syncRuntimeState);
-    window.addEventListener("online", syncRuntimeState);
-    document.addEventListener("visibilitychange", handleVisibility);
-
+    connect();
+    const handleVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void syncRuntimeState(latestControl.current);
+      if (retryAt && Date.now() >= retryAt) { retryAt = 0; connect(); }
+    };
+    document.addEventListener("visibilitychange", handleVisible);
+    window.addEventListener("focus", handleVisible);
+    window.addEventListener("online", handleVisible);
     return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", syncRuntimeState);
-      window.removeEventListener("online", syncRuntimeState);
-      document.removeEventListener("visibilitychange", handleVisibility);
+      disposed = true;
+      stop?.();
+      window.clearTimeout(retryTimer);
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("focus", handleVisible);
+      window.removeEventListener("online", handleVisible);
     };
   }, [syncRuntimeState]);
+
+  // Schedule boundaries use the already-loaded state, with no database poll.
+  useEffect(() => {
+    const at = Date.now();
+    const boundaries = [
+      control.status === "scheduled" ? Date.parse(control.scheduledStartAt) : NaN,
+      control.enabled && control.autoOpenEnabled ? Date.parse(control.scheduledEndAt) : NaN,
+    ].filter(value => Number.isFinite(value) && value > at);
+    if (!boundaries.length) return;
+    const timer = window.setTimeout(() => void syncRuntimeState(latestControl.current),
+      Math.min(Math.min(...boundaries) - at + 20, 2_147_483_647));
+    return () => window.clearTimeout(timer);
+  }, [control, syncRuntimeState]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {

@@ -11,6 +11,8 @@
   where,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { fetchDashboardRevision } from "./dashboardRevision";
+import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError, invalidateFirestoreReads } from "./firestoreReadPolicy";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { checkAppealSourceCases } from "./appealCaseAvailability";
 import { fetchStoredEvaluationsForCases } from "./evaluationStore";
@@ -147,9 +149,46 @@ function normalizeFetchOptions(options: FetchOptions | undefined) {
   };
 }
 
+type InboxAppealSnapshot = { events: AppealLogEvent[]; discussions: AppealLogEvent[] };
+const inboxAppealSnapshots = new Map<string, { revision: string; promise: Promise<InboxAppealSnapshot> }>();
+
+// Rebuild event projections only after a small revision query detects changes.
+// Evaluations are included in that revision so source-case deletion is noticed.
+export async function fetchAppealInboxSnapshot(user: { username: string; role: string }): Promise<InboxAppealSnapshot> {
+  const identity = user.username.trim().toLowerCase() + ":" + user.role;
+  let revision: string | null = null;
+  try { revision = await fetchDashboardRevision(); } catch (error) {
+    if (isFirestoreQuotaError(error)) { noteFirestoreReadError(error); throw error; }
+    // A missing aggregate permission/index must not remove existing Inbox tasks.
+  }
+  const cached = inboxAppealSnapshots.get(identity);
+  if (revision !== null && cached?.revision === revision) return cached.promise;
+  assertFirestoreReadAllowed();
+  const promise = Promise.all([
+    fetchAppealEvents([
+      "appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset",
+      "appeal_additional_access_requested", "appeal_additional_access_decided", "appeal_additional_round_opened",
+      "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted",
+      "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
+    ], { limit: 2000, forceRefresh: true }),
+    fetchAppealDiscussionInboxEvents(user),
+  ]).then(([events, discussions]) => ({ events, discussions })).catch(error => {
+    if (inboxAppealSnapshots.get(identity)?.promise === promise) inboxAppealSnapshots.delete(identity);
+    noteFirestoreReadError(error);
+    throw error;
+  });
+  if (revision !== null) {
+    if (inboxAppealSnapshots.size > 10) inboxAppealSnapshots.clear();
+    inboxAppealSnapshots.set(identity, { revision, promise });
+  }
+  return promise;
+}
+
 export function clearAppealEventReadCache() {
   appealEventReadCache.clear();
   appealCollectionSnapshotCache.clear();
+  inboxAppealSnapshots.clear();
+  invalidateFirestoreReads("dashboard:revision");
 }
 
 async function cachedAppealEventRequest(
@@ -162,7 +201,9 @@ async function cachedAppealEventRequest(
   const cached = appealEventReadCache.get(cacheKey);
   if (!forceRefresh && cached && cached.expiresAt > now) return cached.promise;
 
+  assertFirestoreReadAllowed();
   const promise = request().catch((error) => {
+    noteFirestoreReadError(error);
     appealEventReadCache.delete(cacheKey);
     throw error;
   });
@@ -541,3 +582,4 @@ export async function fetchAppealDiscussionInboxEvents(user: { username: string;
   });
   return checkAppealSourceCases(messages);
 }
+

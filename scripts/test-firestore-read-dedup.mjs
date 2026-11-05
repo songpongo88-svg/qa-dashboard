@@ -32,6 +32,8 @@ try {
             query=(...args)=>args, where=(...args)=>args, orderBy=(...args)=>args,
             startAfter=()=>null;
           export async function getDocsFromServer(){return getDocs();}
+          export const documentId=()=>"__name__", onSnapshot=()=>()=>{};
+          export async function getDocFromServer(){throw new Error("unexpected point read in coaching read test");}
           export async function getDocs(){
             globalThis.__coachingReadFixture.reads++;
             return {docs:[...globalThis.__coachingReadFixture.docs].map(([id,data])=>({id,data:()=>structuredClone(data)}))};
@@ -65,3 +67,4 @@ try {
   await rm(dir,{recursive:true,force:true});
   delete globalThis.__coachingReadFixture;
 }
+

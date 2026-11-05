@@ -34,7 +34,7 @@ import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMocku
 import { appealWorkflowStatus, appealWorkflowLabel, scopeAppealRequests } from "./appealWorkflow";
 import { WORKFLOW_STATUS, coachingStatusText } from "./workflowStatusLabels";
 import EvaluationActivityProvider from "./EvaluationActivityProvider";
-import { fetchAppealDiscussionInboxEvents, fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
+import { fetchAppealInboxSnapshot, fetchAppealDiscussionInboxEvents, fetchAppealEvents, clearAppealEventReadCache } from "./appealStore";
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
@@ -5372,12 +5372,12 @@ export default function App() {
     }
 
     try {
-      const [logs, passwordRecord, appealLogs, discussionInboxLogs] = await Promise.all([
+      const [logs, passwordRecord, appealInbox] = await Promise.all([
         fetchUsageLogsByEventTypes(INBOX_EVENT_TYPES, 1500),
         getCentralPasswordRecord(currentUser.username),
-        fetchAppealEvents(["appeal_request_submitted", "appeal_request_reviewed", "appeal_request_reset", "appeal_additional_access_requested", "appeal_additional_access_decided", "appeal_additional_round_opened", "appeal_additional_round_cancelled", "appeal_additional_round_expired", "appeal_additional_evidence_submitted", "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted"], { limit: 2000 }),
-        fetchAppealDiscussionInboxEvents(currentUser),
+        fetchAppealInboxSnapshot(currentUser),
       ]);
+      const { events: appealLogs, discussions: discussionInboxLogs } = appealInbox;
       const readIds = readInboxReadIds(currentUser);
       const nextTasks: InboxTaskItem[] = buildAppealDiscussionTasks(discussionInboxLogs, currentUser, readIds);
       const appealRequests = buildAppealRequests(appealLogs);
@@ -7871,7 +7871,7 @@ export default function App() {
           ) : activeTab === "terms-management" && termsManageAllowed ? (
             <TermsWorkspace user={currentUser} management canManage={termsManageAllowed} />
           ) : activeTab === "qa-sparks" ? (
-            <QASparks username={currentUser.username} displayName={currentUser.displayName || currentUser.username} adminAccess={canAccessUserRoleAdmin(currentUser)} adminSessionId={currentUser.sessionId || ""} />
+            <QASparks active={activeTab === "qa-sparks"} username={currentUser.username} displayName={currentUser.displayName || currentUser.username} adminAccess={canAccessUserRoleAdmin(currentUser)} adminSessionId={currentUser.sessionId || ""} />
           ) : activeTab === "dashboard" ? (
             <>
               <DashboardMockup
@@ -8281,3 +8281,4 @@ export default function App() {
     </EvaluationActivityProvider>
   );
 }
+

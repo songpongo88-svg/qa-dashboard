@@ -1,5 +1,6 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { noteFirestoreReadError, sharedFirestoreRead, invalidateFirestoreReads } from "./firestoreReadPolicy";
 
 const SYSTEM_SETTINGS_COLLECTION = "qa_system_settings";
 const GLOBAL_MAINTENANCE_DOCUMENT = "global";
@@ -165,22 +166,64 @@ function normalizeTemplate(row: any): MaintenanceReasonTemplate | null {
 
 export async function fetchMaintenanceControlState() {
   try {
-    const snapshot = await getDoc(
-      doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, GLOBAL_MAINTENANCE_DOCUMENT)
-    );
+    return await sharedFirestoreRead("maintenance:global", 60_000, async () => {
+      const snapshot = await getDoc(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, GLOBAL_MAINTENANCE_DOCUMENT));
 
-    const state = snapshot.exists()
-      ? normalizeState(snapshot.data())
-      : DEFAULT_MAINTENANCE_CONTROL_STATE;
+      const state = snapshot.exists() ? normalizeState(snapshot.data()) : DEFAULT_MAINTENANCE_CONTROL_STATE;
 
-    safeWriteLocal(STATE_CACHE_KEY, state);
-    return state;
+      safeWriteLocal(STATE_CACHE_KEY, state);
+      return state;
+    });
   } catch {
     return safeReadLocal(
       STATE_CACHE_KEY,
       DEFAULT_MAINTENANCE_CONTROL_STATE
     );
   }
+}
+
+export function subscribeMaintenanceControlState(
+  onChange: (state: MaintenanceControlState) => void,
+  onError?: (error: unknown) => void
+) {
+  return onSnapshot(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, GLOBAL_MAINTENANCE_DOCUMENT), snapshot => {
+    const state = snapshot.exists() ? normalizeState(snapshot.data()) : DEFAULT_MAINTENANCE_CONTROL_STATE;
+    safeWriteLocal(STATE_CACHE_KEY, state);
+    invalidateFirestoreReads("maintenance:global");
+    onChange(state);
+  }, error => {
+    noteFirestoreReadError(error);
+    onChange(safeReadLocal(STATE_CACHE_KEY, DEFAULT_MAINTENANCE_CONTROL_STATE));
+    onError?.(error);
+  });
+}
+
+export function maintenanceStateAt(state: MaintenanceControlState, now = Date.now()): MaintenanceControlState {
+  let next = state;
+  const start = Date.parse(state.scheduledStartAt);
+  const end = Date.parse(state.scheduledEndAt);
+  if (state.status === "scheduled" && Number.isFinite(start) && start <= now) {
+    next = { ...next, enabled: true, status: "active" };
+  }
+  if (next.enabled && next.autoOpenEnabled && Number.isFinite(end) && end <= now) {
+    next = { ...next, enabled: false, status: "completed" };
+  }
+  return next;
+}
+
+// Several open browsers may reach the same boundary simultaneously. Commit a
+// scheduled transition once, using the current state read inside the transaction.
+export async function advanceMaintenanceSchedule(): Promise<{ state: MaintenanceControlState; changed: boolean }> {
+  return runTransaction(firebaseDb, async transaction => {
+    const ref = doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, GLOBAL_MAINTENANCE_DOCUMENT);
+    const snapshot = await transaction.get(ref);
+    const current = snapshot.exists() ? normalizeState(snapshot.data()) : DEFAULT_MAINTENANCE_CONTROL_STATE;
+    const next = maintenanceStateAt(current);
+    if (next !== current) transaction.set(ref, {
+      ...next, updatedAt: new Date().toISOString(), updatedBy: "System Scheduler", updatedAtServer: serverTimestamp(),
+    }, { merge: true });
+    return { state: next, changed: next !== current };
+  });
 }
 
 export async function saveMaintenanceControlState(
@@ -197,6 +240,7 @@ export async function saveMaintenanceControlState(
     },
     { merge: true }
   );
+  invalidateFirestoreReads("maintenance:global");
 
   safeWriteLocal(STATE_CACHE_KEY, nextState);
   return nextState;

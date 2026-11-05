@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, type SparksAccount, type SparksHistoryItem } from "./qaSparksStore";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, type SparksAccount, type SparksHistoryItem } from "./qaSparksStore";
 import "./qaSparks.css";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
@@ -94,32 +94,41 @@ function MemberJourney({ earned, year }: { earned: number; year: number }) {
   </section>;
 }
 
-export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "" }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string }) {
+export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean }) {
   const [view, setView] = useState<SparksView>("overview");
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
   const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
   const [lastAccountUsername, setLastAccountUsername] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const requestSequence = useRef(0);
+  const historyLimit = view === "history" ? 100 : view === "overview" ? 5 : 0;
   useEffect(() => {
     setAccount(EMPTY_SPARKS_ACCOUNT);
     setLastAccountLoadAt("");
     setLastAccountUsername("");
-    if (!username) { setError(""); return; }
-    let active = true;
-    const refresh = () => {
-      setLoading(true);
-      void getSparksAccount(username).then((result) => {
-        if (active) { setAccount(result); setLastAccountUsername(username); setLastAccountLoadAt(new Date().toISOString()); setError(""); }
-      }).catch(() => {
-        if (active) setError("ไม่สามารถโหลดข้อมูล Sparks ได้ กรุณาลองอีกครั้ง");
-      }).finally(() => { if (active) setLoading(false); });
-    };
-    refresh();
-    window.addEventListener("qa:sparks-updated", refresh);
-    window.addEventListener("focus", refresh);
-    return () => { active = false; window.removeEventListener("qa:sparks-updated", refresh); window.removeEventListener("focus", refresh); };
+    setError("");
   }, [username]);
+  useEffect(() => {
+    let alive = true;
+    if (!username) return;
+    const refresh = (force = false) => {
+      if (!active || document.visibilityState === "hidden") return;
+      const sequence = ++requestSequence.current;
+      setLoading(true);
+      void getSparksAccount(username, { historyLimit, forceRefresh: force }).then((result) => {
+        if (alive && sequence === requestSequence.current) { setAccount(result); setLastAccountUsername(username); setLastAccountLoadAt(new Date().toISOString()); setError(""); }
+      }).catch(() => {
+        if (alive && sequence === requestSequence.current) setError("ไม่สามารถโหลดข้อมูล Sparks ได้ กรุณาลองอีกครั้ง");
+      }).finally(() => { if (alive && sequence === requestSequence.current) setLoading(false); });
+    };
+    const changed = () => { invalidateSparksAccount(username); refresh(true); };
+    const focused = () => refresh();
+    refresh();
+    window.addEventListener("qa:sparks-updated", changed);
+    window.addEventListener("focus", focused);
+    return () => { alive = false; window.removeEventListener("qa:sparks-updated", changed); window.removeEventListener("focus", focused); };
+  }, [username, active, historyLimit]);
 
   const ownAccountSnapshot = useMemo(() => lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase()
     ? { ...account, lastLoadedAt: lastAccountLoadAt } : null, [account, lastAccountLoadAt, lastAccountUsername, username]);
@@ -192,8 +201,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
         </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
-        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} /> : null}
+        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} active={active} /> : null}
       </div>
     </div>
   </main>;
 }
+

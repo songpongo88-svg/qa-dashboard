@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchStoredProfilePhoto } from "./profilePhotoStore";
+import { getSparksAccount, invalidateSparksAccount } from "./qaSparksStore";
+import { firestoreReadWaitMs, noteFirestoreReadError } from "./firestoreReadPolicy";
 
 export const PROFILE_MAKEOVER_QUEST = {
   id: "profile-makeover-2026", end: "2026-12-15", reward: 150,
@@ -18,15 +20,21 @@ export function ProfileMakeoverAutoClaim({ username, sessionId }: { username:str
   const busy=useRef(false);
   const completed=useRef(false);
   const lastIdentity=useRef("");
+  const lastInspectionAt=useRef(0);
   useEffect(()=>{
     const identity=username.toLowerCase()+":"+sessionId;
-    if(identity!==lastIdentity.current){lastIdentity.current=identity;completed.current=false;}
+    if(identity!==lastIdentity.current){lastIdentity.current=identity;completed.current=false;lastInspectionAt.current=0;}
     if(!username || !sessionId || checkDate()>"2026-12-15")return;
     let alive=true;
-    const inspect=async()=>{
+    const inspect=async(force=false)=>{
       if(busy.current || completed.current || !alive || checkDate()>"2026-12-15")return;
+      if(firestoreReadWaitMs() || (!force && Date.now()-lastInspectionAt.current<60_000))return;
+      lastInspectionAt.current=Date.now();
       busy.current=true;
       try{
+        const account=await getSparksAccount(username,{historyLimit:0});
+        if(!alive)return;
+        if(account.profileMakeoverClaimedAt){completed.current=true;return;}
         const photo=await fetchStoredProfilePhoto(username);
         if(!alive || !photo?.photoDataUrl) return;
         const response=await fetch("/api/sparks-admin",{
@@ -35,14 +43,17 @@ export function ProfileMakeoverAutoClaim({ username, sessionId }: { username:str
         });
         const result=await response.json().catch(()=>({}));
         if(!alive)return;
+        if(!response.ok){noteFirestoreReadError(Object.assign(new Error(String(result.error||"")),{code:result.code}));return;}
         if(response.ok && (result.updated || result.alreadyClaimed)){
           completed.current=true;
           if(result.updated){
+            invalidateSparksAccount(username);
             window.dispatchEvent(new Event("qa:sparks-updated"));
             window.dispatchEvent(new CustomEvent("qa:profile-quest-reward",{detail:{amount:150}}));
           }
         }
-      }catch{
+      }catch(error){
+        noteFirestoreReadError(error);
         // No local rewards are granted when Firestore is offline.
       }finally{busy.current=false;}
     };
@@ -50,7 +61,7 @@ export function ProfileMakeoverAutoClaim({ username, sessionId }: { username:str
     const onChange=(event:Event)=>{
       const updated=(event as CustomEvent<{username?:string}>).detail?.username;
       if(updated && updated.toLowerCase()!==username.toLowerCase())return;
-      void inspect();
+      void inspect(true);
     };
     const onFocus=()=>void inspect();
     window.addEventListener("qa-profile-photo-updated",onChange);
@@ -109,3 +120,4 @@ export default function ProfileMakeoverQuest({username,claimedAt,loaded}:Props){
       </div>,document.body):null}
   </>;
 }
+

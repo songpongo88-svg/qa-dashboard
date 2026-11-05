@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { SPARKS_ANNUAL_CAP, annualEarnedFromWallet, sparksCalendarYear } from "./qaSparksMemberLevels";
+import { invalidateFirestoreReads, sharedFirestoreRead } from "./firestoreReadPolicy";
 
 const WALLETS = "qa_sparks_wallets";
 export const FIRST_LOGIN_REWARDS = [100, 150, 200, 250, 300, 400, 500, 600, 750, 1000] as const;
@@ -30,6 +31,8 @@ export type SparksHistoryItem = {
 };
 export type SparksAccount = {
   balance: number;
+  totalEarned?: number;
+  totalSpent?: number;
   rewardOrders: number;
   typingReliefOwned: number;
   memberYear: number;
@@ -81,12 +84,26 @@ export function randomPrizeValues(): number[] {
   }
   return numbers;
 }
-export async function getSparksAccount(username: string): Promise<SparksAccount> {
+export function invalidateSparksAccount(username: string): void {
+  invalidateFirestoreReads("sparks:" + sparksAccountKey(username) + ":");
+}
+
+// A reward can be used before the Sparks page has ever been opened.
+// Keep every mutation's existing event contract and invalidate display caches.
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("qa:sparks-updated", () => invalidateFirestoreReads("sparks:"));
+}
+
+export async function getSparksAccount(username: string, options: { historyLimit?: number; forceRefresh?: boolean } = {}): Promise<SparksAccount> {
   if (!String(username || "").trim()) return { ...EMPTY_SPARKS_ACCOUNT, history: [] };
   const ref = walletRef(username);
+  const key = "sparks:" + sparksAccountKey(username) + ":";
+  const historyLimit = Math.max(0, Math.min(100, Math.floor(options.historyLimit ?? 100)));
   const [wallet, records] = await Promise.all([
-    getDoc(ref),
-    getDocs(query(collection(ref, "history"), orderBy("createdAt", "desc"), limit(100))),
+    sharedFirestoreRead(key + "wallet", 60_000, () => getDoc(ref), options.forceRefresh),
+    historyLimit ? sharedFirestoreRead(key + "history:" + historyLimit, 60_000,
+      () => getDocs(query(collection(ref, "history"), orderBy("createdAt", "desc"), limit(historyLimit))), options.forceRefresh)
+      : Promise.resolve({ docs: [] }),
   ]);
   const data = wallet.exists() ? wallet.data() : {};
   const memberYear = sparksCalendarYear();
@@ -98,6 +115,8 @@ export async function getSparksAccount(username: string): Promise<SparksAccount>
       ? [...new Set(data.dailyCheckin202611Days.map(Number).filter((day: number) => Number.isInteger(day) && day >= 9 && day <= 22))].sort((a: number, b: number) => a - b) as number[]
       : [],
     balance: safeBalance(data.balance),
+    totalEarned: safeBalance(data.totalEarned) || safeBalance(data.firstLogin?.amount),
+    totalSpent: safeBalance(data.totalSpent),
     rewardOrders: safeBalance(data.rewardOrders),
     typingReliefOwned: safeBalance(data.typingReliefOwned),
     firstLogin: validPrize(data.firstLogin),
@@ -183,6 +202,8 @@ export async function claimFirstLoginSparks(
     });
     return prize;
   });
+  invalidateSparksAccount(username);
   if (typeof window !== "undefined") window.dispatchEvent(new Event("qa:sparks-updated"));
   return result;
 }
+

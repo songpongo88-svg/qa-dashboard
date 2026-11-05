@@ -1,3 +1,4 @@
+import { isFirestoreQuotaError } from "./firestoreReadPolicy";
 import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
 import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
@@ -6506,7 +6507,7 @@ export default function DashboardMockup({
         if (cancelled) return;
         console.error("Dashboard refresh failed; keeping the last complete result", error);
         setLoadError("อัปเดตข้อมูลไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง");
-        if (loadRetriesRef.current.count < 2 && navigator.onLine !== false) {
+        if (!isFirestoreQuotaError(error) && loadRetriesRef.current.count < 2 && navigator.onLine !== false) {
           loadRetriesRef.current.count += 1;
           retryTimer = window.setTimeout(() => setLoadRetryNonce((value) => value + 1), 15_000);
         }
@@ -9320,3 +9321,4 @@ export default function DashboardMockup({
     </div>
   );
 }
+

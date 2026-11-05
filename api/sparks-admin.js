@@ -30,6 +30,28 @@ const DAILY_CHECKIN_QUEST = Object.freeze({
 });
 let accessToken = "";
 let tokenExpiry = 0;
+const adminReadCache = new Map();
+const ADMIN_READ_CACHE_MS = 60_000;
+function cachedAdminRead(key, load, forceRefresh = false) {
+  const cached = adminReadCache.get(key);
+  if (cached?.pending) return cached.pending;
+  if (!forceRefresh && cached && cached.expiresAt > Date.now()) return Promise.resolve(structuredClone(cached.value));
+  const entry = { expiresAt: 0 };
+  const pending = Promise.resolve().then(load).then(value => {
+    if (adminReadCache.get(key) === entry) {
+      entry.value = structuredClone(value);
+      entry.expiresAt = Date.now() + ADMIN_READ_CACHE_MS;
+      entry.pending = undefined;
+    }
+    return structuredClone(value);
+  }, error => { if (adminReadCache.get(key) === entry) adminReadCache.delete(key); throw error; });
+  entry.pending = pending;
+  adminReadCache.set(key, entry);
+  if (adminReadCache.size > 100) for (const [oldKey, old] of adminReadCache) {
+    if (!old.pending && old.expiresAt < Date.now()) adminReadCache.delete(oldKey);
+  }
+  return pending;
+}
 
 const normalize = (value) => String(value || "").trim().toLowerCase();
 const safeUsername = (value) => {
@@ -136,6 +158,7 @@ async function firestoreRequest(endpoint, method = "GET", body) {
     const status = response.status === 403 ? 503 : response.status >= 500 ? 503 : response.status;
     throw Object.assign(new Error(detail), { status, firestoreStatus });
   }
+  if (method === "POST" && endpoint.endsWith(":commit")) adminReadCache.clear();
   return result;
 }
 async function readDoc(documentPath, transaction = "") {
@@ -847,7 +870,10 @@ function toHistory(doc) {
     status: voided ? "Voided" : String(row.status || ""),
   };
 }
-async function listUsers() {
+function listUsers(forceRefresh = false) {
+  return cachedAdminRead("list", loadUsers, forceRefresh);
+}
+async function loadUsers() {
   const [profilePages, walletPages] = await Promise.all([
     listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
     listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin", "memberYear", "memberYearEarned"]),
@@ -870,8 +896,11 @@ async function listUsers() {
   users.sort((a, b) => a.displayName.localeCompare(b.displayName, "th"));
   return { users, truncated: profilePages.truncated || walletPages.truncated };
 }
-async function loadHistory(username) {
+async function loadHistory(username, forceRefresh = false) {
   await requireActiveTarget(username);
+  return cachedAdminRead("history:" + username, () => loadUserHistory(username), forceRefresh);
+}
+async function loadUserHistory(username) {
   const id = walletKey(username);
   const [walletDoc, rows] = await Promise.all([
     readDoc(path("qa_sparks_wallets", id)),
@@ -1236,8 +1265,8 @@ export default async function handler(req, res) {
       return res.status(200).json(await voidSuphitchaTypingTest(body, admin));
     }
     let data;
-    if (body.action === "list") data = await listUsers();
-    else if (body.action === "history") data = await loadHistory(safeUsername(body.targetUsername));
+    if (body.action === "list") data = await listUsers(body.forceRefresh === true);
+    else if (body.action === "history") data = await loadHistory(safeUsername(body.targetUsername), body.forceRefresh === true);
     else if (body.action === "adjust") data = await adjustBalance(body, admin);
     else fail("Unsupported Sparks Admin action");
     return res.status(200).json(data);
@@ -1249,3 +1278,4 @@ export default async function handler(req, res) {
     return res.status(status).json({ error: message, ...(error?.code ? { code: error.code } : {}) });
   }
 }
+
