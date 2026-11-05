@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, type SparksAccount, type SparksHistoryItem } from "./qaSparksStore";
 import "./qaSparks.css";
 import SparksAdminPanel from "./SparksAdminPanel";
+import TypingReliefRewardCard from "./TypingReliefRewardCard";
 
 type SparksView = "overview" | "rewards" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown";
@@ -90,6 +91,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     ...(adminAccess ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const balance = account.balance.toLocaleString();
+  const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
       <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div></header>
@@ -130,9 +132,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       </nav>
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
         {view === "overview" ? <div className="qa-sparks-dual">
-          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><EmptyReward/></section>
+          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
-        </div> : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><EmptyReward large/></section>
+        </div> : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} /> : null}
       </div>
