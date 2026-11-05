@@ -5,7 +5,7 @@ export const TRUE_MONEY_REWARD={id:"truemoney-20-thb",price:7000,value:20,validD
 type Item={itemId:string;rewardId:string;status:"unused"|"requested";redeemedAt:string;expiresAt:string;valueTHB:number;requestedAt?:string;requestId?:string};
 type Request={requestId:string;itemId:string;status:string;dueDate:string;createdAt:string;amountTHB:number;phoneMasked:string;payoutConfirmedAt?:string};
 type Detail={items:Item[];requests:Request[]};
-type Props={username:string;sessionId:string;balance:number;loaded:boolean;mode:"reward"|"inventory"};
+type Props={username:string;sessionId:string;balance:number;loaded:boolean;mode:"reward"|"inventory";hasOtherItems?:boolean};
 function date(value:string){
   const parsed=new Date(value);
   return Number.isFinite(parsed.getTime())?parsed.toLocaleString("th-TH",{
@@ -43,18 +43,14 @@ async function api(action:string,actorUsername:string,sessionId:string,extra:Rec
   return body;
 }
 function RewardCard({open}:{open:()=>void}){
-  return <button type="button" className="qa-money-reward-tile" data-reward-item="truemoney-20" onClick={open}
+  return <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--money" data-reward-item="truemoney-20" onClick={open}
     aria-haspopup="dialog" aria-label="ดูรายละเอียด TrueMoney 20 บาท ราคา 7,000 Sparks">
-    <span className="qa-money-reward-tile-art"><MoneyArt/></span>
-    <span className="qa-money-reward-tile-info">
-      <small>QA SPARKS · DIGITAL REWARD</small>
-      <strong>TrueMoney 20 THB</strong>
-      <span>Item รับสิทธิ์โอนเงินผ่าน TrueMoney</span>
-      <span className="qa-money-reward-price"><b>✦ 7,000</b> Sparks <span>ดูรายละเอียด ›</span></span>
-    </span>
+    <span className="qa-sparks-mini-art qa-sparks-mini-art--money"><MoneyArt/></span>
+    <strong className="qa-sparks-mini-name">TrueMoney 20 ฿</strong>
+    <span className="qa-sparks-mini-value">7,000 Sparks</span>
   </button>;
 }
-export default function TrueMoneyReward({username,sessionId,balance,loaded,mode}:Props){
+export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,hasOtherItems=false}:Props){
   const [open,setOpen]=useState(false);
   const [items,setItems]=useState<Item[]>([]);
   const [requests,setRequests]=useState<Request[]>([]);
@@ -71,6 +67,10 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode}
   const themeRef=useRef<HTMLDivElement>(null);
   const [theme,setTheme]=useState("#8a4398");
   const effectiveBalance=balanceAfter??balance;
+  const detailItem=items.find(item=>item.itemId===selected);
+  const detailRequest=requests.find(row=>row.itemId===selected);
+  const detailExpired=detailItem ? Date.parse(detailItem.expiresAt)<=Date.now() : false;
+  const canUseSelected=Boolean(detailItem && detailItem.status==="unused" && !detailExpired);
   useEffect(()=>{if(balanceAfter!==null&&balance===balanceAfter)setBalanceAfter(null);},[balance,balanceAfter]);
   const refresh=useCallback(async()=>{
     if(!username||!sessionId)return;
@@ -121,30 +121,30 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode}
     finally{setBusy(false);}
   };
   const renderInventory=()=>{
+    if (!loaded || !inventoryLoaded) return <p className="qa-sparks-inventory-progress" role="status">กำลังโหลด Item ของคุณ...</p>;
+    if (items.length===0) {
+      return !hasOtherItems && !error ? <div className="qa-sparks-inventory-empty" data-items-empty="true">
+        <strong>ยังไม่มี Item ในคลัง</strong><span>Item ที่แลกจาก Reward Center จะปรากฏที่นี่</span>
+      </div> : null;
+    }
     const now=Date.now();
-    return <div className="qa-money-inventory">
-      <div className="qa-money-inventory-heading"><strong>My Items · TrueMoney</strong><button type="button" onClick={()=>void refresh().catch(e=>setError(e.message))}>รีเฟรช</button></div>
-      {!inventoryLoaded?<p>กำลังโหลด Item ของคุณ...</p>:items.length===0?<p>ยังไม่มี Item TrueMoney ที่แลกไว้</p>:items.map(item=>{
-        const expired=Date.parse(item.expiresAt)<=now;
-        const request=requests.find(row=>row.itemId===item.itemId);
-        return <article className="qa-money-item" key={item.itemId}>
-          <span className="qa-money-item-icon"><MoneyArt/></span>
-          <span className="qa-money-item-desc">
-            <strong>TrueMoney 20 บาท</strong><small>Item {item.itemId.slice(-8)}</small>
-            <span>แลก: {date(item.redeemedAt)}</span>
-            <span>หมดอายุ: {date(item.expiresAt)}</span>
-            <b>{request?.status==="paid"?"โอนเงินสำเร็จ":item.status==="requested"?"ส่งคำขอแล้ว":expired?"Item หมดอายุ":"พร้อมใช้งาน"}</b>
-            {request?<span>กำหนดรับเงินภายใน {dueDate(request.dueDate)} · {request.phoneMasked}</span>:null}
-          </span>
-          {item.status==="unused"&&!expired?<button type="button" onClick={()=>{setSelected(item.itemId);setPhone("");setError("");setNotice("");show();}}>ใช้ Item</button>:null}
-        </article>;
-      })}
-      {requests.length?<div className="qa-money-requests"><strong>My Requests</strong>{requests.map(req=><p key={req.requestId}>
-        TrueMoney {req.amountTHB} บาท · {req.status==="paid"?"โอนเงินสำเร็จ":"รอโอนเงิน"} · กำหนด {dueDate(req.dueDate)}
-      </p>)}</div>:null}
-    </div>;
+    return items.map(item=>{
+      const expired=Date.parse(item.expiresAt)<=now;
+      const request=requests.find(row=>row.itemId===item.itemId);
+      const status=request?.status==="paid"?"โอนสำเร็จ":item.status==="requested"?"รอโอนเงิน":expired?"หมดอายุ":"พร้อมใช้";
+      return <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--money qa-sparks-inventory-item"
+        data-owned-item={item.itemId} key={item.itemId} aria-haspopup="dialog"
+        aria-label={"เปิด TrueMoney 20 บาท " + status + " หมดอายุ " + date(item.expiresAt)}
+        onClick={()=>{setSelected(item.itemId);setPhone("");show();}}>
+        <span className="qa-sparks-mini-art qa-sparks-mini-art--money">
+          <MoneyArt/><span className="qa-sparks-mini-quantity">×1</span>
+        </span>
+        <strong className="qa-sparks-mini-name">TrueMoney 20 ฿</strong>
+        <span className={"qa-sparks-mini-value" + (expired ? " is-expired" : "")}>{status}</span>
+      </button>;
+    });
   };
-  return <div ref={themeRef} className="qa-money-reward-root">
+  return <div ref={themeRef} className={"qa-money-reward-root" + (mode==="inventory" ? " qa-money-reward-root--inventory" : "")}>
     {mode==="reward"?<RewardCard open={show}/>:renderInventory()}
     {error&&!open?<p role="alert" className="qa-money-error">{error}</p>:null}
     {open&&typeof document!=="undefined"?createPortal(
@@ -155,18 +155,29 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode}
           <div className="qa-money-modal-hero"><MoneyArt/><div><small>QA SPARKS DIGITAL REWARD</small><h2 id="qa-money-title">TrueMoney 20 THB</h2><p>แลกเป็น Item ก่อน แล้วค่อยกดใช้เพื่อส่งคำขอรับเงินจริง</p></div></div>
           <div className="qa-money-modal-content">
             <div className="qa-money-modal-stats"><span>7,000 Sparks / Item</span><span>อายุ 30 วัน</span><span>รับเงินใน 14 วันทำการ</span></div>
-            <h3>วิธีใช้</h3>
-            <p>1. แลก 7,000 Sparks รับ Item TrueMoney 20 บาทเข้า My Items พร้อมวันหมดอายุแยกตามชิ้น</p>
-            <p>2. ภายใน 30 วันนับจากเวลาแลก กดใช้ Item และระบุเบอร์ TrueMoney 10 หลัก</p>
-            <p>3. ส่งคำขอเข้าระบบ Tracker แล้วรับเงินภายในวันที่ระบบระบุ โดยนับ 14 วันทำการจากวันทำการถัดไป (ไม่รวมวันเสาร์–อาทิตย์)</p>
-            <p>4. Admin โอนเงินจริงด้วยตนเอง และยืนยันสถานะโอนสำเร็จใน Tracker</p>
-            <p>ใช้ Item 1 ครั้งต่อชิ้นเท่านั้น เมื่อหมดอายุจะไม่สามารถส่งคำขอใหม่ได้ แต่คำขอที่ส่งก่อนหมดอายุยังดำเนินการต่อได้</p>
-            {selected?<div className="qa-money-modal-claim">
-              <h3>ใช้ Item TrueMoney 20 บาท</h3><label htmlFor="qa-money-phone">หมายเลขรับเงิน TrueMoney (10 หลัก)</label>
-              <input id="qa-money-phone" type="tel" inputMode="numeric" maxLength={10} value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,"").slice(0,10))} placeholder="0XXXXXXXXX"/>
-              <p>เมื่อยืนยัน ระบบจะส่งคำขอเข้า Tracker และล็อก Item ชิ้นนี้ไม่ให้ส่งซ้ำ</p>
-              <div className="qa-money-action-row"><button type="button" onClick={()=>setSelected("")}>ยกเลิก</button><button type="button" disabled={!/^0\d{9}$/.test(phone)||busy} onClick={()=>void useItem()}>{busy?"กำลังส่ง...":"ยืนยันส่งคำขอ"}</button></div>
-            </div>:<div className="qa-money-modal-claim">
+            <h3>วิธีรับรางวัล</h3>
+            <p>1. ใช้ 7,000 Sparks แลกรับ TrueMoney มูลค่า 20 บาท</p>
+            <p>2. เข้า My Items และเลือก Item ที่ต้องการใช้ภายใน 30 วันนับจากวันที่แลก</p>
+            <p>3. กรอกหมายเลขโทรศัพท์ TrueMoney 10 หลัก แล้วกดยืนยันส่งคำขอรับเงิน</p>
+            <p>4. ตรวจสอบสถานะและวันที่จะได้รับเงินได้ใน My Items โดยจะได้รับภายใน 14 วันทำการหลังส่งคำขอ (ไม่รวมเสาร์–อาทิตย์)</p>
+            <p>Item ใช้ได้เพียง 1 ครั้ง และมีวันหมดอายุแยกกัน หากส่งคำขอสำเร็จก่อนหมดอายุ คำขอยังดำเนินการต่อได้</p>
+            {selected && detailItem ? <div className="qa-money-modal-claim">
+              <h3>Item ของคุณ · TrueMoney 20 บาท</h3>
+              <p>แลกเมื่อ: {date(detailItem.redeemedAt)}</p>
+              <p>หมดอายุ: {date(detailItem.expiresAt)}</p>
+              {detailRequest ? <div className="qa-money-item-status-detail"><strong>{detailRequest.status==="paid"?"โอนเงินสำเร็จ":"รอโอนเงิน"}</strong>
+                <p>หมายเลขรับเงิน: {detailRequest.phoneMasked}</p>
+                <p>กำหนดได้รับเงินภายใน: {dueDate(detailRequest.dueDate)}</p>
+              </div> : null}
+              {canUseSelected ? <>
+                <label htmlFor="qa-money-phone">หมายเลขโทรศัพท์ TrueMoney (10 หลัก)</label>
+                <input id="qa-money-phone" type="tel" inputMode="numeric" maxLength={10} value={phone}
+                  onChange={e=>setPhone(e.target.value.replace(/\D/g,"").slice(0,10))} placeholder="0XXXXXXXXX"/>
+                <p>ตรวจสอบหมายเลขให้ถูกต้องก่อนส่งคำขอ Item นี้ใช้งานได้ครั้งเดียว</p>
+                <div className="qa-money-action-row"><button type="button" onClick={()=>{setSelected("");setOpen(false);}}>กลับไป My Items</button>
+                  <button type="button" disabled={!/^0\d{9}$/.test(phone)||busy} onClick={()=>void useItem()}>{busy?"กำลังส่ง...":"ยืนยันส่งคำขอ"}</button></div>
+              </> : !detailRequest ? <p>Item นี้หมดอายุแล้ว ไม่สามารถใช้งานได้</p> : null}
+            </div> : mode === "inventory" ? null : <div className="qa-money-modal-claim">
               <h3>แลกรับ Item</h3><p>ยอด Sparks: {loaded?effectiveBalance.toLocaleString():"—"}</p>
               {confirm?<><p>ยืนยันใช้ 7,000 Sparks เพื่อรับ Item TrueMoney 20 บาท?</p><div className="qa-money-action-row"><button type="button" onClick={()=>setConfirm(false)}>กลับ</button><button type="button" disabled={busy||!loaded||effectiveBalance<7000} onClick={()=>void buy()}>{busy?"กำลังแลก...":"ยืนยันแลก 7,000 Sparks"}</button></div></>:<button type="button" disabled={!loaded||effectiveBalance<7000} onClick={()=>setConfirm(true)}>{effectiveBalance<7000?"Sparks ไม่เพียงพอ":"แลก 1 Item · 7,000 Sparks"}</button>}
             </div>}
