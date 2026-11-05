@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-04T11:03:20.473Z",
-  "reason": "Reviewed Sparks admin user-directory fallback, server credential failure handling and protected adjustment controls. QA User Management and QA scoring behavior remain unchanged.",
+  "reviewedAt": "2026-11-05T03:23:00.000Z",
+  "reason": "Reviewed Sparks Admin API Firebase project alignment and explicit session checks, with positive and negative server authorization regression tests. No QA scoring, knowledge guide, or evaluation content changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -100,7 +100,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "d8e138da50651957249172b4c2b0a646f9bfbbe296ff22de5426d4b5a9a7c107",
-    "package.json": "ca7d5b4fc719848f0ae5e35be316df320ca55e6b84b79d4a541bc5e14091ba8f",
+    "package.json": "0ff6635591e8cb886998d0aed541fdc4cc28d2a7fef4797d94c2e32c4c567e4d",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -594,7 +594,8 @@
     "scripts/test-qa-sparks-ui.mjs": "51a6edea262a18064e85655b4f1c041a72b25167b23e01c00c8f39c0c98eaf37",
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
     "src/qaSparksStore.ts": "72d878a726455204c6b872472d8cd895484a5034e51d6701712a74828bfec759",
-    "api/sparks-admin.js": "8ffb89d45c76a2a9c5e0ffdf96c7ff5035e6db2ff56d11366cf0ad13a1cafc41",
-    "src/SparksAdminPanel.tsx": "9e45f872b90cdf31c1decc2f948b28d8bfe427d5a53fd02892dbe18c2e9d5e47"
+    "api/sparks-admin.js": "89145cd5ac39e9222b80687ebf00a400744cc0166083de495ffa3d41730f83c6",
+    "src/SparksAdminPanel.tsx": "9e45f872b90cdf31c1decc2f948b28d8bfe427d5a53fd02892dbe18c2e9d5e47",
+    "scripts/test-sparks-admin-session.mjs": "7b0039e61bc3602b9de3507a2c06b523250943e79e80af1c71df1457f5dbe1e2"
   }
 }
