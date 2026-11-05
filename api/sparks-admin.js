@@ -33,6 +33,13 @@ let accessToken = "";
 let tokenExpiry = 0;
 const adminReadCache = new Map();
 const ADMIN_READ_CACHE_MS = 60_000;
+const FIRESTORE_QUOTA_COOLDOWN_MS = 5 * 60_000;
+let firestoreQuotaLimitedUntil = 0;
+function firestoreQuotaError() {
+  return Object.assign(new Error("Firestore มีข้อจำกัดโควตาหรืออัตราการใช้งาน กรุณาตรวจที่ Firebase Console → Firestore → Usage และหลีกเลี่ยงการรีเฟรชซ้ำ"), {
+    status: 429, code: "FIRESTORE_RESOURCE_EXHAUSTED", firestoreStatus: "RESOURCE_EXHAUSTED",
+  });
+}
 function cachedAdminRead(key, load, forceRefresh = false) {
   const cached = adminReadCache.get(key);
   if (cached?.pending) return cached.pending;
@@ -135,6 +142,10 @@ async function getAccessToken() {
   return accessToken;
 }
 async function firestoreRequest(endpoint, method = "GET", body) {
+  // A quota response is shared by this function instance. Reject repeated
+  // display reads locally instead of contacting an already limited database.
+  // Authentication and all mutations still require normal server verification.
+  if (method === "GET" && Date.now() < firestoreQuotaLimitedUntil) throw firestoreQuotaError();
   const token = await getAccessToken();
   const response = await fetch(endpoint.startsWith("https:") ? endpoint : API_ROOT + endpoint, {
     method,
@@ -151,9 +162,8 @@ async function firestoreRequest(endpoint, method = "GET", body) {
     if (firestoreStatus === "RESOURCE_EXHAUSTED" || response.status === 429) {
       // This is a database quota/capacity error, NOT an invalid QA session or key.
       // Keep writes blocked; never bypass the server checks or suggest adding keys.
-      throw Object.assign(new Error("Firestore มีข้อจำกัดโควตาหรืออัตราการใช้งาน กรุณาตรวจที่ Firebase Console → Firestore → Usage และหลีกเลี่ยงการรีเฟรชซ้ำ"), {
-        status: 429, code: "FIRESTORE_RESOURCE_EXHAUSTED", firestoreStatus,
-      });
+      firestoreQuotaLimitedUntil = Date.now() + FIRESTORE_QUOTA_COOLDOWN_MS;
+      throw firestoreQuotaError();
     }
     const detail = String(firestoreStatus || result?.error?.message || "Firestore request failed");
     const status = response.status === 403 ? 503 : response.status >= 500 ? 503 : response.status;
@@ -1282,6 +1292,7 @@ export default async function handler(req, res) {
     return res.status(200).json(data);
   } catch (error) {
     const status = Number(error?.status) || 500;
+    if (status === 429) res.setHeader("Retry-After", String(Math.max(1, Math.ceil((firestoreQuotaLimitedUntil - Date.now()) / 1000)) || 300));
     // Never return service-account details, raw credentials or Firestore internal stack traces.
     const message = status === 500 ? "Sparks Admin could not complete this request" : String(error?.message || "Request failed");
     if (status >= 500) console.error("Sparks admin request error:", String(error?.message || "Unknown"));
