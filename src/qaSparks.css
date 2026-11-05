@@ -550,3 +550,36 @@
 .qa-sparks-admin-operations .qa-sparks-admin-void-test:focus-visible{
   outline:3px solid #b47c2e;outline-offset:2px;
 }
+
+
+/* Profile Makeover event item + accessible conditions dialog */
+.qa-sparks-profile-quest-section{margin-bottom:15px;min-width:0}
+.qa-sparks-profile-quest{box-sizing:border-box;display:grid;grid-template-columns:170px minmax(0,1fr);gap:16px;width:min(100%,770px);min-height:147px;text-align:left;padding:9px;border-radius:17px;border:1px solid var(--sparks-outline,#e5c8ed);background:linear-gradient(115deg,#fff9fc,#fffdf6);font-family:Kanit,sans-serif;color:#3c2844;cursor:pointer;box-shadow:0 7px 22px #54316a1a}
+.qa-sparks-profile-quest:hover{border-color:var(--sparks-accent,#8b45ad);transform:translateY(-2px)}
+.qa-sparks-profile-quest:focus-visible{outline:3px solid var(--sparks-accent,#8b45ad);outline-offset:3px}
+.qa-sparks-profile-quest-art{position:relative;display:grid;place-items:center;min-height:129px;border-radius:12px;background:radial-gradient(circle at 50% 28%,#fff2c8,#f9daf8 53%,#d6b7f5);overflow:hidden}
+.qa-sparks-profile-avatar{filter:drop-shadow(0 6px 8px #78459b47);transform:rotate(-8deg)}
+.qa-sparks-profile-quest-coin{position:absolute;bottom:13px;right:11px;padding:5px 10px;border-radius:999px;background:#ffda73;color:#76400d;border:2px solid #fff3c2;transform:rotate(-9deg);font-weight:800}
+.qa-sparks-profile-quest-copy{display:flex;min-width:0;flex-direction:column;justify-content:center;gap:7px;padding:7px 11px 7px 0}
+.qa-sparks-profile-quest-copy>strong{font-size:24px;font-weight:800;color:var(--sparks-dark,#522858);line-height:1.25}
+.qa-sparks-profile-quest-copy>small{font-size:12px;color:#86738b}
+.qa-sparks-profile-quest-bottom{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:5px;padding-top:10px;border-top:1px solid #eadddf;font-size:12px;font-weight:750;color:var(--sparks-accent,#81469c)}
+.qa-sparks-profile-quest-overlay{position:fixed;z-index:2147482500;inset:0;background:#23132bc2;backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;font-family:Kanit,sans-serif}
+.qa-sparks-profile-quest-dialog{position:relative;width:min(580px,100%);max-height:91dvh;overflow-y:auto;border-radius:20px;border:1px solid #dfcaed;background:#fffdfa;color:#40334a;box-shadow:0 20px 70px #1d092b77}
+.qa-sparks-profile-quest-close{position:absolute;top:13px;right:13px;z-index:2;width:37px;height:37px;display:grid;place-items:center;border-radius:50%;border:1px solid #e9dcf0;background:white;color:#634c74;font:26px Kanit;cursor:pointer}
+.qa-sparks-profile-quest-close:focus-visible{outline:3px solid #ad72d2}
+.qa-sparks-profile-quest-banner{padding:30px 27px;background:linear-gradient(110deg,#eed4ff,#fff1d9)}
+.qa-sparks-profile-quest-banner>span{font-size:10px;color:#893b9d;letter-spacing:.08em;font-weight:750}
+.qa-sparks-profile-quest-banner h2{font-size:29px;color:#50265c;margin:7px 0}
+.qa-sparks-profile-quest-banner p{font-size:13px;color:#75687e;margin:0}
+.qa-sparks-profile-quest-detail{padding:22px 27px 26px}
+.qa-sparks-profile-quest-detail h3{font-size:16px;margin:20px 0 12px;color:#51315d}
+.qa-sparks-profile-quest-detail p{font-size:12px;line-height:1.8;color:#77697d}
+.qa-sparks-profile-quest-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.qa-sparks-profile-quest-facts>div{background:#fbf4fa;border:1px solid #eeddf0;border-radius:11px;padding:11px;display:flex;flex-direction:column;gap:5px}
+.qa-sparks-profile-quest-facts small{font-size:10px;color:#887487}
+.qa-sparks-profile-quest-facts strong{font-size:14px;color:#653674}
+.qa-sparks-profile-quest-status{margin-top:17px;border-radius:11px;background:#fff3dd;color:#8e6224;font-weight:650;padding:12px;font-size:12px}
+.qa-sparks-profile-quest-status.completed{background:#e8f8ed;color:#236a43}
+.qa-sparks-profile-quest-help{font-size:11px!important}
+@media(max-width:640px){.qa-sparks-profile-quest{grid-template-columns:35% minmax(0,1fr);gap:10px}.qa-sparks-profile-quest-copy>strong{font-size:19px}.qa-sparks-profile-quest-copy>small{font-size:10px}.qa-sparks-profile-quest-bottom{font-size:10px}.qa-sparks-profile-quest-detail{padding:15px}}
