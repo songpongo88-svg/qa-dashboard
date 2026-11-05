@@ -689,6 +689,113 @@ async function voidChachiyaTestPair(body, admin) {
   fail("มีการเปลี่ยนคะแนนพร้อมกัน กรุณารีเฟรชข้อมูลก่อนแก้ไข", 409);
 }
 
+/**
+ * Explicit, admin-confirmed one-time correction for Suphitcha's three Typing
+ * Relief test records. This cancels only their Sparks accounting effects.
+ * NEVER undo an actual QA Access challenge or delete its audit trail.
+ */
+async function voidSuphitchaTypingTest(body, admin) {
+  const username = safeUsername(body.targetUsername);
+  if (username !== "suphitcha") fail("อนุญาตให้แก้ไขเฉพาะรายการทดลองของ Suphitcha เท่านั้น", 403);
+  await requireActiveTarget(username);
+  const redemptionId = String(body.redemptionHistoryId || "").trim();
+  const activationId = String(body.activationHistoryId || "").trim();
+  const deductionId = String(body.deductionHistoryId || "").trim();
+  if (!/^redeem-[a-zA-Z0-9_-]{16,100}$/.test(redemptionId)
+    || !/^typing-relief-use-[a-f0-9]{40}$/.test(activationId)
+    || !/^admin-[a-zA-Z0-9_-]{16,108}$/.test(deductionId)) {
+    fail("รหัสรายการทดสอบ Typing Relief ไม่ถูกต้อง", 400);
+  }
+  const correctionId = "admin-correction-suphitcha-typing-test-20261105";
+  const walletPath = walletDocumentPath(username);
+  const historyRoot = path("qa_sparks_wallets", walletKey(username), "history");
+  const correctionPath = historyRoot + "/" + correctionId;
+  const redemptionPath = historyRoot + "/" + redemptionId;
+  const activationPath = historyRoot + "/" + activationId;
+  const deductionPath = historyRoot + "/" + deductionId;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const started = await firestoreRequest(":beginTransaction", "POST", { options: { readWrite: {} } });
+    const transaction = started?.transaction;
+    if (!transaction) fail("ไม่สามารถเริ่มตรวจสอบการแก้ไข Sparks ได้", 503);
+    try {
+      const [walletDoc, correctionDoc, redemptionDoc, activationDoc, deductionDoc] = await Promise.all([
+        readDoc(walletPath, transaction), readDoc(correctionPath, transaction),
+        readDoc(redemptionPath, transaction), readDoc(activationPath, transaction),
+        readDoc(deductionPath, transaction),
+      ]);
+      if (correctionDoc) {
+        const prior = recordValue(correctionDoc);
+        if (prior.source === "admin-test-correction" && normalize(prior.targetUsername) === "suphitcha") {
+          return { updated: false, alreadyApplied: true,
+            balance: balance(recordValue(walletDoc).balance) };
+        }
+        fail("รายการนี้มีข้อมูลแก้ไขอยู่แล้ว", 409);
+      }
+      const wallet = recordValue(walletDoc);
+      const redemption = recordValue(redemptionDoc);
+      const activation = recordValue(activationDoc);
+      const deduction = recordValue(deductionDoc);
+      const correctState = balance(wallet.balance) === 200
+        && balance(wallet.totalEarned) === 500
+        && balance(wallet.totalSpent) === 300
+        && balance(wallet.rewardOrders) === 1
+        && balance(wallet.typingReliefOwned) === 0
+        && balance(wallet.typingReliefPurchased) === 1
+        && balance(wallet.typingReliefUsed) === 1
+        && balance(wallet.firstLogin?.amount) === 500;
+      const correctRecords = redemptionDoc && activationDoc && deductionDoc
+        && redemption.source === "reward-redemption"
+        && redemption.rewardId === "typing-relief" && Number(redemption.amount) === -150
+        && activation.source === "reward-activation"
+        && activation.rewardId === "typing-relief" && Number(activation.amount) === 0
+        && deduction.source === "admin-deduct" && Number(deduction.amount) === -150
+        && !redemption.voidedAt && !activation.voidedAt && !deduction.voidedAt;
+      if (!correctState || !correctRecords) {
+        fail("ยอดหรือประวัติไม่ตรงกับการทดลองที่ต้องแก้ไข ระบบยังไม่ได้เปลี่ยนคะแนน", 409);
+      }
+      const now = new Date().toISOString();
+      const reason = "ยกเลิกผลต่อยอดคะแนนของรายการทดสอบ Typing Relief (แลก −150, ใช้สิทธิ์ 0, Admin ลด −150) และคง First Login 500 Sparks โดยไม่ย้อนแก้ภารกิจ QA Access";
+      const memberYear = currentMemberYear();
+      const writes = [
+        updateWrite(walletPath, {
+          balance: 500, totalEarned: 500, totalSpent: 0, rewardOrders: 0,
+          typingReliefOwned: 0, typingReliefPurchased: 0, typingReliefUsed: 0,
+          memberYear, memberYearEarned: memberYear === 2026 ? 500 : 0,
+          updatedAt: now, lastCorrectionAt: now,
+        }, walletDoc),
+        updateWrite(redemptionPath, {
+          voidedAt: now, voidedBy: admin.username, voidedReason: reason,
+          voidedCorrectionId: correctionId,
+        }, redemptionDoc),
+        updateWrite(activationPath, {
+          voidedAt: now, voidedBy: admin.username, voidedReason: reason,
+          voidedCorrectionId: correctionId,
+        }, activationDoc),
+        updateWrite(deductionPath, {
+          voidedAt: now, voidedBy: admin.username, voidedReason: reason,
+          voidedCorrectionId: correctionId,
+        }, deductionDoc),
+        createWrite(correctionPath, {
+          createdAt: now, type: "earn", source: "admin-test-correction",
+          title: "Typing Relief Test Records Voided",
+          targetUsername: username, detail: reason, reason, amount: 0,
+          balanceAfter: 500, originalRedemptionId: redemptionId,
+          originalActivationId: activationId, originalDeductionId: deductionId,
+          performedBy: admin.username, performedByName: admin.displayName,
+          status: "Completed",
+        }),
+      ];
+      await firestoreRequest(":commit", "POST", { transaction, writes });
+      return { updated: true, alreadyApplied: false, balance: 500,
+        earned: 500, spent: 0, rewardOrders: 0, memberYearEarned: memberYear === 2026 ? 500 : 0 };
+    } catch (error) {
+      if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;
+      throw error;
+    }
+  }
+  fail("มีการทำรายการพร้อมกัน กรุณารีเฟรชก่อนแก้ไข", 409);
+}
+
 async function adjustBalance(body, admin) {
   const username = safeUsername(body.targetUsername);
   await requireActiveTarget(username);
@@ -815,6 +922,9 @@ export default async function handler(req, res) {
     const admin = await authorizeAdmin(body);
     if (body.action === "void-chachiya-test-pair") {
       return res.status(200).json(await voidChachiyaTestPair(body, admin));
+    }
+    if (body.action === "void-suphitcha-typing-test") {
+      return res.status(200).json(await voidSuphitchaTypingTest(body, admin));
     }
     let data;
     if (body.action === "list") data = await listUsers();

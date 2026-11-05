@@ -102,7 +102,7 @@
     "test:announcement-read-stats": "node ./scripts/test-announcement-read-stat-popup.mjs",
     "test:process-file-management": "node ./scripts/test-process-file-management.mjs",
     "test:process-file-confirmation": "node ./scripts/test-process-file-confirmation.mjs",
-    "test:qa-sparks": "node ./scripts/test-qa-sparks-ui.mjs && node ./scripts/test-sparks-admin-session.mjs && node ./scripts/test-chachiya-sparks-correction.mjs && node ./scripts/test-chachiya-sparks-correction-ui.mjs && node ./scripts/test-typing-relief-reward.mjs && node ./scripts/test-qa-sparks-member-levels.mjs && node ./scripts/test-qa-sparks-member-ui.mjs && node ./scripts/test-daily-checkin-quest.mjs && node ./scripts/test-qa-sparks-quest-ui.mjs"
+    "test:qa-sparks": "node ./scripts/test-qa-sparks-ui.mjs && node ./scripts/test-sparks-admin-session.mjs && node ./scripts/test-chachiya-sparks-correction.mjs && node ./scripts/test-chachiya-sparks-correction-ui.mjs && node ./scripts/test-suphitcha-typing-reset.mjs && node ./scripts/test-suphitcha-typing-reset-ui.mjs && node ./scripts/test-typing-relief-reward.mjs && node ./scripts/test-qa-sparks-member-levels.mjs && node ./scripts/test-qa-sparks-member-ui.mjs && node ./scripts/test-daily-checkin-quest.mjs && node ./scripts/test-qa-sparks-quest-ui.mjs"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.2.4",

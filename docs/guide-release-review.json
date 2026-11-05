@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-05T09:58:00.000Z",
-  "reason": "Reviewed one-time, Chachiya-only Sparks Admin repair for mistaken +99,800 and -99,800 test pair. An authorized administrator must explicitly confirm. The API verifies named account, exact 150 balance, 99,950 earned, 99,800 spent, legitimate 150 first-login, and the exact two matching unvoided history records before one atomic Firestore transaction sets lifetime/annual earned to 150 and spent to 0 while retaining balance 150. Both original records are preserved, marked Voided and excluded from user and admin cumulative totals; a zero-amount correction audit is added. Does not touch other users, quest records, evaluations or Firebase security settings. Unit and UI tests pass, no production account mutation from build or deploy. Requires authenticated Admin confirmation after release.",
+  "reviewedAt": "2026-11-05T10:32:00.000Z",
+  "reason": "Reviewed confirmation-only Sparks Admin correction for Suphitcha Keawliam after testing Typing Relief. Only @Suphitcha with exact 200 balance / 500 earned / 300 spent / 1 reward order, authentic 500 first-login prize and exactly one unvoided 150-Sparks Typing Relief redemption, one zero-Sparks activation, and one 150-Sparks admin deduction can access the button. API checks wallet + all 3 history entries in a single Firestore transaction, sets balance 500 / earned 500 / spent 0 / rewardOrders 0, resets test inventory counters while preserving First Login and QA Access challenge outcome, marks the 3 source entries voided (not deleted), writes 0-Sparks correction audit, and supports idempotency. No mutation during deployment: authenticated administrator must explicitly confirm in Sparks Admin. No other members, grades, QA cases or quest data touched. Verified API and UI regression tests.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -100,7 +100,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "d8e138da50651957249172b4c2b0a646f9bfbbe296ff22de5426d4b5a9a7c107",
-    "package.json": "145a08deff6b25cc5485738168d8bea27768d9124bcd9db6256aa350ddb605c5",
+    "package.json": "16faf2fbe1884c65e8927822a6d9e8709d013c028f58e963f087714dc067d246",
     "public/guide/administration-buttons.png": "d6fedf0cc7411eecd5d4a03f743d312e1f60ef94942e54d93e848cbe0b711445",
     "public/guide/analytics-buttons.png": "f92c94d9fe97dc2c4c792855831fe1fe0d1b21d782c6588a803c9445ecc4e020",
     "public/guide/appeal-buttons.png": "a920ac835b9f48ccc1821ca7d50193cf3550dfe21fa71b939adc72d41fe77d70",
@@ -594,8 +594,8 @@
     "scripts/test-qa-sparks-ui.mjs": "c5f8e87324a6e66107ca0e67175973cf2f5f764c4ccbd03a4d8ee89f68fb6309",
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
     "src/qaSparksStore.ts": "88ac27c0144f35ed889d6b329bd5801e2d8b568459082ce710437c47b23c2540",
-    "api/sparks-admin.js": "6baca1a6cfe4538dab35a96035ef48807a4050986c050404ce370138f80ac410",
-    "src/SparksAdminPanel.tsx": "7f0c2a1adcf81da0aa9cb3ae9e21ab8fa6d164b604aa32ff400b2556ba61c4fa",
+    "api/sparks-admin.js": "ab64211e59514932fa50f1c2162460f5ca5ab354b6a84df925610eab76909985",
+    "src/SparksAdminPanel.tsx": "b7d3ec7d99500b6bded7b87e667f4fc86b86cd5d31ec75ac57388323f599fa2c",
     "scripts/test-sparks-admin-session.mjs": "dd35a0a6fb1986f19355fd7f799dbdf9d16fd55c6e1b20ad22e7a0c0d0f4aa0a",
     "src/typingReliefReward.ts": "c38ea006da70964da36fb98bb9bdf9dff8c306de1abb41ac6b61214bc27a6e40",
     "src/TypingReliefRewardCard.tsx": "b46dc18b26fd514e4afcc2c1eaf8c768f0627271329dc51b3b31b4df3af1fece",
@@ -607,6 +607,8 @@
     "scripts/test-daily-checkin-quest.mjs": "91d6713e83123345d2f1c88c95fbd5e676a6a71a403532f63f3c78e762fbc215",
     "scripts/test-qa-sparks-quest-ui.mjs": "0373bd6df97048795baf6564974d5a5b9a37cb695727ce872291c816b107fcfc",
     "scripts/test-chachiya-sparks-correction.mjs": "37818e0fc27972ace1da94c2280b766c00258325d91fa2ca601d2a33085f2f8c",
-    "scripts/test-chachiya-sparks-correction-ui.mjs": "7d3cf8bd55846a496999f546b3577f789687dc15cad8d3795855a8a2f17382b0"
+    "scripts/test-chachiya-sparks-correction-ui.mjs": "7d3cf8bd55846a496999f546b3577f789687dc15cad8d3795855a8a2f17382b0",
+    "scripts/test-suphitcha-typing-reset.mjs": "f17d739615d1ba3786f81cdca7e80c3a084497504d159f3eb66bf9a9533c9e94",
+    "scripts/test-suphitcha-typing-reset-ui.mjs": "33d7b4d4af5b71222da2b735832a76137347d8b1d078647dac29ada971b423bb"
   }
 }
