@@ -1,6 +1,8 @@
 import { createSign, randomUUID } from "node:crypto";
 
-const FIRESTORE_PROJECT = process.env.VITE_FIREBASE_PROJECT_ID || "qa-dashboard-b0b5d";
+// Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
+// variables are not a reliable server-side source and may point elsewhere.
+const FIRESTORE_PROJECT = "qa-dashboard-b0b5d";
 const API_ROOT = "https://firestore.googleapis.com/v1/projects/" + encodeURIComponent(FIRESTORE_PROJECT) + "/databases/(default)/documents";
 const SESSION_POLICY = "qa-session-policy-2026-07-15-v1";
 const ADMIN_USERNAME = "songpon";
@@ -129,21 +131,28 @@ async function authorizeAdmin(body) {
   const username = safeUsername(body.actorUsername);
   const sessionId = String(body.sessionId || "");
   if (username !== ADMIN_USERNAME || !/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId)) fail("Unauthorized", 403);
-  const session = recordValue(await readDoc(path("qa_user_sessions", sessionId)));
-  const active = session.status === "active"
-    && normalize(session.username) === ADMIN_USERNAME
-    && session.role === "Quality Assurance"
-    && session.policyVersion === SESSION_POLICY
-    && Date.parse(session.expiresAt || "") > Date.now();
-  if (!active) fail("Session expired or unauthorized", 403);
+  const sessionDocument = await readDoc(path("qa_user_sessions", sessionId));
+  if (!sessionDocument) fail("QA session not found in the configured Firestore project. Please sign in to QA Dashboard again.", 403);
+  const session = recordValue(sessionDocument);
+  if (normalize(session.username) !== ADMIN_USERNAME) fail("QA session account does not match the administrator.", 403);
+  if (session.role !== "Quality Assurance") fail("QA session does not have the Quality Assurance role.", 403);
+  if (session.policyVersion !== SESSION_POLICY) fail("QA session policy is out of date. Please sign in again.", 403);
+  if (session.status !== "active") fail("QA session was revoked. Please sign in again.", 403);
+  if (!Number.isFinite(Date.parse(session.expiresAt || "")) || Date.parse(session.expiresAt || "") <= Date.now()) {
+    fail("QA session has expired. Please sign in again.", 403);
+  }
   const revoked = recordValue(await readDoc(path("qa_user_session_controls", ADMIN_USERNAME)));
   const revokedAt = Date.parse(revoked.revokedBefore || "");
   if (Number.isFinite(revokedAt) && Date.parse(session.createdAt || "") <= revokedAt) fail("Session revoked", 403);
   const profile = await readDoc(path("qa_user_profiles", "Songpon"))
     || await readDoc(path("qa_user_profiles", "songpon"));
-  const profileData = recordValue(profile);
+  let profileData = recordValue(profile);
+  if (normalize(profileData.username) !== ADMIN_USERNAME) {
+    const profiles = await listCollection("qa_user_profiles", ["username", "role", "status"]);
+    profileData = profiles.documents.map(recordValue).find((item) => normalize(item.username) === ADMIN_USERNAME) || {};
+  }
   if (normalize(profileData.username) !== ADMIN_USERNAME || profileData.role !== "Quality Assurance" || profileData.status === "Suspended") {
-    fail("Sparks Admin permission denied", 403);
+    fail("Sparks Admin account is not active in QA User Management or lacks the Quality Assurance role.", 403);
   }
   return { username: ADMIN_USERNAME, displayName: String(session.displayName || "Songpon Phothong") };
 }
