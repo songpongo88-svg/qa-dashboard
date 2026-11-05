@@ -8,6 +8,7 @@ type Props = {
   balance: number;
   owned: number;
   loaded: boolean;
+  enabled?: boolean;
 };
 
 /** A self-contained collectible illustration; no font icons, emoji, or external image requests. */
@@ -69,7 +70,7 @@ function TypingReliefArt({ large = false }: { large?: boolean }) {
   </svg>;
 }
 
-export default function TypingReliefRewardCard({ username, sessionId, balance, owned, loaded }: Props) {
+export default function TypingReliefRewardCard({ username, sessionId, balance, owned, loaded, enabled = true }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,7 +86,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
   const effectiveBalance = latest && loaded ? latest.balance : balance;
   const effectiveOwned = latest && loaded ? latest.owned : owned;
   const availableSlots = Math.max(0, TYPING_RELIEF.maxOwned - effectiveOwned);
-  const canBuy = loaded && Boolean(username) && Boolean(sessionId)
+  const canBuy = loaded && enabled && Boolean(username) && Boolean(sessionId)
     && effectiveOwned < TYPING_RELIEF.maxOwned
     && effectiveBalance >= TYPING_RELIEF.price && !busy;
 
@@ -213,6 +214,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
           </div>
 
           <div className="qa-sparks-reward-detail-action">
+            {!enabled ? <div role="status" className="qa-sparks-reward-detail-error">Typing Relief ปิดรับการแลกใหม่ชั่วคราว (สิทธิ์ที่มีอยู่ยังใช้ได้)</div> : null}
             {notice ? <div role="status" className="qa-sparks-reward-detail-success">{notice}</div> : null}
             {error ? <div role="alert" className="qa-sparks-reward-detail-error">{error}</div> : null}
             {confirm ? <div className="qa-sparks-reward-detail-confirm">
