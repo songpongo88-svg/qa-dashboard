@@ -538,19 +538,23 @@ function summary(wallet) {
 }
 function toHistory(doc) {
   const row = recordValue(doc);
+  const voided = Boolean(row.voidedAt);
+  const originalAmount = Number(row.amount) || 0;
   return {
     id: decodeURIComponent(String(doc.name || "").split("/").pop() || ""),
     createdAt: String(row.createdAt || ""),
-    type: Number(row.amount) < 0 ? "spend" : "earn",
+    type: originalAmount < 0 ? "spend" : "earn",
     title: String(row.title || ""),
-    detail: String(row.detail || ""),
+    detail: voided ? "รายการทดลองถูกยกเลิก (เดิม " + (originalAmount > 0 ? "+" : "") + originalAmount.toLocaleString("en-US") + " Sparks)" : String(row.detail || ""),
     source: String(row.source || ""),
-    amount: Number(row.amount) || 0,
+    amount: voided ? 0 : originalAmount,
+    voided,
+    originalAmount,
     balanceAfter: balance(row.balanceAfter),
     performedBy: String(row.performedBy || ""),
     reason: String(row.reason || ""),
     referenceId: String(row.referenceId || ""),
-    status: String(row.status || ""),
+    status: voided ? "Voided" : String(row.status || ""),
   };
 }
 async function listUsers() {
@@ -601,6 +605,90 @@ function checkRequestId(raw) {
   if (!/^[a-zA-Z0-9_-]{16,100}$/.test(id)) fail("Invalid request ID");
   return id;
 }
+/**
+ * One-time audited cancellation of Chachiya's two mistaken admin TEST entries.
+ * The +99,800 grant and −99,800 deduction net to zero, so the legitimate
+ * 150-Sparks First Login prize and current balance must remain untouched.
+ *
+ * NEVER delete Firestore history, never reset unrelated wallets, and never
+ * let a generic admin call choose the values. All four records are protected
+ * by Firestore transaction preconditions and checked server-side.
+ */
+async function voidChachiyaTestPair(body, admin) {
+  const username = safeUsername(body.targetUsername);
+  if (username !== "chachiya") fail("อนุญาตให้แก้ไขเฉพาะรายการทดสอบของ Chachiya เท่านั้น", 403);
+  await requireActiveTarget(username);
+  const addId = String(body.addHistoryId || "").trim();
+  const deductId = String(body.deductHistoryId || "").trim();
+  if (!/^admin-[a-zA-Z0-9_-]{16,108}$/.test(addId) || !/^admin-[a-zA-Z0-9_-]{16,108}$/.test(deductId) || addId === deductId) {
+    fail("กรุณาเลือกประวัติเพิ่มและปรับลด Sparks ที่ถูกต้อง", 400);
+  }
+  const correctionId = "admin-correction-chachiya-void-99800-nov2026";
+  const walletPath = walletDocumentPath(username);
+  const historyRoot = path("qa_sparks_wallets", walletKey(username), "history");
+  const correctionPath = historyRoot + "/" + correctionId;
+  const addPath = historyRoot + "/" + addId;
+  const deductPath = historyRoot + "/" + deductId;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const started = await firestoreRequest(":beginTransaction", "POST", { options: { readWrite: {} } });
+    const transaction = started?.transaction;
+    if (!transaction) fail("ไม่สามารถเริ่มตรวจสอบการแก้ไข Sparks ได้", 503);
+    try {
+      const [walletDoc, correctionDoc, addDoc, deductDoc] = await Promise.all([
+        readDoc(walletPath, transaction), readDoc(correctionPath, transaction),
+        readDoc(addPath, transaction), readDoc(deductPath, transaction),
+      ]);
+      if (correctionDoc) {
+        const done = recordValue(correctionDoc);
+        if (done.source === "admin-test-correction" && normalize(done.targetUsername) === "chachiya") {
+          return { updated: false, alreadyApplied: true, balance: balance(recordValue(walletDoc).balance) };
+        }
+        fail("รายการแก้ไขนี้ถูกใช้งานแล้ว", 409);
+      }
+      const wallet = recordValue(walletDoc);
+      const grant = recordValue(addDoc);
+      const deduction = recordValue(deductDoc);
+      const cleanWallet = balance(wallet.balance) === 150 && balance(wallet.totalEarned) === 99950
+        && balance(wallet.totalSpent) === 99800 && balance(wallet.firstLogin?.amount) === 150;
+      const validPair = addDoc && deductDoc
+        && grant.source === "admin-add" && Number(grant.amount) === 99800
+        && deduction.source === "admin-deduct" && Number(deduction.amount) === -99800
+        && !grant.voidedAt && !deduction.voidedAt;
+      if (!cleanWallet || !validPair) {
+        fail("ยอดหรือรายการไม่ตรงกับรายการทดลองที่ต้องยกเลิก ระบบไม่ได้เปลี่ยนคะแนนใด ๆ", 409);
+      }
+      const now = new Date().toISOString();
+      const reason = "ยกเลิก 2 รายการทดลอง +99,800 และ -99,800 ที่บันทึกผิด โดยคง First Login 150 Sparks";
+      const memberYear = currentMemberYear();
+      const writes = [
+        updateWrite(walletPath, {
+          balance: 150, totalEarned: 150, totalSpent: 0,
+          memberYear, memberYearEarned: memberYear === 2026 ? 150 : 0,
+          updatedAt: now, lastCorrectionAt: now,
+        }, walletDoc),
+        updateWrite(addPath, { voidedAt: now, voidedBy: admin.username, voidedReason: reason,
+          voidedCorrectionId: correctionId }, addDoc),
+        updateWrite(deductPath, { voidedAt: now, voidedBy: admin.username, voidedReason: reason,
+          voidedCorrectionId: correctionId }, deductDoc),
+        createWrite(correctionPath, {
+          createdAt: now, type: "earn", source: "admin-test-correction",
+          title: "Sparks Test Adjustments Voided",
+          targetUsername: username, detail: reason, reason, amount: 0,
+          balanceAfter: 150, originalAddId: addId, originalDeductId: deductId,
+          performedBy: admin.username, performedByName: admin.displayName, status: "Completed",
+        }),
+      ];
+      await firestoreRequest(":commit", "POST", { transaction, writes });
+      return { updated: true, alreadyApplied: false, balance: 150, earned: 150, spent: 0,
+        memberYearEarned: memberYear === 2026 ? 150 : 0 };
+    } catch (error) {
+      if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;
+      throw error;
+    }
+  }
+  fail("มีการเปลี่ยนคะแนนพร้อมกัน กรุณารีเฟรชข้อมูลก่อนแก้ไข", 409);
+}
+
 async function adjustBalance(body, admin) {
   const username = safeUsername(body.targetUsername);
   await requireActiveTarget(username);
@@ -725,6 +813,9 @@ export default async function handler(req, res) {
     }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
     const admin = await authorizeAdmin(body);
+    if (body.action === "void-chachiya-test-pair") {
+      return res.status(200).json(await voidChachiyaTestPair(body, admin));
+    }
     let data;
     if (body.action === "list") data = await listUsers();
     else if (body.action === "history") data = await loadHistory(safeUsername(body.targetUsername));

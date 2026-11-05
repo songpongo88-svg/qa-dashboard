@@ -101,13 +101,16 @@ export async function getSparksAccount(username: string): Promise<SparksAccount>
     firstLogin: validPrize(data.firstLogin),
     history: records.docs.map((row) => {
       const value = row.data();
-      const amount = Number(value.amount) || 0;
+      // Keep original audit entries in Firestore, but do not present voided
+      // TEST adjustments as earned/spent Sparks in a member's history.
+      const voided = Boolean(value.voidedAt);
+      const amount = voided ? 0 : Number(value.amount) || 0;
       return {
         id: row.id,
         createdAt: String(value.createdAt || ""),
         type: amount < 0 ? "spend" as const : "earn" as const,
-        title: String(value.title || ""),
-        detail: String(value.detail || ""),
+        title: voided ? "รายการทดลองถูกยกเลิก" : String(value.title || ""),
+        detail: voided ? "ผู้ดูแลแก้ไขรายการทดลองแล้ว · ไม่นับยอด Sparks หรือ Member Level" : String(value.detail || ""),
         source: String(value.source || ""),
         amount,
         balanceAfter: safeBalance(value.balanceAfter),

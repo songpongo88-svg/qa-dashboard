@@ -539,3 +539,14 @@
  .qa-sparks-checkin-day-points{font-size:9px;}
 }
 @media(prefers-reduced-motion:reduce){.qa-sparks-checkin-day.today{animation:none;}.qa-sparks-quest-tile{transition:none;}}
+
+/* One-time Sparks Admin correction entry, visible only when the precise test
+   pair can be safely voided. No general-purpose reset controls. */
+.qa-sparks-admin-operations .qa-sparks-admin-void-test{
+  border:1px solid #e4ad64;background:#fff8e9;color:#7d4b14;
+  padding:9px 13px;font-weight:700;border-radius:9px;font-family:Kanit,sans-serif;
+}
+.qa-sparks-admin-operations .qa-sparks-admin-void-test:hover:not(:disabled){background:#fff0d3;}
+.qa-sparks-admin-operations .qa-sparks-admin-void-test:focus-visible{
+  outline:3px solid #b47c2e;outline-offset:2px;
+}
