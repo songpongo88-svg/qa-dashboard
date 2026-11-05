@@ -29,7 +29,7 @@ type ClaimResult = {
 };
 type Props = {
   username: string; sessionId: string; claimedDays: number[];
-  loaded: boolean; profileQuestClaimed?: boolean; display?: "overview" | "full";
+  loaded: boolean; profileQuestClaimed?: boolean; dailyEnabled?: boolean; profileEnabled?: boolean; display?: "overview" | "full";
 };
 
 function CalendarBadge({ size = 34 }: { size?: number }) {
@@ -41,7 +41,7 @@ function CalendarBadge({ size = 34 }: { size?: number }) {
   </svg>;
 }
 
-export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded, profileQuestClaimed = false, display = "overview" }: Props) {
+export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded, profileQuestClaimed = false, dailyEnabled = true, profileEnabled = true, display = "overview" }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [serverDays, setServerDays] = useState<{ username: string; days: number[] } | null>(null);
@@ -60,7 +60,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
   const upcoming = today < DAILY_CHECKIN_EVENT.start;
   const finished = today > DAILY_CHECKIN_EVENT.end;
   const currentDay = Number(today.slice(-2));
-  const status = upcoming ? "เตรียมเปิดกิจกรรม" : finished ? "กิจกรรมสิ้นสุดแล้ว" : saved.includes(currentDay) ? "รับรางวัลวันนี้แล้ว" : "เช็กอินวันนี้ได้";
+  const status = !dailyEnabled ? "พักกิจกรรมชั่วคราว" : upcoming ? "เตรียมเปิดกิจกรรม" : finished ? "กิจกรรมสิ้นสุดแล้ว" : saved.includes(currentDay) ? "รับรางวัลวันนี้แล้ว" : "เช็กอินวันนี้ได้";
   const statusClass = upcoming ? "upcoming" : finished ? "finished" : "live";
 
   useEffect(() => {
@@ -108,7 +108,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
   const claim = async (day: number) => {
     const currentDate = bangkokQuestToday();
     setToday(currentDate);
-    if (!loaded || !sessionId || !username || busy || checkinStatus(day, currentDate, saved) !== "today") return;
+    if (!dailyEnabled || !loaded || !sessionId || !username || busy || checkinStatus(day, currentDate, saved) !== "today") return;
     setBusy(true);
     setError(""); setMessage("");
     try {
@@ -156,7 +156,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
           </span>
         </span>
       </button>
-      <ProfileMakeoverQuest username={username} sessionId={sessionId} claimed={profileQuestClaimed} loaded={loaded}/>
+      <ProfileMakeoverQuest username={username} sessionId={sessionId} claimed={profileQuestClaimed} loaded={loaded} enabled={profileEnabled}/>
       {display === "full" ? <p className="qa-sparks-quest-center-foot">Quest ใหม่จะปรากฏในรายการนี้เมื่อเปิดกิจกรรมเพิ่มเติม</p> : null}
     </section>
 
@@ -197,7 +197,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
               {CHECKIN_DAYS.map((day) => {
                 const dayStatus = checkinStatus(day, today, saved);
                 const isToday = dayStatus === "today";
-                const canClaim = loaded && Boolean(username && sessionId) && isToday && !busy;
+                const canClaim = dailyEnabled && loaded && Boolean(username && sessionId) && isToday && !busy;
                 return <button key={day} type="button"
                   className={"qa-sparks-checkin-day " + dayStatus}
                   title={dayStatus === "claimed" ? "รับรางวัลแล้ว" : dayStatus === "missed" ? "พลาดแล้ว รับย้อนหลังไม่ได้" : isToday ? "รับ 50 Sparks วันนี้" : "ยังไม่ถึงวันที่รับรางวัล"}
