@@ -119,6 +119,10 @@ try{
   assert.ok(detail.textContent.includes("150"), "the detail shows the actual purchase price");
   assert.ok(detail.textContent.includes("100") && detail.textContent.includes("40"), "the detail provides a 100-to-40 example");
   assert.ok(detail.textContent.includes("Word Mode"), "the reward's Word Mode restriction is explained");
+  assert.ok(detail.textContent.includes("60%"), "Typing Relief must state a percentage, not a fixed 60 words");
+  assert.ok(detail.textContent.includes("40%"), "remaining percentage must be explained");
+  assert.ok(!detail.textContent.includes("ลดได้สูงสุด 60 คำ"), "the old fixed-word claim must not appear");
+  assert.ok(art.textContent.includes("%"), "the reward artwork must show a percent sign");
   assert.ok(detail.querySelector(".qa-sparks-reward-detail-primary:disabled"), "buy stays disabled unless wallet and session are verified");
   await act(async () => detail.querySelector(".qa-sparks-reward-detail-close").dispatchEvent(new MouseEvent("click", {bubbles:true})));
   assert.equal(document.querySelector(".qa-sparks-reward-detail-modal"), null, "detail modal closes without any purchase");
