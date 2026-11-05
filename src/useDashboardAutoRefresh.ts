@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react";
-import { isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
+import { firestoreReadWaitMs, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
 export const DASHBOARD_REFRESH_INTERVAL_MS = 5 * 60_000;
 
-// Refresh data only. Keeping the page mounted preserves filters, scroll position
+// Avoid an immediate revision query on page mount: Dashboard already loads its own data.\n// Refresh data only. Keeping the page mounted preserves filters, scroll position
 // and work in other tabs. Background tabs do not perform periodic reads.
 export function useDashboardAutoRefresh(active: boolean, refreshKey: number, refresh: () => void, readRevision?: () => Promise<string | null>, onChecked?: (at: number) => void) {
-  const lastRequestedAt = useRef(refreshKey);
+  const lastRequestedAt = useRef(Date.now());
   const lastRevision = useRef<string | null>(null);
   lastRequestedAt.current = Math.max(lastRequestedAt.current, refreshKey || 0);
 
@@ -16,7 +16,7 @@ export function useDashboardAutoRefresh(active: boolean, refreshKey: number, ref
     let disposed = false;
     const check = async (force = false) => {
       if (checking) return;
-      if (document.visibilityState !== "visible" || navigator.onLine === false) return;
+      if (document.visibilityState !== "visible" || navigator.onLine === false || firestoreReadWaitMs() > 0) return;
       const now = Date.now();
       if (!force && now - lastRequestedAt.current < DASHBOARD_REFRESH_INTERVAL_MS) return;
       lastRequestedAt.current = now;
