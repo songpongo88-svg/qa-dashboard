@@ -113,6 +113,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [voidConfirm, setVoidConfirm] = useState(false);
+  const [typingTestConfirm, setTypingTestConfirm] = useState(false);
   const [voidSaving, setVoidSaving] = useState(false);
   const [revision, setRevision] = useState(0);
   const [adminReady, setAdminReady] = useState(false);
@@ -122,7 +123,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
   const [reauthLoading, setReauthLoading] = useState(false);
   const [reauthError, setReauthError] = useState("");
 
-  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair", input: Record<string, unknown> = {}) => {
+  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test", input: Record<string, unknown> = {}) => {
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const response = await fetch("/api/sparks-admin", {
       method: "POST",
@@ -290,6 +291,39 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
     && detail.wallet.spent === 99800 && detail.wallet.firstLogin?.amount === 150
     && voidGrant && voidDeduct
   );
+  const typingRedemption = detail?.history.find((item) =>
+    item.source === "reward-redemption" && item.amount === -150 && !item.voided);
+  const typingActivation = detail?.history.find((item) =>
+    item.source === "reward-activation" && item.amount === 0 && !item.voided);
+  const typingDeduction = detail?.history.find((item) =>
+    item.source === "admin-deduct" && item.amount === -150 && !item.voided);
+  const canCorrectTypingTest = adminReady && normalizeUser(chosen) === "suphitcha" && Boolean(
+    detail && detail.wallet.balance === 200 && detail.wallet.earned === 500
+    && detail.wallet.spent === 300 && detail.wallet.rewardOrders === 1
+    && detail.wallet.firstLogin?.amount === 500 && typingRedemption
+    && typingActivation && typingDeduction
+  );
+  async function voidSuphitchaTypingTest() {
+    if (!canCorrectTypingTest || !typingRedemption || !typingActivation || !typingDeduction
+      || !typingTestConfirm || voidSaving) return;
+    setVoidSaving(true); setError("");
+    try {
+      const result = await request("void-suphitcha-typing-test", {
+        targetUsername: chosen, redemptionHistoryId: typingRedemption.id,
+        activationHistoryId: typingActivation.id, deductionHistoryId: typingDeduction.id,
+      });
+      setTypingTestConfirm(false);
+      setNotice(result.alreadyApplied
+        ? "รายการทดลองนี้ได้รับการแก้ไขแล้ว ไม่มีการปรับซ้ำ"
+        : "ยกเลิกการทดสอบ Typing Relief และปรับลด Sparks แล้ว · คงเหลือ 500 · ได้รับสะสม 500 · ใช้ไป 0");
+      setRevision((value) => value + 1);
+      window.dispatchEvent(new Event("qa:sparks-updated"));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "ไม่สามารถยกเลิกรายการทดสอบได้");
+      setTypingTestConfirm(false);
+    } finally { setVoidSaving(false); }
+  }
+
   async function voidChachiyaTestRecords() {
     if (!canCorrectTest || !voidGrant || !voidDeduct || !voidConfirm || voidSaving) return;
     setVoidSaving(true); setError("");
@@ -400,7 +434,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
         <input id="qa-sparks-admin-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ชื่อ / Username / Role"/>
         <div className="qa-sparks-admin-list" role="list" aria-label="รายชื่อผู้ใช้งาน">
           {filteredUsers.map((user) => <button key={user.username} type="button" role="listitem" aria-current={chosen === user.username}
-            className={chosen === user.username ? "selected" : ""} onClick={() => { setChosen(user.username); setOperation(null); setVoidConfirm(false); setFilter("all"); setNotice(""); }}>
+            className={chosen === user.username ? "selected" : ""} onClick={() => { setChosen(user.username); setOperation(null); setVoidConfirm(false); setTypingTestConfirm(false); setFilter("all"); setNotice(""); }}>
             <span className="qa-sparks-admin-user-title">{user.displayName}<small>@{user.username} · {user.role || "User"}</small></span>
             <span className="qa-sparks-admin-user-balance">{adminReady || user.balanceKnown ? fmt(user.balance) : "—"} <small>Sparks{!adminReady && user.balanceKnown ? " · แคช" : ""}</small></span>
           </button>)}
@@ -428,6 +462,8 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
             <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องแก้การเชื่อมต่อ Google Cloud ก่อน" : ""} onClick={() => startOperation("deduct")}>− ปรับลด Sparks</button>
             {canCorrectTest ? <button type="button" data-sparks-correction="chachiya" className="qa-sparks-admin-void-test"
               onClick={() => { setError(""); setVoidConfirm(true); }}>ยกเลิกรายการทดลอง +99,800 / −99,800</button> : null}
+            {canCorrectTypingTest ? <button type="button" data-sparks-correction="suphitcha" className="qa-sparks-admin-void-test"
+              onClick={() => { setError(""); setTypingTestConfirm(true); }}>ยกเลิกการทดสอบ Typing Relief / −150 Sparks</button> : null}
           </div>
           <div className="qa-sparks-admin-history-heading">
             <h3>ประวัติคะแนนและการแลกรางวัล</h3>
@@ -456,6 +492,26 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
         </>}
       </section>
     </div>
+    {typingTestConfirm && selected && canCorrectTypingTest ? <div className="qa-sparks-admin-overlay" role="presentation">
+      <section className="qa-sparks-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="qa-sparks-typing-reset-title">
+        <h2 id="qa-sparks-typing-reset-title">ยืนยันคืนยอดก่อนทดลอง Typing Relief</h2>
+        <p>บัญชี: <strong>Suphitcha Keawliam (@Suphitcha)</strong></p>
+        <p>ยกเลิกผลคะแนนของรายการ <strong>Typing Relief Redeemed −150</strong>,
+          <strong> Typing Relief Activated 0</strong> และ <strong>Admin Deducted −150</strong>
+          โดยเก็บประวัติทั้งหมดไว้เป็นหลักฐาน</p>
+        <div className="qa-sparks-admin-confirm">
+          <p><strong>ยอดหลังยืนยัน</strong></p>
+          <p>คงเหลือ <strong>500 Sparks</strong> · ได้รับสะสม <strong>500 Sparks</strong> · ใช้ไป <strong>0 Sparks</strong> · รายการแลก <strong>0</strong></p>
+          <p>คงรางวัล First Login 500 Sparks และ Member Level ตามคะแนนจริง ไม่แก้ย้อนหลังผลภารกิจ QA Access ที่เคยใช้สิทธิ์ไปแล้ว</p>
+        </div>
+        <div className="qa-sparks-admin-actions">
+          <button type="button" className="secondary" onClick={() => setTypingTestConfirm(false)} disabled={voidSaving}>ยกเลิก</button>
+          <button type="button" onClick={() => { void voidSuphitchaTypingTest(); }} disabled={voidSaving}>
+            {voidSaving ? "กำลังตรวจสอบและแก้ไข..." : "ยืนยันคืนยอด 500 Sparks"}
+          </button>
+        </div>
+      </section>
+    </div> : null}
     {voidConfirm && selected && canCorrectTest ? <div className="qa-sparks-admin-overlay" role="presentation">
       <section className="qa-sparks-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="qa-sparks-void-title">
         <h2 id="qa-sparks-void-title">ยืนยันการแก้ไข Sparks ที่เพิ่มผิด</h2>
