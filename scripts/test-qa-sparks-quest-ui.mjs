@@ -58,7 +58,7 @@ try{
   assert.ok(card);
   assert.ok(card.textContent.includes("Daily Check-in"));
   assert.ok(card.textContent.includes("+50"));
-  assert.ok(card.textContent.includes("9–22 พฤศจิกายน 2026"));
+  assert.ok(card.textContent.includes("9–22 พ.ย."), "compact item shows short event date; full date remains inside popup");
   await act(async()=>card.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const modal=document.querySelector(".qa-sparks-checkin-modal");
   assert.ok(modal);

@@ -28,7 +28,7 @@ type ClaimResult = {
 };
 type Props = {
   username: string; sessionId: string; claimedDays: number[];
-  loaded: boolean; display?: "overview" | "full";
+  loaded: boolean;
 };
 
 function CalendarBadge({ size = 34 }: { size?: number }) {
@@ -40,7 +40,7 @@ function CalendarBadge({ size = 34 }: { size?: number }) {
   </svg>;
 }
 
-export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded, display = "overview" }: Props) {
+export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [serverDays, setServerDays] = useState<{ username: string; days: number[] } | null>(null);
@@ -60,6 +60,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
   const finished = today > DAILY_CHECKIN_EVENT.end;
   const currentDay = Number(today.slice(-2));
   const status = upcoming ? "เตรียมเปิดกิจกรรม" : finished ? "กิจกรรมสิ้นสุดแล้ว" : saved.includes(currentDay) ? "รับรางวัลวันนี้แล้ว" : "เช็กอินวันนี้ได้";
+  // The short item label stays compact; full quest status is available in the calendar dialog.
   const statusClass = upcoming ? "upcoming" : finished ? "finished" : "live";
 
   useEffect(() => {
@@ -133,30 +134,16 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
     }
   };
   return <>
-    <section className="qa-sparks-quest-center" aria-label="Quest Center">
-      <div className="qa-sparks-quest-center-head">
-        <div><div className="qa-sparks-quest-overline">QA SPARKS · QUEST #01</div><h2><CalendarBadge size={24}/> Quest Center</h2><p>เลือกภารกิจเพื่อดูรายละเอียดและรับรางวัล</p></div>
-        <span className="qa-sparks-quest-count">1 Quest</span>
-      </div>
-      <button type="button" ref={trigger} className="qa-sparks-quest-tile" data-quest-item="daily-checkin"
-        aria-haspopup="dialog" aria-expanded={open} aria-label="เปิดรายละเอียด Daily Check-in" onClick={openDetails}>
-        <span className="qa-sparks-quest-tile-art">
-          <span className="qa-sparks-quest-sunburst"/>
-          <span className="qa-sparks-quest-big-calendar"><CalendarBadge size={92}/></span>
-          <span className="qa-sparks-quest-coin">✦ 50</span>
-        </span>
-        <span className="qa-sparks-quest-tile-details">
-          <span className="qa-sparks-quest-eyebrow"><span>DAILY EVENT</span><span className={"qa-sparks-quest-state " + statusClass}>{status}</span></span>
-          <strong>Daily Check-in</strong>
-          <span className="qa-sparks-quest-tile-dates">9–22 พฤศจิกายน 2026 · 14 วัน</span>
-          <span className="qa-sparks-quest-tile-bottom">
-            <span><b>+50</b> Sparks / วัน</span>
-            <span>ดูปฏิทิน <span aria-hidden="true">›</span></span>
-          </span>
-        </span>
-      </button>
-      {display === "full" ? <p className="qa-sparks-quest-center-foot">Quest ใหม่จะปรากฏในรายการนี้เมื่อเปิดกิจกรรมเพิ่มเติม</p> : null}
-    </section>
+    <button type="button" ref={trigger} className="qa-sparks-mini-item qa-sparks-mini-item--daily" data-quest-item="daily-checkin"
+      aria-haspopup="dialog" aria-expanded={open} aria-label={"เปิด Daily Check-in · +50 Sparks ต่อวัน · " + status} onClick={openDetails}>
+      <span className="qa-sparks-mini-art qa-sparks-mini-art--daily">
+        <span className="qa-sparks-quest-big-calendar"><CalendarBadge size={76}/></span>
+        <span className="qa-sparks-mini-corner">+50</span>
+      </span>
+      <strong className="qa-sparks-mini-name">Daily Check-in</strong>
+      <span className="qa-sparks-mini-value">+50 Sparks/วัน</span>
+      <span className="qa-sparks-mini-hint">9–22 พ.ย.</span>
+    </button>
 
     {open && typeof document !== "undefined" ? createPortal(
       <div className="qa-sparks-checkin-backdrop" style={{

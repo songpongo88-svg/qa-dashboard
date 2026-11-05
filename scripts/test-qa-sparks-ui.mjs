@@ -110,6 +110,11 @@ try{
   assert.ok(profileQuest.textContent.includes("+150"));
   const trueMoneyReward = main.querySelector('[data-reward-item="truemoney-20"]');
   assert.ok(trueMoneyReward, "TrueMoney Reward item is listed alongside Typing Relief");
+  assert.ok(trueMoneyReward.classList.contains("qa-sparks-mini-item"), "TrueMoney uses mini slot");
+  assert.ok(questCard.classList.contains("qa-sparks-mini-item"), "Daily Check-in uses mini slot");
+  assert.ok(profileQuest.classList.contains("qa-sparks-mini-item"), "Profile Makeover uses mini slot");
+  assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,2, "both Quests align in one grid");
+  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,2, "Reward Center mini grid shows both items");
 
   assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes("9–22"));
   await act(async () => questCard.dispatchEvent(new MouseEvent("click",{bubbles:true})));
@@ -123,7 +128,9 @@ try{
   assert.equal(item.tagName, "BUTTON", "whole Item must be clickable");
   assert.equal(item.getAttribute("aria-haspopup"), "dialog");
   assert.ok(item.textContent.includes("Typing Relief") && item.textContent.includes("150"), "compact Item shows title and price");
-  assert.ok(item.textContent.includes("ดูรายละเอียด"), "Item advertises its details action");
+  assert.ok(!item.textContent.includes("ดูรายละเอียด"), "Item surface is image + name + price, details are in the popup");
+  assert.ok(item.classList.contains("qa-sparks-mini-item"), "Typing Relief is rendered as a compact game slot");
+  assert.ok(item.querySelector(".qa-sparks-mini-art"), "Typing Relief has a dedicated mini artwork square");
   assert.ok(!item.textContent.includes("วิธีใช้งาน") && !item.textContent.includes("เงื่อนไขสำคัญ"), "full explanations must not be displayed on the Item");
   assert.ok(!main.textContent.includes("สะสมได้ 10 สิทธิ์"), "inventory rules must live inside the modal, not the Item");
   const art = item.querySelector(".qa-relief-art-svg");
@@ -167,12 +174,16 @@ try{
   await click("#qa-sparks-tab-rewards");
   assert.equal(main.querySelector("#qa-sparks-tab-rewards")?.getAttribute("aria-selected"),"true");
   assert.ok(main.querySelector("#qa-sparks-panel-rewards"),"reward tab changes content");
+  await click("#qa-sparks-tab-items");
+  assert.ok(main.querySelector("#qa-sparks-panel-items"),"My Items tab exists");
+  assert.equal(main.querySelectorAll(".qa-sparks-owned-typing-item").length,0,"do not render unowned Typing Relief as a long card");
+  assert.equal(main.querySelectorAll('[data-owned-item]').length,0,"do not fabricate inventory items");
   await click("#qa-sparks-tab-history");
   assert.ok(main.querySelector("#qa-sparks-panel-history"),"history tab changes content");
   await click("#qa-sparks-tab-overview");
   assert.ok(main.querySelector("#qa-sparks-panel-overview"),"overview tab returns");
 
-  console.log("PASS QA Sparks: compact event Item, illustrated Artwork, clickable details with rules/how-to, safe in-modal redemption and history");
+  console.log("PASS QA Sparks: 112px RPG mini item grid, only image/name/price upfront, detail popups and no unowned Typing Relief");
 } finally {
   await act(async()=>root.unmount());
   dom.window.close();
