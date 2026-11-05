@@ -518,12 +518,17 @@ async function adjustBalance(body, admin) {
       }
       const data = recordValue(walletDoc);
       let signedAmount = operation === "add" ? quantity : -quantity;
+      let typingReliefRefund = false;
       if (operation === "refund") {
         const originalRow = recordValue(original);
         if (originalRow.source !== "reward-redemption" || !Number.isSafeInteger(Number(originalRow.amount)) || Number(originalRow.amount) >= 0) {
           fail("ไม่พบรายการแลกรางวัลที่สามารถคืนคะแนนได้", 400);
         }
         signedAmount = -Number(originalRow.amount);
+        if (originalRow.rewardId === "typing-relief") {
+          if (intCount(data.typingReliefOwned) < 1) fail("ไม่สามารถคืนคะแนน Typing Relief ที่ใช้ไปแล้วได้", 400);
+          typingReliefRefund = true;
+        }
       }
       const oldBalance = balance(data.balance);
       if (signedAmount < 0 && oldBalance < -signedAmount) fail("Sparks คงเหลือไม่พอสำหรับปรับลด", 400);
@@ -541,6 +546,10 @@ async function adjustBalance(body, admin) {
         totalSpent: spending + Math.max(0, -signedAmount),
         updatedAt: now,
       };
+      if (typingReliefRefund) {
+        updated.typingReliefOwned = intCount(data.typingReliefOwned) - 1;
+        updated.typingReliefRefunded = intCount(data.typingReliefRefunded) + 1;
+      }
       const fields = encodeFields(updated);
       const history = {
         createdAt: now, type: signedAmount < 0 ? "spend" : "earn",
@@ -549,6 +558,7 @@ async function adjustBalance(body, admin) {
         performedByName: admin.displayName, referenceId: operation === "refund" ? referenceId : "",
         requestId,
         status: "Completed",
+        ...(typingReliefRefund ? { rewardId: "typing-relief" } : {}),
       };
       const writes = [
         {
