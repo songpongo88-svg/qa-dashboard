@@ -8,6 +8,9 @@ const API_ROOT = "https://firestore.googleapis.com/v1/" + DOCUMENTS_RESOURCE;
 const SESSION_POLICY = "qa-session-policy-2026-07-15-v1";
 const ADMIN_USERNAME = "songpon";
 const policyErrorCode = "SESSION_POLICY_OUTDATED";
+const TYPING_RELIEF_PRICE = 150;
+const TYPING_RELIEF_WORDS = 60;
+const TYPING_RELIEF_MAX_OWNED = 10;
 let accessToken = "";
 let tokenExpiry = 0;
 
@@ -199,6 +202,173 @@ async function requireActiveTarget(username) {
   if (isSuspendedProfile(profile)) fail("ไม่สามารถจัดการ Sparks ของบัญชี Suspended ได้", 403);
   return profile;
 }
+
+async function authorizeRewardUser(body) {
+  const username = safeUsername(body.actorUsername);
+  const sessionId = String(body.sessionId || "");
+  if (!/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId)) fail("กรุณาเข้าสู่ระบบ QA Dashboard ใหม่", 403);
+  const sessionDoc = await readDoc(path("qa_user_sessions", sessionId));
+  if (!sessionDoc) fail("ไม่พบ Session ที่ใช้งานอยู่", 403);
+  const session = recordValue(sessionDoc);
+  if (normalize(session.username) !== username || session.status !== "active"
+      || !Number.isFinite(Date.parse(session.expiresAt || ""))
+      || Date.parse(session.expiresAt || "") <= Date.now()) {
+    fail("Session ไม่ถูกต้องหรือหมดอายุ กรุณา Login ใหม่", 403);
+  }
+  const revoked = recordValue(await readDoc(path("qa_user_session_controls", username)));
+  const revokedAt = Date.parse(revoked.revokedBefore || "");
+  if (Number.isFinite(revokedAt) && Date.parse(session.createdAt || "") <= revokedAt) {
+    fail("Session นี้ถูกระงับ", 403);
+  }
+  const profile = await findProfileByUsername(username);
+  if (isSuspendedProfile(profile) || normalize(profile.username) !== username) {
+    fail("บัญชี QA ไม่พร้อมใช้งานหรือถูก Suspended", 403);
+  }
+  return { username, displayName: String(session.displayName || profile.displayName || username) };
+}
+
+const intCount = (value) => Number.isSafeInteger(Number(value)) && Number(value) >= 0 ? Number(value) : 0;
+const walletDocumentPath = (username) => path("qa_sparks_wallets", walletKey(username));
+const resourceName = (docPath) => DOCUMENTS_RESOURCE + "/" + docPath;
+const updateWrite = (docPath, updates, snap) => ({
+  update: { name: resourceName(docPath), fields: encodeFields(updates) },
+  updateMask: { fieldPaths: Object.keys(updates) },
+  currentDocument: snap?.updateTime ? { updateTime: snap.updateTime } : { exists: false },
+});
+const createWrite = (docPath, value) => ({
+  update: { name: resourceName(docPath), fields: encodeFields(value) },
+  currentDocument: { exists: false },
+});
+
+async function redeemTypingRelief(body, actor) {
+  const requestId = checkRequestId(body.requestId);
+  const walletPath = walletDocumentPath(actor.username);
+  const historyPath = path("qa_sparks_wallets", walletKey(actor.username), "history", "redeem-" + requestId);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const begin = await firestoreRequest(":beginTransaction", "POST", { options: { readWrite: {} } });
+    const transaction = begin?.transaction;
+    if (!transaction) fail("ไม่สามารถเริ่มการแลกรางวัลได้", 503);
+    try {
+      const [walletDoc, duplicateDoc] = await Promise.all([
+        readDoc(walletPath, transaction), readDoc(historyPath, transaction),
+      ]);
+      const wallet = recordValue(walletDoc);
+      if (duplicateDoc) {
+        const previous = recordValue(duplicateDoc);
+        if (previous.source === "reward-redemption" && previous.rewardId === "typing-relief") {
+          return { updated: false, alreadyApplied: true, balance: intCount(previous.balanceAfter), owned: intCount(previous.inventoryAfter) };
+        }
+        fail("รหัสรายการนี้เคยใช้งานแล้ว", 409);
+      }
+      const owned = intCount(wallet.typingReliefOwned);
+      const current = intCount(wallet.balance);
+      if (owned >= TYPING_RELIEF_MAX_OWNED) fail("สะสม Typing Relief ได้สูงสุด 10 สิทธิ์", 400);
+      if (current < TYPING_RELIEF_PRICE) fail("QA Sparks ไม่เพียงพอ (ต้องใช้ 150 Sparks)", 400);
+      const nextBalance = current - TYPING_RELIEF_PRICE;
+      const now = new Date().toISOString();
+      const nextOwned = owned + 1;
+      const updates = {
+        username: actor.username,
+        balance: nextBalance,
+        totalSpent: intCount(wallet.totalSpent) + TYPING_RELIEF_PRICE,
+        rewardOrders: intCount(wallet.rewardOrders) + 1,
+        typingReliefOwned: nextOwned,
+        typingReliefPurchased: intCount(wallet.typingReliefPurchased) + 1,
+        updatedAt: now,
+      };
+      const history = {
+        createdAt: now, type: "spend", source: "reward-redemption",
+        rewardId: "typing-relief", title: "Typing Relief Redeemed",
+        detail: "แลก Typing Relief ลดจำนวนคำพิมพ์ 60 คำ", amount: -TYPING_RELIEF_PRICE,
+        balanceAfter: nextBalance, inventoryAfter: nextOwned,
+        performedBy: actor.username, requestId, status: "Completed",
+      };
+      await firestoreRequest(":commit", "POST", {
+        transaction,
+        writes: [updateWrite(walletPath, updates, walletDoc), createWrite(historyPath, history)],
+      });
+      return { updated: true, balance: nextBalance, owned: nextOwned };
+    } catch (error) {
+      if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;
+      throw error;
+    }
+  }
+  fail("มีการทำรายการพร้อมกัน กรุณาลองใหม่อีกครั้ง", 409);
+}
+
+async function useTypingRelief(body, actor) {
+  const challengeId = String(body.challengeId || "").trim();
+  if (!challengeId || challengeId.length > 180 || challengeId.includes("/")) fail("ไม่พบ QA Access Check ที่ต้องการใช้สิทธิ์", 400);
+  const walletPath = walletDocumentPath(actor.username);
+  const challengePath = path("qa_typing_challenges", actor.username.replace(/\s+/g, "_"));
+  // Stable per-assignment ID guards double spending, including concurrent tabs.
+  const useId = "typing-relief-use-" + createHash("sha256").update(actor.username + "|" + challengeId).digest("hex").slice(0, 40);
+  const historyPath = path("qa_sparks_wallets", walletKey(actor.username), "history", useId);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const begin = await firestoreRequest(":beginTransaction", "POST", { options: { readWrite: {} } });
+    const transaction = begin?.transaction;
+    if (!transaction) fail("ไม่สามารถเริ่มใช้สิทธิ์ได้", 503);
+    try {
+      const [walletDoc, challengeDoc, useDoc] = await Promise.all([
+        readDoc(walletPath, transaction), readDoc(challengePath, transaction), readDoc(historyPath, transaction),
+      ]);
+      const wallet = recordValue(walletDoc);
+      if (useDoc) {
+        const used = recordValue(useDoc);
+        if (used.source === "reward-activation" && used.rewardId === "typing-relief") {
+          return { updated: false, alreadyApplied: true, balance: intCount(wallet.balance), owned: intCount(wallet.typingReliefOwned), remainingWords: intCount(used.remainingWords), appliedWords: intCount(used.appliedWords) };
+        }
+        fail("สิทธิ์นี้ถูกใช้กับรายการดังกล่าวแล้ว", 409);
+      }
+      if (!challengeDoc) fail("ไม่พบภารกิจพิมพ์ที่ยังค้างอยู่", 409);
+      const challengeData = recordValue(challengeDoc);
+      const entries = Array.isArray(challengeData.queue) ? challengeData.queue.map((item) => ({ ...item })) : [challengeData];
+      const targetIndex = entries.findIndex((item) => String(item.id || "") === challengeId);
+      if (targetIndex !== 0) fail("ใช้ Typing Relief ได้เฉพาะภารกิจปัจจุบัน", 409);
+      const target = entries[targetIndex];
+      if ((target.mode || (/\s/.test(String(target.word || "")) ? "sentence" : "word")) !== "word") {
+        fail("Typing Relief ใช้ได้เฉพาะภารกิจแบบพิมพ์คำ (Word Mode)", 400);
+      }
+      const originalWords = Number(target.repeatCount);
+      if (!Number.isSafeInteger(originalWords) || originalWords < 1 || originalWords > 500) fail("จำนวนคำของภารกิจไม่ถูกต้อง", 400);
+      if (intCount(wallet.typingReliefOwned) < 1) fail("ไม่มี Typing Relief คงเหลือ กรุณาแลกก่อน", 400);
+      const remainingWords = Math.max(1, originalWords - TYPING_RELIEF_WORDS);
+      const appliedWords = originalWords - remainingWords;
+      entries[targetIndex] = { ...target, repeatCount: remainingWords, typingReliefUsed: true };
+      const nextOwned = intCount(wallet.typingReliefOwned) - 1;
+      const now = new Date().toISOString();
+      const updates = {
+        username: actor.username,
+        typingReliefOwned: nextOwned,
+        typingReliefUsed: intCount(wallet.typingReliefUsed) + 1,
+        updatedAt: now,
+      };
+      const history = {
+        createdAt: now, type: "redeem", source: "reward-activation",
+        rewardId: "typing-relief", title: "Typing Relief Activated",
+        detail: "ใช้ Typing Relief กับ QA Access Check",
+        challengeId, originalWords, remainingWords, appliedWords,
+        amount: 0, balanceAfter: intCount(wallet.balance), inventoryAfter: nextOwned,
+        performedBy: actor.username, status: "Completed",
+      };
+      const challengeUpdates = { queue: entries, queueCount: entries.length };
+      await firestoreRequest(":commit", "POST", {
+        transaction,
+        writes: [
+          updateWrite(walletPath, updates, walletDoc),
+          updateWrite(challengePath, challengeUpdates, challengeDoc),
+          createWrite(historyPath, history),
+        ],
+      });
+      return { updated: true, balance: intCount(wallet.balance), owned: nextOwned, remainingWords, appliedWords };
+    } catch (error) {
+      if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;
+      throw error;
+    }
+  }
+  fail("มีการทำรายการพร้อมกัน กรุณาลองใหม่อีกครั้ง", 409);
+}
+
 async function reauthorizeAdminSession(body) {
   // A stale policy is repaired only with a live QA session, the active QA role
   // and the current QA account password. Do not silently accept old policies.
@@ -348,12 +518,17 @@ async function adjustBalance(body, admin) {
       }
       const data = recordValue(walletDoc);
       let signedAmount = operation === "add" ? quantity : -quantity;
+      let typingReliefRefund = false;
       if (operation === "refund") {
         const originalRow = recordValue(original);
         if (originalRow.source !== "reward-redemption" || !Number.isSafeInteger(Number(originalRow.amount)) || Number(originalRow.amount) >= 0) {
           fail("ไม่พบรายการแลกรางวัลที่สามารถคืนคะแนนได้", 400);
         }
         signedAmount = -Number(originalRow.amount);
+        if (originalRow.rewardId === "typing-relief") {
+          if (intCount(data.typingReliefOwned) < 1) fail("ไม่สามารถคืนคะแนน Typing Relief ที่ใช้ไปแล้วได้", 400);
+          typingReliefRefund = true;
+        }
       }
       const oldBalance = balance(data.balance);
       if (signedAmount < 0 && oldBalance < -signedAmount) fail("Sparks คงเหลือไม่พอสำหรับปรับลด", 400);
@@ -371,6 +546,10 @@ async function adjustBalance(body, admin) {
         totalSpent: spending + Math.max(0, -signedAmount),
         updatedAt: now,
       };
+      if (typingReliefRefund) {
+        updated.typingReliefOwned = intCount(data.typingReliefOwned) - 1;
+        updated.typingReliefRefunded = intCount(data.typingReliefRefunded) + 1;
+      }
       const fields = encodeFields(updated);
       const history = {
         createdAt: now, type: signedAmount < 0 ? "spend" : "earn",
@@ -379,6 +558,7 @@ async function adjustBalance(body, admin) {
         performedByName: admin.displayName, referenceId: operation === "refund" ? referenceId : "",
         requestId,
         status: "Completed",
+        ...(typingReliefRefund ? { rewardId: "typing-relief" } : {}),
       };
       const writes = [
         {
@@ -406,6 +586,13 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    if (body.action === "redeem-typing-relief" || body.action === "use-typing-relief") {
+      const actor = await authorizeRewardUser(body);
+      const result = body.action === "redeem-typing-relief"
+        ? await redeemTypingRelief(body, actor)
+        : await useTypingRelief(body, actor);
+      return res.status(200).json(result);
+    }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
     const admin = await authorizeAdmin(body);
     let data;

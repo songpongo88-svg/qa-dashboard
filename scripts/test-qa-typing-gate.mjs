@@ -34,10 +34,15 @@ try {
       name: "qa-typing-test-stores",
       setup(builder) {
         builder.onResolve({ filter: /^\.\/qaTypingChallenge(?:History)?Store$/ }, (args) => ({ path: args.path, namespace: "qa-test" }));
+        builder.onResolve({ filter: /^\.\/typingReliefReward$/ }, (args) => ({ path: args.path, namespace: "qa-test" }));
         builder.onLoad({ filter: /.*/, namespace: "qa-test" }, () => ({ contents: `
           export const subscribeQaTypingChallengeQueue = (...args) => globalThis.__qaTypingFixture.subscribe(...args);
           export const completeQaTypingChallenge = (...args) => globalThis.__qaTypingFixture.complete(...args);
           export const saveQaTypingChallengeHistory = (...args) => globalThis.__qaTypingFixture.save(...args);
+          export const TYPING_RELIEF = { id:"typing-relief", price:150, wordsReduced:60, maxOwned:10 };
+          export const typingReliefRemainingWords = (n) => Math.max(1, n-60);
+          export const fetchTypingReliefState = (...args) => globalThis.__qaTypingFixture.fetchInventory(...args);
+          export const typingReliefAction = (...args) => globalThis.__qaTypingFixture.action(...args);
         ` }));
       },
     }],
@@ -55,6 +60,29 @@ try {
     assert.equal(timers.size, 0, "unmount cleans up the countdown");
     fixture = {
       queue: [challenge(overrides), ...nextItems], listeners: new Set(), history: [], completions: [], saveDelay: null,
+      rewardState: { balance: 300, owned: 0 }, rewardCalls: [], rewardError: false,
+      async fetchInventory() {
+        if (this.rewardError) throw new Error("Firestore limit exceeded");
+        return this.rewardState;
+      },
+      async action(action, name, session, input) {
+        this.rewardCalls.push({ action, name, session, input });
+        if (action === "redeem-typing-relief") {
+          if (this.rewardState.owned >= 10 || this.rewardState.balance < 150) throw new Error("Insufficient reward entitlement");
+          this.rewardState = { balance:this.rewardState.balance - 150, owned:this.rewardState.owned + 1 };
+          return { updated:true, balance:this.rewardState.balance, owned:this.rewardState.owned };
+        }
+        if (action === "use-typing-relief") {
+          if (this.rewardState.owned <= 0) throw new Error("No Typing Relief");
+          const current = this.queue[0];
+          if (current.id !== input.challengeId) throw new Error("Wrong challenge");
+          const remainingWords = Math.max(1, current.repeatCount - 60);
+          const appliedWords = current.repeatCount - remainingWords;
+          this.rewardState = { ...this.rewardState, owned:this.rewardState.owned - 1 };
+          this.emit([{...current,repeatCount:remainingWords},...this.queue.slice(1)]);
+          return {updated:true,owned:this.rewardState.owned,balance:this.rewardState.balance,remainingWords,appliedWords};
+        }
+      },
       subscribe(username, callback) {
         assert.equal(username, user.username);
         this.listeners.add(callback); callback(this.queue);
@@ -240,6 +268,50 @@ try {
   assert.equal(field().value, "");
   assert.match(document.body.textContent, /ขอบคุณ/);
   console.log("PASS stale submission does not affect a replacement assignment");
+  user.sessionId = "typing-fixture-session-1234";
+  await mount({ repeatCount: 100, timeLimitSeconds: 120 });
+  assert.match(document.body.textContent, /เลือกวิธีก่อนเริ่มพิมพ์/);
+  assert.equal(field().disabled, true, "typing is blocked until the user chooses a path");
+  await tick(2);
+  assert.equal(countdown(), "2:00", "reward selection pauses the QA typing timer");
+  const normal = () => [...document.querySelectorAll("button")].find((button) => button.textContent.includes("พิมพ์ตามปกติ"));
+  await click(normal());
+  assert.equal(field().disabled, false);
+  assert.match(document.body.textContent, /พิมพ์แล้ว 0 \/ 100/);
+  await tick(1);
+  assert.equal(countdown(), "1:59");
+  assert.equal(fixture.rewardCalls.length, 0, "normal typing neither redeems nor consumes rewards");
+  console.log("PASS optional reward popup, unchanged 100-word typing, timer paused before choice");
+
+  await mount({ repeatCount: 100, timeLimitSeconds: 120 });
+  await act(async () => { fixture.rewardState = { balance: 150, owned: 1 }; });
+  // Explicitly re-emit a new assignment to open the owned-reward offer.
+  await act(async () => fixture.emit([challenge({ id: "owned-reward-task", repeatCount: 100, timeLimitSeconds: 120 })]));
+  const useTicket = () => [...document.querySelectorAll("button")].find((button) => button.textContent.includes("ใช้ Typing Relief 1 สิทธิ์"));
+  assert.ok(useTicket(), "owned ticket should offer Use or Type normally");
+  await click(useTicket());
+  assert.match(document.body.textContent, /พิมพ์แล้ว 0 \/ 40/);
+  assert.equal(fixture.rewardState.owned, 0);
+  assert.equal(fixture.completions.length, 0, "using 60-word relief never skips completion of a 100-word challenge");
+  console.log("PASS use a saved ticket, 100->40, no premature QA unlock");
+
+  await mount({ repeatCount: 100, timeLimitSeconds: 120 });
+  const buyTicket = () => [...document.querySelectorAll("button")].find((button) => button.textContent.includes("แลก Typing Relief"));
+  assert.ok(buyTicket(), "no ticket should offer 150-Sparks redemption");
+  await click(buyTicket());
+  assert.equal(fixture.rewardState.owned, 0, "opening purchase confirmation must not deduct Sparks");
+  const confirmBuy = [...document.querySelectorAll("button")].find((button) => button.textContent.includes("ยืนยันแลก 150 Sparks"));
+  assert.ok(confirmBuy, "gate purchase requires explicit confirmation");
+  await click(confirmBuy);
+  assert.equal(fixture.rewardState.owned, 1);
+  assert.equal(fixture.rewardState.balance, 150);
+  assert.ok(useTicket(), "user can use the newly redeemed ticket");
+  await click(useTicket());
+  assert.match(document.body.textContent, /พิมพ์แล้ว 0 \/ 40/);
+  assert.equal(fixture.rewardCalls.map((item) => item.action).join(","), "redeem-typing-relief,use-typing-relief");
+  console.log("PASS buy during QA Access, then use one ticket, with proper balance and inventory updates");
+  delete user.sessionId;
+
 } finally {
   if (root) await act(async () => root.unmount());
   dom.window.close();

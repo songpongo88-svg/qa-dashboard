@@ -6,10 +6,12 @@ import {
   type QaTypingChallengeMode,
 } from "./qaTypingChallengeStore";
 import { saveQaTypingChallengeHistory, type QaTypingChallengeHistoryResult } from "./qaTypingChallengeHistoryStore";
+import { TYPING_RELIEF, fetchTypingReliefState, typingReliefAction, typingReliefRemainingWords } from "./typingReliefReward";
 
 type GateUser = {
   username?: string;
   displayName?: string;
+  sessionId?: string;
 };
 
 function splitTypedUnits(value: string, mode: QaTypingChallengeMode) {
@@ -67,6 +69,12 @@ export default function QaTypingGate({
   const attemptVersionRef = useRef(0);
   const passHistoryRecordedRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [rewardChoice, setRewardChoice] = useState<"checking" | "offer" | "typing">("typing");
+  const [rewardOwned, setRewardOwned] = useState(0);
+  const [rewardBalance, setRewardBalance] = useState(0);
+  const [rewardError, setRewardError] = useState("");
+  const [rewardBusy, setRewardBusy] = useState(false);
+  const [confirmRewardPurchase, setConfirmRewardPurchase] = useState(false);
   const checking = attemptPhase === "checking";
   const needsRestart = attemptPhase === "failed" || attemptPhase === "timeout";
 
@@ -81,6 +89,30 @@ export default function QaTypingGate({
   }, [username]);
 
   useEffect(() => {
+    let active = true;
+    setRewardError("");
+    setConfirmRewardPurchase(false);
+    setRewardOwned(0);
+    setRewardBalance(0);
+    if (!challenge || !enabled || challenge.mode !== "word" || !currentUser?.sessionId) {
+      setRewardChoice("typing");
+      return;
+    }
+    setRewardChoice("checking");
+    void fetchTypingReliefState(username).then((state) => {
+      if (!active) return;
+      setRewardOwned(state.owned);
+      setRewardBalance(state.balance);
+      setRewardChoice("offer");
+    }).catch(() => {
+      if (!active) return;
+      setRewardError("ตรวจสอบสิทธิ์ไม่ได้ขณะนี้ คุณสามารถเลือกพิมพ์ตามปกติโดยไม่เสีย Sparks");
+      setRewardChoice("offer");
+    });
+    return () => { active = false; };
+  }, [username, currentUser?.sessionId, challenge?.id, challenge?.assignedAt, challenge?.mode, enabled]);
+
+  useEffect(() => {
     attemptVersionRef.current += 1;
     attemptPhaseRef.current = "active";
     secondsLeftRef.current = challenge?.timeLimitSeconds || 60;
@@ -92,18 +124,18 @@ export default function QaTypingGate({
   }, [username, challenge?.id, challenge?.assignedAt, challenge?.word, challenge?.mode, challenge?.repeatCount, challenge?.allowedMistakes, challenge?.timeLimitSeconds]);
 
   useEffect(() => {
-    if (!enabled || !challenge || attemptPhase !== "active" || secondsLeft <= 0) return;
+    if (!enabled || !challenge || rewardChoice !== "typing" || attemptPhase !== "active" || secondsLeft <= 0) return;
     const timer = window.setInterval(() => {
       if (attemptPhaseRef.current !== "active") return;
       secondsLeftRef.current = Math.max(0, secondsLeftRef.current - 1);
       setSecondsLeft(secondsLeftRef.current);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [enabled, challenge, attemptPhase, secondsLeft > 0]);
+  }, [enabled, challenge, rewardChoice, attemptPhase, secondsLeft > 0]);
 
   useEffect(() => {
-    if (enabled && attemptPhase === "active") textareaRef.current?.focus();
-  }, [enabled, challenge?.id, attemptPhase]);
+    if (enabled && rewardChoice === "typing" && attemptPhase === "active") textareaRef.current?.focus();
+  }, [enabled, rewardChoice, challenge?.id, attemptPhase]);
 
   const saveAttemptHistory = async (
     result: QaTypingChallengeHistoryResult,
@@ -153,9 +185,9 @@ export default function QaTypingGate({
   };
 
   useEffect(() => {
-    if (!enabled || !challenge || secondsLeft !== 0 || secondsLeftRef.current !== 0) return;
+    if (!enabled || !challenge || rewardChoice !== "typing" || secondsLeft !== 0 || secondsLeftRef.current !== 0) return;
     finishAttempt("Timeout", splitTypedUnits(typedText, challenge.mode));
-  }, [enabled, challenge, secondsLeft, typedText]);
+  }, [enabled, challenge, rewardChoice, secondsLeft, typedText]);
 
   const typedUnits = useMemo(
     () => challenge ? splitTypedUnits(typedText, challenge.mode) : [],
@@ -171,6 +203,32 @@ export default function QaTypingGate({
   const unitLabel = isSentence ? "รอบ" : "คำ";
   const contentLabel = isSentence ? "ประโยค" : "คำ";
 
+  const buyTypingRelief = async () => {
+    if (!currentUser?.sessionId || rewardBusy || rewardBalance < TYPING_RELIEF.price || rewardOwned >= TYPING_RELIEF.maxOwned) return;
+    setRewardBusy(true); setRewardError("");
+    try {
+      const data = await typingReliefAction("redeem-typing-relief", username, currentUser.sessionId, { requestId: crypto.randomUUID() });
+      setRewardOwned(data.owned);
+      setRewardBalance(data.balance);
+      setConfirmRewardPurchase(false);
+    } catch (error) {
+      setRewardError(error instanceof Error ? error.message : "แลก Typing Relief ไม่สำเร็จ");
+    } finally { setRewardBusy(false); }
+  };
+
+  const applyTypingRelief = async () => {
+    if (!currentUser?.sessionId || !challenge || rewardBusy || rewardOwned <= 0 || challenge.mode !== "word") return;
+    setRewardBusy(true); setRewardError("");
+    try {
+      const data = await typingReliefAction("use-typing-relief", username, currentUser.sessionId, { challengeId: challenge.id });
+      setRewardOwned(data.owned);
+      setRewardChoice("typing");
+      setMessage(`ใช้ Typing Relief แล้ว ลดจำนวนคำพิมพ์ ${data.appliedWords ?? 0} คำ เหลือ ${data.remainingWords ?? typingReliefRemainingWords(challenge.repeatCount)} คำ`);
+    } catch (error) {
+      setRewardError(error instanceof Error ? error.message : "ใช้ Typing Relief ไม่สำเร็จ");
+    } finally { setRewardBusy(false); }
+  };
+
   const resetAttempt = () => {
     if (attemptPhaseRef.current === "checking") return;
     attemptVersionRef.current += 1;
@@ -185,7 +243,7 @@ export default function QaTypingGate({
   };
 
   const updateTypedText = (value: string, isComposing = false) => {
-    if (attemptPhaseRef.current !== "active" || secondsLeftRef.current <= 0) return;
+    if (rewardChoice !== "typing" || attemptPhaseRef.current !== "active" || secondsLeftRef.current <= 0) return;
     setTypedText(value);
     if (message) setMessage("");
     if (isComposing) return;
@@ -196,7 +254,7 @@ export default function QaTypingGate({
   };
 
   const verify = async () => {
-    if (attemptPhaseRef.current !== "active" || secondsLeftRef.current <= 0) return;
+    if (rewardChoice !== "typing" || attemptPhaseRef.current !== "active" || secondsLeftRef.current <= 0) return;
     const units = splitTypedUnits(typedText, challenge.mode);
     if (units.length !== challenge.repeatCount) {
       setMessage(`ยังไม่ผ่าน — ต้องพิมพ์ให้ครบ ${challenge.repeatCount} ${unitLabel} ปัจจุบันพิมพ์ ${units.length} ${unitLabel}`);
@@ -245,6 +303,43 @@ export default function QaTypingGate({
 
   return (
     <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/65 px-4 py-6 backdrop-blur-[3px]" style={{ fontFamily: "'Kanit', sans-serif" }}>
+      {rewardChoice !== "typing" ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/75 px-4 py-6">
+        <section role="dialog" aria-modal="true" aria-label="Typing Relief ก่อนเริ่มพิมพ์" className="w-full max-w-[520px] rounded-[26px] border border-violet-100 bg-white p-6 shadow-2xl sm:p-8">
+          <div className="text-sm font-black uppercase tracking-widest text-violet-700">QA ACCESS · TYPING RELIEF</div>
+          <h2 className="mt-2 text-2xl font-black text-slate-900">เลือกวิธีก่อนเริ่มพิมพ์</h2>
+          {rewardChoice === "checking" ? <p className="mt-4 text-sm text-slate-600">กำลังตรวจสอบสิทธิ์ Typing Relief...</p>
+            : <>
+              <p className="mt-3 text-sm text-slate-600">ภารกิจนี้กำหนดให้พิมพ์ <strong>{challenge.repeatCount} คำ</strong> · Typing Relief ใช้ 1 สิทธิ์ ลดจำนวนคำที่ต้องพิมพ์ได้สูงสุด 60 คำ (ต้องเหลืออย่างน้อย 1 คำ)</p>
+              <div className="mt-4 rounded-xl bg-violet-50 p-4 text-sm font-semibold text-violet-900">
+                สิทธิ์คงเหลือ: <strong>{rewardOwned}/10</strong> · Sparks: <strong>{rewardBalance}</strong>
+                {rewardOwned ? <p className="mt-2 text-xs">ใช้ 1 สิทธิ์ → เหลือ {typingReliefRemainingWords(challenge.repeatCount)} คำ</p> : <p className="mt-2 text-xs">ยังไม่มีสิทธิ์ สามารถแลก 1 สิทธิ์ราคา 150 Sparks หรือพิมพ์ตามปกติได้</p>}
+              </div>
+              {rewardError ? <p role="alert" className="mt-3 text-sm font-bold text-rose-700">{rewardError}</p> : null}
+              {rewardOwned > 0 ? <button type="button" onClick={() => void applyTypingRelief()} disabled={rewardBusy}
+                  className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
+                  {rewardBusy ? "กำลังใช้สิทธิ์..." : "ใช้ Typing Relief 1 สิทธิ์"}
+                </button> : confirmRewardPurchase ? <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+                  ยืนยันหัก 150 QA Sparks เพื่อรับ Typing Relief 1 สิทธิ์ใช่หรือไม่?
+                  <button type="button" onClick={() => void buyTypingRelief()} disabled={rewardBusy || rewardBalance < TYPING_RELIEF.price}
+                    className="mt-2 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
+                    {rewardBusy ? "กำลังบันทึก..." : "ยืนยันแลก 150 Sparks"}
+                  </button>
+                  <button type="button" onClick={() => setConfirmRewardPurchase(false)} disabled={rewardBusy}
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-600">
+                    ยกเลิกการแลก
+                  </button>
+                </div> :
+                <button type="button" onClick={() => setConfirmRewardPurchase(true)} disabled={rewardBusy || rewardBalance < TYPING_RELIEF.price}
+                  className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
+                  แลก Typing Relief · 150 Sparks
+                </button>}
+              <button type="button" onClick={() => { if (!rewardBusy) setRewardChoice("typing"); }} disabled={rewardBusy}
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 disabled:opacity-50">
+                ไม่แลก / ยังไม่ใช้ · พิมพ์ตามปกติ
+              </button>
+            </>}
+        </section>
+      </div> : null}
       <section className="w-full max-w-[980px] overflow-hidden rounded-[30px] border border-white/80 bg-white shadow-[0_35px_110px_rgba(15,23,42,0.38)]">
         <div className="h-1.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-indigo-500" />
         <div className="max-h-[calc(100vh-2rem)] overflow-y-auto p-5 sm:p-7 lg:p-9">
@@ -330,7 +425,7 @@ export default function QaTypingGate({
                 }}
                 onContextMenu={(event) => event.preventDefault()}
                 onKeyDown={blockClipboardShortcut}
-                disabled={secondsLeft <= 0 || attemptPhase !== "active"}
+                disabled={rewardChoice !== "typing" || secondsLeft <= 0 || attemptPhase !== "active"}
                 autoFocus
                 spellCheck={false}
                 autoComplete="off"
@@ -392,7 +487,7 @@ export default function QaTypingGate({
               <button
                 type="button"
                 onClick={() => void verify()}
-                disabled={attemptPhase !== "active" || secondsLeft <= 0 || typedUnits.length < challenge.repeatCount}
+                disabled={rewardChoice !== "typing" || attemptPhase !== "active" || secondsLeft <= 0 || typedUnits.length < challenge.repeatCount}
                 className="rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-sm font-black text-white shadow-[0_12px_30px_rgba(109,40,217,0.24)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {checking ? "กำลังตรวจสอบ..." : queue.length > 1 ? "✓ ตรวจสอบและไปรายการถัดไป" : "✓ ตรวจสอบ"}

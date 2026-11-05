@@ -30,12 +30,13 @@ export type SparksHistoryItem = {
 export type SparksAccount = {
   balance: number;
   rewardOrders: number;
+  typingReliefOwned: number;
   firstLogin: FirstLoginPrize | null;
   history: SparksHistoryItem[];
 };
 
 export const EMPTY_SPARKS_ACCOUNT: SparksAccount = {
-  balance: 0, rewardOrders: 0, firstLogin: null, history: [],
+  balance: 0, rewardOrders: 0, typingReliefOwned: 0, firstLogin: null, history: [],
 };
 
 export function sparksAccountKey(username: string): string {
@@ -86,6 +87,7 @@ export async function getSparksAccount(username: string): Promise<SparksAccount>
   return {
     balance: safeBalance(data.balance),
     rewardOrders: safeBalance(data.rewardOrders),
+    typingReliefOwned: safeBalance(data.typingReliefOwned),
     firstLogin: validPrize(data.firstLogin),
     history: records.docs.map((row) => {
       const value = row.data();
