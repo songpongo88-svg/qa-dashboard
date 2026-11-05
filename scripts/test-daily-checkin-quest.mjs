@@ -141,17 +141,25 @@ try {
   assert.equal(commits,3);
 
   setDate("2026-11-08T17:00:00.000Z");
+  // Try Nov 12, which has no history document yet, to test the annual cap independently.
+  setDate("2026-11-12T05:00:00.000Z");
   docs.set(walletPath,{username:"Agent",balance:199975,totalEarned:199975,memberYear:2026,memberYearEarned:199975});
-  r=await invoke(claimDate(9));
+  r=await invoke(claimDate(12));
   assert.equal(r.status,400,"grant must not breach the annual 200000 Sparks cap");
   assert.equal(wallet().balance,199975);
   assert.equal(commits,3);
   docs.set(walletPath,{username:"Agent",balance:199950,totalEarned:199950,memberYear:2026,memberYearEarned:199950});
-  r=await invoke(claimDate(9));
+  r=await invoke(claimDate(12));
+  assert.equal(r.status,200,"exactly reaching 200k must be allowed");
+  assert.equal(wallet().memberYearEarned,200000);
+  assert.equal(wallet().balance,200000);
+  assert.equal(commits,4);
   // Already-claimed fixed history ID remains authoritative even if wallet state is artificially reset.
+  docs.set(walletPath,{username:"Agent",balance:200000,totalEarned:200000,memberYear:2026,memberYearEarned:200000});
+  r=await invoke(claimDate(12));
   assert.equal(r.status,200);
   assert.equal(r.body.alreadyClaimed,true);
-  assert.equal(commits,3,"cannot grant duplicate even if wallet's claimedDays is absent");
+  assert.equal(commits,4,"cannot grant duplicate even if wallet's claimedDays is absent");
 
   // Start a fresh 14-day walk with empty history and a clean wallet.
   for (const k of [...docs.keys()]) if (k.startsWith("qa_sparks_wallets/agent/history/quest-daily-checkin-")) docs.delete(k);
