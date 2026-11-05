@@ -47,6 +47,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
   const [today, setToday] = useState(() => bangkokQuestToday());
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [modalTheme, setModalTheme] = useState({accent:"#7e22ce", dark:"#581c87",soft:"#faf5ff"});
   const trigger = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLElement>(null);
@@ -92,6 +93,14 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
     };
   }, [open]);
   const openDetails = () => {
+    if (trigger.current) {
+      const theme = window.getComputedStyle(trigger.current);
+      setModalTheme({
+        accent: theme.getPropertyValue("--sparks-accent").trim() || "#7e22ce",
+        dark: theme.getPropertyValue("--sparks-dark").trim() || "#581c87",
+        soft: theme.getPropertyValue("--sparks-soft").trim() || "#faf5ff",
+      });
+    }
     setToday(bangkokQuestToday());
     setMessage(""); setError(""); setOpen(true);
   };
@@ -150,7 +159,10 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
     </section>
 
     {open && typeof document !== "undefined" ? createPortal(
-      <div className="qa-sparks-checkin-backdrop" onMouseDown={(event) => {
+      <div className="qa-sparks-checkin-backdrop" style={{
+        "--sparks-accent": modalTheme.accent, "--sparks-dark": modalTheme.dark,
+        "--sparks-soft": modalTheme.soft,
+      } as React.CSSProperties} onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) setOpen(false);
       }}>
         <section ref={modalRef} className="qa-sparks-checkin-modal" role="dialog" aria-modal="true" aria-labelledby="qa-checkin-title" aria-describedby="qa-checkin-summary">
