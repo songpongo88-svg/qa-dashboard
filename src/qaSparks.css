@@ -435,3 +435,107 @@
 @media(max-width:1100px){.qa-sparks-member-ladder{grid-template-columns:repeat(4,minmax(0,1fr));}}
 @media(max-width:640px){.qa-sparks-member-journey{padding:15px;}.qa-sparks-member-points{align-items:flex-start;text-align:left;}.qa-sparks-member-ladder{grid-template-columns:repeat(2,minmax(0,1fr));}.qa-sparks-member-tier{flex-direction:row;justify-content:flex-start;text-align:left;}.qa-sparks-member-head h2{font-size:19px;}}
 @media(prefers-reduced-motion:reduce){.qa-sparks-member-progress>span{transition:none;}}
+
+
+/* QA Sparks Quest Center · Daily Check-in Nov 9–22 2026.
+   Uses current dashboard theme accents. No fake reward states or auto-grants. */
+.qa-sparks-quest-center,.qa-sparks-quest-center *,.qa-sparks-checkin-backdrop,.qa-sparks-checkin-backdrop *{box-sizing:border-box;}
+.qa-sparks-quest-center{display:grid;gap:13px;min-width:0;margin-bottom:15px;padding:17px 19px 18px;border:1px solid var(--sparks-outline);border-radius:17px;background:#fffdfb;box-shadow:var(--sparks-shadow);font-family:Kanit,sans-serif;}
+.qa-sparks-quest-center-head{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap;}
+.qa-sparks-quest-overline{font-size:10px;font-weight:750;letter-spacing:.09em;color:var(--sparks-accent,#9233a3);}
+.qa-sparks-quest-center-head h2{display:flex;align-items:center;gap:9px;color:var(--sparks-dark,#532963);font-size:19px;line-height:1.35;font-weight:750;margin:3px 0;}
+.qa-sparks-quest-center-head p,.qa-sparks-quest-center-foot{color:#82717d;font-size:11px;margin:0;}
+.qa-sparks-quest-count{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:650;color:var(--sparks-accent,#7b3f97);border:1px solid var(--sparks-outline);background:var(--sparks-soft,#fcf3ff);padding:6px 11px;border-radius:999px;}
+.qa-sparks-quest-tile{display:grid;grid-template-columns:173px minmax(0,1fr);min-height:147px;max-width:745px;width:100%;gap:18px;padding:9px;text-align:left;font-family:inherit;color:#3b2741;cursor:pointer;position:relative;border:1px solid #dfc5e8;border-radius:17px;background:linear-gradient(111deg,#fffaf7,#fffcfa 50%,color-mix(in srgb,var(--sparks-soft,#faf2ff) 45%,#fffcf7));box-shadow:0 6px 16px #59416c18;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;}
+.qa-sparks-quest-tile:hover{transform:translateY(-2px);box-shadow:0 10px 25px #59416c2e;border-color:var(--sparks-accent,#ae5dca);}
+.qa-sparks-quest-tile:focus-visible{outline:3px solid var(--sparks-accent,#ae5dca);outline-offset:3px;}
+.qa-sparks-quest-tile-art{position:relative;display:grid;place-items:center;min-height:128px;border-radius:12px;overflow:hidden;background:radial-gradient(ellipse at 69% 33%,#ffecc4 0%,#f8dcfa 38%,#dcb3f5 100%);border:1px solid #e7c3f2;}
+.qa-sparks-quest-sunburst{position:absolute;border-radius:50%;width:160px;height:160px;border:2px dashed #ffffffa8;transform:rotate(-18deg);}
+.qa-sparks-quest-big-calendar{z-index:1;transform:rotate(-11deg);filter:drop-shadow(0 7px 7px #633b7d48);}
+.qa-sparks-quest-coin{position:absolute;z-index:2;bottom:12px;right:12px;padding:5px 10px;border:2px solid #fff3b8;border-radius:999px;background:linear-gradient(110deg,#fff0bd,#f6bd4b);color:#7c4a07;box-shadow:0 5px 10px #69492b28;font-size:15px;font-weight:800;transform:rotate(-8deg);}
+.qa-sparks-quest-tile-details{display:flex;flex-direction:column;justify-content:center;gap:7px;min-width:0;padding:8px 12px 8px 0;}
+.qa-sparks-quest-eyebrow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:10px;font-weight:750;letter-spacing:.07em;color:var(--sparks-accent,#8136a2);}
+.qa-sparks-quest-state{font-family:Kanit,sans-serif;font-weight:650;font-size:10px;border-radius:999px;padding:5px 9px;letter-spacing:0;white-space:nowrap;}
+.qa-sparks-quest-state.upcoming{background:#fff1d3;color:#9b6415;}
+.qa-sparks-quest-state.finished{background:#ece8ed;color:#706276;}
+.qa-sparks-quest-state.live{background:#e4f5e8;color:#267346;}
+.qa-sparks-quest-tile-details>strong{font-size:clamp(19px,1.8vw,25px);line-height:1.2;color:var(--sparks-dark,#512d57);font-weight:800;}
+.qa-sparks-quest-tile-dates{font-size:12px;color:#7d6c7f;}
+.qa-sparks-quest-tile-bottom{border-top:1px solid #ecdde9;padding-top:10px;margin-top:3px;display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap;align-items:center;font-size:12px;font-weight:700;color:#8a5315;}
+.qa-sparks-quest-tile-bottom b{font-size:20px;color:#bb7b19;}
+.qa-sparks-quest-tile-bottom>span:last-child{color:var(--sparks-accent,#9439b1);}
+.qa-sparks-quest-center-foot{padding:0 2px 1px;}
+
+.qa-sparks-checkin-backdrop{z-index:2147482500;position:fixed;inset:0;padding:14px;background:#1e1028ba;backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;font-family:Kanit,sans-serif;}
+.qa-sparks-checkin-modal{width:min(795px,100%);max-height:min(94dvh,970px);min-width:0;display:flex;flex-direction:column;position:relative;overflow:hidden;border-radius:23px;border:1px solid #e7d5f0;color:#372943;background:#fffdfb;box-shadow:0 26px 90px #1a0f2580;}
+.qa-sparks-checkin-close{position:absolute;top:12px;right:12px;z-index:5;width:37px;height:37px;display:grid;place-items:center;border-radius:50%;background:#fffdfcea;border:1px solid #e6d5e4;box-shadow:0 3px 8px #200d2f20;font-family:inherit;font-size:28px;color:#6a5072;line-height:1;cursor:pointer;}
+.qa-sparks-checkin-close:focus-visible{outline:3px solid var(--sparks-accent,#925abb);outline-offset:2px;}
+.qa-sparks-checkin-hero{flex:0 0 auto;background:radial-gradient(ellipse at 4% 80%,#f6d5ff,transparent 45%),linear-gradient(110deg,#f7e1fd,#fff6ec 90%);padding:22px 25px 21px;border-bottom:1px solid #e9d8e6;}
+.qa-sparks-checkin-hero-badge{display:inline-flex;font-size:10px;color:#a55b9d;font-weight:750;letter-spacing:.07em;margin-bottom:11px;}
+.qa-sparks-checkin-hero-flex{display:flex;align-items:center;gap:22px;}
+.qa-sparks-checkin-hero-icon{display:grid;place-items:center;width:103px;height:99px;border-radius:22px;flex:0 0 103px;background:#ffffffa8;border:1px solid #e8c5ef;box-shadow:0 8px 20px #6f338128;transform:rotate(-6deg);}
+.qa-sparks-checkin-hero h2{font-size:30px;font-weight:850;color:var(--sparks-dark,#582d62);margin:0 0 4px;line-height:1.2;}
+.qa-sparks-checkin-hero p{font-size:13px;color:#79657d;margin:0 0 9px;line-height:1.6;}
+.qa-sparks-checkin-event-dates{display:inline-flex;background:#ffffffc4;color:#915b28;border:1px solid #efd6a4;padding:5px 11px;border-radius:999px;font-weight:650;font-size:11px;}
+.qa-sparks-checkin-body{padding:18px 25px 25px;overflow-y:auto;min-height:0;overscroll-behavior:contain;}
+.qa-sparks-checkin-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;}
+.qa-sparks-checkin-stats>div{display:flex;flex-direction:column;gap:4px;border:1px solid #eadce7;background:#fbf7f8;border-radius:12px;padding:12px 15px;}
+.qa-sparks-checkin-stats span{font-size:11px;color:#827184;}
+.qa-sparks-checkin-stats strong{font-size:21px;line-height:1.3;color:var(--sparks-dark,#582a64);font-weight:800;white-space:nowrap;}
+.qa-sparks-checkin-stats small{font-size:11px;color:#877589;font-weight:500;}
+.qa-sparks-checkin-calendar-head{margin:18px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:13px;flex-wrap:wrap;}
+.qa-sparks-checkin-calendar-head h3{font-size:18px;font-weight:750;color:#4f345c;margin:0;}
+.qa-sparks-checkin-calendar-head span:not(.qa-sparks-quest-state){font-size:11px;color:#807384;}
+.qa-sparks-checkin-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;}
+.qa-sparks-checkin-weekday{font-size:12px;font-weight:750;text-align:center;color:#896c8d;padding:6px 0;}
+.qa-sparks-checkin-day{font-family:inherit;position:relative;min-width:0;min-height:91px;display:flex;flex-direction:column;align-items:center;justify-content:space-around;gap:3px;text-align:center;padding:8px 3px;border:1px solid #eae1e8;border-radius:12px;background:#fffdfc;color:#6e6271;}
+.qa-sparks-checkin-day-num{font-size:17px;font-weight:750;color:inherit;}
+.qa-sparks-checkin-day-points{font-weight:700;font-size:10px;letter-spacing:-.01em;line-height:1.3;}
+.qa-sparks-checkin-day-symbol{font-size:13px;font-weight:800;line-height:1;}
+.qa-sparks-checkin-day:disabled{cursor:default;}
+.qa-sparks-checkin-day.future{background:#faf8f9;color:#b0a7b1;}
+.qa-sparks-checkin-day.missed{background:#f8f4f5;color:#a1959e;border-style:dashed;}
+.qa-sparks-checkin-day.claimed{background:#ecf8f0;color:#25804e;border-color:#adddbf;}
+.qa-sparks-checkin-day.today{color:#71318b;border:2px solid var(--sparks-accent,#8b38a3);background:linear-gradient(130deg,#fff8ea,#f9eafb);box-shadow:0 0 0 2px #e9c6f684,0 5px 15px #9961a638;cursor:pointer;animation:qa-checkin-pulse 2.4s ease-in-out infinite;}
+.qa-sparks-checkin-day.today:hover{background:#f6e6ff;transform:translateY(-2px);}
+.qa-sparks-checkin-day.today:focus-visible{outline:3px solid #9b55cc;outline-offset:2px;}
+@keyframes qa-checkin-pulse{50%{box-shadow:0 0 0 4px #d69df95b,0 6px 19px #9961a63a;}}
+.qa-sparks-checkin-legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:13px 2px 8px;}
+.qa-sparks-checkin-legend>span{display:flex;gap:5px;align-items:center;color:#817286;font-size:10px;}
+.qa-sparks-checkin-legend i{display:inline-block;height:10px;width:10px;border-radius:3px;border:1px solid #e8dce5;}
+.qa-sparks-checkin-legend .claimed{background:#9bd5b1;}
+.qa-sparks-checkin-legend .today{background:#eac5f9;border:1px solid #9b55bf;}
+.qa-sparks-checkin-legend .missed{background:#e4d8dc;}
+.qa-sparks-checkin-legend .future{background:#f5f1f2;}
+.qa-sparks-checkin-success,.qa-sparks-checkin-error,.qa-sparks-checkin-note{border-radius:9px;padding:10px 13px;margin:12px 0 0;font-size:12px;line-height:1.6;}
+.qa-sparks-checkin-success{background:#e8f7ee;color:#236a42;border:1px solid #b9e2c8;}
+.qa-sparks-checkin-error{background:#ffeded;color:#a72929;border:1px solid #f0c1c1;}
+.qa-sparks-checkin-note{background:#fff6e1;color:#836224;border:1px solid #f0ddaf;}
+.qa-sparks-checkin-rules{border-top:1px solid #eee4eb;margin-top:19px;padding-top:14px;}
+.qa-sparks-checkin-rules h3{font-size:15px;color:#503c59;margin:0 0 9px;}
+.qa-sparks-checkin-rules p{font-size:11px;line-height:1.75;color:#786c80;margin:5px 0;}
+@media(max-width:650px){
+ .qa-sparks-quest-tile{grid-template-columns:minmax(100px,35%) minmax(0,1fr);gap:11px;min-height:125px;}
+ .qa-sparks-quest-tile-art{min-height:116px;}
+ .qa-sparks-quest-tile-details{padding:5px 5px 5px 0;}
+ .qa-sparks-quest-tile-details>strong{font-size:19px;}
+ .qa-sparks-quest-tile-dates{font-size:10px;}
+ .qa-sparks-checkin-backdrop{padding:8px;}
+ .qa-sparks-checkin-modal{max-height:96dvh;border-radius:17px;}
+ .qa-sparks-checkin-hero{padding:15px 15px 13px;}
+ .qa-sparks-checkin-hero-flex{gap:11px;}
+ .qa-sparks-checkin-hero-icon{width:60px;height:65px;flex:0 0 60px;overflow:hidden;}
+ .qa-sparks-checkin-hero-icon svg{width:60px;height:60px;}
+ .qa-sparks-checkin-hero h2{font-size:23px;}
+ .qa-sparks-checkin-hero p{font-size:11px;}
+ .qa-sparks-checkin-body{padding:14px;}
+ .qa-sparks-checkin-stats{gap:5px;}
+ .qa-sparks-checkin-stats>div{padding:8px;}
+ .qa-sparks-checkin-stats strong{font-size:17px;}
+ .qa-sparks-checkin-stats small{font-size:9px;}
+ .qa-sparks-checkin-calendar{gap:4px;}
+ .qa-sparks-checkin-day{min-height:77px;padding:5px 1px;border-radius:8px;}
+ .qa-sparks-checkin-day-num{font-size:15px;}
+ .qa-sparks-checkin-day-points{font-size:9px;}
+}
+@media(prefers-reduced-motion:reduce){.qa-sparks-checkin-day.today{animation:none;}.qa-sparks-quest-tile{transition:none;}}

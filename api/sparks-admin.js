@@ -12,6 +12,14 @@ const TYPING_RELIEF_PRICE = 150;
 const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
 const TYPING_RELIEF_MAX_OWNED = 10;
 const SPARKS_ANNUAL_EARN_CAP = 200000;
+// Fixed, publicly announced Quest #01. Dates are interpreted in Asia/Bangkok.
+const DAILY_CHECKIN_QUEST = Object.freeze({
+  id: "daily-checkin-nov-2026",
+  start: "2026-11-09",
+  end: "2026-11-22",
+  reward: 50,
+  walletField: "dailyCheckin202611Days",
+});
 let accessToken = "";
 let tokenExpiry = 0;
 
@@ -318,6 +326,92 @@ async function redeemTypingRelief(body, actor) {
   fail("มีการทำรายการพร้อมกัน กรุณาลองใหม่อีกครั้ง", 409);
 }
 
+/**
+ * Only the authenticated member can claim today's 50 Sparks, once per
+ * Bangkok calendar day from Nov 9 through Nov 22. No catch-up, streak
+ * dependence, auto-claim, browser-clock trust, or future-date selection.
+ *
+ * Wallet + fixed-ID history are committed in ONE Firestore transaction.
+ * Two tabs/devices racing to claim the same day cannot both earn points.
+ */
+function bangkokQuestDate(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const extract = (type) => parts.find((part) => part.type === type)?.value || "";
+  return extract("year") + "-" + extract("month") + "-" + extract("day");
+}
+function normalizedCheckinDays(wallet) {
+  const input = wallet[DAILY_CHECKIN_QUEST.walletField];
+  return Array.isArray(input)
+    ? [...new Set(input.map(Number).filter((day) => Number.isInteger(day) && day >= 9 && day <= 22))].sort((a, b) => a - b)
+    : [];
+}
+async function claimDailyCheckin(body, actor) {
+  // This must be checked on the server, never inferred from user device time.
+  const today = bangkokQuestDate();
+  if (today < DAILY_CHECKIN_QUEST.start) fail("Daily Check-in เปิดให้รับรางวัลตั้งแต่วันที่ 9 พฤศจิกายน 2026", 400);
+  if (today > DAILY_CHECKIN_QUEST.end) fail("Daily Check-in สิ้นสุดแล้ว ไม่สามารถรับรางวัลย้อนหลังได้", 400);
+  const selected = String(body.questDate || "");
+  if (selected !== today) fail("รับรางวัลได้เฉพาะวันที่ปัจจุบัน (เวลาไทย) ไม่สามารถรับย้อนหลังหรือล่วงหน้าได้", 400);
+  const dayNumber = Number(today.slice(-2));
+  const walletPath = walletDocumentPath(actor.username);
+  const historyPath = path("qa_sparks_wallets", walletKey(actor.username), "history", "quest-daily-checkin-" + today.replace(/-/g, ""));
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const begin = await firestoreRequest(":beginTransaction", "POST", { options: { readWrite: {} } });
+    const transaction = begin?.transaction;
+    if (!transaction) fail("ไม่สามารถเริ่มรับรางวัลเช็กอินได้", 503);
+    try {
+      const [walletDoc, claimDoc] = await Promise.all([
+        readDoc(walletPath, transaction), readDoc(historyPath, transaction),
+      ]);
+      const wallet = recordValue(walletDoc);
+      const claimedDays = normalizedCheckinDays(wallet);
+      if (claimDoc || claimedDays.includes(dayNumber)) {
+        return { updated: false, alreadyClaimed: true, questDate: today,
+          claimedDays: [...new Set([...claimedDays, dayNumber])].sort((a, b) => a - b),
+          balance: intCount(wallet.balance), memberYearEarned: annualEarnedFromWallet(wallet) };
+      }
+      const memberYear = currentMemberYear();
+      const earnedThisYear = annualEarnedFromWallet(wallet, memberYear);
+      if (earnedThisYear + DAILY_CHECKIN_QUEST.reward > SPARKS_ANNUAL_EARN_CAP) {
+        fail("รับรางวัลไม่ได้ เนื่องจากจะเกินเพดานสะสม 200,000 Sparks ต่อปี", 400);
+      }
+      const now = new Date().toISOString();
+      // Never reduce earned levels when tickets are redeemed.
+      const lifetimeEarned = Math.max(intCount(wallet.totalEarned), intCount(wallet.firstLogin?.amount));
+      const nextBalance = intCount(wallet.balance) + DAILY_CHECKIN_QUEST.reward;
+      const nextEarned = earnedThisYear + DAILY_CHECKIN_QUEST.reward;
+      const nextDays = [...claimedDays, dayNumber].sort((a, b) => a - b);
+      const updates = {
+        username: actor.username,
+        balance: nextBalance,
+        totalEarned: lifetimeEarned + DAILY_CHECKIN_QUEST.reward,
+        memberYear,
+        memberYearEarned: nextEarned,
+        [DAILY_CHECKIN_QUEST.walletField]: nextDays,
+        updatedAt: now,
+      };
+      const history = {
+        createdAt: now, type: "earn", source: "quest-daily-checkin",
+        questId: DAILY_CHECKIN_QUEST.id, questDate: today,
+        title: "Daily Check-in Reward", detail: "เช็กอินวันที่ " + dayNumber + " พฤศจิกายน 2026",
+        amount: DAILY_CHECKIN_QUEST.reward, balanceAfter: nextBalance,
+        performedBy: actor.username, status: "Completed",
+      };
+      await firestoreRequest(":commit", "POST", {
+        transaction, writes: [updateWrite(walletPath, updates, walletDoc), createWrite(historyPath, history)],
+      });
+      return { updated: true, alreadyClaimed: false, questDate: today,
+        claimedDays: nextDays, balance: nextBalance, memberYearEarned: nextEarned };
+    } catch (error) {
+      if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;
+      throw error;
+    }
+  }
+  fail("ไม่สามารถบันทึกเช็กอินที่ทำพร้อมกันได้ กรุณาลองใหม่", 409);
+}
+
 async function useTypingRelief(body, actor) {
   const challengeId = String(body.challengeId || "").trim();
   if (!challengeId || challengeId.length > 180 || challengeId.includes("/")) fail("ไม่พบ QA Access Check ที่ต้องการใช้สิทธิ์", 400);
@@ -618,6 +712,10 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    if (body.action === "claim-daily-checkin") {
+      const actor = await authorizeRewardUser(body);
+      return res.status(200).json(await claimDailyCheckin(body, actor));
+    }
     if (body.action === "redeem-typing-relief" || body.action === "use-typing-relief") {
       const actor = await authorizeRewardUser(body);
       const result = body.action === "redeem-typing-relief"

@@ -103,6 +103,16 @@ try{
   assert.equal(main.getAttribute("data-sparks-data-mode"),"not-configured", "must not claim actual ledger data");
   assert.ok(main.textContent.includes("My QA Sparks / Reward Center"));
   const item = main.querySelector('[data-reward-item="typing-relief"]');
+  const questCard = main.querySelector('[data-quest-item="daily-checkin"]');
+  assert.ok(questCard, "Quest Center must display Daily Check-in in Overview");
+  assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes("9–22"));
+  await act(async () => questCard.dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  const questDialog = document.querySelector(".qa-sparks-checkin-modal");
+  assert.ok(questDialog, "Daily Check-in opens a calendar dialog");
+  assert.equal(questDialog.querySelectorAll(".qa-sparks-checkin-day").length,14);
+  assert.equal(questDialog.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,0, "unverified wallet can never claim");
+  await act(async () => questDialog.querySelector(".qa-sparks-checkin-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(document.querySelector(".qa-sparks-checkin-modal"),null);
   assert.ok(item, "Typing Relief must be a collectible clickable Item");
   assert.equal(item.tagName, "BUTTON", "whole Item must be clickable");
   assert.equal(item.getAttribute("aria-haspopup"), "dialog");
@@ -136,7 +146,7 @@ try{
   }
   assert.ok(!main.querySelector(".qa-sparks-notes"), "remove mockup-only explanatory box");
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
-  assert.equal(main.querySelectorAll('[role="tab"]').length,3);
+  assert.equal(main.querySelectorAll('[role="tab"]').length,4);
   assert.ok(!main.textContent.includes("Sparks Admin"), "ordinary users must not see admin management");
   assert.ok(!main.querySelector(".qa-sparks-reward-detail-primary"), "purchase action must be inside the detail modal only");
 
@@ -145,6 +155,9 @@ try{
     assert.ok(el,"missing tab "+selector);
     await act(async()=>el.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   };
+  await click("#qa-sparks-tab-quests");
+  assert.ok(main.querySelector("#qa-sparks-panel-quests"),"Quest Center has its own tab");
+  assert.equal(main.querySelectorAll('[data-quest-item="daily-checkin"]').length,1);
   await click("#qa-sparks-tab-rewards");
   assert.equal(main.querySelector("#qa-sparks-tab-rewards")?.getAttribute("aria-selected"),"true");
   assert.ok(main.querySelector("#qa-sparks-panel-rewards"),"reward tab changes content");
