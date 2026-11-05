@@ -4,6 +4,7 @@ import "./qaSparks.css";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
 import DailyCheckinQuest from "./DailyCheckinQuest";
+import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
 import { SPARKS_ANNUAL_CAP, SPARKS_MEMBER_LEVELS, getSparksMemberLevel } from "./qaSparksMemberLevels";
 
 type SparksView = "overview" | "quests" | "rewards" | "history" | "admin";
@@ -173,6 +174,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {(view === "overview" || view === "quests") ? <DailyCheckinQuest
           username={username} sessionId={adminSessionId} claimedDays={account.dailyCheckinClaimedDays || []}
           loaded={walletLoaded} display={view === "quests" ? "full" : "overview"}/> : null}
+        {(view === "overview" || view === "quests") ? <section className="qa-sparks-profile-quest-section">
+          <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
+        </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
           <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
