@@ -652,3 +652,11 @@
 .qa-money-tracker-confirm-overlay h3{font-size:18px;color:#683a6a}
 .qa-money-tracker-confirm-overlay section>div{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}
 @media(max-width:640px){.qa-money-reward-tile{grid-template-columns:35% minmax(0,1fr);gap:8px}.qa-money-reward-tile-info>strong{font-size:18px}.qa-money-modal-hero h2{font-size:21px}.qa-money-modal-stats{grid-template-columns:1fr}.qa-money-modal-content{padding:15px}.qa-money-tracker-request{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.qa-sparks-owned-typing-item{display:flex;align-items:center;flex-wrap:wrap;gap:13px;border:1px solid var(--sparks-outline,#e7d1eb);border-radius:12px;background:linear-gradient(110deg,#fbf2ff,#fffdfb);padding:15px;margin:12px 0}
+.qa-sparks-owned-typing-item>span{display:grid;place-items:center;color:var(--sparks-accent,#a354bd);width:52px;height:52px;border-radius:12px;background:#f1dcfb}
+.qa-sparks-owned-typing-item>div{flex:1;min-width:170px}
+.qa-sparks-owned-typing-item strong{font-size:15px;color:var(--sparks-dark,#5d2f63)}
+.qa-sparks-owned-typing-item p{font-size:12px;margin:3px 0;color:#806c82}
+.qa-sparks-owned-typing-item small{font-size:11px;color:#9a8199}
+.qa-sparks-owned-typing-item>b{padding:7px 11px;border-radius:999px;background:#f5e5fc;color:var(--sparks-accent,#87439b);font-size:13px}
