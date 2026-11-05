@@ -4,9 +4,10 @@ import "./qaSparks.css";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
 import DailyCheckinQuest from "./DailyCheckinQuest";
+import {TrueMoneyRewardCard, MyTrueMoneyItems} from "./TrueMoneyRewards";
 import { SPARKS_ANNUAL_CAP, SPARKS_MEMBER_LEVELS, getSparksMemberLevel } from "./qaSparksMemberLevels";
 
-type SparksView = "overview" | "quests" | "rewards" | "history" | "admin";
+type SparksView = "overview" | "quests" | "rewards" | "items" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar";
 const paths: Record<SparksIconName, React.ReactNode> = {
   spark: <path d="m12 2 2.7 6.7L22 12l-7.3 3.3L12 22l-2.7-6.7L2 12l7.3-3.3z"/>,
@@ -93,6 +94,7 @@ function MemberJourney({ earned, year }: { earned: number; year: number }) {
 
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "" }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string }) {
   const [view, setView] = useState<SparksView>("overview");
+  const [itemsRevision,setItemsRevision] = useState(0);
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
   const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
   const [lastAccountUsername, setLastAccountUsername] = useState("");
@@ -124,6 +126,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     { key: "overview", label: "Overview", icon: "grid" },
     { key: "quests", label: "Quest Center", icon: "calendar" },
     { key: "rewards", label: "Reward Center", icon: "gift" },
+    { key: "items", label: "My Items", icon: "receipt" },
     { key: "history", label: "History", icon: "clock" },
     ...(adminAccess ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
@@ -172,11 +175,23 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {view === "overview" && walletLoaded ? <MemberJourney earned={account.memberYearEarned} year={account.memberYear}/> : null}
         {(view === "overview" || view === "quests") ? <DailyCheckinQuest
           username={username} sessionId={adminSessionId} claimedDays={account.dailyCheckinClaimedDays || []}
-          loaded={walletLoaded} display={view === "quests" ? "full" : "overview"}/> : null}
+          loaded={walletLoaded} profileQuestClaimed={account.profileMakeoverClaimed} display={view === "quests" ? "full" : "overview"}/> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
-          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
+          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2>
+            <div className="qa-sparks-reward-stack">
+              <TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/>
+              <TrueMoneyRewardCard username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}
+                onRedeem={()=>setItemsRevision(n=>n+1)}/>
+            </div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
-        </div> : view === "quests" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
+        </div> : view === "quests" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2>
+          <div className="qa-sparks-reward-stack">
+            <TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/>
+            <TrueMoneyRewardCard username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}
+              onRedeem={()=>setItemsRevision(n=>n+1)}/>
+          </div></section>
+        : view === "items" ? <MyTrueMoneyItems username={username} sessionId={adminSessionId}
+              loaded={walletLoaded} reloadToken={itemsRevision}/>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} /> : null}
       </div>
