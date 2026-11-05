@@ -1,4 +1,5 @@
 import { isFirestoreQuotaError } from "./firestoreReadPolicy";
+import { readDashboardRecoverySnapshot, saveDashboardRecoverySnapshot } from "./dashboardRecoveryCache";
 import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
 import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
@@ -165,6 +166,7 @@ type AppealDraftTopic = AppealIssueTagFields & {
 
 // data-dashboard-workbook-cache-v155
 type DashboardWorkbookCacheV155 = {
+  accountScope: string;
   cacheKey: string;
   cases: CaseItem[];
   noCaseEvaluations: StoredEvaluation[];
@@ -6098,7 +6100,30 @@ export default function DashboardMockup({
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
 
   const evaluationActivity = useEvaluationActivity();
-  const [sourceCases, setAllCases] = useState<CaseItem[]>(() => dashboardWorkbookCacheV155?.cases || []);
+  const dashboardAccountScope = [
+    String(currentUser?.username || "").trim().toLowerCase(),
+    String(currentUser?.role || "").trim().toLowerCase(),
+    String(currentUser?.teamName || currentUser?.team || "").trim().toLowerCase(),
+  ].join("|");
+  const [initialDashboardCache] = useState<DashboardWorkbookCacheV155 | null>(() => {
+    if (dashboardWorkbookCacheV155?.accountScope === dashboardAccountScope) return dashboardWorkbookCacheV155;
+    if (!String(currentUser?.username || "").trim()) return null;
+    const saved = readDashboardRecoverySnapshot<CaseItem, StoredEvaluation>(dashboardAccountScope);
+    if (!saved) return null;
+    // JSON restores timestamps as strings. The case date filters require Date objects.
+    return {
+      accountScope: dashboardAccountScope,
+      cacheKey: "recovered-session",
+      cachedAt: saved.cachedAt,
+      cases: saved.cases.map((item) => ({
+        ...item,
+        auditDateObj: item.auditDateObj ? new Date(String(item.auditDateObj)) : null,
+      })),
+      noCaseEvaluations: saved.noCaseEvaluations,
+      appealMergeCount: saved.appealMergeCount,
+    };
+  });
+  const [sourceCases, setAllCases] = useState<CaseItem[]>(() => initialDashboardCache?.cases || []);
   const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
   const markCaseAppealSubmitted = (caseId: string, agentName?: string, monthKey?: string) => {
     const submittedIds = new Set(splitAppealCaseIds(caseId));
@@ -6119,10 +6144,10 @@ export default function DashboardMockup({
     });
     dashboardWorkbookCacheV155 = null;
   };
-  const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>(() => dashboardWorkbookCacheV155?.noCaseEvaluations || []);
+  const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>(() => initialDashboardCache?.noCaseEvaluations || []);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [lastLoadedAt, setLastLoadedAt] = useState(() => dashboardWorkbookCacheV155?.cachedAt || 0);
+  const [lastLoadedAt, setLastLoadedAt] = useState(() => initialDashboardCache?.cachedAt || 0);
   const [loadRetryNonce, setLoadRetryNonce] = useState(0);
   const loadRetriesRef = useRef({ key: dataRefreshKey, count: 0 });
   useEffect(() => {
@@ -6216,7 +6241,7 @@ export default function DashboardMockup({
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(firstDayOfCurrentMonth));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [currentPeriodNotice, setCurrentPeriodNotice] = useState("");
-  const [appealMergeCount, setAppealMergeCount] = useState(0);
+  const [appealMergeCount, setAppealMergeCount] = useState(() => initialDashboardCache?.appealMergeCount || 0);
   const [overviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
   const [dashboardSearchTarget, setDashboardSearchTarget] = useState<HTMLElement | null>(null);
   const [selectedTopicCode, setSelectedTopicCode] = useState("");
@@ -6493,11 +6518,19 @@ export default function DashboardMockup({
         setIsLoading(true);
         setLoadError("");
         const cached = dashboardWorkbookCacheV155;
-        const result = cached && cached.cacheKey === cacheKey && cached.cases.length && Date.now() - cached.cachedAt < 15000
+        const result = cached && cached.accountScope === dashboardAccountScope && cached.cacheKey === cacheKey && cached.cases.length && Date.now() - cached.cachedAt < 15000
           ? cached : await loadCanonicalReportData();
         if (cancelled) return;
         const cachedAt = "cachedAt" in result ? result.cachedAt : Date.now();
-        dashboardWorkbookCacheV155 = result.cases.length ? { ...result, cacheKey, cachedAt } : null;
+        dashboardWorkbookCacheV155 = result.cases.length ? { ...result, accountScope: dashboardAccountScope, cacheKey, cachedAt } : null;
+        if (result.cases.length && String(currentUser?.username || "").trim()) {
+          saveDashboardRecoverySnapshot(dashboardAccountScope, {
+            cases: result.cases,
+            noCaseEvaluations: result.noCaseEvaluations,
+            appealMergeCount: result.appealMergeCount,
+            cachedAt,
+          });
+        }
         setAllCases(result.cases);
         setNoCaseEvaluations(result.noCaseEvaluations);
         setAppealMergeCount(result.appealMergeCount);
@@ -6506,7 +6539,9 @@ export default function DashboardMockup({
       } catch (error: any) {
         if (cancelled) return;
         console.error("Dashboard refresh failed; keeping the last complete result", error);
-        setLoadError("อัปเดตข้อมูลไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง");
+        setLoadError(isFirestoreQuotaError(error)
+          ? "Firestore จำกัดการอ่านข้อมูลชั่วคราว · หลีกเลี่ยงการกดอัปเดตซ้ำ และตรวจสอบโควตาที่ Firebase Console"
+          : "อัปเดตข้อมูลไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง");
         if (!isFirestoreQuotaError(error) && loadRetriesRef.current.count < 2 && navigator.onLine !== false) {
           loadRetriesRef.current.count += 1;
           retryTimer = window.setTimeout(() => setLoadRetryNonce((value) => value + 1), 15_000);
@@ -6520,7 +6555,7 @@ export default function DashboardMockup({
       cancelled = true;
       window.clearTimeout(retryTimer);
     };
-  }, [dataRefreshKey, loadRetryNonce]);
+  }, [dataRefreshKey, loadRetryNonce, dashboardAccountScope]);
 
   const visibleAgentList = useMemo(() => {
     const scopedCases = overviewAgentScopeList.length
@@ -7842,7 +7877,7 @@ export default function DashboardMockup({
   const refreshStatus = (
     <div data-dashboard-refresh-state={isLoading ? "loading" : loadError ? "error" : "idle"} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-xs text-slate-600">
       <span role="status" aria-live="polite">
-        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${lastLoadedAt ? " · ยังแสดงข้อมูลเดิมอยู่" : ""}` : `ตรวจข้อมูลล่าสุด ${Math.max(lastLoadedAt, dataCheckedAt) ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(Math.max(lastLoadedAt, dataCheckedAt)) : "—"} · ตรวจอัปเดตอัตโนมัติทุก 5 นาที`}
+        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${lastLoadedAt ? " · กำลังแสดงข้อมูลสำรองจากการโหลดสำเร็จครั้งก่อน (ไม่ใช่ข้อมูลสด)" : ""}` : `ตรวจข้อมูลล่าสุด ${Math.max(lastLoadedAt, dataCheckedAt) ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(Math.max(lastLoadedAt, dataCheckedAt)) : "—"} · ตรวจอัปเดตอัตโนมัติทุก 5 นาที`}
       </span>
       <button type="button" disabled={isLoading} onClick={() => { loadRetriesRef.current.count = 0; if (onRefreshData) onRefreshData(); else setLoadRetryNonce((value) => value + 1); }} className="rounded-lg border border-sky-200 px-3 py-1.5 font-bold text-sky-700 disabled:opacity-50">อัปเดตข้อมูล</button>
     </div>
