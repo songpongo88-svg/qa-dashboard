@@ -57,15 +57,16 @@ function SparksHistory({ history, large = false }: { history: SparksHistoryItem[
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "" }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string }) {
   const [view, setView] = useState<SparksView>("overview");
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
+  const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
-    if (!username) { setAccount(EMPTY_SPARKS_ACCOUNT); setError(""); return; }
+    if (!username) { setAccount(EMPTY_SPARKS_ACCOUNT); setLastAccountLoadAt(""); setError(""); return; }
     let active = true;
     const refresh = () => {
       setLoading(true);
       void getSparksAccount(username).then((result) => {
-        if (active) { setAccount(result); setError(""); }
+        if (active) { setAccount(result); setLastAccountLoadAt(new Date().toISOString()); setError(""); }
       }).catch(() => {
         if (active) setError("ไม่สามารถโหลดข้อมูล Sparks ได้ กรุณาลองอีกครั้ง");
       }).finally(() => { if (active) setLoading(false); });
@@ -127,7 +128,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
         </div> : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><EmptyReward large/></section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
-        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} /> : null}
+        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={lastAccountLoadAt ? { ...account, lastLoadedAt: lastAccountLoadAt } : null} /> : null}
       </div>
     </div>
   </main>;
