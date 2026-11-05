@@ -12,6 +12,10 @@ const TYPING_RELIEF_PRICE = 150;
 const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
 const TYPING_RELIEF_MAX_OWNED = 10;
 const SPARKS_ANNUAL_EARN_CAP = 200000;
+const PROFILE_QUEST = Object.freeze({
+  id: "profile-makeover-2026", start: "2026-11-05", end: "2026-12-15",
+  reward: 150, historyId: "quest-profile-makeover-2026",
+});
 // Fixed, publicly announced Quest #01. Dates are interpreted in Asia/Bangkok.
 const DAILY_CHECKIN_QUEST = Object.freeze({
   id: "daily-checkin-nov-2026",
@@ -347,6 +351,77 @@ function normalizedCheckinDays(wallet) {
     ? [...new Set(input.map(Number).filter((day) => Number.isInteger(day) && day >= 9 && day <= 22))].sort((a, b) => a - b)
     : [];
 }
+/**
+ * Quest #02: all members with a *stored*, non-default profile photo qualify,
+ * including those who uploaded before the event. No button/claim date choice.
+ * The client only initiates a check; this server enforces every condition.
+ */
+async function claimProfileMakeover(actor) {
+  const today = bangkokQuestDate();
+  if (today < PROFILE_QUEST.start) fail("Profile Makeover ยังไม่เปิดกิจกรรม", 400);
+  if (today > PROFILE_QUEST.end) fail("Profile Makeover สิ้นสุดวันที่ 15 ธันวาคม 2026", 400);
+  const savedProfile = await findProfileByUsername(actor.username);
+  const candidates = [...new Set([String(savedProfile.username || ""), actor.username,
+    actor.username.charAt(0).toUpperCase() + actor.username.slice(1)].filter(Boolean))];
+  const walletPath = walletDocumentPath(actor.username);
+  const historyPath = path("qa_sparks_wallets", walletKey(actor.username), "history", PROFILE_QUEST.historyId);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const begun = await firestoreRequest(":beginTransaction", "POST", { options: { readWrite: {} } });
+    const transaction = begun?.transaction;
+    if (!transaction) fail("ไม่สามารถตรวจสอบ Quest ได้", 503);
+    try {
+      const [walletDoc, historyDoc, ...photoDocs] = await Promise.all([
+        readDoc(walletPath, transaction), readDoc(historyPath, transaction),
+        ...candidates.map((name) => readDoc(path("qa_user_profile_photos", name.replace(/\//g, "__").replace(/\s+/g, " ")), transaction)),
+      ]);
+      const wallet = recordValue(walletDoc);
+      if (historyDoc || wallet.profileMakeoverClaimedAt) {
+        return { updated: false, alreadyClaimed: true,
+          balance: intCount(wallet.balance), memberYearEarned: annualEarnedFromWallet(wallet),
+          claimedAt: String(wallet.profileMakeoverClaimedAt || recordValue(historyDoc).createdAt || "") };
+      }
+      const hasCustomPhoto = photoDocs.some((document) => {
+        const photo = recordValue(document);
+        return Boolean(document && normalize(photo.username) === actor.username
+          && typeof photo.photoDataUrl === "string"
+          && (/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(photo.photoDataUrl)
+            || /^https:\/\//i.test(photo.photoDataUrl)));
+      });
+      if (!hasCustomPhoto) fail("ยังไม่พบรูปโปรไฟล์ที่เปลี่ยนเองในระบบ", 409);
+      const year = currentMemberYear();
+      const annualEarned = annualEarnedFromWallet(wallet, year);
+      if (annualEarned + PROFILE_QUEST.reward > SPARKS_ANNUAL_EARN_CAP) {
+        fail("รับรางวัลไม่ได้ เนื่องจากจะเกินเพดานสะสม 200,000 Sparks ต่อปี", 400);
+      }
+      const now = new Date().toISOString();
+      const nextBalance = intCount(wallet.balance) + PROFILE_QUEST.reward;
+      const nextAnnual = annualEarned + PROFILE_QUEST.reward;
+      const earnedLifetime = Math.max(intCount(wallet.totalEarned), intCount(wallet.firstLogin?.amount));
+      await firestoreRequest(":commit", "POST", { transaction, writes: [
+        updateWrite(walletPath, {
+          username: actor.username, balance: nextBalance,
+          totalEarned: earnedLifetime + PROFILE_QUEST.reward,
+          memberYear: year, memberYearEarned: nextAnnual,
+          profileMakeoverClaimedAt: now, updatedAt: now,
+        }, walletDoc),
+        createWrite(historyPath, {
+          createdAt: now, type: "earn", source: "quest-profile-makeover",
+          questId: PROFILE_QUEST.id, title: "Profile Makeover Reward",
+          detail: "เปลี่ยนรูปโปรไฟล์จากค่าเริ่มต้น รับอัตโนมัติ 1 ครั้ง",
+          amount: PROFILE_QUEST.reward, balanceAfter: nextBalance,
+          performedBy: actor.username, status: "Completed",
+        }),
+      ] });
+      return { updated: true, alreadyClaimed: false, balance: nextBalance,
+        memberYearEarned: nextAnnual, claimedAt: now };
+    } catch (error) {
+      if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;
+      throw error;
+    }
+  }
+  fail("มีการรับรางวัลพร้อมกัน กรุณาตรวจสอบยอด Sparks อีกครั้ง", 409);
+}
+
 async function claimDailyCheckin(body, actor) {
   // This must be checked on the server, never inferred from user device time.
   const today = bangkokQuestDate();
@@ -907,6 +982,10 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    if (body.action === "claim-profile-makeover") {
+      const actor = await authorizeRewardUser(body);
+      return res.status(200).json(await claimProfileMakeover(actor));
+    }
     if (body.action === "claim-daily-checkin") {
       const actor = await authorizeRewardUser(body);
       return res.status(200).json(await claimDailyCheckin(body, actor));
