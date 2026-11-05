@@ -76,6 +76,8 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [latest, setLatest] = useState<{ balance: number; owned: number } | null>(null);
+  const [themeAccent, setThemeAccent] = useState("");
+  const [themeDark, setThemeDark] = useState("");
   const purchaseRequestId = useRef("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -86,6 +88,11 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
   const canBuy = loaded && Boolean(username) && Boolean(sessionId)
     && effectiveOwned < TYPING_RELIEF.maxOwned
     && effectiveBalance >= TYPING_RELIEF.price && !busy;
+
+  useEffect(() => {
+    setLatest(null);
+    purchaseRequestId.current = "";
+  }, [username]);
 
   useEffect(() => {
     if (latest && latest.balance === balance && latest.owned === owned) setLatest(null);
@@ -114,6 +121,11 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
     setError("");
     setNotice("");
     setConfirm(false);
+    if (triggerRef.current) {
+      const currentTheme = window.getComputedStyle(triggerRef.current);
+      setThemeAccent(currentTheme.getPropertyValue("--sparks-accent").trim() || "#7e22ce");
+      setThemeDark(currentTheme.getPropertyValue("--sparks-dark").trim() || "#581c87");
+    }
     setDetailOpen(true);
   };
   const closeDetails = () => {
@@ -156,7 +168,8 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
     </button>
 
     {detailOpen && typeof document !== "undefined" ? createPortal(
-      <div className="qa-sparks-reward-detail-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDetails(); }}>
+      <div className="qa-sparks-reward-detail-backdrop" style={{ "--sparks-accent": themeAccent || "#7e22ce", "--sparks-dark": themeDark || "#581c87" } as React.CSSProperties}
+        onMouseDown={(event) => { if (event.target === event.currentTarget) closeDetails(); }}>
         <section className="qa-sparks-reward-detail-modal" role="dialog" aria-modal="true" aria-labelledby={dialogId + "-title"} aria-describedby={dialogId + "-intro"}>
           <button ref={closeRef} className="qa-sparks-reward-detail-close" type="button" onClick={closeDetails} disabled={busy} aria-label="ปิดรายละเอียด Typing Relief">
             <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" strokeWidth="2" strokeLinecap="round"><path d="M5 5 19 19M19 5 5 19"/></svg>
@@ -164,7 +177,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
           <div className="qa-sparks-reward-detail-hero">
             <div className="qa-sparks-reward-detail-art"><TypingReliefArt large/></div>
             <div className="qa-sparks-reward-detail-heading">
-              <span className="qa-sparks-reward-detail-event-label">✦ LIMITED LOOK · QA ACCESS REWARD</span>
+              <span className="qa-sparks-reward-detail-event-label">✦ SPARKS EVENT · QA ACCESS REWARD</span>
               <h2 id={dialogId + "-title"}>Typing Relief</h2>
               <p id={dialogId + "-intro"}>ไอเทมช่วยแบ่งเบาภารกิจพิมพ์ ให้คุณมีทางเลือกก่อนเริ่ม QA Access Check</p>
               <div className="qa-sparks-reward-detail-tags">
