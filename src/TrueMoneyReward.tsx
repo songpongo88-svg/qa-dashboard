@@ -39,7 +39,11 @@ async function api(action:string,actorUsername:string,sessionId:string,extra:Rec
     body:JSON.stringify({action,actorUsername,sessionId,...extra}),
   });
   const body=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(String(body.error||"ไม่สามารถทำรายการ TrueMoney ได้"));
+  if(!response.ok) {
+    const raw=String(body.error||"");
+    const technical=/Firestore|Firebase|RESOURCE_EXHAUSTED|quota|read.?limit|Google Cloud|database|service.account|unauthenticated/i.test(raw);
+    throw new Error(technical ? "ระบบรางวัลไม่พร้อมใช้งานชั่วคราว กรุณาลองอีกครั้งภายหลัง" : raw || "ไม่สามารถทำรายการ TrueMoney ได้");
+  }
   return body;
 }
 function RewardCard({open}:{open:()=>void}){
@@ -121,7 +125,7 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
     finally{setBusy(false);}
   };
   const renderInventory=()=>{
-    if (!loaded || !inventoryLoaded) return <p className="qa-sparks-inventory-progress" role="status">กำลังโหลด Item ของคุณ...</p>;
+    if (!loaded || !inventoryLoaded) return error ? null : <p className="qa-sparks-inventory-progress" role="status">กำลังโหลด Item ของคุณ...</p>;
     if (items.length===0) {
       return !hasOtherItems && !error ? <div className="qa-sparks-inventory-empty" data-items-empty="true">
         <strong>ยังไม่มี Item ในคลัง</strong><span>Item ที่แลกจาก Reward Center จะปรากฏที่นี่</span>
