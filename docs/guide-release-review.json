@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-05T15:58:04.622Z",
-  "reason": "Reviewed dashboard and QA Sparks guidance for Firestore 429 recovery; existing user workflow remains unchanged, stale-data warning and read throttling only",
+  "reviewedAt": "2026-11-05T16:01:20.663Z",
+  "reason": "Reviewed Dashboard/Sparks Firestore quota recovery guide against expanded dashboard-refresh and quota regression deployment tests; guide instructions unchanged",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -101,7 +101,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "d8e138da50651957249172b4c2b0a646f9bfbbe296ff22de5426d4b5a9a7c107",
-    "package.json": "68c75f948a967a3f12dea58c27cb226073040ffd537319ea1ee1d366f2d77fb8",
+    "package.json": "29d55063313d9c2dc601522485cdddc479a644d8927434b62de80a65ff10fad4",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
