@@ -18,6 +18,7 @@ const policyVersion = "qa-session-policy-2026-07-15-v1";
 const password = "test-qa-password";
 let testMode = "valid";
 let grant = null;
+let commits = 0;
 const typed = (value) => {
   if (value == null) return { nullValue: "NULL_VALUE" };
   if (typeof value === "number") return { integerValue: String(value) };
@@ -42,6 +43,20 @@ globalThis.fetch = async (rawUrl, opts = {}) => {
   const method = opts.method || "GET";
   if (url === "https://oauth2.googleapis.com/token") return reply({ access_token: "test-only-token", expires_in: 3600 });
   assert.ok(url.startsWith("https://firestore.googleapis.com/v1/projects/qa-dashboard-b0b5d/databases/(default)/documents"), "Admin must use the same Firebase project as QA Dashboard");
+  if (url.endsWith(":beginTransaction")) return reply({ transaction: "test-transaction-token" });
+  if (url.endsWith(":commit")) {
+    const data = JSON.parse(opts.body);
+    const walletWrite = data.writes.find((write) => write.update?.name?.endsWith("qa_sparks_wallets/activeuser"));
+    const historyWrite = data.writes.find((write) => write.update?.name?.includes("/history/admin-"));
+    assert.ok(walletWrite, "Wallet document write must exist");
+    assert.ok(historyWrite, "Atomic history document write must exist");
+    assert.ok(walletWrite.update.name.startsWith("projects/qa-dashboard-b0b5d/databases/(default)/documents/"),
+      "Firestore writes must use resource names instead of HTTP URLs");
+    assert.equal(walletWrite.update.fields.balance.integerValue, "100");
+    assert.equal(historyWrite.update.fields.amount.integerValue, "100");
+    commits++;
+    return reply({ writeResults: [{}, {}] });
+  }
   if (url.includes("/qa_user_sessions/")) {
     if (testMode === "missing") return reply({ error: { status: "NOT_FOUND" } }, 404);
     const data = {
@@ -68,6 +83,7 @@ globalThis.fetch = async (rawUrl, opts = {}) => {
   }
   if (url.includes("/qa_user_profiles?")) return reply({ documents: qaProfiles.map((profile) => stored(profile, url + "/" + profile.username)) });
   if (url.includes("/qa_sparks_wallets?")) return reply({ documents: [] });
+  if (url.includes("/qa_sparks_wallets/")) return reply({ error: { status: "NOT_FOUND" } }, 404);
   return reply({ error: { status: "NOT_FOUND" } }, 404);
 };
 const req = (action = "list", body = {}) => ({ method: "POST", body: {
@@ -121,6 +137,14 @@ try {
   assert.equal(denied.code, 403, "Suspended users cannot be credited by direct API calls");
   const hiddenHistory = await invoke(req("history", { targetUsername: "Suspended" }));
   assert.equal(hiddenHistory.code, 403, "Suspended histories should not be exposed in the active admin directory");
+
+  const add = await invoke(req("adjust", {
+    targetUsername: "ActiveUser", operation: "add", amount: 100,
+    reason: "QA Sparks admin unit test credit", requestId: "active-credit-request-123456",
+  }));
+  assert.equal(add.code, 200, JSON.stringify(add.result));
+  assert.equal(add.result.balance, 100);
+  assert.equal(commits, 1, "Wallet/history must be written in a single Firestore commit");
 
   testMode = "wrong-role";
   assert.equal((await invoke()).code, 403, "Grant cannot override revoked QA role");
