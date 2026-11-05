@@ -31,6 +31,8 @@ type AdminHistoryItem = {
   reason: string;
   referenceId: string;
   status: string;
+  voided?: boolean;
+  originalAmount?: number;
 };
 type DetailResponse = {
   username: string;
@@ -110,6 +112,8 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
   const [requestId, setRequestId] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [voidConfirm, setVoidConfirm] = useState(false);
+  const [voidSaving, setVoidSaving] = useState(false);
   const [revision, setRevision] = useState(0);
   const [adminReady, setAdminReady] = useState(false);
   const [firestoreLimited, setFirestoreLimited] = useState(false);
@@ -118,7 +122,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
   const [reauthLoading, setReauthLoading] = useState(false);
   const [reauthError, setReauthError] = useState("");
 
-  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth", input: Record<string, unknown> = {}) => {
+  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair", input: Record<string, unknown> = {}) => {
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const response = await fetch("/api/sparks-admin", {
       method: "POST",
@@ -279,6 +283,32 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
     return entry.type === filter;
   });
   const refundedIds = new Set((detail?.history || []).filter((item) => item.source === "reward-refund").map((item) => item.referenceId));
+  const voidGrant = detail?.history.find((item) => item.source === "admin-add" && item.amount === 99800 && !item.voided);
+  const voidDeduct = detail?.history.find((item) => item.source === "admin-deduct" && item.amount === -99800 && !item.voided);
+  const canCorrectTest = adminReady && normalizeUser(chosen) === "chachiya" && Boolean(
+    detail && detail.wallet.balance === 150 && detail.wallet.earned === 99950
+    && detail.wallet.spent === 99800 && detail.wallet.firstLogin?.amount === 150
+    && voidGrant && voidDeduct
+  );
+  async function voidChachiyaTestRecords() {
+    if (!canCorrectTest || !voidGrant || !voidDeduct || !voidConfirm || voidSaving) return;
+    setVoidSaving(true); setError("");
+    try {
+      const result = await request("void-chachiya-test-pair", {
+        targetUsername: chosen, addHistoryId: voidGrant.id, deductHistoryId: voidDeduct.id,
+      });
+      setVoidConfirm(false);
+      setNotice(result.alreadyApplied
+        ? "รายการทดลองนี้ได้รับการแก้ไขแล้ว ไม่มีการปรับซ้ำ"
+        : "ยกเลิกรายการทดลอง +99,800 / -99,800 แล้ว · คงเหลือ 150 · ได้รับสะสม 150 · ใช้ไป 0");
+      setRevision((value) => value + 1);
+      window.dispatchEvent(new Event("qa:sparks-updated"));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "ไม่สามารถยกเลิกรายการทดลองได้");
+      setVoidConfirm(false);
+    } finally { setVoidSaving(false); }
+  }
+
 
   async function submitReauth(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -370,7 +400,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
         <input id="qa-sparks-admin-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ชื่อ / Username / Role"/>
         <div className="qa-sparks-admin-list" role="list" aria-label="รายชื่อผู้ใช้งาน">
           {filteredUsers.map((user) => <button key={user.username} type="button" role="listitem" aria-current={chosen === user.username}
-            className={chosen === user.username ? "selected" : ""} onClick={() => { setChosen(user.username); setOperation(null); setFilter("all"); setNotice(""); }}>
+            className={chosen === user.username ? "selected" : ""} onClick={() => { setChosen(user.username); setOperation(null); setVoidConfirm(false); setFilter("all"); setNotice(""); }}>
             <span className="qa-sparks-admin-user-title">{user.displayName}<small>@{user.username} · {user.role || "User"}</small></span>
             <span className="qa-sparks-admin-user-balance">{adminReady || user.balanceKnown ? fmt(user.balance) : "—"} <small>Sparks{!adminReady && user.balanceKnown ? " · แคช" : ""}</small></span>
           </button>)}
@@ -396,6 +426,8 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
           <div className="qa-sparks-admin-operations">
             <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องแก้การเชื่อมต่อ Google Cloud ก่อน" : ""} onClick={() => startOperation("add")}>+ เพิ่ม Sparks</button>
             <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องแก้การเชื่อมต่อ Google Cloud ก่อน" : ""} onClick={() => startOperation("deduct")}>− ปรับลด Sparks</button>
+            {canCorrectTest ? <button type="button" data-sparks-correction="chachiya" className="qa-sparks-admin-void-test"
+              onClick={() => { setError(""); setVoidConfirm(true); }}>ยกเลิกรายการทดลอง +99,800 / −99,800</button> : null}
           </div>
           <div className="qa-sparks-admin-history-heading">
             <h3>ประวัติคะแนนและการแลกรางวัล</h3>
@@ -424,6 +456,24 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
         </>}
       </section>
     </div>
+    {voidConfirm && selected && canCorrectTest ? <div className="qa-sparks-admin-overlay" role="presentation">
+      <section className="qa-sparks-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="qa-sparks-void-title">
+        <h2 id="qa-sparks-void-title">ยืนยันการแก้ไข Sparks ที่เพิ่มผิด</h2>
+        <p>บัญชี: <strong>Chachiya Thawiwong (@Chachiya)</strong></p>
+        <p>ยกเลิกเฉพาะคู่รายการทดลอง <strong>เพิ่ม +99,800</strong> และ <strong>ปรับลด −99,800</strong> โดยเก็บหลักฐานเดิมใน History</p>
+        <div className="qa-sparks-admin-confirm">
+          <p><strong>ยอดหลังยืนยัน</strong></p>
+          <p>คงเหลือ <strong>150 Sparks</strong> · ได้รับสะสม <strong>150 Sparks</strong> · ใช้ไป <strong>0 Sparks</strong></p>
+          <p>Member Level จะใช้ยอดสะสมจริง 150 คะแนน (LV.1) และคงรางวัล First Login ตามเดิม</p>
+        </div>
+        <div className="qa-sparks-admin-actions">
+          <button type="button" className="secondary" onClick={() => setVoidConfirm(false)} disabled={voidSaving}>ยกเลิก</button>
+          <button type="button" onClick={() => { void voidChachiyaTestRecords(); }} disabled={voidSaving}>
+            {voidSaving ? "กำลังตรวจสอบและแก้ไข..." : "ยืนยันแก้ไขเฉพาะบัญชีนี้"}
+          </button>
+        </div>
+      </section>
+    </div> : null}
     {operation && selected ? <div className="qa-sparks-admin-overlay" role="presentation">
       <section role="dialog" aria-modal="true" aria-labelledby="qa-sparks-admin-adjust-title" className="qa-sparks-admin-dialog">
         <h2 id="qa-sparks-admin-adjust-title">{operationLabel(operation)}</h2>
