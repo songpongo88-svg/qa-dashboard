@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-05T06:05:00.000Z",
-  "reason": "Reviewed cosmetic Typing Relief reward redesign: a compact, fully clickable event-style illustrated item in QA Sparks Reward Center, accessible details/how-to dialog, theme-adaptive design, and confirmation-only purchase inside the dialog. No changes to Sparks price, 10-ticket cap, 60-word reduction, existing QA Access logic, reward ledger, user profiles, evaluation rubrics, scores, cases, or previous data. Verified UI and reward transaction regression tests.",
+  "reviewedAt": "2026-11-05T07:02:00.000Z",
+  "reason": "Corrected Typing Relief specification to 60% reduction of assigned QA Access word repetitions instead of subtracting fixed 60 words. Server-side atomic activation uses ceiling for remaining 40% and minimum one word; reward display, ticket artwork, history text, QA Access offer and tests agree. Kept cost 150 Sparks, maximum 10 owned, all original QA challenge criteria, user data and existing redemptions unchanged. No changes to evaluation rules or case data.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -334,7 +334,7 @@
     "scripts/test-monthly-signature-pdf.mjs": "9905f766878080429fb5bb6231fc8ab433f4b61fa13b2363c385c43a3e0f7016",
     "scripts/test-payment-document-ref.mjs": "b3ac8cd094ba6a1e94b6b571c1db529fc939d5201b6d9039a3c2202750d675ba",
     "scripts/test-pdf-dates.mjs": "b13ed1e04faecd3eca4f08e8a36a4b66bcbeb1aa7636b2a1da01c7fb7472d32b",
-    "scripts/test-qa-typing-gate.mjs": "51e8f46232039bec651e3ae8ac253fe531a6aebe63743c0dac39070ca1c444b5",
+    "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-reporting-history.mjs": "8b51feb5d086538c8527eba25036b470f9446daec94934454bf0c430ae89cf53",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
     "scripts/test-signature-appeal-hold.mjs": "0b79b07d2f79307bb09c1c3e205257ea5c4dbfc0cd8b0859a5804bc3274f9bd4",
@@ -391,7 +391,7 @@
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
     "src/QaTypingChallengeAdmin.tsx": "085567987673c56b265237703b573adb8be75b40cb6d338fac5f1a5dc088d7f7",
     "src/QaTypingChallengeWorkspace.tsx": "0ab378e90ef6484ba5b77e4a42c25acf61d149a688f6c2889e9c3554e5cd724b",
-    "src/QaTypingGate.tsx": "1810c2867e43e3f3e010ff468467af1c15aa5593c70765e130805b53749b6dce",
+    "src/QaTypingGate.tsx": "d9817e09193d60c5f9dab1772cd7a19dd517b5bbd23b446d443f475bdeb34066",
     "src/ScheduleMockup.tsx": "bd0431a88e2c0fd5bfcc5fcb640c6d968c3f4dbd552457a634cacb64c59c49c3",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
@@ -591,14 +591,14 @@
     "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
     "src/QASparks.tsx": "3e736d0b93c6d5775b7c866097782ea52ba4c30f4c1bce91d8f3a968cc7d90dd",
     "src/qaSparks.css": "e70c6ae9d17088a6973711435a673c470c2751feedc251f244d710c9985a2ce5",
-    "scripts/test-qa-sparks-ui.mjs": "5deed38d11fbae0e57adc0e9e8c68050bc844c22dde1addfb8201e8a0dbef696",
+    "scripts/test-qa-sparks-ui.mjs": "60622713eefab91d5fb5de75ae47bdc1b946a6f79c86a6e7756de61770e8dea5",
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
     "src/qaSparksStore.ts": "83e54f664500fa3a912a51d3184af37498b4ed3442466b209a9e4c01dfbaefcb",
-    "api/sparks-admin.js": "b9264b55c36174345d776d80122ca698312cdc1cbeb84cc0c34d44eacdc31630",
+    "api/sparks-admin.js": "f9cb0a35343e32e30244746cf021e810257452b302777f1e840e4cf0fd0a0ce5",
     "src/SparksAdminPanel.tsx": "e3436fecd18eb9e64ec55cc96fc0dd7436913ee35b143052364aa67943d74859",
     "scripts/test-sparks-admin-session.mjs": "5c5bca7f834576a9c5ae026ff8d5c3e8dfa8e560d387218966e19ffa29343b60",
-    "src/typingReliefReward.ts": "1efac23698cf84603f3f18149f9c7681156b7a44da3530ca718a4dfffa6a8d9d",
-    "src/TypingReliefRewardCard.tsx": "509f3c6548ab368b5c9eea50506b3807882affa79e8e6ec5a67ed97dc335851a",
-    "scripts/test-typing-relief-reward.mjs": "8bd1ebf45ef2abc522ab0d139ce02c6992c3a8149661b7a80c0c88d13e2884ab"
+    "src/typingReliefReward.ts": "c38ea006da70964da36fb98bb9bdf9dff8c306de1abb41ac6b61214bc27a6e40",
+    "src/TypingReliefRewardCard.tsx": "b46dc18b26fd514e4afcc2c1eaf8c768f0627271329dc51b3b31b4df3af1fece",
+    "scripts/test-typing-relief-reward.mjs": "a4a30d9bd97ed12f4cc241e813be9f293c0ea64520b8736cbe3557d1f85f4fb7"
   }
 }
