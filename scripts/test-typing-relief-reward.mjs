@@ -157,6 +157,28 @@ try {
   docs.set(key("qa_typing_challenges", "agent"), { username: "Agent", queue: [task("sentences", "sentence")], queueCount: 1 });
   assert.equal((await use("sentences")).status, 400, "word reduction must not count full sentences as words");
   assert.equal(wallet().typingReliefOwned, 9);
+
+  // Percentage-based discount must scale with each assignment rather than deduct a fixed 60 words.
+  const percentageScenarios = [
+    [50, 20, 30], [150, 60, 90], [200, 80, 120], [33, 14, 19], [1, 1, 0],
+  ];
+  for (const [assigned, remaining, discounted] of percentageScenarios) {
+    const id = "percent-task-" + assigned;
+    docs.set(key("qa_typing_challenges", "agent"), { username: "Agent", queue: [task(id)], queueCount: 1 });
+    docs.get(key("qa_typing_challenges", "agent")).queue[0].repeatCount = assigned;
+    const previousOwned = wallet().typingReliefOwned;
+    const actual = await use(id);
+    assert.equal(actual.status, 200, JSON.stringify(actual.data));
+    assert.equal(actual.data.remainingWords, remaining, "wrong 60% remaining words for " + assigned);
+    assert.equal(actual.data.appliedWords, discounted, "wrong 60% discount for " + assigned);
+    assert.equal(queue()[0].repeatCount, remaining);
+    assert.equal(wallet().typingReliefOwned, previousOwned - 1);
+    const usage = history().find((row) => row.source === "reward-activation" && row.challengeId === id);
+    assert.equal(usage?.reductionPercent, 60, "history must record the rule used");
+  }
+  assert.equal(wallet().typingReliefOwned, 4);
+  console.log("PASS Typing Relief percentage cases: 50→20, 150→60, 200→80, 33→14 (round up), 1→1");
+
   assert.equal((await call("redeem-typing-relief", { requestId: "typing-relief-impersonation-1234" }, "OtherUser", sessionId)).status, 403);
   docs.set(key("qa_user_profiles", "Agent"), { ...docs.get(key("qa_user_profiles", "Agent")), status: "Suspended" });
   assert.equal((await buy("typing-relief-suspended-1234")).status, 403);

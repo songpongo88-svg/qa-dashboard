@@ -7,7 +7,7 @@ export const TYPING_RELIEF = Object.freeze({
   name: "Typing Relief",
   subtitle: "สิทธิ์ลดจำนวนคำพิมพ์ใน QA Access",
   price: 150,
-  wordsReduced: 60,
+  reductionPercent: 60,
   maxOwned: 10,
 });
 
@@ -32,8 +32,14 @@ export async function fetchTypingReliefState(username: string): Promise<TypingRe
   return { balance: normalizeAmount(data.balance), owned: normalizeAmount(data.typingReliefOwned) };
 }
 
+/** Reduce 60% of assigned repetitions; keep at least one.
+ * Round remaining words UP (e.g. 33 × 40% = 13.2 → 14), avoiding
+ * an accidental reduction of more than 60% for nonmultiples of five.
+ */
 export function typingReliefRemainingWords(originalCount: number) {
-  return Math.max(1, Math.floor(originalCount) - TYPING_RELIEF.wordsReduced);
+  const words = Math.floor(originalCount);
+  if (!Number.isSafeInteger(words) || words < 1) return 1;
+  return Math.max(1, Math.ceil(words * (100 - TYPING_RELIEF.reductionPercent) / 100));
 }
 
 export async function typingReliefAction(

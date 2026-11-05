@@ -223,7 +223,7 @@ export default function QaTypingGate({
       const data = await typingReliefAction("use-typing-relief", username, currentUser.sessionId, { challengeId: challenge.id });
       setRewardOwned(data.owned);
       setRewardChoice("typing");
-      setMessage(`ใช้ Typing Relief แล้ว ลดจำนวนคำพิมพ์ ${data.appliedWords ?? 0} คำ เหลือ ${data.remainingWords ?? typingReliefRemainingWords(challenge.repeatCount)} คำ`);
+      setMessage(`ใช้ Typing Relief ลดจำนวนคำที่กำหนด 60% แล้ว (ลดจริง ${data.appliedWords ?? (challenge.repeatCount - typingReliefRemainingWords(challenge.repeatCount))} คำ) เหลือ ${data.remainingWords ?? typingReliefRemainingWords(challenge.repeatCount)} คำ`);
     } catch (error) {
       setRewardError(error instanceof Error ? error.message : "ใช้ Typing Relief ไม่สำเร็จ");
     } finally { setRewardBusy(false); }
@@ -309,10 +309,10 @@ export default function QaTypingGate({
           <h2 className="mt-2 text-2xl font-black text-slate-900">เลือกวิธีก่อนเริ่มพิมพ์</h2>
           {rewardChoice === "checking" ? <p className="mt-4 text-sm text-slate-600">กำลังตรวจสอบสิทธิ์ Typing Relief...</p>
             : <>
-              <p className="mt-3 text-sm text-slate-600">ภารกิจนี้กำหนดให้พิมพ์ <strong>{challenge.repeatCount} คำ</strong> · Typing Relief ใช้ 1 สิทธิ์ ลดจำนวนคำที่ต้องพิมพ์ได้สูงสุด 60 คำ (ต้องเหลืออย่างน้อย 1 คำ)</p>
+              <p className="mt-3 text-sm text-slate-600">ภารกิจนี้กำหนดให้พิมพ์ <strong>{challenge.repeatCount} คำ</strong> · Typing Relief ใช้ 1 สิทธิ์ลดจำนวนคำพิมพ์ 60% ของภารกิจนี้ (ปัดจำนวนคำที่เหลือขึ้น และต้องพิมพ์อย่างน้อย 1 คำ)</p>
               <div className="mt-4 rounded-xl bg-violet-50 p-4 text-sm font-semibold text-violet-900">
                 สิทธิ์คงเหลือ: <strong>{rewardOwned}/10</strong> · Sparks: <strong>{rewardBalance}</strong>
-                {rewardOwned ? <p className="mt-2 text-xs">ใช้ 1 สิทธิ์ → เหลือ {typingReliefRemainingWords(challenge.repeatCount)} คำ</p> : <p className="mt-2 text-xs">ยังไม่มีสิทธิ์ สามารถแลก 1 สิทธิ์ราคา 150 Sparks หรือพิมพ์ตามปกติได้</p>}
+                {rewardOwned ? <p className="mt-2 text-xs">ใช้ 1 สิทธิ์ → ลด {challenge.repeatCount - typingReliefRemainingWords(challenge.repeatCount)} คำ เหลือ {typingReliefRemainingWords(challenge.repeatCount)} คำ</p> : <p className="mt-2 text-xs">ยังไม่มีสิทธิ์ สามารถแลก 1 สิทธิ์ราคา 150 Sparks หรือพิมพ์ตามปกติได้</p>}
               </div>
               {rewardError ? <p role="alert" className="mt-3 text-sm font-bold text-rose-700">{rewardError}</p> : null}
               {rewardOwned > 0 ? <button type="button" onClick={() => void applyTypingRelief()} disabled={rewardBusy}
