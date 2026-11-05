@@ -14,6 +14,37 @@ const TYPING_RELIEF_MAX_OWNED = 10;
 const SPARKS_ANNUAL_EARN_CAP = 200000;
 // Profile Quest: automatic credit only for a persisted custom profile photo.
 const PROFILE_MAKEOVER = Object.freeze({id:"profile-makeover-2026",reward:150,end:"2026-12-15"});
+// Catalog Manager changes availability only. Reward values and rules stay
+// fixed to the announced terms, avoiding historical item-price inconsistencies.
+const SPARKS_CATALOG_DEFAULT=Object.freeze({
+  "daily-checkin-nov-2026":true,
+  "profile-makeover-2026":true,
+  "typing-relief":true,
+  "truemoney-20":true,
+});
+const SPARKS_CATALOG_PATH="qa_sparks_settings/catalog_v1";
+async function sparksCatalog(){
+ const raw=recordValue(await readDoc(SPARKS_CATALOG_PATH));
+ return Object.fromEntries(Object.keys(SPARKS_CATALOG_DEFAULT).map(k=>[
+  k,typeof raw[k]==="boolean"?raw[k]:SPARKS_CATALOG_DEFAULT[k]]));
+}
+async function mustBeEnabled(id){
+ const catalog=await sparksCatalog();
+ if(catalog[id]===false)fail("ภารกิจหรือของรางวัลนี้ถูกปิดรับชั่วคราว กรุณาตรวจประกาศใน QA Sparks",400);
+}
+async function updateSparksCatalog(body,admin){
+ const id=String(body.catalogItem||"");
+ if(!Object.hasOwn(SPARKS_CATALOG_DEFAULT,id))fail("ชื่อ Quest หรือ Reward ไม่ถูกต้อง",400);
+ if(typeof body.enabled!=="boolean")fail("กรุณาเลือกสถานะเปิดหรือปิด",400);
+ const reason=String(body.reason||"").trim();
+ if(reason.length<5||reason.length>250)fail("กรุณาระบุเหตุผลการปรับสถานะอย่างน้อย 5 ตัวอักษร",400);
+ const row=await readDoc(SPARKS_CATALOG_PATH);
+ const updates={[id]:body.enabled,updatedAt:new Date().toISOString(),
+  updatedBy:admin.username,lastReason:reason};
+ await firestoreRequest(":commit","POST",{writes:[updateWrite(SPARKS_CATALOG_PATH,updates,row)]});
+ return {updated:true,items:await sparksCatalog()};
+}
+
 const TRUEMONEY_REWARD = Object.freeze({id:"truemoney-20",price:7000,amountBaht:20,validDays:30,deadlineBusinessDays:14});
 function bangkokDate(now=new Date()){
   const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now);
@@ -328,6 +359,7 @@ const createWrite = (docPath, value) => ({
 });
 
 async function redeemTypingRelief(body, actor) {
+  await mustBeEnabled("typing-relief");
   const requestId = checkRequestId(body.requestId);
   const walletPath = walletDocumentPath(actor.username);
   const historyPath = path("qa_sparks_wallets", walletKey(actor.username), "history", "redeem-" + requestId);
@@ -405,6 +437,7 @@ function normalizedCheckinDays(wallet) {
     : [];
 }
 async function claimDailyCheckin(body, actor) {
+  await mustBeEnabled("daily-checkin-nov-2026");
   // This must be checked on the server, never inferred from user device time.
   const today = bangkokQuestDate();
   if (today < DAILY_CHECKIN_QUEST.start) fail("Daily Check-in เปิดให้รับรางวัลตั้งแต่วันที่ 9 พฤศจิกายน 2026", 400);
@@ -548,6 +581,7 @@ async function useTypingRelief(body, actor) {
  * user-uploaded image. The user cannot forge a custom-photo flag in requests.
  */
 async function claimProfileMakeover(actor){
+ await mustBeEnabled("profile-makeover-2026");
  const today=bangkokDate();
  const walletPath=walletDocumentPath(actor.username);
  const historyPath=path("qa_sparks_wallets",walletKey(actor.username),"history","quest-profile-makeover-2026");
@@ -600,6 +634,7 @@ async function getProfileMakeoverStatus(actor){
 }
 /** New reward items are separate immutable identities with separate expiry. */
 async function redeemTrueMoney(body,actor){
+ await mustBeEnabled("truemoney-20");
  const token=checkRequestId(body.requestId);
  const itemId="tm20-"+token;
  const walletPath=walletDocumentPath(actor.username);
@@ -1177,6 +1212,10 @@ export default async function handler(req, res) {
         : await useTypingRelief(body, actor);
       return res.status(200).json(result);
     }
+    if (body.action === "get-sparks-catalog") {
+      await authorizeRewardUser(body);
+      return res.status(200).json({items:await sparksCatalog()});
+    }
     if (body.action === "claim-profile-makeover" || body.action === "profile-makeover-status"
       || body.action === "redeem-truemoney" || body.action === "list-truemoney-items"
       || body.action === "use-truemoney-item") {
@@ -1191,6 +1230,9 @@ export default async function handler(req, res) {
     }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
     const admin = await authorizeAdmin(body);
+    if (body.action === "admin-sparks-catalog") return res.status(200).json({items:await sparksCatalog()});
+    if (body.action === "update-sparks-catalog")
+      return res.status(200).json(await updateSparksCatalog(body,admin));
     if (body.action === "list-truemoney-requests") return res.status(200).json(await listPayoutRequests());
     if (body.action === "complete-truemoney-payout")
       return res.status(200).json(await completeTrueMoneyPayout(body,admin));
