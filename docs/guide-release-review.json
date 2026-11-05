@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-05T03:45:00.000Z",
-  "reason": "Reviewed QA Sparks Admin password re-verification with a session-bound short-lived server authorization, exclusion of Suspended users from both primary and fallback directories and server mutations, and correct atomic Firestore wallet/history writes. No QA evaluation process or user guide changes.",
+  "reviewedAt": "2026-11-05T04:14:00.000Z",
+  "reason": "Reviewed Sparks Admin Firestore quota error handling and protection against repeated fallback bulk wallet/history reads during quota exhaustion. User QA rubric and core workflow are unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -591,11 +591,11 @@
     "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
     "src/QASparks.tsx": "e6825a8d770201ccb536044567e2c62272712c609477a4107bc056c9debebb54",
     "src/qaSparks.css": "9fdd7b4fa8807b65fe5d0a8b3204c691662b5b711c2443d97cd4104214ac452d",
-    "scripts/test-qa-sparks-ui.mjs": "cadec2cf185215300c27f0e8db6362bbfc651661dd44aaaf0e7ddb68910158f5",
+    "scripts/test-qa-sparks-ui.mjs": "92e2566b3032cf3970b4ed503f7427210eea3f79eaed8fddf6c62e7caadc7ac4",
     "src/FirstLoginSparksModal.tsx": "bd16b5e031483e3fc0f7b380e9c4f5cf1c60dee7375c382289e85d7e492306fb",
     "src/qaSparksStore.ts": "72d878a726455204c6b872472d8cd895484a5034e51d6701712a74828bfec759",
-    "api/sparks-admin.js": "16cabe56aa8452eb6f42fb0e1c2b41b7d82a8d282fdfb5396173a70fc76cae2a",
-    "src/SparksAdminPanel.tsx": "71f26bfb2dcb85f3bb247cf54a2acd3b9a24e976f3323ef4c2c6e023829f0118",
-    "scripts/test-sparks-admin-session.mjs": "ba1b07a2e2666cc3ff588c75ab3b9a3d0b3e5b8a3d2c15217d5b2cef4da7e1cc"
+    "api/sparks-admin.js": "fd2a8009ccbfb33bdeb869afae88cc5c8025c706fb20b490124a7cadd244bdd5",
+    "src/SparksAdminPanel.tsx": "a81101fb7ff2237b86ba447a2063c0756b6f958f198101cdd756784c502053e6",
+    "scripts/test-sparks-admin-session.mjs": "5c5bca7f834576a9c5ae026ff8d5c3e8dfa8e560d387218966e19ffa29343b60"
   }
 }
