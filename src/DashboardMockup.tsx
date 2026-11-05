@@ -6113,7 +6113,7 @@ export default function DashboardMockup({
     // JSON restores timestamps as strings. The case date filters require Date objects.
     return {
       accountScope: dashboardAccountScope,
-      cacheKey: "recovered-session",
+      cacheKey: String(dataRefreshKey ?? "default"),
       cachedAt: saved.cachedAt,
       cases: saved.cases.map((item) => ({
         ...item,
@@ -6517,8 +6517,10 @@ export default function DashboardMockup({
       try {
         setIsLoading(true);
         setLoadError("");
-        const cached = dashboardWorkbookCacheV155;
-        const result = cached && cached.accountScope === dashboardAccountScope && cached.cacheKey === cacheKey && cached.cases.length && Date.now() - cached.cachedAt < 15000
+        const cached = dashboardWorkbookCacheV155?.accountScope === dashboardAccountScope
+          ? dashboardWorkbookCacheV155
+          : initialDashboardCache;
+        const result = cached && cached.accountScope === dashboardAccountScope && cached.cacheKey === cacheKey && cached.cases.length && Date.now() - cached.cachedAt < 5 * 60_000
           ? cached : await loadCanonicalReportData();
         if (cancelled) return;
         const cachedAt = "cachedAt" in result ? result.cachedAt : Date.now();
