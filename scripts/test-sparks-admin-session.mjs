@@ -9,6 +9,9 @@ const { privateKey } = generateKeyPairSync("rsa", {
 });
 const priorServiceAccount = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
 const originalFetch = globalThis.fetch;
+const originalNow = Date.now;
+let testClockAdvanceMs = 0;
+Date.now = () => originalNow() + testClockAdvanceMs;
 process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = JSON.stringify({
   client_email: "firebase-adminsdk@example.test",
   private_key: privateKey,
@@ -135,7 +138,13 @@ try {
   assert.equal(quotaResult.code, 429, "Firestore quota exhaustion must not be misreported as a role error");
   assert.equal(quotaResult.result.code, "FIRESTORE_RESOURCE_EXHAUSTED");
   assert.ok(quotaResult.result.error.includes("Firestore"));
+  const sessionReadsAtQuota = readCounts.sessions;
   testMode = "wrong-policy";
+  const blockedDuringCooldown = await invoke();
+  assert.equal(blockedDuringCooldown.code, 429, "quota cooldown must reject repeat reads locally");
+  assert.equal(readCounts.sessions, sessionReadsAtQuota, "cooldown must not send more Firestore requests");
+  testClockAdvanceMs = 5 * 60_000 + 1; // Simulate the end of the short cooldown.
+
   const old = await invoke();
   assert.equal(old.code, 403);
   assert.equal(old.result.code, "SESSION_POLICY_OUTDATED", "Stale policy must require password re-verification");
@@ -194,6 +203,7 @@ try {
   assert.equal((await invoke()).code, 403, "Grant cannot override revoked QA session");
   console.log("PASS Sparks Admin: secured QA password re-verification, suspended hiding, atomic authorization guards");
 } finally {
+  Date.now = originalNow;
   globalThis.fetch = originalFetch;
   if (priorServiceAccount === undefined) delete process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
   else process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = priorServiceAccount;
