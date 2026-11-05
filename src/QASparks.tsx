@@ -58,17 +58,19 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   const [view, setView] = useState<SparksView>("overview");
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
   const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
+  const [lastAccountUsername, setLastAccountUsername] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setAccount(EMPTY_SPARKS_ACCOUNT);
     setLastAccountLoadAt("");
+    setLastAccountUsername("");
     if (!username) { setError(""); return; }
     let active = true;
     const refresh = () => {
       setLoading(true);
       void getSparksAccount(username).then((result) => {
-        if (active) { setAccount(result); setLastAccountLoadAt(new Date().toISOString()); setError(""); }
+        if (active) { setAccount(result); setLastAccountUsername(username); setLastAccountLoadAt(new Date().toISOString()); setError(""); }
       }).catch(() => {
         if (active) setError("ไม่สามารถโหลดข้อมูล Sparks ได้ กรุณาลองอีกครั้ง");
       }).finally(() => { if (active) setLoading(false); });
@@ -79,7 +81,8 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     return () => { active = false; window.removeEventListener("qa:sparks-updated", refresh); window.removeEventListener("focus", refresh); };
   }, [username]);
 
-  const ownAccountSnapshot = useMemo(() => lastAccountLoadAt ? { ...account, lastLoadedAt: lastAccountLoadAt } : null, [account, lastAccountLoadAt]);
+  const ownAccountSnapshot = useMemo(() => lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase()
+    ? { ...account, lastLoadedAt: lastAccountLoadAt } : null, [account, lastAccountLoadAt, lastAccountUsername, username]);
   const tabs: { key: SparksView; label: string; icon: SparksIconName }[] = [
     { key: "overview", label: "Overview", icon: "grid" },
     { key: "rewards", label: "Reward Center", icon: "gift" },
