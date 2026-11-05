@@ -43,6 +43,12 @@ try{
   assert.match(sparksAdmin, /request\("history"/, "admin can review other users' histories");
   assert.match(sparksAdmin, /refund/, "reward refund action must be available");
   assert.match(sparksAdminApi, /authorizeAdmin/, "server must authorize each admin request");
+  assert.match(sparksAdmin, /request\("reauth"/, "stale admin policy can be verified using QA password");
+  assert.match(sparksAdmin, /type="password"/, "QA password re-verification must use masked password control");
+  assert.match(sparksAdmin, /profiles\.filter\(\(profile\)/, "fallback directory must exclude suspended accounts");
+  assert.match(sparksAdminApi, /isSuspendedProfile/, "server must filter suspended QA users");
+  assert.match(sparksAdminApi, /requireActiveTarget/, "server rejects crediting suspended accounts");
+  assert.match(sparksAdminApi, /qa_sparks_admin_session_grants/, "password verification must be scoped to Sparks admin without modifying central QA sessions");
   assert.match(sparksAdminApi, /qa_user_sessions/, "server must verify the stored session");
   assert.match(sparksAdminApi, /GOOGLE_SERVICE_ACCOUNT_JSON/, "writes use server-only credentials");
   assert.match(sparksAdminApi, /:commit/, "wallet and ledger updates must commit atomically");
