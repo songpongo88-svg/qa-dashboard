@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./qaSparks.css";
 import { fetchStoredUserProfiles } from "./userRoleStore";
 import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
+import SparksPayoutTracker from "./SparksPayoutTracker";
 import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 
@@ -492,6 +493,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount 
         </>}
       </section>
     </div>
+    {adminReady ? <SparksPayoutTracker username={actorUsername} sessionId={sessionId}/> : null}
     {typingTestConfirm && selected && canCorrectTypingTest ? <div className="qa-sparks-admin-overlay" role="presentation">
       <section className="qa-sparks-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="qa-sparks-typing-reset-title">
         <h2 id="qa-sparks-typing-reset-title">ยืนยันคืนยอดก่อนทดลอง Typing Relief</h2>
