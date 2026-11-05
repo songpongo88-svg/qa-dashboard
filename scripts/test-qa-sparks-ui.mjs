@@ -113,6 +113,15 @@ try{
   assert.equal(questDialog.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,0, "unverified wallet can never claim");
   await act(async () => questDialog.querySelector(".qa-sparks-checkin-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.equal(document.querySelector(".qa-sparks-checkin-modal"),null);
+  const profileQuest = main.querySelector('[data-quest-item="profile-makeover"]');
+  assert.ok(profileQuest && profileQuest.textContent.includes("150"), "profile makeover must appear beside Daily Check-in");
+  const trueMoney = main.querySelector('[data-reward-item="truemoney-20"]');
+  assert.ok(trueMoney && trueMoney.textContent.includes("7,000"), "TrueMoney reward Item appears in catalog");
+  await act(async()=>trueMoney.dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  const tmModal=document.querySelector(".qa-sparks-reward-detail-modal");
+  assert.ok(tmModal && tmModal.textContent.includes("30 วัน"),"TrueMoney detail explains per-Item validity");
+  assert.ok(tmModal.querySelector(".qa-sparks-reward-detail-primary:disabled"),"redemption guarded when account absent");
+  await act(async()=>tmModal.querySelector(".qa-sparks-reward-detail-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.ok(item, "Typing Relief must be a collectible clickable Item");
   assert.equal(item.tagName, "BUTTON", "whole Item must be clickable");
   assert.equal(item.getAttribute("aria-haspopup"), "dialog");
@@ -146,7 +155,7 @@ try{
   }
   assert.ok(!main.querySelector(".qa-sparks-notes"), "remove mockup-only explanatory box");
   assert.ok(!main.textContent.includes("QA Learning"),"no QA Learning added against user's request");
-  assert.equal(main.querySelectorAll('[role="tab"]').length,4);
+  assert.equal(main.querySelectorAll('[role="tab"]').length,5);
   assert.ok(!main.textContent.includes("Sparks Admin"), "ordinary users must not see admin management");
   assert.ok(!main.querySelector(".qa-sparks-reward-detail-primary"), "purchase action must be inside the detail modal only");
 
@@ -161,6 +170,8 @@ try{
   await click("#qa-sparks-tab-rewards");
   assert.equal(main.querySelector("#qa-sparks-tab-rewards")?.getAttribute("aria-selected"),"true");
   assert.ok(main.querySelector("#qa-sparks-panel-rewards"),"reward tab changes content");
+  await click("#qa-sparks-tab-items");
+  assert.ok(main.querySelector(".qa-sparks-inventory"),"My Items tab renders personal inventory");
   await click("#qa-sparks-tab-history");
   assert.ok(main.querySelector("#qa-sparks-panel-history"),"history tab changes content");
   await click("#qa-sparks-tab-overview");
