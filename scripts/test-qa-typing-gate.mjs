@@ -299,6 +299,10 @@ try {
   const buyTicket = () => [...document.querySelectorAll("button")].find((button) => button.textContent.includes("แลก Typing Relief"));
   assert.ok(buyTicket(), "no ticket should offer 150-Sparks redemption");
   await click(buyTicket());
+  assert.equal(fixture.rewardState.owned, 0, "opening purchase confirmation must not deduct Sparks");
+  const confirmBuy = [...document.querySelectorAll("button")].find((button) => button.textContent.includes("ยืนยันแลก 150 Sparks"));
+  assert.ok(confirmBuy, "gate purchase requires explicit confirmation");
+  await click(confirmBuy);
   assert.equal(fixture.rewardState.owned, 1);
   assert.equal(fixture.rewardState.balance, 150);
   assert.ok(useTicket(), "user can use the newly redeemed ticket");
