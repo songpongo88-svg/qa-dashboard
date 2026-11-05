@@ -1,5 +1,6 @@
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { SPARKS_ANNUAL_CAP, annualEarnedFromWallet, sparksCalendarYear } from "./qaSparksMemberLevels";
 
 const WALLETS = "qa_sparks_wallets";
 export const FIRST_LOGIN_REWARDS = [100, 150, 200, 250, 300, 400, 500, 600, 750, 1000] as const;
@@ -31,12 +32,14 @@ export type SparksAccount = {
   balance: number;
   rewardOrders: number;
   typingReliefOwned: number;
+  memberYear: number;
+  memberYearEarned: number;
   firstLogin: FirstLoginPrize | null;
   history: SparksHistoryItem[];
 };
 
 export const EMPTY_SPARKS_ACCOUNT: SparksAccount = {
-  balance: 0, rewardOrders: 0, typingReliefOwned: 0, firstLogin: null, history: [],
+  balance: 0, rewardOrders: 0, typingReliefOwned: 0, memberYear: sparksCalendarYear(), memberYearEarned: 0, firstLogin: null, history: [],
 };
 
 export function sparksAccountKey(username: string): string {
@@ -84,7 +87,10 @@ export async function getSparksAccount(username: string): Promise<SparksAccount>
     getDocs(query(collection(ref, "history"), orderBy("createdAt", "desc"), limit(100))),
   ]);
   const data = wallet.exists() ? wallet.data() : {};
+  const memberYear = sparksCalendarYear();
   return {
+    memberYear,
+    memberYearEarned: annualEarnedFromWallet(data, memberYear),
     balance: safeBalance(data.balance),
     rewardOrders: safeBalance(data.rewardOrders),
     typingReliefOwned: safeBalance(data.typingReliefOwned),
@@ -136,10 +142,19 @@ export async function claimFirstLoginSparks(
     }
     const now = new Date().toISOString();
     const current = safeBalance(data.balance);
+    const memberYear = sparksCalendarYear();
+    const earnedThisYear = annualEarnedFromWallet(data, memberYear);
+    if (earnedThisYear + amount > SPARKS_ANNUAL_CAP) {
+      throw new Error("คุณได้รับ Sparks ครบ 200,000 คะแนนสำหรับปีนี้แล้ว");
+    }
+    const previousEarned = Math.max(safeBalance(data.totalEarned), safeBalance(data.firstLogin?.amount));
     const prize: FirstLoginPrize = { cardId: card.id, cardName: card.name, amount, claimedAt: now };
     tx.set(ref, {
       username: String(username).trim(),
       balance: current + amount,
+      totalEarned: previousEarned + amount,
+      memberYear,
+      memberYearEarned: earnedThisYear + amount,
       rewardOrders: safeBalance(data.rewardOrders),
       firstLogin: prize,
       updatedAt: now,
