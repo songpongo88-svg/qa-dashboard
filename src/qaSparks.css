@@ -260,3 +260,30 @@
   line-height: 1.6;
 }
 .qa-sparks-admin-user-balance small { white-space: nowrap; }
+
+
+/* Typing Relief — the first QA Sparks reward; inherits every dashboard theme. */
+.qa-sparks-reward-item{position:relative;display:flex;align-items:flex-start;gap:20px;padding:23px;border:1px solid var(--sparks-outline);border-radius:20px;background:linear-gradient(125deg,#fffefc,#fffaf1 70%,var(--sparks-soft));box-shadow:var(--sparks-shadow);font-family:"Kanit",sans-serif;}
+.qa-sparks-reward-item-icon{height:105px;width:105px;display:grid;place-items:center;flex-shrink:0;border-radius:21px;border:1px solid color-mix(in srgb,var(--sparks-accent) 17%,#f4e5d9);background:linear-gradient(145deg,#fffcf2,#f7e6cd);color:var(--sparks-accent);}
+.qa-sparks-reward-item-body{min-width:0;flex:1;}
+.qa-sparks-reward-item-category{display:block;color:var(--sparks-accent);font-size:10px;font-weight:600;letter-spacing:.07em;}
+.qa-sparks-reward-item h3{margin:4px 0 7px;color:var(--sparks-dark);font-size:22px;font-weight:600;line-height:1.35;}
+.qa-sparks-reward-item p{margin:0 0 12px;font-size:13px;line-height:1.6;color:#5e5360;}
+.qa-sparks-reward-item-pills{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0;}
+.qa-sparks-reward-item-pills span{border:1px solid var(--sparks-outline);background:#fff;border-radius:999px;padding:5px 10px;color:var(--sparks-dark);font-size:11px;font-weight:500;}
+.qa-sparks-reward-item-owned{font-size:12px;color:#6e5962;}
+.qa-sparks-reward-item-owned strong{font-size:15px;color:var(--sparks-dark);}
+.qa-sparks-reward-item-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:16px 0 9px;padding-top:14px;border-top:1px solid var(--sparks-outline);}
+.qa-sparks-reward-item-footer strong{font-size:27px;font-weight:650;line-height:1.2;color:#c67d1f;}
+.qa-sparks-reward-item-footer span{color:#71616a;font-size:12px;}
+.qa-sparks-reward-item button{font-family:inherit;cursor:pointer;border:0;background:var(--sparks-accent);color:#fff;border-radius:11px;padding:10px 18px;font-size:12px;font-weight:600;}
+.qa-sparks-reward-item button:disabled{opacity:.45;cursor:not-allowed;}
+.qa-sparks-reward-item .qa-sparks-reward-item-footnote{margin:7px 0 0;color:#816b71;font-size:11px;}
+.qa-sparks-reward-item .qa-sparks-reward-item-success{color:#148157;font-weight:600;}
+.qa-sparks-reward-confirm-overlay{position:fixed;inset:0;z-index:999;display:grid;place-items:center;padding:15px;background:#130c20ad;backdrop-filter:blur(3px);}
+.qa-sparks-reward-confirm{width:min(440px,100%);border:1px solid var(--sparks-outline);border-radius:22px;padding:24px;background:#fffdfb;box-shadow:0 18px 85px #1a123a46;}
+.qa-sparks-reward-confirm h3{font-size:20px;margin:0 0 10px;color:var(--sparks-dark);}
+.qa-sparks-reward-confirm p{margin:0 0 12px;font-size:13px;color:#5a4556;}
+.qa-sparks-reward-confirm>div{display:flex;justify-content:flex-end;gap:9px;margin-top:16px;}
+.qa-sparks-reward-confirm>div button:first-child{background:#eee5e6;color:#554859;}
+@media(max-width:640px){.qa-sparks-reward-item{flex-direction:column;padding:16px;gap:12px}.qa-sparks-reward-item-icon{width:76px;height:76px}.qa-sparks-reward-item-icon svg{width:45px;height:45px}}
