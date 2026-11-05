@@ -44,7 +44,15 @@ try{
   assert.match(sparksAdmin, /refund/, "reward refund action must be available");
   assert.match(sparksAdminApi, /authorizeAdmin/, "server must authorize each admin request");
   assert.match(sparksAdmin, /FIRESTORE_RESOURCE_EXHAUSTED/, "quota errors must be distinguished from expired sessions");
-  assert.match(sparksAdmin, /if \(!quotaLimited\)/, "bulk wallet fallback must stop on Firestore quota exhaustion");
+  assert.match(sparksAdmin, /getDocsFromCache/, "offline wallet fallback must use Firestore local cache without network reads");
+  assert.doesNotMatch(sparksAdmin, /await getDocs\(collection\(firebaseDb, "qa_sparks_wallets"\)\)/, "fallback may not fetch full wallet collection from network");
+  assert.match(sparksAdmin, /balanceKnown/, "cached balances and unknown balances must be visibly distinguished");
+  assert.match(sparksAdmin, /ยอดที่เคยโหลดไว้ ไม่ใช่ยอดเรียลไทม์/, "cached values must clearly state that they are not current");
+  assert.match(sparksAdmin, /rememberBalances/, "successful admin reads must keep a short-lived session cache");
+  assert.match(sparksAdmin, /selected\.balanceKnown/, "user detail should show known cached balances during quota outage");
+  const qaSparksSource = await readFile("src/QASparks.tsx", "utf8");
+  assert.match(qaSparksSource, /ownAccount=\{ownAccountSnapshot\}/, "the administrator's existing personal wallet is available for read-only fallback");
+  assert.match(qaSparksSource, /useMemo/, "personal wallet snapshot is stable across QA Sparks rerenders");
   assert.match(sparksAdmin, /request\("reauth"/, "stale admin policy can be verified using QA password");
   assert.match(sparksAdmin, /type="password"/, "QA password re-verification must use masked password control");
   assert.match(sparksAdmin, /profiles\.filter\(\(profile\)/, "fallback directory must exclude suspended accounts");
