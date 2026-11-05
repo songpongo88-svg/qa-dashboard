@@ -5,10 +5,11 @@ import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
 import DailyCheckinQuest from "./DailyCheckinQuest";
 import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
+import TrueMoneyReward from "./TrueMoneyReward";
 import { SPARKS_ANNUAL_CAP, SPARKS_MEMBER_LEVELS, getSparksMemberLevel } from "./qaSparksMemberLevels";
 
-type SparksView = "overview" | "quests" | "rewards" | "history" | "admin";
-type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar";
+type SparksView = "overview" | "quests" | "rewards" | "items" | "history" | "admin";
+type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar" | "package";
 const paths: Record<SparksIconName, React.ReactNode> = {
   spark: <path d="m12 2 2.7 6.7L22 12l-7.3 3.3L12 22l-2.7-6.7L2 12l7.3-3.3z"/>,
   gift: <><rect x="3" y="10" width="18" height="11" rx="2"/><path d="M2 7h20v4H2zM12 7v14M12 7C7 7 6 5.5 7 3.8c1.5-2.4 5 0 5 3.2Zm0 0c5 0 6-1.5 5-3.2-1.5-2.4-5 0-5 3.2Z"/></>,
@@ -17,6 +18,7 @@ const paths: Record<SparksIconName, React.ReactNode> = {
   receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 9h6M9 13h6"/></>,
   crown: <><path d="m2 8 5 4 5-8 5 8 5-4-2 12H4z"/><path d="M5 16h14"/></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18m-12 5 2.5 2.5 4-4"/></>,
+  package: <><path d="m3 8 9-5 9 5v10l-9 5-9-5z"/><path d="m3 8 9 5 9-5M12 13v10M7.5 5.5l9 5"/></>,
 };
 function SparksIcon({ name, size = 21 }: { name: SparksIconName; size?: number }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
@@ -125,6 +127,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     { key: "overview", label: "Overview", icon: "grid" },
     { key: "quests", label: "Quest Center", icon: "calendar" },
     { key: "rewards", label: "Reward Center", icon: "gift" },
+    { key: "items", label: "My Items", icon: "package" },
     { key: "history", label: "History", icon: "clock" },
     ...(adminAccess ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
@@ -178,9 +181,10 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
         </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
-          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
+          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
-        </div> : view === "quests" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
+        </div> : view === "quests" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></section>
+        : view === "items" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="package"/> My Items</h2><TrueMoneyReward mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} /> : null}
       </div>
