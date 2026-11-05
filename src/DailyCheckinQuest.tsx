@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
 
 export const DAILY_CHECKIN_EVENT = Object.freeze({
   id: "daily-checkin-nov-2026", start: "2026-11-09", end: "2026-11-22",
@@ -28,7 +29,7 @@ type ClaimResult = {
 };
 type Props = {
   username: string; sessionId: string; claimedDays: number[];
-  loaded: boolean; display?: "overview" | "full";
+  loaded: boolean; profileQuestClaimed?: boolean; display?: "overview" | "full";
 };
 
 function CalendarBadge({ size = 34 }: { size?: number }) {
@@ -40,7 +41,7 @@ function CalendarBadge({ size = 34 }: { size?: number }) {
   </svg>;
 }
 
-export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded, display = "overview" }: Props) {
+export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded, profileQuestClaimed = false, display = "overview" }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [serverDays, setServerDays] = useState<{ username: string; days: number[] } | null>(null);
@@ -136,7 +137,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
     <section className="qa-sparks-quest-center" aria-label="Quest Center">
       <div className="qa-sparks-quest-center-head">
         <div><div className="qa-sparks-quest-overline">QA SPARKS · QUEST #01</div><h2><CalendarBadge size={24}/> Quest Center</h2><p>เลือกภารกิจเพื่อดูรายละเอียดและรับรางวัล</p></div>
-        <span className="qa-sparks-quest-count">1 Quest</span>
+        <span className="qa-sparks-quest-count">2 Quests</span>
       </div>
       <button type="button" ref={trigger} className="qa-sparks-quest-tile" data-quest-item="daily-checkin"
         aria-haspopup="dialog" aria-expanded={open} aria-label="เปิดรายละเอียด Daily Check-in" onClick={openDetails}>
@@ -155,6 +156,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
           </span>
         </span>
       </button>
+      <ProfileMakeoverQuest username={username} sessionId={sessionId} claimed={profileQuestClaimed} loaded={loaded}/>
       {display === "full" ? <p className="qa-sparks-quest-center-foot">Quest ใหม่จะปรากฏในรายการนี้เมื่อเปิดกิจกรรมเพิ่มเติม</p> : null}
     </section>
 
