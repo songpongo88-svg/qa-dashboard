@@ -58,6 +58,7 @@ globalThis.fetch = async (rawUrl, opts = {}) => {
     return reply({ writeResults: [{}, {}] });
   }
   if (url.includes("/qa_user_sessions/")) {
+    if (testMode === "quota") return reply({ error: { status: "RESOURCE_EXHAUSTED", message: "Firestore daily quota exceeded" } }, 429);
     if (testMode === "missing") return reply({ error: { status: "NOT_FOUND" } }, 404);
     const data = {
       status: testMode === "revoked" ? "revoked" : "active",
@@ -112,6 +113,11 @@ try {
     assert.equal(actual.code, 403, "Failed to reject " + mode);
     assert.ok(actual.result.error.includes(expected), "Expected specific error for " + mode + ": " + actual.result.error);
   }
+  testMode = "quota";
+  const quotaResult = await invoke();
+  assert.equal(quotaResult.code, 429, "Firestore quota exhaustion must not be misreported as a role error");
+  assert.equal(quotaResult.result.code, "FIRESTORE_RESOURCE_EXHAUSTED");
+  assert.ok(quotaResult.result.error.includes("Firestore"));
   testMode = "wrong-policy";
   const old = await invoke();
   assert.equal(old.code, 403);

@@ -43,6 +43,8 @@ try{
   assert.match(sparksAdmin, /request\("history"/, "admin can review other users' histories");
   assert.match(sparksAdmin, /refund/, "reward refund action must be available");
   assert.match(sparksAdminApi, /authorizeAdmin/, "server must authorize each admin request");
+  assert.match(sparksAdmin, /FIRESTORE_RESOURCE_EXHAUSTED/, "quota errors must be distinguished from expired sessions");
+  assert.match(sparksAdmin, /if \(!quotaLimited\)/, "bulk wallet fallback must stop on Firestore quota exhaustion");
   assert.match(sparksAdmin, /request\("reauth"/, "stale admin policy can be verified using QA password");
   assert.match(sparksAdmin, /type="password"/, "QA password re-verification must use masked password control");
   assert.match(sparksAdmin, /profiles\.filter\(\(profile\)/, "fallback directory must exclude suspended accounts");

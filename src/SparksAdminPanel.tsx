@@ -71,6 +71,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
   const [saving, setSaving] = useState(false);
   const [revision, setRevision] = useState(0);
   const [adminReady, setAdminReady] = useState(false);
+  const [firestoreLimited, setFirestoreLimited] = useState(false);
   const [needsReauth, setNeedsReauth] = useState(false);
   const [reauthPassword, setReauthPassword] = useState("");
   const [reauthLoading, setReauthLoading] = useState(false);
@@ -103,6 +104,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
         .filter((user) => String(user.status || "").toLowerCase() !== "suspended");
       setUsers(loaded);
       setAdminReady(true);
+      setFirestoreLimited(false);
       setNeedsReauth(false);
       setReauthPassword("");
       setReauthError("");
@@ -111,23 +113,30 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
     }).catch(async (reason) => {
       if (!active) return;
       setAdminReady(false);
-      const policyMismatch = (reason as Error & { code?: string })?.code === "SESSION_POLICY_OUTDATED";
+      const code = (reason as Error & { code?: string })?.code || "";
+      const policyMismatch = code === "SESSION_POLICY_OUTDATED";
+      const quotaLimited = code === "FIRESTORE_RESOURCE_EXHAUSTED";
+      setFirestoreLimited(quotaLimited);
       setNeedsReauth(policyMismatch);
       const message = reason instanceof Error ? reason.message : "บริการ Sparks Admin เชื่อมต่อไม่สำเร็จ";
-      setError(policyMismatch
-        ? "กรุณายืนยันรหัสผ่าน QA อีกครั้ง เพื่อเปิดสิทธิ์จัดการ Sparks (ไม่ต้อง Logout)"
-        : "ระบบจัดการคะแนนยังไม่พร้อม: " + message + " — แสดงรายชื่อจาก QA User Management แบบอ่านอย่างเดียว");
+      setError(quotaLimited
+        ? "Firestore จำกัดโควตาหรืออัตราการใช้งานอยู่ ไม่ใช่ปัญหา Role, Session หรือ Firebase Key กรุณาตรวจการใช้โควตาใน Firebase Console → Firestore → Usage"
+        : policyMismatch
+          ? "กรุณายืนยันรหัสผ่าน QA อีกครั้ง เพื่อเปิดสิทธิ์จัดการ Sparks (ไม่ต้อง Logout)"
+          : "ระบบจัดการคะแนนยังไม่พร้อม: " + message + " — แสดงรายชื่อจาก QA User Management แบบอ่านอย่างเดียว");
       try {
         const profiles = await fetchStoredUserProfiles();
         const wallets = new Map<string, any>();
-        try {
-          const rows = await getDocs(collection(firebaseDb, "qa_sparks_wallets"));
-          rows.docs.forEach((doc) => {
-            const data = doc.data();
-            wallets.set(String(data.username || decodeURIComponent(doc.id)).trim().toLowerCase(), data);
-          });
-        } catch {
-          // Keep the QA user directory visible even when wallet reads are unavailable.
+        if (!quotaLimited) {
+          try {
+            const rows = await getDocs(collection(firebaseDb, "qa_sparks_wallets"));
+            rows.docs.forEach((doc) => {
+              const data = doc.data();
+              wallets.set(String(data.username || decodeURIComponent(doc.id)).trim().toLowerCase(), data);
+            });
+          } catch {
+            // Keep the QA user directory visible when wallet reads are unavailable.
+          }
         }
         if (!active) return;
         const fallbackUsers = profiles.filter((profile) => String(profile.status || "").toLowerCase() !== "suspended").map((profile) => {
@@ -162,6 +171,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
     if (!chosen) { setDetail(null); return; }
     setDetailLoading(true);
     setDetail(null);
+    if (firestoreLimited) { setDetailLoading(false); return; }
     void request("history", { targetUsername: chosen }).then((data) => {
       if (active) { setDetail(data as DetailResponse); setError(""); }
     }).catch(async (reason) => {
@@ -193,7 +203,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
       }
     }).finally(() => { if (active) setDetailLoading(false); });
     return () => { active = false; };
-  }, [request, chosen, revision]);
+  }, [request, chosen, revision, firestoreLimited]);
 
   const selected = users.find((user) => user.username === chosen);
   const filteredUsers = useMemo(() => users.filter((user) =>
@@ -287,7 +297,9 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
       </div>
       {reauthError ? <p role="alert" className="qa-sparks-admin-reauth-error">{reauthError}</p> : null}
     </form> : null}
-    {!adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยันสิทธิ์ผู้ดูแลสำเร็จ รายชื่อด้านล่างมาจาก QA User Management แบบอ่านอย่างเดียว</div> : null}
+    {!adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">{firestoreLimited
+      ? "โควตา Firestore อาจเต็มหรือระบบถูกจำกัดอัตราการเรียกข้อมูลชั่วคราว เพื่อป้องกันการเรียกข้อมูลซ้ำ ระบบหยุดโหลด Wallet และ History เพิ่มเติมแล้ว ตรวจยอดที่ Firebase Console → Firestore → Usage ก่อน แล้วค่อยกดรีเฟรชเมื่อระบบพร้อม"
+      : "ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยันสิทธิ์ผู้ดูแลสำเร็จ รายชื่อด้านล่างมาจาก QA User Management แบบอ่านอย่างเดียว"}</div> : null}
     {notice ? <div role="status" className="qa-sparks-admin-success">{notice}</div> : null}
     <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">

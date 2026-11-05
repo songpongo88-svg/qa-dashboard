@@ -104,9 +104,17 @@ async function firestoreRequest(endpoint, method = "GET", body) {
   const result = await response.json().catch(() => ({}));
   if (response.status === 404) return null;
   if (!response.ok) {
-    const detail = String(result?.error?.status || result?.error?.message || "Firestore request failed");
+    const firestoreStatus = String(result?.error?.status || "");
+    if (firestoreStatus === "RESOURCE_EXHAUSTED" || response.status === 429) {
+      // This is a database quota/capacity error, NOT an invalid QA session or key.
+      // Keep writes blocked; never bypass the server checks or suggest adding keys.
+      throw Object.assign(new Error("Firestore มีข้อจำกัดโควตาหรืออัตราการใช้งาน กรุณาตรวจที่ Firebase Console → Firestore → Usage และหลีกเลี่ยงการรีเฟรชซ้ำ"), {
+        status: 429, code: "FIRESTORE_RESOURCE_EXHAUSTED", firestoreStatus,
+      });
+    }
+    const detail = String(firestoreStatus || result?.error?.message || "Firestore request failed");
     const status = response.status === 403 ? 503 : response.status >= 500 ? 503 : response.status;
-    throw Object.assign(new Error(detail), { status, firestoreStatus: result?.error?.status || "" });
+    throw Object.assign(new Error(detail), { status, firestoreStatus });
   }
   return result;
 }
