@@ -74,6 +74,7 @@ export default function QaTypingGate({
   const [rewardBalance, setRewardBalance] = useState(0);
   const [rewardError, setRewardError] = useState("");
   const [rewardBusy, setRewardBusy] = useState(false);
+  const [confirmRewardPurchase, setConfirmRewardPurchase] = useState(false);
   const checking = attemptPhase === "checking";
   const needsRestart = attemptPhase === "failed" || attemptPhase === "timeout";
 
@@ -90,6 +91,7 @@ export default function QaTypingGate({
   useEffect(() => {
     let active = true;
     setRewardError("");
+    setConfirmRewardPurchase(false);
     setRewardOwned(0);
     setRewardBalance(0);
     if (!challenge || !enabled || challenge.mode !== "word" || !currentUser?.sessionId) {
@@ -208,6 +210,7 @@ export default function QaTypingGate({
       const data = await typingReliefAction("redeem-typing-relief", username, currentUser.sessionId, { requestId: crypto.randomUUID() });
       setRewardOwned(data.owned);
       setRewardBalance(data.balance);
+      setConfirmRewardPurchase(false);
     } catch (error) {
       setRewardError(error instanceof Error ? error.message : "แลก Typing Relief ไม่สำเร็จ");
     } finally { setRewardBusy(false); }
@@ -315,10 +318,20 @@ export default function QaTypingGate({
               {rewardOwned > 0 ? <button type="button" onClick={() => void applyTypingRelief()} disabled={rewardBusy}
                   className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
                   {rewardBusy ? "กำลังใช้สิทธิ์..." : "ใช้ Typing Relief 1 สิทธิ์"}
-                </button> :
-                <button type="button" onClick={() => void buyTypingRelief()} disabled={rewardBusy || rewardBalance < TYPING_RELIEF.price}
+                </button> : confirmRewardPurchase ? <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+                  ยืนยันหัก 150 QA Sparks เพื่อรับ Typing Relief 1 สิทธิ์ใช่หรือไม่?
+                  <button type="button" onClick={() => void buyTypingRelief()} disabled={rewardBusy || rewardBalance < TYPING_RELIEF.price}
+                    className="mt-2 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
+                    {rewardBusy ? "กำลังบันทึก..." : "ยืนยันแลก 150 Sparks"}
+                  </button>
+                  <button type="button" onClick={() => setConfirmRewardPurchase(false)} disabled={rewardBusy}
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-600">
+                    ยกเลิกการแลก
+                  </button>
+                </div> :
+                <button type="button" onClick={() => setConfirmRewardPurchase(true)} disabled={rewardBusy || rewardBalance < TYPING_RELIEF.price}
                   className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
-                  {rewardBusy ? "กำลังแลก..." : "แลก Typing Relief · 150 Sparks"}
+                  แลก Typing Relief · 150 Sparks
                 </button>}
               <button type="button" onClick={() => { if (!rewardBusy) setRewardChoice("typing"); }} disabled={rewardBusy}
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 disabled:opacity-50">
