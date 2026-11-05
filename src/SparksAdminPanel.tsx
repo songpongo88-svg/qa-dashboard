@@ -99,8 +99,9 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
     setLoading(true);
     void request("list").then((data) => {
       if (!active) return;
-      const loaded = Array.isArray(data.users) ? data.users as AdminUser[] : [];
-      setUsers(loaded.filter((user) => String(user.status || "").toLowerCase() !== "suspended"));
+      const loaded = (Array.isArray(data.users) ? data.users as AdminUser[] : [])
+        .filter((user) => String(user.status || "").toLowerCase() !== "suspended");
+      setUsers(loaded);
       setAdminReady(true);
       setNeedsReauth(false);
       setReauthPassword("");
