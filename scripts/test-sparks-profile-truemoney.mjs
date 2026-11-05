@@ -180,6 +180,23 @@ try{
  put(root,{...docs.get(root),balance:199900,memberYear:2026,memberYearEarned:199900,totalEarned:199900});
  r=await call("claim-profile-makeover");
  assert.equal(r.result.capReached,true);assert.equal(docs.get(root).balance,199900);
+
+ // Catalog pause is an administrator-only guarded operation; no member may
+ // change the fixed-price Quest/Reward catalog or bypass a pause.
+ r=await call("get-sparks-catalog");
+ assert.equal(r.status,200);
+ assert.equal(r.result.items["profile-makeover-2026"],true);
+ assert.equal((await call("update-sparks-catalog",{catalogItem:"truemoney-20",enabled:false,reason:"ทดสอบหยุดรับรายการใหม่"})).status,403);
+ r=await call("update-sparks-catalog",{catalogItem:"truemoney-20",enabled:false,reason:"ทดสอบหยุดรับรายการใหม่"},"Songpon","admin-test-session-1234567");
+ assert.equal(r.status,200,JSON.stringify(r.result));
+ assert.equal(r.result.items["truemoney-20"],false);
+ assert.equal((await call("redeem-truemoney",{requestId:"blocked-after-admin-disable-12345"})).status,400);
+ r=await call("list-truemoney-items");
+ assert.equal(r.status,200,"previously owned TrueMoney items remain visible after pause");
+ r=await call("update-sparks-catalog",{catalogItem:"truemoney-20",enabled:true,reason:"ทดสอบเปิดกลับมาอีกครั้ง"},"Songpon","admin-test-session-1234567");
+ assert.equal(r.status,200);
+ assert.equal(r.result.items["truemoney-20"],true);
+ console.log("PASS Catalog Management: QA Admin only, pause blocks new redemption, owned items remain, reopen supported");
  console.log("PASS Profile Makeover: actual saved photo, automatic +150, existing photo, idempotency, expiry, annual cap");
  console.log("PASS TrueMoney: 7000-points item purchase, independent 30d expiry, 14 working-day due date, encrypted phone, admin-only payout, immutable history");
 }finally{
