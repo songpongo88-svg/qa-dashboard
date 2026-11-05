@@ -35,7 +35,8 @@ export function annualEarnedFromWallet(wallet: Record<string, unknown>, year = s
   if (year === 2026 && positiveWhole(wallet.memberYear) < 2026) {
     const firstLogin = wallet.firstLogin && typeof wallet.firstLogin === "object"
       ? wallet.firstLogin as { amount?: unknown; claimedAt?: unknown } : null;
-    const claimedYear = firstLogin?.claimedAt ? sparksCalendarYear(new Date(String(firstLogin.claimedAt))) : 0;
+    const claimedDate = new Date(String(firstLogin?.claimedAt || ""));
+    const claimedYear = Number.isFinite(claimedDate.getTime()) ? sparksCalendarYear(claimedDate) : 0;
     return Math.min(SPARKS_ANNUAL_CAP, Math.max(
       positiveWhole(wallet.totalEarned),
       claimedYear === 2026 ? positiveWhole(firstLogin?.amount) : 0,
