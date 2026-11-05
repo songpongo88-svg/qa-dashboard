@@ -1,4 +1,4 @@
-import React,{useCallback,useEffect,useState} from "react";
+import React,{useCallback,useState} from "react";
 
 type Request={requestId:string;itemId:string;username:string;displayName:string;phone:string;
   amountTHB:number;status:string;createdAt:string;dueDate:string;payoutConfirmedAt?:string;payoutConfirmedBy?:string};
@@ -30,7 +30,7 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
     catch(e){setError(e instanceof Error?e.message:"โหลด Tracker ไม่ได้");}
     finally{setLoading(false);}
   },[adminReady,call]);
-  useEffect(()=>{if(adminReady)void reload();},[adminReady,reload]);
+  // Load only on explicit Admin click to minimize Firestore read quota.\n  // This also leaves existing wallet-management operations unchanged.
   const markPaid=async()=>{
     if(!selected||!adminReady||busy)return;
     setBusy(true);setError("");
