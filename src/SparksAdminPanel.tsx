@@ -71,8 +71,12 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
   const [saving, setSaving] = useState(false);
   const [revision, setRevision] = useState(0);
   const [adminReady, setAdminReady] = useState(false);
+  const [needsReauth, setNeedsReauth] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState("");
+  const [reauthLoading, setReauthLoading] = useState(false);
+  const [reauthError, setReauthError] = useState("");
 
-  const request = useCallback(async (action: "list" | "history" | "adjust", input: Record<string, unknown> = {}) => {
+  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth", input: Record<string, unknown> = {}) => {
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const response = await fetch("/api/sparks-admin", {
       method: "POST",
@@ -81,7 +85,12 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
       body: JSON.stringify({ action, actorUsername, sessionId, ...input }),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(String(result.error || "ไม่สามารถโหลดข้อมูล Sparks ได้"));
+    if (!response.ok) {
+      const error = Object.assign(new Error(String(result.error || "ไม่สามารถโหลดข้อมูล Sparks ได้")), {
+        code: String(result.code || ""),
+      });
+      throw error;
+    }
     return result;
   }, [actorUsername, sessionId]);
 
@@ -91,15 +100,22 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
     void request("list").then((data) => {
       if (!active) return;
       const loaded = Array.isArray(data.users) ? data.users as AdminUser[] : [];
-      setUsers(loaded);
+      setUsers(loaded.filter((user) => String(user.status || "").toLowerCase() !== "suspended"));
       setAdminReady(true);
+      setNeedsReauth(false);
+      setReauthPassword("");
+      setReauthError("");
       setChosen((previous) => loaded.some((row) => row.username === previous) ? previous : (loaded[0]?.username || ""));
       setError("");
     }).catch(async (reason) => {
       if (!active) return;
       setAdminReady(false);
+      const policyMismatch = (reason as Error & { code?: string })?.code === "SESSION_POLICY_OUTDATED";
+      setNeedsReauth(policyMismatch);
       const message = reason instanceof Error ? reason.message : "บริการ Sparks Admin เชื่อมต่อไม่สำเร็จ";
-      setError("ระบบจัดการคะแนนยังไม่พร้อม: " + message + " — แสดงรายชื่อจาก QA User Management แบบอ่านอย่างเดียว");
+      setError(policyMismatch
+        ? "กรุณายืนยันรหัสผ่าน QA อีกครั้ง เพื่อเปิดสิทธิ์จัดการ Sparks (ไม่ต้อง Logout)"
+        : "ระบบจัดการคะแนนยังไม่พร้อม: " + message + " — แสดงรายชื่อจาก QA User Management แบบอ่านอย่างเดียว");
       try {
         const profiles = await fetchStoredUserProfiles();
         const wallets = new Map<string, any>();
@@ -113,7 +129,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
           // Keep the QA user directory visible even when wallet reads are unavailable.
         }
         if (!active) return;
-        const fallbackUsers = profiles.map((profile) => {
+        const fallbackUsers = profiles.filter((profile) => String(profile.status || "").toLowerCase() !== "suspended").map((profile) => {
           const wallet = wallets.get(profile.username.trim().toLowerCase());
           return {
             username: profile.username,
@@ -179,9 +195,10 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
   }, [request, chosen, revision]);
 
   const selected = users.find((user) => user.username === chosen);
-  const filteredUsers = useMemo(() => users.filter((user) => (
-    user.username + " " + user.displayName + " " + user.role
-  ).toLocaleLowerCase().includes(search.toLocaleLowerCase())), [search, users]);
+  const filteredUsers = useMemo(() => users.filter((user) =>
+    String(user.status || "").toLowerCase() !== "suspended"
+    && (user.username + " " + user.displayName + " " + user.role).toLocaleLowerCase().includes(search.toLocaleLowerCase())
+  ), [search, users]);
   const history = (detail?.history || []).filter((entry) => {
     if (filter === "all") return true;
     if (filter === "redeem") return ["reward-redemption", "reward-refund"].includes(entry.source);
@@ -189,6 +206,22 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
   });
   const refundedIds = new Set((detail?.history || []).filter((item) => item.source === "reward-refund").map((item) => item.referenceId));
 
+  async function submitReauth(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (reauthLoading || !reauthPassword) return;
+    setReauthLoading(true);
+    setReauthError("");
+    try {
+      await request("reauth", { password: reauthPassword });
+      setReauthPassword("");
+      setNeedsReauth(false);
+      setRevision((value) => value + 1);
+    } catch (reason) {
+      setReauthError(reason instanceof Error ? reason.message : "ยืนยันรหัสผ่าน QA ไม่สำเร็จ");
+    } finally {
+      setReauthLoading(false);
+    }
+  }
   function startOperation(kind: Operation, item?: AdminHistoryItem) {
     if (!adminReady) return;
     setOperation(kind);
@@ -243,7 +276,17 @@ export default function SparksAdminPanel({ actorUsername, sessionId }: { actorUs
       <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button>
     </div>
     {error ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
-    {!adminReady && !loading ? <div role="status" className="qa-sparks-admin-readonly">ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยัน Service Account สำเร็จ รายชื่อ User ด้านล่างใช้ข้อมูลเดียวกับ QA User Management</div> : null}
+    {needsReauth ? <form className="qa-sparks-admin-reauth" onSubmit={(event) => { void submitReauth(event); }}>
+      <div><strong>ยืนยันสิทธิ์ Sparks Admin</strong><p>กรอกรหัสผ่านที่ใช้ Login QA Dashboard ปัจจุบัน 1 ครั้ง เพื่อยืนยันสิทธิ์ผู้ดูแล</p></div>
+      <label htmlFor="qa-sparks-admin-reauth-password">รหัสผ่าน QA</label>
+      <div className="qa-sparks-admin-reauth-controls">
+        <input id="qa-sparks-admin-reauth-password" type="password" autoComplete="current-password" value={reauthPassword}
+          onChange={(event) => setReauthPassword(event.target.value)} disabled={reauthLoading} required maxLength={512} placeholder="รหัสผ่าน QA Dashboard"/>
+        <button type="submit" disabled={reauthLoading || !reauthPassword}>{reauthLoading ? "กำลังยืนยัน..." : "ยืนยันสิทธิ์"}</button>
+      </div>
+      {reauthError ? <p role="alert" className="qa-sparks-admin-reauth-error">{reauthError}</p> : null}
+    </form> : null}
+    {!adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยันสิทธิ์ผู้ดูแลสำเร็จ รายชื่อด้านล่างมาจาก QA User Management แบบอ่านอย่างเดียว</div> : null}
     {notice ? <div role="status" className="qa-sparks-admin-success">{notice}</div> : null}
     <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">
