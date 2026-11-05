@@ -174,19 +174,23 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       </nav>
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
         {view === "overview" && walletLoaded ? <MemberJourney earned={account.memberYearEarned} year={account.memberYear}/> : null}
-        {(view === "overview" || view === "quests") ? <DailyCheckinQuest
-          username={username} sessionId={adminSessionId} claimedDays={account.dailyCheckinClaimedDays || []}
-          loaded={walletLoaded} display={view === "quests" ? "full" : "overview"}/> : null}
-        {(view === "overview" || view === "quests") ? <section className="qa-sparks-profile-quest-section">
-          <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
+        {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
+          <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>2 Quests</span></div>
+          <div className="qa-sparks-mini-grid qa-sparks-quest-grid">
+            <DailyCheckinQuest username={username} sessionId={adminSessionId} claimedDays={account.dailyCheckinClaimedDays || []} loaded={walletLoaded}/>
+            <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
+          </div>
         </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
-          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></section>
+          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
-        </div> : view === "quests" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></section>
+        </div> : view === "quests" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
         : view === "items" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="package"/> My Items</h2>
-          <article className="qa-sparks-owned-typing-item"><span><SparksIcon name="receipt" size={33}/></span><div><strong>Typing Relief</strong><p>ใช้ลดจำนวนคำพิมพ์ใน QA Access 60% · สามารถเก็บสิทธิ์ไว้ใช้ภายหลัง</p><small>ใช้ได้เมื่อมีภารกิจ QA Access Check แบบ Word Mode</small></div><b>{walletLoaded?account.typingReliefOwned:"—"} สิทธิ์</b></article>
-          <TrueMoneyReward mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></section>
+          <div className="qa-sparks-mini-grid qa-sparks-inventory-grid">
+            {walletLoaded && account.typingReliefOwned > 0 ? <TypingReliefRewardCard mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/> : null}
+            <TrueMoneyReward mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded} hasOtherItems={walletLoaded && account.typingReliefOwned > 0}/>
+          </div>
+        </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} /> : null}
       </div>
