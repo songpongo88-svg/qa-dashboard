@@ -12,6 +12,35 @@ const TYPING_RELIEF_PRICE = 150;
 const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
 const TYPING_RELIEF_MAX_OWNED = 10;
 const SPARKS_ANNUAL_EARN_CAP = 200000;
+// Profile Quest: automatic credit only for a persisted custom profile photo.
+const PROFILE_MAKEOVER = Object.freeze({id:"profile-makeover-2026",reward:150,end:"2026-12-15"});
+const TRUEMONEY_REWARD = Object.freeze({id:"truemoney-20",price:7000,amountBaht:20,validDays:30,deadlineBusinessDays:14});
+function bangkokDate(now=new Date()){
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now);
+  const val=(type)=>parts.find(x=>x.type===type)?.value||"";
+  return val("year")+"-"+val("month")+"-"+val("day");
+}
+function addBusinessDaysBangkok(fromISO,count=14){
+  // Our announced 14-day working window excludes Saturdays and Sundays.
+  // Begin with the day *after* a member submits their redemption request.
+  const date=new Date(fromISO);
+  let remaining=count;
+  while(remaining>0){
+    date.setUTCDate(date.getUTCDate()+1);
+    const wd=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",weekday:"short"}).format(date);
+    if(wd!=="Sat"&&wd!=="Sun")remaining--;
+  }
+  return bangkokDate(date);
+}
+function addThirtyDays(now=new Date()){
+  return new Date(now.getTime()+TRUEMONEY_REWARD.validDays*86400000).toISOString();
+}
+function safeItemId(raw){
+  const id=String(raw||"");
+  if(!/^tm20-[a-zA-Z0-9_-]{16,108}$/.test(id))fail("Item ID ไม่ถูกต้อง",400);
+  return id;
+}
+
 // Fixed, publicly announced Quest #01. Dates are interpreted in Asia/Bangkok.
 const DAILY_CHECKIN_QUEST = Object.freeze({
   id: "daily-checkin-nov-2026",
@@ -486,6 +515,204 @@ async function useTypingRelief(body, actor) {
   fail("มีการทำรายการพร้อมกัน กรุณาลองใหม่อีกครั้ง", 409);
 }
 
+
+/** Crediting is checked on the server against the *actual Firestore saved*
+ * user-uploaded image. The user cannot forge a custom-photo flag in requests.
+ */
+async function claimProfileMakeover(actor){
+ const today=bangkokDate();
+ const walletPath=walletDocumentPath(actor.username);
+ const historyPath=path("qa_sparks_wallets",walletKey(actor.username),"history","quest-profile-makeover-2026");
+ if(today>PROFILE_MAKEOVER.end)return {eligible:false,expired:true,credited:false};
+ const profile=await findProfileByUsername(actor.username);
+ // Profile photo document IDs retain username casing from the upload form.
+ const ids=[String(profile.username||""),actor.username];
+ let actualPhoto=null;
+ for(const id of [...new Set(ids)].filter(Boolean)){
+   const candidate=await readDoc(path("qa_user_profile_photos",id));
+   const photo=recordValue(candidate);
+   if(normalize(photo.username)===actor.username && typeof photo.photoDataUrl==="string" &&
+      /^data:image\/(?:jpeg|png|webp|gif);base64,[a-zA-Z0-9+/=]{100,}$/.test(photo.photoDataUrl)){
+     actualPhoto=photo;break;
+   }
+ }
+ if(!actualPhoto)return {eligible:false,credited:false,reason:"default-photo"};
+ for(let attempt=0;attempt<4;attempt++){
+  const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
+  const tx=begin?.transaction;
+  if(!tx)fail("ไม่สามารถบันทึกรางวัลรูปโปรไฟล์ได้",503);
+  try{
+   const [walletDoc,earnedDoc]=await Promise.all([readDoc(walletPath,tx),readDoc(historyPath,tx)]);
+   const wallet=recordValue(walletDoc);
+   if(earnedDoc)return {eligible:true,credited:true,alreadyApplied:true,balance:intCount(wallet.balance)};
+   if(bangkokDate()>PROFILE_MAKEOVER.end)return {eligible:true,expired:true,credited:false};
+   const year=currentMemberYear(),yearEarned=annualEarnedFromWallet(wallet,year);
+   if(yearEarned+PROFILE_MAKEOVER.reward>SPARKS_ANNUAL_EARN_CAP)
+     return {eligible:true,credited:false,capReached:true};
+   const now=new Date().toISOString(),balanceAfter=intCount(wallet.balance)+PROFILE_MAKEOVER.reward;
+   const updates={username:actor.username,balance:balanceAfter,
+     totalEarned:Math.max(intCount(wallet.totalEarned),intCount(wallet.firstLogin?.amount))+PROFILE_MAKEOVER.reward,
+     memberYear:year,memberYearEarned:yearEarned+PROFILE_MAKEOVER.reward,
+     profileMakeover2026ClaimedAt:now,updatedAt:now};
+   const history={createdAt:now,type:"earn",source:"quest-profile-makeover",
+     questId:PROFILE_MAKEOVER.id,title:"Profile Makeover Reward",
+     detail:"ตั้งรูปโปรไฟล์ของตัวเอง · Quest #02",amount:PROFILE_MAKEOVER.reward,
+     balanceAfter,performedBy:actor.username,status:"Completed"};
+   await firestoreRequest(":commit","POST",{transaction:tx,writes:[
+     updateWrite(walletPath,updates,walletDoc),createWrite(historyPath,history)]});
+   return {eligible:true,credited:true,alreadyApplied:false,balance:balanceAfter};
+  }catch(e){if(["ABORTED","FAILED_PRECONDITION"].includes(e?.firestoreStatus)&&attempt<3)continue;throw e;}
+ }
+ fail("มีการทำรายการพร้อมกัน กรุณาลองใหม่",409);
+}
+async function getProfileMakeoverStatus(actor){
+ const wallet=recordValue(await readDoc(walletDocumentPath(actor.username)));
+ return {credited:Boolean(wallet.profileMakeover2026ClaimedAt),
+  expired:bangkokDate()>PROFILE_MAKEOVER.end,deadline:PROFILE_MAKEOVER.end,reward:PROFILE_MAKEOVER.reward};
+}
+/** New reward items are separate immutable identities with separate expiry. */
+async function redeemTrueMoney(body,actor){
+ const token=checkRequestId(body.requestId);
+ const itemId="tm20-"+token;
+ const walletPath=walletDocumentPath(actor.username);
+ const itemPath=path("qa_sparks_wallets",walletKey(actor.username),"items",itemId);
+ const historyPath=path("qa_sparks_wallets",walletKey(actor.username),"history","redeem-"+itemId);
+ for(let attempt=0;attempt<4;attempt++){
+  const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}}),tx=begin?.transaction;
+  if(!tx)fail("เริ่มแลกรางวัลไม่ได้",503);
+  try{
+   const [walletDoc,itemDoc,historyDoc]=await Promise.all([
+     readDoc(walletPath,tx),readDoc(itemPath,tx),readDoc(historyPath,tx)]);
+   if(itemDoc||historyDoc){
+     const item=recordValue(itemDoc);
+     if(item.rewardId===TRUEMONEY_REWARD.id)return {updated:false,alreadyApplied:true,item:publicTrueMoneyItem(item)};
+     fail("รายการแลกซ้ำกับรายการอื่น",409);
+   }
+   const wallet=recordValue(walletDoc),balanceBefore=intCount(wallet.balance);
+   if(balanceBefore<TRUEMONEY_REWARD.price)fail("Sparks ไม่เพียงพอสำหรับแลก TrueMoney (7,000 Sparks)",400);
+   const now=new Date(),timestamp=now.toISOString(),expiresAt=addThirtyDays(now);
+   const balanceAfter=balanceBefore-TRUEMONEY_REWARD.price;
+   const item={id:itemId,owner:actor.username,rewardId:TRUEMONEY_REWARD.id,
+    name:"TrueMoney 20 บาท",amountBaht:20,price:TRUEMONEY_REWARD.price,
+    redeemedAt:timestamp,expiresAt,status:"available",createdAt:timestamp};
+   const hist={createdAt:timestamp,type:"spend",source:"reward-redemption",rewardId:TRUEMONEY_REWARD.id,
+    itemId,title:"TrueMoney 20 THB Redeemed",
+    detail:"แลกรับ Item TrueMoney 20 บาท (ใช้ได้ภายใน 30 วัน)",amount:-TRUEMONEY_REWARD.price,
+    balanceAfter,performedBy:actor.username,status:"Completed"};
+   const updates={username:actor.username,balance:balanceAfter,
+    totalSpent:intCount(wallet.totalSpent)+TRUEMONEY_REWARD.price,
+    rewardOrders:intCount(wallet.rewardOrders)+1,updatedAt:timestamp};
+   await firestoreRequest(":commit","POST",{transaction:tx,writes:[
+    updateWrite(walletPath,updates,walletDoc),createWrite(itemPath,item),createWrite(historyPath,hist)]});
+   return {updated:true,balance:balanceAfter,item:publicTrueMoneyItem(item)};
+  }catch(e){if(["ABORTED","FAILED_PRECONDITION"].includes(e?.firestoreStatus)&&attempt<3)continue;throw e;}
+ }
+ fail("รายการแลกเกิดพร้อมกัน กรุณาลองใหม่",409);
+}
+function publicTrueMoneyItem(item){
+ // Do not leak a recipient phone number in general reward summaries.
+ return {id:String(item.id||""),rewardId:TRUEMONEY_REWARD.id,
+  name:"TrueMoney 20 บาท",amountBaht:20,price:7000,
+  redeemedAt:String(item.redeemedAt||""),expiresAt:String(item.expiresAt||""),
+  status:String(item.status||""),submittedAt:String(item.submittedAt||""),
+  dueDate:String(item.dueDate||""),paidAt:String(item.paidAt||"")};
+}
+async function listMyTrueMoneyItems(actor){
+ const root=path("qa_sparks_wallets",walletKey(actor.username),"items");
+ const records=await listCollection(root);
+ const items=records.documents.map(recordValue)
+  .filter(item=>item.rewardId===TRUEMONEY_REWARD.id && normalize(item.owner)===actor.username)
+  .map(item=>({...publicTrueMoneyItem(item),
+     status:item.status==="available"&&Date.parse(item.expiresAt)<=Date.now()?"expired":item.status}))
+  .sort((a,b)=>b.redeemedAt.localeCompare(a.redeemedAt));
+ return {items,truncated:records.truncated};
+}
+/** Convert a valid inventory item to a payout request exactly once. */
+async function useTrueMoneyItem(body,actor){
+ const itemId=safeItemId(body.itemId);
+ const phone=String(body.receivingPhone||"").trim();
+ if(!/^0\d{9}$/.test(phone))fail("กรุณากรอกหมายเลข TrueMoney 10 หลักให้ถูกต้อง",400);
+ const itemPath=path("qa_sparks_wallets",walletKey(actor.username),"items",itemId);
+ const requestPath=path("qa_sparks_redemption_requests",itemId);
+ const historyPath=path("qa_sparks_wallets",walletKey(actor.username),"history","request-"+itemId);
+ for(let attempt=0;attempt<4;attempt++){
+  const started=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}}),tx=started?.transaction;
+  if(!tx)fail("ไม่สามารถเริ่มคำขอรับเงินได้",503);
+  try{
+   const [itemDoc,requestDoc,historyDoc]=await Promise.all([
+    readDoc(itemPath,tx),readDoc(requestPath,tx),readDoc(historyPath,tx)]);
+   const item=recordValue(itemDoc);
+   if(item.rewardId!==TRUEMONEY_REWARD.id||normalize(item.owner)!==actor.username)
+      fail("ไม่พบ Item TrueMoney ในบัญชีของคุณ",404);
+   if(requestDoc||historyDoc||item.status==="submitted"||item.status==="paid"){
+      if(normalize(item.owner)===actor.username && requestDoc)
+       return {updated:false,alreadyApplied:true,item:publicTrueMoneyItem(item)};
+      fail("Item นี้มีคำขออยู่แล้ว ไม่สามารถใช้ซ้ำได้",409);
+   }
+   if(item.status!=="available")fail("Item นี้ไม่พร้อมใช้งาน",400);
+   if(!item.expiresAt||Date.parse(item.expiresAt)<=Date.now())
+      fail("Item หมดอายุแล้ว ไม่สามารถส่งคำขอรับเงินได้",400);
+   const now=new Date().toISOString(),dueDate=addBusinessDaysBangkok(now,14);
+   const request={id:itemId,rewardId:TRUEMONEY_REWARD.id,username:actor.username,
+      displayName:actor.displayName,receivingPhone:phone,amountBaht:20,
+      submittedAt:now,dueDate,status:"pending",itemId};
+   const history={createdAt:now,type:"earn",source:"reward-activation",
+      rewardId:TRUEMONEY_REWARD.id,itemId,title:"TrueMoney 20 THB Requested",
+      detail:"ส่งคำขอรับเงิน 20 บาท · กำหนดภายใน "+dueDate,
+      amount:0,performedBy:actor.username,status:"Pending"};
+   await firestoreRequest(":commit","POST",{transaction:tx,writes:[
+    updateWrite(itemPath,{status:"submitted",submittedAt:now,dueDate},itemDoc),
+    createWrite(requestPath,request),createWrite(historyPath,history)]});
+   return {updated:true,alreadyApplied:false,item:publicTrueMoneyItem({...item,status:"submitted",submittedAt:now,dueDate})};
+  }catch(e){if(["ABORTED","FAILED_PRECONDITION"].includes(e?.firestoreStatus)&&attempt<3)continue;throw e;}
+ }
+ fail("รายการส่งคำขอเกิดพร้อมกัน กรุณาลองใหม่",409);
+}
+async function listPayoutRequests(){
+ const data=await listCollection("qa_sparks_redemption_requests");
+ return {requests:data.documents.map(recordValue)
+   .filter(r=>r.rewardId===TRUEMONEY_REWARD.id)
+   .map(r=>({id:String(r.id||""),username:String(r.username||""),
+    displayName:String(r.displayName||""),receivingPhone:String(r.receivingPhone||""),
+    amountBaht:20,submittedAt:String(r.submittedAt||""),
+    dueDate:String(r.dueDate||""),status:String(r.status||""),
+    paidAt:String(r.paidAt||""),paidBy:String(r.paidBy||"")}))
+   .sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt)),
+   truncated:data.truncated};
+}
+async function completeTrueMoneyPayout(body,admin){
+ const itemId=safeItemId(body.itemId);
+ const requestPath=path("qa_sparks_redemption_requests",itemId);
+ for(let attempt=0;attempt<4;attempt++){
+  const began=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}}),tx=began?.transaction;
+  if(!tx)fail("ไม่สามารถเริ่มยืนยันการโอนเงินได้",503);
+  try{
+   const requestDoc=await readDoc(requestPath,tx),request=recordValue(requestDoc);
+   if(!requestDoc||request.rewardId!==TRUEMONEY_REWARD.id)fail("ไม่พบคำขอ TrueMoney",404);
+   const owner=safeUsername(request.username);
+   const itemPath=path("qa_sparks_wallets",walletKey(owner),"items",itemId);
+   const historyPath=path("qa_sparks_wallets",walletKey(owner),"history","paid-"+itemId);
+   const [itemDoc,historyDoc]=await Promise.all([readDoc(itemPath,tx),readDoc(historyPath,tx)]);
+   const item=recordValue(itemDoc);
+   if(request.status==="paid"&&item.status==="paid")return {updated:false,alreadyApplied:true};
+   if(request.status!=="pending"||item.status!=="submitted"||historyDoc)
+     fail("คำขอไม่อยู่ในสถานะรอโอน หรือเคยดำเนินการแล้ว",409);
+   if(normalize(item.owner)!==owner)fail("เจ้าของ Item ไม่ตรงกับคำขอ",409);
+   const now=new Date().toISOString();
+   const history={createdAt:now,type:"earn",source:"reward-payout",
+     title:"TrueMoney 20 THB Paid",detail:"Admin ยืนยันโอน TrueMoney 20 บาทแล้ว",
+     rewardId:TRUEMONEY_REWARD.id,itemId,amount:0,performedBy:admin.username,
+     status:"Completed"};
+   await firestoreRequest(":commit","POST",{transaction:tx,writes:[
+    updateWrite(requestPath,{status:"paid",paidAt:now,paidBy:admin.username},requestDoc),
+    updateWrite(itemPath,{status:"paid",paidAt:now,paidBy:admin.username},itemDoc),
+    createWrite(historyPath,history)]});
+   return {updated:true,alreadyApplied:false};
+  }catch(e){if(["ABORTED","FAILED_PRECONDITION"].includes(e?.firestoreStatus)&&attempt<3)continue;throw e;}
+ }
+ fail("มีการยืนยันรายการพร้อมกัน กรุณาลองใหม่",409);
+}
+
 async function reauthorizeAdminSession(body) {
   // A stale policy is repaired only with a live QA session, the active QA role
   // and the current QA account password. Do not silently accept old policies.
@@ -918,8 +1145,23 @@ export default async function handler(req, res) {
         : await useTypingRelief(body, actor);
       return res.status(200).json(result);
     }
+    if (body.action === "claim-profile-makeover" || body.action === "profile-makeover-status"
+      || body.action === "redeem-truemoney" || body.action === "list-truemoney-items"
+      || body.action === "use-truemoney-item") {
+      const actor = await authorizeRewardUser(body);
+      let result;
+      if (body.action === "claim-profile-makeover") result = await claimProfileMakeover(actor);
+      else if (body.action === "profile-makeover-status") result = await getProfileMakeoverStatus(actor);
+      else if (body.action === "redeem-truemoney") result = await redeemTrueMoney(body,actor);
+      else if (body.action === "list-truemoney-items") result = await listMyTrueMoneyItems(actor);
+      else result = await useTrueMoneyItem(body,actor);
+      return res.status(200).json(result);
+    }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
     const admin = await authorizeAdmin(body);
+    if (body.action === "list-truemoney-requests") return res.status(200).json(await listPayoutRequests());
+    if (body.action === "complete-truemoney-payout")
+      return res.status(200).json(await completeTrueMoneyPayout(body,admin));
     if (body.action === "void-chachiya-test-pair") {
       return res.status(200).json(await voidChachiyaTestPair(body, admin));
     }
