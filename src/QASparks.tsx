@@ -3,10 +3,11 @@ import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, type SparksAccount, type Sparks
 import "./qaSparks.css";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
+import DailyCheckinQuest from "./DailyCheckinQuest";
 import { SPARKS_ANNUAL_CAP, SPARKS_MEMBER_LEVELS, getSparksMemberLevel } from "./qaSparksMemberLevels";
 
-type SparksView = "overview" | "rewards" | "history" | "admin";
-type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown";
+type SparksView = "overview" | "quests" | "rewards" | "history" | "admin";
+type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar";
 const paths: Record<SparksIconName, React.ReactNode> = {
   spark: <path d="m12 2 2.7 6.7L22 12l-7.3 3.3L12 22l-2.7-6.7L2 12l7.3-3.3z"/>,
   gift: <><rect x="3" y="10" width="18" height="11" rx="2"/><path d="M2 7h20v4H2zM12 7v14M12 7C7 7 6 5.5 7 3.8c1.5-2.4 5 0 5 3.2Zm0 0c5 0 6-1.5 5-3.2-1.5-2.4-5 0-5 3.2Z"/></>,
@@ -14,6 +15,7 @@ const paths: Record<SparksIconName, React.ReactNode> = {
   grid: <><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></>,
   receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 9h6M9 13h6"/></>,
   crown: <><path d="m2 8 5 4 5-8 5 8 5-4-2 12H4z"/><path d="M5 16h14"/></>,
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18m-12 5 2.5 2.5 4-4"/></>,
 };
 function SparksIcon({ name, size = 21 }: { name: SparksIconName; size?: number }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
@@ -120,6 +122,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     ? { ...account, lastLoadedAt: lastAccountLoadAt } : null, [account, lastAccountLoadAt, lastAccountUsername, username]);
   const tabs: { key: SparksView; label: string; icon: SparksIconName }[] = [
     { key: "overview", label: "Overview", icon: "grid" },
+    { key: "quests", label: "Quest Center", icon: "calendar" },
     { key: "rewards", label: "Reward Center", icon: "gift" },
     { key: "history", label: "History", icon: "clock" },
     ...(adminAccess ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
@@ -167,10 +170,13 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       </nav>
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
         {view === "overview" && walletLoaded ? <MemberJourney earned={account.memberYearEarned} year={account.memberYear}/> : null}
+        {(view === "overview" || view === "quests") ? <DailyCheckinQuest
+          username={username} sessionId={adminSessionId} claimedDays={account.dailyCheckinClaimedDays || []}
+          loaded={walletLoaded} display={view === "quests" ? "full" : "overview"}/> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
           <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
-        </div> : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
+        </div> : view === "quests" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/></section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} /> : null}
       </div>
