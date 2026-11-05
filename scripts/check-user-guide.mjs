@@ -8,7 +8,7 @@ const reviewPath = "docs/guide-release-review.json";
 const hash = (value) => crypto.createHash("sha256").update(value).digest("hex");
 export function reviewedSources(root) {
   const files = [];
-  for (const directory of ["src", "build", "scripts", ".github/workflows", "public/guide", "src/weather", "public/weather", "api"]) {
+  for (const directory of ["src", "server", "build", "scripts", ".github/workflows", "public/guide", "public/games", "src/weather", "public/weather", "api"]) {
     const walk = (folder) => {
       if (!fs.existsSync(folder)) return;
       for (const item of fs.readdirSync(folder, { withFileTypes: true })) {

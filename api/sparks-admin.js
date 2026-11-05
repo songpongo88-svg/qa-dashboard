@@ -1,4 +1,5 @@
 import { createSign, createHash, timingSafeEqual } from "node:crypto";
+import { createFruitMatchService } from "../server/fruitMatchService.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -1220,6 +1221,9 @@ async function adjustBalance(body, admin) {
   }
   fail("Concurrent Sparks change; please retry", 409);
 }
+const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,annualCap:SPARKS_ANNUAL_EARN_CAP});
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -1233,6 +1237,12 @@ export default async function handler(req, res) {
         : body.action==="use-truemoney-item"
         ? await requestTrueMoneyPayout(body,actor)
         : await listMemberTrueMoney(actor);
+      return res.status(200).json(result);
+    }
+    if (["fruit-match-data","fruit-match-start","fruit-match-finish"].includes(body.action)) {
+      const actor = await authorizeRewardUser(body);
+      const result = body.action === "fruit-match-data" ? await fruitMatch.data(actor)
+        : body.action === "fruit-match-start" ? await fruitMatch.start(body,actor) : await fruitMatch.finish(body,actor);
       return res.status(200).json(result);
     }
     if (body.action === "claim-profile-makeover") {
