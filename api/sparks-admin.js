@@ -1,11 +1,13 @@
-import { createSign, randomUUID } from "node:crypto";
+import { createSign, createHash, timingSafeEqual } from "node:crypto";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
 const FIRESTORE_PROJECT = "qa-dashboard-b0b5d";
-const API_ROOT = "https://firestore.googleapis.com/v1/projects/" + encodeURIComponent(FIRESTORE_PROJECT) + "/databases/(default)/documents";
+const DOCUMENTS_RESOURCE = "projects/" + FIRESTORE_PROJECT + "/databases/(default)/documents";
+const API_ROOT = "https://firestore.googleapis.com/v1/" + DOCUMENTS_RESOURCE;
 const SESSION_POLICY = "qa-session-policy-2026-07-15-v1";
 const ADMIN_USERNAME = "songpon";
+const policyErrorCode = "SESSION_POLICY_OUTDATED";
 let accessToken = "";
 let tokenExpiry = 0;
 
@@ -127,7 +129,7 @@ async function listCollection(collectionPath, mask = []) {
   }
   return { documents: out, truncated: true };
 }
-async function authorizeAdmin(body) {
+async function authorizeAdmin(body, { allowLegacyPolicy = false } = {}) {
   const username = safeUsername(body.actorUsername);
   const sessionId = String(body.sessionId || "");
   if (username !== ADMIN_USERNAME || !/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId)) fail("Unauthorized", 403);
@@ -136,7 +138,6 @@ async function authorizeAdmin(body) {
   const session = recordValue(sessionDocument);
   if (normalize(session.username) !== ADMIN_USERNAME) fail("QA session account does not match the administrator.", 403);
   if (session.role !== "Quality Assurance") fail("QA session does not have the Quality Assurance role.", 403);
-  if (session.policyVersion !== SESSION_POLICY) fail("QA session policy is out of date. Please sign in again.", 403);
   if (session.status !== "active") fail("QA session was revoked. Please sign in again.", 403);
   if (!Number.isFinite(Date.parse(session.expiresAt || "")) || Date.parse(session.expiresAt || "") <= Date.now()) {
     fail("QA session has expired. Please sign in again.", 403);
@@ -144,17 +145,83 @@ async function authorizeAdmin(body) {
   const revoked = recordValue(await readDoc(path("qa_user_session_controls", ADMIN_USERNAME)));
   const revokedAt = Date.parse(revoked.revokedBefore || "");
   if (Number.isFinite(revokedAt) && Date.parse(session.createdAt || "") <= revokedAt) fail("Session revoked", 403);
-  const profile = await readDoc(path("qa_user_profiles", "Songpon"))
-    || await readDoc(path("qa_user_profiles", "songpon"));
-  let profileData = recordValue(profile);
-  if (normalize(profileData.username) !== ADMIN_USERNAME) {
-    const profiles = await listCollection("qa_user_profiles", ["username", "role", "status"]);
-    profileData = profiles.documents.map(recordValue).find((item) => normalize(item.username) === ADMIN_USERNAME) || {};
-  }
-  if (normalize(profileData.username) !== ADMIN_USERNAME || profileData.role !== "Quality Assurance" || profileData.status === "Suspended") {
+  const profileData = await findProfileByUsername(ADMIN_USERNAME);
+  if (normalize(profileData.username) !== ADMIN_USERNAME || profileData.role !== "Quality Assurance" || isSuspendedProfile(profileData)) {
     fail("Sparks Admin account is not active in QA User Management or lacks the Quality Assurance role.", 403);
   }
+  if (!allowLegacyPolicy && session.policyVersion !== SESSION_POLICY) {
+    const grant = recordValue(await readDoc(path("qa_sparks_admin_session_grants", sessionId)));
+    const approved = grant.username === ADMIN_USERNAME
+      && grant.sessionCreatedAt === session.createdAt
+      && grant.policyVersion === SESSION_POLICY
+      && grant.method === "qa-password"
+      && Number.isFinite(Date.parse(grant.expiresAt || ""))
+      && Date.parse(grant.expiresAt || "") > Date.now();
+    if (!approved) throw Object.assign(new Error("QA session policy needs administrator verification."), { status: 403, code: policyErrorCode });
+  }
   return { username: ADMIN_USERNAME, displayName: String(session.displayName || "Songpon Phothong") };
+}
+function bangkokToday() {
+  return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Bangkok" }).format(new Date());
+}
+function isSuspendedProfile(profile) {
+  const status = normalize(profile?.status);
+  const effective = String(profile?.suspendEffectiveDate || profile?.suspend_effective_date || profile?.suspendDate || profile?.suspend_date || "");
+  const end = String(profile?.suspendEndDate || profile?.suspend_end_date || "");
+  const autoReactivate = profile?.suspendAutoReactivate === true || profile?.suspend_auto_reactivate === true;
+  const today = bangkokToday();
+  let suspended = status === "suspended" || (effective && effective <= today);
+  if (suspended && autoReactivate && end && end <= today) suspended = false;
+  return Boolean(suspended);
+}
+async function findProfileByUsername(username) {
+  const name = safeUsername(username);
+  for (const id of [name.charAt(0).toUpperCase() + name.slice(1), name]) {
+    const row = await readDoc(path("qa_user_profiles", id));
+    const profile = recordValue(row);
+    if (normalize(profile.username) === name) return profile;
+  }
+  const all = await listCollection("qa_user_profiles", ["username", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]);
+  const match = all.documents.map(recordValue).find((profile) => normalize(profile.username) === name);
+  if (!match) fail("User not found in QA User Management", 404);
+  return match;
+}
+async function requireActiveTarget(username) {
+  const profile = await findProfileByUsername(username);
+  if (isSuspendedProfile(profile)) fail("ไม่สามารถจัดการ Sparks ของบัญชี Suspended ได้", 403);
+  return profile;
+}
+async function reauthorizeAdminSession(body) {
+  // A stale policy is repaired only with a live QA session, the active QA role
+  // and the current QA account password. Do not silently accept old policies.
+  const admin = await authorizeAdmin(body, { allowLegacyPolicy: true });
+  const profile = await findProfileByUsername(admin.username);
+  const typedPassword = String(body.password || "");
+  const storedPassword = String(profile.password || "");
+  if (!storedPassword || !typedPassword || typedPassword.length > 512) fail("กรุณากรอกรหัสผ่านบัญชี QA ที่ใช้งานปัจจุบัน", 403);
+  const supplied = createHash("sha256").update(typedPassword).digest();
+  const expected = createHash("sha256").update(storedPassword).digest();
+  if (!timingSafeEqual(supplied, expected)) fail("รหัสผ่าน QA ไม่ถูกต้อง", 403);
+  const sessionId = String(body.sessionId || "");
+  const sessionPath = path("qa_user_sessions", sessionId);
+  const sessionDocument = await readDoc(sessionPath);
+  if (!sessionDocument) fail("QA session not found", 403);
+  const session = recordValue(sessionDocument);
+  // Keep QA's original central-session policy untouched. The server grants only
+  // a short-lived Sparks-specific permission after password verification.
+  const expiresAt = new Date(Math.min(Date.now() + 60 * 60 * 1000, Date.parse(session.expiresAt || "")));
+  if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) fail("QA session has expired", 403);
+  await firestoreRequest("/" + path("qa_sparks_admin_session_grants", sessionId), "PATCH", {
+    fields: encodeFields({
+      username: ADMIN_USERNAME,
+      sessionCreatedAt: String(session.createdAt || ""),
+      policyVersion: SESSION_POLICY,
+      method: "qa-password",
+      verifiedAt: new Date().toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    }),
+  });
+  return { verified: true };
 }
 const balance = (x) => Number.isSafeInteger(Number(x)) ? Math.max(0, Number(x)) : 0;
 function summary(wallet) {
@@ -191,7 +258,7 @@ function toHistory(doc) {
 }
 async function listUsers() {
   const [profilePages, walletPages] = await Promise.all([
-    listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status"]),
+    listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
     listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin"]),
   ]);
   const wallets = new Map(walletPages.documents.map((doc) => {
@@ -199,7 +266,7 @@ async function listUsers() {
     const name = normalize(v.username) || normalize(decodeURIComponent(doc.name.split("/").pop()));
     return [name, summary(v)];
   }));
-  const users = profilePages.documents.map((doc) => {
+  const users = profilePages.documents.filter((doc) => !isSuspendedProfile(recordValue(doc))).map((doc) => {
     const profile = recordValue(doc);
     const username = String(profile.username || decodeURIComponent(doc.name.split("/").pop()) || "").trim();
     const wallet = wallets.get(normalize(username)) || summary({});
@@ -213,6 +280,7 @@ async function listUsers() {
   return { users, truncated: profilePages.truncated || walletPages.truncated };
 }
 async function loadHistory(username) {
+  await requireActiveTarget(username);
   const id = walletKey(username);
   const [walletDoc, rows] = await Promise.all([
     readDoc(path("qa_sparks_wallets", id)),
@@ -238,6 +306,7 @@ function checkRequestId(raw) {
 }
 async function adjustBalance(body, admin) {
   const username = safeUsername(body.targetUsername);
+  await requireActiveTarget(username);
   const operation = String(body.operation || "");
   if (!["add", "deduct", "refund"].includes(operation)) fail("Invalid adjustment type");
   const reason = String(body.reason || "").trim();
@@ -305,12 +374,12 @@ async function adjustBalance(body, admin) {
       };
       const writes = [
         {
-          update: { name: API_ROOT + "/" + walletPath, fields },
+          update: { name: DOCUMENTS_RESOURCE + "/" + walletPath, fields },
           updateMask: { fieldPaths: Object.keys(updated) },
           currentDocument: walletDoc?.updateTime ? { updateTime: walletDoc.updateTime } : { exists: false },
         },
         {
-          update: { name: API_ROOT + "/" + historyPath, fields: encodeFields(history) },
+          update: { name: DOCUMENTS_RESOURCE + "/" + historyPath, fields: encodeFields(history) },
           currentDocument: { exists: false },
         },
       ];
@@ -329,6 +398,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
     const admin = await authorizeAdmin(body);
     let data;
     if (body.action === "list") data = await listUsers();
@@ -341,6 +411,6 @@ export default async function handler(req, res) {
     // Never return service-account details, raw credentials or Firestore internal stack traces.
     const message = status === 500 ? "Sparks Admin could not complete this request" : String(error?.message || "Request failed");
     if (status >= 500) console.error("Sparks admin request error:", String(error?.message || "Unknown"));
-    return res.status(status).json({ error: message });
+    return res.status(status).json({ error: message, ...(error?.code ? { code: error.code } : {}) });
   }
 }

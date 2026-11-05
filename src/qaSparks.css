@@ -234,3 +234,15 @@
 /* The directory remains readable when server-side Sparks credentials are unavailable. */
 .qa-sparks-admin-readonly {border:1px solid #e9c892;background:#fff7e8;color:#754f16;border-radius:12px;padding:11px 14px;font-size:12px;}
 .qa-sparks-admin-operations button:disabled,.qa-sparks-admin-history-amount button:disabled {opacity:.45;cursor:not-allowed;filter:grayscale(.5);}
+
+
+/* Password re-verification is scoped to Sparks Admin and never stored in localStorage. */
+.qa-sparks-admin-reauth{display:grid;gap:8px;background:var(--sparks-soft,#fff8eb);border:1px solid #e7bd7f;border-radius:13px;padding:13px 16px;}
+.qa-sparks-admin-reauth strong{font-size:14px;color:var(--sparks-dark,#553522);}
+.qa-sparks-admin-reauth p{font-size:12px;margin:3px 0;color:#78624b;}
+.qa-sparks-admin-reauth label{font-weight:600;font-size:12px;color:var(--sparks-dark,#553522);}
+.qa-sparks-admin-reauth-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.qa-sparks-admin-reauth input{font-family:inherit;min-width:160px;flex:1;background:white;color:#3b2935;border:1px solid #decbb7;border-radius:10px;padding:10px 12px;font-size:12px;}
+.qa-sparks-admin-reauth button{font-family:inherit;background:var(--sparks-accent,#a75b2a);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600;font-size:12px;cursor:pointer;}
+.qa-sparks-admin-reauth button:disabled{opacity:.55;cursor:not-allowed;}
+.qa-sparks-admin-reauth-error{font-size:12px;color:#a22020!important;}
