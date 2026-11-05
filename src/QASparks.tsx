@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, type SparksAccount, type SparksHistoryItem } from "./qaSparksStore";
 import "./qaSparks.css";
 import SparksAdminPanel from "./SparksAdminPanel";
@@ -61,7 +61,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
-    if (!username) { setAccount(EMPTY_SPARKS_ACCOUNT); setLastAccountLoadAt(""); setError(""); return; }
+    setAccount(EMPTY_SPARKS_ACCOUNT);
+    setLastAccountLoadAt("");
+    if (!username) { setError(""); return; }
     let active = true;
     const refresh = () => {
       setLoading(true);
@@ -77,6 +79,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     return () => { active = false; window.removeEventListener("qa:sparks-updated", refresh); window.removeEventListener("focus", refresh); };
   }, [username]);
 
+  const ownAccountSnapshot = useMemo(() => lastAccountLoadAt ? { ...account, lastLoadedAt: lastAccountLoadAt } : null, [account, lastAccountLoadAt]);
   const tabs: { key: SparksView; label: string; icon: SparksIconName }[] = [
     { key: "overview", label: "Overview", icon: "grid" },
     { key: "rewards", label: "Reward Center", icon: "gift" },
@@ -128,7 +131,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
         </div> : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><EmptyReward large/></section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
-        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={lastAccountLoadAt ? { ...account, lastLoadedAt: lastAccountLoadAt } : null} /> : null}
+        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} /> : null}
       </div>
     </div>
   </main>;
