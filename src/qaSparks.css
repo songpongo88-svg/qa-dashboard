@@ -550,3 +550,58 @@
 .qa-sparks-admin-operations .qa-sparks-admin-void-test:focus-visible{
   outline:3px solid #b47c2e;outline-offset:2px;
 }
+
+
+/* Event-style reward catalog, Profile Quest #02, multi-item TrueMoney inventory,
+   and manually verified payout Tracker. Reuse the active QA Sparks theme. */
+.qa-sparks-reward-stack{display:grid;gap:13px;grid-template-columns:minmax(0,1fr);max-width:850px;}
+.qa-sparks-truemoney-art{background:radial-gradient(circle at 65% 20%,#fff9ce,#f6d9ff 56%,#d5b9f3);border-color:#edd6b8;}
+.qa-sparks-truemoney-tile{border-color:#ecd2b3;}
+.qa-sparks-truemoney-hero{background:radial-gradient(circle at 50% 45%,#fff5cc,#f0d5ff 65%,#e0b7ed);}
+.qa-sparks-profile-quest-item{margin-top:2px;}
+.qa-sparks-profile-quest-art{background:radial-gradient(circle at 63% 23%,#fff0c0,#f7d6f8 55%,#cfb5f7);}
+.qa-sparks-profile-quest-modal{max-width:730px;}
+.qa-sparks-profile-status{font-size:17px!important;}
+.qa-sparks-profile-note{margin-top:15px;background:var(--sparks-soft,#f9eefd);color:var(--sparks-dark,#57215f);padding:13px 15px;border-radius:10px;border:1px solid var(--sparks-outline,#e8cbea);font-size:12px;font-weight:650;}
+.qa-sparks-inventory,.qa-sparks-admin-payouts{border:1px solid var(--sparks-outline,#e9d9e6);background:linear-gradient(115deg,#fffefc,#fff9f5);padding:22px;border-radius:17px;font-family:Kanit,sans-serif;}
+.qa-sparks-inventory-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:5px;}
+.qa-sparks-inventory-heading h2{font-size:20px;font-weight:750;color:var(--sparks-dark,#502452);margin:0;}
+.qa-sparks-inventory-heading button{font:600 12px Kanit,sans-serif;color:var(--sparks-accent,#9b43aa);background:#fff;border:1px solid #ead4ea;border-radius:9px;padding:8px 13px;cursor:pointer;}
+.qa-sparks-inventory>p,.qa-sparks-admin-payouts>p{font-size:12px;color:#786b7a;margin:5px 0 17px;}
+.qa-sparks-items-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.qa-sparks-inventory-item{display:flex;align-items:center;gap:11px;padding:15px;border:1px solid #eadce9;border-radius:13px;background:#fff;min-width:0;flex-wrap:wrap;}
+.qa-sparks-inventory-icon{width:88px;height:88px;display:grid;place-items:center;background:#f8eafd;border-radius:12px;flex:0 0 88px;}
+.qa-sparks-inventory-data{display:flex;align-items:flex-start;flex:1;flex-direction:column;gap:4px;min-width:130px;}
+.qa-sparks-inventory-data>strong{font-size:14px;color:#4c2859;}
+.qa-sparks-inventory-data small{display:block;font-size:10px;color:#7e7181;line-height:1.5;}
+.qa-sparks-item-status{display:inline-flex;align-items:center;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:700;white-space:nowrap;background:#ede8ed;color:#74687b;}
+.qa-sparks-item-status.available{background:#e9f7ec;color:#307149;}
+.qa-sparks-item-status.submitted{background:#fff3d9;color:#9c6a1d;}
+.qa-sparks-item-status.paid{background:#e3f2f7;color:#236784;}
+.qa-sparks-item-status.expired{background:#f5e5e5;color:#a65b5b;}
+.qa-sparks-item-use{font:700 12px Kanit,sans-serif;cursor:pointer;border:0;border-radius:10px;padding:9px 14px;color:#fff;background:linear-gradient(110deg,var(--sparks-accent,#802ea6),color-mix(in srgb,var(--sparks-accent,#802ea6) 70%,#c384df));}
+.qa-sparks-item-use:disabled{opacity:.45;cursor:default;}
+.qa-sparks-inventory-empty{padding:28px 15px;border:1px dashed #e4d5e1;border-radius:12px;text-align:center;color:#857487;font-size:12px;}
+.qa-sparks-item-use-dialog{position:relative;overflow-y:auto;max-height:94vh;width:min(465px,100%);background:#fffdfa;border-radius:19px;padding:28px;box-shadow:0 12px 50px #27112d50;font-family:Kanit,sans-serif;}
+.qa-sparks-item-use-dialog h2{font-size:20px;color:var(--sparks-dark,#4b2a57);margin:0 35px 9px 0;}
+.qa-sparks-item-use-dialog>p{font-size:12px;line-height:1.65;color:#7c697e;}
+.qa-sparks-item-use-dialog label{display:block;font-size:12px;font-weight:700;margin:15px 0 6px;color:#553260;}
+.qa-sparks-item-use-dialog input{width:100%;border:1px solid #e7d7e2;border-radius:10px;background:#fff;font:600 18px Kanit,sans-serif;letter-spacing:.05em;padding:12px;}
+.qa-sparks-item-use-dialog input:focus{outline:2px solid var(--sparks-accent,#a56cc5);outline-offset:2px;}
+.qa-sparks-item-use-reminder{padding:10px;background:#fff4e3;border-radius:9px;color:#8a612b!important;}
+.qa-sparks-item-use-buttons{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:17px;}
+.qa-sparks-item-use-buttons>button:first-child{font:600 12px Kanit,sans-serif;color:#6b516c;background:#fff;border:1px solid #d9cedf;border-radius:10px;padding:9px 14px;cursor:pointer;}
+.qa-sparks-item-use-confirm{background:#f5edf9;border-radius:10px;padding:13px;color:#6c4478;font-size:12px;}
+.qa-sparks-item-use-confirm p{margin:4px 0 0;color:#735f75;}
+.qa-sparks-admin-payouts{margin-top:17px;}
+.qa-sparks-payout-summary{display:flex;gap:10px;margin-bottom:13px;}
+.qa-sparks-payout-summary>span{display:inline-flex;gap:6px;align-items:center;padding:8px 12px;border:1px solid #e9dbe8;border-radius:10px;font-size:12px;background:#fff;}
+.qa-sparks-payout-list{display:grid;gap:10px;}
+.qa-sparks-payout-item{display:flex;align-items:start;justify-content:space-between;gap:15px;flex-wrap:wrap;padding:14px;border:1px solid #ecdee8;border-radius:12px;background:#fff;}
+.qa-sparks-payout-item>div:first-child{display:grid;gap:4px;min-width:180px;}
+.qa-sparks-payout-item strong{font-size:14px;color:#4e2957;}
+.qa-sparks-payout-item small,.qa-sparks-payout-item span{font-size:11px;color:#756878;}
+.qa-sparks-payout-side{display:flex;align-items:flex-end;flex-direction:column;gap:8px;}
+.qa-sparks-payout-side>strong{font-size:22px;color:#b77720;}
+@media(max-width:800px){.qa-sparks-items-grid{grid-template-columns:1fr;}}
+@media(max-width:640px){.qa-sparks-inventory,.qa-sparks-admin-payouts{padding:13px;}.qa-sparks-inventory-item{padding:10px;}.qa-sparks-inventory-icon{height:66px;width:66px;flex-basis:66px;}.qa-sparks-inventory-icon svg{width:59px;height:59px;}.qa-sparks-item-use-dialog{padding:22px 15px;}.qa-sparks-payout-side{align-items:flex-start;}}
