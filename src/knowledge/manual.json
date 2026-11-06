@@ -2,6 +2,7 @@
   "version": "2.0.0",
   "updatedAt": "2026-11-06T06:30:00Z",
   "releaseNotes": [
+    "Analytics Yearly เพิ่มตารางคะแนน QA พนักงานแยก January–December พร้อมจำนวนเคส Yearly Average, KPI Months และ Export Excel/PDF โดยไม่เปลี่ยนรายงาน Yearly เดิม",
     "ขยาย QA Sparks Member Level เป็น 10 ระดับ LV.10 ที่ 500,000 Sparks สะสมแต้มได้ไม่จำกัด และยอดคงเหลือหมดอายุทุกสิ้นปีเวลาไทย โดยประวัติและ Item เดิมยังอยู่",
     "TrueMoney 20 THB ราคา 10,000 Sparks พร้อมผู้ดูแลแก้ราคาได้ และ Fruit Match จำกัดเล่น 2 ครั้งต่อวัน ผ่านรับ 20 Sparks ต่อครั้ง",
     "Dashboard เปิดดูข้อมูลสำรองได้เมื่ออ่านข้อมูลล่าสุดไม่ได้ พร้อมสถานะดูอย่างเดียวและแยกสำเนาตามบัญชี",
@@ -896,7 +897,7 @@
       ],
       "summary": "ใช้ Compare ใน QA Dashboard เพื่อดูผลต่างระหว่างช่วงเวลา",
       "audience": "ผู้มีสิทธิ์ดู Analytics",
-      "updatedAt": "2026-11-04T06:30:00Z",
+      "updatedAt": "2026-11-06T08:00:00Z",
       "steps": [
         {
           "title": "เปิดส่วนวิเคราะห์ใน QA Dashboard",
@@ -905,6 +906,10 @@
         {
           "title": "เลือกทีมและ Agent",
           "body": "ใช้รายชื่อที่เปิดให้ตาม Role ขอบเขตข้อมูลยังคงอ้างอิงสิทธิ์ของบัญชี"
+        },
+        {
+          "title": "รายงาน Yearly แยกคะแนนรายพนักงานทุกเดือน",
+          "body": "ใน QA Dashboard → Analytics เลือก Time View: Yearly จากนั้นเลือกปี ทีม และ Agent (All Agents สำหรับตารางรวมทั้งทีม) ตาราง Yearly Agent Monthly Score Report แสดงรายชื่อพนักงานเป็นแถว January–December เป็นคอลัมน์ แต่ละเดือนแสดงคะแนนเฉลี่ยและจำนวนเคสจริง ช่องไม่มีคะแนนเป็น — ไม่ใช่ 0 คะแนน คอลัมน์ Total Cases คือจำนวนเคสทั้งปี Yearly Avg. คำนวณจากทุกเคสที่ประเมินจริง และ KPI Months คือจำนวนเดือนที่ผ่านเกณฑ์ 85% หารด้วยจำนวนเดือนที่มีเคสอย่างน้อย 10 เคส กด Gen Yearly Excel · Agent/Month หรือ Gen Yearly PDF · Agent/Month เพื่อส่งออกตารางใหม่ตามขอบเขตที่เลือก โดย Yearly Team Summary และปุ่ม Export เดิมยังใช้งานได้ หากยังมีการประเมินหรืออุทธรณ์ค้าง ระบบจะไม่ส่งออกคะแนนที่ยังไม่ยืนยัน"
         },
         {
           "title": "เลือก Compare",

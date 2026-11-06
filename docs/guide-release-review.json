@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T07:49:05.885Z",
-  "reason": "Reviewed SCH Excel export switching from original imported baseline to the current processed post-upload schedule shown in SCH, including live shift, WFH/Workspace, OFF, OT and updated notes. Existing workbook layout retained; existing guide has no SCH chapter. No new Firestore reads or writes.",
-  "contentChanged": false,
+  "reviewedAt": "2026-11-06T08:05:00.000Z",
+  "reason": "Reviewed Analytics yearly agent x month score matrix, Excel/PDF export controls, 10-case monthly KPI condition, existing Team Summary preservation, and pending-evaluation export gating. Updated Analytics guide instructions.",
+  "contentChanged": true,
   "reviewedChapters": [
-    "qa-sparks"
+    "analytics"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -489,7 +489,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "b9b91bc4af4b2a94723af43de494d89e26ced347ad186e371f859daacaad0dc7",
+    "src/knowledge/manual.json": "8a87978c408c2c69b92b75f8e896172fc5c8d3956940ab9b6f54d6dc92d7a764",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/PdfReader.tsx": "eeef5fda3c22a96bd1497b193a833fa65727e5232046e14751b3e29bd4effeb9",
@@ -597,7 +597,7 @@
     "src/staticFileCache.ts": "7712ae2f3968b506366062a3e9bc611edd3b7c53847e1fb0b157da2ad9deb8e3",
     "src/StickyNotePopup.tsx": "fedb5e1066137ee5b7be1b4db0d1145376d4d64b3821a5029bb060aa84a9326c",
     "src/stickyNoteStore.ts": "fb848e980df87ae2703d780c626af8021114f9526f36e53001af67e2fcd13e9d",
-    "src/SummaryMockup.tsx": "27ee40434662ab87088f2e5cef5068e263ac891b652c52b6b757a6f43699de98",
+    "src/SummaryMockup.tsx": "a2c36ad3f744c7846e8b37694f5647f7aa11d3b36152aef91e3b8bd3495b51f3",
     "src/TagRubricHint.tsx": "511447a8e67a8526cc2ca50a6b8e60c3c828542518b6a62743e790829e3b3001",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
     "src/TeamChatV2.tsx": "11b3cf1cb691af71b4e100635b8ec4450d48122ab662a090ed6ff5e5ae26e3d3",
@@ -640,8 +640,10 @@
     "src/weeklyCaseSummaryPdf.ts": "5442044772de311cad8950429dd70425fc4c4eadd4e524ebca285bacd239883c",
     "src/workflowStatusLabels.ts": "4dc42c2d40eef69741efe959b032901416c0002d949e8c8d031294d154f9c529",
     "src/YearlyTeamSummary.tsx": "2b1618ecad55269dd22acf073524ba3471efa65cc626134f7b33ca7581a2bb7d",
-    "src/yearlyTeamSummaryData.ts": "a133f2a7550fdb72b07004c570ac3c7166ab8544020cad85e02a0beff3dff0d9",
+    "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "src/YearlyAgentMonthlyReport.tsx": "19ae7e60ce6138ecd4f4e9bc8bfcc7fc6a38c4a1e03dd0bee3c9dfcdb1020c04",
+    "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12"
   }
 }
