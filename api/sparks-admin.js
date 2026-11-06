@@ -1,5 +1,6 @@
 import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createFruitMatchService } from "../server/fruitMatchService.js";
+import { createQaLotteryService } from "../server/qaLotteryService.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -1283,10 +1284,19 @@ async function adjustBalance(body, admin) {
 }
 const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
+const qaLottery = createQaLotteryService({firestoreRequest,readDoc,listCollection,recordValue,path,updateWrite,createWrite,
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
+  if (req.method === "GET" && req.url?.startsWith("/api/sparks-admin")) return res.status(405).json({error:"Method not allowed"});
+  if (req.method === "GET") {
+    const expected = String(process.env.CRON_SECRET || "").trim();
+    if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
+    try {return res.status(200).json(await qaLottery.settle());}
+    catch(e){console.error("QA Lottery cron failed:",String(e?.message||"Unknown"));return res.status(Number(e?.status)||503).json({error:"QA Lottery automatic settlement unavailable"});}
+  }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
@@ -1299,6 +1309,11 @@ export default async function handler(req, res) {
         : body.action==="use-truemoney-item"
         ? await requestTrueMoneyPayout(body,actor)
         : await listMemberTrueMoney(actor);
+      return res.status(200).json(result);
+    }
+    if (["qa-lottery-state","qa-lottery-buy"].includes(body.action)) {
+      const actor=await authorizeRewardUser(body);
+      const result=body.action==="qa-lottery-state"?await qaLottery.state(actor):await qaLottery.purchase(body,actor);
       return res.status(200).json(result);
     }
     if (["fruit-match-data","fruit-match-start","fruit-match-finish"].includes(body.action)) {

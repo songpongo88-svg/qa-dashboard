@@ -1,0 +1,37 @@
+.ql-card{grid-column:1 / -1;border:1px solid color-mix(in srgb,var(--qa-accent,#9b78ea),transparent 70%);border-radius:20px;padding:18px;background:linear-gradient(135deg,rgba(126,94,207,.1),rgba(246,189,86,.08));color:inherit;min-width:0}
+.ql-card-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.ql-card-head h3{font-size:22px;line-height:1.25;margin:4px 0;font-weight:800}
+.ql-card-head p,.ql-card-foot,.ql-muted,.ql-disclaimer{font-size:13px;line-height:1.5;opacity:.83}
+.ql-label{font-size:10px;font-weight:800;letter-spacing:.12em;opacity:.7}
+.ql-price{font-size:24px;font-weight:800;white-space:nowrap}
+.ql-price small{display:block;text-align:right;font-size:10px;font-weight:600}
+.ql-card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.ql-expand,.ql-buy button{border:0;border-radius:12px;padding:11px 14px;background:#7b55d7;color:#fff;font-size:13px;font-weight:700;cursor:pointer}
+.ql-expand:hover,.ql-buy button:not(:disabled):hover{filter:brightness(1.1)}
+.ql-details{margin-top:17px;border-top:1px solid rgba(140,120,175,.26);padding-top:17px}
+.ql-prizes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ql-prizes>div{padding:14px 8px;border-radius:13px;background:rgba(140,120,175,.12);text-align:center}
+.ql-prizes span,.ql-prizes small{display:block;font-size:11px}
+.ql-prizes strong{display:block;font-size:clamp(15px,2.5vw,23px);font-variant-numeric:tabular-nums}
+.ql-draw-head,.ql-usage{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ql-draw-head{margin-top:18px}.ql-draw-head span{display:block;font-size:11px;opacity:.8}.ql-draw-head strong{font-size:16px}
+.ql-usage{font-size:12px;margin:12px 0}
+.ql-buy{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:12px 0}
+.ql-buy label{width:100%;font-size:12px;font-weight:700}
+.ql-buy input{flex:1 1 140px;min-width:0;max-width:240px;border:1px solid rgba(130,120,160,.4);border-radius:12px;padding:9px 12px;font-size:22px;font-weight:800;letter-spacing:.2em;font-variant-numeric:tabular-nums;background:var(--qa-card-background,#fff);color:var(--qa-text,#21232b)}
+.ql-buy button{flex:1 1 130px}.ql-buy button:disabled{opacity:.45;cursor:not-allowed}
+.ql-link{border:0;background:transparent;text-decoration:underline;cursor:pointer;color:inherit;font-size:12px}
+.ql-ticket-list{display:grid;gap:8px;margin:12px 0}
+.ql-ticket{display:flex;justify-content:space-between;align-items:center;gap:8px;border-radius:12px;padding:10px 12px;background:rgba(122,125,157,.1)}
+.ql-ticket strong{font-size:20px;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.ql-ticket small{display:block;font-size:11px;opacity:.7}
+.ql-win{color:#26885c;font-weight:800}.ql-lost,.ql-pending{font-size:12px;opacity:.8}
+.ql-prior{margin-top:17px;border-top:1px solid rgba(140,120,175,.23);padding-top:11px}
+.ql-prior h4{margin:0 0 9px;font-size:14px}
+.ql-official{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
+.ql-official span{padding:5px 8px;background:rgba(125,110,160,.12);border-radius:8px}
+.ql-error,.ql-success{padding:9px 12px;border-radius:10px;font-size:12px}
+.ql-error{color:#9f3333;background:rgba(213,60,60,.1)}
+.ql-success{color:#18683f;background:rgba(39,155,80,.1)}
+.ql-disclaimer{margin:12px 0 0}
+@media(max-width:550px){.ql-card{padding:13px}.ql-card-head{align-items:start}.ql-price{font-size:18px}.ql-card-foot{align-items:stretch;flex-direction:column}.ql-expand{width:100%}.ql-prizes{gap:5px}.ql-prizes>div{padding:9px 3px}.ql-ticket{flex-wrap:wrap}.ql-prizes strong{font-size:17px}}

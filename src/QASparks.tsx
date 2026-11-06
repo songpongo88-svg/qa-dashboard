@@ -7,6 +7,7 @@ import DailyCheckinQuest from "./DailyCheckinQuest";
 import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
 import TrueMoneyReward from "./TrueMoneyReward";
 import FruitMatchGame from "./FruitMatchGame";
+import QALottery from "./QALottery";
 import { SPARKS_TOP_LEVEL_POINTS, SPARKS_MEMBER_LEVELS, getSparksMemberLevel, sparksCalendarYear } from "./qaSparksMemberLevels";
 
 type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
@@ -200,10 +201,11 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {gamesOpened ? <div hidden={view !== "games"}><FruitMatchGame key={username + ":" + adminSessionId} username={username} sessionId={adminSessionId}/></div> : null}
         {view === "overview" && walletLoaded ? <MemberJourney earned={account.memberYearEarned} year={account.memberYear}/> : null}
         {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
-          <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>2 Quests</span></div>
+          <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>3 Quests</span></div>
           <div className="qa-sparks-mini-grid qa-sparks-quest-grid">
             <DailyCheckinQuest username={username} sessionId={adminSessionId} claimedDays={account.dailyCheckinClaimedDays || []} loaded={walletLoaded}/>
             <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
+            <QALottery username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/>
           </div>
         </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">

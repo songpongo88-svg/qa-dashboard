@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T11:08:00.000Z",
-  "reason": "Replaced repeatedly unresponsive TrueMoney payout confirmation popup with explicit two-step inline Tracker confirmation. Reviewed 25-second slow-response feedback, an admin-only mark-paid request, immediate locally confirmed Paid status (no extra quota read), error visibility, cancellation, and regression test. No transfer of money or live user reward mutations in tests.",
+  "reviewedAt": "2026-11-06T10:52:00.000Z",
+  "reason": "Reviewed QA Lottery server transactions, GLO data validation, safe cron and user guide, and reconciled latest main QA changes",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -22,7 +22,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "dd8c8b794b0730a0fa12e02731a601b33496c628a143b31a305a393278f5c435",
+    "api/sparks-admin.js": "28a6cfb0df14e9788dd959f7d104f67648ef2de4a4e2c41e13b2aadab7c03390",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
     "build/adminNameUserProfilePatch.js": "69e5240ec63cb6a33c7febd3fef09d6e9f9811a8fc0e905bc7e48a5603955f8d",
@@ -103,7 +103,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "0bef5ff6a45146628eca77eb8409536e06b7ae6e8263097ab4b58e5cb67872ed",
+    "package.json": "8b77144b784939264d6dda29c5d8b2f5bac953014806358decbd1b7805b168f4",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -489,7 +489,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "9b2b31f684511e403e12a7613948e9e29692a2491e94e132f2ea7ae8952fe535",
+    "src/knowledge/manual.json": "e9f4be4ece75ee3ed018a657691d6b05ecf2e880a2205dec1bfb08dedcf004a9",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/PdfReader.tsx": "eeef5fda3c22a96bd1497b193a833fa65727e5232046e14751b3e29bd4effeb9",
@@ -564,7 +564,7 @@
     "src/qaEvaluationProgressStore.ts": "e5af6abcdacac6b56e237471340e38235fada978a8f23907183cb81fac7dbc1c",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
     "src/qaSparks.css": "80531e5000ce7b280d4f503bd3e8fa92c5b17cb2a98cf861bacc61e02b9098f8",
-    "src/QASparks.tsx": "27122804258b54089223fb54bd3c46d8c89bb79a88452ab7be345a3b0dab9444",
+    "src/QASparks.tsx": "d8b3dc87626d642830bd46f0a256fea82e3cdc5b2935bb7864f0597f1cf057b9",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "aef5df08d38512024a66144aa915780f6d6aa61af476ed89ebb99e63188c2b42",
     "src/QaTypingChallengeAdmin.tsx": "085567987673c56b265237703b573adb8be75b40cb6d338fac5f1a5dc088d7f7",
@@ -645,6 +645,11 @@
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/YearlyAgentMonthlyReport.tsx": "19ae7e60ce6138ecd4f4e9bc8bfcc7fc6a38c4a1e03dd0bee3c9dfcdb1020c04",
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
-    "scripts/test-truemoney-tracker-confirm-ui.mjs": "40df83694c6e110d91e70d6f2ff90980351b791b66a069fa938d9c354088b91a"
+    "scripts/test-truemoney-tracker-confirm-ui.mjs": "40df83694c6e110d91e70d6f2ff90980351b791b66a069fa938d9c354088b91a",
+    "api/cron/qa-lottery.js": "b902239b21fb739b0001cfea8cb24deb5286897c235eb9ca6d6df6fc67043239",
+    "scripts/test-qa-lottery.mjs": "da84c88e74687a6528d262bab3f087ec7820d5d2c2aa312e162073276bf2bc93",
+    "server/qaLotteryService.js": "c5354392bfc740497b6581e6400a90940c7ddf9e935b1f3044c9bb3c0eaaf736",
+    "src/QALottery.tsx": "748004522c5ab2632c24c5c234f1aa2117a40875883e3f4068a7931b2df83895",
+    "src/qaLottery.css": "15623337677604bf9759317904478a2e3a3bf190cb9806e97f2c3e03f14e9c2b"
   }
 }
