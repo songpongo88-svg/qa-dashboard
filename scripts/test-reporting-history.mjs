@@ -35,7 +35,7 @@ const firestore = `
     const order=ref.constraints.find(item=>item.field);
     const filters=ref.constraints.filter(item=>item.whereField);
     const candidates=f.rows.filter(row=>(!order||order.field==='__name__'||row[order.field]!==undefined) && filters.every(filter=>String(row[filter.whereField]||'')>=String(filter.whereValue||'')));
-    const start=cursor&&!f.repeatFirstPage?candidates.findIndex(item=>item.id===cursor.id)+1:0;
+    const start=cursor&&!f.repeatFirstPage?candidates.findIndex(item=>item.id===(typeof cursor==='string'?cursor:cursor.id))+1:0;
     const rows=candidates.slice(start,start+count);
     f.elapsed+=f.pageDelay;
     return {docs:rows.map(row=>({id:row.id,data:()=>structuredClone(row)}))};
@@ -83,18 +83,18 @@ try {
   assert.ok(all.some(item => item.caseId === "AA990002"));
   assert.ok(all.some(item=>item.caseId==='AA990006'&&item.finalScore===88), 'historical July records without submitted_at must remain visible');
   assert.ok(all.some(item=>item.caseId==='AA990007'&&item.finalScore===91), 'historical August records without submitted_at must remain visible');
-  assert.equal(fixture.serverReads,4,'a complete historical read must verify every page with the server');
+  assert.equal(fixture.serverReads,12,'a complete historical read must verify every page with the server');
   assert.equal(all.find(item => item.caseId === "AA990001").finalScore, 78);
   assert.equal(all.find(item => item.caseId === "AA990002").finalScore, 90);
   assert.ok(all.some(item => item.evaluationType === "no_case_month" && item.evaluationMonthKey === "2026-06"));
   assert.equal(all.some(item => item.caseId === "AA990004"), false, "deleted cases stay excluded");
   assert.ok(all.some(item => item.isTestCase), "the store retains test records for authorized Case Detail callers");
-  assert.equal(fixture.queries.length, 4);
-  assert.ok(fixture.queries.every(ref => ref.constraints.some(item => item.count === 300)), "each backend query is bounded");
+  assert.equal(fixture.queries.length, 12);
+  assert.ok(fixture.queries.every(ref => ref.constraints.some(item => item.count === 100)), "each backend query is bounded");
   const real = all.filter(item => !item.isTestCase && item.evaluationType !== "no_case_month");
   assert.equal(real.filter(item => item.evaluationMonthKey === "2026-06").length, 2);
   await api.fetchStoredEvaluations(1000, { strict: true, allMonths: true });
-  assert.equal(fixture.queries.length, 4, "Dashboard, Summary and Signatures share the complete read");
+  assert.equal(fixture.queries.length, 12, "Dashboard, Summary and Signatures share the complete read");
   api.invalidateStoredEvaluationCache();
   await api.fetchStoredEvaluations(300, { strict: true });
   const retainedHistory = JSON.parse(window.localStorage.getItem("qa-dashboard:create-evaluation:remote-cache:v2"));
@@ -147,7 +147,7 @@ try {
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   const initialHistory=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
   assert.equal(initialHistory.length,650);
-  assert.equal(fixture.queries.length,3,"first authenticated scan reads all three bounded pages");
+  assert.equal(fixture.queries.length,7,"first authenticated scan reads seven bounded pages");
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   const unchangedHistory=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
   assert.equal(unchangedHistory.length,650);
@@ -172,7 +172,22 @@ try {
   window.localStorage.setItem("qa_current_user",JSON.stringify({username:"qa-second",role:"Quality Assurance"}));
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   assert.equal((await api.fetchStoredEvaluations(300,{strict:true,allMonths:true})).length,650);
-  assert.equal(fixture.queries.length,3,"another login never inherits the first account history");
+  assert.equal(fixture.queries.length,7,"another login never inherits the first account history");
+  // A quota error on page two keeps page one, and the following authenticated
+  // attempt resumes at that document ID rather than rereading page one.
+  window.localStorage.setItem("qa_current_user",JSON.stringify({username:"qa-resume",role:"Quality Assurance"}));
+  fixture.rows=Array.from({length:250},(_,i)=>row("AA88"+String(i).padStart(4,"0"),"2026-10",{updated_at:"2026-10-20T00:00:00.000Z",final_score:80+i%15}));
+  fixture.queries=[];fixture.failAt=2;api.invalidateStoredEvaluationCache();
+  await assert.rejects(api.fetchStoredEvaluations(300,{strict:true,allMonths:true}),/page unavailable/);
+  assert.equal(fixture.queries.length,2,"quota failure occurred after first complete page");
+  fixture.queries=[];fixture.failAt=0;api.invalidateStoredEvaluationCache();
+  const resumed=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
+  assert.equal(resumed.length,250,"resumed full history restores every document");
+  assert.equal(fixture.queries[0].constraints.find(item=>item.cursor)?.cursor,"AA880099","resume starts strictly after saved page");
+  assert.equal(resumed.find(item=>item.caseId==="AA880249").finalScore,89,"resumed scores remain exact");
+  assert.equal(fixture.writes,0,"resumable recovery never writes Firestore");
+  console.log("PASS interrupted 250-case historical scan resumes safely after quota recovery, with exact scores");
+
   window.localStorage.removeItem("qa_current_user");
   console.log("PASS full-history IndexedDB: scoped snapshot, changed-only reads, exact scores, server failures, account isolation");
 
