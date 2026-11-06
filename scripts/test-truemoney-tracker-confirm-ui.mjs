@@ -65,9 +65,12 @@ try{
   assert.equal(markCalls,1,"click must dispatch one authenticated status change");
   assert.equal(document.querySelector(".qa-money-tracker-confirm-overlay"),null,"successful result closes dialog");
   assert.match(document.querySelector(".qa-money-tracker").textContent,/บันทึกว่าโอน TrueMoney 20 บาทสำเร็จแล้ว/);
-  assert.match(document.querySelector(".qa-money-tracker-request").textContent,/โอนแล้ว/);
+  assert.equal(document.querySelectorAll(".qa-money-tracker-request").length,0,"completed item leaves the pending filter");
+  await click([...document.querySelectorAll(".qa-money-tracker-filters button")].find(x=>x.textContent==="โอนแล้ว"));
+  assert.match(document.querySelector(".qa-money-tracker-request").textContent,/โอนแล้ว/,"paid request appears under its new status");
   markOutcome="quota";status="pending";
   await click([...document.querySelectorAll(".qa-money-tracker button")].find(x=>x.textContent.includes("รีเฟรช Tracker")));
+  await click([...document.querySelectorAll(".qa-money-tracker-filters button")].find(x=>x.textContent==="รอโอน"));
   await click(document.querySelector(".qa-money-tracker-request button"));
   await click(action());
   assert.equal(markCalls,2);
