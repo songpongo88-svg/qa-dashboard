@@ -4,9 +4,11 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { JSDOM } from "jsdom";
+import { IDBFactory } from "fake-indexeddb";
 
 const temporary = await mkdtemp(resolve(".report-history-test-"));
 const dom = new JSDOM("", { url: "https://qa.test/" });
+Object.defineProperty(dom.window, "indexedDB", { value: new IDBFactory(), configurable: true });
 const keys = ["window", "document", "localStorage", "sessionStorage", "CustomEvent", "Event", "__reportHistoryFixture"];
 const previous = new Map(keys.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 for (const key of keys.slice(0, -1)) Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] });
@@ -18,7 +20,8 @@ const firestore = `
   const f = globalThis.__reportHistoryFixture;
   export const getFirestore=()=>({}), collection=(_db,name)=>({name}), doc=(_db,name,id)=>({name,id});
   export const query=(source,...constraints)=>({source,constraints}), orderBy=(field,direction)=>({field,direction}),
-    limit=count=>({count}), startAfter=cursor=>({cursor}), where=()=>({}), documentId=()=>"__name__";
+    limit=count=>({count}), startAfter=cursor=>({cursor}), where=(field,operator,value)=>({whereField:field,whereOperator:operator,whereValue:value}), documentId=()=>"__name__";
+  export const getCountFromServer=async()=>({data:()=>({count:f.rows.length})});
   const noWrite=()=>{f.writes++;throw new Error("Reporting must not write data");};
   export const setDoc=noWrite,deleteDoc=noWrite,runTransaction=noWrite,serverTimestamp=()=>"server",deleteField=()=>({});
   export const getDoc=async()=>({exists:()=>false}),getDocFromServer=getDoc;
@@ -30,7 +33,8 @@ const firestore = `
     const count=ref.constraints.find(item=>item.count)?.count;
     const cursor=ref.constraints.find(item=>item.cursor)?.cursor;
     const order=ref.constraints.find(item=>item.field);
-    const candidates=f.rows.filter(row=>!order||order.field==='__name__'||row[order.field]!==undefined);
+    const filters=ref.constraints.filter(item=>item.whereField);
+    const candidates=f.rows.filter(row=>(!order||order.field==='__name__'||row[order.field]!==undefined) && filters.every(filter=>String(row[filter.whereField]||'')>=String(filter.whereValue||'')));
     const start=cursor&&!f.repeatFirstPage?candidates.findIndex(item=>item.id===cursor.id)+1:0;
     const rows=candidates.slice(start,start+count);
     f.elapsed+=f.pageDelay;
@@ -135,6 +139,39 @@ try {
   assert.equal(window.localStorage.getItem('qa-dashboard:create-evaluation:remote-cache:v2'),completeBackup,'an unavailable server cannot replace complete history with a cached subset');
   fixture.serverUnavailable=false;
   console.log('PASS legacy timestamp coverage, server-only complete pages, slow multi-page history and no cached subset overwrite');
+  // Account-scoped IndexedDB retains a verified full scan. Subsequent checks
+  // read only changed records, so opening Dashboard repeatedly does not read
+  // the entire historical collection again and exhaust Firestore daily quota.
+  window.localStorage.setItem("qa_current_user",JSON.stringify({username:"qa-audit",role:"Quality Assurance"}));
+  fixture.rows=Array.from({length:650},(_,i)=>row("AA77"+String(i).padStart(4,"0"),"2026-10",{updated_at:"2026-10-20T00:00:00.000Z"}));
+  fixture.queries=[];api.invalidateStoredEvaluationCache();
+  const initialHistory=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
+  assert.equal(initialHistory.length,650);
+  assert.equal(fixture.queries.length,3,"first authenticated scan reads all three bounded pages");
+  fixture.queries=[];api.invalidateStoredEvaluationCache();
+  const unchangedHistory=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
+  assert.equal(unchangedHistory.length,650);
+  assert.equal(fixture.queries.length,1,"later server verification reads one small delta page");
+  assert.equal(fixture.queries[0].constraints.some(item=>item.whereField==="updated_at"),true);
+  fixture.rows[5].updated_at=new Date(Date.now()).toISOString();
+  fixture.rows[5].final_score=96;
+  fixture.queries=[];api.invalidateStoredEvaluationCache();
+  const updated=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
+  assert.equal(updated.find(item=>item.caseId==="AA770005").finalScore,96,"edited score is exact from server");
+  assert.equal(fixture.queries.length,1,"one changed record does not force rereading all 650 cases");
+  fixture.serverUnavailable=true;fixture.queries=[];api.invalidateStoredEvaluationCache();
+  await assert.rejects(api.fetchStoredEvaluations(300,{strict:true,allMonths:true}),/server unavailable/);
+  fixture.serverUnavailable=false;
+  fixture.queries=[];api.invalidateStoredEvaluationCache();
+  assert.equal((await api.fetchStoredEvaluations(300,{strict:true,allMonths:true})).length,650,
+    "server failure cannot erase the verified snapshot");
+  window.localStorage.setItem("qa_current_user",JSON.stringify({username:"qa-second",role:"Quality Assurance"}));
+  fixture.queries=[];api.invalidateStoredEvaluationCache();
+  assert.equal((await api.fetchStoredEvaluations(300,{strict:true,allMonths:true})).length,650);
+  assert.equal(fixture.queries.length,3,"another login never inherits the first account history");
+  window.localStorage.removeItem("qa_current_user");
+  console.log("PASS full-history IndexedDB: scoped snapshot, changed-only reads, exact scores, server failures, account isolation");
+
   api.invalidateStoredEvaluationCache(); fixture.queries = []; fixture.rows = [];
   assert.deepEqual(await api.fetchStoredEvaluations(300, { strict: true, allMonths: true }), []);
   assert.equal(fixture.queries.length, 1);
