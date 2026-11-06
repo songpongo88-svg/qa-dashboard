@@ -57,10 +57,11 @@ globalThis.fetch = async (rawUrl, opts = {}) => {
     assert.ok(historyWrite, "Atomic history document write must exist");
     assert.ok(walletWrite.update.name.startsWith("projects/qa-dashboard-b0b5d/databases/(default)/documents/"),
       "Firestore writes must use resource names instead of HTTP URLs");
-    const overLimitCase = testMode === "cap";
-    assert.equal(walletWrite.update.fields.balance.integerValue, overLimitCase ? "200000" : "100");
-    assert.equal(historyWrite.update.fields.amount.integerValue, overLimitCase ? "50" : "100");
-    assert.equal(walletWrite.update.fields.memberYearEarned.integerValue, overLimitCase ? "200000" : "100");
+    const credited = Number(historyWrite.update.fields.amount.integerValue);
+    const expected = testMode === "cap" ? 199950 + credited : 100;
+    assert.equal(walletWrite.update.fields.balance.integerValue, String(expected));
+    assert.equal(walletWrite.update.fields.memberYearEarned.integerValue, String(expected));
+    assert.equal(walletWrite.update.fields.balanceYear.integerValue, String(nowMemberYear));
     assert.equal(walletWrite.update.fields.memberYear.integerValue, String(nowMemberYear));
     commits++;
     return reply({ writeResults: [{}, {}] });
@@ -181,20 +182,20 @@ try {
   assert.equal((await invoke()).code, 200);
   assert.equal(readCounts.wallets, beforeMutationRefresh + 1, "successful commit invalidates cached display balances");
   testMode = "cap";
-  const capBlocked = await invoke(req("adjust", {
+  const overOldCap = await invoke(req("adjust", {
     targetUsername: "ActiveUser", operation: "add", amount: 51,
-    reason: "Must not exceed annual Sparks limit", requestId: "annual-cap-over-200k-123456",
+    reason: "Annual earning continues above two hundred thousand", requestId: "annual-no-cap-over-200k-123456",
   }));
-  assert.equal(capBlocked.code, 400, JSON.stringify(capBlocked.result));
-  assert.ok(capBlocked.result.error.includes("200,000"));
-  assert.equal(commits, 1, "over-limit admin credit must not write anything");
-  const capExactly = await invoke(req("adjust", {
+  assert.equal(overOldCap.code, 200, JSON.stringify(overOldCap.result));
+  assert.equal(overOldCap.result.balance, 200001);
+  assert.equal(commits, 2, "credit beyond the old cap must be committed atomically");
+  const atOldCap = await invoke(req("adjust", {
     targetUsername: "ActiveUser", operation: "add", amount: 50,
-    reason: "Exactly up to annual 200k Sparks", requestId: "annual-cap-exact-200k-123456",
+    reason: "Annual earning at old threshold", requestId: "annual-no-cap-at-200k-123456",
   }));
-  assert.equal(capExactly.code, 200, JSON.stringify(capExactly.result));
-  assert.equal(capExactly.result.balance, 200000);
-  assert.equal(commits, 2, "exactly up to 200k must commit");
+  assert.equal(atOldCap.code, 200, JSON.stringify(atOldCap.result));
+  assert.equal(atOldCap.result.balance, 200000);
+  assert.equal(commits, 3);
   testMode = "valid";
 
   testMode = "wrong-role";

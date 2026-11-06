@@ -52,8 +52,8 @@ try {
   const main = document.querySelector('[data-qa-sparks="true"]');
   assert.ok(main);
   assert.ok(main.textContent.includes("LV.1 Spark Starter"), "200 Sparks must show Starter, not a dash");
-  assert.ok(main.textContent.includes("200 / 200,000 Sparks"), "annual progress shows correct cap");
-  assert.equal(main.querySelectorAll(".qa-sparks-member-tier").length, 7);
+  assert.ok(main.textContent.includes("200 Sparks · สะสมไม่จำกัด"), "annual progress must not impose a cap");
+  assert.equal(main.querySelectorAll(".qa-sparks-member-tier").length, 10);
   assert.equal(main.querySelectorAll(".qa-sparks-member-tier.current").length, 1);
   assert.equal(main.querySelector(".qa-sparks-member-progress")?.getAttribute("aria-valuenow"), "200");
   const memberTitle = () => main.querySelector(".qa-sparks-member-head h2")?.textContent || "";
@@ -70,7 +70,11 @@ try {
   assert.match(memberTitle(), /LV.5 Spark Elite/);
   assert.equal(main.querySelectorAll(".qa-sparks-member-tier.attained").length, 4);
   assert.equal(main.querySelector(".qa-sparks-member-progress")?.getAttribute("aria-valuenow"), "50000");
-  console.log("PASS Member Level UI: 200→Starter, 7-step ladder, spending never demotes, 50k→Elite");
+  globalThis.__memberTestWallet = { ...baseWallet, balance: 700000, memberYearEarned: 700000 };
+  await act(async () => window.dispatchEvent(new Event("qa:sparks-updated")));
+  assert.match(memberTitle(), /LV.10 Spark Immortal/);
+  assert.ok(main.textContent.includes("700,000 Sparks"));
+  console.log("PASS Member Level UI: ten levels, 500k+ Immortal, no earned cap, spending never demotes");
 } finally {
   await act(async () => root.unmount());
   dom.window.close();

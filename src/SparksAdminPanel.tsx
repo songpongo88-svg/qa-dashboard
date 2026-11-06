@@ -58,6 +58,8 @@ function readCachedBalances(actor: string): Map<string, CachedBalance> {
     if (!raw) return cache;
     const data = JSON.parse(raw);
     if (!Number.isFinite(Date.parse(data.savedAt)) || Date.now() - Date.parse(data.savedAt) > 24 * 60 * 60 * 1000) return cache;
+    const localYear = (date: Date) => new Intl.DateTimeFormat("en-US", { year:"numeric", timeZone:"Asia/Bangkok" }).format(date);
+    if (localYear(new Date(data.savedAt)) !== localYear(new Date())) return cache; // Expired points may not reappear via a snapshot.
     for (const item of Array.isArray(data.wallets) ? data.wallets.slice(0, 500) : []) {
       const name = normalizeUser(item?.username);
       if (name && validBalance(item?.balance) && validBalance(item?.earned) && validBalance(item?.spent) && validBalance(item?.rewardOrders)) {

@@ -7,7 +7,7 @@ import DailyCheckinQuest from "./DailyCheckinQuest";
 import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
 import TrueMoneyReward from "./TrueMoneyReward";
 import FruitMatchGame from "./FruitMatchGame";
-import { SPARKS_ANNUAL_CAP, SPARKS_MEMBER_LEVELS, getSparksMemberLevel } from "./qaSparksMemberLevels";
+import { SPARKS_TOP_LEVEL_POINTS, SPARKS_MEMBER_LEVELS, getSparksMemberLevel, sparksCalendarYear } from "./qaSparksMemberLevels";
 
 type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar" | "package";
@@ -73,24 +73,24 @@ function MemberJourney({ earned, year }: { earned: number; year: number }) {
       </div>
       <div className="qa-sparks-member-points">
         <span>คะแนนสะสมประจำปี</span>
-        <strong>{member.annualEarned.toLocaleString()} <small>/ {SPARKS_ANNUAL_CAP.toLocaleString()} Sparks</small></strong>
-        <span>{member.next ? `อีก ${member.nextRequired.toLocaleString()} คะแนน ถึง LV.${member.next.level} ${member.next.name}` : "ถึงระดับสูงสุดแล้ว · Spark Legend"}</span>
+        <strong>{member.annualEarned.toLocaleString()} <small>Sparks · สะสมไม่จำกัด</small></strong>
+        <span>{member.next ? `อีก ${member.nextRequired.toLocaleString()} คะแนน ถึง LV.${member.next.level} ${member.next.name}` : "ถึงระดับสูงสุดแล้ว · Spark Immortal · ยังสะสมต่อได้"}</span>
       </div>
     </div>
-    <div className="qa-sparks-member-progress" role="progressbar" aria-valuemin={member.current.min} aria-valuemax={member.next?.min || SPARKS_ANNUAL_CAP}
-      aria-valuenow={member.annualEarned} aria-label="ความคืบหน้าไปสู่ระดับสมาชิกถัดไป">
+    <div className="qa-sparks-member-progress" role="progressbar" aria-valuemin={member.current.min} aria-valuemax={member.next?.min || SPARKS_TOP_LEVEL_POINTS}
+      aria-valuenow={Math.min(member.annualEarned, member.next?.min || SPARKS_TOP_LEVEL_POINTS)} aria-label="ความคืบหน้าไปสู่ระดับสมาชิกถัดไป">
       <span style={{ width: member.progress + "%", backgroundColor: member.current.color }}/>
     </div>
     <div className="qa-sparks-member-ladder" aria-label="ระดับสมาชิกทั้งเจ็ด">
       {SPARKS_MEMBER_LEVELS.map((tier) => <div key={tier.level}
         className={"qa-sparks-member-tier" + (tier.level === member.current.level ? " current" : tier.level < member.current.level ? " attained" : "")}
         style={{ "--member-tier-color": tier.color } as React.CSSProperties}>
-        <span className="qa-sparks-member-tier-emblem"><SparksIcon name={tier.level === 7 ? "crown" : "spark"} size={16}/></span>
+        <span className="qa-sparks-member-tier-emblem"><SparksIcon name={tier.level === 10 ? "crown" : "spark"} size={16}/></span>
         <span><strong>LV.{tier.level} {tier.name}</strong><small>{tier.min.toLocaleString()} Sparks</small></span>
       </div>)}
     </div>
     <div className="qa-sparks-member-footnote">
-      <span>เพดานรับ Sparks {SPARKS_ANNUAL_CAP.toLocaleString()} คะแนน/ปี · เริ่มนับ Level ใหม่วันที่ 1 มกราคม · ยอด Sparks ที่ยังไม่ได้ใช้ยกไปปีถัดไป</span>
+      <span>สะสม Sparks ได้ไม่จำกัด · LV.10 เริ่มที่ {SPARKS_TOP_LEVEL_POINTS.toLocaleString()} คะแนน · ยอดที่ยังไม่ได้ใช้หมดอายุ 31 ธันวาคม เวลา 23:59 น. (เวลาไทย) · เริ่มนับคะแนนและระดับใหม่ 1 มกราคม</span>
     </div>
   </section>;
 }
@@ -131,6 +131,18 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     window.addEventListener("focus", focused);
     return () => { alive = false; window.removeEventListener("qa:sparks-updated", changed); window.removeEventListener("focus", focused); };
   }, [username, active, historyLimit]);
+
+  // Local-only midnight rollover: do not poll Firestore or create quota pressure.
+  // The next normal refresh loads the current year's actual wallet.
+  useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(() => {
+      const year = sparksCalendarYear();
+      setAccount(current => current.memberYear === year ? current :
+        { ...current, memberYear: year, memberYearEarned: 0, balance: 0 });
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [active]);
 
   const ownAccountSnapshot = useMemo(() => lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase()
     ? { ...account, lastLoadedAt: lastAccountLoadAt } : null, [account, lastAccountLoadAt, lastAccountUsername, username]);

@@ -133,7 +133,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
           </button>;
         })}
       </div>{result?<div className="qfm-result" role="status" aria-live="polite"><span aria-hidden="true">{saving?"…":failed?"↻":result.won?"🏆":"⏰"}</span><h3>{saving?"กำลังบันทึกผล…":failed?"บันทึกผลไม่สำเร็จ":result.won?"จับคู่ครบ 12 คู่แล้ว!":"หมดเวลาแล้ว"}</h3><strong>{formatFruitTime(result.elapsedMs,true)}</strong><p>จับคู่ได้ {result.pairs} / 12 คู่ · เปิด {result.moves} ครั้ง</p>
-        {complete?<><p className="qfm-result-points">{result.earned?`+${result.earned} Sparks`:result.reason==="daily-limit"?"รับ Sparks ครบ 2 ครั้งวันนี้แล้ว":result.reason==="annual-limit"?"รางวัลรอบนี้เกินเพดาน Sparks ประจำปี":"รอบนี้ยังไม่ได้รับ Sparks"}</p>{result.won?<button type="button" className="qfm-secondary" onClick={()=>setTab("rank")}>ดูอันดับของฉัน →</button>:null}</>:null}
+        {complete?<><p className="qfm-result-points">{result.earned?`+${result.earned} Sparks`:result.reason==="daily-limit"?"รับ Sparks ครบ 2 ครั้งวันนี้แล้ว":"รอบนี้ยังไม่ได้รับ Sparks"}</p>{result.won?<button type="button" className="qfm-secondary" onClick={()=>setTab("rank")}>ดูอันดับของฉัน →</button>:null}</>:null}
       </div>:null}</div>
       <div className="qfm-message" aria-live="polite">{playing?"เปิดทีละ 2 ใบ แล้วหาภาพผลไม้ชนิดเดียวกัน":saving?"กรุณารอการบันทึกผล":complete?"บันทึกผลการเล่นแล้ว":failed?"ลองบันทึกอีกครั้งก่อนเริ่มรอบใหม่":"พร้อมแล้วกดเริ่ม ภาพจะสลับตำแหน่งใหม่ทุกรอบ"}</div>
       {failed?<button type="button" className="qfm-primary" onClick={()=>round.current&&void submit(round.current)}>ลองบันทึกผลอีกครั้ง</button>:null}

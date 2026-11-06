@@ -10,7 +10,7 @@ globalThis.Date=TestDate;
 const {privateKey}=generateKeyPairSync("rsa",{modulusLength:2048,privateKeyEncoding:{type:"pkcs8",format:"pem"},publicKeyEncoding:{type:"spki",format:"pem"}});
 process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON=JSON.stringify({client_email:"fruit-test@example.test",private_key:privateKey});
 const session="fruit-match-test-session-123456",docs=new Map(),revisions=new Map();
-docs.set("qa_user_sessions/"+session,{username:"Agent",displayName:"Agent One",role:"Admin Live Chat",status:"active",createdAt:"2026-11-01T00:00:00Z",expiresAt:"2027-01-01T00:00:00Z"});
+docs.set("qa_user_sessions/"+session,{username:"Agent",displayName:"Agent One",role:"Admin Live Chat",status:"active",createdAt:"2026-11-01T00:00:00Z",expiresAt:"2028-01-01T00:00:00Z"});
 docs.set("qa_user_profiles/Agent",{username:"Agent",displayName:"Agent One",status:"Active"});
 docs.set("qa_sparks_wallets/agent",{username:"Agent",balance:200,totalEarned:200,memberYear:2026,memberYearEarned:200});
 function encode(v){if(v==null)return{nullValue:"NULL_VALUE"};if(typeof v==="string")return{stringValue:v};if(typeof v==="number")return{integerValue:String(v)};if(typeof v==="boolean")return{booleanValue:v};if(Array.isArray(v))return{arrayValue:{values:v.map(encode)}};return{mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,encode(x)]))}};}
@@ -65,14 +65,20 @@ try{
   clock=OriginalDate.parse("2026-11-05T17:00:01Z");
   r=await win(4000);assert.equal(r.body.result.earned,20,"daily reset at midnight in Bangkok");assert.equal(r.body.stats.rewardDay,"2026-11-06");assert.equal(r.body.stats.dailyPlayCount,1);
   assert.equal(r.body.stats.best.elapsedMs,4000,"faster wins replace the best");
-  wallet().memberYearEarned=199995;r=await win();assert.equal(r.body.result.reason,"annual-limit");assert.equal(r.body.result.earned,0);assert.equal(wallet().memberYearEarned,199995);
+  wallet().memberYearEarned=199995;r=await win();assert.equal(r.body.result.earned,20);assert.equal(wallet().memberYearEarned,200015,"earning continues beyond old 200k threshold");
   clock=OriginalDate.parse("2026-11-06T17:00:01Z");
-  wallet().memberYearEarned=199980;r=await win();assert.equal(r.body.result.earned,20);assert.equal(wallet().memberYearEarned,200000);
+  wallet().memberYearEarned=599980;r=await win();assert.equal(r.body.result.earned,20);assert.equal(wallet().memberYearEarned,600000,"earning continues beyond LV.10");
+  assert.equal(wallet().balanceYear,2026);
   const timeout=await start();clock+=FRUIT_MATCH.durationMs;r=await invoke("fruit-match-finish",{token:timeout.token,trace:[]});assert.equal(r.status,200);assert.equal(r.body.result.won,false);assert.equal(r.body.result.earned,0);assert.equal(r.body.result.pairs,0);
   assert.equal((await invoke("fruit-match-start",{requestId:"fruit-limit-after-loss"})).status,409,"a timed-out round counts toward 2 daily plays");
   clock=OriginalDate.parse("2026-11-07T17:00:01Z");
   const old=await start();clock+=1200;await start();clock+=6000;r=await invoke("fruit-match-finish",{token:old.token,trace:traceFor(old.deck)});assert.equal(r.status,409,"a superseded round cannot grant rewards");
+  const lastYearBalance=wallet().balance;
+  clock=OriginalDate.parse("2026-12-31T17:00:01Z"); // Jan 1, 2027 Bangkok
+  r=await win(4000);assert.equal(r.body.result.earned,20);
+  assert(lastYearBalance>20);assert.equal(wallet().balance,20,"expired 2026 balance cannot be carried into new reward");
+  assert.equal(wallet().balanceYear,2027);assert.equal(wallet().memberYearEarned,20,"Member Level resets in 2027");
   const originalBalance=wallet().balance;quota=true;r=await invoke("fruit-match-data");assert.equal(r.status,429);assert.equal(wallet().balance,originalBalance);quota=false;
   assert(compareFruitRecords({elapsedMs:1000,moves:12,achievedAt:"2026-01-01"},{elapsedMs:1000,moves:13,achievedAt:"2025-01-01"})<0);
-  console.log("PASS Fruit Match API: session auth, signed boards, replay checks, transactions/retry, single reward, 2 plays/day, Bangkok midnight, annual cap, personal best/ranking, timeout, superseded rounds and quota safety.");
+  console.log("PASS Fruit Match API: session auth, signed boards, replay checks, transactions/retry, single reward, 2 plays/day, Bangkok midnight, no earning cap, annual wallet reset, personal best/ranking, timeout, superseded rounds and quota safety.");
 }finally{globalThis.Date=OriginalDate;globalThis.fetch=originalFetch;if(oldSecret===undefined)delete process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;else process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON=oldSecret;}

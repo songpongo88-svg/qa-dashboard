@@ -12,7 +12,6 @@ const policyErrorCode = "SESSION_POLICY_OUTDATED";
 const TYPING_RELIEF_PRICE = 150;
 const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
 const TYPING_RELIEF_MAX_OWNED = 10;
-const SPARKS_ANNUAL_EARN_CAP = 200000;
 const TRUE_MONEY = Object.freeze({
   id:"truemoney-20-thb", price:10000, valueTHB:20,
   validityMs:30*24*60*60*1000, paymentBusinessDays:14,
@@ -324,7 +323,7 @@ const currentMemberYear = () => Number(new Intl.DateTimeFormat("en-US", {
 }).format(new Date()));
 function annualEarnedFromWallet(wallet, year = currentMemberYear()) {
   if (intCount(wallet.memberYear) === year && wallet.memberYearEarned !== undefined) {
-    return Math.min(SPARKS_ANNUAL_EARN_CAP, intCount(wallet.memberYearEarned));
+    return intCount(wallet.memberYearEarned);
   }
   // QA Sparks launched in 2026. Existing wallet documents from that year lack
   // annual counters; backfill lazily from their stored cumulative earned totals.
@@ -335,10 +334,16 @@ function annualEarnedFromWallet(wallet, year = currentMemberYear()) {
     const prizeYear = Number.isFinite(prizeDate.getTime())
       ? Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "Asia/Bangkok" }).format(prizeDate))
       : 0;
-    return Math.min(SPARKS_ANNUAL_EARN_CAP, Math.max(intCount(wallet.totalEarned),
-      prizeYear === 2026 ? intCount(prize?.amount) : 0));
+    return Math.max(intCount(wallet.totalEarned),
+      prizeYear === 2026 ? intCount(prize?.amount) : 0);
   }
   return 0;
+}
+// Old wallets with no balanceYear were first created in 2026. Never carry them
+// into another calendar year. Reading balances does not write to Firestore.
+function spendableBalance(wallet, year = currentMemberYear()) {
+  const balanceYear = intCount(wallet.balanceYear) || 2026;
+  return balanceYear === year ? intCount(wallet.balance) : 0;
 }
 const walletDocumentPath = (username) => path("qa_sparks_wallets", walletKey(username));
 const resourceName = (docPath) => DOCUMENTS_RESOURCE + "/" + docPath;
@@ -373,7 +378,7 @@ async function redeemTypingRelief(body, actor) {
         fail("รหัสรายการนี้เคยใช้งานแล้ว", 409);
       }
       const owned = intCount(wallet.typingReliefOwned);
-      const current = intCount(wallet.balance);
+      const current = spendableBalance(wallet);
       if (owned >= TYPING_RELIEF_MAX_OWNED) fail("สะสม Typing Relief ได้สูงสุด 10 สิทธิ์", 400);
       if (current < TYPING_RELIEF_PRICE) fail("QA Sparks ไม่เพียงพอ (ต้องใช้ 150 Sparks)", 400);
       const nextBalance = current - TYPING_RELIEF_PRICE;
@@ -382,6 +387,7 @@ async function redeemTypingRelief(body, actor) {
       const updates = {
         username: actor.username,
         balance: nextBalance,
+        balanceYear: currentMemberYear(),
         totalSpent: intCount(wallet.totalSpent) + TYPING_RELIEF_PRICE,
         rewardOrders: intCount(wallet.rewardOrders) + 1,
         typingReliefOwned: nextOwned,
@@ -455,7 +461,7 @@ async function claimProfileMakeover(actor) {
       const wallet = recordValue(walletDoc);
       if (historyDoc || wallet.profileMakeoverClaimedAt) {
         return { updated: false, alreadyClaimed: true,
-          balance: intCount(wallet.balance), memberYearEarned: annualEarnedFromWallet(wallet),
+          balance: spendableBalance(wallet), memberYearEarned: annualEarnedFromWallet(wallet),
           claimedAt: String(wallet.profileMakeoverClaimedAt || recordValue(historyDoc).createdAt || "") };
       }
       const hasCustomPhoto = photoDocs.some((document) => {
@@ -468,16 +474,13 @@ async function claimProfileMakeover(actor) {
       if (!hasCustomPhoto) fail("ยังไม่พบรูปโปรไฟล์ที่เปลี่ยนเองในระบบ", 409);
       const year = currentMemberYear();
       const annualEarned = annualEarnedFromWallet(wallet, year);
-      if (annualEarned + PROFILE_QUEST.reward > SPARKS_ANNUAL_EARN_CAP) {
-        fail("รับรางวัลไม่ได้ เนื่องจากจะเกินเพดานสะสม 200,000 Sparks ต่อปี", 400);
-      }
       const now = new Date().toISOString();
-      const nextBalance = intCount(wallet.balance) + PROFILE_QUEST.reward;
+      const nextBalance = spendableBalance(wallet,year) + PROFILE_QUEST.reward;
       const nextAnnual = annualEarned + PROFILE_QUEST.reward;
       const earnedLifetime = Math.max(intCount(wallet.totalEarned), intCount(wallet.firstLogin?.amount));
       await firestoreRequest(":commit", "POST", { transaction, writes: [
         updateWrite(walletPath, {
-          username: actor.username, balance: nextBalance,
+          username: actor.username, balance: nextBalance, balanceYear: year,
           totalEarned: earnedLifetime + PROFILE_QUEST.reward,
           memberYear: year, memberYearEarned: nextAnnual,
           profileMakeoverClaimedAt: now, updatedAt: now,
@@ -551,7 +554,7 @@ async function redeemTrueMoney(body,actor){
         }
         fail("รหัสการแลกนี้ถูกใช้งานแล้ว",409);
       }
-      const balance=intCount(wallet.balance);
+      const balance=spendableBalance(wallet);
       const price=trueMoneyPrice(settingsDoc);
       if(Number(body.expectedPrice)!==price)fail("ราคาแลกรางวัลมีการเปลี่ยนแปลง กรุณาเปิดรายละเอียด Item ใหม่อีกครั้ง",409);
       if(balance<price)fail("ต้องมี "+price.toLocaleString("en-US")+" QA Sparks เพื่อแลก TrueMoney 20 บาท",400);
@@ -566,7 +569,7 @@ async function redeemTrueMoney(body,actor){
       const nextBalance=balance-price;
       await firestoreRequest(":commit","POST",{transaction,writes:[
         updateWrite(walletPath,{
-          username:actor.username,balance:nextBalance,
+          username:actor.username,balance:nextBalance,balanceYear:currentMemberYear(),
           totalSpent:intCount(wallet.totalSpent)+price,
           rewardOrders:intCount(wallet.rewardOrders)+1,
           trueMoneyItems:[...items,item],
@@ -639,7 +642,7 @@ async function requestTrueMoneyPayout(body,actor){
           createdAt:now.toISOString(),type:"earn",source:"reward-activation",
           rewardId:TRUE_MONEY.id,itemId,title:"TrueMoney Payout Requested",
           detail:"ส่งคำขอรับเงิน TrueMoney 20 บาท กำหนดภายใน "+dueDate,
-          amount:0,balanceAfter:intCount(wallet.balance),status:"Completed",performedBy:actor.username,
+          amount:0,balanceAfter:spendableBalance(wallet),status:"Completed",performedBy:actor.username,
         }),
       ]});
       return {updated:true,requestId:itemId,dueDate,status:"pending"};
@@ -701,7 +704,7 @@ async function markTrueMoneyPaid(body,admin){
           createdAt:now,type:"earn",source:"reward-payout",
           rewardId:TRUE_MONEY.id,itemId,title:"TrueMoney 20 THB Paid",
           detail:"Admin ยืนยันโอน TrueMoney 20 บาทสำเร็จ",
-          amount:0,balanceAfter:intCount(recordValue(walletDoc).balance),
+          amount:0,balanceAfter:spendableBalance(recordValue(walletDoc)),
           performedBy:admin.username,status:"Completed",
         }),
       ]});
@@ -736,22 +739,20 @@ async function claimDailyCheckin(body, actor) {
       if (claimDoc || claimedDays.includes(dayNumber)) {
         return { updated: false, alreadyClaimed: true, questDate: today,
           claimedDays: [...new Set([...claimedDays, dayNumber])].sort((a, b) => a - b),
-          balance: intCount(wallet.balance), memberYearEarned: annualEarnedFromWallet(wallet) };
+          balance: spendableBalance(wallet), memberYearEarned: annualEarnedFromWallet(wallet) };
       }
       const memberYear = currentMemberYear();
       const earnedThisYear = annualEarnedFromWallet(wallet, memberYear);
-      if (earnedThisYear + DAILY_CHECKIN_QUEST.reward > SPARKS_ANNUAL_EARN_CAP) {
-        fail("รับรางวัลไม่ได้ เนื่องจากจะเกินเพดานสะสม 200,000 Sparks ต่อปี", 400);
-      }
       const now = new Date().toISOString();
       // Never reduce earned levels when tickets are redeemed.
       const lifetimeEarned = Math.max(intCount(wallet.totalEarned), intCount(wallet.firstLogin?.amount));
-      const nextBalance = intCount(wallet.balance) + DAILY_CHECKIN_QUEST.reward;
+      const nextBalance = spendableBalance(wallet,memberYear) + DAILY_CHECKIN_QUEST.reward;
       const nextEarned = earnedThisYear + DAILY_CHECKIN_QUEST.reward;
       const nextDays = [...claimedDays, dayNumber].sort((a, b) => a - b);
       const updates = {
         username: actor.username,
         balance: nextBalance,
+        balanceYear: memberYear,
         totalEarned: lifetimeEarned + DAILY_CHECKIN_QUEST.reward,
         memberYear,
         memberYearEarned: nextEarned,
@@ -798,7 +799,7 @@ async function useTypingRelief(body, actor) {
       if (useDoc) {
         const used = recordValue(useDoc);
         if (used.source === "reward-activation" && used.rewardId === "typing-relief") {
-          return { updated: false, alreadyApplied: true, balance: intCount(wallet.balance), owned: intCount(wallet.typingReliefOwned), remainingWords: intCount(used.remainingWords), appliedWords: intCount(used.appliedWords) };
+          return { updated: false, alreadyApplied: true, balance: spendableBalance(wallet), owned: intCount(wallet.typingReliefOwned), remainingWords: intCount(used.remainingWords), appliedWords: intCount(used.appliedWords) };
         }
         fail("สิทธิ์นี้ถูกใช้กับรายการดังกล่าวแล้ว", 409);
       }
@@ -822,6 +823,8 @@ async function useTypingRelief(body, actor) {
       const now = new Date().toISOString();
       const updates = {
         username: actor.username,
+        balance: spendableBalance(wallet),
+        balanceYear: currentMemberYear(),
         typingReliefOwned: nextOwned,
         typingReliefUsed: intCount(wallet.typingReliefUsed) + 1,
         updatedAt: now,
@@ -831,7 +834,7 @@ async function useTypingRelief(body, actor) {
         rewardId: "typing-relief", title: "Typing Relief Activated",
         detail: "ใช้ Typing Relief กับ QA Access Check",
         challengeId, originalWords, remainingWords, appliedWords, reductionPercent: TYPING_RELIEF_DISCOUNT_PERCENT,
-        amount: 0, balanceAfter: intCount(wallet.balance), inventoryAfter: nextOwned,
+        amount: 0, balanceAfter: spendableBalance(wallet), inventoryAfter: nextOwned,
         performedBy: actor.username, status: "Completed",
       };
       const challengeUpdates = { queue: entries, queueCount: entries.length };
@@ -843,7 +846,7 @@ async function useTypingRelief(body, actor) {
           createWrite(historyPath, history),
         ],
       });
-      return { updated: true, balance: intCount(wallet.balance), owned: nextOwned, remainingWords, appliedWords };
+      return { updated: true, balance: spendableBalance(wallet), owned: nextOwned, remainingWords, appliedWords };
     } catch (error) {
       if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;
       throw error;
@@ -888,7 +891,7 @@ const balance = (x) => Number.isSafeInteger(Number(x)) ? Math.max(0, Number(x)) 
 function summary(wallet) {
   const initialEarn = Math.max(0, Number(wallet.firstLogin?.amount || 0));
   return {
-    balance: balance(wallet.balance),
+    balance: spendableBalance(wallet),
     rewardOrders: balance(wallet.rewardOrders),
     earned: Math.max(initialEarn, balance(wallet.totalEarned)),
     spent: balance(wallet.totalSpent),
@@ -929,7 +932,7 @@ function listUsers(forceRefresh = false) {
 async function loadUsers() {
   const [profilePages, walletPages] = await Promise.all([
     listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
-    listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin", "memberYear", "memberYearEarned"]),
+    listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin", "memberYear", "memberYearEarned", "balanceYear"]),
   ]);
   const wallets = new Map(walletPages.documents.map((doc) => {
     const v = recordValue(doc);
@@ -1034,7 +1037,7 @@ async function voidChachiyaTestPair(body, admin) {
       const memberYear = currentMemberYear();
       const writes = [
         updateWrite(walletPath, {
-          balance: 150, totalEarned: 150, totalSpent: 0,
+          balance: 150, balanceYear: 2026, totalEarned: 150, totalSpent: 0,
           memberYear, memberYearEarned: memberYear === 2026 ? 150 : 0,
           updatedAt: now, lastCorrectionAt: now,
         }, walletDoc),
@@ -1130,7 +1133,7 @@ async function voidSuphitchaTypingTest(body, admin) {
       const memberYear = currentMemberYear();
       const writes = [
         updateWrite(walletPath, {
-          balance: 500, totalEarned: 500, totalSpent: 0, rewardOrders: 0,
+          balance: 500, balanceYear: 2026, totalEarned: 500, totalSpent: 0, rewardOrders: 0,
           typingReliefOwned: 0, typingReliefPurchased: 0, typingReliefUsed: 0,
           memberYear, memberYearEarned: memberYear === 2026 ? 500 : 0,
           updatedAt: now, lastCorrectionAt: now,
@@ -1210,22 +1213,26 @@ async function adjustBalance(body, admin) {
         if (originalRow.source !== "reward-redemption" || !Number.isSafeInteger(Number(originalRow.amount)) || Number(originalRow.amount) >= 0) {
           fail("ไม่พบรายการแลกรางวัลที่สามารถคืนคะแนนได้", 400);
         }
+        // A redeemed reward may remain usable, but expired Sparks cannot be
+        // refunded into a new year's wallet. Preserve the old audit entry.
+        const redeemedAt = new Date(String(originalRow.createdAt || ""));
+        if (!Number.isFinite(redeemedAt.getTime()) ||
+            Number(bangkokDateAt(redeemedAt).slice(0,4)) !== currentMemberYear()) {
+          fail("ไม่สามารถคืน Sparks ของรายการแลกจากปีก่อน เพราะคะแนนหมดอายุแล้ว",400);
+        }
         signedAmount = -Number(originalRow.amount);
         if (originalRow.rewardId === "typing-relief") {
           if (intCount(data.typingReliefOwned) < 1) fail("ไม่สามารถคืนคะแนน Typing Relief ที่ใช้ไปแล้วได้", 400);
           typingReliefRefund = true;
         }
       }
-      const oldBalance = balance(data.balance);
+      const oldBalance = spendableBalance(data);
       if (signedAmount < 0 && oldBalance < -signedAmount) fail("Sparks คงเหลือไม่พอสำหรับปรับลด", 400);
       const nextBalance = oldBalance + signedAmount;
       if (!Number.isSafeInteger(nextBalance)) fail("Sparks balance overflow", 400);
       const now = new Date().toISOString();
       const memberYear = currentMemberYear();
       const earnedThisYear = annualEarnedFromWallet(data, memberYear);
-      if (operation === "add" && earnedThisYear + quantity > SPARKS_ANNUAL_EARN_CAP) {
-        fail("ไม่สามารถเพิ่ม Sparks ได้ เนื่องจากจะเกินโควตาสะสม 200,000 คะแนนต่อปี", 400);
-      }
       const earning = Math.max(balance(data.totalEarned), balance(data.firstLogin?.amount));
       const spending = balance(data.totalSpent);
       const title = operation === "add" ? "Admin Added Sparks" : operation === "deduct" ? "Admin Deducted Sparks" : "Reward Sparks Refunded";
@@ -1233,6 +1240,7 @@ async function adjustBalance(body, admin) {
       const updated = {
         username,
         balance: nextBalance,
+        balanceYear: memberYear,
         totalEarned: earning + (operation === "add" ? quantity : 0),
         memberYear,
         memberYearEarned: earnedThisYear + (operation === "add" ? quantity : 0),
@@ -1274,7 +1282,7 @@ async function adjustBalance(body, admin) {
   fail("Concurrent Sparks change; please retry", 409);
 }
 const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
-  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,annualCap:SPARKS_ANNUAL_EARN_CAP});
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");

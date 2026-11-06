@@ -141,21 +141,17 @@ try {
   assert.equal(commits,3);
 
   setDate("2026-11-08T17:00:00.000Z");
-  // Try Nov 12, which has no history document yet, to test the annual cap independently.
+  // A valid award may cross 200,000 Sparks: there is no earning ceiling.
   setDate("2026-11-12T05:00:00.000Z");
   docs.set(walletPath,{username:"Agent",balance:199975,totalEarned:199975,memberYear:2026,memberYearEarned:199975});
   r=await invoke(claimDate(12));
-  assert.equal(r.status,400,"grant must not breach the annual 200000 Sparks cap");
-  assert.equal(wallet().balance,199975);
-  assert.equal(commits,3);
-  docs.set(walletPath,{username:"Agent",balance:199950,totalEarned:199950,memberYear:2026,memberYearEarned:199950});
-  r=await invoke(claimDate(12));
-  assert.equal(r.status,200,"exactly reaching 200k must be allowed");
-  assert.equal(wallet().memberYearEarned,200000);
-  assert.equal(wallet().balance,200000);
+  assert.equal(r.status,200,"reward can exceed old 200k cap");
+  assert.equal(wallet().balance,200025);
+  assert.equal(wallet().memberYearEarned,200025);
+  assert.equal(wallet().balanceYear,2026);
   assert.equal(commits,4);
   // Already-claimed fixed history ID remains authoritative even if wallet state is artificially reset.
-  docs.set(walletPath,{username:"Agent",balance:200000,totalEarned:200000,memberYear:2026,memberYearEarned:200000});
+  docs.set(walletPath,{username:"Agent",balance:200025,totalEarned:200025,memberYear:2026,memberYearEarned:200025});
   r=await invoke(claimDate(12));
   assert.equal(r.status,200);
   assert.equal(r.body.alreadyClaimed,true);
@@ -187,7 +183,7 @@ try {
   assert.equal(r.status,429);
   assert.equal(wallet().balance,previousBalance);
   quotaExceeded=false;
-  console.log("PASS Daily Check-in: authenticated user only, 200k cap, atomic wallet+history, quota safety");
+  console.log("PASS Daily Check-in: authenticated user only, unlimited rewards, atomic wallet+history, quota safety");
 } finally {
   globalThis.Date=OriginalDate;
   globalThis.fetch=originalFetch;

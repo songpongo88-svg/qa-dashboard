@@ -424,7 +424,7 @@
 .qa-sparks-member-points strong small{font-size:11px;font-weight:500;color:#7d6773;}
 .qa-sparks-member-progress{height:10px;overflow:hidden;border-radius:999px;border:1px solid #e6d8e4;background:#f0e8ed;}
 .qa-sparks-member-progress>span{display:block;height:100%;border-radius:999px;transition:width .3s ease;min-width:0;}
-.qa-sparks-member-ladder{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;}
+.qa-sparks-member-ladder{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;}
 .qa-sparks-member-tier{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:6px;padding:9px 6px;border:1px solid #e9e1e5;border-radius:12px;text-align:center;min-width:0;background:#fff;opacity:.65;}
 .qa-sparks-member-tier.current{opacity:1;background:color-mix(in srgb,var(--member-tier-color) 10%,#fff);border:2px solid var(--member-tier-color);padding:8px 5px;}
 .qa-sparks-member-tier.attained{opacity:1;border-color:color-mix(in srgb,var(--member-tier-color) 50%,#fff);}
