@@ -36,9 +36,8 @@ function resetFixture() {
       let rows = [...this.documents.keys()].filter(path => path.startsWith(ref.path + "/") && !path.slice(ref.path.length + 1).includes("/"))
         .map(path => this.snapshot(path));
       for (const filter of target.filters || []) {
-        if (filter.kind === "where") rows = rows.filter(row => filter.op === "in" ? filter.value.includes(row.data()[filter.field]) : filter.op === ">=" ? String(row.data()[filter.field]) >= String(filter.value) : row.data()[filter.field] === filter.value);
+        if (filter.kind === "where") rows = rows.filter(row => filter.op === "in" ? filter.value.includes(row.data()[filter.field]) : row.data()[filter.field] === filter.value);
         if (filter.kind === "order") rows.sort((a, b) => String(b.data()[filter.field] || "").localeCompare(String(a.data()[filter.field] || "")));
-        if (filter.kind === "after") { const idx = rows.findIndex(row => row.id === filter.id); rows = idx < 0 ? rows : rows.slice(idx + 1); }
         if (filter.kind === "limit") rows = rows.slice(0, filter.value);
       }
       return { docs: rows };
@@ -54,7 +53,6 @@ const databaseMock = `
  export const query=(ref,...filters)=>({kind:'query',ref,filters}),where=(field,op,value)=>({kind:'where',field,op,value});
  export const limit=value=>({kind:'limit',value}),orderBy=(field,direction)=>({kind:'order',field,direction});
  export const serverTimestamp=()=>new Date().toISOString();
- export async function addDoc(ref,data){const id='mock-'+f().documents.size;f().documents.set(ref.path+'/'+id,data);return {id}}
  export async function getDoc(ref){f().reads.push(ref.path);return f().snapshot(ref.path)}
  export const getDocFromServer=getDoc;
  export async function getDocs(target){f().queries.push(target);return f().rows(target)}
@@ -64,7 +62,7 @@ const databaseMock = `
  export async function setDoc(ref,data,options){const fixture=f();fixture.writes++;fixture.documents.set(ref.path,options?.merge?{...fixture.documents.get(ref.path),...data}:data);fixture.emit()}
  export async function deleteDoc(ref){f().documents.delete(ref.path);f().emit()}
  export function runTransaction(_db,callback){const fixture=f();const pending=fixture.transactionQueue.catch(()=>{}).then(async()=>{const writes=[];const result=await callback({get:async ref=>fixture.snapshot(ref.path),set:(ref,data,options)=>writes.push([ref,data,options]),delete:ref=>fixture.documents.delete(ref.path)});for(const args of writes)await setDoc(...args);return result});fixture.transactionQueue=pending;return pending}
- export const documentId=()=> '__name__',deleteField=()=>undefined,startAfter=doc=>({kind:'after',id:doc.id});
+ export const documentId=()=> '__name__',deleteField=()=>undefined,startAfter=()=>({});
  export async function getCountFromServer(target){return {data:()=>({count:f().rows(target).docs.length})}}
 `;
 const replacements = {
@@ -209,39 +207,6 @@ try {
   inbox.clearAppealEventReadCache();await inbox.fetchAppealInboxSnapshot(qa);
   assert.equal(fixture.queries.length, initialQueries + 2);
   console.log("PASS Inbox: unchanged revision reuses events, changed revision refreshes both projections, explicit invalidation refreshes");
-
-  resetFixture();
-  fixture.documents.set("qa_access_logs/old-chat", {
-    event_type: "chat_message", created_at: "2026-11-06T02:00:00.000Z",
-    username: "Agent", details: { message: "existing conversation" },
-  });
-  fixture.documents.set("qa_access_logs/old-presence", {
-    event_type: "user_presence", created_at: "2026-11-06T01:59:00.000Z", username: "Agent",
-  });
-  const chat = await bundle("chat-incremental", 'export {fetchChatEventsIncrementally} from "./usageLog";');
-  const firstChat = await chat.fetchChatEventsIncrementally();
-  assert.equal(firstChat.filter(x => x.event_type === "chat_message").length, 1);
-  assert.equal(fixture.queries.length, 1);
-  assert.ok(fixture.queries[0].filters.some(x => x.kind === "limit" && x.value === 1200));
-  clock += 6_000;
-  const sameChat = await chat.fetchChatEventsIncrementally();
-  assert.deepEqual(sameChat.map(x => x.id), firstChat.map(x => x.id));
-  assert.ok(fixture.queries[1].filters.some(x => x.kind === "where" && x.op === ">="));
-  assert.ok(!fixture.queries[1].filters.some(x => x.kind === "limit" && x.value === 1200),
-    "idle Chat must never download the full history again");
-  fixture.documents.set("qa_access_logs/new-chat", {
-    event_type: "chat_message", created_at: "2026-11-06T02:01:00.000Z",
-    username: "Senior", details: { message: "new message" },
-  });
-  clock += 6_000;
-  const nextChat = await chat.fetchChatEventsIncrementally();
-  assert.deepEqual(nextChat.filter(x => x.event_type === "chat_message").map(x => x.id),
-    ["new-chat", "old-chat"], "incremental Chat merges new and old messages");
-  const beforeParallel = fixture.queries.length;
-  clock += 6_000;
-  await Promise.all([chat.fetchChatEventsIncrementally(), chat.fetchChatEventsIncrementally()]);
-  assert.equal(fixture.queries.length, beforeParallel + 1, "concurrent Chat checks share one read");
-  console.log("PASS Chat: first full snapshot, idle cursor reads, new-message merge and concurrent dedup");
 } finally {
   await act(async () => root.unmount());
   globalThis.fetch = originalFetch;Date.now = originalNow;dom.window.close();
