@@ -24,6 +24,17 @@ function validSnapshot<C,N>(value: unknown, maxAge: number): value is DashboardR
     && Number.isFinite(snapshot.cachedAt) && snapshot.cachedAt > 0 && snapshot.cachedAt <= Date.now()
     && Date.now() - snapshot.cachedAt <= maxAge);
 }
+/** Only affects read-only fallback snapshots; server-verified Dashboard data is unchanged.
+ * A reduced history must not erase a larger account-scoped recovery copy.
+ */
+function preferRecoverySnapshot<C,N>(
+  candidate:DashboardRecoverySnapshot<C,N>, previous:DashboardRecoverySnapshot<C,N>|null
+):DashboardRecoverySnapshot<C,N> {
+  if (!previous) return candidate;
+  return candidate.cases.length > previous.cases.length ||
+    (candidate.cases.length === previous.cases.length && candidate.cachedAt > previous.cachedAt)
+    ? candidate : previous;
+}
 function readWebSnapshot<C,N>(accountScope: string, maxAge: number): DashboardRecoverySnapshot<C,N> | null {
   if (!accountScope.trim() || typeof window === "undefined") return null;
   let latest:DashboardRecoverySnapshot<C,N>|null=null;
@@ -31,7 +42,7 @@ function readWebSnapshot<C,N>(accountScope: string, maxAge: number): DashboardRe
     try {
       const raw=window[name].getItem(storageKey(accountScope));
       const value=raw?JSON.parse(raw):null;
-      if(validSnapshot<C,N>(value,maxAge)&&(!latest||value.cachedAt>latest.cachedAt))latest=value;
+      if(validSnapshot<C,N>(value,maxAge))latest=preferRecoverySnapshot(value,latest);
     }catch{ /* Storage is optional. Never discard a valid backup on a read error. */ }
   }
   return latest;
@@ -62,7 +73,7 @@ export async function readDashboardRecoverySnapshotForView<C,N>(accountScope:str
       const request=db.transaction("snapshots","readonly").objectStore("snapshots").get(storageKey(accountScope));
       request.onsuccess=()=>resolve(request.result);request.onerror=()=>resolve(null);
     });
-    if(validSnapshot<C,N>(saved,VIEW_MAX_AGE_MS)&&(!latest||saved.cachedAt>latest.cachedAt))latest=saved;
+    if(validSnapshot<C,N>(saved,VIEW_MAX_AGE_MS))latest=preferRecoverySnapshot(saved,latest);
   }catch{ /* Keep the Web Storage copy when IndexedDB is unavailable. */ }
   finally{db.close();}
   return latest;
@@ -72,7 +83,15 @@ async function persistLargeSnapshot(accountScope:string,data:unknown):Promise<vo
   try{
     await new Promise<void>(resolve=>{
       const transaction=db.transaction("snapshots","readwrite");
-      transaction.objectStore("snapshots").put(data,storageKey(accountScope));
+      const store=transaction.objectStore("snapshots");
+      const request=store.get(storageKey(accountScope));
+      request.onsuccess=()=>{
+        const previous=request.result;
+        // Only store more complete recovery histories (or equally complete newer ones).
+        if(!validSnapshot(previous,VIEW_MAX_AGE_MS) || data.cases.length>=previous.cases.length){
+          store.put(data,storageKey(accountScope));
+        }
+      };
       transaction.oncomplete=()=>resolve();transaction.onerror=()=>resolve();transaction.onabort=()=>resolve();
     });
   }catch{ /* A failed backup must not block the live Dashboard. */ }
@@ -83,6 +102,8 @@ export function saveDashboardRecoverySnapshot<C, N>(accountScope: string, data: 
   if (!accountScope.trim() || typeof window === "undefined" || !data.cases.length) return;
   void persistLargeSnapshot(accountScope,data);
   try {
+    const previous=readWebSnapshot<C,N>(accountScope,VIEW_MAX_AGE_MS);
+    if(previous && previous.cases.length>data.cases.length) return;
     const raw = JSON.stringify(data);
     if (raw.length > MAX_JSON_LENGTH) return; // Do not exhaust browser storage.
     for (const name of ["sessionStorage","localStorage"] as const) {
