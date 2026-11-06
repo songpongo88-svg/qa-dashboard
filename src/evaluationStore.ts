@@ -1,6 +1,6 @@
 import { assertFirestoreReadAllowed, noteFirestoreReadError } from "./firestoreReadPolicy";
 ﻿import { initializeApp, getApps } from "firebase/app";
-import { collection, doc, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, doc, documentId, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { getEvaluationAgentFullName } from "./lib/userNames";
@@ -199,18 +199,28 @@ export function invalidateStoredEvaluationCache() {
   clearRemoteEvaluationReadCache();
 }
 
-async function cachedRemoteEvaluations(limit: number, request: () => Promise<StoredEvaluation[]>) {
+async function withEvaluationReadDeadline<T>(request: Promise<T>, durationMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([request, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), durationMs);
+    })]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function cachedRemoteEvaluations(limit: number, request: () => Promise<StoredEvaluation[]>, options: { allMonths?: boolean } = {}) {
   const now = Date.now();
-  const cacheKey = `submitted-at-desc:${limit}`;
+  const cacheKey = `${options.allMonths ? "all-months-document-id" : "submitted-at-desc"}:${limit}`;
   const cached = remoteEvaluationReadCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.promise;
   assertFirestoreReadAllowed();
 
-  let timeoutId: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<StoredEvaluation[]>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error("โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง")), 20_000);
-  });
-  const promise = Promise.race([request(), timeout]).finally(() => clearTimeout(timeoutId)).catch((error) => {
+  const promise = withEvaluationReadDeadline(request(), options.allMonths ? 120_000 : 20_000,
+    options.allMonths
+      ? "โหลดประวัติผลประเมินทุกเดือนเกิน 2 นาที กรุณาลองอัปเดตข้อมูลอีกครั้ง"
+      : "โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง").catch((error) => {
     noteFirestoreReadError(error);
     if (remoteEvaluationReadCache.get(cacheKey)?.promise === promise) remoteEvaluationReadCache.delete(cacheKey);
     throw error;
@@ -1591,17 +1601,26 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
         const records: StoredEvaluation[] = [];
         let cursor: QueryDocumentSnapshot | undefined;
         let realCount = 0;
-        const deadline = Date.now() + 20_000;
+        const deadline = Date.now() + (options.allMonths ? 120_000 : 20_000);
         // Page past test records to retain the same real-result window as before.
         while (realCount < safeLimit) {
-          if (Date.now() >= deadline) throw new Error("โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง");
+          if (Date.now() >= deadline) throw new Error(options.allMonths
+            ? "โหลดประวัติผลประเมินทุกเดือนเกิน 2 นาที กรุณาลองอัปเดตข้อมูลอีกครั้ง"
+            : "โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง");
           const pageLimit = options.allMonths ? 300 : safeLimit - realCount;
-          const snapshot = await getDocs(query(
+          // A complete scan must include older records without submitted_at.
+          // Document IDs exist for every record and give pagination a stable order.
+          const pageQuery = query(
             collection(db, FIREBASE_EVALUATION_COLLECTION),
-            orderBy("submitted_at", "desc"),
+            orderBy(options.allMonths ? documentId() : "submitted_at", options.allMonths ? "asc" : "desc"),
             ...(cursor ? [startAfter(cursor)] : []),
             firestoreLimit(pageLimit)
-          ));
+          );
+          // A cached SDK subset must never be saved as a complete server history.
+          const snapshot = options.allMonths
+            ? await withEvaluationReadDeadline(getDocsFromServer(pageQuery), 30_000,
+              "โหลดประวัติผลประเมินหนึ่งหน้าเกิน 30 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง")
+            : await getDocs(pageQuery);
           const page = snapshot.docs
             .map((item) => toEvaluation({ ...item.data(), id: item.id }))
             .filter(isStoredEvaluationRecord);
@@ -1618,7 +1637,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
         console.warn("Load Firebase evaluations failed", error);
         throw error;
       }
-    }).catch((error) => {
+    }, options).catch((error) => {
       remoteReadSucceeded = false;
       if (options.strict) throw error;
       return [];
