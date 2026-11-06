@@ -1,4 +1,4 @@
-import { loadCanonicalReportData, type CanonicalReportCase } from "./DashboardMockup";
+import { loadCanonicalReportData, type CanonicalReportCase, type CanonicalReportData } from "./DashboardMockup";
 import YearlyTeamSummary from "./YearlyTeamSummary";
 import { buildYearlyTeamReport, createYearlyTeamSummaryXlsx, yearlyMonthKeys } from "./yearlyTeamSummaryData";
 import { createYearlyTeamSummaryPdf } from "./yearlyTeamSummaryPdf";
@@ -2948,6 +2948,7 @@ export default function SummaryMockup({
   canExportAnalytics = false,
   dataRefreshKey,
   embedded = false,
+  displayRecoveryData,
   onSelectedAgentChange,
   onAgentPerformanceCaseSelect,
   onResetCaseFilters,
@@ -2966,6 +2967,7 @@ export default function SummaryMockup({
   canExportAnalytics?: boolean;
   dataRefreshKey?: number;
   embedded?: boolean;
+  displayRecoveryData?: CanonicalReportData;
   onSelectedAgentChange?: (agent: string) => void;
   onAgentPerformanceCaseSelect?: (agent: string) => void;
   onResetCaseFilters?: () => void;
@@ -3024,6 +3026,10 @@ export default function SummaryMockup({
   });
   useEffect(() => {
     if (analysisMode !== "yearly") return;
+    if (displayRecoveryData) {
+      setYearlyData({loading:false,error:"",cases:displayRecoveryData.cases});
+      return;
+    }
     let active = true;
     setYearlyData(previous => ({ ...previous, loading: true, error: "" }));
     void loadCanonicalReportData().then(result => {
@@ -3033,7 +3039,7 @@ export default function SummaryMockup({
         error: error instanceof Error ? error.message : "โหลดข้อมูล Yearly ไม่สำเร็จ กรุณาลองรีเฟรช" }));
     });
     return () => { active = false; };
-  }, [analysisMode, dataRefreshKey]);
+  }, [analysisMode, dataRefreshKey, displayRecoveryData]);
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>(() => {
     try {
       const saved = JSON.parse(window.sessionStorage.getItem("qa_analytics_periods_v134") || "[]");
@@ -3130,6 +3136,7 @@ export default function SummaryMockup({
 
   useEffect(() => {
     let alive = true;
+    if (displayRecoveryData) return;
     fetchStoredUserProfiles()
       .then((profiles) => {
         if (alive) setAccountProfiles(profiles as SummaryAccount[]);
@@ -3141,7 +3148,7 @@ export default function SummaryMockup({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [Boolean(displayRecoveryData)]);
 
   useEffect(() => {
     if (typeof externalSelectedAgent !== "string") return;
@@ -3178,6 +3185,12 @@ export default function SummaryMockup({
       try {
         setIsLoading(true);
         setLoadError("");
+        if (displayRecoveryData) {
+          setAllCases(displayRecoveryData.cases.map(item=>({...item,yearKey:item.monthKey.slice(0,4)})) as CaseItem[]);
+          setNoCaseEvaluations(displayRecoveryData.noCaseEvaluations);
+          setAppealMergeCount(displayRecoveryData.appealMergeCount);
+          return;
+        }
 
         const v8Response = await fetchCachedStaticResponse(`/${V8_EFFECTIVE_FILE_NAME}`);
         if (v8Response.ok) {
@@ -3568,7 +3581,7 @@ export default function SummaryMockup({
     };
 
     loadWorkbook();
-  }, [dataRefreshKey]);
+  }, [dataRefreshKey, displayRecoveryData]);
 
   const casesInCurrentScopeForAgentOptions = useMemo(() => {
     return allCases.filter((item) => {

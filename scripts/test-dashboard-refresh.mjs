@@ -22,7 +22,7 @@ function replaceFunction(source,name,body) {
   assert.ok(node?.body,name);
   return source.slice(0,node.body.pos)+' '+body+source.slice(node.body.end);
 }
-const bundle=await build({stdin:{contents:`import React,{act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Dashboard from './src/DashboardMockup'; export {React,act,Simulate,createRoot,Dashboard}; export * from './src/useDashboardAutoRefresh';`,resolveDir:rootDir,loader:'tsx'},bundle:true,jsx:'automatic',define:{'import.meta.env':'{}'},platform:'node',format:'esm',write:false,logLevel:'silent',loader:{'.css':'empty'},external:['react','react-dom','react-dom/*','jspdf'],banner:{js:"import {createRequire as testRequire} from 'node:module'; const require=testRequire(import.meta.url);"},plugins:[{name:'isolated-data',setup(b){
+const bundle=await build({stdin:{contents:`import React,{act} from 'react'; import {Simulate} from 'react-dom/test-utils'; import {createRoot} from 'react-dom/client'; import Dashboard,{loadCanonicalReportData} from './src/DashboardMockup'; import Summary from './src/SummaryMockup'; export {React,act,Simulate,createRoot,Dashboard,Summary,loadCanonicalReportData}; export * from './src/useDashboardAutoRefresh';`,resolveDir:rootDir,loader:'tsx'},bundle:true,jsx:'automatic',define:{'import.meta.env':'{}'},platform:'node',format:'esm',write:false,logLevel:'silent',loader:{'.css':'empty'},external:['react','react-dom','react-dom/*','jspdf'],banner:{js:"import {createRequire as testRequire} from 'node:module'; const require=testRequire(import.meta.url);"},plugins:[{name:'isolated-data',setup(b){
   b.onLoad({filter:/\/evaluationStore\.ts$/},async args=>({loader:'ts',contents:replaceFunction(await fs.readFile(args.path,'utf8'),'fetchStoredEvaluations',`{ globalThis.__dashboardRefreshFixture.calls++; return globalThis.__dashboardRefreshFixture.read(options); }`)}));
   b.onLoad({filter:/\/appealStore\.ts$/},async args=>({loader:'ts',contents:replaceFunction(await fs.readFile(args.path,'utf8'),'fetchAppealEvents','{ return []; }')}));
   b.onLoad({filter:/\/userRoleStore\.ts$/},async args=>({loader:'ts',contents:replaceFunction(await fs.readFile(args.path,'utf8'),'fetchStoredRolePermissions','{ return []; }')}));
@@ -31,7 +31,7 @@ const bundle=await build({stdin:{contents:`import React,{act} from 'react'; impo
   b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='asset'?'export default "/test-worker.mjs";':'export default function Hero(){return null;}',loader:'js'}));
 }}]});
 const bundlePath=path.join(temp,'test.mjs');await fs.writeFile(bundlePath,bundle.outputFiles[0].text);
-const {React,act,Simulate,createRoot,Dashboard,useDashboardAutoRefresh}=await import(pathToFileURL(bundlePath));
+const {React,act,Simulate,createRoot,Dashboard,Summary,loadCanonicalReportData,useDashboardAutoRefresh}=await import(pathToFileURL(bundlePath));
 const originalFetch=globalThis.fetch;
 globalThis.fetch=async url=>{
   const fileName=decodeURIComponent(String(url).split('?')[0].replace(/^\//,''));
@@ -58,9 +58,13 @@ try {
   await assert.rejects(store.fetchStoredEvaluations(300,{strict:true}),/offline/);
   assert.deepEqual(await store.fetchStoredEvaluations(300),[],'legacy callers retain their fallback');
   assert.equal(remote.calls,2,'failed reads must be evicted so the next request retries');
+  const lastGoodCache=JSON.stringify([sample('AA910001')]);
+  window.localStorage.setItem('qa-dashboard:create-evaluation:remote-cache:v2',lastGoodCache);
+  await store.fetchStoredEvaluations(300);
+  assert.equal(window.localStorage.getItem('qa-dashboard:create-evaluation:remote-cache:v2'),lastGoodCache,'failed display reads must not erase the last successful evaluation cache');
   remote.read=async()=>({docs:[]});
   assert.deepEqual(await store.fetchStoredEvaluations(300,{strict:true}),[]);
-  await store.fetchStoredEvaluations(300,{strict:true});assert.equal(remote.calls,3,'successful reads are deduplicated');
+  await store.fetchStoredEvaluations(300,{strict:true});assert.equal(remote.calls,4,'successful reads are deduplicated');
   remote.queries=[];let changedAt='2026-10-02T05:00:00Z';remote.read=async()=>({docs:[{id:'latest',data:()=>({updated_at:changedAt})}]});
   const firstRevision=await store.fetchDashboardRevision();changedAt='2026-10-02T05:10:00Z';
   const editedRevision=await store.fetchDashboardRevision();assert.notEqual(editedRevision,firstRevision,'an edit changes the revision');
@@ -130,6 +134,36 @@ try {
   await render(6,{currentUser:{username:'a',displayName:'Agent A',agentName:'Agent A',role:'Admin Live Chat'},roleScopedAgentNames:['Agent A'],canViewAgentsInOverview:false});await settle();
   assert.ok(table().includes('AA900003'));assert.ok(!table().includes('AA900005'),'refresh respects logged-in Agent scope');
   console.log('PASS latest request wins, remount keeps results and Agent scope remains enforced');
+
+  // A fresh account/tab has no mounted snapshot. Firestore is unavailable but
+  // official workbooks and the legacy QA evaluation cache remain readable.
+  await act(async()=>root.unmount());root=createRoot(document.getElementById('root'));
+  fixture.read=async()=>{throw Object.assign(new Error('Quota exceeded'),{code:'resource-exhausted'});};
+  const savedNovember={...sample('AA910101'),auditDate:'2026-11-04',auditTimestamp:'2026-11-05T02:00:00Z',submittedAt:'2026-11-05T02:00:00Z',evaluationMonthKey:'2026-11'};
+  window.localStorage.setItem('qa-dashboard:create-evaluation:remote-cache:v2',JSON.stringify([savedNovember]));
+  const beforeRecovery=fixture.calls;
+  await render(100,{currentUser:{username:'qa-recovery',displayName:'QA Reviewer',role:'Quality Assurance'},externalSelectedMonthKey:'2026-11'});await settle();
+  assert.equal(status()?.dataset.dashboardRefreshState,'error');
+  assert.ok(table().includes('AA910101'),'cold-start quota failure recovers the QA legacy cache');
+  assert.ok(status().textContent.includes('ข้อมูลสำรอง')&&status().textContent.includes('ดูอย่างเดียว'));
+  assert.ok(!document.body.textContent.includes('โหลดไฟล์ไม่สำเร็จ'),'the page no longer hides usable data behind the error screen');
+  assert.equal(fixture.calls,beforeRecovery+1,'offline recovery must not read Firestore again');
+  assert.ok(!table().includes('Gen All Case PDF'),'an incomplete recovery cannot generate an official report');
+  assert.equal(window.sessionStorage.getItem('qa-dashboard:recovery-snapshot:v1:'+encodeURIComponent('qa-recovery|quality assurance|')),null,'partial recovery never overwrites a complete backup');
+  await act(async()=>root.unmount());root=createRoot(document.getElementById('root'));
+  await render(101,{currentUser:{username:'agent-recovery',displayName:'Agent A',agentName:'Agent A',role:'Admin Live Chat'},externalSelectedMonthKey:'2026-11',roleScopedAgentNames:['Agent A'],canViewAgentsInOverview:false});await settle();
+  assert.ok(!table().includes('AA910101'),'a legacy QA cache is never reused by another role/account');
+  assert.ok(status()?.textContent.includes('ข้อมูลสำรอง'),'official workbooks remain available without a personal cache');
+  console.log('PASS first-load quota recovery: real cached cases and official workbooks, visible read-only status, no extra server read, no formal export, no cross-account legacy cache');
+  await assert.rejects(loadCanonicalReportData(),/Quota exceeded/,'official reports still require a successful live read');
+  const localDisplay=await loadCanonicalReportData({cachedEvaluations:[savedNovember]});
+  await act(async()=>root.unmount());root=createRoot(document.getElementById('root'));
+  const beforeSummary=fixture.calls;
+  await act(async()=>root.render(React.createElement(Summary,{currentUser:base.currentUser,embedded:true,canViewAllAgents:true,canViewAllTeams:true,canExportAnalytics:false,externalSelectedMonth:'2026-11',displayRecoveryData:{...localDisplay,cases:localDisplay.cases.filter(row=>row.caseId==='AA910101')}})));await settle();
+  assert.equal(fixture.calls,beforeSummary,'embedded recovery Summary must not fetch evaluations again');
+  assert.ok(document.body.textContent.includes('Agent A'),'the real Summary displays recovered records');
+  assert.ok(!document.body.textContent.includes('โหลดไฟล์ไม่สำเร็จ'));
+  console.log('PASS embedded Summary reuses recovered cases; formal report loaders remain strict');
 
   await act(async()=>root.unmount());root=createRoot(document.getElementById('root'));
   const originalNow=Date.now;let now=originalNow();Date.now=()=>now;

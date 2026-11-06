@@ -716,6 +716,13 @@ function writeRemoteEvaluationCache(records: StoredEvaluation[]) {
   }
 }
 
+// Explicit display recovery only. Authorization and official reports must use
+// the existing server reads; the legacy cache has no account identity metadata.
+export function readCachedEvaluationsForDisplay(): StoredEvaluation[] {
+  try { return readRemoteEvaluationCache().filter(item => !isDeletedEvaluation(item) && !isTestCaseEvaluation(item)); }
+  catch { return []; }
+}
+
 function readDeletedEvaluationIds() {
   if (typeof window === "undefined") return new Set<string>();
   const raw = window.localStorage.getItem(DELETED_EVALUATION_IDS_KEY);
@@ -1573,6 +1580,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
   const localSources = mergeEvaluationSources([...cachedEvaluations, ...recoveredLocalEvaluations], localEvaluations);
 
   if (isFirebaseEvaluationConfigured()) {
+    let remoteReadSucceeded = true;
     const firebaseEvaluations = await cachedRemoteEvaluations(safeLimit, async () => {
       try {
         const db = getFirebaseEvaluationDb();
@@ -1608,6 +1616,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
         throw error;
       }
     }).catch((error) => {
+      remoteReadSucceeded = false;
       if (options.strict) throw error;
       return [];
     });
@@ -1619,7 +1628,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
       ? await syncLocalEvaluationsToRemote(recoveredFirebaseEvaluations, localSources)
       : [];
     const availableEvaluations = mergeEvaluationSources([...recoveredFirebaseEvaluations, ...syncedLocalEvaluations], localSources);
-    writeRemoteEvaluationCache(availableEvaluations);
+    if (remoteReadSucceeded) writeRemoteEvaluationCache(availableEvaluations);
     return limitEvaluationScopes(availableEvaluations, safeLimit);
   }
 

@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T03:16:29.352Z",
-  "reason": "Reviewed production Chat realtime presence write deduplication and Inbox background refresh reduction, preserving message and appeal histories. Guide content unchanged.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-11-06T03:19:22.844Z",
+  "reason": "Reviewed read-only Dashboard recovery from account snapshots, IndexedDB, QA display cache and official workbooks during Firestore outages; successful production build with latest Chat/Inbox quota fixes and strict official reports",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "dashboard"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -100,8 +102,8 @@
     "build/usernameIdentityPolicyPatchV2.js": "c5c8baec7d5c31fa2f68441bafd885194d965f4074e9df25fb2b329bd4d1990b",
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
-    "package-lock.json": "d8e138da50651957249172b4c2b0a646f9bfbbe296ff22de5426d4b5a9a7c107",
-    "package.json": "29d55063313d9c2dc601522485cdddc479a644d8927434b62de80a65ff10fad4",
+    "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
+    "package.json": "a7fae9dc8f561047eb79190d7e81fc5da3433edc0e314bfc50e2532ccd924321",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -331,9 +333,10 @@
     "scripts/test-character-themes.mjs": "05681b273ae2fe564bf1a64960658928dcbc88ea464043da98b378cf45336f2b",
     "scripts/test-compare-report-redesign.mjs": "257a511962ae31e5fa907df4ae8f4c58e3871baf918e45cd2795b32ad5fe9810",
     "scripts/test-daily-checkin-quest.mjs": "91d6713e83123345d2f1c88c95fbd5e676a6a71a403532f63f3c78e762fbc215",
+    "scripts/test-dashboard-cache.mjs": "732fa6a44b91af141aee02eeb224bc2a4086e53800dfc90718afad461fc13700",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-pending-appeal.mjs": "bb22db43bcbbeb5965c8b36643d4ac59bc2c00b94689aa912134414f5d479c91",
-    "scripts/test-dashboard-refresh.mjs": "a728407be2f24a0ec8fbe724d7ae0dfcbe3ab408ffd3c357f4ff10b01a32c121",
+    "scripts/test-dashboard-refresh.mjs": "6e0bfeabecb4a94ceda7b170d9aa305b8ece1c2776b25ce3bcefacba19980d6f",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deleted-case-appeal.mjs": "efbcbb15fe2e23384a8d01af056a6d36767577f7014fbf5a014c795aacf99b40",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
@@ -406,7 +409,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
     "src/DailyCheckinQuest.tsx": "a50da46ae5e4c04947e5f9c1a5056dee5fe205126c3a3d62bfe45232545c64c8",
-    "src/DashboardMockup.tsx": "4168b4dc59e0a75fa5d48d35ca36f11d0e811bb2c89d80b652dd5dddfdd71aba",
+    "src/DashboardMockup.tsx": "3ec5087b825b016396cce9e174c83ef2ac53dfa86fb11cae716b84088d4cdef8",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
@@ -437,7 +440,7 @@
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
     "src/SparksAdminPanel.tsx": "b105a827da2775656892a3eccad36cac51a3121318e20ad4bbbe3fb88114404f",
     "src/StickyNotePopup.tsx": "fedb5e1066137ee5b7be1b4db0d1145376d4d64b3821a5029bb060aa84a9326c",
-    "src/SummaryMockup.tsx": "246e347d81bdf80ef2b52593f5a160d180d709ea7e53a6effa8fc45c9198c0c3",
+    "src/SummaryMockup.tsx": "c0465ce89329663478d18bec29c0b9b71af3f491cc322bcb114506c380d0ca88",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TagRubricHint.tsx": "511447a8e67a8526cc2ca50a6b8e60c3c828542518b6a62743e790829e3b3001",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
@@ -492,6 +495,7 @@
     "src/coachingHistoricalStore.ts": "7a7097bc7ea733777855caf99174665d73666c2870d46f30abdc10b49bbd533f",
     "src/coachingScheduleStore.ts": "01e8db30db622950753aeff5a2753bfed43b9a7b1da6dca3afd0cc8d6f2a9243",
     "src/coachingStore.ts": "60c6a02e7016d4ce0ce4cef749f7fcb3ba0c1d638279dc500fe3238d01a8cdc3",
+    "src/dashboardRecoveryCache.ts": "3eaf428c46dfecec6fc8c2e30a90eaed201549d5ecfe151e4ea5b0d9b6d22cfa",
     "src/dashboardRevision.ts": "e305357dc518fb6f89d76621baacf63791c174ae69d9718a72de2f14610bd154",
     "src/dashboardShortcuts.css": "f6b4ec63f9f99e58337fcbf1890a91d68c1ac92c898a611238b8c0204f3d0362",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
@@ -499,7 +503,7 @@
     "src/evaluationActivity.ts": "3d22c1607284ea77b4696649b7dfe6027b9f603791fcf9455556e5bc42b16d26",
     "src/evaluationActivityStore.ts": "5284af7fa9d93560ca1695b7d0a1d4596954f1bbe5518a538fdddbbc1983f113",
     "src/evaluationEditingStore.ts": "b234253dd21ff0e4316ce5311fcd9e8e17374d8c474fb12412a052a85c2ebd46",
-    "src/evaluationStore.ts": "021d89eb2d0b3de0f4b7ae22a91cf537cac5daf00d551f4659d69355296485b1",
+    "src/evaluationStore.ts": "382d3f1f54a261ae7ec9124bed41bc8b06b26e603f54e544046b789700dd49a4",
     "src/evaluationTagStore.ts": "55f956c44387922ab93b4a1e55c2c696a958f977b731a5d08fb7e52816f48ed2",
     "src/evidencePreviewPdf.ts": "824a189e72e7d77fd242d90ba1daf7db9733372c624a75b39791c2dc71d0b1aa",
     "src/evidenceWatermark.ts": "3237b6eb3f56840f5a9ed72ab6c1639bf3ff9b805b5cc5f8683321a6c2989380",
@@ -527,7 +531,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "d53cd98ec3e7ee2ee9c6eb625ca77d0a103d457329d4a009667549bae3dbc529",
+    "src/knowledge/manual.json": "8e56152eb8d57ee67eaa1fc2a3a2966f517a6104eb06cd64c9d31b9f34eff947",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -635,7 +639,6 @@
     "src/workflowStatusLabels.ts": "4dc42c2d40eef69741efe959b032901416c0002d949e8c8d031294d154f9c529",
     "src/yearlyTeamSummaryData.ts": "a133f2a7550fdb72b07004c570ac3c7166ab8544020cad85e02a0beff3dff0d9",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/dashboardRecoveryCache.ts": "e90981ce5f250222539f9c6d37bd1a2b39fa6d8634c57d612ed832cf9b544e47"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
   }
 }

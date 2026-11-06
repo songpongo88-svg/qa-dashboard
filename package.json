@@ -69,7 +69,7 @@
     "test:deploy-theme-data": "TZ=Asia/Bangkok node ./scripts/test-deploy-theme-data.mjs && TZ=UTC node ./scripts/test-deploy-theme-data.mjs",
     "test:draft-queue-navigation": "node ./scripts/test-draft-queue-navigation.mjs",
     "test:monthly-coaching": "node ./scripts/test-monthly-coaching.mjs",
-    "test:dashboard-refresh": "node ./scripts/test-dashboard-refresh.mjs",
+    "test:dashboard-refresh": "npm run test:dashboard-cache && node ./scripts/test-dashboard-refresh.mjs",
     "test:dashboard-case-navigation": "node ./scripts/test-dashboard-case-navigation.mjs",
     "test:workflow-status-labels": "node ./scripts/test-workflow-status-labels.mjs",
     "test:analytics-tag-rates": "node ./scripts/test-analytics-tag-rates.mjs && node ./scripts/test-analytics-tag-ui.mjs",
@@ -104,7 +104,8 @@
     "test:process-file-confirmation": "node ./scripts/test-process-file-confirmation.mjs",
     "test:qa-sparks": "node ./scripts/test-qa-sparks-ui.mjs && node ./scripts/test-sparks-admin-session.mjs && node ./scripts/test-chachiya-sparks-correction.mjs && node ./scripts/test-chachiya-sparks-correction-ui.mjs && node ./scripts/test-suphitcha-typing-reset.mjs && node ./scripts/test-suphitcha-typing-reset-ui.mjs && node ./scripts/test-typing-relief-reward.mjs && node ./scripts/test-qa-sparks-member-levels.mjs && node ./scripts/test-qa-sparks-member-ui.mjs && node ./scripts/test-daily-checkin-quest.mjs && node ./scripts/test-qa-sparks-quest-ui.mjs && node ./scripts/test-profile-makeover-truemoney.mjs && node ./scripts/test-qa-sparks-mini-inventory.mjs && npm run test:fruit-match",
     "test:firestore-quota": "node ./scripts/test-firestore-quota-controls.mjs && node ./scripts/test-sparks-admin-session.mjs",
-    "test:fruit-match": "node ./scripts/test-fruit-match.mjs && node ./scripts/test-fruit-match-ui.mjs"
+    "test:fruit-match": "node ./scripts/test-fruit-match.mjs && node ./scripts/test-fruit-match-ui.mjs",
+    "test:dashboard-cache": "node ./scripts/test-dashboard-cache.mjs"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.2.4",
@@ -120,6 +121,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.20",
+    "fake-indexeddb": "^6.2.7",
     "jsdom": "^26.1.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.14",

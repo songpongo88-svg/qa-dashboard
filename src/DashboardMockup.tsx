@@ -1,5 +1,5 @@
 import { isFirestoreQuotaError } from "./firestoreReadPolicy";
-import { readDashboardRecoverySnapshot, saveDashboardRecoverySnapshot } from "./dashboardRecoveryCache";
+import { readDashboardRecoverySnapshot, readDashboardRecoverySnapshotForView, saveDashboardRecoverySnapshot } from "./dashboardRecoveryCache";
 import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
 import { evaluationCaseBlocked, withEvaluationActivity, evaluationScopeHold } from "./evaluationActivity";
 import { assertEvaluationCaseVisible, assertEvaluationScopeComplete } from "./evaluationEditingStore";
@@ -27,6 +27,7 @@ import { MonthlyResultLockedError, MonthlyResultLockCheckError } from "./monthly
 import { getAppealScoreHold, withAppealScoreState, nextAppealScoreDeadline, type AppealScoreState } from "./pendingAppealScore";
 import {
   fetchStoredEvaluations,
+  readCachedEvaluationsForDisplay,
   getEvaluationLastUpdatedAt,
   getOriginalEvaluationTimestamp,
   getStoredEvaluationMonthKey,
@@ -3886,6 +3887,7 @@ function SlideOverCaseDetail(props: React.ComponentProps<typeof CaseDetailConten
 function CaseDetailContent({
   open,
   embedded = false,
+  readOnly = false,
   caseItem,
   currentUser,
   onClose,
@@ -3896,6 +3898,7 @@ function CaseDetailContent({
 }: {
   open: boolean;
   embedded?: boolean;
+  readOnly?: boolean;
   caseItem: CaseItem | null;
   currentUser: any;
   onClose: () => void;
@@ -3997,7 +4000,7 @@ function CaseDetailContent({
   const appealCountdownV32 = formatAppealCountdownV32(appealDeadline, appealClockNowV32);
   const additionalExpiryTime = Date.parse(appealAdditionalRound?.expiresAt || "");
   const additionalIsExpired = Number.isFinite(additionalExpiryTime) && appealClockNowV32 >= additionalExpiryTime;
-  const monthlyResult = useMonthlyResultLock(caseItem.agent, caseItem.monthKey);
+  const monthlyResult = useMonthlyResultLock(readOnly ? "" : caseItem.agent, readOnly ? "" : caseItem.monthKey);
   const canSubmitAdditionalEvidence = monthlyResult.editable && isOwnAppealCase &&
     Boolean(appealAdditionalRound) && !appealAdditionalRound?.submitted && !additionalIsExpired;
   const canSubmitAppeal =
@@ -4063,6 +4066,7 @@ function CaseDetailContent({
     let cancelled = false;
 
     const checkAppealRequest = async () => {
+      if (readOnly) return;
       try {
         const appealLogs = await fetchAppealEvents([
           "appeal_request_submitted",
@@ -4125,6 +4129,10 @@ function CaseDetailContent({
     setAppealSubmitStep(1);
     setAppealDraftTopics([]);
     setAppealSubmitMessage("");
+    if (readOnly) {
+      setAdditionalAccessModalOpen(false);
+      return;
+    }
     void checkAppealRequest();
     const refreshAppeal = () => { void checkAppealRequest(); };
     window.addEventListener("qa-dashboard-data-refresh", refreshAppeal);
@@ -4132,7 +4140,7 @@ function CaseDetailContent({
       cancelled = true;
       window.removeEventListener("qa-dashboard-data-refresh", refreshAppeal);
     };
-  }, [caseItem.caseId]);
+  }, [caseItem.caseId, readOnly]);
 
   const openAppealSubmitForm = () => {
     if (!monthlyResult.editable) { setAppealSubmitMessage(monthlyResult.message); return; }
@@ -4156,7 +4164,7 @@ function CaseDetailContent({
   };
 
   const saveAppealEditingDraft = async () => {
-    if (!monthlyResult.editable || !currentUser || !appealExistingRequest?.editingDraft || appealSubmitBusy || appealImageUploads) return;
+    if (readOnly || !monthlyResult.editable || !currentUser || !appealExistingRequest?.editingDraft || appealSubmitBusy || appealImageUploads) return;
     setAppealSubmitBusy(true);
     try {
       const saved = await writeAppealEvent(currentUser, "appeal_submission_draft_saved", {
@@ -4183,7 +4191,7 @@ function CaseDetailContent({
   };
 
   const requestAdditionalAppealAccess = async () => {
-    if (!currentUser || !appealExistingRequest || !canRequestAdditionalAppeal || isAdditionalAccessPending || appealAccessBusy) return;
+    if (readOnly || !currentUser || !appealExistingRequest || !canRequestAdditionalAppeal || isAdditionalAccessPending || appealAccessBusy) return;
     const topicCodes = [...new Set(additionalAccessTopicCodes)];
     const knownCodes = new Set(caseItem.topics.map(topic => String(topic.code)));
     if (!topicCodes.length || topicCodes.some(code => !knownCodes.has(code))) {
@@ -4213,7 +4221,7 @@ function CaseDetailContent({
   };
 
   const startAppealEdit = async () => {
-    if (!currentUser || !appealExistingRequest || !canEditExistingAppeal || appealAccessBusy) return;
+    if (readOnly || !currentUser || !appealExistingRequest || !canEditExistingAppeal || appealAccessBusy) return;
     if (!appealExistingRequest.editingDraft) {
       setAppealAccessBusy(true);
       try {
@@ -4253,7 +4261,7 @@ function CaseDetailContent({
   };
 
   const submitAppealRequest = async () => {
-    if (!currentUser || appealSubmitBusy || appealImageUploads) return;
+    if (readOnly || !currentUser || appealSubmitBusy || appealImageUploads) return;
     if (!monthlyResult.editable) { setAppealSubmitMessage(monthlyResult.message); return; }
     if (!isOwnAppealCase) {
       setAppealSubmitMessage("Only the case owner can submit an appeal for this case.");
@@ -4504,6 +4512,7 @@ function CaseDetailContent({
   };
 
   const handleGenerateCaseDetailPdf = async (pdfVariant: "original" | "appeal" = "original") => {
+    if (readOnly) return;
     try {
       await assertEvaluationCaseVisible(caseItem, currentUser);
       const officialPdf = await generateCasePdfWithAppealHistory({
@@ -4689,7 +4698,7 @@ function CaseDetailContent({
         </div>
       ) : null}
 
-      {additionalAccessModalOpen ? (
+      {!readOnly && additionalAccessModalOpen ? (
         <div role="presentation" className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/65 p-4">
           <div role="dialog" aria-modal="true" aria-labelledby="additional-access-title"
             className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-2xl">
@@ -4747,7 +4756,7 @@ function CaseDetailContent({
         </div>
       ) : null}
 
-      {appealSubmitOpen ? (
+      {!readOnly && appealSubmitOpen ? (
         <div data-appeal-submit-workspace-v1="true" className="fixed inset-0 z-[130] flex flex-col bg-[#f8f6ff]">
           <header className="shrink-0 border-b border-violet-100 bg-white shadow-sm">
             <div className="mx-auto flex w-full max-w-[1180px] items-start justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -5031,10 +5040,11 @@ function CaseDetailContent({
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:justify-end" role="group" aria-label="การทำรายการของเคส">
                 {caseItem.caseUrl ? <CaseHeaderAction label="Open Case" tooltip="เปิดเคสในระบบต้นทาง" icon="open" tone="emerald" href={caseItem.caseUrl} /> : null}
-                {hasAppealCase ? <CaseHeaderAction label="Open Appeal" tooltip="เปิดรายละเอียดเคสอุทธรณ์" icon="appeal" tone="violet" onClick={() => onOpenAppealCase?.(caseItem.caseId, caseItem.agent)} /> : null}
+                {readOnly ? <span className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">ข้อมูลสำรอง · ดูอย่างเดียว</span> : null}
+                {hasAppealCase && !readOnly ? <CaseHeaderAction label="Open Appeal" tooltip="เปิดรายละเอียดเคสอุทธรณ์" icon="appeal" tone="violet" onClick={() => onOpenAppealCase?.(caseItem.caseId, caseItem.agent)} /> : null}
                 <CaseHeaderAction label="Share Link" tooltip={shareCopied ? "คัดลอกลิงก์แล้ว" : "แชร์ลิงก์รายละเอียดเคส"} icon="share" tone="violet" onClick={() => { onShareCaseDetail?.(caseItem.caseId, caseItem.agent); setShareCopied(true); window.setTimeout(() => setShareCopied(false), 3000); }} />
-                <CaseHeaderAction label={`Case Detail PDF - ${caseItem.caseId}`} tooltip={`ดาวน์โหลดรายงาน ${caseItem.caseId} (PDF)`} icon="pdf" tone="amber" onClick={() => handleGenerateCaseDetailPdf("original")} />
-                {!monthlyResult.locked && shouldShowAppealActionV32 ? <CaseAppealHeaderAction
+                <CaseHeaderAction label={`Case Detail PDF - ${caseItem.caseId}`} tooltip={`ดาวน์โหลดรายงาน ${caseItem.caseId} (PDF)`} icon="pdf" tone="amber" disabled={readOnly} onClick={() => handleGenerateCaseDetailPdf("original")} />
+                {!readOnly && !monthlyResult.locked && shouldShowAppealActionV32 ? <CaseAppealHeaderAction
                   key={`${caseItem.caseId}:${caseItem.agent}`}
                   label={appealActionLabelV32} detail={appealActionTooltipV32} countdown={appealActionCountdownV32}
                   icon={appealHeaderIconV32} tone={appealHeaderToneV32} viewOnly={isAppealObserverRoleV32}
@@ -5289,13 +5299,15 @@ export type CanonicalReportData = {
   noCaseEvaluations: StoredEvaluation[];
   appealMergeCount: number;
 };
-export async function loadCanonicalReportData(): Promise<CanonicalReportData> {
+export async function loadCanonicalReportData(displayRecovery?: { cachedEvaluations: StoredEvaluation[] }): Promise<CanonicalReportData> {
   let evaluationCases: CaseItem[] = [];
   let loadedNoCaseEvaluations: StoredEvaluation[] = [];
   let evaluationCasesPromise: Promise<CaseItem[]> | null = null;
   const loadEvaluationCases = () => {
     if (!evaluationCasesPromise) {
-      evaluationCasesPromise = fetchStoredEvaluations(300, { strict: true, allMonths: true })
+      evaluationCasesPromise = (displayRecovery
+        ? Promise.resolve(displayRecovery.cachedEvaluations)
+        : fetchStoredEvaluations(300, { strict: true, allMonths: true }))
         .then((records) => {
           loadedNoCaseEvaluations = records.filter((item) => isNoCaseEvaluation(item) && isQaDashboardSupportedMonthKey(getStoredEvaluationMonthKey(item)));
           return mapStoredEvaluationsToCaseItems(records);
@@ -5723,7 +5735,7 @@ export async function loadCanonicalReportData(): Promise<CanonicalReportData> {
         let appealScoreRequests: ReturnType<typeof buildAppealRequests> | null = null;
 
         try {
-          const reviewedLogs = await fetchAppealEvents(
+          const reviewedLogs = displayRecovery ? [] : await fetchAppealEvents(
             [
               "appeal_request_submitted",
               "appeal_request_reviewed",
@@ -6147,6 +6159,7 @@ export default function DashboardMockup({
   const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>(() => initialDashboardCache?.noCaseEvaluations || []);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [readOnlyRecovery, setReadOnlyRecovery] = useState(false);
   const [lastLoadedAt, setLastLoadedAt] = useState(() => initialDashboardCache?.cachedAt || 0);
   const [loadRetryNonce, setLoadRetryNonce] = useState(0);
   const loadRetriesRef = useRef({ key: dataRefreshKey, count: 0 });
@@ -6537,6 +6550,7 @@ export default function DashboardMockup({
         setNoCaseEvaluations(result.noCaseEvaluations);
         setAppealMergeCount(result.appealMergeCount);
         setLastLoadedAt(cachedAt);
+        setReadOnlyRecovery(false);
         loadRetriesRef.current.count = 0;
       } catch (error: any) {
         if (cancelled) return;
@@ -6544,6 +6558,28 @@ export default function DashboardMockup({
         setLoadError(isFirestoreQuotaError(error)
           ? "Firestore จำกัดการอ่านข้อมูลชั่วคราว · หลีกเลี่ยงการกดอัปเดตซ้ำ และตรวจสอบโควตาที่ Firebase Console"
           : "อัปเดตข้อมูลไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง");
+        setReadOnlyRecovery(true);
+        // Preserve a complete mounted snapshot first. A fresh tab can recover
+        // its own persisted copy, or display official workbooks without reads
+        // to Firestore. Legacy unscoped evaluation caches are QA-only.
+        if (!sourceCases.length) {
+          try {
+            const saved = await readDashboardRecoverySnapshotForView<CaseItem,StoredEvaluation>(dashboardAccountScope);
+            const recovered = saved || await loadCanonicalReportData({cachedEvaluations:
+              isQualityAssuranceRole(currentUser?.role) ? readCachedEvaluationsForDisplay() : []});
+            if (cancelled) return;
+            const cases = recovered.cases.map(item=>({...item,
+              auditDateObj:item.auditDateObj?new Date(String(item.auditDateObj)):null}));
+            setAllCases(cases);setNoCaseEvaluations(recovered.noCaseEvaluations);setAppealMergeCount(recovered.appealMergeCount);
+            if (saved) setLastLoadedAt(saved.cachedAt);
+            if (cases.length && !cases.some(item=>item.monthKey===selectedMonthKey)) {
+              const latestMonth=cases.map(item=>item.monthKey).filter(Boolean).sort().at(-1);
+              if(latestMonth){setSelectedMonthKey(latestMonth);setSelectedYear(latestMonth.slice(0,4));onSelectedMonthKeyChange?.(latestMonth);}
+            }
+          } catch (recoveryError) {
+            console.warn("Dashboard display recovery is unavailable",recoveryError);
+          }
+        }
         if (!isFirestoreQuotaError(error) && loadRetriesRef.current.count < 2 && navigator.onLine !== false) {
           loadRetriesRef.current.count += 1;
           retryTimer = window.setTimeout(() => setLoadRetryNonce((value) => value + 1), 15_000);
@@ -7002,7 +7038,7 @@ export default function DashboardMockup({
     if (!selectedCaseKey) return null;
     return caseExplorerCases.find((item) => item.key === selectedCaseKey) || null;
   }, [caseExplorerCases, selectedCaseKey, dashboardSubTab, externalSelectedCaseId, detailTargetCase]);
-  const selectedCaseResult = useMonthlyResultLock(activeSelectedCase?.agent || "", activeSelectedCase?.monthKey || "");
+  const selectedCaseResult = useMonthlyResultLock(readOnlyRecovery ? "" : activeSelectedCase?.agent || "", readOnlyRecovery ? "" : activeSelectedCase?.monthKey || "");
 
   const selectedCaseTeam = useMemo(
     () => resolveCaseAgentTeam(activeSelectedCase, caseAgentDirectory),
@@ -7143,7 +7179,7 @@ export default function DashboardMockup({
     [monthlyKpiCases]
   );
 
-  const qaCanGenerateAllCasePdf = bulkCasePdfPermissionEnabled;
+  const qaCanGenerateAllCasePdf = bulkCasePdfPermissionEnabled && !readOnlyRecovery;
   const normalizedBulkCasePdfRole = String(currentUser?.role || "")
     .trim()
     .toLowerCase()
@@ -7879,17 +7915,24 @@ export default function DashboardMockup({
   const refreshStatus = (
     <div data-dashboard-refresh-state={isLoading ? "loading" : loadError ? "error" : "idle"} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-xs text-slate-600">
       <span role="status" aria-live="polite">
-        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${lastLoadedAt ? " · ยังแสดงข้อมูลเดิมอยู่ (ข้อมูลสำรอง ไม่ใช่ข้อมูลสด)" : ""}` : `ตรวจข้อมูลล่าสุด ${Math.max(lastLoadedAt, dataCheckedAt) ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(Math.max(lastLoadedAt, dataCheckedAt)) : "—"} · ตรวจอัปเดตอัตโนมัติทุก 5 นาที`}
+        {isLoading ? "กำลังอัปเดตข้อมูล · แสดงข้อมูลล่าสุดที่โหลดสำเร็จ" : loadError ? `${loadError}${sourceCases.length ? " · ยังแสดงข้อมูลเดิมอยู่ (ข้อมูลสำรอง ไม่ใช่ข้อมูลสด) · ดูอย่างเดียว อาจยังไม่ครบล่าสุด" : ""}${lastLoadedAt ? " · สำเนาวันที่ " + new Date(lastLoadedAt).toLocaleString("th-TH", {timeZone:"Asia/Bangkok"}) : ""}` : `ตรวจข้อมูลล่าสุด ${Math.max(lastLoadedAt, dataCheckedAt) ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(Math.max(lastLoadedAt, dataCheckedAt)) : "—"} · ตรวจอัปเดตอัตโนมัติทุก 5 นาที`}
       </span>
       <button type="button" disabled={isLoading} onClick={() => { loadRetriesRef.current.count = 0; if (onRefreshData) onRefreshData(); else setLoadRetryNonce((value) => value + 1); }} className="rounded-lg border border-sky-200 px-3 py-1.5 font-bold text-sky-700 disabled:opacity-50">อัปเดตข้อมูล</button>
     </div>
   );
 
-  if (isLoading && !lastLoadedAt) {
+  const recoveryAnalyticsData = useMemo(() => readOnlyRecovery
+    ? {cases:sourceCases,noCaseEvaluations,appealMergeCount} : undefined,
+    [readOnlyRecovery,sourceCases,noCaseEvaluations,appealMergeCount]);
+  const displayAnalyticsContent = readOnlyRecovery && React.isValidElement(analyticsContent)
+    ? React.cloneElement(analyticsContent as React.ReactElement<any>, {displayRecoveryData:recoveryAnalyticsData,canExportAnalytics:false})
+    : analyticsContent;
+
+  if (isLoading && !lastLoadedAt && !sourceCases.length) {
     return <LoadingMascot message="กำลังโหลดข้อมูล" subMessage="กรุณารอสักครู่..." />;
   }
 
-  if (loadError && !lastLoadedAt) {
+  if (loadError && !lastLoadedAt && !sourceCases.length) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6">
         <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
@@ -7907,6 +7950,7 @@ export default function DashboardMockup({
         {activeSelectedCase ? (
           <SlideOverCaseDetail
             embedded
+            readOnly={readOnlyRecovery}
             open
             caseItem={{ ...activeSelectedCase, teamName: selectedCaseTeam.teamName || "" }}
             currentUser={currentUser}
@@ -8262,7 +8306,7 @@ export default function DashboardMockup({
 
                   <div id="qa-dashboard-announcement-ticker" className="empty:hidden" />
 
-                  {isMonthlyView && currentUser?.username && monthlyKpiNeedsAttention ? (
+                  {!readOnlyRecovery && isMonthlyView && currentUser?.username && monthlyKpiNeedsAttention ? (
                     <MonthlyKpiNotice
                       cases={monthlyKpiCases}
                       agent={effectiveSelectedAgent}
@@ -8280,7 +8324,7 @@ export default function DashboardMockup({
                       data-performance-analytics-v162="authoritative"
                       className="overflow-hidden rounded-[22px] border border-violet-300/80 bg-gradient-to-b from-violet-50/80 via-[#f7f8fc] to-emerald-50/40 shadow-[0_14px_34px_rgba(76,29,149,0.13)]"
                     >
-                      {analyticsContent}
+                      {displayAnalyticsContent}
                     </section>
                   ) : null}
 
@@ -9215,7 +9259,7 @@ export default function DashboardMockup({
                                   <button
                                     type="button"
                                     onClick={() => onOpenEvaluationEdit?.(activeSelectedCase.caseId, activeSelectedCase.agent)}
-                                    disabled={!selectedCaseResult.editable}
+                                    disabled={readOnlyRecovery || !selectedCaseResult.editable}
                                     className="w-full cursor-pointer rounded-xl border border-[#155B83] bg-[#F3F8FB] px-4 py-3 text-sm font-black text-[#155B83] shadow-sm transition hover:bg-[#E5F0F5] disabled:cursor-not-allowed disabled:opacity-50"
                                     title={selectedCaseResult.message || "เปิดแบบประเมินเคสนี้ในโหมดแก้ไขคะแนน"}
                                   >
@@ -9246,6 +9290,7 @@ export default function DashboardMockup({
 
                   <SlideOverCaseDetail
                     open={slideOverOpen}
+                    readOnly={readOnlyRecovery}
                     caseItem={{ ...activeSelectedCase, teamName: selectedCaseTeam.teamName || "" }}
                     currentUser={currentUser}
                     onClose={closeCaseDetail}
@@ -9333,6 +9378,7 @@ export default function DashboardMockup({
 
                   <SlideOverCaseDetail
                     open={slideOverOpen}
+                    readOnly={readOnlyRecovery}
                     caseItem={{ ...activeSelectedCase, teamName: selectedCaseTeam.teamName || "" }}
                     currentUser={currentUser}
                     onClose={closeCaseDetail}
