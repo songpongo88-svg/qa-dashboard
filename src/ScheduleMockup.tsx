@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
-import { createUploadedScheduleWorkbook, uploadedScheduleExportFileName } from "./scheduleExport";
+import { createDisplayedScheduleWorkbook, displayedScheduleExportFileName } from "./scheduleExport";
 import {
   fetchScheduleMonths,
   findScheduleEntryForUser,
@@ -1066,16 +1066,22 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [editWfhTouched, setEditWfhTouched] = useState(false);
   const canManage = canManageSchedule(currentUser.role);
 
-  const exportUploadedSchedule = () => {
+  const exportCurrentSchedule = () => {
     if (!canManage || !month?.entries.length) return;
     try {
-      const workbook = createUploadedScheduleWorkbook(month);
-      XLSX.writeFile(workbook, uploadedScheduleExportFileName(month), {
+      // Use the exact live SCH display rules, not excel* upload baselines:
+      // derived weekend/holiday WFH, processed shift times, OT and saved edits.
+      const workbook = createDisplayedScheduleWorkbook(month, {
+        shift: (entry) => scheduleCellLabel(entry),
+        workMode: (entry) => isWorkingEntry(entry) ? (isWfhEntry(entry) ? "WFH" : "Workspace") : "",
+        ot: (entry) => scheduleOtLabel(entry),
+      });
+      XLSX.writeFile(workbook, displayedScheduleExportFileName(month), {
         bookType: "xlsx", compression: true,
       });
-      setMessage(`Export ตารางที่อัปโหลดไว้สำหรับ ${formatMonthLabel(month.monthKey)} แล้ว (ไฟล์สร้างจากข้อมูลที่บันทึก ไม่ใช่ต้นฉบับทั้งไฟล์)`);
+      setMessage(`Export ตาราง SCH หลังนำเข้าและแก้ไขล่าสุดของ ${formatMonthLabel(month.monthKey)} แล้ว`);
     } catch (error) {
-      console.error("Export uploaded SCH schedule failed", error);
+      console.error("Export current SCH schedule failed", error);
       setMessage("Export ตารางกะไม่สำเร็จ กรุณาลองใหม่");
     }
   };
@@ -1576,11 +1582,11 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               {canManage && month?.entries.length ? (
                 <button
                   type="button"
-                  onClick={exportUploadedSchedule}
-                  title="ดาวน์โหลดข้อมูลกะเดิมจากตอนนำเข้า Excel โดยไม่รวมการแก้ไขใน Dashboard (ไม่ใช่ไฟล์ต้นฉบับ 100%)"
+                  onClick={exportCurrentSchedule}
+                  title="ดาวน์โหลดตาราง SCH ที่แสดงหลังนำเข้า พร้อม WFH/Workspace, กะ, OT, วันลา และการแก้ไขล่าสุด โดยใช้รูปแบบ Excel เดิม"
                   className="rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50"
                 >
-                  Export Uploaded Excel
+                  Export SCH Excel
                 </button>
               ) : null}
             <select value={selectedMonthKey} onChange={(event) => setSelectedMonthKey(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
