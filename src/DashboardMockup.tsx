@@ -1539,10 +1539,28 @@ function normalizeCaseIssueTags(value: unknown): string[] {
 function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[] {
   return records
     .map((record) => {
-      const auditDateObj = record.auditDate ? new Date(`${record.auditDate}T00:00:00`) : null;
-      const validAuditDate = auditDateObj && !Number.isNaN(auditDateObj.getTime()) ? auditDateObj : null;
-      const monthKey = getMonthKey(validAuditDate);
-      const monthDate = validAuditDate ? new Date(validAuditDate.getFullYear(), validAuditDate.getMonth(), 1) : null;
+      // Historical evaluations may use DD/MM/YYYY or keep the original Case Date
+      // only in their saved preview. Never omit a scored case for a date parse failure.
+      const caseDateCandidates = [
+        record.auditDate,
+        record.rawDataPreview?.["Case Date"],
+        record.rawDataPreview?.["Audit Date"],
+      ];
+      let validAuditDate: Date | null = null;
+      for (const candidate of caseDateCandidates) {
+        const date = excelDateToJSDate(candidate);
+        if (date && !Number.isNaN(date.getTime())) {
+          validAuditDate = date;
+          break;
+        }
+      }
+      // The month is independently stored for older records with no exact day.
+      // Keep those in the correct month/All Weeks without inventing a Case Date.
+      const fallbackMonth = getStoredEvaluationMonthKey(record);
+      const monthKey = validAuditDate ? getMonthKey(validAuditDate) : (fallbackMonth || "unknown");
+      const monthDate = /^\\d{4}-\\d{2}$/.test(monthKey)
+        ? new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)
+        : null;
       const topicMaster = getTopicMasterByMonth(monthKey);
       const topics: Topic[] = topicMaster.map((master) => {
         const matched = record.topics.find((topic) => topic.code === master.code);
@@ -1560,7 +1578,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
       });
       const finalScoreVal = Number(record.finalScore ?? topics.reduce((sum, topic) => sum + topic.score, 0));
       const evaluationKey = record.evaluationKey || `web-eval|${record.caseId}|${record.agentName}|${record.auditDate}|${record.id}`;
-      const caseDateDisplay = formatAuditDateForDisplay(record.auditDate);
+      const caseDateDisplay = validAuditDate ? formatAuditDateForDisplay(validAuditDate) : "-";
       const originalAuditTimestamp = getOriginalEvaluationTimestamp(record);
       const evaluationAuditDateDisplay = formatAuditTimestamp(
         originalAuditTimestamp || record.auditTimestamp || record.submittedAt || record.auditDate
@@ -1615,7 +1633,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
         displayRevisedTopicCodes: [],
       } as CaseItem;
     })
-    .filter((item) => item.agent && item.caseId && item.auditDateObj);
+    .filter((item) => item.agent && item.caseId && isQaDashboardSupportedMonthKey(item.monthKey));
 }
 
 function isWithinDateRange(dateObj: Date | null, from?: string, to?: string) {
@@ -3328,7 +3346,7 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
     });
 
   storedCases
-    .filter((item) => item.agent && item.caseId && item.auditDateObj)
+    .filter((item) => item.agent && item.caseId && isQaDashboardSupportedMonthKey(item.monthKey))
     .forEach((item) => {
       // Jan-Feb must come only from the authoritative historical workbook.
       if (authoritativeHistoricalMonthKeys.has(item.monthKey)) return;
