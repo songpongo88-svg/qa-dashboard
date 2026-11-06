@@ -4,7 +4,7 @@ import * as FirestoreApi from "firebase/firestore";
 import { collection, doc, documentId, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
-import { evaluationHistoryAccountScope, readVerifiedEvaluationHistory, saveVerifiedEvaluationHistory } from "./evaluationHistoryCache";
+import { evaluationHistoryAccountScope, readVerifiedEvaluationHistory, saveVerifiedEvaluationHistory, readEvaluationScanProgress, saveEvaluationScanProgress, clearEvaluationScanProgress } from "./evaluationHistoryCache";
 import { getEvaluationAgentFullName } from "./lib/userNames";
 import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
 import type { DeductionTag } from "./lib/evaluation/deductionTags";
@@ -1660,25 +1660,31 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
           if (deltaVerified) throw new Error("Unexpected completed delta state");
         }
 
-        const records: StoredEvaluation[] = [];
-        const invalidDocumentIds: string[] = [];
-        let rawDocumentCount = 0;
-        const fullScanStartedAt = Date.now();
+        // Retain verified server pages when a quota error interrupts a large
+        // history scan. Never publish these pages as a completed official report.
+        const progress = options.allMonths && historyScope
+          ? await readEvaluationScanProgress<StoredEvaluation>(historyScope) : null;
+        const records: StoredEvaluation[] = progress ? [...progress.records] : [];
+        const invalidDocumentIds: string[] = progress ? [...progress.invalidDocumentIds] : [];
+        let rawDocumentCount = progress?.rawDocumentCount || 0;
+        const fullScanStartedAt = progress?.startedAt || Date.now();
         let cursor: QueryDocumentSnapshot | undefined;
-        let realCount = 0;
+        let lastDocumentId = progress?.lastDocumentId || "";
+        let realCount = records.filter(item => !item.deletedAt && !isTestCaseEvaluation(item)).length;
         const deadline = Date.now() + (options.allMonths ? 120_000 : 20_000);
         // Page past test records to retain the same real-result window as before.
         while (realCount < safeLimit) {
           if (Date.now() >= deadline) throw new Error(options.allMonths
             ? "โหลดประวัติผลประเมินทุกเดือนเกิน 2 นาที กรุณาลองอัปเดตข้อมูลอีกครั้ง"
             : "โหลดผลประเมินเกิน 20 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง");
-          const pageLimit = options.allMonths ? 300 : safeLimit - realCount;
+          // Smaller pages are less likely to exhaust the remaining daily quota.
+          const pageLimit = options.allMonths ? 100 : safeLimit - realCount;
           // A complete scan must include older records without submitted_at.
           // Document IDs exist for every record and give pagination a stable order.
           const pageQuery = query(
             collection(db, FIREBASE_EVALUATION_COLLECTION),
             orderBy(options.allMonths ? documentId() : "submitted_at", options.allMonths ? "asc" : "desc"),
-            ...(cursor ? [startAfter(cursor)] : []),
+            ...(cursor ? [startAfter(cursor)] : lastDocumentId ? [startAfter(lastDocumentId)] : []),
             firestoreLimit(pageLimit)
           );
           // A cached SDK subset must never be saved as a complete server history.
@@ -1693,16 +1699,32 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
           records.push(...page);
           realCount += page.filter((item) => !item.deletedAt && !isTestCaseEvaluation(item)).length;
           if (snapshot.docs.length < pageLimit) break;
-          if (cursor?.id === snapshot.docs[snapshot.docs.length - 1].id) {
+          const nextDocumentId = snapshot.docs[snapshot.docs.length - 1].id;
+          if (cursor?.id === nextDocumentId || lastDocumentId === nextDocumentId) {
             throw new Error("โหลดประวัติผลประเมินหน้าถัดไปไม่สำเร็จ กรุณาลองอัปเดตข้อมูลอีกครั้ง");
           }
           cursor = snapshot.docs[snapshot.docs.length - 1];
+          lastDocumentId = nextDocumentId;
+          if (options.allMonths && historyScope) {
+            await saveEvaluationScanProgress(historyScope, {
+              startedAt: fullScanStartedAt, savedAt: Date.now(), lastDocumentId,
+              rawDocumentCount, records: [...records], invalidDocumentIds: [...invalidDocumentIds],
+            });
+          }
         }
         if (options.allMonths && historyScope) {
+          // When recovering across days, count the current server collection and
+          // refuse to certify any missing/deleted pages. Keep checkpoint for retry.
+          const serverCount=(await FirestoreApi.getCountFromServer(collection(db,FIREBASE_EVALUATION_COLLECTION))).data().count;
+          if(serverCount!==rawDocumentCount) {
+            await clearEvaluationScanProgress(historyScope);
+            throw new Error("จำนวนเอกสาร QA ระหว่างกู้คืนเปลี่ยนไป ต้องตรวจสอบประวัติจากต้นทางใหม่");
+          }
           await saveVerifiedEvaluationHistory(historyScope, {
             records, invalidDocumentIds, rawDocumentCount,
             scannedAt: Date.now(), scanStartedAt: fullScanStartedAt,
           });
+          await clearEvaluationScanProgress(historyScope);
         }
         return [...limitEvaluationScopes(records.filter(item => !item.deletedAt), safeLimit), ...records.filter(item => item.deletedAt)];
       } catch (error) {
