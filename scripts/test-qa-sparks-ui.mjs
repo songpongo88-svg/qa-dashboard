@@ -36,7 +36,9 @@ try{
   const tracker = await readFile("src/TrueMoneyTracker.tsx", "utf8");
   assert.match(tracker, /disabled=\{busy\|\|!adminReady\}/, "payout confirmation must not appear actionable when admin permission is unavailable");
   assert.match(tracker, /\{error\}\<\/p\>/, "payout confirmation must show server errors visibly inside the modal");
-  assert.match(tracker, /onClick=\{\(\)=>void markPaid\(\)\}/, "payout confirmation must dispatch the explicit admin marking action");
+  assert.match(tracker, /data-truemoney-confirm-action="paid"/, "payout confirmation must expose a direct action control");
+  assert.match(tracker, /event\.stopPropagation\(\);void markPaid\(\)/, "payout confirmation must dispatch the direct admin marking action");
+  assert.match(tracker, /createPortal/, "confirmation must render outside of the Dashboard stacking context");
   assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");
   assert.match(sparksAdmin, /setAdminReady\(false\)/, "Sparks adjustment must be disabled if the server is unavailable");
   assert.match(sparksAdmin, /disabled=\{!adminReady/, "mutation controls must be disabled without server authorization");

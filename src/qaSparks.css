@@ -651,6 +651,17 @@
 .qa-money-tracker-confirm-overlay section{width:min(500px,100%);padding:24px;background:white;border-radius:15px;border:1px solid #ebdbe9;box-shadow:0 16px 65px #1d092a70}
 .qa-money-tracker-confirm-overlay h3{font-size:18px;color:#683a6a}
 .qa-money-tracker-confirm-overlay section>div{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}
+/* The payout dialog is now portaled to document.body, outside Dashboard theme
+   stacking contexts. Give it self-contained interactive button styling. */
+.qa-money-tracker-confirm-overlay{z-index:2147483600;pointer-events:auto;isolation:isolate;font-family:Kanit,sans-serif}
+.qa-money-tracker-confirm-overlay section{position:relative;z-index:1;pointer-events:auto}
+.qa-money-tracker-confirm-overlay button{font-family:inherit;border:1px solid #e2c5dd;background:#fff;color:#633763;cursor:pointer;border-radius:9px;font-size:12px;padding:9px 14px;font-weight:650;pointer-events:auto}
+.qa-money-tracker-confirm-overlay button:last-child{background:var(--qa-theme-700,#913f9c);color:#fff;border-color:transparent}
+.qa-money-tracker-confirm-overlay button:disabled{opacity:.5;cursor:not-allowed}
+.qa-money-tracker-confirm-overlay button:focus-visible{outline:3px solid var(--qa-theme-300,#c4b5fd);outline-offset:2px}
+.qa-money-tracker-confirm-overlay .qa-money-error{font-size:12px;color:#af2424!important;margin:8px 0}
+.qa-money-tracker-confirm-progress{font-size:12px;color:var(--qa-theme-700,#733d7d)!important;margin:8px 0}
+
 @media(max-width:640px){.qa-money-reward-tile{grid-template-columns:35% minmax(0,1fr);gap:8px}.qa-money-reward-tile-info>strong{font-size:18px}.qa-money-modal-hero h2{font-size:21px}.qa-money-modal-stats{grid-template-columns:1fr}.qa-money-modal-content{padding:15px}.qa-money-tracker-request{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .qa-sparks-owned-typing-item{display:flex;align-items:center;flex-wrap:wrap;gap:13px;border:1px solid var(--sparks-outline,#e7d1eb);border-radius:12px;background:linear-gradient(110deg,#fbf2ff,#fffdfb);padding:15px;margin:12px 0}

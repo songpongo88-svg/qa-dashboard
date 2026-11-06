@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T08:45:00.000Z",
-  "reason": "Re-reviewed the current QA guide/manual and source changes alongside the TrueMoney payout modal fix. Payout remains admin-only and manual; failed requests now show errors directly in the confirmation popup. No payout automatically sent and no QA or wallet data changed.",
+  "reviewedAt": "2026-11-06T10:25:00.000Z",
+  "reason": "Verified portaled TrueMoney confirm dialog and interactive test of one status update, Pending→Paid filter transition, error display on quota failure and disabled authorization. No real payout or wallet data changed.",
   "contentChanged": false,
   "reviewedChapters": [
-    "analytics"
+    "qa-sparks"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -103,7 +103,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "a7fae9dc8f561047eb79190d7e81fc5da3433edc0e314bfc50e2532ccd924321",
+    "package.json": "0bef5ff6a45146628eca77eb8409536e06b7ae6e8263097ab4b58e5cb67872ed",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -365,7 +365,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "805c4c0b96f205eb9ae83b4887fc96f162ce987a5962bdaf0ff6324b1f2dc50e",
     "scripts/test-qa-sparks-mini-inventory.mjs": "3a6be960d6344fb6c9b850d696fbb35ae89524f0156a7eb3dfda5d9e0192977f",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "34941b5ab0f3d65d61fe63a012c7acbce2c5356c7542ba434f2acfdc772e1dcd",
+    "scripts/test-qa-sparks-ui.mjs": "65d86718d2d1b9bb91dd322d000835377d134d356ee5f61b25ffcb411d6954d8",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-reporting-history.mjs": "4f93d3ecf3b0a90b62b7d336a4f79ddd435e90f99efa04cfd5e9beaae5466cd0",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
@@ -563,7 +563,7 @@
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
     "src/qaEvaluationProgressStore.ts": "e5af6abcdacac6b56e237471340e38235fada978a8f23907183cb81fac7dbc1c",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/qaSparks.css": "d25fcd11a738e7128877219812c0aa321cad92eba849e7403ff9be38a2e7e891",
+    "src/qaSparks.css": "bca91d513ef54b6cf65d658e6604b60fb5a1b9e878b022585c184f2a854e3532",
     "src/QASparks.tsx": "27122804258b54089223fb54bd3c46d8c89bb79a88452ab7be345a3b0dab9444",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "aef5df08d38512024a66144aa915780f6d6aa61af476ed89ebb99e63188c2b42",
@@ -608,7 +608,7 @@
     "src/Time24Input.tsx": "b1234fe54f457f12d86d7edc41eb233ea9ecacf7591708e146e26b37edf764fb",
     "src/TrainingAttendanceMockup.tsx": "ee06591f02edb8b914af12503b4f5bfb519ca33fa4233174e7916ea5711295ea",
     "src/TrueMoneyReward.tsx": "0b02e10bff163a04d7a93e2c031b53d4c15a8c035efdbf1fc944a837739f4681",
-    "src/TrueMoneyTracker.tsx": "c31d8e00055203c64c68b8b6445265cfaab5acc3eb51437e9f1649e73c6972f0",
+    "src/TrueMoneyTracker.tsx": "be6c84b40f83c75de4e643ddd9e9d502d037f348464d3c384aca35bf0f010ab2",
     "src/typingReliefReward.ts": "c38ea006da70964da36fb98bb9bdf9dff8c306de1abb41ac6b61214bc27a6e40",
     "src/TypingReliefRewardCard.tsx": "b894e44dd9d7de7f34b74552678344568aa20e55f8623231b9f54930fbda54cb",
     "src/usageLog.ts": "14c9b5807a96472a230902476c1e55345765b47d3a90bb110672b784f6b108c6",
@@ -644,6 +644,7 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/YearlyAgentMonthlyReport.tsx": "19ae7e60ce6138ecd4f4e9bc8bfcc7fc6a38c4a1e03dd0bee3c9dfcdb1020c04",
-    "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12"
+    "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
+    "scripts/test-truemoney-tracker-confirm-ui.mjs": "707a8b1c37f647381772fa82480606bb6dc295cd15cee2947fb020a3b19c2216"
   }
 }
