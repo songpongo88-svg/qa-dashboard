@@ -21,9 +21,17 @@ try{
  assert.equal(cache.readDashboardRecoverySnapshot(scope).cases[0].caseId,'AA111111','fresh tab restores the same account from durable storage');
  assert.equal(await cache.readDashboardRecoverySnapshotForView(other),null,'never reuse another account snapshot');
  const stale=Date.now()-2*24*60*60*1000;
- cache.saveDashboardRecoverySnapshot(scope,snapshot('AA222222',stale));
- assert.equal(cache.readDashboardRecoverySnapshot(scope),null,'old data is not treated as a fresh snapshot');
- assert.equal((await cache.readDashboardRecoverySnapshotForView(scope)).cases[0].caseId,'AA222222','old snapshots remain available explicitly for read-only display');
+ const staleScope='stale|quality assurance|team a';
+ cache.saveDashboardRecoverySnapshot(staleScope,snapshot('AA222222',stale));
+ assert.equal(cache.readDashboardRecoverySnapshot(staleScope),null,'old data is not treated as a fresh snapshot');
+ assert.equal((await cache.readDashboardRecoverySnapshotForView(staleScope)).cases[0].caseId,'AA222222','old snapshots remain available explicitly for read-only display');
+ // A later partial read cannot replace the earlier 110-case equivalent in any storage.
+ const biggerScope='historical|quality assurance|team a';
+ const full={...snapshot('AA111111',Date.now()-30_000),cases:[{caseId:'AA111111'},{caseId:'AA222222'},{caseId:'AA333333'}]};
+ cache.saveDashboardRecoverySnapshot(biggerScope,full);
+ cache.saveDashboardRecoverySnapshot(biggerScope,{...snapshot('AA111111'),cachedAt:Date.now()});
+ assert.equal((await cache.readDashboardRecoverySnapshotForView(biggerScope)).cases.length,3,'partial refresh keeps all earlier cases for recovery');
+ assert.equal(cache.readDashboardRecoverySnapshot(biggerScope).cases.length,3,'Web Storage also keeps the larger recovery copy');
  const bigScope='large|quality assurance|';
  const big={...snapshot('AA333333'),cases:Array.from({length:500},(_,index)=>({caseId:'AA'+index,caseDescription:'x'.repeat(8000)}))};
  cache.saveDashboardRecoverySnapshot(bigScope,big);
