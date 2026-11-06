@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
-import { SPARKS_ANNUAL_CAP, annualEarnedFromWallet, sparksCalendarYear } from "./qaSparksMemberLevels";
+import { annualEarnedFromWallet, sparksCalendarYear, spendableSparksFromWallet } from "./qaSparksMemberLevels";
 import { invalidateFirestoreReads, sharedFirestoreRead } from "./firestoreReadPolicy";
 
 const WALLETS = "qa_sparks_wallets";
@@ -114,7 +114,7 @@ export async function getSparksAccount(username: string, options: { historyLimit
     dailyCheckinClaimedDays: Array.isArray(data.dailyCheckin202611Days)
       ? [...new Set(data.dailyCheckin202611Days.map(Number).filter((day: number) => Number.isInteger(day) && day >= 9 && day <= 22))].sort((a: number, b: number) => a - b) as number[]
       : [],
-    balance: safeBalance(data.balance),
+    balance: spendableSparksFromWallet(data,memberYear),
     totalEarned: safeBalance(data.totalEarned) || safeBalance(data.firstLogin?.amount),
     totalSpent: safeBalance(data.totalSpent),
     rewardOrders: safeBalance(data.rewardOrders),
@@ -169,17 +169,15 @@ export async function claimFirstLoginSparks(
       };
     }
     const now = new Date().toISOString();
-    const current = safeBalance(data.balance);
     const memberYear = sparksCalendarYear();
+    const current = spendableSparksFromWallet(data, memberYear);
     const earnedThisYear = annualEarnedFromWallet(data, memberYear);
-    if (earnedThisYear + amount > SPARKS_ANNUAL_CAP) {
-      throw new Error("คุณได้รับ Sparks ครบ 200,000 คะแนนสำหรับปีนี้แล้ว");
-    }
     const previousEarned = Math.max(safeBalance(data.totalEarned), safeBalance(data.firstLogin?.amount));
     const prize: FirstLoginPrize = { cardId: card.id, cardName: card.name, amount, claimedAt: now };
     tx.set(ref, {
       username: String(username).trim(),
       balance: current + amount,
+      balanceYear: memberYear,
       totalEarned: previousEarned + amount,
       memberYear,
       memberYearEarned: earnedThisYear + amount,

@@ -46,7 +46,7 @@ function rows(board) {
 
 export function createFruitMatchService(db) {
   const { firestoreRequest, readDoc, recordValue, path, updateWrite, createWrite, walletDocumentPath,
-    currentMemberYear, annualEarnedFromWallet, annualCap } = db;
+    currentMemberYear, annualEarnedFromWallet, spendableBalance } = db;
   const playerPath = actor => path(COLLECTION, actor.username);
   const boardPath = path(BOARD_COLLECTION, FRUIT_MATCH.version);
   async function transact(work) {
@@ -110,10 +110,10 @@ export function createFruitMatchService(db) {
       if (stats.activeRound?.id !== round.id) reject("บัญชีนี้เริ่มรอบใหม่แล้ว กรุณาเล่นในรอบล่าสุด",409);
       const date=today(), year=currentMemberYear(), annual=annualEarnedFromWallet(wallet,year);
       const claimed=stats.rewardDay===date?number(stats.dailyRewardCount):0;
-      const earned=replay.won && claimed<FRUIT_MATCH.dailyRewardLimit && annual+FRUIT_MATCH.reward<=annualCap ? FRUIT_MATCH.reward:0;
+      const earned=replay.won && claimed<FRUIT_MATCH.dailyRewardLimit ? FRUIT_MATCH.reward:0;
       const now=new Date().toISOString();
-      const reason=earned?"earned":!replay.won?"timeout":claimed>=FRUIT_MATCH.dailyRewardLimit?"daily-limit":"annual-limit";
-      const result={roundId:round.id,...replay,earned,reason,createdAt:now,balanceAfter:number(wallet.balance)+earned};
+      const reason=earned?"earned":!replay.won?"timeout":"daily-limit";
+      const result={roundId:round.id,...replay,earned,reason,createdAt:now,balanceAfter:spendableBalance(wallet,year)+earned};
       const candidate={username:actor.username,displayName:actor.displayName.slice(0,120),elapsedMs:replay.elapsedMs,moves:replay.moves,achievedAt:now};
       const improved=replay.won && (!stats.best || compareFruitRecords(candidate,stats.best)<0);
       const nextStats={username:actor.username,displayName:candidate.displayName,completed:number(stats.completed)+1,
@@ -127,9 +127,9 @@ export function createFruitMatchService(db) {
         writes.push(updateWrite(boardPath,{version:FRUIT_MATCH.version,rows:leaderboard,updatedAt:now},boardDoc));
       }
       if (earned) {
-        const balance=number(wallet.balance)+earned;
+        const balance=spendableBalance(wallet,year)+earned;
         const lifetime=Math.max(number(wallet.totalEarned),number(wallet.firstLogin?.amount));
-        writes.push(updateWrite(walletDocumentPath(actor.username),{username:actor.username,balance,totalEarned:lifetime+earned,
+        writes.push(updateWrite(walletDocumentPath(actor.username),{username:actor.username,balance,balanceYear:year,totalEarned:lifetime+earned,
           memberYear:year,memberYearEarned:annual+earned,updatedAt:now},walletDoc));
         writes.push(createWrite(path("qa_sparks_wallets",encodeURIComponent(actor.username),"history","fruit-match-"+round.id),{
           createdAt:now,type:"earn",source:"mini-game-fruit-match",title:"Fruit Match Reward",amount:earned,
