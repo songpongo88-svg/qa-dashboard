@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-05T16:01:20.663Z",
-  "reason": "Reviewed Dashboard/Sparks Firestore quota recovery guide against expanded dashboard-refresh and quota regression deployment tests; guide instructions unchanged",
+  "reviewedAt": "2026-11-06T02:21:00.000Z",
+  "reason": "Reviewed dashboard account-scoped recovery cache and Firestore cooldown checks; documentation content unchanged for quota-safe recovery.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -406,7 +406,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
     "src/DailyCheckinQuest.tsx": "a50da46ae5e4c04947e5f9c1a5056dee5fe205126c3a3d62bfe45232545c64c8",
-    "src/DashboardMockup.tsx": "14f3efbeae1f1e61ac1db3c4ead8edf931dd96e2ea0bebb9ea55ed36f955dcd1",
+    "src/DashboardMockup.tsx": "4168b4dc59e0a75fa5d48d35ca36f11d0e811bb2c89d80b652dd5dddfdd71aba",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
@@ -611,7 +611,7 @@
     "src/typingReliefReward.ts": "c38ea006da70964da36fb98bb9bdf9dff8c306de1abb41ac6b61214bc27a6e40",
     "src/usageLog.ts": "14c9b5807a96472a230902476c1e55345765b47d3a90bb110672b784f6b108c6",
     "src/useCoachingProfilePhotos.ts": "fbd6a8ba338bf6a03b31e2bf9a7ca3d7414018dbf8224a71577b17f145b9afb6",
-    "src/useDashboardAutoRefresh.ts": "32cded6142cae4061d5ece66763f1f375fe047e60ec59bdb033a258b5fc49d0f",
+    "src/useDashboardAutoRefresh.ts": "b56a57e9e9bce537aeabbf20e4cf1a688ce63300ce15f9e060656c0d6e8cbf22",
     "src/useDeletedEvaluationRecovery.ts": "fb595380c3d0907e47f0ca5b7963f4b595d64e0ceaf8f9fcbef2021199872a3f",
     "src/useMonthlyResultLock.ts": "015030ecb7f63918925cf6d26265812806eb3a987113883c0583768c250e69df",
     "src/userRoleStore.ts": "1e963330c34d2ad6d506c8654228d92867471b3ff40d6958227ce58d72f8226e",
