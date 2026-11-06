@@ -719,7 +719,10 @@ function writeRemoteEvaluationCache(records: StoredEvaluation[]) {
 // Explicit display recovery only. Authorization and official reports must use
 // the existing server reads; the legacy cache has no account identity metadata.
 export function readCachedEvaluationsForDisplay(): StoredEvaluation[] {
-  try { return readRemoteEvaluationCache().filter(item => !isDeletedEvaluation(item) && !isTestCaseEvaluation(item)); }
+  try {
+    return mergeEvaluationSources(readRemoteEvaluationCache(), readLocalEvaluationHistory())
+      .filter(item => !isDeletedEvaluation(item) && !isTestCaseEvaluation(item));
+  }
   catch { return []; }
 }
 
@@ -1628,7 +1631,16 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
       ? await syncLocalEvaluationsToRemote(recoveredFirebaseEvaluations, localSources)
       : [];
     const availableEvaluations = mergeEvaluationSources([...recoveredFirebaseEvaluations, ...syncedLocalEvaluations], localSources);
-    if (remoteReadSucceeded) writeRemoteEvaluationCache(availableEvaluations);
+    if (remoteReadSucceeded) {
+      // Recent-result views must not shrink the offline history saved by a full
+      // reporting read. Keep server tombstones in the merge so deleted cases
+      // cannot reappear from an older browser copy. Only a complete server scan
+      // may replace the entire saved history, including authoritative removals.
+      writeRemoteEvaluationCache(options.allMonths
+        ? availableEvaluations
+        : mergeEvaluationSources([...recoveredFirebaseEvaluations, ...syncedLocalEvaluations],
+          mergeEvaluationSources(readRemoteEvaluationCache(), localSources)));
+    }
     return limitEvaluationScopes(availableEvaluations, safeLimit);
   }
 

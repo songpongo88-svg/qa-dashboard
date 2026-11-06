@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T03:19:22.844Z",
-  "reason": "Reviewed read-only Dashboard recovery from account snapshots, IndexedDB, QA display cache and official workbooks during Firestore outages; successful production build with latest Chat/Inbox quota fixes and strict official reports",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "dashboard"
-  ],
+  "reviewedAt": "2026-11-06T04:16:31.358Z",
+  "reason": "Verified history retention after bounded reads, saved local history and complete IndexedDB recovery with server deletion handling, explicit refresh, permissions and a successful production build. Dashboard guide behavior is unchanged.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf"
@@ -336,7 +334,7 @@
     "scripts/test-dashboard-cache.mjs": "732fa6a44b91af141aee02eeb224bc2a4086e53800dfc90718afad461fc13700",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-pending-appeal.mjs": "bb22db43bcbbeb5965c8b36643d4ac59bc2c00b94689aa912134414f5d479c91",
-    "scripts/test-dashboard-refresh.mjs": "6e0bfeabecb4a94ceda7b170d9aa305b8ece1c2776b25ce3bcefacba19980d6f",
+    "scripts/test-dashboard-refresh.mjs": "c5ebd167ec7e2afc513f62c9df94a605d6f96ea71bf395d2bd4390263e7c5c01",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deleted-case-appeal.mjs": "efbcbb15fe2e23384a8d01af056a6d36767577f7014fbf5a014c795aacf99b40",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
@@ -367,7 +365,7 @@
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
     "scripts/test-qa-sparks-ui.mjs": "14908c03b97de4d7708cb90134ede53db095743ffbbc2f534dc3443d39efba30",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
-    "scripts/test-reporting-history.mjs": "8b51feb5d086538c8527eba25036b470f9446daec94934454bf0c430ae89cf53",
+    "scripts/test-reporting-history.mjs": "18965927f95cf180fc6b56e08faa6d8dc4861796490a4a10fb766ef6ad16c724",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
     "scripts/test-signature-appeal-hold.mjs": "0b79b07d2f79307bb09c1c3e205257ea5c4dbfc0cd8b0859a5804bc3274f9bd4",
     "scripts/test-sparks-admin-session.mjs": "7dde1ed2c965cfbcdf568ecdaa55dbd8e556cb788e7bb78434e3d10df0917cc3",
@@ -409,7 +407,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
     "src/DailyCheckinQuest.tsx": "a50da46ae5e4c04947e5f9c1a5056dee5fe205126c3a3d62bfe45232545c64c8",
-    "src/DashboardMockup.tsx": "3ec5087b825b016396cce9e174c83ef2ac53dfa86fb11cae716b84088d4cdef8",
+    "src/DashboardMockup.tsx": "5fb1d64f36c1d47d61d07ccc687844181ed8fd658b90f28a649e52cd15e05966",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
@@ -503,7 +501,7 @@
     "src/evaluationActivity.ts": "3d22c1607284ea77b4696649b7dfe6027b9f603791fcf9455556e5bc42b16d26",
     "src/evaluationActivityStore.ts": "5284af7fa9d93560ca1695b7d0a1d4596954f1bbe5518a538fdddbbc1983f113",
     "src/evaluationEditingStore.ts": "b234253dd21ff0e4316ce5311fcd9e8e17374d8c474fb12412a052a85c2ebd46",
-    "src/evaluationStore.ts": "382d3f1f54a261ae7ec9124bed41bc8b06b26e603f54e544046b789700dd49a4",
+    "src/evaluationStore.ts": "3fb7789d9c63037eda3e992d886d00dffb72db601b192911c2edb0db720e4456",
     "src/evaluationTagStore.ts": "55f956c44387922ab93b4a1e55c2c696a958f977b731a5d08fb7e52816f48ed2",
     "src/evidencePreviewPdf.ts": "824a189e72e7d77fd242d90ba1daf7db9733372c624a75b39791c2dc71d0b1aa",
     "src/evidenceWatermark.ts": "3237b6eb3f56840f5a9ed72ab6c1639bf3ff9b805b5cc5f8683321a6c2989380",

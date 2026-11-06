@@ -6135,6 +6135,7 @@ export default function DashboardMockup({
       appealMergeCount: saved.appealMergeCount,
     };
   });
+  const initialDashboardCacheKey = useRef(String(dataRefreshKey ?? "default"));
   const [sourceCases, setAllCases] = useState<CaseItem[]>(() => initialDashboardCache?.cases || []);
   const allCases = useMemo(() => withEvaluationActivity(sourceCases, evaluationActivity), [sourceCases, evaluationActivity]);
   const markCaseAppealSubmitted = (caseId: string, agentName?: string, monthKey?: string) => {
@@ -6527,12 +6528,23 @@ export default function DashboardMockup({
     if (loadRetriesRef.current.key !== dataRefreshKey) loadRetriesRef.current = { key: dataRefreshKey, count: 0 };
     const loadWorkbook = async () => {
       const cacheKey = String(dataRefreshKey ?? "default");
+      let cached = dashboardWorkbookCacheV155?.accountScope === dashboardAccountScope
+        ? dashboardWorkbookCacheV155 : initialDashboardCache;
       try {
         setIsLoading(true);
         setLoadError("");
-        const cached = dashboardWorkbookCacheV155?.accountScope === dashboardAccountScope
-          ? dashboardWorkbookCacheV155
-          : initialDashboardCache;
+        // Large complete snapshots live only in IndexedDB. Web Storage may
+        // still contain a smaller, older copy: check both before reusing it.
+        const persisted = await readDashboardRecoverySnapshotForView<CaseItem,StoredEvaluation>(dashboardAccountScope);
+        if (cancelled) return;
+        if (persisted && (!cached || persisted.cachedAt > cached.cachedAt ||
+          (persisted.cachedAt === cached.cachedAt && persisted.cases.length > cached.cases.length))) {
+          cached = {
+            ...persisted, accountScope:dashboardAccountScope, cacheKey:initialDashboardCacheKey.current,
+            cases:persisted.cases.map(item=>({...item,
+              auditDateObj:item.auditDateObj?new Date(String(item.auditDateObj)):null})),
+          };
+        }
         const result = cached && cached.accountScope === dashboardAccountScope && cached.cacheKey === cacheKey && cached.cases.length && Date.now() - cached.cachedAt < 5 * 60_000
           ? cached : await loadCanonicalReportData();
         if (cancelled) return;
@@ -6562,9 +6574,10 @@ export default function DashboardMockup({
         // Preserve a complete mounted snapshot first. A fresh tab can recover
         // its own persisted copy, or display official workbooks without reads
         // to Firestore. Legacy unscoped evaluation caches are QA-only.
-        if (!sourceCases.length) {
+        if (!sourceCases.length || (cached && (cached.cachedAt > lastLoadedAt ||
+          (cached.cachedAt === lastLoadedAt && cached.cases.length > sourceCases.length)))) {
           try {
-            const saved = await readDashboardRecoverySnapshotForView<CaseItem,StoredEvaluation>(dashboardAccountScope);
+            const saved = cached || await readDashboardRecoverySnapshotForView<CaseItem,StoredEvaluation>(dashboardAccountScope);
             const recovered = saved || await loadCanonicalReportData({cachedEvaluations:
               isQualityAssuranceRole(currentUser?.role) ? readCachedEvaluationsForDisplay() : []});
             if (cancelled) return;

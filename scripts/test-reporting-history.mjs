@@ -34,7 +34,7 @@ const firestore = `
 try {
   const outfile = resolve(temporary, "store.mjs");
   await build({
-    stdin: { contents: "export {fetchStoredEvaluations,invalidateStoredEvaluationCache} from './src/evaluationStore';", resolveDir: process.cwd(), loader: "ts" },
+    stdin: { contents: "export {fetchStoredEvaluations,invalidateStoredEvaluationCache,readCachedEvaluationsForDisplay} from './src/evaluationStore';", resolveDir: process.cwd(), loader: "ts" },
     outfile, bundle: true, platform: "node", format: "esm", packages: "external", logLevel: "silent",
     define: { "import.meta.env": JSON.stringify({ VITE_FIREBASE_API_KEY: "fixture", VITE_FIREBASE_PROJECT_ID: "fixture", VITE_FIREBASE_APP_ID: "fixture" }) },
     plugins: [{ name: "report-history-backend", setup(builder) {
@@ -78,6 +78,27 @@ try {
   assert.equal(real.filter(item => item.evaluationMonthKey === "2026-06").length, 2);
   await api.fetchStoredEvaluations(1000, { strict: true, allMonths: true });
   assert.equal(fixture.queries.length, 4, "Dashboard, Summary and Signatures share the complete read");
+  api.invalidateStoredEvaluationCache();
+  await api.fetchStoredEvaluations(300, { strict: true });
+  const retainedHistory = JSON.parse(window.localStorage.getItem("qa-dashboard:create-evaluation:remote-cache:v2"));
+  assert.ok(retainedHistory.some(item => item.caseId === "AA990001" && item.finalScore === 78),
+    "a recent-results read must not replace the saved all-month history");
+  assert.equal(retainedHistory.filter(item => item.evaluationMonthKey === "2026-06").length, 4,
+    "limited reads preserve historical cases, test records and no-case months");
+  const historyKey="qa-dashboard:create-evaluation:history:v2";
+  window.localStorage.setItem(historyKey,JSON.stringify([row("AA990005","2026-07",{final_score:86}),row("AA990001","2026-06",{final_score:12})]));
+  const display=api.readCachedEvaluationsForDisplay();
+  assert.ok(display.some(item=>item.caseId==="AA990005"&&item.finalScore===86),"saved local history remains available when the latest-results cache lacks that month");
+  assert.equal(display.find(item=>item.caseId==="AA990001").finalScore,78,"an older local copy cannot replace the centrally saved score");
+  assert.equal(display.some(item=>item.isTestCase),false);
+  window.localStorage.removeItem(historyKey);
+  const originalRows=fixture.rows;
+  fixture.rows=[row("AA990001","2026-06",{deleted_at:"2026-11-06T04:00:00Z"}),...recent];
+  api.invalidateStoredEvaluationCache();await api.fetchStoredEvaluations(300,{strict:true});
+  const afterDeletion=JSON.parse(window.localStorage.getItem("qa-dashboard:create-evaluation:remote-cache:v2"));
+  assert.equal(afterDeletion.some(item=>item.caseId==="AA990001"),false,"a server deletion still removes its stale saved copy during a limited read");
+  assert.ok(afterDeletion.some(item=>item.caseId==="AA990002"&&item.finalScore===90),"deleting one case cannot discard the rest of the historical month");
+  fixture.rows=originalRows;
   console.log("PASS historical June retained beyond 300/1000 cases, stable scores, no-case months, deleted/test handling and shared bounded pagination");
 
   api.invalidateStoredEvaluationCache(); fixture.queries = []; fixture.failAt = 2;

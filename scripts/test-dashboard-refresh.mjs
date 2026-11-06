@@ -5,6 +5,7 @@ import {pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
 import ts from 'typescript';
 import {JSDOM} from 'jsdom';
+import {IDBFactory} from 'fake-indexeddb';
 
 const rootDir = new URL('../', import.meta.url).pathname;
 const temp = await fs.mkdtemp(path.join(rootDir, '.refresh-test-'));
@@ -164,6 +165,31 @@ try {
   assert.ok(document.body.textContent.includes('Agent A'),'the real Summary displays recovered records');
   assert.ok(!document.body.textContent.includes('โหลดไฟล์ไม่สำเร็จ'));
   console.log('PASS embedded Summary reuses recovered cases; formal report loaders remain strict');
+
+  // An earlier small Web Storage snapshot must not hide a newer complete
+  // snapshot that exceeds the Web Storage size limit and lives in IndexedDB.
+  Object.defineProperty(window,'indexedDB',{configurable:true,value:new IDBFactory()});
+  const cacheFile=path.join(temp,'recovery-cache.mjs');
+  await build({entryPoints:['src/dashboardRecoveryCache.ts'],outfile:cacheFile,bundle:true,platform:'node',format:'esm',logLevel:'silent'});
+  const recoveryCache=await import(pathToFileURL(cacheFile));
+  const scope='qa-large-recovery|quality assurance|';
+  const first=localDisplay.cases.find(row=>row.caseId==='AA910101');
+  const second={...first,key:'large-newer-case',evaluationKey:'large-newer-case',caseId:'AA910102',caseDescription:'x'.repeat(3_600_000)};
+  const copy={cases:[first],noCaseEvaluations:[],appealMergeCount:0,cachedAt:Date.now()-60_000};
+  recoveryCache.saveDashboardRecoverySnapshot(scope,copy);
+  recoveryCache.saveDashboardRecoverySnapshot(scope,{...copy,cases:[first,second],cachedAt:Date.now()-30_000});
+  assert.equal((await recoveryCache.readDashboardRecoverySnapshotForView(scope)).cases.length,2);
+  await act(async()=>root.unmount());root=createRoot(document.getElementById('root'));
+  const largeProps={currentUser:{username:'qa-large-recovery',displayName:'QA Reviewer',role:'Quality Assurance'},externalSelectedMonthKey:'2026-11'};
+  await render(200,largeProps);await settle();
+  assert.ok(table().includes('AA910101')&&table().includes('AA910102'),'the newer complete IndexedDB copy wins over the older small Web Storage copy');
+  const beforeForced=fixture.calls;
+  await render(201,largeProps);await settle();
+  assert.equal(fixture.calls,beforeForced+1,'an explicit refresh still checks the server instead of repeatedly reusing persistence');
+  assert.equal(status().dataset.dashboardRefreshState,'error');
+  assert.ok(table().includes('AA910102'),'a failed explicit refresh retains the larger complete snapshot');
+  delete window.indexedDB;
+  console.log('PASS real Dashboard selects the complete IndexedDB snapshot, preserves all its cases on quota failure and still permits explicit live refresh');
 
   await act(async()=>root.unmount());root=createRoot(document.getElementById('root'));
   const originalNow=Date.now;let now=originalNow();Date.now=()=>now;
