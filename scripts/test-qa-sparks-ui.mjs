@@ -121,7 +121,9 @@ try{
   assert.ok(trueMoneyReward.classList.contains("qa-sparks-mini-item"), "TrueMoney uses mini slot");
   assert.ok(questCard.classList.contains("qa-sparks-mini-item"), "Daily Check-in uses mini slot");
   assert.ok(profileQuest.classList.contains("qa-sparks-mini-item"), "Profile Makeover uses mini slot");
-  assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,2, "both Quests align in one grid");
+  const lotteryQuest=main.querySelector('[data-quest-item="qa-lottery"]');
+  assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
+  assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
   assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,2, "Reward Center mini grid shows both items");
 
   assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes("9–22"));
