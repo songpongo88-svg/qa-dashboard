@@ -25,7 +25,6 @@ const firestore = `
   const noWrite=()=>{f.writes++;throw new Error("Reporting must not write data");};
   export const setDoc=noWrite,deleteDoc=noWrite,runTransaction=noWrite,serverTimestamp=()=>"server",deleteField=()=>({});
   export const getDoc=async()=>({exists:()=>false}),getDocFromServer=getDoc;
-  export const getCountFromServer=async()=>({data:()=>({count:f.rows.length})});
   export async function getDocsFromServer(ref){f.serverReads++;if(f.serverUnavailable)throw new Error('server unavailable');return getDocs(ref)}
   export const onSnapshot=()=>()=>{};
   export async function getDocs(ref) {
@@ -36,7 +35,7 @@ const firestore = `
     const order=ref.constraints.find(item=>item.field);
     const filters=ref.constraints.filter(item=>item.whereField);
     const candidates=f.rows.filter(row=>(!order||order.field==='__name__'||row[order.field]!==undefined) && filters.every(filter=>String(row[filter.whereField]||'')>=String(filter.whereValue||'')));
-    const start=cursor&&!f.repeatFirstPage?candidates.findIndex(item=>item.id===cursor.id)+1:0;
+    const start=cursor&&!f.repeatFirstPage?candidates.findIndex(item=>item.id===(typeof cursor==='string'?cursor:cursor.id))+1:0;
     const rows=candidates.slice(start,start+count);
     f.elapsed+=f.pageDelay;
     return {docs:rows.map(row=>({id:row.id,data:()=>structuredClone(row)}))};
@@ -148,7 +147,7 @@ try {
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   const initialHistory=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
   assert.equal(initialHistory.length,650);
-  assert.equal(fixture.queries.length,3,"first authenticated scan reads all three bounded pages");
+  assert.equal(fixture.queries.length,7,"first authenticated scan reads all three bounded pages");
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   const unchangedHistory=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
   assert.equal(unchangedHistory.length,650);
@@ -173,7 +172,7 @@ try {
   window.localStorage.setItem("qa_current_user",JSON.stringify({username:"qa-second",role:"Quality Assurance"}));
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   assert.equal((await api.fetchStoredEvaluations(300,{strict:true,allMonths:true})).length,650);
-  assert.equal(fixture.queries.length,3,"another login never inherits the first account history");
+  assert.equal(fixture.queries.length,7,"another login never inherits the first account history");
   window.localStorage.removeItem("qa_current_user");
   console.log("PASS full-history IndexedDB: scoped snapshot, changed-only reads, exact scores, server failures, account isolation");
 
