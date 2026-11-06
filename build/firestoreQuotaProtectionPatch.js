@@ -90,8 +90,8 @@ export function firestoreQuotaProtectionPatch() {
       next = replaceOrThrow(
         this,
         next,
-        `const MAINTENANCE_POLL_INTERVAL_MS = 5 * 60 * 1000;\nconst INBOX_POLL_INTERVAL_MS = 5 * 60 * 1000;`,
-        `const MAINTENANCE_POLL_INTERVAL_MS = 15 * 60 * 1000;\n// Five-minute Inbox checks run only while visible and share cached Coaching/Appeal data.\nconst INBOX_POLL_INTERVAL_MS = 5 * 60 * 1000;`,
+        `const MAINTENANCE_POLL_INTERVAL_MS = 5 * 60 * 1000;\nconst INBOX_POLL_INTERVAL_MS = 15 * 60 * 1000;\nconst PASSWORD_RESET_POLL_INTERVAL_MS = 5 * 60 * 1000;`,
+        `const MAINTENANCE_POLL_INTERVAL_MS = 15 * 60 * 1000;\n// Inbox checks run every 15 minutes; password reset notices keep their own 5-minute cadence.\nconst INBOX_POLL_INTERVAL_MS = 15 * 60 * 1000;\nconst PASSWORD_RESET_POLL_INTERVAL_MS = 5 * 60 * 1000;`,
         "background polling intervals"
       );
 
