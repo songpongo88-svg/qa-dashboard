@@ -37,7 +37,9 @@ try{
   assert.match(tracker, /qa-money-tracker-inline-confirm/, "payout confirmation must appear in the same Tracker row, not a modal");
   assert.match(tracker, /disabled=\{!adminReady\|\|busy\}/, "mutation must be disabled without admin permission or while saving");
   assert.match(tracker, /\{error\}<\/p>/, "failed server results must be visible inside the confirmation row");
-  assert.match(tracker, /onClick=\{\(\)=>void markPaid\(\)\}/, "confirmation must dispatch an authenticated mark-paid request");
+  assert.match(tracker, /data-truemoney-paid-action=\{selected===request.itemId/, "confirmation must use the same known-clickable Tracker row button");
+  assert.match(tracker, /if\(selected===request.itemId\)\{void markPaid\(\);\}/, "second click of the same control must mark paid");
+  assert.doesNotMatch(tracker, /qa-money-tracker-mark-paid/, "no second unclickable confirmation button");
   assert.doesNotMatch(tracker, /createPortal/, "payout confirmation must avoid obstructed modal layers");
   assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");
   assert.match(sparksAdmin, /setAdminReady\(false\)/, "Sparks adjustment must be disabled if the server is unavailable");

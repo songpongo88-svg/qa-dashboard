@@ -42,7 +42,7 @@ const click=async element=>{
 };
 const btn=text=>[...document.querySelectorAll(".qa-money-tracker button")].find(x=>x.textContent.includes(text));
 const confirm=()=>document.querySelector(".qa-money-tracker-inline-confirm");
-const action=()=>document.querySelector(".qa-money-tracker-mark-paid");
+const action=()=>document.querySelector('[data-truemoney-paid-action="confirm"]');
 try{
   const css=await readFile("src/qaSparks.css","utf8");
   assert.match(css,/\.qa-money-tracker-inline-confirm\{/);
@@ -60,6 +60,7 @@ try{
   assert.equal(confirm().parentElement.className,"qa-money-tracker-request","confirmation must stay in same clickable row");
   assert.equal(document.querySelectorAll('[role="dialog"]').length,0,"no popup or overlay for confirmation");
   assert.equal(action().disabled,false);
+  assert.equal(document.querySelectorAll(".qa-money-tracker-request button").length,2,"same row offers confirm and cancel, no second submit button");
   assert.equal(markCalls,0,"first click only opens confirmation and never transfers or changes status");
   await click(action());
   assert.equal(markCalls,1,"second explicit click must dispatch one admin status change");
@@ -86,7 +87,7 @@ try{
   await click(btn("ยกเลิก"));
   assert.equal(confirm(),null);
   assert.equal(document.querySelectorAll('[role="dialog"]').length,0);
-  console.log("PASS TrueMoney inline confirmation: two-step click, one mark-paid request, Paid filter, quota error, disabled authorization, cancel");
+  console.log("PASS TrueMoney same-button confirmation: two clicks on original row control, one mark-paid request, Paid filter, quota error, authorization guard, cancel");
 }finally{
   await act(async()=>root.unmount());
   globalThis.fetch=realFetch;
