@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T05:24:39.916Z",
+  "reviewedAt": "2026-11-06T05:26:50.749Z",
   "reason": "Verified complete historical case visibility with legacy slash dates, preview-only Case Date and month-only evaluations; preserved larger account-scoped read-only recovery history without altering scores, permissions, or server data. Guide behavior unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -334,7 +334,7 @@
     "scripts/test-dashboard-cache.mjs": "95fbd6ac26123c89fa7fb234aae1818e9c9d0529000b5f795e5b9d17fb848a23",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-pending-appeal.mjs": "bb22db43bcbbeb5965c8b36643d4ac59bc2c00b94689aa912134414f5d479c91",
-    "scripts/test-dashboard-refresh.mjs": "a08f1a1310948a5e616d358d81c6c7573909c2d6432637b136c9c906f288067c",
+    "scripts/test-dashboard-refresh.mjs": "ca49dedc8df32821bfef150f9978dc0ec36b8806057c037e0d7fac9a6ab86a39",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deleted-case-appeal.mjs": "efbcbb15fe2e23384a8d01af056a6d36767577f7014fbf5a014c795aacf99b40",
     "scripts/test-deploy-theme-data.mjs": "dcf79538a7602723102199b20b6097d7c2f995c71d52c7a1f465030831626dfc",
