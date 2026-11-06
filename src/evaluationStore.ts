@@ -1713,8 +1713,33 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
           }
         }
         if (options.allMonths && historyScope) {
-          // When recovering across days, count the current server collection and
-          // refuse to certify any missing/deleted pages. Keep checkpoint for retry.
+          // A resumed scan may span changes to scores, additions or tombstones.
+          // Reconcile all updates since its original start before certifying it.
+          if (progress) {
+            const mergedRecords=new Map(records.map(item=>[item.id,item]));
+            const invalidIds=new Set(invalidDocumentIds);
+            let updatedCursor:QueryDocumentSnapshot|undefined;
+            const since=new Date(fullScanStartedAt-10*60_000).toISOString();
+            while(true){
+              const changed=await withEvaluationReadDeadline(getDocsFromServer(query(
+                collection(db,FIREBASE_EVALUATION_COLLECTION),
+                where("updated_at",">=",since),orderBy("updated_at","asc"),
+                ...(updatedCursor?[startAfter(updatedCursor)]:[]),firestoreLimit(100),
+              )),30_000,"ตรวจสอบการเปลี่ยนแปลงคะแนนระหว่างกู้คืนไม่สำเร็จ");
+              for(const doc of changed.docs){
+                const item=toEvaluation({...doc.data(),id:doc.id});
+                if(isStoredEvaluationRecord(item)){mergedRecords.set(doc.id,item);invalidIds.delete(doc.id);}
+                else {mergedRecords.delete(doc.id);invalidIds.add(doc.id);}
+              }
+              if(changed.docs.length<100)break;
+              if(updatedCursor?.id===changed.docs.at(-1)?.id)throw new Error("Evaluation delta cursor did not advance");
+              updatedCursor=changed.docs[changed.docs.length-1];
+            }
+            records.splice(0,records.length,...mergedRecords.values());
+            invalidDocumentIds.splice(0,invalidDocumentIds.length,...invalidIds.values());
+            rawDocumentCount=records.length+invalidDocumentIds.length;
+          }
+          // Check the live collection count; never certify missing/deleted pages.
           const serverCount=(await FirestoreApi.getCountFromServer(collection(db,FIREBASE_EVALUATION_COLLECTION))).data().count;
           if(serverCount!==rawDocumentCount) {
             await clearEvaluationScanProgress(historyScope);
