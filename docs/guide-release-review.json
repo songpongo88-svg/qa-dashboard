@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T06:45:00.000Z",
-  "reason": "Reviewed updated QA Sparks guide for 10,000 Sparks default and admin-configurable TrueMoney price, approved reward artwork, and Fruit Match two daily starts with 20 Sparks per successful game; verified member permissions, prior redemptions and payout terms remain unchanged.",
-  "contentChanged": true,
+  "reviewedAt": "2026-11-06T06:49:13.684Z",
+  "reason": "Reviewed resumable server-only Firestore history scan, account-isolated IndexedDB checkpoints, score-change delta verification and no partial official report. Guide workflows unchanged.",
+  "contentChanged": false,
   "reviewedChapters": [
     "qa-sparks"
   ],
@@ -367,7 +367,7 @@
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
     "scripts/test-qa-sparks-ui.mjs": "14908c03b97de4d7708cb90134ede53db095743ffbbc2f534dc3443d39efba30",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
-    "scripts/test-reporting-history.mjs": "766189a7d91c831b85f51fa6e568c03165c8b4eae6431e1fc2970fa4a83f6fba",
+    "scripts/test-reporting-history.mjs": "ef04428f268f8d525f77ef218d55d45697a7e7ee606255bacbbc86480b64227f",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
     "scripts/test-signature-appeal-hold.mjs": "0b79b07d2f79307bb09c1c3e205257ea5c4dbfc0cd8b0859a5804bc3274f9bd4",
     "scripts/test-sparks-admin-session.mjs": "7dde1ed2c965cfbcdf568ecdaa55dbd8e556cb788e7bb78434e3d10df0917cc3",
@@ -503,7 +503,7 @@
     "src/evaluationActivity.ts": "3d22c1607284ea77b4696649b7dfe6027b9f603791fcf9455556e5bc42b16d26",
     "src/evaluationActivityStore.ts": "5284af7fa9d93560ca1695b7d0a1d4596954f1bbe5518a538fdddbbc1983f113",
     "src/evaluationEditingStore.ts": "b234253dd21ff0e4316ce5311fcd9e8e17374d8c474fb12412a052a85c2ebd46",
-    "src/evaluationStore.ts": "ec12bf1562adb008615f15a81fd93cbe275a83cd3a70053bf6e3ba6714491920",
+    "src/evaluationStore.ts": "147b175ab090fbce1d088f57524da8899e48556aab0ca6df26d7751a7c86bf23",
     "src/evaluationTagStore.ts": "55f956c44387922ab93b4a1e55c2c696a958f977b731a5d08fb7e52816f48ed2",
     "src/evidencePreviewPdf.ts": "824a189e72e7d77fd242d90ba1daf7db9733372c624a75b39791c2dc71d0b1aa",
     "src/evidenceWatermark.ts": "3237b6eb3f56840f5a9ed72ab6c1639bf3ff9b805b5cc5f8683321a6c2989380",
@@ -640,6 +640,6 @@
     "src/yearlyTeamSummaryData.ts": "a133f2a7550fdb72b07004c570ac3c7166ab8544020cad85e02a0beff3dff0d9",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/evaluationHistoryCache.ts": "ab5edc1960873587d3e1c0c6b6d6324bc34a1a817ab52e63576a6d34a613d7fa"
+    "src/evaluationHistoryCache.ts": "99d559fdcc2715c601bfe71190bf01dbc77f79ac60d9ae38846c2bad8acfb450"
   }
 }
