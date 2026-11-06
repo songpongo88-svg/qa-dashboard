@@ -147,10 +147,19 @@ export async function deleteStoredChatMessageV2(message: ChatMessage) {
   });
 }
 
+// Focus/visibility events may fire repeatedly while a Chat room is open.
+// One stable presence document remains authoritative; avoid rewriting it on every focus.
+const PRESENCE_TOUCH_MIN_MS = 60_000;
+const recentPresenceTouches = new Map<string, { lastAt: number; pending?: Promise<void> }>();
+
 export async function touchChatPresenceV2(user: ChatActor) {
+  const key = presenceDocId(user.username);
+  const prior = recentPresenceTouches.get(key);
+  if (prior?.pending) return prior.pending;
+  if (prior && Date.now() - prior.lastAt < PRESENCE_TOUCH_MIN_MS) return;
   const lastSeenAt = new Date().toISOString();
-  await setDoc(
-    doc(firebaseDb, PRESENCE_COLLECTION, presenceDocId(user.username)),
+  const pending = setDoc(
+    doc(firebaseDb, PRESENCE_COLLECTION, key),
     {
       username: clean(user.username),
       displayName: clean(user.displayName || user.username),
@@ -161,10 +170,18 @@ export async function touchChatPresenceV2(user: ChatActor) {
       online: true,
     },
     { merge: true }
-  );
+  ).then(() => {
+    recentPresenceTouches.set(key, { lastAt: Date.now() });
+  }, (error) => {
+    recentPresenceTouches.delete(key);
+    throw error;
+  });
+  recentPresenceTouches.set(key, { lastAt: Date.now(), pending });
+  return pending;
 }
 
 export async function markChatPresenceOfflineV2(user: ChatActor) {
+  recentPresenceTouches.delete(presenceDocId(user.username));
   await setDoc(
     doc(firebaseDb, PRESENCE_COLLECTION, presenceDocId(user.username)),
     {
