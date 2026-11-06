@@ -1558,7 +1558,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
       // Keep those in the correct month/All Weeks without inventing a Case Date.
       const fallbackMonth = getStoredEvaluationMonthKey(record);
       const monthKey = validAuditDate ? getMonthKey(validAuditDate) : (fallbackMonth || "unknown");
-      const monthDate = /^\\d{4}-\\d{2}$/.test(monthKey)
+      const monthDate = /^\d{4}-\d{2}$/.test(monthKey)
         ? new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)
         : null;
       const topicMaster = getTopicMasterByMonth(monthKey);
