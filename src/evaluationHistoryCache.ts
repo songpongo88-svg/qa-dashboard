@@ -2,8 +2,19 @@
 // Never use it to bypass a failed server verification in official reports.
 const DATABASE = "qa-dashboard-verified-evaluation-history";
 const STORE = "complete";
-const VERSION = 1;
+const PROGRESS_STORE = "scan-progress";
+const VERSION = 2;
 const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60_000;
+
+// Incomplete scans are resumable only: never use this data in official reports.
+export type EvaluationScanProgress<T> = {
+  startedAt: number;
+  savedAt: number;
+  lastDocumentId: string;
+  rawDocumentCount: number;
+  invalidDocumentIds: string[];
+  records: T[];
+};
 
 export type VerifiedEvaluationHistory<T> = {
   scannedAt: number;
@@ -49,6 +60,7 @@ async function openDatabase(): Promise<IDBDatabase | null> {
       const request = window.indexedDB.open(DATABASE, VERSION);
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE);
+        if (!request.result.objectStoreNames.contains(PROGRESS_STORE)) request.result.createObjectStore(PROGRESS_STORE);
       };
       request.onsuccess = () => finish(request.result);
       request.onerror = () => finish(null);
@@ -86,4 +98,53 @@ export async function saveVerifiedEvaluationHistory<T>(scope: string, history: V
     });
   } catch { /* IndexedDB is a best-effort read optimization, never the authority. */ }
   finally { db.close(); }
+}
+
+function validProgress<T>(value: unknown): value is EvaluationScanProgress<T> {
+  const progress=value as EvaluationScanProgress<T>;
+  return Boolean(progress && Number.isFinite(progress.startedAt) &&
+    Number.isFinite(progress.savedAt) && progress.startedAt>0 &&
+    progress.savedAt<=Date.now() && Date.now()-progress.savedAt<=MAX_CACHE_AGE_MS &&
+    typeof progress.lastDocumentId==="string" && progress.lastDocumentId.length>0 &&
+    Number.isInteger(progress.rawDocumentCount) && progress.rawDocumentCount>0 &&
+    Array.isArray(progress.records) && Array.isArray(progress.invalidDocumentIds) &&
+    progress.rawDocumentCount===progress.records.length+progress.invalidDocumentIds.length);
+}
+
+export async function readEvaluationScanProgress<T>(scope:string):Promise<EvaluationScanProgress<T>|null> {
+  if(!scope)return null;
+  const db=await openDatabase();if(!db)return null;
+  try{
+    const result=await new Promise<unknown>(resolve=>{
+      const request=db.transaction(PROGRESS_STORE,"readonly").objectStore(PROGRESS_STORE).get(scope);
+      request.onsuccess=()=>resolve(request.result);request.onerror=()=>resolve(null);
+    });
+    return validProgress<T>(result)?result:null;
+  }catch{return null;}finally{db.close();}
+}
+
+export async function saveEvaluationScanProgress<T>(scope:string, progress:EvaluationScanProgress<T>):Promise<void> {
+  if(!scope||!validProgress(progress))return;
+  const db=await openDatabase();if(!db)return;
+  try{
+    await new Promise<void>(resolve=>{
+      const transaction=db.transaction(PROGRESS_STORE,"readwrite");
+      transaction.objectStore(PROGRESS_STORE).put(progress,scope);
+      transaction.oncomplete=()=>resolve();transaction.onerror=()=>resolve();transaction.onabort=()=>resolve();
+    });
+  }catch{/* A failed checkpoint cannot change server data or the official report. */}
+  finally{db.close();}
+}
+
+export async function clearEvaluationScanProgress(scope:string):Promise<void> {
+  if(!scope)return;
+  const db=await openDatabase();if(!db)return;
+  try{
+    await new Promise<void>(resolve=>{
+      const transaction=db.transaction(PROGRESS_STORE,"readwrite");
+      transaction.objectStore(PROGRESS_STORE).delete(scope);
+      transaction.oncomplete=()=>resolve();transaction.onerror=()=>resolve();transaction.onabort=()=>resolve();
+    });
+  }catch{/* A finished history still remains authoritative. */}
+  finally{db.close();}
 }
