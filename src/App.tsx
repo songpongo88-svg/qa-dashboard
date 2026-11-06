@@ -6105,27 +6105,41 @@ export default function App() {
     });
   }, [activeTab, dashboardSubTab, currentUser, maintenanceBlocked]);
 
+  const lastInboxPolledAtRef = useRef(0);
   useEffect(() => {
     if (!currentUser || maintenanceBlocked) {
       setInboxTasks([]);
+      lastInboxPolledAtRef.current = 0;
       return;
     }
-
-    void loadInboxTasks();
-    const pollIfVisible = () => {
-      if (document.visibilityState === "visible") void loadInboxTasks();
+    const refreshInbox = () => {
+      lastInboxPolledAtRef.current = Date.now();
+      void loadInboxTasks();
     };
-    const timer = window.setInterval(pollIfVisible, INBOX_POLL_INTERVAL_MS);
-    const reloadAfterCaseChange = () => { void loadInboxTasks(); };
-    window.addEventListener("qa-dashboard-data-refresh", reloadAfterCaseChange);
-    document.addEventListener("visibilitychange", pollIfVisible);
-
+    const pollIfDue = () => {
+      if (document.visibilityState !== "visible" || navigator.onLine === false) return;
+      if (Date.now() - lastInboxPolledAtRef.current < INBOX_POLL_INTERVAL_MS) return;
+      refreshInbox();
+    };
+    refreshInbox();
+    const timer = window.setInterval(pollIfDue, INBOX_POLL_INTERVAL_MS);
+    // Explicit QA/appeal updates remain immediate even during the background cooldown.
+    window.addEventListener("qa-dashboard-data-refresh", refreshInbox);
+    document.addEventListener("visibilitychange", pollIfDue);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener("qa-dashboard-data-refresh", reloadAfterCaseChange);
-      document.removeEventListener("visibilitychange", pollIfVisible);
+      window.removeEventListener("qa-dashboard-data-refresh", refreshInbox);
+      document.removeEventListener("visibilitychange", pollIfDue);
     };
   }, [currentUser, appealRequestsAllowed, maintenanceBlocked, effectiveUserAccounts]);
+
+  useEffect(() => {
+    // Opening Inbox should not force a full history read if a recent result exists.
+    if (!currentUser || maintenanceBlocked || activeTab !== "task-inbox") return;
+    if (Date.now() - lastInboxPolledAtRef.current < 2 * 60_000) return;
+    lastInboxPolledAtRef.current = Date.now();
+    void loadInboxTasks();
+  }, [activeTab, currentUser?.username, maintenanceBlocked]);
 
   // password reset shortcut badge polling
   useEffect(() => {
