@@ -1,6 +1,7 @@
 import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 ﻿import { initializeApp, getApps } from "firebase/app";
-import { collection, doc, documentId, getCountFromServer, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
+import * as FirestoreApi from "firebase/firestore";
+import { collection, doc, documentId, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 import { evaluationHistoryAccountScope, readVerifiedEvaluationHistory, saveVerifiedEvaluationHistory } from "./evaluationHistoryCache";
@@ -1639,7 +1640,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
               if (deltaCursor?.id === updated.docs.at(-1)?.id) throw new Error("Evaluation history delta cursor did not advance");
               deltaCursor = updated.docs[updated.docs.length - 1];
             }
-            const count = (await getCountFromServer(source)).data().count;
+            const count = (await FirestoreApi.getCountFromServer(source)).data().count;
             if (count === merged.size + invalid.size) {
               const next = [...merged.values()];
               await saveVerifiedEvaluationHistory(historyScope, {
