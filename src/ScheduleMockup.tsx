@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
+import { createUploadedScheduleWorkbook, uploadedScheduleExportFileName } from "./scheduleExport";
 import {
   fetchScheduleMonths,
   findScheduleEntryForUser,
@@ -1065,6 +1066,20 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
   const [editWfhTouched, setEditWfhTouched] = useState(false);
   const canManage = canManageSchedule(currentUser.role);
 
+  const exportUploadedSchedule = () => {
+    if (!canManage || !month?.entries.length) return;
+    try {
+      const workbook = createUploadedScheduleWorkbook(month);
+      XLSX.writeFile(workbook, uploadedScheduleExportFileName(month), {
+        bookType: "xlsx", compression: true,
+      });
+      setMessage(`Export ตารางที่อัปโหลดไว้สำหรับ ${formatMonthLabel(month.monthKey)} แล้ว (ไฟล์สร้างจากข้อมูลที่บันทึก ไม่ใช่ต้นฉบับทั้งไฟล์)`);
+    } catch (error) {
+      console.error("Export uploaded SCH schedule failed", error);
+      setMessage("Export ตารางกะไม่สำเร็จ กรุณาลองใหม่");
+    }
+  };
+
   const candidateMonthKeys = useMemo(
     () => [...new Set(candidates.map((candidate) => candidate.month.monthKey))].sort((a, b) => b.localeCompare(a)),
     [candidates]
@@ -1557,11 +1572,23 @@ export function ScheduleMockup({ currentUser }: { currentUser: ScheduleUser }) {
               <div className="text-base font-bold text-slate-950">Monthly Schedule</div>
               <div className="mt-1 text-xs text-slate-500">{month ? `Source: ${month.sourceFileName} · ${month.sheetName}` : "เลือกเดือนหรืออัปโหลดไฟล์"}</div>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {canManage && month?.entries.length ? (
+                <button
+                  type="button"
+                  onClick={exportUploadedSchedule}
+                  title="ดาวน์โหลดข้อมูลกะเดิมจากตอนนำเข้า Excel โดยไม่รวมการแก้ไขใน Dashboard (ไม่ใช่ไฟล์ต้นฉบับ 100%)"
+                  className="rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50"
+                >
+                  Export Uploaded Excel
+                </button>
+              ) : null}
             <select value={selectedMonthKey} onChange={(event) => setSelectedMonthKey(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
               {[...new Set([today.monthKey, ...months.map((item) => item.monthKey)])].sort((a, b) => b.localeCompare(a)).map((key) => (
                 <option key={key} value={key}>{formatMonthLabel(key)}</option>
               ))}
             </select>
+            </div>
           </div>
 
           {loading ? (
