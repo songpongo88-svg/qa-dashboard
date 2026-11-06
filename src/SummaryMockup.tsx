@@ -1,5 +1,7 @@
 import { loadCanonicalReportData, type CanonicalReportCase, type CanonicalReportData } from "./DashboardMockup";
 import YearlyTeamSummary from "./YearlyTeamSummary";
+import YearlyAgentMonthlyReport from "./YearlyAgentMonthlyReport";
+import { createYearlyAgentMonthlyXlsx, createYearlyAgentMonthlyPdf } from "./yearlyAgentMonthlyExport";
 import { buildYearlyTeamReport, createYearlyTeamSummaryXlsx, yearlyMonthKeys } from "./yearlyTeamSummaryData";
 import { createYearlyTeamSummaryPdf } from "./yearlyTeamSummaryPdf";
 import { useEvaluationActivity, EvaluationActivityUnavailable } from "./EvaluationActivityContext";
@@ -3068,6 +3070,7 @@ export default function SummaryMockup({
   const [compareDraftYear, setCompareDraftYear] = useState("all");
   const [compareDraftMonth, setCompareDraftMonth] = useState("all");
   const [analyticsExportOpen, setAnalyticsExportOpen] = useState(false);
+  const [yearlyAgentMonthlyExporting, setYearlyAgentMonthlyExporting] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(
     () => window.sessionStorage.getItem("qa_analytics_team_v134") || "all"
   );
@@ -6384,6 +6387,52 @@ export default function SummaryMockup({
     const months = yearlyYears.flatMap(yearlyMonthKeys);
     await assertEvaluationScopeComplete(agentNames, months);
     return { reports, agentNames, months };
+  }
+
+  // This report is an additional export, not a replacement for Yearly Team Summary.
+  // Both formats use the same refreshed, deduplicated QA scores and strict completion gate.
+  async function exportYearlyAgentMonthlyExcel() {
+    if (yearlyAgentMonthlyExporting) return;
+    setYearlyAgentMonthlyExporting(true);
+    try {
+      const { reports, agentNames, months } = await loadYearlyExportReports();
+      const scope = { team: yearlyTeam === "all" ? "All Teams" : yearlyTeam,
+        agent: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent };
+      const result = await createYearlyAgentMonthlyXlsx(reports, scope);
+      await assertEvaluationScopeComplete(agentNames, months);
+      const url = URL.createObjectURL(new Blob([result.bytes], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "ส่งออก Yearly Agent Monthly Excel ไม่สำเร็จ");
+    } finally {
+      setYearlyAgentMonthlyExporting(false);
+    }
+  }
+
+  async function exportYearlyAgentMonthlyPdf() {
+    if (yearlyAgentMonthlyExporting) return;
+    setYearlyAgentMonthlyExporting(true);
+    try {
+      const { reports, agentNames, months } = await loadYearlyExportReports();
+      await ensureSarabunPdfFont();
+      const scope = { team: yearlyTeam === "all" ? "All Teams" : yearlyTeam,
+        agent: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent };
+      const result = createYearlyAgentMonthlyPdf(reports, scope);
+      await assertEvaluationScopeComplete(agentNames, months);
+      result.pdf.save(result.fileName);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "ส่งออก Yearly Agent Monthly PDF ไม่สำเร็จ");
+    } finally {
+      setYearlyAgentMonthlyExporting(false);
+    }
   }
 
   async function exportCurrentAnalyticsExcel() {
@@ -10297,7 +10346,18 @@ export default function SummaryMockup({
           {analysisMode === "yearly" ? (
             yearlyData.loading ? <div role="status" className="rounded-2xl bg-white p-6 text-slate-600">กำลังโหลด Yearly Team Summary...</div>
             : yearlyData.error || yearlyScopeError ? <div role="alert" className="rounded-2xl bg-rose-50 p-6 text-rose-700">{yearlyData.error || yearlyScopeError}</div>
-            : <YearlyTeamSummary reports={yearlyReports} team={yearlyTeam === "all" ? "All Teams" : yearlyTeam} agent={effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent} />
+            : <div className="space-y-6">
+                <YearlyAgentMonthlyReport
+                  reports={yearlyReports}
+                  team={yearlyTeam === "all" ? "All Teams" : yearlyTeam}
+                  agent={effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent}
+                  canExport={analyticsCanExport}
+                  exporting={yearlyAgentMonthlyExporting}
+                  onExportExcel={() => { void exportYearlyAgentMonthlyExcel(); }}
+                  onExportPdf={() => { void exportYearlyAgentMonthlyPdf(); }}
+                />
+                <YearlyTeamSummary reports={yearlyReports} team={yearlyTeam === "all" ? "All Teams" : yearlyTeam} agent={effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent} />
+              </div>
           ) : (
           <div data-analytics-overview-logic-v90="true" data-analytics-readable-v128="true" className="min-w-0 space-y-5">
             <AnalyticsOverviewV89

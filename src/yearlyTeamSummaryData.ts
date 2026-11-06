@@ -17,10 +17,12 @@ export type YearlyHold = { label: string; message?: string; pendingCount?: numbe
 export type YearlyStats = { caseCount: number; averageScore: number | null; criticalCount: number; hold: YearlyHold | null };
 export type YearlyMonth = YearlyStats & { monthKey: string; label: string; aGrade: number; bGrade: number; cGrade: number; otherGrade: number };
 export type YearlyAgent = YearlyStats & { agent: string; sequence: number };
+export type YearlyAgentMonthRow = YearlyAgent & { months: YearlyStats[]; kpiEvaluatedMonths: number; kpiPassedMonths: number };
 export type YearlyTeamReport = YearlyStats & {
   year: string;
   months: YearlyMonth[];
   agents: YearlyAgent[];
+  agentMonths: YearlyAgentMonthRow[];
   topAgents: YearlyAgent[];
   bottomAgents: YearlyAgent[];
 };
@@ -73,10 +75,22 @@ export function buildYearlyTeamReport(source: readonly YearlyCase[], year: strin
     agent, sequence: index + 1,
     ...stats(cases.filter(item => canonicalAgentIdentityKey(item.agent) === canonicalAgentIdentityKey(agent)), [agent], monthKeys),
   }));
+  // Build the employee x 12-month matrix from the exact same canonical, deduplicated
+  // records used by Yearly Team Summary. Missing scores stay null, never zero.
+  const agentMonths: YearlyAgentMonthRow[] = agents.map(agent => {
+    const identity = canonicalAgentIdentityKey(agent.agent);
+    const months = monthKeys.map(monthKey => stats(
+      cases.filter(item => item.monthKey === monthKey && canonicalAgentIdentityKey(item.agent) === identity),
+      [agent.agent], [monthKey]
+    ));
+    const eligible = months.filter(month => month.caseCount >= 10 && !month.hold && month.averageScore !== null);
+    return { ...agent, months, kpiEvaluatedMonths: eligible.length,
+      kpiPassedMonths: eligible.filter(month => month.averageScore! >= 85).length };
+  });
   const ranked = agents.filter(item => item.caseCount && !item.hold && item.averageScore !== null);
   const top = Math.max(...ranked.map(item => item.averageScore!));
   const bottom = Math.min(...ranked.map(item => item.averageScore!));
-  return { ...stats(cases, agentNames, monthKeys), year, months, agents,
+  return { ...stats(cases, agentNames, monthKeys), year, months, agents, agentMonths,
     topAgents: ranked.filter(item => item.averageScore === top),
     bottomAgents: ranked.filter(item => item.averageScore === bottom) };
 }
