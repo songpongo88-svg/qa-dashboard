@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T06:07:59.327Z",
-  "reason": "Reviewed account-scoped IndexedDB snapshots for completed Firestore evaluation history scans, changed-only server verification with count checks, strict report failure on quota 429, preserved original QA scores and historical month coverage. User guide workflow unchanged.",
+  "reviewedAt": "2026-11-06T06:11:41.461Z",
+  "reason": "Reviewed quota-exhaustion mitigation with account-scoped verified Firestore snapshots, changed-only reads and count parity, original score preservation, and Analytics per-case merge for mixed RawData months; existing user-guide workflow unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -438,7 +438,7 @@
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
     "src/SparksAdminPanel.tsx": "b105a827da2775656892a3eccad36cac51a3121318e20ad4bbbe3fb88114404f",
     "src/StickyNotePopup.tsx": "fedb5e1066137ee5b7be1b4db0d1145376d4d64b3821a5029bb060aa84a9326c",
-    "src/SummaryMockup.tsx": "c0465ce89329663478d18bec29c0b9b71af3f491cc322bcb114506c380d0ca88",
+    "src/SummaryMockup.tsx": "27ee40434662ab87088f2e5cef5068e263ac891b652c52b6b757a6f43699de98",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TagRubricHint.tsx": "511447a8e67a8526cc2ca50a6b8e60c3c828542518b6a62743e790829e3b3001",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
