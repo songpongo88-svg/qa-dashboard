@@ -1595,6 +1595,9 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
 
   if (isFirebaseEvaluationConfigured()) {
     let remoteReadSucceeded = true;
+    // Freeze the account scope for this request, including its in-memory cache
+    // key. A login switch during a pending read must not reuse another scope.
+    const requestHistoryScope = evaluationHistoryAccountScope(FIREBASE_PROJECT_ID, FIREBASE_EVALUATION_COLLECTION);
     const firebaseEvaluations = await cachedRemoteEvaluations(safeLimit, async () => {
       try {
         const db = getFirebaseEvaluationDb();
@@ -1602,7 +1605,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
         // Once an account has a verified full history, recent-result callers
         // can use the same changed-only server verification instead of reading
         // another 500 documents in Create Evaluation, Coaching or Presentation.
-        const historyScope = evaluationHistoryAccountScope(FIREBASE_PROJECT_ID, FIREBASE_EVALUATION_COLLECTION);
+        const historyScope = requestHistoryScope;
         const source = collection(db, FIREBASE_EVALUATION_COLLECTION);
         const previous = historyScope
           ? await readVerifiedEvaluationHistory<StoredEvaluation>(historyScope) : null;
@@ -1705,7 +1708,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
         console.warn("Load Firebase evaluations failed", error);
         throw error;
       }
-    }, { ...options, historyScope: evaluationHistoryAccountScope(FIREBASE_PROJECT_ID, FIREBASE_EVALUATION_COLLECTION) }).catch((error) => {
+    }, { ...options, historyScope: requestHistoryScope }).catch((error) => {
       remoteReadSucceeded = false;
       if (options.strict) throw error;
       return [];
