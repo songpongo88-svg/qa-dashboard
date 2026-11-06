@@ -25,6 +25,7 @@ const firestore = `
   const noWrite=()=>{f.writes++;throw new Error("Reporting must not write data");};
   export const setDoc=noWrite,deleteDoc=noWrite,runTransaction=noWrite,serverTimestamp=()=>"server",deleteField=()=>({});
   export const getDoc=async()=>({exists:()=>false}),getDocFromServer=getDoc;
+  export const getCountFromServer=async()=>({data:()=>({count:f.rows.length})});
   export async function getDocsFromServer(ref){f.serverReads++;if(f.serverUnavailable)throw new Error('server unavailable');return getDocs(ref)}
   export const onSnapshot=()=>()=>{};
   export async function getDocs(ref) {
@@ -83,18 +84,18 @@ try {
   assert.ok(all.some(item => item.caseId === "AA990002"));
   assert.ok(all.some(item=>item.caseId==='AA990006'&&item.finalScore===88), 'historical July records without submitted_at must remain visible');
   assert.ok(all.some(item=>item.caseId==='AA990007'&&item.finalScore===91), 'historical August records without submitted_at must remain visible');
-  assert.equal(fixture.serverReads,4,'a complete historical read must verify every page with the server');
+  assert.equal(fixture.serverReads,12,'a complete historical read must verify every page with the server');
   assert.equal(all.find(item => item.caseId === "AA990001").finalScore, 78);
   assert.equal(all.find(item => item.caseId === "AA990002").finalScore, 90);
   assert.ok(all.some(item => item.evaluationType === "no_case_month" && item.evaluationMonthKey === "2026-06"));
   assert.equal(all.some(item => item.caseId === "AA990004"), false, "deleted cases stay excluded");
   assert.ok(all.some(item => item.isTestCase), "the store retains test records for authorized Case Detail callers");
-  assert.equal(fixture.queries.length, 4);
-  assert.ok(fixture.queries.every(ref => ref.constraints.some(item => item.count === 300)), "each backend query is bounded");
+  assert.equal(fixture.queries.length, 12);
+  assert.ok(fixture.queries.every(ref => ref.constraints.some(item => item.count === 100)), "each backend query is bounded");
   const real = all.filter(item => !item.isTestCase && item.evaluationType !== "no_case_month");
   assert.equal(real.filter(item => item.evaluationMonthKey === "2026-06").length, 2);
   await api.fetchStoredEvaluations(1000, { strict: true, allMonths: true });
-  assert.equal(fixture.queries.length, 4, "Dashboard, Summary and Signatures share the complete read");
+  assert.equal(fixture.queries.length, 12, "Dashboard, Summary and Signatures share the complete read");
   api.invalidateStoredEvaluationCache();
   await api.fetchStoredEvaluations(300, { strict: true });
   const retainedHistory = JSON.parse(window.localStorage.getItem("qa-dashboard:create-evaluation:remote-cache:v2"));
