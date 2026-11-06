@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/expire-additional-appeals",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/qa-lottery",
+      "schedule": "0 11 * * *"
     }
   ]
 }
