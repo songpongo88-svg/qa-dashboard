@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T10:15:00.000Z",
-  "reason": "Verified TrueMoney payout confirmation portal, keyboard/permission/error feedback and clickable simulated UI regression; updated legacy UI assertions to target the new direct portal control. No real payout, API changes or QA report data mutations.",
+  "reviewedAt": "2026-11-06T10:25:00.000Z",
+  "reason": "Verified portaled TrueMoney confirm dialog and interactive test of one status update, Pending→Paid filter transition, error display on quota failure and disabled authorization. No real payout or wallet data changed.",
   "contentChanged": false,
   "reviewedChapters": [
     "qa-sparks"
@@ -645,6 +645,6 @@
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/YearlyAgentMonthlyReport.tsx": "19ae7e60ce6138ecd4f4e9bc8bfcc7fc6a38c4a1e03dd0bee3c9dfcdb1020c04",
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
-    "scripts/test-truemoney-tracker-confirm-ui.mjs": "f27d77ac4d2542459a6adc6c95b05ea8d59a9cb35e3d509acbdc63c05d63f1bb"
+    "scripts/test-truemoney-tracker-confirm-ui.mjs": "707a8b1c37f647381772fa82480606bb6dc295cd15cee2947fb020a3b19c2216"
   }
 }
