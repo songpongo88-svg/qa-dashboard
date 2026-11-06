@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
 
-export const TRUE_MONEY_REWARD={id:"truemoney-20-thb",price:7000,value:20,validDays:30,paymentBusinessDays:14} as const;
+export const TRUE_MONEY_REWARD={id:"truemoney-20-thb",price:10000,value:20,validDays:30,paymentBusinessDays:14} as const;
 type Item={itemId:string;rewardId:string;status:"unused"|"requested";redeemedAt:string;expiresAt:string;valueTHB:number;requestedAt?:string;requestId?:string};
 type Request={requestId:string;itemId:string;status:string;dueDate:string;createdAt:string;amountTHB:number;phoneMasked:string;payoutConfirmedAt?:string};
 type Detail={items:Item[];requests:Request[]};
@@ -21,17 +21,7 @@ function dueDate(value:string){
   });
 }
 function MoneyArt(){
-  return <svg viewBox="0 0 220 160" role="img" aria-label="TrueMoney 20 บาท QA Sparks Event" className="qa-money-art-svg">
-    <defs><linearGradient id="qa-money-grad" x1="0" x2="1" y1="0" y2="1"><stop stopColor="#ff9e7c"/><stop offset=".56" stopColor="#fa5179"/><stop offset="1" stopColor="#bb3eaa"/></linearGradient><filter id="qa-money-shadow"><feDropShadow dx="0" dy="7" stdDeviation="5" floodOpacity=".3"/></filter></defs>
-    <circle cx="110" cy="82" r="69" fill="#ffffff63"/><circle cx="110" cy="82" r="55" fill="none" stroke="#ffffffa5" strokeDasharray="5 7"/>
-    <g filter="url(#qa-money-shadow)" transform="rotate(-10 110 80)">
-      <rect x="33" y="39" width="157" height="101" rx="20" fill="url(#qa-money-grad)" stroke="#fff" strokeWidth="4"/>
-      <rect x="50" y="55" width="124" height="68" rx="13" fill="#ffffff2a" stroke="#ffe0e5" strokeWidth="1.8"/>
-      <text x="112" y="89" fill="white" fontWeight="900" fontFamily="Kanit,sans-serif" fontSize="32" textAnchor="middle">฿20</text>
-      <text x="112" y="110" fill="white" fontWeight="750" fontFamily="Kanit,sans-serif" fontSize="12" textAnchor="middle">TrueMoney</text>
-    </g><path d="m29 16 4 11 11 4-11 4-4 11-4-11-11-4 11-4Z" fill="#ffe49a"/>
-    <path d="m190 27 3 8 8 3-8 3-3 8-3-8-8-3 8-3Z" fill="#fff3c2"/>
-  </svg>;
+  return <img src="/rewards/truemoney-20.webp" alt="TrueMoney Wallet 20 THB" className="qa-money-art-svg" loading="lazy"/>;
 }
 async function api(action:string,actorUsername:string,sessionId:string,extra:Record<string,unknown>={}){
   const response=await fetch("/api/sparks-admin",{
@@ -46,16 +36,18 @@ async function api(action:string,actorUsername:string,sessionId:string,extra:Rec
   }
   return body;
 }
-function RewardCard({open}:{open:()=>void}){
+function RewardCard({open,price}:{open:()=>void;price:number}){
   return <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--money" data-reward-item="truemoney-20" onClick={open}
-    aria-haspopup="dialog" aria-label="ดูรายละเอียด TrueMoney 20 บาท ราคา 7,000 Sparks">
+    aria-haspopup="dialog" aria-label={"ดูรายละเอียด TrueMoney 20 บาท ราคา "+price.toLocaleString("en-US")+" Sparks"}>
     <span className="qa-sparks-mini-art qa-sparks-mini-art--money"><MoneyArt/></span>
     <strong className="qa-sparks-mini-name">TrueMoney 20 ฿</strong>
-    <span className="qa-sparks-mini-value">7,000 Sparks</span>
+    <span className="qa-sparks-mini-value">{price.toLocaleString("en-US")} Sparks</span>
   </button>;
 }
 export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,hasOtherItems=false}:Props){
   const [open,setOpen]=useState(false);
+  const [price,setPrice]=useState<number>(TRUE_MONEY_REWARD.price);
+  const [priceReady,setPriceReady]=useState(mode!=="reward");
   const [items,setItems]=useState<Item[]>([]);
   const [requests,setRequests]=useState<Request[]>([]);
   const [inventoryLoaded,setInventoryLoaded]=useState(false);
@@ -76,6 +68,20 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
   const detailExpired=detailItem ? Date.parse(detailItem.expiresAt)<=Date.now() : false;
   const canUseSelected=Boolean(detailItem && detailItem.status==="unused" && !detailExpired);
   useEffect(()=>{if(balanceAfter!==null&&balance===balanceAfter)setBalanceAfter(null);},[balance,balanceAfter]);
+  const refreshPrice=useCallback(async()=>{
+    if(!username||!sessionId)return;
+    const result:{price:number}=await api("get-truemoney-price",username,sessionId);
+    if(!Number.isSafeInteger(result.price)||result.price<1)throw new Error("ไม่สามารถตรวจสอบราคารางวัลได้");
+    setPrice(result.price);setPriceReady(true);
+  },[username,sessionId]);
+  useEffect(()=>{
+    if(mode!=="reward")return;
+    setPriceReady(false);
+    void refreshPrice().catch(e=>setError(String(e?.message||e)));
+    const changed=()=>{setPriceReady(false);void refreshPrice().catch(e=>setError(String(e?.message||e)));};
+    window.addEventListener("qa:truemoney-price-updated",changed);
+    return()=>window.removeEventListener("qa:truemoney-price-updated",changed);
+  },[mode,refreshPrice]);
   const refresh=useCallback(async()=>{
     if(!username||!sessionId)return;
     const result:Detail=await api("list-my-truemoney",username,sessionId);
@@ -94,23 +100,24 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
   },[open,busy]);
   const show=()=>{
     setOpen(true);setError("");setNotice("");setConfirm(false);
+    if(mode==="reward"){setPriceReady(false);void refreshPrice().catch(e=>setError(String(e?.message||e)));}
     if(themeRef.current){
       const values=window.getComputedStyle(themeRef.current);
       setTheme(values.getPropertyValue("--sparks-accent").trim()||"#8a4398");
     }
   };
   const buy=async()=>{
-    if(!loaded||effectiveBalance<7000||busy)return;
+    if(!loaded||!priceReady||effectiveBalance<price||busy)return;
     setBusy(true);setError("");
     try{
       if(!requestId.current)requestId.current=crypto.randomUUID();
-      const result=await api("redeem-truemoney",username,sessionId,{requestId:requestId.current});
+      const result=await api("redeem-truemoney",username,sessionId,{requestId:requestId.current,expectedPrice:price});
       requestId.current="";
       setBalanceAfter(result.balance);
       setConfirm(false);
       setNotice("แลกสำเร็จ! Item TrueMoney 20 บาทถูกเก็บไว้ใน My Items แล้ว อายุ 30 วันนับจากเวลาแลก");
       await refresh();window.dispatchEvent(new Event("qa:sparks-updated"));
-    }catch(e){setError(e instanceof Error?e.message:"แลกไม่สำเร็จ");}
+    }catch(e){setError(e instanceof Error?e.message:"แลกไม่สำเร็จ");setPriceReady(false);void refreshPrice().catch(()=>{});}
     finally{setBusy(false);}
   };
   const useItem=async()=>{
@@ -149,7 +156,7 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
     });
   };
   return <div ref={themeRef} className={"qa-money-reward-root" + (mode==="inventory" ? " qa-money-reward-root--inventory" : "")}>
-    {mode==="reward"?<RewardCard open={show}/>:renderInventory()}
+    {mode==="reward"?<RewardCard open={show} price={price}/>:renderInventory()}
     {error&&!open?<p role="alert" className="qa-money-error">{error}</p>:null}
     {open&&typeof document!=="undefined"?createPortal(
       <div className="qa-money-modal-backdrop" style={{"--sparks-accent":theme} as React.CSSProperties}
@@ -158,9 +165,9 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
           <button type="button" ref={closeRef} className="qa-money-modal-close" onClick={()=>setOpen(false)} disabled={busy} aria-label="ปิดรายละเอียด">×</button>
           <div className="qa-money-modal-hero"><MoneyArt/><div><small>QA SPARKS DIGITAL REWARD</small><h2 id="qa-money-title">TrueMoney 20 THB</h2><p>แลกเป็น Item ก่อน แล้วค่อยกดใช้เพื่อส่งคำขอรับเงินจริง</p></div></div>
           <div className="qa-money-modal-content">
-            <div className="qa-money-modal-stats"><span>7,000 Sparks / Item</span><span>อายุ 30 วัน</span><span>รับเงินใน 14 วันทำการ</span></div>
+            <div className="qa-money-modal-stats"><span>{price.toLocaleString("en-US")} Sparks / Item</span><span>อายุ 30 วัน</span><span>รับเงินใน 14 วันทำการ</span></div>
             <h3>วิธีรับรางวัล</h3>
-            <p>1. ใช้ 7,000 Sparks แลกรับ TrueMoney มูลค่า 20 บาท</p>
+            <p>1. ใช้ {price.toLocaleString("en-US")} Sparks แลกรับ TrueMoney มูลค่า 20 บาท</p>
             <p>2. เข้า My Items และเลือก Item ที่ต้องการใช้ภายใน 30 วันนับจากวันที่แลก</p>
             <p>3. กรอกหมายเลขโทรศัพท์ TrueMoney 10 หลัก แล้วกดยืนยันส่งคำขอรับเงิน</p>
             <p>4. ตรวจสอบสถานะและวันที่จะได้รับเงินได้ใน My Items โดยจะได้รับภายใน 14 วันทำการหลังส่งคำขอ (ไม่รวมเสาร์–อาทิตย์)</p>
@@ -183,7 +190,7 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
               </> : !detailRequest ? <p>Item นี้หมดอายุแล้ว ไม่สามารถใช้งานได้</p> : null}
             </div> : mode === "inventory" ? null : <div className="qa-money-modal-claim">
               <h3>แลกรับ Item</h3><p>ยอด Sparks: {loaded?effectiveBalance.toLocaleString():"—"}</p>
-              {confirm?<><p>ยืนยันใช้ 7,000 Sparks เพื่อรับ Item TrueMoney 20 บาท?</p><div className="qa-money-action-row"><button type="button" onClick={()=>setConfirm(false)}>กลับ</button><button type="button" disabled={busy||!loaded||effectiveBalance<7000} onClick={()=>void buy()}>{busy?"กำลังแลก...":"ยืนยันแลก 7,000 Sparks"}</button></div></>:<button type="button" disabled={!loaded||effectiveBalance<7000} onClick={()=>setConfirm(true)}>{effectiveBalance<7000?"Sparks ไม่เพียงพอ":"แลก 1 Item · 7,000 Sparks"}</button>}
+              {confirm?<><p>ยืนยันใช้ {price.toLocaleString("en-US")} Sparks เพื่อรับ Item TrueMoney 20 บาท?</p><div className="qa-money-action-row"><button type="button" onClick={()=>setConfirm(false)}>กลับ</button><button type="button" disabled={busy||!loaded||!priceReady||effectiveBalance<price} onClick={()=>void buy()}>{busy?"กำลังแลก...":"ยืนยันแลก "+price.toLocaleString("en-US")+" Sparks"}</button></div></>:<button type="button" disabled={!loaded||!priceReady||effectiveBalance<price} onClick={()=>setConfirm(true)}>{!priceReady?"กำลังตรวจสอบราคา...":effectiveBalance<price?"Sparks ไม่เพียงพอ":"แลก 1 Item · "+price.toLocaleString("en-US")+" Sparks"}</button>}
             </div>}
             {notice?<p className="qa-money-success" role="status">{notice}</p>:null}
             {error?<p className="qa-money-error" role="alert">{error}</p>:null}

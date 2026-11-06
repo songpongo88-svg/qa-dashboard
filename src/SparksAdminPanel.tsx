@@ -126,8 +126,11 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [reauthPassword, setReauthPassword] = useState("");
   const [reauthLoading, setReauthLoading] = useState(false);
   const [reauthError, setReauthError] = useState("");
+  const [trueMoneyPrice,setTrueMoneyPrice] = useState("10000");
+  const [trueMoneyPriceLoaded,setTrueMoneyPriceLoaded] = useState(false);
+  const [trueMoneyPriceBusy,setTrueMoneyPriceBusy] = useState(false);
 
-  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test", input: Record<string, unknown> = {}) => {
+  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price", input: Record<string, unknown> = {}) => {
     if (action === "list" || action === "history") assertFirestoreReadAllowed();
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const response = await fetch("/api/sparks-admin", {
@@ -423,6 +426,26 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     } finally { setSaving(false); }
   }
 
+  useEffect(()=>{
+    if(!panelActive||!adminReady)return;
+    let active=true;
+    void request("get-truemoney-price").then(result=>{
+      if(active){setTrueMoneyPrice(String(result.price));setTrueMoneyPriceLoaded(true);}
+    }).catch(()=>{if(active)setTrueMoneyPriceLoaded(false);});
+    return()=>{active=false;};
+  },[panelActive,adminReady,request]);
+  const saveTrueMoneyPrice=async()=>{
+    const price=Number(trueMoneyPrice);
+    if(!Number.isSafeInteger(price)||price<1||price>1000000){setError("ราคาต้องเป็นจำนวนเต็มตั้งแต่ 1–1,000,000 Sparks");return;}
+    setTrueMoneyPriceBusy(true);setError("");setNotice("");
+    try{
+      const result=await request("set-truemoney-price",{price});
+      setTrueMoneyPrice(String(result.price));
+      setNotice("บันทึกราคา TrueMoney 20 THB เป็น "+Number(result.price).toLocaleString("en-US")+" Sparks / Item แล้ว");
+      window.dispatchEvent(new Event("qa:truemoney-price-updated"));
+    }catch(e){setError(e instanceof Error?e.message:"บันทึกราคาไม่สำเร็จ");}
+    finally{setTrueMoneyPriceBusy(false);}
+  };
   return <div className="qa-sparks-admin" aria-label="Sparks Admin Management">
     <div className="qa-sparks-admin-header">
       <div><h2>Sparks Admin Management</h2><p>ดูยอดและประวัติคะแนนของผู้ใช้งาน พร้อมจัดการคะแนนโดยบันทึกเหตุผลทุกครั้ง</p></div>
@@ -443,6 +466,19 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       ? "โควตา Firestore อาจเต็มหรือระบบถูกจำกัดอัตราการเรียกข้อมูลชั่วคราว เพื่อป้องกันการเรียกข้อมูลซ้ำ ระบบหยุดโหลด Wallet และ History เพิ่มเติมแล้ว ตรวจยอดที่ Firebase Console → Firestore → Usage ก่อน แล้วค่อยกดรีเฟรชเมื่อระบบพร้อม"
       : "ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยันสิทธิ์ผู้ดูแลสำเร็จ รายชื่อด้านล่างมาจาก QA User Management แบบอ่านอย่างเดียว"}</div> : null}
     {notice ? <div role="status" className="qa-sparks-admin-success">{notice}</div> : null}
+    <section className="qa-sparks-admin-reauth" aria-label="ตั้งค่าราคารางวัล TrueMoney 20 THB">
+      <div><strong>ตั้งค่าราคา · TrueMoney 20 THB</strong><p>เปลี่ยนจำนวน Sparks ที่ใช้แลก Item ได้เอง ราคามีผลเฉพาะการแลกใหม่ ไม่เปลี่ยนย้อนหลัง</p></div>
+      <label htmlFor="qa-truemoney-admin-price">Sparks / Item</label>
+      <div className="qa-sparks-admin-reauth-controls">
+        <input id="qa-truemoney-admin-price" type="number" min="1" max="1000000" step="1"
+          value={trueMoneyPrice} onChange={e=>setTrueMoneyPrice(e.target.value)}
+          disabled={!adminReady||!trueMoneyPriceLoaded||trueMoneyPriceBusy}/>
+        <button type="button" onClick={()=>void saveTrueMoneyPrice()}
+          disabled={!adminReady||!trueMoneyPriceLoaded||trueMoneyPriceBusy}>
+          {trueMoneyPriceBusy?"กำลังบันทึก...":trueMoneyPriceLoaded?"บันทึกราคา":"กำลังตรวจสอบราคา..."}
+        </button>
+      </div>
+    </section>
     <TrueMoneyTracker actorUsername={actorUsername} sessionId={sessionId} adminReady={adminReady}/>
     <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">

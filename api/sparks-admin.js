@@ -1,4 +1,4 @@
-import { createSign, createHash, timingSafeEqual } from "node:crypto";
+import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createFruitMatchService } from "../server/fruitMatchService.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
@@ -14,9 +14,10 @@ const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
 const TYPING_RELIEF_MAX_OWNED = 10;
 const SPARKS_ANNUAL_EARN_CAP = 200000;
 const TRUE_MONEY = Object.freeze({
-  id:"truemoney-20-thb", price:7000, valueTHB:20,
+  id:"truemoney-20-thb", price:10000, valueTHB:20,
   validityMs:30*24*60*60*1000, paymentBusinessDays:14,
 });
+const TRUE_MONEY_SETTINGS_PATH = "qa_sparks_reward_settings/truemoney-20-thb";
 const PROFILE_QUEST = Object.freeze({
   id: "profile-makeover-2026", start: "2026-11-05", end: "2026-12-15",
   reward: 150, historyId: "quest-profile-makeover-2026",
@@ -100,6 +101,45 @@ function encodeFields(obj) {
 }
 function recordValue(doc) {
   return doc?.fields ? decodeFields(doc.fields) : {};
+}
+function trueMoneyPrice(doc) {
+  const price = recordValue(doc).price;
+  return Number.isSafeInteger(price) && price >= 1 && price <= 1000000 ? price : TRUE_MONEY.price;
+}
+async function getTrueMoneyPrice() {
+  const doc = await cachedAdminRead("truemoney-price", () => readDoc(TRUE_MONEY_SETTINGS_PATH));
+  return {price:trueMoneyPrice(doc)};
+}
+async function setTrueMoneyPrice(body, admin) {
+  const price = Number(body.price);
+  if (!Number.isSafeInteger(price) || price < 1 || price > 1000000) fail("ราคาต้องเป็นจำนวนเต็มตั้งแต่ 1–1,000,000 Sparks",400);
+  for (let attempt=0; attempt<4; attempt++) {
+    const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
+    const transaction=begin?.transaction;
+    if (!transaction) fail("ไม่สามารถบันทึกราคารางวัลได้",503);
+    try {
+      const doc=await readDoc(TRUE_MONEY_SETTINGS_PATH,transaction);
+      const previousPrice=trueMoneyPrice(doc);
+      if (price===previousPrice) {
+        await firestoreRequest(":rollback","POST",{transaction}).catch(()=>{});
+        return {updated:false,price,previousPrice};
+      }
+      const now=new Date().toISOString();
+      await firestoreRequest(":commit","POST",{transaction,writes:[
+        updateWrite(TRUE_MONEY_SETTINGS_PATH,{price,previousPrice,updatedAt:now,updatedBy:admin.username},doc),
+        createWrite(path("qa_sparks_reward_settings","truemoney-20-thb","history",randomUUID()),{
+          previousPrice,price,updatedAt:now,updatedBy:admin.username,
+          updatedByName:admin.displayName,
+        }),
+      ]});
+      adminReadCache.delete("truemoney-price");
+      return {updated:true,price,previousPrice};
+    } catch(error) {
+      if (["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt<3) continue;
+      throw error;
+    }
+  }
+  fail("มีการแก้ไขราคาพร้อมกัน กรุณาลองใหม่",409);
 }
 function base64url(obj) {
   return Buffer.from(JSON.stringify(obj)).toString("base64url");
@@ -499,8 +539,8 @@ async function redeemTrueMoney(body,actor){
     if(!started?.transaction)fail("ไม่สามารถเริ่มการแลกรางวัล TrueMoney ได้",503);
     const transaction=started.transaction;
     try{
-      const [walletDoc,historyDoc]=await Promise.all([
-        readDoc(walletPath,transaction),readDoc(historyPath,transaction),
+      const [walletDoc,historyDoc,settingsDoc]=await Promise.all([
+        readDoc(walletPath,transaction),readDoc(historyPath,transaction),readDoc(TRUE_MONEY_SETTINGS_PATH,transaction),
       ]);
       const wallet=recordValue(walletDoc);
       if(historyDoc){
@@ -512,7 +552,9 @@ async function redeemTrueMoney(body,actor){
         fail("รหัสการแลกนี้ถูกใช้งานแล้ว",409);
       }
       const balance=intCount(wallet.balance);
-      if(balance<TRUE_MONEY.price)fail("ต้องมี 7,000 QA Sparks เพื่อแลก TrueMoney 20 บาท",400);
+      const price=trueMoneyPrice(settingsDoc);
+      if(Number(body.expectedPrice)!==price)fail("ราคาแลกรางวัลมีการเปลี่ยนแปลง กรุณาเปิดรายละเอียด Item ใหม่อีกครั้ง",409);
+      if(balance<price)fail("ต้องมี "+price.toLocaleString("en-US")+" QA Sparks เพื่อแลก TrueMoney 20 บาท",400);
       const items=ownTrueMoneyItems(wallet);
       if(items.length>=100)fail("เก็บ TrueMoney Item ได้สูงสุด 100 รายการต่อบัญชี",400);
       const now=new Date(),itemId="tm-"+requestId;
@@ -521,11 +563,11 @@ async function redeemTrueMoney(body,actor){
         redeemedAt:now.toISOString(),expiresAt:new Date(now.getTime()+TRUE_MONEY.validityMs).toISOString(),
         valueTHB:TRUE_MONEY.valueTHB,
       };
-      const nextBalance=balance-TRUE_MONEY.price;
+      const nextBalance=balance-price;
       await firestoreRequest(":commit","POST",{transaction,writes:[
         updateWrite(walletPath,{
           username:actor.username,balance:nextBalance,
-          totalSpent:intCount(wallet.totalSpent)+TRUE_MONEY.price,
+          totalSpent:intCount(wallet.totalSpent)+price,
           rewardOrders:intCount(wallet.rewardOrders)+1,
           trueMoneyItems:[...items,item],
           updatedAt:now.toISOString(),
@@ -533,8 +575,8 @@ async function redeemTrueMoney(body,actor){
         createWrite(historyPath,{
           createdAt:now.toISOString(),type:"spend",source:"reward-redemption",
           rewardId:TRUE_MONEY.id,title:"TrueMoney 20 THB Redeemed",
-          detail:"แลก 7,000 Sparks รับ Item TrueMoney 20 บาท อายุ 30 วัน",
-          itemId,amount:-TRUE_MONEY.price,balanceAfter:nextBalance,
+          detail:"แลก "+price.toLocaleString("en-US")+" Sparks รับ Item TrueMoney 20 บาท อายุ 30 วัน",
+          price,itemId,amount:-price,balanceAfter:nextBalance,
           performedBy:actor.username,status:"Completed",
         }),
       ]});
@@ -1240,9 +1282,11 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
-    if (["redeem-truemoney","use-truemoney-item","list-my-truemoney"].includes(body.action)) {
+    if (["get-truemoney-price","redeem-truemoney","use-truemoney-item","list-my-truemoney"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
-      const result=body.action==="redeem-truemoney"
+      const result=body.action==="get-truemoney-price"
+        ? await getTrueMoneyPrice()
+        : body.action==="redeem-truemoney"
         ? await redeemTrueMoney(body,actor)
         : body.action==="use-truemoney-item"
         ? await requestTrueMoneyPayout(body,actor)
@@ -1272,6 +1316,9 @@ export default async function handler(req, res) {
     }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
     const admin = await authorizeAdmin(body);
+    if (body.action === "set-truemoney-price") {
+      return res.status(200).json(await setTrueMoneyPrice(body,admin));
+    }
     if (body.action === "list-truemoney-tracker") {
       return res.status(200).json(await listTrueMoneyTracker());
     }

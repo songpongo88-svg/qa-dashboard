@@ -32,7 +32,7 @@ set("qa_user_sessions/"+adminSession,{
 });
 set("qa_user_profiles/Agent",{username:"Agent",role:"Admin Live Chat",status:"Active"});
 set("qa_user_profiles/Songpon",{username:"Songpon",role:"Quality Assurance",status:"Active"});
-set(walletKey,{username:"Agent",balance:14000,totalEarned:14000,totalSpent:0,memberYear:2026,memberYearEarned:14000});
+set(walletKey,{username:"Agent",balance:24000,totalEarned:24000,totalSpent:0,memberYear:2026,memberYearEarned:24000});
 const encode=value=>{
  if(value==null)return {nullValue:"NULL_VALUE"};
  if(typeof value==="string")return {stringValue:value};
@@ -97,13 +97,13 @@ const setClock=iso=>{clock=iso;};
 try{
  let r=await req("claim-profile-makeover");
  assert.equal(r.code,409,"default picture gets no quest credit");
- assert.equal(get(walletKey).balance,14000);
+ assert.equal(get(walletKey).balance,24000);
  set(profilePhoto,{username:"Agent",photoDataUrl:fakePhoto,updatedAt:"2026-10-20T10:00:00Z"});
  r=await req("claim-profile-makeover");
  assert.equal(r.code,200,JSON.stringify(r.body));
  assert.equal(r.body.updated,true);
- assert.equal(get(walletKey).balance,14150);
- assert.equal(get(walletKey).memberYearEarned,14150);
+ assert.equal(get(walletKey).balance,24150);
+ assert.equal(get(walletKey).memberYearEarned,24150);
  const originalCommits=commits;
  r=await req("claim-profile-makeover");
  assert.equal(r.code,200);
@@ -113,25 +113,43 @@ try{
  assert.equal((await req("claim-profile-makeover",{} ,false,"Other")).code,403);
  console.log("PASS Profile Makeover: stored pre-existing photo awards 150 exactly once, default and impersonated denied");
 
+ let pricing=await req("get-truemoney-price");
+ assert.equal(pricing.code,200);
+ assert.equal(pricing.body.price,10000);
+ assert.equal((await req("set-truemoney-price",{price:9000})).code,403,"members cannot change reward price");
+ assert.equal((await req("set-truemoney-price",{price:-1},true)).code,400);
+ pricing=await req("set-truemoney-price",{price:10500},true);
+ assert.equal(pricing.code,200,JSON.stringify(pricing.body));
+ assert.equal((await req("get-truemoney-price")).body.price,10500);
+ assert.equal((await req("redeem-truemoney",{requestId:"stale-price-attempt-123456",expectedPrice:10000})).code,409,
+   "cannot silently charge a changed reward price");
+ assert.equal(get(walletKey).balance,24150);
+ pricing=await req("set-truemoney-price",{price:10000},true);
+ assert.equal(pricing.code,200);
+ assert.equal((await req("get-truemoney-price")).body.price,10000);
+ assert.equal([...docs.values()].filter(x=>x.updatedBy==="songpon"&&x.price).length,3,
+  "price settings and history audit must be persisted");
+ console.log("PASS TrueMoney Admin price changes: admin-only, persisted setting, audit history, stale expected price rejected");
+
  const idA="tm-20261105-test-purchase-123456";
  const idB="tm-20261106-test-purchase-123456";
- r=await req("redeem-truemoney",{requestId:idA.slice(3)});
+ r=await req("redeem-truemoney",{requestId:idA.slice(3),expectedPrice:10000});
  assert.equal(r.code,200,JSON.stringify(r.body));
  assert.equal(r.body.item.itemId,idA);
- assert.equal(get(walletKey).balance,7150);
- assert.equal(get(walletKey).totalSpent,7000);
+ assert.equal(get(walletKey).balance,14150);
+ assert.equal(get(walletKey).totalSpent,10000);
  assert.equal(get(walletKey).rewardOrders,1);
- assert.equal((await req("redeem-truemoney",{requestId:idA.slice(3)})).body.alreadyApplied,true);
+ assert.equal((await req("redeem-truemoney",{requestId:idA.slice(3),expectedPrice:10000})).body.alreadyApplied,true);
  setClock("2026-11-06T03:00:00.000Z");
- r=await req("redeem-truemoney",{requestId:idB.slice(3)});
+ r=await req("redeem-truemoney",{requestId:idB.slice(3),expectedPrice:10000});
  assert.equal(r.code,200,JSON.stringify(r.body));
- assert.equal(get(walletKey).balance,150);
+ assert.equal(get(walletKey).balance,4150);
  assert.equal(get(walletKey).trueMoneyItems.length,2);
  assert.notEqual(get(walletKey).trueMoneyItems[0].expiresAt,get(walletKey).trueMoneyItems[1].expiresAt);
  assert.equal(get(walletKey).trueMoneyItems[0].expiresAt,"2026-12-05T03:00:00.000Z");
  assert.equal(get(walletKey).trueMoneyItems[1].expiresAt,"2026-12-06T03:00:00.000Z");
- assert.equal((await req("redeem-truemoney",{requestId:"20261107-new-purchase-123456"})).code,400);
- console.log("PASS TrueMoney: 7,000 Sparks per Item, independent 30-day expiry, no duplicate charge");
+ assert.equal((await req("redeem-truemoney",{requestId:"20261107-new-purchase-123456",expectedPrice:10000})).code,400);
+ console.log("PASS TrueMoney: 10,000 Sparks per Item, independent 30-day expiry, no duplicate charge");
 
  assert.equal((await req("use-truemoney-item",{itemId:idA,phone:"123"})).code,400);
  r=await req("use-truemoney-item",{itemId:idA,phone:"0812345678"});
@@ -139,7 +157,7 @@ try{
  assert.equal(r.body.status,"pending");
  assert.equal(r.body.dueDate,"2026-11-26"); // 14 Mon–Fri days after Friday Nov 6
  assert.equal(get(walletKey).trueMoneyItems[0].status,"requested");
- assert.equal(get(walletKey).balance,150);
+ assert.equal(get(walletKey).balance,4150);
  assert.equal((await req("use-truemoney-item",{itemId:idA,phone:"0812345678"})).body.alreadyApplied,true);
  r=await req("list-my-truemoney");
  assert.equal(r.code,200);

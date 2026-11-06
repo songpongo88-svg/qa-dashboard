@@ -4,11 +4,11 @@ import "./fruitMatchGame.css";
 
 type FruitRecord = {username:string;displayName:string;elapsedMs:number;moves:number;achievedAt:string};
 type GameResult = {roundId:string;won:boolean;pairs:number;moves:number;elapsedMs:number;earned:number;reason:string;createdAt:string};
-type Stats = {played:number;wins:number;completed:number;best:FruitRecord|null;history:GameResult[];dailyRewardCount:number;totalSparks:number;rewardDay:string};
+type Stats = {played:number;wins:number;completed:number;best:FruitRecord|null;history:GameResult[];dailyRewardCount:number;dailyPlayCount:number;playDay:string;totalSparks:number;rewardDay:string};
 type GameData = {stats:Stats;leaderboard:FruitRecord[]};
 type Round = {token:string;deck:number[];began:number;trace:{card:number;at:number}[];first:number|null;
   open:Set<number>;matched:Set<number>;lockedUntil:number;moves:number;phase:"playing"|"saving"|"complete"|"error";localResult?:GameResult};
-const EMPTY:Stats={played:0,wins:0,completed:0,best:null,history:[],dailyRewardCount:0,totalSparks:0,rewardDay:""};
+const EMPTY:Stats={played:0,wins:0,completed:0,best:null,history:[],dailyRewardCount:0,dailyPlayCount:0,playDay:"",totalSparks:0,rewardDay:""};
 const PREVIEW=Array.from({length:RULES.pairs*2},(_,index)=>index%RULES.pairs);
 
 export default function FruitMatchGame({username,sessionId}:{username:string;sessionId:string}) {
@@ -117,7 +117,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
   const complete=snapshot.phase==="complete";
   return <section className="qfm-root" aria-label="Fruit Match มินิเกมจับคู่ผลไม้">
     <header className="qfm-brand"><span>✦ QA SPARKS · MINI GAMES</span><span>12 คู่ / 24 ใบ</span></header>
-    <div className="qfm-heading"><div><p>จับคู่ภาพผลไม้ แล้วทำเวลาให้ดีที่สุด</p><h2>Fruit Match</h2><small>12 คู่ · 24 ใบ · 2 นาที 30 วินาที</small></div><div className="qfm-reward">✦ +10<small>Sparks / รอบที่ผ่าน</small></div></div>
+    <div className="qfm-heading"><div><p>จับคู่ภาพผลไม้ แล้วทำเวลาให้ดีที่สุด</p><h2>Fruit Match</h2><small>12 คู่ · 24 ใบ · 2 นาที 30 วินาที</small></div><div className="qfm-reward">✦ +{RULES.reward}<small>Sparks / รอบที่ผ่าน</small></div></div>
     <nav className="qfm-tabs" role="tablist" aria-label="Fruit Match">
       {([["play","เล่นเกม"],["rank","อันดับผู้เล่น"],["stats","สถิติของฉัน"]] as const).map(([key,label])=><button key={key} id={"qfm-tab-"+key} type="button" role="tab" aria-selected={tab===key} aria-controls={"qfm-"+key} onClick={()=>setTab(key)}>{label}</button>)}
     </nav>
@@ -133,13 +133,13 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
           </button>;
         })}
       </div>{result?<div className="qfm-result" role="status" aria-live="polite"><span aria-hidden="true">{saving?"…":failed?"↻":result.won?"🏆":"⏰"}</span><h3>{saving?"กำลังบันทึกผล…":failed?"บันทึกผลไม่สำเร็จ":result.won?"จับคู่ครบ 12 คู่แล้ว!":"หมดเวลาแล้ว"}</h3><strong>{formatFruitTime(result.elapsedMs,true)}</strong><p>จับคู่ได้ {result.pairs} / 12 คู่ · เปิด {result.moves} ครั้ง</p>
-        {complete?<><p className="qfm-result-points">{result.earned?`+${result.earned} Sparks`:result.reason==="daily-limit"?"รับ Sparks ครบ 3 ครั้งวันนี้แล้ว":result.reason==="annual-limit"?"รางวัลรอบนี้เกินเพดาน Sparks ประจำปี":"รอบนี้ยังไม่ได้รับ Sparks"}</p>{result.won?<button type="button" className="qfm-secondary" onClick={()=>setTab("rank")}>ดูอันดับของฉัน →</button>:null}</>:null}
+        {complete?<><p className="qfm-result-points">{result.earned?`+${result.earned} Sparks`:result.reason==="daily-limit"?"รับ Sparks ครบ 2 ครั้งวันนี้แล้ว":result.reason==="annual-limit"?"รางวัลรอบนี้เกินเพดาน Sparks ประจำปี":"รอบนี้ยังไม่ได้รับ Sparks"}</p>{result.won?<button type="button" className="qfm-secondary" onClick={()=>setTab("rank")}>ดูอันดับของฉัน →</button>:null}</>:null}
       </div>:null}</div>
       <div className="qfm-message" aria-live="polite">{playing?"เปิดทีละ 2 ใบ แล้วหาภาพผลไม้ชนิดเดียวกัน":saving?"กรุณารอการบันทึกผล":complete?"บันทึกผลการเล่นแล้ว":failed?"ลองบันทึกอีกครั้งก่อนเริ่มรอบใหม่":"พร้อมแล้วกดเริ่ม ภาพจะสลับตำแหน่งใหม่ทุกรอบ"}</div>
       {failed?<button type="button" className="qfm-primary" onClick={()=>round.current&&void submit(round.current)}>ลองบันทึกผลอีกครั้ง</button>:null}
-      <button className="qfm-primary" type="button" onClick={()=>void start()} disabled={playing||saving||starting||!imagesReady||!username||!sessionId}>
-        {starting?"กำลังเริ่มเกม…":playing?"กำลังเล่น…":saving?"กำลังบันทึก…":!imagesReady?"กำลังโหลดภาพ…":snapshot.phase==="ready"?"เริ่มเล่น 12 คู่ →":data.stats.dailyRewardCount>=RULES.dailyRewardLimit?"เล่นต่อเพื่อทำสถิติ →":"เล่นอีกครั้ง →"}</button>
-      <div className="qfm-footbar"><span>รับรางวัลวันนี้ <b>{data.stats.dailyRewardCount} / 3</b> ครั้ง</span><span>ได้รับจากเกม <b>{data.stats.totalSparks}</b> Sparks</span></div>
+      <button className="qfm-primary" type="button" onClick={()=>void start()} disabled={playing||saving||starting||!imagesReady||!username||!sessionId||data.stats.dailyPlayCount>=RULES.dailyPlayLimit}>
+        {starting?"กำลังเริ่มเกม…":playing?"กำลังเล่น…":saving?"กำลังบันทึก…":!imagesReady?"กำลังโหลดภาพ…":data.stats.dailyPlayCount>=RULES.dailyPlayLimit?"ครบ 2 ครั้งวันนี้แล้ว":snapshot.phase==="ready"?"เริ่มเล่น 12 คู่ →":"เล่นอีกครั้ง →"}</button>
+      <div className="qfm-footbar"><span>เล่นวันนี้ <b>{data.stats.dailyPlayCount} / {RULES.dailyPlayLimit}</b> ครั้ง</span><span>ได้รับจากเกม <b>{data.stats.totalSparks}</b> Sparks</span></div>
     </section>
     <section id="qfm-rank" role="tabpanel" aria-labelledby="qfm-tab-rank" hidden={tab!=="rank"}>
       <div className="qfm-section-head"><h3>ใครจับคู่ครบเร็วที่สุด?</h3><button type="button" className="qfm-text-button" disabled={loading} onClick={()=>void refreshData()}>{loading?"กำลังโหลด…":"อัปเดตอันดับ"}</button></div>
@@ -154,7 +154,7 @@ export default function FruitMatchGame({username,sessionId}:{username:string;ses
       <h4>ผลการเล่นล่าสุด</h4>{data.stats.history.length?<table className="qfm-table"><thead><tr><th>ผล / วันที่เล่น</th><th>เวลาที่ใช้</th><th>คู่ที่ได้</th></tr></thead><tbody>{[...data.stats.history].reverse().map(row=><tr key={row.roundId}><td>{row.won?"ผ่าน":"หมดเวลา"}<small>{new Date(row.createdAt).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false})}</small></td><td>{formatFruitTime(row.elapsedMs,true)}</td><td>{row.pairs} / 12</td></tr>)}</tbody></table>:<p className="qfm-empty">ยังไม่มีผลการเล่น ลองจับคู่ผลไม้รอบแรกกัน</p>}
     </section>
     {error?<div className="qfm-error" role="alert">{error}</div>:null}
-    <p className="qfm-note">ผ่านรับ 10 Sparks · สูงสุด 3 ครั้ง/วัน · เวลาไทย · สลับแท็บแล้วยังจับเวลาต่อ</p>
+    <p className="qfm-note">จับคู่สำเร็จรับ {RULES.reward} Sparks · เล่นได้ {RULES.dailyPlayLimit} ครั้ง/วัน · เวลาไทย · สลับแท็บแล้วยังจับเวลาต่อ</p>
     <p className="qfm-credit">ภาพ: <a href="https://github.com/fruits-360/fruits-360-100x100" target="_blank" rel="noreferrer">Fruits-360 · Mihai Oltean</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a></p>
   </section>;
 }

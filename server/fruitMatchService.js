@@ -35,7 +35,8 @@ function publicStats(stats) {
     played: number(stats.played), wins: number(stats.wins), completed: number(stats.completed),
     best: stats.best || null, history: Array.isArray(stats.history) ? stats.history.slice(-10) : [],
     dailyRewardCount: stats.rewardDay === today() ? number(stats.dailyRewardCount) : 0,
-    totalSparks: number(stats.totalSparks), rewardDay: today(),
+    dailyPlayCount: stats.playDay === today() ? number(stats.dailyPlayCount) : stats.rewardDay === today() ? number(stats.dailyRewardCount) : 0,
+    playDay: today(), totalSparks: number(stats.totalSparks), rewardDay: today(),
   };
 }
 function rows(board) {
@@ -80,12 +81,15 @@ export function createFruitMatchService(db) {
           && now >= previous.startedAt && now - previous.startedAt < FRUIT_MATCH.durationMs) round = previous;
       if (round) return {writes:[],result:{token:ticket(round),deck:round.deck,stats:publicStats(stats)}};
       if (previous && now - previous.startedAt < 1000) reject("กรุณารอสักครู่ก่อนเริ่มรอบใหม่", 429);
+      const date=today();
+      const dailyPlayCount=stats.playDay===date?number(stats.dailyPlayCount):stats.rewardDay===date?number(stats.dailyRewardCount):0;
+      if (dailyPlayCount>=FRUIT_MATCH.dailyPlayLimit) reject("ครบสิทธิ์เล่น Fruit Match 2 ครั้งวันนี้แล้ว กรุณาเล่นอีกครั้งวันถัดไป",409);
       const deck = Array.from({length:FRUIT_MATCH.pairs*2},(_,index)=>index % FRUIT_MATCH.pairs);
       for (let i=deck.length-1;i>0;i--) { const j=randomInt(i+1); [deck[i],deck[j]]=[deck[j],deck[i]]; }
       round = {version:FRUIT_MATCH.version,id:randomUUID(),username:actor.username,sessionHash:sessionHash(body.sessionId),
         requestId:body.requestId,startedAt:now,deck};
       const updates = {username:actor.username,displayName:actor.displayName.slice(0,120),played:number(stats.played)+1,
-        activeRound:round,updatedAt:new Date(now).toISOString()};
+        activeRound:round,playDay:date,dailyPlayCount:dailyPlayCount+1,updatedAt:new Date(now).toISOString()};
       return {writes:[updateWrite(docPath,updates,snap)],result:{token:ticket(round),deck,stats:publicStats({...stats,...updates})}};
     });
   }
