@@ -33,6 +33,10 @@ try{
   assert.match(css, /qa-sparks-fruit-photo/, "fruit cards need image presentation");
     const sparksAdmin = await readFile("src/SparksAdminPanel.tsx", "utf8");
   const sparksAdminApi = await readFile("api/sparks-admin.js", "utf8");
+  const tracker = await readFile("src/TrueMoneyTracker.tsx", "utf8");
+  assert.match(tracker, /disabled=\{busy\|\|!adminReady\}/, "payout confirmation must not appear actionable when admin permission is unavailable");
+  assert.match(tracker, /\{error\}\<\/p\>/, "payout confirmation must show server errors visibly inside the modal");
+  assert.match(tracker, /onClick=\{\(\)=>void markPaid\(\)\}/, "payout confirmation must dispatch the explicit admin marking action");
   assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");
   assert.match(sparksAdmin, /setAdminReady\(false\)/, "Sparks adjustment must be disabled if the server is unavailable");
   assert.match(sparksAdmin, /disabled=\{!adminReady/, "mutation controls must be disabled without server authorization");
