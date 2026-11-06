@@ -3519,10 +3519,17 @@ export default function SummaryMockup({
         const evaluationCases: CaseItem[] = storedEvaluations
           .filter((record) => !isNoCaseEvaluation(record))
           .map((record) => {
-            const auditDateObj = record.auditDate ? new Date(`${record.auditDate}T00:00:00`) : null;
-            const validAuditDate = auditDateObj && !Number.isNaN(auditDateObj.getTime()) ? auditDateObj : null;
-            const monthKey = getMonthKey(validAuditDate);
-            const monthDate = validAuditDate ? new Date(validAuditDate.getFullYear(), validAuditDate.getMonth(), 1) : null;
+            // Historical cases can use a slash Case Date, a preview-only date,
+            // or a saved month with no exact day. Keep their original scores.
+            const validAuditDate = [
+              record.auditDate, record.rawDataPreview?.["Case Date"],
+              record.rawDataPreview?.["Audit Date"],
+            ].map(excelDateToJSDate).find(Boolean) || null;
+            const fallbackMonth = getStoredEvaluationMonthKey(record);
+            const monthKey = validAuditDate ? getMonthKey(validAuditDate) : (fallbackMonth || "unknown");
+            const monthDate = /^\d{4}-\d{2}$/.test(monthKey)
+              ? new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)
+              : null;
             const topicMaster = getTopicMasterByMonth(monthKey);
             const topics: Topic[] = topicMaster.map((master) => {
               const matched = record.topics.find((topic) => topic.code === master.code);
@@ -3536,17 +3543,17 @@ export default function SummaryMockup({
                 comment: matched?.comment || "",
               };
             });
-            const finalScore = Number(record.finalScore || topics.reduce((sum, topic) => sum + topic.score, 0));
+            const finalScore = Number(record.finalScore ?? topics.reduce((sum, topic) => sum + topic.score, 0));
             const evaluationKey = record.evaluationKey || `web-eval|${record.caseId}|${record.agentName}|${record.auditDate}|${record.id}`;
             return {
               key: evaluationKey,
               evaluationKey,
               agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
-              auditDate: formatAuditDate(record.auditDate),
+              auditDate: validAuditDate ? formatAuditDate(validAuditDate) : "-",
               auditDateObj: validAuditDate,
               monthKey,
               monthLabel: getMonthLabel(monthDate),
-              yearKey: getYearKey(validAuditDate),
+              yearKey: monthKey !== "unknown" ? monthKey.slice(0, 4) : "unknown",
               weekLabel: getWeekLabelFromAuditDate(validAuditDate),
               caseId: record.caseId,
               inquiryTh: record.inquiry || "-",
@@ -3560,11 +3567,16 @@ export default function SummaryMockup({
               displayRevisedTopicCodes: [],
             } as CaseItem;
           })
-            .filter((item) => item.agent && item.caseId && item.auditDateObj);
+            .filter((item) => item.agent && item.caseId && /^\d{4}-\d{2}$/.test(item.monthKey));
 
         const latestByEvaluationKey = new Map<string, CaseItem>();
-        const rawMonthKeys = new Set(mappedCases.map((item) => item.monthKey).filter(Boolean));
-        const evaluationCasesForMerge = evaluationCases.filter((item) => !rawMonthKeys.has(item.monthKey));
+        // Only the closed January-February workbooks are authoritative for a
+        // whole month. Other months must merge by Case ID and Agent, or even a
+        // single RawData row would hide every other stored evaluation that month.
+        const historicalRawMonthKeys = new Set(mappedCases
+          .map((item) => item.monthKey)
+          .filter((key) => key === "2026-01" || key === "2026-02"));
+        const evaluationCasesForMerge = evaluationCases.filter((item) => !historicalRawMonthKeys.has(item.monthKey));
         [...evaluationCasesForMerge, ...mappedCases].forEach((item) => {
           latestByEvaluationKey.set(buildCaseMergeKey(item), item);
         });
