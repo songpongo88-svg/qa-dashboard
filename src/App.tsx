@@ -60,6 +60,7 @@ import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
 import CallHistoryMockup from "./CallHistoryMockup";
 import {
+  fetchChatEventsIncrementally,
   fetchUsageLogsByEventTypes,
   isUsageLogEventTypeDisabled,
   logUsageEvent,
@@ -944,7 +945,8 @@ const DEFAULT_MAINTENANCE_STATE: MaintenanceState = {
   updatedBy: "",
 };
 const MAINTENANCE_POLL_INTERVAL_MS = 5 * 60 * 1000;
-const INBOX_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const INBOX_POLL_INTERVAL_MS = 15 * 60 * 1000;
+const PASSWORD_RESET_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const USER_ACCESS_EVENT_TYPES = [
   "user_role_updated",
   "user_profile_saved",
@@ -1020,7 +1022,7 @@ type InboxTaskItem = {
 const INBOX_READ_KEY = "qa_inbox_read_tasks";
 const CHAT_READ_KEY = "qa_chat_read_at";
 const PASSWORD_EXPIRY_WARNING_DAYS = 30;
-const ONLINE_USER_WINDOW_MS = 90 * 1000;
+const ONLINE_USER_WINDOW_MS = 150 * 1000;
 const CHAT_CALL_TIMEOUT_MS = 45 * 1000;
 const CHAT_HISTORY_RESET_AT = "2026-05-15T10:40:51+07:00";
 const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
@@ -5774,7 +5776,7 @@ export default function App() {
     await loadMaintenanceState();
   };
 
-  const loadChatData = async () => {
+  const loadChatData = async (forceRefresh = false) => {
     if (!currentUser) {
       setChatMessages([]);
       setOnlineUsers([]);
@@ -5789,7 +5791,7 @@ export default function App() {
     }
 
     try {
-      const logs = await fetchUsageLogsByEventTypes(CHAT_EVENT_TYPES, 300);
+      const logs = await fetchChatEventsIncrementally(forceRefresh);
       const nextMessages = buildChatMessages(logs).filter((message) => canCurrentUserSeeChatMessage(message, currentUser));
       const nextSignals = buildWebRtcSignals(logs).filter((signal) => canCurrentUserSeeWebRtcSignal(signal, currentUser));
       const latestIncomingMessage = nextMessages
@@ -5807,16 +5809,18 @@ export default function App() {
       setChatMessages(nextMessages);
       setWebRtcSignals(nextSignals);
       setOnlineUsers(buildOnlineUsers(logs));
-    } catch {
-      setChatMessages([]);
-      setOnlineUsers([]);
-      setWebRtcSignals([]);
+    } catch (error) {
+      // Keep the last known messages and unread counts during Firestore quota outages.
+      console.warn("Chat update failed; retaining the last complete snapshot", error);
     }
   };
 
+  const lastPresenceSentAtRef = useRef(0);
   const sendPresence = async () => {
-    if (!currentUser) return;
+    if (!currentUser || document.visibilityState === "hidden" || navigator.onLine === false) return;
     if (!CHAT_SUPABASE_POLLING_ENABLED) return;
+    if (Date.now() - lastPresenceSentAtRef.current < 55_000) return;
+    lastPresenceSentAtRef.current = Date.now();
     await logUsageEvent(currentUser, "user_presence", {
       tab: activeTab,
       details: { activeTab },
@@ -5837,7 +5841,7 @@ export default function App() {
       },
     });
     await sendPresence();
-    await loadChatData();
+    await loadChatData(true);
   };
 
   const editChatMessage = async (message: ChatMessage, nextMessage: string) => {
@@ -5850,7 +5854,7 @@ export default function App() {
         message: nextMessage,
       },
     });
-    await loadChatData();
+    await loadChatData(true);
   };
 
   const deleteChatMessage = async (message: ChatMessage) => {
@@ -5862,7 +5866,7 @@ export default function App() {
         messageId: message.id,
       },
     });
-    await loadChatData();
+    await loadChatData(true);
   };
 
   const startChatCall = async (toUser?: OnlineUser) => {
@@ -5882,7 +5886,7 @@ export default function App() {
         toDisplayName: toUser?.displayName || "",
       },
     });
-    await loadChatData();
+    await loadChatData(true);
     return callId;
   };
 
@@ -5899,7 +5903,7 @@ export default function App() {
         toDisplayName: message.displayName,
       },
     });
-    await loadChatData();
+    await loadChatData(true);
   };
 
   const endChatCall = async (message: ChatMessage) => {
@@ -5912,7 +5916,7 @@ export default function App() {
         room: message.room,
       },
     });
-    await loadChatData();
+    await loadChatData(true);
   };
 
   const sendWebRtcSignal = async (signal: Omit<WebRtcSignal, "id" | "createdAt" | "fromUsername">) => {
@@ -5927,7 +5931,7 @@ export default function App() {
         payload: signal.payload,
       },
     });
-    await loadChatData();
+    await loadChatData(true);
   };
 
   const markChatRoomRead = useCallback((roomKey: string) => {
@@ -6133,7 +6137,7 @@ export default function App() {
     void loadPasswordResetRequests();
     const timer = window.setInterval(() => {
       void loadPasswordResetRequests();
-    }, INBOX_POLL_INTERVAL_MS);
+    }, PASSWORD_RESET_POLL_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
   }, [currentUser, maintenanceBlocked, passwordResetShortcutAllowed]);
@@ -6211,21 +6215,22 @@ export default function App() {
       return;
     }
 
-    void sendPresence();
-    void loadChatData();
-
-    const presenceTimer = window.setInterval(() => {
-      void sendPresence();
-    }, 30000);
-    const chatTimer = window.setInterval(() => {
-      void loadChatData();
-    }, 5000);
-
+    const visible = () => document.visibilityState === "visible" && navigator.onLine !== false;
+    const refreshVisible = () => { if (visible()) { void sendPresence(); void loadChatData(); } };
+    refreshVisible();
+    const presenceTimer = window.setInterval(() => { if (visible()) void sendPresence(); }, 60_000);
+    // Chat stays responsive while open; the sidebar badge checks less frequently.
+    const chatPollingInterval = activeTab === "team-chat" || floatingChatOpen ? 5_000 : 90_000;
+    const chatTimer = window.setInterval(() => { if (visible()) void loadChatData(); }, chatPollingInterval);
+    document.addEventListener("visibilitychange", refreshVisible);
+    window.addEventListener("online", refreshVisible);
     return () => {
       window.clearInterval(presenceTimer);
       window.clearInterval(chatTimer);
+      document.removeEventListener("visibilitychange", refreshVisible);
+      window.removeEventListener("online", refreshVisible);
     };
-  }, [currentUser, activeTab, maintenanceBlocked]);
+  }, [currentUser, activeTab, floatingChatOpen, maintenanceBlocked]);
 
   useEffect(() => {
     let isMounted = true;
@@ -8267,7 +8272,7 @@ export default function App() {
           }}
           onSendMessage={async (message, toUser) => {
             await sendChatMessage(message, toUser);
-            await loadChatData();
+            await loadChatData(true);
           }}
           onRefresh={() => {
             void sendPresence();
