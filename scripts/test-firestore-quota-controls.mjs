@@ -54,6 +54,7 @@ const databaseMock = `
  export const query=(ref,...filters)=>({kind:'query',ref,filters}),where=(field,op,value)=>({kind:'where',field,op,value});
  export const limit=value=>({kind:'limit',value}),orderBy=(field,direction)=>({kind:'order',field,direction});
  export const serverTimestamp=()=>new Date().toISOString();
+ export async function addDoc(ref,data){const id='mock-'+f().documents.size;f().documents.set(ref.path+'/'+id,data);return {id}}
  export async function getDoc(ref){f().reads.push(ref.path);return f().snapshot(ref.path)}
  export const getDocFromServer=getDoc;
  export async function getDocs(target){f().queries.push(target);return f().rows(target)}
