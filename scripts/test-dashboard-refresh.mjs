@@ -106,7 +106,11 @@ try {
   assert.ok(table().includes('AA921008'),'preview Case Date is accepted');
   assert.ok(table().includes('AA921009'),'month-only evaluation remains in October without a fabricated day');
   assert.ok(table().includes('Gen All Case PDF (10)'),'all ten stored October evaluations appear in monthly reports');
-  assert.ok(fixture.publishes.at(-1).length===10,'historical records are retained without changing scores');
+  const octoberReport=await loadCanonicalReportData();
+  const octoberCases=octoberReport.cases.filter(item=>item.monthKey==='2026-10');
+  assert.equal(octoberCases.length,10,'the canonical report source retains all ten cases');
+  assert.equal(octoberCases.find(item=>item.caseId==='AA921000')?.finalScore,75,'original score remains unchanged');
+  assert.equal(octoberCases.find(item=>item.caseId==='AA921009')?.finalScore,84,'month-only record preserves its score');
   console.log('PASS ten historical October cases with ISO, slash, preview-only and month-only dates are retained');
 
   fixture.read=async options=>{assert.equal(options.strict,true);return [sample('AA900001')];};
