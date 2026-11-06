@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T08:05:00.000Z",
-  "reason": "Reviewed Analytics yearly agent x month score matrix, Excel/PDF export controls, 10-case monthly KPI condition, existing Team Summary preservation, and pending-evaluation export gating. Updated Analytics guide instructions.",
-  "contentChanged": true,
+  "reviewedAt": "2026-11-06T08:45:00.000Z",
+  "reason": "Re-reviewed the current QA guide/manual and source changes alongside the TrueMoney payout modal fix. Payout remains admin-only and manual; failed requests now show errors directly in the confirmation popup. No payout automatically sent and no QA or wallet data changed.",
+  "contentChanged": false,
   "reviewedChapters": [
     "analytics"
   ],
@@ -365,7 +365,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "805c4c0b96f205eb9ae83b4887fc96f162ce987a5962bdaf0ff6324b1f2dc50e",
     "scripts/test-qa-sparks-mini-inventory.mjs": "3a6be960d6344fb6c9b850d696fbb35ae89524f0156a7eb3dfda5d9e0192977f",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "2748ffc898f463874149417e25e7b5260e924a3afed0728e10b5752b7665a574",
+    "scripts/test-qa-sparks-ui.mjs": "34941b5ab0f3d65d61fe63a012c7acbce2c5356c7542ba434f2acfdc772e1dcd",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-reporting-history.mjs": "4f93d3ecf3b0a90b62b7d336a4f79ddd435e90f99efa04cfd5e9beaae5466cd0",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
@@ -608,7 +608,7 @@
     "src/Time24Input.tsx": "b1234fe54f457f12d86d7edc41eb233ea9ecacf7591708e146e26b37edf764fb",
     "src/TrainingAttendanceMockup.tsx": "ee06591f02edb8b914af12503b4f5bfb519ca33fa4233174e7916ea5711295ea",
     "src/TrueMoneyReward.tsx": "0b02e10bff163a04d7a93e2c031b53d4c15a8c035efdbf1fc944a837739f4681",
-    "src/TrueMoneyTracker.tsx": "3ea6d01343fc0ebf8b508271a0544582868ebc999714b08d1ca2eaf3393ba95d",
+    "src/TrueMoneyTracker.tsx": "c31d8e00055203c64c68b8b6445265cfaab5acc3eb51437e9f1649e73c6972f0",
     "src/typingReliefReward.ts": "c38ea006da70964da36fb98bb9bdf9dff8c306de1abb41ac6b61214bc27a6e40",
     "src/TypingReliefRewardCard.tsx": "b894e44dd9d7de7f34b74552678344568aa20e55f8623231b9f54930fbda54cb",
     "src/usageLog.ts": "14c9b5807a96472a230902476c1e55345765b47d3a90bb110672b784f6b108c6",

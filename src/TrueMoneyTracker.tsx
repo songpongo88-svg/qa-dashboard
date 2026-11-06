@@ -32,7 +32,11 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
   },[adminReady,call]);
   // Load only on explicit Admin click to minimize Firestore read quota.\n  // This also leaves existing wallet-management operations unchanged.
   const markPaid=async()=>{
-    if(!selected||!adminReady||busy)return;
+    if(!selected||busy)return;
+    if(!adminReady){
+      setError("สิทธิ์ Sparks Admin ไม่พร้อมใช้งาน กรุณาปิดหน้าต่างและยืนยันสิทธิ์อีกครั้ง");
+      return;
+    }
     setBusy(true);setError("");
     try{
       const result=await call("mark-truemoney-paid",{itemId:selected});
@@ -68,7 +72,9 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
         <h3 id="qa-money-payout-confirm">ยืนยันการโอน TrueMoney สำเร็จ</h3>
         <p>คุณได้โอนเงินจริง <strong>{current.amountTHB} บาท</strong> ให้ <strong>{current.displayName||current.username}</strong> หมายเลข <strong>{current.phone}</strong> แล้วใช่หรือไม่?</p>
         <p>การกดปุ่มนี้จะบันทึกสถานะเท่านั้น ระบบจะไม่โอนเงินอัตโนมัติ</p>
-        <div><button type="button" onClick={()=>setSelected(null)} disabled={busy}>ยกเลิก</button><button type="button" disabled={busy} onClick={()=>void markPaid()}>{busy?"กำลังบันทึก...":"ยืนยันว่าโอนเงินจริงแล้ว"}</button></div>
+        {!adminReady?<p role="alert" className="qa-money-error">สิทธิ์ Sparks Admin ไม่พร้อมใช้งาน กรุณากดยกเลิกแล้วยืนยันสิทธิ์ก่อนทำรายการ</p>:null}
+        {error?<p role="alert" className="qa-money-error">{error}</p>:null}
+        <div><button type="button" onClick={()=>{setSelected(null);setError("");}} disabled={busy}>ยกเลิก</button><button type="button" disabled={busy||!adminReady} onClick={()=>void markPaid()}>{busy?"กำลังบันทึก...":"ยืนยันว่าโอนเงินจริงแล้ว"}</button></div>
       </section>
     </div>:null}
   </section>;
