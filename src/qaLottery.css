@@ -1,37 +1,134 @@
-.ql-card{grid-column:1 / -1;border:1px solid color-mix(in srgb,var(--qa-accent,#9b78ea),transparent 70%);border-radius:20px;padding:18px;background:linear-gradient(135deg,rgba(126,94,207,.1),rgba(246,189,86,.08));color:inherit;min-width:0}
-.ql-card-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.ql-card-head h3{font-size:22px;line-height:1.25;margin:4px 0;font-weight:800}
-.ql-card-head p,.ql-card-foot,.ql-muted,.ql-disclaimer{font-size:13px;line-height:1.5;opacity:.83}
-.ql-label{font-size:10px;font-weight:800;letter-spacing:.12em;opacity:.7}
-.ql-price{font-size:24px;font-weight:800;white-space:nowrap}
-.ql-price small{display:block;text-align:right;font-size:10px;font-weight:600}
-.ql-card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
-.ql-expand,.ql-buy button{border:0;border-radius:12px;padding:11px 14px;background:#7b55d7;color:#fff;font-size:13px;font-weight:700;cursor:pointer}
-.ql-expand:hover,.ql-buy button:not(:disabled):hover{filter:brightness(1.1)}
-.ql-details{margin-top:17px;border-top:1px solid rgba(140,120,175,.26);padding-top:17px}
-.ql-prizes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.ql-prizes>div{padding:14px 8px;border-radius:13px;background:rgba(140,120,175,.12);text-align:center}
-.ql-prizes span,.ql-prizes small{display:block;font-size:11px}
-.ql-prizes strong{display:block;font-size:clamp(15px,2.5vw,23px);font-variant-numeric:tabular-nums}
-.ql-draw-head,.ql-usage{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.ql-draw-head{margin-top:18px}.ql-draw-head span{display:block;font-size:11px;opacity:.8}.ql-draw-head strong{font-size:16px}
-.ql-usage{font-size:12px;margin:12px 0}
-.ql-buy{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:12px 0}
-.ql-buy label{width:100%;font-size:12px;font-weight:700}
-.ql-buy input{flex:1 1 140px;min-width:0;max-width:240px;border:1px solid rgba(130,120,160,.4);border-radius:12px;padding:9px 12px;font-size:22px;font-weight:800;letter-spacing:.2em;font-variant-numeric:tabular-nums;background:var(--qa-card-background,#fff);color:var(--qa-text,#21232b)}
-.ql-buy button{flex:1 1 130px}.ql-buy button:disabled{opacity:.45;cursor:not-allowed}
-.ql-link{border:0;background:transparent;text-decoration:underline;cursor:pointer;color:inherit;font-size:12px}
-.ql-ticket-list{display:grid;gap:8px;margin:12px 0}
-.ql-ticket{display:flex;justify-content:space-between;align-items:center;gap:8px;border-radius:12px;padding:10px 12px;background:rgba(122,125,157,.1)}
-.ql-ticket strong{font-size:20px;letter-spacing:.12em;font-variant-numeric:tabular-nums}
-.ql-ticket small{display:block;font-size:11px;opacity:.7}
-.ql-win{color:#26885c;font-weight:800}.ql-lost,.ql-pending{font-size:12px;opacity:.8}
-.ql-prior{margin-top:17px;border-top:1px solid rgba(140,120,175,.23);padding-top:11px}
-.ql-prior h4{margin:0 0 9px;font-size:14px}
-.ql-official{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
-.ql-official span{padding:5px 8px;background:rgba(125,110,160,.12);border-radius:8px}
-.ql-error,.ql-success{padding:9px 12px;border-radius:10px;font-size:12px}
-.ql-error{color:#9f3333;background:rgba(213,60,60,.1)}
-.ql-success{color:#18683f;background:rgba(39,155,80,.1)}
-.ql-disclaimer{margin:12px 0 0}
-@media(max-width:550px){.ql-card{padding:13px}.ql-card-head{align-items:start}.ql-price{font-size:18px}.ql-card-foot{align-items:stretch;flex-direction:column}.ql-expand{width:100%}.ql-prizes{gap:5px}.ql-prizes>div{padding:9px 3px}.ql-ticket{flex-wrap:wrap}.ql-prizes strong{font-size:17px}}
+/* QA Lottery: compact Quest item with details portal; matches other QA Sparks tiles. */
+.qa-sparks-mini-art--lottery{
+  background:radial-gradient(circle at 48% 27%,#fff1dd 0%,#f1d4ff 43%,#d9aaf1 100%);
+}
+.ql-art-svg{width:105px;height:105px;max-width:100%;object-fit:contain;filter:drop-shadow(0 6px 7px #69318a33);}
+.ql-art-svg--large{width:120px;height:120px;}
+.qa-sparks-mini-item--lottery .qa-sparks-mini-corner{background:linear-gradient(120deg,#ffe9a5,#ffc266);}
+
+.ql-modal-backdrop,.ql-modal-backdrop *{box-sizing:border-box;font-family:Kanit,sans-serif;}
+.ql-modal-backdrop{
+  position:fixed;inset:0;z-index:2147482500;
+  display:flex;align-items:center;justify-content:center;
+  padding:15px;background:#24152bca;backdrop-filter:blur(6px);
+}
+.ql-modal{
+  position:relative;display:flex;flex-direction:column;min-width:0;
+  width:min(720px,100%);max-height:min(94dvh,940px);overflow:hidden;
+  background:#fffdfb;color:#40334a;border:1px solid #ead7f0;
+  border-radius:22px;box-shadow:0 24px 85px #160b2775;
+}
+.ql-modal-close{
+  position:absolute;top:12px;right:12px;z-index:5;
+  display:grid;place-items:center;width:38px;height:38px;padding:0;
+  border:1px solid #e5d1ed;border-radius:50%;background:#fffdfbee;
+  color:#63476c;font-size:28px;line-height:1;cursor:pointer;
+}
+.ql-modal button:focus-visible{outline:3px solid var(--sparks-accent,#9355b4);outline-offset:2px;}
+.ql-modal button:disabled{opacity:.5;cursor:not-allowed;}
+.ql-modal-hero{
+  flex:0 0 auto;display:flex;align-items:center;gap:18px;
+  min-height:170px;padding:22px 58px 22px 24px;
+  background:radial-gradient(ellipse at 4% 95%,#f3caff,transparent 62%),linear-gradient(110deg,#f4e3fb,#fff7ed);
+  border-bottom:1px solid #ecddec;
+}
+.ql-modal-hero-art{
+  flex:0 0 128px;display:grid;place-items:center;width:128px;height:128px;
+  border:1px solid #e7c4e8;border-radius:23px;
+  background:radial-gradient(circle at 44% 25%,#fff5dc,#f0d3fc 70%);
+  box-shadow:0 8px 18px #68358220;
+}
+.ql-modal-eyebrow{font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--sparks-accent,#9b4ab0);}
+.ql-modal-hero h2{margin:6px 0 5px;color:var(--sparks-dark,#532c63);font-size:29px;line-height:1.2;font-weight:800;}
+.ql-modal-hero p{margin:0 0 10px;color:#77667c;font-size:12px;line-height:1.6;}
+.ql-modal-chip{display:inline-flex;max-width:100%;padding:5px 11px;border:1px solid #efdbbf;border-radius:999px;background:#fffaf0;color:#905e25;font-size:11px;font-weight:650;}
+.ql-modal-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:21px 25px 25px;}
+.ql-modal-body h3{margin:20px 0 10px;color:var(--sparks-dark,#5b3464);font-size:16px;font-weight:800;}
+.ql-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;}
+.ql-summary-grid>div{
+  display:flex;flex-direction:column;gap:5px;padding:12px 14px;
+  border:1px solid #ebddea;border-radius:12px;background:#fcf7fa;
+}
+.ql-summary-grid small{color:#8d778e;font-size:10px;}
+.ql-summary-grid strong{color:var(--sparks-dark,#633770);font-size:21px;line-height:1.3;font-weight:800;}
+.ql-summary-grid strong span{font-size:11px;font-weight:600;}
+.ql-prizes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;}
+.ql-prizes>div{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:13px 7px;text-align:center;
+  border-radius:12px;border:1px solid #eddef1;background:linear-gradient(150deg,#fff8fe,#f8f0ff);
+}
+.ql-prizes span{font-size:11px;color:#806087;font-weight:650;}
+.ql-prizes strong{font-size:clamp(18px,3vw,24px);color:#783e92;font-weight:850;font-variant-numeric:tabular-nums;}
+.ql-prizes small{font-size:10px;color:#927aa0;}
+.ql-muted,.ql-disclaimer,.ql-modal-rules p{font-size:12px;line-height:1.75;color:#7d7181;}
+.ql-modal-rules{border-top:1px solid #ecdeeb;margin-top:19px;}
+.ql-modal-rules h3{margin-top:16px;}
+.ql-modal-rules p{margin:5px 0;}
+.ql-draw{margin-top:15px;padding:14px 15px 11px;border:1px solid #e8d8ed;border-radius:15px;background:#fffdfd;}
+.ql-draw h3{margin:16px 0 8px;font-size:14px;}
+.ql-draw-head,.ql-usage{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.ql-draw-head small{display:block;color:#86718a;font-size:10px;}
+.ql-draw-head strong{font-size:16px;color:var(--sparks-dark,#62366d);}
+.ql-link{border:0;background:transparent;text-decoration:underline;color:var(--sparks-accent,#8b4aa3);font-size:11px;cursor:pointer;}
+.ql-usage{margin:12px 0;padding:9px 12px;border-radius:10px;background:#f9f2fa;font-size:11px;color:#7b6184;}
+.ql-usage b{color:var(--sparks-dark,#663877);}
+.ql-buy{margin:13px 0 7px;}
+.ql-buy label{display:block;font-size:12px;font-weight:700;color:#654b6e;margin-bottom:8px;}
+.ql-buy-row{display:flex;align-items:stretch;gap:10px;}
+.ql-buy input{
+  flex:1 1 130px;min-width:0;max-width:265px;
+  border:1px solid #dac6e1;border-radius:11px;background:#fff;
+  padding:9px 13px;color:#3f2a51;
+  font-size:23px;line-height:1.2;letter-spacing:.2em;font-weight:800;font-variant-numeric:tabular-nums;
+}
+.ql-buy input:focus-visible{outline:3px solid #d4a7e5;outline-offset:1px;}
+.ql-buy button,.ql-confirm-buy{
+  flex:1 0 auto;border:0;border-radius:11px;padding:11px 16px;
+  background:var(--sparks-accent,#9153bc);color:white;
+  font-size:12px;font-weight:750;cursor:pointer;
+}
+.ql-buy button:hover:not(:disabled),.ql-confirm-buy:hover:not(:disabled){filter:brightness(1.07);}
+.ql-confirm{padding:12px;margin-top:12px;border:1px solid #e0c7ed;border-radius:12px;background:#f9f0ff;}
+.ql-confirm p{font-size:12px;line-height:1.65;margin:0 0 10px;color:#5c406a;}
+.ql-confirm p strong{font-size:15px;font-variant-numeric:tabular-nums;}
+.ql-confirm>div{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;}
+.ql-confirm .ql-cancel{border:1px solid #dac7e3;border-radius:10px;padding:9px 14px;background:#fff;color:#684775;cursor:pointer;font-size:12px;}
+.ql-ticket-list{display:grid;gap:8px;margin:10px 0;}
+.ql-ticket{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  border:1px solid #e9dfed;border-radius:11px;padding:10px 13px;background:#fff;
+}
+.ql-ticket strong{color:#563465;font-size:19px;font-weight:850;letter-spacing:.12em;font-variant-numeric:tabular-nums;}
+.ql-ticket small{display:block;color:#918096;font-size:10px;}
+.ql-win{font-size:12px;font-weight:800;color:#248055;}.ql-lost,.ql-pending{font-size:12px;color:#807286;}
+.ql-prior{border-top:1px solid #eee2eb;margin-top:18px;padding-top:3px;}
+.ql-official{display:flex;gap:7px;flex-wrap:wrap;font-size:11px;}
+.ql-official span{padding:6px 8px;background:#f8f2fa;border-radius:8px;color:#71557b;}
+.ql-error,.ql-success,.ql-loading{padding:10px 12px;border-radius:10px;font-size:12px;margin:12px 0;line-height:1.6;}
+.ql-error{border:1px solid #efc5c5;color:#a73535;background:#fff1f1;}
+.ql-success{border:1px solid #bfe3cd;color:#236b45;background:#ebf9ef;}
+.ql-loading{color:#765e82;background:#f8f0fc;}
+@media(max-width:550px){
+  .ql-modal-backdrop{padding:8px;}
+  .ql-modal{max-height:97dvh;border-radius:16px;}
+  .ql-modal-hero{min-height:125px;gap:10px;padding:15px 51px 15px 13px;}
+  .ql-modal-hero-art{width:68px;height:74px;flex-basis:68px;border-radius:14px;}
+  .ql-art-svg--large{width:68px;height:68px;}
+  .ql-modal-hero h2{font-size:22px;}
+  .ql-modal-hero p{font-size:11px;}
+  .ql-modal-chip{font-size:10px;}
+  .ql-modal-body{padding:13px;}
+  .ql-summary-grid,.ql-prizes{gap:6px;}
+  .ql-summary-grid>div{padding:9px 7px;}
+  .ql-summary-grid strong{font-size:17px;}
+  .ql-summary-grid strong span{font-size:9px;}
+  .ql-prizes>div{padding:10px 3px;}
+  .ql-prizes strong{font-size:17px;}
+  .ql-draw{padding:11px 9px;}
+  .ql-buy-row{flex-wrap:wrap;}
+  .ql-buy input{max-width:none;}
+  .ql-buy button{min-height:43px;flex-grow:1;}
+  .ql-ticket{flex-wrap:wrap;}
+}
+@media(prefers-reduced-motion:reduce){.qa-sparks-mini-item--lottery{transition:none;}}
