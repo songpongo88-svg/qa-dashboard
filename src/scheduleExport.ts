@@ -144,3 +144,39 @@ export function uploadedScheduleExportFileName(month: ShiftScheduleMonth) {
   const key = safeMonthKey(cellText(month.monthKey));
   return `SCH_Uploaded_${key}.xlsx`;
 }
+
+
+/**
+ * Export all imported SCH months into one .xlsx file, with exactly one tab
+ * per month. Append the uploaded OT/notes beneath each month's shift grid
+ * so users can find every stored detail without opening extra sheets.
+ * No network calls or Firestore writes occur here.
+ */
+export function createAllUploadedSchedulesWorkbook(months: readonly ShiftScheduleMonth[]): XLSX.WorkBook {
+  const uniqueMonths = new Map<string, ShiftScheduleMonth>();
+  for (const month of months) {
+    const key = safeMonthKey(cellText(month.monthKey));
+    uniqueMonths.set(key, month);
+  }
+  if (!uniqueMonths.size) throw new Error("No imported SCH months to export");
+
+  const workbook = XLSX.utils.book_new();
+  for (const monthKey of [...uniqueMonths.keys()].sort((a, b) => a.localeCompare(b))) {
+    const monthlyWorkbook = createUploadedScheduleWorkbook(uniqueMonths.get(monthKey)!);
+    const scheduleSheet = monthlyWorkbook.Sheets["Uploaded Schedule"];
+    const notesRows = XLSX.utils.sheet_to_json<(string | number)[]>(
+      monthlyWorkbook.Sheets["Uploaded OT Notes"], { header: 1, defval: "" }
+    );
+    XLSX.utils.sheet_add_aoa(scheduleSheet, [
+      [],
+      ["OT / Notes — ค่าจากไฟล์ที่นำเข้า (ไม่รวมการแก้ไขใน Dashboard)"],
+      ...notesRows,
+    ], { origin: -1 });
+    XLSX.utils.book_append_sheet(workbook, scheduleSheet, monthKey);
+  }
+  return workbook;
+}
+
+export function allUploadedSchedulesExportFileName() {
+  return "SCH_All_Months_Uploaded.xlsx";
+}
