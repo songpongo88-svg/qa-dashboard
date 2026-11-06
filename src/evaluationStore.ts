@@ -1599,8 +1599,10 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
       try {
         const db = getFirebaseEvaluationDb();
         if (!db) return [];
-        const historyScope = options.allMonths
-          ? evaluationHistoryAccountScope(FIREBASE_PROJECT_ID, FIREBASE_EVALUATION_COLLECTION) : "";
+        // Once an account has a verified full history, recent-result callers
+        // can use the same changed-only server verification instead of reading
+        // another 500 documents in Create Evaluation, Coaching or Presentation.
+        const historyScope = evaluationHistoryAccountScope(FIREBASE_PROJECT_ID, FIREBASE_EVALUATION_COLLECTION);
         const source = collection(db, FIREBASE_EVALUATION_COLLECTION);
         const previous = historyScope
           ? await readVerifiedEvaluationHistory<StoredEvaluation>(historyScope) : null;
