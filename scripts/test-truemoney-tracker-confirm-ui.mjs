@@ -14,9 +14,9 @@ const dom=new JSDOM("<!doctype html><html><body><div id='app'></div></body></htm
 for(const name of ["window","document","HTMLElement","MutationObserver","Event","MouseEvent"])globalThis[name]=dom.window[name];
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const realFetch=globalThis.fetch;
-const itemId="tm-confirm-test-123456",phone="0800000000";
+const itemId="tm-inline-test-123456",phone="0800000000";
 let status="pending",markOutcome="success",markCalls=0,listCalls=0;
-const result=(data,ok=true)=>({ok,json:async()=>data});
+const result=(data,ok=true)=>({ok,status:ok?200:429,json:async()=>data});
 globalThis.fetch=async (url,options={})=>{
   assert.equal(url,"/api/sparks-admin");
   const body=JSON.parse(options.body);
@@ -36,13 +36,16 @@ globalThis.fetch=async (url,options={})=>{
 };
 const {createRoot}=await import("react-dom/client");
 const root=createRoot(document.querySelector("#app"));
-const click=async (element)=>{
+const click=async element=>{
   assert.ok(element,"click target must exist");
   await act(async()=>element.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true})));
 };
+const btn=text=>[...document.querySelectorAll(".qa-money-tracker button")].find(x=>x.textContent.includes(text));
+const confirm=()=>document.querySelector(".qa-money-tracker-inline-confirm");
+const action=()=>document.querySelector(".qa-money-tracker-mark-paid");
 try{
   const css=await readFile("src/qaSparks.css","utf8");
-  assert.match(css,/qa-money-tracker-confirm-overlay\{z-index:2147483600;pointer-events:auto/);
+  assert.match(css,/\.qa-money-tracker-inline-confirm\{/);
   const compiled=resolve(tmp,"TrueMoneyTracker.mjs");
   await build({entryPoints:["src/TrueMoneyTracker.tsx"],outfile:compiled,bundle:true,
     platform:"node",format:"esm",packages:"external",logLevel:"silent"});
@@ -50,42 +53,40 @@ try{
   const render=async adminReady=>await act(async()=>root.render(
     React.createElement(Tracker,{actorUsername:"test-admin",sessionId:"admin-session-test",adminReady})));
   await render(true);
-  await click([...document.querySelectorAll(".qa-money-tracker button")].find(x=>x.textContent.includes("รีเฟรช Tracker")));
+  await click(btn("รีเฟรช Tracker"));
   assert.equal(listCalls,1);
-  await click(document.querySelector(".qa-money-tracker-request button"));
-  let overlay=document.querySelector(".qa-money-tracker-confirm-overlay");
-  assert.ok(overlay,"explicit confirmation dialog opens");
-  assert.equal(overlay.parentElement,document.body,"dialog must be a top-level portal outside Dashboard stacking contexts");
-  assert.equal(document.querySelectorAll('[role="dialog"]').length,1);
-  const action=()=>document.querySelector('[data-truemoney-confirm-action="paid"]');
-  assert.ok(action());
+  await click(btn("ยืนยันโอนสำเร็จ"));
+  assert.ok(confirm(),"inline confirmation must open under its Tracker row");
+  assert.equal(confirm().parentElement.className,"qa-money-tracker-request","confirmation must stay in same clickable row");
+  assert.equal(document.querySelectorAll('[role="dialog"]').length,0,"no popup or overlay for confirmation");
   assert.equal(action().disabled,false);
-  assert.equal(markCalls,0,"opening the dialog must not mark money paid");
+  assert.equal(markCalls,0,"first click only opens confirmation and never transfers or changes status");
   await click(action());
-  assert.equal(markCalls,1,"click must dispatch one authenticated status change");
-  assert.equal(document.querySelector(".qa-money-tracker-confirm-overlay"),null,"successful result closes dialog");
-  assert.match(document.querySelector(".qa-money-tracker").textContent,/บันทึกว่าโอน TrueMoney 20 บาทสำเร็จแล้ว/);
-  assert.equal(document.querySelectorAll(".qa-money-tracker-request").length,0,"completed item leaves the pending filter");
-  await click([...document.querySelectorAll(".qa-money-tracker-filters button")].find(x=>x.textContent==="โอนแล้ว"));
-  assert.match(document.querySelector(".qa-money-tracker-request").textContent,/โอนแล้ว/,"paid request appears under its new status");
+  assert.equal(markCalls,1,"second explicit click must dispatch one admin status change");
+  assert.equal(confirm(),null,"success closes inline confirmation");
+  assert.match(document.querySelector(".qa-money-tracker").textContent,/บันทึกสถานะว่าโอน TrueMoney 20 บาทสำเร็จแล้ว/);
+  assert.equal(document.querySelectorAll(".qa-money-tracker-request").length,0,"paid item leaves Pending filter");
+  await click(btn("โอนแล้ว"));
+  assert.match(document.querySelector(".qa-money-tracker-request").textContent,/โอนแล้ว/,"paid item remains visible under Paid filter");
+  assert.equal(listCalls,1,"confirmed result must not need a second Firestore read");
   markOutcome="quota";status="pending";
-  await click([...document.querySelectorAll(".qa-money-tracker button")].find(x=>x.textContent.includes("รีเฟรช Tracker")));
-  await click([...document.querySelectorAll(".qa-money-tracker-filters button")].find(x=>x.textContent==="รอโอน"));
-  await click(document.querySelector(".qa-money-tracker-request button"));
+  await click(btn("รีเฟรช Tracker"));
+  await click(btn("รอโอน"));
+  await click(btn("ยืนยันโอนสำเร็จ"));
   await click(action());
   assert.equal(markCalls,2);
-  overlay=document.querySelector(".qa-money-tracker-confirm-overlay");
-  assert.ok(overlay,"failure must leave dialog open");
-  assert.match(overlay.querySelector('[role="alert"]').textContent,/Firestore daily quota exceeded/,"show API error in same dialog");
-  assert.ok(action()&&!action().disabled,"retry remains possible after transient failure");
+  assert.ok(confirm(),"failed status change must keep the inline confirmation open");
+  assert.match(confirm().querySelector('[role="alert"]').textContent,/Firestore daily quota exceeded/,"show backend quota error right next to the button");
+  assert.ok(action()&&!action().disabled,"retry remains possible after a server failure");
   await render(false);
-  assert.equal(action().disabled,true,"authorization loss disables submit");
+  assert.equal(action().disabled,true,"admin authorization loss disables mutation");
   const before=markCalls;
   await click(action());
-  assert.equal(markCalls,before,"disabled control must not send mutation");
-  await click([...overlay.querySelectorAll("button")].find(x=>x.textContent==="ยกเลิก"));
-  assert.equal(document.querySelector(".qa-money-tracker-confirm-overlay"),null);
-  console.log("PASS TrueMoney confirmation: body portal receives click, one mark-paid request, success UI, API error visible, authorization guard, cancellation");
+  assert.equal(markCalls,before,"disabled confirmation cannot mutate status");
+  await click(btn("ยกเลิก"));
+  assert.equal(confirm(),null);
+  assert.equal(document.querySelectorAll('[role="dialog"]').length,0);
+  console.log("PASS TrueMoney inline confirmation: two-step click, one mark-paid request, Paid filter, quota error, disabled authorization, cancel");
 }finally{
   await act(async()=>root.unmount());
   globalThis.fetch=realFetch;
