@@ -153,6 +153,10 @@ try {
   assert.equal(unchangedHistory.length,650);
   assert.equal(fixture.queries.length,1,"later server verification reads one small delta page");
   assert.equal(fixture.queries[0].constraints.some(item=>item.whereField==="updated_at"),true);
+  fixture.queries=[];api.invalidateStoredEvaluationCache();
+  assert.equal((await api.fetchStoredEvaluations(500,{strict:true})).length,500,
+    "Create Evaluation still receives the same 500-result window");
+  assert.equal(fixture.queries.length,1,"recent QA callers also avoid rereading 500 records");
   fixture.rows[5].updated_at=new Date(Date.now()).toISOString();
   fixture.rows[5].final_score=96;
   fixture.queries=[];api.invalidateStoredEvaluationCache();
