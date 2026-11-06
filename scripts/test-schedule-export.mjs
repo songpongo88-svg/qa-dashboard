@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
@@ -14,7 +14,7 @@ try {
     outfile: output, bundle: true, platform: "node", format: "esm",
     packages: "external", logLevel: "silent",
   });
-  const { createUploadedScheduleWorkbook, uploadedShiftValue, uploadedScheduleExportFileName } =
+  const { createUploadedScheduleWorkbook, uploadedShiftValue, uploadedScheduleExportFileName, createDisplayedScheduleWorkbook, displayedScheduleExportFileName } =
     await import(pathToFileURL(output).href);
   const records = [
     {
@@ -66,6 +66,41 @@ try {
   assert.ok(JSON.stringify(info).includes("schedule-original.xlsx"));
   assert.ok(JSON.stringify(info).includes("ไม่ได้เก็บไฟล์ต้นฉบับ"));
   console.log("PASS SCH uploaded Excel export: original baseline, OT/notes, multiple staff, selected month, accurate source limitation");
+
+  // The Excel layout remains unchanged, but this button now exports the
+  // processed, edited SCH values that users actually see on the screen.
+  const modified = { ...month, entries: records.map((entry, index) => ({
+    ...entry, workMode: index === 0 ? "WFH" : index === 2 ? "Workspace" : "",
+  })) };
+  const displayed = {
+    shift: (entry) => entry.status || entry.shiftCode || "",
+    workMode: (entry) => entry.status ? "" : entry.workMode || "Workspace",
+    ot: (entry) => entry.otText ? `OT ${entry.otText}` : "",
+  };
+  assert.equal(displayedScheduleExportFileName(modified), "SCH_Current_2026-10.xlsx");
+  const currentWb = createDisplayedScheduleWorkbook(modified, displayed);
+  assert.deepEqual(currentWb.SheetNames, ["Current Schedule", "Current OT Notes", "Export Info"]);
+  const currentBytes = XLSX.write(currentWb, { type: "buffer", bookType: "xlsx" });
+  const currentExcel = XLSX.read(currentBytes, { type: "buffer" });
+  const currentGrid = XLSX.utils.sheet_to_json(currentExcel.Sheets["Current Schedule"], { header: 1, defval: "" });
+  assert.deepEqual(currentGrid[5], grid[5], "current XLSX must keep the established calendar layout");
+  const currentByName = new Map(currentGrid.slice(6).map(row => [row[1], row]));
+  assert.equal(currentByName.get("Agent Test")[4], "12:00-21:00 (WFH)", "manual shift and WFH are exported");
+  assert.equal(currentByName.get("Agent Test")[5], "OFF", "OFF after import is exported");
+  assert.equal(currentByName.get("Another Agent")[4], "08:00-17:00 (Workspace)", "processed shift and Workspace are exported");
+  assert.ok(!JSON.stringify(currentGrid).includes("07:30-16:30"), "original baseline must not replace the SCH current value");
+  const currentNotes = XLSX.utils.sheet_to_json(currentExcel.Sheets["Current OT Notes"], { header: 1, defval: "" });
+  assert.deepEqual(currentNotes[1].slice(4), ["12:00-21:00 (WFH)", "OT 19:00-20:00", "edited later"]);
+  assert.ok(!JSON.stringify(currentNotes).includes("OT requested"), "outdated Excel note must not replace edited SCH note");
+  const currentInfo = XLSX.utils.sheet_to_json(currentExcel.Sheets["Export Info"], { header: 1, defval: "" });
+  assert.ok(JSON.stringify(currentInfo).includes("Latest SCH view"));
+  const source = await readFile(path.join(root, "src/ScheduleMockup.tsx"), "utf8");
+  assert.match(source, /createDisplayedScheduleWorkbook\(month,\s*\{/);
+  assert.match(source, /shift:\s*\(entry\)\s*=>\s*scheduleCellLabel\(entry\)/);
+  assert.match(source, /isWfhEntry\(entry\)/);
+  assert.match(source, /ot:\s*\(entry\)\s*=>\s*scheduleOtLabel\(entry\)/);
+  assert.match(source, /Export SCH Excel/);
+  console.log("PASS SCH current-view export: processed shifts, WFH, Workspace, OFF, edited OT/notes, unchanged layout and screen-format integration");
 } finally {
   await rm(temp, { recursive: true, force: true });
 }
