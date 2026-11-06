@@ -54,8 +54,31 @@ function sourceDateLabels(monthKey: string) {
   return Array.from({ length: days }, (_, index) => `${String(index + 1).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`);
 }
 
-export function createUploadedScheduleWorkbook(month: ShiftScheduleMonth): XLSX.WorkBook {
+export type ScheduleDisplayFormat = {
+  shift: (entry: ShiftScheduleEntry) => string;
+  workMode: (entry: ShiftScheduleEntry) => string;
+  ot: (entry: ShiftScheduleEntry) => string;
+};
+
+/** Keeps the existing Excel layout, but selects the values rendered by SCH. */
+function createScheduleWorkbook(
+  month: ShiftScheduleMonth,
+  source: "uploaded" | "displayed",
+  display?: ScheduleDisplayFormat,
+): XLSX.WorkBook {
   const monthKey = safeMonthKey(cellText(month.monthKey));
+  const current = source === "displayed";
+  const shift = (entry: ShiftScheduleEntry) => current && display
+    ? cellText(display.shift(entry))
+    : uploadedShiftValue(entry);
+  const scheduleCell = (entry: ShiftScheduleEntry) => {
+    const value = shift(entry);
+    const mode = current && display ? cellText(display.workMode(entry)) : "";
+    return mode ? `${value} (${mode})` : value;
+  };
+  const noteDetails = (entry: ShiftScheduleEntry) => current
+    ? { ot: cellText(display?.ot(entry) || entry.otText), note: cellText(entry.note) }
+    : uploadedOtAndNote(entry);
   const dates = sourceDateLabels(monthKey);
   const names = new Map<string, { agent: ShiftScheduleEntry; dates: Map<string, ShiftScheduleEntry> }>();
   for (const entry of month.entries || []) {
@@ -73,15 +96,19 @@ export function createUploadedScheduleWorkbook(month: ShiftScheduleMonth): XLSX.
     cellText(a.agent.agentName).localeCompare(cellText(b.agent.agentName), "th"));
 
   const grid: (string | number)[][] = [
-    ["SCH — ตารางกะจากข้อมูลที่เคยอัปโหลด", monthKey],
+    [current ? "SCH — ตารางกะล่าสุดหลังนำเข้าและแก้ไขในระบบ" : "SCH — ตารางกะจากข้อมูลที่เคยอัปโหลด", monthKey],
     ["Source file", cellText(month.sourceFileName) || "ไม่ทราบชื่อไฟล์"],
     ["Imported sheet", cellText(month.sheetName) || "ไม่ทราบชื่อ Sheet"],
-    ["หมายเหตุ", "สร้างใหม่จากข้อมูลที่ระบบบันทึกไว้ ไม่ใช่ไฟล์ Excel ต้นฉบับทั้งไฟล์ และไม่รวมการแก้ไขกะ/OT ภายหลัง"],
+    ["หมายเหตุ", current
+      ? "ตาราง SCH ปัจจุบันหลังนำเข้าและปรับกะ/WFH/Workspace/OT/วันลาในระบบ ไม่ใช่ไฟล์ Excel ต้นฉบับ"
+      : "สร้างใหม่จากข้อมูลที่ระบบบันทึกไว้ ไม่ใช่ไฟล์ Excel ต้นฉบับทั้งไฟล์ และไม่รวมการแก้ไขกะ/OT ภายหลัง"],
     [],
     ["Employee ID", "Full Name", "Nickname", "Section", ...dates],
   ];
   const otNotes: (string | number)[][] = [
-    ["Employee ID", "Full Name", "Section", "Date", "Uploaded Shift", "Uploaded OT", "Uploaded Note"],
+    ["Employee ID", "Full Name", "Section", "Date",
+      current ? "Current Shift / Mode" : "Uploaded Shift",
+      current ? "Current OT" : "Uploaded OT", current ? "Current Note" : "Uploaded Note"],
   ];
   for (const person of people) {
     const agent = person.agent;
@@ -91,7 +118,7 @@ export function createUploadedScheduleWorkbook(month: ShiftScheduleMonth): XLSX.
       ...dates.map((dateLabel) => {
         const [dd, mm, yyyy] = dateLabel.split("/");
         const entry = person.dates.get(`${yyyy}-${mm}-${dd}`);
-        return entry ? uploadedShiftValue(entry) : "";
+        return entry ? scheduleCell(entry) : "";
       }),
     ]);
     for (const dateLabel of dates) {
@@ -99,11 +126,11 @@ export function createUploadedScheduleWorkbook(month: ShiftScheduleMonth): XLSX.
       const date = `${yyyy}-${mm}-${dd}`;
       const entry = person.dates.get(date);
       if (!entry) continue;
-      const { ot, note } = uploadedOtAndNote(entry);
+      const { ot, note } = noteDetails(entry);
       if (!ot && !note) continue;
       otNotes.push([
         cellText(agent.employeeId), cellText(agent.agentName),
-        cellText(agent.section), dateLabel, uploadedShiftValue(entry), ot, note,
+        cellText(agent.section), dateLabel, scheduleCell(entry), ot, note,
       ]);
     }
   }
@@ -115,14 +142,14 @@ export function createUploadedScheduleWorkbook(month: ShiftScheduleMonth): XLSX.
     ...dates.map(() => ({ wch: 17 })),
   ];
   gridSheet["!autofilter"] = { ref: `A6:${XLSX.utils.encode_col(3 + dates.length)}${Math.max(6, grid.length)}` };
-  XLSX.utils.book_append_sheet(workbook, gridSheet, "Uploaded Schedule");
+  XLSX.utils.book_append_sheet(workbook, gridSheet, current ? "Current Schedule" : "Uploaded Schedule");
 
   const noteSheet = XLSX.utils.aoa_to_sheet(otNotes);
   noteSheet["!cols"] = [
     { wch: 17 }, { wch: 32 }, { wch: 23 }, { wch: 15 },
     { wch: 19 }, { wch: 21 }, { wch: 76 },
   ];
-  XLSX.utils.book_append_sheet(workbook, noteSheet, "Uploaded OT Notes");
+  XLSX.utils.book_append_sheet(workbook, noteSheet, current ? "Current OT Notes" : "Uploaded OT Notes");
 
   const info = XLSX.utils.aoa_to_sheet([
     ["SCH Export Information", ""],
@@ -131,13 +158,31 @@ export function createUploadedScheduleWorkbook(month: ShiftScheduleMonth): XLSX.
     ["Imported sheet name(s)", cellText(month.sheetName)],
     ["Staff", people.length],
     ["Data source", "ข้อมูล SCH ที่บันทึกไว้ในระบบ"],
-    ["Version", "Uploaded baseline (excel* fields; excludes Dashboard edits)"],
+    ["Version", current
+      ? "Latest SCH view: processed schedule plus saved Dashboard edits"
+      : "Uploaded baseline (excel* fields; excludes Dashboard edits)"],
     ["Original-file limitation", "ระบบเดิมไม่ได้เก็บไฟล์ต้นฉบับ จึงไม่สามารถกู้คืนสูตร การจัดหน้า Sheet อื่น หรือรูปแบบเซลล์ทั้งหมดได้"],
-    ["Missing baseline", "ค่าที่แก้ไขแล้วแต่ไม่มี excel* เก็บไว้จะระบุว่าไม่พบค่าต้นฉบับ แทนการเดา"],
+    [current ? "Work mode" : "Missing baseline", current
+      ? "แสดง WFH/Workspace ตามการประมวลผลใน SCH รวมถึงการเปลี่ยนแปลงล่าสุด"
+      : "ค่าที่แก้ไขแล้วแต่ไม่มี excel* เก็บไว้จะระบุว่าไม่พบค่าต้นฉบับ แทนการเดา"],
   ]);
   info["!cols"] = [{ wch: 26 }, { wch: 95 }];
   XLSX.utils.book_append_sheet(workbook, info, "Export Info");
   return workbook;
+}
+
+export function createUploadedScheduleWorkbook(month: ShiftScheduleMonth): XLSX.WorkBook {
+  return createScheduleWorkbook(month, "uploaded");
+}
+
+export function createDisplayedScheduleWorkbook(
+  month: ShiftScheduleMonth, display: ScheduleDisplayFormat,
+): XLSX.WorkBook {
+  return createScheduleWorkbook(month, "displayed", display);
+}
+
+export function displayedScheduleExportFileName(month: ShiftScheduleMonth) {
+  return `SCH_Current_${safeMonthKey(cellText(month.monthKey))}.xlsx`;
 }
 
 export function uploadedScheduleExportFileName(month: ShiftScheduleMonth) {
