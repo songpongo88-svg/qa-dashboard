@@ -147,7 +147,7 @@ try {
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   const initialHistory=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
   assert.equal(initialHistory.length,650);
-  assert.equal(fixture.queries.length,7,"first authenticated scan reads all three bounded pages");
+  assert.equal(fixture.queries.length,7,"first authenticated scan reads seven bounded pages");
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   const unchangedHistory=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
   assert.equal(unchangedHistory.length,650);
@@ -173,6 +173,21 @@ try {
   fixture.queries=[];api.invalidateStoredEvaluationCache();
   assert.equal((await api.fetchStoredEvaluations(300,{strict:true,allMonths:true})).length,650);
   assert.equal(fixture.queries.length,7,"another login never inherits the first account history");
+  // A quota error on page two keeps page one, and the following authenticated
+  // attempt resumes at that document ID rather than rereading page one.
+  window.localStorage.setItem("qa_current_user",JSON.stringify({username:"qa-resume",role:"Quality Assurance"}));
+  fixture.rows=Array.from({length:250},(_,i)=>row("AA88"+String(i).padStart(4,"0"),"2026-10",{updated_at:"2026-10-20T00:00:00.000Z",final_score:80+i%15}));
+  fixture.queries=[];fixture.failAt=2;api.invalidateStoredEvaluationCache();
+  await assert.rejects(api.fetchStoredEvaluations(300,{strict:true,allMonths:true}),/page unavailable/);
+  assert.equal(fixture.queries.length,2,"quota failure occurred after first complete page");
+  fixture.queries=[];fixture.failAt=0;api.invalidateStoredEvaluationCache();
+  const resumed=await api.fetchStoredEvaluations(300,{strict:true,allMonths:true});
+  assert.equal(resumed.length,250,"resumed full history restores every document");
+  assert.equal(fixture.queries[0].constraints.find(item=>item.cursor)?.cursor,"AA880099","resume starts strictly after saved page");
+  assert.equal(resumed.find(item=>item.caseId==="AA880249").finalScore,89,"resumed scores remain exact");
+  assert.equal(fixture.writes,0,"resumable recovery never writes Firestore");
+  console.log("PASS interrupted 250-case historical scan resumes safely after quota recovery, with exact scores");
+
   window.localStorage.removeItem("qa_current_user");
   console.log("PASS full-history IndexedDB: scoped snapshot, changed-only reads, exact scores, server failures, account isolation");
 
