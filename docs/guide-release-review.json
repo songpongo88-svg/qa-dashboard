@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-06T03:07:19.461Z",
-  "reason": "Reviewed quota-safe incremental Chat access-log reads, throttled presence and Inbox polling, and preserved notification/history regression coverage; user guide content unchanged.",
+  "reviewedAt": "2026-11-06T03:08:43.272Z",
+  "reason": "Reviewed Chat incremental read and Inbox polling optimization; added mocked Firestore write support for regression tests, no user guide content changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -343,7 +343,7 @@
     "scripts/test-evaluation-visibility-ui.mjs": "51dbc9ea7451004fea0f9e146dc0d9fb6ddf522e786758df866523a7ff4f6917",
     "scripts/test-evaluation-visibility.mjs": "52c8a98b1f0f870eccd90ac767c2c4a7f36de598b00c0a30dac325fca55be87a",
     "scripts/test-festival-themes.mjs": "e3fbc9cc06625fbd62958085cc1337a83c9dfecf44fac3f2f69f2a42720f1555",
-    "scripts/test-firestore-quota-controls.mjs": "456db44d9c44e4a91da2d38f0470d71878bede1cec7224a0c43a5a1e5152fc39",
+    "scripts/test-firestore-quota-controls.mjs": "7a95d01b7cafd19ef9c80fbe2321198c542d91f01bfda7b6822d6ac411f59408",
     "scripts/test-firestore-read-dedup.mjs": "7929ca022a98b2244b46a887eb7694f56ee373a1b22a4af571fd184dfc39dc10",
     "scripts/test-fruit-match-ui.mjs": "f7f09147177cfcbdeca46f213a5b1349c217899ad7aaf14e9abc5ce99244ffc2",
     "scripts/test-fruit-match.mjs": "9e17088803e3de06e7f9e3db600d22b4f6b8e37c01b6e02c22bc95c0173b85b8",
