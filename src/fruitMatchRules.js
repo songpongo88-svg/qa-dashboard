@@ -1,6 +1,6 @@
 export const FRUIT_MATCH = Object.freeze({
   version: "fruit-match-12-v1", pairs: 12, durationMs: 150000,
-  reward: 10, dailyRewardLimit: 3, mismatchMs: 650, minimumFlipMs: 80,
+  reward: 20, dailyRewardLimit: 2, dailyPlayLimit: 2, mismatchMs: 650, minimumFlipMs: 80,
 });
 export const FRUIT_MATCH_FRUITS = Object.freeze([
   ["apple", "แอปเปิล"], ["banana", "กล้วย"], ["coconut", "มะพร้าว"],
