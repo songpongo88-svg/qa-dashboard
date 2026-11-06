@@ -1,6 +1,7 @@
-import { addDoc, collection, getDocs, limit as firestoreLimit, orderBy, query } from "firebase/firestore";
+import { addDoc, collection, getDocs, limit as firestoreLimit, orderBy, query, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
+import { assertFirestoreReadAllowed, noteFirestoreReadError } from "./firestoreReadPolicy";
 
 type UsageLogUser = {
   username?: string;
@@ -202,6 +203,74 @@ export async function fetchUsageLogs(options: UsageLogFetchOptions = DEFAULT_USA
       .filter((item) => ALLOWED_ACCESS_EVENT_TYPES.has(item.event_type))
       .slice(offset, offset + limit);
   });
+}
+
+// The legacy Chat uses the access-log history. Keep the same 1,200-document
+// history window but, after the first read, request only events appended since
+// the newest item. This avoids downloading the entire log every five seconds.
+const CHAT_LOG_WINDOW = 1200;
+const CHAT_DELTA_PAGE = 100;
+const CHAT_DELTA_MAX_PAGES = 30;
+let chatAccessSnapshot: { rows: UsageLogEvent[]; checkedAt: number } | null = null;
+let chatAccessReadInFlight: Promise<UsageLogEvent[]> | null = null;
+
+export function fetchChatEventsIncrementally(forceRefresh = false): Promise<UsageLogEvent[]> {
+  if (chatAccessReadInFlight) return chatAccessReadInFlight;
+  if (!forceRefresh && chatAccessSnapshot && Date.now() - chatAccessSnapshot.checkedAt < 3_000) {
+    return Promise.resolve(chatAccessSnapshot.rows.filter((item) => CHAT_EVENT_TYPES.has(item.event_type)).slice(0, 300));
+  }
+
+  const request = (async () => {
+    assertFirestoreReadAllowed();
+    const source = collection(firebaseDb, ACCESS_LOG_COLLECTION);
+    if (!chatAccessSnapshot?.rows.length) {
+      const first = await getDocs(query(source, orderBy("created_at", "desc"), firestoreLimit(CHAT_LOG_WINDOW)));
+      chatAccessSnapshot = {
+        rows: first.docs.map((item) => toUsageLogEvent(item.id, item.data())),
+        checkedAt: Date.now(),
+      };
+    } else {
+      const latestAt = chatAccessSnapshot.rows[0].created_at;
+      if (!latestAt) throw new Error("Chat history cursor is unavailable.");
+      // Inclusive boundary handles simultaneous writes with the same timestamp.
+      const updates = new Map<string, UsageLogEvent>();
+      let cursor: QueryDocumentSnapshot | undefined;
+      let finished = false;
+      for (let page = 0; page < CHAT_DELTA_MAX_PAGES; page++) {
+        const constraints = [
+          where("created_at", ">=", latestAt),
+          orderBy("created_at", "desc"),
+          ...(cursor ? [startAfter(cursor)] : []),
+          firestoreLimit(CHAT_DELTA_PAGE),
+        ];
+        const batch = await getDocs(query(source, ...constraints));
+        for (const item of batch.docs) updates.set(item.id, toUsageLogEvent(item.id, item.data()));
+        if (batch.docs.length < CHAT_DELTA_PAGE) {
+          finished = true;
+          break;
+        }
+        cursor = batch.docs[batch.docs.length - 1];
+      }
+      // Never publish a partial result if the incremental cursor overflows.
+      if (!finished) throw new Error("Chat event update is too large; retry required.");
+      if (updates.size) {
+        const merged = new Map(chatAccessSnapshot.rows.map((item) => [item.id, item] as const));
+        for (const [id, item] of updates) merged.set(id, item);
+        chatAccessSnapshot.rows = Array.from(merged.values())
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")) || String(b.id || "").localeCompare(String(a.id || "")))
+          .slice(0, CHAT_LOG_WINDOW);
+      }
+      chatAccessSnapshot.checkedAt = Date.now();
+    }
+    return chatAccessSnapshot.rows.filter((item) => CHAT_EVENT_TYPES.has(item.event_type)).slice(0, 300);
+  })().catch((error) => {
+    noteFirestoreReadError(error);
+    throw error;
+  }).finally(() => {
+    if (chatAccessReadInFlight === request) chatAccessReadInFlight = null;
+  });
+  chatAccessReadInFlight = request;
+  return request;
 }
 
 export async function fetchUsageLogsByEventTypes(
