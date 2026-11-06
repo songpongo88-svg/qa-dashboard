@@ -1,4 +1,5 @@
-import React,{useCallback,useState} from "react";
+import React,{useCallback,useEffect,useState} from "react";
+import {createPortal} from "react-dom";
 
 type Request={requestId:string;itemId:string;username:string;displayName:string;phone:string;
   amountTHB:number;status:string;createdAt:string;dueDate:string;payoutConfirmedAt?:string;payoutConfirmedBy?:string};
@@ -47,6 +48,37 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
   };
   const filtered=requests.filter(r=>status==="all"||r.status===status);
   const current=requests.find(r=>r.itemId===selected);
+  useEffect(()=>{
+    if(!current)return;
+    const button=document.querySelector<HTMLButtonElement>("[data-truemoney-confirm-action='paid']");
+    button?.focus();
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"&&!busy){setSelected(null);setError("");}
+    };
+    window.addEventListener("keydown",onKey);
+    return()=>window.removeEventListener("keydown",onKey);
+  },[current?.itemId,busy]);
+
+  // Render the confirmation at document.body. A fixed modal nested inside a
+  // transformed Dashboard/theme panel can be visible but have its clicks
+  // intercepted by another stacking context or transparent overlay.
+  const confirmDialog=current?createPortal(
+    <div className="qa-money-tracker-confirm-overlay" role="presentation"
+      onClick={event=>event.stopPropagation()} onPointerDown={event=>event.stopPropagation()}>
+      <section role="dialog" aria-modal="true" aria-labelledby="qa-money-payout-confirm" aria-describedby="qa-money-payout-description">
+        <h3 id="qa-money-payout-confirm">ยืนยันการโอน TrueMoney สำเร็จ</h3>
+        <p id="qa-money-payout-description">คุณได้โอนเงินจริง <strong>{current.amountTHB} บาท</strong> ให้ <strong>{current.displayName||current.username}</strong> หมายเลข <strong>{current.phone}</strong> แล้วใช่หรือไม่?</p>
+        <p>การกดปุ่มนี้จะบันทึกสถานะเท่านั้น ระบบจะไม่โอนเงินอัตโนมัติ</p>
+        {!adminReady?<p role="alert" className="qa-money-error">สิทธิ์ Sparks Admin ไม่พร้อมใช้งาน กรุณากดยกเลิกแล้วยืนยันสิทธิ์ก่อนทำรายการ</p>:null}
+        {busy?<p role="status" className="qa-money-tracker-confirm-progress">กำลังส่งคำสั่งยืนยันไปยังระบบ กรุณาอย่ากดซ้ำ</p>:null}
+        {error?<p role="alert" className="qa-money-error">{error}</p>:null}
+        <div><button type="button" onClick={()=>{setSelected(null);setError("");}} disabled={busy}>ยกเลิก</button>
+          <button type="button" data-truemoney-confirm-action="paid" disabled={busy||!adminReady}
+            onClick={event=>{event.stopPropagation();void markPaid();}}>{busy?"กำลังบันทึก...":"ยืนยันว่าโอนเงินจริงแล้ว"}</button>
+        </div>
+      </section>
+    </div>,document.body
+  ):null;
   return <section className="qa-money-tracker" aria-label="TrueMoney Redemption Tracker">
     <header><div><h2>TrueMoney Redemption Tracker</h2><p>ตรวจสอบคำขอรับเงิน 20 บาท และยืนยันหลังจากโอนเงินจริงแล้วเท่านั้น</p></div><button type="button" onClick={()=>void reload()} disabled={!adminReady||loading}>รีเฟรช Tracker</button></header>
     <div className="qa-money-tracker-filters">
@@ -67,15 +99,6 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
         <div><span className={request.status==="paid"?"paid":"pending"}>{request.status==="paid"?"โอนแล้ว":"รอโอนเงิน"}</span>{request.status==="pending"?<button type="button" disabled={!adminReady} onClick={()=>setSelected(request.itemId)}>ยืนยันโอนสำเร็จ</button>:<small>ยืนยันโดย {request.payoutConfirmedBy||"Admin"}</small>}</div>
       </article>)}
     </div>
-    {current?<div className="qa-money-tracker-confirm-overlay">
-      <section role="dialog" aria-modal="true" aria-labelledby="qa-money-payout-confirm">
-        <h3 id="qa-money-payout-confirm">ยืนยันการโอน TrueMoney สำเร็จ</h3>
-        <p>คุณได้โอนเงินจริง <strong>{current.amountTHB} บาท</strong> ให้ <strong>{current.displayName||current.username}</strong> หมายเลข <strong>{current.phone}</strong> แล้วใช่หรือไม่?</p>
-        <p>การกดปุ่มนี้จะบันทึกสถานะเท่านั้น ระบบจะไม่โอนเงินอัตโนมัติ</p>
-        {!adminReady?<p role="alert" className="qa-money-error">สิทธิ์ Sparks Admin ไม่พร้อมใช้งาน กรุณากดยกเลิกแล้วยืนยันสิทธิ์ก่อนทำรายการ</p>:null}
-        {error?<p role="alert" className="qa-money-error">{error}</p>:null}
-        <div><button type="button" onClick={()=>{setSelected(null);setError("");}} disabled={busy}>ยกเลิก</button><button type="button" disabled={busy||!adminReady} onClick={()=>void markPaid()}>{busy?"กำลังบันทึก...":"ยืนยันว่าโอนเงินจริงแล้ว"}</button></div>
-      </section>
-    </div>:null}
+    {confirmDialog}
   </section>;
 }
