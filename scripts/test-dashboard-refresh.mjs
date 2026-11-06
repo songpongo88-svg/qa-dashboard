@@ -88,6 +88,27 @@ try {
   assert.ok(document.body.textContent.includes('June 2026'),'June is available as a reporting month');
   console.log('PASS June selector, historical case list and visible monthly report count');
 
+  // Real historical records may contain a slash date, a preview-only Case Date,
+  // or only their original evaluation month. They must not disappear from All Weeks.
+  fixture.read=async options=>{
+    assert.equal(options.allMonths,true);
+    return Array.from({length:10},(_,index)=>{
+      const record={...sample('AA9210'+String(index).padStart(2,'0')),evaluationMonthKey:'2026-10',
+        finalScore:75+index,auditDate:'2026-10-15',topics:sample('AA921000').topics};
+      if(index===7) record.auditDate='15/10/2026';
+      if(index===8){record.auditDate='';record.rawDataPreview={'Case Date':'16/10/2026'};}
+      if(index===9){record.auditDate='';record.rawDataPreview={};}
+      return record;
+    });
+  };
+  await render(8,{externalSelectedMonthKey:'2026-10',externalSelectedYear:'2026'});await settle();
+  assert.ok(table().includes('AA921007'),'legacy slash dates remain visible');
+  assert.ok(table().includes('AA921008'),'preview Case Date is accepted');
+  assert.ok(table().includes('AA921009'),'month-only evaluation remains in October without a fabricated day');
+  assert.ok(table().includes('Gen All Case PDF (10)'),'all ten stored October evaluations appear in monthly reports');
+  assert.ok(fixture.publishes.at(-1).length===10,'historical records are retained without changing scores');
+  console.log('PASS ten historical October cases with ISO, slash, preview-only and month-only dates are retained');
+
   fixture.read=async options=>{assert.equal(options.strict,true);return [sample('AA900001')];};
   await render(1);await settle();
   assert.ok(table().includes('AA900001'),'September cases load from evaluations: '+JSON.stringify({calls:fixture.calls,status:status()?.textContent,table:table().slice(0,300),page:document.body.textContent.slice(-800)}));
