@@ -1,8 +1,9 @@
 import { assertFirestoreReadAllowed, noteFirestoreReadError } from "./firestoreReadPolicy";
 ﻿import { initializeApp, getApps } from "firebase/app";
-import { collection, doc, documentId, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, doc, documentId, getCountFromServer, getDocFromServer, getDocs, getDocsFromServer, getFirestore, limit as firestoreLimit, orderBy, query, runTransaction, startAfter, where, type QueryDocumentSnapshot } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes, uploadBytesResumable } from "firebase/storage";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
+import { evaluationHistoryAccountScope, readVerifiedEvaluationHistory, saveVerifiedEvaluationHistory } from "./evaluationHistoryCache";
 import { getEvaluationAgentFullName } from "./lib/userNames";
 import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationScope";
 import type { DeductionTag } from "./lib/evaluation/deductionTags";
@@ -210,9 +211,9 @@ async function withEvaluationReadDeadline<T>(request: Promise<T>, durationMs: nu
   }
 }
 
-async function cachedRemoteEvaluations(limit: number, request: () => Promise<StoredEvaluation[]>, options: { allMonths?: boolean } = {}) {
+async function cachedRemoteEvaluations(limit: number, request: () => Promise<StoredEvaluation[]>, options: { allMonths?: boolean; historyScope?: string } = {}) {
   const now = Date.now();
-  const cacheKey = `${options.allMonths ? "all-months-document-id" : "submitted-at-desc"}:${limit}`;
+  const cacheKey = `${options.historyScope || "unscoped"}:${options.allMonths ? "all-months-document-id" : "submitted-at-desc"}:${limit}`;
   const cached = remoteEvaluationReadCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.promise;
   assertFirestoreReadAllowed();
@@ -1598,7 +1599,65 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
       try {
         const db = getFirebaseEvaluationDb();
         if (!db) return [];
+        const historyScope = options.allMonths
+          ? evaluationHistoryAccountScope(FIREBASE_PROJECT_ID, FIREBASE_EVALUATION_COLLECTION) : "";
+        const source = collection(db, FIREBASE_EVALUATION_COLLECTION);
+        const previous = historyScope
+          ? await readVerifiedEvaluationHistory<StoredEvaluation>(historyScope) : null;
+        // A completed, account-scoped scan can be verified with a count and
+        // just the changed records. Never present it as official if the server
+        // refuses verification (including a Firestore quota 429).
+        if (previous) {
+          let deltaCursor: QueryDocumentSnapshot | undefined;
+          const merged = new Map(previous.records.map(item => [item.id, item]));
+          const invalid = new Set(previous.invalidDocumentIds);
+          const syncStartedAt = Date.now();
+          let deltaVerified = false;
+          try {
+            const since = new Date(previous.scanStartedAt - 10 * 60_000).toISOString();
+            while (true) {
+              const updated = await withEvaluationReadDeadline(getDocsFromServer(query(
+                source, where("updated_at", ">=", since), orderBy("updated_at", "asc"),
+                ...(deltaCursor ? [startAfter(deltaCursor)] : []), firestoreLimit(200),
+              )), 30_000, "ตรวจสอบประวัติผลประเมินที่เปลี่ยนแปลงเกิน 30 วินาที");
+              for (const doc of updated.docs) {
+                const item = toEvaluation({ ...doc.data(), id: doc.id });
+                if (isStoredEvaluationRecord(item)) {
+                  merged.set(doc.id, item);
+                  invalid.delete(doc.id);
+                } else {
+                  merged.delete(doc.id);
+                  invalid.add(doc.id);
+                }
+              }
+              if (updated.docs.length < 200) break;
+              if (deltaCursor?.id === updated.docs.at(-1)?.id) throw new Error("Evaluation history delta cursor did not advance");
+              deltaCursor = updated.docs[updated.docs.length - 1];
+            }
+            const count = (await getCountFromServer(source)).data().count;
+            if (count === merged.size + invalid.size) {
+              const next = [...merged.values()];
+              await saveVerifiedEvaluationHistory(historyScope, {
+                records: next, invalidDocumentIds: [...invalid], rawDocumentCount: count,
+                scannedAt: Date.now(), scanStartedAt: syncStartedAt,
+              });
+              deltaVerified = true;
+              return [...next.filter(item => !item.deletedAt), ...next.filter(item => item.deletedAt)];
+            }
+            console.warn("Evaluation count changed outside the incremental history; rescanning complete server history");
+          } catch (error) {
+            if (isFirestoreQuotaError(error)) throw error;
+            // Unavailable incremental indexes or a changed backend need a fresh
+            // authoritative scan, not a partially merged cached report.
+            console.warn("Incremental evaluation verification unavailable; trying full scan", error);
+          }
+          if (deltaVerified) throw new Error("Unexpected completed delta state");
+        }
+
         const records: StoredEvaluation[] = [];
+        const invalidDocumentIds: string[] = [];
+        let rawDocumentCount = 0;
+        const fullScanStartedAt = Date.now();
         let cursor: QueryDocumentSnapshot | undefined;
         let realCount = 0;
         const deadline = Date.now() + (options.allMonths ? 120_000 : 20_000);
@@ -1621,9 +1680,10 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
             ? await withEvaluationReadDeadline(getDocsFromServer(pageQuery), 30_000,
               "โหลดประวัติผลประเมินหนึ่งหน้าเกิน 30 วินาที กรุณาลองอัปเดตข้อมูลอีกครั้ง")
             : await getDocs(pageQuery);
-          const page = snapshot.docs
-            .map((item) => toEvaluation({ ...item.data(), id: item.id }))
-            .filter(isStoredEvaluationRecord);
+          const converted = snapshot.docs.map((item) => toEvaluation({ ...item.data(), id: item.id }));
+          const page = converted.filter(isStoredEvaluationRecord);
+          invalidDocumentIds.push(...converted.filter(item => !isStoredEvaluationRecord(item)).map(item => item.id));
+          rawDocumentCount += snapshot.docs.length;
           records.push(...page);
           realCount += page.filter((item) => !item.deletedAt && !isTestCaseEvaluation(item)).length;
           if (snapshot.docs.length < pageLimit) break;
@@ -1632,12 +1692,18 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
           }
           cursor = snapshot.docs[snapshot.docs.length - 1];
         }
+        if (options.allMonths && historyScope) {
+          await saveVerifiedEvaluationHistory(historyScope, {
+            records, invalidDocumentIds, rawDocumentCount,
+            scannedAt: Date.now(), scanStartedAt: fullScanStartedAt,
+          });
+        }
         return [...limitEvaluationScopes(records.filter(item => !item.deletedAt), safeLimit), ...records.filter(item => item.deletedAt)];
       } catch (error) {
         console.warn("Load Firebase evaluations failed", error);
         throw error;
       }
-    }, options).catch((error) => {
+    }, { ...options, historyScope: evaluationHistoryAccountScope(FIREBASE_PROJECT_ID, FIREBASE_EVALUATION_COLLECTION) }).catch((error) => {
       remoteReadSucceeded = false;
       if (options.strict) throw error;
       return [];
