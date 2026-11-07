@@ -203,3 +203,14 @@
 .sl-voice-toggle[aria-pressed="false"]{opacity:.8}
 .sl-voice-caption{border:1px solid #b892ef;border-radius:12px;background:#34254edc;color:#fff;font-size:17px;font-weight:800;line-height:1.55;padding:12px 16px;margin:10px 0}
 @media(max-width:700px){.sl-voice-toggle{width:100%}.sl-voice-caption{font-size:15px}}
+
+/* Two real dice: independently rolled, with an auditable 2-12 total. */
+.sl-dice-display--two{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding:15px}
+.sl-dice-pair{display:flex;flex:1 1 210px;align-items:flex-start;justify-content:center;gap:12px}
+.sl-dice-individual{display:flex;flex-direction:column;align-items:center;gap:11px}
+.sl-dice-display--two .sl-die{width:74px;height:74px;padding:12px;gap:4px;border-radius:15px}
+.sl-dice-individual small{font-size:13px;color:#fff;font-weight:800}
+.sl-dice-total{display:flex;flex:1 1 100px;flex-direction:column;gap:5px;text-align:center;align-items:center;justify-content:center}
+.sl-dice-display--two .sl-dice-total b{font-size:46px;color:#ffe479;font-weight:900}
+.sl-dice-display--two .sl-dice-total small{font-size:13px;font-weight:750}
+@media(max-width:550px){.sl-dice-pair{gap:10px}.sl-dice-display--two .sl-die{width:68px;height:68px}.sl-dice-total{flex-basis:100%}}
