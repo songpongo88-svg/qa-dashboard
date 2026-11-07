@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from "react";
 import {fetchStoredProfilePhoto} from "./profilePhotoStore";
-import {SNAKES_RULES,resolveSnakeSquare} from "../server/snakesLaddersService.js";
+import {SNAKES_RULES,resolveSnakeSquare} from "./snakesRules.js";
 import "./snakesLadders.css";
 
 type Member={username:string;displayName:string;joined:boolean;position:number;pot:number;skips:number;shields:number;claimedAt:string;rewardedTiles:number[]};
