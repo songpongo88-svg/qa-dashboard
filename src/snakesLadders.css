@@ -161,3 +161,33 @@
 .sl-danger-button{background:linear-gradient(120deg,#dd5c78,#ac3156);border:1px solid #ff90a8;color:#fff;border-radius:12px;padding:12px 14px;font-size:13px;font-weight:850}
 .sl-cancel-actions button:disabled{opacity:.5}
 @media(max-width:610px){.sl-room-nav-actions{width:100%}.sl-room-nav-actions button{flex:1}.sl-cancel-actions{grid-template-columns:1fr}}
+
+/* Clear turn state, readable event modals and animated tile tracking. */
+.sl-root{font-size:16px}
+.sl-playercards{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.sl-playercard-info strong{font-size:16px!important;line-height:1.5}
+.sl-playercard-info small,.sl-playercard-info>div span{font-size:13px!important}
+.sl-playercard-info>div b{font-size:13px!important}
+.sl-turn-label{font-size:13px!important;padding:7px 9px!important}
+.sl-turn-wait{display:inline-block;color:#d5c5e8;font-weight:750;font-size:12px;padding:6px 8px;border-radius:9px;border:1px solid #7f6797}
+.sl-playercard.is-turn{outline:3px solid #ffe278;box-shadow:0 0 25px #f8d45c77!important}
+.sl-tile--moving{z-index:3;outline:4px solid #fff0a5!important;outline-offset:-4px;box-shadow:inset 0 0 22px #ffb629aa,0 0 18px #ffe16f!important;animation:sl-moving-flash .65s ease-in-out infinite alternate}
+@keyframes sl-moving-flash{from{filter:brightness(1)}to{filter:brightness(1.25)}}
+.sl-movement-notice{padding:15px 16px;margin-bottom:14px;border:2px solid #ffe17b;border-radius:16px;background:linear-gradient(130deg,#624084,#33214b);box-shadow:0 0 24px #d69b3a44}
+.sl-movement-notice span{display:block;font-size:13px;font-weight:850;color:#ffecb5;margin-bottom:6px}
+.sl-movement-notice strong{display:block;font-size:20px;line-height:1.5;color:#fff}
+.sl-popup{width:min(520px,100%);border:2px solid #d9aeef;padding:30px}
+.sl-popup .sl-overline{font-size:14px!important;letter-spacing:.07em}
+.sl-popup h2{font-size:30px!important;line-height:1.35;color:#fff}
+.sl-popup p{font-size:17px!important;line-height:1.7;color:#fff0fa}
+.sl-popup-points{font-size:29px!important;line-height:1.5;overflow-wrap:anywhere}
+.sl-popup .sl-primary{font-size:18px!important;min-height:52px}
+.sl-dice-panel h3{font-size:21px}
+.sl-small,.sl-pot-panel>p,.sl-event-line small{font-size:13px!important}
+.sl-event-line strong{font-size:14px!important}
+.sl-events-panel h4{font-size:17px}
+.sl-bot-button{font-size:15px!important}
+.sl-board-chip,.sl-board-head h3{font-size:16px}
+.sl-tile-players .sl-piece span{font-size:12px!important}
+.sl-tile-number{font-size:14px!important}
+@media(prefers-reduced-motion:reduce){.sl-tile--moving{animation:none}}
