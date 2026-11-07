@@ -34,3 +34,10 @@
 dialog.reward-confirm-modal{position:fixed;top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);margin:0;padding:0;max-width:calc(100vw - 18px);max-height:94dvh;overflow:hidden;overscroll-behavior:contain}
 dialog.reward-confirm-modal::backdrop{background:rgba(22,11,29,.7);backdrop-filter:blur(6px)}
 .reward-confirm-accept:focus-visible,.reward-confirm-close:focus-visible{outline:3px solid var(--sparks-accent,#9655b0);outline-offset:3px}
+
+/* Single native dialog in browser top layer: no competing full-screen div. */
+dialog.reward-confirm-modal:not([open]){display:none}
+dialog.reward-confirm-modal[open]{display:flex;z-index:2147483600;isolation:isolate}
+dialog.reward-confirm-modal[open]::backdrop{background:rgba(22,11,29,.72);backdrop-filter:blur(6px)}
+dialog.reward-confirm-modal[open] button{pointer-events:auto;touch-action:manipulation}
+dialog.reward-confirm-modal[open] .reward-confirm-accept{min-height:43px}
