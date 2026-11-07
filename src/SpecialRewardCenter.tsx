@@ -120,7 +120,13 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  },[request]);
  useEffect(()=>{setItems([]);setInventoryLoaded(false);setSelectedReward(null);setSelectedItem(null);
   requestId.current="";},[username,sessionId]);
- useEffect(()=>{if(mode!=="inventory"||!loaded||!username||!sessionId)return;void reload().catch(e=>setError(String(e.message||e)));},[mode,loaded,username,sessionId,reload]);
+ useEffect(()=>{
+   if(mode!=="inventory"||!loaded||!username||!sessionId)return;
+   const update=()=>{setError("");void reload().catch(e=>setError(String(e.message||e)));};
+   update();
+   window.addEventListener("qa:sparks-items-refresh",update);
+   return()=>window.removeEventListener("qa:sparks-items-refresh",update);
+ },[mode,loaded,username,sessionId,reload]);
  const opened=Boolean(selectedReward);
  useEffect(()=>{
   if(!opened)return;
