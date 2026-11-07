@@ -60,3 +60,35 @@
 .sr-admin-card input{width:100%;padding:9px;border:1px solid #dfcfe4;border-radius:7px;font-family:inherit}
 .sr-admin-receipt-image{max-width:min(100%,500px);max-height:560px;object-fit:contain;border:1px solid #eee;border-radius:8px;margin-top:10px}
 @media(max-width:550px){.sr-backdrop{padding:8px}.sr-modal{max-height:97dvh;border-radius:14px}.sr-hero{min-height:112px;padding:12px 48px 12px 12px;gap:9px}.sr-hero>.sr-logo{width:77px;height:77px;flex-basis:77px}.sr-hero h2{font-size:20px}.sr-body{padding:14px}.sr-facts strong{font-size:12px}.sr-facts>span{padding:9px 5px}.sr-form .sr-checklabel{font-size:11px}}
+
+/* Reward Center is a product showcase. Instructions are shown only on owned Items. */
+.sr-product-detail{display:grid;gap:15px}
+.sr-product-promo{padding:16px 18px;border:1px solid color-mix(in srgb,var(--sparks-accent,#9758ae) 17%,#f5e6ee);border-radius:15px;background:linear-gradient(120deg,#fff8fd,#fff9ed)}
+.sr-product-label{display:block;color:var(--sparks-accent,#8d509e);font-size:10px;font-weight:800;letter-spacing:.1em}
+.sr-body .sr-product-promo h3{margin:6px 0;font-size:20px;line-height:1.35;color:var(--sparks-dark,#59325f)}
+.sr-body .sr-product-promo p{margin:5px 0 0;font-size:13px;line-height:1.8;color:#755c7a}
+.sr-product-facts>span{padding:14px 12px;min-height:84px}
+.sr-product-facts strong{font-size:19px;color:var(--sparks-dark,#633870);font-variant-numeric:tabular-nums}
+.sr-product-facts strong em{font-size:12px;font-style:normal;font-weight:600}
+.sr-product-overview{padding:0 1px}
+.sr-body .sr-product-overview h3{margin:1px 0 8px;font-size:15px}
+.sr-body .sr-product-overview p{margin:5px 0;font-size:12px;line-height:1.8}
+.sr-body .sr-product-overview p:first-of-type{color:#5c3c68;font-size:14px;font-weight:650}
+.sr-product-conditions{display:flex;flex-wrap:wrap;gap:8px;margin-top:1px}
+.sr-product-conditions span{padding:9px 11px;border-radius:10px;border:1px solid #e8ddea;background:#faf6fb;color:#745f7b;font-size:11px}
+.sr-product-conditions b{color:#65416f}
+.sr-item-guide{margin-top:13px;padding:14px 15px 10px;border:1px solid #e9deeb;border-radius:13px;background:#fcf8fd}
+.sr-body .sr-item-guide h3{margin:0 0 10px;font-size:15px}
+.sr-item-guide ol{margin:0;padding-left:21px;display:grid;gap:7px}
+.sr-item-guide li{font-size:12px;line-height:1.75;color:#6d5376;padding-left:2px}
+.sr-item-guide li::marker{font-weight:800;color:var(--sparks-accent,#9453aa)}
+.sr-item-guide .sr-hint{margin:11px 0 0}
+.sr-product-detail+.sr-actions{margin-top:9px}
+@media(max-width:550px){
+ .sr-product-promo{padding:12px 13px}
+ .sr-body .sr-product-promo h3{font-size:17px}
+ .sr-product-facts>span{padding:10px 7px;min-height:78px}
+ .sr-product-facts strong{font-size:15px}
+ .sr-product-facts strong em{font-size:10px}
+ .sr-product-conditions{display:grid;gap:6px}
+}
