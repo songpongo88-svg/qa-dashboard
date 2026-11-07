@@ -1350,6 +1350,8 @@ export default async function handler(req, res) {
         "snakes-state":()=>snakes.state(actor,body.includeHistory===true),
         "snakes-create":()=>snakes.create(body,actor),
         "snakes-invite":()=>snakes.invite(body,actor),
+        "snakes-add-bot":()=>snakes.addBot(body,actor),
+        "snakes-cancel":()=>snakes.cancelRoom(body,actor),
         "snakes-respond":()=>snakes.respond(body,actor),
         "snakes-start":()=>snakes.start(body,actor),
         "snakes-roll":()=>snakes.roll(body,actor),
