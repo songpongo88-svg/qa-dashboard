@@ -2,7 +2,7 @@ import { randomInt, randomUUID } from "node:crypto";
 
 // One persistent room per match. Every change and payout is a Firestore
 // compare-and-swap transaction; dice, traps and prizes are server-generated.
-import {SNAKES_RULES,resolveSnakeSquare} from "../src/snakesRules.js";
+import {SNAKES_RULES,resolveSnakeSquare,SNAKES_BOT_ID} from "../src/snakesRules.js";
 export {SNAKES_RULES,resolveSnakeSquare};
 const ROOMS="qa_sparks_snakes_rooms_v1";
 const USERS="qa_sparks_snakes_members_v1";
@@ -11,7 +11,7 @@ const count=v=>Number.isSafeInteger(v)&&v>=0?v:0;
 const validName=v=>typeof v==="string"&&/^[a-zA-Z0-9_.-]{2,100}$/.test(v);
 const randomReward=()=>randomInt(1,301);
 const sanitizeMember=p=>({
-  username:p.username,displayName:p.displayName,joined:p.joined===true,
+  username:p.username,displayName:p.displayName,joined:p.joined===true,isBot:p.isBot===true,
   position:p.position||1,pot:count(p.pot),shields:count(p.shields),skips:count(p.skips),
   claimedAt:p.claimedAt||"",rewardedTiles:Array.isArray(p.rewardedTiles)?p.rewardedTiles:[],
 });
@@ -76,6 +76,56 @@ export function applySquare(room,actorUsername,tile,randomAmount=randomReward){
   }
   return {type:rule.type,tile,to,delta,description};
 }
+// Bot takes its turns inside the initiating human transaction. It never
+// receives a QA Dashboard account, session, wallet, or redemption capability.
+function botTarget(room,at){
+  const pending=room.pendingTarget;
+  if(!pending||pending.actor!==SNAKES_BOT_ID)return null;
+  const bot=room.members.find(p=>p.isBot);
+  const candidates=room.members.filter(p=>p.joined&&!p.isBot&&p.username!==SNAKES_BOT_ID);
+  if(!bot||!candidates.length)err("ไม่พบเป้าหมายให้ Bot",409);
+  const target=candidates[randomInt(candidates.length)];
+  let description,delta=0;
+  if(target.shields>0){target.shields--;description=target.displayName+" ใช้โล่ป้องกัน Bot";}
+  else if(pending.type==="reset-other"){target.position=1;description="Bot ส่ง "+target.displayName+" กลับช่อง 1";}
+  else if(pending.type==="swap"){const old=bot.position;bot.position=target.position;target.position=old;
+    description="Bot สลับตำแหน่งกับ "+target.displayName;}
+  else if(pending.type==="steal"){delta=Math.min(100,Math.ceil(target.pot*0.2));
+    target.pot-=delta;bot.pot+=delta;description="Bot ขโมย "+delta+" Sparks จาก "+target.displayName;}
+  else err("เหตุการณ์ Bot ผิดรูปแบบ");
+  room.pendingTarget=null;
+  const event={type:pending.type,actor:SNAKES_BOT_ID,target:target.username,delta,
+    description,tile:pending.tile,at};
+  room.event=event;room.events=[...(room.events||[]),event].slice(-20);
+  advanceTurn(room);
+  return event;
+}
+export function advanceBotTurns(room,maximum=6){
+  const events=[];
+  for(let n=0;n<maximum&&room.status==="playing"&&room.currentTurn===SNAKES_BOT_ID;n++){
+    const bot=room.members.find(p=>p.isBot&&p.joined);
+    if(!bot)err("Bot ไม่อยู่ในห้อง",409);
+    const dice=randomInt(1,7),from=bot.position,tile=Math.min(50,from+dice),at=new Date().toISOString();
+    bot.position=tile;
+    let event;
+    if(tile===50){
+      event={type:"finish",tile:50,to:50,delta:0,description:"Sparks Bot เข้าเส้นชัยแล้ว"};
+      room.status="finished";room.winner=SNAKES_BOT_ID;room.finishedAt=at;room.currentTurn="";
+    }else{
+      event=applySquare(room,SNAKES_BOT_ID,tile);
+      if(!room.pendingTarget)advanceTurn(room);
+    }
+    room.lastRoll=dice;
+    room.event={...event,actor:SNAKES_BOT_ID,dice,from,at};
+    room.events=[...(room.events||[]),room.event].slice(-20);
+    events.push(room.event);
+    if(room.pendingTarget?.actor===SNAKES_BOT_ID){
+      const targeted=botTarget(room,new Date().toISOString());
+      if(targeted)events.push(targeted);
+    }
+  }
+  return events;
+}
 export function createSnakesService(db){
   const {firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
     walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance,
@@ -88,7 +138,7 @@ export function createSnakesService(db){
     if(!/^SG-[A-F0-9]{8}$/.test(String(id)))err("รหัสห้องไม่ถูกต้อง");
     const snap=await readDoc(roomPath(id),transaction),room=load(snap);
     if(!snap)err("ไม่พบห้องเกม",404);
-    if(!room.members?.some(p=>p.username===actor.username))err("คุณไม่ได้รับเชิญเข้าห้องนี้",403);
+    if(!room.members?.some(p=>p.username===actor.username&&!p.isBot))err("คุณไม่ได้รับเชิญเข้าห้องนี้",403);
     return {snap,room};
   };
   async function transact(work){
@@ -110,6 +160,47 @@ export function createSnakesService(db){
     }
     err("มีผู้เล่นดำเนินการพร้อมกัน กรุณารีเฟรช",409);
   }
+  async function addBot(body,actor){
+    return transact(async t=>{
+      const {room,snap}=await requireRoom(body.roomId,actor,t);
+      if(room.host!==actor.username||room.status!=="lobby")err("เจ้าของห้องเพิ่ม Bot ได้ก่อนเริ่มเกมเท่านั้น",403);
+      if(room.members.some(p=>p.isBot))err("เพิ่ม Bot ได้เพียง 1 ตัวต่อห้อง",409);
+      if(room.members.length>=SNAKES_RULES.maxPlayers)err("ห้องนี้มีผู้เล่นครบ 3 คนแล้ว",409);
+      const now=new Date().toISOString();
+      room.members.push({username:SNAKES_BOT_ID,displayName:"Sparks Bot",joined:true,isBot:true,
+        position:1,pot:0,shields:0,skips:0,rewardedTiles:[],claimedAt:""});
+      room.updatedAt=now;
+      room.events=[...(room.events||[]),{actor:SNAKES_BOT_ID,type:"join",description:"Sparks Bot เข้าร่วมเกมเพื่อทดสอบ (ไม่มีสิทธิ์รับ Sparks)",at:now}].slice(-20);
+      return {writes:[updateWrite(roomPath(room.id),room,snap)],result:{room:toPublic(room,actor)}};
+    });
+  }
+  async function cancelRoom(body,actor){
+    return transact(async t=>{
+      const {room,snap}=await requireRoom(body.roomId,actor,t);
+      if(room.host!==actor.username)err("เฉพาะเจ้าของห้องเท่านั้นที่ยกเลิกได้",403);
+      if(room.status!=="lobby"&&room.status!=="playing")err("ไม่สามารถยกเลิกห้องที่จบเกมไปแล้ว",409);
+      const humans=room.members.filter(p=>!p.isBot);
+      const userRows=await Promise.all(humans.map(async member=>{
+        const userDocPath=userPath(member.username);
+        return {userDocPath,snap:await readDoc(userDocPath,t),username:member.username};
+      }));
+      const now=new Date().toISOString();
+      room.status="cancelled";room.cancelledAt=now;room.updatedAt=now;room.pendingTarget=null;room.currentTurn="";
+      room.events=[...(room.events||[]),{actor:actor.username,type:"cancel",
+        description:"เจ้าของห้องยกเลิกเกม · ไม่มีการจ่าย Sparks",at:now}].slice(-20);
+      const writes=[updateWrite(roomPath(room.id),room,snap)];
+      for(const row of userRows){
+        const index=load(row.snap);
+        const changes={username:row.username,
+          activeRoom:index.activeRoom===room.id?"":index.activeRoom||"",
+          rooms:(index.rooms||[]).filter(id=>id!==room.id),
+          invitations:(index.invitations||[]).filter(id=>id!==room.id),
+          updatedAt:now};
+        writes.push(updateWrite(row.userDocPath,changes,row.snap));
+      }
+      return {writes,result:{cancelled:true,roomId:room.id}};
+    });
+  }
   function memberIndex(before,patch){return {...before,...patch};}
   async function state(actor,includeHistory=false){
     const index=load(await readDoc(userPath(actor.username)));
@@ -120,7 +211,7 @@ export function createSnakesService(db){
       ...(includeHistory&&Array.isArray(index.rooms)?index.rooms.slice(-5):[])].filter(Boolean))].slice(-9).reverse();
     const rows=await Promise.all(ids.map(async id=>{
       const room=load(await readDoc(roomPath(id)));
-      return room.id&&room.members?.some(p=>p.username===actor.username)?toPublic(room,actor):null;
+      return room.id&&room.status!=="cancelled"&&room.members?.some(p=>p.username===actor.username&&!p.isBot)?toPublic(room,actor):null;
     }));
     const rooms=rows.filter(Boolean).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));
     return {rooms,activeRoomId:index.activeRoom||"",rules:SNAKES_RULES};
@@ -152,7 +243,7 @@ export function createSnakesService(db){
   }
   async function invite(body,actor){
     const target=String(body.targetUsername||"").trim().toLowerCase();
-    if(!validName(target)||target===actor.username)err("กรุณาระบุ Username ของผู้รับคำเชิญ");
+    if(!validName(target)||target===actor.username||target===SNAKES_BOT_ID)err("กรุณาระบุ Username ของผู้รับคำเชิญ");
     const profile=await findProfileByUsername(target);
     if(isSuspendedProfile(profile))err("ไม่สามารถเชิญบัญชีที่ถูกระงับได้",403);
     return transact(async t=>{
@@ -231,8 +322,11 @@ export function createSnakesService(db){
       room.lastRoll=dice;room.lastRequestId=requestId;room.lastRequestActor=actor.username;
       room.event={...event,actor:actor.username,dice,from,at:now};
       room.events=[...(room.events||[]),room.event].slice(-20);
-      room.updatedAt=now;
-      return {writes:[updateWrite(roomPath(room.id),room,snap)],result:{room:toPublic(room,actor)}};
+      const turnEvent=room.event;
+      const botEvents=advanceBotTurns(room);
+      room.updatedAt=new Date().toISOString();
+      return {writes:[updateWrite(roomPath(room.id),room,snap)],
+        result:{room:toPublic(room,actor),turnEvent,botEvents}};
     });
   }
   async function target(body,actor){
@@ -262,8 +356,12 @@ export function createSnakesService(db){
       room.event={type:pending.type,actor:actor.username,target:targetUsername,delta,
         description,tile:pending.tile,at:now};
       room.events=[...(room.events||[]),room.event].slice(-20);
-      advanceTurn(room);room.updatedAt=now;
-      return {writes:[updateWrite(roomPath(room.id),room,snap)],result:{room:toPublic(room,actor)}};
+      advanceTurn(room);
+      const turnEvent=room.event;
+      const botEvents=advanceBotTurns(room);
+      room.updatedAt=new Date().toISOString();
+      return {writes:[updateWrite(roomPath(room.id),room,snap)],
+        result:{room:toPublic(room,actor),turnEvent,botEvents}};
     });
   }
   async function claim(body,actor){
@@ -271,7 +369,7 @@ export function createSnakesService(db){
       const {room,snap}=await requireRoom(body.roomId,actor,t);
       if(room.status!=="finished")err("ต้องรอให้เกมจบก่อนจึงรับ Sparks ได้",409);
       const player=room.members.find(m=>m.username===actor.username&&m.joined);
-      if(!player)err("คุณไม่ใช่ผู้เล่นที่เข้าร่วมเกม",403);
+      if(!player||player.isBot)err("Bot ไม่มีสิทธิ์รับ Sparks เข้าบัญชี",403);
       if(player.claimedAt)return {writes:[],result:{alreadyApplied:true,amount:player.pot,room:toPublic(room,actor)}};
       const now=new Date().toISOString(),amount=count(player.pot),year=currentMemberYear();
       const wp=walletDocumentPath(actor.username),hd=path("qa_sparks_wallets",encodeURIComponent(actor.username),"history","snake-ladder-"+room.id);
@@ -294,5 +392,5 @@ export function createSnakesService(db){
       return {writes,result:{amount,alreadyApplied:false,room:toPublic(room,actor)}};
     });
   }
-  return {state,create,invite,respond,start,roll,target,claim};
+  return {state,create,invite,respond,start,roll,target,claim,addBot,cancelRoom};
 }
