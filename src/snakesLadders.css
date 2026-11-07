@@ -240,3 +240,24 @@
 100%{transform:translate(10px,5px) rotate(-354deg)}
 }
 @media(prefers-reduced-motion:reduce){.sl-board-dice-flight--rolling .sl-board-dice-flight__one,.sl-board-dice-flight--rolling .sl-board-dice-flight__two{animation:none}}
+
+/* True six-sided 3D dice: both spin and bounce together, then show the server result. */
+.sl-cube{position:relative;width:84px;height:84px;transform-style:preserve-3d;transform:var(--sl-cube-end);filter:drop-shadow(0 9px 10px #0008)}
+.sl-cube-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:15px;border:1px solid #d4c7e9;background:linear-gradient(140deg,#fff,#e7dff4);box-shadow:inset 0 0 8px #8b73b655}
+.sl-cube-face--front{transform:translateZ(42px)}
+.sl-cube-face--back{transform:rotateY(180deg) translateZ(42px)}
+.sl-cube-face--right{transform:rotateY(90deg) translateZ(42px)}
+.sl-cube-face--left{transform:rotateY(-90deg) translateZ(42px)}
+.sl-cube-face--top{transform:rotateX(90deg) translateZ(42px)}
+.sl-cube-face--bottom{transform:rotateX(-90deg) translateZ(42px)}
+.sl-cube-face .sl-die,.sl-board-dice-flight .sl-cube-face .sl-die{width:100%;height:100%;padding:14px;gap:5px;border-radius:14px;transform:none;background:transparent;box-shadow:none}
+.sl-board-dice-flight--rolling .sl-cube{animation:sl-cube-roll 1.5s cubic-bezier(.16,.7,.3,1) both}
+.sl-board-dice-flight--landed .sl-cube{transform:var(--sl-cube-end)}
+@keyframes sl-cube-roll{
+  0%{transform:translateY(-100px) rotateX(880deg) rotateY(790deg) scale(.75)}
+  45%{transform:translateY(-8px) rotateX(520deg) rotateY(480deg) scale(1.08)}
+  66%{transform:translateY(-48px) rotateX(305deg) rotateY(270deg) scale(1)}
+  85%{transform:translateY(6px) rotateX(65deg) rotateY(35deg)}
+  100%{transform:var(--sl-cube-end)}
+}
+@media(prefers-reduced-motion:reduce){.sl-board-dice-flight--rolling .sl-cube{animation:none}}
