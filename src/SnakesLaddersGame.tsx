@@ -280,11 +280,11 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
           <button type="button" className="sl-link" onClick={()=>{animationRef.current+=1;setMotion(null);setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
         </div>
      </div>
-     <div className="sl-playercards">{room.members.filter(p=>p.joined).map((p,i)=><div className={"sl-playercard sl-playercard--"+palette[i%3]+(room.currentTurn===p.username?" is-turn":"")} key={p.username}>
+     <div className="sl-playercards">{room.members.filter(p=>p.joined).map((p,i)=><div className={"sl-playercard sl-playercard--"+palette[i%3]+((motion?.actor===p.username||(!motion&&room.currentTurn===p.username))?" is-turn":"")} key={p.username}>
        <Avatar user={p.username} photos={photos} label={p.displayName}/>
        <div className="sl-playercard-info"><strong>{p.displayName}{p.isBot?" · BOT":""}</strong><small>{p.isBot?"เล่นอัตโนมัติ · ไม่รับ Sparks":"@"+p.username}</small>
          <div><span>ช่อง {p.position}</span><b>⚡ {p.pot.toLocaleString()} Sparks{p.isBot?" (ในเกมเท่านั้น)":""}</b></div></div>
-       {room.currentTurn===p.username?<span className="sl-turn-label">กำลังเล่น · {sameGameUser(p.username,username)?"ตาคุณ":p.isBot?"บอทกำลังทอย":"ตาผู้เล่น"}</span>:<span className="sl-turn-wait">รอตาเล่น</span>}
+       {motion?.actor===p.username?<span className="sl-turn-label">กำลังเดินบนกระดาน</span>:!motion&&room.currentTurn===p.username?<span className="sl-turn-label">กำลังเล่น · {sameGameUser(p.username,username)?"ตาคุณ":p.isBot?"บอทกำลังทอย":"ตาผู้เล่น"}</span>:<span className="sl-turn-wait">รอตาเล่น</span>}
        {room.winner===p.username?<span className="sl-winner">🏆 ผู้ชนะ</span>:null}
      </div>)}
        {room.members.filter(p=>!p.joined).map(p=><div className="sl-playercard sl-playercard--pending" key={p.username}>
