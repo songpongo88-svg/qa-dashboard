@@ -113,7 +113,10 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  const [notice,setNotice]=useState("");
  const [popup,setPopup]=useState<GameEvent|null>(null);
  const [motion,setMotion]=useState<{positions:Record<string,number>;actor:string;message:string}|null>(null);
- const [secondsToRoll,setSecondsToRoll]=useState(5);
+ const [secondsToRoll,setSecondsToRoll]=useState(10);
+ const [voiceEnabled,setVoiceEnabled]=useState(true);
+ const [voiceMessage,setVoiceMessage]=useState("");
+ const lastSpokenTurn=useRef("");
  const animationRef=useRef(0);
  const motionRoomId=useRef("");
  const [cancelConfirm,setCancelConfirm]=useState(false);
@@ -122,6 +125,23 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  useEffect(()=>()=>{animationRef.current+=1;},[]);
  const room=useMemo(()=>data.rooms.find(r=>r.id===currentRoomId)||null,[data.rooms,currentRoomId]);
  const displayRoom=useMemo(()=>room&&motion&&motionRoomId.current===room.id?{...room,members:room.members.map(p=>({...p,position:motion.positions[p.username]??p.position}))}:room,[room,motion]);
+ const speak=useCallback((message:string)=>{
+   if(!voiceEnabled||typeof window==="undefined"||!("speechSynthesis" in window)||!("SpeechSynthesisUtterance" in window))return;
+   try{
+     window.speechSynthesis.cancel();
+     const utterance=new SpeechSynthesisUtterance(message);
+     utterance.lang="th-TH";utterance.rate=0.93;utterance.pitch=1;utterance.volume=1;
+     const voices=window.speechSynthesis.getVoices();
+     const thai=voices.find(v=>v.lang.toLowerCase()==="th-th")||voices.find(v=>v.lang.toLowerCase().startsWith("th"));
+     if(thai)utterance.voice=thai;
+     window.speechSynthesis.speak(utterance);
+     setVoiceMessage(message);
+   }catch{/* Voice availability depends on the browser and OS; gameplay must continue. */}
+ },[voiceEnabled]);
+ useEffect(()=>{
+   if(!voiceEnabled&&typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.cancel();
+ },[voiceEnabled]);
+ useEffect(()=>()=>{if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.cancel();},[]);
  const sleep=(ms:number)=>new Promise<void>(resolve=>window.setTimeout(resolve,ms));
  const animateMoves=async(before:Room,after:Room,events:GameEvent[])=>{
    if(!events.length)return;
@@ -136,6 +156,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      if(typeof ev.dice==="number"&&typeof ev.from==="number"&&typeof ev.tile==="number"){
        positions[ev.actor!]=ev.from;
        show(ev.actor||"",`${name} ทอยได้ ${ev.dice} แต้ม`);
+       speak(`${name} ทอยลูกเต๋าได้ ${ev.dice} แต้ม`);
        await sleep(650);
        for(let n=ev.from+1;n<=ev.tile;n++){
          if(id!==animationRef.current)return;
@@ -145,6 +166,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        }
        if(typeof ev.to==="number"&&ev.to!==ev.tile){
          show(ev.actor||"",`${name} ${ev.type==="snake"?"ตกงู":ev.type==="ladder"?"ขึ้นบันได":"ติดกับดัก"}! ช่อง ${ev.tile} → ${ev.to}`);
+         speak(ev.type==="snake"?`${name} ตกงูจากช่อง ${ev.tile} ลงไปช่อง ${ev.to}`:ev.type==="ladder"?`${name} ขึ้นบันไดจากช่อง ${ev.tile} ไปช่อง ${ev.to}`:`${name} ติดกับดัก ต้องย้ายไปช่อง ${ev.to}`);
          await sleep(850);
          const direction=ev.to>ev.tile?1:-1;
          for(let n=ev.tile+direction;direction>0?n<=ev.to:n>=ev.to;n+=direction){
@@ -155,11 +177,15 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
          }
        }
        show(ev.actor||"",`${name}: ${ev.description}`);
-       await sleep(1100);
+       if(ev.type==="reward")speak(`${name} เปิดการ์ดรางวัล ได้รับ ${Math.max(0,ev.delta||0)} สปาร์กส์`);
+       else if(ev.type==="finish")speak(`จบเกมแล้ว! ${name} เป็นผู้ชนะอันดับหนึ่ง!`);
+       else if(ev.type!=="snake"&&ev.type!=="ladder"&&ev.type!=="safe")speak(`${name} เปิดการ์ดเหตุการณ์ ${ev.description}`);
+       await sleep(ev.type==="finish"?2800:ev.type==="safe"?750:2300);
      }else{
        if(ev.target){const target=after.members.find(p=>p.username===ev.target);if(target)positions[target.username]=target.position;}
        show(ev.actor||"",`${name}: ${ev.description}`);
-       await sleep(1000);
+       speak(`${name} ${ev.description}`);
+       await sleep(2300);
      }
    }
    if(id===animationRef.current){setMotion(null);setPopup(events.find(ev=>typeof ev.dice==="number")||events[0]);}
@@ -254,9 +280,18 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  const waitingTarget=sameGameUser(room?.pendingTarget?.actor,username);
  const myUnclaimedFinished=room?.status==="finished"&&me?.joined&&!me?.claimedAt;
  useEffect(()=>{
-   setSecondsToRoll(5);
+   if(!room||room.status!=="playing"||!room.currentTurn||motion)return;
+   const turnKey=room.id+":"+room.currentTurn+":"+room.events.length+":"+room.updatedAt;
+   if(lastSpokenTurn.current===turnKey)return;
+   lastSpokenTurn.current=turnKey;
+   const member=room.members.find(p=>p.username===room.currentTurn);
+   if(member&&!member.isBot)speak(sameGameUser(member.username,username)?"ถึงตาคุณแล้ว กรุณาทอยลูกเต๋าภายในสิบวินาที":`ถึงตา ${member.displayName} ทอยลูกเต๋า`);
+   else if(member?.isBot)speak(`ถึงตา ${member.displayName} บอทกำลังเล่น`);
+ },[room?.id,room?.currentTurn,room?.updatedAt,Boolean(motion),voiceEnabled,username]);
+ useEffect(()=>{
+   setSecondsToRoll(10);
    if(!myTurn||waitingTarget||motion||busyRef.current)return;
-   const expires=Date.now()+5000;
+   const expires=Date.now()+10000;
    const timer=window.setInterval(()=>{
      const next=Math.max(0,Math.ceil((expires-Date.now())/1000));
      setSecondsToRoll(next);
@@ -268,6 +303,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    <div className="sl-topbar">
      <div className="sl-brand"><span className="sl-brand-flash">ϟ</span><div><span>QA <em>Sparks</em></span><small>SNAKES & LADDERS · MULTIPLAYER</small></div></div>
      <div className="sl-room-badge">🎲 บันไดงู 50 ช่อง <span>·</span> 👥 สูงสุด 5 คน (บอท 4 ตัว) <span>·</span> ดูการเดินแบบทีละช่อง</div>
+     <button type="button" className="sl-voice-toggle" aria-pressed={voiceEnabled} onClick={()=>{setVoiceEnabled(v=>!v);if(!voiceEnabled)speak("เปิดเสียงบรรยายเกมแล้ว");}}>{voiceEnabled?"🔊 เสียงพูด: เปิด":"🔇 เสียงพูด: ปิด"}</button>
      <button type="button" className="sl-refresh" disabled={busy||loading} onClick={()=>void refresh(true)}>{loading?"กำลังโหลด...":"↻ รีเฟรช"}</button>
    </div>
    {error?<div className="sl-error" role="alert">{error}</div>:null}
@@ -322,7 +358,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <GameBoard room={displayRoom||room} photos={photos} username={username} movingActor={motion?.actor}/>
        <div className="sl-sidebar">
          <div className="sl-dice-panel">{motion?<div className="sl-movement-notice" role="status"><span>🎲 กำลังเดินบนกระดาน</span><strong>{motion.message}</strong></div>:null}<span className="sl-overline">YOUR NEXT MOVE</span><h3>{room.status==="finished"?"เกมจบแล้ว":myTurn?"ถึงตาคุณแล้ว":"รอผู้เล่นคนอื่น"}</h3>
-           {myTurn&&!waitingTarget&&!motion?<div className="sl-roll-countdown" role="timer"><span>ทอยภายใน 5 วินาที</span><strong>{secondsToRoll}</strong><small>หากไม่กด ระบบจะทอยให้อัตโนมัติ</small></div>:null}
+           {myTurn&&!waitingTarget&&!motion?<div className="sl-roll-countdown" role="timer"><span>ทอยภายใน 10 วินาที</span><strong>{secondsToRoll}</strong><small>หากไม่กด ระบบจะทอยให้อัตโนมัติ</small></div>:null}
            <div className="sl-dice-display"><DiceFace value={room.lastRoll||5}/><div><small>ผลทอยล่าสุด</small><b>{room.lastRoll||"–"}</b></div></div>
            {room.status==="playing"?
              waitingTarget?<p className="sl-small">เลือกคู่แข่งในรายการด้านล่างเพื่อใช้พลังพิเศษ</p>:
@@ -380,6 +416,6 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <button className="sl-primary" type="button" onClick={()=>setPopup(null)}>ตกลง · กลับไปที่เกม</button>
      </section>
    </div>:null}
-   <div className="sl-footer">เกมไม่จำกัดระยะเวลา · ตาของคุณมีเวลาทอย 5 วินาทีขณะเปิดเกม · Sparks เข้าบัญชีหลังเกมจบและกดรับเท่านั้น</div>
+   <div className="sl-footer">เกมไม่จำกัดระยะเวลา · ตาของคุณมีเวลาทอย 10 วินาทีขณะเปิดเกม · Sparks เข้าบัญชีหลังเกมจบและกดรับเท่านั้น</div>
  </section>;
 }
