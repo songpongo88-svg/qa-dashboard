@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-07T11:41:06.866Z",
+  "reviewedAt": "2026-11-07T11:44:29.253Z",
   "reason": "Reviewed new multiplayer 50-square Snakes & Ladders QA Sparks client and authenticated transactional server with exact 3 player limit, invitation indexing, random dice/prizes, hazard Game Pot and post-finish idempotent wallet claim; existing QA scores and reward systems unchanged",
   "contentChanged": true,
   "reviewedChapters": [
@@ -682,6 +682,6 @@
     "src/SnakesLaddersGame.tsx": "31db1ec0fca827f4aa027f62f16963f9cb0b52514fb0ca05a333c7364bf41ca5",
     "src/snakesLadders.css": "04c55de195ef39b33ebbc9fe26b78cec222f6947184fe51a977eecb254cefd63",
     "scripts/test-snakes-ladders.mjs": "10ed5c1fc9cb3ba240b7d6d64d7312131d53cb6318571ac9e1f6fe33982c68f6",
-    "scripts/test-snakes-ladders-ui.mjs": "20965c8277e2d8b1c12fe39df1161c6f3c9f16295ba30a1df57c774436098be6"
+    "scripts/test-snakes-ladders-ui.mjs": "0dd3fc3f2c21441bf160b211af27e15fb14e12a5b1eed030ee07c9b4f5921cf1"
   }
 }
