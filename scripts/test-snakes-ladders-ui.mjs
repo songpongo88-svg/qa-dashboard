@@ -8,7 +8,6 @@ import {JSDOM} from "jsdom";
 const dom=new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>",{url:"https://qa-dashboard.test",pretendToBeVisual:true});
 for(const name of ["window","document","HTMLElement","MutationObserver","Event","MouseEvent","KeyboardEvent"])globalThis[name]=dom.window[name];
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-globalThis.crypto=await import("node:crypto").then(mod=>mod.webcrypto);
 const room={
  id:"SG-12345678",host:"alice",status:"playing",members:[
   {username:"alice",displayName:"Alice QA",joined:true,position:4,pot:200,skips:0,shields:0,rewardedTiles:[],claimedAt:""},
