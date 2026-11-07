@@ -214,3 +214,29 @@
 .sl-dice-display--two .sl-dice-total b{font-size:46px;color:#ffe479;font-weight:900}
 .sl-dice-display--two .sl-dice-total small{font-size:13px;font-weight:750}
 @media(max-width:550px){.sl-dice-pair{gap:10px}.sl-dice-display--two .sl-die{width:68px;height:68px}.sl-dice-total{flex-basis:100%}}
+
+/* Both dice are thrown in a single synchronized motion and land together. */
+.sl-board-dice-flight{position:absolute;inset:0;z-index:20;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;background:radial-gradient(ellipse at center,#0c0c1a9c 0%,#0b0b174d 55%,transparent 80%)}
+.sl-board-dice-flight__pair{display:flex;align-items:center;justify-content:center;gap:22px;perspective:700px;filter:drop-shadow(0 16px 13px #000a)}
+.sl-board-dice-flight__one,.sl-board-dice-flight__two{transform-origin:center center}
+.sl-board-dice-flight--rolling .sl-board-dice-flight__one{animation:sl-dice-bounce-a 1.5s cubic-bezier(.22,.66,.31,1) both}
+.sl-board-dice-flight--rolling .sl-board-dice-flight__two{animation:sl-dice-bounce-b 1.5s cubic-bezier(.22,.66,.31,1) both}
+.sl-board-dice-flight--landed .sl-board-dice-flight__one{transform:translate(-10px,5px) rotate(-6deg)}
+.sl-board-dice-flight--landed .sl-board-dice-flight__two{transform:translate(10px,5px) rotate(6deg)}
+.sl-board-dice-flight .sl-die{height:84px;width:84px;transform:none;box-shadow:0 7px 0 #8d77c6,0 18px 22px #000b,0 0 24px #ffdf9a70}
+.sl-board-dice-flight__label{max-width:90%;text-align:center;border:1px solid #fbe1a3;border-radius:12px;padding:10px 17px;background:#231538e8;color:#fff;font-size:clamp(15px,2vw,22px);font-weight:900;text-shadow:0 2px 8px #000}
+@keyframes sl-dice-bounce-a{
+0%{transform:translate(-170px,-240px) rotate(-200deg) scale(.65);opacity:.5}
+45%{transform:translate(-35px,-10px) rotate(100deg) scale(1.1);opacity:1}
+65%{transform:translate(-25px,-68px) rotate(220deg) scale(1)}
+83%{transform:translate(-12px,12px) rotate(310deg)}
+100%{transform:translate(-10px,5px) rotate(354deg)}
+}
+@keyframes sl-dice-bounce-b{
+0%{transform:translate(170px,-240px) rotate(200deg) scale(.65);opacity:.5}
+45%{transform:translate(35px,-10px) rotate(-100deg) scale(1.1);opacity:1}
+65%{transform:translate(25px,-68px) rotate(-220deg) scale(1)}
+83%{transform:translate(12px,12px) rotate(-310deg)}
+100%{transform:translate(10px,5px) rotate(-354deg)}
+}
+@media(prefers-reduced-motion:reduce){.sl-board-dice-flight--rolling .sl-board-dice-flight__one,.sl-board-dice-flight--rolling .sl-board-dice-flight__two{animation:none}}
