@@ -1,4 +1,6 @@
 // Shared, pure board rules. Client artwork never imports server crypto or APIs.
+// A reserved non-account identity used only for testing multiplayer games.
+export const SNAKES_BOT_ID="__qa_sparks_bot_test__";
 export const SNAKES_RULES=Object.freeze({
   squares:50,maxPlayers:3,minPlayers:2,rewardMinimum:1,rewardMaximum:300,
   rewardSquares:[3,7,12,16,21,26,32,36,41,47],
