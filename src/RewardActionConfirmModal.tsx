@@ -52,8 +52,13 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
     const modal=modalRef.current;
     // Native dialog enters the browser top layer: no Dashboard overlay,
     // theme or z-index can cover the Admin confirmation.
-    try{if(modal&&typeof modal.showModal==="function"&&!modal.open)modal.showModal();}
-    catch{ /* Fallback remains visible in the dedicated fixed overlay. */ }
+    try{
+      if(modal&&typeof modal.showModal==="function"&&!modal.open)modal.showModal();
+      else if(modal&&!modal.open)modal.setAttribute("open","");
+    }catch{
+      // Keep the fixed dialog visible even if the native top layer is unavailable.
+      modal?.setAttribute("open","");
+    }
     closeRef.current?.focus();
     const keydown=(event:KeyboardEvent)=>{
       if(event.key==="Escape"){event.preventDefault();if(!currentBusy.current)closeCallback.current();return;}
@@ -73,6 +78,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
       document.removeEventListener("keydown",keydown);
       modal?.removeEventListener("cancel",nativeCancel);
       try{if(modal?.open&&typeof modal.close==="function")modal.close();}catch{}
+      modal?.removeAttribute("open");
       document.body.style.overflow=previous;
       focused?.focus();
     };
