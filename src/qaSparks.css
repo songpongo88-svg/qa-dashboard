@@ -893,3 +893,10 @@
 .qa-sparks-items-toolbar button{font-family:Kanit,sans-serif;font-size:11px;font-weight:700;padding:7px 12px;color:var(--sparks-accent,#8a50a5);background:#fff;border:1px solid var(--sparks-outline,#e5d6e7);border-radius:9px;cursor:pointer}
 .qa-sparks-items-toolbar button:hover{background:var(--sparks-soft,#faf3fb)}
 .qa-sparks-items-toolbar button:focus-visible{outline:3px solid var(--sparks-accent,#9050a5);outline-offset:2px}
+
+
+/* Mini Games selector: the two games are isolated and mount on demand. */
+.qa-sparks-game-switch{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:0 0 14px}
+.qa-sparks-game-switch button{font-family:Kanit,sans-serif;cursor:pointer;border-radius:999px;border:1px solid var(--sparks-outline,#d9bbd9);background:var(--sparks-card,#fff);color:var(--sparks-dark,#694072);padding:10px 17px;font-size:12px;font-weight:750}
+.qa-sparks-game-switch button.active{color:#fff;background:var(--sparks-accent,#8741ac);border-color:var(--sparks-accent,#8741ac)}
+.qa-sparks-game-switch button:focus-visible{outline:3px solid var(--sparks-accent,#8741ac);outline-offset:2px}
