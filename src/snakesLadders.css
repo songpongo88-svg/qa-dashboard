@@ -197,3 +197,9 @@
 .sl-roll-countdown strong{font-size:31px;color:#ffe181;font-weight:950;font-variant-numeric:tabular-nums}
 .sl-roll-countdown small{font-size:12px;color:#e5d7f4}
 @media(max-width:610px){.sl-roll-countdown{flex-wrap:wrap}.sl-roll-countdown small{width:100%}}
+
+/* In-game Thai spoken narration: clear subtitles and accessible opt-out. */
+.sl-voice-toggle{border:1px solid #b8a0dc;border-radius:12px;background:linear-gradient(135deg,#4b3366,#2b2143);color:#fff;font-family:inherit;font-size:15px;font-weight:800;padding:11px 14px;white-space:nowrap}
+.sl-voice-toggle[aria-pressed="false"]{opacity:.8}
+.sl-voice-caption{border:1px solid #b892ef;border-radius:12px;background:#34254edc;color:#fff;font-size:17px;font-weight:800;line-height:1.55;padding:12px 16px;margin:10px 0}
+@media(max-width:700px){.sl-voice-toggle{width:100%}.sl-voice-caption{font-size:15px}}
