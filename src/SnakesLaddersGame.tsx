@@ -134,6 +134,8 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  const [secondsToRoll,setSecondsToRoll]=useState(10);
  const [voiceEnabled,setVoiceEnabled]=useState(true);
  const [voiceMessage,setVoiceMessage]=useState("");
+ const [thaiVoiceStatus,setThaiVoiceStatus]=useState<"checking"|"ready"|"missing">("checking");
+ const [voicePrompt,setVoicePrompt]=useState(false);
  const lastSpokenTurn=useRef("");
  const animationRef=useRef(0);
  const motionRoomId=useRef("");
@@ -143,6 +145,21 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  useEffect(()=>()=>{animationRef.current+=1;},[]);
  const room=useMemo(()=>data.rooms.find(r=>r.id===currentRoomId)||null,[data.rooms,currentRoomId]);
  const displayRoom=useMemo(()=>room&&motion&&motionRoomId.current===room.id?{...room,members:room.members.map(p=>({...p,position:motion.positions[p.username]??p.position}))}:room,[room,motion]);
+ useEffect(()=>{
+   if(typeof window==="undefined"||!("speechSynthesis" in window)||!("SpeechSynthesisUtterance" in window)){
+     setThaiVoiceStatus("missing");return;
+   }
+   const synth=window.speechSynthesis;
+   const check=()=>{
+     const all=synth.getVoices();
+     if(all.some(v=>/^th(?:-|$)/i.test(v.lang)))setThaiVoiceStatus("ready");
+     else if(all.length)setThaiVoiceStatus("missing");
+   };
+   check();
+   synth.addEventListener?.("voiceschanged",check);
+   const retry=window.setTimeout(()=>{check();setThaiVoiceStatus(old=>old==="checking"?"missing":old);},1400);
+   return()=>{window.clearTimeout(retry);synth.removeEventListener?.("voiceschanged",check);};
+ },[]);
  const speak=useCallback((message:string)=>{
    if(!voiceEnabled||typeof window==="undefined"||!("speechSynthesis" in window)||!("SpeechSynthesisUtterance" in window))return;
    try{
@@ -150,9 +167,12 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      const utterance=new SpeechSynthesisUtterance(message);
      utterance.lang="th-TH";utterance.rate=0.93;utterance.pitch=1;utterance.volume=1;
      const voices=window.speechSynthesis.getVoices();
-     const thai=voices.find(v=>v.lang.toLowerCase()==="th-th")||voices.find(v=>v.lang.toLowerCase().startsWith("th"));
-     if(thai)utterance.voice=thai;
+     const thai=voices.find(v=>v.lang.toLowerCase()==="th-th")||voices.find(v=>/^th(?:-|$)/i.test(v.lang));
+     if(!thai){setThaiVoiceStatus("missing");return;} // Never substitute an English voice.
+     utterance.voice=thai;
+     utterance.onerror=()=>setVoicePrompt(true);
      window.speechSynthesis.speak(utterance);
+     setVoicePrompt(false);
      setVoiceMessage(message);
    }catch{/* Voice availability depends on the browser and OS; gameplay must continue. */}
  },[voiceEnabled]);
@@ -318,7 +338,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    if(lastSpokenTurn.current===turnKey)return;
    lastSpokenTurn.current=turnKey;
    const member=room.members.find(p=>p.username===room.currentTurn);
-   if(member&&!member.isBot&&sameGameUser(member.username,username))speak("ถึงตาคุณแล้ว กรุณาทอยลูกเต๋าสองลูกภายในสิบวินาที");
+   if(member&&!member.isBot&&sameGameUser(member.username,username))speak("ตาฉันแล้ว กดทอยเต๋า");
  },[room?.id,room?.currentTurn,room?.updatedAt,Boolean(motion),voiceEnabled,username]);
  useEffect(()=>{
    setSecondsToRoll(10);
@@ -335,9 +355,25 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    <div className="sl-topbar">
      <div className="sl-brand"><span className="sl-brand-flash">ϟ</span><div><span>QA <em>Sparks</em></span><small>SNAKES & LADDERS · MULTIPLAYER</small></div></div>
      <div className="sl-room-badge">🎲 บันไดงู 50 ช่อง <span>·</span> 👥 สูงสุด 5 คน (บอท 4 ตัว) <span>·</span> ดูการเดินแบบทีละช่อง</div>
-     <button type="button" className="sl-voice-toggle" aria-pressed={voiceEnabled} onClick={()=>setVoiceEnabled(v=>!v)}>{voiceEnabled?"🔊 เสียงพูด: เปิด":"🔇 เสียงพูด: ปิด"}</button>
+     <button type="button" className="sl-voice-toggle" aria-pressed={voiceEnabled} onClick={()=>{
+       if(!voiceEnabled)setVoiceEnabled(true);
+       else setVoiceEnabled(false);
+     }}>{voiceEnabled?"🔊 เสียงพูด: เปิด":"🔇 เสียงพูด: ปิด"}</button>
+     <button type="button" className="sl-voice-toggle" data-snakes-voice-test="true" onClick={()=>{
+       if(!voiceEnabled)setVoiceEnabled(true);
+       if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.getVoices();
+       if(thaiVoiceStatus==="ready"){
+         // Spoken directly from a user gesture so browsers can unlock audio output.
+         if(!voiceEnabled){
+           const v=window.speechSynthesis.getVoices().find(x=>/^th(?:-|$)/i.test(x.lang));
+           if(v){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance("ตาฉันแล้ว กดทอยเต๋า");u.lang="th-TH";u.voice=v;window.speechSynthesis.speak(u);}
+         }else speak("ตาฉันแล้ว กดทอยเต๋า");
+       }else setVoicePrompt(true);
+     }}>▶ ทดสอบเสียงไทย</button>
      <button type="button" className="sl-refresh" disabled={busy||loading} onClick={()=>void refresh(true)}>{loading?"กำลังโหลด...":"↻ รีเฟรช"}</button>
    </div>
+   {voiceEnabled&&thaiVoiceStatus==="missing"?<div className="sl-voice-caption" role="status">อุปกรณ์นี้ยังไม่พบเสียงพูดภาษาไทย กรุณาติดตั้งเสียงภาษาไทยใน Windows / macOS หรือใช้เบราว์เซอร์ที่รองรับ แล้วกด “ทดสอบเสียงไทย” ระบบจะไม่ใช้เสียงภาษาอังกฤษแทน</div>:null}
+   {voicePrompt&&thaiVoiceStatus!=="missing"?<div className="sl-voice-caption" role="status">กด “ทดสอบเสียงไทย” หนึ่งครั้งเพื่ออนุญาตให้เบราว์เซอร์เปิดเสียง</div>:null}
    {voiceEnabled&&voiceMessage?<div className="sl-voice-caption" aria-live="polite">🔊 {voiceMessage}</div>:null}
    {error?<div className="sl-error" role="alert">{error}</div>:null}
    {notice?<div className="sl-notice" role="status">{notice}</div>:null}
