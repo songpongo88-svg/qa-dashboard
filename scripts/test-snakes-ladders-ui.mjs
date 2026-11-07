@@ -22,6 +22,20 @@ globalThis.fetch=async(url,options)=>{
  const req=JSON.parse(options.body);
  actions.push(req.action);
  if(req.action==="snakes-state")return {ok:true,json:async()=>({rooms:[structuredClone(room)],activeRoomId:room.id,rules:{}})};
+ if(req.action==="snakes-add-bot"){
+  assert.equal(room.status,"lobby");
+  room.members.push({username:"__qa_sparks_bot_test__",displayName:"Sparks Bot",isBot:true,
+   joined:true,position:1,pot:0,skips:0,shields:0,rewardedTiles:[],claimedAt:""});
+  return {ok:true,json:async()=>({room:structuredClone(room)})};
+ }
+ if(req.action==="snakes-start"){
+  room.status="playing";room.currentTurn="alice";
+  return {ok:true,json:async()=>({room:structuredClone(room)})};
+ }
+ if(req.action==="snakes-cancel"){
+  room.status="cancelled";
+  return {ok:true,json:async()=>({cancelled:true,roomId:room.id})};
+ }
  if(req.action==="snakes-roll"){
   room.lastRoll=3;room.currentTurn="bob";room.event={actor:"alice",type:"reward",tile:7,delta:185,dice:3,description:"ค้นพบ 185 Sparks",at:new Date().toISOString()};
   room.members[0].position=7;room.members[0].pot+=185;
@@ -68,5 +82,32 @@ try{
  assert.ok(!board.querySelector(".sl-popup"));
  assert.equal(board.querySelector(".sl-roll").disabled,true,"other player's turn prevents extra roll");
  assert.ok(!actions.includes("snakes-claim"),"not credited before completed match");
+ // Switch the mocked room to lobby to test the one-player + Bot workflow.
+ room.status="lobby";room.currentTurn="";room.members=[room.members[0]];
+ room.members[0].pot=0;room.members[0].position=1;
+ await click(board.querySelector(".sl-refresh"));
+ const add=board.querySelector('[data-snakes-add-bot="true"]');
+ assert.ok(add,"room owner must have an explicit Bot test button");
+ assert.equal(add.disabled,false);
+ await click(add);
+ assert.ok(actions.includes("snakes-add-bot"));
+ assert.match(board.textContent,/Sparks Bot/);
+ assert.ok(board.querySelector(".sl-avatar--bot"),"Bot avatar is visibly distinct from real users");
+ assert.equal(board.querySelectorAll(".sl-playercard").length,2);
+ const start=[...board.querySelectorAll("button")].find(el=>el.textContent.trim()==="เริ่มเกม");
+ assert.ok(start&&!start.disabled,"one real user and the Bot may start a match");
+ await click(start);
+ assert.ok(board.textContent.includes("สนามบันไดงู"));
+ await click(board.querySelector(".sl-danger-link"));
+ const confirm=board.querySelector(".sl-cancel-popup");
+ assert.ok(confirm,"host can cancel a room even after starting");
+ assert.match(confirm.textContent,/Game Pot/);
+ assert.ok(!actions.includes("snakes-cancel"),"opening cancel modal must not delete the room");
+ await click(board.querySelector('[data-snakes-cancel-confirm="true"]'));
+ assert.ok(actions.includes("snakes-cancel"));
+ assert.equal(board.querySelector(".sl-cancel-popup"),null);
+ assert.equal(board.querySelector(".sl-board-art"),null,"cancelled match leaves active room view");
+ assert.ok(board.textContent.includes("สร้างห้องเกม"),"host can create a new room after cancelling");
+
  console.log("PASS Snakes UI: 50 tile neon board, real profile avatars and usernames, same-tile players, visible dice, earned popup, no early claim");
 }finally{await act(async()=>root.unmount());dom.window.close();await rm(folder,{recursive:true,force:true});}
