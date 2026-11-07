@@ -41,6 +41,8 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   const opened=Boolean(request);
   const currentBusy=useRef(busy);
   currentBusy.current=busy;
+  const closeCallback=useRef(onCancel);
+  closeCallback.current=onCancel;
   useEffect(()=>{setImageFailed(false);},[request?.rewardId]);
   useEffect(()=>{
     if(!opened)return;
@@ -49,7 +51,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
     document.body.style.overflow="hidden";
     closeRef.current?.focus();
     const keydown=(event:KeyboardEvent)=>{
-      if(event.key==="Escape"){event.preventDefault();if(!currentBusy.current)onCancel();return;}
+      if(event.key==="Escape"){event.preventDefault();if(!currentBusy.current)closeCallback.current();return;}
       if(event.key!=="Tab"||!modalRef.current)return;
       const elements=[...modalRef.current.querySelectorAll<HTMLElement>(
         'button:not(:disabled), [href], input:not(:disabled), [tabindex]:not([tabindex="-1"])'
@@ -65,7 +67,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
       document.body.style.overflow=previous;
       focused?.focus();
     };
-  },[opened,onCancel]);
+  },[opened]);
   if(!request||typeof document==="undefined")return null;
   const isNetflix=request.kind==="netflix";
   const title=isNetflix?"ยืนยันการส่งสิทธิ์ Netflix":"ยืนยันการโอนเงินจริง";
