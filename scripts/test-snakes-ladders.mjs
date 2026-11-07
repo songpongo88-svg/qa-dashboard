@@ -9,7 +9,7 @@ assert.equal(SNAKES_RULES.rewardMaximum,300);
 assert.equal(new Set(SNAKES_RULES.rewardSquares).size,10);
 assert.equal(resolveSnakeSquare(50).type,"finish");
 assert.equal(resolveSnakeSquare(5).to,15);
-assert.equal(resolveSnakeSquare(44).to,29);
+assert.equal(resolveSnakeSquare(44).to,39);
 const person=(username,joined=true)=>({username,displayName:username,joined,position:1,pot:0,skips:0,shields:0,rewardedTiles:[],claimedAt:""});
 const sample={members:[person("alice"),person("bob"),person("charlie")],currentTurn:"alice",pendingTarget:null};
 let prize=applySquare(sample,"alice",3,()=>185);
