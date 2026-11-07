@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-07T04:26:43.837Z",
-  "reason": "Reviewed QA Sparks new reward release and regression checks for directly clickable TrueMoney confirmation",
+  "reviewedAt": "2026-11-07T04:45:39.620Z",
+  "reason": "Reviewed QA Sparks product-style Reward Center across six rewards, original Item instructions preserved in My Items, descending actual Sparks price including admin-configurable TrueMoney, and non-destructive UI tests",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -103,7 +103,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "82f1c371fcac56126be2df8492250155a92d34a4ce51eb3464bc23b04e94928e",
+    "package.json": "853b930cfbe78e3b42f638ee4d79dbf3279de36ba629716f68560ae5fc8c69cf",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -365,7 +365,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "805c4c0b96f205eb9ae83b4887fc96f162ce987a5962bdaf0ff6324b1f2dc50e",
     "scripts/test-qa-sparks-mini-inventory.mjs": "3a6be960d6344fb6c9b850d696fbb35ae89524f0156a7eb3dfda5d9e0192977f",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "118aee9cba6f189ee71ff38f419d262c805e80834bea385eac4735b241366f86",
+    "scripts/test-qa-sparks-ui.mjs": "c7316ae0c47602f208a6305dbcec81770de364cf46d382e7a76f8816f6cb485c",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-reporting-history.mjs": "4f93d3ecf3b0a90b62b7d336a4f79ddd435e90f99efa04cfd5e9beaae5466cd0",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
@@ -489,7 +489,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "db2b51e8864d11c2178a9d8b768dc4c9bd984357cb7b4fa8be4bc098cd8b119e",
+    "src/knowledge/manual.json": "2557f18670fe297302dde317b215680899665ceb189cb62a990e2361902ee39a",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/PdfReader.tsx": "eeef5fda3c22a96bd1497b193a833fa65727e5232046e14751b3e29bd4effeb9",
@@ -563,7 +563,7 @@
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
     "src/qaEvaluationProgressStore.ts": "e5af6abcdacac6b56e237471340e38235fada978a8f23907183cb81fac7dbc1c",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/qaSparks.css": "80531e5000ce7b280d4f503bd3e8fa92c5b17cb2a98cf861bacc61e02b9098f8",
+    "src/qaSparks.css": "4e75c70cab6e11dd2e03a0e161a6d82bb576384c5d45202392bfab4f01fed0bf",
     "src/QASparks.tsx": "a3d108a9453c79660ecbf3f025cf2f8486d9d0fe714dfc810f836dae685e0d2f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "aef5df08d38512024a66144aa915780f6d6aa61af476ed89ebb99e63188c2b42",
@@ -607,10 +607,10 @@
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/Time24Input.tsx": "b1234fe54f457f12d86d7edc41eb233ea9ecacf7591708e146e26b37edf764fb",
     "src/TrainingAttendanceMockup.tsx": "ee06591f02edb8b914af12503b4f5bfb519ca33fa4233174e7916ea5711295ea",
-    "src/TrueMoneyReward.tsx": "0b02e10bff163a04d7a93e2c031b53d4c15a8c035efdbf1fc944a837739f4681",
+    "src/TrueMoneyReward.tsx": "b3695aa846450225ae7051e329fe086e563fdd8d7919f7ff03e733795e22f718",
     "src/TrueMoneyTracker.tsx": "c5b05d071c0949e895c85dea4b6dc76f34b81a475de13397710169fddab556f5",
     "src/typingReliefReward.ts": "c38ea006da70964da36fb98bb9bdf9dff8c306de1abb41ac6b61214bc27a6e40",
-    "src/TypingReliefRewardCard.tsx": "b894e44dd9d7de7f34b74552678344568aa20e55f8623231b9f54930fbda54cb",
+    "src/TypingReliefRewardCard.tsx": "43588f3702076dd0aa4957a0c9c18cef280b9a5af7f2750952c46754ce4ad3c9",
     "src/usageLog.ts": "14c9b5807a96472a230902476c1e55345765b47d3a90bb110672b784f6b108c6",
     "src/UsageLogMockup.tsx": "7c26f15c9b9db69e1f6037bebde934ba3c490db98d8ba6071362bc91a9d89e0b",
     "src/useCoachingProfilePhotos.ts": "fbd6a8ba338bf6a03b31e2bf9a7ca3d7414018dbf8224a71577b17f145b9afb6",
@@ -656,9 +656,10 @@
     "scripts/test-special-rewards.mjs": "7e1c67204aec8ad90e116d7d9fe9bc27bbb53b84eb018e6b1a0f4f26e1419b9e",
     "server/qaRewardsService.js": "1c4ca9ea8ced4c4e70afbd92aeea2960994ebfa6ddabdde67d9ca4ad115175ce",
     "src/LotteryTicketInventory.tsx": "546e2c82c332fba1a53b547a3a3ca9a48877cf3633fd8c8c7bb88e503eb126f5",
-    "src/SpecialRewardCenter.tsx": "a028f97846b6fcf5745310f520d3f8406cc7874b4633b1ff241a82c5763a3fa6",
+    "src/SpecialRewardCenter.tsx": "2441ef39806132fdcfc91990258114e318b6b4b51d69faeadb335b98bf94cb3d",
     "src/SpecialRewardsAdmin.tsx": "23310df364078035dc326b5e2f6b09b3c9e689b52ce723e7389ec7e3b0d1dc41",
     "src/lotteryTicketInventory.css": "c778eac69f4ad378025cc52f1ce136ea263e1bcfe9daa3fb28b26ee8990bc5a1",
-    "src/specialRewards.css": "5b7fd754dbcb2722e09597fdc1220f8b798d1b1902d0d7e55cbf90020d07a9e3"
+    "src/specialRewards.css": "ac8c9e6f943b311060e1ff2371ed5400e31a7a543d1e30ea20c1b267e7c6d99b",
+    "scripts/test-reward-product-details.mjs": "8df69cfc3cfbb160c9aed153faa1b6439dc778ec94e36b29a935bb4bd1f069cb"
   }
 }
