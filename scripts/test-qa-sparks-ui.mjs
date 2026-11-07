@@ -204,6 +204,15 @@ try{
   assert.ok(main.querySelector("#qa-sparks-panel-rewards"),"reward tab changes content");
   await click("#qa-sparks-tab-items");
   assert.ok(main.querySelector("#qa-sparks-panel-items"),"My Items tab exists");
+  const itemStatusTabs=[...main.querySelectorAll(".qa-sparks-items-tabs button")];
+  assert.deepEqual(itemStatusTabs.map(el=>el.textContent),
+    ["พร้อมใช้งาน","กำลังดำเนินการ","ประวัติ Item"],"My Items separates usable, in-progress and history");
+  assert.equal(main.querySelector(".qa-sparks-inventory-grid").dataset.itemShelf,"available");
+  await act(async()=>itemStatusTabs[1].dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(main.querySelector(".qa-sparks-inventory-grid").dataset.itemShelf,"processing");
+  await act(async()=>itemStatusTabs[2].dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(main.querySelector(".qa-sparks-inventory-grid").dataset.itemShelf,"history");
+  assert.ok(main.querySelector(".qa-sparks-items-toolbar button"),"member can refresh status manually");
   assert.equal(main.querySelectorAll(".qa-sparks-owned-typing-item").length,0,"do not render unowned Typing Relief as a long card");
   assert.equal(main.querySelectorAll('[data-owned-item]').length,0,"do not fabricate inventory items");
   await click("#qa-sparks-tab-history");

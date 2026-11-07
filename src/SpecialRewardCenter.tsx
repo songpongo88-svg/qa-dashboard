@@ -1,5 +1,6 @@
 import React,{useCallback,useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
+import {classifySpecialRewardItem,type ItemShelfFilter} from "./qaSparksItemStatus";
 import "./specialRewards.css";
 
 export type SpecialReward={id:string;title:string;brand:string;price:number;maxTHB:number;type:"receipt"|"email";monthlyLimit:number};
@@ -78,8 +79,8 @@ async function compressedReceipt(file:File){
   return output;
  }finally{URL.revokeObjectURL(url);}
 }
-export default function SpecialRewardCenter({mode,username,sessionId,balance,loaded,hasOtherItems=false}:{
- mode:"reward"|"inventory";username:string;sessionId:string;balance:number;loaded:boolean;hasOtherItems?:boolean
+export default function SpecialRewardCenter({mode,username,sessionId,balance,loaded,hasOtherItems=false,inventoryFilter="available"}:{
+ mode:"reward"|"inventory";username:string;sessionId:string;balance:number;loaded:boolean;hasOtherItems?:boolean;inventoryFilter?:ItemShelfFilter
 }){
  const [items,setItems]=useState<Item[]>([]);
  const [inventoryLoaded,setInventoryLoaded]=useState(false);
@@ -119,7 +120,13 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  },[request]);
  useEffect(()=>{setItems([]);setInventoryLoaded(false);setSelectedReward(null);setSelectedItem(null);
   requestId.current="";},[username,sessionId]);
- useEffect(()=>{if(mode!=="inventory"||!loaded||!username||!sessionId)return;void reload().catch(e=>setError(String(e.message||e)));},[mode,loaded,username,sessionId,reload]);
+ useEffect(()=>{
+   if(mode!=="inventory"||!loaded||!username||!sessionId)return;
+   const update=()=>{setError("");void reload().catch(e=>setError(String(e.message||e)));};
+   update();
+   window.addEventListener("qa:sparks-items-refresh",update);
+   return()=>window.removeEventListener("qa:sparks-items-refresh",update);
+ },[mode,loaded,username,sessionId,reload]);
  const opened=Boolean(selectedReward);
  useEffect(()=>{
   if(!opened)return;
@@ -176,7 +183,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
     await handle("special-rewards-submit",{itemId:item.itemId,email,neverPaid});
    }
  };
- const display=mode==="inventory"?items:[];
+ const display=mode==="inventory"?items.filter(i=>classifySpecialRewardItem(i)===inventoryFilter):[];
  return <>
   {mode==="reward"?REWARDS.slice().sort((a,b)=>b.price-a.price).map(r=><button key={r.id} type="button"
     className="qa-sparks-mini-item qa-sparks-mini-item--special" data-reward-item={r.id} style={{order:-r.price}}
@@ -185,7 +192,8 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
     <strong className="qa-sparks-mini-name">{r.title}</strong>
     <span className="qa-sparks-mini-value">{fmt(r.price)} Sparks</span>
   </button>):<>
-   {!inventoryLoaded&&loaded?<span role="status" className="qa-sparks-inventory-progress">กำลังโหลด Item...</span>:null}
+   {!inventoryLoaded&&loaded&&!error?<span role="status" className="qa-sparks-inventory-progress">กำลังโหลด Item...</span>:null}
+   {error&&!opened?<span role="alert" className="sr-error">ไม่สามารถโหลด Item: {error}</span>:null}
    {display.map(i=><button key={i.itemId} type="button" className="qa-sparks-mini-item qa-sparks-mini-item--special"
       data-special-inventory-item={i.itemId} onClick={e=>open(i.rewardId,i.itemId,e)}>
       <span className="qa-sparks-mini-art qa-sparks-mini-art--special"><RewardImage id={i.rewardId}/><span className="qa-sparks-mini-quantity">×1</span></span>

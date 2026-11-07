@@ -36,7 +36,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   onConfirm:()=>void;
 }){
   const closeRef=useRef<HTMLButtonElement>(null);
-  const modalRef=useRef<HTMLElement>(null);
+  const modalRef=useRef<HTMLDialogElement>(null);
   const [imageFailed,setImageFailed]=useState(false);
   const opened=Boolean(request);
   const currentBusy=useRef(busy);
@@ -49,6 +49,11 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
     const previous=document.body.style.overflow;
     const focused=document.activeElement instanceof HTMLElement?document.activeElement:null;
     document.body.style.overflow="hidden";
+    const modal=modalRef.current;
+    // Native dialog enters the browser top layer: no Dashboard overlay,
+    // theme or z-index can cover the Admin confirmation.
+    try{if(modal&&typeof modal.showModal==="function"&&!modal.open)modal.showModal();}
+    catch{ /* Fallback remains visible in the dedicated fixed overlay. */ }
     closeRef.current?.focus();
     const keydown=(event:KeyboardEvent)=>{
       if(event.key==="Escape"){event.preventDefault();if(!currentBusy.current)closeCallback.current();return;}
@@ -61,9 +66,13 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
       if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
       else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
     };
+    const nativeCancel=(event:Event)=>{event.preventDefault();if(!currentBusy.current)closeCallback.current();};
+    modal?.addEventListener("cancel",nativeCancel);
     document.addEventListener("keydown",keydown);
     return()=>{
       document.removeEventListener("keydown",keydown);
+      modal?.removeEventListener("cancel",nativeCancel);
+      try{if(modal?.open&&typeof modal.close==="function")modal.close();}catch{}
       document.body.style.overflow=previous;
       focused?.focus();
     };
@@ -75,7 +84,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   const image=IMAGE_BY_REWARD[request.rewardId];
   return createPortal(<div className="reward-confirm-backdrop" data-reward-confirm-overlay="true"
      onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)onCancel();}}>
-    <section className="reward-confirm-modal" ref={modalRef}
+    <dialog className="reward-confirm-modal" ref={modalRef}
        role="dialog" aria-modal="true" aria-labelledby="reward-confirm-title" aria-describedby="reward-confirm-help">
       <button type="button" className="reward-confirm-close" aria-label="ปิดหน้าต่างยืนยัน"
         disabled={busy} onClick={onCancel} ref={closeRef}>×</button>
@@ -115,6 +124,6 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
             onClick={onConfirm} disabled={busy}>{busy?"กำลังบันทึก...":buttonText}</button>
         </div>
       </div>
-    </section>
+    </dialog>
   </div>,document.body);
 }

@@ -52,12 +52,20 @@ try{
     username:"itemowner",sessionId:"session",balance:0,loaded:true,mode:"inventory",
   })));
   await wait();
-  assert.equal(document.querySelectorAll('[data-owned-item]').length,2,"each redeemed TrueMoney item has its own tile");
-  assert.equal(document.querySelectorAll('.qa-sparks-mini-art').length,2);
+  assert.equal(document.querySelectorAll('[data-owned-item]').length,1,"available shelf shows only unused, unexpired TrueMoney");
+  assert.equal(document.querySelectorAll('.qa-sparks-mini-art').length,1);
   assert.equal(document.querySelector('[data-items-empty="true"]'),null);
   assert.equal(document.querySelectorAll('.qa-money-item').length,0);
-  await click(document.querySelector('[data-owned-item="'+usedItem.itemId+'"]'));
+  await click(document.querySelector('[data-owned-item="'+claimItem.itemId+'"]'));
   let modal=document.querySelector(".qa-money-modal");
+  assert.ok(modal.querySelector("#qa-money-phone"),"unused item allows the user to submit a payout request");
+  await click(modal.querySelector(".qa-money-modal-close"));
+  await act(async()=>root.render(React.createElement(Money,{
+    username:"itemowner",sessionId:"session",balance:0,loaded:true,mode:"inventory",inventoryFilter:"processing",
+  })));
+  assert.equal(document.querySelectorAll('[data-owned-item]').length,1,"pending payout moves to in-progress shelf");
+  await click(document.querySelector('[data-owned-item="'+usedItem.itemId+'"]'));
+  modal=document.querySelector(".qa-money-modal");
   assert.ok(modal);
   assert.ok(modal.textContent.includes("กำหนดได้รับเงินภายใน"));
   assert.ok(modal.textContent.includes("******5678"),"member can inspect masked phone in the item dialog");
@@ -65,11 +73,11 @@ try{
   assert.ok(!modal.textContent.includes("Firestore")&&!modal.textContent.includes("เข้าระบบ Tracker"),
     "member detail must not expose backend infrastructure");
   await click(modal.querySelector(".qa-money-modal-close"));
-  await click(document.querySelector('[data-owned-item="'+claimItem.itemId+'"]'));
-  modal=document.querySelector(".qa-money-modal");
-  assert.ok(modal.querySelector("#qa-money-phone"),"unused item prompts for receiving number");
-  assert.ok(modal.textContent.includes("หมดอายุ"));
-  await click(modal.querySelector(".qa-money-modal-close"));
+  await act(async()=>root.render(React.createElement(Money,{
+    username:"itemowner",sessionId:"session",balance:0,loaded:true,mode:"inventory",inventoryFilter:"history",
+  })));
+  assert.equal(document.querySelectorAll('[data-owned-item]').length,0,"pending payout is not treated as paid or expired");
+
 
   await act(async()=>root.render(React.createElement(Typing,{
     username:"itemowner",sessionId:"session",balance:500,owned:2,loaded:true,mode:"inventory",
@@ -82,7 +90,7 @@ try{
   assert.ok(modal?.textContent.includes("คุณมี 2 สิทธิ์"));
   assert.equal(modal?.querySelector(".qa-sparks-reward-detail-primary"),null,
     "owned Typing Relief only explains usage; it cannot sell another item from My Items");
-  console.log("PASS My Items: empty until redeemed, 2 individual compact TrueMoney tiles, used/unused details, owned Typing Relief details only");
+  console.log("PASS My Items: separate available and in-progress TrueMoney tiles, no synthetic history, Typing Relief only when owned");
 }finally{
   await act(async()=>root.unmount());
   globalThis.fetch=realFetch;dom.window.close();

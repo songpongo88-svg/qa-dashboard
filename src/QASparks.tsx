@@ -68,6 +68,8 @@ function SparksHistory({ history, large = false }: { history: SparksHistoryItem[
 
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean }) {
   const [view, setView] = useState<SparksView>("overview");
+  const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
+  const [itemClock,setItemClock] = useState(0);
   const [gamesOpened, setGamesOpened] = useState(false);
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
   const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
@@ -76,6 +78,12 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   const [loading, setLoading] = useState(false);
   const requestSequence = useRef(0);
   const historyLimit = view === "history" ? 100 : view === "overview" ? 5 : 0;
+  // Expiry transitions update locally while My Items is open; no extra API reads.
+  useEffect(()=>{
+    if(view!=="items"||!active)return;
+    const interval=window.setInterval(()=>setItemClock(value=>value+1),60_000);
+    return()=>window.clearInterval(interval);
+  },[view,active]);
   useEffect(() => {
     setAccount(EMPTY_SPARKS_ACCOUNT);
     setLastAccountLoadAt("");
@@ -174,12 +182,34 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/><SpecialRewardCenter mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
         </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/><SpecialRewardCenter mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
-        : view === "items" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="package"/> My Items</h2>
-          <div className="qa-sparks-mini-grid qa-sparks-inventory-grid">
-            {walletLoaded && account.typingReliefOwned > 0 ? <TypingReliefRewardCard mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/> : null}
-            <TrueMoneyReward mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded} hasOtherItems={true}/>
-            <SpecialRewardCenter mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded} hasOtherItems={true}/>
-            <LotteryTicketInventory username={username} sessionId={adminSessionId} loaded={walletLoaded}/>
+        : view === "items" ? <section className="qa-sparks-panel qa-sparks-single qa-sparks-items-panel" data-inventory-clock={itemClock}>
+          <h2><SparksIcon name="package"/> My Items</h2>
+          <p className="qa-sparks-items-description">เลือกดู Item ตามสถานะ โดยรายการที่ใช้แล้วหรือหมดอายุจะเก็บไว้ในประวัติ ไม่ลบข้อมูลย้อนหลัง</p>
+          <div className="qa-sparks-items-toolbar">
+            <span>รายการทั้งหมดเก็บไว้ตามสถานะ ไม่มีการลบประวัติ</span>
+            <button type="button" onClick={()=>window.dispatchEvent(new Event("qa:sparks-items-refresh"))}>
+              รีเฟรชสถานะ Item
+            </button>
+          </div>
+          <div className="qa-sparks-items-tabs" role="group" aria-label="เลือกสถานะ My Items">
+            {([["available","พร้อมใช้งาน"],["processing","กำลังดำเนินการ"],["history","ประวัติ Item"]] as const).map(([key,label])=>
+              <button key={key} type="button" aria-pressed={itemShelf===key} className={itemShelf===key?"active":""}
+                onClick={()=>setItemShelf(key)}>{label}</button>)}
+          </div>
+          <div className="qa-sparks-mini-grid qa-sparks-inventory-grid" data-item-shelf={itemShelf}>
+            {itemShelf==="available"&&walletLoaded&&account.typingReliefOwned>0
+              ?<TypingReliefRewardCard mode="inventory" username={username} sessionId={adminSessionId}
+                  balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/>:null}
+            <TrueMoneyReward mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance}
+              loaded={walletLoaded} hasOtherItems={true} inventoryFilter={itemShelf}/>
+            <SpecialRewardCenter mode="inventory" username={username} sessionId={adminSessionId}
+              balance={account.balance} loaded={walletLoaded} hasOtherItems={true} inventoryFilter={itemShelf}/>
+            <LotteryTicketInventory username={username} sessionId={adminSessionId} loaded={walletLoaded}
+              inventoryFilter={itemShelf}/>
+          </div>
+          <div className="qa-sparks-items-state-empty" role="status">
+            {itemShelf==="available"?"ยังไม่มี Item ที่พร้อมใช้งาน":
+              itemShelf==="processing"?"ไม่มี Item ที่กำลังดำเนินการ":"ยังไม่มีประวัติ Item ในหมวดนี้"}
           </div>
         </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
