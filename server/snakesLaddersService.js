@@ -111,10 +111,13 @@ export function createSnakesService(db){
     err("มีผู้เล่นดำเนินการพร้อมกัน กรุณารีเฟรช",409);
   }
   function memberIndex(before,patch){return {...before,...patch};}
-  async function state(actor){
+  async function state(actor,includeHistory=false){
     const index=load(await readDoc(userPath(actor.username)));
-    const ids=[...new Set([index.activeRoom,...(Array.isArray(index.rooms)?index.rooms:[]),
-      ...(Array.isArray(index.invitations)?index.invitations:[])].filter(Boolean))].slice(-12).reverse();
+    // Poll only the active room and latest invitations. History loads on an
+    // explicit refresh; otherwise every client would re-read 12 old rooms.
+    const ids=[...new Set([index.activeRoom,
+      ...(Array.isArray(index.invitations)?index.invitations.slice(-3):[]),
+      ...(includeHistory&&Array.isArray(index.rooms)?index.rooms.slice(-5):[])].filter(Boolean))].slice(-9).reverse();
     const rows=await Promise.all(ids.map(async id=>{
       const room=load(await readDoc(roomPath(id)));
       return room.id&&room.members?.some(p=>p.username===actor.username)?toPublic(room,actor):null;
