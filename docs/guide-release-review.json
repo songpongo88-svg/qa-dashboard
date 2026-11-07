@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-07T05:13:51.838Z",
-  "reason": "Verified Orbit Crest membership cards on desktop and 320/360 px screens, annual progression, guide navigation and zero extra wallet reads; production application build passed.",
+  "reviewedAt": "2026-11-07T05:49:54.443Z",
+  "reason": "Reviewed new branded Admin confirmation popups, TrueMoney action clickability independent of wallet-list loading, strict server authorization, payout and Netflix status handling, and user guide",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -104,7 +104,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "853b930cfbe78e3b42f638ee4d79dbf3279de36ba629716f68560ae5fc8c69cf",
+    "package.json": "a5bfe84563a69c06dc28eaa738edc5ddd24d8e8398fbde7bd4ca44b500bdf413",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -369,7 +369,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "53174f6d185a22a070e15da69af92789843e80fd954de4e07927b29d17e3a7fa",
     "scripts/test-qa-sparks-mini-inventory.mjs": "3a6be960d6344fb6c9b850d696fbb35ae89524f0156a7eb3dfda5d9e0192977f",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "4b0d87b07baf0c1bd7f6386355fd3d3200ebc86976f2824f1c0a692f2e12d929",
+    "scripts/test-qa-sparks-ui.mjs": "1cfbc76422c5c18a041824654dd65afcc80c8c97d202ca6798152d85ef91e532",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-reporting-history.mjs": "4f93d3ecf3b0a90b62b7d336a4f79ddd435e90f99efa04cfd5e9beaae5466cd0",
     "scripts/test-reward-product-details.mjs": "8df69cfc3cfbb160c9aed153faa1b6439dc778ec94e36b29a935bb4bd1f069cb",
@@ -383,7 +383,7 @@
     "scripts/test-suphitcha-typing-reset-ui.mjs": "7372eb3de2b30f644d96e994730b794d08adf0931ca25a7ea868bc47de5d5158",
     "scripts/test-suphitcha-typing-reset.mjs": "f17d739615d1ba3786f81cdca7e80c3a084497504d159f3eb66bf9a9533c9e94",
     "scripts/test-theme-preference.mjs": "599c4d24c3603ce6bb6310c264df62031991049e4e7b147f411924cc55c7cfc8",
-    "scripts/test-truemoney-tracker-confirm-ui.mjs": "564fb6744c3f60f6d2684ed0a3a3a3977f75af3185543f75b0ab08f5df9041d2",
+    "scripts/test-truemoney-tracker-confirm-ui.mjs": "1867eec3c520c2b81b1785100e2be9e9270263e9dc60de84ea41fca7121de13d",
     "scripts/test-typing-relief-reward.mjs": "a4a30d9bd97ed12f4cc241e813be9f293c0ea64520b8736cbe3557d1f85f4fb7",
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "3dde89715a982b1ffcad591b5e96b223a6572318ebfb2598d9251f281096868e",
@@ -453,7 +453,7 @@
     "src/SparksAdminPanel.tsx": "c21dadf251ef1f752a0a13bf2ca11085a70fb515dd2064e999e82bc16ffe717f",
     "src/SparksMembership.tsx": "96580dc9ead8c2aaf21d9e15f1fa18739bc3096d833d8c459f6ee14d71c9d15b",
     "src/SpecialRewardCenter.tsx": "2441ef39806132fdcfc91990258114e318b6b4b51d69faeadb335b98bf94cb3d",
-    "src/SpecialRewardsAdmin.tsx": "23310df364078035dc326b5e2f6b09b3c9e689b52ce723e7389ec7e3b0d1dc41",
+    "src/SpecialRewardsAdmin.tsx": "2cafe18bf7b089182eec16a21685a318b8829cea53928b9ee3e124611efda692",
     "src/StickyNotePopup.tsx": "fedb5e1066137ee5b7be1b4db0d1145376d4d64b3821a5029bb060aa84a9326c",
     "src/SummaryMockup.tsx": "a2c36ad3f744c7846e8b37694f5647f7aa11d3b36152aef91e3b8bd3495b51f3",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
@@ -465,7 +465,7 @@
     "src/Time24Input.tsx": "b1234fe54f457f12d86d7edc41eb233ea9ecacf7591708e146e26b37edf764fb",
     "src/TrainingAttendanceMockup.tsx": "ee06591f02edb8b914af12503b4f5bfb519ca33fa4233174e7916ea5711295ea",
     "src/TrueMoneyReward.tsx": "b3695aa846450225ae7051e329fe086e563fdd8d7919f7ff03e733795e22f718",
-    "src/TrueMoneyTracker.tsx": "c5b05d071c0949e895c85dea4b6dc76f34b81a475de13397710169fddab556f5",
+    "src/TrueMoneyTracker.tsx": "96241c0d3be7d9055f79e4a96700a62b7aa8a6fd74496d810142193be512b003",
     "src/TypingReliefRewardCard.tsx": "43588f3702076dd0aa4957a0c9c18cef280b9a5af7f2750952c46754ce4ad3c9",
     "src/UsageLogMockup.tsx": "7c26f15c9b9db69e1f6037bebde934ba3c490db98d8ba6071362bc91a9d89e0b",
     "src/UserRoleAdminMockup.tsx": "7befa0fea3f218c70acb40f953bf3e375cb909c2cfd1fd98f7b13e9ac1ae6f5c",
@@ -548,7 +548,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "7ce8a391be0ddc9f47723b88fe89d5c4d5988b26422bef2a143987f4cd7f6ee7",
+    "src/knowledge/manual.json": "40808a808d5fcbe5d8e0ec1681a20f215f7db46c38c39913f5d401b723455a1e",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -662,6 +662,9 @@
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "src/RewardActionConfirmModal.tsx": "16da78b64bbaa992beb8607a4cde537d2fb7e243dc4e942491ea6d535c28641c",
+    "src/rewardActionConfirmModal.css": "704d1bd9bc25226c4689fa81448678a6faf8b0f65c65b5df2ed3c4fe8596b77e",
+    "scripts/test-special-reward-confirm-ui.mjs": "e03f318a8605a9ad8b823648fd401960cf466b76e10a28206c2b9cd3398cefea"
   }
 }
