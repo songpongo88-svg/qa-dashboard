@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import {parseReceiptText, bangkokDateTimeInput} from "../src/receiptRecognition.js";
 import {createQaRewardsService} from "../server/qaRewardsService.js";
+import {receiptTimeEligibility} from "../src/receiptTimeEligibility.js";
+
+const rejectedTime=receiptTimeEligibility("2026-11-07T13:12+07:00","2026-11-07T13:36:10+07:00",Date.parse("2026-11-07T14:00+07:00"));
+assert.equal(rejectedTime.allowed,false);
+assert.equal(rejectedTime.title,"ใช้ใบเสร็จนี้ไม่ได้");
+assert.match(rejectedTime.reason,/ซื้อสินค้าก่อนกดใช้ Item ประมาณ 24 นาที/);
+assert.equal(receiptTimeEligibility("","2026-11-07T13:36:10+07:00").code,"unreadable");
 
 // Sanitized layout from a 7App e-receipt. No customer's image or transaction IDs are stored here.
 const seven = `รายการสั่งซื้อที่ร้านและ 7Delivery
@@ -98,8 +105,13 @@ try {
   assert.equal(documents.get("qa_sparks_wallets/user").balance, 1000);
   seed();
   const beforeInvalid = writes, beforeCalls = visionCalls;
-  await assert.rejects(service.submit({...input, receiptNumber: "7110000002", receiptAt: new Date(now - 180000).toISOString(), amountTHB: 114, promptPay: "0800000000"}, actor), /อยู่ก่อนเวลากดใช้/);
+  await assert.rejects(service.submit({...input, receiptNumber: "7110000002", receiptAt: new Date(now - 180000).toISOString(), amountTHB: 114, promptPay: "0800000000"}, actor), /ซื้อสินค้าก่อนกดใช้ Item/);
   await assert.rejects(service.submit({...input, receiptNumber: "7110000002", receiptAt: new Date(now + 600000).toISOString(), amountTHB: 114, promptPay: "0800000000"}, actor), /อนาคต/);
   assert.equal(writes, beforeInvalid); assert.equal(visionCalls, beforeCalls);
+  await assert.rejects(service.submit({...input, receiptNumber: "7110000002", receiptAt: new Date(now - 45000).toISOString(), amountTHB: 114, promptPay: "0800000000"}, actor), /วันเวลาถูกล็อกตามภาพ/);
+  assert.equal(writes,beforeInvalid,"changing a client timestamp cannot create a claim when server OCR reads a different time");
+  documents.get("qa_sparks_wallets/user").specialRewardItems[0].activatedAt=new Date(now-30000).toISOString();
+  await assert.rejects(service.submit({...input, receiptNumber: "7110000002", receiptAt: new Date(now).toISOString(), amountTHB: 114, promptPay: "0800000000"}, actor), /ซื้อสินค้าก่อนกดใช้ Item/);
+  assert.equal(writes,beforeInvalid,"an ineligible timestamp found in the image is rejected even if the client posts an eligible time");
   console.log("PASS receipt recognition: actual 7App layout, R# vs TID, quantity vs total, Thai/BE/AD dates, exact Bangkok seconds, missing/ambiguous values; authenticated owned-item scan is read-only and server keeps eligibility/caps/Admin review");
 } finally { globalThis.fetch = originalFetch; }

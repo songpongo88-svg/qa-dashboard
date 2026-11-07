@@ -1,5 +1,6 @@
 import {createHash} from "node:crypto";
 import {parseReceiptText} from "../src/receiptRecognition.js";
+import {formatReceiptTime,receiptTimeEligibility} from "../src/receiptTimeEligibility.js";
 
 // These are internal QA Sparks reimbursements, not official brand vouchers.
 export const SPECIAL_REWARDS=Object.freeze([
@@ -170,12 +171,23 @@ export function createQaRewardsService(db){
      const amount=Number(body.amountTHB),time=String(body.receiptAt||"");
      if(!Number.isFinite(amount)||amount<=0||amount>30000||Math.round(amount*100)!==amount*100)
        err("ยอดเงินตามใบเสร็จไม่ถูกต้อง",400);
-     const millis=Date.parse(time);
-     if(!Number.isFinite(millis))err("กรุณาตรวจวันและเวลาที่อ่านจากใบเสร็จ",400);
-     if(millis<Date.parse(it.activatedAt))err("เวลาบนใบเสร็จอยู่ก่อนเวลากดใช้ Item กรุณาตรวจวัน เวลา และวินาทีให้ตรงกับภาพใบเสร็จ",400);
-     if(millis>Date.now()+5*60000)err("เวลาบนใบเสร็จเป็นเวลาในอนาคต กรุณาตรวจวันและเวลาไทยที่อ่านจากภาพอีกครั้ง",400);
+     let millis=Date.parse(time);
+     const enforceTime=(receiptAt)=>{
+       const decision=receiptTimeEligibility(receiptAt,it.activatedAt);
+       if(!decision.allowed)err(decision.title+" · "+decision.reason+" · เวลาบนใบเสร็จ "+formatReceiptTime(receiptAt)+" · กดใช้ Item "+formatReceiptTime(it.activatedAt),400);
+     };
+     enforceTime(time);
      image=decodedImage(body.imageData);
      const ocr=await maybeOcr(image,getAccessToken);
+     const readTime=parseReceiptText(ocr.text,reward.id).receiptAt;
+     if(readTime){
+       // An independently recognized time cannot be replaced by a client-supplied date.
+       enforceTime(readTime);
+       const precision=/T\d{2}:\d{2}:\d{2}/.test(readTime)?1000:60000;
+       if(Math.floor(millis/precision)!==Math.floor(Date.parse(readTime)/precision))
+         err("วันเวลาถูกล็อกตามภาพใบเสร็จ กรุณาอ่านภาพใหม่โดยไม่แก้วันเวลา",400);
+       millis=Date.parse(readTime);
+     }
      const verify=reviewOCR(ocr,reward,no,amount,new Date(millis).toISOString());
      details={receiptNumber:no,receiptAt:new Date(millis).toISOString(),amountTHB:amount,
        payoutTHB:Math.round(Math.min(amount,reward.maxTHB)*100)/100,

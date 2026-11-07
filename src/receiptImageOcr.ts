@@ -28,7 +28,7 @@ export async function readReceiptInBrowser(image: HTMLCanvasElement, signal: Abo
   let stopped = false, rejectAbort: (reason: Error) => void = () => {};
   const cancellation = new Promise<never>((_, reject) => { rejectAbort = reject; });
   const abort = () => { stopped = true; rejectAbort(Error("ยกเลิกการอ่านใบเสร็จ")); };
-  const timeout = window.setTimeout(() => { stopped = true; rejectAbort(Error("อ่านรูปใช้เวลานานเกินไป ลองถ่ายภาพให้ชัดขึ้น หรือกรอกช่องที่ยังอ่านไม่ได้")); }, 60000);
+  const timeout = window.setTimeout(() => { stopped = true; rejectAbort(Error("อ่านรูปใช้เวลานานเกินไป กรุณาใช้ภาพที่เห็นวันเวลาให้ชัด แล้วกดอ่านอีกครั้ง")); }, 60000);
   signal.addEventListener("abort", abort, { once: true });
   try {
     if (signal.aborted) throw Error("ยกเลิกการอ่านใบเสร็จ");

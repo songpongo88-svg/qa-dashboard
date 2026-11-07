@@ -52,7 +52,10 @@ try{
   await upload();
   assert.equal(scanCalls,1);assert.equal(checkCalls,1);assert.equal(submitCalls.length,0);
   assert.equal(field("receiptNumber").value,"7110000001");
-  assert.equal(field("receiptAt").value.replace(/\.000$/,""),"2026-11-07T13:12:27");
+  assert.equal(field("receiptAt").readOnly,true);
+  assert.equal(field("receiptAt").type,"text","native date picker is removed");
+  assert.match(field("receiptAt").value,/13:12:27/);
+  assert.ok(!document.querySelector('input[type="datetime-local"]'));
   assert.equal(field("amountTHB").value,"114");
   assert.match(document.querySelector(".sr-ocr-result").textContent,/ครบ 3 ช่อง/);
   assert.ok(button("ส่งคำขอ").disabled,"OCR does not submit or approve and needs human review");
@@ -62,6 +65,7 @@ try{
   await setValue(field("amountTHB"),"113");
   assert.equal(field("receiptReviewed").checked,false,"edits invalidate the review confirmation");
   await click(field("receiptReviewed"));
+  await setValue(field("receiptAt"),"2026-11-07T15:12:27");
   await click(button("ส่งคำขอ"));
   assert.equal(submitCalls.length,1);
   assert.equal(submitCalls[0].receiptAt,"2026-11-07T13:12:27+07:00");
@@ -70,11 +74,14 @@ try{
   scanText="7-Eleven\nReceipt No: 7110000002";
   await upload();
   assert.equal(field("receiptNumber").value,"7110000002");
-  assert.equal(field("receiptAt").value,"");assert.equal(field("amountTHB").value,"","new image never reuses previous receipt fields");
+  assert.match(field("receiptAt").value,/ยังอ่านวันเวลาไม่ได้/);assert.equal(field("amountTHB").value,"","new image never reuses previous receipt fields");
+  assert.ok(!field("promptPay"),"unreadable time hides the payment and submission section");
+  assert.match(document.querySelector(".sr-time-rejection").textContent,/ระบบยังอ่านวันเวลาจากภาพไม่ชัด/);
   assert.match(document.querySelector(".sr-ocr-result").textContent,/1 จาก 3/);
+  const callsBeforeFallback=browserCalls;
   scanText="";browserText=fullText;
   await render("browser-fallback");await upload();
-  assert.equal(browserCalls,1,"unavailable cloud OCR runs actual local OCR adapter");
+  assert.equal(browserCalls,callsBeforeFallback+1,"unavailable cloud OCR runs actual local OCR adapter");
   assert.equal(field("amountTHB").value,"114");
   duplicate=true;scanText=fullText;
   await render("duplicate");await upload();
@@ -84,10 +91,16 @@ try{
   assert.ok(button("ส่งคำขอ").disabled);
   duplicate=false;await click(button("ตรวจเลขที่"));
   assert.match(document.querySelector(".sr-receipt-fields").textContent,/ไม่ซ้ำในระบบ/);
-  await render("before-item",{activatedAt:"2026-11-07T06:36:00Z"});await upload();
-  assert.match(document.querySelector(".sr-receipt-fields").textContent,/อยู่ก่อนเวลากดใช้ Item/);
-  assert.equal(field("receiptAt").value.replace(/\.000$/,""),"2026-11-07T13:12:27","never change a receipt's time to make it eligible");
-  await click(field("receiptReviewed"));assert.ok(button("ส่งคำขอ").disabled);
+  const checksBeforeInvalid=checkCalls;
+  await render("before-item",{activatedAt:"2026-11-07T06:36:10Z"});await upload();
+  assert.match(document.querySelector(".sr-receipt-fields").textContent,/ซื้อสินค้าก่อนกดใช้ Item ประมาณ 24 นาที/);
+  assert.match(field("receiptAt").value,/13:12:27/,"never change a receipt's time to make it eligible");
+  assert.equal(checkCalls,checksBeforeInvalid,"ineligible images never trigger a duplicate/database check");
+  assert.equal(field("receiptReviewed"),null);assert.equal(field("promptPay"),null);
+  assert.equal(document.querySelector('button[type="submit"]'),null);
+  const submittedBeforeInvalid=submitCalls.length;
+  await act(async()=>document.querySelector("form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true})));
+  assert.equal(submitCalls.length,submittedBeforeInvalid,"even programmatic submission cannot send the blocked OCR time");
   scanText=fullText.replace("13:12:27","15:12:27");
   await render("future");await upload();
   assert.match(document.querySelector(".sr-receipt-fields").textContent,/อนาคต/);
@@ -97,10 +110,10 @@ try{
   Object.defineProperty(input,"files",{configurable:true,value:[new File(["fixture"],"receipt.png",{type:"image/png"})]});
   await act(async()=>{input.dispatchEvent(new Event("change",{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,0));});
   assert.ok(delayed);await click(button("หยุดอ่าน"));
-  assert.ok(!document.querySelector('[data-receipt-upload]').disabled,"cancel settles UI and permits manual entry");
+  assert.ok(!document.querySelector('[data-receipt-upload]').disabled,"cancel settles UI and permits a new image");
   await act(async()=>delayed(fullText));
   assert.equal(field("receiptNumber").value,"","late OCR result cannot populate a cancelled image");
-  console.log("PASS receipt-first UI: upload triggers real scan adapter, prefill+duplicate check, explicit review, exact Bangkok seconds, new-image reset, partial/fallback/cancel handling and no early/future or automatic submission");
+  console.log("PASS receipt-first UI: upload triggers real scan adapter, prefill+duplicate check, explicit review, locked OCR time with no calendar or DOM-edit override, clear rejection and no invalid payment form or extra database read, partial/fallback/cancel handling");
 }finally{
   await act(async()=>root.unmount());Date.now=originalNow;delete globalThis.__receiptUiFixture;dom.window.close();
   for(const [name,descriptor] of Object.entries(previous)){if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}
