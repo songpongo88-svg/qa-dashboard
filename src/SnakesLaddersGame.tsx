@@ -97,6 +97,14 @@ function Tile({n,players,photos,currentUser,movingActor}: {n:number;players:Memb
    </div>)}</div>:null}
  </div>;
 }
+function DiceCube({value}:{value:number}){
+ const turns:Record<number,[number,number]>={1:[0,0],2:[-90,0],3:[0,-90],4:[0,90],5:[90,0],6:[0,180]};
+ const [x,y]=turns[value]||turns[1];
+ return <div className="sl-cube" style={{"--sl-cube-end":`rotateX(${x}deg) rotateY(${y}deg)`} as React.CSSProperties} aria-label={`ลูกเต๋าได้ ${value} แต้ม`}>
+   {([["front",1],["back",6],["right",3],["left",4],["top",2],["bottom",5]] as const).map(([side,n])=>
+     <div key={side} className={"sl-cube-face sl-cube-face--"+side}><DiceFace value={n}/></div>)}
+ </div>;
+}
 type DiceThrow={dice1:number;dice2:number;actor:string;phase:"rolling"|"landed"};
 function GameBoard({room,photos,username,movingActor,diceThrow}: {room:Room;photos:Record<string,string>;username:string;movingActor?:string;diceThrow?:DiceThrow|null}){
  return <div className="sl-board-frame">
@@ -109,8 +117,8 @@ function GameBoard({room,photos,username,movingActor,diceThrow}: {room:Room;phot
      <BoardArtwork/>
      {diceThrow?<div className={"sl-board-dice-flight sl-board-dice-flight--"+diceThrow.phase} role="status" aria-live="polite" aria-label={diceThrow.phase==="rolling"?"ลูกเต๋าสองลูกกำลังกลิ้งลงบนกระดาน":"ลูกเต๋าหยุดแล้ว ผลรวม "+(diceThrow.dice1+diceThrow.dice2)}>
        <div className="sl-board-dice-flight__pair">
-         <div className="sl-board-dice-flight__one"><DiceFace value={diceThrow.dice1}/></div>
-         <div className="sl-board-dice-flight__two"><DiceFace value={diceThrow.dice2}/></div>
+         <div className="sl-board-dice-flight__one"><DiceCube value={diceThrow.dice1}/></div>
+         <div className="sl-board-dice-flight__two"><DiceCube value={diceThrow.dice2}/></div>
        </div>
        <div className="sl-board-dice-flight__label">{diceThrow.phase==="rolling"?"🎲 ลูกเต๋ากำลังกลิ้งลงกระดาน":`ลูกที่ 1: ${diceThrow.dice1} + ลูกที่ 2: ${diceThrow.dice2} = ${diceThrow.dice1+diceThrow.dice2} แต้ม`}</div>
      </div>:null}
