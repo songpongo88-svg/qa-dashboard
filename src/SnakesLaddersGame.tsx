@@ -60,9 +60,9 @@ function BoardArtwork(){
 }
 const normalizedGameUser=(value?:string)=>String(value||"").trim().toLowerCase();
 const sameGameUser=(a?:string,b?:string)=>Boolean(normalizedGameUser(a))&&normalizedGameUser(a)===normalizedGameUser(b);
-const palette=["mint","sky","rose"];
+const palette=["mint","sky","rose","gold","violet"];
 function Avatar({user,photos,label}: {user:string;photos:Record<string,string>;label?:string}){
- if(user===SNAKES_BOT_ID)return <span className="sl-avatar sl-avatar--bot" role="img" aria-label="Sparks Bot ทดสอบ">🤖</span>;
+ if(user===SNAKES_BOT_ID||user.startsWith(SNAKES_BOT_ID+"_"))return <span className="sl-avatar sl-avatar--bot" role="img" aria-label="Sparks Bot ทดสอบ">🤖</span>;
  const image=photos[user];
  return <span className="sl-avatar" title={label||user}>{image?<img src={image} alt={label||user}/>:<span>{user.slice(0,2).toUpperCase()}</span>}</span>;
 }
@@ -72,12 +72,12 @@ function DiceFace({value=5}:{value?:number}){
    {Array.from({length:9},(_,i)=><i key={i} className={dots[value]?.includes(i)?"dot":"empty"}/>)}
  </div>;
 }
-function Tile({n,players,photos,currentUser}: {n:number;players:Member[];photos:Record<string,string>;currentUser:string}){
+function Tile({n,players,photos,currentUser,movingActor}: {n:number;players:Member[];photos:Record<string,string>;currentUser:string;movingActor?:string}){
  const rule=resolveSnakeSquare(n);
  const kind=rule.type==="reward"?"reward":rule.type==="ladder"?"ladder":rule.type==="snake"?"snake":
   n===50?"finish":["lose-percent","lose-fixed","skip","back-five","restart","reset-other","swap","steal","shield"].includes(rule.type)?"event":"normal";
  const me=players.some(p=>p.username===currentUser);
- return <div className={"sl-tile sl-tile--"+kind+(me?" sl-tile--mine":"")} data-snake-tile={n} title={"ช่อง "+n+" · "+rule.description}>
+ return <div className={"sl-tile sl-tile--"+kind+(me?" sl-tile--mine":"")+(players.some(p=>p.username===movingActor)?" sl-tile--moving":"")} data-snake-tile={n} title={"ช่อง "+n+" · "+rule.description}>
    <span className="sl-tile-number">{n}</span>
    {n===50?<span className="sl-tile-symbol">🏁</span>:
       kind==="reward"?<span className="sl-tile-symbol">⚡</span>:
@@ -88,13 +88,13 @@ function Tile({n,players,photos,currentUser}: {n:number;players:Member[];photos:
    </div>)}</div>:null}
  </div>;
 }
-function GameBoard({room,photos,username}: {room:Room;photos:Record<string,string>;username:string}){
+function GameBoard({room,photos,username,movingActor}: {room:Room;photos:Record<string,string>;username:string;movingActor?:string}){
  return <div className="sl-board-frame">
    <div className="sl-board-head"><div><span className="sl-overline">THE GRAND BOARD · 50 TILES</span><h3>สนามบันไดงู</h3></div>
      <span className="sl-board-chip">50 ช่อง · {room.members.filter(m=>m.joined).length} ผู้เล่น</span></div>
    <div className="sl-board-scroll"><div className="sl-board-surface">
      <div className="sl-board-grid">
-       {tileNumbers.map(n=><Tile key={n} n={n} players={room.members.filter(p=>p.joined&&p.position===n)} photos={photos} currentUser={username}/>)}
+       {tileNumbers.map(n=><Tile key={n} n={n} players={room.members.filter(p=>p.joined&&p.position===n)} photos={photos} currentUser={username} movingActor={movingActor}/>)}
      </div>
      <BoardArtwork/>
    </div></div>
@@ -112,10 +112,57 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const [popup,setPopup]=useState<GameEvent|null>(null);
+ const [motion,setMotion]=useState<{positions:Record<string,number>;actor:string;message:string}|null>(null);
+ const animationRef=useRef(0);
+ const motionRoomId=useRef("");
  const [cancelConfirm,setCancelConfirm]=useState(false);
  const [photos,setPhotos]=useState<Record<string,string>>({});
  const busyRef=useRef(false),loadRef=useRef(false),nonce=useRef("");
+ useEffect(()=>()=>{animationRef.current+=1;},[]);
  const room=useMemo(()=>data.rooms.find(r=>r.id===currentRoomId)||null,[data.rooms,currentRoomId]);
+ const displayRoom=useMemo(()=>room&&motion&&motionRoomId.current===room.id?{...room,members:room.members.map(p=>({...p,position:motion.positions[p.username]??p.position}))}:room,[room,motion]);
+ const sleep=(ms:number)=>new Promise<void>(resolve=>window.setTimeout(resolve,ms));
+ const animateMoves=async(before:Room,after:Room,events:GameEvent[])=>{
+   if(!events.length)return;
+   const id=++animationRef.current;
+   motionRoomId.current=after.id;
+   const positions:Record<string,number>=Object.fromEntries(before.members.map(p=>[p.username,p.position]));
+   const show=(actor:string,message:string)=>setMotion({positions:{...positions},actor,message});
+   for(const ev of events){
+     if(id!==animationRef.current)return;
+     const player=after.members.find(p=>p.username===ev.actor);
+     const name=player?.displayName||"ผู้เล่น";
+     if(typeof ev.dice==="number"&&typeof ev.from==="number"&&typeof ev.tile==="number"){
+       positions[ev.actor!]=ev.from;
+       show(ev.actor||"",`${name} ทอยได้ ${ev.dice} แต้ม`);
+       await sleep(650);
+       for(let n=ev.from+1;n<=ev.tile;n++){
+         if(id!==animationRef.current)return;
+         positions[ev.actor!]=n;
+         show(ev.actor||"",`${name} กำลังเดิน · ช่อง ${n} / ${ev.tile}`);
+         await sleep(370);
+       }
+       if(typeof ev.to==="number"&&ev.to!==ev.tile){
+         show(ev.actor||"",`${name} ${ev.type==="snake"?"ตกงู":ev.type==="ladder"?"ขึ้นบันได":"ติดกับดัก"}! ช่อง ${ev.tile} → ${ev.to}`);
+         await sleep(850);
+         const direction=ev.to>ev.tile?1:-1;
+         for(let n=ev.tile+direction;direction>0?n<=ev.to:n>=ev.to;n+=direction){
+           if(id!==animationRef.current)return;
+           positions[ev.actor!]=n;
+           show(ev.actor||"",`${name} ${ev.type==="ladder"?"กำลังขึ้นบันได":"กำลังเลื่อนลง"} · ช่อง ${n}`);
+           await sleep(230);
+         }
+       }
+       show(ev.actor||"",`${name}: ${ev.description}`);
+       await sleep(1100);
+     }else{
+       if(ev.target){const target=after.members.find(p=>p.username===ev.target);if(target)positions[target.username]=target.position;}
+       show(ev.actor||"",`${name}: ${ev.description}`);
+       await sleep(1000);
+     }
+   }
+   if(id===animationRef.current){setMotion(null);setPopup(events.find(ev=>typeof ev.dice==="number")||events[0]);}
+ };
  const call=useCallback(async(action:string,extra:Record<string,unknown>={})=>{
    const controller=new AbortController(),timer=window.setTimeout(()=>controller.abort(),25000);
    try{
@@ -145,7 +192,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    }catch(e){if(showLoading)setError(e instanceof Error?e.message:"โหลดห้องไม่สำเร็จ");}
    finally{loadRef.current=false;setLoading(false);}
  },[call,username,sessionId]);
- useEffect(()=>{setData({rooms:[],activeRoomId:"",rules:SNAKES_RULES});setCurrentRoomId("");setPhotos({});void refresh(true);},[refresh,username,sessionId]);
+ useEffect(()=>{setData({rooms:[],activeRoomId:"",rules:SNAKES_RULES});setCurrentRoomId("");setPhotos({});setMotion(null);animationRef.current+=1;void refresh(true);},[refresh,username,sessionId]);
  useEffect(()=>{
    const update=()=>{if(document.visibilityState==="visible")void refresh();};
    const delay=window.setInterval(update,room?.status==="playing"?30000:60000);
@@ -158,7 +205,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  useEffect(()=>{
    let alive=true;
    for(const name of allNames.split("|").filter(Boolean)){
-     if(name===SNAKES_BOT_ID)continue;
+     if(name===SNAKES_BOT_ID||name.startsWith(SNAKES_BOT_ID+"_"))continue;
      if(Object.prototype.hasOwnProperty.call(photos,name))continue;
      void fetchStoredProfilePhoto(name).then(photo=>{
        if(!alive)return;
@@ -176,11 +223,15 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      if(result.room){
        setData(old=>({...old,rooms:[result.room,...old.rooms.filter(r=>r.id!==result.room.id)]}));
        setCurrentRoomId(result.room.id);
-       if((action==="snakes-roll"||action==="snakes-target")&&!result.alreadyApplied)setPopup(result.turnEvent||result.room.event);
+       if((action==="snakes-roll"||action==="snakes-target")&&!result.alreadyApplied){
+         const events:GameEvent[]=[...(result.turnEvent?[result.turnEvent]:[]),...(result.botEvents||[])];
+         if(room&&events.length)void animateMoves(room,result.room,events);
+         else setPopup(result.turnEvent||result.room.event);
+       }
      }
      if(result.cancelled){
        setData(old=>({...old,rooms:old.rooms.filter(r=>r.id!==result.roomId),activeRoomId:""}));
-       setCurrentRoomId("");setPopup(null);setCancelConfirm(false);
+       setCurrentRoomId("");setPopup(null);setMotion(null);animationRef.current+=1;setCancelConfirm(false);
      }
      if(action==="snakes-create")setTargetInput("");
      if(action==="snakes-invite")setTargetInput("");
@@ -204,14 +255,14 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  return <section className="sl-root" aria-label="เกมบันไดงู Multiplayer" data-sparks-snakes="true">
    <div className="sl-topbar">
      <div className="sl-brand"><span className="sl-brand-flash">ϟ</span><div><span>QA <em>Sparks</em></span><small>SNAKES & LADDERS · MULTIPLAYER</small></div></div>
-     <div className="sl-room-badge">🎲 บันไดงู 50 ช่อง <span>·</span> 👥 สูงสุด 3 คน <span>·</span> ไม่จำกัดเวลา</div>
+     <div className="sl-room-badge">🎲 บันไดงู 50 ช่อง <span>·</span> 👥 สูงสุด 5 คน (บอท 4 ตัว) <span>·</span> ดูการเดินแบบทีละช่อง</div>
      <button type="button" className="sl-refresh" disabled={busy||loading} onClick={()=>void refresh(true)}>{loading?"กำลังโหลด...":"↻ รีเฟรช"}</button>
    </div>
    {error?<div className="sl-error" role="alert">{error}</div>:null}
    {notice?<div className="sl-notice" role="status">{notice}</div>:null}
    {!room?<div className="sl-lobby">
      <div className="sl-lobby-copy"><span className="sl-overline">CREATE YOUR ROOM</span><h2>บันไดงู Battle Mode</h2>
-       <p>สร้างห้อง เชิญสมาชิก QA Dashboard อีก 1–2 คน ผลัดกันทอยเต๋า เก็บ Sparks และเจออุปสรรคระหว่างทาง</p>
+       <p>สร้างห้อง เชิญสมาชิก QA Dashboard หรือเพิ่มบอทอัตโนมัติสูงสุด 4 ตัว ผลัดกันทอยเต๋า เก็บ Sparks และเจออุปสรรคระหว่างทาง</p>
        <div className="sl-lobby-rules"><span>50 ช่อง</span><span>2–3 ผู้เล่น</span><span>รับ Sparks หลังจบเกม</span></div>
        <button className="sl-primary" disabled={busy||!username||!sessionId} onClick={create}>＋ สร้างห้องเกม</button>
      </div>
@@ -226,14 +277,14 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <div className="sl-room-nav-actions">
           {sameGameUser(room.host,username)&&(room.status==="lobby"||room.status==="playing")?
             <button type="button" className="sl-danger-link" disabled={busy} onClick={()=>setCancelConfirm(true)}>ยกเลิกห้อง</button>:null}
-          <button type="button" className="sl-link" onClick={()=>{setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
+          <button type="button" className="sl-link" onClick={()=>{animationRef.current+=1;setMotion(null);setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
         </div>
      </div>
      <div className="sl-playercards">{room.members.filter(p=>p.joined).map((p,i)=><div className={"sl-playercard sl-playercard--"+palette[i%3]+(room.currentTurn===p.username?" is-turn":"")} key={p.username}>
        <Avatar user={p.username} photos={photos} label={p.displayName}/>
-       <div className="sl-playercard-info"><strong>{p.displayName}{p.isBot?" · BOT":""}</strong><small>{p.isBot?"ทดสอบอัตโนมัติ · ไม่รับ Sparks":"@"+p.username}</small>
+       <div className="sl-playercard-info"><strong>{p.displayName}{p.isBot?" · BOT":""}</strong><small>{p.isBot?"เล่นอัตโนมัติ · ไม่รับ Sparks":"@"+p.username}</small>
          <div><span>ช่อง {p.position}</span><b>⚡ {p.pot.toLocaleString()} Sparks{p.isBot?" (ในเกมเท่านั้น)":""}</b></div></div>
-       {room.currentTurn===p.username?<span className="sl-turn-label">ถึงตา{sameGameUser(p.username,username)?"คุณ":"ผู้เล่น"}</span>:null}
+       {room.currentTurn===p.username?<span className="sl-turn-label">กำลังเล่น · {sameGameUser(p.username,username)?"ตาคุณ":p.isBot?"บอทกำลังทอย":"ตาผู้เล่น"}</span>:<span className="sl-turn-wait">รอตาเล่น</span>}
        {room.winner===p.username?<span className="sl-winner">🏆 ผู้ชนะ</span>:null}
      </div>)}
        {room.members.filter(p=>!p.joined).map(p=><div className="sl-playercard sl-playercard--pending" key={p.username}>
@@ -249,20 +300,20 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
             <input value={targetInput} maxLength={100} onChange={e=>setTargetInput(e.target.value)} placeholder="Username ที่ใช้ Login"/>
             <small>ให้เพื่อนเปิด Mini Games และกดตอบรับคำเชิญ</small>
           </label>
-         <button disabled={busy||room.members.length>=3||!targetInput.trim()} className="sl-secondary" onClick={()=>void modify("snakes-invite",{roomId:room.id,targetUsername:targetInput.trim()},"ส่งคำเชิญแล้ว ให้เพื่อนเปิด Mini Games และกดตอบรับ")}>ส่งคำเชิญ</button>
-         <button type="button" data-snakes-add-bot="true" disabled={busy||room.members.length>=3||room.members.some(p=>p.isBot)}
-            className="sl-bot-button" onClick={()=>void modify("snakes-add-bot",{roomId:room.id},"เพิ่ม Sparks Bot แล้ว Bot จะทอยอัตโนมัติเมื่อถึงตา")}>🤖 เพิ่ม Bot ทดสอบ</button>
+         <button disabled={busy||room.members.length>=5||!targetInput.trim()} className="sl-secondary" onClick={()=>void modify("snakes-invite",{roomId:room.id,targetUsername:targetInput.trim()},"ส่งคำเชิญแล้ว ให้เพื่อนเปิด Mini Games และกดตอบรับ")}>ส่งคำเชิญ</button>
+         <button type="button" data-snakes-add-bot="true" disabled={busy||room.members.length>=5||room.members.filter(p=>p.isBot).length>=4}
+            className="sl-bot-button" onClick={()=>void modify("snakes-add-bot",{roomId:room.id},"เพิ่ม Sparks Bot แล้ว Bot จะทอยอัตโนมัติเมื่อถึงตา")}>🤖 เพิ่ม Bot ({room.members.filter(p=>p.isBot).length}/4)</button>
           <button disabled={busy||room.members.filter(p=>p.joined).length<2||room.members.some(p=>!p.joined)} className="sl-primary" onClick={()=>void modify("snakes-start",{roomId:room.id},"เริ่มเกมแล้ว!")}>เริ่มเกม</button>
        </div>:null}
      </div>:null}
      {room.status!=="lobby"?<div className="sl-layout">
-       <GameBoard room={room} photos={photos} username={username}/>
+       <GameBoard room={displayRoom||room} photos={photos} username={username} movingActor={motion?.actor}/>
        <div className="sl-sidebar">
-         <div className="sl-dice-panel"><span className="sl-overline">YOUR NEXT MOVE</span><h3>{room.status==="finished"?"เกมจบแล้ว":myTurn?"ถึงตาคุณแล้ว":"รอผู้เล่นคนอื่น"}</h3>
+         <div className="sl-dice-panel">{motion?<div className="sl-movement-notice" role="status"><span>🎲 กำลังเดินบนกระดาน</span><strong>{motion.message}</strong></div>:null}<span className="sl-overline">YOUR NEXT MOVE</span><h3>{room.status==="finished"?"เกมจบแล้ว":myTurn?"ถึงตาคุณแล้ว":"รอผู้เล่นคนอื่น"}</h3>
            <div className="sl-dice-display"><DiceFace value={room.lastRoll||5}/><div><small>ผลทอยล่าสุด</small><b>{room.lastRoll||"–"}</b></div></div>
            {room.status==="playing"?
              waitingTarget?<p className="sl-small">เลือกคู่แข่งในรายการด้านล่างเพื่อใช้พลังพิเศษ</p>:
-             <button className="sl-roll" type="button" disabled={!myTurn||busy} onClick={()=>void roll()}>🎲 {busy?"กำลังทอย...":myTurn?"ทอยลูกเต๋า":"ยังไม่ถึงตาคุณ"}</button>:
+             <button className="sl-roll" type="button" disabled={!myTurn||busy||!!motion} onClick={()=>void roll()}>🎲 {busy?"กำลังทอย...":myTurn?"ทอยลูกเต๋า":"ยังไม่ถึงตาคุณ"}</button>:
              <span className="sl-game-finished">🏁 เส้นชัยช่อง 50</span>}
            {room.pendingTarget&&waitingTarget?<div className="sl-target"><h4>เลือกเป้าหมาย</h4>
              {room.members.filter(p=>p.joined&&!sameGameUser(p.username,username)).map(p=><button key={p.username} disabled={busy}
@@ -270,7 +321,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
                <Avatar user={p.username} photos={photos} label={p.displayName}/>{p.displayName}{p.shields?" 🛡":""}
              </button>)}
            </div>:null}
-           {room.status==="playing"&&!sameGameUser(room.currentTurn,username)?<p className="sl-small">{room.currentTurn===SNAKES_BOT_ID?"Bot ทอยอัตโนมัติเมื่อถึงตา":"ตำแหน่งและ Game Pot บันทึกไว้ กลับมาเล่นต่อภายหลังได้"}</p>:null}
+           {room.status==="playing"&&!sameGameUser(room.currentTurn,username)?<p className="sl-small">{room.members.some(p=>p.username===room.currentTurn&&p.isBot)?"Bot ทอยอัตโนมัติเมื่อถึงตา":"ตำแหน่งและ Game Pot บันทึกไว้ กลับมาเล่นต่อภายหลังได้"}</p>:null}
          </div>
          <div className="sl-pot-panel"><div className="sl-pot-head"><span>⚡ Game Pot</span><span className="sl-pot-lock">🔒 รอจบเกม</span></div>
            <strong>{(me?.pot||0).toLocaleString()} <small>Sparks</small></strong>
