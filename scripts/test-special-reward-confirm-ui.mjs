@@ -50,7 +50,7 @@ const click=async el=>{
   assert.ok(el,"click target missing");
   await act(async()=>el.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true})));
 };
-const popup=()=>document.querySelector('[data-reward-confirm-overlay="true"] [role="dialog"]');
+const popup=()=>document.querySelector('dialog.reward-confirm-modal[data-reward-confirm-overlay="true"][role="dialog"]');
 try{
   const out=resolve(folder,"SpecialRewardsAdmin.mjs");
   await build({entryPoints:["src/SpecialRewardsAdmin.tsx"],outfile:out,bundle:true,
