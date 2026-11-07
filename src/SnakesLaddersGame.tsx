@@ -303,9 +303,10 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    <div className="sl-topbar">
      <div className="sl-brand"><span className="sl-brand-flash">ϟ</span><div><span>QA <em>Sparks</em></span><small>SNAKES & LADDERS · MULTIPLAYER</small></div></div>
      <div className="sl-room-badge">🎲 บันไดงู 50 ช่อง <span>·</span> 👥 สูงสุด 5 คน (บอท 4 ตัว) <span>·</span> ดูการเดินแบบทีละช่อง</div>
-     <button type="button" className="sl-voice-toggle" aria-pressed={voiceEnabled} onClick={()=>{setVoiceEnabled(v=>!v);if(!voiceEnabled)speak("เปิดเสียงบรรยายเกมแล้ว");}}>{voiceEnabled?"🔊 เสียงพูด: เปิด":"🔇 เสียงพูด: ปิด"}</button>
+     <button type="button" className="sl-voice-toggle" aria-pressed={voiceEnabled} onClick={()=>setVoiceEnabled(v=>!v)}>{voiceEnabled?"🔊 เสียงพูด: เปิด":"🔇 เสียงพูด: ปิด"}</button>
      <button type="button" className="sl-refresh" disabled={busy||loading} onClick={()=>void refresh(true)}>{loading?"กำลังโหลด...":"↻ รีเฟรช"}</button>
    </div>
+   {voiceEnabled&&voiceMessage?<div className="sl-voice-caption" aria-live="polite">🔊 {voiceMessage}</div>:null}
    {error?<div className="sl-error" role="alert">{error}</div>:null}
    {notice?<div className="sl-notice" role="status">{notice}</div>:null}
    {!room?<div className="sl-lobby">
