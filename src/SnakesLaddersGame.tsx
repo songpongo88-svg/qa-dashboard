@@ -4,10 +4,10 @@ import {SNAKES_RULES,resolveSnakeSquare,SNAKES_BOT_ID} from "./snakesRules.js";
 import "./snakesLadders.css";
 
 type Member={username:string;displayName:string;joined:boolean;isBot?:boolean;position:number;pot:number;skips:number;shields:number;claimedAt:string;rewardedTiles:number[]};
-type GameEvent={type:string;tile?:number;to?:number;delta?:number;dice?:number;from?:number;description:string;actor?:string;target?:string;at:string};
+type GameEvent={type:string;tile?:number;to?:number;delta?:number;dice?:number;dice1?:number;dice2?:number;from?:number;description:string;actor?:string;target?:string;at:string};
 type Room={id:string;host:string;status:"lobby"|"playing"|"finished"|"cancelled";members:Member[];invited:string[];
  currentTurn:string;winner:string;event:GameEvent|null;events:GameEvent[];pendingTarget:{actor:string;type:string;tile:number}|null;
- createdAt:string;startedAt:string;finishedAt:string;lastRoll:number;yourUsername:string;updatedAt:string};
+ createdAt:string;startedAt:string;finishedAt:string;lastRoll:number;lastDice?:number[];yourUsername:string;updatedAt:string};
 type Rules={rewardSquares:number[];ladders:Record<number,number>;snakes:Record<number,number>;traps:Record<number,string>};
 type GameState={rooms:Room[];activeRoomId:string;rules:Rules};
 const eventIcon:Record<string,string>={"reward":"⚡","snake":"🐍","ladder":"🪜","shield":"🛡","lose-percent":"💥",
@@ -65,6 +65,15 @@ function Avatar({user,photos,label}: {user:string;photos:Record<string,string>;l
  if(user===SNAKES_BOT_ID||user.startsWith(SNAKES_BOT_ID+"_"))return <span className="sl-avatar sl-avatar--bot" role="img" aria-label="Sparks Bot ทดสอบ">🤖</span>;
  const image=photos[user];
  return <span className="sl-avatar" title={label||user}>{image?<img src={image} alt={label||user}/>:<span>{user.slice(0,2).toUpperCase()}</span>}</span>;
+}
+function thaiNumber(value:number):string{
+ const units=["ศูนย์","หนึ่ง","สอง","สาม","สี่","ห้า","หก","เจ็ด","แปด","เก้า"];
+ const n=Math.floor(Math.max(0,value));
+ if(n<10)return units[n];
+ if(n<100){const tens=Math.floor(n/10),ones=n%10;
+   return (tens===1?"สิบ":tens===2?"ยี่สิบ":units[tens]+"สิบ")+(ones===0?"":ones===1?"เอ็ด":units[ones]);}
+ if(n<1000)return units[Math.floor(n/100)]+"ร้อย"+(n%100?thaiNumber(n%100):"");
+ return String(n);
 }
 function DiceFace({value=5}:{value?:number}){
  const dots:Record<number,number[]>={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
@@ -155,8 +164,12 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      const name=player?.displayName||"ผู้เล่น";
      if(typeof ev.dice==="number"&&typeof ev.from==="number"&&typeof ev.tile==="number"){
        positions[ev.actor!]=ev.from;
-       show(ev.actor||"",`${name} ทอยได้ ${ev.dice} แต้ม`);
-       speak(`${name} ทอยลูกเต๋าได้ ${ev.dice} แต้ม`);
+       show(ev.actor||"",`${name} ทอยลูกเต๋า ${ev.dice1??"–"} + ${ev.dice2??"–"} = ${ev.dice} แต้ม`);
+       if(sameGameUser(ev.actor,username)){
+         const pair=typeof ev.dice1==="number"&&typeof ev.dice2==="number"
+           ? `ลูกแรก${thaiNumber(ev.dice1)}แต้ม ลูกที่สอง${thaiNumber(ev.dice2)}แต้ม รวม`:"";
+         speak(`คุณทอยลูกเต๋าได้ ${pair}${thaiNumber(ev.dice)} แต้ม`);
+       }
        await sleep(650);
        for(let n=ev.from+1;n<=ev.tile;n++){
          if(id!==animationRef.current)return;
@@ -166,7 +179,10 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        }
        if(typeof ev.to==="number"&&ev.to!==ev.tile){
          show(ev.actor||"",`${name} ${ev.type==="snake"?"ตกงู":ev.type==="ladder"?"ขึ้นบันได":"ติดกับดัก"}! ช่อง ${ev.tile} → ${ev.to}`);
-         speak(ev.type==="snake"?`${name} ตกงูจากช่อง ${ev.tile} ลงไปช่อง ${ev.to}`:ev.type==="ladder"?`${name} ขึ้นบันไดจากช่อง ${ev.tile} ไปช่อง ${ev.to}`:`${name} ติดกับดัก ต้องย้ายไปช่อง ${ev.to}`);
+         if(sameGameUser(ev.actor,username))speak(ev.type==="snake"
+           ?`คุณตกงูจากช่อง${thaiNumber(ev.tile)} ลงไปช่อง${thaiNumber(ev.to)}`
+           :ev.type==="ladder"?`คุณขึ้นบันไดจากช่อง${thaiNumber(ev.tile)} ไปช่อง${thaiNumber(ev.to)}`
+           :`คุณติดกับดัก ย้ายไปช่อง${thaiNumber(ev.to)}`);
          await sleep(850);
          const direction=ev.to>ev.tile?1:-1;
          for(let n=ev.tile+direction;direction>0?n<=ev.to:n>=ev.to;n+=direction){
@@ -177,14 +193,16 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
          }
        }
        show(ev.actor||"",`${name}: ${ev.description}`);
-       if(ev.type==="reward")speak(`${name} เปิดการ์ดรางวัล ได้รับ ${Math.max(0,ev.delta||0)} สปาร์กส์`);
-       else if(ev.type==="finish")speak(`จบเกมแล้ว! ${name} เป็นผู้ชนะอันดับหนึ่ง!`);
-       else if(ev.type!=="snake"&&ev.type!=="ladder"&&ev.type!=="safe")speak(`${name} เปิดการ์ดเหตุการณ์ ${ev.description}`);
+       if(sameGameUser(ev.actor,username)){
+         if(ev.type==="reward")speak(`คุณเปิดการ์ดรางวัล ได้รับ${thaiNumber(Math.max(0,ev.delta||0))}สปาร์กส์`);
+         else if(ev.type==="finish")speak("จบเกมแล้ว คุณเป็นผู้ชนะอันดับหนึ่ง!");
+         else if(ev.type!=="snake"&&ev.type!=="ladder"&&ev.type!=="safe")speak(`คุณเปิดการ์ดเหตุการณ์ ${ev.description}`);
+       }
        await sleep(ev.type==="finish"?2800:ev.type==="safe"?750:2300);
      }else{
        if(ev.target){const target=after.members.find(p=>p.username===ev.target);if(target)positions[target.username]=target.position;}
        show(ev.actor||"",`${name}: ${ev.description}`);
-       speak(`${name} ${ev.description}`);
+       if(sameGameUser(ev.actor,username))speak(`การ์ดเหตุการณ์ของคุณ ${ev.description}`);
        await sleep(2300);
      }
    }
@@ -285,8 +303,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    if(lastSpokenTurn.current===turnKey)return;
    lastSpokenTurn.current=turnKey;
    const member=room.members.find(p=>p.username===room.currentTurn);
-   if(member&&!member.isBot)speak(sameGameUser(member.username,username)?"ถึงตาคุณแล้ว กรุณาทอยลูกเต๋าภายในสิบวินาที":`ถึงตา ${member.displayName} ทอยลูกเต๋า`);
-   else if(member?.isBot)speak(`ถึงตา ${member.displayName} บอทกำลังเล่น`);
+   if(member&&!member.isBot&&sameGameUser(member.username,username))speak("ถึงตาคุณแล้ว กรุณาทอยลูกเต๋าสองลูกภายในสิบวินาที");
  },[room?.id,room?.currentTurn,room?.updatedAt,Boolean(motion),voiceEnabled,username]);
  useEffect(()=>{
    setSecondsToRoll(10);
@@ -360,10 +377,16 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <div className="sl-sidebar">
          <div className="sl-dice-panel">{motion?<div className="sl-movement-notice" role="status"><span>🎲 กำลังเดินบนกระดาน</span><strong>{motion.message}</strong></div>:null}<span className="sl-overline">YOUR NEXT MOVE</span><h3>{room.status==="finished"?"เกมจบแล้ว":myTurn?"ถึงตาคุณแล้ว":"รอผู้เล่นคนอื่น"}</h3>
            {myTurn&&!waitingTarget&&!motion?<div className="sl-roll-countdown" role="timer"><span>ทอยภายใน 10 วินาที</span><strong>{secondsToRoll}</strong><small>หากไม่กด ระบบจะทอยให้อัตโนมัติ</small></div>:null}
-           <div className="sl-dice-display"><DiceFace value={room.lastRoll||5}/><div><small>ผลทอยล่าสุด</small><b>{room.lastRoll||"–"}</b></div></div>
+           <div className="sl-dice-display sl-dice-display--two">
+             <div className="sl-dice-pair">
+               <div className="sl-dice-individual"><DiceFace value={room.lastDice?.[0]||1}/><small>ลูกที่ 1: {room.lastDice?.[0]||"–"}</small></div>
+               <div className="sl-dice-individual"><DiceFace value={room.lastDice?.[1]||1}/><small>ลูกที่ 2: {room.lastDice?.[1]||"–"}</small></div>
+             </div>
+             <div className="sl-dice-total"><small>ผลรวม 2 ลูก</small><b>{room.lastDice?.length===2?room.lastDice[0]+room.lastDice[1]:"–"}</b><small>แต้ม (2–12)</small></div>
+           </div>
            {room.status==="playing"?
              waitingTarget?<p className="sl-small">เลือกคู่แข่งในรายการด้านล่างเพื่อใช้พลังพิเศษ</p>:
-             <button className="sl-roll" type="button" disabled={!myTurn||busy||!!motion} onClick={()=>void roll()}>🎲 {busy?"กำลังทอย...":myTurn?"ทอยลูกเต๋า":"ยังไม่ถึงตาคุณ"}</button>:
+             <button className="sl-roll" type="button" disabled={!myTurn||busy||!!motion} onClick={()=>void roll()}>🎲 {busy?"กำลังทอย...":myTurn?"ทอยลูกเต๋า 2 ลูก":"ยังไม่ถึงตาคุณ"}</button>:
              <span className="sl-game-finished">🏁 เส้นชัยช่อง 50</span>}
            {room.pendingTarget&&waitingTarget?<div className="sl-target"><h4>เลือกเป้าหมาย</h4>
              {room.members.filter(p=>p.joined&&!sameGameUser(p.username,username)).map(p=><button key={p.username} disabled={busy}
@@ -411,7 +434,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <div className="sl-popup-icon">{eventIcon[popup.type]||"✦"}</div>
        <span className="sl-overline">GAME EVENT · ช่อง {popup.tile||"–"}</span>
        <h2>{popup.type==="reward"&&popup.delta&&popup.delta>0?"พบหีบ Sparks!":"เหตุการณ์บนกระดาน"}</h2>
-       {typeof popup.dice==="number"?<p>ทอยลูกเต๋าได้ {popup.dice} แต้ม</p>:null}
+       {typeof popup.dice==="number"?<p>ลูกเต๋า 2 ลูก: {popup.dice1??"–"} + {popup.dice2??"–"} = {popup.dice} แต้ม</p>:null}
        <strong className={"sl-popup-points"+(popup.delta&&popup.delta<0?" negative":"")}>{popup.delta?(popup.delta>0?"+":"")+popup.delta+" Sparks":popup.description}</strong>
        <p>{popup.delta?"จำนวน Sparks นี้อยู่ใน Game Pot เท่านั้น รับเข้าบัญชีหลังเกมจบ":popup.description}</p>
        <button className="sl-primary" type="button" onClick={()=>setPopup(null)}>ตกลง · กลับไปที่เกม</button>
