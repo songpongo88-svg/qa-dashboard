@@ -58,6 +58,8 @@ function BoardArtwork(){
    {snakeEntries.map(([a,b])=>snake(a,b))}
  </svg>;
 }
+const normalizedGameUser=(value?:string)=>String(value||"").trim().toLowerCase();
+const sameGameUser=(a?:string,b?:string)=>Boolean(normalizedGameUser(a))&&normalizedGameUser(a)===normalizedGameUser(b);
 const palette=["mint","sky","rose"];
 function Avatar({user,photos,label}: {user:string;photos:Record<string,string>;label?:string}){
  if(user===SNAKES_BOT_ID)return <span className="sl-avatar sl-avatar--bot" role="img" aria-label="Sparks Bot ทดสอบ">🤖</span>;
@@ -194,10 +196,10 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    const result=await modify("snakes-roll",{roomId:room?.id,requestId:nonce.current});
    if(result)nonce.current="";
  };
- const me=room?.members.find(p=>p.username===username);
+ const me=room?.members.find(p=>sameGameUser(p.username,username));
  const invited=room&&me&&!me.joined;
- const myTurn=room?.status==="playing"&&room.currentTurn===username;
- const waitingTarget=room?.pendingTarget?.actor===username;
+ const myTurn=room?.status==="playing"&&sameGameUser(room.currentTurn,username);
+ const waitingTarget=sameGameUser(room?.pendingTarget?.actor,username);
  const myUnclaimedFinished=room?.status==="finished"&&me?.joined&&!me?.claimedAt;
  return <section className="sl-root" aria-label="เกมบันไดงู Multiplayer" data-sparks-snakes="true">
    <div className="sl-topbar">
@@ -216,13 +218,13 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      <div className="sl-lobby-side"><h3>คำเชิญและเกมของคุณ</h3>
        {!data.rooms.length?<p>ยังไม่มีห้องเกมหรือคำเชิญ กดสร้างห้องเพื่อเริ่มเล่น</p>:
         data.rooms.map(r=><button type="button" className="sl-room-row" key={r.id} onClick={()=>setCurrentRoomId(r.id)}>
-          <strong>{r.id}</strong><span>{r.members.some(p=>p.username===username&&!p.joined)?"คำเชิญรอคุณตอบรับ":statusLabel[r.status]}</span><small>{r.members.length} / 3 คน</small>
+          <strong>{r.id}</strong><span>{r.members.some(p=>sameGameUser(p.username,username)&&!p.joined)?"คำเชิญรอคุณตอบรับ":statusLabel[r.status]}</span><small>{r.members.length} / 3 คน</small>
         </button>)}
      </div>
    </div>:<>
      <div className="sl-room-navigation"><div><span className="sl-overline">GAME ROOM</span><strong>{room.id}</strong><span className={"sl-status sl-status--"+room.status}>{statusLabel[room.status]}</span></div>
        <div className="sl-room-nav-actions">
-          {room.host===username&&(room.status==="lobby"||room.status==="playing")?
+          {sameGameUser(room.host,username)&&(room.status==="lobby"||room.status==="playing")?
             <button type="button" className="sl-danger-link" disabled={busy} onClick={()=>setCancelConfirm(true)}>ยกเลิกห้อง</button>:null}
           <button type="button" className="sl-link" onClick={()=>{setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
         </div>
@@ -231,7 +233,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <Avatar user={p.username} photos={photos} label={p.displayName}/>
        <div className="sl-playercard-info"><strong>{p.displayName}{p.isBot?" · BOT":""}</strong><small>{p.isBot?"ทดสอบอัตโนมัติ · ไม่รับ Sparks":"@"+p.username}</small>
          <div><span>ช่อง {p.position}</span><b>⚡ {p.pot.toLocaleString()} Sparks{p.isBot?" (ในเกมเท่านั้น)":""}</b></div></div>
-       {room.currentTurn===p.username?<span className="sl-turn-label">ถึงตา{p.username===username?"คุณ":"ผู้เล่น"}</span>:null}
+       {room.currentTurn===p.username?<span className="sl-turn-label">ถึงตา{sameGameUser(p.username,username)?"คุณ":"ผู้เล่น"}</span>:null}
        {room.winner===p.username?<span className="sl-winner">🏆 ผู้ชนะ</span>:null}
      </div>)}
        {room.members.filter(p=>!p.joined).map(p=><div className="sl-playercard sl-playercard--pending" key={p.username}>
@@ -242,7 +244,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
          <p>เชิญด้วย Username ที่ใช้ Login QA Dashboard (ไม่ใช่ชื่อแสดงผล) เพื่อนเปิดหน้าเกมนี้แล้วกดตอบรับ หรือเพิ่ม Bot ทดสอบได้</p></div>
        {invited?<div className="sl-invite-actions"><button disabled={busy} className="sl-primary" onClick={()=>void modify("snakes-respond",{roomId:room.id,decision:"accept"},"เข้าร่วมเกมสำเร็จ")}>ตอบรับคำเชิญ</button>
          <button disabled={busy} className="sl-secondary" onClick={()=>void modify("snakes-respond",{roomId:room.id,decision:"decline"},"ปฏิเสธคำเชิญแล้ว")}>ปฏิเสธ</button></div>:null}
-       {room.host===username?<div className="sl-invite-actions">
+       {sameGameUser(room.host,username)?<div className="sl-invite-actions">
          <label className="sl-invite-label">เชิญเพื่อนด้วย Username
             <input value={targetInput} maxLength={100} onChange={e=>setTargetInput(e.target.value)} placeholder="Username ที่ใช้ Login"/>
             <small>ให้เพื่อนเปิด Mini Games และกดตอบรับคำเชิญ</small>
@@ -263,18 +265,18 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
              <button className="sl-roll" type="button" disabled={!myTurn||busy} onClick={()=>void roll()}>🎲 {busy?"กำลังทอย...":myTurn?"ทอยลูกเต๋า":"ยังไม่ถึงตาคุณ"}</button>:
              <span className="sl-game-finished">🏁 เส้นชัยช่อง 50</span>}
            {room.pendingTarget&&waitingTarget?<div className="sl-target"><h4>เลือกเป้าหมาย</h4>
-             {room.members.filter(p=>p.joined&&p.username!==username).map(p=><button key={p.username} disabled={busy}
+             {room.members.filter(p=>p.joined&&!sameGameUser(p.username,username)).map(p=><button key={p.username} disabled={busy}
                onClick={()=>void modify("snakes-target",{roomId:room.id,targetUsername:p.username})}>
                <Avatar user={p.username} photos={photos} label={p.displayName}/>{p.displayName}{p.shields?" 🛡":""}
              </button>)}
            </div>:null}
-           {room.status==="playing"&&room.currentTurn!==username?<p className="sl-small">{room.currentTurn===SNAKES_BOT_ID?"Bot ทอยอัตโนมัติเมื่อถึงตา":"ตำแหน่งและ Game Pot บันทึกไว้ กลับมาเล่นต่อภายหลังได้"}</p>:null}
+           {room.status==="playing"&&!sameGameUser(room.currentTurn,username)?<p className="sl-small">{room.currentTurn===SNAKES_BOT_ID?"Bot ทอยอัตโนมัติเมื่อถึงตา":"ตำแหน่งและ Game Pot บันทึกไว้ กลับมาเล่นต่อภายหลังได้"}</p>:null}
          </div>
          <div className="sl-pot-panel"><div className="sl-pot-head"><span>⚡ Game Pot</span><span className="sl-pot-lock">🔒 รอจบเกม</span></div>
            <strong>{(me?.pot||0).toLocaleString()} <small>Sparks</small></strong>
            <p>สะสมระหว่างเกม อุปสรรคหักได้เฉพาะ Game Pot ของเกมนี้</p>
            {room.status==="finished"?
-             <><div className="sl-pot-winner">{room.winner===username?"🏆 คุณเข้าเส้นชัยเป็นคนแรก!":"🏁 เกมจบแล้ว ผู้เล่นทุกคนรับ Game Pot ของตัวเองได้"}</div>
+             <><div className="sl-pot-winner">{sameGameUser(room.winner,username)?"🏆 คุณเข้าเส้นชัยเป็นคนแรก!":"🏁 เกมจบแล้ว ผู้เล่นทุกคนรับ Game Pot ของตัวเองได้"}</div>
                <button className="sl-claim" type="button" disabled={busy||!myUnclaimedFinished}
                  onClick={()=>void modify("snakes-claim",{roomId:room.id},"รับ Sparks เข้าบัญชี QA Sparks แล้ว")}>
                  {me?.claimedAt?"✓ รับ Sparks แล้ว":busy?"กำลังบันทึก...":"รับ "+(me?.pot||0).toLocaleString()+" Sparks"}

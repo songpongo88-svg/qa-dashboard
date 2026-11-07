@@ -56,7 +56,7 @@ try{
      builder.onLoad({filter:/.*/,namespace:"test"},()=>({contents:"export async function fetchStoredProfilePhoto(username){return {photoDataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=='}}",loader:"js"}));
    }}]});
  const {default:Game}=await import(pathToFileURL(out).href);
- await act(async()=>root.render(React.createElement(Game,{username:"alice",sessionId:"session-example-00001"})));
+ await act(async()=>root.render(React.createElement(Game,{username:"ALICE",sessionId:"session-example-00001"})));
  const board=document.querySelector('[data-sparks-snakes="true"]');
  assert.ok(board);
  assert.equal(board.querySelectorAll("[data-snake-tile]").length,50,"must draw exactly 50 board squares");
@@ -71,6 +71,7 @@ try{
  assert.ok(board.querySelectorAll(".sl-avatar img").length>=3,"display real QA user profile images");
  assert.match(board.querySelector(".sl-pot-panel").textContent,/200/);
  assert.ok(board.querySelector(".sl-claim").disabled,"Sparks cannot enter wallet during play");
+ assert.equal(board.querySelector(".sl-roll").disabled,false,"host can roll even when frontend username casing differs from server identity");
  assert.ok(!actions.includes("snakes-claim"));
  await click(board.querySelector(".sl-roll"));
  assert.deepEqual(actions.filter(a=>a==="snakes-roll"),["snakes-roll"]);
@@ -89,6 +90,8 @@ try{
  const add=board.querySelector('[data-snakes-add-bot="true"]');
  assert.ok(add,"room owner must have an explicit Bot test button");
  assert.equal(add.disabled,false);
+ assert.ok(board.querySelector(".sl-danger-link"),"case-insensitive host must see cancel room control");
+ assert.ok(board.textContent.includes("เชิญเพื่อนด้วย Username"),"case-insensitive host sees the invite field");
  await click(add);
  assert.ok(actions.includes("snakes-add-bot"));
  assert.match(board.textContent,/Sparks Bot/);
