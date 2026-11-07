@@ -174,17 +174,15 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      if(typeof ev.dice==="number"&&typeof ev.from==="number"&&typeof ev.tile==="number"){
        positions[ev.actor!]=ev.from;
        show(ev.actor||"",`${name} ทอยลูกเต๋า ${ev.dice1??"–"} + ${ev.dice2??"–"} = ${ev.dice} แต้ม`);
-       if(sameGameUser(ev.actor,username)){
-         const pair=typeof ev.dice1==="number"&&typeof ev.dice2==="number"
-           ? `ลูกแรก${thaiNumber(ev.dice1)}แต้ม ลูกที่สอง${thaiNumber(ev.dice2)}แต้ม รวม`:"";
-         speak(`คุณทอยลูกเต๋าได้ ${pair}${thaiNumber(ev.dice)} แต้ม`);
-       }
        if(typeof ev.dice1==="number"&&typeof ev.dice2==="number"){
          setDiceThrow({dice1:ev.dice1,dice2:ev.dice2,actor:ev.actor||"",phase:"rolling"});
          await sleep(1500);
          if(id!==animationRef.current)return;
          setDiceThrow({dice1:ev.dice1,dice2:ev.dice2,actor:ev.actor||"",phase:"landed"});
-         await sleep(950);
+         if(sameGameUser(ev.actor,username)){
+           speak(`ลูกแรก${thaiNumber(ev.dice1)}แต้ม ลูกที่สอง${thaiNumber(ev.dice2)}แต้ม รวม${thaiNumber(ev.dice)}แต้ม`);
+         }
+         await sleep(1500);
          if(id!==animationRef.current)return;
          setDiceThrow(null);
        }else await sleep(950);
