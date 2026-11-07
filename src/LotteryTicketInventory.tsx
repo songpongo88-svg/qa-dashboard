@@ -1,10 +1,11 @@
 import React,{useCallback,useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
 import "./lotteryTicketInventory.css";
+import {classifyLotteryTicket,type ItemShelfFilter} from "./qaSparksItemStatus";
 
 type Ticket={id:string;number:string;drawDate:string;createdAt:string;paidAt?:string|null;prize:number;matched:string[];status?:string};
 const date=(iso:string)=>new Date(iso.includes("T")?iso:iso+"T12:00:00+07:00").toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric",timeZone:"Asia/Bangkok"});
-export default function LotteryTicketInventory({username,sessionId,loaded}:{username:string;sessionId:string;loaded:boolean}){
+export default function LotteryTicketInventory({username,sessionId,loaded,inventoryFilter="processing"}:{username:string;sessionId:string;loaded:boolean;inventoryFilter?:ItemShelfFilter}){
  const [tickets,setTickets]=useState<Ticket[]>([]);
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState("");
@@ -38,7 +39,7 @@ export default function LotteryTicketInventory({username,sessionId,loaded}:{user
  return <>
   {loading&&!visited?<p className="qa-sparks-inventory-progress" role="status">กำลังโหลดตั๋ว QA Lottery...</p>:null}
   {error?<p className="sr-error" role="alert">{error}</p>:null}
-  {tickets.map(t=><button type="button" key={t.id} className="qa-sparks-mini-item qa-lottery-item" data-lottery-ticket={t.number}
+  {tickets.filter(t=>classifyLotteryTicket(t)===inventoryFilter).map(t=><button type="button" key={t.id} className="qa-sparks-mini-item qa-lottery-item" data-lottery-ticket={t.number}
     onClick={e=>{trigger.current=e.currentTarget;setSelected(t.id);}}>
     <span className="qa-sparks-mini-art qa-lottery-ticket-art">
       <span className="qa-lottery-ticket-icon">QA LOTTERY</span>
@@ -49,7 +50,7 @@ export default function LotteryTicketInventory({username,sessionId,loaded}:{user
     <strong className="qa-sparks-mini-name">Lottery #{t.number}</strong>
     <span className="qa-sparks-mini-value">{t.paidAt?(t.prize>0?"+"+t.prize.toLocaleString()+" Sparks":"ตรวจผลแล้ว"):"รอผลรางวัล"}</span>
   </button>)}
-  {visited&&tickets.length===0?<p className="sr-empty">ยังไม่มีตั๋ว QA Lottery ที่ซื้อไว้</p>:null}
+
   {ticket&&typeof document!=="undefined"?createPortal(<div className="lt-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
    <section className="lt-modal" role="dialog" aria-modal="true" aria-labelledby="lt-ticket-title">
     <button type="button" ref={closeRef} className="lt-close" onClick={()=>setSelected(null)} aria-label="ปิดรายละเอียดตั๋ว">×</button>
