@@ -1323,13 +1323,14 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
     if (["special-rewards-mine","special-rewards-redeem","special-rewards-activate",
-      "special-rewards-receipt-check","special-rewards-submit"].includes(body.action)) {
+      "special-rewards-receipt-check","special-rewards-receipt-scan","special-rewards-submit"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
       const action=body.action;
       const data=action==="special-rewards-mine"?await qaSpecialRewards.mine(actor)
         :action==="special-rewards-redeem"?await qaSpecialRewards.redeem(body,actor)
         :action==="special-rewards-activate"?await qaSpecialRewards.activate(body,actor)
         :action==="special-rewards-receipt-check"?await qaSpecialRewards.receiptCheck(body,actor)
+        :action==="special-rewards-receipt-scan"?await qaSpecialRewards.scanReceipt(body,actor)
         :await qaSpecialRewards.submit(body,actor);
       return res.status(200).json(data);
     }

@@ -41,6 +41,20 @@
 .sr-form .sr-checklabel input{margin-top:4px}
 .sr-form .sr-check{justify-self:start}
 .sr-preview{max-width:260px;max-height:300px;object-fit:contain;border-radius:10px;border:1px solid #eddcea}
+.sr-receipt-form{gap:16px}.sr-receipt-upload,.sr-receipt-fields{display:grid;gap:11px;min-width:0}
+.sr-receipt-upload{padding:16px;border:1px dashed var(--sparks-accent,#9550b5);border-radius:13px;background:#fcf8fd}
+.sr-body .sr-receipt-form h3{font-size:16px;line-height:1.5;display:flex;align-items:center;gap:8px;margin:0 0 2px}
+.sr-receipt-form h3>span{width:25px;height:25px;display:inline-grid;place-items:center;flex:none;border-radius:50%;font-size:12px;background:var(--sparks-soft,#f3e8ff);color:var(--sparks-dark,#5b2a6b)}
+.sr-receipt-form p{margin:0;font-size:13px}.sr-receipt-form label{font-size:13px}.sr-receipt-form .sr-preview{max-width:100%;display:block;margin:auto}
+.sr-receipt-form input:focus-visible,.sr-receipt-form button:focus-visible,.sr-receipt-form summary:focus-visible{outline:3px solid var(--sparks-accent,#9550b5);outline-offset:3px}
+.sr-receipt-form input[type=datetime-local]{min-width:0;max-width:100%;font-size:14px}
+.sr-ocr-progress,.sr-ocr-result{padding:11px 13px;background:#edf7f0;border:1px solid #c2e6c8;border-radius:9px;color:#226c3d!important}
+.sr-ocr-progress,.sr-ocr-result.sr-ocr-partial{background:#fff7e8;border-color:#efd7ac;color:#89601f!important}
+.sr-ocr-text{border:1px solid #e5d6e9;border-radius:9px;padding:11px 12px;font-size:12px;min-width:0}.sr-ocr-text summary{cursor:pointer;color:var(--sparks-dark,#5b2a6b)}
+.sr-ocr-text pre{font-family:inherit;font-size:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:250px;overflow:auto}
+.sr-receipt-large{display:block;width:100%;height:auto;margin-top:10px;border-radius:8px}
+.sr-receipt-form .sr-checklabel{padding:12px;background:#faf7fc;border:1px solid #e5d6e9;border-radius:9px;font-size:13px;font-weight:400}
+@media(pointer:coarse){.sr-receipt-form input:not([type=checkbox]),.sr-receipt-form button{font-size:16px;min-height:44px}}
 .sr-error,.sr-success{padding:10px 12px;border-radius:10px;font-size:12px!important;line-height:1.6}
 .sr-error{background:#fff0f0;color:#a23232!important;border:1px solid #f0c6c6}
 .sr-success{background:#ecf9ef;color:#226c3d!important;border:1px solid #c2e6c8}

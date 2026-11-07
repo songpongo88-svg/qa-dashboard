@@ -1,4 +1,5 @@
 import {createHash} from "node:crypto";
+import {parseReceiptText} from "../src/receiptRecognition.js";
 
 // These are internal QA Sparks reimbursements, not official brand vouchers.
 export const SPECIAL_REWARDS=Object.freeze([
@@ -44,42 +45,26 @@ async function maybeOcr(image,getAccessToken){
   const response=await fetch("https://vision.googleapis.com/v1/images:annotate",{
    method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
    body:JSON.stringify({requests:[{image:{content:image.bytes.toString("base64")},
-     features:[{type:"TEXT_DETECTION",maxResults:1}]}]}),
+     features:[{type:"DOCUMENT_TEXT_DETECTION",maxResults:1}],imageContext:{languageHints:["th","en"]}}]}),
    signal:AbortSignal.timeout(9000)});
   if(!response.ok)return {status:"manual",text:"",reason:"OCR service unavailable"};
   const data=await response.json();
-  const text=String(data?.responses?.[0]?.fullTextAnnotation?.text||"").slice(0,12000);
+  const text=String(data?.responses?.[0]?.fullTextAnnotation?.text||data?.responses?.[0]?.textAnnotations?.[0]?.description||"").slice(0,12000);
   return {status:text?"scanned":"manual",text,reason:text?"":"Unable to read text"};
  }catch{return {status:"manual",text:"",reason:"OCR service unavailable"};}
 }
-const brandPattern=id=>({
- "punthai-65":/พันธุ์ไทย|พันธุไท|PUNTHAI|PUN THAI/i,
- "amazon-55":/AMAZON|อเมซอน|อเมซ่อน|CAF[EÉ]/i,
- "seven-100":/7-ELEVEN|7 ELEVEN|เซเว่น|7-11|CPALL/i
-})[id];
 function reviewOCR(ocr,reward,receiptNo,amount,receiptAt){
  if(ocr.status!=="scanned")return {status:"manual",reason:"OCR ไม่พร้อมหรืออ่านใบเสร็จไม่ครบ ต้องให้ Admin ตรวจสอบ"};
- const text=ocr.text;
- const plain=text.toUpperCase().replace(/[\\s\\-_]/g,"");
- const merchant=brandPattern(reward.id).test(text);
- const receipt=plain.includes(normalizeReceipt(receiptNo));
- const amountString=Number(amount).toFixed(2);
- const amountReg=new RegExp("(^|[^0-9])"+String(Number(amount)).replace(".","\\.")+"(?:\\.00)?([^0-9]|$)");
- const money=text.includes(amountString)||amountReg.test(text);
- const ts=new Date(receiptAt);
- const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",day:"2-digit",month:"2-digit",year:"numeric"}).formatToParts(ts);
- const get=k=>parts.find(x=>x.type===k)?.value||"";
- const day=get("day"),month=get("month"),year=get("year");
- const thaiYear=String(Number(year)+543),thaiShort=thaiYear.slice(-2),short=year.slice(-2);
- const normalized=text.replace(/[.\\-]/g,"/").replace(/\\s+/g," ");
- const forms=[day+"/"+month+"/"+year,day+"/"+month+"/"+thaiYear,
-   day+"/"+month+"/"+short,day+"/"+month+"/"+thaiShort,
-   year+"/"+month+"/"+day,thaiYear+"/"+month+"/"+day];
- const date= forms.some(x=>normalized.includes(x));
+ const fields=parseReceiptText(ocr.text,reward.id);
+ const merchant=fields.merchantMatched;
+ const receipt=Boolean(fields.receiptNumber)&&normalizeReceipt(fields.receiptNumber)===normalizeReceipt(receiptNo);
+ const money=fields.amountTHB!==null&&Math.round(fields.amountTHB*100)===Math.round(amount*100);
+ const precision=/T\d{2}:\d{2}:\d{2}/.test(fields.receiptAt)?1000:60000;
+ const date=Boolean(fields.receiptAt)&&Math.floor(Date.parse(fields.receiptAt)/precision)===Math.floor(Date.parse(receiptAt)/precision);
  const missing=[!merchant?"อ่านชื่อร้านค้าไม่ชัด":null,!receipt?"เลขที่ใบเสร็จในภาพไม่ตรง/อ่านไม่ชัด":null,
-   !money?"ยอดชำระไม่ชัด":null,!date?"วันที่ใบเสร็จไม่ชัด":null].filter(Boolean);
+   !money?"ยอดสุทธิไม่ตรงหรืออ่านไม่ชัด":null,!date?"วันหรือเวลาใบเสร็จไม่ตรงหรืออ่านไม่ชัด":null].filter(Boolean);
  return {status:missing.length?"manual":"matched",
-   reason:missing.length?"ต้องให้ Admin ตรวจสอบ: "+missing.join(" · "):"OCR ตรวจพบร้านค้า เลขใบเสร็จ วันที่ และยอดเงินตรงกับข้อมูลที่กรอก"};
+   reason:missing.length?"ต้องให้ Admin ตรวจสอบ: "+missing.join(" · "):"OCR ตรวจพบร้านค้า เลขใบเสร็จ วันเวลา และยอดสุทธิตรงกับข้อมูลที่กรอก"};
 }
 
 export function createQaRewardsService(db){
@@ -158,6 +143,18 @@ export function createQaRewardsService(db){
    const existing=await readDoc(path(LOCKS,key));
    return {duplicate:Boolean(existing),valid:true};
  }
+ async function scanReceipt(body,actor){
+   const id=itemId(body.itemId),wallet=recordValue(await readDoc(wpath(actor.username)));
+   const item=itemList(wallet).find(row=>row.itemId===id);
+   if(!item)err("Item ไม่อยู่ในบัญชีนี้",403);
+   if(item.status!=="activated")err("กรุณากดใช้ Item ก่อนแนบใบเสร็จ",409);
+   const reward=rewardFor(item.rewardId);
+   if(reward.type!=="receipt")err("รางวัลนี้ไม่ใช้ใบเสร็จ",400);
+   const image=decodedImage(body.imageData),ocr=await maybeOcr(image,getAccessToken);
+   // Reading is a preview only: no request, receipt lock, wallet write or approval.
+   return {status:ocr.status,engine:ocr.status==="scanned"?"cloud-vision":"unavailable",text:ocr.text,
+     fields:parseReceiptText(ocr.text,reward.id)};
+ }
  async function submit(body,actor){
    const id=itemId(body.itemId),wp=wpath(actor.username);
    const wallet=recordValue(await readDoc(wp));const it=itemList(wallet).find(x=>x.itemId===id);
@@ -174,8 +171,9 @@ export function createQaRewardsService(db){
      if(!Number.isFinite(amount)||amount<=0||amount>30000||Math.round(amount*100)!==amount*100)
        err("ยอดเงินตามใบเสร็จไม่ถูกต้อง",400);
      const millis=Date.parse(time);
-     if(!Number.isFinite(millis)||millis<Date.parse(it.activatedAt)||millis>Date.now()+5*60000)
-       err("วันและเวลาใบเสร็จต้องอยู่หลังเวลากดใช้ Item และไม่เกินเวลาปัจจุบัน",400);
+     if(!Number.isFinite(millis))err("กรุณาตรวจวันและเวลาที่อ่านจากใบเสร็จ",400);
+     if(millis<Date.parse(it.activatedAt))err("เวลาบนใบเสร็จอยู่ก่อนเวลากดใช้ Item กรุณาตรวจวัน เวลา และวินาทีให้ตรงกับภาพใบเสร็จ",400);
+     if(millis>Date.now()+5*60000)err("เวลาบนใบเสร็จเป็นเวลาในอนาคต กรุณาตรวจวันและเวลาไทยที่อ่านจากภาพอีกครั้ง",400);
      image=decodedImage(body.imageData);
      const ocr=await maybeOcr(image,getAccessToken);
      const verify=reviewOCR(ocr,reward,no,amount,new Date(millis).toISOString());
@@ -291,5 +289,5 @@ export function createQaRewardsService(db){
     return {writes,result:{updated:true,status}};
    });
  }
- return {mine,redeem,activate,receiptCheck,submit,adminList,adminReceipt,adminAction};
+ return {mine,redeem,activate,receiptCheck,scanReceipt,submit,adminList,adminReceipt,adminAction};
 }

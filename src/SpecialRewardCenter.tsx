@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
 import {classifySpecialRewardItem,type ItemShelfFilter} from "./qaSparksItemStatus";
 import "./specialRewards.css";
+import ReceiptClaimForm from "./ReceiptClaimForm";
 
 export type SpecialReward={id:string;title:string;brand:string;price:number;maxTHB:number;type:"receipt"|"email";monthlyLimit:number};
 type Item={itemId:string;rewardId:string;title:string;price:number;status:string;redeemedAt:string;expiresAt:string;activatedAt:string;submittedAt?:string};
@@ -59,26 +60,6 @@ const statusText=(i:Item)=>i.status==="unused"?(expired(i)?"หมดอาย�
   :i.status==="paid"?"คืนเงินเรียบร้อย":i.status==="delivered"?"ส่งสิทธิ์แล้ว":i.status==="rejected"?"ไม่อนุมัติ":i.status;
 function newRequestId(){return typeof crypto!=="undefined"&&typeof crypto.randomUUID==="function"
   ?crypto.randomUUID():"sr-"+Date.now()+"-"+Math.random().toString(36).slice(2);}
-async function compressedReceipt(file:File){
- if(!/^image\/(jpeg|png|webp)$/i.test(file.type))throw Error("กรุณาเลือกรูป JPG, PNG หรือ WebP");
- if(file.size>12*1024*1024)throw Error("รูปภาพใหญ่เกินไป (สูงสุด 12 MB ก่อนบีบอัด)");
- const image=new Image();const url=URL.createObjectURL(file);
- try{
-  await new Promise<void>((resolve,reject)=>{
-   image.onload=()=>resolve();image.onerror=()=>reject(Error("ไม่สามารถอ่านรูปใบเสร็จได้"));image.src=url;
-  });
-  const max=1300,scale=Math.min(1,max/Math.max(image.naturalWidth,image.naturalHeight));
-  const canvas=document.createElement("canvas");
-  canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);
-  const context=canvas.getContext("2d");if(!context)throw Error("ไม่สามารถเตรียมรูปใบเสร็จได้");
-  context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
-  context.drawImage(image,0,0,canvas.width,canvas.height);
-  let output=canvas.toDataURL("image/jpeg",.75);
-  if(output.length>440000)output=canvas.toDataURL("image/jpeg",.52);
-  if(output.length>440000)throw Error("รูปภาพยังใหญ่เกินไป กรุณาถ่ายใบเสร็จให้ชัดและใกล้ขึ้น");
-  return output;
- }finally{URL.revokeObjectURL(url);}
-}
 export default function SpecialRewardCenter({mode,username,sessionId,balance,loaded,hasOtherItems=false,inventoryFilter="available"}:{
  mode:"reward"|"inventory";username:string;sessionId:string;balance:number;loaded:boolean;hasOtherItems?:boolean;inventoryFilter?:ItemShelfFilter
 }){
@@ -90,15 +71,8 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  const [notice,setNotice]=useState("");
  const [error,setError]=useState("");
  const [confirm,setConfirm]=useState(false);
- const [receiptNo,setReceiptNo]=useState("");
- const [receiptAt,setReceiptAt]=useState("");
- const [paidAmount,setPaidAmount]=useState("");
- const [promptpay,setPromptpay]=useState("");
- const [imageData,setImageData]=useState("");
  const [email,setEmail]=useState("");
  const [neverPaid,setNeverPaid]=useState(false);
- const [receiptValid,setReceiptValid]=useState(false);
- const [receiptDuplicate,setReceiptDuplicate]=useState(false);
  const requestId=useRef("");
  const panel=useRef<HTMLElement>(null);
  const closeRef=useRef<HTMLButtonElement>(null);
@@ -106,11 +80,11 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  const pending=useRef(false);pending.current=busy;
  const reward=REWARDS.find(r=>r.id===selectedReward);
  const item=items.find(i=>i.itemId===selectedItem)||null;
- const request=useCallback(async(action:string,extra:Record<string,unknown>={})=>{
-  const response=await fetch("/api/sparks-admin",{method:"POST",cache:"no-store",
+ const request=useCallback(async(action:string,extra:Record<string,unknown>={},signal?:AbortSignal)=>{
+  const response=await fetch("/api/sparks-admin",{method:"POST",cache:"no-store",signal,
     headers:{"content-type":"application/json"},body:JSON.stringify({action,actorUsername:username,sessionId,...extra})});
   const body=await response.json().catch(()=>({}));
-  if(!response.ok)throw Error(String(body.error||"ไม่สามารถทำรายการได้"));
+  if(!response.ok)throw Object.assign(Error(String(body.error||"ไม่สามารถทำรายการได้")),{status:response.status});
   return body;
  },[username,sessionId]);
  const reload=useCallback(async()=>{
@@ -138,11 +112,9 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  },[opened]);
  const open=(rewardId:string,itemId:string|null,event:React.MouseEvent<HTMLButtonElement>)=>{
    triggerRef.current=event.currentTarget;setSelectedReward(rewardId);setSelectedItem(itemId);
-   setConfirm(false);setNotice("");setError("");setReceiptNo("");setReceiptAt("");
-   setPaidAmount("");setPromptpay("");setImageData("");setEmail("");setNeverPaid(false);
-   setReceiptValid(false);setReceiptDuplicate(false);requestId.current="";
+   setConfirm(false);setNotice("");setError("");setEmail("");setNeverPaid(false);requestId.current="";
  };
- const handle=async(action:string,extra:Record<string,unknown>={})=>{
+ const handle=async(action:string,extra:Record<string,unknown>={},signal?:AbortSignal)=>{
    setBusy(true);setError("");setNotice("");
    try{
      const response=await request(action,extra);
@@ -159,29 +131,10 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
    if(!requestId.current)requestId.current=newRequestId();
    await handle("special-rewards-redeem",{rewardId:reward.id,requestId:requestId.current});
  };
- const checkReceipt=async()=>{
-   if(!reward||!receiptNo.trim())return;
-   setBusy(true);setError("");setReceiptValid(false);
-   try{
-    const result=await request("special-rewards-receipt-check",{rewardId:reward.id,receiptNumber:receiptNo});
-    setReceiptDuplicate(Boolean(result.duplicate));setReceiptValid(!result.duplicate);
-    if(result.duplicate)setError("เลขที่ใบเสร็จนี้ถูกใช้ส่งคำขอแล้ว ไม่สามารถส่งซ้ำได้");
-   }catch(e){setError(e instanceof Error?e.message:"ไม่สามารถตรวจเลขใบเสร็จได้");}
-   finally{setBusy(false);}
- };
  const submit=async(e:React.FormEvent)=>{
    e.preventDefault();if(!reward||!item||busy)return;
-   if(reward.type==="receipt"){
-    if(!receiptValid||receiptDuplicate){setError("กรุณาตรวจเลขที่ใบเสร็จจนยืนยันว่าไม่ซ้ำก่อนส่งคำขอ");return;}
-    if(!imageData){setError("กรุณาแนบรูปใบเสร็จก่อนส่งคำขอ");return;}
-    const iso=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(receiptAt)?receiptAt+":00+07:00":"";
-    if(!iso){setError("กรุณาระบุวันและเวลาในใบเสร็จ");return;}
-    await handle("special-rewards-submit",{itemId:item.itemId,receiptNumber:receiptNo,
-      receiptAt:iso,amountTHB:Number(paidAmount),promptPay:promptpay,imageData});
-   }else{
-    if(!neverPaid){setError("ต้องยืนยันเงื่อนไขอีเมล Netflix ก่อน");return;}
-    await handle("special-rewards-submit",{itemId:item.itemId,email,neverPaid});
-   }
+   if(!neverPaid){setError("ต้องยืนยันเงื่อนไขอีเมล Netflix ก่อน");return;}
+   await handle("special-rewards-submit",{itemId:item.itemId,email,neverPaid});
  };
  const display=mode==="inventory"?items.filter(i=>classifySpecialRewardItem(i)===inventoryFilter):[];
  return <>
@@ -236,7 +189,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
         {reward.type==="receipt"?<ol>
           <li>กดใช้ Item ก่อนวันหมดอายุ</li>
           <li>ซื้อสินค้าของร้านที่เลือกหลังจากกดใช้ Item แล้ว และเก็บใบเสร็จ</li>
-          <li>กรอกเลขที่ใบเสร็จ วันที่ซื้อ ยอดชำระ และเบอร์พร้อมเพย์ พร้อมแนบภาพใบเสร็จ</li>
+          <li>แนบภาพใบเสร็จให้ระบบอ่านเลขที่ วันเวลา และยอดสุทธิ ตรวจข้อมูลที่เติมให้ แล้วกรอกเบอร์พร้อมเพย์</li>
           <li>ส่งคำขอให้ Admin ตรวจสอบและดำเนินการคืนเงินตามยอดซื้อจริง สูงสุด {reward.maxTHB} บาท</li>
         </ol>:<ol>
           <li>กดใช้ Item ภายใน 30 วันนับจากวันที่แลก</li>
@@ -259,32 +212,20 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
       {mode==="inventory"&&item?.status==="unused"&&!expired(item)?<button type="button"
        className="sr-primary sr-block" disabled={busy} onClick={()=>void handle("special-rewards-activate",{itemId:item.itemId})}>
        {busy?"กำลังบันทึก...":"กดใช้ Item"}</button>:null}
-      {mode==="inventory"&&item?.status==="activated"?<form className="sr-form" onSubmit={e=>void submit(e)}>
-       <h3>ส่งข้อมูลเพื่อรับสิทธิ์</h3>
-       {reward.type==="receipt"?<>
-        <label>เลขที่ใบเสร็จ<input required value={receiptNo} onChange={e=>{setReceiptNo(e.target.value);setReceiptValid(false);setReceiptDuplicate(false);}} placeholder="เลขที่ใบเสร็จ"/></label>
-        <button type="button" className="sr-check" disabled={busy||receiptNo.trim().length<4} onClick={()=>void checkReceipt()}>
-         {busy?"กำลังตรวจสอบ...":"ตรวจเลขที่ใบเสร็จซ้ำ"}</button>
-        {receiptValid?<p role="status" className="sr-success">เลขที่ใบเสร็จไม่ซ้ำในระบบ ณ เวลาตรวจ</p>:null}
-        {receiptDuplicate?<p role="alert" className="sr-error">เลขที่ใบเสร็จถูกใช้แล้ว ส่งคำขอไม่ได้</p>:null}
-        <label>วันที่และเวลาที่ออกใบเสร็จ<input type="datetime-local" required value={receiptAt} onChange={e=>setReceiptAt(e.target.value)}/></label>
-        <label>ยอดชำระจริง (บาท)<input type="number" min=".01" max="30000" step=".01" value={paidAmount} required onChange={e=>setPaidAmount(e.target.value)}/></label>
-        <label>เบอร์พร้อมเพย์ 10 หลัก<input inputMode="numeric" pattern="0[0-9]{9}" maxLength={10} required value={promptpay} onChange={e=>setPromptpay(e.target.value.replace(/\D/g,"").slice(0,10))}/></label>
-        <label>ภาพใบเสร็จ (JPG, PNG, WebP)
-          <input type="file" accept="image/jpeg,image/png,image/webp" required={!imageData} disabled={busy}
-            onChange={async e=>{const file=e.target.files?.[0];if(!file)return;try{setError("");setBusy(true);setImageData(await compressedReceipt(file));}catch(ex){setError(ex instanceof Error?ex.message:"ไม่สามารถแนบภาพได้");}finally{setBusy(false);}}}/>
-        </label>
-        {imageData?<img className="sr-preview" src={imageData} alt="ตัวอย่างใบเสร็จที่แนบ"/>:null}
-        <p className="sr-hint">ระบบตรวจเลขที่ใบเสร็จและภาพซ้ำทุกบัญชี หาก OCR อ่านไม่ครบ Admin จะตรวจหลักฐานด้วยตนเอง</p>
-       </>:<>
+      {mode==="inventory"&&item?.status==="activated"?(reward.type==="receipt"?
+       <ReceiptClaimForm key={username+":"+sessionId+":"+item.itemId} itemId={item.itemId} rewardId={reward.id}
+        activatedAt={item.activatedAt} busy={busy} request={request} onBusyChange={setBusy}
+        onSubmit={data=>handle("special-rewards-submit",{itemId:item.itemId,...data})}/>
+       :<form className="sr-form" onSubmit={e=>void submit(e)}>
+        <h3>ส่งข้อมูลเพื่อรับสิทธิ์</h3>
         <label>อีเมลสำหรับใช้งาน Netflix<input type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)}/></label>
         <label className="sr-checklabel"><input type="checkbox" checked={neverPaid} onChange={e=>setNeverPaid(e.target.checked)}/>
          ยืนยันว่าอีเมลนี้ไม่เคยเป็นสมาชิก Netflix แบบเรียกเก็บค่าบริการมาก่อน</label>
         <p className="sr-hint">ระบบไม่สามารถตรวจประวัติการชำระของ Netflix เองได้ Admin จะตรวจเงื่อนไขก่อนจัดส่งสิทธิ์</p>
-       </>}
-       <button type="submit" className="sr-primary sr-block" disabled={busy||(reward.type==="receipt"?(!receiptValid||receiptDuplicate||!imageData):!neverPaid)}>
-        {busy?"กำลังส่ง...":"ส่งคำขอให้ Admin ตรวจสอบ"}</button>
-      </form>:null}
+        <button type="submit" className="sr-primary sr-block" disabled={busy||!neverPaid}>
+         {busy?"กำลังส่ง...":"ส่งคำขอให้ Admin ตรวจสอบ"}</button>
+       </form>):null}
+
      </div>
     </section>
    </div>,document.body):null}
