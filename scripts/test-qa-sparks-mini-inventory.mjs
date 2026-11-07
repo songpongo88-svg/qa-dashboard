@@ -65,7 +65,7 @@ try{
   })));
   assert.equal(document.querySelectorAll('[data-owned-item]').length,1,"pending payout moves to in-progress shelf");
   await click(document.querySelector('[data-owned-item="'+usedItem.itemId+'"]'));
-  let modal=document.querySelector(".qa-money-modal");
+  modal=document.querySelector(".qa-money-modal");
   assert.ok(modal);
   assert.ok(modal.textContent.includes("กำหนดได้รับเงินภายใน"));
   assert.ok(modal.textContent.includes("******5678"),"member can inspect masked phone in the item dialog");
@@ -90,7 +90,7 @@ try{
   assert.ok(modal?.textContent.includes("คุณมี 2 สิทธิ์"));
   assert.equal(modal?.querySelector(".qa-sparks-reward-detail-primary"),null,
     "owned Typing Relief only explains usage; it cannot sell another item from My Items");
-  console.log("PASS My Items: empty until redeemed, 2 individual compact TrueMoney tiles, used/unused details, owned Typing Relief details only");
+  console.log("PASS My Items: separate available and in-progress TrueMoney tiles, no synthetic history, Typing Relief only when owned");
 }finally{
   await act(async()=>root.unmount());
   globalThis.fetch=realFetch;dom.window.close();
