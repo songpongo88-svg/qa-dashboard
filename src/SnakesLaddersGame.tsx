@@ -130,7 +130,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    loadRef.current=true;
    if(showLoading)setLoading(true);
    try{
-     const result=await call("snakes-state");
+     const result=await call("snakes-state",{includeHistory:showLoading});
      setData(result);
      setCurrentRoomId(current=>{
        if(result.rooms.some((r:Room)=>r.id===current))return current;
@@ -144,7 +144,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  useEffect(()=>{setData({rooms:[],activeRoomId:"",rules:SNAKES_RULES});setCurrentRoomId("");setPhotos({});void refresh(true);},[refresh,username,sessionId]);
  useEffect(()=>{
    const update=()=>{if(document.visibilityState==="visible")void refresh();};
-   const delay=window.setInterval(update,room?.status==="playing"?15000:30000);
+   const delay=window.setInterval(update,room?.status==="playing"?30000:60000);
    window.addEventListener("focus",update);
    document.addEventListener("visibilitychange",update);
    return()=>{window.clearInterval(delay);window.removeEventListener("focus",update);document.removeEventListener("visibilitychange",update);};
