@@ -26,7 +26,12 @@ export default function LotteryTicketInventory({username,sessionId,loaded,invent
   finally{setLoading(false);}
  },[username,sessionId,loaded]);
  useEffect(()=>{setTickets([]);setVisited(false);setSelected(null);},[username,sessionId]);
- useEffect(()=>{void refresh();},[refresh]);
+ useEffect(()=>{
+  void refresh();
+  const update=()=>{void refresh();};
+  window.addEventListener("qa:sparks-items-refresh",update);
+  return()=>window.removeEventListener("qa:sparks-items-refresh",update);
+ },[refresh]);
  useEffect(()=>{
   if(!selected)return;
   const old=document.body.style.overflow;document.body.style.overflow="hidden";
