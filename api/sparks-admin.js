@@ -2,6 +2,7 @@ import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto
 import { createFruitMatchService } from "../server/fruitMatchService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
+import { createSnakesService } from "../server/snakesLaddersService.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -1290,6 +1291,9 @@ const qaLottery = createQaLotteryService({firestoreRequest,readDoc,listCollectio
 const qaSpecialRewards=createQaRewardsService({firestoreRequest,readDoc,listCollection,recordValue,path,
   updateWrite,createWrite,walletDocumentPath,currentMemberYear,annualEarnedFromWallet,
   spendableBalance,getAccessToken});
+const snakes=createSnakesService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance,
+  findProfileByUsername,isSuspendedProfile});
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -1339,6 +1343,21 @@ export default async function handler(req, res) {
       const result = body.action === "fruit-match-data" ? await fruitMatch.data(actor)
         : body.action === "fruit-match-start" ? await fruitMatch.start(body,actor) : await fruitMatch.finish(body,actor);
       return res.status(200).json(result);
+    }
+    if (typeof body.action==="string"&&body.action.startsWith("snakes-")) {
+      const actor=await authorizeRewardUser(body);
+      const action={
+        "snakes-state":()=>snakes.state(actor),
+        "snakes-create":()=>snakes.create(body,actor),
+        "snakes-invite":()=>snakes.invite(body,actor),
+        "snakes-respond":()=>snakes.respond(body,actor),
+        "snakes-start":()=>snakes.start(body,actor),
+        "snakes-roll":()=>snakes.roll(body,actor),
+        "snakes-target":()=>snakes.target(body,actor),
+        "snakes-claim":()=>snakes.claim(body,actor),
+      }[body.action];
+      if(!action)fail("Unknown Snakes & Ladders action",400);
+      return res.status(200).json(await action());
     }
     if (body.action === "claim-profile-makeover") {
       const actor = await authorizeRewardUser(body);
