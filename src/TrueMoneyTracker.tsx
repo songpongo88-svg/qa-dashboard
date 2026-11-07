@@ -144,12 +144,16 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
             <strong>ตรวจสอบการโอนเงินอีกครั้ง</strong>
             <p>คุณได้โอนเงินจริง <b>{request.amountTHB} บาท</b> ให้ <b>{request.displayName||request.username}</b> หมายเลข <b>{request.phone}</b> แล้วใช่หรือไม่?</p>
             <p>ปุ่มนี้เปลี่ยนสถานะคำขอเท่านั้น <b>ระบบไม่โอนเงินจริงอัตโนมัติ</b></p>
-            <p className="qa-money-tracker-step-instruction" role="status"><b>ขั้นตอนที่ 2:</b> ตรวจสอบข้อมูลให้ครบ แล้วกดปุ่มสีส้ม <b>ยืนยันว่าโอนเงินจริงแล้ว</b> ด้านบนของรายการเดิมอีกครั้ง</p>
+            <p className="qa-money-tracker-step-instruction" role="status"><b>ขั้นตอนที่ 2:</b> ตรวจสอบข้อมูลให้ครบ แล้วกดปุ่มสีส้ม <b>ยืนยันว่าโอนเงินจริงแล้ว</b> ภายในกรอบนี้</p>
             {error?<p role="alert" className="qa-money-error">{error}</p>:null}
             {busy?<p role="status" className="qa-money-tracker-confirm-progress">รับคำสั่งแล้ว กำลังบันทึกสถานะกับเซิร์ฟเวอร์...</p>:null}
             {!adminReady?<p role="alert" className="qa-money-error">สิทธิ์ Admin ไม่พร้อมใช้งาน</p>:null}
             <div className="qa-money-tracker-inline-actions">
               <button type="button" onClick={()=>{setSelected(null);setError("");}} disabled={busy}>ยกเลิก</button>
+              <button type="button" className="qa-money-tracker-mark-paid" data-truemoney-inline-confirm="true"
+                onClick={()=>void markPaid()} disabled={!adminReady||busy}>
+                {busy?"กำลังบันทึก...":"ยืนยันว่าโอนเงินจริงแล้ว"}
+              </button>
             </div>
           </div>:null}
       </article>)}
