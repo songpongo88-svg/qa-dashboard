@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-07T12:13:26.799Z",
-  "reason": "Review readable member History with separate balance column while preserving latest multiplayer Bot and invitation guide",
+  "reviewedAt": "2026-11-07T13:05:10.276Z",
+  "reason": "Reviewed image-card game library and entering games only after card click, original Snakes and Fruit illustrations, and case-insensitive QA Dashboard usernames to restore all lobby owner, invite, Bot, cancel, turn, target and claim controls. Wallet earnings and QA evaluation unaffected.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -370,7 +370,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "53174f6d185a22a070e15da69af92789843e80fd954de4e07927b29d17e3a7fa",
     "scripts/test-qa-sparks-mini-inventory.mjs": "e9de39496de9b1ec32040c36ef1243f3b388944444c427f298bb192e7cb0e328",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "a86d865d79c8b71cc3c15ca21700f26147567e7aed606b72763de3ec48b9f190",
+    "scripts/test-qa-sparks-ui.mjs": "b86b2b3bbce9cd649b2f90a4f76ddeb1babb25a88b83af29ed2d4d0e296d2daf",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-receipt-first-ui.mjs": "bf9463f341f0653be65b08e4bcd98cc0bdb52a16eecd73bbf0990b989a7e6dd2",
     "scripts/test-receipt-recognition.mjs": "e8aed5e833a39162b060a5d2356e07b8bfdfe42964e467f3606605b7cf40eebe",
@@ -379,7 +379,7 @@
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
     "scripts/test-schedule-export.mjs": "b7b5711aa892cb0728519eca86ef1f7888b472ad355434113afc90793f11ba30",
     "scripts/test-signature-appeal-hold.mjs": "0b79b07d2f79307bb09c1c3e205257ea5c4dbfc0cd8b0859a5804bc3274f9bd4",
-    "scripts/test-snakes-ladders-ui.mjs": "377e27337d60c17ff65724820d367e199c75c408e795a7278e8e7af0a4d6b574",
+    "scripts/test-snakes-ladders-ui.mjs": "babc5cd1cf0a7345ca443aca1a68e7c9e568d4e454b1b03fa7ea6b7ace9f8b66",
     "scripts/test-snakes-ladders.mjs": "0c0085edaf1fb7a50785022c617fdf36a3a90456b145152a9bab58e07daf4af5",
     "scripts/test-sparks-admin-session.mjs": "4c1a5e17d67372ee74f970791d5c557e0edb14a11ee926f3d2006319a992c325",
     "scripts/test-sparks-admin-workspace.mjs": "b4520fa44d1308db26abbf3530d1086579366f89f4e618cc47b2b98a0f61c120",
@@ -448,7 +448,7 @@
     "src/ProfileMakeoverQuest.tsx": "444e9a06af6b49cfe9768639b0b1172ef5422fb146b55da832906009553cd6fd",
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/QASparks.tsx": "f8b029ae4a6e351bcebacb25eb981ad3246ddabf3e124b3c6e0971eab2ed0635",
+    "src/QASparks.tsx": "f177aaebc8253c2dfa92e2f0c3dc079582a90cd97f34bf1426f4fdada82c5681",
     "src/QaAccessCaseHistoryPopup.tsx": "da29c8b43c9aa32c23cde37fa447f41764477b6659cb2a6bc9384aff71dcf5a7",
     "src/QaAccessCheckOverview.tsx": "348de0058ce1552e358582cf6486812a4c2a6a1801e26361c25ad126b74765ba",
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
@@ -460,7 +460,7 @@
     "src/ScheduleMockup.tsx": "6590094d2935f74cb08475f56d46383bb4b9c7f1702d7291ce8f523b528dceca",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
-    "src/SnakesLaddersGame.tsx": "2849c55364a15a31c155ed0ee67a1699788134bef501cd5775aadb102a14210a",
+    "src/SnakesLaddersGame.tsx": "3c0f76f32241d5aa957d0f2d878e5f276ca27cec0d18ad1fab64f271cbd79631",
     "src/SparksAdminPanel.tsx": "9982cd2310c343e7d23a8b8a053a21610848cc466aa2809010faecce68d0b47f",
     "src/SparksHistory.tsx": "b935b35b4cabe7f209abb04d8d1cdce721c38698799ba37d126ad8df6683188a",
     "src/SparksMembership.tsx": "96580dc9ead8c2aaf21d9e15f1fa18739bc3096d833d8c459f6ee14d71c9d15b",
@@ -561,7 +561,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "37f02ac3e4e1b65681c36d61714a999e343f20ae65b465119f9842fb506eed29",
+    "src/knowledge/manual.json": "ce05498658239b66cbcee3b079eaf281fbceae94a55613a2a8e73976f3b8ff09",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -683,6 +683,8 @@
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "src/SparksMiniGamesGallery.tsx": "b4e7b85ef0431ca2919fe0b5b0b720623820de331b16b25b5d82352839e53b31",
+    "src/sparksMiniGamesGallery.css": "37562b81b3645f431ab9b8ff869cb53876296a8854627a379c29c9b450d4dcc5"
   }
 }
