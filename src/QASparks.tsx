@@ -9,6 +9,7 @@ import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
 import TrueMoneyReward from "./TrueMoneyReward";
 import FruitMatchGame from "./FruitMatchGame";
 import SnakesLaddersGame from "./SnakesLaddersGame";
+import SparksMiniGamesGallery, {type SparksGameChoice} from "./SparksMiniGamesGallery";
 import QALottery from "./QALottery";
 import SpecialRewardCenter from "./SpecialRewardCenter";
 import LotteryTicketInventory from "./LotteryTicketInventory";
@@ -45,7 +46,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
   const [itemClock,setItemClock] = useState(0);
   const [gamesOpened, setGamesOpened] = useState(false);
-  const [gameMode,setGameMode]=useState<"snakes"|"fruit">("snakes");
+  const [gameMode,setGameMode]=useState<SparksGameChoice|null>(null);
   const [account, setAccount] = useState<SparksAccount>(EMPTY_SPARKS_ACCOUNT);
   const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
   const [lastAccountUsername, setLastAccountUsername] = useState("");
@@ -131,19 +132,21 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         </button>)}
       </nav>
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
-        {gamesOpened ? <div hidden={view !== "games"} className="qa-sparks-games-container">
-          <div className="qa-sparks-game-switch" aria-label="เลือกมินิเกม">
-            <button type="button" className={gameMode==="snakes"?"active":""} aria-pressed={gameMode==="snakes"}
-              onClick={()=>setGameMode("snakes")}>🎲 บันไดงู Multiplayer</button>
-            <button type="button" className={gameMode==="fruit"?"active":""} aria-pressed={gameMode==="fruit"}
-              onClick={()=>setGameMode("fruit")}>🍎 Fruit Match</button>
-          </div>
-          {view==="games"?(gameMode==="snakes"
-            ?<SnakesLaddersGame key={username+":"+adminSessionId+":snakes"} username={username} sessionId={adminSessionId}/>
-            :<FruitMatchGame key={username+":"+adminSessionId+":fruit"} username={username} sessionId={adminSessionId}/>):null}
-        </div> : null}
+        {gamesOpened && view==="games" ? <section className="qa-sparks-games-container" aria-label="Mini Games">
+          {gameMode===null
+            ? <SparksMiniGamesGallery onSelect={setGameMode}/>
+            : <>
+                <div className="qa-sparks-game-backbar">
+                  <button type="button" data-sparks-back-to-games="true" onClick={()=>setGameMode(null)}>‹ กลับไปเลือกเกม</button>
+                  <span>{gameMode==="snakes"?"บันไดงู Multiplayer":"Fruit Match"}</span>
+                </div>
+                {gameMode==="snakes"
+                  ? <SnakesLaddersGame key={username+":"+adminSessionId+":snakes"} username={username} sessionId={adminSessionId}/>
+                  : <FruitMatchGame key={username+":"+adminSessionId+":fruit"} username={username} sessionId={adminSessionId}/>}
+              </>}
+        </section> : null}
         {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username}/> : null}
-      <section hidden={view === "admin"} className="qa-sparks-metrics qa-sparks-metrics--membership" aria-label="QA Sparks overview">
+      <section hidden={view === "admin" || view === "games"} className="qa-sparks-metrics qa-sparks-metrics--membership" aria-label="QA Sparks overview">
         {([
           ["Current Sparks", balance, "spark", "amber"],
           ["Available to Redeem", balance, "gift", "violet"],
