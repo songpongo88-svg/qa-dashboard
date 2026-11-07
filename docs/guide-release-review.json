@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-07T04:23:46.305Z",
-  "reason": "Reviewed four special QA Sparks rewards, real-brand tiles, purchase/receipt/image locking, Vision OCR/manual review, Netflix use, Admin payout, TrueMoney confirm and numbered Lottery inventory",
+  "reviewedAt": "2026-11-07T04:26:43.837Z",
+  "reason": "Reviewed QA Sparks new reward release and regression checks for directly clickable TrueMoney confirmation",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -365,7 +365,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "805c4c0b96f205eb9ae83b4887fc96f162ce987a5962bdaf0ff6324b1f2dc50e",
     "scripts/test-qa-sparks-mini-inventory.mjs": "3a6be960d6344fb6c9b850d696fbb35ae89524f0156a7eb3dfda5d9e0192977f",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "9b2aada113401929663a3d443f94a50d2428c5e6a029324bd6433891bf615001",
+    "scripts/test-qa-sparks-ui.mjs": "118aee9cba6f189ee71ff38f419d262c805e80834bea385eac4735b241366f86",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-reporting-history.mjs": "4f93d3ecf3b0a90b62b7d336a4f79ddd435e90f99efa04cfd5e9beaae5466cd0",
     "scripts/test-rich-text-toolbar.mjs": "4863eb791b3b4c30d6a80b6c5ca643f983f353acc195e30cc0c084e394f9394e",
