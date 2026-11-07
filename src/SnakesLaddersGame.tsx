@@ -58,7 +58,8 @@ function BoardArtwork(){
    {snakeEntries.map(([a,b])=>snake(a,b))}
  </svg>;
 }
-const sameGameUser=(a?:string,b?:string)=>Boolean(a&&b)&&a.trim().toLowerCase()===b.trim().toLowerCase();
+const normalizedGameUser=(value?:string)=>String(value||"").trim().toLowerCase();
+const sameGameUser=(a?:string,b?:string)=>Boolean(normalizedGameUser(a))&&normalizedGameUser(a)===normalizedGameUser(b);
 const palette=["mint","sky","rose"];
 function Avatar({user,photos,label}: {user:string;photos:Record<string,string>;label?:string}){
  if(user===SNAKES_BOT_ID)return <span className="sl-avatar sl-avatar--bot" role="img" aria-label="Sparks Bot ทดสอบ">🤖</span>;
