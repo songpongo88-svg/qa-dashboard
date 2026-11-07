@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import {createSnakesService,applySquare,resolveSnakeSquare,advanceTurn,SNAKES_RULES} from "../server/snakesLaddersService.js";
+import {createSnakesService,applySquare,resolveSnakeSquare,advanceTurn,advanceBotTurns,SNAKES_RULES} from "../server/snakesLaddersService.js";
+import {SNAKES_BOT_ID} from "../src/snakesRules.js";
 
 assert.equal(SNAKES_RULES.squares,50);
 assert.equal(SNAKES_RULES.maxPlayers,3);
@@ -110,3 +111,48 @@ assert.equal(zero.amount,0);
 assert.ok(!stored.has("qa_sparks_wallets/charlie"),"zero reward doesn't write wallet");
 assert.equal((await game.state(bob)).rooms[0].members.find(m=>m.username==="bob").claimedAt.length>0,true);
 console.log("PASS Snakes & Ladders: 50 tiles, 3-player invites, protected turns, dice idempotency, hazards, deferred single-claim wallet transaction for every player");
+
+const testing=await game.create({requestId:"create-with-test-bot-0001"},alice);
+const botRoomId=testing.room.id;
+assert.equal(testing.room.members.length,1);
+const hasBot=await game.addBot({roomId:botRoomId},alice);
+assert.equal(hasBot.room.members.length,2);
+const bot=hasBot.room.members.find(p=>p.isBot);
+assert.ok(bot,"one Bot joins a room without a user session");
+assert.equal(bot.username,SNAKES_BOT_ID);
+assert.equal(bot.displayName,"Sparks Bot");
+assert.equal(bot.claimedAt,"");
+await assert.rejects(()=>game.addBot({roomId:botRoomId},alice),/เพียง 1 ตัว/);
+await assert.rejects(()=>game.addBot({roomId:botRoomId},bob),/ไม่ได้รับเชิญ/);
+const botStarted=await game.start({roomId:botRoomId},alice);
+assert.equal(botStarted.room.status,"playing","one human plus Bot is enough to play");
+const turn=await game.roll({roomId:botRoomId,requestId:"roll-bot-room-00001"},alice);
+assert.ok(turn.turnEvent.actor==="alice","player sees their own roll before Bot auto-turn");
+assert.ok(turn.botEvents.some(x=>x.actor===SNAKES_BOT_ID),"Bot plays automatically inside same Firestore transaction");
+assert.ok(turn.room.events.some(x=>x.actor===SNAKES_BOT_ID),"Bot steps are visible in match history");
+assert.equal(turn.room.members.find(p=>p.isBot).joined,true);
+const again=await game.roll({roomId:botRoomId,requestId:"roll-bot-room-00001"},alice);
+assert.equal(again.alreadyApplied,true);
+assert.equal(again.room.events.length,turn.room.events.length,"retry does not repeat Bot turn");
+await assert.rejects(()=>game.claim({roomId:botRoomId},{username:SNAKES_BOT_ID,displayName:"Fake Bot"}),/ไม่ได้รับเชิญ/);
+await assert.rejects(()=>game.cancelRoom({roomId:botRoomId},bob),/ไม่ได้รับเชิญ/);
+const cancelled=await game.cancelRoom({roomId:botRoomId},alice);
+assert.equal(cancelled.cancelled,true);
+assert.equal(cancelled.roomId,botRoomId);
+assert.equal(stored.get("qa_sparks_snakes_rooms_v1/"+botRoomId).value.status,"cancelled");
+assert.equal(stored.get("qa_sparks_snakes_members_v1/alice").value.activeRoom,"");
+assert.equal((await game.state(alice,true)).rooms.some(x=>x.id===botRoomId),false,
+  "cancelled rooms are removed from the player's visible room list");
+await assert.rejects(()=>game.claim({roomId:botRoomId},alice),/ต้องรอให้เกมจบ/);
+await assert.rejects(()=>game.roll({roomId:botRoomId,requestId:"roll-after-cancel-001"},alice),/ยังไม่ถึงตา/);
+assert.equal(stored.has("qa_sparks_wallets/"+SNAKES_BOT_ID),false,
+  "Bot never owns a QA Sparks wallet");
+const nextGame=await game.create({requestId:"create-after-bot-cancel"},alice);
+assert.notEqual(nextGame.room.id,botRoomId,"after cancelling, the host can create another room");
+const nearFinish={status:"playing",currentTurn:SNAKES_BOT_ID,lastRoll:0,events:[],pendingTarget:null,
+ members:[{...person("alice"),position:1},{...person(SNAKES_BOT_ID),isBot:true,displayName:"Sparks Bot",position:49}]};
+const botFinishes=advanceBotTurns(nearFinish);
+assert.equal(nearFinish.winner,SNAKES_BOT_ID);
+assert.equal(nearFinish.status,"finished");
+assert.ok(botFinishes.some(x=>x.type==="finish"));
+console.log("PASS Snakes Bot: one bot per room, automatic server turns, replay safe, non-payable bot identity, host cancellation and room recreation");
