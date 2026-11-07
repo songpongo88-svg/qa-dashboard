@@ -113,6 +113,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  const [notice,setNotice]=useState("");
  const [popup,setPopup]=useState<GameEvent|null>(null);
  const [motion,setMotion]=useState<{positions:Record<string,number>;actor:string;message:string}|null>(null);
+ const [secondsToRoll,setSecondsToRoll]=useState(5);
  const animationRef=useRef(0);
  const motionRoomId=useRef("");
  const [cancelConfirm,setCancelConfirm]=useState(false);
@@ -252,6 +253,17 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  const myTurn=room?.status==="playing"&&sameGameUser(room.currentTurn,username);
  const waitingTarget=sameGameUser(room?.pendingTarget?.actor,username);
  const myUnclaimedFinished=room?.status==="finished"&&me?.joined&&!me?.claimedAt;
+ useEffect(()=>{
+   setSecondsToRoll(5);
+   if(!myTurn||waitingTarget||motion||busyRef.current)return;
+   const expires=Date.now()+5000;
+   const timer=window.setInterval(()=>{
+     const next=Math.max(0,Math.ceil((expires-Date.now())/1000));
+     setSecondsToRoll(next);
+     if(next===0){window.clearInterval(timer);if(!busyRef.current)void roll();}
+   },150);
+   return()=>window.clearInterval(timer);
+ },[room?.id,room?.currentTurn,room?.status,username,waitingTarget,Boolean(motion)]);
  return <section className="sl-root" aria-label="เกมบันไดงู Multiplayer" data-sparks-snakes="true">
    <div className="sl-topbar">
      <div className="sl-brand"><span className="sl-brand-flash">ϟ</span><div><span>QA <em>Sparks</em></span><small>SNAKES & LADDERS · MULTIPLAYER</small></div></div>
@@ -310,6 +322,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <GameBoard room={displayRoom||room} photos={photos} username={username} movingActor={motion?.actor}/>
        <div className="sl-sidebar">
          <div className="sl-dice-panel">{motion?<div className="sl-movement-notice" role="status"><span>🎲 กำลังเดินบนกระดาน</span><strong>{motion.message}</strong></div>:null}<span className="sl-overline">YOUR NEXT MOVE</span><h3>{room.status==="finished"?"เกมจบแล้ว":myTurn?"ถึงตาคุณแล้ว":"รอผู้เล่นคนอื่น"}</h3>
+           {myTurn&&!waitingTarget&&!motion?<div className="sl-roll-countdown" role="timer"><span>ทอยภายใน 5 วินาที</span><strong>{secondsToRoll}</strong><small>หากไม่กด ระบบจะทอยให้อัตโนมัติ</small></div>:null}
            <div className="sl-dice-display"><DiceFace value={room.lastRoll||5}/><div><small>ผลทอยล่าสุด</small><b>{room.lastRoll||"–"}</b></div></div>
            {room.status==="playing"?
              waitingTarget?<p className="sl-small">เลือกคู่แข่งในรายการด้านล่างเพื่อใช้พลังพิเศษ</p>:
@@ -367,6 +380,6 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <button className="sl-primary" type="button" onClick={()=>setPopup(null)}>ตกลง · กลับไปที่เกม</button>
      </section>
    </div>:null}
-   <div className="sl-footer">เกมนี้ไม่มีเวลาจำกัด · แต่ละคนผลัดกันทอย · Sparks เข้าบัญชีจริงเมื่อเกมจบและกดรับเท่านั้น</div>
+   <div className="sl-footer">เกมไม่จำกัดระยะเวลา · ตาของคุณมีเวลาทอย 5 วินาทีขณะเปิดเกม · Sparks เข้าบัญชีหลังเกมจบและกดรับเท่านั้น</div>
  </section>;
 }
