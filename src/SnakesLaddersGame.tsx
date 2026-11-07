@@ -82,7 +82,7 @@ function Tile({n,players,photos,currentUser,movingActor}: {n:number;players:Memb
    {n===50?<span className="sl-tile-symbol">🏁</span>:
       kind==="reward"?<span className="sl-tile-symbol">⚡</span>:
       kind==="event"?<span className="sl-tile-symbol">✦</span>:null}
-   {players.length?<div className="sl-tile-players">{players.map((p,i)=><div className={"sl-piece sl-piece--"+palette[i%3]} key={p.username} title={p.displayName+" @"+p.username}>
+   {players.length?<div className="sl-tile-players">{players.map((p,i)=><div className={"sl-piece sl-piece--"+palette[i%palette.length]} key={p.username} title={p.displayName+" @"+p.username}>
      <Avatar user={p.username} photos={photos} label={p.displayName}/>
      <span>{p.displayName||p.username}</span>
    </div>)}</div>:null}
@@ -280,7 +280,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
           <button type="button" className="sl-link" onClick={()=>{animationRef.current+=1;setMotion(null);setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
         </div>
      </div>
-     <div className="sl-playercards">{room.members.filter(p=>p.joined).map((p,i)=><div className={"sl-playercard sl-playercard--"+palette[i%3]+((motion?.actor===p.username||(!motion&&room.currentTurn===p.username))?" is-turn":"")} key={p.username}>
+     <div className="sl-playercards">{room.members.filter(p=>p.joined).map((p,i)=><div className={"sl-playercard sl-playercard--"+palette[i%palette.length]+((motion?.actor===p.username||(!motion&&room.currentTurn===p.username))?" is-turn":"")} key={p.username}>
        <Avatar user={p.username} photos={photos} label={p.displayName}/>
        <div className="sl-playercard-info"><strong>{p.displayName}{p.isBot?" · BOT":""}</strong><small>{p.isBot?"เล่นอัตโนมัติ · ไม่รับ Sparks":"@"+p.username}</small>
          <div><span>ช่อง {p.position}</span><b>⚡ {p.pot.toLocaleString()} Sparks{p.isBot?" (ในเกมเท่านั้น)":""}</b></div></div>
