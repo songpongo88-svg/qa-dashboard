@@ -126,6 +126,22 @@ try{
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
   assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,6, "Reward Center includes two existing and four new brand rewards");
   for (const id of ["punthai-65","netflix-1m","amazon-55","seven-100"]) assert.ok(main.querySelector(`[data-reward-item="${id}"]`), "new reward "+id+" renders in the compact grid");
+  const displayedOrder=[...main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item")]
+    .sort((a,b)=>Number(a.style.order)-Number(b.style.order))
+    .map(item=>item.dataset.rewardItem);
+  assert.deepEqual(displayedOrder,["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","typing-relief"],
+    "Reward Center must display all six rewards from most Sparks to least, including TrueMoney's displayed price");
+  await act(async()=>main.querySelector('[data-reward-item="punthai-65"]').dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  const punthaiPopup=document.querySelector(".sr-modal");
+  assert.ok(punthaiPopup && punthaiPopup.textContent.includes("รายละเอียดรางวัล"),
+    "new reward details must read like a product promotion");
+  assert.ok(punthaiPopup.textContent.includes("6,500") && punthaiPopup.textContent.includes("65"),
+    "product details show Sparks and benefit");
+  assert.ok(!punthaiPopup.textContent.includes("วิธีใช้งาน Item") &&
+    !punthaiPopup.textContent.includes("กดใช้ Item ก่อนวันหมดอายุ"),
+    "purchasing must not show the redemption how-to");
+  await act(async()=>punthaiPopup.querySelector(".sr-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(document.querySelector(".sr-modal"),null);
 
   assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes("9–22"));
   await act(async () => questCard.dispatchEvent(new MouseEvent("click",{bubbles:true})));
@@ -151,14 +167,15 @@ try{
   let detail = document.querySelector(".qa-sparks-reward-detail-modal");
   assert.ok(detail, "clicking Item opens the Reward Detail modal");
   assert.equal(detail.getAttribute("aria-modal"), "true");
-  assert.ok(detail.textContent.includes("วิธีใช้งาน"), "how-to belongs inside the Detail modal");
+  assert.ok(detail.querySelector('[data-reward-description="product"]') && detail.textContent.includes("เบาภารกิจพิมพ์ลง 60%"), "Reward Center presents product highlights");
+  assert.ok(!detail.textContent.includes("วิธีใช้งาน Item"), "how-to steps are exclusive to owned Items");
   assert.ok(detail.textContent.includes("เงื่อนไขสำคัญ"), "reward rules belong inside the Detail modal");
-  assert.ok(detail.textContent.includes("สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์"), "10-ticket rule is explained");
+  assert.ok(detail.textContent.includes("สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์"), "10-ticket limit remains in product terms");
   assert.ok(detail.textContent.includes("150"), "the detail shows the actual purchase price");
   assert.ok(detail.textContent.includes("100") && detail.textContent.includes("40"), "the detail provides a 100-to-40 example");
   assert.ok(detail.textContent.includes("Word Mode"), "the reward's Word Mode restriction is explained");
   assert.ok(detail.textContent.includes("60%"), "Typing Relief must state a percentage, not a fixed 60 words");
-  assert.ok(detail.textContent.includes("40%"), "remaining percentage must be explained");
+  assert.ok(detail.textContent.includes("40"), "remaining words are shown in the 100-to-40 product benefit");
   assert.ok(!detail.textContent.includes("ลดได้สูงสุด 60 คำ"), "the old fixed-word claim must not appear");
   assert.ok(art.textContent.includes("%"), "the reward artwork must show a percent sign");
   assert.ok(detail.querySelector(".qa-sparks-reward-detail-primary:disabled"), "buy stays disabled unless wallet and session are verified");

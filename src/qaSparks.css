@@ -834,3 +834,28 @@
   .qa-sparks-mini-value{font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){.qa-sparks-mini-item{transition:none}.qa-sparks-mini-item:hover{transform:none}}
+
+/* Reward Center is a product showcase; the operational guides live in My Items. */
+.qa-money-product-detail{margin:13px 0;padding:14px 16px;border-radius:14px;border:1px solid var(--sparks-outline,#ead5e8);background:linear-gradient(120deg,#fff8fc,#fffaf0)}
+.qa-money-product-detail>small,.qa-relief-product-intro>small{font-size:10px;font-weight:800;letter-spacing:.09em;color:var(--sparks-accent,#8b46a3)}
+.qa-money-product-detail h3,.qa-relief-product-intro h3{font-size:18px;color:var(--sparks-dark,#56315f);line-height:1.35;margin:7px 0}
+.qa-money-product-detail p,.qa-relief-product-intro p{font-size:12px;color:#735d78;line-height:1.75;margin:8px 0}
+.qa-money-product-specs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:14px 0}
+.qa-money-product-specs span{display:grid;gap:5px;padding:11px 13px;background:#fff;border:1px solid #eadde9;border-radius:11px}
+.qa-money-product-specs small{color:#8a738e;font-size:10px}
+.qa-money-product-specs strong{font-size:17px;color:var(--sparks-dark,#684072);font-variant-numeric:tabular-nums}
+.qa-money-product-terms{border-top:1px solid #ebdcea;margin-top:12px!important;padding-top:11px}
+.qa-money-product-guide{padding:13px 16px;margin:12px 0;border:1px solid #e7d8e9;background:#fdf8fd;border-radius:12px}
+.qa-money-product-guide h3{margin:0 0 9px;font-size:15px}
+.qa-money-product-guide ol{padding-left:20px;margin:0;display:grid;gap:7px}
+.qa-money-product-guide li{font-size:12px;color:#735c7b;line-height:1.7}
+.qa-money-product-guide li::marker{font-weight:800;color:var(--sparks-accent,#9658a9)}
+.qa-money-product-guide p{font-size:11px;line-height:1.7;color:#8c788e}
+.qa-relief-product-intro{padding:16px 18px;border-radius:13px;background:linear-gradient(115deg,#fef8ff,#fffaf1);border:1px solid var(--sparks-outline,#ead6ec)}
+.qa-relief-product-intro>div{display:flex;flex-wrap:wrap;gap:9px;margin-top:11px}
+.qa-relief-product-intro>div span{font-size:11px;color:#724e7c;background:#fff;border:1px solid #eddfed;border-radius:9px;padding:7px 10px}
+.qa-relief-product-intro>div b{color:#5b376a}
+@media(max-width:550px){
+ .qa-money-product-detail,.qa-money-product-guide,.qa-relief-product-intro{padding:12px}
+ .qa-money-product-specs strong{font-size:14px}
+}

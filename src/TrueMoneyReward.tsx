@@ -37,7 +37,7 @@ async function api(action:string,actorUsername:string,sessionId:string,extra:Rec
   return body;
 }
 function RewardCard({open,price}:{open:()=>void;price:number}){
-  return <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--money" data-reward-item="truemoney-20" onClick={open}
+  return <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--money" data-reward-item="truemoney-20" style={{order:-price}} onClick={open}
     aria-haspopup="dialog" aria-label={"ดูรายละเอียด TrueMoney 20 บาท ราคา "+price.toLocaleString("en-US")+" Sparks"}>
     <span className="qa-sparks-mini-art qa-sparks-mini-art--money"><MoneyArt/></span>
     <strong className="qa-sparks-mini-name">TrueMoney 20 ฿</strong>
@@ -163,15 +163,28 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
         onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
         <section className="qa-money-modal" role="dialog" aria-modal="true" aria-labelledby="qa-money-title">
           <button type="button" ref={closeRef} className="qa-money-modal-close" onClick={()=>setOpen(false)} disabled={busy} aria-label="ปิดรายละเอียด">×</button>
-          <div className="qa-money-modal-hero"><MoneyArt/><div><small>QA SPARKS DIGITAL REWARD</small><h2 id="qa-money-title">TrueMoney 20 THB</h2><p>แลกเป็น Item ก่อน แล้วค่อยกดใช้เพื่อส่งคำขอรับเงินจริง</p></div></div>
+          <div className="qa-money-modal-hero"><MoneyArt/><div><small>QA SPARKS DIGITAL REWARD</small><h2 id="qa-money-title">TrueMoney 20 THB</h2><p>{mode==="reward"?"เปลี่ยน Sparks เป็นสิทธิ์รับเงิน TrueMoney 20 บาท":"รายละเอียดและวิธีใช้สิทธิ์ TrueMoney ของคุณ"}</p></div></div>
           <div className="qa-money-modal-content">
             <div className="qa-money-modal-stats"><span>{price.toLocaleString("en-US")} Sparks / Item</span><span>อายุ 30 วัน</span><span>รับเงินใน 14 วันทำการ</span></div>
-            <h3>วิธีรับรางวัล</h3>
-            <p>1. ใช้ {price.toLocaleString("en-US")} Sparks แลกรับ TrueMoney มูลค่า 20 บาท</p>
-            <p>2. เข้า My Items และเลือก Item ที่ต้องการใช้ภายใน 30 วันนับจากวันที่แลก</p>
-            <p>3. กรอกหมายเลขโทรศัพท์ TrueMoney 10 หลัก แล้วกดยืนยันส่งคำขอรับเงิน</p>
-            <p>4. ตรวจสอบสถานะและวันที่จะได้รับเงินได้ใน My Items โดยจะได้รับภายใน 14 วันทำการหลังส่งคำขอ (ไม่รวมเสาร์–อาทิตย์)</p>
-            <p>Item ใช้ได้เพียง 1 ครั้ง และมีวันหมดอายุแยกกัน หากส่งคำขอสำเร็จก่อนหมดอายุ คำขอยังดำเนินการต่อได้</p>
+            {mode==="reward"?<section className="qa-money-product-detail" data-reward-description="product">
+              <small>QA SPARKS EXCLUSIVE REWARD</small>
+              <h3>รับเครดิต TrueMoney มูลค่า 20 บาท</h3>
+              <p>นำคะแนน QA Sparks ที่สะสมมาแลกเป็นสิทธิ์รับเงิน TrueMoney Wallet มูลค่า 20 บาท</p>
+              <div className="qa-money-product-specs">
+                <span><small>มูลค่าสิทธิพิเศษ</small><strong>20 บาท</strong></span>
+                <span><small>คะแนนที่ใช้แลก</small><strong>{price.toLocaleString("en-US")} Sparks</strong></span>
+              </div>
+              <p className="qa-money-product-terms">Item มีอายุ 30 วันหลังแลก · ส่งคำขอรับเงินผ่าน My Items · ดำเนินการภายใน 14 วันทำการนับจากวันที่ส่งคำขอ</p>
+            </section>:<section className="qa-money-product-guide" aria-label="วิธีใช้งาน TrueMoney Item">
+              <h3>วิธีใช้งาน Item</h3>
+              <ol>
+                <li>เลือก Item TrueMoney ที่แลกไว้ใน My Items และกดใช้ก่อนหมดอายุ 30 วัน</li>
+                <li>กรอกหมายเลขโทรศัพท์ TrueMoney 10 หลักให้ถูกต้อง</li>
+                <li>ยืนยันส่งคำขอ และตรวจวันกำหนดรับเงินใน My Items</li>
+                <li>เมื่อ Admin โอนเงินจริงแล้ว สถานะคำขอจะเปลี่ยนเป็นโอนแล้ว (ภายใน 14 วันทำการหลังส่งคำขอ)</li>
+              </ol>
+              <p>Item ใช้ได้เพียงครั้งเดียวและมีวันหมดอายุแยกกัน หากส่งคำขอก่อนหมดอายุ คำขอจะดำเนินการต่อจนเสร็จสิ้น</p>
+            </section>}
             {selected && detailItem ? <div className="qa-money-modal-claim">
               <h3>Item ของคุณ · TrueMoney 20 บาท</h3>
               <p>แลกเมื่อ: {date(detailItem.redeemedAt)}</p>

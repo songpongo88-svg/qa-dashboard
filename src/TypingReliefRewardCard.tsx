@@ -153,7 +153,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
   };
 
   return <>
-    <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--typing" data-reward-item="typing-relief" ref={triggerRef}
+    <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--typing" data-reward-item="typing-relief" style={mode==="reward"?{order:-TYPING_RELIEF.price}:undefined} ref={triggerRef}
       aria-label={mode === "inventory" ? "เปิดรายละเอียด Typing Relief ที่มี " + effectiveOwned + " สิทธิ์" : "ดูรายละเอียดของรางวัล Typing Relief ราคา 150 QA Sparks"} aria-haspopup="dialog"
       aria-expanded={detailOpen} onClick={openDetails}>
       <span className="qa-sparks-mini-art qa-sparks-mini-art--typing">
@@ -188,25 +188,36 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
               <div><span>สิทธิ์ที่สะสม</span><strong>{loaded ? effectiveOwned : "—"}<small> / {TYPING_RELIEF.maxOwned} สิทธิ์</small></strong></div>
               <div><span>ซื้อเพิ่มได้</span><strong>{loaded ? availableSlots : "—"} <small>สิทธิ์</small></strong></div>
             </div>
-            <h3 className="qa-sparks-reward-detail-section-title">วิธีใช้งาน</h3>
-            <div className="qa-sparks-reward-detail-steps">
-              <div><b>01</b><strong>แลกสิทธิ์</strong><p>ใช้ 150 Sparks เพื่อรับ Typing Relief 1 สิทธิ์ เก็บไว้ในบัญชีได้</p></div>
-              <div><b>02</b><strong>รอภารกิจ QA Access</strong><p>เมื่อมีภารกิจพิมพ์ ระบบจะแสดงหน้าต่างถามว่าต้องการใช้สิทธิ์หรือไม่</p></div>
-              <div><b>03</b><strong>เลือกได้เอง</strong><p>กดใช้เพื่อลดจำนวนคำพิมพ์ 60% ของภารกิจ หรือเลือกพิมพ์ตามปกติโดยไม่ใช้สิทธิ์</p></div>
-            </div>
+            {mode==="inventory"?<>
+              <h3 className="qa-sparks-reward-detail-section-title">วิธีใช้งาน Item</h3>
+              <div className="qa-sparks-reward-detail-steps">
+                <div><b>01</b><strong>เก็บสิทธิ์ไว้ใน My Items</strong><p>ระบบจะแสดง Typing Relief ตามจำนวนสิทธิ์ที่ยังเหลืออยู่</p></div>
+                <div><b>02</b><strong>เข้า QA Access Check</strong><p>เมื่อเข้าสู่ภารกิจแบบ Word Mode ระบบจะถามว่าต้องการใช้ Typing Relief หรือไม่</p></div>
+                <div><b>03</b><strong>เลือกใช้เมื่อพร้อม</strong><p>กดใช้เพื่อลดคำที่ต้องพิมพ์ 60% หรือเลือกทำภารกิจตามปกติโดยไม่ใช้สิทธิ์</p></div>
+              </div>
+            </>:<section className="qa-relief-product-intro" data-reward-description="product">
+              <small>QA SPARKS EXCLUSIVE REWARD</small>
+              <h3>เบาภารกิจพิมพ์ลง 60%</h3>
+              <p>เปลี่ยน Sparks เป็น Typing Relief สิทธิพิเศษสำหรับภารกิจ QA Access Check แบบ Word Mode ช่วยลดจำนวนคำที่ต้องพิมพ์ โดยยังคงผ่านภารกิจตามเงื่อนไขเดิม</p>
+              <div><span><b>ราคาแลก</b> {TYPING_RELIEF.price} Sparks</span><span><b>สิทธิ์สูงสุดที่สะสมได้</b> {TYPING_RELIEF.maxOwned} สิทธิ์</span></div>
+            </section>}
             <div className="qa-sparks-reward-detail-example">
               <div><span>ตัวอย่างภารกิจ</span><strong>100 <small>คำ</small></strong></div>
               <span className="qa-sparks-reward-detail-example-arrow">ลด 60% (60 คำ)</span>
               <div><span>หลังใช้ Typing Relief</span><strong>40 <small>คำ</small></strong></div>
             </div>
             <h3 className="qa-sparks-reward-detail-section-title">เงื่อนไขสำคัญ</h3>
-            <ul className="qa-sparks-reward-detail-rules">
+            {mode==="inventory"?<ul className="qa-sparks-reward-detail-rules">
               <li>สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์ ใช้ไป 1 สิทธิ์จึงซื้อเพิ่มได้อีก 1 สิทธิ์</li>
               <li>ใช้ได้เฉพาะ QA Access Check แบบพิมพ์คำ (Word Mode) ไม่ใช้กับแบบพิมพ์ประโยค</li>
               <li>จำนวนคำที่ต้องพิมพ์หลังใช้สิทธิ์คิดจาก 40% ของจำนวนคำที่ได้รับมอบหมาย โดยปัดเศษขึ้น และต้องพิมพ์อย่างน้อย 1 คำ</li>
               <li>ยังต้องพิมพ์ตามจำนวนคำที่เหลือให้ครบ และทำภารกิจให้ผ่านตามเงื่อนไขเดิม</li>
               <li>การเก็บสิทธิ์ไว้ไม่บังคับให้ใช้ เมื่อเลือกพิมพ์ตามปกติจะไม่หักสิทธิ์หรือ Sparks</li>
-            </ul>
+            </ul>:<ul className="qa-sparks-reward-detail-rules">
+              <li>ใช้ได้เฉพาะ QA Access Check แบบ Word Mode</li>
+              <li>สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์</li>
+              <li>แลกแล้วเก็บไว้ใน My Items เพื่อใช้กับภารกิจครั้งถัดไป</li>
+            </ul>}
           </div>
 
           <div className="qa-sparks-reward-detail-action">
