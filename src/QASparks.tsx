@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, type SparksAccount, type SparksHistoryItem } from "./qaSparksStore";
+import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, type SparksAccount } from "./qaSparksStore";
 import "./qaSparks.css";
+import SparksHistory from "./SparksHistory";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
 import DailyCheckinQuest from "./DailyCheckinQuest";
@@ -39,34 +40,6 @@ function EmptyReward({ large = false }: { large?: boolean }) {
     <h3>ยังไม่มีของรางวัล</h3>
   </section>;
 }
-function formatDate(date: string) {
-  const parsed = new Date(date);
-  return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString("th-TH", { timeZone: "Asia/Bangkok", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : date;
-}
-function SparksHistory({ history, large = false }: { history: SparksHistoryItem[]; large?: boolean }) {
-  const [filter, setFilter] = useState<"all" | "earn" | "spend">("all");
-  const visible = history.filter((item) => filter === "all" || item.type === filter);
-  return <section className={"qa-sparks-history-wrap" + (large ? " qa-sparks-history-wrap--large" : "")}>
-    {history.length ? <div className="qa-sparks-history-filters" aria-label="กรองประวัติ Sparks">
-      {([["all", "ทั้งหมด"], ["earn", "ได้รับ (+)"], ["spend", "ใช้ไป (−)"]] as const).map(([key, label]) => (
-        <button key={key} type="button" className={filter === key ? "active" : ""} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>
-      ))}
-    </div> : <div className="qa-sparks-history-empty-message"><div className="qa-sparks-history-clock"><SparksIcon name="clock" size={49}/></div><h3>ยังไม่มีประวัติการได้รับหรือใช้ Sparks</h3></div>}
-    <div className="qa-sparks-history-table" role="table" aria-label="ประวัติ QA Sparks">
-      <div className="qa-sparks-history-head" role="row">
-        <span role="columnheader">วันที่ / เวลา</span><span role="columnheader">รายการ</span>
-        <span role="columnheader">Sparks (+/−)</span><span role="columnheader">รายละเอียด / คงเหลือ</span>
-      </div>
-      {visible.length ? visible.map((item) => <div className="qa-sparks-history-item" role="row" key={item.id}>
-        <span role="cell">{formatDate(item.createdAt)}</span>
-        <span role="cell">{item.title}</span>
-        <strong role="cell" className={item.amount >= 0 ? "positive" : "negative"}>{item.amount > 0 ? "+" : ""}{item.amount.toLocaleString()} Sparks</strong>
-        <span role="cell">{item.detail}<small>คงเหลือ {item.balanceAfter.toLocaleString()} Sparks</small></span>
-      </div>) : <div className="qa-sparks-history-no-rows" role="row"><SparksIcon name="receipt" size={25}/><span>ยังไม่มีประวัติรายการ</span></div>}
-    </div>
-  </section>;
-}
-
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean }) {
   const [view, setView] = useState<SparksView>("overview");
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
