@@ -41,7 +41,7 @@ export default function LotteryTicketInventory({username,sessionId,loaded,invent
  },[selected]);
  const ticket=tickets.find(t=>t.id===selected);
  return <>
-  {loading&&!visited?<p className="qa-sparks-inventory-progress" role="status">กำลังโหลดตั๋ว QA Lottery...</p>:null}
+  {loading?<p className="qa-sparks-inventory-progress" role="status">กำลังตรวจสอบตั๋ว QA Lottery...</p>:null}
   {error?<p className="sr-error" role="alert">{error}</p>:null}
   {tickets.filter(t=>classifyLotteryTicket(t)===inventoryFilter).map(t=><button type="button" key={t.id} className="qa-sparks-mini-item qa-lottery-item" data-lottery-ticket={t.number}
     onClick={e=>{trigger.current=e.currentTarget;setSelected(t.id);}}>
