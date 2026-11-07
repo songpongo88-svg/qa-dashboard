@@ -97,7 +97,8 @@ function Tile({n,players,photos,currentUser,movingActor}: {n:number;players:Memb
    </div>)}</div>:null}
  </div>;
 }
-function GameBoard({room,photos,username,movingActor}: {room:Room;photos:Record<string,string>;username:string;movingActor?:string}){
+type DiceThrow={dice1:number;dice2:number;actor:string;phase:"rolling"|"landed"};
+function GameBoard({room,photos,username,movingActor,diceThrow}: {room:Room;photos:Record<string,string>;username:string;movingActor?:string;diceThrow?:DiceThrow|null}){
  return <div className="sl-board-frame">
    <div className="sl-board-head"><div><span className="sl-overline">THE GRAND BOARD · 50 TILES</span><h3>สนามบันไดงู</h3></div>
      <span className="sl-board-chip">50 ช่อง · {room.members.filter(m=>m.joined).length} ผู้เล่น</span></div>
@@ -106,6 +107,13 @@ function GameBoard({room,photos,username,movingActor}: {room:Room;photos:Record<
        {tileNumbers.map(n=><Tile key={n} n={n} players={room.members.filter(p=>p.joined&&p.position===n)} photos={photos} currentUser={username} movingActor={movingActor}/>)}
      </div>
      <BoardArtwork/>
+     {diceThrow?<div className={"sl-board-dice-flight sl-board-dice-flight--"+diceThrow.phase} role="status" aria-live="polite" aria-label={diceThrow.phase==="rolling"?"ลูกเต๋าสองลูกกำลังกลิ้งลงบนกระดาน":"ลูกเต๋าหยุดแล้ว ผลรวม "+(diceThrow.dice1+diceThrow.dice2)}>
+       <div className="sl-board-dice-flight__pair">
+         <div className="sl-board-dice-flight__one"><DiceFace value={diceThrow.dice1}/></div>
+         <div className="sl-board-dice-flight__two"><DiceFace value={diceThrow.dice2}/></div>
+       </div>
+       <div className="sl-board-dice-flight__label">{diceThrow.phase==="rolling"?"🎲 ลูกเต๋ากำลังกลิ้งลงกระดาน":`ลูกที่ 1: ${diceThrow.dice1} + ลูกที่ 2: ${diceThrow.dice2} = ${diceThrow.dice1+diceThrow.dice2} แต้ม`}</div>
+     </div>:null}
    </div></div>
    <div className="sl-legend"><span>ความหมายของช่อง</span>
      <b>⚡ Sparks</b><b>🪜 บันได</b><b>🐍 งู</b><b>✦ อุปสรรค</b><b>🏁 เส้นชัย</b>
@@ -122,6 +130,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  const [notice,setNotice]=useState("");
  const [popup,setPopup]=useState<GameEvent|null>(null);
  const [motion,setMotion]=useState<{positions:Record<string,number>;actor:string;message:string}|null>(null);
+ const [diceThrow,setDiceThrow]=useState<DiceThrow|null>(null);
  const [secondsToRoll,setSecondsToRoll]=useState(10);
  const [voiceEnabled,setVoiceEnabled]=useState(true);
  const [voiceMessage,setVoiceMessage]=useState("");
@@ -170,7 +179,15 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
            ? `ลูกแรก${thaiNumber(ev.dice1)}แต้ม ลูกที่สอง${thaiNumber(ev.dice2)}แต้ม รวม`:"";
          speak(`คุณทอยลูกเต๋าได้ ${pair}${thaiNumber(ev.dice)} แต้ม`);
        }
-       await sleep(650);
+       if(typeof ev.dice1==="number"&&typeof ev.dice2==="number"){
+         setDiceThrow({dice1:ev.dice1,dice2:ev.dice2,actor:ev.actor||"",phase:"rolling"});
+         await sleep(1500);
+         if(id!==animationRef.current)return;
+         setDiceThrow({dice1:ev.dice1,dice2:ev.dice2,actor:ev.actor||"",phase:"landed"});
+         await sleep(950);
+         if(id!==animationRef.current)return;
+         setDiceThrow(null);
+       }else await sleep(950);
        for(let n=ev.from+1;n<=ev.tile;n++){
          if(id!==animationRef.current)return;
          positions[ev.actor!]=n;
@@ -206,7 +223,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        await sleep(2300);
      }
    }
-   if(id===animationRef.current){setMotion(null);setPopup(events.find(ev=>typeof ev.dice==="number")||events[0]);}
+   if(id===animationRef.current){setDiceThrow(null);setMotion(null);setPopup(events.find(ev=>typeof ev.dice==="number")||events[0]);}
  };
  const call=useCallback(async(action:string,extra:Record<string,unknown>={})=>{
    const controller=new AbortController(),timer=window.setTimeout(()=>controller.abort(),25000);
@@ -237,7 +254,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    }catch(e){if(showLoading)setError(e instanceof Error?e.message:"โหลดห้องไม่สำเร็จ");}
    finally{loadRef.current=false;setLoading(false);}
  },[call,username,sessionId]);
- useEffect(()=>{setData({rooms:[],activeRoomId:"",rules:SNAKES_RULES});setCurrentRoomId("");setPhotos({});setMotion(null);animationRef.current+=1;void refresh(true);},[refresh,username,sessionId]);
+ useEffect(()=>{setData({rooms:[],activeRoomId:"",rules:SNAKES_RULES});setCurrentRoomId("");setPhotos({});setMotion(null);setDiceThrow(null);animationRef.current+=1;void refresh(true);},[refresh,username,sessionId]);
  useEffect(()=>{
    const update=()=>{if(document.visibilityState==="visible")void refresh();};
    const delay=window.setInterval(update,room?.status==="playing"?30000:60000);
@@ -276,7 +293,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      }
      if(result.cancelled){
        setData(old=>({...old,rooms:old.rooms.filter(r=>r.id!==result.roomId),activeRoomId:""}));
-       setCurrentRoomId("");setPopup(null);setMotion(null);animationRef.current+=1;setCancelConfirm(false);
+       setCurrentRoomId("");setPopup(null);setMotion(null);setDiceThrow(null);animationRef.current+=1;setCancelConfirm(false);
      }
      if(action==="snakes-create")setTargetInput("");
      if(action==="snakes-invite")setTargetInput("");
@@ -343,7 +360,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        <div className="sl-room-nav-actions">
           {sameGameUser(room.host,username)&&(room.status==="lobby"||room.status==="playing")?
             <button type="button" className="sl-danger-link" disabled={busy} onClick={()=>setCancelConfirm(true)}>ยกเลิกห้อง</button>:null}
-          <button type="button" className="sl-link" onClick={()=>{animationRef.current+=1;setMotion(null);setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
+          <button type="button" className="sl-link" onClick={()=>{animationRef.current+=1;setMotion(null);setDiceThrow(null);setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
         </div>
      </div>
      <div className="sl-playercards">{room.members.filter(p=>p.joined).map((p,i)=><div className={"sl-playercard sl-playercard--"+palette[i%palette.length]+((motion?.actor===p.username||(!motion&&room.currentTurn===p.username))?" is-turn":"")} key={p.username}>
@@ -373,7 +390,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        </div>:null}
      </div>:null}
      {room.status!=="lobby"?<div className="sl-layout">
-       <GameBoard room={displayRoom||room} photos={photos} username={username} movingActor={motion?.actor}/>
+       <GameBoard room={displayRoom||room} photos={photos} username={username} movingActor={motion?.actor} diceThrow={diceThrow}/>
        <div className="sl-sidebar">
          <div className="sl-dice-panel">{motion?<div className="sl-movement-notice" role="status"><span>🎲 กำลังเดินบนกระดาน</span><strong>{motion.message}</strong></div>:null}<span className="sl-overline">YOUR NEXT MOVE</span><h3>{room.status==="finished"?"เกมจบแล้ว":myTurn?"ถึงตาคุณแล้ว":"รอผู้เล่นคนอื่น"}</h3>
            {myTurn&&!waitingTarget&&!motion?<div className="sl-roll-countdown" role="timer"><span>ทอยภายใน 10 วินาที</span><strong>{secondsToRoll}</strong><small>หากไม่กด ระบบจะทอยให้อัตโนมัติ</small></div>:null}
