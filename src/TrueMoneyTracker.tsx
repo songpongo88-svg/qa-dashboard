@@ -1,4 +1,5 @@
 import React,{useCallback,useState} from "react";
+import RewardActionConfirmModal from "./RewardActionConfirmModal";
 
 type Request={
   requestId:string;itemId:string;username:string;displayName:string;phone:string;
@@ -49,7 +50,6 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
   },[actorUsername,sessionId]);
 
   const reload=useCallback(async()=>{
-    if(!adminReady)return;
     setLoading(true);setError("");
     try{
       const result=await call("list-truemoney-tracker");
@@ -64,10 +64,6 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
   const markPaid=async()=>{
     if(!selected||busy)return;
     const current=requests.find(row=>row.itemId===selected);
-    if(!adminReady){
-      setError("สิทธิ์ Sparks Admin ไม่พร้อม กรุณายืนยันสิทธิ์ก่อนทำรายการ");
-      return;
-    }
     if(!current||current.status!=="pending"){
       setError("สถานะรายการเปลี่ยนไปแล้ว กรุณารีเฟรช Tracker");
       return;
@@ -100,7 +96,7 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
     <header>
       <div><h2>TrueMoney Redemption Tracker</h2>
         <p>ตรวจสอบคำขอรับเงิน 20 บาท และยืนยันหลังจากโอนเงินจริงแล้วเท่านั้น</p></div>
-      <button type="button" disabled={!adminReady||loading||busy} onClick={()=>void reload()}>
+      <button type="button" disabled={loading||busy} onClick={()=>void reload()}>
         {loading?"กำลังรีเฟรช...":"รีเฟรช Tracker"}
       </button>
     </header>
@@ -111,7 +107,7 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
       </button>)}
       <span>{filtered.length} รายการ</span>
     </div>
-    {!adminReady?<p role="alert">ต้องยืนยันสิทธิ์ Sparks Admin ก่อนจัดการ Tracker</p>:null}
+    {!adminReady?<p role="status" className="qa-money-error">ระบบยังตรวจสถานะ Admin จากการโหลด Wallet ไม่สำเร็จ สามารถกดตรวจสอบหรือรีเฟรช Tracker ได้ แต่เซิร์ฟเวอร์จะตรวจสิทธิ์ก่อนยืนยันการโอนทุกครั้ง</p>:null}
     {loading?<p role="status">กำลังโหลดคำขอ...</p>:null}
     {error&&!selected?<p role="alert" className="qa-money-error">{error}</p>:null}
     {message?<p role="status" className="qa-money-success">{message}</p>:null}
@@ -128,35 +124,25 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
           </span>
           {request.status==="pending"
             ?<button type="button" data-truemoney-paid-action={selected===request.itemId?"confirm":"open"}
-              aria-label={selected===request.itemId?"ยืนยันว่าโอนเงินจริงแล้ว":"ตรวจสอบรายการก่อนยืนยันโอน"}
-              disabled={!adminReady||busy}
-              onClick={()=>{
-                if(selected===request.itemId){void markPaid();}
-                else choose(request.itemId);
-              }}>
-              {busy&&selected===request.itemId?"กำลังบันทึก...":
-                selected===request.itemId?"ยืนยันว่าโอนเงินจริงแล้ว":"ยืนยันโอนสำเร็จ"}
+              aria-label={"ตรวจสอบการโอน TrueMoney "+request.amountTHB+" บาท ของ "+(request.displayName||request.username)}
+              disabled={busy}
+              onClick={()=>choose(request.itemId)}>
+              {busy&&selected===request.itemId?"กำลังบันทึก...":"ตรวจสอบและยืนยันการโอน"}
             </button>
             :<small>ยืนยันโดย {request.payoutConfirmedBy||"Admin"}</small>}
         </div>
-        {selected===request.itemId&&request.status==="pending"
-          ?<div className="qa-money-tracker-inline-confirm" role="group" aria-label="ตรวจสอบก่อนยืนยันสถานะโอนแล้ว">
-            <strong>ตรวจสอบการโอนเงินอีกครั้ง</strong>
-            <p>คุณได้โอนเงินจริง <b>{request.amountTHB} บาท</b> ให้ <b>{request.displayName||request.username}</b> หมายเลข <b>{request.phone}</b> แล้วใช่หรือไม่?</p>
-            <p>ปุ่มนี้เปลี่ยนสถานะคำขอเท่านั้น <b>ระบบไม่โอนเงินจริงอัตโนมัติ</b></p>
-            <p className="qa-money-tracker-step-instruction" role="status"><b>ขั้นตอนที่ 2:</b> ตรวจสอบข้อมูลให้ครบ แล้วกดปุ่มสีส้ม <b>ยืนยันว่าโอนเงินจริงแล้ว</b> ภายในกรอบนี้</p>
-            {error?<p role="alert" className="qa-money-error">{error}</p>:null}
-            {busy?<p role="status" className="qa-money-tracker-confirm-progress">รับคำสั่งแล้ว กำลังบันทึกสถานะกับเซิร์ฟเวอร์...</p>:null}
-            {!adminReady?<p role="alert" className="qa-money-error">สิทธิ์ Admin ไม่พร้อมใช้งาน</p>:null}
-            <div className="qa-money-tracker-inline-actions">
-              <button type="button" onClick={()=>{setSelected(null);setError("");}} disabled={busy}>ยกเลิก</button>
-              <button type="button" className="qa-money-tracker-mark-paid" data-truemoney-inline-confirm="true"
-                onClick={()=>void markPaid()} disabled={!adminReady||busy}>
-                {busy?"กำลังบันทึก...":"ยืนยันว่าโอนเงินจริงแล้ว"}
-              </button>
-            </div>
-          </div>:null}
+
       </article>)}
     </div>
+    <RewardActionConfirmModal
+      request={selected&&requests.find(r=>r.itemId===selected&&r.status==="pending")?(()=>{
+        const r=requests.find(x=>x.itemId===selected)!;
+        return {rewardId:"truemoney-20",itemName:"TrueMoney 20 บาท",recipientName:r.displayName||r.username,
+          username:r.username,amountLabel:r.amountTHB+" บาท",destinationLabel:r.phone,
+          requestedAt:r.createdAt,dueDate:r.dueDate,kind:"money" as const};
+      })():null}
+      busy={busy} error={selected?error:""}
+      onCancel={()=>{if(!busy){setSelected(null);setError("");}}}
+      onConfirm={()=>void markPaid()}/>
   </section>;
 }
