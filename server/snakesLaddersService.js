@@ -23,7 +23,7 @@ const toPublic=(room,actor)=>room?{
   currentTurn:room.currentTurn||"",winner:room.winner||"",
   event:room.event||null,events:Array.isArray(room.events)?room.events.slice(-14):[],
   pendingTarget:room.pendingTarget||null,createdAt:room.createdAt,startedAt:room.startedAt||"",
-  finishedAt:room.finishedAt||"",lastRoll:room.lastRoll||0,
+  finishedAt:room.finishedAt||"",lastRoll:room.lastRoll||0,lastDice:Array.isArray(room.lastDice)?room.lastDice:[],
   yourUsername:actor.username,updatedAt:room.updatedAt,
 }:null;
 
@@ -106,7 +106,7 @@ export function advanceBotTurns(room,maximum=12){
   for(let n=0;n<maximum&&room.status==="playing"&&isBotId(room.currentTurn);n++){
     const bot=room.members.find(p=>p.isBot&&p.joined&&p.username===room.currentTurn);
     if(!bot)err("Bot ไม่อยู่ในห้อง",409);
-    const dice=randomInt(1,7),from=bot.position,tile=Math.min(50,from+dice),at=new Date().toISOString();
+    const dice1=randomInt(1,7),dice2=randomInt(1,7),dice=dice1+dice2,from=bot.position,tile=Math.min(50,from+dice),at=new Date().toISOString();
     bot.position=tile;
     let event;
     if(tile===50){
@@ -116,8 +116,8 @@ export function advanceBotTurns(room,maximum=12){
       event=applySquare(room,bot.username,tile);
       if(!room.pendingTarget)advanceTurn(room);
     }
-    room.lastRoll=dice;
-    room.event={...event,actor:bot.username,dice,from,at};
+    room.lastRoll=dice;room.lastDice=[dice1,dice2];
+    room.event={...event,actor:bot.username,dice,dice1,dice2,from,at};
     room.events=[...(room.events||[]),room.event].slice(-20);
     events.push(room.event);
     if(room.pendingTarget?.actor===bot.username){
@@ -237,7 +237,7 @@ export function createSnakesService(db){
       const room={id,host:actor.username,status:"lobby",createdAt:now,updatedAt:now,
         members:[{username:actor.username,displayName:actor.displayName.slice(0,80),
           joined:true,position:1,pot:0,skips:0,shields:0,rewardedTiles:[],claimedAt:""}],
-        currentTurn:"",winner:"",events:[],lastRoll:0,pendingTarget:null};
+        currentTurn:"",winner:"",events:[],lastRoll:0,lastDice:[],pendingTarget:null};
       const rooms=[...new Set([...(index.rooms||[]),id])].slice(-12);
       return {writes:[createWrite(roomPath(id),room),updateWrite(indexPath,
         {username:actor.username,rooms,activeRoom:id,createRequestId:requestId,updatedAt:now},indexSnap)],
@@ -310,7 +310,7 @@ export function createSnakesService(db){
       if(room.status!=="playing"||room.currentTurn!==actor.username||room.pendingTarget)err("ยังไม่ถึงตาของคุณ หรือมีเหตุการณ์ที่ต้องเลือกเป้าหมาย",409);
       const player=room.members.find(m=>m.username===actor.username);
       if(!player?.joined)err("คุณไม่ได้อยู่ในเกม",403);
-      const dice=randomInt(1,7),from=player.position,tile=Math.min(50,from+dice);
+      const dice1=randomInt(1,7),dice2=randomInt(1,7),dice=dice1+dice2,from=player.position,tile=Math.min(50,from+dice);
       player.position=tile;
       let event;
       const now=new Date().toISOString();
@@ -322,8 +322,8 @@ export function createSnakesService(db){
         event=applySquare(room,actor.username,tile);
         if(!room.pendingTarget)advanceTurn(room);
       }
-      room.lastRoll=dice;room.lastRequestId=requestId;room.lastRequestActor=actor.username;
-      room.event={...event,actor:actor.username,dice,from,at:now};
+      room.lastRoll=dice;room.lastDice=[dice1,dice2];room.lastRequestId=requestId;room.lastRequestActor=actor.username;
+      room.event={...event,actor:actor.username,dice,dice1,dice2,from,at:now};
       room.events=[...(room.events||[]),room.event].slice(-20);
       const turnEvent=room.event;
       const botEvents=advanceBotTurns(room);
