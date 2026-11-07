@@ -52,8 +52,13 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
     const modal=modalRef.current;
     // Native dialog enters the browser top layer: no Dashboard overlay,
     // theme or z-index can cover the Admin confirmation.
-    try{if(modal&&typeof modal.showModal==="function"&&!modal.open)modal.showModal();}
-    catch{ /* Fallback remains visible in the dedicated fixed overlay. */ }
+    try{
+      if(modal&&typeof modal.showModal==="function"&&!modal.open)modal.showModal();
+      else if(modal&&!modal.open)modal.setAttribute("open","");
+    }catch{
+      // Keep the fixed dialog visible even if the native top layer is unavailable.
+      modal?.setAttribute("open","");
+    }
     closeRef.current?.focus();
     const keydown=(event:KeyboardEvent)=>{
       if(event.key==="Escape"){event.preventDefault();if(!currentBusy.current)closeCallback.current();return;}
@@ -73,6 +78,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
       document.removeEventListener("keydown",keydown);
       modal?.removeEventListener("cancel",nativeCancel);
       try{if(modal?.open&&typeof modal.close==="function")modal.close();}catch{}
+      modal?.removeAttribute("open");
       document.body.style.overflow=previous;
       focused?.focus();
     };
@@ -82,9 +88,11 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   const title=isNetflix?"ยืนยันการส่งสิทธิ์ Netflix":"ยืนยันการโอนเงินจริง";
   const buttonText=isNetflix?"ยืนยันว่าส่งสิทธิ์แล้ว":"ยืนยันว่าโอนเงินจริงแล้ว";
   const image=IMAGE_BY_REWARD[request.rewardId];
-  return createPortal(<div className="reward-confirm-backdrop" data-reward-confirm-overlay="true"
-     onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)onCancel();}}>
-    <dialog className="reward-confirm-modal" ref={modalRef}
+  return createPortal(<dialog className="reward-confirm-modal" data-reward-confirm-overlay="true" ref={modalRef}
+     onMouseDown={event=>{
+       // A click outside the dialog content targets the native dialog backdrop.
+       if(event.target===event.currentTarget&&!busy)onCancel();
+     }}
        role="dialog" aria-modal="true" aria-labelledby="reward-confirm-title" aria-describedby="reward-confirm-help">
       <button type="button" className="reward-confirm-close" aria-label="ปิดหน้าต่างยืนยัน"
         disabled={busy} onClick={onCancel} ref={closeRef}>×</button>
@@ -124,6 +132,5 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
             onClick={onConfirm} disabled={busy}>{busy?"กำลังบันทึก...":buttonText}</button>
         </div>
       </div>
-    </dialog>
-  </div>,document.body);
+    </dialog>,document.body);
 }

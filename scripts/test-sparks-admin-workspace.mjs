@@ -74,7 +74,7 @@ const setValue = async (element, value) => {
   });
 };
 const button = (selector, label) => [...document.querySelectorAll(selector)].find(item => item.textContent.includes(label));
-const popup = () => document.querySelector('[data-reward-confirm-overlay="true"] [role="dialog"]');
+const popup = () => document.querySelector('dialog.reward-confirm-modal[data-reward-confirm-overlay="true"][role="dialog"]');
 const section = name => document.querySelector('[data-sparks-admin-section="' + name + '"]');
 const open = id => click(document.querySelector('[data-request-open="' + id + '"]'));
 const primary = id => document.querySelector('[data-request-primary="' + id + '"]');

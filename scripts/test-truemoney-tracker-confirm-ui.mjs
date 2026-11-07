@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {mkdir,mkdtemp,rm} from "node:fs/promises";
+import {mkdir,mkdtemp,rm,readFile} from "node:fs/promises";
 import {resolve} from "node:path";
 import {pathToFileURL} from "node:url";
 import {build} from "esbuild";
@@ -49,6 +49,10 @@ const byText=txt=>[...document.querySelectorAll(".qa-money-tracker button")]
   .find(el=>el.textContent.includes(txt));
 const dialog=()=>document.querySelector(".reward-confirm-modal[role=dialog]");
 try{
+  const popupSource=await readFile("src/RewardActionConfirmModal.tsx","utf8");
+  assert.ok(popupSource.includes("modal.showModal()"),"showModal must be called on opening the payout dialog");
+  assert.ok(!popupSource.includes('<div className="reward-confirm-backdrop"'),
+    "avoid nested browser top-layer dialog and competing fixed overlay");
   const compiled=resolve(tmp,"TrueMoneyTracker.mjs");
   await build({entryPoints:["src/TrueMoneyTracker.tsx"],outfile:compiled,bundle:true,
     platform:"node",format:"esm",packages:"external",loader:{".css":"empty"},logLevel:"silent"});
@@ -61,6 +65,10 @@ try{
   assert.equal(dialog(),null,"no blocking popup before request selection");
   await click(byText("ตรวจสอบและยืนยันการโอน"));
   assert.ok(dialog(),"row button opens app-owned portal");
+  assert.equal(dialog().tagName,"DIALOG","confirmation must use a native dialog in the browser top layer");
+  assert.ok(dialog().hasAttribute("open"),"one click must make confirmation visibly open, not merely render a hidden dialog");
+  assert.equal(document.querySelectorAll(".reward-confirm-backdrop").length,0,
+    "native dialog must not be blocked by an additional full-screen overlay");
   assert.ok(dialog().textContent.includes("TrueMoney 20 บาท"));
   assert.ok(dialog().textContent.includes("Test User"));
   assert.ok(dialog().textContent.includes(phone));
@@ -69,6 +77,7 @@ try{
   assert.equal(document.body.style.overflow,"hidden");
   await click(dialog().querySelector(".reward-confirm-cancel"));
   assert.equal(dialog(),null,"cancel closes without updating");
+  assert.equal(document.querySelector("dialog.reward-confirm-modal"),null,"cancel removes the modal portal");
   assert.equal(markCalls,0);
   await click(byText("ตรวจสอบและยืนยันการโอน"));
   await click(dialog().querySelector('[data-reward-confirm-submit="true"]'));
