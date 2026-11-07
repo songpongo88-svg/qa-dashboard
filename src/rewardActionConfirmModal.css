@@ -1,0 +1,31 @@
+.reward-confirm-backdrop,.reward-confirm-backdrop *{box-sizing:border-box;font-family:Kanit,sans-serif}
+.reward-confirm-backdrop{position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(24,14,32,.7);backdrop-filter:blur(6px);isolation:isolate;pointer-events:auto}
+.reward-confirm-modal{position:relative;max-height:95dvh;overflow:hidden;width:min(590px,100%);display:flex;flex-direction:column;background:var(--sparks-card,#fffdfb);color:var(--sparks-dark,#593264);border:1px solid #ebd8ed;border-radius:20px;box-shadow:0 24px 90px rgba(27,13,40,.35);pointer-events:auto}
+.reward-confirm-close{position:absolute;right:12px;top:12px;z-index:2;border:1px solid #e4d5e9;background:#fff;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;color:#674875;font-size:25px;cursor:pointer}
+.reward-confirm-hero{display:flex;align-items:center;gap:16px;min-height:132px;background:linear-gradient(115deg,#f4ddff,#fff9ed);padding:18px 54px 18px 19px;border-bottom:1px solid #eddced}
+.reward-confirm-art{width:96px;height:96px;flex:0 0 96px;background:white;border:1px solid #e6d6e8;border-radius:18px;display:grid;place-items:center;overflow:hidden;box-shadow:0 6px 20px #4a25551a}
+.reward-confirm-art img{display:block;width:100%;height:100%;object-fit:contain}
+.reward-confirm-art span{font-weight:800;font-size:13px;color:#8b5596;text-align:center}
+.reward-confirm-art--netflix{background:#171717}
+.reward-confirm-art--netflix img{width:65%;height:65%;filter:invert(17%) sepia(99%) saturate(7094%) hue-rotate(350deg) brightness(103%)}
+.reward-confirm-eyebrow{font-size:10px;color:var(--sparks-accent,#9b54b5);font-weight:850;letter-spacing:.08em}
+.reward-confirm-hero h2{font-size:23px;line-height:1.3;color:var(--sparks-dark,#573164);margin:6px 0}
+.reward-confirm-hero p{font-size:13px;color:#7b6283;margin:0}
+.reward-confirm-body{overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:20px}
+.reward-confirm-lead{font-size:13px;color:#67536e;margin:0 0 15px;line-height:1.75}
+.reward-confirm-details{border:1px solid #eaddec;border-radius:13px;overflow:hidden;background:#fffdfd}
+.reward-confirm-details>div{display:flex;align-items:start;justify-content:space-between;gap:15px;padding:11px 13px;border-bottom:1px solid #f0e5f0}
+.reward-confirm-details>div:last-child{border-bottom:0}
+.reward-confirm-details span{font-size:12px;color:#86728b;flex:0 0 36%}
+.reward-confirm-details strong{font-size:12px;color:#583462;min-width:0;text-align:right;overflow-wrap:anywhere;font-weight:800}
+.reward-confirm-warning{margin-top:15px;padding:12px 14px;border:1px solid #f2d6ab;background:#fff7e9;border-radius:12px}
+.reward-confirm-warning strong{font-size:13px;color:#835321}
+.reward-confirm-warning p{font-size:11px;line-height:1.75;margin:5px 0 0;color:#876947}
+.reward-confirm-error{margin:12px 0 0;padding:10px 12px;border:1px solid #f0c5c5;border-radius:10px;background:#fff1f1;color:#a62b2b;font-size:12px;line-height:1.7}
+.reward-confirm-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-top:17px}
+.reward-confirm-actions button{padding:11px 15px;border-radius:11px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit}
+.reward-confirm-cancel{border:1px solid #e2d4e5;background:#fff;color:#6e5578}
+.reward-confirm-accept{border:0;background:var(--sparks-accent,#9050ac);color:#fff}
+.reward-confirm-actions button:disabled,.reward-confirm-close:disabled{opacity:.5;cursor:not-allowed}
+.reward-confirm-backdrop button:focus-visible{outline:3px solid var(--sparks-accent,#9050ac);outline-offset:2px}
+@media(max-width:550px){.reward-confirm-backdrop{padding:9px}.reward-confirm-modal{max-height:97dvh;border-radius:15px}.reward-confirm-hero{padding:14px 44px 14px 12px;min-height:100px;gap:9px}.reward-confirm-art{width:66px;height:66px;flex-basis:66px;border-radius:13px}.reward-confirm-hero h2{font-size:19px}.reward-confirm-body{padding:13px}.reward-confirm-details>div{gap:9px;padding:10px}.reward-confirm-details span{flex-basis:40%}.reward-confirm-actions{justify-content:stretch}.reward-confirm-actions button{flex:1;padding:11px 8px}}
