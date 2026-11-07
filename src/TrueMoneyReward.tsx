@@ -1,11 +1,12 @@
 import React,{useCallback,useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
+import {classifyTrueMoneyItem,type ItemShelfFilter} from "./qaSparksItemStatus";
 
 export const TRUE_MONEY_REWARD={id:"truemoney-20-thb",price:10000,value:20,validDays:30,paymentBusinessDays:14} as const;
 type Item={itemId:string;rewardId:string;status:"unused"|"requested";redeemedAt:string;expiresAt:string;valueTHB:number;requestedAt?:string;requestId?:string};
 type Request={requestId:string;itemId:string;status:string;dueDate:string;createdAt:string;amountTHB:number;phoneMasked:string;payoutConfirmedAt?:string};
 type Detail={items:Item[];requests:Request[]};
-type Props={username:string;sessionId:string;balance:number;loaded:boolean;mode:"reward"|"inventory";hasOtherItems?:boolean};
+type Props={username:string;sessionId:string;balance:number;loaded:boolean;mode:"reward"|"inventory";hasOtherItems?:boolean;inventoryFilter?:ItemShelfFilter};
 function date(value:string){
   const parsed=new Date(value);
   return Number.isFinite(parsed.getTime())?parsed.toLocaleString("th-TH",{
@@ -44,7 +45,7 @@ function RewardCard({open,price}:{open:()=>void;price:number}){
     <span className="qa-sparks-mini-value">{price.toLocaleString("en-US")} Sparks</span>
   </button>;
 }
-export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,hasOtherItems=false}:Props){
+export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,hasOtherItems=false,inventoryFilter="available"}:Props){
   const [open,setOpen]=useState(false);
   const [price,setPrice]=useState<number>(TRUE_MONEY_REWARD.price);
   const [priceReady,setPriceReady]=useState(mode!=="reward");
@@ -139,7 +140,7 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
       </div> : null;
     }
     const now=Date.now();
-    return items.map(item=>{
+    return items.filter(item=>classifyTrueMoneyItem(item,requests.find(row=>row.itemId===item.itemId))===inventoryFilter).map(item=>{
       const expired=Date.parse(item.expiresAt)<=now;
       const request=requests.find(row=>row.itemId===item.itemId);
       const status=request?.status==="paid"?"โอนสำเร็จ":item.status==="requested"?"รอโอนเงิน":expired?"หมดอายุ":"พร้อมใช้";
