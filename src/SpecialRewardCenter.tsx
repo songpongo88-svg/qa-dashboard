@@ -1,5 +1,6 @@
 import React,{useCallback,useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
+import {classifySpecialRewardItem,type ItemShelfFilter} from "./qaSparksItemStatus";
 import "./specialRewards.css";
 
 export type SpecialReward={id:string;title:string;brand:string;price:number;maxTHB:number;type:"receipt"|"email";monthlyLimit:number};
@@ -78,8 +79,8 @@ async function compressedReceipt(file:File){
   return output;
  }finally{URL.revokeObjectURL(url);}
 }
-export default function SpecialRewardCenter({mode,username,sessionId,balance,loaded,hasOtherItems=false}:{
- mode:"reward"|"inventory";username:string;sessionId:string;balance:number;loaded:boolean;hasOtherItems?:boolean
+export default function SpecialRewardCenter({mode,username,sessionId,balance,loaded,hasOtherItems=false,inventoryFilter="available"}:{
+ mode:"reward"|"inventory";username:string;sessionId:string;balance:number;loaded:boolean;hasOtherItems?:boolean;inventoryFilter?:ItemShelfFilter
 }){
  const [items,setItems]=useState<Item[]>([]);
  const [inventoryLoaded,setInventoryLoaded]=useState(false);
@@ -176,7 +177,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
     await handle("special-rewards-submit",{itemId:item.itemId,email,neverPaid});
    }
  };
- const display=mode==="inventory"?items:[];
+ const display=mode==="inventory"?items.filter(i=>classifySpecialRewardItem(i)===inventoryFilter):[];
  return <>
   {mode==="reward"?REWARDS.slice().sort((a,b)=>b.price-a.price).map(r=><button key={r.id} type="button"
     className="qa-sparks-mini-item qa-sparks-mini-item--special" data-reward-item={r.id} style={{order:-r.price}}
