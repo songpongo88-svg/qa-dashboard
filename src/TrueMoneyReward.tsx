@@ -90,7 +90,13 @@ export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,
     setInventoryLoaded(true);
   },[username,sessionId]);
   useEffect(()=>{setItems([]);setRequests([]);setInventoryLoaded(false);setBalanceAfter(null);requestId.current="";},[username]);
-  useEffect(()=>{if(mode!=="inventory")return;void refresh().catch(e=>setError(String(e?.message||e)));},[mode,refresh]);
+  useEffect(()=>{
+    if(mode!=="inventory")return;
+    const reload=()=>{void refresh().catch(e=>setError(String(e?.message||e)));};
+    reload();
+    window.addEventListener("qa:sparks-items-refresh",reload);
+    return()=>window.removeEventListener("qa:sparks-items-refresh",reload);
+  },[mode,refresh]);
   useEffect(()=>{
     if(!open)return;
     const old=document.body.style.overflow;document.body.style.overflow="hidden";
