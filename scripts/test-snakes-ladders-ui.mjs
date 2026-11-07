@@ -37,7 +37,7 @@ globalThis.fetch=async(url,options)=>{
   return {ok:true,json:async()=>({cancelled:true,roomId:room.id})};
  }
  if(req.action==="snakes-roll"){
-  room.lastRoll=3;room.currentTurn="bob";room.event={actor:"alice",type:"reward",tile:7,delta:185,dice:3,description:"ค้นพบ 185 Sparks",at:new Date().toISOString()};
+  room.lastRoll=3;room.lastDice=[1,2];room.currentTurn="bob";room.event={actor:"alice",type:"reward",tile:7,delta:185,dice:3,dice1:1,dice2:2,description:"ค้นพบ 185 Sparks",at:new Date().toISOString()};
   room.members[0].position=7;room.members[0].pot+=185;
   return {ok:true,json:async()=>({room:structuredClone(room)})};
  }
@@ -71,10 +71,12 @@ try{
  assert.ok(board.querySelectorAll(".sl-avatar img").length>=3,"display real QA user profile images");
  assert.match(board.querySelector(".sl-pot-panel").textContent,/200/);
  assert.ok(board.querySelector(".sl-claim").disabled,"Sparks cannot enter wallet during play");
+ assert.equal(board.querySelectorAll(".sl-dice-individual .sl-die").length,2,"always render exactly two physical dice");
  assert.equal(board.querySelector(".sl-roll").disabled,false,"host can roll even when frontend username casing differs from server identity");
  assert.ok(!actions.includes("snakes-claim"));
  await click(board.querySelector(".sl-roll"));
  assert.deepEqual(actions.filter(a=>a==="snakes-roll"),["snakes-roll"]);
+ assert.match(board.querySelector(".sl-dice-total").textContent,/3/,"dice total should display the sum");
  assert.ok(board.querySelector(".sl-popup"),"show reward popup for landing on Sparks tile");
  assert.match(board.querySelector(".sl-popup").textContent,/\+185 Sparks/);
  assert.equal(board.querySelector('[data-snake-tile="7"]').textContent.includes("Alice QA"),true);
