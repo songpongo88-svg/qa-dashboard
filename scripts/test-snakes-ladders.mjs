@@ -3,7 +3,7 @@ import {createSnakesService,applySquare,resolveSnakeSquare,advanceTurn,advanceBo
 import {SNAKES_BOT_ID} from "../src/snakesRules.js";
 
 assert.equal(SNAKES_RULES.squares,50);
-assert.equal(SNAKES_RULES.maxPlayers,3);
+assert.equal(SNAKES_RULES.maxPlayers,5);
 assert.equal(SNAKES_RULES.rewardMinimum,1);
 assert.equal(SNAKES_RULES.rewardMaximum,300);
 assert.equal(new Set(SNAKES_RULES.rewardSquares).size,10);
@@ -78,7 +78,8 @@ assert.equal((await game.state(outsider)).rooms.length,0,"outsider must not disc
 await assert.rejects(()=>game.invite({roomId,targetUsername:"alice"},alice),/กรุณาระบุ/);
 await game.invite({roomId,targetUsername:"bob"},alice);
 await game.invite({roomId,targetUsername:"charlie"},alice);
-await assert.rejects(()=>game.invite({roomId,targetUsername:"outsider"},alice),/ครบ 3 คน/);
+await game.invite({roomId,targetUsername:"outsider"},alice);
+await game.respond({roomId,decision:"decline"},outsider);
 assert.equal((await game.state(bob)).rooms.length,1,"invite appears in recipient inbox");
 await game.respond({roomId,decision:"accept"},bob);
 await assert.rejects(()=>game.start({roomId},alice),/ยังมีผู้เล่นที่ไม่ตอบรับ/);
@@ -119,17 +120,22 @@ const hasBot=await game.addBot({roomId:botRoomId},alice);
 assert.equal(hasBot.room.members.length,2);
 const bot=hasBot.room.members.find(p=>p.isBot);
 assert.ok(bot,"one Bot joins a room without a user session");
-assert.equal(bot.username,SNAKES_BOT_ID);
-assert.equal(bot.displayName,"Sparks Bot");
+assert.equal(bot.username,SNAKES_BOT_ID+"_1");
+assert.equal(bot.displayName,"Sparks Bot 1");
 assert.equal(bot.claimedAt,"");
-await assert.rejects(()=>game.addBot({roomId:botRoomId},alice),/เพียง 1 ตัว/);
+for(let i=2;i<=4;i++){
+  const extra=await game.addBot({roomId:botRoomId},alice);
+  assert.equal(extra.room.members.filter(p=>p.isBot).length,i);
+  assert.ok(extra.room.members.some(p=>p.username===SNAKES_BOT_ID+"_"+i));
+}
+await assert.rejects(()=>game.addBot({roomId:botRoomId},alice),/สูงสุด 4 ตัว/);
 await assert.rejects(()=>game.addBot({roomId:botRoomId},bob),/ไม่ได้รับเชิญ/);
 const botStarted=await game.start({roomId:botRoomId},alice);
 assert.equal(botStarted.room.status,"playing","one human plus Bot is enough to play");
 const turn=await game.roll({roomId:botRoomId,requestId:"roll-bot-room-00001"},alice);
 assert.ok(turn.turnEvent.actor==="alice","player sees their own roll before Bot auto-turn");
-assert.ok(turn.botEvents.some(x=>x.actor===SNAKES_BOT_ID),"Bot plays automatically inside same Firestore transaction");
-assert.ok(turn.room.events.some(x=>x.actor===SNAKES_BOT_ID),"Bot steps are visible in match history");
+assert.ok(turn.botEvents.some(x=>x.actor===SNAKES_BOT_ID+"_1"),"Bot plays automatically inside same Firestore transaction");
+assert.ok(turn.room.events.some(x=>x.actor===SNAKES_BOT_ID+"_1"),"Bot steps are visible in match history");
 assert.equal(turn.room.members.find(p=>p.isBot).joined,true);
 const again=await game.roll({roomId:botRoomId,requestId:"roll-bot-room-00001"},alice);
 assert.equal(again.alreadyApplied,true);
@@ -155,4 +161,4 @@ const botFinishes=advanceBotTurns(nearFinish);
 assert.equal(nearFinish.winner,SNAKES_BOT_ID);
 assert.equal(nearFinish.status,"finished");
 assert.ok(botFinishes.some(x=>x.type==="finish"));
-console.log("PASS Snakes Bot: one bot per room, automatic server turns, replay safe, non-payable bot identity, host cancellation and room recreation");
+console.log("PASS Snakes Bot: four independent bots per room, automatic server turns, replay safe, non-payable bot identity, host cancellation and room recreation");
