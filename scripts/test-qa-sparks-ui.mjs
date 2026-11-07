@@ -124,7 +124,8 @@ try{
   const lotteryQuest=main.querySelector('[data-quest-item="qa-lottery"]');
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
-  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,2, "Reward Center mini grid shows both items");
+  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,6, "Reward Center includes two existing and four new brand rewards");
+  for (const id of ["punthai-65","netflix-1m","amazon-55","seven-100"]) assert.ok(main.querySelector(`[data-reward-item="${id}"]`), "new reward "+id+" renders in the compact grid");
 
   assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes("9–22"));
   await act(async () => questCard.dispatchEvent(new MouseEvent("click",{bubbles:true})));
