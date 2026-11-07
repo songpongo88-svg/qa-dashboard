@@ -1347,7 +1347,7 @@ export default async function handler(req, res) {
     if (typeof body.action==="string"&&body.action.startsWith("snakes-")) {
       const actor=await authorizeRewardUser(body);
       const action={
-        "snakes-state":()=>snakes.state(actor),
+        "snakes-state":()=>snakes.state(actor,body.includeHistory===true),
         "snakes-create":()=>snakes.create(body,actor),
         "snakes-invite":()=>snakes.invite(body,actor),
         "snakes-respond":()=>snakes.respond(body,actor),
