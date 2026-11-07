@@ -103,6 +103,7 @@ export function createQaLotteryService(db) {
   const drawPath=date=>path(DRAW_COLLECTION,date);
   const playerPath=(date,username)=>drawPath(date)+"/players/"+encodeURIComponent(username);
   const historyPath=(username,id)=>walletDocumentPath(username)+"/history/"+encodeURIComponent(id);
+  const ticketPath=(username,id)=>walletDocumentPath(username)+"/lottery_tickets/"+encodeURIComponent(id);
   async function transaction(work) {
     for (let attempt=0;attempt<4;attempt++) {
       const start=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
@@ -146,6 +147,28 @@ export function createQaLotteryService(db) {
       previous:last!==current?publicDraw(last,recordValue(lastDraw),recordValue(lastPlayer)):null,
       cutoffTime:"14:00",timeZone:TH_TIMEZONE};
   }
+  async function listTickets(actor){
+    const rows=await listCollection(walletDocumentPath(actor.username)+"/lottery_tickets",
+      ["id","number","drawDate","createdAt","paidAt","prize","matched","status"]);
+    if(rows.truncated) error("จำนวนตั๋ว QA Lottery มากเกินกำหนด",503);
+    const owned=rows.documents.map(recordValue).filter(x=>/^[0-9]{6}$/.test(x.number||""));
+    // Existing purchases from before My Items support are still shown for recent draws.
+    const last=previousLotteryDraw();
+    const next=nextLotteryDraw();
+    const [lastPlayer,nextPlayer]=await Promise.all([
+      readDoc(playerPath(last,actor.username)),readDoc(playerPath(next,actor.username))
+    ]);
+    for(const [date,doc] of [[last,lastPlayer],[next,nextPlayer]]){
+      for(const t of recordValue(doc).tickets||[]){
+        if(!owned.some(x=>x.id===t.id))owned.push({
+          id:t.id,number:t.number,drawDate:date,createdAt:t.createdAt,paidAt:t.paidAt||null,
+          prize:nonnegative(t.prize),matched:Array.isArray(t.matched)?t.matched:[],
+          status:t.paidAt?"checked":"pending"
+        });
+      }
+    }
+    return {tickets:owned.sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")))};
+  }
   async function purchase(body,actor) {
     const number=String(body.number||"").trim();
     const requestId=String(body.requestId||"");
@@ -176,6 +199,9 @@ export function createQaLotteryService(db) {
           totalSpent:nonnegative(wallet.totalSpent)+PRICE,updatedAt:when},walletDoc),
         updateWrite(pp,{username:actor.username,displayName:String(actor.displayName||actor.username).slice(0,120),
           drawDate:date,tickets:nextTickets,updatedAt:when},playerDoc),
+        createWrite(ticketPath(actor.username,requestId),{
+          id:requestId,number,drawDate:date,createdAt:when,paidAt:null,prize:0,matched:[],status:"pending"
+        }),
         createWrite(historyPath(actor.username,"qa-lottery-buy-"+requestId),{
           createdAt:when,type:"spend",source:"qa-lottery",title:"QA Lottery · ซื้อเลข",
           detail:"งวด "+date+" · เลข "+number,amount:-PRICE,balanceAfter:nextBalance,
@@ -213,12 +239,20 @@ export function createQaLotteryService(db) {
       if (!tickets.length || tickets.every(t=>Boolean(t.paidAt))) return {writes:[],result:{count:0,paid:0}};
       const now=new Date().toISOString();
       const unsettled=tickets.filter(t=>!t.paidAt);
+      const ticketDocuments=await Promise.all(unsettled.map(t=>readDoc(ticketPath(username,t.id),tx)));
       const settled=tickets.map(t=>{if (t.paidAt) return t; const award=lotteryPrize(t.number,result);return {...t,matched:award.matched,amount:award.amount,prize:award.amount,paidAt:now};});
       // Only official result fields are accepted; ignore result date/source sent by client.
       const total=settled.filter(t=>t.paidAt===now).reduce((n,t)=>n+nonnegative(t.amount),0);
       const year=currentMemberYear(),balance=spendableBalance(wallet,year),annual=annualEarnedFromWallet(wallet,year);
       const nextBalance=balance+total;
       const writes=[updateWrite(pp,{tickets:settled,updatedAt:now,settledAt:now},playerDoc)];
+      for(let i=0;i<unsettled.length;i++){
+        const ticket=settled.find(t=>t.id===unsettled[i].id);
+        const doc=ticketDocuments[i],key=ticketPath(username,ticket.id);
+        const data={id:ticket.id,number:ticket.number,drawDate:date,createdAt:ticket.createdAt,
+          paidAt:now,prize:nonnegative(ticket.prize),matched:ticket.matched,status:"checked"};
+        writes.push(doc?updateWrite(key,data,doc):createWrite(key,data));
+      }
       if (total) {
         writes.push(updateWrite(wp,{username,balance:nextBalance,balanceYear:year,
           totalEarned:Math.max(nonnegative(wallet.totalEarned),nonnegative(wallet.firstLogin?.amount))+total,
@@ -277,5 +311,5 @@ export function createQaLotteryService(db) {
     }
     return {checkedAt:new Date().toISOString(),reports};
   }
-  return {state,purchase,settle};
+  return {state,purchase,settle,listTickets};
 }
