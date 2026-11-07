@@ -1,18 +1,18 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from "react";
 import {fetchStoredProfilePhoto} from "./profilePhotoStore";
-import {SNAKES_RULES,resolveSnakeSquare} from "./snakesRules.js";
+import {SNAKES_RULES,resolveSnakeSquare,SNAKES_BOT_ID} from "./snakesRules.js";
 import "./snakesLadders.css";
 
-type Member={username:string;displayName:string;joined:boolean;position:number;pot:number;skips:number;shields:number;claimedAt:string;rewardedTiles:number[]};
+type Member={username:string;displayName:string;joined:boolean;isBot?:boolean;position:number;pot:number;skips:number;shields:number;claimedAt:string;rewardedTiles:number[]};
 type GameEvent={type:string;tile?:number;to?:number;delta?:number;dice?:number;from?:number;description:string;actor?:string;target?:string;at:string};
-type Room={id:string;host:string;status:"lobby"|"playing"|"finished";members:Member[];invited:string[];
+type Room={id:string;host:string;status:"lobby"|"playing"|"finished"|"cancelled";members:Member[];invited:string[];
  currentTurn:string;winner:string;event:GameEvent|null;events:GameEvent[];pendingTarget:{actor:string;type:string;tile:number}|null;
  createdAt:string;startedAt:string;finishedAt:string;lastRoll:number;yourUsername:string;updatedAt:string};
 type Rules={rewardSquares:number[];ladders:Record<number,number>;snakes:Record<number,number>;traps:Record<number,string>};
 type GameState={rooms:Room[];activeRoomId:string;rules:Rules};
 const eventIcon:Record<string,string>={"reward":"⚡","snake":"🐍","ladder":"🪜","shield":"🛡","lose-percent":"💥",
  "lose-fixed":"💸","skip":"⌛","back-five":"↩","restart":"⤺","reset-other":"🎯","swap":"⇄","steal":"⚔","safe":"✦","finish":"🏆"};
-const statusLabel:Record<string,string>={lobby:"รอผู้เล่น",playing:"กำลังเล่น",finished:"จบเกม"};
+const statusLabel:Record<string,string>={lobby:"รอผู้เล่น",playing:"กำลังเล่น",finished:"จบเกม",cancelled:"ยกเลิกแล้ว"};
 const rewardSquares=new Set(SNAKES_RULES.rewardSquares);
 const ladderEntries=Object.entries(SNAKES_RULES.ladders).map(([a,b])=>[+a,b] as [number,number]);
 const snakeEntries=Object.entries(SNAKES_RULES.snakes).map(([a,b])=>[+a,b] as [number,number]);
@@ -60,6 +60,7 @@ function BoardArtwork(){
 }
 const palette=["mint","sky","rose"];
 function Avatar({user,photos,label}: {user:string;photos:Record<string,string>;label?:string}){
+ if(user===SNAKES_BOT_ID)return <span className="sl-avatar sl-avatar--bot" role="img" aria-label="Sparks Bot ทดสอบ">🤖</span>;
  const image=photos[user];
  return <span className="sl-avatar" title={label||user}>{image?<img src={image} alt={label||user}/>:<span>{user.slice(0,2).toUpperCase()}</span>}</span>;
 }
@@ -109,6 +110,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const [popup,setPopup]=useState<GameEvent|null>(null);
+ const [cancelConfirm,setCancelConfirm]=useState(false);
  const [photos,setPhotos]=useState<Record<string,string>>({});
  const busyRef=useRef(false),loadRef=useRef(false),nonce=useRef("");
  const room=useMemo(()=>data.rooms.find(r=>r.id===currentRoomId)||null,[data.rooms,currentRoomId]);
@@ -154,6 +156,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
  useEffect(()=>{
    let alive=true;
    for(const name of allNames.split("|").filter(Boolean)){
+     if(name===SNAKES_BOT_ID)continue;
      if(Object.prototype.hasOwnProperty.call(photos,name))continue;
      void fetchStoredProfilePhoto(name).then(photo=>{
        if(!alive)return;
@@ -171,7 +174,11 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      if(result.room){
        setData(old=>({...old,rooms:[result.room,...old.rooms.filter(r=>r.id!==result.room.id)]}));
        setCurrentRoomId(result.room.id);
-       if((action==="snakes-roll"||action==="snakes-target")&&!result.alreadyApplied)setPopup(result.room.event);
+       if((action==="snakes-roll"||action==="snakes-target")&&!result.alreadyApplied)setPopup(result.turnEvent||result.room.event);
+     }
+     if(result.cancelled){
+       setData(old=>({...old,rooms:old.rooms.filter(r=>r.id!==result.roomId),activeRoomId:""}));
+       setCurrentRoomId("");setPopup(null);setCancelConfirm(false);
      }
      if(action==="snakes-create")setTargetInput("");
      if(action==="snakes-invite")setTargetInput("");
@@ -181,7 +188,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    }catch(e){setError(e instanceof Error?e.message:"ทำรายการไม่สำเร็จ");return null;}
    finally{setBusy(false);busyRef.current=false;}
  };
- const create=()=>void modify("snakes-create",{requestId:crypto.randomUUID().replace(/-/g,"")},"สร้างห้องแล้ว เชิญเพื่อนเข้าร่วมได้เลย");
+ const create=()=>void modify("snakes-create",{requestId:crypto.randomUUID().replace(/-/g,"")},"สร้างห้องแล้ว เชิญเพื่อนหรือเพิ่ม Bot ทดสอบได้เลย");
  const roll=async()=>{
    if(!nonce.current)nonce.current=crypto.randomUUID().replace(/-/g,"");
    const result=await modify("snakes-roll",{roomId:room?.id,requestId:nonce.current});
@@ -209,17 +216,21 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      <div className="sl-lobby-side"><h3>คำเชิญและเกมของคุณ</h3>
        {!data.rooms.length?<p>ยังไม่มีห้องเกมหรือคำเชิญ กดสร้างห้องเพื่อเริ่มเล่น</p>:
         data.rooms.map(r=><button type="button" className="sl-room-row" key={r.id} onClick={()=>setCurrentRoomId(r.id)}>
-          <strong>{r.id}</strong><span>{statusLabel[r.status]}</span><small>{r.members.length} / 3 คน</small>
+          <strong>{r.id}</strong><span>{r.members.some(p=>p.username===username&&!p.joined)?"คำเชิญรอคุณตอบรับ":statusLabel[r.status]}</span><small>{r.members.length} / 3 คน</small>
         </button>)}
      </div>
    </div>:<>
      <div className="sl-room-navigation"><div><span className="sl-overline">GAME ROOM</span><strong>{room.id}</strong><span className={"sl-status sl-status--"+room.status}>{statusLabel[room.status]}</span></div>
-       <button type="button" className="sl-link" onClick={()=>{setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
+       <div className="sl-room-nav-actions">
+          {room.host===username&&(room.status==="lobby"||room.status==="playing")?
+            <button type="button" className="sl-danger-link" disabled={busy} onClick={()=>setCancelConfirm(true)}>ยกเลิกห้อง</button>:null}
+          <button type="button" className="sl-link" onClick={()=>{setCurrentRoomId("");setPopup(null);}}>ห้องของฉัน / คำเชิญ</button>
+        </div>
      </div>
      <div className="sl-playercards">{room.members.filter(p=>p.joined).map((p,i)=><div className={"sl-playercard sl-playercard--"+palette[i%3]+(room.currentTurn===p.username?" is-turn":"")} key={p.username}>
        <Avatar user={p.username} photos={photos} label={p.displayName}/>
-       <div className="sl-playercard-info"><strong>{p.displayName}</strong><small>@{p.username}</small>
-         <div><span>ช่อง {p.position}</span><b>⚡ {p.pot.toLocaleString()} Sparks</b></div></div>
+       <div className="sl-playercard-info"><strong>{p.displayName}{p.isBot?" · BOT":""}</strong><small>{p.isBot?"ทดสอบอัตโนมัติ · ไม่รับ Sparks":"@"+p.username}</small>
+         <div><span>ช่อง {p.position}</span><b>⚡ {p.pot.toLocaleString()} Sparks{p.isBot?" (ในเกมเท่านั้น)":""}</b></div></div>
        {room.currentTurn===p.username?<span className="sl-turn-label">ถึงตา{p.username===username?"คุณ":"ผู้เล่น"}</span>:null}
        {room.winner===p.username?<span className="sl-winner">🏆 ผู้ชนะ</span>:null}
      </div>)}
@@ -228,13 +239,18 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      </div>
      {room.status==="lobby"?<div className="sl-invite-panel">
        <div><h3>👥 ห้องรอผู้เล่น · {room.members.filter(p=>p.joined).length} คนตอบรับแล้ว</h3>
-         <p>เจ้าของห้องเชิญได้สูงสุด 2 คน สมาชิกที่ถูกเชิญต้องตอบรับก่อนเริ่มเกม</p></div>
+         <p>เชิญด้วย Username ที่ใช้ Login QA Dashboard (ไม่ใช่ชื่อแสดงผล) เพื่อนเปิดหน้าเกมนี้แล้วกดตอบรับ หรือเพิ่ม Bot ทดสอบได้</p></div>
        {invited?<div className="sl-invite-actions"><button disabled={busy} className="sl-primary" onClick={()=>void modify("snakes-respond",{roomId:room.id,decision:"accept"},"เข้าร่วมเกมสำเร็จ")}>ตอบรับคำเชิญ</button>
          <button disabled={busy} className="sl-secondary" onClick={()=>void modify("snakes-respond",{roomId:room.id,decision:"decline"},"ปฏิเสธคำเชิญแล้ว")}>ปฏิเสธ</button></div>:null}
        {room.host===username?<div className="sl-invite-actions">
-         <label className="sl-invite-label">Username ที่ต้องการเชิญ<input value={targetInput} maxLength={100} onChange={e=>setTargetInput(e.target.value)} placeholder="กรอก Username ของเพื่อน"/></label>
-         <button disabled={busy||room.members.length>=3||!targetInput.trim()} className="sl-secondary" onClick={()=>void modify("snakes-invite",{roomId:room.id,targetUsername:targetInput.trim()},"ส่งคำเชิญเรียบร้อยแล้ว")}>ส่งคำเชิญ</button>
-         <button disabled={busy||room.members.filter(p=>p.joined).length<2||room.members.some(p=>!p.joined)} className="sl-primary" onClick={()=>void modify("snakes-start",{roomId:room.id},"เริ่มเกมแล้ว!")}>เริ่มเกม</button>
+         <label className="sl-invite-label">เชิญเพื่อนด้วย Username
+            <input value={targetInput} maxLength={100} onChange={e=>setTargetInput(e.target.value)} placeholder="Username ที่ใช้ Login"/>
+            <small>ให้เพื่อนเปิด Mini Games และกดตอบรับคำเชิญ</small>
+          </label>
+         <button disabled={busy||room.members.length>=3||!targetInput.trim()} className="sl-secondary" onClick={()=>void modify("snakes-invite",{roomId:room.id,targetUsername:targetInput.trim()},"ส่งคำเชิญแล้ว ให้เพื่อนเปิด Mini Games และกดตอบรับ")}>ส่งคำเชิญ</button>
+         <button type="button" data-snakes-add-bot="true" disabled={busy||room.members.length>=3||room.members.some(p=>p.isBot)}
+            className="sl-bot-button" onClick={()=>void modify("snakes-add-bot",{roomId:room.id},"เพิ่ม Sparks Bot แล้ว Bot จะทอยอัตโนมัติเมื่อถึงตา")}>🤖 เพิ่ม Bot ทดสอบ</button>
+          <button disabled={busy||room.members.filter(p=>p.joined).length<2||room.members.some(p=>!p.joined)} className="sl-primary" onClick={()=>void modify("snakes-start",{roomId:room.id},"เริ่มเกมแล้ว!")}>เริ่มเกม</button>
        </div>:null}
      </div>:null}
      {room.status!=="lobby"?<div className="sl-layout">
@@ -252,7 +268,7 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
                <Avatar user={p.username} photos={photos} label={p.displayName}/>{p.displayName}{p.shields?" 🛡":""}
              </button>)}
            </div>:null}
-           {room.status==="playing"&&room.currentTurn!==username?<p className="sl-small">ตำแหน่งและ Game Pot บันทึกไว้ กลับมาเล่นต่อภายหลังได้</p>:null}
+           {room.status==="playing"&&room.currentTurn!==username?<p className="sl-small">{room.currentTurn===SNAKES_BOT_ID?"Bot ทอยอัตโนมัติเมื่อถึงตา":"ตำแหน่งและ Game Pot บันทึกไว้ กลับมาเล่นต่อภายหลังได้"}</p>:null}
          </div>
          <div className="sl-pot-panel"><div className="sl-pot-head"><span>⚡ Game Pot</span><span className="sl-pot-lock">🔒 รอจบเกม</span></div>
            <strong>{(me?.pot||0).toLocaleString()} <small>Sparks</small></strong>
@@ -274,6 +290,19 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
        </div>
      </div>:null}
    </>}
+   {cancelConfirm&&room?<div className="sl-popup-backdrop" role="presentation">
+      <section className="sl-popup sl-cancel-popup" role="dialog" aria-modal="true" aria-label="ยืนยันยกเลิกห้อง">
+        <div className="sl-popup-icon">⚠️</div><h2>ยกเลิกห้อง {room.id}?</h2>
+        <p>ระบบจะนำห้องออกจากรายการที่เล่นได้ โดยเก็บประวัติไว้ ไม่ลบข้อมูลคะแนนย้อนหลัง</p>
+        {room.status==="playing"?<p className="sl-cancel-warning">หากยุติเกมตอนนี้ Game Pot ในห้องนี้จะไม่สามารถกดรับ Sparks ได้</p>:null}
+        <div className="sl-cancel-actions">
+          <button type="button" className="sl-secondary" disabled={busy} onClick={()=>setCancelConfirm(false)}>กลับไปเล่น</button>
+          <button type="button" data-snakes-cancel-confirm="true" className="sl-danger-button" disabled={busy}
+            onClick={()=>void modify("snakes-cancel",{roomId:room.id},"ยกเลิกห้องแล้ว สามารถสร้างห้องใหม่ได้")}>
+            {busy?"กำลังยกเลิก...":"ยืนยันยกเลิกห้อง"}</button>
+        </div>
+      </section>
+   </div>:null}
    {popup?<div className="sl-popup-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setPopup(null);}}>
      <section className="sl-popup" role="dialog" aria-modal="true" aria-label="ผลการทอยเต๋า">
        <div className="sl-popup-icon">{eventIcon[popup.type]||"✦"}</div>
