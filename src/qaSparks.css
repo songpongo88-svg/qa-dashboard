@@ -859,3 +859,16 @@
  .qa-money-product-detail,.qa-money-product-guide,.qa-relief-product-intro{padding:12px}
  .qa-money-product-specs strong{font-size:14px}
 }
+
+/* Member-card overview: compact header and three wallet metrics. */
+.qa-sparks-page-heading{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;padding:0;}
+.qa-sparks-hero--membership{min-height:0;overflow:visible;justify-content:space-between;gap:20px;padding:3px 2px 8px;border:0;border-radius:0;background:none;box-shadow:none;}
+.qa-sparks-hero--membership .qa-sparks-hero-copy{width:auto;min-width:0;}
+.qa-sparks-member-owner{display:flex;align-items:center;gap:10px;max-width:43%;min-width:0;font-size:13px;color:#3b302c;}
+.qa-sparks-member-owner>div{min-width:0;}
+.qa-sparks-member-owner small{display:block;font-size:11px;color:#75665a;}
+.qa-sparks-member-owner span{overflow-wrap:anywhere;}
+.qa-sparks-owner-avatar{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:var(--sparks-soft);color:var(--sparks-accent);font-size:12px;font-weight:500;}
+.qa-sparks-metrics--membership{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:18px;}
+@media(max-width:760px){.qa-sparks-metrics--membership .qa-sparks-metric{gap:9px;padding:13px 12px;}.qa-sparks-metrics--membership .qa-sparks-metric-icon{width:34px;height:38px;flex-basis:34px;}.qa-sparks-metrics--membership .qa-sparks-metric strong{font-size:22px;}.qa-sparks-metrics--membership .qa-sparks-metric-label{font-size:11px;}}
+@media(max-width:600px){.qa-sparks-hero--membership{align-items:flex-start;}.qa-sparks-member-owner{font-size:11px;gap:7px;}.qa-sparks-owner-avatar{display:none;}.qa-sparks-hero--membership .qa-sparks-hero-copy>p{font-size:12px;}.qa-sparks-metrics--membership{grid-template-columns:1fr;}}

@@ -152,7 +152,7 @@ try {
   assert.equal(document.querySelectorAll('.qa-sparks-history-item').length, 100);
   fixture.documents.set("qa_sparks_wallets/songpon", { ...wallet, balance: 650 });
   await act(async () => window.dispatchEvent(new Event("qa:sparks-updated")));await tick();
-  assert.ok(document.querySelector('.qa-sparks-balance').textContent.includes("650"), "a successful mutation invalidates the wallet immediately");
+  assert.ok(document.querySelector('[data-sparks-metric="Current Sparks"] strong').textContent.includes("650"), "a successful mutation invalidates the wallet immediately");
   await click(document.querySelector("#qa-sparks-tab-admin"));
   const beforeQuotaReads = fixture.reads.length + fixture.queries.length;
   quotaLimited = true;

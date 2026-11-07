@@ -10,7 +10,8 @@ import FruitMatchGame from "./FruitMatchGame";
 import QALottery from "./QALottery";
 import SpecialRewardCenter from "./SpecialRewardCenter";
 import LotteryTicketInventory from "./LotteryTicketInventory";
-import { SPARKS_TOP_LEVEL_POINTS, SPARKS_MEMBER_LEVELS, getSparksMemberLevel, sparksCalendarYear } from "./qaSparksMemberLevels";
+import { sparksCalendarYear } from "./qaSparksMemberLevels";
+import MemberJourney from "./SparksMembership";
 
 type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar" | "package";
@@ -61,39 +62,6 @@ function SparksHistory({ history, large = false }: { history: SparksHistoryItem[
         <strong role="cell" className={item.amount >= 0 ? "positive" : "negative"}>{item.amount > 0 ? "+" : ""}{item.amount.toLocaleString()} Sparks</strong>
         <span role="cell">{item.detail}<small>คงเหลือ {item.balanceAfter.toLocaleString()} Sparks</small></span>
       </div>) : <div className="qa-sparks-history-no-rows" role="row"><SparksIcon name="receipt" size={25}/><span>ยังไม่มีประวัติรายการ</span></div>}
-    </div>
-  </section>;
-}
-
-function MemberJourney({ earned, year }: { earned: number; year: number }) {
-  const member = getSparksMemberLevel(earned);
-  return <section className="qa-sparks-member-journey" aria-label="ระดับสมาชิก QA Sparks">
-    <div className="qa-sparks-member-head">
-      <div>
-        <div className="qa-sparks-member-eyebrow">ANNUAL MEMBER JOURNEY · {year}</div>
-        <h2><SparksIcon name="crown" size={21}/> LV.{member.current.level} {member.current.name}</h2>
-        <p>{member.current.thaiName} · สมาชิกเลื่อนระดับตาม Sparks ที่ได้รับสะสมในปี {year} การแลกรางวัลไม่ทำให้ระดับลดลง</p>
-      </div>
-      <div className="qa-sparks-member-points">
-        <span>คะแนนสะสมประจำปี</span>
-        <strong>{member.annualEarned.toLocaleString()} <small>Sparks · สะสมไม่จำกัด</small></strong>
-        <span>{member.next ? `อีก ${member.nextRequired.toLocaleString()} คะแนน ถึง LV.${member.next.level} ${member.next.name}` : "ถึงระดับสูงสุดแล้ว · Spark Immortal · ยังสะสมต่อได้"}</span>
-      </div>
-    </div>
-    <div className="qa-sparks-member-progress" role="progressbar" aria-valuemin={member.current.min} aria-valuemax={member.next?.min || SPARKS_TOP_LEVEL_POINTS}
-      aria-valuenow={Math.min(member.annualEarned, member.next?.min || SPARKS_TOP_LEVEL_POINTS)} aria-label="ความคืบหน้าไปสู่ระดับสมาชิกถัดไป">
-      <span style={{ width: member.progress + "%", backgroundColor: member.current.color }}/>
-    </div>
-    <div className="qa-sparks-member-ladder" aria-label="ระดับสมาชิกทั้งเจ็ด">
-      {SPARKS_MEMBER_LEVELS.map((tier) => <div key={tier.level}
-        className={"qa-sparks-member-tier" + (tier.level === member.current.level ? " current" : tier.level < member.current.level ? " attained" : "")}
-        style={{ "--member-tier-color": tier.color } as React.CSSProperties}>
-        <span className="qa-sparks-member-tier-emblem"><SparksIcon name={tier.level === 10 ? "crown" : "spark"} size={16}/></span>
-        <span><strong>LV.{tier.level} {tier.name}</strong><small>{tier.min.toLocaleString()} Sparks</small></span>
-      </div>)}
-    </div>
-    <div className="qa-sparks-member-footnote">
-      <span>สะสม Sparks ได้ไม่จำกัด · LV.10 เริ่มที่ {SPARKS_TOP_LEVEL_POINTS.toLocaleString()} คะแนน · ยอดที่ยังไม่ได้ใช้หมดอายุ 31 ธันวาคม เวลา 23:59 น. (เวลาไทย) · เริ่มนับคะแนนและระดับใหม่ 1 มกราคม</span>
     </div>
   </section>;
 }
@@ -160,35 +128,15 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   ];
   const balance = account.balance.toLocaleString();
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
-  const member = getSparksMemberLevel(account.memberYearEarned);
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
       <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div></header>
-      <section className="qa-sparks-hero">
+      <section className="qa-sparks-hero qa-sparks-hero--membership">
         <div className="qa-sparks-hero-copy">
           <div className="qa-sparks-eyebrow">MY REWARDS</div><h2>My QA Sparks</h2>
           <p>ระบบสะสมและแลกรางวัลสำหรับ QA Dashboard</p>
-          {displayName ? <div className="qa-sparks-owner">บัญชีผู้ใช้งาน: {displayName}</div> : null}
-          <div className="qa-sparks-hero-row"><div className="qa-sparks-balance"><SparksIcon name="spark" size={30}/><strong>{balance}</strong><span>Sparks</span></div></div>
         </div>
-        <div className="qa-sparks-hero-art" aria-hidden="true">
-          <span className="qa-sparks-art-orbit"/><span className="qa-sparks-art-star first">✦</span><span className="qa-sparks-art-star second">✦</span>
-          <div className="qa-sparks-gift"><div className="qa-sparks-gift-bow">∞</div><div className="qa-sparks-gift-lid"/><div className="qa-sparks-gift-box"><span/></div></div>
-          <div className="qa-sparks-token"><SparksIcon name="spark" size={40}/></div>
-        </div>
-      </section>
-      <section className="qa-sparks-metrics" aria-label="QA Sparks overview">
-        {([
-          ["Current Sparks", balance, "spark", "amber"],
-          ["Available to Redeem", balance, "gift", "violet"],
-          ["Reward Orders", String(account.rewardOrders), "receipt", "blue"],
-          ["Member Level", walletLoaded ? `LV.${member.current.level} ${member.current.name}` : "—", "crown", "green"],
-        ] as const).map(([label, value, icon, tone]) => (
-          <div className={"qa-sparks-metric" + (label === "Member Level" ? " qa-sparks-member-metric" : "")} key={label}>
-            <span className={"qa-sparks-metric-icon qa-sparks-tone-" + tone}><SparksIcon name={icon} size={27}/></span>
-            <div><div className="qa-sparks-metric-label">{label}</div><strong>{value}</strong></div>
-          </div>
-        ))}
+        {displayName || username ? <div className="qa-sparks-member-owner"><span className="qa-sparks-owner-avatar" aria-hidden="true">QA</span><div><small>บัญชีผู้ใช้งาน</small><span>{displayName || username}</span></div></div> : null}
       </section>
       {error ? <div className="qa-sparks-inline-error" role="alert">{error}</div> : null}
       {loading ? <div className="qa-sparks-loading" role="status">กำลังอัปเดต Sparks...</div> : null}
@@ -201,7 +149,19 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       </nav>
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
         {gamesOpened ? <div hidden={view !== "games"}><FruitMatchGame key={username + ":" + adminSessionId} username={username} sessionId={adminSessionId}/></div> : null}
-        {view === "overview" && walletLoaded ? <MemberJourney earned={account.memberYearEarned} year={account.memberYear}/> : null}
+        {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username}/> : null}
+      <section className="qa-sparks-metrics qa-sparks-metrics--membership" aria-label="QA Sparks overview">
+        {([
+          ["Current Sparks", balance, "spark", "amber"],
+          ["Available to Redeem", balance, "gift", "violet"],
+          ["Reward Orders", String(account.rewardOrders), "receipt", "blue"],
+        ] as const).map(([label, value, icon, tone]) => (
+          <div className="qa-sparks-metric" data-sparks-metric={label} key={label}>
+            <span className={"qa-sparks-metric-icon qa-sparks-tone-" + tone}><SparksIcon name={icon} size={27}/></span>
+            <div><div className="qa-sparks-metric-label">{label}</div><strong>{value}</strong></div>
+          </div>
+        ))}
+      </section>
         {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
           <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>3 Quests</span></div>
           <div className="qa-sparks-mini-grid qa-sparks-quest-grid">

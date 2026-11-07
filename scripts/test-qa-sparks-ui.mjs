@@ -61,10 +61,11 @@ try{
   const qaSparksSource = await readFile("src/QASparks.tsx", "utf8");
   assert.match(qaSparksSource, /ownAccount=\{ownAccountSnapshot\}/, "the administrator's existing personal wallet is available for read-only fallback");
   assert.match(qaSparksSource, /useMemo/, "personal wallet snapshot is stable across QA Sparks rerenders");
-  assert.match(qaSparksSource, /getSparksMemberLevel/, "Member Level must derive from annual earned points");
-  assert.match(qaSparksSource, /MemberJourney/, "Overview must show all ten annual Member Levels");
-  assert.match(qaSparksSource, /SPARKS_TOP_LEVEL_POINTS/, "500k highest tier must be described without a balance cap");
-  assert.match(qaSparksSource, /walletLoaded \? `LV\./, "only show a verified member level after a wallet load");
+  const membershipSource = await readFile("src/SparksMembership.tsx", "utf8");
+  assert.match(membershipSource, /getSparksMemberLevel/, "Member Level must derive from annual earned points");
+  assert.match(qaSparksSource, /MemberJourney/, "Overview must show the current membership card");
+  assert.match(membershipSource, /SPARKS_TOP_LEVEL_POINTS/, "500k highest tier must be described without a balance cap");
+  assert.match(qaSparksSource, /view === "overview" && walletLoaded \? <MemberJourney/, "only show a verified member card after a wallet load");
   assert.match(sparksAdmin, /request\("reauth"/, "stale admin policy can be verified using QA password");
   assert.match(sparksAdmin, /type="password"/, "QA password re-verification must use masked password control");
   assert.match(sparksAdmin, /profiles\.filter\(\(profile\)/, "fallback directory must exclude suspended accounts");
