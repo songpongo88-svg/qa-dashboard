@@ -158,7 +158,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
         {gamesOpened ? <div hidden={view !== "games"}><FruitMatchGame key={username + ":" + adminSessionId} username={username} sessionId={adminSessionId}/></div> : null}
         {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username}/> : null}
-      <section className="qa-sparks-metrics qa-sparks-metrics--membership" aria-label="QA Sparks overview">
+      <section hidden={view === "admin"} className="qa-sparks-metrics qa-sparks-metrics--membership" aria-label="QA Sparks overview">
         {([
           ["Current Sparks", balance, "spark", "amber"],
           ["Available to Redeem", balance, "gift", "violet"],
@@ -213,7 +213,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
         </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
-        : adminAccess ? <SparksAdminPanel actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} active={active} /> : null}
+        : adminAccess ? <SparksAdminPanel key={username + ":" + adminSessionId} actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} active={active} /> : null}
       </div>
     </div>
   </main>;

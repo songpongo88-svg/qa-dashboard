@@ -4,8 +4,8 @@ import { fetchStoredUserProfiles, readCachedUserProfiles } from "./userRoleStore
 import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
 import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
-import TrueMoneyTracker from "./TrueMoneyTracker";
-import SpecialRewardsAdmin from "./SpecialRewardsAdmin";
+import SparksRewardRequests from "./SparksRewardRequests";
+import "./sparksAdminWorkspace.css";
 import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
 type AdminUser = {
@@ -101,6 +101,7 @@ function createRequestId() {
 export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount, active: panelActive = true }: {
   actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null; active?: boolean;
 }) {
+  const [adminSection, setAdminSection] = useState<"requests" | "points" | "settings" | "activity">("requests");
   const ownAccountRef = useRef(ownAccount);
   ownAccountRef.current = ownAccount;
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -126,31 +127,47 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [adminReady, setAdminReady] = useState(false);
   const [firestoreLimited, setFirestoreLimited] = useState(false);
   const [needsReauth, setNeedsReauth] = useState(false);
+  const requestReauth = useCallback(() => setNeedsReauth(true), []);
   const [reauthPassword, setReauthPassword] = useState("");
   const [reauthLoading, setReauthLoading] = useState(false);
   const [reauthError, setReauthError] = useState("");
   const [trueMoneyPrice,setTrueMoneyPrice] = useState("10000");
   const [trueMoneyPriceLoaded,setTrueMoneyPriceLoaded] = useState(false);
+  const [loadedTrueMoneyPrice, setLoadedTrueMoneyPrice] = useState<number | null>(null);
   const [trueMoneyPriceBusy,setTrueMoneyPriceBusy] = useState(false);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [priceError, setPriceError] = useState("");
+  const [priceRevision, setPriceRevision] = useState(0);
+  const priceLoadedKey = useRef("");
 
   const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price", input: Record<string, unknown> = {}) => {
     if (action === "list" || action === "history") assertFirestoreReadAllowed();
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
-    const response = await fetch("/api/sparks-admin", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      cache: "no-store",
-      body: JSON.stringify({ action, actorUsername, sessionId, ...input }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = Object.assign(new Error(String(result.error || "ไม่สามารถโหลดข้อมูล Sparks ได้")), {
-        code: String(result.code || ""),
+    const controller = action === "get-truemoney-price" ? new AbortController() : null;
+    const timeout = controller ? window.setTimeout(() => controller.abort(), 25000) : null;
+    try {
+      const response = await fetch("/api/sparks-admin", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
+        ...(controller ? { signal: controller.signal } : {}),
+        body: JSON.stringify({ action, actorUsername, sessionId, ...input }),
       });
-      noteFirestoreReadError(error);
-      throw error;
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = Object.assign(new Error(String(result.error || "ไม่สามารถโหลดข้อมูล Sparks ได้")), {
+          code: String(result.code || ""),
+        });
+        noteFirestoreReadError(error);
+        throw error;
+      }
+      return result;
+    } catch (reason) {
+      if (controller?.signal.aborted) throw new Error("โหลดราคาใช้เวลานานเกินไป กรุณากดรีเฟรชราคา");
+      throw reason;
+    } finally {
+      if (timeout !== null) window.clearTimeout(timeout);
     }
-    return result;
   }, [actorUsername, sessionId]);
 
   useEffect(() => {
@@ -429,14 +446,18 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     } finally { setSaving(false); }
   }
 
-  useEffect(()=>{
-    if(!panelActive||!adminReady)return;
-    let active=true;
-    void request("get-truemoney-price").then(result=>{
-      if(active){setTrueMoneyPrice(String(result.price));setTrueMoneyPriceLoaded(true);}
-    }).catch(()=>{if(active)setTrueMoneyPriceLoaded(false);});
-    return()=>{active=false;};
-  },[panelActive,adminReady,request]);
+  useEffect(() => {
+    if (!panelActive || adminSection !== "settings") return;
+    const key = actorUsername + ":" + sessionId + ":" + priceRevision;
+    if (priceLoadedKey.current === key && trueMoneyPriceLoaded) return;
+    let active = true;
+    setPriceLoading(true); setPriceError(""); setTrueMoneyPriceLoaded(false);
+    void request("get-truemoney-price").then(result => {
+      if (active) { setTrueMoneyPrice(String(result.price)); setLoadedTrueMoneyPrice(Number(result.price)); setTrueMoneyPriceLoaded(true); priceLoadedKey.current = key; }
+    }).catch(reason => { if (active) setPriceError(reason instanceof Error ? reason.message : "โหลดราคาไม่สำเร็จ กรุณากดลองใหม่"); })
+      .finally(() => { if (active) setPriceLoading(false); });
+    return () => { active = false; };
+  }, [panelActive, adminSection, request, actorUsername, sessionId, priceRevision]);
   const saveTrueMoneyPrice=async()=>{
     const price=Number(trueMoneyPrice);
     if(!Number.isSafeInteger(price)||price<1||price>1000000){setError("ราคาต้องเป็นจำนวนเต็มตั้งแต่ 1–1,000,000 Sparks");return;}
@@ -444,17 +465,18 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     try{
       const result=await request("set-truemoney-price",{price});
       setTrueMoneyPrice(String(result.price));
+      setLoadedTrueMoneyPrice(Number(result.price));
       setNotice("บันทึกราคา TrueMoney 20 THB เป็น "+Number(result.price).toLocaleString("en-US")+" Sparks / Item แล้ว");
       window.dispatchEvent(new Event("qa:truemoney-price-updated"));
     }catch(e){setError(e instanceof Error?e.message:"บันทึกราคาไม่สำเร็จ");}
     finally{setTrueMoneyPriceBusy(false);}
   };
-  return <div className="qa-sparks-admin" aria-label="Sparks Admin Management">
+  return <div className="qa-sparks-admin sa-workspace" aria-label="Sparks Admin Management">
     <div className="qa-sparks-admin-header">
-      <div><h2>Sparks Admin Management</h2><p>ดูยอดและประวัติคะแนนของผู้ใช้งาน พร้อมจัดการคะแนนโดยบันทึกเหตุผลทุกครั้ง</p></div>
-      <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button>
+      <div><h2>จัดการ QA Sparks</h2><p>คำขอรางวัล · คะแนนผู้ใช้งาน · ตั้งค่ารางวัล · ประวัติการจัดการ</p></div>
+      {adminSection === "points" || adminSection === "activity" ? <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button> : <span className={"sa-admin-status" + (adminReady ? " ready" : "")}>{adminReady ? "สิทธิ์ผู้ดูแลพร้อมใช้งาน" : loading ? "กำลังตรวจสิทธิ์ผู้ดูแล..." : "ตรวจสิทธิ์เมื่อทำรายการ"}</span>}
     </div>
-    {error ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
+    {error && (adminSection !== "requests" || needsReauth) ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
     {needsReauth ? <form className="qa-sparks-admin-reauth" onSubmit={(event) => { void submitReauth(event); }}>
       <div><strong>ยืนยันสิทธิ์ Sparks Admin</strong><p>กรอกรหัสผ่านที่ใช้ Login QA Dashboard ปัจจุบัน 1 ครั้ง เพื่อยืนยันสิทธิ์ผู้ดูแล</p></div>
       <label htmlFor="qa-sparks-admin-reauth-password">รหัสผ่าน QA</label>
@@ -465,28 +487,30 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       </div>
       {reauthError ? <p role="alert" className="qa-sparks-admin-reauth-error">{reauthError}</p> : null}
     </form> : null}
-    {!adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">{firestoreLimited
+    {adminSection !== "requests" && !adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">{firestoreLimited
       ? "โควตา Firestore อาจเต็มหรือระบบถูกจำกัดอัตราการเรียกข้อมูลชั่วคราว เพื่อป้องกันการเรียกข้อมูลซ้ำ ระบบหยุดโหลด Wallet และ History เพิ่มเติมแล้ว ตรวจยอดที่ Firebase Console → Firestore → Usage ก่อน แล้วค่อยกดรีเฟรชเมื่อระบบพร้อม"
       : "ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยันสิทธิ์ผู้ดูแลสำเร็จ รายชื่อด้านล่างมาจาก QA User Management แบบอ่านอย่างเดียว"}</div> : null}
     {notice ? <div role="status" className="qa-sparks-admin-success">{notice}</div> : null}
-    <section className="qa-sparks-admin-reauth" aria-label="ตั้งค่าราคารางวัล TrueMoney 20 THB">
-      <div><strong>ตั้งค่าราคา · TrueMoney 20 THB</strong><p>เปลี่ยนจำนวน Sparks ที่ใช้แลก Item ได้เอง ราคามีผลเฉพาะการแลกใหม่ ไม่เปลี่ยนย้อนหลัง</p></div>
-      <label htmlFor="qa-truemoney-admin-price">Sparks / Item</label>
-      <div className="qa-sparks-admin-reauth-controls">
-        <input id="qa-truemoney-admin-price" type="number" min="1" max="1000000" step="1"
-          value={trueMoneyPrice} onChange={e=>setTrueMoneyPrice(e.target.value)}
-          disabled={!adminReady||!trueMoneyPriceLoaded||trueMoneyPriceBusy}/>
-        <button type="button" onClick={()=>void saveTrueMoneyPrice()}
-          disabled={!adminReady||!trueMoneyPriceLoaded||trueMoneyPriceBusy}>
-          {trueMoneyPriceBusy?"กำลังบันทึก...":trueMoneyPriceLoaded?"บันทึกราคา":"กำลังตรวจสอบราคา..."}
-        </button>
-      </div>
+    <nav className="sa-workspace-tabs" aria-label="งานของผู้ดูแล">
+      {([["requests", "คำขอรางวัล"], ["points", "จัดการคะแนน"], ["settings", "ตั้งค่ารางวัล"], ["activity", "ประวัติการจัดการ"]] as const).map(([key, label]) => <button key={key} type="button" data-sparks-admin-section={key} aria-pressed={adminSection === key} onClick={() => { setAdminSection(key); setNotice(""); }}>{label}</button>)}
+    </nav>
+    <div hidden={adminSection !== "requests"}><SparksRewardRequests actorUsername={actorUsername} sessionId={sessionId} onReauth={requestReauth}/></div>
+    <section hidden={adminSection !== "settings"} aria-label="ตั้งค่าราคารางวัล TrueMoney 20 THB" className="sa-settings">
+      <div className="sa-section-head"><div><h3>ตั้งค่ารางวัล</h3><p>เปลี่ยนคะแนนที่ใช้แลก โดยระบุรางวัลให้ชัดเจน</p></div><button type="button" className="sa-secondary" disabled={priceLoading || trueMoneyPriceBusy} onClick={() => setPriceRevision(value => value + 1)}>รีเฟรชราคา</button></div>
+      <div className="sa-settings-grid"><section className="sa-box"><div className="sa-product-title"><span className="sa-brand sa-brand-truemoney-20" aria-hidden="true">T</span><div><h3>TrueMoney 20 บาท</h3><p>{trueMoneyPriceLoaded ? "ราคาที่บันทึก " + fmt(loadedTrueMoneyPrice ?? 0) + " Sparks / Item" : priceLoading ? "กำลังโหลดราคา..." : "ยังโหลดราคาไม่สำเร็จ"}</p></div></div>
+        <label className="sa-field" htmlFor="qa-truemoney-admin-price">Sparks ที่ใช้แลก 1 Item</label>
+        <div className="sa-price-controls"><input id="qa-truemoney-admin-price" type="number" min="1" max="1000000" step="1" value={trueMoneyPrice} onChange={event => setTrueMoneyPrice(event.target.value)} disabled={!adminReady || !trueMoneyPriceLoaded || trueMoneyPriceBusy}/>
+          <button type="button" className="sa-primary" onClick={() => void saveTrueMoneyPrice()} disabled={!adminReady || !trueMoneyPriceLoaded || trueMoneyPriceBusy}>{trueMoneyPriceBusy ? "กำลังบันทึก..." : "บันทึกราคา TrueMoney"}</button></div>
+        <p className="sa-muted">ราคาใหม่มีผลกับการแลกครั้งถัดไป Item ที่แลกไปแล้วใช้เงื่อนไขเดิม</p>
+        {!adminReady ? <p className="sa-muted">ต้องยืนยันสิทธิ์ผู้ดูแลก่อนบันทึกราคา</p> : null}
+        {priceError ? <p role="alert" className="sa-error">{priceError} · กดรีเฟรชราคาเพื่อลองอีกครั้ง</p> : null}
+      </section><section className="sa-box"><h3>เงื่อนไข TrueMoney ปัจจุบัน</h3><dl className="sa-details"><div><dt>มูลค่ารางวัล</dt><dd>20 บาท / Item</dd></div><div><dt>อายุ Item</dt><dd>30 วันจากวันที่แลก</dd></div><div><dt>ระยะเวลารับเงิน</dt><dd>14 วันทำการ<br/>ไม่รวมเสาร์–อาทิตย์</dd></div><div><dt>ข้อมูลรับเงิน</dt><dd>เบอร์ TrueMoney 10 หลัก</dd></div></dl></section></div>
     </section>
-    <TrueMoneyTracker actorUsername={actorUsername} sessionId={sessionId} adminReady={adminReady}/>
-    <SpecialRewardsAdmin actorUsername={actorUsername} sessionId={sessionId} adminReady={adminReady}/>
+    <div hidden={adminSection !== "points" && adminSection !== "activity"}>
+      <div className="sa-section-head"><div><h3>{adminSection === "activity" ? "ประวัติการจัดการรายผู้ใช้งาน" : "จัดการคะแนนรายผู้ใช้งาน"}</h3><p>{adminSection === "activity" ? "เลือกผู้ใช้งานเพื่อตรวจวันเวลา ผู้ดำเนินการ และเหตุผลจากประวัติที่บันทึกไว้" : "เลือกผู้ใช้งานเพื่อเพิ่ม หัก หรือเปิดดูประวัติ Sparks"}</p></div></div>
     <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">
-        <label htmlFor="qa-sparks-admin-search">ค้นหา User</label>
+        <label htmlFor="qa-sparks-admin-search">ค้นหาผู้ใช้งาน</label>
         <input id="qa-sparks-admin-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ชื่อ / Username / Role"/>
         <div className="qa-sparks-admin-list" role="list" aria-label="รายชื่อผู้ใช้งาน">
           {filteredUsers.map((user) => <button key={user.username} type="button" role="listitem" aria-current={chosen === user.username}
@@ -507,6 +531,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
           {!adminReady ? <p className="qa-sparks-admin-cached-indicator">{selected.balanceKnown
             ? "ยอดที่เคยโหลดไว้ ไม่ใช่ยอดเรียลไทม์" + (selected.balanceAsOf ? " · ข้อมูล ณ " + thaiDate(selected.balanceAsOf) : " · ไม่ทราบเวลาล่าสุด")
             : "ยังไม่มีข้อมูลแต้มในเครื่องของ User นี้ ต้องรอ Firestore กลับมาใช้งานจึงจะตรวจยอดจริงได้"}</p> : null}
+          <div hidden={adminSection === "activity"}>
           <div className="qa-sparks-admin-metrics">
             <div><span>คงเหลือ</span><strong>{detail ? fmt(detail.wallet.balance) : adminReady || selected.balanceKnown ? fmt(selected.balance) : "—"}</strong></div>
             <div><span>ได้รับสะสม</span><strong>{detail ? fmt(detail.wallet.earned) : adminReady || selected.balanceKnown ? fmt(selected.earned) : "—"}</strong></div>
@@ -514,13 +539,16 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
             <div><span>รายการแลก</span><strong>{detail ? fmt(detail.wallet.rewardOrders) : adminReady || selected.balanceKnown ? fmt(selected.rewardOrders) : "—"}</strong></div>
           </div>
           <div className="qa-sparks-admin-operations">
-            <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องแก้การเชื่อมต่อ Google Cloud ก่อน" : ""} onClick={() => startOperation("add")}>+ เพิ่ม Sparks</button>
-            <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องแก้การเชื่อมต่อ Google Cloud ก่อน" : ""} onClick={() => startOperation("deduct")}>− ปรับลด Sparks</button>
+            <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องยืนยันสิทธิ์ผู้ดูแลก่อนปรับคะแนน" : ""} onClick={() => startOperation("add")}>+ เพิ่ม Sparks</button>
+            <button type="button" disabled={!adminReady || detailLoading} title={!adminReady ? "ต้องยืนยันสิทธิ์ผู้ดูแลก่อนปรับคะแนน" : ""} onClick={() => startOperation("deduct")}>− ปรับลด Sparks</button>
             {canCorrectTest ? <button type="button" data-sparks-correction="chachiya" className="qa-sparks-admin-void-test"
               onClick={() => { setError(""); setVoidConfirm(true); }}>ยกเลิกรายการทดลอง +99,800 / −99,800</button> : null}
             {canCorrectTypingTest ? <button type="button" data-sparks-correction="suphitcha" className="qa-sparks-admin-void-test"
               onClick={() => { setError(""); setTypingTestConfirm(true); }}>ยกเลิกการทดสอบ Typing Relief / −150 Sparks</button> : null}
           </div>
+          <button type="button" className="sa-secondary" onClick={() => setAdminSection("activity")}>ประวัติคะแนนของผู้ใช้งานนี้</button>
+          </div>
+          <div hidden={adminSection !== "activity"}>
           <div className="qa-sparks-admin-history-heading">
             <h3>ประวัติคะแนนและการแลกรางวัล</h3>
             <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} aria-label="กรองประวัติคะแนน">
@@ -545,8 +573,10 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
             </article>)}
           </div>
           {detail?.truncated ? <p className="qa-sparks-admin-limit">แสดงประวัติส่วนล่าสุดที่ระบบดึงได้ อาจมีรายการเก่ากว่านี้</p> : null}
+          </div>
         </>}
       </section>
+    </div>
     </div>
     {typingTestConfirm && selected && canCorrectTypingTest ? <div className="qa-sparks-admin-overlay" role="presentation">
       <section className="qa-sparks-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="qa-sparks-typing-reset-title">

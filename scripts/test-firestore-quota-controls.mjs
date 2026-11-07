@@ -154,6 +154,8 @@ try {
   await act(async () => window.dispatchEvent(new Event("qa:sparks-updated")));await tick();
   assert.ok(document.querySelector('[data-sparks-metric="Current Sparks"] strong').textContent.includes("650"), "a successful mutation invalidates the wallet immediately");
   await click(document.querySelector("#qa-sparks-tab-admin"));
+  assert.equal(document.querySelector(".qa-sparks-metrics").hidden, true, "Admin hides personal wallet metrics");
+  await click(document.querySelector('[data-sparks-admin-section="points"]'));
   const beforeQuotaReads = fixture.reads.length + fixture.queries.length;
   quotaLimited = true;
   await click([...document.querySelectorAll("button")].find(button => button.textContent === "รีเฟรชข้อมูล"));
