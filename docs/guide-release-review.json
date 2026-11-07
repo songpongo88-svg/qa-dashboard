@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-07T05:49:54.443Z",
-  "reason": "Reviewed new branded Admin confirmation popups, TrueMoney action clickability independent of wallet-list loading, strict server authorization, payout and Netflix status handling, and user guide",
+  "reviewedAt": "2026-11-07T05:53:05.891Z",
+  "reason": "Reviewed complete QA Sparks regression suite with restored existing case protections and branded Admin payout confirmation tests",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -369,7 +369,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "53174f6d185a22a070e15da69af92789843e80fd954de4e07927b29d17e3a7fa",
     "scripts/test-qa-sparks-mini-inventory.mjs": "3a6be960d6344fb6c9b850d696fbb35ae89524f0156a7eb3dfda5d9e0192977f",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "1cfbc76422c5c18a041824654dd65afcc80c8c97d202ca6798152d85ef91e532",
+    "scripts/test-qa-sparks-ui.mjs": "fa8d86f8a749bc44ba5bcd2be99a41445d4cf45a47e052cb15e1c75f8952153b",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-reporting-history.mjs": "4f93d3ecf3b0a90b62b7d336a4f79ddd435e90f99efa04cfd5e9beaae5466cd0",
     "scripts/test-reward-product-details.mjs": "8df69cfc3cfbb160c9aed153faa1b6439dc778ec94e36b29a935bb4bd1f069cb",
