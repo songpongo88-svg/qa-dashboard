@@ -13,7 +13,7 @@ import QALottery from "./QALottery";
 import SpecialRewardCenter from "./SpecialRewardCenter";
 import LotteryTicketInventory from "./LotteryTicketInventory";
 import { sparksCalendarYear } from "./qaSparksMemberLevels";
-import MemberJourney from "./SparksMembership";
+import MemberJourney, { SparksWalletSummary } from "./SparksMembership";
 
 type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar" | "package";
@@ -109,7 +109,6 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     { key: "history", label: "History", icon: "clock" },
     ...(adminAccess ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
-  const balance = account.balance.toLocaleString();
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
@@ -142,19 +141,8 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
             ?<SnakesLaddersGame key={username+":"+adminSessionId+":snakes"} username={username} sessionId={adminSessionId}/>
             :<FruitMatchGame key={username+":"+adminSessionId+":fruit"} username={username} sessionId={adminSessionId}/>):null}
         </div> : null}
-        {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username}/> : null}
-      <section hidden={view === "admin"} className="qa-sparks-metrics qa-sparks-metrics--membership" aria-label="QA Sparks overview">
-        {([
-          ["Current Sparks", balance, "spark", "amber"],
-          ["Available to Redeem", balance, "gift", "violet"],
-          ["Reward Orders", String(account.rewardOrders), "receipt", "blue"],
-        ] as const).map(([label, value, icon, tone]) => (
-          <div className="qa-sparks-metric" data-sparks-metric={label} key={label}>
-            <span className={"qa-sparks-metric-icon qa-sparks-tone-" + tone}><SparksIcon name={icon} size={27}/></span>
-            <div><div className="qa-sparks-metric-label">{label}</div><strong>{value}</strong></div>
-          </div>
-        ))}
-      </section>
+        {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username} balance={account.balance} rewardOrders={account.rewardOrders}/> : null}
+        {view !== "overview" && view !== "admin" && walletLoaded ? <section className="qa-sparks-membership qa-sparks-wallet-strip" aria-label="ยอด Sparks ของคุณ"><SparksWalletSummary balance={account.balance} rewardOrders={account.rewardOrders} compact/></section> : null}
         {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
           <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>3 Quests</span></div>
           <div className="qa-sparks-mini-grid qa-sparks-quest-grid">

@@ -23,7 +23,7 @@ function MembershipSymbol({ level }: { level: number }) {
 
 function MemberCard({ tier, year, displayName }: { tier: MemberLevel; year: number; displayName: string }) {
   return <div className="qa-card-wrap">
-    <div className="qa-member-card" data-tier={tier.level} aria-label={`บัตรสมาชิก LV.${tier.level} ${tier.name} ของ ${displayName} ปี ${year}`}>
+    <div className="qa-member-card" data-tier={tier.level} data-card-finish="metal-foil" aria-label={`บัตรสมาชิก LV.${tier.level} ${tier.name} ของ ${displayName} ปี ${year}`}>
       <div className="qa-mcard-art" aria-hidden="true"><b className="qa-shape qa-art-a"/><b className="qa-shape qa-art-b"/><b className="qa-shape qa-art-c"/><b className="qa-shape qa-art-d"/></div>
       <div className="qa-mcard-emblem"><MembershipSymbol level={tier.level}/></div>
       <div className="qa-mcard-mast">
@@ -39,7 +39,18 @@ function MemberCard({ tier, year, displayName }: { tier: MemberLevel; year: numb
   </div>;
 }
 
-export default function MemberJourney({ earned, year, displayName }: { earned: number; year: number; displayName: string }) {
+export function SparksWalletSummary({ balance, rewardOrders, compact = false }: { balance: number; rewardOrders: number; compact?: boolean }) {
+  return <div className={"qa-member-wallet" + (compact ? " qa-member-wallet--compact" : "")} aria-label="ยอด Sparks และรายการแลกรางวัล">
+    <div className="qa-wallet-balance" data-sparks-metric="Current Sparks">
+      <p className="qa-wallet-label"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 2 2.7 6.7L22 12l-7.3 3.3L12 22l-2.7-6.7L2 12l7.3-3.3z"/></svg>Sparks พร้อมแลกรางวัล</p>
+      <p className="qa-wallet-total" data-sparks-metric="Available to Redeem"><strong>{number(balance)}</strong><span>Sparks</span></p>
+      {!compact ? <p className="qa-wallet-caption">ยอดคงเหลือปัจจุบันของคุณ</p> : null}
+    </div>
+    <div className="qa-wallet-orders" data-sparks-metric="Reward Orders"><p className="qa-wallet-label">รายการแลกรางวัล</p><p className="qa-order-total"><strong>{number(rewardOrders)}</strong><span>รายการ</span></p></div>
+  </div>;
+}
+
+export default function MemberJourney({ earned, year, displayName, balance, rewardOrders }: { earned: number; year: number; displayName: string; balance: number; rewardOrders: number }) {
   const member = getSparksMemberLevel(earned);
   const [guideOpen, setGuideOpen] = useState(false);
   const openButton = useRef<HTMLButtonElement>(null);
@@ -57,7 +68,7 @@ export default function MemberJourney({ earned, year, displayName }: { earned: n
     }
   }, [guideOpen]);
 
-  return <section className="qa-sparks-membership" aria-label="ระดับสมาชิก QA Sparks" onKeyDown={event => {
+  return <section className="qa-sparks-membership" data-member-tier={member.current.level} style={{ "--member-accent": member.current.color } as React.CSSProperties} aria-label="ระดับสมาชิก QA Sparks" onKeyDown={event => {
     if (event.key === "Escape" && guideOpen) { event.preventDefault(); event.stopPropagation(); setGuideOpen(false); }
   }}>
     {guideOpen ? <div className="qa-guide" id="qa-sparks-member-guide">
@@ -70,20 +81,20 @@ export default function MemberJourney({ earned, year, displayName }: { earned: n
       </div>
       <p className="qa-guide-note">การแลกของรางวัลไม่ทำให้ระดับลดลง · เริ่มนับคะแนนสะสมและระดับสมาชิกใหม่วันที่ 1 มกราคม</p>
       <div className="qa-gallery-bottom"><button type="button" className="qa-action" onClick={() => setGuideOpen(false)}>← กลับหน้าสมาชิก</button></div>
-    </div> : <>
-      <div className="qa-section-top"><div><h2>บัตรสมาชิกของคุณ</h2><p>ANNUAL MEMBERSHIP · {year}</p></div><button ref={openButton} type="button" className="qa-action" aria-expanded={false} onClick={() => setGuideOpen(true)}>ดูระดับสมาชิกทั้งหมด ↗</button></div>
-      <div className="qa-membership">
-        <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName}/></div>
-        <div className="qa-member-summary">
-          <p className="qa-annual-label">คะแนนสะสมประจำปี {year}</p><p className="qa-annual-total">{number(member.annualEarned)} <span>Sparks · สะสมไม่จำกัด</span></p>
-          <div className="qa-current-pill">LV.{member.current.level} · ระดับปัจจุบัน</div>
-          {member.next ? <p className="qa-next-copy">อีก <strong>{number(member.nextRequired)} Sparks</strong> ถึง<br/>LV.{member.next.level} {member.next.name}</p> : <p className="qa-next-copy"><strong>ถึงระดับสูงสุดแล้ว · Spark Immortal</strong><br/>ยังสะสม Sparks ต่อได้ไม่จำกัด</p>}
+    </div> : <div className="qa-membership" data-member-wallet="integrated">
+      <div className="qa-section-top"><div><p>ANNUAL MEMBERSHIP · {year}</p><h2>บัตรสมาชิกของคุณ</h2></div><button ref={openButton} type="button" className="qa-action" aria-expanded={false} onClick={() => setGuideOpen(true)}>ดูระดับสมาชิกทั้งหมด <span aria-hidden="true">↗</span></button></div>
+      <div className="qa-current-card"><MemberCard tier={member.current} year={year} displayName={displayName}/></div>
+      <div className="qa-member-summary">
+        <SparksWalletSummary balance={balance} rewardOrders={rewardOrders}/>
+        <div className="qa-member-progress">
+          <div className="qa-progress-heading"><div><p className="qa-annual-label">คะแนนสะสมประจำปี {year}</p><p className="qa-annual-total">{number(member.annualEarned)} <span>Sparks · สะสมไม่จำกัด</span></p></div><span className="qa-current-pill">LV.{member.current.level} · ระดับปัจจุบัน</span></div>
+          {member.next ? <p className="qa-next-copy">อีก <strong>{number(member.nextRequired)} Sparks</strong> ถึง <span>LV.{member.next.level} {member.next.name}</span></p> : <p className="qa-next-copy"><strong>ถึงระดับสูงสุดแล้ว · Spark Immortal</strong><br/>ยังสะสม Sparks ต่อได้ไม่จำกัด</p>}
           <div className="qa-track" role="progressbar" aria-label="ความคืบหน้าไปสู่ระดับสมาชิกถัดไป" aria-valuemin={member.current.min} aria-valuemax={member.next?.min || SPARKS_TOP_LEVEL_POINTS} aria-valuenow={Math.min(member.annualEarned, member.next?.min || SPARKS_TOP_LEVEL_POINTS)} aria-valuetext={member.next ? `${number(member.annualEarned)} Sparks อีก ${number(member.nextRequired)} Sparks ถึง LV.${member.next.level}` : `${number(member.annualEarned)} Sparks ถึงระดับสูงสุดแล้ว`}><div className="qa-track-fill" style={{ width: `${progress}%` }}/></div>
           <div className="qa-track-labels"><span>LV.{member.current.level} · {number(member.current.min)}</span>{member.next ? <span>LV.{member.next.level} · {number(member.next.min)}</span> : <span>ระดับสูงสุด</span>}</div>
-          <p className="qa-member-note">ระดับสมาชิกคำนวณจาก Sparks ที่ได้รับสะสมในปีนี้<br/>การแลกของรางวัลไม่ทำให้ระดับลดลง</p>
+          <p className="qa-member-note">ระดับสมาชิกอิงคะแนนที่ได้รับในปีนี้ การแลกรางวัลไม่ทำให้ระดับลดลง</p>
         </div>
       </div>
       <details className="qa-rules"><summary>เงื่อนไขคะแนนและระดับสมาชิก</summary><p>สะสม Sparks ได้ไม่จำกัด · LV.10 เริ่มที่ {number(SPARKS_TOP_LEVEL_POINTS)} คะแนนสะสมประจำปี · ยอด Sparks ที่ยังไม่ได้ใช้หมดอายุวันที่ 31 ธันวาคม เวลา 23:59 น. (เวลาไทย) · เริ่มนับคะแนนสะสมและระดับสมาชิกใหม่วันที่ 1 มกราคม</p></details>
-    </>}
+    </div>}
   </section>;
 }

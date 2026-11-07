@@ -154,7 +154,7 @@ try {
   await act(async () => window.dispatchEvent(new Event("qa:sparks-updated")));await tick();
   assert.ok(document.querySelector('[data-sparks-metric="Current Sparks"] strong').textContent.includes("650"), "a successful mutation invalidates the wallet immediately");
   await click(document.querySelector("#qa-sparks-tab-admin"));
-  assert.equal(document.querySelector(".qa-sparks-metrics").hidden, true, "Admin hides personal wallet metrics");
+  assert.equal(document.querySelector("[data-sparks-metric]"), null, "Admin does not render the personal membership wallet or compact balance strip");
   await click(document.querySelector('[data-sparks-admin-section="points"]'));
   const beforeQuotaReads = fixture.reads.length + fixture.queries.length;
   quotaLimited = true;
