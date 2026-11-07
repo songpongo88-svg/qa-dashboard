@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-07T15:42:00.000Z",
-  "reason": "Reviewed QA Sparks voice narration and accessibility, browser Thai speech fallback, dice timer ten seconds, adjusted snake setbacks, updated guide and the corresponding rule test. Gameplay and historical Sparks balances remain isolated.",
+  "reviewedAt": "2026-11-07T15:48:00.000Z",
+  "reason": "Rechecked the Thai narrated snakes game and 50-tile balance: tile 18 snake now lands on 12 instead of 9; adjusted the corresponding integration assertions. No changes to rewards, wallet transactions or previous QA results.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -380,7 +380,7 @@
     "scripts/test-schedule-export.mjs": "b7b5711aa892cb0728519eca86ef1f7888b472ad355434113afc90793f11ba30",
     "scripts/test-signature-appeal-hold.mjs": "0b79b07d2f79307bb09c1c3e205257ea5c4dbfc0cd8b0859a5804bc3274f9bd4",
     "scripts/test-snakes-ladders-ui.mjs": "babc5cd1cf0a7345ca443aca1a68e7c9e568d4e454b1b03fa7ea6b7ace9f8b66",
-    "scripts/test-snakes-ladders.mjs": "66d8fad9d05cfabd856acfe8aba90239a90f9a65ce4a516e2eab48280ef391e5",
+    "scripts/test-snakes-ladders.mjs": "2ce4f27c1a83eea19328972b346f50fff5200aa6e8829006a24077b9473d49ca",
     "scripts/test-sparks-admin-session.mjs": "4c1a5e17d67372ee74f970791d5c557e0edb14a11ee926f3d2006319a992c325",
     "scripts/test-sparks-admin-workspace.mjs": "b4520fa44d1308db26abbf3530d1086579366f89f4e618cc47b2b98a0f61c120",
     "scripts/test-special-reward-confirm-ui.mjs": "ac7015bb7738562383aa66efe6823825afc93aef484e30d75d07e2300fdc442e",
