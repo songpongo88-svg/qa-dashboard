@@ -89,10 +89,16 @@ assert.equal(started.room.status,"playing");
 assert.equal(started.room.members.length,3);
 await assert.rejects(()=>game.roll({roomId,requestId:"roll-nonce-outsider01"},outsider),/ไม่ได้รับเชิญ/);
 const rolled=await game.roll({roomId,requestId:"roll-nonce-alice0001"},alice);
-assert.ok(rolled.room.lastRoll>=1&&rolled.room.lastRoll<=6);
+assert.ok(rolled.room.lastRoll>=2&&rolled.room.lastRoll<=12);
+assert.equal(rolled.room.lastDice.length,2,"server generates exactly two dice");
+assert.ok(rolled.room.lastDice.every(d=>d>=1&&d<=6),"each die must be from one to six");
+assert.equal(rolled.room.lastRoll,rolled.room.lastDice[0]+rolled.room.lastDice[1]);
+assert.equal(rolled.turnEvent.dice1+rolled.turnEvent.dice2,rolled.turnEvent.dice);
+assert.equal(rolled.turnEvent.dice,rolled.room.lastRoll);
 const repeatedRoll=await game.roll({roomId,requestId:"roll-nonce-alice0001"},alice);
 assert.equal(repeatedRoll.alreadyApplied,true,"retry cannot roll a second time");
 assert.equal(repeatedRoll.room.lastRoll,rolled.room.lastRoll);
+assert.deepEqual(repeatedRoll.room.lastDice,rolled.room.lastDice,"retry preserves both original dice");
 const key="qa_sparks_snakes_rooms_v1/"+roomId;
 const room=clone(stored.get(key).value);
 room.status="finished";room.currentTurn="";room.winner="alice";room.finishedAt="2026-11-07T00:00:00Z";room.pendingTarget=null;
@@ -135,6 +141,9 @@ assert.equal(botStarted.room.status,"playing","one human plus Bot is enough to p
 const turn=await game.roll({roomId:botRoomId,requestId:"roll-bot-room-00001"},alice);
 assert.ok(turn.turnEvent.actor==="alice","player sees their own roll before Bot auto-turn");
 assert.ok(turn.botEvents.some(x=>x.actor===SNAKES_BOT_ID+"_1"),"Bot plays automatically inside same Firestore transaction");
+assert.ok(turn.botEvents.filter(x=>typeof x.dice==="number").every(x=>
+  x.dice1>=1&&x.dice1<=6&&x.dice2>=1&&x.dice2<=6&&x.dice===x.dice1+x.dice2),
+  "bots also throw two fair independent dice");
 assert.ok(turn.room.events.some(x=>x.actor===SNAKES_BOT_ID+"_1"),"Bot steps are visible in match history");
 assert.equal(turn.room.members.find(p=>p.isBot).joined,true);
 const again=await game.roll({roomId:botRoomId,requestId:"roll-bot-room-00001"},alice);
