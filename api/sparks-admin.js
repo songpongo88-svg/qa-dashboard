@@ -1345,6 +1345,8 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
     if (typeof body.action==="string"&&body.action.startsWith("snakes-")) {
+      // Release gate: private development only. Do not expose gameplay or payouts until owner publishes.
+      return res.status(503).json({error:"เกมบันไดงูยังไม่เปิดให้บริการ"});
       const actor=await authorizeRewardUser(body);
       const action={
         "snakes-state":()=>snakes.state(actor,body.includeHistory===true),
