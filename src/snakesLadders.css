@@ -191,3 +191,9 @@
 .sl-tile-players .sl-piece span{font-size:12px!important}
 .sl-tile-number{font-size:14px!important}
 @media(prefers-reduced-motion:reduce){.sl-tile--moving{animation:none}}
+
+.sl-roll-countdown{display:flex;align-items:center;gap:10px;justify-content:space-between;background:#38244f;border:2px solid #e3b85d;border-radius:14px;padding:10px 13px;margin-bottom:13px}
+.sl-roll-countdown span{font-size:15px;font-weight:850;color:#fff}
+.sl-roll-countdown strong{font-size:31px;color:#ffe181;font-weight:950;font-variant-numeric:tabular-nums}
+.sl-roll-countdown small{font-size:12px;color:#e5d7f4}
+@media(max-width:610px){.sl-roll-countdown{flex-wrap:wrap}.sl-roll-countdown small{width:100%}}
