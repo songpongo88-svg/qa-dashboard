@@ -10,6 +10,32 @@ const REWARDS:SpecialReward[]=[
  {id:"amazon-55",title:"เครื่องดื่ม Café Amazon",brand:"Café Amazon",price:8000,maxTHB:55,type:"receipt",monthlyLimit:1},
  {id:"seven-100",title:"ซื้อสินค้าที่ 7-Eleven",brand:"7-Eleven",price:20000,maxTHB:100,type:"receipt",monthlyLimit:1}
 ];
+const PRODUCT_COPY:Record<string,{headline:string;description:string;benefit:string;terms:string}>={
+ "punthai-65":{
+   headline:"เติมความสดชื่นกับพันธุ์ไทย",
+   description:"ให้ทุกวันมีเมนูแก้วโปรดมากขึ้น เปลี่ยน QA Sparks เป็นสิทธิ์รับเงินคืนสำหรับเครื่องดื่มจากพันธุ์ไทย",
+   benefit:"คืนเงินตามยอดซื้อจริง สูงสุด 65 บาท",
+   terms:"สำหรับเครื่องดื่มพันธุ์ไทย จำกัด 1 สิทธิ์ต่อเดือน"
+ },
+ "netflix-1m":{
+   headline:"สนุกกับความบันเทิงบน Netflix",
+   description:"เปลี่ยน Sparks ที่สะสมเป็นสิทธิ์รับชม Netflix นาน 1 เดือน สำหรับอีเมลที่เข้าเงื่อนไข",
+   benefit:"สิทธิ์ใช้งาน Netflix นาน 1 เดือน",
+   terms:"จำกัด 1 สิทธิ์ต่อเดือน เฉพาะอีเมลที่ไม่เคยถูกเรียกเก็บค่าสมาชิกมาก่อน"
+ },
+ "amazon-55":{
+   headline:"เติมพลังกับ Café Amazon",
+   description:"ใช้ Sparks แลกรับสิทธิ์คืนเงินสำหรับเครื่องดื่ม Café Amazon แก้วโปรด เลือกความสดชื่นในสไตล์ของคุณ",
+   benefit:"คืนเงินตามยอดซื้อจริง สูงสุด 55 บาท",
+   terms:"สำหรับเครื่องดื่ม Café Amazon จำกัด 1 สิทธิ์ต่อเดือน"
+ },
+ "seven-100":{
+   headline:"ช้อปของโปรดที่ 7-Eleven",
+   description:"เปลี่ยน Sparks เป็นสิทธิ์รับเงินคืนสำหรับการซื้อสินค้าที่ 7-Eleven จะของกินหรือของใช้ก็เลือกได้",
+   benefit:"คืนเงินตามยอดซื้อจริง สูงสุด 100 บาท",
+   terms:"สำหรับการซื้อสินค้าที่ 7-Eleven จำกัด 1 สิทธิ์ต่อเดือน"
+ }
+};
 const LOGOS:Record<string,string>={
  "punthai-65":"https://cdn-th.orstatic.com/userphoto/doorphoto/8/6KY/01AT4G1C7FE17C3D8DC3B9px.jpg",
  "netflix-1m":"https://cdn.jsdelivr.net/npm/simple-icons@14.15.0/icons/netflix.svg",
@@ -152,8 +178,8 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
  };
  const display=mode==="inventory"?items:[];
  return <>
-  {mode==="reward"?REWARDS.map(r=><button key={r.id} type="button"
-    className="qa-sparks-mini-item qa-sparks-mini-item--special" data-reward-item={r.id}
+  {mode==="reward"?REWARDS.slice().sort((a,b)=>b.price-a.price).map(r=><button key={r.id} type="button"
+    className="qa-sparks-mini-item qa-sparks-mini-item--special" data-reward-item={r.id} style={{order:-r.price}}
     onClick={e=>open(r.id,null,e)}>
     <span className="qa-sparks-mini-art qa-sparks-mini-art--special"><RewardImage id={r.id}/></span>
     <strong className="qa-sparks-mini-name">{r.title}</strong>
@@ -174,17 +200,43 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
      <button type="button" ref={closeRef} className="sr-close" disabled={busy} onClick={()=>{setSelectedReward(null);setSelectedItem(null);}}>×</button>
      <header className="sr-hero"><RewardImage id={reward.id}/><div>
       <small>QA SPARKS · REWARD CENTER</small><h2 id="sr-title">{reward.title}</h2>
-      <p>{reward.type==="email"?"รับสิทธิ์ Netflix 1 เดือน":'คืนเงินตามใบเสร็จไม่เกิน '+reward.maxTHB+' บาท'}</p>
+      <p>{mode==="reward"?PRODUCT_COPY[reward.id].headline:reward.type==="email"?"สิทธิ์ใช้งาน Netflix 1 เดือน":"สิทธิ์คืนเงินสูงสุด "+reward.maxTHB+" บาท"}</p>
      </div></header>
      <div className="sr-body">
-      <div className="sr-facts"><span><small>ราคา</small><strong>{fmt(reward.price)} Sparks</strong></span>
-       <span><small>จำกัดการแลก</small><strong>1 ครั้ง/เดือน</strong></span>
-       <span><small>อายุ Item</small><strong>30 วันหลังแลก</strong></span></div>
-      <h3>วิธีใช้งาน</h3>
-      {reward.type==="receipt"?
-        <p>แลก Item → กดใช้ Item ก่อนหมดอายุ → ซื้อสินค้าและรับใบเสร็จที่ออกตั้งแต่เวลากดใช้ Item → กรอกเลขใบเสร็จ แนบภาพ และเบอร์พร้อมเพย์ → Admin ตรวจสอบและดำเนินการคืนเงินตามยอดจริง สูงสุด {reward.maxTHB} บาท</p>
-       :<p>แลก Item → กดใช้ภายใน 30 วัน → กรอกอีเมลที่ไม่เคยถูกเรียกเก็บค่าสมาชิก Netflix มาก่อน → Admin ตรวจสอบและจัดส่งสิทธิ์ใช้บริการ 1 เดือน</p>}
-      <p className="sr-hint">แต่ละ Item มีวันหมดอายุแยกกัน เงินหรือสิทธิ์ไม่ได้ส่งให้อัตโนมัติเมื่อแลก</p>
+      {mode==="reward"?<div className="sr-product-detail" data-sr-reward-description="product">
+        <div className="sr-product-promo">
+          <span className="sr-product-label">QA SPARKS EXCLUSIVE REWARD</span>
+          <h3>{PRODUCT_COPY[reward.id].headline}</h3>
+          <p>{PRODUCT_COPY[reward.id].description}</p>
+        </div>
+        <div className="sr-facts sr-product-facts">
+          <span><small>ใช้คะแนนแลก</small><strong>{fmt(reward.price)} <em>Sparks</em></strong></span>
+          <span><small>มูลค่าสิทธิพิเศษ</small><strong>{reward.type==="email"?"1 เดือน":"฿"+fmt(reward.maxTHB)}</strong></span>
+          <span><small>สิทธิ์แลกต่อเดือน</small><strong>1 <em>สิทธิ์</em></strong></span>
+        </div>
+        <div className="sr-product-overview">
+          <h3>รายละเอียดรางวัล</h3>
+          <p>{PRODUCT_COPY[reward.id].benefit}</p>
+          <p>{PRODUCT_COPY[reward.id].terms}</p>
+        </div>
+        <div className="sr-product-conditions">
+          <span><b>อายุ Item</b> 30 วันนับจากวันที่กดแลก</span>
+          <span><b>การรับสิทธิ์</b> เข้า My Items หลังแลกสำเร็จ</span>
+        </div>
+      </div>:<section className="sr-item-guide" aria-label="วิธีใช้งาน Item">
+        <h3>วิธีใช้งาน Item</h3>
+        {reward.type==="receipt"?<ol>
+          <li>กดใช้ Item ก่อนวันหมดอายุ</li>
+          <li>ซื้อสินค้าของร้านที่เลือกหลังจากกดใช้ Item แล้ว และเก็บใบเสร็จ</li>
+          <li>กรอกเลขที่ใบเสร็จ วันที่ซื้อ ยอดชำระ และเบอร์พร้อมเพย์ พร้อมแนบภาพใบเสร็จ</li>
+          <li>ส่งคำขอให้ Admin ตรวจสอบและดำเนินการคืนเงินตามยอดซื้อจริง สูงสุด {reward.maxTHB} บาท</li>
+        </ol>:<ol>
+          <li>กดใช้ Item ภายใน 30 วันนับจากวันที่แลก</li>
+          <li>กรอกอีเมลที่จะใช้ดู Netflix ซึ่งต้องไม่เคยถูกเรียกเก็บค่าสมาชิกมาก่อน</li>
+          <li>ส่งคำขอให้ Admin ตรวจสอบและจัดส่งสิทธิ์ใช้งาน 1 เดือน</li>
+        </ol>}
+        <p className="sr-hint">{reward.type==="receipt"?"ใบเสร็จต้องมีวันและเวลาตั้งแต่กดใช้ Item เป็นต้นไป และห้ามใช้เลขที่ใบเสร็จซ้ำ":"การตรวจสอบคุณสมบัติอีเมลและการจัดส่งสิทธิ์ดำเนินการโดย Admin"}</p>
+      </section>}
       {item?<div className="sr-item-status"><strong>{statusText(item)}</strong><span>แลกเมื่อ {date(item.redeemedAt)}</span>
        <span>หมดอายุ {date(item.expiresAt)}</span>{item.activatedAt?<span>กดใช้เมื่อ {date(item.activatedAt)}</span>:null}</div>:null}
       {notice?<p className="sr-success" role="status">{notice}</p>:null}
