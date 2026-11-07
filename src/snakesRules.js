@@ -5,9 +5,9 @@ export const SNAKES_RULES=Object.freeze({
   squares:50,maxPlayers:5,minPlayers:2,rewardMinimum:1,rewardMaximum:300,
   rewardSquares:[3,7,12,16,21,26,32,36,41,47],
   ladders:{5:15,15:27,24:39,39:46},
-  snakes:{18:9,28:13,35:20,44:29},
+  snakes:{18:12,28:22,35:29,44:39},
   traps:{9:"lose-percent",14:"lose-fixed",17:"skip",19:"skip",22:"back-five",
-    29:"steal",31:"shield",33:"skip",37:"reset-other",43:"swap",45:"restart"},
+    29:"steal",31:"shield",33:"shield",37:"shield",43:"shield",45:"shield"},
 });
 export function resolveSnakeSquare(tile){
   if(tile===50)return {type:"finish",description:"ถึงเส้นชัย!"};
