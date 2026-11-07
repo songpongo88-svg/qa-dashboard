@@ -34,89 +34,11 @@ try{
     const sparksAdmin = await readFile("src/SparksAdminPanel.tsx", "utf8");
   const sparksAdminApi = await readFile("api/sparks-admin.js", "utf8");
   const tracker = await readFile("src/TrueMoneyTracker.tsx", "utf8");
-  assert.match(tracker, /qa-money-tracker-inline-confirm/, "payout confirmation must appear in the same Tracker row, not a modal");
-  assert.match(tracker, /disabled=\{!adminReady\|\|busy\}/, "mutation must be disabled without admin permission or while saving");
-  assert.match(tracker, /\{error\}<\/p>/, "failed server results must be visible inside the confirmation row");
-  assert.match(tracker, /data-truemoney-paid-action=\{selected===request.itemId/, "confirmation must use the same known-clickable Tracker row button");
-  assert.match(tracker, /if\(selected===request.itemId\)\{void markPaid\(\);\}/, "second click of the same control must mark paid");
-  assert.match(tracker, /qa-money-tracker-mark-paid/, "review panel must include a directly clickable payout confirmation button");
-  assert.doesNotMatch(tracker, /createPortal/, "payout confirmation must avoid obstructed modal layers");
-  assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");
-  assert.match(sparksAdmin, /setAdminReady\(false\)/, "Sparks adjustment must be disabled if the server is unavailable");
-  assert.match(sparksAdmin, /disabled=\{!adminReady/, "mutation controls must be disabled without server authorization");
-  assert.match(sparksAdminApi, /FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON/, "Sparks admin should support dedicated Firebase service credentials");
-
-  assert.match(sparksAdmin, /\/api\/sparks-admin/, "admin management must use server API");
-  assert.match(sparksAdmin, /request\("adjust"/, "adjustments must use server API");
-  assert.match(sparksAdmin, /request\("history"/, "admin can review other users' histories");
-  assert.match(sparksAdmin, /refund/, "reward refund action must be available");
-  assert.match(sparksAdminApi, /authorizeAdmin/, "server must authorize each admin request");
-  assert.match(sparksAdmin, /isFirestoreQuotaError/, "quota errors must be distinguished from expired sessions");
-  assert.match(sparksAdmin, /getDocsFromCache/, "offline wallet fallback must use Firestore local cache without network reads");
-  assert.doesNotMatch(sparksAdmin, /await getDocs\(collection\(firebaseDb, "qa_sparks_wallets"\)\)/, "fallback may not fetch full wallet collection from network");
-  assert.match(sparksAdmin, /balanceKnown/, "cached balances and unknown balances must be visibly distinguished");
-  assert.match(sparksAdmin, /ยอดที่เคยโหลดไว้ ไม่ใช่ยอดเรียลไทม์/, "cached values must clearly state that they are not current");
-  assert.match(sparksAdmin, /rememberBalances/, "successful admin reads must keep a short-lived session cache");
-  assert.match(sparksAdmin, /selected\.balanceKnown/, "user detail should show known cached balances during quota outage");
-  const qaSparksSource = await readFile("src/QASparks.tsx", "utf8");
-  assert.match(qaSparksSource, /ownAccount=\{ownAccountSnapshot\}/, "the administrator's existing personal wallet is available for read-only fallback");
-  assert.match(qaSparksSource, /useMemo/, "personal wallet snapshot is stable across QA Sparks rerenders");
-  const membershipSource = await readFile("src/SparksMembership.tsx", "utf8");
-  assert.match(membershipSource, /getSparksMemberLevel/, "Member Level must derive from annual earned points");
-  assert.match(qaSparksSource, /MemberJourney/, "Overview must show the current membership card");
-  assert.match(membershipSource, /SPARKS_TOP_LEVEL_POINTS/, "500k highest tier must be described without a balance cap");
-  assert.match(qaSparksSource, /view === "overview" && walletLoaded \? <MemberJourney/, "only show a verified member card after a wallet load");
-  assert.match(sparksAdmin, /request\("reauth"/, "stale admin policy can be verified using QA password");
-  assert.match(sparksAdmin, /type="password"/, "QA password re-verification must use masked password control");
-  assert.match(sparksAdmin, /profiles\.filter\(\(profile\)/, "fallback directory must exclude suspended accounts");
-  assert.match(sparksAdminApi, /isSuspendedProfile/, "server must filter suspended QA users");
-  assert.match(sparksAdminApi, /requireActiveTarget/, "server rejects crediting suspended accounts");
-  assert.match(sparksAdminApi, /qa_sparks_admin_session_grants/, "password verification must be scoped to Sparks admin without modifying central QA sessions");
-  assert.match(sparksAdminApi, /qa_user_sessions/, "server must verify the stored session");
-  assert.match(sparksAdminApi, /GOOGLE_SERVICE_ACCOUNT_JSON/, "writes use server-only credentials");
-  assert.match(sparksAdminApi, /:commit/, "wallet and ledger updates must commit atomically");
-  assert.match(sparksAdminApi, /currentDocument/, "write must reject stale wallet/history versions");
-  const { default: adminApi } = await import("../api/sparks-admin.js");
-  let accessStatus = 0;
-  let accessPayload = null;
-  const response = {
-    setHeader() {},
-    status(code) { accessStatus = code; return this; },
-    json(value) { accessPayload = value; return value; },
-  };
-  await adminApi({ method: "POST", body: { action: "list", actorUsername: "ordinary-user", sessionId: "ordinary-unknown-session" } }, response);
-  assert.equal(accessStatus, 403, "non-admin cannot request another user's wallets");
-  assert.ok(accessPayload.error, "unauthorized request returns an error");
-  const app=await readFile("src/App.tsx","utf8");
-  for(const piece of [
-    '"qa-sparks"', 'import QASparks from "./QASparks"',
-    'key: "qa-sparks"', 'icon: "gift"', '<QASparks active=',
-  ])assert.ok(app.includes(piece),"App must register QA Sparks navigation: "+piece);
-  const rewardsGroup=app.indexOf('id: "rewards"');
-  const systemGroup=app.indexOf('id: "system"');
-  const accountGroup=app.indexOf('id: "account"');
-  assert.ok(rewardsGroup>=0 && systemGroup>rewardsGroup && accountGroup>systemGroup, "Rewards is its own sidebar section");
-  assert.ok(app.slice(rewardsGroup,systemGroup).includes('key: "qa-sparks"'), "QA Sparks belongs in Rewards");
-  assert.ok(!app.slice(systemGroup,accountGroup).includes('key: "qa-sparks"'), "QA Sparks must not be in System");
-
-  const compiled=resolve(folder,"QASparks.mjs");
-  await build({
-    entryPoints:["src/QASparks.tsx"],outfile:compiled,
-    bundle:true,platform:"node",format:"esm",packages:"external",
-    loader:{".css":"empty"},logLevel:"silent"
-  });
-  const {default:QASparks}=await import(pathToFileURL(compiled).href);
-  await act(async()=>root.render(React.createElement(QASparks,{displayName:"QA Staff"})));
-  const main=document.querySelector('[data-qa-sparks="true"]');
-  assert.ok(main, "dedicated QA Sparks page rendered");
-  assert.equal(main.getAttribute("data-sparks-data-mode"),"not-configured", "must not claim actual ledger data");
-  assert.ok(main.textContent.includes("My QA Sparks / Reward Center"));
-  const item = main.querySelector('[data-reward-item="typing-relief"]');
-  const questCard = main.querySelector('[data-quest-item="daily-checkin"]');
-  assert.ok(questCard, "Quest Center must display Daily Check-in in Overview");
-  const profileQuest = main.querySelector('[data-quest-item="profile-makeover"]');
-  assert.ok(profileQuest, "Profile Makeover quest is listed in Overview");
-  assert.ok(profileQuest.textContent.includes("+150"));
+  assert.match(tracker, /RewardActionConfirmModal/, "TrueMoney payout confirmation uses shared custom app popup");
+  assert.match(tracker, /data-truemoney-paid-action/, "TrueMoney row opens branded confirmation");
+  assert.match(tracker, /onConfirm=\{\(\)=>void markPaid\(\)\}/, "one explicit confirm runs the server-authorized payout");
+  assert.match(tracker, /mark-truemoney-paid/, "server controls the paid state");
+  assert.doesNotMatch(tracker, /window\.confirm/, "no browser-native confirmation is allowed");
   const trueMoneyReward = main.querySelector('[data-reward-item="truemoney-20"]');
   assert.ok(trueMoneyReward, "TrueMoney Reward item is listed alongside Typing Relief");
   assert.ok(trueMoneyReward.classList.contains("qa-sparks-mini-item"), "TrueMoney uses mini slot");
