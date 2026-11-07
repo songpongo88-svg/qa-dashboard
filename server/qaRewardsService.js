@@ -57,15 +57,29 @@ const brandPattern=id=>({
  "amazon-55":/AMAZON|อเมซอน|อเมซ่อน|CAF[EÉ]/i,
  "seven-100":/7-ELEVEN|7 ELEVEN|เซเว่น|7-11|CPALL/i
 })[id];
-function reviewOCR(ocr,reward,receiptNo,amount){
- if(ocr.status!=="scanned")return {status:"manual",reason:"ระบบไม่สามารถอ่านใบเสร็จได้ครบ กรุณาให้ Admin ตรวจสอบ"};
- const plain=ocr.text.toUpperCase().replace(/[\s\-_]/g,"");
- const lacksNumber=!plain.includes(normalizeReceipt(receiptNo));
- const lacksBrand=!brandPattern(reward.id).test(ocr.text);
- // OCR can be imperfect. Flag ambiguity rather than falsely claiming validity.
- const status=lacksNumber||lacksBrand?"manual":"matched";
- return {status,reason:status==="matched"?"ตรวจพบร้านค้าและเลขที่ใบเสร็จจากภาพ":
-  [lacksBrand?"ชื่อร้านค้าที่อ่านได้ไม่ชัด":"",lacksNumber?"เลขที่ใบเสร็จในภาพต้องให้ Admin ตรวจซ้ำ":""].filter(Boolean).join(" · ")};
+function reviewOCR(ocr,reward,receiptNo,amount,receiptAt){
+ if(ocr.status!=="scanned")return {status:"manual",reason:"OCR ไม่พร้อมหรืออ่านใบเสร็จไม่ครบ ต้องให้ Admin ตรวจสอบ"};
+ const text=ocr.text;
+ const plain=text.toUpperCase().replace(/[\\s\\-_]/g,"");
+ const merchant=brandPattern(reward.id).test(text);
+ const receipt=plain.includes(normalizeReceipt(receiptNo));
+ const amountString=Number(amount).toFixed(2);
+ const amountReg=new RegExp("(^|[^0-9])"+String(Number(amount)).replace(".","\\.")+"(?:\\.00)?([^0-9]|$)");
+ const money=text.includes(amountString)||amountReg.test(text);
+ const ts=new Date(receiptAt);
+ const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",day:"2-digit",month:"2-digit",year:"numeric"}).formatToParts(ts);
+ const get=k=>parts.find(x=>x.type===k)?.value||"";
+ const day=get("day"),month=get("month"),year=get("year");
+ const thaiYear=String(Number(year)+543),thaiShort=thaiYear.slice(-2),short=year.slice(-2);
+ const normalized=text.replace(/[.\\-]/g,"/").replace(/\\s+/g," ");
+ const forms=[day+"/"+month+"/"+year,day+"/"+month+"/"+thaiYear,
+   day+"/"+month+"/"+short,day+"/"+month+"/"+thaiShort,
+   year+"/"+month+"/"+day,thaiYear+"/"+month+"/"+day];
+ const date= forms.some(x=>normalized.includes(x));
+ const missing=[!merchant?"อ่านชื่อร้านค้าไม่ชัด":null,!receipt?"เลขที่ใบเสร็จในภาพไม่ตรง/อ่านไม่ชัด":null,
+   !money?"ยอดชำระไม่ชัด":null,!date?"วันที่ใบเสร็จไม่ชัด":null].filter(Boolean);
+ return {status:missing.length?"manual":"matched",
+   reason:missing.length?"ต้องให้ Admin ตรวจสอบ: "+missing.join(" · "):"OCR ตรวจพบร้านค้า เลขใบเสร็จ วันที่ และยอดเงินตรงกับข้อมูลที่กรอก"};
 }
 
 export function createQaRewardsService(db){
@@ -164,7 +178,7 @@ export function createQaRewardsService(db){
        err("วันและเวลาใบเสร็จต้องอยู่หลังเวลากดใช้ Item และไม่เกินเวลาปัจจุบัน",400);
      image=decodedImage(body.imageData);
      const ocr=await maybeOcr(image,getAccessToken);
-     const verify=reviewOCR(ocr,reward,no,amount);
+     const verify=reviewOCR(ocr,reward,no,amount,new Date(millis).toISOString());
      details={receiptNumber:no,receiptAt:new Date(millis).toISOString(),amountTHB:amount,
        payoutTHB:Math.round(Math.min(amount,reward.maxTHB)*100)/100,
        promptPay:phone,ocrStatus:verify.status,ocrNote:verify.reason,imageHash:image.imageHash};
