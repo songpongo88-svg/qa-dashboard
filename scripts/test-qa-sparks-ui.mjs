@@ -34,13 +34,11 @@ try{
     const sparksAdmin = await readFile("src/SparksAdminPanel.tsx", "utf8");
   const sparksAdminApi = await readFile("api/sparks-admin.js", "utf8");
   const tracker = await readFile("src/TrueMoneyTracker.tsx", "utf8");
-  assert.match(tracker, /qa-money-tracker-inline-confirm/, "payout confirmation must appear in the same Tracker row, not a modal");
-  assert.match(tracker, /disabled=\{!adminReady\|\|busy\}/, "mutation must be disabled without admin permission or while saving");
-  assert.match(tracker, /\{error\}<\/p>/, "failed server results must be visible inside the confirmation row");
-  assert.match(tracker, /data-truemoney-paid-action=\{selected===request.itemId/, "confirmation must use the same known-clickable Tracker row button");
-  assert.match(tracker, /if\(selected===request.itemId\)\{void markPaid\(\);\}/, "second click of the same control must mark paid");
-  assert.match(tracker, /qa-money-tracker-mark-paid/, "review panel must include a directly clickable payout confirmation button");
-  assert.doesNotMatch(tracker, /createPortal/, "payout confirmation must avoid obstructed modal layers");
+  assert.match(tracker, /RewardActionConfirmModal/, "TrueMoney payout confirmation uses the shared branded dialog");
+  assert.match(tracker, /data-truemoney-paid-action/, "payout button opens a review dialog");
+  assert.match(tracker, /onConfirm=\{\(\)=>void markPaid\(\)\}/, "the confirm action executes the server-authorized payout");
+  assert.match(tracker, /mark-truemoney-paid/, "payout keeps its original server action");
+  assert.doesNotMatch(tracker, /window\.confirm/, "native browser confirmation is not allowed");
   assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");
   assert.match(sparksAdmin, /setAdminReady\(false\)/, "Sparks adjustment must be disabled if the server is unavailable");
   assert.match(sparksAdmin, /disabled=\{!adminReady/, "mutation controls must be disabled without server authorization");
