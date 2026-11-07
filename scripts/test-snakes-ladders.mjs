@@ -73,7 +73,7 @@ const repeated=await game.create({requestId:"create-unique-00001"},alice);
 assert.equal(repeated.room.id,roomId);
 assert.equal(repeated.alreadyApplied,true);
 await assert.rejects(()=>game.claim({roomId},alice),/ต้องรอให้เกมจบ/);
-await assert.rejects(()=>game.state(outsider).then(s=>{assert.equal(s.rooms.length,0);}),/FAIL-SHOULD-NEVER/).catch(e=>{if(e.message==="FAIL-SHOULD-NEVER")throw e;});
+assert.equal((await game.state(outsider)).rooms.length,0,"outsider must not discover private rooms");
 await assert.rejects(()=>game.invite({roomId,targetUsername:"alice"},alice),/กรุณาระบุ/);
 await game.invite({roomId,targetUsername:"bob"},alice);
 await game.invite({roomId,targetUsername:"charlie"},alice);
