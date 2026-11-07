@@ -8,6 +8,8 @@ import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
 import TrueMoneyReward from "./TrueMoneyReward";
 import FruitMatchGame from "./FruitMatchGame";
 import QALottery from "./QALottery";
+import SpecialRewardCenter from "./SpecialRewardCenter";
+import LotteryTicketInventory from "./LotteryTicketInventory";
 import { SPARKS_TOP_LEVEL_POINTS, SPARKS_MEMBER_LEVELS, getSparksMemberLevel, sparksCalendarYear } from "./qaSparksMemberLevels";
 
 type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
@@ -209,13 +211,15 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
         </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
-          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
+          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/><SpecialRewardCenter mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
-        </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
+        </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/><SpecialRewardCenter mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
         : view === "items" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="package"/> My Items</h2>
           <div className="qa-sparks-mini-grid qa-sparks-inventory-grid">
             {walletLoaded && account.typingReliefOwned > 0 ? <TypingReliefRewardCard mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/> : null}
-            <TrueMoneyReward mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded} hasOtherItems={walletLoaded && account.typingReliefOwned > 0}/>
+            <TrueMoneyReward mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded} hasOtherItems={true}/>
+            <SpecialRewardCenter mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded} hasOtherItems={true}/>
+            <LotteryTicketInventory username={username} sessionId={adminSessionId} loaded={walletLoaded}/>
           </div>
         </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>

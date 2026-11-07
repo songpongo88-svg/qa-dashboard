@@ -1,6 +1,7 @@
 import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createFruitMatchService } from "../server/fruitMatchService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
+import { createQaRewardsService } from "../server/qaRewardsService.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -155,7 +156,7 @@ async function getAccessToken() {
   const header = base64url({ alg: "RS256", typ: "JWT" });
   const payload = base64url({
     iss: account.client_email,
-    scope: "https://www.googleapis.com/auth/datastore",
+    scope: "https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/cloud-platform",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600,
@@ -1286,6 +1287,9 @@ const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const qaLottery = createQaLotteryService({firestoreRequest,readDoc,listCollection,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
+const qaSpecialRewards=createQaRewardsService({firestoreRequest,readDoc,listCollection,recordValue,path,
+  updateWrite,createWrite,walletDocumentPath,currentMemberYear,annualEarnedFromWallet,
+  spendableBalance,getAccessToken});
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -1311,10 +1315,23 @@ export default async function handler(req, res) {
         : await listMemberTrueMoney(actor);
       return res.status(200).json(result);
     }
-    if (["qa-lottery-state","qa-lottery-buy"].includes(body.action)) {
+    if (["qa-lottery-state","qa-lottery-buy","qa-lottery-my-tickets"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
-      const result=body.action==="qa-lottery-state"?await qaLottery.state(actor):await qaLottery.purchase(body,actor);
+      const result=body.action==="qa-lottery-state"?await qaLottery.state(actor)
+        :body.action==="qa-lottery-my-tickets"?await qaLottery.listTickets(actor)
+        :await qaLottery.purchase(body,actor);
       return res.status(200).json(result);
+    }
+    if (["special-rewards-mine","special-rewards-redeem","special-rewards-activate",
+      "special-rewards-receipt-check","special-rewards-submit"].includes(body.action)) {
+      const actor=await authorizeRewardUser(body);
+      const action=body.action;
+      const data=action==="special-rewards-mine"?await qaSpecialRewards.mine(actor)
+        :action==="special-rewards-redeem"?await qaSpecialRewards.redeem(body,actor)
+        :action==="special-rewards-activate"?await qaSpecialRewards.activate(body,actor)
+        :action==="special-rewards-receipt-check"?await qaSpecialRewards.receiptCheck(body,actor)
+        :await qaSpecialRewards.submit(body,actor);
+      return res.status(200).json(data);
     }
     if (["fruit-match-data","fruit-match-start","fruit-match-finish"].includes(body.action)) {
       const actor = await authorizeRewardUser(body);
@@ -1344,6 +1361,12 @@ export default async function handler(req, res) {
     }
     if (body.action === "list-truemoney-tracker") {
       return res.status(200).json(await listTrueMoneyTracker());
+    }
+    if (["special-rewards-admin-list","special-rewards-admin-receipt","special-rewards-admin-action"].includes(body.action)) {
+      const data=body.action==="special-rewards-admin-list"?await qaSpecialRewards.adminList()
+        :body.action==="special-rewards-admin-receipt"?await qaSpecialRewards.adminReceipt(body)
+        :await qaSpecialRewards.adminAction(body,admin);
+      return res.status(200).json(data);
     }
     if (body.action === "mark-truemoney-paid") {
       return res.status(200).json(await markTrueMoneyPaid(body,admin));

@@ -1,0 +1,62 @@
+/* QA Sparks original-brand reward cards, secure use flow, and Admin status tracker. */
+.qa-sparks-mini-art--special{background:radial-gradient(circle at 47% 22%,#fff7f3,#f1d9ff 80%)}
+.sr-logo{display:grid;place-items:center;width:100%;height:100%;overflow:hidden;border-radius:inherit;background:#fff}
+.sr-logo img{object-fit:contain;width:100%;height:100%;display:block}
+.sr-logo--netflix-1m{background:#111}
+.sr-logo--netflix-1m img{width:67%;height:67%;filter:invert(16%) sepia(100%) saturate(7006%) hue-rotate(348deg) brightness(101%)}
+.sr-logo>span{font-size:11px;font-weight:800;color:#703e79;text-align:center;padding:4px}
+.sr-backdrop,.sr-backdrop *{box-sizing:border-box;font-family:Kanit,sans-serif}
+.sr-backdrop{position:fixed;inset:0;z-index:2147482800;display:flex;align-items:center;justify-content:center;padding:14px;background:#24172fc9;backdrop-filter:blur(6px)}
+.sr-modal{position:relative;max-height:94dvh;overflow:hidden;width:min(670px,100%);display:flex;flex-direction:column;border:1px solid #ead6ed;background:#fffdfc;color:#513755;border-radius:20px;box-shadow:0 25px 95px #21122b80}
+.sr-close{position:absolute;z-index:5;right:12px;top:12px;width:35px;height:35px;display:grid;place-items:center;border:1px solid #e7d2e7;border-radius:50%;background:#fff;color:#734f7d;font-size:25px;cursor:pointer}
+.sr-hero{display:flex;align-items:center;gap:18px;padding:21px 60px 21px 22px;background:linear-gradient(120deg,#f1d9ff,#fffaee);border-bottom:1px solid #efdeee;min-height:155px}
+.sr-hero>.sr-logo{height:112px;width:112px;flex:0 0 112px;border-radius:17px;box-shadow:0 5px 16px #542a6724}
+.sr-hero small{font-size:10px;font-weight:800;letter-spacing:.07em;color:var(--sparks-accent,#9550b5)}
+.sr-hero h2{margin:7px 0 5px;font-size:26px;line-height:1.25;color:var(--sparks-dark,#5b2a6b)}
+.sr-hero p{font-size:12px;color:#876885;margin:0}
+.sr-body{overflow-y:auto;min-height:0;overscroll-behavior:contain;padding:18px 23px 24px}
+.sr-body h3{font-size:16px;margin:19px 0 8px;color:#573562}
+.sr-body p{font-size:12px;line-height:1.7;color:#77627c}
+.sr-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.sr-facts>span{border:1px solid #eadbea;border-radius:11px;background:#fbf7fc;padding:12px 8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.sr-facts small{font-size:10px;color:#957e9b}
+.sr-facts strong{font-size:14px;color:#63406f}
+.sr-hint{color:#87738c!important;font-size:11px!important}
+.sr-item-status{display:grid;gap:5px;margin:14px 0;padding:12px 14px;border:1px solid #ecdbe9;background:#fcf6fc;border-radius:11px;font-size:12px}
+.sr-item-status strong{font-size:14px;color:#63386e}
+.sr-item-status span{font-size:11px;color:#856e8a}
+.sr-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid #efe3ee;padding-top:14px;margin-top:15px}
+.sr-actions span{margin-right:auto;font-size:12px;color:#785c80}
+.sr-actions p{flex-basis:100%;margin:0}
+.sr-actions button:not(.sr-primary),.sr-check{border:1px solid #dccce3;background:#fff;color:#6a4779;border-radius:10px;padding:10px 15px;font-size:12px;cursor:pointer}
+.sr-primary{border:0;background:var(--sparks-accent,#8c4ba7);color:#fff;border-radius:10px;padding:12px 17px;font-size:12px;font-weight:700;cursor:pointer}
+.sr-primary:disabled,.sr-check:disabled{opacity:.45;cursor:not-allowed}
+.sr-block{display:block;width:100%;margin-top:14px}
+.sr-form{margin-top:15px;border-top:1px solid #e9dce6;padding-top:3px;display:grid;gap:10px}
+.sr-form>h3{margin:11px 0 0}
+.sr-form label{display:grid;gap:6px;font-size:12px;font-weight:650;color:#674773}
+.sr-form input:not([type=checkbox]):not([type=file]){width:100%;font-family:inherit;font-size:14px;padding:10px 12px;border-radius:9px;border:1px solid #dccce3;background:white;color:#45304c}
+.sr-form input[type=file]{width:100%;font-size:11px;max-width:100%;border:1px solid #e5d6e9;border-radius:9px;padding:9px;background:#fff}
+.sr-form .sr-checklabel{display:flex;align-items:flex-start;gap:9px;line-height:1.5}
+.sr-form .sr-checklabel input{margin-top:4px}
+.sr-form .sr-check{justify-self:start}
+.sr-preview{max-width:260px;max-height:300px;object-fit:contain;border-radius:10px;border:1px solid #eddcea}
+.sr-error,.sr-success{padding:10px 12px;border-radius:10px;font-size:12px!important;line-height:1.6}
+.sr-error{background:#fff0f0;color:#a23232!important;border:1px solid #f0c6c6}
+.sr-success{background:#ecf9ef;color:#226c3d!important;border:1px solid #c2e6c8}
+.sr-empty{margin:0;grid-column:1/-1;padding:15px 10px;font-size:12px;color:#846b88}
+.sr-admin{margin:15px 0;padding:17px;border:1px solid #e6d4eb;border-radius:16px;background:#fffdfb;font-family:Kanit,sans-serif}
+.sr-admin h2{font-size:16px;margin:0;color:var(--sparks-dark,#593461)}
+.sr-admin h2 small{font-size:12px;color:#876a8a}
+.sr-admin>header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sr-admin button{padding:8px 12px;border-radius:9px;background:#fff;border:1px solid #dcc8e5;font-size:11px;color:#6b387d;cursor:pointer;font-family:inherit}
+.sr-admin button:disabled{cursor:not-allowed;opacity:.5}
+.sr-admin .sr-admin-primary{color:#fff;background:var(--sparks-accent,#9252af);border-color:transparent}
+.sr-admin-list{display:grid;gap:9px;margin-top:14px}
+.sr-admin-card{border:1px solid #eadfe9;background:#fff;border-radius:11px;padding:12px;font-size:12px}
+.sr-admin-card>div:first-child{display:flex;justify-content:space-between;flex-wrap:wrap;gap:9px}
+.sr-admin-card p{margin:4px 0;line-height:1.6;color:#735b77}
+.sr-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.sr-admin-card input{width:100%;padding:9px;border:1px solid #dfcfe4;border-radius:7px;font-family:inherit}
+.sr-admin-receipt-image{max-width:min(100%,500px);max-height:560px;object-fit:contain;border:1px solid #eee;border-radius:8px;margin-top:10px}
+@media(max-width:550px){.sr-backdrop{padding:8px}.sr-modal{max-height:97dvh;border-radius:14px}.sr-hero{min-height:112px;padding:12px 48px 12px 12px;gap:9px}.sr-hero>.sr-logo{width:77px;height:77px;flex-basis:77px}.sr-hero h2{font-size:20px}.sr-body{padding:14px}.sr-facts strong{font-size:12px}.sr-facts>span{padding:9px 5px}.sr-form .sr-checklabel{font-size:11px}}

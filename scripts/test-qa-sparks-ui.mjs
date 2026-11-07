@@ -39,7 +39,7 @@ try{
   assert.match(tracker, /\{error\}<\/p>/, "failed server results must be visible inside the confirmation row");
   assert.match(tracker, /data-truemoney-paid-action=\{selected===request.itemId/, "confirmation must use the same known-clickable Tracker row button");
   assert.match(tracker, /if\(selected===request.itemId\)\{void markPaid\(\);\}/, "second click of the same control must mark paid");
-  assert.doesNotMatch(tracker, /qa-money-tracker-mark-paid/, "no second unclickable confirmation button");
+  assert.match(tracker, /qa-money-tracker-mark-paid/, "review panel must include a directly clickable payout confirmation button");
   assert.doesNotMatch(tracker, /createPortal/, "payout confirmation must avoid obstructed modal layers");
   assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");
   assert.match(sparksAdmin, /setAdminReady\(false\)/, "Sparks adjustment must be disabled if the server is unavailable");
@@ -124,7 +124,8 @@ try{
   const lotteryQuest=main.querySelector('[data-quest-item="qa-lottery"]');
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
-  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,2, "Reward Center mini grid shows both items");
+  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,6, "Reward Center includes two existing and four new brand rewards");
+  for (const id of ["punthai-65","netflix-1m","amazon-55","seven-100"]) assert.ok(main.querySelector(`[data-reward-item="${id}"]`), "new reward "+id+" renders in the compact grid");
 
   assert.ok(questCard.textContent.includes("+50") && questCard.textContent.includes("9–22"));
   await act(async () => questCard.dispatchEvent(new MouseEvent("click",{bubbles:true})));

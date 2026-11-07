@@ -5,6 +5,7 @@ import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
 import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import TrueMoneyTracker from "./TrueMoneyTracker";
+import SpecialRewardsAdmin from "./SpecialRewardsAdmin";
 import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
 type AdminUser = {
@@ -482,6 +483,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       </div>
     </section>
     <TrueMoneyTracker actorUsername={actorUsername} sessionId={sessionId} adminReady={adminReady}/>
+    <SpecialRewardsAdmin actorUsername={actorUsername} sessionId={sessionId} adminReady={adminReady}/>
     <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">
         <label htmlFor="qa-sparks-admin-search">ค้นหา User</label>
