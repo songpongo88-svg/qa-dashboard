@@ -167,7 +167,7 @@ try{
   let detail = document.querySelector(".qa-sparks-reward-detail-modal");
   assert.ok(detail, "clicking Item opens the Reward Detail modal");
   assert.equal(detail.getAttribute("aria-modal"), "true");
-  assert.ok(detail.textContent.includes("รายละเอียดสิทธิพิเศษ"), "Reward Center presents product highlights");
+  assert.ok(detail.querySelector('[data-reward-description="product"]') && detail.textContent.includes("เบาภารกิจพิมพ์ลง 60%"), "Reward Center presents product highlights");
   assert.ok(!detail.textContent.includes("วิธีใช้งาน Item"), "how-to steps are exclusive to owned Items");
   assert.ok(detail.textContent.includes("เงื่อนไขสำคัญ"), "reward rules belong inside the Detail modal");
   assert.ok(detail.textContent.includes("สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์"), "10-ticket limit remains in product terms");
