@@ -888,3 +888,8 @@
 .qa-money-tracker-request{position:relative;isolation:isolate}
 .qa-money-tracker-request>div:last-child{position:relative;z-index:2}
 .qa-money-tracker-request button[data-truemoney-paid-action]{position:relative;z-index:4;pointer-events:auto!important;touch-action:manipulation;min-height:40px}
+
+.qa-sparks-items-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 10px;font-size:11px;color:#8a728c}
+.qa-sparks-items-toolbar button{font-family:Kanit,sans-serif;font-size:11px;font-weight:700;padding:7px 12px;color:var(--sparks-accent,#8a50a5);background:#fff;border:1px solid var(--sparks-outline,#e5d6e7);border-radius:9px;cursor:pointer}
+.qa-sparks-items-toolbar button:hover{background:var(--sparks-soft,#faf3fb)}
+.qa-sparks-items-toolbar button:focus-visible{outline:3px solid var(--sparks-accent,#9050a5);outline-offset:2px}
