@@ -10,7 +10,6 @@ export default function LotteryTicketInventory({username,sessionId,loaded,invent
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState("");
  const [selected,setSelected]=useState<string|null>(null);
- const [visited,setVisited]=useState(false);
  const trigger=useRef<HTMLButtonElement|null>(null);
  const closeRef=useRef<HTMLButtonElement>(null);
  const refresh=useCallback(async()=>{
@@ -21,11 +20,11 @@ export default function LotteryTicketInventory({username,sessionId,loaded,invent
     body:JSON.stringify({action:"qa-lottery-my-tickets",actorUsername:username,sessionId})});
    const body=await response.json().catch(()=>({}));
    if(!response.ok)throw Error(String(body.error||"ไม่สามารถโหลดตั๋วได้"));
-   setTickets(Array.isArray(body.tickets)?body.tickets:[]);setVisited(true);
+   setTickets(Array.isArray(body.tickets)?body.tickets:[]);
   }catch(e){setError(e instanceof Error?e.message:"ไม่สามารถโหลดตั๋วได้");}
   finally{setLoading(false);}
  },[username,sessionId,loaded]);
- useEffect(()=>{setTickets([]);setVisited(false);setSelected(null);},[username,sessionId]);
+ useEffect(()=>{setTickets([]);setSelected(null);},[username,sessionId]);
  useEffect(()=>{
   void refresh();
   const update=()=>{void refresh();};
