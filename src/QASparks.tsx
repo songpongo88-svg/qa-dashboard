@@ -185,6 +185,12 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         : view === "items" ? <section className="qa-sparks-panel qa-sparks-single qa-sparks-items-panel" data-inventory-clock={itemClock}>
           <h2><SparksIcon name="package"/> My Items</h2>
           <p className="qa-sparks-items-description">เลือกดู Item ตามสถานะ โดยรายการที่ใช้แล้วหรือหมดอายุจะเก็บไว้ในประวัติ ไม่ลบข้อมูลย้อนหลัง</p>
+          <div className="qa-sparks-items-toolbar">
+            <span>รายการทั้งหมดเก็บไว้ตามสถานะ ไม่มีการลบประวัติ</span>
+            <button type="button" onClick={()=>window.dispatchEvent(new Event("qa:sparks-items-refresh"))}>
+              รีเฟรชสถานะ Item
+            </button>
+          </div>
           <div className="qa-sparks-items-tabs" role="group" aria-label="เลือกสถานะ My Items">
             {([["available","พร้อมใช้งาน"],["processing","กำลังดำเนินการ"],["history","ประวัติ Item"]] as const).map(([key,label])=>
               <button key={key} type="button" aria-pressed={itemShelf===key} className={itemShelf===key?"active":""}
