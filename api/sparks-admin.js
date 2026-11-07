@@ -156,7 +156,7 @@ async function getAccessToken() {
   const header = base64url({ alg: "RS256", typ: "JWT" });
   const payload = base64url({
     iss: account.client_email,
-    scope: "https://www.googleapis.com/auth/datastore",
+    scope: "https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/cloud-platform",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600,
