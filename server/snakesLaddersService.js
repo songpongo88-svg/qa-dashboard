@@ -4,6 +4,7 @@ import { randomInt, randomUUID } from "node:crypto";
 // compare-and-swap transaction; dice, traps and prizes are server-generated.
 import {SNAKES_RULES,resolveSnakeSquare,SNAKES_BOT_ID} from "../src/snakesRules.js";
 export {SNAKES_RULES,resolveSnakeSquare};
+const isBotId=id=>id===SNAKES_BOT_ID||String(id||"").startsWith(SNAKES_BOT_ID+"_");
 const ROOMS="qa_sparks_snakes_rooms_v1";
 const USERS="qa_sparks_snakes_members_v1";
 const err=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
@@ -80,9 +81,9 @@ export function applySquare(room,actorUsername,tile,randomAmount=randomReward){
 // receives a QA Dashboard account, session, wallet, or redemption capability.
 function botTarget(room,at){
   const pending=room.pendingTarget;
-  if(!pending||pending.actor!==SNAKES_BOT_ID)return null;
-  const bot=room.members.find(p=>p.isBot);
-  const candidates=room.members.filter(p=>p.joined&&!p.isBot&&p.username!==SNAKES_BOT_ID);
+  if(!pending||!isBotId(pending.actor))return null;
+  const bot=room.members.find(p=>p.isBot&&p.username===pending.actor);
+  const candidates=room.members.filter(p=>p.joined&&!p.isBot&&p.username!==pending.actor);
   if(!bot||!candidates.length)err("ไม่พบเป้าหมายให้ Bot",409);
   const target=candidates[randomInt(candidates.length)];
   let description,delta=0;
@@ -94,32 +95,32 @@ function botTarget(room,at){
     target.pot-=delta;bot.pot+=delta;description="Bot ขโมย "+delta+" Sparks จาก "+target.displayName;}
   else err("เหตุการณ์ Bot ผิดรูปแบบ");
   room.pendingTarget=null;
-  const event={type:pending.type,actor:SNAKES_BOT_ID,target:target.username,delta,
+  const event={type:pending.type,actor:bot.username,target:target.username,delta,
     description,tile:pending.tile,at};
   room.event=event;room.events=[...(room.events||[]),event].slice(-20);
   advanceTurn(room);
   return event;
 }
-export function advanceBotTurns(room,maximum=6){
+export function advanceBotTurns(room,maximum=12){
   const events=[];
-  for(let n=0;n<maximum&&room.status==="playing"&&room.currentTurn===SNAKES_BOT_ID;n++){
-    const bot=room.members.find(p=>p.isBot&&p.joined);
+  for(let n=0;n<maximum&&room.status==="playing"&&isBotId(room.currentTurn);n++){
+    const bot=room.members.find(p=>p.isBot&&p.joined&&p.username===room.currentTurn);
     if(!bot)err("Bot ไม่อยู่ในห้อง",409);
     const dice=randomInt(1,7),from=bot.position,tile=Math.min(50,from+dice),at=new Date().toISOString();
     bot.position=tile;
     let event;
     if(tile===50){
       event={type:"finish",tile:50,to:50,delta:0,description:"Sparks Bot เข้าเส้นชัยแล้ว"};
-      room.status="finished";room.winner=SNAKES_BOT_ID;room.finishedAt=at;room.currentTurn="";
+      room.status="finished";room.winner=bot.username;room.finishedAt=at;room.currentTurn="";
     }else{
-      event=applySquare(room,SNAKES_BOT_ID,tile);
+      event=applySquare(room,bot.username,tile);
       if(!room.pendingTarget)advanceTurn(room);
     }
     room.lastRoll=dice;
-    room.event={...event,actor:SNAKES_BOT_ID,dice,from,at};
+    room.event={...event,actor:bot.username,dice,from,at};
     room.events=[...(room.events||[]),room.event].slice(-20);
     events.push(room.event);
-    if(room.pendingTarget?.actor===SNAKES_BOT_ID){
+    if(room.pendingTarget?.actor===bot.username){
       const targeted=botTarget(room,new Date().toISOString());
       if(targeted)events.push(targeted);
     }
@@ -164,13 +165,15 @@ export function createSnakesService(db){
     return transact(async t=>{
       const {room,snap}=await requireRoom(body.roomId,actor,t);
       if(room.host!==actor.username||room.status!=="lobby")err("เจ้าของห้องเพิ่ม Bot ได้ก่อนเริ่มเกมเท่านั้น",403);
-      if(room.members.some(p=>p.isBot))err("เพิ่ม Bot ได้เพียง 1 ตัวต่อห้อง",409);
-      if(room.members.length>=SNAKES_RULES.maxPlayers)err("ห้องนี้มีผู้เล่นครบ 3 คนแล้ว",409);
+      if(room.members.filter(p=>p.isBot).length>=4)err("เพิ่ม Bot ได้สูงสุด 4 ตัวต่อห้อง",409);
+      if(room.members.length>=SNAKES_RULES.maxPlayers)err("ห้องนี้มีผู้เล่นครบ 5 คนแล้ว",409);
+      const botNumber=room.members.filter(p=>p.isBot).length+1;
+      const botId=SNAKES_BOT_ID+"_"+botNumber;
       const now=new Date().toISOString();
-      room.members.push({username:SNAKES_BOT_ID,displayName:"Sparks Bot",joined:true,isBot:true,
+      room.members.push({username:botId,displayName:"Sparks Bot "+botNumber,joined:true,isBot:true,
         position:1,pot:0,shields:0,skips:0,rewardedTiles:[],claimedAt:""});
       room.updatedAt=now;
-      room.events=[...(room.events||[]),{actor:SNAKES_BOT_ID,type:"join",description:"Sparks Bot เข้าร่วมเกมเพื่อทดสอบ (ไม่มีสิทธิ์รับ Sparks)",at:now}].slice(-20);
+      room.events=[...(room.events||[]),{actor:botId,type:"join",description:"Sparks Bot "+botNumber+" เข้าร่วมเกม (ไม่มีสิทธิ์รับ Sparks)",at:now}].slice(-20);
       return {writes:[updateWrite(roomPath(room.id),room,snap)],result:{room:toPublic(room,actor)}};
     });
   }
@@ -243,13 +246,13 @@ export function createSnakesService(db){
   }
   async function invite(body,actor){
     const target=String(body.targetUsername||"").trim().toLowerCase();
-    if(!validName(target)||target===actor.username||target===SNAKES_BOT_ID)err("กรุณาระบุ Username ของผู้รับคำเชิญ");
+    if(!validName(target)||target===actor.username||isBotId(target))err("กรุณาระบุ Username ของผู้รับคำเชิญ");
     const profile=await findProfileByUsername(target);
     if(isSuspendedProfile(profile))err("ไม่สามารถเชิญบัญชีที่ถูกระงับได้",403);
     return transact(async t=>{
       const {room,snap}=await requireRoom(body.roomId,actor,t);
       if(room.host!==actor.username||room.status!=="lobby")err("เชิญสมาชิกได้เฉพาะเจ้าของห้องก่อนเริ่มเกม",403);
-      if(room.members.length>=3)err("ห้องนี้มีผู้เล่นครบ 3 คนแล้ว",409);
+      if(room.members.length>=SNAKES_RULES.maxPlayers)err("ห้องนี้มีผู้เล่นครบ 5 คนแล้ว",409);
       if(room.members.some(p=>p.username===target))err("สมาชิกอยู่ในคำเชิญหรือห้องนี้แล้ว",409);
       const ix=userPath(target),ixSnap=await readDoc(ix,t),index=load(ixSnap);
       const now=new Date().toISOString();
@@ -290,7 +293,7 @@ export function createSnakesService(db){
       const {room,snap}=await requireRoom(body.roomId,actor,t);
       if(room.host!==actor.username||room.status!=="lobby")err("เฉพาะเจ้าของห้องเท่านั้นที่เริ่มเกมได้",403);
       const joined=room.members.filter(m=>m.joined);
-      if(joined.length<2||joined.length>3)err("ต้องมีผู้เล่นที่ตอบรับแล้ว 2–3 คน");
+      if(joined.length<2||joined.length>SNAKES_RULES.maxPlayers)err("ต้องมีผู้เล่นที่ตอบรับแล้ว 2–5 คน");
       if(room.members.some(m=>!m.joined))err("ยังมีผู้เล่นที่ไม่ตอบรับคำเชิญ กรุณารอก่อนเริ่มเกม");
       const now=new Date().toISOString();
       room.status="playing";room.startedAt=now;room.currentTurn=room.host;room.updatedAt=now;
