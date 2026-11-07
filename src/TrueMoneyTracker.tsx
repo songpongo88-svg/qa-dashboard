@@ -126,7 +126,10 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
             ?<button type="button" data-truemoney-paid-action={selected===request.itemId?"confirm":"open"}
               aria-label={"ตรวจสอบการโอน TrueMoney "+request.amountTHB+" บาท ของ "+(request.displayName||request.username)}
               disabled={busy}
-              onClick={()=>choose(request.itemId)}>
+              aria-haspopup="dialog" aria-expanded={selected===request.itemId}
+              title="เปิด Pop-up ตรวจสอบและยืนยันการโอน TrueMoney"
+              onPointerDown={event=>event.stopPropagation()}
+              onClick={event=>{event.preventDefault();event.stopPropagation();choose(request.itemId);}}>
               {busy&&selected===request.itemId?"กำลังบันทึก...":"ตรวจสอบและยืนยันการโอน"}
             </button>
             :<small>ยืนยันโดย {request.payoutConfirmedBy||"Admin"}</small>}
