@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-07T16:08:00.000Z",
-  "reason": "Reviewed server-generated independent two-dice rolls for humans and Bots, exact dice values and total displayed in the interface, localized Thai number narration limited to the active user, updated QA Sparks guide and matching regression tests; wallet/payment logic unchanged.",
+  "reviewedAt": "2026-11-07T16:40:00.000Z",
+  "reason": "Reviewed the synchronized simultaneous bounce and landing of two server-generated dice before board movement, one Thai spoken combined result after landing for the local player only, updated visible board overlay and QA Sparks guide; wallet and historical evaluations unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -460,7 +460,7 @@
     "src/ScheduleMockup.tsx": "6590094d2935f74cb08475f56d46383bb4b9c7f1702d7291ce8f523b528dceca",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
-    "src/SnakesLaddersGame.tsx": "ce297b6ef7a3f4da7849347831ffdf8cbb0c36d7cc570cecfb4d784bffd84b50",
+    "src/SnakesLaddersGame.tsx": "5e4fcf27b045d8d7f4fb8a1e5da41322c66782810fe18e9b61fc5f11735e1fbe",
     "src/SparksAdminPanel.tsx": "9982cd2310c343e7d23a8b8a053a21610848cc466aa2809010faecce68d0b47f",
     "src/SparksHistory.tsx": "b935b35b4cabe7f209abb04d8d1cdce721c38698799ba37d126ad8df6683188a",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
@@ -561,7 +561,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "63d98e360daca1b27984d5baa964016896b0f1c0c786bbb7495125187f35eae1",
+    "src/knowledge/manual.json": "0c3e35b1b926abf7b9d5148f27fbbeee799eb7e5c42b352bcf551a4936340d4e",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -637,7 +637,7 @@
     "src/seasonalThemeRuntime2.ts": "80c7f372513d2bd88b79741bac5f0ea3f90edbd2628ff52599c32a9c5d75e105",
     "src/sessionStore.ts": "ef312e9b644f703a0f9de580e3d5647e441331922d493517cc85ef5436ffc9a7",
     "src/signatureStore.ts": "e2c59a43f5b61c6580160391e9c2a3f7d8fca55bebada1bf0e952dc1929e3b33",
-    "src/snakesLadders.css": "d79382cfde2ef758f9dace1a12ec949fc34ac60c0d44163789c3263d0ac77c57",
+    "src/snakesLadders.css": "9c51ad522b006f1d3d865f4314f2fbea16c15e75c5d23e36e28c10fe0012d4ac",
     "src/snakesRules.js": "d15f1b23aeb75876426901aeaf77cf65e6c26262097ecb4a379bcd9faf2747ec",
     "src/sparksAdminWorkspace.css": "5991e337a549bf52ab9827323162090419640cf369f431f2835d62bb2eebdad4",
     "src/sparksMembership.css": "224d2dfa4fbb51b1b2351738a4db26775d7d9b0a8b7dfb001e3fcf09d57e33bd",
