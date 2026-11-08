@@ -55,8 +55,8 @@ export default async function handler(req,res){
      !b.files[0].content.includes("qa_sparks_wallets")||b.files[0].content.length>100000)
       return res.status(400).json({error:"Invalid reviewed rules"});
    const created=await google(`https://firebaserules.googleapis.com/v1/projects/${project}/rulesets`,"POST",{source:{files:b.files}});
-   const next=await google(`https://firebaserules.googleapis.com/v1/projects/${project}/releases/cloud.firestore?updateMask=rulesetName`,"PATCH",{
-    name:release.name,rulesetName:created.name});
+   const next=await google(`https://firebaserules.googleapis.com/v1/projects/${project}/releases/cloud.firestore`,"PATCH",{
+    release:{name:release.name,rulesetName:created.name},updateMask:"rulesetName"});
    return res.status(200).json({ok:true,previousRuleset:release.rulesetName,rulesetName:next.rulesetName});
   }
   if(["seed-fixture","cleanup-fixture"].includes(b.action)){

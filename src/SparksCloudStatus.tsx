@@ -113,8 +113,8 @@ export default function SparksCloudStatus({adminAccess=false}:{adminAccess?:bool
         <strong>แก้ไขล่าสุด · {report.changeLogReviewedAt.split("-").reverse().join("/")}</strong>
         <ul>{report.changeLog.map(item=><li key={item}>{item}</li>)}</ul>
       </div>
-      <a className="qa-sparks-cloud-pr" href="https://github.com/songpongo88-svg/qa-dashboard/pull/195" target="_blank" rel="noopener noreferrer">
-        ดูรายการแก้ไขและงานที่ยังค้างบน GitHub
+      <a className="qa-sparks-cloud-pr" href={safeCompleted?"https://github.com/songpongo88-svg/qa-dashboard/tree/main/migration/sparks-only":"https://github.com/songpongo88-svg/qa-dashboard/pull/195"} target="_blank" rel="noopener noreferrer">
+        {safeCompleted?"ดูรายละเอียดการย้ายระบบและผลตรวจสอบ":"ดูรายการแก้ไขและงานที่ยังค้างบน GitHub"}
       </a>
       <p className="qa-sparks-cloud-warning-note">
         {safeCompleted?"ระบบยืนยันการสลับฐานข้อมูล Production แล้ว":
