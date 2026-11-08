@@ -5,6 +5,7 @@ import { createQaRewardsService } from "../server/qaRewardsService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
+import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
 import { isSparksBackendRequest, requestSparksSupabase } from "../server/sparksSupabaseBridge.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
@@ -1403,6 +1404,9 @@ const hiddenTreasure=createHiddenTreasureService({firestoreRequest,readDoc,recor
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const announcementShield=createAnnouncementShieldService({firestoreRequest,readDoc,recordValue,path,
   updateWrite,createWrite,listCollection,walletDocumentPath,spendableBalance,currentMemberYear});
+const typingReliefCloud=createTypingReliefCloudService({firestoreRequest,readDoc,recordValue,path,
+  updateWrite,createWrite,listCollection,walletDocumentPath,walletKey,
+  spendableBalance,currentMemberYear});
 
 
 // The first hosted preview is STRICTLY read-only. This prevents an owner from
@@ -1429,12 +1433,18 @@ export default async function handler(req, res) {
     if (sparksCloudReadOnlyEnabled()) return res.status(423).json({error:"QA Sparks Supabase preview is read-only; scheduled payouts are disabled"});
     const expected = String(process.env.CRON_SECRET || "").trim();
     if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
-    const [lottery,shield]=await Promise.allSettled([qaLottery.settle(),announcementShield.sweep()]);
+    const [lottery,shield,typing]=await Promise.allSettled([
+      qaLottery.settle(),announcementShield.sweep(),
+      process.env.SPARKS_DATA_BACKEND==="supabase"
+        ?typingReliefCloud.reconcilePending(12):Promise.resolve({scanned:0,completed:0,unresolved:[]}),
+    ]);
     if(lottery.status==="rejected")console.error("QA Lottery cron failed:",String(lottery.reason?.message||lottery.reason));
+    if(typing.status==="rejected")console.error("Typing Relief reconciliation failed:",String(typing.reason?.message||typing.reason));
     if(shield.status==="rejected")console.error("Announcement Shield renewal cron failed:",String(shield.reason?.message||shield.reason));
     if(lottery.status==="rejected"&&shield.status==="rejected")return res.status(503).json({error:"Automatic settlement unavailable"});
     return res.status(200).json({lottery:lottery.status==="fulfilled"?lottery.value:{error:"Lottery settlement failed"},
-      announcementShield:shield.status==="fulfilled"?shield.value:{error:"Subscription settlement failed"}});
+      announcementShield:shield.status==="fulfilled"?shield.value:{error:"Subscription settlement failed"},
+      typingRelief:typing.status==="fulfilled"?typing.value:{error:"Typing Relief reconciliation failed"}});
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
@@ -1445,16 +1455,9 @@ export default async function handler(req, res) {
         code:"SPARKS_CLOUD_PREVIEW_READ_ONLY",
       });
     }
-    // QA Access Check typing challenge queue still has browser Firestore writers.
-    // The Typing Relief activation modifies that challenge AND a Sparks wallet.
-    // Do not pretend a cross-database transaction is atomic; keep the action
-    // disabled in the Cloud branch until the QA Access Check dependency is migrated
-    // or a fully reconciled two-phase workflow is implemented.
     if (process.env.SPARKS_DATA_BACKEND==="supabase" && body.action==="use-typing-relief") {
-      return res.status(503).json({
-        error:"การใช้ Typing Relief ยังไม่พร้อมใน Supabase เพราะต้องตรวจการบันทึก QA Access Check ให้ครบก่อน",
-        code:"SPARKS_TYPING_RELIEF_DEPENDENCY",
-      });
+      const actor=await authorizeRewardUser(body);
+      return res.status(200).json(await typingReliefCloud.use(body,actor));
     }
     if (["get-truemoney-price","redeem-truemoney","use-truemoney-item","list-my-truemoney"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
