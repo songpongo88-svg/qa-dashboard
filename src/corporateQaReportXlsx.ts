@@ -110,17 +110,17 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
   }
   if(dashboard) {
     for(let r=2;r<=5;r++)for(let c=2;c<=16;c++)set(r,c,r===2||r===3?"title":"hero");
-    for(let r of [15,32])for(let c=2;c<=16;c++)set(r,c,"section");
-    for(let c=2;c<=16;c++)set(62,c,"footer");
+    for(let r of [15,43])for(let c=2;c<=16;c++)set(r,c,"section");
+    for(let c=2;c<=16;c++)set(64,c,"footer");
     for(const [a,b] of [[2,4],[6,8],[10,12],[14,16]]) {
       for(let r=8;r<=12;r++)for(let c=a;c<=b;c++)set(r,c,r===9?"cardLabel":r===10||r===11?"cardValue":"cardDetail");
     }
-    for(let c=2;c<=16;c++)for(let r of [17,34])set(r,c,"heading");
+    for(let c=2;c<=16;c++)for(let r of [17,45])set(r,c,"heading");
     for(let r=18;r<=26;r++) for(let c=2;c<=16;c++) set(r,c,r%2===0?"stripe":"stripeCenter");
-    for(let r=35;r<=46;r++)for(let c=2;c<=16;c++)set(r,c,r%2===0?"stripe":"stripeCenter");
+    for(let r=46;r<=57;r++)for(let c=2;c<=16;c++)set(r,c,r%2===0?"stripe":"stripeCenter");
     for(let r of [19,21,23,25]){set(r,9,"topicBar");set(r,6,"score");}
-    for(let r=35;r<=46;r++) set(r,9,"score");
-    for(let c=2;c<=16;c++)for(let r of [51,52,53,54])set(r,c,"footer");
+    for(let r=46;r<=57;r++) set(r,9,"score");
+    for(let c=2;c<=16;c++)for(let r of [59,60,61,62])set(r,c,"footer");
   } else {
     const rowElements=Array.from(data.children).filter(r=>r.localName==="row");
     const maxRow=Math.max(...rowElements.map(r=>Number(r.getAttribute("r"))),1);
@@ -132,7 +132,38 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
   return xml(doc);
 }
 const LOGO_IMAGE_PATH = "/robinhood-logo.png";
-async function embedLogo(zip:JSZip,index:number) {
+
+type PreviewBar = { label:string; amount:number };
+function renderChart(title:string, data:PreviewBar[], maximum:number):Promise<ArrayBuffer> {
+  const canvas=document.createElement("canvas");
+  canvas.width=900;canvas.height=450;
+  const ctx=canvas.getContext("2d");
+  if(!ctx)return Promise.resolve(new ArrayBuffer(0));
+  ctx.fillStyle="#FFFFFF";ctx.fillRect(0,0,900,450);
+  ctx.fillStyle="#28123B";ctx.font='bold 30px "Sarabun", Arial, sans-serif';
+  ctx.fillText(title,30,47);
+  const plotWidth=415, labelWidth=340, ystart=90;
+  const count=Math.min(7,data.length);
+  if(!count){ctx.font='22px "Sarabun", Arial, sans-serif';ctx.fillText("No evaluated data",40,150);}
+  for(let i=0;i<count;i++){
+    const row=data[i];const y=ystart+i*49;
+    ctx.fillStyle="#4B365A";ctx.font='22px "Sarabun", Arial, sans-serif';
+    const name=row.label.length>27?row.label.slice(0,26)+"…":row.label;
+    ctx.fillText(name,25,y+21,315);
+    ctx.fillStyle="#EDE5F1";ctx.fillRect(labelWidth,y,plotWidth,24);
+    ctx.fillStyle=i===0?"#76308B":i%2?"#9B60A7":"#B389C3";
+    ctx.fillRect(labelWidth,y,Math.max(0,Math.min(1,row.amount/maximum))*plotWidth,24);
+    ctx.fillStyle="#28123B";ctx.font='bold 22px Arial, sans-serif';
+    ctx.fillText(row.amount.toFixed(1)+(maximum===100?"%":""),labelWidth+plotWidth+12,y+20);
+  }
+  return new Promise(resolve=>canvas.toBlob(async blob=>resolve(blob?await blob.arrayBuffer():new ArrayBuffer(0)),"image/png"));
+}
+const chartAnchor=(col:number,row:number,cx:number,cy:number,id:number,name:string)=>`
+<xdr:oneCellAnchor><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+<xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${id}" name="${name}"/><xdr:cNvPicPr/></xdr:nvPicPr>
+<xdr:blipFill><a:blip r:embed="rId${id}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
+<xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`;
+async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
   try {
     const response=await fetch(LOGO_IMAGE_PATH,{cache:"force-cache"});
     if(!response.ok) return;
@@ -150,7 +181,23 @@ async function embedLogo(zip:JSZip,index:number) {
 <xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
 <xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1190000" cy="710000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>
 <xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`);
-    zip.file(drawingRel,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${PKG}"><Relationship Id="rId1" Type="${REL}/image" Target="../media/qaReportLogo.png"/></Relationships>`);
+    const topicSheet=book.Sheets["Topic Performance"];
+    const tagSheet=book.Sheets["Tag Analysis"];
+    const topicData=(topicSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(topicSheet):[]).slice(0,6)
+      .map(row=>({label:String(row.Topic || "").replace(/\\s*\\([^)]*\\)/g,""),amount:Number(row["Average %"] || 0)})).filter(x=>Number.isFinite(x.amount));
+    const tagData=(tagSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(tagSheet):[]).slice(0,7)
+      .map(row=>({label:String(row.Tag || ""),amount:Number(row["Cases Affected"] || 0)})).filter(x=>Number.isFinite(x.amount));
+    const [topicImage,tagImage]=await Promise.all([
+      renderChart("TOPIC PERFORMANCE (%)",topicData,100),
+      renderChart("TOP ISSUE TAGS",tagData,Math.max(...tagData.map(x=>x.amount),1))
+    ]);
+    const images=[{id:2,name:"Topic Performance",data:topicImage,media:"qaReportTopic.png",col:1,row:27,cx:4650000,cy:2560000},
+      {id:3,name:"Top Issue Tags",data:tagImage,media:"qaReportTags.png",col:10,row:27,cx:4050000,cy:2560000}];
+    for(const item of images)if(item.data.byteLength)zip.file("xl/media/"+item.media,item.data);
+    const drawingText=await zip.file(drawingPath)!.async("string");
+    const drawingExtra=images.filter(item=>item.data.byteLength).map(item=>chartAnchor(item.col,item.row,item.cx,item.cy,item.id,item.name)).join("");
+    zip.file(drawingPath,drawingText.replace("</xdr:wsDr>",drawingExtra+"</xdr:wsDr>"));
+    zip.file(drawingRel,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${PKG}"><Relationship Id="rId1" Type="${REL}/image" Target="../media/qaReportLogo.png"/>${images.filter(item=>item.data.byteLength).map(item=>`<Relationship Id="rId${item.id}" Type="${REL}/image" Target="../media/${item.media}"/>`).join("")}</Relationships>`);
     const relSource=await zip.file(relPath)?.async("string");
     const relDoc=relSource?parse(relSource):parse(`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="${PKG}"/>`);
     const rRoot=relDoc.documentElement;
@@ -195,6 +242,6 @@ export async function exportCorporateReport(book:XLSX.WorkBook):Promise<Blob> {
     zip.file(path,styleSheet(original,book.SheetNames[i]==="Dashboard",styles));
   }
   const dashboardIndex=book.SheetNames.indexOf("Dashboard");
-  if(dashboardIndex>=0) await embedLogo(zip,dashboardIndex+1);
+  if(dashboardIndex>=0) await embedLogo(zip,dashboardIndex+1,book);
   return zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6},mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
 }
