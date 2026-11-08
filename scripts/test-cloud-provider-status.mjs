@@ -66,7 +66,12 @@ try{
 
   const source=readFileSync(new URL("../src/SparksCloudStatus.tsx",import.meta.url),"utf8");
   const page=readFileSync(new URL("../src/QASparks.tsx",import.meta.url),"utf8");
-  assert.match(page,/SparksCloudStatus adminAccess=\{adminAccess\}/);
+  const system=readFileSync(new URL("../src/UserRoleAdminMockup.tsx",import.meta.url),"utf8");
+  const workspace=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
+  assert.doesNotMatch(page,/SparksCloudStatus/);
+  assert.match(system,/adminTab === "maintenance" && canManageMaintenance \?/);
+  assert.match(system,/<SparksCloudStatus adminAccess=\{true\}/);
+  assert.match(workspace,/key: "system-setup".*allowed: maintenanceAdminAllowed/);
   assert.match(source,/ข้อมูล Cloud ของหน้าเว็บกับ API ไม่ตรงกัน/);
   assert.match(source,/fetch\("\/api\/cloud-status"/);
   assert.match(source,/import\.meta\.env\?\.VITE_SPARKS_DATA_BACKEND/);
