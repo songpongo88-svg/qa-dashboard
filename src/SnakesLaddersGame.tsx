@@ -422,11 +422,11 @@ export default function SnakesLaddersGame({username,sessionId,privateTest=false}
        {invited?<div className="sl-invite-actions"><button disabled={busy} className="sl-primary" onClick={()=>void modify("snakes-respond",{roomId:room.id,decision:"accept"},"เข้าร่วมเกมสำเร็จ")}>ตอบรับคำเชิญ</button>
          <button disabled={busy} className="sl-secondary" onClick={()=>void modify("snakes-respond",{roomId:room.id,decision:"decline"},"ปฏิเสธคำเชิญแล้ว")}>ปฏิเสธ</button></div>:null}
        {sameGameUser(room.host,username)?<div className="sl-invite-actions">
-         {!privateTest?<label className="sl-invite-label">เชิญเพื่อนด้วย Username
+         {!privateTest?<><label className="sl-invite-label">เชิญเพื่อนด้วย Username
             <input value={targetInput} maxLength={100} onChange={e=>setTargetInput(e.target.value)} placeholder="Username ที่ใช้ Login"/>
             <small>ให้เพื่อนเปิด Mini Games และกดตอบรับคำเชิญ</small>
           </label>
-         <button disabled={busy||room.members.length>=5||!targetInput.trim()} className="sl-secondary" onClick={()=>void modify("snakes-invite",{roomId:room.id,targetUsername:targetInput.trim()},"ส่งคำเชิญแล้ว ให้เพื่อนเปิด Mini Games และกดตอบรับ")}>ส่งคำเชิญ</button>:null}
+         <button disabled={busy||room.members.length>=5||!targetInput.trim()} className="sl-secondary" onClick={()=>void modify("snakes-invite",{roomId:room.id,targetUsername:targetInput.trim()},"ส่งคำเชิญแล้ว ให้เพื่อนเปิด Mini Games และกดตอบรับ")}>ส่งคำเชิญ</button></>:null}
          <button type="button" data-snakes-add-bot="true" disabled={busy||room.members.length>=5||room.members.filter(p=>p.isBot).length>=4}
             className="sl-bot-button" onClick={()=>void modify("snakes-add-bot",{roomId:room.id},"เพิ่ม Sparks Bot แล้ว Bot จะทอยอัตโนมัติเมื่อถึงตา")}>🤖 เพิ่ม Bot ({room.members.filter(p=>p.isBot).length}/4)</button>
           <button disabled={busy||room.members.filter(p=>p.joined).length<2||room.members.some(p=>!p.joined)} className="sl-primary" onClick={()=>void modify("snakes-start",{roomId:room.id},"เริ่มเกมแล้ว!")}>เริ่มเกม</button>
