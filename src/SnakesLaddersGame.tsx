@@ -128,7 +128,7 @@ function GameBoard({room,photos,username,movingActor,diceThrow}: {room:Room;phot
    </div>
  </div>;
 }
-export default function SnakesLaddersGame({username,sessionId}: {username:string;sessionId:string}){
+export default function SnakesLaddersGame({username,sessionId,privateTest=false}: {username:string;sessionId:string;privateTest?:boolean}){
  const [data,setData]=useState<GameState>({rooms:[],activeRoomId:"",rules:SNAKES_RULES});
  const [currentRoomId,setCurrentRoomId]=useState("");
  const [targetInput,setTargetInput]=useState("");
@@ -383,12 +383,13 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
    {voiceEnabled&&thaiVoiceStatus==="missing"?<div className="sl-voice-caption" role="status">อุปกรณ์นี้ยังไม่พบเสียงพูดภาษาไทย กรุณาติดตั้งเสียงภาษาไทยใน Windows / macOS หรือใช้เบราว์เซอร์ที่รองรับ แล้วกด “ทดสอบเสียงไทย” ระบบจะไม่ใช้เสียงภาษาอังกฤษแทน</div>:null}
    {voicePrompt&&thaiVoiceStatus!=="missing"?<div className="sl-voice-caption" role="status">กด “ทดสอบเสียงไทย” หนึ่งครั้งเพื่ออนุญาตให้เบราว์เซอร์เปิดเสียง</div>:null}
    {voiceEnabled&&voiceMessage?<div className="sl-voice-caption" aria-live="polite">🔊 {voiceMessage}</div>:null}
+   {privateTest?<div className="sl-notice" role="status">PRIVATE TEST · เฉพาะเจ้าของระบบ · ทดลองเล่นกับ Bot เท่านั้น · ไม่สามารถรับ Sparks เข้ากระเป๋าจริงได้</div>:null}
    {error?<div className="sl-error" role="alert">{error}</div>:null}
    {notice?<div className="sl-notice" role="status">{notice}</div>:null}
    {!room?<div className="sl-lobby">
      <div className="sl-lobby-copy"><span className="sl-overline">CREATE YOUR ROOM</span><h2>บันไดงู Battle Mode</h2>
        <p>สร้างห้อง เชิญสมาชิก QA Dashboard หรือเพิ่มบอทอัตโนมัติสูงสุด 4 ตัว ผลัดกันทอยเต๋า เก็บ Sparks และเจออุปสรรคระหว่างทาง</p>
-       <div className="sl-lobby-rules"><span>50 ช่อง</span><span>2–3 ผู้เล่น</span><span>รับ Sparks หลังจบเกม</span></div>
+       <div className="sl-lobby-rules"><span>50 ช่อง</span><span>2–5 ผู้เล่น</span><span>{privateTest?"ไม่มีรางวัลเงินจริงในโหมดทดสอบ":"รับ Sparks หลังจบเกม"}</span></div>
        <button className="sl-primary" disabled={busy||!username||!sessionId} onClick={create}>＋ สร้างห้องเกม</button>
      </div>
      <div className="sl-lobby-side"><h3>คำเชิญและเกมของคุณ</h3>
@@ -417,15 +418,15 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
      </div>
      {room.status==="lobby"?<div className="sl-invite-panel">
        <div><h3>👥 ห้องรอผู้เล่น · {room.members.filter(p=>p.joined).length} คนตอบรับแล้ว</h3>
-         <p>เชิญด้วย Username ที่ใช้ Login QA Dashboard (ไม่ใช่ชื่อแสดงผล) เพื่อนเปิดหน้าเกมนี้แล้วกดตอบรับ หรือเพิ่ม Bot ทดสอบได้</p></div>
+         <p>{privateTest?"โหมดทดสอบส่วนตัว: เพิ่ม Bot เพื่อทดสอบเกม (ยังเชิญผู้เล่นอื่นไม่ได้)":"เชิญด้วย Username ที่ใช้ Login QA Dashboard (ไม่ใช่ชื่อแสดงผล) เพื่อนเปิดหน้าเกมนี้แล้วกดตอบรับ หรือเพิ่ม Bot ทดสอบได้"}</p></div>
        {invited?<div className="sl-invite-actions"><button disabled={busy} className="sl-primary" onClick={()=>void modify("snakes-respond",{roomId:room.id,decision:"accept"},"เข้าร่วมเกมสำเร็จ")}>ตอบรับคำเชิญ</button>
          <button disabled={busy} className="sl-secondary" onClick={()=>void modify("snakes-respond",{roomId:room.id,decision:"decline"},"ปฏิเสธคำเชิญแล้ว")}>ปฏิเสธ</button></div>:null}
        {sameGameUser(room.host,username)?<div className="sl-invite-actions">
-         <label className="sl-invite-label">เชิญเพื่อนด้วย Username
+         {!privateTest?<label className="sl-invite-label">เชิญเพื่อนด้วย Username
             <input value={targetInput} maxLength={100} onChange={e=>setTargetInput(e.target.value)} placeholder="Username ที่ใช้ Login"/>
             <small>ให้เพื่อนเปิด Mini Games และกดตอบรับคำเชิญ</small>
           </label>
-         <button disabled={busy||room.members.length>=5||!targetInput.trim()} className="sl-secondary" onClick={()=>void modify("snakes-invite",{roomId:room.id,targetUsername:targetInput.trim()},"ส่งคำเชิญแล้ว ให้เพื่อนเปิด Mini Games และกดตอบรับ")}>ส่งคำเชิญ</button>
+         <button disabled={busy||room.members.length>=5||!targetInput.trim()} className="sl-secondary" onClick={()=>void modify("snakes-invite",{roomId:room.id,targetUsername:targetInput.trim()},"ส่งคำเชิญแล้ว ให้เพื่อนเปิด Mini Games และกดตอบรับ")}>ส่งคำเชิญ</button>:null}
          <button type="button" data-snakes-add-bot="true" disabled={busy||room.members.length>=5||room.members.filter(p=>p.isBot).length>=4}
             className="sl-bot-button" onClick={()=>void modify("snakes-add-bot",{roomId:room.id},"เพิ่ม Sparks Bot แล้ว Bot จะทอยอัตโนมัติเมื่อถึงตา")}>🤖 เพิ่ม Bot ({room.members.filter(p=>p.isBot).length}/4)</button>
           <button disabled={busy||room.members.filter(p=>p.joined).length<2||room.members.some(p=>!p.joined)} className="sl-primary" onClick={()=>void modify("snakes-start",{roomId:room.id},"เริ่มเกมแล้ว!")}>เริ่มเกม</button>
@@ -460,9 +461,9 @@ export default function SnakesLaddersGame({username,sessionId}: {username:string
            <p>สะสมระหว่างเกม อุปสรรคหักได้เฉพาะ Game Pot ของเกมนี้</p>
            {room.status==="finished"?
              <><div className="sl-pot-winner">{sameGameUser(room.winner,username)?"🏆 คุณเข้าเส้นชัยเป็นคนแรก!":"🏁 เกมจบแล้ว ผู้เล่นทุกคนรับ Game Pot ของตัวเองได้"}</div>
-               <button className="sl-claim" type="button" disabled={busy||!myUnclaimedFinished}
+               <button className="sl-claim" type="button" disabled={privateTest||busy||!myUnclaimedFinished}
                  onClick={()=>void modify("snakes-claim",{roomId:room.id},"รับ Sparks เข้าบัญชี QA Sparks แล้ว")}>
-                 {me?.claimedAt?"✓ รับ Sparks แล้ว":busy?"กำลังบันทึก...":"รับ "+(me?.pot||0).toLocaleString()+" Sparks"}
+                 {privateTest?"ทดลองเท่านั้น · ไม่จ่าย Sparks":me?.claimedAt?"✓ รับ Sparks แล้ว":busy?"กำลังบันทึก...":"รับ "+(me?.pot||0).toLocaleString()+" Sparks"}
                </button></>:
              <button className="sl-claim" type="button" disabled>รับ Sparks หลังจบเกม</button>}
          </div>
