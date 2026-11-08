@@ -111,11 +111,14 @@ function drawPdf(title: string, period: string, scope: string, cases: CanonicalR
   return pdf;
 }
 export default function ReportCenterMockup({
-  currentUser, roleScopedAgentNames = [], canExport = false, paymentContent, slidesContent,
+  currentUser, roleScopedAgentNames = [], canExport = false, canViewAllAgents = false, canViewAllTeams = false, canViewOwnTeam = false, paymentContent, slidesContent,
 }: {
   currentUser: any;
   roleScopedAgentNames?: string[];
   canExport?: boolean;
+  canViewAllAgents?: boolean;
+  canViewAllTeams?: boolean;
+  canViewOwnTeam?: boolean;
   paymentContent?: React.ReactNode;
   slidesContent?: React.ReactNode;
 }) {
@@ -148,8 +151,15 @@ export default function ReportCenterMockup({
   useEffect(() => { void refresh(); }, []);
   const authorized = useMemo(() => {
     const allowed = new Set(roleScopedAgentNames.map(normalize));
-    return cases.filter(item => !allowed.size || allowed.has(normalize(rowAgent(item))) || allowed.has(normalize(String(item.sourceAgentName || ""))));
-  }, [cases, roleScopedAgentNames]);
+    const currentTeam = normalize(String(currentUser?.teamName || currentUser?.team || ""));
+    const ownAgent = normalize(String(currentUser?.agentName || currentUser?.displayName || currentUser?.username || ""));
+    return cases.filter(item => {
+      if (allowed.size) return allowed.has(normalize(rowAgent(item))) || allowed.has(normalize(String(item.sourceAgentName || "")));
+      if (canViewAllAgents || canViewAllTeams) return true;
+      if (canViewOwnTeam && currentTeam) return normalize(rowTeam(item)) === currentTeam;
+      return Boolean(ownAgent) && (normalize(rowAgent(item)) === ownAgent || normalize(String(item.sourceAgentName || "")) === ownAgent);
+    });
+  }, [cases, roleScopedAgentNames, canViewAllAgents, canViewAllTeams, canViewOwnTeam, currentUser]);
   const years = useMemo(() => [...new Set(authorized.map(item => rowMonth(item).slice(0, 4)).filter(x => /^\d{4}$/.test(x)))].sort().reverse(), [authorized]);
   const months = useMemo(() => [...new Set(authorized.map(rowMonth).filter(x => /^\d{4}-\d{2}$/.test(x)))].sort().reverse(), [authorized]);
   const effectiveYear = years.includes(year) ? year : years[0] || year;
