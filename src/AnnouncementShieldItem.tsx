@@ -64,7 +64,7 @@ export default function AnnouncementShieldItem({username,sessionId,balance,mode,
      <strong className="qa-sparks-mini-name">Announcement Shield</strong>
      <span className="qa-sparks-mini-value">{mode==="reward"?"50 Sparks / เดือน":sub.status==="unused"?"พร้อมใช้งาน":sub.status==="grace"?"ผ่อนผัน 14 วัน":sub.status==="cancelled"?"ไม่ต่ออายุ":sub.status==="expired"?"หมดอายุ":"กำลังใช้งาน"}</span>
    </button>
-   {open&&createPortal(<div className="qa-shield-overlay" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
+   {open?createPortal(<div className="qa-shield-overlay" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
     <section className="qa-shield-modal" role="dialog" aria-modal="true" aria-label="Announcement Shield">
      <button className="qa-shield-close" type="button" onClick={()=>setOpen(false)} aria-label="ปิดรายละเอียด">×</button>
      <header className="qa-shield-hero"><ShieldIcon/><div><small>QA SPARKS · PREMIUM ITEM</small><h2>Announcement Shield</h2><p>ปิดเฉพาะ Pop-up ของประกาศทั่วไป พร้อมต่ออายุอัตโนมัติ</p></div></header>
