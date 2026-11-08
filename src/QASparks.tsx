@@ -52,6 +52,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   const [lastAccountLoadAt, setLastAccountLoadAt] = useState("");
   const [lastAccountUsername, setLastAccountUsername] = useState("");
   const [error, setError] = useState("");
+  const [retryTick,setRetryTick]=useState(0);
   const [loading, setLoading] = useState(false);
   const requestSequence = useRef(0);
   const historyLimit = view === "history" ? 100 : view === "overview" ? 5 : 0;
@@ -74,10 +75,20 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       if (!active || document.visibilityState === "hidden") return;
       const sequence = ++requestSequence.current;
       setLoading(true);
-      void getSparksAccount(username, { historyLimit, forceRefresh: force }).then((result) => {
+      void getSparksAccount(username, { historyLimit, forceRefresh: force, sessionId: adminSessionId }).then((result) => {
         if (alive && sequence === requestSequence.current) { setAccount(result); setLastAccountUsername(username); setLastAccountLoadAt(new Date().toISOString()); setError(""); }
-      }).catch(() => {
-        if (alive && sequence === requestSequence.current) setError("ไม่สามารถโหลดข้อมูล Sparks ได้ กรุณาลองอีกครั้ง");
+      }).catch((failure) => {
+        if(alive && sequence===requestSequence.current){
+          const code=String(failure?.code||"").toLowerCase();
+          const details=String(failure?.message||"");
+          const message=code.includes("resource-exhausted")||/quota|resource.exhausted/i.test(details)
+            ?"ฐานข้อมูล Sparks ถึงขีดจำกัดการอ่านชั่วคราว กรุณารอให้โควตาพร้อมใช้งาน"
+            :code.includes("permission")||code.includes("unauthenticated")||/session|สิทธิ์/i.test(details)
+              ?"ไม่สามารถยืนยันสิทธิ์ในการอ่าน Sparks กรุณาออกจากระบบแล้ว Login ใหม่"
+              :"ยังเชื่อมต่อข้อมูลกระเป๋า Sparks ไม่สำเร็จ ("+(code||"network")+"). ข้อมูลคะแนนเดิมไม่ได้ถูกลบ";
+          setError(message);
+          console.error("QA Sparks wallet read failed",code,details);
+        }
       }).finally(() => { if (alive && sequence === requestSequence.current) setLoading(false); });
     };
     const changed = () => { invalidateSparksAccount(username); refresh(true); };
@@ -86,7 +97,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     window.addEventListener("qa:sparks-updated", changed);
     window.addEventListener("focus", focused);
     return () => { alive = false; window.removeEventListener("qa:sparks-updated", changed); window.removeEventListener("focus", focused); };
-  }, [username, active, historyLimit]);
+  }, [username, active, historyLimit, adminSessionId, retryTick]);
 
   // Local-only midnight rollover: do not poll Firestore or create quota pressure.
   // The next normal refresh loads the current year's actual wallet.
@@ -122,7 +133,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         </div>
         {displayName || username ? <div className="qa-sparks-member-owner"><span className="qa-sparks-owner-avatar" aria-hidden="true">QA</span><div><small>บัญชีผู้ใช้งาน</small><span>{displayName || username}</span></div></div> : null}
       </section>
-      {error ? <div className="qa-sparks-inline-error" role="alert">{error}</div> : null}
+      {error ? <div className="qa-sparks-inline-error" role="alert">{error} <button type="button" style={{marginLeft:12,textDecoration:"underline",fontWeight:700}} onClick={()=>{invalidateSparksAccount(username);setRetryTick(n=>n+1);}}>ลองโหลดอีกครั้ง</button></div> : null}
+      {walletLoaded&&account.historyUnavailable&&historyLimit>0?<div className="qa-sparks-inline-error" role="status">โหลดกระเป๋า Sparks ได้แล้ว แต่ประวัติบางรายการยังไม่พร้อมแสดง ข้อมูลประวัติเดิมไม่ได้ถูกลบ</div>:null}
+      {walletLoaded&&account.recoverySource==="server"?<div className="qa-sparks-loading" role="status">ยอดกระเป๋านี้ได้รับการยืนยันจากเซิร์ฟเวอร์ QA Sparks</div>:null}
       {loading ? <div className="qa-sparks-loading" role="status">กำลังอัปเดต Sparks...</div> : null}
       <nav className="qa-sparks-tabs" role="tablist" aria-label="QA Sparks sections">
         {tabs.map((tab) => <button type="button" role="tab" id={"qa-sparks-tab-" + tab.key}
