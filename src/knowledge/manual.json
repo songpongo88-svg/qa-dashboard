@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "updatedAt": "2026-11-08T16:47:36.670Z",
   "releaseNotes": [
-    "Report Center มี Preview จากข้อมูลจริงก่อน Generate และเพิ่ม By Case; Excel มี Dashboard, Performance, Topic, Tag, Case Detail ในไฟล์เดียว และ PDF เป็น Executive Summary โดยคง Case Detail PDF เดิมใน Dashboard",
+    "Report Center เพิ่ม Preview ก่อน Gen Excel/PDF จากข้อมูลจริง พร้อม Dashboard, Agent/Topic/Tag และ Case Detail Sheets; QA Slides เพิ่ม Preview สไลด์ธีม Kanit ตาม Week และ Template",
     "Report Center เป็นหน้าดึงรายงานสรุป Monthly Weekly Yearly Compare Payment และ QA Slides เท่านั้น; คืนปุ่ม Case Detail PDF และ Gen All/My Case PDF ไปยัง Dashboard และ Case Detail เดิม",
     "T&C Version 1.2: ผู้ใช้งานทุกคนอ่านและยอมรับฉบับใหม่ด้วยตนเองเมื่อกลับมาใช้ระบบ เพิ่มเงื่อนไข QA Sparks, Item, Announcement Shield และการย้ายระบบ โดยเก็บหลักฐานฉบับเดิม การตรวจสถานะอ่านเฉพาะฉบับปัจจุบันและรวมคำขอที่เกิดพร้อมกัน T&C Management โหลดเฉพาะเวอร์ชันที่เลือกและอ่านฉบับเก่าเมื่อสั่ง ไม่มีการไล่แก้ข้อมูลทุกบัญชี ไม่มีการบันทึกซ้ำจากการกดพร้อมกัน และไม่เปลี่ยน Maintenance Mode",
     "QA Sparks Wallet Recovery: แยกการดึงยอดกระเป๋าและประวัติ History ออกจากกัน ถ้า History ไม่พร้อมระบบยังแสดงยอด Sparks จาก wallet ที่อ่านสำเร็จได้พร้อมคำเตือน ไม่แสดงว่าคะแนนหาย; หากเบราว์เซอร์อ่าน wallet ไม่ได้ด้วยสิทธิ์หรือเครือข่าย ให้ลองอ่าน wallet เดิมแบบ read-only ผ่าน /api/sparks-admin ที่ตรวจ Session และเจ้าของกระเป๋า ห้ามสร้างหรือแก้ยอดสำรอง; ถ้าเป็น Firestore quota จำกัดการอ่านให้แจ้งสาเหตุจริงและปุ่มรีเฟรชแทนการยิงซ้ำ",
@@ -1020,7 +1020,7 @@
         "presentation-builder"
       ],
       "permissions": [],
-      "summary": "เตรียมสไลด์สรุป QA จากข้อมูลช่วงที่เลือก",
+      "summary": "สร้าง QA Slides ตาม Week และ Template โดย Preview แสดงแนวสไลด์ Kanit ก่อน Generate PDF",
       "audience": "ผู้จัดทำรายงาน",
       "updatedAt": "2026-10-26T08:50:00Z",
       "steps": [
@@ -1034,7 +1034,7 @@
         },
         {
           "title": "สร้าง PDF",
-          "body": "ไป Reports → Report Center → QA Slides เลือก Week และ Generate QA Slides PDF โดยไม่ต้องเปิดหน้าพรีวิวสไลด์"
+          "body": "ไป Reports → Report Center → QA Slides เลือก Week และ Template จากนั้นกด Preview QA Slides ก่อน Generate PDF"
         },
         {
           "title": "นำสรุปไปใช้",
