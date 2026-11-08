@@ -1378,11 +1378,29 @@ const hiddenTreasure=createHiddenTreasureService({firestoreRequest,readDoc,recor
 const announcementShield=createAnnouncementShieldService({firestoreRequest,readDoc,recordValue,path,
   updateWrite,createWrite,listCollection,walletDocumentPath,spendableBalance,currentMemberYear});
 
+
+// The first hosted preview is STRICTLY read-only. This prevents an owner from
+// accidentally granting, redeeming or settling any Sparks while 299-document
+// source parity and cross-system dependencies are still being verified.
+const CLOUD_PREVIEW_READ_ACTIONS = new Set([
+  "sparks-cloud-wallet", "sparks-wallet-recovery", "get-truemoney-price",
+  "list-my-truemoney", "qa-lottery-state", "qa-lottery-my-tickets",
+  "special-rewards-mine", "announcement-shield-state", "treasure-state",
+  "fruit-match-data", "snakes-state", "list-truemoney-tracker",
+  "special-rewards-admin-list", "special-rewards-admin-receipt",
+  "list", "history",
+]);
+function sparksCloudReadOnlyEnabled() {
+  return process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1";
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (req.method === "GET" && req.url?.startsWith("/api/sparks-admin")) return res.status(405).json({error:"Method not allowed"});
   if (req.method === "GET") {
+    // Never execute automatic payout or subscription renewal in a read-only Cloud preview.
+    if (sparksCloudReadOnlyEnabled()) return res.status(423).json({error:"QA Sparks Supabase preview is read-only; scheduled payouts are disabled"});
     const expected = String(process.env.CRON_SECRET || "").trim();
     if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
     const [lottery,shield]=await Promise.allSettled([qaLottery.settle(),announcementShield.sweep()]);
@@ -1395,6 +1413,12 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    if(sparksCloudReadOnlyEnabled() && !CLOUD_PREVIEW_READ_ACTIONS.has(String(body.action||""))) {
+      return res.status(423).json({
+        error:"QA Sparks เวอร์ชันทดสอบ Supabase เปิดให้ดูข้อมูลอย่างเดียว ยังไม่อนุญาตให้เพิ่ม หัก แลก หรือยืนยันรางวัล",
+        code:"SPARKS_CLOUD_PREVIEW_READ_ONLY",
+      });
+    }
     if (["get-truemoney-price","redeem-truemoney","use-truemoney-item","list-my-truemoney"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
       const result=body.action==="get-truemoney-price"
