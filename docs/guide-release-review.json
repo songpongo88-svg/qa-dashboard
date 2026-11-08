@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T05:20:00.000Z",
-  "reason": "Reviewed an owner-only, server-authorized Snakes and Ladders Private Test inside QA Sparks Mini Games; private room testing only with Bots, no public invitations or real Sparks payouts, Fruit Match unchanged. The feature remains hidden to general accounts.",
+  "reviewedAt": "2026-11-08T06:05:00.000Z",
+  "reason": "QA Sparks Hidden Treasure: inspected a server-authenticated Case Detail reading window, 35% randomized discovery with 8 checks per day, 1-500 variable weighted awards, fixed daily history ID and transactional wallet+history+daily-state update blocking duplicate payouts, later cosmetic chests, new tests and UI. Existing QA scoring, rubric and Snakes Private Test unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -23,7 +23,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "4ab13a9ef01d78997c99e06ea640b57439cc07138920e2dfe84863e395219715",
+    "api/sparks-admin.js": "e55b63fcd7eb9d8021d849a21cca3692defef33a41c52ef251a07e0c0bdbda6c",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
     "build/adminNameUserProfilePatch.js": "69e5240ec63cb6a33c7febd3fef09d6e9f9811a8fc0e905bc7e48a5603955f8d",
@@ -104,7 +104,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "d040cca6cc218b539ac8f3f5c884fc7527031a7524a30322df45652c0be99ab7",
+    "package.json": "6f6da7d26c4dfc7b89b5d79dcc42d1766aebfabd355a8a1e491770b1034cfa7c",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -404,7 +404,7 @@
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "abfb591219d756e868a9804215607b5ad17e3064ba8d855f84b5412b915e0796",
-    "src/App.tsx": "5ce787ca68ed17d283247c7d448efd9297f7a790a86b78405ff29be7e773f215",
+    "src/App.tsx": "7a66ac598f926acff6e58ad2f4222f8302706b1b5fe0db393b594410c712bd9f",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -561,7 +561,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "0ef2716bf02390723dc459f3d6183290a878549a265d1264ddcebec9a0d8d933",
+    "src/knowledge/manual.json": "2e1e5ac61663d6ec580bbe0677eccb271afa85a037aa48a71d37d518d910c48f",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -685,6 +685,10 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/SparksMiniGamesGallery.tsx": "3b2926275f950a385829e4b3aebf748bdf4b1e686b962745fc04bbd21b751e8b",
-    "src/sparksMiniGamesGallery.css": "37562b81b3645f431ab9b8ff869cb53876296a8854627a379c29c9b450d4dcc5"
+    "src/sparksMiniGamesGallery.css": "37562b81b3645f431ab9b8ff869cb53876296a8854627a379c29c9b450d4dcc5",
+    "server/hiddenTreasureService.js": "084a2a0eb23e5ad62afefb928a2cc9b98436ff71a2f94b0ef289ba7b48dd17a3",
+    "src/HiddenTreasure.tsx": "b9f5349fce4159afd57630e4d638c611a53133d82dcddf6f18bfb7e0630bbc2c",
+    "src/hiddenTreasure.css": "602ada563edf5a11246215ee01615a38269a19057294d0f8b4d5875f9e2cb639",
+    "scripts/test-hidden-treasure.mjs": "890e76683be6d78785ff1c950b9cc984698526b08474dab4f249f4e1ff9ebd43"
   }
 }
