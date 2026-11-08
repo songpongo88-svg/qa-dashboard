@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T06:35:00.000Z",
-  "reason": "Reviewed daily Hidden Treasure reading across authorized Case Detail, Rubric and Coaching, secure 30-90s variable dwell and weighted Sparks 1-500, immutable per-day payout history and atomically updated wallet. Corrected separate Snakes Private Test JSX parser issue found in Vercel logs.",
+  "reviewedAt": "2026-11-08T06:42:00.000Z",
+  "reason": "Reviewed Hidden Treasure post-build regression fix: the waiting-period test now expects the Thai QA reading guidance without modifying reward eligibility, payout, or game state.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -689,6 +689,6 @@
     "server/hiddenTreasureService.js": "57d6de9e7febf1b819623a3be58318baecf0f29f7e8c4eb067f382c4d9f6b111",
     "src/HiddenTreasure.tsx": "91f59ca9fdb15c88e232d26f14914e20fe6d2100891a93769afc6ca91ad76b08",
     "src/hiddenTreasure.css": "602ada563edf5a11246215ee01615a38269a19057294d0f8b4d5875f9e2cb639",
-    "scripts/test-hidden-treasure.mjs": "890e76683be6d78785ff1c950b9cc984698526b08474dab4f249f4e1ff9ebd43"
+    "scripts/test-hidden-treasure.mjs": "c3b10c50f3582a5590250325c880e11dfbe4d2a2904fa4a86a38469fefc6fcc2"
   }
 }
