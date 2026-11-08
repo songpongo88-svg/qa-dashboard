@@ -40,6 +40,7 @@ import { fetchAppealInboxSnapshot, fetchAppealDiscussionInboxEvents, fetchAppeal
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
+import ReportCenterMockup from "./ReportCenterMockup";
 import SignatureCenterMockup from "./SignatureCenterMockup";
 import PresentationMockup from "./PresentationMockup";
 import CoachingMockup from "./CoachingMockup";
@@ -254,6 +255,7 @@ type AppTab =
   | "team-chat"
   | "call-history"
   | "summary"
+  | "report-center"
   | "signature-center"
   | "presentation-builder"
   | "coaching"
@@ -731,6 +733,7 @@ const VALID_APP_TABS = new Set<AppTab>([
   "team-chat",
   "call-history",
   "summary",
+  "report-center",
   "signature-center",
   "presentation-builder",
   "coaching",
@@ -774,6 +777,7 @@ const WORKSPACE_TAB_LABELS: Record<AppTab | "case-detail", string> = {
   "team-chat": "Chat",
   "call-history": "Calls",
   summary: "Analytics",
+  "report-center": "Report Center",
   "signature-center": "Signatures",
   "presentation-builder": "QA Slides",
   coaching: "Coaching",
@@ -4836,7 +4840,7 @@ export default function App() {
     usageLogAllowed || roleAdminAllowed || passwordResetShortcutAllowed
   );
   const performanceMenuValue =
-    activeTab === "dashboard" || activeTab === "summary" || activeTab === "signature-center" || activeTab === "presentation-builder" || (activeTab === "coaching" && coachingAllowed)
+    activeTab === "dashboard" || activeTab === "summary" || activeTab === "report-center" || activeTab === "signature-center" || activeTab === "presentation-builder" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
       : "";
   const reviewMenuValue =
@@ -5198,7 +5202,7 @@ export default function App() {
 
   const handlePerformanceMenuChange = (value: string) => {
     if (value === "coaching" && !coachingAllowed) return;
-    if (value === "dashboard" || value === "summary" || value === "signature-center" || value === "presentation-builder" || value === "coaching") {
+    if (value === "dashboard" || value === "summary" || value === "report-center" || value === "signature-center" || value === "presentation-builder" || value === "coaching") {
       navigateToTab(value);
     }
   };
@@ -7528,6 +7532,14 @@ export default function App() {
       ],
     },
     {
+      id: "reports",
+      title: "Reports",
+      description: "ศูนย์กลางการสร้างและส่งออกรายงาน",
+      items: [
+        { key: "report-center", label: "Report Center", description: "Monthly, Yearly, Weekly, Compare, Case Detail, Payment และ PDF / Excel", icon: "chart", allowed: true, active: activeWorkspaceTab === "report-center", onClick: () => activateWorkspaceTab("report-center") },
+      ],
+    },
+    {
       id: "qa",
       title: "QA Work",
       description: "สร้างและบันทึกผลประเมิน QA",
@@ -8112,6 +8124,48 @@ export default function App() {
           />
         ) : activeTab === "schedule" ? (
           <ScheduleMockup currentUser={currentUser} />
+        ) : activeTab === "report-center" ? (
+          <ReportCenterMockup
+            analytics={analyticsAllowed ? (
+              <SummaryMockup
+                currentUser={currentUser}
+                externalSelectedAgent={analyticsSelectedAgent}
+                externalSelectedMonth={analyticsSelectedMonth}
+                externalSelectedWeek={analyticsSelectedWeek}
+                roleScopedAgentNames={roleScopedAgentNames}
+                canViewAllAgents={analyticsAllAgentsAllowed}
+                canViewAllTeams={analyticsAllTeamsAllowed}
+                canViewOwnTeam={analyticsOwnTeamAllowed}
+                canExportAnalytics={analyticsExportAllowed}
+                reportCenter
+                dataRefreshKey={qaDataRefreshKey}
+              />
+            ) : <div className="rounded-xl bg-white p-6 text-slate-600">ไม่มีสิทธิ์ดู Analytics Report</div>}
+            cases={
+              <DashboardMockup
+                currentUser={currentUser}
+                caseAgentDirectory={caseAgentDirectory}
+                dashboardSubTab="overview"
+                roleScopedAgentNames={roleScopedAgentNames}
+                canViewAgentsInOverview={overviewAgentSelectionAllowed}
+                canViewAnalytics={false}
+                dataRefreshKey={qaDataRefreshKey}
+                reportCenter
+              />
+            }
+            payments={
+              <SignatureCenterErrorBoundary>
+                <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} reportCenter />
+              </SignatureCenterErrorBoundary>
+            }
+            slides={
+              <PresentationMockup
+                currentUser={currentUser}
+                roleScopedAgentNames={roleScopedAgentNames}
+                dataRefreshKey={qaDataRefreshKey}
+              />
+            }
+          />
         ) : activeTab === "summary" && analyticsAllowed ? (
           <SummaryMockup
             currentUser={currentUser}
