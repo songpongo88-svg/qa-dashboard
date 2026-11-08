@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T06:20:00.000Z",
-  "reason": "Reviewed daily QA Sparks Hidden Treasure learning encounters in access-controlled Case Detail, Rubric and Coaching views: randomized reading dwell of 30-90 seconds and secure prize rolls, weighted Sparks 1-500, daily per-member immutable history and transaction-based wallet award, duplicate prevention, later cosmetic discoveries, tests and documentation.",
+  "reviewedAt": "2026-11-08T06:35:00.000Z",
+  "reason": "Reviewed daily Hidden Treasure reading across authorized Case Detail, Rubric and Coaching, secure 30-90s variable dwell and weighted Sparks 1-500, immutable per-day payout history and atomically updated wallet. Corrected separate Snakes Private Test JSX parser issue found in Vercel logs.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -460,7 +460,7 @@
     "src/ScheduleMockup.tsx": "6590094d2935f74cb08475f56d46383bb4b9c7f1702d7291ce8f523b528dceca",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
-    "src/SnakesLaddersGame.tsx": "2fc3b2ca2d22ee5f9ff615d29e65250e59f89338d8a1f29c25ad72f0ac601fd9",
+    "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/SparksAdminPanel.tsx": "9982cd2310c343e7d23a8b8a053a21610848cc466aa2809010faecce68d0b47f",
     "src/SparksHistory.tsx": "b935b35b4cabe7f209abb04d8d1cdce721c38698799ba37d126ad8df6683188a",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
