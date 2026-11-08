@@ -95,7 +95,7 @@ export default function SparksCloudStatus({adminAccess=false}:{adminAccess?:bool
     {preview?<p className="qa-sparks-cloud-hint">
       เวอร์ชันนี้เป็นสำเนาทดสอบ ระบบจริงยังใช้ Firebase และปิดการเพิ่ม–หัก Sparks ใน Preview
     </p>:null}
-    {error?<p role="alert" className="qa-sparks-cloud-warning">ยังตรวจสอบฐานข้อมูลที่ใช้งานจริงไม่ได้ กรุณากด ↻ อีกครั้ง</p>:null}
+    {error?<p role="status" className="qa-sparks-cloud-warning">ยังตรวจสอบฐานข้อมูลที่ใช้งานจริงไม่ได้ กรุณากด ↻ อีกครั้ง</p>:null}
 
     {adminAccess && report?<details className="qa-sparks-cloud-detail">
       <summary>รายละเอียดการย้ายระบบ <span>{safeCompleted?"เสร็จแล้ว":`${completeCount}/${report.migrationChecks.length} ขั้นตอนที่ตรวจผ่าน`}</span></summary>
