@@ -1,8 +1,8 @@
 {
   "version": "2.0.0",
-  "updatedAt": "2026-11-08T16:39:25.868Z",
+  "updatedAt": "2026-11-08T16:47:36.670Z",
   "releaseNotes": [
-    "Report Center เปลี่ยนเป็นหน้าดึงไฟล์เท่านั้น เลือก Monthly, Weekly, Yearly, Compare, Case Detail, Payment หรือ QA Slides และตัวกรองก่อน Generate โดยไม่ฝัง Dashboard",
+    "Report Center เป็นหน้าดึงรายงานสรุป Monthly Weekly Yearly Compare Payment และ QA Slides เท่านั้น; คืนปุ่ม Case Detail PDF และ Gen All/My Case PDF ไปยัง Dashboard และ Case Detail เดิม",
     "T&C Version 1.2: ผู้ใช้งานทุกคนอ่านและยอมรับฉบับใหม่ด้วยตนเองเมื่อกลับมาใช้ระบบ เพิ่มเงื่อนไข QA Sparks, Item, Announcement Shield และการย้ายระบบ โดยเก็บหลักฐานฉบับเดิม การตรวจสถานะอ่านเฉพาะฉบับปัจจุบันและรวมคำขอที่เกิดพร้อมกัน T&C Management โหลดเฉพาะเวอร์ชันที่เลือกและอ่านฉบับเก่าเมื่อสั่ง ไม่มีการไล่แก้ข้อมูลทุกบัญชี ไม่มีการบันทึกซ้ำจากการกดพร้อมกัน และไม่เปลี่ยน Maintenance Mode",
     "QA Sparks Wallet Recovery: แยกการดึงยอดกระเป๋าและประวัติ History ออกจากกัน ถ้า History ไม่พร้อมระบบยังแสดงยอด Sparks จาก wallet ที่อ่านสำเร็จได้พร้อมคำเตือน ไม่แสดงว่าคะแนนหาย; หากเบราว์เซอร์อ่าน wallet ไม่ได้ด้วยสิทธิ์หรือเครือข่าย ให้ลองอ่าน wallet เดิมแบบ read-only ผ่าน /api/sparks-admin ที่ตรวจ Session และเจ้าของกระเป๋า ห้ามสร้างหรือแก้ยอดสำรอง; ถ้าเป็น Firestore quota จำกัดการอ่านให้แจ้งสาเหตุจริงและปุ่มรีเฟรชแทนการยิงซ้ำ",
     "QA Sparks Announcement Shield Item: แลก 50 Sparks ครั้งแรกเข้า My Items แล้วผู้ใช้งานกดใช้เพื่อเริ่มนับอายุหนึ่งเดือนปฏิทิน ระบบต่ออายุอัตโนมัติตัด 50 Sparks ทุกเดือนผ่านงาน Cron เดิมแม้ผู้ใช้ไม่ได้ Login; เมื่อยอดไม่พอให้สิทธิ์ปิด Pop-up ต่อได้อีก 14 วันระหว่างรอตัดรายวัน หากยังตัดไม่ได้ยกเลิกอัตโนมัติ; ยกเลิกเองแล้วหยุดต่ออายุแต่คงสิทธิ์ถึงวันที่ชำระไว้ จ่ายเงินผ่าน Firestore Transaction กับ History แบบไม่ซ้ำ; ปิดเฉพาะ Pop-up Announcement ปกติ ไม่ปิดประกาศสำคัญ Urgent ประกาศที่บังคับรับทราบหรือเรื่องระบบ/ความปลอดภัย และไม่ตีว่าประกาศอ่านแล้ว",
@@ -301,7 +301,7 @@
         },
         {
           "title": "สร้าง PDF รายเคส",
-          "body": "อ่าน Case Detail ใน Dashboard ได้ตามปกติ เมื่อต้องการไฟล์ให้ไป Reports → Report Center → Case Detail แล้วเลือก Month, Team/Agent และ All Cases หรือ Case ID เฉพาะรายการก่อน Generate PDF"
+          "body": "การอ่านเคสและดาวน์โหลด Case Detail PDF ใช้หน้า QA Dashboard หรือ Case Detail ตามเดิม ปุ่ม PDF รายเคสอยู่ในหน้ารายละเอียด และ Gen All Case PDF / Gen My Case PDF อยู่ใน Cases in Current View โดยใช้เดือนหรือสัปดาห์ที่เลือกตามสิทธิ์"
         }
       ],
       "result": "เข้าใจเหตุผลของคะแนน และได้รายงานตรงกับเคสที่เลือก",
@@ -934,7 +934,7 @@
       "permissions": [
         "viewSummary"
       ],
-      "summary": "ใช้ Analytics วิเคราะห์แนวโน้ม แต่ใช้ Reports → Report Center เมื่อต้องการดาวน์โหลดไฟล์",
+      "summary": "Analytics ใช้วิเคราะห์แนวโน้ม และ Report Center ใช้ Export รายงานสรุป โดย Case Detail PDF อยู่ในหน้า Dashboard เดิม",
       "audience": "ผู้มีสิทธิ์ดู Analytics",
       "updatedAt": "2026-11-06T08:00:00Z",
       "steps": [
@@ -2474,7 +2474,7 @@
         "report-center"
       ],
       "permissions": [],
-      "summary": "เลือกชนิดไฟล์ใน Report Center และตั้งค่าช่วงเวลา/Agent ก่อนดาวน์โหลด โดยไม่แสดง Dashboard หรือกราฟ",
+      "summary": "Report Center สำหรับรายงานสรุป Monthly Weekly Yearly Compare Payment และ QA Slides; Case Detail PDF ใช้จาก Dashboard",
       "audience": "ผู้ใช้ตามสิทธิ์ส่งออก",
       "updatedAt": "2026-09-17T10:14:09.091Z",
       "steps": [
@@ -2484,7 +2484,7 @@
         },
         {
           "title": "เลือกชนิดไฟล์",
-          "body": "เลือก Monthly, Weekly, Yearly, Compare หรือ Case Detail สำหรับผล QA หรือเลือก Payment / Signed และ QA Slides สำหรับไฟล์เฉพาะทาง"
+          "body": "เลือก Monthly, Weekly, Yearly หรือ Compare สำหรับผล QA หรือเลือก Payment / Signed และ QA Slides สำหรับไฟล์เฉพาะทาง Case Detail PDF ใช้จากหน้า QA Dashboard ตามเดิม"
         },
         {
           "title": "กำหนดช่วงเวลาและคน",
