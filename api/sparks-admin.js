@@ -1345,9 +1345,14 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
     if (typeof body.action==="string"&&body.action.startsWith("snakes-")) {
-      // Release gate: private development only. Do not expose gameplay or payouts until owner publishes.
-      return res.status(503).json({error:"เกมบันไดงูยังไม่เปิดให้บริการ"});
-      const actor=await authorizeRewardUser(body);
+      // Unpublished: validate the real QA owner session server-side for every operation.
+      // The client-only Private Test card is not an authorization mechanism.
+      const actor=await authorizeAdmin(body);
+      // Private test rewards must never be paid into the production wallet.
+      if(body.action==="snakes-claim")return res.status(403).json({error:"โหมดทดสอบไม่สามารถรับ Sparks เข้ากระเป๋าจริงได้"});
+      // Do not invite real users into an unreleased game.
+      if(body.action==="snakes-invite"||body.action==="snakes-respond")
+        return res.status(403).json({error:"โหมดทดสอบสำหรับเจ้าของระบบและ Bot เท่านั้น"});
       const action={
         "snakes-state":()=>snakes.state(actor,body.includeHistory===true),
         "snakes-create":()=>snakes.create(body,actor),
