@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // QA Sparks has one write authority in Supabase after cutover.
+    // All existing reads and non-Sparks QA writes retain their previous access.
+    match /{collection}/{document=**} {
+      allow read: if true;
+      allow write: if !(collection in ['qa_sparks_wallets', 'qa_sparks_true_money_requests', 'qa_sparks_reward_settings', 'qa_sparks_special_reward_requests', 'qa_sparks_special_receipt_evidence', 'qa_sparks_special_receipt_locks', 'qa_sparks_fruit_players_v1', 'qa_sparks_fruit_boards', 'qa_sparks_fruit_rounds', 'qa_sparks_lottery_draws_v1', 'qa_sparks_treasure_daily', 'qa_announcement_shield', 'qa_sparks_snakes_rooms_v1', 'qa_sparks_snakes_members_v1', 'qa_sparks_typing_relief_operations']);
+    }
+  }
+}
