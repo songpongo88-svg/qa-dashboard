@@ -52,6 +52,107 @@ const reportRows = (cases: CanonicalReportCase[], group: "agent" | "week" | "mon
   });
   return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, "en")).map(([label, rows]) => ({ label, ...summary(rows) }));
 };
+
+const effectiveTopics = (item: CanonicalReportCase) =>
+  item.reviewStatus === "Revised" && Array.isArray(item.revisedTopics) && item.revisedTopics.length ? item.revisedTopics : (item.topics || []);
+function topicRows(rows: CanonicalReportCase[]) {
+  const map = new Map<string, { score: number; max: number; count: number }>();
+  rows.forEach(item => effectiveTopics(item).forEach(topic => {
+    const code = String(topic.code || topic.label || "").trim();
+    const score = Number(topic.score), max = Number(topic.max);
+    if (!code || !Number.isFinite(score) || !Number.isFinite(max) || max <= 0) return;
+    const entry = map.get(code) || { score: 0, max: 0, count: 0 };
+    entry.score += score; entry.max += max; entry.count++;
+    map.set(code, entry);
+  }));
+  return [...map].sort(([a], [b]) => a.localeCompare(b)).map(([code, item]) => ({
+    code, cases: item.count, average: item.score / item.count, max: item.max / item.count,
+    percent: item.score * 100 / item.max,
+  }));
+}
+function tagRows(rows: CanonicalReportCase[]) {
+  const tags = new Map<string, number>();
+  rows.forEach(item => {
+    const distinct = new Set<string>();
+    effectiveTopics(item).forEach(topic => {
+      (topic.issueTags || []).forEach(tag => { if (String(tag).trim()) distinct.add(String(tag).trim()); });
+      (topic.deductions || []).forEach(tag => {
+        const info = tag as unknown as Record<string, unknown> | string;
+        const value = typeof info === "string" ? info : String(info.tag || info.name || info.label || "");
+        if (value.trim()) distinct.add(value.trim());
+      });
+    });
+    distinct.forEach(tag => tags.set(tag, (tags.get(tag) || 0) + 1));
+  });
+  return [...tags].map(([tag, cases]) => ({ tag, cases, percent: rows.length ? cases * 100 / rows.length : 0 }))
+    .sort((a,b) => b.cases - a.cases || a.tag.localeCompare(b.tag));
+}
+function agentRows(rows: CanonicalReportCase[]) {
+  const agents = new Map<string, CanonicalReportCase[]>();
+  rows.forEach(item => { const name = rowAgent(item); agents.set(name, [...(agents.get(name) || []), item]); });
+  return [...agents].sort(([a],[b]) => a.localeCompare(b,"th")).map(([name, items]) => ({
+    name, team: rowTeam(items[0]), ...summary(items),
+    kpi: items.length < 10 ? "Not assessed" : (summary(items).average || 0) >= 85 ? "Pass" : "Below 85%",
+  }));
+}
+function detailedRows(rows: CanonicalReportCase[]) {
+  return rows.map(item => {
+    const values: Record<string, string | number> = {
+      "Case ID": item.caseId, "Case Date": item.caseDate || "", "Audit Date": item.auditDate || "",
+      "Team": rowTeam(item), "Agent": rowAgent(item), "Month": rowMonth(item), "Week": rowWeek(item),
+      "Intent TH": item.inquiryTh || "", "Intent EN": item.inquiryEn || "",
+      "Case Description": item.caseDescription || "", "Final Score": rowScore(item),
+      "Previous Score": item.previousScore ?? "", "Grade": item.grade || "",
+      "Review Status": item.reviewStatus || "", "Appeal Status": item.appealStatus || "",
+    };
+    effectiveTopics(item).forEach(topic => {
+      const code = String(topic.code || "").trim();
+      if (!code) return;
+      values[code + " Score"] = topic.score;
+      values[code + " Max"] = topic.max;
+      values[code + " Tag"] = (topic.issueTags || []).join(", ");
+      values[code + " Comment"] = String(topic.comment || "");
+    });
+    return values;
+  });
+}
+function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string) {
+  const book = XLSX.utils.book_new();
+  const stats = summary(rows), agents = agentRows(rows), topics = topicRows(rows), tags = tagRows(rows);
+  const sheet = XLSX.utils.aoa_to_sheet([
+    ["QUALITY ASSURANCE PERFORMANCE REPORT", kind.toUpperCase()],
+    ["Period", period, "Scope", scope],
+    [],
+    ["DASHBOARD"],
+    ["Average Score", stats.average === null ? "-" : Number(stats.average.toFixed(2))],
+    ["Total Cases", stats.count], ["Evaluated Agents", agents.length], ["KPI Target (%)", 85],
+    ["Agents Pass", agents.filter(x => x.kpi === "Pass").length],
+    ["Agents Below KPI", agents.filter(x => x.kpi === "Below 85%").length],
+    ["Agents Not Assessed (<10 Cases)", agents.filter(x => x.kpi === "Not assessed").length],
+    [],
+    ["TOPIC PERFORMANCE"], ["Topic", "Average (%)", "Cases"],
+    ...topics.map(x => [x.code, Number(x.percent.toFixed(2)), x.cases]),
+    [], ["TOP ISSUE TAGS"], ["Tag", "Cases", "Share (%)"],
+    ...tags.slice(0,12).map(x => [x.tag, x.cases, Number(x.percent.toFixed(2))]),
+  ]);
+  sheet["!cols"] = [{ wch: 38 }, { wch: 28 }, { wch: 26 }, { wch: 26 }];
+  XLSX.utils.book_append_sheet(book, sheet, "Dashboard");
+  const groups = reportRows(rows, kind === "weekly" ? "week" : kind === "yearly" || kind === "compare" ? "month" : "agent");
+  const add = (name: string, records: Record<string, string | number>[], widths: number[]) => {
+    const data = XLSX.utils.json_to_sheet(records.length ? records : [{ "No Data": "ไม่มีข้อมูล" }]);
+    data["!cols"] = widths.map(wch => ({ wch }));
+    if (records.length && data["!ref"]) data["!autofilter"] = { ref: data["!ref"] };
+    XLSX.utils.book_append_sheet(book, data, name);
+  };
+  add("Performance Summary", groups.map(x => ({ Group: x.label, Cases: x.count, "Average Score": x.average === null ? "" : Number(x.average.toFixed(2)) })), [38, 17, 22]);
+  add("Agent Performance", agents.map(x => ({ Agent: x.name, Team: x.team, Cases: x.count, "Average Score": x.average === null ? "" : Number(x.average.toFixed(2)), "KPI Status": x.kpi })), [38, 28, 18, 20, 25]);
+  add("Topic Performance", topics.map(x => ({ Topic: x.code, "Average Score": Number(x.average.toFixed(2)), "Maximum Score": Number(x.max.toFixed(2)), "Average %": Number(x.percent.toFixed(2)), Cases: x.cases })), [24, 19, 19, 19, 16]);
+  add("Tag Analysis", tags.map(x => ({ Tag: x.tag, "Cases Affected": x.cases, "Share %": Number(x.percent.toFixed(2)) })), [45, 20, 18]);
+  const cases = detailedRows(rows);
+  add("Case Detail", cases, Object.keys(cases[0] || {}).map(key => /Description|Comment/.test(key) ? 55 : /Agent|Intent/.test(key) ? 30 : 18));
+  return book;
+}
+
 function drawPdf(title: string, period: string, scope: string, cases: CanonicalReportCase[], mode: Kind) {
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
   const groups = reportRows(cases, mode === "weekly" ? "week" : mode === "compare" ? "month" : "agent");
@@ -227,17 +328,8 @@ export default function ReportCenterMockup({
         }
       } else {
         const filename = `QA_${kind.toUpperCase()}_${safe(selectedPeriod)}_${safe(scopeLabel)}`;
-        const rows = actual.map(item => ({
-          "Case ID": item.caseId, "Agent": rowAgent(item), "Team": rowTeam(item),
-          "Month": rowMonth(item), "Week": rowWeek(item), "Audit Date": item.auditDate,
-          "Score": rowScore(item), "Grade": item.grade || "", "Status": item.reviewStatus || "",
-        }));
         if (format === "xlsx") {
-          const book = XLSX.utils.book_new();
-          const stats = summary(actual);
-          XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet([{ "Report": selectedKind.name, "Period": selectedPeriod, "Scope": scopeLabel, "Cases": stats.count, "Average": stats.average ?? "" }]), "Summary");
-          XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(reportRows(actual, kind === "weekly" ? "week" : kind === "compare" ? "month" : "agent").map(x => ({ Group: x.label, Cases: x.count, "Average Score": x.average, "Cases >=85": x.passedCases }))), "By Group");
-          XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), "Cases");
+          const book = buildReportWorkbook(actual, kind, scopeLabel, selectedPeriod);
           download(new Blob([XLSX.write(book, { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), filename + ".xlsx");
         } else {
           drawPdf("QA " + selectedKind.name + " Report", selectedPeriod, scopeLabel, actual, kind).save(filename + ".pdf");
