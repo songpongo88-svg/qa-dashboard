@@ -6082,6 +6082,7 @@ export default function DashboardMockup({
   roleScopedAgentNames,
   canViewAgentsInOverview = false,
   canViewAnalytics = false,
+  reportCenter = false,
   dataRefreshKey,
   onRefreshData,
   dataCheckedAt = 0,
@@ -6111,6 +6112,7 @@ export default function DashboardMockup({
   roleScopedAgentNames?: string[];
   canViewAgentsInOverview?: boolean;
   canViewAnalytics?: boolean;
+  reportCenter?: boolean;
   dataRefreshKey?: number;
   onRefreshData?: () => void;
   dataCheckedAt?: number;
@@ -9083,7 +9085,7 @@ export default function DashboardMockup({
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        {qaCanGenerateAllCasePdf && (isWeeklyCasePdfView || (isMonthlyView && selectedMonthKey !== "all")) ? (
+                        {reportCenter && qaCanGenerateAllCasePdf && (isWeeklyCasePdfView || (isMonthlyView && selectedMonthKey !== "all")) ? (
                           <>
                             <button
                               type="button"
