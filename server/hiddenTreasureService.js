@@ -21,6 +21,7 @@ const allowedCaseId=value=>/^[a-zA-Z0-9_-]{3,70}$/.test(String(value||""));
 export function createHiddenTreasureService({
  firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance,
+ drawRandom=randomInt,
 }){
  const dailyPath=(username,day)=>path("qa_sparks_treasure_daily",username+"-"+day);
  const historyPath=(username,day)=>path("qa_sparks_wallets",encodeURIComponent(username),"history","hidden-treasure-"+day);
@@ -75,13 +76,13 @@ export function createHiddenTreasureService({
      if(now-asInt(d.startedMs)<TODAY_SECONDS*1000)fail("ต้องอ่านเคสก่อนเปิดหีบสมบัติ",409);
      if(now-asInt(d.startedMs)>15*60*1000)fail("การอ่านเคสหมดเวลา กรุณาเปิดเคสอีกครั้ง",409);
      if(asInt(d.searches)>=MAX_SEARCHES)fail("ใช้สิทธิ์ค้นหาขุมทรัพย์วันนี้ครบแล้ว",409);
-     const found=randomInt(100)<35;
+     const found=drawRandom(100)<35;
      const claimed=!!d.claimedAt;
      const used=[...new Set([...(Array.isArray(d.usedCases)?d.usedCases:[]),d.caseId])].slice(-MAX_SEARCHES);
      const offerId=found&&!claimed?randomUUID():"";
      // Smaller awards are intentionally more common. Exactly 1-500 possible.
-     const dice=randomInt(1000);
-     const amount=dice<700?randomInt(1,101):dice<930?randomInt(101,301):randomInt(301,501);
+     const dice=drawRandom(1000);
+     const amount=dice<700?drawRandom(1,101):dice<930?drawRandom(101,301):drawRandom(301,501);
      const next={...d,visitId:"",caseId:"",startedMs:0,lastCheckMs:now,
        searches:asInt(d.searches)+1,usedCases:used,
        offerId:offerId||d.offerId||"",offerAmount:offerId?amount:asInt(d.offerAmount),
