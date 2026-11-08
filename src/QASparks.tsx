@@ -120,7 +120,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     { key: "rewards", label: "Reward Center", icon: "gift" },
     { key: "items", label: "My Items", icon: "package" },
     { key: "history", label: "History", icon: "clock" },
-    ...(adminAccess ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
+    ...(adminAccess && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
@@ -135,7 +135,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       </section>
       {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY === "1" ? <div role="status" className="qa-sparks-inline-error" style={{borderColor:"#a5b4fc",background:"#eef2ff",color:"#312e81"}}>
         <strong>SUPABASE PREVIEW · อ่านข้อมูลอย่างเดียว</strong> — นี่คือเว็บทดสอบสำหรับเทียบยอด Sparks และประวัติ
-        ระบบปิดการรับแต้ม แลกรางวัล เล่นเกม และการทำธุรกรรมทั้งหมดไว้ การกดทำรายการจะไม่เปลี่ยนคะแนนจริง
+        ระบบปิดการรับแต้ม แลกรางวัล เล่นเกม และการทำธุรกรรมทั้งหมด รวมถึงปุ่ม Sparks Admin ไว้ การกดทำรายการจะไม่เปลี่ยนคะแนนจริง
       </div> : null}
       {error ? <div className="qa-sparks-inline-error" role="alert">{error} <button type="button" style={{marginLeft:12,textDecoration:"underline",fontWeight:700}} onClick={()=>{invalidateSparksAccount(username);setRetryTick(n=>n+1);}}>ลองโหลดอีกครั้ง</button></div> : null}
       {walletLoaded&&account.historyUnavailable&&historyLimit>0?<div className="qa-sparks-inline-error" role="status">โหลดกระเป๋า Sparks ได้แล้ว แต่ประวัติบางรายการยังไม่พร้อมแสดง ข้อมูลประวัติเดิมไม่ได้ถูกลบ</div>:null}
