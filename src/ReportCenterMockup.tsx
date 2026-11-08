@@ -10,7 +10,7 @@ import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
 import { getAppealScoreHold } from "./pendingAppealScore";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
 
-type Kind = "monthly" | "weekly" | "yearly" | "compare" | "case";
+type Kind = "monthly" | "weekly" | "yearly" | "compare" | "case" | "payment" | "slides";
 type Scope = "all" | "team" | "agent";
 type Format = "pdf" | "xlsx";
 const TYPES: { id: Kind; name: string; detail: string }[] = [
@@ -19,6 +19,8 @@ const TYPES: { id: Kind; name: string; detail: string }[] = [
   { id: "yearly", name: "Yearly", detail: "คะแนนรายปี / แยกคะแนนรายเดือน" },
   { id: "compare", name: "Compare", detail: "เปรียบเทียบ 2 เดือน" },
   { id: "case", name: "Case Detail", detail: "รายงานรายละเอียดเคส PDF" },
+  { id: "payment", name: "Payment / Signed", detail: "Payment PDF / Excel และเอกสารลงนาม" },
+  { id: "slides", name: "QA Slides", detail: "สรุป QA รายสัปดาห์เป็น PDF" },
 ];
 const normalize = (value: unknown) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 const safe = (value: string) => value.replace(/[^a-zA-Z0-9ก-๙_-]+/g, "_").slice(0, 72);
@@ -108,11 +110,13 @@ function drawPdf(title: string, period: string, scope: string, cases: CanonicalR
   return pdf;
 }
 export default function ReportCenterMockup({
-  currentUser, roleScopedAgentNames = [], canExport = false,
+  currentUser, roleScopedAgentNames = [], canExport = false, paymentContent, slidesContent,
 }: {
   currentUser: any;
   roleScopedAgentNames?: string[];
   canExport?: boolean;
+  paymentContent?: React.ReactNode;
+  slidesContent?: React.ReactNode;
 }) {
   const [kind, setKind] = useState<Kind>("monthly");
   const [scope, setScope] = useState<Scope>("all");
@@ -174,6 +178,7 @@ export default function ReportCenterMockup({
   const selectedCases = visibleCases.filter(item => kind !== "case" || caseId === "all" || item.caseId === caseId);
   const totals = summary(selectedCases);
   const selectedKind = TYPES.find(item => item.id === kind)!;
+  const specialized = kind === "payment" || kind === "slides";
   const selectedPeriod = kind === "yearly" ? effectiveYear : kind === "compare" ? effectiveMonthInYear + "_vs_" + effectiveCompare : effectiveMonthInYear;
   const scopeLabel = scope === "agent" ? effectiveAgent : scope === "team" ? effectiveTeam : "All_Agents";
   const fail = (error: unknown) => setMessage(error instanceof Error ? error.message : String(error));
@@ -248,7 +253,7 @@ export default function ReportCenterMockup({
               <div className="text-sm font-semibold">{item.name}</div><div className="mt-1 text-xs text-slate-500">{item.detail}</div>
             </button>)}
           </div>
-          <h2 className="mb-3 mt-7 text-sm font-semibold text-slate-700">2. เลือกช่วงเวลาและขอบเขต</h2>
+          {!specialized ? <><h2 className="mb-3 mt-7 text-sm font-semibold text-slate-700">2. เลือกช่วงเวลาและขอบเขต</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-600">Year<select className={inputClass + " mt-2"} value={effectiveYear} onChange={event => setYear(event.target.value)}>{(years.length ? years : ["2026"]).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
             {kind !== "yearly" ? <label className="block text-xs font-semibold text-slate-600">Month<select className={inputClass + " mt-2"} value={effectiveMonthInYear} onChange={event => setMonth(event.target.value)}>{monthOptions.map(value => <option key={value} value={value}>{monthTitle(value)}</option>)}</select></label> : <label className="block text-xs font-semibold text-slate-600">Yearly Format<select className={inputClass + " mt-2"} value={yearlyLayout} onChange={event => setYearlyLayout(event.target.value as typeof yearlyLayout)}><option value="agent-month">By Agent / 12 Months</option><option value="summary">Yearly Team Summary</option></select></label>}
@@ -273,6 +278,7 @@ export default function ReportCenterMockup({
           {progress ? <p role="status" className="mt-2 text-xs text-violet-700">Generating {progress}</p> : null}
           <button type="button" onClick={() => void handleGenerate()} disabled={loading || busy || !canExport || !selectedCases.length || (scope === "agent" && effectiveAgent === "all")} className="mt-5 w-full rounded-xl bg-violet-700 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300">{busy ? "กำลังสร้างรายงาน…" : "Generate / Download Report"}</button>
           {!canExport ? <p className="mt-2 text-center text-xs text-amber-700">บัญชีนี้ไม่มีสิทธิ์ Export รายงาน</p> : null}
+          </> : <div className="mt-6">{kind === "payment" ? paymentContent : slidesContent}</div>}
         </section>
       </div>
     </main>
