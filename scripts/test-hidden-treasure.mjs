@@ -62,19 +62,42 @@ try{
  assert.equal(records.get(dailyPath).claimedAt.length>0,true);
  assert.equal((await game.open({offerId:found.offerId},actor)).alreadyClaimed,true);
  assert.equal(records.get(walletPath).balance,101,"replaying open cannot grant again");
- assert.equal((await game.start({caseId:"AA334880"},actor)).eligible,false,"previously read case is not farmable");
+ const afterClaim=await game.start({caseId:"AA334880"},actor);
+ assert.equal(afterClaim.eligible,false,"no more discoveries after earning today's Sparks");
+ assert.equal(afterClaim.reason,"already-claimed");
+ assert.equal((await game.state(actor)).claimed,true,"server state marks day claimed");
  clock+=121000;
- const again=await game.start({caseId:"AA334881"},actor);
- assert.ok(again.eligible,"new eligible case may reveal another chest");
- clock+=31000;
- const second=await game.find({visitId:again.visitId},actor);
- assert.equal(second.found,true);
- assert.equal(second.alreadyClaimed,true,"a second treasure is cosmetic after claiming");
- assert.equal(second.offerId,"","the second chest has no payable prize token");
+ const later=await game.start({caseId:"AA334881"},actor);
+ assert.equal(later.reason,"already-claimed","a different QA tab or case must remain silent after payout");
  assert.equal(records.get(walletPath).balance,101);
- assert.ok(commitCount>=4);
+ assert.ok(commitCount>=3);
+ // A member who has not claimed must have unlimited tries, with no two-minute cooldown.
+ const secondUser={username:"unclaimed",displayName:"Reader"};
+ let searches=0;
+ for(let i=0;i<12;i++){
+   const visit=await game.start({caseId:"QA-CASE-"+i},secondUser);
+   assert.equal(visit.eligible,true,"unclaimed member may keep searching beyond eight attempts");
+   clock+=31000;
+   const discovered=await game.find({visitId:visit.visitId},secondUser);
+   assert.equal(discovered.found,true);
+   assert.ok(discovered.offerId);
+   // Reset an unclaimed offer in the test fixture to simulate no chest on this turn.
+   // A normal user's found chest stays pending until opened; the server never discards it.
+   const p="qa_sparks_treasure_daily/unclaimed-"+day;
+   const row=records.get(p);
+   records.set(p,{...row,offerId:"",offerAmount:0});
+   searches++;
+ }
+ assert.equal(searches,12,"daily maximum eight searches has been removed");
+ const pending=await game.start({caseId:"QA-PENDING"},secondUser);
+ assert.equal(pending.eligible,true);
+ clock+=31000;
+ const unopened=await game.find({visitId:pending.visitId},secondUser);
+ const resumed=await game.start({caseId:"QA-NEXT"},secondUser);
+ assert.equal(resumed.eligible,false);
+ assert.equal(resumed.pendingOfferId,unopened.offerId,"unopened chest remains claimable without losing the reward");
  const api=await readFile("api/sparks-admin.js","utf8");
  assert.match(api,/\["treasure-state","treasure-start","treasure-find","treasure-open"\]/);
  assert.match(api,/const actor=await authorizeRewardUser\(body\)/);
- console.log("PASS QA Hidden Treasure: 30s server dwell, cryptographic prize, verified wallet/history single grant, duplicate prevention and harmless later chests");
+ console.log("PASS QA Hidden Treasure: unlimited searching before payout, no cooldown, stop after reward, pending chest resume, atomic one-per-day wallet history");
 }finally{Date.now=realNow;}
