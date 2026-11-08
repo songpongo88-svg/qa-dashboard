@@ -1,0 +1,13 @@
+.qa-hidden-treasure{position:fixed;z-index:2147483100;bottom:22px;right:22px;width:min(350px,calc(100vw - 24px));font-family:Kanit,"Noto Sans Thai",sans-serif}
+.qa-hidden-treasure-card{position:relative;overflow:hidden;text-align:center;border:2px solid #ffdc7c;border-radius:23px;padding:21px 21px 19px;background:radial-gradient(circle at 50% 5%,#74522f,#29213e 75%);box-shadow:0 20px 55px #0009,0 0 20px #ffcb5e52;color:#fff}
+.qa-hidden-treasure-close{position:absolute;right:10px;top:6px;background:transparent;border:0;color:white;font-size:26px;cursor:pointer}
+.qa-hidden-treasure-icon{font-size:55px;filter:drop-shadow(0 0 15px #ffd566a3);animation:qa-treasure-rise .8s ease both}
+.qa-hidden-treasure h3{font-size:20px;font-weight:900;margin:8px 0 3px;color:#fff1ba}
+.qa-hidden-treasure p{font-size:15px;line-height:1.55;margin:8px 0 14px}
+.qa-hidden-treasure-win{font-size:27px!important;font-weight:900;color:#ffe27a}
+.qa-hidden-treasure-error{color:#ffadad}
+.qa-hidden-treasure-open{display:block;width:100%;padding:12px 15px;margin:10px 0;background:linear-gradient(130deg,#ffdb68,#f0a83b);color:#422400;border:0;border-radius:13px;font-weight:900;font-size:17px;cursor:pointer}
+.qa-hidden-treasure-open:disabled{opacity:.6;cursor:wait}
+.qa-hidden-treasure small{display:block;color:#e6d5e9;font-size:11px;line-height:1.6}
+@keyframes qa-treasure-rise{from{transform:translateY(18px) scale(.75);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+@media(max-width:600px){.qa-hidden-treasure{right:12px;bottom:12px}}
