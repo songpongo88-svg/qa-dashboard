@@ -1,14 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CURRENT_TERMS, documentHash, formatKnowledgeDate, isCurrentAcceptance, normalizeUsername, type KnowledgeUser, type TermsAcceptance, type TermsDocument } from "./model";
+import { CURRENT_TERMS, TERMS_VERSIONS, documentHash, formatKnowledgeDate, isCurrentAcceptance, normalizeUsername, type KnowledgeUser, type TermsAcceptance, type TermsDocument } from "./model";
 import { termsRepository, type TermsRepository } from "./termsStore";
 import { downloadTermsPdf } from "./pdf";
 import "./knowledge.css";
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : "ไม่สามารถเชื่อมต่อข้อมูลได้ กรุณาลองอีกครั้ง";
-// Temporary pause of the mandatory T&C gate due to Firestore daily quota.
-// Keep v1.1 and all centrally stored acceptances untouched. On 01 Nov, check
-// each user's existing acceptance before asking only outstanding users to sign.
-export const TERMS_V11_RESUME_AT = Date.parse("2026-11-01T00:00:00+07:00");
 export function TermsText({ document: content = CURRENT_TERMS }: { document?: TermsDocument }) {
   return <article className="knowledge-prose">
     <p>{content.introduction}</p>
@@ -48,13 +44,6 @@ function SignaturePad({ onChange }: { onChange: (image: string) => void }) {
 export function TermsAccessBoundary({ user, onLogout, children, repository = termsRepository }: {
   user: KnowledgeUser; onLogout: () => void; children: React.ReactNode; repository?: TermsRepository;
 }) {
-  const [termsGateActive, setTermsGateActive] = useState(() => Date.now() >= TERMS_V11_RESUME_AT);
-  useEffect(() => {
-    if (termsGateActive) return;
-    const delay = Math.max(0, TERMS_V11_RESUME_AT - Date.now());
-    const timeoutId = window.setTimeout(() => setTermsGateActive(true), delay);
-    return () => window.clearTimeout(timeoutId);
-  }, [termsGateActive]);
   const [state, setState] = useState<"loading" | "required" | "accepted" | "error">("loading");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -68,9 +57,8 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
   const [signatureMessage, setSignatureMessage] = useState("");
   const scroll = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const accepting = useRef(false);
   useEffect(() => {
-    // Avoid Firestore reads and signing requests during the temporary quota window.
-    if (!termsGateActive) return;
     let alive = true;
     setState("loading"); setError(""); setRead(false); setConfirmed(false); setSignature(""); setSource("none"); setSaved([]);
     Promise.all([repository.current(user), documentHash(CURRENT_TERMS)]).then(([record, hash]) => {
@@ -79,7 +67,7 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
       setState(record ? "accepted" : "required");
     }).catch((reason) => { if (alive) { setError(errorText(reason)); setState("error"); } });
     return () => { alive = false; };
-  }, [user.username, attempt, repository, termsGateActive]);
+  }, [user.username, user.sessionId, attempt, repository]);
   useEffect(() => {
     if (state !== "required") return;
     heading.current?.focus();
@@ -87,7 +75,8 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
     if (element && element.scrollHeight <= element.clientHeight + 8) setRead(true);
   }, [state]);
   const accept = async () => {
-    if (busy || !read || !confirmed) return;
+    if (accepting.current || !read || !confirmed) return;
+    accepting.current = true;
     setBusy(true); setError("");
     try {
       const record = await repository.accept(user, { confirmed, readToEnd: read, signatureDataUrl: signature, signatureSource: source });
@@ -102,9 +91,9 @@ export function TermsAccessBoundary({ user, onLogout, children, repository = ter
         setError(errorText(reason));
       }
     }
-    finally { setBusy(false); }
+    finally { accepting.current = false; setBusy(false); }
   };
-  if (!termsGateActive || state === "accepted") return <>{children}</>;
+  if (state === "accepted") return <>{children}</>;
   if (state === "loading") {
     return (
       <main
@@ -191,12 +180,12 @@ export default function TermsWorkspace({ user, management = false, canManage = f
     let alive = true;
     setLoading(true); setError(""); setSelected(null); setRecords([]); setAccounts([]);
     if (management && !canManage) { setError("บัญชีนี้ไม่มีสิทธิ์เปิด T&C Management"); setLoading(false); return; }
-    (management ? repository.management(user) : repository.history(user).then((history) => ({ records: history, accounts: [] })))
+    (management ? repository.management(user, version) : repository.history(user).then((history) => ({ records: history, accounts: [] })))
       .then((data) => { if (alive) { setRecords(data.records); setAccounts(data.accounts); } })
       .catch((reason) => { if (alive) setError(errorText(reason)); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [user.username, management, canManage, repository, attempt]);
+  }, [user.username, user.sessionId, management, canManage, version, repository, attempt]);
   const exportPdf = async (record: TermsAcceptance) => {
     setPdfBusy(record.id); setError("");
     try { await downloadTermsPdf(record); } catch (reason) { setError(errorText(reason)); } finally { setPdfBusy(""); }
@@ -212,7 +201,7 @@ export default function TermsWorkspace({ user, management = false, canManage = f
     {error && <p className="knowledge-error" role="alert">{error}</p>}
     {loading ? <p className="knowledge-empty" role="status">กำลังโหลดหลักฐาน…</p> : !error && (management ? <>
       <div className="knowledge-stats"><div>ผู้ใช้ทั้งหมด<strong>{accounts.length}</strong></div><div>Accepted<strong>{acceptedCount}</strong></div><div>Not Accepted<strong>{accounts.length - acceptedCount}</strong></div></div>
-      <div className="knowledge-filters"><label>ค้นหาผู้ใช้<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ชื่อ บัญชี ทีม หรือ Role" /></label><label>สถานะ<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">ทั้งหมด</option><option value="accepted">Accepted</option><option value="pending">Not Accepted</option></select></label><label>เวอร์ชัน<select value={version} onChange={(event) => setVersion(event.target.value)}>{Array.from(new Set([CURRENT_TERMS.version, ...records.map((record) => record.version)])).map((item) => <option key={item}>{item}</option>)}</select></label></div>
+      <div className="knowledge-filters"><label>ค้นหาผู้ใช้<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ชื่อ บัญชี ทีม หรือ Role" /></label><label>สถานะ<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">ทั้งหมด</option><option value="accepted">Accepted</option><option value="pending">Not Accepted</option></select></label><label>เวอร์ชัน<select value={version} onChange={(event) => setVersion(event.target.value)}>{TERMS_VERSIONS.map((item) => <option key={item}>{item}</option>)}</select></label></div>
       <div className="knowledge-table-wrap"><table><thead><tr><th>ผู้ใช้งาน / ทีม</th><th>Role</th><th>สถานะ</th><th>วันเวลาที่ยอมรับ (เวลาไทย)</th><th>หลักฐาน</th></tr></thead><tbody>{rows.map(({ account, record }) => <tr key={account.username}><td><strong>{account.displayName}</strong><small>{account.username} · {account.teamName || "—"}{account.status === "Suspended" ? " · Suspended" : ""}</small></td><td>{account.role}</td><td><span className={record ? "knowledge-status accepted" : "knowledge-status pending"}>{record ? "Accepted" : "Not Accepted"}</span></td><td>{record ? formatKnowledgeDate(record.acceptedAt) : "—"}</td><td>{record ? <div className="knowledge-actions"><button className="knowledge-link" onClick={() => setSelected(record)}>ดูรายละเอียด</button><button className="knowledge-link" disabled={Boolean(pdfBusy)} onClick={() => exportPdf(record)}>{pdfBusy === record.id ? "กำลังสร้าง…" : "PDF"}</button></div> : "—"}</td></tr>)}</tbody></table>{!rows.length && <p className="knowledge-empty">ไม่พบข้อมูลตามตัวกรอง</p>}</div>
     </> : <div className="knowledge-history">{!records.length && <p className="knowledge-empty">ยังไม่มีประวัติการยอมรับ</p>}{records.map((record) => <section key={record.id} className="knowledge-card"><div><span className="knowledge-status accepted">Accepted</span><h2>Terms & Conditions · Version {record.version}</h2><p>{record.user.displayName} · {formatKnowledgeDate(record.acceptedAt)} (เวลาไทย)</p><p className="knowledge-muted">{record.document.changeSummary}</p></div><div className="knowledge-actions"><button className="knowledge-secondary" onClick={() => setSelected(record)}>ดูฉบับที่ยอมรับ</button><button className="knowledge-primary" disabled={Boolean(pdfBusy)} onClick={() => exportPdf(record)}>{pdfBusy === record.id ? "กำลังสร้าง…" : "ดาวน์โหลด PDF"}</button></div></section>)}</div>)}
     <p className="knowledge-muted">ที่จัดเก็บหลักฐาน: QA Dashboard → ฐานข้อมูลกลาง → qa_terms_acceptances · PDF สร้างจากหลักฐานที่บันทึกไว้เมื่อกดยอมรับ</p>
