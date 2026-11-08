@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T16:23:54.354Z",
-  "reason": "Reviewed Report Center navigation and moved Analytics, Case Detail, Signatures, Slides export actions; updated guide chapters and preserved existing evaluation records, permissions, and T&C.",
+  "reviewedAt": "2026-11-08T16:39:57.903Z",
+  "reason": "Reviewed report-only selection and export workflows without embedding dashboard views, with standalone Payment and QA Slides exports; updated manual and retained prior QA rules.",
   "contentChanged": true,
   "reviewedChapters": [
-    "analytics",
     "exports",
+    "analytics",
     "case-detail",
     "slides",
     "signatures",
@@ -432,7 +432,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "370c1f54c517bbd31178babeb678d2691b0996dd0e0d933c6718cfff03cccaf4",
-    "src/App.tsx": "12c8c096c0529525facd50007b3b1436279256fb8d2f5057236c2da24196a82d",
+    "src/App.tsx": "1c62852cc2e4ac7fe249acc0d57c4fd7e49f32807877909872afe77ea04d5939",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -471,7 +471,7 @@
     "src/PageHero.tsx": "f3c717205bd67000ed8b322363b2268849933e9b09404dcc3fe359fcc8d7f342",
     "src/PreTestMockup.tsx": "7e8b9a000276931dea99e471ee254e35f24af7287c71cdc9304b246a9a7b4d40",
     "src/PresentationBuilderMockup.tsx": "a165160a1a74d93b1e3c4f21c232b10ad926a1ccd5ccf97291dc0dd48d35afdc",
-    "src/PresentationMockup.tsx": "576d462f40e584f1374e90d280b6744223c83c6302ac200b3ab90f629e300644",
+    "src/PresentationMockup.tsx": "31a2bc1255df9b35b9f7d7a420f8413f8c8f9bdc473f14b3a8d05c75bc8a67b9",
     "src/ProcessFileManager.tsx": "f48a7a54cf9fb14ccdcee34d90d526f832caa5848244fcc7dfdab541449dbfe3",
     "src/ProcessSlidePickerPortal.tsx": "dbe61bddab8995dd9dc2f5ed5d75edbd28354f6635787058e1419a08fd384ccb",
     "src/ProfileMakeoverQuest.tsx": "444e9a06af6b49cfe9768639b0b1172ef5422fb146b55da832906009553cd6fd",
@@ -488,7 +488,7 @@
     "src/RewardActionConfirmModal.tsx": "5d6afc33b0830d0d14e8a1b7d001292c5738a4f3b95f4fa4407e5af971133d28",
     "src/ScheduleMockup.tsx": "6590094d2935f74cb08475f56d46383bb4b9c7f1702d7291ce8f523b528dceca",
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
-    "src/SignatureCenterMockup.tsx": "8ceb2e64df811346c28b3d223a8e464cfd99ee569ebed0cb06fa38dcad36de3c",
+    "src/SignatureCenterMockup.tsx": "a7648509a0d93de76b7d5f40b38f858d4ae29351eafd225e28e80e3f9945c0b8",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/SparksAdminPanel.tsx": "0c382dfb56d42829682aa624e9889c6bf4f4c94e85ffa66995134c25e5ffdd7d",
     "src/SparksCloudStatus.tsx": "0b605c16b6f43daae89eb64eb0f619d2917d4701c3208f2303f9ce35a777eba0",
@@ -594,7 +594,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "2b15d62a3b4c0697b05e4bb94bb36dcba904758dd7fae12be881ff7e122a79ee",
+    "src/knowledge/manual.json": "b3457e6cdea1d400439f6ca50a01c6e1c4aafce278f529d16d163ba0c91e9b08",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -722,6 +722,6 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "89f2868b5ce82d43f69ed0ef19fdc0f3db36424d66472b9cc8ca49a9385725ac"
+    "src/ReportCenterMockup.tsx": "d49532e5e90d6847761a5004cf4f452e74e2ccf6968cde8451a827678d6ad387"
   }
 }
