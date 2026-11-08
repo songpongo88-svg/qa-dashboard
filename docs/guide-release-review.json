@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T06:05:00.000Z",
-  "reason": "QA Sparks Hidden Treasure: inspected a server-authenticated Case Detail reading window, 35% randomized discovery with 8 checks per day, 1-500 variable weighted awards, fixed daily history ID and transactional wallet+history+daily-state update blocking duplicate payouts, later cosmetic chests, new tests and UI. Existing QA scoring, rubric and Snakes Private Test unchanged.",
+  "reviewedAt": "2026-11-08T06:20:00.000Z",
+  "reason": "Reviewed daily QA Sparks Hidden Treasure learning encounters in access-controlled Case Detail, Rubric and Coaching views: randomized reading dwell of 30-90 seconds and secure prize rolls, weighted Sparks 1-500, daily per-member immutable history and transaction-based wallet award, duplicate prevention, later cosmetic discoveries, tests and documentation.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -404,7 +404,7 @@
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "abfb591219d756e868a9804215607b5ad17e3064ba8d855f84b5412b915e0796",
-    "src/App.tsx": "7a66ac598f926acff6e58ad2f4222f8302706b1b5fe0db393b594410c712bd9f",
+    "src/App.tsx": "4e43ffab685a8adb1025b7aae92be228fb2dd591f6775d6ca1309d0b75beae9e",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -561,7 +561,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "2e1e5ac61663d6ec580bbe0677eccb271afa85a037aa48a71d37d518d910c48f",
+    "src/knowledge/manual.json": "18646c0debb2c3eff8e797f42d39c6b3ea7c98cd2dec57455165655f0b860360",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -686,8 +686,8 @@
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/SparksMiniGamesGallery.tsx": "3b2926275f950a385829e4b3aebf748bdf4b1e686b962745fc04bbd21b751e8b",
     "src/sparksMiniGamesGallery.css": "37562b81b3645f431ab9b8ff869cb53876296a8854627a379c29c9b450d4dcc5",
-    "server/hiddenTreasureService.js": "084a2a0eb23e5ad62afefb928a2cc9b98436ff71a2f94b0ef289ba7b48dd17a3",
-    "src/HiddenTreasure.tsx": "b9f5349fce4159afd57630e4d638c611a53133d82dcddf6f18bfb7e0630bbc2c",
+    "server/hiddenTreasureService.js": "57d6de9e7febf1b819623a3be58318baecf0f29f7e8c4eb067f382c4d9f6b111",
+    "src/HiddenTreasure.tsx": "91f59ca9fdb15c88e232d26f14914e20fe6d2100891a93769afc6ca91ad76b08",
     "src/hiddenTreasure.css": "602ada563edf5a11246215ee01615a38269a19057294d0f8b4d5875f9e2cb639",
     "scripts/test-hidden-treasure.mjs": "890e76683be6d78785ff1c950b9cc984698526b08474dab4f249f4e1ff9ebd43"
   }
