@@ -43,7 +43,7 @@ const sample=(id,agent='Agent A')=>({id,caseId:id,agentName:agent,targetDisplayN
 function Probe(){React.useEffect(()=>{fixture.mounts++;return()=>{fixture.unmounts++;};},[]);return React.createElement('div',{'data-summary-probe':true},'Summary stays open');}
 let root=createRoot(document.getElementById('root'));
 const base={currentUser:{username:'qa',displayName:'QA Reviewer',role:'Quality Assurance'},dashboardSubTab:'overview',externalSelectedMonthKey:'2026-09',externalSelectedYear:'2026',canViewAgentsInOverview:true,canViewAnalytics:true,analyticsContent:React.createElement(Probe),onEffectiveCasesChange:rows=>fixture.publishes.push(rows.map(r=>r.caseId))};
-const render=async(key,extra={})=>act(async()=>{root.render(React.createElement(Dashboard,{...base,dataRefreshKey:key,...extra}));await flush();});
+const render=async(key,extra={})=>act(async()=>{root.render(React.createElement(Dashboard,{...base,dataRefreshKey:key,reportCenter:true,...extra}));await flush();});
 const settle=async()=>{for(let n=0;n<24;n++)await act(async()=>{await new Promise(r=>setTimeout(r,10));});};
 const table=()=>document.querySelector('[data-unified-case-explorer-v160]')?.textContent||'';
 const status=()=>document.querySelector('[data-dashboard-refresh-state]');
