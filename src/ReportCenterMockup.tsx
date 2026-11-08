@@ -87,12 +87,13 @@ function tagRows(rows: CanonicalReportCase[]) {
   return [...tags].map(([tag, cases]) => ({ tag, cases, percent: rows.length ? cases * 100 / rows.length : 0 }))
     .sort((a,b) => b.cases - a.cases || a.tag.localeCompare(b.tag));
 }
-function agentRows(rows: CanonicalReportCase[]) {
+function agentRows(rows: CanonicalReportCase[], mode: Kind = "monthly") {
   const agents = new Map<string, CanonicalReportCase[]>();
   rows.forEach(item => { const name = rowAgent(item); agents.set(name, [...(agents.get(name) || []), item]); });
   return [...agents].sort(([a],[b]) => a.localeCompare(b,"th")).map(([name, items]) => ({
     name, team: rowTeam(items[0]), ...summary(items),
-    kpi: items.length < 10 ? "Not assessed" : (summary(items).average || 0) >= 85 ? "Pass" : "Below 85%",
+    kpi: mode === "yearly" ? "KPI by Month" : mode === "weekly" || mode === "compare" ? "Monthly KPI only" :
+      items.length < 10 ? "Not assessed" : (summary(items).average || 0) >= 85 ? "Pass" : "Below 85%",
   }));
 }
 function detailedRows(rows: CanonicalReportCase[]) {
@@ -118,7 +119,7 @@ function detailedRows(rows: CanonicalReportCase[]) {
 }
 function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string) {
   const book = XLSX.utils.book_new();
-  const stats = summary(rows), agents = agentRows(rows), topics = topicRows(rows), tags = tagRows(rows);
+  const stats = summary(rows), agents = agentRows(rows, kind), topics = topicRows(rows), tags = tagRows(rows);
   const sheet = XLSX.utils.aoa_to_sheet([
     ["QUALITY ASSURANCE PERFORMANCE REPORT", kind.toUpperCase()],
     ["Period", period, "Scope", scope],
@@ -157,7 +158,7 @@ function drawPdf(title: string, period: string, scope: string, rows: CanonicalRe
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true });
   const width = pdf.internal.pageSize.getWidth();
   const stats = summary(rows);
-  const agents = agentRows(rows), topics = topicRows(rows), tags = tagRows(rows);
+  const agents = agentRows(rows, mode), topics = topicRows(rows), tags = tagRows(rows);
   const groups = reportRows(rows, mode === "weekly" ? "week" : mode === "yearly" || mode === "compare" ? "month" : "agent");
   const text = (value: unknown, x: number, y: number, maxWidth = 120, font = 10) => {
     const valueText = String(value ?? "-");
@@ -449,7 +450,7 @@ export default function ReportCenterMockup({
                         <p className="mt-1 text-xs text-violet-100">{selectedPeriod} · {scopeLabel}</p>
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        {([{name:"Average Score",value:totals.average?.toFixed(2) || "-"},{name:"Total Cases",value:totals.count},{name:"Agents",value:agentRows(selectedCases).length},{name:"KPI Target",value:"85%"}] as const).map(metric => (
+                        {([{name:"Average Score",value:totals.average?.toFixed(2) || "-"},{name:"Total Cases",value:totals.count},{name:"Agents",value:agentRows(selectedCases, kind).length},{name:"KPI Target",value:"85%"}] as const).map(metric => (
                           <div key={metric.name} className="rounded-lg border border-slate-200 bg-slate-50 p-3"><p className="text-[11px] text-slate-500">{metric.name}</p><p className="mt-1 text-xl font-bold text-slate-900">{metric.value}</p></div>
                         ))}
                       </div>
@@ -459,11 +460,11 @@ export default function ReportCenterMockup({
                       </div>
                       {kind === "yearly" || kind === "compare" ? <div className="space-y-2"><h4 className="text-sm font-bold">Period Comparison</h4><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{reportRows(selectedCases,"month").map(x => <div key={x.label} className="rounded-lg bg-slate-50 p-3 text-xs"><b>{x.label}</b><p>{x.count} Cases</p><p>Avg {x.average?.toFixed(2) || "-"}</p></div>)}</div></div> : null}
                       {format === "pdf" ? <><h4 className="text-sm font-bold">Agent Performance Summary</h4>
-                        <div className="divide-y divide-slate-100">{agentRows(selectedCases).slice(0,12).map(x => <div key={x.name} className="flex flex-wrap justify-between gap-2 py-2 text-xs"><span>{x.name}</span><span>{x.count} Cases · Avg {x.average?.toFixed(2) || "-"} · {x.kpi}</span></div>)}</div>
+                        <div className="divide-y divide-slate-100">{agentRows(selectedCases, kind).slice(0,12).map(x => <div key={x.name} className="flex flex-wrap justify-between gap-2 py-2 text-xs"><span>{x.name}</span><span>{x.count} Cases · Avg {x.average?.toFixed(2) || "-"} · {x.kpi}</span></div>)}</div>
                         <h4 className="text-sm font-bold">Top Issue Tags</h4><p className="text-xs text-slate-600">{tagRows(selectedCases).slice(0,7).map(x => x.tag+" ("+x.cases+")").join(" · ") || "No tags"}</p></> : null}
                     </div>
                   ) : previewPage === "agents" ? (
-                    <div><h3 className="mb-4 text-base font-bold">Agent Performance</h3><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead className="bg-violet-50"><tr>{["Agent","Team","Cases","Average","KPI"].map(t => <th key={t} className="p-3">{t}</th>)}</tr></thead><tbody>{agentRows(selectedCases).map(x => <tr key={x.name} className="border-b"><td className="p-3">{x.name}</td><td className="p-3">{x.team}</td><td className="p-3">{x.count}</td><td className="p-3">{x.average?.toFixed(2) || "-"}</td><td className="p-3">{x.kpi}</td></tr>)}</tbody></table></div></div>
+                    <div><h3 className="mb-4 text-base font-bold">Agent Performance</h3><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead className="bg-violet-50"><tr>{["Agent","Team","Cases","Average","KPI"].map(t => <th key={t} className="p-3">{t}</th>)}</tr></thead><tbody>{agentRows(selectedCases, kind).map(x => <tr key={x.name} className="border-b"><td className="p-3">{x.name}</td><td className="p-3">{x.team}</td><td className="p-3">{x.count}</td><td className="p-3">{x.average?.toFixed(2) || "-"}</td><td className="p-3">{x.kpi}</td></tr>)}</tbody></table></div></div>
                   ) : previewPage === "topics" ? (
                     <div><h3 className="mb-4 text-base font-bold">Topic Performance</h3><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-violet-50"><tr>{["Topic","Average Score","Max","Average %","Cases"].map(t => <th className="p-3" key={t}>{t}</th>)}</tr></thead><tbody>{topicRows(selectedCases).map(x => <tr className="border-b" key={x.code}><td className="p-3">{x.code}</td><td className="p-3">{x.average.toFixed(2)}</td><td className="p-3">{x.max.toFixed(2)}</td><td className="p-3">{x.percent.toFixed(2)}%</td><td className="p-3">{x.cases}</td></tr>)}</tbody></table></div></div>
                   ) : previewPage === "tags" ? (
