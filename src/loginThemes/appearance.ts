@@ -13,15 +13,15 @@ function rootAppearance() {
   const weatherScene = weather !== 'night' ? weather : /cloud/.test(base || '') ? 'night-cloudy' : /rain|sunshower/.test(base || '') ? 'night-rain' : base === 'thunderstorm' ? 'night-thunderstorm' : base === 'fog' ? 'night-fog' : 'night';
   return { festivalId: root.dataset.qaFestivalOverride || '', weatherScene, now: Date.now() };
 }
-export function useLoginAppearance({ authenticated, ready, themeId, preference, characterVersion, accountUsername = '', loginUsername = '', lineDrawingPublished = false }: {
-  authenticated: boolean; ready: boolean; themeId: string; preference: string; characterVersion: 1 | 2; accountUsername?: string; loginUsername?: string; lineDrawingPublished?: boolean;
+export function useLoginAppearance({ authenticated, ready, themeId, preference, characterVersion, lineDrawingVersion = 1, accountUsername = '', loginUsername = '', lineDrawingPublished = false }: {
+  authenticated: boolean; ready: boolean; themeId: string; preference: string; characterVersion: 1 | 2; lineDrawingVersion?: 1 | 2; accountUsername?: string; loginUsername?: string; lineDrawingPublished?: boolean;
 }) {
   const [state, setState] = useState(() => ({ appearance: initialLoginAppearance(browserStorage), environment: rootAppearance() }));
   useLayoutEffect(() => {
     const sync = () => {
       let remembered = null;
       if (authenticated && ready) {
-        remembered = writeLoginAppearance(browserStorage, { version: 1, themeId, preference, characterVersion, lineDrawingAccount: accountUsername });
+        remembered = writeLoginAppearance(browserStorage, { version: 1, themeId, preference, characterVersion, lineDrawingVersion, lineDrawingAccount: accountUsername });
       } else if (!authenticated) {
         remembered = readLoginAppearance(browserStorage);
       }
@@ -44,6 +44,6 @@ export function useLoginAppearance({ authenticated, ready, themeId, preference, 
       window.removeEventListener('qa-appearance-change', sync); window.removeEventListener('storage', sync);
       document.removeEventListener('visibilitychange', sync);
     };
-  }, [authenticated, ready, themeId, preference, characterVersion, accountUsername, loginUsername, lineDrawingPublished]);
+  }, [authenticated, ready, themeId, preference, characterVersion, lineDrawingVersion, accountUsername, loginUsername, lineDrawingPublished]);
   return resolveLoginTheme(state.appearance, state.environment);
 }

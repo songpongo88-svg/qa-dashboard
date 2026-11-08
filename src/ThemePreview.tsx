@@ -1,7 +1,5 @@
 import React from 'react';
-import { weekdayThemeFor } from './weekdayThemes/model.mjs';
-import { festivalThemeFor } from './festivalThemes/model.mjs';
-import { characterThemeFor } from './characterThemes/model.mjs';
+import { resolveThemePreview } from './themePreview.mjs';
 
 export const WEEKDAY_LABELS = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
 export const FESTIVAL_LABELS: Record<string, string> = {
@@ -9,25 +7,14 @@ export const FESTIVAL_LABELS: Record<string, string> = {
   'festival-songkran': 'Songkran', 'festival-halloween': 'Halloween',
   'festival-loy-krathong': 'Loy Krathong', 'festival-christmas': 'Christmas',
 };
-const festivalColors: Record<string, string> = {
-  'festival-new-year': '#7c3aed', 'festival-valentine': '#ec4899',
-  'festival-songkran': '#0ea5e9', 'festival-halloween': '#f97316',
-  'festival-loy-krathong': '#8b5cf6', 'festival-christmas': '#16a34a',
-};
-
-export default function ThemePreview({ themeId, option, characterVersion = 1 }: {
-  themeId: string; option: { swatches: readonly string[]; patternImage?: string; sceneImage?: string };
+export default function ThemePreview({ themeId, option, characterVersion = 1, lineDrawingVersion = 1 }: {
+  themeId: string; option: { id?: string; swatches: readonly string[]; patternImage?: string; sceneImage?: string };
   characterVersion?: number;
+  lineDrawingVersion?: number;
 }) {
-  const weekday = weekdayThemeFor(themeId);
-  const festivalColor = festivalColors[themeId];
-  const character = characterVersion === 2 ? characterThemeFor(themeId) : null;
+  const preview = resolveThemePreview(themeId, option, { characterVersion, lineDrawingVersion });
   return <span aria-hidden="true" data-theme-preview={themeId} className="qa-active-theme-preview">
-    {character ? <span style={{ backgroundImage: `url("${character.art}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: character.pale }} /> : option.sceneImage ? <span style={{ backgroundImage: `url("${option.sceneImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} /> : weekday ? <span style={{
-      backgroundImage: `url("${weekday.image}")`, backgroundSize: 'cover',
-      backgroundPosition: '70% center',
-    }} /> : festivalColor ? <span style={{ backgroundImage: `url("${festivalThemeFor(themeId)?.image}")`, backgroundSize: "cover", backgroundPosition: "70% center" }} />
-      : option.patternImage ? <span style={{ backgroundImage: `url("${option.patternImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: option.swatches[2] }} />
-        : <span className="qa-active-theme-swatches">{option.swatches.map((color, index) => <i key={`${color}-${index}`} style={{ backgroundColor: color, width: index === 1 ? 10 : 6 }} />)}</span>}
+    {preview.image ? <span key={`${themeId}:${preview.image}`} style={{ backgroundImage: `url("${preview.image}")`, backgroundSize: 'cover', backgroundPosition: preview.position }} />
+      : <span key={`${themeId}:swatches`} className="qa-active-theme-swatches">{preview.swatches.map((color, index) => <i key={`${color}-${index}`} style={{ backgroundColor: color, width: index === 1 ? 10 : 6 }} />)}</span>}
   </span>;
 }

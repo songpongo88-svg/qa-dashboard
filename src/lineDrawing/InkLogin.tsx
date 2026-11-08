@@ -1,6 +1,7 @@
 import React from 'react';
 
-export function InkLoginArtwork() {
+export function InkLoginArtwork({version=1}:{version?:1|2}) {
+  if(version===2)return <div className="qa-ink-colour-login-intro"><div className="qa-ink-colour-brand"><img src="/line-drawing/colour-mark.svg" width="40" height="40" alt=""/><div><small>LINE DRAWING COLLECTION</small><strong>Ink &amp; Paper 2.0</strong></div></div><h1>A fresh start.<br/><span>A better day.</span></h1><p>เริ่มวันใหม่ด้วยแรงบันดาลใจ<br/>และโอกาสที่จะพัฒนาไปด้วยกัน</p><img className="qa-ink-colour-login-art" src="/line-drawing/colour-scene.svg" width="420" height="255" alt=""/></div>;
   return <>
     <div className="qa-ink-login-artwork" aria-hidden="true">
       <img className="qa-ink-login-house" src="/line-drawing/login-house.svg" alt="" />

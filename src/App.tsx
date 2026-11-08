@@ -5,6 +5,7 @@ import { InkLoginArtwork } from './lineDrawing/InkLogin';
 import { LineDrawingCollection } from './lineDrawing/LineDrawing';
 import { useLineDrawingRelease, type LineDrawingRelease } from './lineDrawing/release';
 import { LINE_DRAWING_THEME, isLineDrawingTheme } from './lineDrawing/model.mjs';
+import { restoreLineDrawingCollection, upgradeLineDrawingCollection, useLineDrawingCollectionAccount, type LineDrawingCollectionState } from './lineDrawing/account';
 import ThemePreview, { WEEKDAY_LABELS, FESTIVAL_LABELS } from "./ThemePreview";
 import { useFestivalTheme } from "./festivalThemes/store";
 import { FestivalIcon } from "./festivalThemes/Festival";
@@ -585,6 +586,7 @@ function useUserThemePreference(username: string | undefined, specialUsage: Spec
         if (cancelled) return;
         const profile = profileSnapshot.data() || {};
         restoreCharacterCollection(username, profile);
+        restoreLineDrawingCollection(username, profile);
         const storedThemeId = String(profile.themeId || profile.theme_id || "");
         const storedPreference = String(profile.themePreference || profile.theme_preference || "");
         const hasStoredTheme = QA_THEME_OPTIONS.some(theme => theme.id === storedThemeId);
@@ -3590,6 +3592,7 @@ function FloatingChatWidget({
 
 function ThemePickerModal({
   lineRelease,
+  lineVersion,
   open,
   selectedTheme,
   specialUsage,
@@ -3602,6 +3605,7 @@ function ThemePickerModal({
   specialUsage: SpecialUsage;
   characterVersion: CharacterCollectionState;
   lineRelease: LineDrawingRelease;
+  lineVersion: LineDrawingCollectionState;
   onSelect: (theme: QaThemeId) => void;
   onClose: () => void;
 }) {
@@ -3771,7 +3775,7 @@ function ThemePickerModal({
         <div id="qa-theme-collection-panel" role="tabpanel" aria-labelledby={`qa-collection-tab-${collection}`}
           data-qa-picker-collection={collection}
           className="qa-theme-collection-panel grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2 sm:p-6">
-          <LineDrawingCollection release={lineRelease} selectedTheme={selectedTheme} onSelect={id => onSelect(id as QaThemeId)} />
+          <LineDrawingCollection release={lineRelease} version={lineVersion} onUpgrade={upgradeLineDrawingCollection} selectedTheme={selectedTheme} onSelect={id => onSelect(id as QaThemeId)} />
           <WeatherCollection />
           <SpecialCollection usage={specialUsage} selectedTheme={selectedTheme} onSelect={(id) => {
             if (specialUsage.ready && specialUsage.unlocked) onSelect(id as QaThemeId);
@@ -3851,6 +3855,7 @@ export default function App() {
   const [storedUserCandidate] = useState<CurrentUser | null>(() => readStoredUser());
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const characterVersion = useCharacterCollectionAccount(currentUser?.username);
+  const lineDrawingVersion = useLineDrawingCollectionAccount(currentUser?.username);
   const specialUsage = useSpecialThemeUsage(currentUser?.username);
   const lineDrawingRelease = useLineDrawingRelease(currentUser);
   const [selectedTheme, setSelectedTheme, themePreferenceReady, themePreference] = useUserThemePreference(currentUser?.username, specialUsage, lineDrawingRelease);
@@ -3868,10 +3873,11 @@ export default function App() {
     accountUsername: currentUser?.username || "",
     loginUsername: username,
     lineDrawingPublished: lineDrawingRelease.ready && lineDrawingRelease.published,
-    ready: themePreferenceReady && characterVersion.ready && (!isSpecialTheme(selectedTheme) || (specialUsage.ready && specialUsage.unlocked)),
+    ready: themePreferenceReady && characterVersion.ready && (!isLineDrawingTheme(selectedTheme) || lineDrawingVersion.ready) && (!isSpecialTheme(selectedTheme) || (specialUsage.ready && specialUsage.unlocked)),
     themeId: selectedTheme,
     preference: themePreference,
     characterVersion: characterVersion.version,
+    lineDrawingVersion: lineDrawingVersion.version,
   });
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -3973,7 +3979,7 @@ export default function App() {
   const activeThemePreviewOption = QA_THEME_OPTIONS.find(theme => theme.id === effectiveThemeId) || activeThemeOption;
   const activeWeekdayIndex = WEEKDAY_IDS.indexOf(effectiveThemeId);
   const sidebarThemeLabel =
-    isLineDrawingTheme(effectiveThemeId) ? "Line Drawing · Ink & Paper" : characterVersion.version === 2 && characterThemeFor(effectiveThemeId)
+    isLineDrawingTheme(effectiveThemeId) ? `Line Drawing · Ink & Paper${lineDrawingVersion.version === 2 ? " 2.0" : ""}` : characterVersion.version === 2 && characterThemeFor(effectiveThemeId)
       ? `Character V2 · ${activeThemePreviewOption.label}`
       : isSpecialTheme(effectiveThemeId)
       ? `Special · ${activeThemePreviewOption.label}`
@@ -7390,7 +7396,7 @@ export default function App() {
           onSubmit={handleForgotPasswordReset}
         />
 
-        <div data-login-flow-v4 data-login-theme={loginTheme.id} data-login-collection={loginTheme.collection} data-login-character-version={loginTheme.characterVersion || undefined} className="qa-themed-login relative min-h-screen overflow-hidden bg-[#f5f2fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8" style={loginThemeStyle(loginTheme) as React.CSSProperties}>
+        <div data-login-flow-v4 data-login-theme={loginTheme.id} data-login-collection={loginTheme.collection} data-login-character-version={loginTheme.characterVersion || undefined} data-login-line-drawing-version={loginTheme.lineDrawingVersion || undefined} className="qa-themed-login relative min-h-screen overflow-hidden bg-[#f5f2fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8" style={loginThemeStyle(loginTheme) as React.CSSProperties}>
           <div className="qa-login-glow pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl" />
           <div className="qa-login-glow pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-fuchsia-300/20 blur-3xl" />
 
@@ -7425,7 +7431,7 @@ export default function App() {
                 <div className="qa-login-visual-footer relative z-10 mt-10 flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-violet-200/80"><span>2-hour inactivity policy</span></div>
               </section>
 
-              {loginTheme.collection === "line-drawing" ? <InkLoginArtwork /> : null}
+              {loginTheme.collection === "line-drawing" ? <InkLoginArtwork version={loginTheme.lineDrawingVersion} /> : null}
               <section className="qa-login-form relative bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
                 {loginTheme.collection === "line-drawing" ? <img className="qa-ink-login-face" src="/line-drawing/face.svg" alt="" /> : null}
                 <div data-login-shared-steps={loginStep} className="mx-auto w-full max-w-[430px]">
@@ -7655,7 +7661,7 @@ export default function App() {
               }`}
             >
               <WeatherSidebarLabel />
-              <ThemePreview themeId={effectiveThemeId} option={activeThemePreviewOption} characterVersion={characterVersion.version} />
+              <ThemePreview themeId={effectiveThemeId} option={activeThemePreviewOption} characterVersion={characterVersion.version} lineDrawingVersion={lineDrawingVersion.version} />
               {!globalSidebarCollapsed ? (
                 <>
                   <span className="qa-sidebar-label min-w-0 flex-1">
@@ -7758,6 +7764,7 @@ export default function App() {
         open={themePickerOpen}
         selectedTheme={selectedTheme}
         lineRelease={lineDrawingRelease}
+        lineVersion={lineDrawingVersion}
         specialUsage={specialUsage}
         characterVersion={characterVersion}
         onSelect={setSelectedTheme}

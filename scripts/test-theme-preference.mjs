@@ -39,7 +39,7 @@ const db = {
   },
   serverTimestamp: () => 'server-time', firebaseDb: {},
 };
-const app = evaluate(parts.join('\n') + '\nexport { useUserThemePreference, QA_THEME_OPTIONS };', { ...React, ...model, ...lineDrawing, ...db, restoreCharacterCollection: () => {} });
+const app = evaluate(parts.join('\n') + '\nexport { useUserThemePreference, QA_THEME_OPTIONS };', { ...React, ...model, ...lineDrawing, ...db, restoreCharacterCollection: () => {}, restoreLineDrawingCollection: () => {} });
 assert.equal(app.QA_THEME_OPTIONS[0].id,'robinhood','legacy fallback cannot expose a private collection');
 let root, latest, stopRuntime;
 const usage = (unlocked = false, ready = true) => ({ ready, unlocked, activeMs: unlocked ? model.SPECIAL_UNLOCK_MS : 0 });

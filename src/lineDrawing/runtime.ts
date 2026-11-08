@@ -2,6 +2,7 @@ import { isLineDrawingTheme, LINE_DRAWING_THEME_ID } from './model.mjs';
 import { inkIconUrl, inkKind, inkNavigationKind } from './icons.mjs';
 import { specialActionFor, specialHeadingIcon } from '../specialThemes/icons.mjs';
 import './ink.css';
+import './colour.css';
 const excluded='[data-theme-picker-v1],.qa-special-preview-dialog,.qa-character-preview-dialog,.qa-festival-preview-overlay,[data-rich-text-toolbar],[contenteditable],.ql-toolbar,[data-pdf-preview],[data-rich-text-image-preview],.qa-themed-login';
 const markers=['inkSurface','inkIconMode','inkIconKind','inkHeading'] as const;
 // Decoration only. React keeps every original child, event handler and tab position.

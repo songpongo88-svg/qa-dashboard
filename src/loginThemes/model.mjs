@@ -1,4 +1,4 @@
-import { isLineDrawingTheme, isLineDrawingOwner, LINE_DRAWING_THEME } from '../lineDrawing/model.mjs';
+import { isLineDrawingTheme, isLineDrawingOwner, lineDrawingThemeForVersion } from '../lineDrawing/model.mjs';
 import { characterThemeFor } from '../characterThemes/model.mjs';
 import { festivalThemeFor } from '../festivalThemes/model.mjs';
 import { specialThemeFor } from '../specialThemes/model.mjs';
@@ -31,7 +31,7 @@ export function normalizeLoginAppearance(value) {
   if (!value || value.version !== 1 || typeof value.themeId !== 'string' || !validTheme(value.themeId)) return null;
   return {
     version: 1, themeId: value.themeId,
-    ...(isLineDrawingTheme(value.themeId) ? { lineDrawingOwnerSkin: value.lineDrawingOwnerSkin === true || isLineDrawingOwner(value.lineDrawingAccount) } : {}),
+    ...(isLineDrawingTheme(value.themeId) ? { lineDrawingOwnerSkin: value.lineDrawingOwnerSkin === true || isLineDrawingOwner(value.lineDrawingAccount), lineDrawingVersion: value.lineDrawingVersion === 2 ? 2 : 1 } : {}),
     preference: value.preference === 'weather-auto' ? 'weather-auto' : isWeekdayPreference(value.preference) ? 'weekday-auto' : '',
     characterVersion: value.characterVersion === 2 ? 2 : 1,
   };
@@ -85,7 +85,10 @@ export function resolveLoginTheme(appearance, environment = {}) {
     // This remembered account is only a login skin, never a theme entitlement.
     const typed = typeof environment.loginUsername === 'string' ? environment.loginUsername.trim().toLowerCase() : '';
     const privateOwnerSkin = record.lineDrawingOwnerSkin === true && (!typed || isLineDrawingOwner(typed));
-    if (environment.lineDrawingPublished === true || privateOwnerSkin) return skin(record.themeId, 'line-drawing', LINE_DRAWING_THEME.swatches, { image: LINE_DRAWING_THEME.image, position: 'center' });
+    if (environment.lineDrawingPublished === true || privateOwnerSkin) {
+      const theme = lineDrawingThemeForVersion(record.lineDrawingVersion);
+      return skin(record.themeId, 'line-drawing', theme.swatches, { image: theme.image, position: 'center', lineDrawingVersion: record.lineDrawingVersion });
+    }
     return skin('robinhood', 'color', COLOR_LOGIN_THEMES[0].slice(1), {});
   }
   const id = record.preference === 'weekday-auto' || WEEKDAY_IDS.includes(record.themeId) ? getBangkokWeekdayTheme(environment.now ? new Date(environment.now) : new Date()) : record.themeId;

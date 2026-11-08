@@ -11,6 +11,8 @@ import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { createBuildMetadata, buildMetadataPlugin } from '../build/buildMetadata.js';
 import { WEEKDAY_IDS } from '../src/weekdayCollection.mjs';
+import { resolveThemePreview } from '../src/themePreview.mjs';
+import { weekdayThemeFor } from '../src/weekdayThemes/model.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
@@ -87,12 +89,12 @@ const mismatchedEvaluation = mapping.mergeRawAndStoredEvaluationCases([rawEvalua
 ])[0];
 assert.equal(mismatchedEvaluation.topics[0].deductions, undefined);
 
-const preview = run(read('src/ThemePreview.tsx').replace(/^import .*;\n/gm, ''), { React, WEEKDAY_IDS });
+const preview = run(read('src/ThemePreview.tsx').replace(/^import .*;\n/gm, ''), { React, resolveThemePreview });
 for (let i = 0; i < WEEKDAY_IDS.length; i++) {
   const html = renderToStaticMarkup(React.createElement(preview.default, { themeId: WEEKDAY_IDS[i], option: { swatches: ['#111', '#222', '#333'] } }));
-  assert.ok(html.includes('weekday-scenes-v3.png')); assert.ok(html.includes(`78% ${i / 6 * 100}%`)); assert.ok(!html.includes('#111'));
+  assert.ok(html.includes(weekdayThemeFor(WEEKDAY_IDS[i]).image)); assert.ok(!html.includes('#111'));
 }
-const character = renderToStaticMarkup(React.createElement(preview.default, { themeId: 'kitty', option: { patternImage: '/theme-kitty-pink.png', swatches: ['#111','#222','#333'] } }));
+const character = renderToStaticMarkup(React.createElement(preview.default, { themeId: 'kitty-pink', option: { id: 'kitty-pink', patternImage: '/theme-kitty-pink.png', swatches: ['#111','#222','#333'] } }));
 assert.ok(character.includes('/theme-kitty-pink.png'));
 console.log('PASS sidebar thumbnails follow every actual weekday and character theme');
 
