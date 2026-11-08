@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T12:04:45.662Z",
+  "reviewedAt": "2026-11-08T12:08:51.273Z",
   "reason": "Reviewed read-only Cloud Provider Status display, Firebase and Supabase environment verification, permission scoped migration details, and no QA data mutations",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -12,7 +12,7 @@
   "sourceHashes": {
     ".github/workflows/audit-jan-feb-rawdata.yml": "8fc156e416ea0729eb9b6e92578ef34ac3582d5d6ce567bcc7c67b72303594e0",
     ".github/workflows/build-diagnostics.yml": "cc7b8451811a86e7eaf37df19895b1cdddb3659d5be3f43c7e74f32dc0d70bd0",
-    ".github/workflows/cloud-status-guide-review.yml": "ebc2567d6d4243552eced6cdfd243b47fce0ad4b465daed75e3c275fe4737e55",
+    ".github/workflows/cloud-status-guide-review.yml": "fc02a5de1bacbeb288b6b8a116d3632e0d8d364c632ac845463e884d6cdcea59",
     ".github/workflows/daily-v13-excel-sync.yml": "b26e2be9ad8bb7b36ad13ae3a4a75e9a2bfb9623ddd1135c0f6ab77855fcb391",
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
@@ -472,7 +472,7 @@
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/SparksAdminPanel.tsx": "9982cd2310c343e7d23a8b8a053a21610848cc466aa2809010faecce68d0b47f",
-    "src/SparksCloudStatus.tsx": "52c0538d387a6a80aa7a9a02cf005a0ec50a66469f77afb24b1c45a9bc031f87",
+    "src/SparksCloudStatus.tsx": "402a48d7c99132573a1562097596786391087a86c8153196be4f3af47489785b",
     "src/SparksHistory.tsx": "b935b35b4cabe7f209abb04d8d1cdce721c38698799ba37d126ad8df6683188a",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
     "src/SparksMiniGamesGallery.tsx": "3b2926275f950a385829e4b3aebf748bdf4b1e686b962745fc04bbd21b751e8b",
