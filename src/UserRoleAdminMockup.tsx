@@ -2044,9 +2044,9 @@ export default function UserRoleAdminMockup({
       : {
           eyebrow: "System",
           title: "System Setup",
-          subtitle: "จัดการ Maintenance Mode และสถานะการเปิดใช้งานระบบ",
-          workspaceTitle: "System Maintenance",
-          workspaceSubtitle: "ควบคุมการเปิดหรือปิดระบบสำหรับผู้ใช้งาน",
+          subtitle: "ตรวจสอบ Cloud Provider ติดตามการย้ายข้อมูล และจัดการ Maintenance Mode",
+          workspaceTitle: "System Cloud & Maintenance",
+          workspaceSubtitle: "ตรวจสอบฐานข้อมูลที่ใช้งานและการเปิดหรือปิดระบบ",
         };
 
   return (
