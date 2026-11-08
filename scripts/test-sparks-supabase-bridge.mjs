@@ -13,6 +13,8 @@ try{
   assert.equal(isSparksBackendRequest(api+"qa_sparks_wallets/test/history?pageSize=200"),true);
   assert.equal(isSparksBackendRequest("/qa_user_sessions/test"),false);
   assert.equal(isSparksBackendRequest("/qa_evaluations/test"),false);
+  assert.equal(isSparksBackendRequest("/qa_typing_challenges/songpon"),false,"QA Access Check remains Firebase");
+  assert.equal(isSparksBackendRequest("/qa_typing_challenge_history/test"),false,"QA typing history remains Firebase");
   assert.equal(isSparksBackendRequest("/qa_sparks_wallets/test","PATCH"),false);
   process.env.SPARKS_SUPABASE_BRIDGE_URL="https://safe-test.supabase.co/functions/v1/qa-sparks-runtime-preview";
   process.env.SPARKS_SUPABASE_BRIDGE_TOKEN="test-private-server-secret-token-length-over-40";
@@ -42,7 +44,21 @@ try{
   assert.equal((await requestSparksSupabase(":beginTransaction","POST")).transaction,"t-1");
   await assert.rejects(requestSparksSupabase(":commit","POST",{writes:[]}),e=>e.status===409&&e.firestoreStatus==="ABORTED");
   assert.equal(seen.filter(x=>x.action==="commit").length,1);
-  console.log("PASS Sparks-only server bridge: feature flag, session isolation, read/list, retry/conflict, private transport");
+  const networkBefore=seen.length;
+  const walletWrite={update:{name:"projects/qa-dashboard-b0b5d/databases/(default)/documents/qa_sparks_wallets/songpon",fields:{}}};
+  const qaAccessWrite={update:{name:"projects/qa-dashboard-b0b5d/databases/(default)/documents/qa_typing_challenges/songpon",fields:{}}};
+  await assert.rejects(
+    requestSparksSupabase(":commit","POST",{writes:[walletWrite,qaAccessWrite]}),
+    e=>e.status===409&&e.code==="CROSS_DATABASE_WRITE_REJECTED",
+    "mixed QA/Sparks transaction must fail BEFORE any Supabase transport"
+  );
+  await assert.rejects(
+    requestSparksSupabase(":commit","POST",{writes:[qaAccessWrite]}),
+    e=>e.status===409&&e.code==="CROSS_DATABASE_WRITE_REJECTED"
+  );
+  assert.equal(seen.length,networkBefore,"invalid cross-database transactions must make zero network requests");
+
+  console.log("PASS Sparks-only server bridge: QA Access Check isolation, reject mixed commits before network, scoped reads, private transport");
 }finally{
   globalThis.fetch=originalFetch;
   for(const [k,v]of Object.entries({SPARKS_DATA_BACKEND:old.mode,SPARKS_SUPABASE_BRIDGE_URL:old.url,SPARKS_SUPABASE_BRIDGE_TOKEN:old.token})){
