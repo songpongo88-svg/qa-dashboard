@@ -3,6 +3,7 @@ import { createFruitMatchService } from "../server/fruitMatchService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
+import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -1294,6 +1295,8 @@ const qaSpecialRewards=createQaRewardsService({firestoreRequest,readDoc,listColl
 const snakes=createSnakesService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance,
   findProfileByUsername,isSuspendedProfile});
+const hiddenTreasure=createHiddenTreasureService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -1337,6 +1340,14 @@ export default async function handler(req, res) {
         :action==="special-rewards-receipt-scan"?await qaSpecialRewards.scanReceipt(body,actor)
         :await qaSpecialRewards.submit(body,actor);
       return res.status(200).json(data);
+    }
+    if (["treasure-state","treasure-start","treasure-find","treasure-open"].includes(body.action)) {
+      const actor=await authorizeRewardUser(body);
+      const result=body.action==="treasure-state"?await hiddenTreasure.state(actor)
+        :body.action==="treasure-start"?await hiddenTreasure.start(body,actor)
+        :body.action==="treasure-find"?await hiddenTreasure.find(body,actor)
+        :await hiddenTreasure.open(body,actor);
+      return res.status(200).json(result);
     }
     if (["fruit-match-data","fruit-match-start","fruit-match-finish"].includes(body.action)) {
       const actor = await authorizeRewardUser(body);
