@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T16:42:22.204Z",
-  "reason": "Verified export-only Report Center and the existing strict evaluation completion gate before PDF/Excel generation; guide content remains aligned.",
+  "reviewedAt": "2026-11-08T16:46:05.124Z",
+  "reason": "Reviewed standalone Report Center role restrictions for all teams, own team and named Agents; preserves source export permissions and user guide.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
@@ -432,7 +432,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "370c1f54c517bbd31178babeb678d2691b0996dd0e0d933c6718cfff03cccaf4",
-    "src/App.tsx": "1c62852cc2e4ac7fe249acc0d57c4fd7e49f32807877909872afe77ea04d5939",
+    "src/App.tsx": "42dc4b249ab1de940c077a065aabd63dd9a0b50b435d32c5c024904e22d1a4d5",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -722,6 +722,6 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "5268ec616c1808b8aa45affbfb3ce40546c677efd862d265227f1d0d6739445c"
+    "src/ReportCenterMockup.tsx": "4d58f99228d9657cd07b46f66e05d3a79c15579d578442c60eced79ecc5da065"
   }
 }
