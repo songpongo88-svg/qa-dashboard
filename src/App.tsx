@@ -8129,6 +8129,19 @@ export default function App() {
             currentUser={currentUser}
             roleScopedAgentNames={roleScopedAgentNames}
             canExport={analyticsExportAllowed}
+            paymentContent={
+              <SignatureCenterErrorBoundary>
+                <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} reportExportOnly />
+              </SignatureCenterErrorBoundary>
+            }
+            slidesContent={
+              <PresentationMockup
+                currentUser={currentUser}
+                roleScopedAgentNames={roleScopedAgentNames}
+                dataRefreshKey={qaDataRefreshKey}
+                reportExportOnly
+              />
+            }
           />
         ) : activeTab === "summary" && analyticsAllowed ? (
           <SummaryMockup
