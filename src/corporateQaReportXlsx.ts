@@ -239,9 +239,9 @@ export async function exportCorporateReport(book:XLSX.WorkBook):Promise<Blob> {
     const path="xl/worksheets/sheet"+(i+1)+".xml";
     const original=await zip.file(path)?.async("string");
     if(!original)continue;
-    zip.file(path,styleSheet(original,book.SheetNames[i]==="Dashboard",styles));
+    zip.file(path,styleSheet(original,book.SheetNames[i]==="Dashboard" || book.SheetNames[i]==="QA Dashboard",styles));
   }
-  const dashboardIndex=book.SheetNames.indexOf("Dashboard");
+  const dashboardIndex=book.SheetNames.findIndex(name=>name==="Dashboard" || name==="QA Dashboard");
   if(dashboardIndex>=0) await embedLogo(zip,dashboardIndex+1,book);
   return zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6},mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
 }
