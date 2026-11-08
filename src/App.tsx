@@ -8304,8 +8304,10 @@ export default function App() {
           }}
         />
       ) : null}
-      <FirstLoginSparksModal username={currentUser.username} sessionId={currentUser.sessionId || ""} />
-       <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>
+      {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? <>
+        <FirstLoginSparksModal username={currentUser.username} sessionId={currentUser.sessionId || ""} />
+        <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>
+      </> : null}
       </TermsAccessBoundary>
     </EvaluationActivityProvider>
   );
