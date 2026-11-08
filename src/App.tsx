@@ -27,6 +27,7 @@ import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestam
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
+import HiddenTreasure from "./HiddenTreasure";
 import FirstLoginSparksModal from "./FirstLoginSparksModal";
 import { ProfileMakeoverAutoClaim } from "./ProfileMakeoverQuest";
 import AppealMockup from "./AppealMockup";
@@ -7889,6 +7890,9 @@ export default function App() {
             <QASparks active={activeTab === "qa-sparks"} username={currentUser.username} displayName={currentUser.displayName || currentUser.username} adminAccess={canAccessUserRoleAdmin(currentUser)} adminSessionId={currentUser.sessionId || ""} />
           ) : activeTab === "dashboard" ? (
             <>
+              <HiddenTreasure username={currentUser.username} sessionId={currentUser.sessionId||""}
+                caseId={selectedDashboardCaseId||""}
+                active={Boolean((dashboardSubTab==="case-detail"||isCaseWorkspaceTabKey(activeWorkspaceTab))&&selectedDashboardCaseId)} />
               <DashboardMockup
               currentUser={currentUser}
               caseAgentDirectory={caseAgentDirectory}
