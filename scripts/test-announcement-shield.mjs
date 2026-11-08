@@ -49,7 +49,7 @@ assert.equal(active.status,"active");
 assert.equal(active.entitled,true);
 assert.ok(Date.parse(active.nextBillingAt)>Date.now());
 assert.ok(shieldEntitled(docs.get(subPath)));
-const firstDue=new Date(Date.now()-3600000).toISOString();
+const firstDue=new Date(Date.now()-13*86400000).toISOString();
 docs.set(subPath,{...docs.get(subPath),nextBillingAt:firstDue});
 await service.sweep();
 assert.equal(docs.get(walletPath).balance,100,"cron renews 50 without user login");
