@@ -1348,6 +1348,13 @@ export default async function handler(req, res) {
         :await qaSpecialRewards.submit(body,actor);
       return res.status(200).json(data);
     }
+    if (body.action==="sparks-wallet-recovery") {
+      // Read-only, authenticated, account-scoped fallback when client Firestore is unavailable.
+      // Never return another account's wallet, and never mutate scores or ledger.
+      const actor=await authorizeRewardUser(body);
+      const wallet=recordValue(await readDoc(walletDocumentPath(actor.username)));
+      return res.status(200).json({ok:true,wallet,source:"server-verified"});
+    }
     if (["announcement-shield-state","announcement-shield-buy","announcement-shield-activate","announcement-shield-cancel"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
       const result=body.action==="announcement-shield-state"?await announcementShield.state(actor)
