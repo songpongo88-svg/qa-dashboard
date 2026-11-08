@@ -24,6 +24,7 @@ type HubUser = {
   agentName?: string;
   teamName?: string;
   email?: string;
+  sessionId?: string;
 };
 
 type AnnouncementHubProps = {
@@ -113,6 +114,14 @@ function splitTickerText(value: unknown) {
 
 function canManageAnnouncements(user: HubUser) {
   return normalize(user.role) === "quality assurance";
+}
+
+// Subscriptions only hide optional, ordinary Announcement popups.
+// Required acknowledgements, important notices, safety and maintenance remain visible.
+export function announcementShieldMaySuppress(item: StoredAnnouncement){
+ return item.priority==="Normal" && item.actionRequired!=="Acknowledge"
+   && item.popupMode!=="Until Acknowledged"
+   && item.category!=="System Maintenance" && item.category!=="Urgent Notice";
 }
 
 function localDateTimeInput(date: Date) {
@@ -598,6 +607,30 @@ function AnnouncementWorkspace({
 
   const manageAllowed = canManageAnnouncements(currentUser);
   const currentUsername = normalize(currentUser.username);
+  const [shieldEntitled,setShieldEntitled]=useState(false);
+  const [shieldReady,setShieldReady]=useState(false);
+  useEffect(()=>{
+    let alive=true;
+    setShieldReady(false);setShieldEntitled(false);
+    const update=async()=>{
+      if(!currentUsername||!currentUser.sessionId){if(alive)setShieldReady(true);return;}
+      try{
+        const response=await fetch("/api/sparks-admin",{method:"POST",headers:{"content-type":"application/json"},cache:"no-store",
+          body:JSON.stringify({action:"announcement-shield-state",actorUsername:currentUsername,sessionId:currentUser.sessionId})});
+        if(!response.ok)throw new Error("Shield state unavailable");
+        const data=await response.json();
+        if(alive)setShieldEntitled(data.entitled===true);
+      }catch{if(alive)setShieldEntitled(false);}
+      finally{if(alive)setShieldReady(true);}
+    };
+    void update();
+    window.addEventListener("qa:announcement-shield-changed",update);
+    window.addEventListener("focus",update);
+    return()=>{alive=false;window.removeEventListener("qa:announcement-shield-changed",update);window.removeEventListener("focus",update);};
+  },[currentUsername,currentUser.sessionId]);
+  useEffect(()=>{
+    if(shieldEntitled&&popupMessage&&announcementShieldMaySuppress(popupMessage))setPopupMessage(null);
+  },[shieldEntitled,popupMessage]);
 
   useEffect(() => {
     if (!shortcutVisible) setHubOpen(false);
@@ -722,7 +755,7 @@ function AnnouncementWorkspace({
 
   useEffect(() => {
     const showJustPublished = hubOpen && view === "control" && Boolean(justPublishedAnnouncementId);
-    if (!personalReceiptsReady || popupMessage || (hubOpen && !showJustPublished)) return;
+    if (!personalReceiptsReady || !shieldReady || popupMessage || (hubOpen && !showJustPublished)) return;
     if (document.visibilityState !== "visible") return;
 
     let next: StoredAnnouncement | null = null;
@@ -730,6 +763,7 @@ function AnnouncementWorkspace({
     for (const item of myAnnouncements) {
       // Publishing while managing announcements must not display older messages.
       if (showJustPublished && item.id !== justPublishedAnnouncementId) continue;
+      if(shieldEntitled&&announcementShieldMaySuppress(item))continue;
       const now = new Date();
       if (
         item.popupMode === "Mailbox Only" ||
@@ -823,6 +857,8 @@ function AnnouncementWorkspace({
     hubOpen,
     view,
     justPublishedAnnouncementId,
+    shieldEntitled,
+    shieldReady,
   ]);
 
   const markRead = async (
