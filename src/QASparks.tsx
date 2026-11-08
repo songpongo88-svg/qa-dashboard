@@ -133,6 +133,10 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         </div>
         {displayName || username ? <div className="qa-sparks-member-owner"><span className="qa-sparks-owner-avatar" aria-hidden="true">QA</span><div><small>บัญชีผู้ใช้งาน</small><span>{displayName || username}</span></div></div> : null}
       </section>
+      {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY === "1" ? <div role="status" className="qa-sparks-inline-error" style={{borderColor:"#a5b4fc",background:"#eef2ff",color:"#312e81"}}>
+        <strong>SUPABASE PREVIEW · อ่านข้อมูลอย่างเดียว</strong> — นี่คือเว็บทดสอบสำหรับเทียบยอด Sparks และประวัติ
+        ระบบปิดการรับแต้ม แลกรางวัล เล่นเกม และการทำธุรกรรมทั้งหมดไว้ การกดทำรายการจะไม่เปลี่ยนคะแนนจริง
+      </div> : null}
       {error ? <div className="qa-sparks-inline-error" role="alert">{error} <button type="button" style={{marginLeft:12,textDecoration:"underline",fontWeight:700}} onClick={()=>{invalidateSparksAccount(username);setRetryTick(n=>n+1);}}>ลองโหลดอีกครั้ง</button></div> : null}
       {walletLoaded&&account.historyUnavailable&&historyLimit>0?<div className="qa-sparks-inline-error" role="status">โหลดกระเป๋า Sparks ได้แล้ว แต่ประวัติบางรายการยังไม่พร้อมแสดง ข้อมูลประวัติเดิมไม่ได้ถูกลบ</div>:null}
       {walletLoaded&&account.recoverySource==="server"?<div className="qa-sparks-loading" role="status">ยอดกระเป๋านี้ได้รับการยืนยันจากเซิร์ฟเวอร์ QA Sparks</div>:null}
