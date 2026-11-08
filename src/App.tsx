@@ -8128,7 +8128,10 @@ export default function App() {
           <ReportCenterMockup
             currentUser={currentUser}
             roleScopedAgentNames={roleScopedAgentNames}
-            canExport={analyticsExportAllowed}
+            canExport={analyticsAllowed && analyticsExportAllowed}
+            canViewAllAgents={analyticsAllAgentsAllowed}
+            canViewAllTeams={analyticsAllTeamsAllowed}
+            canViewOwnTeam={analyticsOwnTeamAllowed}
             paymentContent={
               <SignatureCenterErrorBoundary>
                 <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} reportExportOnly />
