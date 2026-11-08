@@ -62,6 +62,12 @@ try{
     e=>e.status===409&&e.code==="CROSS_DATABASE_WRITE_REJECTED"
   );
   assert.equal(seen.length,networkBefore,"invalid cross-database transactions must make zero network requests");
+  const txn=(await requestSparksSupabase(":beginTransaction","POST")).transaction;
+  await requestSparksSupabase("/qa_sparks_wallets/test?transaction="+txn);
+  await requestSparksSupabase("/qa_sparks_wallets/missing?transaction="+txn);
+  await assert.rejects(requestSparksSupabase(":commit","POST",{transaction:txn,writes:[walletWrite]}),e=>e.firestoreStatus==="ABORTED");
+  assert.deepEqual(seen.at(-1).reads,[{path:"qa_sparks_wallets/test",updateTime:"v1"},{path:"qa_sparks_wallets/missing",updateTime:null}],
+    "commit validates existing and absent documents from the entire read set");
 
   console.log("PASS Sparks-only server bridge: QA Access Check isolation, reject mixed commits before network, scoped reads, private transport");
 }finally{

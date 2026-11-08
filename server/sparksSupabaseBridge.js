@@ -14,6 +14,7 @@ const ROOTS=new Set([
   // They are NOT Sparks data; a typing-relief cross-DB transaction is blocked.
 ]);
 const TRANSITIONS=new Set([":beginTransaction",":rollback",":commit"]);
+const transactions=new Map();
 function relativeDocUrl(endpoint){
   if(typeof endpoint!=="string")return null;
   let value=endpoint;
@@ -72,6 +73,11 @@ export async function requestSparksSupabase(endpoint,method="GET",body){
   if(method==="POST"&&endpoint===":commit")requireSparksOnlyCommit(body?.writes);
   if(method==="POST"&&TRANSITIONS.has(endpoint)){
     payload=endpoint===":beginTransaction"?{action:"begin"}:endpoint===":rollback"?{action:"rollback"}:{action:"commit",writes:body?.writes};
+    if(endpoint===":commit"&&body?.transaction){
+      const entry=transactions.get(body.transaction);
+      if(!entry)throw Object.assign(new Error("Sparks transaction expired"),{status:409,firestoreStatus:"ABORTED"});
+      payload.reads=[...entry.reads.values()];
+    }
   }else if(method==="GET"){
     const parsed=relativeDocUrl(endpoint);
     if(!parsed)throw Object.assign(new Error("Not a Sparks document path"),{status:400});
@@ -89,6 +95,17 @@ export async function requestSparksSupabase(endpoint,method="GET",body){
     throw Object.assign(new Error("QA Sparks Supabase backend unavailable"),{status:503,cause:error});
   }
   const result=await response.json().catch(()=>({}));
+  if(payload.action==="begin"&&response.ok&&result.transaction){
+    for(const [id,entry]of transactions)if(entry.expires<Date.now())transactions.delete(id);
+    transactions.set(result.transaction,{expires:Date.now()+120000,reads:new Map()});
+  }
+  if(payload.action==="get"&&(response.ok||response.status===404)){
+    const id=relativeDocUrl(endpoint)?.params.get("transaction");
+    const entry=transactions.get(id);
+    if(entry)entry.reads.set(payload.path,{path:payload.path,updateTime:result.updateTime||null});
+  }
+  if(method==="POST"&&(endpoint===":rollback"||endpoint===":commit")&&body?.transaction)
+    transactions.delete(body.transaction);
   if(response.status===404&&payload.action==="get")return null;
   if(!response.ok){
     const code=result?.firestoreStatus||result?.error||"BACKEND_UNAVAILABLE";

@@ -201,6 +201,11 @@ async function firestoreRequest(endpoint, method = "GET", body) {
   // Authentication and all mutations still require normal server verification.
   if (method === "GET" && Date.now() < firestoreQuotaLimitedUntil) throw firestoreQuotaError();
   const token = await getAccessToken();
+  if(process.env.SPARKS_DATA_BACKEND==="supabase" && endpoint===":commit" && body?.transaction){
+    // Supabase begin tokens are local optimistic transaction markers. Firebase
+    // steps use the document updateTime/exists preconditions, never those tokens.
+    body={...body};delete body.transaction;
+  }
   const response = await fetch(endpoint.startsWith("https:") ? endpoint : API_ROOT + endpoint, {
     method,
     headers: {
@@ -227,6 +232,7 @@ async function firestoreRequest(endpoint, method = "GET", body) {
   return result;
 }
 async function readDoc(documentPath, transaction = "") {
+  if(process.env.SPARKS_DATA_BACKEND==="supabase" && !isSparksBackendRequest("/"+documentPath))transaction="";
   const suffix = transaction ? "?transaction=" + encodeURIComponent(transaction) : "";
   return firestoreRequest("/" + documentPath + suffix);
 }

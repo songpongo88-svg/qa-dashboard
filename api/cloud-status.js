@@ -32,6 +32,7 @@ export default function handler(req, res) {
     qaLoginProvider: "firebase",
     sparksApiProvider: sparksApi,
     sparksApiReadOnly: cloudPreviewLocked,
+    sparksWritesPaused: process.env.SPARKS_WRITES_PAUSED==="1",
     cutoverVerified,
     migrationPhase: cutoverVerified ? "complete" : "in-progress",
     reviewedSnapshot: {

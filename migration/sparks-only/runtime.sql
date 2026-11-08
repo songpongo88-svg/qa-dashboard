@@ -36,7 +36,8 @@ DECLARE
   v_current sparks_runtime.documents%ROWTYPE;
   v_count integer:=0; v_seen text[]:=ARRAY[]::text[];
 BEGIN
- IF NOT EXISTS(SELECT 1 FROM sparks_runtime.control WHERE id='live_sparks' AND writes_enabled=true) THEN
+ PERFORM 1 FROM sparks_runtime.control WHERE id='live_sparks' AND writes_enabled=true FOR SHARE;
+ IF NOT FOUND THEN
    RAISE EXCEPTION 'SPARKS_WRITES_DISABLED' USING ERRCODE='P0001';
  END IF;
  IF jsonb_typeof(input_writes)<>'array' OR jsonb_array_length(input_writes)>100 THEN
@@ -130,4 +131,31 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION sparks_runtime.commit_writes(jsonb) FROM PUBLIC,anon,authenticated;
+-- Validate the complete optimistic read set, including records not changed by
+-- this transaction (e.g. a lottery draw closing while a ticket is purchased).
+CREATE OR REPLACE FUNCTION sparks_runtime.commit_transaction(input_writes jsonb,input_reads jsonb)
+ RETURNS jsonb LANGUAGE plpgsql SET search_path TO 'pg_catalog' AS $function$
+DECLARE r jsonb; p text; current_version text;
+BEGIN
+ IF jsonb_typeof(input_reads)<>'array' OR jsonb_array_length(input_reads)>500 THEN
+   RAISE EXCEPTION 'INVALID_SPARKS_READS' USING ERRCODE='22023';
+ END IF;
+ FOR p IN SELECT DISTINCT q.path FROM (
+   SELECT value->>'path' path FROM jsonb_array_elements(input_reads)
+   UNION ALL
+   SELECT substring(value #>> '{update,name}' from 59) path FROM jsonb_array_elements(input_writes)
+ ) q WHERE q.path IS NOT NULL ORDER BY q.path LOOP
+   PERFORM pg_advisory_xact_lock(hashtextextended(p,0));
+ END LOOP;
+ FOR r IN SELECT value FROM jsonb_array_elements(input_reads) LOOP
+   p:=r->>'path';
+   SELECT update_time INTO current_version FROM sparks_runtime.documents WHERE source_path=p;
+   IF current_version IS DISTINCT FROM (r->>'updateTime') THEN
+     RAISE EXCEPTION 'ABORTED_READ_PRECONDITION' USING ERRCODE='40001';
+   END IF;
+ END LOOP;
+ RETURN sparks_runtime.commit_writes(input_writes);
+END;
+$function$;
+REVOKE ALL ON FUNCTION sparks_runtime.commit_transaction(jsonb,jsonb) FROM PUBLIC,anon,authenticated;
 COMMIT;
