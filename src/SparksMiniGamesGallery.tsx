@@ -60,13 +60,17 @@ function FruitCover(){
    <text x="93" y="322" fontFamily="Kanit, sans-serif" fontSize="13" letterSpacing="3" fill="#d8fff1">12 PAIRS · MEMORY CHALLENGE</text>
  </svg>;
 }
-export default function SparksMiniGamesGallery({onSelect}:{onSelect:(game:SparksGameChoice)=>void}){
+export default function SparksMiniGamesGallery({onSelect,privateSnakes=false}:{onSelect:(game:SparksGameChoice)=>void;privateSnakes?:boolean}){
  return <section className="qa-games-gallery" aria-label="เลือกมินิเกมจากภาพ">
    <div className="qa-games-gallery-heading">
      <div><span>QA SPARKS GAME ZONE</span><h2>เลือกเกมที่ต้องการเล่น</h2><p>กดที่รูปเกมเพื่อเข้าเล่นหรือกลับไปยังเกมที่เล่นค้างไว้</p></div>
-     <div className="qa-games-gallery-count">1 เกม</div>
+     <div className="qa-games-gallery-count">{privateSnakes?"1 เกม + Private Test":"1 เกม"}</div>
    </div>
    <div className="qa-games-gallery-grid">
+     {privateSnakes?<button type="button" data-sparks-game-card="snakes" className="qa-games-gallery-card qa-games-gallery-card--snakes" onClick={()=>onSelect("snakes")}>
+       <span className="qa-games-gallery-art"><SnakesCover/><span className="qa-games-gallery-tag">PRIVATE TEST · เฉพาะเจ้าของระบบ</span></span>
+       <span className="qa-games-gallery-details"><strong>บันไดงู · โหมดทดสอบส่วนตัว</strong><span>ทดสอบกับ Bot สูงสุด 4 ตัว · ยังไม่เผยแพร่ · ไม่มีการจ่าย Sparks จากเกมทดสอบ</span><span className="qa-games-gallery-play">เข้าทดสอบเกม</span></span>
+     </button>:null}
      <button type="button" data-sparks-game-card="fruit" className="qa-games-gallery-card qa-games-gallery-card--fruit" onClick={()=>onSelect("fruit")}>
        <span className="qa-games-gallery-art"><FruitCover/><span className="qa-games-gallery-tag">เกมจับคู่ผลไม้</span></span>
        <span className="qa-games-gallery-details"><strong>Fruit Match</strong><span>เปิดภาพจับคู่ผลไม้ 12 คู่ ท้าทายความจำและทำสถิติ</span><span className="qa-games-gallery-play">เข้าเล่นเกม <span aria-hidden="true">↗</span></span></span>
