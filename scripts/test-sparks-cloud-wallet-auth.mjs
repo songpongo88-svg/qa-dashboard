@@ -25,8 +25,9 @@ const requests=[];
 let sessionMode="valid";
 function reply(data,status=200){return new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json"}});}
 globalThis.fetch=async(url,opts={})=>{
- const href=String(url);const parsed=opts.body?JSON.parse(opts.body):null;
+ const href=String(url);
  if(href==="https://oauth2.googleapis.com/token")return reply({access_token:"mock-google-token",expires_in:3600});
+ const parsed=opts.body?JSON.parse(opts.body):null;
  if(href.startsWith("https://firestore.googleapis.com/v1/projects/qa-dashboard-b0b5d/databases/(default)/documents")){
   requests.push({backend:"firebase",url:href});
   if(href.includes("/qa_user_sessions/")){
