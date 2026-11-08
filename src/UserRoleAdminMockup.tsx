@@ -1,3 +1,4 @@
+import SparksCloudStatus from "./SparksCloudStatus";
 import DateTime24Input from './DateTime24Input';
 import React, { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
@@ -2043,9 +2044,9 @@ export default function UserRoleAdminMockup({
       : {
           eyebrow: "System",
           title: "System Setup",
-          subtitle: "จัดการ Maintenance Mode และสถานะการเปิดใช้งานระบบ",
-          workspaceTitle: "System Maintenance",
-          workspaceSubtitle: "ควบคุมการเปิดหรือปิดระบบสำหรับผู้ใช้งาน",
+          subtitle: "ตรวจสอบ Cloud Provider ติดตามการย้ายข้อมูล และจัดการ Maintenance Mode",
+          workspaceTitle: "System Cloud & Maintenance",
+          workspaceSubtitle: "ตรวจสอบฐานข้อมูลที่ใช้งานและการเปิดหรือปิดระบบ",
         };
 
   return (
@@ -2433,7 +2434,9 @@ export default function UserRoleAdminMockup({
             />
           </div>
         ) : adminTab === "maintenance" && canManageMaintenance ? (
-          <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
+          <>
+            <SparksCloudStatus adminAccess={true} />
+            <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
             <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Maintenance</div>
@@ -2451,7 +2454,8 @@ export default function UserRoleAdminMockup({
               onMessageChange={setMaintenanceMessage}
               onSaveMaintenanceMode={saveMaintenanceMode}
             />
-          </div>
+            </div>
+          </>
         ) : null}
       </div>
 
