@@ -371,6 +371,74 @@ const createWrite = (docPath, value) => ({
   currentDocument: { exists: false },
 });
 
+
+// QA Sparks preview endpoints. The existing QA session is validated by Firebase;
+// only the Sparks wallet and immutable reward ledger are read/written via Supabase.
+async function readSparksWalletForCloud(actor,body){
+  const historyLimit=Math.min(100,Math.max(0,Number(body.historyLimit)||0));
+  const wallet=recordValue(await readDoc(walletDocumentPath(actor.username)));
+  const history=historyLimit
+    ?(await listCollection(walletDocumentPath(actor.username)+"/history")).documents
+       .map(d=>({id:String(d.name||"").split("/").pop(),...recordValue(d)}))
+       .sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")))
+       .slice(0,historyLimit)
+    :[];
+  return {ok:true,wallet,history,source:"supabase"};
+}
+async function claimSparksFirstLoginCloud(actor,body){
+  const fruits=[
+    ["apple","Apple Spark"],["banana","Banana Boost"],["orange","Orange Glow"],
+    ["grape","Grape Pop"],["strawberry","Strawberry Shine"],["watermelon","Watermelon Wave"],
+    ["pineapple","Pineapple Punch"],["mango","Mango Magic"],
+    ["cherry","Cherry Charm"],["peach","Peach Bliss"],
+  ];
+  const cardId=String(body.cardId||"");
+  const cardName=String(body.cardName||"");
+  const amount=Number(body.amount);
+  if(!fruits.some(([id,name])=>id===cardId&&name===cardName)
+      ||![100,150,200,250,300,400,500,600,750,1000].includes(amount))fail("Invalid first-login prize",400);
+  const walletPath=walletDocumentPath(actor.username);
+  const historyPath=walletPath+"/history/first-login-welcome-v1";
+  for(let attempt=0;attempt<4;attempt++){
+    const begin=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
+    const transaction=begin?.transaction;
+    if(!transaction)fail("Unable to begin first-login transaction",503);
+    try{
+      const [walletDoc,entryDoc]=await Promise.all([readDoc(walletPath,transaction),readDoc(historyPath,transaction)]);
+      const wallet=recordValue(walletDoc),recorded=recordValue(entryDoc);
+      if(wallet.firstLogin?.amount){
+        const v=wallet.firstLogin;
+        return {ok:true,prize:{cardId:v.cardId,cardName:v.cardName,amount:Number(v.amount),claimedAt:String(v.claimedAt||"")},alreadyApplied:true};
+      }
+      if(entryDoc){
+        return {ok:true,prize:{cardId:recorded.cardId,cardName:recorded.cardName,amount:Number(recorded.amount||0),claimedAt:String(recorded.createdAt||"")},alreadyApplied:true};
+      }
+      const now=new Date().toISOString(),year=currentMemberYear();
+      const current=spendableBalance(wallet,year),earned=annualEarnedFromWallet(wallet,year);
+      const lifetime=Math.max(intCount(wallet.totalEarned),intCount(wallet.firstLogin?.amount));
+      const prize={cardId,cardName,amount,claimedAt:now};
+      await firestoreRequest(":commit","POST",{transaction,writes:[
+        updateWrite(walletPath,{
+          username:actor.username,balance:current+amount,balanceYear:year,
+          totalEarned:lifetime+amount,memberYear:year,memberYearEarned:earned+amount,
+          rewardOrders:intCount(wallet.rewardOrders),firstLogin:prize,
+          updatedAt:now,
+        },walletDoc),
+        createWrite(historyPath,{
+          createdAt:now,type:"earn",source:"first-login",
+          title:"First Login Reward",detail:cardName,cardId,cardName,amount,
+          balanceAfter:current+amount,
+        }),
+      ]});
+      return {ok:true,prize,alreadyApplied:false};
+    }catch(error){
+      if(["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus)&&attempt<3)continue;
+      throw error;
+    }
+  }
+  fail("Concurrent Sparks first-login claim. Retry.",409);
+}
+
 async function redeemTypingRelief(body, actor) {
   const requestId = checkRequestId(body.requestId);
   const walletPath = walletDocumentPath(actor.username);
@@ -1356,6 +1424,14 @@ export default async function handler(req, res) {
         :action==="special-rewards-receipt-scan"?await qaSpecialRewards.scanReceipt(body,actor)
         :await qaSpecialRewards.submit(body,actor);
       return res.status(200).json(data);
+    }
+    if (body.action==="sparks-cloud-wallet"||body.action==="sparks-cloud-first-login") {
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("Sparks Cloud backend has not been enabled",409);
+      const actor=await authorizeRewardUser(body);
+      const result=body.action==="sparks-cloud-wallet"
+        ?await readSparksWalletForCloud(actor,body)
+        :await claimSparksFirstLoginCloud(actor,body);
+      return res.status(200).json(result);
     }
     if (body.action==="sparks-wallet-recovery") {
       // Read-only, authenticated, account-scoped fallback when client Firestore is unavailable.
