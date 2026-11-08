@@ -10,7 +10,6 @@ const BKK_DAY = () => {
 const asInt=v=>Number.isFinite(Number(v))&&Number(v)>0?Math.floor(Number(v)):0;
 const retryable=e=>["ABORTED","FAILED_PRECONDITION"].includes(e?.firestoreStatus);
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
-const TODAY_SECONDS=30;
 const SEARCH_COOLDOWN_MS=120000;
 const MAX_SEARCHES=8;
 const allowedCaseId=value=>/^[a-zA-Z0-9_-]{3,70}$/.test(String(value||""));
@@ -60,9 +59,9 @@ export function createHiddenTreasureService({
      const used=Array.isArray(d.usedCases)?d.usedCases:[];
      if(used.includes(caseId))return {value:{eligible:false,reason:"already-read",day},writes:[]};
      if(d.offerId&&!d.claimedAt)return {value:{eligible:false,reason:"pending-chest",day},writes:[]};
-     const visitId=randomUUID();
-     const next={...d,username:actor.username,day,visitId,caseId,startedMs:now,updatedAt:new Date(now).toISOString()};
-     return {value:{eligible:true,visitId,readSeconds:TODAY_SECONDS,day},
+     const visitId=randomUUID(),readSeconds=drawRandom(30,91);
+     const next={...d,username:actor.username,day,visitId,caseId,startedMs:now,readSeconds,updatedAt:new Date(now).toISOString()};
+     return {value:{eligible:true,visitId,readSeconds,day},
        writes:[updateWrite(docPath,next,snap)]};
    });
  };
@@ -73,7 +72,7 @@ export function createHiddenTreasureService({
      const day=BKK_DAY(),docPath=dailyPath(actor.username,day),snap=await readDoc(docPath,transaction);
      const d=recordValue(snap),now=Date.now();
      if(d.visitId!==visitId||!d.caseId)fail("การอ่านเคสนี้สิ้นสุดแล้ว กรุณาเปิดเคสอีกครั้ง",409);
-     if(now-asInt(d.startedMs)<TODAY_SECONDS*1000)fail("ต้องอ่านเคสก่อนเปิดหีบสมบัติ",409);
+     if(now-asInt(d.startedMs)<Math.max(30,Math.min(90,asInt(d.readSeconds)))*1000)fail("ต้องอ่านข้อมูล QA ก่อนเปิดหีบสมบัติ",409);
      if(now-asInt(d.startedMs)>15*60*1000)fail("การอ่านเคสหมดเวลา กรุณาเปิดเคสอีกครั้ง",409);
      if(asInt(d.searches)>=MAX_SEARCHES)fail("ใช้สิทธิ์ค้นหาขุมทรัพย์วันนี้ครบแล้ว",409);
      const found=drawRandom(100)<35;
@@ -111,7 +110,7 @@ export function createHiddenTreasureService({
        memberYear:year,memberYearEarned:annualEarnedFromWallet(wallet,year)+amount,
        hiddenTreasureLastDay:day,updatedAt:now};
      const historyValue={createdAt:now,type:"earn",source:"hidden-treasure",
-       title:"QA Hidden Treasure",detail:"อ่าน Case Detail และเปิดหีบสมบัติประจำวัน",
+       title:"QA Hidden Treasure",detail:"อ่าน Case Detail / Rubric / Coaching และเปิดหีบสมบัติประจำวัน",
        amount,balanceAfter:newBalance,performedBy:actor.username,status:"Completed",day};
      return {value:{claimed:true,alreadyClaimed:false,amount,balance:newBalance,day},
        writes:[updateWrite(walletPath,updates,walletDoc),
