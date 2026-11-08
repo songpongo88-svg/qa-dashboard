@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T05:54:05.076Z",
-  "reason": "Reviewed Ink & Paper 2.0 per-account update, failure and reload behavior, shared Login flow, and sidebar previews after changing collections; updated Profile instructions",
+  "reviewedAt": "2026-11-08T06:45:00.000Z",
+  "reason": "Announcement Shield reviewed: explicit 50 Sparks initial Item, activate before starting one-month calendar billing, recurring 50 Sparks monthly via existing authenticated daily cron and transactional wallet/history, 14-day insufficient-funds grace with popup protection, cancel self-service, no double-charge, only optional Announcement popups suppressed while important/acknowledgement/security alerts and manual reading remain available. UI and automated tests included.",
   "contentChanged": true,
   "reviewedChapters": [
-    "profile"
+    "qa-sparks",
+    "announcement"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -23,7 +24,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "e55b63fcd7eb9d8021d849a21cca3692defef33a41c52ef251a07e0c0bdbda6c",
+    "api/sparks-admin.js": "ec53cf6f6d66b7f397c20d2498aa9e315a6721cb82b3ff7e8350c3cd13b96374",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
     "build/adminNameUserProfilePatch.js": "69e5240ec63cb6a33c7febd3fef09d6e9f9811a8fc0e905bc7e48a5603955f8d",
@@ -104,7 +105,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "3ce98a485a4d8115ec2e15466765c4e734d3c22bda83f830b681d4756b530333",
+    "package.json": "892cad124d4c779ddf241e80b9ccc30124a1572aec6e025aebc2e1af6d18fdc9",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -407,7 +408,7 @@
     "server/snakesLaddersService.js": "fe0bf2ce9eafddc456dc9c58116d7895d484b5cc6e531d238a759cb2861d5442",
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
-    "src/AnnouncementHub.tsx": "abfb591219d756e868a9804215607b5ad17e3064ba8d855f84b5412b915e0796",
+    "src/AnnouncementHub.tsx": "3607dcd68240ac17f2fc70c68f50932a737e936eea8b642964473dc4c5617a80",
     "src/App.tsx": "8fd39eab87eedf820e398b1ec7ffe27e455fbdba3a92e354abd6273c4ee3b90c",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
@@ -453,7 +454,7 @@
     "src/ProfileMakeoverQuest.tsx": "444e9a06af6b49cfe9768639b0b1172ef5422fb146b55da832906009553cd6fd",
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/QASparks.tsx": "406208f8dabe7ad02e623259eadc16f15ed824e1de16cb7943b5da2a9c3fede2",
+    "src/QASparks.tsx": "19b5f51f76167c00b2f12ff0ca74f090fb9ea1221a6b5677f41f6333e33485bf",
     "src/QaAccessCaseHistoryPopup.tsx": "da29c8b43c9aa32c23cde37fa447f41764477b6659cb2a6bc9384aff71dcf5a7",
     "src/QaAccessCheckOverview.tsx": "348de0058ce1552e358582cf6486812a4c2a6a1801e26361c25ad126b74765ba",
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
@@ -568,7 +569,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "0106f234f3bbbc68458887c2d94692a5b8f9bac386eaf01a26773bb5147bd891",
+    "src/knowledge/manual.json": "33ada1b43149267a215ada93dfc6f509b5eb5eb6f734f6262f0740c3401b3161",
     "src/knowledge/model.ts": "d2a999452d02e001efaf934d8cf30770f6ce069c90a6250ca2f1e67396d81e77",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "f3da31d776ec7529f7b2c8e90ed294eb8b762c736fa8adeb93c03efc849b55a9",
@@ -694,6 +695,10 @@
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "server/announcementShieldService.js": "7f05fbc8af80be51f0fef01792192c8c3966808364af52a0996120f11ea45d5e",
+    "src/AnnouncementShieldItem.tsx": "27028883ace5cea3f1c724934c53e6b8a12547f1cdf9c850fe7c6249e430a565",
+    "src/announcementShield.css": "bacac6466349ae6aa94bd40764c722d2ae00cb3d4760750eb111a959f14954d0",
+    "scripts/test-announcement-shield.mjs": "3d906217c7bf9f8c9a5bbd07d0a3b9ab5f73f8326d41d687bab9f3b1e2b3724d"
   }
 }
