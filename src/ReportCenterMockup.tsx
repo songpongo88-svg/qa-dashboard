@@ -153,59 +153,87 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
   return book;
 }
 
-function drawPdf(title: string, period: string, scope: string, cases: CanonicalReportCase[], mode: Kind) {
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
-  const groups = reportRows(cases, mode === "weekly" ? "week" : mode === "compare" ? "month" : "agent");
-  let y = 17;
-  const drawText = (value: string, x: number, y: number, maxWidth = 90) => {
-    const text = String(value || "-");
-    if (/[^\x20-\x7e]/.test(text)) {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        canvas.width = 1200; canvas.height = 90;
-        const cc = canvas.getContext("2d")!;
-        cc.font = '28px "Sarabun", "Noto Sans Thai", Tahoma, sans-serif';
-        cc.fillStyle = "#1e293b";
-        cc.fillText(text, 4, 44, 1180);
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y - 5, maxWidth, 7);
-        return;
-      }
+function drawPdf(title: string, period: string, scope: string, rows: CanonicalReportCase[], mode: Kind) {
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true });
+  const width = pdf.internal.pageSize.getWidth();
+  const stats = summary(rows);
+  const agents = agentRows(rows), topics = topicRows(rows), tags = tagRows(rows);
+  const groups = reportRows(rows, mode === "weekly" ? "week" : mode === "yearly" || mode === "compare" ? "month" : "agent");
+  const text = (value: unknown, x: number, y: number, maxWidth = 120, font = 10) => {
+    const valueText = String(value ?? "-");
+    pdf.setFontSize(font);
+    if (!/[^\x20-\x7e]/.test(valueText)) {
+      pdf.text(valueText.slice(0, 90), x, y);
+      return;
     }
-    pdf.text(text.slice(0, 70), x, y);
+    const canvas = document.createElement("canvas");
+    const painter = canvas.getContext("2d");
+    if (!painter) { pdf.text(valueText.slice(0, 60), x, y); return; }
+    const fontSize = Math.ceil(font * 3.2);
+    painter.font = fontSize + 'px "Sarabun", "Noto Sans Thai", Tahoma, sans-serif';
+    const intrinsicWidth = Math.ceil(painter.measureText(valueText).width + 15);
+    canvas.width = Math.max(20, intrinsicWidth);
+    canvas.height = Math.ceil(fontSize * 1.6);
+    const ctx = canvas.getContext("2d")!;
+    ctx.font = fontSize + 'px "Sarabun", "Noto Sans Thai", Tahoma, sans-serif';
+    ctx.fillStyle = "#263047";
+    ctx.fillText(valueText, 5, fontSize * 1.1);
+    const mmWidth = Math.min(maxWidth, intrinsicWidth * 0.088);
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y - 5, mmWidth, Math.min(9, font + 2));
   };
-  const header = () => {
-    pdf.setFillColor(61, 35, 102);
-    pdf.rect(0, 0, 297, 12, "F");
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(13);
-    pdf.setTextColor(255, 255, 255);
-    pdf.text(title, 12, 8);
-    pdf.setTextColor(30, 41, 59);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-    y = 20;
-    drawText("Period: " + period + "   Scope: " + scope, 12, y, 250);
-    y += 10;
-    pdf.setFontSize(10);
-    pdf.text("Group", 12, y);
-    pdf.text("Cases", 169, y);
-    pdf.text("Avg Score", 205, y);
-    pdf.text("Cases 85+", 248, y);
-    y += 5;
-    pdf.setDrawColor(216, 220, 230);
-    pdf.line(12, y - 2, 283, y - 2);
+  const page = (label: string) => {
+    pdf.setFillColor(59, 36, 103); pdf.rect(0, 0, width, 15, "F");
+    pdf.setTextColor(255, 255, 255); pdf.setFont("helvetica", "bold"); pdf.setFontSize(11);
+    pdf.text("QA PERFORMANCE REPORT  /  " + title.toUpperCase(), 12, 10);
+    pdf.setTextColor(49, 53, 72); pdf.setFont("helvetica", "normal");
+    text(label, 12, 24, 235, 11);
+    pdf.setDrawColor(224, 227, 234); pdf.line(12, 29, width - 12, 29);
   };
-  header();
-  groups.forEach((item) => {
-    if (y > 188) { pdf.addPage(); header(); }
-    drawText(item.label, 12, y, 140);
-    pdf.text(String(item.count), 169, y);
-    pdf.text(item.average === null ? "-" : item.average.toFixed(2), 205, y);
-    pdf.text(String(item.passedCases), 248, y);
-    y += 8;
+  page("Executive Summary   |   " + period + "   |   " + scope);
+  const metric = (x: number, label: string, value: string) => {
+    pdf.setFillColor(247, 245, 252); pdf.roundedRect(x, 35, 62, 28, 3, 3, "F");
+    pdf.setTextColor(90, 96, 116); pdf.setFontSize(9); pdf.text(label, x + 4, 43);
+    pdf.setTextColor(42, 34, 80); pdf.setFont("helvetica", "bold"); pdf.setFontSize(17);
+    pdf.text(value, x + 4, 56); pdf.setFont("helvetica", "normal");
+  };
+  metric(12, "Average Score", stats.average === null ? "-" : stats.average.toFixed(2));
+  metric(81, "Evaluated Cases", String(stats.count));
+  metric(150, "Agents", String(agents.length));
+  metric(219, "KPI Target", "85%");
+  text("Topic Performance", 12, 74, 200, 11);
+  let y = 84;
+  topics.slice(0, 8).forEach(topic => {
+    text(topic.code, 13, y, 45, 9);
+    pdf.setFillColor(233, 229, 243); pdf.roundedRect(58, y - 4, 145, 4, 1, 1, "F");
+    pdf.setFillColor(112, 75, 174); pdf.roundedRect(58, y - 4, 145 * Math.min(100, Math.max(0, topic.percent))/100, 4, 1, 1, "F");
+    pdf.setFontSize(9); pdf.text(topic.percent.toFixed(1) + "%", 209, y); y += 11;
   });
-  if (!groups.length) drawText("No records", 12, y);
+  text("Top Issue Tags", 12, Math.max(121, y + 3), 150, 11);
+  const tagTop = Math.max(130, y + 13);
+  tags.slice(0, 5).forEach((tag, i) => {
+    text(tag.tag, 14, tagTop + i * 8, 120, 8);
+    pdf.text(tag.cases + " cases  /  " + tag.percent.toFixed(1) + "%", 160, tagTop + i * 8);
+  });
+  pdf.setFontSize(8); pdf.setTextColor(104, 112, 130);
+  pdf.text("KPI per Agent is assessed with at least 10 cases. All metrics use the selected QA scope.", 12, 198);
+  // Subsequent pages detail the scope's group-level outcomes without copying full case evidence.
+  if (groups.length || agents.length) {
+    pdf.addPage("a4", "landscape"); page(mode === "compare" || mode === "yearly" ? "Period Performance" : "Agent Performance");
+    let yy = 40;
+    pdf.setFont("helvetica", "bold"); pdf.text("Group / Agent", 13, yy); pdf.text("Cases", 155, yy);
+    pdf.text("Average", 195, yy); pdf.text("KPI", 245, yy); pdf.setFont("helvetica", "normal"); yy += 8;
+    const data = mode === "compare" || mode === "yearly" ? groups.map(x => ({ name: x.label, count: x.count, average: x.average, kpi: "-" })) :
+      agents.map(x => ({ name: x.name, count: x.count, average: x.average, kpi: x.kpi }));
+    data.forEach((item, idx) => {
+      if (yy > 193) { pdf.addPage("a4", "landscape"); page("Performance Continued"); yy = 40; }
+      if (idx % 2 === 0) { pdf.setFillColor(248,248,251); pdf.rect(12, yy - 5, 270, 9, "F"); }
+      text(item.name, 14, yy, 127, 9);
+      pdf.setFontSize(9); pdf.text(String(item.count), 155, yy);
+      pdf.text(item.average === null ? "-" : item.average.toFixed(2), 195, yy);
+      pdf.text(item.kpi, 245, yy);
+      yy += 10;
+    });
+  }
   return pdf;
 }
 export default function ReportCenterMockup({
