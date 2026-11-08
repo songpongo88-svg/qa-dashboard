@@ -22,7 +22,7 @@ export default function handler(req, res) {
   const environment = ["production","preview","development"].includes(process.env.VERCEL_ENV)
     ? process.env.VERCEL_ENV : "unknown";
   // This is an explicit release sign-off, not an inference from documents copied.
-  const cutoverVerified = sparksApi === "supabase"
+  const cutoverVerified = environment === "production" && sparksApi === "supabase"
     && !cloudPreviewLocked && process.env.SPARKS_CUTOVER_VERIFIED === "1";
 
   return res.status(200).json({
