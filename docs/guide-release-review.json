@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T10:02:53.803Z",
+  "reviewedAt": "2026-11-08T10:05:38.183Z",
   "reason": "Reviewed QA Sparks cloud migration PREVIEW only; production routes and user-facing guide remain unchanged until explicit cutover",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -22,7 +22,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "c12534d71fa6de6c74ba47a6f4aad56d53a13fcc1ce9f35b3f664d1d46b2b831",
+    "api/sparks-admin.js": "f315dc0fd42023d7c0ffc253980f447c9829501a3a956a61771a465fcf415572",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
     "build/adminNameUserProfilePatch.js": "69e5240ec63cb6a33c7febd3fef09d6e9f9811a8fc0e905bc7e48a5603955f8d",
