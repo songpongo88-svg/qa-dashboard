@@ -1,0 +1,48 @@
+{
+  "generated_for": "QA Sparks-only migration",
+  "source": "source code inspection; not a live Firestore census",
+  "firebase_project": "qa-dashboard-b0b5d",
+  "exact_root_collections": [
+    "qa_sparks_wallets",
+    "qa_sparks_true_money_requests",
+    "qa_sparks_reward_settings",
+    "qa_sparks_special_reward_requests",
+    "qa_sparks_special_receipt_evidence",
+    "qa_sparks_special_receipt_locks",
+    "qa_sparks_fruit_players_v1",
+    "qa_sparks_fruit_boards",
+    "qa_sparks_fruit_rounds",
+    "qa_sparks_lottery_draws_v1",
+    "qa_sparks_treasure_daily",
+    "qa_announcement_shield",
+    "qa_sparks_snakes_rooms_v1",
+    "qa_sparks_snakes_members_v1",
+    "qa_typing_challenges",
+    "qa_typing_challenge_history"
+  ],
+  "nested_collections": [
+    "qa_sparks_wallets/{wallet}/history",
+    "qa_sparks_wallets/{wallet}/lottery_tickets",
+    "qa_sparks_reward_settings/{reward}/history"
+  ],
+  "dependencies_stay_on_firebase_initially": [
+    "qa_user_sessions",
+    "qa_user_profiles",
+    "qa_user_session_controls",
+    "qa_user_profile_photos",
+    "qa_sparks_admin_session_grants"
+  ],
+  "required_reconciliation": [
+    "document path and version",
+    "wallet balance, annual & lifetime totals",
+    "every ledger history entry",
+    "all owned reward items and expiry",
+    "TrueMoney request / payout statuses",
+    "special rewards approvals, receipt evidence, receipt locks",
+    "lottery tickets, draws, settlement and claimed rewards",
+    "fruit match, treasure, snakes and typing history",
+    "announcement shield renewals and grace period",
+    "admin adjustments and refunds"
+  ],
+  "note": "Snapshot-only import must not increment any balance. Each production mutation requires one atomic transaction and an idempotency key. Additional dynamically composed collections may exist; audit source before cutover."
+}

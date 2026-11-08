@@ -8304,7 +8304,7 @@ export default function App() {
           }}
         />
       ) : null}
-      <FirstLoginSparksModal username={currentUser.username} />
+      <FirstLoginSparksModal username={currentUser.username} sessionId={currentUser.sessionId || ""} />
        <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>
       </TermsAccessBoundary>
     </EvaluationActivityProvider>

@@ -1,0 +1,48 @@
+name: QA Sparks Preview Guide Review
+
+on:
+  push:
+    branches:
+      - feat/sparks-cloud-only-staging-20261108
+    paths:
+      - .github/workflows/sparks-preview-guide-review.yml
+
+permissions:
+  contents: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the Sparks-only preview branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install pinned dependencies
+        run: npm ci
+
+      - name: Record required guide-review attestation
+        run: |
+          npm run guide:review -- --reason "Reviewed QA Sparks cloud migration PREVIEW only; production routes and user-facing guide remain unchanged until explicit cutover" --no-content-change
+          npm run guide:check
+
+      - name: Commit guide-review record on this branch only
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/guide-release-review.json
+          if git diff --cached --quiet; then
+            echo "Guide review already current"
+            exit 0
+          fi
+          git commit -m "docs: review Sparks-only preview migration before build"
+          git push origin HEAD:feat/sparks-cloud-only-staging-20261108
