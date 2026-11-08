@@ -98,6 +98,48 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 
 export async function getSparksAccount(username: string, options: { historyLimit?: number; forceRefresh?: boolean; sessionId?: string } = {}): Promise<SparksAccount> {
   if (!String(username || "").trim()) return { ...EMPTY_SPARKS_ACCOUNT, history: [] };
+  // Cloud mode is an explicit PREVIEW flag. Production continues to use Firebase
+  // until all game/reward write flows, typing gates, and source parity are checked.
+  if (import.meta.env.VITE_SPARKS_DATA_BACKEND === "supabase") {
+    if (!options.sessionId) throw new Error("กรุณา Login ใหม่เพื่อยืนยันสิทธิ์ QA Sparks");
+    const historyLimit = Math.max(0, Math.min(100, Math.floor(options.historyLimit ?? 100)));
+    const response = await fetch("/api/sparks-admin", {
+      method:"POST",cache:"no-store",headers:{"content-type":"application/json"},
+      body:JSON.stringify({action:"sparks-cloud-wallet",actorUsername:username,sessionId:options.sessionId,historyLimit}),
+    });
+    const snapshot = await response.json().catch(()=>({}));
+    if (!response.ok || !snapshot.ok || !snapshot.wallet) {
+      throw new Error(String(snapshot.error || "โหลดบัญชี QA Sparks จาก Supabase ไม่สำเร็จ"));
+    }
+    const data = snapshot.wallet as Record<string,any>;
+    const rows = Array.isArray(snapshot.history) ? snapshot.history : [];
+    const year = sparksCalendarYear();
+    return {
+      memberYear:year,historyUnavailable:false,recoverySource:"server",
+      memberYearEarned:annualEarnedFromWallet(data,year),
+      profileMakeoverClaimedAt:String(data.profileMakeoverClaimedAt||""),
+      dailyCheckinClaimedDays:Array.isArray(data.dailyCheckin202611Days)
+        ?[...new Set(data.dailyCheckin202611Days.map(Number)
+          .filter((day:number)=>Number.isInteger(day)&&day>=9&&day<=22))]
+          .sort((a:number,b:number)=>a-b) as number[] :[],
+      balance:spendableSparksFromWallet(data,year),
+      totalEarned:safeBalance(data.totalEarned)||safeBalance(data.firstLogin?.amount),
+      totalSpent:safeBalance(data.totalSpent),
+      rewardOrders:safeBalance(data.rewardOrders),
+      typingReliefOwned:safeBalance(data.typingReliefOwned),
+      firstLogin:validPrize(data.firstLogin),
+      history:rows.map((row:any)=>{
+        const voided=Boolean(row.voidedAt);
+        const amount=voided?0:Number(row.amount)||0;
+        return {id:String(row.id||""),createdAt:String(row.createdAt||""),
+          type:amount<0?"spend" as const:"earn" as const,
+          title:voided?"รายการทดลองถูกยกเลิก":String(row.title||""),
+          detail:voided?"ผู้ดูแลแก้ไขรายการทดลองแล้ว · ไม่นับยอด Sparks หรือ Member Level":String(row.detail||""),
+          source:String(row.source||""),amount,
+          balanceAfter:safeBalance(row.balanceAfter)};
+      }),
+    };
+  }
   const ref = walletRef(username);
   const key = "sparks:" + sparksAccountKey(username) + ":";
   const historyLimit = Math.max(0, Math.min(100, Math.floor(options.historyLimit ?? 100)));
@@ -175,10 +217,25 @@ export async function claimFirstLoginSparks(
   username: string,
   selectedCard: { id: string; name: string },
   amount: number,
+  sessionId = "",
 ): Promise<FirstLoginPrize> {
   const card = FRUIT_CARDS.find((candidate) => candidate.id === selectedCard.id && candidate.name === selectedCard.name);
   if (!card || !FIRST_LOGIN_REWARDS.some((value) => value === amount)) {
     throw new Error("ข้อมูลการ์ดหรือจำนวน Sparks ไม่ถูกต้อง");
+  }
+  if(import.meta.env.VITE_SPARKS_DATA_BACKEND === "supabase"){
+    if(!sessionId)throw new Error("กรุณาเข้าสู่ระบบใหม่เพื่อรับ Sparks");
+    const response=await fetch("/api/sparks-admin",{
+      method:"POST",cache:"no-store",headers:{"content-type":"application/json"},
+      body:JSON.stringify({action:"sparks-cloud-first-login",actorUsername:username,sessionId,
+        cardId:card.id,cardName:card.name,amount}),
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.ok||!result.prize)
+      throw new Error(String(result.error||"รับรางวัล Sparks ไม่สำเร็จ กรุณาตรวจสอบอีกครั้ง"));
+    invalidateSparksAccount(username);
+    if(typeof window!=="undefined")window.dispatchEvent(new Event("qa:sparks-updated"));
+    return result.prize as FirstLoginPrize;
   }
   const ref = walletRef(username);
   const historyRef = doc(ref, "history", "first-login-welcome-v1");
