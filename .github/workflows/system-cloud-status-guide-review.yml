@@ -1,0 +1,48 @@
+name: Review System Cloud Status
+
+on:
+  push:
+    branches:
+      - feat/system-cloud-status-20261108
+    paths:
+      - .github/workflows/system-cloud-status-guide-review.yml
+      - src/App.tsx
+      - src/QASparks.tsx
+      - src/UserRoleAdminMockup.tsx
+      - scripts/test-cloud-provider-status.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout system-only change
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Review Cloud Status relocation without altering user-guide text
+        run: |
+          npm run guide:review -- --reason "Reviewed Cloud Status relocation to authorized System Setup, removal from member Rewards, and synthetic Sparks wallet/reward safety tests; no Firebase data or real Sparks changes" --no-content-change
+          npm run guide:check
+      - name: Commit release review record
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/guide-release-review.json
+          if git diff --cached --quiet; then
+            echo "Review already current"
+            exit 0
+          fi
+          git commit -m "docs: review System Cloud Status relocation"
+          git push origin HEAD:feat/system-cloud-status-20261108
