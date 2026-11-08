@@ -1,3 +1,6 @@
+// Exercise legacy Firebase behavior independently of the read-only Supabase Preview deployment.
+process.env.SPARKS_DATA_BACKEND = "firebase";
+process.env.SPARKS_CLOUD_READ_ONLY = "0";
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import handler from "../api/sparks-admin.js";
