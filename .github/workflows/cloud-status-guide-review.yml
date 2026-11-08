@@ -1,0 +1,54 @@
+name: Review QA Cloud Status Release
+
+on:
+  push:
+    branches:
+      - feat/cloud-provider-status-20261108
+    paths:
+      - .github/workflows/cloud-status-guide-review.yml
+      - api/cloud-status.js
+      - src/SparksCloudStatus.tsx
+      - src/sparksCloudStatus.css
+      - src/QASparks.tsx
+      - scripts/test-cloud-provider-status.mjs
+      - package.json
+
+permissions:
+  contents: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated Cloud Status branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install pinned dependencies
+        run: npm ci
+
+      - name: Review source files without changing T&C or user guide text
+        run: |
+          npm run guide:review -- --reason "Reviewed read-only Cloud Provider Status display, Firebase and Supabase environment verification, permission scoped migration details, and no QA data mutations" --no-content-change
+          npm run guide:check
+
+      - name: Commit verified release-review record to Cloud Status branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/guide-release-review.json
+          if git diff --cached --quiet; then
+            echo "No new source changes to review"
+            exit 0
+          fi
+          git commit -m "docs: verify Cloud Status-only changes for release"
+          git push origin HEAD:feat/cloud-provider-status-20261108
