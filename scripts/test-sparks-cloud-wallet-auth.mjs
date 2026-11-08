@@ -28,6 +28,14 @@ globalThis.fetch=async(url,opts={})=>{
  const href=String(url);
  if(href==="https://oauth2.googleapis.com/token")return reply({access_token:"mock-google-token",expires_in:3600});
  const parsed=opts.body?JSON.parse(opts.body):null;
+ if(href==="https://qa-dashboard-nine.vercel.app/api/sparks-admin"){
+  const request=JSON.parse(opts.body);
+  requests.push({backend:"trusted-production-verifier",action:request.action});
+  assert.equal(request.action,"sparks-wallet-recovery");
+  if(sessionMode==="expired"||request.actorUsername!=="songpon")return reply({error:"Invalid QA session"},403);
+  if(sessionMode==="down")return reply({error:"Production verifier offline"},503);
+  return reply({ok:true,wallet:{balance:999999},source:"server-verified"});
+ }
  if(href.startsWith("https://firestore.googleapis.com/v1/projects/qa-dashboard-b0b5d/databases/(default)/documents")){
   requests.push({backend:"firebase",url:href});
   if(href.includes("/qa_user_sessions/")){
@@ -89,7 +97,29 @@ try{
  const forbidden=await invoke("sparks-cloud-first-login",{cardId:"apple",cardName:"Apple Spark",amount:1000});
  assert.equal(forbidden.statusCode,423);
  assert.equal(requests.length,0,"read-only preview must reject first-login award with no network call");
- console.log("PASS Cloud wallet: QA-session scoped Supabase 4321 Sparks and history; forged/expired sessions and credit blocked");
+ // In Vercel Preview the production Firebase service account is deliberately NOT
+ // copied to the preview. The preview verifies the QA session with the existing
+ // production validator, then reads the actual wallet exclusively from Supabase.
+ delete process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
+ requests.length=0;
+ sessionMode="valid";
+ const preview=await invoke("sparks-cloud-wallet",{historyLimit:1});
+ assert.equal(preview.statusCode,200,JSON.stringify(preview.response));
+ assert.equal(preview.response.wallet.balance,4321,"preview must not display the Firebase verifier balance");
+ assert.equal(preview.response.history.length,1);
+ assert.equal(requests.filter(x=>x.backend==="trusted-production-verifier").length,1);
+ assert.equal(requests.filter(x=>x.backend==="supabase").length,2);
+ assert.equal(requests.filter(x=>x.backend==="firebase").length,0,"preview must not require Firebase admin credentials");
+ requests.length=0;
+ const previewForged=await invoke("sparks-cloud-wallet",{actorUsername:"other"});
+ assert.equal(previewForged.statusCode,403);
+ assert.equal(requests.filter(x=>x.backend==="supabase").length,0);
+ requests.length=0;
+ sessionMode="down";
+ const unavailable=await invoke("sparks-cloud-wallet");
+ assert.equal(unavailable.statusCode,503);
+ assert.equal(requests.filter(x=>x.backend==="supabase").length,0);
+ console.log("PASS Cloud wallet: direct QA session and credential-free Preview via trusted validator; forged/down sessions denied; Supabase balance only");
 }finally{
  globalThis.fetch=originalFetch;
  for(const k of keys){if(original[k]===undefined)delete process.env[k];else process.env[k]=original[k];}
