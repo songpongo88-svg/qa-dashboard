@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import handler from "../api/cloud-status.js";
 
-const old=Object.fromEntries(["VERCEL_ENV","SPARKS_DATA_BACKEND","SPARKS_CLOUD_READ_ONLY","SPARKS_CUTOVER_VERIFIED"].map(k=>[k,process.env[k]]));
+const old=Object.fromEntries(["VERCEL_ENV","SPARKS_DATA_BACKEND","SPARKS_CLOUD_READ_ONLY","SPARKS_CUTOVER_VERIFIED","SPARKS_WRITES_PAUSED","SPARKS_MIGRATED_DOCUMENTS"].map(k=>[k,process.env[k]]));
 const previousFetch=globalThis.fetch;
 let calls=0;
 globalThis.fetch=async()=>{calls++;throw new Error("Cloud Status must not call a database or external API")};
