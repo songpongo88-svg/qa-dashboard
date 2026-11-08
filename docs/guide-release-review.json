@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T18:10:16.253Z",
-  "reason": "Reviewed real QA report-preview workflow, scoped Excel Dashboard and Case Detail sheets, PDF executive summary, and Kanit QA Slides Preview before Generation; Case Detail PDF remains at original location.",
+  "reviewedAt": "2026-11-08T18:12:02.903Z",
+  "reason": "Checked report PDF/Excel preview and restored original Case Detail PDF; clarified that agent KPI is evaluated monthly only and yearly/weekly/compare don't assert false KPI status.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
@@ -721,6 +721,6 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "dd8d2edad38476eef42b87ad8e7a3669eb2529d32e336b22ec6e38ce83d8117c"
+    "src/ReportCenterMockup.tsx": "d39fe5f4cad6a97f3b229ae26d19f056c9a7f41d036f8ee2f11c0806d1ec21d5"
   }
 }
