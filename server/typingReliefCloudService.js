@@ -165,8 +165,7 @@ export function createTypingReliefCloudService({
   }
   async function reconcilePending(limit=12){
     const capped=Math.max(1,Math.min(20,Number(limit)||12));
-    const records=await listCollection("qa_sparks_typing_relief_operations",
-      ["username","operationId","challengeId","status"]);
+    const records=await listCollection("qa_sparks_typing_relief_operations");
     const pending=(records.documents||[]).filter(doc=>{
       const row=recordValue(doc);
       return ["reserved","applying"].includes(row.status)&&row.username&&row.challengeId;
