@@ -11,7 +11,7 @@ const folder=await mkdtemp(resolve("node_modules/.cache/qa-sparks-ui-"));
 const dom=new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
   url:"https://qa-dashboard.test/?tab=qa-sparks",pretendToBeVisual:true
 });
-for(const key of ["window","document","HTMLElement","MutationObserver","Event","MouseEvent"])globalThis[key]=dom.window[key];
+for(const key of ["window","document","HTMLElement","MutationObserver","Event","MouseEvent","Image"])globalThis[key]=dom.window[key];
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const {createRoot}=await import("react-dom/client");
 const root=createRoot(document.querySelector("#root"));
