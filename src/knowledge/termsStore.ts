@@ -1,4 +1,4 @@
-import { collection, doc, getDocFromServer, getDocsFromServer, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
+import { collection, doc, documentId, getDocFromServer, getDocsFromServer, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { firebaseDb } from "../firebaseClient";
 import { validateStoredUserSession } from "../sessionStore";
 import { fetchStoredSignatureLibraryEntry } from "../signatureStore";
@@ -6,6 +6,20 @@ import { acceptanceId, CURRENT_TERMS, documentHash, KNOWLEDGE_BUILD, normalizeUs
 
 export const TERMS_COLLECTION = "qa_terms_acceptances";
 const profileId = (value: string) => value.trim().replace(/\//g, "__").replace(/\s+/g, " ");
+
+// Share only requests that are currently running. Never cache authorization or assume
+// acceptance from local storage, and always allow a failed request to be retried.
+const pendingTermsRequests = new Map<string, Promise<unknown>>();
+function sharedTermsRequest<T>(operation: string, user: KnowledgeUser, version: string, load: () => Promise<T>): Promise<T> {
+  const key = JSON.stringify([operation, normalizeUsername(user.username), user.sessionId || "", version]);
+  const pending = pendingTermsRequests.get(key);
+  if (pending) return pending as Promise<T>;
+  const request = load();
+  pendingTermsRequests.set(key, request);
+  const clear = () => { if (pendingTermsRequests.get(key) === request) pendingTermsRequests.delete(key); };
+  void request.then(clear, clear);
+  return request;
+}
 
 /** Use the existing central session/profile; a local session fallback cannot create acknowledgements. */
 export async function verifiedKnowledgeUser(user: KnowledgeUser) {
@@ -47,57 +61,68 @@ function parseAcceptance(id: string, data: any): TermsAcceptance {
 
 export const termsRepository = {
   async current(user: KnowledgeUser): Promise<TermsAcceptance | null> {
-    const snapshot = await getDocFromServer(doc(firebaseDb, TERMS_COLLECTION, acceptanceId(user.username, CURRENT_TERMS.version)));
-    return snapshot.exists() ? parseAcceptance(snapshot.id, snapshot.data()) : null;
+    return sharedTermsRequest("current", user, CURRENT_TERMS.version, async () => {
+      const snapshot = await getDocFromServer(doc(firebaseDb, TERMS_COLLECTION, acceptanceId(user.username, CURRENT_TERMS.version)));
+      return snapshot.exists() ? parseAcceptance(snapshot.id, snapshot.data()) : null;
+    });
   },
   async accept(user: KnowledgeUser, input: AcceptTermsInput): Promise<TermsAcceptance> {
     validateTermsInput(input);
-    const identity = await verifiedKnowledgeUser(user);
-    const hash = await documentHash(CURRENT_TERMS);
-    const reference = doc(firebaseDb, TERMS_COLLECTION, acceptanceId(identity.username, CURRENT_TERMS.version));
-    await runTransaction(firebaseDb, async (transaction) => {
-      const existing = await transaction.get(reference);
-      if (existing.exists()) {
-        if (existing.data().contentHash !== hash) throw new Error("ข้อความเวอร์ชันนี้เปลี่ยนแปลง กรุณาติดต่อผู้ดูแลให้ประกาศเวอร์ชันใหม่");
-        return; // First acknowledgement wins, including its original time and signature.
-      }
-      transaction.set(reference, {
-        schemaVersion: 1, username: normalizeUsername(identity.username), user: identity,
-        teamName: identity.teamName, version: CURRENT_TERMS.version, contentHash: hash,
-        document: CURRENT_TERMS, status: "Accepted", acceptedAtServer: serverTimestamp(),
-        signatureDataUrl: input.signatureDataUrl, signatureSource: input.signatureSource,
-        buildCommit: KNOWLEDGE_BUILD.commitHash || "", confirmationMethod: "explicit-checkbox-and-button",
+    return sharedTermsRequest("accept", user, CURRENT_TERMS.version, async () => {
+      const identity = await verifiedKnowledgeUser(user);
+      const hash = await documentHash(CURRENT_TERMS);
+      const reference = doc(firebaseDb, TERMS_COLLECTION, acceptanceId(identity.username, CURRENT_TERMS.version));
+      await runTransaction(firebaseDb, async (transaction) => {
+        const existing = await transaction.get(reference);
+        if (existing.exists()) {
+          if (existing.data().contentHash !== hash) throw new Error("ข้อความเวอร์ชันนี้เปลี่ยนแปลง กรุณาติดต่อผู้ดูแลให้ประกาศเวอร์ชันใหม่");
+          return; // First acknowledgement wins, including its original time and signature.
+        }
+        transaction.set(reference, {
+          schemaVersion: 1, username: normalizeUsername(identity.username), user: identity,
+          teamName: identity.teamName, version: CURRENT_TERMS.version, contentHash: hash,
+          document: CURRENT_TERMS, status: "Accepted", acceptedAtServer: serverTimestamp(),
+          signatureDataUrl: input.signatureDataUrl, signatureSource: input.signatureSource,
+          buildCommit: KNOWLEDGE_BUILD.commitHash || "", confirmationMethod: "explicit-checkbox-and-button",
+        });
       });
+      const saved = await getDocFromServer(reference);
+      if (!saved.exists()) throw new Error("ยังยืนยันการบันทึกไม่ได้ กรุณาลองอีกครั้ง");
+      return parseAcceptance(saved.id, saved.data());
     });
-    const saved = await getDocFromServer(reference);
-    if (!saved.exists()) throw new Error("ยังยืนยันการบันทึกไม่ได้ กรุณาลองอีกครั้ง");
-    return parseAcceptance(saved.id, saved.data());
   },
   async history(user: KnowledgeUser): Promise<TermsAcceptance[]> {
     await verifiedKnowledgeUser(user);
     const result = await getDocsFromServer(query(collection(firebaseDb, TERMS_COLLECTION), where("username", "==", normalizeUsername(user.username))));
     return result.docs.map((item) => parseAcceptance(item.id, item.data())).sort((a, b) => b.acceptedAt.localeCompare(a.acceptedAt));
   },
-  async management(user: KnowledgeUser) {
-    const { identity, allTeams } = await knowledgeManagerScope(user, "terms");
-    const profiles = collection(firebaseDb, "qa_user_profiles");
-    const acceptances = collection(firebaseDb, TERMS_COLLECTION);
-    const accounts = await getDocsFromServer(allTeams ? profiles : query(profiles, where("teamName", "==", identity.teamName)));
-    // Scope by current membership, not the historical team in the acceptance snapshot.
-    const usernames = accounts.docs.map((item) => normalizeUsername(String(item.data().username || item.id)));
-    const scopedRecords = [];
-    if (allTeams) scopedRecords.push(await getDocsFromServer(acceptances));
-    else for (let offset = 0; offset < usernames.length; offset += 30) {
-      scopedRecords.push(await getDocsFromServer(query(acceptances, where("username", "in", usernames.slice(offset, offset + 30)))));
-    }
-    return {
-      accounts: accounts.docs.map((item) => {
-        const row = item.data();
-        return { username: String(row.username || item.id), displayName: String(row.displayName || row.agentName || row.username || item.id),
-          role: String(row.role || ""), teamName: String(row.teamName || ""), status: String(row.status || "Active") };
-      }),
-      records: scopedRecords.flatMap((result) => result.docs.map((item) => parseAcceptance(item.id, item.data()))),
-    };
+  async management(user: KnowledgeUser, version = CURRENT_TERMS.version) {
+    if (!/^\d+\.\d+$/.test(version)) throw new Error("เวอร์ชันข้อกำหนดไม่ถูกต้อง");
+    return sharedTermsRequest("management", user, version, async () => {
+      const { identity, allTeams } = await knowledgeManagerScope(user, "terms");
+      const profiles = collection(firebaseDb, "qa_user_profiles");
+      const acceptances = collection(firebaseDb, TERMS_COLLECTION);
+      const accounts = await getDocsFromServer(allTeams ? profiles : query(profiles, where("teamName", "==", identity.teamName)));
+      // Scope by current membership, not the historical team in the acceptance snapshot.
+      const usernames = accounts.docs.map((item) => normalizeUsername(String(item.data().username || item.id)));
+      const scopedRecords = [];
+      // Load one edition on demand, keeping old receipts untouched and queryable.
+      if (allTeams) scopedRecords.push(await getDocsFromServer(query(acceptances, where("version", "==", version))));
+      else for (let offset = 0; offset < usernames.length; offset += 30) {
+        // A single document-ID filter avoids a new composite index and reads only
+        // this edition for users who currently belong to the manager's team.
+        const ids = usernames.slice(offset, offset + 30).map((username) => acceptanceId(username, version));
+        scopedRecords.push(await getDocsFromServer(query(acceptances, where(documentId(), "in", ids))));
+      }
+      return {
+        accounts: accounts.docs.map((item) => {
+          const row = item.data();
+          return { username: String(row.username || item.id), displayName: String(row.displayName || row.agentName || row.username || item.id),
+            role: String(row.role || ""), teamName: String(row.teamName || ""), status: String(row.status || "Active") };
+        }),
+        records: scopedRecords.flatMap((result) => result.docs.map((item) => parseAcceptance(item.id, item.data()))),
+      };
+    });
   },
   async savedSignatures(user: KnowledgeUser) {
     const identity = await verifiedKnowledgeUser(user);

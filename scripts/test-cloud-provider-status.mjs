@@ -68,15 +68,17 @@ try{
   const page=readFileSync(new URL("../src/QASparks.tsx",import.meta.url),"utf8");
   const system=readFileSync(new URL("../src/UserRoleAdminMockup.tsx",import.meta.url),"utf8");
   const workspace=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
-  assert.doesNotMatch(page,/SparksCloudStatus/);
-  assert.match(system,/adminTab === "maintenance" && canManageMaintenance \?/);
-  assert.match(system,/<SparksCloudStatus adminAccess=\{true\}/);
+  assert.doesNotMatch(page, /SparksCloudStatus/, "Cloud infrastructure belongs in System, not Rewards");
+  assert.match(system,/adminTab === "maintenance" && canManageMaintenance \?/, "Cloud belongs to privileged System Setup");
+  assert.match(system,/<SparksCloudStatus adminAccess=\{true\}/, "System admin sees full migration details");
+  assert.match(workspace,/id: "system"/);
   assert.match(workspace,/key: "system-setup".*allowed: maintenanceAdminAllowed/);
+  assert.doesNotMatch(system.split('adminTab === "maintenance" && canManageMaintenance ? (')[0], /<SparksCloudStatus/, "Cloud is not on Users or Roles pages");
   assert.match(source,/ข้อมูล Cloud ของหน้าเว็บกับ API ไม่ตรงกัน/);
   assert.match(source,/fetch\("\/api\/cloud-status"/);
   assert.match(source,/import\.meta\.env\?\.VITE_SPARKS_DATA_BACKEND/);
   assert.match(source,/adminAccess && report\?<details/);
-  console.log("PASS Cloud Status: accurate Firebase/Supabase backends, Preview lock, completion gate, admin-only checklist, no database reads");
+  console.log("PASS Cloud Status in privileged System Setup only: Firebase/Supabase status, Preview lock, completion gate, no extra database reads");
 }finally{
   for(const [key,val] of Object.entries(old)){if(val===undefined)delete process.env[key];else process.env[key]=val;}
   globalThis.fetch=previousFetch;

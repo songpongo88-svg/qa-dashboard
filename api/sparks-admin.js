@@ -6,7 +6,7 @@ import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
 import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
-import { isSparksBackendRequest, requestSparksSupabase } from "../server/sparksSupabaseBridge.js";
+import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -188,6 +188,9 @@ export async function getAccessToken() {
   return accessToken;
 }
 async function firestoreRequest(endpoint, method = "GET", body) {
+  // Also catches renewals initiated by otherwise read-only status actions.
+  if(process.env.SPARKS_WRITES_PAUSED==="1"&&method==="POST"&&endpoint===":commit"&&containsSparksWrites(body))
+    throw Object.assign(new Error("กำลังซิงก์ QA Sparks กรุณารอสักครู่"),{status:423,code:"SPARKS_MIGRATION_PAUSED"});
   // Sparks-only server-side preview switch. All QA cases, login sessions and
   // other non-Sparks reads/writes continue through the existing Firebase path.
   // The default (unset) mode is unchanged, and production is never switched here.

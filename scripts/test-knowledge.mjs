@@ -46,10 +46,29 @@ try {
   assert.throws(() => k.validateTermsInput({ ...confirmed, readToEnd: false }));
   assert.throws(() => k.validateTermsInput({ ...confirmed, signatureDataUrl: 'https://outside.invalid/pixel', signatureSource: 'saved' }));
   assert.equal(k.acceptanceId(' Test.Agent ', '1.0'), 'test.agent__1.0');
+  assert.equal(k.CURRENT_TERMS.version, '1.2');
+  assert.deepEqual(k.TERMS_VERSIONS, ['1.2', '1.1', '1.0']);
   console.log('PASS: explicit confirmation, reading checkpoint and signature validation');
 
-  assert.equal(await k.termsRepository.current(user), null);
-  const accepted = await k.termsRepository.accept(user, confirmed);
+  const legacyId = k.acceptanceId(user.username, '1.1');
+  const legacy = { username: user.username, user: { ...user }, version: '1.1', contentHash: 'legacy-hash',
+    document: { ...k.CURRENT_TERMS, version: '1.1', statement: 'Original acknowledgement' }, status: 'Accepted',
+    acceptedAtServer: { toDate: () => new Date('2026-10-10T03:00:00.000Z') }, signatureDataUrl: '', signatureSource: 'none' };
+  k.mock.docs.set('qa_terms_acceptances/' + legacyId, legacy);
+  const legacyBefore = JSON.stringify(legacy);
+  k.mock.reads.length = 0;
+  const missing = await Promise.all(Array.from({ length: 20 }, () => k.termsRepository.current(user)));
+  assert.ok(missing.every((record) => record === null), 'v1.1 must not unlock v1.2');
+  assert.equal(k.mock.reads.length, 1, 'concurrent gate checks share one current-edition read');
+  const simultaneous = await Promise.all(Array.from({ length: 20 }, () => k.termsRepository.accept(user, confirmed)));
+  const accepted = simultaneous[0];
+  assert.ok(simultaneous.every((record) => record.acceptedAt === accepted.acceptedAt));
+  assert.equal(k.mock.reads.length, 6, 'one gate + two session + profile + transaction + confirmation reads');
+  assert.equal(k.mock.writes.length, 1, 'only an explicit acknowledgement creates a new receipt');
+  assert.equal(JSON.stringify(k.mock.docs.get('qa_terms_acceptances/' + legacyId)), legacyBefore);
+  assert.ok((await k.termsRepository.history(user)).some((record) => record.version === '1.1'));
+  console.log('PASS: v1.2 needs explicit reacceptance; 20 concurrent attempts use 6 reads / 1 write; v1.1 evidence remains');
+
   const again = await k.termsRepository.accept(user, confirmed);
   assert.equal(accepted.acceptedAt, again.acceptedAt);
   assert.equal(k.mock.writes.filter((item) => item.startsWith('qa_terms_acceptances/')).length, 1);
@@ -67,6 +86,14 @@ try {
   await assert.rejects(k.termsRepository.accept(user, confirmed), /เวอร์ชันใหม่/);
   saved.contentHash = currentHash;
   await assert.rejects(k.termsRepository.accept({ ...user, sessionId: 'wrong' }, confirmed), /ยืนยันบัญชี/);
+  const isolated = await Promise.allSettled([
+    k.termsRepository.accept(user, confirmed), k.termsRepository.accept({ ...user, sessionId: 'wrong' }, confirmed),
+  ]);
+  assert.equal(isolated[0].status, 'fulfilled'); assert.equal(isolated[1].status, 'rejected');
+  k.mock.failRead = true;
+  await assert.rejects(k.termsRepository.current(user), /offline/);
+  k.mock.failRead = false;
+  assert.equal((await k.termsRepository.current(user)).id, accepted.id, 'failed requests are never cached');
   await assert.rejects(k.termsRepository.management(user), /ไม่มีสิทธิ์/);
   await assert.rejects(k.guideRepository.publish(user, k.MANUAL.chapters[0], 0), /ไม่มีสิทธิ์/);
   console.log('PASS: conflicting wording, invalid sessions and unauthorized management are rejected');
@@ -77,10 +104,47 @@ try {
   k.mock.docs.set('qa_user_profiles/test.agent', { ...k.mock.identity });
   k.mock.docs.set('qa_user_profiles/other.agent', { username: 'other.agent', displayName: 'Other Agent', role: 'Admin Live Chat', teamName: 'Team B' });
   saved.teamName = 'Old Team';
-  k.mock.docs.set('qa_terms_acceptances/other.agent__1.0', { ...saved, username: 'other.agent', user: { ...saved.user, username: 'other.agent' } });
+  k.mock.docs.set('qa_terms_acceptances/' + k.acceptanceId('other.agent', k.CURRENT_TERMS.version), { ...saved, username: 'other.agent', user: { ...saved.user, username: 'other.agent' } });
   const managed = await k.termsRepository.management(user);
   assert.equal(managed.accounts.length, 1); assert.equal(managed.records.length, 1); assert.equal(managed.records[0].username, 'test.agent');
+  const previousEdition = await k.termsRepository.management(user, '1.1');
+  assert.equal(previousEdition.records.length, 1); assert.equal(previousEdition.records[0].version, '1.1');
+  const teamQueries = k.mock.queries.filter((row) => row.path === 'qa_terms_acceptances' && row.conditions?.some((condition) => condition.field === '__name__'));
+  assert.ok(teamQueries.length >= 2);
+  assert.ok(teamQueries.at(-1).conditions[0].value.every((id) => id.endsWith('__1.1')));
   console.log('PASS: current team scope includes transferred users without exposing another team');
+
+  k.mock.docs.set('qa_role_permissions/Supervisor', { permissions: { manageUsers: true, viewAllTeams: true, manageRubric: true } });
+  const queryStart = k.mock.queries.length;
+  const globalManaged = await k.termsRepository.management(user);
+  assert.ok(globalManaged.records.every((record) => record.version === '1.2'));
+  const receiptQueries = k.mock.queries.slice(queryStart).filter((row) => row.path === 'qa_terms_acceptances');
+  assert.deepEqual(receiptQueries.map((row) => row.conditions), [[{ field: 'version', op: '==', value: '1.2' }]]);
+  const writeCount = k.mock.writes.length;
+  assert.ok((await k.termsRepository.management(user, '1.1')).records.some((record) => record.version === '1.1'));
+  assert.equal(k.mock.writes.length, writeCount, 'switching historical editions is read-only');
+  console.log('PASS: management reads only the selected edition; historical views never rewrite receipts');
+
+  const originalIdentity = { ...k.mock.identity };
+  const readsBeforeGroup = k.mock.reads.length, writesBeforeGroup = k.mock.writes.length;
+  const simulatedReceipts = [];
+  try {
+    for (let index = 0; index < 100; index++) {
+      Object.assign(k.mock.identity, { username: `quota.agent.${index}`, sessionId: `quota-session-${index}` });
+      const account = { ...k.mock.identity };
+      assert.equal(await k.termsRepository.current(account), null);
+      const receipt = await k.termsRepository.accept(account, confirmed);
+      simulatedReceipts.push('qa_terms_acceptances/' + receipt.id);
+    }
+    assert.equal(k.mock.reads.length - readsBeforeGroup, 600);
+    assert.equal(k.mock.writes.length - writesBeforeGroup, 100);
+    assert.ok(k.mock.writes.slice(writesBeforeGroup).every((path) => path.startsWith('qa_terms_acceptances/')));
+  } finally {
+    Object.assign(k.mock.identity, originalIdentity);
+    for (const path of simulatedReceipts) k.mock.docs.delete(path);
+    k.mock.writes.length = writesBeforeGroup;
+  }
+  console.log('PASS: 100 simulated users use 600 reads / 100 writes; no bulk user, score, wallet or old-receipt writes');
 
   const chapter = k.MANUAL.chapters[0];
   await k.guideRepository.publish(user, { ...chapter, title: 'คู่มือที่แก้ไข', permissions: [] }, 0);
@@ -105,28 +169,40 @@ try {
   const settle = async (predicate) => { for (let i = 0; i < 40 && !predicate(); i++) await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)); }); assert.ok(predicate(), 'UI did not settle'); };
   const button = (label) => [...document.querySelectorAll('button')].find((node) => node.textContent.trim() === label);
   let calls = 0;
-  const fakeRepo = { ...k.termsRepository, current: async () => null, accept: async () => { calls++; if (calls === 1) throw new Error('write denied'); return accepted; } };
+  const fakeRepo = { ...k.termsRepository, current: async () => null, accept: async () => { calls++; if (calls === 1) throw Object.assign(new Error('quota exceeded'), { code: 'resource-exhausted' }); return accepted; } };
   Object.defineProperty(dom.window.HTMLElement.prototype, 'scrollHeight', { configurable: true, get: () => 900 });
   Object.defineProperty(dom.window.HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 200 });
-  const nativeDateNow = Date.now;
-  try {
-    Date.now = () => Date.parse('2026-10-20T12:00:00+07:00');
-    await act(async () => root.render(h(k.TermsAccessBoundary, { key: 'deferred', user, onLogout() {}, repository: fakeRepo }, h('div', { id: 'protected' }, 'Workspace'))));
-    assert.ok(document.getElementById('protected'), 'workspace must be accessible before November 1');
-    assert.equal(document.querySelector('.terms-gate'), null, 'T&C modal is paused, not falsely accepted');
-    Date.now = () => Date.parse('2026-11-01T00:00:01+07:00');
-    await act(async () => root.render(h(k.TermsAccessBoundary, { key: 'resumed', user, onLogout() {}, repository: fakeRepo }, h('div', { id: 'protected' }, 'Workspace'))));
-  } finally { Date.now = nativeDateNow; }
+  await act(async () => root.render(h(k.TermsAccessBoundary, { user, onLogout() {}, repository: fakeRepo }, h('div', { id: 'protected' }, 'Workspace'))));
   await settle(() => button('รับทราบและยอมรับ'));
   assert.equal(document.getElementById('protected'), null); assert.equal(document.querySelector('input[type=checkbox]').disabled, true);
   await act(async () => { const scroll = document.querySelector('.terms-scroll'); scroll.scrollTop = 700; scroll.dispatchEvent(new Event('scroll', { bubbles: true })); });
   await act(async () => document.querySelector('input[type=checkbox]').click());
-  await act(async () => button('รับทราบและยอมรับ').click());
+  await act(async () => { button('รับทราบและยอมรับ').click(); button('รับทราบและยอมรับ').click(); });
   await settle(() => document.querySelector('[role=alert]'));
+  assert.equal(calls, 1, 'double clicking cannot start a second save before React renders');
+  assert.match(document.querySelector('[role=alert]').textContent, /เกินโควตา/);
   assert.equal(document.getElementById('protected'), null);
   await act(async () => button('รับทราบและยอมรับ').click());
   await settle(() => document.getElementById('protected'));
   console.log('PASS: workspace stays blocked until a successful confirmed write; failed saves can retry');
+
+  const requestedEditions = [];
+  const managementRepo = { ...fakeRepo, management: async (_user, version) => {
+    requestedEditions.push(version);
+    return { accounts: [{ ...user, status: 'Active' }], records: version === '1.1'
+      ? [{ ...accepted, id: legacyId, version: '1.1', document: legacy.document }] : [accepted] };
+  } };
+  await act(async () => root.render(h(k.TermsWorkspace, { user, management: true, canManage: true, repository: managementRepo })));
+  await settle(() => document.querySelector('.knowledge-stats'));
+  assert.deepEqual(requestedEditions, ['1.2']);
+  await act(async () => { const select = document.querySelectorAll('.knowledge-filters select')[1]; select.value = '1.1'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+  await settle(() => requestedEditions.length === 2 && document.querySelector('.knowledge-stats'));
+  assert.deepEqual(requestedEditions, ['1.2', '1.1']);
+  await act(async () => button('ดูรายละเอียด').click());
+  assert.match(document.querySelector('.knowledge-record').textContent, /Original acknowledgement/);
+  await act(async () => { const select = document.querySelector('.knowledge-filters select'); select.value = 'accepted'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+  assert.equal(requestedEditions.length, 2, 'status filters and receipt details use already loaded records');
+  console.log('PASS: choosing an older edition reloads only that edition; filters/details add no reads');
 
   await act(async () => root.render(h(k.TermsWorkspace, { user, management: true, canManage: true, repository: { ...fakeRepo, management: async () => { throw new Error('offline'); } } })));
   await settle(() => document.querySelector('[role=alert]'));
@@ -145,7 +221,7 @@ try {
   await act(async()=>button('ค้นหาใน PDF').click());
   await settle(()=>document.querySelector('.guide-pdf-matches')?.textContent.includes('พบใน'));
   assert.ok(document.querySelector('.guide-pdf-matches button'));
-  assert.equal(document.querySelectorAll('.guide-complete-toc button').length,38);
+  assert.equal(document.querySelectorAll('.guide-complete-toc button').length,k.MANUAL.chapters.length);
   assert.equal(button('แก้ไขบทนี้'), undefined);
   console.log('PASS: failed admin reads never imply Not Accepted; guide actions respect permissions');
 

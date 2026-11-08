@@ -23,7 +23,7 @@ export default function handler(req, res) {
     ? process.env.VERCEL_ENV : "unknown";
   // This is an explicit release sign-off, not an inference from documents copied.
   const cutoverVerified = environment === "production" && sparksApi === "supabase"
-    && !cloudPreviewLocked && process.env.SPARKS_CUTOVER_VERIFIED === "1";
+    && !cloudPreviewLocked && process.env.SPARKS_WRITES_PAUSED!=="1" && process.env.SPARKS_CUTOVER_VERIFIED === "1";
 
   return res.status(200).json({
     statusVersion: 1,
@@ -37,7 +37,7 @@ export default function handler(req, res) {
     migrationPhase: cutoverVerified ? "complete" : "in-progress",
     reviewedSnapshot: {
       asOf: "2026-11-08",
-      documents: 301,
+      documents: Number(process.env.SPARKS_MIGRATED_DOCUMENTS)||301,
       scope: "ตรวจสอบสำเนาฐานข้อมูล ณ วันที่ระบุ ไม่ใช่จำนวนข้อมูลสด",
     },
     migrationChecks: [

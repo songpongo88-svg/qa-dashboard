@@ -5,6 +5,8 @@ import buildMeta from "../../public/build-meta.json";
 export type KnowledgeUser = { username: string; displayName: string; role: string; agentName?: string; email?: string; sessionId?: string; teamName?: string };
 export type TermsDocument = typeof terms;
 export const CURRENT_TERMS: TermsDocument = terms;
+// Keep earlier editions available without querying every historical receipt at startup.
+export const TERMS_VERSIONS = [CURRENT_TERMS.version, "1.1", "1.0"];
 // Bundled with the application: never label an old open tab using a newer deployment's metadata.
 export const KNOWLEDGE_BUILD = buildMeta;
 export type TermsAcceptance = {

@@ -15,6 +15,12 @@ const ROOTS=new Set([
 ]);
 const TRANSITIONS=new Set([":beginTransaction",":rollback",":commit"]);
 const transactions=new Map();
+export function containsSparksWrites(body){
+  return Array.isArray(body?.writes)&&body.writes.some(w=>{
+    const name=w?.update?.name||w?.delete||w?.transform?.document;
+    return typeof name==="string"&&name.startsWith(FIRESTORE_PREFIX)&&ROOTS.has(name.slice(FIRESTORE_PREFIX.length).split("/")[0]);
+  });
+}
 function relativeDocUrl(endpoint){
   if(typeof endpoint!=="string")return null;
   let value=endpoint;
