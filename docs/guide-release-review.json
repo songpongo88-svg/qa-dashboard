@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T12:08:51.273Z",
+  "reviewedAt": "2026-11-08T12:12:07.569Z",
   "reason": "Reviewed read-only Cloud Provider Status display, Firebase and Supabase environment verification, permission scoped migration details, and no QA data mutations",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -472,7 +472,7 @@
     "src/SignatureCenterMockup.tsx": "90926a450987867b609cc0e00dfb972d90f6940968dd4c3455f313e07d63dca1",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/SparksAdminPanel.tsx": "9982cd2310c343e7d23a8b8a053a21610848cc466aa2809010faecce68d0b47f",
-    "src/SparksCloudStatus.tsx": "402a48d7c99132573a1562097596786391087a86c8153196be4f3af47489785b",
+    "src/SparksCloudStatus.tsx": "f038833569c61c1fee365514a3f61456bd8729736a93e4dc9ada88a4c2c5d43b",
     "src/SparksHistory.tsx": "b935b35b4cabe7f209abb04d8d1cdce721c38698799ba37d126ad8df6683188a",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
     "src/SparksMiniGamesGallery.tsx": "3b2926275f950a385829e4b3aebf748bdf4b1e686b962745fc04bbd21b751e8b",
