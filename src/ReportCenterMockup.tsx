@@ -221,11 +221,6 @@ export default function ReportCenterMockup({
           result.pdf.save(result.fileName);
         }
       } else {
-          const result = await generateBulkCaseDetailPdf({ cases: actual, currentUser, monthKey: effectiveMonthInYear,
-            onProgress: (done, total) => setProgress(done + " / " + total + " cases") });
-          download(result.blob, result.fileName);
-        }
-      } else {
         const filename = `QA_${kind.toUpperCase()}_${safe(selectedPeriod)}_${safe(scopeLabel)}`;
         const rows = actual.map(item => ({
           "Case ID": item.caseId, "Agent": rowAgent(item), "Team": rowTeam(item),
