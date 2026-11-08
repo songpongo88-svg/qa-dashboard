@@ -10,7 +10,7 @@ import { getAppealScoreHold } from "./pendingAppealScore";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
 
 type Kind = "monthly" | "weekly" | "yearly" | "compare" | "payment" | "slides";
-type Scope = "all" | "team" | "agent";
+type Scope = "all" | "team" | "agent" | "case";
 type Format = "pdf" | "xlsx";
 const TYPES: { id: Kind; name: string; detail: string }[] = [
   { id: "monthly", name: "Monthly", detail: "รายงานคะแนนประจำเดือน" },
@@ -121,6 +121,9 @@ export default function ReportCenterMockup({
 }) {
   const [kind, setKind] = useState<Kind>("monthly");
   const [scope, setScope] = useState<Scope>("all");
+  const [caseId, setCaseId] = useState("all");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewPage, setPreviewPage] = useState<"dashboard"|"agents"|"topics"|"tags"|"cases">("dashboard");
   const [format, setFormat] = useState<Format>("pdf");
   const [year, setYear] = useState("2026");
   const [month, setMonth] = useState("2026-10");
@@ -182,23 +185,25 @@ export default function ReportCenterMockup({
   const weeks = [...new Set(periodCases.map(rowWeek))].sort();
   const selectedWeek = weeks.includes(week) ? week : "all";
   const visibleCases = periodCases.filter(item => kind !== "weekly" || selectedWeek === "all" || rowWeek(item) === selectedWeek);
-  const selectedCases = visibleCases;
+  const selectedCases = scope === "case" ? visibleCases.filter(item => item.caseId === caseId) : visibleCases;
   const totals = summary(selectedCases);
   const selectedKind = TYPES.find(item => item.id === kind)!;
   const specialized = kind === "payment" || kind === "slides";
   const selectedPeriod = kind === "yearly" ? effectiveYear : kind === "compare" ? effectiveMonthInYear + "_vs_" + effectiveCompare : effectiveMonthInYear;
-  const scopeLabel = scope === "agent" ? effectiveAgent : scope === "team" ? effectiveTeam : "All_Agents";
+  const scopeLabel = scope === "case" ? caseId : scope === "agent" ? effectiveAgent : scope === "team" ? effectiveTeam : "All_Agents";
   const fail = (error: unknown) => setMessage(error instanceof Error ? error.message : String(error));
+  React.useEffect(() => { setPreviewOpen(false); }, [kind, scope, format, effectiveYear, effectiveMonthInYear, effectiveCompare, selectedWeek, effectiveTeam, effectiveAgent, caseId, yearlyLayout]);
   const handleGenerate = async () => {
     if (!canExport || busy || loading || !selectedCases.length) return;
     if (scope === "agent" && effectiveAgent === "all") { setMessage("กรุณาเลือก Agent"); return; }
+    if (scope === "case" && caseId === "all") { setMessage("กรุณาเลือก Case ID"); return; }
     setBusy(true); setMessage(""); setProgress("");
     try {
       // Always verify the complete canonical snapshot again before creating official files.
       const fresh = await loadCanonicalReportData();
       const snapshotIds = new Set(selectedCases.map(item => rowMonth(item) + "|" + normalize(rowAgent(item)) + "|" + item.caseId));
       const actual = fresh.cases.filter(item => snapshotIds.has(rowMonth(item) + "|" + normalize(rowAgent(item)) + "|" + item.caseId) && !isTestCaseEvaluation(item));
-      if (actual.length !== selectedCases.length) throw new Error("ข้อมูลมีการเปลี่ยนแปลง กรุณากด Refresh แล้วตรวจตัวกรองอีกครั้ง");
+      if (actual.length !== selectedCases.length || actual.some(item => !selectedCases.some(previous => previous.caseId === item.caseId && previous.finalScore === item.finalScore && previous.reviewStatus === item.reviewStatus))) throw new Error("ข้อมูลเปลี่ยนแปลงจาก Preview กรุณา Refresh และเปิด Preview อีกครั้ง");
       const hold = getAppealScoreHold(actual);
       if (hold) throw new Error(hold.label);
       const verificationMonths = kind === "yearly"
@@ -239,6 +244,7 @@ export default function ReportCenterMockup({
         }
       }
       setMessage("สร้างไฟล์สำเร็จ");
+      setPreviewOpen(false);
     } catch (error) { fail(error); } finally { setBusy(false); setProgress(""); }
   };
   const inputClass = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-violet-500";
@@ -263,9 +269,10 @@ export default function ReportCenterMockup({
             {kind !== "yearly" ? <label className="block text-xs font-semibold text-slate-600">Month<select className={inputClass + " mt-2"} value={effectiveMonthInYear} onChange={event => setMonth(event.target.value)}>{monthOptions.map(value => <option key={value} value={value}>{monthTitle(value)}</option>)}</select></label> : <label className="block text-xs font-semibold text-slate-600">Yearly Format<select className={inputClass + " mt-2"} value={yearlyLayout} onChange={event => setYearlyLayout(event.target.value as typeof yearlyLayout)}><option value="agent-month">By Agent / 12 Months</option><option value="summary">Yearly Team Summary</option></select></label>}
             {kind === "compare" ? <label className="block text-xs font-semibold text-slate-600">Compare with Month<select className={inputClass + " mt-2"} value={effectiveCompare} onChange={event => setCompareMonth(event.target.value)}>{compareOptions.map(value => <option key={value} value={value}>{monthTitle(value)}</option>)}</select></label> : null}
             {kind === "weekly" ? <label className="block text-xs font-semibold text-slate-600">Week<select className={inputClass + " mt-2"} value={selectedWeek} onChange={event => setWeek(event.target.value)}><option value="all">All Weeks</option>{weeks.map(value => <option key={value} value={value}>{value}</option>)}</select></label> : null}
-            <label className="block text-xs font-semibold text-slate-600">Scope<select className={inputClass + " mt-2"} value={scope} onChange={event => setScope(event.target.value as Scope)}><option value="all">All Agents</option><option value="team">By Team</option><option value="agent">By Agent</option></select></label>
+            <label className="block text-xs font-semibold text-slate-600">Scope<select className={inputClass + " mt-2"} value={scope} onChange={event => setScope(event.target.value as Scope)}><option value="all">All Agents</option><option value="team">By Team</option><option value="agent">By Agent</option><option value="case">By Case</option></select></label>
             {scope === "team" ? <label className="block text-xs font-semibold text-slate-600">Team<select className={inputClass + " mt-2"} value={effectiveTeam} onChange={event => setTeam(event.target.value)}><option value="all">All Teams</option>{teams.map(value => <option key={value} value={value}>{value}</option>)}</select></label> : null}
             {scope === "agent" ? <label className="block text-xs font-semibold text-slate-600">Agent<select className={inputClass + " mt-2"} value={effectiveAgent} onChange={event => setAgent(event.target.value)}><option value="all">Select Agent</option>{agents.map(value => <option key={value} value={value}>{value}</option>)}</select></label> : null}
+            {scope === "case" ? <label className="block text-xs font-semibold text-slate-600">Case ID<select className={inputClass + " mt-2"} value={caseId} onChange={event => setCaseId(event.target.value)}><option value="all">Select Case ID</option>{visibleCases.map(item => <option key={item.caseId} value={item.caseId}>{item.caseId} · {rowAgent(item)}</option>)}</select></label> : null}
             
           </div>
           <div className="mt-7 border-t border-slate-100 pt-5">
@@ -280,7 +287,8 @@ export default function ReportCenterMockup({
           </div>
           {message ? <p role="status" className="mt-3 text-sm text-slate-600">{message}</p> : null}
           {progress ? <p role="status" className="mt-2 text-xs text-violet-700">Generating {progress}</p> : null}
-          <button type="button" onClick={() => void handleGenerate()} disabled={loading || busy || !canExport || !selectedCases.length || (scope === "agent" && effectiveAgent === "all")} className="mt-5 w-full rounded-xl bg-violet-700 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300">{busy ? "กำลังสร้างรายงาน…" : "Generate / Download Report"}</button>
+          <button type="button" onClick={() => { setPreviewPage("dashboard"); setPreviewOpen(true); }} disabled={loading || busy || !canExport || !selectedCases.length || (scope === "agent" && effectiveAgent === "all") || (scope === "case" && caseId === "all")} className="mt-5 w-full rounded-xl bg-violet-700 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300">Preview Report</button>
+          <p className="mt-2 text-center text-xs text-slate-500">ตรวจสอบหน้ารายงานก่อน Generate PDF / Excel</p>
           {!canExport ? <p className="mt-2 text-center text-xs text-amber-700">บัญชีนี้ไม่มีสิทธิ์ Export รายงาน</p> : null}
           </> : <div className="mt-6">{kind === "payment" ? paymentContent : slidesContent}</div>}
         </section>
