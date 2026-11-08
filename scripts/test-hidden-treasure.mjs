@@ -47,7 +47,7 @@ try{
  assert.deepEqual((await game.state(actor)).searches,0);
  const started=await game.start({caseId:"AA334880"},actor);
  assert.ok(started.eligible&&started.visitId);
- await assert.rejects(()=>game.find({visitId:started.visitId},actor),/อ่านเคสก่อน/);
+ await assert.rejects(()=>game.find({visitId:started.visitId},actor),/ต้องอ่านข้อมูล QA ก่อน/);
  clock+=31000;
  const found=await game.find({visitId:started.visitId},actor);
  assert.ok(found.found&&!found.alreadyClaimed&&found.offerId);
