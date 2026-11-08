@@ -22,6 +22,7 @@ type PresentationMockupProps = {
   currentUser: CurrentUser;
   roleScopedAgentNames?: string[];
   dataRefreshKey?: number;
+  reportCenter?: boolean;
 };
 
 type WeekBucket = {
@@ -288,7 +289,7 @@ function copyTextToClipboard(text: string) {
   return Promise.resolve();
 }
 
-export default function PresentationMockup({ currentUser, roleScopedAgentNames, dataRefreshKey = 0 }: PresentationMockupProps) {
+export default function PresentationMockup({ currentUser, roleScopedAgentNames, dataRefreshKey = 0, reportCenter = false }: PresentationMockupProps) {
   const evaluationActivity = useEvaluationActivity();
   const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -601,14 +602,14 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
                 <div className="mt-1 text-sm text-slate-500">สัดส่วน 16:9 สำหรับนำไปวางใน Presentation</div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
+                {reportCenter ? <button
                   type="button"
                   onClick={handleExportPdf}
                   disabled={!selectedWeek || loading || Boolean(evaluationHold)}
                   className="rounded-2xl bg-violet-700 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   5. Generate / Export PDF
-                </button>
+                </button> : null}
                 <button
                   type="button"
                   onClick={handleCopySummary}
