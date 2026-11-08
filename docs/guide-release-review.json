@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T19:19:53.195Z",
-  "reason": "Verified corporate Excel report template and user guide: current QA Dashboard logo embedded from same /robinhood-logo.png, rubric-based Topic names, generated-by/timestamp metadata and preserved case data. Reviewed relevant exports and dashboard workflow.",
+  "reviewedAt": "2026-11-08T19:21:36.283Z",
+  "reason": "Review verified corporate Excel QA export uses exactly the PageHero logo, Rubric topic names, canonical QA scores, Topic/Tag charts and signed-in user attribution across report types.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
@@ -721,6 +721,6 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/ReportCenterMockup.tsx": "162c3df346f71f2f1b0e4e8a5747613488f30cabf92d0dbf753b0f3814a3f50f",
-    "src/corporateQaReportXlsx.ts": "eb527858c693fee5472fdd28de4fc189d66c383c288fdb81618ae134429e9aa2"
+    "src/corporateQaReportXlsx.ts": "2c1316d0c146308929b5ed41987ae606c32899d4caa31b7f97a7bfc7141f83ea"
   }
 }
