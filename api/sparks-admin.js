@@ -5,6 +5,7 @@ import { createQaRewardsService } from "../server/qaRewardsService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
+import { isSparksBackendRequest, requestSparksSupabase } from "../server/sparksSupabaseBridge.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -186,6 +187,14 @@ async function getAccessToken() {
   return accessToken;
 }
 async function firestoreRequest(endpoint, method = "GET", body) {
+  // Sparks-only server-side preview switch. All QA cases, login sessions and
+  // other non-Sparks reads/writes continue through the existing Firebase path.
+  // The default (unset) mode is unchanged, and production is never switched here.
+  if (isSparksBackendRequest(endpoint, method)) {
+    const result = await requestSparksSupabase(endpoint, method, body);
+    if (method === "POST" && endpoint === ":commit") adminReadCache.clear();
+    return result;
+  }
   // A quota response is shared by this function instance. Reject repeated
   // display reads locally instead of contacting an already limited database.
   // Authentication and all mutations still require normal server verification.
