@@ -2605,10 +2605,12 @@ export default function SignatureCenterMockup({
   currentUser,
   accounts = [],
   reportCenter = false,
+  reportExportOnly = false,
 }: {
   currentUser: CurrentUser;
   accounts?: UserAccountSnapshot[];
   reportCenter?: boolean;
+  reportExportOnly?: boolean;
 }) {
   const evaluationActivity = useEvaluationActivity();
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
@@ -4929,6 +4931,40 @@ export default function SignatureCenterMockup({
       <div className="rounded-[30px] border border-rose-200 bg-rose-50 p-6 text-rose-700">
         <div className="text-lg font-black">โหลดข้อมูล Signature ไม่สำเร็จ</div>
         <div className="mt-2 text-sm">{loadMessage}</div>
+      </div>
+    );
+  }
+
+  if (reportExportOnly) {
+    return (
+      <div data-payment-export-only="true" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
+        <h2 className="text-xl font-semibold text-slate-900">Payment / Final Signed</h2>
+        <p className="mt-1 text-sm text-slate-500">เลือกช่วงเวลาและเอกสาร จากนั้นดาวน์โหลดไฟล์ โดยใช้กฎตรวจสอบการลงนามและการจ่ายเงินเดิม</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="text-xs font-semibold text-slate-600">Month
+            <select className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+              <option value="all">Select Month</option>
+              {monthOptions.map(value => <option key={value} value={value}>{getMonthLabel(value)}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-slate-600">Final Signed Document
+            <select className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm" value={selectedDocumentId} onChange={e => setSelectedDocumentId(e.target.value)}>
+              <option value="">Select Agent / Document</option>
+              {documents.filter(doc => selectedMonth === "all" || doc.monthKey === selectedMonth).filter(doc => canMonitorDocument(currentUser, doc)).map(doc => (
+                <option key={doc.id} value={doc.id}>{doc.agentName} · {getMonthLabel(doc.monthKey)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-600">
+          {selectedMonth === "all" ? "กรุณาเลือกเดือน" : `เดือน ${getMonthLabel(selectedMonth)} · เอกสารที่เข้าเงื่อนไข Payment ${selectedMonthPaymentExportDocs.length} รายการ`}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button type="button" onClick={generatePaymentPdf} disabled={!canGenerateMonthlyPayment} className="rounded-xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Monthly Payment PDF</button>
+          <button type="button" onClick={generatePaymentExcel} disabled={!canGenerateMonthlyPayment} className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 disabled:opacity-40">Monthly Payment Excel</button>
+          <button type="button" onClick={generatePdf} disabled={!selectedDocument} className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 disabled:opacity-40">Final Signed PDF</button>
+        </div>
+        {paymentMessage || pdfMessage ? <p role="status" className="mt-3 text-sm text-slate-600">{paymentMessage || pdfMessage}</p> : null}
       </div>
     );
   }
