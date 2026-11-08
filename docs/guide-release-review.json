@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T10:01:26.208Z",
+  "reviewedAt": "2026-11-08T10:02:53.803Z",
   "reason": "Reviewed QA Sparks cloud migration PREVIEW only; production routes and user-facing guide remain unchanged until explicit cutover",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -386,7 +386,7 @@
     "scripts/test-sparks-admin-session.mjs": "4c1a5e17d67372ee74f970791d5c557e0edb14a11ee926f3d2006319a992c325",
     "scripts/test-sparks-admin-workspace.mjs": "b4520fa44d1308db26abbf3530d1086579366f89f4e618cc47b2b98a0f61c120",
     "scripts/test-sparks-cloud-preview-readonly.mjs": "d098b672d3d79d7105a6fc8911c5b9195fe1f2553257de0dfb6ff48907215c5c",
-    "scripts/test-sparks-cloud-wallet-auth.mjs": "52d6da14cbb31ac3f5f646b27b31a8c4fd7f665b0c32baca33111d6d15e36e34",
+    "scripts/test-sparks-cloud-wallet-auth.mjs": "fe3bd605ac1738e896602c055f1e63c8e4bf3b7853f08bebd6423734857ce7b0",
     "scripts/test-sparks-supabase-bridge.mjs": "c061bdaf46b88b0d54375276af3ba4c587c80516a5ac147432a08cd39c7fc58a",
     "scripts/test-special-reward-confirm-ui.mjs": "ac7015bb7738562383aa66efe6823825afc93aef484e30d75d07e2300fdc442e",
     "scripts/test-special-rewards.mjs": "7e1c67204aec8ad90e116d7d9fe9bc27bbb53b84eb018e6b1a0f4f26e1419b9e",
