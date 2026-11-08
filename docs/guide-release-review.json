@@ -1,14 +1,13 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T18:12:02.903Z",
-  "reason": "Checked report PDF/Excel preview and restored original Case Detail PDF; clarified that agent KPI is evaluated monthly only and yearly/weekly/compare don't assert false KPI status.",
+  "reviewedAt": "2026-11-08T19:19:53.195Z",
+  "reason": "Verified corporate Excel report template and user guide: current QA Dashboard logo embedded from same /robinhood-logo.png, rubric-based Topic names, generated-by/timestamp metadata and preserved case data. Reviewed relevant exports and dashboard workflow.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
-    "slides",
     "dashboard",
     "case-detail",
-    "analytics"
+    "slides"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -593,7 +592,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "22f934c83916dc00a6b7dbfbd956a4a41bbbcb97a17a49225e3dca623708f4e1",
+    "src/knowledge/manual.json": "281956d1d1f72ec2c73c3ba8043a1daaa2ebef2edf439d84365c2886eadef6ec",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -721,6 +720,7 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "d39fe5f4cad6a97f3b229ae26d19f056c9a7f41d036f8ee2f11c0806d1ec21d5"
+    "src/ReportCenterMockup.tsx": "162c3df346f71f2f1b0e4e8a5747613488f30cabf92d0dbf753b0f3814a3f50f",
+    "src/corporateQaReportXlsx.ts": "eb527858c693fee5472fdd28de4fc189d66c383c288fdb81618ae134429e9aa2"
   }
 }
