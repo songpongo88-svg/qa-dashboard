@@ -41,6 +41,8 @@ export type SparksAccount = {
   profileMakeoverClaimedAt: string;
   firstLogin: FirstLoginPrize | null;
   history: SparksHistoryItem[];
+  historyUnavailable?: boolean;
+  recoverySource?: "client"|"server";
 };
 
 export const EMPTY_SPARKS_ACCOUNT: SparksAccount = {
@@ -94,21 +96,47 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
   window.addEventListener("qa:sparks-updated", () => invalidateFirestoreReads("sparks:"));
 }
 
-export async function getSparksAccount(username: string, options: { historyLimit?: number; forceRefresh?: boolean } = {}): Promise<SparksAccount> {
+export async function getSparksAccount(username: string, options: { historyLimit?: number; forceRefresh?: boolean; sessionId?: string } = {}): Promise<SparksAccount> {
   if (!String(username || "").trim()) return { ...EMPTY_SPARKS_ACCOUNT, history: [] };
   const ref = walletRef(username);
   const key = "sparks:" + sparksAccountKey(username) + ":";
   const historyLimit = Math.max(0, Math.min(100, Math.floor(options.historyLimit ?? 100)));
-  const [wallet, records] = await Promise.all([
-    sharedFirestoreRead(key + "wallet", 60_000, () => getDoc(ref), options.forceRefresh),
-    historyLimit ? sharedFirestoreRead(key + "history:" + historyLimit, 60_000,
-      () => getDocs(query(collection(ref, "history"), orderBy("createdAt", "desc"), limit(historyLimit))), options.forceRefresh)
-      : Promise.resolve({ docs: [] }),
+  // Read the wallet and history independently. History failure must never hide a valid balance.
+  const [walletResult, historyResult] = await Promise.allSettled([
+    sharedFirestoreRead(key+"wallet",60_000,()=>getDoc(ref),options.forceRefresh),
+    historyLimit?sharedFirestoreRead(key+"history:"+historyLimit,60_000,
+      ()=>getDocs(query(collection(ref,"history"),orderBy("createdAt","desc"),limit(historyLimit))),options.forceRefresh)
+      :Promise.resolve({docs:[]} as {docs:Array<{id:string;data:()=>any}>}),
   ]);
-  const data = wallet.exists() ? wallet.data() : {};
+  let data:Record<string,any>={};
+  let recoverySource:"client"|"server"="client";
+  if(walletResult.status==="fulfilled"){
+    data=walletResult.value.exists()?walletResult.value.data():{};
+  }else{
+    // A permission/network failure in the browser may be recoverable via the existing
+    // authenticated QA session. Do not add reads during a known Firestore quota incident.
+    const failure=walletResult.reason as {code?:string;message?:string};
+    const failureText=String(failure?.code||"")+" "+String(failure?.message||"");
+    if(!options.sessionId||/resource[-_ ]exhausted|quota[-_ ]exceeded/i.test(failureText))throw walletResult.reason;
+    const response=await fetch("/api/sparks-admin",{method:"POST",cache:"no-store",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({action:"sparks-wallet-recovery",actorUsername:username,sessionId:options.sessionId})});
+    const fallback=await response.json().catch(()=>({}));
+    if(!response.ok||fallback.ok!==true||!fallback.wallet){
+      const error=new Error(String(fallback.error||"อ่านกระเป๋า Sparks ไม่สำเร็จ กรุณาลองใหม่"));
+      Object.assign(error,{code:response.status===429?"resource-exhausted":response.status===403?"permission-denied":"unavailable"});
+      throw error;
+    }
+    data=fallback.wallet;
+    recoverySource="server";
+  }
+  const historyUnavailable=historyLimit>0&&historyResult.status==="rejected";
+  const records=historyResult.status==="fulfilled"?historyResult.value:{docs:[]};
   const memberYear = sparksCalendarYear();
   return {
     memberYear,
+    historyUnavailable,
+    recoverySource,
     memberYearEarned: annualEarnedFromWallet(data, memberYear),
     profileMakeoverClaimedAt: String(data.profileMakeoverClaimedAt || ""),
     dailyCheckinClaimedDays: Array.isArray(data.dailyCheckin202611Days)
