@@ -1419,6 +1419,17 @@ export default async function handler(req, res) {
         code:"SPARKS_CLOUD_PREVIEW_READ_ONLY",
       });
     }
+    // QA Access Check typing challenge queue still has browser Firestore writers.
+    // The Typing Relief activation modifies that challenge AND a Sparks wallet.
+    // Do not pretend a cross-database transaction is atomic; keep the action
+    // disabled in the Cloud branch until the QA Access Check dependency is migrated
+    // or a fully reconciled two-phase workflow is implemented.
+    if (process.env.SPARKS_DATA_BACKEND==="supabase" && body.action==="use-typing-relief") {
+      return res.status(503).json({
+        error:"การใช้ Typing Relief ยังไม่พร้อมใน Supabase เพราะต้องตรวจการบันทึก QA Access Check ให้ครบก่อน",
+        code:"SPARKS_TYPING_RELIEF_DEPENDENCY",
+      });
+    }
     if (["get-truemoney-price","redeem-truemoney","use-truemoney-item","list-my-truemoney"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
       const result=body.action==="get-truemoney-price"
