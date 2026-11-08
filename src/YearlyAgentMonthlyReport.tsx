@@ -9,13 +9,14 @@ type Props = {
   team: string;
   agent: string;
   canExport: boolean;
+  showExport?: boolean;
   exporting: boolean;
   onExportExcel: () => void;
   onExportPdf: () => void;
 };
 
 export default function YearlyAgentMonthlyReport({
-  reports, team, agent, canExport, exporting, onExportExcel, onExportPdf
+  reports, team, agent, canExport, showExport = true, exporting, onExportExcel, onExportPdf
 }: Props) {
   return <section data-yearly-agent-monthly-report="true" className="space-y-4 rounded-2xl border border-violet-200 bg-white p-4 shadow-sm sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -24,7 +25,7 @@ export default function YearlyAgentMonthlyReport({
         <p className="text-sm text-slate-600">คะแนน QA รายพนักงาน แยกครบ 12 เดือน · Team: {team} · Agent: {agent}</p>
         <p className="text-xs text-slate-500">Yearly Avg. = ค่าเฉลี่ยจากคะแนนทุกเคสที่ประเมินจริง | KPI รายเดือนนับเฉพาะเดือนที่มีอย่างน้อย 10 เคส และเกณฑ์ผ่าน 85%</p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      {showExport ? <div className="flex flex-wrap gap-2">
         <button type="button" onClick={onExportExcel} disabled={!canExport || exporting}
           className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
           Gen Yearly Excel · Agent/Month
@@ -33,7 +34,7 @@ export default function YearlyAgentMonthlyReport({
           className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50">
           Gen Yearly PDF · Agent/Month
         </button>
-      </div>
+      </div> : null}
     </div>
     {reports.map(report => <div key={report.year} className="space-y-2" data-yearly-agent-monthly-year={report.year}>
       <div className="flex flex-wrap items-center justify-between gap-2">
