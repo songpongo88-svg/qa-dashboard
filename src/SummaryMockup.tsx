@@ -2948,6 +2948,7 @@ export default function SummaryMockup({
   canViewAllTeams = false,
   canViewOwnTeam = false,
   canExportAnalytics = false,
+  reportCenter = false,
   dataRefreshKey,
   embedded = false,
   displayRecoveryData,
@@ -2967,6 +2968,7 @@ export default function SummaryMockup({
   canViewAllTeams?: boolean;
   canViewOwnTeam?: boolean;
   canExportAnalytics?: boolean;
+  reportCenter?: boolean;
   dataRefreshKey?: number;
   embedded?: boolean;
   displayRecoveryData?: CanonicalReportData;
@@ -9310,7 +9312,7 @@ export default function SummaryMockup({
                       setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
                     }} className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white hover:bg-violet-800">Exit Compare</button>
                   ) : null}
-                  <div className="relative">
+                  <div className={reportCenter ? "relative" : "hidden"}>
                     <button
                       type="button"
                       disabled={!analyticsCanExport}
@@ -9459,7 +9461,7 @@ export default function SummaryMockup({
                 setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
               }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700">Exit Compare</button>
             ) : null}
-            <div className="relative">
+            <div className={reportCenter ? "relative" : "hidden"}>
               <button
                 type="button"
                 disabled={!analyticsCanExport}
