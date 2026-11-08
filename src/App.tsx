@@ -8126,46 +8126,9 @@ export default function App() {
           <ScheduleMockup currentUser={currentUser} />
         ) : activeTab === "report-center" ? (
           <ReportCenterMockup
-            analytics={analyticsAllowed ? (
-              <SummaryMockup
-                currentUser={currentUser}
-                externalSelectedAgent={analyticsSelectedAgent}
-                externalSelectedMonth={analyticsSelectedMonth}
-                externalSelectedWeek={analyticsSelectedWeek}
-                roleScopedAgentNames={roleScopedAgentNames}
-                canViewAllAgents={analyticsAllAgentsAllowed}
-                canViewAllTeams={analyticsAllTeamsAllowed}
-                canViewOwnTeam={analyticsOwnTeamAllowed}
-                canExportAnalytics={analyticsExportAllowed}
-                reportCenter
-                dataRefreshKey={qaDataRefreshKey}
-              />
-            ) : <div className="rounded-xl bg-white p-6 text-slate-600">ไม่มีสิทธิ์ดู Analytics Report</div>}
-            cases={
-              <DashboardMockup
-                currentUser={currentUser}
-                caseAgentDirectory={caseAgentDirectory}
-                dashboardSubTab="overview"
-                roleScopedAgentNames={roleScopedAgentNames}
-                canViewAgentsInOverview={overviewAgentSelectionAllowed}
-                canViewAnalytics={false}
-                dataRefreshKey={qaDataRefreshKey}
-                reportCenter
-              />
-            }
-            payments={
-              <SignatureCenterErrorBoundary>
-                <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} reportCenter />
-              </SignatureCenterErrorBoundary>
-            }
-            slides={
-              <PresentationMockup
-                currentUser={currentUser}
-                roleScopedAgentNames={roleScopedAgentNames}
-                dataRefreshKey={qaDataRefreshKey}
-                reportCenter
-              />
-            }
+            currentUser={currentUser}
+            roleScopedAgentNames={roleScopedAgentNames}
+            canExport={analyticsExportAllowed}
           />
         ) : activeTab === "summary" && analyticsAllowed ? (
           <SummaryMockup
