@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T14:15:53.849Z",
-  "reason": "Reviewed expiring server-side Sparks source synchronization, isolated database tests, release freeze and corrected Firebase-only Typing Relief routing; no member workflow or terms changes",
+  "reviewedAt": "2026-11-08T14:17:06.256Z",
+  "reason": "Reviewed QA Sparks cloud migration PREVIEW only; production routes and user-facing guide remain unchanged until explicit cutover",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
