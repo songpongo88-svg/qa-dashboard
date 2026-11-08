@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T16:39:57.903Z",
-  "reason": "Reviewed report-only selection and export workflows without embedding dashboard views, with standalone Payment and QA Slides exports; updated manual and retained prior QA rules.",
+  "reviewedAt": "2026-11-08T16:42:22.204Z",
+  "reason": "Verified export-only Report Center and the existing strict evaluation completion gate before PDF/Excel generation; guide content remains aligned.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
@@ -722,6 +722,6 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "d49532e5e90d6847761a5004cf4f452e74e2ccf6968cde8451a827678d6ad387"
+    "src/ReportCenterMockup.tsx": "5268ec616c1808b8aa45affbfb3ce40546c677efd862d265227f1d0d6739445c"
   }
 }
