@@ -8163,6 +8163,7 @@ export default function App() {
                 currentUser={currentUser}
                 roleScopedAgentNames={roleScopedAgentNames}
                 dataRefreshKey={qaDataRefreshKey}
+                reportCenter
               />
             }
           />
