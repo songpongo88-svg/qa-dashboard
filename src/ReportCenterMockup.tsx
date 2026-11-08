@@ -5,13 +5,11 @@ import { loadCanonicalReportData, type CanonicalReportCase } from "./DashboardMo
 import { buildYearlyTeamReport, createYearlyTeamSummaryXlsx } from "./yearlyTeamSummaryData";
 import { createYearlyTeamSummaryPdf } from "./yearlyTeamSummaryPdf";
 import { createYearlyAgentMonthlyPdf, createYearlyAgentMonthlyXlsx } from "./yearlyAgentMonthlyExport";
-import { generateBulkCaseDetailPdf } from "./bulkCaseDetailPdf";
 import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
-import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
 import { getAppealScoreHold } from "./pendingAppealScore";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
 
-type Kind = "monthly" | "weekly" | "yearly" | "compare" | "case" | "payment" | "slides";
+type Kind = "monthly" | "weekly" | "yearly" | "compare" | "payment" | "slides";
 type Scope = "all" | "team" | "agent";
 type Format = "pdf" | "xlsx";
 const TYPES: { id: Kind; name: string; detail: string }[] = [
@@ -19,7 +17,6 @@ const TYPES: { id: Kind; name: string; detail: string }[] = [
   { id: "weekly", name: "Weekly", detail: "รายงานคะแนนรายสัปดาห์" },
   { id: "yearly", name: "Yearly", detail: "คะแนนรายปี / แยกคะแนนรายเดือน" },
   { id: "compare", name: "Compare", detail: "เปรียบเทียบ 2 เดือน" },
-  { id: "case", name: "Case Detail", detail: "รายงานรายละเอียดเคส PDF" },
   { id: "payment", name: "Payment / Signed", detail: "Payment PDF / Excel และเอกสารลงนาม" },
   { id: "slides", name: "QA Slides", detail: "สรุป QA รายสัปดาห์เป็น PDF" },
 ];
@@ -132,7 +129,6 @@ export default function ReportCenterMockup({
   const [team, setTeam] = useState("all");
   const [agent, setAgent] = useState("all");
   const [yearlyLayout, setYearlyLayout] = useState<"summary" | "agent-month">("agent-month");
-  const [caseId, setCaseId] = useState("all");
   const [cases, setCases] = useState<CanonicalReportCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -186,7 +182,7 @@ export default function ReportCenterMockup({
   const weeks = [...new Set(periodCases.map(rowWeek))].sort();
   const selectedWeek = weeks.includes(week) ? week : "all";
   const visibleCases = periodCases.filter(item => kind !== "weekly" || selectedWeek === "all" || rowWeek(item) === selectedWeek);
-  const selectedCases = visibleCases.filter(item => kind !== "case" || caseId === "all" || item.caseId === caseId);
+  const selectedCases = visibleCases;
   const totals = summary(selectedCases);
   const selectedKind = TYPES.find(item => item.id === kind)!;
   const specialized = kind === "payment" || kind === "slides";
@@ -224,11 +220,7 @@ export default function ReportCenterMockup({
           const result = yearlyLayout === "agent-month" ? createYearlyAgentMonthlyPdf(selected, args) : createYearlyTeamSummaryPdf(selected, args);
           result.pdf.save(result.fileName);
         }
-      } else if (kind === "case") {
-        if (caseId !== "all") {
-          const result = await generateOfficialCaseDetailPdf({ caseItem: actual[0], currentUser });
-          download(result.blob, result.fileName);
-        } else {
+      } else {
           const result = await generateBulkCaseDetailPdf({ cases: actual, currentUser, monthKey: effectiveMonthInYear,
             onProgress: (done, total) => setProgress(done + " / " + total + " cases") });
           download(result.blob, result.fileName);
@@ -261,12 +253,12 @@ export default function ReportCenterMockup({
         <header className="mb-6">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-violet-700">QA Dashboard / Reports</p>
           <h1 className="mt-1 text-3xl font-bold">Report Center</h1>
-          <p className="mt-2 text-sm text-slate-500">เลือกชนิดรายงานและตัวกรอง แล้วดาวน์โหลดไฟล์ PDF หรือ Excel · ไม่มี Dashboard หรือกราฟวิเคราะห์ในหน้านี้</p>
+          <p className="mt-2 text-sm text-slate-500">เลือกชนิดรายงานและตัวกรอง แล้วดาวน์โหลดไฟล์ PDF หรือ Excel · Case Detail PDF อยู่ที่หน้า Dashboard ตามเดิม</p>
         </header>
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <h2 className="mb-3 text-sm font-semibold text-slate-700">1. เลือก Report ที่ต้องการ</h2>
           <div className="grid gap-2 sm:grid-cols-3">
-            {TYPES.map(item => <button type="button" key={item.id} aria-pressed={kind === item.id} onClick={() => { setKind(item.id); setMessage(""); if (item.id === "case") setFormat("pdf"); }} className={`rounded-xl border p-3 text-left transition ${kind === item.id ? "border-violet-600 bg-violet-50 ring-1 ring-violet-300" : "border-slate-200 bg-white hover:border-violet-200"}`}>
+            {TYPES.map(item => <button type="button" key={item.id} aria-pressed={kind === item.id} onClick={() => { setKind(item.id); setMessage(""); }} className={`rounded-xl border p-3 text-left transition ${kind === item.id ? "border-violet-600 bg-violet-50 ring-1 ring-violet-300" : "border-slate-200 bg-white hover:border-violet-200"}`}>
               <div className="text-sm font-semibold">{item.name}</div><div className="mt-1 text-xs text-slate-500">{item.detail}</div>
             </button>)}
           </div>
@@ -279,12 +271,12 @@ export default function ReportCenterMockup({
             <label className="block text-xs font-semibold text-slate-600">Scope<select className={inputClass + " mt-2"} value={scope} onChange={event => setScope(event.target.value as Scope)}><option value="all">All Agents</option><option value="team">By Team</option><option value="agent">By Agent</option></select></label>
             {scope === "team" ? <label className="block text-xs font-semibold text-slate-600">Team<select className={inputClass + " mt-2"} value={effectiveTeam} onChange={event => setTeam(event.target.value)}><option value="all">All Teams</option>{teams.map(value => <option key={value} value={value}>{value}</option>)}</select></label> : null}
             {scope === "agent" ? <label className="block text-xs font-semibold text-slate-600">Agent<select className={inputClass + " mt-2"} value={effectiveAgent} onChange={event => setAgent(event.target.value)}><option value="all">Select Agent</option>{agents.map(value => <option key={value} value={value}>{value}</option>)}</select></label> : null}
-            {kind === "case" ? <label className="block text-xs font-semibold text-slate-600">Case<select className={inputClass + " mt-2"} value={caseId} onChange={event => setCaseId(event.target.value)}><option value="all">All Cases (one PDF)</option>{visibleCases.map(item => <option key={item.caseId} value={item.caseId}>{item.caseId} · {rowAgent(item)}</option>)}</select></label> : null}
+            
           </div>
           <div className="mt-7 border-t border-slate-100 pt-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700">3. เลือกไฟล์</h2>
             <div className="flex gap-2">
-              {(["pdf", "xlsx"] as const).filter(value => kind !== "case" || value === "pdf").map(value => <button type="button" key={value} onClick={() => setFormat(value)} aria-pressed={format === value} className={`rounded-xl border px-5 py-2.5 text-sm font-semibold ${format === value ? "border-violet-600 bg-violet-700 text-white" : "border-slate-200 text-slate-700"}`}>{value === "pdf" ? "PDF" : "Excel (.xlsx)"}</button>)}
+              {(["pdf", "xlsx"] as const).map(value => <button type="button" key={value} onClick={() => setFormat(value)} aria-pressed={format === value} className={`rounded-xl border px-5 py-2.5 text-sm font-semibold ${format === value ? "border-violet-600 bg-violet-700 text-white" : "border-slate-200 text-slate-700"}`}>{value === "pdf" ? "PDF" : "Excel (.xlsx)"}</button>)}
             </div>
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-4">
