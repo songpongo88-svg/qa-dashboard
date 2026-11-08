@@ -47,6 +47,11 @@ try{
   const networkBefore=seen.length;
   const walletWrite={update:{name:"projects/qa-dashboard-b0b5d/databases/(default)/documents/qa_sparks_wallets/songpon",fields:{}}};
   const qaAccessWrite={update:{name:"projects/qa-dashboard-b0b5d/databases/(default)/documents/qa_typing_challenges/songpon",fields:{}}};
+  assert.equal(isSparksBackendRequest(":commit","POST",{writes:[qaAccessWrite]}),false,
+    "versioned QA-only saga step must reach Firebase instead of the Sparks bridge");
+  assert.equal(isSparksBackendRequest(":commit","POST",{writes:[walletWrite]}),true);
+  assert.throws(()=>isSparksBackendRequest(":commit","POST",{writes:[walletWrite,qaAccessWrite]}),
+    e=>e.code==="CROSS_DATABASE_WRITE_REJECTED");
   await assert.rejects(
     requestSparksSupabase(":commit","POST",{writes:[walletWrite,qaAccessWrite]}),
     e=>e.status===409&&e.code==="CROSS_DATABASE_WRITE_REJECTED",

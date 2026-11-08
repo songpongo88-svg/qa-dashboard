@@ -46,8 +46,19 @@ function requireSparksOnlyCommit(writes) {
   }
 }
 
-export function isSparksBackendRequest(endpoint,method="GET"){
+export function isSparksBackendRequest(endpoint,method="GET",body){
   if(process.env.SPARKS_DATA_BACKEND!=="supabase")return false;
+  if(method==="POST"&&endpoint===":commit"&&Array.isArray(body?.writes)){
+    const sparks=body.writes.map(w=>{
+      const name=w?.update?.name||w?.delete||w?.transform?.document;
+      return typeof name==="string"&&name.startsWith(FIRESTORE_PREFIX)&&ROOTS.has(name.slice(FIRESTORE_PREFIX.length).split("/")[0]);
+    });
+    if(sparks.some(Boolean)&&!sparks.every(Boolean))
+      throw Object.assign(new Error("Mixed Firebase and Supabase transaction rejected"),{status:409,code:"CROSS_DATABASE_WRITE_REJECTED"});
+    // Typing Relief's durable operation commits its QA assignment separately.
+    // That versioned, Firebase-only commit must use the Firebase transport.
+    if(sparks.length&&!sparks.some(Boolean))return false;
+  }
   if(method==="POST"&&TRANSITIONS.has(endpoint))return true;
   if(method!=="GET")return false;
   return relativeDocUrl(endpoint)!==null;
@@ -55,7 +66,7 @@ export function isSparksBackendRequest(endpoint,method="GET"){
 export async function requestSparksSupabase(endpoint,method="GET",body){
   const url=String(process.env.SPARKS_SUPABASE_BRIDGE_URL||"");
   const token=String(process.env.SPARKS_SUPABASE_BRIDGE_TOKEN||"");
-  if(!/^https:\/\/[^\s]+\/functions\/v1\/qa-sparks-runtime-preview$/.test(url)||token.length<40)
+  if(!/^https:\/\/[^\s]+\/functions\/v1\/qa-sparks-runtime(?:-preview|-test)?$/.test(url)||token.length<40)
     throw Object.assign(new Error("QA Sparks Supabase bridge is not configured"),{status:503});
   let payload;
   if(method==="POST"&&endpoint===":commit")requireSparksOnlyCommit(body?.writes);

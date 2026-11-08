@@ -150,7 +150,7 @@ async function setTrueMoneyPrice(body, admin) {
 function base64url(obj) {
   return Buffer.from(JSON.stringify(obj)).toString("base64url");
 }
-async function getAccessToken() {
+export async function getAccessToken() {
   if (accessToken && Date.now() + 60000 < tokenExpiry) return accessToken;
   const source = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!source) fail("กรุณาตั้งค่า FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON (Firebase Service Account) ใน Vercel Production", 503);
@@ -191,7 +191,7 @@ async function firestoreRequest(endpoint, method = "GET", body) {
   // Sparks-only server-side preview switch. All QA cases, login sessions and
   // other non-Sparks reads/writes continue through the existing Firebase path.
   // The default (unset) mode is unchanged, and production is never switched here.
-  if (isSparksBackendRequest(endpoint, method)) {
+  if (isSparksBackendRequest(endpoint, method, body)) {
     const result = await requestSparksSupabase(endpoint, method, body);
     if (method === "POST" && endpoint === ":commit") adminReadCache.clear();
     return result;
@@ -1427,6 +1427,10 @@ function sparksCloudReadOnlyEnabled() {
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
+  // Release freeze covers browser actions and scheduled jobs alike.
+  if(process.env.SPARKS_WRITES_PAUSED==="1" && (req.method==="GET" ||
+    !CLOUD_PREVIEW_READ_ACTIONS.has(String((typeof req.body==="string"?JSON.parse(req.body):req.body)?.action||""))))
+    return res.status(423).json({error:"กำลังซิงก์ QA Sparks กรุณารอสักครู่",code:"SPARKS_MIGRATION_PAUSED"});
   if (req.method === "GET" && req.url?.startsWith("/api/sparks-admin")) return res.status(405).json({error:"Method not allowed"});
   if (req.method === "GET") {
     // Never execute automatic payout or subscription renewal in a read-only Cloud preview.

@@ -127,7 +127,7 @@ BEGIN
  END LOOP;
  RETURN jsonb_build_object('writeResults',jsonb_build_array(),'committedWrites',v_count);
 END;
-$function$
+$function$;
 
 REVOKE ALL ON FUNCTION sparks_runtime.commit_writes(jsonb) FROM PUBLIC,anon,authenticated;
 COMMIT;
