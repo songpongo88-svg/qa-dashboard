@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T10:11:51.127Z",
+  "reviewedAt": "2026-11-08T10:15:46.442Z",
   "reason": "Reviewed QA Sparks cloud migration PREVIEW only; production routes and user-facing guide remain unchanged until explicit cutover",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -333,7 +333,7 @@
     "scripts/test-chachiya-sparks-correction.mjs": "acb78a53f3bee5c25b13769d059916b7380aebe155973ced40eb82a137a27ebe",
     "scripts/test-character-themes.mjs": "05681b273ae2fe564bf1a64960658928dcbc88ea464043da98b378cf45336f2b",
     "scripts/test-compare-report-redesign.mjs": "257a511962ae31e5fa907df4ae8f4c58e3871baf918e45cd2795b32ad5fe9810",
-    "scripts/test-daily-checkin-quest.mjs": "63143cd13f084cd7ea25199374b82f69a3245a20885f5d0acedd87bc9adde57b",
+    "scripts/test-daily-checkin-quest.mjs": "66eeeccec61f6fce72dc3c0aa8261cdf77017c931a55cee86cdfdb44db50cc60",
     "scripts/test-dashboard-cache.mjs": "95fbd6ac26123c89fa7fb234aae1818e9c9d0529000b5f795e5b9d17fb848a23",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-pending-appeal.mjs": "bb22db43bcbbeb5965c8b36643d4ac59bc2c00b94689aa912134414f5d479c91",
