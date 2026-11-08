@@ -91,6 +91,10 @@ BEGIN
          RAISE EXCEPTION 'ABORTED_EXISTS_PRECONDITION' USING ERRCODE='40001';
       END IF;
    END IF;
+   IF v_root = 'qa_sparks_wallets' AND array_length(v_segments,1)=2 AND v_current.source_path IS NOT NULL
+       AND (v_pre IS NULL OR NOT (v_pre ? 'updateTime')) THEN
+      RAISE EXCEPTION 'SPARKS_WALLET_CAS_REQUIRED' USING ERRCODE='22023';
+   END IF;
    v_mask:=v_write #> '{updateMask,fieldPaths}';
    IF v_mask IS NOT NULL THEN
      IF jsonb_typeof(v_mask)<>'array' THEN
