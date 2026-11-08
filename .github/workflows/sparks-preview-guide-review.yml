@@ -5,7 +5,12 @@ on:
     branches:
       - feat/sparks-cloud-only-staging-20261108
     paths:
-      - .github/workflows/sparks-preview-guide-review.yml
+      - ".github/workflows/sparks-preview-guide-review.yml"
+      - "src/**"
+      - "api/**"
+      - "server/**"
+      - "scripts/**"
+      - "package.json"
 
 permissions:
   contents: write
