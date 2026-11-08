@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T16:52:04.382Z",
-  "reason": "Verified remaining Case Detail export code removed from Report Center without changing restored Case Detail and Gen All/My Case buttons; reviewed guide and syntax fix.",
+  "reviewedAt": "2026-11-08T18:10:16.253Z",
+  "reason": "Reviewed real QA report-preview workflow, scoped Excel Dashboard and Case Detail sheets, PDF executive summary, and Kanit QA Slides Preview before Generation; Case Detail PDF remains at original location.",
   "contentChanged": true,
   "reviewedChapters": [
+    "exports",
+    "slides",
     "dashboard",
     "case-detail",
-    "exports"
+    "analytics"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -468,7 +470,7 @@
     "src/PageHero.tsx": "f3c717205bd67000ed8b322363b2268849933e9b09404dcc3fe359fcc8d7f342",
     "src/PreTestMockup.tsx": "7e8b9a000276931dea99e471ee254e35f24af7287c71cdc9304b246a9a7b4d40",
     "src/PresentationBuilderMockup.tsx": "a165160a1a74d93b1e3c4f21c232b10ad926a1ccd5ccf97291dc0dd48d35afdc",
-    "src/PresentationMockup.tsx": "31a2bc1255df9b35b9f7d7a420f8413f8c8f9bdc473f14b3a8d05c75bc8a67b9",
+    "src/PresentationMockup.tsx": "df123576585cdc2725a1a6b2ce9d1da9627e46ba2483fdf9ef662f613e0ffa58",
     "src/ProcessFileManager.tsx": "f48a7a54cf9fb14ccdcee34d90d526f832caa5848244fcc7dfdab541449dbfe3",
     "src/ProcessSlidePickerPortal.tsx": "dbe61bddab8995dd9dc2f5ed5d75edbd28354f6635787058e1419a08fd384ccb",
     "src/ProfileMakeoverQuest.tsx": "444e9a06af6b49cfe9768639b0b1172ef5422fb146b55da832906009553cd6fd",
@@ -591,7 +593,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "d372beed633052a673a7f3bbfc0fc818ba8990550089cef2a4c2630b0e1a4387",
+    "src/knowledge/manual.json": "22f934c83916dc00a6b7dbfbd956a4a41bbbcb97a17a49225e3dca623708f4e1",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -719,6 +721,6 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "9a6211aaf8ed4a7a45b58937e22f561842a8570512ab6695597bde976777f4ac"
+    "src/ReportCenterMockup.tsx": "dd8d2edad38476eef42b87ad8e7a3669eb2529d32e336b22ec6e38ce83d8117c"
   }
 }
