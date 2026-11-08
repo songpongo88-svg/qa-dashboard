@@ -321,7 +321,14 @@ export default function ReportCenterMockup({
         const args = { team: scope === "team" ? effectiveTeam : "All Teams", agent: scope === "agent" ? effectiveAgent : "All Agents" };
         if (format === "xlsx") {
           const result = yearlyLayout === "agent-month" ? await createYearlyAgentMonthlyXlsx(selected, args) : await createYearlyTeamSummaryXlsx(selected, args);
-          download(new Blob([result.bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), result.fileName);
+          // Preserve the official Yearly matrix while adding the same dashboard/detail sheets as other Excel reports.
+          const book = XLSX.read(result.bytes, { type: "array" });
+          const detailBook = buildReportWorkbook(actual, kind, scopeLabel, selectedPeriod);
+          detailBook.SheetNames.forEach(name => {
+            const target = book.SheetNames.includes(name) ? "QA " + name : name;
+            XLSX.utils.book_append_sheet(book, detailBook.Sheets[name], target);
+          });
+          download(new Blob([XLSX.write(book, { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), result.fileName);
         } else {
           const result = yearlyLayout === "agent-month" ? createYearlyAgentMonthlyPdf(selected, args) : createYearlyTeamSummaryPdf(selected, args);
           result.pdf.save(result.fileName);
