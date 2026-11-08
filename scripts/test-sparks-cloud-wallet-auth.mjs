@@ -38,6 +38,8 @@ globalThis.fetch=async(url,opts={})=>{
   }
   if(href.includes("/qa_user_session_controls/"))
     return reply({error:{status:"NOT_FOUND"}},404);
+  if(href.includes("/qa_user_profiles/Songpon"))
+    return reply(document("qa_user_profiles/Songpon",{username:"songpon",displayName:"QA Owner",role:"Quality Assurance",status:"Active"}));
   throw new Error("Unexpected Firebase read: "+href);
  }
  if(href===process.env.SPARKS_SUPABASE_BRIDGE_URL){
@@ -73,7 +75,7 @@ try{
  assert.equal(ok.response.history.length,2);
  assert.equal(ok.response.history[0].id,"a");
  assert.equal(requests.filter(x=>x.backend==="supabase").length,2);
- assert.equal(requests.filter(x=>x.backend==="firebase").length,2,"only authenticated QA session checks should read Firebase");
+ assert.equal(requests.filter(x=>x.backend==="firebase").length,3,"only authenticated QA session and profile checks should read Firebase");
  requests.length=0;
  const forged=await invoke("sparks-cloud-wallet",{actorUsername:"other"});
  assert.equal(forged.statusCode,403,"an actor cannot read another account's wallet");
