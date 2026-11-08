@@ -1,8 +1,8 @@
 {
   "version": "2.0.0",
-  "updatedAt": "2026-11-08T16:23:21.824Z",
+  "updatedAt": "2026-11-08T16:39:25.868Z",
   "releaseNotes": [
-    "รวมทุกเมนูสร้างรายงานใน Tab Report Center พร้อมย้าย Export ออกจาก Dashboard, Analytics, Signatures และ QA Slides โดยคงข้อมูล คะแนน และสิทธิ์เดิม",
+    "Report Center เปลี่ยนเป็นหน้าดึงไฟล์เท่านั้น เลือก Monthly, Weekly, Yearly, Compare, Case Detail, Payment หรือ QA Slides และตัวกรองก่อน Generate โดยไม่ฝัง Dashboard",
     "T&C Version 1.2: ผู้ใช้งานทุกคนอ่านและยอมรับฉบับใหม่ด้วยตนเองเมื่อกลับมาใช้ระบบ เพิ่มเงื่อนไข QA Sparks, Item, Announcement Shield และการย้ายระบบ โดยเก็บหลักฐานฉบับเดิม การตรวจสถานะอ่านเฉพาะฉบับปัจจุบันและรวมคำขอที่เกิดพร้อมกัน T&C Management โหลดเฉพาะเวอร์ชันที่เลือกและอ่านฉบับเก่าเมื่อสั่ง ไม่มีการไล่แก้ข้อมูลทุกบัญชี ไม่มีการบันทึกซ้ำจากการกดพร้อมกัน และไม่เปลี่ยน Maintenance Mode",
     "QA Sparks Wallet Recovery: แยกการดึงยอดกระเป๋าและประวัติ History ออกจากกัน ถ้า History ไม่พร้อมระบบยังแสดงยอด Sparks จาก wallet ที่อ่านสำเร็จได้พร้อมคำเตือน ไม่แสดงว่าคะแนนหาย; หากเบราว์เซอร์อ่าน wallet ไม่ได้ด้วยสิทธิ์หรือเครือข่าย ให้ลองอ่าน wallet เดิมแบบ read-only ผ่าน /api/sparks-admin ที่ตรวจ Session และเจ้าของกระเป๋า ห้ามสร้างหรือแก้ยอดสำรอง; ถ้าเป็น Firestore quota จำกัดการอ่านให้แจ้งสาเหตุจริงและปุ่มรีเฟรชแทนการยิงซ้ำ",
     "QA Sparks Announcement Shield Item: แลก 50 Sparks ครั้งแรกเข้า My Items แล้วผู้ใช้งานกดใช้เพื่อเริ่มนับอายุหนึ่งเดือนปฏิทิน ระบบต่ออายุอัตโนมัติตัด 50 Sparks ทุกเดือนผ่านงาน Cron เดิมแม้ผู้ใช้ไม่ได้ Login; เมื่อยอดไม่พอให้สิทธิ์ปิด Pop-up ต่อได้อีก 14 วันระหว่างรอตัดรายวัน หากยังตัดไม่ได้ยกเลิกอัตโนมัติ; ยกเลิกเองแล้วหยุดต่ออายุแต่คงสิทธิ์ถึงวันที่ชำระไว้ จ่ายเงินผ่าน Firestore Transaction กับ History แบบไม่ซ้ำ; ปิดเฉพาะ Pop-up Announcement ปกติ ไม่ปิดประกาศสำคัญ Urgent ประกาศที่บังคับรับทราบหรือเรื่องระบบ/ความปลอดภัย และไม่ตีว่าประกาศอ่านแล้ว",
@@ -301,7 +301,7 @@
         },
         {
           "title": "สร้าง PDF รายเคส",
-          "body": "การอ่านเคสใน QA Dashboard ยังทำได้ตามเดิม แต่หากต้องการ Case Detail PDF ให้เปิด Reports → Report Center → Case Detail เลือกเคสหรือ Month / Week และใช้ Gen All Case PDF, Gen My Case PDF หรือปุ่ม PDF ของเคสที่เลือกตามสิทธิ์"
+          "body": "อ่าน Case Detail ใน Dashboard ได้ตามปกติ เมื่อต้องการไฟล์ให้ไป Reports → Report Center → Case Detail แล้วเลือก Month, Team/Agent และ All Cases หรือ Case ID เฉพาะรายการก่อน Generate PDF"
         }
       ],
       "result": "เข้าใจเหตุผลของคะแนน และได้รายงานตรงกับเคสที่เลือก",
@@ -934,7 +934,7 @@
       "permissions": [
         "viewSummary"
       ],
-      "summary": "ใช้ Compare ใน QA Dashboard เพื่อดูผลต่างระหว่างช่วงเวลา",
+      "summary": "ใช้ Analytics วิเคราะห์แนวโน้ม แต่ใช้ Reports → Report Center เมื่อต้องการดาวน์โหลดไฟล์",
       "audience": "ผู้มีสิทธิ์ดู Analytics",
       "updatedAt": "2026-11-06T08:00:00Z",
       "steps": [
@@ -1033,7 +1033,7 @@
         },
         {
           "title": "สร้าง PDF",
-          "body": "เปิด Reports → Report Center → QA Slides กำหนดช่วงเวลา ตรวจ Preview และกด Generate / Export PDF เมื่อข้อมูลพร้อม; การเตรียมสไลด์และ Copy Slide Summary ยังคงทำได้ใน QA Slides เดิม"
+          "body": "ไป Reports → Report Center → QA Slides เลือก Week และ Generate QA Slides PDF โดยไม่ต้องเปิดหน้าพรีวิวสไลด์"
         },
         {
           "title": "นำสรุปไปใช้",
@@ -2474,25 +2474,29 @@
         "report-center"
       ],
       "permissions": [],
-      "summary": "รวมการสร้าง Monthly, Yearly, Weekly, Compare, Case Detail, Payment และ QA Slides ไว้ที่ Tab Report Center",
+      "summary": "เลือกชนิดไฟล์ใน Report Center และตั้งค่าช่วงเวลา/Agent ก่อนดาวน์โหลด โดยไม่แสดง Dashboard หรือกราฟ",
       "audience": "ผู้ใช้ตามสิทธิ์ส่งออก",
       "updatedAt": "2026-09-17T10:14:09.091Z",
       "steps": [
         {
-          "title": "เปิด Report Center",
-          "body": "จากเมนูด้านซ้ายเลือก Reports → Report Center จากนั้นเลือกกลุ่มรายงาน: Monthly / Yearly / Weekly / Compare, Case Detail, Payment / Final Signed หรือ QA Slides ปุ่มสร้างและส่งออกรายงานถูกย้ายออกจาก Tab เดิม"
+          "title": "เปิดเมนู Report Center",
+          "body": "กด Reports → Report Center จากเมนูด้านซ้าย หน้านี้ใช้เลือกไฟล์เท่านั้น ไม่มี Dashboard หรือกราฟ Analytics แทรกอยู่"
         },
         {
-          "title": "กรองข้อมูลให้ถูกช่วงและสิทธิ์",
-          "body": "เลือกปี เดือน Week ทีม และ Agent จากตัวกรองของรายงานชนิดนั้น ระบบยังใช้สิทธิ์เข้าถึงและแหล่งข้อมูลเดิม ตรวจ Case ID จำนวนเคสและคะแนนของช่วงที่เลือกก่อนสร้างไฟล์"
+          "title": "เลือกชนิดไฟล์",
+          "body": "เลือก Monthly, Weekly, Yearly, Compare หรือ Case Detail สำหรับผล QA หรือเลือก Payment / Signed และ QA Slides สำหรับไฟล์เฉพาะทาง"
         },
         {
-          "title": "Export PDF หรือ Excel",
-          "body": "กด Export ของกลุ่มรายงานที่เลือก เฉพาะไฟล์ที่รายงานนั้นรองรับ เช่น Analytics PDF / Excel, Case Detail PDF, Monthly Payment PDF / Excel, Final Signed PDF และ QA Slides PDF หากยังมี Appeal หรือขั้นตอนยืนยันค้าง ให้รอสิทธิ์และสถานะพร้อมก่อนดึงเอกสาร"
+          "title": "กำหนดช่วงเวลาและคน",
+          "body": "เลือก Year, Month, Week (กรณี Weekly), All Agents, By Team หรือ By Agent รายงาน Yearly มีแบบ By Agent / 12 Months และ Yearly Team Summary"
         },
         {
-          "title": "ตรวจและเก็บไฟล์",
-          "body": "เปิดไฟล์ที่สร้างเพื่อตรวจชื่อรายงาน เดือน ทีม Agent จำนวนเคสและคะแนนให้ตรงกัน การย้ายเมนูไม่ลบหรือแก้ข้อมูลประเมินย้อนหลัง และไม่เปลี่ยนเอกสารที่อัปโหลดไว้เดิม"
+          "title": "เลือกประเภทไฟล์และ Generate",
+          "body": "เลือก PDF หรือ Excel เฉพาะประเภทที่รองรับ ดูจำนวนเคสและคะแนนเฉลี่ยก่อนกด Generate / Download Report หากสถานะข้อมูลหรือสิทธิ์ไม่พร้อม ระบบไม่ควรสร้างรายงานทางการ"
+        },
+        {
+          "title": "ตรวจสอบเอกสาร",
+          "body": "ตรวจชื่อไฟล์ เดือน/ปี Agent และจำนวนเคสกับข้อมูลต้นทางก่อนใช้งาน การ Export ไม่เปลี่ยนคะแนนเดิมและไม่ลบเคส"
         }
       ],
       "result": "ได้เอกสารตรงรอบและครบถ้วน",
