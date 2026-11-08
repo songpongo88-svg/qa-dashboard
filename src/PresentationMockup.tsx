@@ -23,6 +23,7 @@ type PresentationMockupProps = {
   roleScopedAgentNames?: string[];
   dataRefreshKey?: number;
   reportCenter?: boolean;
+  reportExportOnly?: boolean;
 };
 
 type WeekBucket = {
@@ -289,7 +290,7 @@ function copyTextToClipboard(text: string) {
   return Promise.resolve();
 }
 
-export default function PresentationMockup({ currentUser, roleScopedAgentNames, dataRefreshKey = 0, reportCenter = false }: PresentationMockupProps) {
+export default function PresentationMockup({ currentUser, roleScopedAgentNames, dataRefreshKey = 0, reportCenter = false, reportExportOnly = false }: PresentationMockupProps) {
   const evaluationActivity = useEvaluationActivity();
   const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -514,6 +515,23 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
     scoreAgents,
     scoreMonths,
   ]);
+
+  if (reportExportOnly) {
+    return (
+      <div data-slides-export-only="true" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
+        <h2 className="text-xl font-semibold text-slate-900">QA Slides PDF</h2>
+        <p className="mt-1 text-sm text-slate-500">เลือกสัปดาห์สำหรับสร้างไฟล์สรุป QA โดยไม่แสดงหน้าพรีวิวสไลด์</p>
+        <label className="mt-5 block text-xs font-semibold text-slate-600">Week
+          <select value={selectedWeek?.key || ""} onChange={event => setSelectedWeekKey(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+            {weekBuckets.map(week => <option key={week.key} value={week.key}>{week.label} ({week.cases.length} cases)</option>)}
+          </select>
+        </label>
+        <p className="mt-4 text-xs text-slate-500">ใช้การสร้าง PDF และเงื่อนไขตรวจสถานะเดิมของ QA Slides</p>
+        <button type="button" onClick={() => void handleExportPdf()} disabled={!selectedWeek || loading || Boolean(evaluationHold)} className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Generate QA Slides PDF</button>
+        {statusMessage ? <p role="status" className="mt-3 text-sm text-slate-600">{statusMessage}</p> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f7f2ff] via-white to-[#fbf7ff]">
