@@ -6,6 +6,12 @@ on:
       - feat/cloud-provider-status-20261108
     paths:
       - .github/workflows/cloud-status-guide-review.yml
+      - api/cloud-status.js
+      - src/SparksCloudStatus.tsx
+      - src/sparksCloudStatus.css
+      - src/QASparks.tsx
+      - scripts/test-cloud-provider-status.mjs
+      - package.json
 
 permissions:
   contents: write
