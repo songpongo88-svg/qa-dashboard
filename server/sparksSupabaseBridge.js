@@ -9,7 +9,8 @@ const ROOTS=new Set([
   "qa_sparks_fruit_boards","qa_sparks_fruit_rounds","qa_sparks_lottery_draws_v1",
   "qa_sparks_treasure_daily","qa_announcement_shield",
   "qa_sparks_snakes_rooms_v1","qa_sparks_snakes_members_v1",
-  "qa_typing_challenges","qa_typing_challenge_history",
+  // QA Access Check typing challenges must remain on Firebase.
+  // They are NOT Sparks data; a typing-relief cross-DB transaction is blocked.
 ]);
 const TRANSITIONS=new Set([":beginTransaction",":rollback",":commit"]);
 function relativeDocUrl(endpoint){
@@ -25,6 +26,25 @@ function relativeDocUrl(endpoint){
   if(!ROOTS.has(root))return null;
   return {path,params:parsed.searchParams};
 }
+function requireSparksOnlyCommit(writes) {
+  if (!Array.isArray(writes) || writes.length>100) {
+    throw Object.assign(new Error("Invalid Sparks transaction"),{status:400});
+  }
+  for (const write of writes) {
+    const name = write?.update?.name;
+    if (typeof name !== "string" || !name.startsWith(FIRESTORE_PREFIX)) {
+      throw Object.assign(new Error("Sparks commit rejected: unrecognized resource"),{status:409,code:"CROSS_DATABASE_WRITE_REJECTED"});
+    }
+    const resource=name.slice(FIRESTORE_PREFIX.length).split("/");
+    if (!ROOTS.has(resource[0]) || resource.length%2!==0) {
+      throw Object.assign(new Error("Sparks commit cannot write QA Access Check or other Firebase collections"),{status:409,code:"CROSS_DATABASE_WRITE_REJECTED"});
+    }
+    if(write.delete||write.transform) {
+      throw Object.assign(new Error("Sparks transaction includes an unsupported write type"),{status:409,code:"CROSS_DATABASE_WRITE_REJECTED"});
+    }
+  }
+}
+
 export function isSparksBackendRequest(endpoint,method="GET"){
   if(process.env.SPARKS_DATA_BACKEND!=="supabase")return false;
   if(method==="POST"&&TRANSITIONS.has(endpoint))return true;
@@ -37,6 +57,7 @@ export async function requestSparksSupabase(endpoint,method="GET",body){
   if(!/^https:\/\/[^\s]+\/functions\/v1\/qa-sparks-runtime-preview$/.test(url)||token.length<40)
     throw Object.assign(new Error("QA Sparks Supabase bridge is not configured"),{status:503});
   let payload;
+  if(method==="POST"&&endpoint===":commit")requireSparksOnlyCommit(body?.writes);
   if(method==="POST"&&TRANSITIONS.has(endpoint)){
     payload=endpoint===":beginTransaction"?{action:"begin"}:endpoint===":rollback"?{action:"rollback"}:{action:"commit",writes:body?.writes};
   }else if(method==="GET"){
