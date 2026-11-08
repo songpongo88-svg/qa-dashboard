@@ -311,6 +311,32 @@ async function authorizeRewardUser(body) {
   const username = safeUsername(body.actorUsername);
   const sessionId = String(body.sessionId || "");
   if (!/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId)) fail("กรุณาเข้าสู่ระบบ QA Dashboard ใหม่", 403);
+  if (process.env.SPARKS_DATA_BACKEND==="supabase"
+      && process.env.SPARKS_CLOUD_READ_ONLY==="1"
+      && !process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON
+      && !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    // Preview has NO Firebase service account: verify the same QA session
+    // against our existing, trusted production session validator over HTTPS.
+    // The original Firebase wallet is discarded; only the session decision is
+    // used, and the wallet displayed afterward comes exclusively from Supabase.
+    // This temporary preview-only fallback will NOT be used in production.
+    let valid;
+    try {
+      const check=await fetch("https://qa-dashboard-nine.vercel.app/api/sparks-admin",{
+        method:"POST",headers:{"content-type":"application/json"},cache:"no-store",
+        signal:AbortSignal.timeout(12000),
+        body:JSON.stringify({action:"sparks-wallet-recovery",actorUsername:username,sessionId}),
+      });
+      if (check.status===403) fail("QA session is invalid or expired",403);
+      if (!check.ok) fail("QA session verifier is unavailable",503);
+      valid=await check.json().catch(()=>({}));
+    }catch(error){
+      if (error?.status===403||error?.status===503)throw error;
+      fail("QA session verifier connection failed",503);
+    }
+    if(valid?.ok!==true||valid?.source!=="server-verified")fail("QA session verification failed",403);
+    return {username,displayName:username};
+  }
   const sessionDoc = await readDoc(path("qa_user_sessions", sessionId));
   if (!sessionDoc) fail("ไม่พบ Session ที่ใช้งานอยู่", 403);
   const session = recordValue(sessionDoc);
