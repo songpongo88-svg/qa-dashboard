@@ -10,8 +10,6 @@ const BKK_DAY = () => {
 const asInt=v=>Number.isFinite(Number(v))&&Number(v)>0?Math.floor(Number(v)):0;
 const retryable=e=>["ABORTED","FAILED_PRECONDITION"].includes(e?.firestoreStatus);
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
-const SEARCH_COOLDOWN_MS=120000;
-const MAX_SEARCHES=8;
 const allowedCaseId=value=>/^[a-zA-Z0-9_-]{3,70}$/.test(String(value||""));
 
 /** Server-authoritative treasure. Client never sends an amount or decides a prize.
@@ -45,7 +43,7 @@ export function createHiddenTreasureService({
  const state=async(actor)=>{
    const day=BKK_DAY();
    const doc=recordValue(await readDoc(dailyPath(actor.username,day)));
-   return {day,claimed:!!doc.claimedAt,searches:asInt(doc.searches),maxSearches:MAX_SEARCHES};
+   return {day,claimed:!!doc.claimedAt,searches:asInt(doc.searches)};
  };
  const start=async(body,actor)=>{
    const caseId=String(body.caseId||"").trim();
@@ -53,12 +51,9 @@ export function createHiddenTreasureService({
    return transact(async(transaction)=>{
      const day=BKK_DAY(),docPath=dailyPath(actor.username,day),snap=await readDoc(docPath,transaction);
      const d=recordValue(snap),now=Date.now();
-     if(asInt(d.searches)>=MAX_SEARCHES)return {value:{eligible:false,reason:"daily-limit",day},writes:[]};
-     if(asInt(d.lastCheckMs)>0&&now-asInt(d.lastCheckMs)<SEARCH_COOLDOWN_MS)
-       return {value:{eligible:false,reason:"cooldown",day},writes:[]};
-     const used=Array.isArray(d.usedCases)?d.usedCases:[];
-     if(used.includes(caseId))return {value:{eligible:false,reason:"already-read",day},writes:[]};
-     if(d.offerId&&!d.claimedAt)return {value:{eligible:false,reason:"pending-chest",day},writes:[]};
+     if(d.claimedAt)return {value:{eligible:false,claimed:true,reason:"already-claimed",day},writes:[]};
+     // A previously discovered chest stays available even if its popup was dismissed.
+     if(d.offerId)return {value:{eligible:false,pendingOfferId:d.offerId,day},writes:[]};
      const visitId=randomUUID(),readSeconds=drawRandom(30,91);
      const next={...d,username:actor.username,day,visitId,caseId,startedMs:now,readSeconds,updatedAt:new Date(now).toISOString()};
      return {value:{eligible:true,visitId,readSeconds,day},
@@ -74,19 +69,17 @@ export function createHiddenTreasureService({
      if(d.visitId!==visitId||!d.caseId)fail("การอ่านเคสนี้สิ้นสุดแล้ว กรุณาเปิดเคสอีกครั้ง",409);
      if(now-asInt(d.startedMs)<Math.max(30,Math.min(90,asInt(d.readSeconds)))*1000)fail("ต้องอ่านข้อมูล QA ก่อนเปิดหีบสมบัติ",409);
      if(now-asInt(d.startedMs)>15*60*1000)fail("การอ่านเคสหมดเวลา กรุณาเปิดเคสอีกครั้ง",409);
-     if(asInt(d.searches)>=MAX_SEARCHES)fail("ใช้สิทธิ์ค้นหาขุมทรัพย์วันนี้ครบแล้ว",409);
+     if(d.claimedAt)return {value:{found:false,claimed:true,reason:"already-claimed",day},writes:[]};
      const found=drawRandom(100)<35;
-     const claimed=!!d.claimedAt;
-     const used=[...new Set([...(Array.isArray(d.usedCases)?d.usedCases:[]),d.caseId])].slice(-MAX_SEARCHES);
-     const offerId=found&&!claimed?randomUUID():"";
+     const offerId=found?randomUUID():"";
      // Smaller awards are intentionally more common. Exactly 1-500 possible.
      const dice=drawRandom(1000);
      const amount=dice<700?drawRandom(1,101):dice<930?drawRandom(101,301):drawRandom(301,501);
      const next={...d,visitId:"",caseId:"",startedMs:0,lastCheckMs:now,
-       searches:asInt(d.searches)+1,usedCases:used,
-       offerId:offerId||d.offerId||"",offerAmount:offerId?amount:asInt(d.offerAmount),
+       searches:asInt(d.searches)+1,
+       offerId,offerAmount:offerId?amount:0,
        updatedAt:new Date(now).toISOString()};
-     return {value:{found,alreadyClaimed:claimed,offerId,day,searches:next.searches},
+     return {value:{found,offerId,day,searches:next.searches},
        writes:[updateWrite(docPath,next,snap)]};
    });
  };
