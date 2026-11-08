@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T06:45:00.000Z",
-  "reason": "Announcement Shield reviewed: explicit 50 Sparks initial Item, activate before starting one-month calendar billing, recurring 50 Sparks monthly via existing authenticated daily cron and transactional wallet/history, 14-day insufficient-funds grace with popup protection, cancel self-service, no double-charge, only optional Announcement popups suppressed while important/acknowledgement/security alerts and manual reading remain available. UI and automated tests included.",
+  "reviewedAt": "2026-11-08T06:52:00.000Z",
+  "reason": "Reviewed corrected Announcement Shield Item portal JSX after Vercel parse failure; retains explicit 50 Sparks opt-in, monthly server renewal, 14-day grace, cancellation, critical announcement exceptions, and unchanged member wallet history integrity.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks",
@@ -697,7 +697,7 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "server/announcementShieldService.js": "7f05fbc8af80be51f0fef01792192c8c3966808364af52a0996120f11ea45d5e",
-    "src/AnnouncementShieldItem.tsx": "27028883ace5cea3f1c724934c53e6b8a12547f1cdf9c850fe7c6249e430a565",
+    "src/AnnouncementShieldItem.tsx": "f0741589f410eb415a1196253bf671fda87383af83daa618c6e18eb98cc33300",
     "src/announcementShield.css": "bacac6466349ae6aa94bd40764c722d2ae00cb3d4760750eb111a959f14954d0",
     "scripts/test-announcement-shield.mjs": "3d906217c7bf9f8c9a5bbd07d0a3b9ab5f73f8326d41d687bab9f3b1e2b3724d"
   }
