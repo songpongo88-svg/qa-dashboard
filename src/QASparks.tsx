@@ -139,7 +139,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
                   <button type="button" data-sparks-back-to-games="true" onClick={()=>setGameMode(null)}>‹ กลับไปเลือกเกม</button>
                   <span>{gameMode==="snakes"?"บันไดงู Multiplayer":"Fruit Match"}</span>
                 </div>
-                {gameMode==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon" ? <SnakesLaddersGame key={username+":"+adminSessionId+":snakes"} username={username} sessionId={adminSessionId}/> : gameMode==="fruit" ? <FruitMatchGame key={username+":"+adminSessionId+":fruit"} username={username} sessionId={adminSessionId}/> : null}
+                {gameMode==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon" ? <SnakesLaddersGame privateTest key={username+":"+adminSessionId+":snakes"} username={username} sessionId={adminSessionId}/> : gameMode==="fruit" ? <FruitMatchGame key={username+":"+adminSessionId+":fruit"} username={username} sessionId={adminSessionId}/> : null}
               </>}
         </section> : null}
         {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username} balance={account.balance} rewardOrders={account.rewardOrders}/> : null}
