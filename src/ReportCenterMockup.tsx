@@ -6,6 +6,7 @@ import { buildYearlyTeamReport, createYearlyTeamSummaryXlsx } from "./yearlyTeam
 import { createYearlyTeamSummaryPdf } from "./yearlyTeamSummaryPdf";
 import { createYearlyAgentMonthlyPdf, createYearlyAgentMonthlyXlsx } from "./yearlyAgentMonthlyExport";
 import { generateBulkCaseDetailPdf } from "./bulkCaseDetailPdf";
+import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
 import { getAppealScoreHold } from "./pendingAppealScore";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
@@ -194,6 +195,12 @@ export default function ReportCenterMockup({
       if (actual.length !== selectedCases.length) throw new Error("ข้อมูลมีการเปลี่ยนแปลง กรุณากด Refresh แล้วตรวจตัวกรองอีกครั้ง");
       const hold = getAppealScoreHold(actual);
       if (hold) throw new Error(hold.label);
+      const verificationMonths = kind === "yearly"
+        ? Array.from({length: 12}, (_, index) => effectiveYear + "-" + String(index + 1).padStart(2, "0"))
+        : [...new Set(actual.map(rowMonth))];
+      const verificationAgents = [...new Set(actual.map(rowAgent))];
+      await assertEvaluationScopeComplete(verificationAgents, verificationMonths);
+
       if (kind === "yearly") {
         const names = scope === "agent" ? [effectiveAgent] : [...new Set(actual.map(rowAgent))];
         const report = buildYearlyTeamReport(actual, effectiveYear, { agentNames: names });
