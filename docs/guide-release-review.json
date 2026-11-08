@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T16:48:04.752Z",
-  "reason": "Reviewed restoration of all Case Detail PDF and Gen All/My Case PDF buttons to original Dashboard and case view; removed Case Detail from report-only Center and updated guide.",
+  "reviewedAt": "2026-11-08T16:52:04.382Z",
+  "reason": "Verified remaining Case Detail export code removed from Report Center without changing restored Case Detail and Gen All/My Case buttons; reviewed guide and syntax fix.",
   "contentChanged": true,
   "reviewedChapters": [
     "dashboard",
@@ -719,6 +719,6 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "33be48e0e54de2b272c04439d24061091e5797655313c83f7a7e5bd7a9b9b3a6"
+    "src/ReportCenterMockup.tsx": "9a6211aaf8ed4a7a45b58937e22f561842a8570512ab6695597bde976777f4ac"
   }
 }
