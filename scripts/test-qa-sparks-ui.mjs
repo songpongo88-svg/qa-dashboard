@@ -1,3 +1,7 @@
+// This regression test intentionally exercises the original Firebase implementation
+// even when the Vercel branch deployment is configured for Supabase read-only preview.
+process.env.SPARKS_DATA_BACKEND = "firebase";
+process.env.SPARKS_CLOUD_READ_ONLY = "0";
 import assert from "node:assert/strict";
 import { readFile, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { resolve } from "node:path";
