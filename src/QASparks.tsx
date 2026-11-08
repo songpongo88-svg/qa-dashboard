@@ -133,13 +133,13 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
         {gamesOpened && view==="games" ? <section className="qa-sparks-games-container" aria-label="Mini Games">
           {gameMode===null
-            ? <SparksMiniGamesGallery onSelect={choice=>{if(choice==="fruit")setGameMode("fruit");}}/>
+            ? <SparksMiniGamesGallery privateSnakes={adminAccess&&username.trim().toLowerCase()==="songpon"} onSelect={choice=>{if(choice==="fruit"||(choice==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon"))setGameMode(choice);}}/>
             : <>
                 <div className="qa-sparks-game-backbar">
                   <button type="button" data-sparks-back-to-games="true" onClick={()=>setGameMode(null)}>‹ กลับไปเลือกเกม</button>
                   <span>{gameMode==="snakes"?"บันไดงู Multiplayer":"Fruit Match"}</span>
                 </div>
-                {gameMode==="fruit" ? <FruitMatchGame key={username+":"+adminSessionId+":fruit"} username={username} sessionId={adminSessionId}/> : null}
+                {gameMode==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon" ? <SnakesLaddersGame key={username+":"+adminSessionId+":snakes"} username={username} sessionId={adminSessionId}/> : gameMode==="fruit" ? <FruitMatchGame key={username+":"+adminSessionId+":fruit"} username={username} sessionId={adminSessionId}/> : null}
               </>}
         </section> : null}
         {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username} balance={account.balance} rewardOrders={account.rewardOrders}/> : null}
