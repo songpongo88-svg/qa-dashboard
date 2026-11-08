@@ -141,7 +141,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const priceLoadedKey = useRef("");
 
   const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price", input: Record<string, unknown> = {}) => {
-    if (action === "list" || action === "history") assertFirestoreReadAllowed();
+    if (import.meta.env?.VITE_SPARKS_DATA_BACKEND !== "supabase" && (action === "list" || action === "history")) assertFirestoreReadAllowed();
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const controller = action === "get-truemoney-price" ? new AbortController() : null;
     const timeout = controller ? window.setTimeout(() => controller.abort(), 25000) : null;
@@ -158,7 +158,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         const error = Object.assign(new Error(String(result.error || "ไม่สามารถโหลดข้อมูล Sparks ได้")), {
           code: String(result.code || ""),
         });
-        noteFirestoreReadError(error);
+        if (import.meta.env?.VITE_SPARKS_DATA_BACKEND !== "supabase") noteFirestoreReadError(error);
         throw error;
       }
       return result;
@@ -207,6 +207,8 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         // making another network read when quota is exhausted.
         const wallets = readCachedBalances(actorUsername);
         try {
+          // A Cloud preview must not show stale Firebase wallet cache as a current Supabase balance.
+          if (import.meta.env?.VITE_SPARKS_DATA_BACKEND === "supabase") throw new Error("Cloud wallet cache disabled");
           const rows = await getDocsFromCache(collection(firebaseDb, "qa_sparks_wallets"));
           rows.docs.forEach((document) => {
             const data = document.data();
@@ -283,6 +285,11 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         return;
       }
       try {
+        if (import.meta.env?.VITE_SPARKS_DATA_BACKEND === "supabase") {
+          // Server-side Admin history uses verified admin privileges and target scope.
+          // Never fall back to a member-scoped cloud wallet request for another username.
+          throw new Error("Cloud Admin history must be loaded from the authenticated Admin API");
+        }
         const account = await getSparksAccount(chosen);
         if (!active) return;
         const history = account.history.map((item) => ({
