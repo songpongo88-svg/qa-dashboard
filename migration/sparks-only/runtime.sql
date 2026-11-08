@@ -107,25 +107,8 @@ BEGIN
         END IF;
      END LOOP;
    END IF;
-   -- Defense in depth: no negative or malformed wallet balances.
-   -- Existing source data and reward state remain read-only until cutover.
    IF v_root = 'qa_sparks_wallets' AND array_length(v_segments,1)=2 AND v_fields ? 'balance'
-       AND COALESCE(v_fields #>> '{balance,integerValue}','') !~ '^[0-9]{1,18}
-   IF v_current.source_path IS NULL THEN
-     INSERT INTO sparks_runtime.documents(source_path,fields,create_time,update_time)
-      VALUES(v_relative,v_fields,v_time,v_time);
-   ELSE
-     UPDATE sparks_runtime.documents SET fields=v_fields,update_time=v_time WHERE source_path=v_relative;
-   END IF;
-   v_count:=v_count+1;
- END LOOP;
- RETURN jsonb_build_object('writeResults',jsonb_build_array(),'committedWrites',v_count);
-END;
-$function$
-
-REVOKE ALL ON FUNCTION sparks_runtime.commit_writes(jsonb) FROM PUBLIC,anon,authenticated;
-COMMIT;
- THEN
+       AND COALESCE(v_fields #>> '{balance,integerValue}','') !~ '^[0-9]{1,18}$' THEN
       RAISE EXCEPTION 'SPARKS_NEGATIVE_OR_INVALID_BALANCE' USING ERRCODE='22023';
    END IF;
    v_time:=to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
