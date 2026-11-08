@@ -143,7 +143,10 @@ export function createAnnouncementShieldService({
   });
  };
  const state=async(actor)=>{
-  await settleOne(actor.username);
+  // A read-only Supabase migration Preview must never execute a renewal:
+  // merely opening My Items cannot debit a wallet or mutate a ledger.
+  if(!(process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1"))
+    await settleOne(actor.username);
   const sub=recordValue(await readDoc(documentFor(actor.username)));
   return {status:sub.status||"none",itemId:sub.itemId||"",purchasedAt:sub.purchasedAt||"",
    activatedAt:sub.activatedAt||"",nextBillingAt:sub.nextBillingAt||"",
