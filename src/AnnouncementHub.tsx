@@ -610,23 +610,28 @@ function AnnouncementWorkspace({
   const [shieldEntitled,setShieldEntitled]=useState(false);
   const [shieldReady,setShieldReady]=useState(false);
   useEffect(()=>{
-    let alive=true;
+    let alive=true,lastCheckedAt=0,requestPending=false;
     setShieldReady(false);setShieldEntitled(false);
-    const update=async()=>{
+    const update=async(force=false)=>{
       if(!currentUsername||!currentUser.sessionId){if(alive)setShieldReady(true);return;}
+      // Avoid a Firestore/auth read on every tab-focus event.
+      if(requestPending||(!force&&Date.now()-lastCheckedAt<5*60_000))return;
+      requestPending=true;lastCheckedAt=Date.now();
       try{
         const response=await fetch("/api/sparks-admin",{method:"POST",headers:{"content-type":"application/json"},cache:"no-store",
           body:JSON.stringify({action:"announcement-shield-state",actorUsername:currentUsername,sessionId:currentUser.sessionId})});
         if(!response.ok)throw new Error("Shield state unavailable");
         const data=await response.json();
         if(alive)setShieldEntitled(data.entitled===true);
-      }catch{if(alive)setShieldEntitled(false);}
-      finally{if(alive)setShieldReady(true);}
+      }catch{if(alive){setShieldEntitled(false);lastCheckedAt=0;}}
+      finally{requestPending=false;if(alive)setShieldReady(true);}
     };
+    const changed=()=>void update(true);
+    const focused=()=>{if(document.visibilityState!=="hidden")void update();};
     void update();
-    window.addEventListener("qa:announcement-shield-changed",update);
-    window.addEventListener("focus",update);
-    return()=>{alive=false;window.removeEventListener("qa:announcement-shield-changed",update);window.removeEventListener("focus",update);};
+    window.addEventListener("qa:announcement-shield-changed",changed);
+    window.addEventListener("focus",focused);
+    return()=>{alive=false;window.removeEventListener("qa:announcement-shield-changed",changed);window.removeEventListener("focus",focused);};
   },[currentUsername,currentUser.sessionId]);
   useEffect(()=>{
     if(shieldEntitled&&popupMessage&&announcementShieldMaySuppress(popupMessage))setPopupMessage(null);
