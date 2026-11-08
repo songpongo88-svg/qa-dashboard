@@ -100,7 +100,7 @@ export async function getSparksAccount(username: string, options: { historyLimit
   if (!String(username || "").trim()) return { ...EMPTY_SPARKS_ACCOUNT, history: [] };
   // Cloud mode is an explicit PREVIEW flag. Production continues to use Firebase
   // until all game/reward write flows, typing gates, and source parity are checked.
-  if (import.meta.env.VITE_SPARKS_DATA_BACKEND === "supabase") {
+  if (import.meta.env?.VITE_SPARKS_DATA_BACKEND === "supabase") {
     if (!options.sessionId) throw new Error("กรุณา Login ใหม่เพื่อยืนยันสิทธิ์ QA Sparks");
     const historyLimit = Math.max(0, Math.min(100, Math.floor(options.historyLimit ?? 100)));
     const response = await fetch("/api/sparks-admin", {
@@ -223,7 +223,7 @@ export async function claimFirstLoginSparks(
   if (!card || !FIRST_LOGIN_REWARDS.some((value) => value === amount)) {
     throw new Error("ข้อมูลการ์ดหรือจำนวน Sparks ไม่ถูกต้อง");
   }
-  if(import.meta.env.VITE_SPARKS_DATA_BACKEND === "supabase"){
+  if(import.meta.env?.VITE_SPARKS_DATA_BACKEND === "supabase"){
     if(!sessionId)throw new Error("กรุณาเข้าสู่ระบบใหม่เพื่อรับ Sparks");
     const response=await fetch("/api/sparks-admin",{
       method:"POST",cache:"no-store",headers:{"content-type":"application/json"},
