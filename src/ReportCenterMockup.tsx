@@ -130,12 +130,12 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
     ["Agents Below KPI", agents.filter(x => x.kpi === "Below 85%").length],
     ["Agents Not Assessed (<10 Cases)", agents.filter(x => x.kpi === "Not assessed").length],
     [],
-    ["TOPIC PERFORMANCE"], ["Topic", "Average (%)", "Cases"],
-    ...topics.map(x => [x.code, Number(x.percent.toFixed(2)), x.cases]),
+    ["TOPIC PERFORMANCE"], ["Topic", "Average (%)", "Visual Bar", "Cases"],
+    ...topics.map(x => [x.code, Number(x.percent.toFixed(2)), "▰".repeat(Math.max(0, Math.min(20, Math.round(x.percent / 5)))), x.cases]),
     [], ["TOP ISSUE TAGS"], ["Tag", "Cases", "Share (%)"],
     ...tags.slice(0,12).map(x => [x.tag, x.cases, Number(x.percent.toFixed(2))]),
   ]);
-  sheet["!cols"] = [{ wch: 38 }, { wch: 28 }, { wch: 26 }, { wch: 26 }];
+  sheet["!cols"] = [{ wch: 38 }, { wch: 28 }, { wch: 32 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(book, sheet, "Dashboard");
   const groups = reportRows(rows, kind === "weekly" ? "week" : kind === "yearly" || kind === "compare" ? "month" : "agent");
   const add = (name: string, records: Record<string, string | number>[], widths: number[]) => {
