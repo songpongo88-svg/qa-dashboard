@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T07:20:00.000Z",
-  "reason": "Throttled announcement subscription entitlement checks to one per five minutes on focus, keeping immediate server updates after activating or cancelling Shield and minimizing Firestore quota usage. Monthly renewals, grace and protected system announcements unchanged.",
+  "reviewedAt": "2026-11-08T07:30:00.000Z",
+  "reason": "Revalidated Announcement Shield monthly renewal regression cases using distinct billing cycles to preserve immutable anti-duplicate charge ID checks. No production subscription payment or expiry logic changed.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks",
@@ -699,6 +699,6 @@
     "server/announcementShieldService.js": "7f05fbc8af80be51f0fef01792192c8c3966808364af52a0996120f11ea45d5e",
     "src/AnnouncementShieldItem.tsx": "370c1f54c517bbd31178babeb678d2691b0996dd0e0d933c6718cfff03cccaf4",
     "src/announcementShield.css": "bacac6466349ae6aa94bd40764c722d2ae00cb3d4760750eb111a959f14954d0",
-    "scripts/test-announcement-shield.mjs": "3d906217c7bf9f8c9a5bbd07d0a3b9ab5f73f8326d41d687bab9f3b1e2b3724d"
+    "scripts/test-announcement-shield.mjs": "d059d67348198a4b1b6807cc1f334c049575baaa7db17dca76fadc4cd42e33ec"
   }
 }
