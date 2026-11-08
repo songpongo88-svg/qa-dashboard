@@ -2604,9 +2604,11 @@ function closeOtherSignatureFilterDropdowns(current: HTMLDetailsElement) {
 export default function SignatureCenterMockup({
   currentUser,
   accounts = [],
+  reportCenter = false,
 }: {
   currentUser: CurrentUser;
   accounts?: UserAccountSnapshot[];
+  reportCenter?: boolean;
 }) {
   const evaluationActivity = useEvaluationActivity();
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
@@ -4953,14 +4955,14 @@ export default function SignatureCenterMockup({
           {selectedEvaluationHold ? <EvaluationActivityUnavailable label={selectedEvaluationHold.label} /> : null}
           <div
             className={`grid items-start gap-5 ${
-              actionSidebarMode === "expanded"
+              !reportCenter ? "grid-cols-1" : actionSidebarMode === "expanded"
                 ? "lg:grid-cols-[200px_minmax(0,1fr)]"
                 : actionSidebarMode === "collapsed"
                   ? "lg:grid-cols-[60px_minmax(0,1fr)]"
                   : "grid-cols-1"
             }`}
           >
-            {actionSidebarMode === "hidden" ? (
+            {!reportCenter ? null : actionSidebarMode === "hidden" ? (
               <div className="order-1 flex justify-start lg:col-span-full">
                 <button
                   type="button"
