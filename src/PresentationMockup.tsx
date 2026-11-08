@@ -530,9 +530,7 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
           </label>
           <label className="text-xs font-semibold text-slate-600">Slide Template
             <select value={template} onChange={event => { setTemplate(event.target.value as TemplateKey); setReportPreviewOpen(false); }} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-              <option value="executive">Executive</option>
-              <option value="coaching">Coaching</option>
-              <option value="performance">Performance</option>
+              {TEMPLATE_OPTIONS.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}
             </select>
           </label>
         </div>
