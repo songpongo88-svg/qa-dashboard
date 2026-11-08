@@ -2,6 +2,7 @@
   "version": "2.0.0",
   "updatedAt": "2026-11-08T16:47:36.670Z",
   "releaseNotes": [
+    "Report Center มี Preview จากข้อมูลจริงก่อน Generate และเพิ่ม By Case; Excel มี Dashboard, Performance, Topic, Tag, Case Detail ในไฟล์เดียว และ PDF เป็น Executive Summary โดยคง Case Detail PDF เดิมใน Dashboard",
     "Report Center เป็นหน้าดึงรายงานสรุป Monthly Weekly Yearly Compare Payment และ QA Slides เท่านั้น; คืนปุ่ม Case Detail PDF และ Gen All/My Case PDF ไปยัง Dashboard และ Case Detail เดิม",
     "T&C Version 1.2: ผู้ใช้งานทุกคนอ่านและยอมรับฉบับใหม่ด้วยตนเองเมื่อกลับมาใช้ระบบ เพิ่มเงื่อนไข QA Sparks, Item, Announcement Shield และการย้ายระบบ โดยเก็บหลักฐานฉบับเดิม การตรวจสถานะอ่านเฉพาะฉบับปัจจุบันและรวมคำขอที่เกิดพร้อมกัน T&C Management โหลดเฉพาะเวอร์ชันที่เลือกและอ่านฉบับเก่าเมื่อสั่ง ไม่มีการไล่แก้ข้อมูลทุกบัญชี ไม่มีการบันทึกซ้ำจากการกดพร้อมกัน และไม่เปลี่ยน Maintenance Mode",
     "QA Sparks Wallet Recovery: แยกการดึงยอดกระเป๋าและประวัติ History ออกจากกัน ถ้า History ไม่พร้อมระบบยังแสดงยอด Sparks จาก wallet ที่อ่านสำเร็จได้พร้อมคำเตือน ไม่แสดงว่าคะแนนหาย; หากเบราว์เซอร์อ่าน wallet ไม่ได้ด้วยสิทธิ์หรือเครือข่าย ให้ลองอ่าน wallet เดิมแบบ read-only ผ่าน /api/sparks-admin ที่ตรวจ Session และเจ้าของกระเป๋า ห้ามสร้างหรือแก้ยอดสำรอง; ถ้าเป็น Firestore quota จำกัดการอ่านให้แจ้งสาเหตุจริงและปุ่มรีเฟรชแทนการยิงซ้ำ",
@@ -2474,29 +2475,29 @@
         "report-center"
       ],
       "permissions": [],
-      "summary": "Report Center สำหรับรายงานสรุป Monthly Weekly Yearly Compare Payment และ QA Slides; Case Detail PDF ใช้จาก Dashboard",
+      "summary": "เลือก Weekly Monthly Yearly Compare และขอบเขต All/Team/Agent/Case จากนั้น Preview รายงานก่อน Generate Excel หรือ PDF; Case Detail PDF เดิมอยู่ใน Dashboard",
       "audience": "ผู้ใช้ตามสิทธิ์ส่งออก",
-      "updatedAt": "2026-09-17T10:14:09.091Z",
+      "updatedAt": "2026-11-09T00:14:00.000Z",
       "steps": [
         {
-          "title": "เปิดเมนู Report Center",
-          "body": "กด Reports → Report Center จากเมนูด้านซ้าย หน้านี้ใช้เลือกไฟล์เท่านั้น ไม่มี Dashboard หรือกราฟ Analytics แทรกอยู่"
+          "title": "เลือกชนิดรายงาน",
+          "body": "ใน Reports → Report Center เลือก Monthly, Weekly, Yearly หรือ Compare แล้วเลือกปี เดือน หรือสัปดาห์จากข้อมูลที่มีสิทธิ์"
         },
         {
-          "title": "เลือกชนิดไฟล์",
-          "body": "เลือก Monthly, Weekly, Yearly หรือ Compare สำหรับผล QA หรือเลือก Payment / Signed และ QA Slides สำหรับไฟล์เฉพาะทาง Case Detail PDF ใช้จากหน้า QA Dashboard ตามเดิม"
+          "title": "เลือกขอบเขต",
+          "body": "เลือก All Agents, By Team, By Agent หรือ By Case ตามสิทธิ์ของผู้ใช้ ข้อมูลในทุก Sheet และทุกหน้า PDF จะจำกัดตามตัวเลือกนั้น"
         },
         {
-          "title": "กำหนดช่วงเวลาและคน",
-          "body": "เลือก Year, Month, Week (กรณี Weekly), All Agents, By Team หรือ By Agent รายงาน Yearly มีแบบ By Agent / 12 Months และ Yearly Team Summary"
+          "title": "Preview ก่อนดาวน์โหลด",
+          "body": "เลือกรูปแบบ Excel หรือ PDF แล้วกด Preview Report; Excel แสดงตัวอย่าง Dashboard, Agent Performance, Topic Performance, Tag Analysis และ Case Detail; PDF แสดงตัวอย่าง Executive Summary พร้อมข้อมูลคะแนนจริง"
         },
         {
-          "title": "เลือกประเภทไฟล์และ Generate",
-          "body": "เลือก PDF หรือ Excel เฉพาะประเภทที่รองรับ ดูจำนวนเคสและคะแนนเฉลี่ยก่อนกด Generate / Download Report หากสถานะข้อมูลหรือสิทธิ์ไม่พร้อม ระบบไม่ควรสร้างรายงานทางการ"
+          "title": "Generate",
+          "body": "เมื่อ Preview ถูกต้องกด Generate Excel หรือ Generate PDF จากหน้าต่าง Preview; ระบบตรวจสอบการประเมินและการเปลี่ยนแปลงของคะแนนอีกครั้งก่อนดาวน์โหลด"
         },
         {
-          "title": "ตรวจสอบเอกสาร",
-          "body": "ตรวจชื่อไฟล์ เดือน/ปี Agent และจำนวนเคสกับข้อมูลต้นทางก่อนใช้งาน การ Export ไม่เปลี่ยนคะแนนเดิมและไม่ลบเคส"
+          "title": "ตรวจไฟล์",
+          "body": "Excel มี Dashboard, Performance Summary, Agent Performance, Topic Performance, Tag Analysis และ Case Detail Raw Data; Yearly มี Sheet สรุป Yearly เดิมประกอบด้วย ส่วน Case Detail PDF ทางการยังคงกดจาก Dashboard ตามเดิม"
         }
       ],
       "result": "ได้เอกสารตรงรอบและครบถ้วน",
