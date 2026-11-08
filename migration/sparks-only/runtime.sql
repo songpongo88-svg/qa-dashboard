@@ -53,6 +53,9 @@ BEGIN
    v_relative:=substring(v_name from 59);
    v_segments:=string_to_array(v_relative,'/');
    v_root:=v_segments[1];
+   IF v_root IN ('qa_typing_challenges','qa_typing_challenge_history') THEN
+     RAISE EXCEPTION 'CROSS_DATABASE_QA_ACCESS_CHECK_BLOCKED' USING ERRCODE='22023';
+   END IF;
    IF v_root NOT IN (
      'qa_sparks_wallets','qa_sparks_true_money_requests','qa_sparks_reward_settings',
      'qa_sparks_special_reward_requests','qa_sparks_special_receipt_evidence','qa_sparks_special_receipt_locks',
