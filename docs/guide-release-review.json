@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T14:23:02.662Z",
-  "reason": "Reviewed complete Sparks transaction read-set validation, separate Firebase QA steps, server source census and expiring import tooling; member actions and terms unchanged",
+  "reviewedAt": "2026-11-08T14:24:05.141Z",
+  "reason": "Reviewed QA Sparks cloud migration PREVIEW only; production routes and user-facing guide remain unchanged until explicit cutover",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
