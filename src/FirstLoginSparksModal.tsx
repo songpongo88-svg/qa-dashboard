@@ -16,7 +16,7 @@ const FRUIT_PHOTOS = [
   "https://images.unsplash.com/photo-1528825871115-3581a5387919?w=360&h=330&fit=crop&auto=format&q=85",
   "https://images.unsplash.com/photo-1629828874514-c1e5103f0550?w=360&h=330&fit=crop&auto=format&q=85"
 ];
-export default function FirstLoginSparksModal({ username }: { username: string }) {
+export default function FirstLoginSparksModal({ username,sessionId="" }: { username: string; sessionId?: string }) {
   const [status, setStatus] = useState<ModalStatus>("checking");
   const [selected, setSelected] = useState<string>("");
   const [prize, setPrize] = useState<FirstLoginPrize | null>(null);
@@ -31,7 +31,7 @@ export default function FirstLoginSparksModal({ username }: { username: string }
     setPrize(null);
     setAmounts(randomPrizeValues());
     if (!username) return;
-    getSparksAccount(username, { historyLimit: 0 }).then((account) => {
+    getSparksAccount(username, { historyLimit: 0,sessionId }).then((account) => {
       if (active) setStatus(account.firstLogin ? "hidden" : "ready");
     }).catch((reason) => {
       console.warn("Unable to verify Sparks first-login eligibility", reason);
@@ -39,7 +39,7 @@ export default function FirstLoginSparksModal({ username }: { username: string }
       if (active) setStatus("hidden");
     });
     return () => { active = false; };
-  }, [username]);
+  }, [username,sessionId]);
 
   useEffect(() => {
     if (status !== "ready" && status !== "claiming" && status !== "revealed") return;
@@ -56,7 +56,7 @@ export default function FirstLoginSparksModal({ username }: { username: string }
     setStatus("claiming");
     setError("");
     try {
-      const received = await claimFirstLoginSparks(username, card, amounts[index]);
+      const received = await claimFirstLoginSparks(username, card, amounts[index],sessionId);
       setSelected(received.cardId);
       setPrize(received);
       setStatus("revealed");
