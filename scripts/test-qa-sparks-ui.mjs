@@ -123,12 +123,13 @@ try{
   const lotteryQuest=main.querySelector('[data-quest-item="qa-lottery"]');
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
-  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,6, "Reward Center includes two existing and four new brand rewards");
+  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,7, "Reward Center includes Announcement Shield, two existing and four brand rewards");
+  assert.ok(main.querySelector('[data-reward-item="announcement-shield"]'),"Announcement Shield 50 Sparks subscription appears in Reward Center");
   for (const id of ["punthai-65","netflix-1m","amazon-55","seven-100"]) assert.ok(main.querySelector(`[data-reward-item="${id}"]`), "new reward "+id+" renders in the compact grid");
   const displayedOrder=[...main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item")]
     .sort((a,b)=>Number(a.style.order)-Number(b.style.order))
     .map(item=>item.dataset.rewardItem);
-  assert.deepEqual(displayedOrder,["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","typing-relief"],
+  assert.deepEqual(displayedOrder,["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","typing-relief","announcement-shield"],
     "Reward Center must display all six rewards from most Sparks to least, including TrueMoney's displayed price");
   await act(async()=>main.querySelector('[data-reward-item="punthai-65"]').dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const punthaiPopup=document.querySelector(".sr-modal");
