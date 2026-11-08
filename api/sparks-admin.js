@@ -4,6 +4,7 @@ import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
+import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -1297,6 +1298,8 @@ const snakes=createSnakesService({firestoreRequest,readDoc,recordValue,path,upda
   findProfileByUsername,isSuspendedProfile});
 const hiddenTreasure=createHiddenTreasureService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
+const announcementShield=createAnnouncementShieldService({firestoreRequest,readDoc,recordValue,path,
+  updateWrite,createWrite,listCollection,walletDocumentPath,spendableBalance,currentMemberYear});
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -1305,8 +1308,12 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const expected = String(process.env.CRON_SECRET || "").trim();
     if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
-    try {return res.status(200).json(await qaLottery.settle());}
-    catch(e){console.error("QA Lottery cron failed:",String(e?.message||"Unknown"));return res.status(Number(e?.status)||503).json({error:"QA Lottery automatic settlement unavailable"});}
+    const [lottery,shield]=await Promise.allSettled([qaLottery.settle(),announcementShield.sweep()]);
+    if(lottery.status==="rejected")console.error("QA Lottery cron failed:",String(lottery.reason?.message||lottery.reason));
+    if(shield.status==="rejected")console.error("Announcement Shield renewal cron failed:",String(shield.reason?.message||shield.reason));
+    if(lottery.status==="rejected"&&shield.status==="rejected")return res.status(503).json({error:"Automatic settlement unavailable"});
+    return res.status(200).json({lottery:lottery.status==="fulfilled"?lottery.value:{error:"Lottery settlement failed"},
+      announcementShield:shield.status==="fulfilled"?shield.value:{error:"Subscription settlement failed"}});
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
@@ -1340,6 +1347,14 @@ export default async function handler(req, res) {
         :action==="special-rewards-receipt-scan"?await qaSpecialRewards.scanReceipt(body,actor)
         :await qaSpecialRewards.submit(body,actor);
       return res.status(200).json(data);
+    }
+    if (["announcement-shield-state","announcement-shield-buy","announcement-shield-activate","announcement-shield-cancel"].includes(body.action)) {
+      const actor=await authorizeRewardUser(body);
+      const result=body.action==="announcement-shield-state"?await announcementShield.state(actor)
+        :body.action==="announcement-shield-buy"?await announcementShield.purchase(actor)
+        :body.action==="announcement-shield-activate"?await announcementShield.activate(actor)
+        :await announcementShield.cancel(actor);
+      return res.status(200).json(result);
     }
     if (["treasure-state","treasure-start","treasure-find","treasure-open"].includes(body.action)) {
       const actor=await authorizeRewardUser(body);
