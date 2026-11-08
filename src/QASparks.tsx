@@ -16,7 +16,6 @@ import SpecialRewardCenter from "./SpecialRewardCenter";
 import LotteryTicketInventory from "./LotteryTicketInventory";
 import { sparksCalendarYear } from "./qaSparksMemberLevels";
 import MemberJourney, { SparksWalletSummary } from "./SparksMembership";
-import SparksCloudStatus from "./SparksCloudStatus";
 
 type SparksView = "overview" | "quests" | "games" | "rewards" | "items" | "history" | "admin";
 type SparksIconName = "spark" | "gift" | "clock" | "grid" | "receipt" | "crown" | "calendar" | "package";
@@ -127,7 +126,6 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
       <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div></header>
-      <SparksCloudStatus adminAccess={adminAccess}/>
       <section className="qa-sparks-hero qa-sparks-hero--membership">
         <div className="qa-sparks-hero-copy">
           <div className="qa-sparks-eyebrow">MY REWARDS</div><h2>My QA Sparks</h2>
