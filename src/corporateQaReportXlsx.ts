@@ -184,7 +184,7 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
     const topicSheet=book.Sheets["Topic Performance"];
     const tagSheet=book.Sheets["Tag Analysis"];
     const topicData=(topicSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(topicSheet):[]).slice(0,6)
-      .map(row=>({label:String(row.Topic || "").replace(/\\s*\\([^)]*\\)/g,""),amount:Number(row["Average %"] || 0)})).filter(x=>Number.isFinite(x.amount));
+      .map(row=>({label:String(row.Topic || ""),amount:Number(row["Average %"] || 0)})).filter(x=>Number.isFinite(x.amount));
     const tagData=(tagSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(tagSheet):[]).slice(0,7)
       .map(row=>({label:String(row.Tag || ""),amount:Number(row["Cases Affected"] || 0)})).filter(x=>Number.isFinite(x.amount));
     const [topicImage,tagImage]=await Promise.all([
