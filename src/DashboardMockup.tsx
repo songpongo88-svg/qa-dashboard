@@ -5063,7 +5063,7 @@ function CaseDetailContent({
                 {readOnly ? <span className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">ข้อมูลสำรอง · ดูอย่างเดียว</span> : null}
                 {hasAppealCase && !readOnly ? <CaseHeaderAction label="Open Appeal" tooltip="เปิดรายละเอียดเคสอุทธรณ์" icon="appeal" tone="violet" onClick={() => onOpenAppealCase?.(caseItem.caseId, caseItem.agent)} /> : null}
                 <CaseHeaderAction label="Share Link" tooltip={shareCopied ? "คัดลอกลิงก์แล้ว" : "แชร์ลิงก์รายละเอียดเคส"} icon="share" tone="violet" onClick={() => { onShareCaseDetail?.(caseItem.caseId, caseItem.agent); setShareCopied(true); window.setTimeout(() => setShareCopied(false), 3000); }} />
-                {reportCenter ? <CaseHeaderAction label={`Case Detail PDF - ${caseItem.caseId}`} tooltip={`ดาวน์โหลดรายงาน ${caseItem.caseId} (PDF)`} icon="pdf" tone="amber" disabled={readOnly} onClick={() => handleGenerateCaseDetailPdf("original")} /> : null}
+                <CaseHeaderAction label={`Case Detail PDF - ${caseItem.caseId}`} tooltip={`ดาวน์โหลดรายงาน ${caseItem.caseId} (PDF)`} icon="pdf" tone="amber" disabled={readOnly} onClick={() => handleGenerateCaseDetailPdf("original")} />
                 {!readOnly && !monthlyResult.locked && shouldShowAppealActionV32 ? <CaseAppealHeaderAction
                   key={`${caseItem.caseId}:${caseItem.agent}`}
                   label={appealActionLabelV32} detail={appealActionTooltipV32} countdown={appealActionCountdownV32}
@@ -9088,7 +9088,7 @@ export default function DashboardMockup({
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        {reportCenter && qaCanGenerateAllCasePdf && (isWeeklyCasePdfView || (isMonthlyView && selectedMonthKey !== "all")) ? (
+                        {qaCanGenerateAllCasePdf && (isWeeklyCasePdfView || (isMonthlyView && selectedMonthKey !== "all")) ? (
                           <>
                             <button
                               type="button"
