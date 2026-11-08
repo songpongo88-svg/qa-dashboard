@@ -10354,6 +10354,7 @@ export default function SummaryMockup({
                   team={yearlyTeam === "all" ? "All Teams" : yearlyTeam}
                   agent={effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent}
                   canExport={analyticsCanExport && reportCenter}
+                  showExport={reportCenter}
                   exporting={yearlyAgentMonthlyExporting}
                   onExportExcel={() => { void exportYearlyAgentMonthlyExcel(); }}
                   onExportPdf={() => { void exportYearlyAgentMonthlyPdf(); }}
