@@ -58,7 +58,7 @@ export default function AnnouncementShieldItem({username,sessionId,balance,mode,
  const shelf:Shelf=sub.status==="unused"?"available":isProcessing(sub)?"processing":"history";
  if(mode==="inventory"&&(!ready||sub.status==="none"||shelf!==inventoryFilter))return null;
  return <>
-   <button type="button" data-announcement-shield-item={mode} className="qa-sparks-mini-item qa-shield-tile"
+   <button type="button" data-announcement-shield-item={mode} data-reward-item={mode==="reward"?"announcement-shield":undefined} className="qa-sparks-mini-item qa-shield-tile"
      style={mode==="reward"?{order:-50}:undefined} onClick={()=>{setOpen(true);setError("");setConfirm("");}}>
      <span className="qa-sparks-mini-art qa-shield-tile-art"><ShieldIcon/><span className="qa-sparks-mini-corner">{mode==="reward"?"50":"×1"}</span></span>
      <strong className="qa-sparks-mini-name">Announcement Shield</strong>
