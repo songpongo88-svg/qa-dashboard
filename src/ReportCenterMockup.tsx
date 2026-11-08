@@ -383,8 +383,73 @@ export default function ReportCenterMockup({
           <p className="mt-2 text-center text-xs text-slate-500">ตรวจสอบหน้ารายงานก่อน Generate PDF / Excel</p>
           {!canExport ? <p className="mt-2 text-center text-xs text-amber-700">บัญชีนี้ไม่มีสิทธิ์ Export รายงาน</p> : null}
           </> : <div className="mt-6">{kind === "payment" ? paymentContent : slidesContent}</div>}
+
         </section>
       </div>
+      {previewOpen && !specialized ? (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/70 p-2 sm:p-5" onMouseDown={e => { if (e.currentTarget === e.target && !busy) setPreviewOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-label="Report Preview" className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <div><p className="text-xs font-semibold uppercase tracking-wider text-violet-700">PREVIEW · {format === "xlsx" ? "EXCEL REPORT" : "PDF SUMMARY"}</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-950">{selectedKind.name} · {selectedPeriod}</h2>
+                <p className="mt-1 text-xs text-slate-500">{scopeLabel} · {selectedCases.length} Cases · Average {totals.average === null ? "-" : totals.average.toFixed(2)}</p>
+              </div>
+              <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold" onClick={() => setPreviewOpen(false)} disabled={busy} aria-label="Close preview">Close ×</button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-3 sm:p-6">
+              <div className="mx-auto max-w-5xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                {format === "xlsx" ? (
+                  <nav aria-label="Preview Excel sheets" className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 px-3 pt-3">
+                    {([{ id: "dashboard", label: "Dashboard" }, { id: "agents", label: "Agent Performance" }, { id: "topics", label: "Topic Performance" }, { id: "tags", label: "Tag Analysis" }, { id: "cases", label: "Case Detail" }] as const).map(page => (
+                      <button key={page.id} type="button" aria-pressed={previewPage === page.id} onClick={() => setPreviewPage(page.id)} className={`rounded-t-lg border px-3 py-2 text-xs font-semibold ${previewPage === page.id ? "border-slate-200 border-b-white bg-white text-violet-700" : "border-transparent text-slate-500 hover:bg-white"}`}>{page.label}</button>
+                    ))}
+                  </nav>
+                ) : <div className="h-2 bg-violet-800" />}
+                <div className="min-h-[300px] p-4 sm:p-6">
+                  {format === "pdf" || previewPage === "dashboard" ? (
+                    <div className="space-y-5">
+                      <div className="rounded-lg bg-violet-950 px-5 py-4 text-white">
+                        <p className="text-[11px] font-semibold tracking-widest text-violet-200">QUALITY ASSURANCE · {format === "pdf" ? "EXECUTIVE REPORT" : "EXCEL DASHBOARD"}</p>
+                        <h3 className="mt-1 text-xl font-bold">{selectedKind.name} QA Performance</h3>
+                        <p className="mt-1 text-xs text-violet-100">{selectedPeriod} · {scopeLabel}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {([{name:"Average Score",value:totals.average?.toFixed(2) || "-"},{name:"Total Cases",value:totals.count},{name:"Agents",value:agentRows(selectedCases).length},{name:"KPI Target",value:"85%"}] as const).map(metric => (
+                          <div key={metric.name} className="rounded-lg border border-slate-200 bg-slate-50 p-3"><p className="text-[11px] text-slate-500">{metric.name}</p><p className="mt-1 text-xl font-bold text-slate-900">{metric.value}</p></div>
+                        ))}
+                      </div>
+                      <div><h4 className="mb-3 text-sm font-bold text-slate-800">Topic Performance</h4>
+                        {topicRows(selectedCases).map(t => <div className="mb-2 grid grid-cols-[70px_1fr_65px] items-center gap-3 text-xs" key={t.code}><span>{t.code}</span><div className="h-3 rounded bg-slate-100"><div className="h-3 rounded bg-violet-600" style={{width:Math.max(0,Math.min(100,t.percent))+"%"}} /></div><b className="text-right">{t.percent.toFixed(1)}%</b></div>)}
+                        {!topicRows(selectedCases).length ? <p className="text-xs text-slate-500">ไม่พบข้อมูล Topic สำหรับเคสที่เลือก</p> : null}
+                      </div>
+                      {kind === "yearly" || kind === "compare" ? <div className="space-y-2"><h4 className="text-sm font-bold">Period Comparison</h4><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{reportRows(selectedCases,"month").map(x => <div key={x.label} className="rounded-lg bg-slate-50 p-3 text-xs"><b>{x.label}</b><p>{x.count} Cases</p><p>Avg {x.average?.toFixed(2) || "-"}</p></div>)}</div></div> : null}
+                      {format === "pdf" ? <><h4 className="text-sm font-bold">Agent Performance Summary</h4>
+                        <div className="divide-y divide-slate-100">{agentRows(selectedCases).slice(0,12).map(x => <div key={x.name} className="flex flex-wrap justify-between gap-2 py-2 text-xs"><span>{x.name}</span><span>{x.count} Cases · Avg {x.average?.toFixed(2) || "-"} · {x.kpi}</span></div>)}</div>
+                        <h4 className="text-sm font-bold">Top Issue Tags</h4><p className="text-xs text-slate-600">{tagRows(selectedCases).slice(0,7).map(x => x.tag+" ("+x.cases+")").join(" · ") || "No tags"}</p></> : null}
+                    </div>
+                  ) : previewPage === "agents" ? (
+                    <div><h3 className="mb-4 text-base font-bold">Agent Performance</h3><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead className="bg-violet-50"><tr>{["Agent","Team","Cases","Average","KPI"].map(t => <th key={t} className="p-3">{t}</th>)}</tr></thead><tbody>{agentRows(selectedCases).map(x => <tr key={x.name} className="border-b"><td className="p-3">{x.name}</td><td className="p-3">{x.team}</td><td className="p-3">{x.count}</td><td className="p-3">{x.average?.toFixed(2) || "-"}</td><td className="p-3">{x.kpi}</td></tr>)}</tbody></table></div></div>
+                  ) : previewPage === "topics" ? (
+                    <div><h3 className="mb-4 text-base font-bold">Topic Performance</h3><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-violet-50"><tr>{["Topic","Average Score","Max","Average %","Cases"].map(t => <th className="p-3" key={t}>{t}</th>)}</tr></thead><tbody>{topicRows(selectedCases).map(x => <tr className="border-b" key={x.code}><td className="p-3">{x.code}</td><td className="p-3">{x.average.toFixed(2)}</td><td className="p-3">{x.max.toFixed(2)}</td><td className="p-3">{x.percent.toFixed(2)}%</td><td className="p-3">{x.cases}</td></tr>)}</tbody></table></div></div>
+                  ) : previewPage === "tags" ? (
+                    <div><h3 className="mb-4 text-base font-bold">Tag Analysis</h3><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-violet-50"><tr><th className="p-3">Tag</th><th className="p-3">Cases</th><th className="p-3">Share of Cases</th></tr></thead><tbody>{tagRows(selectedCases).map(x => <tr className="border-b" key={x.tag}><td className="p-3">{x.tag}</td><td className="p-3">{x.cases}</td><td className="p-3">{x.percent.toFixed(2)}%</td></tr>)}</tbody></table></div></div>
+                  ) : (
+                    <div><h3 className="text-base font-bold">Case Detail · Raw Data</h3><p className="my-2 text-xs text-slate-500">ตัวอย่าง 20 เคสแรก · ไฟล์ Excel จะมีทุกเคส รวม Topic, Tag และผลอุทธรณ์ตามข้อมูลจริง</p><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-xs"><thead className="bg-violet-50"><tr>{["Case ID","Agent","Audit Date","Intent","Score","Status"].map(t => <th key={t} className="p-3">{t}</th>)}</tr></thead><tbody>{selectedCases.slice(0,20).map(x => <tr className="border-b" key={x.caseId}><td className="p-3">{x.caseId}</td><td className="p-3">{rowAgent(x)}</td><td className="p-3">{x.auditDate}</td><td className="p-3">{x.inquiryTh || x.inquiryEn}</td><td className="p-3">{rowScore(x).toFixed(2)}</td><td className="p-3">{x.reviewStatus}</td></tr>)}</tbody></table></div></div>
+                  )}
+                </div>
+              </div>
+              <p className="mx-auto mt-3 max-w-5xl text-xs text-slate-600">Preview แสดงข้อมูลจริงตามตัวกรองที่เลือก · รูปแบบตัวอย่างบนหน้าจออาจแตกต่างจากการจัดหน้าส่งออกจริง</p>
+            </div>
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4">
+              <span className="text-xs text-slate-500">{selectedCases.length} Cases · {format === "xlsx" ? "Dashboard + 5 Data Sheets" : "Executive Summary"}</span>
+              <div className="flex gap-2">
+                <button type="button" disabled={busy} onClick={() => setPreviewOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">แก้ไขตัวเลือก</button>
+                <button type="button" disabled={busy} onClick={() => void handleGenerate()} className="rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40">{busy ? "กำลังสร้างรายงาน…" : `Generate ${format === "xlsx" ? "Excel" : "PDF"}`}</button>
+              </div>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
