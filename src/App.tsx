@@ -7879,6 +7879,12 @@ export default function App() {
           </div>
         ) : null}
 
+        <HiddenTreasure username={currentUser.username} sessionId={currentUser.sessionId||""}
+          caseId={activeTab==="dashboard"&&(dashboardSubTab==="case-detail"||isCaseWorkspaceTabKey(activeWorkspaceTab))
+            ? selectedDashboardCaseId||"" :activeTab==="rubric"&&rubricAllowed?"QA-RUBRIC"
+            :activeTab==="coaching"&&coachingAllowed?"QA-COACHING":""}
+          active={Boolean((activeTab==="dashboard"&&(dashboardSubTab==="case-detail"||isCaseWorkspaceTabKey(activeWorkspaceTab))&&selectedDashboardCaseId)
+            ||(activeTab==="rubric"&&rubricAllowed)||(activeTab==="coaching"&&coachingAllowed))}/>
         <WorkspaceKeepAlive activeKey={activeTab} retainedKeys={retainedWorkspaceAppTabs}>
           {activeTab === "user-guide" ? (
             <UserGuide user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} />
@@ -7890,9 +7896,6 @@ export default function App() {
             <QASparks active={activeTab === "qa-sparks"} username={currentUser.username} displayName={currentUser.displayName || currentUser.username} adminAccess={canAccessUserRoleAdmin(currentUser)} adminSessionId={currentUser.sessionId || ""} />
           ) : activeTab === "dashboard" ? (
             <>
-              <HiddenTreasure username={currentUser.username} sessionId={currentUser.sessionId||""}
-                caseId={selectedDashboardCaseId||""}
-                active={Boolean((dashboardSubTab==="case-detail"||isCaseWorkspaceTabKey(activeWorkspaceTab))&&selectedDashboardCaseId)} />
               <DashboardMockup
               currentUser={currentUser}
               caseAgentDirectory={caseAgentDirectory}
