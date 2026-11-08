@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./sparksCloudStatus.css";
 
 type CloudName = "firebase" | "supabase" | "unknown";
