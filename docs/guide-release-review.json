@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T11:31:39.902Z",
+  "reviewedAt": "2026-11-08T11:44:59.309Z",
   "reason": "Reviewed QA Sparks cloud migration PREVIEW only; production routes and user-facing guide remain unchanged until explicit cutover",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -403,7 +403,7 @@
     "scripts/test-weekday-ui.mjs": "0eb3d61f10a30b428fc9976fcc57512ee90555227c6d8bea671d539f077e2375",
     "scripts/test-workflow-status-labels.mjs": "f76a5b37ab971fb1c3fd7c5b567d20495bc1679311889ed2007c525dee688eb9",
     "scripts/test-yearly-team-summary.mjs": "e20e4296d6f7fc7456309eea751d3519a327861c66468302ac82ece5ec18d03d",
-    "server/announcementShieldService.js": "7f05fbc8af80be51f0fef01792192c8c3966808364af52a0996120f11ea45d5e",
+    "server/announcementShieldService.js": "50ea4ffbcc34a8ee1d6d0906275b258531df2b3311ed903f8e1b86cad175c184",
     "server/fruitMatchService.js": "0287fdb714a466dc8ce79b8c08316923a040a376c1cd93768cf8fdf509f9743a",
     "server/hiddenTreasureService.js": "73dc24a5438a24a090011d744f1e39d7cc6946d8cd0cecbf9f10c50bbe70eee3",
     "server/qaLotteryService.js": "b60bf4e725c9fc287b8430596c1a6651e7c5ccc54fa6b779666396e154c47973",
