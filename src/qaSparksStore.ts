@@ -103,13 +103,32 @@ export async function getSparksAccount(username: string, options: { historyLimit
   if (import.meta.env?.VITE_SPARKS_DATA_BACKEND === "supabase") {
     if (!options.sessionId) throw new Error("กรุณา Login ใหม่เพื่อยืนยันสิทธิ์ QA Sparks");
     const historyLimit = Math.max(0, Math.min(100, Math.floor(options.historyLimit ?? 100)));
+    // Same-tab read grant is issued only by the server after a real QA session
+    // verification. It cannot be used for games, redemptions or Sparks writes.
+    const grantStorageKey = "qa:sparks:verified-read-grant:v1";
+    let storedGrant = "";
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(grantStorageKey) || "null");
+      if (saved?.username === username.trim().toLowerCase()
+          && saved?.sessionId === options.sessionId) storedGrant = String(saved.grant || "");
+    } catch { /* Storage may be unavailable; ordinary verification still works. */ }
     const response = await fetch("/api/sparks-admin", {
       method:"POST",cache:"no-store",headers:{"content-type":"application/json"},
-      body:JSON.stringify({action:"sparks-cloud-wallet",actorUsername:username,sessionId:options.sessionId,historyLimit}),
+      body:JSON.stringify({action:"sparks-cloud-wallet",actorUsername:username,sessionId:options.sessionId,historyLimit,
+        ...(storedGrant ? {readGrant:storedGrant} : {})}),
     });
     const snapshot = await response.json().catch(()=>({}));
     if (!response.ok || !snapshot.ok || !snapshot.wallet) {
+      if (response.status === 403) try { sessionStorage.removeItem(grantStorageKey); } catch {}
       throw new Error(String(snapshot.error || "โหลดบัญชี QA Sparks จาก Supabase ไม่สำเร็จ"));
+    }
+    if (typeof snapshot.readGrant === "string" && snapshot.readGrant.length > 30) {
+      try {
+        sessionStorage.setItem(grantStorageKey, JSON.stringify({
+          username: username.trim().toLowerCase(), sessionId: options.sessionId,
+          grant: snapshot.readGrant,
+        }));
+      } catch { /* An unavailable session storage must not prevent reading. */ }
     }
     const data = snapshot.wallet as Record<string,any>;
     const rows = Array.isArray(snapshot.history) ? snapshot.history : [];
