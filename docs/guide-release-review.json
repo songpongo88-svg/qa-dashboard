@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-09T04:42:22.756Z",
-  "reason": "Reviewed QA Dashboard floating Evaluation ID search modal and inline clear, removed Dashboard Compare entry (Report Center retains comparison), and verified Corporate Excel layout review. No evaluation scores or stored records modified.",
-  "contentChanged": true,
+  "reviewedAt": "2026-11-09T05:55:00.000Z",
+  "reason": "Reviewed build plugin compatibility after removing Dashboard-only Compare controls. Existing standalone Report Center comparison remains; floating Evaluation ID search and QA data unchanged.",
+  "contentChanged": false,
   "reviewedChapters": [
-    "exports",
     "dashboard",
+    "exports",
     "case-detail"
   ],
   "termsVersions": {
@@ -46,7 +46,7 @@
     "build/analyticsCompareSequentialDifferencesPatch.js": "f8a9b6a978eca97f4ec87c8fdd46fdd88d198d12e1ba5658fc1eb82267ef40ce",
     "build/analyticsCompareSinglePeriodPdfParityPatch.js": "5c0c3db88302b4f5e3211092246c8675ded9f25b5b199eb4ca22bad94c217adc",
     "build/analyticsCompareTopicReportPatch.js": "0524c4bcdf04fd976350e2421287a6bb4c295d0d3e0524d9162d2a8c912203f7",
-    "build/analyticsCompareUiRedesignPatch.js": "b669ef8c1675ecf3e99baf02c4172bcd483ea9e95b4d307ea16ae39db2cc725c",
+    "build/analyticsCompareUiRedesignPatch.js": "23848647a62bc708edc82b546b8f75d082c45e38676fe5932d7f6d23c8d31f42",
     "build/analyticsIntentScoreDriverSummaryPatch.js": "0e597d73fad545036e233acf40ab4a33d66af7a6dd4bd6da04d055482937d384",
     "build/analyticsScoreDriversPatch.js": "070ccc4dc9ccd9d7cd745b768479cf3bb26b13709006f9beef32f265f81d79db",
     "build/analyticsScoreDriversSummaryPatch.js": "be3e079ea61ea80d0ce8a11cc250426fc78e4a058f6f62297b4e363b00eec106",
