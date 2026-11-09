@@ -6280,7 +6280,6 @@ export default function DashboardMockup({
   const [currentPeriodNotice, setCurrentPeriodNotice] = useState("");
   const [appealMergeCount, setAppealMergeCount] = useState(() => initialDashboardCache?.appealMergeCount || 0);
   const [overviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
-  const [dashboardSearchTarget, setDashboardSearchTarget] = useState<HTMLElement | null>(null);
   const [selectedTopicCode, setSelectedTopicCode] = useState("");
   const [analyticsTrendMode, setAnalyticsTrendMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
 
@@ -6291,26 +6290,6 @@ export default function DashboardMockup({
   }, [allCases, isLoading, loadError, onEffectiveCasesChange]);
 
   const [slideOverOpen, setSlideOverOpen] = useState(false);
-
-  useEffect(() => {
-    if (!canViewAnalytics || !analyticsContent) {
-      setDashboardSearchTarget(null);
-      return;
-    }
-
-    let frameId = 0;
-    const resolveTarget = () => {
-      const target = document.getElementById("qa-dashboard-search-slot-v166");
-      if (target) {
-        setDashboardSearchTarget(target);
-        return;
-      }
-      frameId = window.requestAnimationFrame(resolveTarget);
-    };
-
-    resolveTarget();
-    return () => window.cancelAnimationFrame(frameId);
-  }, [analyticsContent, canViewAnalytics, isLoading]);
 
 
   function closeCaseDetail() {
