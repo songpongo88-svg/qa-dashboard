@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reviewedAt": "2026-11-09T04:42:22.756Z",
-  "reason": "Reviewed final QA Corporate Excel and Live Preview: Thai-only Topic labels single line, proper sheet columns/merges, native horizontal charts with readable tags, two-decimal numeric and percentage styles, no empty team or duplicated footer, preserved canonical case scores.",
+  "reason": "Reviewed QA Dashboard floating Evaluation ID search modal and inline clear, removed Dashboard Compare entry (Report Center retains comparison), and verified Corporate Excel layout review. No evaluation scores or stored records modified.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
