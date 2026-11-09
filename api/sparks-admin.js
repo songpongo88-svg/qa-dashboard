@@ -7,6 +7,7 @@ import { createHiddenTreasureService } from "../server/hiddenTreasureService.js"
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
 import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
+import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -1504,10 +1505,30 @@ export default async function handler(req, res) {
     }
     if (body.action==="sparks-cloud-wallet"||body.action==="sparks-cloud-first-login") {
       if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("Sparks Cloud backend has not been enabled",409);
-      const actor=await authorizeRewardUser(body);
+      // Only wallet READ may use a recent proof of a previously verified QA
+      // session, and only when Firestore explicitly reports quota exhaustion.
+      // No read grant is accepted for prizes, deductions, games or admin actions.
+      let actor;
+      let quotaReadFallback=false;
+      try {
+        actor=await authorizeRewardUser(body);
+      } catch (error) {
+        if (body.action!=="sparks-cloud-wallet" || Number(error?.status)!==429
+            || !verifySparksReadGrant(body.readGrant, body.actorUsername, body.sessionId)) throw error;
+        actor={username:safeUsername(body.actorUsername),displayName:safeUsername(body.actorUsername)};
+        quotaReadFallback=true;
+      }
       const result=body.action==="sparks-cloud-wallet"
         ?await readSparksWalletForCloud(actor,body)
         :await claimSparksFirstLoginCloud(actor,body);
+      if (body.action==="sparks-cloud-wallet") {
+        // Never refresh the grant during quota fallback; it expires 15 minutes
+        // after an actual Firestore session verification.
+        return res.status(200).json({
+          ...result, quotaReadFallback,
+          ...(!quotaReadFallback ? {readGrant:issueSparksReadGrant(actor.username,body.sessionId)} : {}),
+        });
+      }
       return res.status(200).json(result);
     }
     if (body.action==="sparks-wallet-recovery") {
