@@ -154,36 +154,38 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
 }
 const LOGO_IMAGE_PATH = "/robinhood-logo.png";
 
-type PreviewBar = { label:string; amount:number };
-function renderChart(title:string, data:PreviewBar[], maximum:number):Promise<ArrayBuffer> {
-  const canvas=document.createElement("canvas");
-  canvas.width=900;canvas.height=450;
-  const ctx=canvas.getContext("2d");
-  if(!ctx)return Promise.resolve(new ArrayBuffer(0));
-  ctx.fillStyle="#FFFFFF";ctx.fillRect(0,0,900,450);
-  ctx.fillStyle="#28123B";ctx.font='bold 30px "Kanit", Arial, sans-serif';
-  ctx.fillText(title,30,47);
-  const plotWidth=415, labelWidth=340, ystart=90;
-  const count=Math.min(7,data.length);
-  if(!count){ctx.font='22px "Kanit", Arial, sans-serif';ctx.fillText("No evaluated data",40,150);}
-  for(let i=0;i<count;i++){
-    const row=data[i];const y=ystart+i*49;
-    ctx.fillStyle="#4B365A";ctx.font='18px "Kanit", Arial, sans-serif';
-    const name=row.label.length>38?row.label.slice(0,37)+"…":row.label;
-    ctx.fillText(name,25,y+21,315);
-    ctx.fillStyle="#EDE5F1";ctx.fillRect(labelWidth,y,plotWidth,24);
-    ctx.fillStyle=i===0?"#76308B":i%2?"#9B60A7":"#B389C3";
-    ctx.fillRect(labelWidth,y,Math.max(0,Math.min(1,row.amount/maximum))*plotWidth,24);
-    ctx.fillStyle="#28123B";ctx.font='bold 22px Arial, sans-serif';
-    ctx.fillText(row.amount.toFixed(1)+(maximum===100?"%":""),labelWidth+plotWidth+12,y+20);
-  }
-  return new Promise(resolve=>canvas.toBlob(async blob=>resolve(blob?await blob.arrayBuffer():new ArrayBuffer(0)),"image/png"));
+
+type ChartPoint = { label: string; amount: number };
+const escapeXml = (value:string) => value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function makeNativeChart(title:string,items:ChartPoint[],categoryFormula:string,valueFormula:string,axis:number) {
+  const labels=items.map((item,i)=>`<c:pt idx="${i}"><c:v>${escapeXml(item.label)}</c:v></c:pt>`).join("");
+  const values=items.map((item,i)=>`<c:pt idx="${i}"><c:v>${item.amount}</c:v></c:pt>`).join("");
+  const ax1=axis,ax2=axis+1;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+<c:lang val="th-TH"/><c:roundedCorners val="0"/>
+<c:chart><c:plotArea><c:layout/>
+<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>
+<c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>${escapeXml(title)}</c:v></c:tx>
+<c:spPr><a:solidFill><a:srgbClr val="76308B"/></a:solidFill></c:spPr>
+<c:cat><c:strRef><c:f>${escapeXml(categoryFormula)}</c:f><c:strCache><c:ptCount val="${items.length}"/>${labels}</c:strCache></c:strRef></c:cat>
+<c:val><c:numRef><c:f>${escapeXml(valueFormula)}</c:f><c:numCache><c:formatCode>0.00</c:formatCode><c:ptCount val="${items.length}"/>${values}</c:numCache></c:numRef></c:val></c:ser>
+<c:axId val="${ax1}"/><c:axId val="${ax2}"/></c:barChart>
+<c:catAx><c:axId val="${ax1}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax2}"/></c:catAx>
+<c:valAx><c:axId val="${ax2}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines/><c:numFmt formatCode="0.0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax1}"/><c:crossBetween val="between"/></c:valAx></c:plotArea>
+<c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/></c:chart>
+<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr lang="th-TH" sz="1000"><a:latin typeface="Kanit"/></a:defRPr></a:pPr><a:endParaRPr lang="th-TH"/></a:p></c:txPr>
+</c:chartSpace>`;
 }
-const chartAnchor=(col:number,row:number,cx:number,cy:number,id:number,name:string)=>`
-<xdr:oneCellAnchor><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
-<xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${id}" name="${name}"/><xdr:cNvPicPr/></xdr:nvPicPr>
-<xdr:blipFill><a:blip r:embed="rId${id}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
-<xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`;
+const nativeChartAnchor=(id:number,fromCol:number,toCol:number)=>`
+<xdr:twoCellAnchor><xdr:from><xdr:col>${fromCol}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>25</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+<xdr:to><xdr:col>${toCol}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>39</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${id}" name="QA Report Chart ${id}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>
+<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>
+<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">
+<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId${id}"/>
+</a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
+
 async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
   try {
     const response=await fetch(LOGO_IMAGE_PATH,{cache:"force-cache"});
@@ -208,17 +210,22 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
       .map(row=>({label:String(row.Topic || ""),amount:Number(row["Average %"] || 0)})).filter(x=>Number.isFinite(x.amount));
     const tagData=(tagSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(tagSheet):[]).slice(0,7)
       .map(row=>({label:String(row.Tag || ""),amount:Number(row["Cases Affected"] || 0)})).filter(x=>Number.isFinite(x.amount));
-    const [topicImage,tagImage]=await Promise.all([
-      renderChart("TOPIC PERFORMANCE (%)",topicData,100),
-      renderChart("TOP ISSUE TAGS",tagData,Math.max(...tagData.map(x=>x.amount),1))
-    ]);
-    const images=[{id:2,name:"Topic Performance",data:topicImage,media:"qaReportTopic.png",col:1,row:26,cx:4700000,cy:2850000},
-      {id:3,name:"Top Issue Tags",data:tagImage,media:"qaReportTags.png",col:9,row:26,cx:3800000,cy:2850000}];
-    for(const item of images)if(item.data.byteLength)zip.file("xl/media/"+item.media,item.data);
-    const drawingText=await zip.file(drawingPath)!.async("string");
-    const drawingExtra=images.filter(item=>item.data.byteLength).map(item=>chartAnchor(item.col,item.row,item.cx,item.cy,item.id,item.name)).join("");
-    zip.file(drawingPath,drawingText.replace("</xdr:wsDr>",drawingExtra+"</xdr:wsDr>"));
-    zip.file(drawingRel,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${PKG}"><Relationship Id="rId1" Type="${REL}/image" Target="../media/qaReportLogo.png"/>${images.filter(item=>item.data.byteLength).map(item=>`<Relationship Id="rId${item.id}" Type="${REL}/image" Target="../media/${item.media}"/>`).join("")}</Relationships>`);
+
+    const topicRef=book.Sheets["Topic Performance"] ? "Topic Performance" : "QA Topic Performance";
+    const tagRef=book.Sheets["Tag Analysis"] ? "Tag Analysis" : "QA Tag Analysis";
+    const chartParts=[
+      {id:2,name:"qaReportTopic.xml",from:1,to:8,title:"Topic Performance (%)",items:topicData,
+        labelFormula:`'${topicRef}'!$A$2:$A$${topicData.length+1}`,valueFormula:`'${topicRef}'!$D$2:$D$${topicData.length+1}`,axis:48650112},
+      {id:3,name:"qaReportTag.xml",from:9,to:16,title:"Most Frequent Tags",items:tagData,
+        labelFormula:`'${tagRef}'!$A$2:$A$${tagData.length+1}`,valueFormula:`'${tagRef}'!$B$2:$B$${tagData.length+1}`,axis:48650212},
+    ];
+    const extra=chartParts.map(part=>nativeChartAnchor(part.id,part.from,part.to)).join("");
+    const currentDrawing=await zip.file(drawingPath)!.async("string");
+    zip.file(drawingPath,currentDrawing.replace("</xdr:wsDr>",extra+"</xdr:wsDr>"));
+    for(const part of chartParts){
+      zip.file("xl/drawings/charts/"+part.name,makeNativeChart(part.title,part.items,part.labelFormula,part.valueFormula,part.axis));
+    }
+    zip.file(drawingRel,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${PKG}"><Relationship Id="rId1" Type="${REL}/image" Target="../media/qaReportLogo.png"/>${chartParts.map(part=>`<Relationship Id="rId${part.id}" Type="${REL}/chart" Target="charts/${part.name}"/>`).join("")}</Relationships>`);
     const relSource=await zip.file(relPath)?.async("string");
     const relDoc=relSource?parse(relSource):parse(`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="${PKG}"/>`);
     const rRoot=relDoc.documentElement;
@@ -243,7 +250,14 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
     const override=ct.createElementNS(namespaces,"Override");
     override.setAttribute("PartName","/"+drawingPath);
     override.setAttribute("ContentType","application/vnd.openxmlformats-officedocument.drawing+xml");
-    root.appendChild(override);zip.file("[Content_Types].xml",xml(ct));
+    root.appendChild(override);
+    for(const name of ["qaReportTopic.xml","qaReportTag.xml"]) {
+      const part=ct.createElementNS(namespaces,"Override");
+      part.setAttribute("PartName","/xl/drawings/charts/"+name);
+      part.setAttribute("ContentType","application/vnd.openxmlformats-officedocument.drawingml.chart+xml");
+      root.appendChild(part);
+    }
+    zip.file("[Content_Types].xml",xml(ct));
   } catch(error) {
     // A temporary failure to fetch the static logo must never change or corrupt QA scores.
     console.warn("Could not embed dashboard logo into Excel report",error);
