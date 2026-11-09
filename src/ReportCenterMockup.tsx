@@ -468,7 +468,7 @@ export default function ReportCenterMockup({
         </section>
       {!specialized ? (
         <div data-report-inline-preview="true" className="mt-6 rounded-2xl border border-violet-200 bg-[#f8f5fb] shadow-sm">
-          <section aria-label="Live Report Preview" className="flex w-full flex-col overflow-hidden rounded-2xl bg-white">
+          <section aria-label="Live Report Preview" style={{fontFamily:"Kanit, sans-serif"}} className="flex w-full flex-col overflow-hidden rounded-2xl bg-white">
             <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
               <div><p className="text-xs font-semibold uppercase tracking-wider text-violet-700">PREVIEW · {format === "xlsx" ? "EXCEL REPORT" : "PDF SUMMARY"}</p>
                 <h2 className="mt-1 text-xl font-bold text-slate-950">{selectedKind.name} · {selectedPeriod}</h2>
@@ -490,7 +490,7 @@ export default function ReportCenterMockup({
                     <div className="space-y-5">
                       <div className="flex items-center gap-4 rounded-lg bg-violet-950 px-5 py-4 text-white"><img src="/robinhood-logo.png" alt="QA Dashboard" className="h-16 w-16 shrink-0 rounded-xl bg-white/10 object-contain p-1" /><div>
                         <p className="text-[11px] font-semibold tracking-widest text-violet-200">QUALITY ASSURANCE · {format === "pdf" ? "EXECUTIVE REPORT" : "EXCEL DASHBOARD"}</p>
-                        <h3 className="mt-1 text-xl font-bold">{selectedKind.name} QA Performance</h3>
+                        <h3 className="mt-1 text-xl font-bold">ROBINHOOD DELIVERY · QUALITY ASSURANCE</h3><p className="mt-1 text-sm font-medium text-violet-100">{selectedKind.name} PERFORMANCE REPORT</p>
                         <p className="mt-1 text-xs text-violet-100">{selectedPeriod} · {scopeLabel}</p></div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
