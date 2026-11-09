@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-09T03:05:21.852Z",
-  "reason": "Reviewed report export visual-only revision: Kanit masthead with official QA Dashboard logo, executive title, period, generator name and timestamp; kept six sheets and canonical score and case records intact.",
-  "contentChanged": true,
+  "reviewedAt": "2026-11-09T04:35:00.000Z",
+  "reason": "Reviewed Dashboard Evaluation ID search UI: floating search opens modal, inline clear replaces Reset, Compare entry removed from Dashboard toolbar; existing Report Center retains comparison and QA evaluation data is unchanged.",
+  "contentChanged": false,
   "reviewedChapters": [
-    "exports",
     "dashboard",
-    "case-detail"
+    "case-detail",
+    "exports"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -452,7 +452,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
     "src/DailyCheckinQuest.tsx": "a50da46ae5e4c04947e5f9c1a5056dee5fe205126c3a3d62bfe45232545c64c8",
-    "src/DashboardMockup.tsx": "02635b7ccf14efe947223e66383824e166079cbcb98dcf6ef66d89594de32a14",
+    "src/DashboardMockup.tsx": "0a64beb28b1c463ff217cbf625de057e5da34ac663e8177b6dbbba60610a6d62",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
@@ -496,7 +496,7 @@
     "src/SpecialRewardCenter.tsx": "391589fe5ab8aafe847559c80af00ffc02e169055b636d52c35b599d63bf9e99",
     "src/SpecialRewardsAdmin.tsx": "2cafe18bf7b089182eec16a21685a318b8829cea53928b9ee3e124611efda692",
     "src/StickyNotePopup.tsx": "fedb5e1066137ee5b7be1b4db0d1145376d4d64b3821a5029bb060aa84a9326c",
-    "src/SummaryMockup.tsx": "80210d6579036a095d7396d91bad270de7cc28b6259c258348cddef246362948",
+    "src/SummaryMockup.tsx": "3ea0de09c5398989e126305202ff58f081f99784e4b8532d93711bb4fe0ec2cd",
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/TagRubricHint.tsx": "511447a8e67a8526cc2ca50a6b8e60c3c828542518b6a62743e790829e3b3001",
     "src/TeamChatMockup.tsx": "089d40c385261328de08d6d5723560c590158bf4872b49e91efb8b8fceedd710",
