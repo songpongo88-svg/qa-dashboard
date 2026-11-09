@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-09T04:39:47.088Z",
-  "reason": "QA Report Center Excel: checked original source data maintained and formatting revised per approved corporate screenshot: Thai-only single-line rubric topics, readable horizontal native charts, aligned agent scorecard without blank team, two-decimal numeric/percent displays and no duplicated footer metadata.",
+  "reviewedAt": "2026-11-09T04:42:22.756Z",
+  "reason": "Reviewed final QA Corporate Excel and Live Preview: Thai-only Topic labels single line, proper sheet columns/merges, native horizontal charts with readable tags, two-decimal numeric and percentage styles, no empty team or duplicated footer, preserved canonical case scores.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
@@ -719,7 +719,7 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "3bafb1086a9626fc272ba3d870787cb9f468e6cabaaee209027abf9b0fc681d7",
+    "src/ReportCenterMockup.tsx": "37bb9a5c4d325419c33693bd943916ac25f8f2449e346d16134bbc189f0b607e",
     "src/corporateQaReportXlsx.ts": "c7cd337708fe1bacc12c2fccc4048795939f2d4d12b23bf1479ced0e629f4144"
   }
 }
