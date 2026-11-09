@@ -1,11 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-09T05:55:00.000Z",
-  "reason": "Reviewed build plugin compatibility after removing Dashboard-only Compare controls. Existing standalone Report Center comparison remains; floating Evaluation ID search and QA data unchanged.",
+  "reviewedAt": "2026-11-09T06:07:22.706Z",
+  "reason": "Reviewed floating Evaluation ID search placement: portal on document body prevents clipping by Dashboard panels, with visible 'ค้นหาเคส' pill at bottom right; existing authorized case lookup unchanged.",
   "contentChanged": false,
   "reviewedChapters": [
     "dashboard",
-    "exports",
     "case-detail"
   ],
   "termsVersions": {
@@ -452,7 +451,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
     "src/DailyCheckinQuest.tsx": "a50da46ae5e4c04947e5f9c1a5056dee5fe205126c3a3d62bfe45232545c64c8",
-    "src/DashboardMockup.tsx": "0a64beb28b1c463ff217cbf625de057e5da34ac663e8177b6dbbba60610a6d62",
+    "src/DashboardMockup.tsx": "081b36708cd66e0cc5b9f56873ba7843ba73da7b8c99fa74e638b97ea16adf69",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
