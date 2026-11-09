@@ -5,6 +5,12 @@ function replaceOrThrow(context, code, search, replacement, label) {
   return code.replace(search, replacement);
 }
 
+// The embedded toolbar was intentionally removed from Dashboard. Keep these
+// cosmetic transforms optional while retaining standalone/Report Center Compare.
+function replaceIfPresent(code, search, replacement) {
+  return code.includes(search) ? code.replace(search, replacement) : code;
+}
+
 export function analyticsCompareUiRedesignPatch() {
   let patched = false;
 
@@ -659,28 +665,22 @@ function AnalyticsCompareDashboardV2({
         "compare workspace end"
       );
 
-      next = replaceOrThrow(
-        this,
+      next = replaceIfPresent(
         next,
         `className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white hover:bg-violet-800">Exit Compare</button>`,
-        `className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-600 shadow-sm hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700">← Exit Compare</button>`,
-        "embedded exit compare button"
+        `className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-600 shadow-sm hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700">← Exit Compare</button>`
       );
 
-      next = replaceOrThrow(
-        this,
+      next = replaceIfPresent(
         next,
         `className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"\n                    >\n                      Export`,
-        `className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"\n                    >\n                      ⇩ Export`,
-        "embedded export button"
+        `className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"\n                    >\n                      ⇩ Export`
       );
 
-      next = replaceOrThrow(
-        this,
+      next = replaceIfPresent(
         next,
         `<button type="button" onClick={openAnalyticsCompare} className="h-10 rounded-xl border border-violet-700 bg-violet-700 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-800">Compare</button>`,
-        `<button type="button" onClick={openAnalyticsCompare} className="h-10 rounded-xl border border-fuchsia-500 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 text-xs font-bold text-white shadow-[0_6px_16px_rgba(147,51,234,0.22)] hover:from-violet-800 hover:to-fuchsia-700">{isComparisonMode ? "✦ Edit Comparison" : "⇄ Compare"}</button>`,
-        "embedded edit comparison button"
+        `<button type="button" onClick={openAnalyticsCompare} className="h-10 rounded-xl border border-fuchsia-500 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 text-xs font-bold text-white shadow-[0_6px_16px_rgba(147,51,234,0.22)] hover:from-violet-800 hover:to-fuchsia-700">{isComparisonMode ? "✦ Edit Comparison" : "⇄ Compare"}</button>`
       );
 
       next = replaceOrThrow(
