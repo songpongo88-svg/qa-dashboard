@@ -109,7 +109,9 @@ function createStyles(source: string) {
   return { styles,content:xml(doc) };
 }
 const colNumber = (c: string) => [...c].reduce((n,v)=>n*26+v.charCodeAt(0)-64,0);
-function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number>) {
+function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>) {
+  const dashboard=sheetName==="Dashboard" || sheetName==="QA Dashboard";
+  const baseName=sheetName.replace(/^QA /,"");
   const doc=parse(source);
   const root=doc.documentElement;
   const data=child(root,"sheetData")!;
@@ -183,6 +185,17 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
     const count=first?first.children.length:0;
     for(let c=1;c<=count;c++)set(1,c,"section");
     for(let r=2;r<=maxRow;r++) for(let c=1;c<=count;c++)set(r,c,r%2===0?"stripe":"plain");
+    // Keep numeric data as numbers while displaying consistent 2-digit precision.
+    const floatColumns=baseName==="Performance Summary"?[3]:
+      baseName==="Agent Performance"?[3]:
+      baseName==="Topic Performance"?[2,3]:
+      baseName==="Case Detail"?[]:[];
+    const percentColumns=baseName==="Tag Analysis"?[3]:
+      baseName==="Topic Performance"?[4]:[];
+    for(let r=2;r<=maxRow;r++){
+      for(const c of floatColumns)set(r,c,"numeric2");
+      for(const c of percentColumns)set(r,c,"tagPercent2");
+    }
   }
   return xml(doc);
 }
@@ -315,7 +328,7 @@ export async function exportCorporateReport(book:XLSX.WorkBook):Promise<Blob> {
     const path="xl/worksheets/sheet"+(i+1)+".xml";
     const original=await zip.file(path)?.async("string");
     if(!original)continue;
-    zip.file(path,styleSheet(original,book.SheetNames[i]==="Dashboard" || book.SheetNames[i]==="QA Dashboard",styles));
+    zip.file(path,styleSheet(original,book.SheetNames[i],styles));
   }
   const dashboardIndex=book.SheetNames.findIndex(name=>name==="Dashboard" || name==="QA Dashboard");
   if(dashboardIndex>=0) await embedLogo(zip,dashboardIndex+1,book);
