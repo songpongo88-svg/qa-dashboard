@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-09T06:07:22.706Z",
-  "reason": "Reviewed floating Evaluation ID search placement: portal on document body prevents clipping by Dashboard panels, with visible 'ค้นหาเคส' pill at bottom right; existing authorized case lookup unchanged.",
-  "contentChanged": false,
+  "reviewedAt": "2026-11-09T06:15:00.000Z",
+  "reason": "Reviewed latest Dashboard floating Evaluation search UI/portal placement; ensured case lookup and QA reporting remain unchanged. Synchronized source review hash.",
+  "contentChanged": true,
   "reviewedChapters": [
     "dashboard",
+    "exports",
     "case-detail"
   ],
   "termsVersions": {
