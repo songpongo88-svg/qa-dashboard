@@ -20,7 +20,7 @@ const add = (doc: XMLDocument, parent: Element, name: string, attrs: Record<stri
   parent.appendChild(element);
   return element;
 };
-type StyleName = "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar";
+type StyleName = "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain";
 function createStyles(source: string) {
   const doc = parse(source);
   const root = doc.documentElement;
@@ -76,6 +76,7 @@ function createStyles(source: string) {
   style("cardValue",fontsId.value,fillsId.white,true);
   style("cardDetail",fontsId.footer,fillsId.white,true);
   style("heading",fontsId.bold,fillsId.violet,true,true);
+  style("plain",fontsId.plain,fillsId.white,false,true);
   style("stripe",fontsId.plain,fillsId.light,false,true);
   style("stripeCenter",fontsId.plain,fillsId.light,true,true);
   style("score",fontsId.score,fillsId.light,true);
@@ -147,7 +148,7 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
     const first=rows.get(1);
     const count=first?first.children.length:0;
     for(let c=1;c<=count;c++)set(1,c,"section");
-    for(let r=2;r<=maxRow;r++) if(r%2===0) for(let c=1;c<=count;c++)set(r,c,"stripe");
+    for(let r=2;r<=maxRow;r++) for(let c=1;c<=count;c++)set(r,c,r%2===0?"stripe":"plain");
   }
   return xml(doc);
 }
@@ -201,8 +202,8 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
 <xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
 <xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1190000" cy="710000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>
 <xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`);
-    const topicSheet=book.Sheets["Topic Performance"];
-    const tagSheet=book.Sheets["Tag Analysis"];
+    const topicSheet=book.Sheets["Topic Performance"] || book.Sheets["QA Topic Performance"];
+    const tagSheet=book.Sheets["Tag Analysis"] || book.Sheets["QA Tag Analysis"];
     const topicData=(topicSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(topicSheet):[]).slice(0,6)
       .map(row=>({label:String(row.Topic || ""),amount:Number(row["Average %"] || 0)})).filter(x=>Number.isFinite(x.amount));
     const tagData=(tagSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(tagSheet):[]).slice(0,7)
