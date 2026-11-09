@@ -103,13 +103,38 @@ export async function getSparksAccount(username: string, options: { historyLimit
   if (import.meta.env?.VITE_SPARKS_DATA_BACKEND === "supabase") {
     if (!options.sessionId) throw new Error("กรุณา Login ใหม่เพื่อยืนยันสิทธิ์ QA Sparks");
     const historyLimit = Math.max(0, Math.min(100, Math.floor(options.historyLimit ?? 100)));
-    const response = await fetch("/api/sparks-admin", {
-      method:"POST",cache:"no-store",headers:{"content-type":"application/json"},
-      body:JSON.stringify({action:"sparks-cloud-wallet",actorUsername:username,sessionId:options.sessionId,historyLimit}),
-    });
-    const snapshot = await response.json().catch(()=>({}));
-    if (!response.ok || !snapshot.ok || !snapshot.wallet) {
-      throw new Error(String(snapshot.error || "โหลดบัญชี QA Sparks จาก Supabase ไม่สำเร็จ"));
+    // Read-only wallet requests can be retried once after a transient network failure.
+    // Do not retry mutations or fall back to Firebase after the Supabase cutover.
+    const loadCloudWallet = async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      try {
+        const response = await fetch("/api/sparks-admin", {
+          method:"POST",cache:"no-store",signal:controller.signal,
+          headers:{"content-type":"application/json"},
+          body:JSON.stringify({action:"sparks-cloud-wallet",actorUsername:username,sessionId:options.sessionId,historyLimit}),
+        });
+        const snapshot = await response.json().catch(()=>({}));
+        if (!response.ok || !snapshot.ok || !snapshot.wallet) {
+          const message = String(snapshot.error || "โหลดบัญชี QA Sparks จาก Supabase ไม่สำเร็จ");
+          const error = new Error(message);
+          Object.assign(error, {code:String(snapshot.code || (response.status === 403 ? "permission-denied" : "HTTP_" + response.status)),status:response.status});
+          throw error;
+        }
+        return snapshot;
+      } finally { clearTimeout(timeout); }
+    };
+    let snapshot: any;
+    try { snapshot = await loadCloudWallet(); }
+    catch (error) {
+      // Authorization and explicit server errors must not be retried blindly.
+      if ((error as any)?.status || (error as any)?.name !== "TypeError" && (error as any)?.name !== "AbortError") throw error;
+      try { snapshot = await loadCloudWallet(); }
+      catch (retryError) {
+        const e = retryError as Error & { code?: string; status?: number };
+        if (!e.code) e.code = e.name === "AbortError" ? "request-timeout" : "network";
+        throw e;
+      }
     }
     const data = snapshot.wallet as Record<string,any>;
     const rows = Array.isArray(snapshot.history) ? snapshot.history : [];
