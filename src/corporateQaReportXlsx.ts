@@ -59,9 +59,10 @@ function createStyles(source: string) {
   const styles: Record<StyleName,number> = {} as Record<StyleName,number>;
   function style(name:StyleName, fontId:number, fillId:number, center=false, wrap=false, right=false) {
     const id=xfs.children.length;
+    const numberFormatId=name==="percent2"||name==="tagPercent2"?167:name==="numeric2"?166:0;
     const xf = add(doc,xfs,"xf",{
-      numFmtId:"0",fontId:String(fontId),fillId:String(fillId),borderId:"0",xfId:"0",
-      applyFont:"1",applyFill:"1",applyAlignment:"1"
+      numFmtId:String(numberFormatId),fontId:String(fontId),fillId:String(fillId),borderId:"0",xfId:"0",
+      applyFont:"1",applyFill:"1",applyAlignment:"1",applyNumberFormat:numberFormatId?"1":"0"
     });
     add(doc,xf,"alignment",{horizontal:right?"right":center?"center":"left",vertical:"center",wrapText:wrap?"1":"0"});
     styles[name]=id;
@@ -95,6 +96,13 @@ function createStyles(source: string) {
   style("danger",fontsId.red,fillsId.pale,true);
   style("footer",fontsId.footer,fillsId.pale,true,true);
   style("topicBar",fontsId.bar,fillsId.white,true);
+  let formats=child(root,"numFmts");
+  if(!formats){formats=doc.createElementNS(NS,"numFmts");root.insertBefore(formats,root.firstChild);}
+  for(const [id,fmt] of [[166,"0.00"],[167,'0.00"%"']] as const) {
+    if(!Array.from(formats.children).some(n=>n.getAttribute("numFmtId")===String(id)))
+      add(doc,formats,"numFmt",{numFmtId:String(id),formatCode:fmt});
+  }
+  formats.setAttribute("count",String(formats.children.length));
   fonts.setAttribute("count",String(fonts.children.length));
   fills.setAttribute("count",String(fills.children.length));
   xfs.setAttribute("count",String(xfs.children.length));
@@ -167,6 +175,7 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
       set(r,2,"metaLabel");
     }
     for(let col=2;col<=16;col++)set(66,col,"footer");
+    set(9,2,"numeric2");
   } else {
     const rowElements=Array.from(data.children).filter(r=>r.localName==="row");
     const maxRow=Math.max(...rowElements.map(r=>Number(r.getAttribute("r"))),1);
@@ -174,43 +183,6 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
     const count=first?first.children.length:0;
     for(let c=1;c<=count;c++)set(1,c,"section");
     for(let r=2;r<=maxRow;r++) for(let c=1;c<=count;c++)set(r,c,r%2===0?"stripe":"plain");
-  }
-  // Excel custom number formats preserve numeric scores and chart formulas.
-  const numberFormats=new Map<string,string>();
-  if(dashboard) {
-    for(const row of [19,21,23,25]){
-      for(const col of ["F","G"])numberFormats.set(col+row,"0.00");
-      numberFormats.set("H"+row,'0.00"%"');
-    }
-    for(let row=18;row<=25;row++)numberFormats.set("P"+row,'0.00"%"');
-    for(let row=48;row<=59;row++)numberFormats.set("H"+row,"0.00");
-    numberFormats.set("B9","0.00");
-  }else{
-    const header=rows.get(1);
-    const headers=new Map<number,string>();
-    if(header){
-      for(const cell of Array.from(header.children).filter(c=>c.localName==="c")){
-        const address=cell.getAttribute("r")||"";
-        const col=colNumber(address.replace(/\\d/g,""));
-        const value=child(cell,"v")?.textContent||"";
-        const inline=cell.textContent||"";
-        headers.set(col,inline||value);
-      }
-    }
-    // Apply formats by column position for the generated report tabs.
-    const columns=new Map<number,string>();
-    for(const [i,name] of headers){
-      if(/Share|Average %/i.test(name))columns.set(i,'0.00"%"');
-      else if(/Average Score|Maximum Score/i.test(name))columns.set(i,"0.00");
-    }
-    // Column header cell values may use shared strings, so use known sheet patterns too.
-    const maxRow=Math.max(1,...Array.from(rows.keys()));
-    for(let row=2;row<=maxRow;row++)for(const [col,format] of columns)
-      numberFormats.set(XLSX.utils.encode_col(col-1)+row,format);
-  }
-  for(const [address,format] of numberFormats){
-    const cell=Array.from(rows.get(Number(address.match(/\\d+$/)?.[0]||0))?.children||[]).find(c=>c.localName==="c"&&c.getAttribute("r")===address);
-    if(cell)cell.setAttribute("qaFmt",format);
   }
   return xml(doc);
 }
