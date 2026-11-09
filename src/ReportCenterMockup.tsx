@@ -126,8 +126,12 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
   const topicName=(code:string)=>getCaseDetailTopicTitle(code,"Topic "+code,evaluatedMonth);
   const cells: Array<{ address:string; value:string|number }>=[];
   const write=(address:string,value:string|number)=>cells.push({address,value});
-  write("E2","ROBINHOOD DELIVERY  |  QUALITY ASSURANCE");
-  write("E4",kind.toUpperCase()+" PERFORMANCE REPORT   •   "+period+"   •   "+scope);
+  write("E2","QA PERFORMANCE REPORT");
+  write("E4","ROBINHOOD DELIVERY   /   "+kind.toUpperCase()+"   /   "+period);
+  write("E5",scope.toUpperCase().replace(/_/g," ")+"     •     KPI TARGET 85%");
+  write("M2","QA  /  "+period);
+  write("M4","PREPARED BY  ·  "+generatedBy);
+  write("M5","GENERATED  ·  "+generatedAt+" ICT");
   const cards=[
     ["B8","AVERAGE QA","B9",stats.average===null?"-":Number(stats.average.toFixed(2)),"B12","Score / 100"],
     ["F8","EVALUATED CASES","F9",stats.count,"F12","Cases in scope"],
@@ -169,7 +173,7 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
   for(const cell of cells)XLSX.utils.sheet_add_aoa(dash,[[cell.value]],{origin:cell.address});
   const merge=(s:string,e:string)=>({s:XLSX.utils.decode_cell(s),e:XLSX.utils.decode_cell(e)});
   dash["!merges"]=[
-    merge("E2","P3"),merge("E4","P4"),
+    merge("E2","L3"),merge("M2","P3"),merge("E4","L4"),merge("M4","P4"),merge("E5","L5"),merge("M5","P5"),
     ...["B","F","J","N"].flatMap((column,index)=>{
       const end=["D","H","L","P"][index];
       return [merge(column+"8",end+"8"),merge(column+"9",end+"10"),merge(column+"12",end+"12")];
@@ -184,7 +188,7 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
     ...[59,60,61,62].map(r=>merge("F"+r,"P"+r)),merge("B64","P64")
   ];
   dash["!cols"]=Array.from({length:16},(_,i)=>({wch:i===0 ? 3 : 14}));
-  dash["!rows"]=Array.from({length:64},(_,i)=>({hpt:i===1||i===2?25:i===14||i===40?32:i===16||i===43?30:i===8||i===9?26:23}));
+  dash["!rows"]=Array.from({length:64},(_,i)=>({hpt:i===1||i===2?28:i===3||i===4?25:i===5?10:i===6?13:i===14||i===40?32:i===16||i===43?30:i===8||i===9?26:23}));
   XLSX.utils.book_append_sheet(book,dash,"Dashboard");
   const groups = reportRows(rows, kind === "weekly" ? "week" : kind === "yearly" || kind === "compare" ? "month" : "agent");
   const add = (name: string, records: Record<string, string | number>[], widths: number[]) => {
