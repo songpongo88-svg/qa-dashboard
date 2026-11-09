@@ -126,17 +126,17 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
   const topicName=(code:string)=>getCaseDetailTopicTitle(code,"Topic "+code,evaluatedMonth);
   const cells: Array<{ address:string; value:string|number }>=[];
   const write=(address:string,value:string|number)=>cells.push({address,value});
-  write("E2","QUALITY ASSURANCE  /  PERFORMANCE REPORT");
-  write("E4",kind.toUpperCase()+"  •  "+period+"  •  "+scope);
+  write("E2","ROBINHOOD QA  |  QUALITY ASSURANCE");
+  write("E4",kind.toUpperCase()+" PERFORMANCE REPORT   •   "+period+"   •   "+scope);
   const cards=[
-    ["C9","AVERAGE QA","C10",stats.average===null?"-":Number(stats.average.toFixed(2)),"C12","Score / 100"],
-    ["G9","EVALUATED CASES","G10",stats.count,"G12","Cases in scope"],
-    ["K9","EVALUATED AGENTS","K10",agents.length,"K12","Agents in scope"],
-    ["O9","KPI TARGET","O10","85%","O12","Monthly target"],
+    ["B9","AVERAGE QA","B10",stats.average===null?"-":Number(stats.average.toFixed(2)),"B12","Score / 100"],
+    ["F9","EVALUATED CASES","F10",stats.count,"F12","Cases in scope"],
+    ["J9","EVALUATED AGENTS","J10",agents.length,"J12","Agents in scope"],
+    ["N9","KPI TARGET","N10","85%","N12","Monthly target"],
   ] as const;
   cards.forEach(x=>{write(x[0],x[1]);write(x[2],x[3]);write(x[4],x[5]);});
   write("B15","01  •  TOPIC PERFORMANCE");
-  write("K15","02  •  DEDUCTION TAGS");
+  write("K15","02  •  TAG ANALYSIS");
   write("B17","QA RUBRIC TOPIC"); write("F17","AVG %");write("G17","AVG SCORE");write("H17","CASES");
   write("K17","ISSUE TAG");write("O17","CASES");write("P17","SHARE %");
   topics.slice(0,4).forEach((item,i)=>{
@@ -164,7 +164,7 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
   write("B60","GENERATED AT");write("F60",generatedAt);
   write("B61","REPORT SOURCE");write("F61","QA Dashboard / Canonical Evaluation Records");
   write("B62","PERIOD & SCOPE");write("F62",period+"  •  "+scope);
-  write("B64","PREPARED FOR INTERNAL QA PERFORMANCE REVIEW   •   KPI STATUS IS MONTHLY AND REQUIRES 10 CASES");
+  write("B64","INTERNAL QA PERFORMANCE REVIEW   •   KPI IS ASSESSED MONTHLY AFTER AT LEAST 10 CASES");
   const dash=XLSX.utils.aoa_to_sheet([[]]);
   for(const cell of cells)XLSX.utils.sheet_add_aoa(dash,[[cell.value]],{origin:cell.address});
   const merge=(s:string,e:string)=>({s:XLSX.utils.decode_cell(s),e:XLSX.utils.decode_cell(e)});
@@ -172,8 +172,7 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
     merge("E2","P3"),merge("E4","P4"),
     ...["B","F","J","N"].flatMap((column,index)=>{
       const end=["D","H","L","P"][index];
-      const mid=["C","G","K","O"][index];
-      return [merge(column+"8",end+"8"),merge(column+"11",end+"11"),merge(column+"12",end+"12")];
+      return [merge(column+"8",end+"8"),merge(column+"9",end+"9"),merge(column+"10",end+"11"),merge(column+"12",end+"12")];
     }),
     merge("B15","I15"),merge("K15","P15"),
     ...[19,21,23,25].map(row=>merge("B"+row,"E"+(row+1))),
@@ -184,8 +183,8 @@ function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: str
     }).flat(),
     ...[59,60,61,62].map(r=>merge("F"+r,"P"+r)),merge("B64","P64")
   ];
-  dash["!cols"]=Array.from({length:16},()=>({wch:13}));
-  dash["!rows"]=Array.from({length:64},(_,i)=>({hpt:i===1||i===2?23:i===14||i===42?29:i===16||i===44?26:24}));
+  dash["!cols"]=Array.from({length:16},(_,i)=>({wch:i===0 ? 3 : i===9 ? 4 : 14}));
+  dash["!rows"]=Array.from({length:64},(_,i)=>({hpt:i===1||i===2?24:i===14||i===42?32:i===16||i===44?30:i===9||i===10?26:23}));
   XLSX.utils.book_append_sheet(book,dash,"Dashboard");
   const groups = reportRows(rows, kind === "weekly" ? "week" : kind === "yearly" || kind === "compare" ? "month" : "agent");
   const add = (name: string, records: Record<string, string | number>[], widths: number[]) => {
