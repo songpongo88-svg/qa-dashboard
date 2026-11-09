@@ -7880,19 +7880,19 @@ export default function DashboardMockup({
         )
       : quickAgentOptions;
 
-  const renderDashboardSearchControls = () => (
+  const renderDashboardSearchControls = () => typeof document !== "undefined" ? createPortal(
     <div data-search-evaluation-floating-v20261109="true">
       <button
         type="button"
         aria-label="เปิดค้นหา Evaluation ID"
         title="ค้นหา Evaluation ID"
         onClick={() => setEvaluationSearchOpen(true)}
-        className="fixed bottom-6 right-6 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-700 text-white shadow-[0_12px_32px_rgba(109,40,217,0.35)] transition hover:scale-105 focus-visible:outline focus-visible:outline-4 focus-visible:outline-violet-200"
+        className="fixed bottom-24 right-5 z-[9999] flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-700 px-4 text-white shadow-[0_14px_36px_rgba(109,40,217,0.45)] transition hover:scale-105 focus-visible:outline focus-visible:outline-4 focus-visible:outline-violet-200 sm:bottom-7 sm:right-7"
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" className="h-6 w-6"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" className="h-6 w-6"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg><span className="whitespace-nowrap text-sm font-bold">ค้นหาเคส</span>
       </button>
       {evaluationSearchOpen ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setEvaluationSearchOpen(false); }}>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setEvaluationSearchOpen(false); }}>
           <div role="dialog" aria-modal="true" aria-label="ค้นหา Evaluation ID" className="w-full max-w-lg rounded-[26px] border border-violet-100 bg-white p-5 shadow-[0_24px_80px_rgba(30,20,70,0.24)] sm:p-6" onKeyDown={(event) => { if (event.key === "Escape") setEvaluationSearchOpen(false); }}>
             <div className="mb-5 flex items-center justify-between gap-3">
               <h2 className="text-lg font-black text-slate-900">ค้นหา Evaluation ID</h2>
@@ -7926,8 +7926,8 @@ export default function DashboardMockup({
           </div>
         </div>
       ) : null}
-    </div>
-  );
+    </div>, document.body
+  ) : null;
 
   const refreshStatus = (
     <div data-dashboard-refresh-state={isLoading ? "loading" : loadError ? "error" : "idle"} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-xs text-slate-600">
