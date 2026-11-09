@@ -467,7 +467,7 @@ export default function ReportCenterMockup({
 
         </section>
       {!specialized ? (
-        <div data-report-inline-preview="true" className="mt-6 rounded-2xl border border-violet-200 bg-[#f8f5fb] shadow-sm"> { if (e.currentTarget === e.target && !busy) setPreviewOpen(false); }}>
+        <div data-report-inline-preview="true" className="mt-6 rounded-2xl border border-violet-200 bg-[#f8f5fb] shadow-sm">
           <section aria-label="Live Report Preview" className="flex w-full flex-col overflow-hidden rounded-2xl bg-white">
             <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
               <div><p className="text-xs font-semibold uppercase tracking-wider text-violet-700">PREVIEW · {format === "xlsx" ? "EXCEL REPORT" : "PDF SUMMARY"}</p>
