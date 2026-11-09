@@ -1,11 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-09T02:29:54.576Z",
-  "reason": "Reviewed live inline Report Center Preview including PDF and workbook sheet tabs; presentation preview now shows without button; corporate report exports have aligned KPI cards, official Dashboard logo, rubric Topic names, charted Tag/Topic and unchanged canonical cases, with direct Generate.",
+  "reviewedAt": "2026-11-09T02:42:51.661Z",
+  "reason": "Reviewed approved uploaded QA Corporate Design workbook, Kanit font across all generated Excel report sheets and chart labels, matching October layout headings and ranges, original canonical case scores, and inline preview typography.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
-    "slides",
     "dashboard",
     "case-detail",
     "analytics"
@@ -593,7 +592,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "5e7f28ff98f4249b9986d54071a9c18719bb5d9cb2d0b531b3a5dd3d37e017c8",
+    "src/knowledge/manual.json": "cb68efb34703d26dbe5a9066ff38adec981c75dfab4db384b4c6b67c20559b2f",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -721,7 +720,7 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "7f8eb49a6ad333e4e78e101034d7ccdc79a61f6946a349961d1d6943209f6b0f",
-    "src/corporateQaReportXlsx.ts": "4f6cc0e4f896ada34fc8f0899133281085fb2988707e8832294887cd6c8e9e3e"
+    "src/ReportCenterMockup.tsx": "f41e1b477a5d6650538ed4c9c8eeee8127e11baf3e3181f319da46b299d165f8",
+    "src/corporateQaReportXlsx.ts": "c2d0beeea36ceaca52a6390e769102d182fe39dd7b8abd5ec9c3ee2fd32dabbf"
   }
 }
