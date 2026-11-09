@@ -20,7 +20,7 @@ const add = (doc: XMLDocument, parent: Element, name: string, attrs: Record<stri
   parent.appendChild(element);
   return element;
 };
-type StyleName = "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain";
+type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain";
 function createStyles(source: string) {
   const doc = parse(source);
   const root = doc.documentElement;
@@ -50,21 +50,28 @@ function createStyles(source: string) {
     bold: font(deep,true,10), score: font(purple,true,11),
     green: font("187756",true,10), red: font("BC3D52",true,10),
     footer: font("584368",false,9), bar: font("8755AF",true,12),
+    headerDetail: font("E7DBF2",false,11), headerMeta: font("F2E8F7",false,9),
+    headerAccent: font("FFCF85",true,10), headerId: font("FFCF85",true,12),
     topicName: font(deep,true,11), metaLabel: font("5E4270",true,9,"Kanit"),
   };
   const fillsId = { deep: fill(deep), purple: fill(purple), pale: fill(pale), light: fill(light),
     white: fill("FFFFFF"), violet: fill("EADBF0"), gold: fill("F6E6CC") };
   const styles: Record<StyleName,number> = {} as Record<StyleName,number>;
-  function style(name:StyleName, fontId:number, fillId:number, center=false, wrap=false) {
+  function style(name:StyleName, fontId:number, fillId:number, center=false, wrap=false, right=false) {
     const id=xfs.children.length;
     const xf = add(doc,xfs,"xf",{
       numFmtId:"0",fontId:String(fontId),fillId:String(fillId),borderId:"0",xfId:"0",
       applyFont:"1",applyFill:"1",applyAlignment:"1"
     });
-    add(doc,xf,"alignment",{horizontal:center?"center":"left",vertical:"center",wrapText:wrap?"1":"0"});
+    add(doc,xf,"alignment",{horizontal:right?"right":center?"center":"left",vertical:"center",wrapText:wrap?"1":"0"});
     styles[name]=id;
   }
-  style("title",fontsId.display,fillsId.deep,true);
+  style("title",fontsId.display,fillsId.deep);
+  style("mastheadRight",fontsId.headerId,fillsId.deep,false,false,true);
+  style("mastheadDetail",fontsId.headerDetail,fillsId.deep);
+  style("mastheadMeta",fontsId.headerMeta,fillsId.deep,false,false,true);
+  style("mastheadAccent",fontsId.headerAccent,fillsId.deep);
+  style("mastheadLine",fontsId.headerAccent,fillsId.purple);
   style("topicName",fontsId.topicName,fillsId.white,false,true);
   style("tagName",fontsId.plain,fillsId.light,false,true);
   style("metaLabel",fontsId.metaLabel,fillsId.pale);
@@ -117,7 +124,16 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
   if(dashboard) {
     // The layout follows the approved QA Corporate Design prototype:
     // dark masthead, four centered KPI cards, two analytics panels, agent scorecard and attribution.
-    for(let r=2;r<=5;r++)for(let col=2;col<=16;col++)set(r,col,r===4?"subtitle":"title");
+    for(let r=2;r<=5;r++)for(let col=2;col<=16;col++)set(r,col,"hero");
+    // Readable hierarchy: actual Dashboard logo on left; report title center;
+    // report ID, operator and generated timestamp aligned on the right.
+    set(2,5,"title");
+    set(2,13,"mastheadRight");
+    set(4,5,"mastheadDetail");
+    set(4,13,"mastheadMeta");
+    set(5,5,"mastheadAccent");
+    set(5,13,"mastheadMeta");
+    for(let col=2;col<=16;col++)set(6,col,"mastheadLine");
     for(let r=8;r<=12;r++)for(let col=2;col<=16;col++)if(![5,9,13].includes(col)){
       set(r,col,r===8?"cardLabel":r===9||r===10?"cardValue":"cardDetail");
     }
