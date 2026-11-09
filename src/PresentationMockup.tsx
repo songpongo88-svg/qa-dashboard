@@ -299,7 +299,6 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
   const [template, setTemplate] = useState<TemplateKey>("executive");
   const [sections, setSections] = useState<Record<SectionKey, boolean>>(DEFAULT_SECTIONS);
   const [statusMessage, setStatusMessage] = useState("");
-  const [reportPreviewOpen, setReportPreviewOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -524,19 +523,18 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
         <p className="mt-1 text-sm text-slate-500">เลือก Week และตรวจตัวอย่างรูปแบบสไลด์ QA ก่อน Generate PDF</p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="text-xs font-semibold text-slate-600">Week
-            <select value={selectedWeek?.key || ""} onChange={event => { setSelectedWeekKey(event.target.value); setReportPreviewOpen(false); }} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+            <select value={selectedWeek?.key || ""} onChange={event => { setSelectedWeekKey(event.target.value); }} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
               {weekBuckets.map(week => <option key={week.key} value={week.key}>{week.label} ({week.cases.length} cases)</option>)}
             </select>
           </label>
           <label className="text-xs font-semibold text-slate-600">Slide Template
-            <select value={template} onChange={event => { setTemplate(event.target.value as TemplateKey); setReportPreviewOpen(false); }} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+            <select value={template} onChange={event => { setTemplate(event.target.value as TemplateKey); }} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
               {TEMPLATE_OPTIONS.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}
             </select>
           </label>
         </div>
-        <button type="button" onClick={() => setReportPreviewOpen(true)} disabled={!selectedWeek || loading || Boolean(evaluationHold)} className="mt-5 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Preview QA Slides</button>
-        {reportPreviewOpen ? (
-          <div role="dialog" aria-label="QA Slides Preview" className="mt-5 overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
+        {selectedWeek ? (
+          <div aria-label="Live QA Slides Preview" className="mt-5 overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
             <div className="aspect-video bg-gradient-to-br from-violet-950 to-slate-900 px-6 py-5 text-white sm:px-10 sm:py-7" style={{ fontFamily: "'Kanit', sans-serif" }}>
               <p className="text-xs uppercase tracking-widest text-violet-200">Quality Assurance · Weekly Performance</p>
               <h3 className="mt-2 text-xl font-semibold sm:text-3xl">{selectedWeek?.label || "Weekly Report"}</h3>
@@ -549,7 +547,7 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <p className="text-xs text-slate-500">ตัวอย่างแนวสไลด์จากผล QA สัปดาห์ที่เลือก · ไฟล์ PDF ใช้การส่งออกเดิม</p>
-              <div className="flex gap-2"><button type="button" onClick={() => setReportPreviewOpen(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">แก้ไขตัวเลือก</button><button type="button" onClick={() => void handleExportPdf()} disabled={!selectedWeek || loading || Boolean(evaluationHold)} className="rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">Generate QA Slides PDF</button></div>
+              <div className="flex gap-2"><button type="button" onClick={() => void handleExportPdf()} disabled={!selectedWeek || loading || Boolean(evaluationHold)} className="rounded-lg bg-violet-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">Generate QA Slides PDF</button></div>
             </div>
           </div>
         ) : null}
