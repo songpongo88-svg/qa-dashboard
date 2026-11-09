@@ -6268,6 +6268,7 @@ export default function DashboardMockup({
     };
   }, [currentUser?.role]);
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
+  const [evaluationSearchOpen, setEvaluationSearchOpen] = useState(false);
   const [caseRecordFilter, setCaseRecordFilter] = useState<CaseRecordFilter>("all");
   const [caseSearchSubmitNonce, setCaseSearchSubmitNonce] = useState(0);
   const [caseSearchFeedback, setCaseSearchFeedback] = useState<"idle" | "found" | "multiple" | "not-found">("idle");
@@ -7901,47 +7902,49 @@ export default function DashboardMockup({
       : quickAgentOptions;
 
   const renderDashboardSearchControls = () => (
-    <div data-search-evaluation-primary-v166="true" data-search-evaluation-auto-v168="true" data-dashboard-unified-reset-v88="true" className="min-w-0">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Search Evaluation ID</div>
-        <div className="text-[10px] font-bold text-emerald-700">พิมพ์หรือวาง Case ID เพื่อค้นหาอัตโนมัติทุกเดือน</div>
-      </div>
-      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
-        <input
-          type="search"
-          value={caseIdSearch}
-          onChange={(event) => {
-            setCaseIdSearch(event.target.value);
-            setCaseRecordFilter("all");
-            setSelectedCaseKey("");
-            setSlideOverOpen(false);
-            setCaseSearchFeedback("idle");
-          }}
-          onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }}
-          placeholder="Search any authorized Evaluation ID"
-          className="h-12 min-w-0 rounded-xl border border-sky-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-[#155B83] focus:ring-4 focus:ring-sky-100"
-        />
-        <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-[#155B83] px-5 text-xs font-black text-white shadow-[0_7px_18px_rgba(21,91,131,0.20)] transition hover:-translate-y-0.5 hover:bg-[#104A6B] hover:shadow-[0_9px_22px_rgba(21,91,131,0.24)]">Search</button>
-        <button type="button" title="ล้างคำค้น เคสที่เลือก และหัวข้อที่กรอง โดยคง Period, Team และ Agent" onClick={clearCaseSearch} className="h-12 rounded-xl border border-sky-200 bg-white px-4 text-xs font-black text-[#155B83] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md">Reset</button>
-      </div>
-      {caseIdSearch.trim() ? (
-        <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[10px] font-semibold ${
-          caseSearchFeedback === "not-found"
-            ? "border-rose-200 bg-rose-50 text-rose-700"
-            : caseSearchFeedback === "found"
-              ? "border-violet-200 bg-violet-50 text-violet-800"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800"
-        }`}>
-          <span>
-            {caseSearchFeedback === "not-found"
-              ? "ไม่พบ Evaluation ID นี้ภายใต้สิทธิ์การเข้าถึงของคุณ"
-              : caseSearchFeedback === "found"
-                ? "พบ Case แล้ว · ระบบเลือก Case และเลื่อนไปยังรายละเอียดให้แล้ว"
-                : caseSearchFeedback === "multiple"
-                  ? "พบหลาย Case · ระบบเลื่อนไปยังรายการเพื่อให้เลือก Case ที่ต้องการ"
-                  : "ค้นหาได้ทุกเดือน โดยคะแนนสรุปยังยึด Period, Team และ Agent ที่เลือก"}
-          </span>
-          <span>{overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}</span>
+    <div data-search-evaluation-floating-v20261109="true">
+      <button
+        type="button"
+        aria-label="เปิดค้นหา Evaluation ID"
+        title="ค้นหา Evaluation ID"
+        onClick={() => setEvaluationSearchOpen(true)}
+        className="fixed bottom-6 right-6 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-700 text-white shadow-[0_12px_32px_rgba(109,40,217,0.35)] transition hover:scale-105 focus-visible:outline focus-visible:outline-4 focus-visible:outline-violet-200"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" className="h-6 w-6"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
+      </button>
+      {evaluationSearchOpen ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setEvaluationSearchOpen(false); }}>
+          <div role="dialog" aria-modal="true" aria-label="ค้นหา Evaluation ID" className="w-full max-w-lg rounded-[26px] border border-violet-100 bg-white p-5 shadow-[0_24px_80px_rgba(30,20,70,0.24)] sm:p-6" onKeyDown={(event) => { if (event.key === "Escape") setEvaluationSearchOpen(false); }}>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <h2 className="text-lg font-black text-slate-900">ค้นหา Evaluation ID</h2>
+              <button type="button" title="ปิด" aria-label="ปิดหน้าต่างค้นหา" onClick={() => setEvaluationSearchOpen(false)} className="rounded-full p-2 text-slate-500 hover:bg-violet-50 hover:text-violet-700">✕</button>
+            </div>
+            <div className="relative">
+              <input
+                autoFocus
+                type="search"
+                aria-label="Evaluation ID"
+                value={caseIdSearch}
+                onChange={(event) => {
+                  setCaseIdSearch(event.target.value);
+                  setCaseRecordFilter("all");
+                  setSelectedCaseKey("");
+                  setSlideOverOpen(false);
+                  setCaseSearchFeedback("idle");
+                }}
+                onKeyDown={(event) => { if (event.key === "Enter") { runCaseSearch(); setEvaluationSearchOpen(false); } }}
+                placeholder="Search Evaluation ID"
+                className="h-12 w-full min-w-0 rounded-xl border border-violet-200 bg-white px-4 pr-16 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+              <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-violet-700 hover:text-fuchsia-700 disabled:opacity-40">ล้าง</button>
+            </div>
+            <button type="button" onClick={() => { runCaseSearch(); setEvaluationSearchOpen(false); }} className="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-indigo-800 text-sm font-black text-white shadow-md transition hover:brightness-110">
+              ค้นหา
+            </button>
+            {caseIdSearch.trim() && caseSearchFeedback === "not-found" ? (
+              <p role="status" className="mt-3 text-xs font-bold text-rose-700">ไม่พบ Evaluation ID นี้ภายใต้สิทธิ์การเข้าถึงของคุณ</p>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>
@@ -8113,9 +8116,7 @@ export default function DashboardMockup({
                 ? createPortal(renderDashboardSearchControls(), dashboardSearchTarget)
                 : null}
               {!canViewAnalytics || !analyticsContent ? (
-                <div className="mt-3 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)]">
-                  {renderDashboardSearchControls()}
-                </div>
+                <>{renderDashboardSearchControls()}</>
               ) : null}
             </div>
             ) : null}
