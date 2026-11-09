@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-09T02:42:51.661Z",
-  "reason": "Reviewed approved uploaded QA Corporate Design workbook, Kanit font across all generated Excel report sheets and chart labels, matching October layout headings and ranges, original canonical case scores, and inline preview typography.",
+  "reviewedAt": "2026-11-09T02:46:39.144Z",
+  "reason": "Compared the user's uploaded approved October QA corporate Excel reference. Dashboard sections and merged cell positions matched, Kanit font throughout workbook and editable native charts; original Case Detail data and KPI rules retained.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
@@ -592,7 +592,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "cb68efb34703d26dbe5a9066ff38adec981c75dfab4db384b4c6b67c20559b2f",
+    "src/knowledge/manual.json": "f3a0f9b8d7eba2798e346f42aa6e33e2386ca98d693dc912c3ce5015dd40749a",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -721,6 +721,6 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/ReportCenterMockup.tsx": "f41e1b477a5d6650538ed4c9c8eeee8127e11baf3e3181f319da46b299d165f8",
-    "src/corporateQaReportXlsx.ts": "c2d0beeea36ceaca52a6390e769102d182fe39dd7b8abd5ec9c3ee2fd32dabbf"
+    "src/corporateQaReportXlsx.ts": "91b0cc7b6936ed3e9ee44bbca20cf3b93ced741b527ce9c1542a40a058446e0a"
   }
 }
