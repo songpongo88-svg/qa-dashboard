@@ -162,7 +162,8 @@ function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>
     }
     for(const row of [19,21,23,25]){
       set(row,2,"topicOneLine");
-      for(const col of [6,7,8,9])set(row,col,col===8?"percent2":"numeric2");
+      for(const col of [6,7,8])set(row,col,col===8?"percent2":"numeric2");
+      set(row,9,"stripeCenter");
     }
     for(let r=18;r<=25;r++){
       set(r,11,"tagName");set(r,15,"stripeCenter");set(r,16,"tagPercent2");
