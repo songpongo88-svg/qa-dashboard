@@ -1,13 +1,14 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-08T19:21:36.283Z",
-  "reason": "Review verified corporate Excel QA export uses exactly the PageHero logo, Rubric topic names, canonical QA scores, Topic/Tag charts and signed-in user attribution across report types.",
+  "reviewedAt": "2026-11-09T02:29:54.576Z",
+  "reason": "Reviewed live inline Report Center Preview including PDF and workbook sheet tabs; presentation preview now shows without button; corporate report exports have aligned KPI cards, official Dashboard logo, rubric Topic names, charted Tag/Topic and unchanged canonical cases, with direct Generate.",
   "contentChanged": true,
   "reviewedChapters": [
     "exports",
+    "slides",
     "dashboard",
     "case-detail",
-    "slides"
+    "analytics"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -469,7 +470,7 @@
     "src/PageHero.tsx": "f3c717205bd67000ed8b322363b2268849933e9b09404dcc3fe359fcc8d7f342",
     "src/PreTestMockup.tsx": "7e8b9a000276931dea99e471ee254e35f24af7287c71cdc9304b246a9a7b4d40",
     "src/PresentationBuilderMockup.tsx": "a165160a1a74d93b1e3c4f21c232b10ad926a1ccd5ccf97291dc0dd48d35afdc",
-    "src/PresentationMockup.tsx": "df123576585cdc2725a1a6b2ce9d1da9627e46ba2483fdf9ef662f613e0ffa58",
+    "src/PresentationMockup.tsx": "69da6c75352f92473c0530ad8272c3666a978dadc2919e944f643048a07f9a3e",
     "src/ProcessFileManager.tsx": "f48a7a54cf9fb14ccdcee34d90d526f832caa5848244fcc7dfdab541449dbfe3",
     "src/ProcessSlidePickerPortal.tsx": "dbe61bddab8995dd9dc2f5ed5d75edbd28354f6635787058e1419a08fd384ccb",
     "src/ProfileMakeoverQuest.tsx": "444e9a06af6b49cfe9768639b0b1172ef5422fb146b55da832906009553cd6fd",
@@ -592,7 +593,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "281956d1d1f72ec2c73c3ba8043a1daaa2ebef2edf439d84365c2886eadef6ec",
+    "src/knowledge/manual.json": "5e7f28ff98f4249b9986d54071a9c18719bb5d9cb2d0b531b3a5dd3d37e017c8",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -720,7 +721,7 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "src/ReportCenterMockup.tsx": "162c3df346f71f2f1b0e4e8a5747613488f30cabf92d0dbf753b0f3814a3f50f",
-    "src/corporateQaReportXlsx.ts": "2c1316d0c146308929b5ed41987ae606c32899d4caa31b7f97a7bfc7141f83ea"
+    "src/ReportCenterMockup.tsx": "7f8eb49a6ad333e4e78e101034d7ccdc79a61f6946a349961d1d6943209f6b0f",
+    "src/corporateQaReportXlsx.ts": "4f6cc0e4f896ada34fc8f0899133281085fb2988707e8832294887cd6c8e9e3e"
   }
 }
