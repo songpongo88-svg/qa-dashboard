@@ -199,21 +199,21 @@ function makeNativeChart(title:string,items:ChartPoint[],categoryFormula:string,
 <c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
 <c:lang val="th-TH"/><c:roundedCorners val="0"/>
 <c:chart><c:plotArea><c:layout/>
-<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>
+<c:barChart><c:barDir val="bar"/><c:grouping val="clustered"/><c:varyColors val="0"/>
 <c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>${escapeXml(title)}</c:v></c:tx>
 <c:spPr><a:solidFill><a:srgbClr val="76308B"/></a:solidFill></c:spPr>
 <c:cat><c:strRef><c:f>${escapeXml(categoryFormula)}</c:f><c:strCache><c:ptCount val="${items.length}"/>${labels}</c:strCache></c:strRef></c:cat>
 <c:val><c:numRef><c:f>${escapeXml(valueFormula)}</c:f><c:numCache><c:formatCode>0.00</c:formatCode><c:ptCount val="${items.length}"/>${values}</c:numCache></c:numRef></c:val></c:ser>
 <c:axId val="${ax1}"/><c:axId val="${ax2}"/></c:barChart>
-<c:catAx><c:axId val="${ax1}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax2}"/></c:catAx>
-<c:valAx><c:axId val="${ax2}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines/><c:numFmt formatCode="0.0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax1}"/><c:crossBetween val="between"/></c:valAx></c:plotArea>
-<c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/></c:chart>
+<c:catAx><c:axId val="${ax1}"/><c:scaling><c:orientation val="maxMin"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax2}"/></c:catAx>
+<c:valAx><c:axId val="${ax2}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorGridlines/><c:numFmt formatCode="0.0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax1}"/><c:crossBetween val="between"/></c:valAx></c:plotArea>
+<c:plotVisOnly val="1"/></c:chart>
 <c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr lang="th-TH" sz="1000"><a:latin typeface="Kanit"/></a:defRPr></a:pPr><a:endParaRPr lang="th-TH"/></a:p></c:txPr>
 </c:chartSpace>`;
 }
 const nativeChartAnchor=(id:number,fromCol:number,toCol:number)=>`
-<xdr:twoCellAnchor><xdr:from><xdr:col>${fromCol}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>25</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
-<xdr:to><xdr:col>${toCol}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>39</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+<xdr:twoCellAnchor><xdr:from><xdr:col>${fromCol}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>27</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+<xdr:to><xdr:col>${toCol}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>43</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
 <xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${id}" name="QA Report Chart ${id}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>
 <xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>
 <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">
@@ -240,17 +240,24 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
 <xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`);
     const topicSheet=book.Sheets["Topic Performance"] || book.Sheets["QA Topic Performance"];
     const tagSheet=book.Sheets["Tag Analysis"] || book.Sheets["QA Tag Analysis"];
+    const shortThaiTopic=(text:string)=> {
+      if(text.includes("ขั้นตอนการทำงาน"))return "ขั้นตอนและนโยบาย";
+      if(text.includes("ความถูกต้องของคำตอบ"))return "ความถูกต้องของคำตอบ";
+      if(text.includes("การดูแลเคส"))return "ดูแลและติดตามเคส";
+      if(text.includes("ทักษะการสื่อสาร"))return "ทักษะการสื่อสาร";
+      return text.replace(/\\s*\\([^)]*\\)/g,"").slice(0,26);
+    };
     const topicData=(topicSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(topicSheet):[]).slice(0,6)
-      .map(row=>({label:String(row.Topic || ""),amount:Number(row["Average %"] || 0)})).filter(x=>Number.isFinite(x.amount));
+      .map(row=>({label:shortThaiTopic(String(row.Topic || "")),amount:Number(row["Average %"] || 0)})).filter(x=>Number.isFinite(x.amount));
     const tagData=(tagSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(tagSheet):[]).slice(0,7)
-      .map(row=>({label:String(row.Tag || ""),amount:Number(row["Cases Affected"] || 0)})).filter(x=>Number.isFinite(x.amount));
+      .map(row=>({label:String(row.Tag || "").slice(0,28),amount:Number(row["Cases Affected"] || 0)})).filter(x=>Number.isFinite(x.amount));
 
     const topicRef=book.Sheets["Topic Performance"] ? "Topic Performance" : "QA Topic Performance";
     const tagRef=book.Sheets["Tag Analysis"] ? "Tag Analysis" : "QA Tag Analysis";
     const chartParts=[
-      {id:2,name:"qaReportTopic.xml",from:1,to:8,title:"Topic Performance (%)",items:topicData,
+      {id:2,name:"qaReportTopic.xml",from:1,to:9,title:"Topic Performance (%)",items:topicData,
         labelFormula:`'${topicRef}'!$A$2:$A$${topicData.length+1}`,valueFormula:`'${topicRef}'!$D$2:$D$${topicData.length+1}`,axis:48650112},
-      {id:3,name:"qaReportTag.xml",from:9,to:16,title:"Most Frequent Tags",items:tagData,
+      {id:3,name:"qaReportTag.xml",from:10,to:16,title:"Most Frequent Tags",items:tagData,
         labelFormula:`'${tagRef}'!$A$2:$A$${tagData.length+1}`,valueFormula:`'${tagRef}'!$B$2:$B$${tagData.length+1}`,axis:48650212},
     ];
     const extra=chartParts.map(part=>nativeChartAnchor(part.id,part.from,part.to)).join("");
