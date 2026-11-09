@@ -25,7 +25,7 @@ function createStyles(source: string) {
   const doc = parse(source);
   const root = doc.documentElement;
   const fonts = child(root, "fonts")!, fills = child(root, "fills")!, xfs = child(root, "cellXfs")!;
-  function font(color: string, bold = false, size = 11, face = "Sarabun") {
+  function font(color: string, bold = false, size = 11, face = "Kanit") {
     const number = fonts.children.length;
     const f = add(doc, fonts, "font");
     add(doc, f, "sz", { val: String(size) });
@@ -44,13 +44,13 @@ function createStyles(source: string) {
     return number;
   }
   const fontsId = {
-    light: font("FFFFFF",true,12), display: font("FFFFFF",true,18),
-    gold: font(gold,false,10), value: font(purple,true,22),
-    label: font("675472",true,9), plain: font("342B3B",false,10),
+    light: font("FFFFFF",true,12), display: font("FFFFFF",true,18,"Kanit"),
+    gold: font(gold,false,10,"Kanit"), value: font(purple,true,22),
+    label: font("675472",true,9,"Kanit"), plain: font("342B3B",false,10,"Kanit"),
     bold: font(deep,true,10), score: font(purple,true,11),
     green: font("187756",true,10), red: font("BC3D52",true,10),
     footer: font("584368",false,9), bar: font("8755AF",true,12),
-    topicName: font(deep,true,11), metaLabel: font("5E4270",true,9),
+    topicName: font(deep,true,11), metaLabel: font("5E4270",true,9,"Kanit"),
   };
   const fillsId = { deep: fill(deep), purple: fill(purple), pale: fill(pale), light: fill(light),
     white: fill("FFFFFF"), violet: fill("EADBF0"), gold: fill("F6E6CC") };
@@ -118,24 +118,23 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
     // dark masthead, four centered KPI cards, two analytics panels, agent scorecard and attribution.
     for(let r=2;r<=5;r++)for(let col=2;col<=16;col++)set(r,col,r===4?"subtitle":"title");
     for(let r=8;r<=12;r++)for(let col=2;col<=16;col++)if(![5,9,13].includes(col)){
-      set(r,col,r===8?"topStrip":r===9?"cardLabel":r===10||r===11?"cardValue":"cardDetail");
+      set(r,col,r===8?"cardLabel":r===9||r===10?"cardValue":"cardDetail");
     }
-    for(const [left,right] of [[2,9],[11,16]]){
+    for(const [left,right] of [[2,8],[10,16]]){
       for(let col=left;col<=right;col++)set(15,col,"section");
     }
-    for(let col=2;col<=9;col++)set(17,col,"heading");
-    for(let col=11;col<=16;col++)set(17,col,"heading");
-    for(let r=18;r<=26;r++)for(let col=2;col<=9;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
-    for(let r=18;r<=26;r++)for(let col=11;col<=16;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
+    for(let col=2;col<=8;col++)set(17,col,"heading");
+    for(let col=10;col<=16;col++)set(17,col,"heading");
+    for(let r=18;r<=26;r++)for(let col=2;col<=8;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
+    for(let r=18;r<=26;r++)for(let col=10;col<=16;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
     for(let r of [19,21,23,25]){
-      set(r,2,"topicName");set(r,6,"score");set(r,7,"score");set(r,8,"score");
-      set(r,9,"topicBar");
+      set(r,2,"topicName");set(r,5,"score");set(r,6,"score");set(r,7,"score");set(r,8,"score");
     }
-    for(let r=19;r<=26;r++)set(r,11,"tagName");
-    for(let col=2;col<=16;col++){set(43,col,"section");set(45,col,"heading");}
-    for(let r=46;r<=57;r++){
+    for(let r=18;r<=25;r++)set(r,10,"tagName");
+    for(let col=2;col<=16;col++){set(41,col,"section");set(44,col,"heading");}
+    for(let r=45;r<=56;r++){
       for(let col=2;col<=16;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
-      set(r,9,"score");set(r,12,"score");
+      set(r,8,"score");set(r,11,"score");
     }
     for(let r=59;r<=62;r++){
       for(let col=2;col<=16;col++)set(r,col,"footer");
@@ -161,14 +160,14 @@ function renderChart(title:string, data:PreviewBar[], maximum:number):Promise<Ar
   const ctx=canvas.getContext("2d");
   if(!ctx)return Promise.resolve(new ArrayBuffer(0));
   ctx.fillStyle="#FFFFFF";ctx.fillRect(0,0,900,450);
-  ctx.fillStyle="#28123B";ctx.font='bold 30px "Sarabun", Arial, sans-serif';
+  ctx.fillStyle="#28123B";ctx.font='bold 30px "Kanit", Arial, sans-serif';
   ctx.fillText(title,30,47);
   const plotWidth=415, labelWidth=340, ystart=90;
   const count=Math.min(7,data.length);
-  if(!count){ctx.font='22px "Sarabun", Arial, sans-serif';ctx.fillText("No evaluated data",40,150);}
+  if(!count){ctx.font='22px "Kanit", Arial, sans-serif';ctx.fillText("No evaluated data",40,150);}
   for(let i=0;i<count;i++){
     const row=data[i];const y=ystart+i*49;
-    ctx.fillStyle="#4B365A";ctx.font='18px "Sarabun", Arial, sans-serif';
+    ctx.fillStyle="#4B365A";ctx.font='18px "Kanit", Arial, sans-serif';
     const name=row.label.length>38?row.label.slice(0,37)+"…":row.label;
     ctx.fillText(name,25,y+21,315);
     ctx.fillStyle="#EDE5F1";ctx.fillRect(labelWidth,y,plotWidth,24);
@@ -212,8 +211,8 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
       renderChart("TOPIC PERFORMANCE (%)",topicData,100),
       renderChart("TOP ISSUE TAGS",tagData,Math.max(...tagData.map(x=>x.amount),1))
     ]);
-    const images=[{id:2,name:"Topic Performance",data:topicImage,media:"qaReportTopic.png",col:1,row:27,cx:4700000,cy:2850000},
-      {id:3,name:"Top Issue Tags",data:tagImage,media:"qaReportTags.png",col:10,row:27,cx:3800000,cy:2850000}];
+    const images=[{id:2,name:"Topic Performance",data:topicImage,media:"qaReportTopic.png",col:1,row:26,cx:4700000,cy:2850000},
+      {id:3,name:"Top Issue Tags",data:tagImage,media:"qaReportTags.png",col:9,row:26,cx:3800000,cy:2850000}];
     for(const item of images)if(item.data.byteLength)zip.file("xl/media/"+item.media,item.data);
     const drawingText=await zip.file(drawingPath)!.async("string");
     const drawingExtra=images.filter(item=>item.data.byteLength).map(item=>chartAnchor(item.col,item.row,item.cx,item.cy,item.id,item.name)).join("");
