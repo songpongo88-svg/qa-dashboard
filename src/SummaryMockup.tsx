@@ -9303,37 +9303,7 @@ export default function SummaryMockup({
       {embedded && dashboardControlTarget
         ? createPortal(
             <div data-qa-dashboard-unified-controls-v163="true" data-unified-controls-light-v164="true" className="space-y-4 rounded-2xl border border-violet-100 bg-white p-4 shadow-[0_4px_14px_rgba(76,29,149,0.05)]">
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-                <div id="qa-dashboard-search-slot-v166" className="min-w-0" />
-                <div className="flex flex-wrap items-center gap-2">
-                  {isComparisonMode ? (
-                    <button type="button" onClick={() => {
-                      const lastPeriod = effectivePeriodKeys[effectivePeriodKeys.length - 1];
-                      setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
-                    }} className="h-10 rounded-xl border border-violet-300 bg-violet-700 px-4 text-xs font-bold text-white hover:bg-violet-800">Exit Compare</button>
-                  ) : null}
-                  <div className={reportCenter ? "relative" : "hidden"}>
-                    <button
-                      type="button"
-                      disabled={!analyticsCanExport}
-                      onClick={() => setAnalyticsExportOpen((value) => !value)}
-                      className="h-10 rounded-xl border border-violet-200 bg-white px-4 text-xs font-bold text-violet-800 shadow-sm hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                    >
-                      Export
-                    </button>
-                    {analyticsExportOpen && analyticsCanExport ? (
-                      <div className="absolute right-0 top-[calc(100%+8px)] z-[520] w-64 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-slate-700 shadow-2xl">
-                        <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Export Current Report</div>
-                        <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-violet-50 hover:text-violet-700"><span>PDF</span><span>›</span></button>
-                        <button type="button" onClick={exportCurrentAnalyticsExcel} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium hover:bg-violet-50 hover:text-violet-700"><span>Excel</span><span>›</span></button>
-                      </div>
-                    ) : null}
-                  </div>
-                  <button type="button" onClick={openAnalyticsCompare} className="h-10 rounded-xl border border-violet-700 bg-violet-700 px-4 text-xs font-bold text-white shadow-sm hover:bg-violet-800">Compare</button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 border-t border-violet-100 pt-4 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[260px_minmax(210px,1fr)_minmax(210px,1fr)_minmax(230px,1fr)]">
                   <div>
                     <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Time View</div>
                     <div className="grid h-12 grid-cols-3 gap-1 rounded-xl border border-violet-200 bg-violet-100 p-1">
