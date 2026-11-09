@@ -20,7 +20,7 @@ const add = (doc: XMLDocument, parent: Element, name: string, attrs: Record<stri
   parent.appendChild(element);
   return element;
 };
-type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain";
+type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain" | "topicOneLine" | "numeric2" | "percent2" | "tagPercent2";
 function createStyles(source: string) {
   const doc = parse(source);
   const root = doc.documentElement;
@@ -84,6 +84,10 @@ function createStyles(source: string) {
   style("cardDetail",fontsId.footer,fillsId.white,true);
   style("heading",fontsId.bold,fillsId.violet,true,true);
   style("plain",fontsId.plain,fillsId.white,false,true);
+  style("topicOneLine",fontsId.topicName,fillsId.white,false,false);
+  style("numeric2",fontsId.score,fillsId.white,true);
+  style("percent2",fontsId.score,fillsId.white,true);
+  style("tagPercent2",fontsId.plain,fillsId.light,true);
   style("stripe",fontsId.plain,fillsId.light,false,true);
   style("stripeCenter",fontsId.plain,fillsId.light,true,true);
   style("score",fontsId.score,fillsId.light,true);
@@ -137,27 +141,32 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
     for(let r=8;r<=12;r++)for(let col=2;col<=16;col++)if(![5,9,13].includes(col)){
       set(r,col,r===8?"cardLabel":r===9||r===10?"cardValue":"cardDetail");
     }
-    for(const [left,right] of [[2,8],[10,16]]){
+    for(const [left,right] of [[2,9],[11,16]]) {
       for(let col=left;col<=right;col++)set(15,col,"section");
     }
-    for(let col=2;col<=8;col++)set(17,col,"heading");
-    for(let col=10;col<=16;col++)set(17,col,"heading");
-    for(let r=18;r<=26;r++)for(let col=2;col<=8;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
-    for(let r=18;r<=26;r++)for(let col=10;col<=16;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
-    for(let r of [19,21,23,25]){
-      set(r,2,"topicName");set(r,5,"score");set(r,6,"score");set(r,7,"score");set(r,8,"score");
+    for(let col=2;col<=9;col++)set(17,col,"heading");
+    for(let col=11;col<=16;col++)set(17,col,"heading");
+    for(let r=18;r<=26;r++) {
+      for(let col=2;col<=9;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
+      for(let col=11;col<=16;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
     }
-    for(let r=18;r<=25;r++)set(r,10,"tagName");
-    for(let col=2;col<=16;col++){set(41,col,"section");set(44,col,"heading");}
-    for(let r=45;r<=56;r++){
+    for(const row of [19,21,23,25]){
+      set(row,2,"topicOneLine");
+      for(const col of [6,7,8,9])set(row,col,col===8?"percent2":"numeric2");
+    }
+    for(let r=18;r<=25;r++){
+      set(r,11,"tagName");set(r,15,"stripeCenter");set(r,16,"tagPercent2");
+    }
+    for(let col=2;col<=16;col++){set(45,col,"section");set(47,col,"heading");}
+    for(let r=48;r<=59;r++){
       for(let col=2;col<=16;col++)set(r,col,r%2===0?"stripe":"stripeCenter");
-      set(r,8,"score");set(r,11,"score");
+      set(r,2,"plain");set(r,8,"numeric2");
     }
-    for(let r=59;r<=62;r++){
+    for(let r=62;r<=64;r++){
       for(let col=2;col<=16;col++)set(r,col,"footer");
       set(r,2,"metaLabel");
     }
-    for(let col=2;col<=16;col++)set(64,col,"footer");
+    for(let col=2;col<=16;col++)set(66,col,"footer");
   } else {
     const rowElements=Array.from(data.children).filter(r=>r.localName==="row");
     const maxRow=Math.max(...rowElements.map(r=>Number(r.getAttribute("r"))),1);
@@ -165,6 +174,43 @@ function styleSheet(source:string, dashboard:boolean, st:Record<StyleName,number
     const count=first?first.children.length:0;
     for(let c=1;c<=count;c++)set(1,c,"section");
     for(let r=2;r<=maxRow;r++) for(let c=1;c<=count;c++)set(r,c,r%2===0?"stripe":"plain");
+  }
+  // Excel custom number formats preserve numeric scores and chart formulas.
+  const numberFormats=new Map<string,string>();
+  if(dashboard) {
+    for(const row of [19,21,23,25]){
+      for(const col of ["F","G"])numberFormats.set(col+row,"0.00");
+      numberFormats.set("H"+row,'0.00"%"');
+    }
+    for(let row=18;row<=25;row++)numberFormats.set("P"+row,'0.00"%"');
+    for(let row=48;row<=59;row++)numberFormats.set("H"+row,"0.00");
+    numberFormats.set("B9","0.00");
+  }else{
+    const header=rows.get(1);
+    const headers=new Map<number,string>();
+    if(header){
+      for(const cell of Array.from(header.children).filter(c=>c.localName==="c")){
+        const address=cell.getAttribute("r")||"";
+        const col=colNumber(address.replace(/\\d/g,""));
+        const value=child(cell,"v")?.textContent||"";
+        const inline=cell.textContent||"";
+        headers.set(col,inline||value);
+      }
+    }
+    // Apply formats by column position for the generated report tabs.
+    const columns=new Map<number,string>();
+    for(const [i,name] of headers){
+      if(/Share|Average %/i.test(name))columns.set(i,'0.00"%"');
+      else if(/Average Score|Maximum Score/i.test(name))columns.set(i,"0.00");
+    }
+    // Column header cell values may use shared strings, so use known sheet patterns too.
+    const maxRow=Math.max(1,...Array.from(rows.keys()));
+    for(let row=2;row<=maxRow;row++)for(const [col,format] of columns)
+      numberFormats.set(XLSX.utils.encode_col(col-1)+row,format);
+  }
+  for(const [address,format] of numberFormats){
+    const cell=Array.from(rows.get(Number(address.match(/\\d+$/)?.[0]||0))?.children||[]).find(c=>c.localName==="c"&&c.getAttribute("r")===address);
+    if(cell)cell.setAttribute("qaFmt",format);
   }
   return xml(doc);
 }
