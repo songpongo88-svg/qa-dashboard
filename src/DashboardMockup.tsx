@@ -8112,12 +8112,7 @@ export default function DashboardMockup({
                   </div>
                 </div>
               )}
-              {dashboardSearchTarget
-                ? createPortal(renderDashboardSearchControls(), dashboardSearchTarget)
-                : null}
-              {!canViewAnalytics || !analyticsContent ? (
-                <>{renderDashboardSearchControls()}</>
-              ) : null}
+              {renderDashboardSearchControls()}
             </div>
             ) : null}
 
