@@ -1,12 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-09T06:15:00.000Z",
-  "reason": "Reviewed latest Dashboard floating Evaluation search UI/portal placement; ensured case lookup and QA reporting remain unchanged. Synchronized source review hash.",
-  "contentChanged": true,
+  "reviewedAt": "2026-11-09T08:07:32.551Z",
+  "reason": "Reviewed five Sparks wallet read-grant and deployment test changes: HMAC grant is read-only, scoped to login session, expires after 15 min; app guide workflow unchanged.",
+  "contentChanged": false,
   "reviewedChapters": [
     "dashboard",
-    "exports",
-    "case-detail"
+    "rewards"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -30,7 +29,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "07206f57e5ee8ccf17acdbfc7102c790cba63b5711126d46ba3fb37efa6ae34a",
+    "api/sparks-admin.js": "31caa18b87f80ba9445102153e4a77fa1fe6d28091c50629a38e91fc5ad3627f",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
@@ -112,7 +111,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "b89f38fca69fe9f73161aa5b0ba437f9231c07e5a703efd470d95c6a2db12625",
+    "package.json": "ad6563ff4ff3b31b20619180c2e472c83ebb001d92864b8801ff4a918e0af216",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -654,7 +653,7 @@
     "src/qaSparks.css": "e02517fe3f05741e5f81b325ab56dc9ff8e13a925165fdbf5f3b7556976e5583",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
-    "src/qaSparksStore.ts": "1adfc4975545abf52ecf7f4f32513532f44ac23bd215dd3908a94db8b4b7072b",
+    "src/qaSparksStore.ts": "c77eadea9f166129d553ad28d5873721f543d314f39e93fd6008fe2962982654",
     "src/qaTypingChallengeHistoryStore.ts": "6a18857e80cfea8f5ddb23d3d98c246f933bb0126a60945159004a50a7824db2",
     "src/qaTypingChallengeStore.ts": "e1c71e682e46fc1c6f5bc0b88812c69df5912ba48d7f105326ff81a7ba882bd7",
     "src/receiptImageOcr.ts": "b7d48cdcc8a6dbcf4cc7e2eb86c4642d7e72c287b4bd47ab0c21ad0d2bbf225e",
@@ -720,6 +719,8 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/ReportCenterMockup.tsx": "37bb9a5c4d325419c33693bd943916ac25f8f2449e346d16134bbc189f0b607e",
-    "src/corporateQaReportXlsx.ts": "c7cd337708fe1bacc12c2fccc4048795939f2d4d12b23bf1479ced0e629f4144"
+    "src/corporateQaReportXlsx.ts": "c7cd337708fe1bacc12c2fccc4048795939f2d4d12b23bf1479ced0e629f4144",
+    "scripts/test-sparks-wallet-read-grant.mjs": "f9216bc5ee4a06ec05381c7320e862e545363fc291c76a9453d55391880ef589",
+    "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217"
   }
 }
