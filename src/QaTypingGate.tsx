@@ -348,6 +348,7 @@ export default function QaTypingGate({
                   className="mt-3 w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">ใช้ QA Access Auto-Pass 1 สิทธิ์</button>}
               </div>:null}
               {challenge.mode==="word"?<>
+              <p className="mt-3 text-xs text-violet-700">Typing Relief ลดจำนวนคำพิมพ์ 60% ใน Word Mode โดยยังต้องพิมพ์ส่วนที่เหลือให้ถูกต้อง</p>
               <div className="mt-4 rounded-xl bg-violet-50 p-4 text-sm font-semibold text-violet-900">
                 สิทธิ์คงเหลือ: <strong>{rewardOwned}/10</strong> · Sparks: <strong>{rewardBalance}</strong>
                 {rewardOwned ? <p className="mt-2 text-xs">ใช้ 1 สิทธิ์ → ลด {challenge.repeatCount - typingReliefRemainingWords(challenge.repeatCount)} คำ เหลือ {typingReliefRemainingWords(challenge.repeatCount)} คำ</p> : <p className="mt-2 text-xs">ยังไม่มีสิทธิ์ สามารถแลก 1 สิทธิ์ราคา {getTypingReliefPricing().price} Sparks หรือพิมพ์ตามปกติได้</p>}
