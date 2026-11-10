@@ -813,6 +813,12 @@
   color:var(--sparks-accent,#9a51a6); line-height:1.35;
 }
 .qa-sparks-mini-value.is-expired{color:#a18e9c}
+.qa-relief-mini-sale{display:inline-block;margin-left:3px;font-size:9px;font-weight:800;color:#ad6415;}
+.qa-relief-original-price{font-size:10px!important;color:#986f7a!important;font-weight:650!important;}
+.qa-relief-original-price s{text-decoration:line-through;text-decoration-thickness:1.3px;}
+.qa-relief-promo-copy{display:flex;flex-direction:column;gap:4px;padding:11px 15px;margin:-6px 0 18px;border-radius:11px;background:linear-gradient(110deg,#fff8ed,#fff3fb);border:1px solid #ecd5cf;}
+.qa-relief-promo-copy strong{font-size:13px;color:#85417c;}
+.qa-relief-promo-copy span{font-size:11px;line-height:1.55;color:#78627b;}
 .qa-sparks-mini-hint{display:block;font-size:9px;color:#90788f;line-height:1.25}
 .qa-sparks-mini-item--typing,.qa-sparks-mini-item--money{margin:0!important;}
 /* Avoid a visual container from the old Reward Center components. */
