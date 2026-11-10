@@ -78,6 +78,10 @@ export function prepareQaCutoverWrite(request, trusted) {
   const score = Number(record.finalScore ?? record.final_score);
   if (!Number.isFinite(score) || score < 0 || score > 100) fail('invalid_score');
   if (!Array.isArray(record.topics)) fail('missing_topics');
+  if (request.action === 'create' && record.evaluatorUsername && record.evaluatorUsername !== trusted.session.username)
+    fail('evaluator_identity_mismatch');
+  if (request.action === 'update' && record.evaluatorUsername !== current.evaluatorUsername)
+    fail('evaluator_identity_mismatch');
 
   // The authoritative original scope is resolved on the server, not inferred
   // solely from the incoming form (a forged month could bypass a lock).
@@ -111,7 +115,7 @@ export function prepareQaCutoverWrite(request, trusted) {
     : structuredClone(record);
   const operationHash = sha(JSON.stringify([
     request.action, request.evaluationId, request.expectedVersion,
-    trusted.session.username, value,
+    trusted.session.username, record, // Stable across retries (delete timestamp is not hashed).
   ]));
   return {
     action: request.action,
