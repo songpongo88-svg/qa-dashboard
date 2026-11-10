@@ -61,6 +61,10 @@ try{
   assert.match(sparksAdmin, /rememberBalances/, "successful admin reads must keep a short-lived session cache");
   assert.match(sparksAdmin, /selected\.balanceKnown/, "user detail should show known cached balances during quota outage");
   const qaSparksSource = await readFile("src/QASparks.tsx", "utf8");
+  assert.match(qaSparksSource, /<FirstLoginSparksModal key=\\{username\\+":"\\+sparksSessionId\\}/,
+    "First Login fruit cards must be offered after reaching the authenticated Sparks tab");
+  assert.match(qaSparksSource, /username && active && import\\.meta\\.env\\?\\.VITE_SPARKS_CLOUD_READ_ONLY !== "1"/,
+    "first-login cards must never appear for anonymous users or read-only preview");
   assert.match(qaSparksSource, /ownAccount=\{ownAccountSnapshot\}/, "the administrator's existing personal wallet is available for read-only fallback");
   assert.match(qaSparksSource, /useMemo/, "personal wallet snapshot is stable across QA Sparks rerenders");
   const membershipSource = await readFile("src/SparksMembership.tsx", "utf8");
@@ -90,6 +94,8 @@ try{
   assert.equal(accessStatus, 403, "non-admin cannot request another user's wallets");
   assert.ok(accessPayload.error, "unauthorized request returns an error");
   const app=await readFile("src/App.tsx","utf8");
+  assert.doesNotMatch(app, /<FirstLoginSparksModal/,
+    "global QA Dashboard login must not trigger Sparks first-login before Supabase auth");
   for(const piece of [
     '"qa-sparks"', 'import QASparks from "./QASparks"',
     'key: "qa-sparks"', 'icon: "gift"', '<QASparks active=',
