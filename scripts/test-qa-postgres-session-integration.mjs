@@ -10,6 +10,7 @@ const assertBlocked = (code)=>(error)=>error instanceof QaCutoverBlocked && erro
 try {
   const identity=await pool.query('SELECT current_database() AS db');
   assert.equal(identity.rows[0].db,'qa_cutover_ci_test');
+  await pool.query('DROP SCHEMA IF EXISTS qa_cutover_stage CASCADE'); // disposable CI database only
   await pool.query('CREATE SCHEMA qa_cutover_stage');
   await pool.query(`CREATE TABLE qa_cutover_stage.qa_accounts(
     username text PRIMARY KEY,
