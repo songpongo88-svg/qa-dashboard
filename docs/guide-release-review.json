@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T09:45:00.000Z",
-  "reason": "Reviewed isolated PostgreSQL 17 server-owned QA Session prototype, token hashes, server-only role checks, suspension and revocation tests. No production Login changes or new end-user guide content.",
+  "reviewedAt": "2026-11-10T09:51:50.333Z",
+  "reason": "Reviewed PostgreSQL stage-only concurrency fix and regression tests for concurrent create/retry, tombstones, and unchanged QA source data. No production path or user guide changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -727,9 +727,9 @@
     ".github/workflows/qa-postgres-preview-safety.yml": "736e8f450787090e722f72f72d29f94917acd11d876f2a2f770f2e01252a93d8",
     "server/qaCutoverWritePolicy.js": "80ea6e4e6a402a9dcc955a4588cc9a7286d40a62c3592b33d0f59c12433cbd1a",
     "scripts/test-qa-postgres-write-policy.mjs": "9c4a0ba95d56a7724114803116298689bc0cb08d34f003d30fa0a5e43f2ce825",
-    "server/qaCutoverPgWriter.js": "d3ebc1a8bcc29ebde4fb939d2466443d7b9c4077821613a7853dd1b25f800a82",
-    "scripts/test-qa-postgres-stage-writer.mjs": "d69227f5a9cdcf5026260e9d502374546cf3ab82e012e9f987c252c618d06aa9",
-    "scripts/test-qa-postgres-stage-integration.mjs": "2e279417f0e87116f6858a7feed060c60e00fbf29cc1d8529759a71b52389734",
+    "server/qaCutoverPgWriter.js": "6ce0cc477af2008f8e0613248a05a77bd29247b0ebb8f652ce34a08981181384",
+    "scripts/test-qa-postgres-stage-writer.mjs": "92fac8c93edb603b7a72f025e8ce2ab680165bd3855d16efcfc6a0ddde482724",
+    "scripts/test-qa-postgres-stage-integration.mjs": "25bc57126ed817c02c8a7eb9cac94f6df4c119565ea4d6496a9146268ef44b56",
     "server/qaCutoverSessionStore.js": "02af9cd944af58e3531d529544e4ff3b22f0d942dbfde62d86f631cf8bf7c26e",
     "scripts/test-qa-postgres-session-integration.mjs": "2cd92ccc26b80f237cf888fad538329b1cc224085f6b77ebd03be29a570c5fa4"
   }
