@@ -57,6 +57,25 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
   const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
   const sparksSessionId = emailAuthEnabled ? "supabase-email-auth" : adminSessionId;
+  useEffect(()=>{
+    if (!emailAuthEnabled || !sparksAllowed || !active) return;
+    let current=true;
+    void fetch("/api/sparks-auth",{credentials:"same-origin",cache:"no-store"})
+      .then(async response=>{
+        if(!current)return;
+        if(response.status===401 || response.status===403){
+          setVerifiedActor(null);
+          return;
+        }
+        if(!response.ok)return; // temporary service errors must not destroy the session
+        const payload=await response.json();
+        if(current && (
+          payload?.actor?.username?.toLowerCase()!==username.toLowerCase() ||
+          payload?.actor?.status!=="Active"
+        ))setVerifiedActor(null);
+      }).catch(()=>{}); // server still checks every wallet and redemption request
+    return()=>{current=false};
+  },[emailAuthEnabled,sparksAllowed,active,username]);
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
   const [itemClock,setItemClock] = useState(0);
   const [gamesOpened, setGamesOpened] = useState(false);
