@@ -1450,7 +1450,7 @@ const CLOUD_PREVIEW_READ_ACTIONS = new Set([
   "special-rewards-mine", "announcement-shield-state", "treasure-state",
   "fruit-match-data", "snakes-state", "list-truemoney-tracker",
   "special-rewards-admin-list", "special-rewards-admin-receipt",
-  "list", "history",
+  "list-reward-queues", "list", "history",
 ]);
 function sparksCloudReadOnlyEnabled() {
   return process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1";
@@ -1649,6 +1649,18 @@ export default async function handler(req, res) {
     const admin = await authorizeAdmin(body);
     if (body.action === "set-truemoney-price") {
       return res.status(200).json(await setTrueMoneyPrice(body,admin));
+    }
+    if (body.action === "list-reward-queues") {
+      // Only one live QA administrator authorization for the two read-only queues.
+      // Each queue failure is isolated so one backend failure never hides the other.
+      const [truemoney, special] = await Promise.allSettled([
+        listTrueMoneyTracker(), qaSpecialRewards.adminList(),
+      ]);
+      const view = (result) => result.status === "fulfilled"
+        ? { ok: true, ...result.value }
+        : { ok: false, error: String(result.reason?.message || "คำขอรางวัลไม่พร้อมใช้งาน"),
+            code: String(result.reason?.code || result.reason?.firestoreStatus || "") };
+      return res.status(200).json({ truemoney: view(truemoney), special: view(special) });
     }
     if (body.action === "list-truemoney-tracker") {
       return res.status(200).json(await listTrueMoneyTracker());
