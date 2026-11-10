@@ -11,6 +11,8 @@ assert.match(main,/sparksStandalone\s*\?\s*<React\.StrictMode><RootErrorBoundary
 assert.match(entry,/<SparksEmailAuth onVerified=\{setActor\}/,"Sparks portal requires verified Supabase email");
 assert.match(entry,/verifiedSparksActor=\{actor\}/,"Sparks UI must receive server-verified identity");
 assert.match(email,/if\(username && String\(payload\.actor\.username\)/,"embedded QA path must still require username match");
+assert.match(email,/\/auth\/v1\/otp\?redirect_to=/,"OTP must send redirect_to as a query parameter, not in JSON");
+assert.doesNotMatch(email,/email_redirect_to:/,"invalid redirect property must not recur");
 assert.match(sparks,/sparksAllowed = !emailAuthEnabled/,"Wallet must not read before email verification");
 assert.match(api,/originKind !== "same-origin"/,"cookie-authenticated Sparks API denies cross-origin requests");
 console.log("PASS independent Sparks portal: no QA Dashboard login mount, email verification, username match and CSRF denial");
