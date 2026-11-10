@@ -37,5 +37,5 @@ assert.doesNotMatch(email,/สามารถใช้รหัสจากอ�
 assert.match(entry,/qa:sparks:supabase-login:/,"verified standalone users retain their Supabase preference");
 assert.match(sparks,/data-sparks-supabase-optin="true"/,"embedded Sparks exposes opt-in to every staff member");
 assert.match(sparks,/data-sparks-employee-email-login="true"/,"OTP remains in the existing dashboard tab");
-assert.match(sparks,/setVerifiedActor\\(actor\\)/,"only verified server identity opens the wallet");
+assert.ok(sparks.includes("setVerifiedActor(actor)"),"only verified server identity opens the wallet");
 console.log("PASS independent Sparks portal: no QA Dashboard login mount, email verification, username match and CSRF denial");
