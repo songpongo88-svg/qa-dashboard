@@ -3,7 +3,10 @@ import { createSign, randomUUID } from "node:crypto";
 const PROJECT = "qa-dashboard-b0b5d";
 const ROOT = "https://firestore.googleapis.com/v1/projects/" + PROJECT + "/databases/(default)/documents/qa_user_profiles";
 const MAX_PROFILES = 120;
-const MIN_PROFILES = 25;
+// The latest reviewed source census contains 30 QA profiles (2026-11-10).
+// Fail closed if a later Firestore response is smaller: a partial list must
+// never silently deactivate staff. Legitimate roster reductions need review.
+const MIN_PROFILES = 30;
 const PROFILE_FIELDS = ["username", "displayName", "email", "role", "status",
   "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"];
 
