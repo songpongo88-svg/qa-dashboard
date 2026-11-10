@@ -12,3 +12,6 @@
 .sparks-email-auth-error{color:#9b1c1c;background:#fef2f2;padding:11px;border-radius:9px}
 .sparks-email-auth-message{color:#155e36;background:#f0fdf4;padding:11px;border-radius:9px}
 .sparks-email-auth-card small{display:block;margin-top:15px;line-height:1.7;color:#6b7280}
+
+.sparks-email-auth-step-hint{font-size:13px;margin:0;padding:10px 12px;border-radius:9px;background:#f5f6fc;color:#303d7e}
+.sparks-email-auth-card .sparks-email-auth-secondary{background:transparent;color:#3444c6;border:1px solid #bac5ec}

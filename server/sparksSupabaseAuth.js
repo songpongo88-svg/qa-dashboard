@@ -46,9 +46,14 @@ async function supabase(path, { jwt = "", method = "GET", body = null } = {}) {
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    // Authentication failures and expired tokens must not reveal keys or raw Supabase errors.
-    throw failure("ไม่สามารถยืนยันสิทธิ์ QA Sparks ได้ กรุณาเข้าสู่ระบบอีกครั้ง", response.status === 401 ? 401 : 403,
-      response.status === 401 ? "SPARKS_AUTH_EXPIRED" : "SPARKS_AUTH_INVALID");
+    // Transient outages must not force users through OTP or erase a valid session.
+    const temporary = response.status === 429 || response.status >= 500;
+    const expired = response.status === 400 || response.status === 401;
+    throw failure(
+      temporary ? "ระบบตรวจสอบสิทธิ์ QA Sparks ยังไม่พร้อม กรุณาลองอีกครั้ง" : "ไม่สามารถยืนยันสิทธิ์ QA Sparks ได้ กรุณาเข้าสู่ระบบอีกครั้ง",
+      temporary ? 503 : expired ? 401 : 403,
+      temporary ? "SPARKS_AUTH_UNAVAILABLE" : expired ? "SPARKS_AUTH_EXPIRED" : "SPARKS_AUTH_INVALID"
+    );
   }
   return data;
 }
@@ -124,7 +129,17 @@ export async function getSparksRequestActor() {
     ctx.accessToken = token;
     return actor;
   })();
-  try { return await ctx.pending; } finally { ctx.pending = null; }
+  try {
+    return await ctx.pending;
+  } catch (error) {
+    // If the server confirms expiry, revocation or lost Active entitlement,
+    // discard unusable cookies. Never invalidate them on a transient outage.
+    if (["SPARKS_AUTH_EXPIRED", "SPARKS_AUTH_INVALID", "SPARKS_EMAIL_NOT_VERIFIED",
+      "SPARKS_PROFILE_RECONCILIATION_REQUIRED"].includes(error?.code)) {
+      clearSparksAuthCookies(ctx.res);
+    }
+    throw error;
+  } finally { ctx.pending = null; }
 }
 export async function sparksActiveDirectory() {
   const actor = await getSparksRequestActor();

@@ -17,4 +17,14 @@ assert.match(email,/\/auth\/v1\/otp\?redirect_to=/,"OTP must send redirect_to as
 assert.doesNotMatch(email,/email_redirect_to:/,"invalid redirect property must not recur");
 assert.match(sparks,/sparksAllowed = !emailAuthEnabled/,"Wallet must not read before email verification");
 assert.match(api,/originKind !== "same-origin"/,"cookie-authenticated Sparks API denies cross-origin requests");
+assert.match(email,/data-sparks-otp-in-place="true"/,"Sparks confirmation code must be entered in the active tab");
+assert.match(email,/pendingEmail/,"verify against the email address that received the OTP");
+assert.ok(email.includes("maxLength={8}"),"OTP field supports 6–8 numeric digits");
+assert.match(email,/type:"email"/,"OTP confirms email token without Magic Link navigation");
+assert.match(email,/ยืนยันและเข้าใช้ Sparks ในแท็บนี้/,"explicit same-tab verification action");
+assert.doesNotMatch(email,/หรือกดลิงก์ในอีเมล/,"remove separate link instruction");
+assert.match(email,/credentials:"same-origin",cache:"no-store"/,"existing Sparks session restored through secure same-origin cookie");
+assert.match(email,/Session QA Sparks หมดอายุแล้ว/,"OTP requested again when session expires");
+assert.match(entry,/window.addEventListener\("focus",validate\)/,"standalone rechecks session when browser regains focus");
+assert.match(sparks,/\[emailAuthEnabled,sparksAllowed,active,username\]/,"embedded Sparks tab rechecks on re-entry");
 console.log("PASS independent Sparks portal: no QA Dashboard login mount, email verification, username match and CSRF denial");
