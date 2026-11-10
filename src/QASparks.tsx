@@ -46,12 +46,29 @@ function EmptyReward({ large = false }: { large?: boolean }) {
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true, verifiedSparksActor = null }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean; verifiedSparksActor?: SparksVerifiedActor | null }) {
   const [view, setView] = useState<SparksView>("overview");
   const emailAuthMode = String(import.meta.env?.VITE_SPARKS_AUTH_MODE || "legacy");
-  // Production rollout: only the existing QA Sparks owner is prompted for
-  // Supabase email verification. All other Dashboard users retain their
-  // previous QA sign-in and Sparks screens until email delivery is ready.
+  const normalizedSparksUser = username.trim().toLowerCase();
+  // Every employee may voluntarily switch to Supabase login without modifying
+  // the legacy fallback until OTP delivery and roster data are fully reviewed.
+  // This local preference never grants access: server checks Supabase identity.
+  const [emailAuthChoices,setEmailAuthChoices] = useState<Record<string,boolean>>({});
+  const choiceKey = "qa:sparks:supabase-login:" + normalizedSparksUser;
+  const rememberedChoice = (() => {
+    if(!normalizedSparksUser || typeof window==="undefined")return false;
+    try{return window.localStorage.getItem(choiceKey)==="1";}
+    catch{return false;}
+  })();
+  const emailOptedIn = emailAuthChoices[normalizedSparksUser] ?? rememberedChoice;
+  const chooseEmailAuth = (enabled:boolean) => {
+    if(!normalizedSparksUser)return;
+    try {
+      if(enabled)window.localStorage.setItem(choiceKey,"1");
+      else window.localStorage.removeItem(choiceKey);
+    } catch {/* Browser storage does not control authorization. */}
+    setEmailAuthChoices(current=>({...current,[normalizedSparksUser]:enabled}));
+  };
   const emailAuthEnabled = emailAuthMode === "supabase" || (
     emailAuthMode === "hybrid" && (
-      username.trim().toLowerCase() === "songpon" || Boolean(verifiedSparksActor)
+      username.trim().toLowerCase() === "songpon" || Boolean(verifiedSparksActor) || emailOptedIn
     )
   );
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
@@ -157,10 +174,25 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     ...(adminAccess && (!emailAuthEnabled || (verifiedActor?.role === "Quality Assurance" && verifiedActor?.username === "songpon")) && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
-  if (emailAuthEnabled && !sparksAllowed) return <SparksEmailAuth username={username} onVerified={setVerifiedActor}/>;
+  if (emailAuthEnabled && !sparksAllowed) return <div data-sparks-employee-email-login="true">
+    <SparksEmailAuth username={username} onVerified={actor=>{
+      setVerifiedActor(actor);
+      if(emailAuthMode==="hybrid")chooseEmailAuth(true);
+    }}/>
+    {emailAuthMode==="hybrid" && normalizedSparksUser!=="songpon" && !verifiedSparksActor && <div style={{textAlign:"center",padding:"0 16px 24px"}}>
+      <button type="button" data-sparks-legacy-fallback="true" onClick={()=>{
+        void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).catch(()=>{}).finally(()=>{
+          chooseEmailAuth(false);
+          setVerifiedActor(null);
+        });
+      }}>กลับไปใช้ระบบเดิมชั่วคราว (ยังพึ่ง Firebase)</button>
+    </div>}
+  </div>;
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
       <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div>
+        {emailAuthMode==="hybrid" && !emailAuthEnabled && Boolean(normalizedSparksUser) && <button
+          type="button" data-sparks-supabase-optin="true" onClick={()=>chooseEmailAuth(true)}>เข้าใช้ Sparks ผ่าน Supabase</button>}
         {emailAuthEnabled && <button type="button" onClick={()=>{
           void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).finally(()=>setVerifiedActor(null));
         }}>ออกจาก QA Sparks</button>}
