@@ -27,4 +27,8 @@ assert.match(email,/credentials:"same-origin",cache:"no-store"/,"existing Sparks
 assert.match(email,/Session QA Sparks หมดอายุแล้ว/,"OTP requested again when session expires");
 assert.match(entry,/window.addEventListener\("focus",validate\)/,"standalone rechecks session when browser regains focus");
 assert.match(sparks,/\[emailAuthEnabled,sparksAllowed,active,username\]/,"embedded Sparks tab rechecks on re-entry");
+assert.match(email,/setPendingEmail\(email\.trim\(\)\.toLowerCase\(\)\)/,"rate limit must allow checking a previous OTP against the selected email");
+assert.match(email,/\(sent \|\| rateLimited\) && <form onSubmit=\{verify\}/,"OTP entry must remain visible on a provider 429 even when no new email was sent");
+assert.match(email,/ระบบไม่ได้ส่งอีเมลฉบับใหม่/,"rate limit UI must not claim an email was sent");
+assert.match(email,/setRateLimited\(false\)/,"changing email must clear the rate-limit-only UI state");
 console.log("PASS independent Sparks portal: no QA Dashboard login mount, email verification, username match and CSRF denial");
