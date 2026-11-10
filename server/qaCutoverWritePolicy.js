@@ -115,7 +115,7 @@ export function prepareQaCutoverWrite(request, trusted) {
     : structuredClone(record);
   const operationHash = sha(JSON.stringify([
     request.action, request.evaluationId, request.expectedVersion,
-    trusted.session.username, record, // Stable across retries (delete timestamp is not hashed).
+    trusted.session.username, request.record ?? null, // Intent hash is stable after a successful delete.
   ]));
   return {
     action: request.action,
