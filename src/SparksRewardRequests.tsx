@@ -101,7 +101,11 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
     setRows(previous => [...(updates.truemoney || previous.filter(item => item.channel === "truemoney")), ...(updates.special || previous.filter(item => item.channel === "special"))].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     setLoaded(previous => ({ truemoney: updates.truemoney !== undefined || previous.truemoney, special: updates.special !== undefined || previous.special }));
     setIncomplete(errors.length > 0);
-    setError(errors.join(" · ")); setLoading(false); inFlight.current = false;
+    const repeatedQuota = errors.length === 2 && errors.every(item => /Firestore|quota|โควตา|RESOURCE_EXHAUSTED/i.test(item));
+    setError(repeatedQuota
+      ? "Firebase จำกัดการตรวจสอบสิทธิ์ QA ชั่วคราว จึงโหลดรายการรางวัลไม่ได้ในขณะนี้ ข้อมูลรางวัลและคะแนนบน Supabase ไม่ได้ถูกลบ"
+      : errors.join(" · "));
+    setLoading(false); inFlight.current = false;
   }
 
   async function viewReceipt(item: RequestRow) {
