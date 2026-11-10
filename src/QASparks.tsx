@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, type SparksAccount } from "./qaSparksStore";
 import "./qaSparks.css";
 import SparksHistory from "./SparksHistory";
+import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
 import DailyCheckinQuest from "./DailyCheckinQuest";
@@ -44,6 +45,9 @@ function EmptyReward({ large = false }: { large?: boolean }) {
 }
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean }) {
   const [view, setView] = useState<SparksView>("overview");
+  const emailAuthEnabled = import.meta.env?.VITE_SPARKS_AUTH_MODE === "supabase";
+  const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(null);
+  const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
   const [itemClock,setItemClock] = useState(0);
   const [gamesOpened, setGamesOpened] = useState(false);
@@ -70,7 +74,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   }, [username]);
   useEffect(() => {
     let alive = true;
-    if (!username) return;
+    if (!username || !sparksAllowed) return;
     const refresh = (force = false) => {
       if (!active || document.visibilityState === "hidden") return;
       const sequence = ++requestSequence.current;
@@ -99,7 +103,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     window.addEventListener("qa:sparks-updated", changed);
     window.addEventListener("focus", focused);
     return () => { alive = false; window.removeEventListener("qa:sparks-updated", changed); window.removeEventListener("focus", focused); };
-  }, [username, active, historyLimit, adminSessionId, retryTick]);
+  }, [username, active, historyLimit, adminSessionId, retryTick, sparksAllowed]);
 
   // Local-only midnight rollover: do not poll Firestore or create quota pressure.
   // The next normal refresh loads the current year's actual wallet.
@@ -122,12 +126,17 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     { key: "rewards", label: "Reward Center", icon: "gift" },
     { key: "items", label: "My Items", icon: "package" },
     { key: "history", label: "History", icon: "clock" },
-    ...(adminAccess && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
+    ...(adminAccess && (!emailAuthEnabled || (verifiedActor?.role === "Quality Assurance" && verifiedActor?.username === "songpon")) && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
+  if (emailAuthEnabled && !sparksAllowed) return <SparksEmailAuth username={username} onVerified={setVerifiedActor}/>;
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
-      <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div></header>
+      <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div>
+        {emailAuthEnabled && <button type="button" onClick={()=>{
+          void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).finally(()=>setVerifiedActor(null));
+        }}>ออกจาก QA Sparks</button>}
+      </header>
       <section className="qa-sparks-hero qa-sparks-hero--membership">
         <div className="qa-sparks-hero-copy">
           <div className="qa-sparks-eyebrow">MY REWARDS</div><h2>My QA Sparks</h2>
