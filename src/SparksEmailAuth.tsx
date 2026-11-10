@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import "./SparksEmailAuth.css";
 
 export type SparksVerifiedActor = { username: string; displayName: string; role: string; status: string };
-const URL = String(import.meta.env.VITE_SPARKS_SUPABASE_AUTH_URL || "").replace(/\/$/, "");
-const KEY = String(import.meta.env.VITE_SPARKS_SUPABASE_PUBLISHABLE_KEY || "");
+const URL = String(import.meta.env?.VITE_SPARKS_SUPABASE_AUTH_URL || "").replace(/\/$/, "");
+const KEY = String(import.meta.env?.VITE_SPARKS_SUPABASE_PUBLISHABLE_KEY || "");
 async function authRequest(path: string, data: Record<string,unknown>) {
   if (!URL || !KEY) throw Error("ระบบยืนยันอีเมลยังไม่ได้เปิดใช้งาน");
   const response = await fetch(URL + path, {
