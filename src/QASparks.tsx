@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, type SparksAccount } from "./qaSparksStore";
 import "./qaSparks.css";
 import SparksHistory from "./SparksHistory";
+import FirstLoginSparksModal from "./FirstLoginSparksModal";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
@@ -280,6 +281,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         : adminAccess ? <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active} /> : null}
       </div>
     </div>
+    {username && active && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
+      ? <FirstLoginSparksModal key={username+":"+sparksSessionId}
+          username={username} sessionId={sparksSessionId} /> : null}
   </main>;
 }
 
