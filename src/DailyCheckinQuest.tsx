@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { getSparksAccount } from "./qaSparksStore";
 
 export const DAILY_CHECKIN_EVENT = Object.freeze({
   id: "daily-checkin-nov-2026", start: "2026-11-09", end: "2026-11-22",
@@ -29,6 +30,8 @@ type ClaimResult = {
 type Props = {
   username: string; sessionId: string; claimedDays: number[];
   loaded: boolean;
+  autoOpen?: boolean;
+  hideTrigger?: boolean;
 };
 
 function CalendarBadge({ size = 34 }: { size?: number }) {
@@ -40,7 +43,7 @@ function CalendarBadge({ size = 34 }: { size?: number }) {
   </svg>;
 }
 
-export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded }: Props) {
+export default function DailyCheckinQuest({ username, sessionId, claimedDays, loaded, autoOpen = false, hideTrigger = false }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [serverDays, setServerDays] = useState<{ username: string; days: number[] } | null>(null);
@@ -52,6 +55,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
   const closeButton = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLElement>(null);
   const busyRef = useRef(busy);
+  const autoOpenedRef = useRef(false);
   busyRef.current = busy;
   const validServerDays = serverDays?.username === username ? serverDays.days : [];
   const saved = [...new Set([...claimedDays, ...validServerDays])].filter((n) => Number.isInteger(n) && n >= 9 && n <= 22).sort((a, b) => a - b);
@@ -62,6 +66,24 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
   const status = upcoming ? "เตรียมเปิดกิจกรรม" : finished ? "กิจกรรมสิ้นสุดแล้ว" : saved.includes(currentDay) ? "รับรางวัลวันนี้แล้ว" : "เช็กอินวันนี้ได้";
   // The short item label stays compact; full quest status is available in the calendar dialog.
   const statusClass = upcoming ? "upcoming" : finished ? "finished" : "live";
+
+  // The login prompt opens at most once per authenticated component mount.
+  // Do not compete with the first-login fruit reward or another active dialog.
+  useEffect(() => {
+    if (!autoOpen || !loaded || !username || !sessionId || autoOpenedRef.current ||
+        upcoming || finished || saved.includes(currentDay)) return;
+    const tryOpen = () => {
+      if (autoOpenedRef.current || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      // Recheck the local Thai date before opening if the tab stayed open overnight.
+      if (bangkokQuestToday() !== today) { setToday(bangkokQuestToday()); return; }
+      autoOpenedRef.current = true;
+      openDetails();
+    };
+    const timer = window.setInterval(tryOpen, 600);
+    tryOpen();
+    return () => window.clearInterval(timer);
+  }, [autoOpen, loaded, username, sessionId, upcoming, finished, currentDay, today, saved.includes(currentDay)]);
+
 
   useEffect(() => {
     if (!open) return;
@@ -134,7 +156,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
     }
   };
   return <>
-    <button type="button" ref={trigger} className="qa-sparks-mini-item qa-sparks-mini-item--daily" data-quest-item="daily-checkin"
+    {!hideTrigger && <button type="button" ref={trigger} className="qa-sparks-mini-item qa-sparks-mini-item--daily" data-quest-item="daily-checkin"
       aria-haspopup="dialog" aria-expanded={open} aria-label={"เปิด Daily Check-in · +50 Sparks ต่อวัน · " + status} onClick={openDetails}>
       <span className="qa-sparks-mini-art qa-sparks-mini-art--daily">
         <span className="qa-sparks-quest-big-calendar"><CalendarBadge size={76}/></span>
@@ -143,7 +165,7 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
       <strong className="qa-sparks-mini-name">Daily Check-in</strong>
       <span className="qa-sparks-mini-value">+50 Sparks/วัน</span>
       <span className="qa-sparks-mini-hint">9–22 พ.ย.</span>
-    </button>
+    </button>}
 
     {open && typeof document !== "undefined" ? createPortal(
       <div className="qa-sparks-checkin-backdrop" style={{
@@ -196,6 +218,11 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
                 </button>;
               })}
             </div>
+            {loaded && !upcoming && !finished && checkinStatus(currentDay, today, saved) === "today" ?
+              <button type="button" className="qa-sparks-checkin-claim-primary" disabled={!sessionId || busy}
+                onClick={() => void claim(currentDay)}>
+                {busy ? "กำลังบันทึก..." : "รับ 50 Sparks วันนี้"}
+              </button> : null}
             <div className="qa-sparks-checkin-legend">
               <span><i className="claimed"/> รับแล้ว</span><span><i className="today"/> รับได้วันนี้</span>
               <span><i className="missed"/> พลาดแล้ว</span><span><i className="future"/> ยังไม่เปิด</span>
@@ -207,10 +234,35 @@ export default function DailyCheckinQuest({ username, sessionId, claimedDays, lo
               <h3>กติกาการรับรางวัล</h3>
               <p>กดที่ช่องวันที่ปัจจุบันเพื่อรับ 50 Sparks วันละ 1 ครั้ง ไม่มีการแจกคะแนนอัตโนมัติ</p>
               <p>หากไม่ได้เข้ามาเช็กอินในวันใด วันนั้นจะพลาดถาวร ไม่สามารถรับย้อนหลังหรือล่วงหน้าได้ แต่ยังรับของวันต่อไปได้ตามปกติ</p>
-              <p>รางวัลจะเพิ่มในยอด Sparks, History และคะแนนสะสม Member Level เมื่อบันทึกสำเร็จ ทั้งนี้ต้องไม่เกินเพดานสะสม 200,000 Sparks ต่อปี</p>
+              <p>รางวัลจะเพิ่มในยอด Sparks, History และคะแนนสะสม Member Level เมื่อบันทึกสำเร็จ</p>
             </div>
           </div>
         </section>
       </div>, document.body) : null}
   </>;
+}
+
+
+// Mounted once after a successful QA Dashboard login, independently of the QA Sparks tab.
+// Wallet eligibility is read through the existing shared/cached store; no polling reads.
+export function DailyCheckinLoginPrompt({ username, sessionId }: { username: string; sessionId: string }) {
+  const [account, setAccount] = useState<{ username: string; days: number[] } | null>(null);
+  useEffect(() => {
+    let active = true;
+    setAccount(null);
+    if (!username || !sessionId) return () => { active = false; };
+    const today = bangkokQuestToday();
+    if (today < DAILY_CHECKIN_EVENT.start || today > DAILY_CHECKIN_EVENT.end)
+      return () => { active = false; };
+    void getSparksAccount(username, { historyLimit: 0, sessionId }).then((wallet) => {
+      if (active) setAccount({ username, days: wallet.dailyCheckinClaimedDays || [] });
+    }).catch((error) => {
+      // Never present a reward claim without verified eligibility.
+      console.warn("Unable to verify daily check-in eligibility", error);
+    });
+    return () => { active = false; };
+  }, [username, sessionId]);
+  if (!account || account.username !== username) return null;
+  return <DailyCheckinQuest username={username} sessionId={sessionId} claimedDays={account.days}
+    loaded autoOpen hideTrigger />;
 }
