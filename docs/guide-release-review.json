@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T11:01:00.000Z",
-  "reason": "Reviewed read-only Vercel Preview-only connectivity preflight; outputs a sanitized state without logging QA cases, bearer token or diagnostic key. Production bypassed; user guide unchanged.",
+  "reviewedAt": "2026-11-10T11:20:00.000Z",
+  "reason": "Reviewed fail-closed cutover parity gate requiring fresh authoritative QA source and per-record hashes for evaluations, appeals, signatures and original Excel rows. No new UI and no production data changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -724,7 +724,7 @@
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
     "api/qa-local-diagnostics.js": "85c6d43364436fd189e91991be1b64584e1fad29d9f468d19ff726c1f9c540d6",
     "scripts/test-qa-local-diagnostics.mjs": "fdedfcc1e94e478f672c8df65a86c2d371862d7bf5f84768223079b74993a3b9",
-    ".github/workflows/qa-postgres-preview-safety.yml": "352c307e8ad558a5b50baffb35061790a1aacedd2013f4c25cf35bb4cd9ab710",
+    ".github/workflows/qa-postgres-preview-safety.yml": "097b245b7b7e0e5a3e5592ebda8b0cd2cc70c4474e1ec2aacc16823bdb49010f",
     "server/qaCutoverWritePolicy.js": "80ea6e4e6a402a9dcc955a4588cc9a7286d40a62c3592b33d0f59c12433cbd1a",
     "scripts/test-qa-postgres-write-policy.mjs": "9c4a0ba95d56a7724114803116298689bc0cb08d34f003d30fa0a5e43f2ce825",
     "server/qaCutoverPgWriter.js": "6ce0cc477af2008f8e0613248a05a77bd29247b0ebb8f652ce34a08981181384",
@@ -732,6 +732,8 @@
     "scripts/test-qa-postgres-stage-integration.mjs": "25bc57126ed817c02c8a7eb9cac94f6df4c119565ea4d6496a9146268ef44b56",
     "server/qaCutoverSessionStore.js": "02af9cd944af58e3531d529544e4ff3b22f0d942dbfde62d86f631cf8bf7c26e",
     "scripts/test-qa-postgres-session-integration.mjs": "2cd92ccc26b80f237cf888fad538329b1cc224085f6b77ebd03be29a570c5fa4",
-    "scripts/check-qa-bridge-preview-preflight.mjs": "db67fae4240e0e6dd96296593a427f461a40257c8fa52ab4059563b1e21b762d"
+    "scripts/check-qa-bridge-preview-preflight.mjs": "db67fae4240e0e6dd96296593a427f461a40257c8fa52ab4059563b1e21b762d",
+    "server/qaCutoverParityGate.js": "f0000a1cee7ed4ec8e7f01d0bd6ab17ed1b29a11630e1e7ef0820cd42462486c",
+    "scripts/test-qa-cutover-parity-gate.mjs": "1c857ba407b3f137f3d056c9e5ac8c110634a899d321f8d6df91bb694f00dc38"
   }
 }
