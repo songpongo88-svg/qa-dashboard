@@ -80,5 +80,15 @@ try{
   assert.equal(attempts.filter(x=>x.replay).length,1);
   assert.equal(attempts.filter(x=>!x.replay).length,1);
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM qa_failover_v1.outbox WHERE operation_id='race-one-op'")).rows[0].n,1);
+  const noCase={...doc,id:'qa-no-case-1',caseId:'',evaluationType:'no_case_month',finalScore:0};
+  const zero=await writeQaStandbyEvaluation(pool,{
+    action:'create',operationId:'qa-no-case-create-1',evaluationId:noCase.id,
+    expectedVersion:0,record:noCase,
+  },trusted());
+  assert.equal(zero.version,1);
+  const noCaseSaved=await pool.query(
+    'SELECT record FROM qa_failover_v1.evaluations WHERE evaluation_id=$1',[noCase.id]);
+  assert.equal(noCaseSaved.rows[0].record.finalScore,0);
+  assert.equal(noCaseSaved.rows[0].record.caseId,'');
   console.log('PASS: PostgreSQL standby atomic create/update/tombstone + durable outbox, replay, lock, role, freeze, stale version and concurrent ID safety; Firestore untouched');
 }finally{await pool.end();}
