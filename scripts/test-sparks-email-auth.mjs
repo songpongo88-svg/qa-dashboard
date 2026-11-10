@@ -6,16 +6,25 @@ const savedKey=process.env.SPARKS_SUPABASE_PUBLISHABLE_KEY;
 process.env.SPARKS_SUPABASE_PUBLISHABLE_KEY="sb_publishable_test_only_key_123";
 const savedFetch=globalThis.fetch;
 const token="test-verified-sparks-access-token-123";
+const rotatedToken="test-refreshed-sparks-access-token-456";
+let suspended=false,serviceDown=false,revokedRefresh=false;
 const calls=[];
 const result=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json"}});
 globalThis.fetch=async(raw,options={})=>{
   const url=String(raw), bearer=String(options?.headers?.Authorization||"");
   calls.push({url,bearer});
   if(url.endsWith("/auth/v1/user")) {
-    if(bearer!=="Bearer "+token)return result({message:"invalid"},401);
+    if(serviceDown)return result({message:"temporary"},503);
+    if(bearer!=="Bearer "+token && bearer!=="Bearer "+rotatedToken)return result({message:"invalid"},401);
     return result({id:"verified-auth-user",email:"admin@example.test",email_confirmed_at:"2026-11-10T00:00:00Z"});
   }
-  if(url.endsWith("/rest/v1/rpc/sparks_verified_identity_v1"))return result([
+  if(url.endsWith("/auth/v1/token?grant_type=refresh_token")) {
+    if(serviceDown)return result({message:"temporary"},503);
+    const refresh=JSON.parse(options.body||"{}").refresh_token;
+    if(revokedRefresh || refresh!=="secure-refresh-token-test-long")return result({error:"invalid_grant"},400);
+    return result({access_token:rotatedToken,refresh_token:"rotated-refresh-token-test-long",expires_in:900});
+  }
+  if(url.endsWith("/rest/v1/rpc/sparks_verified_identity_v1"))return result(suspended?[]:[
     {username:"Songpon",display_name:"QA Admin",role:"Quality Assurance",status:"Active"},
   ]);
   if(url.endsWith("/rest/v1/rpc/sparks_admin_directory_v1"))return result([
@@ -75,6 +84,42 @@ try {
   assert.equal(cookies.inspect().code,200);
   assert.ok(cookies.inspect().headers["Set-Cookie"].length===2);
   assert.ok(!JSON.stringify(cookies.inspect().value).includes(token));
+  // Browser revisits QA Sparks after the short-lived access cookie has expired.
+  // The HttpOnly refresh cookie must restore the same verified identity without OTP.
+  const refreshReq={method:"GET",headers:{cookie:"__Host-qa_sparks_refresh=secure-refresh-token-test-long"}};
+  const refreshRes=response();
+  await sparksAuth(refreshReq,refreshRes);
+  assert.equal(refreshRes.inspect().code,200,JSON.stringify(refreshRes.inspect().value));
+  assert.equal(refreshRes.inspect().value.actor.username,"songpon");
+  assert.match(JSON.stringify(refreshRes.inspect().headers["Set-Cookie"]),/rotated-refresh-token-test-long/);
+  assert.ok(calls.some(x=>x.url.endsWith("/auth/v1/token?grant_type=refresh_token")),"refresh endpoint called");
+  assert.ok(!JSON.stringify(refreshRes.inspect().value).includes(rotatedToken),"API never exposes renewed tokens");
+
+  // Invalidated refresh must send the browser back to OTP and delete old cookies.
+  revokedRefresh=true;
+  const revokedRes=response();
+  await sparksAuth(refreshReq,revokedRes);
+  assert.equal(revokedRes.inspect().code,401);
+  assert.equal(revokedRes.inspect().value.code,"SPARKS_AUTH_EXPIRED");
+  assert.match(JSON.stringify(revokedRes.inspect().headers["Set-Cookie"]),/Max-Age=0/);
+  revokedRefresh=false;
+
+  // Suspended/deactivated users cannot get an automatic sign-in, even with valid JWT.
+  suspended=true;
+  const blockedRes=response();
+  await sparksAuth({method:"GET",headers:{cookie:"__Host-qa_sparks_access="+token}},blockedRes);
+  assert.equal(blockedRes.inspect().code,403);
+  assert.equal(blockedRes.inspect().value.code,"SPARKS_PROFILE_RECONCILIATION_REQUIRED");
+  assert.match(JSON.stringify(blockedRes.inspect().headers["Set-Cookie"]),/Max-Age=0/);
+  suspended=false;
+
+  // Outage is not mistaken for token revocation; don't erase a usable session.
+  serviceDown=true;
+  const outageRes=response();
+  await sparksAuth({method:"GET",headers:{cookie:"__Host-qa_sparks_access="+token}},outageRes);
+  assert.equal(outageRes.inspect().code,503);
+  assert.equal(outageRes.inspect().headers["Set-Cookie"],undefined);
+  serviceDown=false;
   console.log("PASS Sparks Supabase Auth: verified email, cookie-only exchange, admin roster, suspended denial, CORS and missing-session refusal");
 } finally {
   globalThis.fetch=savedFetch;
