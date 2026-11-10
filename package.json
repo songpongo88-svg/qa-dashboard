@@ -122,7 +122,7 @@
     "test:cloud-provider-status": "node ./scripts/test-cloud-provider-status.mjs",
     "test:sparks-cloud-typing-relief": "node ./scripts/test-sparks-cloud-typing-relief.mjs",
     "postbuild": "node ./scripts/check-qa-bridge-preview-preflight.mjs",
-    "test:qa-local-failover-safety": "node scripts/test-qa-failover-decision.mjs && node --check server/qaStandbyPgJournal.js && node --check server/qaStandbyReplayWorker.js && node --check scripts/test-qa-standby-journal-integration.mjs && node --check scripts/test-qa-standby-replay-integration.mjs"
+    "test:qa-local-failover-safety": "node scripts/test-qa-failover-decision.mjs && node --check server/qaStandbyPgJournal.js && node --check server/qaStandbyReplayWorker.js && node --check scripts/test-qa-standby-journal-integration.mjs && node --check scripts/test-qa-standby-replay-integration.mjs && node --check server/qaStandbyRead.js && node --check scripts/test-qa-standby-read-integration.mjs"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.2.4",
