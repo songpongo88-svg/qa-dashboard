@@ -8,6 +8,8 @@ on:
       - "scripts/test-qa-local-diagnostics.mjs"
       - "server/qaCutoverWritePolicy.js"
       - "scripts/test-qa-postgres-write-policy.mjs"
+      - "server/qaCutoverPgWriter.js"
+      - "scripts/test-qa-postgres-stage-writer.mjs"
       - ".github/workflows/qa-postgres-preview-safety.yml"
   workflow_dispatch:
 
@@ -33,7 +35,10 @@ jobs:
           node --check scripts/test-qa-local-diagnostics.mjs
           node --check server/qaCutoverWritePolicy.js
           node --check scripts/test-qa-postgres-write-policy.mjs
+          node --check server/qaCutoverPgWriter.js
+          node --check scripts/test-qa-postgres-stage-writer.mjs
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-diagnostics.mjs
           node scripts/test-qa-postgres-write-policy.mjs
+          node scripts/test-qa-postgres-stage-writer.mjs
