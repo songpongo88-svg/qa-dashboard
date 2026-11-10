@@ -86,6 +86,17 @@ export async function exchangeSparksAuthTokens(res, data) {
 export function withSparksRequest(req, res, callback) {
   return context.run({ req, res, actor: null, accessToken: "" }, callback);
 }
+// Enables a gradual Sparks-only cutover without changing QA Dashboard login.
+// A cookie is merely an opt-in signal: getSparksRequestActor verifies every token
+// with Supabase Auth and current Active profile before allowing reads or writes.
+// An invalid, expired, or forged cookie NEVER falls back to Firebase permissions.
+export function hasSparksEmailAuthCookie() {
+  const req = context.getStore()?.req;
+  if (!req) return false;
+  const cookies = parseCookies(req);
+  return Boolean(cookies.get(ACCESS_COOKIE) || cookies.get(REFRESH_COOKIE));
+}
+
 export async function getSparksRequestActor() {
   const ctx = context.getStore();
   if (!ctx) throw failure("Missing request context", 500);
