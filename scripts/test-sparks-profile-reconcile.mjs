@@ -34,6 +34,7 @@ globalThis.fetch=async(url,options={})=>{
     assert.ok(!String(url).includes("qa_evaluations"),"must not read QA scores");
     if(mode==="quota")return res({error:"RESOURCE_EXHAUSTED"},429);
     if(mode==="empty")return res({documents:all.slice(0,4)});
+    if(mode==="nearComplete")return res({documents:all.slice(0,29)});
     if(mode==="duplicates")return res({documents:[...all.slice(0,29),{...all[29],name:all[0].name}]});
     if(mode==="paginated"){
       const token=new URL(String(url)).searchParams.get("pageToken");
@@ -79,16 +80,20 @@ try{
   mode="empty";
   await assert.rejects(runSparksProfileReconciliation(),e=>e.code==="FIREBASE_SOURCE_INCOMPLETE");
   assert.equal(posted,1,"partial source must not be posted");
+  mode="nearComplete";
+  await assert.rejects(runSparksProfileReconciliation(),e=>e.code==="FIREBASE_SOURCE_INCOMPLETE");
+  assert.equal(posted,1,"29 of 30 profiles must never overwrite the reviewed roster");
   mode="duplicates";
   await assert.rejects(runSparksProfileReconciliation(),e=>e.code==="DUPLICATE_FIREBASE_PROFILE");
   assert.equal(posted,1);
   mode="quota";
   await assert.rejects(runSparksProfileReconciliation(),e=>e.code==="FIREBASE_QUOTA_EXCEEDED");
   assert.equal(posted,1,"quota outage must not overwrite last reconciled roster");
-  assert.equal(reports.filter(x=>x.event==="start").length,4);
+  assert.equal(reports.filter(x=>x.event==="start").length,5);
   const failed=reports.filter(x=>x.event==="failed");
   assert.deepEqual(failed.map(x=>x.errorCode),[
-    "FIREBASE_SOURCE_INCOMPLETE","DUPLICATE_FIREBASE_PROFILE","FIREBASE_QUOTA_EXCEEDED",
+    "FIREBASE_SOURCE_INCOMPLETE","FIREBASE_SOURCE_INCOMPLETE",
+    "DUPLICATE_FIREBASE_PROFILE","FIREBASE_QUOTA_EXCEEDED",
   ]);
   for(const attempt of failed){
     assert.ok(reports.some(x=>x.runId===attempt.runId&&x.event==="start"),
@@ -113,7 +118,7 @@ try{
   const authorized=await fake({authorization:"Bearer "+process.env.CRON_SECRET});
   assert.equal(authorized.code,200);
   assert.equal(authorized.data.code,"PROFILE_SYNC_DISABLED");
-  console.log("PASS Sparks profile reconcile: complete source, private success/failure receipts, zero Firebase reads when receipt unavailable, quota/partial/duplicate fail closed, cron auth");
+  console.log("PASS Sparks profile reconcile: 30-profile safety floor, private success/failure receipts, zero Firebase reads when receipt unavailable, quota/partial/duplicate fail closed, cron auth");
 }finally{
   globalThis.fetch=previous;
   for(const [key,value] of Object.entries(originals))if(value===undefined)delete process.env[key];else process.env[key]=value;
