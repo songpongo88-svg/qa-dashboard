@@ -1,6 +1,6 @@
 import postgres from "npm:postgres@3.4.7";
 const TOKEN_SHA256="DEPLOY_TIME_TOKEN_HASH";
-const ROOTS=new Set(["qa_sparks_wallets","qa_sparks_true_money_requests","qa_sparks_reward_settings","qa_sparks_special_reward_requests","qa_sparks_special_receipt_evidence","qa_sparks_special_receipt_locks","qa_sparks_fruit_players_v1","qa_sparks_fruit_boards","qa_sparks_fruit_rounds","qa_sparks_lottery_draws_v1","qa_sparks_treasure_daily","qa_announcement_shield","qa_sparks_snakes_rooms_v1","qa_sparks_snakes_members_v1","qa_sparks_typing_relief_operations"]);
+const ROOTS=new Set(["qa_sparks_wallets","qa_sparks_true_money_requests","qa_sparks_reward_settings","qa_sparks_special_reward_requests","qa_sparks_special_receipt_evidence","qa_sparks_special_receipt_locks","qa_sparks_fruit_players_v1","qa_sparks_fruit_boards","qa_sparks_fruit_rounds","qa_sparks_lottery_draws_v1","qa_sparks_treasure_daily","qa_announcement_shield","qa_sparks_snakes_rooms_v1","qa_sparks_snakes_members_v1","qa_sparks_typing_relief_operations","qa_sparks_auto_pass_operations"]);
 const CHILDREN={"qa_sparks_wallets":new Set(["history","lottery_tickets"]),"qa_sparks_reward_settings":new Set(["history"]),"qa_sparks_lottery_draws_v1":new Set(["players"])};
 const PREFIX="projects/qa-dashboard-b0b5d/databases/(default)/documents/";
 const dbUrl=Deno.env.get("SUPABASE_DB_URL");
