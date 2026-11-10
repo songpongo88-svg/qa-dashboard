@@ -6,6 +6,7 @@ import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
 import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
+import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
@@ -23,7 +24,6 @@ const sparksEmailAuthEnabled = () => process.env.SPARKS_DATA_BACKEND === "supaba
   (process.env.SPARKS_AUTH_MODE === "hybrid" && hasSparksEmailAuthCookie())
 );
 const policyErrorCode = "SESSION_POLICY_OUTDATED";
-const TYPING_RELIEF_PRICE = 150;
 const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
 const TYPING_RELIEF_MAX_OWNED = 10;
 const TRUE_MONEY = Object.freeze({
@@ -515,18 +515,26 @@ async function redeemTypingRelief(body, actor) {
         }
         fail("รหัสรายการนี้เคยใช้งานแล้ว", 409);
       }
+      // Calculate at checkout using SERVER time. A tab open across the promo
+      // deadline must not silently overcharge or use a stale 45-Sparks price.
+      const time = Date.now();
+      const pricing = getTypingReliefPricing(time);
+      const price = pricing.price;
+      if (Number(body.expectedPrice) !== price || body.expectedPrice === undefined || body.expectedPrice === null) {
+        fail("ราคาของ Typing Relief มีการเปลี่ยนแปลง (ปัจจุบัน " + price + " Sparks) กรุณาเปิดรายละเอียดใหม่ก่อนซื้อ", 409);
+      }
       const owned = intCount(wallet.typingReliefOwned);
       const current = spendableBalance(wallet);
       if (owned >= TYPING_RELIEF_MAX_OWNED) fail("สะสม Typing Relief ได้สูงสุด 10 สิทธิ์", 400);
-      if (current < TYPING_RELIEF_PRICE) fail("QA Sparks ไม่เพียงพอ (ต้องใช้ 150 Sparks)", 400);
-      const nextBalance = current - TYPING_RELIEF_PRICE;
-      const now = new Date().toISOString();
+      if (current < price) fail("QA Sparks ไม่เพียงพอ (ต้องใช้ " + price + " Sparks)", 400);
+      const nextBalance = current - price;
+      const now = new Date(time).toISOString();
       const nextOwned = owned + 1;
       const updates = {
         username: actor.username,
         balance: nextBalance,
         balanceYear: currentMemberYear(),
-        totalSpent: intCount(wallet.totalSpent) + TYPING_RELIEF_PRICE,
+        totalSpent: intCount(wallet.totalSpent) + price,
         rewardOrders: intCount(wallet.rewardOrders) + 1,
         typingReliefOwned: nextOwned,
         typingReliefPurchased: intCount(wallet.typingReliefPurchased) + 1,
@@ -535,7 +543,8 @@ async function redeemTypingRelief(body, actor) {
       const history = {
         createdAt: now, type: "spend", source: "reward-redemption",
         rewardId: "typing-relief", title: "Typing Relief Redeemed",
-        detail: "แลก Typing Relief ลดจำนวนคำพิมพ์ 60% ของภารกิจ", amount: -TYPING_RELIEF_PRICE,
+        detail: "แลก Typing Relief ลดจำนวนคำพิมพ์ 60% ของภารกิจ", amount: -price,
+        purchasePrice: price, priceDiscountPercent: pricing.discountPercent,
         balanceAfter: nextBalance, inventoryAfter: nextOwned,
         performedBy: actor.username, requestId, status: "Completed",
       };
@@ -543,7 +552,7 @@ async function redeemTypingRelief(body, actor) {
         transaction,
         writes: [updateWrite(walletPath, updates, walletDoc), createWrite(historyPath, history)],
       });
-      return { updated: true, balance: nextBalance, owned: nextOwned };
+      return { updated: true, balance: nextBalance, owned: nextOwned, priceCharged: price };
     } catch (error) {
       if (["ABORTED", "FAILED_PRECONDITION"].includes(error?.firestoreStatus) && attempt < 3) continue;
       throw error;
