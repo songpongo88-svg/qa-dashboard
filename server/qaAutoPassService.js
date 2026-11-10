@@ -18,7 +18,7 @@ export function autoPassFreeActive(at=Date.now()) {
 export function createQaAutoPassService({
   firestoreRequest, readDoc, recordValue, path, updateWrite, createWrite,
   walletDocumentPath, walletKey, spendableBalance, currentMemberYear,
-  listCollection, documentsResource,
+  listCollection, documentsResource, clock=()=>Date.now(),
 }) {
   const check=(ok,message,status=409)=>{if(!ok)throw Object.assign(new Error(message),{status,code:"QA_AUTO_PASS_NOT_APPLIED"});};
   const count=v=>Number.isSafeInteger(Number(v))&&Number(v)>=0?Number(v):0;
@@ -46,12 +46,12 @@ export function createQaAutoPassService({
     return {
       owned:count(wallet.autoPassOwned),balance:readBalance(wallet),
       freeClaimed:Boolean(wallet.autoPassFreeClaimedAt),
-      freeActive:autoPassFreeActive(),freeQuantity:AUTO_PASS_FREE_QUANTITY,
+      freeActive:autoPassFreeActive(clock()),freeQuantity:AUTO_PASS_FREE_QUANTITY,
       normalPrice:AUTO_PASS_PRICE,freeEndDate:"2026-12-25",
     };
   }
   async function claimFree(actor){
-    check(autoPassFreeActive(),"สิทธิ์รับฟรีสิ้นสุดวันที่ 25 ธันวาคม 2026 แล้ว",400);
+    check(autoPassFreeActive(clock()),"สิทธิ์รับฟรีสิ้นสุดวันที่ 25 ธันวาคม 2026 แล้ว",400);
     const walletPath=walletDocumentPath(actor.username);
     const ledgerPath=walletHistory(actor.username,AUTO_PASS_FREE_HISTORY_ID);
     for(let attempt=0;attempt<4;attempt++){
@@ -60,7 +60,7 @@ export function createQaAutoPassService({
       if(prior||wallet.autoPassFreeClaimedAt){
         return {alreadyApplied:true,owned:count(wallet.autoPassOwned),freeClaimed:true};
       }
-      const now=new Date().toISOString(),owned=count(wallet.autoPassOwned)+AUTO_PASS_FREE_QUANTITY;
+      const now=new Date(clock()).toISOString(),owned=count(wallet.autoPassOwned)+AUTO_PASS_FREE_QUANTITY;
       const balance=readBalance(wallet);
       const updates={
         username:actor.username,balance,balanceYear:currentMemberYear(),
@@ -79,7 +79,7 @@ export function createQaAutoPassService({
         await firestoreRequest(":commit","POST",{writes:[
           updateWrite(walletPath,updates,walletDoc),createWrite(ledgerPath,history),
         ]});
-        return {updated:true,freeClaimed:true,owned,granted:5};
+        return {updated:true,freeClaimed:true,owned,granted:AUTO_PASS_FREE_QUANTITY,balance};
       }catch(error){
         if(["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus)&&attempt<3)continue;
         throw error;
@@ -106,7 +106,7 @@ export function createQaAutoPassService({
       const balance=readBalance(wallet);
       check(balance>=AUTO_PASS_PRICE,"Sparks ไม่เพียงพอ ต้องใช้ 160 Sparks",400);
       const owned=count(wallet.autoPassOwned)+1;
-      const now=new Date().toISOString(),nextBalance=balance-AUTO_PASS_PRICE;
+      const now=new Date(clock()).toISOString(),nextBalance=balance-AUTO_PASS_PRICE;
       const changes={
         username:actor.username,balance:nextBalance,balanceYear:currentMemberYear(),
         autoPassOwned:owned,autoPassPurchased:count(wallet.autoPassPurchased)+1,
@@ -142,7 +142,7 @@ export function createQaAutoPassService({
       &&proof.completionMethod==="auto-pass"&&proof.challengeId===op.challengeId,
       "หลักฐาน QA Access Auto-Pass ไม่ตรงกับรายการที่ใช้",409);
     const ledgerPath=walletHistory(actor.username,id),oldLedger=await readDoc(ledgerPath);
-    const now=new Date().toISOString();
+    const now=new Date(clock()).toISOString();
     const writes=[updateWrite(operationPath(id),{status:"completed",completedAt:now},operationDoc)];
     if(!oldLedger){
       writes.push(createWrite(ledgerPath,{
@@ -176,7 +176,7 @@ export function createQaAutoPassService({
       Number(head.repeatCount)===Number(op.repeatCount),
       "ภารกิจเปลี่ยนแปลงหลังจอง Auto-Pass กรุณาตรวจสอบก่อนดำเนินการ",409);
     const remainder=queue.slice(1);
-    const now=new Date().toISOString();
+    const now=new Date(clock()).toISOString();
     const qaHistory={
       username:actor.username,displayName:head.displayName||op.displayName||actor.username,
       word:head.word,repeatCount:Number(head.repeatCount),
@@ -216,7 +216,7 @@ export function createQaAutoPassService({
     const walletDoc=await readDoc(walletPath);
     const wallet=recordValue(walletDoc),owned=count(wallet.autoPassOwned);
     check(walletDoc&&owned>0,"ไม่มี QA Access Auto-Pass คงเหลือ",400);
-    const now=new Date().toISOString(),balance=readBalance(wallet);
+    const now=new Date(clock()).toISOString(),balance=readBalance(wallet);
     const operation={
       operationId:id,username:actor.username,challengeId,
       word:head.word,mode:head.mode||(/\s/.test(String(head.word))?"sentence":"word"),
