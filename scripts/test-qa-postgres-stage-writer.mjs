@@ -18,6 +18,7 @@ const pool = { async connect() {
       if(sql==='COMMIT'){db.records=tx.records;db.operations=tx.operations;db.audit=tx.audit;tx=null;return {};}
       if(sql==='ROLLBACK'){tx=null;return {};}
       if(!tx)throw Error('query outside transaction');
+      if(sql.startsWith('SELECT pg_advisory_xact_lock('))return {rows:[{}],rowCount:1};
       if(sql.includes('SELECT request_hash')){const value=tx.operations.get(params[0]);
         return {rows:value?[structuredClone(value)]:[],rowCount:value?1:0};}
       if(sql.includes('SELECT evaluation_id, record, version')){const value=tx.records.get(params[0]);
