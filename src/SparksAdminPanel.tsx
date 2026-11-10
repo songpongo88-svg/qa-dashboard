@@ -125,6 +125,9 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [voidSaving, setVoidSaving] = useState(false);
   const [revision, setRevision] = useState(0);
   const [adminReady, setAdminReady] = useState(false);
+  // Bound to the current QA session; kept in memory, never persisted or used for writes.
+  const adminReadGrantRef = useRef("");
+  useEffect(() => { adminReadGrantRef.current = ""; }, [actorUsername, sessionId]);
   const [firestoreLimited, setFirestoreLimited] = useState(false);
   const [needsReauth, setNeedsReauth] = useState(false);
   const requestReauth = useCallback(() => setNeedsReauth(true), []);
@@ -151,7 +154,10 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         headers: { "content-type": "application/json" },
         cache: "no-store",
         ...(controller ? { signal: controller.signal } : {}),
-        body: JSON.stringify({ action, actorUsername, sessionId, ...input }),
+        body: JSON.stringify({ action, actorUsername, sessionId, ...input,
+          ...((action === "list" || action === "history") && adminReadGrantRef.current
+            ? { adminReadGrant: adminReadGrantRef.current } : {}),
+        }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -160,6 +166,9 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         });
         if (import.meta.env?.VITE_SPARKS_DATA_BACKEND !== "supabase") noteFirestoreReadError(error);
         throw error;
+      }
+      if ((action === "list" || action === "history") && typeof result.adminReadGrant === "string" && result.adminReadGrant) {
+        adminReadGrantRef.current = result.adminReadGrant;
       }
       return result;
     } catch (reason) {
@@ -180,13 +189,15 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         .filter((user) => String(user.status || "").toLowerCase() !== "suspended");
       setUsers(loaded);
       rememberBalances(actorUsername, loaded);
-      setAdminReady(true);
-      setFirestoreLimited(false);
+      setAdminReady(data.readOnlyFallback !== true);
+      setFirestoreLimited(data.readOnlyFallback === true);
       setNeedsReauth(false);
       setReauthPassword("");
       setReauthError("");
       setChosen((previous) => loaded.some((row) => row.username === previous) ? previous : (loaded[0]?.username || ""));
-      setError("");
+      setError(data.readOnlyFallback === true
+        ? "Firebase จำกัดการตรวจสอบสิทธิ์ชั่วคราว — แสดงยอดและประวัติจาก Supabase แบบอ่านอย่างเดียว การเพิ่ม/หักคะแนนยังต้องยืนยันสิทธิ์สด"
+        : "");
     }).catch(async (reason) => {
       if (!active) return;
       setAdminReady(false);
@@ -197,7 +208,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       setNeedsReauth(policyMismatch);
       const message = reason instanceof Error ? reason.message : "บริการ Sparks Admin เชื่อมต่อไม่สำเร็จ";
       setError(quotaLimited
-        ? "Firestore จำกัดโควตาหรืออัตราการใช้งานอยู่ ไม่ใช่ปัญหา Role, Session หรือ Firebase Key กรุณาตรวจการใช้โควตาใน Firebase Console → Firestore → Usage"
+        ? "Firebase จำกัดการตรวจสอบสิทธิ์ QA Admin ชั่วคราว ไม่ใช่โควตาของกระเป๋า Sparks บน Supabase หากยังไม่มีสิทธิ์อ่านสำรองที่ตรวจสอบไว้ ระบบจะไม่แสดงข้อมูลหรืออนุญาตให้แก้คะแนน"
         : policyMismatch
           ? "กรุณายืนยันรหัสผ่าน QA อีกครั้ง เพื่อเปิดสิทธิ์จัดการ Sparks (ไม่ต้อง Logout)"
           : "ระบบจัดการคะแนนยังไม่พร้อม: " + message + " — แสดงรายชื่อจาก QA User Management แบบอ่านอย่างเดียว");
@@ -273,9 +284,16 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     if (!chosen) { setDetail(null); return; }
     setDetailLoading(true);
     setDetail(null);
-    if (firestoreLimited) { setDetailLoading(false); return; }
+    if (firestoreLimited && !(import.meta.env?.VITE_SPARKS_DATA_BACKEND === "supabase" && adminReadGrantRef.current)) { setDetailLoading(false); return; }
     void request("history", { targetUsername: chosen, forceRefresh: revision > 0 }).then((data) => {
-      if (active) { setDetail(data as DetailResponse); setError(""); }
+      if (active) {
+        setDetail(data as DetailResponse);
+        if (data.readOnlyFallback === true) {
+          setAdminReady(false);
+          setFirestoreLimited(true);
+          setError("Firebase จำกัดการตรวจสอบสิทธิ์ชั่วคราว — ประวัตินี้อ่านจาก Supabase แบบอ่านอย่างเดียว");
+        } else { setError(""); }
+      }
     }).catch(async (reason) => {
       if (!active) return;
       if (isFirestoreQuotaError(reason)) {

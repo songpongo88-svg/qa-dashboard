@@ -1,12 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T04:11:03.392Z",
-  "reason": "Reviewed Dashboard-only compact circular Evaluation search launcher with shared Chat shortcut alignment and visibility restricted to the active Dashboard tab; no changes to permissions, scores or stored records.",
+  "reviewedAt": "2026-11-10T06:42:00.000Z",
+  "reason": "Reviewed Sparks Admin read-only quota fallback with full signed token and mutation-rejection test coverage; user guide content unchanged.",
   "contentChanged": false,
-  "reviewedChapters": [
-    "dashboard",
-    "case-detail"
-  ],
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf",
@@ -29,7 +26,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "31caa18b87f80ba9445102153e4a77fa1fe6d28091c50629a38e91fc5ad3627f",
+    "api/sparks-admin.js": "06d3b630216556e9be709ca1b3e1e8a39266db0701d344be5d1af3ac10b43724",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
@@ -111,7 +108,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "ad6563ff4ff3b31b20619180c2e472c83ebb001d92864b8801ff4a918e0af216",
+    "package.json": "f5356a98b478e70720649a3e2184330ffef9a2ce64fa2ff0fbde77558e10a02f",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -486,7 +483,7 @@
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "a7648509a0d93de76b7d5f40b38f858d4ae29351eafd225e28e80e3f9945c0b8",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
-    "src/SparksAdminPanel.tsx": "0c382dfb56d42829682aa624e9889c6bf4f4c94e85ffa66995134c25e5ffdd7d",
+    "src/SparksAdminPanel.tsx": "f0cc9e8fcc6cc24311eceae0b4fda1158fa67e0eb0f7360f07e839495b44225f",
     "src/SparksCloudStatus.tsx": "0b605c16b6f43daae89eb64eb0f619d2917d4701c3208f2303f9ce35a777eba0",
     "src/SparksHistory.tsx": "b935b35b4cabe7f209abb04d8d1cdce721c38698799ba37d126ad8df6683188a",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
@@ -721,6 +718,9 @@
     "src/ReportCenterMockup.tsx": "37bb9a5c4d325419c33693bd943916ac25f8f2449e346d16134bbc189f0b607e",
     "src/corporateQaReportXlsx.ts": "c7cd337708fe1bacc12c2fccc4048795939f2d4d12b23bf1479ced0e629f4144",
     "scripts/test-sparks-wallet-read-grant.mjs": "f9216bc5ee4a06ec05381c7320e862e545363fc291c76a9453d55391880ef589",
-    "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217"
+    "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217",
+    "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
+    "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4",
+    "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a"
   }
 }

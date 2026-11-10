@@ -8,6 +8,7 @@ import { createAnnouncementShieldService } from "../server/announcementShieldSer
 import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
+import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -1071,6 +1072,27 @@ async function loadUsers() {
   users.sort((a, b) => a.displayName.localeCompare(b.displayName, "th"));
   return { users, truncated: profilePages.truncated || walletPages.truncated };
 }
+// Profiles in this short-lived roster were checked by the server while Firebase
+// was available. Only wallet/history reads use this fallback; authorization for
+// every mutation remains the live QA session + role + policy check.
+async function loadUsersFromReadGrant(grant) {
+  const wallets = await listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin", "memberYear", "memberYearEarned", "balanceYear"]);
+  const walletMap = new Map(wallets.documents.map((doc) => {
+    const v = recordValue(doc);
+    const name = normalize(v.username) || normalize(decodeURIComponent(doc.name.split("/").pop()));
+    return [name, summary(v)];
+  }));
+  const users = grant.users.map((user) => ({
+    ...user,
+    ...(walletMap.get(user.username) || summary({})),
+  })).sort((a, b) => a.displayName.localeCompare(b.displayName, "th"));
+  return { users, truncated: wallets.truncated, readOnlyFallback: true, readOnlyUntil: grant.expiresAt };
+}
+async function loadHistoryFromReadGrant(username, grant) {
+  if (!grant.users.some((row) => row.username === username)) fail("Target is not in the previously verified active roster", 403);
+  const result = await cachedAdminRead("history:" + username, () => loadUserHistory(username), false);
+  return { ...result, readOnlyFallback: true, readOnlyUntil: grant.expiresAt };
+}
 async function loadHistory(username, forceRefresh = false) {
   await requireActiveTarget(username);
   return cachedAdminRead("history:" + username, () => loadUserHistory(username), forceRefresh);
@@ -1600,6 +1622,30 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
+    if (body.action === "list" || body.action === "history") {
+      const target = body.action === "history" ? safeUsername(body.targetUsername) : "";
+      const grant = process.env.SPARKS_DATA_BACKEND === "supabase"
+        ? verifySparksAdminReadGrant(body.adminReadGrant, body.actorUsername, body.sessionId)
+        : null;
+      try {
+        const verifiedAdmin = await authorizeAdmin(body);
+        const data = body.action === "list"
+          ? await listUsers(body.forceRefresh === true)
+          : await loadHistory(target, body.forceRefresh === true);
+        const newGrant = body.action === "list" && process.env.SPARKS_DATA_BACKEND === "supabase"
+          ? issueSparksAdminReadGrant(data.users, verifiedAdmin.username, body.sessionId)
+          : "";
+        return res.status(200).json({ ...data, ...(newGrant ? { adminReadGrant: newGrant } : {}) });
+      } catch (error) {
+        // Never use a previous grant after a 403, invalid policy, or arbitrary
+        // backend failure. Only a confirmed Firebase quota interruption qualifies.
+        if (!grant || Number(error?.status) !== 429 || process.env.SPARKS_DATA_BACKEND !== "supabase") throw error;
+        const data = body.action === "list"
+          ? await loadUsersFromReadGrant(grant)
+          : await loadHistoryFromReadGrant(target, grant);
+        return res.status(200).json(data);
+      }
+    }
     const admin = await authorizeAdmin(body);
     if (body.action === "set-truemoney-price") {
       return res.status(200).json(await setTrueMoneyPrice(body,admin));
