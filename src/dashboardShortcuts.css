@@ -95,3 +95,17 @@
     max-height: calc(100dvh - var(--qa-shortcut-coaching-bottom) - var(--qa-shortcut-size) - var(--qa-shortcut-gap) - 12px);
   }
 }
+
+/* Evaluation search belongs only to the active QA Dashboard tab.
+   Portal content lives under document.body, outside the keep-alive section. */
+.qa-dashboard-floating-search-root { display: none; }
+:root:has([data-retained-workspace-tab="dashboard"][aria-hidden="false"]) .qa-dashboard-floating-search-root { display: contents; }
+.qa-dashboard-floating-search-button {
+  position: fixed;
+  right: var(--qa-shortcut-right);
+  bottom: calc(var(--qa-shortcut-coaching-bottom) + var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+  width: var(--qa-shortcut-size);
+  height: var(--qa-shortcut-size);
+  padding: 0;
+  z-index: 86;
+}
