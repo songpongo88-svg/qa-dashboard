@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T04:00:00.000Z",
-  "reason": "Reviewed Daily Check-in login auto-popup and visible claim action; no guide chapter text change required because Quest Center instructions remain accurate.",
+  "reviewedAt": "2026-11-10T04:00:05.091Z",
+  "reason": "Reviewed QA Dashboard floating Evaluation search shortcut alignment with existing Chat/Announcement/KPI/Coaching shortcut stack, retaining search behavior and avoiding overlap on responsive layouts.",
   "contentChanged": false,
   "reviewedChapters": [
     "dashboard",
-    "rewards"
+    "case-detail"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -451,7 +451,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
     "src/DailyCheckinQuest.tsx": "5ef043ebd1b048e26769ef5825f3f67454787b7525f0a338d5f61c2997e9bf27",
-    "src/DashboardMockup.tsx": "081b36708cd66e0cc5b9f56873ba7843ba73da7b8c99fa74e638b97ea16adf69",
+    "src/DashboardMockup.tsx": "e972471f2a3476e18cc1fe71a2707bfc36946a5efb491ca251e2ec6139e7404f",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
