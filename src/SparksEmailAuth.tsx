@@ -21,6 +21,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
   const [email,setEmail]=useState("");
   const [code,setCode]=useState("");
   const [sent,setSent]=useState(false);
+  const [rateLimited,setRateLimited]=useState(false);
   const [busy,setBusy]=useState(true);
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
@@ -76,7 +77,13 @@ export default function SparksEmailAuth({ username, onVerified }:{
         email:address,create_user:true,
       });
       setSent(true);setMessage("ส่งอีเมลยืนยันแล้ว หากได้รับรหัสให้กรอกด้านล่าง หรือกดลิงก์ในอีเมล");
-    }catch(e){setError(e instanceof Error?e.message:"ส่งอีเมลไม่สำเร็จ");}
+    }catch(e){
+      const detail=e instanceof Error?e.message:"ส่งอีเมลไม่สำเร็จ";
+      if(/email rate limit exceeded|over_email_send_rate_limit|too many requests/i.test(detail)){
+        setRateLimited(true);
+        setError("Supabase จำกัดการส่งอีเมลชั่วคราว กรุณาอย่ากดส่งซ้ำ หากมี Magic Link ฉบับล่าสุดให้ใช้ลิงก์นั้นก่อน หรือกลับมาขอลิงก์ใหม่เมื่อระบบอนุญาต");
+      }else setError(detail);
+    }
     finally{setBusy(false);}
   };
   const verify=async(event:React.FormEvent)=>{
@@ -97,8 +104,8 @@ export default function SparksEmailAuth({ username, onVerified }:{
       <form onSubmit={send}>
         <label htmlFor="sparks-auth-email">อีเมลที่ลงทะเบียนกับ QA Dashboard</label>
         <input id="sparks-auth-email" type="email" required autoComplete="email" value={email}
-          disabled={busy} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/>
-        <button type="submit" disabled={busy}>{busy?"กำลังตรวจสอบ...":sent?"ส่งอีเมลอีกครั้ง":"ส่งอีเมลยืนยัน"}</button>
+          disabled={busy||rateLimited} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/>
+        <button type="submit" disabled={busy||rateLimited}>{busy?"กำลังตรวจสอบ...":rateLimited?"จำกัดการส่งอีเมลชั่วคราว":sent?"ส่งอีเมลอีกครั้ง":"ส่งอีเมลยืนยัน"}</button>
       </form>
       {sent && <form onSubmit={verify}>
         <label htmlFor="sparks-auth-code">รหัสยืนยันจากอีเมล (หากได้รับรหัส 6–8 หลัก)</label>
