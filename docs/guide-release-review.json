@@ -729,7 +729,7 @@
     "scripts/test-sparks-email-auth.mjs": "8033b4ed13504ef1d97f026d40f197c113a87b5f2c6a6fbb717d29082d87cd6b",
     "scripts/test-sparks-email-api.mjs": "cebebe5a0d6a0ea3ef62a73d73ae96d29d65737bc063bf26abb1318bb0a6c096",
     "src/SparksStandalone.tsx": "3847e140e4c54ef5e668a1158bf518631cb2cc43ff6bb44793436f58481fb062",
-    "scripts/test-sparks-standalone.mjs": "f400caf4c09733c00d584921d260dc94f7856c076bd2b1ac18a483583d518d2f",
+    "scripts/test-sparks-standalone.mjs": "cddd01cc968062419cbed8514af9cc9a9c9b256fccb0d36a9ed362a25a5eebf9",
     "server/sparksProfileReconcile.js": "7baf0b5a80e1d4a84e45f4c58e2f9fa495f0343454538fe0de9bd55cb66b6714",
     "api/cron/sparks-profile-reconcile.js": "5ebdc742bb08f93fa339b9b198d2c896008da601f95d457127656355a0a5b916",
     "scripts/test-sparks-profile-reconcile.mjs": "d1578b92d1dd50dec7241df30219325cea6262d82614150713da2be071c3bcc3",
