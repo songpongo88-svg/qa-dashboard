@@ -45,6 +45,25 @@ function SparksSyncHealth() {
 export default function SparksStandalone() {
   const [actor, setActor] = useState<SparksVerifiedActor|null>(null);
   const enabled = ["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE || ""));
+  useEffect(()=>{
+    if(!actor)return;
+    let current=true;
+    const validate=async()=>{
+      try{
+        const response=await fetch("/api/sparks-auth",{credentials:"same-origin",cache:"no-store"});
+        if(!current)return;
+        if(response.status===401 || response.status===403){setActor(null);return;}
+        if(!response.ok)return;
+        const payload=await response.json();
+        if(current && (
+          payload?.actor?.username?.toLowerCase()!==actor.username.toLowerCase() ||
+          payload?.actor?.status!=="Active"
+        ))setActor(null);
+      }catch{/* An outage does not clear the session; server authorization remains mandatory. */}
+    };
+    window.addEventListener("focus",validate);
+    return()=>{current=false;window.removeEventListener("focus",validate)};
+  },[actor?.username]);
   if (!enabled) return <main style={{maxWidth:600,margin:"70px auto",padding:24}}>
     <h2>QA Sparks</h2>
     <p>ทางเข้าผ่านอีเมลยังไม่ได้เปิดใช้งานบนเว็บไซต์นี้</p>
