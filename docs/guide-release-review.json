@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T17:25:00.000Z",
-  "reason": "Reviewed local QA standby case/no-case identity, zero scores, pagination, transactional outbox and replay tests; no user-visible guide changes. SQL schema excluded from guide source scope.",
+  "reviewedAt": "2026-11-10T18:00:00.000Z",
+  "reason": "Reviewed QA failover long-running outage continuity with incident-time mirror proof and continuously refreshed local actor, locks, ingress and lease; no user guide change.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -735,8 +735,8 @@
     "scripts/check-qa-bridge-preview-preflight.mjs": "db67fae4240e0e6dd96296593a427f461a40257c8fa52ab4059563b1e21b762d",
     "server/qaCutoverParityGate.js": "f0000a1cee7ed4ec8e7f01d0bd6ab17ed1b29a11630e1e7ef0820cd42462486c",
     "scripts/test-qa-cutover-parity-gate.mjs": "1c857ba407b3f137f3d056c9e5ac8c110634a899d321f8d6df91bb694f00dc38",
-    "server/qaFailoverDecision.js": "238660bd96f00771d7e4722c200f7b86d686252bb0816827f4bd060afb811d59",
-    "scripts/test-qa-failover-decision.mjs": "0fe3d7796d9730c6d76a7e7598144c37de5b2090a89d246a0ec90f2757b8fbec",
+    "server/qaFailoverDecision.js": "03862252bcb6aa6fd58d9fdb96dbcbded989965f5aaffc6a78c57e267a4ffcc0",
+    "scripts/test-qa-failover-decision.mjs": "a51a990179120fd858fb1c9e257c7ea0947eefdc8a7b0036e11c2e916ddb49a6",
     "server/qaStandbyPgJournal.js": "96976da18de906bbe8c1b6cad1d4a3d8b681e2d7fe7f6dd646e589ff73bcc665",
     "scripts/test-qa-standby-journal-integration.mjs": "e88a542d3d6f823222786120eba8de85566e7f3e1a01adabc9e6b962dbbdfc03",
     "server/qaStandbyReplayWorker.js": "40e252c391561f811fc0bfd501efae3e999f121a5b09da72c4beb47171765432",
