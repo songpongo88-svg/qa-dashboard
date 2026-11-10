@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { TYPING_RELIEF, typingReliefAction } from "./typingReliefReward";
+import { getTypingReliefPricing } from "./typingReliefPricing.mjs";
 
 type Props = {
   username: string;
@@ -72,6 +73,9 @@ function TypingReliefArt({ large = false }: { large?: boolean }) {
 
 export default function TypingReliefRewardCard({ username, sessionId, balance, owned, loaded, mode = "reward" }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [pricingClock, setPricingClock] = useState(() => Date.now());
+  const pricing = getTypingReliefPricing(pricingClock);
+  const price = pricing.price;
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -86,9 +90,21 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
   const effectiveBalance = latest && loaded ? latest.balance : balance;
   const effectiveOwned = latest && loaded ? latest.owned : owned;
   const availableSlots = Math.max(0, TYPING_RELIEF.maxOwned - effectiveOwned);
+  // Keep the displayed price current across a midnight promo expiry or tab focus.
+  useEffect(() => {
+    const update = () => setPricingClock(Date.now());
+    const timer = window.setInterval(update, 30_000);
+    window.addEventListener("focus", update);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", update);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, []);
   const canBuy = loaded && Boolean(username) && Boolean(sessionId)
     && effectiveOwned < TYPING_RELIEF.maxOwned
-    && effectiveBalance >= TYPING_RELIEF.price && !busy;
+    && effectiveBalance >= price && !busy;
 
   useEffect(() => {
     setLatest(null);
@@ -119,6 +135,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
   }, [detailOpen, busy]);
 
   const openDetails = () => {
+    setPricingClock(Date.now());
     setError("");
     setNotice("");
     setConfirm(false);
@@ -136,16 +153,25 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
   };
   const purchase = async () => {
     if (!canBuy) return;
+    const latestPrice = getTypingReliefPricing(Date.now()).price;
+    if (latestPrice !== price) {
+      setPricingClock(Date.now());
+      setConfirm(false);
+      setError("ราคาโปรโมชันมีการเปลี่ยนแปลงแล้ว กรุณาตรวจสอบราคาใหม่ก่อนซื้อ");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       if (!purchaseRequestId.current) purchaseRequestId.current = crypto.randomUUID();
-      const result = await typingReliefAction("redeem-typing-relief", username, sessionId, { requestId: purchaseRequestId.current });
+      const result = await typingReliefAction("redeem-typing-relief", username, sessionId, { requestId: purchaseRequestId.current, expectedPrice: latestPrice });
       purchaseRequestId.current = "";
       setLatest({ balance: result.balance, owned: result.owned });
       setConfirm(false);
       setNotice(result.alreadyApplied ? "รายการนี้เคยแลกแล้ว และสิทธิ์ถูกบันทึกไว้ในบัญชีแล้ว" : "แลกสำเร็จ! Typing Relief ถูกเก็บในบัญชี พร้อมใช้กับภารกิจ QA Access");
     } catch (reason) {
+      setPricingClock(Date.now());
+      setConfirm(false);
       setError(reason instanceof Error ? reason.message : "ไม่สามารถแลก Typing Relief ได้");
     } finally {
       setBusy(false);
@@ -154,14 +180,14 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
 
   return <>
     <button type="button" className="qa-sparks-mini-item qa-sparks-mini-item--typing" data-reward-item="typing-relief" style={mode==="reward"?{order:-TYPING_RELIEF.price}:undefined} ref={triggerRef}
-      aria-label={mode === "inventory" ? "เปิดรายละเอียด Typing Relief ที่มี " + effectiveOwned + " สิทธิ์" : "ดูรายละเอียดของรางวัล Typing Relief ราคา 150 QA Sparks"} aria-haspopup="dialog"
+      aria-label={mode === "inventory" ? "เปิดรายละเอียด Typing Relief ที่มี " + effectiveOwned + " สิทธิ์" : "ดูรายละเอียดของรางวัล Typing Relief ราคา " + price + " QA Sparks"} aria-haspopup="dialog"
       aria-expanded={detailOpen} onClick={openDetails}>
       <span className="qa-sparks-mini-art qa-sparks-mini-art--typing">
         <TypingReliefArt/>
         {mode === "inventory" ? <span className="qa-sparks-mini-quantity">×{effectiveOwned}</span> : null}
       </span>
       <strong className="qa-sparks-mini-name">Typing Relief</strong>
-      <span className="qa-sparks-mini-value">{mode === "inventory" ? effectiveOwned + " สิทธิ์" : TYPING_RELIEF.price + " Sparks"}</span>
+      <span className="qa-sparks-mini-value">{mode === "inventory" ? effectiveOwned + " สิทธิ์" : price + " Sparks"}{mode === "reward" && pricing.promoActive ? <span className="qa-relief-mini-sale"> ลด 70%</span> : null}</span>
     </button>
 
     {detailOpen && typeof document !== "undefined" ? createPortal(
@@ -178,16 +204,20 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
               <h2 id={dialogId + "-title"}>Typing Relief</h2>
               <p id={dialogId + "-intro"}>ไอเทมช่วยแบ่งเบาภารกิจพิมพ์ ให้คุณมีทางเลือกก่อนเริ่ม QA Access Check</p>
               <div className="qa-sparks-reward-detail-tags">
-                <span>ลดจำนวนคำพิมพ์ 60%</span><span>เก็บไว้ใช้ภายหลัง</span>
+                <span>ลดจำนวนคำพิมพ์ 60%</span><span>เก็บไว้ใช้ภายหลัง</span>{pricing.promoActive && mode==="reward" ? <span>ลดราคาซื้อใหม่ 70%</span> : null}
               </div>
             </div>
           </div>
           <div className="qa-sparks-reward-detail-scroll">
             <div className="qa-sparks-reward-detail-stats">
-              <div><span>ราคาต่อสิทธิ์</span><strong>{TYPING_RELIEF.price} <small>QA Sparks</small></strong></div>
+              <div><span>ราคาต่อสิทธิ์</span><strong>{price} <small>QA Sparks</small></strong>{pricing.promoActive ? <small className="qa-relief-original-price"><s>{pricing.regularPrice} Sparks</s> · ลด 70%</small> : null}</div>
               <div><span>สิทธิ์ที่สะสม</span><strong>{loaded ? effectiveOwned : "—"}<small> / {TYPING_RELIEF.maxOwned} สิทธิ์</small></strong></div>
               <div><span>ซื้อเพิ่มได้</span><strong>{loaded ? availableSlots : "—"} <small>สิทธิ์</small></strong></div>
             </div>
+            {mode==="reward" && pricing.promoActive ? <div className="qa-relief-promo-copy" data-typing-relief-promo="70">
+              <strong>โปรโมชันลดราคาซื้อใหม่ 70% — เหลือ 45 Sparks</strong>
+              <span>จากปกติ 150 Sparks · สิ้นสุดวันที่ 15 มกราคม 2027 เวลา 23:59 น. (ประเทศไทย) · รายการที่เคยซื้อแล้วไม่มีการคืนส่วนต่าง</span>
+            </div> : null}
             {mode==="inventory"?<>
               <h3 className="qa-sparks-reward-detail-section-title">วิธีใช้งาน Item</h3>
               <div className="qa-sparks-reward-detail-steps">
@@ -199,7 +229,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
               <small>QA SPARKS EXCLUSIVE REWARD</small>
               <h3>เบาภารกิจพิมพ์ลง 60%</h3>
               <p>เปลี่ยน Sparks เป็น Typing Relief สิทธิพิเศษสำหรับภารกิจ QA Access Check แบบ Word Mode ช่วยลดจำนวนคำที่ต้องพิมพ์ โดยยังคงผ่านภารกิจตามเงื่อนไขเดิม</p>
-              <div><span><b>ราคาแลก</b> {TYPING_RELIEF.price} Sparks</span><span><b>สิทธิ์สูงสุดที่สะสมได้</b> {TYPING_RELIEF.maxOwned} สิทธิ์</span></div>
+              <div><span><b>ราคาแลก</b> {price} Sparks{pricing.promoActive ? " (ลด 70% จาก 150)" : ""}</span><span><b>สิทธิ์สูงสุดที่สะสมได้</b> {TYPING_RELIEF.maxOwned} สิทธิ์</span></div>
             </section>}
             <div className="qa-sparks-reward-detail-example">
               <div><span>ตัวอย่างภารกิจ</span><strong>100 <small>คำ</small></strong></div>
@@ -217,6 +247,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
               <li>ใช้ได้เฉพาะ QA Access Check แบบ Word Mode</li>
               <li>สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์</li>
               <li>แลกแล้วเก็บไว้ใน My Items เพื่อใช้กับภารกิจครั้งถัดไป</li>
+              {pricing.promoActive ? <li>ราคาพิเศษ 45 Sparks ใช้กับการซื้อใหม่ถึง 15 มกราคม 2027 เวลา 23:59 น. (เวลาไทย) จากนั้นกลับเป็น 150 Sparks โดยอัตโนมัติ สิทธิ์เดิมยังใช้ได้เหมือนเดิม</li> : null}
             </ul>}
           </div>
 
@@ -229,15 +260,15 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
             {error ? <div role="alert" className="qa-sparks-reward-detail-error">{error}</div> : null}
             {mode !== "inventory" && confirm ? <div className="qa-sparks-reward-detail-confirm">
               <strong>ยืนยันการแลก Typing Relief</strong>
-              <p>ใช้ {TYPING_RELIEF.price} Sparks รับ 1 สิทธิ์ · หลังแลกคงเหลือ {effectiveBalance - TYPING_RELIEF.price} Sparks และมี {effectiveOwned + 1}/{TYPING_RELIEF.maxOwned} สิทธิ์</p>
+              <p>ใช้ {price} Sparks รับ 1 สิทธิ์ · หลังแลกคงเหลือ {effectiveBalance - price} Sparks และมี {effectiveOwned + 1}/{TYPING_RELIEF.maxOwned} สิทธิ์</p>
               <div>
                 <button className="qa-sparks-reward-detail-secondary" type="button" onClick={() => setConfirm(false)} disabled={busy}>กลับไปดูรายละเอียด</button>
-                <button className="qa-sparks-reward-detail-primary" type="button" onClick={() => void purchase()} disabled={!canBuy}>{busy ? "กำลังแลก..." : "ยืนยันแลก 150 Sparks"}</button>
+                <button className="qa-sparks-reward-detail-primary" type="button" onClick={() => void purchase()} disabled={!canBuy}>{busy ? "กำลังแลก..." : "ยืนยันแลก " + price + " Sparks"}</button>
               </div>
             </div> : mode === "inventory" ? null : <div className="qa-sparks-reward-detail-purchase">
               <div className="qa-sparks-reward-detail-purchase-copy"><small>YOUR BALANCE</small><strong>{loaded ? effectiveBalance.toLocaleString() : "—"} <span>Sparks</span></strong></div>
               <button className="qa-sparks-reward-detail-primary" type="button" disabled={!canBuy} onClick={() => { setError(""); setNotice(""); setConfirm(true); }}>
-                {!loaded ? "กำลังตรวจสอบยอด Sparks" : effectiveOwned >= TYPING_RELIEF.maxOwned ? "สะสมครบ 10 สิทธิ์แล้ว" : effectiveBalance < TYPING_RELIEF.price ? "Sparks ไม่เพียงพอ" : "แลก 1 สิทธิ์ · 150 Sparks"}
+                {!loaded ? "กำลังตรวจสอบยอด Sparks" : effectiveOwned >= TYPING_RELIEF.maxOwned ? "สะสมครบ 10 สิทธิ์แล้ว" : effectiveBalance < price ? "Sparks ไม่เพียงพอ" : "แลก 1 สิทธิ์ · " + price + " Sparks"}
               </button>
             </div>}
           </div>
