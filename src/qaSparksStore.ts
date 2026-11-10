@@ -120,7 +120,12 @@ export async function getSparksAccount(username: string, options: { historyLimit
     const snapshot = await response.json().catch(()=>({}));
     if (!response.ok || !snapshot.ok || !snapshot.wallet) {
       if (response.status === 403) try { sessionStorage.removeItem(grantStorageKey); } catch {}
-      throw new Error(String(snapshot.error || "โหลดบัญชี QA Sparks จาก Supabase ไม่สำเร็จ"));
+      const message = String(snapshot.error || "โหลดบัญชี QA Sparks จาก Supabase ไม่สำเร็จ");
+      const code = snapshot.code === "FIRESTORE_RESOURCE_EXHAUSTED" ? "firebase-auth-quota"
+        : response.status === 429 ? "resource-exhausted"
+        : response.status === 403 ? "permission-denied"
+        : response.status >= 500 ? "unavailable" : "unknown";
+      throw Object.assign(new Error(message), { code });
     }
     if (typeof snapshot.readGrant === "string" && snapshot.readGrant.length > 30) {
       try {
