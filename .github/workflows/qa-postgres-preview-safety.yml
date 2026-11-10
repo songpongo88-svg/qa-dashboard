@@ -14,6 +14,8 @@ on:
       - "server/qaCutoverSessionStore.js"
       - "scripts/test-qa-postgres-session-integration.mjs"
       - "scripts/check-qa-bridge-preview-preflight.mjs"
+      - "server/qaCutoverParityGate.js"
+      - "scripts/test-qa-cutover-parity-gate.mjs"
       - ".github/workflows/qa-postgres-preview-safety.yml"
   workflow_dispatch:
 
@@ -44,12 +46,15 @@ jobs:
           node --check server/qaCutoverSessionStore.js
           node --check scripts/test-qa-postgres-session-integration.mjs
           node --check scripts/check-qa-bridge-preview-preflight.mjs
+          node --check server/qaCutoverParityGate.js
+          node --check scripts/test-qa-cutover-parity-gate.mjs
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-diagnostics.mjs
           node scripts/test-qa-postgres-write-policy.mjs
           node scripts/test-qa-postgres-stage-writer.mjs
           node scripts/check-qa-bridge-preview-preflight.mjs
+          node scripts/test-qa-cutover-parity-gate.mjs
 
   ephemeral-postgres-integration:
     runs-on: ubuntu-latest
