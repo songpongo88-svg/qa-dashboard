@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T17:20:00.000Z",
-  "reason": "Corrected guide source manifest boundary: additive SQL migration is infrastructure and not part of scanned user guide sources. No UI or guide content changes.",
+  "reviewedAt": "2026-11-10T17:25:00.000Z",
+  "reason": "Reviewed local QA standby case/no-case identity, zero scores, pagination, transactional outbox and replay tests; no user-visible guide changes. SQL schema excluded from guide source scope.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -737,11 +737,11 @@
     "scripts/test-qa-cutover-parity-gate.mjs": "1c857ba407b3f137f3d056c9e5ac8c110634a899d321f8d6df91bb694f00dc38",
     "server/qaFailoverDecision.js": "238660bd96f00771d7e4722c200f7b86d686252bb0816827f4bd060afb811d59",
     "scripts/test-qa-failover-decision.mjs": "0fe3d7796d9730c6d76a7e7598144c37de5b2090a89d246a0ec90f2757b8fbec",
-    "server/qaStandbyPgJournal.js": "f1cc7f49434ae91501942f7ddc3b4ee40435b3a489db52e9f2bc7ae1b9c7054b",
-    "scripts/test-qa-standby-journal-integration.mjs": "4b92143231416a77b162a648e96a5a1a43af1b2f3546efd8b11a9ff06615df3f",
+    "server/qaStandbyPgJournal.js": "96976da18de906bbe8c1b6cad1d4a3d8b681e2d7fe7f6dd646e589ff73bcc665",
+    "scripts/test-qa-standby-journal-integration.mjs": "e88a542d3d6f823222786120eba8de85566e7f3e1a01adabc9e6b962dbbdfc03",
     "server/qaStandbyReplayWorker.js": "40e252c391561f811fc0bfd501efae3e999f121a5b09da72c4beb47171765432",
-    "scripts/test-qa-standby-replay-integration.mjs": "de7a0fa23467f87bbb8d668d628b76eb0fa341e0205a98906e5daa8a58137891",
+    "scripts/test-qa-standby-replay-integration.mjs": "8a9b303a9c7822465666c57ea16a21eb694318d688bda956e46d6317f2cbc828",
     "server/qaStandbyRead.js": "b738a4b5458a8f50eb175cc8b2f6e1afde6e78a956472ab1db3d45e5819d8d7b",
-    "scripts/test-qa-standby-read-integration.mjs": "d42b325ac8c9c8bbdb60f9571f70fa8d113b5a3e963a509e45e87e18002dd813"
+    "scripts/test-qa-standby-read-integration.mjs": "14c9cc1a5ea9f939c681e6982b85a56de94aa252b14558cff2da3fdb293f64cb"
   }
 }
