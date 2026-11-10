@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T16:55:00.000Z",
-  "reason": "Rechecked additive local-only PostgreSQL standby schema, access-controlled read API, version-protected outbox, preview test syntax and monthly QA safety; no user-facing guide changes or QA Sparks modifications.",
+  "reviewedAt": "2026-11-10T17:20:00.000Z",
+  "reason": "Corrected guide source manifest boundary: additive SQL migration is infrastructure and not part of scanned user guide sources. No UI or guide content changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -737,7 +737,6 @@
     "scripts/test-qa-cutover-parity-gate.mjs": "1c857ba407b3f137f3d056c9e5ac8c110634a899d321f8d6df91bb694f00dc38",
     "server/qaFailoverDecision.js": "238660bd96f00771d7e4722c200f7b86d686252bb0816827f4bd060afb811d59",
     "scripts/test-qa-failover-decision.mjs": "0fe3d7796d9730c6d76a7e7598144c37de5b2090a89d246a0ec90f2757b8fbec",
-    "migration/qa-local-failover-postgres17.sql": "9aab09dfd53eeea5c52a1044a89a2765b19104b0d39d6bccf6c3e0c4d1af4f75",
     "server/qaStandbyPgJournal.js": "f1cc7f49434ae91501942f7ddc3b4ee40435b3a489db52e9f2bc7ae1b9c7054b",
     "scripts/test-qa-standby-journal-integration.mjs": "4b92143231416a77b162a648e96a5a1a43af1b2f3546efd8b11a9ff06615df3f",
     "server/qaStandbyReplayWorker.js": "40e252c391561f811fc0bfd501efae3e999f121a5b09da72c4beb47171765432",
