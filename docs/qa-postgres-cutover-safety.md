@@ -21,6 +21,12 @@ Preview-only Vercel environment variables (all values kept server-side):
 
 Allowed preview probes: `GET /api/qa-local-diagnostics?check=ready` and `?check=summary`. No QA rows are forwarded. A privately authenticated HTTPS tunnel and server access policy must exist first; a temporary Quick Tunnel is not a production endpoint. Keep local API bound to `127.0.0.1`, never expose port 5432.
 
+### Step 3 write-path engineering (branch only, not wired to QA Dashboard)
+- `server/qaCutoverWritePolicy.js` checks a **trusted server-verified** QA session, source-parity approval or isolated-fixture authorization, immutable evaluation identity, expected row version, authoritative monthly-result signature lock, appeal hold and verified edit lease. Never construct its trusted context from browser fields.
+- `server/qaCutoverPgWriter.js` has transaction-based create/update/delete-tombstone, replay protection and an audit trail targeting **only** `qa_cutover_stage` tables. It explicitly rejects production use, and has no HTTP route. It is not a replacement for `src/evaluationStore.ts` yet.
+- Tests include pure policy, mocked SQL transaction and a disposable PostgreSQL 17 service in GitHub Actions. These use synthetic values and do not connect to the user's Windows server or any live QA records.
+- The successful 5/5 Preview smoke check only confirms navigation/read rendering/Login are intact; it does not demonstrate that live QA writes or migrations work.
+
 ## Remaining production blockers
 1. Reconcile local QA backup against latest authoritative Firebase records by document identity and revision/content hash. Preserve missing/recent cases; do not treat 563 local records as complete live data.
 2. Treat 570 historical Excel rows as separate historical source identities; preserve original scores and appeal history, do not collapse repeated Case IDs.
