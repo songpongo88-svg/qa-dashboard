@@ -185,7 +185,7 @@ export function createQaAutoPassService({
       actualTypedCount:0,mistakeCount:0,allowedMistakes:Number(head.allowedMistakes)||0,
       timeLimitSeconds:Number(head.timeLimitSeconds)||60,timeUsedSeconds:0,
       result:"Pass",completionMethod:"auto-pass",completedViaItem:"qa-access-auto-pass",
-      challengeId:op.challengeId,operationId:id,
+      challengeId:op.challengeId,operationId:id,mode:op.mode,
       completedAt:now,assignedAt:head.assignedAt||"",assignedBy:head.assignedBy||"",
       createdAtServer:now,
     };
