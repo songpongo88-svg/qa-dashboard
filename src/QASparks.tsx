@@ -43,10 +43,10 @@ function EmptyReward({ large = false }: { large?: boolean }) {
     <h3>ยังไม่มีของรางวัล</h3>
   </section>;
 }
-export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean }) {
+export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true, verifiedSparksActor = null }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean; verifiedSparksActor?: SparksVerifiedActor | null }) {
   const [view, setView] = useState<SparksView>("overview");
   const emailAuthEnabled = import.meta.env?.VITE_SPARKS_AUTH_MODE === "supabase";
-  const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(null);
+  const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
   const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
   const [itemClock,setItemClock] = useState(0);
