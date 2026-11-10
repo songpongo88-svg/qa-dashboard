@@ -19,6 +19,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
   username?:string; onVerified:(actor:SparksVerifiedActor)=>void;
 }) {
   const [email,setEmail]=useState("");
+  const [pendingEmail,setPendingEmail]=useState("");
   const [code,setCode]=useState("");
   const [sent,setSent]=useState(false);
   const [rateLimited,setRateLimited]=useState(false);
@@ -76,12 +77,13 @@ export default function SparksEmailAuth({ username, onVerified }:{
       await authRequest("/auth/v1/otp?redirect_to="+encodeURIComponent(returnTo),{
         email:address,create_user:true,
       });
-      setSent(true);setMessage("ส่งอีเมลยืนยันแล้ว หากได้รับรหัสให้กรอกด้านล่าง หรือกดลิงก์ในอีเมล");
+      setPendingEmail(address);setSent(true);setCode("");
+      setMessage("ส่งรหัสยืนยันแล้ว เปิดอีเมลเพื่อดูรหัสและกลับมากรอกในแท็บ QA Sparks นี้ได้เลย");
     }catch(e){
       const detail=e instanceof Error?e.message:"ส่งอีเมลไม่สำเร็จ";
       if(/email rate limit exceeded|over_email_send_rate_limit|too many requests/i.test(detail)){
         setRateLimited(true);
-        setError("Supabase จำกัดการส่งอีเมลชั่วคราว กรุณาอย่ากดส่งซ้ำ หากมี Magic Link ฉบับล่าสุดให้ใช้ลิงก์นั้นก่อน หรือกลับมาขอลิงก์ใหม่เมื่อระบบอนุญาต");
+        setError("Supabase จำกัดการส่งอีเมลชั่วคราว หากได้รับรหัสล่าสุดแล้วให้กรอกด้านล่าง หรือส่งรหัสใหม่เมื่อระบบอนุญาต");
       }else setError(detail);
     }
     finally{setBusy(false);}
@@ -90,7 +92,9 @@ export default function SparksEmailAuth({ username, onVerified }:{
     event.preventDefault();if(busy)return;
     setBusy(true);setError("");
     try{
-      const tokens=await authRequest("/auth/v1/verify",{email:email.trim().toLowerCase(),token:code.trim(),type:"email"});
+      if(!/^[0-9]{6,8}$/.test(code))throw Error("กรุณากรอกรหัสยืนยัน 6–8 หลักจากอีเมล");
+      if(!pendingEmail)throw Error("กรุณาส่งรหัสยืนยันไปยังอีเมลก่อน");
+      const tokens=await authRequest("/auth/v1/verify",{email:pendingEmail,token:code.trim(),type:"email"});
       await exchange(tokens);
     }catch(e){setError(e instanceof Error?e.message:"ยืนยันรหัสไม่สำเร็จ");}
     finally{setBusy(false);}
@@ -99,19 +103,22 @@ export default function SparksEmailAuth({ username, onVerified }:{
     <section className="sparks-email-auth-card">
       <div className="sparks-email-auth-kicker">QA Sparks · Supabase Auth</div>
       <h2>ยืนยันอีเมลเพื่อเข้าใช้ QA Sparks</h2>
-      <p>บัญชี QA Dashboard เดิมยังใช้ตามปกติ ส่วน QA Sparks จะยืนยันตัวตนแยกกันด้วยอีเมลของพนักงาน</p>
+      <p>บัญชี QA Dashboard เดิมยังใช้ตามปกติ ยืนยัน QA Sparks ด้วยรหัสจากอีเมลในแท็บนี้โดยไม่ต้องเปิดเว็บใหม่</p>
       {username ? <p className="sparks-email-auth-account">บัญชีที่กำลังใช้งาน: <strong>{username}</strong></p> : <p className="sparks-email-auth-account">เปิด QA Sparks โดยไม่ต้องเข้าสู่ระบบ QA Dashboard ก่อน</p>}
       <form onSubmit={send}>
         <label htmlFor="sparks-auth-email">อีเมลที่ลงทะเบียนกับ QA Dashboard</label>
         <input id="sparks-auth-email" type="email" required autoComplete="email" value={email}
-          disabled={busy||rateLimited} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/>
-        <button type="submit" disabled={busy||rateLimited}>{busy?"กำลังตรวจสอบ...":rateLimited?"จำกัดการส่งอีเมลชั่วคราว":sent?"ส่งอีเมลอีกครั้ง":"ส่งอีเมลยืนยัน"}</button>
+          disabled={busy||rateLimited||sent} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/>
+        <button type="submit" disabled={busy||rateLimited}>{busy?"กำลังตรวจสอบ...":rateLimited?"จำกัดการส่งอีเมลชั่วคราว":sent?"ส่งรหัสใหม่":"ส่งรหัสยืนยัน"}</button>
       </form>
-      {sent && <form onSubmit={verify}>
-        <label htmlFor="sparks-auth-code">รหัสยืนยันจากอีเมล (หากได้รับรหัส 6–8 หลัก)</label>
-        <input id="sparks-auth-code" inputMode="numeric" autoComplete="one-time-code" required value={code}
-          disabled={busy} onChange={e=>setCode(e.target.value.trim())} placeholder="รหัสยืนยัน"/>
-        <button type="submit" disabled={busy||!code.trim()}>ยืนยันและเข้าใช้ Sparks</button>
+      {sent && <form onSubmit={verify} data-sparks-otp-in-place="true">
+        <p className="sparks-email-auth-step-hint">เปิดอีเมลเพื่อดูรหัส แล้วกลับมากรอกในหน้า QA Sparks นี้ ไม่ต้องกดลิงก์เข้าสู่เว็บไซต์อื่น</p>
+        <label htmlFor="sparks-auth-code">รหัสยืนยันจากอีเมล (6–8 หลัก)</label>
+        <input id="sparks-auth-code" inputMode="numeric" maxLength={8} pattern="[0-9]{6,8}" autoComplete="one-time-code" required value={code}
+          disabled={busy} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,8))} placeholder="กรอกรหัสยืนยัน"/>
+        <button type="submit" disabled={busy||!/^[0-9]{6,8}$/.test(code)}>ยืนยันและเข้าใช้ Sparks ในแท็บนี้</button>
+        <button className="sparks-email-auth-secondary" type="button" disabled={busy}
+          onClick={()=>{setSent(false);setPendingEmail("");setEmail("");setCode("");setMessage("");setError("");}}>เปลี่ยนอีเมล</button>
       </form>}
       {message && <p role="status" className="sparks-email-auth-message">{message}</p>}
       {error && <p role="alert" className="sparks-email-auth-error">{error}</p>}
