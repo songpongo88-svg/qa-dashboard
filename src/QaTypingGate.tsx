@@ -360,7 +360,7 @@ export default function QaTypingGate({
                   ยืนยันหัก {getTypingReliefPricing().price} QA Sparks เพื่อรับ Typing Relief 1 สิทธิ์ใช่หรือไม่?
                   <button type="button" onClick={() => void buyTypingRelief()} disabled={rewardBusy || rewardBalance < getTypingReliefPricing().price}
                     className="mt-2 w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
-                    {rewardBusy ? "กำลังบันทึก..." : "ยืนยันแลก {getTypingReliefPricing().price} Sparks"}
+                    {rewardBusy ? "กำลังบันทึก..." : `ยืนยันแลก ${getTypingReliefPricing().price} Sparks`}
                   </button>
                   <button type="button" onClick={() => setConfirmRewardPurchase(false)} disabled={rewardBusy}
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-600">
