@@ -45,7 +45,15 @@ function EmptyReward({ large = false }: { large?: boolean }) {
 }
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true, verifiedSparksActor = null }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean; verifiedSparksActor?: SparksVerifiedActor | null }) {
   const [view, setView] = useState<SparksView>("overview");
-  const emailAuthEnabled = import.meta.env?.VITE_SPARKS_AUTH_MODE === "supabase";
+  const emailAuthMode = String(import.meta.env?.VITE_SPARKS_AUTH_MODE || "legacy");
+  // Production rollout: only the existing QA Sparks owner is prompted for
+  // Supabase email verification. All other Dashboard users retain their
+  // previous QA sign-in and Sparks screens until email delivery is ready.
+  const emailAuthEnabled = emailAuthMode === "supabase" || (
+    emailAuthMode === "hybrid" && (
+      username.trim().toLowerCase() === "songpon" || Boolean(verifiedSparksActor)
+    )
+  );
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
   const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
