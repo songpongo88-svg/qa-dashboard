@@ -6,6 +6,7 @@ import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
 import { createTypingReliefCloudService } from "../server/typingReliefCloudService.js";
+import { createQaAutoPassService } from "../server/qaAutoPassService.js";
 import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
@@ -1385,6 +1386,7 @@ async function adjustBalance(body, admin) {
       const data = recordValue(walletDoc);
       let signedAmount = operation === "add" ? quantity : -quantity;
       let typingReliefRefund = false;
+      let autoPassRefund = false;
       if (operation === "refund") {
         const originalRow = recordValue(original);
         if (originalRow.source !== "reward-redemption" || !Number.isSafeInteger(Number(originalRow.amount)) || Number(originalRow.amount) >= 0) {
@@ -1401,6 +1403,10 @@ async function adjustBalance(body, admin) {
         if (originalRow.rewardId === "typing-relief") {
           if (intCount(data.typingReliefOwned) < 1) fail("ไม่สามารถคืนคะแนน Typing Relief ที่ใช้ไปแล้วได้", 400);
           typingReliefRefund = true;
+        }
+        if (originalRow.rewardId === "qa-access-auto-pass") {
+          if (intCount(data.autoPassOwned) < 1) fail("ไม่สามารถคืนคะแนน Auto-Pass ที่ใช้ไปแล้วได้",400);
+          autoPassRefund = true;
         }
       }
       const oldBalance = spendableBalance(data);
@@ -1428,6 +1434,10 @@ async function adjustBalance(body, admin) {
         updated.typingReliefOwned = intCount(data.typingReliefOwned) - 1;
         updated.typingReliefRefunded = intCount(data.typingReliefRefunded) + 1;
       }
+      if (autoPassRefund) {
+        updated.autoPassOwned = intCount(data.autoPassOwned) - 1;
+        updated.autoPassRefunded = intCount(data.autoPassRefunded) + 1;
+      }
       const fields = encodeFields(updated);
       const history = {
         createdAt: now, type: signedAmount < 0 ? "spend" : "earn",
@@ -1437,6 +1447,7 @@ async function adjustBalance(body, admin) {
         requestId,
         status: "Completed",
         ...(typingReliefRefund ? { rewardId: "typing-relief" } : {}),
+        ...(autoPassRefund ? { rewardId: "qa-access-auto-pass" } : {}),
       };
       const writes = [
         {
@@ -1475,6 +1486,9 @@ const announcementShield=createAnnouncementShieldService({firestoreRequest,readD
 const typingReliefCloud=createTypingReliefCloudService({firestoreRequest,readDoc,recordValue,path,
   updateWrite,createWrite,listCollection,walletDocumentPath,walletKey,
   spendableBalance,currentMemberYear});
+const autoPass=createQaAutoPassService({firestoreRequest,readDoc,recordValue,path,
+  updateWrite,createWrite,listCollection,walletDocumentPath,walletKey,
+  spendableBalance,currentMemberYear,documentsResource:DOCUMENTS_RESOURCE});
 
 
 // The first hosted preview is STRICTLY read-only. This prevents an owner from
@@ -1484,7 +1498,7 @@ const CLOUD_PREVIEW_READ_ACTIONS = new Set([
   "sparks-cloud-wallet", "sparks-wallet-recovery", "get-truemoney-price",
   "list-my-truemoney", "qa-lottery-state", "qa-lottery-my-tickets",
   "special-rewards-mine", "announcement-shield-state", "treasure-state",
-  "fruit-match-data", "snakes-state", "list-truemoney-tracker",
+  "fruit-match-data", "snakes-state", "auto-pass-state", "list-truemoney-tracker",
   "special-rewards-admin-list", "special-rewards-admin-receipt",
   "list-reward-queues", "list", "history",
 ]);
@@ -1510,18 +1524,21 @@ async function sparksHandler(req, res) {
     if (sparksCloudReadOnlyEnabled()) return res.status(423).json({error:"QA Sparks Supabase preview is read-only; scheduled payouts are disabled"});
     const expected = String(process.env.CRON_SECRET || "").trim();
     if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
-    const [lottery,shield,typing]=await Promise.allSettled([
+    const [lottery,shield,typing,autoPassPending]=await Promise.allSettled([
       qaLottery.settle(),announcementShield.sweep(),
       process.env.SPARKS_DATA_BACKEND==="supabase"
         ?typingReliefCloud.reconcilePending(12):Promise.resolve({scanned:0,completed:0,unresolved:[]}),
+      autoPass.reconcilePending(12),
     ]);
     if(lottery.status==="rejected")console.error("QA Lottery cron failed:",String(lottery.reason?.message||lottery.reason));
     if(typing.status==="rejected")console.error("Typing Relief reconciliation failed:",String(typing.reason?.message||typing.reason));
     if(shield.status==="rejected")console.error("Announcement Shield renewal cron failed:",String(shield.reason?.message||shield.reason));
+    if(autoPassPending.status==="rejected")console.error("Auto-Pass recovery failed:",String(autoPassPending.reason?.message||autoPassPending.reason));
     if(lottery.status==="rejected"&&shield.status==="rejected")return res.status(503).json({error:"Automatic settlement unavailable"});
     return res.status(200).json({lottery:lottery.status==="fulfilled"?lottery.value:{error:"Lottery settlement failed"},
       announcementShield:shield.status==="fulfilled"?shield.value:{error:"Subscription settlement failed"},
-      typingRelief:typing.status==="fulfilled"?typing.value:{error:"Typing Relief reconciliation failed"}});
+      typingRelief:typing.status==="fulfilled"?typing.value:{error:"Typing Relief reconciliation failed"},
+      autoPass:autoPassPending.status==="fulfilled"?autoPassPending.value:{error:"Auto-Pass reconciliation failed"}});
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
@@ -1531,6 +1548,14 @@ async function sparksHandler(req, res) {
         error:"QA Sparks เวอร์ชันทดสอบ Supabase เปิดให้ดูข้อมูลอย่างเดียว ยังไม่อนุญาตให้เพิ่ม หัก แลก หรือยืนยันรางวัล",
         code:"SPARKS_CLOUD_PREVIEW_READ_ONLY",
       });
+    }
+    if (["auto-pass-state","auto-pass-claim-free","auto-pass-buy","auto-pass-use"].includes(body.action)) {
+      const actor=await authorizeRewardUser(body);
+      const result=body.action==="auto-pass-state"?await autoPass.state(actor)
+        :body.action==="auto-pass-claim-free"?await autoPass.claimFree(actor)
+        :body.action==="auto-pass-buy"?await autoPass.purchase(body,actor)
+        :await autoPass.use(body,actor);
+      return res.status(200).json(result);
     }
     if (process.env.SPARKS_DATA_BACKEND==="supabase" && body.action==="use-typing-relief") {
       const actor=await authorizeRewardUser(body);

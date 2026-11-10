@@ -18,6 +18,8 @@ export type QaTypingChallengeHistoryRecord = {
   timeLimitSeconds: number;
   timeUsedSeconds: number;
   result: QaTypingChallengeHistoryResult;
+  completionMethod?: "typing" | "auto-pass";
+  actualTypedCount?: number;
   completedAt: string;
   assignedAt: string;
   assignedBy: string;
@@ -51,6 +53,8 @@ function normalizeHistoryRecord(id: string, row: any): QaTypingChallengeHistoryR
     timeLimitSeconds: normalizeNumber(row?.timeLimitSeconds, 60) || 60,
     timeUsedSeconds: normalizeNumber(row?.timeUsedSeconds, 0),
     result,
+    completionMethod:row?.completionMethod==="auto-pass"?"auto-pass":"typing",
+    actualTypedCount:row?.completionMethod==="auto-pass"?0:typedCount,
     completedAt: String(row?.completedAt || ""),
     assignedAt: String(row?.assignedAt || ""),
     assignedBy: String(row?.assignedBy || "").trim(),
@@ -70,6 +74,8 @@ export async function saveQaTypingChallengeHistory(record: NewQaTypingChallengeH
     timeLimitSeconds: normalizeNumber(record.timeLimitSeconds, 60) || 60,
     timeUsedSeconds: normalizeNumber(record.timeUsedSeconds, 0),
     result: record.result,
+    completionMethod:record.completionMethod==="auto-pass"?"auto-pass":"typing",
+    actualTypedCount:record.completionMethod==="auto-pass"?0:normalizeNumber(record.typedCount,0),
     completedAt: record.completedAt || new Date().toISOString(),
     assignedAt: record.assignedAt || "",
     assignedBy: String(record.assignedBy || "").trim(),

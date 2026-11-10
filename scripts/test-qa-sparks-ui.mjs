@@ -134,13 +134,13 @@ try{
   const lotteryQuest=main.querySelector('[data-quest-item="qa-lottery"]');
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
-  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,7, "Reward Center includes Announcement Shield, two existing and four brand rewards");
+  assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,8, "Reward Center includes Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
   assert.ok(main.querySelector('[data-reward-item="announcement-shield"]'),"Announcement Shield 50 Sparks subscription appears in Reward Center");
   for (const id of ["punthai-65","netflix-1m","amazon-55","seven-100"]) assert.ok(main.querySelector(`[data-reward-item="${id}"]`), "new reward "+id+" renders in the compact grid");
   const displayedOrder=[...main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item")]
     .sort((a,b)=>Number(a.style.order)-Number(b.style.order))
     .map(item=>item.dataset.rewardItem);
-  assert.deepEqual(displayedOrder,["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","typing-relief","announcement-shield"],
+  assert.deepEqual(displayedOrder,["seven-100","netflix-1m","truemoney-20","amazon-55","punthai-65","qa-access-auto-pass","typing-relief","announcement-shield"],
     "Reward Center must display all six rewards from most Sparks to least, including TrueMoney's displayed price");
   await act(async()=>main.querySelector('[data-reward-item="punthai-65"]').dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const punthaiPopup=document.querySelector(".sr-modal");
@@ -162,6 +162,17 @@ try{
   assert.equal(questDialog.querySelectorAll(".qa-sparks-checkin-day:not(:disabled)").length,0, "unverified wallet can never claim");
   await act(async () => questDialog.querySelector(".qa-sparks-checkin-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
   assert.equal(document.querySelector(".qa-sparks-checkin-modal"),null);
+  const autoPassItem=main.querySelector('[data-reward-item="qa-access-auto-pass"]');
+  assert.ok(autoPassItem&&autoPassItem.textContent.includes("ฟรี 5 สิทธิ์"),
+    "new QA Access Auto-Pass must show one-click five-unit free offer during promo");
+  assert.equal(autoPassItem.classList.contains("qa-sparks-mini-item"),true);
+  await act(async()=>autoPassItem.dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  const autoPassModal=document.querySelector(".qa-auto-pass-modal");
+  assert.ok(autoPassModal&&autoPassModal.textContent.includes("Word Mode")&&autoPassModal.textContent.includes("Sentence Mode"));
+  assert.ok(autoPassModal.textContent.includes("25 ธันวาคม 2026")&&autoPassModal.textContent.includes("160"));
+  assert.ok(autoPassModal.querySelector("button:disabled"),"unverified users cannot claim Auto-Pass");
+  await act(async()=>autoPassModal.querySelector(".qa-auto-pass-close").dispatchEvent(new MouseEvent("click",{bubbles:true})));
+  assert.equal(document.querySelector(".qa-auto-pass-modal"),null);
   assert.ok(item, "Typing Relief must be a collectible clickable Item");
   assert.equal(item.tagName, "BUTTON", "whole Item must be clickable");
   assert.equal(item.getAttribute("aria-haspopup"), "dialog");

@@ -64,6 +64,7 @@ BEGIN
      'qa_sparks_lottery_draws_v1','qa_sparks_treasure_daily','qa_announcement_shield',
      'qa_sparks_snakes_rooms_v1','qa_sparks_snakes_members_v1',
      'qa_sparks_typing_relief_operations',
+    'qa_sparks_auto_pass_operations',
      'qa_typing_challenges','qa_typing_challenge_history'
    ) OR array_position(v_segments,'') IS NOT NULL OR
       NOT (array_length(v_segments,1)=2 OR
