@@ -1514,7 +1514,7 @@ export default function CreateEvaluationMockup({
             "Agent": draft.agentName || "",
             "Audit Date": draft.auditDate || "",
             "Topic": topic.code,
-            "Topic Name": topic.name || "",
+            "Topic Name": topic.title || "",
             "Score": Number(topicScoreForDate(topic, state?.score ?? null, draft.auditDate, state?.deductions) || 0),
             "Comment": String(state?.reason || "").slice(0, 30000),
             "Issue Tags": (state?.issueTags || []).join(", "),
