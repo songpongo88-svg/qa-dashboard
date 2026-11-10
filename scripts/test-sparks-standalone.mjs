@@ -7,7 +7,7 @@ const email=read("src/SparksEmailAuth.tsx");
 const sparks=read("src/QASparks.tsx");
 const api=read("api/sparks-admin.js");
 assert.match(main,/new URLSearchParams\(window\.location\.search\)\.get\("sparks"\) === "1"/);
-assert.match(main,/sparksStandalone \? <SparksStandalone \/> :/,"standalone must not render the QA Dashboard login");
+assert.match(main,/sparksStandalone\s*\?\s*<React\.StrictMode><RootErrorBoundary><SparksStandalone \/>/,"standalone must not render the QA Dashboard login");
 assert.match(entry,/<SparksEmailAuth onVerified=\{setActor\}/,"Sparks portal requires verified Supabase email");
 assert.match(entry,/verifiedSparksActor=\{actor\}/,"Sparks UI must receive server-verified identity");
 assert.match(email,/if\(username && String\(payload\.actor\.username\)/,"embedded QA path must still require username match");
