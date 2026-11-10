@@ -43,6 +43,52 @@ Allowed preview probes: `GET /api/qa-local-diagnostics?check=ready` and `?check=
 - Differences, missing datasets, stale source evidence or duplicates block cutover. Test data is synthetic and this gate has no network or database writes.
 - Source data must be reacquired from the authoritative service when a complete export becomes possible; do not synthesize missing January–May QA results, change original scores, or silently consolidate repeated case IDs.
 
+## Corrected primary/standby objective — user-confirmed 10 November
+
+**Firebase Firestore stays PRIMARY; local Windows PostgreSQL `qa_dashboard_lab` is STANDBY.**
+Do not permanently migrate QA data to Supabase or replace Firebase as the primary.
+QA Sparks/Supabase work is owned by a separate conversation and must not be changed
+as part of QA evaluation failover.
+
+### New QA-only engineering (NOT enabled on Production)
+- `server/qaFailoverDecision.js` refuses standby activation unless a trusted
+  backend confirms quota exhaustion, durable private tunnel, fully validated
+  mirror including Evaluations, Appeals, Signatures, Users, Roles and Sessions,
+  active server-verified QA identity, monthly locks, and a short-lived
+  coordinator lease. A screenshot of 429, Quick Tunnel or 563-record partial
+  backup does not activate the standby.
+- `migration/qa-local-failover-postgres17.sql` creates a separate, additive
+  schema `qa_failover_v1` for mirrored evaluations, an append-only write
+  outbox and audit. **Not run on the user's computer** in this PR.
+- `server/qaStandbyPgJournal.js` creates/updates/soft-deletes one evaluation
+  with optimistic versions, idempotency operation ID, row locks, preserved
+  evidence/score JSON and an atomic outbox entry. It rejects an unverified
+  identity, locked month, appeal hold, missing edit lease, standby frozen state
+  or a stale conflicting write. It does not call Firebase or QA Sparks.
+- `server/qaStandbyReplayWorker.js` illustrates replay with a server-injected
+  Firebase transaction adapter, per-case operation ordering and conflict
+  quarantine. The actual Firebase Admin compare-and-apply adapter is **not
+  yet implemented or enabled**. Returning to Firestore requires an empty
+  outbox, independently verified post-replay parity and a frozen standby.
+- All integration tests use synthetic records on a **disposable PostgreSQL 17**
+  database `qa_cutover_ci_test`; no live case is created or changed.
+- No production failover endpoint, client router, or credential mirror is live.
+
+### Priority to make the real failover usable
+1. Finish source data capture and verify complete Firestore, historical Excel,
+   Appeals, Signatures, User Profiles, Roles and Sessions on local PostgreSQL.
+2. Build a durable Cloudflare named Tunnel with Access policy to the local API,
+   keep PostgreSQL on loopback only, and monitor PC/network availability.
+3. Server-verify login/session/roles and case locks from a synced local
+   authority, never from browser-submitted `username` or `role`.
+4. Expose authenticated server-side evaluation reads and writes, with safe
+   client fallback on server-confirmed 429 and honest incomplete-data status.
+5. Implement transactional Firebase Admin replay, compare-and-swap revisions,
+   conflict reviews, parity verification, and a reversibly gated Production
+   rollout. No blind last-write-wins.
+6. Migrate remaining QA operations (Appeals, Signatures, permissions etc.)
+   as a coherent failover scope, with full regression tests.
+
 ## Remaining production blockers
 1. Reconcile local QA backup against latest authoritative Firebase records by document identity and revision/content hash. Preserve missing/recent cases; do not treat 563 local records as complete live data.
 2. Treat 570 historical Excel rows as separate historical source identities; preserve original scores and appeal history, do not collapse repeated Case IDs.
