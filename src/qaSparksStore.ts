@@ -35,6 +35,8 @@ export type SparksAccount = {
   totalSpent?: number;
   rewardOrders: number;
   typingReliefOwned: number;
+  autoPassOwned: number;
+  autoPassFreeClaimedAt: string;
   memberYear: number;
   memberYearEarned: number;
   dailyCheckinClaimedDays: number[];
@@ -46,7 +48,7 @@ export type SparksAccount = {
 };
 
 export const EMPTY_SPARKS_ACCOUNT: SparksAccount = {
-  balance: 0, rewardOrders: 0, typingReliefOwned: 0, memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], profileMakeoverClaimedAt: "", firstLogin: null, history: [],
+  balance: 0, rewardOrders: 0, typingReliefOwned: 0, autoPassOwned: 0, autoPassFreeClaimedAt: "", memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], profileMakeoverClaimedAt: "", firstLogin: null, history: [],
 };
 
 export function sparksAccountKey(username: string): string {
@@ -151,6 +153,8 @@ export async function getSparksAccount(username: string, options: { historyLimit
       totalSpent:safeBalance(data.totalSpent),
       rewardOrders:safeBalance(data.rewardOrders),
       typingReliefOwned:safeBalance(data.typingReliefOwned),
+      autoPassOwned:safeBalance(data.autoPassOwned),
+      autoPassFreeClaimedAt:String(data.autoPassFreeClaimedAt||""),
       firstLogin:validPrize(data.firstLogin),
       history:rows.map((row:any)=>{
         const voided=Boolean(row.voidedAt);
@@ -213,6 +217,8 @@ export async function getSparksAccount(username: string, options: { historyLimit
     totalSpent: safeBalance(data.totalSpent),
     rewardOrders: safeBalance(data.rewardOrders),
     typingReliefOwned: safeBalance(data.typingReliefOwned),
+    autoPassOwned: safeBalance(data.autoPassOwned),
+    autoPassFreeClaimedAt: String(data.autoPassFreeClaimedAt||""),
     firstLogin: validPrize(data.firstLogin),
     history: records.docs.map((row) => {
       const value = row.data();
