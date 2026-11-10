@@ -22,6 +22,8 @@ on:
       - "migration/qa-local-failover-postgres17.sql"
       - "scripts/test-qa-standby-journal-integration.mjs"
       - "server/qaStandbyReplayWorker.js"
+      - "server/qaStandbyRead.js"
+      - "scripts/test-qa-standby-read-integration.mjs"
       - "scripts/test-qa-standby-replay-integration.mjs"
       - ".github/workflows/qa-postgres-preview-safety.yml"
   workflow_dispatch:
@@ -60,6 +62,8 @@ jobs:
           node --check server/qaStandbyPgJournal.js
           node --check scripts/test-qa-standby-journal-integration.mjs
           node --check server/qaStandbyReplayWorker.js
+          node --check server/qaStandbyRead.js
+          node --check scripts/test-qa-standby-read-integration.mjs
           node --check scripts/test-qa-standby-replay-integration.mjs
       - name: Run fail-closed safety tests
         run: |
@@ -106,4 +110,5 @@ jobs:
           node scripts/test-qa-postgres-stage-integration.mjs
           node scripts/test-qa-postgres-session-integration.mjs
           node scripts/test-qa-standby-journal-integration.mjs
+          node scripts/test-qa-standby-read-integration.mjs
           node scripts/test-qa-standby-replay-integration.mjs
