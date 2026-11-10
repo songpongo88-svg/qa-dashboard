@@ -29,7 +29,6 @@ import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
 import HiddenTreasure from "./HiddenTreasure";
-import FirstLoginSparksModal from "./FirstLoginSparksModal";
 import { DailyCheckinLoginPrompt } from "./DailyCheckinQuest";
 import { ProfileMakeoverAutoClaim } from "./ProfileMakeoverQuest";
 import AppealMockup from "./AppealMockup";
@@ -8340,7 +8339,6 @@ export default function App() {
         />
       ) : null}
       {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? <>
-        <FirstLoginSparksModal username={currentUser.username} sessionId={currentUser.sessionId || ""} />
         <DailyCheckinLoginPrompt key={currentUser.username + ":" + (currentUser.sessionId || "")} username={currentUser.username} sessionId={currentUser.sessionId || ""} />
         <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>
       </> : null}
