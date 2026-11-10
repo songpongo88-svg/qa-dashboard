@@ -27,6 +27,14 @@ Allowed preview probes: `GET /api/qa-local-diagnostics?check=ready` and `?check=
 - Tests include pure policy, mocked SQL transaction and a disposable PostgreSQL 17 service in GitHub Actions. These use synthetic values and do not connect to the user's Windows server or any live QA records.
 - The successful 5/5 Preview smoke check only confirms navigation/read rendering/Login are intact; it does not demonstrate that live QA writes or migrations work.
 
+### Step 3: isolated server-owned Session prototype
+
+- `server/qaCutoverSessionStore.js` demonstrates password verification with per-account scrypt salts, short-lived random bearer tokens stored **hashed**, server-side role/active-status lookup on every session verification, and revocation/expiry.
+- The implementation **refuses to operate unless `QA_PG_ISOLATED_TEST=1` and the current database is the disposable `qa_cutover_ci_test`**. It is not an alternative Login route in QA Dashboard yet; neither real passwords nor account records have been migrated.
+- `scripts/test-qa-postgres-session-integration.mjs` checks these properties on PostgreSQL 17 using synthetic passwords, and uses the returned trusted session to authorize a fixture QA Evaluation write. No real data or keys are involved.
+- Before production authentication can move off Firestore: migrate/rotate credentials through a private server-authoritative process, implement rate limits, MFA/2FA policy as required, scoped session cookies, account status checks, audited admin revocation, and private ingress. Never trust `username`/`role` posted from a browser.
+- The current Login implementation in `src/App.tsx` still reads Firebase user profiles, checks account passwords client-side and creates Firestore sessions; `src/sessionStore.ts` reads and writes those Firestore sessions. This prototype does not change that behavior or Firestore quota consumption.
+ 
 ## Remaining production blockers
 1. Reconcile local QA backup against latest authoritative Firebase records by document identity and revision/content hash. Preserve missing/recent cases; do not treat 563 local records as complete live data.
 2. Treat 570 historical Excel rows as separate historical source identities; preserve original scores and appeal history, do not collapse repeated Case IDs.
