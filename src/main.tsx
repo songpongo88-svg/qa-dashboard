@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import SparksStandalone from "./SparksStandalone";
 import MaintenanceRuntime from "./MaintenanceRuntime";
 import AutoDeployRefresh from "./AutoDeployRefresh";
 import "./index.css";
@@ -88,12 +89,12 @@ class RootErrorBoundary extends React.Component<
   }
 }
 
+const sparksStandalone = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("sparks") === "1";
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <RootErrorBoundary>
-      <App />
-      <AutoDeployRefresh />
-      <MaintenanceRuntime />
+      {sparksStandalone ? <SparksStandalone /> : <><App /><AutoDeployRefresh /><MaintenanceRuntime /></>}
     </RootErrorBoundary>
   </React.StrictMode>
 );
