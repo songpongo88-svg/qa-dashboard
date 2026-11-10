@@ -53,15 +53,53 @@ try {
   const del={action:'delete',operationId:'fixture-delete-1',evaluationId:value.id,expectedVersion:2};
   assert.equal((await stageQaEvaluationWrite(pool,del,principal())).version,3);
   assert.equal((await stageQaEvaluationWrite(pool,del,principal())).replay,true);
+  // A tombstone must not be silently overwritten by another update.
+  await assert.rejects(
+    stageQaEvaluationWrite(pool, {
+      action:'update',operationId:'fixture-resurrect-denied',evaluationId:value.id,
+      expectedVersion:3,record:{...value,finalScore:100},
+    },principal()),
+    error=>error instanceof QaCutoverBlocked&&error.code==='deleted_record_requires_restore',
+  );
+
+  // Two concurrent attempts to create the same *missing* evaluation ID
+  // must serialize. SELECT FOR UPDATE by itself cannot lock an absent row.
+  const concurrentRow={...value,id:'synthetic-qa-concurrent'};
+  const competing=[
+    {action:'create',operationId:'fixture-race-a',evaluationId:concurrentRow.id,expectedVersion:0,record:concurrentRow},
+    {action:'create',operationId:'fixture-race-b',evaluationId:concurrentRow.id,expectedVersion:0,record:concurrentRow},
+  ];
+  const concurrent=await Promise.allSettled(competing.map(req=>stageQaEvaluationWrite(pool,req,principal())));
+  assert.equal(concurrent.filter(x=>x.status==='fulfilled').length,1,'one and only one create wins');
+  assert.equal(concurrent.filter(x=>x.status==='rejected' &&
+    x.reason instanceof QaCutoverBlocked && x.reason.code==='stale_or_missing_record').length,1);
+  assert.equal((await pool.query(
+    'SELECT count(*)::int AS n FROM qa_cutover_stage.evaluations WHERE evaluation_id=$1',
+    [concurrentRow.id],
+  )).rows[0].n,1);
+
+  // Two simultaneous retries of the SAME operation must get one commit
+  // and one replay, with exactly one audit event.
+  const retryRecord={...value,id:'synthetic-qa-retry'};
+  const sameRequest={action:'create',operationId:'fixture-retry-op',
+    evaluationId:retryRecord.id,expectedVersion:0,record:retryRecord};
+  const same=await Promise.all([
+    stageQaEvaluationWrite(pool,sameRequest,principal()),
+    stageQaEvaluationWrite(pool,sameRequest,principal()),
+  ]);
+  assert.equal(same.filter(x=>x.replay===false).length,1);
+  assert.equal(same.filter(x=>x.replay===true).length,1);
+
   const current=await pool.query('SELECT evaluation_id,record,version FROM qa_cutover_stage.evaluations');
-  assert.equal(current.rows.length,1);
-  assert.equal(current.rows[0].record.finalScore,84);
-  assert.ok(current.rows[0].record.deletedAt,'delete must preserve a tombstone');
-  assert.equal(current.rows[0].version,3);
+  assert.equal(current.rows.length,3);
+  const original = current.rows.find(row=>row.evaluation_id===value.id);
+  assert.equal(original.record.finalScore,84);
+  assert.ok(original.record.deletedAt,'delete must preserve a tombstone');
+  assert.equal(original.version,3);
   const ops=await pool.query('SELECT count(*)::int AS n FROM qa_cutover_stage.operations');
   const audit=await pool.query('SELECT count(*)::int AS n FROM qa_cutover_stage.audit');
-  assert.equal(ops.rows[0].n,3);
-  assert.equal(audit.rows[0].n,3);
+  assert.equal(ops.rows[0].n,5);
+  assert.equal(audit.rows[0].n,5);
   console.log('PASS: PostgreSQL 17 real transaction integration — 3 successful stage operations, replay-safe, stale-lock denied, source unchanged');
 } finally {
   await pool.end();
