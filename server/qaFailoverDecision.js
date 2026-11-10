@@ -30,11 +30,21 @@ export function qaFailoverDecision(input, now = Date.now()) {
     input.bridge?.authenticated !== true ||
     input.bridge?.durableIngress !== true ||
     !recent(input.bridge?.checkedAt, now, 90_000)) blockers.push('standby_write_bridge_not_ready');
+  // Mirror completeness is checked against the FIRST server-confirmed quota
+  // incident, not rechecked against wall-clock every two minutes. Otherwise
+  // a valid mirror would stop working in the middle of a long outage.
+  // Session, lock, bridge and lease checks must still refresh locally.
+  const outageAt = Date.parse(input.primary?.outageStartedAt || '');
+  const mirrorAt = Date.parse(input.mirror?.verifiedAt || '');
+  const snapshotFreshAtIncident =
+    Number.isFinite(outageAt) && Number.isFinite(mirrorAt) &&
+    outageAt <= now && mirrorAt <= outageAt &&
+    outageAt - mirrorAt <= 120_000;
   if (input.mirror?.sourceComplete !== true ||
     input.mirror?.identityHashVerified !== true ||
     input.mirror?.syncStatus !== 'validated' ||
     !goodIds(input.mirror?.datasets) ||
-    !recent(input.mirror?.verifiedAt, now, 120_000)) blockers.push('mirror_not_complete');
+    !snapshotFreshAtIncident) blockers.push('mirror_not_complete');
   if (input.identity?.serverAuthenticated !== true ||
     input.identity?.role !== 'Quality Assurance' ||
     input.identity?.status !== 'active' ||
