@@ -38,4 +38,8 @@ assert.match(entry,/qa:sparks:supabase-login:/,"verified standalone users retain
 assert.match(sparks,/data-sparks-supabase-optin="true"/,"embedded Sparks exposes opt-in to every staff member");
 assert.match(sparks,/data-sparks-employee-email-login="true"/,"OTP remains in the existing dashboard tab");
 assert.ok(sparks.includes("setVerifiedActor(actor)"),"only verified server identity opens the wallet");
+assert.ok(sparks.includes('import FirstLoginSparksModal from "./FirstLoginSparksModal"'),
+  "standalone Sparks portal must render the same first-login reward after verification");
+assert.doesNotMatch(read("src/App.tsx"),/<FirstLoginSparksModal/,
+  "QA Dashboard login must not grant or attempt Sparks first-login before verification");
 console.log("PASS independent Sparks portal: no QA Dashboard login mount, email verification, username match and CSRF denial");
