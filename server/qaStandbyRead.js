@@ -1,6 +1,7 @@
 // QA standby reads from local PostgreSQL. No direct HTTP endpoint.
 // Never tell Dashboard/Report Center that an incomplete mirror is complete.
 import { QaStandbyBlocked } from './qaStandbyPgJournal.js';
+import { qaFailoverDecision } from './qaFailoverDecision.js';
 
 const fail=code=>{throw new QaStandbyBlocked(code);};
 const idPattern=/^[a-zA-Z0-9_.:@-]{1,180}$/;
@@ -22,8 +23,7 @@ async function authorize(pool,trusted) {
     trusted.failover?.identity?.serverAuthenticated===true&&
     trusted.failover.identity.role==='Quality Assurance'&&
     future(trusted.failover.identity.expiresAt)) {
-    // Caller must independently call qaFailoverDecision, with a synchronized
-    // local role/permission source. This is not a substitute for that gate.
+    if (!qaFailoverDecision(trusted.failover).failoverReady)fail('standby_read_not_authorized');
   }else fail('standby_read_not_authorized');
   const result=await pool.query('SELECT mode,source_snapshot_verified FROM qa_failover_v1.state WHERE id=1');
   const state=result.rows[0];
