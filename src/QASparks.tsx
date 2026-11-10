@@ -81,7 +81,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         if(alive && sequence===requestSequence.current){
           const code=String(failure?.code||"").toLowerCase();
           const details=String(failure?.message||"");
-          const message=code.includes("resource-exhausted")||/quota|resource.exhausted/i.test(details)
+          const message=code==="firebase-auth-quota"
+            ?"Firebase จำกัดการตรวจสอบสิทธิ์ QA ชั่วคราว ไม่ใช่โควตาของกระเป๋า Sparks บน Supabase คะแนนเดิมไม่ได้ถูกลบ"
+            :code.includes("resource-exhausted")||/quota|resource.exhausted/i.test(details)
             ?"ฐานข้อมูล Sparks ถึงขีดจำกัดการอ่านชั่วคราว กรุณารอให้โควตาพร้อมใช้งาน"
             :code.includes("permission")||code.includes("unauthenticated")||/session|สิทธิ์/i.test(details)
               ?"ไม่สามารถยืนยันสิทธิ์ในการอ่าน Sparks กรุณาออกจากระบบแล้ว Login ใหม่"
