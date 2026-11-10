@@ -1,4 +1,4 @@
-import { createSign } from "node:crypto";
+import { createSign, randomUUID } from "node:crypto";
 
 const PROJECT = "qa-dashboard-b0b5d";
 const ROOT = "https://firestore.googleapis.com/v1/projects/" + PROJECT + "/databases/(default)/documents/qa_user_profiles";
@@ -116,17 +116,38 @@ export async function runSparksProfileReconciliation({env=process.env,fetcher=fe
   if(secret.length<40||!/^https:\/\/[^/]+\/functions\/v1\/qa-sparks-runtime(?:-preview|-test)?$/.test(base))
     throw fail("SUPABASE_PROFILE_SYNC_NOT_CONFIGURED",503);
   const serviceAccount=env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON||env.FIREBASE_SERVICE_ACCOUNT_JSON||env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  const profiles=await getCompleteSparksProfiles({serviceAccount,fetcher});
   const endpoint=base.replace(/qa-sparks-runtime(?:-preview|-test)?$/,"qa-sparks-profile-reconcile");
-  const response=await fetcher(endpoint,{
-    method:"POST",
-    headers:{"content-type":"application/json","x-qa-sparks-server-secret":secret},
-    body:JSON.stringify({action:"reconcile",profiles}),
-    cache:"no-store",signal:AbortSignal.timeout(20000),
-  });
-  if(!response.ok)throw fail("SUPABASE_PROFILE_RECONCILIATION_FAILED",503);
-  const result=await response.json();
-  if(!result?.ok||result.sourceCount!==profiles.length)throw fail("SUPABASE_PROFILE_RECONCILIATION_UNVERIFIED",503);
-  return {ok:true,sourceCount:profiles.length,reviewedCount:Number(result.reviewedCount)||0,
-    blockedCount:Number(result.blockedCount)||0};
+  const runId=randomUUID();
+  const send=async(body)=>{
+    const response=await fetcher(endpoint,{
+      method:"POST",
+      headers:{"content-type":"application/json","x-qa-sparks-server-secret":secret},
+      body:JSON.stringify(body),cache:"no-store",signal:AbortSignal.timeout(20000),
+    });
+    if(!response.ok)throw fail("SUPABASE_PROFILE_SYNC_STATUS_UNAVAILABLE",503);
+    const result=await response.json();
+    if(!result?.ok)throw fail("SUPABASE_PROFILE_SYNC_STATUS_UNAVAILABLE",503);
+    return result;
+  };
+  // Record the start before reading Firebase. If Supabase is unavailable,
+  // leave the source untouched rather than consuming Firebase quota.
+  await send({action:"report",event:"start",runId});
+  try{
+    const profiles=await getCompleteSparksProfiles({serviceAccount,fetcher});
+    const result=await send({action:"reconcile",runId,profiles});
+    if(result.sourceCount!==profiles.length)
+      throw fail("SUPABASE_PROFILE_RECONCILIATION_UNVERIFIED",503);
+    return {ok:true,sourceCount:profiles.length,reviewedCount:Number(result.reviewedCount)||0,
+      blockedCount:Number(result.blockedCount)||0};
+  }catch(error){
+    // Fail closed, preserve the last valid roster and record only safe error codes.
+    const safeCode=String(error?.code||"SPARKS_PROFILE_SYNC_UNAVAILABLE")
+      .replace(/[^A-Z0-9_]/g,"_").slice(0,80);
+    try{
+      await send({action:"report",event:"failed",runId,errorCode:safeCode});
+    }catch{
+      console.error("qa_sparks_profile_sync_failure_receipt_unavailable");
+    }
+    throw error;
+  }
 }
