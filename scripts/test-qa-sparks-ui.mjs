@@ -63,7 +63,7 @@ try{
   const qaSparksSource = await readFile("src/QASparks.tsx", "utf8");
   assert.ok(qaSparksSource.includes('<FirstLoginSparksModal key={username+":"+sparksSessionId}'),
     "First Login fruit cards must be offered after reaching the authenticated Sparks tab");
-  assert.match(qaSparksSource, /username && active && import\\.meta\\.env\\?\\.VITE_SPARKS_CLOUD_READ_ONLY !== "1"/,
+  assert.ok(qaSparksSource.includes('username && active && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"'),
     "first-login cards must never appear for anonymous users or read-only preview");
   assert.match(qaSparksSource, /ownAccount=\{ownAccountSnapshot\}/, "the administrator's existing personal wallet is available for read-only fallback");
   assert.match(qaSparksSource, /useMemo/, "personal wallet snapshot is stable across QA Sparks rerenders");
