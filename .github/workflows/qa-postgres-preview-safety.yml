@@ -16,6 +16,11 @@ on:
       - "scripts/check-qa-bridge-preview-preflight.mjs"
       - "server/qaCutoverParityGate.js"
       - "scripts/test-qa-cutover-parity-gate.mjs"
+      - "server/qaFailoverDecision.js"
+      - "scripts/test-qa-failover-decision.mjs"
+      - "server/qaStandbyPgJournal.js"
+      - "migration/qa-local-failover-postgres17.sql"
+      - "scripts/test-qa-standby-journal-integration.mjs"
       - ".github/workflows/qa-postgres-preview-safety.yml"
   workflow_dispatch:
 
@@ -48,6 +53,10 @@ jobs:
           node --check scripts/check-qa-bridge-preview-preflight.mjs
           node --check server/qaCutoverParityGate.js
           node --check scripts/test-qa-cutover-parity-gate.mjs
+          node --check server/qaFailoverDecision.js
+          node --check scripts/test-qa-failover-decision.mjs
+          node --check server/qaStandbyPgJournal.js
+          node --check scripts/test-qa-standby-journal-integration.mjs
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-diagnostics.mjs
@@ -55,6 +64,7 @@ jobs:
           node scripts/test-qa-postgres-stage-writer.mjs
           node scripts/check-qa-bridge-preview-preflight.mjs
           node scripts/test-qa-cutover-parity-gate.mjs
+          node scripts/test-qa-failover-decision.mjs
 
   ephemeral-postgres-integration:
     runs-on: ubuntu-latest
@@ -91,3 +101,4 @@ jobs:
         run: |
           node scripts/test-qa-postgres-stage-integration.mjs
           node scripts/test-qa-postgres-session-integration.mjs
+          node scripts/test-qa-standby-journal-integration.mjs
