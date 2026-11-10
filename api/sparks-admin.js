@@ -1386,6 +1386,7 @@ async function adjustBalance(body, admin) {
       const data = recordValue(walletDoc);
       let signedAmount = operation === "add" ? quantity : -quantity;
       let typingReliefRefund = false;
+      let autoPassRefund = false;
       if (operation === "refund") {
         const originalRow = recordValue(original);
         if (originalRow.source !== "reward-redemption" || !Number.isSafeInteger(Number(originalRow.amount)) || Number(originalRow.amount) >= 0) {
@@ -1402,6 +1403,10 @@ async function adjustBalance(body, admin) {
         if (originalRow.rewardId === "typing-relief") {
           if (intCount(data.typingReliefOwned) < 1) fail("ไม่สามารถคืนคะแนน Typing Relief ที่ใช้ไปแล้วได้", 400);
           typingReliefRefund = true;
+        }
+        if (originalRow.rewardId === "qa-access-auto-pass") {
+          if (intCount(data.autoPassOwned) < 1) fail("ไม่สามารถคืนคะแนน Auto-Pass ที่ใช้ไปแล้วได้",400);
+          autoPassRefund = true;
         }
       }
       const oldBalance = spendableBalance(data);
@@ -1429,6 +1434,10 @@ async function adjustBalance(body, admin) {
         updated.typingReliefOwned = intCount(data.typingReliefOwned) - 1;
         updated.typingReliefRefunded = intCount(data.typingReliefRefunded) + 1;
       }
+      if (autoPassRefund) {
+        updated.autoPassOwned = intCount(data.autoPassOwned) - 1;
+        updated.autoPassRefunded = intCount(data.autoPassRefunded) + 1;
+      }
       const fields = encodeFields(updated);
       const history = {
         createdAt: now, type: signedAmount < 0 ? "spend" : "earn",
@@ -1438,6 +1447,7 @@ async function adjustBalance(body, admin) {
         requestId,
         status: "Completed",
         ...(typingReliefRefund ? { rewardId: "typing-relief" } : {}),
+        ...(autoPassRefund ? { rewardId: "qa-access-auto-pass" } : {}),
       };
       const writes = [
         {
