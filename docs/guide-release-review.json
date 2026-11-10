@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T08:31:00.000Z",
-  "reason": "Review separate Sparks standalone root while retaining original QA Dashboard Vite patch anchors; no user manual changes",
+  "reviewedAt": "2026-11-10T08:36:00.000Z",
+  "reason": "Updated standalone portal test after preserving QA Dashboard Vite bootstrap patch anchors; no auth or scores changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -729,6 +729,6 @@
     "scripts/test-sparks-email-auth.mjs": "77018da34a19ca9eb6a13c8cd899eac9daf8d0f0d73154e1deca085e69573639",
     "scripts/test-sparks-email-api.mjs": "cebebe5a0d6a0ea3ef62a73d73ae96d29d65737bc063bf26abb1318bb0a6c096",
     "src/SparksStandalone.tsx": "5841baa9781ac89f43395c4fb993000e48cd1940f38fc67a70862932fe5230e9",
-    "scripts/test-sparks-standalone.mjs": "b3cfafbb41979ed38ccc97ddbe52df595996a34e80cf8975eaef3e4b49e51db1"
+    "scripts/test-sparks-standalone.mjs": "649dcb6acd89d4f3b7cc459de4d9b752bb988ac66d53ff801d0ff6a121bd8c09"
   }
 }
