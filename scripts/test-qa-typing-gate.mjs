@@ -6,6 +6,8 @@ import { build } from "esbuild";
 import React, { act } from "react";
 import { JSDOM } from "jsdom";
 import { qaAccessCaseLinkPatchV2 } from "../build/qaAccessCaseLinkPatchV2.js";
+import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
+const activePrice = getTypingReliefPricing().price;
 
 const temporary = await mkdtemp(resolve(".qa-typing-test-"));
 const dom = new JSDOM('<div id="root"></div>', { url: "https://qa.test/" });
@@ -35,6 +37,7 @@ try {
       setup(builder) {
         builder.onResolve({ filter: /^\.\/qaTypingChallenge(?:History)?Store$/ }, (args) => ({ path: args.path, namespace: "qa-test" }));
         builder.onResolve({ filter: /^\.\/typingReliefReward$/ }, (args) => ({ path: args.path, namespace: "qa-test" }));
+        builder.onResolve({ filter: /^\.\/qaAutoPassAction$/ }, (args) => ({ path: args.path, namespace: "qa-test" }));
         builder.onLoad({ filter: /.*/, namespace: "qa-test" }, () => ({ contents: `
           export const subscribeQaTypingChallengeQueue = (...args) => globalThis.__qaTypingFixture.subscribe(...args);
           export const completeQaTypingChallenge = (...args) => globalThis.__qaTypingFixture.complete(...args);
@@ -43,6 +46,7 @@ try {
           export const typingReliefRemainingWords = (n) => Math.max(1, Math.ceil(n*0.4));
           export const fetchTypingReliefState = (...args) => globalThis.__qaTypingFixture.fetchInventory(...args);
           export const typingReliefAction = (...args) => globalThis.__qaTypingFixture.action(...args);
+          export const qaAutoPassAction = (...args) => globalThis.__qaTypingFixture.autoPassAction(...args);
         ` }));
       },
     }],
@@ -55,12 +59,24 @@ try {
     word: "ยกเลิก", mode: "word", repeatCount: 4, allowedMistakes: 2, timeLimitSeconds: 8,
     assignedAt: "2026-11-02T10:00:00Z", assignedBy: "QA Fixture", caseIds: ["AA990001"], topicCode: "4", ...overrides,
   });
-  const mount = async (overrides = {}, nextItems = []) => {
+  const mount = async (overrides = {}, nextItems = [], initialAutoPass = 0) => {
     if (root) await act(async () => root.unmount());
     assert.equal(timers.size, 0, "unmount cleans up the countdown");
     fixture = {
       queue: [challenge(overrides), ...nextItems], listeners: new Set(), history: [], completions: [], saveDelay: null,
       rewardState: { balance: 300, owned: 0 }, rewardCalls: [], rewardError: false,
+      autoPassOwned: initialAutoPass, autoPassCalls: [],
+      async autoPassAction(action,name,session,input) {
+        this.autoPassCalls.push({action,name,session,input});
+        if(action==="auto-pass-state")return {owned:this.autoPassOwned,balance:this.rewardState.balance};
+        if(action==="auto-pass-use"){
+          if(this.autoPassOwned<1||this.queue[0]?.id!==input.challengeId)throw Error("No valid Auto-Pass");
+          this.autoPassOwned--;
+          await this.complete(name,input.challengeId);
+          return {completed:true,owned:this.autoPassOwned};
+        }
+        throw Error("Unknown Auto-Pass test action");
+      },
       async fetchInventory() {
         if (this.rewardError) throw new Error("Firestore limit exceeded");
         return this.rewardState;
@@ -68,8 +84,8 @@ try {
       async action(action, name, session, input) {
         this.rewardCalls.push({ action, name, session, input });
         if (action === "redeem-typing-relief") {
-          if (this.rewardState.owned >= 10 || this.rewardState.balance < 150) throw new Error("Insufficient reward entitlement");
-          this.rewardState = { balance:this.rewardState.balance - 150, owned:this.rewardState.owned + 1 };
+          if (this.rewardState.owned >= 10 || this.rewardState.balance < input.expectedPrice) throw new Error("Insufficient reward entitlement");
+          this.rewardState = { balance:this.rewardState.balance - input.expectedPrice, owned:this.rewardState.owned + 1 };
           return { updated:true, balance:this.rewardState.balance, owned:this.rewardState.owned };
         }
         if (action === "use-typing-relief") {
@@ -300,11 +316,11 @@ try {
   assert.ok(buyTicket(), "no ticket should offer 150-Sparks redemption");
   await click(buyTicket());
   assert.equal(fixture.rewardState.owned, 0, "opening purchase confirmation must not deduct Sparks");
-  const confirmBuy = [...document.querySelectorAll("button")].find((button) => button.textContent.includes("ยืนยันแลก 150 Sparks"));
+  const confirmBuy = [...document.querySelectorAll("button")].find((button) => button.textContent.includes("ยืนยันแลก "+activePrice+" Sparks"));
   assert.ok(confirmBuy, "gate purchase requires explicit confirmation");
   await click(confirmBuy);
   assert.equal(fixture.rewardState.owned, 1);
-  assert.equal(fixture.rewardState.balance, 150);
+  assert.equal(fixture.rewardState.balance, 300-activePrice);
   assert.ok(useTicket(), "user can use the newly redeemed ticket");
   await click(useTicket());
   assert.match(document.body.textContent, /พิมพ์แล้ว 0 \/ 40/);
@@ -319,6 +335,24 @@ try {
   await click(useTicket());
   assert.match(document.body.textContent, /พิมพ์แล้ว 0 \/ 20/);
   console.log("PASS QA Access calculates 50 assigned words → 20 words after 60% relief");
+
+  await mount({repeatCount:3,timeLimitSeconds:80},[],1);
+  const skip=()=>[...document.querySelectorAll("button")].find(b=>b.textContent.includes("ใช้ QA Access Auto-Pass 1 สิทธิ์"));
+  assert.ok(skip(),"Word Mode must offer a saved Auto-Pass");
+  await click(skip());
+  assert.equal(fixture.autoPassOwned,1,"opening confirmation never consumes a skip");
+  const confirmSkip=()=>[...document.querySelectorAll("button")].find(b=>b.textContent.includes("ยืนยันข้ามภารกิจ"));
+  await click(confirmSkip());
+  assert.equal(fixture.completions.length,1,"Word Mode passes after confirmed Auto-Pass");
+  assert.equal(fixture.autoPassOwned,0,"one skip is consumed only once");
+  await mount({word:"hello sentence",mode:"sentence",repeatCount:2},[],1);
+  assert.ok(skip(),"Sentence Mode also offers saved Auto-Pass");
+  await click(skip());
+  assert.equal(fixture.completions.length,0,"sentence requires confirmation before passing");
+  await click(confirmSkip());
+  assert.equal(fixture.completions.length,1);
+  assert.equal(fixture.autoPassOwned,0);
+  console.log("PASS Auto-Pass confirmed once per Word/Sentence challenge; ordinary typing and Typing Relief unaffected");
   delete user.sessionId;
 
 } finally {
