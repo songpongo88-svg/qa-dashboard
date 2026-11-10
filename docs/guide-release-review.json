@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T06:52:00.000Z",
-  "reason": "Reviewed Sparks reward queues sharing one authenticated request, truthful Firebase quota messages and unchanged Supabase wallets; no user guide content changes.",
+  "reviewedAt": "2026-11-10T07:30:00.000Z",
+  "reason": "Reviewed feature-flagged Sparks Supabase email onboarding pilot, separate QA Dashboard login, fail-closed stale profile identity and Admin authorization; production guide unchanged pending activation.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -26,7 +26,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "eba85df32b09e6b53cbdafba2a5d833c37b6749b22ef8c70d51f77a6680cd705",
+    "api/sparks-admin.js": "1c04d61c1b2056be7133d89c8a01625c0ab563e77d04680341739b0ec3fbefca",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
@@ -108,7 +108,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "f5356a98b478e70720649a3e2184330ffef9a2ce64fa2ff0fbde77558e10a02f",
+    "package.json": "7134ba3fe46713f4e50ec7e020bee8b544fdf55a966522b538526a18c7204606",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -470,7 +470,7 @@
     "src/ProfileMakeoverQuest.tsx": "444e9a06af6b49cfe9768639b0b1172ef5422fb146b55da832906009553cd6fd",
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/QASparks.tsx": "881747d7cdc97467fa0fe5e0bbf158d64e5c37760ee4d25815c79b901b6c4873",
+    "src/QASparks.tsx": "ff025b0b8720d90800a88bf5399cc3caa3715efde01f8064aa6ce1817665cfe0",
     "src/QaAccessCaseHistoryPopup.tsx": "da29c8b43c9aa32c23cde37fa447f41764477b6659cb2a6bc9384aff71dcf5a7",
     "src/QaAccessCheckOverview.tsx": "348de0058ce1552e358582cf6486812a4c2a6a1801e26361c25ad126b74765ba",
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
@@ -721,6 +721,12 @@
     "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217",
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
     "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4",
-    "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a"
+    "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
+    "api/sparks-auth.js": "e1ee721012f9dea13045cd60a9d5ae0ab073e7dc3924339d0dd466e3dc33463c",
+    "server/sparksSupabaseAuth.js": "4302b98321bdb57c120e3132965192d381aa91b97565869de87d8910ae05b3b5",
+    "src/SparksEmailAuth.tsx": "bd814abd6664d3aa92ba600c78f68283838dec289ab4be1ed1a8b7aba1a7b12c",
+    "src/SparksEmailAuth.css": "78fe340a66bd3e9ddcab4c8295232607521438ed9fdf083c459b41d8d1c177c0",
+    "scripts/test-sparks-email-auth.mjs": "77018da34a19ca9eb6a13c8cd899eac9daf8d0f0d73154e1deca085e69573639",
+    "scripts/test-sparks-email-api.mjs": "cebebe5a0d6a0ea3ef62a73d73ae96d29d65737bc063bf26abb1318bb0a6c096"
   }
 }
