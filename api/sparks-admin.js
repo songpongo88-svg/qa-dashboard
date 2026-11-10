@@ -1482,6 +1482,11 @@ function sparksCloudReadOnlyEnabled() {
 
 async function sparksHandler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  if (sparksEmailAuthEnabled()) {
+    const originKind = String(req.headers?.["sec-fetch-site"] || "");
+    if (originKind && originKind !== "same-origin" && originKind !== "none")
+      return res.status(403).json({ error: "Cross-origin QA Sparks request is not allowed", code: "SPARKS_CSRF_BLOCKED" });
+  }
   res.setHeader("X-Content-Type-Options", "nosniff");
   // Release freeze covers browser actions and scheduled jobs alike.
   if(process.env.SPARKS_WRITES_PAUSED==="1" && (req.method==="GET" ||
