@@ -9,6 +9,7 @@ import { createTypingReliefCloudService } from "../server/typingReliefCloudServi
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
+import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory } from "../server/sparksSupabaseAuth.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -17,6 +18,7 @@ const DOCUMENTS_RESOURCE = "projects/" + FIRESTORE_PROJECT + "/databases/(defaul
 const API_ROOT = "https://firestore.googleapis.com/v1/" + DOCUMENTS_RESOURCE;
 const SESSION_POLICY = "qa-session-policy-2026-07-15-v1";
 const ADMIN_USERNAME = "songpon";
+const sparksEmailAuthEnabled = () => process.env.SPARKS_DATA_BACKEND === "supabase" && process.env.SPARKS_AUTH_MODE === "supabase";
 const policyErrorCode = "SESSION_POLICY_OUTDATED";
 const TYPING_RELIEF_PRICE = 150;
 const TYPING_RELIEF_DISCOUNT_PERCENT = 60;
@@ -258,6 +260,13 @@ async function listCollection(collectionPath, mask = []) {
 }
 async function authorizeAdmin(body, { allowLegacyPolicy = false } = {}) {
   const username = safeUsername(body.actorUsername);
+  if (sparksEmailAuthEnabled()) {
+    const verified = await getSparksRequestActor();
+    if (verified.username !== username || verified.username !== ADMIN_USERNAME || verified.role !== "Quality Assurance") {
+      fail("QA Sparks Admin requires a verified Quality Assurance account", 403);
+    }
+    return { username: verified.username, displayName: verified.displayName };
+  }
   const sessionId = String(body.sessionId || "");
   if (username !== ADMIN_USERNAME || !/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId)) fail("Unauthorized", 403);
   const sessionDocument = await readDoc(path("qa_user_sessions", sessionId));
@@ -302,6 +311,7 @@ function isSuspendedProfile(profile) {
   return Boolean(suspended);
 }
 async function findProfileByUsername(username) {
+  if (sparksEmailAuthEnabled()) return sparksActiveProfile(username);
   const name = safeUsername(username);
   for (const id of [name.charAt(0).toUpperCase() + name.slice(1), name]) {
     const row = await readDoc(path("qa_user_profiles", id));
@@ -321,6 +331,11 @@ async function requireActiveTarget(username) {
 
 async function authorizeRewardUser(body) {
   const username = safeUsername(body.actorUsername);
+  if (sparksEmailAuthEnabled()) {
+    const verified = await getSparksRequestActor();
+    if (verified.username !== username) fail("QA Sparks email account does not match the signed-in QA user", 403);
+    return { username: verified.username, displayName: verified.displayName };
+  }
   const sessionId = String(body.sessionId || "");
   if (!/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId)) fail("กรุณาเข้าสู่ระบบ QA Dashboard ใหม่", 403);
   if (process.env.SPARKS_DATA_BACKEND==="supabase"
@@ -976,6 +991,10 @@ async function useTypingRelief(body, actor) {
 }
 
 async function reauthorizeAdminSession(body) {
+  if (sparksEmailAuthEnabled()) {
+    await authorizeAdmin(body);
+    return { verified: true };
+  }
   // A stale policy is repaired only with a live QA session, the active QA role
   // and the current QA account password. Do not silently accept old policies.
   const admin = await authorizeAdmin(body, { allowLegacyPolicy: true });
@@ -1051,7 +1070,12 @@ function listUsers(forceRefresh = false) {
 }
 async function loadUsers() {
   const [profilePages, walletPages] = await Promise.all([
-    listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
+    sparksEmailAuthEnabled()
+      ? sparksActiveDirectory().then(users => ({
+          documents: users.map(p => ({ name: "qa_user_profiles/" + encodeURIComponent(p.username), fields: encodeFields(p) })),
+          truncated: false,
+        }))
+      : listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
     listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin", "memberYear", "memberYearEarned", "balanceYear"]),
   ]);
   const wallets = new Map(walletPages.documents.map((doc) => {
@@ -1456,8 +1480,13 @@ function sparksCloudReadOnlyEnabled() {
   return process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1";
 }
 
-export default async function handler(req, res) {
+async function sparksHandler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  if (sparksEmailAuthEnabled()) {
+    const originKind = String(req.headers?.["sec-fetch-site"] || "");
+    if (originKind && originKind !== "same-origin" && originKind !== "none")
+      return res.status(403).json({ error: "Cross-origin QA Sparks request is not allowed", code: "SPARKS_CSRF_BLOCKED" });
+  }
   res.setHeader("X-Content-Type-Options", "nosniff");
   // Release freeze covers browser actions and scheduled jobs alike.
   if(process.env.SPARKS_WRITES_PAUSED==="1" && (req.method==="GET" ||
@@ -1696,3 +1725,7 @@ export default async function handler(req, res) {
   }
 }
 
+
+export default function handler(req, res) {
+  return withSparksRequest(req, res, () => sparksHandler(req, res));
+}

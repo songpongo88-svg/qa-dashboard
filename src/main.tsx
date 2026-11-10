@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import SparksStandalone from "./SparksStandalone";
 import MaintenanceRuntime from "./MaintenanceRuntime";
 import AutoDeployRefresh from "./AutoDeployRefresh";
 import "./index.css";
@@ -88,8 +89,22 @@ class RootErrorBoundary extends React.Component<
   }
 }
 
+// A Supabase email callback can return to the preview origin's root when the
+// GoTrue Site URL is set to /. Route only confirmed token-bearing callbacks to
+// Sparks, without mounting Firebase QA Dashboard or storing tokens in web storage.
+const sparksStandalone = typeof window !== "undefined" && (
+  new URLSearchParams(window.location.search).get("sparks") === "1" ||
+  (
+    import.meta.env?.VITE_SPARKS_AUTH_MODE === "supabase" &&
+    Boolean(new URLSearchParams(window.location.hash.replace(/^#/, "")).get("access_token")) &&
+    Boolean(new URLSearchParams(window.location.hash.replace(/^#/, "")).get("refresh_token"))
+  )
+);
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
+  sparksStandalone
+    ? <React.StrictMode><RootErrorBoundary><SparksStandalone /></RootErrorBoundary></React.StrictMode>
+    : <React.StrictMode>
     <RootErrorBoundary>
       <App />
       <AutoDeployRefresh />
