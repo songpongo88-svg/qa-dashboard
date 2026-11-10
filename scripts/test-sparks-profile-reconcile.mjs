@@ -25,6 +25,7 @@ const doc=(n, status="Active")=>({name:p+"User"+n,updateTime:"2026-11-10T08:00:0
 const res=(o,status=200)=>new Response(JSON.stringify(o),{status,headers:{"content-type":"application/json"}});
 const all=Array.from({length:30},(_,i)=>doc(i,i===15?"Suspended":"Active"));
 let firestoreCalls=0,posted=0,seenPost=null,mode="normal";
+const reports=[];
 globalThis.fetch=async(url,options={})=>{
   if(String(url)==="https://oauth2.googleapis.com/token")return res({access_token:"fake-only-test-token"});
   if(String(url).startsWith("https://firestore.googleapis.com/v1/")){
@@ -42,8 +43,15 @@ globalThis.fetch=async(url,options={})=>{
   }
   assert.ok(String(url).endsWith("/functions/v1/qa-sparks-profile-reconcile"),"profile sync must use isolated function");
   assert.equal(options.headers["x-qa-sparks-server-secret"],process.env.SPARKS_SUPABASE_BRIDGE_TOKEN);
-  posted++;
   seenPost=JSON.parse(options.body);
+  assert.match(String(seenPost.runId||""),/^[0-9a-f-]{36}$/);
+  if(seenPost.action==="report"){
+    if(mode==="statusUnavailable")return res({error:"status unavailable"},503);
+    reports.push({event:seenPost.event,runId:seenPost.runId,errorCode:seenPost.errorCode});
+    return res({ok:true,recorded:true});
+  }
+  assert.equal(seenPost.action,"reconcile");
+  posted++;
   assert.equal(seenPost.profiles.length,30);
   assert.equal(seenPost.profiles[15].profile.status,"Suspended");
   assert.ok(seenPost.profiles.every(x=>!("password" in x.profile)&&!("token" in x.profile)),
@@ -67,6 +75,7 @@ try{
   const success=await runSparksProfileReconciliation();
   assert.equal(success.sourceCount,30);
   assert.equal(posted,1);
+  assert.equal(reports.filter(x=>x.event==="start").length,1);
   mode="empty";
   await assert.rejects(runSparksProfileReconciliation(),e=>e.code==="FIREBASE_SOURCE_INCOMPLETE");
   assert.equal(posted,1,"partial source must not be posted");
@@ -76,6 +85,19 @@ try{
   mode="quota";
   await assert.rejects(runSparksProfileReconciliation(),e=>e.code==="FIREBASE_QUOTA_EXCEEDED");
   assert.equal(posted,1,"quota outage must not overwrite last reconciled roster");
+  assert.equal(reports.filter(x=>x.event==="start").length,4);
+  const failed=reports.filter(x=>x.event==="failed");
+  assert.deepEqual(failed.map(x=>x.errorCode),[
+    "FIREBASE_SOURCE_INCOMPLETE","DUPLICATE_FIREBASE_PROFILE","FIREBASE_QUOTA_EXCEEDED",
+  ]);
+  for(const attempt of failed){
+    assert.ok(reports.some(x=>x.runId===attempt.runId&&x.event==="start"),
+      "a failure receipt must have a matching started run");
+  }
+  mode="statusUnavailable";
+  const readsBefore=firestoreCalls;
+  await assert.rejects(runSparksProfileReconciliation(),e=>e.code==="SUPABASE_PROFILE_SYNC_STATUS_UNAVAILABLE");
+  assert.equal(firestoreCalls,readsBefore,"failed status logging must not consume Firebase quota");
   mode="normal";
   process.env.SPARKS_PROFILE_SYNC_ENABLED="0";
   const noOp=await runSparksProfileReconciliation();
@@ -91,7 +113,7 @@ try{
   const authorized=await fake({authorization:"Bearer "+process.env.CRON_SECRET});
   assert.equal(authorized.code,200);
   assert.equal(authorized.data.code,"PROFILE_SYNC_DISABLED");
-  console.log("PASS Sparks profile reconcile: complete 30-profile low-read snapshot, suspended flag, no credentials, quota/partial/duplicate fails closed, cron auth and disabled-by-default gate");
+  console.log("PASS Sparks profile reconcile: complete source, private success/failure receipts, zero Firebase reads when receipt unavailable, quota/partial/duplicate fail closed, cron auth");
 }finally{
   globalThis.fetch=previous;
   for(const [key,value] of Object.entries(originals))if(value===undefined)delete process.env[key];else process.env[key]=value;
