@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T06:52:00.000Z",
-  "reason": "Reviewed Sparks reward queues sharing one authenticated request, truthful Firebase quota messages and unchanged Supabase wallets; no user guide content changes.",
+  "reviewedAt": "2026-11-10T08:15:00.000Z",
+  "reason": "Reviewed private QA PostgreSQL preview-only diagnostic, fail-closed authentication and CI tests. No operator-facing user guide content changes: no production feature has been enabled.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -721,6 +721,9 @@
     "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217",
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
     "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4",
-    "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a"
+    "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
+    "api/qa-local-diagnostics.js": "85c6d43364436fd189e91991be1b64584e1fad29d9f468d19ff726c1f9c540d6",
+    "scripts/test-qa-local-diagnostics.mjs": "fdedfcc1e94e478f672c8df65a86c2d371862d7bf5f84768223079b74993a3b9",
+    ".github/workflows/qa-postgres-preview-safety.yml": "409018bd01a639c933b816fd413ae8a6883c78206c89dc9f93b530565eee887f"
   }
 }
