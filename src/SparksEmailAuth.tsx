@@ -90,8 +90,11 @@ export default function SparksEmailAuth({ username, onVerified }:{
     }catch(e){
       const detail=e instanceof Error?e.message:"ส่งอีเมลไม่สำเร็จ";
       if(/email rate limit exceeded|over_email_send_rate_limit|too many requests/i.test(detail)){
+        // The provider rejected the new email; a previous, unexpired OTP may still work.
+        // Keep the verification field available without attempting another email send.
+        setPendingEmail(email.trim().toLowerCase());
         setRateLimited(true);
-        setError("Supabase จำกัดการส่งอีเมลชั่วคราว หากได้รับรหัสล่าสุดแล้วให้กรอกด้านล่าง หรือส่งรหัสใหม่เมื่อระบบอนุญาต");
+        setError("Supabase ยังไม่อนุญาตให้ส่งอีเมล OTP ใหม่ หากมีรหัสจากอีเมลฉบับก่อนหน้าที่ยังไม่หมดอายุ สามารถกรอกด้านล่างได้เลย หากไม่มีรหัสหรือรหัสหมดอายุ ให้รอโควตาส่งอีเมลกลับมาก่อน");
       }else setError(detail);
     }
     finally{setBusy(false);}
@@ -120,15 +123,18 @@ export default function SparksEmailAuth({ username, onVerified }:{
           disabled={busy||rateLimited||sent} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/>
         <button type="submit" disabled={busy||rateLimited}>{busy?"กำลังตรวจสอบ...":rateLimited?"จำกัดการส่งอีเมลชั่วคราว":sent?"ส่งรหัสใหม่":"ส่งรหัสยืนยัน"}</button>
       </form>
-      {sent && <form onSubmit={verify} data-sparks-otp-in-place="true">
-        <p className="sparks-email-auth-step-hint">เปิดอีเมลเพื่อดูรหัส แล้วกลับมากรอกในหน้า QA Sparks นี้ ไม่ต้องกดลิงก์เข้าสู่เว็บไซต์อื่น</p>
+      {(sent || rateLimited) && <form onSubmit={verify} data-sparks-otp-in-place="true">
+        <p className="sparks-email-auth-step-hint">{rateLimited
+          ? "ระบบไม่ได้ส่งอีเมลฉบับใหม่ แต่สามารถใช้รหัสจากอีเมลล่าสุดได้ หากรหัสนั้นยังไม่หมดอายุ"
+          : "เปิดอีเมลเพื่อดูรหัส แล้วกลับมากรอกในหน้า QA Sparks นี้ ไม่ต้องกดลิงก์เข้าสู่เว็บไซต์อื่น"}</p>
         <label htmlFor="sparks-auth-code">รหัสยืนยันจากอีเมล (6–8 หลัก)</label>
         <input id="sparks-auth-code" inputMode="numeric" maxLength={8} pattern="[0-9]{6,8}" autoComplete="one-time-code" required value={code}
           disabled={busy} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,8))} placeholder="กรอกรหัสยืนยัน"/>
         <button type="submit" disabled={busy||!/^[0-9]{6,8}$/.test(code)}>ยืนยันและเข้าใช้ Sparks ในแท็บนี้</button>
         <button className="sparks-email-auth-secondary" type="button" disabled={busy}
-          onClick={()=>{setSent(false);setPendingEmail("");setEmail("");setCode("");setMessage("");setError("");}}>เปลี่ยนอีเมล</button>
+          onClick={()=>{setSent(false);setRateLimited(false);setPendingEmail("");setEmail("");setCode("");setMessage("");setError("");}}>เปลี่ยนอีเมล</button>
       </form>}
+      {rateLimited && <p className="sparks-email-auth-step-hint" role="status">หากยังไม่มีรหัสที่ใช้ได้ กรุณารอให้ Supabase อนุญาตส่งอีเมลอีกครั้ง แล้วเปิดหน้า QA Sparks ใหม่เพื่อขอรหัส ไม่จำเป็นต้องกดส่งซ้ำต่อเนื่อง</p>}
       {message && <p role="status" className="sparks-email-auth-message">{message}</p>}
       {error && <p role="alert" className="sparks-email-auth-error">{error}</p>}
       <small>เข้าได้เฉพาะบัญชีที่ยืนยันอีเมลแล้วและมีสถานะ Active ในข้อมูลพนักงานที่อัปเดตล่าสุด หากข้อมูลรายชื่อยังไม่ได้ซิงก์ ระบบจะปฏิเสธการเข้าใช้โดยไม่แก้ไขคะแนน</small>
