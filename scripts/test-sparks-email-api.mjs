@@ -12,6 +12,7 @@ Object.assign(process.env,{
 });
 const oldFetch=globalThis.fetch;
 let bridgeReads=0,bridgeWrites=0,firestoreReads=0;
+let newWallet=null,newHistory=null,firstLoginBegins=0;
 const typed=(v)=>typeof v==="number"?{integerValue:String(v)}: {stringValue:String(v)};
 const stored=(path,v)=>({name:"projects/qa-dashboard-b0b5d/databases/(default)/documents/"+path,
   fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,typed(x)])),
@@ -25,7 +26,9 @@ globalThis.fetch=async(url,opts={})=>{
     return respond({id:"verified-email",email:"test@example.com",email_confirmed_at:"2026-11-10T00:00:00Z"});
   }
   if(str.endsWith("/rest/v1/rpc/sparks_verified_identity_v1")){
-    const x=auth.includes("suspended")?[]:auth.includes("admin")
+    const x=auth.includes("suspended")?[]:auth.includes("newuser")
+      ?[{username:"NewUser",display_name:"New Staff",role:"Admin Live Chat",status:"Active"}]
+      :auth.includes("admin")
       ?[{username:"Songpon",display_name:"QA Admin",role:"Quality Assurance",status:"Active"}]
       :[{username:"ActiveUser",display_name:"Agent",role:"Admin Live Chat",status:"Active"}];
     return respond(x);
@@ -35,8 +38,23 @@ globalThis.fetch=async(url,opts={})=>{
       {username:"ActiveUser",display_name:"Agent",role:"Admin Live Chat",status:"Active"}]);
   if(str.endsWith("/functions/v1/qa-sparks-runtime-test")){
     const b=JSON.parse(opts.body);
-    if(b.action==="commit"||b.action==="begin"){bridgeWrites++;return respond({error:"no test writes"},403);}
+    if(b.action==="begin"){firstLoginBegins++;return respond({transaction:"test-newuser-"+firstLoginBegins});}
+    if(b.action==="commit"){
+      const writes=b.writes||[];
+      if(writes.length!==2 || !writes.every(w=>w?.update?.name?.includes("/qa_sparks_wallets/newuser")))return respond({error:"INVALID_TEST_WRITE"},403);
+      if(newWallet || newHistory)return respond({firestoreStatus:"FAILED_PRECONDITION"},409);
+      if(writes[0].currentDocument?.exists!==false || writes[1].currentDocument?.exists!==false)
+        return respond({firestoreStatus:"FAILED_PRECONDITION"},409);
+      newWallet={...writes[0].update,updateTime:"2026-11-11T00:00:00Z"};
+      newHistory={...writes[1].update,updateTime:"2026-11-11T00:00:00Z"};
+      bridgeWrites++;
+      return respond({ok:true});
+    }
     bridgeReads++;
+    if(b.action==="get" && b.path==="qa_sparks_wallets/newuser")return newWallet?respond(newWallet):respond({error:"missing"},404);
+    if(b.action==="get" && b.path==="qa_sparks_wallets/newuser/history/first-login-welcome-v1")return newHistory?respond(newHistory):respond({error:"missing"},404);
+    if(b.action==="list" && b.collection==="qa_sparks_wallets/newuser/history")
+      return respond({documents:newHistory?[newHistory]:[]});
     if(b.action==="get"&&b.path==="qa_sparks_wallets/activeuser")
       return respond(stored(b.path,{username:"ActiveUser",balance:240,totalEarned:270,totalSpent:30,balanceYear:2026}));
     if(b.action==="list"&&b.collection==="qa_sparks_wallets")
@@ -69,10 +87,41 @@ try {
   assert.equal(suspended.code,403);
   const spoof=await invoke("sparks-cloud-wallet","Songpon","valid-test-token-member",{historyLimit:0});
   assert.equal(spoof.code,403);
+  // First-time employees legitimately have no wallet until they claim Fruit Card.
+  const empty=await invoke("sparks-cloud-wallet","NewUser","valid-test-token-newuser",{historyLimit:5});
+  assert.equal(empty.code,200,JSON.stringify(empty.body));
+  assert.deepEqual(empty.body.wallet,{},"new user starts with no precreated wallet");
+  assert.deepEqual(empty.body.history,[]);
+  assert.equal(newWallet,null,"opening Sparks is read-only");
+  assert.equal(bridgeWrites,0,"no 0-point wallet is written just to log in");
+
+  const first=await invoke("sparks-cloud-first-login","NewUser","valid-test-token-newuser",{
+    cardId:"apple",cardName:"Apple Spark",amount:250,
+  });
+  assert.equal(first.code,200,JSON.stringify(first.body));
+  assert.equal(first.body.prize.amount,250);
+  assert.equal(first.body.alreadyApplied,false);
+  assert.equal(bridgeWrites,1,"one atomic commit creates wallet and immutable history");
+  const after=await invoke("sparks-cloud-wallet","NewUser","valid-test-token-newuser",{historyLimit:5});
+  assert.equal(after.code,200,JSON.stringify(after.body));
+  assert.equal(after.body.wallet.balance,250);
+  assert.equal(after.body.wallet.totalEarned,250);
+  assert.equal(after.body.history.length,1);
+
+  const repeat=await invoke("sparks-cloud-first-login","NewUser","valid-test-token-newuser",{
+    cardId:"banana",cardName:"Banana Boost",amount:1000,
+  });
+  assert.equal(repeat.code,200,JSON.stringify(repeat.body));
+  assert.equal(repeat.body.alreadyApplied,true);
+  assert.equal(repeat.body.prize.amount,250);
+  assert.equal(bridgeWrites,1,"repeat first login cannot credit more points");
+
+  const original=await invoke("sparks-cloud-wallet","ActiveUser","valid-test-token-member",{historyLimit:0});
+  assert.equal(original.code,200);
+  assert.equal(original.body.wallet.balance,240,"existing user score unchanged");
   assert.equal(firestoreReads,0,"Firebase must not be contacted in Sparks email auth mode");
-  assert.equal(bridgeWrites,0,"Test must not change real or mock Sparks scores");
   assert.ok(bridgeReads>=2,"Verified wallet and admin list read only Supabase");
-  console.log("PASS Sparks Email API: verified member wallet and Admin list, rejects missing/spoofed/suspended sessions without Firebase reads");
+  console.log("PASS Sparks Email API: new wallet onboarding, atomic single Fruit Card claim, existing scores unchanged and zero Firebase reads");
 }finally{
   globalThis.fetch=oldFetch;
   for(const [key,value]of Object.entries(previous))if(value===undefined)delete process.env[key];else process.env[key]=value;
