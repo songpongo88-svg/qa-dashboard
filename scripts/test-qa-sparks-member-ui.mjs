@@ -15,7 +15,8 @@ for (const key of ["window", "document", "HTMLElement", "MutationObserver", "Eve
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const currentYear = Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "Asia/Bangkok" }).format(new Date()));
 const baseWallet = {
-  balance: 200, rewardOrders: 0, typingReliefOwned: 0, firstLogin: null,
+  balance: 200, rewardOrders: 0, typingReliefOwned: 0,
+  firstLogin: {cardId:"apple",cardName:"Apple Spark",amount:200,claimedAt:"2026-11-09T01:00:00Z"},
   history: [], memberYear: currentYear, memberYearEarned: 200,
 };
 globalThis.__memberTestWallet = { ...baseWallet };
@@ -39,6 +40,9 @@ try {
           contents: `
             export const EMPTY_SPARKS_ACCOUNT = { balance:0, rewardOrders:0, typingReliefOwned:0, history:[], firstLogin:null, memberYear:2026, memberYearEarned:0 };
             export const sparksAccountKey = (v) => encodeURIComponent(String(v).toLowerCase());
+            export const FRUIT_CARDS = [{id:"apple",name:"Apple Spark"}];
+            export const randomPrizeValues = () => [100];
+            export async function claimFirstLoginSparks() { throw Error("Member Level fixture already claimed first login"); }
             export function invalidateSparksAccount() {}
             export async function getSparksAccount() { globalThis.__memberTestReads++; return { ...globalThis.__memberTestWallet }; }
           `,
