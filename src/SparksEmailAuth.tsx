@@ -16,7 +16,7 @@ async function authRequest(path: string, data: Record<string,unknown>) {
   return result;
 }
 export default function SparksEmailAuth({ username, onVerified }:{
-  username:string; onVerified:(actor:SparksVerifiedActor)=>void;
+  username?:string; onVerified:(actor:SparksVerifiedActor)=>void;
 }) {
   const [email,setEmail]=useState("");
   const [code,setCode]=useState("");
@@ -34,7 +34,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
     });
     const payload=await response.json().catch(()=>({}));
     if(!response.ok || payload.ok!==true || !payload.actor)throw Error(String(payload.error || "ตรวจสอบสิทธิ์พนักงานไม่ได้"));
-    if(String(payload.actor.username).toLowerCase()!==username.toLowerCase()){
+    if(username && String(payload.actor.username).toLowerCase()!==username.toLowerCase()){
       await fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).catch(()=>{});
       throw Error("อีเมลนี้ไม่ตรงกับบัญชี QA Dashboard ที่กำลังใช้งาน กรุณาใช้อีเมลของบัญชีนี้");
     }
@@ -55,7 +55,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
         const response=await fetch("/api/sparks-auth",{credentials:"same-origin",cache:"no-store"});
         if(!response.ok)return;
         const result=await response.json();
-        if(result?.actor?.username?.toLowerCase()===username.toLowerCase())onVerified(result.actor);
+        if(result?.actor?.username && (!username || result.actor.username.toLowerCase()===username.toLowerCase()))onVerified(result.actor);
       }catch(e){if(alive)setError(e instanceof Error?e.message:"ยืนยันอีเมลไม่สำเร็จ");}
       finally{if(alive)setBusy(false);}
     };
@@ -91,7 +91,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
       <div className="sparks-email-auth-kicker">QA Sparks · Supabase Auth</div>
       <h2>ยืนยันอีเมลเพื่อเข้าใช้ QA Sparks</h2>
       <p>บัญชี QA Dashboard เดิมยังใช้ตามปกติ ส่วน QA Sparks จะยืนยันตัวตนแยกกันด้วยอีเมลของพนักงาน</p>
-      <p className="sparks-email-auth-account">บัญชีที่กำลังใช้งาน: <strong>{username}</strong></p>
+      {username ? <p className="sparks-email-auth-account">บัญชีที่กำลังใช้งาน: <strong>{username}</strong></p> : <p className="sparks-email-auth-account">เปิด QA Sparks โดยไม่ต้องเข้าสู่ระบบ QA Dashboard ก่อน</p>}
       <form onSubmit={send}>
         <label htmlFor="sparks-auth-email">อีเมลที่ลงทะเบียนกับ QA Dashboard</label>
         <input id="sparks-auth-email" type="email" required autoComplete="email" value={email}
