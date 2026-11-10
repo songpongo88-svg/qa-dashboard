@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T16:58:00.000Z",
-  "reason": "Sparks OTP request UI: always request a fresh code, permit explicit resend with cooldown, hide verification when Supabase refuses to send email, and never tell staff to use an old code. No changes to QA Dashboard, guide content, T&C, or wallet ledger.",
+  "reviewedAt": "2026-11-10T17:25:00.000Z",
+  "reason": "QA Sparks only: secure Supabase email sign-in opt-in now available to every employee; maintain hybrid fallback until email SMTP and roster reconciliation are ready, without changing any wallet, history, QA Dashboard Login, QA score, guide or Terms.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -470,7 +470,7 @@
     "src/ProfileMakeoverQuest.tsx": "444e9a06af6b49cfe9768639b0b1172ef5422fb146b55da832906009553cd6fd",
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/QASparks.tsx": "d3e452778cc0d9c7c44624060e9c0e308deb51f7b45f7f54a48767d5eb9a2304",
+    "src/QASparks.tsx": "a6d8c576525175d3267d4e701a1eabf5dd14d626b12cb4828a76c8679d34bda2",
     "src/QaAccessCaseHistoryPopup.tsx": "da29c8b43c9aa32c23cde37fa447f41764477b6659cb2a6bc9384aff71dcf5a7",
     "src/QaAccessCheckOverview.tsx": "348de0058ce1552e358582cf6486812a4c2a6a1801e26361c25ad126b74765ba",
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
@@ -728,12 +728,12 @@
     "src/SparksEmailAuth.css": "57cd8adfe942f400f8b3eced2a2dd075740375c783d4cbaf5c80b3e2d9cac82d",
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
     "scripts/test-sparks-email-api.mjs": "cebebe5a0d6a0ea3ef62a73d73ae96d29d65737bc063bf26abb1318bb0a6c096",
-    "src/SparksStandalone.tsx": "9793a2f014fcb0306044bfc6708a0ea535618187ca65c846b75f917ecc58223a",
-    "scripts/test-sparks-standalone.mjs": "cbb4433591e85198b1a195fcd23941dff5f62af8732416335b020aa5da9bfee6",
+    "src/SparksStandalone.tsx": "9a42338bd73a6a4d6b9617a841f24be6b12930df51e3928f411e1066cd931846",
+    "scripts/test-sparks-standalone.mjs": "cf2e5e68754f7309a1fc8db823054bea44814b0de9f8ea8c847398a1b76d29f0",
     "server/sparksProfileReconcile.js": "d49586813400952faa80cb40137d1e336838c14bd66ba3e7492177414cb8ad1c",
     "api/cron/sparks-profile-reconcile.js": "5ebdc742bb08f93fa339b9b198d2c896008da601f95d457127656355a0a5b916",
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
-    "scripts/test-sparks-hybrid-owner.mjs": "1ef223f17f8932a31aa7f0665859d32988c48b75793eca83abbb93dff7fcefef",
+    "scripts/test-sparks-hybrid-owner.mjs": "232ee3768dab101cbdb0a51aedea33ec6578419db3f7b99627f41421639db121",
     "src/lib/evaluation/draftBackup.ts": "32c0d6692a73f16b74c448f5e8d2a05759f65a7a3653a4446bec955b29ea5de2",
     "scripts/test-qa-emergency-draft-export.mjs": "7707f5f194da2de2a3a1d0681ab7a6fb0f7265fa4b79f6c14a412faee00fbe7d"
   }

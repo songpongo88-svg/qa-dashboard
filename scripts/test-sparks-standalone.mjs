@@ -34,4 +34,8 @@ assert.match(email,/\{sent && <form onSubmit=\{verify\}/,"only a successful OTP 
 assert.match(email,/sent\|\|rateLimited\?"ส่งรหัสใหม่"/,"users can explicitly request a fresh OTP");
 assert.match(email,/ครั้งนี้ยังไม่มี OTP ใหม่ถูกส่ง/,"never imply a new OTP was sent after Supabase 429");
 assert.doesNotMatch(email,/สามารถใช้รหัสจากอีเมลล่าสุด|รหัสจากอีเมลฉบับก่อนหน้า/,"do not instruct users to reuse an old code");
+assert.match(entry,/qa:sparks:supabase-login:/,"verified standalone users retain their Supabase preference");
+assert.match(sparks,/data-sparks-supabase-optin="true"/,"embedded Sparks exposes opt-in to every staff member");
+assert.match(sparks,/data-sparks-employee-email-login="true"/,"OTP remains in the existing dashboard tab");
+assert.ok(sparks.includes("setVerifiedActor(actor)"),"only verified server identity opens the wallet");
 console.log("PASS independent Sparks portal: no QA Dashboard login mount, email verification, username match and CSRF denial");
