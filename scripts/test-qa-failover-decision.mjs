@@ -5,7 +5,7 @@ const date = new Date().toISOString();
 const later = new Date(Date.now()+120000).toISOString();
 const full = () => ({
   serverAuthority:'qa-server-verified', production:false,
-  primary:{health:'quota-exhausted',verifiedByServer:true,checkedAt:date},
+  primary:{health:'quota-exhausted',verifiedByServer:true,checkedAt:date,outageStartedAt:date},
   bridge:{databaseConnected:true,readOnly:false,authenticated:true,durableIngress:true,checkedAt:date},
   mirror:{sourceComplete:true,identityHashVerified:true,syncStatus:'validated',datasets:[...QA_FAILOVER_REQUIRED_DATASETS],verifiedAt:date},
   identity:{serverAuthenticated:true,role:'Quality Assurance',status:'active',verifiedAt:date,expiresAt:later},
@@ -31,6 +31,8 @@ test(v=>v.primary.checkedAt='2025-01-01T00:00:00Z','quota_not_server_verified');
 test(v=>v.bridge.readOnly=true,'standby_write_bridge_not_ready');
 test(v=>v.bridge.durableIngress=false,'standby_write_bridge_not_ready');
 test(v=>v.bridge.databaseConnected=false,'standby_write_bridge_not_ready');
+test(v=>v.mirror.verifiedAt='2025-01-01T00:00:00Z','mirror_not_complete');
+test(v=>v.mirror.verifiedAt=new Date(Date.now()+10000).toISOString(),'mirror_not_complete');
 test(v=>v.mirror.sourceComplete=false,'mirror_not_complete');
 test(v=>v.mirror.syncStatus='pending','mirror_not_complete');
 test(v=>v.mirror.datasets=['qa_evaluations'],'mirror_not_complete');
@@ -65,5 +67,13 @@ for (const key of ['pending','inFlight','conflicts']) {
 {
   const v=structuredClone(failback);v.lease.frozenWrites=false;
   assert.equal(qaFailbackDecision(v).canFailback,false);
+}
+{
+  const c=full();
+  const incident=new Date(Date.now()-2*60*60*1000);
+  c.primary.outageStartedAt=incident.toISOString();
+  c.mirror.verifiedAt=new Date(incident.getTime()-30*1000).toISOString();
+  assert.equal(qaFailoverDecision(c).canAcceptWrites,true,
+    'an originally verified mirror can continue an hours-long outage as long as bridge, local ACL and lease are renewed');
 }
 console.log('PASS: QA failover is refused on quota-only/browser spoof, partial backup, stale ACL, absent lease, locked month, non-durable tunnel or pending conflicts; failback waits for full replay parity.');
