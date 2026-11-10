@@ -25,6 +25,12 @@ export async function stageQaEvaluationWrite(pool, request, verifiedServerContex
   try {
     await client.query('BEGIN');
     open = true;
+    // Serialize requests for the same operation. PostgreSQL row locks alone
+    // do not protect a missing idempotency row from two simultaneous inserts.
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+      [`qa-op:${request.operationId}`],
+    );
     const previousOperation = await client.query(
       'SELECT request_hash, evaluation_id, response FROM qa_cutover_stage.operations WHERE operation_id = $1 FOR UPDATE',
       [request.operationId],
@@ -38,6 +44,13 @@ export async function stageQaEvaluationWrite(pool, request, verifiedServerContex
       return { ...saved.response, replay: true };
     }
 
+    // A missing evaluation row cannot be SELECT FOR UPDATE locked. The
+    // transaction-level advisory lock prevents simultaneous creates racing.
+    // Ordering is always operation -> evaluation to avoid lock inversion.
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+      [`qa-evaluation:${request.evaluationId}`],
+    );
     const snapshot = await client.query(
       'SELECT evaluation_id, record, version FROM qa_cutover_stage.evaluations WHERE evaluation_id = $1 FOR UPDATE',
       [request.evaluationId],
@@ -50,6 +63,8 @@ export async function stageQaEvaluationWrite(pool, request, verifiedServerContex
       currentRecord: previous ? previous.record : null,
       currentVersion: previous ? Number(previous.version) : null,
     };
+    if (previous?.record?.deletedAt)
+      throw new QaCutoverBlocked('deleted_record_requires_restore');
     const prepared = prepareQaCutoverWrite(request, trusted);
     if (prepared.operationHash !== digest) throw new QaCutoverBlocked('intent_hash_mismatch');
     const value = JSON.stringify(prepared.value);
