@@ -92,9 +92,13 @@ class RootErrorBoundary extends React.Component<
 const sparksStandalone = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("sparks") === "1";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
+  sparksStandalone
+    ? <React.StrictMode><RootErrorBoundary><SparksStandalone /></RootErrorBoundary></React.StrictMode>
+    : <React.StrictMode>
     <RootErrorBoundary>
-      {sparksStandalone ? <SparksStandalone /> : <><App /><AutoDeployRefresh /><MaintenanceRuntime /></>}
+      <App />
+      <AutoDeployRefresh />
+      <MaintenanceRuntime />
     </RootErrorBoundary>
   </React.StrictMode>
 );
