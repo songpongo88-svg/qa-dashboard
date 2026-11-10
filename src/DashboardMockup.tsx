@@ -7881,15 +7881,15 @@ export default function DashboardMockup({
       : quickAgentOptions;
 
   const renderDashboardSearchControls = () => typeof document !== "undefined" ? createPortal(
-    <div data-search-evaluation-floating-v20261109="true">
+    <div className="qa-dashboard-floating-search-root" data-search-evaluation-floating-v20261109="true">
       <button
         type="button"
         aria-label="เปิดค้นหา Evaluation ID"
         title="ค้นหา Evaluation ID"
         onClick={() => setEvaluationSearchOpen(true)}
-        className="fixed z-[86] flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-700 px-4 text-white shadow-[0_14px_36px_rgba(109,40,217,0.45)] transition hover:scale-105 focus-visible:outline focus-visible:outline-4 focus-visible:outline-violet-200" style={{ right: "var(--qa-shortcut-right, 24px)", bottom: "calc(var(--qa-shortcut-coaching-bottom, 200px) + var(--qa-shortcut-size, 48px) + var(--qa-shortcut-gap, 16px))" }}
+        className="qa-dashboard-floating-search-button flex items-center justify-center rounded-full border border-violet-200 bg-white text-violet-700 shadow-[0_5px_16px_rgba(76,29,149,0.16)] transition hover:bg-violet-50 hover:text-violet-800 focus-visible:outline focus-visible:outline-4 focus-visible:outline-violet-200"
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" className="h-6 w-6"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg><span className="whitespace-nowrap text-sm font-bold">ค้นหาเคส</span>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" className="h-5 w-5"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg>
       </button>
       {evaluationSearchOpen ? (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setEvaluationSearchOpen(false); }}>
