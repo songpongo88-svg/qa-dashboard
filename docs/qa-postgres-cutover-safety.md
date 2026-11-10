@@ -36,6 +36,13 @@ Allowed preview probes: `GET /api/qa-local-diagnostics?check=ready` and `?check=
 - Before production authentication can move off Firestore: migrate/rotate credentials through a private server-authoritative process, implement rate limits, MFA/2FA policy as required, scoped session cookies, account status checks, audited admin revocation, and private ingress. Never trust `username`/`role` posted from a browser.
 - The current Login implementation in `src/App.tsx` still reads Firebase user profiles, checks account passwords client-side and creates Firestore sessions; `src/sessionStore.ts` reads and writes those Firestore sessions. This prototype does not change that behavior or Firestore quota consumption.
  
+
+### Exact-data cutover gate (new)
+- `server/qaCutoverParityGate.js` requires a current, authenticated and **complete** source manifest, the matching PostgreSQL candidate manifest and per-document canonical SHA-256 for Evaluations, Appeals, signed-month documents and historical Excel rows.
+- A local 563-evaluation snapshot, 570 Excel backup rows, successful PostgreSQL health check, or a `pending` source sync **cannot** certify cutover readiness.
+- Differences, missing datasets, stale source evidence or duplicates block cutover. Test data is synthetic and this gate has no network or database writes.
+- Source data must be reacquired from the authoritative service when a complete export becomes possible; do not synthesize missing January–May QA results, change original scores, or silently consolidate repeated case IDs.
+
 ## Remaining production blockers
 1. Reconcile local QA backup against latest authoritative Firebase records by document identity and revision/content hash. Preserve missing/recent cases; do not treat 563 local records as complete live data.
 2. Treat 570 historical Excel rows as separate historical source identities; preserve original scores and appeal history, do not collapse repeated Case IDs.
