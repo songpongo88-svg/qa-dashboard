@@ -21,8 +21,14 @@ try {
   assert.equal(deleted.found,false,'a local soft delete must not appear active');
   const page=await listQaStandbyEvaluations(pool,{limit:1,month:'2026-11'},fixture());
   assert.equal(page.rows.length,1);
-  assert.equal(page.rows[0].evaluationId,'qa-race-1');
-  assert.equal(page.hasMore,false);
+  assert.equal(page.rows[0].evaluationId,'qa-no-case-1');
+  assert.equal(page.hasMore,true);
+  const secondPage=await listQaStandbyEvaluations(pool,{limit:1,month:'2026-11',afterId:page.nextAfterId},fixture());
+  assert.equal(secondPage.rows[0].evaluationId,'qa-race-1');
+  assert.equal(secondPage.hasMore,false);
+  const noCase=await readQaStandbyEvaluation(pool,'qa-no-case-1',fixture());
+  assert.equal(noCase.record.evaluationType,'no_case_month');
+  assert.equal(noCase.record.finalScore,0);
   assert.deepEqual((await listQaStandbyEvaluations(pool,{limit:10,month:'2026-10'},fixture())).rows,[]);
   await assert.rejects(readQaStandbyEvaluation(pool,'qa-race-1',{
     ...fixture(),session:{...fixture().session,role:'Admin Live Chat'},
