@@ -24,6 +24,7 @@ Allowed preview probes: `GET /api/qa-local-diagnostics?check=ready` and `?check=
 ### Step 3 write-path engineering (branch only, not wired to QA Dashboard)
 - `server/qaCutoverWritePolicy.js` checks a **trusted server-verified** QA session, source-parity approval or isolated-fixture authorization, immutable evaluation identity, expected row version, authoritative monthly-result signature lock, appeal hold and verified edit lease. Never construct its trusted context from browser fields.
 - `server/qaCutoverPgWriter.js` has transaction-based create/update/delete-tombstone, replay protection and an audit trail targeting **only** `qa_cutover_stage` tables. It explicitly rejects production use, and has no HTTP route. It is not a replacement for `src/evaluationStore.ts` yet.
+- Transaction advisory locks serialize competing saves for the same operation ID and case ID, including first-time inserts. Concurrent same-operation replays are idempotent, and tombstones cannot be overwritten without an explicit restore flow. Disposable PostgreSQL 17 CI tests cover both races.
 - Tests include pure policy, mocked SQL transaction and a disposable PostgreSQL 17 service in GitHub Actions. These use synthetic values and do not connect to the user's Windows server or any live QA records.
 - The successful 5/5 Preview smoke check only confirms navigation/read rendering/Login are intact; it does not demonstrate that live QA writes or migrations work.
 
