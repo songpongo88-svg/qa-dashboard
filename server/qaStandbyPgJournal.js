@@ -47,13 +47,17 @@ function validateRequest(request, trusted, actor) {
     return;
   }
   const row=request.record;
+  const kind = row?.evaluationType || 'case';
+  const caseId = String(row?.caseId || '');
   if(!row || typeof row!=='object' || Array.isArray(row) || row.id!==request.evaluationId ||
-    !validId(row.caseId) || typeof row.agentName!=='string' || !row.agentName.trim() ||
+    !['case','no_case_month'].includes(kind) ||
+    (kind==='case' && !validId(caseId)) || (kind==='no_case_month' && caseId!=='') ||
+    typeof row.agentName!=='string' || !row.agentName.trim() ||
     !validMonth(row.evaluationMonthKey) || !Array.isArray(row.topics) ||
     !Number.isFinite(row.finalScore) || row.finalScore<0 || row.finalScore>100 ||
+    (kind==='no_case_month' && row.finalScore!==0) ||
     row.evaluatorUsername!==actor || row.deletedAt)
     reject('invalid_evaluation_record');
-  if (row.evaluationType && row.evaluationType!=='case') reject('unsupported_evaluation_type');
   const scope=trusted.authoritativeScope;
   if(!scope || scope.monthKey!==row.evaluationMonthKey || scope.agentName!==row.agentName)
     reject('score_scope_unverified');
