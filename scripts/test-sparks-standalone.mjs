@@ -8,6 +8,8 @@ const sparks=read("src/QASparks.tsx");
 const api=read("api/sparks-admin.js");
 assert.match(main,/new URLSearchParams\(window\.location\.search\)\.get\("sparks"\) === "1"/);
 assert.match(main,/sparksStandalone\s*\?\s*<React\.StrictMode><RootErrorBoundary><SparksStandalone \/>/,"standalone must not render the QA Dashboard login");
+assert.match(main,/Boolean\(new URLSearchParams\(window\.location\.hash\.replace\(\/\^#\/, ""\)\)\.get\("access_token"\)\)/,"Supabase Magic Link callback at preview root should open Sparks");
+assert.match(email,/setRateLimited\(true\)/,"email rate limit must block repeat sends");
 assert.match(entry,/<SparksEmailAuth onVerified=\{setActor\}/,"Sparks portal requires verified Supabase email");
 assert.match(entry,/verifiedSparksActor=\{actor\}/,"Sparks UI must receive server-verified identity");
 assert.match(email,/if\(username && String\(payload\.actor\.username\)/,"embedded QA path must still require username match");
