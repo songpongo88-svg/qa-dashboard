@@ -7887,7 +7887,7 @@ export default function DashboardMockup({
         aria-label="เปิดค้นหา Evaluation ID"
         title="ค้นหา Evaluation ID"
         onClick={() => setEvaluationSearchOpen(true)}
-        className="fixed bottom-24 right-5 z-[9999] flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-700 px-4 text-white shadow-[0_14px_36px_rgba(109,40,217,0.45)] transition hover:scale-105 focus-visible:outline focus-visible:outline-4 focus-visible:outline-violet-200 sm:bottom-7 sm:right-7"
+        className="fixed z-[86] flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-700 px-4 text-white shadow-[0_14px_36px_rgba(109,40,217,0.45)] transition hover:scale-105 focus-visible:outline focus-visible:outline-4 focus-visible:outline-violet-200" style={{ right: "var(--qa-shortcut-right, 24px)", bottom: "calc(var(--qa-shortcut-coaching-bottom, 200px) + var(--qa-shortcut-size, 48px) + var(--qa-shortcut-gap, 16px))" }}
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" className="h-6 w-6"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg><span className="whitespace-nowrap text-sm font-bold">ค้นหาเคส</span>
       </button>
