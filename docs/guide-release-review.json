@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T08:55:00.000Z",
-  "reason": "Reviewed GoTrue email confirmation redirect_to query fix and regression test; Supabase URL allowlist must be set before email login. Production unchanged.",
+  "reviewedAt": "2026-11-10T09:08:00.000Z",
+  "reason": "Reviewed isolated Sparks Magic Link return handling and Supabase email sending limit feedback; preview-only, preserves QA Dashboard production and wallet data",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -626,7 +626,7 @@
     "src/loginThemes/login.css": "1ef257f91de5d5652ad2484b8aef568d0331c8b03a4c669c9f9bee728672846b",
     "src/loginThemes/model.mjs": "2cecce0ff5bda8b42452514bc53e8b0d1bb191ca3722ffcc5d8a4a98d1fa0bea",
     "src/lotteryTicketInventory.css": "c778eac69f4ad378025cc52f1ce136ea263e1bcfe9daa3fb28b26ee8990bc5a1",
-    "src/main.tsx": "8641d9839e7a4e0a61077d05dcbd39fab645b2c886844cd0374ca9e837e533e3",
+    "src/main.tsx": "fd036467015b6c1e765a725294c13d0f3a77e4ac0fa349d360c6cf291b5bc8f7",
     "src/maintenanceControlStore.ts": "159f132368752b1eaf2d2cdfc9d62753e6aa761696e45b29a6e08d0e512b28fe",
     "src/monthlyCoaching.css": "6163bd218ea5261dca5aaebfea7e4c8653215fe674d484fa8723eef7b9fe6785",
     "src/monthlyCoachingModel.ts": "844cfec4ab03df5b7fba68176b2e6b0b0e349796f7ffba4dd511c8195b5da275",
@@ -724,11 +724,11 @@
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
     "api/sparks-auth.js": "e1ee721012f9dea13045cd60a9d5ae0ab073e7dc3924339d0dd466e3dc33463c",
     "server/sparksSupabaseAuth.js": "4302b98321bdb57c120e3132965192d381aa91b97565869de87d8910ae05b3b5",
-    "src/SparksEmailAuth.tsx": "314c12ef9e522dbb7dccdef7fda9cc556151042776a91e2c54761c63198c64a7",
+    "src/SparksEmailAuth.tsx": "4fd99e5c027f0c5fedb8c69c67e69db4954eb4da09fc32664db380913dfa0fc4",
     "src/SparksEmailAuth.css": "78fe340a66bd3e9ddcab4c8295232607521438ed9fdf083c459b41d8d1c177c0",
     "scripts/test-sparks-email-auth.mjs": "77018da34a19ca9eb6a13c8cd899eac9daf8d0f0d73154e1deca085e69573639",
     "scripts/test-sparks-email-api.mjs": "cebebe5a0d6a0ea3ef62a73d73ae96d29d65737bc063bf26abb1318bb0a6c096",
     "src/SparksStandalone.tsx": "5841baa9781ac89f43395c4fb993000e48cd1940f38fc67a70862932fe5230e9",
-    "scripts/test-sparks-standalone.mjs": "ac689d7f94f732e0880cbf70c531ca75024b1f2880f0156c6000243980ddbea1"
+    "scripts/test-sparks-standalone.mjs": "683e34c4fb57b0bfc534ad8ae1f50691e220b3e9bd8ca4d506fde5acf3f277b2"
   }
 }
