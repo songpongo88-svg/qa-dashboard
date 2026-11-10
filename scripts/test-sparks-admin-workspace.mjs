@@ -47,6 +47,12 @@ globalThis.fetch = async (url, options) => {
   if (body.action === "history") return reply({ username: user.username, wallet: user, history: [{ id: "audit-1", createdAt: common.createdAt, title: "Admin Added Sparks", amount: 150, type: "earn", performedBy: "prior-admin", reason: "verified adjustment", source: "admin-add", status: "Completed" }] });
   if (body.action === "get-truemoney-price") return priceFailure ? reply({ error: "price unavailable" }, 503) : reply({ price });
   if (body.action === "set-truemoney-price") { price = body.price; return reply({ price }); }
+  if (body.action === "list-reward-queues") return reply({
+    truemoney: { ok: true, requests: money, truncated },
+    special: specialListFailure
+      ? { ok: false, error: "quota exhausted", code: "FIRESTORE_RESOURCE_EXHAUSTED" }
+      : { ok: true, requests: special },
+  });
   if (body.action === "list-truemoney-tracker") return reply({ requests: money, truncated });
   if (body.action === "special-rewards-admin-list") return specialListFailure ? reply({ error: "quota exhausted" }, 429) : reply({ requests: special });
   if (body.action === "special-rewards-admin-receipt") return reply({ imageData: "data:image/png;base64,cHJldmlldw==" });
@@ -97,12 +103,12 @@ try {
   await render("normal");
   assert.equal(document.querySelectorAll("[data-sparks-admin-section]").length, 4);
   assert.equal(section("requests").getAttribute("aria-pressed"), "true");
-  assert.equal(count("list-truemoney-tracker"), 0, "queues load only on explicit click");
+  assert.equal(count("list-reward-queues"), 0, "queues load only on explicit click");
   assert.equal(count("get-truemoney-price"), 0, "price does not read on requests page");
   assert.ok(document.querySelector(".sa-settings").hidden);
   await click(button(".sa-section-head button", "โหลดคำขอ"));
-  assert.equal(count("list-truemoney-tracker"), 1);
-  assert.equal(count("special-rewards-admin-list"), 1);
+  assert.equal(count("list-reward-queues"), 1);
+  assert.equal(count("list-reward-queues"), 1);
   assert.deepEqual([...document.querySelectorAll(".sa-stats strong")].map(item => item.textContent), ["1", "3", "1", "1"]);
   await click(button(".sa-brand-tabs button", "TrueMoney"));
   assert.equal(document.querySelectorAll(".sa-request-table tbody tr").length, 1);
@@ -113,7 +119,7 @@ try {
   await click(section("activity"));
   assert.match(document.querySelector(".qa-sparks-admin-detail").textContent, /verified adjustment/);
   await click(section("requests"));
-  assert.equal(count("list-truemoney-tracker"), 1, "navigation and local filters preserve loaded queue");
+  assert.equal(count("list-reward-queues"), 1, "navigation and local filters preserve loaded queue");
   await open("tm-pending");
   assert.ok(!document.querySelector(".sa-requests textarea"), "TrueMoney does not offer an unsaved note field");
   await click(primary("tm-pending"));
@@ -142,7 +148,7 @@ try {
   assert.equal(mutations().at(-1).itemId, "tm-pending");
   assert.equal(popup(), null);
   assert.match(document.querySelector(".sa-request-hero").textContent, /เสร็จสิ้น/);
-  assert.equal(count("list-truemoney-tracker"), 1, "server-confirmed success does not reread queues");
+  assert.equal(count("list-reward-queues"), 1, "server-confirmed success does not reread queues");
   mutationMode = "success";
   await click(document.querySelector(".sa-back"));
   await click(button(".sa-brand-tabs button", "ทั้งหมด"));

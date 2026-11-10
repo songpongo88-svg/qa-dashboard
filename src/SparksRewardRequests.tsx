@@ -81,7 +81,13 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
   async function refresh() {
     if (inFlight.current) return;
     inFlight.current = true; setLoading(true); setError(""); setMessage("");
-    const results = await Promise.allSettled([call("list-truemoney-tracker"), call("special-rewards-admin-list")]);
+    const results = await call("list-reward-queues")
+      .then((data) => (["truemoney", "special"] as const).map((channel) => (
+        data[channel]?.ok === true
+          ? { status: "fulfilled" as const, value: data[channel] }
+          : { status: "rejected" as const, reason: Error(String(data[channel]?.error || "คำขอรางวัลไม่พร้อมใช้งาน")) }
+      )))
+      .catch((error) => (["truemoney", "special"] as const).map(() => ({ status: "rejected" as const, reason: error })));
     const errors: string[] = [];
     const updates: Partial<Record<"truemoney" | "special", RequestRow[]>> = {};
     results.forEach((result, index) => {
@@ -95,7 +101,11 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
     setRows(previous => [...(updates.truemoney || previous.filter(item => item.channel === "truemoney")), ...(updates.special || previous.filter(item => item.channel === "special"))].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     setLoaded(previous => ({ truemoney: updates.truemoney !== undefined || previous.truemoney, special: updates.special !== undefined || previous.special }));
     setIncomplete(errors.length > 0);
-    setError(errors.join(" · ")); setLoading(false); inFlight.current = false;
+    const repeatedQuota = errors.length === 2 && errors.every(item => /Firestore|quota|โควตา|RESOURCE_EXHAUSTED/i.test(item));
+    setError(repeatedQuota
+      ? "Firebase จำกัดการตรวจสอบสิทธิ์ QA ชั่วคราว จึงโหลดรายการรางวัลไม่ได้ในขณะนี้ ข้อมูลรางวัลและคะแนนบน Supabase ไม่ได้ถูกลบ"
+      : errors.join(" · "));
+    setLoading(false); inFlight.current = false;
   }
 
   async function viewReceipt(item: RequestRow) {
