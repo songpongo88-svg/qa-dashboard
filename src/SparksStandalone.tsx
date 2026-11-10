@@ -46,6 +46,12 @@ export default function SparksStandalone() {
   const [actor, setActor] = useState<SparksVerifiedActor|null>(null);
   const enabled = ["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE || ""));
   useEffect(()=>{
+    if(!actor?.username)return;
+    // Store only the user's selected login path; never store OTP or tokens.
+    try{window.localStorage.setItem("qa:sparks:supabase-login:"+actor.username.trim().toLowerCase(),"1");}
+    catch{/* Authorization is always server-verified. */}
+  },[actor?.username]);
+  useEffect(()=>{
     if(!actor)return;
     let current=true;
     const validate=async()=>{
