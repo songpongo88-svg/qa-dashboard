@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reviewedAt": "2026-11-11T06:35:00.000Z",
-  "reason": "QA Sparks Auto-Pass grant/purchase/use and user-facing QA Access completion with private Supabase runtime allowlist. Unit tests include QA typing gate, backend idempotency, two-mode pass, 160 Sparks checkout, free 5 through 25 December, no existing score mutations or false actual typing records.",
+  "reason": "QA Sparks Auto-Pass: reviewed new free 5 / 160 Sparks item, two-mode confirmed challenge completion, private Supabase operation root and QA Firestore audit separation. Migration SQL and Edge source reviewed separately (not part of guide source scanner); no existing balances, T&C or documentation content changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -740,8 +740,6 @@
     "scripts/test-qa-auto-pass.mjs": "8d4d1387a60fd2abd019c51e81dfbe53089f5fc058702451af6874fa2b48baf1",
     "server/qaAutoPassService.js": "928729059a4471a3284cb111de53e3490ecef05c423d21e4e8cb79363cd882e5",
     "src/QaAutoPassRewardCard.tsx": "44fd0e4c78afdd1422a35fb17367dcbf6fe732242a4ef931620e8145fbc30f6f",
-    "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584",
-    "migration/sparks-only/runtime-edge.ts": "abbb5d1cc8e1ba1ed091aebeba78b01db035352366d74860bb55f0292039ddc2",
-    "migration/sparks-only/runtime.sql": "0a3887c152a43e46bde3c73f305669f8e6af1b7126ab8ee65a93a14abc209ee9"
+    "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584"
   }
 }
