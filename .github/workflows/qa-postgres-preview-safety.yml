@@ -6,6 +6,8 @@ on:
     paths:
       - "api/qa-local-diagnostics.js"
       - "scripts/test-qa-local-diagnostics.mjs"
+      - "server/qaCutoverWritePolicy.js"
+      - "scripts/test-qa-postgres-write-policy.mjs"
       - ".github/workflows/qa-postgres-preview-safety.yml"
   workflow_dispatch:
 
@@ -29,5 +31,9 @@ jobs:
         run: |
           node --check api/qa-local-diagnostics.js
           node --check scripts/test-qa-local-diagnostics.mjs
+          node --check server/qaCutoverWritePolicy.js
+          node --check scripts/test-qa-postgres-write-policy.mjs
       - name: Run fail-closed safety tests
-        run: node scripts/test-qa-local-diagnostics.mjs
+        run: |
+          node scripts/test-qa-local-diagnostics.mjs
+          node scripts/test-qa-postgres-write-policy.mjs
