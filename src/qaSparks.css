@@ -908,3 +908,14 @@
 .qa-sparks-game-switch button{font-family:Kanit,sans-serif;cursor:pointer;border-radius:999px;border:1px solid var(--sparks-outline,#d9bbd9);background:var(--sparks-card,#fff);color:var(--sparks-dark,#694072);padding:10px 17px;font-size:12px;font-weight:750}
 .qa-sparks-game-switch button.active{color:#fff;background:var(--sparks-accent,#8741ac);border-color:var(--sparks-accent,#8741ac)}
 .qa-sparks-game-switch button:focus-visible{outline:3px solid var(--sparks-accent,#8741ac);outline-offset:2px}
+
+/* Clear, accessible action for login-triggered daily check-in. */
+.qa-sparks-checkin-claim-primary{
+  display:block;width:100%;margin:13px 0 10px;padding:12px 16px;
+  border:0;border-radius:11px;background:var(--sparks-accent,#7e22ce);
+  color:#fff;font:inherit;font-size:14px;font-weight:750;cursor:pointer;
+  box-shadow:0 4px 12px rgba(79,35,106,.16);
+}
+.qa-sparks-checkin-claim-primary:hover:not(:disabled){filter:brightness(1.08)}
+.qa-sparks-checkin-claim-primary:focus-visible{outline:3px solid #f0bf5d;outline-offset:3px}
+.qa-sparks-checkin-claim-primary:disabled{opacity:.55;cursor:wait}
