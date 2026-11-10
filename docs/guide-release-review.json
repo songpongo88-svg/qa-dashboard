@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T11:06:00.000Z",
-  "reason": "Reviewed QA Sparks hybrid Production owner email login: signed Supabase session/active profile bypasses Firestore quota only for verified requests; existing QA Dashboard and other staff logins unchanged, no source or score migration; security tests for forged and mismatched actors.",
+  "reviewedAt": "2026-11-10T13:37:00.000Z",
+  "reason": "Reviewed QA Sparks private synchronization receipts, owner-only status reporting, failure-closed source checks and no sensitive data in sync logs; existing user guide text unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -722,17 +722,17 @@
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
     "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4",
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
-    "api/sparks-auth.js": "e1ee721012f9dea13045cd60a9d5ae0ab073e7dc3924339d0dd466e3dc33463c",
-    "server/sparksSupabaseAuth.js": "08fa9d10f7e765a08ba750e634d4590d67df7b8aec392f95f4fff05fe1877180",
+    "api/sparks-auth.js": "821769a2025f890ff04fd3f04c4fd46f0e1607147ea81fa09261250beeb18774",
+    "server/sparksSupabaseAuth.js": "14edf1dd5bb9dfef507acaec476edc1456b66da0e3a5553b73f6ad3a97755ca7",
     "src/SparksEmailAuth.tsx": "4fd99e5c027f0c5fedb8c69c67e69db4954eb4da09fc32664db380913dfa0fc4",
     "src/SparksEmailAuth.css": "78fe340a66bd3e9ddcab4c8295232607521438ed9fdf083c459b41d8d1c177c0",
-    "scripts/test-sparks-email-auth.mjs": "77018da34a19ca9eb6a13c8cd899eac9daf8d0f0d73154e1deca085e69573639",
+    "scripts/test-sparks-email-auth.mjs": "8033b4ed13504ef1d97f026d40f197c113a87b5f2c6a6fbb717d29082d87cd6b",
     "scripts/test-sparks-email-api.mjs": "cebebe5a0d6a0ea3ef62a73d73ae96d29d65737bc063bf26abb1318bb0a6c096",
-    "src/SparksStandalone.tsx": "a1e83cfa50ccbb8170f711ef50cd6f4f33380e9c24fae5226f85dd4449047a0f",
+    "src/SparksStandalone.tsx": "3847e140e4c54ef5e668a1158bf518631cb2cc43ff6bb44793436f58481fb062",
     "scripts/test-sparks-standalone.mjs": "683e34c4fb57b0bfc534ad8ae1f50691e220b3e9bd8ca4d506fde5acf3f277b2",
-    "server/sparksProfileReconcile.js": "75c3375fa25e64c25629a1f27995c2182954b5b47352d727df0868225f77e85f",
+    "server/sparksProfileReconcile.js": "d49586813400952faa80cb40137d1e336838c14bd66ba3e7492177414cb8ad1c",
     "api/cron/sparks-profile-reconcile.js": "5ebdc742bb08f93fa339b9b198d2c896008da601f95d457127656355a0a5b916",
-    "scripts/test-sparks-profile-reconcile.mjs": "bc697cd66817fc82772f3aafe31c16f38351d7f2926cdaa56ac9ddef6049e865",
+    "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
     "scripts/test-sparks-hybrid-owner.mjs": "1ef223f17f8932a31aa7f0665859d32988c48b75793eca83abbb93dff7fcefef"
   }
 }
