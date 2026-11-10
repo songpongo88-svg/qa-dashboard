@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T08:15:00.000Z",
-  "reason": "Reviewed private QA PostgreSQL preview-only diagnostic, fail-closed authentication and CI tests. No operator-facing user guide content changes: no production feature has been enabled.",
+  "reviewedAt": "2026-11-10T09:00:00.000Z",
+  "reason": "Reviewed QA Postgres isolated fixture-only writer, locked-month, appeal-hold, idempotency and replay safety; no browser or production API enabled. User guide unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -724,6 +724,10 @@
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
     "api/qa-local-diagnostics.js": "85c6d43364436fd189e91991be1b64584e1fad29d9f468d19ff726c1f9c540d6",
     "scripts/test-qa-local-diagnostics.mjs": "fdedfcc1e94e478f672c8df65a86c2d371862d7bf5f84768223079b74993a3b9",
-    ".github/workflows/qa-postgres-preview-safety.yml": "409018bd01a639c933b816fd413ae8a6883c78206c89dc9f93b530565eee887f"
+    ".github/workflows/qa-postgres-preview-safety.yml": "d2b5a559dbfce614095a0895dc2570e9ae5029c47df1470471c5eae0755a22c0",
+    "server/qaCutoverWritePolicy.js": "80ea6e4e6a402a9dcc955a4588cc9a7286d40a62c3592b33d0f59c12433cbd1a",
+    "scripts/test-qa-postgres-write-policy.mjs": "9c4a0ba95d56a7724114803116298689bc0cb08d34f003d30fa0a5e43f2ce825",
+    "server/qaCutoverPgWriter.js": "d3ebc1a8bcc29ebde4fb939d2466443d7b9c4077821613a7853dd1b25f800a82",
+    "scripts/test-qa-postgres-stage-writer.mjs": "d69227f5a9cdcf5026260e9d502374546cf3ab82e012e9f987c252c618d06aa9"
   }
 }
