@@ -23,9 +23,8 @@ const sha = (value) => createHash('sha256').update(value).digest('hex');
 
 // Operation ID is unique for a *single user intent*, and cannot be reused
 // with different content. Database layer must use a UNIQUE constraint too.
-export function prepareQaCutoverWrite(request, trusted) {
-  if (!plain(request) || !plain(trusted)) fail('invalid_request');
-  if (trusted.verificationSource !== 'trusted-server-session-validator'
+export function verifyQaCutoverServerSession(trusted) {
+  if (!plain(trusted) || trusted.verificationSource !== 'trusted-server-session-validator'
       || trusted.session?.verified !== true
       || trusted.session?.status !== 'active'
       || trusted.session?.role !== 'Quality Assurance'
@@ -33,6 +32,12 @@ export function prepareQaCutoverWrite(request, trusted) {
       || !Number.isFinite(Date.parse(trusted.session?.expiresAt))
       || Date.parse(trusted.session.expiresAt) <= Date.now())
     fail('session_not_verified');
+  return trusted.session.username;
+}
+
+export function prepareQaCutoverWrite(request, trusted) {
+  if (!plain(request) || !plain(trusted)) fail('invalid_request');
+  verifyQaCutoverServerSession(trusted);
 
   // The public browser must never be able to assert source parity.
   // Synthetic local-only tests can be authorized by the trusted runtime, not
