@@ -13,7 +13,6 @@ export type PortableQaDraft = {
   agentName?: string;
   auditDate?: string;
   savedAtMs?: number;
-  [key: string]: unknown;
 };
 
 export function makeQaDraftBackup<T extends PortableQaDraft>(
