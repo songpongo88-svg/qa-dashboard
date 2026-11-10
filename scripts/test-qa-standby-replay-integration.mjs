@@ -10,9 +10,9 @@ const trusted={mode:'isolated-fixture',fixtureAuthorizedByServer:true};
 try{
   const db=await pool.query('SELECT current_database() AS db');
   assert.equal(db.rows[0].db,'qa_cutover_ci_test');
-  // The immediately preceding standby test created 4 durable operations.
+  // The immediately preceding standby test created 5 durable operations.
   const starting=await getQaStandbyOutboxCounts(pool);
-  assert.equal(starting.pending,4);
+  assert.equal(starting.pending,5);
   await assert.rejects(replayOneQaStandbyOperation(pool,{},trusted),
     e=>e instanceof QaStandbyBlocked&&e.code==='missing_firestore_adapter');
   await assert.rejects(replayOneQaStandbyOperation(pool,{applyIfVersionMatches:async()=>({status:'applied',remoteRevision:'r'})},trusted),
@@ -36,10 +36,12 @@ try{
   const third=await replayOneQaStandbyOperation(pool,remote,trusted);
   assert.equal(third.synced,true);
   const fourth=await replayOneQaStandbyOperation(pool,remote,trusted);
-  assert.equal(fourth.processed,false);
-  assert.equal(called,3);
+  assert.equal(fourth.synced,true);
+  const fifth=await replayOneQaStandbyOperation(pool,remote,trusted);
+  assert.equal(fifth.processed,false);
+  assert.equal(called,4);
   assert.deepEqual(await getQaStandbyOutboxCounts(pool),
-    {pending:1,in_flight:0,synced:2,conflict:1});
+    {pending:1,in_flight:0,synced:3,conflict:1});
   const statuses=await pool.query('SELECT operation_id,status FROM qa_failover_v1.outbox ORDER BY operation_id');
   assert.equal(statuses.rows.find(x=>x.operation_id==='qa-delete-1').status,'pending');
   // Simulate an operator-reviewed conflict resolution, without changing a
@@ -48,7 +50,7 @@ try{
   const resumed=await replayOneQaStandbyOperation(pool,remote,trusted);
   assert.equal(resumed.synced,true);
   assert.deepEqual(await getQaStandbyOutboxCounts(pool),
-    {pending:0,in_flight:0,synced:4,conflict:0});
+    {pending:0,in_flight:0,synced:5,conflict:0});
   // No automatic follow-up on the live database: the worker only receives a
   // narrow adapter transaction and a server-side feature flag.
   await assert.rejects(replayOneQaStandbyOperation(pool,remote,{mode:'approved-server-replay'}),
