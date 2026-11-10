@@ -69,9 +69,11 @@ export default function SparksEmailAuth({ username, onVerified }:{
     try {
       const address=email.trim().toLowerCase();
       if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address))throw Error("กรุณากรอกอีเมลที่ถูกต้อง");
-      await authRequest("/auth/v1/otp",{
+      // GoTrue reads redirect_to from the URL query string, not email_redirect_to
+      // from the OTP JSON body. The redirect must also be allowlisted in Auth settings.
+      const returnTo=window.location.origin+window.location.pathname+window.location.search;
+      await authRequest("/auth/v1/otp?redirect_to="+encodeURIComponent(returnTo),{
         email:address,create_user:true,
-        email_redirect_to:window.location.origin+window.location.pathname+window.location.search,
       });
       setSent(true);setMessage("ส่งอีเมลยืนยันแล้ว หากได้รับรหัสให้กรอกด้านล่าง หรือกดลิงก์ในอีเมล");
     }catch(e){setError(e instanceof Error?e.message:"ส่งอีเมลไม่สำเร็จ");}
