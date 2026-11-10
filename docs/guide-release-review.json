@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T04:00:05.091Z",
-  "reason": "Reviewed QA Dashboard floating Evaluation search shortcut alignment with existing Chat/Announcement/KPI/Coaching shortcut stack, retaining search behavior and avoiding overlap on responsive layouts.",
+  "reviewedAt": "2026-11-10T04:11:03.392Z",
+  "reason": "Reviewed Dashboard-only compact circular Evaluation search launcher with shared Chat shortcut alignment and visibility restricted to the active Dashboard tab; no changes to permissions, scores or stored records.",
   "contentChanged": false,
   "reviewedChapters": [
     "dashboard",
@@ -451,7 +451,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
     "src/DailyCheckinQuest.tsx": "5ef043ebd1b048e26769ef5825f3f67454787b7525f0a338d5f61c2997e9bf27",
-    "src/DashboardMockup.tsx": "e972471f2a3476e18cc1fe71a2707bfc36946a5efb491ca251e2ec6139e7404f",
+    "src/DashboardMockup.tsx": "0e9a98048d627744064e9b9b276a10efba130634b7e9161d985db6d2c282aa19",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
@@ -554,7 +554,7 @@
     "src/coachingStore.ts": "60c6a02e7016d4ce0ce4cef749f7fcb3ba0c1d638279dc500fe3238d01a8cdc3",
     "src/dashboardRecoveryCache.ts": "817a3ca216ee607263a06fe3e48f4e3e9234640c9c3b4b3b3fa06f656390b9ee",
     "src/dashboardRevision.ts": "e305357dc518fb6f89d76621baacf63791c174ae69d9718a72de2f14610bd154",
-    "src/dashboardShortcuts.css": "f6b4ec63f9f99e58337fcbf1890a91d68c1ac92c898a611238b8c0204f3d0362",
+    "src/dashboardShortcuts.css": "c6c5f84f04f21983314224074ec4442ac6e6e56467552907a8e92ead4abb1522",
     "src/data/current-dashboard.json": "cd0e18d2bfa328e52375da06b902b15f0d6715d76c729e63179129bbec6c5725",
     "src/deleteUserDirectoryPatch.ts": "65ea5c9b55a812fba16a3fd9b3c5ab823a9fc161f8eb2ec4ce5d1583dcf7274d",
     "src/evaluationActivity.ts": "3d22c1607284ea77b4696649b7dfe6027b9f603791fcf9455556e5bc42b16d26",
