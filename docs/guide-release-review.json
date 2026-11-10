@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T10:05:00.000Z",
-  "reason": "Reviewed disabled-by-default daily low-read QA Sparks Firebase profile source reconciliation into private Supabase staging; fail-closed incomplete snapshots, suspended and stale users, no wallet/QA mutations; guide unchanged.",
+  "reviewedAt": "2026-11-10T10:15:00.000Z",
+  "reason": "Reviewed secure daily Sparks roster reconciliation, complete-source and quota failure handling. Non-guide files vercel.json and Supabase Edge Functions are outside the manual hash index; production disabled until verification.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -731,9 +731,7 @@
     "src/SparksStandalone.tsx": "5841baa9781ac89f43395c4fb993000e48cd1940f38fc67a70862932fe5230e9",
     "scripts/test-sparks-standalone.mjs": "683e34c4fb57b0bfc534ad8ae1f50691e220b3e9bd8ca4d506fde5acf3f277b2",
     "server/sparksProfileReconcile.js": "75c3375fa25e64c25629a1f27995c2182954b5b47352d727df0868225f77e85f",
-    "supabase/functions/qa-sparks-profile-reconcile/index.ts": "d2d8f64f1cdedb0768b0c90958862270b44b8d2768daae430c3e6db38cde164e",
     "api/cron/sparks-profile-reconcile.js": "5ebdc742bb08f93fa339b9b198d2c896008da601f95d457127656355a0a5b916",
-    "vercel.json": "1672b8e3172b2c98a91b95a1e724d55eefc2789e941d00e8c9482479c76e6691",
     "scripts/test-sparks-profile-reconcile.mjs": "bc697cd66817fc82772f3aafe31c16f38351d7f2926cdaa56ac9ddef6049e865"
   }
 }
