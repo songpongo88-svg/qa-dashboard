@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T11:06:00.000Z",
-  "reason": "Reviewed QA Sparks hybrid Production owner email login: signed Supabase session/active profile bypasses Firestore quota only for verified requests; existing QA Dashboard and other staff logins unchanged, no source or score migration; security tests for forged and mismatched actors.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-11-10T13:57:00.000Z",
+  "reason": "Reviewed urgent Firefox quota-safe local QA evaluation Draft JSON and Excel export, voice/data retention and non-submitted warnings; updated the Evaluation guide without changing historical scores.",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "evaluation"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf",
@@ -108,7 +110,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "120c4e2415bc1c0072754c2d0b27389800aec5ee81fe0a0e619f69cf796630c0",
+    "package.json": "d136c0002e2c78a96ffbc45907c9d5560e4df56296b4424311d82dcaf18dab46",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -446,7 +448,7 @@
     "src/CoachingMockup.tsx": "6239dfc59b9996b7fd749e69800775866c42b9a36268436db0b03f914f0f41e2",
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
-    "src/CreateEvaluationMockup.tsx": "dd73d1538ed9e242b8f5e75a66c0a4ca8ce4d335547104b6f94de01416a0fc8f",
+    "src/CreateEvaluationMockup.tsx": "777dd78beb3fdcedc98c25881f6ec92b596eacc3c247fbbabf3538f94e333e4f",
     "src/DailyCheckinQuest.tsx": "5ef043ebd1b048e26769ef5825f3f67454787b7525f0a338d5f61c2997e9bf27",
     "src/DashboardMockup.tsx": "0e9a98048d627744064e9b9b276a10efba130634b7e9161d985db6d2c282aa19",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
@@ -587,7 +589,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "54d4cc786d50760a9057e391a5f0d5201f84a4f3e01843f95e635b5d8792dace",
+    "src/knowledge/manual.json": "74e962b34fb4d4441e5861580489268dce4353e2a0296057a5c2213424af323e",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -733,6 +735,8 @@
     "server/sparksProfileReconcile.js": "75c3375fa25e64c25629a1f27995c2182954b5b47352d727df0868225f77e85f",
     "api/cron/sparks-profile-reconcile.js": "5ebdc742bb08f93fa339b9b198d2c896008da601f95d457127656355a0a5b916",
     "scripts/test-sparks-profile-reconcile.mjs": "bc697cd66817fc82772f3aafe31c16f38351d7f2926cdaa56ac9ddef6049e865",
-    "scripts/test-sparks-hybrid-owner.mjs": "1ef223f17f8932a31aa7f0665859d32988c48b75793eca83abbb93dff7fcefef"
+    "scripts/test-sparks-hybrid-owner.mjs": "1ef223f17f8932a31aa7f0665859d32988c48b75793eca83abbb93dff7fcefef",
+    "src/lib/evaluation/draftBackup.ts": "32c0d6692a73f16b74c448f5e8d2a05759f65a7a3653a4446bec955b29ea5de2",
+    "scripts/test-qa-emergency-draft-export.mjs": "7707f5f194da2de2a3a1d0681ab7a6fb0f7265fa4b79f6c14a412faee00fbe7d"
   }
 }
