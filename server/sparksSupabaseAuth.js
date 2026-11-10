@@ -154,3 +154,15 @@ export async function sparksActiveProfile(username) {
   if (!target) throw failure("บัญชีนี้ไม่มีสิทธิ์ใช้ Sparks หรือข้อมูลยังไม่อัปเดต", 403);
   return target;
 }
+
+export async function sparksProfileSyncStatus() {
+  const actor=await getSparksRequestActor();
+  if(actor.username!=="songpon"||actor.role!=="Quality Assurance")
+    throw failure("Sparks reconciliation status requires QA Owner access",403);
+  const token=context.getStore()?.accessToken;
+  const rows=await supabase("/rest/v1/rpc/sparks_profile_sync_status_v1",{
+    jwt:token,method:"POST",body:{},
+  });
+  if(!Array.isArray(rows)||rows.length!==1)throw failure("Sync status unavailable",503);
+  return rows[0];
+}
