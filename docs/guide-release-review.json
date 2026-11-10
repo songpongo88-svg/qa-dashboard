@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T06:35:00.000Z",
-  "reason": "Reviewed Sparks Admin signed read-only Firebase quota fallback; existing QA authorization is required for all writes, with no guide content change.",
+  "reviewedAt": "2026-11-10T06:42:00.000Z",
+  "reason": "Reviewed Sparks Admin read-only quota fallback with full signed token and mutation-rejection test coverage; user guide content unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -108,7 +108,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "35af8b9a1c8e3f6a060cf680f9b3c96942bda0bdbd913787b67fe0fe0887ad39",
+    "package.json": "f5356a98b478e70720649a3e2184330ffef9a2ce64fa2ff0fbde77558e10a02f",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -720,6 +720,7 @@
     "scripts/test-sparks-wallet-read-grant.mjs": "f9216bc5ee4a06ec05381c7320e862e545363fc291c76a9453d55391880ef589",
     "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217",
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
-    "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4"
+    "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4",
+    "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a"
   }
 }
