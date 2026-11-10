@@ -23,9 +23,18 @@ export default function SparksEmailAuth({ username, onVerified }:{
   const [code,setCode]=useState("");
   const [sent,setSent]=useState(false);
   const [rateLimited,setRateLimited]=useState(false);
+  const [retrySeconds,setRetrySeconds]=useState(0);
   const [busy,setBusy]=useState(true);
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
+
+  // The cooldown prevents repeated email sends; it does not guarantee that
+  // the Supabase project-wide SMTP limit has recovered.
+  useEffect(()=>{
+    if(retrySeconds<=0)return;
+    const timer=window.setTimeout(()=>setRetrySeconds(seconds=>Math.max(0,seconds-1)),1000);
+    return()=>window.clearTimeout(timer);
+  },[retrySeconds]);
 
   async function exchange(tokens: { access_token?: string; refresh_token?: string; expires_in?:number }) {
     if (!tokens.access_token || !tokens.refresh_token) throw Error("ไม่พบข้อมูลยืนยันตัวตนจากอีเมล");
@@ -74,7 +83,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
     // The currently signed-in QA username is the only permitted subject.
   },[username]);
   const send=async(event:React.FormEvent)=>{
-    event.preventDefault();if(busy)return;
+    event.preventDefault();if(busy||retrySeconds>0)return;
     setBusy(true);setError("");setMessage("");
     try {
       const address=email.trim().toLowerCase();
@@ -86,15 +95,16 @@ export default function SparksEmailAuth({ username, onVerified }:{
         email:address,create_user:true,
       });
       setPendingEmail(address);setSent(true);setCode("");
-      setMessage("ส่งรหัสยืนยันแล้ว เปิดอีเมลเพื่อดูรหัสและกลับมากรอกในแท็บ QA Sparks นี้ได้เลย");
+      setRateLimited(false);setRetrySeconds(0);
+      setMessage("ส่งคำขอรหัส OTP ใหม่แล้ว กรุณาตรวจอีเมลฉบับล่าสุด แล้วกรอกรหัสในแท็บ QA Sparks นี้");
     }catch(e){
       const detail=e instanceof Error?e.message:"ส่งอีเมลไม่สำเร็จ";
+      // Never request an old code after the user asks for a fresh OTP.
+      // A rejected send must not display a verification field for an unsent code.
+      setSent(false);setPendingEmail("");setCode("");
       if(/email rate limit exceeded|over_email_send_rate_limit|too many requests/i.test(detail)){
-        // The provider rejected the new email; a previous, unexpired OTP may still work.
-        // Keep the verification field available without attempting another email send.
-        setPendingEmail(email.trim().toLowerCase());
-        setRateLimited(true);
-        setError("Supabase ยังไม่อนุญาตให้ส่งอีเมล OTP ใหม่ หากมีรหัสจากอีเมลฉบับก่อนหน้าที่ยังไม่หมดอายุ สามารถกรอกด้านล่างได้เลย หากไม่มีรหัสหรือรหัสหมดอายุ ให้รอโควตาส่งอีเมลกลับมาก่อน");
+        setRateLimited(true);setRetrySeconds(60);
+        setError("Supabase จำกัดการส่งอีเมล OTP จึงยังส่งรหัสใหม่ไม่ได้ กรุณาลองกดส่งรหัสใหม่เมื่อระบบอนุญาต หรือให้ผู้ดูแลตั้งค่า Custom SMTP เพื่อรองรับการส่งอีเมล");
       }else setError(detail);
     }
     finally{setBusy(false);}
@@ -120,13 +130,11 @@ export default function SparksEmailAuth({ username, onVerified }:{
       <form onSubmit={send}>
         <label htmlFor="sparks-auth-email">อีเมลที่ลงทะเบียนกับ QA Dashboard</label>
         <input id="sparks-auth-email" type="email" required autoComplete="email" value={email}
-          disabled={busy||rateLimited||sent} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/>
-        <button type="submit" disabled={busy||rateLimited}>{busy?"กำลังตรวจสอบ...":rateLimited?"จำกัดการส่งอีเมลชั่วคราว":sent?"ส่งรหัสใหม่":"ส่งรหัสยืนยัน"}</button>
+          disabled={busy||sent} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/>
+        <button type="submit" disabled={busy||retrySeconds>0}>{busy?"กำลังส่งรหัส...":retrySeconds>0?`ลองส่งรหัสใหม่ได้อีกครั้งใน ${retrySeconds} วินาที`:sent||rateLimited?"ส่งรหัสใหม่":"ส่งรหัสยืนยัน"}</button>
       </form>
-      {(sent || rateLimited) && <form onSubmit={verify} data-sparks-otp-in-place="true">
-        <p className="sparks-email-auth-step-hint">{rateLimited
-          ? "ระบบไม่ได้ส่งอีเมลฉบับใหม่ แต่สามารถใช้รหัสจากอีเมลล่าสุดได้ หากรหัสนั้นยังไม่หมดอายุ"
-          : "เปิดอีเมลเพื่อดูรหัส แล้วกลับมากรอกในหน้า QA Sparks นี้ ไม่ต้องกดลิงก์เข้าสู่เว็บไซต์อื่น"}</p>
+      {sent && <form onSubmit={verify} data-sparks-otp-in-place="true">
+        <p className="sparks-email-auth-step-hint">เปิดอีเมลฉบับใหม่เพื่อดูรหัส แล้วกลับมากรอกในหน้า QA Sparks นี้ ไม่ต้องกดลิงก์เข้าสู่เว็บไซต์อื่น</p>
         <label htmlFor="sparks-auth-code">รหัสยืนยันจากอีเมล (6–8 หลัก)</label>
         <input id="sparks-auth-code" inputMode="numeric" maxLength={8} pattern="[0-9]{6,8}" autoComplete="one-time-code" required value={code}
           disabled={busy} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,8))} placeholder="กรอกรหัสยืนยัน"/>
@@ -134,7 +142,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
         <button className="sparks-email-auth-secondary" type="button" disabled={busy}
           onClick={()=>{setSent(false);setRateLimited(false);setPendingEmail("");setEmail("");setCode("");setMessage("");setError("");}}>เปลี่ยนอีเมล</button>
       </form>}
-      {rateLimited && <p className="sparks-email-auth-step-hint" role="status">หากยังไม่มีรหัสที่ใช้ได้ กรุณารอให้ Supabase อนุญาตส่งอีเมลอีกครั้ง แล้วเปิดหน้า QA Sparks ใหม่เพื่อขอรหัส ไม่จำเป็นต้องกดส่งซ้ำต่อเนื่อง</p>}
+      {rateLimited && <p className="sparks-email-auth-step-hint" role="status">ครั้งนี้ยังไม่มี OTP ใหม่ถูกส่ง เมื่อครบเวลาพักการส่ง สามารถกดส่งรหัสใหม่อีกครั้งได้โดยไม่ต้องเปลี่ยนแท็บ ทั้งนี้ขึ้นอยู่กับโควตา Supabase</p>}
       {message && <p role="status" className="sparks-email-auth-message">{message}</p>}
       {error && <p role="alert" className="sparks-email-auth-error">{error}</p>}
       <small>เข้าได้เฉพาะบัญชีที่ยืนยันอีเมลแล้วและมีสถานะ Active ในข้อมูลพนักงานที่อัปเดตล่าสุด หากข้อมูลรายชื่อยังไม่ได้ซิงก์ ระบบจะปฏิเสธการเข้าใช้โดยไม่แก้ไขคะแนน</small>
