@@ -5,7 +5,7 @@ import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
 const qaDashboardUrl = "/?tab=dashboard";
 export default function SparksStandalone() {
   const [actor, setActor] = useState<SparksVerifiedActor|null>(null);
-  const enabled = import.meta.env?.VITE_SPARKS_AUTH_MODE === "supabase";
+  const enabled = ["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE || ""));
   if (!enabled) return <main style={{maxWidth:600,margin:"70px auto",padding:24}}>
     <h2>QA Sparks</h2>
     <p>ทางเข้าผ่านอีเมลยังไม่ได้เปิดใช้งานบนเว็บไซต์นี้</p>
