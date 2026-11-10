@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS qa_failover_v1.outbox (
   source_base_hash text,
   record jsonb NOT NULL,
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','in_flight','synced','conflict')),
+  claimed_at timestamptz,
+  attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
   created_at timestamptz NOT NULL DEFAULT now(),
   synced_at timestamptz,
   remote_revision text,
