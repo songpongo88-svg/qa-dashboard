@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T16:12:00.000Z",
-  "reason": "Reviewed QA-only failover policy and syntax-test insertion before Vercel build, with no user-facing UI changes or Sparks modifications; Production disabled.",
+  "reviewedAt": "2026-11-10T16:55:00.000Z",
+  "reason": "Rechecked additive local-only PostgreSQL standby schema, access-controlled read API, version-protected outbox, preview test syntax and monthly QA safety; no user-facing guide changes or QA Sparks modifications.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -108,7 +108,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "52708ae4596510cb7a024bb28199f7a89dbdbc58812cd0049736662071883509",
+    "package.json": "df9e9ba143c5f35a88a6d1afa8c1c9b3ec8e0ca8a9bb9210e8056e3875b3bdc4",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -724,7 +724,7 @@
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
     "api/qa-local-diagnostics.js": "85c6d43364436fd189e91991be1b64584e1fad29d9f468d19ff726c1f9c540d6",
     "scripts/test-qa-local-diagnostics.mjs": "fdedfcc1e94e478f672c8df65a86c2d371862d7bf5f84768223079b74993a3b9",
-    ".github/workflows/qa-postgres-preview-safety.yml": "fe5b23f6445a77aaa847eb3e9245e69e18498269af491547986caaa60210db45",
+    ".github/workflows/qa-postgres-preview-safety.yml": "e1404cf53d2b77dd759fc5b1627efd4402b0d3031b9e96bb7e3402cc16549e01",
     "server/qaCutoverWritePolicy.js": "80ea6e4e6a402a9dcc955a4588cc9a7286d40a62c3592b33d0f59c12433cbd1a",
     "scripts/test-qa-postgres-write-policy.mjs": "9c4a0ba95d56a7724114803116298689bc0cb08d34f003d30fa0a5e43f2ce825",
     "server/qaCutoverPgWriter.js": "6ce0cc477af2008f8e0613248a05a77bd29247b0ebb8f652ce34a08981181384",
@@ -741,6 +741,8 @@
     "server/qaStandbyPgJournal.js": "f1cc7f49434ae91501942f7ddc3b4ee40435b3a489db52e9f2bc7ae1b9c7054b",
     "scripts/test-qa-standby-journal-integration.mjs": "4b92143231416a77b162a648e96a5a1a43af1b2f3546efd8b11a9ff06615df3f",
     "server/qaStandbyReplayWorker.js": "40e252c391561f811fc0bfd501efae3e999f121a5b09da72c4beb47171765432",
-    "scripts/test-qa-standby-replay-integration.mjs": "de7a0fa23467f87bbb8d668d628b76eb0fa341e0205a98906e5daa8a58137891"
+    "scripts/test-qa-standby-replay-integration.mjs": "de7a0fa23467f87bbb8d668d628b76eb0fa341e0205a98906e5daa8a58137891",
+    "server/qaStandbyRead.js": "b738a4b5458a8f50eb175cc8b2f6e1afde6e78a956472ab1db3d45e5819d8d7b",
+    "scripts/test-qa-standby-read-integration.mjs": "d42b325ac8c9c8bbdb60f9571f70fa8d113b5a3e963a509e45e87e18002dd813"
   }
 }
