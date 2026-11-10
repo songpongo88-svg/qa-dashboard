@@ -16,7 +16,7 @@ function cleanUsers(users) {
   const normalized = [];
   for (const user of users) {
     const username = String(user?.username || "").trim().toLowerCase();
-    if (!/^[a-z0-9_-]{1,128}$/.test(username) || seen.has(username)) return null;
+    if (!username || username.length > 100 || /[\\/\\\\\u0000-\u001f]/.test(username) || seen.has(username)) return null;
     if (String(user?.status || "").toLowerCase() === "suspended") return null;
     seen.add(username);
     normalized.push({
