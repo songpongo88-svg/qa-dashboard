@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T00:52:00.000Z",
-  "reason": "Sparks-only onboarding: after email verification or entering the authenticated Sparks tab, offer first-use Fruit Card exactly once even to accounts with no existing wallet, including standalone entry. Do not request first-login rewards on generic QA Dashboard login or create 0-point wallets. No change to QA scores, existing Sparks ledger, T&C or guide content.",
+  "reviewedAt": "2026-11-11T02:05:00.000Z",
+  "reason": "QA Sparks Typing Relief new-purchase promotion: 70% off 150 Sparks = 45 Sparks from 11 Nov 2026 through 15 Jan 2027 23:59:59 Asia/Bangkok. Shared checkout/UI pricing, enforce expected price server-side against clock changes, preserve previous redemptions and 60% word reduction/10-item limit. No change to QA evaluations, existing wallets, or guide content.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -26,7 +26,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "a4cd2287b28608441aad5134c02c83df0e3b55f3e9f1c89ed684ebf52104c008",
+    "api/sparks-admin.js": "1825298fb1703630e4ed0e3abc24980eb1f045d829d042d5d0793cf58cbbdfee",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
@@ -379,7 +379,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "63b8347872729693c32e3bdf63423376d197e37a951f2bfb6e201eac60e15efd",
     "scripts/test-qa-sparks-mini-inventory.mjs": "e9de39496de9b1ec32040c36ef1243f3b388944444c427f298bb192e7cb0e328",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "d509ebda52c83dfe640e848a942d152f542609761d7902c9d220cacf8416be65",
+    "scripts/test-qa-sparks-ui.mjs": "4ab94b7f02245aa275a40d7bdee8018f8584aa3dc586cf8a812b9f300171eb10",
     "scripts/test-qa-typing-gate.mjs": "5b9e984a83d0bcf8d1f2f127641f714ef80ab1e685746afb7a3471edd5a913a4",
     "scripts/test-receipt-first-ui.mjs": "bf9463f341f0653be65b08e4bcd98cc0bdb52a16eecd73bbf0990b989a7e6dd2",
     "scripts/test-receipt-recognition.mjs": "e8aed5e833a39162b060a5d2356e07b8bfdfe42964e467f3606605b7cf40eebe",
@@ -407,7 +407,7 @@
     "scripts/test-theme-preference.mjs": "36c3d2dc3f051154af017dd71ce38f6b0d60971c2726cc51f4ae2196d724b619",
     "scripts/test-theme-preview.mjs": "92abb82b87cffe7d9ddd03fd4590d7a594e944c0778971d63cefb84a79eed183",
     "scripts/test-truemoney-tracker-confirm-ui.mjs": "1fb9f5918f10d72da1a0e32170f4f1deabb871632b13d8cf5c792656496dcfa0",
-    "scripts/test-typing-relief-reward.mjs": "6a1216667b0988ebb47454a3ca0e101180bf5bbb406edc386bec3d55fe4ddecb",
+    "scripts/test-typing-relief-reward.mjs": "7f6131f39355630542a9a63e697458c667cdd3b2012ab40d810ce55b3d404748",
     "scripts/test-weather.mjs": "ffb76c90058f2f1fafd785fafbb29f290a6f7a86706d65bc0096817805bf1f94",
     "scripts/test-weekday-collection.mjs": "3dde89715a982b1ffcad591b5e96b223a6572318ebfb2598d9251f281096868e",
     "scripts/test-weekday-ui.mjs": "0eb3d61f10a30b428fc9976fcc57512ee90555227c6d8bea671d539f077e2375",
@@ -503,7 +503,7 @@
     "src/TrainingAttendanceMockup.tsx": "ee06591f02edb8b914af12503b4f5bfb519ca33fa4233174e7916ea5711295ea",
     "src/TrueMoneyReward.tsx": "e92dc47a0c6785b8adde4c8c995e87fd92928a84d6937cde58d76ac37830887e",
     "src/TrueMoneyTracker.tsx": "8c5d6232aad815afc2be606c778d3bea5f486decb43b15a37ed3cc3bd2ef7fae",
-    "src/TypingReliefRewardCard.tsx": "43588f3702076dd0aa4957a0c9c18cef280b9a5af7f2750952c46754ce4ad3c9",
+    "src/TypingReliefRewardCard.tsx": "2df7a98364ceb78e94b492753935f041caf813843159065431972b83dd1b4476",
     "src/UsageLogMockup.tsx": "7c26f15c9b9db69e1f6037bebde934ba3c490db98d8ba6071362bc91a9d89e0b",
     "src/UserRoleAdminMockup.tsx": "4ea7d388d6e2c44d46e62fb23390fed6790f88ad51154fd2d28d8771b5de33f1",
     "src/VoiceRecordingPlayer.tsx": "a8a8189ce69706ae64dfa8440f717195ba942cead346930cd3410ea51593b630",
@@ -647,7 +647,7 @@
     "src/profilePhotoStore.ts": "f0931b3c248e5268705f879789430a2d0e312159868347d33968d7dfdc5694d9",
     "src/qaEvaluationProgressStore.ts": "e5af6abcdacac6b56e237471340e38235fada978a8f23907183cb81fac7dbc1c",
     "src/qaLottery.css": "badb5ac828881f136ba62cac0a9382f54b234f40b8d10d6437d8a53592cbb8f9",
-    "src/qaSparks.css": "792a2992a240bb43bcd63eb4726f85926c64c8d395941d40f23db43c56f37dd0",
+    "src/qaSparks.css": "55aa149e24a6fef3cf34224a963b16b6a4b01cba379e89efaa774e655d3dbc23",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "327c9a284b38b1fc20c1251e7abecf4a166d5e41876df4a316f1b6b59eadad18",
@@ -686,7 +686,7 @@
     "src/stickyNoteStore.ts": "fb848e980df87ae2703d780c626af8021114f9526f36e53001af67e2fcd13e9d",
     "src/themePickerCollections.css": "20f6d688f15390c881ca8b6937368f9632e7f164711e4a2c81ac5ff9fe6a9b23",
     "src/themePreview.mjs": "50b6ff6682329e5c0d6e37c9b2ed675ac836cc6465ab1110565cf699d27ecc38",
-    "src/typingReliefReward.ts": "c38ea006da70964da36fb98bb9bdf9dff8c306de1abb41ac6b61214bc27a6e40",
+    "src/typingReliefReward.ts": "809e9f171f612de51a0d8973ccff9093d56409b13a0c68f523de3307bef85326",
     "src/usageLog.ts": "14c9b5807a96472a230902476c1e55345765b47d3a90bb110672b784f6b108c6",
     "src/useCoachingProfilePhotos.ts": "fbd6a8ba338bf6a03b31e2bf9a7ca3d7414018dbf8224a71577b17f145b9afb6",
     "src/useDashboardAutoRefresh.ts": "b56a57e9e9bce537aeabbf20e4cf1a688ce63300ce15f9e060656c0d6e8cbf22",
@@ -735,6 +735,7 @@
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
     "scripts/test-sparks-hybrid-owner.mjs": "232ee3768dab101cbdb0a51aedea33ec6578419db3f7b99627f41421639db121",
     "src/lib/evaluation/draftBackup.ts": "32c0d6692a73f16b74c448f5e8d2a05759f65a7a3653a4446bec955b29ea5de2",
-    "scripts/test-qa-emergency-draft-export.mjs": "7707f5f194da2de2a3a1d0681ab7a6fb0f7265fa4b79f6c14a412faee00fbe7d"
+    "scripts/test-qa-emergency-draft-export.mjs": "7707f5f194da2de2a3a1d0681ab7a6fb0f7265fa4b79f6c14a412faee00fbe7d",
+    "src/typingReliefPricing.mjs": "1b01a39b16ae2b10e4740ea9101478ae5b9c72d24630b73b4e2151b740c96a4c"
   }
 }

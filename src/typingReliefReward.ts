@@ -46,7 +46,7 @@ export async function typingReliefAction(
   action: "redeem-typing-relief" | "use-typing-relief",
   username: string,
   sessionId: string,
-  input: { requestId?: string; challengeId?: string } = {},
+  input: { requestId?: string; challengeId?: string; expectedPrice?: number } = {},
 ): Promise<TypingReliefResult> {
   if (!username || !sessionId) throw new Error("กรุณา Login QA Dashboard ก่อนใช้ Sparks");
   const response = await fetch("/api/sparks-admin", {

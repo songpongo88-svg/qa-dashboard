@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import React, { act } from "react";
 import { JSDOM } from "jsdom";
+import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
 
 await mkdir(resolve("node_modules/.cache"), {recursive:true});
 const folder=await mkdtemp(resolve("node_modules/.cache/qa-sparks-ui-"));
@@ -164,7 +165,9 @@ try{
   assert.ok(item, "Typing Relief must be a collectible clickable Item");
   assert.equal(item.tagName, "BUTTON", "whole Item must be clickable");
   assert.equal(item.getAttribute("aria-haspopup"), "dialog");
-  assert.ok(item.textContent.includes("Typing Relief") && item.textContent.includes("150"), "compact Item shows title and price");
+  const typingPrice = getTypingReliefPricing(Date.now());
+  assert.ok(item.textContent.includes("Typing Relief") && item.textContent.includes(String(typingPrice.price)), "compact Item shows live server-contracted price");
+  if (typingPrice.promoActive) assert.ok(item.textContent.includes("ลด 70%"),"compact Item clearly marks new-purchase sale");
   assert.ok(!item.textContent.includes("ดูรายละเอียด"), "Item surface is image + name + price, details are in the popup");
   assert.ok(item.classList.contains("qa-sparks-mini-item"), "Typing Relief is rendered as a compact game slot");
   assert.ok(item.querySelector(".qa-sparks-mini-art"), "Typing Relief has a dedicated mini artwork square");
@@ -181,7 +184,15 @@ try{
   assert.ok(!detail.textContent.includes("วิธีใช้งาน Item"), "how-to steps are exclusive to owned Items");
   assert.ok(detail.textContent.includes("เงื่อนไขสำคัญ"), "reward rules belong inside the Detail modal");
   assert.ok(detail.textContent.includes("สะสมสิทธิ์ที่ยังไม่ได้ใช้ได้สูงสุด 10 สิทธิ์"), "10-ticket limit remains in product terms");
-  assert.ok(detail.textContent.includes("150"), "the detail shows the actual purchase price");
+  assert.ok(detail.textContent.includes(String(typingPrice.price)), "the detail shows the current purchase price");
+  if (typingPrice.promoActive) {
+    const sale = detail.querySelector('[data-typing-relief-promo="70"]');
+    assert.ok(sale && sale.textContent.includes("15 มกราคม 2027"),"promotion cutoff must be visible");
+    assert.ok(detail.querySelector(".qa-relief-original-price")?.textContent.includes("150"),"old price must be struck through");
+  } else {
+    assert.equal(detail.querySelector('[data-typing-relief-promo="70"]'),null,
+      "expired promotion must disappear automatically");
+  }
   assert.ok(detail.textContent.includes("100") && detail.textContent.includes("40"), "the detail provides a 100-to-40 example");
   assert.ok(detail.textContent.includes("Word Mode"), "the reward's Word Mode restriction is explained");
   assert.ok(detail.textContent.includes("60%"), "Typing Relief must state a percentage, not a fixed 60 words");
