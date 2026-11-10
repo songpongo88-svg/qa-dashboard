@@ -32,6 +32,7 @@ import {
 } from "./lib/rubricVersions";
 import { buildDeductionAnalysis, topicScoreForDate, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
 import { readDraftQueue, writeDraftQueue } from "./lib/evaluation/draftPersistence";
+import { makeQaDraftBackup, makeQaDraftBackupFilename } from "./lib/evaluation/draftBackup";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
@@ -1468,6 +1469,93 @@ export default function CreateEvaluationMockup({
     const sortedDrafts = sortDrafts(nextDrafts.map(normalizeDraft));
     await writeDraftQueue(sortedDrafts);
     setDraftInbox(sortedDrafts);
+  }
+
+  function downloadPrivateJsonBackup(payload: unknown, fileName: string) {
+    // Use a local Blob only; QA case details never leave the browser.
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function backupAllLocalDrafts() {
+    try {
+      const drafts = await readDraftQueue<EvaluationDraft>();
+      const at = new Date();
+      const payload = makeQaDraftBackup(drafts, currentUser?.username || "", at);
+      downloadPrivateJsonBackup(payload, makeQaDraftBackupFilename(currentUser?.username || "", at));
+      setDraftMessage(`สำรอง Draft ${drafts.length} เคสเป็นไฟล์ JSON แล้ว • ไฟล์นี้มีข้อมูลส่วนบุคคล กรุณาเก็บไว้ในเครื่องที่ปลอดภัย • ยังไม่ใช่การ Submit เข้าระบบ`);
+    } catch (error) {
+      setDraftMessage(error instanceof Error ? error.message : "สำรอง Draft ไม่สำเร็จ");
+    }
+  }
+
+  async function exportAllLocalDraftsExcel() {
+    try {
+      // Read IndexedDB again; never export an incomplete in-memory React state.
+      const drafts = await readDraftQueue<EvaluationDraft>();
+      if (!drafts.length) throw new Error("ไม่พบ Draft สำหรับส่งออก Excel");
+      const time = new Date();
+      const summary: Record<string, string | number>[] = [];
+      const topics: Record<string, string | number>[] = [];
+      for (const draft of drafts) {
+        const rubric = getRubricForDate(draft.auditDate);
+        const topicRows = rubric.topics.map((topic) => {
+          const state = draft.topicState?.[topic.code];
+          return {
+            "Case ID": draft.caseId || "",
+            "Agent": draft.agentName || "",
+            "Audit Date": draft.auditDate || "",
+            "Topic": topic.code,
+            "Topic Name": topic.title || "",
+            "Score": Number(topicScoreForDate(topic, state?.score ?? null, draft.auditDate, state?.deductions) || 0),
+            "Comment": String(state?.reason || "").slice(0, 30000),
+            "Issue Tags": (state?.issueTags || []).join(", "),
+            "Deductions": JSON.stringify(state?.deductions || []).slice(0, 30000),
+            "Status": "LOCAL DRAFT — NOT SUBMITTED",
+          };
+        });
+        topics.push(...topicRows);
+        const score = draft.criticalError ? 0 : topicRows.reduce((sum, row) => sum + Number(row.Score), 0);
+        summary.push({
+          "Case ID": draft.caseId || "",
+          "Agent": draft.agentName || "",
+          "Audit Date": draft.auditDate || "",
+          "Saved At": draft.savedAt || "",
+          "Draft ID": draft.draftId || "",
+          "Final Score (Draft)": score,
+          "Max Score": rubric.totalScore,
+          "Critical Error": draft.criticalError ? "Yes" : "No",
+          "Inquiry": String(draft.inquiry || "").slice(0, 30000),
+          "Case Description": String(draft.caseDescription || "").slice(0, 30000),
+          "Process": String(draft.processReference || "").slice(0, 30000),
+          "Waiting Time": draft.waitingTime || "",
+          "Service Time": draft.serviceTime || "",
+          "Case URL": draft.caseUrl || "",
+          "Evidence URLs": (draft.evidenceFiles || []).map((file) => file.storedUrl).filter(Boolean).join("; ").slice(0, 30000),
+          "Audio Entries": (draft.callLogs || []).length,
+          "Status": "LOCAL DRAFT — NOT SUBMITTED",
+        });
+      }
+      const workbook = XLSX.utils.book_new();
+      const summarySheet = XLSX.utils.json_to_sheet(summary);
+      summarySheet["!cols"] = [{ wch: 20 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 18 }];
+      const topicSheet = XLSX.utils.json_to_sheet(topics);
+      topicSheet["!cols"] = [{ wch: 20 }, { wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 36 }, { wch: 12 }, { wch: 65 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, "Draft Summary");
+      XLSX.utils.book_append_sheet(workbook, topicSheet, "Topic Details");
+      downloadWorkbook(workbook, `QA_Local_Draft_Summary_${time.toISOString().slice(0, 10)}.xlsx`);
+      setDraftMessage(`ส่งออก Excel สรุป Draft ${drafts.length} เคสแล้ว • ไฟล์นี้ยังไม่ใช่ผลประเมินที่ Submit เข้าระบบกลาง • เก็บ JSON สำรองด้วยเพื่อรักษาข้อมูลต้นฉบับ`);
+    } catch (error) {
+      setDraftMessage(error instanceof Error ? error.message : "ส่งออก Excel ไม่สำเร็จ");
+    }
   }
 
   async function openDraftQueue() {
@@ -3148,12 +3236,21 @@ export default function CreateEvaluationMockup({
                 <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
                   Back to Form
                 </button>
+                <button type="button" onClick={() => { void backupAllLocalDrafts(); }} disabled={draftQueueLoading || !draftInbox.length} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20 disabled:opacity-50" title="Download private complete draft backup. This file contains sensitive QA case information.">
+                  Backup Draft JSON
+                </button>
+                <button type="button" onClick={() => { void exportAllLocalDraftsExcel(); }} disabled={draftQueueLoading || !draftInbox.length} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20 disabled:opacity-50" title="Export all locally saved draft scores and topic notes to Excel; not submitted.">
+                  Export Draft Excel
+                </button>
                 <button type="button" data-start-new-evaluation-from-draft="true" onClick={startNewEvaluationFromDraftQueue} disabled={Boolean(activeSubmittedRecordId)} title={activeSubmittedRecordId ? "กรุณา Cancel Edit ก่อนเริ่มเคสใหม่" : "เริ่มประเมินเคสใหม่โดยเก็บ Draft ที่บันทึกไว้ทั้งหมด"} className="rounded-xl border border-emerald-200 bg-emerald-500 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50">
                   New Evaluation
                 </button>
               </div>
             </div>
             <div className="p-5">
+              <div role="note" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+                Firestore quota emergency: Drafts are saved only in this browser, not submitted centrally. Use Backup Draft JSON to keep a full private copy and Export Draft Excel for an offline work summary. Keep original pending attachments separately.
+              </div>
               {draftQueueLoading ? (
                 <div className="rounded-[20px] border border-sky-200 bg-sky-50 px-5 py-8 text-center text-sm font-semibold text-slate-700">Loading Saved Drafts...</div>
               ) : draftInbox.length ? (
