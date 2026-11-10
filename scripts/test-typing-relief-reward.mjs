@@ -5,6 +5,15 @@ process.env.SPARKS_CLOUD_READ_ONLY = "0";
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import handler from "../api/sparks-admin.js";
+import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
+
+// Pricing uses Bangkok boundaries, never the browser clock as the authority.
+assert.equal(getTypingReliefPricing(Date.parse("2026-11-10T23:59:59+07:00")).price,150);
+assert.equal(getTypingReliefPricing(Date.parse("2026-11-11T00:00:00+07:00")).price,45);
+assert.equal(getTypingReliefPricing(Date.parse("2027-01-15T23:59:59.999+07:00")).price,45);
+assert.equal(getTypingReliefPricing(Date.parse("2027-01-16T00:00:00+07:00")).price,150);
+assert.equal(getTypingReliefPricing(Number.NaN).price,150);
+const checkoutPrice = getTypingReliefPricing(Date.now()).price;
 
 const { privateKey } = generateKeyPairSync("rsa", {
   modulusLength: 2048,
@@ -93,7 +102,7 @@ const call = async (action, rest = {}, actorUsername = "Agent", id = sessionId) 
   await handler({ method: "POST", body: { action, actorUsername, sessionId: id, ...rest } }, res);
   return { status, data };
 };
-const buy = (ref) => call("redeem-typing-relief", { requestId: ref });
+const buy = (ref) => call("redeem-typing-relief", { requestId: ref, expectedPrice: checkoutPrice });
 const use = (challengeId) => call("use-typing-relief", { challengeId });
 const wallet = () => docs.get(key("qa_sparks_wallets", "agent"));
 const queue = () => docs.get(key("qa_typing_challenges", "agent")).queue;
@@ -103,18 +112,29 @@ try {
   const purchase1 = await buy("typing-relief-first-purchase-1234");
   assert.equal(purchase1.status, 200, JSON.stringify(purchase1.data));
   assert.equal(purchase1.data.owned, 1);
-  assert.equal(purchase1.data.balance, 50);
+  assert.equal(purchase1.data.balance, 200 - checkoutPrice);
+  assert.equal(purchase1.data.priceCharged, checkoutPrice);
   assert.equal(wallet().rewardOrders, 1);
-  assert.equal(wallet().totalSpent, 150);
-  assert.equal(history().find((x) => x.source === "reward-redemption")?.amount, -150);
+  assert.equal(wallet().totalSpent, checkoutPrice);
+  assert.equal(history().find((x) => x.source === "reward-redemption")?.amount, -checkoutPrice);
+  assert.equal(history().find((x) => x.source === "reward-redemption")?.priceDiscountPercent, checkoutPrice === 45 ? 70 : 0);
   const count1 = commits;
   const duplicateBuy = await buy("typing-relief-first-purchase-1234");
   assert.equal(duplicateBuy.status, 200);
   assert.equal(duplicateBuy.data.alreadyApplied, true);
   assert.equal(commits, count1, "purchase must be idempotent");
+  const validBalance = wallet().balance;
+  docs.set(key("qa_sparks_wallets", "agent"), { ...wallet(), balance: checkoutPrice - 1 });
   assert.equal((await buy("typing-relief-low-balance-1234")).status, 400);
-  assert.equal(wallet().balance, 50);
-  console.log("PASS typing reward price, historical ledger, insufficient balance and duplicate purchase protection");
+  assert.equal(wallet().balance, checkoutPrice - 1);
+  docs.set(key("qa_sparks_wallets", "agent"), { ...wallet(), balance: validBalance });
+  const staleQuote = await call("redeem-typing-relief", {
+    requestId: "typing-relief-stale-price-1234", expectedPrice: checkoutPrice === 45 ? 150 : 45,
+  });
+  assert.equal(staleQuote.status, 409, "a stale client quote must never silently overcharge or undercharge");
+  assert.equal(wallet().balance, validBalance);
+  assert.equal(wallet().typingReliefOwned, 1);
+  console.log("PASS Typing Relief 70% promo pricing, Bangkok midnight expiry, immutable ledger, stale-quote refusal and duplicate purchase protection");
 
   const used = await use("task-one");
   assert.equal(used.status, 200, JSON.stringify(used.data));
