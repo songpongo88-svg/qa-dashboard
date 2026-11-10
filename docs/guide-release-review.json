@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T07:30:00.000Z",
-  "reason": "Reviewed feature-flagged Sparks Supabase email onboarding pilot, separate QA Dashboard login, fail-closed stale profile identity and Admin authorization; production guide unchanged pending activation.",
+  "reviewedAt": "2026-11-10T07:53:00.000Z",
+  "reason": "Re-reviewed safe optional Vite env access for staged Sparks Supabase email login; no production guide content changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -724,7 +724,7 @@
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
     "api/sparks-auth.js": "e1ee721012f9dea13045cd60a9d5ae0ab073e7dc3924339d0dd466e3dc33463c",
     "server/sparksSupabaseAuth.js": "4302b98321bdb57c120e3132965192d381aa91b97565869de87d8910ae05b3b5",
-    "src/SparksEmailAuth.tsx": "bd814abd6664d3aa92ba600c78f68283838dec289ab4be1ed1a8b7aba1a7b12c",
+    "src/SparksEmailAuth.tsx": "7fe719b2ff179f4abc08e28efba75c6b6855a2e00d5b12adddc1a6ac1df799a0",
     "src/SparksEmailAuth.css": "78fe340a66bd3e9ddcab4c8295232607521438ed9fdf083c459b41d8d1c177c0",
     "scripts/test-sparks-email-auth.mjs": "77018da34a19ca9eb6a13c8cd899eac9daf8d0f0d73154e1deca085e69573639",
     "scripts/test-sparks-email-api.mjs": "cebebe5a0d6a0ea3ef62a73d73ae96d29d65737bc063bf26abb1318bb0a6c096"
