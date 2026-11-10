@@ -83,7 +83,11 @@ try {
   assert.match(qs,/username\.trim\(\)\.toLowerCase\(\) === "songpon"/);
   const site=readFileSync(new URL("../src/SparksStandalone.tsx",import.meta.url),"utf8");
   assert.match(site,/\["supabase","hybrid"\]/);
-  console.log("PASS Sparks hybrid owner: verified Supabase wallet and Admin without Firebase, forged/mismatched accounts denied, other Dashboard users unchanged");
+  assert.match(qs,/data-sparks-supabase-optin="true"/,"every QA employee may start Supabase login");
+  assert.match(qs,/emailOptedIn/,"hybrid mode supports non-owner email opt-in");
+  assert.match(qs,/data-sparks-legacy-fallback="true"/,"legacy path remains available until OTP is ready");
+  assert.match(qs,/qa:sparks:supabase-login:/,"browser remembers the selected login path per employee");
+    console.log("PASS Sparks hybrid owner: verified Supabase wallet and Admin without Firebase, forged/mismatched accounts denied, other Dashboard users unchanged");
 }finally {
   globalThis.fetch=oldFetch;
   for (const [name,value] of Object.entries(before)) {
