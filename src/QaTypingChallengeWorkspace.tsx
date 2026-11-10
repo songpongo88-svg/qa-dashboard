@@ -135,7 +135,7 @@ function downloadHistoryPdf(records: QaTypingChallengeHistoryRecord[], scopeLabe
       String(record.allowedMistakes),
       formatDuration(record.timeLimitSeconds),
       formatDuration(record.timeUsedSeconds),
-      record.result,
+      record.completionMethod==="auto-pass"?"Pass · Auto-Pass":record.result,
     ];
 
     setFont("normal");
@@ -488,13 +488,13 @@ export default function QaTypingChallengeWorkspace({
                           <td className="px-3 py-3"><div className="font-black text-slate-900">{record.displayName || record.username}</div><div className="text-[10px] font-semibold text-slate-400">@{record.username}</div></td>
                           <td className="px-3 py-3 text-sm font-black text-violet-700">{record.word}</td>
                           <td className="px-3 py-3 text-center font-black text-slate-700">{record.repeatCount}</td>
-                          <td className="px-3 py-3 text-center font-black text-slate-700">{record.typedCount}</td>
+                          <td className="px-3 py-3 text-center font-black text-slate-700">{record.typedCount}{record.completionMethod==="auto-pass"?<small className="block text-[9px] text-violet-700">ระบบนับให้ · พิมพ์จริง 0</small>:null}</td>
                           <td className="px-3 py-3 text-center font-black text-emerald-700">{record.correctCount}</td>
                           <td className="px-3 py-3 text-center font-black text-rose-600">{record.mistakeCount}</td>
                           <td className="px-3 py-3 text-center font-black text-slate-700">{record.allowedMistakes}</td>
                           <td className="px-3 py-3 text-center font-bold text-slate-600">{formatDuration(record.timeLimitSeconds)}</td>
                           <td className="px-3 py-3 text-center font-bold text-slate-600">{formatDuration(record.timeUsedSeconds)}</td>
-                          <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${historyResultClass(record.result)}`}>{record.result}</span></td>
+                          <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${historyResultClass(record.result)}`}>{record.result}{record.completionMethod==="auto-pass"?" · Auto-Pass":""}</span></td>
                         </tr>
                       ))
                     ) : (
