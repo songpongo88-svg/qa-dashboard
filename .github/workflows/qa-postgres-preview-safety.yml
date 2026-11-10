@@ -1,0 +1,85 @@
+name: QA PostgreSQL preview safety
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "api/qa-local-diagnostics.js"
+      - "scripts/test-qa-local-diagnostics.mjs"
+      - "server/qaCutoverWritePolicy.js"
+      - "scripts/test-qa-postgres-write-policy.mjs"
+      - "server/qaCutoverPgWriter.js"
+      - "scripts/test-qa-postgres-stage-writer.mjs"
+      - "scripts/test-qa-postgres-stage-integration.mjs"
+      - "server/qaCutoverSessionStore.js"
+      - "scripts/test-qa-postgres-session-integration.mjs"
+      - ".github/workflows/qa-postgres-preview-safety.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-bridge-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Syntax validation
+        run: |
+          node --check api/qa-local-diagnostics.js
+          node --check scripts/test-qa-local-diagnostics.mjs
+          node --check server/qaCutoverWritePolicy.js
+          node --check scripts/test-qa-postgres-write-policy.mjs
+          node --check server/qaCutoverPgWriter.js
+          node --check scripts/test-qa-postgres-stage-writer.mjs
+          node --check server/qaCutoverSessionStore.js
+          node --check scripts/test-qa-postgres-session-integration.mjs
+      - name: Run fail-closed safety tests
+        run: |
+          node scripts/test-qa-local-diagnostics.mjs
+          node scripts/test-qa-postgres-write-policy.mjs
+          node scripts/test-qa-postgres-stage-writer.mjs
+
+  ephemeral-postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: qa_cutover_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qa_cutover_ci_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      QA_PG_ISOLATED_TEST: "1"
+      QA_TEST_DATABASE_URL: "postgresql://postgres:fixture_only@127.0.0.1:5432/qa_cutover_ci_test"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Install isolated SQL driver
+        run: npm install --ignore-scripts --no-save --no-package-lock pg@8.16.3
+      - name: Real PostgreSQL transactional integration
+        run: |
+          node scripts/test-qa-postgres-stage-integration.mjs
+          node scripts/test-qa-postgres-session-integration.mjs
