@@ -9,7 +9,7 @@ import { createTypingReliefCloudService } from "../server/typingReliefCloudServi
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
-import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory } from "../server/sparksSupabaseAuth.js";
+import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -18,7 +18,10 @@ const DOCUMENTS_RESOURCE = "projects/" + FIRESTORE_PROJECT + "/databases/(defaul
 const API_ROOT = "https://firestore.googleapis.com/v1/" + DOCUMENTS_RESOURCE;
 const SESSION_POLICY = "qa-session-policy-2026-07-15-v1";
 const ADMIN_USERNAME = "songpon";
-const sparksEmailAuthEnabled = () => process.env.SPARKS_DATA_BACKEND === "supabase" && process.env.SPARKS_AUTH_MODE === "supabase";
+const sparksEmailAuthEnabled = () => process.env.SPARKS_DATA_BACKEND === "supabase" && (
+  process.env.SPARKS_AUTH_MODE === "supabase" ||
+  (process.env.SPARKS_AUTH_MODE === "hybrid" && hasSparksEmailAuthCookie())
+);
 const policyErrorCode = "SESSION_POLICY_OUTDATED";
 const TYPING_RELIEF_PRICE = 150;
 const TYPING_RELIEF_DISCOUNT_PERCENT = 60;

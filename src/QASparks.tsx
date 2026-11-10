@@ -45,9 +45,18 @@ function EmptyReward({ large = false }: { large?: boolean }) {
 }
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true, verifiedSparksActor = null }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean; verifiedSparksActor?: SparksVerifiedActor | null }) {
   const [view, setView] = useState<SparksView>("overview");
-  const emailAuthEnabled = import.meta.env?.VITE_SPARKS_AUTH_MODE === "supabase";
+  const emailAuthMode = String(import.meta.env?.VITE_SPARKS_AUTH_MODE || "legacy");
+  // Production rollout: only the existing QA Sparks owner is prompted for
+  // Supabase email verification. All other Dashboard users retain their
+  // previous QA sign-in and Sparks screens until email delivery is ready.
+  const emailAuthEnabled = emailAuthMode === "supabase" || (
+    emailAuthMode === "hybrid" && (
+      username.trim().toLowerCase() === "songpon" || Boolean(verifiedSparksActor)
+    )
+  );
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
   const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
+  const sparksSessionId = emailAuthEnabled ? "supabase-email-auth" : adminSessionId;
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
   const [itemClock,setItemClock] = useState(0);
   const [gamesOpened, setGamesOpened] = useState(false);
@@ -79,7 +88,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       if (!active || document.visibilityState === "hidden") return;
       const sequence = ++requestSequence.current;
       setLoading(true);
-      void getSparksAccount(username, { historyLimit, forceRefresh: force, sessionId: adminSessionId }).then((result) => {
+      void getSparksAccount(username, { historyLimit, forceRefresh: force, sessionId: sparksSessionId }).then((result) => {
         if (alive && sequence === requestSequence.current) { setAccount(result); setLastAccountUsername(username); setLastAccountLoadAt(new Date().toISOString()); setError(""); }
       }).catch((failure) => {
         if(alive && sequence===requestSequence.current){
@@ -103,7 +112,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     window.addEventListener("qa:sparks-updated", changed);
     window.addEventListener("focus", focused);
     return () => { alive = false; window.removeEventListener("qa:sparks-updated", changed); window.removeEventListener("focus", focused); };
-  }, [username, active, historyLimit, adminSessionId, retryTick, sparksAllowed]);
+  }, [username, active, historyLimit, sparksSessionId, retryTick, sparksAllowed]);
 
   // Local-only midnight rollover: do not poll Firestore or create quota pressure.
   // The next normal refresh loads the current year's actual wallet.
@@ -168,7 +177,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
                   <button type="button" data-sparks-back-to-games="true" onClick={()=>setGameMode(null)}>‹ กลับไปเลือกเกม</button>
                   <span>{gameMode==="snakes"?"บันไดงู Multiplayer":"Fruit Match"}</span>
                 </div>
-                {gameMode==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon" ? <SnakesLaddersGame privateTest key={username+":"+adminSessionId+":snakes"} username={username} sessionId={adminSessionId}/> : gameMode==="fruit" ? <FruitMatchGame key={username+":"+adminSessionId+":fruit"} username={username} sessionId={adminSessionId}/> : null}
+                {gameMode==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon" ? <SnakesLaddersGame privateTest key={username+":"+sparksSessionId+":snakes"} username={username} sessionId={sparksSessionId}/> : gameMode==="fruit" ? <FruitMatchGame key={username+":"+sparksSessionId+":fruit"} username={username} sessionId={sparksSessionId}/> : null}
               </>}
         </section> : null}
         {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username} balance={account.balance} rewardOrders={account.rewardOrders}/> : null}
@@ -176,15 +185,15 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
           <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>3 Quests</span></div>
           <div className="qa-sparks-mini-grid qa-sparks-quest-grid">
-            <DailyCheckinQuest username={username} sessionId={adminSessionId} claimedDays={account.dailyCheckinClaimedDays || []} loaded={walletLoaded}/>
+            <DailyCheckinQuest username={username} sessionId={sparksSessionId} claimedDays={account.dailyCheckinClaimedDays || []} loaded={walletLoaded}/>
             <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
-            <QALottery username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/>
+            <QALottery username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/>
           </div>
         </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
-          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={adminSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
+          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
-        </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={adminSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={adminSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={adminSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
+        </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
         : view === "items" ? <section className="qa-sparks-panel qa-sparks-single qa-sparks-items-panel" data-inventory-clock={itemClock}>
           <h2><SparksIcon name="package"/> My Items</h2>
           <p className="qa-sparks-items-description">เลือกดู Item ตามสถานะ โดยรายการที่ใช้แล้วหรือหมดอายุจะเก็บไว้ในประวัติ ไม่ลบข้อมูลย้อนหลัง</p>
@@ -201,14 +210,14 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
           <div className="qa-sparks-mini-grid qa-sparks-inventory-grid" data-item-shelf={itemShelf}>
             {itemShelf==="available"&&walletLoaded&&account.typingReliefOwned>0
-              ?<TypingReliefRewardCard mode="inventory" username={username} sessionId={adminSessionId}
+              ?<TypingReliefRewardCard mode="inventory" username={username} sessionId={sparksSessionId}
                   balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/>:null}
-            <AnnouncementShieldItem mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance} inventoryFilter={itemShelf}/>
-            <TrueMoneyReward mode="inventory" username={username} sessionId={adminSessionId} balance={account.balance}
+            <AnnouncementShieldItem mode="inventory" username={username} sessionId={sparksSessionId} balance={account.balance} inventoryFilter={itemShelf}/>
+            <TrueMoneyReward mode="inventory" username={username} sessionId={sparksSessionId} balance={account.balance}
               loaded={walletLoaded} hasOtherItems={true} inventoryFilter={itemShelf}/>
-            <SpecialRewardCenter mode="inventory" username={username} sessionId={adminSessionId}
+            <SpecialRewardCenter mode="inventory" username={username} sessionId={sparksSessionId}
               balance={account.balance} loaded={walletLoaded} hasOtherItems={true} inventoryFilter={itemShelf}/>
-            <LotteryTicketInventory username={username} sessionId={adminSessionId} loaded={walletLoaded}
+            <LotteryTicketInventory username={username} sessionId={sparksSessionId} loaded={walletLoaded}
               inventoryFilter={itemShelf}/>
           </div>
           <div className="qa-sparks-items-state-empty" role="status">
@@ -217,7 +226,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
         </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
-        : adminAccess ? <SparksAdminPanel key={username + ":" + adminSessionId} actorUsername={username} sessionId={adminSessionId} ownAccount={ownAccountSnapshot} active={active} /> : null}
+        : adminAccess ? <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active} /> : null}
       </div>
     </div>
   </main>;

@@ -95,7 +95,7 @@ class RootErrorBoundary extends React.Component<
 const sparksStandalone = typeof window !== "undefined" && (
   new URLSearchParams(window.location.search).get("sparks") === "1" ||
   (
-    import.meta.env?.VITE_SPARKS_AUTH_MODE === "supabase" &&
+    ["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE || "")) &&
     Boolean(new URLSearchParams(window.location.hash.replace(/^#/, "")).get("access_token")) &&
     Boolean(new URLSearchParams(window.location.hash.replace(/^#/, "")).get("refresh_token"))
   )
