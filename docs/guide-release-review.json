@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-10T08:36:00.000Z",
-  "reason": "Updated standalone portal test after preserving QA Dashboard Vite bootstrap patch anchors; no auth or scores changed.",
+  "reviewedAt": "2026-11-10T08:55:00.000Z",
+  "reason": "Reviewed GoTrue email confirmation redirect_to query fix and regression test; Supabase URL allowlist must be set before email login. Production unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -724,11 +724,11 @@
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
     "api/sparks-auth.js": "e1ee721012f9dea13045cd60a9d5ae0ab073e7dc3924339d0dd466e3dc33463c",
     "server/sparksSupabaseAuth.js": "4302b98321bdb57c120e3132965192d381aa91b97565869de87d8910ae05b3b5",
-    "src/SparksEmailAuth.tsx": "eeb169f83f83cc2afa0962369eb9a6ecf1d6bdb2217b2821aefc75c2074e602e",
+    "src/SparksEmailAuth.tsx": "314c12ef9e522dbb7dccdef7fda9cc556151042776a91e2c54761c63198c64a7",
     "src/SparksEmailAuth.css": "78fe340a66bd3e9ddcab4c8295232607521438ed9fdf083c459b41d8d1c177c0",
     "scripts/test-sparks-email-auth.mjs": "77018da34a19ca9eb6a13c8cd899eac9daf8d0f0d73154e1deca085e69573639",
     "scripts/test-sparks-email-api.mjs": "cebebe5a0d6a0ea3ef62a73d73ae96d29d65737bc063bf26abb1318bb0a6c096",
     "src/SparksStandalone.tsx": "5841baa9781ac89f43395c4fb993000e48cd1940f38fc67a70862932fe5230e9",
-    "scripts/test-sparks-standalone.mjs": "649dcb6acd89d4f3b7cc459de4d9b752bb988ac66d53ff801d0ff6a121bd8c09"
+    "scripts/test-sparks-standalone.mjs": "ac689d7f94f732e0880cbf70c531ca75024b1f2880f0156c6000243980ddbea1"
   }
 }
