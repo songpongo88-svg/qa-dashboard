@@ -43,6 +43,26 @@ function validate(input:unknown):Row[] {
   }
   return input as Row[];
 }
+const uuidOk=(v:unknown):v is string=>typeof v==="string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+const codeOk=(v:unknown):v is string=>typeof v==="string"&&/^[A-Z0-9_]{1,80}$/.test(v);
+// Restricted job diagnostics only: never store emails, usernames, cookies, or tokens.
+async function reportRun(payload:{runId?:unknown;event?:unknown;errorCode?:unknown}) {
+  if(!uuidOk(payload.runId)) return send({error:"invalid-run-id"},422);
+  if(payload.event==="start") {
+    await sql`INSERT INTO qa_migration.sparks_profile_sync_runs(run_id,status)
+      VALUES (${payload.runId}::uuid,'started') ON CONFLICT(run_id) DO NOTHING`;
+    return send({ok:true,recorded:true});
+  }
+  if(payload.event==="failed"){
+    if(!codeOk(payload.errorCode))return send({error:"invalid-error-code"},422);
+    await sql`UPDATE qa_migration.sparks_profile_sync_runs
+      SET status='failed',finished_at=now(),error_code=${payload.errorCode}
+      WHERE run_id=${payload.runId}::uuid AND status='started'`;
+    return send({ok:true,recorded:true});
+  }
+  return send({error:"unsupported-event"},422);
+}
 Deno.serve(async(req:Request)=>{
   if(req.method!=="POST")return send({error:"method-not-allowed"},405);
   if(!(await authorized(req)))return send({error:"unauthorized"},401);
@@ -51,7 +71,10 @@ Deno.serve(async(req:Request)=>{
     const raw=await req.text();
     if(raw.length>100000)return send({error:"payload-too-large"},413);
     const payload=JSON.parse(raw);
+    if(payload?.action==="report")return await reportRun(payload);
     if(payload?.action!=="reconcile")return send({error:"unsupported-action"},400);
+    const runId=payload.runId;
+    if(runId !== undefined && !uuidOk(runId))return send({error:"invalid-run-id"},422);
     let profiles:Row[];
     try{profiles=validate(payload.profiles)}catch{return send({error:"invalid-source-snapshot"},422)}
     // Single transaction: incomplete source or any SQL failure changes nothing.
@@ -100,6 +123,14 @@ Deno.serve(async(req:Request)=>{
         count(*) FILTER (WHERE reviewed)::int AS reviewed,
         count(*) FILTER (WHERE NOT reviewed)::int AS blocked
         FROM qa_migration.sparks_profile_reconciliation_v1`;
+      if(runId){
+        const finished=await tx`UPDATE qa_migration.sparks_profile_sync_runs SET
+          status='success',finished_at=now(),error_code=NULL,
+          source_count=${profiles.length},reviewed_count=${Number(rows[0].reviewed)},
+          blocked_count=${Number(rows[0].blocked)}
+          WHERE run_id=${runId}::uuid AND status='started' RETURNING run_id`;
+        if(finished.length!==1)throw Error("SYNC_RUN_NOT_STARTED");
+      }
       return rows[0];
     });
     return send({ok:true,sourceCount:profiles.length,reviewedCount:Number(result.reviewed),

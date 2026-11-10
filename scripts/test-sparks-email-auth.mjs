@@ -22,6 +22,13 @@ globalThis.fetch=async(raw,options={})=>{
     {username:"Songpon",display_name:"QA Admin",role:"Quality Assurance",status:"Active"},
     {username:"ActiveUser",display_name:"Agent",role:"Admin Live Chat",status:"Active"},
   ]);
+  if(url.endsWith("/rest/v1/rpc/sparks_profile_sync_status_v1"))return result([{
+    last_attempt_at:"2026-11-10T11:15:00Z",
+    last_completed_at:"2026-11-10T11:15:15Z",
+    last_result:"failed",last_error_code:"FIREBASE_QUOTA_EXCEEDED",
+    last_success_at:null,last_source_count:null,last_reviewed_count:null,
+    last_blocked_count:null,current_roster_snapshot_at:"2026-11-10T08:00:00Z",
+  }]);
   throw Error("Unexpected external URL: "+url);
 };
 const response=()=>{let code=0,value={},headers={};return {
@@ -53,6 +60,16 @@ try {
   const noCookie=response();
   await sparksAuth({method:"GET",headers:{}},noCookie);
   assert.equal(noCookie.inspect().code,401);
+  const syncDenied=response();
+  await sparksAuth({method:"GET",query:{action:"sync-status"},headers:{}},syncDenied);
+  assert.equal(syncDenied.inspect().code,401,"anonymous requests cannot read sync status");
+  const syncOwner=response();
+  await sparksAuth({method:"GET",query:{action:"sync-status"},
+    headers:{cookie:"__Host-qa_sparks_access="+token}},syncOwner);
+  assert.equal(syncOwner.inspect().code,200,JSON.stringify(syncOwner.inspect().value));
+  assert.equal(syncOwner.inspect().value.status.last_error_code,"FIREBASE_QUOTA_EXCEEDED");
+  assert.ok(!JSON.stringify(syncOwner.inspect().value).includes("admin@example.test"),
+    "status report must not expose personal data");
   const cookies=response();
   await sparksAuth({method:"POST",headers:{},body:{action:"exchange",access_token:token,refresh_token:"secure-refresh-token-test-long"}},cookies);
   assert.equal(cookies.inspect().code,200);

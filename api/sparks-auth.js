@@ -1,5 +1,6 @@
 import {
   withSparksRequest, getSparksRequestActor, exchangeSparksAuthTokens, clearSparksAuthCookies,
+  sparksProfileSyncStatus,
 } from "../server/sparksSupabaseAuth.js";
 
 export default async function handler(req, res) {
@@ -11,6 +12,12 @@ export default async function handler(req, res) {
   }
   try {
     if (req.method === "GET") {
+      const action = String(req.query?.action || "");
+      if (action === "sync-status") {
+        const status = await withSparksRequest(req,res,()=>sparksProfileSyncStatus());
+        return res.status(200).json({ok:true,status});
+      }
+      if (action) return res.status(400).json({error:"Unsupported action"});
       const actor = await withSparksRequest(req, res, () => getSparksRequestActor());
       return res.status(200).json({ ok: true, actor });
     }
