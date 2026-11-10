@@ -11,6 +11,8 @@ on:
       - "server/qaCutoverPgWriter.js"
       - "scripts/test-qa-postgres-stage-writer.mjs"
       - "scripts/test-qa-postgres-stage-integration.mjs"
+      - "server/qaCutoverSessionStore.js"
+      - "scripts/test-qa-postgres-session-integration.mjs"
       - ".github/workflows/qa-postgres-preview-safety.yml"
   workflow_dispatch:
 
@@ -38,6 +40,8 @@ jobs:
           node --check scripts/test-qa-postgres-write-policy.mjs
           node --check server/qaCutoverPgWriter.js
           node --check scripts/test-qa-postgres-stage-writer.mjs
+          node --check server/qaCutoverSessionStore.js
+          node --check scripts/test-qa-postgres-session-integration.mjs
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-diagnostics.mjs
@@ -76,4 +80,6 @@ jobs:
       - name: Install isolated SQL driver
         run: npm install --ignore-scripts --no-save --no-package-lock pg@8.16.3
       - name: Real PostgreSQL transactional integration
-        run: node scripts/test-qa-postgres-stage-integration.mjs
+        run: |
+          node scripts/test-qa-postgres-stage-integration.mjs
+          node scripts/test-qa-postgres-session-integration.mjs
