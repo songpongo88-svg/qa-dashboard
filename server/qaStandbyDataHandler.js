@@ -34,7 +34,7 @@ const errorResponse=code=>{
   if(code==='standby_read_not_authorized'||code==='backup_not_verified'||
     code==='failover_not_authorized'||code==='standby_not_activated'||
     code==='production_writer_disabled')return [503,'standby_not_ready'];
-  if(code==='invalid_evaluation_id'||code==='invalid_month'||
+  if(code==='invalid_request'||code==='invalid_evaluation_id'||code==='invalid_month'||
     code==='invalid_limit'||code==='invalid_cursor'||code==='invalid_operation')
     return [400,'invalid_request'];
   return [503,'standby_unavailable'];
@@ -96,7 +96,19 @@ export function createQaStandbyDataHandler({
       actor.role!=='Quality Assurance'||actor.status!=='active')
       return respond(res,403,{ok:false,error:'session_denied'});
     try{
-      const trusted=await makeTrustedContext({actor,action});
+      let payload=null;
+      if(action==='write'){
+        payload=await parseBody(req);
+        if(req.headers['idempotency-key']!==payload.operationId)
+          return respond(res,400,{ok:false,error:'idempotency_key_missing'});
+      }
+      // The server must look up true agent/month, locks and existing record
+      // from trusted PostgreSQL. Only use untrusted fields as lookup keys.
+      const trusted=await makeTrustedContext({
+        actor,action:action==='write'?payload.action:action,
+        evaluationId:action==='write'?payload.evaluationId:(match[1]||null),
+        candidate:action==='write'?payload:null,
+      });
       if(!trusted||trusted.contextSource!=='server-owned-not-request-body')
         throw err('failover_not_authorized');
       if(action==='get'){
@@ -113,9 +125,6 @@ export function createQaStandbyDataHandler({
         const items=await listEvaluations(readPool,query,trusted);
         return respond(res,200,{ok:true,...items});
       }
-      const payload=await parseBody(req);
-      if(req.headers['idempotency-key']!==payload.operationId)
-        return respond(res,400,{ok:false,error:'idempotency_key_missing'});
       const result=await writeEvaluation(writePool,payload,trusted);
       return respond(res,200,{ok:true,...result});
     }catch(error){
