@@ -79,12 +79,36 @@ export async function verifySparksAccessToken(accessToken) {
     status: "Active",
   };
 }
+export async function migrateSparksExistingQaPasswords(entries) {
+  const actor=await getSparksRequestActor();
+  if(actor.username!=="songpon"||actor.role!=="Quality Assurance")
+    throw failure("Only the verified QA owner may migrate legacy QA passwords",403);
+  if(!Array.isArray(entries)||entries.length<1||entries.length>35)
+    throw failure("Invalid QA credential migration batch",400);
+  // This JWT was freshly verified against Supabase Auth and the reviewed roster.
+  const jwt=context.getStore()?.accessToken;
+  const endpoint=URL+"/functions/v1/qa-sparks-qa-password-migration";
+  const response=await fetch(endpoint,{
+    method:"POST",cache:"no-store",signal:AbortSignal.timeout(85000),
+    headers:{"apikey":KEY(),Authorization:"Bearer "+jwt,"content-type":"application/json"},
+    body:JSON.stringify({entries}),
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)
+    throw failure("Cannot migrate QA credentials: "+String(data?.error||"secure provider unavailable"),
+      response.status===403?403:503,"SPARKS_QA_CREDENTIAL_MIGRATION_FAILED");
+  return data;
+}
 export async function exchangeSparksAuthTokens(res, data) {
   const accessToken = data?.access_token;
   const refreshToken = data?.refresh_token;
   if (typeof refreshToken !== "string" || refreshToken.length < 10 || refreshToken.length > 8192)
     throw failure("Missing secure refresh token", 401);
   const actor = await verifySparksAccessToken(accessToken);
+  const expected=normalized(data?.expectedUsername);
+  if(expected&&expected!==actor.username)
+    throw failure("The verified QA Sparks account does not match your QA username",403,
+      "SPARKS_QA_ACCOUNT_MISMATCH");
   setCookies(res, { access_token: accessToken, refresh_token: refreshToken, expires_in: data.expires_in });
   return actor;
 }
