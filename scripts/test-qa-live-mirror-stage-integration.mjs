@@ -41,7 +41,7 @@ try{
   const migration=await readFile(new URL('../migration/qa-local-live-snapshot-stage.sql',import.meta.url),'utf8');
   await pool.query(migration);
   const before=(await pool.query("SELECT count(*)::integer AS n FROM qa_failover_v1.source_mirror")).rows[0].n;
-  assert.deepEqual(QA_SYNC_DATASETS.length,6);
+  assert.deepEqual(QA_SYNC_DATASETS.length,11);
   assert.equal(qaCanonicalDocumentHash({b:2,a:1}),qaCanonicalDocumentHash({a:1,b:2}));
   await assert.rejects(stageQaFirestoreExport({
     pool,metadata:{...metadata,snapshotId:'qa-live-bad-'+randomUUID(),
@@ -52,7 +52,7 @@ try{
     "SELECT count(*)::integer AS n FROM qa_failover_v1.live_snapshot_batches")).rows[0].n,0,
     'mismatched source must not mutate PostgreSQL');
   const receipt=await stageQaFirestoreExport({pool,metadata,readCollection:scanner});
-  assert.equal(receipt.storedDocuments,12);
+  assert.equal(receipt.storedDocuments,QA_SYNC_DATASETS.length*2);
   assert.equal(receipt.postgresCopyVerified,true);
   assert.equal(receipt.firestoreLiveParityVerified,false);
   assert.equal(receipt.failoverAuthorized,false);
@@ -60,8 +60,8 @@ try{
   const state=(await pool.query(
     "SELECT source_documents,stored_documents,status,approved_for_failover"+
     " FROM qa_failover_v1.live_snapshot_batches WHERE snapshot_id=$1",[batch])).rows[0];
-  assert.equal(state.source_documents,12);
-  assert.equal(state.stored_documents,12);
+  assert.equal(state.source_documents,QA_SYNC_DATASETS.length*2);
+  assert.equal(state.stored_documents,QA_SYNC_DATASETS.length*2);
   assert.equal(state.status,'copy_verified');
   assert.equal(state.approved_for_failover,false);
   const sample=(await pool.query(
@@ -84,5 +84,5 @@ try{
   }),err=>err.code==='duplicate_source_identity');
   assert.equal((await pool.query(
     "SELECT count(*)::integer AS n FROM qa_failover_v1.live_snapshot_batches")).rows[0].n,1);
-  console.log('PASS QA live snapshot stage: six collections, strict identities and hashes, atomic PostgreSQL copy, no old QA score changes, no false live parity/failover');
+  console.log('PASS QA live snapshot stage: all 11 required QA collections, strict identities and hashes, atomic PostgreSQL copy, no old QA score changes, no false live parity/failover');
 }finally{await pool.end();}
