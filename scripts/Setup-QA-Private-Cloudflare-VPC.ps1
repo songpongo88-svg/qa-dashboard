@@ -128,6 +128,29 @@ try {
   if ($workerUrl -notmatch '^https://[a-zA-Z0-9.-]+\.workers\.dev$') {
     Stop-Safe 'UNRECOGNIZED_WORKER_DOMAIN'
   }
+  # Verify real VPC -> tunnel -> 127.0.0.1:8788 before altering Vercel Preview.
+  Write-Host 'QA_VPC=VERIFYING_PRIVATE_END_TO_END'
+  $probeOk = $false
+  for ($attempt = 1; $attempt -le 3; $attempt++) {
+    try {
+      $remoteReady = Invoke-RestMethod -Method Get -Uri ($workerUrl + '/ready') -Headers $headers -TimeoutSec 8
+      $remoteSummary = Invoke-RestMethod -Method Get -Uri ($workerUrl + '/summary') -Headers $headers -TimeoutSec 8
+      if ($remoteReady.ok -eq $true -and $remoteReady.databaseConnected -eq $true -and
+          $remoteReady.readOnly -eq $true -and $remoteReady.failoverReady -eq $false -and
+          $remoteSummary.ok -eq $true -and $remoteSummary.importedArchiveCountMatch -eq $true -and
+          $remoteSummary.failoverReady -eq $false) {
+        $probeOk = $true
+        break
+      }
+    } catch {
+      # Do not print exceptions, hostnames, tokens or sensitive responses.
+    }
+    if ($attempt -lt 3) { Start-Sleep -Seconds 2 }
+  }
+  if (!$probeOk) {
+    Stop-Safe 'VPC_PRIVATE_BRIDGE_NOT_VERIFIED_NO_VERCEL_CHANGES'
+  }
+  Write-Host 'QA_VPC=PRIVATE_END_TO_END_READ_ONLY_PASS'
   $urlFile = Join-Path $workerRoot 'qa-worker-url.txt'
   [IO.File]::WriteAllText($urlFile,$workerUrl,[Text.Encoding]::UTF8)
   # Only the QA standby PR Preview branch receives these variables;
