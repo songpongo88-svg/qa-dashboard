@@ -40,10 +40,10 @@ function service(url,{method,headers,cache}){
 const args={projectId,accessToken:token,readTime,fetchImpl:service,pageSize:100};
 const source=await captureQaFirestorePointInTime(args);
 assert.equal(source.sourceCount,2);
-assert.equal(source.metadata.manifests.length,6);
+assert.equal(source.metadata.manifests.length,QA_SYNC_DATASETS.length);
 assert.equal(source.metadata.immutableSnapshotVerified,true);
 assert.equal(source.metadata.allCollectionsIncluded,true);
-assert.equal(calls.length,7);
+assert.equal(calls.length,QA_SYNC_DATASETS.length+1);
 assert.equal(calls[1].cursor,'fixture-next-page');
 assert.equal(calls.every(row=>QA_SYNC_DATASETS.includes(row.collection)),true);
 const pages=await source.readCollection('qa_evaluations');
@@ -62,4 +62,4 @@ failure=null;
 await assert.rejects(captureQaFirestorePointInTime({...args,
   readTime:new Date(Date.now()-2*3600000).toISOString()}),
   e=>e.code==='read_time_outside_verified_window');
-console.log('PASS QA Firestore source: six collections at fixed readTime, paginated, aborts on quota/duplicates, no secrets or writes');
+console.log('PASS QA Firestore source: all required QA collections at fixed readTime, paginated, aborts on quota/duplicates, no secrets or writes');
