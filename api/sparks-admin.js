@@ -9,6 +9,7 @@ import { createTypingReliefCloudService } from "../server/typingReliefCloudServi
 import { createQaAutoPassService } from "../server/qaAutoPassService.js";
 import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
+import { getSparksAccessState } from "../server/sparksAccessControl.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
 import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
@@ -1508,6 +1509,9 @@ function sparksCloudReadOnlyEnabled() {
 
 async function sparksHandler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  // Block game/reward requests and scheduled settlement before any Firebase work.
+  const gate=await getSparksAccessState();
+  if(!gate.enabled)return res.status(423).json({error:gate.message,code:"SPARKS_ACCESS_PAUSED"});
   if (sparksEmailAuthEnabled()) {
     const originKind = String(req.headers?.["sec-fetch-site"] || "");
     if (originKind && originKind !== "same-origin" && originKind !== "none")

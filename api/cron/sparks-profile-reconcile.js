@@ -1,4 +1,5 @@
 import { runSparksProfileReconciliation } from "../../server/sparksProfileReconcile.js";
+import { getSparksAccessState } from "../../server/sparksAccessControl.js";
 
 // Runs daily at 18:15 Bangkok, before the user's 19:30 local QA backup sync.
 // No Firebase writes. Never reads QA case scores. Disabled by default until
@@ -10,6 +11,7 @@ export default async function handler(req,res) {
   if(secret.length<20||req.headers?.authorization!=="Bearer "+secret)
     return res.status(401).json({error:"unauthorized"});
   try {
+    if(!(await getSparksAccessState()).enabled)return res.status(200).json({ok:true,skipped:true,reason:"SPARKS_ACCESS_PAUSED"});
     const result=await runSparksProfileReconciliation();
     return res.status(200).json(result);
   }catch(error){

@@ -181,3 +181,9 @@ export async function sparksProfileSyncStatus() {
   if(!Array.isArray(rows)||rows.length!==1)throw failure("Sync status unavailable",503);
   return rows[0];
 }
+
+// Only a request authenticated by getSparksRequestActor may access its JWT.
+export function getVerifiedSparksAccessToken(){
+  const store=context.getStore();
+  return String(store?.actor ? store.accessToken||"" : "");
+}
