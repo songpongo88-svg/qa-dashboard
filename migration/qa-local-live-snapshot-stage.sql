@@ -36,8 +36,7 @@ CREATE TABLE IF NOT EXISTS qa_failover_v1.live_candidate_evaluations (
     ON DELETE RESTRICT,
   evaluation_id text NOT NULL,
   record jsonb NOT NULL CHECK(jsonb_typeof(record)='object'),
-  source_hash text NOT NULL CHECK(source_hash ~ '^[a-f0-9]{64}
-),
+  source_hash text NOT NULL CHECK(source_hash ~ '^[a-f0-9]{64}$'),
   original_score numeric NOT NULL CHECK(original_score BETWEEN 0 AND 100),
   deleted_at timestamptz,
   PRIMARY KEY(snapshot_id,evaluation_id)
