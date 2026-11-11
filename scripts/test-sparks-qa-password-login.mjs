@@ -29,10 +29,10 @@ assert.ok(auth.includes('data-sparks-qa-password-login="true"'));
 assert.ok(admin.includes("getDocsFromServer("), "Migration must use fresh Firestore source");
 assert.ok(admin.includes('action:"admin-migrate-qa-passwords"'), "Keep owner-only migration action");
 assert.ok(admin.includes("migration-roster"), "Migration must preflight authoritative roster");
-assert.ok(admin.includes("missing.length>0"), "Reject incomplete staff credentials before changes");
+assert.ok(admin.includes('pending.some(item=>item.reason!=="ไม่พบรหัสผ่าน QA ใน Firestore")'), "Reject non-password blockers before any migration");
 assert.ok(api.includes('action === "migration-roster"'), "Owner roster endpoint must exist");
 assert.ok(!admin.includes("await fetchStoredUserProfiles("), "Do not migrate cached passwords");
-assert.ok(admin.includes('setIssues(missing.map('), "List specific missing or invalid accounts to owner");
+assert.ok(admin.includes('setIssues(pending)'), "List specific pending or invalid accounts to owner");
 assert.ok(admin.includes('data-sparks-qa-migration-issues="true"'), "Show owner-only account error panel");
 assert.ok(admin.includes("ไม่พบรหัสผ่าน QA ใน Firestore"), "Distinguish missing passwords");
 assert.ok(admin.includes("รหัสผ่าน QA เดิมสั้นกว่า 6 ตัวอักษร"), "Distinguish insufficient password length");
@@ -40,6 +40,16 @@ assert.ok(admin.includes("รหัสผ่าน QA หมดอายุ"), "
 assert.ok(admin.includes("ไม่พบเอกสารบัญชีนี้ใน Firestore"), "Distinguish missing source accounts");
 assert.ok(!admin.includes("console.log("), "Do not log QA credential diagnostics");
 assert.ok(admin.includes("คัดลอกรายชื่อและสาเหตุ (ไม่มีรหัสผ่าน)"), "Support safe diagnostic export");
+assert.ok(admin.includes("const entries=activeNames.filter((name:string)=>entriesByName.has(name))"),
+  "Migrate only verified Active identities with eligible passwords");
+assert.ok(admin.includes("aggregate.created+aggregate.updated!==entries.length"),
+  "Match successful migrations to eligible count, never the entire 21-person roster");
+assert.ok(admin.includes('setMessage(pending.length>0'),
+  "Show pending identities separately after migrating eligible accounts");
+assert.ok(admin.includes('if(entriesByName.size===0)'),
+  "Do not migrate when no valid QA credentials are available");
+assert.ok(admin.includes("ไม่สร้างรหัสแทน"), "Never invent passwords for staff without credentials");
+
 
 assert.ok(qaSparks.includes("<SparksQaCredentialMigration/>"));
 assert.ok(app.includes("void signInSparksWithQaPassword(nextUser.username,typedPassword)"));
