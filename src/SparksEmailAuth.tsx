@@ -19,9 +19,11 @@ async function authRequest(path: string, data: Record<string,unknown>) {
 export default function SparksEmailAuth({ username, onVerified }:{
   username?:string; onVerified:(actor:SparksVerifiedActor)=>void;
 }) {
-  const [mode,setMode]=useState<"qa"|"otp">("qa");
+  const [mode,setMode]=useState<"qa"|"otp"|"owner-password">("qa");
   const [qaUsername,setQaUsername]=useState(username||"");
   const [qaPassword,setQaPassword]=useState("");
+  const [ownerEmail,setOwnerEmail]=useState("");
+  const [ownerPassword,setOwnerPassword]=useState("");
   const [email,setEmail]=useState("");
   const [pendingEmail,setPendingEmail]=useState("");
   const [code,setCode]=useState("");
@@ -102,6 +104,32 @@ export default function SparksEmailAuth({ username, onVerified }:{
     }
     finally{setBusy(false);}
   };
+  // Recovery path for the single, already verified Supabase QA owner account.
+  // This does not create users, generate email/OTP, or bypass server-side
+  // Supabase Auth and the Active QA owner roster authorization.
+  const signInExistingOwner=async(event:React.FormEvent)=>{
+    event.preventDefault();if(busy)return;
+    setBusy(true);setError("");setMessage("");
+    try{
+      if(username && username.trim().toLowerCase()!=="songpon")
+        throw Error("ทางเข้านี้สำหรับเจ้าของระบบ QA Sparks เท่านั้น");
+      const address=ownerEmail.trim().toLowerCase();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) || !ownerPassword)
+        throw Error("กรุณากรอกอีเมลและรหัสผ่าน Supabase ที่ใช้อยู่");
+      const tokens=await authRequest("/auth/v1/token?grant_type=password",{
+        email:address,password:ownerPassword,
+      });
+      // exchange() validates identity with the server's verified Active roster.
+      // A mismatched account cannot gain owner access, even with a valid password.
+      await exchange(tokens);
+      setOwnerPassword("");
+    }catch(e){
+      const detail=e instanceof Error?e.message:"ไม่สามารถเข้าใช้ด้วยรหัสผ่าน Supabase ได้";
+      setError(/invalid login credentials|invalid_grant|email not confirmed/i.test(detail)
+        ? "อีเมลหรือรหัสผ่าน Supabase ไม่ถูกต้อง หากจำรหัสไม่ได้ ให้เปลี่ยนรหัสผ่านจาก Supabase Dashboard โดยตรง ไม่ต้องกดส่ง OTP ซ้ำ"
+        : detail);
+    }finally{setBusy(false);}
+  };
   const send=async(event:React.FormEvent)=>{
     event.preventDefault();if(busy||retrySeconds>0)return;
     setBusy(true);setError("");setMessage("");
@@ -143,12 +171,16 @@ export default function SparksEmailAuth({ username, onVerified }:{
   return <main className="sparks-email-auth" aria-label="ยืนยันอีเมล QA Sparks">
     <section className="sparks-email-auth-card">
       <div className="sparks-email-auth-kicker">QA Sparks · Supabase Auth</div>
-      <h2>{mode==="qa"?"เข้า QA Sparks ด้วย Username และ Password QA เดิม":"ยืนยันอีเมลเพื่อเข้าใช้ QA Sparks"}</h2>
+      <h2>{mode==="qa"?"เข้า QA Sparks ด้วย Username และ Password QA เดิม":mode==="owner-password"?"เจ้าของระบบ: เข้าด้วยรหัสผ่าน Supabase":"ยืนยันอีเมลเพื่อเข้าใช้ QA Sparks"}</h2>
       {busy && !sent && <p role="status">กำลังตรวจสอบ Session เดิมเพื่อเข้าใช้อัตโนมัติ...</p>}
-      <p>{mode==="qa"?"ใช้บัญชี QA Dashboard เดิมได้เลย หลังผู้ดูแลซิงก์บัญชีเข้า Supabase แล้ว ไม่ต้องรับ OTP หรือสมัครบัญชีใหม่":"บัญชี QA Dashboard เดิมยังใช้ตามปกติ ยืนยัน QA Sparks ด้วยรหัสจากอีเมลในแท็บนี้โดยไม่ต้องเปิดเว็บใหม่"}</p>
+      <p>{mode==="qa"?"ใช้บัญชี QA Dashboard เดิมได้เลย หลังผู้ดูแลซิงก์บัญชีเข้า Supabase แล้ว ไม่ต้องรับ OTP หรือสมัครบัญชีใหม่":mode==="owner-password"?"ทางเข้าสำรองสำหรับเจ้าของระบบที่มีบัญชี Supabase Auth เดิมและรู้รหัสผ่าน Supabase อยู่แล้ว ไม่ส่ง OTP และไม่ต้องสมัครบัญชีใหม่":"บัญชี QA Dashboard เดิมยังใช้ตามปกติ ยืนยัน QA Sparks ด้วยรหัสจากอีเมลในแท็บนี้โดยไม่ต้องเปิดเว็บใหม่"}</p>
       <div role="group" aria-label="เลือกวิธีเข้า QA Sparks" style={{display:"flex",gap:8,margin:"10px 0 16px",flexWrap:"wrap"}}>
         <button type="button" data-sparks-login-mode="qa" aria-pressed={mode==="qa"}
           onClick={()=>{setMode("qa");setError("");setMessage("");}}>ใช้บัญชี QA เดิม</button>
+        {(username||qaUsername).trim().toLowerCase()==="songpon" || (!username && !qaUsername)
+          ? <button type="button" data-sparks-login-mode="owner-password" aria-pressed={mode==="owner-password"}
+            onClick={()=>{setMode("owner-password");setError("");setMessage("");}}>เจ้าของระบบ: ใช้รหัสผ่าน Supabase เดิม</button>
+          : null}
         <button type="button" data-sparks-login-mode="otp" aria-pressed={mode==="otp"}
           onClick={()=>{setMode("otp");setError("");setMessage("");}}>ยืนยันอีเมล OTP (สำรอง)</button>
       </div>
@@ -165,6 +197,19 @@ export default function SparksEmailAuth({ username, onVerified }:{
         <button type="submit" disabled={busy||!(username||qaUsername)||!qaPassword}>
           {busy?"กำลังตรวจสอบบัญชี QA...":"เข้าใช้ QA Sparks"}
         </button>
+      </form>:null}
+      {mode==="owner-password"?<form onSubmit={signInExistingOwner} data-sparks-owner-password-login="true">
+        <label htmlFor="sparks-owner-email">อีเมลที่ลงทะเบียนใน Supabase Auth</label>
+        <input id="sparks-owner-email" type="email" required autoComplete="email"
+          value={ownerEmail} disabled={busy} onChange={e=>setOwnerEmail(e.target.value.trim())}
+          placeholder="อีเมลเจ้าของระบบ"/>
+        <label htmlFor="sparks-owner-password">รหัสผ่าน Supabase เดิม (ไม่ใช่ OTP)</label>
+        <input id="sparks-owner-password" type="password" required autoComplete="current-password"
+          value={ownerPassword} disabled={busy} onChange={e=>setOwnerPassword(e.target.value)}/>
+        <button type="submit" disabled={busy||!ownerEmail.trim()||!ownerPassword}>
+          {busy?"กำลังตรวจสอบบัญชี...":"เข้า Sparks Admin โดยไม่ใช้ OTP"}
+        </button>
+        <small>หากไม่เคยทราบรหัสผ่าน Supabase หรือจำไม่ได้ สามารถเปลี่ยนจากหน้าจัดการ Auth ใน Supabase Dashboard ของเจ้าของโปรเจกต์ โดยไม่ต้องใช้ปุ่มส่งอีเมลในหน้านี้</small>
       </form>:null}
       {mode==="otp"?<><form onSubmit={send}>
         <label htmlFor="sparks-auth-email">อีเมลที่ลงทะเบียนกับ QA Dashboard</label>
