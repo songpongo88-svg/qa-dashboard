@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T05:05:00.000Z",
-  "reason": "Sparks login availability: add a visible independent Supabase portal entry on the unauthenticated QA Dashboard login page, providing users a route that never boots Firebase QA Dashboard during quota outages. Does not bypass Supabase email OTP or current Active roster authorization, change data balances, login policy, or the QA user guide.",
+  "reviewedAt": "2026-11-11T06:05:00.000Z",
+  "reason": "QA Sparks only: migrate existing QA username/password identities to Supabase Auth without OTP. Verified owner initiates one-time migration from original QA profiles; new internal auth records share old QA passwords hashed by GoTrue, are restricted by reviewed Active roster, scheduled suspensions and seven-day profile freshness; normal QA login automatically establishes Sparks session, standalone QA login works, old OTP and legacy fallback preserved. No QA score, existing wallet, transaction, or user guide changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -108,7 +108,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "4eabb78d165a4b129d4a630d18022d4fa8dddfbe4a4e4504199580058981671e",
+    "package.json": "3f212ec2fae8e5b0fe9279a2922feff9d066c72b1491003a0fe9876283fca20f",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -425,7 +425,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "370c1f54c517bbd31178babeb678d2691b0996dd0e0d933c6718cfff03cccaf4",
-    "src/App.tsx": "6a8ea040c0cedc2d2925813282df5b629629051756ba3c7e36da846c9cb81d80",
+    "src/App.tsx": "4e1da59d3e7ab5e1de352574beaa03548dd86cf7d9b136b72a6d799821e33fe4",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -470,7 +470,7 @@
     "src/ProfileMakeoverQuest.tsx": "444e9a06af6b49cfe9768639b0b1172ef5422fb146b55da832906009553cd6fd",
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/QASparks.tsx": "00490a1a56c3e2da7a8f1aed6fbcd6dc09d90e1e921468960e7eac5887634d5a",
+    "src/QASparks.tsx": "87797abfff40f9a92662b0e54f28f98870d69fc936312b3918b7b2f082b3b176",
     "src/QaAccessCaseHistoryPopup.tsx": "da29c8b43c9aa32c23cde37fa447f41764477b6659cb2a6bc9384aff71dcf5a7",
     "src/QaAccessCheckOverview.tsx": "348de0058ce1552e358582cf6486812a4c2a6a1801e26361c25ad126b74765ba",
     "src/QaEvaluationProgressNotice.tsx": "b68fd075ff31c83e6a0a42661d2327c81d275ea5c5fe54156a21edd48be43122",
@@ -722,9 +722,9 @@
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
     "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4",
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
-    "api/sparks-auth.js": "821769a2025f890ff04fd3f04c4fd46f0e1607147ea81fa09261250beeb18774",
-    "server/sparksSupabaseAuth.js": "958f8e3943cf38477e69449e36b556aaf99c260e0cd641894b9104a974231cb9",
-    "src/SparksEmailAuth.tsx": "08680a432e682fdedcb0083c5b5c455ac111ad2fc1cfe4a757567a6f5322a01e",
+    "api/sparks-auth.js": "f3e3d51c39b4381d7948672423cc7e2db7e4d2f1983d4d9fec4024067c13c23a",
+    "server/sparksSupabaseAuth.js": "7d5c916a79b641e7405a809c3875ddf54367bb9b00f50ae088ca7eea11ae5f85",
+    "src/SparksEmailAuth.tsx": "8f92075778080f8b349c85c8ab83e6449185d06d0dd1dc45a4a79bca9b35d499",
     "src/SparksEmailAuth.css": "57cd8adfe942f400f8b3eced2a2dd075740375c783d4cbaf5c80b3e2d9cac82d",
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
     "scripts/test-sparks-email-api.mjs": "ca9b08fade21ca84e24f801672ff259ff2653224c21612c17a623d808cf1b99d",
@@ -740,6 +740,9 @@
     "scripts/test-qa-auto-pass.mjs": "8d4d1387a60fd2abd019c51e81dfbe53089f5fc058702451af6874fa2b48baf1",
     "server/qaAutoPassService.js": "928729059a4471a3284cb111de53e3490ecef05c423d21e4e8cb79363cd882e5",
     "src/QaAutoPassRewardCard.tsx": "44fd0e4c78afdd1422a35fb17367dcbf6fe732242a4ef931620e8145fbc30f6f",
-    "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584"
+    "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584",
+    "scripts/test-sparks-qa-password-login.mjs": "728c4768051d11cae9d8c082cda9cacb1e2ea08eec338c640c0d0cf3c269cf78",
+    "src/SparksQaCredentialMigration.tsx": "85b37ed5d2256cb3919ccc3f5236bfd8c9b98193acf4fee9f9d2faa0368d6004",
+    "src/sparksQaPasswordLogin.ts": "e65f39d1957314acd6134b6e921fa923a53603fa42898952ad8e06352ca1f69c"
   }
 }
