@@ -930,6 +930,11 @@
 /* QA Access Auto-Pass: a single countable item in Reward Center and My Items. */
 .qa-auto-pass-item .qa-auto-pass-art{display:block;width:100%;height:100%;border-radius:14px}
 .qa-auto-pass-free-badge{position:absolute;right:3px;top:3px;padding:3px 5px;border-radius:7px;background:#fff3bd;color:#723680;font-size:9px;font-weight:900;box-shadow:0 2px 7px #4d287d30}
+.qa-auto-pass-card-pricing{display:flex;flex-direction:column;align-items:center;gap:2px;max-width:114px;text-align:center;line-height:1.25}
+.qa-auto-pass-card-free{font-size:11px;font-weight:900;color:#257544}
+.qa-auto-pass-card-original{font-size:9px;font-weight:650;color:#8a7389;overflow-wrap:anywhere}
+.qa-auto-pass-card-original s{text-decoration:line-through;text-decoration-thickness:1.2px}
+@media(max-width:470px){.qa-auto-pass-card-free{font-size:10px}.qa-auto-pass-card-original{font-size:8px}}
 .qa-auto-pass-backdrop{position:fixed;inset:0;z-index:390;display:flex;align-items:center;justify-content:center;background:#1f1736b0;backdrop-filter:blur(5px);padding:14px}
 .qa-auto-pass-modal{position:relative;display:flex;flex-direction:column;max-height:min(93vh,850px);width:min(720px,100%);border-radius:24px;background:#fffdfa;color:#362746;overflow:hidden;box-shadow:0 30px 100px #180f2c5e;font-family:Kanit,sans-serif}
 .qa-auto-pass-close{position:absolute;z-index:2;right:14px;top:12px;border-radius:50%;background:#fff;border:1px solid #e4d7e7;color:#6a4877;width:35px;height:35px;font-size:25px;cursor:pointer;line-height:1}
