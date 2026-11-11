@@ -125,9 +125,7 @@ try {
   }
   $workerUrl = @($urls)[0]
   Write-Host ('QA_VPC_WORKER_URL=' + $workerUrl)
-  if ($workerUrl -notmatch '^https://[a-zA-Z0-9.-]+\.workers\.dev
-} finally { Pop-Location }
-) {
+  if ($workerUrl -notmatch '^https://[a-zA-Z0-9.-]+\.workers\.dev$') {
     Stop-Safe 'UNRECOGNIZED_WORKER_DOMAIN'
   }
   $urlFile = Join-Path $workerRoot 'qa-worker-url.txt'
@@ -162,5 +160,4 @@ try {
   Write-Host 'QA_VPC=VERCEL_PREVIEW_BRIDGE_PAIRED'
   Write-Host 'QA_VPC=PRODUCTION_UNCHANGED'
   Write-Host 'QA_VPC=QA_SPARKS_UNCHANGED'
-
 } finally { Pop-Location }
