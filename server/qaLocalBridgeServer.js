@@ -5,6 +5,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { getQaArchiveStatus } from './qaStandbyArchiveStatus.js';
+import { qaStandbySnapshotReadiness } from './qaStandbySnapshotReadiness.js';
 
 const secureMatch = (given, expected) => {
   if (typeof given !== 'string' || !given || typeof expected !== 'string' || expected.length < 40) return false;
@@ -39,12 +40,16 @@ export function createQaLocalBridgeHandler(pool, { token } = {}) {
     let url;
     try { url = new URL(req.url, 'http://127.0.0.1'); }
     catch { return respond(res, 400, { ok: false, error: 'invalid_request' }); }
-    if (url.search || !['/ready', '/summary'].includes(url.pathname))
+    if (url.search || !['/ready', '/summary', '/readiness'].includes(url.pathname))
       return respond(res, 404, { ok: false, error: 'not_found' });
     // Avoid unbounded concurrent status probes from a tunnel.
     if (busy) return respond(res, 503, { ok: false, error: 'busy' });
     busy = true;
     try {
+      if (url.pathname === '/readiness') {
+        const readiness = await qaStandbySnapshotReadiness(pool);
+        return respond(res, 200, readiness);
+      }
       const archive = await getQaArchiveStatus(pool);
       if (url.pathname === '/ready') {
         return respond(res, 200, {
