@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T09:31:46.473Z",
-  "reason": "Reviewed Late Appeal 72-hour permission from original grant, owner-only Case Detail action, signed-result lock, revocation and submission freshness; guide content unchanged",
+  "reviewedAt": "2026-11-11T09:35:25.242Z",
+  "reason": "Reviewed Late Appeal 72h grant, expiry and correct React test-module resolution; user guide unchanged",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -744,6 +744,6 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/lateAppealPolicy.ts": "c129554d7c7807ea231c3462c8325595be729209f76042968070b2b19ace749f",
-    "scripts/test-late-appeal-72h.mjs": "32450426a08b31c1c886271ac2486e2f8e70289ae0d278e847bff938dfccc41d"
+    "scripts/test-late-appeal-72h.mjs": "de13de1067162e54334ade6d6a90c7b15d8e17e932f15d9e48958700179c958e"
   }
 }
