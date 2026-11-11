@@ -1,0 +1,36 @@
+// QA Sparks uses the SAME QA username and password after an owner-authorized
+// one-time credential migration. The credential is never stored in this client.
+const authUrl=String(import.meta.env?.VITE_SPARKS_SUPABASE_AUTH_URL||"").replace(/\/$/,"");
+const publishable=String(import.meta.env?.VITE_SPARKS_SUPABASE_PUBLISHABLE_KEY||"");
+export function qaSparksLoginEmail(username:string) {
+  const normalized=String(username||"").trim().toLowerCase();
+  if(!/^[a-z0-9._-]{2,64}$/.test(normalized))throw new Error("Username QA ไม่ถูกต้อง");
+  // .invalid is reserved for synthetic identities; messages are never sent here.
+  return "qa-"+normalized+"@qa-sparks-login.invalid";
+}
+export async function signInSparksWithQaPassword(username:string,password:string) {
+  if(!authUrl||!publishable)throw Error("ยังไม่ได้ตั้งค่า Supabase Auth");
+  if(typeof password!=="string"||!password)throw Error("กรุณากรอกรหัสผ่าน QA เดิม");
+  const response=await fetch(authUrl+"/auth/v1/token?grant_type=password",{
+    method:"POST",cache:"no-store",
+    headers:{"apikey":publishable,"content-type":"application/json"},
+    body:JSON.stringify({email:qaSparksLoginEmail(username),password}),
+  });
+  const tokens=await response.json().catch(()=>({}));
+  if(!response.ok||!tokens?.access_token||!tokens?.refresh_token){
+    if(response.status===429)throw Error("มีการลองรหัสผ่านหลายครั้ง กรุณาลองใหม่ภายหลัง");
+    throw Error("บัญชี QA ยังไม่ได้ซิงก์เข้าสู่ Supabase หรือรหัสผ่านไม่ถูกต้อง");
+  }
+  const exchanged=await fetch("/api/sparks-auth",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"content-type":"application/json"},
+    body:JSON.stringify({action:"exchange",expectedUsername:String(username).trim(),access_token:tokens.access_token,
+      refresh_token:tokens.refresh_token,expires_in:tokens.expires_in}),
+  });
+  const payload=await exchanged.json().catch(()=>({}));
+  if(!exchanged.ok||payload?.ok!==true||!payload.actor)
+    throw Error(String(payload?.error||"บัญชี QA ยังไม่ Active หรือยังไม่ผ่านการตรวจสิทธิ์"));
+  if(String(payload.actor.username).toLowerCase()!==String(username).trim().toLowerCase())
+    throw Error("บัญชี Supabase ไม่ตรงกับ Username QA ที่เข้าสู่ระบบ");
+  return payload.actor as {username:string;displayName:string;role:string;status:string};
+}
