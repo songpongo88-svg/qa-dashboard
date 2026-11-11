@@ -177,7 +177,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
       </form>}
       {rateLimited && <p className="sparks-email-auth-step-hint" role="status">ครั้งนี้ยังไม่มี OTP ใหม่ถูกส่ง เมื่อครบเวลาพักการส่ง สามารถกดส่งรหัสใหม่อีกครั้งได้โดยไม่ต้องเปลี่ยนแท็บ ทั้งนี้ขึ้นอยู่กับโควตา Supabase</p>}
       </>:null}
-      {message && <p role="status" className="sparks-email-auth-message">{message}</p>
+      {message && <p role="status" className="sparks-email-auth-message">{message}</p>}
       {error && <p role="alert" className="sparks-email-auth-error">{error}</p>}
       <small>เข้าได้เฉพาะบัญชี QA ที่ซิงก์แล้วและมีสถานะ Active ตามข้อมูลพนักงานล่าสุด หากยังไม่มีข้อมูลตรวจสอบรหัสผ่านใน Supabase ให้ผู้ดูแลซิงก์บัญชีเดิมก่อน ระบบจะไม่แก้ไขคะแนน</small>
     </section>
