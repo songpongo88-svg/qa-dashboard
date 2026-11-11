@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T08:56:21.869Z",
-  "reason": "QA Sparks owner maintenance toggle uses existing Sparks Auth API to remain within Vercel Hobby function limit; guide content unchanged",
+  "reviewedAt": "2026-11-11T09:31:46.473Z",
+  "reason": "Reviewed Late Appeal 72-hour permission from original grant, owner-only Case Detail action, signed-result lock, revocation and submission freshness; guide content unchanged",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -110,7 +110,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "4eabb78d165a4b129d4a630d18022d4fa8dddfbe4a4e4504199580058981671e",
+    "package.json": "4d6c131482f9d323cd78b279a84da3d4c7dd3f072cee47642016b62e540821a0",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -460,7 +460,7 @@
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
     "src/AppealIssueTags.tsx": "62fa947120cc314ebf3b8153a2fada6ad07aac32fc74a7ebb7fdc432e8a8c4a5",
     "src/AppealMockup.tsx": "51c18c49309053e817d3799ba65ca1d1f9eb81424b70c3b4b7d67d1021364899",
-    "src/AppealOverrideMockup.tsx": "7bf80aeae4041d6613eb98ada6e1dcd21600a8f02d9f48bc030da6225b6f0075",
+    "src/AppealOverrideMockup.tsx": "e7cd300596eb1818bbf4a25a336ec2eb157d3edea1418ed57a4211f427c30ad9",
     "src/AppealRequestsMockup.tsx": "1d1d681a5e59070d8280d104b941bb7e23e27b604c26b4b87cb2e2a4e3af19fd",
     "src/appealReview.ts": "75f7add042ee34d0da4b9e8adef5d15f039ab1fe316dca2d80d1e6adebc5e147",
     "src/AppealReviewDialog.tsx": "2c1d310dee8a226cc08b93d5803430283156921090efff6d8d5efe029fad55bf",
@@ -506,7 +506,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "777dd78beb3fdcedc98c25881f6ec92b596eacc3c247fbbabf3538f94e333e4f",
     "src/DailyCheckinQuest.tsx": "5ef043ebd1b048e26769ef5825f3f67454787b7525f0a338d5f61c2997e9bf27",
-    "src/DashboardMockup.tsx": "0e9a98048d627744064e9b9b276a10efba130634b7e9161d985db6d2c282aa19",
+    "src/DashboardMockup.tsx": "c6015bb7a14105470a3e834283e74901ebb8721e4fad396ae90cd90430164d14",
     "src/dashboardRecoveryCache.ts": "817a3ca216ee607263a06fe3e48f4e3e9234640c9c3b4b3b3fa06f656390b9ee",
     "src/dashboardRevision.ts": "e305357dc518fb6f89d76621baacf63791c174ae69d9718a72de2f14610bd154",
     "src/dashboardShortcuts.css": "c6c5f84f04f21983314224074ec4442ac6e6e56467552907a8e92ead4abb1522",
@@ -742,6 +742,8 @@
     "src/YearlyTeamSummary.tsx": "2b1618ecad55269dd22acf073524ba3471efa65cc626134f7b33ca7581a2bb7d",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "src/lateAppealPolicy.ts": "c129554d7c7807ea231c3462c8325595be729209f76042968070b2b19ace749f",
+    "scripts/test-late-appeal-72h.mjs": "32450426a08b31c1c886271ac2486e2f8e70289ae0d278e847bff938dfccc41d"
   }
 }
