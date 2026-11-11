@@ -93,7 +93,13 @@ export default function SparksEmailAuth({ username, onVerified }:{
       const actor=await signInSparksWithQaPassword(username||qaUsername,qaPassword);
       setQaPassword("");
       onVerified(actor);
-    }catch(e){setError(e instanceof Error?e.message:"ไม่สามารถเข้า QA Sparks ด้วยบัญชี QA เดิมได้");}
+    }catch(e){
+      const detail=e instanceof Error?e.message:"ไม่สามารถเข้า QA Sparks ด้วยบัญชี QA เดิมได้";
+      const isOwner=String(username||qaUsername).trim().toLowerCase()==="songpon";
+      setError(isOwner && /ยังไม่ได้ซิงก์|รหัสผ่านไม่ถูกต้อง/.test(detail)
+        ? "บัญชี QA เดิมอาจยังไม่ได้ย้ายไป Supabase ให้เจ้าของระบบเลือก “ยืนยันอีเมล OTP (สำรอง)” เพื่อเข้า Sparks Admin แล้วซิงก์บัญชี Active ก่อน (ใช้ OTP เฉพาะเจ้าของระบบครั้งแรก)"
+        : detail);
+    }
     finally{setBusy(false);}
   };
   const send=async(event:React.FormEvent)=>{
