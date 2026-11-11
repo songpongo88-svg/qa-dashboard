@@ -69,10 +69,10 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     } catch {/* Browser storage does not control authorization. */}
     setEmailAuthChoices(current=>({...current,[normalizedSparksUser]:enabled}));
   };
+  // Hybrid mode retains the original server-verified QA owner session while
+  // migrating Supabase Auth. Do not force owner into email OTP.
   const emailAuthEnabled = emailAuthMode === "supabase" || (
-    emailAuthMode === "hybrid" && (
-      username.trim().toLowerCase() === "songpon" || Boolean(verifiedSparksActor) || emailOptedIn
-    )
+    emailAuthMode === "hybrid" && (Boolean(verifiedSparksActor) || emailOptedIn)
   );
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
   // A successful normal QA Dashboard login automatically creates a Supabase
@@ -205,7 +205,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       setVerifiedActor(actor);
       if(emailAuthMode==="hybrid")chooseEmailAuth(true);
     }}/>
-    {emailAuthMode==="hybrid" && normalizedSparksUser!=="songpon" && !verifiedSparksActor && <div style={{textAlign:"center",padding:"0 16px 24px"}}>
+    {emailAuthMode==="hybrid" && !verifiedSparksActor && <div style={{textAlign:"center",padding:"0 16px 24px"}}>
       <button type="button" data-sparks-legacy-fallback="true" onClick={()=>{
         void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).catch(()=>{}).finally(()=>{
           chooseEmailAuth(false);
@@ -308,8 +308,8 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <div>
-          {emailAuthEnabled && verifiedActor?.username==="songpon" && verifiedActor?.role==="Quality Assurance" && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
-            ? <SparksQaCredentialMigration/> : null}
+          {!emailAuthEnabled && username.trim().toLowerCase()==="songpon" && adminSessionId && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
+            ? <SparksQaCredentialMigration actorUsername={username} sessionId={adminSessionId}/> : null}
           <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active} />
         </div> : null}
       </div>
