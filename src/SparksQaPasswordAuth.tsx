@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { SparksVerifiedActor } from "./SparksEmailAuth";
 import "./SparksEmailAuth.css";
 
@@ -10,6 +10,8 @@ export default function SparksQaPasswordAuth({
   username?: string;
   onVerified: (actor: SparksVerifiedActor) => void;
 }) {
+  const onVerifiedRef = useRef(onVerified);
+  useEffect(() => { onVerifiedRef.current = onVerified; }, [onVerified]);
   const [enteredUsername, setEnteredUsername] = useState(username);
   const [password, setPassword] = useState("");
   const [checking, setChecking] = useState(true);
@@ -30,7 +32,7 @@ export default function SparksQaPasswordAuth({
         const actor = data?.actor as SparksVerifiedActor | undefined;
         if (actor?.status === "Active" && actor.username &&
             (!username || actor.username.toLowerCase() === username.toLowerCase())) {
-          onVerified(actor);
+          onVerifiedRef.current(actor);
         }
       } catch {
         // A failed session lookup must not grant access or block manual sign-in.
@@ -39,7 +41,7 @@ export default function SparksQaPasswordAuth({
       }
     })();
     return () => { alive = false; };
-  }, [username, onVerified]);
+  }, [username]);
   async function signIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting || checking) return;
