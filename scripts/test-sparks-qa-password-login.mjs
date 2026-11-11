@@ -32,6 +32,15 @@ assert.ok(admin.includes("migration-roster"), "Migration must preflight authorit
 assert.ok(admin.includes("missing.length>0"), "Reject incomplete staff credentials before changes");
 assert.ok(api.includes('action === "migration-roster"'), "Owner roster endpoint must exist");
 assert.ok(!admin.includes("await fetchStoredUserProfiles("), "Do not migrate cached passwords");
+assert.ok(admin.includes('setIssues(missing.map('), "List specific missing or invalid accounts to owner");
+assert.ok(admin.includes('data-sparks-qa-migration-issues="true"'), "Show owner-only account error panel");
+assert.ok(admin.includes("ไม่พบรหัสผ่าน QA ใน Firestore"), "Distinguish missing passwords");
+assert.ok(admin.includes("รหัสผ่าน QA เดิมสั้นกว่า 6 ตัวอักษร"), "Distinguish insufficient password length");
+assert.ok(admin.includes("รหัสผ่าน QA หมดอายุ"), "Distinguish expired passwords");
+assert.ok(admin.includes("ไม่พบเอกสารบัญชีนี้ใน Firestore"), "Distinguish missing source accounts");
+assert.ok(!admin.includes("console.log("), "Do not log QA credential diagnostics");
+assert.ok(admin.includes("คัดลอกรายชื่อและสาเหตุ (ไม่มีรหัสผ่าน)"), "Support safe diagnostic export");
+
 assert.ok(qaSparks.includes("<SparksQaCredentialMigration/>"));
 assert.ok(app.includes("void signInSparksWithQaPassword(nextUser.username,typedPassword)"));
 assert.ok(app.includes("void signInSparksWithQaPassword(nextUser.username,normalizedPassword)"));
