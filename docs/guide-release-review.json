@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T10:40:00.000Z",
-  "reason": "QA Sparks login migration branch only: reviewed read-only, existing-QA-owner-session-protected Firestore preflight to distinguish 17 eligible credentials, 4 not-yet-set passwords and Suspended accounts, with no plaintext passwords in responses or logs. Source inventory is not a Supabase Auth cutover. No QA reports, scores, Sparks balances, Items, History, user guide text or T&C modified. Production login remains Hybrid until all identity checks pass.",
+  "reviewedAt": "2026-11-11T11:00:00.000Z",
+  "reason": "QA Sparks authentication cutover preparation branch only: updated test expectation to maintain Production QA owner hybrid fallback on OTP outage. No scoring, wallets, items, history or guide content changed. No Production authentication cutover.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -733,7 +733,7 @@
     "server/sparksProfileReconcile.js": "d49586813400952faa80cb40137d1e336838c14bd66ba3e7492177414cb8ad1c",
     "api/cron/sparks-profile-reconcile.js": "5ebdc742bb08f93fa339b9b198d2c896008da601f95d457127656355a0a5b916",
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
-    "scripts/test-sparks-hybrid-owner.mjs": "232ee3768dab101cbdb0a51aedea33ec6578419db3f7b99627f41421639db121",
+    "scripts/test-sparks-hybrid-owner.mjs": "035e106d4a6a955a5a233a6b5904932c0a718867175b4060ee6ce410875e2029",
     "src/lib/evaluation/draftBackup.ts": "32c0d6692a73f16b74c448f5e8d2a05759f65a7a3653a4446bec955b29ea5de2",
     "scripts/test-qa-emergency-draft-export.mjs": "7707f5f194da2de2a3a1d0681ab7a6fb0f7265fa4b79f6c14a412faee00fbe7d",
     "src/typingReliefPricing.mjs": "1b01a39b16ae2b10e4740ea9101478ae5b9c72d24630b73b4e2151b740c96a4c",
