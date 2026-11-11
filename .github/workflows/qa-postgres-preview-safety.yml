@@ -55,6 +55,8 @@ on:
       - "server/qaStandbyArchiveStatus.js"
       - "server/qaLiveMirrorStage.js"
       - "server/qaFirestoreRestSnapshot.js"
+      - "server/qaStandbySnapshotReadiness.js"
+      - "scripts/test-qa-standby-snapshot-readiness.mjs"
       - "server/qaFirestoreSnapshotCodec.js"
       - "scripts/test-qa-firestore-snapshot-codec.mjs"
       - "server/qaStandbyCandidateMaterializer.js"
@@ -149,6 +151,8 @@ jobs:
           node --check server/qaStandbyArchiveStatus.js
           node --check server/qaLiveMirrorStage.js
           node --check server/qaFirestoreRestSnapshot.js
+          node --check server/qaStandbySnapshotReadiness.js
+          node --check scripts/test-qa-standby-snapshot-readiness.mjs
           node --check server/qaFirestoreSnapshotCodec.js
           node --check scripts/test-qa-firestore-snapshot-codec.mjs
           node --check server/qaStandbyCandidateMaterializer.js
@@ -179,6 +183,7 @@ jobs:
           node scripts/test-qa-cutover-parity-gate.mjs
           node scripts/test-qa-failover-decision.mjs
           node scripts/test-qa-firestore-rest-snapshot.mjs
+          node scripts/test-qa-standby-snapshot-readiness.mjs
           node scripts/test-qa-firestore-snapshot-codec.mjs
           node scripts/test-qa-live-stage-runner.mjs
 
