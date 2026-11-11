@@ -12,11 +12,12 @@ const preview={
 let fetchCount=0,responseMode='success';
 const callFetch=async(url,init)=>{
   fetchCount++;
-  assert.ok(url===worker+'ready'||url===worker+'summary');
+  assert.ok([worker+'ready',worker+'summary',worker+'readiness'].includes(url));
   assert.equal(init.headers.authorization,'Bearer '+token);
   assert.equal(init.method,'GET');
   assert.equal(init.redirect,'manual');
   if(responseMode==='offline')throw Error('private bridge password should not leak');
+  if(url.endsWith('/readiness'))return new Response('',{status:404});
   const data=url.endsWith('/ready')
     ? {ok:true,readOnly:true,databaseConnected:responseMode==='unverified'?false:true,failoverReady:false}
     : {ok:true,readOnly:true,failoverReady:false,importedArchiveCountMatch:true,
@@ -50,7 +51,7 @@ assert.equal(r.body.writeEnabled,false);
 assert.equal(r.body.syncBackVerified,false);
 assert.equal(r.body.currentFirestoreParity,'not_verified');
 assert.equal(r.body.dataProxyEnabled,false);
-assert.equal(fetchCount,2);
+assert.equal(fetchCount,3);
 assert.equal(r.headers['cache-control'],'no-store, max-age=0');
 assert.equal(r.headers['access-control-allow-origin'],undefined);
 assert.ok(!JSON.stringify(r.body).includes(token));
