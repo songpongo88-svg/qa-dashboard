@@ -1,113 +1,103 @@
-// Owner-authorized, one-time migration of existing QA credentials to Supabase Auth.
-// Passwords are received over HTTPS and immediately handed to GoTrue, which stores
-// secure password hashes. This function NEVER stores or returns plaintext passwords.
-// No new password and no OTP is required for an enrolled QA employee.
-const SUPABASE_URL=(Deno.env.get("SUPABASE_URL")||"").replace(/\/$/,"");
-const ANON_KEY=Deno.env.get("SUPABASE_ANON_KEY")||"";
+// QA Sparks: verified QA-owner-requested, server-to-server credential import.
+// Never accepts a browser session; Vercel validates the original QA owner
+// session and reads the fresh Firestore source, then sends only eligible
+// identities through HTTPS with the existing private bridge credential.
+const URL=(Deno.env.get("SUPABASE_URL")||"").replace(/\/$/,"");
 const ADMIN_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
-const json=(status:number,body:Record<string,unknown>)=>new Response(JSON.stringify(body),{
- status,headers:{"content-type":"application/json","cache-control":"no-store","x-content-type-options":"nosniff"},
+const BRIDGE_HASH="3e6eb4cb263eb395295476543aa1dbf183995bd91782e8ed0533482846c3b26d";
+const reply=(status:number,result:Record<string,unknown>)=>new Response(JSON.stringify(result),{
+ status,headers:{"content-type":"application/json","cache-control":"no-store","x-content-type-options":"nosniff"}
 });
-const usernamePattern=/^[a-z0-9._-]{2,64}$/;
-const normalize=(value:unknown)=>String(value||"").trim().toLowerCase();
-function syntheticEmail(username:string){return "qa-"+username+"@qa-sparks-login.invalid";}
-async function callAuth(path:string,method:string,token:string,body?:unknown){
- const resp=await fetch(SUPABASE_URL+path,{
-  method,headers:{"apikey":ADMIN_KEY,"Authorization":"Bearer "+token,
-  ...(body===undefined?{}:{"content-type":"application/json"})},
-  ...(body===undefined?{}:{body:JSON.stringify(body)}),
- });
- const value=await resp.json().catch(()=>({}));
- return {ok:resp.ok,status:resp.status,value};
+const norm=(v:unknown)=>String(v||"").trim().toLowerCase();
+const uname=(v:unknown)=>/^[a-z0-9._-]{2,64}$/.test(norm(v));
+async function verifyBridge(req:Request){
+ const secret=req.headers.get("x-qa-sparks-server-secret")||"";
+ if(req.headers.get("x-qa-sparks-migration-mode")!=="one-time-source-import" ||
+    secret.length<40||secret.length>150)return false;
+ const digest=new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(secret)));
+ const hashed=Array.from(digest).map(byte=>byte.toString(16).padStart(2,"0")).join("");
+ let mismatch=0;
+ for(let i=0;i<64;i++)mismatch|=hashed.charCodeAt(i)^BRIDGE_HASH.charCodeAt(i);
+ return mismatch===0;
 }
-async function verifyOwner(jwt:string){
- const user=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:{"apikey":ANON_KEY,Authorization:"Bearer "+jwt}});
- if(!user.ok)return false;
- const identity=await user.json().catch(()=>({}));
- if(!identity.id||!identity.email_confirmed_at)return false;
- const rpc=await fetch(SUPABASE_URL+"/rest/v1/rpc/sparks_verified_identity_v1",{
-  method:"POST",headers:{"apikey":ANON_KEY,Authorization:"Bearer "+jwt,"content-type":"application/json"},body:"{}",
+async function reqAuth(path:string,method:string,body?:unknown){
+ const response=await fetch(URL+path,{
+   method,headers:{"apikey":ADMIN_KEY,Authorization:"Bearer "+ADMIN_KEY,
+   ...(body===undefined?{}:{"content-type":"application/json"})},
+   ...(body===undefined?{}:{body:JSON.stringify(body)}),
  });
- if(!rpc.ok)return false;
- const rows=await rpc.json().catch(()=>[]);
- return Array.isArray(rows)&&rows.length===1&&normalize(rows[0].username)==="songpon"&&rows[0].role==="Quality Assurance";
+ const result=await response.json().catch(()=>({}));
+ return {ok:response.ok,status:response.status,result};
 }
-async function activeRoster(jwt:string){
- const resp=await fetch(SUPABASE_URL+"/rest/v1/rpc/sparks_admin_directory_v1",{
-  method:"POST",headers:{"apikey":ANON_KEY,Authorization:"Bearer "+jwt,"content-type":"application/json"},body:"{}",
- });
- if(!resp.ok)throw Error("Current QA Active roster is not verified. Please sync profiles before migration.");
- const rows=await resp.json().catch(()=>[]);
- if(!Array.isArray(rows)||rows.length<1)throw Error("No verified Active roster");
- return new Map(rows.map(row=>[normalize(row.username),row]));
+async function roster(){
+ const response=await reqAuth("/rest/v1/rpc/sparks_qa_migration_directory_v1","POST",{});
+ if(!response.ok || !Array.isArray(response.result))
+   throw Error("REVIEWED_ROSTER_UNAVAILABLE");
+ const all=response.result as {username:string;role:string}[];
+ if(all.length!==21)throw Error("REVIEWED_ACTIVE_ROSTER_COUNT_CHANGED");
+ const names=all.map(x=>norm(x.username));
+ if(new Set(names).size!==21||!all.some(x=>norm(x.username)==="songpon"&&x.role==="Quality Assurance"))
+   throw Error("REVIEWED_ACTIVE_ROSTER_INVALID");
+ return names.sort();
 }
-Deno.serve(async req=>{
- if(req.method!=="POST")return json(405,{error:"Method not allowed"});
- if(!SUPABASE_URL.startsWith("https://")||!ADMIN_KEY||!ANON_KEY)
-   return json(503,{error:"Secure migration server is not configured"});
- const bearer=String(req.headers.get("authorization")||"");
- if(!bearer.startsWith("Bearer "))return json(401,{error:"Verified owner session required"});
- const jwt=bearer.slice(7);
+Deno.serve(async (req:Request)=>{
+ if(req.method!=="POST")return reply(405,{error:"METHOD_NOT_ALLOWED"});
+ if(!URL.startsWith("https://") || !ADMIN_KEY)return reply(503,{error:"AUTH_SERVICE_UNAVAILABLE"});
+ if(!await verifyBridge(req))return reply(403,{error:"TRUSTED_SERVER_REQUIRED"});
  try{
-  if(!await verifyOwner(jwt))return json(403,{error:"Only verified QA owner may migrate existing QA credentials"});
-  const payload=await req.json().catch(()=>null);
-  const entries=payload?.entries;
-  if(!Array.isArray(entries)||entries.length<1||entries.length>35)
-    return json(400,{error:"Submit 1 to 35 Active QA profile credentials"});
-  const roster=await activeRoster(jwt);
-  const distinct=new Set<string>();const prepared:{username:string,password:string}[]=[];
-  const skipped:string[]=[];
-  for(const row of entries){
-   const username=normalize(row?.username),password=row?.password;
-   if(!usernamePattern.test(username)||distinct.has(username)){
-    return json(400,{error:"Duplicate or invalid QA username"});
+   const data=await req.json().catch(()=>null);
+   if(!data||data.action!=="import-existing-qa-passwords"||
+       !Array.isArray(data.entries)||!Array.isArray(data.expectedActive))
+     return reply(400,{error:"INVALID_MIGRATION_PAYLOAD"});
+   const expected=data.expectedActive.map(norm);
+   if(expected.length!==21 || expected.some((x:string)=>!uname(x))||
+      new Set(expected).size!==21)return reply(409,{error:"SOURCE_ROSTER_MISMATCH"});
+   const verified=await roster();
+   if(verified.some((name,i)=>name!==[...expected].sort()[i]))
+     return reply(409,{error:"ACTIVE_ROSTER_NOT_MATCHED"});
+   const entries=data.entries as {username?:unknown;password?:unknown;passwordExpiresAt?:unknown}[];
+   if(!entries.length||entries.length>21)return reply(400,{error:"INVALID_ELIGIBLE_COUNT"});
+   const names=new Set<string>();
+   for(const item of entries){
+     const n=norm(item?.username),p=item?.password;
+     if(!uname(n)||names.has(n)||!verified.includes(n)||typeof p!=="string"||
+        p.length<6||p.length>128)return reply(409,{error:"INVALID_ELIGIBLE_IDENTITY"});
+     names.add(n);
+     const expiry=String(item.passwordExpiresAt||"").trim();
+     if(expiry&&(!Number.isFinite(Date.parse(expiry))||Date.parse(expiry)<=Date.now()))
+       return reply(409,{error:"CREDENTIAL_EXPIRED"});
    }
-   distinct.add(username);
-   // The roster is server-verified, not client-supplied. Suspended accounts
-   // cannot be provisioned even if the browser sends a stale Active status.
-   if(!roster.has(username)){skipped.push(username);continue;}
-   if(typeof password!=="string"||password.length<6||password.length>128){
-    skipped.push(username);continue;
+   const identities=await reqAuth("/auth/v1/admin/users?per_page=200&page=1","GET");
+   if(!identities.ok||!Array.isArray(identities.result.users))
+     return reply(503,{error:"AUTH_DIRECTORY_UNAVAILABLE"});
+   const existing=new Map((identities.result.users as Record<string,unknown>[]).map(u=>[norm(u.email),u]));
+   for(const item of entries){
+     const username=norm(item.username),email="qa-"+username+"@qa-sparks-login.invalid";
+     const current=existing.get(email);
+     if(!current)continue;
+     const meta=current.app_metadata as Record<string,unknown>||{};
+     if(meta.qa_auth_source!=="qa-dashboard-migrated"||norm(meta.qa_username)!==username)
+       return reply(409,{error:"EXISTING_IDENTITY_CONFLICT",username});
    }
-   if(row?.passwordExpiresAt && Number.isFinite(Date.parse(String(row.passwordExpiresAt)))
-      && Date.parse(String(row.passwordExpiresAt)) < Date.now()){
-    skipped.push(username);continue;
+   let created=0,updated=0;
+   const failed:{username:string;state:string}[]=[];
+   for(const entry of entries){
+     const username=norm(entry.username);
+     const email="qa-"+username+"@qa-sparks-login.invalid";
+     const current=existing.get(email);
+     const attributes={password:entry.password,
+       app_metadata:{qa_auth_source:"qa-dashboard-migrated",qa_username:username}};
+     const result=current
+       ?await reqAuth("/auth/v1/admin/users/"+encodeURIComponent(String(current.id)),"PUT",attributes)
+       :await reqAuth("/auth/v1/admin/users","POST",{...attributes,email,email_confirm:true});
+     if(result.ok){if(current)updated++;else created++}
+     else failed.push({username,state:"failed"});
    }
-   prepared.push({username,password});
-  }
-  // Idempotent: only update identities that this exact migration created.
-  const list=await callAuth("/auth/v1/admin/users?per_page=100&page=1","GET",ADMIN_KEY);
-  if(!list.ok)return json(503,{error:"Supabase Auth admin roster unavailable"});
-  const existing=new Map(((list.value?.users||[]) as Record<string,unknown>[])
-    .map(u=>[normalize(u.email),u]));
-  const results:{username:string;state:string}[]=[];
-  for(const row of prepared){
-   const email=syntheticEmail(row.username);
-   const old=existing.get(email) as Record<string,unknown>|undefined;
-   const appMeta={qa_auth_source:"qa-dashboard-migrated",qa_username:row.username};
-   let result;
-   if(old){
-    const prev=old.app_metadata as Record<string,unknown>||{};
-    if(prev.qa_auth_source!=="qa-dashboard-migrated"||normalize(prev.qa_username)!==row.username){
-      results.push({username:row.username,state:"identity_conflict"});continue;
-    }
-    result=await callAuth("/auth/v1/admin/users/"+encodeURIComponent(String(old.id)),"PUT",ADMIN_KEY,
-      {password:row.password,app_metadata:appMeta});
-   }else{
-    result=await callAuth("/auth/v1/admin/users","POST",ADMIN_KEY,
-      {email,password:row.password,email_confirm:true,app_metadata:appMeta});
-   }
-   results.push({username:row.username,state:result.ok?(old?"updated":"created"):"failed"});
-  }
-  return json(200,{
-    submitted:entries.length,eligible:prepared.length,
-    created:results.filter(x=>x.state==="created").length,
-    updated:results.filter(x=>x.state==="updated").length,
-    skipped,failed:results.filter(x=>x.state!=="created"&&x.state!=="updated"),
-    // No email, token or password is returned.
-  });
- }catch(error){
-  // Do not return or log raw exceptions; they may contain authentication data.
-  return json(503,{error:"Cannot migrate QA credentials while roster or Auth service is unavailable"});
+   return reply(failed.length?207:200,{
+     submitted:entries.length,created,updated,failed,
+     // Passwords, synthetic emails, credentials and access keys are never returned.
+   });
+ }catch{
+   return reply(503,{error:"MIGRATION_UNAVAILABLE"});
  }
 });
