@@ -40,8 +40,9 @@ assert.equal(normalized.record.callLogs[0].id,'call-001');
 assert.equal(normalized.record.deletedAt,'');
 assert.equal(normalized.sourceHash,HASH);
 const alter=(k,v)=>({fields:{...typed.fields,[k]:f(k,v)}});
-await assert.rejects(async()=>normalizeQaFirestoreEvaluation(original.id,alter('final_score',undefined),HASH),
-  e=>e.code==='firestore_value_ambiguous');
+assert.throws(()=>normalizeQaFirestoreEvaluation(original.id,
+  {fields:Object.fromEntries(Object.entries(typed.fields).filter(([k])=>k!=='final_score'))},HASH),
+  e=>e.code==='evaluation_score_invalid_or_missing');
 assert.throws(()=>normalizeQaFirestoreEvaluation(original.id,alter('final_score',101),HASH),
   e=>e.code==='evaluation_score_invalid_or_missing');
 assert.throws(()=>normalizeQaFirestoreEvaluation(original.id,alter('evaluation_month_key','2026-22'),HASH),
