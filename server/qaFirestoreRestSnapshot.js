@@ -1,5 +1,5 @@
 // QA-only authoritative Firestore REST reader, backend only.
-// Reads six collections at ONE pinned point-in-time readTime using an
+// Reads all required QA collections at ONE pinned point-in-time readTime using an
 // OAuth token provided by a trusted server, never a QA browser API key.
 // This reader performs GETs only; quota/authorization errors abort completely.
 import {randomUUID} from 'node:crypto';
