@@ -1,6 +1,6 @@
 import {
   withSparksRequest, getSparksRequestActor, exchangeSparksAuthTokens, clearSparksAuthCookies,
-  sparksProfileSyncStatus,
+  sparksProfileSyncStatus, loginSparksQaCredentials,
 } from "../server/sparksSupabaseAuth.js";
 
 export default async function handler(req, res) {
@@ -23,6 +23,10 @@ export default async function handler(req, res) {
     }
     if (req.method === "POST") {
       const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      if (body.action === "login") {
+        const actor = await loginSparksQaCredentials(res, body.username, body.password);
+        return res.status(200).json({ ok: true, actor });
+      }
       if (body.action !== "exchange") return res.status(400).json({ error: "Invalid Sparks authentication request" });
       const actor = await exchangeSparksAuthTokens(res, body);
       return res.status(200).json({ ok: true, actor });
