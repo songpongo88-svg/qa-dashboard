@@ -65,6 +65,8 @@ on:
       - "scripts/test-qa-firestore-rest-snapshot.mjs"
       - "scripts/Run-QA-Authoritative-Snapshot-Stage.mjs"
       - "scripts/test-qa-live-stage-runner.mjs"
+      - "scripts/check-qa-source-stage-preflight.mjs"
+      - "scripts/test-qa-source-stage-preflight.mjs"
       - "migration/qa-local-live-snapshot-stage.sql"
       - "scripts/test-qa-live-mirror-stage-integration.mjs"
       - "scripts/test-qa-standby-archive-status.mjs"
@@ -162,6 +164,8 @@ jobs:
           node --check scripts/test-qa-firestore-rest-snapshot.mjs
           node --check scripts/Run-QA-Authoritative-Snapshot-Stage.mjs
           node --check scripts/test-qa-live-stage-runner.mjs
+          node --check scripts/check-qa-source-stage-preflight.mjs
+          node --check scripts/test-qa-source-stage-preflight.mjs
           node --check scripts/test-qa-live-mirror-stage-integration.mjs
           node --check scripts/test-qa-standby-archive-status.mjs
           node --check scripts/test-qa-standby-replay-integration.mjs
@@ -189,6 +193,7 @@ jobs:
           node scripts/test-qa-vpc-readiness.mjs
           node scripts/test-qa-firestore-snapshot-codec.mjs
           node scripts/test-qa-live-stage-runner.mjs
+          node scripts/test-qa-source-stage-preflight.mjs
 
   ephemeral-postgres-integration:
     runs-on: ubuntu-latest
