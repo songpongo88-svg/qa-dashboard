@@ -71,6 +71,24 @@ export function createQaLocalBridgeHandler(pool, { token } = {}) {
   };
 }
 
+
+// Multiplex the existing archive-only status API and the future authenticated
+// QA DATA handler on ONE existing loopback port. No backend data handler is
+// installed by default. The injected handler MUST revalidate local QA sessions
+// and supply server-side parity/locks, never trusting user-supplied flags.
+export function createQaBridgeRouter(pool, { token, standbyDataHandler } = {}) {
+  const archive = createQaLocalBridgeHandler(pool, { token });
+  return (req, res) => {
+    const path = String(req.url || '').split('?')[0];
+    if (path === '/v1/qa/evaluations' || path.startsWith('/v1/qa/evaluations/')) {
+      if (typeof standbyDataHandler !== 'function')
+        return respond(res, 503, { ok: false, error: 'standby_data_disabled' });
+      return standbyDataHandler(req, res);
+    }
+    return archive(req, res);
+  };
+}
+
 export function validateLocalQaConnectionString(value) {
   if (typeof value !== 'string') return false;
   try {
@@ -98,7 +116,8 @@ async function start() {
     idleTimeoutMillis: 10000, statement_timeout: 3000,
     options: '-c default_transaction_read_only=on',
   });
-  const handler = createQaLocalBridgeHandler(pool, { token });
+  // Production still runs archive-only until a trusted data handler exists.
+  const handler = createQaBridgeRouter(pool, { token });
   const server = createServer((req, res) => { void handler(req, res); });
   server.requestTimeout = 5000;
   server.headersTimeout = 6000;
