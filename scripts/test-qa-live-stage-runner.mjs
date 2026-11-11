@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import {runQaLiveSnapshotStage} from './Run-QA-Authoritative-Snapshot-Stage.mjs';
-if(process.env.QA_PG_ISOLATED_TEST!=='1'||!process.env.QA_TEST_DATABASE_URL)
-  throw new Error('Run only against disposable PostgreSQL 17 fixture');
 const fakeEnv={
   QA_LIVE_SNAPSHOT_STAGE_ONLY:'1',
-  QA_LOCAL_DATABASE_URL:process.env.QA_TEST_DATABASE_URL,
+  QA_LOCAL_DATABASE_URL:'postgresql://qa_fixture:fake@127.0.0.1:5432/qa_dashboard_lab',
   QA_FIRESTORE_PROJECT_ID:'qa-fixture-2026',
   QA_FIRESTORE_OAUTH_ACCESS_TOKEN:'fixture-oauth-access-token-not-secret',
 };
@@ -24,9 +22,7 @@ await assert.rejects(runQaLiveSnapshotStage({
   pgModule:fakePg,
 }),/server_firebase_oauth_not_configured/);
 assert.equal(count,0);
-const url=new URL(process.env.QA_TEST_DATABASE_URL);
-assert.equal(url.pathname,'/qa_cutover_ci_test');
-// The Windows runner is intentionally restricted to actual qa_dashboard_lab.
+ // The Windows runner is intentionally restricted to actual qa_dashboard_lab.
 // Integration with disposable fixtures is covered by the separate
 // test-qa-live-mirror-stage-integration.mjs.
 console.log('PASS QA source runner: explicit opt-in, local-only target and OAuth guards block all unsafe operations before any network/SQL');
