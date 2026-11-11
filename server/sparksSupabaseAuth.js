@@ -79,6 +79,33 @@ export async function verifySparksAccessToken(accessToken) {
     status: "Active",
   };
 }
+export async function loginSparksQaCredentials(res, username, password) {
+  const name = normalized(username);
+  if (!/^[a-z0-9._-]{2,64}$/.test(name) || typeof password !== "string" ||
+      password.length < 6 || password.length > 128) {
+    throw failure("Username หรือ Password ไม่ถูกต้อง", 401, "SPARKS_BAD_CREDENTIALS");
+  }
+  // These synthetic identities are provisioned by the owner-authorized
+  // migration, never by a public signup endpoint.
+  const email = "qa-" + name + "@qa-sparks-login.invalid";
+  let tokens;
+  try {
+    tokens = await supabase("/auth/v1/token?grant_type=password", {
+      method: "POST", body: { email, password },
+    });
+  } catch (error) {
+    if (Number(error?.status) === 503) throw error;
+    throw failure("Username หรือ Password ไม่ถูกต้อง", 401, "SPARKS_BAD_CREDENTIALS");
+  }
+  const actor = await verifySparksAccessToken(tokens?.access_token || "");
+  if (actor.username !== name || actor.status !== "Active") {
+    throw failure("บัญชี QA นี้ยังไม่ได้รับสิทธิ์เข้าใช้ Sparks", 403, "SPARKS_PROFILE_NOT_ACTIVE");
+  }
+  if (!tokens?.refresh_token) throw failure("ไม่สามารถสร้าง Session ได้", 503);
+  setCookies(res, tokens);
+  return actor;
+}
+
 export async function exchangeSparksAuthTokens(res, data) {
   const accessToken = data?.access_token;
   const refreshToken = data?.refresh_token;
