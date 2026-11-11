@@ -51,4 +51,10 @@ CREATE TABLE IF NOT EXISTS qa_failover_v1.live_candidate_audit (
   eligible_for_failover boolean NOT NULL DEFAULT false
     CHECK(eligible_for_failover=false)
 );
+-- A cutover coordinator must set these ONLY after independent live parity
+-- and verified quota exhaustion. They remain NULL in all archive imports.
+ALTER TABLE qa_failover_v1.state
+  ADD COLUMN IF NOT EXISTS active_snapshot_id text;
+ALTER TABLE qa_failover_v1.state
+  ADD COLUMN IF NOT EXISTS outage_started_at timestamptz;
 COMMIT;
