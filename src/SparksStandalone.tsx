@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import QASparks from "./QASparks";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
+import SparksQaPasswordAuth from "./SparksQaPasswordAuth";
 
 const qaDashboardUrl = "/?tab=dashboard";
 type SyncStatus = {
@@ -45,6 +46,7 @@ function SparksSyncHealth() {
 export default function SparksStandalone() {
   const [actor, setActor] = useState<SparksVerifiedActor|null>(null);
   const enabled = ["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE || ""));
+  const passwordLogin = String(import.meta.env?.VITE_SPARKS_LOGIN_METHOD || "") === "qa-password";
   useEffect(()=>{
     if(!actor?.username)return;
     // Store only the user's selected login path; never store OTP or tokens.
@@ -81,7 +83,7 @@ export default function SparksStandalone() {
       <a href={qaDashboardUrl} style={{color:"#4750af",fontSize:13}}>กลับไป QA Dashboard</a>
     </header>
     {actor?.username.toLowerCase()==="songpon" && actor.role==="Quality Assurance" && <SparksSyncHealth />}
-    {!actor ? <SparksEmailAuth onVerified={setActor}/> : (
+    {!actor ? (passwordLogin ? <SparksQaPasswordAuth onVerified={setActor}/> : <SparksEmailAuth onVerified={setActor}/>) : (
       <QASparks
         key={actor.username}
         username={actor.username}
