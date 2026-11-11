@@ -12,6 +12,7 @@ import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } f
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
 import { auditQaCredentialSource } from "../server/sparksQaCredentialPreflight.js";
+import { migrateQaPasswordsFromTrustedSource } from "../server/sparksQaMigrationRunner.js";
 import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
@@ -1689,6 +1690,36 @@ async function sparksHandler(req, res) {
       return res.status(200).json(result);
     }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
+    if (body.action === "qa-password-migrate-server") {
+      // This is NEVER a public/cron-triggered import: the existing QA
+      // session, owner role, suspension, expiry, and policy are all checked
+      // before the server can fetch source credentials. No credential is
+      // returned to the browser, kept in logs, or stored in intermediate tables.
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")
+        fail("QA Sparks Supabase backend is not enabled",409);
+      const site=String(req.headers?.["sec-fetch-site"] || "");
+      if(site && site!=="same-origin" && site!=="none")
+        fail("Cross-origin credential import denied",403);
+      const origin=String(req.headers?.origin || "");
+      if(origin){
+        let sourceOrigin;
+        try { sourceOrigin=new URL(origin); }
+        catch { fail("Invalid request origin",403); }
+        if(sourceOrigin.protocol!=="https:" || sourceOrigin.host!==req.headers.host)
+          fail("Credential import origin mismatch",403);
+      }
+      await authorizeAdmin(body);
+      const page=await listCollection("qa_user_profiles",[
+        "username","status","role","password","passwordExpiresAt","accessExpiresAt",
+        "suspendEffectiveDate","suspendEndDate","suspendAutoReactivate",
+      ]);
+      if(page.truncated)fail("Source credential inventory was incomplete",503);
+      const result=await migrateQaPasswordsFromTrustedSource(page.documents.map(recordValue),{
+        token:process.env.SPARKS_SUPABASE_BRIDGE_TOKEN,
+        url:process.env.SPARKS_SUPABASE_AUTH_URL,
+      });
+      return res.status(result.ok?200:409).json(result);
+    }
     if (body.action === "qa-password-preflight") {
       // Admin-only, read-only and same-origin. No password is returned to the
       // client, written to Supabase, or logged.
