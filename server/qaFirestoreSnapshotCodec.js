@@ -89,11 +89,20 @@ export function normalizeQaFirestoreEvaluation(docId,snapshot,sourceHash){
   const original=decodeQaFirestoreSnapshotDocument(snapshot);
   if(original.id!==undefined&&original.id!==docId)
     throw fail('evaluation_document_id_mismatch');
-  const evaluationType=string(original,'evaluation_type','evaluationType')||'case';
+  const preview=value(original,'raw_data_preview','rawDataPreview')||{};
+  if(!plain(preview))throw fail('evaluation_metadata_invalid');
+  const evaluationType=string(original,'evaluation_type','evaluationType')||
+    text(preview['Evaluation Type'])||'case';
   if(!['case','no_case_month'].includes(evaluationType))
     throw fail('evaluation_type_invalid');
-  const agentName=string(original,'agent_name','agentName');
-  const monthKey=string(original,'evaluation_month_key','evaluationMonthKey');
+  const agentName=string(original,'agent_name','agentName')||
+    string(original,'target_display_name','targetDisplayName');
+  const exactMonth=string(original,'evaluation_month_key','evaluationMonthKey')||
+    text(preview['Evaluation Month Key']);
+  const monthSource=exactMonth||string(original,'audit_date','auditDate')||
+    string(original,'audit_timestamp','auditTimestamp')||
+    string(original,'submitted_at','submittedAt');
+  const monthKey=/^(\d{4}-\d{2})/.exec(monthSource)?.[1]||monthSource;
   const caseId=string(original,'case_id','caseId');
   const score=requiredScore(original);
   const topics=value(original,'topics')??null;
@@ -122,7 +131,8 @@ export function normalizeQaFirestoreEvaluation(docId,snapshot,sourceHash){
     caseUrl:string(original,'case_url','caseUrl'),
     inquiry:string(original,'inquiry'),
     caseDescription:string(original,'case_description','caseDescription'),
-    processReference:string(original,'process_reference','processReference'),
+    processReference:string(original,'process_reference','processReference')||
+      text(preview['Process Reference']),
     evidenceUrls:array(value(original,'evidence_urls','evidenceUrls')),
     callLogs:array(value(original,'call_logs','callLogs')),
     criticalError:value(original,'critical_error','criticalError')===true,
@@ -136,7 +146,7 @@ export function normalizeQaFirestoreEvaluation(docId,snapshot,sourceHash){
     strengths:array(value(original,'strengths')),
     improvements:array(value(original,'improvements')),
     topics,
-    rawDataPreview:value(original,'raw_data_preview','rawDataPreview')??{},
+    rawDataPreview:preview,
     evaluatorUsername:string(original,'evaluator_username','evaluatorUsername'),
     evaluatorName:string(original,'evaluator_name','evaluatorName'),
     submittedAt:string(original,'submitted_at','submittedAt'),
