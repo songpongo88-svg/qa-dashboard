@@ -16,8 +16,28 @@ type StandbyStatus={
   syncBackVerified:false;
   checkedAt:string;
   archivedDocuments?:number;
+  snapshotReadiness?:{
+    snapshotCopied:boolean;
+    candidatesVerified:boolean;
+    documentCount:number;
+    datasetCount:number;
+    freshnessVerified:boolean;
+    remainingChecks:string[];
+  };
 };
 const statusColor=(ok:boolean)=>ok?'text-emerald-700':'text-amber-800';
+const reasonDescriptions:Record<string,string>={
+  live_snapshot_missing:'ยังไม่มีข้อมูลล่าสุดจาก Firestore ที่ตรวจสอบครบ',
+  snapshot_copy_unverified:'ยังตรวจสอบเอกสารสำรองล่าสุดไม่ครบทุกฉบับ',
+  evaluation_candidate_unverified:'ยังไม่ได้ตรวจคะแนนและเคสต้นฉบับในชุดข้อมูลล่าสุด',
+  source_snapshot_not_fresh:'ข้อมูลที่สำรองไว้ไม่ใหม่พอสำหรับการสลับระบบ',
+  standby_mode_requires_review:'สถานะฐานสำรองต้องตรวจสอบโดยผู้ดูแล',
+  standby_writes_not_frozen:'ยังไม่ยืนยันการล็อกข้อมูลระหว่างตรวจสอบ',
+  outbox_not_empty:'ยังมีรายการบันทึกหรือข้อขัดแย้งที่ต้องซิงก์กลับ',
+  independent_live_parity_not_certified:'ยังไม่ผ่านการเทียบข้อมูลล่าสุดกับ Firestore โดยอิสระ',
+  local_login_and_roles_not_certified:'Login และสิทธิ์ผู้ใช้ผ่านฐานสำรองยังไม่ผ่านการรับรอง',
+  qa_write_and_failback_not_certified:'การประเมิน อุทธรณ์ ลายเซ็น และการซิงก์กลับยังไม่ผ่านการรับรอง',
+};
 
 export default function QaStandbySystemStatus(){
   const [state,setState]=useState<StandbyStatus|null>(null);
@@ -95,6 +115,24 @@ export default function QaStandbySystemStatus(){
           <p className="mt-1 text-xs text-slate-500">ห้ามใช้สำเนาเก่าเขียนทับผล QA หรือเปิดรับงานจริง</p>
         </div>
       </div>
+      {state?.snapshotReadiness ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/40 p-4" data-qa-standby-readiness="unverified">
+          <h4 className="text-sm font-bold text-slate-900">ผลตรวจความพร้อมใช้งานผ่านฐานสำรอง</h4>
+          <p className="mt-1 text-xs text-slate-700">
+            สำเนาใหม่: {state.snapshotReadiness.snapshotCopied?'ตรวจการคัดลอกแล้ว':'ยังไม่ครบ'} ·
+            คะแนนต้นฉบับ: {state.snapshotReadiness.candidatesVerified?'ตรวจแล้ว':'ยังไม่ผ่าน'} ·
+            {state.snapshotReadiness.documentCount.toLocaleString('th-TH')} เอกสาร
+            จาก {state.snapshotReadiness.datasetCount} กลุ่มข้อมูล
+          </p>
+          <p className="mt-2 text-xs font-semibold text-amber-900">ส่วนที่ยังไม่ผ่านก่อนเปิดใช้งานจริง</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-xs leading-5 text-slate-700">
+            {state.snapshotReadiness.remainingChecks.map(code=>(
+              <li key={code}>{reasonDescriptions[code]||'รายการตรวจสอบความปลอดภัยที่ยังไม่ผ่าน'}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-amber-900">ตอนนี้ยังไม่อนุญาตให้บันทึกคะแนนผ่าน PostgreSQL</p>
+        </div>
+      ) : null}
       {state?.checkedAt ? (
         <p className="mt-3 text-xs text-slate-500">
           ตรวจล่าสุด: {new Date(state.checkedAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})}
