@@ -79,8 +79,10 @@ try {
   assert.equal(firebaseCalls,0,"verified email sessions bypass Firestore and Google token entirely");
   assert.equal(writes,0,"read-only tests cannot alter any real or mock Sparks balance");
   const qs=readFileSync(new URL("../src/QASparks.tsx",import.meta.url),"utf8");
-  assert.match(qs,/emailAuthMode === "hybrid" && \(/);
-  assert.match(qs,/username\.trim\(\)\.toLowerCase\(\) === "songpon"/);
+  assert.match(qs,/emailAuthMode === "hybrid" && \(Boolean\(verifiedSparksActor\) \|\| emailOptedIn\)/,
+    "Owner and staff may use existing verified QA session during OTP outages");
+  assert.doesNotMatch(qs,/username\.trim\(\)\.toLowerCase\(\) === "songpon" \|\| Boolean\(verifiedSparksActor\)/,
+    "Do not force owner onto unavailable Supabase OTP");
   const site=readFileSync(new URL("../src/SparksStandalone.tsx",import.meta.url),"utf8");
   assert.match(site,/\["supabase","hybrid"\]/);
   assert.match(qs,/data-sparks-supabase-optin="true"/,"every QA employee may start Supabase login");
