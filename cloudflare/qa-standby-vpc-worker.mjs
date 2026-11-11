@@ -152,7 +152,7 @@ export default {
       return forwardQaData(request,env,url);
     }
     if(request.method!=='GET')return reply(405,{ok:false,error:'method_not_allowed'},'GET');
-    if(url.pathname!=='/ready'&&url.pathname!=='/summary'||
+    if(!['/ready','/summary','/readiness'].includes(url.pathname)||
       url.search||url.hash)return reply(404,{ok:false,error:'not_found'});
     if(!env?.QA_EDGE_BEARER_SHA256||!/^[0-9a-f]{64}$/.test(env.QA_EDGE_BEARER_SHA256))
       return reply(503,{ok:false,error:'edge_not_configured'});
@@ -183,6 +183,31 @@ export default {
       const body=JSON.parse(raw);
       if(body?.ok!==true||body.readOnly!==true||body.failoverReady!==false)
         return reply(502,{ok:false,error:'bridge_read_only_not_verified'});
+      if(url.pathname==='/readiness'){
+        const record=body.snapshot;
+        if(body.firestorePrimary!==true||
+          body.ok!==true||body.readOnly!==true||body.failoverReady!==false||
+          body.canAcceptWrites!==false||body.archiveIsNotLiveSource!==true||
+          !record||typeof record!=='object'||
+          !['disabled','standby','reconciling'].includes(body.standbyMode)||
+          !['boolean'].includes(typeof record.present)||
+          typeof record.copied!=='boolean'||typeof record.candidateVerified!=='boolean'||
+          !validInteger(record.sourceDocuments)||!validInteger(record.candidateEvaluations)||
+          !validInteger(record.datasetCount)||
+          !Array.isArray(body.remainingChecks)||body.remainingChecks.length>24||
+          body.remainingChecks.some(x=>typeof x!=='string'||!/^[a-z_]{3,80}$/.test(x)))
+          return reply(502,{ok:false,error:'invalid_standby_readiness'});
+        return reply(200,{ok:true,readOnly:true,failoverReady:false,
+          canAcceptWrites:false,firestorePrimary:true,
+          standbyMode:body.standbyMode,
+          snapshot:{present:record.present,copied:record.copied,
+            candidateVerified:record.candidateVerified,
+            sourceDocuments:record.sourceDocuments,
+            candidateEvaluations:record.candidateEvaluations,
+            datasetCount:record.datasetCount,
+            withinFreshnessWindow:record.withinFreshnessWindow===true},
+          remainingChecks:body.remainingChecks});
+      }
       if(url.pathname==='/ready'){
         if(body.databaseConnected!==true)return reply(502,{ok:false,error:'database_not_connected'});
         return reply(200,{ok:true,readOnly:true,databaseConnected:true,
