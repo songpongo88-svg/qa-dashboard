@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T09:47:07.457Z",
-  "reason": "QA Sparks only: restore QA owner and staff's existing, server-verified QA Dashboard session in Hybrid mode when Supabase OTP is rate limited. Existing backend independently verifies the current QA session, owner Quality Assurance role, suspension, and session policy. Retains Supabase as the Sparks wallet/item backend. Does not alter evaluation data, scores, item history, user guide text or T&C. No Supabase Auth account creation.",
+  "reviewedAt": "2026-11-11T10:02:09.584Z",
+  "reason": "QA Sparks owner access control now visible in the embedded QA Dashboard Sparks Admin and paused state, using existing Supabase authenticated owner RPC; guide content unchanged",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -663,8 +663,8 @@
     "src/snakesLadders.css": "66d896a8ea5d206ab111b6a717a3e82e51322970744c07f05d4cac09bee77a95",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/snakesRules.js": "d15f1b23aeb75876426901aeaf77cf65e6c26262097ecb4a379bcd9faf2747ec",
-    "src/SparksAccessGate.tsx": "02c15c597b1857c0dd3febbd121b704fb9a833222e1edf8cd445a29a9cb6dc28",
-    "src/SparksAdminPanel.tsx": "f0cc9e8fcc6cc24311eceae0b4fda1158fa67e0eb0f7360f07e839495b44225f",
+    "src/SparksAccessGate.tsx": "7ecc59d993aea17ea270d74f9599cb1f1b8ee47b2c8907c95b462b53f5c98cbd",
+    "src/SparksAdminPanel.tsx": "2013bcc93d260393ff886b8bf220527e21183910cecdd07eae41764832beae30",
     "src/sparksAdminWorkspace.css": "5991e337a549bf52ab9827323162090419640cf369f431f2835d62bb2eebdad4",
     "src/sparksCloudStatus.css": "8851226f60de39abd94db64cf751e1234656909faf290ebf3432a5881aea86b5",
     "src/SparksCloudStatus.tsx": "0b605c16b6f43daae89eb64eb0f619d2917d4701c3208f2303f9ce35a777eba0",
