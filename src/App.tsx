@@ -28,6 +28,7 @@ import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestam
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
+import { signInSparksWithQaPassword } from "./sparksQaPasswordLogin";
 import HiddenTreasure from "./HiddenTreasure";
 import { DailyCheckinLoginPrompt } from "./DailyCheckinQuest";
 import { ProfileMakeoverAutoClaim } from "./ProfileMakeoverQuest";
@@ -6846,6 +6847,10 @@ export default function App() {
 
         const activatedUser = await activateUserSession(nextUser);
         if (!activatedUser) return;
+        if(["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE||"")))
+          void signInSparksWithQaPassword(nextUser.username,typedPassword).catch(()=>{
+            // An unenrolled Sparks identity must never block existing QA Dashboard login.
+          });
         void logUsageEvent(nextUser, "login", { tab: "dashboard" });
         setLoginError("");
         setUsername("");
@@ -6926,6 +6931,10 @@ export default function App() {
 
     const activatedUser = await activateUserSession(nextUser);
     if (!activatedUser) return;
+    if(["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE||"")))
+      void signInSparksWithQaPassword(nextUser.username,normalizedPassword).catch(()=>{
+        // Do not block QA login when an employee has not yet been migrated.
+      });
     if (!maintenanceState.enabled || canBypassMaintenance(nextUser)) {
       void logUsageEvent(nextUser, "login", { tab: "dashboard" });
     }
