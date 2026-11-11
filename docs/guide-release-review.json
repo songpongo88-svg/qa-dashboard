@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T09:30:00.000Z",
-  "reason": "QA Sparks Preview branch only: permit owner-authorized migration of eligible QA password accounts while the 4 Active staff with no password set remain pending. Strictly block any other invalid, expired or Suspended case. No automatic account creation for staff without passwords; preserve previous QA login, Sparks score, item, wallet history, user guide and T&C. Production remains unchanged until remaining staff and their login are verified.",
+  "reviewedAt": "2026-11-11T09:40:00.000Z",
+  "reason": "QA Sparks Preview only: reviewed staged credential enrollment of 17 eligible Active profiles, with 4 never-enrolled Active employees kept pending without passwords. Other invalid identity states block writes, and Production is unchanged; no QA scores, wallets, items, history or T&C changed. Fixed conditional JSX rendering.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -742,7 +742,7 @@
     "src/QaAutoPassRewardCard.tsx": "44fd0e4c78afdd1422a35fb17367dcbf6fe732242a4ef931620e8145fbc30f6f",
     "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584",
     "scripts/test-sparks-qa-password-login.mjs": "e8a9e87ec63fccbafee72ae738d9d750b9599b035d67e8da366cc7e3e61e0559",
-    "src/SparksQaCredentialMigration.tsx": "23b5f78ebdcfabd21bf5db355f156a4eba3eb589420e3359a721f5f504e153d3",
+    "src/SparksQaCredentialMigration.tsx": "c8d3110cac5627596a853bf3146202c23fef2d0f5d4afa5864e93bf1deee2ee4",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
     ".github/workflows/test-sparks-qa-password-migration.yml": "889121f23643b2fc3195635ab12ce3bf9e2e558c5a7d2522b151ae9b9ccaae0a"
   }
