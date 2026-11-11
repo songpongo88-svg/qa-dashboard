@@ -5166,6 +5166,8 @@ function CaseDetailContent({
                   {appealOverrideAllowed ? " · เหลือ " + lateAppealTimeRemaining(appealOverrideExpiresAt,appealClockNowV32) : ""}
                 </div>
                 {monthlyResult.locked ? <div className="mt-1 text-xs text-rose-700">ผลประเมินรายเดือนถูกล็อกแล้ว กรุณาติดต่อ QA</div>
+                  : monthlyResult.message ? <div className="mt-1 text-xs text-rose-700">{monthlyResult.message}</div>
+                  : !monthlyResult.editable ? <div className="mt-1 text-xs text-slate-600">กำลังตรวจสอบสถานะผลประเมินรายเดือน</div>
                   : readOnly ? <div className="mt-1 text-xs text-rose-700">ระบบอยู่ในโหมดดูข้อมูลอย่างเดียว</div>
                   : !isOwnAppealCase ? <div className="mt-1 text-xs text-slate-600">เฉพาะบัญชีพนักงานเจ้าของเคส {caseItem.agent} เท่านั้นที่ยื่นอุทธรณ์ได้</div>
                   : null}
