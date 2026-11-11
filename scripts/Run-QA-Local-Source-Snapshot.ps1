@@ -49,7 +49,28 @@ $oauth=$null
 $encPassword=$null
 $encUser=$null
 $repoRoot=Join-Path $root 'source-stage'
-if(-not (Test-Path -LiteralPath $repoRoot -PathType Container)) { Stop-Safe 'SOURCE_STAGE_CHECKOUT_REQUIRED' }
+# Immutable QA-only commit, downloaded to a NEW folder. Never replace bridge or archive.
+$pinnedCommit = 'd1c4baff2ecf45cf0b5636622e3cf17bd624c69d'
+if(-not (Test-Path -LiteralPath $repoRoot -PathType Container)) {
+  $staging=Join-Path $root ('source-stage-download-'+[Guid]::NewGuid().ToString('N'))
+  $zip=Join-Path $root ('qa-source-'+[Guid]::NewGuid().ToString('N')+'.zip')
+  try {
+    New-Item -Path $staging -ItemType Directory -Force | Out-Null
+    $url='https://api.github.com/repos/songpongo88-svg/qa-dashboard/zipball/'+$pinnedCommit
+    Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 120
+    Expand-Archive -LiteralPath $zip -DestinationPath $staging -ErrorAction Stop
+    $children=@(Get-ChildItem -LiteralPath $staging -Directory)
+    if($children.Count -ne 1 -or -not (Test-Path (Join-Path $children[0].FullName 'scripts\Run-QA-Authoritative-Snapshot-Stage.mjs'))) {
+      Stop-Safe 'INVALID_PINNED_REPO_ARCHIVE'
+    }
+    Move-Item -LiteralPath $children[0].FullName -Destination $repoRoot -ErrorAction Stop
+  } catch {
+    Stop-Safe 'PINNED_SOURCE_DOWNLOAD_FAILED'
+  } finally {
+    Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+  }
+}
 $runner=Join-Path $repoRoot 'scripts\Run-QA-Authoritative-Snapshot-Stage.mjs'
 $preflight=Join-Path $repoRoot 'scripts\check-qa-source-stage-preflight.mjs'
 if(-not (Test-Path -LiteralPath $runner -PathType Leaf) -or -not (Test-Path -LiteralPath $preflight -PathType Leaf)) {
