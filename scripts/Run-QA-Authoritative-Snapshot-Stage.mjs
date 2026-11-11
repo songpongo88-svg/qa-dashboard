@@ -33,15 +33,18 @@ export async function runQaLiveSnapshotStage({
     const db=await pool.query('SELECT current_database() AS db');
     if(db.rows?.[0]?.db!=='qa_dashboard_lab')
       throw new Error('unexpected_database_no_migration');
-    // Additive tables only; original 2,081-row archive is not modified.
-    const sql=await readFile(new URL(
-      '../migration/qa-local-live-snapshot-stage.sql',import.meta.url),'utf8');
-    await pool.query(sql);
+    // Capture and verify the complete pinned Firestore source BEFORE any local
+    // schema modification. Quota/auth/network failure must leave PostgreSQL
+    // unchanged, including its additive stage tables.
     const captured=await captureQaFirestorePointInTime({
       projectId:env.QA_FIRESTORE_PROJECT_ID,
       accessToken:env.QA_FIRESTORE_OAUTH_ACCESS_TOKEN,
       fetchImpl,
     });
+    // Additive tables only; original 2,081-row archive is not modified.
+    const sql=await readFile(new URL(
+      '../migration/qa-local-live-snapshot-stage.sql',import.meta.url),'utf8');
+    await pool.query(sql);
     const receipt=await stageQaFirestoreExport({
       pool,metadata:captured.metadata,
       readCollection:dataset=>captured.readCollection(dataset),
