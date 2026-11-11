@@ -11,6 +11,7 @@ import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
+import { auditQaCredentialSource } from "../server/sparksQaCredentialPreflight.js";
 import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
@@ -1688,6 +1689,35 @@ async function sparksHandler(req, res) {
       return res.status(200).json(result);
     }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
+    if (body.action === "qa-password-preflight") {
+      // Admin-only, read-only and same-origin. No password is returned to the
+      // client, written to Supabase, or logged.
+      const site=String(req.headers?.["sec-fetch-site"] || "");
+      if (site && site !== "same-origin" && site !== "none")
+        fail("Cross-origin credential preflight denied",403);
+      const origin=String(req.headers?.origin || "");
+      if(origin) {
+        try {
+          const sourceOrigin=new URL(origin);
+          if (sourceOrigin.protocol!=="https:" || sourceOrigin.host!==req.headers.host)
+            fail("Origin mismatch",403);
+        } catch(error) {
+          if(Number(error?.status)===403)throw error;
+          fail("Invalid origin",403);
+        }
+      }
+      await authorizeAdmin(body);
+      const page=await listCollection("qa_user_profiles",[
+        "username","status","role","password","passwordExpiresAt","accessExpiresAt",
+        "suspendEffectiveDate","suspendEndDate","suspendAutoReactivate",
+      ]);
+      if(page.truncated)fail("Incomplete Firestore credential inventory",503);
+      return res.status(200).json({
+        ok:true,
+        ...auditQaCredentialSource(page.documents.map(recordValue)),
+      });
+    }
+
     if (body.action === "list" || body.action === "history") {
       const target = body.action === "history" ? safeUsername(body.targetUsername) : "";
       const grant = process.env.SPARKS_DATA_BACKEND === "supabase"
