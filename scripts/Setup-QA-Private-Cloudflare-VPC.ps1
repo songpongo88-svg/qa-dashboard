@@ -120,9 +120,47 @@ try {
   Write-Host 'QA_VPC=LOCAL_8788_READ_ONLY'
   Write-Host 'QA_VPC=FAILOVER_OFF'
   Write-Host 'QA_VPC=FIRESTORE_LIVE_PARITY_UNVERIFIED'
-  if (@($urls).Count -eq 1) {
-    Write-Host ('QA_VPC_WORKER_URL=' + @($urls)[0])
-  } else {
-    Write-Host 'QA_VPC_WORKER_URL=SEE_CLOUDFLARE_WORKERS_DASHBOARD'
+  if (@($urls).Count -ne 1) {
+    Stop-Safe 'WORKER_URL_NOT_DETERMINED_FOR_VERCEL'
   }
+  $workerUrl = @($urls)[0]
+  Write-Host ('QA_VPC_WORKER_URL=' + $workerUrl)
+  if ($workerUrl -notmatch '^https://[a-zA-Z0-9.-]+\.workers\.dev
+} finally { Pop-Location }
+) {
+    Stop-Safe 'UNRECOGNIZED_WORKER_DOMAIN'
+  }
+  $urlFile = Join-Path $workerRoot 'qa-worker-url.txt'
+  [IO.File]::WriteAllText($urlFile,$workerUrl,[Text.Encoding]::UTF8)
+  # Only the QA standby PR Preview branch receives these variables;
+  # NEVER change Production or QA Sparks environment variables.
+  $vercelBranch = 'feat/qa-local-firestore-failover-current-main-20261110'
+  $vercelProjectId = 'prj_zLlvaJW3gOrsCm5eXArEKxXITLAA'
+  Write-Host 'QA_VPC=CHECKING_VERCEL_PREVIEW_LINK'
+  & $npx.Source --yes vercel whoami *> $null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host 'QA_VPC=VERCEL_BROWSER_LOGIN_REQUIRED'
+    & $npx.Source --yes vercel login
+    if ($LASTEXITCODE -ne 0) { Stop-Safe 'VERCEL_LOGIN_NOT_AUTHORIZED' }
+  }
+  $projectPath = Join-Path $workerRoot '.vercel\project.json'
+  if (!(Test-Path -LiteralPath $projectPath -PathType Leaf)) {
+    & $npx.Source --yes vercel link --yes --project $vercelProjectId *> $null
+    if ($LASTEXITCODE -ne 0) { Stop-Safe 'VERCEL_PROJECT_LINK_REQUIRED' }
+  }
+  $linkedProject = Get-Content -LiteralPath $projectPath -Raw | ConvertFrom-Json
+  if ($linkedProject.projectId -ne $vercelProjectId) {
+    Stop-Safe 'VERCEL_PROJECT_ID_MISMATCH_NO_ENV_CHANGED'
+  }
+  Write-Host 'QA_VPC=PAIRING_VERCEL_PREVIEW_SECRETS'
+  # PowerShell pipes existing secret from .env.local directly into Vercel CLI:
+  # no token in argv, shell history, GitHub, URLs or console output.
+  $token | & $npx.Source --yes vercel env add QA_LOCAL_BRIDGE_TOKEN preview $vercelBranch --sensitive --yes --force *> $null
+  if ($LASTEXITCODE -ne 0) { Stop-Safe 'VERCEL_PREVIEW_TOKEN_NOT_SAVED' }
+  ($workerUrl + '/') | & $npx.Source --yes vercel env add QA_LOCAL_BRIDGE_URL preview $vercelBranch --yes --force *> $null
+  if ($LASTEXITCODE -ne 0) { Stop-Safe 'VERCEL_PREVIEW_URL_NOT_SAVED' }
+  Write-Host 'QA_VPC=VERCEL_PREVIEW_BRIDGE_PAIRED'
+  Write-Host 'QA_VPC=PRODUCTION_UNCHANGED'
+  Write-Host 'QA_VPC=QA_SPARKS_UNCHANGED'
+
 } finally { Pop-Location }
