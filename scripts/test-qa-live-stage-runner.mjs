@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import pg from 'pg';
 import {runQaLiveSnapshotStage} from './Run-QA-Authoritative-Snapshot-Stage.mjs';
 if(process.env.QA_PG_ISOLATED_TEST!=='1'||!process.env.QA_TEST_DATABASE_URL)
   throw new Error('Run only against disposable PostgreSQL 17 fixture');
