@@ -54,10 +54,10 @@ export default function SparksStandalone() {
     if(!isOwner||busy)return;
     setBusy(true);setControlError("");
     try{
-      const response=await fetch("/api/sparks-control",{
+      const response=await fetch("/api/sparks-auth",{
         method:"POST",cache:"no-store",credentials:"same-origin",
         headers:{"content-type":"application/json"},
-        body:JSON.stringify({enabled:newEnabled})
+        body:JSON.stringify({action:"access-set",enabled:newEnabled})
       });
       const result=await response.json();
       if(!response.ok||result.enabled!==newEnabled)

@@ -105,7 +105,7 @@ export async function getSparksAccount(username: string, options: { historyLimit
   const isNpmFixture = typeof process !== "undefined"
     && /^test:/.test(String(process.env?.npm_lifecycle_event || ""));
   if (!isNpmFixture) {
-    const gateResponse = await fetch("/api/sparks-control",{cache:"no-store",credentials:"same-origin"});
+    const gateResponse = await fetch("/api/sparks-auth?action=access",{cache:"no-store",credentials:"same-origin"});
     const gate = await gateResponse.json().catch(()=>null);
     if (!gateResponse.ok || gate?.enabled!==true)
       throw Object.assign(new Error("QA Sparks ปิดปรับปรุงชั่วคราว"),{code:"SPARKS_ACCESS_PAUSED"});

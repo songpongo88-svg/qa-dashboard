@@ -5,7 +5,7 @@ export function useSparksStatus(poll=true){
   const [status,setStatus]=useState<SparksStatus|null>(null);
   const refresh=useCallback(async()=>{
     try{
-      const response=await fetch("/api/sparks-control",{cache:"no-store",credentials:"same-origin"});
+      const response=await fetch("/api/sparks-auth?action=access",{cache:"no-store",credentials:"same-origin"});
       const data=await response.json();
       if(!response.ok||typeof data.enabled!=="boolean")throw Error("Unavailable");
       setStatus({enabled:data.enabled,message:String(data.message||message),unavailable:Boolean(data.unavailable),updatedAt:data.updatedAt||""});
