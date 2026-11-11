@@ -32,5 +32,6 @@ export async function signInSparksWithQaPassword(username:string,password:string
     throw Error(String(payload?.error||"บัญชี QA ยังไม่ Active หรือยังไม่ผ่านการตรวจสิทธิ์"));
   if(String(payload.actor.username).toLowerCase()!==String(username).trim().toLowerCase())
     throw Error("บัญชี Supabase ไม่ตรงกับ Username QA ที่เข้าสู่ระบบ");
+  if(typeof window!=="undefined")window.dispatchEvent(new Event("qa:sparks-authenticated"));
   return payload.actor as {username:string;displayName:string;role:string;status:string};
 }
