@@ -143,12 +143,12 @@ export default function SparksQaCredentialMigration(){
    {issues.length>0?<section data-sparks-qa-migration-issues="true" role="status"
      style={{marginTop:14,padding:14,border:"1px solid #f3bcc3",borderRadius:12,background:"#fff7f8"}}>
      <strong style={{display:"block",fontSize:14,color:"#9f1239",marginBottom:8}}>
-       {issues.every(item=>item.reason==="ไม่พบรหัสผ่าน QA ใน Firestore"
+       {issues.every(item=>item.reason==="ไม่พบรหัสผ่าน QA ใน Firestore")
          ? "บัญชีรอตั้งรหัสผ่าน QA" : "บัญชีที่ต้องตรวจสอบเพิ่มเติม"} {issues.length} บัญชี
        — {result ? "ยังไม่ได้ย้ายบัญชีเหล่านี้" : "ตรวจพบระหว่างตรวจสอบ"}
      </strong>
      <p style={{fontSize:12,margin:"4px 0 10px",lineHeight:1.7}}>
-       {issues.every(item=>item.reason==="ไม่พบรหัสผ่าน QA ใน Firestore"
+       {issues.every(item=>item.reason==="ไม่พบรหัสผ่าน QA ใน Firestore")
          ? "บัญชีเหล่านี้ยังไม่ตั้งรหัสผ่าน QA ตามข้อมูลใน Firestore จึงคงรอให้พนักงานตั้งรหัสผ่านตามขั้นตอนเดิม แล้วเจ้าของระบบกดซิงก์อีกครั้ง"
          : "พบข้อมูลผิดปกติ ต้องตรวจสอบใน QA Dashboard → User Management ก่อนซิงก์ใหม่"}
        ไม่ต้องส่งรหัสผ่านหรือ OTP ให้ผู้ดูแลคนอื่น และระบบจะไม่เปลี่ยนสถานะ Suspended อัตโนมัติ
