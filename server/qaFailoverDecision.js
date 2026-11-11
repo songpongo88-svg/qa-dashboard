@@ -5,6 +5,8 @@
 export const QA_FAILOVER_REQUIRED_DATASETS = Object.freeze([
   'qa_evaluations', 'qa_appeal_events', 'qa_signature_documents',
   'qa_user_profiles', 'qa_role_permissions', 'qa_user_sessions',
+  'qa_user_session_controls', 'qa_role_definitions', 'qa_system_settings',
+  'qa_signature_library', 'qa_evaluation_progress',
 ]);
 
 const recent = (iso, now, maxAge) => {
