@@ -13,6 +13,8 @@ on:
       - "server/qaLocalBridgeServer.js"
       - "server/qaFirestoreFailbackAdapter.js"
       - "scripts/test-qa-firestore-failback-adapter.mjs"
+      - "server/qaLocalSessionVerifier.js"
+      - "scripts/test-qa-local-session-verifier.mjs"
       - "scripts/test-qa-local-bridge.mjs"
       - "cloudflare/**"
       - "scripts/test-qa-vpc-worker.mjs"
@@ -81,6 +83,8 @@ jobs:
         run: |
           node --check server/qaLocalBridgeServer.js
           node --check server/qaFirestoreFailbackAdapter.js
+          node --check server/qaLocalSessionVerifier.js
+          node --check scripts/test-qa-local-session-verifier.mjs
           node --check scripts/test-qa-firestore-failback-adapter.mjs
           node --check cloudflare/qa-standby-vpc-worker.mjs
           node --check scripts/test-qa-vpc-worker.mjs
@@ -113,6 +117,7 @@ jobs:
         run: |
           node scripts/test-qa-local-bridge.mjs
           node scripts/test-qa-firestore-failback-adapter.mjs
+          node scripts/test-qa-local-session-verifier.mjs
           node scripts/test-qa-vpc-worker.mjs
           node scripts/test-qa-cron-preview-proxy.mjs
           node scripts/test-qa-local-diagnostics.mjs
