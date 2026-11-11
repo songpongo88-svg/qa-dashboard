@@ -75,6 +75,29 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     )
   );
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
+  // A successful normal QA Dashboard login automatically creates a Supabase
+  // Sparks cookie for enrolled staff. Detect it without requiring OTP or a
+  // second click; this does NOT trust localStorage or an unverified username.
+  useEffect(()=>{
+    if(emailAuthMode!=="hybrid"||!username||!active||emailAuthEnabled)return;
+    let alive=true;
+    const detect=()=>{
+      void fetch("/api/sparks-auth",{credentials:"same-origin",cache:"no-store"})
+        .then(async response=>{
+          if(!alive||!response.ok)return;
+          const result=await response.json();
+          if(result?.actor?.status==="Active"
+            &&String(result.actor.username).toLowerCase()===username.toLowerCase()){
+            setVerifiedActor(result.actor);
+            chooseEmailAuth(true);
+          }
+        }).catch(()=>{});
+    };
+    detect();
+    window.addEventListener("qa:sparks-authenticated",detect);
+    return()=>{alive=false;window.removeEventListener("qa:sparks-authenticated",detect);};
+  },[username,active,emailAuthMode,emailAuthEnabled]);
+
   const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
   const sparksSessionId = emailAuthEnabled ? "supabase-email-auth" : adminSessionId;
   useEffect(()=>{
