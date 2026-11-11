@@ -1,6 +1,6 @@
 import {
   withSparksRequest, getSparksRequestActor, exchangeSparksAuthTokens, clearSparksAuthCookies,
-  sparksProfileSyncStatus,
+  sparksProfileSyncStatus, migrateSparksExistingQaPasswords,
 } from "../server/sparksSupabaseAuth.js";
 
 export default async function handler(req, res) {
@@ -23,6 +23,10 @@ export default async function handler(req, res) {
     }
     if (req.method === "POST") {
       const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      if (body.action === "admin-migrate-qa-passwords") {
+        const result=await withSparksRequest(req,res,()=>migrateSparksExistingQaPasswords(body.entries));
+        return res.status(200).json({ok:true,...result});
+      }
       if (body.action !== "exchange") return res.status(400).json({ error: "Invalid Sparks authentication request" });
       const actor = await exchangeSparksAuthTokens(res, body);
       return res.status(200).json({ ok: true, actor });
