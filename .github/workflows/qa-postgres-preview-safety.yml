@@ -11,6 +11,8 @@ on:
       - "scripts/Start-QA-Standby-From-Existing.ps1"
       - "scripts/Setup-QA-Private-Cloudflare-VPC.ps1"
       - "server/qaLocalBridgeServer.js"
+      - "server/qaFirestoreFailbackAdapter.js"
+      - "scripts/test-qa-firestore-failback-adapter.mjs"
       - "scripts/test-qa-local-bridge.mjs"
       - "cloudflare/**"
       - "scripts/test-qa-vpc-worker.mjs"
@@ -78,6 +80,8 @@ jobs:
       - name: Syntax validation
         run: |
           node --check server/qaLocalBridgeServer.js
+          node --check server/qaFirestoreFailbackAdapter.js
+          node --check scripts/test-qa-firestore-failback-adapter.mjs
           node --check cloudflare/qa-standby-vpc-worker.mjs
           node --check scripts/test-qa-vpc-worker.mjs
           node --check scripts/test-qa-local-bridge.mjs
@@ -108,6 +112,7 @@ jobs:
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-bridge.mjs
+          node scripts/test-qa-firestore-failback-adapter.mjs
           node scripts/test-qa-vpc-worker.mjs
           node scripts/test-qa-cron-preview-proxy.mjs
           node scripts/test-qa-local-diagnostics.mjs
