@@ -78,6 +78,40 @@ export function createQaPreviewStatusHandler({
         remote?.databaseConnected!==true||remote?.failoverReady!==false)
         return send(res,200,result);
       result.bridgeStatus='reachable_read_only';
+      // Best-effort new readiness API. Older Windows bridge installations may
+      // not expose it; the old safe archive status remains unchanged.
+      try{
+        const readiness=await fetchImpl(origin+'/readiness',{
+          method:'GET',
+          headers:{authorization:'Bearer '+token,accept:'application/json'},
+          cache:'no-store',redirect:'manual',signal:AbortSignal.timeout(3500),
+        });
+        if(readiness.status===200&&
+          (readiness.headers.get('content-type')||'').includes('application/json')){
+          const body=await readiness.text();
+          if(body.length<=16384){
+            const proof=JSON.parse(body);
+            if(proof?.ok===true&&proof.readOnly===true&&
+              proof.failoverReady===false&&proof.canAcceptWrites===false&&
+              proof.firestorePrimary===true&&Array.isArray(proof.remainingChecks)&&
+              proof.remainingChecks.length<=24&&proof.remainingChecks.every(code=>
+                typeof code==='string'&&/^[a-z_]{3,80}$/.test(code))&&
+              typeof proof.snapshot?.copied==='boolean'&&
+              typeof proof.snapshot?.candidateVerified==='boolean'&&
+              validInt(proof.snapshot?.sourceDocuments)&&
+              validInt(proof.snapshot?.datasetCount)){
+              result.snapshotReadiness={
+                snapshotCopied:proof.snapshot.copied,
+                candidatesVerified:proof.snapshot.candidateVerified,
+                documentCount:proof.snapshot.sourceDocuments,
+                datasetCount:proof.snapshot.datasetCount,
+                freshnessVerified:proof.snapshot.withinFreshnessWindow===true,
+                remainingChecks:proof.remainingChecks,
+              };
+            }
+          }
+        }
+      }catch{/* Keep archive-only result if current Windows bridge is older. */}
       // The archive may have the expected import count, but this is never
       // proof of a current, complete per-document live Firestore mirror.
       const summary=await fetchImpl(origin+'/summary',{
