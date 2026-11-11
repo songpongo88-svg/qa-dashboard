@@ -63,7 +63,7 @@ try{
     'SELECT count(*)::integer AS n FROM qa_failover_v1.evaluations')).rows[0].n;
   const {metadata,readCollection}=makeFixture();
   const stage=await stageQaFirestoreExport({pool,metadata,readCollection});
-  assert.equal(stage.storedDocuments,7);
+  assert.equal(stage.storedDocuments,QA_SYNC_DATASETS.length+1);
   const candidate=await materializeQaStandbyEvaluationCandidates({pool,snapshotId:metadata.snapshotId});
   assert.equal(candidate.candidateEvaluations,2);
   assert.equal(candidate.originalScoresPreserved,true);
