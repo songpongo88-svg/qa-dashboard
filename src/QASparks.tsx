@@ -5,6 +5,7 @@ import SparksHistory from "./SparksHistory";
 import FirstLoginSparksModal from "./FirstLoginSparksModal";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
 import SparksAdminPanel from "./SparksAdminPanel";
+import SparksQaCredentialMigration from "./SparksQaCredentialMigration";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
 import QaAutoPassRewardCard from "./QaAutoPassRewardCard";
 import DailyCheckinQuest from "./DailyCheckinQuest";
@@ -283,7 +284,11 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
         </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
-        : adminAccess ? <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active} /> : null}
+        : adminAccess ? <div>
+          {emailAuthEnabled && verifiedActor?.username==="songpon" && verifiedActor?.role==="Quality Assurance" && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
+            ? <SparksQaCredentialMigration/> : null}
+          <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active} />
+        </div> : null}
       </div>
     </div>
     {username && active && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
