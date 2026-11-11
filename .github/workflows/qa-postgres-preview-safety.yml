@@ -20,6 +20,7 @@ on:
       - "scripts/test-qa-standby-trusted-context.mjs"
       - "scripts/test-qa-standby-data-handler.mjs"
       - "scripts/test-qa-local-bridge.mjs"
+      - "scripts/test-qa-bridge-router.mjs"
       - "cloudflare/**"
       - "scripts/test-qa-vpc-worker.mjs"
       - "api/cron/expire-additional-appeals.js"
@@ -97,6 +98,7 @@ jobs:
           node --check cloudflare/qa-standby-vpc-worker.mjs
           node --check scripts/test-qa-vpc-worker.mjs
           node --check scripts/test-qa-local-bridge.mjs
+          node --check scripts/test-qa-bridge-router.mjs
           node --check api/cron/expire-additional-appeals.js
           node --check scripts/test-qa-cron-preview-proxy.mjs
           node --check server/qaLocalDiagnosticsHandler.js
@@ -124,6 +126,7 @@ jobs:
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-bridge.mjs
+          node scripts/test-qa-bridge-router.mjs
           node scripts/test-qa-firestore-failback-adapter.mjs
           node scripts/test-qa-local-session-verifier.mjs
           node scripts/test-qa-standby-data-handler.mjs
