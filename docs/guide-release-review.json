@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T09:47:07.457Z",
-  "reason": "QA Sparks only: restore QA owner and staff's existing, server-verified QA Dashboard session in Hybrid mode when Supabase OTP is rate limited. Existing backend independently verifies the current QA session, owner Quality Assurance role, suspension, and session policy. Retains Supabase as the Sparks wallet/item backend. Does not alter evaluation data, scores, item history, user guide text or T&C. No Supabase Auth account creation.",
+  "reviewedAt": "2026-11-11T10:00:36.675Z",
+  "reason": "Reviewed existing monthly Coaching guide after adding QA-only correction mode for locked QA Summary and topics during ongoing review. Existing guide content and T&C unchanged; prior Coaching result, action plan, scoring and records remain unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -601,7 +601,7 @@
     "src/monthlyCoachingModel.ts": "844cfec4ab03df5b7fba68176b2e6b0b0e349796f7ffba4dd511c8195b5da275",
     "src/monthlyCoachingPayment.ts": "d11a17ea12666835b8a3e798d49ed1cddb9069ad5545e1f25cb538687836ec46",
     "src/monthlyCoachingPdf.ts": "625cbf6ad65964946c9f80d275ad0c3589f76073b20c64b98cdf3ba35eb291a3",
-    "src/MonthlyCoachingWorkspace.tsx": "1e216022c16d7484c6cc4a13b11096e703775566737961a9c558661b99e8c483",
+    "src/MonthlyCoachingWorkspace.tsx": "56d6870f9f91aa8c611f0cc7750fc6596cb493c506e706bb1123a012d36005cc",
     "src/monthlyKpiNotice.css": "086b583d5cebd56da759369ffdf38bb1b480c27963b989ba1a156041e6dfeb49",
     "src/MonthlyKpiNotice.tsx": "f99ad56e012035bbecfdad83df02a792d1671b9c02554ca932ead92764aa3f58",
     "src/monthlyResultLockStore.ts": "a24dda3e170db090d3a9d0bcb5ea7dba96a1bf68d0fd3430824f645f0dbb9e7b",
