@@ -35,3 +35,29 @@ export async function signInSparksWithQaPassword(username:string,password:string
   if(typeof window!=="undefined")window.dispatchEvent(new Event("qa:sparks-authenticated"));
   return payload.actor as {username:string;displayName:string;role:string;status:string};
 }
+
+/** Best-effort synchronization when the employee changes their QA password.
+ * The previous password must authenticate with Supabase first. An account that
+ * has not been migrated is left untouched; changing QA credentials never
+ * grants an unverified user access to another Sparks wallet.
+ */
+export async function syncSparksQaPasswordChange(username:string,oldPassword:string,newPassword:string){
+  if(!authUrl||!publishable||!oldPassword||!newPassword)return false;
+  const identity=qaSparksLoginEmail(username);
+  const existing=await fetch(authUrl+"/auth/v1/token?grant_type=password",{
+    method:"POST",cache:"no-store",headers:{"apikey":publishable,"content-type":"application/json"},
+    body:JSON.stringify({email:identity,password:oldPassword}),
+  });
+  if(!existing.ok)return false;
+  const tokens=await existing.json().catch(()=>({}));
+  if(!tokens?.access_token)return false;
+  const updated=await fetch(authUrl+"/auth/v1/user",{
+    method:"PUT",cache:"no-store",
+    headers:{"apikey":publishable,"authorization":"Bearer "+tokens.access_token,
+      "content-type":"application/json"},
+    body:JSON.stringify({password:newPassword}),
+  });
+  if(!updated.ok)return false;
+  await signInSparksWithQaPassword(username,newPassword);
+  return true;
+}
