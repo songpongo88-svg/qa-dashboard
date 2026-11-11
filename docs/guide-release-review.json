@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T10:00:00.000Z",
-  "reason": "QA Sparks Preview only: added a secondary owner-only login using the existing email/password credential in Supabase Auth as a recovery route when the default SMTP OTP sends are rate limited. Server checks that verified Supabase identity matches original QA owner songpon and current active roster. No new account registration, no OTP requests, no bypass, no user guide content, QA cases, scores, wallet, Sparks item, history or T&C changes. Production unchanged.",
+  "reviewedAt": "2026-11-11T10:40:00.000Z",
+  "reason": "QA Sparks login migration branch only: reviewed read-only, existing-QA-owner-session-protected Firestore preflight to distinguish 17 eligible credentials, 4 not-yet-set passwords and Suspended accounts, with no plaintext passwords in responses or logs. Source inventory is not a Supabase Auth cutover. No QA reports, scores, Sparks balances, Items, History, user guide text or T&C modified. Production login remains Hybrid until all identity checks pass.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -26,7 +26,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "0ed009c5e6d45f12db064a67da9239e6b8d76b00444bd0339eeb6eaa87bcdf5c",
+    "api/sparks-admin.js": "fac674eab64297af3d0c8db02da15167ace0318e39621cfcf636b9aa82ca5297",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
@@ -744,6 +744,8 @@
     "scripts/test-sparks-qa-password-login.mjs": "7e6f5607708a3014f9396ef3cd747cf56d8bc22734a073e8b6ecfc898f42dc98",
     "src/SparksQaCredentialMigration.tsx": "c8d3110cac5627596a853bf3146202c23fef2d0f5d4afa5864e93bf1deee2ee4",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
-    ".github/workflows/test-sparks-qa-password-migration.yml": "889121f23643b2fc3195635ab12ce3bf9e2e558c5a7d2522b151ae9b9ccaae0a"
+    ".github/workflows/test-sparks-qa-password-migration.yml": "88f6ed0bfd628daf5eb32ccbf35999422f4c1b1bca24e6b19d399c9a943f1a6e",
+    "server/sparksQaCredentialPreflight.js": "f68cc1236d7d7e3f632725f7e639585e2fff91fd0ed4d148067694ede3c26945",
+    "scripts/test-sparks-qa-credential-preflight.mjs": "c877279aa3d838b3c77fb711063a926997140e6abba3d5e74532e9d33be6f78b"
   }
 }
