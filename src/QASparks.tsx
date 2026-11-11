@@ -4,6 +4,7 @@ import "./qaSparks.css";
 import SparksHistory from "./SparksHistory";
 import FirstLoginSparksModal from "./FirstLoginSparksModal";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
+import SparksQaPasswordAuth from "./SparksQaPasswordAuth";
 import SparksAdminPanel from "./SparksAdminPanel";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
 import QaAutoPassRewardCard from "./QaAutoPassRewardCard";
@@ -48,6 +49,7 @@ function EmptyReward({ large = false }: { large?: boolean }) {
 export default function QASparks({ displayName = "", username = "", adminAccess = false, adminSessionId = "", active = true, verifiedSparksActor = null }: { displayName?: string; username?: string; adminAccess?: boolean; adminSessionId?: string; active?: boolean; verifiedSparksActor?: SparksVerifiedActor | null }) {
   const [view, setView] = useState<SparksView>("overview");
   const emailAuthMode = String(import.meta.env?.VITE_SPARKS_AUTH_MODE || "legacy");
+  const passwordLogin = String(import.meta.env?.VITE_SPARKS_LOGIN_METHOD || "") === "qa-password";
   const normalizedSparksUser = username.trim().toLowerCase();
   // Every employee may voluntarily switch to Supabase login without modifying
   // the legacy fallback until OTP delivery and roster data are fully reviewed.
@@ -177,10 +179,13 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
   if (emailAuthEnabled && !sparksAllowed) return <div data-sparks-employee-email-login="true">
-    <SparksEmailAuth username={username} onVerified={actor=>{
+    {passwordLogin ? <SparksQaPasswordAuth username={username} onVerified={actor=>{
       setVerifiedActor(actor);
       if(emailAuthMode==="hybrid")chooseEmailAuth(true);
-    }}/>
+    }}/> : <SparksEmailAuth username={username} onVerified={actor=>{
+      setVerifiedActor(actor);
+      if(emailAuthMode==="hybrid")chooseEmailAuth(true);
+    }}/>} 
     {emailAuthMode==="hybrid" && normalizedSparksUser!=="songpon" && !verifiedSparksActor && <div style={{textAlign:"center",padding:"0 16px 24px"}}>
       <button type="button" data-sparks-legacy-fallback="true" onClick={()=>{
         void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).catch(()=>{}).finally(()=>{
