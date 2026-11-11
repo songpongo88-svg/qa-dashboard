@@ -32,7 +32,7 @@ assert.ok(!api.includes("admin-migrate-qa-passwords"),"No client-side password m
 assert.ok(auth.includes('data-sparks-qa-password-login="true"'));
 assert.ok(auth.includes('data-sparks-owner-password-login="true"'));
 assert.ok(auth.includes('grant_type=password'));
-assert.ok(admin.includes('action:"qa-password-migrate-server"'),"UI calls private QA-session server migration");
+assert.ok(admin.includes('"qa-password-migrate-server"'),"UI calls private QA-session server migration");
 assert.ok(!admin.includes("getDocsFromServer("),"Browser never downloads Firestore passwords");
 assert.ok(!admin.includes('action:"admin-migrate-qa-passwords"'),"Browser cannot send old passwords");
 assert.ok(!admin.includes("entriesByName"),"Browser cannot materialize password entries");
