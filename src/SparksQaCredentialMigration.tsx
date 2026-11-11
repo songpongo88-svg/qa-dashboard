@@ -27,17 +27,28 @@ export default function SparksQaCredentialMigration(){
    }));
    if(entries.length<1)throw Error("ไม่พบข้อมูล Username และ Password QA ที่อ่านได้จากระบบเดิม กรุณาเข้า QA Dashboard ด้วยบัญชีเจ้าของระบบก่อน");
    setMessage("กำลังย้ายข้อมูลตรวจสอบรหัสผ่านสำหรับ "+entries.length+" บัญชี QA ที่ Active โดยไม่นำรหัสผ่านมาแสดง");
-   const response=await fetch("/api/sparks-auth",{
-    method:"POST",credentials:"same-origin",cache:"no-store",
-    headers:{"content-type":"application/json"},
-    body:JSON.stringify({action:"admin-migrate-qa-passwords",entries}),
-   });
-   const data=await response.json().catch(()=>({}));
-   if(!response.ok||data.ok!==true)throw Error(String(data.error||"ซิงก์บัญชี QA ยังไม่สำเร็จ"));
-   setResult({submitted:Number(data.submitted)||0,eligible:Number(data.eligible)||0,
-    created:Number(data.created)||0,updated:Number(data.updated)||0,
-    skipped:Array.isArray(data.skipped)?data.skipped:[],
-    failed:Array.isArray(data.failed)?data.failed:[]});
+   // Batches of five keep Vercel and Supabase Auth requests within normal
+   // serverless time limits; one click migrates all eligible QA employees.
+   const aggregate={submitted:0,eligible:0,created:0,updated:0,
+     skipped:[] as string[],failed:[] as {username:string;state:string}[]};
+   for(let offset=0;offset<entries.length;offset+=5){
+     setMessage("กำลังซิงก์บัญชี QA "+(Math.min(offset+5,entries.length))+"/"+entries.length+" ...");
+     const response=await fetch("/api/sparks-auth",{
+       method:"POST",credentials:"same-origin",cache:"no-store",
+       headers:{"content-type":"application/json"},
+       body:JSON.stringify({action:"admin-migrate-qa-passwords",entries:entries.slice(offset,offset+5)}),
+     });
+     const data=await response.json().catch(()=>({}));
+     if(!response.ok||data.ok!==true)
+       throw Error("ซิงก์บางส่วนไม่สำเร็จ (ดำเนินการไปแล้ว "+offset+" บัญชี) กดปุ่มอีกครั้งเพื่อทำรายการที่เหลือ: "+String(data.error||"Unknown error"));
+     aggregate.submitted+=Number(data.submitted)||0;
+     aggregate.eligible+=Number(data.eligible)||0;
+     aggregate.created+=Number(data.created)||0;
+     aggregate.updated+=Number(data.updated)||0;
+     if(Array.isArray(data.skipped))aggregate.skipped.push(...data.skipped);
+     if(Array.isArray(data.failed))aggregate.failed.push(...data.failed);
+   }
+   setResult(aggregate);
    setMessage("ตรวจสอบผลการย้ายบัญชี QA เรียบร้อยแล้ว");
   }catch(e){setError(e instanceof Error?e.message:"ไม่สามารถซิงก์บัญชี QA ได้");}
   finally{setBusy(false);}
