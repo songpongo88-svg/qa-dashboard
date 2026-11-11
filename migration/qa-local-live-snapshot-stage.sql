@@ -29,4 +29,27 @@ CREATE TABLE IF NOT EXISTS qa_failover_v1.live_snapshot_rows (
 );
 CREATE INDEX IF NOT EXISTS qa_live_snapshot_collection_idx
   ON qa_failover_v1.live_snapshot_rows(snapshot_id,root_collection,document_path);
+-- Normalized, immutable QA evaluation candidates. These cannot become
+-- active standby records until a later independent cutover authorization.
+CREATE TABLE IF NOT EXISTS qa_failover_v1.live_candidate_evaluations (
+  snapshot_id text NOT NULL REFERENCES qa_failover_v1.live_snapshot_batches(snapshot_id)
+    ON DELETE RESTRICT,
+  evaluation_id text NOT NULL,
+  record jsonb NOT NULL CHECK(jsonb_typeof(record)='object'),
+  source_hash text NOT NULL CHECK(source_hash ~ '^[a-f0-9]{64}
+),
+  original_score numeric NOT NULL CHECK(original_score BETWEEN 0 AND 100),
+  deleted_at timestamptz,
+  PRIMARY KEY(snapshot_id,evaluation_id)
+);
+CREATE INDEX IF NOT EXISTS qa_live_candidate_snapshot_score_idx
+  ON qa_failover_v1.live_candidate_evaluations(snapshot_id,original_score);
+CREATE TABLE IF NOT EXISTS qa_failover_v1.live_candidate_audit (
+  snapshot_id text PRIMARY KEY REFERENCES qa_failover_v1.live_snapshot_batches(snapshot_id)
+    ON DELETE RESTRICT,
+  evaluation_count integer NOT NULL CHECK(evaluation_count>=0),
+  verified_at timestamptz NOT NULL DEFAULT now(),
+  eligible_for_failover boolean NOT NULL DEFAULT false
+    CHECK(eligible_for_failover=false)
+);
 COMMIT;
