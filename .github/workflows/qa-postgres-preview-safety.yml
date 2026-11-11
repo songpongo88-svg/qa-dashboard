@@ -53,6 +53,9 @@ on:
       - "migration/qa-local-import-existing-snapshot.sql"
       - "scripts/test-qa-local-mirror-import-integration.mjs"
       - "server/qaStandbyArchiveStatus.js"
+      - "server/qaLiveMirrorStage.js"
+      - "migration/qa-local-live-snapshot-stage.sql"
+      - "scripts/test-qa-live-mirror-stage-integration.mjs"
       - "scripts/test-qa-standby-archive-status.mjs"
       - "scripts/test-qa-standby-journal-integration.mjs"
       - "server/qaStandbyReplayWorker.js"
@@ -136,6 +139,8 @@ jobs:
           node --check scripts/test-qa-standby-read-integration.mjs
           node --check scripts/test-qa-local-mirror-import-integration.mjs
           node --check server/qaStandbyArchiveStatus.js
+          node --check server/qaLiveMirrorStage.js
+          node --check scripts/test-qa-live-mirror-stage-integration.mjs
           node --check scripts/test-qa-standby-archive-status.mjs
           node --check scripts/test-qa-standby-replay-integration.mjs
       - name: Run fail-closed safety tests
@@ -200,3 +205,4 @@ jobs:
           node scripts/test-qa-standby-replay-integration.mjs
           node scripts/test-qa-local-mirror-import-integration.mjs
           node scripts/test-qa-standby-archive-status.mjs
+          node scripts/test-qa-live-mirror-stage-integration.mjs
