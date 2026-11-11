@@ -1,6 +1,6 @@
 import {
   withSparksRequest, getSparksRequestActor, exchangeSparksAuthTokens, clearSparksAuthCookies,
-  sparksProfileSyncStatus, migrateSparksExistingQaPasswords,
+  sparksProfileSyncStatus, migrateSparksExistingQaPasswords, sparksActiveDirectory,
 } from "../server/sparksSupabaseAuth.js";
 
 export default async function handler(req, res) {
@@ -16,6 +16,14 @@ export default async function handler(req, res) {
       if (action === "sync-status") {
         const status = await withSparksRequest(req,res,()=>sparksProfileSyncStatus());
         return res.status(200).json({ok:true,status});
+      }
+      // Never return passwords or unreviewed identities; verified owner only.
+      if (action === "migration-roster") {
+        const users = await withSparksRequest(req,res,()=>sparksActiveDirectory());
+        return res.status(200).json({
+          ok:true,
+          usernames:users.map(user=>String(user.username||"").trim().toLowerCase()),
+        });
       }
       if (action) return res.status(400).json({error:"Unsupported action"});
       const actor = await withSparksRequest(req, res, () => getSparksRequestActor());
