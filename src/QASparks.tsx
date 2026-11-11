@@ -68,10 +68,12 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     } catch {/* Browser storage does not control authorization. */}
     setEmailAuthChoices(current=>({...current,[normalizedSparksUser]:enabled}));
   };
+  // Hybrid mode must allow the owner to return to the existing, server-verified
+  // QA Dashboard session when the Supabase email provider is rate-limited.
+  // The backend validates the QA session, role, suspension and policy before
+  // any Sparks admin action; client state never grants admin privileges.
   const emailAuthEnabled = emailAuthMode === "supabase" || (
-    emailAuthMode === "hybrid" && (
-      username.trim().toLowerCase() === "songpon" || Boolean(verifiedSparksActor) || emailOptedIn
-    )
+    emailAuthMode === "hybrid" && (Boolean(verifiedSparksActor) || emailOptedIn)
   );
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
   const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
@@ -181,13 +183,13 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       setVerifiedActor(actor);
       if(emailAuthMode==="hybrid")chooseEmailAuth(true);
     }}/>
-    {emailAuthMode==="hybrid" && normalizedSparksUser!=="songpon" && !verifiedSparksActor && <div style={{textAlign:"center",padding:"0 16px 24px"}}>
+    {emailAuthMode==="hybrid" && !verifiedSparksActor && <div style={{textAlign:"center",padding:"0 16px 24px"}}>
       <button type="button" data-sparks-legacy-fallback="true" onClick={()=>{
         void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).catch(()=>{}).finally(()=>{
           chooseEmailAuth(false);
           setVerifiedActor(null);
         });
-      }}>กลับไปใช้ระบบเดิมชั่วคราว (ยังพึ่ง Firebase)</button>
+      }}>กลับไปใช้บัญชี QA Dashboard เดิม (ไม่ต้อง OTP)</button>
     </div>}
   </div>;
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
