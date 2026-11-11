@@ -65,12 +65,19 @@ try {
   Stop-Safe 'WORKER_SOURCE_DOWNLOAD_FAILED'
 }
 Write-Host 'QA_VPC=CHECKING_CLOUDFLARE_LOGIN'
-& $npx.Source --yes wrangler whoami *> $null
-if ($LASTEXITCODE -ne 0) {
-  Write-Host 'QA_VPC=LOGIN_REQUIRED'
-  & $npx.Source --yes wrangler login
-  if ($LASTEXITCODE -ne 0) { Stop-Safe 'CLOUDFLARE_LOGIN_NOT_AUTHORIZED' }
+# Wrangler whoami can exit 0 even when it reports an unauthenticated user.
+# Detect positive OAuth login evidence instead of only testing exit code.
+# Complete 'npx --yes wrangler login' directly in an INTERACTIVE PowerShell.
+# Trying to launch OAuth from within this script results in a Wrangler
+# "non-interactive environment" error and never deploys the Worker.
+$whoamiOutput = (& $npx.Source --yes wrangler whoami | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $whoamiOutput -notmatch '(?i)you are logged in') {
+  Write-Host 'QA_VPC=CLOUDFLARE_CLI_LOGIN_REQUIRED'
+  Write-Host 'QA_VPC=RUN_npx_wrangler_login_IN_A_NORMAL_POWERSHELL_FIRST'
+  Stop-Safe 'CLOUDFLARE_OAUTH_NOT_AUTHORIZED'
 }
+Write-Host 'QA_VPC=CLOUDFLARE_CLI_AUTHORIZED'
 if ($VPCServiceId -and $VPCServiceId -notmatch '^[a-fA-F0-9-]{36}$') {
   Stop-Safe 'INVALID_VPC_SERVICE_ID'
 }
