@@ -28,7 +28,7 @@ import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestam
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
-import { signInSparksWithQaPassword } from "./sparksQaPasswordLogin";
+import { signInSparksWithQaPassword, syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
 import HiddenTreasure from "./HiddenTreasure";
 import { DailyCheckinLoginPrompt } from "./DailyCheckinQuest";
 import { ProfileMakeoverAutoClaim } from "./ProfileMakeoverQuest";
@@ -7237,10 +7237,28 @@ export default function App() {
       eventType: "password_changed",
     });
 
+    // Sync only after the QA password was saved centrally. Never replace a
+    // valid QA login with an unconfirmed Supabase password update.
+    const sparksAuthEnabled = ["supabase","hybrid"].includes(
+      String(import.meta.env?.VITE_SPARKS_AUTH_MODE || "")
+    );
+    let sparksPasswordSynced = false;
+    if (sparksAuthEnabled && (savedCentrally || savedToProfileStore)) {
+      try {
+        sparksPasswordSynced = await syncSparksQaPasswordChange(
+          currentUser.username, currentPasswordInput, newPasswordInput
+        );
+      } catch {
+        // Do not log credentials, and do not roll back a saved QA password.
+        sparksPasswordSynced = false;
+      }
+    }
     setChangePasswordError("");
     setChangePasswordSuccess(
       savedCentrally || savedToProfileStore
-        ? "Password changed successfully"
+        ? sparksAuthEnabled && !sparksPasswordSynced
+          ? "เปลี่ยนรหัสผ่าน QA สำเร็จ แต่ยังไม่ได้ยืนยันการซิงก์รหัสไป QA Sparks"
+          : "Password changed successfully"
         : "Password changed successfully on this browser only"
     );
     setCurrentPasswordInput("");
