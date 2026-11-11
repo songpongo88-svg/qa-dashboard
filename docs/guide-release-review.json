@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T09:00:00.000Z",
-  "reason": "QA Sparks branch-only: reviewed owner-guided authentication, verified Active roster preflight, and strict fresh Firestore credential read before any Supabase account import. Stale browser-cache passwords cannot be migrated. No user-guide content, QA case scores, rewards, wallet or T&C changed; Production switch remains blocked pending verified 21 Active identities and owner-authorized one-time migration.",
+  "reviewedAt": "2026-11-11T09:20:00.000Z",
+  "reason": "QA Sparks Preview only: protect one-time migration when only 17/21 existing QA credentials are eligible, and show owner-only redacted diagnostic reasons for each rejected Active account without revealing, storing, or logging passwords. No partial migration, score, case, assessment, wallet, item, user guide text or T&C updates. Production cutover remains blocked.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -741,8 +741,8 @@
     "server/qaAutoPassService.js": "928729059a4471a3284cb111de53e3490ecef05c423d21e4e8cb79363cd882e5",
     "src/QaAutoPassRewardCard.tsx": "44fd0e4c78afdd1422a35fb17367dcbf6fe732242a4ef931620e8145fbc30f6f",
     "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584",
-    "scripts/test-sparks-qa-password-login.mjs": "1efd4b8abbb09e46bdb3f54433e1fd20ed1a81f1696aa69cf8ad315b57efc308",
-    "src/SparksQaCredentialMigration.tsx": "0de1a4eca0080fb81c8aa89d77c7662072e3c2a67addd2f2b6f468f9a4061815",
+    "scripts/test-sparks-qa-password-login.mjs": "2a13d344dc14c0bab81ebad4805246e4c34676292cbd8ed550952bddb38f45dd",
+    "src/SparksQaCredentialMigration.tsx": "42248c33406b3bedfae1d98e62d04c180a5d66f07a5357b956fb08934044a0a7",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
     ".github/workflows/test-sparks-qa-password-migration.yml": "889121f23643b2fc3195635ab12ce3bf9e2e558c5a7d2522b151ae9b9ccaae0a"
   }
