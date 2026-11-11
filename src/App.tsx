@@ -28,7 +28,7 @@ import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestam
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
-import SparksAccessGate from "./SparksAccessGate";
+import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
 import { DailyCheckinLoginPrompt } from "./DailyCheckinQuest";
 import { ProfileMakeoverAutoClaim } from "./ProfileMakeoverQuest";
@@ -7908,12 +7908,14 @@ export default function App() {
           </div>
         ) : null}
 
+        <SparksEnabledOnly>
         <HiddenTreasure username={currentUser.username} sessionId={currentUser.sessionId||""}
           caseId={activeTab==="dashboard"&&(dashboardSubTab==="case-detail"||isCaseWorkspaceTabKey(activeWorkspaceTab))
             ? selectedDashboardCaseId||"" :activeTab==="rubric"&&rubricAllowed?"QA-RUBRIC"
             :activeTab==="coaching"&&coachingAllowed?"QA-COACHING":""}
           active={Boolean((activeTab==="dashboard"&&(dashboardSubTab==="case-detail"||isCaseWorkspaceTabKey(activeWorkspaceTab))&&selectedDashboardCaseId)
             ||(activeTab==="rubric"&&rubricAllowed)||(activeTab==="coaching"&&coachingAllowed))}/>
+        </SparksEnabledOnly>
         <WorkspaceKeepAlive activeKey={activeTab} retainedKeys={retainedWorkspaceAppTabs}>
           {activeTab === "user-guide" ? (
             <UserGuide user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} />
@@ -8348,10 +8350,10 @@ export default function App() {
           }}
         />
       ) : null}
-      {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? <>
+      {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? <SparksEnabledOnly>
         <DailyCheckinLoginPrompt key={currentUser.username + ":" + (currentUser.sessionId || "")} username={currentUser.username} sessionId={currentUser.sessionId || ""} />
         <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>
-      </> : null}
+      </SparksEnabledOnly> : null}
       </TermsAccessBoundary>
     </EvaluationActivityProvider>
   );

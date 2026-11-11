@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useState} from "react";
 export type SparksStatus={enabled:boolean;message:string;unavailable?:boolean;updatedAt?:string};
 const message="QA Sparks ปิดปรับปรุงชั่วคราว ระหว่างย้ายระบบฐานข้อมูล";
-export function useSparksStatus(){
+export function useSparksStatus(poll=true){
   const [status,setStatus]=useState<SparksStatus|null>(null);
   const refresh=useCallback(async()=>{
     try{
@@ -13,10 +13,11 @@ export function useSparksStatus(){
   },[]);
   useEffect(()=>{
     void refresh();
+    if(!poll)return;
     const timer=window.setInterval(()=>void refresh(),30000);
     window.addEventListener("focus",refresh);
     return()=>{window.clearInterval(timer);window.removeEventListener("focus",refresh);};
-  },[refresh]);
+  },[refresh,poll]);
   return {status,refresh};
 }
 export function SparksPausedNotice({status,ownerLink=false}:{status:SparksStatus|null;ownerLink?:boolean}){
@@ -39,4 +40,10 @@ export default function SparksAccessGate({username,children}:{username:string;ch
   const {status}=useSparksStatus();
   if(status?.enabled===true)return <>{children}</>;
   return <SparksPausedNotice status={status} ownerLink={username.trim().toLowerCase()==="songpon"}/>;
+}
+
+/** Gate always-mounted QA Dashboard Sparks side effects without polling. */
+export function SparksEnabledOnly({children}:{children:React.ReactNode}){
+  const {status}=useSparksStatus(false);
+  return status?.enabled===true?<>{children}</>:null;
 }
