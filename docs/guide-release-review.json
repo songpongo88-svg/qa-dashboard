@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T06:55:00.000Z",
-  "reason": "QA standby data path staged across Workers VPC, Preview-only Vercel relay and typed client. Original QA scores, QA Sparks and user Terms remain unchanged; full live Firestore parity and backend session continuity still unverified.",
+  "reviewedAt": "2026-11-11T07:03:00.000Z",
+  "reason": "QA-only gateway build review: untracked cloudflare Worker and Windows PowerShell are verified via QA-only CI, not the UI guide scanner. Active guide source and T&C remain unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -109,7 +109,6 @@
     "build/userDirectoryPdfUserColumnPatch.js": "116b6ce12e529c82d5c22dd65d6622f4bc37f780ce2124ac6e17c00d5ad86d62",
     "build/usernameIdentityPolicyPatchV2.js": "c5c8baec7d5c31fa2f68441bafd885194d965f4074e9df25fb2b329bd4d1990b",
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
-    "cloudflare/qa-standby-vpc-worker.mjs": "ddc525452a98b809d9ca6ca7c65dc0f59f364b5b34f5c975a5817dcd96ac8027",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
     "package.json": "c6f518f3763bd50a5f49d9f18aa35daa2234705fb66777919d7a246e6bf2fef7",
@@ -319,7 +318,6 @@
     "scripts/repair-v13-recent-date-fields.mjs": "e3f01ab4a891d98159505cb9d6d056744e8aa01f0c08c97ae642b7f1b22bf03b",
     "scripts/reset-signature-documents.mjs": "5e5041acd5baa653f97b607c88a839656f7e3a6b540533a10d8e8f5f99569f9d",
     "scripts/set-test-password.mjs": "2f813ef82a3681405e23ffa9f1706a3affd1f55bca533bf017517cd13aa1f7e0",
-    "scripts/Setup-QA-Private-Cloudflare-VPC.ps1": "95c9367f4be82a611caf8030b3b916581027cf81344e317f2991bd37d10cd059",
     "scripts/snapshot-sparks-source.py": "9ba4a32c6f9bd5165867e516f9790428ffd5300029f7957d4b7042775a80c915",
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
     "scripts/sync-v13-excel-data-only.mjs": "d3b1eb63b3cce5ad0ebc83c47fec6f8b426e5bae3db073dc6c53abb606628b47",
