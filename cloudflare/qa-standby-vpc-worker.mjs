@@ -30,11 +30,128 @@ async function authorized(auth,env){
   const compare=Uint8Array.from(expected.match(/.{2}/g).map(p=>parseInt(p,16)));
   return checkDigest(hex,compare);
 }
+
+const MAX_DATA_BYTES=2*1024*1024;
+const SESSION=/^[a-zA-Z0-9_.:@-]{20,180}$/;
+const OP=/^[a-zA-Z0-9_.:@-]{1,180}$/;
+const DATA_PATH=/^\/v1\/qa\/evaluations(?:\/([a-zA-Z0-9_.:@-]{1,180}))?$/;
+const DATA_KEYS=new Set(['month','limit','afterId']);
+async function limitedBytes(stream,maxBytes){
+  if(!stream)return new Uint8Array(0);
+  const reader=stream.getReader(),buffers=[];
+  let length=0;
+  try{
+    while(true){
+      const {done,value}=await reader.read();
+      if(done)break;
+      length+=value.byteLength;
+      if(length>maxBytes)throw new Error('size_limit');
+      buffers.push(value);
+    }
+  }finally{try{await reader.cancel();}catch{/* consumed */}reader.releaseLock();}
+  const output=new Uint8Array(length);let offset=0;
+  for(const bytes of buffers){output.set(bytes,offset);offset+=bytes.length;}
+  return output;
+}
+async function forwardQaData(request,env,url){
+  // Data forwarding is deliberately OFF until both the private QA server and
+  // current per-document Firestore parity are independently proven ready.
+  if(env?.QA_EDGE_DATA_ENABLED!=='1')
+    return reply(503,{ok:false,error:'standby_data_disabled'});
+  const match=url.pathname.match(DATA_PATH);
+  if(!match||url.hash||[...url.searchParams.keys()].some(x=>!DATA_KEYS.has(x)))
+    return reply(404,{ok:false,error:'not_found'});
+  const action=request.method;
+  if(action!=='GET'&&action!=='POST')
+    return reply(405,{ok:false,error:'method_not_allowed'},match[1]?'GET':'GET, POST');
+  if(action==='POST'&&(match[1]||url.search))
+    return reply(405,{ok:false,error:'method_not_allowed'},'GET');
+  if(action==='GET'&&match[1]&&url.search)
+    return reply(400,{ok:false,error:'invalid_request'});
+  if(request.headers.get('origin'))
+    return reply(403,{ok:false,error:'browser_origin_forbidden'});
+  const tokenHeader=request.headers.get('authorization');
+  if(typeof env?.QA_EDGE_BEARER_SHA256!=='string'||!/^[0-9a-f]{64}$/.test(env.QA_EDGE_BEARER_SHA256))
+    return reply(503,{ok:false,error:'edge_not_configured'});
+  if(!await authorized(tokenHeader,env))
+    return reply(403,{ok:false,error:'forbidden'});
+  const session=request.headers.get('x-qa-user-session');
+  if(!SESSION.test(session||''))return reply(403,{ok:false,error:'session_not_provided'});
+  if(!env?.QA_PRIVATE_HTTP_VPC||typeof env.QA_PRIVATE_HTTP_VPC.fetch!=='function')
+    return reply(503,{ok:false,error:'private_service_not_configured'});
+  let data=null;
+  if(action==='POST'){
+    if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')||''))
+      return reply(400,{ok:false,error:'invalid_content_type'});
+    const size=Number(request.headers.get('content-length'));
+    if(Number.isFinite(size)&&size>MAX_DATA_BYTES)
+      return reply(413,{ok:false,error:'request_too_large'});
+    const operationId=request.headers.get('idempotency-key');
+    if(!OP.test(operationId||''))
+      return reply(400,{ok:false,error:'idempotency_required'});
+    try{data=await limitedBytes(request.body,MAX_DATA_BYTES);}
+    catch{return reply(413,{ok:false,error:'request_too_large'});}
+    let parsed=null;
+    try{parsed=JSON.parse(new TextDecoder().decode(data));}catch{}
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed)||
+       parsed.operationId!==operationId||!OP.test(parsed.evaluationId||''))
+      return reply(400,{ok:false,error:'invalid_request'});
+  }else if(request.body){
+    return reply(400,{ok:false,error:'unexpected_body'});
+  }
+  try{
+    const signal=AbortSignal.timeout(8000);
+    const upstream=await env.QA_PRIVATE_HTTP_VPC.fetch(
+      'http://127.0.0.1:8788'+url.pathname+url.search,{
+        method:action,
+        headers:{
+          authorization:tokenHeader,
+          'x-qa-user-session':session,
+          accept:'application/json',
+          ...(action==='POST'?{
+            'content-type':'application/json',
+            'idempotency-key':request.headers.get('idempotency-key'),
+          }:{}),
+        },
+        ...(action==='POST'?{body:data}:{}),
+        redirect:'manual',
+        signal,
+      },
+    );
+    if(!upstream||!([200,400,403,404,405,409,413,503].includes(upstream.status))||
+       !(upstream.headers.get('content-type')||'').toLowerCase().includes('application/json'))
+      return reply(502,{ok:false,error:'invalid_private_response'});
+    const bytes=await limitedBytes(upstream.body,MAX_DATA_BYTES);
+    const result=JSON.parse(new TextDecoder().decode(bytes));
+    if(!result||typeof result!=='object'||Array.isArray(result)||
+       typeof result.ok!=='boolean')
+      return reply(502,{ok:false,error:'invalid_private_response'});
+    if(upstream.status!==200){
+      // Do not forward arbitrary PostgreSQL errors or raw source document data.
+      return reply(upstream.status,{ok:false,error:'private_qa_request_denied'});
+    }
+    if(result.ok!==true)return reply(502,{ok:false,error:'invalid_private_response'});
+    if(action==='GET'&&(result.source!=='local-postgres-standby'||
+       result.dataStatus!=='verified-snapshot'))
+      return reply(502,{ok:false,error:'unverified_private_data'});
+    if(action==='POST'&&(
+      result.operationId!==request.headers.get('idempotency-key')||
+      typeof result.queued!=='boolean'||!Number.isSafeInteger(result.version)
+    ))return reply(502,{ok:false,error:'unverified_write_commit'});
+    return reply(200,result);
+  }catch{
+    return reply(502,{ok:false,error:'private_qa_unavailable'});
+  }
+}
+
 export default {
   async fetch(request,env){
-    if(request.method!=='GET')return reply(405,{ok:false,error:'method_not_allowed'},'GET');
     let url;
     try{url=new URL(request.url);}catch{return reply(400,{ok:false,error:'invalid_request'});}
+    if(url.pathname.startsWith('/v1/qa/evaluations')){
+      return forwardQaData(request,env,url);
+    }
+    if(request.method!=='GET')return reply(405,{ok:false,error:'method_not_allowed'},'GET');
     if(url.pathname!=='/ready'&&url.pathname!=='/summary'||
       url.search||url.hash)return reply(404,{ok:false,error:'not_found'});
     if(!env?.QA_EDGE_BEARER_SHA256||!/^[0-9a-f]{64}$/.test(env.QA_EDGE_BEARER_SHA256))
