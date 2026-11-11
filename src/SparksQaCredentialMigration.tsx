@@ -8,10 +8,11 @@ export default function SparksQaCredentialMigration(){
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
+ const [issues,setIssues]=useState<{username:string;reason:string}[]>([]);
  const [result,setResult]=useState<null|{submitted:number;eligible:number;created:number;updated:number;skipped:string[];failed:{username:string;state:string}[]}>(null);
  const run=async()=>{
   if(busy)return;
-  setBusy(true);setMessage("");setError("");setResult(null);
+  setBusy(true);setMessage("");setError("");setResult(null);setIssues([]);
   try{
    // The canonical Supabase directory is owner-only and requires an active,
    // verified QA Owner Supabase session. It excludes suspended/stale identities.
@@ -33,10 +34,12 @@ export default function SparksQaCredentialMigration(){
    const source=await getDocsFromServer(query(collection(firebaseDb,"qa_user_profiles"),orderBy("username","asc")));
    if(source.empty)throw Error("Firestore ไม่ส่งข้อมูลพนักงาน จึงไม่เริ่มการซิงก์");
    const entriesByName=new Map<string,{username:string;password:string;passwordExpiresAt:string}>();
+   // Diagnostics contain usernames and safe reason codes ONLY, never credentials.
+   // They remain in component memory; they are not persisted or sent to logs.
+   const problems=new Map<string,string>();
    const today=new Intl.DateTimeFormat("en-CA",{
      timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit",
    }).format(new Date());
-   const rejected=new Set<string>();
    for(const snap of source.docs){
      const row=snap.data();
      const username=String(row.username||snap.id).trim().toLowerCase();
@@ -45,21 +48,33 @@ export default function SparksQaCredentialMigration(){
      const expires=String(row.passwordExpiresAt||row.accessExpiresAt||"").trim();
      const start=String(row.suspendEffectiveDate||"").trim();
      const end=String(row.suspendEndDate||"").trim();
-     const suspended=String(row.status||"").trim().toLowerCase()!=="active" ||
-       (Boolean(start) && start<=today && !(row.suspendAutoReactivate===true && end && end<=today));
-     const expired=Boolean(expires) && (!Number.isFinite(Date.parse(expires)) || Date.parse(expires)<=Date.now());
-     if(entriesByName.has(username) || !/^[a-z0-9._-]{2,64}$/.test(username) ||
-       suspended || expired || password.length<6 || password.length>128){
-       rejected.add(username);
+     const scheduledSuspension=Boolean(start) && start<=today &&
+       !(row.suspendAutoReactivate===true && end && end<=today);
+     let reason="";
+     if(problems.has(username)||entriesByName.has(username))reason="พบ Username ซ้ำใน Firestore";
+     else if(!/^[a-z0-9._-]{2,64}$/.test(username))reason="รูปแบบ Username ไม่รองรับ";
+     else if(String(row.status||"").trim().toLowerCase()!=="active")reason="สถานะ Firestore ไม่ใช่ Active";
+     else if(scheduledSuspension)reason="บัญชีมีคำสั่งระงับสิทธิ์ตามวันที่";
+     else if(typeof row.password!=="string"||!password)reason="ไม่พบรหัสผ่าน QA ใน Firestore";
+     else if(password.length<6)reason="รหัสผ่าน QA เดิมสั้นกว่า 6 ตัวอักษร";
+     else if(password.length>128)reason="รหัสผ่าน QA เดิมยาวเกิน 128 ตัวอักษร";
+     else if(expires&&!Number.isFinite(Date.parse(expires)))reason="รูปแบบวันหมดอายุรหัสผ่านไม่ถูกต้อง";
+     else if(expires&&Date.parse(expires)<=Date.now())reason="รหัสผ่าน QA หมดอายุ";
+     if(reason){
+       problems.set(username,reason);
+       entriesByName.delete(username);
        continue;
      }
      entriesByName.set(username,{username,password,passwordExpiresAt:expires});
    }
-   for(const name of rejected)entriesByName.delete(name);
    const missing=activeNames.filter((name:string)=>!entriesByName.has(name));
    if(missing.length>0){
-     throw Error("ยังไม่เริ่มย้าย: พบ Username/Password ที่ใช้ได้ "+entriesByName.size+
-       "/"+activeNames.length+" บัญชี ข้อมูลไม่ครบหรือรหัสหมดอายุ กรุณาตรวจสอบข้อมูลต้นทางก่อน");
+     setIssues(missing.map((name:string)=>({
+       username:name,
+       reason:problems.get(name)||"ไม่พบเอกสารบัญชีนี้ใน Firestore",
+     })));
+     throw Error("ยังไม่เริ่มย้าย: ผ่านเงื่อนไข "+entriesByName.size+
+       "/"+activeNames.length+" บัญชี กรุณาดูรายชื่อและสาเหตุที่ต้องแก้ด้านล่าง");
    }
    const entries=activeNames.map((name:string)=>entriesByName.get(name)!);
    setMessage("ตรวจสอบครบ "+entries.length+"/"+activeNames.length+
@@ -112,6 +127,36 @@ export default function SparksQaCredentialMigration(){
    </button>
    {message?<p role="status" style={{fontSize:12,color:"#5e4776"}}>{message}</p>:null}
    {error?<p role="alert" style={{fontSize:12,color:"#b3314d"}}>{error}</p>:null}
+   {issues.length>0?<section data-sparks-qa-migration-issues="true" role="status"
+     style={{marginTop:14,padding:14,border:"1px solid #f3bcc3",borderRadius:12,background:"#fff7f8"}}>
+     <strong style={{display:"block",fontSize:14,color:"#9f1239",marginBottom:8}}>
+       บัญชีที่ยังย้ายไม่ได้ {issues.length} บัญชี — ยังไม่มีการย้ายรหัสผ่านในรอบนี้
+     </strong>
+     <p style={{fontSize:12,margin:"4px 0 10px",lineHeight:1.7}}>
+       ตรวจสอบข้อมูลของบัญชีเหล่านี้ใน QA Dashboard → User Management ก่อนซิงก์ใหม่
+       ไม่ต้องส่งรหัสผ่านหรือ OTP ให้ผู้ดูแลคนอื่น และระบบจะไม่เปลี่ยนสถานะ Suspended อัตโนมัติ
+     </p>
+     <div style={{display:"grid",gap:7}}>
+       {issues.map(issue=><div key={issue.username} style={{
+         display:"flex",gap:10,justifyContent:"space-between",flexWrap:"wrap",
+         padding:"9px 12px",borderRadius:8,background:"#fff",border:"1px solid #f9d4d8",
+       }}>
+         <strong style={{fontSize:13}}>{issue.username}</strong>
+         <span style={{fontSize:12,color:"#9f1239"}}>{issue.reason}</span>
+       </div>)}
+     </div>
+     <button type="button" className="sparks-email-auth-secondary" style={{
+       marginTop:10,padding:"9px 13px",borderRadius:9,fontSize:12,
+       border:"1px solid #e5b5c1",background:"#fff",color:"#83203b",fontWeight:600,
+     }} onClick={()=>{
+       const report="ผลตรวจสอบย้าย QA Sparks (ไม่มีรหัสผ่าน)\n"+
+         issues.map(issue=>issue.username+" — "+issue.reason).join("\n");
+       void navigator.clipboard?.writeText(report).then(
+         ()=>setMessage("คัดลอกเฉพาะรายชื่อและสาเหตุแล้ว (ไม่มีรหัสผ่าน)"),
+         ()=>setMessage("คัดลอกไม่สำเร็จ สามารถส่งภาพหน้าจอส่วนนี้แทนได้")
+       );
+     }}>คัดลอกรายชื่อและสาเหตุ (ไม่มีรหัสผ่าน)</button>
+   </section>:null}
    {result?<div role="status" style={{fontSize:12,lineHeight:1.8}}>
      <strong>สร้างบัญชีที่ใช้รหัส QA เดิมได้ {result.created} บัญชี · อัปเดต {result.updated} บัญชี</strong>
      <div>รายชื่อที่ไม่สามารถซิงก์ได้ {result.skipped.length+result.failed.length} บัญชี</div>
