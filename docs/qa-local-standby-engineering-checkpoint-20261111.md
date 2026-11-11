@@ -10,8 +10,8 @@
 
 ## Implementation delivered on PR #210 (QA-only)
 1. Existing HTTP bridge, Worker and Vercel Preview remain read-only and fail closed.
-2. `server/qaFirestoreRestSnapshot.js` reads all six required Firestore datasets using one *fixed point-in-time readTime* from a trusted backend OAuth credential, paginates to completion and aborts on 403/429 or missing/duplicate documents.
-3. `server/qaLiveMirrorStage.js` requires an authoritative, complete six-dataset manifest, checks every source identity and canonical SHA-256, then copies the source into separate PostgreSQL snapshot staging tables transactionally and independently checks stored contents.
+2. `server/qaFirestoreRestSnapshot.js` reads all 11 required Firestore datasets using one *fixed point-in-time readTime* from a trusted backend OAuth credential, paginates to completion and aborts on 403/429 or missing/duplicate documents.
+3. `server/qaLiveMirrorStage.js` requires an authoritative, complete eleven-dataset manifest, checks every source identity and canonical SHA-256, then copies the source into separate PostgreSQL snapshot staging tables transactionally and independently checks stored contents.
 4. `migration/qa-local-live-snapshot-stage.sql` is **additive**. It does not alter the existing 2,081 archived source documents, evaluations, outbox, appeal or signature records.
 5. `scripts/Run-QA-Authoritative-Snapshot-Stage.mjs` is a guarded local-only runner that requires a validated existing `qa_dashboard_lab` connection, explicit stage-only opt-in and a private server-side OAuth token. It does not activate failover.
 6. GitHub Actions runs both pure/fixture tests and disposable PostgreSQL 17 integration. No real production records or credentials are accessed during CI.
@@ -27,7 +27,7 @@
 ## Remaining critical work — NOT complete
 1. Run the source capture from a trusted machine with Firestore server OAuth authority when the source permits a consistent, complete read. **No full source scan has been executed in this session.** The Vercel production service account is NOT replicated into untrusted Preview code.
 2. Stage and verify the actual current source on the user's local PostgreSQL. The new migration has NOT been run on the user's Windows machine.
-3. Establish continuous freshness/authority for all six datasets, including currently active/revoked sessions and role changes. A one-time export cannot support automatic failover indefinitely.
+3. Establish continuous freshness/authority for all 11 datasets, including currently active/revoked sessions and role changes. A one-time export cannot support automatic failover indefinitely.
 4. Connect QA login, role permissions, monthly locks, edit leases, appeal/signature operations and evaluation CRUD to independently verified local authority.
 5. Enable a server-controlled fallback ONLY on trusted quota exhaustion and after all completeness, freshness and identity conditions are verified; keep durable outbox, replay conflict handling and independent failback parity.
 6. Verify on real Windows PostgreSQL and real QA Preview with protected regression tests before Production changes.
