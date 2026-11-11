@@ -724,7 +724,7 @@
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
     "api/sparks-auth.js": "f3e3d51c39b4381d7948672423cc7e2db7e4d2f1983d4d9fec4024067c13c23a",
     "server/sparksSupabaseAuth.js": "7d5c916a79b641e7405a809c3875ddf54367bb9b00f50ae088ca7eea11ae5f85",
-    "src/SparksEmailAuth.tsx": "8f92075778080f8b349c85c8ab83e6449185d06d0dd1dc45a4a79bca9b35d499",
+    "src/SparksEmailAuth.tsx": "ff09459e9c22a2a0d49415d835be2dbb5cc8b158a6bed9184a7f6ac29448b203",
     "src/SparksEmailAuth.css": "57cd8adfe942f400f8b3eced2a2dd075740375c783d4cbaf5c80b3e2d9cac82d",
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
     "scripts/test-sparks-email-api.mjs": "ca9b08fade21ca84e24f801672ff259ff2653224c21612c17a623d808cf1b99d",
