@@ -4,6 +4,7 @@ import PageHero from "./PageHero";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import { fetchCachedStaticResponse } from "./staticFileCache";
+import { lateAppealExpiresAt, isLateAppealOpen } from "./lateAppealPolicy";
 
 type CurrentUser = {
   username: string;
@@ -18,6 +19,7 @@ export type AppealCaseOverride = {
   caseId: string;
   note: string;
   addedAt: string;
+  expiresAt: string;
   addedBy: string;
   targetAgent: string;
 };
@@ -111,10 +113,14 @@ export function buildAppealCaseOverrides(logs: UsageLogEvent[]) {
       return;
     }
 
+    const addedAt = String(log.details?.addedAt || log.created_at || "");
     overrides.set(caseId, {
       caseId,
       note: String(log.details?.note || ""),
-      addedAt: String(log.details?.addedAt || log.created_at || ""),
+      addedAt,
+      // The window is derived from the immutable grant timestamp, even for
+      // historical overrides that were saved before expiresAt existed.
+      expiresAt: lateAppealExpiresAt(addedAt),
       addedBy: String(log.details?.addedBy || log.display_name || log.username || ""),
       targetAgent: String(log.target_agent || log.details?.targetAgent || ""),
     });
@@ -136,6 +142,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
 
   const overrides = useMemo(() => buildAppealCaseOverrides(logs), [logs]);
   const existingCaseIds = useMemo(() => new Set(overrides.map((item) => item.caseId)), [overrides]);
+  const activeOverrideCount = overrides.filter(item => isLateAppealOpen(item.expiresAt)).length;
   const selectedCaseScope = caseOwnerMap.get(normalizeCaseId(caseIdInput));
   const selectedCaseOwner = selectedCaseScope?.agent || "";
 
@@ -177,6 +184,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
     setMessage("");
     try {
       const addedAt = new Date().toISOString();
+      const expiresAt = lateAppealExpiresAt(addedAt);
       await writeAppealEvent(currentUser, "appeal_case_override_added", {
         tab: "appeal-override",
         case_id: caseId,
@@ -187,6 +195,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
           targetAgent,
           note: noteInput.trim(),
           addedAt,
+          expiresAt,
           addedBy: currentUser.displayName || currentUser.username,
         },
       });
@@ -194,7 +203,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
       setNoteInput("");
       setManualAgentInput("");
       await loadOverrides();
-      setMessage(`${caseId} can now submit appeal after deadline. Task sent to ${targetAgent}.`);
+      setMessage(`เปิดสิทธิ์อุทธรณ์ย้อนหลังให้ ${targetAgent} สำหรับเคส ${caseId} ถึง ${formatDateTime(expiresAt)} น. (72 ชั่วโมง)`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "เปิดสิทธิ์อุทธรณ์ไม่สำเร็จ");
     } finally { setBusy(false); }
@@ -284,7 +293,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-violet-100 px-5 py-4">
             <div>
               <div className="text-xs font-bold uppercase tracking-[0.2em] text-violet-700">Allowed Cases</div>
-              <div className="mt-1 text-sm text-slate-500">{overrides.length} active override case(s)</div>
+              <div className="mt-1 text-sm text-slate-500">{activeOverrideCount} active override case(s)</div>
             </div>
             <button
               type="button"
@@ -314,6 +323,9 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Added</div>
                     <div className="mt-1 text-sm font-semibold text-slate-700">{formatDateTime(item.addedAt)}</div>
+                    <div className={`mt-1 text-[11px] font-bold ${isLateAppealOpen(item.expiresAt) ? "text-emerald-700" : "text-rose-700"}`}>
+                      {isLateAppealOpen(item.expiresAt) ? "เปิดสิทธิ์ถึง " : "สิทธิ์หมดอายุ "}{formatDateTime(item.expiresAt)} น.
+                    </div>
                     <div className="text-xs text-slate-500">{item.addedBy}</div>
                   </div>
                   <button
