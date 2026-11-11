@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T07:55:00.000Z",
-  "reason": "QA Sparks only: verified two existing source modules for original QA username/password migration and credential sync, plus earlier reviewed QA change-handler and CI. No user guide text, QA score, case, wallet, item, authorization role or T&C altered; all 21 staff Auth identities remain pending and Production cutover is blocked.",
+  "reviewedAt": "2026-11-11T09:00:00.000Z",
+  "reason": "QA Sparks branch-only: reviewed owner-guided authentication, verified Active roster preflight, and strict fresh Firestore credential read before any Supabase account import. Stale browser-cache passwords cannot be migrated. No user-guide content, QA case scores, rewards, wallet or T&C changed; Production switch remains blocked pending verified 21 Active identities and owner-authorized one-time migration.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -722,9 +722,9 @@
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
     "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4",
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
-    "api/sparks-auth.js": "f3e3d51c39b4381d7948672423cc7e2db7e4d2f1983d4d9fec4024067c13c23a",
+    "api/sparks-auth.js": "876d64821c625c3f479fe2c684406e9baf02122e85c5c9e52fa103e7744eed74",
     "server/sparksSupabaseAuth.js": "7d5c916a79b641e7405a809c3875ddf54367bb9b00f50ae088ca7eea11ae5f85",
-    "src/SparksEmailAuth.tsx": "ff09459e9c22a2a0d49415d835be2dbb5cc8b158a6bed9184a7f6ac29448b203",
+    "src/SparksEmailAuth.tsx": "ce2d886fb31c9abf1b2177089d375810393fe03a9850cc955ce342046a450a7f",
     "src/SparksEmailAuth.css": "57cd8adfe942f400f8b3eced2a2dd075740375c783d4cbaf5c80b3e2d9cac82d",
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
     "scripts/test-sparks-email-api.mjs": "ca9b08fade21ca84e24f801672ff259ff2653224c21612c17a623d808cf1b99d",
@@ -741,8 +741,8 @@
     "server/qaAutoPassService.js": "928729059a4471a3284cb111de53e3490ecef05c423d21e4e8cb79363cd882e5",
     "src/QaAutoPassRewardCard.tsx": "44fd0e4c78afdd1422a35fb17367dcbf6fe732242a4ef931620e8145fbc30f6f",
     "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584",
-    "scripts/test-sparks-qa-password-login.mjs": "728c4768051d11cae9d8c082cda9cacb1e2ea08eec338c640c0d0cf3c269cf78",
-    "src/SparksQaCredentialMigration.tsx": "61f125502b7d371b2b63c6ebb623643ab3516961ead152cce00e9b9322b8c3c9",
+    "scripts/test-sparks-qa-password-login.mjs": "1efd4b8abbb09e46bdb3f54433e1fd20ed1a81f1696aa69cf8ad315b57efc308",
+    "src/SparksQaCredentialMigration.tsx": "0de1a4eca0080fb81c8aa89d77c7662072e3c2a67addd2f2b6f468f9a4061815",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
     ".github/workflows/test-sparks-qa-password-migration.yml": "889121f23643b2fc3195635ab12ce3bf9e2e558c5a7d2522b151ae9b9ccaae0a"
   }
