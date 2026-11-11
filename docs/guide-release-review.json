@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T06:35:00.000Z",
-  "reason": "QA Sparks Auto-Pass: reviewed new free 5 / 160 Sparks item, two-mode confirmed challenge completion, private Supabase operation root and QA Firestore audit separation. Migration SQL and Edge source reviewed separately (not part of guide source scanner); no existing balances, T&C or documentation content changed.",
+  "reviewedAt": "2026-11-11T05:05:00.000Z",
+  "reason": "Sparks login availability: add a visible independent Supabase portal entry on the unauthenticated QA Dashboard login page, providing users a route that never boots Firebase QA Dashboard during quota outages. Does not bypass Supabase email OTP or current Active roster authorization, change data balances, login policy, or the QA user guide.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -425,7 +425,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "370c1f54c517bbd31178babeb678d2691b0996dd0e0d933c6718cfff03cccaf4",
-    "src/App.tsx": "00fc6871c9e48ef14a3b32b9e255a9e603b2df01b7c9407396149618b49cb722",
+    "src/App.tsx": "6a8ea040c0cedc2d2925813282df5b629629051756ba3c7e36da846c9cb81d80",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -729,7 +729,7 @@
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
     "scripts/test-sparks-email-api.mjs": "ca9b08fade21ca84e24f801672ff259ff2653224c21612c17a623d808cf1b99d",
     "src/SparksStandalone.tsx": "9a42338bd73a6a4d6b9617a841f24be6b12930df51e3928f411e1066cd931846",
-    "scripts/test-sparks-standalone.mjs": "5895912ef97e46eb3d3ebd3230ca66f21ebcd35a9175fa5e78faa15459f774bc",
+    "scripts/test-sparks-standalone.mjs": "c8d892ca9949cd518aaab5d58152beddc7b395be2f06ea2ac2309c8cb95ca741",
     "server/sparksProfileReconcile.js": "d49586813400952faa80cb40137d1e336838c14bd66ba3e7492177414cb8ad1c",
     "api/cron/sparks-profile-reconcile.js": "5ebdc742bb08f93fa339b9b198d2c896008da601f95d457127656355a0a5b916",
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",

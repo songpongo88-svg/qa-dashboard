@@ -7482,6 +7482,15 @@ export default function App() {
                     </div>
                   )}
 
+                  {["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE||"")) ? (
+                    <div data-sparks-direct-login-link="true" className="mt-6 rounded-2xl border border-violet-200 bg-violet-50/70 px-4 py-3">
+                      <div className="text-xs font-semibold text-violet-900">เข้า QA Sparks แยกจาก Dashboard</div>
+                      <div className="mt-1 text-[11px] leading-5 text-violet-700">เข้าสู่ระบบด้วย Supabase และยืนยัน OTP ทางอีเมล ไม่ต้อง Login Dashboard ก่อน</div>
+                      <a href="/?sparks=1" className="mt-2 inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-800 transition hover:bg-violet-100">
+                        เปิด QA Sparks ผ่าน Supabase <span aria-hidden="true">↗</span>
+                      </a>
+                    </div>
+                  ) : null}
                   <div className="qa-login-session-footer mt-8 border-t border-slate-100 pt-5">
                     <VersionPill meta={buildMeta} className="qa-login-version w-full" />
                     <div className="mt-4 flex items-center justify-between gap-4 text-[11px] text-slate-400">

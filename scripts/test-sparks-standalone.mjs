@@ -42,4 +42,8 @@ assert.ok(sparks.includes('import FirstLoginSparksModal from "./FirstLoginSparks
   "standalone Sparks portal must render the same first-login reward after verification");
 assert.doesNotMatch(read("src/App.tsx"),/<FirstLoginSparksModal/,
   "QA Dashboard login must not grant or attempt Sparks first-login before verification");
+assert.ok(read("src/App.tsx").includes('data-sparks-direct-login-link="true"'),
+  "Dashboard login should offer independent Supabase Sparks access when Firebase is unavailable");
+assert.ok(read("src/App.tsx").includes('href="/?sparks=1"'),
+  "Dashboard login must route to Sparks standalone without a QA Dashboard session");
 console.log("PASS independent Sparks portal: no QA Dashboard login mount, email verification, username match and CSRF denial");
