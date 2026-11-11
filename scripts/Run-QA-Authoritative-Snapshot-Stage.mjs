@@ -6,6 +6,7 @@ import {readFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 import {captureQaFirestorePointInTime} from '../server/qaFirestoreRestSnapshot.js';
 import {stageQaFirestoreExport} from '../server/qaLiveMirrorStage.js';
+import {materializeQaStandbyEvaluationCandidates} from '../server/qaStandbyCandidateMaterializer.js';
 import {validateLocalQaConnectionString} from '../server/qaLocalBridgeServer.js';
 
 const no=code=>{console.error('QA_LIVE_SNAPSHOT='+code);process.exitCode=2;};
@@ -46,12 +47,19 @@ export async function runQaLiveSnapshotStage({
       readCollection:dataset=>captured.readCollection(dataset),
     });
     console.log('QA_LIVE_SNAPSHOT=STORED_COPY_VERIFIED');
+    // Convert the copy to immutable, app-shaped evaluation candidates in the
+    // SAME local database. Never touch the active QA evaluation table.
+    const candidate=await materializeQaStandbyEvaluationCandidates({
+      pool,snapshotId:receipt.snapshotId,
+    });
+    console.log('QA_LIVE_CANDIDATES=ORIGINAL_SCORES_VERIFIED');
+    console.log('QA_LIVE_CANDIDATE_EVALUATIONS='+candidate.candidateEvaluations);
     console.log('QA_LIVE_SNAPSHOT_DOCUMENTS='+receipt.storedDocuments);
     console.log('QA_LIVE_SNAPSHOT_DATASETS='+receipt.datasets.length);
     console.log('QA_LIVE_SNAPSHOT_SOURCE_READ_TIME='+captured.verifiedReadTime);
     console.log('QA_LIVE_PARITY=NOT_CERTIFIED_FOR_FAILOVER');
     console.log('QA_FAILOVER=OFF');
-    return receipt;
+    return {...receipt,candidate};
   }finally{
     await pool.end();
   }
