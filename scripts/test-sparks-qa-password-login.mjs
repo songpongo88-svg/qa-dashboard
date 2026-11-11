@@ -26,6 +26,17 @@ assert.ok(!edge.includes('console.log(')&&!admin.includes("console.log("));
 assert.ok(server.includes('actor.username!=="songpon"')&&server.includes('expected!==actor.username'));
 assert.ok(api.includes('withSparksRequest(req,res,()=>migrateSparksExistingQaPasswords(body.entries))'));
 assert.ok(auth.includes('data-sparks-qa-password-login="true"'));
+assert.ok(auth.includes('data-sparks-owner-password-login="true"'),
+  "Owner may use existing Supabase password instead of repeatedly requesting OTP");
+assert.ok(auth.includes('mode==="owner-password"'),
+  "Owner-only login is a separate selectable mode");
+assert.ok(auth.includes('await exchange(tokens)'),
+  "Supabase password tokens still pass verified server identity checks");
+assert.ok(auth.includes('grant_type=password'),
+  "Existing Supabase password login requires GoTrue password grant");
+assert.ok(!auth.includes('create_user:true') || auth.includes('mode==="otp"'),
+  "Owner password recovery must not create another identity");
+
 assert.ok(admin.includes("getDocsFromServer("), "Migration must use fresh Firestore source");
 assert.ok(admin.includes('action:"admin-migrate-qa-passwords"'), "Keep owner-only migration action");
 assert.ok(admin.includes("migration-roster"), "Migration must preflight authoritative roster");
