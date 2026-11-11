@@ -23,6 +23,7 @@ on:
       - "scripts/test-qa-bridge-router.mjs"
       - "cloudflare/**"
       - "scripts/test-qa-vpc-worker.mjs"
+      - "scripts/test-qa-vpc-worker-data.mjs"
       - "api/cron/expire-additional-appeals.js"
       - "scripts/test-qa-cron-preview-proxy.mjs"
       - "server/qaLocalDiagnosticsHandler.js"
@@ -97,6 +98,7 @@ jobs:
           node --check scripts/test-qa-firestore-failback-adapter.mjs
           node --check cloudflare/qa-standby-vpc-worker.mjs
           node --check scripts/test-qa-vpc-worker.mjs
+          node --check scripts/test-qa-vpc-worker-data.mjs
           node --check scripts/test-qa-local-bridge.mjs
           node --check scripts/test-qa-bridge-router.mjs
           node --check api/cron/expire-additional-appeals.js
@@ -132,6 +134,7 @@ jobs:
           node scripts/test-qa-standby-data-handler.mjs
           node scripts/test-qa-standby-trusted-context.mjs
           node scripts/test-qa-vpc-worker.mjs
+          node scripts/test-qa-vpc-worker-data.mjs
           node scripts/test-qa-cron-preview-proxy.mjs
           node scripts/test-qa-local-diagnostics.mjs
           node scripts/test-qa-postgres-write-policy.mjs
