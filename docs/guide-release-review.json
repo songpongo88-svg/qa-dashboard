@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T11:26:10.215Z",
+  "reviewedAt": "2026-11-11T11:26:59.160Z",
   "reason": "Sparks-only staged owner-authorized credential import from current Production: new read-only Firestore source audit and one-click QA-session-verified HTTPS import to existing private Supabase Edge function; no user-guide text changes. QA evaluation, appeals, scores, existing Sparks balances, ledger, rewards, and Items unchanged. Keep Production Hybrid auth; does not enable migrated staff login until independently verified.",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -749,6 +749,7 @@
     "server/sparksQaMigrationRunner.js": "3b14aa343b5005cc11e64ba8681c04644bf4eeeee4ce7553c909dffdfc4d1fc7",
     "src/SparksQaCredentialMigration.tsx": "b62105e826e89362708ba6fcdadb7834c55896cf43eccdf6abfd4e3a11b01153",
     "scripts/test-sparks-qa-credential-preflight.mjs": "c877279aa3d838b3c77fb711063a926997140e6abba3d5e74532e9d33be6f78b",
-    "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015"
+    "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015",
+    ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c"
   }
 }
