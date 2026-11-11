@@ -5,6 +5,7 @@ import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
 import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import SparksRewardRequests from "./SparksRewardRequests";
+import { SparksOwnerAccessControl } from "./SparksAccessGate";
 import "./sparksAdminWorkspace.css";
 import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
@@ -501,6 +502,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       <div><h2>จัดการ QA Sparks</h2><p>คำขอรางวัล · คะแนนผู้ใช้งาน · ตั้งค่ารางวัล · ประวัติการจัดการ</p></div>
       {adminSection === "points" || adminSection === "activity" ? <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button> : <span className={"sa-admin-status" + (adminReady ? " ready" : "")}>{adminReady ? "สิทธิ์ผู้ดูแลพร้อมใช้งาน" : loading ? "กำลังตรวจสิทธิ์ผู้ดูแล..." : "ตรวจสิทธิ์เมื่อทำรายการ"}</span>}
     </div>
+    {actorUsername.trim().toLowerCase()==="songpon"&&<SparksOwnerAccessControl username={actorUsername}/>}
     {error && (adminSection !== "requests" || needsReauth) ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
     {needsReauth ? <form className="qa-sparks-admin-reauth" onSubmit={(event) => { void submitReauth(event); }}>
       <div><strong>ยืนยันสิทธิ์ Sparks Admin</strong><p>กรอกรหัสผ่านที่ใช้ Login QA Dashboard ปัจจุบัน 1 ครั้ง เพื่อยืนยันสิทธิ์ผู้ดูแล</p></div>
