@@ -27,6 +27,8 @@ on:
       - "api/cron/expire-additional-appeals.js"
       - "scripts/test-qa-cron-preview-proxy.mjs"
       - "server/qaLocalDiagnosticsHandler.js"
+      - "server/qaVercelStandbyProxy.js"
+      - "scripts/test-qa-vercel-standby-proxy.mjs"
       - "scripts/test-qa-local-diagnostics.mjs"
       - "server/qaCutoverWritePolicy.js"
       - "scripts/test-qa-postgres-write-policy.mjs"
@@ -104,6 +106,8 @@ jobs:
           node --check api/cron/expire-additional-appeals.js
           node --check scripts/test-qa-cron-preview-proxy.mjs
           node --check server/qaLocalDiagnosticsHandler.js
+          node --check server/qaVercelStandbyProxy.js
+          node --check scripts/test-qa-vercel-standby-proxy.mjs
           node --check scripts/test-qa-local-diagnostics.mjs
           node --check server/qaCutoverWritePolicy.js
           node --check scripts/test-qa-postgres-write-policy.mjs
@@ -137,6 +141,7 @@ jobs:
           node scripts/test-qa-vpc-worker-data.mjs
           node scripts/test-qa-cron-preview-proxy.mjs
           node scripts/test-qa-local-diagnostics.mjs
+          node scripts/test-qa-vercel-standby-proxy.mjs
           node scripts/test-qa-postgres-write-policy.mjs
           node scripts/test-qa-postgres-stage-writer.mjs
           node scripts/check-qa-bridge-preview-preflight.mjs
