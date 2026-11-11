@@ -68,17 +68,26 @@ export default function SparksQaCredentialMigration(){
      entriesByName.set(username,{username,password,passwordExpiresAt:expires});
    }
    const missing=activeNames.filter((name:string)=>!entriesByName.has(name));
-   if(missing.length>0){
-     setIssues(missing.map((name:string)=>({
-       username:name,
-       reason:problems.get(name)||"ไม่พบเอกสารบัญชีนี้ใน Firestore",
-     })));
-     throw Error("ยังไม่เริ่มย้าย: ผ่านเงื่อนไข "+entriesByName.size+
-       "/"+activeNames.length+" บัญชี กรุณาดูรายชื่อและสาเหตุที่ต้องแก้ด้านล่าง");
+   const pending=missing.map((name:string)=>({
+     username:name,
+     reason:problems.get(name)||"ไม่พบเอกสารบัญชีนี้ใน Firestore",
+   }));
+   // Accounts that never set a QA password may remain pending. Never
+   // invent or reset their password, and never provision Suspended/stale
+   // identities. Any other discrepancy still blocks the entire operation.
+   if(pending.length) setIssues(pending);
+   if(pending.some(item=>item.reason!=="ไม่พบรหัสผ่าน QA ใน Firestore")){
+     throw Error("ยังไม่เริ่มย้าย: พบข้อมูลที่ต้องตรวจสอบเพิ่มเติม "+pending.length+
+       " บัญชี ดูรายละเอียดด้านล่างก่อนซิงก์");
    }
-   const entries=activeNames.map((name:string)=>entriesByName.get(name)!);
-   setMessage("ตรวจสอบครบ "+entries.length+"/"+activeNames.length+
-     " บัญชีแล้ว กำลังซิงก์รหัสผ่าน QA เดิมโดยไม่แสดงรหัสผ่าน");
+   if(entriesByName.size===0){
+     throw Error("ยังไม่เริ่มย้าย: ไม่มีบัญชีที่ตั้งรหัสผ่าน QA เดิมไว้");
+   }
+   const entries=activeNames.filter((name:string)=>entriesByName.has(name))
+     .map((name:string)=>entriesByName.get(name)!);
+   setMessage("ตรวจสอบข้อมูลสดครบ "+activeNames.length+" บัญชี: พร้อมซิงก์ "+
+     entries.length+" บัญชี และรอตั้งรหัสผ่าน QA อีก "+pending.length+
+     " บัญชี กำลังซิงก์เฉพาะบัญชีที่พร้อม");
    const aggregate={submitted:0,eligible:0,created:0,updated:0,
      skipped:[] as string[],failed:[] as {username:string;state:string}[]};
    for(let offset=0;offset<entries.length;offset+=5){
@@ -99,13 +108,17 @@ export default function SparksQaCredentialMigration(){
      if(Array.isArray(data.skipped))aggregate.skipped.push(...data.skipped);
      if(Array.isArray(data.failed))aggregate.failed.push(...data.failed);
    }
-   if(aggregate.created+aggregate.updated!==activeNames.length ||
+   if(aggregate.created+aggregate.updated!==entries.length ||
      aggregate.failed.length || aggregate.skipped.length){
      setResult(aggregate);
-     throw Error("ย้ายบัญชีได้ไม่ครบ "+activeNames.length+" คน กรุณาตรวจสอบรายชื่อที่ไม่สำเร็จ");
+     throw Error("ซิงก์บัญชีที่พร้อมไม่ครบ "+entries.length+" คน กรุณาตรวจสอบรายชื่อที่ไม่สำเร็จ");
    }
    setResult(aggregate);
-   setMessage("ซิงก์บัญชี QA Active ครบตามรายชื่อที่ตรวจสอบแล้ว");
+   setMessage(pending.length>0
+     ? "ซิงก์สำเร็จ "+entries.length+"/"+activeNames.length+
+       " บัญชี · อีก "+pending.length+
+       " บัญชียังไม่มีรหัสผ่าน QA เมื่อพนักงานตั้งรหัสแล้วให้กลับมากดซิงก์อีกครั้ง"
+     : "ซิงก์บัญชี QA Active ครบ "+activeNames.length+" บัญชีแล้ว");
   }catch(e){setError(e instanceof Error?e.message:"ไม่สามารถซิงก์บัญชี QA ได้");}
   finally{setBusy(false);}
  };
@@ -119,7 +132,7 @@ export default function SparksQaCredentialMigration(){
     ระบบไม่แก้ยอดคะแนน Item หรือ History และไม่เปิดสิทธิ์ให้บัญชี Suspended
    </p>
    <p style={{fontSize:11,color:"#875e4c"}}>
-    ระบบอ่านข้อมูลสดจาก Firestore เท่านั้น ไม่ใช้แคชเก่าที่อาจมีรหัสผ่านไม่ตรงกัน หาก Firestore ติดโควต้า ระบบจะหยุดก่อนย้ายและไม่กระทบคะแนน
+    ระบบอ่านข้อมูลสดจาก Firestore เท่านั้น ไม่ใช้แคชเก่า หากบัญชี Active บางคนยังไม่เคยตั้งรหัสผ่าน QA จะย้ายเฉพาะบัญชีที่พร้อมและเว้นบัญชีนั้นไว้รอตั้งรหัสผ่าน (ไม่สร้างรหัสแทน) หากพบข้อมูลผิดปกติอื่นหรือ Firestore ติดโควต้า ระบบจะหยุดก่อนย้าย
    </p>
    <button type="button" data-sparks-qa-migrate-passwords="true" disabled={busy}
      onClick={()=>void run()} style={{padding:"10px 15px",background:"#6851a6",color:"#fff",border:0,borderRadius:9,fontWeight:700}}>
@@ -130,10 +143,11 @@ export default function SparksQaCredentialMigration(){
    {issues.length>0?<section data-sparks-qa-migration-issues="true" role="status"
      style={{marginTop:14,padding:14,border:"1px solid #f3bcc3",borderRadius:12,background:"#fff7f8"}}>
      <strong style={{display:"block",fontSize:14,color:"#9f1239",marginBottom:8}}>
-       บัญชีที่ยังย้ายไม่ได้ {issues.length} บัญชี — ยังไม่มีการย้ายรหัสผ่านในรอบนี้
+       บัญชีรอตั้งรหัสผ่าน QA {issues.length} บัญชี — {result ? "ยังไม่ได้ย้ายบัญชีเหล่านี้" : "ตรวจพบระหว่างตรวจสอบ"}
      </strong>
      <p style={{fontSize:12,margin:"4px 0 10px",lineHeight:1.7}}>
-       ตรวจสอบข้อมูลของบัญชีเหล่านี้ใน QA Dashboard → User Management ก่อนซิงก์ใหม่
+       บัญชีเหล่านี้ยังไม่เคยตั้งรหัสผ่าน QA จึงคงรอการตั้งรหัสผ่านตามขั้นตอนเดิม
+       บัญชีที่พร้อมสามารถย้ายก่อน ส่วนบัญชีรอให้กดซิงก์อีกครั้งหลังตั้งรหัสผ่าน
        ไม่ต้องส่งรหัสผ่านหรือ OTP ให้ผู้ดูแลคนอื่น และระบบจะไม่เปลี่ยนสถานะ Suspended อัตโนมัติ
      </p>
      <div style={{display:"grid",gap:7}}>
@@ -159,7 +173,8 @@ export default function SparksQaCredentialMigration(){
    </section>:null}
    {result?<div role="status" style={{fontSize:12,lineHeight:1.8}}>
      <strong>สร้างบัญชีที่ใช้รหัส QA เดิมได้ {result.created} บัญชี · อัปเดต {result.updated} บัญชี</strong>
-     <div>รายชื่อที่ไม่สามารถซิงก์ได้ {result.skipped.length+result.failed.length} บัญชี</div>
+     <div>บัญชีที่ยังไม่มีรหัสผ่าน QA และรอดำเนินการ {issues.length} บัญชี (ไม่ใช่การย้ายล้มเหลว)</div>
+     <div>บัญชีที่ซิงก์ไม่สำเร็จ {result.skipped.length+result.failed.length} บัญชี</div>
      {result.skipped.length||result.failed.length?<div>กรุณาตรวจสอบรายชื่อ: {[...result.skipped,...result.failed.map(x=>x.username)].join(", ")}</div>:null}
      <div>พนักงานที่ซิงก์แล้วสามารถใช้ QA Username และ Password เดิมเข้า QA Sparks ได้โดยไม่ใช้ OTP</div>
    </div>:null}
