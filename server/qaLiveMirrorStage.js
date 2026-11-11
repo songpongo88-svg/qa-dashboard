@@ -4,6 +4,8 @@ import {createHash} from 'node:crypto';
 export const QA_SYNC_DATASETS=Object.freeze([
   'qa_evaluations','qa_appeal_events','qa_signature_documents',
   'qa_user_profiles','qa_role_permissions','qa_user_sessions',
+  'qa_user_session_controls','qa_role_definitions','qa_system_settings',
+  'qa_signature_library','qa_evaluation_progress',
 ]);
 const ID=/^[A-Za-z0-9_.:@-]{12,180}$/,SNAP=/^[A-Za-z0-9_.:-]{12,128}$/;
 const HASH=/^[0-9a-f]{64}$/;
