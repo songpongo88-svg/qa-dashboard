@@ -1,0 +1,110 @@
+import React, {useCallback, useState} from 'react';
+
+// QA Dashboard-specific status; intentionally independent of QA Sparks.
+// Never provides a button to activate failover or change evaluation scores.
+type StandbyStatus={
+  ok:boolean;
+  primary:'firestore';
+  standby:'local-postgresql';
+  standbyRole:'archive-only';
+  bridgeStatus:'not_configured'|'not_reachable'|'reachable_read_only';
+  archiveStatus:'unverified'|'archived_counts_match';
+  currentFirestoreParity:'not_verified';
+  dataProxyEnabled:boolean;
+  failoverEnabled:false;
+  writeEnabled:false;
+  syncBackVerified:false;
+  checkedAt:string;
+  archivedDocuments?:number;
+};
+const statusColor=(ok:boolean)=>ok?'text-emerald-700':'text-amber-800';
+
+export default function QaStandbySystemStatus(){
+  const [state,setState]=useState<StandbyStatus|null>(null);
+  const [error,setError]=useState('');
+  const [loading,setLoading]=useState(false);
+  const check=useCallback(async()=>{
+    if(loading)return;
+    setLoading(true);
+    setError('');
+    try{
+      const response=await fetch('/api/cron/expire-additional-appeals?qaStatus=1',{
+        method:'GET',headers:{accept:'application/json'},
+        credentials:'same-origin',cache:'no-store',
+        signal:AbortSignal.timeout(11000),
+      });
+      if(!response.ok)throw new Error('preview_status_unavailable');
+      const data=await response.json() as StandbyStatus;
+      if(data?.ok!==true||data.primary!=='firestore'||
+        data.standby!=='local-postgresql'||data.failoverEnabled!==false||
+        data.writeEnabled!==false||data.syncBackVerified!==false||
+        data.currentFirestoreParity!=='not_verified'||
+        !['not_configured','not_reachable','reachable_read_only'].includes(data.bridgeStatus))
+        throw new Error('invalid_status_response');
+      setState(data);
+    }catch{
+      setState(null);
+      setError('ยังตรวจสถานะจากเซิร์ฟเวอร์ Preview ไม่ได้ — ไม่ได้หมายความว่าข้อมูล QA หาย');
+    }finally{setLoading(false);}
+  },[loading]);
+
+  const bridge=state?.bridgeStatus==='reachable_read_only';
+  const bridgeText=state?.bridgeStatus==='reachable_read_only'
+    ? 'เชื่อมถึง PostgreSQL ได้ (อ่านสถานะเท่านั้น)'
+    : state?.bridgeStatus==='not_configured'
+    ? 'ยังไม่ได้ตั้งค่าเส้นทาง Cloudflare Worker'
+    : state?.bridgeStatus==='not_reachable'
+    ? 'ยังเชื่อมต่อ API บนคอมจาก Preview ไม่ได้'
+    : 'ยังไม่ตรวจ';
+  return (
+    <section data-qa-standby-status="preview-safe" className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.17em] text-slate-500">QA Dashboard · Backup & Failover</p>
+          <h3 className="mt-1 text-xl font-bold text-slate-900">สถานะเซิร์ฟเวอร์สำรองบนคอม</h3>
+          <p className="mt-1 text-sm text-slate-600">ตรวจสถานะด้วยตัวเองได้ โดยไม่อ่านคะแนนจาก Firestore และไม่บันทึกเคส</p>
+        </div>
+        <button type="button" onClick={()=>void check()} disabled={loading}
+          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+          {loading?'กำลังตรวจสอบ…':'ตรวจการเชื่อมต่อ'}
+        </button>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl bg-slate-50 p-3">
+          <p className="text-xs text-slate-500">ฐานข้อมูลหลัก (Primary)</p>
+          <p className="mt-1 text-sm font-bold text-slate-900">Firestore</p>
+          <p className="mt-1 text-xs text-slate-500">เว็บไซต์ยังไม่ได้เปลี่ยนฐานหลัก</p>
+        </div>
+        <div className="rounded-2xl bg-amber-50 p-3">
+          <p className="text-xs text-amber-700">ฐานสำรอง (Standby)</p>
+          <p className="mt-1 text-sm font-bold text-amber-900">PostgreSQL · ยังไม่เปิด Failover</p>
+          <p className="mt-1 text-xs text-amber-800">ยังไม่ได้อนุญาตให้บันทึกคะแนนจริงผ่านฐานสำรอง</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 p-3">
+          <p className="text-xs text-slate-500">การเชื่อมต่อจาก Preview ถึงคอม</p>
+          <p className={'mt-1 text-sm font-semibold '+statusColor(bridge)}>{bridgeText}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {state?.archiveStatus==='archived_counts_match'&&typeof state.archivedDocuments==='number'
+              ? 'ตรวจยอดนำเข้าข้อมูลเก่า '+state.archivedDocuments.toLocaleString('th-TH')+' รายการ (ไม่ใช่การยืนยันข้อมูลล่าสุด)'
+              : 'ยังไม่ยืนยันยอดข้อมูลสำรองผ่านเครือข่าย'}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-amber-200 p-3">
+          <p className="text-xs text-slate-500">การตรวจข้อมูลล่าสุดและการซิงก์กลับ</p>
+          <p className="mt-1 text-sm font-semibold text-amber-800">ยังไม่ผ่านการรับรอง</p>
+          <p className="mt-1 text-xs text-slate-500">ห้ามใช้สำเนาเก่าเขียนทับผล QA หรือเปิดรับงานจริง</p>
+        </div>
+      </div>
+      {state?.checkedAt ? (
+        <p className="mt-3 text-xs text-slate-500">
+          ตรวจล่าสุด: {new Date(state.checkedAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})}
+        </p>
+      ) : null}
+      {error ? <p role="alert" className="mt-3 text-sm font-medium text-rose-700">{error}</p> : null}
+      <p className="mt-3 text-xs leading-6 text-slate-600">
+        หากขึ้นว่าเชื่อมต่อได้ หมายถึงอ่านสถานะจากคอมได้เท่านั้น ไม่ได้ยืนยันว่า Login, ประเมิน,
+        อุทธรณ์, ลายเซ็น หรือการคืนข้อมูลกลับ Firestore ทำงานผ่านฐานสำรองแล้ว
+      </p>
+    </section>
+  );
+}
