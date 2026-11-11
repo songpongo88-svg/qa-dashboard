@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T07:40:00.000Z",
-  "reason": "QA Sparks only: reviewed branch-only QA password change sync and isolated CI smoke workflow. No changes to scores, wallets, transactions, legacy QA access, user guide or T&C; no production cutover until 21 Active identities are verified. Tests use synthetic credentials.",
+  "reviewedAt": "2026-11-11T07:55:00.000Z",
+  "reason": "QA Sparks only: verified two existing source modules for original QA username/password migration and credential sync, plus earlier reviewed QA change-handler and CI. No user guide text, QA score, case, wallet, item, authorization role or T&C altered; all 21 staff Auth identities remain pending and Production cutover is blocked.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -742,8 +742,8 @@
     "src/QaAutoPassRewardCard.tsx": "44fd0e4c78afdd1422a35fb17367dcbf6fe732242a4ef931620e8145fbc30f6f",
     "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584",
     "scripts/test-sparks-qa-password-login.mjs": "728c4768051d11cae9d8c082cda9cacb1e2ea08eec338c640c0d0cf3c269cf78",
-    "src/SparksQaCredentialMigration.tsx": "85b37ed5d2256cb3919ccc3f5236bfd8c9b98193acf4fee9f9d2faa0368d6004",
-    "src/sparksQaPasswordLogin.ts": "e65f39d1957314acd6134b6e921fa923a53603fa42898952ad8e06352ca1f69c",
+    "src/SparksQaCredentialMigration.tsx": "61f125502b7d371b2b63c6ebb623643ab3516961ead152cce00e9b9322b8c3c9",
+    "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
     ".github/workflows/test-sparks-qa-password-migration.yml": "889121f23643b2fc3195635ab12ce3bf9e2e558c5a7d2522b151ae9b9ccaae0a"
   }
 }
