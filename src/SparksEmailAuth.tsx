@@ -42,12 +42,12 @@ export default function SparksEmailAuth({ username, onVerified }:{
     return()=>window.clearTimeout(timer);
   },[retrySeconds]);
 
-  async function exchange(tokens: { access_token?: string; refresh_token?: string; expires_in?:number }) {
+  async function exchange(tokens: { access_token?: string; refresh_token?: string; expires_in?:number }, ownerOnly=false) {
     if (!tokens.access_token || !tokens.refresh_token) throw Error("ไม่พบข้อมูลยืนยันตัวตนจากอีเมล");
     const response=await fetch("/api/sparks-auth",{
       method:"POST",credentials:"same-origin",cache:"no-store",
       headers:{"content-type":"application/json"},
-      body:JSON.stringify({action:"exchange", ...tokens}),
+      body:JSON.stringify({action:"exchange", ...tokens, ...(ownerOnly ? {expectedUsername:"songpon"} : {})}),
     });
     const payload=await response.json().catch(()=>({}));
     if(!response.ok || payload.ok!==true || !payload.actor)throw Error(String(payload.error || "ตรวจสอบสิทธิ์พนักงานไม่ได้"));
@@ -121,7 +121,7 @@ export default function SparksEmailAuth({ username, onVerified }:{
       });
       // exchange() validates identity with the server's verified Active roster.
       // A mismatched account cannot gain owner access, even with a valid password.
-      await exchange(tokens);
+      await exchange(tokens,true);
       setOwnerPassword("");
     }catch(e){
       const detail=e instanceof Error?e.message:"ไม่สามารถเข้าใช้ด้วยรหัสผ่าน Supabase ได้";
