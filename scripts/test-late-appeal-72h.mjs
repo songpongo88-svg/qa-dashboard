@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import {pathToFileURL} from "node:url";
 import {build} from "esbuild";
 
-const output=path.join(fs.mkdtempSync(path.join(os.tmpdir(),"qa-late-appeal-")),"late.mjs");
+// Keep generated ES modules beneath the repository so bare React imports
+// resolve from the installed node_modules rather than an unrelated /tmp path.
+const generatedDir=fs.mkdtempSync(path.resolve(".qa-late-appeal-test-"));
+const output=path.join(generatedDir,"late.mjs");
+const policyOutput=path.join(generatedDir,"policy.mjs");
 await build({
   entryPoints:["src/AppealOverrideMockup.tsx"],
   outfile:output,bundle:true,platform:"node",format:"esm",
@@ -27,12 +30,20 @@ await build({
   }]
 });
 const {buildAppealCaseOverrides}=await import(pathToFileURL(output).href);
-const {lateAppealExpiresAt,isLateAppealOpen,lateAppealTimeRemaining}=await import(
-  pathToFileURL(output).href
-).then(()=>import(pathToFileURL(output).href)).catch(()=>({}));
+await build({
+  entryPoints:["src/lateAppealPolicy.ts"],outfile:policyOutput,
+  bundle:true,platform:"node",format:"esm",logLevel:"silent"
+});
+const {lateAppealExpiresAt,isLateAppealOpen,lateAppealTimeRemaining}=
+  await import(pathToFileURL(policyOutput).href);
 
 const grant="2026-11-11T09:05:44.000Z";
 const expires="2026-11-14T09:05:44.000Z";
+assert.equal(lateAppealExpiresAt(grant),expires);
+assert.equal(isLateAppealOpen(expires,Date.parse(grant)),true);
+assert.equal(isLateAppealOpen(expires,Date.parse(expires)-1),true);
+assert.equal(isLateAppealOpen(expires,Date.parse(expires)),false);
+assert.ok(lateAppealTimeRemaining(expires,Date.parse(grant)).includes("3 วัน"));
 const logs=[{
  event_type:"appeal_case_override_added",case_id:"AA331002",
  target_agent:"Sunijtra Siritip",created_at:grant,
@@ -60,4 +71,5 @@ assert.ok(dashboard.includes("isOwnAppealCase && !readOnly && !monthlyResult.loc
 assert.ok(dashboard.includes("freshOverrides = await fetchAppealEvents"),"must recheck grant before writing appeal");
 assert.ok(dashboard.includes("isSameCanonicalAgent(item.targetAgent,caseItem.agent)"),"grants must be agent scoped");
 assert.ok(dashboard.includes('data-selected-late-appeal="active"'),"selected case must show live grant");
-console.log("PASS Late Appeal: historical 72h grant, revocation, owner-only CTA, fresh permission check and selected status");
+fs.rmSync(generatedDir,{recursive:true,force:true});
+console.log("PASS Late Appeal: historical 72h grant, precise expiry, revocation, owner-only CTA, fresh permission check and selected status");
