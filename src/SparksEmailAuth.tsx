@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "./SparksEmailAuth.css";
+import { signInSparksWithQaPassword } from "./sparksQaPasswordLogin";
 
 export type SparksVerifiedActor = { username: string; displayName: string; role: string; status: string };
 const URL = String(import.meta.env?.VITE_SPARKS_SUPABASE_AUTH_URL || "").replace(/\/$/, "");
@@ -18,6 +19,9 @@ async function authRequest(path: string, data: Record<string,unknown>) {
 export default function SparksEmailAuth({ username, onVerified }:{
   username?:string; onVerified:(actor:SparksVerifiedActor)=>void;
 }) {
+  const [mode,setMode]=useState<"qa"|"otp">("qa");
+  const [qaUsername,setQaUsername]=useState(username||"");
+  const [qaPassword,setQaPassword]=useState("");
   const [email,setEmail]=useState("");
   const [pendingEmail,setPendingEmail]=useState("");
   const [code,setCode]=useState("");
@@ -82,6 +86,16 @@ export default function SparksEmailAuth({ username, onVerified }:{
     return()=>{alive=false};
     // The currently signed-in QA username is the only permitted subject.
   },[username]);
+  const qaSignIn=async(event:React.FormEvent)=>{
+    event.preventDefault();if(busy)return;
+    setBusy(true);setError("");setMessage("");
+    try{
+      const actor=await signInSparksWithQaPassword(username||qaUsername,qaPassword);
+      setQaPassword("");
+      onVerified(actor);
+    }catch(e){setError(e instanceof Error?e.message:"ไม่สามารถเข้า QA Sparks ด้วยบัญชี QA เดิมได้");}
+    finally{setBusy(false);}
+  };
   const send=async(event:React.FormEvent)=>{
     event.preventDefault();if(busy||retrySeconds>0)return;
     setBusy(true);setError("");setMessage("");
@@ -123,11 +137,30 @@ export default function SparksEmailAuth({ username, onVerified }:{
   return <main className="sparks-email-auth" aria-label="ยืนยันอีเมล QA Sparks">
     <section className="sparks-email-auth-card">
       <div className="sparks-email-auth-kicker">QA Sparks · Supabase Auth</div>
-      <h2>ยืนยันอีเมลเพื่อเข้าใช้ QA Sparks</h2>
+      <h2>{mode==="qa"?"เข้า QA Sparks ด้วย Username และ Password QA เดิม":"ยืนยันอีเมลเพื่อเข้าใช้ QA Sparks"}</h2>
       {busy && !sent && <p role="status">กำลังตรวจสอบ Session เดิมเพื่อเข้าใช้อัตโนมัติ...</p>}
-      <p>บัญชี QA Dashboard เดิมยังใช้ตามปกติ ยืนยัน QA Sparks ด้วยรหัสจากอีเมลในแท็บนี้โดยไม่ต้องเปิดเว็บใหม่</p>
+      <p>{mode==="qa"?"ใช้บัญชี QA Dashboard เดิมได้เลย หลังผู้ดูแลซิงก์บัญชีเข้า Supabase แล้ว ไม่ต้องรับ OTP หรือสมัครบัญชีใหม่":"บัญชี QA Dashboard เดิมยังใช้ตามปกติ ยืนยัน QA Sparks ด้วยรหัสจากอีเมลในแท็บนี้โดยไม่ต้องเปิดเว็บใหม่"}</p>
+      <div role="group" aria-label="เลือกวิธีเข้า QA Sparks" style={{display:"flex",gap:8,margin:"10px 0 16px",flexWrap:"wrap"}}>
+        <button type="button" data-sparks-login-mode="qa" aria-pressed={mode==="qa"}
+          onClick={()=>{setMode("qa");setError("");setMessage("");}}>ใช้บัญชี QA เดิม</button>
+        <button type="button" data-sparks-login-mode="otp" aria-pressed={mode==="otp"}
+          onClick={()=>{setMode("otp");setError("");setMessage("");}}>ยืนยันอีเมล OTP (สำรอง)</button>
+      </div>
       {username ? <p className="sparks-email-auth-account">บัญชีที่กำลังใช้งาน: <strong>{username}</strong></p> : <p className="sparks-email-auth-account">เปิด QA Sparks โดยไม่ต้องเข้าสู่ระบบ QA Dashboard ก่อน</p>}
-      <form onSubmit={send}>
+      {mode==="qa"?<form onSubmit={qaSignIn} data-sparks-qa-password-login="true">
+        <label htmlFor="sparks-qa-username">Username QA</label>
+        <input id="sparks-qa-username" required autoComplete="username" value={username||qaUsername}
+          readOnly={Boolean(username)} disabled={busy||Boolean(username)}
+          onChange={e=>setQaUsername(e.target.value)} placeholder="Username ที่ใช้ Login QA Dashboard"/>
+        <label htmlFor="sparks-qa-password">รหัสผ่าน QA เดิม</label>
+        <input id="sparks-qa-password" type="password" required autoComplete="current-password"
+          value={qaPassword} disabled={busy} onChange={e=>setQaPassword(e.target.value)}
+          placeholder="รหัสผ่านเดียวกับที่ใช้ Login QA"/>
+        <button type="submit" disabled={busy||!(username||qaUsername)||!qaPassword}>
+          {busy?"กำลังตรวจสอบบัญชี QA...":"เข้าใช้ QA Sparks"}
+        </button>
+      </form>:null}
+      {mode==="otp"?<><form onSubmit={send}>
         <label htmlFor="sparks-auth-email">อีเมลที่ลงทะเบียนกับ QA Dashboard</label>
         <input id="sparks-auth-email" type="email" required autoComplete="email" value={email}
           disabled={busy||sent} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/>
@@ -143,9 +176,10 @@ export default function SparksEmailAuth({ username, onVerified }:{
           onClick={()=>{setSent(false);setRateLimited(false);setPendingEmail("");setEmail("");setCode("");setMessage("");setError("");}}>เปลี่ยนอีเมล</button>
       </form>}
       {rateLimited && <p className="sparks-email-auth-step-hint" role="status">ครั้งนี้ยังไม่มี OTP ใหม่ถูกส่ง เมื่อครบเวลาพักการส่ง สามารถกดส่งรหัสใหม่อีกครั้งได้โดยไม่ต้องเปลี่ยนแท็บ ทั้งนี้ขึ้นอยู่กับโควตา Supabase</p>}
-      {message && <p role="status" className="sparks-email-auth-message">{message}</p>}
+      </>:null}
+      {message && <p role="status" className="sparks-email-auth-message">{message}</p>
       {error && <p role="alert" className="sparks-email-auth-error">{error}</p>}
-      <small>เข้าได้เฉพาะบัญชีที่ยืนยันอีเมลแล้วและมีสถานะ Active ในข้อมูลพนักงานที่อัปเดตล่าสุด หากข้อมูลรายชื่อยังไม่ได้ซิงก์ ระบบจะปฏิเสธการเข้าใช้โดยไม่แก้ไขคะแนน</small>
+      <small>เข้าได้เฉพาะบัญชี QA ที่ซิงก์แล้วและมีสถานะ Active ตามข้อมูลพนักงานล่าสุด หากยังไม่มีข้อมูลตรวจสอบรหัสผ่านใน Supabase ให้ผู้ดูแลซิงก์บัญชีเดิมก่อน ระบบจะไม่แก้ไขคะแนน</small>
     </section>
   </main>;
 }
