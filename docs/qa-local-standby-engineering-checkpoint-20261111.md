@@ -36,3 +36,11 @@
 - The previously deployed read-only Vercel Preview remains the latest tested UI route. New snapshot modules are server-only and have not replaced it.
 - PR #210 remains draft; do not merge or activate QA failover while the items above are unfinished.
 - No repeated Cloudflare Tunnel/VPC setup, archive reimport, QA score re-entry or QA Sparks migration is required.
+
+## Local Windows source-stage helper (PR #210, not yet executed on Windows)
+- Added `scripts/Run-QA-Local-Source-Snapshot.ps1`: reads the already-existing QA_Backup bridge DB credentials locally, targets only localhost `qa_dashboard_lab`, and fetches an immutable QA source tree to a **new** `QA_Backup\\source-stage` directory if missing.
+- Requires an existing trusted Google Cloud CLI Application Default Credentials session authorized to read the QA Firestore project. It prints neither OAuth tokens nor DB credentials. It never asks for a service-account key and cannot bypass Firestore quota.
+- The command `powershell -ExecutionPolicy Bypass -File .\\scripts\\Run-QA-Local-Source-Snapshot.ps1 -CheckOnly` inspects prerequisites without reading Firestore records or modifying the database. Run from the QA feature branch checkout.
+- Running without `-CheckOnly` attempts a **single point-in-time source capture**, then adds isolated staging tables and verifies their contents. It does not rewrite the 2,081 archive records or enable failover.
+- IMPORTANT: The helper has only been reviewed/tested in GitHub CI for PowerShell syntax and under isolated Node/PostgreSQL fixtures. It has **not** run on the actual Windows host and does not establish live parity, local login, or QA CRUD.
+- If the existing ADC or project configuration is missing, stop at the named blocker. Do not paste tokens or account keys into GitHub, browser, screenshots, or chat.
