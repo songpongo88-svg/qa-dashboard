@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T10:07:10.179Z",
-  "reason": "Sparks Admin includes authenticated owner open/close switch and access is recoverable after Sparks is paused; existing Dashboard and user guide unchanged",
+  "reviewedAt": "2026-11-11T11:26:10.215Z",
+  "reason": "Sparks-only staged owner-authorized credential import from current Production: new read-only Firestore source audit and one-click QA-session-verified HTTPS import to existing private Supabase Edge function; no user-guide text changes. QA evaluation, appeals, scores, existing Sparks balances, ledger, rewards, and Items unchanged. Keep Production Hybrid auth; does not enable migrated staff login until independently verified.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -27,7 +27,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "e55e6f3e0580467a646ff6123898273d8953993589546d9060d0c5b9bef25704",
+    "api/sparks-admin.js": "c20cdb95358cf8dfbdbd167037cd03d17f18ac3e544a83793fda6bf90d9e6391",
     "api/sparks-auth.js": "59887f6e972a0d85d536048dc229a5cb451122a8530b1dab27afaf19f5bedb11",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
@@ -633,7 +633,7 @@
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
     "src/qaSparks.css": "70407dc0ce9037101f9afd184d70ee6287a07e12a04e0cb1f900c8aa76a54fb2",
-    "src/QASparks.tsx": "a3967e08596f859506e3a146bab44793e09802aa22579b2f24a9901e66db3ea4",
+    "src/QASparks.tsx": "ea35a6ca2808df2c0222e36ac05bcd39709107fd8aedfc8add24fcbd4ce203e2",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "2209697d54084bd87d4643778e590b000ae946bcdb49d0ed545a8d7435baf211",
@@ -744,6 +744,11 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/lateAppealPolicy.ts": "c129554d7c7807ea231c3462c8325595be729209f76042968070b2b19ace749f",
-    "scripts/test-late-appeal-72h.mjs": "de13de1067162e54334ade6d6a90c7b15d8e17e932f15d9e48958700179c958e"
+    "scripts/test-late-appeal-72h.mjs": "de13de1067162e54334ade6d6a90c7b15d8e17e932f15d9e48958700179c958e",
+    "server/sparksQaCredentialPreflight.js": "f68cc1236d7d7e3f632725f7e639585e2fff91fd0ed4d148067694ede3c26945",
+    "server/sparksQaMigrationRunner.js": "3b14aa343b5005cc11e64ba8681c04644bf4eeeee4ce7553c909dffdfc4d1fc7",
+    "src/SparksQaCredentialMigration.tsx": "b62105e826e89362708ba6fcdadb7834c55896cf43eccdf6abfd4e3a11b01153",
+    "scripts/test-sparks-qa-credential-preflight.mjs": "c877279aa3d838b3c77fb711063a926997140e6abba3d5e74532e9d33be6f78b",
+    "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015"
   }
 }
