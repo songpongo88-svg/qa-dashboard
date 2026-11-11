@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "robinhood-qa-standby-bridge",
+  "main": "cloudflare/qa-standby-vpc-worker.mjs",
+  "compatibility_date": "2026-11-11",
+  "workers_dev": true,
+  "vpc_services": [
+    {
+      "binding": "QA_PRIVATE_HTTP_VPC",
+      "service_id": "REPLACE_WITH_YOUR_CLOUDFLARE_VPC_SERVICE_ID"
+    }
+  ]
+}

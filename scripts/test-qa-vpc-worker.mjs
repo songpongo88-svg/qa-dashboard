@@ -1,0 +1,72 @@
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import worker from '../cloudflare/qa-standby-vpc-worker.mjs';
+
+const token='QA-standby-'+('x'.repeat(52));
+const tokenHash=createHash('sha256').update(token).digest('hex');
+let upstreamCalls=0;
+let responseBody={
+  ok:true,readOnly:true,databaseConnected:true,failoverReady:false,
+  standbyMode:'disabled',collectionCount:11,sourceDocumentCount:2081,
+  importedArchiveCountMatch:true,pendingOperations:0,
+  privateAgentName:'Never Return',secretCaseScore:100,
+};
+const env={
+  QA_EDGE_BEARER_SHA256:tokenHash,
+  QA_PRIVATE_HTTP_VPC:{
+    async fetch(url,options){
+      upstreamCalls++;
+      assert.ok(['http://127.0.0.1:8788/ready','http://127.0.0.1:8788/summary'].includes(url),'wrong origin/path');
+      assert.equal(options.method,'GET');
+      assert.equal(options.headers.authorization,'Bearer '+token);
+      assert.equal(options.redirect,'manual');
+      return new Response(JSON.stringify(responseBody),{
+        status:200,headers:{'content-type':'application/json'}
+      });
+    },
+  },
+};
+const call=(path='/ready',headers={},method='GET',binding=env)=>
+  worker.fetch(new Request('https://example.workers.dev'+path,{method,headers}),binding);
+const forbid=async(response,status)=>{
+  assert.equal(response.status,status);
+  assert.equal(response.headers.get('access-control-allow-origin'),null);
+  assert.equal(response.headers.get('cache-control'),'no-store, max-age=0');
+};
+await forbid(await call('/ready'),403);
+assert.equal(upstreamCalls,0);
+await forbid(await call('/ready',{authorization:'Bearer '+('z'.repeat(65))}),403);
+assert.equal(upstreamCalls,0);
+await forbid(await call('/ready',{authorization:'Bearer '+token},'POST'),405);
+await forbid(await call('/ready?x=1',{authorization:'Bearer '+token}),404);
+await forbid(await call('/records',{authorization:'Bearer '+token}),404);
+assert.equal(upstreamCalls,0);
+await forbid(await call('/ready',{authorization:'Bearer '+token},'GET',{...env,QA_EDGE_BEARER_SHA256:''}),503);
+assert.equal(upstreamCalls,0);
+await forbid(await call('/ready',{authorization:'Bearer '+token},'GET',{...env,QA_PRIVATE_HTTP_VPC:null}),503);
+assert.equal(upstreamCalls,0);
+const r=await call('/ready',{authorization:'Bearer '+token});
+assert.equal(r.status,200);
+assert.deepEqual(await r.json(),{
+  ok:true,readOnly:true,databaseConnected:true,failoverReady:false,standbyMode:'disabled',
+});
+assert.equal(upstreamCalls,1);
+const s=await call('/summary',{authorization:'Bearer '+token});
+assert.equal(s.status,200);
+assert.deepEqual(await s.json(),{
+  ok:true,readOnly:true,failoverReady:false,sourceFreshness:'unverified-archived-copy',
+  collectionCount:11,sourceDocumentCount:2081,importedArchiveCountMatch:true,
+  pendingOperations:0,standbyMode:'disabled',
+});
+assert.equal(upstreamCalls,2);
+responseBody={...responseBody,importedArchiveCountMatch:false};
+await forbid(await call('/summary',{authorization:'Bearer '+token}),502);
+responseBody={...responseBody,importedArchiveCountMatch:true,failoverReady:true};
+await forbid(await call('/ready',{authorization:'Bearer '+token}),502);
+responseBody={...responseBody,failoverReady:false,privateUser:'user-secret'};
+const unsafeKeys=JSON.stringify(await (await call('/summary',{authorization:'Bearer '+token})).json());
+assert.equal(unsafeKeys.includes('user-secret'),false);
+assert.equal(unsafeKeys.includes('privateAgentName'),false);
+responseBody={...responseBody,sourceDocumentCount:-1};
+await forbid(await call('/summary',{authorization:'Bearer '+token}),502);
+console.log('PASS QA Workers VPC: domainless private bridge, strict bearer auth, status-only, fail-closed, no CORS or sensitive data');
