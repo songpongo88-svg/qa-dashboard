@@ -26,3 +26,25 @@ assert.equal(count,0);
 // Integration with disposable fixtures is covered by the separate
 // test-qa-live-mirror-stage-integration.mjs.
 console.log('PASS QA source runner: explicit opt-in, local-only target and OAuth guards block all unsafe operations before any network/SQL');
+
+// A denied Firestore capture cannot CREATE/ALTER any local PostgreSQL schema.
+const sqlStatements=[];
+const mockPg={Pool:class {
+ async query(sql){
+   sqlStatements.push(sql);
+   if(sql==='SELECT current_database() AS db')
+     return {rows:[{db:'qa_dashboard_lab'}]};
+   throw Error('unexpected_db_mutation');
+ }
+ async end(){}
+}};
+let firestoreCalls=0;
+await assert.rejects(runQaLiveSnapshotStage({
+ env:fakeEnv,pgModule:mockPg,fetchImpl:async()=>{
+   firestoreCalls++;
+   return {status:403,ok:false,headers:{get:()=> 'application/json'}};
+ },
+}),/firestore_quota_or_permission_blocked/);
+assert.equal(firestoreCalls,1);
+assert.deepEqual(sqlStatements,['SELECT current_database() AS db']);
+console.log('PASS QA source failure does not run local schema migration');
