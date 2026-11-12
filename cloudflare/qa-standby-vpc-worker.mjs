@@ -193,7 +193,7 @@ export default {
           !['boolean'].includes(typeof record.present)||
           typeof record.copied!=='boolean'||typeof record.candidateVerified!=='boolean'||
           !validInteger(record.sourceDocuments)||!validInteger(record.candidateEvaluations)||
-          !validInteger(record.datasetCount)||
+          !validInteger(record.sourceEvaluations)||!validInteger(record.datasetCount)||
           !Array.isArray(body.remainingChecks)||body.remainingChecks.length>24||
           body.remainingChecks.some(x=>typeof x!=='string'||!/^[a-z_]{3,80}$/.test(x)))
           return reply(502,{ok:false,error:'invalid_standby_readiness'});
@@ -204,6 +204,7 @@ export default {
             candidateVerified:record.candidateVerified,
             sourceDocuments:record.sourceDocuments,
             candidateEvaluations:record.candidateEvaluations,
+            sourceEvaluations:record.sourceEvaluations,
             datasetCount:record.datasetCount,
             withinFreshnessWindow:record.withinFreshnessWindow===true},
           remainingChecks:body.remainingChecks});
