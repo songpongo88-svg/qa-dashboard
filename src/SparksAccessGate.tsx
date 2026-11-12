@@ -1,5 +1,6 @@
 import React,{useCallback,useEffect,useState} from "react";
 import SparksEmailAuth,{type SparksVerifiedActor} from "./SparksEmailAuth";
+import SparksQaCredentialMigration from "./SparksQaCredentialMigration";
 import "./sparksPausedLanding.css";
 export type SparksStatus={enabled:boolean;message:string;unavailable?:boolean;updatedAt?:string};
 const message="QA Sparks ปิดปรับปรุงชั่วคราว ระหว่างย้ายระบบฐานข้อมูล";
@@ -54,12 +55,15 @@ export function SparksPausedNotice({status,ownerLink=false}:{status:SparksStatus
     <div className="sparks-paused-clouds sparks-paused-clouds--front" aria-hidden="true" />
   </section>;
 }
-export default function SparksAccessGate({username,children}:{username:string;children:React.ReactNode}){
+export default function SparksAccessGate({username,sessionId,children}:{username:string;sessionId:string;children:React.ReactNode}){
   const {status}=useSparksStatus();
   if(status?.enabled===true)return <>{children}</>;
   return <div className="sparks-paused-shell">
     <SparksPausedNotice status={status} ownerLink={username.trim().toLowerCase()==="songpon"}/>
-    {username.trim().toLowerCase()==="songpon"&&<SparksOwnerAccessControl username={username}/>}
+    {username.trim().toLowerCase()==="songpon"&&<>
+      <SparksQaCredentialMigration actorUsername={username} sessionId={sessionId}/>
+      <SparksOwnerAccessControl username={username}/>
+    </>}
   </div>;
 }
 
