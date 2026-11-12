@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T03:59:31.346Z",
-  "reason": "Refactored QA Sparks History Overview and full tab from 860px wide scrolling table to responsive stacked records; search, filter and load-more are client-side only, balance/Item transaction source and history fetch unchanged.",
+  "reviewedAt": "2026-11-12T04:03:00.214Z",
+  "reason": "QA Sparks History responsive Overview/full-tab cards, searchable client-side loaded records, per-page reveal (100 records remain reachable without extra Firestore calls), no horizontal scroll and no changes to transaction data.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -356,7 +356,7 @@
     "scripts/test-evaluation-visibility-ui.mjs": "51dbc9ea7451004fea0f9e146dc0d9fb6ddf522e786758df866523a7ff4f6917",
     "scripts/test-evaluation-visibility.mjs": "52c8a98b1f0f870eccd90ac767c2c4a7f36de598b00c0a30dac325fca55be87a",
     "scripts/test-festival-themes.mjs": "e3fbc9cc06625fbd62958085cc1337a83c9dfecf44fac3f2f69f2a42720f1555",
-    "scripts/test-firestore-quota-controls.mjs": "5399ce28b01b06d95b44b01a89ec2f94f37d40712bba4c939cca60dab34ba683",
+    "scripts/test-firestore-quota-controls.mjs": "73441f3e0b12635b70ff6f08e8f5d788ac203ba0e8ba35ab9e52a88d818efefc",
     "scripts/test-firestore-read-dedup.mjs": "7929ca022a98b2244b46a887eb7694f56ee373a1b22a4af571fd184dfc39dc10",
     "scripts/test-fruit-match-ui.mjs": "3693865b8f34036b76f1e653ec9dc1a9ccbeac49ee9909497438a4e517bbf850",
     "scripts/test-fruit-match.mjs": "6ed719f84d33e72fb039a5c85c0534ffcc331c26e883ae0ce6dc303769d0cd07",
