@@ -50,6 +50,19 @@ assert.throws(()=>normalizeQaFirestoreEvaluation(original.id,alter('evaluation_m
 assert.throws(()=>normalizeQaFirestoreEvaluation(original.id,alter('topics',
   [{code:'1.5',score:12,max:10,comment:'bad'}]),HASH),
   e=>e.code==='evaluation_topic_score_invalid');
+// Existing Firestore records may use Unicode and long IDs. Preserve their
+// document identity and original scores without hashing or renaming the IDs.
+for(const id of ['ประเมิน-เคส-๑','QA Case — 2026', 'x'.repeat(200)]){
+  const doc=alter('id',id);
+  const item=normalizeQaFirestoreEvaluation(id,doc,HASH);
+  assert.equal(item.record.id,id);
+  assert.equal(item.record.finalScore,85.25);
+  assert.equal(item.record.topics[0].score,8);
+}
+for(const id of ['','slash/id','bad\\nname','x'.repeat(901)]){
+  assert.throws(()=>normalizeQaFirestoreEvaluation(id,typed,HASH),
+    e=>e.code==='evaluation_identity_invalid');
+}
 assert.throws(()=>normalizeQaFirestoreEvaluation('changed-id',typed,HASH),
   e=>e.code==='evaluation_document_id_mismatch');
 assert.throws(()=>decodeQaFirestoreSnapshotDocument({fields:{num:{integerValue:'9007199254740992'}}}),
