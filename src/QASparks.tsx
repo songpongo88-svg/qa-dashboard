@@ -195,13 +195,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   </div>;
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
-      <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div>
-        {emailAuthMode==="hybrid" && !emailAuthEnabled && Boolean(normalizedSparksUser) && <button
-          type="button" data-sparks-supabase-optin="true" onClick={()=>chooseEmailAuth(true)}>เข้าใช้ Sparks ผ่าน Supabase</button>}
-        {emailAuthEnabled && <button type="button" onClick={()=>{
-          void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).finally(()=>setVerifiedActor(null));
-        }}>ออกจาก QA Sparks</button>}
-      </header>
+      <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div></header>
       <section className="qa-sparks-hero qa-sparks-hero--membership">
         <div className="qa-sparks-hero-copy">
           <div className="qa-sparks-eyebrow">MY REWARDS</div><h2>My QA Sparks</h2>
@@ -209,6 +203,26 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         </div>
         {displayName || username ? <div className="qa-sparks-member-owner"><span className="qa-sparks-owner-avatar" aria-hidden="true">QA</span><div><small>บัญชีผู้ใช้งาน</small><span>{displayName || username}</span></div></div> : null}
       </section>
+      {emailAuthMode==="hybrid" && Boolean(normalizedSparksUser) && <section
+        className="qa-sparks-auth-status" data-sparks-auth-mode={emailAuthEnabled?"supabase":"qa-session"}
+        aria-label="สถานะการเข้าสู่ระบบ QA Sparks">
+        <div className="qa-sparks-auth-status-copy">
+          <strong>{emailAuthEnabled && verifiedActor?.username.toLowerCase()===normalizedSparksUser
+            ?"เชื่อมต่อ Supabase Auth แล้ว":"กำลังใช้ QA Dashboard Login เดิม"}</strong>
+          <span>{emailAuthEnabled
+            ?"ยืนยันตัวตนผ่าน Supabase สำหรับ QA Sparks โดยไม่ต้องใช้ Firebase Session"
+            :"การยืนยันตัวตนสำหรับ Sparks ยังใช้ QA Session ซึ่งอาจใช้โควต้า Firestore"}</span>
+        </div>
+        {emailAuthEnabled ? <button type="button" data-sparks-supabase-signout="true"
+          onClick={()=>{
+            void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).finally(()=>{
+              chooseEmailAuth(false);
+              setVerifiedActor(null);
+            });
+          }}>ออกจาก QA Sparks (Supabase)</button> :
+          <button type="button" data-sparks-supabase-optin="true"
+            onClick={()=>chooseEmailAuth(true)}>เข้าใช้ Sparks ผ่าน Supabase</button>}
+      </section>}
       {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY === "1" ? <div role="status" className="qa-sparks-inline-error" style={{borderColor:"#a5b4fc",background:"#eef2ff",color:"#312e81"}}>
         <strong>SUPABASE PREVIEW · อ่านข้อมูลอย่างเดียว</strong> — นี่คือเว็บทดสอบสำหรับเทียบยอด Sparks และประวัติ
         ระบบปิดการรับแต้ม แลกรางวัล เล่นเกม และการทำธุรกรรมทั้งหมด รวมถึงปุ่ม Sparks Admin ไว้ การกดทำรายการจะไม่เปลี่ยนคะแนนจริง
