@@ -10,6 +10,7 @@ on:
       - "scripts/Start-QA-Local-Bridge.ps1"
       - "scripts/Start-QA-Standby-From-Existing.ps1"
       - "scripts/Run-QA-Local-Source-Snapshot.ps1"
+      - "scripts/test-qa-windows-installer-dependencies.mjs"
       - "scripts/Setup-QA-Private-Cloudflare-VPC.ps1"
       - "server/qaLocalBridgeServer.js"
       - "server/qaFirestoreFailbackAdapter.js"
@@ -171,6 +172,7 @@ jobs:
           node --check scripts/test-qa-live-stage-runner.mjs
           node --check scripts/check-qa-source-stage-preflight.mjs
           node --check scripts/test-qa-source-stage-preflight.mjs
+          node --check scripts/test-qa-windows-installer-dependencies.mjs
           node --check scripts/test-qa-live-mirror-stage-integration.mjs
           node --check scripts/test-qa-standby-archive-status.mjs
           node --check scripts/test-qa-standby-replay-integration.mjs
@@ -199,6 +201,7 @@ jobs:
           node scripts/test-qa-firestore-snapshot-codec.mjs
           node scripts/test-qa-live-stage-runner.mjs
           node scripts/test-qa-source-stage-preflight.mjs
+          node scripts/test-qa-windows-installer-dependencies.mjs
 
   ephemeral-postgres-integration:
     runs-on: ubuntu-latest
