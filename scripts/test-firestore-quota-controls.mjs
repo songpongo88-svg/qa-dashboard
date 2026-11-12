@@ -14,8 +14,8 @@ import { qaAccessCheckQueueVisibilityFixPatch } from "../build/qaAccessCheckQueu
 
 // QA session polling must not burn Firestore quota every 30s in hidden tabs.
 const qaSessionApp = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-assert.match(qaSessionApp, /SESSION_CHECK_INTERVAL_MS = 3 \* 60 \* 1000/);
-assert.match(qaSessionApp, /SESSION_TOUCH_INTERVAL_MS = 5 \* 60 \* 1000/);
+assert.match(qaSessionApp, /SESSION_CHECK_INTERVAL_MS = 15 \* 60 \* 1000/);
+assert.match(qaSessionApp, /SESSION_TOUCH_INTERVAL_MS = 30 \* 60 \* 1000/);
 assert.ok(qaSessionApp.includes('document.visibilityState !== "visible"'),
   "hidden or pinned Dashboard tabs must skip central session checks");
 assert.ok(qaSessionApp.includes("navigator.onLine === false"),
