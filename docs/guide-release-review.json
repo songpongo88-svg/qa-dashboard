@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T14:15:31.417Z",
-  "reason": "Reviewed QA standby Preview CI ordering: guide source hash verification now precedes existing mutating patch/test chain; all original QA, PDF, appeals, signatures, Sparks tests and patch order remain intact. This does not change user-facing guide, source data or Production.",
+  "reviewedAt": "2026-11-12T18:01:43.453Z",
+  "reason": "QA standby replay safety patch: malformed, missing or unverified Firestore replay receipts are kept pending for idempotent retry, never marked synced. Disposable PostgreSQL regression checks no lost or falsely synced QA operations. QA Sparks, T&C, Production and original scores unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -405,7 +405,7 @@
     "scripts/test-qa-standby-data-handler.mjs": "4ac3df62a34179bf2d69b5cd2eff045f0c9f7334b3a42f083accd4eb2ef73bae",
     "scripts/test-qa-standby-journal-integration.mjs": "e88a542d3d6f823222786120eba8de85566e7f3e1a01adabc9e6b962dbbdfc03",
     "scripts/test-qa-standby-read-integration.mjs": "14c9cc1a5ea9f939c681e6982b85a56de94aa252b14558cff2da3fdb293f64cb",
-    "scripts/test-qa-standby-replay-integration.mjs": "8a9b303a9c7822465666c57ea16a21eb694318d688bda956e46d6317f2cbc828",
+    "scripts/test-qa-standby-replay-integration.mjs": "6e47e1b002ef3fdcac54e3b6c36e2d464426289928aec8d48bfd6feafd243dff",
     "scripts/test-qa-standby-trusted-context.mjs": "a35ab721a76e0b22b44306af14ec0f137fb9a30d70543e5c1b3905318d7cbc0f",
     "scripts/test-qa-typing-gate.mjs": "eca6f552384c1373942e37e8452acbecece4ecc101d64d3f8b579d7f545e91f2",
     "scripts/test-qa-vercel-standby-proxy.mjs": "cef1ee39a105292953542b433dfcee1a38aa525e14434e8a26bd61761179dd0a",
@@ -471,7 +471,7 @@
     "server/qaStandbyDataHandler.js": "4c60ec298144b861c7aa675b816abbd5599e639dcd42de7362e36bd0c2066e22",
     "server/qaStandbyPgJournal.js": "96976da18de906bbe8c1b6cad1d4a3d8b681e2d7fe7f6dd646e589ff73bcc665",
     "server/qaStandbyRead.js": "b738a4b5458a8f50eb175cc8b2f6e1afde6e78a956472ab1db3d45e5819d8d7b",
-    "server/qaStandbyReplayWorker.js": "40e252c391561f811fc0bfd501efae3e999f121a5b09da72c4beb47171765432",
+    "server/qaStandbyReplayWorker.js": "260e26149478e311361829bdb3fa8a5f11b2f5aa08a94c3a6d4a8c95ed61a7d3",
     "server/qaStandbyTrustedContext.js": "ddf91d63de40f993f4936d84f5f0682f806e52e4b0ee88fad2a4f9ddebf7866c",
     "server/qaVercelStandbyProxy.js": "9a3dcf7e9bd9936b0cc861392f36a4a16bd65e32953c132e56449629d7bcfec9",
     "server/snakesLaddersService.js": "fe0bf2ce9eafddc456dc9c58116d7895d484b5cc6e531d238a759cb2861d5442",
