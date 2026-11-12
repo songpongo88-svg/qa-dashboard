@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T04:03:00.214Z",
-  "reason": "QA Sparks History responsive Overview/full-tab cards, searchable client-side loaded records, per-page reveal (100 records remain reachable without extra Firestore calls), no horizontal scroll and no changes to transaction data.",
+  "reviewedAt": "2026-11-12T04:06:36.240Z",
+  "reason": "Responsive QA Sparks History cards retain existing empty-history wording, previous audit facts and client-side filter/page behavior; no data changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -670,7 +670,7 @@
     "src/SparksCloudStatus.tsx": "0b605c16b6f43daae89eb64eb0f619d2917d4701c3208f2303f9ce35a777eba0",
     "src/SparksEmailAuth.css": "57cd8adfe942f400f8b3eced2a2dd075740375c783d4cbaf5c80b3e2d9cac82d",
     "src/SparksEmailAuth.tsx": "575bfd26ae059e65bbec3af65c8c98eda5d49dd9eaba66abfb5680eb7b1445c4",
-    "src/SparksHistory.tsx": "8ca571c28b215625e7ca4beb77402f9f6128ed3c65c938620661bcf0d85e53ef",
+    "src/SparksHistory.tsx": "168a7a814721bb03599f6c5e3238cb8fc5f95936231d41a470a735035078f5b4",
     "src/sparksMembership.css": "224d2dfa4fbb51b1b2351738a4db26775d7d9b0a8b7dfb001e3fcf09d57e33bd",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
     "src/sparksMiniGamesGallery.css": "37562b81b3645f431ab9b8ff869cb53876296a8854627a379c29c9b450d4dcc5",
