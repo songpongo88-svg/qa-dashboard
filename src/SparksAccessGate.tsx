@@ -58,6 +58,15 @@ export function SparksPausedNotice({status,ownerLink=false}:{status:SparksStatus
 export default function SparksAccessGate({username,sessionId,children}:{username:string;sessionId:string;children:React.ReactNode}){
   const {status}=useSparksStatus();
   if(status?.enabled===true)return <>{children}</>;
+  // Initial status and transient network failures are not a closure. Never
+  // flash the "closed for maintenance" banner before the actual gate replies.
+  if(!status || status.unavailable)return <section role="status"
+    aria-label="ตรวจสอบสถานะ QA Sparks"
+    style={{padding:"28px 18px",textAlign:"center",color:"#626b84"}}>
+    {status?.unavailable
+      ?"ยังตรวจสอบสถานะ QA Sparks ไม่สำเร็จ กรุณาลองเปิดแท็บอีกครั้ง"
+      :"กำลังตรวจสอบสถานะ QA Sparks..."}
+  </section>;
   return <div className="sparks-paused-shell">
     <SparksPausedNotice status={status} ownerLink={username.trim().toLowerCase()==="songpon"}/>
     {username.trim().toLowerCase()==="songpon"&&<>

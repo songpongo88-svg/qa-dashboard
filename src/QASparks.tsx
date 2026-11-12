@@ -77,27 +77,32 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     emailAuthMode === "hybrid" && (Boolean(verifiedSparksActor) || emailOptedIn)
   );
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
+  // Resolve the existing HTTP-only Supabase session before deciding whether
+  // to render a password prompt. Do not treat the QA Dashboard login as
+  // Supabase authorization. Only the server-verified actor can unlock Sparks.
+  const [authBootstrap, setAuthBootstrap] = useState<"checking"|"done">("checking");
   const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
   const sparksSessionId = emailAuthEnabled ? "supabase-email-auth" : adminSessionId;
   useEffect(()=>{
-    if (!emailAuthEnabled || !sparksAllowed || !active) return;
+    if(!active || !normalizedSparksUser)return;
     let current=true;
+    setAuthBootstrap("checking");
     void fetch("/api/sparks-auth",{credentials:"same-origin",cache:"no-store"})
       .then(async response=>{
+        const result=await response.json().catch(()=>({}));
         if(!current)return;
-        if(response.status===401 || response.status===403){
+        if(response.ok && result?.actor?.username?.toLowerCase()===normalizedSparksUser
+          && result.actor.status==="Active"){
+          // A verified, already-signed-in user should go directly to Overview.
+          setVerifiedActor(result.actor as SparksVerifiedActor);
+          if(emailAuthMode==="hybrid")chooseEmailAuth(true);
+        }else{
           setVerifiedActor(null);
-          return;
         }
-        if(!response.ok)return; // temporary service errors must not destroy the session
-        const payload=await response.json();
-        if(current && (
-          payload?.actor?.username?.toLowerCase()!==username.toLowerCase() ||
-          payload?.actor?.status!=="Active"
-        ))setVerifiedActor(null);
-      }).catch(()=>{}); // server still checks every wallet and redemption request
+      }).catch(()=>{if(current)setVerifiedActor(null);})
+      .finally(()=>{if(current)setAuthBootstrap("done");});
     return()=>{current=false};
-  },[emailAuthEnabled,sparksAllowed,active,username]);
+  },[active,normalizedSparksUser]);
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
   const [itemClock,setItemClock] = useState(0);
   const [gamesOpened, setGamesOpened] = useState(false);
@@ -179,6 +184,12 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     ...(adminAccess && (!emailAuthEnabled || (verifiedActor?.role === "Quality Assurance" && verifiedActor?.username === "songpon")) && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
+  // Do not flash a login form while a valid server session is being checked.
+  // This also protects existing QA-only users from a needless password prompt.
+  if (authBootstrap==="checking" && active && Boolean(normalizedSparksUser)) return <section role="status"
+    data-sparks-session-check="true" style={{padding:"28px 20px",textAlign:"center",color:"#646d84"}}>
+    กำลังตรวจสอบ Session QA Sparks...
+  </section>;
   if (emailAuthEnabled && !sparksAllowed) return <div data-sparks-employee-email-login="true">
     <SparksEmailAuth username={username} onVerified={actor=>{
       setVerifiedActor(actor);

@@ -26,7 +26,8 @@ assert.doesNotMatch(email,/หรือกดลิงก์ในอีเม�
 assert.match(email,/credentials:"same-origin",cache:"no-store"/,"existing Sparks session restored through secure same-origin cookie");
 assert.match(email,/Session QA Sparks หมดอายุแล้ว/,"OTP requested again when session expires");
 assert.match(entry,/window.addEventListener\("focus",validate\)/,"standalone rechecks session when browser regains focus");
-assert.match(sparks,/\[emailAuthEnabled,sparksAllowed,active,username\]/,"embedded Sparks tab rechecks on re-entry");
+assert.match(sparks,/\[active,normalizedSparksUser\]/,"embedded Sparks tab rechecks the signed-in QA user on re-entry");
+assert.match(sparks,/setAuthBootstrap\("checking"\)/,"the existing Supabase session is checked before displaying the login form");
 assert.match(email,/setRetrySeconds\(60\)/,"server 429 must apply an anti-spam cooldown before allowing retry");
 assert.match(email,/if\(busy\|\|retrySeconds>0\)return/,"repeat requests are prevented until cooldown expires");
 assert.match(email,/setSent\(false\);setPendingEmail\(""\);setCode\(""\)/,"failed send must clear unsent OTP state");
