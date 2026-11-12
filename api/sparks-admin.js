@@ -53,9 +53,15 @@ const adminReadCache = new Map();
 const ADMIN_READ_CACHE_MS = 60_000;
 const FIRESTORE_QUOTA_COOLDOWN_MS = 5 * 60_000;
 let firestoreQuotaLimitedUntil = 0;
-function firestoreQuotaError() {
-  return Object.assign(new Error("Firestore มีข้อจำกัดโควตาหรืออัตราการใช้งาน กรุณาตรวจที่ Firebase Console → Firestore → Usage และหลีกเลี่ยงการรีเฟรชซ้ำ"), {
-    status: 429, code: "FIRESTORE_RESOURCE_EXHAUSTED", firestoreStatus: "RESOURCE_EXHAUSTED",
+function firestoreQuotaError(source = "upstream") {
+  const cached = source === "cooldown";
+  return Object.assign(new Error(cached
+    ? "เซิร์ฟเวอร์อยู่ในช่วงพักการอ่าน Firestore หลังพบ 429 ก่อนหน้านี้ ยังไม่ได้ส่งคำขออ่านใหม่"
+    : "Firestore ตอบกลับ RESOURCE_EXHAUSTED หรือ HTTP 429 สำหรับการอ่านบัญชี QA ครั้งนี้"), {
+    status: 429,
+    code: cached ? "FIRESTORE_READ_COOLDOWN" : "FIRESTORE_RESOURCE_EXHAUSTED",
+    firestoreStatus: "RESOURCE_EXHAUSTED",
+    quotaSource: source,
   });
 }
 function cachedAdminRead(key, load, forceRefresh = false) {
@@ -213,7 +219,7 @@ async function firestoreRequest(endpoint, method = "GET", body) {
   // A quota response is shared by this function instance. Reject repeated
   // display reads locally instead of contacting an already limited database.
   // Authentication and all mutations still require normal server verification.
-  if (method === "GET" && Date.now() < firestoreQuotaLimitedUntil) throw firestoreQuotaError();
+  if (method === "GET" && Date.now() < firestoreQuotaLimitedUntil) throw firestoreQuotaError("cooldown");
   const token = await getAccessToken();
   if(process.env.SPARKS_DATA_BACKEND==="supabase" && endpoint===":commit" && body?.transaction){
     // Supabase begin tokens are local optimistic transaction markers. Firebase
@@ -1836,9 +1842,14 @@ async function sparksHandler(req, res) {
         ? qaMigrationStage : "unknown";
       if (status === 429) {
         const retryAfterSeconds = Math.max(1, Math.ceil((firestoreQuotaLimitedUntil - Date.now()) / 1000) || 300);
+        const cached = error?.code === "FIRESTORE_READ_COOLDOWN";
         return res.status(429).json({
-          ok:false,code:"QA_CREDENTIAL_FIRESTORE_LIMIT",stage,retryAfterSeconds,
-          error:"เฉพาะการอ่านบัญชี QA จาก Firestore ถูกจำกัดชั่วคราว คะแนนและการแลกรางวัลบน Supabase เป็นคนละส่วน ยังไม่มีการย้ายบัญชีในคำขอนี้",
+          ok:false,
+          code:cached?"QA_CREDENTIAL_SERVER_COOLDOWN":"QA_CREDENTIAL_FIRESTORE_LIMIT",
+          stage,retryAfterSeconds,firestoreReadAttempted:!cached,
+          error:cached
+            ?"เซิร์ฟเวอร์พักการอ่าน Firestore ชั่วคราวหลังข้อผิดพลาดก่อนหน้า คำขอนี้ไม่ได้อ่าน Firestore ใหม่"
+            :"Firestore ปฏิเสธการอ่านข้อมูลบัญชี QA ครั้งนี้ด้วย RESOURCE_EXHAUSTED หรือ HTTP 429",
         });
       }
       if (status >= 500) {
