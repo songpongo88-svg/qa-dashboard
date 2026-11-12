@@ -403,8 +403,10 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
-const SESSION_CHECK_INTERVAL_MS = 30 * 1000;
-const SESSION_TOUCH_INTERVAL_MS = 60 * 1000;
+// Reduce repetitive Firestore session reads in long-running Dashboard tabs.
+// Central revocation checks can be delayed by up to three minutes.
+const SESSION_CHECK_INTERVAL_MS = 3 * 60 * 1000;
+const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
@@ -6649,8 +6651,20 @@ export default function App() {
     if (!currentUser?.sessionId || !currentUser.username) return;
 
     let cancelled = false;
+    let checking = false;
+    let lastCheckedAt = 0;
 
     const checkCentralSession = async () => {
+      // Keep security checks active for the visible QA session, but do not
+      // spend Firestore quota in a hidden/pinned tab or on repeated focus.
+      const now = Date.now();
+      if (
+        cancelled || checking || document.visibilityState !== "visible" ||
+        navigator.onLine === false ||
+        now - lastCheckedAt < SESSION_CHECK_INTERVAL_MS
+      ) return;
+      checking = true;
+      lastCheckedAt = now;
       try {
         const validation = await validateStoredUserSession(
           currentUser.sessionId || "",
@@ -6666,6 +6680,8 @@ export default function App() {
         }
       } catch (error) {
         console.warn("Central session check failed; will retry.", error);
+      } finally {
+        checking = false;
       }
     };
 
