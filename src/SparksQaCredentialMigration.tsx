@@ -38,10 +38,10 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
        const stage=body.stage==="owner-session"?"ตรวจสิทธิ์ QA Session"
          :body.stage==="source-credentials"?"อ่านบัญชี QA จาก Firestore"
          :body.stage==="supabase-import"?"นำเข้าบัญชี Supabase":"ตรวจบัญชี QA";
-       const detail=body.code==="QA_CREDENTIAL_FIRESTORE_LIMIT"
-         ?"การอ่านข้อมูลต้นทางถูกจำกัดเฉพาะขั้นตอน "+stage+" — ไม่ใช่การแลกรางวัลบน Supabase"+
-          (Number(body.retryAfterSeconds)>0?" ระบบระงับการอ่านซ้ำชั่วคราว":"")+
-          " ยังไม่มีการย้ายรหัสผ่านในคำขอนี้"
+       const detail=body.code==="QA_CREDENTIAL_SERVER_COOLDOWN"
+         ?"เซิร์ฟเวอร์ยังพักการอ่าน Firestore จากข้อผิดพลาดก่อนหน้า คำขอนี้ไม่ได้อ่านข้อมูลใหม่ กรุณาลองอีกครั้งเมื่อครบเวลาพัก "+Math.max(1,Math.ceil(Number(body.retryAfterSeconds||0)/60))+" นาที (รหัส: QA_CREDENTIAL_SERVER_COOLDOWN)"
+         :body.code==="QA_CREDENTIAL_FIRESTORE_LIMIT"
+         ?"Firestore ตอบ 429 ขณะ "+stage+" (อ่านจริงแล้วในคำขอนี้) — ไม่ใช่โควต้าของระบบแลกรางวัลบน Supabase ยังไม่มีการย้ายรหัสผ่านในคำขอนี้"
          :body.code==="QA_CREDENTIAL_SOURCE_UNAVAILABLE"
          ?"ไม่สามารถ "+stage+" ได้ กรุณาตรวจการเชื่อมต่อ Google Cloud ของเซิร์ฟเวอร์"
          :body.code==="QA_CREDENTIAL_IMPORT_UNAVAILABLE"
