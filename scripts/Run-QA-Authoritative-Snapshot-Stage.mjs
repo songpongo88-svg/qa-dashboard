@@ -2,7 +2,6 @@
 // Requires a trusted Google OAuth access token with datastore scope,
 // preexisting local QA DB credentials and explicit operator opt-in.
 // This script is NOT called from browser/Preview or production API.
-import {readFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
 import {captureQaFirestorePointInTime} from '../server/qaFirestoreRestSnapshot.js';
 import {stageQaFirestoreExport} from '../server/qaLiveMirrorStage.js';
@@ -33,18 +32,39 @@ export async function runQaLiveSnapshotStage({
     const db=await pool.query('SELECT current_database() AS db');
     if(db.rows?.[0]?.db!=='qa_dashboard_lab')
       throw new Error('unexpected_database_no_migration');
-    // IMPORTANT: verify the destination can actually accept the additive
-    // snapshot tables BEFORE consuming any Firestore reads. The existing QA
-    // bridge role is intentionally read-only and must never be upgraded.
+    // All tables are provisioned beforehand using a separate PostgreSQL
+    // administrator. Only a least-privilege snapshot importer may run here.
+    // Fail BEFORE reading Firestore to preserve its limited daily quota.
     const permission=(await pool.query(
-      "SELECT pg_is_in_recovery() AS recovering,"+
+      "SELECT current_user AS role,pg_is_in_recovery() AS recovering,"+
       " current_setting('transaction_read_only') AS transaction_ro,"+
-      " has_schema_privilege(current_user,'qa_failover_v1','CREATE') AS can_create"
+      " to_regclass('qa_failover_v1.live_snapshot_batches') IS NOT NULL AS batches,"+
+      " to_regclass('qa_failover_v1.live_snapshot_rows') IS NOT NULL AS rows,"+
+      " to_regclass('qa_failover_v1.live_candidate_evaluations') IS NOT NULL AS candidates,"+
+      " to_regclass('qa_failover_v1.live_candidate_audit') IS NOT NULL AS audit"
     )).rows?.[0];
-    if(permission?.recovering===true||permission?.transaction_ro!=='off')
+    if(permission?.role!=='qa_snapshot_importer')
+      throw new Error('postgres_dedicated_importer_required');
+    if(permission.recovering===true||permission.transaction_ro!=='off')
       throw new Error('postgres_import_connection_read_only');
-    if(permission?.can_create!==true)
-      throw new Error('postgres_import_create_permission_missing');
+    if(!permission.batches||!permission.rows||!permission.candidates||!permission.audit)
+      throw new Error('postgres_snapshot_tables_not_installed');
+    const privilege=(await pool.query(
+      "SELECT has_table_privilege(current_user,'qa_failover_v1.state','SELECT') AS state,"+
+      " has_table_privilege(current_user,'qa_failover_v1.live_snapshot_batches','INSERT,SELECT,UPDATE') AS batches,"+
+      " has_table_privilege(current_user,'qa_failover_v1.live_snapshot_rows','INSERT,SELECT') AS rows,"+
+      " has_table_privilege(current_user,'qa_failover_v1.live_candidate_evaluations','INSERT,SELECT') AS candidates,"+
+      " has_table_privilege(current_user,'qa_failover_v1.live_candidate_audit','INSERT,SELECT') AS audit"
+    )).rows?.[0];
+    if(!privilege||Object.values(privilege).some(value=>value!==true))
+      throw new Error('postgres_import_permission_missing');
+    const state=(await pool.query(
+      'SELECT mode,source_snapshot_verified,write_frozen FROM qa_failover_v1.state WHERE id=1'
+    )).rows?.[0];
+    if(!state||state.mode!=='disabled'||state.write_frozen!==true||
+       state.source_snapshot_verified!==false)
+      throw new Error('postgres_standby_not_safely_disabled');
+    console.log('QA_IMPORTER_PREFLIGHT=READY_NO_FIRESTORE_READS');
     // Capture and verify the complete pinned Firestore source BEFORE any local
     // schema modification. Quota/auth/network failure must leave PostgreSQL
     // unchanged, including its additive stage tables.
@@ -53,10 +73,8 @@ export async function runQaLiveSnapshotStage({
       accessToken:env.QA_FIRESTORE_OAUTH_ACCESS_TOKEN,
       fetchImpl,
     });
-    // Additive tables only; original 2,081-row archive is not modified.
-    const sql=await readFile(new URL(
-      '../migration/qa-local-live-snapshot-stage.sql',import.meta.url),'utf8');
-    await pool.query(sql);
+    // Tables are already installed by the guarded admin installer.
+    // No schema changes, no original archive modifications, no role changes.
     const receipt=await stageQaFirestoreExport({
       pool,metadata:captured.metadata,
       readCollection:dataset=>captured.readCollection(dataset),
@@ -85,7 +103,9 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
       'explicit_stage_only_opt_in_required','only_existing_local_qa_dashboard_lab_allowed',
       'firestore_project_id_not_configured','server_firebase_oauth_not_configured',
       'unexpected_database_no_migration','postgres_import_connection_read_only',
-      'postgres_import_create_permission_missing','firestore_quota_or_permission_blocked',
+      'postgres_dedicated_importer_required','postgres_snapshot_tables_not_installed',
+      'postgres_import_permission_missing','postgres_standby_not_safely_disabled',
+      'firestore_quota_or_permission_blocked',
       'firestore_source_unreachable','firestore_source_unverified',
       'firestore_invalid_source_page','source_manifest_mismatch',
     ]);
