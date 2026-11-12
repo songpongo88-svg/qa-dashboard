@@ -39,6 +39,16 @@ export function createAnnouncementShieldService({
 }){
  const documentFor=username=>path("qa_announcement_shield",encodeURIComponent(username));
  const historyFor=(username,id)=>path("qa_sparks_wallets",encodeURIComponent(username),"history",id);
+ const lifecycle=(username,item,action,at,detail,performedBy="system")=>{
+   const itemId=String(item.itemId||"legacy");
+   const eventId="announcement-shield-"+action+"-"+itemId;
+   return createWrite(historyFor(username,eventId),{
+     createdAt:at,type:"event",source:"announcement-shield",rewardId:"announcement-shield",
+     itemId,title:"Announcement Shield · "+({
+       activated:"เริ่มใช้งาน",cancelled:"ยกเลิกต่ออายุ",expired:"หมดอายุ"
+     }[action]||action),detail,amount:0,performedBy,status:"Completed"
+   });
+ };
  const transaction=async(handler)=>{
   for(let i=0;i<4;i++){
    const start=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
@@ -73,7 +83,7 @@ export function createAnnouncementShieldService({
    updateWrite(subscriptionPath,{username:actor.username,itemId:id,status:"unused",purchasedAt:current,
      activatedAt:"",nextBillingAt:"",graceEndsAt:"",cancelledAt:"",lastAttemptDay:"",lastRenewalAt:"",updatedAt:current},subDoc),
    createWrite(historyFor(actor.username,historyId),{createdAt:current,type:"spend",source:"announcement-shield",
-     title:"Announcement Shield · แลก Item",detail:"แลก Item สมัครสมาชิก 50 Sparks (เริ่มนับอายุเมื่อกดใช้)",
+     rewardId:"announcement-shield",title:"Announcement Shield · แลก Item",detail:"แลก Item สมัครสมาชิก 50 Sparks (เริ่มนับอายุเมื่อกดใช้)",
      amount:-SHIELD_PRICE,balanceAfter:balance-SHIELD_PRICE,performedBy:actor.username,status:"Completed",itemId:id}),
   ],result:{ok:true,status:"unused",balance:balance-SHIELD_PRICE}};
  });
@@ -82,7 +92,8 @@ export function createAnnouncementShieldService({
   if(sub.status!=="unused")err("ไม่มี Announcement Shield ที่พร้อมกดใช้งาน",409);
   const now=nowIso(),next=nextShieldMonth(now);
   return {writes:[updateWrite(p,{status:"active",activatedAt:now,nextBillingAt:next,
-   graceEndsAt:"",cancelledAt:"",lastAttemptDay:"",updatedAt:now},snap)],
+   graceEndsAt:"",cancelledAt:"",lastAttemptDay:"",updatedAt:now},snap),
+   lifecycle(actor.username,sub,"activated",now,"เริ่มใช้ Announcement Shield · สิ้นสุดรอบแรก "+next,actor.username)],
    result:{ok:true,status:"active",nextBillingAt:next}};
  });
  const cancel=async(actor)=>transaction(async(txn)=>{
@@ -90,7 +101,8 @@ export function createAnnouncementShieldService({
   if(!["active","grace","cancelled"].includes(sub.status))err("ไม่มีสมาชิกที่กำลังใช้งาน",409);
   if(sub.status==="cancelled")return {writes:[],result:{ok:true,status:"cancelled",alreadyApplied:true}};
   const now=nowIso();
-  return {writes:[updateWrite(p,{status:"cancelled",cancelledAt:now,updatedAt:now},snap)],
+  return {writes:[updateWrite(p,{status:"cancelled",cancelledAt:now,updatedAt:now},snap),
+   lifecycle(actor.username,sub,"cancelled",now,"ยกเลิกต่ออายุอัตโนมัติ · สิทธิ์ใช้ได้ถึง "+sub.nextBillingAt,actor.username)],
    result:{ok:true,status:"cancelled",nextBillingAt:sub.nextBillingAt}};
  });
  const settleOne=async(username)=>{
@@ -101,12 +113,16 @@ export function createAnnouncementShieldService({
   if(pre.status==="grace"&&safeTime(pre.graceEndsAt)<=now)return transaction(async(txn)=>{
    const doc=await readDoc(subPath,txn),sub=recordValue(doc);
    if(sub.status!=="grace"||safeTime(sub.graceEndsAt)>Date.now())return {writes:[],result:{skipped:true}};
-   return {writes:[updateWrite(subPath,{status:"expired",updatedAt:nowIso()},doc)],result:{expired:true}};
+   return {writes:[updateWrite(subPath,{status:"expired",updatedAt:nowIso()},doc),
+     lifecycle(username,sub,"expired",nowIso(),"สิ้นสุดสิทธิ์ Announcement Shield โดยไม่หัก Sparks เพิ่ม")],
+     result:{expired:true}};
   });
   if(pre.status==="cancelled")return transaction(async(txn)=>{
    const doc=await readDoc(subPath,txn),sub=recordValue(doc);
    if(sub.status!=="cancelled"||Date.now()<safeTime(sub.nextBillingAt))return {writes:[],result:{skipped:true}};
-   return {writes:[updateWrite(subPath,{status:"expired",updatedAt:nowIso()},doc)],result:{expired:true}};
+   return {writes:[updateWrite(subPath,{status:"expired",updatedAt:nowIso()},doc),
+     lifecycle(username,sub,"expired",nowIso(),"สิ้นสุดสิทธิ์ Announcement Shield โดยไม่หัก Sparks เพิ่ม")],
+     result:{expired:true}};
   });
   if(pre.lastAttemptDay===currentDay())return {skipped:true};
   return transaction(async(txn)=>{
@@ -116,13 +132,21 @@ export function createAnnouncementShieldService({
    const dueMs=safeTime(sub.nextBillingAt),now=Date.now();
    if(!["active","grace"].includes(sub.status)||!dueMs||now<dueMs)return {writes:[],result:{skipped:true}};
    if(sub.status==="grace"&&now>=safeTime(sub.graceEndsAt))
-    return {writes:[updateWrite(subPath,{status:"expired",updatedAt:nowIso()},doc)],result:{expired:true}};
+    return {writes:[updateWrite(subPath,{status:"expired",updatedAt:nowIso()},doc),
+     lifecycle(username,sub,"expired",nowIso(),"สิ้นสุดสิทธิ์ Announcement Shield โดยไม่หัก Sparks เพิ่ม")],
+     result:{expired:true}};
    if(sub.lastAttemptDay===currentDay())return {writes:[],result:{skipped:true}};
    const available=spendableBalance(wallet),attemptDay=currentDay(),timestamp=nowIso();
    if(available<SHIELD_PRICE){
     const graceEndsAt=sub.graceEndsAt||new Date(dueMs+GRACE_DAYS*DAY_MS).toISOString();
     return {writes:[updateWrite(subPath,{status:"grace",graceEndsAt,
-      lastAttemptDay:attemptDay,updatedAt:timestamp},doc)],result:{grace:true}};
+      lastAttemptDay:attemptDay,updatedAt:timestamp},doc),
+      createWrite(historyFor(username,"announcement-shield-grace-"+sub.itemId+"-"+sub.nextBillingAt.slice(0,10)),{
+        createdAt:timestamp,type:"event",source:"announcement-shield",rewardId:"announcement-shield",
+        itemId:sub.itemId,title:"Announcement Shield · ผ่อนผัน",
+        detail:"คะแนนไม่พอต่ออายุ · รอตัดซ้ำได้ถึง "+graceEndsAt,
+        amount:0,performedBy:"system",status:"Grace"
+      })],result:{grace:true}};
    }
    const billingId="announcement-shield-renew-"+sub.itemId+"-"+sub.nextBillingAt.slice(0,10);
    const history=historyFor(username,billingId);
@@ -133,7 +157,7 @@ export function createAnnouncementShieldService({
     updateWrite(walletPath,{username,balance:available-SHIELD_PRICE,balanceYear:year,
       totalSpent:toNumber(wallet.totalSpent)+SHIELD_PRICE,updatedAt:timestamp},walletDoc),
     createWrite(history,{createdAt:timestamp,type:"spend",source:"announcement-shield",
-      title:"Announcement Shield · ต่ออายุอัตโนมัติ",
+      rewardId:"announcement-shield",title:"Announcement Shield · ต่ออายุอัตโนมัติ",
       detail:"ต่ออายุสมาชิก 1 เดือน 50 Sparks",amount:-SHIELD_PRICE,
       balanceAfter:available-SHIELD_PRICE,performedBy:"system-renewal",
       itemId:sub.itemId,billingDueAt:sub.nextBillingAt,status:"Completed"}),

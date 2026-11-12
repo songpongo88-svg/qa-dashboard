@@ -133,8 +133,17 @@ export function createQaRewardsService(db){
    const item=items[index];if(item.status!=="unused")return {writes:[],result:{item}};
    const now=new Date();if(now.getTime()>=Date.parse(item.expiresAt))err("Item หมดอายุ 30 วันแล้ว",409);
    const next=[...items];next[index]={...item,status:"activated",activatedAt:now.toISOString()};
-   return {writes:[updateWrite(wp,{specialRewardItems:next,updatedAt:now.toISOString()},wd)],
-    result:{updated:true,item:next[index]}};
+   return {writes:[
+      updateWrite(wp,{specialRewardItems:next,updatedAt:now.toISOString()},wd),
+      createWrite(hpath(actor.username,"special-activate-"+id),{
+        createdAt:now.toISOString(),type:"event",source:"special-reward-activation",
+        rewardId:item.rewardId,itemId:id,
+        title:(item.title||"Item")+" · เปิดใช้งาน",
+        detail:"เริ่มใช้งานสิทธิ์ก่อนส่งคำขอ · ยังไม่ถือว่าใช้สิทธิ์ส่งคำขอ",
+        amount:0,balanceAfter:spendableBalance(wallet),
+        performedBy:actor.username,status:"Activated"
+      })
+    ],result:{updated:true,item:next[index]}};
   });
  }
  async function receiptCheck(body,actor){
