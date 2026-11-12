@@ -74,19 +74,7 @@
 .qa-sparks-flare.one { right: 10px; top: 11px; }
 .qa-sparks-flare.two { left: 10px; bottom: 14px; }
 .qa-sparks-history-clock { color: #609ac0; height: 60px; display: grid; place-items: center; }
-.qa-sparks-history-scroll { min-width: 0; width: 100%; margin-top: 9px; overflow-x: auto; border: 1px solid #e4e0e5; border-radius: 10px; background: #fcfbfa; }
-.qa-sparks-history-scroll:focus-visible { outline: 2px solid var(--sparks-accent); outline-offset: 3px; }
-.qa-sparks-history-table { width: 100%; min-width: 860px; border-collapse: collapse; table-layout: fixed; text-align: left; }
-.qa-sparks-history-table th, .qa-sparks-history-table td { padding: 13px 14px; vertical-align: top; overflow-wrap: anywhere; }
-.qa-sparks-history-table th:nth-child(1) { width: 18%; }
-.qa-sparks-history-table th:nth-child(2) { width: 21%; }
-.qa-sparks-history-table th:nth-child(3) { width: 15%; }
-.qa-sparks-history-table th:nth-child(4) { width: 28%; }
-.qa-sparks-history-table th:nth-child(5) { width: 18%; }
-.qa-sparks-history-table .qa-sparks-history-number { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.qa-sparks-history-balance { font-weight: 500; color: #3a3037; }
-.qa-sparks-history-head { background: #f2eff1; color: #504853; font-size: 11px; font-weight: 600; }
-.qa-sparks-history-no-rows { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 58px; padding: 8px; color: #9c919e; font-size: 11px; }
+/* The old horizontally scrolling 860px History table was replaced with responsive cards. */
 .qa-sparks-notes { display: grid; grid-template-columns: minmax(180px, .28fr) 1fr; align-items: start; gap: 24px; border: 1px solid var(--sparks-outline); border-radius: 17px; padding: 16px 22px; background: linear-gradient(120deg, color-mix(in srgb, var(--qa-theme-50, #faf5ff) 60%, #fff), #fffdfb); box-shadow: var(--sparks-shadow); }
 .qa-sparks-notes-heading { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px; color: var(--sparks-dark); border-right: 1px solid var(--sparks-outline); min-height: 80px; }
 .qa-sparks-notes ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 12px; line-height: 1.5; color: #504450; }
@@ -972,4 +960,61 @@
 .qa-auto-pass-modal-body{padding:13px 18px}
 .qa-auto-pass-footer{padding:13px 18px}
 .qa-auto-pass-stats{gap:4px}.qa-auto-pass-stats>div{padding:9px 6px}.qa-auto-pass-stats strong{font-size:17px}
+}
+
+
+/* QA Sparks History V2 — clear, full-width records without a horizontal scrollbar.
+   Applies to Overview and full History; no changes to stored data or fetches. */
+.qa-sparks-history-cards{min-width:0;width:100%;justify-content:flex-start}
+.qa-sparks-history-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.qa-sparks-history-cards .qa-sparks-history-filters{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0;min-width:0}
+.qa-sparks-history-cards .qa-sparks-history-filters button{font-size:11px;font-weight:650;border-color:#e3dce6;background:#fffdfc;padding:6px 11px;white-space:normal;line-height:1.25}
+.qa-sparks-history-cards .qa-sparks-history-filters button.active{background:var(--sparks-accent);color:#fff;border-color:var(--sparks-accent)}
+.qa-sparks-history-cards button:focus-visible,.qa-sparks-history-cards input:focus-visible{outline:2px solid var(--sparks-accent);outline-offset:2px}
+.qa-sparks-history-search{flex:1 1 170px;max-width:350px;min-width:0;display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e2dae5;border-radius:10px;padding:6px 11px;color:#7a7082}
+.qa-sparks-history-search input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:#352b3b;font:500 12px Kanit,sans-serif;line-height:1.6}
+.qa-sparks-history-search input::placeholder{color:#91869a}
+.qa-sparks-history-count{display:block;margin:8px 1px 10px;font-size:11px;color:#776d7a;line-height:1.5}
+.qa-sparks-history-count strong{color:var(--sparks-dark);font-weight:750}
+.qa-sparks-history-list{display:grid;gap:9px;list-style:none;padding:0;margin:0;min-width:0}
+.qa-sparks-history-entry{min-width:0;border:1px solid #e9e3e7;border-radius:13px;padding:12px 13px 10px;background:linear-gradient(140deg,#fff,#fffcfa);box-shadow:0 2px 7px #32253208;overflow-wrap:anywhere}
+.qa-sparks-history-entry-row{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.qa-sparks-history-entry-symbol{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;border-radius:9px;background:#f1eef3;color:#71687a;font-size:18px;font-weight:750}
+.qa-sparks-history-entry-symbol.positive{background:#e9f6ee;color:#20724a}
+.qa-sparks-history-entry-symbol.negative{background:#fcecef;color:#ab3d56}
+.qa-sparks-history-entry-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.qa-sparks-history-entry-title{color:#2c2335;font-size:13px;font-weight:750;line-height:1.4;overflow-wrap:anywhere}
+.qa-sparks-history-entry-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:#706676;font-size:10px;line-height:1.5}
+.qa-sparks-history-entry-meta time{font-variant-numeric:tabular-nums}
+.qa-sparks-history-action{padding:2px 7px;border-radius:6px;background:var(--sparks-soft);color:var(--sparks-dark);font-weight:650}
+.qa-sparks-history-entry-changes{flex:0 1 auto;min-width:0;max-width:47%;display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right;font-variant-numeric:tabular-nums}
+.qa-sparks-history-change{display:inline-flex;align-items:center;justify-content:flex-end;border-radius:7px;padding:3px 8px;font-size:11px;line-height:1.45;font-weight:750;overflow-wrap:anywhere}
+.qa-sparks-history-change.positive{color:#207a4d;background:#eaf7f0}
+.qa-sparks-history-change.negative{color:#b13f56;background:#fceef1}
+.qa-sparks-history-change.neutral{color:#6d6773;background:#f1eff2;font-weight:600}
+.qa-sparks-history-change.item{font-size:10px}
+.qa-sparks-history-entry-details{margin:9px 0 0 38px;display:grid;gap:3px;color:#695e6a;font-size:11px;line-height:1.55;min-width:0}
+.qa-sparks-history-entry-details p{margin:0;overflow-wrap:anywhere}
+.qa-sparks-history-entry-footer{display:flex;flex-wrap:wrap;gap:3px 8px;align-items:center;justify-content:space-between;border-top:1px solid #f0eaf0;margin:10px 0 0 38px;padding-top:7px;color:#807483;font-size:10px;line-height:1.5}
+.qa-sparks-history-entry-footer strong{color:#483d4d;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.qa-sparks-history-more{margin-top:12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 12px}
+.qa-sparks-history-more button,.qa-sparks-history-empty-state button{border:1px solid var(--sparks-outline);color:var(--sparks-dark);background:#fff;border-radius:10px;padding:9px 16px;font:650 12px Kanit,sans-serif;cursor:pointer}
+.qa-sparks-history-more button:hover,.qa-sparks-history-empty-state button:hover{background:var(--sparks-soft)}
+.qa-sparks-history-more span{color:#817785;font-size:10px}
+.qa-sparks-history-collapse{display:block;margin:9px auto 0;border:0;color:#82718a;background:transparent;text-decoration:underline;font:500 11px Kanit,sans-serif;cursor:pointer}
+.qa-sparks-history-empty-state{min-height:155px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;color:#7e7282;padding:16px;background:#fff;border:1px dashed #dfd8e1;border-radius:13px}
+.qa-sparks-history-empty-state strong{color:#4d4051;font-size:13px}
+.qa-sparks-history-empty-state span{font-size:11px;line-height:1.5}
+@media(max-width:600px){
+ .qa-sparks-history-search{max-width:none;flex-basis:100%}
+ .qa-sparks-history-entry{padding:11px}
+ .qa-sparks-history-entry-changes{max-width:50%}
+ .qa-sparks-history-entry-symbol{flex-basis:26px;width:26px;height:26px}
+ .qa-sparks-history-entry-details,.qa-sparks-history-entry-footer{margin-left:35px}
+}
+@media(max-width:390px){
+ .qa-sparks-history-entry-changes{max-width:none;align-items:flex-start;text-align:left;margin-left:35px}
+ .qa-sparks-history-entry-row{flex-wrap:wrap}
+ .qa-sparks-history-entry-main{flex-basis:calc(100% - 37px)}
+ .qa-sparks-history-entry-changes{flex-basis:100%;flex-direction:row;flex-wrap:wrap}
 }
