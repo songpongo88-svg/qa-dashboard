@@ -34,9 +34,21 @@ $gcloud=Get-Command gcloud.cmd -ErrorAction SilentlyContinue
 if($null -eq $gcloud) { $gcloud=Get-Command gcloud -ErrorAction SilentlyContinue }
 if($null -eq $gcloud) { Stop-Safe 'GCLOUD_CLI_NOT_AVAILABLE' }
 # ADC must already be authorized. Never prompt for service-account keys or print OAuth credentials.
-$oauth = (& $gcloud.Source auth application-default print-access-token 2>$null | Select-Object -First 1)
-if($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($oauth) -or $oauth.Length -lt 20) {
+# Capture the complete native-command exit status before any PowerShell pipeline.
+# In Windows PowerShell 5.1, pipeline/redirect behavior can obscure gcloud
+# output or native command status. Never print or persist an OAuth token.
+$oauth = $null
+try {
+  $rawToken = @(& $gcloud.Source auth application-default print-access-token 2>$null)
+  $gcloudExit = $LASTEXITCODE
+  $oauth = [string]($rawToken | Where-Object { $_ -is [string] -and $_.Trim().Length -gt 20 } | Select-Object -Last 1)
+  if($gcloudExit -ne 0 -or [string]::IsNullOrWhiteSpace($oauth) -or $oauth.Trim().Length -lt 20) {
+    Stop-Safe 'ADC_NOT_AUTHORIZED'
+  }
+} catch {
   Stop-Safe 'ADC_NOT_AUTHORIZED'
+} finally {
+  $rawToken = $null
 }
 # Prevent accidental tokens appearing in PowerShell history or diagnostics.
 $env:QA_FIRESTORE_OAUTH_ACCESS_TOKEN = $oauth
