@@ -4627,6 +4627,7 @@ export default function App() {
       lastCoachingCheckAt = now;
       if (!currentUser) {
         if (active) setCoachingAssignmentAllowed(false);
+        coachingCheckInFlight = false;
         return;
       }
       try {
@@ -4645,9 +4646,11 @@ export default function App() {
           )
         );
       } catch {
-        // Keep the last verified display while offline or quota-limited.
-        // This is not a permission grant: server-owned writes still verify
-        // the current session and permissions independently.
+        // Preserve original deny-on-failure behavior for Coaching access.
+        if (active) {
+          setCoachingAssignmentAllowed(false);
+          setCoachingRecords([]);
+        }
       } finally {
         coachingCheckInFlight = false;
       }
