@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import pg from 'pg';
-import { replayOneQaStandbyOperation } from '../server/qaStandbyReplayWorker.js';
+import { replayOneQaStandbyOperation,replayQaStandbyBatch } from '../server/qaStandbyReplayWorker.js';
 import { getQaStandbyOutboxCounts, QaStandbyBlocked } from '../server/qaStandbyPgJournal.js';
 
 if(process.env.QA_PG_ISOLATED_TEST!=='1'||!process.env.QA_TEST_DATABASE_URL)
@@ -20,10 +20,14 @@ try{
   await pool.query("UPDATE qa_failover_v1.state SET mode='reconciling',write_frozen=true WHERE id=1");
   // A malformed or incomplete Firestore receipt cannot strand an operation
   // in-flight or mark a QA score as synchronized.
-  const malformed=await replayOneQaStandbyOperation(pool,{
+  await assert.rejects(replayQaStandbyBatch(pool,{},trusted,{maxOperations:26}),
+    e=>e instanceof QaStandbyBlocked&&e.code==='invalid_replay_batch_limit');
+  const batchRetry=await replayQaStandbyBatch(pool,{
     applyIfVersionMatches:async()=>({status:'applied'}),
-  },trusted);
-  assert.equal(malformed.retry,true);
+  },trusted,{maxOperations:10});
+  assert.deepEqual(batchRetry,{
+    processed:1,synced:0,conflicts:0,retryRequired:true,noEligibleOperations:false,
+  });
   assert.deepEqual(await getQaStandbyOutboxCounts(pool),
     {pending:5,in_flight:0,synced:0,conflict:0});
   const malformedStatus=await pool.query(
@@ -63,6 +67,9 @@ try{
   assert.equal(resumed.synced,true);
   assert.deepEqual(await getQaStandbyOutboxCounts(pool),
     {pending:0,in_flight:0,synced:5,conflict:0});
+  assert.deepEqual(await replayQaStandbyBatch(pool,remote,trusted,{maxOperations:3}),{
+    processed:0,synced:0,conflicts:0,retryRequired:false,noEligibleOperations:true,
+  });
   // No automatic follow-up on the live database: the worker only receives a
   // narrow adapter transaction and a server-side feature flag.
   await assert.rejects(replayOneQaStandbyOperation(pool,remote,{mode:'approved-server-replay'}),
