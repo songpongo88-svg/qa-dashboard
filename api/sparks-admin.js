@@ -662,6 +662,76 @@ async function claimProfileMakeover(actor) {
 }
 
 
+/** Owner-only audit: a completed flag is NOT a receipt. Never guess missing points. */
+async function auditProfileMakeoverBonuses(){
+  const [profiles,wallets,photoIndex]=await Promise.all([
+    listCollection("qa_user_profiles",["username","displayName","status","role","suspendEffectiveDate","suspendEndDate","suspendAutoReactivate"]),
+    listCollection("qa_sparks_wallets",["username","profileMakeoverClaimedAt"]),
+    listCollection("qa_user_profile_photos",["username","updatedAt"]),
+  ]);
+  if(profiles.truncated||wallets.truncated||photoIndex.truncated)fail("ข้อมูลบัญชีไม่ครบทุกหน้า งดชดเชย",409);
+  if(!profiles.documents.length)fail("ไม่พบรายชื่อ QA ต้นทาง งดชดเชย",503);
+  const getId=doc=>{try{return decodeURIComponent(String(doc?.name||"").split("/").pop()||"");}catch{return "";}};
+  const members=new Map();
+  for(const d of profiles.documents){const p=recordValue(d),u=normalize(p.username);if(!u)continue;
+    if(members.has(u))fail("ข้อมูล Username ซ้ำ งดชดเชย",409);members.set(u,p);}
+  const walletByUser=new Map();
+  for(const d of wallets.documents){const w=recordValue(d),u=normalize(w.username||getId(d));if(u)walletByUser.set(u,w);}
+  const photoByUser=new Map();
+  for(const d of photoIndex.documents){const p=recordValue(d),u=normalize(p.username||getId(d));
+    if(members.has(u))photoByUser.set(u,getId(d));}
+  const users=[...new Set([...photoByUser.keys(),
+    ...[...walletByUser.entries()].filter(([,w])=>Boolean(w.profileMakeoverClaimedAt)).map(([u])=>u)
+  ])].filter(u=>members.has(u)).sort();
+  if(users.length>300)fail("จำนวนข้อมูลเกินขอบเขตการตรวจหนึ่งรอบ",409);
+  const rows=[];
+  for(let i=0;i<users.length;i+=3){
+    const inspected=await Promise.all(users.slice(i,i+3).map(async username=>{
+      const profile=members.get(username);
+      const base={username,displayName:String(profile.displayName||username)};
+      if(isSuspendedProfile(profile))return {...base,status:"suspended"};
+      const [photoDoc,historyDoc]=await Promise.all([
+        photoByUser.has(username)?readDoc(path("qa_user_profile_photos",photoByUser.get(username))):Promise.resolve(null),
+        readDoc(path("qa_sparks_wallets",walletKey(username),"history",PROFILE_QUEST.historyId)),
+      ]);
+      const photo=recordValue(photoDoc),history=recordValue(historyDoc),wallet=walletByUser.get(username)||{};
+      const hasPhoto=Boolean(photoDoc&&normalize(photo.username)===username
+        &&typeof photo.photoDataUrl==="string"
+        &&(/^\u0064ata:image\/(png|jpg|jpeg|webp|gif);base64,/i.test(photo.photoDataUrl)||/^https:\/\//i.test(photo.photoDataUrl)));
+      const flagged=Boolean(wallet.profileMakeoverClaimedAt);
+      const receipt=Boolean(historyDoc&&history.source==="quest-profile-makeover"
+        &&history.questId===PROFILE_QUEST.id&&Number(history.amount)===PROFILE_QUEST.reward&&!history.voidedAt);
+      const status=historyDoc&&flagged&&receipt?"paid":historyDoc||flagged?"review":hasPhoto?"eligible":"no-photo";
+      return {...base,status,flagged,receipt};
+    }));
+    rows.push(...inspected);
+  }
+  return {ok:true,totalAccounts:members.size,rows};
+}
+/** Per-user original claim revalidates stored photo, wallet flag and fixed history
+ * ID in an atomic transaction. Do not manually adjust balances or bypass owner auth.
+ */
+async function repairProfileMakeoverBonuses(body,admin){
+  if(sparksCloudReadOnlyEnabled())fail("Preview ห้ามแก้คะแนน",423);
+  const raw=Array.isArray(body.usernames)?body.usernames:[];
+  if(!raw.length||raw.length>3)fail("ชดเชยได้ครั้งละ 1–3 บัญชี",400);
+  const names=raw.map(safeUsername);
+  if(new Set(names).size!==names.length)fail("พบ Username ซ้ำ",400);
+  const results=[];
+  for(const username of names){
+    try{
+      await requireActiveTarget(username);
+      const claim=await claimProfileMakeover({username,displayName:username});
+      results.push({username,status:claim.updated?"credited":"already-claimed",
+        amount:claim.updated?150:0,balanceAfter:claim.balance,claimedAt:claim.claimedAt});
+    }catch(error){
+      if(Number(error?.status)===429||Number(error?.status)===423)throw error;
+      results.push({username,status:"failed",amount:0,error:String(error?.message||"ทำรายการไม่สำเร็จ")});
+    }
+  }
+  return {ok:true,performedBy:admin.username,results};
+}
+
 function ownTrueMoneyItems(wallet){
   const values=Array.isArray(wallet.trueMoneyItems)?wallet.trueMoneyItems:[];
   return values.filter(item=>item&&typeof item.itemId==="string"
@@ -1812,6 +1882,12 @@ async function sparksHandler(req, res) {
       }
     }
     const admin = await authorizeAdmin(body);
+    if (body.action === "audit-profile-makeover") {
+      return res.status(200).json(await auditProfileMakeoverBonuses());
+    }
+    if (body.action === "repair-profile-makeover") {
+      return res.status(200).json(await repairProfileMakeoverBonuses(body,admin));
+    }
     if (body.action === "set-truemoney-price") {
       return res.status(200).json(await setTrueMoneyPrice(body,admin));
     }

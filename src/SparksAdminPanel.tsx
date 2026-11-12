@@ -138,6 +138,10 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [reauthPassword, setReauthPassword] = useState("");
   const [reauthLoading, setReauthLoading] = useState(false);
   const [reauthError, setReauthError] = useState("");
+  const [questRepairBusy,setQuestRepairBusy]=useState(false);
+  const [questRepairMessage,setQuestRepairMessage]=useState("");
+  const [questRepairReview,setQuestRepairReview]=useState<string[]>([]);
+  const [questRepairReceipts,setQuestRepairReceipts]=useState<string[]>([]);
   const [trueMoneyPrice,setTrueMoneyPrice] = useState("10000");
   const [trueMoneyPriceLoaded,setTrueMoneyPriceLoaded] = useState(false);
   const [loadedTrueMoneyPrice, setLoadedTrueMoneyPrice] = useState<number | null>(null);
@@ -147,7 +151,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [priceRevision, setPriceRevision] = useState(0);
   const priceLoadedKey = useRef("");
 
-  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price", input: Record<string, unknown> = {}) => {
+  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price" | "audit-profile-makeover" | "repair-profile-makeover", input: Record<string, unknown> = {}) => {
     if (import.meta.env?.VITE_SPARKS_DATA_BACKEND !== "supabase" && (action === "list" || action === "history")) assertFirestoreReadAllowed();
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const controller = action === "get-truemoney-price" ? new AbortController() : null;
@@ -488,6 +492,36 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       .finally(() => { if (active) setPriceLoading(false); });
     return () => { active = false; };
   }, [panelActive, adminSection, request, actorUsername, sessionId, priceRevision]);
+  const auditAndRepairProfileMakeover=async()=>{
+    if(!adminReady||questRepairBusy)return;
+    setQuestRepairBusy(true);setQuestRepairReview([]);setQuestRepairReceipts([]);
+    setQuestRepairMessage("กำลังตรวจรูปโปรไฟล์และประวัติ +150 Sparks ของทุกบัญชี...");
+    const receipts:string[]=[];
+    try {
+      const audit=await request("audit-profile-makeover");
+      const all=Array.isArray(audit.rows)?audit.rows as Array<{username:string;displayName:string;status:string;flagged?:boolean;receipt?:boolean}>:[];
+      const eligible=all.filter(row=>row.status==="eligible");
+      const reviews=all.filter(row=>row.status==="review").map(row=>
+        row.displayName+" (@"+row.username+") — "+(row.flagged?"ขึ้น Completed":"ไม่มีสถานะ")+
+        " / "+(row.receipt?"พบใบเสร็จ":"ไม่พบใบเสร็จยืนยัน"));
+      setQuestRepairReview(reviews);
+      for(let i=0;i<eligible.length;i+=3) {
+        setQuestRepairMessage("กำลังชดเชย "+Math.min(i+3,eligible.length)+"/"+eligible.length+" บัญชี");
+        const result=await request("repair-profile-makeover",{usernames:eligible.slice(i,i+3).map(x=>x.username)});
+        for(const row of Array.isArray(result.results)?result.results:[]) {
+          receipts.push("@"+row.username+": "+(row.status==="credited"?"+150 Sparks":row.status==="already-claimed"?"เคยรับแล้ว":"ไม่สำเร็จ: "+row.error));
+        }
+        setQuestRepairReceipts([...receipts]);
+      }
+      const credited=receipts.filter(x=>x.includes("+150 Sparks")).length;
+      setQuestRepairMessage("ตรวจ "+Number(audit.totalAccounts||0)+" บัญชี · ชดเชย "+credited+
+        " บัญชี · มีหลักฐานขัดกัน "+reviews.length+" บัญชี (ไม่เพิ่มคะแนนซ้ำ)");
+      if(credited){setRevision(value=>value+1);window.dispatchEvent(new Event("qa:sparks-updated"));}
+    }catch(error){
+      setQuestRepairMessage("การตรวจ/ชดเชยหยุดลง: "+(error instanceof Error?error.message:"โปรดลองใหม่เมื่อฐานข้อมูลพร้อม")+
+        " · รายการที่บันทึกแล้วจะไม่เพิ่มซ้ำ");
+    }finally{setQuestRepairBusy(false);}
+  };
   const saveTrueMoneyPrice=async()=>{
     const price=Number(trueMoneyPrice);
     if(!Number.isSafeInteger(price)||price<1||price>1000000){setError("ราคาต้องเป็นจำนวนเต็มตั้งแต่ 1–1,000,000 Sparks");return;}
@@ -536,6 +570,19 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         {!adminReady ? <p className="sa-muted">ต้องยืนยันสิทธิ์ผู้ดูแลก่อนบันทึกราคา</p> : null}
         {priceError ? <p role="alert" className="sa-error">{priceError} · กดรีเฟรชราคาเพื่อลองอีกครั้ง</p> : null}
       </section><section className="sa-box"><h3>เงื่อนไข TrueMoney ปัจจุบัน</h3><dl className="sa-details"><div><dt>มูลค่ารางวัล</dt><dd>20 บาท / Item</dd></div><div><dt>อายุ Item</dt><dd>30 วันจากวันที่แลก</dd></div><div><dt>ระยะเวลารับเงิน</dt><dd>14 วันทำการ<br/>ไม่รวมเสาร์–อาทิตย์</dd></div><div><dt>ข้อมูลรับเงิน</dt><dd>เบอร์ TrueMoney 10 หลัก</dd></div></dl></section></div>
+      <section className="sa-box" data-profile-makeover-repair="true" style={{marginTop:16}}>
+        <h3>ตรวจสอบและชดเชย Profile Makeover (+150 Sparks)</h3>
+        <p className="sa-muted">ตรวจหลักฐานรูปโปรไฟล์ ประวัติรางวัล และสถานะกระเป๋าทุกบัญชี ก่อนชดเชยเฉพาะผู้ที่ไม่มีทั้งสถานะรับและใบเสร็จ ระบบป้องกันรับซ้ำ และแยกบัญชีที่ข้อมูลขัดกันไว้ให้ตรวจเพิ่ม</p>
+        <button type="button" className="sa-primary" disabled={!adminReady||questRepairBusy} onClick={()=>void auditAndRepairProfileMakeover()}>
+          {questRepairBusy?"กำลังตรวจสอบและชดเชย...":"ตรวจสอบและชดเชยทุก User ที่ยังไม่ได้รับ"}
+        </button>
+        {!adminReady?<p className="sa-muted">ต้องยืนยันสิทธิ์ผู้ดูแลและเข้าถึงกระเป๋าจริงก่อนทำรายการ</p>:null}
+        {questRepairMessage?<p role="status" style={{marginTop:10,fontSize:13}}>{questRepairMessage}</p>:null}
+        {questRepairReceipts.length?<details open><summary>ผลการชดเชยรายบัญชี ({questRepairReceipts.length})</summary>
+          <ul>{questRepairReceipts.map((entry,i)=><li key={i}>{entry}</li>)}</ul></details>:null}
+        {questRepairReview.length?<details><summary>ข้อมูล Completed หรือใบเสร็จไม่ตรงกัน ({questRepairReview.length}) — ยังไม่เติมคะแนน</summary>
+          <ul>{questRepairReview.map((entry,i)=><li key={i}>{entry}</li>)}</ul></details>:null}
+      </section>
     </section>
     <div hidden={adminSection !== "points" && adminSection !== "activity"}>
       <div className="sa-section-head"><div><h3>{adminSection === "activity" ? "ประวัติการจัดการรายผู้ใช้งาน" : "จัดการคะแนนรายผู้ใช้งาน"}</h3><p>{adminSection === "activity" ? "เลือกผู้ใช้งานเพื่อตรวจวันเวลา ผู้ดำเนินการ และเหตุผลจากประวัติที่บันทึกไว้" : "เลือกผู้ใช้งานเพื่อเพิ่ม หัก หรือเปิดดูประวัติ Sparks"}</p></div></div>
