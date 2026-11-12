@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T13:15:00.000Z",
-  "reason": "Reviewed direct QA Sparks entry and empty-user regression: skip authentication spinner when no logged-in QA username exists; authenticated users still require server verified Supabase session before access.",
+  "reviewedAt": "2026-11-12T13:27:00.000Z",
+  "reason": "Reviewed QA Sparks direct-entry and standalone regression test: safe server-side auth recheck, no unnecessary password prompt or maintenance banner, and unchanged rewards and guide content.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -406,7 +406,7 @@
     "scripts/test-sparks-hybrid-owner.mjs": "6563d2701dd5a66d6eebe6d6ad110ed4cf5587aeb7e25275b2723d007bd7259c",
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
     "scripts/test-sparks-shield-preview-readonly.mjs": "a017ed8d5127bffcdcce2d9208596c44bd069085cefb28b8e65c6b11e66ca7b9",
-    "scripts/test-sparks-standalone.mjs": "c8d892ca9949cd518aaab5d58152beddc7b395be2f06ea2ac2309c8cb95ca741",
+    "scripts/test-sparks-standalone.mjs": "192687d7b9da3a86eca1a12bc72f261c85beb234d4ac477bd5f2c114a6e5e2bc",
     "scripts/test-sparks-supabase-bridge.mjs": "49e2ecf28f69361abac281ff8d9e05a51657cf0369dad92f8360b1c1db46a997",
     "scripts/test-sparks-supabase-postgres.mjs": "9247af4c308afbc7f267809273af4de74b2184ca47d1c70e176ef796edb1a49c",
     "scripts/test-sparks-wallet-read-grant.mjs": "f9216bc5ee4a06ec05381c7320e862e545363fc291c76a9453d55391880ef589",
