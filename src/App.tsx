@@ -28,6 +28,7 @@ import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestam
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
+import { syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
 import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
 import { DailyCheckinLoginPrompt } from "./DailyCheckinQuest";
@@ -7229,10 +7230,30 @@ export default function App() {
       eventType: "password_changed",
     });
 
+    // Password change first persists through the existing QA backend. Once
+    // Sparks direct login is enabled, sync the existing Supabase identity using
+    // the old password; never create a new identity or block the QA change.
+    let sparksPasswordSyncConfirmed = true;
+    if ((savedCentrally || savedToProfileStore) &&
+        import.meta.env?.VITE_SPARKS_QA_PASSWORD_LOGIN === "1") {
+      try {
+        const synced=await syncSparksQaPasswordChange(
+          currentUser.username,currentPasswordInput,newPasswordInput
+        );
+        const linked=window.localStorage.getItem("qa:sparks:supabase-login:"+
+          currentUser.username.trim().toLowerCase())==="1";
+        sparksPasswordSyncConfirmed=synced||!linked;
+      } catch {
+        sparksPasswordSyncConfirmed=window.localStorage.getItem("qa:sparks:supabase-login:"+
+          currentUser.username.trim().toLowerCase())!=="1";
+      }
+    }
     setChangePasswordError("");
     setChangePasswordSuccess(
       savedCentrally || savedToProfileStore
-        ? "Password changed successfully"
+        ? sparksPasswordSyncConfirmed
+          ? "Password changed successfully"
+          : "Password changed in QA Dashboard; QA Sparks Supabase password synchronization is not confirmed"
         : "Password changed successfully on this browser only"
     );
     setCurrentPasswordInput("");
