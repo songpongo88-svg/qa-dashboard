@@ -33,6 +33,8 @@ assert.equal(r.snapshot.copied,true);
 assert.equal(r.snapshot.candidateVerified,true);
 assert.equal(r.snapshot.sourceDocuments,total);
 assert.equal(r.snapshot.datasetCount,11);
+assert.equal(r.snapshot.sourceEvaluations,563);
+assert.equal(r.snapshot.candidateEvaluations,563);
 assert.equal(r.failoverReady,false);
 assert.equal(r.canAcceptWrites,false);
 assert.deepEqual(r.remainingChecks,[
@@ -46,6 +48,7 @@ const savedManifest=batch.dataset_manifest;
 batch.dataset_manifest=savedManifest.slice(0,6);
 r=await qaStandbySnapshotReadiness(pool(),{now});
 assert.equal(r.snapshot.copied,false,'partial six-dataset snapshot cannot be verified');
+assert.equal(r.snapshot.sourceEvaluations,0);
 assert.ok(r.remainingChecks.includes('snapshot_copy_unverified'));
 batch.dataset_manifest=savedManifest;
 
