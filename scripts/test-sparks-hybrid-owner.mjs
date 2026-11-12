@@ -103,6 +103,18 @@ try {
   assert.ok(adminSource.includes('code:"QA_CREDENTIAL_OWNER_SESSION_INVALID"'),"Credentials transfer never skips owner QA session verification");
   assert.ok(migrationUi.includes('body.code==="QA_CREDENTIAL_FIRESTORE_LIMIT"'),"UI reports source quota without claiming rewards outage");
   assert.ok(migrationUi.includes('if(action==="qa-password-preflight")setAudit(null)'),"Failed checks never preserve stale ready counts");
+  const qaPasswordModule=readFileSync(new URL("../src/sparksQaPasswordLogin.ts",import.meta.url),"utf8");
+  const sparksLoginUi=readFileSync(new URL("../src/SparksEmailAuth.tsx",import.meta.url),"utf8");
+  const dashboardApp=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
+  assert.ok(qaPasswordModule.includes('qa-sparks-login.invalid'),"Synthetic username identities are reserved for QA Sparks");
+  assert.ok(qaPasswordModule.includes('expectedUsername'),"Supabase sessions are bound to the original QA username");
+  assert.ok(qaPasswordModule.includes('signInSparksWithQaPassword'),"QA direct login uses Supabase Auth password grant");
+  assert.ok(!qaPasswordModule.includes("localStorage"),"QA passwords and Supabase tokens are not stored in browser localStorage");
+  assert.ok(sparksLoginUi.includes('VITE_SPARKS_QA_PASSWORD_LOGIN'),"QA sign-in mode remains dark-launched until identities are migrated");
+  assert.ok(sparksLoginUi.includes('data-sparks-qa-password-login="true"'),"Independent QA username/password entry is prepared");
+  assert.ok(sparksLoginUi.includes('data-sparks-otp-in-place="true"'),"Existing OTP fallback is preserved");
+  assert.ok(dashboardApp.includes('syncSparksQaPasswordChange('),"Existing QA password changes can sync with Supabase");
+  assert.ok(dashboardApp.includes('VITE_SPARKS_QA_PASSWORD_LOGIN === "1"'),"Password sync remains disabled until cutover");
     console.log("PASS Sparks hybrid owner: verified Supabase wallet and Admin without Firebase, forged/mismatched accounts denied, other Dashboard users unchanged");
 }finally {
   globalThis.fetch=oldFetch;
