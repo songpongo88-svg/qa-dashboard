@@ -20,6 +20,8 @@ type StandbyStatus={
     snapshotCopied:boolean;
     candidatesVerified:boolean;
     documentCount:number;
+    sourceEvaluations:number;
+    candidateEvaluations:number;
     datasetCount:number;
     freshnessVerified:boolean;
     remainingChecks:string[];
@@ -123,6 +125,10 @@ export default function QaStandbySystemStatus(){
             คะแนนต้นฉบับ: {state.snapshotReadiness.candidatesVerified?'ตรวจแล้ว':'ยังไม่ผ่าน'} ·
             {state.snapshotReadiness.documentCount.toLocaleString('th-TH')} เอกสาร
             จาก {state.snapshotReadiness.datasetCount} กลุ่มข้อมูล
+          </p>
+          <p className="mt-1 text-xs text-slate-700">
+            ผลประเมินจาก Snapshot: {state.snapshotReadiness.sourceEvaluations.toLocaleString('th-TH')} เคส ·
+            ยืนยันคะแนนเดิม: {state.snapshotReadiness.candidateEvaluations.toLocaleString('th-TH')} เคส
           </p>
           <p className="mt-2 text-xs font-semibold text-amber-900">ส่วนที่ยังไม่ผ่านก่อนเปิดใช้งานจริง</p>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-xs leading-5 text-slate-700">
