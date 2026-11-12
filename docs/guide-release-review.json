@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T13:05:00.000Z",
-  "reason": "Reviewed QA Sparks direct entry: closed maintenance hero only displays for confirmed disabled access; valid Supabase cookie is verified server-side before deciding whether password form is necessary. No user guide content or reward rules changed.",
+  "reviewedAt": "2026-11-12T13:15:00.000Z",
+  "reason": "Reviewed direct QA Sparks entry and empty-user regression: skip authentication spinner when no logged-in QA username exists; authenticated users still require server verified Supabase session before access.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -633,7 +633,7 @@
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
     "src/qaSparks.css": "6828291f466e15396ff9f779f93009c58dc281799fd4a2f26cc794276adc7635",
-    "src/QASparks.tsx": "c35b2a79592294b6b1200ae01440fd5e0e3f41cb3f12c4059d45eec157fbf4cc",
+    "src/QASparks.tsx": "14cda802354be28b6e7ecd4d550639fafaa7eb5b77c11df7f298e72b0cf0afb3",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "3c87a5692cc5aa4c0d0afb6be54fc121c76317b673fc7e940159d4cba6378522",
