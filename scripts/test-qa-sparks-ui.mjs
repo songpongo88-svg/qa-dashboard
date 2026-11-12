@@ -135,6 +135,14 @@ try{
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
   assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,8, "Reward Center includes Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
+  assert.ok(main.querySelector(".qa-sparks-dual--reward-center"),"Overview Reward Center is full width");
+  assert.ok(main.querySelector(".qa-sparks-reward-tagline"),"Shop subtitle is present");
+  assert.match(css,/\.qa-sparks-dual\.qa-sparks-dual--reward-center\{grid-template-columns:minmax\(0,1fr\)\}/,
+    "History must not squeeze Reward Center into a half-width grid");
+  assert.match(css,/\.qa-sparks-reward-grid \.qa-sparks-mini-item\{width:100%/,
+    "all product cards including nested TrueMoney must share full width");
+  assert.doesNotMatch(css.slice(css.indexOf("/* Reward Center: unified premium product cards")),/\.qa-sparks-reward-grid>\.qa-sparks-mini-item/,
+    "product rules must include nested TrueMoney tile");
   assert.ok(main.querySelector('[data-reward-item="announcement-shield"]'),"Announcement Shield 50 Sparks subscription appears in Reward Center");
   for (const id of ["punthai-65","netflix-1m","amazon-55","seven-100"]) assert.ok(main.querySelector(`[data-reward-item="${id}"]`), "new reward "+id+" renders in the compact grid");
   const displayedOrder=[...main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item")]
