@@ -69,6 +69,7 @@ export default function QaAutoPassRewardCard({
       setLocal({owned:Number(result.owned??quantity),balance:Number(result.balance??sparks),
         freeClaimed:type==="auto-pass-claim-free"||claimed});
       setConfirmBuy(false);
+      window.dispatchEvent(new Event("qa:sparks-updated"));
       setSuccess(type==="auto-pass-claim-free"
         ?result.alreadyApplied?"บัญชีนี้รับฟรีครบ 5 สิทธิ์แล้ว":"รับฟรี 5 สิทธิ์เรียบร้อย! ดูจำนวนใน My Items ได้ทันที"
         :"ซื้อ QA Access Auto-Pass 1 สิทธิ์สำเร็จ");

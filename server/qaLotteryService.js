@@ -206,6 +206,7 @@ export function createQaLotteryService(db) {
           createdAt:when,type:"spend",source:"qa-lottery",title:"QA Lottery · ซื้อเลข",
           detail:"งวด "+date+" · เลข "+number,amount:-PRICE,balanceAfter:nextBalance,
           performedBy:actor.username,status:"Completed",drawDate:date,requestId,
+          rewardId:"qa-lottery-ticket",itemId:requestId,
         })
       ];
       if (!drawDoc) writes.push(createWrite(dp,{drawDate:date,createdAt:when,updatedAt:when}));
@@ -253,6 +254,17 @@ export function createQaLotteryService(db) {
           paidAt:now,prize:nonnegative(ticket.prize),matched:ticket.matched,status:"checked"};
         writes.push(doc?updateWrite(key,data,doc):createWrite(key,data));
       }
+      // A checked ticket that did not win is also a completed Item action.
+      // Keep it separate from prize ledger rows, never award or deduct Sparks.
+      for(const ticket of settled.filter(t=>t.paidAt===now && !t.amount)){
+        writes.push(createWrite(historyPath(username,"qa-lottery-checked-"+ticket.id),{
+          createdAt:now,type:"event",source:"qa-lottery",rewardId:"qa-lottery-ticket",
+          itemId:ticket.id,title:"QA Lottery · ไม่ถูกรางวัล",
+          detail:"ตรวจผลรางวัลทางการแล้ว · งวด "+date+" · เลข "+ticket.number,
+          amount:0,balanceAfter:nextBalance,drawDate:date,
+          performedBy:"system",status:"Checked"
+        }));
+      }
       if (total) {
         writes.push(updateWrite(wp,{username,balance:nextBalance,balanceYear:year,
           totalEarned:Math.max(nonnegative(wallet.totalEarned),nonnegative(wallet.firstLogin?.amount))+total,
@@ -264,7 +276,8 @@ export function createQaLotteryService(db) {
             createdAt:now,type:"earn",source:"qa-lottery",title:"QA Lottery · ถูกรางวัล",
             detail:"งวด "+date+" · เลข "+ticket.number+" · "+ticket.matched.join("+"),
             amount:ticket.amount,balanceAfter:runningBalance,drawDate:date,
-            officialDrawDate:result.date,requestId:ticket.id,status:"Completed"
+            officialDrawDate:result.date,requestId:ticket.id,
+            rewardId:"qa-lottery-ticket",itemId:ticket.id,status:"Completed"
           }));
         }
       }

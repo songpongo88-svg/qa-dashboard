@@ -51,7 +51,8 @@ export default function AnnouncementShieldItem({username,sessionId,balance,mode,
      else if(action==="activate")setNotice("เริ่มใช้งานแล้ว Pop-up ประกาศทั่วไปจะไม่เด้งขึ้นมา");
      else setNotice("ยกเลิกการต่ออายุแล้ว สิทธิ์คงอยู่จนถึงวันหมดอายุที่ชำระไว้");
      window.dispatchEvent(new Event("qa:announcement-shield-changed"));
-     if(action==="buy")window.dispatchEvent(new Event("qa:sparks-updated"));
+     // Refresh one confirmed action only; no polling or extra idle Firestore reads.
+     window.dispatchEvent(new Event("qa:sparks-updated"));
    }catch(e){setError(e instanceof Error?e.message:"ทำรายการไม่สำเร็จ");}
    finally{setBusy(false);}
  };

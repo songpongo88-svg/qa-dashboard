@@ -1,3 +1,4 @@
+import {appendKnownItemExpirations} from "../src/sparksItemHistory.mjs";
 import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createFruitMatchService } from "../server/fruitMatchService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
@@ -1067,14 +1068,17 @@ function toHistory(doc) {
   return {
     id: decodeURIComponent(String(doc.name || "").split("/").pop() || ""),
     createdAt: String(row.createdAt || ""),
-    type: originalAmount < 0 ? "spend" : "earn",
+    type: originalAmount < 0 ? "spend" : originalAmount > 0 ? "earn" : "event",
     title: String(row.title || ""),
     detail: voided ? "รายการทดลองถูกยกเลิก (เดิม " + (originalAmount > 0 ? "+" : "") + originalAmount.toLocaleString("en-US") + " Sparks)" : String(row.detail || ""),
     source: String(row.source || ""),
+    rewardId:String(row.rewardId||""),itemId:String(row.itemId||""),
+    quantity:row.quantity,inventoryAfter:row.inventoryAfter,challengeId:row.challengeId,
+    originalWords:row.originalWords,remainingWords:row.remainingWords,drawDate:row.drawDate,
     amount: voided ? 0 : originalAmount,
     voided,
     originalAmount,
-    balanceAfter: balance(row.balanceAfter),
+    balanceAfter: row.balanceAfter===null||row.balanceAfter===undefined?null:balance(row.balanceAfter),
     performedBy: String(row.performedBy || ""),
     reason: String(row.reason || ""),
     referenceId: String(row.referenceId || ""),
@@ -1143,7 +1147,8 @@ async function loadUserHistory(username) {
     readDoc(path("qa_sparks_wallets", id)),
     listCollection(path("qa_sparks_wallets", id, "history")),
   ]);
-  const history = rows.documents.map(toHistory).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const history = appendKnownItemExpirations(rows.documents.map(toHistory),recordValue(walletDoc))
+    .sort((a,b) => b.createdAt.localeCompare(a.createdAt));
   const refunded = new Set(history.filter((x) => x.source === "reward-refund").map((x) => x.referenceId));
   const enriched = history.map((entry) => entry.source === "reward-redemption" && refunded.has(entry.id)
     ? { ...entry, status: "Refunded" } : entry);

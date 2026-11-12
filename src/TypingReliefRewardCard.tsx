@@ -167,6 +167,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
       const result = await typingReliefAction("redeem-typing-relief", username, sessionId, { requestId: purchaseRequestId.current, expectedPrice: latestPrice });
       purchaseRequestId.current = "";
       setLatest({ balance: result.balance, owned: result.owned });
+      window.dispatchEvent(new Event("qa:sparks-updated"));
       setConfirm(false);
       setNotice(result.alreadyApplied ? "รายการนี้เคยแลกแล้ว และสิทธิ์ถูกบันทึกไว้ในบัญชีแล้ว" : "แลกสำเร็จ! Typing Relief ถูกเก็บในบัญชี พร้อมใช้กับภารกิจ QA Access");
     } catch (reason) {
