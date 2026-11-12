@@ -1,4 +1,5 @@
 import StickyNotePopup from "./StickyNotePopup";
+import "./evaluationFormLayout.css";
 import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ClipboardEvent as ReactClipboardEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -57,7 +58,7 @@ import {
 import {
   RichTextContent,
   RichTextEditor,
-  RichTextToolbar,
+  InlineRichTextEditors,
   hasRichTextContent,
   richTextToPlainText,
   richTextImages,
@@ -1023,6 +1024,7 @@ export default function CreateEvaluationMockup({
   onSubmitEvaluation?: (payload: EvaluationSubmitPayload) => void | Promise<void>;
 }) {
   const stickyNoteOwner = currentUser?.username || currentUser?.email || "anonymous";
+  const [evaluationSection, setEvaluationSection] = useState<"case" | "rubric" | "summary">("case");
   const [agentName, setAgentName] = useState(() => readEvaluateTabMemory()?.agentName || "");
   const [auditDate, setAuditDate] = useState(() => readEvaluateTabMemory()?.auditDate || todayInputValue());
   const [waitingTime, setWaitingTime] = useState(() => readEvaluateTabMemory()?.waitingTime || "");
@@ -3503,11 +3505,20 @@ export default function CreateEvaluationMockup({
         ) : null}
 
         {workspaceView === "form" ? (
-        <>
-        <RichTextToolbar className="sticky top-3 z-30 mb-6" />
+        <InlineRichTextEditors>
+        <div className="qa-evaluation-form">
+          <nav className="qa-evaluation-sections mb-5 flex flex-wrap gap-2" aria-label="ส่วนของฟอร์มประเมิน">
+            {([["case", "1. ข้อมูลเคส"], ["rubric", "2. ประเมินตามเกณฑ์"], ["summary", "3. สรุปผล"]] as const).map(([section, title]) => (
+              <button key={section} type="button" aria-pressed={evaluationSection === section}
+                aria-controls={"qa-evaluation-" + section} onClick={() => setEvaluationSection(section)}
+                className={`rounded-xl border px-4 py-3 text-sm font-black transition ${evaluationSection === section ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                {title}
+              </button>
+            ))}
+          </nav>
         {isTestCase ? <div className="mb-4"><TestCaseNotice /></div> : null}
-        <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)_360px]">
-          <div className="space-y-6">
+        <div className="qa-evaluation-layout" data-active-section={evaluationSection}>
+          <div id="qa-evaluation-case" className="qa-evaluation-case space-y-6" hidden={evaluationSection !== "case"}>
             <SectionCard
               label="Section A"
               title="Case Information"
@@ -4082,7 +4093,7 @@ export default function CreateEvaluationMockup({
             ) : null}
           </div>
 
-          <div className="space-y-5">
+          <div id="qa-evaluation-rubric" className="qa-evaluation-rubric space-y-5" hidden={evaluationSection !== "rubric"}>
             {noCaseForMonth ? (
               <SectionCard label="Section C" title="Monthly Zero-Case Result">
                 <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-6">
@@ -4139,7 +4150,7 @@ export default function CreateEvaluationMockup({
 
                       {open ? (
                         <div className="bg-[#f8fbf8] p-4">
-                          <div className="hidden rounded-t-xl border border-emerald-300 bg-[#217346] px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] text-white lg:grid lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px]">
+                          <div className="qa-evaluation-rubric-heading hidden rounded-t-xl border border-emerald-300 bg-[#217346] px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] text-white lg:grid lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px]">
                             <div>Topic</div>
                             <div>Description</div>
                             <div>Score</div>
@@ -4158,7 +4169,7 @@ export default function CreateEvaluationMockup({
                               );
                               return (
                                 <div key={topic.code} className={`border-b border-emerald-100 px-4 py-4 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-emerald-50/35"}`}>
-                                  <div className="grid gap-3 lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px] lg:items-start">
+                                  <div className="qa-evaluation-topic-row grid gap-3 lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px] lg:items-start">
                                     <div>
                                       <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Topic</div>
                                       <div className="mt-1 inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-black text-emerald-800 lg:mt-0">{topic.code}</div>
@@ -4330,7 +4341,7 @@ export default function CreateEvaluationMockup({
             )}
           </div>
 
-          <div className="space-y-6 xl:sticky xl:top-4 xl:self-start">
+          <div id="qa-evaluation-summary" className="qa-evaluation-summary space-y-6">
             <div className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white shadow-[0_20px_48px_rgba(15,118,110,0.14)]">
               <div className="bg-gradient-to-br from-emerald-800 via-emerald-700 to-sky-700 px-6 py-6 text-white">
                 <div className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100">Live Score</div>
@@ -4416,12 +4427,23 @@ export default function CreateEvaluationMockup({
             </div>
           </div>
         </div>
-        </>
+          <div className="qa-evaluation-navigation mt-6 flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-4">
+            <button type="button" onClick={() => setEvaluationSection(evaluationSection === "summary" ? "rubric" : "case")}
+              disabled={evaluationSection === "case"}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 disabled:opacity-40">ย้อนกลับ</button>
+            {evaluationSection !== "summary" ? <button type="button" onClick={() => setEvaluationSection(evaluationSection === "case" ? "rubric" : "summary")}
+              className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-900">
+              {evaluationSection === "case" ? "ต่อไป: ประเมินตามเกณฑ์ →" : "ต่อไป: สรุปผล →"}
+            </button> : null}
+          </div>
+        </div>
+        </InlineRichTextEditors>
         ) : null}
       </div>
       {workspaceView === "form" ? <StickyNotePopup owner={stickyNoteOwner}>
               <div className="space-y-3">
                 <RichTextEditor
+                  inlineToolbar
                   value={stickyNote}
                   onChange={(nextNote) => {
                     stickyNoteDirtyRef.current = true;

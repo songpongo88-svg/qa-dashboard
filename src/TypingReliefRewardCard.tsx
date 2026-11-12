@@ -184,15 +184,17 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
       aria-label={mode === "inventory" ? "เปิดรายละเอียด Typing Relief ที่มี " + effectiveOwned + " สิทธิ์" : "ดูรายละเอียดของรางวัล Typing Relief ราคา " + price + " QA Sparks"} aria-haspopup="dialog"
       aria-expanded={detailOpen} onClick={openDetails}>
       <span className="qa-sparks-mini-art qa-sparks-mini-art--typing">
-        <TypingReliefArt/>
+        {mode === "reward" && pricing.promoActive ? <span className="qa-sparks-offer-art qa-sparks-offer-art--typing" role="img" aria-label="Typing Relief คีย์บอร์ดสีม่วง ลดราคา 70%"/> : <TypingReliefArt/>}
         {mode === "inventory" ? <span className="qa-sparks-mini-quantity">×{effectiveOwned}</span> : null}
-        {mode === "reward" && pricing.promoActive ? <span className="qa-sparks-shop-badge qa-sparks-shop-badge--sale">ลด 70%</span> : null}
+
       </span>
+      {mode === "reward" && pricing.promoActive ? <span className="sr-only">ลด 70%</span> : null}
       <strong className="qa-sparks-mini-name">Typing Relief</strong>
       <span className="qa-sparks-mini-value">{mode === "inventory" ? effectiveOwned + " สิทธิ์" :
         <span className="qa-sparks-shop-price">
           {pricing.promoActive ? <s>{pricing.regularPrice} Sparks</s> : null}
           <strong>{price} Sparks</strong>
+          {pricing.promoActive ? <small>ส่วนลดซื้อใหม่ 70%</small> : null}
         </span>}</span>
     </button>
 

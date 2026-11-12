@@ -199,8 +199,8 @@ try{
   assert.ok(item.querySelector(".qa-sparks-mini-art"), "Typing Relief has a dedicated mini artwork square");
   assert.ok(!item.textContent.includes("วิธีใช้งาน") && !item.textContent.includes("เงื่อนไขสำคัญ"), "full explanations must not be displayed on the Item");
   assert.ok(!main.textContent.includes("สะสมได้ 10 สิทธิ์"), "inventory rules must live inside the modal, not the Item");
-  const art = item.querySelector(".qa-relief-art-svg");
-  assert.ok(art && art.querySelectorAll("rect").length > 10, "real illustrated keyboard-and-ticket Artwork is required");
+  const art = item.querySelector(typingPrice.promoActive ? ".qa-sparks-offer-art--typing" : ".qa-relief-art-svg");
+  assert.ok(art, "the Item uses the approved promotional keyboard artwork or its regular artwork after the offer ends");
 
   await act(async () => item.dispatchEvent(new MouseEvent("click", {bubbles:true})));
   let detail = document.querySelector(".qa-sparks-reward-detail-modal");
@@ -224,7 +224,7 @@ try{
   assert.ok(detail.textContent.includes("60%"), "Typing Relief must state a percentage, not a fixed 60 words");
   assert.ok(detail.textContent.includes("40"), "remaining words are shown in the 100-to-40 product benefit");
   assert.ok(!detail.textContent.includes("ลดได้สูงสุด 60 คำ"), "the old fixed-word claim must not appear");
-  assert.ok(art.textContent.includes("%"), "the reward artwork must show a percent sign");
+  assert.ok((art.textContent + (art.getAttribute("aria-label") || "")).includes("%"), "the reward artwork must show a percent sign");
   assert.ok(detail.querySelector(".qa-sparks-reward-detail-primary:disabled"), "buy stays disabled unless wallet and session are verified");
   await act(async () => detail.querySelector(".qa-sparks-reward-detail-close").dispatchEvent(new MouseEvent("click", {bubbles:true})));
   assert.equal(document.querySelector(".qa-sparks-reward-detail-modal"), null, "detail modal closes without any purchase");

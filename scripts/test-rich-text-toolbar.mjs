@@ -158,6 +158,25 @@ try {
   click('— เส้นคั่น');
   assert.match(values.reason, /<hr>/);
   console.log('PASS: empty tables and dividers remain saved and reload into the editor');
+  act(() => root.render(h(React.Fragment, null,
+    ...['one', 'two'].map(key => h(RichTextEditor, {
+      key, value: 'editable text', editorLabel: key, placeholder: key,
+      inlineToolbar: true, onChange() {},
+    }))
+  )));
+  const localBold = key => editor(key).parentElement.querySelector('button[aria-label="ตัวหนา"]');
+  select('one', 0, 4);
+  assert.ok(!localBold('one').disabled);
+  assert.ok(localBold('two').disabled, 'an inactive editor toolbar cannot format another field');
+  act(() => localBold('one').click());
+  assert.equal(calls.at(-1).editor, 'one');
+  select('two', 0, 4);
+  assert.ok(localBold('one').disabled);
+  assert.ok(!localBold('two').disabled);
+  act(() => localBold('two').click());
+  assert.equal(calls.at(-1).editor, 'two');
+  console.log('PASS: inline toolbars format only their own editor and preserve field selection');
+
 } finally {
   act(() => root.unmount());
   dom.window.close();

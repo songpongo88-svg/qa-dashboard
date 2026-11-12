@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, type SparksAccount } from "./qaSparksStore";
 import "./qaSparks.css";
+import "./qaSparksProductCards.css";
 import SparksHistory from "./SparksHistory";
 import FirstLoginSparksModal from "./FirstLoginSparksModal";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";

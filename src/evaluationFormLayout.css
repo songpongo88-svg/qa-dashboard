@@ -1,0 +1,16 @@
+/* Geometry only: keep the existing Evaluation and active-theme colors. */
+.qa-evaluation-form{min-width:0;container:qa-evaluation / inline-size}
+.qa-evaluation-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
+.qa-evaluation-layout>div{min-width:0;max-width:100%}
+.qa-evaluation-summary{position:static;min-width:0}
+.qa-evaluation-rubric{container:qa-evaluation-rubric / inline-size}
+.qa-evaluation-form input:not([type=checkbox]):not([type=radio]),.qa-evaluation-form select,.qa-evaluation-form textarea{min-width:0;max-width:100%;font-size:16px}
+.qa-evaluation-form [data-rich-text-editor]{font-size:16px;line-height:1.8;overflow-wrap:anywhere;overflow-y:visible;min-width:0}
+.qa-evaluation-form [data-rich-text-editor] table{table-layout:fixed}
+.qa-evaluation-form [data-rich-text-editor] td,.qa-evaluation-form [data-rich-text-editor] th{min-width:0;overflow-wrap:anywhere}
+.qa-evaluation-form [data-rich-text-toolbar]{position:static;max-width:100%;z-index:auto}
+.qa-evaluation-form .qa-evaluation-sections button{flex:1;min-width:0;overflow-wrap:anywhere}
+.qa-evaluation-form .qa-evaluation-navigation button{max-width:100%;overflow-wrap:anywhere}
+@container qa-evaluation (min-width:1200px){.qa-evaluation-layout{grid-template-columns:minmax(0,1fr) 300px}.qa-evaluation-summary{position:sticky;top:16px;align-self:start}.qa-evaluation-layout[data-active-section=summary]{grid-template-columns:minmax(0,1fr)}.qa-evaluation-layout[data-active-section=summary] .qa-evaluation-summary{position:static;max-width:900px;width:100%;justify-self:center}}
+@container qa-evaluation-rubric (max-width:780px){.qa-evaluation-rubric-heading{display:none!important}.qa-evaluation-topic-row{grid-template-columns:minmax(0,1fr)!important;align-items:start}.qa-evaluation-topic-row .lg\:hidden{display:block}}
+@container qa-evaluation (max-width:520px){.qa-evaluation-form .qa-evaluation-sections button{padding:10px 8px;font-size:13px}.qa-evaluation-form .grid.grid-cols-2{grid-template-columns:minmax(0,1fr)}.qa-evaluation-layout{gap:18px}}

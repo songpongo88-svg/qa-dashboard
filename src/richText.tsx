@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export type RichTextRun = {
@@ -406,7 +406,13 @@ function tableHtml(rows: number, columns: number) {
   return `<table><tbody>${body}</tbody></table><div><br></div>`;
 }
 
-export function RichTextToolbar({ className = "" }: { className?: string }) {
+const InlineToolbarContext = createContext(false);
+
+export function InlineRichTextEditors({ children }: { children: ReactNode }) {
+  return <InlineToolbarContext.Provider value={true}>{children}</InlineToolbarContext.Provider>;
+}
+
+export function RichTextToolbar({ className = "", editorId, compact = false }: { className?: string; editorId?: string; compact?: boolean }) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [target, setTarget] = useState<RichTextEditorTarget | null>(activeEditorTarget);
   const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[0]);
@@ -414,7 +420,7 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
 
   useEffect(() => {
     const listener = (nextTarget: RichTextEditorTarget | null) => {
-      setTarget(nextTarget);
+      setTarget(nextTarget && (!editorId || nextTarget.element.id === editorId) ? nextTarget : null);
       setTableMenuOpen(false);
     };
     activeEditorListeners.add(listener);
@@ -430,9 +436,9 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
       activeEditorListeners.delete(listener);
       document.removeEventListener("focusin", clearPlainTextTarget);
     };
-  }, []);
+  }, [editorId]);
 
-  const disabled = !target;
+  const disabled = !target || Boolean(editorId && target.element.id !== editorId);
   const buttonClass = "flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
 
   const commandButton = (label: string, title: string, command: "bold" | "italic" | "underline" | "removeFormat", extraClass = "") => (
@@ -449,8 +455,8 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
   );
 
   return (
-    <div ref={toolbarRef} data-rich-text-toolbar="true" onMouseDown={(event) => { if (event.button === 0) event.preventDefault(); }} className={`rounded-[22px] border border-violet-200 bg-white shadow-[0_14px_38px_rgba(76,29,149,0.12)] ${className}`}>
-      <div className="flex flex-col gap-2 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div ref={toolbarRef} data-rich-text-toolbar="true" onMouseDown={(event) => { if (event.button === 0) event.preventDefault(); }} className={`${compact ? "border-b border-slate-200 bg-white" : "rounded-[22px] border border-violet-200 bg-white shadow-[0_14px_38px_rgba(76,29,149,0.12)]"} ${className}`}>
+      {!compact ? <div className="flex flex-col gap-2 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">เครื่องมือแก้ไขข้อความ</div>
           <div className="mt-0.5 text-xs font-semibold text-slate-500">เลือกข้อความใน Assessment Reason, Case Description หรือ Sticky Note แล้วใช้เครื่องมือได้ทันที</div>
@@ -458,9 +464,9 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
         <div className={`w-fit rounded-full border px-3 py-1.5 text-xs font-black ${target ? "border-violet-200 bg-violet-100 text-violet-800" : "border-slate-200 bg-slate-100 text-slate-500"}`}>
           {target ? `กำลังใช้กับ: ${target.label}` : "ยังไม่ได้เลือกช่องข้อความ"}
         </div>
-      </div>
+      </div> : null}
 
-      <div className="flex flex-wrap items-center gap-1.5 px-3 py-3">
+      <div className={`flex flex-wrap items-center gap-1.5 ${compact ? "px-2 py-2" : "px-3 py-3"}`}>
         {commandButton("B", "ตัวหนา", "bold")}
         {commandButton("I", "ตัวเอียง", "italic", "italic")}
         {commandButton("U", "ขีดเส้นใต้", "underline", "underline")}
@@ -511,7 +517,7 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
       {tableMenuOpen && target ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-violet-100 bg-violet-50/60 px-4 py-3">
           <span className="text-xs font-bold text-slate-500">เลือกขนาดตาราง:</span>
-          {[[2, 2], [3, 3], [4, 4]].map(([rows, columns]) => (
+          {[[1, 1], [2, 2], [3, 3], [4, 4]].map(([rows, columns]) => (
             <button
               key={`${rows}-${columns}`}
               type="button"
@@ -564,6 +570,7 @@ export function RichTextEditor({
   onImagePaste,
   onImageBusyChange,
   imageCaseId = "",
+  inlineToolbar = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -575,7 +582,10 @@ export function RichTextEditor({
   onImagePaste?: (file: File) => Promise<RichTextImage>;
   onImageBusyChange?: (busy: boolean) => void;
   imageCaseId?: string;
+  inlineToolbar?: boolean;
 }) {
+  const scopedInlineToolbar = useContext(InlineToolbarContext) || inlineToolbar;
+  const editorId = useId();
   const editorRef = useRef<HTMLDivElement>(null);
   const selectionRef = useRef<Range | null>(null);
   const onChangeRef = useRef(onChange);
@@ -726,7 +736,9 @@ export function RichTextEditor({
 
   return (
     <div className={`mt-2 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-inner transition focus-within:ring-4 ${ringClass}`}>
+      {scopedInlineToolbar ? <RichTextToolbar editorId={editorId} compact /> : null}
       <div
+        id={editorId}
         ref={editorRef}
         contentEditable={!imageBusy}
         aria-busy={imageBusy}
