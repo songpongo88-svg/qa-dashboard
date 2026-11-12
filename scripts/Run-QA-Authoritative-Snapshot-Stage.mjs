@@ -33,6 +33,18 @@ export async function runQaLiveSnapshotStage({
     const db=await pool.query('SELECT current_database() AS db');
     if(db.rows?.[0]?.db!=='qa_dashboard_lab')
       throw new Error('unexpected_database_no_migration');
+    // IMPORTANT: verify the destination can actually accept the additive
+    // snapshot tables BEFORE consuming any Firestore reads. The existing QA
+    // bridge role is intentionally read-only and must never be upgraded.
+    const permission=(await pool.query(
+      "SELECT pg_is_in_recovery() AS recovering,"+
+      " current_setting('transaction_read_only') AS transaction_ro,"+
+      " has_schema_privilege(current_user,'qa_failover_v1','CREATE') AS can_create"
+    )).rows?.[0];
+    if(permission?.recovering===true||permission?.transaction_ro!=='off')
+      throw new Error('postgres_import_connection_read_only');
+    if(permission?.can_create!==true)
+      throw new Error('postgres_import_create_permission_missing');
     // Capture and verify the complete pinned Firestore source BEFORE any local
     // schema modification. Quota/auth/network failure must leave PostgreSQL
     // unchanged, including its additive stage tables.
@@ -72,7 +84,8 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
     const known=new Set([
       'explicit_stage_only_opt_in_required','only_existing_local_qa_dashboard_lab_allowed',
       'firestore_project_id_not_configured','server_firebase_oauth_not_configured',
-      'unexpected_database_no_migration','firestore_quota_or_permission_blocked',
+      'unexpected_database_no_migration','postgres_import_connection_read_only',
+      'postgres_import_create_permission_missing','firestore_quota_or_permission_blocked',
       'firestore_source_unreachable','firestore_source_unverified',
       'firestore_invalid_source_page','source_manifest_mismatch',
     ]);
