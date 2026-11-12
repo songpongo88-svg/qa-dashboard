@@ -1,4 +1,6 @@
 import { createSign, randomUUID } from "node:crypto";
+import { auditQaCredentialSource } from "./sparksQaCredentialPreflight.js";
+import { getMigratedQaAuthUsernames, migrateQaPasswordsFromTrustedSource } from "./sparksQaMigrationRunner.js";
 
 const PROJECT = "qa-dashboard-b0b5d";
 const ROOT = "https://firestore.googleapis.com/v1/projects/" + PROJECT + "/databases/(default)/documents/qa_user_profiles";
@@ -72,7 +74,7 @@ async function googleToken(source,fetcher=fetch) {
   if(!data?.access_token)throw fail("FIREBASE_TOKEN_MISSING",503);
   return String(data.access_token);
 }
-export async function getCompleteSparksProfiles({ serviceAccount,fetcher=fetch }={}) {
+export async function getCompleteSparksProfiles({ serviceAccount,fetcher=fetch,credentialSink=null }={}) {
   if(!serviceAccount)throw fail("FIREBASE_CREDENTIALS_MISSING",503);
   const token=await googleToken(serviceAccount,fetcher);
   const profiles=[];
@@ -81,14 +83,25 @@ export async function getCompleteSparksProfiles({ serviceAccount,fetcher=fetch }
   for(let page=0;page<4;page++){
     const url=new URL(ROOT);url.searchParams.set("pageSize","100");
     if(pageToken)url.searchParams.set("pageToken",pageToken);
-    for(const field of PROFILE_FIELDS)url.searchParams.append("mask.fieldPaths",field);
+    for(const field of [...PROFILE_FIELDS,...(typeof credentialSink==="function"?["password","passwordExpiresAt","accessExpiresAt"]:[])])url.searchParams.append("mask.fieldPaths",field);
     const response=await fetcher(url.toString(),{
       headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(12000),cache:"no-store",
     });
     if(!response.ok)throw fail(response.status===429?"FIREBASE_QUOTA_EXCEEDED":"FIREBASE_PROFILE_READ_FAILED",503);
     const data=await response.json();
     if(!Array.isArray(data.documents))throw fail("FIREBASE_PARTIAL_SOURCE_RESPONSE",503);
-    for(const doc of data.documents)profiles.push(safeProfile(doc));
+    for(const doc of data.documents){
+      const sanitized=safeProfile(doc);
+      profiles.push(sanitized);
+      if(typeof credentialSink==="function"){
+        const fields=doc?.fields||{};
+        credentialSink({
+          ...sanitized.profile,
+          password:textField(fields,"password"),
+          passwordExpiresAt:textField(fields,"passwordExpiresAt")||textField(fields,"accessExpiresAt"),
+        });
+      }
+    }
     if(profiles.length>MAX_PROFILES)throw fail("FIREBASE_SOURCE_TOO_LARGE",503);
     const next=String(data.nextPageToken||"");
     if(!next){pageToken="";break;}
@@ -133,12 +146,45 @@ export async function runSparksProfileReconciliation({env=process.env,fetcher=fe
   // leave the source untouched rather than consuming Firebase quota.
   await send({action:"report",event:"start",runId});
   try{
-    const profiles=await getCompleteSparksProfiles({serviceAccount,fetcher});
+    const credentialsEnabled=env.SPARKS_QA_CREDENTIAL_IMPORT_ENABLED==="1";
+    // Credentials are held only in this restricted server invocation and never
+    // passed to the public roster reconciliation payload.
+    const credentialProfiles=[];
+    const profiles=await getCompleteSparksProfiles({serviceAccount,fetcher,
+      credentialSink:credentialsEnabled?row=>credentialProfiles.push(row):null});
     const result=await send({action:"reconcile",runId,profiles});
     if(result.sourceCount!==profiles.length)
       throw fail("SUPABASE_PROFILE_RECONCILIATION_UNVERIFIED",503);
+    let credentialImport;
+    if(credentialsEnabled){
+      try{
+        const url=String(env.SPARKS_SUPABASE_AUTH_URL||"");
+        const existing=await getMigratedQaAuthUsernames({token:secret,url,transport:fetcher});
+        const audit=auditQaCredentialSource(credentialProfiles,{minActive:21});
+        if(audit.blocked.length || !audit.canStartStagedMigration)
+          throw fail("QA_CREDENTIAL_SOURCE_BLOCKED",409);
+        const already=new Set(existing);
+        const missing=credentialProfiles.filter(row=>
+          String(row.status).toLowerCase()==="active" && typeof row.password==="string" &&
+          row.password.length>=6 && row.password.length<=128 && !already.has(String(row.username).trim().toLowerCase()))
+          .map(row=>String(row.username).trim().toLowerCase());
+        const outcome=await migrateQaPasswordsFromTrustedSource(credentialProfiles,{
+          token:secret,url,transport:fetcher,onlyUsernames:missing,
+        });
+        credentialImport={ok:outcome.ok,code:outcome.code,
+          submitted:outcome.submitted||0,created:outcome.created||0,updated:outcome.updated||0,
+          pending:audit.pending.length,failed:outcome.failed?.length||0};
+      }catch(error){
+        // Never emit actual credentials or source user data to cron logs.
+        const code=String(error?.code||"QA_CREDENTIAL_IMPORT_UNAVAILABLE")
+          .replace(/[^A-Z0-9_]/g,"_").slice(0,80);
+        console.error("qa_sparks_credential_import_failed",code);
+        credentialImport={ok:false,code};
+      }
+    }
     return {ok:true,sourceCount:profiles.length,reviewedCount:Number(result.reviewedCount)||0,
-      blockedCount:Number(result.blockedCount)||0};
+      blockedCount:Number(result.blockedCount)||0,
+      ...(credentialImport?{credentialImport}:{} )};
   }catch(error){
     // Fail closed, preserve the last valid roster and record only safe error codes.
     const safeCode=String(error?.code||"SPARKS_PROFILE_SYNC_UNAVAILABLE")
