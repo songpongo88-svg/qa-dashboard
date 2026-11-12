@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T03:16:20.116Z",
-  "reason": "QA Sparks independent sign-in readiness, disabled by default: add existing QA username/password Supabase Auth flow behind VITE_SPARKS_QA_PASSWORD_LOGIN=1, preserve current OTP and Hybrid QA Dashboard fallback, stage QA password-change synchronization only when enabled, no login cutover or access before identity import. No QA scoring, appeal, coaching, wallet, Item, History, T&C or user guide text changed.",
+  "reviewedAt": "2026-11-12T03:44:48.347Z",
+  "reason": "Reviewed temporary QA-only Firestore read-budget change: Dashboard revision checks every 15 minutes without full reload on baseline, null or quota failure; Coaching background checks every 20 minutes with unchanged fail-closed permissions; no user guide instructions, QA scoring, appeal, signature, Sparks, or T&C content changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -346,7 +346,7 @@
     "scripts/test-dashboard-cache.mjs": "95fbd6ac26123c89fa7fb234aae1818e9c9d0529000b5f795e5b9d17fb848a23",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-pending-appeal.mjs": "bb22db43bcbbeb5965c8b36643d4ac59bc2c00b94689aa912134414f5d479c91",
-    "scripts/test-dashboard-refresh.mjs": "9f4cd095833e55013e69b1fcf04fe86fae6e555b40efc01757eefb791c236c19",
+    "scripts/test-dashboard-refresh.mjs": "f65befa7ace6c1da76126ba0010bf26caf310bc2e092fc0caf304d348e19c99e",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deleted-case-appeal.mjs": "efbcbb15fe2e23384a8d01af056a6d36767577f7014fbf5a014c795aacf99b40",
     "scripts/test-deploy-theme-data.mjs": "049014119d94d2d277eb641e436b00842817c8cfe6a6f51ccf2e1d94bd7cadc0",
@@ -448,7 +448,7 @@
     "src/AnnouncementShieldItem.tsx": "370c1f54c517bbd31178babeb678d2691b0996dd0e0d933c6718cfff03cccaf4",
     "src/announcementStore.ts": "d1e36a47931a337e5e041511d97c75fec14228e56815770091daee546b6d80e6",
     "src/announcementTicker.css": "a50df53eca311d493d8c4214748e77dc3f2d094ff5f798334b34921069af55e8",
-    "src/App.tsx": "9da762238ea2a16630cc24c893aabc798c3b1e6c1df77a623a9e4cb558cf30e8",
+    "src/App.tsx": "ba4cb3d7f3890680bd1e9bd11382cc3bbe40976cbdaff99ca0ec093972834161",
     "src/appealActionHistory.ts": "58bb0ab1b18eba2a26d2b2a7c601fc6ff2256770dd7890a4fdcba42d3684b864",
     "src/appealActionPdfHtml.ts": "08e44105d875c45b6048f7494f9cef1ba6c568a68c9e7e0481c7587931724e4f",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
@@ -712,7 +712,7 @@
     "src/usageLog.ts": "14c9b5807a96472a230902476c1e55345765b47d3a90bb110672b784f6b108c6",
     "src/UsageLogMockup.tsx": "7c26f15c9b9db69e1f6037bebde934ba3c490db98d8ba6071362bc91a9d89e0b",
     "src/useCoachingProfilePhotos.ts": "fbd6a8ba338bf6a03b31e2bf9a7ca3d7414018dbf8224a71577b17f145b9afb6",
-    "src/useDashboardAutoRefresh.ts": "b56a57e9e9bce537aeabbf20e4cf1a688ce63300ce15f9e060656c0d6e8cbf22",
+    "src/useDashboardAutoRefresh.ts": "3913d385af69cdc3ca505b56c9b9583bf480e18362b6989ac417277620805a0f",
     "src/useDeletedEvaluationRecovery.ts": "fb595380c3d0907e47f0ca5b7963f4b595d64e0ceaf8f9fcbef2021199872a3f",
     "src/useMonthlyResultLock.ts": "015030ecb7f63918925cf6d26265812806eb3a987113883c0583768c250e69df",
     "src/usernamePolicyMigrationStore.ts": "4b25fe45aa4c758169b579b8aaebe1cb5106589540f953f09284426ccfa05d04",
@@ -751,6 +751,7 @@
     "scripts/test-sparks-qa-credential-preflight.mjs": "c877279aa3d838b3c77fb711063a926997140e6abba3d5e74532e9d33be6f78b",
     "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015",
     ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c",
-    "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b"
+    "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
+    ".github/workflows/qa-firestore-read-budget.yml": "554474834bb6749e341e2222c5f4e2692c9a16e4fc6cfbe9370676415b63a557"
   }
 }
