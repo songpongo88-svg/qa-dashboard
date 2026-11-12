@@ -1,11 +1,14 @@
 // QA-only trusted snapshot transformation. NEVER silently recalculate scores.
-// Used only after Firestore's six-dataset authoritative export is verified.
+// Used only after Firestore's eleven-dataset authoritative export is verified.
 // The original typed Firestore document stays available in live_snapshot_rows.
 const fail=code=>Object.assign(new Error(code),{code});
 const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const text=v=>typeof v==='string'?v:'';
 const array=v=>Array.isArray(v)?v:[];
-const safeId=/^[A-Za-z0-9_.:@-]{1,180}$/;
+// Firestore allows Unicode IDs; the verified snapshot importer already accepts
+// up to 900 characters. Preserve originals without renaming any evaluation.
+const safeId=id=>typeof id==='string'&&id.length>0&&id.length<=900&&
+  !id.includes('/')&&!/[\x00-\x1f\x7f]/.test(id);
 const month=/^\d{4}-(0[1-9]|1[0-2])$/;
 const sha=/^[0-9a-f]{64}$/;
 
@@ -84,7 +87,7 @@ function requiredScore(row){
   return v;
 }
 export function normalizeQaFirestoreEvaluation(docId,snapshot,sourceHash){
-  if(!safeId.test(docId||'')||!sha.test(sourceHash||''))
+  if(!safeId(docId)||!sha.test(sourceHash||''))
     throw fail('evaluation_identity_invalid');
   const original=decodeQaFirestoreSnapshotDocument(snapshot);
   if(original.id!==undefined&&original.id!==docId)
