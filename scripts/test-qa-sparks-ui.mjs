@@ -166,6 +166,9 @@ try{
   assert.ok(autoPassItem&&autoPassItem.textContent.includes("ฟรี 5 สิทธิ์"),
     "new QA Access Auto-Pass must show one-click five-unit free offer during promo");
   assert.equal(autoPassItem.classList.contains("qa-sparks-mini-item"),true);
+  assert.ok(autoPassItem.textContent.includes("800 Sparks"),"QA Access 5 free rights are worth 800 Sparks");
+  assert.ok(!autoPassItem.textContent.includes("รับฟรีแล้ว"),"redeemed status must appear inside item details only");
+  assert.ok(autoPassItem.querySelector(".qa-auto-pass-card-original s"),"original offer value is crossed out");
   await act(async()=>autoPassItem.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const autoPassModal=document.querySelector(".qa-auto-pass-modal");
   assert.ok(autoPassModal&&autoPassModal.textContent.includes("Word Mode")&&autoPassModal.textContent.includes("Sentence Mode"));
@@ -178,7 +181,11 @@ try{
   assert.equal(item.getAttribute("aria-haspopup"), "dialog");
   const typingPrice = getTypingReliefPricing(Date.now());
   assert.ok(item.textContent.includes("Typing Relief") && item.textContent.includes(String(typingPrice.price)), "compact Item shows live server-contracted price");
-  if (typingPrice.promoActive) assert.ok(item.textContent.includes("ลด 70%"),"compact Item clearly marks new-purchase sale");
+  if (typingPrice.promoActive) {
+    assert.ok(item.textContent.includes("ลด 70%"),"compact Item clearly marks new-purchase sale");
+    assert.ok(item.querySelector(".qa-sparks-shop-price s")?.textContent.includes("150"),"Typing Relief regular price is crossed out");
+    assert.ok(item.querySelector(".qa-sparks-shop-price strong")?.textContent.includes("45"),"Typing Relief sale price is visible");
+  }
   assert.ok(!item.textContent.includes("ดูรายละเอียด"), "Item surface is image + name + price, details are in the popup");
   assert.ok(item.classList.contains("qa-sparks-mini-item"), "Typing Relief is rendered as a compact game slot");
   assert.ok(item.querySelector(".qa-sparks-mini-art"), "Typing Relief has a dedicated mini artwork square");

@@ -61,9 +61,9 @@ export default function AnnouncementShieldItem({username,sessionId,balance,mode,
  return <>
    <button type="button" data-announcement-shield-item={mode} data-reward-item={mode==="reward"?"announcement-shield":undefined} className="qa-sparks-mini-item qa-shield-tile"
      style={mode==="reward"?{order:-50}:undefined} onClick={()=>{setOpen(true);setError("");setConfirm("");}}>
-     <span className="qa-sparks-mini-art qa-shield-tile-art"><ShieldIcon/><span className="qa-sparks-mini-corner">{mode==="reward"?"50":"×1"}</span></span>
+     <span className="qa-sparks-mini-art qa-shield-tile-art"><ShieldIcon/>{mode==="inventory"?<span className="qa-sparks-mini-corner">×1</span>:null}</span>
      <strong className="qa-sparks-mini-name">Announcement Shield</strong>
-     <span className="qa-sparks-mini-value">{mode==="reward"?"50 Sparks / เดือน":sub.status==="unused"?"พร้อมใช้งาน":sub.status==="grace"?"ผ่อนผัน 14 วัน":sub.status==="cancelled"?"ไม่ต่ออายุ":sub.status==="expired"?"หมดอายุ":"กำลังใช้งาน"}</span>
+     <span className={"qa-sparks-mini-value"+(mode==="reward"?" qa-sparks-shop-price":"")}>{mode==="reward"?<><strong>50 Sparks</strong><small>/ เดือน</small></>:sub.status==="unused"?"พร้อมใช้งาน":sub.status==="grace"?"ผ่อนผัน 14 วัน":sub.status==="cancelled"?"ไม่ต่ออายุ":sub.status==="expired"?"หมดอายุ":"กำลังใช้งาน"}</span>
    </button>
    {open?createPortal(<div className="qa-shield-overlay" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
     <section className="qa-shield-modal" role="dialog" aria-modal="true" aria-label="Announcement Shield">

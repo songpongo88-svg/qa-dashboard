@@ -1036,3 +1036,38 @@
 }
 .qa-sparks-auth-status>button:focus-visible{outline:3px solid #7352c3;outline-offset:2px}
 @media(max-width:650px){.qa-sparks-auth-status>button{width:100%}}
+
+
+/* Reward Center: unified premium product cards; no changes to Quest/My Items. */
+.qa-sparks-panel:has(.qa-sparks-reward-grid){container-type:inline-size}
+.qa-sparks-panel:has(.qa-sparks-reward-grid)>h2{font-size:clamp(18px,2vw,23px);font-weight:850;letter-spacing:-.025em;color:var(--sparks-dark,#322058);margin:3px 4px 19px}
+.qa-sparks-mini-grid.qa-sparks-reward-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px;justify-content:start;align-content:start;width:100%;max-width:1120px}
+.qa-sparks-reward-grid>.qa-sparks-mini-item{width:100%;max-width:none;min-width:0;min-height:265px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:13px 12px 14px;position:relative;isolation:isolate;overflow:hidden;text-align:center;border:1px solid #e7d9f5;border-radius:22px;background:linear-gradient(153deg,#fffefd 0%,#fffaff 66%,#f9f4ff 100%);box-shadow:0 6px 15px #5b2c9921,0 1px 3px #5d3e8522;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.qa-sparks-reward-grid>.qa-sparks-mini-item::before{content:"";position:absolute;inset:0 0 auto;height:52%;background:radial-gradient(ellipse at 50% 0%,#f2e6ffb3 0%,transparent 76%);z-index:-1;pointer-events:none}
+.qa-sparks-reward-grid>.qa-sparks-mini-item:hover{transform:translateY(-4px);background:linear-gradient(153deg,#fffefd,#fbf4ff);border-color:#bfa6ec;box-shadow:0 14px 27px #6d42a932}
+.qa-sparks-reward-grid>.qa-sparks-mini-item:focus-visible{outline:3px solid var(--sparks-accent,#7e22ce);outline-offset:3px}
+.qa-sparks-reward-grid .qa-sparks-mini-art{position:relative;width:100%;height:auto;max-width:none;min-width:0;aspect-ratio:1/1;border-radius:18px;border:1px solid #eee0ff;background:linear-gradient(140deg,#f6edff,#ebd6ff 74%,#debbff);box-shadow:inset 0 1px 0 #fff9,0 5px 13px #6937a41c;overflow:hidden;display:grid;place-items:center}
+.qa-sparks-reward-grid .qa-sparks-mini-art--special{background:linear-gradient(143deg,#f6edff,#e5ccfc)}
+.qa-sparks-reward-grid .qa-sparks-mini-art--money{background:linear-gradient(145deg,#ffe5f4,#edc5fa)}
+.qa-sparks-reward-grid .qa-sparks-mini-art--typing{background:linear-gradient(145deg,#eee6ff,#d3b4fa)}
+.qa-sparks-reward-grid .qa-sparks-mini-art .qa-relief-art-svg,.qa-sparks-reward-grid .qa-sparks-mini-art .qa-money-art-svg{width:100%!important;height:auto!important;max-width:100%!important;max-height:100%!important;object-fit:contain}
+.qa-sparks-reward-grid .qa-auto-pass-art{width:100%;height:100%;object-fit:contain}
+.qa-sparks-reward-grid .qa-shield-tile-art svg{width:78%;height:78%;max-width:124px;max-height:124px}
+.qa-sparks-reward-grid .qa-sparks-mini-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;width:100%;max-width:none;min-height:46px;margin:13px auto 8px;padding:0 2px;font-size:clamp(12px,1.25vw,16px);line-height:1.45;font-weight:800;color:#30205a;overflow-wrap:anywhere;text-wrap:balance}
+.qa-sparks-reward-grid .qa-sparks-mini-value{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:auto;max-width:none;min-width:0;width:100%;min-height:45px;padding:7px 5px;line-height:1.3;border-radius:13px;border:1px solid #eddfff;background:linear-gradient(110deg,#f1e8ff,#f6e7ff 55%,#eedcff);color:#5f17a4;font-size:clamp(11px,1.2vw,15px);font-weight:800;font-variant-numeric:tabular-nums}
+.qa-sparks-reward-grid .qa-sparks-shop-price{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 6px}
+.qa-sparks-reward-grid .qa-sparks-shop-price>strong{font:inherit;font-weight:900;color:#6112ad}
+.qa-sparks-reward-grid .qa-sparks-shop-price>small{font-size:10px;font-weight:650;color:#715b86;white-space:nowrap}
+.qa-sparks-reward-grid .qa-sparks-shop-price>s{font-size:11px;font-weight:650;color:#8d7b98;text-decoration-color:#dc5d77;text-decoration-thickness:2px}
+.qa-sparks-reward-grid .qa-auto-pass-item .qa-sparks-mini-value{background:linear-gradient(110deg,#edfae1,#dff9dd);border-color:#d6efd1}
+.qa-sparks-reward-grid .qa-auto-pass-card-pricing{display:flex;flex-direction:column;justify-content:center;align-items:center;width:100%;max-width:none;gap:3px;line-height:1.25;text-align:center}
+.qa-sparks-reward-grid .qa-auto-pass-card-free{font-size:clamp(12px,1.5vw,17px);color:#146533;font-weight:900}
+.qa-sparks-reward-grid .qa-auto-pass-card-original{font-size:11px;color:#6e8073;font-weight:650}
+.qa-sparks-reward-grid .qa-auto-pass-card-original s{font-weight:750;text-decoration-color:#d47887;text-decoration-thickness:1.6px}
+.qa-sparks-reward-grid .qa-sparks-shop-badge{position:absolute;right:5px;top:6px;z-index:2;display:inline-flex;align-items:center;justify-content:center;min-height:25px;max-width:90%;padding:4px 9px;border-radius:9px;font:800 11px/1.2 Kanit,sans-serif;box-shadow:0 4px 9px #622d8c48;border:1px solid #fff7}
+.qa-sparks-reward-grid .qa-sparks-shop-badge--free{background:linear-gradient(125deg,#823add,#5e20ae);color:#fff}
+.qa-sparks-reward-grid .qa-sparks-shop-badge--sale{background:linear-gradient(125deg,#f55ba1,#e83979);color:#fff}
+@container (max-width:810px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}
+@container (max-width:590px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.qa-sparks-reward-grid>.qa-sparks-mini-item{padding:9px;min-height:230px;border-radius:16px}.qa-sparks-reward-grid .qa-sparks-mini-art{border-radius:13px}.qa-sparks-reward-grid .qa-sparks-mini-name{font-size:12px;min-height:35px;margin:10px 0 7px}.qa-sparks-reward-grid .qa-sparks-mini-value{min-height:44px;font-size:11px}.qa-sparks-reward-grid .qa-sparks-shop-badge{font-size:10px;top:4px;right:4px;padding:4px 6px}}
+@container (max-width:292px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:1fr}.qa-sparks-reward-grid>.qa-sparks-mini-item{max-width:220px;justify-self:center}}
+@media(prefers-reduced-motion:reduce){.qa-sparks-reward-grid>.qa-sparks-mini-item{transition:none}}

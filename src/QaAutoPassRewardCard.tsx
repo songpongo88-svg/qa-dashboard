@@ -84,15 +84,14 @@ export default function QaAutoPassRewardCard({
       aria-haspopup="dialog" aria-label={"เปิดรายละเอียด QA Access Auto-Pass"+(mode==="inventory"?" คงเหลือ "+quantity+" สิทธิ์":freeActive?(claimed?" รับสิทธิ์ฟรีแล้ว 5 สิทธิ์ ซื้อเพิ่มราคา 160 Sparks":"รับฟรี 5 สิทธิ์ ราคาปกติ 160 Sparks"):" ราคา 160 Sparks")}>
       <span className="qa-sparks-mini-art"><AutoPassArtwork/>
         {mode==="inventory"?<span className="qa-sparks-mini-quantity">×{quantity}</span>:null}
-        {mode==="reward"&&freeActive?<span className="qa-auto-pass-free-badge">{claimed?"รับฟรีแล้ว":"ฟรี ×5"}</span>:null}
+        {mode==="reward"&&freeActive?<span className="qa-sparks-shop-badge qa-sparks-shop-badge--free">ฟรี 5 สิทธิ์</span>:null}
       </span>
       <strong className="qa-sparks-mini-name">QA Access Auto-Pass</strong>
       <span className="qa-sparks-mini-value">{mode==="inventory"?quantity+" สิทธิ์":
         freeActive?<span className="qa-auto-pass-card-pricing">
-          <strong className="qa-auto-pass-card-free">{claimed?"รับฟรีแล้ว · 5 สิทธิ์":"รับฟรี 5 สิทธิ์"}</strong>
-          <span className="qa-auto-pass-card-original">{claimed?
-            <>ซื้อเพิ่ม {PRICING} Sparks/สิทธิ์</>:<>ปกติ <s>{PRICING} Sparks</s></>}</span>
-        </span>:PRICING+" Sparks"}</span>
+          <strong className="qa-auto-pass-card-free">ฟรี 5 สิทธิ์</strong>
+          <span className="qa-auto-pass-card-original">มูลค่า <s>{(PRICING*5).toLocaleString("en-US")} Sparks</s></span>
+        </span>:<span className="qa-sparks-shop-price"><strong>{PRICING} Sparks</strong><small>ต่อสิทธิ์</small></span>}</span>
     </button>
     {open&&typeof document!=="undefined"?createPortal(
       <div className="qa-auto-pass-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false)}}>
@@ -112,8 +111,8 @@ export default function QaAutoPassRewardCard({
             {mode==="reward"&&freeActive?<div className="qa-auto-pass-offer">
               <strong>{claimed?"รับสิทธิ์ฟรีครบแล้ว 5 สิทธิ์":"รับฟรี 5 สิทธิ์พร้อมกัน"}</strong>
               <p>{claimed
-                ?"บัญชีนี้ใช้สิทธิ์รับฟรีครบแล้ว · หากต้องการเพิ่ม สามารถซื้อได้ในราคาปกติ 160 Sparks ต่อสิทธิ์"
-                :"ปกติ 160 Sparks ต่อสิทธิ์ · กดรับฟรีได้ 1 ครั้งต่อบัญชี ภายในวันที่ 25 ธันวาคม 2026 เวลา 23:59 น. (เวลาไทย)"}</p>
+                ?"บัญชีนี้ใช้สิทธิ์รับฟรีครบแล้ว (มูลค่า 800 Sparks) · หากต้องการเพิ่ม สามารถซื้อได้ในราคาปกติ 160 Sparks ต่อสิทธิ์"
+                :"รับฟรี 5 สิทธิ์ มูลค่ารวม 800 Sparks (ปกติ 160 Sparks ต่อสิทธิ์) · กดรับฟรีได้ 1 ครั้งต่อบัญชี ภายในวันที่ 25 ธันวาคม 2026 เวลา 23:59 น. (เวลาไทย)"}</p>
             </div>:null}
             <div className="qa-auto-pass-stats">
               <div><span>สิทธิ์คงเหลือ</span><strong>{loaded?quantity:"—"}</strong></div>

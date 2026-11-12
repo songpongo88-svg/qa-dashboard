@@ -186,9 +186,14 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
       <span className="qa-sparks-mini-art qa-sparks-mini-art--typing">
         <TypingReliefArt/>
         {mode === "inventory" ? <span className="qa-sparks-mini-quantity">×{effectiveOwned}</span> : null}
+        {mode === "reward" && pricing.promoActive ? <span className="qa-sparks-shop-badge qa-sparks-shop-badge--sale">ลด 70%</span> : null}
       </span>
       <strong className="qa-sparks-mini-name">Typing Relief</strong>
-      <span className="qa-sparks-mini-value">{mode === "inventory" ? effectiveOwned + " สิทธิ์" : price + " Sparks"}{mode === "reward" && pricing.promoActive ? <span className="qa-relief-mini-sale"> ลด 70%</span> : null}</span>
+      <span className="qa-sparks-mini-value">{mode === "inventory" ? effectiveOwned + " สิทธิ์" :
+        <span className="qa-sparks-shop-price">
+          {pricing.promoActive ? <s>{pricing.regularPrice} Sparks</s> : null}
+          <strong>{price} Sparks</strong>
+        </span>}</span>
     </button>
 
     {detailOpen && typeof document !== "undefined" ? createPortal(

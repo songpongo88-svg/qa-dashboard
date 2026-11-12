@@ -145,7 +145,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
     onClick={e=>open(r.id,null,e)}>
     <span className="qa-sparks-mini-art qa-sparks-mini-art--special"><RewardImage id={r.id}/></span>
     <strong className="qa-sparks-mini-name">{r.title}</strong>
-    <span className="qa-sparks-mini-value">{fmt(r.price)} Sparks</span>
+    <span className="qa-sparks-mini-value qa-sparks-shop-price"><strong>{fmt(r.price)} Sparks</strong></span>
   </button>):<>
    {!inventoryLoaded&&loaded&&!error?<span role="status" className="qa-sparks-inventory-progress">กำลังโหลด Item...</span>:null}
    {error&&!opened?<span role="alert" className="sr-error">ไม่สามารถโหลด Item: {error}</span>:null}

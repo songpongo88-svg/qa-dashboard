@@ -42,7 +42,7 @@ function RewardCard({open,price}:{open:()=>void;price:number}){
     aria-haspopup="dialog" aria-label={"ดูรายละเอียด TrueMoney 20 บาท ราคา "+price.toLocaleString("en-US")+" Sparks"}>
     <span className="qa-sparks-mini-art qa-sparks-mini-art--money"><MoneyArt/></span>
     <strong className="qa-sparks-mini-name">TrueMoney 20 ฿</strong>
-    <span className="qa-sparks-mini-value">{price.toLocaleString("en-US")} Sparks</span>
+    <span className="qa-sparks-mini-value qa-sparks-shop-price"><strong>{price.toLocaleString("en-US")} Sparks</strong></span>
   </button>;
 }
 export default function TrueMoneyReward({username,sessionId,balance,loaded,mode,hasOtherItems=false,inventoryFilter="available"}:Props){
