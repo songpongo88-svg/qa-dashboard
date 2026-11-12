@@ -22,6 +22,8 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
  const call=async(action:"qa-password-preflight"|"qa-password-migrate-server")=>{
    if(busy)return;
    setBusy(true);setError("");setMessage("");
+   if(action==="qa-password-preflight")setAudit(null);
+   if(action==="qa-password-migrate-server")setResult(null);
    try{
      const response=await fetch("/api/sparks-admin",{
        method:"POST",credentials:"same-origin",cache:"no-store",
@@ -33,13 +35,27 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
      else if(action==="qa-password-preflight"&&body.ok===true)setAudit(body as Audit);
      if(action==="qa-password-migrate-server"&&body.audit)setResult(body as ImportResult);
      if(!response.ok||body.ok!==true){
-       throw Error(body.code==="SOURCE_CREDENTIAL_BLOCKED"
+       const stage=body.stage==="owner-session"?"ตรวจสิทธิ์ QA Session"
+         :body.stage==="source-credentials"?"อ่านบัญชี QA จาก Firestore"
+         :body.stage==="supabase-import"?"นำเข้าบัญชี Supabase":"ตรวจบัญชี QA";
+       const detail=body.code==="QA_CREDENTIAL_FIRESTORE_LIMIT"
+         ?"การอ่านข้อมูลต้นทางถูกจำกัดเฉพาะขั้นตอน "+stage+" — ไม่ใช่การแลกรางวัลบน Supabase"+
+          (Number(body.retryAfterSeconds)>0?" ระบบระงับการอ่านซ้ำชั่วคราว":"")+
+          " ยังไม่มีการย้ายรหัสผ่านในคำขอนี้"
+         :body.code==="QA_CREDENTIAL_SOURCE_UNAVAILABLE"
+         ?"ไม่สามารถ "+stage+" ได้ กรุณาตรวจการเชื่อมต่อ Google Cloud ของเซิร์ฟเวอร์"
+         :body.code==="QA_CREDENTIAL_IMPORT_UNAVAILABLE"
+         ?"ระบบนำเข้าบัญชี Supabase ติดต่อไม่ได้ จึงยังไม่ยืนยันการย้าย"
+         :body.code==="QA_CREDENTIAL_OWNER_SESSION_INVALID"
+         ?"การตรวจสิทธิ์เจ้าของระบบไม่ผ่าน กรุณา Login QA Dashboard ใหม่"
+         :body.code==="SOURCE_CREDENTIAL_BLOCKED"
          ?"พบข้อมูลบัญชีผิดปกติ จึงหยุดย้ายก่อนโดยไม่กระทบผู้ใช้งานเดิม"
          :body.code==="REMOTE_IMPORT_REJECTED"
          ?"Supabase ปฏิเสธคำขอย้ายบัญชี ตรวจสอบสถานะเซิร์ฟเวอร์ก่อนลองใหม่"
          :body.code==="PARTIAL_IMPORT"
          ?"ย้ายได้บางบัญชี ระบบเก็บข้อมูลเดิมไว้และอนุญาตให้ตรวจสอบก่อนทำต่อ"
-         :String(body.error||body.code||"ตรวจสอบข้อมูลบัญชีไม่สำเร็จ"));
+         :String(body.error||body.code||"ตรวจสอบข้อมูลบัญชีไม่สำเร็จ");
+       throw Error(detail+(typeof body.code==="string"?" (รหัส: "+body.code+")":""));
      }
      if(action==="qa-password-preflight")
        setMessage("ตรวจข้อมูล QA สดแล้ว: พร้อมย้าย "+body.ready+" บัญชี รอตั้งรหัสผ่าน "+body.pending.length+" บัญชี");
