@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { SparksHistoryItem } from "./qaSparksStore";
+import {isItemHistoryEntry,itemHistoryLabel,itemHistoryDeltaText} from "./sparksItemHistory.mjs";
 
 const REQUEST_RESULTS: Record<string, string> = {
   approved: "คำขอได้รับอนุมัติ",
@@ -42,11 +43,11 @@ function formatDate(date: string) {
 }
 
 export default function SparksHistory({ history, large = false }: { history: SparksHistoryItem[]; large?: boolean }) {
-  const [filter, setFilter] = useState<"all" | "earn" | "spend">("all");
-  const visible = history.filter((item) => filter === "all" || item.type === filter);
+  const [filter, setFilter] = useState<"all" | "earn" | "spend" | "items">("all");
+  const visible = history.filter((item) => filter === "all" || (filter === "items" ? isItemHistoryEntry(item) : item.amount !== 0 && item.type === filter));
   return <section className={"qa-sparks-history-wrap" + (large ? " qa-sparks-history-wrap--large" : "")}>
     {history.length ? <div className="qa-sparks-history-filters" aria-label="กรองประวัติ Sparks">
-      {([["all", "ทั้งหมด"], ["earn", "ได้รับ (+)"], ["spend", "ใช้ไป (−)"]] as const).map(([key, label]) => (
+      {([["all", "ทั้งหมด"], ["earn", "ได้รับ (+)"], ["spend", "ใช้ไป (−)"], ["items","Item ทุกชนิด"]] as const).map(([key, label]) => (
         <button key={key} type="button" className={filter === key ? "active" : ""} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>
       ))}
     </div> : <div className="qa-sparks-history-empty-message">
@@ -57,20 +58,23 @@ export default function SparksHistory({ history, large = false }: { history: Spa
       <table className="qa-sparks-history-table" aria-label="ประวัติ QA Sparks">
         <thead><tr className="qa-sparks-history-head">
           <th scope="col">วันที่ / เวลา</th><th scope="col">รายการ</th>
-          <th scope="col" className="qa-sparks-history-number">Sparks (+/−)</th>
+          <th scope="col" className="qa-sparks-history-number">Sparks (+/−)</th><th scope="col">Item (+/−)</th>
           <th scope="col">รายละเอียด</th>
           <th scope="col" className="qa-sparks-history-number">คงเหลือหลังรายการ</th>
         </tr></thead>
         <tbody>{visible.length ? visible.map((item) => {
           const text = memberHistoryText(item);
+          const itemAudit = itemHistoryLabel(item);
           return <tr className="qa-sparks-history-item" key={item.id}>
             <td><time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time></td>
-            <td>{text.title}</td>
-            <td className="qa-sparks-history-number"><strong className={item.amount > 0 ? "positive" : item.amount < 0 ? "negative" : "neutral"}>{item.amount > 0 ? "+" : ""}{item.amount.toLocaleString()} Sparks</strong></td>
-            <td>{text.detail}{text.note ? <small className="qa-sparks-history-note">หมายเหตุ: {text.note}</small> : null}</td>
-            <td className="qa-sparks-history-number qa-sparks-history-balance">{item.balanceAfter.toLocaleString()} Sparks</td>
+            <td>{itemAudit?.name||text.title}{itemAudit?<small className="qa-sparks-history-note">{itemAudit.action}</small>:null}</td>
+            <td className="qa-sparks-history-number"><strong className={item.amount > 0 ? "positive" : item.amount < 0 ? "negative" : "neutral"}>{item.amount === 0 ? "—" : (item.amount > 0 ? "+" : "") + item.amount.toLocaleString() + " Sparks"}</strong></td><td>{itemAudit?itemHistoryDeltaText(item):"—"}</td>
+            <td>{text.detail}{text.note ? <small className="qa-sparks-history-note">หมายเหตุ: {text.note}</small> : null}
+              {itemAudit?.extra?<small className="qa-sparks-history-note">{itemAudit.extra}</small>:null}
+              {item.derived?<small className="qa-sparks-history-note">แสดงตามวันหมดอายุจริงใน Item · ไม่มีการเขียนประวัติย้อนหลัง</small>:null}</td>
+            <td className="qa-sparks-history-number qa-sparks-history-balance">{item.balanceAfter===null?"—":item.balanceAfter.toLocaleString()+" Sparks"}</td>
           </tr>;
-        }) : <tr><td colSpan={5}><div className="qa-sparks-history-no-rows">ยังไม่มีประวัติรายการ</div></td></tr>}</tbody>
+        }) : <tr><td colSpan={6}><div className="qa-sparks-history-no-rows">ยังไม่มีประวัติรายการ</div></td></tr>}</tbody>
       </table>
     </div>
   </section>;

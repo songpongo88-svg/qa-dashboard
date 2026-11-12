@@ -6,6 +6,7 @@ import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import SparksRewardRequests from "./SparksRewardRequests";
 import { SparksOwnerAccessControl } from "./SparksAccessGate";
+import {isItemHistoryEntry,itemHistoryLabel,itemHistoryDeltaText} from "./sparksItemHistory.mjs";
 import "./sparksAdminWorkspace.css";
 import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
@@ -25,12 +26,14 @@ type AdminUser = {
 type AdminHistoryItem = {
   id: string;
   createdAt: string;
-  type: "earn" | "spend";
+  type: "earn" | "spend" | "event";
   title: string;
   detail: string;
   amount: number;
-  balanceAfter: number;
+  balanceAfter: number | null;
   source: string;
+  rewardId?: string; itemId?: string; inventoryAfter?: number; challengeId?: string;
+  originalWords?: number; remainingWords?: number; drawDate?: string; derived?: boolean;
   performedBy: string;
   reason: string;
   referenceId: string;
@@ -109,7 +112,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [chosen, setChosen] = useState("");
   const [detail, setDetail] = useState<DetailResponse | null>(null);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "earn" | "spend" | "redeem">("all");
+  const [filter, setFilter] = useState<"all" | "earn" | "spend" | "redeem" | "items">("all");
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
@@ -345,7 +348,8 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const history = (detail?.history || []).filter((entry) => {
     if (filter === "all") return true;
     if (filter === "redeem") return ["reward-redemption", "reward-refund"].includes(entry.source);
-    return entry.type === filter;
+    if (filter === "items") return isItemHistoryEntry(entry);
+    return entry.amount !== 0 && entry.type === filter;
   });
   const refundedIds = new Set((detail?.history || []).filter((item) => item.source === "reward-refund").map((item) => item.referenceId));
   const voidGrant = detail?.history.find((item) => item.source === "admin-add" && item.amount === 99800 && !item.voided);
@@ -577,9 +581,9 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
           </div>
           <div hidden={adminSection !== "activity"}>
           <div className="qa-sparks-admin-history-heading">
-            <h3>ประวัติคะแนนและการแลกรางวัล</h3>
+            <h3>ประวัติ Sparks และ Item ทุกชนิด</h3>
             <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} aria-label="กรองประวัติคะแนน">
-              <option value="all">ทั้งหมด</option><option value="earn">ได้รับ (+)</option><option value="spend">ใช้ไป (−)</option><option value="redeem">การแลกรางวัล / คืนคะแนน</option>
+              <option value="all">ทั้งหมด</option><option value="earn">ได้รับ (+)</option><option value="spend">ใช้ไป (−)</option><option value="redeem">การแลกรางวัล / คืนคะแนน</option><option value="items">Item (รับ / ใช้ / หมดอายุ)</option>
             </select>
           </div>
           {detailLoading ? <p className="qa-sparks-admin-empty">กำลังโหลด History...</p> : null}
@@ -587,13 +591,16 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
           {firestoreLimited ? <p className="qa-sparks-admin-empty">ประวัติล่าสุดยังตรวจสอบไม่ได้ระหว่างที่ Firestore เกินโควตา</p> : null}
           <div className="qa-sparks-admin-history-list">
             {history.map((entry) => <article className="qa-sparks-admin-history-row" key={entry.id}>
-              <div><strong>{entry.title}</strong><small>{thaiDate(entry.createdAt)}</small>
+              <div><strong>{itemHistoryLabel(entry)?.name||entry.title}</strong><small>{thaiDate(entry.createdAt)}</small>
+                {isItemHistoryEntry(entry)?<p><b>{itemHistoryLabel(entry)?.action}</b> · Item {itemHistoryDeltaText(entry)}
+                  {itemHistoryLabel(entry)?.extra?" · "+itemHistoryLabel(entry)?.extra:""}</p>:null}
                 <p>{entry.detail || "—"}{entry.performedBy ? " · โดย " + entry.performedBy : ""}</p>
                 {entry.reason && entry.reason !== entry.detail ? <p>เหตุผล: {entry.reason}</p> : null}
                 {entry.referenceId ? <small>อ้างอิง: {entry.referenceId}</small> : null}
                 {entry.status ? <small>สถานะ: {entry.status}</small> : null}
+                {entry.derived?<small>หมดอายุตามข้อมูล My Items · ไม่ได้สร้างธุรกรรมย้อนหลัง</small>:null}
               </div>
-              <div className="qa-sparks-admin-history-amount"><strong className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount > 0 ? "+" : ""}{fmt(entry.amount)}</strong><small>เหลือ {fmt(entry.balanceAfter)}</small>
+              <div className="qa-sparks-admin-history-amount"><strong className={entry.amount > 0 ? "positive" : entry.amount < 0 ? "negative" : ""}>{entry.amount === 0 ? "—" : (entry.amount > 0 ? "+" : "") + fmt(entry.amount) + " Sparks"}</strong><small>{entry.balanceAfter===null?"ยอด Sparks ตามรายการนี้: —":"เหลือ "+fmt(entry.balanceAfter)+" Sparks"}</small>
                 {entry.source === "reward-redemption" && entry.amount < 0 && !refundedIds.has(entry.id) ?
                   <button type="button" disabled={!adminReady} onClick={() => startOperation("refund", entry)}>คืน Sparks</button> : null}
               </div>
