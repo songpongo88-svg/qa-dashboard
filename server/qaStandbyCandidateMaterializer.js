@@ -25,7 +25,7 @@ export async function materializeQaStandbyEvaluationCandidates({
     inTx=true;
     await client.query("SET LOCAL lock_timeout='3s'");
     const state=(await client.query(
-      'SELECT mode,source_snapshot_verified,write_frozen FROM qa_failover_v1.state WHERE id=1 FOR UPDATE'
+      'SELECT mode,source_snapshot_verified,write_frozen FROM qa_failover_v1.state WHERE id=1'
     )).rows?.[0];
     if(state?.mode!=='disabled'||state.source_snapshot_verified!==false||
        state.write_frozen!==true)
@@ -33,7 +33,7 @@ export async function materializeQaStandbyEvaluationCandidates({
     const snapshot=(await client.query(
       'SELECT source_provenance,status,source_documents,stored_documents,'+
       ' dataset_manifest,approved_for_failover FROM qa_failover_v1.live_snapshot_batches'+
-      ' WHERE snapshot_id=$1 FOR UPDATE',[snapshotId]
+      ' WHERE snapshot_id=$1',[snapshotId]
     )).rows?.[0];
     if(!snapshot||snapshot.source_provenance!=='verified-firestore-server-export'||
       snapshot.status!=='copy_verified'||snapshot.approved_for_failover!==false||
@@ -53,7 +53,7 @@ export async function materializeQaStandbyEvaluationCandidates({
     const staged=(await client.query(
       'SELECT document_path,root_collection,document_json,content_hash'+
       ' FROM qa_failover_v1.live_snapshot_rows WHERE snapshot_id=$1'+
-      ' ORDER BY document_path FOR SHARE',[snapshotId]
+      ' ORDER BY document_path',[snapshotId]
     )).rows;
     if(staged.length!==Number(snapshot.source_documents))
       throw fail('candidate_stage_count_mismatch');
