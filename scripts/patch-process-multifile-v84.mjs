@@ -186,3 +186,4 @@ function currentProcessLibraryV84(rows: any[]): ProcessVersion[] {
 }
 
 await import("./patch-process-file-management-v85.mjs");
+await import("./patch-process-file-activation-v86.mjs");
