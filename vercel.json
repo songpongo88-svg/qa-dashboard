@@ -12,5 +12,6 @@
       "path": "/api/cron/sparks-profile-reconcile",
       "schedule": "15 11 * * *"
     }
-  ]
+  ],
+  "buildCommand": "npm run build:app"
 }
