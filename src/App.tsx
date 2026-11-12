@@ -4614,8 +4614,17 @@ export default function App() {
   useEffect(() => {
     let active = true;
     let timer = 0;
+    let coachingCheckInFlight = false;
+    let lastCoachingCheckAt = 0;
+    const coachingCheckIntervalMs = 20 * 60_000;
 
     const refreshCoachingAssignmentAccess = async (forceRefresh = false) => {
+      // Manual Coaching refresh is immediate. Focus/timer checks share a
+      // throttle so switching windows cannot trigger repeat Firestore reads.
+      const now = Date.now();
+      if (coachingCheckInFlight || (!forceRefresh && now - lastCoachingCheckAt < coachingCheckIntervalMs)) return;
+      coachingCheckInFlight = true;
+      lastCoachingCheckAt = now;
       if (!currentUser) {
         if (active) setCoachingAssignmentAllowed(false);
         return;
@@ -4636,21 +4645,22 @@ export default function App() {
           )
         );
       } catch {
-        if (active) {
-          setCoachingAssignmentAllowed(false);
-          setCoachingRecords([]);
-        }
+        // Keep the last verified display while offline or quota-limited.
+        // This is not a permission grant: server-owned writes still verify
+        // the current session and permissions independently.
+      } finally {
+        coachingCheckInFlight = false;
       }
     };
 
     void refreshCoachingAssignmentAccess();
     const handleRefresh = () => void refreshCoachingAssignmentAccess(true);
     const pollIfVisible = () => {
-      if (document.visibilityState === "visible") void refreshCoachingAssignmentAccess();
+      if (document.visibilityState === "visible" && navigator.onLine !== false) void refreshCoachingAssignmentAccess();
     };
     window.addEventListener("qa-coaching-refresh", handleRefresh);
     window.addEventListener("focus", pollIfVisible);
-    timer = window.setInterval(pollIfVisible, 5 * 60_000);
+    timer = window.setInterval(pollIfVisible, coachingCheckIntervalMs);
 
     return () => {
       active = false;
