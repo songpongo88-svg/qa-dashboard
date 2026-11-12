@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T19:04:11.405Z",
-  "reason": "QA-only PostgreSQL inactive evaluation seeding from one immutable 11-dataset source snapshot. Transactional copy independently verifies original score, topic details, deleted records and raw hashes; pins active_snapshot_id but keeps all writes and failover disabled. QA session reads require this same pinned snapshot. Disposable PostgreSQL 17 tests passed; no Production or QA Sparks changes.",
+  "reviewedAt": "2026-11-12T19:49:57.314Z",
+  "reason": "QA-only immutable domain staging for Appeals, Signatures, User Sessions, Roles and Locks from one verified eleven-collection Firestore snapshot. Preserves original typed Firestore payloads, verifies every dataset manifest/hash and PostgreSQL copy, rolls back on mismatch, has no runnable production writer or failover cutover. Added disposable PostgreSQL 17 tests and no QA Sparks changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -17,7 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
-    ".github/workflows/qa-postgres-preview-safety.yml": "4576042ffc6c8c592f5b6adeb5105c2bc4a3c8a97c7a5882047357cff7ce807b",
+    ".github/workflows/qa-postgres-preview-safety.yml": "ef3a5e13a2a50e6ad64b1ebe16bb7e11f0d8c62f1e9ebc4f44b470cfaf7b9d4c",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -806,6 +806,9 @@
     "scripts/test-qa-windows-installer-dependencies.mjs": "80c752f09d676ebe170f2f4eec2016ff6f46afee16b51e054e742b8f49d46f4d",
     "cloudflare/qa-standby-vpc-worker.mjs": "8a4d85ab7b1ec9a4231417589c21b3436fd3a48d315b6059c7050217ebb6e4bf",
     "server/qaStandbyInactiveSeed.js": "1df585c5d4cf1db89866919da511e33d95a0704be1489a2e869a0ff1c4dd9d6c",
-    "scripts/test-qa-standby-inactive-seed-integration.mjs": "99977ae3f482bf36eab1468bf625ab4f462dd1958850cb9083ee712d18122b98"
+    "scripts/test-qa-standby-inactive-seed-integration.mjs": "99977ae3f482bf36eab1468bf625ab4f462dd1958850cb9083ee712d18122b98",
+    "server/qaStandbyDomainSeed.js": "b4e8ec2f4d50ec7084d4dd09ee47c4bd40eee26781f951c65e9d66435b9ef66b",
+    "migration/qa-local-domain-replica.sql": "f6a78642513eb9b03d1fda97ada95802aaadecca745c4d0fe276eb663ae4a03f",
+    "scripts/test-qa-standby-domain-seed-integration.mjs": "af9692426cee5ef1614c16618876b17180ea8df3a2830ff04b63afb08d403e91"
   }
 }
