@@ -96,7 +96,6 @@ try {
   assert.match(qs,/data-sparks-legacy-fallback="true"/,"legacy path remains available until OTP is ready");
   assert.match(qs,/qa:sparks:supabase-login:/,"browser remembers the selected login path per employee");
   const adminSource=readFileSync(new URL("../api/sparks-admin.js",import.meta.url),"utf8");
-  const migrationUi=readFileSync(new URL("../src/SparksQaCredentialMigration.tsx",import.meta.url),"utf8");
   assert.ok(adminSource.includes('code:"QA_CREDENTIAL_FIRESTORE_LIMIT"'),"Credential-source quota is distinguishable from Sparks reward wallet");
   assert.ok(adminSource.includes('qaMigrationStage="owner-session"'),"Credential migration identifies QA-session verification failure");
   assert.ok(adminSource.includes('qaMigrationStage="source-credentials"'),"Credential migration identifies profile-source read failures");
