@@ -6,8 +6,8 @@ import React,{useState} from "react";
 // No password (or password hash) ever flows through this component.
 type Issue={username:string;reason:string};
 type Audit={
- checked:number;active:number;suspended:number;ready:number;
- pending:Issue[];blocked:Issue[];canStartStagedMigration:boolean;
+ checked:number;active:number;suspended:number;ready:number;eligibleActive:number;
+ pending:Issue[];blocked:Issue[];excluded?:Issue[];canStartStagedMigration:boolean;
 };
 type ImportResult={ok:boolean;code:string;audit:Audit;submitted?:number;
  created?:number;updated?:number;failed?:Issue[]};
@@ -48,6 +48,8 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
          ?"ระบบนำเข้าบัญชี Supabase ติดต่อไม่ได้ จึงยังไม่ยืนยันการย้าย"
          :body.code==="QA_CREDENTIAL_OWNER_SESSION_INVALID"
          ?"การตรวจสิทธิ์เจ้าของระบบไม่ผ่าน กรุณา Login QA Dashboard ใหม่"
+         :body.code==="SOURCE_ROSTER_MISMATCH"
+         ?"รายชื่อพนักงานที่ตรวจสอบได้ไม่ตรงกับ 21 บัญชีที่อนุญาตให้ย้าย จึงยังไม่ได้ส่งรหัสผ่านไป Supabase"
          :body.code==="SOURCE_CREDENTIAL_BLOCKED"
          ?"พบข้อมูลบัญชีผิดปกติ จึงหยุดย้ายก่อนโดยไม่กระทบผู้ใช้งานเดิม"
          :body.code==="REMOTE_IMPORT_REJECTED"
@@ -65,7 +67,7 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
    }catch(e){setError(e instanceof Error?e.message:"ไม่สามารถดำเนินการได้");}
    finally{setBusy(false);}
  };
- const pending=audit?.pending||[],blocked=audit?.blocked||[];
+ const pending=audit?.pending||[],blocked=audit?.blocked||[],excluded=audit?.excluded||[];
  return <section data-sparks-qa-password-migration="owner-only"
    style={{marginBottom:20,padding:18,border:"1px solid #ded7ee",borderRadius:15,background:"#fbf9ff"}}>
    <h3 style={{margin:"0 0 7px",fontSize:17,fontWeight:800}}>ย้ายบัญชี QA เดิมเข้า Supabase Auth</h3>
@@ -89,8 +91,8 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
    </div>
    {!sessionId ? <p role="alert" style={{fontSize:12,lineHeight:1.6,color:"#9e233d"}}>ไม่พบ QA Session สำหรับย้ายบัญชี ปุ่มจึงยังใช้ไม่ได้ กรุณา Login QA Dashboard ใหม่ด้วยบัญชีเจ้าของระบบ</p> : null}
    {audit?<p role="status" style={{fontSize:12,lineHeight:1.6}}>
-     ตรวจบัญชีทั้งหมด {audit.checked} · Active {audit.active} · พร้อมย้าย {audit.ready}
-     · รอตั้งรหัสผ่าน {pending.length} · Suspended {audit.suspended}
+     ตรวจบัญชีทั้งหมด {audit.checked} · Active {audit.active} · มีสิทธิ์ย้าย {audit.eligibleActive} · พร้อมย้าย {audit.ready}
+     · รอตั้งรหัสผ่าน {pending.length} · Suspended {audit.suspended} · แยกบัญชีมีเงื่อนไขระงับ {excluded.length}
    </p>:null}
    {message?<p role="status" style={{fontSize:12,color:"#5e4776"}}>{message}</p>:null}
    {error?<p role="alert" style={{fontSize:12,color:"#b3314d"}}>{error}</p>:null}
@@ -101,6 +103,9 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
        {pending.map(x=>x.username).join(", ")} · คงบัญชีเดิมไว้ ไม่สร้างรหัสให้พนักงาน
      </p>
    </div>:null}
+   {excluded.length>0?<p role="status" style={{fontSize:12,color:"#725581"}}>
+     แยกออกจากการย้ายเพื่อรักษาสถานะระงับ: {excluded.map(x=>x.username).join(", ")}
+   </p>:null}
    {blocked.length>0?<p role="alert" style={{fontSize:12,color:"#a62434"}}>
      หยุดการย้าย: พบข้อมูลบัญชีที่ไม่ผ่านเงื่อนไข {blocked.map(x=>x.username+" ("+x.reason+")").join(", ")}
    </p>:null}
