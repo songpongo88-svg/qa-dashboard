@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {decodeQaArchivedDocument,verifyQaLocalSession} from '../server/qaLocalSessionVerifier.js';
+import {QA_SYNC_DATASETS,qaCanonicalDocumentHash} from '../server/qaLiveMirrorStage.js';
 const now=Date.parse('2026-11-11T05:00:00.000Z');
 const sessionId='qa_editor-8c11937f-01ab-4455-b6f2-620fb73e3e44';
 const s=()=>({
@@ -19,7 +20,7 @@ assert.deepEqual(decodeQaArchivedDocument(fields({username:'qa_editor',role:'Qua
 assert.deepEqual(decodeQaArchivedDocument({data:{role:'QA'}}),{role:'QA'});
 const db={state:{mode:'standby',source_snapshot_verified:true,generation:'3'},
   session:s(),profile:p(),control:{revokedBefore:'2026-11-11T03:00:00.000Z'},
-  failRead:false};
+  failRead:false,batchMissing:false,badHash:false,partialManifest:false};
 const tx=[];
 const pool={
   async connect(){return {
@@ -29,11 +30,27 @@ const pool={
       if(sql.startsWith('BEGIN')||sql==='COMMIT'||sql==='ROLLBACK')return {rows:[]};
       if(sql.includes('SELECT mode,source_snapshot_verified,generation'))
         return {rows:[db.state]};
-      if(sql.includes("root_collection='qa_user_profiles'"))return {rows:db.profile?[{parsed_json:db.profile}]:[]};
-      if(params?.[0]?.startsWith('qa_user_sessions/'))
-        return {rows:db.session?[{parsed_json:db.session}]:[]};
-      if(params?.[0]?.startsWith('qa_user_session_controls/'))
-        return {rows:db.control?[{parsed_json:db.control}]:[]};
+      if(sql.includes('live_snapshot_batches'))return {rows:db.batchMissing?[]:[{
+        snapshot_id:'qa-live-session-fixture-0001',status:'copy_verified',
+        source_documents:3,stored_documents:3,
+        dataset_manifest:QA_SYNC_DATASETS.slice(0,db.partialManifest?10:11).map(dataset=>({
+          dataset,count:['qa_user_sessions','qa_user_profiles','qa_user_session_controls'].includes(dataset)?1:0,
+          digest:'a'.repeat(64),
+        })),
+      }]};
+      if(sql.includes("root_collection='qa_user_profiles'")){
+        if(!db.profile)return {rows:[]};
+        return {rows:[{document_path:'qa_user_profiles/qa_editor',
+          document_json:db.profile,content_hash:qaCanonicalDocumentHash(db.profile)}]};
+      }
+      if(sql.includes('live_snapshot_rows')&&params?.[1]?.startsWith('qa_user_sessions/')){
+        return {rows:db.session?[{document_json:db.session,
+          content_hash:db.badHash?'0'.repeat(64):qaCanonicalDocumentHash(db.session)}]:[]};
+      }
+      if(sql.includes('live_snapshot_rows')&&params?.[1]?.startsWith('qa_user_session_controls/')){
+        return {rows:db.control?[{document_json:db.control,
+          content_hash:qaCanonicalDocumentHash(db.control)}]:[]};
+      }
       throw Error('unrecognized SQL');
     },
     release(){},
@@ -51,6 +68,9 @@ assert.equal(tx.some(r=>r.sql.includes('REPEATABLE READ READ ONLY')),true);
 assert.equal(tx.some(r=>r.sql==='COMMIT'),true);
 const fail=async(expectRollback=true)=>{const before=tx.length;await assert.rejects(check(),e=>e.code==='local_session_not_verified');assert.equal(tx.slice(before).some(r=>r.sql==='ROLLBACK'),expectRollback);};
 db.state.source_snapshot_verified=false;await fail();db.state.source_snapshot_verified=true;
+db.batchMissing=true;await fail();db.batchMissing=false;
+db.partialManifest=true;await fail();db.partialManifest=false;
+db.badHash=true;await fail();db.badHash=false;
 db.state.mode='disabled';await fail();db.state.mode='standby';
 db.session.status='revoked';await fail();db.session.status='active';
 db.session.expiresAt='2026-11-11T04:59:00Z';await fail();db.session.expiresAt=s().expiresAt;
@@ -64,4 +84,5 @@ db.profile=null;await fail();db.profile=p();
 db.failRead=true;await fail(false);db.failRead=false;
 await assert.rejects(verifyQaLocalSession(pool,{sessionId:'bad'},now),/local_session_not_verified/);
 assert.equal(tx.some(r=>r.sql.includes('UPDATE ')||r.sql.includes('INSERT ')),false);
-console.log('PASS QA local session: PostgreSQL mirror parity, transaction snapshot, active role/profile, revocation, inactivity, expiry and no client role trust');
+assert.equal(tx.some(r=>r.sql.includes('source_mirror')),false,'old imported archive cannot be an identity authority');
+console.log('PASS QA local session: immutable live snapshot instead of old archive, transaction snapshot, active role/profile, revocation, inactivity, expiry and no client role trust');
