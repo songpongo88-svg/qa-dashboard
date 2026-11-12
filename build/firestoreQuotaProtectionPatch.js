@@ -79,13 +79,22 @@ export function firestoreQuotaProtectionPatch() {
 
       let next = code;
 
-      next = replaceOrThrow(
-        this,
-        next,
-        `const SESSION_CHECK_INTERVAL_MS = 30 * 1000;\nconst SESSION_TOUCH_INTERVAL_MS = 60 * 1000;`,
-        `// Firestore quota protection: local inactivity still enforces the 2-hour timeout.\n// Central session revocation is checked periodically instead of every 30 seconds.\nconst SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;\nconst SESSION_TOUCH_INTERVAL_MS = 30 * 60 * 1000;`,
-        "session intervals"
-      );
+      // The checked-in App may already use production's quota-safe cadence.
+      // Keep this Vite patch compatible with both source versions; never
+      // silently overwrite stronger hidden-tab/focus protections.
+      const oldSessionIntervals =
+        `const SESSION_CHECK_INTERVAL_MS = 30 * 1000;\nconst SESSION_TOUCH_INTERVAL_MS = 60 * 1000;`;
+      const optimizedSessionIntervals =
+        `const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;\nconst SESSION_TOUCH_INTERVAL_MS = 30 * 60 * 1000;`;
+      if(next.includes(oldSessionIntervals)) {
+        next = replaceOrThrow(
+          this,next,oldSessionIntervals,
+          `// Firestore quota protection: local inactivity still enforces the 2-hour timeout.\n// Central session revocation is checked periodically instead of every 30 seconds.\n${optimizedSessionIntervals}`,
+          "session intervals"
+        );
+      } else if(!next.includes(optimizedSessionIntervals)) {
+        this.error("Firestore quota protection could not verify quota-safe session intervals.");
+      }
 
       next = replaceOrThrow(
         this,
@@ -126,14 +135,19 @@ export function firestoreQuotaProtectionPatch() {
 
       const oldSessionStart = `  useEffect(() => {\n    if (!currentUser?.sessionId || !currentUser.username) return;\n\n    let cancelled = false;\n\n    const checkCentralSession = async () => {\n      try {`;
       const newSessionStart = `  useEffect(() => {\n    if (!currentUser?.sessionId || !currentUser.username || currentUser.sessionId.startsWith("local-")) return;\n\n    let cancelled = false;\n    let lastCentralCheckAt = 0;\n\n    const checkCentralSession = async (force = false) => {\n      const now = Date.now();\n      if (!force && now - lastCentralCheckAt < SESSION_CHECK_INTERVAL_MS) return;\n      lastCentralCheckAt = now;\n      try {`;
-      next = replaceOrThrow(this, next, oldSessionStart, newSessionStart, "session validation throttle");
-      next = replaceOrThrow(
-        this,
-        next,
-        `    void checkCentralSession();\n    const interval = window.setInterval(`,
-        `    void checkCentralSession(true);\n    const interval = window.setInterval(`,
-        "initial session validation"
-      );
+      if(next.includes(oldSessionStart)) {
+        next = replaceOrThrow(this,next,oldSessionStart,newSessionStart,"session validation throttle");
+        next = replaceOrThrow(
+          this,next,
+          `    void checkCentralSession();\n    const interval = window.setInterval(`,
+          `    void checkCentralSession(true);\n    const interval = window.setInterval(`,
+          "initial session validation"
+        );
+      } else if(!(next.includes("let checking = false;") &&
+                 next.includes("now - lastCheckedAt < SESSION_CHECK_INTERVAL_MS") &&
+                 next.includes('document.visibilityState !== "visible"'))) {
+        this.error("Firestore quota protection could not verify hidden-tab session throttle.");
+      }
 
       const oldActivate = `  const activateUserSession = async (user: CurrentUser) => {\n    try {\n      const session = await createStoredUserSession(user);\n      const authenticatedUser: CurrentUser = {\n        ...user,\n        sessionId: session.sessionId,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: session.expiresAt,\n      };\n\n      currentUserWasRestoredRef.current = false;\n      restoredLoginLoggedRef.current = true;\n      lastSessionTouchRef.current = Date.now();\n      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));\n      if (rememberLogin) {\n        localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);\n      } else {\n        localStorage.removeItem(REMEMBERED_USERNAME_KEY);\n      }\n      resetWorkspaceSessionState();\n      setCurrentUser(authenticatedUser);\n      return authenticatedUser;\n    } catch (error) {\n      console.error("Secure session creation failed", error);\n      setLoginError("Unable to create a secure session. Please try signing in again.");\n      return null;\n    }\n  };`;
       const newActivate = `  const activateUserSession = async (user: CurrentUser) => {\n    const finishLogin = (authenticatedUser: CurrentUser) => {\n      currentUserWasRestoredRef.current = false;\n      restoredLoginLoggedRef.current = true;\n      lastSessionTouchRef.current = Date.now();\n      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));\n      if (rememberLogin) {\n        localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);\n      } else {\n        localStorage.removeItem(REMEMBERED_USERNAME_KEY);\n      }\n      resetWorkspaceSessionState();\n      setCurrentUser(authenticatedUser);\n      return authenticatedUser;\n    };\n\n    try {\n      const session = await createStoredUserSession(user);\n      return finishLogin({\n        ...user,\n        sessionId: session.sessionId,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: session.expiresAt,\n      });\n    } catch (error) {\n      // Do not block staff from working only because the session-control write is temporarily unavailable.\n      console.warn("Central session creation unavailable; using local protected session.", error);\n      const expiresAt = new Date(Date.now() + INACTIVITY_LIMIT_MS).toISOString();\n      return finishLogin({\n        ...user,\n        sessionId: \`local-\${user.username}-\${Date.now()}\`,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: expiresAt,\n      });\n    }\n  };`;
