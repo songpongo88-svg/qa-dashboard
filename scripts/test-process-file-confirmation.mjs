@@ -22,6 +22,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const { createRoot } = await import("react-dom/client");
 const root = createRoot(document.getElementById("root"));
 const updates = [];
+const activated = [];
 const previewed = [];
 const original = {
   id: "uploaded-process", name: "New Process 2026", fileName: "New Process 2026 (5).pptx",
@@ -35,6 +36,7 @@ const controls = {
   onClose() { throw Error("File manager closed while confirming"); },
   onPreview(item) { previewed.push(item.id); },
   onChangeVisibility(item, hidden) { updates.push({ id: item.id, hidden }); },
+  onActivateCurrent(item) { activated.push(item.id); },
 };
 async function click(element) {
   assert.ok(element, "expected clickable element");
@@ -101,7 +103,11 @@ try {
   assert.deepEqual(updates, [{ id: original.id, hidden: true }, { id: original.id, hidden: false }],
     "Confirm Restore calls metadata visibility action once");
 
-  console.log("PASS Process File Remove/Restore: confirmation opens visibly above management dialog, Cancel safe, metadata action only on confirmation");
+  await click(fileButton("ตั้งเป็น Current"));
+  assert.ok(document.querySelector('[role="alertdialog"]').textContent.includes("ตั้งเป็น Process ปัจจุบัน"));
+  await click(modalButton("ยืนยันใช้เวอร์ชันนี้"));
+  assert.deepEqual(activated,["uploaded-process"],"Activate Current is separate from Restore and does not change file visibility");
+  console.log("PASS Process File Remove/Restore/Activate: distinct confirmation and metadata-only activation");
 } finally {
   await act(async () => root.unmount());
   dom.window.close();
