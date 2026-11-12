@@ -125,7 +125,9 @@ export function createQaVercelStandbyProxy({
          !IDENTIFIER.test(scalar(req.body.evaluationId)||'')||
          !['create','update','delete'].includes(req.body.action)||
          !Number.isSafeInteger(req.body.expectedVersion)||req.body.expectedVersion<0||
-         !req.body.record||typeof req.body.record!=='object'||Array.isArray(req.body.record))
+         (req.body.action==='delete'
+           ? (req.body.record!=null)
+           : (!req.body.record||typeof req.body.record!=='object'||Array.isArray(req.body.record))))
         return respond(res,400,{ok:false,error:'invalid_write_operation'});
       payload=JSON.stringify(req.body);
       if(Buffer.byteLength(payload,'utf8')>MAX_BYTES)
