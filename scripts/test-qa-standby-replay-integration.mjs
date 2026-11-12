@@ -18,6 +18,18 @@ try{
   await assert.rejects(replayOneQaStandbyOperation(pool,{applyIfVersionMatches:async()=>({status:'applied',remoteRevision:'r'})},trusted),
     e=>e instanceof QaStandbyBlocked&&e.code==='standby_must_be_frozen_for_replay');
   await pool.query("UPDATE qa_failover_v1.state SET mode='reconciling',write_frozen=true WHERE id=1");
+  // A malformed or incomplete Firestore receipt cannot strand an operation
+  // in-flight or mark a QA score as synchronized.
+  const malformed=await replayOneQaStandbyOperation(pool,{
+    applyIfVersionMatches:async()=>({status:'applied'}),
+  },trusted);
+  assert.equal(malformed.retry,true);
+  assert.deepEqual(await getQaStandbyOutboxCounts(pool),
+    {pending:5,in_flight:0,synced:0,conflict:0});
+  const malformedStatus=await pool.query(
+    "SELECT status,error_code FROM qa_failover_v1.outbox WHERE operation_id='qa-create-1'");
+  assert.equal(malformedStatus.rows[0].status,'pending');
+  assert.equal(malformedStatus.rows[0].error_code,'unverified_remote_receipt');
   let called=0;
   const remote={
     async applyIfVersionMatches(input){
