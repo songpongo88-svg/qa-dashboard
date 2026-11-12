@@ -51,10 +51,15 @@ export async function runQaLiveSnapshotStage({
       throw new Error('postgres_snapshot_tables_not_installed');
     const privilege=(await pool.query(
       "SELECT has_table_privilege(current_user,'qa_failover_v1.state','SELECT') AS state,"+
-      " has_table_privilege(current_user,'qa_failover_v1.live_snapshot_batches','INSERT,SELECT,UPDATE') AS batches,"+
-      " has_table_privilege(current_user,'qa_failover_v1.live_snapshot_rows','INSERT,SELECT') AS rows,"+
-      " has_table_privilege(current_user,'qa_failover_v1.live_candidate_evaluations','INSERT,SELECT') AS candidates,"+
-      " has_table_privilege(current_user,'qa_failover_v1.live_candidate_audit','INSERT,SELECT') AS audit"
+      " (has_table_privilege(current_user,'qa_failover_v1.live_snapshot_batches','INSERT')"+
+      " AND has_table_privilege(current_user,'qa_failover_v1.live_snapshot_batches','SELECT')"+
+      " AND has_table_privilege(current_user,'qa_failover_v1.live_snapshot_batches','UPDATE')) AS batches,"+
+      " (has_table_privilege(current_user,'qa_failover_v1.live_snapshot_rows','INSERT')"+
+      " AND has_table_privilege(current_user,'qa_failover_v1.live_snapshot_rows','SELECT')) AS rows,"+
+      " (has_table_privilege(current_user,'qa_failover_v1.live_candidate_evaluations','INSERT')"+
+      " AND has_table_privilege(current_user,'qa_failover_v1.live_candidate_evaluations','SELECT')) AS candidates,"+
+      " (has_table_privilege(current_user,'qa_failover_v1.live_candidate_audit','INSERT')"+
+      " AND has_table_privilege(current_user,'qa_failover_v1.live_candidate_audit','SELECT')) AS audit"
     )).rows?.[0];
     if(!privilege||Object.values(privilege).some(value=>value!==true))
       throw new Error('postgres_import_permission_missing');
