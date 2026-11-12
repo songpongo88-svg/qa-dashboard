@@ -66,3 +66,18 @@ test("server route always requires the existing authenticated owner session",asy
   assert.match(snippet,/auditQaCredentialSource/);
   assert.doesNotMatch(snippet,/json\(.*password:/);
 });
+
+test("migration API distinguishes upstream 429 from previous cooldown without claiming the rewards backend failed",async()=>{
+  const {readFileSync}=await import("node:fs");
+  const src=readFileSync(new URL("../api/sparks-admin.js",import.meta.url),"utf8");
+  const ui=readFileSync(new URL("../src/SparksQaCredentialMigration.tsx",import.meta.url),"utf8");
+  assert.match(src,/function firestoreQuotaError\(source = "upstream"\)/);
+  assert.match(src,/firestoreQuotaError\("cooldown"\)/);
+  assert.match(src,/FIRESTORE_READ_COOLDOWN/);
+  assert.match(src,/QA_CREDENTIAL_SERVER_COOLDOWN/);
+  assert.match(src,/QA_CREDENTIAL_FIRESTORE_LIMIT/);
+  assert.match(src,/firestoreReadAttempted:!cached/);
+  assert.match(ui,/QA_CREDENTIAL_SERVER_COOLDOWN/);
+  assert.match(ui,/QA_CREDENTIAL_FIRESTORE_LIMIT/);
+  assert.ok(!src.includes('if (method === "GET" && Date.now() < firestoreQuotaLimitedUntil) throw firestoreQuotaError();'));
+});
