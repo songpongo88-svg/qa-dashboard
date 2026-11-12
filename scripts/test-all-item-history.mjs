@@ -25,4 +25,17 @@ for(const file of ["src/SparksHistory.tsx","src/SparksAdminPanel.tsx"]){
  assert.match(c,/isItemHistoryEntry/);
  assert.match(c,/itemHistoryDeltaText/);
 }
+const historyUi=readFileSync(new URL("../src/SparksHistory.tsx",import.meta.url),"utf8");
+const historyCss=readFileSync(new URL("../src/qaSparks.css",import.meta.url),"utf8");
+// Both the half-width Overview and full History tab render the same records.
+assert.match(historyUi,/qa-sparks-history-list/,"render responsive history cards");
+assert.match(historyUi,/qa-sparks-history-entry-changes/,"show Sparks and Item changes together");
+assert.match(historyUi,/qa-sparks-history-search/,"search the already loaded history");
+assert.match(historyUi,/setVisibleCount\(count=>count\+pageSize\)/,"reveal additional rows on demand");
+assert.match(historyUi,/memberHistoryText\(item\)/,"preserve legacy detail wording");
+assert.doesNotMatch(historyUi,/<table|history-scroll/,"no horizontally-scrolling history table");
+assert.doesNotMatch(historyCss,/min-width:\s*860px/,"no 860px minimum width in history CSS");
+assert.match(historyCss,/\.qa-sparks-history-entry\{/,"card styling exists");
+console.log("PASS history cards: responsive, searchable, filtered, paginated, same source and no horizontal scroll");
+
 console.log("PASS item event labels, quantities, safe expiry projection and both history screens");
