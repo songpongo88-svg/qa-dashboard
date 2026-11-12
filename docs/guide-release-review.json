@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T03:16:20.116Z",
-  "reason": "QA Sparks independent sign-in readiness, disabled by default: add existing QA username/password Supabase Auth flow behind VITE_SPARKS_QA_PASSWORD_LOGIN=1, preserve current OTP and Hybrid QA Dashboard fallback, stage QA password-change synchronization only when enabled, no login cutover or access before identity import. No QA scoring, appeal, coaching, wallet, Item, History, T&C or user guide text changed.",
+  "reviewedAt": "2026-11-12T03:32:16.082Z",
+  "reason": "QA Sparks-only owner-authorized private cron credential transfer: disabled by default (SPARKS_QA_CREDENTIAL_IMPORT_ENABLED=1 needed); reads passwords only in Vercel server memory when enabled, passes over TLS to hash-protected Supabase Edge function, never persists credentials in QA profile sync, logs, wallet, rewards or client. Compares existing Supabase Auth mappings and imports only previously unprovisioned Active accounts; suspensions, incomplete source and unknown identities fail closed. Direct QA password login remains independently disabled until actual transfer verified.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -110,7 +110,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "4d6c131482f9d323cd78b279a84da3d4c7dd3f072cee47642016b62e540821a0",
+    "package.json": "b80a0f4c91ab0049c41540303fa048253bb3de6d2b5d9a0c1f749474a146111b",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -434,7 +434,7 @@
     "server/snakesLaddersService.js": "fe0bf2ce9eafddc456dc9c58116d7895d484b5cc6e531d238a759cb2861d5442",
     "server/sparksAccessControl.js": "daae2bf5caa8e7c916a24a9d697dd45a4c8952b07c450d37871dfc303c9ebe08",
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
-    "server/sparksProfileReconcile.js": "d49586813400952faa80cb40137d1e336838c14bd66ba3e7492177414cb8ad1c",
+    "server/sparksProfileReconcile.js": "8dba535cc5644980b884a5d95b8b09fd610fc0e91afde817d9b0525973d04039",
     "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217",
     "server/sparksSupabaseAuth.js": "83a8c94aae26932fe09c851524c84f60485814fbcbb85e2e317ec22651d0fb5d",
     "server/sparksSupabaseBridge.js": "6b31f44ff2a027375efea1dead562ebf8ebe3b02144e27425ab071c94fd7ada0",
@@ -746,11 +746,13 @@
     "src/lateAppealPolicy.ts": "c129554d7c7807ea231c3462c8325595be729209f76042968070b2b19ace749f",
     "scripts/test-late-appeal-72h.mjs": "de13de1067162e54334ade6d6a90c7b15d8e17e932f15d9e48958700179c958e",
     "server/sparksQaCredentialPreflight.js": "f68cc1236d7d7e3f632725f7e639585e2fff91fd0ed4d148067694ede3c26945",
-    "server/sparksQaMigrationRunner.js": "3b14aa343b5005cc11e64ba8681c04644bf4eeeee4ce7553c909dffdfc4d1fc7",
+    "server/sparksQaMigrationRunner.js": "22f7db312c1f07b1c45421dcdf9c397c064f24b450c9dc9825f7a1befccb5d68",
     "src/SparksQaCredentialMigration.tsx": "c547fc9f1b581242b2c550cd58633b326ac9ca368f48e78072d3f15076508535",
     "scripts/test-sparks-qa-credential-preflight.mjs": "c877279aa3d838b3c77fb711063a926997140e6abba3d5e74532e9d33be6f78b",
     "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015",
     ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c",
-    "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b"
+    "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
+    "supabase/functions/qa-sparks-qa-password-migration/index.ts": "a36e986945801d704ffd387e81503fa3adccc32532314a78ddee67b600ea1e78",
+    "scripts/test-sparks-qa-cron-import.mjs": "387af16064fc7dd81128191cfeed1fcbf15c11a47e7bcc14ae9a60b3fec330f8"
   }
 }
