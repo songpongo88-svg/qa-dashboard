@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T10:53:00.000Z",
-  "reason": "Reviewed QA-only System Setup backup readiness status wording and data-safe private bridge; updated snapshot and CI sources. Firestore remains primary, failover and writes disabled, no QA Sparks or T&C changes, no modifications to QA scores.",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "system-setup"
-  ],
+  "reviewedAt": "2026-11-12T12:34:51.070Z",
+  "reason": "QA standby source-only operational and integration review: 11-dataset verified immutable snapshot staging, localized Firestore IDs, least-privilege Windows importer, offline original-score validation, strict fail-closed login, session, evaluation, appeal and signature guards. No user-facing manual steps or screenshots changed; no QA Sparks or T&C modifications.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf",
@@ -19,7 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
-    ".github/workflows/qa-postgres-preview-safety.yml": "7bf38a13cbb148765a488c9697b1dd76b9e71779936523206124f190ebf4dbdb",
+    ".github/workflows/qa-postgres-preview-safety.yml": "0d4de209ba709871bfa912e8f1032240fa6ad4817a27dacdea9896fa2d7ee6b5",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -788,18 +786,23 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "scripts/Run-QA-Authoritative-Snapshot-Stage.mjs": "370a6aa15701080753d9e41310b57ceb8b159dc6a116c74b89bff88b71cefdd0",
+    "scripts/Run-QA-Authoritative-Snapshot-Stage.mjs": "5f02a51b123e9f10f7304f70ed659fbbe1b27382b6552db51cf50e83ca043a41",
     "scripts/test-qa-firestore-rest-snapshot.mjs": "7f4cad9ec0a89e58a7a5385cb399a3c1603b7ad6e040c911b35ef2f7eba6fa72",
-    "scripts/test-qa-firestore-snapshot-codec.mjs": "2116ac0b9b827fe4811160638dd940147c3f108ae175e2d4ba4e6dffb7d7bad2",
+    "scripts/test-qa-firestore-snapshot-codec.mjs": "4152ae1e6636438aaf95ce09be9b50453bd069f186f636082429a0e90b7a87a0",
     "scripts/test-qa-live-mirror-stage-integration.mjs": "6104183a21254c38d1aa3bc898872c04ed0fbf089eaf6a3cbed3079d890d4930",
-    "scripts/test-qa-live-stage-runner.mjs": "46cf7ae6d11b61638d48a5137ab04f131967edc73e02beb4ff9a44d1aac338aa",
+    "scripts/test-qa-live-stage-runner.mjs": "c5490c045c358dd403512044dc6eb839d19b6f1336c016ee0d67c00a5f1fd61f",
     "scripts/test-qa-standby-candidate-materializer-integration.mjs": "cddbe6109f071c1fbac31a32f671f98cb6b7166f8e20450f78078fb2224b9fbc",
-    "scripts/test-qa-standby-snapshot-readiness.mjs": "b489eca3732b47a0e3896a38593d19edf74de0d37077f725c3d6007d5082e813",
+    "scripts/test-qa-standby-snapshot-readiness.mjs": "036059ac3ddfdde45e138f935b5b8a31dfb8f06ca17807fb67249fc6e60cc18c",
     "scripts/test-qa-vpc-readiness.mjs": "b2007c8613d78ee39f93139363836378249236dd0a43846a71b555ccf8350877",
     "server/qaFirestoreRestSnapshot.js": "b8ef9667818698c1d8cfb7efe9095f473481fef008591ee9936269541c891231",
-    "server/qaFirestoreSnapshotCodec.js": "446392f4cb3acbb319364b7dfc6e3584d6bc525734a303f7b44ffbc15f87d2d5",
+    "server/qaFirestoreSnapshotCodec.js": "5401a5dd8ae181a47b7011bd961efccc0300d42bfa8dd860ab8d771a2db1cce3",
     "server/qaLiveMirrorStage.js": "b9aee4506b04f6859d090fc77ba86ea2b6de534adda8d2fd1c492578fd379894",
-    "server/qaStandbyCandidateMaterializer.js": "9fffb07742613a4ff692ba0d26ea112334995ef113975def816bac321bdb0963",
-    "server/qaStandbySnapshotReadiness.js": "58451cb7185086273d00a237d1da5fb27081499bcbfab920ac3459985d464b02"
+    "server/qaStandbyCandidateMaterializer.js": "15a33cd1c93404a5f9a0fd836fd97efe07a92ae81ca457d3cba7bfa519ea1e19",
+    "server/qaStandbySnapshotReadiness.js": "d252749cc796fd1fa60536f53b2d0fc3df5c540dee89d14261ff5a22bd986f1b",
+    "scripts/Diagnose-QA-Staged-Candidates.mjs": "b1d6fbd95188e029fceea81a02cd8f8892c64ee64877c1440718d971b2bf226f",
+    "scripts/Materialize-QA-Stored-Snapshot.mjs": "5b172aacec4846af8f02c5adfa9e75226536f4e307909c1c7c19176b4d121fb8",
+    "scripts/check-qa-source-stage-preflight.mjs": "cc6d02af36bcaee30138fee2132b08a11c5ea4d913cd978a46b2a97bc33b5126",
+    "scripts/test-qa-source-stage-preflight.mjs": "6812de5eb09c6c4ca08ec4883f8128c757e082251b5a45fc27eb2576906f938f",
+    "scripts/test-qa-windows-installer-dependencies.mjs": "80c752f09d676ebe170f2f4eec2016ff6f46afee16b51e054e742b8f49d46f4d"
   }
 }
