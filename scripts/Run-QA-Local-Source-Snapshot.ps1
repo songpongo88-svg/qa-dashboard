@@ -51,7 +51,7 @@ $encUser=$null
 $repoRoot=Join-Path $root 'source-stage'
 # Download only the minimum QA-only source files from an immutable reviewed commit.
 # Never overwrite the existing bridge, archive, or an already-installed different version.
-$pinnedCommit = 'e6172519b84196c6363943239f3fa2d1537f9fd0'
+$pinnedCommit = '05533e626820560f592d4467b7da89b0a67873c7'
 $marker = Join-Path $repoRoot '.qa-source-commit'
 $files = @(
   'scripts/Run-QA-Authoritative-Snapshot-Stage.mjs',
