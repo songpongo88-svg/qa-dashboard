@@ -18,7 +18,8 @@ assert.deepEqual(decodeQaArchivedDocument(fields({username:'qa_editor',role:'Qua
   username:'qa_editor',role:'Quality Assurance',
 });
 assert.deepEqual(decodeQaArchivedDocument({data:{role:'QA'}}),{role:'QA'});
-const db={state:{mode:'standby',source_snapshot_verified:true,generation:'3'},
+const pinnedSnapshot='qa-live-session-fixture-0001';
+const db={state:{mode:'standby',source_snapshot_verified:true,generation:'3',active_snapshot_id:pinnedSnapshot},
   session:s(),profile:p(),control:{revokedBefore:'2026-11-11T03:00:00.000Z'},
   failRead:false,batchMissing:false,badHash:false,partialManifest:false};
 const tx=[];
@@ -30,14 +31,17 @@ const pool={
       if(sql.startsWith('BEGIN')||sql==='COMMIT'||sql==='ROLLBACK')return {rows:[]};
       if(sql.includes('SELECT mode,source_snapshot_verified,generation'))
         return {rows:[db.state]};
-      if(sql.includes('live_snapshot_batches'))return {rows:db.batchMissing?[]:[{
-        snapshot_id:'qa-live-session-fixture-0001',status:'copy_verified',
+      if(sql.includes('live_snapshot_batches')){
+        if(params?.[0]!==pinnedSnapshot)return {rows:[]};
+        return {rows:db.batchMissing?[]:[{
+        snapshot_id:pinnedSnapshot,status:'copy_verified',
         source_documents:3,stored_documents:3,
         dataset_manifest:QA_SYNC_DATASETS.slice(0,db.partialManifest?10:11).map(dataset=>({
           dataset,count:['qa_user_sessions','qa_user_profiles','qa_user_session_controls'].includes(dataset)?1:0,
           digest:'a'.repeat(64),
         })),
       }]};
+      }
       if(sql.includes("root_collection='qa_user_profiles'")){
         if(!db.profile)return {rows:[]};
         return {rows:[{document_path:'qa_user_profiles/qa_editor',
@@ -61,6 +65,7 @@ const good=await check();
 assert.equal(good.username,'qa_editor');
 assert.equal(good.role,'Quality Assurance');
 assert.equal(good.generation,3);
+assert.equal(good.sourceSnapshotId,pinnedSnapshot);
 assert.equal(good.source,'verified-local-session');
 assert.equal(good.expiresAt,s().expiresAt);
 assert.equal(Object.isFrozen(good),true);
@@ -68,6 +73,8 @@ assert.equal(tx.some(r=>r.sql.includes('REPEATABLE READ READ ONLY')),true);
 assert.equal(tx.some(r=>r.sql==='COMMIT'),true);
 const fail=async(expectRollback=true)=>{const before=tx.length;await assert.rejects(check(),e=>e.code==='local_session_not_verified');assert.equal(tx.slice(before).some(r=>r.sql==='ROLLBACK'),expectRollback);};
 db.state.source_snapshot_verified=false;await fail();db.state.source_snapshot_verified=true;
+db.state.active_snapshot_id=null;await fail();db.state.active_snapshot_id=pinnedSnapshot;
+db.state.active_snapshot_id='different-snapshot-111111';await fail();db.state.active_snapshot_id=pinnedSnapshot;
 db.batchMissing=true;await fail();db.batchMissing=false;
 db.partialManifest=true;await fail();db.partialManifest=false;
 db.badHash=true;await fail();db.badHash=false;
