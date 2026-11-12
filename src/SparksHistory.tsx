@@ -163,7 +163,7 @@ export default function SparksHistory({ history, large = false }: {
         </li>;
       })}
     </ol> : <div className="qa-sparks-history-empty-state" role="status">
-      <strong>{history.length === 0 ? "ยังไม่มีประวัติ QA Sparks" : "ไม่พบรายการที่ตรงกับการค้นหา"}</strong>
+      <strong>{history.length === 0 ? "ยังไม่มีประวัติการได้รับหรือใช้ Sparks" : "ไม่พบรายการที่ตรงกับการค้นหา"}</strong>
       <span>{history.length === 0 ? "เมื่อมีการรับคะแนนหรือใช้ Item ประวัติจะปรากฏที่นี่" :
         "ลองเลือกตัวกรองอื่นหรือล้างคำค้นหา"}</span>
       {history.length > 0 && <button type="button" onClick={clearFilters}>แสดงรายการทั้งหมด</button>}
