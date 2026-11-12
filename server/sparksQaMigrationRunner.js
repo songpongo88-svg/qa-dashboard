@@ -5,7 +5,14 @@ const normalize = value => String(value ?? "").trim().toLowerCase();
 export async function migrateQaPasswordsFromTrustedSource(profiles,{
   token, url, transport=fetch, now=new Date(), timeoutMs=85000,
 }={}){
-  const audit=auditQaCredentialSource(profiles,{now,minActive:21});
+  let audit;
+  try {
+    audit=auditQaCredentialSource(profiles,{now,minActive:21});
+  } catch {
+    // Invalid/incomplete source must fail closed before any Supabase request.
+    // Do not misreport a roster validation error as a remote outage.
+    return {ok:false,code:"SOURCE_CREDENTIAL_BLOCKED",audit:null};
+  }
   if(audit.blocked.length || !audit.canStartStagedMigration)
     return {ok:false,code:"SOURCE_CREDENTIAL_BLOCKED",audit};
   if(audit.eligibleActive!==21 || audit.pending.some(item=>item.reason!=="QA_PASSWORD_NOT_SET"))
