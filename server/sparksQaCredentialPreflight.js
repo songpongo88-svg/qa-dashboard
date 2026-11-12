@@ -67,12 +67,21 @@ export function auditQaCredentialSource(profiles, {
   // A partial collection response or a missing owner is never considered eligible.
   if (active < minActive || !ownerFound || !ownerReady)
     throw Error("ACTIVE_ROSTER_OR_OWNER_INCOMPLETE");
+  // Scheduled suspension is a deliberate exclusion, not a reason to deny
+  // migration for all other employees. All OTHER validation failures still
+  // block the import. The 21-name allowlist is independently rechecked by
+  // the Supabase server migration function before any Auth write.
+  const excluded=blocked.filter(item=>item.reason==="SCHEDULED_SUSPENSION");
+  const invalid=blocked.filter(item=>item.reason!=="SCHEDULED_SUSPENSION");
+  const eligibleActive=active-excluded.length;
   return {
     source:"fresh-firestore",
-    checked:profiles.length,active,suspended,ready,
+    checked:profiles.length,active,suspended,ready,eligibleActive,
     pending:pending.sort((a,b)=>a.username.localeCompare(b.username)),
-    blocked:blocked.sort((a,b)=>a.username.localeCompare(b.username)),
-    canStartStagedMigration:blocked.length===0 && ready>0,
+    excluded:excluded.sort((a,b)=>a.username.localeCompare(b.username)),
+    blocked:invalid.sort((a,b)=>a.username.localeCompare(b.username)),
+    canStartStagedMigration:invalid.length===0 && eligibleActive===21 &&
+      ready>0 && ready+pending.length===eligibleActive,
     // Intentionally no password material in the returned object.
   };
 }
