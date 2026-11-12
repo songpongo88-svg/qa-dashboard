@@ -51,6 +51,22 @@ const {Client}=require('pg');
   )).rows[0];
   if(!state||state.mode!=='disabled'||state.write_frozen!==true||state.source_snapshot_verified!==false)
     throw Object.assign(new Error('unsafe_state'),{code:'STANDBY_NOT_FROZEN'});
+  phase='CHECK_READ_ONLY_CONFIGURATION';
+  const limits=(await pg.query(
+    "SELECT pg_is_in_recovery() AS in_recovery,"+
+    " current_setting('default_transaction_read_only') AS default_ro,"+
+    " current_setting('transaction_read_only') AS current_ro,"+
+    " has_schema_privilege(current_user,'qa_failover_v1','CREATE') AS schema_create,"+
+    " (SELECT source FROM pg_settings WHERE name='default_transaction_read_only') AS ro_source"
+  )).rows[0];
+  console.log('QA_SCHEMA_SERVER='+(limits.in_recovery?'RECOVERY_READ_ONLY':'PRIMARY'));
+  console.log('QA_SCHEMA_CONNECTION_DEFAULT='+(limits.default_ro==='on'?'READ_ONLY':'READ_WRITE'));
+  console.log('QA_SCHEMA_READONLY_SOURCE='+String(limits.ro_source||'UNKNOWN').toUpperCase().replace(/[^A-Z_]/g,'_').slice(0,32));
+  console.log('QA_SCHEMA_CREATE_PRIVILEGE='+(limits.schema_create?'YES':'NO'));
+  if(limits.in_recovery){
+    console.log('QA_SCHEMA_DRYRUN=POSTGRES_IN_RECOVERY');
+    return;
+  }
   phase='READ_SQL_FILE';
   const raw=fs.readFileSync(process.env.QA_LOCAL_DIAG_SQL_FILE,'utf8');
   // Only the reviewed migration wrapped in BEGIN ... COMMIT may be tested.
