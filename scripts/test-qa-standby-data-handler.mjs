@@ -21,6 +21,10 @@ const options={
       assert.equal(info.evaluationId,'qa-001');
       assert.equal(info.candidate.record.finalScore,83);
     }
+    if(info.action==='delete'){
+      assert.equal(info.evaluationId,'qa-001');
+      assert.equal(info.candidate.record,undefined);
+    }
     return {contextSource:badContext?'browser':'server-owned-not-request-body',serverAuthority:'qa-server-verified'};
   },
   listEvaluations:async(_pool,request,trust)=>{
@@ -95,6 +99,13 @@ try{
   },body:'not json'});
   assert.equal(response.status,400);
   assert.equal(writing,1);
+  const deletion={operationId:'qa-delete-2',evaluationId:'qa-001',action:'delete',expectedVersion:2};
+  response=await req('/v1/qa/evaluations',{method:'POST',headers:{
+    ...authorized,'content-type':'application/json','idempotency-key':'qa-delete-2',
+  },body:JSON.stringify(deletion)});
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).queued,true);
+  assert.equal(writing,2);
   actorRole='Senior';
   response=await req('/v1/qa/evaluations',{headers:authorized});
   assert.equal(response.status,403);
@@ -105,7 +116,7 @@ try{
   badContext=false;
   assert.ok(sessionReads>=5);
   assert.equal(reading,2);
-  assert.equal(writing,1);
+  assert.equal(writing,2);
 }finally{await new Promise(resolve=>server.close(resolve));}
 const off=createQaStandbyDataHandler({...options,dataEnabled:false});
 const downServer=createServer((req,res)=>{void off(req,res);});
