@@ -1522,9 +1522,23 @@ function sparksCloudReadOnlyEnabled() {
 
 async function sparksHandler(req, res) {
   res.setHeader("Cache-Control", "no-store");
-  // Block game/reward requests and scheduled settlement before any Firebase work.
+  // Keep Sparks gameplay, rewards, admin wallets and scheduled jobs paused.
+  // The owner-only QA credential migration is a maintenance operation, not a
+  // Sparks activity. It must remain reachable while Sparks is paused so that
+  // account cutover can complete without reopening Firebase-backed usage.
+  // Each migration action verifies same-origin and the live QA owner session
+  // before any credential-source read or Supabase import.
+  const maintenanceAction = req.method === "POST" &&
+    (() => {
+      try {
+        const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+        return body?.action === "qa-password-preflight" ||
+          body?.action === "qa-password-migrate-server";
+      } catch { return false; }
+    })();
   const gate=await getSparksAccessState();
-  if(!gate.enabled)return res.status(423).json({error:gate.message,code:"SPARKS_ACCESS_PAUSED"});
+  if(!gate.enabled && !maintenanceAction)
+    return res.status(423).json({error:gate.message,code:"SPARKS_ACCESS_PAUSED"});
   if (sparksEmailAuthEnabled()) {
     const originKind = String(req.headers?.["sec-fetch-site"] || "");
     if (originKind && originKind !== "same-origin" && originKind !== "none")
