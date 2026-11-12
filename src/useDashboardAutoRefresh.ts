@@ -15,6 +15,13 @@ export function shouldRefreshDashboardRevision(previous: string | null, next: st
 export function useDashboardAutoRefresh(active: boolean, refreshKey: number, refresh: () => void, readRevision?: () => Promise<string | null>, onChecked?: (at: number) => void) {
   const lastRequestedAt = useRef(Date.now());
   const lastRevision = useRef<string | null>(null);
+  const previousRefreshKey = useRef(refreshKey);
+  if (previousRefreshKey.current !== refreshKey) {
+    previousRefreshKey.current = refreshKey;
+    // Explicit save/refresh already reloads the data. Establish a new
+    // revision baseline instead of triggering the same full reload again.
+    lastRevision.current = null;
+  }
   lastRequestedAt.current = Math.max(lastRequestedAt.current, refreshKey || 0);
 
   useEffect(() => {
