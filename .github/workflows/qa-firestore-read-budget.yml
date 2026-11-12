@@ -32,5 +32,5 @@ jobs:
         run: npm run test:firestore-quota
       - name: Coaching regression
         run: npm run test:monthly-coaching
-      - name: Compile QA Dashboard Preview
-        run: npx vite build
+      - name: Compile QA Dashboard with required project prebuild patches
+        run: npm run build
