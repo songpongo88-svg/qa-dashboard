@@ -1547,8 +1547,11 @@ async function sparksHandler(req, res) {
       autoPass:autoPassPending.status==="fulfilled"?autoPassPending.value:{error:"Auto-Pass reconciliation failed"}});
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  let qaMigrationAction = "";
+  let qaMigrationStage = "";
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    if (body.action === "qa-password-preflight" || body.action === "qa-password-migrate-server") qaMigrationAction = body.action;
     if(sparksCloudReadOnlyEnabled() && !CLOUD_PREVIEW_READ_ACTIONS.has(String(body.action||""))) {
       return res.status(423).json({
         error:"QA Sparks เวอร์ชันทดสอบ Supabase เปิดให้ดูข้อมูลอย่างเดียว ยังไม่อนุญาตให้เพิ่ม หัก แลก หรือยืนยันรางวัล",
@@ -1712,12 +1715,15 @@ async function sparksHandler(req, res) {
         if(sourceOrigin.protocol!=="https:" || sourceOrigin.host!==req.headers.host)
           fail("Credential import origin mismatch",403);
       }
+      qaMigrationStage="owner-session";
       await authorizeAdmin(body);
+      qaMigrationStage="source-credentials";
       const page=await listCollection("qa_user_profiles",[
         "username","status","role","password","passwordExpiresAt","accessExpiresAt",
         "suspendEffectiveDate","suspendEndDate","suspendAutoReactivate",
       ]);
       if(page.truncated)fail("Source credential inventory was incomplete",503);
+      qaMigrationStage="supabase-import";
       const result=await migrateQaPasswordsFromTrustedSource(page.documents.map(recordValue),{
         token:process.env.SPARKS_SUPABASE_BRIDGE_TOKEN,
         url:process.env.SPARKS_SUPABASE_AUTH_URL,
@@ -1741,7 +1747,9 @@ async function sparksHandler(req, res) {
           fail("Invalid origin",403);
         }
       }
+      qaMigrationStage="owner-session";
       await authorizeAdmin(body);
+      qaMigrationStage="source-credentials";
       const page=await listCollection("qa_user_profiles",[
         "username","status","role","password","passwordExpiresAt","accessExpiresAt",
         "suspendEffectiveDate","suspendEndDate","suspendAutoReactivate",
@@ -1821,6 +1829,33 @@ async function sparksHandler(req, res) {
   } catch (error) {
     const status = Number(error?.status) || 500;
     if (status === 429) res.setHeader("Retry-After", String(Math.max(1, Math.ceil((firestoreQuotaLimitedUntil - Date.now()) / 1000)) || 300));
+    // A working Supabase rewards wallet does not establish that the separate
+    // Firestore credential-source reads are available. Distinguish the stages.
+    if (qaMigrationAction) {
+      const stage = ["owner-session","source-credentials","supabase-import"].includes(qaMigrationStage)
+        ? qaMigrationStage : "unknown";
+      if (status === 429) {
+        const retryAfterSeconds = Math.max(1, Math.ceil((firestoreQuotaLimitedUntil - Date.now()) / 1000) || 300);
+        return res.status(429).json({
+          ok:false,code:"QA_CREDENTIAL_FIRESTORE_LIMIT",stage,retryAfterSeconds,
+          error:"เฉพาะการอ่านบัญชี QA จาก Firestore ถูกจำกัดชั่วคราว คะแนนและการแลกรางวัลบน Supabase เป็นคนละส่วน ยังไม่มีการย้ายบัญชีในคำขอนี้",
+        });
+      }
+      if (status >= 500) {
+        console.error("QA Sparks credential migration failed at stage:",stage);
+        return res.status(503).json({
+          ok:false,code:stage==="supabase-import"?"QA_CREDENTIAL_IMPORT_UNAVAILABLE":"QA_CREDENTIAL_SOURCE_UNAVAILABLE",
+          stage,error:stage==="supabase-import"
+            ?"ติดต่อระบบนำเข้าบัญชี Supabase ไม่สำเร็จ ยังไม่สามารถยืนยันว่าบัญชีถูกย้ายครบ"
+            :"ตรวจสอบบัญชี QA จาก Firebase ไม่สำเร็จ โดยไม่กระทบคะแนนหรือรางวัลบน Supabase",
+        });
+      }
+      if (status === 403 || status === 401)
+        return res.status(status).json({
+          ok:false,code:"QA_CREDENTIAL_OWNER_SESSION_INVALID",stage,
+          error:"การตรวจสิทธิ์เจ้าของระบบเพื่อย้ายบัญชีไม่ผ่าน กรุณา Login QA Dashboard ใหม่ด้วยบัญชีเจ้าของระบบ",
+        });
+    }
     // Never return service-account details, raw credentials or Firestore internal stack traces.
     const message = status === 500 ? "Sparks Admin could not complete this request" : String(error?.message || "Request failed");
     if (status >= 500) console.error("Sparks admin request error:", String(error?.message || "Unknown"));
