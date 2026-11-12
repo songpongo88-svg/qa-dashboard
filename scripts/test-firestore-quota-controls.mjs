@@ -149,7 +149,22 @@ try {
   assert.equal(fixture.reads.length, 2, "a retained inactive Sparks page does not read on focus");
   await render(React.createElement(sparks.Page, props));
   await click(document.querySelector("#qa-sparks-tab-history"));
-  assert.equal(document.querySelectorAll('.qa-sparks-history-item').length, 100);
+  // New responsive History uses client-side reveal to avoid a 100-row wall
+  // inside the dashboard. All 100 fixture records must remain accessible.
+  assert.equal(document.querySelectorAll('.qa-sparks-history-entry').length, 12,
+    "full History initially shows a readable first page");
+  const historyReadCount = fixture.reads.length + fixture.queries.length;
+  for (let pageIndex = 0; pageIndex < 10; pageIndex++) {
+    const more = document.querySelector(".qa-sparks-history-more button");
+    if (!more) break;
+    await click(more);
+  }
+  assert.equal(document.querySelectorAll('.qa-sparks-history-entry').length, 100,
+    "view-more reveals all 100 loaded history records");
+  assert.equal(fixture.reads.length + fixture.queries.length, historyReadCount,
+    "local pagination must not make extra Firestore reads");
+  assert.equal(document.querySelector(".qa-sparks-history-scroll"), null,
+    "history does not require a horizontal scroll table");
   fixture.documents.set("qa_sparks_wallets/songpon", { ...wallet, balance: 650 });
   await act(async () => window.dispatchEvent(new Event("qa:sparks-updated")));await tick();
   assert.ok(document.querySelector('[data-sparks-metric="Current Sparks"] strong').textContent.includes("650"), "a successful mutation invalidates the wallet immediately");
