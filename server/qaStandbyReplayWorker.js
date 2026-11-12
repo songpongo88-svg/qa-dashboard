@@ -115,3 +115,23 @@ export async function replayOneQaStandbyOperation(pool, adapter, trusted) {
     WHERE operation_id=$1 AND status='in_flight'`,[op.operation_id]);
   return {ok:false,processed:true,retry:true};
 }
+
+// A bounded server-side reconciliation tick for a future approved failback
+// coordinator. Never scheduled automatically or exposed to the browser.
+// A pending retry stops this tick to avoid hammering a recovering Firestore.
+// "noEligibleOperations" is NOT full parity: conflicts may still be queued.
+export async function replayQaStandbyBatch(pool,adapter,trusted,{maxOperations=10}={}){
+  if(!Number.isSafeInteger(maxOperations)||maxOperations<1||maxOperations>25)
+    blocked('invalid_replay_batch_limit');
+  const counts={processed:0,synced:0,conflicts:0,retryRequired:false,noEligibleOperations:false};
+  for(let i=0;i<maxOperations;i++){
+    const result=await replayOneQaStandbyOperation(pool,adapter,trusted);
+    if(result.processed===false){counts.noEligibleOperations=true;break;}
+    counts.processed++;
+    if(result.synced===true)counts.synced++;
+    else if(result.conflict===true)counts.conflicts++;
+    else if(result.retry===true){counts.retryRequired=true;break;}
+    else blocked('unexpected_replay_result');
+  }
+  return Object.freeze(counts);
+}
