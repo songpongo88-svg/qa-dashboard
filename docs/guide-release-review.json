@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T04:50:07.549Z",
-  "reason": "Agent Performance Ranking uses a scoped DOM/stylesheet guard against third-party inserted chat badges beside employee initials and names. Existing score data, navigation, chat tools, employee profiles and user guide unchanged.",
+  "reviewedAt": "2026-11-12T06:11:53.792Z",
+  "reason": "Reviewed QA Sparks paused service landing visual redesign (mascot, reward chest and responsive layout). Existing Supabase owner authorization and status switching are unchanged; user guide steps and content need no update.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -663,7 +663,7 @@
     "src/snakesLadders.css": "66d896a8ea5d206ab111b6a717a3e82e51322970744c07f05d4cac09bee77a95",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/snakesRules.js": "d15f1b23aeb75876426901aeaf77cf65e6c26262097ecb4a379bcd9faf2747ec",
-    "src/SparksAccessGate.tsx": "7ecc59d993aea17ea270d74f9599cb1f1b8ee47b2c8907c95b462b53f5c98cbd",
+    "src/SparksAccessGate.tsx": "b24cf34ec03b62586354f8b07a1f2366aaa676b4c98caef0cfd140393f918c69",
     "src/SparksAdminPanel.tsx": "f1387497c7c4675fd2d9f3ec3063f2fc0c68892f780cc5766f05d5b9573d7add",
     "src/sparksAdminWorkspace.css": "5991e337a549bf52ab9827323162090419640cf369f431f2835d62bb2eebdad4",
     "src/sparksCloudStatus.css": "8851226f60de39abd94db64cf751e1234656909faf290ebf3432a5881aea86b5",
@@ -755,6 +755,7 @@
     "src/sparksItemHistory.mjs": "34fb36e3be5550a5e565a0c31d3ed8b8a7bcfb6829ea74730234b51524fd56cd",
     "scripts/test-all-item-history.mjs": "492bb0192f72002f99bf806eefa18112e95e2f8eb102a0ed29a6d7b3dc52bb34",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
-    "scripts/test-agent-ranking-chat-badge.mjs": "02073814e46db7fc234f88d588dbe33e3d7c9e1f5dc63f24da09e5fba100780f"
+    "scripts/test-agent-ranking-chat-badge.mjs": "02073814e46db7fc234f88d588dbe33e3d7c9e1f5dc63f24da09e5fba100780f",
+    "src/sparksPausedLanding.css": "7a4e8094534cf04ace4aec44c259a5bd965782aefd5b216b50ce53528f9a98e2"
   }
 }
