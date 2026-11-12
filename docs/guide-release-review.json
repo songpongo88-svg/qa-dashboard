@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T13:27:00.000Z",
-  "reason": "Reviewed QA Sparks direct-entry and standalone regression test: safe server-side auth recheck, no unnecessary password prompt or maintenance banner, and unchanged rewards and guide content.",
+  "reviewedAt": "2026-11-12T13:45:00.000Z",
+  "reason": "Reviewed direct QA Sparks entry with server-verified session before UI, truthful maintenance status, adjusted anonymous UI fixture and standalone auth assertion; no guide content or reward rule change.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -633,7 +633,7 @@
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
     "src/qaSparks.css": "6828291f466e15396ff9f779f93009c58dc281799fd4a2f26cc794276adc7635",
-    "src/QASparks.tsx": "14cda802354be28b6e7ecd4d550639fafaa7eb5b77c11df7f298e72b0cf0afb3",
+    "src/QASparks.tsx": "69c925d119537886bafa385448a53dce35b2efdf8391c36bff2078269147222d",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "3c87a5692cc5aa4c0d0afb6be54fc121c76317b673fc7e940159d4cba6378522",
