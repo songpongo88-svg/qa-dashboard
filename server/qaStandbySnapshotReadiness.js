@@ -1,10 +1,10 @@
 // QA Dashboard ONLY. Evidence-based readiness report with zero case data.
-// Inspects the latest immutable six-dataset Firestore copy and candidate audit.
+// Inspects the latest immutable eleven-dataset Firestore copy and candidate audit.
 // Does NOT certify live parity, authorize login, or enable Firestore failover.
+import {QA_SYNC_DATASETS} from './qaLiveMirrorStage.js';
 const blocked=code=>Object.assign(new Error(code),{code});
 const nonnegative=x=>Number.isSafeInteger(Number(x))&&Number(x)>=0;
-const required=['qa_evaluations','qa_appeal_events','qa_signature_documents',
-  'qa_user_profiles','qa_role_permissions','qa_user_sessions'];
+const required=QA_SYNC_DATASETS;
 const safeDate=s=>{const n=Date.parse(s);return Number.isFinite(n)?n:NaN};
 export async function qaStandbySnapshotReadiness(pool,{now=Date.now()}={}){
   if(typeof pool?.connect!=='function')throw blocked('qa_snapshot_database_not_configured');
