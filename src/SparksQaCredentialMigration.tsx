@@ -71,6 +71,7 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
        {busy?"กำลังย้ายบัญชี...":"ตรวจและย้ายบัญชีที่พร้อมไป Supabase"}
      </button>
    </div>
+   {!sessionId ? <p role="alert" style={{fontSize:12,lineHeight:1.6,color:"#9e233d"}}>ไม่พบ QA Session สำหรับย้ายบัญชี ปุ่มจึงยังใช้ไม่ได้ กรุณา Login QA Dashboard ใหม่ด้วยบัญชีเจ้าของระบบ</p> : null}
    {audit?<p role="status" style={{fontSize:12,lineHeight:1.6}}>
      ตรวจบัญชีทั้งหมด {audit.checked} · Active {audit.active} · พร้อมย้าย {audit.ready}
      · รอตั้งรหัสผ่าน {pending.length} · Suspended {audit.suspended}
