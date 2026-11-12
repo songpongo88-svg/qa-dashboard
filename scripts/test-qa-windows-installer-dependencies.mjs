@@ -38,4 +38,6 @@ await closure('scripts/Run-QA-Authoritative-Snapshot-Stage.mjs',stagePaths);
 await closure('scripts/check-qa-source-stage-preflight.mjs',stagePaths);
 assert.match(launcher,/\$repoCommit\s*=\s*'[a-f0-9]{40}'/);
 assert.match(source,/\$pinnedCommit\s*=\s*'[a-f0-9]{40}'/);
+assert.match(source,/\$gcloudExit\s*=\s*\$LASTEXITCODE/);
+assert.match(source,/\$rawToken\s*=\s*\@\(\& \$gcloud\.Source/);
 console.log('PASS QA Windows installers: complete pinned local import dependency closure');
