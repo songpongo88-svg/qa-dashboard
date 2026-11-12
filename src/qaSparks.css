@@ -1018,3 +1018,21 @@
  .qa-sparks-history-entry-main{flex-basis:calc(100% - 37px)}
  .qa-sparks-history-entry-changes{flex-basis:100%;flex-direction:row;flex-wrap:wrap}
 }
+
+/* Sparks sign-in controls must remain visible: the legacy page heading is
+   intentionally visually hidden for the compact membership overview. */
+.qa-sparks-auth-status{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  border:1px solid var(--sparks-outline,#e8ddea);border-radius:12px;
+  background:#fff;padding:11px 15px;color:var(--sparks-dark,#25233a);
+}
+.qa-sparks-auth-status-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.qa-sparks-auth-status-copy strong{font-size:12px;font-weight:700}
+.qa-sparks-auth-status-copy span{font-size:11px;color:#6f6679}
+.qa-sparks-auth-status[data-sparks-auth-mode="supabase"]{border-color:#a6d6c0;background:#f5fbf7}
+.qa-sparks-auth-status>button{
+  border:1px solid #b5a4dc;border-radius:9px;background:#f3efff;color:#51358f;
+  font-family:inherit;font-size:12px;font-weight:700;padding:9px 13px;cursor:pointer;
+}
+.qa-sparks-auth-status>button:focus-visible{outline:3px solid #7352c3;outline-offset:2px}
+@media(max-width:650px){.qa-sparks-auth-status>button{width:100%}}
