@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-11T11:33:49.815Z",
-  "reason": "QA Sparks Auto-Pass card labels free 5 rights until offer ends; shows normal 160 Sparks struck through before claim and purchase price separately after claim; underlying reward/quantity/pricing unchanged",
+  "reviewedAt": "2026-11-12T02:17:53.543Z",
+  "reason": "QA Sparks owner migration button: restore owner-only visibility inside Sparks Admin regardless of Hybrid/Supabase mode or missing QA session, while preserving original server-side QA owner authorization. When QA session is missing, button stays disabled with an explanatory alert. No score, wallet, history, reward/item, login, appeal, coaching, user guide, or terms changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -403,7 +403,7 @@
     "scripts/test-sparks-cloud-wallet-auth.mjs": "b1830f165e88d9030db83f097b0763c39ba1d896e5f56fce84ada92e9c663659",
     "scripts/test-sparks-email-api.mjs": "ca9b08fade21ca84e24f801672ff259ff2653224c21612c17a623d808cf1b99d",
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
-    "scripts/test-sparks-hybrid-owner.mjs": "035e106d4a6a955a5a233a6b5904932c0a718867175b4060ee6ce410875e2029",
+    "scripts/test-sparks-hybrid-owner.mjs": "406db89cec4b3681764a1ada3c00d9d33b312133c8fa6a8af5a665dfe44d7c77",
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
     "scripts/test-sparks-shield-preview-readonly.mjs": "a017ed8d5127bffcdcce2d9208596c44bd069085cefb28b8e65c6b11e66ca7b9",
     "scripts/test-sparks-standalone.mjs": "c8d892ca9949cd518aaab5d58152beddc7b395be2f06ea2ac2309c8cb95ca741",
@@ -633,7 +633,7 @@
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
     "src/qaSparks.css": "cdb55cdbb9a1951c8d97895431ecf08e8b66645c512668c3b5e37faeb4e66f37",
-    "src/QASparks.tsx": "ea35a6ca2808df2c0222e36ac05bcd39709107fd8aedfc8add24fcbd4ce203e2",
+    "src/QASparks.tsx": "691607cdb150babf3c44873251d85514ad049660fc7945456ec0186cc539788a",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "2209697d54084bd87d4643778e590b000ae946bcdb49d0ed545a8d7435baf211",
@@ -747,7 +747,7 @@
     "scripts/test-late-appeal-72h.mjs": "de13de1067162e54334ade6d6a90c7b15d8e17e932f15d9e48958700179c958e",
     "server/sparksQaCredentialPreflight.js": "f68cc1236d7d7e3f632725f7e639585e2fff91fd0ed4d148067694ede3c26945",
     "server/sparksQaMigrationRunner.js": "3b14aa343b5005cc11e64ba8681c04644bf4eeeee4ce7553c909dffdfc4d1fc7",
-    "src/SparksQaCredentialMigration.tsx": "b62105e826e89362708ba6fcdadb7834c55896cf43eccdf6abfd4e3a11b01153",
+    "src/SparksQaCredentialMigration.tsx": "2426d692076c2f6f45996fd99846737d351040cd3358fa0c4a893e9228a55d50",
     "scripts/test-sparks-qa-credential-preflight.mjs": "c877279aa3d838b3c77fb711063a926997140e6abba3d5e74532e9d33be6f78b",
     "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015",
     ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c"
