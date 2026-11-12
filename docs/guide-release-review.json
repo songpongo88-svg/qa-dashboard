@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T18:40:45.971Z",
-  "reason": "Reviewed QA-only PostgreSQL standby evaluation delete API contract. Delete must not accept browser replacement record data; create and update still require complete record. Added client and Vercel proxy regression tests. No source QA scores, signatures, appeals, Sparks, T&C or Production changed.",
+  "reviewedAt": "2026-11-12T18:42:40.616Z",
+  "reason": "Reviewed end-to-end QA standby evaluation delete contract from browser through Vercel proxy to authenticated local handler and PostgreSQL journal. Delete requires no client record and cannot replace original QA score. This change has no effects on Production, QA Sparks, appeal or signature data.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -402,7 +402,7 @@
     "scripts/test-qa-sparks-ui.mjs": "8212cedfd7f262cdb565d7365ce7b8732932c55525f6a515f7dff82871f08f18",
     "scripts/test-qa-standby-archive-status.mjs": "1b5aac527f4f70987932ad2f689e1b3b8977a82d16a01a2d53f6fed6be5c10d5",
     "scripts/test-qa-standby-client.mjs": "98c40eb15b15ee11ec9ab054915bba4275fcfc7938f93c1a5ce5c75c3665da29",
-    "scripts/test-qa-standby-data-handler.mjs": "4ac3df62a34179bf2d69b5cd2eff045f0c9f7334b3a42f083accd4eb2ef73bae",
+    "scripts/test-qa-standby-data-handler.mjs": "5c1ed2966f5ef9502f16dae96b519a4c053dd41b98210b2497e25d1072e2f201",
     "scripts/test-qa-standby-journal-integration.mjs": "e88a542d3d6f823222786120eba8de85566e7f3e1a01adabc9e6b962dbbdfc03",
     "scripts/test-qa-standby-read-integration.mjs": "14c9cc1a5ea9f939c681e6982b85a56de94aa252b14558cff2da3fdb293f64cb",
     "scripts/test-qa-standby-replay-integration.mjs": "294a60b5c92bbc5d15fea1ec47fcb082db911bffdcd4a2edbc8d4c941e29edd5",
