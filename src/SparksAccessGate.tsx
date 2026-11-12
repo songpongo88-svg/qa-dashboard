@@ -1,5 +1,6 @@
 import React,{useCallback,useEffect,useState} from "react";
 import SparksEmailAuth,{type SparksVerifiedActor} from "./SparksEmailAuth";
+import "./sparksPausedLanding.css";
 export type SparksStatus={enabled:boolean;message:string;unavailable?:boolean;updatedAt?:string};
 const message="QA Sparks ปิดปรับปรุงชั่วคราว ระหว่างย้ายระบบฐานข้อมูล";
 export function useSparksStatus(poll=true){
@@ -27,28 +28,39 @@ export function useSparksStatus(poll=true){
   return {status,refresh};
 }
 export function SparksPausedNotice({status,ownerLink=false}:{status:SparksStatus|null;ownerLink?:boolean}){
-  return <section data-sparks-access-closed="true" role="status" style={{
-    maxWidth:660,margin:"42px auto",padding:"32px 24px",
-    textAlign:"center",borderRadius:18,border:"1px solid #e0e6ee",
-    background:"#fff",boxShadow:"0 8px 32px #24354a12",color:"#273547"
-  }}>
-    <h2 style={{fontSize:23,fontWeight:800,margin:"0 0 12px"}}>QA Sparks ปิดให้บริการชั่วคราว</h2>
-    <p style={{lineHeight:1.75}}>{status?.message||"กำลังตรวจสอบสถานะระบบ..."}</p>
-    <p style={{fontSize:13,color:"#687589",lineHeight:1.8}}>
-      ระหว่างย้ายฐานข้อมูล ระบบหยุดการเปิดกระเป๋า การเล่นเกม การแลกรางวัล และการใช้ Item
-      โดยไม่ลบคะแนนหรือประวัติเดิม
-    </p>
-    {ownerLink&&<p style={{fontSize:13,color:"#415276"}}>ผู้ดูแลสามารถเปิดระบบกลับได้จากส่วนควบคุมด้านล่าง</p>}
-    <p style={{fontSize:12,color:"#7c8795"}}>QA Dashboard ยังใช้งานได้ตามปกติ</p>
+  return <section data-sparks-access-closed="true" role="status" className="sparks-paused-hero">
+    <div className="sparks-paused-stars" aria-hidden="true"><span>✦</span><span>✧</span><span>✦</span><span>✧</span><span>✦</span><span>✧</span></div>
+    <img className="sparks-paused-mascot" src="/sparks-maintenance-mascot.svg" alt="" aria-hidden="true" />
+    <img className="sparks-paused-chest" src="/sparks-maintenance-chest.svg" alt="" aria-hidden="true" />
+    <div className="sparks-paused-clouds sparks-paused-clouds--back" aria-hidden="true" />
+    <div className="sparks-paused-content">
+      <div className="sparks-paused-brand"><span className="sparks-paused-brand-star" aria-hidden="true">★</span><span>QA Sparks</span></div>
+      <div className="sparks-paused-eyebrow">ประกาศสถานะการให้บริการ</div>
+      <div className="sparks-paused-notice-card">
+        <span className="sparks-paused-status-pill"><span aria-hidden="true" className="sparks-paused-status-dot" />ปิดให้บริการชั่วคราว</span>
+        <h2>QA Sparks ปิดให้บริการชั่วคราว</h2>
+        <p className="sparks-paused-main-message">{status?.message||"กำลังตรวจสอบสถานะระบบ..."}</p>
+        <p className="sparks-paused-explainer">
+          ระหว่างย้ายฐานข้อมูล ระบบหยุดการเปิดกระเป๋า การเล่นเกม การแลกรางวัล และการใช้ Item
+          โดยไม่ลบคะแนนหรือประวัติเดิม
+        </p>
+        <div className="sparks-paused-safe-note">
+          <span className="sparks-paused-check" aria-hidden="true">✓</span>
+          <span>คะแนน Item และประวัติเดิมยังคงอยู่ · QA Dashboard ใช้งานได้ตามปกติ</span>
+        </div>
+      </div>
+      {ownerLink&&<p className="sparks-paused-owner-hint">ผู้ดูแลระบบสามารถควบคุมการเปิดใช้งานได้จากแผงด้านล่าง</p>}
+    </div>
+    <div className="sparks-paused-clouds sparks-paused-clouds--front" aria-hidden="true" />
   </section>;
 }
 export default function SparksAccessGate({username,children}:{username:string;children:React.ReactNode}){
   const {status}=useSparksStatus();
   if(status?.enabled===true)return <>{children}</>;
-  return <>
+  return <div className="sparks-paused-shell">
     <SparksPausedNotice status={status} ownerLink={username.trim().toLowerCase()==="songpon"}/>
     {username.trim().toLowerCase()==="songpon"&&<SparksOwnerAccessControl username={username}/>}
-  </>;
+  </div>;
 }
 
 /** Gate always-mounted QA Dashboard Sparks side effects without polling. */
@@ -113,7 +125,7 @@ export function SparksOwnerAccessControl({username}:{username:string}){
       setError(reason instanceof Error?reason.message:"บันทึกการเปลี่ยนสถานะไม่สำเร็จ");
     }finally{setBusy(false);}
   };
-  return <section data-sparks-owner-control="true" aria-label="ควบคุมการเข้าใช้งาน QA Sparks"
+  return <section className="sparks-owner-console" data-sparks-owner-control="true" aria-label="ควบคุมการเข้าใช้งาน QA Sparks"
     style={{border:"1px solid #d8deea",borderRadius:16,padding:18,background:"#fff",maxWidth:780,margin:"16px auto 22px",boxShadow:"0 4px 24px #202e4810"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
       <div>
