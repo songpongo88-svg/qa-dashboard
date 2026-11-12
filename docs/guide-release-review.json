@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T12:34:51.070Z",
-  "reason": "QA standby source-only operational and integration review: 11-dataset verified immutable snapshot staging, localized Firestore IDs, least-privilege Windows importer, offline original-score validation, strict fail-closed login, session, evaluation, appeal and signature guards. No user-facing manual steps or screenshots changed; no QA Sparks or T&C modifications.",
+  "reviewedAt": "2026-11-12T13:32:54.453Z",
+  "reason": "Reviewed QA-only standby readiness diagnostics and tests: read-only latest 11-dataset snapshot counts and independently validated evaluation candidate totals are shown separately from 2081 legacy archive; status never authorizes writes or failover, never exposes case data; no changes to user guide, QA Sparks, scores, appeals, signatures or T&C.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -393,7 +393,7 @@
     "scripts/test-qa-postgres-stage-integration.mjs": "25bc57126ed817c02c8a7eb9cac94f6df4c119565ea4d6496a9146268ef44b56",
     "scripts/test-qa-postgres-stage-writer.mjs": "92fac8c93edb603b7a72f025e8ce2ab680165bd3855d16efcfc6a0ddde482724",
     "scripts/test-qa-postgres-write-policy.mjs": "9c4a0ba95d56a7724114803116298689bc0cb08d34f003d30fa0a5e43f2ce825",
-    "scripts/test-qa-preview-status.mjs": "96754b612c709badef13b5bc6868ff6d78c927460fd2087f429bb267d3c5c77b",
+    "scripts/test-qa-preview-status.mjs": "f9901576eb990420bdace364eb11ad05042b9f6cad62c0eb80d2317d9539b4f5",
     "scripts/test-qa-sparks-item-shelves.mjs": "22c89bfb45656dfda5518a9ba9755c86aeae95df29ed379fb8f1fbbd11c9daea",
     "scripts/test-qa-sparks-member-levels.mjs": "16f17ee151eff7935b11c84827ee4abf8164865e8ab2a40298640a1a60791305",
     "scripts/test-qa-sparks-member-ui.mjs": "63b8347872729693c32e3bdf63423376d197e37a951f2bfb6e201eac60e15efd",
@@ -465,7 +465,7 @@
     "server/qaLocalDiagnosticsHandler.js": "b3f7d06402b39b1d6242bc7f076e5b18f3e777c491519d2471a96aceaba1fb6d",
     "server/qaLocalSessionVerifier.js": "67e3dfd9afb104035d2b39eaa6fa2aca27fe0455c978559524074f16871a5af7",
     "server/qaLotteryService.js": "b60bf4e725c9fc287b8430596c1a6651e7c5ccc54fa6b779666396e154c47973",
-    "server/qaPreviewStatusHandler.js": "d3a122c7ee9578490596436b7670d3f840f8735bf711fb4ebdc868a2445174fb",
+    "server/qaPreviewStatusHandler.js": "dc225a6febaa54daf00467c8cb4b0c2e9b18ad448c0c8cf63dbb2ff52d41729b",
     "server/qaRewardsService.js": "074656a12eb58d800c0d2f32a845a86ca2a06db472a507387edb2f629e5193a2",
     "server/qaStandbyArchiveStatus.js": "9bbba32202956b049a5cac94b7dcfe626d8abab29608b566d5196f6df61b4751",
     "server/qaStandbyDataHandler.js": "4c60ec298144b861c7aa675b816abbd5599e639dcd42de7362e36bd0c2066e22",
@@ -680,7 +680,7 @@
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksStore.ts": "2fe9c7de5740b7fd964240e0f029b057064ec17a1b210c40c5b76ee3ceed3599",
     "src/qaStandbyEvaluationApi.ts": "b96c332a31635a60750f1a5743d7069756ac4f258dfed77a34200fbc2de84860",
-    "src/QaStandbySystemStatus.tsx": "1bf546cc0ded8145eafe5443b859de75ef634281fedb519f2ac3956f810ac116",
+    "src/QaStandbySystemStatus.tsx": "b7b7deb91c7d1baee43fa1aaa98b9c396bf64a29ae2004b37cd15a6e499095f1",
     "src/QaTypingChallengeAdmin.tsx": "085567987673c56b265237703b573adb8be75b40cb6d338fac5f1a5dc088d7f7",
     "src/qaTypingChallengeHistoryStore.ts": "c91d6ef216c8ac3571690ddaa2311b6e08bb0e429af321879e387b97aa85d3dd",
     "src/qaTypingChallengeStore.ts": "e1c71e682e46fc1c6f5bc0b88812c69df5912ba48d7f105326ff81a7ba882bd7",
@@ -792,17 +792,18 @@
     "scripts/test-qa-live-mirror-stage-integration.mjs": "6104183a21254c38d1aa3bc898872c04ed0fbf089eaf6a3cbed3079d890d4930",
     "scripts/test-qa-live-stage-runner.mjs": "c5490c045c358dd403512044dc6eb839d19b6f1336c016ee0d67c00a5f1fd61f",
     "scripts/test-qa-standby-candidate-materializer-integration.mjs": "cddbe6109f071c1fbac31a32f671f98cb6b7166f8e20450f78078fb2224b9fbc",
-    "scripts/test-qa-standby-snapshot-readiness.mjs": "036059ac3ddfdde45e138f935b5b8a31dfb8f06ca17807fb67249fc6e60cc18c",
+    "scripts/test-qa-standby-snapshot-readiness.mjs": "722ff7a080baae18663d13d933fd903b2146063f3a7f424fdb546851cb6aeb95",
     "scripts/test-qa-vpc-readiness.mjs": "b2007c8613d78ee39f93139363836378249236dd0a43846a71b555ccf8350877",
     "server/qaFirestoreRestSnapshot.js": "b8ef9667818698c1d8cfb7efe9095f473481fef008591ee9936269541c891231",
     "server/qaFirestoreSnapshotCodec.js": "5401a5dd8ae181a47b7011bd961efccc0300d42bfa8dd860ab8d771a2db1cce3",
     "server/qaLiveMirrorStage.js": "b9aee4506b04f6859d090fc77ba86ea2b6de534adda8d2fd1c492578fd379894",
     "server/qaStandbyCandidateMaterializer.js": "15a33cd1c93404a5f9a0fd836fd97efe07a92ae81ca457d3cba7bfa519ea1e19",
-    "server/qaStandbySnapshotReadiness.js": "d252749cc796fd1fa60536f53b2d0fc3df5c540dee89d14261ff5a22bd986f1b",
+    "server/qaStandbySnapshotReadiness.js": "fbe6013a41050b2d127431b60d8370e95ea1e3036321c1f59f1cf8bb802275b3",
     "scripts/Diagnose-QA-Staged-Candidates.mjs": "b1d6fbd95188e029fceea81a02cd8f8892c64ee64877c1440718d971b2bf226f",
     "scripts/Materialize-QA-Stored-Snapshot.mjs": "5b172aacec4846af8f02c5adfa9e75226536f4e307909c1c7c19176b4d121fb8",
     "scripts/check-qa-source-stage-preflight.mjs": "cc6d02af36bcaee30138fee2132b08a11c5ea4d913cd978a46b2a97bc33b5126",
     "scripts/test-qa-source-stage-preflight.mjs": "6812de5eb09c6c4ca08ec4883f8128c757e082251b5a45fc27eb2576906f938f",
-    "scripts/test-qa-windows-installer-dependencies.mjs": "80c752f09d676ebe170f2f4eec2016ff6f46afee16b51e054e742b8f49d46f4d"
+    "scripts/test-qa-windows-installer-dependencies.mjs": "80c752f09d676ebe170f2f4eec2016ff6f46afee16b51e054e742b8f49d46f4d",
+    "cloudflare/qa-standby-vpc-worker.mjs": "8e0c41fb5b07181ef5cc581353f38ac6a608750d58689cd3e58512eaf4050747"
   }
 }
