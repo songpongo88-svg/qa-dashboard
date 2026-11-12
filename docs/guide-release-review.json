@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T02:17:53.543Z",
-  "reason": "QA Sparks owner migration button: restore owner-only visibility inside Sparks Admin regardless of Hybrid/Supabase mode or missing QA session, while preserving original server-side QA owner authorization. When QA session is missing, button stays disabled with an explanatory alert. No score, wallet, history, reward/item, login, appeal, coaching, user guide, or terms changes.",
+  "reviewedAt": "2026-11-12T02:59:42.631Z",
+  "reason": "QA Sparks authentication transfer troubleshooting: distinguish Firestore source/profile read and QA owner session checks from independent Supabase reward wallet operations; no misleading global quota claims, no stale preflight readiness after failed check, sanitized error codes with no credentials exposed. Preserve unchanged QA Evaluation, scores, rewards, items, wallet history, T&C and Production Hybrid login.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -27,7 +27,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "c20cdb95358cf8dfbdbd167037cd03d17f18ac3e544a83793fda6bf90d9e6391",
+    "api/sparks-admin.js": "3ffb923a0ef2815074afa3d6f7f280c941d932b4e046a173b3b8ede39d635ef1",
     "api/sparks-auth.js": "59887f6e972a0d85d536048dc229a5cb451122a8530b1dab27afaf19f5bedb11",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
@@ -403,7 +403,7 @@
     "scripts/test-sparks-cloud-wallet-auth.mjs": "b1830f165e88d9030db83f097b0763c39ba1d896e5f56fce84ada92e9c663659",
     "scripts/test-sparks-email-api.mjs": "ca9b08fade21ca84e24f801672ff259ff2653224c21612c17a623d808cf1b99d",
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
-    "scripts/test-sparks-hybrid-owner.mjs": "406db89cec4b3681764a1ada3c00d9d33b312133c8fa6a8af5a665dfe44d7c77",
+    "scripts/test-sparks-hybrid-owner.mjs": "6eea693ed2f9079fb1746a28649a6b4c7c2d30e981ee3125384d454b792ed76a",
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
     "scripts/test-sparks-shield-preview-readonly.mjs": "a017ed8d5127bffcdcce2d9208596c44bd069085cefb28b8e65c6b11e66ca7b9",
     "scripts/test-sparks-standalone.mjs": "c8d892ca9949cd518aaab5d58152beddc7b395be2f06ea2ac2309c8cb95ca741",
@@ -747,7 +747,7 @@
     "scripts/test-late-appeal-72h.mjs": "de13de1067162e54334ade6d6a90c7b15d8e17e932f15d9e48958700179c958e",
     "server/sparksQaCredentialPreflight.js": "f68cc1236d7d7e3f632725f7e639585e2fff91fd0ed4d148067694ede3c26945",
     "server/sparksQaMigrationRunner.js": "3b14aa343b5005cc11e64ba8681c04644bf4eeeee4ce7553c909dffdfc4d1fc7",
-    "src/SparksQaCredentialMigration.tsx": "2426d692076c2f6f45996fd99846737d351040cd3358fa0c4a893e9228a55d50",
+    "src/SparksQaCredentialMigration.tsx": "c547fc9f1b581242b2c550cd58633b326ac9ca368f48e78072d3f15076508535",
     "scripts/test-sparks-qa-credential-preflight.mjs": "c877279aa3d838b3c77fb711063a926997140e6abba3d5e74532e9d33be6f78b",
     "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015",
     ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c"
