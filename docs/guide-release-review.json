@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T03:47:04.872Z",
+  "reviewedAt": "2026-11-12T03:48:03.540Z",
   "reason": "Reviewed QA-only temporary Firestore read optimization on current main without modifying QA Sparks: change-only Dashboard revision refresh every 15 minutes, Coaching background checking every 20 minutes; verified no changes to login, QA scoring, appeals, signatures, T&C, or user guide text.",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -754,6 +754,6 @@
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
     "src/sparksItemHistory.mjs": "34fb36e3be5550a5e565a0c31d3ed8b8a7bcfb6829ea74730234b51524fd56cd",
     "scripts/test-all-item-history.mjs": "92c6ece75fcbcd24ac787a8ef84fa1ff9868d4180c1cd27634504dd5917b1743",
-    ".github/workflows/qa-firestore-read-budget.yml": "554474834bb6749e341e2222c5f4e2692c9a16e4fc6cfbe9370676415b63a557"
+    ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f"
   }
 }
