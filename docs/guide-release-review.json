@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T03:03:44.592Z",
-  "reason": "QA Sparks authentication transfer troubleshooting: distinguish Firestore source/profile read and QA owner session checks from independent Supabase reward wallet operations; no misleading global quota claims, no stale preflight readiness after failed check, sanitized error codes with no credentials exposed. Preserve unchanged QA Evaluation, scores, rewards, items, wallet history, T&C and Production Hybrid login.",
+  "reviewedAt": "2026-11-12T03:16:20.116Z",
+  "reason": "QA Sparks independent sign-in readiness, disabled by default: add existing QA username/password Supabase Auth flow behind VITE_SPARKS_QA_PASSWORD_LOGIN=1, preserve current OTP and Hybrid QA Dashboard fallback, stage QA password-change synchronization only when enabled, no login cutover or access before identity import. No QA scoring, appeal, coaching, wallet, Item, History, T&C or user guide text changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -403,7 +403,7 @@
     "scripts/test-sparks-cloud-wallet-auth.mjs": "b1830f165e88d9030db83f097b0763c39ba1d896e5f56fce84ada92e9c663659",
     "scripts/test-sparks-email-api.mjs": "ca9b08fade21ca84e24f801672ff259ff2653224c21612c17a623d808cf1b99d",
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
-    "scripts/test-sparks-hybrid-owner.mjs": "f88a8d25403e991e56958181a34119cdb84e3224ef8efe31decfc0116201a5cb",
+    "scripts/test-sparks-hybrid-owner.mjs": "5bccd05586ab05e077b3857c3bc003f4888a281ac87a4146dee92e099b15e13f",
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
     "scripts/test-sparks-shield-preview-readonly.mjs": "a017ed8d5127bffcdcce2d9208596c44bd069085cefb28b8e65c6b11e66ca7b9",
     "scripts/test-sparks-standalone.mjs": "c8d892ca9949cd518aaab5d58152beddc7b395be2f06ea2ac2309c8cb95ca741",
@@ -448,7 +448,7 @@
     "src/AnnouncementShieldItem.tsx": "370c1f54c517bbd31178babeb678d2691b0996dd0e0d933c6718cfff03cccaf4",
     "src/announcementStore.ts": "d1e36a47931a337e5e041511d97c75fec14228e56815770091daee546b6d80e6",
     "src/announcementTicker.css": "a50df53eca311d493d8c4214748e77dc3f2d094ff5f798334b34921069af55e8",
-    "src/App.tsx": "8ac0827bedc47eecd952e91e20b5fc5c3738ca69bb1676375ec742157fbb58cb",
+    "src/App.tsx": "9da762238ea2a16630cc24c893aabc798c3b1e6c1df77a623a9e4cb558cf30e8",
     "src/appealActionHistory.ts": "58bb0ab1b18eba2a26d2b2a7c601fc6ff2256770dd7890a4fdcba42d3684b864",
     "src/appealActionPdfHtml.ts": "08e44105d875c45b6048f7494f9cef1ba6c568a68c9e7e0481c7587931724e4f",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
@@ -669,7 +669,7 @@
     "src/sparksCloudStatus.css": "8851226f60de39abd94db64cf751e1234656909faf290ebf3432a5881aea86b5",
     "src/SparksCloudStatus.tsx": "0b605c16b6f43daae89eb64eb0f619d2917d4701c3208f2303f9ce35a777eba0",
     "src/SparksEmailAuth.css": "57cd8adfe942f400f8b3eced2a2dd075740375c783d4cbaf5c80b3e2d9cac82d",
-    "src/SparksEmailAuth.tsx": "08680a432e682fdedcb0083c5b5c455ac111ad2fc1cfe4a757567a6f5322a01e",
+    "src/SparksEmailAuth.tsx": "575bfd26ae059e65bbec3af65c8c98eda5d49dd9eaba66abfb5680eb7b1445c4",
     "src/SparksHistory.tsx": "b935b35b4cabe7f209abb04d8d1cdce721c38698799ba37d126ad8df6683188a",
     "src/sparksMembership.css": "224d2dfa4fbb51b1b2351738a4db26775d7d9b0a8b7dfb001e3fcf09d57e33bd",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
@@ -750,6 +750,7 @@
     "src/SparksQaCredentialMigration.tsx": "c547fc9f1b581242b2c550cd58633b326ac9ca368f48e78072d3f15076508535",
     "scripts/test-sparks-qa-credential-preflight.mjs": "c877279aa3d838b3c77fb711063a926997140e6abba3d5e74532e9d33be6f78b",
     "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015",
-    ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c"
+    ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c",
+    "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b"
   }
 }
