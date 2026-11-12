@@ -4,6 +4,7 @@
 // Browser role, username, access flags and scores are NEVER trusted.
 import {QA_SYNC_DATASETS,qaCanonicalDocumentHash} from './qaLiveMirrorStage.js';
 const safeId=/^[A-Za-z0-9_.:@-]{20,180}$/;
+const snapshotIdPattern=/^[A-Za-z0-9_.:-]{12,128}$/;
 const SESSION_POLICY='qa-session-policy-2026-07-15-v1';
 const INACTIVITY_MS=2*60*60_000;
 const error=code=>Object.assign(new Error(code),{code});
@@ -43,20 +44,22 @@ export async function verifyQaLocalSession(pool,{sessionId},now=Date.now()){
     await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
     begun=true;
     const state=await client.query(
-      'SELECT mode,source_snapshot_verified,generation FROM qa_failover_v1.state WHERE id=1');
+      'SELECT mode,source_snapshot_verified,generation,active_snapshot_id FROM qa_failover_v1.state WHERE id=1');
     const current=state.rows?.[0];
     if(current?.mode!=='standby'||current.source_snapshot_verified!==true||
-       !Number.isSafeInteger(Number(current.generation))||Number(current.generation)<1)fail();
+       !Number.isSafeInteger(Number(current.generation))||Number(current.generation)<1||
+       !snapshotIdPattern.test(current.active_snapshot_id||''))fail();
     // Use the SAME immutable verified live snapshot for identity, role and
     // revocation. The 2,081-row source_mirror is a historical archive and
     // cannot authorize a user even if standby mode was switched by mistake.
     const batch=(await client.query(
       "SELECT snapshot_id,status,source_documents,stored_documents,dataset_manifest"+
       " FROM qa_failover_v1.live_snapshot_batches"+
-      " WHERE status='copy_verified' ORDER BY source_exported_at DESC,snapshot_id DESC LIMIT 1"
+      " WHERE snapshot_id=$1 AND status='copy_verified'",[current.active_snapshot_id]
     )).rows?.[0];
     const manifest=batch?.dataset_manifest;
-    if(!batch||Number(batch.source_documents)!==Number(batch.stored_documents)||
+    if(!batch||batch.snapshot_id!==current.active_snapshot_id||
+      Number(batch.source_documents)!==Number(batch.stored_documents)||
       !Number.isSafeInteger(Number(batch.source_documents))||
       !Array.isArray(manifest)||manifest.length!==QA_SYNC_DATASETS.length||
       new Set(manifest.map(x=>x.dataset)).size!==QA_SYNC_DATASETS.length||
@@ -109,6 +112,7 @@ export async function verifyQaLocalSession(pool,{sessionId},now=Date.now()){
       username,role:user.role,status:'active',
       agentName:String(user.agentName||session.agentName||''),
       generation:Number(current.generation),
+      sourceSnapshotId:snapshotId,
       expiresAt:session.expiresAt,
       verifiedAt:new Date(now).toISOString(),
     });
