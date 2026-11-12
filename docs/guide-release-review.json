@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T03:32:16.082Z",
+  "reviewedAt": "2026-11-12T03:38:18.099Z",
   "reason": "QA Sparks-only owner-authorized private cron credential transfer: disabled by default (SPARKS_QA_CREDENTIAL_IMPORT_ENABLED=1 needed); reads passwords only in Vercel server memory when enabled, passes over TLS to hash-protected Supabase Edge function, never persists credentials in QA profile sync, logs, wallet, rewards or client. Compares existing Supabase Auth mappings and imports only previously unprovisioned Active accounts; suspensions, incomplete source and unknown identities fail closed. Direct QA password login remains independently disabled until actual transfer verified.",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -752,7 +752,6 @@
     "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015",
     ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
-    "supabase/functions/qa-sparks-qa-password-migration/index.ts": "a36e986945801d704ffd387e81503fa3adccc32532314a78ddee67b600ea1e78",
     "scripts/test-sparks-qa-cron-import.mjs": "387af16064fc7dd81128191cfeed1fcbf15c11a47e7bcc14ae9a60b3fec330f8"
   }
 }
