@@ -16,9 +16,17 @@ export type QaStandbyEvaluationEntry<T> = {
 export type QaStandbyWriteRequest<T> = {
   operationId:string;
   evaluationId:string;
-  action:'create'|'update'|'delete';
+  action:'create'|'update';
   expectedVersion:number;
   record:T;
+} | {
+  operationId:string;
+  evaluationId:string;
+  action:'delete';
+  expectedVersion:number;
+  // PostgreSQL verifies the original record and locks server-side.
+  // Deletion must never accept client-provided replacement record data.
+  record?:never;
 };
 export type QaStandbyWriteReceipt = {
   operationId:string;
@@ -121,7 +129,10 @@ export async function writeQaStandbyEvaluation<T>(
     !Number.isSafeInteger(request.expectedVersion)||request.expectedVersion<0||
     (request.action==='create'&&request.expectedVersion!==0)||
     (request.action!=='create'&&request.expectedVersion<1)||
-    !request.record||typeof request.record!=='object')throw new TypeError('invalid standby write');
+    (request.action==='delete'
+      ? ('record' in request && request.record!=null)
+      : (!request.record||typeof request.record!=='object'||Array.isArray(request.record))))
+    throw new TypeError('invalid standby write');
   const p=new URLSearchParams({action:'write'});
   const res=await send<{
     ok:true;operationId:string;evaluationId:string;version:number;
