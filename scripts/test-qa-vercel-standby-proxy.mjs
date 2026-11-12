@@ -84,6 +84,15 @@ assert.equal(res.statusCode,200);
 assert.equal(res.body.queued,true);
 assert.equal(requests[3].init.headers['idempotency-key'],'qa-op-7');
 assert.equal(JSON.parse(requests[3].init.body).record.finalScore,83);
+const del={operationId:'qa-del-8',evaluationId:'QA-001',action:'delete',expectedVersion:2};
+await denied({...post,body:{...del,record:{id:'QA-001',finalScore:0}},
+  headers:{...post.headers,'idempotency-key':'qa-del-8'}},400);
+upstream={ok:true,operationId:'qa-del-8',evaluationId:'QA-001',version:3,queued:true,replay:false};
+const deleteResponse=await call({...post,body:del,
+  headers:{...post.headers,'idempotency-key':'qa-del-8'}});
+assert.equal(deleteResponse.statusCode,200);
+assert.equal(deleteResponse.body.version,3);
+assert.equal(JSON.parse(requests.at(-1).init.body).record,undefined);
 upstream={ok:true,operationId:'qa-op-7',queued:true};
 await denied(post,502);
 status=503;
