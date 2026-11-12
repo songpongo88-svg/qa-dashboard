@@ -82,11 +82,21 @@ export async function replayOneQaStandbyOperation(pool, adapter, trusted) {
       WHERE operation_id=$1 AND status='in_flight'`,[op.operation_id]);
     return {ok:false,processed:true,retry:true};
   }
-  if(!outcome || !['applied','already_applied','conflict','retry'].includes(outcome.status))
-    blocked('unsafe_firestore_adapter_result');
-  if(outcome.status==='applied'||outcome.status==='already_applied') {
-    if(typeof outcome.remoteRevision!=='string'||!outcome.remoteRevision)
-      blocked('remote_revision_not_verified');
+  // An incomplete adapter receipt is an UNKNOWN remote outcome, not success.
+  // Keep the operation pending for idempotent recheck: an earlier Firestore
+  // transaction may have committed even when its acknowledgement was lost.
+  const recognized=outcome && ['applied','already_applied','conflict','retry'].includes(outcome.status);
+  const success=recognized && ['applied','already_applied'].includes(outcome.status) &&
+    typeof outcome.remoteRevision==='string' && outcome.remoteRevision.length>0 &&
+    outcome.remoteRevision.length<=256;
+  if(!recognized || (['applied','already_applied'].includes(outcome.status) && !success)) {
+    await pool.query(`
+      UPDATE qa_failover_v1.outbox
+      SET status='pending',claimed_at=null,error_code='unverified_remote_receipt'
+      WHERE operation_id=$1 AND status='in_flight'`,[op.operation_id]);
+    return {ok:false,processed:true,retry:true};
+  }
+  if(success) {
     await pool.query(`
       UPDATE qa_failover_v1.outbox
       SET status='synced',claimed_at=null,error_code=null,synced_at=now(),remote_revision=$2
