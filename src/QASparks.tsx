@@ -186,7 +186,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
   // Do not flash a login form while a valid server session is being checked.
   // This also protects existing QA-only users from a needless password prompt.
-  if (authBootstrap==="checking" && active) return <section role="status"
+  if (authBootstrap==="checking" && active && Boolean(normalizedSparksUser)) return <section role="status"
     data-sparks-session-check="true" style={{padding:"28px 20px",textAlign:"center",color:"#646d84"}}>
     กำลังตรวจสอบ Session QA Sparks...
   </section>;
