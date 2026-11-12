@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import {qaStandbySnapshotReadiness} from '../server/qaStandbySnapshotReadiness.js';
+import {QA_SYNC_DATASETS} from '../server/qaLiveMirrorStage.js';
 const now=Date.parse('2026-11-11T10:00:00.000Z');
-const names=['qa_evaluations','qa_appeal_events','qa_signature_documents',
-'qa_user_profiles','qa_role_permissions','qa_user_sessions'];
+const names=QA_SYNC_DATASETS;
 const complete=names.map((dataset,i)=>({dataset,count:i===0?563:1,digest:'a'.repeat(64)}));
-const total=568;
+const total=563+names.length-1;
 const state={mode:'disabled',source_snapshot_verified:false,write_frozen:true};
 const batch={snapshot_id:'qa-live-fixture-0001',source_exported_at:new Date(now-10000).toISOString(),
   status:'copy_verified',source_documents:total,stored_documents:total,
@@ -31,7 +31,8 @@ assert.equal(r.ok,true);
 assert.equal(r.snapshot.present,true);
 assert.equal(r.snapshot.copied,true);
 assert.equal(r.snapshot.candidateVerified,true);
-assert.equal(r.snapshot.sourceDocuments,568);
+assert.equal(r.snapshot.sourceDocuments,total);
+assert.equal(r.snapshot.datasetCount,11);
 assert.equal(r.failoverReady,false);
 assert.equal(r.canAcceptWrites,false);
 assert.deepEqual(r.remainingChecks,[
@@ -41,6 +42,13 @@ assert.deepEqual(r.remainingChecks,[
 ]);
 assert.equal(queries.some(x=>/^\s*(INSERT|UPDATE|DELETE|ALTER|DROP)/i.test(x)),false);
 assert.equal(JSON.stringify(r).includes('qa-live-fixture'),false,'snapshot IDs are not exposed');
+const savedManifest=batch.dataset_manifest;
+batch.dataset_manifest=savedManifest.slice(0,6);
+r=await qaStandbySnapshotReadiness(pool(),{now});
+assert.equal(r.snapshot.copied,false,'partial six-dataset snapshot cannot be verified');
+assert.ok(r.remainingChecks.includes('snapshot_copy_unverified'));
+batch.dataset_manifest=savedManifest;
+
 batch.source_exported_at=new Date(now-600000).toISOString();
 r=await qaStandbySnapshotReadiness(pool(),{now});
 assert.equal(r.snapshot.withinFreshnessWindow,false);
