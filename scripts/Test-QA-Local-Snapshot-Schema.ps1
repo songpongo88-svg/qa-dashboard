@@ -39,26 +39,35 @@ const {Client}=require('pg');
  const pg=new Client({connectionString:process.env.QA_LOCAL_DIAG_DB_URL,
    connectionTimeoutMillis:4000,query_timeout:15000,statement_timeout:15000});
  let tx=false;
+ let phase='CONNECT';
  try{
   await pg.connect();
+  phase='VERIFY_DATABASE';
   const db=(await pg.query('SELECT current_database() AS db')).rows[0]?.db;
   if(db!=='qa_dashboard_lab')throw Object.assign(new Error('unsafe_db'),{code:'UNEXPECTED_DATABASE'});
+  phase='VERIFY_SAFE_STATE';
   const state=(await pg.query(
    "SELECT mode,write_frozen,source_snapshot_verified FROM qa_failover_v1.state WHERE id=1"
   )).rows[0];
   if(!state||state.mode!=='disabled'||state.write_frozen!==true||state.source_snapshot_verified!==false)
     throw Object.assign(new Error('unsafe_state'),{code:'STANDBY_NOT_FROZEN'});
+  phase='READ_SQL_FILE';
   const raw=fs.readFileSync(process.env.QA_LOCAL_DIAG_SQL_FILE,'utf8');
   // Only the reviewed migration wrapped in BEGIN ... COMMIT may be tested.
   if(!/^\s*--[^\n]*[\s\S]*?\bBEGIN\s*;/i.test(raw)||!/\bCOMMIT\s*;\s*$/i.test(raw))
     throw Object.assign(new Error('unexpected_migration'),{code:'UNRECOGNIZED_MIGRATION'});
   const body=raw.replace(/\bBEGIN\s*;/i,'').replace(/\bCOMMIT\s*;\s*$/i,'');
+  phase='BEGIN_DRYRUN';
   await pg.query('BEGIN');
   tx=true;
+  phase='SET_LOCK_TIMEOUT';
   await pg.query("SET LOCAL lock_timeout='3s'");
+  phase='EXECUTE_SNAPSHOT_SQL';
   await pg.query(body);
+  phase='ROLLBACK_DRYRUN';
   await pg.query('ROLLBACK');
   tx=false;
+  phase='VERIFY_ROLLBACK';
   const present=await pg.query(
     "SELECT to_regclass('qa_failover_v1.live_snapshot_batches') IS NOT NULL AS exists"
   );
@@ -71,9 +80,17 @@ const {Client}=require('pg');
    '42501':'POSTGRES_PERMISSION_DENIED','42P01':'BASE_SCHEMA_INCOMPLETE',
    '42703':'BASE_SCHEMA_OUTDATED','42P07':'SCHEMA_CONFLICT',
    '55P03':'DATABASE_LOCKED','57014':'SQL_TIMED_OUT',
-   '28P01':'DATABASE_AUTH_FAILED',ECONNREFUSED:'POSTGRES_UNREACHABLE'
+   '28P01':'DATABASE_AUTH_FAILED',ECONNREFUSED:'POSTGRES_UNREACHABLE',
+   '42601':'SQL_SYNTAX_ERROR','0A000':'SQL_FEATURE_UNSUPPORTED',
+   '25006':'DATABASE_READ_ONLY','25P02':'TRANSACTION_ABORTED',
+   '3F000':'SNAPSHOT_SCHEMA_MISSING','23514':'CHECK_CONSTRAINT_FAILED',
+   '42704':'DEPENDENCY_MISSING'
   })[code]||'SCHEMA_SQL_FAILED';
   console.log('QA_SCHEMA_DRYRUN='+reason);
+  console.log('QA_SCHEMA_PHASE='+phase);
+  // SQLSTATE is an allowlisted 5-character code only: no SQL, paths,
+  // account names, connection strings or document contents are disclosed.
+  if(/^[0-9A-Z]{5}$/.test(code))console.log('QA_SCHEMA_SQLSTATE='+code);
  }finally{
   if(tx)await pg.query('ROLLBACK').catch(()=>{});
   await pg.end().catch(()=>{});
