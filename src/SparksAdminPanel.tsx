@@ -102,8 +102,8 @@ function createRequestId() {
     ? crypto.randomUUID()
     : "adjust-" + Date.now() + "-" + Math.random().toString(36).slice(2);
 }
-export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount, active: panelActive = true }: {
-  actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null; active?: boolean;
+export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount, active: panelActive = true, accountMigration }: {
+  actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null; active?: boolean; accountMigration?: React.ReactNode;
 }) {
   const [adminSection, setAdminSection] = useState<"requests" | "points" | "settings" | "activity">("requests");
   const ownAccountRef = useRef(ownAccount);
@@ -537,10 +537,13 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   };
   return <div className="qa-sparks-admin sa-workspace" aria-label="Sparks Admin Management">
     <div className="qa-sparks-admin-header">
-      <div><h2>จัดการ QA Sparks</h2><p>คำขอรางวัล · คะแนนผู้ใช้งาน · ตั้งค่ารางวัล · ประวัติการจัดการ</p></div>
-      {adminSection === "points" || adminSection === "activity" ? <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button> : <span className={"sa-admin-status" + (adminReady ? " ready" : "")}>{adminReady ? "สิทธิ์ผู้ดูแลพร้อมใช้งาน" : loading ? "กำลังตรวจสิทธิ์ผู้ดูแล..." : "ตรวจสิทธิ์เมื่อทำรายการ"}</span>}
+      <div><span className="sa-eyebrow">SPARKS ADMIN</span><h2>จัดการ QA Sparks</h2><p>ดูแลรางวัล คะแนน และการเข้าใช้งานในหน้าเดียว</p></div>
+      <div className="sa-header-actions"><span className={"sa-admin-status" + (adminReady ? " ready" : "")} role="status">{adminReady ? "สิทธิ์ผู้ดูแลพร้อมใช้งาน" : loading ? "กำลังตรวจสิทธิ์ผู้ดูแล..." : "ตรวจสิทธิ์เมื่อทำรายการ"}</span>
+        {adminSection === "points" || adminSection === "activity" ? <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button> : null}</div>
     </div>
-    {actorUsername.trim().toLowerCase()==="songpon"&&<SparksOwnerAccessControl username={actorUsername}/>}
+    {actorUsername.trim().toLowerCase()==="songpon" ? <div className="sa-control-grid" aria-label="ตั้งค่าระบบ QA Sparks">
+      <SparksOwnerAccessControl username={actorUsername}/>{accountMigration}
+    </div> : null}
     {error && (adminSection !== "requests" || needsReauth) ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
     {needsReauth ? <form className="qa-sparks-admin-reauth" onSubmit={(event) => { void submitReauth(event); }}>
       <div><strong>ยืนยันสิทธิ์ Sparks Admin</strong><p>กรอกรหัสผ่านที่ใช้ Login QA Dashboard ปัจจุบัน 1 ครั้ง เพื่อยืนยันสิทธิ์ผู้ดูแล</p></div>
@@ -559,7 +562,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     <nav className="sa-workspace-tabs" aria-label="งานของผู้ดูแล">
       {([["requests", "คำขอรางวัล"], ["points", "จัดการคะแนน"], ["settings", "ตั้งค่ารางวัล"], ["activity", "ประวัติการจัดการ"]] as const).map(([key, label]) => <button key={key} type="button" data-sparks-admin-section={key} aria-pressed={adminSection === key} onClick={() => { setAdminSection(key); setNotice(""); }}>{label}</button>)}
     </nav>
-    <div hidden={adminSection !== "requests"}><SparksRewardRequests actorUsername={actorUsername} sessionId={sessionId} onReauth={requestReauth}/></div>
+    <div className="sa-workspace-content" hidden={adminSection !== "requests"}><SparksRewardRequests actorUsername={actorUsername} sessionId={sessionId} onReauth={requestReauth}/></div>
     <section hidden={adminSection !== "settings"} aria-label="ตั้งค่าราคารางวัล TrueMoney 20 THB" className="sa-settings">
       <div className="sa-section-head"><div><h3>ตั้งค่ารางวัล</h3><p>เปลี่ยนคะแนนที่ใช้แลก โดยระบุรางวัลให้ชัดเจน</p></div><button type="button" className="sa-secondary" disabled={priceLoading || trueMoneyPriceBusy} onClick={() => setPriceRevision(value => value + 1)}>รีเฟรชราคา</button></div>
       <div className="sa-settings-grid"><section className="sa-box"><div className="sa-product-title"><span className="sa-brand sa-brand-truemoney-20" aria-hidden="true">T</span><div><h3>TrueMoney 20 บาท</h3><p>{trueMoneyPriceLoaded ? "ราคาที่บันทึก " + fmt(loadedTrueMoneyPrice ?? 0) + " Sparks / Item" : priceLoading ? "กำลังโหลดราคา..." : "ยังโหลดราคาไม่สำเร็จ"}</p></div></div>

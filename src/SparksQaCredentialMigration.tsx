@@ -1,4 +1,5 @@
 import React,{useState} from "react";
+import "./sparksAdminControls.css";
 
 // Owner-only presentation. The browser sends only the currently authenticated
 // QA session ID and requested action; the server reads Firebase credentials,
@@ -68,27 +69,26 @@ export default function SparksQaCredentialMigration({actorUsername,sessionId}:{
    finally{setBusy(false);}
  };
  const pending=audit?.pending||[],blocked=audit?.blocked||[],excluded=audit?.excluded||[];
- return <section data-sparks-qa-password-migration="owner-only"
-   style={{marginBottom:20,padding:18,border:"1px solid #ded7ee",borderRadius:15,background:"#fbf9ff"}}>
-   <h3 style={{margin:"0 0 7px",fontSize:17,fontWeight:800}}>ย้ายบัญชี QA เดิมเข้า Supabase Auth</h3>
-   <p style={{fontSize:12,lineHeight:1.7,color:"#665879"}}>
-     สำหรับเจ้าของระบบเท่านั้น · พนักงานใช้ Username/Password QA เดิม ไม่ต้องสมัครใหม่หรือรับ OTP
-     · ส่งรหัสผ่านจาก Firebase ไปยัง Supabase ผ่านเซิร์ฟเวอร์ที่ยืนยันสิทธิ์เท่านั้น
-     · ไม่เปลี่ยนคะแนน Sparks, Item หรือ History
+ return <section className="sa-control-card sa-migration-card" data-sparks-qa-password-migration="owner-only">
+   <div className="sa-control-heading">
+     <span className="sa-control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 10-4.5M16 5h5m-2-2 2 2-2 2M15 19h6m-3-3 3 3-3 3"/></svg></span>
+     <div><span className="sa-control-kicker">บัญชีพนักงาน</span><h3>ย้ายบัญชี QA เดิม</h3></div>
+     <span className="sa-control-badge">เจ้าของระบบ</span>
+   </div>
+   <p className="sa-control-description">
+     เข้า Supabase Auth ด้วย Username/Password QA เดิม<br/>พนักงานไม่ต้องสมัครใหม่หรือรับ OTP
    </p>
-   <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+   <div className="sa-control-actions sa-migration-actions">
      <button type="button" data-sparks-qa-migration-preflight="true" disabled={busy||!sessionId}
-       onClick={()=>void call("qa-password-preflight")} style={{
-         padding:"10px 15px",border:"1px solid #c4addf",background:"#fff",
-         color:"#51347a",borderRadius:9,fontWeight:700}}>
+       className="sa-control-secondary" onClick={()=>void call("qa-password-preflight")}>
        {busy?"กำลังตรวจสอบ...":"ตรวจความพร้อมบัญชี QA"}
      </button>
      <button type="button" data-sparks-qa-migrate-passwords="server-only" disabled={busy||!sessionId}
-       onClick={()=>void call("qa-password-migrate-server")} style={{
-         padding:"10px 15px",background:"#6851a6",color:"#fff",border:0,borderRadius:9,fontWeight:700}}>
+       className="sa-control-primary" onClick={()=>void call("qa-password-migrate-server")}>
        {busy?"กำลังย้ายบัญชี...":"ตรวจและย้ายบัญชีที่พร้อมไป Supabase"}
      </button>
    </div>
+   <details className="sa-control-details"><summary>รายละเอียดการย้ายบัญชี</summary><p>สำหรับเจ้าของระบบเท่านั้น · ส่งรหัสผ่านจาก Firebase ไปยัง Supabase ผ่านเซิร์ฟเวอร์ที่ยืนยันสิทธิ์เท่านั้น · ไม่เปลี่ยนคะแนน Sparks, Item หรือ History</p></details>
    {!sessionId ? <p role="alert" style={{fontSize:12,lineHeight:1.6,color:"#9e233d"}}>ไม่พบ QA Session สำหรับย้ายบัญชี ปุ่มจึงยังใช้ไม่ได้ กรุณา Login QA Dashboard ใหม่ด้วยบัญชีเจ้าของระบบ</p> : null}
    {audit?<p role="status" style={{fontSize:12,lineHeight:1.6}}>
      ตรวจบัญชีทั้งหมด {audit.checked} · Active {audit.active} · มีสิทธิ์ย้าย {audit.eligibleActive} · พร้อมย้าย {audit.ready}

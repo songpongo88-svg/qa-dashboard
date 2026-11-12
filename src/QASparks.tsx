@@ -313,9 +313,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
         : adminAccess ? <div>
           {/* Visibility is owner-role gated here. Server validates the real QA session or verified Supabase Auth on every action. */}
-          {username.trim().toLowerCase()==="songpon" && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
-            ? <SparksQaCredentialMigration actorUsername={username} sessionId={adminSessionId}/> : null}
-          <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active} />
+          <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active}
+            accountMigration={username.trim().toLowerCase()==="songpon" && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
+              ? <SparksQaCredentialMigration actorUsername={username} sessionId={adminSessionId}/> : null}/>
         </div> : null}
       </div>
     </div>

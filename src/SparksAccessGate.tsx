@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useState} from "react";
 import SparksEmailAuth,{type SparksVerifiedActor} from "./SparksEmailAuth";
 import SparksQaCredentialMigration from "./SparksQaCredentialMigration";
 import "./sparksPausedLanding.css";
+import "./sparksAdminControls.css";
 export type SparksStatus={enabled:boolean;message:string;unavailable?:boolean;updatedAt?:string};
 const message="QA Sparks ปิดปรับปรุงชั่วคราว ระหว่างย้ายระบบฐานข้อมูล";
 export function useSparksStatus(poll=true){
@@ -138,21 +139,17 @@ export function SparksOwnerAccessControl({username}:{username:string}){
       setError(reason instanceof Error?reason.message:"บันทึกการเปลี่ยนสถานะไม่สำเร็จ");
     }finally{setBusy(false);}
   };
-  return <section className="sparks-owner-console" data-sparks-owner-control="true" aria-label="ควบคุมการเข้าใช้งาน QA Sparks"
-    style={{border:"1px solid #d8deea",borderRadius:16,padding:18,background:"#fff",maxWidth:780,margin:"16px auto 22px",boxShadow:"0 4px 24px #202e4810"}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-      <div>
-        <strong style={{fontSize:17,color:"#263248"}}>ควบคุมการเข้าใช้งาน QA Sparks</strong>
-        <p style={{margin:"5px 0 0",fontSize:13,color:"#62718c"}}>เปิดหรือปิดการใช้งานสำหรับพนักงานทุกคน โดยไม่ลบคะแนนและ Item</p>
-      </div>
+  return <section className="sparks-owner-console sa-control-card sa-access-card" data-sparks-owner-control="true" aria-label="ควบคุมการเข้าใช้งาน QA Sparks">
+    <div className="sa-control-heading">
+      <span className="sa-control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12 3v9M6.35 5.65a8 8 0 1 0 11.3 0"/></svg></span>
+      <div><span className="sa-control-kicker">การเข้าใช้งาน</span><h3>ควบคุม QA Sparks</h3></div>
       <span data-sparks-access-status={status?.enabled===true?"open":"closed"}
-        style={{borderRadius:999,padding:"6px 12px",fontSize:12,fontWeight:700,
-          background:status?.enabled===true?"#e5f6ee":"#fbe8ec",
-          color:status?.enabled===true?"#176645":"#a6273b"}}>
+        className={"sa-control-badge"+(status===null||status.unavailable?"":" "+(status.enabled?"is-open":"is-closed"))} role="status">
         {status===null?"กำลังตรวจสอบสถานะ":status.unavailable?"ตรวจสอบสถานะไม่ได้":status.enabled?"เปิดให้พนักงานใช้งาน":"ปิดชั่วคราว"}
       </span>
     </div>
-    <div style={{display:"flex",gap:12,marginTop:16,alignItems:"center",flexWrap:"wrap"}}>
+    <p className="sa-control-description">เปิดหรือปิดการใช้งานสำหรับพนักงานทุกคน<br/>คะแนน Sparks และ Item ที่มีอยู่จะยังคงเดิม</p>
+    <div className="sa-control-actions">
       <button type="button" data-sparks-toggle-owner="true"
         disabled={busy||status===null||Boolean(status?.unavailable)||checking}
         onClick={()=>{
@@ -160,15 +157,12 @@ export function SparksOwnerAccessControl({username}:{username:string}){
           if(!verified){setShowAuth(true);return;}
           setConfirmTarget(status?.enabled!==true);
         }}
-        style={{border:0,borderRadius:10,padding:"11px 17px",fontWeight:750,color:"#fff",
-          background:status?.enabled===true?"#ac2f43":"#236c50",
-          opacity:busy||status===null||Boolean(status?.unavailable)||checking?.6:1,
-          cursor:"pointer"}}>
+        className={"sa-control-primary "+(status?.enabled===true?"is-danger":"is-enable")}>
         {checking?"กำลังตรวจสิทธิ์...":busy?"กำลังบันทึก...":
           status?.enabled===true?"ปิด QA Sparks สำหรับพนักงาน":"เปิด QA Sparks สำหรับพนักงาน"}
       </button>
-      <span style={{fontSize:12,color:"#65728a"}}>{verified?"ยืนยันสิทธิ์เจ้าของระบบแล้ว":"ต้องยืนยันบัญชีเจ้าของระบบผ่าน Supabase ก่อนเปลี่ยนสถานะ"}</span>
     </div>
+    <p className={"sa-control-note"+(verified?" is-verified":"")}>{verified?"ยืนยันสิทธิ์เจ้าของระบบแล้ว":"ยืนยันบัญชีเจ้าของระบบผ่าน Supabase ก่อนเปลี่ยนสถานะ"}</p>
     {showAuth&&!verified&&<div data-sparks-owner-verify="true"
       style={{marginTop:16,padding:14,border:"1px solid #d9e3f5",borderRadius:12,background:"#f8faff"}}>
       <div style={{fontWeight:700,marginBottom:8,color:"#32435f"}}>ยืนยันบัญชีเจ้าของ QA Sparks</div>
