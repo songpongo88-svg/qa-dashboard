@@ -1067,14 +1067,13 @@
 .qa-sparks-reward-grid .qa-sparks-shop-badge{position:absolute;right:5px;top:6px;z-index:2;display:inline-flex;align-items:center;justify-content:center;min-height:25px;max-width:90%;padding:4px 9px;border-radius:9px;font:800 11px/1.2 Kanit,sans-serif;box-shadow:0 4px 9px #622d8c48;border:1px solid #fff7}
 .qa-sparks-reward-grid .qa-sparks-shop-badge--free{background:linear-gradient(125deg,#823add,#5e20ae);color:#fff}
 .qa-sparks-reward-grid .qa-sparks-shop-badge--sale{background:linear-gradient(125deg,#f55ba1,#e83979);color:#fff}
-@container (max-width:720px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}
-@container (max-width:530px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.qa-sparks-reward-grid .qa-sparks-mini-item{padding:9px;min-height:230px;border-radius:16px}.qa-sparks-reward-grid .qa-sparks-mini-art{border-radius:13px}.qa-sparks-reward-grid .qa-sparks-mini-name{font-size:12px;min-height:35px;margin:10px 0 7px}.qa-sparks-reward-grid .qa-sparks-mini-value{min-height:44px;font-size:11px}.qa-sparks-reward-grid .qa-sparks-shop-badge{font-size:10px;top:4px;right:4px;padding:4px 6px}}
+@container (max-width:810px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}
+@container (max-width:590px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.qa-sparks-reward-grid .qa-sparks-mini-item{padding:9px;min-height:230px;border-radius:16px}.qa-sparks-reward-grid .qa-sparks-mini-art{border-radius:13px}.qa-sparks-reward-grid .qa-sparks-mini-name{font-size:12px;min-height:35px;margin:10px 0 7px}.qa-sparks-reward-grid .qa-sparks-mini-value{min-height:44px;font-size:11px}.qa-sparks-reward-grid .qa-sparks-shop-badge{font-size:10px;top:4px;right:4px;padding:4px 6px}}
 @container (max-width:292px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:1fr}.qa-sparks-reward-grid .qa-sparks-mini-item{max-width:220px;justify-self:center}}
 @media(prefers-reduced-motion:reduce){.qa-sparks-reward-grid .qa-sparks-mini-item{transition:none}}
 
 
-/* Full-width 4-column Reward Center; History remains available below. */
-.qa-sparks-dual.qa-sparks-dual--reward-center{grid-template-columns:minmax(0,1fr)}
+/* Product presentation; Overview retains the original Reward Center / History columns. */
 .qa-sparks-reward-tagline{margin:-9px 4px 20px;color:#746485;font:500 12px/1.6 Kanit,sans-serif}
 .qa-sparks-panel:has(.qa-sparks-reward-grid){padding:21px clamp(12px,2vw,28px) 26px;background:linear-gradient(160deg,#fffefd 0%,#fdf9ff 50%,#f8f3ff 100%);border-color:#e7d8f7;border-radius:25px}
 .qa-sparks-panel:has(.qa-sparks-reward-grid)>h2{margin-bottom:12px}

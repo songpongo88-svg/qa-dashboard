@@ -135,10 +135,11 @@ try{
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
   assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,8, "Reward Center includes Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
-  assert.ok(main.querySelector(".qa-sparks-dual--reward-center"),"Overview Reward Center is full width");
+  const overviewPanels=main.querySelectorAll(".qa-sparks-dual > .qa-sparks-panel");
+  assert.equal(overviewPanels.length,2,"Overview retains the original Reward Center and History panels");
+  assert.ok(overviewPanels[0].querySelector(".qa-sparks-reward-grid"),"Reward Center is the first column");
+  assert.ok(overviewPanels[1].querySelector(".qa-sparks-history-wrap"),"History is the second column");
   assert.ok(main.querySelector(".qa-sparks-reward-tagline"),"Shop subtitle is present");
-  assert.match(css,/\.qa-sparks-dual\.qa-sparks-dual--reward-center\{grid-template-columns:minmax\(0,1fr\)\}/,
-    "History must not squeeze Reward Center into a half-width grid");
   assert.match(css,/\.qa-sparks-reward-grid \.qa-sparks-mini-item\{width:100%/,
     "all product cards including nested TrueMoney must share full width");
   assert.doesNotMatch(css.slice(css.indexOf("/* Reward Center: unified premium product cards")),/\.qa-sparks-reward-grid>\.qa-sparks-mini-item/,

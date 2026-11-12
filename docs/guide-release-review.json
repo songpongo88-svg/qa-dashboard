@@ -1,12 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T14:46:44.083Z",
-  "reason": "Reviewed Evaluation navigation and original colors, scoped text formatting, and approved equal Reward Center cards; integrated latest Sparks Admin source without changing transactions",
-  "contentChanged": true,
-  "reviewedChapters": [
-    "evaluation",
-    "qa-sparks"
-  ],
+  "reviewedAt": "2026-11-12T19:19:16.109Z",
+  "reason": "Restored the original Overview with Quest Center above Reward Center and History side by side; retained approved equal product cards, artwork, price order and existing transactions. Existing guide workflow remains accurate.",
+  "contentChanged": false,
+  "reviewedChapters": [],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf",
@@ -392,7 +389,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "63b8347872729693c32e3bdf63423376d197e37a951f2bfb6e201eac60e15efd",
     "scripts/test-qa-sparks-mini-inventory.mjs": "e9de39496de9b1ec32040c36ef1243f3b388944444c427f298bb192e7cb0e328",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "18769ad6c1a39104d5c049115c61ad203797d4024996082961b1f1f1294d70fd",
+    "scripts/test-qa-sparks-ui.mjs": "acc09ac3016604cae83eaa6cd24571b068c7625b774e1dac93b1a629ba4f7655",
     "scripts/test-qa-typing-gate.mjs": "eca6f552384c1373942e37e8452acbecece4ecc101d64d3f8b579d7f545e91f2",
     "scripts/test-receipt-first-ui.mjs": "bf9463f341f0653be65b08e4bcd98cc0bdb52a16eecd73bbf0990b989a7e6dd2",
     "scripts/test-receipt-recognition.mjs": "e8aed5e833a39162b060a5d2356e07b8bfdfe42964e467f3606605b7cf40eebe",
@@ -502,7 +499,7 @@
     "src/ProfileMakeoverQuest.tsx": "c6d85c8805a39e49db9aefac339479f42ef51f5d7d491f162b9b678b9b114898",
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/QASparks.tsx": "2ac11ea3fe28cb893b5c8873ce267f900eb6cc6ac6ea340196a6a7bfdf487631",
+    "src/QASparks.tsx": "fbe9fc650cbe4b07207570df3d4f9080dd0c44fdc22df528a3647f437418f2a7",
     "src/QaAccessCaseHistoryPopup.tsx": "da29c8b43c9aa32c23cde37fa447f41764477b6659cb2a6bc9384aff71dcf5a7",
     "src/QaAccessCheckOverview.tsx": "348de0058ce1552e358582cf6486812a4c2a6a1801e26361c25ad126b74765ba",
     "src/QaAutoPassRewardCard.tsx": "89423c5c6187a2e5a79437e517d32ffe86b64f5b88026e6d0d3595ef0c41a72a",
@@ -691,7 +688,7 @@
     "src/qaAutoPassAction.ts": "386d0845aef2054696b6c04f92a08c58c25c6e4a2f0dcd4fd76ee7096f5e3584",
     "src/qaEvaluationProgressStore.ts": "e5af6abcdacac6b56e237471340e38235fada978a8f23907183cb81fac7dbc1c",
     "src/qaLottery.css": "badb5ac828881f136ba62cac0a9382f54b234f40b8d10d6437d8a53592cbb8f9",
-    "src/qaSparks.css": "df8286e94d257dc465a6bd1a872744707258f78f5e10689cc8a57fa72d514c6f",
+    "src/qaSparks.css": "6953a1da0a30258dc145b5001bc30bc2ae06f8f7bfcb0e8311fe0da914419e8c",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksProductCards.css": "498bf46e07432241f55d02d41f56a61c8d9f2c4c7b5a6f95740734368f5b9c9a",
