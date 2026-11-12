@@ -99,14 +99,17 @@ export function createQaPreviewStatusHandler({
               typeof proof.snapshot?.copied==='boolean'&&
               typeof proof.snapshot?.candidateVerified==='boolean'&&
               validInt(proof.snapshot?.sourceDocuments)&&
-              validInt(proof.snapshot?.sourceEvaluations)&&
+              (proof.snapshot?.sourceEvaluations===undefined||validInt(proof.snapshot?.sourceEvaluations))&&
               validInt(proof.snapshot?.candidateEvaluations)&&
               validInt(proof.snapshot?.datasetCount)){
               result.snapshotReadiness={
                 snapshotCopied:proof.snapshot.copied,
                 candidatesVerified:proof.snapshot.candidateVerified,
                 documentCount:proof.snapshot.sourceDocuments,
-                sourceEvaluations:proof.snapshot.sourceEvaluations,
+                sourceEvaluations:validInt(proof.snapshot.sourceEvaluations)
+                  ?proof.snapshot.sourceEvaluations
+                  :proof.snapshot.candidateVerified===true
+                    ?proof.snapshot.candidateEvaluations:0,
                 candidateEvaluations:proof.snapshot.candidateEvaluations,
                 datasetCount:proof.snapshot.datasetCount,
                 freshnessVerified:proof.snapshot.withinFreshnessWindow===true,
