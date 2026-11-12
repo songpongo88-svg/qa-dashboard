@@ -27,24 +27,47 @@ assert.equal(count,0);
 // test-qa-live-mirror-stage-integration.mjs.
 console.log('PASS QA source runner: explicit opt-in, local-only target and OAuth guards block all unsafe operations before any network/SQL');
 
-// A denied Firestore capture cannot CREATE/ALTER any local PostgreSQL schema.
-const sqlStatements=[];
-const mockPg={Pool:class {
- async query(sql){
-   sqlStatements.push(sql);
-   if(sql==='SELECT current_database() AS db')
-     return {rows:[{db:'qa_dashboard_lab'}]};
-   throw Error('unexpected_db_mutation');
- }
- async end(){}
-}};
+// Read-only Bridge credentials must fail BEFORE the first Firestore request.
 let firestoreCalls=0;
+const makePool = ({role='qa_snapshot_importer',transactionRo='off',canInsert=true}={})=>({
+  Pool:class {
+    async query(sql) {
+      if(sql==='SELECT current_database() AS db')
+        return {rows:[{db:'qa_dashboard_lab'}]};
+      if(sql.includes('current_user AS role'))
+        return {rows:[{role,recovering:false,transaction_ro:transactionRo,
+          batches:true,rows:true,candidates:true,audit:true}]};
+      if(sql.includes("has_table_privilege(current_user"))
+        return {rows:[{state:true,batches:canInsert,rows:canInsert,candidates:canInsert,audit:canInsert}]};
+      if(sql.includes('SELECT mode,source_snapshot_verified,write_frozen FROM qa_failover_v1.state'))
+        return {rows:[{mode:'disabled',source_snapshot_verified:false,write_frozen:true}]};
+      throw Error('unexpected_database_mutation');
+    }
+    async end(){}
+  }
+});
+for(const config of [
+  {role:'qa_readonly_bridge'}, {transactionRo:'on'}, {canInsert:false}
+]){
+  await assert.rejects(runQaLiveSnapshotStage({
+    env:fakeEnv,pgModule:makePool(config),fetchImpl:async()=>{firestoreCalls++;throw Error('no_capture_expected');},
+  }),/postgres_dedicated_importer_required|postgres_import_connection_read_only|postgres_import_permission_missing/);
+}
+assert.equal(firestoreCalls,0,'invalid destination must never consume Firestore quota');
+console.log('PASS dedicated importer, writable transaction and per-table privileges all checked before a single Firestore read');
+
+// A denied Firestore capture cannot CREATE/ALTER any PostgreSQL schema.
+const queries=[];
+const validPg={Pool:class extends makePool().Pool {
+  async query(sql) { queries.push(sql); return super.query(sql); }
+}};
 await assert.rejects(runQaLiveSnapshotStage({
- env:fakeEnv,pgModule:mockPg,fetchImpl:async()=>{
-   firestoreCalls++;
-   return {status:403,ok:false,headers:{get:()=> 'application/json'}};
- },
+  env:fakeEnv,pgModule:validPg,fetchImpl:async()=>{
+    firestoreCalls++;
+    return {status:403,ok:false,headers:{get:()=> 'application/json'}};
+  },
 }),/firestore_quota_or_permission_blocked/);
 assert.equal(firestoreCalls,1);
-assert.deepEqual(sqlStatements,['SELECT current_database() AS db']);
-console.log('PASS QA source failure does not run local schema migration');
+assert.equal(queries.length,4);
+assert.ok(queries.every(sql=>!/(CREATE TABLE|ALTER TABLE|INSERT INTO|UPDATE .* SET)/i.test(sql)));
+console.log('PASS denied Firestore capture does not create/alter or write any local PostgreSQL table');
