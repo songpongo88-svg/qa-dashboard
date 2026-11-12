@@ -10,7 +10,7 @@ const healthy={
   firestorePrimary:true,archiveIsNotLiveSource:true,
   standbyMode:'disabled',
   snapshot:{present:true,copied:true,candidateVerified:false,
-    sourceDocuments:2081,candidateEvaluations:0,datasetCount:6,
+    sourceDocuments:2081,sourceEvaluations:563,candidateEvaluations:0,datasetCount:6,
     withinFreshnessWindow:false},
   remainingChecks:['source_snapshot_not_fresh','independent_live_parity_not_certified'],
   secretScore:'DO_NOT_RETURN',
@@ -44,6 +44,7 @@ let json=await res.json();
 assert.equal(json.failoverReady,false);
 assert.equal(json.canAcceptWrites,false);
 assert.equal(json.snapshot.sourceDocuments,2081);
+assert.equal(json.snapshot.sourceEvaluations,563);
 assert.equal(json.snapshot.candidateVerified,false);
 assert.deepEqual(json.remainingChecks,healthy.remainingChecks);
 assert.equal(JSON.stringify(json).includes('DO_NOT_RETURN'),false);
