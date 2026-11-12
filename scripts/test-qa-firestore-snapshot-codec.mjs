@@ -59,7 +59,7 @@ for(const id of ['ประเมิน-เคส-๑','QA Case — 2026', 'x'.r
   assert.equal(item.record.finalScore,85.25);
   assert.equal(item.record.topics[0].score,8);
 }
-for(const id of ['','slash/id','bad\\nname','x'.repeat(901)]){
+for(const id of ['','slash/id','bad\nname','x'.repeat(901)]){
   assert.throws(()=>normalizeQaFirestoreEvaluation(id,alter('id',id),HASH),
     e=>e.code==='evaluation_identity_invalid');
 }
