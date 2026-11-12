@@ -139,14 +139,18 @@ export function createAnnouncementShieldService({
    const available=spendableBalance(wallet),attemptDay=currentDay(),timestamp=nowIso();
    if(available<SHIELD_PRICE){
     const graceEndsAt=sub.graceEndsAt||new Date(dueMs+GRACE_DAYS*DAY_MS).toISOString();
-    return {writes:[updateWrite(subPath,{status:"grace",graceEndsAt,
-      lastAttemptDay:attemptDay,updatedAt:timestamp},doc),
+    const changes=[updateWrite(subPath,{status:"grace",graceEndsAt,
+      lastAttemptDay:attemptDay,updatedAt:timestamp},doc)];
+    // A grace period can retry daily. Only the FIRST transition records the
+    // event; subsequent attempts update lastAttemptDay without duplicate IDs.
+    if(sub.status!=="grace")changes.push(
       createWrite(historyFor(username,"announcement-shield-grace-"+sub.itemId+"-"+sub.nextBillingAt.slice(0,10)),{
         createdAt:timestamp,type:"event",source:"announcement-shield",rewardId:"announcement-shield",
         itemId:sub.itemId,title:"Announcement Shield · ผ่อนผัน",
         detail:"คะแนนไม่พอต่ออายุ · รอตัดซ้ำได้ถึง "+graceEndsAt,
         amount:0,performedBy:"system",status:"Grace"
-      })],result:{grace:true}};
+      }));
+    return {writes:changes,result:{grace:true}};
    }
    const billingId="announcement-shield-renew-"+sub.itemId+"-"+sub.nextBillingAt.slice(0,10);
    const history=historyFor(username,billingId);
