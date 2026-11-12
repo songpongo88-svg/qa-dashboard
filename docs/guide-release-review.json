@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T13:05:39.984Z",
-  "reason": "Reviewed Reward Center display-only redesign, uniform responsive tiles, Auto-Pass 5 free uses valued at 800 Sparks (normal 160 each), Typing Relief real 150 to 45 promotional price; redeemed status moved to item details. No wallet or Item workflow changes.",
+  "reviewedAt": "2026-11-12T14:08:00.000Z",
+  "reason": "Reviewed Process File Management integration with current main: add explicit Activate Current for archived Process, preserving historical references and file chunks; keep Restore visibility-only and reduce Firestore reads in upload by querying same-name metadata. Latest unrelated UI changes retained.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -285,7 +285,7 @@
     "scripts/patch-process-library-auto-index-v66.mjs": "063553e5c19133ba31920e915c8be5498ca241931a764ed28b064004671e4215",
     "scripts/patch-process-library-multislide-v68.mjs": "00abfa2705afe486c0b7ddb45eb06923506f9fd097f84e35ecc1428da33ac002",
     "scripts/patch-process-library-v65.mjs": "e39145978184666fb41287da7f7b4e22508be85264bd49032957203e00d63083",
-    "scripts/patch-process-multifile-v84.mjs": "3930e7d53f0b53c2a45fd6168a11f58eb7304147fb0b135e7afb07157ff27507",
+    "scripts/patch-process-multifile-v84.mjs": "e2c4a8be45a5a573ff1d92314a5bf3768a263815ed017f29c4c05953fa85eed7",
     "scripts/patch-process-no-support-v86.mjs": "32d4be09d159233ec1c06aecb5c5753cb822f40d0a2a1221cc324dec8e84986f",
     "scripts/patch-process-note-pdf-runtime-v89.mjs": "797c63dbcc3601151cca71a7d89aeee4cf4439799db49809b6c03107db180518",
     "scripts/patch-process-pdf-parity-v84.mjs": "e3f851c363adf1437a3be32ab402c17cd788f255fd119f560ed6012c6506ac02",
@@ -370,8 +370,8 @@
     "scripts/test-monthly-signature-pdf.mjs": "9905f766878080429fb5bb6231fc8ab433f4b61fa13b2363c385c43a3e0f7016",
     "scripts/test-payment-document-ref.mjs": "b3ac8cd094ba6a1e94b6b571c1db529fc939d5201b6d9039a3c2202750d675ba",
     "scripts/test-pdf-dates.mjs": "b13ed1e04faecd3eca4f08e8a36a4b66bcbeb1aa7636b2a1da01c7fb7472d32b",
-    "scripts/test-process-file-confirmation.mjs": "c37d1390c9ff233d23bf28f2c050098a808108a474bc09b896af5409a771d21e",
-    "scripts/test-process-file-management.mjs": "fb12eb38da5b8b5d1eb61f40d9cec477536ade531f82ce8ebef8c367f31909ad",
+    "scripts/test-process-file-confirmation.mjs": "5250147a21e46f3df6f48c04eeed18edfb04da690bbaa9f47abf5e6aa9a4875b",
+    "scripts/test-process-file-management.mjs": "5f31e59c8f9a60664e4dd9cb78e2d0e56e3253326efd70500c7f7d9704c4f7a9",
     "scripts/test-profile-makeover-truemoney.mjs": "bc170dd1057f3d425d7a39cefc449d675833013e3451cf2505587b6e9ff72a9d",
     "scripts/test-qa-auto-pass.mjs": "9ed328d4166a089e324d6a8e13af696dfdb66c3cd241cf403899aeff08b28f7d",
     "scripts/test-qa-emergency-draft-export.mjs": "7707f5f194da2de2a3a1d0681ab7a6fb0f7265fa4b79f6c14a412faee00fbe7d",
@@ -616,7 +616,7 @@
     "src/PresentationMockup.tsx": "69da6c75352f92473c0530ad8272c3666a978dadc2919e944f643048a07f9a3e",
     "src/PreTestMockup.tsx": "7e8b9a000276931dea99e471ee254e35f24af7287c71cdc9304b246a9a7b4d40",
     "src/preTestThtPlus2026.ts": "7e62a8f2e022890aac871478e9808080abf60c093a3b501a765ce65b21ab253b",
-    "src/ProcessFileManager.tsx": "f48a7a54cf9fb14ccdcee34d90d526f832caa5848244fcc7dfdab541449dbfe3",
+    "src/ProcessFileManager.tsx": "79cd43f0ae8c504b5e9c0fa8e3573584d176719461ba2dd34066140605cf6176",
     "src/processLibrary.tsx": "2fe33b77f06e959292c6821d57a0c95eb3164f894c80d18fa99ed5160a1a6c7a",
     "src/processSlidePickerPortal.css": "06fa740e5fc74f84ea8a7f594ae220fe83d7632331c76b29df77539e0e0e6a73",
     "src/ProcessSlidePickerPortal.tsx": "dbe61bddab8995dd9dc2f5ed5d75edbd28354f6635787058e1419a08fd384ccb",
@@ -757,6 +757,7 @@
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     "scripts/test-agent-ranking-chat-badge.mjs": "e92a7f736c3bcbad2b4e041c51cb90ba47e5ba3fc39f22d6a698588430c56108",
     "src/sparksPausedLanding.css": "7a4e8094534cf04ace4aec44c259a5bd965782aefd5b216b50ce53528f9a98e2",
-    "scripts/test-sparks-scheduled-suspension-migration.mjs": "c6b1c7fcc0adc077cc642898daa4fb589dc11748a42c796a2e061865e45b30dd"
+    "scripts/test-sparks-scheduled-suspension-migration.mjs": "c6b1c7fcc0adc077cc642898daa4fb589dc11748a42c796a2e061865e45b30dd",
+    "scripts/patch-process-file-activation-v86.mjs": "6716d60b1383d7a5bbb8846f9ebeea6da4ba9db15930038003efd892cb14658a"
   }
 }
