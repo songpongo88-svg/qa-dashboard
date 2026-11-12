@@ -9,7 +9,7 @@ const preview={
   QA_LOCAL_BRIDGE_TOKEN:token,
   QA_STANDBY_DATA_PROXY_ENABLED:'0',
 };
-let fetchCount=0,responseMode='success';
+let fetchCount=0,responseMode='success',readinessEnabled=false;
 const callFetch=async(url,init)=>{
   fetchCount++;
   assert.ok([worker+'ready',worker+'summary',worker+'readiness'].includes(url));
@@ -17,7 +17,16 @@ const callFetch=async(url,init)=>{
   assert.equal(init.method,'GET');
   assert.equal(init.redirect,'manual');
   if(responseMode==='offline')throw Error('private bridge password should not leak');
-  if(url.endsWith('/readiness'))return new Response('',{status:404});
+  if(url.endsWith('/readiness')){
+    if(!readinessEnabled)return new Response('',{status:404});
+    return new Response(JSON.stringify({ok:true,readOnly:true,failoverReady:false,
+      canAcceptWrites:false,firestorePrimary:true,
+      snapshot:{copied:true,candidateVerified:true,sourceDocuments:2197,
+        candidateEvaluations:578,datasetCount:11,withinFreshnessWindow:false},
+      remainingChecks:['source_snapshot_not_fresh','independent_live_parity_not_certified',
+        'local_login_and_roles_not_certified','qa_write_and_failback_not_certified']}),
+      {status:200,headers:{'content-type':'application/json'}});
+  }
   const data=url.endsWith('/ready')
     ? {ok:true,readOnly:true,databaseConnected:responseMode==='unverified'?false:true,failoverReady:false}
     : {ok:true,readOnly:true,failoverReady:false,importedArchiveCountMatch:true,
@@ -52,6 +61,15 @@ assert.equal(r.body.syncBackVerified,false);
 assert.equal(r.body.currentFirestoreParity,'not_verified');
 assert.equal(r.body.dataProxyEnabled,false);
 assert.equal(fetchCount,3);
+readinessEnabled=true;
+r=await get(handler);
+assert.equal(r.body.snapshotReadiness?.documentCount,2197);
+assert.equal(r.body.snapshotReadiness?.candidateEvaluations,578);
+assert.equal(r.body.snapshotReadiness?.sourceEvaluations,578);
+assert.equal(r.body.snapshotReadiness?.freshnessVerified,false);
+assert.equal(r.body.failoverEnabled,false);
+readinessEnabled=false;
+assert.equal(fetchCount,6);
 assert.equal(r.headers['cache-control'],'no-store, max-age=0');
 assert.equal(r.headers['access-control-allow-origin'],undefined);
 assert.ok(!JSON.stringify(r.body).includes(token));
@@ -64,13 +82,13 @@ r=await get(createQaPreviewStatusHandler({
   env:{...preview,VERCEL_ENV:'production'},fetchImpl:callFetch
 }));
 assert.equal(r.code,404);
-assert.equal(fetchCount,3);
+assert.equal(fetchCount,6);
 r=await get(createQaPreviewStatusHandler({
   env:{...preview,QA_LOCAL_BRIDGE_URL:'https://evil.example/'},fetchImpl:callFetch
 }));
 assert.equal(r.code,200);
 assert.equal(r.body.bridgeStatus,'not_configured');
-assert.equal(fetchCount,3);
+assert.equal(fetchCount,6);
 responseMode='offline';
 r=await get(handler);
 assert.equal(r.code,200);
