@@ -50,6 +50,21 @@ try{
   assert.equal(receipt.queued,true);
   assert.equal(receipt.version,2);
   assert.equal(count,3);
+  const deletion={operationId:'op-del-1',evaluationId:'QA-001',action:'delete',expectedVersion:2};
+  body={ok:true,operationId:'op-del-1',evaluationId:'QA-001',version:3,queued:true,replay:false};
+  const deleted=await api.writeQaStandbyEvaluation(session,deletion,{fetchImpl:async(url,init)=>{
+    const payload=JSON.parse(init.body);
+    assert.equal(payload.action,'delete');
+    assert.equal('record' in payload,false);
+    assert.equal(init.headers['idempotency-key'],'op-del-1');
+    return mockFetch(url,init);
+  }});
+  assert.equal(deleted.version,3);
+  assert.equal(count,4);
+  await assert.rejects(api.writeQaStandbyEvaluation(session,{
+    ...deletion,record:{id:'QA-001',finalScore:0},
+  },{fetchImpl:mockFetch}),/invalid standby write/);
+  body={ok:true,operationId:'op-1',evaluationId:'QA-001',version:2,queued:true,replay:false};
   body={...body,version:8};
   await assert.rejects(api.writeQaStandbyEvaluation(session,pending,{fetchImpl:fakeFetch}),
     e=>e instanceof api.QaStandbyRequestDenied&&e.httpStatus===502);
