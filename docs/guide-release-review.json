@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T13:34:40.116Z",
-  "reason": "Reviewed QA-only read-only standby readiness status and compatibility tests. Exposes aggregate 11-dataset snapshot and evaluation candidate counts, preserves source-score confidentiality, safely supports older Cloudflare Worker/Windows bridge, never enables QA failover, changes no QA Sparks, T&C or user guide.",
+  "reviewedAt": "2026-11-12T13:41:09.314Z",
+  "reason": "Reviewed isolated QA standby Preview build command after successful QA PostgreSQL CI and read-only readiness safety tests. No user manual, T&C, QA scoring, appeal, signature, Sparks, or Production configuration changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -804,6 +804,7 @@
     "scripts/check-qa-source-stage-preflight.mjs": "cc6d02af36bcaee30138fee2132b08a11c5ea4d913cd978a46b2a97bc33b5126",
     "scripts/test-qa-source-stage-preflight.mjs": "6812de5eb09c6c4ca08ec4883f8128c757e082251b5a45fc27eb2576906f938f",
     "scripts/test-qa-windows-installer-dependencies.mjs": "80c752f09d676ebe170f2f4eec2016ff6f46afee16b51e054e742b8f49d46f4d",
-    "cloudflare/qa-standby-vpc-worker.mjs": "8a4d85ab7b1ec9a4231417589c21b3436fd3a48d315b6059c7050217ebb6e4bf"
+    "cloudflare/qa-standby-vpc-worker.mjs": "8a4d85ab7b1ec9a4231417589c21b3436fd3a48d315b6059c7050217ebb6e4bf",
+    "vercel.json": "814fbd132dd4eb7026cc8083994d2585321b9d96eba30e163fb8c6fd31acabd5"
   }
 }
