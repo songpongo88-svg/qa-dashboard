@@ -49,26 +49,53 @@ $oauth=$null
 $encPassword=$null
 $encUser=$null
 $repoRoot=Join-Path $root 'source-stage'
-# Immutable QA-only commit, downloaded to a NEW folder. Never replace bridge or archive.
-$pinnedCommit = 'd1c4baff2ecf45cf0b5636622e3cf17bd624c69d'
-if(-not (Test-Path -LiteralPath $repoRoot -PathType Container)) {
-  $staging=Join-Path $root ('source-stage-download-'+[Guid]::NewGuid().ToString('N'))
-  $zip=Join-Path $root ('qa-source-'+[Guid]::NewGuid().ToString('N')+'.zip')
+# Download only the minimum QA-only source files from an immutable reviewed commit.
+# Never overwrite the existing bridge, archive, or an already-installed different version.
+$pinnedCommit = 'e6172519b84196c6363943239f3fa2d1537f9fd0'
+$marker = Join-Path $repoRoot '.qa-source-commit'
+$files = @(
+  'scripts/Run-QA-Authoritative-Snapshot-Stage.mjs',
+  'scripts/check-qa-source-stage-preflight.mjs',
+  'server/qaLocalBridgeServer.js',
+  'server/qaStandbyArchiveStatus.js',
+  'server/qaStandbySnapshotReadiness.js',
+  'server/qaFirestoreRestSnapshot.js',
+  'server/qaLiveMirrorStage.js',
+  'server/qaStandbyCandidateMaterializer.js',
+  'server/qaFirestoreSnapshotCodec.js',
+  'migration/qa-local-live-snapshot-stage.sql'
+)
+if(Test-Path -LiteralPath $repoRoot -PathType Container) {
+  if(-not (Test-Path -LiteralPath $marker -PathType Leaf) -or
+      ([IO.File]::ReadAllText($marker).Trim() -ne $pinnedCommit)) {
+    Stop-Safe 'SOURCE_STAGE_VERSION_UNVERIFIED'
+  }
+} else {
+  $temporary=Join-Path $root ('qa-source-install-'+[Guid]::NewGuid().ToString('N'))
   try {
-    New-Item -Path $staging -ItemType Directory -Force | Out-Null
-    $url='https://api.github.com/repos/songpongo88-svg/qa-dashboard/zipball/'+$pinnedCommit
-    Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 120
-    Expand-Archive -LiteralPath $zip -DestinationPath $staging -ErrorAction Stop
-    $children=@(Get-ChildItem -LiteralPath $staging -Directory)
-    if($children.Count -ne 1 -or -not (Test-Path (Join-Path $children[0].FullName 'scripts\Run-QA-Authoritative-Snapshot-Stage.mjs'))) {
-      Stop-Safe 'INVALID_PINNED_REPO_ARCHIVE'
+    foreach($file in $files) {
+      $dest=Join-Path $temporary ($file.Replace('/','\'))
+      $parent=Split-Path -Parent $dest
+      New-Item -ItemType Directory -Path $parent -Force | Out-Null
+      $url='https://raw.githubusercontent.com/songpongo88-svg/qa-dashboard/'+$pinnedCommit+'/'+$file
+      Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -TimeoutSec 30
+      if(-not (Test-Path -LiteralPath $dest -PathType Leaf)) { throw 'source_missing' }
     }
-    Move-Item -LiteralPath $children[0].FullName -Destination $repoRoot -ErrorAction Stop
+    [IO.File]::WriteAllText((Join-Path $temporary 'package.json'),
+       '{"name":"qa-source-standby","private":true,"type":"module"}')
+    [IO.File]::WriteAllText((Join-Path $temporary '.qa-source-commit'),$pinnedCommit)
+    Move-Item -LiteralPath $temporary -Destination $repoRoot -ErrorAction Stop
   } catch {
-    Stop-Safe 'PINNED_SOURCE_DOWNLOAD_FAILED'
+    Stop-Safe 'PINNED_QA_SOURCE_DOWNLOAD_FAILED'
   } finally {
-    Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+    if(Test-Path -LiteralPath $temporary) {
+      Remove-Item -LiteralPath $temporary -Recurse -Force -ErrorAction SilentlyContinue
+    }
+  }
+}
+foreach($file in $files) {
+  if(-not (Test-Path -LiteralPath (Join-Path $repoRoot ($file.Replace('/','\'))) -PathType Leaf)) {
+    Stop-Safe 'PINNED_QA_SOURCE_INCOMPLETE'
   }
 }
 $runner=Join-Path $repoRoot 'scripts\Run-QA-Authoritative-Snapshot-Stage.mjs'
