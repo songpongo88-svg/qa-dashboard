@@ -20,4 +20,11 @@ assert.match(ranking,/onClick=\{\(\) => onSelectAgent\(row\.agent\)\}/,"agent se
 assert.match(css,/\[data-analytics-agent-incentive-v92\] \[data-agent-ranking-name-button\] > :not\(\[data-agent-ranking-avatar\]\):not\(\[data-agent-ranking-name-container\]\)/,"block foreign siblings only");
 assert.match(css,/\[data-analytics-agent-incentive-v92\] \[data-agent-ranking-name-button\]::before/,"block injected pseudo badges");
 assert.doesNotMatch(css,/\[data-agent-ranking-name-button\]\s*\{\s*display:\s*none/i,"must not hide the profile button itself");
+const profileStore=readFileSync(new URL("../src/profilePhotoStore.ts",import.meta.url),"utf8");
+assert.match(ranking,/data-agent-profile-username=\{row\.username \|\| undefined\}/,"ranked Agent avatar is linked to its stored user account");
+assert.match(ranking,/agentAvatarPhotos\[row\.username\.toLowerCase\(\)\]/,"ranked Agent uses the resolved profile photo");
+assert.match(src,/IntersectionObserver/,"Agent avatars load only when visible");
+assert.match(src,/getCachedStoredProfilePhoto/,"Agent avatars read local photo cache first");
+assert.match(src,/firestoreReadWaitMs/,"Agent avatars respect quota cooldown");
+assert.match(profileStore,/export function getCachedStoredProfilePhoto/,"shared photo cache has a zero-read accessor");
 console.log("PASS Agent Ranking: rank, initials, name and selection retained; stray injected children and pseudo-elements isolated");
