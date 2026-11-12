@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T03:52:55.548Z",
-  "reason": "QA-only Firestore quota optimization applied on latest main, preserving concurrent Sparks updates: 15-minute Dashboard revision checks (no full reload on null/initial/error), 20-minute Coaching background checks with permissions fail-closed. Verified Dashboard/quota/Coaching and Vercel-equivalent build; no manual, T&C, QA scoring, appeal or signature content change.",
+  "reviewedAt": "2026-11-12T03:59:31.346Z",
+  "reason": "Refactored QA Sparks History Overview and full tab from 860px wide scrolling table to responsive stacked records; search, filter and load-more are client-side only, balance/Item transaction source and history fetch unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -632,7 +632,7 @@
     "src/qaLottery.css": "badb5ac828881f136ba62cac0a9382f54b234f40b8d10d6437d8a53592cbb8f9",
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/qaSparks.css": "cdb55cdbb9a1951c8d97895431ecf08e8b66645c512668c3b5e37faeb4e66f37",
+    "src/qaSparks.css": "8be23f2d175268f73da8b25582af421ee1fc4f2eb99bcd4ab71bd3a27b0ad8d9",
     "src/QASparks.tsx": "691607cdb150babf3c44873251d85514ad049660fc7945456ec0186cc539788a",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
@@ -670,7 +670,7 @@
     "src/SparksCloudStatus.tsx": "0b605c16b6f43daae89eb64eb0f619d2917d4701c3208f2303f9ce35a777eba0",
     "src/SparksEmailAuth.css": "57cd8adfe942f400f8b3eced2a2dd075740375c783d4cbaf5c80b3e2d9cac82d",
     "src/SparksEmailAuth.tsx": "575bfd26ae059e65bbec3af65c8c98eda5d49dd9eaba66abfb5680eb7b1445c4",
-    "src/SparksHistory.tsx": "c59a5c8ff33714fcb1303922464e43d5000633d95977dfdd14bdad35905361fd",
+    "src/SparksHistory.tsx": "8ca571c28b215625e7ca4beb77402f9f6128ed3c65c938620661bcf0d85e53ef",
     "src/sparksMembership.css": "224d2dfa4fbb51b1b2351738a4db26775d7d9b0a8b7dfb001e3fcf09d57e33bd",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
     "src/sparksMiniGamesGallery.css": "37562b81b3645f431ab9b8ff869cb53876296a8854627a379c29c9b450d4dcc5",
@@ -753,7 +753,7 @@
     ".github/workflows/test-sparks-owner-qa-import.yml": "b76cf26d05fab67b505cc9b535799f3235050834df46173ab0548620e8ebf30c",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
     "src/sparksItemHistory.mjs": "34fb36e3be5550a5e565a0c31d3ed8b8a7bcfb6829ea74730234b51524fd56cd",
-    "scripts/test-all-item-history.mjs": "92c6ece75fcbcd24ac787a8ef84fa1ff9868d4180c1cd27634504dd5917b1743",
+    "scripts/test-all-item-history.mjs": "492bb0192f72002f99bf806eefa18112e95e2f8eb102a0ed29a6d7b3dc52bb34",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f"
   }
 }
