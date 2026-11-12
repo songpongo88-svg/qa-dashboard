@@ -95,6 +95,15 @@ try {
   assert.match(qs,/emailOptedIn/,"hybrid mode supports non-owner email opt-in");
   assert.match(qs,/data-sparks-legacy-fallback="true"/,"legacy path remains available until OTP is ready");
   assert.match(qs,/qa:sparks:supabase-login:/,"browser remembers the selected login path per employee");
+  const adminSource=readFileSync(new URL("../api/sparks-admin.js",import.meta.url),"utf8");
+  const migrationUi=readFileSync(new URL("../src/SparksQaCredentialMigration.tsx",import.meta.url),"utf8");
+  assert.ok(adminSource.includes('code:"QA_CREDENTIAL_FIRESTORE_LIMIT"'),"Credential-source quota is distinguishable from Sparks reward wallet");
+  assert.ok(adminSource.includes('qaMigrationStage="owner-session"'),"Credential migration identifies QA-session verification failure");
+  assert.ok(adminSource.includes('qaMigrationStage="source-credentials"'),"Credential migration identifies profile-source read failures");
+  assert.ok(adminSource.includes('qaMigrationStage="supabase-import"'),"Credential migration identifies Supabase import failure");
+  assert.ok(adminSource.includes('code:"QA_CREDENTIAL_OWNER_SESSION_INVALID"'),"Credentials transfer never skips owner QA session verification");
+  assert.ok(migrationUi.includes('body.code==="QA_CREDENTIAL_FIRESTORE_LIMIT"'),"UI reports source quota without claiming rewards outage");
+  assert.ok(migrationUi.includes('if(action==="qa-password-preflight")setAudit(null)'),"Failed checks never preserve stale ready counts");
     console.log("PASS Sparks hybrid owner: verified Supabase wallet and Admin without Firebase, forged/mismatched accounts denied, other Dashboard users unchanged");
 }finally {
   globalThis.fetch=oldFetch;
