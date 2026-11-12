@@ -130,6 +130,13 @@ BEGIN
    CREATE ROLE qa_snapshot_importer LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION;
  END IF;
 END $create_importer$;
+ALTER ROLE qa_snapshot_importer LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION;
+DO $membership$
+BEGIN
+ IF EXISTS (
+   SELECT 1 FROM pg_auth_members WHERE member=(SELECT oid FROM pg_roles WHERE rolname='qa_snapshot_importer')
+ ) THEN RAISE EXCEPTION 'snapshot importer cannot be member of other roles'; END IF;
+END $membership$;
 '@
     # Generated password is lowercase hex only, never interpolated from input.
     $sql+=[Environment]::NewLine+"ALTER ROLE qa_snapshot_importer WITH PASSWORD '$importPwd';"+[Environment]::NewLine
