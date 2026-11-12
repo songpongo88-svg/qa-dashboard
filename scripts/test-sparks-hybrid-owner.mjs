@@ -85,6 +85,12 @@ try {
     "Do not force owner onto unavailable Supabase OTP");
   const site=readFileSync(new URL("../src/SparksStandalone.tsx",import.meta.url),"utf8");
   assert.match(site,/\["supabase","hybrid"\]/);
+  assert.match(qs,/username\\.trim\\(\\)\\.toLowerCase\\(\\)==="songpon" && import\\.meta\\.env\\?\\.VITE_SPARKS_CLOUD_READ_ONLY !== "1"/,
+    "The owner migration control is visible in Sparks Admin even in Supabase auth mode");
+  assert.doesNotMatch(qs,/!emailAuthEnabled && username\\.trim\\(\\)\\.toLowerCase\\(\\)==="songpon" && adminSessionId/,
+    "Missing owner QA session must display an explanation, not silently hide the migration control");
+  const migrationUi=readFileSync(new URL("../src/SparksQaCredentialMigration.tsx",import.meta.url),"utf8");
+  assert.match(migrationUi,/!sessionId \\? <p role="alert"/,"Explain why import is unavailable without QA session");
   assert.match(qs,/data-sparks-supabase-optin="true"/,"every QA employee may start Supabase login");
   assert.match(qs,/emailOptedIn/,"hybrid mode supports non-owner email opt-in");
   assert.match(qs,/data-sparks-legacy-fallback="true"/,"legacy path remains available until OTP is ready");
