@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T19:44:22.452Z",
-  "reason": "Reviewed compact Reward Center within the original Overview columns: four equal cards per row where space permits, contained complete brand images, aligned prices and actions, narrower two-column fallback. No transaction, inventory, logo or Evaluation changes.",
+  "reviewedAt": "2026-11-12T19:56:07.102Z",
+  "reason": "QA Dashboard central session verification now checks every 3 minutes instead of 30 seconds, session heartbeat every 5 minutes instead of 1; inactive tabs and offline windows skip reads, focus requests are deduplicated. Immediate same-browser logout propagation, two-hour inactivity timeout, QA scoring, appeals, signatures, Sparks and T&C remain unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -361,7 +361,7 @@
     "scripts/test-evaluation-visibility-ui.mjs": "51dbc9ea7451004fea0f9e146dc0d9fb6ddf522e786758df866523a7ff4f6917",
     "scripts/test-evaluation-visibility.mjs": "52c8a98b1f0f870eccd90ac767c2c4a7f36de598b00c0a30dac325fca55be87a",
     "scripts/test-festival-themes.mjs": "e3fbc9cc06625fbd62958085cc1337a83c9dfecf44fac3f2f69f2a42720f1555",
-    "scripts/test-firestore-quota-controls.mjs": "73441f3e0b12635b70ff6f08e8f5d788ac203ba0e8ba35ab9e52a88d818efefc",
+    "scripts/test-firestore-quota-controls.mjs": "79e1068a876dc71179732a0410413a9883aee039d71040a7026441dfccfb774d",
     "scripts/test-firestore-read-dedup.mjs": "7929ca022a98b2244b46a887eb7694f56ee373a1b22a4af571fd184dfc39dc10",
     "scripts/test-fruit-match-ui.mjs": "3693865b8f34036b76f1e653ec9dc1a9ccbeac49ee9909497438a4e517bbf850",
     "scripts/test-fruit-match.mjs": "6ed719f84d33e72fb039a5c85c0534ffcc331c26e883ae0ce6dc303769d0cd07",
@@ -454,7 +454,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "442e8694199cc892c4f84a919e17df05d39ea489672bfe80b5de4f5457d0319e",
+    "src/App.tsx": "e19e7096e04a8594702605128c105b942ea5574081bbfb87a34e71ed22a01e5e",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
