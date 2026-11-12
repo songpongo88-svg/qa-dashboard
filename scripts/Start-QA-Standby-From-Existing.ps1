@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $oldBridge = Join-Path $HOME 'Documents\QA_Backup\bridge'
 $envFile = Join-Path $oldBridge '.env.local'
 $probeRoot = Join-Path $HOME 'Documents\QA_Backup\standby-probe'
-$repoCommit = '43f581b10cb853fc3e693229a2708e7f2f076ae1'
+$repoCommit = '87f26bf8fff345a94b7b7f5c90b826a8a775afb8'
 $endpoint = 'http://127.0.0.1:8788'
 if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) {
   Write-Output 'QA_8788=EXISTING_BRIDGE_CONFIG_NOT_FOUND'
@@ -98,7 +98,7 @@ if (-not (Test-Path -LiteralPath $packageFile)) {
     (New-Object System.Text.UTF8Encoding($false)))
 }
 $base = 'https://raw.githubusercontent.com/songpongo88-svg/qa-dashboard/' + $repoCommit + '/server/'
-foreach ($filename in @('qaLocalBridgeServer.js','qaStandbyArchiveStatus.js')) {
+foreach ($filename in @('qaLocalBridgeServer.js','qaStandbyArchiveStatus.js','qaStandbySnapshotReadiness.js','qaLiveMirrorStage.js')) {
   $destination = Join-Path $serverDir $filename
   try {
     Invoke-WebRequest -Uri ($base + $filename) -OutFile $destination -UseBasicParsing -TimeoutSec 30
