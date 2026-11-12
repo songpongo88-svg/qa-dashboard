@@ -85,6 +85,8 @@ export async function qaStandbySnapshotReadiness(pool,{now=Date.now()}={}){
         candidateVerified:Boolean(candidateReady),
         sourceDocuments:batch&&nonnegative(batch.source_documents)?Number(batch.source_documents):0,
         candidateEvaluations:batch&&candidateReady?Number(candidate.evaluation_count):0,
+        sourceEvaluations:copied&&nonnegative(datasets.get('qa_evaluations')?.count)
+          ?Number(datasets.get('qa_evaluations').count):0,
         datasetCount:manifest.length,
         maxAgeMinutes:2,
         withinFreshnessWindow:Boolean(fresh),
