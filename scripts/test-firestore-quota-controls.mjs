@@ -11,6 +11,22 @@ import { qaAccessCheckWriteFixPatch } from "../build/qaAccessCheckWriteFixPatch.
 import { qaAccessCheckDirectWriteFixPatch } from "../build/qaAccessCheckDirectWriteFixPatch.js";
 import { qaAccessCheckQueueVisibilityFixPatch } from "../build/qaAccessCheckQueueVisibilityFixPatch.js";
 
+
+// QA session polling must not burn Firestore quota every 30s in hidden tabs.
+const qaSessionApp = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+assert.match(qaSessionApp, /SESSION_CHECK_INTERVAL_MS = 3 \* 60 \* 1000/);
+assert.match(qaSessionApp, /SESSION_TOUCH_INTERVAL_MS = 5 \* 60 \* 1000/);
+assert.ok(qaSessionApp.includes('document.visibilityState !== "visible"'),
+  "hidden or pinned Dashboard tabs must skip central session checks");
+assert.ok(qaSessionApp.includes("navigator.onLine === false"),
+  "offline tabs must not repeatedly query Firebase");
+assert.ok(qaSessionApp.includes("cancelled || checking"),
+  "concurrent focus/timer session checks must be deduplicated");
+assert.ok(qaSessionApp.includes("now - lastCheckedAt < SESSION_CHECK_INTERVAL_MS"),
+  "focus must not bypass the quota-saving session throttle");
+assert.ok(qaSessionApp.includes('window.addEventListener("storage", handleStoredSessionChange)'),
+  "immediate same-browser logout propagation must remain enabled");
+
 await mkdir("node_modules/.cache", { recursive: true });
 const folder = await mkdtemp(resolve("node_modules/.cache/quota-controls-"));
 const dom = new JSDOM("<!doctype html><body><div id='root'></div></body>", { url: "https://qa.test", pretendToBeVisual: true });
