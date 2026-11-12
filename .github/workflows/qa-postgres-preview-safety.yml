@@ -66,6 +66,8 @@ on:
       - "server/qaFirestoreSnapshotCodec.js"
       - "scripts/test-qa-firestore-snapshot-codec.mjs"
       - "server/qaStandbyCandidateMaterializer.js"
+      - "server/qaStandbyInactiveSeed.js"
+      - "scripts/test-qa-standby-inactive-seed-integration.mjs"
       - "scripts/test-qa-standby-candidate-materializer-integration.mjs"
       - "scripts/test-qa-firestore-rest-snapshot.mjs"
       - "scripts/Run-QA-Authoritative-Snapshot-Stage.mjs"
@@ -177,6 +179,8 @@ jobs:
           node --check server/qaFirestoreSnapshotCodec.js
           node --check scripts/test-qa-firestore-snapshot-codec.mjs
           node --check server/qaStandbyCandidateMaterializer.js
+          node --check server/qaStandbyInactiveSeed.js
+          node --check scripts/test-qa-standby-inactive-seed-integration.mjs
           node --check scripts/test-qa-standby-candidate-materializer-integration.mjs
           node --check scripts/test-qa-firestore-rest-snapshot.mjs
           node --check scripts/Run-QA-Authoritative-Snapshot-Stage.mjs
@@ -259,3 +263,4 @@ jobs:
           node scripts/test-qa-standby-archive-status.mjs
           node scripts/test-qa-live-mirror-stage-integration.mjs
           node scripts/test-qa-standby-candidate-materializer-integration.mjs
+          node scripts/test-qa-standby-inactive-seed-integration.mjs
