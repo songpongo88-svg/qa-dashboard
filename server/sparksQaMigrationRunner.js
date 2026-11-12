@@ -8,13 +8,17 @@ export async function migrateQaPasswordsFromTrustedSource(profiles,{
   const audit=auditQaCredentialSource(profiles,{now,minActive:21});
   if(audit.blocked.length || !audit.canStartStagedMigration)
     return {ok:false,code:"SOURCE_CREDENTIAL_BLOCKED",audit};
-  if(audit.active!==21 || audit.pending.some(item=>item.reason!=="QA_PASSWORD_NOT_SET"))
+  if(audit.eligibleActive!==21 || audit.pending.some(item=>item.reason!=="QA_PASSWORD_NOT_SET"))
     return {ok:false,code:"SOURCE_ROSTER_MISMATCH",audit};
   // Preserve the existing QA identity, owner role and active/suspension
   // verification. Credentials exist only inside this trusted request.
-  const active=profiles.filter(row=>normalize(row.status)==="active");
-  const expectedActive=active.map(row=>normalize(row.username)).sort();
-  const entries=active.filter(row=>typeof row.password==="string" && row.password.length>=6 &&
+  // A source profile can say Active while carrying an active suspension
+  // schedule. Never import one of those credentials into Supabase Auth.
+  const excluded=new Set(audit.excluded.map(item=>item.username));
+  const eligible=profiles.filter(row=>normalize(row.status)==="active" &&
+    !excluded.has(normalize(row.username)));
+  const expectedActive=eligible.map(row=>normalize(row.username)).sort();
+  const entries=eligible.filter(row=>typeof row.password==="string" && row.password.length>=6 &&
        row.password.length<=128).map(row=>({
     username:normalize(row.username),password:row.password,
     passwordExpiresAt:row.passwordExpiresAt||row.accessExpiresAt||"",
