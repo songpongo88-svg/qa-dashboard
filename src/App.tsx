@@ -403,10 +403,11 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
-// Reduce repetitive Firestore session reads in long-running Dashboard tabs.
-// Central revocation checks can be delayed by up to three minutes.
-const SESSION_CHECK_INTERVAL_MS = 3 * 60 * 1000;
-const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
+// Match the existing production quota-protection cadence while also
+// preventing hidden tabs, focus storms and concurrent validation requests.
+// Central revocation checks can be delayed by up to fifteen minutes.
+const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+const SESSION_TOUCH_INTERVAL_MS = 30 * 60 * 1000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
