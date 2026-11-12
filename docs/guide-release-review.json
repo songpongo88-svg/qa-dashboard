@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T02:59:42.631Z",
+  "reviewedAt": "2026-11-12T03:03:44.592Z",
   "reason": "QA Sparks authentication transfer troubleshooting: distinguish Firestore source/profile read and QA owner session checks from independent Supabase reward wallet operations; no misleading global quota claims, no stale preflight readiness after failed check, sanitized error codes with no credentials exposed. Preserve unchanged QA Evaluation, scores, rewards, items, wallet history, T&C and Production Hybrid login.",
   "contentChanged": false,
   "reviewedChapters": [],
@@ -403,7 +403,7 @@
     "scripts/test-sparks-cloud-wallet-auth.mjs": "b1830f165e88d9030db83f097b0763c39ba1d896e5f56fce84ada92e9c663659",
     "scripts/test-sparks-email-api.mjs": "ca9b08fade21ca84e24f801672ff259ff2653224c21612c17a623d808cf1b99d",
     "scripts/test-sparks-email-auth.mjs": "21b230dd32647fee6ac39dfde5a9687ea2fde4b6ec1e382181af65aa2e58c1fd",
-    "scripts/test-sparks-hybrid-owner.mjs": "6eea693ed2f9079fb1746a28649a6b4c7c2d30e981ee3125384d454b792ed76a",
+    "scripts/test-sparks-hybrid-owner.mjs": "f88a8d25403e991e56958181a34119cdb84e3224ef8efe31decfc0116201a5cb",
     "scripts/test-sparks-profile-reconcile.mjs": "7dc03de144a6175a17c08fa4fa961cda69e8f4e5c8752a14b54df3a6ebbecb25",
     "scripts/test-sparks-shield-preview-readonly.mjs": "a017ed8d5127bffcdcce2d9208596c44bd069085cefb28b8e65c6b11e66ca7b9",
     "scripts/test-sparks-standalone.mjs": "c8d892ca9949cd518aaab5d58152beddc7b395be2f06ea2ac2309c8cb95ca741",
