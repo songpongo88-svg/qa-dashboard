@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T18:42:40.616Z",
-  "reason": "Reviewed end-to-end QA standby evaluation delete contract from browser through Vercel proxy to authenticated local handler and PostgreSQL journal. Delete requires no client record and cannot replace original QA score. This change has no effects on Production, QA Sparks, appeal or signature data.",
+  "reviewedAt": "2026-11-12T18:52:38.021Z",
+  "reason": "QA-only failover local session authority safety: evaluate session, active profile and revoked-before control from one immutable checked 11-dataset live snapshot, never from historical 2081-row source_mirror. Added negative tests for missing snapshot, partial manifests and tampered session document hashes. No QA scores, Sparks, T&C, or Production changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -385,7 +385,7 @@
     "scripts/test-qa-local-bridge.mjs": "aecb3876777eeeb82774c458bebc907c14381155d96317459dce9bd46826b879",
     "scripts/test-qa-local-diagnostics.mjs": "1cb205239a8fbdfd9c52493ac71c1890e9286f00e352438bad2f0e2396c634e0",
     "scripts/test-qa-local-mirror-import-integration.mjs": "1af75c39d9dcff372f778377d9af8d3201629e46e2f6b4f201ba0e44ee1722ac",
-    "scripts/test-qa-local-session-verifier.mjs": "07f97f6f2285e338954b712284396e76dad81f823b3b28baf640ca33f3be102a",
+    "scripts/test-qa-local-session-verifier.mjs": "a4cbf532258f2c68fda4d43124a314b3f5997ee03006a39e1c617a1503c1d02f",
     "scripts/test-qa-lottery-items.mjs": "5f778891951cc7637fbf6a5927de6df17b96a3c4ac6db719665e4f043e39ceff",
     "scripts/test-qa-lottery-popup.mjs": "41062b43193d967b2beba1357616030c5e888f684950af35577a48d1da8e799b",
     "scripts/test-qa-lottery.mjs": "da84c88e74687a6528d262bab3f087ec7820d5d2c2aa312e162073276bf2bc93",
@@ -463,7 +463,7 @@
     "server/qaFirestoreFailbackAdapter.js": "15c2ee527d80510f4a9386edb90149f4fbd8522895139ccb4b0b7033c3d6dc4d",
     "server/qaLocalBridgeServer.js": "e4962fad8a497c8b9a5b8d5f2812220cd23788e9ebd953fa4b25f0d72466cc5f",
     "server/qaLocalDiagnosticsHandler.js": "b3f7d06402b39b1d6242bc7f076e5b18f3e777c491519d2471a96aceaba1fb6d",
-    "server/qaLocalSessionVerifier.js": "67e3dfd9afb104035d2b39eaa6fa2aca27fe0455c978559524074f16871a5af7",
+    "server/qaLocalSessionVerifier.js": "d2eba5253d266c50b55d290d60e1f42e9ed5c133a4935c14d72aa4f44b151f70",
     "server/qaLotteryService.js": "b60bf4e725c9fc287b8430596c1a6651e7c5ccc54fa6b779666396e154c47973",
     "server/qaPreviewStatusHandler.js": "dc225a6febaa54daf00467c8cb4b0c2e9b18ad448c0c8cf63dbb2ff52d41729b",
     "server/qaRewardsService.js": "074656a12eb58d800c0d2f32a845a86ca2a06db472a507387edb2f629e5193a2",
