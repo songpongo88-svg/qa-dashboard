@@ -458,3 +458,30 @@ textarea {
 :root[data-qa-theme] [class~="focus:border-violet-400"]:focus { border-color: var(--qa-theme-400) !important; }
 :root[data-qa-theme] [class~="focus:border-violet-500"]:focus { border-color: var(--qa-theme-500) !important; }
 :root[data-qa-theme] [class~="focus:ring-violet-100"]:focus { --tw-ring-color: var(--qa-theme-100) !important; }
+
+
+/* Agent Performance Ranking: keep the rank/avatar/name layout isolated from
+   third-party injected badges (such as the stray blue chat bubble).
+   Scope to this table only; preserve name selection, scores and app chat. */
+[data-analytics-agent-incentive-v92] [data-agent-ranking-rank-cell] > *,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-cell] > :not([data-agent-ranking-name-button]),
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-button] > :not([data-agent-ranking-avatar]):not([data-agent-ranking-name-container]),
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-container] > :not([data-agent-ranking-name-text]),
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-text] > * {
+  display: none !important;
+}
+[data-analytics-agent-incentive-v92] [data-agent-ranking-rank-cell]::before,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-rank-cell]::after,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-cell]::before,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-cell]::after,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-button]::before,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-button]::after,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-avatar]::before,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-avatar]::after,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-container]::before,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-container]::after,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-text]::before,
+[data-analytics-agent-incentive-v92] [data-agent-ranking-name-text]::after {
+  content: none !important;
+  display: none !important;
+}

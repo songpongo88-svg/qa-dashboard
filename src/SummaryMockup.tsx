@@ -2169,21 +2169,22 @@ function AnalyticsAgentPerformanceV92({
                   data-agent-score-state={row.appealScoreHold ? "held" : "ready"}
                   className="border-t border-slate-100 bg-white transition hover:bg-violet-50/40"
                 >
-                  <td className="px-4 py-3 text-center text-slate-400">
+                  <td data-agent-ranking-rank-cell="true" className="px-4 py-3 text-center text-slate-400">
                     {row.appealScoreHold ? "—" : index + 1}
                   </td>
-                  <td className="px-3 py-3">
+                  <td data-agent-ranking-name-cell="true" className="px-3 py-3">
                     <button
+                      data-agent-ranking-name-button="true"
                       type="button"
                       disabled={!canSelectAgent}
                       onClick={() => onSelectAgent(row.agent)}
                       className="flex max-w-[290px] items-center gap-3 text-left disabled:cursor-default"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-700">
+                      <span data-agent-ranking-avatar="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-700">
                         {row.initials}
                       </span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-slate-800">
+                      <span data-agent-ranking-name-container="true" className="min-w-0">
+                        <span data-agent-ranking-name-text="true" className="block truncate font-medium text-slate-800">
                           {buildSuspendedAgentLabel(row.agent, accountProfiles)}
                         </span>
                       </span>
