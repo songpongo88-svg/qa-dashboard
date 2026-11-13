@@ -8,6 +8,7 @@
   --qa-shortcut-chat-offset: 0px;
   --qa-shortcut-announcement-offset: 0px;
   --qa-shortcut-kpi-offset: 0px;
+  --qa-shortcut-coaching-offset: 0px;
   --qa-shortcut-right: calc(var(--qa-shortcut-edge) + (var(--qa-shortcut-chat-size) - var(--qa-shortcut-size)) / 2);
   --qa-shortcut-announcement-bottom: calc(var(--qa-shortcut-bottom) + var(--qa-shortcut-chat-offset));
   --qa-shortcut-kpi-bottom: calc(var(--qa-shortcut-announcement-bottom) + var(--qa-shortcut-announcement-offset));
@@ -24,6 +25,9 @@
 }
 :root:has([data-retained-workspace-tab="dashboard"][aria-hidden="false"] .qmk-launcher) {
   --qa-shortcut-kpi-offset: calc(var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+}
+:root:has(.dashboard-coaching-shortcut) {
+  --qa-shortcut-coaching-offset: calc(var(--qa-shortcut-size) + var(--qa-shortcut-gap));
 }
 
 .dashboard-announcement-shortcut {
@@ -103,7 +107,8 @@
 .qa-dashboard-floating-search-button {
   position: fixed;
   right: var(--qa-shortcut-right);
-  bottom: calc(var(--qa-shortcut-coaching-bottom) + var(--qa-shortcut-size) + var(--qa-shortcut-gap));
+  /* Do not reserve a blank Coaching slot when there is no appointment button. */
+  bottom: calc(var(--qa-shortcut-coaching-bottom) + var(--qa-shortcut-coaching-offset));
   width: var(--qa-shortcut-size);
   height: var(--qa-shortcut-size);
   padding: 0;
