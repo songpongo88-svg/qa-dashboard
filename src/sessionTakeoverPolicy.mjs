@@ -53,9 +53,10 @@ export function takeoverAfterTimeout(attempt, now) {
 // Must be called only after server transaction confirms that expectedSessionId
 // remains active, the actor is authenticated and the session swap is committed.
 // Never silently override an unsynced draft.
-export function canCommitTakeover(attempt, { currentActiveSessionId, unsyncedRiskAccepted = false }) {
-  if (attempt.status !== TAKEOVER_STATE.ready &&
-      !(attempt.status === TAKEOVER_STATE.unsynced && unsyncedRiskAccepted)) return false;
+export function canCommitTakeover(attempt, { currentActiveSessionId }) {
+  // Never revoke the old session when a pending draft was not durably saved.
+  // Recovery must be acknowledged by the server before a takeover can commit.
+  if (attempt.status !== TAKEOVER_STATE.ready) return false;
   return (currentActiveSessionId || null) === attempt.currentSessionId;
 }
 
