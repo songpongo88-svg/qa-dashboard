@@ -31,7 +31,7 @@ import QASparks from "./QASparks";
 import { syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
 import SessionTakeoverPrompt from "./SessionTakeoverPrompt";
 import QaSessionAdminPanel from "./QaSessionAdminPanel";
-import { QA_SINGLE_SESSION_CLIENT_ENABLED, qaServerSessionRequest, QaServerSessionError } from "./qaSingleSessionClient";
+import { QA_SINGLE_SESSION_CLIENT_ENABLED, qaServerSessionRequest, QaServerSessionError, matchesTrustedQaIdentity } from "./qaSingleSessionClient";
 import { holdQaTabLease, canAcknowledgeQaTakeover } from "./qaTabLease.mjs";
 import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
@@ -4261,12 +4261,18 @@ export default function App() {
 
   const activateUserSession = async (user: CurrentUser, verifiedPassword = "", serverAlreadyActive = false) => {
     try {
-      if (QA_SINGLE_SESSION_CLIENT_ENABLED && !serverAlreadyActive) {
-        // The server verifies the password again; a browser-only check is not sufficient.
-        const verification = await qaServerSessionRequest("login", {
-          username: user.username, password: verifiedPassword,
-          deviceLabel: navigator.userAgent.includes("Edg/") ? "Microsoft Edge" : "Google Chrome / Browser",
-        });
+      if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+        // Never create a browser-only Firebase session until the server proves
+        // that the stored username AND role belong to the authenticated actor.
+        const verification = serverAlreadyActive
+          ? await qaServerSessionRequest("validate")
+          : await qaServerSessionRequest("login", {
+              username: user.username, password: verifiedPassword,
+              deviceLabel: navigator.userAgent.includes("Edg/") ? "Microsoft Edge" : "Google Chrome / Browser",
+            });
+        if (!matchesTrustedQaIdentity(user, verification)) {
+          throw new Error("Trusted QA identity does not match browser user");
+        }
         if (verification.status === "conflict") {
           setTakeoverUser(user);
           setTakeoverStatus("awaiting_consent");
@@ -4317,6 +4323,12 @@ export default function App() {
         normalizeRoleName(storedUser.role) === "Quality Assurance";
 
       try {
+        if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+          const verified = await qaServerSessionRequest("validate");
+          if (!matchesTrustedQaIdentity(storedUser, verified)) {
+            throw new Error("Trusted QA identity mismatch; local session cannot be restored");
+          }
+        }
         let restoredUser = storedUser;
 
         if (
@@ -4368,10 +4380,6 @@ export default function App() {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));
         }
 
-        if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
-          const serverCheck = await qaServerSessionRequest("validate");
-          if (serverCheck.status !== "active") throw new Error("Trusted session verification failed");
-        }
         if (!cancelled) {
           lastSessionTouchRef.current = Date.now();
           setCurrentUser(restoredUser);
