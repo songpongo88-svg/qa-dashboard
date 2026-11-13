@@ -5,6 +5,8 @@ on:
       - "src/sessionTakeoverPolicy.mjs"
       - "src/lib/evaluation/sessionRecoveryStore.mjs"
       - "api/qa-session-control.js"
+      - "server/qaFirebaseCredentials.js"
+      - "scripts/test-qa-server-credentials.mjs"
       - "src/CreateEvaluationMockup.tsx"
       - "scripts/test-session-*.mjs"
       - ".github/workflows/qa-single-session-tests.yml"
@@ -26,3 +28,5 @@ jobs:
         run: node scripts/test-session-api-guards.mjs
       - name: Browser recovery isolation
         run: node scripts/test-session-recovery.mjs
+      - name: Trusted QA credential validation
+        run: node scripts/test-qa-server-credentials.mjs
