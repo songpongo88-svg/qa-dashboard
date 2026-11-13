@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T10:01:56.856Z",
-  "reason": "Reviewed quota-safe 10-second visible-only takeover checks, 30-second fail-closed save window, and updated Administration guide. Feature remains disabled in production.",
+  "reviewedAt": "2026-11-13T10:10:04.686Z",
+  "reason": "Reviewed Web Locks shared tab lease to deny false saved-draft acknowledgement across multiple browser tabs; fail-closed in unsupported browsers; feature still disabled in Production",
   "contentChanged": true,
   "reviewedChapters": [
     "administration",
@@ -23,7 +23,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "b0d6f12fc449c7be645f0a7a07f8a034523ef3d671018d8426ab7ab115198b5a",
+    ".github/workflows/qa-single-session-tests.yml": "09dcf8f62a780df37aa2bb453d79f97340702f6d739eee01c8a952075b571027",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -118,7 +118,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "eea2b9092228b474fd0e06c63995e700742e4aa4cb1a530574ae210002316e34",
+    "package.json": "b739f233dda5d0c207b2e884b8eaa6dd9b57937068be3e96ecc0af0deb7951b4",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -465,7 +465,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "0f486e02042f22c291635a497e87baa9f6f1af2f1a42f92c3396bf220abad44f",
+    "src/App.tsx": "fd8722c5b9cfbc91c212dfb50bddba1916b278c0efcf176ced7bde30ef6f0776",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -638,7 +638,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "4227cad237d2d5350063792b6fbca3323b14fb8c0c1aa60389cf4c2b7ee750e0",
+    "src/knowledge/manual.json": "875472eb48ca8a48c29f19a20c0b68529f0676082e215979b92bb2ea71c872be",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -781,11 +781,13 @@
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "scripts/test-qa-single-session-api.mjs": "7dc90049ab4cd1e0975d748a05edc3956126bfc61da648923280b5253df6fb9b",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
-    "src/qaSingleSessionClient.ts": "df6014003d38717cfb701e0707e71f62bd2755df2bdfee7c39596f40ee1585e8",
+    "src/qaSingleSessionClient.ts": "63dcccfb9dc77b9f41317f2a697f305b914cbc556aa87220e774f72f99dfd6b0",
     "scripts/test-qa-session-write-guards.mjs": "a747608925959bf449f6b52fa7e393b25a6691a148e13e7093342c9fdbe7e496",
     "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7",
     "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a",
     "server/qaSingleSessionEndpoint.js": "1e124d9995dd99ad1beba3b2fdee033d8d9309e96643b83bd8a58062c9c1457a",
-    "scripts/test-qa-upload-session-gate.mjs": "1c7bb0d1bea7a9a4a68676eab2a5070c81c49d5409fd3e26cb60a7ba96d3e5c6"
+    "scripts/test-qa-upload-session-gate.mjs": "1c7bb0d1bea7a9a4a68676eab2a5070c81c49d5409fd3e26cb60a7ba96d3e5c6",
+    "src/qaTabLease.mjs": "9ff18c95d6e91c700e981d257719af827d46bedbd351c0394f1d5e47d3861e4c",
+    "scripts/test-qa-tab-lease.mjs": "27e4189486371b21149f4db8c62f9a8470a4662716970c358bfdcaf581372f7e"
   }
 }
