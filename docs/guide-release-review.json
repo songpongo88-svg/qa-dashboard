@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T15:10:00.000Z",
-  "reason": "QA-only bounded per-run Firestore read window: cap document/page requests before every API call; abort incomplete 11-dataset capture before staging PostgreSQL; surface non-secret budget receipt. Does not schedule continuous sync, change Production or authorize QA writes. Preserve all QA Sparks changes.",
+  "reviewedAt": "2026-11-13T15:25:00.000Z",
+  "reason": "QA Firestore bootstrap capture has a strict per-run document/query cap, session-scoped PostgreSQL capture lock and 24h repeat-copy guard. All checks happen before first source request. No automatic polling, production database changes, live writes, or readiness upgrade; all datasets and prior QA Sparks features preserved.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -325,7 +325,7 @@
     "scripts/repair-v13-rawdata-formulas.mjs": "ace2b5015cfc75b0b7c45d3317a624e188f1b67f4d9f98b3d6426365be9c8a1d",
     "scripts/repair-v13-recent-date-fields.mjs": "e3f01ab4a891d98159505cb9d6d056744e8aa01f0c08c97ae642b7f1b22bf03b",
     "scripts/reset-signature-documents.mjs": "5e5041acd5baa653f97b607c88a839656f7e3a6b540533a10d8e8f5f99569f9d",
-    "scripts/Run-QA-Authoritative-Snapshot-Stage.mjs": "53f8f03f5fcc44038ed67122f35bcb0d9440330af3ccfcd306babdac935a6d38",
+    "scripts/Run-QA-Authoritative-Snapshot-Stage.mjs": "c1a91e66c3e3ea4a9c8ac09a1bcda1f360d007fc5d2ec25eb7be4eee0800b244",
     "scripts/set-test-password.mjs": "2f813ef82a3681405e23ffa9f1706a3affd1f55bca533bf017517cd13aa1f7e0",
     "scripts/snapshot-sparks-source.py": "9ba4a32c6f9bd5165867e516f9790428ffd5300029f7957d4b7042775a80c915",
     "scripts/sort-v13-rawdata.mjs": "639e0f53ec2b61a2c265657a645d6ddda30c5dd067947d2ba08fbbbcfad5637c",
@@ -399,7 +399,7 @@
     "scripts/test-qa-inactive-refresh-integration.mjs": "da88cac40d4b1847836406c8ff1f8a27c59396bc79510873cf114962eca28c99",
     "scripts/test-qa-inactive-replica-audit-integration.mjs": "06a8d5c52145f5a4caec52bbecf0e4a2ec74a5cfc9a450082fc4056eee99abf2",
     "scripts/test-qa-live-mirror-stage-integration.mjs": "6104183a21254c38d1aa3bc898872c04ed0fbf089eaf6a3cbed3079d890d4930",
-    "scripts/test-qa-live-stage-runner.mjs": "fe2f64616d867bbc4ebe0341f547a7ec49907447002f56966669c3134a8975fd",
+    "scripts/test-qa-live-stage-runner.mjs": "174d52de79869357c197d8f5aa84dacc2d823eee8fcb8f4318fb5c0e64c0c124",
     "scripts/test-qa-local-bridge.mjs": "aecb3876777eeeb82774c458bebc907c14381155d96317459dce9bd46826b879",
     "scripts/test-qa-local-diagnostics.mjs": "1cb205239a8fbdfd9c52493ac71c1890e9286f00e352438bad2f0e2396c634e0",
     "scripts/test-qa-local-mirror-import-integration.mjs": "1af75c39d9dcff372f778377d9af8d3201629e46e2f6b4f201ba0e44ee1722ac",
