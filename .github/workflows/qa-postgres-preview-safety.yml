@@ -64,6 +64,9 @@ on:
       - "scripts/test-qa-local-mirror-import-integration.mjs"
       - "server/qaStandbyArchiveStatus.js"
       - "server/qaLiveMirrorStage.js"
+      - "server/qaSourceDeltaJournal.js"
+      - "migration/qa-source-delta-journal.sql"
+      - "scripts/test-qa-source-delta-journal.mjs"
       - "server/qaFirestoreRestSnapshot.js"
       - "server/qaSourceReadBudget.js"
       - "migration/qa-source-read-budget-daily.sql"
@@ -199,6 +202,8 @@ jobs:
           node --check scripts/test-qa-local-mirror-import-integration.mjs
           node --check server/qaStandbyArchiveStatus.js
           node --check server/qaLiveMirrorStage.js
+          node --check server/qaSourceDeltaJournal.js
+          node --check scripts/test-qa-source-delta-journal.mjs
           node --check server/qaFirestoreRestSnapshot.js
           node --check server/qaSourceReadBudget.js
           node --check scripts/test-qa-source-read-budget-integration.mjs
@@ -256,6 +261,7 @@ jobs:
           node scripts/test-qa-cutover-parity-gate.mjs
           node scripts/test-qa-failover-decision.mjs
           node scripts/test-qa-firestore-rest-snapshot.mjs
+          node scripts/test-qa-source-delta-journal.mjs
           node scripts/test-qa-standby-snapshot-readiness.mjs
           node scripts/test-qa-vpc-readiness.mjs
           node scripts/test-qa-firestore-snapshot-codec.mjs
