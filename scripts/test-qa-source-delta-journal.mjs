@@ -25,6 +25,7 @@ let queries=[],lastEvent=null,lastRevision=null,rollback=0;
 const pool={async connect(){return {release(){},async query(sql,args=[]){
  queries.push(sql);
  if(sql==='SELECT current_database() AS db')return {rows:[{db:'qa_dashboard_lab'}]};
+ if(sql.includes('pg_advisory_xact_lock'))return {rows:[{}]};
  if(sql.includes('FROM qa_failover_v1.state'))return {rows:[{mode:'disabled',write_frozen:true,
     source_snapshot_verified:false,active_snapshot_id:example.snapshotId}]};
  if(sql.includes('FROM qa_failover_v1.live_snapshot_batches'))return {rows:[{

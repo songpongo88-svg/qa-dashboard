@@ -92,7 +92,7 @@ export function createQaSourceDeltaHttpHandler({
       // The backend's independent source attestor and PostgreSQL writer must
       // still verify origin, baseline and the latest snapshot. This layer
       // never fabricates "verified-firestore-private-event" itself.
-      const outcome=await recordVerifiedEvent(normalized);
+      const outcome=await recordVerifiedEvent(normalized,req);
       if(!outcome?.journaled||!['applied','duplicate','stale','conflict']
         .includes(outcome.outcome)||outcome.canAcceptWrites!==false)
         throw fail('qa_delta_private_journal_refused');

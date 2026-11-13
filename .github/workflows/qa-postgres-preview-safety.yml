@@ -68,6 +68,10 @@ on:
       - "server/qaSourceDeltaJournal.js"
       - "server/qaSourceDeltaHttpHandler.js"
       - "server/qaGoogleTaskAttestor.js"
+      - "server/qaWindowsDeltaReceiver.js"
+      - "scripts/test-qa-windows-delta-receiver.mjs"
+      - "migration/qa-source-delta-ingester-role.sql"
+      - "scripts/test-qa-delta-ingester-role-integration.mjs"
       - "scripts/test-qa-google-task-attestor.mjs"
       - "cloudflare/qa-delta-vpc-gateway.mjs"
       - "scripts/test-qa-delta-vpc-gateway.mjs"
@@ -217,6 +221,9 @@ jobs:
           node --check server/qaSourceDeltaJournal.js
           node --check server/qaSourceDeltaHttpHandler.js
           node --check server/qaGoogleTaskAttestor.js
+          node --check server/qaWindowsDeltaReceiver.js
+          node --check scripts/test-qa-windows-delta-receiver.mjs
+          node --check scripts/test-qa-delta-ingester-role-integration.mjs
           node --check scripts/test-qa-google-task-attestor.mjs
           node --check cloudflare/qa-delta-vpc-gateway.mjs
           node --check scripts/test-qa-delta-vpc-gateway.mjs
@@ -283,6 +290,7 @@ jobs:
           node scripts/test-qa-source-delta-journal.mjs
           node scripts/test-qa-source-delta-http-handler.mjs
           node scripts/test-qa-google-task-attestor.mjs
+          node scripts/test-qa-windows-delta-receiver.mjs
           node scripts/test-qa-delta-vpc-gateway.mjs
           node scripts/test-qa-standby-snapshot-readiness.mjs
           node scripts/test-qa-vpc-readiness.mjs
@@ -346,6 +354,7 @@ jobs:
           node scripts/test-qa-standby-full-failback-integration.mjs
           # The delta test uses the shared synthetic database and must run last.
           node scripts/test-qa-source-delta-journal-integration.mjs
+          node scripts/test-qa-delta-ingester-role-integration.mjs
 
   windows-candidate-8790:
     name: Windows 8790 isolated bridge checks

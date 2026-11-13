@@ -65,14 +65,18 @@ export async function appendQaSourceDelta({pool,event,attestSourceEvent,now=Date
        process.env.QA_PG_ISOLATED_TEST==='1'))fail('qa_delta_wrong_database');
     await c.query('BEGIN ISOLATION LEVEL SERIALIZABLE');tx=true;
     await c.query("SET LOCAL lock_timeout='3s'");
+    // Private ingest uses a dedicated least-privilege role with NO UPDATE
+    // permission on failover state. Serialize journal revisions through an
+    // independent transaction-level advisory lock, not a state-row lock.
+    await c.query("SELECT pg_advisory_xact_lock(hashtextextended('qa-source-delta-append',0))");
     const state=(await c.query('SELECT mode,write_frozen,source_snapshot_verified,'+
-      'active_snapshot_id FROM qa_failover_v1.state WHERE id=1 FOR UPDATE')).rows?.[0];
+      'active_snapshot_id FROM qa_failover_v1.state WHERE id=1')).rows?.[0];
     if(state?.mode!=='disabled'||state.write_frozen!==true||
        state.source_snapshot_verified!==false||
        state.active_snapshot_id!==incoming.snapshotId)
       fail('qa_delta_requires_frozen_matched_snapshot');
     const baseline=(await c.query('SELECT status,approved_for_failover,source_exported_at'+
-      ' FROM qa_failover_v1.live_snapshot_batches WHERE snapshot_id=$1 FOR SHARE',
+      ' FROM qa_failover_v1.live_snapshot_batches WHERE snapshot_id=$1',
       [incoming.snapshotId])).rows?.[0];
     if(baseline?.status!=='copy_verified'||baseline.approved_for_failover!==false||
        !(date(incoming.sourceChangedAt)>date(baseline.source_exported_at)))
