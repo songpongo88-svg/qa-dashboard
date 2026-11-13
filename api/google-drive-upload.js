@@ -1,3 +1,5 @@
+import { sessionPolicyEnabled, authorizeActiveSession } from "../server/qaSingleSessionAdmin.js";
+
 function driveFileId(value) {
   const text = String(value || "").trim();
   try {
@@ -10,6 +12,26 @@ function driveFileId(value) {
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // All QA-upload requests must carry the current trusted session once the
+  // single-session rollout is enabled. Client-side preflights alone can be bypassed.
+  if (sessionPolicyEnabled()) {
+    const origin = String(req.headers?.origin || "");
+    const host = String(req.headers?.host || "");
+    const fetchSite = String(req.headers?.["sec-fetch-site"] || "");
+    if ((fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") ||
+        (origin && (!host || origin !== "https://" + host))) {
+      return res.status(403).json({ error: "SAME_ORIGIN_REQUIRED" });
+    }
+    try {
+      await authorizeActiveSession(req);
+    } catch (error) {
+      const status = error?.status === 401 ? 401 : error?.status === 403 ? 403 : 503;
+      return res.status(status).json({
+        error: status === 401 ? "QA_SESSION_EXPIRED_OR_REPLACED" : "QA_SESSION_UNAVAILABLE",
+      });
+    }
   }
 
   const APPS_SCRIPT_URL =
