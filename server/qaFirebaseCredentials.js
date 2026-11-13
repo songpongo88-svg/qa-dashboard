@@ -67,6 +67,40 @@ export function createGoogleServiceJwt(account, issuedAtSeconds) {
   return signingInput + "." + signer.sign(account.private_key).toString("base64url");
 }
 
+// Firebase Auth custom-token identity is bound to the exact server-owned QA
+// session. The corresponding Firestore/Storage Rules must compare qa_session_id
+// to the active session record; JWT validity ALONE cannot revoke old browsers.
+export function createQaFirebaseCustomToken(actor, sessionId, nowSeconds = Math.floor(Date.now() / 1000)) {
+  const username = normalizeQaUsername(actor?.username);
+  const role = String(actor?.role || "").trim();
+  if (!username || !role || role.length > 100 ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(sessionId || "")) ||
+      !Number.isSafeInteger(nowSeconds) || nowSeconds < 1) {
+    throw new Error("Invalid active QA Firebase identity");
+  }
+  const account = serviceAccount();
+  const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = {
+    qa_username: username,
+    qa_session_id: sessionId,
+    qa_role: role,
+  };
+  const payload = b64url(JSON.stringify({
+    iss: account.client_email,
+    sub: account.client_email,
+    aud: "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
+    iat: nowSeconds,
+    exp: nowSeconds + 3600,
+    uid: "qa-" + username,
+    claims,
+  }));
+  const message = header + "." + payload;
+  const signer = createSign("RSA-SHA256");
+  signer.update(message);
+  signer.end();
+  return message + "." + signer.sign(account.private_key).toString("base64url");
+}
+
 export async function googleAccessToken() {
   if (tokenCache.value && Date.now() < tokenCache.expiresAt) return tokenCache.value;
   const account = serviceAccount();
