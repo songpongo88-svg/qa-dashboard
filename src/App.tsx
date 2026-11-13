@@ -407,9 +407,9 @@ const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 // Match the existing production quota-protection cadence while also
 // preventing hidden tabs, focus storms and concurrent validation requests.
-// Central revocation checks can be delayed by up to fifteen minutes.
-const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;
-const SESSION_TOUCH_INTERVAL_MS = 30 * 60 * 1000;
+// Client-side revocation hints are polled every minute; backend authorization must still be enforced.
+const SESSION_CHECK_INTERVAL_MS = 1 * 60 * 1000;
+const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
@@ -4331,7 +4331,7 @@ export default function App() {
               setCurrentUser(null);
               setLoginError(
                 validation.reason === "expired"
-                  ? "Your session expired after 2 hours of inactivity. Please sign in again."
+                  ? "Your session expired after 30 minutes of inactivity. Please sign in again."
                   : "Your session is no longer active. Please sign in again."
               );
             }
@@ -6664,7 +6664,7 @@ export default function App() {
 
     clearLocalSession(
       reason === "inactivity"
-        ? "You were logged out after 2 hours of inactivity."
+        ? "You were logged out after 30 minutes of inactivity."
         : ""
     );
   };
@@ -6704,7 +6704,7 @@ export default function App() {
         if (!validation.valid && !cancelled) {
           clearLocalSession(
             validation.reason === "expired"
-              ? "Your session expired after 2 hours of inactivity. Please sign in again."
+              ? "Your session expired after 30 minutes of inactivity. Please sign in again."
               : "This session was logged out from another browser. Please sign in again."
           );
         }
@@ -6758,7 +6758,7 @@ export default function App() {
 
     inactivityTimerRef.current = setTimeout(() => {
       handleInactivityLogout();
-      window.alert("You have been logged out due to 2 hours of inactivity.");
+      window.alert("You have been logged out due to 30 minutes of inactivity.");
     }, INACTIVITY_LIMIT_MS);
   };
 
