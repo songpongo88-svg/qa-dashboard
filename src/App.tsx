@@ -6788,7 +6788,8 @@ export default function App() {
     let working = false;
     let lastPendingId = "";
     const checkTakeover = async () => {
-      if (cancelled || working || navigator.onLine === false) return;
+      if (cancelled || working || navigator.onLine === false ||
+          document.visibilityState !== "visible") return;
       working = true;
       try {
         const server = await qaServerSessionRequest("pending");
@@ -6822,9 +6823,19 @@ export default function App() {
         }
       } finally { working = false; }
     };
+    // An active old browser has at most 10 seconds until its next check;
+    // hidden/background tabs do not spend quota and cannot claim a saved draft.
     void checkTakeover();
-    const timer = window.setInterval(() => void checkTakeover(), 5000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    const timer = window.setInterval(() => void checkTakeover(), 10_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void checkTakeover();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [currentUser?.username, currentUser?.sessionId, activeTab, activeWorkspaceTab, openWorkspaceTabs]);
 
   const startSessionTimers = () => {
