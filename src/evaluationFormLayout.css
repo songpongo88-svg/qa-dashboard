@@ -65,6 +65,19 @@
   overflow-wrap: anywhere;
 }
 
+.qa-evaluation-tag,
+.qa-evaluation-tag > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@container qa-evaluation-rubric (min-width: 480px) {
+  .qa-evaluation-tag-create {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
 /* Match the familiar case / rubric / score arrangement when all three fit. */
 @container qa-evaluation (min-width: 1200px) {
   .qa-evaluation-layout {

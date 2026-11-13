@@ -4111,7 +4111,7 @@ export default function CreateEvaluationMockup({
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 px-5 py-4">
                 <div className="text-xl font-black text-slate-950">QA Scoring Workbook</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600">
-                  เลือกคะแนนจาก dropdown และระบุเหตุผลการประเมินแยกตามแต่ละหัวข้อ คะแนนรวมและ Grade จะรันอัตโนมัติจากคะแนนที่เลือกไว้ในฟอร์มนี้
+                  เลือกคะแนนและระบุเหตุผลแต่ละหัวข้อ ระบบคำนวณคะแนนรวมและ Grade อัตโนมัติ เลือก Tag ได้หลายรายการโดยไม่กระทบคะแนน
                 </div>
               </div>
 
@@ -4190,39 +4190,36 @@ export default function CreateEvaluationMockup({
                                       <div className="mt-1 inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 lg:mt-0">{topic.max}</div>
                                     </div>
                                   </div>
-                                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                                  <div className="qa-evaluation-tags mt-4 border-t border-slate-100 pt-4">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <span className="text-sm font-black text-amber-950">Tag ประเด็นที่พบ</span>
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xs font-bold text-amber-800">{selectedIssueTags.length} Tag ที่เลือก</span>
-                                        <button type="button" aria-pressed={Boolean(issueTagManaging[tagKey])} onClick={() => setIssueTagManaging((current) => ({ ...current, [tagKey]: !current[tagKey] }))} className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100">
+                                      <span className="text-xs font-bold text-slate-600">Tag ประเด็นที่พบ</span>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        {selectedIssueTags.length ? <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-800">เลือก {selectedIssueTags.length}</span> : null}
+                                        <button type="button" aria-pressed={Boolean(issueTagManaging[tagKey])} aria-expanded={Boolean(issueTagManaging[tagKey])} aria-controls={`qa-evaluation-tag-tools-${topic.code}`} onClick={() => setIssueTagManaging((current) => ({ ...current, [tagKey]: !current[tagKey] }))} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">
                                           {issueTagManaging[tagKey] ? "เสร็จ" : "จัดการ Tag"}
                                         </button>
                                       </div>
                                     </div>
-                                    <p className="mt-2 text-xs leading-5 text-amber-900">
-                                      คลิกชื่อ Tag เพื่อใช้ซ้ำในเคสนี้ คลิกอีกครั้งเพื่อเอาออกจากเคส • Tag ไม่กระทบคะแนน
-                                    </p>
-
-                                    <div className="mt-3 flex flex-wrap gap-2">
+                                    <div className="qa-evaluation-tag-list mt-2 flex flex-wrap gap-2">
                                       {availableIssueTags.length ? availableIssueTags.map((tag) => {
                                         const selected = selectedIssueTags.some(
                                           (value) => normalizeEvaluationIssueTagName(value) === tag.normalizedName
                                         );
                                         return (
-                                          <span key={tag.id} className="inline-flex items-center gap-1">
+                                          <span key={tag.id} className="inline-flex max-w-full items-center gap-1">
                                             <button
                                               type="button"
                                               aria-pressed={selected}
                                               aria-label={`${selected ? "เอา" : "เลือก"} Tag ${tag.name} ${selected ? "ออกจากเคส" : "ใช้ในเคส"}`}
                                               onClick={() => toggleIssueTag(topic.code, tag.name)}
-                                              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                                              className={`qa-evaluation-tag inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left text-xs font-semibold leading-5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${
                                                 selected
-                                                  ? "border-amber-500 bg-amber-500 text-white shadow-sm"
-                                                  : "border-amber-200 bg-white text-amber-900 hover:border-amber-400 hover:bg-amber-100"
+                                                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                                                  : "border-slate-200 bg-slate-50/60 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/60 hover:text-emerald-900"
                                               }`}
                                             >
-                                              {tag.name}
+                                              {selected ? <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 8 3 3 7-7" /></svg> : null}
+                                              <span>{tag.name}</span>
                                             </button>
                                             {issueTagManaging[tagKey] ? (
                                               <button type="button" aria-label={`ลบ Tag ${tag.name} จากคลัง`} disabled={Boolean(issueTagChanging[tag.id])} onClick={() => void changeIssueTagAvailability(topic, tag, false)} className="h-7 w-7 rounded-full border border-rose-200 bg-white text-base font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
@@ -4232,26 +4229,9 @@ export default function CreateEvaluationMockup({
                                           </span>
                                         );
                                       }) : (
-                                        <span className="text-xs font-semibold text-slate-500">ยังไม่มี Tag ในหัวข้อนี้ เพิ่ม Tag แรกได้ด้านล่าง</span>
+                                        <span className="text-xs text-slate-500">ยังไม่มี Tag · กดจัดการ Tag เพื่อเพิ่ม</span>
                                       )}
                                     </div>
-
-                                    {issueTagManaging[tagKey] ? (
-                                      <div className="mt-3 border-t border-amber-200 pt-3">
-                                        <p className="text-xs leading-5 text-slate-600">ลบชื่อที่สร้างผิดออกจากรายการใช้ซ้ำได้ ข้อมูล Tag ในเคสเก่าจะยังอยู่</p>
-                                        {removedIssueTags.length ? (
-                                          <div className="mt-2 space-y-2">
-                                            <div className="text-xs font-bold text-slate-600">Tag ที่ลบ</div>
-                                            {removedIssueTags.map((tag) => (
-                                              <div key={tag.id} className="flex flex-wrap items-center gap-2 text-xs">
-                                                <span className="font-semibold text-slate-500">{tag.name}</span>
-                                                <button type="button" aria-label={`คืน Tag ${tag.name} เข้าคลัง`} disabled={Boolean(issueTagChanging[tag.id])} onClick={() => void changeIssueTagAvailability(topic, tag, true)} className="rounded-md border border-slate-200 bg-white px-2 py-1 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{issueTagChanging[tag.id] ? "กำลังคืน..." : "คืน Tag"}</button>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        ) : null}
-                                      </div>
-                                    ) : null}
 
                                     {selectedIssueTags.some(
                                       (name) => !availableIssueTags.some((tag) => tag.normalizedName === normalizeEvaluationIssueTagName(name))
@@ -4265,46 +4245,64 @@ export default function CreateEvaluationMockup({
                                               type="button"
                                               aria-pressed="true"
                                               onClick={() => toggleIssueTag(topic.code, name)}
-                                              className="rounded-full border border-amber-500 bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm"
+                                              className="qa-evaluation-tag inline-flex max-w-full items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-left text-xs font-semibold leading-5 text-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
                                             >
-                                              {name}
+                                              <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 8 3 3 7-7" /></svg>
+                                              <span>{name}</span>
                                             </button>
                                           ))}
                                       </div>
                                     ) : null}
 
-                                    <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                                      <input
-                                        value={issueTagDrafts[tagKey] || ""}
-                                        onChange={(event) => {
-                                          setIssueTagDrafts((current) => ({ ...current, [tagKey]: event.target.value }));
-                                          setIssueTagMessages((current) => ({ ...current, [tagKey]: "" }));
-                                        }}
-                                        onKeyDown={(event) => {
-                                          if (event.key !== "Enter") return;
-                                          event.preventDefault();
-                                          void addIssueTag(topic);
-                                        }}
-                                        placeholder="พิมพ์ชื่อ Tag ที่ต้องการเพิ่ม..."
-                                        className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => void addIssueTag(topic)}
-                                        disabled={Boolean(issueTagSaving[tagKey])}
-                                        className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                      >
-                                        {issueTagSaving[tagKey] ? "กำลังเพิ่ม..." : "+ เพิ่ม Tag"}
-                                      </button>
+                                    {issueTagManaging[tagKey] ? (
+                                      <div id={`qa-evaluation-tag-tools-${topic.code}`} className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                                        <div className="qa-evaluation-tag-create grid gap-2">
+                                          <input
+                                            aria-label={`เพิ่ม Tag สำหรับหัวข้อ ${topic.code}`}
+                                            value={issueTagDrafts[tagKey] || ""}
+                                            onChange={(event) => {
+                                              setIssueTagDrafts((current) => ({ ...current, [tagKey]: event.target.value }));
+                                              setIssueTagMessages((current) => ({ ...current, [tagKey]: "" }));
+                                            }}
+                                            onKeyDown={(event) => {
+                                              if (event.key !== "Enter") return;
+                                              event.preventDefault();
+                                              void addIssueTag(topic);
+                                            }}
+                                            placeholder="พิมพ์ชื่อ Tag ที่ต้องการเพิ่ม..."
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => void addIssueTag(topic)}
+                                            disabled={Boolean(issueTagSaving[tagKey])}
+                                            className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                          >
+                                            {issueTagSaving[tagKey] ? "กำลังเพิ่ม..." : "+ เพิ่ม Tag"}
+                                          </button>
+                                        </div>
+                                        <p className="mt-2 text-xs leading-5 text-slate-500">ลบชื่อที่สร้างผิดออกจากรายการใช้ซ้ำได้ ข้อมูล Tag ในเคสเก่าจะยังอยู่</p>
+                                        {removedIssueTags.length ? (
+                                          <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+                                            <div className="text-xs font-bold text-slate-600">Tag ที่ลบ</div>
+                                            {removedIssueTags.map((tag) => (
+                                              <div key={tag.id} className="flex flex-wrap items-center gap-2 text-xs">
+                                                <span className="font-semibold text-slate-500">{tag.name}</span>
+                                                <button type="button" aria-label={`คืน Tag ${tag.name} เข้าคลัง`} disabled={Boolean(issueTagChanging[tag.id])} onClick={() => void changeIssueTagAvailability(topic, tag, true)} className="rounded-md border border-slate-200 bg-white px-2 py-1 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{issueTagChanging[tag.id] ? "กำลังคืน..." : "คืน Tag"}</button>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : null}
                                     </div>
+                                    ) : null}
                                     {issueTagMessages[tagKey] ? (
                                       <p role="status" className={`mt-2 text-xs font-bold ${issueTagMessages[tagKey].startsWith("เพิ่ม Tag “") || issueTagMessages[tagKey].includes("เลือก Tag เดิม") || issueTagMessages[tagKey].startsWith("ลบ Tag “") || issueTagMessages[tagKey].startsWith("คืน Tag “") ? "text-emerald-700" : "text-rose-700"}`}>
                                         {issueTagMessages[tagKey]}
                                       </p>
                                     ) : null}
                                   </div>
-                                  <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
+                                  <label className="qa-evaluation-reason mt-4 block">
+                                    <span className="mb-2 block text-xs font-bold text-slate-600">Assessment Reason</span>
                                     <RichTextEditor
                                       value={topicState[topic.code]?.reason || ""}
                                       onChange={(reason) => updateTopic(topic.code, { reason })}
