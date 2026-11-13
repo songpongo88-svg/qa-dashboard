@@ -1,4 +1,5 @@
 import SparksCloudStatus from "./SparksCloudStatus";
+import QaStandbySystemStatus from "./QaStandbySystemStatus";
 import DateTime24Input from './DateTime24Input';
 import React, { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
@@ -2435,6 +2436,7 @@ export default function UserRoleAdminMockup({
           </div>
         ) : adminTab === "maintenance" && canManageMaintenance ? (
           <>
+            <QaStandbySystemStatus />
             <SparksCloudStatus adminAccess={true} />
             <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
             <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">

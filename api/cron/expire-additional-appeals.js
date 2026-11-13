@@ -1,4 +1,7 @@
 import { createSign } from "node:crypto";
+import qaLocalDiagnosticsHandler from "../../server/qaLocalDiagnosticsHandler.js";
+import qaVercelStandbyProxy from "../../server/qaVercelStandbyProxy.js";
+import qaPreviewStatusHandler from "../../server/qaPreviewStatusHandler.js";
 
 const EVENTS_COLLECTION = "qa_appeal_events";
 const HOUR_MS = 60 * 60 * 1000;
@@ -55,6 +58,13 @@ function field(value) {
 }
 
 export default async function handler(req, res) {
+  // QA backup preview-only diagnostic. Reuse this QA-specific function to
+  // avoid increasing Vercel Hobby function count or touching QA Sparks.
+  // It is independent of the scheduled appeal expiry and never touches Firestore.
+  if (req.query?.qaStatus === "1") return qaPreviewStatusHandler(req, res);
+  if (req.query?.qaProbe === "1") return qaLocalDiagnosticsHandler(req, res);
+  // QA Preview only, disabled by default; never run cron on QA data requests.
+  if (req.query?.qaData === "1") return qaVercelStandbyProxy(req, res);
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   const expectedSecret = String(process.env.CRON_SECRET || "").trim();

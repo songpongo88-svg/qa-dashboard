@@ -52,6 +52,7 @@ import { coachingEndTime, isAssignedCoach, recordVisibleToUser } from "./monthly
 import AnnouncementHub from "./AnnouncementHub";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
+import QaStandbySystemStatus from "./QaStandbySystemStatus";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
 import { withConsistentUserNames } from "./lib/userNames";
 import PreTestMockup from "./PreTestMockup";
@@ -249,6 +250,7 @@ type AppTab =
   | "appeal"
   | "create-evaluation"
   | "pre-test"
+  | "backup-status"
   | "training-attendance"
   | "schedule"
   | "appeal-requests"
@@ -735,6 +737,7 @@ const VALID_APP_TABS = new Set<AppTab>([
   "appeal",
   "create-evaluation",
   "pre-test",
+  "backup-status",
   "training-attendance",
   "schedule",
   "appeal-requests",
@@ -779,6 +782,7 @@ const WORKSPACE_TAB_LABELS: Record<AppTab | "case-detail", string> = {
   appeal: "Appeal Cases",
   "create-evaluation": "Evaluate",
   "pre-test": "Pre-Test",
+  "backup-status": "Backup Status",
   "training-attendance": "Training",
   schedule: "SCH",
   "appeal-requests": "Appeal Review",
@@ -7635,6 +7639,7 @@ export default function App() {
       description: "สร้างและบันทึกผลประเมิน QA",
       items: [
         { key: "create-evaluation", label: "Evaluate", description: "สร้าง Draft ตรวจ Rubric แนบหลักฐาน และบันทึกผลประเมิน", icon: "add", allowed: createEvaluationAllowed, active: activeWorkspaceTab === "create-evaluation", onClick: () => activateWorkspaceTab("create-evaluation") },
+        { key: "backup-status", label: "Backup Status", description: "ตรวจการเชื่อมต่อ Windows 8788/8790 แบบอ่านสถานะเท่านั้น", icon: "clock", allowed: true, active: activeWorkspaceTab === "backup-status", onClick: () => activateWorkspaceTab("backup-status") },
       ],
     },
     {
@@ -8282,6 +8287,10 @@ export default function App() {
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
+        ) : activeTab === "backup-status" ? (
+          <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
+            <QaStandbySystemStatus />
+          </div>
         ) : activeTab === "usage-log" && usageLogAllowed ? (
           <UsageLogMockup />
         ) : activeTab === "user-roles" && roleAdminAllowed ? (

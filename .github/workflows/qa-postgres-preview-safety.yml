@@ -1,0 +1,343 @@
+name: QA PostgreSQL preview safety
+
+on:
+  push:
+    branches:
+      - feat/qa-local-firestore-failover-current-main-20261110
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/Start-QA-Local-Bridge.ps1"
+      - "scripts/Check-QA-Windows-Bridge8790.ps1"
+      - "scripts/Start-QA-Standby-From-Existing.ps1"
+      - "scripts/Run-QA-Local-Source-Snapshot.ps1"
+      - "scripts/Finish-QA-Local-Snapshot-Setup.ps1"
+      - "scripts/Complete-QA-Stored-Snapshot.ps1"
+      - "scripts/Materialize-QA-Stored-Snapshot.mjs"
+      - "scripts/test-qa-windows-installer-dependencies.mjs"
+      - "scripts/Setup-QA-Private-Cloudflare-VPC.ps1"
+      - "server/qaLocalBridgeServer.js"
+      - "server/qaFirestoreFailbackAdapter.js"
+      - "scripts/test-qa-firestore-failback-adapter.mjs"
+      - "server/qaLocalSessionVerifier.js"
+      - "scripts/test-qa-local-session-verifier.mjs"
+      - "server/qaStandbyDataHandler.js"
+      - "server/qaStandbyTrustedContext.js"
+      - "scripts/test-qa-standby-trusted-context.mjs"
+      - "scripts/test-qa-standby-data-handler.mjs"
+      - "scripts/test-qa-local-bridge.mjs"
+      - "scripts/test-qa-bridge-router.mjs"
+      - "cloudflare/**"
+      - "scripts/test-qa-vpc-worker.mjs"
+      - "scripts/test-qa-vpc-worker-data.mjs"
+      - "api/cron/expire-additional-appeals.js"
+      - "scripts/test-qa-cron-preview-proxy.mjs"
+      - "server/qaLocalDiagnosticsHandler.js"
+      - "server/qaPreviewStatusHandler.js"
+      - "scripts/test-qa-preview-status.mjs"
+      - "src/QaStandbySystemStatus.tsx"
+      - "src/UserRoleAdminMockup.tsx"
+      - "server/qaVercelStandbyProxy.js"
+      - "src/qaStandbyEvaluationApi.ts"
+      - "src/qaStandbyEvaluationHistory.ts"
+      - "src/evaluationStore.ts"
+      - "scripts/test-qa-standby-history.mjs"
+      - "scripts/test-qa-standby-client.mjs"
+      - "scripts/test-qa-vercel-standby-proxy.mjs"
+      - "scripts/test-qa-local-diagnostics.mjs"
+      - "server/qaCutoverWritePolicy.js"
+      - "scripts/test-qa-postgres-write-policy.mjs"
+      - "server/qaCutoverPgWriter.js"
+      - "scripts/test-qa-postgres-stage-writer.mjs"
+      - "scripts/test-qa-postgres-stage-integration.mjs"
+      - "server/qaCutoverSessionStore.js"
+      - "scripts/test-qa-postgres-session-integration.mjs"
+      - "scripts/check-qa-bridge-preview-preflight.mjs"
+      - "server/qaCutoverParityGate.js"
+      - "scripts/test-qa-cutover-parity-gate.mjs"
+      - "server/qaFailoverDecision.js"
+      - "scripts/test-qa-failover-decision.mjs"
+      - "server/qaStandbyPgJournal.js"
+      - "migration/qa-local-failover-postgres17.sql"
+      - "migration/qa-local-import-existing-snapshot.sql"
+      - "scripts/test-qa-local-mirror-import-integration.mjs"
+      - "server/qaStandbyArchiveStatus.js"
+      - "server/qaLiveMirrorStage.js"
+      - "server/qaFirestoreRestSnapshot.js"
+      - "server/qaStandbySnapshotReadiness.js"
+      - "scripts/test-qa-vpc-readiness.mjs"
+      - "scripts/test-qa-standby-snapshot-readiness.mjs"
+      - "server/qaFirestoreSnapshotCodec.js"
+      - "scripts/test-qa-firestore-snapshot-codec.mjs"
+      - "server/qaStandbyCandidateMaterializer.js"
+      - "server/qaStandbyInactiveSeed.js"
+      - "scripts/test-qa-standby-inactive-seed-integration.mjs"
+      - "server/qaStandbyDomainSeed.js"
+      - "server/qaStandbyInactiveAudit.js"
+      - "server/qaStandbyInactiveRefresh.js"
+      - "scripts/test-qa-inactive-refresh-integration.mjs"
+      - "scripts/test-qa-inactive-replica-audit-integration.mjs"
+      - "server/qaStandbyActivation.js"
+      - "server/qaStandbyBridgeRuntime.js"
+      - "server/qaWindowsStandbyService.js"
+      - "scripts/test-qa-windows-bridge-service.mjs"
+      - "scripts/test-qa-standby-bridge-runtime.mjs"
+      - "scripts/test-qa-standby-activation-integration.mjs"
+      - "migration/qa-local-domain-replica.sql"
+      - "scripts/test-qa-standby-domain-seed-integration.mjs"
+      - "scripts/test-qa-standby-candidate-materializer-integration.mjs"
+      - "scripts/test-qa-firestore-rest-snapshot.mjs"
+      - "scripts/Run-QA-Authoritative-Snapshot-Stage.mjs"
+      - "scripts/test-qa-live-stage-runner.mjs"
+      - "scripts/check-qa-source-stage-preflight.mjs"
+      - "scripts/test-qa-source-stage-preflight.mjs"
+      - "migration/qa-local-live-snapshot-stage.sql"
+      - "scripts/test-qa-live-mirror-stage-integration.mjs"
+      - "scripts/test-qa-standby-archive-status.mjs"
+      - "scripts/test-qa-standby-journal-integration.mjs"
+      - "server/qaStandbyReplayWorker.js"
+      - "server/qaStandbyRead.js"
+      - "scripts/test-qa-standby-read-integration.mjs"
+      - "scripts/test-qa-standby-replay-integration.mjs"
+      - "scripts/test-qa-standby-full-failback-integration.mjs"
+      - ".github/workflows/qa-postgres-preview-safety.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-bridge-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Windows PowerShell launcher syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/Start-QA-Local-Bridge.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw "QA Windows launcher has a PowerShell syntax error" }
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/Start-QA-Standby-From-Existing.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw "QA existing-bridge adapter has a PowerShell syntax error" }
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/Setup-QA-Private-Cloudflare-VPC.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw "QA Workers VPC setup script has a PowerShell syntax error" }
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/Run-QA-Local-Source-Snapshot.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw "QA local source launcher has a PowerShell syntax error" }
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/Finish-QA-Local-Snapshot-Setup.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw "QA dedicated importer installer has a PowerShell syntax error" }
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/Complete-QA-Stored-Snapshot.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw "QA offline snapshot completion has a PowerShell syntax error" }
+      - name: Syntax validation
+        run: |
+          node --check server/qaLocalBridgeServer.js
+          node --check server/qaFirestoreFailbackAdapter.js
+          node --check server/qaLocalSessionVerifier.js
+          node --check server/qaStandbyDataHandler.js
+          node --check server/qaStandbyTrustedContext.js
+          node --check scripts/test-qa-standby-trusted-context.mjs
+          node --check scripts/test-qa-standby-data-handler.mjs
+          node --check scripts/test-qa-local-session-verifier.mjs
+          node --check scripts/test-qa-firestore-failback-adapter.mjs
+          node --check cloudflare/qa-standby-vpc-worker.mjs
+          node --check scripts/test-qa-vpc-worker.mjs
+          node --check scripts/test-qa-vpc-worker-data.mjs
+          node --check scripts/test-qa-local-bridge.mjs
+          node --check scripts/test-qa-bridge-router.mjs
+          node --check api/cron/expire-additional-appeals.js
+          node --check scripts/test-qa-cron-preview-proxy.mjs
+          node --check server/qaLocalDiagnosticsHandler.js
+          node --check server/qaPreviewStatusHandler.js
+          node --check scripts/test-qa-preview-status.mjs
+          node --check server/qaVercelStandbyProxy.js
+          node --check scripts/test-qa-vercel-standby-proxy.mjs
+          node --check scripts/test-qa-standby-client.mjs
+          node --check scripts/test-qa-standby-history.mjs
+          node --check scripts/test-qa-local-diagnostics.mjs
+          node --check server/qaCutoverWritePolicy.js
+          node --check scripts/test-qa-postgres-write-policy.mjs
+          node --check server/qaCutoverPgWriter.js
+          node --check scripts/test-qa-postgres-stage-writer.mjs
+          node --check server/qaCutoverSessionStore.js
+          node --check scripts/test-qa-postgres-session-integration.mjs
+          node --check scripts/check-qa-bridge-preview-preflight.mjs
+          node --check server/qaCutoverParityGate.js
+          node --check scripts/test-qa-cutover-parity-gate.mjs
+          node --check server/qaFailoverDecision.js
+          node --check scripts/test-qa-failover-decision.mjs
+          node --check server/qaStandbyPgJournal.js
+          node --check scripts/test-qa-standby-journal-integration.mjs
+          node --check server/qaStandbyReplayWorker.js
+          node --check server/qaStandbyRead.js
+          node --check scripts/test-qa-standby-read-integration.mjs
+          node --check scripts/test-qa-local-mirror-import-integration.mjs
+          node --check server/qaStandbyArchiveStatus.js
+          node --check server/qaLiveMirrorStage.js
+          node --check server/qaFirestoreRestSnapshot.js
+          node --check server/qaStandbySnapshotReadiness.js
+          node --check scripts/test-qa-standby-snapshot-readiness.mjs
+          node --check scripts/test-qa-vpc-readiness.mjs
+          node --check server/qaFirestoreSnapshotCodec.js
+          node --check scripts/test-qa-firestore-snapshot-codec.mjs
+          node --check server/qaStandbyCandidateMaterializer.js
+          node --check server/qaStandbyInactiveSeed.js
+          node --check scripts/test-qa-standby-inactive-seed-integration.mjs
+          node --check server/qaStandbyDomainSeed.js
+          node --check server/qaStandbyInactiveAudit.js
+          node --check server/qaStandbyInactiveRefresh.js
+          node --check scripts/test-qa-inactive-refresh-integration.mjs
+          node --check scripts/test-qa-inactive-replica-audit-integration.mjs
+          node --check server/qaStandbyActivation.js
+          node --check server/qaStandbyBridgeRuntime.js
+          node --check server/qaWindowsStandbyService.js
+          node --check scripts/test-qa-windows-bridge-service.mjs
+          node --check scripts/test-qa-standby-bridge-runtime.mjs
+          node --check scripts/test-qa-standby-activation-integration.mjs
+          node --check scripts/test-qa-standby-domain-seed-integration.mjs
+          node --check scripts/test-qa-standby-candidate-materializer-integration.mjs
+          node --check scripts/test-qa-firestore-rest-snapshot.mjs
+          node --check scripts/Run-QA-Authoritative-Snapshot-Stage.mjs
+          node --check scripts/Materialize-QA-Stored-Snapshot.mjs
+          node --check scripts/test-qa-live-stage-runner.mjs
+          node --check scripts/check-qa-source-stage-preflight.mjs
+          node --check scripts/test-qa-source-stage-preflight.mjs
+          node --check scripts/test-qa-windows-installer-dependencies.mjs
+          node --check scripts/test-qa-live-mirror-stage-integration.mjs
+          node --check scripts/test-qa-standby-archive-status.mjs
+          node --check scripts/test-qa-standby-replay-integration.mjs
+          node --check scripts/test-qa-standby-full-failback-integration.mjs
+      - name: Run fail-closed safety tests
+        run: |
+          node scripts/test-qa-local-bridge.mjs
+          node scripts/test-qa-bridge-router.mjs
+          node scripts/test-qa-standby-bridge-runtime.mjs
+          node scripts/test-qa-windows-bridge-service.mjs
+          node scripts/test-qa-firestore-failback-adapter.mjs
+          node scripts/test-qa-local-session-verifier.mjs
+          node scripts/test-qa-standby-data-handler.mjs
+          node scripts/test-qa-standby-trusted-context.mjs
+          node scripts/test-qa-vpc-worker.mjs
+          node scripts/test-qa-vpc-worker-data.mjs
+          node scripts/test-qa-cron-preview-proxy.mjs
+          node scripts/test-qa-local-diagnostics.mjs
+          node scripts/test-qa-preview-status.mjs
+          node scripts/test-qa-vercel-standby-proxy.mjs
+          node scripts/test-qa-postgres-write-policy.mjs
+          node scripts/test-qa-postgres-stage-writer.mjs
+          node scripts/check-qa-bridge-preview-preflight.mjs
+          node scripts/test-qa-cutover-parity-gate.mjs
+          node scripts/test-qa-failover-decision.mjs
+          node scripts/test-qa-firestore-rest-snapshot.mjs
+          node scripts/test-qa-standby-snapshot-readiness.mjs
+          node scripts/test-qa-vpc-readiness.mjs
+          node scripts/test-qa-firestore-snapshot-codec.mjs
+          node scripts/test-qa-live-stage-runner.mjs
+          node scripts/test-qa-source-stage-preflight.mjs
+          node scripts/test-qa-windows-installer-dependencies.mjs
+
+  ephemeral-postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: qa_cutover_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qa_cutover_ci_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      QA_PG_ISOLATED_TEST: "1"
+      QA_TEST_DATABASE_URL: "postgresql://postgres:fixture_only@127.0.0.1:5432/qa_cutover_ci_test"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Install isolated SQL driver
+        run: npm install --ignore-scripts --no-save --no-package-lock pg@8.16.3
+      - name: QA standby typed client protocol
+        run: |
+          node scripts/test-qa-standby-client.mjs
+          node scripts/test-qa-standby-history.mjs
+      - name: Real PostgreSQL transactional integration
+        run: |
+          node scripts/test-qa-postgres-stage-integration.mjs
+          node scripts/test-qa-postgres-session-integration.mjs
+          node scripts/test-qa-standby-journal-integration.mjs
+          node scripts/test-qa-standby-read-integration.mjs
+          node scripts/test-qa-standby-replay-integration.mjs
+          node scripts/test-qa-local-mirror-import-integration.mjs
+          node scripts/test-qa-standby-archive-status.mjs
+          node scripts/test-qa-live-mirror-stage-integration.mjs
+          node scripts/test-qa-standby-candidate-materializer-integration.mjs
+          node scripts/test-qa-standby-inactive-seed-integration.mjs
+          node scripts/test-qa-standby-domain-seed-integration.mjs
+          node scripts/test-qa-inactive-replica-audit-integration.mjs
+          node scripts/test-qa-inactive-refresh-integration.mjs
+          node scripts/test-qa-standby-activation-integration.mjs
+          node scripts/test-qa-standby-full-failback-integration.mjs
+
+  windows-candidate-8790:
+    name: Windows 8790 isolated bridge checks
+    runs-on: windows-latest
+    timeout-minutes: 7
+    steps:
+      - name: Checkout QA-only code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Parse Windows launch and diagnostics scripts
+        shell: pwsh
+        run: |
+          foreach ($script in @(
+            "scripts/Start-QA-Local-Bridge.ps1",
+            "scripts/Start-QA-Standby-From-Existing.ps1",
+            "scripts/Check-QA-Windows-Bridge8790.ps1"
+          )) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $script, [ref]$tokens, [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -ne 0) {
+              throw "Invalid QA Windows PowerShell script: $script"
+            }
+          }
+      - name: Validate isolated Windows bridge without credentials
+        shell: pwsh
+        run: |
+          node --check server/qaWindowsStandbyService.js
+          node scripts/test-qa-windows-bridge-service.mjs
