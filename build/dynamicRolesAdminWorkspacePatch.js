@@ -180,13 +180,21 @@ export function dynamicRolesAdminWorkspacePatch() {
           "Roles sidebar active state"
         );
 
-        next = replaceOrThrow(
-          this,
-          next,
-          `        ) : activeTab === "user-roles" && roleAdminAllowed ? (\n          <UserRoleAdminMockup\n            initialTab={userAdminSection}`,
-          `        ) : (\n          (activeTab === "admin-users" && userDirectoryAllowed) ||\n          (activeTab === "admin-roles" && roleManagementAllowed) ||\n          (activeTab === "user-roles" && roleAdminAllowed)\n        ) ? (\n          <UserRoleAdminMockup\n            initialTab={\n              activeTab === "admin-users"\n                ? "users"\n                : activeTab === "admin-roles"\n                  ? "roles"\n                  : userAdminSection\n            }`,
-          "separate admin workspace renderer"
-        );
+        // QA Single Session optionally wraps the admin component in a fragment.
+        // Keep the single-session Admin UI while splitting Users/Roles workspaces.
+        const qaSessionAdminWrapper = `        ) : activeTab === "user-roles" && roleAdminAllowed ? (\n          <>\n            {QA_SINGLE_SESSION_CLIENT_ENABLED && currentUser.username.toLowerCase() === "songpon" && currentUser.role === "Quality Assurance"\n              ? <QaSessionAdminPanel /> : null}\n          <UserRoleAdminMockup\n            initialTab={userAdminSection}`;
+        const legacyAdminRenderer = `        ) : activeTab === "user-roles" && roleAdminAllowed ? (\n          <UserRoleAdminMockup\n            initialTab={userAdminSection}`;
+        const dynamicStart = `        ) : (\n          (activeTab === "admin-users" && userDirectoryAllowed) ||\n          (activeTab === "admin-roles" && roleManagementAllowed) ||\n          (activeTab === "user-roles" && roleAdminAllowed)\n        ) ? (`;
+        const dynamicInitialTab = `initialTab={\n              activeTab === "admin-users"\n                ? "users"\n                : activeTab === "admin-roles"\n                  ? "roles"\n                  : userAdminSection\n            }`;
+        if (next.includes(qaSessionAdminWrapper)) {
+          next = next.replace(qaSessionAdminWrapper,
+            qaSessionAdminWrapper.replace('        ) : activeTab === "user-roles" && roleAdminAllowed ? (',dynamicStart)
+              .replace('initialTab={userAdminSection}',dynamicInitialTab));
+        } else {
+          next = replaceOrThrow(this,next,legacyAdminRenderer,
+            dynamicStart + `\n          <UserRoleAdminMockup\n            ${dynamicInitialTab}`,
+            "separate admin workspace renderer");
+        }
 
         patched.app = true;
         return { code: next, map: null };
