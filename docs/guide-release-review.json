@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T09:20:09.538Z",
-  "reason": "Reviewed newly staged QA single-session preflight checks, Coaching recovery, multiple-editor fail-closed takeover and manual changes; not enabled for production",
+  "reviewedAt": "2026-11-13T09:24:14.608Z",
+  "reason": "Reviewed server-enforced draft CAS/audit and quota-safe build patch for staged QA Single Active Session; no production enforcement enabled",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation",
@@ -77,7 +77,7 @@
     "build/dynamicRolesAdminWorkspacePatch.js": "661e502f90b92ff669afc7cb1c09398234b3695c4c2663d02515d72e86d8d604",
     "build/evaluationAgentFocusPopupPatch.js": "f1ac67626646f9996161fe70514f2aee7899ae35ba73585d9bdf1d12d474498b",
     "build/finalSignedPdfDateFormatPatch.js": "69c7073d0c42d9f1d3f1bd7314c108b99d265245829c0c410d06810a26f9b535",
-    "build/firestoreQuotaProtectionPatch.js": "e29faeb14a4829fcfd56b1711ab653bd299fc608ee3cfee02e4af517203c7c2b",
+    "build/firestoreQuotaProtectionPatch.js": "990601fa0e1b7921711d29e2cf80695b082d29d4563892965a0ef1d2c16633ec",
     "build/hideAppealReviewSummaryPatch.js": "9b577ce7b2797d67f44760d6b1bbf18961651f80344fc5ea7654687fe0c6680e",
     "build/investigationFindingsPatch.js": "c10da3f19b17bba45bd49bd011d0308bc00264e59524662516d9726f02e1c79e",
     "build/officialPdfStandardsPatch.js": "d1f3f38ea5981963928325919f58ae18cd62f561cccaed6e4079c4c81dc8ec23",
@@ -451,7 +451,7 @@
     "server/qaFirebaseCredentials.js": "7582c90b769bb69741389223909095a3621ef34add7772ae0a46df07fa6ab481",
     "server/qaLotteryService.js": "5f23b0561fd0f22874e3d74dd0aafa1d59a3685a455fbb1e21326e829760bac4",
     "server/qaRewardsService.js": "c8b59cad5f709c4a464f262793f7a0153ed959aaca7fec0fef4e6e3906d7a822",
-    "server/qaSingleSessionAdmin.js": "b5120b2863eb2adc770dddf97dbbf36e301cccaf2be702a9d59de224c7f38c8e",
+    "server/qaSingleSessionAdmin.js": "e25dbf4688c63a124659e51041f492577262b9d470e29c0580755a406fea47c4",
     "server/snakesLaddersService.js": "fe0bf2ce9eafddc456dc9c58116d7895d484b5cc6e531d238a759cb2861d5442",
     "server/sparksAccessControl.js": "daae2bf5caa8e7c916a24a9d697dd45a4c8952b07c450d37871dfc303c9ebe08",
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
