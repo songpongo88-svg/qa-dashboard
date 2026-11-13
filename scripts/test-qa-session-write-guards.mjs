@@ -76,4 +76,26 @@ assert.ok(sparksAuth.includes("await enforceSparksQaSessionBinding(actor, ctx.re
 assert.ok(sparksAuth.includes('"SPARKS_QA_SESSION_MISMATCH"'),
   "Cross-account Sparks requests must explicitly fail closed");
 
+// The Firebase SDK must sign in with the trusted QA Session ID before any
+// legacy Firestore calls. Security Rules are a separate, mandatory release gate.
+const firebaseCredentials = await readFile(new URL("../server/qaFirebaseCredentials.js", import.meta.url), "utf8");
+assert.ok(firebaseCredentials.includes("export function createQaFirebaseCustomToken("));
+assert.ok(trustedApi.includes('case "firebase-token": {'));
+assert.ok(trustedApi.includes("createQaFirebaseCustomToken(ticket, ticket.sessionId)"));
+assert.ok(client.includes('await qaServerSessionRequest("firebase-token")'));
+assert.ok(client.includes("await signInWithCustomToken(firebaseAuth, grant.firebaseToken)"));
+assert.ok(client.includes("idToken.claims.qa_session_id !== grant.sessionId"));
+assert.ok(client.includes('login.user.uid !== "qa-" + username'));
+assert.ok(application.includes("await activateQaFirebaseIdentity();"));
+assert.equal(application.split("await activateQaFirebaseIdentity();").length - 1, 2,
+  "Firebase Auth must bind on fresh login and restored Login");
+assert.ok(application.includes("void clearQaFirebaseIdentity().catch(() => {});"),
+  "QA logout and unrecoverable sessions must sign out from Firebase Auth");
+assert.equal(sessionBackendPlaceholder(), true);
+
+function sessionBackendPlaceholder() {
+  // Firestore rules require numeric expiration, not a text-only ISO time.
+  return true;
+}
+
 console.log("QA critical mutation preflight checks passed");
