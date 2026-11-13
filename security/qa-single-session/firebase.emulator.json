@@ -1,0 +1,20 @@
+{
+  "firestore": {
+    "rules": "security/qa-single-session/firestore.rules"
+  },
+  "storage": {
+    "rules": "security/qa-single-session/storage.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8181
+    },
+    "storage": {
+      "port": 9299
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  }
+}
