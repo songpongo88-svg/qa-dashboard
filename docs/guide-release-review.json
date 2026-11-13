@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T09:32:50.463Z",
-  "reason": "QA-only VPC service staging adds authenticated loopback 8790 reachability probe. Does not expose records, sessions or enable data/write routes. Preserve Sparks Journey and all production behavior.",
+  "reviewedAt": "2026-11-13T10:00:36.674Z",
+  "reason": "QA Preview shows read-only evidence from both Windows 8788 and private Windows 8790 using the existing authenticated Cloudflare Worker. No QA records, sessions, score writes or cutover are exposed or enabled; production and QA Sparks unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -410,7 +410,7 @@
     "scripts/test-qa-postgres-stage-integration.mjs": "25bc57126ed817c02c8a7eb9cac94f6df4c119565ea4d6496a9146268ef44b56",
     "scripts/test-qa-postgres-stage-writer.mjs": "92fac8c93edb603b7a72f025e8ce2ab680165bd3855d16efcfc6a0ddde482724",
     "scripts/test-qa-postgres-write-policy.mjs": "9c4a0ba95d56a7724114803116298689bc0cb08d34f003d30fa0a5e43f2ce825",
-    "scripts/test-qa-preview-status.mjs": "f9901576eb990420bdace364eb11ad05042b9f6cad62c0eb80d2317d9539b4f5",
+    "scripts/test-qa-preview-status.mjs": "41699302c70c8921295e2682c774e90ab5b1dccfa9598c44f3f00c0e0dad8308",
     "scripts/test-qa-source-stage-preflight.mjs": "6812de5eb09c6c4ca08ec4883f8128c757e082251b5a45fc27eb2576906f938f",
     "scripts/test-qa-sparks-item-shelves.mjs": "22c89bfb45656dfda5518a9ba9755c86aeae95df29ed379fb8f1fbbd11c9daea",
     "scripts/test-qa-sparks-member-levels.mjs": "16f17ee151eff7935b11c84827ee4abf8164865e8ab2a40298640a1a60791305",
@@ -501,7 +501,7 @@
     "server/qaLocalDiagnosticsHandler.js": "b3f7d06402b39b1d6242bc7f076e5b18f3e777c491519d2471a96aceaba1fb6d",
     "server/qaLocalSessionVerifier.js": "e779ef6846d7f3a8f73446f3f9f778c639b651049502c7c5a85746870f2ecb05",
     "server/qaLotteryService.js": "5f23b0561fd0f22874e3d74dd0aafa1d59a3685a455fbb1e21326e829760bac4",
-    "server/qaPreviewStatusHandler.js": "dc225a6febaa54daf00467c8cb4b0c2e9b18ad448c0c8cf63dbb2ff52d41729b",
+    "server/qaPreviewStatusHandler.js": "145c7c752da5725d18fc42d6f1e24fe49cd25ce4a39d5185e642671c7c90b849",
     "server/qaRewardsService.js": "c8b59cad5f709c4a464f262793f7a0153ed959aaca7fec0fef4e6e3906d7a822",
     "server/qaStandbyActivation.js": "41a0e8965e9040044b9cf8e2bf817dbc75a79dae2520c8195d0089ac366c2dd6",
     "server/qaStandbyArchiveStatus.js": "9bbba32202956b049a5cac94b7dcfe626d8abab29608b566d5196f6df61b4751",
@@ -732,7 +732,7 @@
     "src/qaSparksStore.ts": "142e5ef06a2b2926bf19ec35371462a98e0b618d20f98fd7d0298a9b8c48fe84",
     "src/qaStandbyEvaluationApi.ts": "55902244c9a08ff0a7f3ffe7513c29a244a164dbc3d12322d2f5bbb231b48d84",
     "src/qaStandbyEvaluationHistory.ts": "39f839b81059e3dc14bfe5e83282ff6854b92fcab51cf7c645e42b870f4f1ea1",
-    "src/QaStandbySystemStatus.tsx": "b7b7deb91c7d1baee43fa1aaa98b9c396bf64a29ae2004b37cd15a6e499095f1",
+    "src/QaStandbySystemStatus.tsx": "49a4bd639f39060f93825a25f49c79cb980ddfbf1559473229a62256106401ad",
     "src/QaTypingChallengeAdmin.tsx": "085567987673c56b265237703b573adb8be75b40cb6d338fac5f1a5dc088d7f7",
     "src/qaTypingChallengeHistoryStore.ts": "c91d6ef216c8ac3571690ddaa2311b6e08bb0e429af321879e387b97aa85d3dd",
     "src/qaTypingChallengeStore.ts": "e1c71e682e46fc1c6f5bc0b88812c69df5912ba48d7f105326ff81a7ba882bd7",
