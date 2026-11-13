@@ -249,8 +249,8 @@ type AppTab =
   | "qa-sparks"
   | "appeal"
   | "create-evaluation"
-  | "backup-status"
   | "pre-test"
+  | "backup-status"
   | "training-attendance"
   | "schedule"
   | "appeal-requests"
@@ -736,8 +736,8 @@ const VALID_APP_TABS = new Set<AppTab>([
   "qa-sparks",
   "appeal",
   "create-evaluation",
-  "backup-status",
   "pre-test",
+  "backup-status",
   "training-attendance",
   "schedule",
   "appeal-requests",
@@ -781,8 +781,8 @@ const WORKSPACE_TAB_LABELS: Record<AppTab | "case-detail", string> = {
   "case-detail": "Cases",
   appeal: "Appeal Cases",
   "create-evaluation": "Evaluate",
-  "backup-status": "Backup Status",
   "pre-test": "Pre-Test",
+  "backup-status": "Backup Status",
   "training-attendance": "Training",
   schedule: "SCH",
   "appeal-requests": "Appeal Review",
