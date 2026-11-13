@@ -1278,6 +1278,11 @@ export default function CreateEvaluationMockup({
   useEffect(() => {
     if (evaluationStatus === "Submitted" && currentUser?.username) {
       void clearEvaluationRecovery(currentUser.username).catch((error) => console.warn("Recovery cleanup unavailable", error));
+      if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+        void qaServerSessionRequest("draft-clear", { documentKey: "evaluation-form" })
+          .catch(error => console.warn("Cloud recovery cleanup unavailable", error));
+      }
+      lastCloudSnapshotRef.current = "";
       setEmergencyRecovery(null);
     }
   }, [evaluationStatus, currentUser?.username]);
@@ -1302,13 +1307,18 @@ export default function CreateEvaluationMockup({
     setExpandedGroups(snapshot.expandedGroups || {});
     setEvaluationStatus("Draft");
     setEmergencyRecovery(null);
-    setDraftMessage("กู้คืนข้อความและคะแนนจากข้อมูลสำรองบน Browser นี้แล้ว • กรุณาตรวจสอบไฟล์แนบและเสียงอีกครั้ง • ยังไม่ได้บันทึกเข้าระบบกลาง");
+    setDraftMessage("กู้คืนข้อความและคะแนนจากข้อมูลสำรองแล้ว • กรุณาตรวจสอบไฟล์แนบและเสียงอีกครั้ง และกด Save Draft ก่อน Submit");
   }
 
   function dismissEmergencyRecovery() {
     if (currentUser?.username) {
       void clearEvaluationRecovery(currentUser.username).catch((error) => console.warn("Recovery cleanup unavailable", error));
+      if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+        void qaServerSessionRequest("draft-clear", { documentKey: "evaluation-form" })
+          .catch(error => console.warn("Cloud recovery cleanup unavailable", error));
+      }
     }
+    lastCloudSnapshotRef.current = "";
     setEmergencyRecovery(null);
   }
 
@@ -1885,7 +1895,12 @@ export default function CreateEvaluationMockup({
   function resetEvaluationForm() {
     if (currentUser?.username) {
       void clearEvaluationRecovery(currentUser.username).catch((error) => console.warn("Recovery cleanup unavailable", error));
+      if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+        void qaServerSessionRequest("draft-clear", { documentKey: "evaluation-form" })
+          .catch(error => console.warn("Cloud recovery cleanup unavailable", error));
+      }
     }
+    lastCloudSnapshotRef.current = "";
     setEmergencyRecovery(null);
     clearEvaluateTabMemory();
     callRecordingUploads.current.clear();
