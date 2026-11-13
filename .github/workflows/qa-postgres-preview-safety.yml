@@ -69,6 +69,8 @@ on:
       - "server/qaStandbyInactiveSeed.js"
       - "scripts/test-qa-standby-inactive-seed-integration.mjs"
       - "server/qaStandbyDomainSeed.js"
+      - "server/qaStandbyActivation.js"
+      - "scripts/test-qa-standby-activation-integration.mjs"
       - "migration/qa-local-domain-replica.sql"
       - "scripts/test-qa-standby-domain-seed-integration.mjs"
       - "scripts/test-qa-standby-candidate-materializer-integration.mjs"
@@ -185,6 +187,8 @@ jobs:
           node --check server/qaStandbyInactiveSeed.js
           node --check scripts/test-qa-standby-inactive-seed-integration.mjs
           node --check server/qaStandbyDomainSeed.js
+          node --check server/qaStandbyActivation.js
+          node --check scripts/test-qa-standby-activation-integration.mjs
           node --check scripts/test-qa-standby-domain-seed-integration.mjs
           node --check scripts/test-qa-standby-candidate-materializer-integration.mjs
           node --check scripts/test-qa-firestore-rest-snapshot.mjs
@@ -270,3 +274,4 @@ jobs:
           node scripts/test-qa-standby-candidate-materializer-integration.mjs
           node scripts/test-qa-standby-inactive-seed-integration.mjs
           node scripts/test-qa-standby-domain-seed-integration.mjs
+          node scripts/test-qa-standby-activation-integration.mjs
