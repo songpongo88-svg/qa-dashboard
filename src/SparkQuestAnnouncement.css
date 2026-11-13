@@ -1,0 +1,83 @@
+/* Always-on QA Sparks campaign artwork. Isolated from user-selected QA themes. */
+.spark-promo-modal-backdrop {
+  position:fixed; inset:0; z-index:160; display:grid; place-items:center;
+  padding:14px; background:rgba(9,14,35,.78); backdrop-filter:blur(5px);
+}
+.spark-promo-modal {position:relative; max-height:95dvh; overflow:auto; width:min(100%,650px); display:flex; flex-direction:column; align-items:center;}
+.spark-promo-close {position:sticky;top:7px;align-self:flex-end;margin:0 5px -42px 0;z-index:3;
+  background:#172b51; border:2px solid #eecb82;color:#fff;border-radius:50%;width:38px;height:38px;
+  font-size:27px;cursor:pointer;box-shadow:0 3px 14px #0008;}
+.spark-promo-later {margin-top:7px;color:#fff;background:#233354;
+  padding:10px 20px;border-radius:99px;border:1px solid #b9cbeb9c;cursor:pointer;font:500 12px "Kanit",sans-serif;}
+.spark-promo-poster {position:relative; box-sizing:border-box;width:100%;max-width:630px;padding:clamp(18px,3vw,31px);
+  border-radius:23px; border:2px solid #f3cb73;box-shadow:0 10px 52px #0009,inset 0 0 45px #fbcd5120;
+  background:radial-gradient(ellipse at 50% 0%,#3e5584 0%,#172a55 38%,#0c1b3f 85%,#172a57 100%);
+  display:flex;flex-direction:column;align-items:stretch;gap:12px;isolation:isolate;
+  color:#fff;font-family:"Kanit",sans-serif;text-align:center;}
+.spark-promo-poster::before {content:"";position:absolute;inset:0;z-index:-1;opacity:.3;border-radius:inherit;pointer-events:none;
+  background-image:radial-gradient(#fff8c2 1px,transparent 1px);background-size:42px 45px;}
+.spark-promo-stars {color:#fee6a8;letter-spacing:1.1em;margin:0 auto -10px;font-size:16px;}
+.spark-promo-title-ribbon {padding:11px 10px 13px;background:linear-gradient(135deg,#ffe5a4,#c4923d 50%,#ffe6a6);
+  border:2px solid #fff6d0;border-radius:999px;box-shadow:0 4px 0 #88571c,0 8px 21px #0005;
+  color:#17264b;font-size:clamp(20px,3vw,30px);font-weight:800;line-height:1.35;}
+.spark-promo-tagline {margin:0 0 1px;font-size:clamp(11px,1.7vw,14px);font-weight:600;color:#f3f4ff;line-height:1.55;}
+.spark-promo-panel {position:relative;display:flex;flex-direction:column;align-items:stretch;overflow:hidden;
+  background:linear-gradient(105deg,#fffefa 0%,#fff9eb 70%,#e2eafa 100%);
+  color:#16254b;border:2px solid #e6c179;border-radius:18px;box-shadow:0 3px 13px #050e274a;text-align:left;}
+.spark-promo-panel--fruit {min-height:143px;}
+.spark-promo-panel--journey {min-height:170px;background:linear-gradient(110deg,#fffdfa 0%,#fff9e8 60%,#bde0ff 100%);}
+.spark-promo-panel-copy {position:relative;z-index:1;padding:12px 17px;max-width:75%;}
+.spark-promo-panel h3 {margin:0 0 7px;display:inline-flex;align-items:center;gap:7px;
+  font-size:clamp(14px,2.5vw,19px);font-weight:750;color:#f9d991;
+  border-radius:12px;background:linear-gradient(105deg,#1c315f,#283c6b);padding:6px 12px;}
+.spark-promo-index {border-radius:50%;background:#fed682;color:#273553;width:24px;height:24px;
+ display:grid;place-items:center;font-size:14px;font-weight:800;}
+.spark-promo-panel p {margin:0;font-weight:600;font-size:clamp(12px,2vw,15px);}
+.spark-promo-panel strong {display:block;width:fit-content;margin:4px 0;padding:3px 10px;border-radius:99px;
+  background:#ffdc94;color:#1a2d51;font-weight:800;font-size:clamp(14px,2.5vw,20px);}
+.spark-promo-panel small {display:block;max-width:100%;color:#4e5871;font-size:clamp(10px,1.5vw,12px);line-height:1.5;}
+.spark-promo-art-icons {position:absolute;top:13%;right:0;width:33%;height:80%;display:flex;
+ align-content:center;justify-content:center;align-items:center;flex-wrap:wrap;gap:4px;
+ background:radial-gradient(circle at 50% 50%,#f9d07870 0%,transparent 68%);}
+.spark-promo-art-icons span {font-size:clamp(22px,4vw,40px);filter:drop-shadow(2px 4px 2px #563e3b44);}
+.spark-promo-art-icons--fruit span:nth-child(3){transform:rotate(8deg);}
+.spark-promo-art-icons--journey {align-content:flex-start;top:28%;height:66%;}
+.spark-promo-art-icons--journey span {font-size:clamp(18px,3.8vw,34px);}
+.spark-promo-land {position:absolute;right:7px;bottom:8px;padding:4px 9px;
+ background:linear-gradient(135deg,#f4d8a3,#bc9053);border:1px solid #fff5d1;
+ border-radius:9px;font-size:11px;color:#333421;font-weight:800;letter-spacing:.08em;}
+.spark-promo-deadline {display:flex;align-items:center;justify-content:center;gap:13px;padding:13px 14px;
+ border:2px solid #f3cd88;border-radius:16px;background:linear-gradient(100deg,#6c1f36,#ad263d,#6d203c);
+ box-shadow:0 3px 16px #130a1580;}
+.spark-promo-deadline>span {font-size:38px;}
+.spark-promo-deadline div {display:flex;flex-direction:column;gap:1px;}
+.spark-promo-deadline small {font-size:12px;color:#fff4ec;}
+.spark-promo-deadline strong {font-size:clamp(16px,3vw,24px);color:#ffe188;}
+.spark-promo-path {color:#1f3157;background:#fff9ea;border:2px solid #e9cc8f;border-radius:99px;
+ font-size:clamp(10px,1.7vw,13px);padding:9px 7px;font-weight:700;}
+.spark-promo-join {border:2px solid #fff1bb;border-radius:99px;background:linear-gradient(100deg,#fdf0ae,#e4ac45,#ffe6a0);
+ box-shadow:0 4px 0 #b6791f,0 9px 17px #0005;color:#122c58;cursor:pointer;
+ font:800 clamp(14px,2.5vw,20px) "Kanit",sans-serif;padding:12px 12px;transition:transform .16s,filter .16s;}
+.spark-promo-join:hover,.spark-promo-join:focus-visible {transform:translateY(-2px);filter:brightness(1.06);}
+.spark-promo-footnote {font-size:10px;color:#d5deeb;line-height:1.55;}
+.spark-promo-inbox {border-radius:22px;border:1px solid #e4c47b;background:
+  radial-gradient(ellipse at right top,#6174a4 0%,transparent 70%),linear-gradient(145deg,#192a57,#101d3e);
+ color:#fff;padding:17px;box-shadow:0 5px 19px #101e3e20;text-align:left;}
+.spark-promo-inbox-top {display:flex;justify-content:space-between;gap:8px;font-size:10px;color:#ffe4a4;font-weight:800;}
+.spark-promo-inbox-title {font-size:18px;line-height:1.35;font-weight:800;color:#ffe0a5;margin-top:10px;}
+.spark-promo-inbox-art {font-size:22px;margin-top:8px;word-spacing:5px;}
+.spark-promo-inbox p {font-size:12px;line-height:1.5;color:#e0e7f4;margin:10px 0;}
+.spark-promo-inbox button {border:0;border-radius:11px;background:linear-gradient(110deg,#ffe1a1,#ddb265);
+ color:#1b2b4d;padding:9px 12px;width:100%;font:800 13px "Kanit",sans-serif;cursor:pointer;}
+@media(max-width:470px){
+ .spark-promo-poster{padding:12px;gap:9px;}
+ .spark-promo-panel-copy{padding:10px 8px;max-width:78%;}
+ .spark-promo-panel h3{padding:5px 7px;}
+ .spark-promo-art-icons{width:28%;}
+ .spark-promo-deadline{gap:7px;}
+ .spark-promo-deadline>span{font-size:25px;}
+}
+@media(prefers-reduced-motion:reduce){.spark-promo-join{transition:none;}}
+
+.spark-promo-poster[role="link"], .spark-promo-inbox[role="link"] {cursor:pointer;}
+.spark-promo-poster[role="link"]:focus-visible, .spark-promo-inbox[role="link"]:focus-visible {outline:3px solid #ffe19a;outline-offset:3px;}
