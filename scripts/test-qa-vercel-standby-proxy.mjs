@@ -45,6 +45,14 @@ async function denied(req,statusCode,fn=handler){
 }
 await denied(makeReq('list'),503,createQaVercelStandbyProxy({env:{...env,QA_STANDBY_DATA_PROXY_ENABLED:'0'},fetchImpl:mockFetch}));
 await denied(makeReq('list'),503,createQaVercelStandbyProxy({env:{...env,VERCEL_ENV:'production'},fetchImpl:mockFetch}));
+await denied(makeReq('list'),503,createQaVercelStandbyProxy({
+  env:{...env,VERCEL_ENV:'production',QA_STANDBY_PRODUCTION_PROXY_APPROVED:'1'},
+  fetchImpl:mockFetch,
+}));
+await denied(makeReq('list'),503,createQaVercelStandbyProxy({
+  env:{...env,VERCEL_ENV:'production',QA_STANDBY_CUTOVER_APPROVED:'1'},
+  fetchImpl:mockFetch,
+}));
 await denied(makeReq('list',{headers:{host}}),403);
 await denied(makeReq('list',{headers:{...makeReq('list').headers,authorization:'Bearer evil'}}),403);
 await denied(makeReq('list',{headers:{...makeReq('list').headers,origin:'https://evil.example'}}),403);
