@@ -270,6 +270,15 @@ export async function revokeOwnSession(req) {
   await deleteActive(ticket.username, current.updateTime);
   await audit(ticket.username, ticket.sessionId, "logout");
 }
+export async function clearOwnedDraft(req, documentKey) {
+  const { ticket } = await authorizeActiveSession(req);
+  if (!/^[a-zA-Z0-9._-]{2,90}$/.test(documentKey || "")) throw fail("Invalid draft", 400);
+  const id = ticket.username + "_" + documentKey.toLowerCase();
+  const draft = await rest("GET", DRAFT_COLLECTION, id);
+  if (!draft) return { status: "cleared" };
+  await rest("DELETE", DRAFT_COLLECTION, id, null, draft.updateTime);
+  return { status: "cleared" };
+}
 export async function fetchOwnedDraft(req, documentKey) {
   const { ticket } = await authorizeActiveSession(req);
   if (!/^[a-zA-Z0-9._-]{2,90}$/.test(documentKey || "")) throw fail("Invalid draft", 400);
