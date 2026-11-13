@@ -68,4 +68,12 @@ const recoverySection = resets.split("export async function createStoredPassword
   ?.split("export async function updateStoredPasswordResetRequest(")[0] || "";
 assert.ok(!recoverySection.includes("await assertTrustedQaSessionForMutation();"),
   "An unauthenticated employee must still be able to request password recovery");
+const sparksAuth = await readFile(new URL("../server/sparksSupabaseAuth.js", import.meta.url), "utf8");
+assert.ok(sparksAuth.includes('import { sessionPolicyEnabled, authorizeActiveSession } from "./qaSingleSessionAdmin.js";'),
+  "Sparks must validate the same server-side QA session when policy is enabled");
+assert.ok(sparksAuth.includes("await enforceSparksQaSessionBinding(actor, ctx.req);"),
+  "All verified Sparks actors must be bound to an active QA session");
+assert.ok(sparksAuth.includes('"SPARKS_QA_SESSION_MISMATCH"'),
+  "Cross-account Sparks requests must explicitly fail closed");
+
 console.log("QA critical mutation preflight checks passed");
