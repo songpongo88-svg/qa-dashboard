@@ -31,7 +31,7 @@ import QASparks from "./QASparks";
 import { syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
 import SessionTakeoverPrompt from "./SessionTakeoverPrompt";
 import QaSessionAdminPanel from "./QaSessionAdminPanel";
-import { QA_SINGLE_SESSION_CLIENT_ENABLED, qaServerSessionRequest, QaServerSessionError, matchesTrustedQaIdentity } from "./qaSingleSessionClient";
+import { QA_SINGLE_SESSION_CLIENT_ENABLED, qaServerSessionRequest, QaServerSessionError, matchesTrustedQaIdentity, activateQaFirebaseIdentity, clearQaFirebaseIdentity } from "./qaSingleSessionClient";
 import { holdQaTabLease, canAcknowledgeQaTakeover } from "./qaTabLease.mjs";
 import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
@@ -4283,6 +4283,7 @@ export default function App() {
           return null;
         }
         if (verification.status !== "active") throw new Error("Server did not activate a session");
+        await activateQaFirebaseIdentity();
       }
       const session = await createStoredUserSession(user);
       const authenticatedUser: CurrentUser = {
@@ -4311,6 +4312,7 @@ export default function App() {
         try { await qaServerSessionRequest("logout"); }
         catch (cleanupError) { console.warn("QA session rollback unavailable", cleanupError); }
       }
+      void clearQaFirebaseIdentity().catch(() => {});
       console.error("Secure session creation failed", error);
       setLoginError("Unable to create a secure session. Please try signing in again.");
       return null;
@@ -4336,6 +4338,7 @@ export default function App() {
           if (!matchesTrustedQaIdentity(storedUser, verified)) {
             throw new Error("Trusted QA identity mismatch; local session cannot be restored");
           }
+          await activateQaFirebaseIdentity();
         }
         let restoredUser = storedUser;
 
@@ -4400,6 +4403,7 @@ export default function App() {
           try { await qaServerSessionRequest("logout"); }
           catch (cleanupError) { console.warn("Failed to release unrestorable QA session", cleanupError); }
         }
+        void clearQaFirebaseIdentity().catch(() => {});
         console.error("Secure session restore failed", error);
         localStorage.removeItem(STORAGE_KEY);
         if (!cancelled) {
@@ -6661,6 +6665,7 @@ export default function App() {
   };
 
   const clearLocalSession = (message = "") => {
+    void clearQaFirebaseIdentity().catch(() => {});
     clearSessionTimers();
     resetWorkspaceSessionState();
     setShowSessionWarning(false);
