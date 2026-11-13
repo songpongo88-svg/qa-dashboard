@@ -1,34 +1,35 @@
-# Single Active Session rollout — security design and release gate
+# QA Dashboard — Single Active Session release gate
 
-## Approved policy
-- One active session per QA account across Dashboard and QA Sparks.
-- A new login must detect an existing session and ask permission to take it over.
-- A confirmed takeover waits up to 30 seconds for the old browser's draft flush before revoking it.
-- Auto-save target: every 5 seconds after a change; server-backed draft plus local recovery.
-- Idle timeout: 30 minutes.
-- Administrator may view and revoke sessions.
-- Server-side authorization, atomic replacement, and audit log required.
+## Approved product policy
+- One QA username, one active server session.
+- New browser prompts before takeover; cancel leaves old browser active.
+- After confirmation, old browser has at most 30 seconds to flush all unsaved edits.
+- Evaluation text and topic scores are locally snapshotted every 5 seconds.
+- In flagged mode, changed Evaluation text and topic scores are also saved through a verified server API every 5 seconds.
+- Active user idle timeout is 30 minutes. Renewal happens on user activity only.
+- Owner-only session list and forced Logout; atomic audit for session creation, replacement and revocation.
+- If a draft is not saved durably, takeover is denied. Never claim recovery of unuploaded audio or evidence.
 
-## Phase 1 implemented on this branch
-- Set current session inactivity TTL to 30 minutes in sessionStore.
-- Align UI session messages with 30 minutes.
-- Decrease client-side revocation check from 15 to 1 minute and session renewal interval from 30 to 5 minutes.
+## Current implementation (branch only)
+1. `server/qaFirebaseCredentials.js` verifies QA username/password against authoritative Firebase profile via the server-side Firebase Admin service account; password is not returned to the browser.
+2. `server/qaSingleSessionAdmin.js` owns the QA session pointer, issues RSA-signed HttpOnly Strict cookies, uses Firestore preconditions for compare-and-swap, commits audit records with session transitions atomically, and enforces session ownership on its own server APIs.
+3. `api/qa-single-session.js` supports login, conflict, request, pending, acknowledged draft flush, commit, validate, activity touch, logout, cloud draft read/write/delete and owner-only session management.
+4. `src/App.tsx` wires an opt-in takeover prompt, old-browser flush notifications and session renewal. `src/CreateEvaluationMockup.tsx` writes changed text/score snapshots and refuses transfer if there are evidence/audio attachments needing their original browser.
+5. `src/QaSessionAdminPanel.tsx` provides the owner session console; `src/lib/evaluation/sessionRecoveryStore.mjs` keeps browser-local recovery separate from the existing Draft Queue.
 
-## Not implemented / blockers for enabling the feature
-1. Existing username login and Firestore session creation are client-side. A client-maintained session record is not a secure security boundary. Introduce a trusted backend (Vercel endpoint or a verified auth/DB service) to validate users and own session creation, atomic compare-and-swap takeovers and revocation.
-2. All data mutations including QA evaluation, appeal, coaching and Sparks must verify active session on the trusted server. Otherwise old browsers may keep writing. Realtime can accelerate UX but must not be relied upon for authorization.
-3. Build a 5-second auto-save adapter across all mutable forms, including versions/revision IDs and a local encrypted or appropriately protected recovery queue. Show save-acknowledged vs unsynced status.
-4. Takeover protocol: request old browser draft flush; wait max 30 seconds; on success perform atomic takeover; if offline or draft flush fails, show explicit unsaved-risk acknowledgment before takeover. Never claim success when unsynced.
-5. Implement administrator session management with explicit privilege checks and audit log (actor, target, action, device summary, timestamp).
-6. Run two-browser tests, offline tests, pending evaluation draft / coaching / appeal tests, Sparks duplicate-award tests, expiry and recovery tests before production promotion.
+## Feature flags and safeguard
+- `QA_SINGLE_SESSION_ENABLED=true` enables the server API. Default is OFF.
+- `VITE_QA_SINGLE_SESSION_ENABLED=true` enables the browser integration. Default is OFF.
+- Do NOT enable either flag until all gates below pass. Enabling just one must not become a silent legacy fallback.
 
-## Operational caution
-Do not merge or deploy this branch as a complete Single Active Session feature. The policy changes alone cannot enforce one active browser. 1-minute Firestore client polling can also increase read quota, so capacity and quota testing are required before rollout.
+## OPEN BLOCKERS — no Production rollout
+- Existing Evaluation, Coaching, Appeal, profile/user and some QA Sparks read/write operations still use direct client-side Firestore or independent Supabase APIs. They do NOT all invoke the authoritative session guard, so a revoked browser could potentially keep writing. Every sensitive mutation must be migrated to authenticated server APIs or enforced equivalently with database rules that bind to the active session.
+- QA Sparks has a standalone Supabase login that must be reconciled with the QA Dashboard session cookie before enforcing a unified one-session policy across both products.
+- Current QA user accounts can authenticate via multiple legacy password paths and case-sensitive Firestore document IDs. The server verification bridge currently covers normalized QA profile IDs, not every legacy fallback. Must reconcile all active accounts and credential expiry semantics.
+- Evaluation recovery covers text and topic scores; uploaded/unuploaded evidence and audio cannot yet be restored across devices. Current conservative policy denies transfer when attachments are present, but other editing workspaces need explicit dirty-state tracking and flush or handoff barriers.
+- Add distributed anti-brute-force/rate limiting and monitor login failures without exposing password values.
+- Verify trusted Firebase Admin configuration in Preview and perform two-browser live integration tests, offline/30-second timeout tests, audit atomicity tests, Admin revoke tests, QA Sparks duplicate-spend tests, 30-minute idle tests and rollback checks.
+- Independently run full QA Dashboard Build, quota and coaching regressions before opening PR for merge. No successful end-to-end deployment has yet been verified.
 
-## Implementation audit — 2026-11-13
-
-- QA Directory comparison currently shows 21 active Supabase QA profiles and 11 profiles matched to a confirmed Supabase Auth account using the available verified identity linkage. This is an audit snapshot, not a count of all active Firebase logins; the remaining login mappings must be verified before any enforced cutover.
-- Current protected endpoint is explicitly disabled unless `QA_SINGLE_SESSION_ENABLED=true`. Do not set that environment variable until the direct Firebase stores are authorized through the same server session boundary.
-- Evaluation form now has local IndexedDB 5-second recovery for text and topic scores only; it is not cloud backup or cross-device recovery. See the updated Evaluation user guide chapter.
-- Keep Firestore client session checks at the existing 15-minute quota-safe interval. Server-side mutation checks, once integrated, will provide immediate revocation rather than more client polling.
-- Because the 30-minute session TTL is shorter than the old two-hour TTL, refresh activity at minute 29 rather than 30 so continuously active users are not mistakenly expired.
+## Deployment status
+This is a **draft PR**, not a finished deployed feature. Never merge or expose the new feature flags while the blockers above remain. Do not apply the obsolete Supabase-only RPC prototype; it was removed in favor of the server-owned Firebase Admin adapter.
