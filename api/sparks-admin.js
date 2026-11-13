@@ -16,6 +16,7 @@ import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server
 import { auditQaCredentialSource } from "../server/sparksQaCredentialPreflight.js";
 import { migrateQaPasswordsFromTrustedSource } from "../server/sparksQaMigrationRunner.js";
 import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
+import { sessionPolicyEnabled, authorizeActiveSession } from "../server/qaSingleSessionAdmin.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -25,6 +26,7 @@ const API_ROOT = "https://firestore.googleapis.com/v1/" + DOCUMENTS_RESOURCE;
 const SESSION_POLICY = "qa-session-policy-2026-07-15-v1";
 const ADMIN_USERNAME = "songpon";
 const sparksEmailAuthEnabled = () => process.env.SPARKS_DATA_BACKEND === "supabase" && (
+  sessionPolicyEnabled() ||
   process.env.SPARKS_AUTH_MODE === "supabase" ||
   (process.env.SPARKS_AUTH_MODE === "hybrid" && hasSparksEmailAuthCookie())
 );
@@ -1609,7 +1611,7 @@ async function sparksHandler(req, res) {
   const gate=await getSparksAccessState();
   if(!gate.enabled && !maintenanceAction)
     return res.status(423).json({error:gate.message,code:"SPARKS_ACCESS_PAUSED"});
-  if (sparksEmailAuthEnabled()) {
+  if (sessionPolicyEnabled() || sparksEmailAuthEnabled()) {
     const originKind = String(req.headers?.["sec-fetch-site"] || "");
     if (originKind && originKind !== "same-origin" && originKind !== "none")
       return res.status(403).json({ error: "Cross-origin QA Sparks request is not allowed", code: "SPARKS_CSRF_BLOCKED" });
@@ -1645,6 +1647,7 @@ async function sparksHandler(req, res) {
   let qaMigrationAction = "";
   let qaMigrationStage = "";
   try {
+    if (sessionPolicyEnabled()) await authorizeActiveSession(req);
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
     if (body.action === "qa-password-preflight" || body.action === "qa-password-migrate-server") qaMigrationAction = body.action;
     if(sparksCloudReadOnlyEnabled() && !CLOUD_PREVIEW_READ_ACTIONS.has(String(body.action||""))) {
