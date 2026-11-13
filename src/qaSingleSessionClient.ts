@@ -1,4 +1,6 @@
 import { canAcknowledgeQaTakeover } from "./qaTabLease.mjs";
+import { signInWithCustomToken, signOut } from "firebase/auth";
+import { firebaseAuth } from "./firebaseClient";
 // New session protocol is OFF unless both preview/client and server explicitly
 // enable it. A rejected server check must never silently fall back to legacy
 // Firebase login once the feature flag is enabled.
@@ -9,6 +11,8 @@ export type QaServerSessionResponse = {
   ok: boolean;
   status?: "active" | "conflict" | "pending" | "ready" | "none" | "flush_required" | "logged_out" | "retry_login" | "revoked" | "already_revoked" | "cleared";
   code?: string;
+  firebaseToken?: string;
+  sessionId?: string;
   identity?: { username: string; role: string };
   deviceLabel?: string;
   pendingId?: string;
@@ -65,6 +69,35 @@ export async function qaServerSessionRequest(
   return data as QaServerSessionResponse;
 }
 
+
+/**
+ * Authenticate the Firebase SDK against the same server-owned session used by
+ * QA Dashboard, before any legacy Firebase workspace reads or writes.
+ * This MUST be paired with deployed Firestore/Storage Rules that validate the
+ * active-session pointer. A Firebase ID token alone is not revocation.
+ */
+export async function activateQaFirebaseIdentity(): Promise<void> {
+  if (!QA_SINGLE_SESSION_CLIENT_ENABLED) return;
+  const grant = await qaServerSessionRequest("firebase-token");
+  const username = grant.identity?.username?.trim().toLowerCase();
+  if (!grant.ok || grant.status !== "active" || !grant.firebaseToken ||
+      !grant.sessionId || !username || !grant.identity?.role) {
+    throw new QaServerSessionError(401, "QA_FIREBASE_SESSION_NOT_GRANTED");
+  }
+  const login = await signInWithCustomToken(firebaseAuth, grant.firebaseToken);
+  const idToken = await login.user.getIdTokenResult();
+  if (login.user.uid !== "qa-" + username ||
+      idToken.claims.qa_username !== username ||
+      idToken.claims.qa_session_id !== grant.sessionId ||
+      idToken.claims.qa_role !== grant.identity.role) {
+    await signOut(firebaseAuth).catch(() => {});
+    throw new QaServerSessionError(401, "QA_FIREBASE_IDENTITY_MISMATCH");
+  }
+}
+
+export async function clearQaFirebaseIdentity(): Promise<void> {
+  if (QA_SINGLE_SESSION_CLIENT_ENABLED) await signOut(firebaseAuth);
+}
 
 /**
  * UI-level preflight for direct Firestore writes during the staged rollout.
