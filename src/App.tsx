@@ -6777,6 +6777,50 @@ export default function App() {
     };
   }, [currentUser?.sessionId, currentUser?.username]);
 
+  // Server-backed takeover requests are checked independently of Firestore's
+  // quota-safe 15-minute polling. A draft must be durably saved and acknowledged
+  // before the new browser may receive the active session.
+  useEffect(() => {
+    if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser?.username) return;
+    let cancelled = false;
+    let working = false;
+    let lastPendingId = "";
+    const checkTakeover = async () => {
+      if (cancelled || working || navigator.onLine === false) return;
+      working = true;
+      try {
+        const server = await qaServerSessionRequest("pending");
+        if (server.status === "flush_required" && server.pendingId && lastPendingId !== server.pendingId) {
+          lastPendingId = server.pendingId;
+          if (activeTab === "dashboard" && openWorkspaceTabs.length === 1 &&
+              openWorkspaceTabs[0] === "dashboard" && activeWorkspaceTab === "dashboard") {
+            const revision = Date.now();
+            await qaServerSessionRequest("draft-save", {
+              documentKey: "session-idle", revision, snapshot: { noOpenEditors: true },
+            });
+            await qaServerSessionRequest("ack", {
+              pendingId: server.pendingId, documentKey: "session-idle", revision,
+            });
+          } else {
+            window.dispatchEvent(new CustomEvent("qa:single-session-save-request", {
+              detail: { pendingId: server.pendingId, deadline: server.deadline },
+            }));
+          }
+        }
+      } catch (error) {
+        if (!cancelled && error instanceof QaServerSessionError &&
+            (error.code === "SESSION_REPLACED" || error.code === "SESSION_EXPIRED")) {
+          clearLocalSession("บัญชีนี้ถูกย้ายไปใช้งานบน Browser อื่น กรุณาเข้าสู่ระบบใหม่");
+        } else {
+          console.warn("Single session takeover check unavailable", error);
+        }
+      } finally { working = false; }
+    };
+    void checkTakeover();
+    const timer = window.setInterval(() => void checkTakeover(), 5000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [currentUser?.username, currentUser?.sessionId, activeTab, activeWorkspaceTab, openWorkspaceTabs]);
+
   const startSessionTimers = () => {
     clearSessionTimers();
     setShowSessionWarning(false);
