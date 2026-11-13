@@ -4,12 +4,12 @@ import {
   clearSessionCookie, candidateFromRequest, authorizeActiveSession,
   activateNewSession, requestTakeover, getTakeoverForOldBrowser,
   acknowledgeTakeover, commitTakeover, revokeOwnSession,
-  saveOwnedDraft, fetchOwnedDraft,
+  saveOwnedDraft, fetchOwnedDraft, renewActiveSession,
 } from "../server/qaSingleSessionAdmin.js";
 
 const actions = new Set([
   "login", "request", "pending", "ack", "commit",
-  "validate", "logout", "draft-save", "draft-read",
+  "validate", "touch", "logout", "draft-save", "draft-read",
 ]);
 function validRequestBody(req) {
   if (!req.body) return {};
@@ -80,6 +80,11 @@ export default async function handler(req, res) {
         const candidate = candidateFromRequest(req);
         const result = await commitTakeover(candidate, body.pendingId);
         issueSessionCookie(res, candidate, result.sessionId);
+        return res.status(200).json({ ok: true, status: "active" });
+      }
+      case "touch": {
+        const active = await renewActiveSession(req);
+        issueSessionCookie(res, active, active.sessionId);
         return res.status(200).json({ ok: true, status: "active" });
       }
       case "validate": {
