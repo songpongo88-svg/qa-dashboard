@@ -24,3 +24,11 @@
 
 ## Operational caution
 Do not merge or deploy this branch as a complete Single Active Session feature. The policy changes alone cannot enforce one active browser. 1-minute Firestore client polling can also increase read quota, so capacity and quota testing are required before rollout.
+
+## Implementation audit — 2026-11-13
+
+- QA Directory comparison currently shows 21 active Supabase QA profiles and 11 profiles matched to a confirmed Supabase Auth account using the available verified identity linkage. This is an audit snapshot, not a count of all active Firebase logins; the remaining login mappings must be verified before any enforced cutover.
+- Current protected endpoint is explicitly disabled unless `QA_SINGLE_SESSION_ENABLED=true`. Do not set that environment variable until the direct Firebase stores are authorized through the same server session boundary.
+- Evaluation form now has local IndexedDB 5-second recovery for text and topic scores only; it is not cloud backup or cross-device recovery. See the updated Evaluation user guide chapter.
+- Keep Firestore client session checks at the existing 15-minute quota-safe interval. Server-side mutation checks, once integrated, will provide immediate revocation rather than more client polling.
+- Because the 30-minute session TTL is shorter than the old two-hour TTL, refresh activity at minute 29 rather than 30 so continuously active users are not mistakenly expired.
