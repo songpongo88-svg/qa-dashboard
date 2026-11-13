@@ -1,3 +1,4 @@
+import { sessionPolicyEnabled, authorizeActiveSession } from "./qaSingleSessionAdmin.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 const context = new AsyncLocalStorage();
@@ -88,6 +89,18 @@ export async function exchangeSparksAuthTokens(res, data) {
   setCookies(res, { access_token: accessToken, refresh_token: refreshToken, expires_in: data.expires_in });
   return actor;
 }
+// Once one-account/one-session is enforced, the independently verified
+// Supabase Sparks account must be the SAME active QA Dashboard principal.
+// A valid Sparks JWT alone must not keep a replaced browser authorized.
+async function enforceSparksQaSessionBinding(actor, req) {
+  if (!sessionPolicyEnabled()) return;
+  const { ticket } = await authorizeActiveSession(req);
+  if (String(ticket.username).toLowerCase() !== String(actor?.username || "").toLowerCase() ||
+      String(ticket.role).toLowerCase() !== String(actor?.role || "").toLowerCase()) {
+    throw failure("QA Dashboard and QA Sparks belong to different active accounts", 403,
+      "SPARKS_QA_SESSION_MISMATCH");
+  }
+}
 export function withSparksRequest(req, res, callback) {
   return context.run({ req, res, actor: null, accessToken: "" }, callback);
 }
@@ -125,6 +138,7 @@ export async function getSparksRequestActor() {
       actor = await verifySparksAccessToken(token);
       setCookies(ctx.res, session);
     }
+    await enforceSparksQaSessionBinding(actor, ctx.req);
     ctx.actor = actor;
     ctx.accessToken = token;
     return actor;
