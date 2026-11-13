@@ -9,14 +9,29 @@ const preview={
   QA_LOCAL_BRIDGE_TOKEN:token,
   QA_STANDBY_DATA_PROXY_ENABLED:'0',
 };
-let fetchCount=0,responseMode='success',readinessEnabled=false,private8790Healthy=true;
+let fetchCount=0,responseMode='success',readinessEnabled=false,newReadinessEnabled=false,private8790Healthy=true;
 const callFetch=async(url,init)=>{
   fetchCount++;
-  assert.ok([worker+'ready',worker+'summary',worker+'readiness',worker+'qa-bridge-8790-status'].includes(url));
+  assert.ok([worker+'ready',worker+'summary',worker+'readiness',worker+'qa-bridge-8790-status',worker+'qa-bridge-8790-readiness'].includes(url));
   assert.equal(init.headers.authorization,'Bearer '+token);
   assert.equal(init.method,'GET');
   assert.equal(init.redirect,'manual');
   if(responseMode==='offline')throw Error('private bridge password should not leak');
+  if(url.endsWith('/qa-bridge-8790-readiness')){
+    if(!newReadinessEnabled)return new Response('',{status:404});
+    return new Response(JSON.stringify({
+      ok:true,source:'windows-8790-inactive-replica',
+      readOnly:true,failoverReady:false,canAcceptWrites:false,firestorePrimary:true,
+      snapshot:{present:true,copied:true,candidateVerified:true,
+        sourceDocuments:2226,sourceEvaluations:582,
+        candidateEvaluations:582,datasetCount:11,withinFreshnessWindow:false},
+      remainingChecks:['source_snapshot_not_fresh',
+        'independent_live_parity_not_certified',
+        'local_login_and_roles_not_certified',
+        'qa_write_and_failback_not_certified'],
+      privateScore:'NEW_SECRET_NOT_TO_LEAK',
+    }),{status:200,headers:{'content-type':'application/json'}});
+  }
   if(url.endsWith('/qa-bridge-8790-status')){
     return new Response(JSON.stringify({ok:true,
       privateBridgeConnected:private8790Healthy,port:8790,
@@ -68,7 +83,7 @@ assert.equal(r.body.writeEnabled,false);
 assert.equal(r.body.syncBackVerified,false);
 assert.equal(r.body.currentFirestoreParity,'not_verified');
 assert.equal(r.body.dataProxyEnabled,false);
-assert.equal(fetchCount,4);
+assert.equal(fetchCount,5);
 readinessEnabled=true;
 r=await get(handler);
 assert.equal(r.body.snapshotReadiness?.documentCount,2197);
@@ -76,8 +91,19 @@ assert.equal(r.body.snapshotReadiness?.candidateEvaluations,578);
 assert.equal(r.body.snapshotReadiness?.sourceEvaluations,578);
 assert.equal(r.body.snapshotReadiness?.freshnessVerified,false);
 assert.equal(r.body.failoverEnabled,false);
+newReadinessEnabled=true;
+r=await get(handler);
+assert.equal(r.body.snapshotReadiness?.documentCount,2226);
+assert.equal(r.body.snapshotReadiness?.sourceEvaluations,582);
+assert.equal(r.body.snapshotReadiness?.candidateEvaluations,582);
+assert.equal(r.body.snapshotReadiness?.datasetCount,11);
+assert.equal(r.body.snapshotReadiness?.verifiedVia,'windows-8790-read-only');
+assert.equal(r.body.failoverEnabled,false);
+assert.equal(r.body.writeEnabled,false);
+assert.ok(!JSON.stringify(r.body).includes('NEW_SECRET_NOT_TO_LEAK'));
+newReadinessEnabled=false;
 readinessEnabled=false;
-assert.equal(fetchCount,8);
+assert.equal(fetchCount,20);
 assert.equal(r.headers['cache-control'],'no-store, max-age=0');
 assert.equal(r.headers['access-control-allow-origin'],undefined);
 assert.ok(!JSON.stringify(r.body).includes(token));
@@ -97,13 +123,13 @@ r=await get(createQaPreviewStatusHandler({
   env:{...preview,VERCEL_ENV:'production'},fetchImpl:callFetch
 }));
 assert.equal(r.code,404);
-assert.equal(fetchCount,12);
+assert.equal(fetchCount,20);
 r=await get(createQaPreviewStatusHandler({
   env:{...preview,QA_LOCAL_BRIDGE_URL:'https://evil.example/'},fetchImpl:callFetch
 }));
 assert.equal(r.code,200);
 assert.equal(r.body.bridgeStatus,'not_configured');
-assert.equal(fetchCount,12);
+assert.equal(fetchCount,20);
 responseMode='offline';
 r=await get(handler);
 assert.equal(r.code,200);
