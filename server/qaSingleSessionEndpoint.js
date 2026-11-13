@@ -55,7 +55,8 @@ export default async function handler(req, res) {
         if (result.status === "active") issueSessionCookie(res, actor, result.sessionId);
         else issueCandidateCookie(res, actor);
         return res.status(result.status === "conflict" ? 409 : 200)
-          .json({ ok: true, status: result.status, deviceLabel: result.deviceLabel || "" });
+          .json({ ok: true, status: result.status, deviceLabel: result.deviceLabel || "",
+            identity: { username: actor.username, role: actor.role } });
       }
       case "request": {
         const candidate = candidateFromRequest(req);
@@ -86,7 +87,8 @@ export default async function handler(req, res) {
         const candidate = candidateFromRequest(req);
         const result = await commitTakeover(candidate, body.pendingId);
         issueSessionCookie(res, candidate, result.sessionId);
-        return res.status(200).json({ ok: true, status: "active" });
+        return res.status(200).json({ ok: true, status: "active",
+          identity: { username: candidate.username, role: candidate.role } });
       }
       case "touch": {
         const active = await renewActiveSession(req);
@@ -102,8 +104,9 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true, ...result });
       }
       case "validate": {
-        await authorizeActiveSession(req);
-        return res.status(200).json({ ok: true, status: "active" });
+        const { ticket } = await authorizeActiveSession(req);
+        return res.status(200).json({ ok: true, status: "active",
+          identity: { username: ticket.username, role: ticket.role } });
       }
       case "logout": {
         await revokeOwnSession(req);
