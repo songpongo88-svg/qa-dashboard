@@ -8,6 +8,7 @@ type StandbyStatus={
   standby:'local-postgresql';
   standbyRole:'archive-only';
   bridgeStatus:'not_configured'|'not_reachable'|'reachable_read_only';
+  privateBridge8790Status:'not_configured'|'not_reachable'|'reachable_read_only';
   archiveStatus:'unverified'|'archived_counts_match';
   currentFirestoreParity:'not_verified';
   dataProxyEnabled:boolean;
@@ -61,7 +62,8 @@ export default function QaStandbySystemStatus(){
         data.standby!=='local-postgresql'||data.failoverEnabled!==false||
         data.writeEnabled!==false||data.syncBackVerified!==false||
         data.currentFirestoreParity!=='not_verified'||
-        !['not_configured','not_reachable','reachable_read_only'].includes(data.bridgeStatus))
+        !['not_configured','not_reachable','reachable_read_only'].includes(data.bridgeStatus)||
+        !['not_configured','not_reachable','reachable_read_only'].includes(data.privateBridge8790Status))
         throw new Error('invalid_status_response');
       setState(data);
     }catch{
@@ -71,6 +73,7 @@ export default function QaStandbySystemStatus(){
   },[loading]);
 
   const bridge=state?.bridgeStatus==='reachable_read_only';
+  const private8790=state?.privateBridge8790Status==='reachable_read_only';
   const bridgeText=state?.bridgeStatus==='reachable_read_only'
     ? 'เชื่อมถึง PostgreSQL ได้ (อ่านสถานะเท่านั้น)'
     : state?.bridgeStatus==='not_configured'
@@ -110,6 +113,16 @@ export default function QaStandbySystemStatus(){
               ? 'ตรวจยอดนำเข้าข้อมูลเก่า '+state.archivedDocuments.toLocaleString('th-TH')+' รายการ (ไม่ใช่การยืนยันข้อมูลล่าสุด)'
               : 'ยังไม่ยืนยันยอดข้อมูลสำรองผ่านเครือข่าย'}
           </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 p-3">
+          <p className="text-xs text-slate-500">ช่องทางสำรองใหม่ พอร์ต 8790</p>
+          <p className={'mt-1 text-sm font-semibold '+statusColor(private8790)}>
+            {private8790?'Cloudflare เชื่อมถึง Windows ได้ (อ่านสถานะเท่านั้น)'
+             :state?.privateBridge8790Status==='not_configured'?'ยังไม่ได้ตั้งค่า Cloudflare Worker'
+             :state?.privateBridge8790Status==='not_reachable'?'ยังไม่พบการเชื่อมต่อจาก Preview'
+             :'ยังไม่ตรวจ'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">ไม่ใช่การรับรองข้อมูลล่าสุดหรือเปิดให้บันทึกคะแนน</p>
         </div>
         <div className="rounded-2xl border border-amber-200 p-3">
           <p className="text-xs text-slate-500">การตรวจข้อมูลล่าสุดและการซิงก์กลับ</p>
