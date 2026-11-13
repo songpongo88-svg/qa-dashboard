@@ -79,7 +79,12 @@ function cookieHeader(name, value, seconds) {
 export function issueSessionCookie(res, actor, sessionId, now = Date.now()) {
   const ticket = signQaTicket({ type: "session", username: actor.username, role: actor.role,
     sessionId, issuedAt: now, expiresAt: now + TTL_MS });
-  res.setHeader("Set-Cookie", cookieHeader(COOKIE_SESSION, ticket, 1800));
+  // A successful login/takeover consumes the short-lived candidate grant.
+  // Never leave a reusable candidate ticket alongside an active session.
+  res.setHeader("Set-Cookie", [
+    cookieHeader(COOKIE_SESSION, ticket, 1800),
+    cookieHeader(COOKIE_CANDIDATE, "", 0),
+  ]);
 }
 export function issueCandidateCookie(res, actor, now = Date.now()) {
   const ticket = signQaTicket({ type: "candidate", username: actor.username,
