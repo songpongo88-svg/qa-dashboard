@@ -4,9 +4,13 @@ on:
     paths:
       - "src/sessionTakeoverPolicy.mjs"
       - "src/lib/evaluation/sessionRecoveryStore.mjs"
-      - "api/qa-session-control.js"
+      - "api/qa-single-session.js"
+      - "server/qaSingleSessionAdmin.js"
+      - "src/qaSingleSessionClient.ts"
+      - "src/QaSessionAdminPanel.tsx"
       - "server/qaFirebaseCredentials.js"
       - "scripts/test-qa-server-credentials.mjs"
+      - "scripts/test-qa-single-session-api.mjs"
       - "src/CreateEvaluationMockup.tsx"
       - "scripts/test-session-*.mjs"
       - ".github/workflows/qa-single-session-tests.yml"
@@ -25,7 +29,7 @@ jobs:
       - name: Takeover policy
         run: node scripts/test-session-takeover-policy.mjs
       - name: API fail-closed guards
-        run: node scripts/test-session-api-guards.mjs
+        run: node scripts/test-qa-single-session-api.mjs
       - name: Browser recovery isolation
         run: node scripts/test-session-recovery.mjs
       - name: Trusted QA credential validation
