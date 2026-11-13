@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T14:03:53.695Z",
-  "reason": "Reviewed staged Firebase Auth custom session binding, signed token exchange, browser cleanup and Firestore security-rule integration gates; updated rollout documentation; production flags remain disabled",
+  "reviewedAt": "2026-11-13T14:05:53.056Z",
+  "reason": "Reviewed isolated dashboard-refresh Firebase Auth test mocks for the staged signed QA session identity; runtime behavior unchanged and Production flag disabled",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -353,7 +353,7 @@
     "scripts/test-dashboard-cache.mjs": "95fbd6ac26123c89fa7fb234aae1818e9c9d0529000b5f795e5b9d17fb848a23",
     "scripts/test-dashboard-case-navigation.mjs": "1b165f2daa14903a1fefc2b058ce46c3bd443af7763788a48770396fb8ab1185",
     "scripts/test-dashboard-pending-appeal.mjs": "bb22db43bcbbeb5965c8b36643d4ac59bc2c00b94689aa912134414f5d479c91",
-    "scripts/test-dashboard-refresh.mjs": "f65befa7ace6c1da76126ba0010bf26caf310bc2e092fc0caf304d348e19c99e",
+    "scripts/test-dashboard-refresh.mjs": "887273cd613e118d5fc57cd9982845f2e6f578ae28a59f95f160c176f540a9e6",
     "scripts/test-deduction-tags.mjs": "298e3fe40f0e4b864b53243e26ce8e80e3cac1635344f886e1109d2f6e2eb6bd",
     "scripts/test-deleted-case-appeal.mjs": "efbcbb15fe2e23384a8d01af056a6d36767577f7014fbf5a014c795aacf99b40",
     "scripts/test-deploy-theme-data.mjs": "049014119d94d2d277eb641e436b00842817c8cfe6a6f51ccf2e1d94bd7cadc0",
