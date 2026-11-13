@@ -7,6 +7,10 @@ on:
       - "api/qa-single-session.js"
       - "server/qaSingleSessionAdmin.js"
       - "src/qaSingleSessionClient.ts"
+      - "src/evaluationStore.ts"
+      - "src/coachingStore.ts"
+      - "src/appealStore.ts"
+      - "scripts/test-qa-session-write-guards.mjs"
       - "src/QaSessionAdminPanel.tsx"
       - "server/qaFirebaseCredentials.js"
       - "scripts/test-qa-server-credentials.mjs"
@@ -34,3 +38,5 @@ jobs:
         run: node scripts/test-session-recovery.mjs
       - name: Trusted QA credential validation
         run: node scripts/test-qa-server-credentials.mjs
+      - name: Critical write session preflight
+        run: node scripts/test-qa-session-write-guards.mjs
