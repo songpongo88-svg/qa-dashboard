@@ -52,11 +52,26 @@ export function createQaStandbyTrustedContextFactory({
     if(action!=='list'&&(!scope?.agentName?.trim()||!month.test(scope?.monthKey||'')))
       throw blocked('scope_unverified');
 
-    const [primary,mirror,bridge,lease,approval,queue]=await Promise.all([
+    // A newly verified browser session is NOT sufficient after coordinator
+    // rotation: every request must still refer to exactly the active PG
+    // snapshot and generation. Neither value may come from request JSON.
+    const [primary,mirror,bridge,lease,approval,queue,pgState]=await Promise.all([
       primaryHealth(),mirrorProof(),bridgeProof(),coordinatorLease(),
       productionAuthorization(),
       readPool.query("SELECT status,count(*)::integer AS n FROM qa_failover_v1.outbox GROUP BY status"),
+      readPool.query("SELECT mode,generation,active_snapshot_id,source_snapshot_verified,"+
+        "write_frozen FROM qa_failover_v1.state WHERE id=1"),
     ]);
+    const state=pgState.rows?.[0];
+    if(state?.mode!=='standby'||state.source_snapshot_verified!==true||
+       state.write_frozen!==false||
+       typeof state.active_snapshot_id!=='string'||
+       state.active_snapshot_id!==actor.sourceSnapshotId||
+       state.active_snapshot_id!==mirror?.snapshotId||
+       !Number.isSafeInteger(Number(state.generation))||
+       Number(state.generation)!==actor.generation||
+       Number(state.generation)!==lease?.generation)
+      throw blocked('standby_epoch_or_snapshot_changed');
     const unresolvedConflicts=Number(queue.rows?.find(r=>r.status==='conflict')?.n||0);
     if(!Number.isSafeInteger(unresolvedConflicts)||unresolvedConflicts<0)
       throw blocked('unverified_backlog');
