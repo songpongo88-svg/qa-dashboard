@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 import { collection, doc, getDocs, getDocsFromServer, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
@@ -268,6 +269,7 @@ export async function fetchStoredCoachingRecords(options: { allowCache?: boolean
 export async function upsertStoredCoachingRecord(
   record: StoredCoachingRecord
 ) {
+  await assertTrustedQaSessionForMutation();
   const now = new Date().toISOString();
   const normalized: StoredCoachingRecord = {
     ...record,
@@ -297,6 +299,7 @@ export async function upsertStoredCoachingRecord(
 
 // Scoped application workflow. Database rules are managed separately by the existing app.
 export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, actor: CoachingAccount, accounts: CoachingAccount[], expectedUpdatedAt: string | null) {
+  await assertTrustedQaSessionForMutation();
   const target = accounts
     .filter(account => account.status !== 'Suspended' && (account.qaEvaluationTarget ?? ['Admin Live Chat', 'Virtual Rider'].includes(account.role)))
     .find(account => belongsToAgent(account, record.agentId, record.agent));
