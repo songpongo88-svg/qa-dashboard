@@ -258,6 +258,13 @@ export async function commitTakeover(candidate, pendingId) {
   await audit(candidate.username, next.sessionId, "takeover");
   return { status: "active", sessionId: next.sessionId };
 }
+export async function renewActiveSession(req) {
+  const { ticket, current } = await authorizeActiveSession(req);
+  const next = { ...current, expiresAt: new Date(Date.now() + TTL_MS).toISOString() };
+  delete next.updateTime;
+  await writeActive(ticket.username, next, current.updateTime);
+  return { sessionId: ticket.sessionId, username: ticket.username, role: ticket.role };
+}
 export async function revokeOwnSession(req) {
   const { ticket, current } = await authorizeActiveSession(req);
   await deleteActive(ticket.username, current.updateTime);
