@@ -1129,6 +1129,7 @@ async function uploadEvidenceBlobToFirebase(
   contentType: string,
   caseId: string
 ) {
+  await assertTrustedQaSessionForMutation();
   const storage = getFirebaseEvaluationStorage();
   if (!storage) throw new Error("Firebase Storage is not configured.");
 
@@ -1150,6 +1151,7 @@ export async function uploadCallRecordingFile(
   caseId: string,
   onProgress?: (percent: number) => void
 ) {
+  await assertTrustedQaSessionForMutation();
   const storage = getFirebaseEvaluationStorage();
   if (!storage) throw new Error("Firebase Storage is not configured.");
 
