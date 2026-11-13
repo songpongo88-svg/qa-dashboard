@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+<title id="title">ตา มา รถไฟ — หนังสือเรียนไทยย้อนวันวาน</title>
+<desc id="desc">ปกหนังสือเรียนสีครีมกับรถไฟย้อนยุคท่ามกลางภูเขาและต้นไม้ วาดเป็นภาพประกอบแบบหนังสือเก่า</desc>
+<defs>
+ <linearGradient id="paper" x2="0" y2="1"><stop stop-color="#fbf2d9"/><stop offset="1" stop-color="#e7d6af"/></linearGradient>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#d4e8d9"/><stop offset="1" stop-color="#f8ead0"/></linearGradient>
+ <pattern id="fibers" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M3 9h7m5 12h5" stroke="#ba9e77" opacity=".17" stroke-width="1"/></pattern>
+ <pattern id="hatch" width="14" height="14" patternUnits="userSpaceOnUse"><path d="M0 14L14 0" stroke="#8d9b89" opacity=".12"/></pattern>
+</defs>
+<rect width="1200" height="680" fill="#c1a174"/>
+<rect x="17" y="15" width="1166" height="650" rx="16" fill="url(#paper)" stroke="#7f503e" stroke-width="8"/>
+<rect x="39" y="37" width="1122" height="606" rx="9" fill="#fff8e5" stroke="#c08c5a" stroke-width="3"/>
+<rect x="54" y="52" width="1092" height="576" fill="url(#fibers)"/>
+<rect x="70" y="70" width="1060" height="540" rx="5" fill="#fbf3df" stroke="#a35e4c" stroke-width="3"/>
+<path d="M120 78v526M1076 78v526" stroke="#b86552" stroke-width="3" opacity=".6"/>
+<path d="M84 118h1030M84 554h1030" stroke="#b86552" stroke-width="2" opacity=".48"/>
+<rect x="144" y="90" width="908" height="87" rx="3" fill="#2d5b69"/>
+<path d="M152 170h891" stroke="#dfbc7c" stroke-width="5"/>
+<text x="598" y="127" text-anchor="middle" fill="#f8edcb" font-size="26" font-weight="700" font-family="Kanit, Tahoma, sans-serif" letter-spacing="3">หนังสือเรียนภาพ · ไทยย้อนวันวาน</text>
+<text x="598" y="164" text-anchor="middle" fill="#fceec8" font-size="50" font-weight="800" font-family="Kanit, Tahoma, sans-serif">ตา มา รถไฟ</text>
+<rect x="145" y="197" width="907" height="328" rx="2" fill="url(#sky)" stroke="#a88c66" stroke-width="3"/>
+<circle cx="900" cy="258" r="51" fill="#dfbd75" opacity=".8"/>
+<path d="M145 416L295 301l128 103 148-130 170 153 144-115 167 104v91H145z" fill="#a3b6a6"/>
+<path d="M145 449L278 373l174 91 113-70 161 70 147-86 179 76v56H145z" fill="#6e9d96"/>
+<path d="M145 478q124-59 240 0t240-3 205-5 222 0v55H145z" fill="#d5d8ab"/>
+<path d="M145 505h907" stroke="#5f7e76" stroke-width="7"/>
+<path d="M154 512h903" stroke="#564c43" stroke-width="11"/>
+<path d="M153 535h899" stroke="#61554b" stroke-width="9"/>
+<g stroke="#78624b" stroke-width="5"><path d="M170 507l-12 29m64-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29m66-29-12 29"/></g>
+<g stroke="#375a56" stroke-width="6" stroke-linecap="round">
+ <path d="M218 441v-112m-22 39q22-34 44 0m-52 28q31-45 61 0"/>
+ <path d="M968 438v-117m-26 34q26-39 50 0m-59 30q36-45 72 0"/>
+</g>
+<g fill="#4f7865"><circle cx="216" cy="328" r="29"/><circle cx="196" cy="366" r="30"/><circle cx="238" cy="358" r="33"/><circle cx="963" cy="321" r="37"/><circle cx="987" cy="361" r="34"/><circle cx="941" cy="367" r="35"/></g>
+<!-- Locomotive -->
+<g transform="translate(331 331)">
+ <path d="M40 144h420" stroke="#353d3c" stroke-width="9"/>
+ <rect x="5" y="80" width="275" height="67" rx="13" fill="#3f7d83" stroke="#2e4b54" stroke-width="6"/>
+ <path d="M-3 130l-28 16 35 10" fill="#9d5945" stroke="#2e4b54" stroke-width="5"/>
+ <rect x="80" y="27" width="117" height="66" rx="6" fill="#b96249" stroke="#2e4b54" stroke-width="6"/>
+ <rect x="92" y="37" width="42" height="37" rx="2" fill="#d3e3d6" stroke="#2e4b54" stroke-width="4"/>
+ <rect x="143" y="37" width="41" height="37" rx="2" fill="#d3e3d6" stroke="#2e4b54" stroke-width="4"/>
+ <rect x="57" y="11" width="164" height="15" rx="4" fill="#2e4b54"/>
+ <rect x="12" y="92" width="48" height="39" rx="7" fill="#ddb576" stroke="#2e4b54" stroke-width="5"/>
+ <path d="M25 96V56h31v40" fill="#354d52" stroke="#2e4b54" stroke-width="5"/>
+ <path d="M19 55h44l-9-13H29z" fill="#b65c47" stroke="#2e4b54" stroke-width="4"/>
+ <path d="M255 127h42l-9 20h-23z" fill="#cd9d62" stroke="#2e4b54" stroke-width="4"/>
+ <circle cx="68" cy="146" r="30" fill="#ddba79" stroke="#2e4b54" stroke-width="8"/>
+ <circle cx="68" cy="146" r="10" fill="#2e4b54"/>
+ <circle cx="178" cy="146" r="37" fill="#ddba79" stroke="#2e4b54" stroke-width="8"/>
+ <circle cx="178" cy="146" r="12" fill="#2e4b54"/>
+ <circle cx="271" cy="145" r="26" fill="#ddba79" stroke="#2e4b54" stroke-width="7"/>
+ <circle cx="271" cy="145" r="8" fill="#2e4b54"/>
+ <path d="M68 146l110 0 93-1" stroke="#b65c47" stroke-width="7"/>
+ <path d="M55 16c-25-33-9-42 4-51 19-12-9-26 12-40" fill="none" stroke="#95a09b" stroke-width="15" stroke-linecap="round" opacity=".67"/>
+ <path d="M94 6c-16-25-5-30 5-42" fill="none" stroke="#9baba5" stroke-width="12" stroke-linecap="round" opacity=".55"/>
+ <rect x="309" y="63" width="139" height="81" rx="8" fill="#c68f60" stroke="#2e4b54" stroke-width="6"/>
+ <path d="M315 79h123" stroke="#eed8ad" stroke-width="6"/>
+ <rect x="327" y="90" width="36" height="32" fill="#e2e4ca" stroke="#2e4b54" stroke-width="4"/>
+ <rect x="377" y="90" width="36" height="32" fill="#e2e4ca" stroke="#2e4b54" stroke-width="4"/>
+ <circle cx="340" cy="145" r="22" fill="#e5c987" stroke="#2e4b54" stroke-width="7"/>
+ <circle cx="419" cy="145" r="22" fill="#e5c987" stroke="#2e4b54" stroke-width="7"/>
+</g>
+<g fill="#b8684b"><path d="M177 473l9-19 7 19zm772-12 8-22 12 22z"/></g>
+<rect x="148" y="568" width="904" height="28" rx="2" fill="#eee2c6"/>
+<text x="600" y="588" text-anchor="middle" fill="#48666b" font-size="20" font-weight="600" font-family="Kanit, Tahoma, sans-serif" letter-spacing="1">อ่าน · เขียน · เรียนรู้ · เดินทางด้วยกัน</text>
+</svg>

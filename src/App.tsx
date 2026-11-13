@@ -341,6 +341,7 @@ type QaThemeId =
   | "emerald"
   | "midnight"
   | "graphite"
+  | "textbook-train"
   | "kitty-pink"
   | "doraemon-blue"
   | "honey-bear"
@@ -390,6 +391,7 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "emerald", label: "Emerald Mint", swatches: ["#0f8a78", "#115e59", "#5ee0b5"] },
   { id: "midnight", label: "Midnight Violet", swatches: ["#43308a", "#22164f", "#8b72ff"] },
   { id: "graphite", label: "Graphite Mono", swatches: ["#3f4653", "#20242c", "#8d96a5"] },
+  { id: "textbook-train", label: "ตา มา รถไฟ · หนังสือเรียน", swatches: ["#315e70", "#a65340", "#f1e4c5"], sceneImage: "/textbook-theme/cover.svg", description: "หนังสือเรียนไทยย้อนวันวาน · รถไฟ · กระดาษบรรทัด" },
   { id: "kitty-pink", label: "Hello Kitty", swatches: ["#f472b6", "#be185d", "#fbcfe8"], patternImage: "/theme-kitty-pink.png", description: "Hello Kitty · โบว์และหัวใจ" },
   { id: "doraemon-blue", label: "Doraemon", swatches: ["#38bdf8", "#0369a1", "#facc15"], patternImage: "/theme-doraemon-blue.png", description: "Doraemon · กระดิ่ง เมฆ และดาว" },
   { id: "honey-bear", label: "Honey Bear", swatches: ["#fbbf24", "#92400e", "#fde68a"], patternImage: "/theme-honey-bear.png", description: "หมีน้ำผึ้ง · ผึ้งและดอกไม้" },
@@ -3808,7 +3810,7 @@ function ThemePickerModal({
                 }`}
               >
                 <span className={`relative flex min-w-[72px] shrink-0 items-center justify-center gap-1 ${theme.patternImage ? "" : "qa-color-preview"}`} aria-hidden="true">
-                  {!theme.patternImage && <span className="qa-color-preview-window"><span className="qa-color-preview-sidebar" /><span className="qa-color-preview-content"><i className="qa-color-preview-heading" /><span><i /><i /></span><i className="qa-color-preview-action" /></span></span>}
+                  {!theme.patternImage && !theme.sceneImage && <span className="qa-color-preview-window"><span className="qa-color-preview-sidebar" /><span className="qa-color-preview-content"><i className="qa-color-preview-heading" /><span><i /><i /></span><i className="qa-color-preview-action" /></span></span>}
                   {theme.patternImage ? (
                     <span
                       className="h-12 w-[72px] rounded-xl border border-white/80 bg-center shadow-sm"
@@ -3818,6 +3820,10 @@ function ThemePickerModal({
                         backgroundSize: "92px 92px",
                       }}
                     />
+                  ) : theme.sceneImage ? (
+                    <span className="h-12 w-[88px] overflow-hidden rounded-xl border border-[#d7c39a] bg-[#f8f0db] shadow-sm">
+                      <img src={theme.sceneImage} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    </span>
                   ) : theme.swatches.map((color, index) => (
                     <span
                       key={color}

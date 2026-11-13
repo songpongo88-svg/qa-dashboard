@@ -1,0 +1,165 @@
+/* ตา มา รถไฟ — Thai primary-school textbook art direction.
+   Pure appearance: no DOM mutations, no scoring/data/session changes. */
+html:root[data-qa-theme="textbook-train"] {
+  --qa-theme-50:#fcf7eb;
+  --qa-theme-100:#f7edd4;
+  --qa-theme-200:#ead7a8;
+  --qa-theme-300:#d8bd8a;
+  --qa-theme-400:#b88f5f;
+  --qa-theme-500:#53818b;
+  --qa-theme-600:#315e70;
+  --qa-theme-700:#274e60;
+  --qa-theme-800:#294354;
+  --qa-theme-900:#253b4d;
+  --qa-theme-950:#1a2b3b;
+  --qa-theme-highlight:#a65340;
+  --textbook-paper:#fcf7e8;
+  --textbook-ink:#294354;
+  --textbook-red:#a65340;
+  --textbook-rule:rgba(69,103,118,.12);
+  --textbook-edge:#e1cc9d;
+}
+html:root[data-qa-theme="textbook-train"] body {
+  background-color:#f5ecd7;
+}
+html:root[data-qa-theme="textbook-train"] #root {
+  color:var(--textbook-ink);
+  background:
+    radial-gradient(ellipse at 85% 10%,rgba(224,183,108,.19),transparent 48%),
+    repeating-linear-gradient(0deg,transparent 0 35px,var(--textbook-rule) 36px,transparent 37px),
+    linear-gradient(110deg,#f2e5c8 0%,#fcf8ec 46%,#f5ecd7 100%) !important;
+}
+html:root[data-qa-theme="textbook-train"] [data-qa-theme-surface-v1="true"] {
+  background:linear-gradient(150deg,#faf4e5,#f8efd9) !important;
+}
+/* School-book cover, warm illustrated train, red rule and solid typography. */
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] {
+  position:relative;
+  background:
+    linear-gradient(90deg,rgba(34,67,82,.98),rgba(38,81,91,.94)),
+    url('/textbook-theme/cover.svg') center/cover !important;
+  border-bottom:6px solid #b96d4c;
+  box-shadow:0 10px 25px rgba(72,59,38,.16),inset 0 -2px #e8c083 !important;
+  color:#fff6df !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"]::before {
+  content:"";
+  position:absolute;
+  z-index:0;
+  right:2.2%;
+  bottom:-10px;
+  width:180px;
+  height:104px;
+  background:url('/textbook-theme/engine.svg') center/contain no-repeat;
+  opacity:.42;
+  pointer-events:none;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative {
+  position:relative;
+  z-index:1;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] .text-violet-200,
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] .text-violet-100\/90 {
+  color:#f3dbab !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] .rounded-\[28px\] {
+  background:rgba(249,236,201,.12);
+  border-color:rgba(247,218,169,.43);
+}
+/* School-bag navy sidebar: retain navigation and its original click areas. */
+html:root[data-qa-theme="textbook-train"] .qa-global-sidebar-v39 {
+  background:linear-gradient(167deg,#283e50 0%,#315b65 58%,#234b57 100%) !important;
+  border-right:5px solid #d2b378 !important;
+  box-shadow:5px 0 22px rgba(37,50,51,.15) !important;
+  isolation:isolate;
+}
+html:root[data-qa-theme="textbook-train"] .qa-global-sidebar-v39::after {
+  content:"";
+  position:absolute;
+  left:12px;
+  right:12px;
+  bottom:10px;
+  height:88px;
+  background:url('/textbook-theme/engine.svg') center bottom/contain no-repeat;
+  opacity:.12;
+  pointer-events:none;
+  z-index:0;
+}
+html:root[data-qa-theme="textbook-train"] .qa-sidebar-nav-v39 button:not([aria-current="page"]):not([aria-disabled="true"]) {
+  color:#f7eed6;
+}
+html:root[data-qa-theme="textbook-train"] .qa-sidebar-nav-v39 button:not([aria-current="page"]):hover {
+  background:rgba(243,214,165,.14) !important;
+}
+html:root[data-qa-theme="textbook-train"] .qa-sidebar-nav-v39 button[aria-current="page"] {
+  color:#284958 !important;
+  background:#f5e8c7 !important;
+  border-left:4px solid #ba654c;
+  box-shadow:0 3px 11px rgba(18,34,40,.18);
+}
+html:root[data-qa-theme="textbook-train"] .qa-sidebar-nav-v39 .qa-sidebar-section-label {
+  color:#ecd19a !important;
+  letter-spacing:.035em;
+}
+/* Worksheet tabs are clear and distinct, without replacing or hiding a tab. */
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 {
+  background:linear-gradient(180deg,#efe4c9,#e9dcc0) !important;
+  border-bottom:2px solid #d4bd91 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 button[aria-selected="true"],
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 button[aria-current="page"] {
+  border-color:#bd825f !important;
+  background:#fff8e8 !important;
+  color:#2a5060 !important;
+}
+/* Paper cards, lined document headers and quiet, readable reports. */
+html:root[data-qa-theme="textbook-train"] #root :is(
+  [data-dashboard-metric],
+  [data-case-information-unified],
+  [data-qa-dashboard-control-center-v163],
+  .mc-card,
+  .mc-workbench,
+  .mc-roster,
+  .knowledge-card
+) {
+  background:#fffcf3 !important;
+  border-color:#dfcba8 !important;
+  box-shadow:0 3px 11px rgba(73,68,51,.07),inset 0 1px 0 #fff !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-dashboard-metric] {
+  border-top:4px solid #b66a50 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root :is(.mc-header,.mc-period,.mc-list-head) {
+  background:#efe5d0 !important;
+  border-color:#d9c49b !important;
+  color:#294354 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root :is(thead,thead tr,thead th) {
+  background-color:#345765 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root thead th {
+  color:#fff3d6 !important;
+  border-color:#64818a !important;
+}
+html:root[data-qa-theme="textbook-train"] #root tbody tr:hover {
+  background-color:rgba(237,222,183,.23);
+}
+html:root[data-qa-theme="textbook-train"] #root :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+  border-color:#d9c49b;
+  caret-color:#315e70;
+}
+html:root[data-qa-theme="textbook-train"] #root :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea):focus-visible {
+  outline-color:#497c85;
+  border-color:#497c85;
+}
+/* The picker itself retains its usual layout, with an illustrated live preview. */
+html:root[data-qa-theme="textbook-train"] #root [data-qa-color-option="textbook-train"] {
+  border-color:#d5b783;
+  background:#fcf3dd;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-qa-color-option="textbook-train"][aria-pressed="true"] {
+  border:2px solid #a65340;
+}
+@media (max-width:640px) {
+  html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"]::before {width:112px;height:68px;opacity:.2}
+}

@@ -8,6 +8,7 @@ import "./index.css";
 import "./cartoonTheme.css";
 import "./seasonalTheme.css";
 import "./weekdayThemeEditorial.css";
+import "./textbookTheme.css";
 import "./festivalThemes/festival.css";
 import "./seasonalThemeRuntime2";
 import "./deleteUserDirectoryPatch";
