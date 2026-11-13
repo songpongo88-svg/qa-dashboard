@@ -4,12 +4,12 @@ import {
   clearSessionCookie, candidateFromRequest, authorizeActiveSession,
   activateNewSession, requestTakeover, getTakeoverForOldBrowser,
   acknowledgeTakeover, commitTakeover, revokeOwnSession,
-  saveOwnedDraft, fetchOwnedDraft, renewActiveSession,
+  saveOwnedDraft, fetchOwnedDraft, clearOwnedDraft, renewActiveSession,
 } from "../server/qaSingleSessionAdmin.js";
 
 const actions = new Set([
   "login", "request", "pending", "ack", "commit",
-  "validate", "touch", "logout", "draft-save", "draft-read",
+  "validate", "touch", "logout", "draft-save", "draft-read", "draft-clear",
 ]);
 function validRequestBody(req) {
   if (!req.body) return {};
@@ -66,6 +66,10 @@ export default async function handler(req, res) {
       }
       case "draft-save": {
         const result = await saveOwnedDraft(req, body.documentKey, body.revision, body.snapshot);
+        return res.status(200).json({ ok: true, ...result });
+      }
+      case "draft-clear": {
+        const result = await clearOwnedDraft(req, body.documentKey);
         return res.status(200).json({ ok: true, ...result });
       }
       case "draft-read": {
