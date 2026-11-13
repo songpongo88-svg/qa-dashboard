@@ -4,6 +4,7 @@
 // This script is NOT called from browser/Preview or production API.
 import {pathToFileURL} from 'node:url';
 import {captureQaFirestorePointInTime} from '../server/qaFirestoreRestSnapshot.js';
+import {createQaSourceReadBudget} from '../server/qaSourceReadBudget.js';
 import {stageQaFirestoreExport} from '../server/qaLiveMirrorStage.js';
 import {materializeQaStandbyEvaluationCandidates} from '../server/qaStandbyCandidateMaterializer.js';
 import {validateLocalQaConnectionString} from '../server/qaLocalBridgeServer.js';
@@ -31,6 +32,12 @@ export async function runQaLiveSnapshotStage({
      maxDocumentReads>20000||!Number.isSafeInteger(maxApiRequests)||
      maxApiRequests<11||maxApiRequests>200)
     throw new Error('snapshot_read_budget_invalid');
+  const dailyDocumentLimit=Number(env.QA_SOURCE_DAILY_DOCUMENT_CAP||6000);
+  const dailyRequestLimit=Number(env.QA_SOURCE_DAILY_REQUEST_CAP||120);
+  if(!Number.isSafeInteger(dailyDocumentLimit)||dailyDocumentLimit<11||
+     dailyDocumentLimit>20000||!Number.isSafeInteger(dailyRequestLimit)||
+     dailyRequestLimit<11||dailyRequestLimit>500)
+    throw new Error('source_daily_budget_invalid');
   const pg=pgModule||(await import('pg')).default;
   const pool=new pg.Pool({
     // One dedicated advisory-lock connection + one snapshot stage connection.
@@ -50,7 +57,8 @@ export async function runQaLiveSnapshotStage({
       " to_regclass('qa_failover_v1.live_snapshot_batches') IS NOT NULL AS batches,"+
       " to_regclass('qa_failover_v1.live_snapshot_rows') IS NOT NULL AS rows,"+
       " to_regclass('qa_failover_v1.live_candidate_evaluations') IS NOT NULL AS candidates,"+
-      " to_regclass('qa_failover_v1.live_candidate_audit') IS NOT NULL AS audit"
+      " to_regclass('qa_failover_v1.live_candidate_audit') IS NOT NULL AS audit,"+
+      " to_regclass('qa_failover_v1.source_read_budget_daily') IS NOT NULL AS source_budget"
     )).rows?.[0];
     if(permission?.role!=='qa_snapshot_importer')
       throw new Error('postgres_dedicated_importer_required');
@@ -58,6 +66,8 @@ export async function runQaLiveSnapshotStage({
       throw new Error('postgres_import_connection_read_only');
     if(!permission.batches||!permission.rows||!permission.candidates||!permission.audit)
       throw new Error('postgres_snapshot_tables_not_installed');
+    if(permission.source_budget!==true)
+      throw new Error('postgres_source_budget_ledger_not_installed');
     const privilege=(await pool.query(
       "SELECT has_table_privilege(current_user,'qa_failover_v1.state','SELECT') AS state,"+
       " (has_table_privilege(current_user,'qa_failover_v1.live_snapshot_batches','INSERT')"+
@@ -68,7 +78,10 @@ export async function runQaLiveSnapshotStage({
       " (has_table_privilege(current_user,'qa_failover_v1.live_candidate_evaluations','INSERT')"+
       " AND has_table_privilege(current_user,'qa_failover_v1.live_candidate_evaluations','SELECT')) AS candidates,"+
       " (has_table_privilege(current_user,'qa_failover_v1.live_candidate_audit','INSERT')"+
-      " AND has_table_privilege(current_user,'qa_failover_v1.live_candidate_audit','SELECT')) AS audit"
+      " AND has_table_privilege(current_user,'qa_failover_v1.live_candidate_audit','SELECT')) AS audit,"+
+      " (has_table_privilege(current_user,'qa_failover_v1.source_read_budget_daily','SELECT')"+
+      " AND has_table_privilege(current_user,'qa_failover_v1.source_read_budget_daily','INSERT')"+
+      " AND has_table_privilege(current_user,'qa_failover_v1.source_read_budget_daily','UPDATE')) AS source_budget"
     )).rows?.[0];
     if(!privilege||Object.values(privilege).some(value=>value!==true))
       throw new Error('postgres_import_permission_missing');
@@ -105,6 +118,10 @@ export async function runQaLiveSnapshotStage({
           throw new Error('firestore_snapshot_recent_copy_exists');
       }
       console.log('QA_SOURCE_CAPTURE_LOCK=ACQUIRED_NO_CONCURRENT_SCAN');
+      const budget=createQaSourceReadBudget({
+        client:lease,projectId:env.QA_FIRESTORE_PROJECT_ID,
+        dailyDocumentLimit,dailyRequestLimit,
+      });
     // Capture and verify the complete pinned Firestore source BEFORE any local
     // schema modification. Quota/auth/network failure must leave PostgreSQL
     // unchanged, including its additive stage tables.
@@ -112,6 +129,7 @@ export async function runQaLiveSnapshotStage({
       projectId:env.QA_FIRESTORE_PROJECT_ID,
       accessToken:env.QA_FIRESTORE_OAUTH_ACCESS_TOKEN,
       fetchImpl,maxDocumentReads,maxApiRequests,
+      beforeRequest:request=>budget.reserve(request),
     });
     // Tables are already installed by the guarded admin installer.
     // No schema changes, no original archive modifications, no role changes.
@@ -123,7 +141,9 @@ export async function runQaLiveSnapshotStage({
     console.log('QA_SOURCE_READ_ESTIMATE='+captured.readBudgetReceipt.documentReadEstimate);
     console.log('QA_SOURCE_API_REQUESTS='+captured.readBudgetReceipt.apiRequests);
     console.log('QA_SOURCE_READ_BUDGET='+maxDocumentReads);
-    console.log('QA_SOURCE_BUDGET_SCOPE=ONE_RUN_AND_24H_COMPLETED_COPY_GUARD');
+    console.log('QA_SOURCE_BUDGET_SCOPE=DURABLE_UTC_DAY_PLUS_24H_COPY_GUARD');
+    console.log('QA_SOURCE_RESERVATION_CAP_DAILY='+dailyDocumentLimit);
+    console.log('QA_SOURCE_REQUEST_CAP_DAILY='+dailyRequestLimit);
     // Convert the copy to immutable, app-shaped evaluation candidates in the
     // SAME local database. Never touch the active QA evaluation table.
     const candidate=await materializeQaStandbyEvaluationCandidates({
@@ -158,6 +178,8 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
       'firestore_quota_or_permission_blocked',
       'firestore_source_unreachable','firestore_source_unverified',
       'snapshot_read_budget_invalid','firestore_snapshot_read_budget_exhausted',
+      'source_daily_budget_invalid','source_daily_budget_exhausted',
+      'source_daily_budget_storage_unavailable','source_daily_budget_receipt_invalid',
       'firestore_snapshot_capture_already_running',
       'firestore_snapshot_recent_copy_exists',
       'firestore_snapshot_previous_source_invalid',
