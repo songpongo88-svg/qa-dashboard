@@ -19,6 +19,10 @@ try{
     'SELECT active_snapshot_id FROM qa_failover_v1.state WHERE id=1'
   )).rows[0].active_snapshot_id;
   assert.ok(oldId);
+  // A newer source is mandatory even when both copies are within freshness.
+  await pool.query('UPDATE qa_failover_v1.live_snapshot_batches'+
+    ' SET source_exported_at=$2 WHERE snapshot_id=$1',
+    [oldId,new Date(Date.now()-120_000).toISOString()]);
   const before=(await pool.query('SELECT evaluation_id,record FROM qa_failover_v1.evaluations'+
     ' ORDER BY evaluation_id')).rows;
   const preTime=new Date(Date.now()-30_000).toISOString();
@@ -67,6 +71,12 @@ try{
     [next,new Date(Date.now()-3600_000).toISOString()]);
   await assert.rejects(refreshQaInactiveReplica({pool,snapshotId:next}),
     denied('inactive_refresh_snapshot_stale'));
+  await sameState();
+  await pool.query('UPDATE qa_failover_v1.live_snapshot_batches'+
+    ' SET source_exported_at=$2 WHERE snapshot_id=$1',
+    [next,new Date(Date.now()-180_000).toISOString()]);
+  await assert.rejects(refreshQaInactiveReplica({pool,snapshotId:next}),
+    denied('inactive_refresh_source_not_newer'));
   await sameState();
   await pool.query('UPDATE qa_failover_v1.live_snapshot_batches'+
     ' SET source_exported_at=$2 WHERE snapshot_id=$1',
