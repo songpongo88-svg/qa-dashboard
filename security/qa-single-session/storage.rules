@@ -1,0 +1,35 @@
+// STAGING-ONLY STORAGE RULESET FOR DEMO/EMULATOR. NEVER DEPLOY TO LIVE.
+// Storage Rules CAN read the default Firestore database's active-session doc.
+// Using firestore.get() consumes Firestore read quota; assess usage first.
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function sessionPath() {
+      return /databases/(default)/documents/qa_single_session_active/$(request.auth.token.qa_username);
+    }
+    function qaIdentity() {
+      return request.auth != null
+        && request.auth.token.qa_username is string
+        && request.auth.token.qa_session_id is string
+        && request.auth.token.qa_role is string
+        && request.auth.uid == "qa-" + request.auth.token.qa_username;
+    }
+    function currentQaSession() {
+      return qaIdentity()
+        && firestore.exists(sessionPath())
+        && firestore.get(sessionPath()).data.sessionId == request.auth.token.qa_session_id
+        && firestore.get(sessionPath()).data.role == request.auth.token.qa_role
+        && firestore.get(sessionPath()).data.expiresAtEpochMs is int
+        && request.time < timestamp.value(firestore.get(sessionPath()).data.expiresAtEpochMs);
+    }
+    match /qa-evaluation-evidence/{caseId}/{fileName} {
+      allow read: if currentQaSession();
+      allow create, update: if currentQaSession()
+        && request.resource.size < 100 * 1024 * 1024;
+      allow delete: if currentQaSession();
+    }
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
