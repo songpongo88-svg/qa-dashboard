@@ -4260,6 +4260,7 @@ export default function App() {
   };
 
   const activateUserSession = async (user: CurrentUser, verifiedPassword = "", serverAlreadyActive = false) => {
+    let trustedSessionActivated = false;
     try {
       if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
         // Never create a browser-only Firebase session until the server proves
@@ -4270,6 +4271,7 @@ export default function App() {
               username: user.username, password: verifiedPassword,
               deviceLabel: navigator.userAgent.includes("Edg/") ? "Microsoft Edge" : "Google Chrome / Browser",
             });
+        trustedSessionActivated = verification.status === "active";
         if (!matchesTrustedQaIdentity(user, verification)) {
           throw new Error("Trusted QA identity does not match browser user");
         }
@@ -4303,6 +4305,12 @@ export default function App() {
       setCurrentUser(authenticatedUser);
       return authenticatedUser;
     } catch (error) {
+      // If the local Firebase workspace fails AFTER a trusted login/takeover,
+      // release the newly issued server session rather than strand the account.
+      if (QA_SINGLE_SESSION_CLIENT_ENABLED && trustedSessionActivated) {
+        try { await qaServerSessionRequest("logout"); }
+        catch (cleanupError) { console.warn("QA session rollback unavailable", cleanupError); }
+      }
       console.error("Secure session creation failed", error);
       setLoginError("Unable to create a secure session. Please try signing in again.");
       return null;
