@@ -4,6 +4,8 @@ import worker from '../cloudflare/qa-standby-vpc-worker.mjs';
 
 const token='qa-private-'+('x'.repeat(60));
 const hash=createHash('sha256').update(token).digest('hex');
+const archiveToken='qa-archive-'+('z'.repeat(50));
+const archiveHash=createHash('sha256').update(archiveToken).digest('hex');
 const session='qa_editor-8c11937f-01ab-4455-b6f2-620fb73e3e44';
 let calls=[],status=200;
 let response={
@@ -12,11 +14,12 @@ let response={
 };
 const env={
   QA_EDGE_DATA_ENABLED:'1',
-  QA_EDGE_BEARER_SHA256:hash,
-  QA_PRIVATE_HTTP_VPC:{
+  QA_EDGE_BEARER_SHA256:archiveHash,
+  QA_EDGE_DATA_BEARER_SHA256:hash,
+  QA_PRIVATE_DATA_VPC:{
     async fetch(url,request){
       calls.push({url,request});
-      assert.ok(url.startsWith('http://127.0.0.1:8788/v1/qa/evaluations'));
+      assert.ok(url.startsWith('http://127.0.0.1:8790/v1/qa/evaluations'));
       assert.equal(request.headers.authorization,'Bearer '+token);
       assert.equal(request.headers['x-qa-user-session'],session);
       return new Response(JSON.stringify(response),{
@@ -38,6 +41,8 @@ await rejected(await call(undefined,{headers:auth},{...env,QA_EDGE_DATA_ENABLED:
 assert.equal(calls.length,0);
 await rejected(await call(),403);
 await rejected(await call(undefined,{headers:{...auth,authorization:'Bearer wrong'}}),403);
+await rejected(await call(undefined,{headers:{...auth,authorization:'Bearer '+archiveToken}}),403);
+await rejected(await call(undefined,{headers:auth},{...env,QA_EDGE_DATA_BEARER_SHA256:archiveHash}),503);
 await rejected(await call(undefined,{headers:{...auth,origin:'https://other.example'}}),403);
 await rejected(await call(undefined,{headers:{authorization:'Bearer '+token}}),403);
 await rejected(await call('/v1/qa/evaluations/../users',{headers:auth}),404);
@@ -81,5 +86,5 @@ assert.equal(r.status,403);
 assert.ok(!(await r.text()).includes('PRIVATE_DB_CONNECTION_STRING_MUST_NOT_LEAK'));
 status=200;
 response={ok:true,source:'local-postgres-standby',dataStatus:'verified-snapshot',rows:[]};
-await rejected(await call(undefined,{headers:auth},{...env,QA_PRIVATE_HTTP_VPC:null}),503);
+await rejected(await call(undefined,{headers:auth},{...env,QA_PRIVATE_DATA_VPC:null}),503);
 console.log('PASS QA VPC data: disabled by default, private-only session + token, safe GET/POST, idempotency, body caps, no CORS, error redaction');
