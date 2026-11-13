@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T09:51:21.325Z",
-  "reason": "Reviewed candidate cookie revocation and upload mutation checks for draft-saving session feature. QA Single Active Session still disabled in Production; no Firebase Storage server authorization yet.",
+  "reviewedAt": "2026-11-13T09:53:40.275Z",
+  "reason": "Reviewed server-side active-session gate for Google Drive uploads and regression tests. Firebase Storage and full QA core write enforcement still needed before enabling Single Active Session.",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation",
@@ -34,7 +34,7 @@
     "api/cron/qa-lottery.js": "b902239b21fb739b0001cfea8cb24deb5286897c235eb9ca6d6df6fc67043239",
     "api/cron/sparks-profile-reconcile.js": "36f32648546ed1ab0b710a2e0434bc4cbd48ccaabe2e156eae03bea3f269fb83",
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
-    "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
+    "api/google-drive-upload.js": "86bb44fa50c483c5f868141835db5765723d603ae29a538fa2a40efbd00f59d7",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
     "api/sparks-admin.js": "37c8e33fb996148b66e9d9102dfc8e4a44f72886d7e8ce621dd779b8a8a5ca5e",
     "api/sparks-auth.js": "afd5a4e3bb60fce3fd72c0224f1d3c85ea99774ce6ff6f85c8d1959396b9b726",
@@ -119,7 +119,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "33dfbe53435bf259f5f585f9012f830cf685bb3f5c89f9479b61432c0bd50c7a",
+    "package.json": "eea2b9092228b474fd0e06c63995e700742e4aa4cb1a530574ae210002316e34",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -639,7 +639,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "3f8eea1c35debe4aa3b4c7f7ec477d6c3693be4ed5cec11de901e93a978b9734",
+    "src/knowledge/manual.json": "3918cd74be3939d9e4e69a8972db719765584df7fa7644c57b8f9b9250ae7db9",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -786,6 +786,7 @@
     "scripts/test-qa-session-write-guards.mjs": "7530c59f9bdec86571cf26e06da90c7b5d9cbe7b1cf5948ac09e805717b78f5c",
     "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7",
     "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a",
-    "server/qaSingleSessionEndpoint.js": "1e124d9995dd99ad1beba3b2fdee033d8d9309e96643b83bd8a58062c9c1457a"
+    "server/qaSingleSessionEndpoint.js": "1e124d9995dd99ad1beba3b2fdee033d8d9309e96643b83bd8a58062c9c1457a",
+    "scripts/test-qa-upload-session-gate.mjs": "1c7bb0d1bea7a9a4a68676eab2a5070c81c49d5409fd3e26cb60a7ba96d3e5c6"
   }
 }
