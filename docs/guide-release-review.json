@@ -1,13 +1,14 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T10:33:00.073Z",
-  "reason": "Reviewed staged session preflights for Admin users/roles/settings, password reset, profile history/photos, announcements and monthly signatures; Firestore rules server enforcement still pending",
+  "reviewedAt": "2026-11-13T10:38:31.055Z",
+  "reason": "Reviewed QA single-session staged preflight across account Admin, announcements, signatures, profile, password reset approval; legacy username server login and anonymous password recovery; Firebase Rules and Sparks remain outstanding release gates.",
   "contentChanged": true,
   "reviewedChapters": [
     "administration",
-    "signatures",
     "evaluation",
-    "coaching"
+    "coaching",
+    "signatures",
+    "login-log"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -24,7 +25,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "09dcf8f62a780df37aa2bb453d79f97340702f6d739eee01c8a952075b571027",
+    ".github/workflows/qa-single-session-tests.yml": "b3ded03ffd2058ca9cb54d4ae5b4da1d88d0a812ac65c4c5eef5d9ba5c8c0a46",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -119,7 +120,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "b739f233dda5d0c207b2e884b8eaa6dd9b57937068be3e96ecc0af0deb7951b4",
+    "package.json": "2fea32e7bc11a4859c0874b92facb9d60b950c7d360afa873cf53cf883b43fa9",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -448,7 +449,7 @@
     "server/fruitMatchService.js": "0287fdb714a466dc8ce79b8c08316923a040a376c1cd93768cf8fdf509f9743a",
     "server/hiddenTreasureService.js": "73dc24a5438a24a090011d744f1e39d7cc6946d8cd0cecbf9f10c50bbe70eee3",
     "server/qaAutoPassService.js": "928729059a4471a3284cb111de53e3490ecef05c423d21e4e8cb79363cd882e5",
-    "server/qaFirebaseCredentials.js": "7582c90b769bb69741389223909095a3621ef34add7772ae0a46df07fa6ab481",
+    "server/qaFirebaseCredentials.js": "5c9f8337c412597a80d82e26ed0de53f32ba421862e68e40e1db1ebb2438be17",
     "server/qaLotteryService.js": "5f23b0561fd0f22874e3d74dd0aafa1d59a3685a455fbb1e21326e829760bac4",
     "server/qaRewardsService.js": "c8b59cad5f709c4a464f262793f7a0153ed959aaca7fec0fef4e6e3906d7a822",
     "server/qaSingleSessionAdmin.js": "1011653491a6dea5d2097ca0a5e6523a78fd43b7557d2af0a26f3f2d69bb221a",
@@ -639,7 +640,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "a01cac0b8faf95d2cf16f6319f16bd47cdea554cd0558a06bfce592964381ae0",
+    "src/knowledge/manual.json": "9fc2acb60dc44cd8550d043f011e67f6dbdab80dddd21770bacc7ce82d0b1a03",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -691,7 +692,7 @@
     "src/monthlyResultLockStore.ts": "a24dda3e170db090d3a9d0bcb5ea7dba96a1bf68d0fd3430824f645f0dbb9e7b",
     "src/officialPdf.ts": "3efdeea4304b590d4b1d33480c62a72725a15cf36c628db6ff0ed95a7eeb1648",
     "src/pages/EvaluationStudioPage.tsx": "7dbbc681d3e6f03446440a5d238f9fb4ff93536150f25dd47d4b1952e548b9ff",
-    "src/passwordResetStore.ts": "c69997d6e924875c69aa0f633901eb12ecb40e91435ffd52daa1853c2ec89b0d",
+    "src/passwordResetStore.ts": "d983d87a481fe8f20552f2fca1f4c22e58c4d62ca3b4e8ac54bda8165ed8d4ea",
     "src/paymentCarryOverStore.ts": "e22936f4dbf0f304890fd8b090c32e44808497cf0834b8133471d60a8bea10b4",
     "src/pdfLogo.ts": "caeca4afb5c394639f702ca7dfd96ddbeaf98d7855da9a17be45737f01b1620b",
     "src/pendingAppealScore.ts": "8edd869a3f9091669204d58c5f4375040c95ba2f6ab59770c60d7a829f4e8b80",
@@ -783,12 +784,13 @@
     "scripts/test-qa-single-session-api.mjs": "7dc90049ab4cd1e0975d748a05edc3956126bfc61da648923280b5253df6fb9b",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
     "src/qaSingleSessionClient.ts": "0a5efbcaa2e69b948b073bca2820c831db692a7d68fd7de89f619abfa7f8fa1f",
-    "scripts/test-qa-session-write-guards.mjs": "85ce141cf79dd64927d642b3a8ad213231a6288995a24f0e8e31e53de7183686",
+    "scripts/test-qa-session-write-guards.mjs": "50345127bd92103fb2c0c3787a1a7d6e7b6940d38825b7d8db5360051d5a4e1c",
     "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7",
     "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a",
     "server/qaSingleSessionEndpoint.js": "56c13d51712647f2814e8a2b24f8065d6544f21e6c00052cb95a0d6089c069c6",
     "scripts/test-qa-upload-session-gate.mjs": "1c7bb0d1bea7a9a4a68676eab2a5070c81c49d5409fd3e26cb60a7ba96d3e5c6",
     "src/qaTabLease.mjs": "9ff18c95d6e91c700e981d257719af827d46bedbd351c0394f1d5e47d3861e4c",
-    "scripts/test-qa-tab-lease.mjs": "27e4189486371b21149f4db8c62f9a8470a4662716970c358bfdcaf581372f7e"
+    "scripts/test-qa-tab-lease.mjs": "27e4189486371b21149f4db8c62f9a8470a4662716970c358bfdcaf581372f7e",
+    "scripts/test-qa-legacy-profile-lookup.mjs": "a8d4e36954b087a0bfca53b98f19e46edef0a8d07954aa52a50487be2cea8315"
   }
 }
