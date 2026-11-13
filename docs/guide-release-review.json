@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T10:12:09.096Z",
-  "reason": "Reviewed safe repeat attempts when other QA browser tabs close; never acknowledge takeover with multiple active Web Locks; production still disabled",
+  "reviewedAt": "2026-11-13T10:17:07.220Z",
+  "reason": "Reviewed trusted QA identity binding for login, takeover and restore, plus rollback of orphan sessions; cross-tab Web Locks and quota rules remain staged",
   "contentChanged": true,
   "reviewedChapters": [
     "administration",
     "evaluation",
-    "coaching"
+    "coaching",
+    "login-log"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -465,7 +466,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "042f4b3774b77a36c0c191b6cb893f6e802e81436616d1f76bc0ed99d5e3e6ce",
+    "src/App.tsx": "f3f15d1b116db5a80247f9c5ee7a2785d65362da12565065ea32e5f30493000a",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -638,7 +639,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "875472eb48ca8a48c29f19a20c0b68529f0676082e215979b92bb2ea71c872be",
+    "src/knowledge/manual.json": "c32e4dc5338cc47251f94210cf8444ba7b7d696d3a80052f8554b97ed9fc739b",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -781,11 +782,11 @@
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "scripts/test-qa-single-session-api.mjs": "7dc90049ab4cd1e0975d748a05edc3956126bfc61da648923280b5253df6fb9b",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
-    "src/qaSingleSessionClient.ts": "63dcccfb9dc77b9f41317f2a697f305b914cbc556aa87220e774f72f99dfd6b0",
-    "scripts/test-qa-session-write-guards.mjs": "db47ca58028eb19b70df30e2860ccc2c0565aa17cb553ea7848bd58d398a111a",
+    "src/qaSingleSessionClient.ts": "0a5efbcaa2e69b948b073bca2820c831db692a7d68fd7de89f619abfa7f8fa1f",
+    "scripts/test-qa-session-write-guards.mjs": "8f6d476f3d4fca4c838e390b76a2a68b271a86d7e1f3eefe813035c275e4f1f8",
     "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7",
     "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a",
-    "server/qaSingleSessionEndpoint.js": "1e124d9995dd99ad1beba3b2fdee033d8d9309e96643b83bd8a58062c9c1457a",
+    "server/qaSingleSessionEndpoint.js": "56c13d51712647f2814e8a2b24f8065d6544f21e6c00052cb95a0d6089c069c6",
     "scripts/test-qa-upload-session-gate.mjs": "1c7bb0d1bea7a9a4a68676eab2a5070c81c49d5409fd3e26cb60a7ba96d3e5c6",
     "src/qaTabLease.mjs": "9ff18c95d6e91c700e981d257719af827d46bedbd351c0394f1d5e47d3861e4c",
     "scripts/test-qa-tab-lease.mjs": "27e4189486371b21149f4db8c62f9a8470a4662716970c358bfdcaf581372f7e"
