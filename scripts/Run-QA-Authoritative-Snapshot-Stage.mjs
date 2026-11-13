@@ -33,7 +33,8 @@ export async function runQaLiveSnapshotStage({
     throw new Error('snapshot_read_budget_invalid');
   const pg=pgModule||(await import('pg')).default;
   const pool=new pg.Pool({
-    connectionString:dbUrl,max:1,connectionTimeoutMillis:5000,
+    // One dedicated advisory-lock connection + one snapshot stage connection.
+    connectionString:dbUrl,max:2,connectionTimeoutMillis:5000,
     idleTimeoutMillis:10000,statement_timeout:30000,
   });
   try{
@@ -78,6 +79,32 @@ export async function runQaLiveSnapshotStage({
        state.source_snapshot_verified!==false)
       throw new Error('postgres_standby_not_safely_disabled');
     console.log('QA_IMPORTER_PREFLIGHT=READY_NO_FIRESTORE_READS');
+    // A session-scoped database lock prevents simultaneous full Firestore
+    // scans from two local consoles. The connection is reserved until after
+    // the new immutable snapshot and candidate audit are completed.
+    // No new SQL objects/privileges are required.
+    const lease=await pool.connect();
+    let locked=false;
+    try{
+      const lock=(await lease.query(
+        'SELECT pg_try_advisory_lock(62026,8790) AS acquired'
+      )).rows?.[0]?.acquired;
+      if(lock!==true)throw new Error('firestore_snapshot_capture_already_running');
+      locked=true;
+      // A completed full copy is not re-read inside a 24h window. This
+      // is an anti-quota bootstrap guard, NOT real-time synchronization.
+      const latest=(await lease.query(
+        "SELECT max(source_exported_at) AS last_exported_at FROM "+
+        "qa_failover_v1.live_snapshot_batches WHERE status='copy_verified'"
+      )).rows?.[0]?.last_exported_at;
+      if(latest!==null&&latest!==undefined){
+        const ms=Date.parse(latest instanceof Date?latest.toISOString():latest);
+        if(!Number.isFinite(ms)||ms>Date.now()+60000)
+          throw new Error('firestore_snapshot_previous_source_invalid');
+        if(Date.now()-ms<24*60*60*1000)
+          throw new Error('firestore_snapshot_recent_copy_exists');
+      }
+      console.log('QA_SOURCE_CAPTURE_LOCK=ACQUIRED_NO_CONCURRENT_SCAN');
     // Capture and verify the complete pinned Firestore source BEFORE any local
     // schema modification. Quota/auth/network failure must leave PostgreSQL
     // unchanged, including its additive stage tables.
@@ -96,7 +123,7 @@ export async function runQaLiveSnapshotStage({
     console.log('QA_SOURCE_READ_ESTIMATE='+captured.readBudgetReceipt.documentReadEstimate);
     console.log('QA_SOURCE_API_REQUESTS='+captured.readBudgetReceipt.apiRequests);
     console.log('QA_SOURCE_READ_BUDGET='+maxDocumentReads);
-    console.log('QA_SOURCE_BUDGET_SCOPE=ONE_RUN_NOT_DAILY');
+    console.log('QA_SOURCE_BUDGET_SCOPE=ONE_RUN_AND_24H_COMPLETED_COPY_GUARD');
     // Convert the copy to immutable, app-shaped evaluation candidates in the
     // SAME local database. Never touch the active QA evaluation table.
     const candidate=await materializeQaStandbyEvaluationCandidates({
@@ -110,6 +137,12 @@ export async function runQaLiveSnapshotStage({
     console.log('QA_LIVE_PARITY=NOT_CERTIFIED_FOR_FAILOVER');
     console.log('QA_FAILOVER=OFF');
     return {...receipt,candidate};
+    }finally{
+      if(locked)await lease.query(
+        'SELECT pg_advisory_unlock(62026,8790) AS released'
+      ).catch(()=>{});
+      lease.release();
+    }
   }finally{
     await pool.end();
   }
@@ -125,6 +158,9 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
       'firestore_quota_or_permission_blocked',
       'firestore_source_unreachable','firestore_source_unverified',
       'snapshot_read_budget_invalid','firestore_snapshot_read_budget_exhausted',
+      'firestore_snapshot_capture_already_running',
+      'firestore_snapshot_recent_copy_exists',
+      'firestore_snapshot_previous_source_invalid',
       'firestore_source_page_exceeds_budget',
       'firestore_invalid_source_page','source_manifest_mismatch',
     ]);
