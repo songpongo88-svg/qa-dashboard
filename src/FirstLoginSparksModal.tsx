@@ -16,7 +16,7 @@ const FRUIT_PHOTOS = [
   "https://images.unsplash.com/photo-1528825871115-3581a5387919?w=360&h=330&fit=crop&auto=format&q=85",
   "https://images.unsplash.com/photo-1629828874514-c1e5103f0550?w=360&h=330&fit=crop&auto=format&q=85"
 ];
-export default function FirstLoginSparksModal({ username,sessionId="" }: { username: string; sessionId?: string }) {
+export default function FirstLoginSparksModal({ username,sessionId="", verifiedEligibility=false, onDismiss }: { username: string; sessionId?: string; verifiedEligibility?: boolean; onDismiss?: (claimed: boolean) => void }) {
   const [status, setStatus] = useState<ModalStatus>("checking");
   const [selected, setSelected] = useState<string>("");
   const [prize, setPrize] = useState<FirstLoginPrize | null>(null);
@@ -31,6 +31,7 @@ export default function FirstLoginSparksModal({ username,sessionId="" }: { usern
     setPrize(null);
     setAmounts(randomPrizeValues());
     if (!username) return;
+    if (verifiedEligibility) { setStatus("ready"); return; }
     getSparksAccount(username, { historyLimit: 0,sessionId }).then((account) => {
       if (active) setStatus(account.firstLogin ? "hidden" : "ready");
     }).catch((reason) => {
@@ -39,7 +40,7 @@ export default function FirstLoginSparksModal({ username,sessionId="" }: { usern
       if (active) setStatus("hidden");
     });
     return () => { active = false; };
-  }, [username,sessionId]);
+  }, [username,sessionId,verifiedEligibility]);
 
   useEffect(() => {
     if (status !== "ready" && status !== "claiming" && status !== "revealed") return;
@@ -48,6 +49,7 @@ export default function FirstLoginSparksModal({ username,sessionId="" }: { usern
     return () => { document.body.style.overflow = previous; };
   }, [status]);
 
+  const dismiss = (claimed: boolean) => { setStatus("dismissed"); onDismiss?.(claimed); };
   if (status === "hidden" || status === "checking" || status === "dismissed") return null;
 
   const selectCard = async (card: typeof FRUIT_CARDS[number], index: number) => {
@@ -71,7 +73,7 @@ export default function FirstLoginSparksModal({ username,sessionId="" }: { usern
     <section className="qa-sparks-modal" role="dialog" aria-modal="true" aria-labelledby="qa-sparks-welcome-title">
       <div className="qa-sparks-modal-top">
         <span className="qa-sparks-modal-badge">FIRST LOGIN REWARD</span>
-        {status === "ready" ? <button type="button" className="qa-sparks-modal-close" onClick={() => setStatus("dismissed")} aria-label="ไว้ทีหลัง">×</button> : <span className="qa-sparks-modal-gift" aria-hidden="true">✧</span>}
+        {status === "ready" ? <button type="button" className="qa-sparks-modal-close" onClick={() => dismiss(false)} aria-label="ไว้ทีหลัง">×</button> : <span className="qa-sparks-modal-gift" aria-hidden="true">✧</span>}
       </div>
       <div className="qa-sparks-modal-heading">
         <span className="qa-sparks-modal-spark" aria-hidden="true">✧</span>
@@ -98,11 +100,11 @@ export default function FirstLoginSparksModal({ username,sessionId="" }: { usern
       {error ? <div className="qa-sparks-modal-error" role="alert">{error}</div> : null}
       {status === "revealed" && prize ? <>
         <p className="qa-sparks-modal-congrats" role="status">ยินดีด้วย! ได้รับ {prize.amount.toLocaleString()} Sparks</p>
-        <button className="qa-sparks-modal-claim" type="button" onClick={() => setStatus("dismissed")}>รับ Sparks</button>
+        <button className="qa-sparks-modal-claim" type="button" onClick={() => dismiss(true)}>รับ Sparks</button>
         <p className="qa-sparks-modal-footnote">บันทึกคะแนนเข้าบัญชีแล้ว · ดูรายการได้ใน History</p>
       </> : <>
         <p className="qa-sparks-modal-hint">{status === "claiming" ? "กำลังบันทึกผลการสุ่ม..." : "เลือกได้ 1 ใบเท่านั้น · สิทธิ์จะถูกบันทึกทันทีเมื่อเลือก"}</p>
-        <button className="qa-sparks-modal-later" type="button" disabled={status === "claiming"} onClick={() => setStatus("dismissed")}>ไว้ทีหลัง</button>
+        <button className="qa-sparks-modal-later" type="button" disabled={status === "claiming"} onClick={() => dismiss(false)}>ไว้ทีหลัง</button>
       </>}
     </section>
   </div>;

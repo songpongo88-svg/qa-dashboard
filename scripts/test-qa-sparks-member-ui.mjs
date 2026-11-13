@@ -41,6 +41,9 @@ try {
             export const EMPTY_SPARKS_ACCOUNT = { balance:0, rewardOrders:0, typingReliefOwned:0, history:[], firstLogin:null, memberYear:2026, memberYearEarned:0 };
             export const sparksAccountKey = (v) => encodeURIComponent(String(v).toLowerCase());
             export const FRUIT_CARDS = [{id:"apple",name:"Apple Spark"}];
+            export const SPARK_JOURNEY_ROUTES = [];
+            export const isWelcomeQuestOpen = () => false;
+            export async function claimSparkJourneySparks() { throw Error("Not used in Member Level fixture"); }
             export const randomPrizeValues = () => [100];
             export async function claimFirstLoginSparks() { throw Error("Member Level fixture already claimed first login"); }
             export function invalidateSparksAccount() {}

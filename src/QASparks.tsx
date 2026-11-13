@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, type SparksAccount } from "./qaSparksStore";
+import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, isWelcomeQuestOpen, type SparksAccount } from "./qaSparksStore";
 import "./qaSparks.css";
 import "./qaSparksProductCards.css";
 import SparksHistory from "./SparksHistory";
-import FirstLoginSparksModal from "./FirstLoginSparksModal";
+import SparksWelcomeQuests, { SPARKS_WELCOME_OPEN_EVENT } from "./SparksWelcomeQuests";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
 import SparksAdminPanel from "./SparksAdminPanel";
 import SparksQaCredentialMigration from "./SparksQaCredentialMigration";
@@ -185,6 +185,8 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     ...(adminAccess && (!emailAuthEnabled || (verifiedActor?.role === "Quality Assurance" && verifiedActor?.username === "songpon")) && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
+  const welcomePending = walletLoaded && isWelcomeQuestOpen()
+    ? Number(!account.firstLogin) + Number(!account.sparkJourney2026) : 0;
   // Do not flash a login form while a valid server session is being checked.
   // This also protects existing QA-only users from a needless password prompt.
   if (authBootstrap==="checking" && active && Boolean(normalizedSparksUser)) return <section role="status"
@@ -265,11 +267,27 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username} balance={account.balance} rewardOrders={account.rewardOrders}/> : null}
         {view !== "overview" && view !== "admin" && view !== "games" && walletLoaded ? <section className="qa-sparks-membership qa-sparks-wallet-strip" aria-label="ยอด Sparks ของคุณ"><SparksWalletSummary balance={account.balance} rewardOrders={account.rewardOrders} compact/></section> : null}
         {(view === "overview" || view === "quests") ? <section className="qa-sparks-compact-section qa-sparks-quest-center" aria-label="Quest Center">
-          <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>3 Quests</span></div>
+          <div className="qa-sparks-compact-header"><h2><SparksIcon name="calendar" size={19}/> Quest Center</h2><span>{3 + welcomePending} Quests</span></div>
           <div className="qa-sparks-mini-grid qa-sparks-quest-grid">
             <DailyCheckinQuest username={username} sessionId={sparksSessionId} claimedDays={account.dailyCheckinClaimedDays || []} loaded={walletLoaded}/>
             <ProfileMakeoverQuest username={username} claimedAt={account.profileMakeoverClaimedAt} loaded={walletLoaded}/>
             <QALottery username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/>
+            {walletLoaded && isWelcomeQuestOpen() && !account.firstLogin ? <article className="qa-sparks-welcome-quest">
+              <span className="label">SPECIAL QUEST · UNTIL 25 DEC</span>
+              <strong>Welcome Fruit Reward</strong>
+              <p>เลือกผลไม้รับ Sparks ต้อนรับ 100–1,000 คะแนน · รับได้ครั้งเดียว</p>
+              <button type="button" onClick={() => window.dispatchEvent(
+                new CustomEvent(SPARKS_WELCOME_OPEN_EVENT,{detail:{quest:"fruit"}})
+              )}>เลือกผลไม้</button>
+            </article> : null}
+            {walletLoaded && isWelcomeQuestOpen() && !account.sparkJourney2026 ? <article className="qa-sparks-welcome-quest">
+              <span className="label">SPECIAL QUEST · UNTIL 25 DEC</span>
+              <strong>The Spark Journey</strong>
+              <p>เลือก 1 ใน 5 วิธีเดินทางไป Spark Land สุ่มรับ 150–800 คะแนน · 1 สิทธิ์</p>
+              <button type="button" onClick={() => window.dispatchEvent(
+                new CustomEvent(SPARKS_WELCOME_OPEN_EVENT,{detail:{quest:"journey"}})
+              )}>เลือกการเดินทาง</button>
+            </article> : null}
           </div>
         </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
@@ -321,7 +339,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       </div>
     </div>
     {username && active && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
-      ? <FirstLoginSparksModal key={username+":"+sparksSessionId}
+      ? <SparksWelcomeQuests key={username+":"+sparksSessionId}
           username={username} sessionId={sparksSessionId} /> : null}
   </main>;
 }

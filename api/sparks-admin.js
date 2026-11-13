@@ -1,6 +1,7 @@
 import {appendKnownItemExpirations} from "../src/sparksItemHistory.mjs";
 import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createFruitMatchService } from "../server/fruitMatchService.js";
+import { createSparkJourneyService } from "../server/sparkJourneyService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
@@ -453,6 +454,7 @@ async function readSparksWalletForCloud(actor,body){
   return {ok:true,wallet,history,source:"supabase"};
 }
 async function claimSparksFirstLoginCloud(actor,body){
+  if(bangkokQuestDate() > "2026-12-25")fail("กิจกรรมเลือกผลไม้สิ้นสุดวันที่ 25 ธันวาคม 2026 แล้ว",409);
   const fruits=[
     ["apple","Apple Spark"],["banana","Banana Boost"],["orange","Orange Glow"],
     ["grape","Grape Pop"],["strawberry","Strawberry Shine"],["watermelon","Watermelon Wave"],
@@ -1555,6 +1557,8 @@ async function adjustBalance(body, admin) {
 }
 const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
+const sparkJourney = createSparkJourneyService({firestoreRequest,readDoc,recordValue,updateWrite,createWrite,
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const qaLottery = createQaLotteryService({firestoreRequest,readDoc,listCollection,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const qaSpecialRewards=createQaRewardsService({firestoreRequest,readDoc,listCollection,recordValue,path,
@@ -1694,6 +1698,11 @@ async function sparksHandler(req, res) {
         :action==="special-rewards-receipt-scan"?await qaSpecialRewards.scanReceipt(body,actor)
         :await qaSpecialRewards.submit(body,actor);
       return res.status(200).json(data);
+    }
+    if (body.action==="spark-journey-claim") {
+      // Authorize the actual QA/Supabase session; no client-controlled point amount.
+      const actor = await authorizeRewardUser(body);
+      return res.status(200).json(await sparkJourney.claim(body,actor));
     }
     if (body.action==="sparks-cloud-wallet"||body.action==="sparks-cloud-first-login") {
       if(process.env.SPARKS_DATA_BACKEND!=="supabase")fail("Sparks Cloud backend has not been enabled",409);

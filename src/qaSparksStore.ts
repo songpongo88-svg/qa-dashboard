@@ -20,6 +20,29 @@ export const FRUIT_CARDS = [
 ] as const;
 
 export type FirstLoginPrize = { cardId: string; cardName: string; amount: number; claimedAt: string };
+export type SparkJourneyPrize = { routeId: string; routeName: string; amount: number; claimedAt: string };
+export const SPARK_JOURNEY_ROUTES = [
+  { id: "boat", name: "River Voyage", title: "พายเรือ", icon: "🚣", description: "ล่องผ่านสายน้ำ" },
+  { id: "bicycle", name: "Cycle Adventure", title: "ปั่นจักรยาน", icon: "🚴", description: "ปั่นชมทิวทัศน์" },
+  { id: "dog", name: "Paw Walk", title: "เดินจูงสุนัข", icon: "🐕", description: "เดินกับเพื่อนสี่ขา" },
+  { id: "airplane", name: "Sky Journey", title: "เครื่องบิน", icon: "✈️", description: "บินเหนือหมู่เมฆ" },
+  { id: "train", name: "Rail Explorer", title: "รถไฟ", icon: "🚂", description: "นั่งรถไฟชมวิว" },
+] as const;
+export const WELCOME_QUEST_END_DATE = "2026-12-25";
+export function isWelcomeQuestOpen(now: Date = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const part = (name: string) => parts.find((entry) => entry.type === name)?.value || "";
+  return [part("year"), part("month"), part("day")].join("-") <= WELCOME_QUEST_END_DATE;
+}
+function validJourneyPrize(value: any): SparkJourneyPrize | null {
+  if (!value || typeof value !== "object") return null;
+  const amount = Number(value.amount);
+  const route = SPARK_JOURNEY_ROUTES.find((option) => option.id === value.routeId);
+  if (!route || !Number.isSafeInteger(amount) || amount < 150 || amount > 800) return null;
+  return { routeId: route.id, routeName: route.name, amount, claimedAt: String(value.claimedAt || "") };
+}
 export type SparksHistoryItem = {
   id: string;
   createdAt: string;
@@ -46,13 +69,14 @@ export type SparksAccount = {
   dailyCheckinClaimedDays: number[];
   profileMakeoverClaimedAt: string;
   firstLogin: FirstLoginPrize | null;
+  sparkJourney2026: SparkJourneyPrize | null;
   history: SparksHistoryItem[];
   historyUnavailable?: boolean;
   recoverySource?: "client"|"server";
 };
 
 export const EMPTY_SPARKS_ACCOUNT: SparksAccount = {
-  balance: 0, rewardOrders: 0, typingReliefOwned: 0, autoPassOwned: 0, autoPassFreeClaimedAt: "", memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], profileMakeoverClaimedAt: "", firstLogin: null, history: [],
+  balance: 0, rewardOrders: 0, typingReliefOwned: 0, autoPassOwned: 0, autoPassFreeClaimedAt: "", memberYear: sparksCalendarYear(), memberYearEarned: 0, dailyCheckinClaimedDays: [], profileMakeoverClaimedAt: "", firstLogin: null, sparkJourney2026: null, history: [],
 };
 
 export function sparksAccountKey(username: string): string {
@@ -170,6 +194,7 @@ export async function getSparksAccount(username: string, options: { historyLimit
       autoPassOwned:safeBalance(data.autoPassOwned),
       autoPassFreeClaimedAt:String(data.autoPassFreeClaimedAt||""),
       firstLogin:validPrize(data.firstLogin),
+      sparkJourney2026:validJourneyPrize(data.sparkJourney2026),
       history:appendKnownItemExpirations(rows.map((row:any)=>{
         const voided=Boolean(row.voidedAt);
         const amount=voided?0:Number(row.amount)||0;
@@ -237,6 +262,7 @@ export async function getSparksAccount(username: string, options: { historyLimit
     autoPassOwned: safeBalance(data.autoPassOwned),
     autoPassFreeClaimedAt: String(data.autoPassFreeClaimedAt||""),
     firstLogin: validPrize(data.firstLogin),
+    sparkJourney2026: validJourneyPrize(data.sparkJourney2026),
     history: appendKnownItemExpirations(records.docs.map((row) => {
       const value = row.data();
       // Keep original audit entries in Firestore, but do not present voided
@@ -269,6 +295,7 @@ export async function claimFirstLoginSparks(
   amount: number,
   sessionId = "",
 ): Promise<FirstLoginPrize> {
+  if (!isWelcomeQuestOpen()) throw new Error("กิจกรรมเลือกผลไม้สิ้นสุดวันที่ 25 ธันวาคม 2026 แล้ว");
   const card = FRUIT_CARDS.find((candidate) => candidate.id === selectedCard.id && candidate.name === selectedCard.name);
   if (!card || !FIRST_LOGIN_REWARDS.some((value) => value === amount)) {
     throw new Error("ข้อมูลการ์ดหรือจำนวน Sparks ไม่ถูกต้อง");
@@ -340,3 +367,23 @@ export async function claimFirstLoginSparks(
   return result;
 }
 
+
+/** Award is randomized and committed on the server, never in browser state. */
+export async function claimSparkJourneySparks(
+  username: string, routeId: string, sessionId = "",
+): Promise<SparkJourneyPrize> {
+  const route = SPARK_JOURNEY_ROUTES.find((entry) => entry.id === routeId);
+  if (!route || !isWelcomeQuestOpen()) throw new Error("เส้นทางไม่ถูกต้องหรือกิจกรรมสิ้นสุดแล้ว");
+  const response = await fetch("/api/sparks-admin", {
+    method: "POST", cache: "no-store", credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "spark-journey-claim", actorUsername: username, sessionId, routeId }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok || !data.prize) throw new Error(String(data.error || "ไม่สามารถบันทึก Sparks ได้ กรุณาลองใหม่"));
+  const prize = validJourneyPrize(data.prize);
+  if (!prize) throw new Error("รูปแบบผลรางวัลที่ได้รับไม่ถูกต้อง กรุณาติดต่อผู้ดูแล");
+  invalidateSparksAccount(username);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("qa:sparks-updated"));
+  return prize;
+}

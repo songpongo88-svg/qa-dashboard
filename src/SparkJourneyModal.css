@@ -1,0 +1,90 @@
+.spark-journey-backdrop {
+  position: fixed; inset: 0; z-index: 1000002; display: grid; place-items: center;
+  padding: 18px; background: rgba(8,12,23,.85); backdrop-filter: blur(8px);
+  font-family: "Kanit",sans-serif;
+}
+.spark-journey-dialog {
+  width: min(100%,900px); max-height: min(94dvh,900px); overflow-y: auto;
+  position: relative; border: 1px solid rgba(236,191,112,.65); border-radius: 24px;
+  box-shadow: 0 25px 95px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,250,220,.05);
+  background: radial-gradient(ellipse at 50% -10%,#35415e 0%,#1c2439 48%,#121827 100%);
+  color: #f3f4f9; padding: clamp(17px,3vw,30px);
+}
+.spark-journey-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-right: 32px; }
+.spark-journey-badge { border: 1px solid #bfa16e80; background: #bd9b5324; color: #f6dba1; font-size: 10px; letter-spacing: .10em; font-weight: 700; border-radius: 999px; padding: 7px 10px; }
+.spark-journey-end { color: #f1d296; font-size: 11px; font-weight: 600; }
+.spark-journey-x { position: absolute; right: 17px; top: 15px; border: 0; color: #efddb4; background: transparent; font-size: 28px; cursor: pointer; padding: 2px 8px; }
+.spark-journey-heading { display: grid; justify-items: center; gap: 5px; margin: 9px 0 19px; text-align: center; }
+.spark-journey-stars { color: #e9bd6b; font-size: 22px; letter-spacing: .45em; }
+.spark-journey-heading h2 { margin: 0; color: #f4d49b; font-size: clamp(25px,4.6vw,36px); letter-spacing: .05em; font-weight: 700; line-height: 1.25; }
+.spark-journey-heading p { margin: 0; color: #fff; font-size: 16px; font-weight: 500; }
+.spark-journey-heading small { color: #b7c3d6; font-size: 12px; }
+.spark-journey-heading strong { color: #f5d490; font-size: clamp(23px,3.4vw,31px); font-weight: 700; line-height: 1.35; margin-top: 4px; }
+.spark-journey-rule { color: #9facbf; font-size: 11px; }
+.spark-journey-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 9px; }
+.spark-journey-route { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 7px; background: #29344f; border: 1px solid #44516d; color: #fff; border-radius: 15px; padding: 9px 8px 12px; cursor: pointer; transition: transform .18s,box-shadow .18s,border-color .18s; font-family: inherit; }
+.spark-journey-route:hover:not(:disabled),.spark-journey-route:focus-visible { border-color: #f2c77f; transform: translateY(-3px); box-shadow: 0 8px 26px #0007; outline: none; }
+.spark-journey-route:disabled { opacity: .64; cursor: wait; }
+.spark-journey-route.is-selected { border-color: #f0cc8a; background: #3b4762; }
+.spark-journey-route-art { width: 100%; height: 105px; border-radius: 11px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: linear-gradient(#91c5ec 0 58%,#509b72 59% 100%); }
+.spark-journey-route-art::before { content: ""; position: absolute; width: 90px; height: 40px; border-radius: 50%; background: #ffffff5e; top: -20px; left: -20px; }
+.spark-journey-route-art span { font-size: 60px; position: relative; filter: drop-shadow(0 4px 4px #0004); }
+.spark-journey-route-art--boat { background: linear-gradient(#acd9fa 0 58%, #3b9abf 58%); }
+.spark-journey-route-art--bicycle { background: linear-gradient(#9ad7f4 0 58%, #7ac380 58%); }
+.spark-journey-route-art--dog { background: linear-gradient(#c9e5fa 0 58%, #99ca90 58%); }
+.spark-journey-route-art--airplane { background: linear-gradient(#7db3e9,#c3ebff); }
+.spark-journey-route-art--train { background: linear-gradient(#aad9f1 0 58%, #84b88e 58%); }
+.spark-journey-route-name { color: #f7d69a; font-size: 11px; font-weight: 700; line-height: 1.4; text-align: center; }
+.spark-journey-route-title { color: #fff; font-size: 12px; font-weight: 600; }
+.spark-journey-route-description { color: #b9c7dc; font-size: 10px; text-align: center; min-height: 16px; }
+.spark-journey-route-action { display: block; margin-top: auto; width: 100%; background: #445572; border: 1px solid #72809a4f; border-radius: 7px; color: #fff; padding: 7px 2px; font-size: 10px; text-align: center; }
+.spark-journey-later { display: block; margin: 15px auto 0; background: transparent; border: 0; padding: 8px 18px; color: #c4cedc; text-decoration: underline; cursor: pointer; font-family: inherit; }
+.spark-journey-later:disabled { cursor: wait; opacity: .55; }
+.spark-journey-error { color: #ffd1d1; padding: 10px; background: #812d3e55; border: 1px solid #e7848d88; border-radius: 9px; text-align: center; font-size: 13px; }
+.spark-journey-footer { display: flex; justify-content: center; border-top: 1px solid #4b5570; margin-top: 18px; padding-top: 13px; color: #f6d29b; font-size: 12px; font-weight: 600; letter-spacing: .09em; }
+.spark-journey-scene { height: clamp(175px,28vw,270px); max-width: 700px; margin: auto; position: relative; overflow: hidden; border: 2px solid #e6bb7480; border-radius: 16px; background: linear-gradient(#72bbee 0 68%,#88bd71 68% 100%); }
+.spark-journey-scene--boat { background: linear-gradient(#86bdee 0 66%,#329bbd 66% 100%); }
+.spark-journey-scene--airplane { background: linear-gradient(#4f9bd7,#b1dff4); }
+.spark-journey-scene--dog { background: linear-gradient(#90c9f0 0 68%,#88c880 68%); }
+.spark-journey-scene--train { background: linear-gradient(#9ad4fa 0 68%,#6cb185 68%); }
+.spark-journey-sun { position: absolute; top: 13%; right: 19%; height: 44px; width: 44px; border-radius: 50%; background: #fff1ae; box-shadow: 0 0 50px 15px #fdf9c675; }
+.spark-journey-cloud { position: absolute; width: 106px; height: 25px; border-radius: 30px; background: #fff9; top: 20%; left: 10%; }
+.spark-journey-cloud--two { top: 40%; left: 50%; transform: scale(.7); }
+.spark-journey-hills { position: absolute; bottom: -30%; left: -5%; height: 63%; width: 65%; border-radius: 50% 50% 0 0; background: #5d9b76; box-shadow: 180px 18px 0 18px #7fbd8b; opacity: .85; }
+.spark-journey-scene--boat .spark-journey-hills { bottom: 22%; left: -45%; height: 27%; opacity: .35; }
+.spark-journey-vehicle { position: absolute; z-index: 2; bottom: 20%; left: 7%; font-size: clamp(58px,10vw,100px); filter: drop-shadow(1px 6px 4px #0005); transform: translateX(0); }
+.spark-journey-scene--airplane .spark-journey-vehicle { bottom: 42%; }
+.spark-journey-destination { position: absolute; z-index: 1; right: 6%; bottom: 19%; font-size: clamp(48px,8vw,75px); }
+.spark-journey-destination-label { position: absolute; z-index: 3; right: 2%; bottom: 5%; background: #223d5dbb; padding: 4px 10px; border-radius: 9px; color: #fff2cd; font-size: 10px; letter-spacing: .1em; }
+.spark-journey-scene.is-travelling .spark-journey-vehicle { animation: spark-journey-move 3.9s ease-in-out forwards; }
+.spark-journey-scene.is-arrived .spark-journey-vehicle { left: 55%; }
+@keyframes spark-journey-move { 0% { transform: translateX(0) translateY(0); } 30% { transform: translateX(130%) translateY(-8px); } 65% { transform: translateX(280%) translateY(0); } 100% { transform: translateX(390%) translateY(0); } }
+.spark-journey-scene--airplane.is-travelling .spark-journey-vehicle { animation-name: spark-journey-fly; }
+@keyframes spark-journey-fly { 0% { transform: translateX(0) translateY(0); } 50% { transform: translateX(220%) translateY(-45px) rotate(-6deg); } 100% { transform: translateX(390%) translateY(30px); } }
+.spark-journey-travel-text { color: #d8e5fa; text-align: center; font-size: 14px; font-weight: 600; margin: 12px 0 8px; }
+.spark-journey-progress { height: 7px; max-width: 440px; margin: auto; border-radius: 8px; background: #455674; overflow: hidden; }
+.spark-journey-progress span { display: block; height: 100%; width: 0%; background: linear-gradient(90deg,#b88d46,#f5de99); animation: spark-journey-fill 3.9s linear forwards; }
+@keyframes spark-journey-fill { to { width: 100%; } }
+.spark-journey-win { text-align: center; display: grid; justify-items: center; gap: 7px; padding: 13px 0 5px; }
+.spark-journey-confetti { color: #f1ca76; font-size: 22px; letter-spacing: .4em; }
+.spark-journey-win h3 { color: #f8d89e; margin: 0; font-size: 22px; }
+.spark-journey-win p { color: #e2e8f4; margin: 0; font-size: 13px; }
+.spark-journey-win strong { font-size: clamp(28px,5vw,42px); color: #f5d18b; font-weight: 700; }
+.spark-journey-finish { width: min(100%,370px); margin-top: 6px; background: linear-gradient(130deg,#eed59b,#c4a35c); color: #1c2637; padding: 12px 17px; font-size: 14px; font-weight: 700; border: none; border-radius: 11px; cursor: pointer; font-family: inherit; }
+.spark-journey-win small { color: #abbdd5; font-size: 11px; }
+.qa-sparks-welcome-quest { display: flex; flex-direction: column; gap: 7px; border: 1px solid #edd39b; background: linear-gradient(140deg,#fffefa,#fff3db); border-radius: 14px; padding: 13px; min-height: 180px; color: #3d3241; }
+.qa-sparks-welcome-quest .label { font-size: 10px; letter-spacing: .07em; color: #836324; font-weight: 700; }
+.qa-sparks-welcome-quest strong { font-size: 16px; font-weight: 650; }
+.qa-sparks-welcome-quest p { font-size: 11px; color: #6d6271; margin: 0; }
+.qa-sparks-welcome-quest button { margin-top: auto; padding: 8px; border: none; border-radius: 8px; cursor: pointer; background: #41416d; color: #fff; font-weight: 600; font-family: inherit; }
+@media (max-width: 700px) {
+  .spark-journey-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .spark-journey-route-art { height: 75px; }
+  .spark-journey-route-art span { font-size: 44px; }
+  .spark-journey-top { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spark-journey-scene.is-travelling .spark-journey-vehicle { animation: none; left: 55%; }
+  .spark-journey-progress span { animation: none; width: 100%; }
+  .spark-journey-route { transition: none; }
+}
