@@ -4393,6 +4393,13 @@ export default function App() {
           setCurrentUser(restoredUser);
         }
       } catch (error) {
+        // A trusted server login may still be valid even when the legacy
+        // Firebase workspace restore fails. Release that stale server session
+        // so the operator is not locked out by a login conflict for 30 minutes.
+        if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+          try { await qaServerSessionRequest("logout"); }
+          catch (cleanupError) { console.warn("Failed to release unrestorable QA session", cleanupError); }
+        }
         console.error("Secure session restore failed", error);
         localStorage.removeItem(STORAGE_KEY);
         if (!cancelled) {
