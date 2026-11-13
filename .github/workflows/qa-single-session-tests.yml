@@ -25,6 +25,8 @@ on:
       - "package.json"
       - "src/CreateEvaluationMockup.tsx"
       - "scripts/test-session-*.mjs"
+      - "security/qa-single-session/**"
+      - "scripts/test-qa-single-session-firebase-rules.mjs"
       - ".github/workflows/qa-single-session-tests.yml"
   workflow_dispatch:
 jobs:
@@ -54,3 +56,22 @@ jobs:
         run: npm run test:qa-legacy-profile
       - name: Same browser multi-tab takeover lock
         run: npm run test:qa-tab-lease
+
+  security-rules-emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Firebase emulator-only test tools
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund firebase-tools @firebase/rules-unit-testing
+      - name: Replaced-browser Firestore and Storage rules integration
+        run: npx firebase --config security/qa-single-session/firebase.emulator.json emulators:exec --project demo-qa-session --only firestore,storage "node scripts/test-qa-single-session-firebase-rules.mjs"
