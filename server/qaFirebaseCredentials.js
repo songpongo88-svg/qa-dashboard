@@ -67,7 +67,7 @@ export function createGoogleServiceJwt(account, issuedAtSeconds) {
   return signingInput + "." + signer.sign(account.private_key).toString("base64url");
 }
 
-async function googleAccessToken() {
+export async function googleAccessToken() {
   if (tokenCache.value && Date.now() < tokenCache.expiresAt) return tokenCache.value;
   const account = serviceAccount();
   const issuedAtSeconds = Math.floor(Date.now() / 1000);
