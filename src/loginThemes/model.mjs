@@ -110,8 +110,8 @@ export function resolveLoginTheme(appearance, environment = {}) {
     return skin(id, 'special', [special.swatches[0], special.swatches[1], pale], { image: special.image });
   }
   if (id === 'textbook-train') {
-    return skin('textbook-train', 'color', ['#315e70', '#294354', '#f8f0dc'], {
-      image: '/textbook-theme/cover.svg', size: 'cover', position: 'center',
+    return skin('textbook-train', 'thai-lessons', ['#315e70', '#294354', '#f8f0dc'], {
+      image: '/textbook-theme/landscape.svg', size: 'cover', position: 'center',
     });
   }
   // A manually previewed/legacy Festival id cannot persist beyond its schedule.

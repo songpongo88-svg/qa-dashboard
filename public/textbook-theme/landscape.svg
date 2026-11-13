@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="380" viewBox="0 0 1600 380" role="img" aria-labelledby="ttl">
+<title id="ttl">ภาพประกอบหนังสือเรียนภาษาไทย ป.1 รถไฟแล่นผ่านภูเขาและสถานีชนบท</title>
+<defs>
+<linearGradient id="sky" x2="0" y2="1"><stop stop-color="#d9edf5"/><stop offset=".8" stop-color="#fbf5e5"/><stop offset="1" stop-color="#eee6c9"/></linearGradient>
+<linearGradient id="ground" x2="0" y2="1"><stop stop-color="#9abb91"/><stop offset="1" stop-color="#d2cf9c"/></linearGradient>
+<linearGradient id="paper" x2="0" y2="1"><stop stop-color="#fff9eb"/><stop offset="1" stop-color="#f6edda"/></linearGradient>
+<pattern id="dots" width="17" height="21" patternUnits="userSpaceOnUse"><circle cx="2" cy="3" r="1" fill="#ad986f" opacity=".19"/><path d="M9 13l5 -1" stroke="#9d8c65" stroke-width=".6" opacity=".3"/></pattern>
+<filter id="chalk" x="-8%" y="-8%" width="116%" height="116%"><feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="3" seed="12" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="3.7"/></filter>
+<clipPath id="clip"><rect x="0" y="0" width="1600" height="380" rx="2"/></clipPath>
+</defs>
+<g clip-path="url(#clip)">
+<rect width="1600" height="380" fill="url(#sky)"/>
+<rect width="1600" height="380" fill="url(#dots)" opacity=".45"/>
+<path d="M0 0H1600V9H0z" fill="#89a995"/><path d="M0 367H1600V380H0z" fill="#e6cda0"/>
+<!-- Cloud watercolors -->
+<g fill="#fff9ec" stroke="#93b9c8" stroke-width="1.8" opacity=".91" filter="url(#chalk)">
+<path d="M510 98q-8-29 20-31 6-30 42-22 22-26 48 0 30-12 44 15 39-6 42 30z"/>
+<path d="M831 53q2-25 33-22 11-34 48-21 33-21 55 10 27-9 41 20 32-8 39 13z"/>
+<path d="M1290 96q-12-27 17-35 5-27 35-26 22-21 41 8 25-10 35 12 32-5 42 30z"/>
+</g>
+<!-- distant mountains and rice fields -->
+<g filter="url(#chalk)">
+<path d="M430 247L605 97 700 181 779 109 900 194 974 147 1048 242 1160 163 1330 236 1600 185V351H430z" fill="#98b7a7" opacity=".8"/>
+<path d="M624 113l-24 42 31-13 17 18 6-18zM766 128l-16 39 34-16 15 23 11-31zM1155 177l-21 29 27-10 12 17z" fill="#dce6dc" opacity=".85"/>
+<path d="M405 284Q650 207 799 263T1145 227 1600 263V376H405z" fill="#8ca997"/>
+<path d="M438 308Q640 238 823 298T1193 273 1600 306v73H438z" fill="#b9c88f"/>
+<path d="M430 343Q805 290 1015 338T1600 329v48H430z" fill="#d8d2a2"/>
+</g>
+<!-- School-notebook area on left, keeps foreground text legible -->
+<path d="M0 0h685Q595 72 600 180T750 380H0z" fill="url(#paper)" opacity=".98"/>
+<path d="M0 0h685Q595 72 600 180T750 380H0z" fill="url(#dots)" opacity=".26"/>
+<path d="M27 24H530" stroke="#b99a63" stroke-width="2" stroke-dasharray="5 9" opacity=".28"/>
+<path d="M34 341h490M34 352h490" stroke="#85a0a2" stroke-width="1.5" opacity=".26"/>
+<!-- hills vegetation -->
+<g stroke="#657c61" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+<path d="M739 296V242M753 280l-20-19m23-4 20-25M1200 308v-63m-8 24-20-19m27 3 19-23M1521 306v-72" fill="none"/>
+<g fill="#8caa79"><ellipse cx="730" cy="245" rx="32" ry="20"/><ellipse cx="762" cy="224" rx="29" ry="27"/><ellipse cx="1200" cy="236" rx="30" ry="20"/><ellipse cx="1169" cy="248" rx="25" ry="20"/><ellipse cx="1521" cy="232" rx="27" ry="25"/></g>
+<g fill="#c4cb7c"><ellipse cx="749" cy="231" rx="22" ry="14"/><ellipse cx="1207" cy="226" rx="17" ry="11"/></g>
+</g>
+<!-- track diagonal -->
+<path d="M676 342Q1055 281 1520 319L1598 362 675 375z" fill="#d2b389" opacity=".68"/>
+<path d="M677 351Q1040 300 1600 340M688 371Q1097 314 1600 359" fill="none" stroke="#665948" stroke-width="7"/>
+<g stroke="#7b6854" stroke-width="6" opacity=".8"><path d="M735 343l10 30m55-40 12 39m60-45 11 40m73-51 12 42m84-49 17 50m81-46 21 47m91-47 24 47m97-46 27 47m91-46 27 46"/></g>
+<!-- Railway carriage -->
+<g stroke="#324d55" stroke-linejoin="round" stroke-width="3">
+<path d="M1050 209L1462 219 1493 260 1064 260z" fill="#d5e4df"/>
+<path d="M1133 197L1452 212 1460 227 1136 214z" fill="#ee9865"/>
+<path d="M1118 214L1472 231V278L1118 258z" fill="#d9e5e1"/>
+<path d="M1118 258l353 20v14l-353-20z" fill="#b96852"/>
+<g fill="#5388a2">
+<rect x="1151" y="219" width="30" height="33" rx="2"/><rect x="1195" y="221" width="30" height="32" rx="2"/><rect x="1240" y="222" width="30" height="33" rx="2"/><rect x="1285" y="224" width="30" height="33" rx="2"/><rect x="1330" y="227" width="30" height="32" rx="2"/><rect x="1375" y="229" width="30" height="32" rx="2"/><rect x="1420" y="232" width="26" height="30" rx="2"/>
+</g>
+<path d="M1120 258l348 19" stroke="#faf0d6" stroke-width="5"/>
+<g fill="#4c4d45"><circle cx="1160" cy="279" r="13"/><circle cx="1256" cy="285" r="13"/><circle cx="1350" cy="289" r="13"/><circle cx="1433" cy="292" r="13"/></g>
+</g>
+<!-- Front engine is close to viewer and slightly hand drawn -->
+<g transform="translate(950 147)" stroke="#324c54" stroke-linejoin="round" stroke-width="4">
+<path d="M34 14l96-5 33 28-5 109-149-7V46z" fill="#e8ba49"/>
+<path d="M22 25l113-7 12 19-131 4z" fill="#f4cb4f"/>
+<path d="M30 51h48l-3 47H25zM88 48l52-3-1 53-53 1z" fill="#cfe6e7"/>
+<path d="M31 54l41 41M91 48l40 44" stroke="#eef5e7" stroke-width="4"/>
+<path d="M18 105l134 3-3 24-130-3z" fill="#b65b47"/>
+<path d="M24 143l123 5-11 22-104-6z" fill="#e2a447"/>
+<path d="M27 20l5-9 90-3 12 10M25 45l130-5" fill="none"/>
+<circle cx="43" cy="117" r="8" fill="#fff3c9"/><circle cx="128" cy="117" r="8" fill="#fff3c9"/>
+<path d="M36 158l10 12m73-9 8 13M10 146l17 2" stroke="#324c54" stroke-width="6"/>
+<path d="M79 21v-8" stroke-width="5"/>
+<rect x="69" y="5" width="22" height="10" rx="3" fill="#d47d48"/>
+<path d="M39 31h20M99 28h29" stroke="#f5ecd0" stroke-width="3"/>
+</g>
+<!-- Rural school platform, people, station sign -->
+<g transform="translate(1465 129)">
+<path d="M0 42L89 3 157 35v12L88 22 6 59z" fill="#825c47" stroke="#503c30" stroke-width="5"/>
+<path d="M17 51l-4 180M129 40l10 184" stroke="#876b51" stroke-width="9"/>
+<path d="M19 57h105v54H19z" fill="#f8edce" stroke="#7b5b41" stroke-width="4"/>
+<text x="71" y="89" text-anchor="middle" fill="#293f4a" font-family="sans-serif" font-size="19" font-weight="700">ตา มา รถไฟ</text>
+</g>
+<g stroke="#4a5651" stroke-width="3" stroke-linecap="round">
+<g transform="translate(1388 263)"><circle r="15" cy="6" fill="#d6a27f"/><path d="M-15 1q10-25 29-2" fill="#594738"/><path d="M-23 60q0-40 25-39 23 0 23 39" fill="#a46c57"/><path d="M-9 58l-5 27m29-27 12 26" fill="none"/></g>
+<g transform="translate(1440 276)"><circle r="11" cy="3" fill="#dbad8b"/><path d="M-13-1q10-20 24-3" fill="#534b40"/><path d="M-17 48q-1-36 18-35 17-1 20 35" fill="#e6d28a"/><path d="M-9 47l-6 22m25-22 9 21" fill="none"/></g>
+<g transform="translate(1498 279)"><circle r="11" cy="3" fill="#dfb18f"/><path d="M-12-3q14-17 23 1" fill="#5a493f"/><path d="M-16 46q0-34 17-34 21 0 20 35" fill="#7199a3"/><path d="M-8 45l-5 23m24-22 7 24" fill="none"/></g>
+</g>
+<!-- antique book border detail -->
+<rect x="8" y="8" width="1584" height="363" rx="7" fill="none" stroke="#bea67a" stroke-width="3" opacity=".7"/>
+</g></svg>

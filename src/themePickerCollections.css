@@ -110,3 +110,10 @@ html #root #qa-theme-collection-panel > button[data-qa-color-option][aria-presse
  .qa-festival-preview-metrics > div {display:flex; align-items:center; justify-content:space-between; padding:12px;}
  .qa-festival-preview-metrics strong {margin:0; font-size:22px;}
 }
+
+/* Illustrated Thai language collection — never leak into Color Collection. */
+.qa-theme-collection-tabs {grid-template-columns:repeat(4,minmax(0,1fr));}
+.qa-theme-collection-tabs button {min-height:42px;font-size:11px;}
+.qa-theme-collection-panel[data-qa-picker-collection="thai-lessons"] > [data-qa-theme-collection]:not([data-qa-theme-collection="thai-lessons"]),
+.qa-theme-collection-panel:not([data-qa-picker-collection="thai-lessons"]) > [data-qa-theme-collection="thai-lessons"] {display:none!important;}
+@media(max-width:600px) {.qa-theme-collection-tabs {grid-template-columns:repeat(2,minmax(0,1fr));}}
