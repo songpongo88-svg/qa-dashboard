@@ -101,7 +101,10 @@ export function SparkQuestAnnouncementPopup({
   username, sessionId, blocked, onJoin,
 }: { username: string; sessionId: string; blocked: boolean; onJoin: () => void }) {
   const [acknowledged, setAcknowledged] = useState(() => dismissedForLogin(username, sessionId));
-  const [eligibility, setEligibility] = useState<"checking" | "incomplete" | "complete" | "unavailable">("checking");
+  const sessionKey = readKey(username) + ":" + sessionId;
+  const [eligibility, setEligibility] = useState<{
+    sessionKey: string; status: "checking" | "incomplete" | "complete" | "unavailable";
+  }>(() => ({ sessionKey, status: "checking" }));
 
   useEffect(() => { setAcknowledged(dismissedForLogin(username, sessionId)); }, [username, sessionId]);
   useEffect(() => {
@@ -116,18 +119,21 @@ export function SparkQuestAnnouncementPopup({
   useEffect(() => {
     if (!username || !sessionId || blocked || acknowledged || !sparkAnnouncementActive()) return;
     let cancelled = false;
-    setEligibility("checking");
+    setEligibility({ sessionKey, status: "checking" });
     void hasUnclaimedSparkQuests(username, sessionId)
-      .then(incomplete => { if (!cancelled) setEligibility(incomplete ? "incomplete" : "complete"); })
+      .then(incomplete => {
+        if (!cancelled) setEligibility({ sessionKey, status: incomplete ? "incomplete" : "complete" });
+      })
       .catch(error => {
         // Fail closed on authorization/quota/network errors, not a guessed reward status.
         console.warn("Cannot verify Spark quest announcement eligibility", error);
-        if (!cancelled) setEligibility("unavailable");
+        if (!cancelled) setEligibility({ sessionKey, status: "unavailable" });
       });
     return () => { cancelled = true; };
-  }, [username, sessionId, blocked, acknowledged]);
+  }, [username, sessionId, blocked, acknowledged, sessionKey]);
 
-  if (!username || !sessionId || blocked || acknowledged || !sparkAnnouncementActive() || eligibility !== "incomplete") return null;
+  if (!username || !sessionId || blocked || acknowledged || !sparkAnnouncementActive() ||
+      eligibility.sessionKey !== sessionKey || eligibility.status !== "incomplete") return null;
   const close = () => { markDismissed(username, sessionId); setAcknowledged(true); };
   const join = () => { close(); onJoin(); };
   return <div className="spark-promo-modal-backdrop" data-spark-quest-announcement-popup="true">
