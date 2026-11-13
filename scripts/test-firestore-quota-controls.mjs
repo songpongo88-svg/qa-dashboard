@@ -17,7 +17,7 @@ const qaSessionApp = await readFile(new URL("../src/App.tsx", import.meta.url), 
 assert.match(qaSessionApp, /SESSION_CHECK_INTERVAL_MS = 15 \* 60 \* 1000/);
 assert.match(qaSessionApp, /SESSION_TOUCH_INTERVAL_MS = 29 \* 60 \* 1000/);
 const qaSessionStore = await readFile(new URL("../src/sessionStore.ts", import.meta.url), "utf8");
-assert.match(qaSessionStore, /SESSION_INACTIVITY_MS = 30 \\* 60 \\* 1000/);
+assert.ok(qaSessionStore.includes("SESSION_INACTIVITY_MS = 30 * 60 * 1000"), "Central session TTL must be 30 minutes");
 assert.ok(qaSessionApp.includes('document.visibilityState !== "visible"'),
   "hidden or pinned Dashboard tabs must skip central session checks");
 assert.ok(qaSessionApp.includes("navigator.onLine === false"),
