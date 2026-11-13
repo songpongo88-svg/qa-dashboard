@@ -7,14 +7,15 @@ assert.match(client, /await qaServerSessionRequest\("validate"\)/);
 assert.match(client, /throw new QaServerSessionError\(401, "QA_SESSION_NOT_ACTIVE"\)/);
 
 const expectations = [
-  ["evaluationStore.ts", ["upsertStoredEvaluation", "deleteStoredEvaluation"]],
+  ["evaluationStore.ts", ["upsertStoredEvaluation", "deleteStoredEvaluation", "uploadCallRecordingFile", "uploadEvidenceBlobToFirebase"]],
   ["coachingStore.ts", ["upsertStoredCoachingRecord", "saveMonthlyCoachingRecord"]],
+  ["coachingAttachmentUpload.ts", ["uploadCoachingAttachment"]],
   ["appealStore.ts", ["writeAppealEvent", "updateAppealDiscussionMessage", "writeAdditionalAppealAccessDecision"]],
 ];
 
 for (const [file, functions] of expectations) {
   const source = await readFile(new URL("../src/" + file, import.meta.url), "utf8");
-  assert.match(source, /import \{ assertTrustedQaSessionForMutation \} from "\.\/qaSingleSessionClient"/,
+  assert.match(source, /import \{ assertTrustedQaSessionForMutation \} from ["\x27]\.\/qaSingleSessionClient["\x27]/,
     file + " must import the guarded preflight");
   for (const name of functions) {
     const index = source.indexOf("function " + name + "(");
