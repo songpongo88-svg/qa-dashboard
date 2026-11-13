@@ -64,6 +64,9 @@ on:
       - "server/qaStandbyArchiveStatus.js"
       - "server/qaLiveMirrorStage.js"
       - "server/qaFirestoreRestSnapshot.js"
+      - "server/qaSourceReadBudget.js"
+      - "migration/qa-source-read-budget-daily.sql"
+      - "scripts/test-qa-source-read-budget-integration.mjs"
       - "server/qaStandbySnapshotReadiness.js"
       - "scripts/test-qa-vpc-readiness.mjs"
       - "scripts/test-qa-standby-snapshot-readiness.mjs"
@@ -192,6 +195,8 @@ jobs:
           node --check server/qaStandbyArchiveStatus.js
           node --check server/qaLiveMirrorStage.js
           node --check server/qaFirestoreRestSnapshot.js
+          node --check server/qaSourceReadBudget.js
+          node --check scripts/test-qa-source-read-budget-integration.mjs
           node --check server/qaStandbySnapshotReadiness.js
           node --check scripts/test-qa-standby-snapshot-readiness.mjs
           node --check scripts/test-qa-vpc-readiness.mjs
@@ -298,6 +303,7 @@ jobs:
           node scripts/test-qa-local-mirror-import-integration.mjs
           node scripts/test-qa-standby-archive-status.mjs
           node scripts/test-qa-live-mirror-stage-integration.mjs
+          node scripts/test-qa-source-read-budget-integration.mjs
           node scripts/test-qa-standby-candidate-materializer-integration.mjs
           node scripts/test-qa-standby-inactive-seed-integration.mjs
           node scripts/test-qa-standby-domain-seed-integration.mjs
