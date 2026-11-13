@@ -1,0 +1,136 @@
+/* Keep the original Evaluation cards and theme colors in one continuous form. */
+.qa-evaluation-form {
+  min-width: 0;
+  container: qa-evaluation / inline-size;
+  overflow-anchor: none;
+}
+
+.qa-evaluation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.qa-evaluation-layout > div,
+.qa-evaluation-layout section,
+.qa-evaluation-topic-row > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.qa-evaluation-summary {
+  position: static;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.qa-evaluation-rubric {
+  container: qa-evaluation-rubric / inline-size;
+}
+
+.qa-evaluation-form input:not([type=checkbox]):not([type=radio]),
+.qa-evaluation-form select,
+.qa-evaluation-form textarea {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 16px;
+}
+
+.qa-evaluation-form [data-rich-text-editor] {
+  font-size: 16px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  overflow-y: visible;
+  min-width: 0;
+}
+
+.qa-evaluation-form [data-rich-text-editor] table { table-layout: fixed; }
+.qa-evaluation-form [data-rich-text-editor] td,
+.qa-evaluation-form [data-rich-text-editor] th {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.qa-evaluation-form [data-rich-text-toolbar]:not(.qa-evaluation-toolbar) {
+  position: static;
+  max-width: 100%;
+  z-index: auto;
+}
+
+.qa-evaluation-toolbar {
+  position: sticky;
+  top: 12px;
+  z-index: 40;
+  max-width: 100%;
+}
+
+.qa-evaluation-raw-row {
+  grid-template-columns: minmax(0, 110px) minmax(0, 1fr);
+}
+.qa-evaluation-raw-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.qa-evaluation-tag,
+.qa-evaluation-tag > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@container qa-evaluation-rubric (min-width: 480px) {
+  .qa-evaluation-tag-create {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+/* Match the familiar case / rubric / score arrangement when all three fit. */
+@container qa-evaluation (min-width: 1200px) {
+  .qa-evaluation-layout {
+    grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.8fr) 280px;
+    gap: 20px;
+  }
+  .qa-evaluation-summary {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+  }
+}
+
+/* On smaller desktops, place attachments beside case details before the rubric. */
+@container qa-evaluation (min-width: 700px) and (max-width: 1199.99px) {
+  .qa-evaluation-case,
+  .qa-evaluation-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+  }
+  .qa-evaluation-case > :not([hidden]) ~ :not([hidden]),
+  .qa-evaluation-summary > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0;
+  }
+  .qa-evaluation-case > :nth-child(3) { grid-column: 1 / -1; }
+}
+
+/* Adapt to the rubric card's actual width, including browser zoom. */
+@container qa-evaluation-rubric (max-width: 780px) {
+  .qa-evaluation-rubric-heading { display: none !important; }
+  .qa-evaluation-topic-row {
+    grid-template-columns: 64px minmax(0, 1fr) 70px !important;
+    grid-template-areas: "topic description description" "score score max";
+    align-items: start;
+  }
+  .qa-evaluation-topic-row > :nth-child(1) { grid-area: topic; }
+  .qa-evaluation-topic-row > :nth-child(2) { grid-area: description; }
+  .qa-evaluation-topic-row > :nth-child(3) { grid-area: score; }
+  .qa-evaluation-topic-row > :nth-child(4) { grid-area: max; }
+  .qa-evaluation-topic-row .lg\:hidden { display: block; }
+}
+
+@container qa-evaluation (max-width: 520px) {
+  .qa-evaluation-form .grid.grid-cols-2 { grid-template-columns: minmax(0, 1fr); }
+  .qa-evaluation-layout { gap: 18px; }
+}

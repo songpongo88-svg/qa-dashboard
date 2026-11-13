@@ -135,6 +135,15 @@ try{
   assert.ok(lotteryQuest && lotteryQuest.classList.contains("qa-sparks-mini-item"), "QA Lottery uses the same compact Quest slot");
   assert.equal(main.querySelectorAll(".qa-sparks-quest-grid > .qa-sparks-mini-item").length,3, "all three Quests align in one grid");
   assert.equal(main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item").length,8, "Reward Center includes Auto-Pass, Typing Relief, Shield, TrueMoney and four brand rewards");
+  const overviewPanels=main.querySelectorAll(".qa-sparks-dual > .qa-sparks-panel");
+  assert.equal(overviewPanels.length,2,"Overview retains the original Reward Center and History panels");
+  assert.ok(overviewPanels[0].querySelector(".qa-sparks-reward-grid"),"Reward Center is the first column");
+  assert.ok(overviewPanels[1].querySelector(".qa-sparks-history-wrap"),"History is the second column");
+  assert.ok(main.querySelector(".qa-sparks-reward-tagline"),"Shop subtitle is present");
+  assert.match(css,/\.qa-sparks-reward-grid \.qa-sparks-mini-item\{width:100%/,
+    "all product cards including nested TrueMoney must share full width");
+  assert.doesNotMatch(css.slice(css.indexOf("/* Reward Center: unified premium product cards")),/\.qa-sparks-reward-grid>\.qa-sparks-mini-item/,
+    "product rules must include nested TrueMoney tile");
   assert.ok(main.querySelector('[data-reward-item="announcement-shield"]'),"Announcement Shield 50 Sparks subscription appears in Reward Center");
   for (const id of ["punthai-65","netflix-1m","amazon-55","seven-100"]) assert.ok(main.querySelector(`[data-reward-item="${id}"]`), "new reward "+id+" renders in the compact grid");
   const displayedOrder=[...main.querySelectorAll(".qa-sparks-reward-grid .qa-sparks-mini-item")]
@@ -166,6 +175,9 @@ try{
   assert.ok(autoPassItem&&autoPassItem.textContent.includes("ฟรี 5 สิทธิ์"),
     "new QA Access Auto-Pass must show one-click five-unit free offer during promo");
   assert.equal(autoPassItem.classList.contains("qa-sparks-mini-item"),true);
+  assert.ok(autoPassItem.textContent.includes("800 Sparks"),"QA Access 5 free rights are worth 800 Sparks");
+  assert.ok(!autoPassItem.textContent.includes("รับฟรีแล้ว"),"redeemed status must appear inside item details only");
+  assert.ok(autoPassItem.querySelector(".qa-auto-pass-card-original s"),"original offer value is crossed out");
   await act(async()=>autoPassItem.dispatchEvent(new MouseEvent("click",{bubbles:true})));
   const autoPassModal=document.querySelector(".qa-auto-pass-modal");
   assert.ok(autoPassModal&&autoPassModal.textContent.includes("Word Mode")&&autoPassModal.textContent.includes("Sentence Mode"));
@@ -178,14 +190,18 @@ try{
   assert.equal(item.getAttribute("aria-haspopup"), "dialog");
   const typingPrice = getTypingReliefPricing(Date.now());
   assert.ok(item.textContent.includes("Typing Relief") && item.textContent.includes(String(typingPrice.price)), "compact Item shows live server-contracted price");
-  if (typingPrice.promoActive) assert.ok(item.textContent.includes("ลด 70%"),"compact Item clearly marks new-purchase sale");
+  if (typingPrice.promoActive) {
+    assert.ok(item.textContent.includes("ลด 70%"),"compact Item clearly marks new-purchase sale");
+    assert.ok(item.querySelector(".qa-sparks-shop-price s")?.textContent.includes("150"),"Typing Relief regular price is crossed out");
+    assert.ok(item.querySelector(".qa-sparks-shop-price strong")?.textContent.includes("45"),"Typing Relief sale price is visible");
+  }
   assert.ok(!item.textContent.includes("ดูรายละเอียด"), "Item surface is image + name + price, details are in the popup");
   assert.ok(item.classList.contains("qa-sparks-mini-item"), "Typing Relief is rendered as a compact game slot");
   assert.ok(item.querySelector(".qa-sparks-mini-art"), "Typing Relief has a dedicated mini artwork square");
   assert.ok(!item.textContent.includes("วิธีใช้งาน") && !item.textContent.includes("เงื่อนไขสำคัญ"), "full explanations must not be displayed on the Item");
   assert.ok(!main.textContent.includes("สะสมได้ 10 สิทธิ์"), "inventory rules must live inside the modal, not the Item");
-  const art = item.querySelector(".qa-relief-art-svg");
-  assert.ok(art && art.querySelectorAll("rect").length > 10, "real illustrated keyboard-and-ticket Artwork is required");
+  const art = item.querySelector(typingPrice.promoActive ? ".qa-sparks-offer-art--typing" : ".qa-relief-art-svg");
+  assert.ok(art, "the Item uses the approved promotional keyboard artwork or its regular artwork after the offer ends");
 
   await act(async () => item.dispatchEvent(new MouseEvent("click", {bubbles:true})));
   let detail = document.querySelector(".qa-sparks-reward-detail-modal");
@@ -209,7 +225,7 @@ try{
   assert.ok(detail.textContent.includes("60%"), "Typing Relief must state a percentage, not a fixed 60 words");
   assert.ok(detail.textContent.includes("40"), "remaining words are shown in the 100-to-40 product benefit");
   assert.ok(!detail.textContent.includes("ลดได้สูงสุด 60 คำ"), "the old fixed-word claim must not appear");
-  assert.ok(art.textContent.includes("%"), "the reward artwork must show a percent sign");
+  assert.ok((art.textContent + (art.getAttribute("aria-label") || "")).includes("%"), "the reward artwork must show a percent sign");
   assert.ok(detail.querySelector(".qa-sparks-reward-detail-primary:disabled"), "buy stays disabled unless wallet and session are verified");
   await act(async () => detail.querySelector(".qa-sparks-reward-detail-close").dispatchEvent(new MouseEvent("click", {bubbles:true})));
   assert.equal(document.querySelector(".qa-sparks-reward-detail-modal"), null, "detail modal closes without any purchase");

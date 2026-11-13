@@ -1,3 +1,4 @@
+import {appendKnownItemExpirations} from "../src/sparksItemHistory.mjs";
 import { createSign, createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createFruitMatchService } from "../server/fruitMatchService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
@@ -9,8 +10,11 @@ import { createTypingReliefCloudService } from "../server/typingReliefCloudServi
 import { createQaAutoPassService } from "../server/qaAutoPassService.js";
 import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
+import { getSparksAccessState } from "../server/sparksAccessControl.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
+import { auditQaCredentialSource } from "../server/sparksQaCredentialPreflight.js";
+import { migrateQaPasswordsFromTrustedSource } from "../server/sparksQaMigrationRunner.js";
 import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
@@ -50,9 +54,15 @@ const adminReadCache = new Map();
 const ADMIN_READ_CACHE_MS = 60_000;
 const FIRESTORE_QUOTA_COOLDOWN_MS = 5 * 60_000;
 let firestoreQuotaLimitedUntil = 0;
-function firestoreQuotaError() {
-  return Object.assign(new Error("Firestore มีข้อจำกัดโควตาหรืออัตราการใช้งาน กรุณาตรวจที่ Firebase Console → Firestore → Usage และหลีกเลี่ยงการรีเฟรชซ้ำ"), {
-    status: 429, code: "FIRESTORE_RESOURCE_EXHAUSTED", firestoreStatus: "RESOURCE_EXHAUSTED",
+function firestoreQuotaError(source = "upstream") {
+  const cached = source === "cooldown";
+  return Object.assign(new Error(cached
+    ? "เซิร์ฟเวอร์อยู่ในช่วงพักการอ่าน Firestore หลังพบ 429 ก่อนหน้านี้ ยังไม่ได้ส่งคำขออ่านใหม่"
+    : "Firestore ตอบกลับ RESOURCE_EXHAUSTED หรือ HTTP 429 สำหรับการอ่านบัญชี QA ครั้งนี้"), {
+    status: 429,
+    code: cached ? "FIRESTORE_READ_COOLDOWN" : "FIRESTORE_RESOURCE_EXHAUSTED",
+    firestoreStatus: "RESOURCE_EXHAUSTED",
+    quotaSource: source,
   });
 }
 function cachedAdminRead(key, load, forceRefresh = false) {
@@ -210,7 +220,7 @@ async function firestoreRequest(endpoint, method = "GET", body) {
   // A quota response is shared by this function instance. Reject repeated
   // display reads locally instead of contacting an already limited database.
   // Authentication and all mutations still require normal server verification.
-  if (method === "GET" && Date.now() < firestoreQuotaLimitedUntil) throw firestoreQuotaError();
+  if (method === "GET" && Date.now() < firestoreQuotaLimitedUntil) throw firestoreQuotaError("cooldown");
   const token = await getAccessToken();
   if(process.env.SPARKS_DATA_BACKEND==="supabase" && endpoint===":commit" && body?.transaction){
     // Supabase begin tokens are local optimistic transaction markers. Firebase
@@ -652,6 +662,76 @@ async function claimProfileMakeover(actor) {
 }
 
 
+/** Owner-only audit: a completed flag is NOT a receipt. Never guess missing points. */
+async function auditProfileMakeoverBonuses(){
+  const [profiles,wallets,photoIndex]=await Promise.all([
+    listCollection("qa_user_profiles",["username","displayName","status","role","suspendEffectiveDate","suspendEndDate","suspendAutoReactivate"]),
+    listCollection("qa_sparks_wallets",["username","profileMakeoverClaimedAt"]),
+    listCollection("qa_user_profile_photos",["username","updatedAt"]),
+  ]);
+  if(profiles.truncated||wallets.truncated||photoIndex.truncated)fail("ข้อมูลบัญชีไม่ครบทุกหน้า งดชดเชย",409);
+  if(!profiles.documents.length)fail("ไม่พบรายชื่อ QA ต้นทาง งดชดเชย",503);
+  const getId=doc=>{try{return decodeURIComponent(String(doc?.name||"").split("/").pop()||"");}catch{return "";}};
+  const members=new Map();
+  for(const d of profiles.documents){const p=recordValue(d),u=normalize(p.username);if(!u)continue;
+    if(members.has(u))fail("ข้อมูล Username ซ้ำ งดชดเชย",409);members.set(u,p);}
+  const walletByUser=new Map();
+  for(const d of wallets.documents){const w=recordValue(d),u=normalize(w.username||getId(d));if(u)walletByUser.set(u,w);}
+  const photoByUser=new Map();
+  for(const d of photoIndex.documents){const p=recordValue(d),u=normalize(p.username||getId(d));
+    if(members.has(u))photoByUser.set(u,getId(d));}
+  const users=[...new Set([...photoByUser.keys(),
+    ...[...walletByUser.entries()].filter(([,w])=>Boolean(w.profileMakeoverClaimedAt)).map(([u])=>u)
+  ])].filter(u=>members.has(u)).sort();
+  if(users.length>300)fail("จำนวนข้อมูลเกินขอบเขตการตรวจหนึ่งรอบ",409);
+  const rows=[];
+  for(let i=0;i<users.length;i+=3){
+    const inspected=await Promise.all(users.slice(i,i+3).map(async username=>{
+      const profile=members.get(username);
+      const base={username,displayName:String(profile.displayName||username)};
+      if(isSuspendedProfile(profile))return {...base,status:"suspended"};
+      const [photoDoc,historyDoc]=await Promise.all([
+        photoByUser.has(username)?readDoc(path("qa_user_profile_photos",photoByUser.get(username))):Promise.resolve(null),
+        readDoc(path("qa_sparks_wallets",walletKey(username),"history",PROFILE_QUEST.historyId)),
+      ]);
+      const photo=recordValue(photoDoc),history=recordValue(historyDoc),wallet=walletByUser.get(username)||{};
+      const hasPhoto=Boolean(photoDoc&&normalize(photo.username)===username
+        &&typeof photo.photoDataUrl==="string"
+        &&(/^\u0064ata:image\/(png|jpg|jpeg|webp|gif);base64,/i.test(photo.photoDataUrl)||/^https:\/\//i.test(photo.photoDataUrl)));
+      const flagged=Boolean(wallet.profileMakeoverClaimedAt);
+      const receipt=Boolean(historyDoc&&history.source==="quest-profile-makeover"
+        &&history.questId===PROFILE_QUEST.id&&Number(history.amount)===PROFILE_QUEST.reward&&!history.voidedAt);
+      const status=historyDoc&&flagged&&receipt?"paid":historyDoc||flagged?"review":hasPhoto?"eligible":"no-photo";
+      return {...base,status,flagged,receipt};
+    }));
+    rows.push(...inspected);
+  }
+  return {ok:true,totalAccounts:members.size,rows};
+}
+/** Per-user original claim revalidates stored photo, wallet flag and fixed history
+ * ID in an atomic transaction. Do not manually adjust balances or bypass owner auth.
+ */
+async function repairProfileMakeoverBonuses(body,admin){
+  if(sparksCloudReadOnlyEnabled())fail("Preview ห้ามแก้คะแนน",423);
+  const raw=Array.isArray(body.usernames)?body.usernames:[];
+  if(!raw.length||raw.length>3)fail("ชดเชยได้ครั้งละ 1–3 บัญชี",400);
+  const names=raw.map(safeUsername);
+  if(new Set(names).size!==names.length)fail("พบ Username ซ้ำ",400);
+  const results=[];
+  for(const username of names){
+    try{
+      await requireActiveTarget(username);
+      const claim=await claimProfileMakeover({username,displayName:username});
+      results.push({username,status:claim.updated?"credited":"already-claimed",
+        amount:claim.updated?150:0,balanceAfter:claim.balance,claimedAt:claim.claimedAt});
+    }catch(error){
+      if(Number(error?.status)===429||Number(error?.status)===423)throw error;
+      results.push({username,status:"failed",amount:0,error:String(error?.message||"ทำรายการไม่สำเร็จ")});
+    }
+  }
+  return {ok:true,performedBy:admin.username,results};
+}
+
 function ownTrueMoneyItems(wallet){
   const values=Array.isArray(wallet.trueMoneyItems)?wallet.trueMoneyItems:[];
   return values.filter(item=>item&&typeof item.itemId==="string"
@@ -1064,14 +1144,17 @@ function toHistory(doc) {
   return {
     id: decodeURIComponent(String(doc.name || "").split("/").pop() || ""),
     createdAt: String(row.createdAt || ""),
-    type: originalAmount < 0 ? "spend" : "earn",
+    type: originalAmount < 0 ? "spend" : originalAmount > 0 ? "earn" : "event",
     title: String(row.title || ""),
     detail: voided ? "รายการทดลองถูกยกเลิก (เดิม " + (originalAmount > 0 ? "+" : "") + originalAmount.toLocaleString("en-US") + " Sparks)" : String(row.detail || ""),
     source: String(row.source || ""),
+    rewardId:String(row.rewardId||""),itemId:String(row.itemId||""),
+    quantity:row.quantity,inventoryAfter:row.inventoryAfter,challengeId:row.challengeId,
+    originalWords:row.originalWords,remainingWords:row.remainingWords,drawDate:row.drawDate,
     amount: voided ? 0 : originalAmount,
     voided,
     originalAmount,
-    balanceAfter: balance(row.balanceAfter),
+    balanceAfter: row.balanceAfter===null||row.balanceAfter===undefined?null:balance(row.balanceAfter),
     performedBy: String(row.performedBy || ""),
     reason: String(row.reason || ""),
     referenceId: String(row.referenceId || ""),
@@ -1140,7 +1223,8 @@ async function loadUserHistory(username) {
     readDoc(path("qa_sparks_wallets", id)),
     listCollection(path("qa_sparks_wallets", id, "history")),
   ]);
-  const history = rows.documents.map(toHistory).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const history = appendKnownItemExpirations(rows.documents.map(toHistory),recordValue(walletDoc))
+    .sort((a,b) => b.createdAt.localeCompare(a.createdAt));
   const refunded = new Set(history.filter((x) => x.source === "reward-refund").map((x) => x.referenceId));
   const enriched = history.map((entry) => entry.source === "reward-redemption" && refunded.has(entry.id)
     ? { ...entry, status: "Refunded" } : entry);
@@ -1508,6 +1592,23 @@ function sparksCloudReadOnlyEnabled() {
 
 async function sparksHandler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  // Keep Sparks gameplay, rewards, admin wallets and scheduled jobs paused.
+  // The owner-only QA credential migration is a maintenance operation, not a
+  // Sparks activity. It must remain reachable while Sparks is paused so that
+  // account cutover can complete without reopening Firebase-backed usage.
+  // Each migration action verifies same-origin and the live QA owner session
+  // before any credential-source read or Supabase import.
+  const maintenanceAction = req.method === "POST" &&
+    (() => {
+      try {
+        const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+        return body?.action === "qa-password-preflight" ||
+          body?.action === "qa-password-migrate-server";
+      } catch { return false; }
+    })();
+  const gate=await getSparksAccessState();
+  if(!gate.enabled && !maintenanceAction)
+    return res.status(423).json({error:gate.message,code:"SPARKS_ACCESS_PAUSED"});
   if (sparksEmailAuthEnabled()) {
     const originKind = String(req.headers?.["sec-fetch-site"] || "");
     if (originKind && originKind !== "same-origin" && originKind !== "none")
@@ -1541,8 +1642,11 @@ async function sparksHandler(req, res) {
       autoPass:autoPassPending.status==="fulfilled"?autoPassPending.value:{error:"Auto-Pass reconciliation failed"}});
   }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  let qaMigrationAction = "";
+  let qaMigrationStage = "";
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    if (body.action === "qa-password-preflight" || body.action === "qa-password-migrate-server") qaMigrationAction = body.action;
     if(sparksCloudReadOnlyEnabled() && !CLOUD_PREVIEW_READ_ACTIONS.has(String(body.action||""))) {
       return res.status(423).json({
         error:"QA Sparks เวอร์ชันทดสอบ Supabase เปิดให้ดูข้อมูลอย่างเดียว ยังไม่อนุญาตให้เพิ่ม หัก แลก หรือยืนยันรางวัล",
@@ -1688,6 +1792,71 @@ async function sparksHandler(req, res) {
       return res.status(200).json(result);
     }
     if (body.action === "reauth") return res.status(200).json(await reauthorizeAdminSession(body));
+    if (body.action === "qa-password-migrate-server") {
+      // This is NEVER a public/cron-triggered import: the existing QA
+      // session, owner role, suspension, expiry, and policy are all checked
+      // before the server can fetch source credentials. No credential is
+      // returned to the browser, kept in logs, or stored in intermediate tables.
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")
+        fail("QA Sparks Supabase backend is not enabled",409);
+      const site=String(req.headers?.["sec-fetch-site"] || "");
+      if(site && site!=="same-origin" && site!=="none")
+        fail("Cross-origin credential import denied",403);
+      const origin=String(req.headers?.origin || "");
+      if(origin){
+        let sourceOrigin;
+        try { sourceOrigin=new URL(origin); }
+        catch { fail("Invalid request origin",403); }
+        if(sourceOrigin.protocol!=="https:" || sourceOrigin.host!==req.headers.host)
+          fail("Credential import origin mismatch",403);
+      }
+      qaMigrationStage="owner-session";
+      await authorizeAdmin(body);
+      qaMigrationStage="source-credentials";
+      const page=await listCollection("qa_user_profiles",[
+        "username","status","role","password","passwordExpiresAt","accessExpiresAt",
+        "suspendEffectiveDate","suspendEndDate","suspendAutoReactivate",
+      ]);
+      if(page.truncated)fail("Source credential inventory was incomplete",503);
+      qaMigrationStage="supabase-import";
+      const result=await migrateQaPasswordsFromTrustedSource(page.documents.map(recordValue),{
+        token:process.env.SPARKS_SUPABASE_BRIDGE_TOKEN,
+        url:process.env.SPARKS_SUPABASE_AUTH_URL,
+      });
+      return res.status(result.ok?200:409).json(result);
+    }
+    if (body.action === "qa-password-preflight") {
+      // Admin-only, read-only and same-origin. No password is returned to the
+      // client, written to Supabase, or logged.
+      const site=String(req.headers?.["sec-fetch-site"] || "");
+      if (site && site !== "same-origin" && site !== "none")
+        fail("Cross-origin credential preflight denied",403);
+      const origin=String(req.headers?.origin || "");
+      if(origin) {
+        try {
+          const sourceOrigin=new URL(origin);
+          if (sourceOrigin.protocol!=="https:" || sourceOrigin.host!==req.headers.host)
+            fail("Origin mismatch",403);
+        } catch(error) {
+          if(Number(error?.status)===403)throw error;
+          fail("Invalid origin",403);
+        }
+      }
+      qaMigrationStage="owner-session";
+      await authorizeAdmin(body);
+      qaMigrationStage="source-credentials";
+      const page=await listCollection("qa_user_profiles",[
+        "username","status","role","password","passwordExpiresAt","accessExpiresAt",
+        "suspendEffectiveDate","suspendEndDate","suspendAutoReactivate",
+      ]);
+      if(page.truncated)fail("Incomplete Firestore credential inventory",503);
+      return res.status(200).json({
+        ok:true,
+        ...auditQaCredentialSource(page.documents.map(recordValue)),
+      });
+    }
+
+
     if (body.action === "list" || body.action === "history") {
       const target = body.action === "history" ? safeUsername(body.targetUsername) : "";
       const grant = process.env.SPARKS_DATA_BACKEND === "supabase"
@@ -1713,6 +1882,12 @@ async function sparksHandler(req, res) {
       }
     }
     const admin = await authorizeAdmin(body);
+    if (body.action === "audit-profile-makeover") {
+      return res.status(200).json(await auditProfileMakeoverBonuses());
+    }
+    if (body.action === "repair-profile-makeover") {
+      return res.status(200).json(await repairProfileMakeoverBonuses(body,admin));
+    }
     if (body.action === "set-truemoney-price") {
       return res.status(200).json(await setTrueMoneyPrice(body,admin));
     }
@@ -1755,6 +1930,38 @@ async function sparksHandler(req, res) {
   } catch (error) {
     const status = Number(error?.status) || 500;
     if (status === 429) res.setHeader("Retry-After", String(Math.max(1, Math.ceil((firestoreQuotaLimitedUntil - Date.now()) / 1000)) || 300));
+    // A working Supabase rewards wallet does not establish that the separate
+    // Firestore credential-source reads are available. Distinguish the stages.
+    if (qaMigrationAction) {
+      const stage = ["owner-session","source-credentials","supabase-import"].includes(qaMigrationStage)
+        ? qaMigrationStage : "unknown";
+      if (status === 429) {
+        const retryAfterSeconds = Math.max(1, Math.ceil((firestoreQuotaLimitedUntil - Date.now()) / 1000) || 300);
+        const cached = error?.code === "FIRESTORE_READ_COOLDOWN";
+        return res.status(429).json({
+          ok:false,
+          code:cached?"QA_CREDENTIAL_SERVER_COOLDOWN":"QA_CREDENTIAL_FIRESTORE_LIMIT",
+          stage,retryAfterSeconds,firestoreReadAttempted:!cached,
+          error:cached
+            ?"เซิร์ฟเวอร์พักการอ่าน Firestore ชั่วคราวหลังข้อผิดพลาดก่อนหน้า คำขอนี้ไม่ได้อ่าน Firestore ใหม่"
+            :"Firestore ปฏิเสธการอ่านข้อมูลบัญชี QA ครั้งนี้ด้วย RESOURCE_EXHAUSTED หรือ HTTP 429",
+        });
+      }
+      if (status >= 500) {
+        console.error("QA Sparks credential migration failed at stage:",stage);
+        return res.status(503).json({
+          ok:false,code:stage==="supabase-import"?"QA_CREDENTIAL_IMPORT_UNAVAILABLE":"QA_CREDENTIAL_SOURCE_UNAVAILABLE",
+          stage,error:stage==="supabase-import"
+            ?"ติดต่อระบบนำเข้าบัญชี Supabase ไม่สำเร็จ ยังไม่สามารถยืนยันว่าบัญชีถูกย้ายครบ"
+            :"ตรวจสอบบัญชี QA จาก Firebase ไม่สำเร็จ โดยไม่กระทบคะแนนหรือรางวัลบน Supabase",
+        });
+      }
+      if (status === 403 || status === 401)
+        return res.status(status).json({
+          ok:false,code:"QA_CREDENTIAL_OWNER_SESSION_INVALID",stage,
+          error:"การตรวจสิทธิ์เจ้าของระบบเพื่อย้ายบัญชีไม่ผ่าน กรุณา Login QA Dashboard ใหม่ด้วยบัญชีเจ้าของระบบ",
+        });
+    }
     // Never return service-account details, raw credentials or Firestore internal stack traces.
     const message = status === 500 ? "Sparks Admin could not complete this request" : String(error?.message || "Request failed");
     if (status >= 500) console.error("Sparks admin request error:", String(error?.message || "Unknown"));

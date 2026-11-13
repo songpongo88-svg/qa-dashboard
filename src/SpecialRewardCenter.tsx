@@ -119,9 +119,11 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
    try{
      const response=await request(action,extra);
      await reload();
-     if(action==="special-rewards-redeem"){window.dispatchEvent(new CustomEvent("qa:sparks-updated"));setNotice("แลกสำเร็จ Item เพิ่มใน My Items แล้ว");setConfirm(false);}
+     if(action==="special-rewards-redeem"){setNotice("แลกสำเร็จ Item เพิ่มใน My Items แล้ว");setConfirm(false);}
      if(action==="special-rewards-activate")setNotice("กดใช้ Item แล้ว สามารถส่งข้อมูลรับสิทธิ์ได้");
      if(action==="special-rewards-submit")setNotice("ส่งคำขอให้ Admin ตรวจสอบเรียบร้อยแล้ว");
+     // One explicit refresh per successful Item action, including 0-Sparks use.
+     window.dispatchEvent(new CustomEvent("qa:sparks-updated"));
      return response;
    }catch(e){setError(e instanceof Error?e.message:"ทำรายการไม่สำเร็จ");return null;}
    finally{setBusy(false);}
@@ -143,7 +145,7 @@ export default function SpecialRewardCenter({mode,username,sessionId,balance,loa
     onClick={e=>open(r.id,null,e)}>
     <span className="qa-sparks-mini-art qa-sparks-mini-art--special"><RewardImage id={r.id}/></span>
     <strong className="qa-sparks-mini-name">{r.title}</strong>
-    <span className="qa-sparks-mini-value">{fmt(r.price)} Sparks</span>
+    <span className="qa-sparks-mini-value qa-sparks-shop-price"><strong>{fmt(r.price)} Sparks</strong></span>
   </button>):<>
    {!inventoryLoaded&&loaded&&!error?<span role="status" className="qa-sparks-inventory-progress">กำลังโหลด Item...</span>:null}
    {error&&!opened?<span role="alert" className="sr-error">ไม่สามารถโหลด Item: {error}</span>:null}

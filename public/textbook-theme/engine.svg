@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="510" height="220" viewBox="0 0 510 220" fill="none" role="img" aria-label="รถไฟหนังสือเรียน">
+<g fill="#f9e6b6" stroke="#f9e6b6" stroke-linejoin="round" stroke-linecap="round">
+<path d="M0 185h510M0 201h510" stroke-width="8"/>
+<path d="M20 179l-6 29m64-29-6 29m64-29-6 29m64-29-6 29m64-29-6 29m64-29-6 29m64-29-6 29" stroke-width="5"/>
+<path d="M33 153h278v21H33z" stroke-width="6" fill-opacity=".25"/>
+<path d="M74 98V56h48v42m-36-42V30h26v26" stroke-width="7" fill-opacity=".32"/>
+<path d="M66 56h63l-12-12H76z" fill-opacity=".7"/>
+<path d="M130 83V42h122v112H130z" stroke-width="8" fill-opacity=".23"/>
+<path d="M126 42h134V25H126z" fill-opacity=".73"/>
+<rect x="146" y="64" width="43" height="39" rx="4" stroke-width="6" fill-opacity=".18"/>
+<rect x="199" y="64" width="43" height="39" rx="4" stroke-width="6" fill-opacity=".18"/>
+<path d="M271 130h35l-6 23h-29z" stroke-width="6"/>
+<circle cx="91" cy="177" r="25" stroke-width="7"/>
+<circle cx="221" cy="177" r="32" stroke-width="7"/>
+<circle cx="287" cy="177" r="22" stroke-width="6"/>
+<path d="M91 177h130l66 0" stroke-width="7"/>
+<rect x="336" y="85" width="151" height="73" rx="8" stroke-width="7" fill-opacity=".2"/>
+<path d="M348 99h123" stroke-width="7"/>
+<rect x="351" y="108" width="44" height="32" rx="3" stroke-width="5" fill-opacity=".08"/>
+<rect x="408" y="108" width="44" height="32" rx="3" stroke-width="5" fill-opacity=".08"/>
+<circle cx="366" cy="177" r="19" stroke-width="7"/>
+<circle cx="452" cy="177" r="19" stroke-width="7"/>
+<path d="M335 151h-24" stroke-width="8"/>
+<path d="M91 24c-13-14 4-24 0-36M122 22c-12-18 6-22 0-41" stroke-width="10" opacity=".7"/>
+</g></svg>

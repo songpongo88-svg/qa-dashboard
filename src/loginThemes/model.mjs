@@ -17,6 +17,7 @@ export const COLOR_LOGIN_THEMES = [
   ['emerald', '#0f8a78', '#115e59', '#effdf7'],
   ['midnight', '#634bc0', '#22164f', '#f4f1ff'],
   ['graphite', '#3f4653', '#20242c', '#f4f5f7'],
+  ['textbook-train', '#315e70', '#294354', '#f8f0dc'],
 ];
 export const WEEKDAY_LOGIN_PALETTES = [
   ['#9b6a00', '#66500e', '#fff9e8'], ['#bd2466', '#851d49', '#fff0f6'],
@@ -107,6 +108,11 @@ export function resolveLoginTheme(appearance, environment = {}) {
   if (special) {
     const pale = { 'special-coastal': '#edfafa', 'special-volcanic': '#f1f8ff', 'special-misty': '#edf5f2' }[id];
     return skin(id, 'special', [special.swatches[0], special.swatches[1], pale], { image: special.image });
+  }
+  if (id === 'textbook-train') {
+    return skin('textbook-train', 'thai-lessons', ['#315e70', '#294354', '#f8f0dc'], {
+      image: '/textbook-theme/landscape.svg', size: 'cover', position: 'center',
+    });
   }
   // A manually previewed/legacy Festival id cannot persist beyond its schedule.
   const color = COLOR_LOGIN_THEMES.find(row => row[0] === id) || COLOR_LOGIN_THEMES[0];

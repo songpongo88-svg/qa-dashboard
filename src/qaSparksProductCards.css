@@ -1,0 +1,113 @@
+/* Reward presentation within the original Overview columns. */
+.qa-sparks-dual { align-items: start; }
+.qa-sparks-panel:has(.qa-sparks-reward-grid) { padding: 18px; border-radius: 17px; }
+.qa-sparks-panel:has(.qa-sparks-reward-grid) > h2 { font-size: 18px; margin: 2px 0 7px; }
+.qa-sparks-reward-tagline { margin: 0 0 16px; }
+.qa-sparks-mini-grid.qa-sparks-reward-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 12px;
+}
+.qa-sparks-reward-grid .qa-sparks-mini-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: clamp(100px, 18cqw, 150px) 42px 66px 34px;
+  gap: 8px;
+  padding: 9px;
+  border-radius: 14px;
+  align-items: stretch;
+  align-self: stretch;
+  justify-content: stretch;
+  text-align: center;
+  transform: none;
+  border-color: #e8def3;
+  box-shadow: 0 3px 9px #5b2c9914;
+}
+.qa-sparks-reward-grid .qa-sparks-mini-item:hover { transform: none; box-shadow: 0 5px 13px #5b2c9926; }
+.qa-sparks-reward-grid .qa-sparks-mini-art {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: auto;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  border-radius: 9px;
+  background: #fcfaff;
+  box-shadow: none;
+}
+/* Remove intrinsic image sizing from the grid so the complete brand artwork fits. */
+.qa-sparks-reward-grid .qa-sparks-mini-art .sr-logo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.qa-sparks-reward-grid .qa-sparks-mini-art .sr-logo img { min-height: 0; object-fit: contain; }
+.qa-sparks-reward-grid .qa-sparks-mini-art .qa-money-art-svg {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0;
+  object-fit: contain;
+}
+.qa-sparks-reward-grid .qa-sparks-mini-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 2px;
+  min-height: 0;
+  height: 42px;
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-line-clamp: unset;
+}
+.qa-sparks-reward-grid .qa-sparks-mini-value {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  min-height: 66px;
+  height: 66px;
+  padding: 5px 3px;
+  border-radius: 9px;
+  font-size: 15px;
+  line-height: 1.3;
+  gap: 2px;
+  background: #f6efff;
+}
+.qa-sparks-reward-grid .qa-sparks-mini-value.qa-sparks-shop-price::before { content: "ราคาแลก"; font-size: 11px; font-weight: 400; color: #9985ae; }
+.qa-sparks-reward-grid .qa-sparks-shop-price { flex-direction: column; gap: 2px; }
+.qa-sparks-reward-grid .qa-sparks-shop-price > small { font-size: 10px; }
+.qa-sparks-reward-grid .qa-sparks-mini-item--typing .qa-sparks-mini-value { background: #fff1f8; border-color: #f7dcec; }
+.qa-sparks-reward-grid .qa-sparks-mini-item--typing .qa-sparks-shop-price > strong { color: #ce347d; }
+.qa-sparks-reward-grid .qa-auto-pass-card-original { font-size: 10px; }
+.qa-sparks-reward-grid .qa-auto-pass-card-value { font-size: 10px; font-weight: 650; color: #5b8f57; }
+.qa-sparks-reward-grid .qa-sparks-mini-item::after {
+  box-sizing: border-box;
+  content: "ดูรายละเอียด ›";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 3px;
+  border: 1px solid #dfc9f6;
+  border-radius: 7px;
+  background: linear-gradient(#faf5ff, #f2e8ff);
+  color: #7738ba;
+  font-size: 12px;
+  font-weight: 650;
+}
+.qa-sparks-reward-grid .qa-auto-pass-item:has(.qa-auto-pass-card-free)::after { content: "รับสิทธิ์ฟรี ›"; background: linear-gradient(#9d56e9, #7a3dce); border-color: #8f49df; color: #fff; box-shadow: 0 2px 0 #6530af; }
+.qa-sparks-reward-grid .qa-sparks-mini-item--typing::after { content: "แลกเลย ›"; background: linear-gradient(#9d56e9, #7a3dce); border-color: #8f49df; color: #fff; box-shadow: 0 2px 0 #6530af; }
+.qa-sparks-offer-art { display: block; width: 100%; aspect-ratio: 800/435; background-image: url('/rewards/qa-sparks-offers.webp'); background-size: 221.75% auto; background-repeat: no-repeat; background-position: 6.67% 0; }
+.qa-sparks-offer-art--typing { background-position: 93.02% 0; }
+.qa-sparks-reward-grid .qa-sparks-mini-art:has(.qa-sparks-offer-art) { background: #f2e4ff; }
+@container (max-width: 540px) {
+  .qa-sparks-mini-grid.qa-sparks-reward-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+@container (max-width: 292px) {
+  .qa-sparks-mini-grid.qa-sparks-reward-grid { grid-template-columns: minmax(0, 1fr); }
+}

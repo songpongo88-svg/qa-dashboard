@@ -1,0 +1,35 @@
+/* Shared owner cards for the admin workspace and the paused Sparks entry. */
+.sa-control-card {
+  --sa-control-accent:var(--sparks-accent,#7651ad);
+  --sa-control-line:var(--sparks-outline,#e6ddef);
+  box-sizing:border-box;min-width:0;width:100%;padding:24px;border:1px solid var(--sa-control-line);
+  border-radius:18px;background:#fffdfd;color:#30253e;font-family:Kanit,sans-serif;
+  box-shadow:0 4px 18px #39274e06;display:flex;flex-direction:column;
+}
+.sa-control-card.sparks-owner-console{max-width:780px;margin:16px auto 22px}
+.sa-control-heading{display:flex;align-items:center;gap:12px;min-height:46px}
+.sa-control-heading>div{min-width:0;flex:1}
+.sa-control-icon{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:13px;background:color-mix(in srgb,var(--sa-control-accent) 9%,#fff);color:var(--sa-control-accent)}
+.sa-control-icon svg{width:23px;height:23px}
+.sa-control-kicker{display:block;color:#81718e;font-size:11px;font-weight:400;line-height:1.6}
+.sa-control-heading h3{margin:0;color:#392a4e;font-size:18px;font-weight:500;line-height:1.5}
+.sa-control-badge{align-self:flex-start;flex:none;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #e8e1ef;border-radius:30px;background:#f7f4fb;color:#7c668f;font-size:11px;line-height:1.4;white-space:nowrap}
+.sa-control-badge.is-open{border-color:#d7eadd;background:#edf7f0;color:#2a7451}
+.sa-control-badge.is-closed{border-color:#eed7dd;background:#fbf0f3;color:#a33c56}
+.sa-control-badge.is-open::before,.sa-control-badge.is-closed::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.sa-control-description{margin:17px 0 20px;color:#7c6e85;font-size:13px;font-weight:400;line-height:1.8}
+.sa-control-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+.sa-control-card button.sa-control-primary,.sa-control-card button.sa-control-secondary{box-sizing:border-box;min-height:42px;padding:10px 14px;border:1px solid var(--sa-control-accent);border-radius:10px;font:inherit;font-size:12px;line-height:1.6;cursor:pointer;transition:filter .15s ease}
+.sa-control-card button.sa-control-primary{background:var(--sa-control-accent);color:#fff}
+.sa-control-card button.sa-control-secondary{background:#fff;color:var(--sa-control-accent);border-color:var(--sa-control-line)}
+.sa-control-card button.is-danger{background:#a93651;border-color:#a93651}
+.sa-control-card button.is-enable{background:#287351;border-color:#287351}
+.sa-control-card button:disabled{opacity:.5;cursor:not-allowed}
+.sa-control-card button:not(:disabled):hover{filter:brightness(.95)}
+.sa-control-card button:focus-visible,.sa-control-details summary:focus-visible{outline:3px solid var(--qa-theme-400,#c4a6e5);outline-offset:3px}
+.sa-control-note,.sa-control-details{font-size:11px;line-height:1.7;color:#897a92;margin:12px 0 0}
+.sa-control-note.is-verified{color:#57816b;display:flex;align-items:center;gap:6px}
+.sa-control-note.is-verified::before{content:'✓';font-weight:600}
+.sa-control-details summary{cursor:pointer;width:fit-content;color:#85718f;padding:0 0 2px}
+.sa-control-details p{margin:8px 0 0;max-width:65ch;overflow-wrap:anywhere}
+@media(max-width:600px){.sa-control-card{padding:18px}.sa-control-heading{gap:10px;flex-wrap:wrap}.sa-control-heading h3{font-size:17px}.sa-control-badge{font-size:10px;padding:5px 8px}.sa-control-description{font-size:12px}.sa-control-card button.sa-control-primary,.sa-control-card button.sa-control-secondary{min-height:44px}.sa-migration-actions{display:grid;grid-template-columns:1fr;width:100%}.sa-control-heading>div{flex-basis:calc(100% - 112px)}}

@@ -1,0 +1,430 @@
+/* ตา มา รถไฟ — Thai primary-school textbook art direction.
+   Pure appearance: no DOM mutations, no scoring/data/session changes. */
+html:root[data-qa-theme="textbook-train"] {
+  --qa-theme-50:#fcf7eb;
+  --qa-theme-100:#f7edd4;
+  --qa-theme-200:#ead7a8;
+  --qa-theme-300:#d8bd8a;
+  --qa-theme-400:#b88f5f;
+  --qa-theme-500:#53818b;
+  --qa-theme-600:#315e70;
+  --qa-theme-700:#274e60;
+  --qa-theme-800:#294354;
+  --qa-theme-900:#253b4d;
+  --qa-theme-950:#1a2b3b;
+  --qa-theme-highlight:#a65340;
+  --textbook-paper:#fcf7e8;
+  --textbook-ink:#294354;
+  --textbook-red:#a65340;
+  --textbook-rule:rgba(69,103,118,.12);
+  --textbook-edge:#e1cc9d;
+}
+html:root[data-qa-theme="textbook-train"] body {
+  background-color:#f5ecd7;
+}
+html:root[data-qa-theme="textbook-train"] #root {
+  color:var(--textbook-ink);
+  background:
+    radial-gradient(ellipse at 85% 10%,rgba(224,183,108,.19),transparent 48%),
+    repeating-linear-gradient(0deg,transparent 0 35px,var(--textbook-rule) 36px,transparent 37px),
+    linear-gradient(110deg,#f2e5c8 0%,#fcf8ec 46%,#f5ecd7 100%) !important;
+}
+html:root[data-qa-theme="textbook-train"] [data-qa-theme-surface-v1="true"] {
+  background:linear-gradient(150deg,#faf4e5,#f8efd9) !important;
+}
+/* School-book cover, warm illustrated train, red rule and solid typography. */
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] {
+  position:relative;
+  background:
+    linear-gradient(90deg,rgba(34,67,82,.98),rgba(38,81,91,.94)),
+    url('/textbook-theme/cover.svg') center/cover !important;
+  border-bottom:6px solid #b96d4c;
+  box-shadow:0 10px 25px rgba(72,59,38,.16),inset 0 -2px #e8c083 !important;
+  color:#fff6df !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"]::before {
+  content:"";
+  position:absolute;
+  z-index:0;
+  right:2.2%;
+  bottom:-10px;
+  width:180px;
+  height:104px;
+  background:url('/textbook-theme/engine.svg') center/contain no-repeat;
+  opacity:.42;
+  pointer-events:none;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative {
+  position:relative;
+  z-index:1;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] .text-violet-200,
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] .text-violet-100\/90 {
+  color:#f3dbab !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] .rounded-\[28px\] {
+  background:rgba(249,236,201,.12);
+  border-color:rgba(247,218,169,.43);
+}
+/* School-bag navy sidebar: retain navigation and its original click areas. */
+html:root[data-qa-theme="textbook-train"] .qa-global-sidebar-v39 {
+  background:linear-gradient(167deg,#283e50 0%,#315b65 58%,#234b57 100%) !important;
+  border-right:5px solid #d2b378 !important;
+  box-shadow:5px 0 22px rgba(37,50,51,.15) !important;
+  isolation:isolate;
+}
+html:root[data-qa-theme="textbook-train"] .qa-global-sidebar-v39::after {
+  content:"";
+  position:absolute;
+  left:12px;
+  right:12px;
+  bottom:10px;
+  height:88px;
+  background:url('/textbook-theme/engine.svg') center bottom/contain no-repeat;
+  opacity:.12;
+  pointer-events:none;
+  z-index:0;
+}
+html:root[data-qa-theme="textbook-train"] .qa-sidebar-nav-v39 button:not([aria-current="page"]):not([aria-disabled="true"]) {
+  color:#f7eed6;
+}
+html:root[data-qa-theme="textbook-train"] .qa-sidebar-nav-v39 button:not([aria-current="page"]):hover {
+  background:rgba(243,214,165,.14) !important;
+}
+html:root[data-qa-theme="textbook-train"] .qa-sidebar-nav-v39 button[aria-current="page"] {
+  color:#284958 !important;
+  background:#f5e8c7 !important;
+  border-left:4px solid #ba654c;
+  box-shadow:0 3px 11px rgba(18,34,40,.18);
+}
+html:root[data-qa-theme="textbook-train"] .qa-sidebar-nav-v39 .qa-sidebar-section-label {
+  color:#ecd19a !important;
+  letter-spacing:.035em;
+}
+/* Worksheet tabs are clear and distinct, without replacing or hiding a tab. */
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 {
+  background:linear-gradient(180deg,#efe4c9,#e9dcc0) !important;
+  border-bottom:2px solid #d4bd91 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 button[aria-selected="true"],
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 button[aria-current="page"] {
+  border-color:#bd825f !important;
+  background:#fff8e8 !important;
+  color:#2a5060 !important;
+}
+/* Paper cards, lined document headers and quiet, readable reports. */
+html:root[data-qa-theme="textbook-train"] #root :is(
+  [data-dashboard-metric],
+  [data-case-information-unified],
+  [data-qa-dashboard-control-center-v163],
+  .mc-card,
+  .mc-workbench,
+  .mc-roster,
+  .knowledge-card
+) {
+  background:#fffcf3 !important;
+  border-color:#dfcba8 !important;
+  box-shadow:0 3px 11px rgba(73,68,51,.07),inset 0 1px 0 #fff !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-dashboard-metric] {
+  border-top:4px solid #b66a50 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root :is(.mc-header,.mc-period,.mc-list-head) {
+  background:#efe5d0 !important;
+  border-color:#d9c49b !important;
+  color:#294354 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root :is(thead,thead tr,thead th) {
+  background-color:#345765 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root thead th {
+  color:#fff3d6 !important;
+  border-color:#64818a !important;
+}
+html:root[data-qa-theme="textbook-train"] #root tbody tr:hover {
+  background-color:rgba(237,222,183,.23);
+}
+html:root[data-qa-theme="textbook-train"] #root :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+  border-color:#d9c49b;
+  caret-color:#315e70;
+}
+html:root[data-qa-theme="textbook-train"] #root :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea):focus-visible {
+  outline-color:#497c85;
+  border-color:#497c85;
+}
+/* The picker itself retains its usual layout, with an illustrated live preview. */
+html:root[data-qa-theme="textbook-train"] #root [data-qa-color-option="textbook-train"] {
+  border-color:#d5b783;
+  background:#fcf3dd;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-qa-color-option="textbook-train"][aria-pressed="true"] {
+  border:2px solid #a65340;
+}
+@media (max-width:640px) {
+  html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"]::before {width:112px;height:68px;opacity:.2}
+}
+
+
+/* ------------------------------------------------------------------
+   บทเรียนภาษาไทย / ตา-มา-รถ-ไฟ ป.1 — illustrated edition v2.
+   Only paints the selected appearance; leaves forms, data and scoring intact.
+   ------------------------------------------------------------------ */
+html:root[data-qa-theme="textbook-train"] {
+  --qa-theme-50:#fcf7ea; --qa-theme-100:#f5e9cf; --qa-theme-200:#e6d4ad;
+  --qa-theme-300:#c9ad79; --qa-theme-400:#b89464; --qa-theme-500:#64899a;
+  --qa-theme-600:#3a7287; --qa-theme-700:#315e75; --qa-theme-800:#29495d;
+  --qa-theme-900:#243e51; --qa-theme-950:#1d3344; --qa-theme-highlight:#b46b52;
+}
+html:root[data-qa-theme="textbook-train"] #root,
+html:root[data-qa-theme="textbook-train"] #root [data-qa-theme-surface-v1="true"] {
+ background:#faf3e3 !important;
+ background-image:
+  repeating-linear-gradient(0deg,transparent 0 34px,#7d9eb51e 35px,transparent 36px),
+  radial-gradient(ellipse at 90% 0%,#dbe8daaa,transparent 48%),
+  linear-gradient(120deg,#f4e7cc,#fff9ee 52%,#f5ead4) !important;
+ color:#29465b;
+}
+/* Schoolbook cover / profiles / navigation */
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 {
+  color:#2a485c !important;
+  background:linear-gradient(93deg,#9baa8b 0 7px,#f6e9cb 8px,#fff8e8 89%,#e9dbb9) !important;
+  border-right:3px solid #b49c74 !important;
+  box-shadow:3px 0 12px #554a3029,inset 0 0 0 2px #e1cfa7 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 .qa-organization-brand {
+ background:none !important; color:#2e526c !important;
+ border-bottom:2px solid #b9a77d;
+ padding:12px 6px 17px;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 .qa-organization-brand :is(span,strong) {color:#294c69 !important;}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > div:nth-child(2) {
+ background:#fff9e9 !important; border:1px solid #bda67f !important;
+ border-radius:18px !important; box-shadow:0 2px 6px #584a311a !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > div:nth-child(2) :is(div,span,strong,p,small) {color:#324e5e !important;}
+html:root[data-qa-theme="textbook-train"] #root .qa-sidebar-nav-v39 .qa-sidebar-section-label {
+ color:#8a6b46 !important; background:none !important;
+ font-weight:700 !important; letter-spacing:.045em;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-sidebar-nav-v39 button:not([aria-current="page"]) {
+ color:#324d60 !important; background-color:transparent !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-sidebar-nav-v39 button:not([aria-current="page"]):hover {
+ background:#e3eced !important; color:#204559 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-sidebar-nav-v39 button[aria-current="page"],
+html:root[data-qa-theme="textbook-train"] #root .qa-sidebar-nav-v39 button.bg-white {
+ background:linear-gradient(90deg,#cce4ef,#e9f4ef) !important;
+ color:#244e6b !important;
+ border:1px solid #a8af98 !important; border-left:4px solid #56889e !important;
+ border-radius:4px 16px 16px 4px !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-sidebar-nav-v39 {scrollbar-color:#c6b18b transparent;}
+html:root[data-qa-theme="textbook-train"] #root .qa-thai-lessons-sidebar-art {
+ flex:0 0 172px; overflow:hidden; position:relative;
+ margin:6px 0 8px; padding:8px 8px; text-align:center;
+ border:2px solid #b5a071; border-radius:18px;
+ background:
+  url('/textbook-theme/reading.svg') center 43px / 185px auto no-repeat,
+  linear-gradient(150deg,#fff9e8,#eee1c3) !important;
+ box-shadow:inset 0 0 0 3px #fff8e3,0 2px 5px #4d473517;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-thai-lessons-sidebar-art strong {
+ display:block; color:#294d65;
+ font:700 19px/1.3 Kanit,serif;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-thai-lessons-sidebar-art small {
+ display:block; color:#8f6b44;
+ font:500 10px/1.5 Kanit,sans-serif;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > .border-t {
+ border-color:#c5b08d !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > .border-t button {
+ color:#314b5a !important; border-color:#c1ab81 !important;
+ background:#fff9e5 !important;
+}
+/* Notebook-sheet tabs */
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 {
+ border-bottom:2px solid #bfaa7d !important;
+ background:#f8edcf !important;
+ box-shadow:0 3px 8px #6a56331c !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 [role="tablist"] > div {
+ border-radius:10px 10px 2px 2px !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 button[aria-selected="true"],
+html:root[data-qa-theme="textbook-train"] #root .qa-workspace-tabs-v36 button[aria-current="page"] {
+ background:#d8eafa !important; color:#2f5368 !important; border-color:#b4a37f !important;
+}
+/* Replace the teal block with original countryside art, title on book paper. */
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] {
+ min-height:248px;
+ border-top:3px solid #89a799 !important;
+ border-bottom:4px double #b99464 !important;
+ background-color:#fbf3df !important;
+ background-image:
+  linear-gradient(90deg,#fbf4e2 0%,#fbf4e2 21%,#fbf4e2ee 38%,#fbf4e269 55%,transparent 75%),
+  url('/textbook-theme/landscape.svg') !important;
+ background-size:cover,cover !important;
+ background-position:center,center !important;
+ background-repeat:no-repeat !important;
+ box-shadow:inset 0 0 0 2px #f8ecd3,0 3px 10px #75603e2e !important;
+ color:#264a61 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"]::before {display:none !important;}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative {
+ max-width:none; min-height:248px; margin:0;
+ padding:20px 36px !important;
+ display:flex; justify-content:flex-start; align-items:center;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative > .flex {
+ width:100%; min-height:0 !important; gap:0 !important;
+ display:flex; justify-content:flex-start; align-items:center;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative > .flex > :first-child {
+ min-width:320px; width:45%; max-width:530px;
+ order:0 !important; align-items:flex-start !important;
+ text-align:left !important; min-height:0 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative > .flex > :first-child::before {
+ content:"TEXTBOOK COLLECTION  ·  บทที่ ๑";
+ display:block; font:700 13px/1.4 Kanit,serif; color:#7f684c;
+ letter-spacing:.07em; border-bottom:1px solid #b3a07a; padding:0 0 7px; margin:0 0 12px;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative > .flex > :last-child {
+ display:none !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] :is(h1,.text-3xl,.text-4xl) {
+ text-align:left !important; color:#2e5475 !important;
+ font-family:Kanit,Georgia,serif !important;
+ font-size:clamp(25px,2.8vw,43px) !important;
+ font-weight:600 !important; line-height:1.33 !important;
+ letter-spacing:0 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] :is(.text-violet-200,.text-violet-100\/90,.uppercase) {
+ text-align:left !important; color:#5f6870 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-qa-dashboard-control-center-v163],
+html:root[data-qa-theme="textbook-train"] #root [data-performance-center-filters-v160],
+html:root[data-qa-theme="textbook-train"] #root [data-performance-analytics-v162],
+html:root[data-qa-theme="textbook-train"] #root [data-dashboard-kpi-summary-v41] {
+ background:rgba(255,249,234,.95) !important;
+ border-color:#d3bc8e !important;
+ box-shadow:0 3px 10px #6a583117 !important;
+}
+/* Hand-printed report cards with four schoolbook ink colors. */
+html:root[data-qa-theme="textbook-train"] #root [data-dashboard-metric] {
+ background:linear-gradient(150deg,#fffdf4,#faf0d8) !important;
+ color:#2e4b63 !important;
+ border:1px solid #b7a17b !important;
+ border-top:4px solid #b98665 !important;
+ border-radius:15px !important;
+ box-shadow:inset 0 0 0 2px #fff9e8,0 3px 9px #70593913 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root [data-dashboard-metric]:nth-child(4n+1) {border-top-color:#6c9977 !important;}
+html:root[data-qa-theme="textbook-train"] #root [data-dashboard-metric]:nth-child(4n+2) {border-top-color:#6693b0 !important;}
+html:root[data-qa-theme="textbook-train"] #root [data-dashboard-metric]:nth-child(4n+3) {border-top-color:#c69b55 !important;}
+html:root[data-qa-theme="textbook-train"] #root [data-dashboard-metric]:nth-child(4n) {border-top-color:#b56b55 !important;}
+html:root[data-qa-theme="textbook-train"] #root [data-overview-kpi-grid-v93] {gap:12px !important;}
+html:root[data-qa-theme="textbook-train"] #root :is([data-performance-analytics-v162],[data-dashboard-kpi-summary-v41]) :is(h2,h3) {
+ color:#294b60 !important; font-family:Kanit,Georgia,serif !important;
+}
+html:root[data-qa-theme="textbook-train"] #root :is([data-performance-analytics-v162],[data-dashboard-kpi-summary-v41]) thead :is(th,td) {
+ color:#28495b !important; background:#dcebf0 !important; border-color:#a7b6b2 !important;
+}
+/* Theme picker: one actual illustrated theme in its own collection. */
+#qa-theme-collection-panel .qa-thai-lessons-card {
+ grid-column:1/-1; display:grid; grid-template-columns:1fr;
+ overflow:hidden; border:2px solid #b7a078; border-radius:20px;
+ background:#fff8e8; box-shadow:0 7px 18px #6855371e;
+}
+#qa-theme-collection-panel .qa-thai-lessons-cover {
+ position:relative; height:195px; background:#d7e5df;
+}
+#qa-theme-collection-panel .qa-thai-lessons-cover img {
+ width:100%;height:100%;display:block;object-fit:cover;object-position:72% center;
+}
+#qa-theme-collection-panel .qa-thai-lessons-cover-stamp {
+ position:absolute;right:16px;bottom:12px;
+ padding:6px 13px; background:#fff6dce5;
+ border:2px solid #956846; border-radius:10px;
+ color:#78513b; font:700 20px Kanit,serif;
+}
+#qa-theme-collection-panel .qa-thai-lessons-details {padding:18px 22px 22px;color:#2e4b5a;}
+#qa-theme-collection-panel .qa-thai-lessons-eyebrow {
+ font:600 11px Kanit,sans-serif;letter-spacing:.04em;color:#986843;
+}
+#qa-theme-collection-panel .qa-thai-lessons-details h3 {
+ font:700 25px/1.3 Kanit,serif;color:#2b5069;margin:9px 0 5px;
+}
+#qa-theme-collection-panel .qa-thai-lessons-details p {
+ font:400 13px/1.8 Kanit,sans-serif;margin:4px 0 16px;color:#6c655a;
+}
+#qa-theme-collection-panel .qa-thai-lessons-details button {
+ font:600 14px Kanit,sans-serif;
+ border-radius:12px;border:1px solid #2d5b72;
+ background:#315e75;color:#fff7e4;padding:12px 18px;
+}
+#qa-theme-collection-panel .qa-thai-lessons-details button:hover {background:#294b60;}
+#qa-theme-collection-panel .qa-thai-lessons-details button[aria-pressed="true"] {
+ color:#34614c;background:#e7f2e6;border-color:#779c7c;
+}
+#qa-theme-collection-panel .qa-thai-lessons-details button:focus-visible {outline:3px solid #ac7056;outline-offset:3px;}
+/* Login has a clear title and illustrated view, no opaque dark overlay. */
+#root .qa-themed-login[data-login-theme="textbook-train"] {
+ background:linear-gradient(120deg,#eee2c6,#fff9ed 60%,#f4e9d0) !important;
+}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-shell {
+ border:2px solid #bda47a !important;box-shadow:0 22px 45px #67583e2b !important;
+}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-visual {
+ background:linear-gradient(160deg,#fff9ea,#f7ead1) !important;
+ color:#274a5e !important;
+}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-scene {
+ inset:32% 0 0;z-index:-2;
+ background-image:url('/textbook-theme/landscape.svg') !important;
+ background-repeat:no-repeat !important;
+ background-size:auto 100% !important;background-position:72% bottom !important;
+ opacity:.9;
+}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-shade {
+ z-index:-1;
+ background:linear-gradient(180deg,#fff9e9 0%,#fff9e9ef 29%,#fff9e999 60%,transparent 88%) !important;
+}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-visual h1 {
+ color:#294f6a !important;font-size:clamp(27px,2.4vw,37px) !important;
+ line-height:1.25 !important;letter-spacing:0 !important;
+ overflow-wrap:anywhere;max-width:100%;text-shadow:none !important;
+}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-visual :is(.qa-login-eyebrow,.qa-login-subtitle,.qa-login-visual-footer,.qa-login-badge,.qa-login-feature-title,.qa-login-feature-description) {
+ color:#294d65 !important;text-shadow:none !important;
+}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-feature-card {
+ background:#fff9e8ed !important;border:1px solid #c9b18b !important;
+ box-shadow:0 1px 6px #584e381c;
+}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-feature-icon {background:#efe3c8 !important;color:#34576b !important;}
+#root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-form {
+ background:linear-gradient(145deg,#fffdf6,#f8f0dd) !important;
+}
+@media(max-width:1000px) {
+ html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] {
+  background-image:linear-gradient(90deg,#fbf3e2 0%,#fbf3e2f4 35%,#fbf3e27a 70%,transparent 100%),url('/textbook-theme/landscape.svg') !important;
+ }
+}
+@media(max-width:900px) {
+ html:root[data-qa-theme="textbook-train"] #root .qa-thai-lessons-sidebar-art {display:none !important;}
+ html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative > .flex > :first-child {min-width:0;width:80%;max-width:80%;}
+}
+@media(max-width:640px) {
+ html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] {
+  min-height:185px;background-position:center,right center !important;
+ }
+ html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative {padding:14px !important;min-height:185px;}
+ html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative > .flex > :first-child {min-width:0;width:100%;max-width:100%;}
+ html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] :is(h1,.text-3xl,.text-4xl) {font-size:23px !important;}
+ #qa-theme-collection-panel .qa-thai-lessons-cover {height:130px;}
+ #qa-theme-collection-panel .qa-thai-lessons-details {padding:15px;}
+}

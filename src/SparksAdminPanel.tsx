@@ -5,6 +5,9 @@ import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
 import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import SparksRewardRequests from "./SparksRewardRequests";
+import SparksAuthStatusPanel from "./SparksAuthStatusPanel";
+import { SparksOwnerAccessControl } from "./SparksAccessGate";
+import {isItemHistoryEntry,itemHistoryLabel,itemHistoryDeltaText} from "./sparksItemHistory.mjs";
 import "./sparksAdminWorkspace.css";
 import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 
@@ -24,12 +27,14 @@ type AdminUser = {
 type AdminHistoryItem = {
   id: string;
   createdAt: string;
-  type: "earn" | "spend";
+  type: "earn" | "spend" | "event";
   title: string;
   detail: string;
   amount: number;
-  balanceAfter: number;
+  balanceAfter: number | null;
   source: string;
+  rewardId?: string; itemId?: string; inventoryAfter?: number; challengeId?: string;
+  originalWords?: number; remainingWords?: number; drawDate?: string; derived?: boolean;
   performedBy: string;
   reason: string;
   referenceId: string;
@@ -98,17 +103,17 @@ function createRequestId() {
     ? crypto.randomUUID()
     : "adjust-" + Date.now() + "-" + Math.random().toString(36).slice(2);
 }
-export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount, active: panelActive = true }: {
-  actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null; active?: boolean;
+export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount, active: panelActive = true, accountMigration }: {
+  actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null; active?: boolean; accountMigration?: React.ReactNode;
 }) {
-  const [adminSection, setAdminSection] = useState<"requests" | "points" | "settings" | "activity">("requests");
+  const [adminSection, setAdminSection] = useState<"requests" | "points" | "settings" | "activity" | "auth">("requests");
   const ownAccountRef = useRef(ownAccount);
   ownAccountRef.current = ownAccount;
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [chosen, setChosen] = useState("");
   const [detail, setDetail] = useState<DetailResponse | null>(null);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "earn" | "spend" | "redeem">("all");
+  const [filter, setFilter] = useState<"all" | "earn" | "spend" | "redeem" | "items">("all");
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
@@ -134,6 +139,10 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [reauthPassword, setReauthPassword] = useState("");
   const [reauthLoading, setReauthLoading] = useState(false);
   const [reauthError, setReauthError] = useState("");
+  const [questRepairBusy,setQuestRepairBusy]=useState(false);
+  const [questRepairMessage,setQuestRepairMessage]=useState("");
+  const [questRepairReview,setQuestRepairReview]=useState<string[]>([]);
+  const [questRepairReceipts,setQuestRepairReceipts]=useState<string[]>([]);
   const [trueMoneyPrice,setTrueMoneyPrice] = useState("10000");
   const [trueMoneyPriceLoaded,setTrueMoneyPriceLoaded] = useState(false);
   const [loadedTrueMoneyPrice, setLoadedTrueMoneyPrice] = useState<number | null>(null);
@@ -143,7 +152,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [priceRevision, setPriceRevision] = useState(0);
   const priceLoadedKey = useRef("");
 
-  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price", input: Record<string, unknown> = {}) => {
+  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price" | "audit-profile-makeover" | "repair-profile-makeover", input: Record<string, unknown> = {}) => {
     if (import.meta.env?.VITE_SPARKS_DATA_BACKEND !== "supabase" && (action === "list" || action === "history")) assertFirestoreReadAllowed();
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const controller = action === "get-truemoney-price" ? new AbortController() : null;
@@ -344,7 +353,8 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const history = (detail?.history || []).filter((entry) => {
     if (filter === "all") return true;
     if (filter === "redeem") return ["reward-redemption", "reward-refund"].includes(entry.source);
-    return entry.type === filter;
+    if (filter === "items") return isItemHistoryEntry(entry);
+    return entry.amount !== 0 && entry.type === filter;
   });
   const refundedIds = new Set((detail?.history || []).filter((item) => item.source === "reward-refund").map((item) => item.referenceId));
   const voidGrant = detail?.history.find((item) => item.source === "admin-add" && item.amount === 99800 && !item.voided);
@@ -483,6 +493,36 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       .finally(() => { if (active) setPriceLoading(false); });
     return () => { active = false; };
   }, [panelActive, adminSection, request, actorUsername, sessionId, priceRevision]);
+  const auditAndRepairProfileMakeover=async()=>{
+    if(!adminReady||questRepairBusy)return;
+    setQuestRepairBusy(true);setQuestRepairReview([]);setQuestRepairReceipts([]);
+    setQuestRepairMessage("กำลังตรวจรูปโปรไฟล์และประวัติ +150 Sparks ของทุกบัญชี...");
+    const receipts:string[]=[];
+    try {
+      const audit=await request("audit-profile-makeover");
+      const all=Array.isArray(audit.rows)?audit.rows as Array<{username:string;displayName:string;status:string;flagged?:boolean;receipt?:boolean}>:[];
+      const eligible=all.filter(row=>row.status==="eligible");
+      const reviews=all.filter(row=>row.status==="review").map(row=>
+        row.displayName+" (@"+row.username+") — "+(row.flagged?"ขึ้น Completed":"ไม่มีสถานะ")+
+        " / "+(row.receipt?"พบใบเสร็จ":"ไม่พบใบเสร็จยืนยัน"));
+      setQuestRepairReview(reviews);
+      for(let i=0;i<eligible.length;i+=3) {
+        setQuestRepairMessage("กำลังชดเชย "+Math.min(i+3,eligible.length)+"/"+eligible.length+" บัญชี");
+        const result=await request("repair-profile-makeover",{usernames:eligible.slice(i,i+3).map(x=>x.username)});
+        for(const row of Array.isArray(result.results)?result.results:[]) {
+          receipts.push("@"+row.username+": "+(row.status==="credited"?"+150 Sparks":row.status==="already-claimed"?"เคยรับแล้ว":"ไม่สำเร็จ: "+row.error));
+        }
+        setQuestRepairReceipts([...receipts]);
+      }
+      const credited=receipts.filter(x=>x.includes("+150 Sparks")).length;
+      setQuestRepairMessage("ตรวจ "+Number(audit.totalAccounts||0)+" บัญชี · ชดเชย "+credited+
+        " บัญชี · มีหลักฐานขัดกัน "+reviews.length+" บัญชี (ไม่เพิ่มคะแนนซ้ำ)");
+      if(credited){setRevision(value=>value+1);window.dispatchEvent(new Event("qa:sparks-updated"));}
+    }catch(error){
+      setQuestRepairMessage("การตรวจ/ชดเชยหยุดลง: "+(error instanceof Error?error.message:"โปรดลองใหม่เมื่อฐานข้อมูลพร้อม")+
+        " · รายการที่บันทึกแล้วจะไม่เพิ่มซ้ำ");
+    }finally{setQuestRepairBusy(false);}
+  };
   const saveTrueMoneyPrice=async()=>{
     const price=Number(trueMoneyPrice);
     if(!Number.isSafeInteger(price)||price<1||price>1000000){setError("ราคาต้องเป็นจำนวนเต็มตั้งแต่ 1–1,000,000 Sparks");return;}
@@ -498,10 +538,14 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   };
   return <div className="qa-sparks-admin sa-workspace" aria-label="Sparks Admin Management">
     <div className="qa-sparks-admin-header">
-      <div><h2>จัดการ QA Sparks</h2><p>คำขอรางวัล · คะแนนผู้ใช้งาน · ตั้งค่ารางวัล · ประวัติการจัดการ</p></div>
-      {adminSection === "points" || adminSection === "activity" ? <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button> : <span className={"sa-admin-status" + (adminReady ? " ready" : "")}>{adminReady ? "สิทธิ์ผู้ดูแลพร้อมใช้งาน" : loading ? "กำลังตรวจสิทธิ์ผู้ดูแล..." : "ตรวจสิทธิ์เมื่อทำรายการ"}</span>}
+      <div><span className="sa-eyebrow">SPARKS ADMIN</span><h2>จัดการ QA Sparks</h2><p>ดูแลรางวัล คะแนน และการเข้าใช้งานในหน้าเดียว</p></div>
+      <div className="sa-header-actions"><span className={"sa-admin-status" + (adminReady ? " ready" : "")} role="status">{adminReady ? "สิทธิ์ผู้ดูแลพร้อมใช้งาน" : loading ? "กำลังตรวจสิทธิ์ผู้ดูแล..." : "ตรวจสิทธิ์เมื่อทำรายการ"}</span>
+        {adminSection === "points" || adminSection === "activity" ? <button type="button" onClick={() => setRevision((x) => x + 1)} disabled={loading}>รีเฟรชข้อมูล</button> : null}</div>
     </div>
-    {error && (adminSection !== "requests" || needsReauth) ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
+    {actorUsername.trim().toLowerCase()==="songpon" ? <div className="sa-control-grid" aria-label="ตั้งค่าระบบ QA Sparks">
+      <SparksOwnerAccessControl username={actorUsername}/>{accountMigration}
+    </div> : null}
+    {error && ((adminSection !== "requests" && adminSection !== "auth") || needsReauth) ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
     {needsReauth ? <form className="qa-sparks-admin-reauth" onSubmit={(event) => { void submitReauth(event); }}>
       <div><strong>ยืนยันสิทธิ์ Sparks Admin</strong><p>กรอกรหัสผ่านที่ใช้ Login QA Dashboard ปัจจุบัน 1 ครั้ง เพื่อยืนยันสิทธิ์ผู้ดูแล</p></div>
       <label htmlFor="qa-sparks-admin-reauth-password">รหัสผ่าน QA</label>
@@ -512,14 +556,16 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       </div>
       {reauthError ? <p role="alert" className="qa-sparks-admin-reauth-error">{reauthError}</p> : null}
     </form> : null}
-    {adminSection !== "requests" && !adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">{firestoreLimited
+    {adminSection !== "requests" && adminSection !== "auth" && !adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">{firestoreLimited
       ? "โควตา Firestore อาจเต็มหรือระบบถูกจำกัดอัตราการเรียกข้อมูลชั่วคราว เพื่อป้องกันการเรียกข้อมูลซ้ำ ระบบหยุดโหลด Wallet และ History เพิ่มเติมแล้ว ตรวจยอดที่ Firebase Console → Firestore → Usage ก่อน แล้วค่อยกดรีเฟรชเมื่อระบบพร้อม"
       : "ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยันสิทธิ์ผู้ดูแลสำเร็จ รายชื่อด้านล่างมาจาก QA User Management แบบอ่านอย่างเดียว"}</div> : null}
     {notice ? <div role="status" className="qa-sparks-admin-success">{notice}</div> : null}
     <nav className="sa-workspace-tabs" aria-label="งานของผู้ดูแล">
-      {([["requests", "คำขอรางวัล"], ["points", "จัดการคะแนน"], ["settings", "ตั้งค่ารางวัล"], ["activity", "ประวัติการจัดการ"]] as const).map(([key, label]) => <button key={key} type="button" data-sparks-admin-section={key} aria-pressed={adminSection === key} onClick={() => { setAdminSection(key); setNotice(""); }}>{label}</button>)}
+      {([["requests", "คำขอรางวัล"], ["points", "จัดการคะแนน"], ["settings", "ตั้งค่ารางวัล"], ["activity", "ประวัติการจัดการ"], ["auth", "สถานะเข้าสู่ระบบ"]] as const).map(([key, label]) => <button key={key} type="button" data-sparks-admin-section={key} aria-pressed={adminSection === key} onClick={() => { setAdminSection(key); setNotice(""); }}>{label}</button>)}
     </nav>
-    <div hidden={adminSection !== "requests"}><SparksRewardRequests actorUsername={actorUsername} sessionId={sessionId} onReauth={requestReauth}/></div>
+    {adminSection === "auth" && actorUsername.trim().toLowerCase() === "songpon"
+      ? <SparksAuthStatusPanel /> : null}
+    <div className="sa-workspace-content" hidden={adminSection !== "requests"}><SparksRewardRequests actorUsername={actorUsername} sessionId={sessionId} onReauth={requestReauth}/></div>
     <section hidden={adminSection !== "settings"} aria-label="ตั้งค่าราคารางวัล TrueMoney 20 THB" className="sa-settings">
       <div className="sa-section-head"><div><h3>ตั้งค่ารางวัล</h3><p>เปลี่ยนคะแนนที่ใช้แลก โดยระบุรางวัลให้ชัดเจน</p></div><button type="button" className="sa-secondary" disabled={priceLoading || trueMoneyPriceBusy} onClick={() => setPriceRevision(value => value + 1)}>รีเฟรชราคา</button></div>
       <div className="sa-settings-grid"><section className="sa-box"><div className="sa-product-title"><span className="sa-brand sa-brand-truemoney-20" aria-hidden="true">T</span><div><h3>TrueMoney 20 บาท</h3><p>{trueMoneyPriceLoaded ? "ราคาที่บันทึก " + fmt(loadedTrueMoneyPrice ?? 0) + " Sparks / Item" : priceLoading ? "กำลังโหลดราคา..." : "ยังโหลดราคาไม่สำเร็จ"}</p></div></div>
@@ -530,6 +576,19 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         {!adminReady ? <p className="sa-muted">ต้องยืนยันสิทธิ์ผู้ดูแลก่อนบันทึกราคา</p> : null}
         {priceError ? <p role="alert" className="sa-error">{priceError} · กดรีเฟรชราคาเพื่อลองอีกครั้ง</p> : null}
       </section><section className="sa-box"><h3>เงื่อนไข TrueMoney ปัจจุบัน</h3><dl className="sa-details"><div><dt>มูลค่ารางวัล</dt><dd>20 บาท / Item</dd></div><div><dt>อายุ Item</dt><dd>30 วันจากวันที่แลก</dd></div><div><dt>ระยะเวลารับเงิน</dt><dd>14 วันทำการ<br/>ไม่รวมเสาร์–อาทิตย์</dd></div><div><dt>ข้อมูลรับเงิน</dt><dd>เบอร์ TrueMoney 10 หลัก</dd></div></dl></section></div>
+      <section className="sa-box" data-profile-makeover-repair="true" style={{marginTop:16}}>
+        <h3>ตรวจสอบและชดเชย Profile Makeover (+150 Sparks)</h3>
+        <p className="sa-muted">ตรวจหลักฐานรูปโปรไฟล์ ประวัติรางวัล และสถานะกระเป๋าทุกบัญชี ก่อนชดเชยเฉพาะผู้ที่ไม่มีทั้งสถานะรับและใบเสร็จ ระบบป้องกันรับซ้ำ และแยกบัญชีที่ข้อมูลขัดกันไว้ให้ตรวจเพิ่ม</p>
+        <button type="button" className="sa-primary" disabled={!adminReady||questRepairBusy} onClick={()=>void auditAndRepairProfileMakeover()}>
+          {questRepairBusy?"กำลังตรวจสอบและชดเชย...":"ตรวจสอบและชดเชยทุก User ที่ยังไม่ได้รับ"}
+        </button>
+        {!adminReady?<p className="sa-muted">ต้องยืนยันสิทธิ์ผู้ดูแลและเข้าถึงกระเป๋าจริงก่อนทำรายการ</p>:null}
+        {questRepairMessage?<p role="status" style={{marginTop:10,fontSize:13}}>{questRepairMessage}</p>:null}
+        {questRepairReceipts.length?<details open><summary>ผลการชดเชยรายบัญชี ({questRepairReceipts.length})</summary>
+          <ul>{questRepairReceipts.map((entry,i)=><li key={i}>{entry}</li>)}</ul></details>:null}
+        {questRepairReview.length?<details><summary>ข้อมูล Completed หรือใบเสร็จไม่ตรงกัน ({questRepairReview.length}) — ยังไม่เติมคะแนน</summary>
+          <ul>{questRepairReview.map((entry,i)=><li key={i}>{entry}</li>)}</ul></details>:null}
+      </section>
     </section>
     <div hidden={adminSection !== "points" && adminSection !== "activity"}>
       <div className="sa-section-head"><div><h3>{adminSection === "activity" ? "ประวัติการจัดการรายผู้ใช้งาน" : "จัดการคะแนนรายผู้ใช้งาน"}</h3><p>{adminSection === "activity" ? "เลือกผู้ใช้งานเพื่อตรวจวันเวลา ผู้ดำเนินการ และเหตุผลจากประวัติที่บันทึกไว้" : "เลือกผู้ใช้งานเพื่อเพิ่ม หัก หรือเปิดดูประวัติ Sparks"}</p></div></div>
@@ -575,9 +634,9 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
           </div>
           <div hidden={adminSection !== "activity"}>
           <div className="qa-sparks-admin-history-heading">
-            <h3>ประวัติคะแนนและการแลกรางวัล</h3>
+            <h3>ประวัติ Sparks และ Item ทุกชนิด</h3>
             <select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} aria-label="กรองประวัติคะแนน">
-              <option value="all">ทั้งหมด</option><option value="earn">ได้รับ (+)</option><option value="spend">ใช้ไป (−)</option><option value="redeem">การแลกรางวัล / คืนคะแนน</option>
+              <option value="all">ทั้งหมด</option><option value="earn">ได้รับ (+)</option><option value="spend">ใช้ไป (−)</option><option value="redeem">การแลกรางวัล / คืนคะแนน</option><option value="items">Item (รับ / ใช้ / หมดอายุ)</option>
             </select>
           </div>
           {detailLoading ? <p className="qa-sparks-admin-empty">กำลังโหลด History...</p> : null}
@@ -585,13 +644,16 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
           {firestoreLimited ? <p className="qa-sparks-admin-empty">ประวัติล่าสุดยังตรวจสอบไม่ได้ระหว่างที่ Firestore เกินโควตา</p> : null}
           <div className="qa-sparks-admin-history-list">
             {history.map((entry) => <article className="qa-sparks-admin-history-row" key={entry.id}>
-              <div><strong>{entry.title}</strong><small>{thaiDate(entry.createdAt)}</small>
+              <div><strong>{itemHistoryLabel(entry)?.name||entry.title}</strong><small>{thaiDate(entry.createdAt)}</small>
+                {isItemHistoryEntry(entry)?<p><b>{itemHistoryLabel(entry)?.action}</b> · Item {itemHistoryDeltaText(entry)}
+                  {itemHistoryLabel(entry)?.extra?" · "+itemHistoryLabel(entry)?.extra:""}</p>:null}
                 <p>{entry.detail || "—"}{entry.performedBy ? " · โดย " + entry.performedBy : ""}</p>
                 {entry.reason && entry.reason !== entry.detail ? <p>เหตุผล: {entry.reason}</p> : null}
                 {entry.referenceId ? <small>อ้างอิง: {entry.referenceId}</small> : null}
                 {entry.status ? <small>สถานะ: {entry.status}</small> : null}
+                {entry.derived?<small>หมดอายุตามข้อมูล My Items · ไม่ได้สร้างธุรกรรมย้อนหลัง</small>:null}
               </div>
-              <div className="qa-sparks-admin-history-amount"><strong className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount > 0 ? "+" : ""}{fmt(entry.amount)}</strong><small>เหลือ {fmt(entry.balanceAfter)}</small>
+              <div className="qa-sparks-admin-history-amount"><strong className={entry.amount > 0 ? "positive" : entry.amount < 0 ? "negative" : ""}>{entry.amount === 0 ? "—" : (entry.amount > 0 ? "+" : "") + fmt(entry.amount) + " Sparks"}</strong><small>{entry.balanceAfter===null?"ยอด Sparks ตามรายการนี้: —":"เหลือ "+fmt(entry.balanceAfter)+" Sparks"}</small>
                 {entry.source === "reward-redemption" && entry.amount < 0 && !refundedIds.has(entry.id) ?
                   <button type="button" disabled={!adminReady} onClick={() => startOperation("refund", entry)}>คืน Sparks</button> : null}
               </div>

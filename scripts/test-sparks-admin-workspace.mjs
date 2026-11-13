@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import {readFileSync} from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
@@ -101,7 +102,8 @@ try {
   const { default: Panel } = await import(pathToFileURL(output).href);
   const render = key => act(async () => root.render(React.createElement(Panel, { key, actorUsername: "test-admin", sessionId: "admin-test-session", ownAccount: null })));
   await render("normal");
-  assert.equal(document.querySelectorAll("[data-sparks-admin-section]").length, 4);
+  assert.equal(document.querySelectorAll("[data-sparks-admin-section]").length, 5);
+  assert.ok(section("auth"), "owner authentication status tab is available");
   assert.equal(section("requests").getAttribute("aria-pressed"), "true");
   assert.equal(count("list-reward-queues"), 0, "queues load only on explicit click");
   assert.equal(count("get-truemoney-price"), 0, "price does not read on requests page");
@@ -212,6 +214,20 @@ try {
   await click(button(".sa-section-head button", "โหลดคำขอ"));
   await open("tm-pending");
   assert.ok(!primary("tm-pending").disabled, "independent tracker is usable when wallet/directory read fails; server authorizes mutations");
+  // Profile Makeover safety: only a verified owner can start reconciliation;
+  // the normal atomic claim remains the only route to a +150 transaction.
+  const serverSource=readFileSync(new URL("../api/sparks-admin.js",import.meta.url),"utf8");
+  const questSource=readFileSync(new URL("../src/ProfileMakeoverQuest.tsx",import.meta.url),"utf8");
+  assert.match(serverSource,/const admin = await authorizeAdmin\(body\);[\s\S]{0,330}audit-profile-makeover/,
+    "owner authorization must precede the audit");
+  assert.match(serverSource,/const admin = await authorizeAdmin\(body\);[\s\S]{0,450}repair-profile-makeover/,
+    "owner authorization must precede payouts");
+  assert.match(serverSource,/if \(historyDoc \|\| wallet\.profileMakeoverClaimedAt\)/,
+    "existing atomic quest claim remains idempotent");
+  assert.match(serverSource,/status=historyDoc&&flagged&&receipt\?"paid":historyDoc\|\|flagged\?"review"/,
+    "ambiguous completed flags must never automatically receive an extra bonus");
+  assert.match(questSource,/getSparksAccount\(username,\{historyLimit:0,sessionId\}\)/,
+    "quest auto-claim must pass authenticated sessionId");
   console.log("PASS Admin workspace: four isolated menus, real combined queues, explicit reads, canonical IDs, receipt approval vs payment, Netflix delivery, cancel/error/status/duplicate guards, partial quota data and price retry");
 } finally {
   await act(async () => root.unmount());

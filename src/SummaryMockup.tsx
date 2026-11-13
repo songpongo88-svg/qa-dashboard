@@ -30,6 +30,8 @@ import { fetchAppealEvents } from "./appealStore";
 import { getIncentiveByGrade, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
+import { fetchStoredProfilePhoto, getCachedStoredProfilePhoto } from "./profilePhotoStore";
+import { firestoreReadWaitMs } from "./firestoreReadPolicy";
 import PageHero from "./PageHero";
 import { canonicalAgentIdentityKey, canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 import { getAppealScoreHold, withAppealScoreState, type AppealScoreState } from "./pendingAppealScore";
@@ -307,6 +309,42 @@ const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
 };
 
 type SummaryAccount = StoredUserProfile & Record<string, any>;
+
+// Avatar lookup is deliberately lazy and serialized to avoid increasing
+// Firebase quota pressure each time the Analytics filters or sorting change.
+const agentAvatarInFlight = new Map<string, Promise<string>>();
+const agentAvatarEmptyCheckedAt = new Map<string, number>();
+let agentAvatarQueue: Promise<void> = Promise.resolve();
+const AGENT_AVATAR_EMPTY_TTL_MS = 10 * 60_000;
+
+function loadAgentAvatarOnDemand(username: string): Promise<string> {
+  const key = String(username || "").trim().toLowerCase();
+  if (!key) return Promise.resolve("");
+  const cached = getCachedStoredProfilePhoto(username)?.photoDataUrl || "";
+  if (cached) return Promise.resolve(cached);
+  const existing = agentAvatarInFlight.get(key);
+  if (existing) return existing;
+  const lastEmpty = agentAvatarEmptyCheckedAt.get(key);
+  if (firestoreReadWaitMs() > 0 || (lastEmpty !== undefined && Date.now() - lastEmpty < AGENT_AVATAR_EMPTY_TTL_MS)) {
+    return Promise.resolve("");
+  }
+  const pending = agentAvatarQueue.catch(() => {}).then(async () => {
+    // A prior queued read might have already populated the browser cache.
+    const ready = getCachedStoredProfilePhoto(username)?.photoDataUrl || "";
+    if (ready || firestoreReadWaitMs() > 0) return ready;
+    const stored = await fetchStoredProfilePhoto(username);
+    return stored?.photoDataUrl || "";
+  }).catch(() => "").then((photo) => {
+    if (!photo) agentAvatarEmptyCheckedAt.set(key, Date.now());
+    return photo;
+  }).finally(() => {
+    agentAvatarInFlight.delete(key);
+  });
+  agentAvatarInFlight.set(key, pending);
+  agentAvatarQueue = pending.then(() => undefined);
+  return pending;
+}
+
 
 
 function getSummaryTeamName(account?: SummaryAccount | null) {
@@ -2003,6 +2041,7 @@ function AnalyticsAgentPerformanceV92({
           agent,
           displayName,
           initials,
+          username: profile?.username?.trim() || "",
           appealScoreHold,
           caseCount,
           average,
@@ -2052,6 +2091,87 @@ function AnalyticsAgentPerformanceV92({
         )
     );
   }, [rows, allAgentsMode, agentSortTab]);
+  const [agentAvatarPhotos, setAgentAvatarPhotos] = useState<Record<string, string>>({});
+  const [agentAvatarRevision, setAgentAvatarRevision] = useState(0);
+  const agentAvatarTableRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onPhotoUpdated = (event: Event) => {
+      const username = String((event as CustomEvent<{ username?: string }>).detail?.username || "").trim();
+      if (!username) return;
+      const key = username.toLowerCase();
+      agentAvatarEmptyCheckedAt.delete(key);
+      const saved = getCachedStoredProfilePhoto(username)?.photoDataUrl || "";
+      setAgentAvatarPhotos((previous) => ({ ...previous, [key]: saved }));
+      setAgentAvatarRevision((value) => value + 1);
+    };
+    const onOtherTabUpdate = (event: StorageEvent) => {
+      const prefix = "qa-dashboard:profile-photo:";
+      if (!event.key?.startsWith(prefix)) return;
+      const key = event.key.slice(prefix.length);
+      agentAvatarEmptyCheckedAt.delete(key);
+      const saved = getCachedStoredProfilePhoto(key)?.photoDataUrl || "";
+      setAgentAvatarPhotos((previous) => ({ ...previous, [key]: saved }));
+      setAgentAvatarRevision((value) => value + 1);
+    };
+    const onFocus = () => setAgentAvatarRevision((value) => value + 1);
+    window.addEventListener("qa-profile-photo-updated", onPhotoUpdated);
+    window.addEventListener("storage", onOtherTabUpdate);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("qa-profile-photo-updated", onPhotoUpdated);
+      window.removeEventListener("storage", onOtherTabUpdate);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const element = agentAvatarTableRef.current;
+    if (!element) return;
+
+    // Restore locally cached photos with zero network reads.
+    const cachedPhotos: Record<string, string> = {};
+    for (const row of visibleRows) {
+      if (!row.username) continue;
+      const saved = getCachedStoredProfilePhoto(row.username)?.photoDataUrl || "";
+      if (saved) cachedPhotos[row.username.toLowerCase()] = saved;
+    }
+    if (Object.keys(cachedPhotos).length) {
+      setAgentAvatarPhotos((previous) => ({ ...previous, ...cachedPhotos }));
+    }
+
+    const seen = new Set<string>();
+    const resolveVisibleAvatar = (node: Element) => {
+      const username = node.getAttribute("data-agent-profile-username")?.trim() || "";
+      const key = username.toLowerCase();
+      if (!key || seen.has(key) || cachedPhotos[key] || agentAvatarPhotos[key]) return;
+      seen.add(key);
+      void loadAgentAvatarOnDemand(username).then((photo) => {
+        if (!active || !photo) return;
+        setAgentAvatarPhotos((previous) =>
+          previous[key] === photo ? previous : { ...previous, [key]: photo }
+        );
+      });
+    };
+    const nodes = Array.from(element.querySelectorAll("[data-agent-profile-username]"));
+    if (typeof IntersectionObserver === "undefined") {
+      nodes.slice(0, 8).forEach(resolveVisibleAvatar);
+      return () => { active = false; };
+    }
+    // The ranking table scrolls internally: only photos entering its viewport
+    // trigger reads, never the complete Agent roster.
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        observer.unobserve(entry.target);
+        resolveVisibleAvatar(entry.target);
+      }
+    }, { root: element, rootMargin: "60px" });
+    nodes.forEach((node) => observer.observe(node));
+    return () => { active = false; observer.disconnect(); };
+  }, [visibleRows, agentAvatarRevision]);
+
   // data-topic-status-allagents-incentive-v131-fix
   const incentiveText = (row: (typeof rows)[number]) => {
     if (row.appealScoreHold) return row.appealScoreHold.label;
@@ -2145,7 +2265,7 @@ function AnalyticsAgentPerformanceV92({
           ) : null}
         </div>
 
-        <div className="max-h-[520px] overflow-auto">
+        <div ref={agentAvatarTableRef} className="max-h-[520px] overflow-auto">
           <table className="min-w-[1080px] w-full text-[11px]">
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50 text-left font-normal text-slate-500">
@@ -2169,21 +2289,39 @@ function AnalyticsAgentPerformanceV92({
                   data-agent-score-state={row.appealScoreHold ? "held" : "ready"}
                   className="border-t border-slate-100 bg-white transition hover:bg-violet-50/40"
                 >
-                  <td className="px-4 py-3 text-center text-slate-400">
+                  <td data-agent-ranking-rank-cell="true" className="px-4 py-3 text-center text-slate-400">
                     {row.appealScoreHold ? "—" : index + 1}
                   </td>
-                  <td className="px-3 py-3">
+                  <td data-agent-ranking-name-cell="true" className="px-3 py-3">
                     <button
+                      data-agent-ranking-name-button="true"
                       type="button"
                       disabled={!canSelectAgent}
                       onClick={() => onSelectAgent(row.agent)}
                       className="flex max-w-[290px] items-center gap-3 text-left disabled:cursor-default"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-700">
-                        {row.initials}
+                      <span
+                        data-agent-ranking-avatar="true"
+                        data-agent-profile-username={row.username || undefined}
+                        className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-100 text-[10px] font-semibold text-violet-700"
+                      >
+                        {row.username && agentAvatarPhotos[row.username.toLowerCase()] ? (
+                          <img
+                            alt=""
+                            loading="lazy"
+                            src={agentAvatarPhotos[row.username.toLowerCase()]}
+                            className="absolute inset-0 h-full w-full rounded-full object-cover"
+                            onError={() => setAgentAvatarPhotos((previous) => ({
+                              ...previous, [row.username.toLowerCase()]: "",
+                            }))}
+                          />
+                        ) : null}
+                        <span className={row.username && agentAvatarPhotos[row.username.toLowerCase()] ? "sr-only" : ""}>
+                          {row.initials}
+                        </span>
                       </span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-slate-800">
+                      <span data-agent-ranking-name-container="true" className="min-w-0">
+                        <span data-agent-ranking-name-text="true" className="block truncate font-medium text-slate-800">
                           {buildSuspendedAgentLabel(row.agent, accountProfiles)}
                         </span>
                       </span>

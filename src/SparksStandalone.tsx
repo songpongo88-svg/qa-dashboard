@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import QASparks from "./QASparks";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
+import { SparksPausedNotice, useSparksStatus } from "./SparksAccessGate";
 
 const qaDashboardUrl = "/?tab=dashboard";
 type SyncStatus = {
@@ -44,6 +45,27 @@ function SparksSyncHealth() {
 }
 export default function SparksStandalone() {
   const [actor, setActor] = useState<SparksVerifiedActor|null>(null);
+  const {status,refresh}=useSparksStatus();
+  const [showOwnerLogin,setShowOwnerLogin]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [controlError,setControlError]=useState("");
+  const isOwner=actor?.username.toLowerCase()==="songpon" && actor.role==="Quality Assurance";
+  const changeAccess=async (newEnabled:boolean)=>{
+    if(!isOwner||busy)return;
+    setBusy(true);setControlError("");
+    try{
+      const response=await fetch("/api/sparks-auth",{
+        method:"POST",cache:"no-store",credentials:"same-origin",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify({action:"access-set",enabled:newEnabled})
+      });
+      const result=await response.json();
+      if(!response.ok||result.enabled!==newEnabled)
+        throw Error(String(result.error||"บันทึกสถานะไม่สำเร็จ"));
+      await refresh();
+    }catch(error){setControlError(String((error as Error).message||"บันทึกสถานะไม่สำเร็จ"));}
+    finally{setBusy(false);}
+  };
   const enabled = ["supabase","hybrid"].includes(String(import.meta.env?.VITE_SPARKS_AUTH_MODE || ""));
   useEffect(()=>{
     if(!actor?.username)return;
@@ -80,8 +102,31 @@ export default function SparksStandalone() {
       <div><strong style={{color:"#303dba"}}>QA Sparks</strong><span style={{marginLeft:10,color:"#6b7280",fontSize:13}}>เข้าสู่ระบบรางวัลแยกจาก QA Dashboard</span></div>
       <a href={qaDashboardUrl} style={{color:"#4750af",fontSize:13}}>กลับไป QA Dashboard</a>
     </header>
-    {actor?.username.toLowerCase()==="songpon" && actor.role==="Quality Assurance" && <SparksSyncHealth />}
-    {!actor ? <SparksEmailAuth onVerified={setActor}/> : (
+    {isOwner && status?.enabled===true && <SparksSyncHealth />}
+    {isOwner && <section data-sparks-owner-access-switch="true" style={{
+      background:"#f6f7ff",padding:"12px 24px",borderBottom:"1px solid #d8ddec",
+      display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"
+    }}>
+      <strong>ควบคุมการเข้าใช้ QA Sparks</strong>
+      <span role="status">{status?.enabled===true?"เปิดอยู่":"ปิดชั่วคราว"}</span>
+      <button type="button" disabled={busy||status===null} onClick={()=>void changeAccess(status?.enabled!==true)}
+        style={{padding:"10px 16px",borderRadius:8,border:"none",
+          background:status?.enabled===true?"#a92f35":"#3155aa",color:"#fff",fontWeight:700}}>
+        {busy?"กำลังบันทึก...":status?.enabled===true?"ปิด QA Sparks":"เปิด QA Sparks ให้พนักงาน"}
+      </button>
+      {controlError&&<span role="alert" style={{color:"#b02727"}}>{controlError}</span>}
+    </section>}
+    {status?.enabled!==true ? <>
+      <SparksPausedNotice status={status}/>
+      {!actor && <div style={{textAlign:"center",padding:"0 20px 28px"}}>
+        {!showOwnerLogin
+          ? <button type="button" onClick={()=>setShowOwnerLogin(true)}
+              style={{padding:"10px 16px",background:"#fff",border:"1px solid #bcc9e0",borderRadius:8}}>
+              เข้าสู่ระบบสำหรับผู้ดูแล
+            </button>
+          : <SparksEmailAuth onVerified={setActor}/>}
+      </div>}
+    </> : !actor ? <SparksEmailAuth onVerified={setActor}/> : (
       <QASparks
         key={actor.username}
         username={actor.username}

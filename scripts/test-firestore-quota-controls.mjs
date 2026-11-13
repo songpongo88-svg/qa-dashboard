@@ -11,6 +11,22 @@ import { qaAccessCheckWriteFixPatch } from "../build/qaAccessCheckWriteFixPatch.
 import { qaAccessCheckDirectWriteFixPatch } from "../build/qaAccessCheckDirectWriteFixPatch.js";
 import { qaAccessCheckQueueVisibilityFixPatch } from "../build/qaAccessCheckQueueVisibilityFixPatch.js";
 
+
+// QA session polling must not burn Firestore quota every 30s in hidden tabs.
+const qaSessionApp = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+assert.match(qaSessionApp, /SESSION_CHECK_INTERVAL_MS = 15 \* 60 \* 1000/);
+assert.match(qaSessionApp, /SESSION_TOUCH_INTERVAL_MS = 30 \* 60 \* 1000/);
+assert.ok(qaSessionApp.includes('document.visibilityState !== "visible"'),
+  "hidden or pinned Dashboard tabs must skip central session checks");
+assert.ok(qaSessionApp.includes("navigator.onLine === false"),
+  "offline tabs must not repeatedly query Firebase");
+assert.ok(qaSessionApp.includes("cancelled || checking"),
+  "concurrent focus/timer session checks must be deduplicated");
+assert.ok(qaSessionApp.includes("now - lastCheckedAt < SESSION_CHECK_INTERVAL_MS"),
+  "focus must not bypass the quota-saving session throttle");
+assert.ok(qaSessionApp.includes('window.addEventListener("storage", handleStoredSessionChange)'),
+  "immediate same-browser logout propagation must remain enabled");
+
 await mkdir("node_modules/.cache", { recursive: true });
 const folder = await mkdtemp(resolve("node_modules/.cache/quota-controls-"));
 const dom = new JSDOM("<!doctype html><body><div id='root'></div></body>", { url: "https://qa.test", pretendToBeVisual: true });
@@ -149,7 +165,22 @@ try {
   assert.equal(fixture.reads.length, 2, "a retained inactive Sparks page does not read on focus");
   await render(React.createElement(sparks.Page, props));
   await click(document.querySelector("#qa-sparks-tab-history"));
-  assert.equal(document.querySelectorAll('.qa-sparks-history-item').length, 100);
+  // New responsive History uses client-side reveal to avoid a 100-row wall
+  // inside the dashboard. All 100 fixture records must remain accessible.
+  assert.equal(document.querySelectorAll('.qa-sparks-history-entry').length, 12,
+    "full History initially shows a readable first page");
+  const historyReadCount = fixture.reads.length + fixture.queries.length;
+  for (let pageIndex = 0; pageIndex < 10; pageIndex++) {
+    const more = document.querySelector(".qa-sparks-history-more button");
+    if (!more) break;
+    await click(more);
+  }
+  assert.equal(document.querySelectorAll('.qa-sparks-history-entry').length, 100,
+    "view-more reveals all 100 loaded history records");
+  assert.equal(fixture.reads.length + fixture.queries.length, historyReadCount,
+    "local pagination must not make extra Firestore reads");
+  assert.equal(document.querySelector(".qa-sparks-history-scroll"), null,
+    "history does not require a horizontal scroll table");
   fixture.documents.set("qa_sparks_wallets/songpon", { ...wallet, balance: 650 });
   await act(async () => window.dispatchEvent(new Event("qa:sparks-updated")));await tick();
   assert.ok(document.querySelector('[data-sparks-metric="Current Sparks"] strong').textContent.includes("650"), "a successful mutation invalidates the wallet immediately");

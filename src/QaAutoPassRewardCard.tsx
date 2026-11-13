@@ -69,6 +69,7 @@ export default function QaAutoPassRewardCard({
       setLocal({owned:Number(result.owned??quantity),balance:Number(result.balance??sparks),
         freeClaimed:type==="auto-pass-claim-free"||claimed});
       setConfirmBuy(false);
+      window.dispatchEvent(new Event("qa:sparks-updated"));
       setSuccess(type==="auto-pass-claim-free"
         ?result.alreadyApplied?"บัญชีนี้รับฟรีครบ 5 สิทธิ์แล้ว":"รับฟรี 5 สิทธิ์เรียบร้อย! ดูจำนวนใน My Items ได้ทันที"
         :"ซื้อ QA Access Auto-Pass 1 สิทธิ์สำเร็จ");
@@ -80,14 +81,18 @@ export default function QaAutoPassRewardCard({
       className="qa-sparks-mini-item qa-auto-pass-item"
       style={mode==="reward"?{order:-PRICING}:undefined}
       onClick={()=>{setTime(Date.now());setError("");setSuccess("");setConfirmBuy(false);setOpen(true)}}
-      aria-haspopup="dialog" aria-label={"เปิดรายละเอียด QA Access Auto-Pass"+(mode==="inventory"?" คงเหลือ "+quantity+" สิทธิ์":"")}>
-      <span className="qa-sparks-mini-art"><AutoPassArtwork/>
+      aria-haspopup="dialog" aria-label={"เปิดรายละเอียด QA Access Auto-Pass"+(mode==="inventory"?" คงเหลือ "+quantity+" สิทธิ์":freeActive?(claimed?" รับสิทธิ์ฟรีแล้ว 5 สิทธิ์ ซื้อเพิ่มราคา 160 Sparks":"รับฟรี 5 สิทธิ์ ราคาปกติ 160 Sparks"):" ราคา 160 Sparks")}>
+      <span className="qa-sparks-mini-art">{mode==="reward"&&freeActive?<span className="qa-sparks-offer-art qa-sparks-offer-art--access" role="img" aria-label="QA Access Auto-Pass โล่สีม่วง ฟรี 5 สิทธิ์"/>:<AutoPassArtwork/>}
         {mode==="inventory"?<span className="qa-sparks-mini-quantity">×{quantity}</span>:null}
-        {mode==="reward"&&freeActive&&!claimed?<span className="qa-auto-pass-free-badge">FREE ×5</span>:null}
+
       </span>
       <strong className="qa-sparks-mini-name">QA Access Auto-Pass</strong>
       <span className="qa-sparks-mini-value">{mode==="inventory"?quantity+" สิทธิ์":
-        freeActive&&!claimed?"ฟรี 5 สิทธิ์":PRICING+" Sparks"}</span>
+        freeActive?<span className="qa-auto-pass-card-pricing">
+          <span className="qa-auto-pass-card-original"><s>{PRICING} Sparks / สิทธิ์</s></span>
+          <strong className="qa-auto-pass-card-free">ฟรี 5 สิทธิ์</strong>
+          <span className="qa-auto-pass-card-value">มูลค่ารวม {(PRICING*5).toLocaleString("en-US")} Sparks</span>
+        </span>:<span className="qa-sparks-shop-price"><strong>{PRICING} Sparks</strong><small>ต่อสิทธิ์</small></span>}</span>
     </button>
     {open&&typeof document!=="undefined"?createPortal(
       <div className="qa-auto-pass-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false)}}>
@@ -104,10 +109,11 @@ export default function QaAutoPassRewardCard({
             </div>
           </div>
           <div className="qa-auto-pass-modal-body">
-            {mode==="reward"&&freeActive&&!claimed?<div className="qa-auto-pass-offer">
-              <strong>รับฟรี 5 สิทธิ์พร้อมกัน</strong>
-              <p>ปกติ 160 Sparks ต่อสิทธิ์ · กดรับฟรีได้ 1 ครั้งต่อบัญชี
-              ภายในวันที่ 25 ธันวาคม 2026 เวลา 23:59 น. (เวลาไทย)</p>
+            {mode==="reward"&&freeActive?<div className="qa-auto-pass-offer">
+              <strong>{claimed?"รับสิทธิ์ฟรีครบแล้ว 5 สิทธิ์":"รับฟรี 5 สิทธิ์พร้อมกัน"}</strong>
+              <p>{claimed
+                ?"บัญชีนี้ใช้สิทธิ์รับฟรีครบแล้ว (มูลค่า 800 Sparks) · หากต้องการเพิ่ม สามารถซื้อได้ในราคาปกติ 160 Sparks ต่อสิทธิ์"
+                :"รับฟรี 5 สิทธิ์ มูลค่ารวม 800 Sparks (ปกติ 160 Sparks ต่อสิทธิ์) · กดรับฟรีได้ 1 ครั้งต่อบัญชี ภายในวันที่ 25 ธันวาคม 2026 เวลา 23:59 น. (เวลาไทย)"}</p>
             </div>:null}
             <div className="qa-auto-pass-stats">
               <div><span>สิทธิ์คงเหลือ</span><strong>{loaded?quantity:"—"}</strong></div>

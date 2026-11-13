@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {
  createQaAutoPassService, autoPassFreeActive,
  AUTO_PASS_PRICE, AUTO_PASS_FREE_QUANTITY,
@@ -58,6 +59,11 @@ const alice={username:"alice",displayName:"Alice"},charlie={username:"charlie"};
 const doc=path=>documents.get(path)?.fields;
 assert.equal(AUTO_PASS_PRICE,160);
 assert.equal(AUTO_PASS_FREE_QUANTITY,5);
+const rewardCardSource=readFileSync(new URL("../src/QaAutoPassRewardCard.tsx",import.meta.url),"utf8");
+assert.match(rewardCardSource,/freeActive\?<span className="qa-auto-pass-card-pricing">/,"free campaign must be shown before claim and after claim");
+assert.match(rewardCardSource,/รับฟรี 5 สิทธิ์/,"reward card must say free");
+assert.match(rewardCardSource,/รับฟรีแล้ว/,"claimed users must see that their free allocation is already used");
+assert.match(rewardCardSource,/ซื้อเพิ่ม.*Sparks/,"paid extra rights must be distinguished from the free claim");
 assert.equal(autoPassFreeActive(Date.parse("2026-11-11T00:00:00+07:00")),true);
 assert.equal(autoPassFreeActive(Date.parse("2026-12-25T23:59:59.999+07:00")),true);
 assert.equal(autoPassFreeActive(Date.parse("2026-12-26T00:00:00+07:00")),false);

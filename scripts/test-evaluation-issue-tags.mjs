@@ -145,7 +145,7 @@ function managementUi(store, catalog) {
     setCallLogs: (fn) => fn([]), setEvidenceFiles: (fn) => fn([]),
     callRecordingUploads: { current: new Map() },
   };
-  const ignoredSetters = ["AgentName", "AuditDate", "WaitingTime", "ServiceTime", "CaseId", "CaseUrl", "Inquiry", "CaseDescription", "ProcessReference", "EvidenceUrl", "NoCaseForMonth", "IsTestCase", "CriticalError", "EvaluationStartedAt", "EvaluationSubmittedAt", "EvaluationStatus", "DraftSavedAt", "ActiveDraftId", "ActiveSubmittedRecordId"];
+  const ignoredSetters = ["AgentName", "AuditDate", "WaitingTime", "ServiceTime", "CaseId", "CaseUrl", "Inquiry", "CaseDescription", "ProcessReference", "EvidenceUrl", "NoCaseForMonth", "IsTestCase", "CriticalError", "EvaluationStartedAt", "EvaluationSubmittedAt", "EvaluationStatus", "DraftSavedAt", "ActiveDraftId", "ActiveSubmittedRecordId", "ActiveEditToken"];
   ignoredSetters.forEach((name) => { bindings["set" + name] = () => {}; });
   const handlerSource = managementHandlers.map((node) => node.getText()).join("\n") + "\nexport { toggleIssueTag, changeIssueTagAvailability, resetEvaluationForm };";
   const handlerCode = ts.transpileModule(handlerSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;

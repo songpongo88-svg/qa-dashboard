@@ -25,6 +25,7 @@ type Props = {
   onClose: () => void;
   onPreview: (file: ManagedProcessFile) => void;
   onChangeVisibility: (file: ManagedProcessFile, hidden: boolean) => void;
+  onActivateCurrent?: (file: ManagedProcessFile) => void;
 };
 
 function uploadedDate(value: string) {
@@ -36,11 +37,11 @@ function uploadedDate(value: string) {
 }
 
 export function ProcessFileManager({
-  files, busyId, message, referencedIds, protectedFileId, canHideSystemProcess, onClose, onPreview, onChangeVisibility,
+  files, busyId, message, referencedIds, protectedFileId, canHideSystemProcess, onClose, onPreview, onChangeVisibility, onActivateCurrent,
 }: Props) {
   const [search, setSearch] = useState("");
   const [includeRemoved, setIncludeRemoved] = useState(true);
-  const [pendingChange, setPendingChange] = useState<{ file: ManagedProcessFile; hidden: boolean } | null>(null);
+  const [pendingChange, setPendingChange] = useState<{ file: ManagedProcessFile; hidden: boolean; activate?: boolean } | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (pendingChange) cancelRef.current?.focus(); }, [pendingChange]);
   const availableCount = files.filter(item => !item.hiddenFromPicker).length;
@@ -115,6 +116,12 @@ export function ProcessFileManager({
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
+                    {item.status !== "current" && onActivateCurrent ? (
+                      <button type="button" disabled={Boolean(busyId)}
+                        onClick={() => setPendingChange({file:item,hidden:false,activate:true})}
+                        data-process-activate-current={item.id}
+                        className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 hover:bg-emerald-100 disabled:opacity-50">ตั้งเป็น Current</button>
+                    ) : null}
                     <button type="button" onClick={() => onPreview(item)}
                       disabled={!item.fileUrl || busyId !== ""}
                       className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-[#155B83] hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-40">
@@ -167,10 +174,12 @@ export function ProcessFileManager({
               </div>
               <div className="min-w-0">
                 <h3 id="process-confirm-title" className="text-lg font-black text-slate-950">
-                  {pendingChange.hidden ? "ยืนยันการซ่อนไฟล์ Process" : "ยืนยันการคืนไฟล์ Process"}
+                  {pendingChange.activate ? "ยืนยันตั้งเป็น Process ปัจจุบัน" : pendingChange.hidden ? "ยืนยันการซ่อนไฟล์ Process" : "ยืนยันการคืนไฟล์ Process"}
                 </h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  {pendingChange.hidden
+                  {pendingChange.activate
+                    ? "จะเลือกเวอร์ชันนี้เป็น Current และเก็บเวอร์ชัน Current เดิมเป็น Archived โดยไม่เปลี่ยนเคสที่ประเมินแล้ว"
+                    : pendingChange.hidden
                     ? "ต้องการนำไฟล์นี้ออกจากรายการเลือก Process ใช่หรือไม่?"
                     : "ต้องการนำไฟล์นี้กลับเข้ารายการเลือก Process ใช่หรือไม่?"}
                 </p>
@@ -195,13 +204,14 @@ export function ProcessFileManager({
               <button type="button" disabled={Boolean(busyId)}
                 onClick={() => {
                   if (busyId) return;
-                  const { file, hidden } = pendingChange;
+                  const { file, hidden, activate } = pendingChange;
                   setPendingChange(null);
-                  onChangeVisibility(file, hidden);
+                  if (activate) onActivateCurrent?.(file);
+                  else onChangeVisibility(file, hidden);
                 }}
                 className={"rounded-xl px-4 py-2.5 text-sm font-black text-white shadow-sm disabled:opacity-50 " +
                   (pendingChange.hidden ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-700 hover:bg-emerald-800")}>
-                {pendingChange.hidden ? "ยืนยันซ่อนไฟล์" : "ยืนยัน Restore"}
+                {pendingChange.activate ? "ยืนยันใช้เวอร์ชันนี้" : pendingChange.hidden ? "ยืนยันซ่อนไฟล์" : "ยืนยัน Restore"}
               </button>
             </div>
           </div>

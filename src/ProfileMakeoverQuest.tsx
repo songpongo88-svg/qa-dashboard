@@ -32,7 +32,7 @@ export function ProfileMakeoverAutoClaim({ username, sessionId }: { username:str
       lastInspectionAt.current=Date.now();
       busy.current=true;
       try{
-        const account=await getSparksAccount(username,{historyLimit:0});
+        const account=await getSparksAccount(username,{historyLimit:0,sessionId});
         if(!alive)return;
         if(account.profileMakeoverClaimedAt){completed.current=true;return;}
         const photo=await fetchStoredProfilePhoto(username);

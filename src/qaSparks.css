@@ -74,19 +74,7 @@
 .qa-sparks-flare.one { right: 10px; top: 11px; }
 .qa-sparks-flare.two { left: 10px; bottom: 14px; }
 .qa-sparks-history-clock { color: #609ac0; height: 60px; display: grid; place-items: center; }
-.qa-sparks-history-scroll { min-width: 0; width: 100%; margin-top: 9px; overflow-x: auto; border: 1px solid #e4e0e5; border-radius: 10px; background: #fcfbfa; }
-.qa-sparks-history-scroll:focus-visible { outline: 2px solid var(--sparks-accent); outline-offset: 3px; }
-.qa-sparks-history-table { width: 100%; min-width: 860px; border-collapse: collapse; table-layout: fixed; text-align: left; }
-.qa-sparks-history-table th, .qa-sparks-history-table td { padding: 13px 14px; vertical-align: top; overflow-wrap: anywhere; }
-.qa-sparks-history-table th:nth-child(1) { width: 18%; }
-.qa-sparks-history-table th:nth-child(2) { width: 21%; }
-.qa-sparks-history-table th:nth-child(3) { width: 15%; }
-.qa-sparks-history-table th:nth-child(4) { width: 28%; }
-.qa-sparks-history-table th:nth-child(5) { width: 18%; }
-.qa-sparks-history-table .qa-sparks-history-number { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.qa-sparks-history-balance { font-weight: 500; color: #3a3037; }
-.qa-sparks-history-head { background: #f2eff1; color: #504853; font-size: 11px; font-weight: 600; }
-.qa-sparks-history-no-rows { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 58px; padding: 8px; color: #9c919e; font-size: 11px; }
+/* The old horizontally scrolling 860px History table was replaced with responsive cards. */
 .qa-sparks-notes { display: grid; grid-template-columns: minmax(180px, .28fr) 1fr; align-items: start; gap: 24px; border: 1px solid var(--sparks-outline); border-radius: 17px; padding: 16px 22px; background: linear-gradient(120deg, color-mix(in srgb, var(--qa-theme-50, #faf5ff) 60%, #fff), #fffdfb); box-shadow: var(--sparks-shadow); }
 .qa-sparks-notes-heading { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px; color: var(--sparks-dark); border-right: 1px solid var(--sparks-outline); min-height: 80px; }
 .qa-sparks-notes ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 12px; line-height: 1.5; color: #504450; }
@@ -930,6 +918,11 @@
 /* QA Access Auto-Pass: a single countable item in Reward Center and My Items. */
 .qa-auto-pass-item .qa-auto-pass-art{display:block;width:100%;height:100%;border-radius:14px}
 .qa-auto-pass-free-badge{position:absolute;right:3px;top:3px;padding:3px 5px;border-radius:7px;background:#fff3bd;color:#723680;font-size:9px;font-weight:900;box-shadow:0 2px 7px #4d287d30}
+.qa-auto-pass-card-pricing{display:flex;flex-direction:column;align-items:center;gap:2px;max-width:114px;text-align:center;line-height:1.25}
+.qa-auto-pass-card-free{font-size:11px;font-weight:900;color:#257544}
+.qa-auto-pass-card-original{font-size:9px;font-weight:650;color:#8a7389;overflow-wrap:anywhere}
+.qa-auto-pass-card-original s{text-decoration:line-through;text-decoration-thickness:1.2px}
+@media(max-width:470px){.qa-auto-pass-card-free{font-size:10px}.qa-auto-pass-card-original{font-size:8px}}
 .qa-auto-pass-backdrop{position:fixed;inset:0;z-index:390;display:flex;align-items:center;justify-content:center;background:#1f1736b0;backdrop-filter:blur(5px);padding:14px}
 .qa-auto-pass-modal{position:relative;display:flex;flex-direction:column;max-height:min(93vh,850px);width:min(720px,100%);border-radius:24px;background:#fffdfa;color:#362746;overflow:hidden;box-shadow:0 30px 100px #180f2c5e;font-family:Kanit,sans-serif}
 .qa-auto-pass-close{position:absolute;z-index:2;right:14px;top:12px;border-radius:50%;background:#fff;border:1px solid #e4d7e7;color:#6a4877;width:35px;height:35px;font-size:25px;cursor:pointer;line-height:1}
@@ -968,3 +961,128 @@
 .qa-auto-pass-footer{padding:13px 18px}
 .qa-auto-pass-stats{gap:4px}.qa-auto-pass-stats>div{padding:9px 6px}.qa-auto-pass-stats strong{font-size:17px}
 }
+
+
+/* QA Sparks History V2 — clear, full-width records without a horizontal scrollbar.
+   Applies to Overview and full History; no changes to stored data or fetches. */
+.qa-sparks-history-cards{min-width:0;width:100%;justify-content:flex-start}
+.qa-sparks-history-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.qa-sparks-history-cards .qa-sparks-history-filters{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0;min-width:0}
+.qa-sparks-history-cards .qa-sparks-history-filters button{font-size:11px;font-weight:650;border-color:#e3dce6;background:#fffdfc;padding:6px 11px;white-space:normal;line-height:1.25}
+.qa-sparks-history-cards .qa-sparks-history-filters button.active{background:var(--sparks-accent);color:#fff;border-color:var(--sparks-accent)}
+.qa-sparks-history-cards button:focus-visible,.qa-sparks-history-cards input:focus-visible{outline:2px solid var(--sparks-accent);outline-offset:2px}
+.qa-sparks-history-search{flex:1 1 170px;max-width:350px;min-width:0;display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e2dae5;border-radius:10px;padding:6px 11px;color:#7a7082}
+.qa-sparks-history-search input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:#352b3b;font:500 12px Kanit,sans-serif;line-height:1.6}
+.qa-sparks-history-search input::placeholder{color:#91869a}
+.qa-sparks-history-count{display:block;margin:8px 1px 10px;font-size:11px;color:#776d7a;line-height:1.5}
+.qa-sparks-history-count strong{color:var(--sparks-dark);font-weight:750}
+.qa-sparks-history-list{display:grid;gap:9px;list-style:none;padding:0;margin:0;min-width:0}
+.qa-sparks-history-entry{min-width:0;border:1px solid #e9e3e7;border-radius:13px;padding:12px 13px 10px;background:linear-gradient(140deg,#fff,#fffcfa);box-shadow:0 2px 7px #32253208;overflow-wrap:anywhere}
+.qa-sparks-history-entry-row{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.qa-sparks-history-entry-symbol{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;border-radius:9px;background:#f1eef3;color:#71687a;font-size:18px;font-weight:750}
+.qa-sparks-history-entry-symbol.positive{background:#e9f6ee;color:#20724a}
+.qa-sparks-history-entry-symbol.negative{background:#fcecef;color:#ab3d56}
+.qa-sparks-history-entry-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.qa-sparks-history-entry-title{color:#2c2335;font-size:13px;font-weight:750;line-height:1.4;overflow-wrap:anywhere}
+.qa-sparks-history-entry-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:#706676;font-size:10px;line-height:1.5}
+.qa-sparks-history-entry-meta time{font-variant-numeric:tabular-nums}
+.qa-sparks-history-action{padding:2px 7px;border-radius:6px;background:var(--sparks-soft);color:var(--sparks-dark);font-weight:650}
+.qa-sparks-history-entry-changes{flex:0 1 auto;min-width:0;max-width:47%;display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right;font-variant-numeric:tabular-nums}
+.qa-sparks-history-change{display:inline-flex;align-items:center;justify-content:flex-end;border-radius:7px;padding:3px 8px;font-size:11px;line-height:1.45;font-weight:750;overflow-wrap:anywhere}
+.qa-sparks-history-change.positive{color:#207a4d;background:#eaf7f0}
+.qa-sparks-history-change.negative{color:#b13f56;background:#fceef1}
+.qa-sparks-history-change.neutral{color:#6d6773;background:#f1eff2;font-weight:600}
+.qa-sparks-history-change.item{font-size:10px}
+.qa-sparks-history-entry-details{margin:9px 0 0 38px;display:grid;gap:3px;color:#695e6a;font-size:11px;line-height:1.55;min-width:0}
+.qa-sparks-history-entry-details p{margin:0;overflow-wrap:anywhere}
+.qa-sparks-history-entry-footer{display:flex;flex-wrap:wrap;gap:3px 8px;align-items:center;justify-content:space-between;border-top:1px solid #f0eaf0;margin:10px 0 0 38px;padding-top:7px;color:#807483;font-size:10px;line-height:1.5}
+.qa-sparks-history-entry-footer strong{color:#483d4d;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.qa-sparks-history-more{margin-top:12px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 12px}
+.qa-sparks-history-more button,.qa-sparks-history-empty-state button{border:1px solid var(--sparks-outline);color:var(--sparks-dark);background:#fff;border-radius:10px;padding:9px 16px;font:650 12px Kanit,sans-serif;cursor:pointer}
+.qa-sparks-history-more button:hover,.qa-sparks-history-empty-state button:hover{background:var(--sparks-soft)}
+.qa-sparks-history-more span{color:#817785;font-size:10px}
+.qa-sparks-history-collapse{display:block;margin:9px auto 0;border:0;color:#82718a;background:transparent;text-decoration:underline;font:500 11px Kanit,sans-serif;cursor:pointer}
+.qa-sparks-history-empty-state{min-height:155px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;color:#7e7282;padding:16px;background:#fff;border:1px dashed #dfd8e1;border-radius:13px}
+.qa-sparks-history-empty-state strong{color:#4d4051;font-size:13px}
+.qa-sparks-history-empty-state span{font-size:11px;line-height:1.5}
+@media(max-width:600px){
+ .qa-sparks-history-search{max-width:none;flex-basis:100%}
+ .qa-sparks-history-entry{padding:11px}
+ .qa-sparks-history-entry-changes{max-width:50%}
+ .qa-sparks-history-entry-symbol{flex-basis:26px;width:26px;height:26px}
+ .qa-sparks-history-entry-details,.qa-sparks-history-entry-footer{margin-left:35px}
+}
+@media(max-width:390px){
+ .qa-sparks-history-entry-changes{max-width:none;align-items:flex-start;text-align:left;margin-left:35px}
+ .qa-sparks-history-entry-row{flex-wrap:wrap}
+ .qa-sparks-history-entry-main{flex-basis:calc(100% - 37px)}
+ .qa-sparks-history-entry-changes{flex-basis:100%;flex-direction:row;flex-wrap:wrap}
+}
+
+/* Sparks sign-in controls must remain visible: the legacy page heading is
+   intentionally visually hidden for the compact membership overview. */
+.qa-sparks-auth-status{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  border:1px solid var(--sparks-outline,#e8ddea);border-radius:12px;
+  background:#fff;padding:11px 15px;color:var(--sparks-dark,#25233a);
+}
+.qa-sparks-auth-status-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.qa-sparks-auth-status-copy strong{font-size:12px;font-weight:700}
+.qa-sparks-auth-status-copy span{font-size:11px;color:#6f6679}
+.qa-sparks-auth-status[data-sparks-auth-mode="supabase"]{border-color:#a6d6c0;background:#f5fbf7}
+.qa-sparks-auth-status>button{
+  border:1px solid #b5a4dc;border-radius:9px;background:#f3efff;color:#51358f;
+  font-family:inherit;font-size:12px;font-weight:700;padding:9px 13px;cursor:pointer;
+}
+.qa-sparks-auth-status>button:focus-visible{outline:3px solid #7352c3;outline-offset:2px}
+@media(max-width:650px){.qa-sparks-auth-status>button{width:100%}}
+
+
+/* Reward Center: unified premium product cards; no changes to Quest/My Items. */
+.qa-sparks-panel:has(.qa-sparks-reward-grid){container-type:inline-size}
+.qa-sparks-panel:has(.qa-sparks-reward-grid)>h2{font-size:clamp(18px,2vw,23px);font-weight:850;letter-spacing:-.025em;color:var(--sparks-dark,#322058);margin:3px 4px 19px}
+.qa-sparks-mini-grid.qa-sparks-reward-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px;justify-content:start;align-content:start;width:100%;max-width:1120px}
+.qa-sparks-reward-grid .qa-sparks-mini-item{width:100%;max-width:none;min-width:0;min-height:265px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:13px 12px 14px;position:relative;isolation:isolate;overflow:hidden;text-align:center;border:1px solid #e7d9f5;border-radius:22px;background:linear-gradient(153deg,#fffefd 0%,#fffaff 66%,#f9f4ff 100%);box-shadow:0 6px 15px #5b2c9921,0 1px 3px #5d3e8522;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.qa-sparks-reward-grid .qa-sparks-mini-item::before{content:"";position:absolute;inset:0 0 auto;height:52%;background:radial-gradient(ellipse at 50% 0%,#f2e6ffb3 0%,transparent 76%);z-index:-1;pointer-events:none}
+.qa-sparks-reward-grid .qa-sparks-mini-item:hover{transform:translateY(-4px);background:linear-gradient(153deg,#fffefd,#fbf4ff);border-color:#bfa6ec;box-shadow:0 14px 27px #6d42a932}
+.qa-sparks-reward-grid .qa-sparks-mini-item:focus-visible{outline:3px solid var(--sparks-accent,#7e22ce);outline-offset:3px}
+.qa-sparks-reward-grid .qa-sparks-mini-art{position:relative;width:100%;height:auto;max-width:none;min-width:0;aspect-ratio:1/1;border-radius:18px;border:1px solid #eee0ff;background:linear-gradient(140deg,#f6edff,#ebd6ff 74%,#debbff);box-shadow:inset 0 1px 0 #fff9,0 5px 13px #6937a41c;overflow:hidden;display:grid;place-items:center}
+.qa-sparks-reward-grid .qa-sparks-mini-art--special{background:linear-gradient(143deg,#f6edff,#e5ccfc)}
+.qa-sparks-reward-grid .qa-sparks-mini-art--money{background:linear-gradient(145deg,#ffe5f4,#edc5fa)}
+.qa-sparks-reward-grid .qa-sparks-mini-art--typing{background:linear-gradient(145deg,#eee6ff,#d3b4fa)}
+.qa-sparks-reward-grid .qa-sparks-mini-art .qa-relief-art-svg,.qa-sparks-reward-grid .qa-sparks-mini-art .qa-money-art-svg{width:100%!important;height:auto!important;max-width:100%!important;max-height:100%!important;object-fit:contain}
+.qa-sparks-reward-grid .qa-auto-pass-art{width:100%;height:100%;object-fit:contain}
+.qa-sparks-reward-grid .qa-shield-tile-art svg{width:78%;height:78%;max-width:124px;max-height:124px}
+.qa-sparks-reward-grid .qa-sparks-mini-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;width:100%;max-width:none;min-height:46px;margin:13px auto 8px;padding:0 2px;font-size:clamp(12px,1.25vw,16px);line-height:1.45;font-weight:800;color:#30205a;overflow-wrap:anywhere;text-wrap:balance}
+.qa-sparks-reward-grid .qa-sparks-mini-value{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:auto;max-width:none;min-width:0;width:100%;min-height:45px;padding:7px 5px;line-height:1.3;border-radius:13px;border:1px solid #eddfff;background:linear-gradient(110deg,#f1e8ff,#f6e7ff 55%,#eedcff);color:#5f17a4;font-size:clamp(11px,1.2vw,15px);font-weight:800;font-variant-numeric:tabular-nums}
+.qa-sparks-reward-grid .qa-sparks-shop-price{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 6px}
+.qa-sparks-reward-grid .qa-sparks-shop-price>strong{font:inherit;font-weight:900;color:#6112ad}
+.qa-sparks-reward-grid .qa-sparks-shop-price>small{font-size:10px;font-weight:650;color:#715b86;white-space:nowrap}
+.qa-sparks-reward-grid .qa-sparks-shop-price>s{font-size:11px;font-weight:650;color:#8d7b98;text-decoration-color:#dc5d77;text-decoration-thickness:2px}
+.qa-sparks-reward-grid .qa-auto-pass-item .qa-sparks-mini-value{background:linear-gradient(110deg,#edfae1,#dff9dd);border-color:#d6efd1}
+.qa-sparks-reward-grid .qa-auto-pass-card-pricing{display:flex;flex-direction:column;justify-content:center;align-items:center;width:100%;max-width:none;gap:3px;line-height:1.25;text-align:center}
+.qa-sparks-reward-grid .qa-auto-pass-card-free{font-size:clamp(12px,1.5vw,17px);color:#146533;font-weight:900}
+.qa-sparks-reward-grid .qa-auto-pass-card-original{font-size:11px;color:#6e8073;font-weight:650}
+.qa-sparks-reward-grid .qa-auto-pass-card-original s{font-weight:750;text-decoration-color:#d47887;text-decoration-thickness:1.6px}
+.qa-sparks-reward-grid .qa-sparks-shop-badge{position:absolute;right:5px;top:6px;z-index:2;display:inline-flex;align-items:center;justify-content:center;min-height:25px;max-width:90%;padding:4px 9px;border-radius:9px;font:800 11px/1.2 Kanit,sans-serif;box-shadow:0 4px 9px #622d8c48;border:1px solid #fff7}
+.qa-sparks-reward-grid .qa-sparks-shop-badge--free{background:linear-gradient(125deg,#823add,#5e20ae);color:#fff}
+.qa-sparks-reward-grid .qa-sparks-shop-badge--sale{background:linear-gradient(125deg,#f55ba1,#e83979);color:#fff}
+@container (max-width:810px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}
+@container (max-width:590px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.qa-sparks-reward-grid .qa-sparks-mini-item{padding:9px;min-height:230px;border-radius:16px}.qa-sparks-reward-grid .qa-sparks-mini-art{border-radius:13px}.qa-sparks-reward-grid .qa-sparks-mini-name{font-size:12px;min-height:35px;margin:10px 0 7px}.qa-sparks-reward-grid .qa-sparks-mini-value{min-height:44px;font-size:11px}.qa-sparks-reward-grid .qa-sparks-shop-badge{font-size:10px;top:4px;right:4px;padding:4px 6px}}
+@container (max-width:292px){.qa-sparks-mini-grid.qa-sparks-reward-grid{grid-template-columns:1fr}.qa-sparks-reward-grid .qa-sparks-mini-item{max-width:220px;justify-self:center}}
+@media(prefers-reduced-motion:reduce){.qa-sparks-reward-grid .qa-sparks-mini-item{transition:none}}
+
+
+/* Product presentation; Overview retains the original Reward Center / History columns. */
+.qa-sparks-reward-tagline{margin:-9px 4px 20px;color:#746485;font:500 12px/1.6 Kanit,sans-serif}
+.qa-sparks-panel:has(.qa-sparks-reward-grid){padding:21px clamp(12px,2vw,28px) 26px;background:linear-gradient(160deg,#fffefd 0%,#fdf9ff 50%,#f8f3ff 100%);border-color:#e7d8f7;border-radius:25px}
+.qa-sparks-panel:has(.qa-sparks-reward-grid)>h2{margin-bottom:12px}
+.qa-sparks-mini-grid.qa-sparks-reward-grid{max-width:1320px}
+.qa-sparks-reward-grid .qa-sparks-mini-item{min-width:0;min-height:0;aspect-ratio:auto;box-sizing:border-box}
+.qa-sparks-reward-grid .qa-sparks-mini-art{flex:none;aspect-ratio:1/0.92;max-height:235px}
+.qa-sparks-reward-grid .qa-sparks-mini-name{flex:none}
+.qa-sparks-reward-grid .qa-sparks-mini-value{flex:0 0 auto}
+.qa-sparks-reward-grid .qa-sparks-mini-art .sr-logo img{max-width:100%;max-height:100%;object-fit:contain}
+.qa-sparks-reward-grid .qa-money-reward-root{min-width:0;max-width:none}
+.qa-sparks-reward-grid .qa-sparks-mini-item--money{width:100%;max-width:none}
+@container (max-width:530px){.qa-sparks-reward-grid .qa-sparks-mini-item{min-height:0}.qa-sparks-reward-grid .qa-sparks-mini-art{max-height:205px}}

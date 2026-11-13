@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-export default function StickyNotePopup({ owner, children }: { owner: string; children: ReactNode }) {
+export default function StickyNotePopup({ owner, children, onOpenChange }: { owner: string; children: ReactNode; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const launcher = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => setOpen(false), [owner]);
+  useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
-    panel.current?.focus();
+    panel.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setOpen(false); }
       if (event.key !== "Tab") return;
@@ -19,7 +20,7 @@ export default function StickyNotePopup({ owner, children }: { owner: string; ch
       else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panel.current)) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", onKey, true);
-    return () => { document.removeEventListener("keydown", onKey, true); if (previous?.isConnected) previous.focus(); };
+    return () => { document.removeEventListener("keydown", onKey, true); if (previous?.isConnected) previous.focus({ preventScroll: true }); };
   }, [open]);
   return <>
     <button ref={launcher} type="button" title="Sticky Note" aria-label="Sticky Note" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} className="fixed bottom-6 right-6 z-[82] grid h-12 w-12 place-items-center rounded-full border border-amber-200 bg-white text-amber-700 shadow-[0_8px_24px_rgba(217,119,6,0.18)] transition hover:-translate-y-0.5 hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600">

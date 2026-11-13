@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { EMPTY_SPARKS_ACCOUNT, getSparksAccount, invalidateSparksAccount, type SparksAccount } from "./qaSparksStore";
 import "./qaSparks.css";
+import "./qaSparksProductCards.css";
 import SparksHistory from "./SparksHistory";
 import FirstLoginSparksModal from "./FirstLoginSparksModal";
 import SparksEmailAuth, { type SparksVerifiedActor } from "./SparksEmailAuth";
 import SparksAdminPanel from "./SparksAdminPanel";
+import SparksQaCredentialMigration from "./SparksQaCredentialMigration";
 import TypingReliefRewardCard from "./TypingReliefRewardCard";
 import QaAutoPassRewardCard from "./QaAutoPassRewardCard";
 import DailyCheckinQuest from "./DailyCheckinQuest";
@@ -68,33 +70,40 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     } catch {/* Browser storage does not control authorization. */}
     setEmailAuthChoices(current=>({...current,[normalizedSparksUser]:enabled}));
   };
+  // Hybrid mode must allow the owner to return to the existing, server-verified
+  // QA Dashboard session when the Supabase email provider is rate-limited.
+  // The backend validates the QA session, role, suspension and policy before
+  // any Sparks admin action; client state never grants admin privileges.
   const emailAuthEnabled = emailAuthMode === "supabase" || (
-    emailAuthMode === "hybrid" && (
-      username.trim().toLowerCase() === "songpon" || Boolean(verifiedSparksActor) || emailOptedIn
-    )
+    emailAuthMode === "hybrid" && (Boolean(verifiedSparksActor) || emailOptedIn)
   );
   const [verifiedActor, setVerifiedActor] = useState<SparksVerifiedActor | null>(verifiedSparksActor);
+  // Resolve the existing HTTP-only Supabase session before deciding whether
+  // to render a password prompt. Do not treat the QA Dashboard login as
+  // Supabase authorization. Only the server-verified actor can unlock Sparks.
+  const [authBootstrap, setAuthBootstrap] = useState<"checking"|"done">("checking");
   const sparksAllowed = !emailAuthEnabled || (verifiedActor?.username.toLowerCase() === username.toLowerCase() && Boolean(username));
   const sparksSessionId = emailAuthEnabled ? "supabase-email-auth" : adminSessionId;
   useEffect(()=>{
-    if (!emailAuthEnabled || !sparksAllowed || !active) return;
+    if(!active || !normalizedSparksUser)return;
     let current=true;
+    setAuthBootstrap("checking");
     void fetch("/api/sparks-auth",{credentials:"same-origin",cache:"no-store"})
       .then(async response=>{
+        const result=await response.json().catch(()=>({}));
         if(!current)return;
-        if(response.status===401 || response.status===403){
+        if(response.ok && result?.actor?.username?.toLowerCase()===normalizedSparksUser
+          && result.actor.status==="Active"){
+          // A verified, already-signed-in user should go directly to Overview.
+          setVerifiedActor(result.actor as SparksVerifiedActor);
+          if(emailAuthMode==="hybrid")chooseEmailAuth(true);
+        }else{
           setVerifiedActor(null);
-          return;
         }
-        if(!response.ok)return; // temporary service errors must not destroy the session
-        const payload=await response.json();
-        if(current && (
-          payload?.actor?.username?.toLowerCase()!==username.toLowerCase() ||
-          payload?.actor?.status!=="Active"
-        ))setVerifiedActor(null);
-      }).catch(()=>{}); // server still checks every wallet and redemption request
+      }).catch(()=>{if(current)setVerifiedActor(null);})
+      .finally(()=>{if(current)setAuthBootstrap("done");});
     return()=>{current=false};
-  },[emailAuthEnabled,sparksAllowed,active,username]);
+  },[active,normalizedSparksUser]);
   const [itemShelf,setItemShelf] = useState<"available"|"processing"|"history">("available");
   const [itemClock,setItemClock] = useState(0);
   const [gamesOpened, setGamesOpened] = useState(false);
@@ -176,29 +185,29 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
     ...(adminAccess && (!emailAuthEnabled || (verifiedActor?.role === "Quality Assurance" && verifiedActor?.username === "songpon")) && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? [{ key: "admin" as SparksView, label: "Sparks Admin", icon: "crown" as SparksIconName }] : []),
   ];
   const walletLoaded = Boolean(lastAccountLoadAt && lastAccountUsername.toLowerCase() === username.toLowerCase());
+  // Do not flash a login form while a valid server session is being checked.
+  // This also protects existing QA-only users from a needless password prompt.
+  if (authBootstrap==="checking" && active && Boolean(normalizedSparksUser)) return <section role="status"
+    data-sparks-session-check="true" style={{padding:"28px 20px",textAlign:"center",color:"#646d84"}}>
+    กำลังตรวจสอบ Session QA Sparks...
+  </section>;
   if (emailAuthEnabled && !sparksAllowed) return <div data-sparks-employee-email-login="true">
     <SparksEmailAuth username={username} onVerified={actor=>{
       setVerifiedActor(actor);
       if(emailAuthMode==="hybrid")chooseEmailAuth(true);
     }}/>
-    {emailAuthMode==="hybrid" && normalizedSparksUser!=="songpon" && !verifiedSparksActor && <div style={{textAlign:"center",padding:"0 16px 24px"}}>
+    {emailAuthMode==="hybrid" && !verifiedSparksActor && <div style={{textAlign:"center",padding:"0 16px 24px"}}>
       <button type="button" data-sparks-legacy-fallback="true" onClick={()=>{
         void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).catch(()=>{}).finally(()=>{
           chooseEmailAuth(false);
           setVerifiedActor(null);
         });
-      }}>กลับไปใช้ระบบเดิมชั่วคราว (ยังพึ่ง Firebase)</button>
+      }}>กลับไปใช้บัญชี QA Dashboard เดิม (ไม่ต้อง OTP)</button>
     </div>}
   </div>;
   return <main data-qa-sparks="true" data-sparks-data-mode={username ? "account" : "not-configured"} className="qa-sparks-page">
     <div className="qa-sparks-container">
-      <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div>
-        {emailAuthMode==="hybrid" && !emailAuthEnabled && Boolean(normalizedSparksUser) && <button
-          type="button" data-sparks-supabase-optin="true" onClick={()=>chooseEmailAuth(true)}>เข้าใช้ Sparks ผ่าน Supabase</button>}
-        {emailAuthEnabled && <button type="button" onClick={()=>{
-          void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).finally(()=>setVerifiedActor(null));
-        }}>ออกจาก QA Sparks</button>}
-      </header>
+      <header className="qa-sparks-page-heading"><SparksIcon name="gift" size={26}/><div><div className="qa-sparks-eyebrow">QA Dashboard · Rewards</div><h1>My QA Sparks / Reward Center</h1></div></header>
       <section className="qa-sparks-hero qa-sparks-hero--membership">
         <div className="qa-sparks-hero-copy">
           <div className="qa-sparks-eyebrow">MY REWARDS</div><h2>My QA Sparks</h2>
@@ -206,6 +215,26 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
         </div>
         {displayName || username ? <div className="qa-sparks-member-owner"><span className="qa-sparks-owner-avatar" aria-hidden="true">QA</span><div><small>บัญชีผู้ใช้งาน</small><span>{displayName || username}</span></div></div> : null}
       </section>
+      {emailAuthMode==="hybrid" && Boolean(normalizedSparksUser) && <section
+        className="qa-sparks-auth-status" data-sparks-auth-mode={emailAuthEnabled?"supabase":"qa-session"}
+        aria-label="สถานะการเข้าสู่ระบบ QA Sparks">
+        <div className="qa-sparks-auth-status-copy">
+          <strong>{emailAuthEnabled && verifiedActor?.username.toLowerCase()===normalizedSparksUser
+            ?"เชื่อมต่อ Supabase Auth แล้ว":"กำลังใช้ QA Dashboard Login เดิม"}</strong>
+          <span>{emailAuthEnabled
+            ?"ยืนยันตัวตนผ่าน Supabase สำหรับ QA Sparks โดยไม่ต้องใช้ Firebase Session"
+            :"การยืนยันตัวตนสำหรับ Sparks ยังใช้ QA Session ซึ่งอาจใช้โควต้า Firestore"}</span>
+        </div>
+        {emailAuthEnabled ? <button type="button" data-sparks-supabase-signout="true"
+          onClick={()=>{
+            void fetch("/api/sparks-auth",{method:"DELETE",credentials:"same-origin"}).finally(()=>{
+              chooseEmailAuth(false);
+              setVerifiedActor(null);
+            });
+          }}>ออกจาก QA Sparks (Supabase)</button> :
+          <button type="button" data-sparks-supabase-optin="true"
+            onClick={()=>chooseEmailAuth(true)}>เข้าใช้ Sparks ผ่าน Supabase</button>}
+      </section>}
       {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY === "1" ? <div role="status" className="qa-sparks-inline-error" style={{borderColor:"#a5b4fc",background:"#eef2ff",color:"#312e81"}}>
         <strong>SUPABASE PREVIEW · อ่านข้อมูลอย่างเดียว</strong> — นี่คือเว็บทดสอบสำหรับเทียบยอด Sparks และประวัติ
         ระบบปิดการรับแต้ม แลกรางวัล เล่นเกม และการทำธุรกรรมทั้งหมด รวมถึงปุ่ม Sparks Admin ไว้ การกดทำรายการจะไม่เปลี่ยนคะแนนจริง
@@ -244,9 +273,9 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
         </section> : null}
         {view === "overview" ? <div className="qa-sparks-dual">
-          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
+          <section className="qa-sparks-panel"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
           <section className="qa-sparks-panel"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history}/></section>
-        </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
+        </div> : view === "quests" || view === "games" ? null : view === "rewards" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="gift"/> Reward Center</h2><p className="qa-sparks-reward-tagline">แลกรางวัลสุดพิเศษด้วย Sparks ที่คุณสะสมได้จาก QA Sparks</p><div className="qa-sparks-mini-grid qa-sparks-reward-grid"><TypingReliefRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.typingReliefOwned} loaded={walletLoaded}/><QaAutoPassRewardCard username={username} sessionId={sparksSessionId} balance={account.balance} owned={account.autoPassOwned} freeClaimedAt={account.autoPassFreeClaimedAt} loaded={walletLoaded}/><TrueMoneyReward mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/><AnnouncementShieldItem mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance}/><SpecialRewardCenter mode="reward" username={username} sessionId={sparksSessionId} balance={account.balance} loaded={walletLoaded}/></div></section>
         : view === "items" ? <section className="qa-sparks-panel qa-sparks-single qa-sparks-items-panel" data-inventory-clock={itemClock}>
           <h2><SparksIcon name="package"/> My Items</h2>
           <p className="qa-sparks-items-description">เลือกดู Item ตามสถานะ โดยรายการที่ใช้แล้วหรือหมดอายุจะเก็บไว้ในประวัติ ไม่ลบข้อมูลย้อนหลัง</p>
@@ -283,7 +312,12 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
           </div>
         </section>
         : view === "history" ? <section className="qa-sparks-panel qa-sparks-single"><h2><SparksIcon name="clock"/> History</h2><SparksHistory history={account.history} large/></section>
-        : adminAccess ? <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active} /> : null}
+        : adminAccess ? <div>
+          {/* Visibility is owner-role gated here. Server validates the real QA session or verified Supabase Auth on every action. */}
+          <SparksAdminPanel key={username + ":" + sparksSessionId} actorUsername={username} sessionId={sparksSessionId} ownAccount={ownAccountSnapshot} active={active}
+            accountMigration={username.trim().toLowerCase()==="songpon" && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"
+              ? <SparksQaCredentialMigration actorUsername={username} sessionId={adminSessionId}/> : null}/>
+        </div> : null}
       </div>
     </div>
     {username && active && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"

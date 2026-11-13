@@ -79,14 +79,43 @@ try {
   assert.equal(firebaseCalls,0,"verified email sessions bypass Firestore and Google token entirely");
   assert.equal(writes,0,"read-only tests cannot alter any real or mock Sparks balance");
   const qs=readFileSync(new URL("../src/QASparks.tsx",import.meta.url),"utf8");
-  assert.match(qs,/emailAuthMode === "hybrid" && \(/);
-  assert.match(qs,/username\.trim\(\)\.toLowerCase\(\) === "songpon"/);
+  assert.match(qs,/emailAuthMode === "hybrid" && \(Boolean\(verifiedSparksActor\) \|\| emailOptedIn\)/,
+    "Owner and staff may use existing verified QA session during OTP outages");
+  assert.doesNotMatch(qs,/username\.trim\(\)\.toLowerCase\(\) === "songpon" \|\| Boolean\(verifiedSparksActor\)/,
+    "Do not force owner onto unavailable Supabase OTP");
   const site=readFileSync(new URL("../src/SparksStandalone.tsx",import.meta.url),"utf8");
   assert.match(site,/\["supabase","hybrid"\]/);
+  assert.ok(qs.includes('username.trim().toLowerCase()==="songpon" && import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1"'),
+    "The owner migration control is visible in Sparks Admin even in Supabase auth mode");
+  assert.ok(!qs.includes('!emailAuthEnabled && username.trim().toLowerCase()==="songpon" && adminSessionId'),
+    "Missing owner QA session must display an explanation, not silently hide the migration control");
+  const migrationUi=readFileSync(new URL("../src/SparksQaCredentialMigration.tsx",import.meta.url),"utf8");
+  assert.ok(migrationUi.includes('!sessionId ? <p role="alert"'),"Explain why import is unavailable without QA session");
   assert.match(qs,/data-sparks-supabase-optin="true"/,"every QA employee may start Supabase login");
   assert.match(qs,/emailOptedIn/,"hybrid mode supports non-owner email opt-in");
   assert.match(qs,/data-sparks-legacy-fallback="true"/,"legacy path remains available until OTP is ready");
   assert.match(qs,/qa:sparks:supabase-login:/,"browser remembers the selected login path per employee");
+  const adminSource=readFileSync(new URL("../api/sparks-admin.js",import.meta.url),"utf8");
+  assert.ok(adminSource.includes('"QA_CREDENTIAL_FIRESTORE_LIMIT"') && adminSource.includes('"QA_CREDENTIAL_SERVER_COOLDOWN"'),
+    "Credential source distinguishes new upstream 429 from cooldown and Supabase rewards");
+  assert.ok(adminSource.includes('qaMigrationStage="owner-session"'),"Credential migration identifies QA-session verification failure");
+  assert.ok(adminSource.includes('qaMigrationStage="source-credentials"'),"Credential migration identifies profile-source read failures");
+  assert.ok(adminSource.includes('qaMigrationStage="supabase-import"'),"Credential migration identifies Supabase import failure");
+  assert.ok(adminSource.includes('code:"QA_CREDENTIAL_OWNER_SESSION_INVALID"'),"Credentials transfer never skips owner QA session verification");
+  assert.ok(migrationUi.includes('body.code==="QA_CREDENTIAL_FIRESTORE_LIMIT"'),"UI reports source quota without claiming rewards outage");
+  assert.ok(migrationUi.includes('if(action==="qa-password-preflight")setAudit(null)'),"Failed checks never preserve stale ready counts");
+  const qaPasswordModule=readFileSync(new URL("../src/sparksQaPasswordLogin.ts",import.meta.url),"utf8");
+  const sparksLoginUi=readFileSync(new URL("../src/SparksEmailAuth.tsx",import.meta.url),"utf8");
+  const dashboardApp=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
+  assert.ok(qaPasswordModule.includes('qa-sparks-login.invalid'),"Synthetic username identities are reserved for QA Sparks");
+  assert.ok(qaPasswordModule.includes('expectedUsername'),"Supabase sessions are bound to the original QA username");
+  assert.ok(qaPasswordModule.includes('signInSparksWithQaPassword'),"QA direct login uses Supabase Auth password grant");
+  assert.ok(!qaPasswordModule.includes("localStorage"),"QA passwords and Supabase tokens are not stored in browser localStorage");
+  assert.ok(sparksLoginUi.includes('VITE_SPARKS_QA_PASSWORD_LOGIN'),"QA sign-in mode remains dark-launched until identities are migrated");
+  assert.ok(sparksLoginUi.includes('data-sparks-qa-password-login="true"'),"Independent QA username/password entry is prepared");
+  assert.ok(sparksLoginUi.includes('data-sparks-otp-in-place="true"'),"Existing OTP fallback is preserved");
+  assert.ok(dashboardApp.includes('syncSparksQaPasswordChange('),"Existing QA password changes can sync with Supabase");
+  assert.ok(dashboardApp.includes('VITE_SPARKS_QA_PASSWORD_LOGIN === "1"'),"Password sync remains disabled until cutover");
     console.log("PASS Sparks hybrid owner: verified Supabase wallet and Admin without Firebase, forged/mismatched accounts denied, other Dashboard users unchanged");
 }finally {
   globalThis.fetch=oldFetch;

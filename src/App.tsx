@@ -28,6 +28,8 @@ import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestam
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
+import { syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
+import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
 import { DailyCheckinLoginPrompt } from "./DailyCheckinQuest";
 import { ProfileMakeoverAutoClaim } from "./ProfileMakeoverQuest";
@@ -339,6 +341,7 @@ type QaThemeId =
   | "emerald"
   | "midnight"
   | "graphite"
+  | "textbook-train"
   | "kitty-pink"
   | "doraemon-blue"
   | "honey-bear"
@@ -377,8 +380,8 @@ const PASSWORD_RECORD_KEY = "qa_password_records";
 const QA_THEME_STORAGE_KEY = "qa-dashboard:theme-v1";
 const QA_CUSTOM_THEME_STORAGE_KEY = "qa-dashboard:custom-theme-v1";
 const QA_THEME_USAGE_CACHE_KEY = "qa-dashboard:theme-usage-cache-v1";
-type QaThemeCollectionId = "color" | "character" | "festival" | "weekday" | "weather" | "special" | "line-drawing";
-const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "character", "festival", "weekday", "weather", "special", "line-drawing"];
+type QaThemeCollectionId = "color" | "thai-lessons" | "character" | "festival" | "weekday" | "weather" | "special" | "line-drawing";
+const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "thai-lessons", "character", "festival", "weekday", "weather", "special", "line-drawing"];
 const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "robinhood", label: "Robinhood Purple", swatches: ["#7027a9", "#4c1d78", "#d946a8"] },
   { id: "pink", label: "Pink Blossom", swatches: ["#db2777", "#9d174d", "#fb72b6"] },
@@ -388,6 +391,7 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "emerald", label: "Emerald Mint", swatches: ["#0f8a78", "#115e59", "#5ee0b5"] },
   { id: "midnight", label: "Midnight Violet", swatches: ["#43308a", "#22164f", "#8b72ff"] },
   { id: "graphite", label: "Graphite Mono", swatches: ["#3f4653", "#20242c", "#8d96a5"] },
+  { id: "textbook-train", label: "ตา-มา-รถ-ไฟ ป.1", swatches: ["#315e70", "#a65340", "#f1e4c5"], sceneImage: "/textbook-theme/landscape.svg", description: "บทเรียนภาษาไทย ป.1 · รถไฟ คุณครู นักเรียน และภาพประกอบหนังสือเรียน" },
   { id: "kitty-pink", label: "Hello Kitty", swatches: ["#f472b6", "#be185d", "#fbcfe8"], patternImage: "/theme-kitty-pink.png", description: "Hello Kitty · โบว์และหัวใจ" },
   { id: "doraemon-blue", label: "Doraemon", swatches: ["#38bdf8", "#0369a1", "#facc15"], patternImage: "/theme-doraemon-blue.png", description: "Doraemon · กระดิ่ง เมฆ และดาว" },
   { id: "honey-bear", label: "Honey Bear", swatches: ["#fbbf24", "#92400e", "#fde68a"], patternImage: "/theme-honey-bear.png", description: "หมีน้ำผึ้ง · ผึ้งและดอกไม้" },
@@ -401,8 +405,11 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
-const SESSION_CHECK_INTERVAL_MS = 30 * 1000;
-const SESSION_TOUCH_INTERVAL_MS = 60 * 1000;
+// Match the existing production quota-protection cadence while also
+// preventing hidden tabs, focus storms and concurrent validation requests.
+// Central revocation checks can be delayed by up to fifteen minutes.
+const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+const SESSION_TOUCH_INTERVAL_MS = 30 * 60 * 1000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
@@ -470,6 +477,7 @@ function readThemeUsageCache(): QaThemeUsagePercent | null {
     if (!values) return null;
     return {
       color: Number(values.color) || 0,
+      "thai-lessons": Number(values["thai-lessons"]) || 0,
       character: Number(values.character) || 0,
       festival: Number(values.festival) || 0,
       weekday: Number(values.weekday) || 0,
@@ -494,6 +502,7 @@ function writeThemeUsageCache(percent: QaThemeUsagePercent) {
 }
 
 function themeCollectionFromProfile(row: any): QaThemeCollectionId {
+  if (String(row?.themeId || row?.theme_id || "") === "textbook-train") return "thai-lessons";
   const storedCollection = String(row?.themeCollection || row?.theme_collection || "").trim().toLowerCase();
   if (QA_THEME_COLLECTION_IDS.includes(storedCollection as QaThemeCollectionId)) {
     return storedCollection as QaThemeCollectionId;
@@ -526,6 +535,7 @@ function getCurrentThemePreferenceSnapshot(themeId: QaThemeId, fallbackPreferenc
   const collection: QaThemeCollectionId =
     activeLine ? "line-drawing" : activeSpecial
       ? "special"
+      : themeId === "textbook-train" && !customPreference ? "thai-lessons"
       : root.dataset.qaWeatherCollection === "auto"
       ? "weather"
       : root.dataset.qaWeekdayCollection === "auto"
@@ -3620,6 +3630,7 @@ function ThemePickerModal({
   const [themeUsagePercent, setThemeUsagePercent] = useState<QaThemeUsagePercent>(() =>
     cachedThemeUsage || {
       color: 0,
+      "thai-lessons": 0,
       character: 0,
       festival: 0,
       weekday: 0,
@@ -3639,6 +3650,7 @@ function ThemePickerModal({
       const total = activeProfiles.length;
       const counts: Record<QaThemeCollectionId, number> = {
         color: 0,
+        "thai-lessons": 0,
         character: 0,
         festival: 0,
         weekday: 0,
@@ -3651,6 +3663,7 @@ function ThemePickerModal({
       });
       const nextPercent: QaThemeUsagePercent = {
         color: total ? Math.round((counts.color / total) * 100) : 0,
+        "thai-lessons": total ? Math.round((counts["thai-lessons"] / total) * 100) : 0,
         character: total ? Math.round((counts.character / total) * 100) : 0,
         festival: total ? Math.round((counts.festival / total) * 100) : 0,
         weekday: total ? Math.round((counts.weekday / total) * 100) : 0,
@@ -3688,6 +3701,7 @@ function ThemePickerModal({
       : document.documentElement.dataset.qaSpecialTheme ? "special"
       : document.documentElement.dataset.qaWeatherCollection === "auto" ? "weather"
       : document.documentElement.dataset.qaWeekdayCollection === "auto" ? "weekday"
+      : selectedTheme === "textbook-train" ? "thai-lessons"
       : QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme)?.patternImage ? "character" : "color");
     const observer = new MutationObserver(sync);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-qa-weekday-collection", "data-qa-festival-override"] });
@@ -3748,6 +3762,7 @@ function ThemePickerModal({
           <div role="tablist" aria-label="Theme Collections" className="qa-theme-collection-tabs">
             {[
               ["color", "Color Collection"],
+              ["thai-lessons", "บทเรียนภาษาไทย"],
               ["character", "Character Collection"],
               ["festival", "Festival Collection"],
               ["weekday", "7 Days Collection"],
@@ -3785,7 +3800,22 @@ function ThemePickerModal({
             if (specialUsage.ready && specialUsage.unlocked) onSelect(id as QaThemeId);
           }} />
           <CharacterCollection version={characterVersion} selectedTheme={selectedTheme} onSelect={id => onSelect(id as QaThemeId)} />
-          {QA_THEME_OPTIONS.filter((theme) => !isSpecialTheme(theme.id) && !isLineDrawingTheme(theme.id) && !(theme.patternImage && characterVersion.version === 2)).map((theme) => {
+          {collection === "thai-lessons" ? (
+            <article data-qa-theme-collection="thai-lessons" className="qa-thai-lessons-card">
+              <div className="qa-thai-lessons-cover">
+                <img src="/textbook-theme/landscape.svg" loading="lazy" alt="ภาพวาดหนังสือเรียนภาษาไทย รถไฟแล่นผ่านภูเขาและสถานีชนบท" />
+                <span className="qa-thai-lessons-cover-stamp">ป.1</span>
+              </div>
+              <div className="qa-thai-lessons-details">
+                <span className="qa-thai-lessons-eyebrow">COLLECTION · บทเรียนภาษาไทย</span>
+                <h3>ตา-มา-รถ-ไฟ ป.1</h3>
+                <p>ภาพประกอบรถไฟ คุณครูและนักเรียน พร้อมกระดาษครีม ลายเส้นแบบหนังสือเรียน ทุกหน้า Dashboard และหน้า Login</p>
+                <button type="button" aria-pressed={selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride}
+                  onClick={() => onSelect("textbook-train")}>{selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride ? "กำลังใช้งานธีมนี้" : "เลือกใช้ธีมนี้"}</button>
+              </div>
+            </article>
+          ) : null}
+          {QA_THEME_OPTIONS.filter((theme) => theme.id !== "textbook-train" && !isSpecialTheme(theme.id) && !isLineDrawingTheme(theme.id) && !(theme.patternImage && characterVersion.version === 2)).map((theme) => {
             const selected = theme.id === selectedTheme && !customCollectionSelected && !festivalOverride && document.documentElement.dataset.qaWeatherCollection !== "auto";
             return (
               <button
@@ -3803,7 +3833,7 @@ function ThemePickerModal({
                 }`}
               >
                 <span className={`relative flex min-w-[72px] shrink-0 items-center justify-center gap-1 ${theme.patternImage ? "" : "qa-color-preview"}`} aria-hidden="true">
-                  {!theme.patternImage && <span className="qa-color-preview-window"><span className="qa-color-preview-sidebar" /><span className="qa-color-preview-content"><i className="qa-color-preview-heading" /><span><i /><i /></span><i className="qa-color-preview-action" /></span></span>}
+                  {!theme.patternImage && !theme.sceneImage && <span className="qa-color-preview-window"><span className="qa-color-preview-sidebar" /><span className="qa-color-preview-content"><i className="qa-color-preview-heading" /><span><i /><i /></span><i className="qa-color-preview-action" /></span></span>}
                   {theme.patternImage ? (
                     <span
                       className="h-12 w-[72px] rounded-xl border border-white/80 bg-center shadow-sm"
@@ -3813,6 +3843,10 @@ function ThemePickerModal({
                         backgroundSize: "92px 92px",
                       }}
                     />
+                  ) : theme.sceneImage ? (
+                    <span className="h-12 w-[88px] overflow-hidden rounded-xl border border-[#d7c39a] bg-[#f8f0db] shadow-sm">
+                      <img src={theme.sceneImage} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    </span>
                   ) : theme.swatches.map((color, index) => (
                     <span
                       key={color}
@@ -3983,7 +4017,7 @@ export default function App() {
   const activeThemePreviewOption = QA_THEME_OPTIONS.find(theme => theme.id === effectiveThemeId) || activeThemeOption;
   const activeWeekdayIndex = WEEKDAY_IDS.indexOf(effectiveThemeId);
   const sidebarThemeLabel =
-    isLineDrawingTheme(effectiveThemeId) ? `Line Drawing · Ink & Paper${lineDrawingVersion.version === 2 ? " 2.0" : ""}` : characterVersion.version === 2 && characterThemeFor(effectiveThemeId)
+    effectiveThemeId === "textbook-train" ? "บทเรียนภาษาไทย · ตา-มา-รถ-ไฟ ป.1" : isLineDrawingTheme(effectiveThemeId) ? `Line Drawing · Ink & Paper${lineDrawingVersion.version === 2 ? " 2.0" : ""}` : characterVersion.version === 2 && characterThemeFor(effectiveThemeId)
       ? `Character V2 · ${activeThemePreviewOption.label}`
       : isSpecialTheme(effectiveThemeId)
       ? `Special · ${activeThemePreviewOption.label}`
@@ -4612,10 +4646,20 @@ export default function App() {
   useEffect(() => {
     let active = true;
     let timer = 0;
+    let coachingCheckInFlight = false;
+    let lastCoachingCheckAt = 0;
+    const coachingCheckIntervalMs = 20 * 60_000;
 
     const refreshCoachingAssignmentAccess = async (forceRefresh = false) => {
+      // Manual Coaching refresh is immediate. Focus/timer checks share a
+      // throttle so switching windows cannot trigger repeat Firestore reads.
+      const now = Date.now();
+      if (coachingCheckInFlight || (!forceRefresh && now - lastCoachingCheckAt < coachingCheckIntervalMs)) return;
+      coachingCheckInFlight = true;
+      lastCoachingCheckAt = now;
       if (!currentUser) {
         if (active) setCoachingAssignmentAllowed(false);
+        coachingCheckInFlight = false;
         return;
       }
       try {
@@ -4634,21 +4678,24 @@ export default function App() {
           )
         );
       } catch {
+        // Preserve original deny-on-failure behavior for Coaching access.
         if (active) {
           setCoachingAssignmentAllowed(false);
           setCoachingRecords([]);
         }
+      } finally {
+        coachingCheckInFlight = false;
       }
     };
 
     void refreshCoachingAssignmentAccess();
     const handleRefresh = () => void refreshCoachingAssignmentAccess(true);
     const pollIfVisible = () => {
-      if (document.visibilityState === "visible") void refreshCoachingAssignmentAccess();
+      if (document.visibilityState === "visible" && navigator.onLine !== false) void refreshCoachingAssignmentAccess();
     };
     window.addEventListener("qa-coaching-refresh", handleRefresh);
     window.addEventListener("focus", pollIfVisible);
-    timer = window.setInterval(pollIfVisible, 5 * 60_000);
+    timer = window.setInterval(pollIfVisible, coachingCheckIntervalMs);
 
     return () => {
       active = false;
@@ -6634,8 +6681,20 @@ export default function App() {
     if (!currentUser?.sessionId || !currentUser.username) return;
 
     let cancelled = false;
+    let checking = false;
+    let lastCheckedAt = 0;
 
     const checkCentralSession = async () => {
+      // Keep security checks active for the visible QA session, but do not
+      // spend Firestore quota in a hidden/pinned tab or on repeated focus.
+      const now = Date.now();
+      if (
+        cancelled || checking || document.visibilityState !== "visible" ||
+        navigator.onLine === false ||
+        now - lastCheckedAt < SESSION_CHECK_INTERVAL_MS
+      ) return;
+      checking = true;
+      lastCheckedAt = now;
       try {
         const validation = await validateStoredUserSession(
           currentUser.sessionId || "",
@@ -6651,6 +6710,8 @@ export default function App() {
         }
       } catch (error) {
         console.warn("Central session check failed; will retry.", error);
+      } finally {
+        checking = false;
       }
     };
 
@@ -7228,10 +7289,30 @@ export default function App() {
       eventType: "password_changed",
     });
 
+    // Password change first persists through the existing QA backend. Once
+    // Sparks direct login is enabled, sync the existing Supabase identity using
+    // the old password; never create a new identity or block the QA change.
+    let sparksPasswordSyncConfirmed = true;
+    if ((savedCentrally || savedToProfileStore) &&
+        import.meta.env?.VITE_SPARKS_QA_PASSWORD_LOGIN === "1") {
+      try {
+        const synced=await syncSparksQaPasswordChange(
+          currentUser.username,currentPasswordInput,newPasswordInput
+        );
+        const linked=window.localStorage.getItem("qa:sparks:supabase-login:"+
+          currentUser.username.trim().toLowerCase())==="1";
+        sparksPasswordSyncConfirmed=synced||!linked;
+      } catch {
+        sparksPasswordSyncConfirmed=window.localStorage.getItem("qa:sparks:supabase-login:"+
+          currentUser.username.trim().toLowerCase())!=="1";
+      }
+    }
     setChangePasswordError("");
     setChangePasswordSuccess(
       savedCentrally || savedToProfileStore
-        ? "Password changed successfully"
+        ? sparksPasswordSyncConfirmed
+          ? "Password changed successfully"
+          : "Password changed in QA Dashboard; QA Sparks Supabase password synchronization is not confirmed"
         : "Password changed successfully on this browser only"
     );
     setCurrentPasswordInput("");
@@ -7715,7 +7796,9 @@ export default function App() {
               </section>;
             })}
           </nav>
-
+          {effectiveThemeId === "textbook-train" && !globalSidebarCollapsed ? (
+            <div className="qa-thai-lessons-sidebar-art" aria-hidden="true"><strong>ตา-มา-รถ-ไฟ ป.1</strong><small>บทเรียนภาษาไทย</small></div>
+          ) : null}
           <div className="border-t border-white/15 pt-2">
             <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} aria-label={globalSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="flex w-full items-center justify-center rounded-xl border border-white/25 px-3 py-2.5 text-xs font-medium text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
           </div>
@@ -7907,12 +7990,14 @@ export default function App() {
           </div>
         ) : null}
 
+        <SparksEnabledOnly>
         <HiddenTreasure username={currentUser.username} sessionId={currentUser.sessionId||""}
           caseId={activeTab==="dashboard"&&(dashboardSubTab==="case-detail"||isCaseWorkspaceTabKey(activeWorkspaceTab))
             ? selectedDashboardCaseId||"" :activeTab==="rubric"&&rubricAllowed?"QA-RUBRIC"
             :activeTab==="coaching"&&coachingAllowed?"QA-COACHING":""}
           active={Boolean((activeTab==="dashboard"&&(dashboardSubTab==="case-detail"||isCaseWorkspaceTabKey(activeWorkspaceTab))&&selectedDashboardCaseId)
             ||(activeTab==="rubric"&&rubricAllowed)||(activeTab==="coaching"&&coachingAllowed))}/>
+        </SparksEnabledOnly>
         <WorkspaceKeepAlive activeKey={activeTab} retainedKeys={retainedWorkspaceAppTabs}>
           {activeTab === "user-guide" ? (
             <UserGuide user={currentUser} permissions={knowledgePermissions} canManage={guideManageAllowed} />
@@ -7921,7 +8006,7 @@ export default function App() {
           ) : activeTab === "terms-management" && termsManageAllowed ? (
             <TermsWorkspace user={currentUser} management canManage={termsManageAllowed} />
           ) : activeTab === "qa-sparks" ? (
-            <QASparks active={activeTab === "qa-sparks"} username={currentUser.username} displayName={currentUser.displayName || currentUser.username} adminAccess={canAccessUserRoleAdmin(currentUser)} adminSessionId={currentUser.sessionId || ""} />
+            <SparksAccessGate username={currentUser.username} sessionId={currentUser.sessionId || ""}><QASparks active={activeTab === "qa-sparks"} username={currentUser.username} displayName={currentUser.displayName || currentUser.username} adminAccess={canAccessUserRoleAdmin(currentUser)} adminSessionId={currentUser.sessionId || ""} /></SparksAccessGate>
           ) : activeTab === "dashboard" ? (
             <>
               <DashboardMockup
@@ -8347,10 +8432,10 @@ export default function App() {
           }}
         />
       ) : null}
-      {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? <>
+      {import.meta.env?.VITE_SPARKS_CLOUD_READ_ONLY !== "1" ? <SparksEnabledOnly>
         <DailyCheckinLoginPrompt key={currentUser.username + ":" + (currentUser.sessionId || "")} username={currentUser.username} sessionId={currentUser.sessionId || ""} />
         <ProfileMakeoverAutoClaim key={currentUser.username} username={currentUser.username} sessionId={currentUser.sessionId || ""}/>
-      </> : null}
+      </SparksEnabledOnly> : null}
       </TermsAccessBoundary>
     </EvaluationActivityProvider>
   );

@@ -40,6 +40,7 @@ import {
 import { appealAdditionalDeadline, buildAppealRequests } from "./AppealRequestsMockup";
 import { appealWorkflowStatus, appealWorkflowLabel } from "./appealWorkflow";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
+import { isLateAppealOpen, lateAppealTimeRemaining } from "./lateAppealPolicy";
 import PageHero from "./PageHero";
 import { FestivalMetricIcon } from "./festivalThemes/Festival";
 import CaseRecordFilterButtons from "./CaseRecordFilterButtons";
@@ -1392,9 +1393,39 @@ function formatAppealCountdownV32(deadline: Date | null, nowMs: number) {
 }
 
 // selected-case-appeal-countdown-v64
-function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {
+function SelectedCaseAppealCountdownV64({ caseItem, readOnly = false }: { caseItem: CaseItem; readOnly?: boolean }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const deadline = getAppealDeadline(caseItem.auditDateObj);
+  const [lateAppealStatus, setLateAppealStatus] = useState<{
+    caseId: string; expiresAt: string; checked: boolean; error: boolean;
+  }>({ caseId:"", expiresAt:"", checked:false, error:false });
+
+  // Only check the selected expired, unappealed case. No global scan, no
+  // timer-driven database reads and no Firebase access in recovery mode.
+  useEffect(() => {
+    if (readOnly || caseItem.hasAppealHistory || caseItem.appealStatus ||
+        (deadline && deadline.getTime() > Date.now())) return;
+    let cancelled = false;
+    const load = async () => {
+      setLateAppealStatus({caseId:caseItem.caseId,expiresAt:"",checked:false,error:false});
+      try {
+        const events = await fetchAppealEvents([
+          "appeal_case_override_added","appeal_case_override_removed"
+        ],{caseId:caseItem.caseId,limit:250,cacheTtlMs:30000});
+        if (cancelled) return;
+        const selected = buildAppealCaseOverrides(events).find(item =>
+          item.caseId === caseItem.caseId.trim().toUpperCase() &&
+          isSameCanonicalAgent(item.targetAgent, caseItem.agent)
+        );
+        setLateAppealStatus({caseId:caseItem.caseId,expiresAt:selected?.expiresAt||"",checked:true,error:false});
+      } catch {
+        if(!cancelled)setLateAppealStatus({caseId:caseItem.caseId,expiresAt:"",checked:true,error:true});
+      }
+    };
+    void load();
+    window.addEventListener("qa-dashboard-data-refresh",load);
+    return () => { cancelled=true;window.removeEventListener("qa-dashboard-data-refresh",load); };
+  },[caseItem.caseId,caseItem.agent,caseItem.hasAppealHistory,caseItem.appealStatus,readOnly,deadline?.getTime()]);
 
   const additional = caseItem.appealAdditionalActive;
   const additionalExpiryMs = Date.parse(additional?.expiresAt || "");
@@ -1425,6 +1456,18 @@ function SelectedCaseAppealCountdownV64({ caseItem }: { caseItem: CaseItem }) {
 
   const remainingMs = deadline.getTime() - nowMs;
   if (remainingMs <= 0) {
+    if (lateAppealStatus.caseId===caseItem.caseId &&
+        isLateAppealOpen(lateAppealStatus.expiresAt,nowMs)) {
+      return <div data-selected-late-appeal="active" className="mt-1 text-[11px] font-extrabold text-amber-700">
+        Late Appeal Granted · {lateAppealTimeRemaining(lateAppealStatus.expiresAt,nowMs)}
+      </div>;
+    }
+    if (!readOnly && (lateAppealStatus.caseId!==caseItem.caseId || !lateAppealStatus.checked))
+      return <div className="mt-1 text-[11px] font-semibold text-slate-500">กำลังตรวจสอบ Late Appeal...</div>;
+    if(lateAppealStatus.error)
+      return <div className="mt-1 text-[11px] font-semibold text-amber-700">ตรวจสอบสิทธิ์ Late Appeal ไม่สำเร็จ</div>;
+    if(lateAppealStatus.expiresAt)
+      return <div className="mt-1 text-[11px] font-extrabold text-slate-500">Late Appeal Expired</div>;
     return <div className="mt-1 text-[11px] font-extrabold text-slate-500">Appeal Expired</div>;
   }
 
@@ -3985,7 +4028,7 @@ function CaseDetailContent({
     submitted: boolean;
     topics: AppealDraftTopic[];
   } | null>(null);
-  const [appealOverrideAllowed, setAppealOverrideAllowed] = useState(false);
+  const [appealOverrideExpiresAt, setAppealOverrideExpiresAt] = useState("");
   const [appealSubmitOpen, setAppealSubmitOpen] = useState(false);
   const [appealSubmitStep, setAppealSubmitStep] = useState<1 | 2 | 3>(1);
   const [appealDraftTopics, setAppealDraftTopics] = useState<AppealDraftTopic[]>([]);
@@ -4009,11 +4052,12 @@ function CaseDetailContent({
   const [appealClockNowV32, setAppealClockNowV32] = useState(() => Date.now());
   useEffect(() => {
     setAppealClockNowV32(Date.now());
-    if (!appealDeadline && !appealAdditionalRound?.expiresAt) return;
+    if (!appealDeadline && !appealAdditionalRound?.expiresAt && !appealOverrideExpiresAt) return;
     const timer = window.setInterval(() => setAppealClockNowV32(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [caseItem.caseId, appealDeadline?.getTime(), appealAdditionalRound?.expiresAt]);
+  }, [caseItem.caseId, appealDeadline?.getTime(), appealAdditionalRound?.expiresAt, appealOverrideExpiresAt]);
 
+  const appealOverrideAllowed = isLateAppealOpen(appealOverrideExpiresAt,appealClockNowV32);
   const isOwnAppealCase = isCurrentUserCaseOwner(currentUser, caseItem.agent);
   const isAppealObserverRoleV32 = isQualityAssuranceRole(currentUser?.role) && !isOwnAppealCase;
   const isAppealWindowOpenLive = !!appealDeadline && appealClockNowV32 <= appealDeadline.getTime();
@@ -4052,12 +4096,17 @@ function CaseDetailContent({
     appealAdditionalRound ? (additionalIsExpired && !appealAdditionalRound.submitted ? WORKFLOW_STATUS.additionalExpired : "Submit Additional Appeal") :
     appealOverrideAllowed && !isAppealWindowOpenLive
       ? "Appeal Override"
+      : appealOverrideExpiresAt && !isAppealWindowOpenLive
+        ? "Late Appeal Expired"
       : appealCountdownV32.expired
         ? WORKFLOW_STATUS.appealExpired
         : "Appeal";
   const additionalCountdownV32 = formatAppealCountdownV32(Number.isFinite(additionalExpiryTime) ? new Date(additionalExpiryTime) : null, appealClockNowV32);
   const appealActionCountdownV32 = canEditExistingAppeal || canRequestAdditionalAppeal || isAdditionalAccessPending || appealAdditionalRound?.submitted
-    ? undefined : appealAdditionalRound ? additionalCountdownV32.text : appealOverrideAllowed && !isAppealWindowOpenLive ? undefined : appealCountdownV32.text;
+    ? undefined : appealAdditionalRound ? additionalCountdownV32.text :
+      appealOverrideAllowed && !isAppealWindowOpenLive
+        ? lateAppealTimeRemaining(appealOverrideExpiresAt,appealClockNowV32)
+        : appealCountdownV32.text;
   const appealHeaderIconV32 = canEditExistingAppeal ? "edit" : isAdditionalAccessPending ? "waiting" :
     additionalIsExpired && !appealAdditionalRound?.submitted ? "expired" :
     canRequestAdditionalAppeal || appealAdditionalRound ? "additional" : appealCountdownV32.expired && !appealOverrideAllowed ? "expired" : "appeal";
@@ -4078,9 +4127,9 @@ function CaseDetailContent({
     : isAppealObserverRoleV32
     ? "บัญชี QA ดูข้อมูลได้ แต่ไม่สามารถยื่นอุทธรณ์แทนเจ้าของเคสได้"
     : appealCountdownV32.expired && !appealOverrideAllowed
-      ? "Appeal Expired"
+      ? (appealOverrideExpiresAt ? "Late Appeal Expired" : "Appeal Expired")
       : appealOverrideAllowed && !isAppealWindowOpenLive
-        ? "เคสนี้ได้รับสิทธิ์ Late Appeal Override"
+        ? "เคสนี้ได้รับสิทธิ์ Late Appeal ถึง " + formatBangkokDateTime(appealOverrideExpiresAt) + " น."
         : "ยื่นอุทธรณ์ผลประเมินของเคสนี้ภายในกำหนดเวลาที่แสดง";
   useEffect(() => {
     let cancelled = false;
@@ -4130,17 +4179,17 @@ function CaseDetailContent({
             evidenceImages: topic.evidenceImages || [],
           })),
         } : null);
-        setAppealOverrideAllowed(
-          buildAppealCaseOverrides(logs).some(
-            (item) => String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
-          )
+        const currentOverride = buildAppealCaseOverrides(overrideLogs).find(item =>
+          item.caseId === caseItem.caseId.trim().toUpperCase() &&
+          isSameCanonicalAgent(item.targetAgent,caseItem.agent)
         );
+        setAppealOverrideExpiresAt(currentOverride?.expiresAt||"");
       } catch {
         if (!cancelled) {
           setAppealRequestExists(false);
           setAppealExistingRequest(null);
           setAppealAdditionalRound(null);
-          setAppealOverrideAllowed(false);
+          setAppealOverrideExpiresAt("");
         }
       }
     };
@@ -4313,6 +4362,21 @@ function CaseDetailContent({
 
     setAppealSubmitBusy(true);
     try {
+      if (!isAppealWindowOpenLive && !canEditExistingAppeal && !canSubmitAdditionalEvidence) {
+        // Re-read the single case before writing. A form opened before the
+        // 72h cutoff must not submit after expiry or after permission removal.
+        const freshOverrides = await fetchAppealEvents([
+          "appeal_case_override_added","appeal_case_override_removed"
+        ],{caseId:caseItem.caseId,limit:250,forceRefresh:true});
+        const currentOverride = buildAppealCaseOverrides(freshOverrides).find(item =>
+          item.caseId===caseItem.caseId.trim().toUpperCase() &&
+          isSameCanonicalAgent(item.targetAgent,caseItem.agent)
+        );
+        if(!currentOverride || !isLateAppealOpen(currentOverride.expiresAt)){
+          setAppealSubmitMessage("สิทธิ์ Late Appeal หมดอายุหรือถูกยกเลิก กรุณาติดต่อ QA");
+          return;
+        }
+      }
       if (canSubmitAdditionalEvidence && appealAdditionalRound) {
         const freshEvents = await fetchAppealEvents([
           "appeal_request_submitted", "appeal_request_reviewed",
@@ -5093,6 +5157,29 @@ function CaseDetailContent({
         </div>
 
         <div className={embedded ? "space-y-3 p-3 lg:p-4" : "flex-1 overflow-y-auto space-y-3 p-3 lg:p-4"}>
+          {!appealRequestExists && !isAppealWindowOpenLive && appealOverrideExpiresAt ? (
+            <section data-late-appeal-access="true" role="status" className="mx-auto flex w-full max-w-[1460px] flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <div className="min-w-0">
+                <div className="font-extrabold text-amber-900">{appealOverrideAllowed ? "เปิดสิทธิ์ Late Appeal แล้ว" : "สิทธิ์ Late Appeal หมดอายุแล้ว"}</div>
+                <div className="mt-1 text-xs font-medium text-slate-700">
+                  ยื่นได้ถึง {formatBangkokDateTime(appealOverrideExpiresAt)} น.
+                  {appealOverrideAllowed ? " · เหลือ " + lateAppealTimeRemaining(appealOverrideExpiresAt,appealClockNowV32) : ""}
+                </div>
+                {monthlyResult.locked ? <div className="mt-1 text-xs text-rose-700">ผลประเมินรายเดือนถูกล็อกแล้ว กรุณาติดต่อ QA</div>
+                  : monthlyResult.message ? <div className="mt-1 text-xs text-rose-700">{monthlyResult.message}</div>
+                  : !monthlyResult.editable ? <div className="mt-1 text-xs text-slate-600">กำลังตรวจสอบสถานะผลประเมินรายเดือน</div>
+                  : readOnly ? <div className="mt-1 text-xs text-rose-700">ระบบอยู่ในโหมดดูข้อมูลอย่างเดียว</div>
+                  : !isOwnAppealCase ? <div className="mt-1 text-xs text-slate-600">เฉพาะบัญชีพนักงานเจ้าของเคส {caseItem.agent} เท่านั้นที่ยื่นอุทธรณ์ได้</div>
+                  : null}
+              </div>
+              {appealOverrideAllowed && isOwnAppealCase && !readOnly && !monthlyResult.locked ? (
+                <button type="button" disabled={!canSubmitAppeal} onClick={openAppealSubmitForm}
+                  className="rounded-xl bg-amber-700 px-5 py-2.5 text-sm font-extrabold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50">
+                  ยื่นอุทธรณ์ย้อนหลัง
+                </button>
+              ) : null}
+            </section>
+          ) : null}
           <section data-case-detail-priority-v53="true" data-case-detail-compact-v54="true" data-case-detail-overview-v55="true" data-case-appeal-summary-placement="topic-action" className="mx-auto w-full max-w-[1460px] space-y-3">
 
             <div data-case-information-unified="true" className="overflow-hidden rounded-[20px] border shadow-sm" style={{ background: "var(--weekday-surface, var(--qa-theme-50, #ffffff))", borderColor: "var(--weekday-accent-soft, var(--qa-theme-200, #e2e8f0))" }}>
@@ -9206,7 +9293,7 @@ export default function DashboardMockup({
                                 <div className="min-w-0">
                                   <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Selected Case</div>
                                   <div className="mt-1 truncate text-xl font-bold text-slate-950">{activeSelectedCase.caseId}</div>
-                                  <SelectedCaseAppealCountdownV64 caseItem={activeSelectedCase} />
+                                  <SelectedCaseAppealCountdownV64 caseItem={activeSelectedCase} readOnly={readOnlyRecovery} />
                                   {isTestCaseEvaluation(activeSelectedCase) ? <TestCaseBadge /> : null}
                                 </div>
                                 <div className={`rounded-full px-4 py-2 text-right ${scorePassed ? "bg-emerald-100" : "bg-rose-100"}`}>

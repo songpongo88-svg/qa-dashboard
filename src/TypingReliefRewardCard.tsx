@@ -167,6 +167,7 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
       const result = await typingReliefAction("redeem-typing-relief", username, sessionId, { requestId: purchaseRequestId.current, expectedPrice: latestPrice });
       purchaseRequestId.current = "";
       setLatest({ balance: result.balance, owned: result.owned });
+      window.dispatchEvent(new Event("qa:sparks-updated"));
       setConfirm(false);
       setNotice(result.alreadyApplied ? "รายการนี้เคยแลกแล้ว และสิทธิ์ถูกบันทึกไว้ในบัญชีแล้ว" : "แลกสำเร็จ! Typing Relief ถูกเก็บในบัญชี พร้อมใช้กับภารกิจ QA Access");
     } catch (reason) {
@@ -183,11 +184,18 @@ export default function TypingReliefRewardCard({ username, sessionId, balance, o
       aria-label={mode === "inventory" ? "เปิดรายละเอียด Typing Relief ที่มี " + effectiveOwned + " สิทธิ์" : "ดูรายละเอียดของรางวัล Typing Relief ราคา " + price + " QA Sparks"} aria-haspopup="dialog"
       aria-expanded={detailOpen} onClick={openDetails}>
       <span className="qa-sparks-mini-art qa-sparks-mini-art--typing">
-        <TypingReliefArt/>
+        {mode === "reward" && pricing.promoActive ? <span className="qa-sparks-offer-art qa-sparks-offer-art--typing" role="img" aria-label="Typing Relief คีย์บอร์ดสีม่วง ลดราคา 70%"/> : <TypingReliefArt/>}
         {mode === "inventory" ? <span className="qa-sparks-mini-quantity">×{effectiveOwned}</span> : null}
+
       </span>
+      {mode === "reward" && pricing.promoActive ? <span className="sr-only">ลด 70%</span> : null}
       <strong className="qa-sparks-mini-name">Typing Relief</strong>
-      <span className="qa-sparks-mini-value">{mode === "inventory" ? effectiveOwned + " สิทธิ์" : price + " Sparks"}{mode === "reward" && pricing.promoActive ? <span className="qa-relief-mini-sale"> ลด 70%</span> : null}</span>
+      <span className="qa-sparks-mini-value">{mode === "inventory" ? effectiveOwned + " สิทธิ์" :
+        <span className="qa-sparks-shop-price">
+          {pricing.promoActive ? <s>{pricing.regularPrice} Sparks</s> : null}
+          <strong>{price} Sparks</strong>
+          {pricing.promoActive ? <small>ส่วนลดซื้อใหม่ 70%</small> : null}
+        </span>}</span>
     </button>
 
     {detailOpen && typeof document !== "undefined" ? createPortal(

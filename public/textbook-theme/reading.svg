@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="404" viewBox="0 0 360 404" role="img" aria-labelledby="title">
+<title id="title">ภาพประกอบหนังสือเรียน ครูสูงวัยกับเด็กนักเรียนสองคนอ่านหนังสือสีเขียว</title>
+<defs>
+<linearGradient id="paper" x2="0" y2="1"><stop stop-color="#fff9e9"/><stop offset="1" stop-color="#f1e4c7"/></linearGradient>
+<filter id="watercolor" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".02" numOctaves="2" seed="9" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/></filter>
+<pattern id="grain" width="16" height="18" patternUnits="userSpaceOnUse"><path d="M2 3l3 1m8 8 2-1" stroke="#9f885c" stroke-width=".7" opacity=".3"/></pattern>
+</defs>
+<rect x="5" y="5" width="350" height="394" rx="25" fill="url(#paper)" stroke="#b39a6f" stroke-width="3"/>
+<rect x="13" y="13" width="334" height="377" rx="17" fill="url(#grain)"/>
+<g fill="#a4ba8a" stroke="#78906b" stroke-width="3" filter="url(#watercolor)">
+<path d="M21 357V169m0 121L8 240m14 0 30-42" fill="none"/>
+<ellipse cx="20" cy="195" rx="24" ry="29"/><ellipse cx="45" cy="213" rx="24" ry="26"/><ellipse cx="13" cy="256" rx="22" ry="28"/>
+<path d="M334 354V153m0 109-28-42m28-32 20-24" fill="none"/>
+<ellipse cx="330" cy="173" rx="27" ry="28"/><ellipse cx="312" cy="216" rx="25" ry="25"/>
+</g>
+<path d="M18 343q80-41 163-20t159-7v66H18z" fill="#c5ce9e" opacity=".72"/>
+<!-- teacher -->
+<g stroke="#574e44" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+<path d="M103 250q4-89 58-93 62-3 73 100l-7 91H98z" fill="#cfddd0"/>
+<path d="M147 159v39q17 25 39 1v-40" fill="#e4bb98"/>
+<ellipse cx="168" cy="114" rx="48" ry="59" fill="#dfb792"/>
+<path d="M117 112q-16-70 49-78 58 3 51 74l-11-18q-10-35-37-36-17 37-52 58z" fill="#d7d5c6"/>
+<path d="M126 85q10-37 42-37 28 3 41 32" fill="none" stroke="#777569" stroke-width="5"/>
+<rect x="125" y="102" width="34" height="21" rx="10" fill="none" stroke="#455052"/><rect x="176" y="102" width="31" height="21" rx="10" fill="none" stroke="#455052"/>
+<path d="M159 112h17m-9 0q-5 12 1 16m-14 13q17 8 29-2" fill="none" stroke="#7b5747"/>
+</g>
+<!-- child left -->
+<g stroke="#4e4e47" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+<path d="M21 323q1-74 57-76 58 0 62 74v32H22z" fill="#a1bfc0"/>
+<ellipse cx="79" cy="222" rx="39" ry="49" fill="#deb28d"/>
+<path d="M39 220q-10-62 31-67 57-2 50 64-12-32-35-23-24 18-46 26z" fill="#5f554b"/>
+<path d="M56 221h6m30 0h6m-24 7-2 9m-8 8q10 5 20-1" fill="none"/>
+<path d="M43 295q19 16 37 10" fill="none"/>
+</g>
+<!-- child right -->
+<g stroke="#514c43" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+<path d="M218 322q0-71 56-76 55 0 67 73v35H218z" fill="#e6ac98"/>
+<ellipse cx="275" cy="220" rx="38" ry="48" fill="#e1b793"/>
+<path d="M236 221q-14-66 31-69 62-9 54 65l-14-19q-6-27-30-21-21 22-41 44z" fill="#6b5448"/>
+<path d="M250 223h6m30 0h6m-21 6v8m-8 7q10 7 21-2" fill="none"/>
+</g>
+<!-- open green book -->
+<g stroke="#435d51" stroke-width="3" stroke-linejoin="round">
+<path d="M58 282q60-23 117 5 53-27 122-5l-9 80q-66-14-112 9-47-24-112-9z" fill="#639278"/>
+<path d="M175 286l1 84" fill="none" stroke="#ecedbb" stroke-width="5"/>
+<path d="M78 299q44-13 84 4m-82 10q48-13 80 7m-77 6q43-9 77 9m28-33q45-18 89-8m-88 23q38-13 83-9m-83 24q35-11 82-8" fill="none" stroke="#e5e8bb" stroke-width="2"/>
+</g>
+<path d="M30 381h300" stroke="#bca37e" stroke-width="2"/>
+</svg>

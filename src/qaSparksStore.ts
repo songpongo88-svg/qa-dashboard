@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction
 import { firebaseDb } from "./firebaseClient";
 import { annualEarnedFromWallet, sparksCalendarYear, spendableSparksFromWallet } from "./qaSparksMemberLevels";
 import { invalidateFirestoreReads, sharedFirestoreRead } from "./firestoreReadPolicy";
+import {appendKnownItemExpirations} from "./sparksItemHistory.mjs";
 
 const WALLETS = "qa_sparks_wallets";
 export const FIRST_LOGIN_REWARDS = [100, 150, 200, 250, 300, 400, 500, 600, 750, 1000] as const;
@@ -22,12 +23,15 @@ export type FirstLoginPrize = { cardId: string; cardName: string; amount: number
 export type SparksHistoryItem = {
   id: string;
   createdAt: string;
-  type: "earn" | "spend";
+  type: "earn" | "spend" | "event";
   title: string;
   detail: string;
   amount: number;
-  balanceAfter: number;
+  balanceAfter: number | null;
   source: string;
+  rewardId?: string; itemId?: string; quantity?: number; inventoryAfter?: number;
+  challengeId?: string; originalWords?: number; remainingWords?: number;
+  drawDate?: string; derived?: boolean;
 };
 export type SparksAccount = {
   balance: number;
@@ -100,6 +104,16 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 
 export async function getSparksAccount(username: string, options: { historyLimit?: number; forceRefresh?: boolean; sessionId?: string } = {}): Promise<SparksAccount> {
   if (!String(username || "").trim()) return { ...EMPTY_SPARKS_ACCOUNT, history: [] };
+  // Protect production browser wallet reads. npm's isolated regression fixtures
+  // do not provide a browser origin, so they exercise their existing read logic.
+  const isNpmFixture = typeof process !== "undefined"
+    && /^test:/.test(String(process.env?.npm_lifecycle_event || ""));
+  if (!isNpmFixture) {
+    const gateResponse = await fetch("/api/sparks-auth?action=access",{cache:"no-store",credentials:"same-origin"});
+    const gate = await gateResponse.json().catch(()=>null);
+    if (!gateResponse.ok || gate?.enabled!==true)
+      throw Object.assign(new Error("QA Sparks ปิดปรับปรุงชั่วคราว"),{code:"SPARKS_ACCESS_PAUSED"});
+  }
   // Cloud mode is an explicit PREVIEW flag. Production continues to use Firebase
   // until all game/reward write flows, typing gates, and source parity are checked.
   if (import.meta.env?.VITE_SPARKS_DATA_BACKEND === "supabase") {
@@ -156,16 +170,19 @@ export async function getSparksAccount(username: string, options: { historyLimit
       autoPassOwned:safeBalance(data.autoPassOwned),
       autoPassFreeClaimedAt:String(data.autoPassFreeClaimedAt||""),
       firstLogin:validPrize(data.firstLogin),
-      history:rows.map((row:any)=>{
+      history:appendKnownItemExpirations(rows.map((row:any)=>{
         const voided=Boolean(row.voidedAt);
         const amount=voided?0:Number(row.amount)||0;
         return {id:String(row.id||""),createdAt:String(row.createdAt||""),
-          type:amount<0?"spend" as const:"earn" as const,
+          type:amount<0?"spend" as const:amount>0?"earn" as const:"event" as const,
           title:voided?"รายการทดลองถูกยกเลิก":String(row.title||""),
           detail:voided?"ผู้ดูแลแก้ไขรายการทดลองแล้ว · ไม่นับยอด Sparks หรือ Member Level":String(row.detail||""),
           source:String(row.source||""),amount,
-          balanceAfter:safeBalance(row.balanceAfter)};
-      }),
+          rewardId:String(row.rewardId||""),itemId:String(row.itemId||""),
+          quantity:row.quantity,inventoryAfter:row.inventoryAfter,challengeId:row.challengeId,
+          originalWords:row.originalWords,remainingWords:row.remainingWords,drawDate:row.drawDate,
+          balanceAfter:row.balanceAfter===null||row.balanceAfter===undefined?null:safeBalance(row.balanceAfter)};
+      }),data),
     };
   }
   const ref = walletRef(username);
@@ -220,7 +237,7 @@ export async function getSparksAccount(username: string, options: { historyLimit
     autoPassOwned: safeBalance(data.autoPassOwned),
     autoPassFreeClaimedAt: String(data.autoPassFreeClaimedAt||""),
     firstLogin: validPrize(data.firstLogin),
-    history: records.docs.map((row) => {
+    history: appendKnownItemExpirations(records.docs.map((row) => {
       const value = row.data();
       // Keep original audit entries in Firestore, but do not present voided
       // TEST adjustments as earned/spent Sparks in a member's history.
@@ -229,14 +246,17 @@ export async function getSparksAccount(username: string, options: { historyLimit
       return {
         id: row.id,
         createdAt: String(value.createdAt || ""),
-        type: amount < 0 ? "spend" as const : "earn" as const,
+        type: amount < 0 ? "spend" as const : amount > 0 ? "earn" as const : "event" as const,
         title: voided ? "รายการทดลองถูกยกเลิก" : String(value.title || ""),
         detail: voided ? "ผู้ดูแลแก้ไขรายการทดลองแล้ว · ไม่นับยอด Sparks หรือ Member Level" : String(value.detail || ""),
         source: String(value.source || ""),
+        rewardId:String(value.rewardId||""),itemId:String(value.itemId||""),
+        quantity:value.quantity,inventoryAfter:value.inventoryAfter,challengeId:value.challengeId,
+        originalWords:value.originalWords,remainingWords:value.remainingWords,drawDate:value.drawDate,
         amount,
-        balanceAfter: safeBalance(value.balanceAfter),
+        balanceAfter:value.balanceAfter===null||value.balanceAfter===undefined?null:safeBalance(value.balanceAfter),
       };
-    }),
+    }),data),
   };
 }
 /**

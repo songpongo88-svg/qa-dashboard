@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export type RichTextRun = {
@@ -112,9 +112,12 @@ export function sanitizeRichTextHtml(value: unknown, preserveWhitespace = false)
       const color = normalizeColor(element.style.color || element.getAttribute("color") || "");
       if (color) safeElement.style.color = color;
       if (element.style.fontWeight === "bold" || Number(element.style.fontWeight) >= 600) safeElement.style.fontWeight = "bold";
+      else if (element.style.fontWeight === "normal" || element.style.fontWeight === "400") safeElement.style.fontWeight = "normal";
       if (element.style.fontStyle === "italic") safeElement.style.fontStyle = "italic";
+      else if (element.style.fontStyle === "normal") safeElement.style.fontStyle = "normal";
       const textDecoration = `${element.style.textDecoration} ${element.style.textDecorationLine}`;
       if (textDecoration.includes("underline")) safeElement.style.textDecoration = "underline";
+      else if (textDecoration.includes("none")) safeElement.style.textDecoration = "none";
     }
     Array.from(element.childNodes).forEach((child) => appendSafeNode(child, safeElement));
     target.appendChild(safeElement);
@@ -180,9 +183,12 @@ export function parseRichTextRuns(value: unknown, preserveWhitespace = false): R
 
     const nextStyle = { ...style };
     if (tagName === "STRONG" || tagName === "B" || element.style.fontWeight === "bold" || Number(element.style.fontWeight) >= 600) nextStyle.bold = true;
+    else if (element.style.fontWeight === "normal" || element.style.fontWeight === "400") delete nextStyle.bold;
     if (tagName === "EM" || tagName === "I" || element.style.fontStyle === "italic") nextStyle.italic = true;
+    else if (element.style.fontStyle === "normal") delete nextStyle.italic;
     const textDecoration = `${element.style.textDecoration} ${element.style.textDecorationLine}`;
     if (tagName === "U" || textDecoration.includes("underline")) nextStyle.underline = true;
+    else if (textDecoration.includes("none")) delete nextStyle.underline;
     const color = normalizeColor(element.style.color || "");
     if (color) nextStyle.color = color;
 
@@ -374,13 +380,18 @@ type RichTextEditorTarget = {
   restoreSelection: () => void;
   rememberSelection: () => void;
   commit: () => void;
+  recordCommand: (command: string, value?: string) => void;
 };
 
 let activeEditorTarget: RichTextEditorTarget | null = null;
 const activeEditorListeners = new Set<(target: RichTextEditorTarget | null) => void>();
 
 function setActiveEditorTarget(target: RichTextEditorTarget | null) {
+  const sameEditor = activeEditorTarget?.element === target?.element && activeEditorTarget?.label === target?.label;
   activeEditorTarget = target;
+  // Keystrokes and selection movement do not change the active editing host.
+  // Avoid rerendering every toolbar (and closing its menus) on each input/key-up.
+  if (sameEditor) return;
   activeEditorListeners.forEach((listener) => listener(target));
 }
 
@@ -392,8 +403,10 @@ function runActiveEditorCommand(command: "bold" | "italic" | "underline" | "remo
   target.restoreSelection();
   document.execCommand("styleWithCSS", false, "true");
   document.execCommand(command, false, value);
+  target.recordCommand(command, value);
   target.rememberSelection();
   target.commit();
+  activeEditorListeners.forEach((listener) => listener(target));
   return true;
 }
 
@@ -406,16 +419,38 @@ function tableHtml(rows: number, columns: number) {
   return `<table><tbody>${body}</tbody></table><div><br></div>`;
 }
 
-export function RichTextToolbar({ className = "" }: { className?: string }) {
+const InlineToolbarContext = createContext(false);
+
+export function InlineRichTextEditors({ children }: { children: ReactNode }) {
+  return <InlineToolbarContext.Provider value={true}>{children}</InlineToolbarContext.Provider>;
+}
+
+export function RichTextToolbar({ className = "", editorId, compact = false }: { className?: string; editorId?: string; compact?: boolean }) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [target, setTarget] = useState<RichTextEditorTarget | null>(activeEditorTarget);
   const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[0]);
   const [tableMenuOpen, setTableMenuOpen] = useState(false);
+  const [formats, setFormats] = useState({ bold: false, italic: false, underline: false });
 
   useEffect(() => {
     const listener = (nextTarget: RichTextEditorTarget | null) => {
-      setTarget(nextTarget);
+      setTarget(nextTarget && (!editorId || nextTarget.element.id === editorId) ? nextTarget : null);
       setTableMenuOpen(false);
+      refreshFormats();
+    };
+    const refreshFormats = () => {
+      const active = activeEditorTarget;
+      const selection = window.getSelection();
+      const inside = Boolean(active && (!editorId || active.element.id === editorId) && selection?.rangeCount && active.element.contains(selection.anchorNode));
+      const next = { bold: false, italic: false, underline: false };
+      if (inside && typeof document.queryCommandState === "function") {
+        next.bold = document.queryCommandState("bold");
+        next.italic = document.queryCommandState("italic");
+        next.underline = document.queryCommandState("underline");
+      }
+      const color = inside && typeof document.queryCommandValue === "function" ? normalizeColor(document.queryCommandValue("foreColor")) || COLOR_OPTIONS[0] : COLOR_OPTIONS[0];
+      setSelectedColor(previous => previous === color ? previous : color);
+      setFormats(previous => previous.bold === next.bold && previous.italic === next.italic && previous.underline === next.underline ? previous : next);
     };
     activeEditorListeners.add(listener);
     const clearPlainTextTarget = (event: FocusEvent) => {
@@ -426,13 +461,15 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
       }
     };
     document.addEventListener("focusin", clearPlainTextTarget);
+    document.addEventListener("selectionchange", refreshFormats);
     return () => {
       activeEditorListeners.delete(listener);
       document.removeEventListener("focusin", clearPlainTextTarget);
+      document.removeEventListener("selectionchange", refreshFormats);
     };
-  }, []);
+  }, [editorId]);
 
-  const disabled = !target;
+  const disabled = !target || Boolean(editorId && target.element.id !== editorId);
   const buttonClass = "flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
 
   const commandButton = (label: string, title: string, command: "bold" | "italic" | "underline" | "removeFormat", extraClass = "") => (
@@ -440,17 +477,18 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
       type="button"
       title={title}
       aria-label={title}
+      aria-pressed={command === "removeFormat" ? undefined : formats[command]}
       disabled={disabled}
       onClick={() => runActiveEditorCommand(command)}
-      className={`${buttonClass} ${extraClass}`}
+      className={`${buttonClass} ${extraClass} ${command !== "removeFormat" && formats[command] ? "!border-violet-400 !bg-violet-100 !text-violet-900" : ""}`}
     >
       {label}
     </button>
   );
 
   return (
-    <div ref={toolbarRef} data-rich-text-toolbar="true" onMouseDown={(event) => { if (event.button === 0) event.preventDefault(); }} className={`rounded-[22px] border border-violet-200 bg-white shadow-[0_14px_38px_rgba(76,29,149,0.12)] ${className}`}>
-      <div className="flex flex-col gap-2 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div ref={toolbarRef} data-rich-text-toolbar="true" onMouseDown={(event) => { if (event.button === 0) event.preventDefault(); }} className={`${compact ? "border-b border-slate-200 bg-white" : "rounded-[22px] border border-violet-200 bg-white shadow-[0_14px_38px_rgba(76,29,149,0.12)]"} ${className}`}>
+      {!compact ? <div className="flex flex-col gap-2 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">เครื่องมือแก้ไขข้อความ</div>
           <div className="mt-0.5 text-xs font-semibold text-slate-500">เลือกข้อความใน Assessment Reason, Case Description หรือ Sticky Note แล้วใช้เครื่องมือได้ทันที</div>
@@ -458,9 +496,9 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
         <div className={`w-fit rounded-full border px-3 py-1.5 text-xs font-black ${target ? "border-violet-200 bg-violet-100 text-violet-800" : "border-slate-200 bg-slate-100 text-slate-500"}`}>
           {target ? `กำลังใช้กับ: ${target.label}` : "ยังไม่ได้เลือกช่องข้อความ"}
         </div>
-      </div>
+      </div> : null}
 
-      <div className="flex flex-wrap items-center gap-1.5 px-3 py-3">
+      <div className={`flex flex-wrap items-center gap-1.5 ${compact ? "px-2 py-2" : "px-3 py-3"}`}>
         {commandButton("B", "ตัวหนา", "bold")}
         {commandButton("I", "ตัวเอียง", "italic", "italic")}
         {commandButton("U", "ขีดเส้นใต้", "underline", "underline")}
@@ -511,7 +549,7 @@ export function RichTextToolbar({ className = "" }: { className?: string }) {
       {tableMenuOpen && target ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-violet-100 bg-violet-50/60 px-4 py-3">
           <span className="text-xs font-bold text-slate-500">เลือกขนาดตาราง:</span>
-          {[[2, 2], [3, 3], [4, 4]].map(([rows, columns]) => (
+          {[[1, 1], [2, 2], [3, 3], [4, 4]].map(([rows, columns]) => (
             <button
               key={`${rows}-${columns}`}
               type="button"
@@ -553,7 +591,18 @@ function editorPlainText(root: HTMLElement): string {
   return read(root);
 }
 
+function editorHasFormatting(editor: HTMLElement) {
+  if (editor.querySelector("strong,b,em,i,u,table,hr,ul,ol,li,img")) return true;
+  return Array.from(editor.querySelectorAll<HTMLElement>("[style]")).some(element => {
+    const color = normalizeColor(element.style.color);
+    return element.style.fontWeight === "bold" || Number(element.style.fontWeight) >= 600 ||
+      element.style.fontStyle === "italic" || element.style.textDecoration.includes("underline") ||
+      element.style.textDecorationLine.includes("underline") || Boolean(color && color !== "#111827");
+  });
+}
+
 export function RichTextEditor({
+  id: providedId,
   value,
   onChange,
   placeholder,
@@ -564,7 +613,9 @@ export function RichTextEditor({
   onImagePaste,
   onImageBusyChange,
   imageCaseId = "",
+  inlineToolbar = false,
 }: {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
@@ -575,11 +626,18 @@ export function RichTextEditor({
   onImagePaste?: (file: File) => Promise<RichTextImage>;
   onImageBusyChange?: (busy: boolean) => void;
   imageCaseId?: string;
+  inlineToolbar?: boolean;
 }) {
+  const scopedInlineToolbar = useContext(InlineToolbarContext) || inlineToolbar;
+  const generatedId = useId();
+  const editorId = providedId || generatedId;
   const editorRef = useRef<HTMLDivElement>(null);
   const selectionRef = useRef<Range | null>(null);
   const onChangeRef = useRef(onChange);
   const valueRef = useRef(value);
+  const lastEmittedRef = useRef(value);
+  const composingRef = useRef(false);
+  const explicitFormatRef = useRef({ bold: false, italic: false, underline: false, color: "#111827" });
   const imagePasteRef = useRef(onImagePaste);
   const imageScopeRef = useRef(imageCaseId);
   const imageBusyCallbackRef = useRef(onImageBusyChange);
@@ -595,9 +653,13 @@ export function RichTextEditor({
   const ringClass = tone === "amber" ? "focus-within:border-amber-500 focus-within:ring-amber-100" : tone === "violet" ? "focus-within:border-violet-500 focus-within:ring-violet-100" : "focus-within:border-emerald-600 focus-within:ring-emerald-100";
 
   useEffect(() => {
+    lastEmittedRef.current = value;
     const editor = editorRef.current;
-    if (!editor || document.activeElement === editor) return;
+    if (!editor || document.activeElement === editor || composingRef.current) return;
     const safeHtml = sanitizeRichTextHtml(value, preserveWhitespace);
+    // Native Enter creates DIV/BR blocks. Equivalent text must not replace those
+    // nodes: replacement invalidates the caret, selection and native undo history.
+    if (preserveWhitespace && !looksLikeRichText(value) && !editorHasFormatting(editor) && editorPlainText(editor) === value) return;
     // Do not replace equivalent DOM: saved Ranges point to its text nodes.
     if (sanitizeRichTextHtml(editor.innerHTML, preserveWhitespace) !== safeHtml) {
       editor.innerHTML = safeHtml;
@@ -629,15 +691,25 @@ export function RichTextEditor({
 
   const commit = () => {
     const editor = editorRef.current;
-    if (!editor) return;
+    if (!editor || composingRef.current) return;
     const safeHtml = sanitizeRichTextHtml(editor.innerHTML, preserveWhitespace);
     // Keep existing plain-text reasons byte-for-byte until the user changes them.
     if (safeHtml === sanitizeRichTextHtml(valueRef.current, preserveWhitespace)) return;
-    if (preserveWhitespace && !editor.querySelector("strong, b, em, i, u, [style], table, hr, ul, ol, li, img")) {
-      onChangeRef.current(editorPlainText(editor));
-      return;
+    const next = preserveWhitespace && !editorHasFormatting(editor)
+      ? editorPlainText(editor)
+      : preserveWhitespace || hasRichTextContent(safeHtml) ? safeHtml : "";
+    if (next === valueRef.current || next === lastEmittedRef.current) return;
+    lastEmittedRef.current = next;
+    onChangeRef.current(next);
+  };
+
+  const syncExplicitFormatting = () => {
+    if (typeof document.queryCommandState !== "function") return;
+    const explicit = explicitFormatRef.current;
+    for (const command of ["bold", "italic", "underline"] as const) {
+      if (explicit[command] && !document.queryCommandState(command)) explicit[command] = false;
     }
-    onChangeRef.current(preserveWhitespace || hasRichTextContent(safeHtml) ? safeHtml : "");
+    if (typeof document.queryCommandValue === "function" && normalizeColor(document.queryCommandValue("foreColor")) !== explicit.color) explicit.color = "#111827";
   };
 
   const activateEditor = () => {
@@ -649,6 +721,13 @@ export function RichTextEditor({
       restoreSelection,
       rememberSelection,
       commit,
+      recordCommand(command, nextValue) {
+        const explicit = explicitFormatRef.current;
+        if (command === "bold" || command === "italic" || command === "underline") {
+          explicit[command] = typeof document.queryCommandState === "function" ? document.queryCommandState(command) : !explicit[command];
+        } else if (command === "foreColor") explicit.color = normalizeColor(nextValue || "") || "#111827";
+        else if (command === "removeFormat") explicitFormatRef.current = { bold: false, italic: false, underline: false, color: "#111827" };
+      },
     });
   };
 
@@ -697,7 +776,7 @@ export function RichTextEditor({
           // Native editing commands require an editable target even while the
           // rest of the asynchronous paste is guarded from user edits.
           editor.setAttribute("contenteditable", "true");
-          editor.focus(); restoreSelection();
+          editor.focus({ preventScroll: true }); restoreSelection();
           const html = sanitizeRichTextHtml(richTextImageHtml(image), true);
           if (!document.execCommand("insertHTML", false, html)) {
             const selection = window.getSelection();
@@ -720,13 +799,30 @@ export function RichTextEditor({
       }
       return;
     }
-    document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+    // Clipboard text starts with this editor's explicitly chosen formatting,
+    // rather than inheriting a copied heading or another editor's bold state.
+    const format = explicitFormatRef.current;
+    const plainText = event.clipboardData.getData("text/plain");
+    if (!plainText) return;
+    const text = plainTextToHtml(plainText);
+    const html = `<span style="font-weight:${format.bold ? "bold" : "normal"};font-style:${format.italic ? "italic" : "normal"};text-decoration:${format.underline ? "underline" : "none"};color:${format.color}">${text}</span>`;
+    document.execCommand("insertHTML", false, html);
+    // Chrome may reset the next-character formatting at the end of inserted HTML.
+    // Keep the visible B/I/U state and continued typing aligned with the user's choice.
+    if (window.getSelection()?.isCollapsed && typeof document.queryCommandState === "function") {
+      for (const command of ["bold", "italic", "underline"] as const) {
+        if (document.queryCommandState(command) !== format[command]) document.execCommand(command, false);
+      }
+    }
     rememberSelection(); commit();
+    activeEditorListeners.forEach(listener => listener(activeEditorTarget));
   };
 
   return (
-    <div className={`mt-2 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-inner transition focus-within:ring-4 ${ringClass}`}>
+    <div data-rich-text-surface="true" style={{ overflowAnchor: "none" }} className={`mt-2 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-inner transition-colors focus-within:ring-4 ${ringClass}`}>
+      {scopedInlineToolbar ? <RichTextToolbar editorId={editorId} compact /> : null}
       <div
+        id={editorId}
         ref={editorRef}
         contentEditable={!imageBusy}
         aria-busy={imageBusy}
@@ -737,6 +833,7 @@ export function RichTextEditor({
         data-rich-text-editor="true"
         data-placeholder={placeholder}
         onFocus={() => {
+          if (activeEditorTarget?.element !== editorRef.current) explicitFormatRef.current = { bold: false, italic: false, underline: false, color: "#111827" };
           activateEditor();
         }}
         onInput={() => {
@@ -744,12 +841,22 @@ export function RichTextEditor({
           rememberSelection();
           commit();
         }}
-        onBlur={() => { rememberSelection(); commit(); }}
+        onCompositionStart={() => { composingRef.current = true; }}
+        onCompositionEnd={() => { composingRef.current = false; rememberSelection(); commit(); }}
+        onBlur={() => { composingRef.current = false; rememberSelection(); commit(); }}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || composingRef.current || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+          const command = ({ b: "bold", i: "italic", u: "underline" } as const)[event.key.toLowerCase() as "b" | "i" | "u"];
+          if (!command) return;
+          event.preventDefault(); activateEditor(); rememberSelection(); runActiveEditorCommand(command);
+        }}
         onMouseUp={() => {
+          syncExplicitFormatting();
           activateEditor();
           rememberSelection();
         }}
-        onKeyUp={() => {
+        onKeyUp={(event) => {
+          if (/^(Arrow|Home|End|Page)/.test(event.key)) syncExplicitFormatting();
           activateEditor();
           rememberSelection();
         }}

@@ -54,6 +54,7 @@ try {
 
   const manager = await fs.readFile("src/ProcessFileManager.tsx", "utf8");
   const patch = await fs.readFile("scripts/patch-process-file-management-v85.mjs", "utf8");
+  const activationPatch = await fs.readFile("scripts/patch-process-file-activation-v86.mjs", "utf8");
   const launcher = await fs.readFile("scripts/patch-process-multifile-v84.mjs", "utf8");
   for(const label of ["Process File Management", "View File", "Remove", "Restore"]) {
     assert.ok(manager.includes(label), "manager must expose " + label);
@@ -67,6 +68,11 @@ try {
   assert.match(patch, /referencedIds=/, "current evaluation references remain visible");
   assert.ok(!/deleteDoc\s*\(|deleteObject\s*\(/.test(patch + "\n" + manager), "old Process versions are not permanently deleted");
   assert.match(launcher, /patch-process-file-management-v85\.mjs/, "management patch executes after the multi-file selector patch");
+  assert.match(launcher, /patch-process-file-activation-v86\.mjs/, "activation patch follows management");
+  assert.match(manager, /data-process-activate-current=/, "archived Process offers explicit Activate Current action");
+  assert.match(activationPatch, /where\("name","==",processName\)/, "upload reads only matching Process metadata, not all binary chunks");
+  assert.match(activationPatch, /status:"current",hiddenFromPicker:false/, "activation un-hides selected version and makes it current in one batch");
+  assert.match(activationPatch, /status:"archived"/, "activation archives competing current versions");
   console.log("PASS Process File Management: current/archived files, safe removal, Restore, previews and historical references");
 } finally {
   await fs.rm(tmp, { force: true });

@@ -36,6 +36,11 @@ function readCache(username: string): StoredProfilePhoto | null {
   }
 }
 
+/** Read a saved photo without any Firestore operation (for lightweight list views). */
+export function getCachedStoredProfilePhoto(username: string): StoredProfilePhoto | null {
+  return readCache(username);
+}
+
 function writeCache(profile: StoredProfilePhoto) {
   if (typeof window === "undefined") return;
   try {
