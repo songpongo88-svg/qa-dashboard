@@ -41,4 +41,18 @@ assert.ok(takeoverEffect.includes("lastPendingId = \"\""),
 assert.ok(takeoverEffect.includes('document.addEventListener("visibilitychange", onVisible)'),
   "Visible sessions must promptly resume takeover checks");
 
+const trustedApi = await readFile(new URL("../server/qaSingleSessionEndpoint.js", import.meta.url), "utf8");
+assert.ok(trustedApi.includes('identity: { username: actor.username, role: actor.role }'),
+  "Trusted server login must return the verified QA identity");
+assert.ok(trustedApi.includes('identity: { username: ticket.username, role: ticket.role }'),
+  "Session validation must return the verified QA identity");
+assert.ok(client.includes('matchesTrustedQaIdentity('),
+  "The QA browser must verify account and role against the server");
+assert.ok(application.includes("if (!matchesTrustedQaIdentity(storedUser, verified))"),
+  "Restoring a browser session must bind to verified QA identity first");
+assert.ok(application.includes("if (!matchesTrustedQaIdentity(user, verification))"),
+  "Fresh login and takeover must bind to verified QA identity");
+assert.ok(application.includes('await qaServerSessionRequest("logout")'),
+  "Failed local initialization must release the trusted server session");
+
 console.log("QA critical mutation preflight checks passed");
