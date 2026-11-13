@@ -177,6 +177,61 @@ try {
   assert.equal(calls.at(-1).editor, 'two');
   console.log('PASS: inline toolbars format only their own editor and preserve field selection');
 
+  const stable = { reason: 'ข้อความเดิม', other: '' };
+  const changes = [];
+  const renderStable = () => root.render(h(React.Fragment, null,
+    h(RichTextToolbar),
+    ...['reason', 'other'].map(key => h(RichTextEditor, {
+      key: `stable-${key}`, value: stable[key], editorLabel: key, placeholder: key,
+      preserveWhitespace: true,
+      onChange(value) { stable[key] = value; changes.push({ key, value }); renderStable(); },
+    })), h('textarea', { 'aria-label': 'outside' }),
+  ));
+  act(renderStable);
+  act(() => {
+    editor('reason').focus();
+    editor('reason').dispatchEvent(new dom.window.CompositionEvent('compositionstart', { bubbles: true }));
+    editor('reason').innerHTML = 'ข้อความภาษาไทย<div><br></div><div>ท้าย</div>';
+    const range = document.createRange(); range.selectNodeContents(editor('reason')); range.collapse(false);
+    window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+    editor('reason').dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  assert.equal(stable.reason, 'ข้อความเดิม', 'IME composition must not publish unfinished characters');
+  const nativeNode = editor('reason').firstChild;
+  act(() => editor('reason').dispatchEvent(new dom.window.CompositionEvent('compositionend', { bubbles: true })));
+  assert.equal(stable.reason, 'ข้อความภาษาไทย\n\nท้าย');
+  assert.equal(editor('reason').firstChild, nativeNode, 'committing text must retain native editing nodes');
+  act(renderStable);
+  act(() => document.querySelector('textarea[aria-label="outside"]').focus());
+  assert.equal(changes.length, 1, 'blur and unrelated rerenders must not recommit equivalent DIV/BR text');
+  assert.equal(editor('reason').firstChild, nativeNode);
+  console.log('PASS: Thai IME commits once, preserves blank lines and retains native DOM across parent updates and blur');
+
+  const pasteText = key => {
+    editor(key).focus();
+    const range = document.createRange();
+    let last = editor(key); while (last.lastChild) last = last.lastChild;
+    range.selectNodeContents(last); range.collapse(false);
+    window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', { value: { items: [], files: [], getData: type => type === 'text/html' ? '<b>ข้อความวาง</b>' : 'ข้อความวาง' } });
+    editor(key).dispatchEvent(event);
+  };
+  act(() => pasteText('reason'));
+  assert.equal(editor('reason').querySelector('span').style.fontWeight, 'normal');
+  assert.ok(!parseRichTextRuns(editor('reason').querySelector('span').outerHTML, true).some(run => run.bold));
+  assert.equal(stable.reason, 'ข้อความภาษาไทย\n\nท้ายข้อความวาง', 'ordinary pasted text stays plain and preserves existing blank lines');
+  act(() => editor('reason').focus()); click('ตัวหนา');
+  act(() => pasteText('reason'));
+  assert.ok(parseRichTextRuns(stable.reason, true).some(run => run.bold && run.text.includes('ข้อความวาง')), 'explicitly selected bold applies to pasted text');
+  act(() => pasteText('other'));
+  assert.equal(stable.other, 'ข้อความวาง');
+  assert.equal(editor('other').querySelector('span').style.fontWeight, 'normal', 'bold from another editor cannot leak into this field');
+  const resetRuns = parseRichTextRuns(sanitizeRichTextHtml('<b>หนา<span style="font-weight:normal;font-style:normal;text-decoration:none">ปกติ</span>หนา</b>', true), true);
+  assert.ok(resetRuns.find(run => run.text === 'หนา')?.bold);
+  assert.ok(!resetRuns.find(run => run.text === 'ปกติ')?.bold, 'normal paste remains normal after save/reload and rich-text export');
+  console.log('PASS: clipboard bold is ignored, deliberate formatting is retained, and formatting does not leak between editors');
+
 } finally {
   act(() => root.unmount());
   dom.window.close();
