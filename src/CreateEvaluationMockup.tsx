@@ -33,6 +33,7 @@ import {
 } from "./lib/rubricVersions";
 import { buildDeductionAnalysis, topicScoreForDate, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
 import { readDraftQueue, writeDraftQueue } from "./lib/evaluation/draftPersistence";
+import { readEvaluationRecovery, saveEvaluationRecovery, clearEvaluationRecovery } from "./lib/evaluation/sessionRecoveryStore.mjs";
 import { makeQaDraftBackup, makeQaDraftBackupFilename } from "./lib/evaluation/draftBackup";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchAppealEvents } from "./appealStore";
@@ -1051,6 +1052,10 @@ export default function CreateEvaluationMockup({
   );
   const [draftSavedAt, setDraftSavedAt] = useState(() => readEvaluateTabMemory()?.draftSavedAt || "");
   const [draftMessage, setDraftMessage] = useState(() => readEvaluateTabMemory()?.draftMessage || "");
+  // Independent IndexedDB emergency snapshot; never overwrites an explicit Draft Queue item.
+  const [emergencyRecovery, setEmergencyRecovery] = useState<{ savedAtMs: number; snapshot: Partial<EvaluateTabMemory> } | null>(null);
+  const recoveryCheckDoneRef = useRef(false);
+
   const inlineImageUploadsRef = useRef(0);
   const [inlineImageUploads, setInlineImageUploads] = useState(0);
   const [stickyNote, setStickyNote] = useState(() => {
@@ -1168,6 +1173,69 @@ export default function CreateEvaluationMockup({
     topicState,
     expandedGroups,
   ]);
+
+  // Existing EvaluateTabMemory is only in RAM and is lost on a full reload.
+  // Mirror text/scores locally every five seconds, without claiming a cloud save.
+  useEffect(() => {
+    const owner = currentUser?.username;
+    recoveryCheckDoneRef.current = false;
+    if (!owner) return;
+    let live = true;
+    readEvaluationRecovery(owner).then((record) => {
+      if (!live) return;
+      if (record?.snapshot && record.snapshot.evaluationStatus !== "Submitted") {
+        setEmergencyRecovery(record);
+      }
+    }).catch((error) => {
+      if (live) console.warn("Evaluation recovery check unavailable", error);
+    }).finally(() => { if (live) recoveryCheckDoneRef.current = true; });
+    return () => { live = false; recoveryCheckDoneRef.current = false; };
+  }, [currentUser?.username]);
+
+  useEffect(() => {
+    const owner = currentUser?.username;
+    if (!owner) return;
+    const timer = window.setInterval(() => {
+      if (!recoveryCheckDoneRef.current || emergencyRecovery || workspaceView !== "form") return;
+      const form = readEvaluateTabMemory();
+      if (!form || form.evaluationStatus === "Submitted") return;
+      void saveEvaluationRecovery(owner, form).catch((error) => {
+        console.warn("Local Evaluation recovery save unavailable", error);
+      });
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [currentUser?.username, workspaceView, emergencyRecovery]);
+
+  function restoreEmergencyRecovery() {
+    const snapshot = emergencyRecovery?.snapshot;
+    if (!snapshot || activeSubmittedRecordId) return;
+    setAgentName(snapshot.agentName || "");
+    setAuditDate(snapshot.auditDate || todayInputValue());
+    setWaitingTime(snapshot.waitingTime || "");
+    setServiceTime(snapshot.serviceTime || "");
+    setCaseId(snapshot.caseId || "");
+    setCaseUrl(snapshot.caseUrl || "");
+    setInquiry(snapshot.inquiry || "");
+    setCaseDescription(snapshot.caseDescription || "");
+    setProcessReference(snapshot.processReference || "");
+    setEvidenceUrl(snapshot.evidenceUrl || "");
+    setNoCaseForMonth(Boolean(snapshot.noCaseForMonth));
+    setIsTestCase(Boolean(snapshot.isTestCase));
+    setCriticalError(Boolean(snapshot.criticalError));
+    setTopicState(snapshot.topicState || buildInitialTopicState(topics));
+    setExpandedGroups(snapshot.expandedGroups || {});
+    setEvaluationStatus("Draft");
+    setEmergencyRecovery(null);
+    setDraftMessage("กู้คืนข้อความและคะแนนจากข้อมูลสำรองบน Browser นี้แล้ว • กรุณาตรวจสอบไฟล์แนบและเสียงอีกครั้ง • ยังไม่ได้บันทึกเข้าระบบกลาง");
+  }
+
+  function dismissEmergencyRecovery() {
+    if (currentUser?.username) {
+      void clearEvaluationRecovery(currentUser.username).catch((error) => console.warn("Recovery cleanup unavailable", error));
+    }
+    setEmergencyRecovery(null);
+  }
+
   const availableAgentOptions = useMemo(() => {
     const options = (agentOptions || [])
       .filter((agent) => agent.agentName || agent.displayName)
@@ -4393,6 +4461,17 @@ export default function CreateEvaluationMockup({
                   </div>
                 </div>
 
+                {emergencyRecovery && !activeSubmittedRecordId && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3" role="alert">
+                    <div className="text-sm font-bold text-amber-900">พบข้อมูล Evaluation ที่ค้างอยู่บน Browser นี้</div>
+                    <p className="mt-1 text-xs text-amber-800">สำรองข้อความและคะแนนไว้เมื่อ {new Date(emergencyRecovery.savedAtMs).toLocaleString("th-TH")} • ไฟล์แนบและเสียงต้องตรวจสอบอีกครั้ง</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button type="button" onClick={restoreEmergencyRecovery} className="rounded-lg bg-amber-800 px-3 py-2 text-xs font-bold text-white">กู้คืนแบบร่าง</button>
+                      <button type="button" onClick={dismissEmergencyRecovery} className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800">ไม่กู้คืน</button>
+                    </div>
+                  </div>
+                )}
+                <div className="text-xs text-slate-500">Emergency Recovery บน Browser นี้: สำรองข้อความและคะแนนทุก 5 วินาที ไม่ใช่การ Save Draft เข้าระบบกลาง</div>
                 <button
                   type="button"
                   onClick={saveDraft}
