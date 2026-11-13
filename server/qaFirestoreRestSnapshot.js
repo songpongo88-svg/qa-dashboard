@@ -11,12 +11,17 @@ const fail=code=>Object.assign(new Error(code),{code});
 const safe=x=>typeof x==='string'&&x.length>0&&x.length<2000;
 export async function captureQaFirestorePointInTime({
   projectId,accessToken,fetchImpl=fetch,readTime,
-  pageSize=100,
+  pageSize=100,maxDocumentReads=3000,maxApiRequests=80,
 }={}){
   if(!PROJECT.test(projectId||'')||!safe(accessToken)||accessToken.length<20)
     throw fail('firestore_server_credentials_missing');
   if(!Number.isInteger(pageSize)||pageSize<1||pageSize>500)
     throw fail('invalid_page_size');
+  if(!Number.isSafeInteger(maxDocumentReads)||maxDocumentReads<11||
+     maxDocumentReads>20000||!Number.isSafeInteger(maxApiRequests)||
+     maxApiRequests<11||maxApiRequests>200)
+    throw fail('snapshot_read_budget_invalid');
+  let documentReadEstimate=0,apiRequests=0;
   // Cloud Firestore supports consistent readTime for paginated reads.
   // Always use the same time for every dataset; never use client cache.
   const observedAt=readTime||new Date(Date.now()-15000).toISOString();
@@ -30,11 +35,18 @@ export async function captureQaFirestorePointInTime({
     const collected=[],seenIds=new Set(),seenTokens=new Set();
     let next='';
     do{
+      // A query may bill at least one read even when it returns no records.
+      // Check BOTH limits before every query, across all 11 datasets.
+      const remaining=maxDocumentReads-documentReadEstimate;
+      if(remaining<1||apiRequests>=maxApiRequests)
+        throw fail('firestore_snapshot_read_budget_exhausted');
+      const requestedPageSize=Math.min(pageSize,remaining);
       const url=new URL(base+dataset);
       url.searchParams.set('readTime',observedAt);
-      url.searchParams.set('pageSize',String(pageSize));
+      url.searchParams.set('pageSize',String(requestedPageSize));
       if(next)url.searchParams.set('pageToken',next);
       let response;
+      apiRequests++;
       try{
         response=await fetchImpl(url.href,{
           method:'GET',
@@ -52,6 +64,11 @@ export async function captureQaFirestorePointInTime({
         !Array.isArray(batch.documents||[])||
         (batch.nextPageToken!==undefined&&typeof batch.nextPageToken!=='string'))
         throw fail('firestore_invalid_source_page');
+      if((batch.documents||[]).length>requestedPageSize)
+        throw fail('firestore_source_page_exceeds_budget');
+      documentReadEstimate+=Math.max(1,(batch.documents||[]).length);
+      if(documentReadEstimate>maxDocumentReads)
+        throw fail('firestore_snapshot_read_budget_exhausted');
       const prefix='projects/'+projectId+'/databases/(default)/documents/'+dataset+'/';
       for(const item of batch.documents||[]){
         if(!item||typeof item.name!=='string'||!item.name.startsWith(prefix)||
@@ -97,5 +114,7 @@ export async function captureQaFirestorePointInTime({
     // No user case bodies or OAuth tokens leave this internal closure.
     verifiedReadTime:observedAt,
     sourceCount:manifests.reduce((n,row)=>n+row.count,0),
+    readBudgetReceipt:Object.freeze({documentReadEstimate,apiRequests,
+      maxDocumentReads,maxApiRequests,completeDatasetCount:QA_SYNC_DATASETS.length}),
   });
 }
