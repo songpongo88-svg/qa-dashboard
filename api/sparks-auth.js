@@ -1,6 +1,6 @@
 import {
   withSparksRequest, getSparksRequestActor, exchangeSparksAuthTokens, clearSparksAuthCookies,
-  sparksProfileSyncStatus, getVerifiedSparksAccessToken,
+  sparksProfileSyncStatus, sparksOwnerAuthStatus, getVerifiedSparksAccessToken,
 } from "../server/sparksSupabaseAuth.js";
 import { getSparksAccessState, invalidateSparksAccessState } from "../server/sparksAccessControl.js";
 
@@ -18,6 +18,13 @@ export default async function handler(req, res) {
       if (action === "sync-status") {
         const status = await withSparksRequest(req,res,()=>sparksProfileSyncStatus());
         return res.status(200).json({ok:true,status});
+      }
+      if (action === "auth-status") {
+        const users = await withSparksRequest(req, res, () => sparksOwnerAuthStatus());
+        return res.status(200).json({
+          ok: true, users, checkedAt: new Date().toISOString(),
+          sparksProvider: "supabase", qaDashboardProvider: "firebase",
+        });
       }
       if (action) return res.status(400).json({error:"Unsupported action"});
       const actor = await withSparksRequest(req, res, () => getSparksRequestActor());

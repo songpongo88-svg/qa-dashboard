@@ -5,6 +5,7 @@ import { getSparksAccount, type SparksAccount } from "./qaSparksStore";
 import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import SparksRewardRequests from "./SparksRewardRequests";
+import SparksAuthStatusPanel from "./SparksAuthStatusPanel";
 import { SparksOwnerAccessControl } from "./SparksAccessGate";
 import {isItemHistoryEntry,itemHistoryLabel,itemHistoryDeltaText} from "./sparksItemHistory.mjs";
 import "./sparksAdminWorkspace.css";
@@ -105,7 +106,7 @@ function createRequestId() {
 export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount, active: panelActive = true, accountMigration }: {
   actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null; active?: boolean; accountMigration?: React.ReactNode;
 }) {
-  const [adminSection, setAdminSection] = useState<"requests" | "points" | "settings" | "activity">("requests");
+  const [adminSection, setAdminSection] = useState<"requests" | "points" | "settings" | "activity" | "auth">("requests");
   const ownAccountRef = useRef(ownAccount);
   ownAccountRef.current = ownAccount;
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -544,7 +545,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     {actorUsername.trim().toLowerCase()==="songpon" ? <div className="sa-control-grid" aria-label="ตั้งค่าระบบ QA Sparks">
       <SparksOwnerAccessControl username={actorUsername}/>{accountMigration}
     </div> : null}
-    {error && (adminSection !== "requests" || needsReauth) ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
+    {error && ((adminSection !== "requests" && adminSection !== "auth") || needsReauth) ? <div role="alert" className="qa-sparks-inline-error">{error}</div> : null}
     {needsReauth ? <form className="qa-sparks-admin-reauth" onSubmit={(event) => { void submitReauth(event); }}>
       <div><strong>ยืนยันสิทธิ์ Sparks Admin</strong><p>กรอกรหัสผ่านที่ใช้ Login QA Dashboard ปัจจุบัน 1 ครั้ง เพื่อยืนยันสิทธิ์ผู้ดูแล</p></div>
       <label htmlFor="qa-sparks-admin-reauth-password">รหัสผ่าน QA</label>
@@ -555,13 +556,15 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       </div>
       {reauthError ? <p role="alert" className="qa-sparks-admin-reauth-error">{reauthError}</p> : null}
     </form> : null}
-    {adminSection !== "requests" && !adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">{firestoreLimited
+    {adminSection !== "requests" && adminSection !== "auth" && !adminReady && !loading && !needsReauth ? <div role="status" className="qa-sparks-admin-readonly">{firestoreLimited
       ? "โควตา Firestore อาจเต็มหรือระบบถูกจำกัดอัตราการเรียกข้อมูลชั่วคราว เพื่อป้องกันการเรียกข้อมูลซ้ำ ระบบหยุดโหลด Wallet และ History เพิ่มเติมแล้ว ตรวจยอดที่ Firebase Console → Firestore → Usage ก่อน แล้วค่อยกดรีเฟรชเมื่อระบบพร้อม"
       : "ยังไม่สามารถเพิ่มหรือคืน Sparks ได้จนกว่าเซิร์ฟเวอร์จะยืนยันสิทธิ์ผู้ดูแลสำเร็จ รายชื่อด้านล่างมาจาก QA User Management แบบอ่านอย่างเดียว"}</div> : null}
     {notice ? <div role="status" className="qa-sparks-admin-success">{notice}</div> : null}
     <nav className="sa-workspace-tabs" aria-label="งานของผู้ดูแล">
-      {([["requests", "คำขอรางวัล"], ["points", "จัดการคะแนน"], ["settings", "ตั้งค่ารางวัล"], ["activity", "ประวัติการจัดการ"]] as const).map(([key, label]) => <button key={key} type="button" data-sparks-admin-section={key} aria-pressed={adminSection === key} onClick={() => { setAdminSection(key); setNotice(""); }}>{label}</button>)}
+      {([["requests", "คำขอรางวัล"], ["points", "จัดการคะแนน"], ["settings", "ตั้งค่ารางวัล"], ["activity", "ประวัติการจัดการ"], ["auth", "สถานะเข้าสู่ระบบ"]] as const).map(([key, label]) => <button key={key} type="button" data-sparks-admin-section={key} aria-pressed={adminSection === key} onClick={() => { setAdminSection(key); setNotice(""); }}>{label}</button>)}
     </nav>
+    {adminSection === "auth" && actorUsername.trim().toLowerCase() === "songpon"
+      ? <SparksAuthStatusPanel /> : null}
     <div className="sa-workspace-content" hidden={adminSection !== "requests"}><SparksRewardRequests actorUsername={actorUsername} sessionId={sessionId} onReauth={requestReauth}/></div>
     <section hidden={adminSection !== "settings"} aria-label="ตั้งค่าราคารางวัล TrueMoney 20 THB" className="sa-settings">
       <div className="sa-section-head"><div><h3>ตั้งค่ารางวัล</h3><p>เปลี่ยนคะแนนที่ใช้แลก โดยระบุรางวัลให้ชัดเจน</p></div><button type="button" className="sa-secondary" disabled={priceLoading || trueMoneyPriceBusy} onClick={() => setPriceRevision(value => value + 1)}>รีเฟรชราคา</button></div>

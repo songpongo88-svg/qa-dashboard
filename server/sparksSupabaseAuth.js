@@ -187,3 +187,32 @@ export function getVerifiedSparksAccessToken(){
   const store=context.getStore();
   return String(store?.actor ? store.accessToken||"" : "");
 }
+
+/**
+ * Owner-only read-only audit of Supabase Auth membership.
+ * Returns no email, token, password, IP or real-time presence data.
+ * The database RPC checks the owner's verified identity a second time.
+ */
+export async function sparksOwnerAuthStatus() {
+  const actor = await getSparksRequestActor();
+  if (actor.username !== "songpon" || actor.role !== "Quality Assurance") {
+    throw failure("เฉพาะเจ้าของ QA Sparks เท่านั้นที่ดูสถานะ Auth รายบัญชีได้", 403, "SPARKS_OWNER_ONLY");
+  }
+  const jwt = String(context.getStore()?.accessToken || "");
+  const rows = await supabase("/rest/v1/rpc/sparks_admin_auth_status_v1", {
+    jwt, method: "POST", body: {},
+  });
+  if (!Array.isArray(rows)) {
+    throw failure("ไม่สามารถอ่านสถานะ Supabase Auth ได้", 503, "SPARKS_AUTH_STATUS_UNAVAILABLE");
+  }
+  return rows.map(row => ({
+    username: String(row.username || ""),
+    displayName: String(row.display_name || row.username || ""),
+    role: String(row.user_role || ""),
+    loginStatus: ["signed-in-before", "not-signed-in", "not-linked"].includes(row.login_status)
+      ? row.login_status : "not-linked",
+    authAccounts: Math.max(0, Number(row.auth_accounts) || 0),
+    lastSignedInAt: String(row.last_sign_in_at || ""),
+    rosterUpdatedAt: String(row.roster_updated_at || ""),
+  })).filter(row => Boolean(row.username));
+}
