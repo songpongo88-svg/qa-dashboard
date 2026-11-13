@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
-import handler from "../api/qa-single-session.js";
+import handler from "../server/qaSingleSessionEndpoint.js";
 import { signQaTicket, verifyQaTicket, visibleSessionState } from "../server/qaSingleSessionAdmin.js";
+
+
+// Vercel Hobby capacity: QA session routing reuses one existing serverless function.
+const vercelConfig = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
+assert.ok(vercelConfig.rewrites?.some(rule =>
+  rule.source === "/api/qa-single-session" &&
+  rule.destination === "/api/sparks-auth?__qa_single_session=1"),
+  "QA session requests must be rewritten to the shared auth function");
 
 function response() {
   return {
