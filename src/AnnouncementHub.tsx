@@ -16,6 +16,7 @@ import {
   type StoredAnnouncement,
 } from "./announcementStore";
 import "./announcementTicker.css";
+import { SparkQuestAnnouncementPopup, SparkQuestAnnouncementInbox } from "./SparkQuestAnnouncement";
 
 type HubUser = {
   username: string;
@@ -32,6 +33,7 @@ type AnnouncementHubProps = {
   users: HubUser[];
   shortcutVisible: boolean;
   onOpenShortcut: () => void;
+  onNavigateToSparks: () => void;
 };
 
 type HubView = "inbox" | "control" | "analytics";
@@ -568,6 +570,7 @@ function AnnouncementWorkspace({
   users,
   shortcutVisible,
   onOpenShortcut,
+  onNavigateToSparks,
 }: AnnouncementHubProps) {
   const [announcements, setAnnouncements] = useState<StoredAnnouncement[]>([]);
   // Personal popup receipts and manager statistics use independent listeners.
@@ -1397,6 +1400,9 @@ function AnnouncementWorkspace({
 
   return (
     <>
+      <SparkQuestAnnouncementPopup username={currentUsername}
+        blocked={!shortcutVisible || hubOpen || Boolean(popupMessage)}
+        onJoin={() => { setHubOpen(false); onNavigateToSparks(); }}/>
       {/* data-announcement-media-spotlight-v4 */}
       {tickerTarget && tickerItems.length ? createPortal(
         <section
@@ -1674,6 +1680,7 @@ function AnnouncementWorkspace({
               {view === "inbox" ? (
                 <div className="grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
                   <div className="space-y-3">
+                    <SparkQuestAnnouncementInbox onJoin={() => { setHubOpen(false); onNavigateToSparks(); }}/>
                     {myAnnouncements.length ? (
                       myAnnouncements.map((item) => {
                         const receipt = myReceiptMap.get(item.id);
