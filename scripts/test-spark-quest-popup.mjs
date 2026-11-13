@@ -18,6 +18,7 @@ globalThis.__sparkTestError = false;
 globalThis.__sparkTestReads = [];
 await mkdir(resolve("node_modules/.cache"), { recursive: true });
 const work = await mkdtemp(resolve("node_modules/.cache/quest-promo-test-"));
+const nativeDate = Date;
 const { createRoot } = await import("react-dom/client");
 const root = createRoot(document.querySelector("#root"));
 
@@ -52,7 +53,7 @@ try {
   assert.equal(sparkAnnouncementActive(new Date("2026-12-25T16:59:59.000Z")), true);
   assert.equal(sparkAnnouncementActive(new Date("2026-12-25T17:00:00.000Z")), false);
 
-  const realDate = Date;
+  const realDate = nativeDate;
   // Freeze the promotion window for repeatable tests independent of current calendar date.
   const FakeDate = class extends Date {
     constructor(...args) {
@@ -125,7 +126,7 @@ try {
 
   console.log("PASS Spark Quest announcement: once per QA login, repeated next login until both complete, backend wallet check, fail-closed, priority blocking and expiry");
 } finally {
-  globalThis.Date = Date;
+  globalThis.Date = nativeDate;
   await act(async () => root.unmount());
   dom.window.close();
   await rm(work, { recursive: true, force: true });
