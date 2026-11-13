@@ -2,6 +2,7 @@
 .qa-evaluation-form {
   min-width: 0;
   container: qa-evaluation / inline-size;
+  overflow-anchor: none;
 }
 
 .qa-evaluation-layout {
@@ -51,10 +52,17 @@
   overflow-wrap: anywhere;
 }
 
-.qa-evaluation-form [data-rich-text-toolbar] {
+.qa-evaluation-form [data-rich-text-toolbar]:not(.qa-evaluation-toolbar) {
   position: static;
   max-width: 100%;
   z-index: auto;
+}
+
+.qa-evaluation-toolbar {
+  position: sticky;
+  top: 12px;
+  z-index: 40;
+  max-width: 100%;
 }
 
 .qa-evaluation-raw-row {

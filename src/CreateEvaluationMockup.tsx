@@ -58,7 +58,7 @@ import {
 import {
   RichTextContent,
   RichTextEditor,
-  InlineRichTextEditors,
+  RichTextToolbar,
   hasRichTextContent,
   richTextToPlainText,
   richTextImages,
@@ -1057,6 +1057,7 @@ export default function CreateEvaluationMockup({
     return readCachedStickyNote(stickyNoteOwner);
   });
   const [stickyNoteMessage, setStickyNoteMessage] = useState("");
+  const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const [stickyNoteReady, setStickyNoteReady] = useState(false);
   const [issueTagCatalog, setIssueTagCatalog] = useState<EvaluationIssueTag[]>([]);
   const [issueTagDrafts, setIssueTagDrafts] = useState<Record<string, string>>({});
@@ -3504,8 +3505,9 @@ export default function CreateEvaluationMockup({
         ) : null}
 
         {workspaceView === "form" ? (
-        <InlineRichTextEditors>
+        <>
         <div className="qa-evaluation-form">
+        {!stickyNoteOpen ? <RichTextToolbar className="qa-evaluation-toolbar mb-5" /> : null}
         {isTestCase ? <div className="mb-4"><TestCaseNotice /></div> : null}
         <div className="qa-evaluation-layout">
           <div id="qa-evaluation-case" className="qa-evaluation-case space-y-6">
@@ -4416,13 +4418,14 @@ export default function CreateEvaluationMockup({
           </div>
         </div>
         </div>
-        </InlineRichTextEditors>
+        </>
         ) : null}
       </div>
-      {workspaceView === "form" ? <StickyNotePopup owner={stickyNoteOwner}>
+      {workspaceView === "form" ? <StickyNotePopup owner={stickyNoteOwner} onOpenChange={setStickyNoteOpen}>
+              <RichTextToolbar editorId="qa-evaluation-sticky-note" compact className="sticky top-0 z-10 mb-3 rounded-xl border border-slate-200" />
               <div className="space-y-3">
                 <RichTextEditor
-                  inlineToolbar
+                  id="qa-evaluation-sticky-note"
                   value={stickyNote}
                   onChange={(nextNote) => {
                     stickyNoteDirtyRef.current = true;
