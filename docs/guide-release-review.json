@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T03:00:29.544Z",
-  "reason": "QA-only internal standby cutover gate on PostgreSQL 17. Requires explicit opt-in plus independent server-authenticated quota outage, certified 11-dataset live copy, identity and lease evidence. Verifies original Firestore hashes, appeal/signature/permission copies and evaluation scores inside a serializable transaction before standby activation. Never mounted on a production route and remains disabled until trusted evidence is available. CI fixture regression passed; no QA Sparks or existing Production data changed.",
+  "reviewedAt": "2026-11-13T03:05:14.775Z",
+  "reason": "QA-only PostgreSQL Windows bridge composition now routes authenticated local server-to-server Evaluation reads and durable writes only when independent source proofs, signed active sessions and explicit service flags are present. Default read-only bridge behavior retained. CI confirms real loopback HTTP POST is accepted with server-owned verified identity and rejected for browser origins, mismatched idempotency, absent coordinator source or disabled writer. No Production cutover, QA Sparks, score, appeals, signatures or T&C changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -17,7 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
-    ".github/workflows/qa-postgres-preview-safety.yml": "fa2701b00b79baaca51230a257fb538d2f5e99eaef21ff2772d7beaef60c79cf",
+    ".github/workflows/qa-postgres-preview-safety.yml": "c1bd38e38c5108768509a822fe4c05d0f204b1889c45c3612a5bbd46d92f0a13",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -811,6 +811,8 @@
     "migration/qa-local-domain-replica.sql": "f6a78642513eb9b03d1fda97ada95802aaadecca745c4d0fe276eb663ae4a03f",
     "scripts/test-qa-standby-domain-seed-integration.mjs": "af9692426cee5ef1614c16618876b17180ea8df3a2830ff04b63afb08d403e91",
     "server/qaStandbyActivation.js": "41a0e8965e9040044b9cf8e2bf817dbc75a79dae2520c8195d0089ac366c2dd6",
-    "scripts/test-qa-standby-activation-integration.mjs": "7c1ea26bcf956e7f960d327838887ac833fac10a27c15effcba6b0775793ed63"
+    "scripts/test-qa-standby-activation-integration.mjs": "7c1ea26bcf956e7f960d327838887ac833fac10a27c15effcba6b0775793ed63",
+    "server/qaStandbyBridgeRuntime.js": "57d82cbfd045005e1938c1d59d6bd6c5cafd1a8154ef21d065e2e49e99a5f2e3",
+    "scripts/test-qa-standby-bridge-runtime.mjs": "3e5021171d99337a5b417218b76dd4b1f260248b8aceba91f5325e07b421263a"
   }
 }
