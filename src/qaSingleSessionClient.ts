@@ -9,6 +9,7 @@ export type QaServerSessionResponse = {
   ok: boolean;
   status?: "active" | "conflict" | "pending" | "ready" | "none" | "flush_required" | "logged_out" | "retry_login" | "revoked" | "already_revoked" | "cleared";
   code?: string;
+  identity?: { username: string; role: string };
   deviceLabel?: string;
   pendingId?: string;
   deadline?: string;
@@ -17,6 +18,16 @@ export type QaServerSessionResponse = {
   revision?: number;
   savedAt?: string;
 };
+
+/** A stored browser role is never proof of QA authorization. */
+export function matchesTrustedQaIdentity(
+  account: { username: string; role: string } | null | undefined,
+  server: QaServerSessionResponse,
+): boolean {
+  if (!account || !server.ok || server.status !== "active" || !server.identity) return false;
+  return account.username.trim().toLowerCase() === server.identity.username.trim().toLowerCase() &&
+    account.role.trim().toLowerCase() === server.identity.role.trim().toLowerCase();
+}
 
 export class QaServerSessionError extends Error {
   readonly status: number;
