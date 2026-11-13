@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T10:29:34.358Z",
-  "reason": "QA Backup & Failover preview now provides a read-only Backup Status tab under QA Work for Quality Assurance users. This does not grant System Setup, Maintenance, case data, score write, or production failover permissions. Preview-only API remains fail-closed.",
+  "reviewedAt": "2026-11-13T10:34:54.177Z",
+  "reason": "QA Backup Status read-only QA Work navigation preserved; corrected exact QA Access Check build-time anchor ordering. No permission elevation or QA score writes; Firestore remains primary.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -538,7 +538,7 @@
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
     "src/announcementStore.ts": "d1e36a47931a337e5e041511d97c75fec14228e56815770091daee546b6d80e6",
     "src/announcementTicker.css": "a50df53eca311d493d8c4214748e77dc3f2d094ff5f798334b34921069af55e8",
-    "src/App.tsx": "66370487f4718c3e9da9a7cdacbd7ffb9d74d445b24d79db5d8143e5a65a22d6",
+    "src/App.tsx": "b76e935df8aef7a0c1fe9518826d64141c0fe755c73c686b2fcf1059e8ec507c",
     "src/appealActionHistory.ts": "58bb0ab1b18eba2a26d2b2a7c601fc6ff2256770dd7890a4fdcba42d3684b864",
     "src/appealActionPdfHtml.ts": "08e44105d875c45b6048f7494f9cef1ba6c568a68c9e7e0481c7587931724e4f",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
