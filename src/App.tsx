@@ -6829,7 +6829,11 @@ export default function App() {
           }
         }
       } catch (error) {
-        if (!cancelled && error instanceof QaServerSessionError &&
+        if (error instanceof QaServerSessionError && error.code === "QA_OTHER_TABS_OPEN") {
+          // Retry after the extra tab is closed; never acknowledge an
+          // all-drafts-saved takeover while a second tab still holds its lease.
+          lastPendingId = "";
+        } else if (!cancelled && error instanceof QaServerSessionError &&
             (error.code === "SESSION_REPLACED" || error.code === "SESSION_EXPIRED")) {
           clearLocalSession("บัญชีนี้ถูกย้ายไปใช้งานบน Browser อื่น กรุณาเข้าสู่ระบบใหม่");
         } else {
