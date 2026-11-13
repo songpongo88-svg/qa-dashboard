@@ -131,6 +131,7 @@ export async function getSparksRequestActor() {
     const cookies = parseCookies(ctx.req);
     let token = cookies.get(ACCESS_COOKIE) || "";
     let actor;
+    let refreshedSession = null;
     try {
       actor = await verifySparksAccessToken(token);
     } catch (error) {
@@ -143,9 +144,12 @@ export async function getSparksRequestActor() {
       if (!session?.access_token || !session?.refresh_token) throw failure("Session refresh failed", 401);
       token = session.access_token;
       actor = await verifySparksAccessToken(token);
-      setCookies(ctx.res, session);
+      refreshedSession = session;
     }
     await enforceSparksQaSessionBinding(actor, ctx.req);
+    // A refreshed JWT is not enough to extend browser login after takeover.
+    // Persist rotated tokens only after the QA session binding succeeds.
+    if (refreshedSession) setCookies(ctx.res, refreshedSession);
     ctx.actor = actor;
     ctx.accessToken = token;
     return actor;
