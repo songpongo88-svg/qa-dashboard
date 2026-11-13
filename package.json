@@ -127,7 +127,7 @@
     "test:all-item-history": "node scripts/test-all-item-history.mjs",
     "test:agent-ranking-chat-badge": "node ./scripts/test-agent-ranking-chat-badge.mjs",
     "test:qa-local-failover-safety": "node scripts/test-qa-cron-preview-proxy.mjs && node scripts/test-qa-local-bridge.mjs && node scripts/test-qa-failover-decision.mjs && node --check server/qaStandbyPgJournal.js && node --check server/qaStandbyReplayWorker.js && node --check server/qaStandbyRead.js && node --check scripts/test-qa-standby-journal-integration.mjs && node --check scripts/test-qa-standby-replay-integration.mjs && node --check scripts/test-qa-standby-read-integration.mjs",
-    "test:spark-quest-announcement": "node ./scripts/test-spark-quest-announcement.mjs"
+    "test:spark-quest-announcement": "node ./scripts/test-spark-quest-announcement.mjs && node ./scripts/test-spark-quest-popup.mjs"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.2.4",

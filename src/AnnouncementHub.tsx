@@ -1401,6 +1401,7 @@ function AnnouncementWorkspace({
   return (
     <>
       <SparkQuestAnnouncementPopup username={currentUsername}
+        sessionId={currentUser.sessionId || ""}
         blocked={!shortcutVisible || hubOpen || Boolean(popupMessage)}
         onJoin={() => { setHubOpen(false); onNavigateToSparks(); }}/>
       {/* data-announcement-media-spotlight-v4 */}
