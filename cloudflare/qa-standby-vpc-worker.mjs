@@ -20,10 +20,9 @@ function checkDigest(a,b){
   return diff===0;
 }
 const validInteger=x=>Number.isSafeInteger(x)&&x>=0;
-async function authorized(auth,env){
+async function authorized(auth,expected){
   if(typeof auth!=='string'||!auth.startsWith('Bearer ')||
     auth.length<47||auth.length>560)return false;
-  const expected=env?.QA_EDGE_BEARER_SHA256;
   if(typeof expected!=='string'||!/^[0-9a-f]{64}$/.test(expected))return false;
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(auth.slice(7)));
   const hex=new Uint8Array(digest);
@@ -71,13 +70,17 @@ async function forwardQaData(request,env,url){
   if(request.headers.get('origin'))
     return reply(403,{ok:false,error:'browser_origin_forbidden'});
   const tokenHeader=request.headers.get('authorization');
-  if(typeof env?.QA_EDGE_BEARER_SHA256!=='string'||!/^[0-9a-f]{64}$/.test(env.QA_EDGE_BEARER_SHA256))
-    return reply(503,{ok:false,error:'edge_not_configured'});
-  if(!await authorized(tokenHeader,env))
+  // The archive-only token must never grant a capability to submit cases.
+  // The QA data service has an independently pinned private VPC binding.
+  if(typeof env?.QA_EDGE_DATA_BEARER_SHA256!=='string'||
+     !/^[0-9a-f]{64}$/.test(env.QA_EDGE_DATA_BEARER_SHA256)||
+     env.QA_EDGE_DATA_BEARER_SHA256===env.QA_EDGE_BEARER_SHA256)
+    return reply(503,{ok:false,error:'edge_data_not_configured'});
+  if(!await authorized(tokenHeader,env.QA_EDGE_DATA_BEARER_SHA256))
     return reply(403,{ok:false,error:'forbidden'});
   const session=request.headers.get('x-qa-user-session');
   if(!SESSION.test(session||''))return reply(403,{ok:false,error:'session_not_provided'});
-  if(!env?.QA_PRIVATE_HTTP_VPC||typeof env.QA_PRIVATE_HTTP_VPC.fetch!=='function')
+  if(!env?.QA_PRIVATE_DATA_VPC||typeof env.QA_PRIVATE_DATA_VPC.fetch!=='function')
     return reply(503,{ok:false,error:'private_service_not_configured'});
   let data=null;
   if(action==='POST'){
@@ -101,8 +104,8 @@ async function forwardQaData(request,env,url){
   }
   try{
     const signal=AbortSignal.timeout(8000);
-    const upstream=await env.QA_PRIVATE_HTTP_VPC.fetch(
-      'http://127.0.0.1:8788'+url.pathname+url.search,{
+    const upstream=await env.QA_PRIVATE_DATA_VPC.fetch(
+      'http://127.0.0.1:8790'+url.pathname+url.search,{
         method:action,
         headers:{
           authorization:tokenHeader,
@@ -156,7 +159,7 @@ export default {
       url.search||url.hash)return reply(404,{ok:false,error:'not_found'});
     if(!env?.QA_EDGE_BEARER_SHA256||!/^[0-9a-f]{64}$/.test(env.QA_EDGE_BEARER_SHA256))
       return reply(503,{ok:false,error:'edge_not_configured'});
-    if(!await authorized(request.headers.get('authorization'),env))
+    if(!await authorized(request.headers.get('authorization'),env.QA_EDGE_BEARER_SHA256))
       return reply(403,{ok:false,error:'forbidden'});
     if(!env?.QA_PRIVATE_HTTP_VPC||typeof env.QA_PRIVATE_HTTP_VPC.fetch!=='function')
       return reply(503,{ok:false,error:'private_service_not_configured'});
