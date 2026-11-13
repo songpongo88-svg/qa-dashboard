@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T11:08:20.127Z",
+  "reviewedAt": "2026-11-13T11:12:37.592Z",
   "reason": "Reviewed QA Sparks login-triggered announcement behavior: fresh QA secure session shows unfinished fruit or journey promo, same-session dismissal and refresh suppress repeats, both quests completed suppresses popup, wallet authorization failures fail closed, existing urgent announcements take priority. Updated QA Sparks guide and popup regression tests.",
   "contentChanged": true,
   "reviewedChapters": [
@@ -774,7 +774,7 @@
     "scripts/test-spark-journey.mjs": "b0376e8eb90bad15be25e0db3cfb2b09c1ffcb6bc8f9721102e09cdd5cc0b8d9",
     "src/SparkQuestAnnouncement.tsx": "333e77826b70eaca6fa4b234ccbc800e1d0b6843b9d2c7ef11b868bda4336fb9",
     "src/SparkQuestAnnouncement.css": "34fa16e0a07be77e8d580d87c7fb6475a603b83ea9e8faa8a89305dc4395f841",
-    "scripts/test-spark-quest-announcement.mjs": "718331f2eb33dc8dded87e7801879cb7da82d539d5dd8f78b7b625fc13a0e14c",
+    "scripts/test-spark-quest-announcement.mjs": "d5c176961b227cf5d7d433a18c680d6cfdf99acb04adf48f5f38fc66d5c11db0",
     "scripts/test-spark-quest-popup.mjs": "27a9f13ad5931fc921422ad9d11870599d0095a890cd77c4590018288fb8a499"
   }
 }
