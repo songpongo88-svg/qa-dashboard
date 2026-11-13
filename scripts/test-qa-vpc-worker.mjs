@@ -114,7 +114,7 @@ await forbid(await call(snapshotPath),403);
 await forbid(await call(snapshotPath,{authorization:'Bearer '+token},'POST'),405);
 await forbid(await call(snapshotPath+'?case=private',{authorization:'Bearer '+token}),404);
 await forbid(await call(snapshotPath,{authorization:'Bearer '+token}),503);
-let snapshotOk=true, privateSnapshotCalls=0;
+let snapshotOk=false, privateSnapshotCalls=0;
 const snapshotBinding={
   ...env,
   QA_PRIVATE_DATA_VPC:{
