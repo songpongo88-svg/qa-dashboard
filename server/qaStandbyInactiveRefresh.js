@@ -61,17 +61,16 @@ export async function refreshQaInactiveReplica({
        !count(batch.source_documents)||!count(batch.stored_documents)||
        Number(batch.source_documents)!==Number(batch.stored_documents))
       throw BLOCK('inactive_refresh_unverified_snapshot');
+    const elapsed=now-time(batch.source_exported_at);
+    if(!Number.isFinite(elapsed)||elapsed<0||elapsed>15*60_000)
+      throw BLOCK('inactive_refresh_snapshot_stale');
     const oldBatch=(await c.query(
       'SELECT source_exported_at FROM qa_failover_v1.live_snapshot_batches'+
       ' WHERE snapshot_id=$1 FOR SHARE',[prev]
     )).rows?.[0];
     if(!oldBatch||!Number.isFinite(time(oldBatch.source_exported_at))||
-       !Number.isFinite(time(batch.source_exported_at))||
        time(batch.source_exported_at)<=time(oldBatch.source_exported_at))
       throw BLOCK('inactive_refresh_source_not_newer');
-    const elapsed=now-time(batch.source_exported_at);
-    if(!Number.isFinite(elapsed)||elapsed<0||elapsed>15*60_000)
-      throw BLOCK('inactive_refresh_snapshot_stale');
     const manifest=batch.dataset_manifest,byName=new Map(Array.isArray(manifest)?
       manifest.map(x=>[x?.dataset,x]):[]);
     if(!Array.isArray(manifest)||manifest.length!==QA_SYNC_DATASETS.length||
