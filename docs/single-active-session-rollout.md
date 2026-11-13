@@ -33,3 +33,34 @@
 
 ## Deployment status
 This is a **draft PR**, not a finished deployed feature. Never merge or expose the new feature flags while the blockers above remain. Do not apply the obsolete Supabase-only RPC prototype; it was removed in favor of the server-owned Firebase Admin adapter.
+
+
+## Firebase Auth bridge staged for browser-side Security Rules
+- The existing QA workspace previously used unauthenticated Firebase SDK writes; a Vercel-only preflight cannot prevent a replaced browser from writing directly.
+- The new `firebase-token` action calls `authorizeActiveSession(req)` **before** signing a Firebase Auth custom token. The signed token carries `qa_username`, `qa_session_id`, and `qa_role`; the issuer stays on the server.
+- Browser login and restore call `signInWithCustomToken` and verify UID plus claims before opening the legacy Firestore workspace. Logout and failed restore sign out from Firebase Auth.
+- `qa_single_session_active/{username}` now stores `expiresAtEpochMs` (integer epoch milliseconds), refreshed by login, takeover and activity renewal.
+- **NOT YET ENFORCED IN FIREBASE:** The repository has no deployed Firestore or Cloud Storage Rules configuration, and this feature branch does not change live rules. A token is not revocation by itself.
+
+### Required Firestore Rules predicate (illustrative, not deployable alone)
+
+The existing deployed rules must be audited and permissive overlapping `allow` statements **replaced**, not supplemented: Firestore grants if *any* matching `allow` is true.
+
+```
+function currentQaSession() {
+  return request.auth != null
+    && request.auth.token.qa_username is string
+    && request.auth.token.qa_session_id is string
+    && request.auth.uid == "qa-" + request.auth.token.qa_username
+    && exists(/databases/$(database)/documents/qa_single_session_active/$(request.auth.token.qa_username))
+    && get(/databases/$(database)/documents/qa_single_session_active/$(request.auth.token.qa_username)).data.sessionId
+       == request.auth.token.qa_session_id
+    && get(/databases/$(database)/documents/qa_single_session_active/$(request.auth.token.qa_username)).data.expiresAtEpochMs is int
+    && request.time < timestamp.value(
+         get(/databases/$(database)/documents/qa_single_session_active/$(request.auth.token.qa_username)).data.expiresAtEpochMs);
+}
+```
+
+This rule helper must be incorporated into **every sensitive QA write** while retaining explicitly vetted read and anonymous password-recovery permissions. Cloud Storage uploads need equivalent authenticated authorization. Verify rules with emulator tests for: current browser allowed; replaced browser denied; expired session denied; anonymous mutation denied; incomplete profile/password recovery still works; rules access-call quota; and a protected rollback. `get()` calls incur Firestore reads, so budget performance carefully before enabling globally.
+
+No `main` merge or Production flags until Security Rules, two-browser authentication, draft/evidence recovery, Firebase quota, 4 pending legacy accounts and live rollback checks pass.
