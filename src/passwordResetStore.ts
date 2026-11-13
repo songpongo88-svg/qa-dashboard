@@ -85,8 +85,9 @@ export async function fetchStoredPasswordResetRequests() {
   }
 }
 
+// Password recovery must remain available before login. The server should
+// rate-limit unauthenticated requests separately; do not demand a live session.
 export async function createStoredPasswordResetRequest(request: StoredPasswordResetRequest) {
-  await assertTrustedQaSessionForMutation();
   const now = new Date().toISOString();
   const normalizedStatus = normalizeStatus(request.status);
   const row = {
