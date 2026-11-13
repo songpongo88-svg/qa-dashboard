@@ -12,5 +12,11 @@
       "path": "/api/cron/sparks-profile-reconcile",
       "schedule": "15 11 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/qa-single-session",
+      "destination": "/api/sparks-auth?__qa_single_session=1"
+    }
   ]
 }
