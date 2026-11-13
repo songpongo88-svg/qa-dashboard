@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import handler from "../server/qaSingleSessionEndpoint.js";
-import { signQaTicket, verifyQaTicket, visibleSessionState } from "../server/qaSingleSessionAdmin.js";
+import { signQaTicket, verifyQaTicket, visibleSessionState, issueSessionCookie } from "../server/qaSingleSessionAdmin.js";
 
 
 // Vercel Hobby capacity: QA session routing reuses one existing serverless function.
@@ -49,6 +49,18 @@ assert.equal(verifyQaTicket(signed, "session", privateKey, now + 30_001), null);
 assert.equal(verifyQaTicket(signed.slice(0, -3) + "xyz", "session", privateKey, now), null);
 assert.equal(verifyQaTicket("", "session", privateKey, now), null);
 assert.equal(verifyQaTicket("", "session"), null);
+// Cookie rotation must revoke the short-lived takeover candidate ticket.
+const responseHeaders = { setHeader(name, value) { this[name] = value; } };
+process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = JSON.stringify({
+  project_id: "qa-dashboard-b0b5d", private_key: privateKey,
+});
+issueSessionCookie(responseHeaders, { username: "agent", role: "Quality Assurance" },
+  "123e4567-e89b-12d3-a456-426614174000");
+assert.equal(responseHeaders["Set-Cookie"].length, 2);
+assert.match(responseHeaders["Set-Cookie"][0], /^__Host-qa_single_session=/);
+assert.match(responseHeaders["Set-Cookie"][1], /^__Host-qa_login_candidate=;.*Max-Age=0/);
+delete process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
+
 assert.equal(visibleSessionState({ expiresAt: new Date(now + 30_000).toISOString(),
   deviceLabel: "Chrome" }, now).status, "conflict");
 assert.equal(visibleSessionState({ expiresAt: new Date(now - 30_000).toISOString() }, now).status, "none");
