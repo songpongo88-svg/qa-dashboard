@@ -66,6 +66,8 @@ on:
       - "server/qaStandbyArchiveStatus.js"
       - "server/qaLiveMirrorStage.js"
       - "server/qaSourceDeltaJournal.js"
+      - "server/qaSourceDeltaHttpHandler.js"
+      - "scripts/test-qa-source-delta-http-handler.mjs"
       - "migration/qa-source-delta-journal.sql"
       - "scripts/test-qa-source-delta-journal.mjs"
       - "scripts/test-qa-source-delta-journal-integration.mjs"
@@ -209,6 +211,8 @@ jobs:
           node --check server/qaStandbyArchiveStatus.js
           node --check server/qaLiveMirrorStage.js
           node --check server/qaSourceDeltaJournal.js
+          node --check server/qaSourceDeltaHttpHandler.js
+          node --check scripts/test-qa-source-delta-http-handler.mjs
           node --check scripts/test-qa-source-delta-journal.mjs
           node --check scripts/test-qa-source-delta-journal-integration.mjs
           node --check server/qaFirestoreRestSnapshot.js
@@ -269,6 +273,7 @@ jobs:
           node scripts/test-qa-failover-decision.mjs
           node scripts/test-qa-firestore-rest-snapshot.mjs
           node scripts/test-qa-source-delta-journal.mjs
+          node scripts/test-qa-source-delta-http-handler.mjs
           node scripts/test-qa-standby-snapshot-readiness.mjs
           node scripts/test-qa-vpc-readiness.mjs
           node scripts/test-qa-firestore-snapshot-codec.mjs
