@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T08:08:13.371Z",
-  "reason": "Reviewed Evaluation browser-only recovery instructions and staged single-session security flow; not enabled for production",
+  "reviewedAt": "2026-11-13T09:00:00.000Z",
+  "reason": "Reviewed Evaluation browser-only recovery and quota protection session cadence; draft only, production disabled",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation"
@@ -75,7 +75,7 @@
     "build/dynamicRolesAdminWorkspacePatch.js": "661e502f90b92ff669afc7cb1c09398234b3695c4c2663d02515d72e86d8d604",
     "build/evaluationAgentFocusPopupPatch.js": "f1ac67626646f9996161fe70514f2aee7899ae35ba73585d9bdf1d12d474498b",
     "build/finalSignedPdfDateFormatPatch.js": "69c7073d0c42d9f1d3f1bd7314c108b99d265245829c0c410d06810a26f9b535",
-    "build/firestoreQuotaProtectionPatch.js": "e29faeb14a4829fcfd56b1711ab653bd299fc608ee3cfee02e4af517203c7c2b",
+    "build/firestoreQuotaProtectionPatch.js": "f28d40afafae9fea8c75fbf81a721c53b79093a5a11d9a9d1d3a9617f88ad5f6",
     "build/hideAppealReviewSummaryPatch.js": "9b577ce7b2797d67f44760d6b1bbf18961651f80344fc5ea7654687fe0c6680e",
     "build/investigationFindingsPatch.js": "c10da3f19b17bba45bd49bd011d0308bc00264e59524662516d9726f02e1c79e",
     "build/officialPdfStandardsPatch.js": "d1f3f38ea5981963928325919f58ae18cd62f561cccaed6e4079c4c81dc8ec23",
