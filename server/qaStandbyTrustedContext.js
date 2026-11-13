@@ -116,6 +116,8 @@ export function createQaStandbyTrustedContextFactory({
 
     return Object.freeze({
       mode:'server-approved-failover',
+      sourceSnapshotId:state.active_snapshot_id,
+      coordinatorGeneration:Number(state.generation),
       production:true,
       productionApprovedByServer:true,
       serverAuthority:'qa-server-verified',
