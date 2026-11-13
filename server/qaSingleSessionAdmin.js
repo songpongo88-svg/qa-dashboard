@@ -189,6 +189,36 @@ async function auditedMutation(kind, username, row, updateTime, actorSessionId, 
   }
   if (!result.ok) throw fail("QA session and audit could not be saved", 503, "SESSION_AUDIT_UNAVAILABLE");
 }
+// Firestore REST Write has no verify-only operation. To atomically block
+// stale sessions, re-write the current session row with its updateTime CAS in
+// the SAME commit as the draft mutation. A takeover invalidates this CAS.
+async function commitDraftUnderActiveSession(username, current, draftId, draftRow, draftUpdateTime) {
+  if (!current?.updateTime) throw fail("Missing session version", 409, "SESSION_RACE");
+  const normalized = normalizeQaUsername(username);
+  if (!normalized) throw fail("Invalid account", 400);
+  const sessionName = RESOURCE + SESSION_COLLECTION + "/" + encodeURIComponent(normalized);
+  const draftName = RESOURCE + DRAFT_COLLECTION + "/" + encodeURIComponent(draftId);
+  const snapshot = { ...current };
+  delete snapshot.updateTime;
+  const first = { update: { name: sessionName, fields: fieldsFor(snapshot) },
+    currentDocument: { updateTime: current.updateTime } };
+  const second = draftRow === null
+    ? { delete: draftName, currentDocument: { updateTime: draftUpdateTime } }
+    : { update: { name: draftName, fields: fieldsFor(draftRow) },
+        currentDocument: draftUpdateTime ? { updateTime: draftUpdateTime } : { exists: false } };
+  const response = await fetch(RESOURCE.slice(0, -1) + ":commit", {
+    method: "POST", cache: "no-store", signal: AbortSignal.timeout(10_000),
+    headers: {
+      Authorization: "Bearer " + await googleAccessToken(),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ writes: [first, second] }),
+  });
+  if ([400, 409, 412].includes(response.status)) {
+    throw fail("Session changed before draft was saved", 409, "SESSION_RACE");
+  }
+  if (!response.ok) throw fail("Draft could not be persisted", 503, "DRAFT_BACKEND_UNAVAILABLE");
+}
 function activeNow(row, now = Date.now()) {
   return Boolean(row && Number.isFinite(Date.parse(row.expiresAt)) &&
     Date.parse(row.expiresAt) > now);
@@ -237,7 +267,7 @@ export async function getTakeoverForOldBrowser(req) {
     deadline: current.pendingDeadline };
 }
 export async function saveOwnedDraft(req, documentKey, revision, snapshot) {
-  const { ticket } = await authorizeActiveSession(req);
+  const { ticket, current } = await authorizeActiveSession(req);
   if (!/^[a-zA-Z0-9._-]{2,90}$/.test(documentKey || "") ||
       !Number.isSafeInteger(revision) || revision < 0 ||
       !snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
@@ -248,11 +278,11 @@ export async function saveOwnedDraft(req, documentKey, revision, snapshot) {
   const id = ticket.username + "_" + documentKey.toLowerCase();
   const previous = await rest("GET", DRAFT_COLLECTION, id);
   if (previous && previous.revision > revision) throw fail("Newer draft exists", 409);
-  const updated = await rest("PATCH", DRAFT_COLLECTION, id,
+  const savedAt = new Date().toISOString();
+  await commitDraftUnderActiveSession(ticket.username, current, id,
     { username: ticket.username, sessionId: ticket.sessionId, documentKey,
-      revision, snapshot: serialized, savedAt: new Date().toISOString() },
-    previous?.updateTime || null);
-  return { revision: updated.revision, savedAt: updated.savedAt };
+      revision, snapshot: serialized, savedAt }, previous?.updateTime || null);
+  return { revision, savedAt };
 }
 export async function acknowledgeTakeover(req, pendingId, documentKey, revision) {
   const { ticket, current } = await authorizeActiveSession(req);
@@ -294,12 +324,12 @@ export async function revokeOwnSession(req) {
   await auditedMutation("delete", ticket.username, null, current.updateTime, ticket.sessionId, "logout");
 }
 export async function clearOwnedDraft(req, documentKey) {
-  const { ticket } = await authorizeActiveSession(req);
+  const { ticket, current } = await authorizeActiveSession(req);
   if (!/^[a-zA-Z0-9._-]{2,90}$/.test(documentKey || "")) throw fail("Invalid draft", 400);
   const id = ticket.username + "_" + documentKey.toLowerCase();
   const draft = await rest("GET", DRAFT_COLLECTION, id);
   if (!draft) return { status: "cleared" };
-  await rest("DELETE", DRAFT_COLLECTION, id, null, draft.updateTime);
+  await commitDraftUnderActiveSession(ticket.username, current, id, null, draft.updateTime);
   return { status: "cleared" };
 }
 function requireOwner(actor) {
