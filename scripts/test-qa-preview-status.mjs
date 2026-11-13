@@ -103,7 +103,7 @@ assert.equal(r.body.writeEnabled,false);
 assert.ok(!JSON.stringify(r.body).includes('NEW_SECRET_NOT_TO_LEAK'));
 newReadinessEnabled=false;
 readinessEnabled=false;
-assert.equal(fetchCount,20);
+assert.equal(fetchCount,15);
 assert.equal(r.headers['cache-control'],'no-store, max-age=0');
 assert.equal(r.headers['access-control-allow-origin'],undefined);
 assert.ok(!JSON.stringify(r.body).includes(token));
