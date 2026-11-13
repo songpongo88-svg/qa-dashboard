@@ -102,7 +102,8 @@ try {
   const { default: Panel } = await import(pathToFileURL(output).href);
   const render = key => act(async () => root.render(React.createElement(Panel, { key, actorUsername: "test-admin", sessionId: "admin-test-session", ownAccount: null })));
   await render("normal");
-  assert.equal(document.querySelectorAll("[data-sparks-admin-section]").length, 4);
+  assert.equal(document.querySelectorAll("[data-sparks-admin-section]").length, 5);
+  assert.ok(section("auth"), "owner authentication status tab is available");
   assert.equal(section("requests").getAttribute("aria-pressed"), "true");
   assert.equal(count("list-reward-queues"), 0, "queues load only on explicit click");
   assert.equal(count("get-truemoney-price"), 0, "price does not read on requests page");
