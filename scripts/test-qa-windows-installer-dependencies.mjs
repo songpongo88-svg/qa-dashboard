@@ -34,7 +34,12 @@ async function closure(path,allowed,seen=new Set()){
   }
 }
 await closure('server/qaLocalBridgeServer.js',names.map(x=>'server/'+x));
-await closure('scripts/Run-QA-Authoritative-Snapshot-Stage.mjs',stagePaths);
+// The installed Windows launcher stays PINNED to the previous fully-reviewed
+// runner; its existing file list and hash MUST remain unchanged. The NEW
+// daily-budget importer has one additional module and will require a separate
+// reviewed Windows installer after the additive SQL ledger migration.
+await closure('scripts/Run-QA-Authoritative-Snapshot-Stage.mjs',
+  [...stagePaths,'server/qaSourceReadBudget.js']);
 await closure('scripts/check-qa-source-stage-preflight.mjs',stagePaths);
 assert.match(launcher,/\$repoCommit\s*=\s*'[a-f0-9]{40}'/);
 assert.match(source,/\$pinnedCommit\s*=\s*'[a-f0-9]{40}'/);
