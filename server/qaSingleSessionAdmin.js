@@ -279,6 +279,48 @@ export async function clearOwnedDraft(req, documentKey) {
   await rest("DELETE", DRAFT_COLLECTION, id, null, draft.updateTime);
   return { status: "cleared" };
 }
+function requireOwner(actor) {
+  if (actor.ticket.username !== "songpon" || actor.ticket.role !== "Quality Assurance") {
+    throw fail("Only the QA owner may manage other user sessions", 403, "SESSION_ADMIN_FORBIDDEN");
+  }
+}
+
+export async function listSessionsForOwner(req) {
+  const actor = await authorizeActiveSession(req);
+  requireOwner(actor);
+  const url = new URL(RESOURCE + SESSION_COLLECTION);
+  url.searchParams.set("pageSize", "100");
+  const response = await fetch(url, {
+    method: "GET", cache: "no-store", signal: AbortSignal.timeout(10_000),
+    headers: { Authorization: "Bearer " + await googleAccessToken() },
+  });
+  if (!response.ok) throw fail("Cannot read QA sessions", 503, "SESSION_BACKEND_UNAVAILABLE");
+  const data = await response.json();
+  const now = Date.now();
+  return (Array.isArray(data.documents) ? data.documents : []).map(row => {
+    const session = parseFields(row.fields);
+    return {
+      username: String(session.username || ""),
+      deviceLabel: String(session.deviceLabel || "Unknown browser"),
+      createdAt: String(session.createdAt || ""),
+      expiresAt: String(session.expiresAt || ""),
+      active: activeNow(session, now),
+      pendingTakeover: Boolean(session.pendingId && Date.parse(session.pendingDeadline) > now),
+    };
+  }).filter(row => Boolean(row.username)).sort((a, b) => a.username.localeCompare(b.username));
+}
+
+export async function revokeSessionForOwner(req, targetUsername) {
+  const actor = await authorizeActiveSession(req);
+  requireOwner(actor);
+  const username = normalizeQaUsername(targetUsername);
+  if (!username) throw fail("Invalid target account", 400);
+  const current = await readActive(username);
+  if (!current) return { status: "already_revoked" };
+  await deleteActive(username, current.updateTime);
+  await audit(username, actor.ticket.sessionId, "admin_revoke");
+  return { status: "revoked" };
+}
 export async function fetchOwnedDraft(req, documentKey) {
   const { ticket } = await authorizeActiveSession(req);
   if (!/^[a-zA-Z0-9._-]{2,90}$/.test(documentKey || "")) throw fail("Invalid draft", 400);
