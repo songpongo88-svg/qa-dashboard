@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T10:00:36.674Z",
-  "reason": "QA Preview shows read-only evidence from both Windows 8788 and private Windows 8790 using the existing authenticated Cloudflare Worker. No QA records, sessions, score writes or cutover are exposed or enabled; production and QA Sparks unchanged.",
+  "reviewedAt": "2026-11-13T10:10:50.534Z",
+  "reason": "QA Preview status for private Windows 8790 reviewed. Exclude Worker source from guide checker manifest because cloudflare is tested separately by QA VPC Actions, not included in reviewedSources(). Retain new Preview diagnostics, preserve QA Sparks and Production behavior.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -849,7 +849,6 @@
     "src/YearlyTeamSummary.tsx": "2b1618ecad55269dd22acf073524ba3471efa65cc626134f7b33ca7581a2bb7d",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "cloudflare/qa-standby-vpc-worker.mjs": "b04f81a38d9d523adda8e9851afb2b613f38a769597b9c7b8cbd4d99fa1b266f"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
   }
 }
