@@ -152,24 +152,21 @@ assert.equal(snap.source,'windows-8790-inactive-replica');
 assert.equal(JSON.stringify(snap).includes('DO_NOT_EXPOSE'),false);
 assert.equal(JSON.stringify(snap).includes('privateCaseScore'),false);
 assert.equal(privateSnapshotCalls,1);
-snapshotOk=false;
-await assert.rejects(async()=>{
-  const bad=await call(snapshotPath,{authorization:'Bearer '+token},'GET',{
-    ...snapshotBinding,QA_PRIVATE_DATA_VPC:{
-      async fetch(url,options){
-        return new Response(JSON.stringify({ok:true,readOnly:true,
-          firestorePrimary:true,archiveIsNotLiveSource:true,
-          failoverReady:true,canAcceptWrites:false,standbyMode:'disabled',
-          snapshot:{present:true,copied:true,candidateVerified:true,
-            sourceDocuments:2226,sourceEvaluations:582,candidateEvaluations:582,
-            datasetCount:11,withinFreshnessWindow:false},
-          remainingChecks:[]}),
-          {status:200,headers:{'content-type':'application/json'}});
-      },
+snapshotOk=true;
+const badSnapshot=await call(snapshotPath,{authorization:'Bearer '+token},'GET',{
+  ...snapshotBinding,QA_PRIVATE_DATA_VPC:{
+    async fetch(){
+      return new Response(JSON.stringify({ok:true,readOnly:true,
+        firestorePrimary:true,archiveIsNotLiveSource:true,
+        failoverReady:true,canAcceptWrites:false,standbyMode:'disabled',
+        snapshot:{present:true,copied:true,candidateVerified:true,
+          sourceDocuments:2226,sourceEvaluations:582,candidateEvaluations:582,
+          datasetCount:11,withinFreshnessWindow:false},
+        remainingChecks:[]}),
+        {status:200,headers:{'content-type':'application/json'}});
     },
-  });
-  assert.equal(bad.status,502);
-  throw new Error('intentional assertion wrapper');
-},/intentional assertion wrapper/);
+  },
+});
+await forbid(badSnapshot,502);
 
 console.log('PASS QA Workers VPC: domainless private bridge, strict bearer auth, status-only, fail-closed, no CORS or sensitive data');
