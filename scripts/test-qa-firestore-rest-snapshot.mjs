@@ -92,4 +92,27 @@ assert.equal(budgeted.readBudgetReceipt.documentReadEstimate,12);
 assert.equal(budgeted.readBudgetReceipt.apiRequests,12);
 assert.equal(budgetPages.at(-1),'1','bound last request to remaining document budget');
 assert.ok(!JSON.stringify(budgeted).includes(token));
+// Durable reservation callback is awaited BEFORE every Firestore GET.
+// A rejected reservation cannot reach Firestore or return a partial export.
+let authorizations=0,sourceGets=0;
+await assert.rejects(captureQaFirestorePointInTime({
+  ...args,
+  beforeRequest:async ({requestedPageSize,dataset,apiRequestNumber})=>{
+    authorizations++;
+    assert.ok(QA_SYNC_DATASETS.includes(dataset));
+    assert.ok(Number.isSafeInteger(requestedPageSize));
+    assert.equal(apiRequestNumber,authorizations);
+    if(authorizations===3)throw Object.assign(new Error('source_daily_budget_exhausted'),
+      {code:'source_daily_budget_exhausted'});
+  },
+  fetchImpl:(url,options)=>{sourceGets++;return service(url,options);},
+}),e=>e.code==='source_daily_budget_exhausted');
+assert.equal(authorizations,3);
+assert.equal(sourceGets,2,'denied request must never consume source reads');
+sourceGets=0;
+await assert.rejects(captureQaFirestorePointInTime({
+  ...args,beforeRequest:'not-a-function',
+  fetchImpl:()=>{sourceGets++;throw new Error('should never call');},
+}),e=>e.code==='source_read_reserver_invalid');
+assert.equal(sourceGets,0);
 console.log('PASS QA Firestore source: all required QA collections at fixed readTime, paginated, aborts on quota/duplicates, no secrets or writes');
