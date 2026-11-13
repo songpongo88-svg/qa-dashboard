@@ -91,11 +91,8 @@ assert.equal(application.split("await activateQaFirebaseIdentity();").length - 1
   "Firebase Auth must bind on fresh login and restored Login");
 assert.ok(application.includes("void clearQaFirebaseIdentity().catch(() => {});"),
   "QA logout and unrecoverable sessions must sign out from Firebase Auth");
-assert.equal(sessionBackendPlaceholder(), true);
-
-function sessionBackendPlaceholder() {
-  // Firestore rules require numeric expiration, not a text-only ISO time.
-  return true;
-}
+const activeSessionBackend = await readFile(new URL("../server/qaSingleSessionAdmin.js", import.meta.url), "utf8");
+assert.equal(activeSessionBackend.split("expiresAtEpochMs: Date.now() + TTL_MS").length - 1, 3,
+  "Login, Takeover and renewal must update the rule-verifiable expiry");
 
 console.log("QA critical mutation preflight checks passed");
