@@ -174,8 +174,8 @@ export async function saveStoredSignatureDocument(docId: string, entries: Stored
   );
 }
 
-export async function saveStoredSignatureConfirm(docId: string, confirmedAt: string, options: {
-  await assertTrustedQaSessionForMutation(); expectedRevision: string; confirmedBy?: string }) {
+export async function saveStoredSignatureConfirm(docId: string, confirmedAt: string, options: { expectedRevision: string; confirmedBy?: string }) {
+  await assertTrustedQaSessionForMutation();
   if (typeof options?.expectedRevision !== "string") throw new MonthlyResultLockCheckError();
   const canonicalDocId = canonicalSignatureDocId(docId);
   const separator = canonicalDocId.indexOf("::");
