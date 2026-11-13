@@ -44,6 +44,9 @@ assert.equal(source.metadata.manifests.length,QA_SYNC_DATASETS.length);
 assert.equal(source.metadata.immutableSnapshotVerified,true);
 assert.equal(source.metadata.allCollectionsIncluded,true);
 assert.equal(calls.length,QA_SYNC_DATASETS.length+1);
+assert.equal(source.readBudgetReceipt.apiRequests,QA_SYNC_DATASETS.length+1);
+assert.equal(source.readBudgetReceipt.documentReadEstimate,QA_SYNC_DATASETS.length+1);
+assert.equal(source.readBudgetReceipt.maxDocumentReads,3000);
 assert.equal(calls[1].cursor,'fixture-next-page');
 assert.equal(calls.every(row=>QA_SYNC_DATASETS.includes(row.collection)),true);
 const pages=await source.readCollection('qa_evaluations');
@@ -62,4 +65,31 @@ failure=null;
 await assert.rejects(captureQaFirestorePointInTime({...args,
   readTime:new Date(Date.now()-2*3600000).toISOString()}),
   e=>e.code==='read_time_outside_verified_window');
+// Test absolute per-run ceilings. No attempted query may exceed limits,
+// and incomplete 11-dataset snapshots must never be accepted.
+calls=[];failure=null;
+await assert.rejects(captureQaFirestorePointInTime({...args,maxDocumentReads:11}),
+  e=>e.code==='firestore_snapshot_read_budget_exhausted');
+assert.equal(calls.length,11,'never issue read 12 when budget allows 11');
+calls=[];
+await assert.rejects(captureQaFirestorePointInTime({...args,maxApiRequests:11}),
+  e=>e.code==='firestore_snapshot_read_budget_exhausted');
+assert.equal(calls.length,11,'never issue request 12 when budget allows 11');
+calls=[];
+await assert.rejects(captureQaFirestorePointInTime({...args,maxDocumentReads:10}),
+  e=>e.code==='snapshot_read_budget_invalid');
+assert.equal(calls.length,0,'invalid budget must fail before any read');
+let budgetPages=[];
+const budgeted=await captureQaFirestorePointInTime({
+  ...args,maxDocumentReads:12,maxApiRequests:12,
+  fetchImpl:(url,options)=>{
+    budgetPages.push(new URL(url).searchParams.get('pageSize'));
+    return service(url,options);
+  },
+});
+assert.equal(budgeted.sourceCount,2);
+assert.equal(budgeted.readBudgetReceipt.documentReadEstimate,12);
+assert.equal(budgeted.readBudgetReceipt.apiRequests,12);
+assert.equal(budgetPages.at(-1),'1','bound last request to remaining document budget');
+assert.ok(!JSON.stringify(budgeted).includes(token));
 console.log('PASS QA Firestore source: all required QA collections at fixed readTime, paginated, aborts on quota/duplicates, no secrets or writes');
