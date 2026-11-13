@@ -3924,6 +3924,7 @@ export default function App() {
   const [takeoverUser, setTakeoverUser] = useState<CurrentUser | null>(null);
   const [takeoverStatus, setTakeoverStatus] = useState("awaiting_consent");
   const [takeoverBusy, setTakeoverBusy] = useState(false);
+  const lastTrustedSessionTouchRef = useRef(0);
   const [loginStep, setLoginStep] = useState<"username" | "password">("username");
   const [loginUsernameStatus, setLoginUsernameStatus] = useState<
     "idle" | "checking" | "valid" | "invalid"
@@ -6839,6 +6840,16 @@ export default function App() {
     if (!currentUser) return;
 
     const now = Date.now();
+    if (QA_SINGLE_SESSION_CLIENT_ENABLED && now - lastTrustedSessionTouchRef.current >= 25 * 60 * 1000) {
+      lastTrustedSessionTouchRef.current = now;
+      void qaServerSessionRequest("touch").catch(error => {
+        lastTrustedSessionTouchRef.current = 0;
+        if (error instanceof QaServerSessionError &&
+            (error.code === "SESSION_REPLACED" || error.code === "SESSION_EXPIRED")) {
+          clearLocalSession("Session นี้หมดอายุหรือถูกย้ายไปยัง Browser อื่น");
+        }
+      });
+    }
     if (
       currentUser.sessionId &&
       now - lastSessionTouchRef.current >= SESSION_TOUCH_INTERVAL_MS
