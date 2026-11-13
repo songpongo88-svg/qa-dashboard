@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import handler from "../api/qa-single-session.js";
 import { signQaTicket, verifyQaTicket, visibleSessionState } from "../server/qaSingleSessionAdmin.js";
@@ -11,6 +12,20 @@ function response() {
     json(value) { this.body = value; return this; },
   };
 }
+
+// A Firestore Commit write requires a relative document resource name,
+// NOT the full https://firestore.googleapis.com REST URL.
+const sessionBackend = await readFile(new URL("../server/qaSingleSessionAdmin.js", import.meta.url), "utf8");
+assert.ok(sessionBackend.includes('const DOCUMENT_PATH = "projects/"'), "Firestore Commit path must be relative");
+assert.ok(sessionBackend.includes("const sessionName = DOCUMENT_PATH + SESSION_COLLECTION"),
+  "Session CAS must use a Firestore resource name");
+assert.ok(sessionBackend.includes("const auditName = DOCUMENT_PATH + AUDIT_COLLECTION"),
+  "Atomic session audit must use a Firestore resource name");
+assert.ok(sessionBackend.includes("const draftName = DOCUMENT_PATH + DRAFT_COLLECTION"),
+  "Atomic draft write must use a Firestore resource name");
+assert.ok(sessionBackend.includes("currentDocument: { updateTime: current.updateTime }"),
+  "Draft commit must reject a session version that changed");
+
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048,
   privateKeyEncoding: { format: "pem", type: "pkcs8" },
   publicKeyEncoding: { format: "pem", type: "spki" },
