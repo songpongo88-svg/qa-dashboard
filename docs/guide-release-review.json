@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T10:39:47.155Z",
-  "reason": "Reviewed interactive QA Sparks 2026 announcement: corporate navy/gold media-style artwork, login-once popup and permanent Inbox entry, same-tab authenticated Sparks navigation, Bangkok expiry and no automatic reward claim.",
+  "reviewedAt": "2026-11-13T10:44:04.036Z",
+  "reason": "Verified QA Sparks clickable 2026 campaign poster and Inbox card: the full visual is keyboard/click navigable, only the intended button or card triggers navigation once, and per-user display expires on Bangkok Dec 25.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -772,8 +772,8 @@
     "src/SparkJourneyModal.css": "b80c802f51a665d125078270d96936312d6407c1f9fbeb9eaf77c17953d11119",
     "src/SparksWelcomeQuests.tsx": "d54135af2897b390843268a1ac022aad8df3ba7484c8c959f21e80e5a0f2fca2",
     "scripts/test-spark-journey.mjs": "b0376e8eb90bad15be25e0db3cfb2b09c1ffcb6bc8f9721102e09cdd5cc0b8d9",
-    "src/SparkQuestAnnouncement.tsx": "3b2a5121ec182d5d7af4beb5c995b48ddc6fadc8294115feea396af0c621b3d5",
-    "src/SparkQuestAnnouncement.css": "91188b17bdfbfcfbf353cdf365fb33532d7a546a3a4db2bf289afadc349aaaa4",
-    "scripts/test-spark-quest-announcement.mjs": "ff790ac692a5b3cb3963d8eed047f4c067f733c56ecba75a3ae74caa5ec06991"
+    "src/SparkQuestAnnouncement.tsx": "c4fb3866b325e84b0301bf58a7d649e4259f997ef27b3394fc3354d2030279e2",
+    "src/SparkQuestAnnouncement.css": "34fa16e0a07be77e8d580d87c7fb6475a603b83ea9e8faa8a89305dc4395f841",
+    "scripts/test-spark-quest-announcement.mjs": "50071a1a3eb7c0bf2dd07d5a60b6c29b03d655bc385104b718c041bf6df5f83c"
   }
 }
