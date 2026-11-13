@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T08:20:41.469Z",
+  "reviewedAt": "2026-11-13T08:08:13.371Z",
   "reason": "Reviewed Evaluation browser-only recovery instructions and staged single-session security flow; not enabled for production",
   "contentChanged": true,
   "reviewedChapters": [
