@@ -64,7 +64,7 @@ export default async function handler(req, res) {
         });
       }
       if (body.action !== "exchange") return res.status(400).json({ error: "Invalid Sparks authentication request" });
-      const actor = await exchangeSparksAuthTokens(res, body);
+      const actor = await exchangeSparksAuthTokens(res, body, req);
       return res.status(200).json({ ok: true, actor });
     }
     if (req.method === "DELETE") {
