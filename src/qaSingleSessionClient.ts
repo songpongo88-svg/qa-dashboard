@@ -24,7 +24,7 @@ export function matchesTrustedQaIdentity(
   account: { username: string; role: string } | null | undefined,
   server: QaServerSessionResponse,
 ): boolean {
-  if (!account || !server.ok || server.status !== "active" || !server.identity) return false;
+  if (!account || !server.ok || !["active", "conflict"].includes(String(server.status)) || !server.identity) return false;
   return account.username.trim().toLowerCase() === server.identity.username.trim().toLowerCase() &&
     account.role.trim().toLowerCase() === server.identity.role.trim().toLowerCase();
 }
