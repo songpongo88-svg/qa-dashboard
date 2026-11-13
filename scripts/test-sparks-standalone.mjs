@@ -39,8 +39,10 @@ assert.match(entry,/qa:sparks:supabase-login:/,"verified standalone users retain
 assert.match(sparks,/data-sparks-supabase-optin="true"/,"embedded Sparks exposes opt-in to every staff member");
 assert.match(sparks,/data-sparks-employee-email-login="true"/,"OTP remains in the existing dashboard tab");
 assert.ok(sparks.includes("setVerifiedActor(actor)"),"only verified server identity opens the wallet");
-assert.ok(sparks.includes('import FirstLoginSparksModal from "./FirstLoginSparksModal"'),
-  "standalone Sparks portal must render the same first-login reward after verification");
+assert.ok(sparks.includes('import SparksWelcomeQuests, { SPARKS_WELCOME_OPEN_EVENT } from "./SparksWelcomeQuests"'),
+  "standalone Sparks portal must render fruit and journey welcome rewards after verification");
+assert.match(read("src/SparksWelcomeQuests.tsx"), /FirstLoginSparksModal/, "fruit reward stays available until claimed");
+assert.match(read("src/SparksWelcomeQuests.tsx"), /SparkJourneyModal/, "journey reward follows fruit independently");
 assert.doesNotMatch(read("src/App.tsx"),/<FirstLoginSparksModal/,
   "QA Dashboard login must not grant or attempt Sparks first-login before verification");
 assert.ok(read("src/App.tsx").includes('data-sparks-direct-login-link="true"'),
