@@ -7678,8 +7678,10 @@ export default function App() {
       description: "พื้นที่ทำงานและการประสานงานของทีม",
       items: [
         { key: "schedule", label: "SCH", description: "ดูตารางกะรายเดือน กะวันนี้ และ OT พร้อมอัปโหลด Excel", icon: "clock", allowed: true, active: activeWorkspaceTab === "schedule", onClick: () => activateWorkspaceTab("schedule") },
-        { key: "call-history", label: "Calls", description: "ดูประวัติสายเข้า สายออก สายพลาด และสายที่จบแล้ว", icon: "phone", allowed: teamChatAllowed, active: activeWorkspaceTab === "call-history", onClick: () => activateWorkspaceTab("call-history") },
-        { key: "team-chat", label: "Chat", description: "สนทนาในห้องทีม ส่งข้อความส่วนตัว ไฟล์ และ Call Invite", icon: "chat", allowed: teamChatAllowed, active: activeWorkspaceTab === "team-chat", onClick: () => activateWorkspaceTab("team-chat"), badge: totalChatUnreadCount },
+        ...(CHAT_FEATURE_ENABLED ? [
+          { key: "call-history", label: "Calls", description: "ดูประวัติสายเข้า สายออก สายพลาด และสายที่จบแล้ว", icon: "phone", allowed: teamChatAllowed, active: activeWorkspaceTab === "call-history", onClick: () => activateWorkspaceTab("call-history") },
+          { key: "team-chat", label: "Chat", description: "สนทนาในห้องทีม ส่งข้อความส่วนตัว ไฟล์ และ Call Invite", icon: "chat", allowed: teamChatAllowed, active: activeWorkspaceTab === "team-chat", onClick: () => activateWorkspaceTab("team-chat"), badge: totalChatUnreadCount },
+        ] : []),
         { key: "task-inbox", label: "Inbox", description: "ดูงานใหม่ ผล QA การแจ้งเตือน และงานตรวจสอบ", icon: "queue", allowed: true, active: activeWorkspaceTab === "task-inbox", onClick: openTaskInbox, badge: unreadInboxTaskCount },
       ],
     },
