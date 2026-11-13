@@ -1,3 +1,4 @@
+import qaSessionEndpoint from "../server/qaSingleSessionEndpoint.js";
 import {
   withSparksRequest, getSparksRequestActor, exchangeSparksAuthTokens, clearSparksAuthCookies,
   sparksProfileSyncStatus, sparksOwnerAuthStatus, getVerifiedSparksAccessToken,
@@ -5,6 +6,9 @@ import {
 import { getSparksAccessState, invalidateSparksAccessState } from "../server/sparksAccessControl.js";
 
 export default async function handler(req, res) {
+  // Reuse this deployment function for the separately authenticated QA session API.
+  // Dedicated rewrite adds the marker; regular Sparks auth traffic remains unchanged.
+  if (String(req.query?.__qa_single_session || "") === "1") return qaSessionEndpoint(req, res);
   res.setHeader("Cache-Control", "no-store, private");
   res.setHeader("X-Content-Type-Options", "nosniff");
   const site = String(req.headers?.["sec-fetch-site"] || "");
