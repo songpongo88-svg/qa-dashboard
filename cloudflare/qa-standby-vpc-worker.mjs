@@ -147,10 +147,50 @@ async function forwardQaData(request,env,url){
   }
 }
 
+// Read-only, authenticated proof that the SECOND VPC binding reaches Windows
+// loopback:8790. Never relays sessions, cases, record data, or POST requests.
+// This can be verified before separately authorizing any data/write capability.
+async function checkQaDataPortReady(request,env,url){
+  if(request.method!=='GET')return reply(405,{ok:false,error:'method_not_allowed'},'GET');
+  if(url.search||url.hash)return reply(404,{ok:false,error:'not_found'});
+  if(!env?.QA_EDGE_BEARER_SHA256||
+     !/^[a-f0-9]{64}$/.test(env.QA_EDGE_BEARER_SHA256))
+    return reply(503,{ok:false,error:'edge_not_configured'});
+  if(!await authorized(request.headers.get('authorization'),env.QA_EDGE_BEARER_SHA256))
+    return reply(403,{ok:false,error:'forbidden'});
+  if(!env?.QA_PRIVATE_DATA_VPC||
+     typeof env.QA_PRIVATE_DATA_VPC.fetch!=='function')
+    return reply(503,{ok:false,error:'private_data_port_not_bound'});
+  try{
+    const upstream=await env.QA_PRIVATE_DATA_VPC.fetch(
+      'http://127.0.0.1:8790/ready',{
+        method:'GET',redirect:'manual',
+        headers:{authorization:request.headers.get('authorization'),accept:'application/json'},
+        signal:AbortSignal.timeout(5000),
+      });
+    if(!upstream||upstream.status!==200||
+       !(upstream.headers.get('content-type')||'').toLowerCase().includes('application/json'))
+      return reply(502,{ok:false,error:'private_data_port_unreachable'});
+    const raw=await upstream.text();
+    if(raw.length>16384)return reply(502,{ok:false,error:'invalid_private_bridge_response'});
+    const state=JSON.parse(raw);
+    if(state?.ok!==true||state.readOnly!==true||
+       state.databaseConnected!==true||state.failoverReady!==false)
+      return reply(502,{ok:false,error:'private_data_port_not_read_only'});
+    return reply(200,{ok:true,privateBridgeConnected:true,
+      port:8790,readOnly:true,failoverReady:false,
+      check:'private-network-reachability-only'});
+  }catch{
+    return reply(502,{ok:false,error:'private_data_port_unreachable'});
+  }
+}
+
 export default {
   async fetch(request,env){
     let url;
     try{url=new URL(request.url);}catch{return reply(400,{ok:false,error:'invalid_request'});}
+    if(url.pathname==='/qa-bridge-8790-status')
+      return checkQaDataPortReady(request,env,url);
     if(url.pathname.startsWith('/v1/qa/evaluations')){
       return forwardQaData(request,env,url);
     }
