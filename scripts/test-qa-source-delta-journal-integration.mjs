@@ -50,6 +50,9 @@ try{
   const conflict=event('conflict',-60000);
   assert.equal((await appendQaSourceDelta({pool,event:conflict,attestSourceEvent:attest})).outcome,
     'conflict');
+  assert.equal((await appendQaSourceDelta({pool,event:conflict,
+    attestSourceEvent:attest})).outcome,'conflict',
+    'quarantined conflicts must not become acknowledged duplicates on retry');
   // PostgreSQL must preserve both distinct revisions inside the same ms.
   const micro1=event('micro1',-30001,{
     sourceChangedAt:at(-30001).replace(/\.(\d{3})Z$/,'.$1'+'100Z'),

@@ -118,7 +118,7 @@ export default {
    if(receivedResult?.ok!==true||receivedResult?.stored!==true||
       receivedResult?.failoverReady!==false||
       receivedResult?.canAcceptWrites!==false||
-      !['applied','duplicate','stale','conflict'].includes(receivedResult.outcome))
+      !['applied','duplicate','stale'].includes(receivedResult.outcome))
     return reply(503,'private_delivery_unconfirmed');
    // Only acknowledge Cloud Tasks after Windows explicitly acknowledged the
    // PostgreSQL transaction. Never return any case/session payload upstream.

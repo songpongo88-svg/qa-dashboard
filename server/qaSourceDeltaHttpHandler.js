@@ -96,6 +96,10 @@ export function createQaSourceDeltaHttpHandler({
       if(!outcome?.journaled||!['applied','duplicate','stale','conflict']
         .includes(outcome.outcome)||outcome.canAcceptWrites!==false)
         throw fail('qa_delta_private_journal_refused');
+      // A conflicting same-revision event is quarantined in PostgreSQL.
+      // Never ACK it to Cloud Tasks: retry and independently reconcile.
+      if(outcome.outcome==='conflict')
+        return json(res,503,{ok:false,error:'source_delta_conflict_requires_reconciliation'});
       // Do not return case payload, document paths, session data or scores.
       return json(res,202,{ok:true,stored:true,
         outcome:outcome.outcome,failoverReady:false,canAcceptWrites:false});

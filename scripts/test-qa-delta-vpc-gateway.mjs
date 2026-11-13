@@ -91,6 +91,9 @@ upstreamStatus=202;upstreamContent={ok:true,stored:true,
  outcome:'applied',failoverReady:true,canAcceptWrites:true};
 assert.equal((await request()).status,503);
 upstreamContent={ok:true,stored:true,
+ outcome:'conflict',failoverReady:false,canAcceptWrites:false};
+assert.equal((await request()).status,503,'conflicted source must never ACK to Cloud Tasks');
+upstreamContent={ok:true,stored:true,
  outcome:'duplicate',failoverReady:false,canAcceptWrites:false};
 response=await request();
 assert.equal(response.status,202);

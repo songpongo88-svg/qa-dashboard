@@ -58,6 +58,11 @@ assert.equal((await request({payload:'broken json'})).status,400);
 assert.equal((await request({payload:JSON.stringify({
   ...example,documentPath:'qa_sparks/other'})})).status,422);
 assert.equal(seen,1,'untrusted or invalid data must not reach any db adapter');
+const conflictHandler=createQaSourceDeltaHttpHandler({secret,now:()=>clock,
+ recordVerifiedEvent:async()=>({journaled:true,outcome:'conflict',canAcceptWrites:false})});
+const conflictResponse=await request({handlerFn:conflictHandler});
+assert.equal(conflictResponse.status,503);
+assert.equal(conflictResponse.body.error,'source_delta_conflict_requires_reconciliation');
 const down=createQaSourceDeltaHttpHandler({secret,now:()=>clock,
   recordVerifiedEvent:async()=>{throw Error('test-secret-never-show-in-response');}});
 const denied=await request({handlerFn:down});

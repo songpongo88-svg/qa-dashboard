@@ -106,7 +106,7 @@ export async function appendQaSourceDelta({pool,event,attestSourceEvent,now=Date
     const previousEvent=(await c.query('SELECT snapshot_id,document_path,operation,'+
       "to_char(source_changed_at AT TIME ZONE 'UTC',"+
       "'YYYY-MM-DD"+'"'+"T"+'"'+"HH24:MI:SS.US"+'"'+"Z"+'"'+"') AS source_changed_at_exact,"+
-      'content_hash FROM qa_failover_v1.source_delta_events'+
+      'content_hash,outcome FROM qa_failover_v1.source_delta_events'+
       ' WHERE event_id=$1 FOR UPDATE',[incoming.eventId])).rows?.[0];
     if(previousEvent){
       if(previousEvent.snapshot_id!==incoming.snapshotId||
@@ -116,7 +116,9 @@ export async function appendQaSourceDelta({pool,event,attestSourceEvent,now=Date
          previousEvent.source_changed_at_exact!==incoming.sourceChangedAt)
         fail('qa_delta_event_id_collision');
       await c.query('COMMIT');tx=false;
-      return Object.freeze({journaled:true,outcome:'duplicate',canAcceptWrites:false});
+      return Object.freeze({journaled:true,
+        outcome:previousEvent.outcome==='conflict'?'conflict':'duplicate',
+        canAcceptWrites:false});
     }
     const previous=(await c.query("SELECT event_id,to_char(source_changed_at AT TIME ZONE 'UTC',"+
       "'YYYY-MM-DD"+'"'+"T"+'"'+"HH24:MI:SS.US"+'"'+"Z"+'"'+"') AS source_changed_at_exact FROM"+
