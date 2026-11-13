@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T08:25:35.034Z",
+  "reviewedAt": "2026-11-13T08:25:59.597Z",
   "reason": "Reviewed Evaluation browser-only recovery instructions and staged single-session security flow; not enabled for production",
   "contentChanged": true,
   "reviewedChapters": [
@@ -389,6 +389,7 @@
     "scripts/test-qa-lottery-items.mjs": "5f778891951cc7637fbf6a5927de6df17b96a3c4ac6db719665e4f043e39ceff",
     "scripts/test-qa-lottery-popup.mjs": "41062b43193d967b2beba1357616030c5e888f684950af35577a48d1da8e799b",
     "scripts/test-qa-lottery.mjs": "da84c88e74687a6528d262bab3f087ec7820d5d2c2aa312e162073276bf2bc93",
+    "scripts/test-qa-server-credentials.mjs": "9c3d0c20c02c2a3a08fecee43414f3f372882330d9f9aaaf8bff6cd07ea77a8d",
     "scripts/test-qa-sparks-item-shelves.mjs": "22c89bfb45656dfda5518a9ba9755c86aeae95df29ed379fb8f1fbbd11c9daea",
     "scripts/test-qa-sparks-member-levels.mjs": "16f17ee151eff7935b11c84827ee4abf8164865e8ab2a40298640a1a60791305",
     "scripts/test-qa-sparks-member-ui.mjs": "63b8347872729693c32e3bdf63423376d197e37a951f2bfb6e201eac60e15efd",
