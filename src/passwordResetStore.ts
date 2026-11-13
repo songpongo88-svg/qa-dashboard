@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 import { collection, doc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 
@@ -85,6 +86,7 @@ export async function fetchStoredPasswordResetRequests() {
 }
 
 export async function createStoredPasswordResetRequest(request: StoredPasswordResetRequest) {
+  await assertTrustedQaSessionForMutation();
   const now = new Date().toISOString();
   const normalizedStatus = normalizeStatus(request.status);
   const row = {
@@ -111,6 +113,7 @@ export async function updateStoredPasswordResetRequest(
   requestId: string,
   updates: Partial<StoredPasswordResetRequest>
 ) {
+  await assertTrustedQaSessionForMutation();
   const now = new Date().toISOString();
   const row = {
     ...updates,
