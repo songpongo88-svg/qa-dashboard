@@ -28,4 +28,13 @@ for (const [file, functions] of expectations) {
       file + ": unguarded mutation " + name);
   }
 }
+const application = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const takeoverEffect = application.split("// Server-backed takeover requests are checked independently")[1]?.split("  const startSessionTimers = () => {")[0] || "";
+assert.ok(takeoverEffect.includes('document.visibilityState !== "visible"'),
+  "Hidden tabs must not repeatedly poll the session backend");
+assert.ok(takeoverEffect.includes('window.setInterval(() => void checkTakeover(), 10_000)'),
+  "Takeover checks should be quota-aware and within the 30-second save window");
+assert.ok(takeoverEffect.includes('document.addEventListener("visibilitychange", onVisible)'),
+  "Visible sessions must promptly resume takeover checks");
+
 console.log("QA critical mutation preflight checks passed");
