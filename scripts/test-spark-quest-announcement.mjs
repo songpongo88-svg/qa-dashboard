@@ -15,6 +15,8 @@ assert.match(art, /Welcome Fruit Reward/);
 assert.match(art, /The Spark Journey/);
 assert.match(art, /data-spark-quest-join="true"/);
 assert.match(art, /data-spark-quest-inbox-join="true"/);
+assert.match(art, /role="link" tabIndex=\{0\}/, "the artwork itself must be clickable");
+assert.match(art, /closest\("button"\)/, "button clicks must not navigate twice");
 assert.match(art, /markDismissed\(username\)/);
 assert.match(art, /localStorage/);
 assert.doesNotMatch(art, /claimSparkJourneySparks|claimFirstLoginSparks|Math\.random\(/, "merely clicking the announcement must not award Sparks");
