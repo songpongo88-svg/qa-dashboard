@@ -69,4 +69,42 @@ assert.equal(unsafeKeys.includes('user-secret'),false);
 assert.equal(unsafeKeys.includes('privateAgentName'),false);
 responseBody={...responseBody,sourceDocumentCount:-1};
 await forbid(await call('/summary',{authorization:'Bearer '+token}),502);
+// The new 8790 route requires the separate VPC binding and never enables data.
+const dataStatus='/qa-bridge-8790-status';
+await forbid(await call(dataStatus),403);
+await forbid(await call(dataStatus,{authorization:'Bearer '+token},'POST'),405);
+await forbid(await call(dataStatus+'?debug=1',{authorization:'Bearer '+token}),404);
+await forbid(await call(dataStatus,{authorization:'Bearer '+token}),503);
+const dataCalls=[];
+const secondary={
+  async fetch(url,options){
+    dataCalls.push(url);
+    assert.equal(url,'http://127.0.0.1:8790/ready');
+    assert.equal(options.method,'GET');
+    assert.equal(options.headers.authorization,'Bearer '+token);
+    return new Response(JSON.stringify({
+      ok:true,readOnly:true,databaseConnected:true,failoverReady:false,
+      privateCaseData:'never-leak',
+    }),{status:200,headers:{'content-type':'application/json'}});
+  },
+};
+let vpc=await call(dataStatus,{authorization:'Bearer '+token},'GET',
+  {...env,QA_PRIVATE_DATA_VPC:secondary});
+assert.equal(vpc.status,200);
+const vpcBody=await vpc.json();
+assert.equal(vpcBody.privateBridgeConnected,true);
+assert.equal(vpcBody.readOnly,true);
+assert.equal(vpcBody.failoverReady,false);
+assert.equal(vpcBody.port,8790);
+assert.equal(JSON.stringify(vpcBody).includes('never-leak'),false);
+assert.deepEqual(dataCalls,['http://127.0.0.1:8790/ready']);
+assert.equal(upstreamCalls,5); // Only archive probes have used the old binding.
+await forbid(await call(dataStatus,{authorization:'Bearer '+token},'GET',{
+  ...env,QA_PRIVATE_DATA_VPC:{
+    async fetch(){return new Response(JSON.stringify({
+      ok:true,readOnly:true,databaseConnected:true,failoverReady:true,
+    }),{status:200,headers:{'content-type':'application/json'}});}
+  },
+}),502);
+
 console.log('PASS QA Workers VPC: domainless private bridge, strict bearer auth, status-only, fail-closed, no CORS or sensitive data');
