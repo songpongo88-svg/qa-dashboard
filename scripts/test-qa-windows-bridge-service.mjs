@@ -89,16 +89,20 @@ try{
   assert.equal(r.status,403);
 }finally{await readonly.shutdown();}
 assert.equal(readPool.ended,true);
+// A new port avoids Undici reusing a keep-alive socket from the closed
+// read-only fixture while the write-capable candidate starts.
+const dataPort=await freePort();
+const enabledIsolated={...enabled,QA_LOCAL_STANDBY_PORT:String(dataPort)};
 const verified=await createQaWindowsBridgeServer({
-  ...props,env:enabled,injectPools:{readPool:{...readPool,ended:false},writePool},
+  ...props,env:enabledIsolated,injectPools:{readPool:{...readPool,ended:false},writePool},
 });
 assert.equal(verified.dataEnabled,true);
 assert.equal(verified.writesEnabled,false);
 try{
-  let r=await fetch('http://127.0.0.1:'+port+'/v1/qa/evaluations',
+  let r=await fetch('http://127.0.0.1:'+dataPort+'/v1/qa/evaluations',
     {headers:{authorization:'Bearer '+token}});
   assert.equal(r.status,403,'archive token cannot access private QA data route');
-  r=await fetch('http://127.0.0.1:'+port+'/v1/qa/evaluations',
+  r=await fetch('http://127.0.0.1:'+dataPort+'/v1/qa/evaluations',
     {headers:{authorization:'Bearer '+dataToken}});
   assert.equal(r.status,403,'a real QA user session is mandatory');
 }finally{await verified.shutdown();}
