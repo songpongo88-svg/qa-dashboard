@@ -108,7 +108,7 @@
     "test:firestore-quota": "node ./scripts/test-firestore-quota-controls.mjs && node ./scripts/test-sparks-admin-session.mjs",
     "test:fruit-match": "node ./scripts/test-fruit-match.mjs && node ./scripts/test-fruit-match-ui.mjs",
     "test:spark-journey": "node ./scripts/test-spark-journey.mjs",
-    "test:spark-quest-announcement": "node ./scripts/test-spark-quest-announcement.mjs",
+    "test:spark-quest-announcement": "node ./scripts/test-spark-quest-announcement.mjs && node ./scripts/test-spark-quest-popup.mjs",
     "test:qa-lottery": "node ./scripts/test-qa-lottery.mjs && node ./scripts/test-qa-lottery-popup.mjs && node ./scripts/test-qa-lottery-items.mjs",
     "test:special-rewards": "node ./scripts/test-special-rewards.mjs && node ./scripts/test-receipt-recognition.mjs && node ./scripts/test-receipt-first-ui.mjs",
     "test:qa-sparks-item-shelves": "node ./scripts/test-qa-sparks-item-shelves.mjs",
