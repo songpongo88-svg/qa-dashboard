@@ -74,6 +74,8 @@ on:
       - "scripts/test-qa-delta-ingester-role-integration.mjs"
       - "scripts/test-qa-google-task-attestor.mjs"
       - "cloudflare/qa-delta-vpc-gateway.mjs"
+      - "cloud/qa-firestore-delta-producer/**"
+      - "scripts/test-qa-cloud-event-producer.mjs"
       - "scripts/test-qa-delta-vpc-gateway.mjs"
       - "scripts/test-qa-source-delta-http-handler.mjs"
       - "migration/qa-source-delta-journal.sql"
@@ -226,6 +228,9 @@ jobs:
           node --check scripts/test-qa-delta-ingester-role-integration.mjs
           node --check scripts/test-qa-google-task-attestor.mjs
           node --check cloudflare/qa-delta-vpc-gateway.mjs
+          node --check cloud/qa-firestore-delta-producer/producer.mjs
+          node --check cloud/qa-firestore-delta-producer/index.mjs
+          node --check scripts/test-qa-cloud-event-producer.mjs
           node --check scripts/test-qa-delta-vpc-gateway.mjs
           node --check scripts/test-qa-source-delta-http-handler.mjs
           node --check scripts/test-qa-source-delta-journal.mjs
@@ -265,6 +270,10 @@ jobs:
           node --check scripts/test-qa-standby-archive-status.mjs
           node --check scripts/test-qa-standby-replay-integration.mjs
           node --check scripts/test-qa-standby-full-failback-integration.mjs
+      - name: Isolated Eventarc protobuf smoke (no Google credentials)
+        run: |
+          npm install --prefix cloud/qa-firestore-delta-producer --ignore-scripts --no-package-lock --no-audit --no-fund
+          node scripts/test-qa-cloud-event-proto.mjs
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-bridge.mjs
@@ -292,6 +301,7 @@ jobs:
           node scripts/test-qa-google-task-attestor.mjs
           node scripts/test-qa-windows-delta-receiver.mjs
           node scripts/test-qa-delta-vpc-gateway.mjs
+          node scripts/test-qa-cloud-event-producer.mjs
           node scripts/test-qa-standby-snapshot-readiness.mjs
           node scripts/test-qa-vpc-readiness.mjs
           node scripts/test-qa-firestore-snapshot-codec.mjs

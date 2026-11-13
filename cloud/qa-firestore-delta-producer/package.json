@@ -1,0 +1,17 @@
+{
+  "name": "qa-firestore-delta-producer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "functions-framework --target=qaFirestoreDeltaProducer --signature-type=cloudevent"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "5.0.5",
+    "@google-cloud/tasks": "7.1.0",
+    "protobufjs": "7.6.6"
+  }
+}
