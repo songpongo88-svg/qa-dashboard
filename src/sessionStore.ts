@@ -6,7 +6,7 @@ const SESSION_COLLECTION = "qa_user_sessions";
 const SESSION_CONTROL_COLLECTION = "qa_user_session_controls";
 
 export const SESSION_POLICY_VERSION = "qa-session-policy-2026-07-15-v1";
-export const SESSION_INACTIVITY_MS = 2 * 60 * 60 * 1000;
+export const SESSION_INACTIVITY_MS = 30 * 60 * 1000;
 
 export type SessionIdentity = {
   username: string;
