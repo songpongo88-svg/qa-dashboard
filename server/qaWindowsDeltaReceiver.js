@@ -58,8 +58,12 @@ export async function createQaWindowsDeltaReceiver({
    " has_table_privilege(current_user,'qa_failover_v1.state','SELECT') AS state_read,"+
    " has_table_privilege(current_user,'qa_failover_v1.state','UPDATE') AS state_write,"+
    " has_table_privilege(current_user,'qa_failover_v1.live_snapshot_batches','SELECT') AS baseline_read,"+
-   " has_table_privilege(current_user,'qa_failover_v1.source_delta_events','SELECT,INSERT,UPDATE') AS event_write,"+
-   " has_table_privilege(current_user,'qa_failover_v1.source_delta_latest','SELECT,INSERT,UPDATE') AS latest_write,"+
+   " has_table_privilege(current_user,'qa_failover_v1.source_delta_events','SELECT') AS event_read,"+
+   " has_table_privilege(current_user,'qa_failover_v1.source_delta_events','INSERT') AS event_insert,"+
+   " has_table_privilege(current_user,'qa_failover_v1.source_delta_events','UPDATE') AS event_update,"+
+   " has_table_privilege(current_user,'qa_failover_v1.source_delta_latest','SELECT') AS latest_read,"+
+   " has_table_privilege(current_user,'qa_failover_v1.source_delta_latest','INSERT') AS latest_insert,"+
+   " has_table_privilege(current_user,'qa_failover_v1.source_delta_latest','UPDATE') AS latest_update,"+
    " has_table_privilege(current_user,'qa_failover_v1.evaluations','INSERT,UPDATE,DELETE') AS case_write,"+
    " has_table_privilege(current_user,'qa_failover_v1.outbox','INSERT,UPDATE,DELETE') AS outbox_write"+
    " FROM pg_roles r WHERE r.rolname=current_user"
@@ -72,8 +76,10 @@ export async function createQaWindowsDeltaReceiver({
      rights.creates_role!==false||rights.creates_db!==false||
      rights.inherits_role!==false||
      rights.state_read!==true||rights.state_write!==false||
-     rights.baseline_read!==true||rights.event_write!==true||
-     rights.latest_write!==true||
+     rights.baseline_read!==true||rights.event_read!==true||
+     rights.event_insert!==true||rights.event_update!==true||
+     rights.latest_read!==true||rights.latest_insert!==true||
+     rights.latest_update!==true||
      rights.case_write!==false||rights.outbox_write!==false)
     fail('qa_delta_ingester_role_not_safe');
   const verifySource=sourceAttestor||createQaGoogleTaskAttestor({
