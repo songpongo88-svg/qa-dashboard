@@ -75,6 +75,8 @@ assert.equal(ctx.failover.identity.serverAuthenticated,true);
 assert.equal(ctx.failover.productionApprovedByServer,true);
 assert.deepEqual(ctx.authoritativeScope,{agentName:'Example Agent',monthKey:'2026-11'});
 assert.equal(ctx.authoritativeLocks.agentName,'Example Agent');
+assert.equal(ctx.sourceSnapshotId,'qa-source-20261113-01');
+assert.equal(ctx.coordinatorGeneration,2);
 assert.equal(ctx.editLease.valid,true);
 assert.equal(Object.isFrozen(ctx),true);
 assert.ok(readCount>=2);
