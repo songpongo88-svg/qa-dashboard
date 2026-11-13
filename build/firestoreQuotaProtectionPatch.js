@@ -151,19 +151,29 @@ export function firestoreQuotaProtectionPatch() {
 
       const oldActivate = `  const activateUserSession = async (user: CurrentUser) => {\n    try {\n      const session = await createStoredUserSession(user);\n      const authenticatedUser: CurrentUser = {\n        ...user,\n        sessionId: session.sessionId,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: session.expiresAt,\n      };\n\n      currentUserWasRestoredRef.current = false;\n      restoredLoginLoggedRef.current = true;\n      lastSessionTouchRef.current = Date.now();\n      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));\n      if (rememberLogin) {\n        localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);\n      } else {\n        localStorage.removeItem(REMEMBERED_USERNAME_KEY);\n      }\n      resetWorkspaceSessionState();\n      setCurrentUser(authenticatedUser);\n      return authenticatedUser;\n    } catch (error) {\n      console.error("Secure session creation failed", error);\n      setLoginError("Unable to create a secure session. Please try signing in again.");\n      return null;\n    }\n  };`;
       const newActivate = `  const activateUserSession = async (user: CurrentUser) => {\n    const finishLogin = (authenticatedUser: CurrentUser) => {\n      currentUserWasRestoredRef.current = false;\n      restoredLoginLoggedRef.current = true;\n      lastSessionTouchRef.current = Date.now();\n      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));\n      if (rememberLogin) {\n        localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);\n      } else {\n        localStorage.removeItem(REMEMBERED_USERNAME_KEY);\n      }\n      resetWorkspaceSessionState();\n      setCurrentUser(authenticatedUser);\n      return authenticatedUser;\n    };\n\n    try {\n      const session = await createStoredUserSession(user);\n      return finishLogin({\n        ...user,\n        sessionId: session.sessionId,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: session.expiresAt,\n      });\n    } catch (error) {\n      // Do not block staff from working only because the session-control write is temporarily unavailable.\n      console.warn("Central session creation unavailable; using local protected session.", error);\n      const expiresAt = new Date(Date.now() + INACTIVITY_LIMIT_MS).toISOString();\n      return finishLogin({\n        ...user,\n        sessionId: \`local-\${user.username}-\${Date.now()}\`,\n        sessionPolicyVersion: SESSION_POLICY_VERSION,\n        sessionExpiresAt: expiresAt,\n      });\n    }\n  };`;
-      next = replaceOrThrow(this, next, oldActivate, newActivate, "login session fallback");
+      const trustedQaSessionSource = next.includes("const activateUserSession = async (user: CurrentUser, verifiedPassword = \"\", serverAlreadyActive = false)") &&
+        next.includes("QA_SINGLE_SESSION_CLIENT_ENABLED");
+      if (!trustedQaSessionSource) {
+        next = replaceOrThrow(this, next, oldActivate, newActivate, "login session fallback");
+      }
+      // For a server-verified QA session, build-time quota fallbacks must never
+      // generate an unauthorised local login or bypass server validation.
 
       const oldRestoreCatch = `      } catch (error) {\n        console.error("Secure session restore failed", error);\n        localStorage.removeItem(STORAGE_KEY);\n        if (!cancelled) {\n          setCurrentUser(null);\n          setLoginError(\n            "The secure session could not be verified. Please sign in again."\n          );\n        }\n      } finally {`;
       const newRestoreCatch = `      } catch (error) {\n        // Firestore quota/network problems must not destroy a still-recent local work session.\n        console.warn("Central session restore unavailable; checking local session age.", error);\n        const loginAtMs = new Date(String(storedUser.loginAt || "")).getTime();\n        const localFallbackValid = Number.isFinite(loginAtMs) && Date.now() - loginAtMs < 12 * 60 * 60 * 1000;\n        if (localFallbackValid) {\n          if (!cancelled) {\n            lastSessionTouchRef.current = Date.now();\n            setCurrentUser(storedUser);\n            setLoginError("");\n          }\n        } else {\n          localStorage.removeItem(STORAGE_KEY);\n          if (!cancelled) {\n            setCurrentUser(null);\n            setLoginError("The secure session could not be verified. Please sign in again.");\n          }\n        }\n      } finally {`;
-      next = replaceOrThrow(this, next, oldRestoreCatch, newRestoreCatch, "session restore fail-open fallback");
+      if (!trustedQaSessionSource) {
+        next = replaceOrThrow(this, next, oldRestoreCatch, newRestoreCatch, "session restore fail-open fallback");
+      }
 
-      next = replaceOrThrow(
-        this,
-        next,
-        `      currentUser.sessionId &&\n      now - lastSessionTouchRef.current >= SESSION_TOUCH_INTERVAL_MS`,
-        `      currentUser.sessionId &&\n      !currentUser.sessionId.startsWith("local-") &&\n      now - lastSessionTouchRef.current >= SESSION_TOUCH_INTERVAL_MS`,
-        "local session touch guard"
-      );
+      if (!trustedQaSessionSource) {
+        next = replaceOrThrow(
+          this,
+          next,
+          `      currentUser.sessionId &&\n      now - lastSessionTouchRef.current >= SESSION_TOUCH_INTERVAL_MS`,
+          `      currentUser.sessionId &&\n      !currentUser.sessionId.startsWith("local-") &&\n      now - lastSessionTouchRef.current >= SESSION_TOUCH_INTERVAL_MS`,
+          "local session touch guard"
+        );
+      }
 
       const oldProgressCleanup = `  useEffect(() => {\n    const evaluatorUsername = String(currentUser?.username || "").trim();\n    if (!evaluatorUsername || activeTab === "create-evaluation") return;\n    void clearQaEvaluationProgressByEvaluator(evaluatorUsername).catch((error) =>\n      console.warn("QA evaluation progress evaluator cleanup failed", error)\n    );\n  }, [activeTab, currentUser?.username]);`;
       const newProgressCleanup = `  const previousEvaluationTabRef = useRef(activeTab);\n  useEffect(() => {\n    const evaluatorUsername = String(currentUser?.username || "").trim();\n    const previousTab = previousEvaluationTabRef.current;\n    previousEvaluationTabRef.current = activeTab;\n    if (!evaluatorUsername || previousTab !== "create-evaluation" || activeTab === "create-evaluation") return;\n    void clearQaEvaluationProgressByEvaluator(evaluatorUsername).catch((error) =>\n      console.warn("QA evaluation progress evaluator cleanup failed", error)\n    );\n  }, [activeTab, currentUser?.username]);`;
