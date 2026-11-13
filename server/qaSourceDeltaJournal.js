@@ -8,7 +8,7 @@ const SNAP=/^[a-zA-Z0-9_.:-]{12,128}$/;
 const date=x=>Date.parse(x instanceof Date?x.toISOString():x||'');
 // PostgreSQL timestamptz retains microseconds; JavaScript Date silently
 // truncates them. Never use Date/Date.parse to order two Firestore revisions.
-const MICRO=/^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?Z$/;
+const MICRO=/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?Z$/;
 function exactRevision(value){
  if(typeof value!=='string')fail('qa_delta_invalid_time');
  const m=MICRO.exec(value);

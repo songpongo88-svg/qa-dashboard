@@ -52,11 +52,10 @@ try{
     'conflict');
   // PostgreSQL must preserve both distinct revisions inside the same ms.
   const micro1=event('micro1',-30001,{
-    sourceChangedAt:at(-30001).replace('.','.') // add six-digit fractional micros below
-      .replace(/\\.(\\d{3})Z$/,'.$1'+'100Z'),
+    sourceChangedAt:at(-30001).replace(/\.(\d{3})Z$/,'.$1'+'100Z'),
   });
   const micro2=event('micro2',-30001,{
-    sourceChangedAt:at(-30001).replace(/\\.(\\d{3})Z$/,'.$1'+'900Z'),
+    sourceChangedAt:at(-30001).replace(/\.(\d{3})Z$/,'.$1'+'900Z'),
   });
   assert.equal((await appendQaSourceDelta({pool,event:micro1,
     attestSourceEvent:attest})).outcome,'applied');
