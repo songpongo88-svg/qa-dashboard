@@ -1,10 +1,13 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T08:51:54.221Z",
-  "reason": "Reviewed QA server-session API, takeovers, owner controls and Evaluation browser/cloud recovery; feature remains disabled pending security rollout",
+  "reviewedAt": "2026-11-13T09:20:09.538Z",
+  "reason": "Reviewed newly staged QA single-session preflight checks, Coaching recovery, multiple-editor fail-closed takeover and manual changes; not enabled for production",
   "contentChanged": true,
   "reviewedChapters": [
-    "evaluation"
+    "evaluation",
+    "coaching",
+    "administration",
+    "login-log"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -21,7 +24,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "b929e266d42e07ab8cbc52fbac0f103134b4eff07dc61f68b3a328492e62b1ba",
+    ".github/workflows/qa-single-session-tests.yml": "5da4252faf9fb21e31835ab9c7fddaa6645bfd3bdf27540483e2a8bb3e2ab18e",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -463,7 +466,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "cc0cb49ddfdb6603690429089888fcd7046616a08492e08008ac04fe7f2bc44f",
+    "src/App.tsx": "348638fad3190a832058289fef8fe56bbaf546d382f1294099e2184d0406ed7d",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -497,7 +500,7 @@
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/LotteryTicketInventory.tsx": "b44a2ae3f33824e571acf6f3f357c96251f7faef6eebad7c09cb78fc020a9663",
     "src/MaintenanceRuntime.tsx": "3fcc32c3c7bd9220b07f83b98e842b2d7432e2efe4897319d0bf4c805bbd85ee",
-    "src/MonthlyCoachingWorkspace.tsx": "56d6870f9f91aa8c611f0cc7750fc6596cb493c506e706bb1123a012d36005cc",
+    "src/MonthlyCoachingWorkspace.tsx": "d88ae080a0a3985c0a0d6f677e37556334610c181e40bb023d928e9a93e06db1",
     "src/MonthlyKpiNotice.tsx": "f99ad56e012035bbecfdad83df02a792d1671b9c02554ca932ead92764aa3f58",
     "src/PageHero.tsx": "f3c717205bd67000ed8b322363b2268849933e9b09404dcc3fe359fcc8d7f342",
     "src/PreTestMockup.tsx": "7e8b9a000276931dea99e471ee254e35f24af7287c71cdc9304b246a9a7b4d40",
@@ -569,7 +572,7 @@
     "src/appealDiscussionTasks.ts": "8aaaa0c84e950fcaa76d81300e015125d0ddfd04153d2361911164b043370d89",
     "src/appealEvidenceNaming.ts": "f1df5fd693446869bbc55978119c61c946d6d63847973b9cc86d8a195d861177",
     "src/appealReview.ts": "75f7add042ee34d0da4b9e8adef5d15f039ab1fe316dca2d80d1e6adebc5e147",
-    "src/appealStore.ts": "46497e033b84d321544d5cc9e194c11b80aa25107510083ca24f4fe0699d9b81",
+    "src/appealStore.ts": "307caff4186a8210945b9c9d92e73115b2fe63ead10f06647631d61e9165baab",
     "src/appealSummaryPdf.ts": "281b526f2c3e2aad3de6d582ba219bd03419a25fb361fac204f36cb06a3f1d16",
     "src/appealWorkflow.ts": "6dabf7e718303138bee1ec087ef8912964dc4ed532e2bd2383bef9c9f02baa9f",
     "src/bulkCaseDetailPdf.ts": "0fcddadb324da023ce56feedcf04147fb9b5cc4dff3feb4d3d18d6d010a56205",
@@ -595,7 +598,7 @@
     "src/coachingCanonicalStore.ts": "193e026b639271179a488d3bb687cb98c8f78517e1b8f68b572c7f69f5f7b0ea",
     "src/coachingHistoricalStore.ts": "7a7097bc7ea733777855caf99174665d73666c2870d46f30abdc10b49bbd533f",
     "src/coachingScheduleStore.ts": "01e8db30db622950753aeff5a2753bfed43b9a7b1da6dca3afd0cc8d6f2a9243",
-    "src/coachingStore.ts": "60c6a02e7016d4ce0ce4cef749f7fcb3ba0c1d638279dc500fe3238d01a8cdc3",
+    "src/coachingStore.ts": "76fcc5ce583495ef116c80fdb44e89d4b181ada82587873b96a393a870a7bc1b",
     "src/corporateQaReportXlsx.ts": "c7cd337708fe1bacc12c2fccc4048795939f2d4d12b23bf1479ced0e629f4144",
     "src/dashboardRecoveryCache.ts": "817a3ca216ee607263a06fe3e48f4e3e9234640c9c3b4b3b3fa06f656390b9ee",
     "src/dashboardRevision.ts": "e305357dc518fb6f89d76621baacf63791c174ae69d9718a72de2f14610bd154",
@@ -607,7 +610,7 @@
     "src/evaluationEditingStore.ts": "b234253dd21ff0e4316ce5311fcd9e8e17374d8c474fb12412a052a85c2ebd46",
     "src/evaluationFormLayout.css": "a3dac2a2bdc0e60e7e2f96b3bef5b24ad9c84cf50a73fd79887bbdd249455a17",
     "src/evaluationHistoryCache.ts": "99d559fdcc2715c601bfe71190bf01dbc77f79ac60d9ae38846c2bad8acfb450",
-    "src/evaluationStore.ts": "147b175ab090fbce1d088f57524da8899e48556aab0ca6df26d7751a7c86bf23",
+    "src/evaluationStore.ts": "56af661d68b070da17adb34a3a6da53d2da8ba67c156e0a776edefc35476df30",
     "src/evaluationTagStore.ts": "55f956c44387922ab93b4a1e55c2c696a958f977b731a5d08fb7e52816f48ed2",
     "src/evidencePreviewPdf.ts": "824a189e72e7d77fd242d90ba1daf7db9733372c624a75b39791c2dc71d0b1aa",
     "src/evidenceWatermark.ts": "3237b6eb3f56840f5a9ed72ab6c1639bf3ff9b805b5cc5f8683321a6c2989380",
@@ -636,7 +639,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "6643849318d1f2c96f5e7e66d4b0543cf106f849d4ee6fcf7c95817e98dd3d25",
+    "src/knowledge/manual.json": "832b43ab2785ba6602409ef9a15fb112e4c28c07311f10d3a34892eab8483d73",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -780,6 +783,8 @@
     "api/qa-single-session.js": "f50111ca19e8199e000923ca944158e65b2071888a63010c75399d182c9fc432",
     "scripts/test-qa-single-session-api.mjs": "cc796e86a218e689969dba5d79f601c8f77e4e5641c2488f40e5f68c9e1f177c",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
-    "src/qaSingleSessionClient.ts": "6abcb888fe7111683764335c3e99d4a4aefe0c3a7641523524cbc17665da0975"
+    "src/qaSingleSessionClient.ts": "df6014003d38717cfb701e0707e71f62bd2755df2bdfee7c39596f40ee1585e8",
+    "scripts/test-qa-session-write-guards.mjs": "8b084a01308728aa8d8832040e64ecf0c8a3cba20287f8da85a0971310952aab",
+    "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7"
   }
 }
