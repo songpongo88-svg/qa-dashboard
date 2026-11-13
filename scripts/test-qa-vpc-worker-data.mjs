@@ -54,7 +54,7 @@ let r=await call('/v1/qa/evaluations?month=2026-11',{headers:auth});
 assert.equal(r.status,200);
 assert.equal((await r.json()).rows[0].record.finalScore,85);
 assert.equal(calls.length,1);
-assert.equal(calls[0].url,'http://127.0.0.1:8788/v1/qa/evaluations?month=2026-11');
+assert.equal(calls[0].url,'http://127.0.0.1:8790/v1/qa/evaluations?month=2026-11');
 assert.equal(calls[0].request.method,'GET');
 response={ok:true,source:'unverified-archive',dataStatus:'archived',rows:[]};
 await rejected(await call(undefined,{headers:auth}),502);
