@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 import {
   collection,
   deleteDoc,
@@ -222,6 +223,7 @@ export function subscribeStoredAnnouncements(
 export async function upsertStoredAnnouncement(
   announcement: StoredAnnouncement
 ) {
+  await assertTrustedQaSessionForMutation();
   const now = new Date().toISOString();
   const row: StoredAnnouncement = {
     ...announcement,
@@ -240,6 +242,7 @@ export async function upsertStoredAnnouncement(
 }
 
 export async function deleteStoredAnnouncement(id: string) {
+  await assertTrustedQaSessionForMutation();
   await deleteDoc(doc(firebaseDb, ANNOUNCEMENT_COLLECTION, id));
 }
 
@@ -275,6 +278,7 @@ export function subscribeAnnouncementReceipts(
 export async function upsertAnnouncementReceipt(
   receipt: AnnouncementReceipt
 ) {
+  await assertTrustedQaSessionForMutation();
   const id =
     receipt.id ||
     `${receipt.announcementId}__${receipt.username.toLowerCase()}`.replace(
