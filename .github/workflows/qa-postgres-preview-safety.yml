@@ -71,6 +71,8 @@ on:
       - "server/qaStandbyDomainSeed.js"
       - "server/qaStandbyActivation.js"
       - "server/qaStandbyBridgeRuntime.js"
+      - "server/qaWindowsStandbyService.js"
+      - "scripts/test-qa-windows-bridge-service.mjs"
       - "scripts/test-qa-standby-bridge-runtime.mjs"
       - "scripts/test-qa-standby-activation-integration.mjs"
       - "migration/qa-local-domain-replica.sql"
@@ -192,6 +194,8 @@ jobs:
           node --check server/qaStandbyDomainSeed.js
           node --check server/qaStandbyActivation.js
           node --check server/qaStandbyBridgeRuntime.js
+          node --check server/qaWindowsStandbyService.js
+          node --check scripts/test-qa-windows-bridge-service.mjs
           node --check scripts/test-qa-standby-bridge-runtime.mjs
           node --check scripts/test-qa-standby-activation-integration.mjs
           node --check scripts/test-qa-standby-domain-seed-integration.mjs
@@ -212,6 +216,7 @@ jobs:
           node scripts/test-qa-local-bridge.mjs
           node scripts/test-qa-bridge-router.mjs
           node scripts/test-qa-standby-bridge-runtime.mjs
+          node scripts/test-qa-windows-bridge-service.mjs
           node scripts/test-qa-firestore-failback-adapter.mjs
           node scripts/test-qa-local-session-verifier.mjs
           node scripts/test-qa-standby-data-handler.mjs
