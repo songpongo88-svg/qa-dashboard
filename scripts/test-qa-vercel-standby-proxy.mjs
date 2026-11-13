@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createQaVercelStandbyProxy} from '../server/qaVercelStandbyProxy.js';
 
 const token='qa-private-token-'+('z'.repeat(52));
+const monitorToken='qa-archive-'+('a'.repeat(52));
 const session='qa_editor-8c11937f-01ab-4455-b6f2-620fb73e3e44';
 const host='qa-preview.vercel.app';
 const base='https://robinhood-qa-standby-bridge.qa-team.workers.dev';
@@ -18,7 +19,7 @@ const mockFetch=async(url,init)=>{
   return new Response(JSON.stringify(upstream),{status,headers:{'content-type':'application/json'}});
 };
 const env={VERCEL_ENV:'preview',QA_STANDBY_DATA_PROXY_ENABLED:'1',
-  QA_LOCAL_BRIDGE_URL:base+'/',QA_LOCAL_BRIDGE_TOKEN:token};
+  QA_LOCAL_BRIDGE_URL:base+'/',QA_LOCAL_BRIDGE_TOKEN:monitorToken,QA_LOCAL_STANDBY_DATA_TOKEN:token};
 const handler=createQaVercelStandbyProxy({env,fetchImpl:mockFetch});
 const makeReq=(action,overrides={})=>({
   method:'GET',query:{qaData:'1',action},
@@ -102,5 +103,5 @@ assert.equal(res.statusCode,503);
 assert.ok(!JSON.stringify(res.body).includes('private-postgres-password-secret'));
 status=200;
 await denied(makeReq('list'),503,createQaVercelStandbyProxy({env:{...env,QA_LOCAL_BRIDGE_URL:'https://evil.example/'},fetchImpl:mockFetch}));
-await denied(makeReq('list'),503,createQaVercelStandbyProxy({env:{...env,QA_LOCAL_BRIDGE_TOKEN:'short'},fetchImpl:mockFetch}));
+await denied(makeReq('list'),503,createQaVercelStandbyProxy({env:{...env,QA_LOCAL_STANDBY_DATA_TOKEN:'short'},fetchImpl:mockFetch}));
 console.log('PASS QA Vercel preview private proxy: session-only app relay, origin gate, no leaked bridge token, limited QA paths, strict confirmation, production off');
