@@ -322,7 +322,6 @@ jobs:
           node scripts/test-qa-standby-archive-status.mjs
           node scripts/test-qa-live-mirror-stage-integration.mjs
           node scripts/test-qa-source-read-budget-integration.mjs
-          node scripts/test-qa-source-delta-journal-integration.mjs
           node scripts/test-qa-standby-candidate-materializer-integration.mjs
           node scripts/test-qa-standby-inactive-seed-integration.mjs
           node scripts/test-qa-standby-domain-seed-integration.mjs
@@ -330,6 +329,8 @@ jobs:
           node scripts/test-qa-inactive-refresh-integration.mjs
           node scripts/test-qa-standby-activation-integration.mjs
           node scripts/test-qa-standby-full-failback-integration.mjs
+          # The delta test uses the shared synthetic database and must run last.
+          node scripts/test-qa-source-delta-journal-integration.mjs
 
   windows-candidate-8790:
     name: Windows 8790 isolated bridge checks
