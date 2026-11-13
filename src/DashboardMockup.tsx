@@ -9266,7 +9266,38 @@ export default function DashboardMockup({
                                 </div>
                               );
                             }) : (
-                              <div className="px-5 py-16 text-center text-sm font-medium text-slate-500">{caseRecordFilter === "appeals" ? "ไม่พบเคสอุทธรณ์ตามตัวกรองปัจจุบัน" : "ไม่พบเคสตามขอบเขตที่เลือก"}</div>
+                              <div data-qa-case-list-empty-reason="true" className="px-5 py-12 text-center">
+                                {isLoading ? (
+                                  <p role="status" className="text-sm font-semibold text-slate-600">กำลังโหลดข้อมูลเคสจากต้นทาง</p>
+                                ) : loadError && sourceCases.length === 0 ? (
+                                  <div role="alert" className="mx-auto max-w-xl rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-left">
+                                    <p className="text-sm font-bold text-amber-950">ยังตรวจสอบรายการเคสจากต้นทางไม่ได้ — ไม่ได้หมายความว่าเคสถูกลบ</p>
+                                    <p className="mt-2 text-xs font-medium leading-6 text-amber-900">{loadError}</p>
+                                    <p className="mt-2 text-xs text-amber-800">Preview นี้ยังไม่มีสำเนาเคสที่โหลดสำเร็จ จึงไม่สามารถใช้ผล 0 เคสยืนยันว่าฐานข้อมูลว่างได้</p>
+                                  </div>
+                                ) : sourceCases.length === 0 ? (
+                                  <div role="status" className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white px-5 py-4 text-left">
+                                    <p className="text-sm font-semibold text-slate-700">ยังไม่พบเคสในชุดข้อมูลที่ Preview โหลดได้</p>
+                                    <p className="mt-2 text-xs text-slate-500">หากเว็บไซต์ Production มีเคสอยู่ อย่าใช้ตัวเลข 0 ในหน้านี้สรุปว่าเคสสูญหาย ให้ตรวจสถานะการโหลดข้อมูลด้านบนก่อน</p>
+                                  </div>
+                                ) : (
+                                  <div role="status" className="space-y-3">
+                                    <p className="text-sm font-medium text-slate-600">
+                                      {caseRecordFilter === "appeals" ? "ไม่พบเคสอุทธรณ์ตามตัวกรองปัจจุบัน" : "ไม่พบเคสตามตัวกรองปัจจุบัน"}
+                                    </p>
+                                    <p className="text-xs text-slate-500">มี {sourceCases.length} เคสในชุดข้อมูลที่โหลดได้ แต่ไม่มีรายการตรงกับเงื่อนไขนี้</p>
+                                    <button type="button" onClick={() => {
+                                      clearDateRange();
+                                      setSelectedYear("2026");
+                                      setCaseIdSearch("");
+                                      setSelectedTopicCode("");
+                                      setCaseRecordFilter("all");
+                                    }} className="rounded-lg border border-violet-300 bg-white px-4 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">
+                                      แสดงรายการทุกเดือน ปี 2026
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
