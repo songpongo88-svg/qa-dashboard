@@ -54,6 +54,7 @@ export function createQaPreviewStatusHandler({
       standby:'local-postgresql',
       standbyRole:'archive-only',
       bridgeStatus:configured?'not_reachable':'not_configured',
+      privateBridge8790Status:configured?'not_reachable':'not_configured',
       archiveStatus:'unverified',
       currentFirestoreParity:'not_verified',
       dataProxyEnabled:env.QA_STANDBY_DATA_PROXY_ENABLED==='1',
@@ -119,6 +120,28 @@ export function createQaPreviewStatusHandler({
           }
         }
       }catch{/* Keep archive-only result if current Windows bridge is older. */}
+      // Check the second (8790) VPC binding with the existing read-only
+      // monitoring Bearer. Do not forward sessions, records or write requests.
+      // Connectivity NEVER means current source parity or write capability.
+      try{
+        const probe=await fetchImpl(origin+'/qa-bridge-8790-status',{
+          method:'GET',
+          headers:{authorization:'Bearer '+token,accept:'application/json'},
+          cache:'no-store',redirect:'manual',signal:AbortSignal.timeout(3500),
+        });
+        if(probe.status===200&&
+          (probe.headers.get('content-type')||'').includes('application/json')){
+          const body=await probe.text();
+          if(body.length<=4096){
+            const proof=JSON.parse(body);
+            if(proof?.ok===true&&proof.privateBridgeConnected===true&&
+              proof.port===8790&&proof.readOnly===true&&
+              proof.failoverReady===false&&
+              proof.check==='private-network-reachability-only')
+              result.privateBridge8790Status='reachable_read_only';
+          }
+        }
+      }catch{/* The second channel may be offline without affecting old archive status. */}
       // The archive may have the expected import count, but this is never
       // proof of a current, complete per-document live Firestore mirror.
       const summary=await fetchImpl(origin+'/summary',{
