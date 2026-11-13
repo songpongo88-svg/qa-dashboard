@@ -68,6 +68,27 @@ assert.equal((await adapter.applyIfVersionMatches({
   ...create,operationId:'another-create-qa001',
 })).status,'conflict');
 assert.equal(db.commits,1);
+// A case created while Firebase was unavailable has no original Firestore
+// hash. Once its create has replayed, the remote version is authoritative.
+const offlineUpdate={
+  ...create,operationId:'update-qa001-after-standby-create',
+  action:'update',baseVersion:1,nextVersion:2,sourceBaseHash:null,
+  record:{...original,finalScore:80},
+};
+assert.equal((await adapter.applyIfVersionMatches(offlineUpdate)).status,'applied');
+assert.equal(db.docs.get('qa_evaluations/qa_001').finalScore,80);
+assert.equal(db.docs.get('qa_evaluations/qa_001').qa_failover_version,2);
+assert.equal((await adapter.applyIfVersionMatches(offlineUpdate)).status,'already_applied');
+assert.equal((await adapter.applyIfVersionMatches({
+  ...offlineUpdate,operationId:'stale-offline-case-v2',
+})).status,'conflict');
+const offlineDelete={
+  ...offlineUpdate,operationId:'delete-qa001-after-standby-create',
+  action:'delete',baseVersion:2,nextVersion:3,
+};
+assert.equal((await adapter.applyIfVersionMatches(offlineDelete)).status,'applied');
+assert.equal(db.docs.get('qa_evaluations/qa_001').finalScore,80);
+assert.ok(db.docs.get('qa_evaluations/qa_001').deleted_at);
 const legacy={...original,id:'legacy-qa',finalScore:90,updated_at:'2026-11-10'};
 db.docs.set('qa_evaluations/legacy-qa',legacy);
 const update={
@@ -75,6 +96,9 @@ const update={
   actorUsername:'qa_editor',baseVersion:1,nextVersion:2,
   sourceBaseHash:hash(legacy),record:{...legacy,finalScore:88},
 };
+assert.equal((await adapter.applyIfVersionMatches({...update,
+  operationId:'legacy-without-original-hash',sourceBaseHash:null,
+})).status,'conflict','Legacy cases need an exact original hash');
 assert.equal((await adapter.applyIfVersionMatches(update)).status,'applied');
 assert.equal(db.docs.get('qa_evaluations/legacy-qa').finalScore,88);
 assert.equal(db.docs.get('qa_evaluations/legacy-qa').updated_at,'2026-11-10');
