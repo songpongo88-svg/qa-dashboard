@@ -25,7 +25,17 @@ export function SparkQuestArtwork({ onJoin, compact = false }: {
   onJoin: () => void; compact?: boolean;
 }) {
   return <div className={"spark-promo-poster" + (compact ? " spark-promo-poster--compact" : "")}
-    data-sparks-announcement-artwork="true">
+    data-sparks-announcement-artwork="true" role="link" tabIndex={0}
+    aria-label="คลิกรูปประกาศเพื่อเข้าเล่นกิจกรรม QA Sparks"
+    onClick={(event) => {
+      if ((event.target as HTMLElement).closest("button")) return;
+      onJoin();
+    }}
+    onKeyDown={(event) => {
+      if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault(); onJoin();
+      }
+    }}>
     <div className="spark-promo-stars" aria-hidden="true">✧ ✦ ✧</div>
     <div className="spark-promo-title-ribbon">
       <span aria-hidden="true">📣</span> ประกาศกิจกรรม QA Sparks
@@ -98,7 +108,14 @@ export function SparkQuestAnnouncementPopup({
 
 export function SparkQuestAnnouncementInbox({ onJoin }: { onJoin: () => void }) {
   if (!sparkAnnouncementActive()) return null;
-  return <article className="spark-promo-inbox" data-spark-quest-announcement-inbox="true">
+  return <article className="spark-promo-inbox" data-spark-quest-announcement-inbox="true"
+    role="link" tabIndex={0} aria-label="คลิกประกาศ The Spark Journey เพื่อเข้าเล่น QA Sparks"
+    onClick={(event) => { if ((event.target as HTMLElement).closest("button")) return; onJoin(); }}
+    onKeyDown={(event) => {
+      if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault(); onJoin();
+      }
+    }}>
     <div className="spark-promo-inbox-top"><span>ประกาศกิจกรรมพิเศษ</span><strong>25 DEC 2026</strong></div>
     <div className="spark-promo-inbox-title">QA Sparks<br/>Welcome Fruit &amp; The Spark Journey</div>
     <div className="spark-promo-inbox-art" aria-hidden="true">🍎 🍇 ✈️ 🚴 🚂</div>
