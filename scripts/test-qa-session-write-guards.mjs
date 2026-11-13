@@ -14,6 +14,9 @@ const expectations = [
   ["userRoleStore.ts", ["upsertStoredUserProfiles", "deleteStoredUserProfile", "upsertStoredRoleDefinition", "deleteStoredRoleDefinition", "upsertStoredRolePermissions", "upsertStoredMaintenanceState"]],
   ["passwordResetStore.ts", ["createStoredPasswordResetRequest", "updateStoredPasswordResetRequest"]],
   ["profilePhotoStore.ts", ["upsertStoredProfilePhoto", "clearStoredProfilePhoto"]],
+  ["profileHistoryStore.ts", ["appendUserProfileHistory"]],
+  ["announcementStore.ts", ["upsertStoredAnnouncement", "deleteStoredAnnouncement", "upsertAnnouncementReceipt"]],
+  ["signatureStore.ts", ["saveStoredSignatureLibraryEntry", "deleteStoredSignatureLibraryEntry", "saveStoredSignatureDocument", "saveStoredSignatureConfirm", "clearStoredSignatureConfirm"]],
 ];
 
 for (const [file, functions] of expectations) {
