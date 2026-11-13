@@ -185,12 +185,64 @@ async function checkQaDataPortReady(request,env,url){
   }
 }
 
+// Read-only 8790 snapshot statistics. Sanitizes every upstream field: no
+// evaluation records, user profiles, snapshot identifiers or source paths.
+async function checkQaPrivateSnapshotReadiness(request,env,url){
+  if(request.method!=='GET')return reply(405,{ok:false,error:'method_not_allowed'},'GET');
+  if(url.search||url.hash)return reply(404,{ok:false,error:'not_found'});
+  if(!/^[a-f0-9]{64}$/.test(env?.QA_EDGE_BEARER_SHA256||''))
+    return reply(503,{ok:false,error:'edge_not_configured'});
+  if(!await authorized(request.headers.get('authorization'),env.QA_EDGE_BEARER_SHA256))
+    return reply(403,{ok:false,error:'forbidden'});
+  if(!env?.QA_PRIVATE_DATA_VPC||typeof env.QA_PRIVATE_DATA_VPC.fetch!=='function')
+    return reply(503,{ok:false,error:'private_data_port_not_bound'});
+  try{
+    const upstream=await env.QA_PRIVATE_DATA_VPC.fetch(
+      'http://127.0.0.1:8790/readiness',{
+        method:'GET',redirect:'manual',
+        headers:{authorization:request.headers.get('authorization'),accept:'application/json'},
+        signal:AbortSignal.timeout(5000),
+      });
+    if(upstream?.status!==200||
+       !(upstream.headers.get('content-type')||'').toLowerCase().includes('application/json'))
+      return reply(502,{ok:false,error:'private_snapshot_unavailable'});
+    const raw=await upstream.text();
+    if(raw.length>16384)return reply(502,{ok:false,error:'invalid_snapshot_response'});
+    const data=JSON.parse(raw),s=data?.snapshot,checks=data?.remainingChecks;
+    if(data?.ok!==true||data?.readOnly!==true||
+       data?.firestorePrimary!==true||data?.archiveIsNotLiveSource!==true||
+       data?.failoverReady!==false||data?.canAcceptWrites!==false||
+       !['disabled','standby','reconciling'].includes(data?.standbyMode)||
+       typeof s?.present!=='boolean'||typeof s?.copied!=='boolean'||
+       typeof s?.candidateVerified!=='boolean'||
+       typeof s?.withinFreshnessWindow!=='boolean'||
+       ![s.sourceDocuments,s.sourceEvaluations,s.candidateEvaluations,s.datasetCount]
+         .every(validInteger)||
+       s.datasetCount>11||
+       !Array.isArray(checks)||checks.length>24||
+       checks.some(x=>typeof x!=='string'||!/^[a-z_]{3,80}$/.test(x)))
+      return reply(502,{ok:false,error:'invalid_snapshot_response'});
+    // Never forward user-controlled keys, even if the upstream schema evolves.
+    return reply(200,{ok:true,readOnly:true,failoverReady:false,
+      canAcceptWrites:false,firestorePrimary:true,source:'windows-8790-inactive-replica',
+      snapshot:{present:s.present,copied:s.copied,candidateVerified:s.candidateVerified,
+        sourceDocuments:s.sourceDocuments,sourceEvaluations:s.sourceEvaluations,
+        candidateEvaluations:s.candidateEvaluations,datasetCount:s.datasetCount,
+        withinFreshnessWindow:s.withinFreshnessWindow},
+      remainingChecks:checks});
+  }catch{
+    return reply(502,{ok:false,error:'private_snapshot_unavailable'});
+  }
+}
+
 export default {
   async fetch(request,env){
     let url;
     try{url=new URL(request.url);}catch{return reply(400,{ok:false,error:'invalid_request'});}
     if(url.pathname==='/qa-bridge-8790-status')
       return checkQaDataPortReady(request,env,url);
+    if(url.pathname==='/qa-bridge-8790-readiness')
+      return checkQaPrivateSnapshotReadiness(request,env,url);
     if(url.pathname.startsWith('/v1/qa/evaluations')){
       return forwardQaData(request,env,url);
     }
