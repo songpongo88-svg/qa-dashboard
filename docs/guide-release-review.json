@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T09:12:12.652Z",
-  "reason": "Preserve latest QA Sparks Journey guide and ALL main theme/UI updates while reconciling isolated QA Windows failover diagnostics on PR #210. Production failover and writes remain OFF pending real-host continuous sync, identity and failback certification.",
+  "reviewedAt": "2026-11-13T09:32:50.463Z",
+  "reason": "QA-only VPC service staging adds authenticated loopback 8790 reachability probe. Does not expose records, sessions or enable data/write routes. Preserve Sparks Journey and all production behavior.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -437,7 +437,7 @@
     "scripts/test-qa-vercel-standby-proxy.mjs": "d9ed75b093be99fea0b1dd9eaab7b114d9de8a0c82a7fc602ec741dc4ca529ac",
     "scripts/test-qa-vpc-readiness.mjs": "dace7374798919a462d8dbfe07b0a6394780d158d82a23b559e7809b26a9dcad",
     "scripts/test-qa-vpc-worker-data.mjs": "b935b844adfdd522e4cfa903009c106e97dc007827ce1e92bd1fcf08d081ce9b",
-    "scripts/test-qa-vpc-worker.mjs": "3a7a322df650c8e1e0c3d931c95539c2aca41ac6ca97c30304b33629f3ce8b4b",
+    "scripts/test-qa-vpc-worker.mjs": "8356de0f4396df47de73626f4c13de7242e2d0bb98ba30933e5039d2e59af5cb",
     "scripts/test-qa-windows-bridge-service.mjs": "2d11aefb8a40aaf7ae734793d525b9202019cb915918994def1be83a8fa2ee10",
     "scripts/test-qa-windows-installer-dependencies.mjs": "80c752f09d676ebe170f2f4eec2016ff6f46afee16b51e054e742b8f49d46f4d",
     "scripts/test-receipt-first-ui.mjs": "bf9463f341f0653be65b08e4bcd98cc0bdb52a16eecd73bbf0990b989a7e6dd2",
@@ -849,6 +849,7 @@
     "src/YearlyTeamSummary.tsx": "2b1618ecad55269dd22acf073524ba3471efa65cc626134f7b33ca7581a2bb7d",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "cloudflare/qa-standby-vpc-worker.mjs": "b04f81a38d9d523adda8e9851afb2b613f38a769597b9c7b8cbd4d99fa1b266f"
   }
 }
