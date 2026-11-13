@@ -50,6 +50,24 @@ try{
   const conflict=event('conflict',-60000);
   assert.equal((await appendQaSourceDelta({pool,event:conflict,attestSourceEvent:attest})).outcome,
     'conflict');
+  // PostgreSQL must preserve both distinct revisions inside the same ms.
+  const micro1=event('micro1',-30001,{
+    sourceChangedAt:at(-30001).replace('.','.') // add six-digit fractional micros below
+      .replace(/\\.(\\d{3})Z$/,'.$1'+'100Z'),
+  });
+  const micro2=event('micro2',-30001,{
+    sourceChangedAt:at(-30001).replace(/\\.(\\d{3})Z$/,'.$1'+'900Z'),
+  });
+  assert.equal((await appendQaSourceDelta({pool,event:micro1,
+    attestSourceEvent:attest})).outcome,'applied');
+  assert.equal((await appendQaSourceDelta({pool,event:micro2,
+    attestSourceEvent:attest})).outcome,'applied');
+  const exact=(await pool.query(
+    "SELECT to_char(source_changed_at AT TIME ZONE 'UTC',"+
+    "'YYYY-MM-DD"+'"'+"T"+'"'+"HH24:MI:SS.US"+'"'+"Z"+'"'+"') AS exact_time FROM"+
+    ' qa_failover_v1.source_delta_latest WHERE snapshot_id=$1 AND document_path=$2',
+    [snapshotId,base.documentPath])).rows[0].exact_time;
+  assert.equal(exact,micro2.sourceChangedAt);
   const tombstone=event('deleted',-30000,{operation:'delete',documentJson:null});
   assert.equal((await appendQaSourceDelta({pool,event:tombstone,attestSourceEvent:attest})).outcome,
     'applied');
@@ -61,7 +79,7 @@ try{
   assert.equal(latest.content_hash,null);
   assert.deepEqual((await pool.query('SELECT outcome FROM qa_failover_v1.source_delta_events'+
     ' WHERE snapshot_id=$1 ORDER BY source_changed_at,event_id',[snapshotId]))
-    .rows.map(x=>x.outcome).sort(),['applied','applied','conflict','stale']);
+    .rows.map(x=>x.outcome).sort(),['applied','applied','applied','applied','conflict','stale']);
   assert.equal((await pool.query('SELECT count(*)::int AS n FROM qa_failover_v1.evaluations')).rows[0].n,
     before,'fixture must never modify active QA case scores');
   await pool.query("UPDATE qa_failover_v1.state SET mode='standby' WHERE id=1");

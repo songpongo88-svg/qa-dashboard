@@ -12,6 +12,18 @@ assert.match(checked.hash,/^[0-9a-f]{64}$/);
 assert.equal(qaSourceDeltaOrder(null,checked),'applied');
 assert.equal(qaSourceDeltaOrder(checked,{...checked,sourceChangedAt:'2026-11-13T14:09:00.000Z'}),'stale');
 assert.equal(qaSourceDeltaOrder(checked,checked),'conflict');
+// Two revisions within one millisecond must remain distinct.
+const aMicro={...checked,sourceChangedAt:'2026-11-13T14:10:00.123456Z'};
+const bMicro={...checked,sourceChangedAt:'2026-11-13T14:10:00.123457Z'};
+assert.equal(qaSourceDeltaOrder(aMicro,bMicro),'applied');
+assert.equal(qaSourceDeltaOrder(bMicro,aMicro),'stale');
+assert.equal(qaSourceDeltaOrder(aMicro,aMicro),'conflict');
+assert.equal(normalizeQaSourceDelta({...example,
+ sourceChangedAt:'2026-11-13T14:10:00.123456Z'},now).sourceChangedAt,
+ '2026-11-13T14:10:00.123456Z');
+assert.throws(()=>normalizeQaSourceDelta({...example,
+ sourceChangedAt:'2026-11-13T14:10:00.123456789Z'},now),
+ /qa_delta_submicrosecond_not_supported/);
 for(const bad of [
   {...example,documentPath:'sparks/users'},
   {...example,documentPath:'qa_evaluations/a/b'},
@@ -37,11 +49,11 @@ const pool={async connect(){return {release(){},async query(sql,args=[]){
    return {rows:lastRevision?[lastRevision]:[]};
  if(sql.startsWith('INSERT INTO qa_failover_v1.source_delta_events')){
    lastEvent={snapshot_id:args[1],document_path:args[2],operation:args[4],
-     source_changed_at:new Date(args[5]),content_hash:args[7]};
+     source_changed_at_exact:args[5],content_hash:args[7]};
    return {rowCount:1,rows:[]};
  }
  if(sql.startsWith('INSERT INTO qa_failover_v1.source_delta_latest')){
-   lastRevision={event_id:args[3],source_changed_at:new Date(args[5])};
+   lastRevision={event_id:args[3],source_changed_at_exact:args[5]};
    return {rowCount:1,rows:[]};
  }
  if(sql==='ROLLBACK'){rollback++;return {rows:[]};}

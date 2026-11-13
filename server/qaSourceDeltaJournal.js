@@ -6,6 +6,24 @@ const fail=code=>{throw Object.assign(new Error(code),{code});};
 const ID=/^[a-zA-Z0-9_.:@-]{16,180}$/;
 const SNAP=/^[a-zA-Z0-9_.:-]{12,128}$/;
 const date=x=>Date.parse(x instanceof Date?x.toISOString():x||'');
+// PostgreSQL timestamptz retains microseconds; JavaScript Date silently
+// truncates them. Never use Date/Date.parse to order two Firestore revisions.
+const MICRO=/^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?Z$/;
+function exactRevision(value){
+ if(typeof value!=='string')fail('qa_delta_invalid_time');
+ const m=MICRO.exec(value);
+ if(!m)fail('qa_delta_invalid_time');
+ const base=Date.parse(m[1]+'Z');
+ if(!Number.isFinite(base)||new Date(base).toISOString().slice(0,19)!==m[1])
+   fail('qa_delta_invalid_time');
+ const fraction=(m[2]||'').padEnd(9,'0');
+ // PostgreSQL stores six digits. Do not silently round a nanosecond event;
+ // the source sender must explicitly reconcile the unrepresentable revision.
+ if(fraction.slice(6)!=='000')fail('qa_delta_submicrosecond_not_supported');
+ const micros=fraction.slice(0,6);
+ return {text:m[1]+'.'+micros+'Z',
+   ticks:BigInt(base)*1000n+BigInt(micros)};
+}
 export function normalizeQaSourceDelta(e,now=Date.now()){
   if(!e||!ID.test(e.eventId||'')||!SNAP.test(e.snapshotId||''))
     fail('qa_delta_invalid_identity');
@@ -15,9 +33,10 @@ export function normalizeQaSourceDelta(e,now=Date.now()){
   if(!QA_SYNC_DATASETS.includes(collection)||!id||id.length>900||
      id.includes('/')||/[\x00-\x1f\x7f]/.test(id))fail('qa_delta_invalid_collection');
   if(e.operation!=='upsert'&&e.operation!=='delete')fail('qa_delta_invalid_operation');
-  const changed=date(e.sourceChangedAt);
-  if(!Number.isFinite(changed)||!Number.isFinite(now)||
-     changed>now+120000||changed<now-30*86400000)
+  const changed=exactRevision(e.sourceChangedAt);
+  if(!Number.isSafeInteger(now)||
+     changed.ticks>BigInt(now+120000)*1000n||
+     changed.ticks<BigInt(now-30*86400000)*1000n)
     fail('qa_delta_invalid_time');
   if(e.operation==='delete'&&e.documentJson!==null)
     fail('qa_delta_delete_requires_null');
@@ -31,14 +50,17 @@ export function normalizeQaSourceDelta(e,now=Date.now()){
   return Object.freeze({
     eventId:e.eventId,snapshotId:e.snapshotId,
     documentPath:path,collection,operation:e.operation,
-    sourceChangedAt:new Date(changed).toISOString(),
+    sourceChangedAt:changed.text,
     documentJson:json,hash:json?qaCanonicalDocumentHash(json):null,
   });
 }
 export function qaSourceDeltaOrder(previous,incoming){
   if(!previous)return 'applied';
-  const a=date(previous.sourceChangedAt),b=date(incoming.sourceChangedAt);
-  if(!Number.isFinite(a)||!Number.isFinite(b))fail('qa_delta_invalid_stored_revision');
+  let a,b;
+  try{
+   a=exactRevision(previous.sourceChangedAt).ticks;
+   b=exactRevision(incoming.sourceChangedAt).ticks;
+  }catch{fail('qa_delta_invalid_stored_revision');}
   if(b<a)return 'stale';
   if(b===a)return 'conflict';
   return 'applied';
@@ -82,24 +104,27 @@ export async function appendQaSourceDelta({pool,event,attestSourceEvent,now=Date
        !(date(incoming.sourceChangedAt)>date(baseline.source_exported_at)))
       fail('qa_delta_baseline_not_verified');
     const previousEvent=(await c.query('SELECT snapshot_id,document_path,operation,'+
-      'source_changed_at,content_hash FROM qa_failover_v1.source_delta_events'+
+      "to_char(source_changed_at AT TIME ZONE 'UTC',"+
+      "'YYYY-MM-DD"+'"'+"T"+'"'+"HH24:MI:SS.US"+'"'+"Z"+'"'+"') AS source_changed_at_exact,"+
+      'content_hash FROM qa_failover_v1.source_delta_events'+
       ' WHERE event_id=$1 FOR UPDATE',[incoming.eventId])).rows?.[0];
     if(previousEvent){
       if(previousEvent.snapshot_id!==incoming.snapshotId||
          previousEvent.document_path!==incoming.documentPath||
          previousEvent.operation!==incoming.operation||
          previousEvent.content_hash!==incoming.hash||
-         date(previousEvent.source_changed_at)!==date(incoming.sourceChangedAt))
+         previousEvent.source_changed_at_exact!==incoming.sourceChangedAt)
         fail('qa_delta_event_id_collision');
       await c.query('COMMIT');tx=false;
       return Object.freeze({journaled:true,outcome:'duplicate',canAcceptWrites:false});
     }
-    const previous=(await c.query('SELECT event_id,source_changed_at FROM'+
+    const previous=(await c.query("SELECT event_id,to_char(source_changed_at AT TIME ZONE 'UTC',"+
+      "'YYYY-MM-DD"+'"'+"T"+'"'+"HH24:MI:SS.US"+'"'+"Z"+'"'+"') AS source_changed_at_exact FROM"+
       ' qa_failover_v1.source_delta_latest WHERE snapshot_id=$1'+
       ' AND document_path=$2 FOR UPDATE',
       [incoming.snapshotId,incoming.documentPath])).rows?.[0]||null;
     const outcome=qaSourceDeltaOrder(previous&&{
-      sourceChangedAt:previous.source_changed_at,
+      sourceChangedAt:previous.source_changed_at_exact,
     },incoming);
     await c.query('INSERT INTO qa_failover_v1.source_delta_events'+
       ' (event_id,snapshot_id,document_path,root_collection,operation,'+
