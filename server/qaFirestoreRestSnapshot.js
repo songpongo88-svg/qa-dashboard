@@ -12,6 +12,7 @@ const safe=x=>typeof x==='string'&&x.length>0&&x.length<2000;
 export async function captureQaFirestorePointInTime({
   projectId,accessToken,fetchImpl=fetch,readTime,
   pageSize=100,maxDocumentReads=3000,maxApiRequests=80,
+  beforeRequest,
 }={}){
   if(!PROJECT.test(projectId||'')||!safe(accessToken)||accessToken.length<20)
     throw fail('firestore_server_credentials_missing');
@@ -21,6 +22,8 @@ export async function captureQaFirestorePointInTime({
      maxDocumentReads>20000||!Number.isSafeInteger(maxApiRequests)||
      maxApiRequests<11||maxApiRequests>200)
     throw fail('snapshot_read_budget_invalid');
+  if(beforeRequest!==undefined&&typeof beforeRequest!=='function')
+    throw fail('source_read_reserver_invalid');
   let documentReadEstimate=0,apiRequests=0;
   // Cloud Firestore supports consistent readTime for paginated reads.
   // Always use the same time for every dataset; never use client cache.
@@ -45,6 +48,12 @@ export async function captureQaFirestorePointInTime({
       url.searchParams.set('readTime',observedAt);
       url.searchParams.set('pageSize',String(requestedPageSize));
       if(next)url.searchParams.set('pageToken',next);
+      // Persist a conservative reservation BEFORE issuing a Firestore GET.
+      // The caller's budget ledger never refunds timeouts/quota failures.
+      // No OAuth token, raw case data, or document IDs are sent to it.
+      if(beforeRequest)await beforeRequest(Object.freeze({
+        requestedPageSize,dataset,apiRequestNumber:apiRequests+1,
+      }));
       let response;
       apiRequests++;
       try{
