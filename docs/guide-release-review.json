@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T03:05:14.775Z",
-  "reason": "QA-only PostgreSQL Windows bridge composition now routes authenticated local server-to-server Evaluation reads and durable writes only when independent source proofs, signed active sessions and explicit service flags are present. Default read-only bridge behavior retained. CI confirms real loopback HTTP POST is accepted with server-owned verified identity and rejected for browser origins, mismatched idempotency, absent coordinator source or disabled writer. No Production cutover, QA Sparks, score, appeals, signatures or T&C changed.",
+  "reviewedAt": "2026-11-13T03:23:57.483Z",
+  "reason": "QA-only Firestore failback correctness: allow updates to records created on offline standby when the remote case has an exact version, even with no legacy source hash; still require hash to modify legacy unversioned cases. Added real disposable PostgreSQL17 queue and simulated transactional Firestore integration for create, edit, delete, lost network acknowledgement, idempotent retry and historical score integrity. No Production enablement, QA Sparks, guides or live records changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -17,7 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
-    ".github/workflows/qa-postgres-preview-safety.yml": "c1bd38e38c5108768509a822fe4c05d0f204b1889c45c3612a5bbd46d92f0a13",
+    ".github/workflows/qa-postgres-preview-safety.yml": "c08432b97a72a0e943219bb92afcb30c91234ef7b728b077b4495c124edc3633",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -381,7 +381,7 @@
     "scripts/test-qa-cutover-parity-gate.mjs": "1c857ba407b3f137f3d056c9e5ac8c110634a899d321f8d6df91bb694f00dc38",
     "scripts/test-qa-emergency-draft-export.mjs": "7707f5f194da2de2a3a1d0681ab7a6fb0f7265fa4b79f6c14a412faee00fbe7d",
     "scripts/test-qa-failover-decision.mjs": "a51a990179120fd858fb1c9e257c7ea0947eefdc8a7b0036e11c2e916ddb49a6",
-    "scripts/test-qa-firestore-failback-adapter.mjs": "2e5515a424c330d70d09bdf0b8645847cd8827299ce40b40a2e44c1e327d6f63",
+    "scripts/test-qa-firestore-failback-adapter.mjs": "03727d0100c670b24560c36a15d599811cf2243127e12366e2dfbbd834bda235",
     "scripts/test-qa-local-bridge.mjs": "aecb3876777eeeb82774c458bebc907c14381155d96317459dce9bd46826b879",
     "scripts/test-qa-local-diagnostics.mjs": "1cb205239a8fbdfd9c52493ac71c1890e9286f00e352438bad2f0e2396c634e0",
     "scripts/test-qa-local-mirror-import-integration.mjs": "1af75c39d9dcff372f778377d9af8d3201629e46e2f6b4f201ba0e44ee1722ac",
@@ -460,7 +460,7 @@
     "server/qaCutoverSessionStore.js": "02af9cd944af58e3531d529544e4ff3b22f0d942dbfde62d86f631cf8bf7c26e",
     "server/qaCutoverWritePolicy.js": "80ea6e4e6a402a9dcc955a4588cc9a7286d40a62c3592b33d0f59c12433cbd1a",
     "server/qaFailoverDecision.js": "b7b116b3bbd0ecaa2467ca6e4fba517ba5f8a714fbb3082830405df5d86c447f",
-    "server/qaFirestoreFailbackAdapter.js": "15c2ee527d80510f4a9386edb90149f4fbd8522895139ccb4b0b7033c3d6dc4d",
+    "server/qaFirestoreFailbackAdapter.js": "99c80c85f2bc2a1f8b59d2ac8dc2d770c56c375fa3376382fba621520acd5a1d",
     "server/qaLocalBridgeServer.js": "e4962fad8a497c8b9a5b8d5f2812220cd23788e9ebd953fa4b25f0d72466cc5f",
     "server/qaLocalDiagnosticsHandler.js": "b3f7d06402b39b1d6242bc7f076e5b18f3e777c491519d2471a96aceaba1fb6d",
     "server/qaLocalSessionVerifier.js": "e779ef6846d7f3a8f73446f3f9f778c639b651049502c7c5a85746870f2ecb05",
@@ -813,6 +813,7 @@
     "server/qaStandbyActivation.js": "41a0e8965e9040044b9cf8e2bf817dbc75a79dae2520c8195d0089ac366c2dd6",
     "scripts/test-qa-standby-activation-integration.mjs": "7c1ea26bcf956e7f960d327838887ac833fac10a27c15effcba6b0775793ed63",
     "server/qaStandbyBridgeRuntime.js": "57d82cbfd045005e1938c1d59d6bd6c5cafd1a8154ef21d065e2e49e99a5f2e3",
-    "scripts/test-qa-standby-bridge-runtime.mjs": "3e5021171d99337a5b417218b76dd4b1f260248b8aceba91f5325e07b421263a"
+    "scripts/test-qa-standby-bridge-runtime.mjs": "3e5021171d99337a5b417218b76dd4b1f260248b8aceba91f5325e07b421263a",
+    "scripts/test-qa-standby-full-failback-integration.mjs": "c63035ab729ebde8f351fb60cb1bbbb90880e01ab28974222995b8ebc8b08868"
   }
 }
