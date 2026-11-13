@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T11:07:46.621Z",
-  "reason": "QA frozen replica refresh now rejects snapshot time regression, stale source, tampering and outbox activity while maintaining old immutable copies and preserving QA Sparks. Only test-stage code changes; no Firestore primary/write or Production cutover.",
+  "reviewedAt": "2026-11-13T11:11:14.467Z",
+  "reason": "QA atomic inactive replica refresh with explicit snapshot age and monotonic timestamp checks. Reject stale, backward, tampered or partial 11-set source copies; preserve original QA scores, old archives and production Firestore primary.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -512,7 +512,7 @@
     "server/qaStandbyDataHandler.js": "4c60ec298144b861c7aa675b816abbd5599e639dcd42de7362e36bd0c2066e22",
     "server/qaStandbyDomainSeed.js": "b4e8ec2f4d50ec7084d4dd09ee47c4bd40eee26781f951c65e9d66435b9ef66b",
     "server/qaStandbyInactiveAudit.js": "6c3f302e96be726a6148b8831883b09f85cf773ab7d3af613ccd93fc4d70b17f",
-    "server/qaStandbyInactiveRefresh.js": "25e7ea4eb77ee41abfbb1b9e8e628daa7b783a797e26a4d02f822a4220b5f2a8",
+    "server/qaStandbyInactiveRefresh.js": "a6ac624854c60822e6aaa6539c97774c23a11f70323d4125a1753445654472c6",
     "server/qaStandbyInactiveSeed.js": "1df585c5d4cf1db89866919da511e33d95a0704be1489a2e869a0ff1c4dd9d6c",
     "server/qaStandbyPgJournal.js": "5451c4d7d95bf9c76230ab4bf9144bc9a1d5160312fec3492747cd32d18e4118",
     "server/qaStandbyRead.js": "ed0b2ed0ba0d7ec69d0f1cdc35d72fcba6d437c498527637bd6854fe2dbd2fce",
