@@ -97,13 +97,13 @@ r=await get(createQaPreviewStatusHandler({
   env:{...preview,VERCEL_ENV:'production'},fetchImpl:callFetch
 }));
 assert.equal(r.code,404);
-assert.equal(fetchCount,8);
+assert.equal(fetchCount,12);
 r=await get(createQaPreviewStatusHandler({
   env:{...preview,QA_LOCAL_BRIDGE_URL:'https://evil.example/'},fetchImpl:callFetch
 }));
 assert.equal(r.code,200);
 assert.equal(r.body.bridgeStatus,'not_configured');
-assert.equal(fetchCount,8);
+assert.equal(fetchCount,12);
 responseMode='offline';
 r=await get(handler);
 assert.equal(r.code,200);
