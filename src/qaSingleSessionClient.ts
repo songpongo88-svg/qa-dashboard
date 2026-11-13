@@ -1,3 +1,4 @@
+import { canAcknowledgeQaTakeover } from "./qaTabLease.mjs";
 // New session protocol is OFF unless both preview/client and server explicitly
 // enable it. A rejected server check must never silently fall back to legacy
 // Firebase login once the feature flag is enabled.
@@ -33,6 +34,11 @@ export async function qaServerSessionRequest(
 ): Promise<QaServerSessionResponse> {
   if (!QA_SINGLE_SESSION_CLIENT_ENABLED) {
     throw new QaServerSessionError(503, "QA_SINGLE_SESSION_DISABLED");
+  }
+  // A form editor in another tab may have changes the current tab cannot
+  // inspect. Never acknowledge an all-drafts-saved takeover in that case.
+  if (action === "ack" && !(await canAcknowledgeQaTakeover())) {
+    throw new QaServerSessionError(409, "QA_OTHER_TABS_OPEN");
   }
   const response = await fetch("/api/qa-single-session", {
     method: "POST",
