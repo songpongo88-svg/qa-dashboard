@@ -20,7 +20,13 @@ export default async function handler(req, res) {
       (origin && (!host || origin !== "https://" + host))) {
     return res.status(403).json({ ok: false, code: "SAME_ORIGIN_REQUIRED" });
   }
-  const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+  let body;
+  try {
+    body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw Error("Invalid body");
+  } catch {
+    return res.status(400).json({ ok: false, code: "BAD_BODY" });
+  }
   const action = String(body.action || "");
   if (!ALLOWED_ACTIONS.has(action)) return res.status(400).json({ ok: false, code: "BAD_ACTION" });
   const requestId = body.requestId == null ? null : String(body.requestId);
