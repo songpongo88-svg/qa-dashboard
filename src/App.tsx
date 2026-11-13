@@ -29,6 +29,8 @@ import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
 import { syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
+import SessionTakeoverPrompt from "./SessionTakeoverPrompt";
+import { QA_SINGLE_SESSION_CLIENT_ENABLED, qaServerSessionRequest, QaServerSessionError } from "./qaSingleSessionClient";
 import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
 import { DailyCheckinLoginPrompt } from "./DailyCheckinQuest";
@@ -3919,6 +3921,9 @@ export default function App() {
   });
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [takeoverUser, setTakeoverUser] = useState<CurrentUser | null>(null);
+  const [takeoverStatus, setTakeoverStatus] = useState("awaiting_consent");
+  const [takeoverBusy, setTakeoverBusy] = useState(false);
   const [loginStep, setLoginStep] = useState<"username" | "password">("username");
   const [loginUsernameStatus, setLoginUsernameStatus] = useState<
     "idle" | "checking" | "valid" | "invalid"
@@ -4251,8 +4256,23 @@ export default function App() {
     window.history.replaceState({}, "", cleanUrl.toString());
   };
 
-  const activateUserSession = async (user: CurrentUser) => {
+  const activateUserSession = async (user: CurrentUser, verifiedPassword = "", serverAlreadyActive = false) => {
     try {
+      if (QA_SINGLE_SESSION_CLIENT_ENABLED && !serverAlreadyActive) {
+        // The server verifies the password again; a browser-only check is not sufficient.
+        const verification = await qaServerSessionRequest("login", {
+          username: user.username, password: verifiedPassword,
+          deviceLabel: navigator.userAgent.includes("Edg/") ? "Microsoft Edge" : "Google Chrome / Browser",
+        });
+        if (verification.status === "conflict") {
+          setTakeoverUser(user);
+          setTakeoverStatus("awaiting_consent");
+          setPassword("");
+          setLoginError("");
+          return null;
+        }
+        if (verification.status !== "active") throw new Error("Server did not activate a session");
+      }
       const session = await createStoredUserSession(user);
       const authenticatedUser: CurrentUser = {
         ...user,
@@ -4345,6 +4365,10 @@ export default function App() {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));
         }
 
+        if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+          const serverCheck = await qaServerSessionRequest("validate");
+          if (serverCheck.status !== "active") throw new Error("Trusted session verification failed");
+        }
         if (!cancelled) {
           lastSessionTouchRef.current = Date.now();
           setCurrentUser(restoredUser);
@@ -6670,6 +6694,11 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+      void qaServerSessionRequest("logout").catch(() => {
+        console.warn("Server session logout request was not acknowledged");
+      });
+    }
     endSessionEverywhere("manual");
   };
 
@@ -6835,6 +6864,45 @@ export default function App() {
     });
   }, [activeTab, currentUser]);
 
+  const handleTakeoverConfirm = async () => {
+    if (!takeoverUser || takeoverBusy) return;
+    setTakeoverBusy(true);
+    setTakeoverStatus("flushing");
+    try {
+      const request = await qaServerSessionRequest("request");
+      if (request.status !== "pending" || !request.pendingId) throw new Error("Takeover request was not accepted");
+      const deadline = Date.parse(request.deadline || "") || (Date.now() + 30_000);
+      let replaced = false;
+      while (Date.now() < deadline) {
+        try {
+          const result = await qaServerSessionRequest("commit", { pendingId: request.pendingId });
+          if (result.status === "active") { replaced = true; break; }
+        } catch (error) {
+          if (!(error instanceof QaServerSessionError) || error.code !== "DRAFT_NOT_READY") throw error;
+        }
+        await new Promise<void>(resolve => window.setTimeout(resolve, 1400));
+      }
+      if (!replaced) {
+        setTakeoverStatus("unsynced");
+        setLoginError("เครื่องเดิมยังไม่ยืนยันว่า Draft ถูกบันทึกบนเซิร์ฟเวอร์ จึงยังไม่สามารถสลับ Session ได้");
+        return;
+      }
+      const activated = await activateUserSession(takeoverUser, "", true);
+      if (!activated) throw new Error("Cannot initialize the local QA workspace session");
+      void logUsageEvent(takeoverUser, "login", { tab: "dashboard", details: { reason: "session_takeover" } });
+      setTakeoverUser(null);
+      setLoginError("");
+      setUsername("");
+      setPassword("");
+      syncRouteFromLocation({ replace: true });
+    } catch (error) {
+      setTakeoverStatus("unsynced");
+      setLoginError("ไม่สามารถสลับ Browser ได้ กรุณาตรวจสอบการบันทึก Draft บนเครื่องเดิม");
+    } finally {
+      setTakeoverBusy(false);
+    }
+  };
+
   const handleLogin = () => {
     void handleLoginAsync();
   };
@@ -6905,7 +6973,7 @@ export default function App() {
           return;
         }
 
-        const activatedUser = await activateUserSession(nextUser);
+        const activatedUser = await activateUserSession(nextUser, typedPassword);
         if (!activatedUser) return;
         void logUsageEvent(nextUser, "login", { tab: "dashboard" });
         setLoginError("");
@@ -6985,7 +7053,7 @@ export default function App() {
       return;
     }
 
-    const activatedUser = await activateUserSession(nextUser);
+    const activatedUser = await activateUserSession(nextUser, normalizedPassword);
     if (!activatedUser) return;
     if (!maintenanceState.enabled || canBypassMaintenance(nextUser)) {
       void logUsageEvent(nextUser, "login", { tab: "dashboard" });
@@ -7469,6 +7537,16 @@ export default function App() {
   if (!currentUser) {
     return (
       <>
+        {QA_SINGLE_SESSION_CLIENT_ENABLED && takeoverUser ? (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/60 p-4">
+            <SessionTakeoverPrompt
+              deviceLabel="อุปกรณ์เดิม" browserLabel="Browser เดิม"
+              status={takeoverStatus} busy={takeoverBusy}
+              onConfirm={() => void handleTakeoverConfirm()}
+              onCancel={() => { if (!takeoverBusy) { setTakeoverUser(null); setTakeoverStatus("awaiting_consent"); } }}
+            />
+          </div>
+        ) : null}
         <ForgotPasswordModal
           open={showForgotPasswordModal}
           onClose={() => { setShowForgotPasswordModal(false); resetForgotPasswordState(); }}
@@ -7513,7 +7591,7 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <div className="qa-login-visual-footer relative z-10 mt-10 flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-violet-200/80"><span>2-hour inactivity policy</span></div>
+                <div className="qa-login-visual-footer relative z-10 mt-10 flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-violet-200/80"><span>30-minute inactivity policy</span></div>
               </section>
 
               {loginTheme.collection === "line-drawing" ? <InkLoginArtwork version={loginTheme.lineDrawingVersion} /> : null}
@@ -7575,12 +7653,12 @@ export default function App() {
                   <div className="qa-login-session-footer mt-8 border-t border-slate-100 pt-5">
                     <VersionPill meta={buildMeta} className="qa-login-version w-full" />
                     <div className="mt-4 flex items-center justify-between gap-4 text-[11px] text-slate-400">
-                      <span className="whitespace-nowrap">Session: 2 hours</span>
+                      <span className="whitespace-nowrap">Session: 30 minutes</span>
                     </div>
                   </div>
                 </div>
               </section>
-              {loginTheme.collection === "line-drawing" ? <div className="qa-ink-login-meta"><VersionPill meta={buildMeta} /><span>Session: 2 hours</span></div> : null}
+              {loginTheme.collection === "line-drawing" ? <div className="qa-ink-login-meta"><VersionPill meta={buildMeta} /><span>Session: 30 minutes</span></div> : null}
             </div>
           </div>
         </div>
