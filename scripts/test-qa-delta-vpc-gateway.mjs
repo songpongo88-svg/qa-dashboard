@@ -49,7 +49,9 @@ assert.equal((await request(undefined,{headers:{origin:'https://browser.example'
 assert.equal((await request(undefined,{headers:{authorization:'Bearer BAD'}})).status,403);
 assert.equal((await request(undefined,{headers:{'x-qa-source-signature':'v1='+'0'.repeat(64)}})).status,403);
 assert.equal((await request(undefined,{headers:{'x-qa-source-timestamp':'1000000000'}})).status,403);
-assert.equal((await request(undefined,{},'bad-data')).status,403);
+// Tampered body with a signature over the original request is rejected.
+assert.equal((await request(undefined,{headers:{
+ 'x-qa-source-signature':sign(sourceKey,stamp,sample)}},'bad-data')).status,403);
 assert.equal((await request(undefined,{headers:{'content-type':'text/plain'}})).status,415);
 assert.equal((await request(undefined,{headers:{'content-length':'99999999'}})).status,413);
 assert.equal((await request(undefined,{},sample,{...env,QA_EDGE_DELTA_FORWARD_SECRET:sourceKey})).status,503);
