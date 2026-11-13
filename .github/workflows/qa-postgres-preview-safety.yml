@@ -67,6 +67,8 @@ on:
       - "server/qaLiveMirrorStage.js"
       - "server/qaSourceDeltaJournal.js"
       - "server/qaSourceDeltaHttpHandler.js"
+      - "server/qaGoogleTaskAttestor.js"
+      - "scripts/test-qa-google-task-attestor.mjs"
       - "cloudflare/qa-delta-vpc-gateway.mjs"
       - "scripts/test-qa-delta-vpc-gateway.mjs"
       - "scripts/test-qa-source-delta-http-handler.mjs"
@@ -214,6 +216,8 @@ jobs:
           node --check server/qaLiveMirrorStage.js
           node --check server/qaSourceDeltaJournal.js
           node --check server/qaSourceDeltaHttpHandler.js
+          node --check server/qaGoogleTaskAttestor.js
+          node --check scripts/test-qa-google-task-attestor.mjs
           node --check cloudflare/qa-delta-vpc-gateway.mjs
           node --check scripts/test-qa-delta-vpc-gateway.mjs
           node --check scripts/test-qa-source-delta-http-handler.mjs
@@ -278,6 +282,7 @@ jobs:
           node scripts/test-qa-firestore-rest-snapshot.mjs
           node scripts/test-qa-source-delta-journal.mjs
           node scripts/test-qa-source-delta-http-handler.mjs
+          node scripts/test-qa-google-task-attestor.mjs
           node scripts/test-qa-delta-vpc-gateway.mjs
           node scripts/test-qa-standby-snapshot-readiness.mjs
           node scripts/test-qa-vpc-readiness.mjs
