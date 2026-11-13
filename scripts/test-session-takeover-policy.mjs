@@ -21,7 +21,7 @@ assert.equal(canCommitTakeover(ready, { currentActiveSessionId: "changed-concurr
 const failed = acknowledgeDraftFlush(flushing, { revision: 43, persisted: false, now: now + 5_000 });
 assert.equal(failed.status, TAKEOVER_STATE.unsynced);
 assert.equal(canCommitTakeover(failed, { currentActiveSessionId: "old" }), false);
-assert.equal(canCommitTakeover(failed, { currentActiveSessionId: "old", unsyncedRiskAccepted: true }), true);
+assert.equal(canCommitTakeover(failed, { currentActiveSessionId: "old", unsyncedRiskAccepted: true }), false);
 assert.equal(takeoverAfterTimeout(flushing, now + 30_000).status, TAKEOVER_STATE.unsynced);
 assert.equal(acknowledgeDraftFlush(flushing, { revision: 44, persisted: true, now: now + 30_001 }).status, TAKEOVER_STATE.unsynced);
 assert.equal(draftRecoveryDecision({ localRevision: 8, serverRevision: 7, localHasUnsyncedChanges: true }), "review_local_recovery");
