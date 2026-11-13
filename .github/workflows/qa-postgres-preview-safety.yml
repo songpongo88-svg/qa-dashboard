@@ -11,6 +11,7 @@ on:
       - "scripts/Check-QA-Windows-Bridge8790.ps1"
       - "scripts/Start-QA-Standby-From-Existing.ps1"
       - "scripts/Run-QA-Local-Source-Snapshot.ps1"
+      - "scripts/Install-QA-Source-Read-Budget.ps1"
       - "scripts/Finish-QA-Local-Snapshot-Setup.ps1"
       - "scripts/Complete-QA-Stored-Snapshot.ps1"
       - "scripts/Materialize-QA-Stored-Snapshot.mjs"
@@ -145,6 +146,10 @@ jobs:
           $errors = $null
           [System.Management.Automation.Language.Parser]::ParseFile("scripts/Finish-QA-Local-Snapshot-Setup.ps1", [ref]$tokens, [ref]$errors) | Out-Null
           if ($errors.Count -ne 0) { throw "QA dedicated importer installer has a PowerShell syntax error" }
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/Install-QA-Source-Read-Budget.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw "QA source-read budget installer has a PowerShell syntax error" }
           $tokens = $null
           $errors = $null
           [System.Management.Automation.Language.Parser]::ParseFile("scripts/Complete-QA-Stored-Snapshot.ps1", [ref]$tokens, [ref]$errors) | Out-Null
