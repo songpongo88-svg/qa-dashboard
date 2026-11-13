@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { appendUserProfileHistory } from "./profileHistoryStore";
@@ -86,6 +87,7 @@ export async function fetchStoredProfilePhoto(username: string) {
 }
 
 export async function upsertStoredProfilePhoto(profile: StoredProfilePhoto) {
+  await assertTrustedQaSessionForMutation();
   const normalizedUsername = String(profile.username || "").trim();
   if (!normalizedUsername) return;
 
@@ -131,6 +133,7 @@ export async function upsertStoredProfilePhoto(profile: StoredProfilePhoto) {
 
 
 export async function clearStoredProfilePhoto(username: string, updatedBy = "") {
+  await assertTrustedQaSessionForMutation();
   const normalizedUsername = String(username || "").trim();
   if (!normalizedUsername) return;
 
