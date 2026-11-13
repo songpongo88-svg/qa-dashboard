@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 ﻿import {
   collection,
   doc,
@@ -353,6 +354,7 @@ async function prepareAppealMonthlyReferences(payload: Partial<AppealLogEvent>) 
 }
 
 export async function writeAppealEvent(user: AppealLogUser, eventType: string, payload: Partial<AppealLogEvent> = {}) {
+  await assertTrustedQaSessionForMutation();
   const prepared = await prepareAppealEvent(user, eventType, payload);
   if (!prepared) return false;
   if (eventType === "appeal_additional_reason_option_added") {
@@ -372,6 +374,7 @@ export async function writeAppealEvent(user: AppealLogUser, eventType: string, p
 // Updates retain the message's identity and original sender. Reassignment removes
 // the original recipient's Inbox query match rather than creating a second task.
 export async function updateAppealDiscussionMessage(user: AppealLogUser, original: AppealLogEvent, payload: Partial<AppealLogEvent>) {
+  await assertTrustedQaSessionForMutation();
   if (!user?.username || original.username !== user.username || original.event_type !== "appeal_internal_message") return false;
   const requestId = String(original.details?.requestId || "");
   const messageId = String(original.details?.messageId || "");
@@ -411,6 +414,7 @@ export async function updateAppealDiscussionMessage(user: AppealLogUser, origina
 export async function writeAdditionalAppealAccessDecision(user: AppealLogUser,
   decision: Partial<AppealLogEvent>, round?: Partial<AppealLogEvent>) {
   if (user?.role !== "Quality Assurance") return false;
+  await assertTrustedQaSessionForMutation();
   if (Boolean(decision.details?.approved) !== Boolean(round)) throw new Error("Approval requires its additional appeal round");
   if (round && (!Array.isArray(round.details?.topics) || !round.details.topics.length ||
       round.details.requestId !== decision.details?.requestId || round.details.accessId !== decision.details?.accessId))
