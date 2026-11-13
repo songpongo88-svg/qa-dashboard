@@ -1206,6 +1206,14 @@ export default function CreateEvaluationMockup({
     return () => window.clearInterval(timer);
   }, [currentUser?.username, workspaceView, emergencyRecovery]);
 
+  // Submitting a case must not leave a stale emergency copy behind.
+  useEffect(() => {
+    if (evaluationStatus === "Submitted" && currentUser?.username) {
+      void clearEvaluationRecovery(currentUser.username).catch((error) => console.warn("Recovery cleanup unavailable", error));
+      setEmergencyRecovery(null);
+    }
+  }, [evaluationStatus, currentUser?.username]);
+
   function restoreEmergencyRecovery() {
     const snapshot = emergencyRecovery?.snapshot;
     if (!snapshot || activeSubmittedRecordId) return;
@@ -1807,6 +1815,10 @@ export default function CreateEvaluationMockup({
   }
 
   function resetEvaluationForm() {
+    if (currentUser?.username) {
+      void clearEvaluationRecovery(currentUser.username).catch((error) => console.warn("Recovery cleanup unavailable", error));
+    }
+    setEmergencyRecovery(null);
     clearEvaluateTabMemory();
     callRecordingUploads.current.clear();
     setAgentName("");
