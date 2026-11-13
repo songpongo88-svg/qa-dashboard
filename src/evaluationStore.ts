@@ -10,6 +10,7 @@ import { isTestCaseEvaluation, limitEvaluationScopes } from "./lib/evaluationSco
 import type { DeductionTag } from "./lib/evaluation/deductionTags";
 import { monthlyResultScope, MonthlyResultLockCheckError, MonthlyResultLockedError, prepareMonthlyResultReferences, readMonthlyResultReferences, touchMonthlyResults } from "./monthlyResultLockStore";
 import { readEvaluationEditForSave } from "./evaluationEditingStore";
+import { currentQaDashboardSessionId, fetchCompleteQaStandbyEvaluationHistory } from "./qaStandbyEvaluationHistory";
 export { isTestCaseEvaluation, excludeTestEvaluations } from "./lib/evaluationScope";
 
 const env = (import.meta as any).env || {};
@@ -39,6 +40,10 @@ const MAX_EVALUATION_LIMIT = 1000;
 const REMOTE_EVALUATION_READ_CACHE_TTL_MS = 5 * 60 * 1000; // Reuse unchanged reads until the Dashboard's next revision check.
 const AUTO_SYNC_LOCAL_EVALUATIONS =
   String(env.VITE_QA_AUTO_SYNC_LOCAL_EVALUATIONS || "").toLowerCase() === "true";
+// Off unless a separately deployed, server-certified QA fallback is enabled.
+// A browser quota error alone never authorizes PostgreSQL reads or writes.
+const STANDBY_READ_ON_FIRESTORE_QUOTA =
+  String(env.VITE_QA_STANDBY_READ_ON_QUOTA || "") === "1";
 const EVALUATION_SELECT_COLUMNS = [
   "id",
   "evaluation_key",
@@ -1596,6 +1601,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
 
   if (isFirebaseEvaluationConfigured()) {
     let remoteReadSucceeded = true;
+    let usedCertifiedStandby = false;
     // Freeze the account scope for this request, including its in-memory cache
     // key. A login switch during a pending read must not reuse another scope.
     const requestHistoryScope = evaluationHistoryAccountScope(FIREBASE_PROJECT_ID, FIREBASE_EVALUATION_COLLECTION);
@@ -1756,7 +1762,21 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
         console.warn("Load Firebase evaluations failed", error);
         throw error;
       }
-    }, { ...options, historyScope: requestHistoryScope }).catch((error) => {
+    }, { ...options, historyScope: requestHistoryScope }).catch(async (error) => {
+      if (STANDBY_READ_ON_FIRESTORE_QUOTA && isFirestoreQuotaError(error)) {
+        const sessionId = currentQaDashboardSessionId();
+        if (sessionId) {
+          try {
+            // Only a FULL, server-certified PostgreSQL response may stand in
+            // for a failed Firestore quota read. Never trust a browser cache.
+            const rows = await fetchCompleteQaStandbyEvaluationHistory<StoredEvaluation>(sessionId);
+            usedCertifiedStandby = true;
+            return rows.filter(item => !item.deletedAt);
+          } catch (standbyError) {
+            console.warn("QA standby history was not independently verified", standbyError);
+          }
+        }
+      }
       remoteReadSucceeded = false;
       if (options.strict) throw error;
       return [];
@@ -1765,6 +1785,12 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT, o
     const recoveredFirebaseEvaluations = firebaseEvaluations.map((item) =>
       recoverRemoteEvaluationFromLocal(item, localEvaluations)
     );
+    if (usedCertifiedStandby) {
+      // Never merge offline browser-only drafts into a claimed official
+      // standby result. Do not write a PostgreSQL snapshot into Firestore's
+      // persistent history cache or attempt Firebase auto-sync during outage.
+      return limitEvaluationScopes(recoveredFirebaseEvaluations, safeLimit);
+    }
     const syncedLocalEvaluations = AUTO_SYNC_LOCAL_EVALUATIONS
       ? await syncLocalEvaluationsToRemote(recoveredFirebaseEvaluations, localSources)
       : [];
