@@ -1,6 +1,6 @@
 // QA-only Vercel Preview -> Cloudflare Workers VPC -> Windows 8788
 // relay for verified evaluations. No new serverless function is created.
-// This handler is NOT part of Production and is disabled by default.
+// Production is disabled by default and needs separate opt-in and server proofs.
 // Browser never receives the private Cloudflare / Windows bridge token.
 const IDENTIFIER=/^[a-zA-Z0-9_.:@-]{1,180}$/;
 const SESSION=/^[a-zA-Z0-9_.:@-]{20,180}$/;
@@ -63,7 +63,16 @@ export function createQaVercelStandbyProxy({
     // This route is hidden within an existing QA-only cron function to fit
     // the Hobby function limit. It cannot bypass the scheduled cron secret.
     // The browser endpoint requires the existing *active* QA local session ID.
-    if(env.VERCEL_ENV!=='preview'||env.QA_STANDBY_DATA_PROXY_ENABLED!=='1')
+    // Production requires a separate, explicit cutover gate. Publishing this
+    // relay does not activate the Windows writer; its independent PG/session
+    // and coordinator proof checks still fail closed.
+    const preview=env.VERCEL_ENV==='preview'&&
+      env.QA_STANDBY_DATA_PROXY_ENABLED==='1';
+    const production=env.VERCEL_ENV==='production'&&
+      env.QA_STANDBY_DATA_PROXY_ENABLED==='1'&&
+      env.QA_STANDBY_PRODUCTION_PROXY_APPROVED==='1'&&
+      env.QA_STANDBY_CUTOVER_APPROVED==='1';
+    if(!preview&&!production)
       return respond(res,503,{ok:false,error:'standby_data_disabled'});
     if(!['GET','POST'].includes(req.method)){
       res.setHeader('Allow','GET, POST');
@@ -80,8 +89,12 @@ export function createQaVercelStandbyProxy({
     const session=sourceSession(req);
     if(!session)return respond(res,403,{ok:false,error:'session_required'});
     const origin=bridgeOrigin(env.QA_LOCAL_BRIDGE_URL);
-    const secret=env.QA_LOCAL_BRIDGE_TOKEN;
-    if(!origin||typeof secret!=='string'||secret.length<40)
+    // Never reuse the archive-only /ready token for case reads or writes.
+    // Cloudflare validates this token against QA_EDGE_DATA_BEARER_SHA256
+    // and routes it exclusively to the private Windows 8790 data binding.
+    const secret=env.QA_LOCAL_STANDBY_DATA_TOKEN;
+    if(!origin||typeof secret!=='string'||secret.length<40||
+       secret===env.QA_LOCAL_BRIDGE_TOKEN)
       return respond(res,503,{ok:false,error:'private_bridge_not_configured'});
     const action=scalar(req.query.action);
     let urlPath='/v1/qa/evaluations',payload=null,operationId=null;
