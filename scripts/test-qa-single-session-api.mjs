@@ -51,6 +51,7 @@ assert.equal(verifyQaTicket("", "session", privateKey, now), null);
 assert.equal(verifyQaTicket("", "session"), null);
 // Cookie rotation must revoke the short-lived takeover candidate ticket.
 const responseHeaders = { setHeader(name, value) { this[name] = value; } };
+const oldQaServiceEnv = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
 process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = JSON.stringify({
   project_id: "qa-dashboard-b0b5d", private_key: privateKey,
 });
@@ -59,7 +60,8 @@ issueSessionCookie(responseHeaders, { username: "agent", role: "Quality Assuranc
 assert.equal(responseHeaders["Set-Cookie"].length, 2);
 assert.match(responseHeaders["Set-Cookie"][0], /^__Host-qa_single_session=/);
 assert.match(responseHeaders["Set-Cookie"][1], /^__Host-qa_login_candidate=;.*Max-Age=0/);
-delete process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
+if (oldQaServiceEnv === undefined) delete process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
+else process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = oldQaServiceEnv;
 
 assert.equal(visibleSessionState({ expiresAt: new Date(now + 30_000).toISOString(),
   deviceLabel: "Chrome" }, now).status, "conflict");
