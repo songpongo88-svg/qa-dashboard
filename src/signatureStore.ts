@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 import { collection, deleteDoc, deleteField, doc, getDoc, getDocsFromServer, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
@@ -137,6 +138,7 @@ export async function fetchStoredSignatureLibraryEntry(libraryKey: string) {
 }
 
 export async function saveStoredSignatureLibraryEntry(libraryKey: string, signatureDataUrl: string) {
+  await assertTrustedQaSessionForMutation();
   const now = new Date().toISOString();
   await setDoc(
     doc(firebaseDb, SIGNATURE_LIBRARY_COLLECTION, safeDocId(libraryKey)),
@@ -150,10 +152,12 @@ export async function saveStoredSignatureLibraryEntry(libraryKey: string, signat
 }
 
 export async function deleteStoredSignatureLibraryEntry(libraryKey: string) {
+  await assertTrustedQaSessionForMutation();
   await deleteDoc(doc(firebaseDb, SIGNATURE_LIBRARY_COLLECTION, safeDocId(libraryKey)));
 }
 
 export async function saveStoredSignatureDocument(docId: string, entries: StoredSignatureEntry[], confirmedAt = "") {
+  await assertTrustedQaSessionForMutation();
   const canonicalDocId = canonicalSignatureDocId(docId);
   const now = new Date().toISOString();
   const cleanEntries = sanitizeEntries(entries);
@@ -170,7 +174,8 @@ export async function saveStoredSignatureDocument(docId: string, entries: Stored
   );
 }
 
-export async function saveStoredSignatureConfirm(docId: string, confirmedAt: string, options: { expectedRevision: string; confirmedBy?: string }) {
+export async function saveStoredSignatureConfirm(docId: string, confirmedAt: string, options: {
+  await assertTrustedQaSessionForMutation(); expectedRevision: string; confirmedBy?: string }) {
   if (typeof options?.expectedRevision !== "string") throw new MonthlyResultLockCheckError();
   const canonicalDocId = canonicalSignatureDocId(docId);
   const separator = canonicalDocId.indexOf("::");
@@ -198,6 +203,7 @@ export async function saveStoredSignatureConfirm(docId: string, confirmedAt: str
 }
 
 export async function clearStoredSignatureConfirm(docId: string, entries: StoredSignatureEntry[] = []) {
+  await assertTrustedQaSessionForMutation();
   const canonicalDocId = canonicalSignatureDocId(docId);
   const cleanEntries = sanitizeEntries(entries);
   // Reset affects signatures/acknowledgement only. Preserve the original result
