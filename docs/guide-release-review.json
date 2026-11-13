@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T05:02:11.986Z",
-  "reason": "QA-only Firestore quota fallback in Evaluation Store. Complete authenticated PostgreSQL pagination is attempted only when Firestore itself returns a quota error AND the browser feature flag is explicitly enabled; the Windows data bridge must still independently validate current QA session, immutable source snapshot, month locks and coordinator. Reject duplicate/missing/partial pages; never mix local drafts with official backup scores, run Firestore autosync or cache incomplete PG data. Default OFF, no Production, QA Sparks, Appeal, Signature, or score changes. Also reviewed private Vercel/Cloudflare 8790 authentication isolation tests.",
+  "reviewedAt": "2026-11-13T05:03:09.877Z",
+  "reason": "QA Core quota-safe read fallback: full server-verified PostgreSQL pagination only after Firestore quota errors, with strict fail-closed duplicate/missing/partial page checks. Browser drafts and earlier local caches are excluded from certified standby results. Isolated Windows 8790 with separate archive/data tokens and server-owned role, lease, snapshot gates. Default OFF, no Production modifications, QA Sparks, appeals, signatures or original scores changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -17,7 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
-    ".github/workflows/qa-postgres-preview-safety.yml": "00000000000000000000000000000000206f12d6191337d97fe8cb14346bfa7d",
+    ".github/workflows/qa-postgres-preview-safety.yml": "57297b0559a78a83e722058d3776b2c96b0e9880716bce577a096e0e09952cca",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -408,7 +408,7 @@
     "scripts/test-qa-standby-replay-integration.mjs": "294a60b5c92bbc5d15fea1ec47fcb082db911bffdcd4a2edbc8d4c941e29edd5",
     "scripts/test-qa-standby-trusted-context.mjs": "c5d14a837db90ec04e2bee8efe4697fea23f1850630afada22623f99a648e6a2",
     "scripts/test-qa-typing-gate.mjs": "eca6f552384c1373942e37e8452acbecece4ecc101d64d3f8b579d7f545e91f2",
-    "scripts/test-qa-vercel-standby-proxy.mjs": "000000000000000000000000000000000e3aea2d3371f0cf6ad54320b6188b54",
+    "scripts/test-qa-vercel-standby-proxy.mjs": "d9ed75b093be99fea0b1dd9eaab7b114d9de8a0c82a7fc602ec741dc4ca529ac",
     "scripts/test-qa-vpc-worker-data.mjs": "b935b844adfdd522e4cfa903009c106e97dc007827ce1e92bd1fcf08d081ce9b",
     "scripts/test-qa-vpc-worker.mjs": "3a7a322df650c8e1e0c3d931c95539c2aca41ac6ca97c30304b33629f3ce8b4b",
     "scripts/test-receipt-first-ui.mjs": "bf9463f341f0653be65b08e4bcd98cc0bdb52a16eecd73bbf0990b989a7e6dd2",
@@ -561,7 +561,7 @@
     "src/evaluationActivityStore.ts": "5284af7fa9d93560ca1695b7d0a1d4596954f1bbe5518a538fdddbbc1983f113",
     "src/evaluationEditingStore.ts": "b234253dd21ff0e4316ce5311fcd9e8e17374d8c474fb12412a052a85c2ebd46",
     "src/evaluationHistoryCache.ts": "99d559fdcc2715c601bfe71190bf01dbc77f79ac60d9ae38846c2bad8acfb450",
-    "src/evaluationStore.ts": "00000000000000000000000000000000d242414a9f8a144e61bc443a6fe667be",
+    "src/evaluationStore.ts": "40ff8e6ba52051f809326ed48f4815a0b1f4cd085f6c7fe3d80eb97f6e442e27",
     "src/evaluationTagStore.ts": "55f956c44387922ab93b4a1e55c2c696a958f977b731a5d08fb7e52816f48ed2",
     "src/evidencePreviewPdf.ts": "824a189e72e7d77fd242d90ba1daf7db9733372c624a75b39791c2dc71d0b1aa",
     "src/evidenceWatermark.ts": "3237b6eb3f56840f5a9ed72ab6c1639bf3ff9b805b5cc5f8683321a6c2989380",
@@ -817,7 +817,7 @@
     "scripts/test-qa-standby-full-failback-integration.mjs": "c63035ab729ebde8f351fb60cb1bbbb90880e01ab28974222995b8ebc8b08868",
     "server/qaWindowsStandbyService.js": "6f2c5c895cf3145cd2e2435629aacd3410f2d08deabcdd59d7adec1fa401eeb7",
     "scripts/test-qa-windows-bridge-service.mjs": "2d11aefb8a40aaf7ae734793d525b9202019cb915918994def1be83a8fa2ee10",
-    "src/qaStandbyEvaluationHistory.ts": "000000000000000000000000000000002113ccb8b847f427ce0020e88fc3ab3e",
-    "scripts/test-qa-standby-history.mjs": "00000000000000000000000000000000d7163111355a545f8f2d5752bda3feff"
+    "src/qaStandbyEvaluationHistory.ts": "39f839b81059e3dc14bfe5e83282ff6854b92fcab51cf7c645e42b870f4f1ea1",
+    "scripts/test-qa-standby-history.mjs": "027b51994c39316b0cffe2b7dca40c484707fabf37d1bca4793fe47a04e6adea"
   }
 }
