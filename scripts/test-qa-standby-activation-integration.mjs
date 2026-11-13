@@ -47,7 +47,7 @@ try{
     denied('cutover_not_authorized'));
   await assert.rejects(call({...input,mirror:{...mirror,snapshotId:'other-snapshot'}}),
     denied('cutover_missing_independent_authority'));
-  const changed='qa_evaluations/fixture-doc-01';
+  const changed='qa_evaluations/eval-test-01';
   const original=(await pool.query(
     'SELECT content_hash FROM qa_failover_v1.live_snapshot_rows'+
     ' WHERE snapshot_id=$1 AND document_path=$2',[snapshotId,changed]
