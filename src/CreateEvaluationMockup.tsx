@@ -1024,7 +1024,6 @@ export default function CreateEvaluationMockup({
   onSubmitEvaluation?: (payload: EvaluationSubmitPayload) => void | Promise<void>;
 }) {
   const stickyNoteOwner = currentUser?.username || currentUser?.email || "anonymous";
-  const [evaluationSection, setEvaluationSection] = useState<"case" | "rubric" | "summary">("case");
   const [agentName, setAgentName] = useState(() => readEvaluateTabMemory()?.agentName || "");
   const [auditDate, setAuditDate] = useState(() => readEvaluateTabMemory()?.auditDate || todayInputValue());
   const [waitingTime, setWaitingTime] = useState(() => readEvaluateTabMemory()?.waitingTime || "");
@@ -3507,18 +3506,9 @@ export default function CreateEvaluationMockup({
         {workspaceView === "form" ? (
         <InlineRichTextEditors>
         <div className="qa-evaluation-form">
-          <nav className="qa-evaluation-sections mb-5 flex flex-wrap gap-2" aria-label="ส่วนของฟอร์มประเมิน">
-            {([["case", "1. ข้อมูลเคส"], ["rubric", "2. ประเมินตามเกณฑ์"], ["summary", "3. สรุปผล"]] as const).map(([section, title]) => (
-              <button key={section} type="button" aria-pressed={evaluationSection === section}
-                aria-controls={"qa-evaluation-" + section} onClick={() => setEvaluationSection(section)}
-                className={`rounded-xl border px-4 py-3 text-sm font-black transition ${evaluationSection === section ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
-                {title}
-              </button>
-            ))}
-          </nav>
         {isTestCase ? <div className="mb-4"><TestCaseNotice /></div> : null}
-        <div className="qa-evaluation-layout" data-active-section={evaluationSection}>
-          <div id="qa-evaluation-case" className="qa-evaluation-case space-y-6" hidden={evaluationSection !== "case"}>
+        <div className="qa-evaluation-layout">
+          <div id="qa-evaluation-case" className="qa-evaluation-case space-y-6">
             <SectionCard
               label="Section A"
               title="Case Information"
@@ -4093,7 +4083,7 @@ export default function CreateEvaluationMockup({
             ) : null}
           </div>
 
-          <div id="qa-evaluation-rubric" className="qa-evaluation-rubric space-y-5" hidden={evaluationSection !== "rubric"}>
+          <div id="qa-evaluation-rubric" className="qa-evaluation-rubric space-y-5">
             {noCaseForMonth ? (
               <SectionCard label="Section C" title="Monthly Zero-Case Result">
                 <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-6">
@@ -4418,7 +4408,7 @@ export default function CreateEvaluationMockup({
               <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Preview RawData Row</div>
               <div className="mt-4 max-h-[360px] overflow-auto rounded-xl border border-slate-200">
                 {Object.entries(previewColumns).slice(0, 22).map(([key, value], index) => (
-                  <div key={key} className={`grid grid-cols-[130px_1fr] border-b border-slate-200 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
+                  <div key={key} className={`qa-evaluation-raw-row grid grid-cols-[130px_1fr] border-b border-slate-200 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
                     <div className="bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{displayFieldLabel(key)}</div>
                     <div className="break-words px-3 py-2 text-xs font-bold text-slate-800">{String(value)}</div>
                   </div>
@@ -4427,15 +4417,6 @@ export default function CreateEvaluationMockup({
             </div>
           </div>
         </div>
-          <div className="qa-evaluation-navigation mt-6 flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-4">
-            <button type="button" onClick={() => setEvaluationSection(evaluationSection === "summary" ? "rubric" : "case")}
-              disabled={evaluationSection === "case"}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 disabled:opacity-40">ย้อนกลับ</button>
-            {evaluationSection !== "summary" ? <button type="button" onClick={() => setEvaluationSection(evaluationSection === "case" ? "rubric" : "summary")}
-              className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-900">
-              {evaluationSection === "case" ? "ต่อไป: ประเมินตามเกณฑ์ →" : "ต่อไป: สรุปผล →"}
-            </button> : null}
-          </div>
         </div>
         </InlineRichTextEditors>
         ) : null}
