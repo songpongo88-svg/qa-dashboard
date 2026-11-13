@@ -80,12 +80,19 @@ export async function verifySparksAccessToken(accessToken) {
     status: "Active",
   };
 }
-export async function exchangeSparksAuthTokens(res, data) {
+export async function exchangeSparksAuthTokens(res, data, req = null) {
   const accessToken = data?.access_token;
   const refreshToken = data?.refresh_token;
   if (typeof refreshToken !== "string" || refreshToken.length < 10 || refreshToken.length > 8192)
     throw failure("Missing secure refresh token", 401);
   const actor = await verifySparksAccessToken(accessToken);
+  // In unified-session mode the exchange itself must refuse a Supabase login
+  // belonging to another QA account or a superseded browser. Never issue
+  // persistent refresh cookies before QA session verification.
+  if (sessionPolicyEnabled() && !req) {
+    throw failure("An active QA Dashboard session is required", 401, "QA_SESSION_REQUIRED");
+  }
+  if (req) await enforceSparksQaSessionBinding(actor, req);
   setCookies(res, { access_token: accessToken, refresh_token: refreshToken, expires_in: data.expires_in });
   return actor;
 }
