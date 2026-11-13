@@ -101,7 +101,9 @@ export async function writeQaStandbyEvaluation(pool, request, trusted) {
       return {ok:true,operationId:request.operationId,evaluationId:request.evaluationId,version:Number(row.next_version),queued:row.status!=='synced',replay:true};
     }
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[ 'qa-standby-evaluation:'+request.evaluationId ]);
-    const state=await client.query('SELECT mode,generation,source_snapshot_verified,write_frozen,active_snapshot_id FROM qa_failover_v1.state WHERE id=1 FOR UPDATE');
+    const state=await client.query(trusted.mode==='server-approved-failover'
+      ? 'SELECT mode,generation,source_snapshot_verified,write_frozen,active_snapshot_id FROM qa_failover_v1.state WHERE id=1 FOR UPDATE'
+      : 'SELECT mode,generation,source_snapshot_verified,write_frozen FROM qa_failover_v1.state WHERE id=1 FOR UPDATE');
     const active=state.rows[0];
     if (!active || active.mode!=='standby' || active.write_frozen!==false || active.source_snapshot_verified!==true ||
       Number(active.generation)!==generation) reject('standby_not_activated');
