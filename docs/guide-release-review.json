@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-12T20:01:03.746Z",
-  "reason": "QA quota protection patch preserves production's 15-minute remote session checks and 30-minute activity writes while skipping hidden/offline pinned tabs, debouncing repeated focus/visibility checks, and preventing overlapping central session reads. Vite plugin recognizes already-optimized source code without reverting safeguards. Local 2-hour inactivity timeout and same-browser logout notification remain unchanged; no QA Sparks, score, appeal, signature, T&C or guide-content changes.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-11-13T03:12:17.148Z",
+  "reason": "Restore the original continuous Evaluation form and colors; review responsive case, rubric, score and local rich-text controls.",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "evaluation"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf",
@@ -475,7 +477,7 @@
     "src/CoachingMockup.tsx": "6239dfc59b9996b7fd749e69800775866c42b9a36268436db0b03f914f0f41e2",
     "src/CoachingPdfDownloadButton.tsx": "86f8a4f7cb41aa1cef1482d31d06c5f9ff7de10ef915ba9bb01d98f864024f26",
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
-    "src/CreateEvaluationMockup.tsx": "199c049b7a2c8d27dcae8c2890a1ba47ae85f0c636d1fd2120b3f18f22fbbeef",
+    "src/CreateEvaluationMockup.tsx": "d3e8df975b29f5e5bc31dec54f2d55f5489ec5358d6f0f5f1ea9291667dc3b49",
     "src/DailyCheckinQuest.tsx": "5ef043ebd1b048e26769ef5825f3f67454787b7525f0a338d5f61c2997e9bf27",
     "src/DashboardMockup.tsx": "c6015bb7a14105470a3e834283e74901ebb8721e4fad396ae90cd90430164d14",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
@@ -594,7 +596,7 @@
     "src/evaluationActivity.ts": "3d22c1607284ea77b4696649b7dfe6027b9f603791fcf9455556e5bc42b16d26",
     "src/evaluationActivityStore.ts": "5284af7fa9d93560ca1695b7d0a1d4596954f1bbe5518a538fdddbbc1983f113",
     "src/evaluationEditingStore.ts": "b234253dd21ff0e4316ce5311fcd9e8e17374d8c474fb12412a052a85c2ebd46",
-    "src/evaluationFormLayout.css": "9e1863faa7787f78d982d6192287f2b07414355db28303cf80c372af1368f5ee",
+    "src/evaluationFormLayout.css": "9fda0d768043aa9cfcb11f98bed70896afe98e2f01bb612be40f8c959844db93",
     "src/evaluationHistoryCache.ts": "99d559fdcc2715c601bfe71190bf01dbc77f79ac60d9ae38846c2bad8acfb450",
     "src/evaluationStore.ts": "147b175ab090fbce1d088f57524da8899e48556aab0ca6df26d7751a7c86bf23",
     "src/evaluationTagStore.ts": "55f956c44387922ab93b4a1e55c2c696a958f977b731a5d08fb7e52816f48ed2",
@@ -625,7 +627,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "66cffc36033402dbae7a09d7339ceb1ed2b3c7fb6a0125305a3959505e3185c8",
+    "src/knowledge/manual.json": "c05b0551f591109ed8d551f6f3e3e01637d6d3612cd8dedb04ad06c0d48887b5",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
