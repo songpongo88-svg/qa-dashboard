@@ -95,7 +95,7 @@ async function bundle(name, contents, extra = {}) {
       builder.onResolve({ filter: /firebaseClient$/ }, () => ({ path: "client", namespace: "mock" }));
       for (const [key, value] of Object.entries({ ...replacements, ...extra })) builder.onResolve({ filter: new RegExp("(?:^|/)" + key.replaceAll(".", "\\.") + "$") }, () => ({ path: value, namespace: "replacement" }));
       builder.onLoad({ filter: /.*/, namespace: "replacement" }, args => ({ contents: args.path, loader: "js" }));
-      builder.onLoad({ filter: /.*/, namespace: "mock" }, args => ({ contents: args.path === "database" ? databaseMock : "export const firebaseDb={};", loader: "js" }));
+      builder.onLoad({ filter: /.*/, namespace: "mock" }, args => ({ contents: args.path === "database" ? databaseMock : "export const firebaseDb={};export const firebaseAuth={};", loader: "js" }));
     } }],
   });
   return import(pathToFileURL(outfile).href);
