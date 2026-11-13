@@ -54,5 +54,7 @@ assert.ok(application.includes("if (!matchesTrustedQaIdentity(user, verification
   "Fresh login and takeover must bind to verified QA identity");
 assert.ok(application.includes('await qaServerSessionRequest("logout")'),
   "Failed local initialization must release the trusted server session");
+assert.ok(application.includes('Failed to release unrestorable QA session'),
+  "Failed legacy session restoration must not strand a trusted server session");
 
 console.log("QA critical mutation preflight checks passed");
