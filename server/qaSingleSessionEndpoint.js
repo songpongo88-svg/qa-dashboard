@@ -1,4 +1,4 @@
-import { verifyQaUsernamePassword } from "./qaFirebaseCredentials.js";
+import { verifyQaUsernamePassword, createQaFirebaseCustomToken } from "./qaFirebaseCredentials.js";
 import {
   sessionPolicyEnabled, issueSessionCookie, issueCandidateCookie,
   clearSessionCookie, candidateFromRequest, authorizeActiveSession,
@@ -10,7 +10,7 @@ import {
 
 const actions = new Set([
   "login", "request", "pending", "ack", "commit",
-  "validate", "touch", "logout", "draft-save", "draft-read", "draft-clear",
+  "validate", "firebase-token", "touch", "logout", "draft-save", "draft-read", "draft-clear",
   "admin-list", "admin-revoke",
 ]);
 function validRequestBody(req) {
@@ -102,6 +102,13 @@ export default async function handler(req, res) {
       case "admin-revoke": {
         const result = await revokeSessionForOwner(req, body.username);
         return res.status(200).json({ ok: true, ...result });
+      }
+      case "firebase-token": {
+        const { ticket } = await authorizeActiveSession(req);
+        const firebaseToken = createQaFirebaseCustomToken(ticket, ticket.sessionId);
+        return res.status(200).json({ ok: true, status: "active",
+          firebaseToken, sessionId: ticket.sessionId,
+          identity: { username: ticket.username, role: ticket.role } });
       }
       case "validate": {
         const { ticket } = await authorizeActiveSession(req);
