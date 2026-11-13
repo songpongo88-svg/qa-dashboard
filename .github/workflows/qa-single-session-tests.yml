@@ -15,6 +15,8 @@ on:
       - "server/qaFirebaseCredentials.js"
       - "scripts/test-qa-server-credentials.mjs"
       - "scripts/test-qa-single-session-api.mjs"
+      - "scripts/test-qa-session-atomic-flow.mjs"
+      - "package.json"
       - "src/CreateEvaluationMockup.tsx"
       - "scripts/test-session-*.mjs"
       - ".github/workflows/qa-single-session-tests.yml"
@@ -40,3 +42,5 @@ jobs:
         run: node scripts/test-qa-server-credentials.mjs
       - name: Critical write session preflight
         run: node scripts/test-qa-session-write-guards.mjs
+      - name: Atomic takeover end-to-end simulation
+        run: npm run test:qa-session-atomic
