@@ -78,3 +78,6 @@
  .spark-promo-deadline>span{font-size:25px;}
 }
 @media(prefers-reduced-motion:reduce){.spark-promo-join{transition:none;}}
+
+.spark-promo-poster[role="link"], .spark-promo-inbox[role="link"] {cursor:pointer;}
+.spark-promo-poster[role="link"]:focus-visible, .spark-promo-inbox[role="link"]:focus-visible {outline:3px solid #ffe19a;outline-offset:3px;}
