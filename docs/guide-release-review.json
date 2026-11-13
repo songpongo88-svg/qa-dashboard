@@ -1,13 +1,12 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T09:28:46.922Z",
-  "reason": "Reviewed server-side Firestore CAS session/draft writes, mock atomic takeover tests, and updated Coaching recovery; rollout remains gated pending full Firebase authorization",
+  "reviewedAt": "2026-11-13T09:34:21.253Z",
+  "reason": "Reviewed dynamic admin renderer patch with staged QA single-session admin panel and server-side guards; no production rollout",
   "contentChanged": true,
   "reviewedChapters": [
-    "evaluation",
-    "coaching",
     "administration",
-    "login-log"
+    "evaluation",
+    "coaching"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -74,7 +73,7 @@
     "build/dashboardUnifiedButtonStylePatch.js": "a4caa88ad2e72fb47af1740b539b8851e93615b85f742e54370642f438d325d4",
     "build/deleteDraftClearsFormPatch.js": "92b04fc4f3e7134691ca54efa8f3e8d4b81a713dc9245e003970dbd5d9994aa7",
     "build/draftQueueIsolationPatch.js": "2a755cfc609052c09171879753ac8f90320aa0495447f9784c8ac44d87265ccf",
-    "build/dynamicRolesAdminWorkspacePatch.js": "661e502f90b92ff669afc7cb1c09398234b3695c4c2663d02515d72e86d8d604",
+    "build/dynamicRolesAdminWorkspacePatch.js": "cd6da9d53c4a82e2dc0aca1c5361c63f2f901c152bd4950df0d361e02df355d5",
     "build/evaluationAgentFocusPopupPatch.js": "f1ac67626646f9996161fe70514f2aee7899ae35ba73585d9bdf1d12d474498b",
     "build/finalSignedPdfDateFormatPatch.js": "69c7073d0c42d9f1d3f1bd7314c108b99d265245829c0c410d06810a26f9b535",
     "build/firestoreQuotaProtectionPatch.js": "990601fa0e1b7921711d29e2cf80695b082d29d4563892965a0ef1d2c16633ec",
