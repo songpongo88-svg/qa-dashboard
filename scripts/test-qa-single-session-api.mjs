@@ -53,6 +53,11 @@ assert.match(sparksAuthBackend, /await enforceSparksQaSessionBinding\(actor, ctx
 assert.ok(sparksAuthBackend.indexOf("await enforceSparksQaSessionBinding(actor, ctx.req);") <
   sparksAuthBackend.indexOf("ctx.actor = actor;"),
   "Sparks must never cache a trusted actor before session validation");
+assert.ok(sparksAuthBackend.indexOf("await enforceSparksQaSessionBinding(actor, ctx.req);") <
+  sparksAuthBackend.indexOf("if (refreshedSession) setCookies(ctx.res, refreshedSession);"),
+  "Sparks must not rotate refresh cookies before active-session verification");
+assert.match(sparksAuthBackend, /if \(req\) await enforceSparksQaSessionBinding\(actor, req\);/,
+  "Sparks login exchange must verify the QA browser session before issuing cookies");
 
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048,
   privateKeyEncoding: { format: "pem", type: "pkcs8" },
