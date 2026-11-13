@@ -47,3 +47,18 @@ export async function qaServerSessionRequest(
   }
   return data as QaServerSessionResponse;
 }
+
+
+/**
+ * UI-level preflight for direct Firestore writes during the staged rollout.
+ * This is NOT a server-side security boundary: Firestore rules and every
+ * trusted mutation API must independently enforce the active session.
+ * Never swallow a failed validation when Single Active Session is enabled.
+ */
+export async function assertTrustedQaSessionForMutation(): Promise<void> {
+  if (!QA_SINGLE_SESSION_CLIENT_ENABLED) return;
+  const result = await qaServerSessionRequest("validate");
+  if (!result.ok || result.status !== "active") {
+    throw new QaServerSessionError(401, "QA_SESSION_NOT_ACTIVE");
+  }
+}
