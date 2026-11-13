@@ -27,6 +27,9 @@ await assert.rejects(runQaLiveSnapshotStage({
 await assert.rejects(runQaLiveSnapshotStage({
   env:{...fakeEnv,QA_SOURCE_API_REQUEST_BUDGET:'201'},pgModule:fakePg,
 }),/snapshot_read_budget_invalid/);
+await assert.rejects(runQaLiveSnapshotStage({
+  env:{...fakeEnv,QA_SOURCE_DAILY_DOCUMENT_CAP:'3'},pgModule:fakePg,
+}),/source_daily_budget_invalid/);
 assert.equal(count,0);
  // The Windows runner is intentionally restricted to actual qa_dashboard_lab.
 // Integration with disposable fixtures is covered by the separate
@@ -36,16 +39,16 @@ console.log('PASS QA source runner: explicit opt-in, local-only target and OAuth
 // Read-only Bridge credentials must fail BEFORE the first Firestore request.
 let firestoreCalls=0;
 const makePool = ({role='qa_snapshot_importer',transactionRo='off',canInsert=true,
-  captureLock=true,lastSnapshot=null}={})=>({
+  captureLock=true,lastSnapshot=null,budgetInstalled=true,budgetPrivilege=true,budgetAvailable=true}={})=>({
   Pool:class {
     async query(sql) {
       if(sql==='SELECT current_database() AS db')
         return {rows:[{db:'qa_dashboard_lab'}]};
       if(sql.includes('current_user AS role'))
         return {rows:[{role,recovering:false,transaction_ro:transactionRo,
-          batches:true,rows:true,candidates:true,audit:true}]};
+          batches:true,rows:true,candidates:true,audit:true,source_budget:budgetInstalled}]};
       if(sql.includes("has_table_privilege(current_user"))
-        return {rows:[{state:true,batches:canInsert,rows:canInsert,candidates:canInsert,audit:canInsert}]};
+        return {rows:[{state:true,batches:canInsert,rows:canInsert,candidates:canInsert,audit:canInsert,source_budget:budgetPrivilege}]};
       if(sql.includes('SELECT mode,source_snapshot_verified,write_frozen FROM qa_failover_v1.state'))
         return {rows:[{mode:'disabled',source_snapshot_verified:false,write_frozen:true}]};
       throw Error('unexpected_database_mutation');
@@ -56,6 +59,10 @@ const makePool = ({role='qa_snapshot_importer',transactionRo='off',canInsert=tru
           if(sql.includes('pg_try_advisory_lock'))return {rows:[{acquired:captureLock}]};
           if(sql.includes('max(source_exported_at)'))return {rows:[{last_exported_at:lastSnapshot}]};
           if(sql.includes('pg_advisory_unlock'))return {rows:[{released:true}]};
+          if(sql.includes('INSERT INTO qa_failover_v1.source_read_budget_daily')){
+            if(!budgetAvailable) return {rowCount:0,rows:[]};
+            return {rowCount:1,rows:[{reserved_document_units:100,reserved_requests:1}]};
+          }
           throw Error('unexpected_lock_sql');
         },
         release(){}
@@ -65,21 +72,23 @@ const makePool = ({role='qa_snapshot_importer',transactionRo='off',canInsert=tru
   }
 });
 for(const config of [
-  {role:'qa_readonly_bridge'}, {transactionRo:'on'}, {canInsert:false}
+  {role:'qa_readonly_bridge'}, {transactionRo:'on'}, {canInsert:false},
+  {budgetInstalled:false},{budgetPrivilege:false}
 ]){
   await assert.rejects(runQaLiveSnapshotStage({
     env:fakeEnv,pgModule:makePool(config),fetchImpl:async()=>{firestoreCalls++;throw Error('no_capture_expected');},
-  }),/postgres_dedicated_importer_required|postgres_import_connection_read_only|postgres_import_permission_missing/);
+  }),/postgres_dedicated_importer_required|postgres_import_connection_read_only|postgres_import_permission_missing|postgres_source_budget_ledger_not_installed/);
 }
 assert.equal(firestoreCalls,0,'invalid destination must never consume Firestore quota');
 for(const options of [
   {captureLock:false},
   {lastSnapshot:new Date(Date.now()-60_000).toISOString()},
+  {budgetAvailable:false},
 ]){
   await assert.rejects(runQaLiveSnapshotStage({
     env:fakeEnv,pgModule:makePool(options),
     fetchImpl:async()=>{firestoreCalls++;throw Error('not_expected');},
-  }),/firestore_snapshot_capture_already_running|firestore_snapshot_recent_copy_exists/);
+  }),/firestore_snapshot_capture_already_running|firestore_snapshot_recent_copy_exists|source_daily_budget_exhausted/);
 }
 assert.equal(firestoreCalls,0,'duplicate or concurrent scan must never call Firestore');
 console.log('PASS dedicated importer, writable transaction and per-table privileges all checked before a single Firestore read');
