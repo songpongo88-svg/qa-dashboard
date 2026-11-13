@@ -1,0 +1,43 @@
+// STAGING-ONLY RULESET FOR DEMO/EMULATOR. NEVER DEPLOY TO qa-dashboard-b0b5d.
+// It intentionally denies every collection except QA evaluations and the
+// session pointer; the LIVE rules must be fetched, reconciled, and tested first.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function sessionPath() {
+      return /databases/$(database)/documents/qa_single_session_active/$(request.auth.token.qa_username);
+    }
+    function qaIdentity() {
+      return request.auth != null
+        && request.auth.token.qa_username is string
+        && request.auth.token.qa_session_id is string
+        && request.auth.token.qa_role is string
+        && request.auth.uid == "qa-" + request.auth.token.qa_username;
+    }
+    function currentQaSession() {
+      return qaIdentity()
+        && exists(sessionPath())
+        && get(sessionPath()).data.sessionId == request.auth.token.qa_session_id
+        && get(sessionPath()).data.role == request.auth.token.qa_role
+        && get(sessionPath()).data.expiresAtEpochMs is int
+        && request.time < timestamp.value(get(sessionPath()).data.expiresAtEpochMs);
+    }
+    // Only trusted server Admin SDK may modify the authoritative session,
+    // draft and audit collections (Admin SDK bypasses client security rules).
+    match /qa_single_session_active/{username} {
+      allow read, write: if false;
+    }
+    match /qa_single_session_drafts/{key} {
+      allow read, write: if false;
+    }
+    match /qa_single_session_audit/{key} {
+      allow read, write: if false;
+    }
+    match /qa_evaluations/{evaluationId} {
+      allow read, write: if currentQaSession();
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
