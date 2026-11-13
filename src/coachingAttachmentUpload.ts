@@ -1,10 +1,12 @@
 import type { CoachingAttachment } from './monthlyCoachingModel';
+import { assertTrustedQaSessionForMutation } from './qaSingleSessionClient';
 export function coachingAttachmentError(file: Pick<File, 'name' | 'size'>) {
   if (!/\.(pdf|docx|xlsx|png|jpe?g)$/i.test(file.name)) return 'รับไฟล์ PDF, DOCX, XLSX, PNG และ JPG';
   if (!file.size || file.size > 3 * 1024 * 1024) return 'กรุณาเลือกไฟล์ขนาดไม่เกิน 3 MB';
   return '';
 }
 export async function uploadCoachingAttachment(file: File, recordId: string, uploadedBy: string): Promise<CoachingAttachment> {
+  await assertTrustedQaSessionForMutation();
   const error = coachingAttachmentError(file); if (error) throw new Error(error);
   const dataBase64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
