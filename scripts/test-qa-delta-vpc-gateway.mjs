@@ -34,7 +34,8 @@ function request(path='/v1/qa/source-delta',overrides={},data=sample,configured=
   'x-qa-source-timestamp':stamp,
   'x-qa-source-signature':sign(sourceKey,stamp,data),
   ...overrides.headers};
- const init={method:'POST',body:data,headers,...overrides};
+ const {headers:unusedOverrideHeaders,...initOverrides}=overrides;
+ const init={method:'POST',body:data,headers,...initOverrides};
  // GET/DELETE cannot have a body by the Request constructor.
  if(init.method==='GET'||init.method==='DELETE')delete init.body;
  return worker.fetch(new Request('https://private.qa.example'+path,init),configured);
