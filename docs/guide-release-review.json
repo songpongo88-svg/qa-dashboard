@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T09:34:21.253Z",
-  "reason": "Reviewed dynamic admin renderer patch with staged QA single-session admin panel and server-side guards; no production rollout",
+  "reviewedAt": "2026-11-13T09:40:35.125Z",
+  "reason": "Reviewed shared Vercel Hobby auth route, new QA endpoint, rewrite and session security tests; Single Active Session disabled pending server enforcement",
   "contentChanged": true,
   "reviewedChapters": [
     "administration",
@@ -23,7 +23,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "26eaa95b2157c3fd52ea1a357e8ac30925f3799231f7e0ee6752e4f5e3f47edf",
+    ".github/workflows/qa-single-session-tests.yml": "b0d6f12fc449c7be645f0a7a07f8a034523ef3d671018d8426ab7ab115198b5a",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -36,7 +36,7 @@
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
     "api/sparks-admin.js": "37c8e33fb996148b66e9d9102dfc8e4a44f72886d7e8ce621dd779b8a8a5ca5e",
-    "api/sparks-auth.js": "7cf06127fc6fcb210aa872cc1e401be85e008fa3cfc75ea71e7d123712db598b",
+    "api/sparks-auth.js": "afd5a4e3bb60fce3fd72c0224f1d3c85ea99774ce6ff6f85c8d1959396b9b726",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
@@ -779,12 +779,12 @@
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
-    "api/qa-single-session.js": "f50111ca19e8199e000923ca944158e65b2071888a63010c75399d182c9fc432",
-    "scripts/test-qa-single-session-api.mjs": "13a897be9e6975d7d33701880e76aaf400e74e7c429cfa94cca2540cfafa827c",
+    "scripts/test-qa-single-session-api.mjs": "0a327ab56b8025bdc78816417f75ecff9695f170bfd830c4219ef2541ead6278",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
     "src/qaSingleSessionClient.ts": "df6014003d38717cfb701e0707e71f62bd2755df2bdfee7c39596f40ee1585e8",
     "scripts/test-qa-session-write-guards.mjs": "8b084a01308728aa8d8832040e64ecf0c8a3cba20287f8da85a0971310952aab",
     "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7",
-    "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a"
+    "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a",
+    "server/qaSingleSessionEndpoint.js": "1e124d9995dd99ad1beba3b2fdee033d8d9309e96643b83bd8a58062c9c1457a"
   }
 }
