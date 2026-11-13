@@ -409,7 +409,7 @@ const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 // preventing hidden tabs, focus storms and concurrent validation requests.
 // Keep client-side polling at the existing quota-safe cadence; server-side authorization must enforce invalidation.
 const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;
-const SESSION_TOUCH_INTERVAL_MS = 30 * 60 * 1000;
+const SESSION_TOUCH_INTERVAL_MS = 29 * 60 * 1000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
