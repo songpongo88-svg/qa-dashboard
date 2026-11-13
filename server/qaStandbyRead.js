@@ -25,10 +25,19 @@ async function authorize(pool,trusted) {
     future(trusted.failover.identity.expiresAt)) {
     if (!qaFailoverDecision(trusted.failover).failoverReady)fail('standby_read_not_authorized');
   }else fail('standby_read_not_authorized');
-  const result=await pool.query('SELECT mode,source_snapshot_verified FROM qa_failover_v1.state WHERE id=1');
+  const result=await pool.query(
+    'SELECT mode,generation,source_snapshot_verified,active_snapshot_id'+
+    ' FROM qa_failover_v1.state WHERE id=1');
   const state=result.rows[0];
   if(!state || !['standby','reconciling'].includes(state.mode)||state.source_snapshot_verified!==true)
     fail('backup_not_verified');
+  if(trusted?.mode==='server-approved-failover'&&(
+    !state.active_snapshot_id||
+    state.active_snapshot_id!==trusted.sourceSnapshotId||
+    state.active_snapshot_id!==trusted.failover?.mirror?.snapshotId||
+    Number(state.generation)!==trusted.coordinatorGeneration||
+    Number(state.generation)!==trusted.failover?.lease?.generation
+  ))fail('standby_read_not_authorized');
 }
 
 export async function readQaStandbyEvaluation(pool,id,trusted) {
