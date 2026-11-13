@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T08:25:59.597Z",
+  "reviewedAt": "2026-11-13T08:26:56.274Z",
   "reason": "Reviewed Evaluation browser-only recovery instructions and staged single-session security flow; not enabled for production",
   "contentChanged": true,
   "reviewedChapters": [
@@ -21,7 +21,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "c6c9de8a43d2e11370db9a70d5f8a44ed089bdccc55ab1051e727cc80fd6748d",
+    ".github/workflows/qa-single-session-tests.yml": "50c344b45b055586562cbd3979d97f60f1eaf552c3166f1eaed9cfba0ed7b930",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
