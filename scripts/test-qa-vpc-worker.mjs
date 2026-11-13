@@ -140,7 +140,7 @@ const snapshotBinding={
   },
 };
 const response=await call(snapshotPath,{authorization:'Bearer '+token},'GET',snapshotBinding);
-assert.equal(response.status,200);
+assert.equal(response.status,200,JSON.stringify(await response.clone().json()));
 const snap=await response.json();
 assert.equal(snap.snapshot.sourceDocuments,2226);
 assert.equal(snap.snapshot.sourceEvaluations,582);
