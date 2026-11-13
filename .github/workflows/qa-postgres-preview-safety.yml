@@ -89,6 +89,7 @@ on:
       - "server/qaStandbyRead.js"
       - "scripts/test-qa-standby-read-integration.mjs"
       - "scripts/test-qa-standby-replay-integration.mjs"
+      - "scripts/test-qa-standby-full-failback-integration.mjs"
       - ".github/workflows/qa-postgres-preview-safety.yml"
   workflow_dispatch:
 
@@ -205,6 +206,7 @@ jobs:
           node --check scripts/test-qa-live-mirror-stage-integration.mjs
           node --check scripts/test-qa-standby-archive-status.mjs
           node --check scripts/test-qa-standby-replay-integration.mjs
+          node --check scripts/test-qa-standby-full-failback-integration.mjs
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-bridge.mjs
@@ -280,3 +282,4 @@ jobs:
           node scripts/test-qa-standby-inactive-seed-integration.mjs
           node scripts/test-qa-standby-domain-seed-integration.mjs
           node scripts/test-qa-standby-activation-integration.mjs
+          node scripts/test-qa-standby-full-failback-integration.mjs
