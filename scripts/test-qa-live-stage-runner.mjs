@@ -35,7 +35,8 @@ console.log('PASS QA source runner: explicit opt-in, local-only target and OAuth
 
 // Read-only Bridge credentials must fail BEFORE the first Firestore request.
 let firestoreCalls=0;
-const makePool = ({role='qa_snapshot_importer',transactionRo='off',canInsert=true}={})=>({
+const makePool = ({role='qa_snapshot_importer',transactionRo='off',canInsert=true,
+  captureLock=true,lastSnapshot=null}={})=>({
   Pool:class {
     async query(sql) {
       if(sql==='SELECT current_database() AS db')
@@ -49,6 +50,17 @@ const makePool = ({role='qa_snapshot_importer',transactionRo='off',canInsert=tru
         return {rows:[{mode:'disabled',source_snapshot_verified:false,write_frozen:true}]};
       throw Error('unexpected_database_mutation');
     }
+    async connect(){
+      return {
+        async query(sql){
+          if(sql.includes('pg_try_advisory_lock'))return {rows:[{acquired:captureLock}]};
+          if(sql.includes('max(source_exported_at)'))return {rows:[{last_exported_at:lastSnapshot}]};
+          if(sql.includes('pg_advisory_unlock'))return {rows:[{released:true}]};
+          throw Error('unexpected_lock_sql');
+        },
+        release(){}
+      };
+    }
     async end(){}
   }
 });
@@ -60,6 +72,16 @@ for(const config of [
   }),/postgres_dedicated_importer_required|postgres_import_connection_read_only|postgres_import_permission_missing/);
 }
 assert.equal(firestoreCalls,0,'invalid destination must never consume Firestore quota');
+for(const options of [
+  {captureLock:false},
+  {lastSnapshot:new Date(Date.now()-60_000).toISOString()},
+]){
+  await assert.rejects(runQaLiveSnapshotStage({
+    env:fakeEnv,pgModule:makePool(options),
+    fetchImpl:async()=>{firestoreCalls++;throw Error('not_expected');},
+  }),/firestore_snapshot_capture_already_running|firestore_snapshot_recent_copy_exists/);
+}
+assert.equal(firestoreCalls,0,'duplicate or concurrent scan must never call Firestore');
 console.log('PASS dedicated importer, writable transaction and per-table privileges all checked before a single Firestore read');
 
 // A denied Firestore capture cannot CREATE/ALTER any PostgreSQL schema.
