@@ -75,11 +75,13 @@ export default function UsageLogMockup() {
   const [selectedDate, setSelectedDate] = useState(formatInputDate(new Date()));
   const [currentPage, setCurrentPage] = useState(1);
 
-  const loadLogs = async () => {
+  const loadLogs = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
       setError("");
-      const rows = await fetchUsageLogs({ limit: 500, forceRefresh: true });
+      // Reuse a recently opened Login Log instead of reading up to 500 Firestore documents again.
+      // The explicit Refresh action still bypasses this cache.
+      const rows = await fetchUsageLogs({ limit: 500, cacheTtlMs: 5 * 60_000, forceRefresh });
       setLogs(rows.filter((item) => ACCESS_EVENTS.has(item.event_type)));
     } catch (err: any) {
       setError(err?.message || "Load Activity Log failed");
@@ -197,7 +199,7 @@ export default function UsageLogMockup() {
 
             <button
               type="button"
-              onClick={loadLogs}
+              onClick={() => void loadLogs(true)}
               className="rounded-2xl bg-violet-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-violet-800"
             >
               Refresh
