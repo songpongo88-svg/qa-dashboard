@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "./SparkQuestAnnouncement.css";
+import { getSparksAccount } from "./qaSparksStore";
 
 export const SPARK_ANNOUNCEMENT_END = "2026-12-25";
 export const SPARK_ANNOUNCEMENT_KEY = "qa-sparks-journey-promo-2026-v1";
@@ -11,15 +12,32 @@ export function sparkAnnouncementActive(now = new Date()): boolean {
   return [v("year"), v("month"), v("day")].join("-") <= SPARK_ANNOUNCEMENT_END;
 }
 const readKey = (username: string) => SPARK_ANNOUNCEMENT_KEY + ":" + username.trim().toLowerCase();
-const dismissed = (username: string) => {
-  if (!username) return true;
-  try { return window.localStorage.getItem(readKey(username)) === "1"; }
+// The active QA session is rotated on every successful login.
+// Remember acknowledgement for one login only, even after a refresh or tab switch.
+export const dismissedForLogin = (username: string, sessionId: string): boolean => {
+  if (!username || !sessionId) return true;
+  try { return window.localStorage.getItem(readKey(username)) === sessionId; }
   catch { return false; }
 };
-const markDismissed = (username: string) => {
-  try { window.localStorage.setItem(readKey(username), "1"); } catch {}
+const markDismissed = (username: string, sessionId: string) => {
+  if (!username || !sessionId) return;
+  try { window.localStorage.setItem(readKey(username), sessionId); } catch {}
   window.dispatchEvent(new Event("qa:sparks-announcement-dismissed"));
 };
+
+// Only one wallet lookup per verified login, including remounts or StrictMode effects.
+// Failed reads are not cached: never assume a user has unclaimed rewards on failure.
+const eligibilityRequests = new Map<string, Promise<boolean>>();
+export function hasUnclaimedSparkQuests(username: string, sessionId: string): Promise<boolean> {
+  const key = readKey(username) + ":" + sessionId;
+  const cached = eligibilityRequests.get(key);
+  if (cached) return cached;
+  const request = getSparksAccount(username, { historyLimit: 0, sessionId, forceRefresh: true })
+    .then(account => !account.firstLogin || !account.sparkJourney2026);
+  eligibilityRequests.set(key, request);
+  void request.catch(() => { if (eligibilityRequests.get(key) === request) eligibilityRequests.delete(key); });
+  return request;
+}
 
 export function SparkQuestArtwork({ onJoin, compact = false }: {
   onJoin: () => void; compact?: boolean;
@@ -80,18 +98,43 @@ export function SparkQuestArtwork({ onJoin, compact = false }: {
 }
 
 export function SparkQuestAnnouncementPopup({
-  username, blocked, onJoin,
-}: { username: string; blocked: boolean; onJoin: () => void }) {
-  const [acknowledged, setAcknowledged] = useState(() => dismissed(username));
-  useEffect(() => { setAcknowledged(dismissed(username)); }, [username]);
+  username, sessionId, blocked, onJoin,
+}: { username: string; sessionId: string; blocked: boolean; onJoin: () => void }) {
+  const [acknowledged, setAcknowledged] = useState(() => dismissedForLogin(username, sessionId));
+  const sessionKey = readKey(username) + ":" + sessionId;
+  const [eligibility, setEligibility] = useState<{
+    sessionKey: string; status: "checking" | "incomplete" | "complete" | "unavailable";
+  }>(() => ({ sessionKey, status: "checking" }));
+
+  useEffect(() => { setAcknowledged(dismissedForLogin(username, sessionId)); }, [username, sessionId]);
   useEffect(() => {
-    const refresh = () => setAcknowledged(dismissed(username));
+    const refresh = () => setAcknowledged(dismissedForLogin(username, sessionId));
     window.addEventListener("qa:sparks-announcement-dismissed", refresh);
     window.addEventListener("storage", refresh);
-    return () => { window.removeEventListener("qa:sparks-announcement-dismissed", refresh); window.removeEventListener("storage", refresh); };
-  }, [username]);
-  if (!username || blocked || acknowledged || !sparkAnnouncementActive()) return null;
-  const close = () => { markDismissed(username); setAcknowledged(true); };
+    return () => {
+      window.removeEventListener("qa:sparks-announcement-dismissed", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [username, sessionId]);
+  useEffect(() => {
+    if (!username || !sessionId || blocked || acknowledged || !sparkAnnouncementActive()) return;
+    let cancelled = false;
+    setEligibility({ sessionKey, status: "checking" });
+    void hasUnclaimedSparkQuests(username, sessionId)
+      .then(incomplete => {
+        if (!cancelled) setEligibility({ sessionKey, status: incomplete ? "incomplete" : "complete" });
+      })
+      .catch(error => {
+        // Fail closed on authorization/quota/network errors, not a guessed reward status.
+        console.warn("Cannot verify Spark quest announcement eligibility", error);
+        if (!cancelled) setEligibility({ sessionKey, status: "unavailable" });
+      });
+    return () => { cancelled = true; };
+  }, [username, sessionId, blocked, acknowledged, sessionKey]);
+
+  if (!username || !sessionId || blocked || acknowledged || !sparkAnnouncementActive() ||
+      eligibility.sessionKey !== sessionKey || eligibility.status !== "incomplete") return null;
+  const close = () => { markDismissed(username, sessionId); setAcknowledged(true); };
   const join = () => { close(); onJoin(); };
   return <div className="spark-promo-modal-backdrop" data-spark-quest-announcement-popup="true">
     <section className="spark-promo-modal" role="dialog" aria-modal="true"
@@ -100,7 +143,7 @@ export function SparkQuestAnnouncementPopup({
         aria-label="ปิดประกาศและเก็บไว้ในกล่องประกาศ">×</button>
       <SparkQuestArtwork onJoin={join}/>
       <button type="button" className="spark-promo-later" onClick={close}>
-        อ่านภายหลัง (เปิดได้ในประกาศของฉัน)
+        อ่านภายหลัง (จะเตือนใหม่เมื่อ Login ครั้งถัดไป หากยังทำกิจกรรมไม่ครบ)
       </button>
     </section>
   </div>;
