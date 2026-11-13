@@ -19,6 +19,8 @@ on:
       - "scripts/test-qa-single-session-api.mjs"
       - "scripts/test-qa-session-atomic-flow.mjs"
       - "scripts/test-qa-tab-lease.mjs"
+      - "scripts/test-qa-legacy-profile-lookup.mjs"
+      - "server/qaFirebaseCredentials.js"
       - "src/qaTabLease.mjs"
       - "package.json"
       - "src/CreateEvaluationMockup.tsx"
@@ -48,5 +50,7 @@ jobs:
         run: node scripts/test-qa-session-write-guards.mjs
       - name: Atomic takeover end-to-end simulation
         run: npm run test:qa-session-atomic
+      - name: Legacy QA username verification
+        run: npm run test:qa-legacy-profile
       - name: Same browser multi-tab takeover lock
         run: npm run test:qa-tab-lease
