@@ -1,0 +1,32 @@
+name: QA Single Session PR tests
+on:
+  pull_request:
+    paths:
+      - "src/sessionTakeoverPolicy.mjs"
+      - "src/lib/evaluation/sessionRecoveryStore.mjs"
+      - "api/qa-session-control.js"
+      - "server/qaFirebaseCredentials.js"
+      - "scripts/test-qa-server-credentials.mjs"
+      - "src/CreateEvaluationMockup.tsx"
+      - "scripts/test-session-*.mjs"
+      - ".github/workflows/qa-single-session-tests.yml"
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Takeover policy
+        run: node scripts/test-session-takeover-policy.mjs
+      - name: API fail-closed guards
+        run: node scripts/test-session-api-guards.mjs
+      - name: Browser recovery isolation
+        run: node scripts/test-session-recovery.mjs
+      - name: Trusted QA credential validation
+        run: node scripts/test-qa-server-credentials.mjs

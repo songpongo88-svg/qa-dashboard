@@ -1,0 +1,30 @@
+name: Record guide review for QA Single Session draft
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: write
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feature/single-active-session-safe-rollout-20261113'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Record reviewed Evaluation guide chapter and non-public staged security modules
+        run: node ./scripts/check-user-guide.mjs --record --reason "Reviewed Evaluation browser-only recovery instructions and staged single-session security flow; not enabled for production" --chapters evaluation
+      - name: Commit reviewed guide hashes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/guide-release-review.json
+          if ! git diff --cached --quiet; then
+            git commit -m "docs(guide): acknowledge reviewed Evaluation recovery"
+            git push origin HEAD:${{ github.head_ref }}
+          fi

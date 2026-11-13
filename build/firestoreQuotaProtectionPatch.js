@@ -85,11 +85,11 @@ export function firestoreQuotaProtectionPatch() {
       const oldSessionIntervals =
         `const SESSION_CHECK_INTERVAL_MS = 30 * 1000;\nconst SESSION_TOUCH_INTERVAL_MS = 60 * 1000;`;
       const optimizedSessionIntervals =
-        `const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;\nconst SESSION_TOUCH_INTERVAL_MS = 30 * 60 * 1000;`;
+        `const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;\nconst SESSION_TOUCH_INTERVAL_MS = 29 * 60 * 1000;`;
       if(next.includes(oldSessionIntervals)) {
         next = replaceOrThrow(
           this,next,oldSessionIntervals,
-          `// Firestore quota protection: local inactivity still enforces the 2-hour timeout.\n// Central session revocation is checked periodically instead of every 30 seconds.\n${optimizedSessionIntervals}`,
+          `// Firestore quota protection: local inactivity enforces the configured 30-minute timeout.\n// Central session revocation is checked periodically instead of every 30 seconds.\n${optimizedSessionIntervals}`,
           "session intervals"
         );
       } else if(!next.includes(optimizedSessionIntervals)) {
