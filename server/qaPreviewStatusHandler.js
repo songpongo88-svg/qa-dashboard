@@ -142,6 +142,48 @@ export function createQaPreviewStatusHandler({
           }
         }
       }catch{/* The second channel may be offline without affecting old archive status. */}
+      // The newer 8790 Bridge can inspect the currently staged 11-set
+      // snapshot. Older 8788 bridges still expose only the archive, so this
+      // probe is independent and best-effort. Never certifies live parity.
+      try{
+        const snapshot=await fetchImpl(origin+'/qa-bridge-8790-readiness',{
+          method:'GET',
+          headers:{authorization:'Bearer '+token,accept:'application/json'},
+          cache:'no-store',redirect:'manual',signal:AbortSignal.timeout(3500),
+        });
+        if(snapshot.status===200&&
+           (snapshot.headers.get('content-type')||'').includes('application/json')){
+          const raw=await snapshot.text();
+          if(raw.length<=16384){
+            const proof=JSON.parse(raw),s=proof?.snapshot;
+            if(proof?.ok===true&&proof.readOnly===true&&
+               proof.failoverReady===false&&proof.canAcceptWrites===false&&
+               proof.firestorePrimary===true&&
+               proof.source==='windows-8790-inactive-replica'&&
+               typeof s?.present==='boolean'&&typeof s?.copied==='boolean'&&
+               typeof s?.candidateVerified==='boolean'&&
+               typeof s?.withinFreshnessWindow==='boolean'&&
+               validInt(s?.sourceDocuments)&&validInt(s?.sourceEvaluations)&&
+               validInt(s?.candidateEvaluations)&&validInt(s?.datasetCount)&&
+               s.datasetCount<=11&&Array.isArray(proof.remainingChecks)&&
+               proof.remainingChecks.length<=24&&
+               proof.remainingChecks.every(code=>
+                 typeof code==='string'&&/^[a-z_]{3,80}$/.test(code))){
+              result.snapshotReadiness={
+                snapshotCopied:s.copied,
+                candidatesVerified:s.candidateVerified,
+                documentCount:s.sourceDocuments,
+                sourceEvaluations:s.sourceEvaluations,
+                candidateEvaluations:s.candidateEvaluations,
+                datasetCount:s.datasetCount,
+                freshnessVerified:s.withinFreshnessWindow,
+                remainingChecks:proof.remainingChecks,
+                verifiedVia:'windows-8790-read-only',
+              };
+            }
+          }
+        }
+      }catch{/* Older Cloudflare Worker may not have 8790 readiness yet. */}
       // The archive may have the expected import count, but this is never
       // proof of a current, complete per-document live Firestore mirror.
       const summary=await fetchImpl(origin+'/summary',{
