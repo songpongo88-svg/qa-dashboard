@@ -286,7 +286,10 @@ export async function saveOwnedDraft(req, documentKey, revision, snapshot) {
 }
 export async function acknowledgeTakeover(req, pendingId, documentKey, revision) {
   const { ticket, current } = await authorizeActiveSession(req);
-  if (!pendingId || current.pendingId !== pendingId || Date.parse(current.pendingDeadline) <= Date.now()) {
+  if (!/^[0-9a-f-]{36}$/i.test(String(pendingId || "")) ||
+      !/^[a-zA-Z0-9._-]{2,90}$/.test(String(documentKey || "")) ||
+      !Number.isSafeInteger(revision) || revision < 0) throw fail("Invalid takeover acknowledgment", 400);
+  if (current.pendingId !== pendingId || Date.parse(current.pendingDeadline) <= Date.now()) {
     throw fail("Takeover acknowledgment expired", 409);
   }
   const draft = await rest("GET", DRAFT_COLLECTION, ticket.username + "_" + documentKey.toLowerCase());
@@ -295,7 +298,7 @@ export async function acknowledgeTakeover(req, pendingId, documentKey, revision)
     throw fail("Server has not confirmed the final draft", 409, "DRAFT_NOT_SAVED");
   }
   const updated = { ...current, ackRevision: revision }; delete updated.updateTime;
-  await writeActive(ticket.username, updated, current.updateTime);
+  await auditedMutation("update", ticket.username, updated, current.updateTime, ticket.sessionId, "takeover_draft_ack");
   return { status: "ready" };
 }
 export async function commitTakeover(candidate, pendingId) {
