@@ -30,7 +30,11 @@ export function createQaFirestoreFailbackAdapter({
         op.nextVersion!==op.baseVersion+1||
         (op.action==='create'&&op.baseVersion!==0)||
         (op.action!=='create'&&op.baseVersion<1)||
-        (op.action!=='create'&&!HASH.test(op.sourceBaseHash||''))||
+        // Updates to records originally created on standby have no Firestore
+        // source hash. A versioned remote record must match baseVersion instead.
+        // Legacy unversioned remote records still require an exact source hash.
+        (op.action!=='create'&&op.sourceBaseHash!=null&&
+         !HASH.test(op.sourceBaseHash))||
         (op.action==='create'&&op.sourceBaseHash!=null&&op.sourceBaseHash!=='')||
         !validObject(op.record)||String(op.record.id||'')!==op.evaluationId)
         throw fail('invalid_replay_operation');
@@ -67,8 +71,10 @@ export function createQaFirestoreFailbackAdapter({
           const remoteVersion=current.qa_failover_version;
           const currentVersion=validNumber(remoteVersion)?remoteVersion:1;
           if(currentVersion!==op.baseVersion)return {status:'conflict'};
-          if(!validNumber(remoteVersion)&&
-            fingerprintExisting(current)!==op.sourceBaseHash)return {status:'conflict'};
+          if(!validNumber(remoteVersion)&&(
+            !HASH.test(op.sourceBaseHash||'')||
+            fingerprintExisting(current)!==op.sourceBaseHash
+          ))return {status:'conflict'};
         }
         // This callback MUST independently read current account/role,
         // revoked sessions, signature locks and appeal hold inside tx.
