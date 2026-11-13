@@ -21,7 +21,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "50c344b45b055586562cbd3979d97f60f1eaf552c3166f1eaed9cfba0ed7b930",
+    ".github/workflows/qa-single-session-tests.yml": "b929e266d42e07ab8cbc52fbac0f103134b4eff07dc61f68b3a328492e62b1ba",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -32,7 +32,6 @@
     "api/cron/sparks-profile-reconcile.js": "36f32648546ed1ab0b710a2e0434bc4cbd48ccaabe2e156eae03bea3f269fb83",
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
-    "api/qa-session-control.js": "a7a77aaaba385cbb0eb4034b84e1ed703e25ff86b388277635955f938d839eaf",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
     "api/sparks-admin.js": "37c8e33fb996148b66e9d9102dfc8e4a44f72886d7e8ce621dd779b8a8a5ca5e",
     "api/sparks-auth.js": "7cf06127fc6fcb210aa872cc1e401be85e008fa3cfc75ea71e7d123712db598b",
@@ -403,7 +402,6 @@
     "scripts/test-reward-product-details.mjs": "8df69cfc3cfbb160c9aed153faa1b6439dc778ec94e36b29a935bb4bd1f069cb",
     "scripts/test-rich-text-toolbar.mjs": "adc4f5ae5cd0c0084cb6f5733d8658da9c5519aec79fc56dbcc4d6d42761f4ff",
     "scripts/test-schedule-export.mjs": "b7b5711aa892cb0728519eca86ef1f7888b472ad355434113afc90793f11ba30",
-    "scripts/test-session-api-guards.mjs": "d0a27f318b8b7c4e7541e5d41b5119ac40baf9ccb78d2fa8ff14a316672736d9",
     "scripts/test-session-recovery.mjs": "1b7c34da6f4d3c0f4432cc3696f9e92cdd8bd59ef18056c4af1405a733874293",
     "scripts/test-session-takeover-policy.mjs": "eee92f6fdc39d0fbae43f68bc95841838f1cbc6502f9f01483d3b87d043066e8",
     "scripts/test-signature-appeal-hold.mjs": "0b79b07d2f79307bb09c1c3e205257ea5c4dbfc0cd8b0859a5804bc3274f9bd4",
@@ -778,6 +776,8 @@
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "api/qa-single-session.js": "f50111ca19e8199e000923ca944158e65b2071888a63010c75399d182c9fc432",
+    "scripts/test-qa-single-session-api.mjs": "cc796e86a218e689969dba5d79f601c8f77e4e5641c2488f40e5f68c9e1f177c"
   }
 }
