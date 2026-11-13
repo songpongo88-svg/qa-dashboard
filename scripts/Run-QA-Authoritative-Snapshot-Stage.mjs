@@ -23,6 +23,14 @@ export async function runQaLiveSnapshotStage({
     env.QA_FIRESTORE_OAUTH_ACCESS_TOKEN.length<20)
     throw new Error('server_firebase_oauth_not_configured');
 
+  // Operator-controlled cap applies across ALL eleven collections in this
+  // SINGLE invocation. Never loop/retry internally when Firestore refuses.
+  const maxDocumentReads=Number(env.QA_SOURCE_READ_BUDGET||3000);
+  const maxApiRequests=Number(env.QA_SOURCE_API_REQUEST_BUDGET||80);
+  if(!Number.isSafeInteger(maxDocumentReads)||maxDocumentReads<11||
+     maxDocumentReads>20000||!Number.isSafeInteger(maxApiRequests)||
+     maxApiRequests<11||maxApiRequests>200)
+    throw new Error('snapshot_read_budget_invalid');
   const pg=pgModule||(await import('pg')).default;
   const pool=new pg.Pool({
     connectionString:dbUrl,max:1,connectionTimeoutMillis:5000,
@@ -76,7 +84,7 @@ export async function runQaLiveSnapshotStage({
     const captured=await captureQaFirestorePointInTime({
       projectId:env.QA_FIRESTORE_PROJECT_ID,
       accessToken:env.QA_FIRESTORE_OAUTH_ACCESS_TOKEN,
-      fetchImpl,
+      fetchImpl,maxDocumentReads,maxApiRequests,
     });
     // Tables are already installed by the guarded admin installer.
     // No schema changes, no original archive modifications, no role changes.
@@ -85,6 +93,10 @@ export async function runQaLiveSnapshotStage({
       readCollection:dataset=>captured.readCollection(dataset),
     });
     console.log('QA_LIVE_SNAPSHOT=STORED_COPY_VERIFIED');
+    console.log('QA_SOURCE_READ_ESTIMATE='+captured.readBudgetReceipt.documentReadEstimate);
+    console.log('QA_SOURCE_API_REQUESTS='+captured.readBudgetReceipt.apiRequests);
+    console.log('QA_SOURCE_READ_BUDGET='+maxDocumentReads);
+    console.log('QA_SOURCE_BUDGET_SCOPE=ONE_RUN_NOT_DAILY');
     // Convert the copy to immutable, app-shaped evaluation candidates in the
     // SAME local database. Never touch the active QA evaluation table.
     const candidate=await materializeQaStandbyEvaluationCandidates({
@@ -112,6 +124,8 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
       'postgres_import_permission_missing','postgres_standby_not_safely_disabled',
       'firestore_quota_or_permission_blocked',
       'firestore_source_unreachable','firestore_source_unverified',
+      'snapshot_read_budget_invalid','firestore_snapshot_read_budget_exhausted',
+      'firestore_source_page_exceeds_budget',
       'firestore_invalid_source_page','source_manifest_mismatch',
     ]);
     // Never print a stack trace, local filesystem path, credentials or QA data.
