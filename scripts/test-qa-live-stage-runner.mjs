@@ -21,6 +21,12 @@ await assert.rejects(runQaLiveSnapshotStage({
   env:{...fakeEnv,QA_FIRESTORE_OAUTH_ACCESS_TOKEN:''},
   pgModule:fakePg,
 }),/server_firebase_oauth_not_configured/);
+await assert.rejects(runQaLiveSnapshotStage({
+  env:{...fakeEnv,QA_SOURCE_READ_BUDGET:'10'},pgModule:fakePg,
+}),/snapshot_read_budget_invalid/);
+await assert.rejects(runQaLiveSnapshotStage({
+  env:{...fakeEnv,QA_SOURCE_API_REQUEST_BUDGET:'201'},pgModule:fakePg,
+}),/snapshot_read_budget_invalid/);
 assert.equal(count,0);
  // The Windows runner is intentionally restricted to actual qa_dashboard_lab.
 // Integration with disposable fixtures is covered by the separate
