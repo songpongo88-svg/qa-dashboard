@@ -34,6 +34,26 @@ assert.ok(sessionBackend.includes("const draftName = DOCUMENT_PATH + DRAFT_COLLE
 assert.ok(sessionBackend.includes("currentDocument: { updateTime: current.updateTime }"),
   "Draft commit must reject a session version that changed");
 
+// Guard against silently decoupling the QA Sparks identity from the active QA
+// Dashboard session on the server. These checks prevent accidental regressions
+// while direct Supabase RPC/RLS enforcement is being migrated separately.
+const sparksAuthBackend = await readFile(new URL("../server/sparksSupabaseAuth.js", import.meta.url), "utf8");
+assert.match(sparksAuthBackend, /async function enforceSparksQaSessionBinding\(actor, req\)/,
+  "QA Sparks must bind its verified actor to the QA Dashboard session");
+assert.match(sparksAuthBackend, /if \(!sessionPolicyEnabled\(\)\) return;/,
+  "Sparks session gate must follow the QA rollout flag");
+assert.match(sparksAuthBackend, /const \{ ticket \} = await authorizeActiveSession\(req\);/,
+  "Sparks must validate the active server-side QA session");
+assert.match(sparksAuthBackend, /ticket\.username\)\.toLowerCase\(\) !== String\(actor\?\.username/,
+  "Sparks and QA must have the same trusted username");
+assert.match(sparksAuthBackend, /ticket\.role\)\.toLowerCase\(\) !== String\(actor\?\.role/,
+  "Sparks and QA must have the same trusted role");
+assert.match(sparksAuthBackend, /await enforceSparksQaSessionBinding\(actor, ctx\.req\);/,
+  "Sparks identity binding must run before the request actor is cached");
+assert.ok(sparksAuthBackend.indexOf("await enforceSparksQaSessionBinding(actor, ctx.req);") <
+  sparksAuthBackend.indexOf("ctx.actor = actor;"),
+  "Sparks must never cache a trusted actor before session validation");
+
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048,
   privateKeyEncoding: { format: "pem", type: "pkcs8" },
   publicKeyEncoding: { format: "pem", type: "spki" },
