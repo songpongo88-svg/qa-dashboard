@@ -30,6 +30,7 @@ import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
 import { syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
 import SessionTakeoverPrompt from "./SessionTakeoverPrompt";
+import QaSessionAdminPanel from "./QaSessionAdminPanel";
 import { QA_SINGLE_SESSION_CLIENT_ENABLED, qaServerSessionRequest, QaServerSessionError } from "./qaSingleSessionClient";
 import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
@@ -8417,6 +8418,9 @@ export default function App() {
         ) : activeTab === "usage-log" && usageLogAllowed ? (
           <UsageLogMockup />
         ) : activeTab === "user-roles" && roleAdminAllowed ? (
+          <>
+            {QA_SINGLE_SESSION_CLIENT_ENABLED && currentUser.username.toLowerCase() === "songpon" && currentUser.role === "Quality Assurance"
+              ? <QaSessionAdminPanel /> : null}
           <UserRoleAdminMockup
             initialTab={userAdminSection}
             showPrimaryTabs={false}
@@ -8428,6 +8432,7 @@ export default function App() {
             onMaintenanceChanged={handleMaintenanceChanged}
             onRolesChanged={loadRoleOverrides}
           />
+          </>
         ) : activeTab === "rubric" && rubricAllowed ? (
           <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} initialRubricCode={selectedRubricCode} onShareLink={shareRubricLink} />
           ) : (
