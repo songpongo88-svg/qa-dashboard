@@ -107,4 +107,69 @@ await forbid(await call(dataStatus,{authorization:'Bearer '+token},'GET',{
   },
 }),502);
 
+// The 8790 Snapshot status is a distinct, strictly read-only and redacted
+// probe. It never reuses the QA DATA authorizer or exposes any source record.
+const snapshotPath='/qa-bridge-8790-readiness';
+await forbid(await call(snapshotPath),403);
+await forbid(await call(snapshotPath,{authorization:'Bearer '+token},'POST'),405);
+await forbid(await call(snapshotPath+'?case=private',{authorization:'Bearer '+token}),404);
+await forbid(await call(snapshotPath,{authorization:'Bearer '+token}),503);
+let snapshotOk=true, privateSnapshotCalls=0;
+const snapshotBinding={
+  ...env,
+  QA_PRIVATE_DATA_VPC:{
+    async fetch(url,options){
+      privateSnapshotCalls++;
+      assert.equal(url,'http://127.0.0.1:8790/readiness');
+      assert.equal(options.method,'GET');
+      assert.equal(options.headers.authorization,'Bearer '+token);
+      assert.equal(options.redirect,'manual');
+      return new Response(JSON.stringify({
+        ok:true,readOnly:true,firestorePrimary:true,
+        archiveIsNotLiveSource:true,
+        failoverReady:snapshotOk,canAcceptWrites:false,standbyMode:'disabled',
+        snapshot:{present:true,copied:true,candidateVerified:true,
+          sourceDocuments:2226,sourceEvaluations:582,candidateEvaluations:582,
+          datasetCount:11,withinFreshnessWindow:false,
+          privateCaseScore:100},
+        remainingChecks:['source_snapshot_not_fresh','independent_live_parity_not_certified',
+          'local_login_and_roles_not_certified','qa_write_and_failback_not_certified'],
+        privateAgent:'DO_NOT_EXPOSE',
+      }),{status:200,headers:{'content-type':'application/json'}});
+    },
+  },
+};
+const response=await call(snapshotPath,{authorization:'Bearer '+token},'GET',snapshotBinding);
+assert.equal(response.status,200);
+const snap=await response.json();
+assert.equal(snap.snapshot.sourceDocuments,2226);
+assert.equal(snap.snapshot.sourceEvaluations,582);
+assert.equal(snap.snapshot.datasetCount,11);
+assert.equal(snap.readOnly,true);
+assert.equal(snap.failoverReady,false);
+assert.equal(snap.canAcceptWrites,false);
+assert.equal(snap.source,'windows-8790-inactive-replica');
+assert.equal(JSON.stringify(snap).includes('DO_NOT_EXPOSE'),false);
+assert.equal(JSON.stringify(snap).includes('privateCaseScore'),false);
+assert.equal(privateSnapshotCalls,1);
+snapshotOk=false;
+await assert.rejects(async()=>{
+  const bad=await call(snapshotPath,{authorization:'Bearer '+token},'GET',{
+    ...snapshotBinding,QA_PRIVATE_DATA_VPC:{
+      async fetch(url,options){
+        return new Response(JSON.stringify({ok:true,readOnly:true,
+          firestorePrimary:true,archiveIsNotLiveSource:true,
+          failoverReady:true,canAcceptWrites:false,standbyMode:'disabled',
+          snapshot:{present:true,copied:true,candidateVerified:true,
+            sourceDocuments:2226,sourceEvaluations:582,candidateEvaluations:582,
+            datasetCount:11,withinFreshnessWindow:false},
+          remainingChecks:[]}),
+          {status:200,headers:{'content-type':'application/json'}});
+      },
+    },
+  });
+  assert.equal(bad.status,502);
+  throw new Error('intentional assertion wrapper');
+},/intentional assertion wrapper/);
+
 console.log('PASS QA Workers VPC: domainless private bridge, strict bearer auth, status-only, fail-closed, no CORS or sensitive data');
