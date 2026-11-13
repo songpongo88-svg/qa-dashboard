@@ -33,7 +33,8 @@ import {
 } from "./lib/rubricVersions";
 import { buildDeductionAnalysis, topicScoreForDate, type DraftDeductionTag } from "./lib/evaluation/deductionTags";
 import { readDraftQueue, writeDraftQueue } from "./lib/evaluation/draftPersistence";
-import { readEvaluationRecovery, saveEvaluationRecovery, clearEvaluationRecovery } from "./lib/evaluation/sessionRecoveryStore.mjs";
+import { readEvaluationRecovery, saveEvaluationRecovery, clearEvaluationRecovery, sanitizeRecoveryForm } from "./lib/evaluation/sessionRecoveryStore.mjs";
+import { QA_SINGLE_SESSION_CLIENT_ENABLED, qaServerSessionRequest } from "./qaSingleSessionClient";
 import { makeQaDraftBackup, makeQaDraftBackupFilename } from "./lib/evaluation/draftBackup";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchAppealEvents } from "./appealStore";
@@ -1055,6 +1056,8 @@ export default function CreateEvaluationMockup({
   // Independent IndexedDB emergency snapshot; never overwrites an explicit Draft Queue item.
   const [emergencyRecovery, setEmergencyRecovery] = useState<{ savedAtMs: number; snapshot: Partial<EvaluateTabMemory> } | null>(null);
   const recoveryCheckDoneRef = useRef(false);
+  const lastCloudSnapshotRef = useRef("");
+  const cloudSaveInProgressRef = useRef(false);
 
   const inlineImageUploadsRef = useRef(0);
   const [inlineImageUploads, setInlineImageUploads] = useState(0);
@@ -1205,6 +1208,71 @@ export default function CreateEvaluationMockup({
     }, 5000);
     return () => window.clearInterval(timer);
   }, [currentUser?.username, workspaceView, emergencyRecovery]);
+
+  // Cloud backup is opt-in behind the server-verified single-session flag.
+  // Upload only when text/scores change; no raw audio or unattached files.
+  useEffect(() => {
+    if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser?.username) return;
+    let live = true;
+    qaServerSessionRequest("draft-read", { documentKey: "evaluation-form" }).then(result => {
+      if (!live || !result.draft?.snapshot) return;
+      const savedAtMs = Date.parse(result.draft.savedAt || "");
+      if (!Number.isFinite(savedAtMs)) return;
+      setEmergencyRecovery(previous => previous && previous.savedAtMs >= savedAtMs ?
+        previous : { savedAtMs, snapshot: result.draft!.snapshot as Partial<EvaluateTabMemory> });
+    }).catch(error => { if (live) console.warn("Cloud Evaluation recovery not available", error); });
+    return () => { live = false; };
+  }, [currentUser?.username]);
+
+  useEffect(() => {
+    if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser?.username) return;
+    const timer = window.setInterval(() => {
+      if (!recoveryCheckDoneRef.current || emergencyRecovery || cloudSaveInProgressRef.current ||
+          workspaceView !== "form" || evaluationStatus === "Submitted") return;
+      const form = readEvaluateTabMemory();
+      if (!form || !(form.caseId || form.caseDescription || form.inquiry)) return;
+      let snapshot: Record<string, unknown>;
+      try { snapshot = sanitizeRecoveryForm(form); } catch { return; }
+      const serial = JSON.stringify(snapshot);
+      if (serial === lastCloudSnapshotRef.current) return;
+      cloudSaveInProgressRef.current = true;
+      void qaServerSessionRequest("draft-save", {
+        documentKey: "evaluation-form", revision: Date.now(), snapshot,
+      }).then(() => { lastCloudSnapshotRef.current = serial; })
+        .catch(error => console.warn("Evaluation cloud autosave unavailable", error))
+        .finally(() => { cloudSaveInProgressRef.current = false; });
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [currentUser?.username, emergencyRecovery, workspaceView, evaluationStatus]);
+
+  useEffect(() => {
+    if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser?.username) return;
+    const onTakeoverRequest = (event: Event) => {
+      const pendingId = (event as CustomEvent<{ pendingId?: string }>).detail?.pendingId;
+      if (!pendingId || cloudSaveInProgressRef.current || inlineImageUploadsRef.current ||
+          evidenceFiles.some(file => file.uploadStatus !== "uploaded") ||
+          callLogs.some(call => Boolean(call.pendingRecording)) ||
+          callRecordingSaveInProgressRef.current || callRecordingUploads.current.size) {
+        setDraftMessage("มีคำขอ Login จาก Browser ใหม่ แต่ยังมีไฟล์หรือข้อมูลที่บันทึกไม่เสร็จ กรุณาบันทึกงานก่อนสลับเครื่อง");
+        return;
+      }
+      const form = readEvaluateTabMemory();
+      const snapshot = form ? sanitizeRecoveryForm(form) : { noOpenEvaluation: true };
+      const revision = Date.now();
+      void qaServerSessionRequest("draft-save", {
+        documentKey: "evaluation-form", revision, snapshot,
+      }).then(() => qaServerSessionRequest("ack", {
+        pendingId, documentKey: "evaluation-form", revision,
+      })).then(() => {
+        setDraftMessage("สำรองข้อความและคะแนนบนเซิร์ฟเวอร์แล้ว • Browser ใหม่สามารถเข้าสู่ระบบได้");
+      }).catch(error => {
+        setDraftMessage("สำรองข้อมูลก่อนสลับ Browser ไม่สำเร็จ ระบบจะไม่ยกเลิก Session เดิม");
+        console.warn("Takeover draft flush failed", error);
+      });
+    };
+    window.addEventListener("qa:single-session-save-request", onTakeoverRequest);
+    return () => window.removeEventListener("qa:single-session-save-request", onTakeoverRequest);
+  }, [currentUser?.username, evidenceFiles, callLogs]);
 
   // Submitting a case must not leave a stale emergency copy behind.
   useEffect(() => {
