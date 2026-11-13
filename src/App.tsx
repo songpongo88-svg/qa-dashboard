@@ -32,6 +32,7 @@ import { syncSparksQaPasswordChange } from "./sparksQaPasswordLogin";
 import SessionTakeoverPrompt from "./SessionTakeoverPrompt";
 import QaSessionAdminPanel from "./QaSessionAdminPanel";
 import { QA_SINGLE_SESSION_CLIENT_ENABLED, qaServerSessionRequest, QaServerSessionError } from "./qaSingleSessionClient";
+import { holdQaTabLease, canAcknowledgeQaTakeover } from "./qaTabLease.mjs";
 import SparksAccessGate, { SparksEnabledOnly } from "./SparksAccessGate";
 import HiddenTreasure from "./HiddenTreasure";
 import { DailyCheckinLoginPrompt } from "./DailyCheckinQuest";
@@ -6779,6 +6780,13 @@ export default function App() {
     };
   }, [currentUser?.sessionId, currentUser?.username]);
 
+  // An origin-scoped lease tracks every signed-in QA tab/window. Hidden tabs
+  // retain their lock; a different tab cannot claim all work is saved.
+  useEffect(() => {
+    if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser?.username) return;
+    return holdQaTabLease();
+  }, [currentUser?.username]);
+
   // Server-backed takeover requests are checked independently of Firestore's
   // quota-safe 15-minute polling. A draft must be durably saved and acknowledged
   // before the new browser may receive the active session.
@@ -6797,6 +6805,12 @@ export default function App() {
           lastPendingId = server.pendingId;
           if (activeTab === "dashboard" && openWorkspaceTabs.length === 1 &&
               openWorkspaceTabs[0] === "dashboard" && activeWorkspaceTab === "dashboard") {
+            if (!(await canAcknowledgeQaTakeover())) {
+              // Another tab may hold dirty Evaluation/Appeal/Coaching data.
+              // Retry after that tab is closed, never acknowledge idle falsely.
+              lastPendingId = "";
+              return;
+            }
             const revision = Date.now();
             await qaServerSessionRequest("draft-save", {
               documentKey: "session-idle", revision, snapshot: { noOpenEditors: true },
