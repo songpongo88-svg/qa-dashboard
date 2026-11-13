@@ -155,12 +155,39 @@ async function writeActive(username, row, updateTime) {
 async function deleteActive(username, updateTime) {
   return rest("DELETE", SESSION_COLLECTION, normalizeQaUsername(username), null, updateTime);
 }
-async function audit(username, sessionId, action) {
-  try {
-    await rest("PATCH", AUDIT_COLLECTION, randomUUID(), {
-      username, sessionId, action, createdAt: new Date().toISOString(),
-    }, null);
-  } catch (error) { console.warn("QA session audit unavailable", error?.code || "write"); }
+// Firestore's commit endpoint applies the session mutation AND its audit record
+// atomically. If audit cannot be stored, the session is not changed.
+async function auditedMutation(kind, username, row, updateTime, actorSessionId, action) {
+  const account = normalizeQaUsername(username);
+  if (!account || !updateTime && kind === "delete") throw fail("Invalid audited mutation", 400);
+  const sessionName = RESOURCE + SESSION_COLLECTION + "/" + encodeURIComponent(account);
+  const auditName = RESOURCE + AUDIT_COLLECTION + "/" + randomUUID();
+  const precondition = updateTime ? { updateTime } : { exists: false };
+  const first = kind === "delete" ?
+    { delete: sessionName, currentDocument: precondition } :
+    { update: { name: sessionName, fields: fieldsFor(row) }, currentDocument: precondition };
+  const second = {
+    update: {
+      name: auditName,
+      fields: fieldsFor({
+        username: account, sessionId: String(actorSessionId || ""), action,
+        createdAt: new Date().toISOString(),
+      }),
+    },
+    currentDocument: { exists: false },
+  };
+  const result = await fetch(RESOURCE.slice(0, -1) + ":commit", {
+    method: "POST", cache: "no-store", signal: AbortSignal.timeout(10_000),
+    headers: {
+      Authorization: "Bearer " + await googleAccessToken(),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ writes: [first, second] }),
+  });
+  if ([400, 409, 412].includes(result.status)) {
+    throw fail("Session was changed by another browser", 409, "SESSION_RACE");
+  }
+  if (!result.ok) throw fail("QA session and audit could not be saved", 503, "SESSION_AUDIT_UNAVAILABLE");
 }
 function activeNow(row, now = Date.now()) {
   return Boolean(row && Number.isFinite(Date.parse(row.expiresAt)) &&
@@ -179,8 +206,7 @@ export async function activateNewSession(actor, deviceLabel = "Browser") {
     createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + TTL_MS).toISOString(),
     pendingId: "", pendingSessionId: "", pendingAt: "", pendingDeadline: "", ackRevision: -1,
   };
-  await writeActive(actor.username, row, current?.updateTime || null);
-  await audit(actor.username, sessionId, "login");
+  await auditedMutation("update", actor.username, row, current?.updateTime || null, sessionId, "login");
   return { status: "active", sessionId };
 }
 export async function authorizeActiveSession(req) {
@@ -201,8 +227,7 @@ export async function requestTakeover(candidate) {
     pendingAt: new Date(now).toISOString(),
     pendingDeadline: new Date(now + TAKEOVER_TTL_MS).toISOString(), ackRevision: -1 };
   delete next.updateTime;
-  await writeActive(candidate.username, next, current.updateTime);
-  await audit(candidate.username, sessionId, "takeover_requested");
+  await auditedMutation("update", candidate.username, next, current.updateTime, sessionId, "takeover_requested");
   return { status: "pending", pendingId, deadline: next.pendingDeadline };
 }
 export async function getTakeoverForOldBrowser(req) {
@@ -254,8 +279,7 @@ export async function commitTakeover(candidate, pendingId) {
     expiresAt: new Date(Date.now() + TTL_MS).toISOString(),
     pendingId: "", pendingSessionId: "", pendingAt: "", pendingDeadline: "", ackRevision: -1 };
   delete next.updateTime;
-  await writeActive(candidate.username, next, current.updateTime);
-  await audit(candidate.username, next.sessionId, "takeover");
+  await auditedMutation("update", candidate.username, next, current.updateTime, next.sessionId, "takeover");
   return { status: "active", sessionId: next.sessionId };
 }
 export async function renewActiveSession(req) {
@@ -267,8 +291,7 @@ export async function renewActiveSession(req) {
 }
 export async function revokeOwnSession(req) {
   const { ticket, current } = await authorizeActiveSession(req);
-  await deleteActive(ticket.username, current.updateTime);
-  await audit(ticket.username, ticket.sessionId, "logout");
+  await auditedMutation("delete", ticket.username, null, current.updateTime, ticket.sessionId, "logout");
 }
 export async function clearOwnedDraft(req, documentKey) {
   const { ticket } = await authorizeActiveSession(req);
@@ -317,8 +340,7 @@ export async function revokeSessionForOwner(req, targetUsername) {
   if (!username) throw fail("Invalid target account", 400);
   const current = await readActive(username);
   if (!current) return { status: "already_revoked" };
-  await deleteActive(username, current.updateTime);
-  await audit(username, actor.ticket.sessionId, "admin_revoke");
+  await auditedMutation("delete", username, null, current.updateTime, actor.ticket.sessionId, "admin_revoke");
   return { status: "revoked" };
 }
 export async function fetchOwnedDraft(req, documentKey) {
