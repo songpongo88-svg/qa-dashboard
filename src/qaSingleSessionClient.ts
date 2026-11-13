@@ -6,12 +6,13 @@ export const QA_SINGLE_SESSION_CLIENT_ENABLED =
 
 export type QaServerSessionResponse = {
   ok: boolean;
-  status?: "active" | "conflict" | "pending" | "ready" | "none" | "flush_required" | "logged_out" | "retry_login";
+  status?: "active" | "conflict" | "pending" | "ready" | "none" | "flush_required" | "logged_out" | "retry_login" | "revoked" | "already_revoked" | "cleared";
   code?: string;
   deviceLabel?: string;
   pendingId?: string;
   deadline?: string;
   draft?: { revision: number; savedAt: string; snapshot: Record<string, unknown> } | null;
+  sessions?: Array<{ username: string; deviceLabel: string; createdAt: string; expiresAt: string; active: boolean; pendingTakeover: boolean }>;
   revision?: number;
   savedAt?: string;
 };
