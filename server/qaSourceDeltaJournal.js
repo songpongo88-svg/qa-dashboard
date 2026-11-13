@@ -52,8 +52,11 @@ export async function appendQaSourceDelta({pool,event,attestSourceEvent,now=Date
   const proof=await attestSourceEvent(incoming);
   if(proof?.authority!=='verified-firestore-private-event'||
      proof?.eventId!==incoming.eventId||
+     proof?.snapshotId!==incoming.snapshotId||
      proof?.documentPath!==incoming.documentPath||
-     proof?.sourceChangedAt!==incoming.sourceChangedAt)
+     proof?.operation!==incoming.operation||
+     proof?.sourceChangedAt!==incoming.sourceChangedAt||
+     proof?.contentHash!==incoming.hash)
     fail('qa_delta_source_not_attested');
   const c=await pool.connect();let tx=false;
   try {

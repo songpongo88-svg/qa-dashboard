@@ -48,14 +48,20 @@ const pool={async connect(){return {release(){},async query(sql,args=[]){
  throw Error('unexpected SQL: '+sql.slice(0,40));
 }};}};
 const attest=async e=>({authority:'verified-firestore-private-event',
-  eventId:e.eventId,documentPath:e.documentPath,
-  sourceChangedAt:e.sourceChangedAt});
+  eventId:e.eventId,snapshotId:e.snapshotId,documentPath:e.documentPath,
+  operation:e.operation,sourceChangedAt:e.sourceChangedAt,
+  contentHash:e.hash});
 await assert.rejects(appendQaSourceDelta({pool,event:example,now}),
   /qa_delta_private_adapter_required/);
 assert.equal(queries.length,0);
 await assert.rejects(appendQaSourceDelta({pool,event:example,now,
   attestSourceEvent:async()=>({authority:'browser'})}),
   /qa_delta_source_not_attested/);
+assert.equal(queries.length,0);
+await assert.rejects(appendQaSourceDelta({
+  pool,event:example,now,
+  attestSourceEvent:async e=>({...await attest(e),contentHash:'0'.repeat(64)}),
+}),/qa_delta_source_not_attested/);
 assert.equal(queries.length,0);
 const result=await appendQaSourceDelta({pool,event:example,now,attestSourceEvent:attest});
 assert.equal(result.outcome,'applied');
