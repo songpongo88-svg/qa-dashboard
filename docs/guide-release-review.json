@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T09:24:14.608Z",
-  "reason": "Reviewed server-enforced draft CAS/audit and quota-safe build patch for staged QA Single Active Session; no production enforcement enabled",
+  "reviewedAt": "2026-11-13T09:28:46.922Z",
+  "reason": "Reviewed server-side Firestore CAS session/draft writes, mock atomic takeover tests, and updated Coaching recovery; rollout remains gated pending full Firebase authorization",
   "contentChanged": true,
   "reviewedChapters": [
     "evaluation",
@@ -24,7 +24,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "5da4252faf9fb21e31835ab9c7fddaa6645bfd3bdf27540483e2a8bb3e2ab18e",
+    ".github/workflows/qa-single-session-tests.yml": "26eaa95b2157c3fd52ea1a357e8ac30925f3799231f7e0ee6752e4f5e3f47edf",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -119,7 +119,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "e0a33dfb8592335543538010b6203a6de77c0c11df4c07b0443526bb7e82d9e6",
+    "package.json": "8ff7d4a46450106eb4b04d7a202cac7e3dc03c97276a9ceb5215a02ee60dab7f",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -451,7 +451,7 @@
     "server/qaFirebaseCredentials.js": "7582c90b769bb69741389223909095a3621ef34add7772ae0a46df07fa6ab481",
     "server/qaLotteryService.js": "5f23b0561fd0f22874e3d74dd0aafa1d59a3685a455fbb1e21326e829760bac4",
     "server/qaRewardsService.js": "c8b59cad5f709c4a464f262793f7a0153ed959aaca7fec0fef4e6e3906d7a822",
-    "server/qaSingleSessionAdmin.js": "e25dbf4688c63a124659e51041f492577262b9d470e29c0580755a406fea47c4",
+    "server/qaSingleSessionAdmin.js": "e3a060c61d52179cebec422d2cabfe0b34aa6682d4489f2622c6c3c6bd050408",
     "server/snakesLaddersService.js": "fe0bf2ce9eafddc456dc9c58116d7895d484b5cc6e531d238a759cb2861d5442",
     "server/sparksAccessControl.js": "daae2bf5caa8e7c916a24a9d697dd45a4c8952b07c450d37871dfc303c9ebe08",
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
@@ -781,10 +781,11 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "api/qa-single-session.js": "f50111ca19e8199e000923ca944158e65b2071888a63010c75399d182c9fc432",
-    "scripts/test-qa-single-session-api.mjs": "cc796e86a218e689969dba5d79f601c8f77e4e5641c2488f40e5f68c9e1f177c",
+    "scripts/test-qa-single-session-api.mjs": "13a897be9e6975d7d33701880e76aaf400e74e7c429cfa94cca2540cfafa827c",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
     "src/qaSingleSessionClient.ts": "df6014003d38717cfb701e0707e71f62bd2755df2bdfee7c39596f40ee1585e8",
     "scripts/test-qa-session-write-guards.mjs": "8b084a01308728aa8d8832040e64ecf0c8a3cba20287f8da85a0971310952aab",
-    "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7"
+    "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7",
+    "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a"
   }
 }
