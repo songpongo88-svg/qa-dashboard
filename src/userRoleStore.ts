@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { getUserFullName } from "./lib/userNames";
@@ -391,6 +392,7 @@ export async function fetchStoredUserProfiles() {
 }
 
 export async function upsertStoredUserProfiles(profiles: StoredUserProfile[]) {
+  await assertTrustedQaSessionForMutation();
   if (!profiles.length) return;
   const canonicalProfiles = profiles.map(toUserProfile);
   await Promise.all(
@@ -402,6 +404,7 @@ export async function upsertStoredUserProfiles(profiles: StoredUserProfile[]) {
 }
 
 export async function deleteStoredUserProfile(username: string) {
+  await assertTrustedQaSessionForMutation();
   if (!username) return;
   await deleteDoc(doc(firebaseDb, USER_PROFILE_COLLECTION, safeDocId(username)));
   const cached = readCache<StoredUserProfile>(USER_PROFILE_CACHE_KEY).filter(
@@ -424,6 +427,7 @@ export async function fetchStoredRoleDefinitions() {
 }
 
 export async function upsertStoredRoleDefinition(role: StoredRoleDefinition) {
+  await assertTrustedQaSessionForMutation();
   await setDoc(doc(firebaseDb, ROLE_DEFINITION_COLLECTION, safeDocId(role.name)), fromRoleDefinition(role), { merge: true });
   const cached = readCache<StoredRoleDefinition>(ROLE_DEFINITION_CACHE_KEY).filter(
     (item) => item.name.toLowerCase() !== role.name.toLowerCase()
@@ -432,6 +436,7 @@ export async function upsertStoredRoleDefinition(role: StoredRoleDefinition) {
 }
 
 export async function deleteStoredRoleDefinition(name: string) {
+  await assertTrustedQaSessionForMutation();
   await deleteDoc(doc(firebaseDb, ROLE_DEFINITION_COLLECTION, safeDocId(name)));
   const cached = readCache<StoredRoleDefinition>(ROLE_DEFINITION_CACHE_KEY).filter(
     (item) => item.name.toLowerCase() !== String(name).toLowerCase()
@@ -453,6 +458,7 @@ export async function fetchStoredRolePermissions() {
 }
 
 export async function upsertStoredRolePermissions(rows: StoredRolePermission[]) {
+  await assertTrustedQaSessionForMutation();
   if (!rows.length) return;
   await Promise.all(
     rows.map((row) =>
@@ -476,6 +482,7 @@ export async function fetchStoredMaintenanceState() {
 }
 
 export async function upsertStoredMaintenanceState(state: StoredMaintenanceState) {
+  await assertTrustedQaSessionForMutation();
   const nextState = {
     enabled: state.enabled,
     message: state.message,
