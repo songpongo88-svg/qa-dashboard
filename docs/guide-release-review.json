@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T14:13:10.555Z",
-  "reason": "Reviewed Firebase signed-token credential regression test addition to QA single-session CI; no user-guide content change, production rollout remains disabled",
+  "reviewedAt": "2026-11-13T14:30:09.716Z",
+  "reason": "Reviewed Firebase emulator-only Firestore and Storage security rules staging, non-production test workflow and mandatory Preview static contract; existing production rules and live QA guide remain unchanged",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -19,7 +19,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "b3ded03ffd2058ca9cb54d4ae5b4da1d88d0a812ac65c4c5eef5d9ba5c8c0a46",
+    ".github/workflows/qa-single-session-tests.yml": "e1fbae1808dc2286b2171c73108d3b99fef7c161f4d910108579d181581dc04e",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -114,7 +114,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "020ca2b388ad68bb3bf51547f69a8ea496c7eb78836d8d3b2d34403e76c484ff",
+    "package.json": "603ebca5a6f60a3fcecb447a912b82e08189a6f483641f789150ae20aa14375c",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -785,6 +785,8 @@
     "scripts/test-qa-upload-session-gate.mjs": "1c7bb0d1bea7a9a4a68676eab2a5070c81c49d5409fd3e26cb60a7ba96d3e5c6",
     "src/qaTabLease.mjs": "9ff18c95d6e91c700e981d257719af827d46bedbd351c0394f1d5e47d3861e4c",
     "scripts/test-qa-tab-lease.mjs": "27e4189486371b21149f4db8c62f9a8470a4662716970c358bfdcaf581372f7e",
-    "scripts/test-qa-legacy-profile-lookup.mjs": "a8d4e36954b087a0bfca53b98f19e46edef0a8d07954aa52a50487be2cea8315"
+    "scripts/test-qa-legacy-profile-lookup.mjs": "a8d4e36954b087a0bfca53b98f19e46edef0a8d07954aa52a50487be2cea8315",
+    "scripts/test-qa-single-session-firebase-rules.mjs": "6e21cc8ba4d3e5f1509ec8186a1bffec268434a4b7972fcf3ead826b2c86ba7f",
+    "scripts/test-qa-single-session-rules-contract.mjs": "af3e432378f7898c0b62da9cdc8673a333c96d672b8ce689fdc47c5405d15a9c"
   }
 }
