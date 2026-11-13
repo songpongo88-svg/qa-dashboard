@@ -407,9 +407,9 @@ const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 // Match the existing production quota-protection cadence while also
 // preventing hidden tabs, focus storms and concurrent validation requests.
-// Client-side revocation hints are polled every minute; backend authorization must still be enforced.
-const SESSION_CHECK_INTERVAL_MS = 1 * 60 * 1000;
-const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
+// Keep client-side polling at the existing quota-safe cadence; server-side authorization must enforce invalidation.
+const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+const SESSION_TOUCH_INTERVAL_MS = 30 * 60 * 1000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
