@@ -98,7 +98,7 @@ assert.equal(vpcBody.failoverReady,false);
 assert.equal(vpcBody.port,8790);
 assert.equal(JSON.stringify(vpcBody).includes('never-leak'),false);
 assert.deepEqual(dataCalls,['http://127.0.0.1:8790/ready']);
-assert.equal(upstreamCalls,5); // Only archive probes have used the old binding.
+assert.equal(upstreamCalls,6); // Only archive probes have used the old binding.
 await forbid(await call(dataStatus,{authorization:'Bearer '+token},'GET',{
   ...env,QA_PRIVATE_DATA_VPC:{
     async fetch(){return new Response(JSON.stringify({
