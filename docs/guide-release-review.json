@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T02:42:02.027Z",
-  "reason": "QA only standby security: enforce exact active source snapshot ID and coordinator lease generation on every trusted local session operation, and revalidate inside local PostgreSQL read and atomic journal write. Reject stale credential/snapshot and frozen state mismatches. Preserve isolated PostgreSQL fixture tests, original case scoring, and read-only production. QA Sparks, appeals, signature originals and T&C unchanged.",
+  "reviewedAt": "2026-11-13T03:00:29.544Z",
+  "reason": "QA-only internal standby cutover gate on PostgreSQL 17. Requires explicit opt-in plus independent server-authenticated quota outage, certified 11-dataset live copy, identity and lease evidence. Verifies original Firestore hashes, appeal/signature/permission copies and evaluation scores inside a serializable transaction before standby activation. Never mounted on a production route and remains disabled until trusted evidence is available. CI fixture regression passed; no QA Sparks or existing Production data changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -17,7 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
-    ".github/workflows/qa-postgres-preview-safety.yml": "ef3a5e13a2a50e6ad64b1ebe16bb7e11f0d8c62f1e9ebc4f44b470cfaf7b9d4c",
+    ".github/workflows/qa-postgres-preview-safety.yml": "fa2701b00b79baaca51230a257fb538d2f5e99eaef21ff2772d7beaef60c79cf",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -809,6 +809,8 @@
     "scripts/test-qa-standby-inactive-seed-integration.mjs": "99977ae3f482bf36eab1468bf625ab4f462dd1958850cb9083ee712d18122b98",
     "server/qaStandbyDomainSeed.js": "b4e8ec2f4d50ec7084d4dd09ee47c4bd40eee26781f951c65e9d66435b9ef66b",
     "migration/qa-local-domain-replica.sql": "f6a78642513eb9b03d1fda97ada95802aaadecca745c4d0fe276eb663ae4a03f",
-    "scripts/test-qa-standby-domain-seed-integration.mjs": "af9692426cee5ef1614c16618876b17180ea8df3a2830ff04b63afb08d403e91"
+    "scripts/test-qa-standby-domain-seed-integration.mjs": "af9692426cee5ef1614c16618876b17180ea8df3a2830ff04b63afb08d403e91",
+    "server/qaStandbyActivation.js": "41a0e8965e9040044b9cf8e2bf817dbc75a79dae2520c8195d0089ac366c2dd6",
+    "scripts/test-qa-standby-activation-integration.mjs": "7c1ea26bcf956e7f960d327838887ac833fac10a27c15effcba6b0775793ed63"
   }
 }
