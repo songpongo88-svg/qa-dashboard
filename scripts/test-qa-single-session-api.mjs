@@ -59,6 +59,15 @@ assert.ok(sparksAuthBackend.indexOf("await enforceSparksQaSessionBinding(actor, 
 assert.match(sparksAuthBackend, /if \(req\) await enforceSparksQaSessionBinding\(actor, req\);/,
   "Sparks login exchange must verify the QA browser session before issuing cookies");
 
+// Sparks browser actions must not fall back to legacy Firebase identity when
+// QA Single Active Session is enabled. Cron GET requests remain separately signed.
+const sparksAdminBackend = await readFile(new URL("../api/sparks-admin.js", import.meta.url), "utf8");
+assert.ok(sparksAdminBackend.includes("sessionPolicyEnabled() ||"), "Sparks hybrid auth must not bypass unified QA sessions");
+assert.ok(sparksAdminBackend.includes("if (sessionPolicyEnabled()) await authorizeActiveSession(req);"),
+  "Every Sparks browser API action must validate the current QA session");
+assert.ok(sparksAdminBackend.indexOf("if (sessionPolicyEnabled()) await authorizeActiveSession(req);") >
+  sparksAdminBackend.indexOf('if (req.method !== "POST") return res.status(405)'),
+  "The browser guard must not break separately authenticated cron GET requests");
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048,
   privateKeyEncoding: { format: "pem", type: "pkcs8" },
   publicKeyEncoding: { format: "pem", type: "spki" },
