@@ -33,7 +33,7 @@ function sameClaims(payload,{audience,serviceAccountEmail,now}){
  if(!['https://accounts.google.com','accounts.google.com'].includes(payload.iss)||
     payload.aud!==audience||payload.email!==serviceAccountEmail||
     payload.email_verified!==true||
-    typeof payload.sub!=='string'||!/^\\d{10,32}$/.test(payload.sub)||
+    typeof payload.sub!=='string'||!/^\d{10,32}$/.test(payload.sub)||
     !Number.isSafeInteger(payload.iat)||
     !Number.isSafeInteger(payload.exp)||
     payload.exp<=secs-30||payload.exp>secs+3600+60||
