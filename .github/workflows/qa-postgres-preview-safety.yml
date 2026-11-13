@@ -12,6 +12,7 @@ on:
       - "scripts/Start-QA-Standby-From-Existing.ps1"
       - "scripts/Run-QA-Local-Source-Snapshot.ps1"
       - "scripts/Install-QA-Source-Read-Budget.ps1"
+      - "scripts/Install-QA-Delta-Journal.ps1"
       - "scripts/Finish-QA-Local-Snapshot-Setup.ps1"
       - "scripts/Complete-QA-Stored-Snapshot.ps1"
       - "scripts/Materialize-QA-Stored-Snapshot.mjs"
@@ -67,6 +68,7 @@ on:
       - "server/qaSourceDeltaJournal.js"
       - "migration/qa-source-delta-journal.sql"
       - "scripts/test-qa-source-delta-journal.mjs"
+      - "scripts/test-qa-source-delta-journal-integration.mjs"
       - "server/qaFirestoreRestSnapshot.js"
       - "server/qaSourceReadBudget.js"
       - "migration/qa-source-read-budget-daily.sql"
@@ -155,6 +157,10 @@ jobs:
           if ($errors.Count -ne 0) { throw "QA source-read budget installer has a PowerShell syntax error" }
           $tokens = $null
           $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/Install-QA-Delta-Journal.ps1", [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw "QA delta journal installer has a PowerShell syntax error" }
+          $tokens = $null
+          $errors = $null
           [System.Management.Automation.Language.Parser]::ParseFile("scripts/Complete-QA-Stored-Snapshot.ps1", [ref]$tokens, [ref]$errors) | Out-Null
           if ($errors.Count -ne 0) { throw "QA offline snapshot completion has a PowerShell syntax error" }
       - name: Syntax validation
@@ -204,6 +210,7 @@ jobs:
           node --check server/qaLiveMirrorStage.js
           node --check server/qaSourceDeltaJournal.js
           node --check scripts/test-qa-source-delta-journal.mjs
+          node --check scripts/test-qa-source-delta-journal-integration.mjs
           node --check server/qaFirestoreRestSnapshot.js
           node --check server/qaSourceReadBudget.js
           node --check scripts/test-qa-source-read-budget-integration.mjs
@@ -315,6 +322,7 @@ jobs:
           node scripts/test-qa-standby-archive-status.mjs
           node scripts/test-qa-live-mirror-stage-integration.mjs
           node scripts/test-qa-source-read-budget-integration.mjs
+          node scripts/test-qa-source-delta-journal-integration.mjs
           node scripts/test-qa-standby-candidate-materializer-integration.mjs
           node scripts/test-qa-standby-inactive-seed-integration.mjs
           node scripts/test-qa-standby-domain-seed-integration.mjs
