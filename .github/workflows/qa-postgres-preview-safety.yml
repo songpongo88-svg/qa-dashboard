@@ -70,6 +70,8 @@ on:
       - "scripts/test-qa-standby-inactive-seed-integration.mjs"
       - "server/qaStandbyDomainSeed.js"
       - "server/qaStandbyActivation.js"
+      - "server/qaStandbyBridgeRuntime.js"
+      - "scripts/test-qa-standby-bridge-runtime.mjs"
       - "scripts/test-qa-standby-activation-integration.mjs"
       - "migration/qa-local-domain-replica.sql"
       - "scripts/test-qa-standby-domain-seed-integration.mjs"
@@ -188,6 +190,8 @@ jobs:
           node --check scripts/test-qa-standby-inactive-seed-integration.mjs
           node --check server/qaStandbyDomainSeed.js
           node --check server/qaStandbyActivation.js
+          node --check server/qaStandbyBridgeRuntime.js
+          node --check scripts/test-qa-standby-bridge-runtime.mjs
           node --check scripts/test-qa-standby-activation-integration.mjs
           node --check scripts/test-qa-standby-domain-seed-integration.mjs
           node --check scripts/test-qa-standby-candidate-materializer-integration.mjs
@@ -205,6 +209,7 @@ jobs:
         run: |
           node scripts/test-qa-local-bridge.mjs
           node scripts/test-qa-bridge-router.mjs
+          node scripts/test-qa-standby-bridge-runtime.mjs
           node scripts/test-qa-firestore-failback-adapter.mjs
           node scripts/test-qa-local-session-verifier.mjs
           node scripts/test-qa-standby-data-handler.mjs
