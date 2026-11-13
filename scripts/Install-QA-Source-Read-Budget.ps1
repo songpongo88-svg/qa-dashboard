@@ -153,8 +153,10 @@ SELECT CASE WHEN current_database()='qa_dashboard_lab'
   & $psql -X -q -w -h 127.0.0.1 -p 5432 -U postgres -d qa_dashboard_lab -v ON_ERROR_STOP=1 -f (Join-Path $tempDir 'migration\qa-source-read-budget-daily.sql') 1>$null 2>$null
   if ($LASTEXITCODE -ne 0) { Stop-Safe 'SOURCE_BUDGET_MIGRATION_FAILED' }
   $proofSql = @'
-SELECT CASE WHEN has_table_privilege('qa_snapshot_importer',
-  'qa_failover_v1.source_read_budget_daily','SELECT,INSERT,UPDATE')
+SELECT CASE WHEN
+  has_table_privilege('qa_snapshot_importer','qa_failover_v1.source_read_budget_daily','SELECT')
+  AND has_table_privilege('qa_snapshot_importer','qa_failover_v1.source_read_budget_daily','INSERT')
+  AND has_table_privilege('qa_snapshot_importer','qa_failover_v1.source_read_budget_daily','UPDATE')
   AND NOT has_table_privilege('qa_snapshot_importer','qa_failover_v1.evaluations','INSERT')
   AND NOT has_table_privilege('qa_snapshot_importer','qa_failover_v1.state','UPDATE')
  THEN 'SAFE' ELSE 'BLOCKED' END;
@@ -176,8 +178,9 @@ SELECT CASE WHEN has_table_privilege('qa_snapshot_importer',
     $original = Test-Path -LiteralPath $target -PathType Leaf
     $saved = $target + '.before-budget-' + $stamp
     if ($original) { Copy-Item -LiteralPath $target -Destination $saved -ErrorAction Stop }
-    Copy-Item -LiteralPath $incoming -Destination $target -Force -ErrorAction Stop
+    # Track before replacing, so a failed partial copy is also restored.
     $filesChanged += @{target=$target;saved=$saved;hadOriginal=$original}
+    Copy-Item -LiteralPath $incoming -Destination $target -Force -ErrorAction Stop
   }
   # A marker is written last: an interrupted install never claims success.
   [IO.File]::WriteAllText($budgetMarker,$pinnedBudget)
