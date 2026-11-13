@@ -993,7 +993,11 @@ const CHAT_EVENT_TYPES = [
   "chat_call_ended",
   "chat_webrtc_signal",
 ];
-const CHAT_SUPABASE_POLLING_ENABLED = CHAT_EVENT_TYPES.some((eventType) => !isUsageLogEventTypeDisabled(eventType));
+// Disable the optional Team Chat / Call background Firestore polling by default.
+// Re-enable only by setting VITE_QA_TEAM_CHAT_ENABLED=1 after migrating chat off Firestore.
+// QA case chat transcripts and call logs are separate and remain untouched.
+const CHAT_FEATURE_ENABLED = import.meta.env.VITE_QA_TEAM_CHAT_ENABLED === "1";
+const CHAT_SUPABASE_POLLING_ENABLED = CHAT_FEATURE_ENABLED && CHAT_EVENT_TYPES.some((eventType) => !isUsageLogEventTypeDisabled(eventType));
 
 type PasswordResetRequest = {
   requestId: string;
@@ -4881,7 +4885,7 @@ export default function App() {
   const roleAdminAllowed = Boolean(currentUser) && (
     userDirectoryAllowed || roleManagementAllowed || maintenanceAdminAllowed
   );
-  const teamChatAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "useTeamChat") : false;
+  const teamChatAllowed = Boolean(currentUser && CHAT_FEATURE_ENABLED && hasRolePermission(currentUser, rolePermissions, "useTeamChat"));
   const maintenanceBlocked = Boolean(currentUser) && maintenanceState.enabled && !hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const canUseAdminAccountMenu = Boolean(currentUser) && (
     usageLogAllowed || roleAdminAllowed || passwordResetShortcutAllowed
