@@ -126,7 +126,7 @@
     "test:all-item-history": "node scripts/test-all-item-history.mjs",
     "test:agent-ranking-chat-badge": "node ./scripts/test-agent-ranking-chat-badge.mjs",
     "test:qa-session-atomic": "node ./scripts/test-qa-session-atomic-flow.mjs",
-    "test:qa-session-guards": "node ./scripts/test-qa-session-write-guards.mjs && node ./scripts/test-qa-single-session-api.mjs && node ./scripts/test-qa-server-credentials.mjs",
+    "test:qa-session-guards": "node ./scripts/test-qa-session-write-guards.mjs && node ./scripts/test-qa-single-session-api.mjs && node ./scripts/test-qa-server-credentials.mjs && node ./scripts/test-qa-single-session-rules-contract.mjs",
     "test:qa-upload-session": "node ./scripts/test-qa-upload-session-gate.mjs",
     "test:qa-tab-lease": "node ./scripts/test-qa-tab-lease.mjs",
     "test:qa-legacy-profile": "node ./scripts/test-qa-legacy-profile-lookup.mjs"
