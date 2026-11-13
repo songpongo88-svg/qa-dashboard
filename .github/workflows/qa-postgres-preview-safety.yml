@@ -38,6 +38,9 @@ on:
       - "src/UserRoleAdminMockup.tsx"
       - "server/qaVercelStandbyProxy.js"
       - "src/qaStandbyEvaluationApi.ts"
+      - "src/qaStandbyEvaluationHistory.ts"
+      - "src/evaluationStore.ts"
+      - "scripts/test-qa-standby-history.mjs"
       - "scripts/test-qa-standby-client.mjs"
       - "scripts/test-qa-vercel-standby-proxy.mjs"
       - "scripts/test-qa-local-diagnostics.mjs"
@@ -162,6 +165,7 @@ jobs:
           node --check server/qaVercelStandbyProxy.js
           node --check scripts/test-qa-vercel-standby-proxy.mjs
           node --check scripts/test-qa-standby-client.mjs
+          node --check scripts/test-qa-standby-history.mjs
           node --check scripts/test-qa-local-diagnostics.mjs
           node --check server/qaCutoverWritePolicy.js
           node --check scripts/test-qa-postgres-write-policy.mjs
@@ -272,7 +276,9 @@ jobs:
       - name: Install isolated SQL driver
         run: npm install --ignore-scripts --no-save --no-package-lock pg@8.16.3
       - name: QA standby typed client protocol
-        run: node scripts/test-qa-standby-client.mjs
+        run: |
+          node scripts/test-qa-standby-client.mjs
+          node scripts/test-qa-standby-history.mjs
       - name: Real PostgreSQL transactional integration
         run: |
           node scripts/test-qa-postgres-stage-integration.mjs
