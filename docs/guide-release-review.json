@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T04:41:00.851Z",
-  "reason": "Reviewed separate Thai primary-school textbook collection, theme persistence, illustrated Dashboard/sidebar, responsive appearance, Login artwork; existing user guide and evaluation workflow unchanged.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-11-13T06:28:29.787Z",
+  "reason": "Reviewed Sparks Admin fifth tab User Authentication Status: owner-only Supabase Auth readiness report, historical last sign-in, error handling, active member scope, QA/Sparks provider distinction, and no wallet or credential mutations. Updated QA Sparks guide steps and checked existing reward flows.",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "qa-sparks"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf",
@@ -30,7 +32,7 @@
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
     "api/sparks-admin.js": "37c8e33fb996148b66e9d9102dfc8e4a44f72886d7e8ce621dd779b8a8a5ca5e",
-    "api/sparks-auth.js": "59887f6e972a0d85d536048dc229a5cb451122a8530b1dab27afaf19f5bedb11",
+    "api/sparks-auth.js": "7cf06127fc6fcb210aa872cc1e401be85e008fa3cfc75ea71e7d123712db598b",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
@@ -403,7 +405,7 @@
     "scripts/test-sparks-admin-quota-readonly.mjs": "8a236d346bb0ce62e45ebb20dd2f6db29e503015af813dd28e3b069bf6cdd34a",
     "scripts/test-sparks-admin-read-grant.mjs": "704e768ca8e2161c7d5eba509565bf758d8d7914d2dec93d540ed4a86b7f8ab4",
     "scripts/test-sparks-admin-session.mjs": "482bd268f6aa9db7719be7093df06f0dfcd924dc9f6769e73cb79f3593365e16",
-    "scripts/test-sparks-admin-workspace.mjs": "f60f2381c5eabef14ba0a84fe6477f8ab9e0e08feade5b0eefd3601762075612",
+    "scripts/test-sparks-admin-workspace.mjs": "a4b33ff2a0e227a067084955aabc53035a4af867263e10e31f389736251f28e6",
     "scripts/test-sparks-cloud-preview-readonly.mjs": "d098b672d3d79d7105a6fc8911c5b9195fe1f2553257de0dfb6ff48907215c5c",
     "scripts/test-sparks-cloud-typing-relief.mjs": "b8a3cec6fa8e90c4746f529468981ff7dbbb76d0ef73ac100549919ef90cb1f7",
     "scripts/test-sparks-cloud-wallet-auth.mjs": "b1830f165e88d9030db83f097b0763c39ba1d896e5f56fce84ada92e9c663659",
@@ -447,7 +449,7 @@
     "server/sparksQaCredentialPreflight.js": "f80dd620ee54cae80c36104894ee6a724818fa6a93fc75f23502f5141d20f97d",
     "server/sparksQaMigrationRunner.js": "e4fcc732a86efdad5eda862ccde3a286639d4bdc2e8396a0cb567461188211b2",
     "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217",
-    "server/sparksSupabaseAuth.js": "83a8c94aae26932fe09c851524c84f60485814fbcbb85e2e317ec22651d0fb5d",
+    "server/sparksSupabaseAuth.js": "2d53f8bb4bb9a65027ce93a528648a822bfc8adca4c48549b817b0a44678ab6e",
     "server/sparksSupabaseBridge.js": "6b31f44ff2a027375efea1dead562ebf8ebe3b02144e27425ab071c94fd7ada0",
     "server/typingReliefCloudService.js": "bfbd2ce2bb82ac5548028174ad509901b511fffbea7e9237ae987bddf593e2b2",
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
@@ -515,7 +517,7 @@
     "src/SignatureCenterMockup.tsx": "a7648509a0d93de76b7d5f40b38f858d4ae29351eafd225e28e80e3f9945c0b8",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/SparksAccessGate.tsx": "363715b500bf3c26a9079304ff8ee5e904e1445589d0675acbe0605f30eb4cdd",
-    "src/SparksAdminPanel.tsx": "f9def1337b3ce05cb28c3aa815a697049ef6d0a4e707ecc16e6bb5dbcac060cb",
+    "src/SparksAdminPanel.tsx": "95abb54392d4ea373b193e3d05051539919ad1b1c1c5e19f11494fd530e250ee",
     "src/SparksCloudStatus.tsx": "0b605c16b6f43daae89eb64eb0f619d2917d4701c3208f2303f9ce35a777eba0",
     "src/SparksEmailAuth.css": "57cd8adfe942f400f8b3eced2a2dd075740375c783d4cbaf5c80b3e2d9cac82d",
     "src/SparksEmailAuth.tsx": "575bfd26ae059e65bbec3af65c8c98eda5d49dd9eaba66abfb5680eb7b1445c4",
@@ -625,7 +627,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "5f27daf9d5d90368dfa5315f44930e7e046c1fb5ccdd6314613520758b1371a3",
+    "src/knowledge/manual.json": "5e7c3b9248f5ca4b83cb7cfab17de12a4962c9be6f6aedeb440ee172d072c26e",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -762,6 +764,8 @@
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "src/SparksAuthStatusPanel.tsx": "a8cbd08a69ec8d5ba0ea9916773d31ab3ab471aa98680678f523c56c24eb38b0",
+    "src/sparksAuthStatus.css": "234dae186ee2f637d8bef04058c93dc87fc263e74c33737cae18d9ab5b004e67"
   }
 }
