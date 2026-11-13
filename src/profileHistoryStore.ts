@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 import {
   collection,
   doc,
@@ -66,6 +67,7 @@ function emitProfileHistoryUpdated(
 export async function appendUserProfileHistory(
   event: ExternalProfileHistoryEvent
 ) {
+  await assertTrustedQaSessionForMutation();
   const username = String(
     event.username || ""
   ).trim();
