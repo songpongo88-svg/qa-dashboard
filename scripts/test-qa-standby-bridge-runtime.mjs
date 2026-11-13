@@ -3,6 +3,7 @@ import {createServer} from 'node:http';
 import {createQaStandaloneDataBridge} from '../server/qaStandbyBridgeRuntime.js';
 
 const token='qa-standby-bridge-'+('p'.repeat(48));
+const archiveToken='qa-archive-monitor-'+('a'.repeat(48));
 const sessionId='qa_editor-8c11937f-01ab-4455-b6f2-620fb73e3e44';
 const snapshotId='qa-standby-immutable-snapshot-01';
 const now=()=>Date.now();
@@ -62,7 +63,14 @@ const writeEvaluation=async(_pool,request,trusted)=>{
 };
 const env={QA_PG_ISOLATED_TEST:'1',QA_LOCAL_STANDBY_DATA_ENABLED:'1',
   QA_LOCAL_STANDBY_WRITES_ENABLED:'1',QA_STANDBY_CUTOVER_ENABLED:'1'};
-const props={readPool,writePool,token,sources,env,verifySession,writeEvaluation};
+const props={readPool,writePool,token,archiveToken,sources,env,verifySession,writeEvaluation};
+const production={...props,verifySession:undefined,writeEvaluation:undefined,
+  env:{...env,QA_PG_ISOLATED_TEST:''}};
+assert.throws(()=>createQaStandaloneDataBridge({...production,archiveToken:undefined}),
+  e=>e.code==='qa_data_bridge_separate_archive_token_required');
+assert.throws(()=>createQaStandaloneDataBridge({...production,archiveToken:token}),
+  e=>e.code==='qa_data_bridge_separate_archive_token_required');
+assert.equal(typeof createQaStandaloneDataBridge(production),'function');
 assert.throws(()=>createQaStandaloneDataBridge({...props,
   env:{...env,QA_LOCAL_STANDBY_DATA_ENABLED:''}}),
   e=>e.code==='qa_data_bridge_not_enabled');
@@ -91,6 +99,14 @@ const headers={authorization:'Bearer '+token,'x-qa-user-session':sessionId,
 const router=createQaStandaloneDataBridge(props);
 const fixture=await serve(router);
 try{
+  let denied=await fetch(fixture.url+'/ready',{
+    headers:{authorization:'Bearer '+token}});
+  assert.equal(denied.status,403,'data secret may not access the separate archive API');
+  denied=await fetch(fixture.url+'/v1/qa/evaluations',{method:'POST',
+    headers:{...headers,authorization:'Bearer '+archiveToken},
+    body:JSON.stringify(sample)});
+  assert.equal(denied.status,403,'archive probe secret may not submit a QA evaluation');
+  assert.equal(touched,0);
   let r=await fetch(fixture.url+'/v1/qa/evaluations',{method:'POST',
     headers,body:JSON.stringify(sample)});
   assert.equal(r.status,200);
