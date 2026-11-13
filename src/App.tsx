@@ -6803,6 +6803,10 @@ export default function App() {
             await qaServerSessionRequest("ack", {
               pendingId: server.pendingId, documentKey: "session-idle", revision,
             });
+          } else if (openWorkspaceTabs.length > 1) {
+            // A single editor ACK is not enough to protect other open workspaces.
+            // Fail closed rather than accepting a false "all drafts saved" signal.
+            window.alert("มีหลายหน้า QA ที่เปิดค้างอยู่ กรุณาบันทึก Draft ในทุกหน้าและปิดหน้าที่ไม่ได้ใช้งาน ก่อนย้าย Session ไป Browser ใหม่");
           } else {
             window.dispatchEvent(new CustomEvent("qa:single-session-save-request", {
               detail: { pendingId: server.pendingId, deadline: server.deadline },
