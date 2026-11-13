@@ -49,6 +49,18 @@ assert.equal((await request(undefined,{headers:{origin:'https://browser.example'
 assert.equal((await request(undefined,{headers:{authorization:'Bearer BAD'}})).status,403);
 assert.equal((await request(undefined,{headers:{'x-qa-source-signature':'v1='+'0'.repeat(64)}})).status,403);
 assert.equal((await request(undefined,{headers:{'x-qa-source-timestamp':'1000000000'}})).status,403);
+const queuedStamp=String(Math.floor((Date.now()-6*86400000)/1000));
+const aged=await request(undefined,{headers:{
+ 'x-qa-source-timestamp':queuedStamp,
+ 'x-qa-source-signature':sign(sourceKey,queuedStamp,sample),
+}});
+assert.equal(aged.status,202,'durable Cloud Tasks retry should deliver a signed six-day-old task');
+calls.length=0;
+const tooOldStamp=String(Math.floor((Date.now()-8*86400000)/1000));
+assert.equal((await request(undefined,{headers:{
+ 'x-qa-source-timestamp':tooOldStamp,
+ 'x-qa-source-signature':sign(sourceKey,tooOldStamp,sample),
+}})).status,403);
 // Tampered body with a signature over the original request is rejected.
 assert.equal((await request(undefined,{headers:{
  'x-qa-source-signature':sign(sourceKey,stamp,sample)}},'bad-data')).status,403);

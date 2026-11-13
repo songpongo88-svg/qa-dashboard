@@ -17,7 +17,11 @@ function proper(secret){
 function stampValid(stamp,now){
  if(!/^\d{10}$/.test(stamp||''))return false;
  const issued=Number(stamp)*1000;
- return Number.isSafeInteger(issued)&&issued<=now+60000&&issued>=now-300000;
+ // Cloud Tasks may retry after Windows was offline. The producer must
+ // configure task TTL <= 7 days; the independently verified Google OIDC
+ // is minted at each delivery, while the source HMAC binds the stable body.
+ return Number.isSafeInteger(issued)&&issued<=now+60000&&
+  issued>=now-7*86400000;
 }
 function same(a,b){
  if(a.byteLength!==b.byteLength)return false;
