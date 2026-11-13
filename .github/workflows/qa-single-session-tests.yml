@@ -4,7 +4,9 @@ on:
     paths:
       - "src/sessionTakeoverPolicy.mjs"
       - "src/lib/evaluation/sessionRecoveryStore.mjs"
-      - "api/qa-single-session.js"
+      - "server/qaSingleSessionEndpoint.js"
+      - "api/sparks-auth.js"
+      - "vercel.json"
       - "server/qaSingleSessionAdmin.js"
       - "src/qaSingleSessionClient.ts"
       - "src/evaluationStore.ts"
