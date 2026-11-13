@@ -41,14 +41,14 @@ export function signQaTicket(input, privateKey = serviceKey()) {
   return message + "." + signer.sign(privateKey).toString("base64url");
 }
 
-export function verifyQaTicket(ticket, expectedType, privateKey = serviceKey(), now = Date.now()) {
+export function verifyQaTicket(ticket, expectedType, privateKey = null, now = Date.now()) {
   if (typeof ticket !== "string" || ticket.length > 6_000) return null;
   const [payload, signature, extra] = ticket.split(".");
   if (!payload || !signature || extra) return null;
   const verifier = createVerify("RSA-SHA256");
   verifier.update(payload); verifier.end();
   let valid = false;
-  try { valid = verifier.verify(createPublicKey(privateKey), Buffer.from(signature, "base64url")); }
+  try { valid = verifier.verify(createPublicKey(privateKey || serviceKey()), Buffer.from(signature, "base64url")); }
   catch { return null; }
   if (!valid) return null;
   let body;
