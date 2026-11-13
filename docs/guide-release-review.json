@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T15:43:44.359Z",
-  "reason": "Reviewed the right-side Dashboard launcher spacing and Chat/Calls disabled-navigation visibility; unchanged guide content, QA evaluation, appeals, and storage workflows.",
+  "reviewedAt": "2026-11-13T16:32:42.436Z",
+  "reason": "Reviewed Login Log Firestore read mitigation: cached list for five minutes, explicit manual refresh forces a fresh read; login/logout audit writes and security session validation remain unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -540,7 +540,7 @@
     "src/TrueMoneyReward.tsx": "65359517746f3fc6c550962e6cce874eeb91d1eded9cd4642e56ceb03f089bc2",
     "src/TrueMoneyTracker.tsx": "8c5d6232aad815afc2be606c778d3bea5f486decb43b15a37ed3cc3bd2ef7fae",
     "src/TypingReliefRewardCard.tsx": "f08110c509ea568e5ddef13aaaee214ab04e60b2398de9599c671572961bde28",
-    "src/UsageLogMockup.tsx": "7c26f15c9b9db69e1f6037bebde934ba3c490db98d8ba6071362bc91a9d89e0b",
+    "src/UsageLogMockup.tsx": "2c558f22cd5c3cae7fe79d7378c59fdd202338a9b9ef56bae0464bca3c6f34cf",
     "src/UserRoleAdminMockup.tsx": "4ea7d388d6e2c44d46e62fb23390fed6790f88ad51154fd2d28d8771b5de33f1",
     "src/VoiceRecordingPlayer.tsx": "a8a8189ce69706ae64dfa8440f717195ba942cead346930cd3410ea51593b630",
     "src/WeekdayScene.tsx": "34ef75f3e9ce9e51fb047bae274d6f4ad3418e9c1a03abfdc8144e605113fb38",
