@@ -12,7 +12,7 @@ const expectations = [
   ["coachingAttachmentUpload.ts", ["uploadCoachingAttachment"]],
   ["appealStore.ts", ["writeAppealEvent", "updateAppealDiscussionMessage", "writeAdditionalAppealAccessDecision"]],
   ["userRoleStore.ts", ["upsertStoredUserProfiles", "deleteStoredUserProfile", "upsertStoredRoleDefinition", "deleteStoredRoleDefinition", "upsertStoredRolePermissions", "upsertStoredMaintenanceState"]],
-  ["passwordResetStore.ts", ["createStoredPasswordResetRequest", "updateStoredPasswordResetRequest"]],
+  ["passwordResetStore.ts", ["updateStoredPasswordResetRequest"]],
   ["profilePhotoStore.ts", ["upsertStoredProfilePhoto", "clearStoredProfilePhoto"]],
   ["profileHistoryStore.ts", ["appendUserProfileHistory"]],
   ["announcementStore.ts", ["upsertStoredAnnouncement", "deleteStoredAnnouncement", "upsertAnnouncementReceipt"]],
@@ -63,4 +63,9 @@ assert.ok(application.includes('await qaServerSessionRequest("logout")'),
 assert.ok(application.includes('Failed to release unrestorable QA session'),
   "Failed legacy session restoration must not strand a trusted server session");
 
+const resets = await readFile(new URL("../src/passwordResetStore.ts", import.meta.url), "utf8");
+const recoverySection = resets.split("export async function createStoredPasswordResetRequest(")[1]
+  ?.split("export async function updateStoredPasswordResetRequest(")[0] || "";
+assert.ok(!recoverySection.includes("await assertTrustedQaSessionForMutation();"),
+  "An unauthenticated employee must still be able to request password recovery");
 console.log("QA critical mutation preflight checks passed");
