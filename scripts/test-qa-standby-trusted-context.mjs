@@ -6,6 +6,7 @@ const actor={
   source:'verified-local-session',username:'qa_editor',
   role:'Quality Assurance',status:'active',
   verifiedAt:ago(5),expiresAt:later(3600),
+  sourceSnapshotId:'qa-source-20261113-01',generation:2,
 };
 let primary={
   health:'quota-exhausted',verifiedByServer:true,checkedAt:ago(5),
@@ -17,7 +18,7 @@ let mirror={
     'qa_user_profiles','qa_role_permissions','qa_user_sessions',
     'qa_user_session_controls','qa_role_definitions','qa_system_settings',
     'qa_signature_library','qa_evaluation_progress'],
-  verifiedAt:ago(35),
+  verifiedAt:ago(35),snapshotId:'qa-source-20261113-01',
 };
 let bridge={
   databaseConnected:true,readOnly:false,authenticated:true,durableIngress:true,
@@ -32,9 +33,11 @@ let lock={
   monthKey:'2026-11',signatureLocked:false,appealHold:false,checkedAt:ago(5),
 };
 let permission=true,leaseAllowed=true,recordFound=true,readCount=0;
+let pgState={mode:'standby',generation:2,active_snapshot_id:'qa-source-20261113-01',source_snapshot_verified:true,write_frozen:false};
 const readPool={
   async query(sql,params){
     readCount++;
+    if(sql.includes('active_snapshot_id,source_snapshot_verified'))return {rows:[pgState]};
     if(sql.includes('qa_failover_v1.evaluations')){
       assert.deepEqual(params,['qa-001']);
       return {rows:recordFound?[{record:{id:'qa-001',agentName:'Example Agent',evaluationMonthKey:'2026-11',finalScore:80}}]:[]};
@@ -88,6 +91,22 @@ recordFound=false;await denied('authoritative_record_missing');recordFound=true;
 lock={...lock,agentName:'Forged Agent'};await denied('monthly_lock_scope_mismatch');
 lock={...lock,agentName:'Example Agent',signatureLocked:true};await denied('monthly_locks_unverified');
 lock={...lock,signatureLocked:false};
+pgState={...pgState,active_snapshot_id:'qa-source-20261113-02'};
+await denied('standby_epoch_or_snapshot_changed');
+pgState={...pgState,active_snapshot_id:'qa-source-20261113-01'};
+pgState={...pgState,generation:3};
+await denied('standby_epoch_or_snapshot_changed');
+pgState={...pgState,generation:2};
+pgState={...pgState,write_frozen:true};
+await denied('standby_epoch_or_snapshot_changed');
+pgState={...pgState,write_frozen:false};
+pgState={...pgState,source_snapshot_verified:false};
+await denied('standby_epoch_or_snapshot_changed');
+pgState={...pgState,source_snapshot_verified:true};
+mirror={...mirror,snapshotId:'qa-source-20261113-02'};
+await denied('standby_epoch_or_snapshot_changed');
+mirror={...mirror,snapshotId:'qa-source-20261113-01'};
+await denied('standby_epoch_or_snapshot_changed',{...request,actor:{...actor,generation:3}});
 leaseAllowed=false;await denied('edit_lease_unverified');leaseAllowed=true;
 permission=false;await denied('failover_not_authorized');permission=true;
 mirror={...mirror,sourceComplete:false};await denied('failover_not_authorized');
