@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T11:01:48.630Z",
-  "reason": "Preserve new QA Sparks clickable journey announcement from current main alongside the tested QA-only atomic frozen PostgreSQL replica refresh and Backup Status UI. No Production failover or QA score writes enabled.",
+  "reviewedAt": "2026-11-13T11:07:46.621Z",
+  "reason": "QA frozen replica refresh now rejects snapshot time regression, stale source, tampering and outbox activity while maintaining old immutable copies and preserving QA Sparks. Only test-stage code changes; no Firestore primary/write or Production cutover.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -396,7 +396,7 @@
     "scripts/test-qa-firestore-failback-adapter.mjs": "03727d0100c670b24560c36a15d599811cf2243127e12366e2dfbbd834bda235",
     "scripts/test-qa-firestore-rest-snapshot.mjs": "7f4cad9ec0a89e58a7a5385cb399a3c1603b7ad6e040c911b35ef2f7eba6fa72",
     "scripts/test-qa-firestore-snapshot-codec.mjs": "4152ae1e6636438aaf95ce09be9b50453bd069f186f636082429a0e90b7a87a0",
-    "scripts/test-qa-inactive-refresh-integration.mjs": "52161ab69989a0d40e8ce37e7bd3c284ead2a723d7b9487a269ae3bd8f3934fe",
+    "scripts/test-qa-inactive-refresh-integration.mjs": "da88cac40d4b1847836406c8ff1f8a27c59396bc79510873cf114962eca28c99",
     "scripts/test-qa-inactive-replica-audit-integration.mjs": "06a8d5c52145f5a4caec52bbecf0e4a2ec74a5cfc9a450082fc4056eee99abf2",
     "scripts/test-qa-live-mirror-stage-integration.mjs": "6104183a21254c38d1aa3bc898872c04ed0fbf089eaf6a3cbed3079d890d4930",
     "scripts/test-qa-live-stage-runner.mjs": "c5490c045c358dd403512044dc6eb839d19b6f1336c016ee0d67c00a5f1fd61f",
@@ -512,7 +512,7 @@
     "server/qaStandbyDataHandler.js": "4c60ec298144b861c7aa675b816abbd5599e639dcd42de7362e36bd0c2066e22",
     "server/qaStandbyDomainSeed.js": "b4e8ec2f4d50ec7084d4dd09ee47c4bd40eee26781f951c65e9d66435b9ef66b",
     "server/qaStandbyInactiveAudit.js": "6c3f302e96be726a6148b8831883b09f85cf773ab7d3af613ccd93fc4d70b17f",
-    "server/qaStandbyInactiveRefresh.js": "c8e2b69bd0293be2b340c98609ae2a26526ee154821c5c80a5ccb92544b1489c",
+    "server/qaStandbyInactiveRefresh.js": "25e7ea4eb77ee41abfbb1b9e8e628daa7b783a797e26a4d02f822a4220b5f2a8",
     "server/qaStandbyInactiveSeed.js": "1df585c5d4cf1db89866919da511e33d95a0704be1489a2e869a0ff1c4dd9d6c",
     "server/qaStandbyPgJournal.js": "5451c4d7d95bf9c76230ab4bf9144bc9a1d5160312fec3492747cd32d18e4118",
     "server/qaStandbyRead.js": "ed0b2ed0ba0d7ec69d0f1cdc35d72fcba6d437c498527637bd6854fe2dbd2fce",
