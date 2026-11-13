@@ -73,6 +73,8 @@ on:
       - "server/qaStandbyInactiveSeed.js"
       - "scripts/test-qa-standby-inactive-seed-integration.mjs"
       - "server/qaStandbyDomainSeed.js"
+      - "server/qaStandbyInactiveAudit.js"
+      - "scripts/test-qa-inactive-replica-audit-integration.mjs"
       - "server/qaStandbyActivation.js"
       - "server/qaStandbyBridgeRuntime.js"
       - "server/qaWindowsStandbyService.js"
@@ -197,6 +199,8 @@ jobs:
           node --check server/qaStandbyInactiveSeed.js
           node --check scripts/test-qa-standby-inactive-seed-integration.mjs
           node --check server/qaStandbyDomainSeed.js
+          node --check server/qaStandbyInactiveAudit.js
+          node --check scripts/test-qa-inactive-replica-audit-integration.mjs
           node --check server/qaStandbyActivation.js
           node --check server/qaStandbyBridgeRuntime.js
           node --check server/qaWindowsStandbyService.js
@@ -293,6 +297,7 @@ jobs:
           node scripts/test-qa-standby-candidate-materializer-integration.mjs
           node scripts/test-qa-standby-inactive-seed-integration.mjs
           node scripts/test-qa-standby-domain-seed-integration.mjs
+          node scripts/test-qa-inactive-replica-audit-integration.mjs
           node scripts/test-qa-standby-activation-integration.mjs
           node scripts/test-qa-standby-full-failback-integration.mjs
 
