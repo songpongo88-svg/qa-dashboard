@@ -95,20 +95,31 @@ export async function readQaFirebaseProfile(username) {
   const normalized = normalizeQaUsername(username);
   if (!normalized) return null;
   const bearer = await googleAccessToken();
-  const resource = [
-    "https://firestore.googleapis.com/v1/projects",
-    AUTH_PROJECT, "databases/(default)/documents/qa_user_profiles", encodeURIComponent(normalized),
-  ].join("/");
-  const response = await fetch(resource, {
-    headers: { authorization: "Bearer " + bearer },
-    cache: "no-store", signal: AbortSignal.timeout(10_000),
-  });
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error("QA profile verification backend is unavailable");
-  const doc = await response.json();
-  const profile = firestoreFieldsToObject(doc.fields);
-  if (normalizeQaUsername(profile.username || normalized) !== normalized) return null;
-  return profile;
+  // Legacy Firebase QA profiles may have a capitalized document ID.
+  // Match the current client login's supported ID variants, without
+  // trusting a username claimed inside an unrelated profile.
+  const requested = String(username || "").trim();
+  const candidates = [...new Set([
+    requested, normalized,
+    normalized.charAt(0).toUpperCase() + normalized.slice(1),
+  ])].filter(value => /^[a-z0-9._-]{2,64}$/i.test(value));
+  for (const id of candidates) {
+    const resource = [
+      "https://firestore.googleapis.com/v1/projects",
+      AUTH_PROJECT, "databases/(default)/documents/qa_user_profiles", encodeURIComponent(id),
+    ].join("/");
+    const response = await fetch(resource, {
+      headers: { authorization: "Bearer " + bearer },
+      cache: "no-store", signal: AbortSignal.timeout(10_000),
+    });
+    if (response.status === 404) continue;
+    if (!response.ok) throw new Error("QA profile verification backend is unavailable");
+    const document = await response.json();
+    const profile = firestoreFieldsToObject(document.fields);
+    if (normalizeQaUsername(profile.username || id) !== normalized) continue;
+    return profile;
+  }
+  return null;
 }
 
 export function profileActiveNow(profile, todayBangkok) {
