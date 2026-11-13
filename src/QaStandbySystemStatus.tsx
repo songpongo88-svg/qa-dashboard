@@ -25,6 +25,7 @@ type StandbyStatus={
     candidateEvaluations:number;
     datasetCount:number;
     freshnessVerified:boolean;
+    verifiedVia?:'windows-8790-read-only';
     remainingChecks:string[];
   };
 };
@@ -133,6 +134,11 @@ export default function QaStandbySystemStatus(){
       {state?.snapshotReadiness ? (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/40 p-4" data-qa-standby-readiness="unverified">
           <h4 className="text-sm font-bold text-slate-900">ผลตรวจความพร้อมใช้งานผ่านฐานสำรอง</h4>
+          {state.snapshotReadiness.verifiedVia==='windows-8790-read-only' ? (
+            <p className="mt-1 text-xs font-medium text-emerald-800">
+              ข้อมูลจาก PostgreSQL บนคอม พอร์ต 8790 (อ่านสถานะเท่านั้น)
+            </p>
+          ) : null}
           <p className="mt-1 text-xs text-slate-700">
             สำเนาใหม่: {state.snapshotReadiness.snapshotCopied?'ตรวจการคัดลอกแล้ว':'ยังไม่ครบ'} ·
             คะแนนต้นฉบับ: {state.snapshotReadiness.candidatesVerified?'ตรวจแล้ว':'ยังไม่ผ่าน'} ·
