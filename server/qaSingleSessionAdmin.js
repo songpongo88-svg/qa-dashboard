@@ -238,7 +238,7 @@ export async function activateNewSession(actor, deviceLabel = "Browser") {
   const sessionId = randomUUID();
   const row = { username: actor.username, sessionId, role: actor.role,
     deviceLabel: String(deviceLabel).slice(0, 60),
-    createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + TTL_MS).toISOString(),
+    createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + TTL_MS).toISOString(), expiresAtEpochMs: Date.now() + TTL_MS,
     pendingId: "", pendingSessionId: "", pendingAt: "", pendingDeadline: "", ackRevision: -1,
   };
   await auditedMutation("update", actor.username, row, current?.updateTime || null, sessionId, "login");
@@ -314,7 +314,7 @@ export async function commitTakeover(candidate, pendingId) {
   }
   const next = { ...current, sessionId: current.pendingSessionId, role: candidate.role,
     deviceLabel: "New browser", createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + TTL_MS).toISOString(),
+    expiresAt: new Date(Date.now() + TTL_MS).toISOString(), expiresAtEpochMs: Date.now() + TTL_MS,
     pendingId: "", pendingSessionId: "", pendingAt: "", pendingDeadline: "", ackRevision: -1 };
   delete next.updateTime;
   await auditedMutation("update", candidate.username, next, current.updateTime, next.sessionId, "takeover");
@@ -322,7 +322,7 @@ export async function commitTakeover(candidate, pendingId) {
 }
 export async function renewActiveSession(req) {
   const { ticket, current } = await authorizeActiveSession(req);
-  const next = { ...current, expiresAt: new Date(Date.now() + TTL_MS).toISOString() };
+  const next = { ...current, expiresAt: new Date(Date.now() + TTL_MS).toISOString(), expiresAtEpochMs: Date.now() + TTL_MS };
   delete next.updateTime;
   await writeActive(ticket.username, next, current.updateTime);
   return { sessionId: ticket.sessionId, username: ticket.username, role: ticket.role };
