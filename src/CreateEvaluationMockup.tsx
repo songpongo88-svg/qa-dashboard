@@ -1250,8 +1250,8 @@ export default function CreateEvaluationMockup({
     const onTakeoverRequest = (event: Event) => {
       const pendingId = (event as CustomEvent<{ pendingId?: string }>).detail?.pendingId;
       if (!pendingId || cloudSaveInProgressRef.current || inlineImageUploadsRef.current ||
-          evidenceFiles.some(file => file.uploadStatus !== "uploaded") ||
-          callLogs.some(call => Boolean(call.pendingRecording)) ||
+          evidenceFiles.length > 0 || callLogs.length > 0 ||
+          // Keep attachments on the original device until a full draft upload exists.
           callRecordingSaveInProgressRef.current || callRecordingUploads.current.size) {
         setDraftMessage("มีคำขอ Login จาก Browser ใหม่ แต่ยังมีไฟล์หรือข้อมูลที่บันทึกไม่เสร็จ กรุณาบันทึกงานก่อนสลับเครื่อง");
         return;
