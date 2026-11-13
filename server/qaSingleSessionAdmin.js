@@ -2,8 +2,8 @@ import { createPublicKey, createSign, createVerify, randomUUID } from "node:cryp
 import { googleAccessToken, normalizeQaUsername } from "./qaFirebaseCredentials.js";
 
 const PROJECT_ID = "qa-dashboard-b0b5d";
-const RESOURCE = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID +
-  "/databases/(default)/documents/";
+const DOCUMENT_PATH = "projects/" + PROJECT_ID + "/databases/(default)/documents/";
+const RESOURCE = "https://firestore.googleapis.com/v1/" + DOCUMENT_PATH;
 const SESSION_COLLECTION = "qa_single_session_active";
 const DRAFT_COLLECTION = "qa_single_session_drafts";
 const AUDIT_COLLECTION = "qa_single_session_audit";
@@ -160,8 +160,8 @@ async function deleteActive(username, updateTime) {
 async function auditedMutation(kind, username, row, updateTime, actorSessionId, action) {
   const account = normalizeQaUsername(username);
   if (!account || !updateTime && kind === "delete") throw fail("Invalid audited mutation", 400);
-  const sessionName = RESOURCE + SESSION_COLLECTION + "/" + encodeURIComponent(account);
-  const auditName = RESOURCE + AUDIT_COLLECTION + "/" + randomUUID();
+  const sessionName = DOCUMENT_PATH + SESSION_COLLECTION + "/" + encodeURIComponent(account);
+  const auditName = DOCUMENT_PATH + AUDIT_COLLECTION + "/" + randomUUID();
   const precondition = updateTime ? { updateTime } : { exists: false };
   const first = kind === "delete" ?
     { delete: sessionName, currentDocument: precondition } :
@@ -196,8 +196,8 @@ async function commitDraftUnderActiveSession(username, current, draftId, draftRo
   if (!current?.updateTime) throw fail("Missing session version", 409, "SESSION_RACE");
   const normalized = normalizeQaUsername(username);
   if (!normalized) throw fail("Invalid account", 400);
-  const sessionName = RESOURCE + SESSION_COLLECTION + "/" + encodeURIComponent(normalized);
-  const draftName = RESOURCE + DRAFT_COLLECTION + "/" + encodeURIComponent(draftId);
+  const sessionName = DOCUMENT_PATH + SESSION_COLLECTION + "/" + encodeURIComponent(normalized);
+  const draftName = DOCUMENT_PATH + DRAFT_COLLECTION + "/" + encodeURIComponent(draftId);
   const snapshot = { ...current };
   delete snapshot.updateTime;
   const first = { update: { name: sessionName, fields: fieldsFor(snapshot) },
