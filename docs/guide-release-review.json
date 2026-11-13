@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T10:10:04.686Z",
-  "reason": "Reviewed Web Locks shared tab lease to deny false saved-draft acknowledgement across multiple browser tabs; fail-closed in unsupported browsers; feature still disabled in Production",
+  "reviewedAt": "2026-11-13T10:12:09.096Z",
+  "reason": "Reviewed safe repeat attempts when other QA browser tabs close; never acknowledge takeover with multiple active Web Locks; production still disabled",
   "contentChanged": true,
   "reviewedChapters": [
     "administration",
@@ -465,7 +465,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "fd8722c5b9cfbc91c212dfb50bddba1916b278c0efcf176ced7bde30ef6f0776",
+    "src/App.tsx": "042f4b3774b77a36c0c191b6cb893f6e802e81436616d1f76bc0ed99d5e3e6ce",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -782,7 +782,7 @@
     "scripts/test-qa-single-session-api.mjs": "7dc90049ab4cd1e0975d748a05edc3956126bfc61da648923280b5253df6fb9b",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
     "src/qaSingleSessionClient.ts": "63dcccfb9dc77b9f41317f2a697f305b914cbc556aa87220e774f72f99dfd6b0",
-    "scripts/test-qa-session-write-guards.mjs": "a747608925959bf449f6b52fa7e393b25a6691a148e13e7093342c9fdbe7e496",
+    "scripts/test-qa-session-write-guards.mjs": "db47ca58028eb19b70df30e2860ccc2c0565aa17cb553ea7848bd58d398a111a",
     "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7",
     "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a",
     "server/qaSingleSessionEndpoint.js": "1e124d9995dd99ad1beba3b2fdee033d8d9309e96643b83bd8a58062c9c1457a",
