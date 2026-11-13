@@ -1,3 +1,4 @@
+import { assertTrustedQaSessionForMutation } from "./qaSingleSessionClient";
 import { assertFirestoreReadAllowed, isFirestoreQuotaError, noteFirestoreReadError } from "./firestoreReadPolicy";
 ﻿import { initializeApp, getApps } from "firebase/app";
 import * as FirestoreApi from "firebase/firestore";
@@ -1398,6 +1399,7 @@ function toFirebaseEvaluation(record: StoredEvaluation) {
 }
 
 export async function upsertStoredEvaluation(input: StoredEvaluation) {
+  await assertTrustedQaSessionForMutation();
   const { editingWorkflowToken = "", ...record } = input;
   const scope = monthlyResultScope(record);
   if (isFirebaseEvaluationConfigured()) {
@@ -1447,6 +1449,7 @@ export async function upsertStoredEvaluation(input: StoredEvaluation) {
 }
 
 export async function deleteStoredEvaluation(id: string, caseId?: string) {
+  await assertTrustedQaSessionForMutation();
   const normalizedId = String(id || "").trim();
   if (!normalizedId) throw new Error("Evaluation id is required.");
   if (isFirebaseEvaluationConfigured()) {
