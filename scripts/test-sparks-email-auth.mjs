@@ -49,6 +49,21 @@ try {
   assert.equal(verified.username,"songpon");
   assert.equal(verified.role,"Quality Assurance");
   await assert.rejects(verifySparksAccessToken("bad"),/verified email/);
+  // When QA Single Active Session is enforced, never exchange Supabase tokens
+  // without a QA browser request and never set a persistent cookie on denial.
+  const originalQaPolicy=process.env.QA_SINGLE_SESSION_ENABLED;
+  process.env.QA_SINGLE_SESSION_ENABLED="true";
+  try {
+    const gateRes=response();
+    await assert.rejects(
+      exchangeSparksAuthTokens(gateRes,{access_token:token,refresh_token:"secure-refresh-token-test-long",expires_in:900}),
+      error=>error?.code==="QA_SESSION_REQUIRED"
+    );
+    assert.equal(gateRes.inspect().headers["Set-Cookie"],undefined);
+  } finally {
+    if(originalQaPolicy===undefined)delete process.env.QA_SINGLE_SESSION_ENABLED;
+    else process.env.QA_SINGLE_SESSION_ENABLED=originalQaPolicy;
+  }
   const res=response();
   const actor=await exchangeSparksAuthTokens(res,{access_token:token,refresh_token:"secure-refresh-token-test-long",expires_in:900});
   assert.equal(actor.username,"songpon");
