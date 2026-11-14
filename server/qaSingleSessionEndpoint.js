@@ -1,4 +1,5 @@
 import { verifyQaUsernamePassword, createQaFirebaseCustomToken } from "./qaFirebaseCredentials.js";
+import { qaSingleSessionReleaseApproved } from "./qaSingleSessionReleaseGate.js";
 import {
   sessionPolicyEnabled, issueSessionCookie, issueCandidateCookie,
   clearSessionCookie, candidateFromRequest, authorizeActiveSession,
@@ -46,6 +47,13 @@ export default async function handler(req, res) {
   }
   const action = String(body.action || "");
   if (!actions.has(action)) return res.status(400).json({ ok: false, code: "INVALID_ACTION" });
+  // A newly activated browser must not bypass unreviewed live Firestore
+  // or Supabase direct-client mutations. Existing browsers can still log out.
+  if (action !== "logout" && !qaSingleSessionReleaseApproved()) {
+    return res.status(503).json({
+      ok: false, code: "QA_SINGLE_SESSION_SECURITY_REVIEW_REQUIRED",
+    });
+  }
   try {
     switch (action) {
       case "login": {

@@ -52,3 +52,28 @@ read/write routes, and full QA failover; confirm the release gate; run read-only
 `has_table_privilege` audits after the transaction and test a rollback.
 Do not turn on production session flags or merge PR #238 just because this
 staging script exists.
+
+## Server-side release interlock (staging only)
+
+Before serving any non-logout Single Active Session action, the endpoint
+requires `QA_SINGLE_SESSION_ENABLED=true` **and** all three manual,
+server-only review acknowledgments:
+
+- `QA_SINGLE_SESSION_FIREBASE_RULES_APPROVED=true`: active live Firestore and Storage rules exported, reconciled and regression-tested including stale-browser rejection and rollback
+- `QA_SINGLE_SESSION_SUPABASE_ACCESS_APPROVED=true`: public QA Core Data API ACL/RLS and SECURITY DEFINER RPCs hardened; all QA and Windows Failover callers migrated/tested
+- `QA_SINGLE_SESSION_TWO_BROWSER_APPROVED=true`: actual two-browser conflict, 30-second takeover, idle timeout, retained Draft, images/audio/uploads and Failover independently tested
+
+`server/qaSingleSessionReleaseGate.js` and the QA session endpoint now
+reject missing or partial signoff with
+`QA_SINGLE_SESSION_SECURITY_REVIEW_REQUIRED` (503). The logout route
+remains usable for emergency stale-cookie cleanup. These variables are
+**manual acknowledgments only**; do not set them to true until the underlying
+security work has been verified. They do not themselves secure a database.
+
+Read-only 14 Nov 2026 Supabase audit found `anon` can SELECT/INSERT/UPDATE/
+DELETE on all six of these tables: `public.qa_evaluations`,
+`public.qa_user_profiles`, `public.qa_role_definitions`,
+`public.qa_role_permissions`, `public.qa_system_settings`, and
+`public.usage_logs`. Their permissive RLS policies still allow unsafe
+access. The public read-only `qa_sparks_access_control` status is separate.
+Run `supabase-client-access-audit.sql` read-only before any cutover.

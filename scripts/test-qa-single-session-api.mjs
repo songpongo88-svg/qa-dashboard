@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import handler from "../server/qaSingleSessionEndpoint.js";
+import { qaSingleSessionReleaseApproved, SINGLE_SESSION_RELEASE_REQUIREMENTS } from "../server/qaSingleSessionReleaseGate.js";
 import { signQaTicket, verifyQaTicket, visibleSessionState, issueSessionCookie, issueCandidateCookie, candidateFromRequest } from "../server/qaSingleSessionAdmin.js";
 
 
@@ -112,14 +113,38 @@ assert.equal(visibleSessionState({ expiresAt: new Date(now + 30_000).toISOString
 assert.equal(visibleSessionState({ expiresAt: new Date(now - 30_000).toISOString() }, now).status, "none");
 
 const previousFlag = process.env.QA_SINGLE_SESSION_ENABLED;
+const previousApprovals = Object.fromEntries(
+  SINGLE_SESSION_RELEASE_REQUIREMENTS.map(key => [key, process.env[key]]),
+);
 try {
   delete process.env.QA_SINGLE_SESSION_ENABLED;
+  for (const key of SINGLE_SESSION_RELEASE_REQUIREMENTS) delete process.env[key];
   let res = response();
   await handler({ method: "POST", headers: {}, body: { action: "login" } }, res);
   assert.equal(res.code, 503);
   assert.equal(res.body.code, "QA_SINGLE_SESSION_NOT_READY");
 
   process.env.QA_SINGLE_SESSION_ENABLED = "true";
+  assert.equal(qaSingleSessionReleaseApproved(), false);
+  res = response();
+  await handler({ method: "POST", headers: {}, body: { action: "validate" } }, res);
+  assert.equal(res.code, 503);
+  assert.equal(res.body.code, "QA_SINGLE_SESSION_SECURITY_REVIEW_REQUIRED");
+  for (const key of SINGLE_SESSION_RELEASE_REQUIREMENTS.slice(0, -1)) {
+    process.env[key] = "true";
+  }
+  assert.equal(qaSingleSessionReleaseApproved(), false);
+  res = response();
+  await handler({ method: "POST", headers: {}, body: { action: "login", username: "agent", password: "wrong" } }, res);
+  assert.equal(res.code, 503);
+  assert.equal(res.body.code, "QA_SINGLE_SESSION_SECURITY_REVIEW_REQUIRED");
+  // Emergency logout still clears expired/replaced cookies without signoff.
+  res = response();
+  await handler({ method: "POST", headers: {}, body: { action: "logout" } }, res);
+  assert.equal(res.code, 200);
+  assert.ok(res.headers["Set-Cookie"].every(value => value.includes("Max-Age=0")));
+  for (const key of SINGLE_SESSION_RELEASE_REQUIREMENTS) process.env[key] = "true";
+  assert.equal(qaSingleSessionReleaseApproved(), true);
   res = response();
   await handler({ method: "GET", headers: {} }, res);
   assert.equal(res.code, 405);
@@ -162,4 +187,8 @@ try {
 } finally {
   if (previousFlag === undefined) delete process.env.QA_SINGLE_SESSION_ENABLED;
   else process.env.QA_SINGLE_SESSION_ENABLED = previousFlag;
+  for (const [key, value] of Object.entries(previousApprovals)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
 }
