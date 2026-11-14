@@ -7,6 +7,7 @@ const RESOURCE = "https://firestore.googleapis.com/v1/" + DOCUMENT_PATH;
 const SESSION_COLLECTION = "qa_single_session_active";
 const DRAFT_COLLECTION = "qa_single_session_drafts";
 const AUDIT_COLLECTION = "qa_single_session_audit";
+const SIGNAL_COLLECTION = "qa_single_session_signals";
 const COOKIE_SESSION = "__Host-qa_single_session";
 const COOKIE_CANDIDATE = "__Host-qa_login_candidate";
 const TTL_MS = 30 * 60 * 1000;
@@ -188,13 +189,22 @@ async function auditedMutation(kind, username, row, updateTime, actorSessionId, 
     },
     currentDocument: { exists: false },
   };
+  const writes = [first, second];
+  if (action === "takeover_requested") {
+    // Non-secret change signal, committed atomically with pending session and
+    // audit. No client can write this document or see the candidate cookie.
+    writes.push({ update: {
+      name: DOCUMENT_PATH + SIGNAL_COLLECTION + "/" + encodeURIComponent(account),
+      fields: fieldsFor({ nonce: randomUUID(), updatedAt: new Date().toISOString() }),
+    } });
+  }
   const result = await fetch(RESOURCE.slice(0, -1) + ":commit", {
     method: "POST", cache: "no-store", signal: AbortSignal.timeout(10_000),
     headers: {
       Authorization: "Bearer " + await googleAccessToken(),
       "content-type": "application/json",
     },
-    body: JSON.stringify({ writes: [first, second] }),
+    body: JSON.stringify({ writes }),
   });
   if ([400, 409, 412].includes(result.status)) {
     throw fail("Session was changed by another browser", 409, "SESSION_RACE");

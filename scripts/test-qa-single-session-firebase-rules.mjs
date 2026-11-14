@@ -31,6 +31,12 @@ async function setActive(sessionId, expiresAtEpochMs, newRole = role) {
   });
 }
 const evalRef = context => doc(context.firestore(), "qa_evaluations", "test-case");
+const signalRef = context => doc(context.firestore(), "qa_single_session_signals", "agent");
+async function publishSignal() {
+  await env.withSecurityRulesDisabled(async test => {
+    await setDoc(signalRef(test), { nonce: "test-nonce", updatedAt: new Date().toISOString() });
+  });
+}
 const fileRef = context => ref(context.storage("demo-qa-session.appspot.com"),
   "qa-evaluation-evidence/AA100001/test-evidence.png");
 const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -38,11 +44,16 @@ const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 try {
   await setActive(session1, expiresSoon());
   const old = ctx(session1);
+  await publishSignal();
+  await assertSucceeds(getDoc(signalRef(old)));
+  await assertFails(setDoc(signalRef(old), { nonce: "forged" }));
   await assertSucceeds(setDoc(evalRef(old), { caseId: "AA100001", finalScore: 85 }));
   assert.equal((await getDoc(evalRef(old))).data().finalScore, 85);
   await assertSucceeds(uploadBytes(fileRef(old), bytes, { contentType: "image/png" }));
 
   const impostor = env.authenticatedContext("qa-other", claims(session1));
+  await assertFails(getDoc(signalRef(impostor)));
+  await assertFails(getDoc(signalRef(env.unauthenticatedContext())));
   await assertFails(setDoc(evalRef(impostor), { finalScore: 0 }));
   await assertFails(setDoc(evalRef(env.unauthenticatedContext()), { finalScore: 0 }));
   await assertFails(setDoc(doc(old.firestore(), activeDoc), { sessionId: session2 }));
@@ -50,9 +61,11 @@ try {
   // Atomic server-side takeover is represented by changing the active pointer.
   // A still-valid JWT for the replaced browser must now fail for BOTH backends.
   await setActive(session2, expiresSoon());
+  await assertFails(getDoc(signalRef(old)));
   await assertFails(setDoc(evalRef(old), { caseId: "AA100001", finalScore: 0 }));
   await assertFails(uploadBytes(fileRef(old), bytes, { contentType: "image/png" }));
   const next = ctx(session2);
+  await assertSucceeds(getDoc(signalRef(next)));
   await assertSucceeds(setDoc(evalRef(next), { caseId: "AA100001", finalScore: 99 }));
   await assertSucceeds(uploadBytes(fileRef(next), bytes, { contentType: "image/png" }));
 

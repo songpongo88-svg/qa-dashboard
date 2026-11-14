@@ -27,6 +27,14 @@ service cloud.firestore {
     match /qa_single_session_active/{username} {
       allow read, write: if false;
     }
+    // Non-secret notification of a pending request; read only for active QA
+    // Firebase identity. Server Admin SDK exclusively writes notifications.
+    match /qa_single_session_signals/{username} {
+      allow get: if qaIdentity()
+        && request.auth.token.qa_username == username
+        && currentQaSession();
+      allow list, write: if false;
+    }
     match /qa_single_session_drafts/{key} {
       allow read, write: if false;
     }

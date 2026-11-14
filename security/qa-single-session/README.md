@@ -86,8 +86,18 @@ The staged 15-second cadence reduces this specific estimate to **40,320**
 (one third fewer), while preserving the existing 30-second takeover deadline
 and hiding/offlining guards.
 
-This count does **not** include all other Firestore traffic, security-rule
-reads or staff working across multiple windows; it is not an overall quota
-guarantee. Before activation, verify real concurrency and remaining quota.
-A trusted realtime notification channel would be required for much lower
-read counts without making the 30-second Draft guarantee unreliable.
+The staged implementation now uses Firestore onSnapshot on a minimal
+qa_single_session_signals/{username} document. The backend publishes one
+notification atomically with a NEW pending takeover and its audit record.
+The client then calls the authenticated pending API and performs a
+server-acknowledged draft flush. In the healthy listener path there is NO
+periodic 15-second Firestore polling.
+
+The earlier 40,320-read example therefore applies only to the degraded
+fallback when the notification listener fails; actual realtime reads
+(initial snapshot, changed documents, and Rules get calls) still cost quota.
+The notification exposes only a random nonce and update timestamp, not a
+candidate token or the authoritative Session document. Clients cannot
+write the notification. Do NOT deploy this isolated canary or enable
+Production until live Firestore rules and true two-browser signal delivery
+are verified, including hidden tabs, file uploads and error recovery.

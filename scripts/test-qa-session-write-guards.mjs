@@ -99,8 +99,18 @@ assert.ok(application.includes("!QA_SINGLE_SESSION_CLIENT_ENABLED &&\n      curr
 const takeoverEffect = application.split("// Server-backed takeover requests are checked independently")[1]?.split("  const startSessionTimers = () => {")[0] || "";
 assert.ok(takeoverEffect.includes('document.visibilityState !== "visible"'),
   "Hidden tabs must not repeatedly poll the session backend");
-assert.ok(takeoverEffect.includes('window.setInterval(() => void checkTakeover(), TRUSTED_SESSION_TAKEOVER_POLL_MS)'),
-  "Takeover checks should be quota-aware and within the 30-second save window");
+assert.ok(takeoverEffect.includes('fallbackTimer = window.setInterval(() => void checkTakeover(), TRUSTED_SESSION_TAKEOVER_POLL_MS)'),
+  "15s takeover polling may run only after signal subscription failure");
+assert.ok(takeoverEffect.includes('unsubscribeSignals = onSnapshot('),
+  "Normal pending takeover checks must be event-driven, not periodic");
+assert.ok(takeoverEffect.includes('doc(firebaseDb, "qa_single_session_signals", currentUser.username.trim().toLowerCase())'),
+  "Notification must be scoped to the current QA username");
+assert.ok(takeoverEffect.includes('unsubscribeSignals?.();'),
+  "Every QA session change must remove the old Firestore listener");
+assert.ok(takeoverEffect.includes('startFallbackPolling();'),
+  "Failed notification subscription must preserve trusted-server verification");
+assert.equal(takeoverEffect.split("window.setInterval(").length - 1, 1,
+  "Only the error fallback may set up a recurring takeover poll");
 const rawTakeoverPoll = application.split("const TRUSTED_SESSION_TAKEOVER_POLL_MS = ")[1]?.split(";")[0] || "";
 const takeoverPollMs = Number(rawTakeoverPoll.replaceAll("_", ""));
 assert.equal(takeoverPollMs, 15_000, "Takeover should poll every 15 seconds");

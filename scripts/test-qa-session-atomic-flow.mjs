@@ -100,6 +100,10 @@ try {
     candidateId: "123e4567-e89b-12d3-a456-426614174011" };
   const proposed = await requestTakeover(candidate);
   assert.equal(proposed.status, "pending");
+  const signalName = prefix + "qa_single_session_signals/test-agent";
+  const nonce = db.get(signalName)?.values.nonce;
+  assert.match(nonce, /^[0-9a-f-]{36}$/i);
+  assert.ok(!("pendingCandidateId" in db.get(signalName).values));
   // A retry must be idempotent, and cannot reset the 30-second draft deadline
   // or create another audit write. Another candidate must not take over this
   // in-progress handoff even when authenticated for the same QA account.
@@ -107,6 +111,7 @@ try {
   assert.deepEqual(await requestTakeover(candidate), proposed);
   assert.equal([...db.keys()].filter(key => key.includes("qa_single_session_audit/")).length,
     beforeRetryAuditCount, "Repeated takeover must not add a Firestore audit/write");
+  assert.equal(db.get(signalName).values.nonce, nonce, "Idempotent retry must not send another signal");
   await assert.rejects(requestTakeover(differentCandidate),
     error => error.code === "TAKEOVER_ALREADY_PENDING");
   assert.equal((await getTakeoverForOldBrowser(oldBrowser)).status, "flush_required");

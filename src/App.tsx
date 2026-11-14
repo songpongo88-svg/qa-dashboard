@@ -24,7 +24,7 @@ import "./loginThemes/login.css";
 import "./themePickerCollections.css";
 import "./dashboardShortcuts.css";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection as firestoreCollection, doc, getDoc, getDocs, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import QASparks from "./QASparks";
@@ -6865,9 +6865,10 @@ export default function App() {
   const takeoverWorkspaceRef = useRef({ activeTab, activeWorkspaceTab, openWorkspaceTabs });
   takeoverWorkspaceRef.current = { activeTab, activeWorkspaceTab, openWorkspaceTabs };
 
-  // Server-backed takeover requests are checked independently of Firestore's
-  // quota-safe 15-minute polling. A draft must be durably saved and acknowledged
-  // before the new browser may receive the active session.
+  // An identity-gated Firestore change event wakes the old browser only
+  // after a takeover request; backend pending/ack/commit stay authoritative.
+  // 15s polling is a degraded fallback, not a steady-state read burden.
+  // The server must confirm a durable draft before any session replacement.
   useEffect(() => {
     if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser?.username) return;
     let cancelled = false;
@@ -6930,10 +6931,31 @@ export default function App() {
         }
       } finally { working = false; }
     };
-    // An active old browser has at most 15 seconds until its next check;
-    // hidden/background tabs do not spend quota and cannot claim a saved draft.
+    let fallbackTimer: number | undefined;
+    const startFallbackPolling = () => {
+      if (cancelled || fallbackTimer !== undefined) return;
+      // Emergency polling only: the normal path has one realtime subscription
+      // and reads Firestore again only when the notification changes.
+      fallbackTimer = window.setInterval(() => void checkTakeover(), TRUSTED_SESSION_TAKEOVER_POLL_MS);
+      void checkTakeover();
+    };
+    let unsubscribeSignals: (() => void) | undefined;
+    try {
+      unsubscribeSignals = onSnapshot(
+        doc(firebaseDb, "qa_single_session_signals", currentUser.username.trim().toLowerCase()),
+        () => { void checkTakeover(); },
+        error => {
+          // A signal is only a hint. All pending checks and acknowledgements
+          // still go through the authenticated server-owned session pointer.
+          console.warn("QA takeover signal listener unavailable", error);
+          startFallbackPolling();
+        },
+      );
+    } catch (error) {
+      console.warn("QA takeover signal listener could not start", error);
+      startFallbackPolling();
+    }
     void checkTakeover();
-    const timer = window.setInterval(() => void checkTakeover(), TRUSTED_SESSION_TAKEOVER_POLL_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") void checkTakeover();
     };
@@ -6947,7 +6969,8 @@ export default function App() {
     window.addEventListener("qa:single-session-save-failed", onSaveFailed);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      unsubscribeSignals?.();
+      if (fallbackTimer !== undefined) window.clearInterval(fallbackTimer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("qa:single-session-save-failed", onSaveFailed);
     };
