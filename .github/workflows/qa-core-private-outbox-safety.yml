@@ -35,6 +35,7 @@ on:
       - "scripts/test-qa-windows-reconciliation-integration.mjs"
       - "scripts/Run-QA-Windows-Reconciliation.mjs"
       - "scripts/test-qa-windows-reconciliation-runner.mjs"
+      - "scripts/test-qa-windows-pacific-quota-gate.mjs"
       - "scripts/Create-QA-Windows-Reconciliation-Snapshot.ps1"
       - "scripts/test-qa-windows-reconciliation-wrapper.mjs"
       - "scripts/test-qa-windows-reconciliation-review.mjs"
@@ -103,6 +104,7 @@ jobs:
           node scripts/test-qa-windows-candidate-archive-stage.mjs
           node --check scripts/Run-QA-Windows-Reconciliation.mjs
           node scripts/test-qa-windows-reconciliation-runner.mjs
+          node scripts/test-qa-windows-pacific-quota-gate.mjs
           node scripts/test-qa-windows-reconciliation-wrapper.mjs
           node --check server/qaWindowsSourceParity.js
           node --check scripts/Run-QA-Windows-Source-Parity.mjs
