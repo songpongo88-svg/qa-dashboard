@@ -32,7 +32,7 @@ into GitHub, chat or a browser.
 
 ```powershell
 $p = Join-Path $env:TEMP 'Create-QA-Windows-Reconciliation-Snapshot.ps1'
-Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/songpongo88-svg/qa-dashboard/dd1735e311e0ed281ac24f9f2f7cfb3d50b53be2/scripts/Create-QA-Windows-Reconciliation-Snapshot.ps1' -OutFile $p
+Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/songpongo88-svg/qa-dashboard/3bb47cf4eb442c46915bf6a4c7fea5bb548066a3/scripts/Create-QA-Windows-Reconciliation-Snapshot.ps1' -OutFile $p
 & $p -Run
 ```
 
