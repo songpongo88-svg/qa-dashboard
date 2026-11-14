@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+// The Vercel prebuild script historically contained semicolons after test
+// commands; a failed early security test could be masked by later success.
+const buildScripts = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).scripts;
+assert.ok(buildScripts.prebuild.startsWith("set -e; "),
+  "Prebuild must abort if any earlier QA security/regression test fails");
+
 const client = await readFile(new URL("../src/qaSingleSessionClient.ts", import.meta.url), "utf8");
 assert.match(client, /export async function assertTrustedQaSessionForMutation\(/);
 assert.match(client, /await qaServerSessionRequest\("validate"\)/);
@@ -89,7 +95,8 @@ assert.ok(takeoverEffect.includes('document.visibilityState !== "visible"'),
   "Hidden tabs must not repeatedly poll the session backend");
 assert.ok(takeoverEffect.includes('window.setInterval(() => void checkTakeover(), TRUSTED_SESSION_TAKEOVER_POLL_MS)'),
   "Takeover checks should be quota-aware and within the 30-second save window");
-const takeoverPollMs = Number(application.match(/const TRUSTED_SESSION_TAKEOVER_POLL_MS = (\d+);/)?.[1]);
+const rawTakeoverPoll = application.split("const TRUSTED_SESSION_TAKEOVER_POLL_MS = ")[1]?.split(";")[0] || "";
+const takeoverPollMs = Number(rawTakeoverPoll.replaceAll("_", ""));
 assert.equal(takeoverPollMs, 15_000, "Takeover should poll every 15 seconds");
 assert.ok(takeoverPollMs <= 15_000,
   "The old browser must have at least 15 seconds for its draft flush");
