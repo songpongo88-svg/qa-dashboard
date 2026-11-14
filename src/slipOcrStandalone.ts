@@ -81,16 +81,17 @@ function showError(card:Card,text:string){
   setBadge(card,"อ่านไม่สำเร็จ","error");
   card.glance.textContent=text;
 }
-function showScan(card:Card,file:File,scan:Awaited<ReturnType<typeof readPayoutSlipLocally>>){
+function showScan(card:Card,file:File,scan:Awaited<ReturnType<typeof readPayoutSlipLocally>>,duplicateOf=0){
   const f=scan.fields;
   const missing=f.missing||[];
   const issues=[...missing.map(x=>"อ่านไม่ครบ: "+x),...(f.reviewFlags||[])];
+  if(duplicateOf)issues.push("เลขอ้างอิงซ้ำกับไฟล์ที่ "+duplicateOf+" โปรดตรวจภาพว่าเป็นสลิปซ้ำหรือ OCR อ่านผิดไฟล์");
   const meaningful=Boolean(f.payoutAt||f.transactionRef||f.amountTHB!==null||f.bank||f.recipientAccountMasked);
   if(f.amountCandidates?.length>1&&!f.amountCorrectedFromCurrencyGlyph)
     issues.push("OCR อ่านยอดเงินขัดแย้ง กรุณาเทียบกับภาพจริง");
   if(!f.bank)issues.push("OCR ระบุธนาคารผู้ออกสลิปไม่ได้ โปรดตรวจโลโก้จากภาพจริง");
   if(!meaningful){setBadge(card,"อ่านข้อความไม่ได้","error");failed++;}
-  else if(missing.length||!f.bank||f.walletGlyphUncertain||((f.referenceCandidates?.length||0)>1&&!f.transactionRef)){setBadge(card,"อ่านได้บางส่วน","warn");partial++;}
+  else if(missing.length||!f.bank||f.walletGlyphUncertain||duplicateOf||((f.referenceCandidates?.length||0)>1&&!f.transactionRef)){setBadge(card,"ต้องตรวจทาน","warn");partial++;}
   else {setBadge(card,"อ่านข้อมูลหลักครบ","ok");completed++;}
   if(issues.length)reviewCount++;
   card.glance.replaceChildren();
@@ -161,6 +162,7 @@ fileInput.addEventListener("change",async()=>{
   result.classList.remove("hidden");
   description.textContent="ผลการอ่านแยกตามภาพ · ทุกรายการเป็นเพียงผล OCR ไม่ใช่หลักฐานยืนยันเงินเข้า";
   const cards=files.map(newCard);
+  const seenReferences=new Map<string,number>();
   progress(files.length);
   say("กำลังอ่านข้อความจากสลิป 0/"+files.length+" ไฟล์ ในเบราว์เซอร์ของคุณ");
   try{
@@ -174,7 +176,10 @@ fileInput.addEventListener("change",async()=>{
           throw new Error("รองรับ JPG, PNG, WebP ขนาดไม่เกิน 8 MB ต่อไฟล์");
         const data=await toDataUrl(file);
         const scan=await readPayoutSlipLocally(data);
-        showScan(card,file,scan);
+        const ref=String(scan.fields.transactionRef||"").trim().toUpperCase();
+        const duplicateOf=ref?(seenReferences.get(ref)||0):0;
+        if(ref&&!duplicateOf)seenReferences.set(ref,i+1);
+        showScan(card,file,scan,duplicateOf);
       }catch(error){
         failed++;
         showError(card,error instanceof Error?error.message:"ไม่สามารถอ่านสลิปนี้ได้");
