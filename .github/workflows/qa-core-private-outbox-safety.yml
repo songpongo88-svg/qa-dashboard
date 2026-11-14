@@ -29,6 +29,8 @@ on:
       - "server/qaFirestoreRestSnapshot.js"
       - "server/qaSourceReadBudget.js"
       - "server/qaWindowsSourceParity.js"
+      - "server/qaWindowsReconciliationReview.js"
+      - "scripts/test-qa-windows-reconciliation-review.mjs"
       - "scripts/Run-QA-Windows-Source-Parity.mjs"
       - "scripts/Check-QA-Windows-Source-Parity.ps1"
       - "scripts/test-qa-firestore-rest-snapshot.mjs"
@@ -88,6 +90,8 @@ jobs:
           node scripts/test-qa-windows-source-parity.mjs
           node scripts/test-qa-windows-source-parity-runner.mjs
           node scripts/test-qa-windows-source-parity-wrapper.mjs
+          node --check server/qaWindowsReconciliationReview.js
+          node scripts/test-qa-windows-reconciliation-review.mjs
           node --check server/qaWindowsSourceParity.js
           node --check scripts/Run-QA-Windows-Source-Parity.mjs
 
