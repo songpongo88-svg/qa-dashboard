@@ -1,10 +1,10 @@
 import React,{useCallback,useState} from "react";
-import RewardActionConfirmModal from "./RewardActionConfirmModal";
+import RewardActionConfirmModal,{type PayoutProof,type PayoutScan} from "./RewardActionConfirmModal";
 
 type Request={
   requestId:string;itemId:string;username:string;displayName:string;phone:string;
   amountTHB:number;status:string;createdAt:string;dueDate:string;
-  payoutConfirmedAt?:string;payoutConfirmedBy?:string;
+  payoutConfirmedAt?:string;payoutConfirmedBy?:string;payoutSlip?:{transactionRef:string;payoutAt:string;amountTHB:number;reviewMode:string};
 };
 type Props={actorUsername:string;sessionId:string;adminReady:boolean};
 function asDay(v:string){
@@ -61,7 +61,7 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
   },[adminReady,call]);
 
   // Explicit Admin click only: avoid background reads while quota is limited.
-  const markPaid=async()=>{
+  const markPaid=async(proof?:PayoutProof)=>{
     if(!selected||busy)return;
     const current=requests.find(row=>row.itemId===selected);
     if(!current||current.status!=="pending"){
@@ -70,14 +70,14 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
     }
     setBusy(true);setError("");setMessage("");
     try{
-      const result=await call("mark-truemoney-paid",{itemId:selected});
+      const result=await call("mark-truemoney-paid",{itemId:selected,...(proof||{})});
       if(result.status!=="paid")throw new Error("เซิร์ฟเวอร์ไม่ได้ยืนยันสถานะว่าโอนแล้ว กรุณาตรวจสอบ Tracker");
       // Server confirms the write. Move this row to Paid locally so we do not
       // make an additional Firestore read merely to reflect success.
       setRequests(previous=>previous.map(row=>row.itemId===selected?{
         ...row,status:"paid",
         payoutConfirmedBy:actorUsername,
-        payoutConfirmedAt:result.paidAt||row.payoutConfirmedAt,
+        payoutConfirmedAt:result.paidAt||row.payoutConfirmedAt,payoutSlip:result.payoutSlip||row.payoutSlip,
       }:row));
       setMessage(result.alreadyApplied
         ?"รายการนี้ถูกยืนยันว่าโอนแล้วก่อนหน้านี้"
@@ -142,10 +142,11 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
         const r=requests.find(x=>x.itemId===selected)!;
         return {rewardId:"truemoney-20",itemName:"TrueMoney 20 บาท",recipientName:r.displayName||r.username,
           username:r.username,amountLabel:r.amountTHB+" บาท",destinationLabel:r.phone,
-          requestedAt:r.createdAt,dueDate:r.dueDate,kind:"money" as const};
+          requestedAt:r.createdAt,dueDate:r.dueDate,kind:"money" as const,expectedAmountTHB:r.amountTHB};
       })():null}
       busy={busy} error={selected?error:""}
       onCancel={()=>{if(!busy){setSelected(null);setError("");}}}
-      onConfirm={()=>void markPaid()}/>
+      onAnalyze={async imageData=>call("analyze-payout-slip",{imageData}) as Promise<PayoutScan>}
+      onConfirm={proof=>void markPaid(proof)}/>
   </section>;
 }
