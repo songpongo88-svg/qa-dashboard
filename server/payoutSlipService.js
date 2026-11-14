@@ -42,7 +42,7 @@ export async function preparePayoutEvidence(body,request,admin,getAccessToken){
   const image=decodePayoutSlip(body.slipImageData);
   const ocr=await detectText(image.bytes,getAccessToken);
   const fields=parseTransferSlipText(ocr.text);
-  const amount=Number(request.amountTHB??request.payoutTHB);
+  const amount=Number(request.payoutTHB??request.amountTHB);
   if(!Number.isFinite(amount)||amount<=0||amount>100000)fail("ยอดเงินตามคำขอผิดพลาด",409);
   const recipient=String(request.phone||request.promptPay||"").replace(/\D/g,"").slice(-4);
   if(!/^\d{4}$/.test(recipient))fail("ไม่พบเลขท้ายข้อมูลรับเงิน",409);
