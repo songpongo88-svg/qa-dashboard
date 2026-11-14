@@ -3,6 +3,7 @@ import { generateKeyPairSync } from "node:crypto";
 import {
   signQaTicket, activateNewSession, requestTakeover, getTakeoverForOldBrowser,
   saveOwnedDraft, acknowledgeTakeover, commitTakeover, authorizeActiveSession,
+  revokeOwnSession,
 } from "../server/qaSingleSessionAdmin.js";
 
 const { privateKey } = generateKeyPairSync("rsa", {
@@ -131,6 +132,9 @@ try {
   assert.notEqual(replaced.sessionId, started.sessionId);
   assert.equal(db.get(prefix + "qa_single_session_active/test-agent").values.pendingCandidateId, "");
   await assert.rejects(authorizeActiveSession(oldBrowser), error => error.code === "SESSION_REPLACED");
+  await assert.rejects(revokeOwnSession(oldBrowser), error => error.code === "SESSION_REPLACED");
+  assert.equal(db.get(prefix + "qa_single_session_active/test-agent").values.sessionId,
+    replaced.sessionId, "Old-browser logout must never revoke the new browser");
   await assert.rejects(
     saveOwnedDraft(oldBrowser, "evaluation-form", revisionId + 1, { caseId: "AA123456" }),
     error => error.code === "SESSION_REPLACED",

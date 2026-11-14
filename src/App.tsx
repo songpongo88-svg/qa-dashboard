@@ -6700,6 +6700,15 @@ export default function App() {
   const endSessionEverywhere = (reason: "manual" | "inactivity") => {
     const logoutUser = currentUser;
 
+    // Both manual and 30-minute inactivity logout must revoke the trusted
+    // server session, not only the legacy Firebase session pointer.
+    // Do not block local logout if the network is offline.
+    if (QA_SINGLE_SESSION_CLIENT_ENABLED && logoutUser) {
+      void qaServerSessionRequest("logout").catch(() => {
+        console.warn("Server session logout request was not acknowledged");
+      });
+    }
+
     if (logoutUser && !maintenanceBlocked) {
       void logUsageEvent(logoutUser, "logout", {
         tab: activeTab,
@@ -6725,11 +6734,6 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
-      void qaServerSessionRequest("logout").catch(() => {
-        console.warn("Server session logout request was not acknowledged");
-      });
-    }
     endSessionEverywhere("manual");
   };
 

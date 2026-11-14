@@ -35,6 +35,14 @@ for (const [file, functions] of expectations) {
   }
 }
 const application = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const logoutPath = application.split('  const endSessionEverywhere = (reason: "manual" | "inactivity") => {')[1]?.split('  const handleLogout = () => {')[0] || "";
+assert.ok(logoutPath.includes('void qaServerSessionRequest("logout")'),
+  "Inactivity as well as manual logout must revoke the trusted backend session");
+const manualLogoutPath = application.split("  const handleLogout = () => {")[1]?.split("  const handleInactivityLogout = () => {")[0] || "";
+assert.ok(!manualLogoutPath.includes('qaServerSessionRequest("logout")'),
+  "Manual logout must not duplicate the shared server revocation request");
+assert.ok(application.includes('const handleInactivityLogout = () => {\n    endSessionEverywhere("inactivity");'),
+  "The idle timer must reach the shared trusted-session logout path");
 const takeoverEffect = application.split("// Server-backed takeover requests are checked independently")[1]?.split("  const startSessionTimers = () => {")[0] || "";
 assert.ok(takeoverEffect.includes('document.visibilityState !== "visible"'),
   "Hidden tabs must not repeatedly poll the session backend");

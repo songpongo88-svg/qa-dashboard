@@ -149,6 +149,15 @@ try {
   await handler({ method: "POST", headers: {}, body: { action: "validate" } }, res);
   assert.equal(res.code, 401);
   assert.equal(res.body.code, "SESSION_EXPIRED");
+
+  // Logout is idempotent after expiry/replacement and clears both browser
+  // cookies, without deleting another browser's active session pointer.
+  res = response();
+  await handler({ method: "POST", headers: {}, body: { action: "logout" } }, res);
+  assert.equal(res.code, 200);
+  assert.equal(res.body.status, "logged_out");
+  assert.equal(res.headers["Set-Cookie"].length, 2);
+  assert.ok(res.headers["Set-Cookie"].every(value => value.includes("Max-Age=0")));
   console.log("single QA server login and cookie security tests passed");
 } finally {
   if (previousFlag === undefined) delete process.env.QA_SINGLE_SESSION_ENABLED;

@@ -116,7 +116,14 @@ export default async function handler(req, res) {
           identity: { username: ticket.username, role: ticket.role } });
       }
       case "logout": {
-        await revokeOwnSession(req);
+        try {
+          await revokeOwnSession(req);
+        } catch (error) {
+          // A logout from the replaced or expired browser must clear ONLY its
+          // own cookies. The authoritative pointer for the new browser is not
+          // touched. Backend outages and CAS races must still fail visibly.
+          if (!["SESSION_REPLACED", "SESSION_EXPIRED"].includes(error?.code)) throw error;
+        }
         clearSessionCookie(res);
         return res.status(200).json({ ok: true, status: "logged_out" });
       }
