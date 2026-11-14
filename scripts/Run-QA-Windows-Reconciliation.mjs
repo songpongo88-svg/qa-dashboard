@@ -127,7 +127,9 @@ export async function runQaWindowsReconciliation({
    " to_regclass('qa_failover_v1.live_snapshot_rows') IS NOT NULL AS snapshots,"+
    " to_regclass('qa_failover_v1.source_read_budget_daily') IS NOT NULL AS ledger"
   )).rows?.[0];
-  if(c?.db!=='qa_dashboard_lab'||c.version<170000||
+  if((c?.db!=='qa_dashboard_lab'&&
+      !(c?.db==='qa_cutover_ci_test'&&env.QA_PG_ISOLATED_TEST==='1'))||
+     c.version<170000||
      c.version>=180000||c.recovering!==false||
      c.batches!==true||c.snapshots!==true||c.ledger!==true)
    fail('qa_candidate_local_database_unsafe');
