@@ -18,6 +18,8 @@ on:
       - "server/qaWindowsSourceSignalJournal.js"
       - "server/qaWindowsProbeBaseline.js"
       - "server/qaWindowsPrivateSignalStage.js"
+      - "scripts/Install-QA-Windows-Private-Signal-Stage.ps1"
+      - "scripts/test-qa-windows-signal-install-policy.mjs"
       - "scripts/test-qa-windows-private-signal-stage.mjs"
       - "scripts/test-qa-windows-probe-baseline.mjs"
       - "scripts/test-qa-windows-source-signal-integration.mjs"
@@ -52,6 +54,7 @@ jobs:
           node scripts/test-qa-windows-probe-baseline.mjs
           node --check server/qaWindowsPrivateSignalStage.js
           node scripts/test-qa-windows-private-signal-stage.mjs
+          node scripts/test-qa-windows-signal-install-policy.mjs
           node scripts/test-qa-core-private-outbox.mjs
           node scripts/test-qa-core-outbox-uncertainty.mjs
   isolated-postgres:

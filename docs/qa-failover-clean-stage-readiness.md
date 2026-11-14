@@ -134,3 +134,22 @@ source-verified read is not continuous-source parity or permission proof.
   a dedicated source-read budget ledger for SDK reconnects,
   missed-event reconciliation, verified payloads/deletions, and end-to-end
   authenticated transport and failback before production activation.
+
+## Manual Windows preparation installer (added 14 Nov 2026)
+
+- `scripts/Install-QA-Windows-Private-Signal-Stage.ps1` uses the EXISTING
+  `$HOME\Documents\QA_Backup\source-stage`, PostgreSQL 17 and
+  `qa_dashboard_lab`. **Default call is preflight-only and does not use
+  Firestore, download files, or modify the database**.
+- The explicit `-Apply` mode requires previous delta schema and receiver
+  markers, the frozen snapshot, exact PostgreSQL version, and a fresh local
+  `pg_dump -Fc` backup. It downloads files pinned to commit
+  `b4edc5101285d3e85ccafaba9a076c3553756879`, installs ONLY the
+  private metadata-only schema, and copies staged Node modules into the
+  existing source-stage directory with local recovery copies.
+- It does NOT launch listeners or scripts, connect to Firestore, edit case
+  scores, modify existing bridge ports, or enable standby writes. Even
+  after `-Apply`, `QA_FAILOVER=OFF`.
+- No execution on the user's Windows host has happened from this PR.
+  The installer must be run locally and its output inspected before any
+  future manual source listener probe.
