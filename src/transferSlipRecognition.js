@@ -1,5 +1,5 @@
 // Best-effort Thai/English OCR extraction, not proof of settlement.
-const clean=v=>String(v||"").normalize("NFKC").replace(/[๐-๙]/g,c=>String(c.charCodeAt(0)-3664)).replace(/\r/g,"");
+const clean=v=>String(v||"").normalize("NFC").replace(/[๐-๙]/g,c=>String(c.charCodeAt(0)-3664)).replace(/\r/g,"");
 const pad=n=>String(n).padStart(2,"0");
 function iso(y,m,d,h,min) {
   y=Number(y);if(y>=2400)y-=543;if(y<100)y+=y>=40?1957:2000;
