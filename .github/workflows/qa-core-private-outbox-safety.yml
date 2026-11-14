@@ -11,6 +11,8 @@ on:
       - "server/qaCorePrivateOutbox.js"
       - "server/qaCoreOutboxUncertainty.js"
       - "server/qaWindowsSourceProbe.js"
+      - "server/qaWindowsSourceDocumentReader.js"
+      - "scripts/test-qa-windows-source-document-reader.mjs"
       - "scripts/test-qa-windows-source-probe.mjs"
       - "scripts/test-qa-core-private-outbox*.mjs"
       - "scripts/test-qa-core-outbox-uncertainty.mjs"
@@ -38,6 +40,8 @@ jobs:
           node --check server/qaWindowsSourceProbe.js
           node --check scripts/test-qa-windows-source-probe.mjs
           node scripts/test-qa-windows-source-probe.mjs
+          node --check server/qaWindowsSourceDocumentReader.js
+          node scripts/test-qa-windows-source-document-reader.mjs
           node scripts/test-qa-core-private-outbox.mjs
           node scripts/test-qa-core-outbox-uncertainty.mjs
   isolated-postgres:

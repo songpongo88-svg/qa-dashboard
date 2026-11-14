@@ -76,3 +76,22 @@ It is an engineer test helper, not a deployable production listener.
 This does **not** make continuous replication reliable. Offline gaps,
 deletions, revised document payloads, lost events, attachments, permissions,
 locks, session revocations, parity and failback remain release blockers.
+
+## Budgeted canonical REST document follow-up (staged)
+
+The Windows listener probe delivers only change metadata. This PR now also
+contains `server/qaWindowsSourceDocumentReader.js` for **one explicit,
+opt-in, server-authenticated Firestore REST GET per signalled document**
+after the caller reserves one read unit in its private daily ledger.
+
+It verifies the exact full source document path, uses Firestore typed
+`fields` JSON and compares the exact microsecond `updateTime` observed
+by the listener before returning the source hash. Missing documents,
+recreated documents, source revision races, quota or credential errors are
+**never** silently sent to Windows as valid events. A 404 requires
+reconciliation, because absence is not proof of the original deletion
+revision. No cloud credentials are committed or fetched here.
+
+**Neither component is started or connected** to Windows, Cloudflare,
+Firestore production, the Supabase outbox, or a failover receiver. A
+source-verified read is not continuous-source parity or permission proof.
