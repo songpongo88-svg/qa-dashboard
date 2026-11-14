@@ -25,6 +25,7 @@ on:
       - "scripts/Check-QA-Windows-Firestore-Metadata.ps1"
       - "scripts/Check-QA-Windows-Firestore-OneRead.ps1"
       - "scripts/test-qa-windows-firestore-one-read-policy.mjs"
+      - "scripts/test-qa-windows-firestore-one-read-budget-integration.mjs"
       - "scripts/test-qa-windows-firestore-metadata-policy.mjs"
       - "scripts/test-qa-windows-firestore-auth-policy.mjs"
       - "scripts/test-qa-windows-stage-check-wrapper.mjs"
@@ -118,3 +119,4 @@ jobs:
         run: |
           node scripts/test-qa-core-private-outbox-stage-integration.mjs
           node scripts/test-qa-windows-source-signal-integration.mjs
+          node scripts/test-qa-windows-firestore-one-read-budget-integration.mjs
