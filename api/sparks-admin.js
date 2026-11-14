@@ -4,6 +4,7 @@ import { createFruitMatchService } from "../server/fruitMatchService.js";
 import { createSparkJourneyService } from "../server/sparkJourneyService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
+import { analyzePayoutSlip, preparePayoutEvidence, ensurePayoutSlipUnused, payoutSlipWrites, readPayoutEvidence } from "../server/payoutSlipService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
@@ -899,7 +900,7 @@ async function listMemberTrueMoney(actor){
 async function listTrueMoneyTracker(){
   const pages=await listCollection("qa_sparks_true_money_requests",[
     "requestId","username","displayName","phone","amountTHB","status",
-    "createdAt","dueDate","payoutConfirmedAt","payoutConfirmedBy",
+    "createdAt","dueDate","payoutConfirmedAt","payoutConfirmedBy","payoutSlip",
   ]);
   return {requests:pages.documents.map(recordValue)
     .filter(row=>row.rewardId===TRUE_MONEY.id||row.amountTHB===20)
@@ -909,6 +910,10 @@ async function listTrueMoneyTracker(){
 async function markTrueMoneyPaid(body,admin){
   const itemId=validateTrueMoneyItemId(body.itemId);
   const requestPath=path("qa_sparks_true_money_requests",itemId);
+  const before=recordValue(await readDoc(requestPath));
+  if(before.status==="paid")return {updated:false,alreadyApplied:true,status:"paid"};
+  if(before.status!=="pending"||before.amountTHB!==20)fail("สถานะคำขอไม่พร้อมยืนยัน",409);
+  const proof=await preparePayoutEvidence(body,before,admin,getAccessToken);
   for(let retry=0;retry<4;retry++){
     const started=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
     const transaction=started?.transaction;
@@ -919,16 +924,18 @@ async function markTrueMoneyPaid(body,admin){
       const request=recordValue(requestDoc);
       if(request.status==="paid")return {updated:false,alreadyApplied:true,status:"paid"};
       if(request.status!=="pending"||request.amountTHB!==20)fail("สถานะคำขอไม่พร้อมยืนยัน",409);
+      if(request.phone!==before.phone||request.createdAt!==before.createdAt||request.username!==before.username)fail("ข้อมูลคำขอเปลี่ยนไป กรุณาอ่านสลิปอีกครั้ง",409);
       const paidHistoryPath=path("qa_sparks_wallets",walletKey(request.username),"history","tm-paid-"+itemId);
       const [historyDoc,walletDoc]=await Promise.all([
         readDoc(paidHistoryPath,transaction),readDoc(walletDocumentPath(request.username),transaction),
       ]);
       if(historyDoc)fail("พบประวัติยืนยันโอนซ้ำ กรุณารีเฟรช Tracker",409);
+      await ensurePayoutSlipUnused(proof,itemId,readDoc,transaction);
       const now=new Date().toISOString();
       await firestoreRequest(":commit","POST",{transaction,writes:[
         updateWrite(requestPath,{
           status:"paid",payoutConfirmedAt:now,payoutConfirmedBy:admin.username,
-          payoutConfirmedByName:admin.displayName,
+          payoutConfirmedByName:admin.displayName,payoutSlip:proof.summary,
         },requestDoc),
         createWrite(paidHistoryPath,{
           createdAt:now,type:"earn",source:"reward-payout",
@@ -937,6 +944,7 @@ async function markTrueMoneyPaid(body,admin){
           amount:0,balanceAfter:spendableBalance(recordValue(walletDoc)),
           performedBy:admin.username,status:"Completed",
         }),
+        ...payoutSlipWrites(proof,itemId,request.username,createWrite),
       ]});
       return {updated:true,status:"paid",paidAt:now};
     }catch(error){
@@ -1588,7 +1596,7 @@ const CLOUD_PREVIEW_READ_ACTIONS = new Set([
   "special-rewards-mine", "announcement-shield-state", "treasure-state",
   "fruit-match-data", "snakes-state", "auto-pass-state", "list-truemoney-tracker",
   "special-rewards-admin-list", "special-rewards-admin-receipt",
-  "list-reward-queues", "list", "history",
+  "list-reward-queues", "list", "history", "analyze-payout-slip", "payout-slip-evidence",
 ]);
 function sparksCloudReadOnlyEnabled() {
   return process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1";
@@ -1920,6 +1928,12 @@ async function sparksHandler(req, res) {
         :body.action==="special-rewards-admin-receipt"?await qaSpecialRewards.adminReceipt(body)
         :await qaSpecialRewards.adminAction(body,admin);
       return res.status(200).json(data);
+    }
+    if (body.action === "analyze-payout-slip") {
+      return res.status(200).json(await analyzePayoutSlip(body.imageData,getAccessToken));
+    }
+    if (body.action === "payout-slip-evidence") {
+      return res.status(200).json(await readPayoutEvidence(body,readDoc,recordValue));
     }
     if (body.action === "mark-truemoney-paid") {
       return res.status(200).json(await markTrueMoneyPaid(body,admin));
