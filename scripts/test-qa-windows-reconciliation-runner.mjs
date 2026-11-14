@@ -42,6 +42,7 @@ const config={
  makeBudget:()=>({reserve:async()=>({
   estimatedNotBilledReads:true,reservedDocumentUnits:1,reservedRequests:1})}),
  createAttemptMarker:async()=>{markers++},
+ checkPreviousAttempts:async()=>{},
  captureSource:async p=>{
   captures++;
   for(let i=0;i<QA_SYNC_DATASETS.length;i++)
@@ -78,4 +79,5 @@ assert.equal(stages,1);assert.equal(reviews,1);assert.equal(markers,1);
 await assert.rejects(runQaWindowsReconciliation({...config,
  captureSource:async()=>{throw Error('read_failed')} }),/read_failed/);
 assert.equal(stages,1);
+// Pacific cutoff is verified separately with a temporary local marker.
 console.log('PASS real candidate runner orchestration: zero-read default, daily headroom, frozen archive, source capture and reconciliation');
