@@ -83,6 +83,42 @@ assert.equal(conflict.amountTHB,null);
 assert.deepEqual(conflict.amountCandidates,[1.4,1405]);
 assert.ok(conflict.reviewFlags.some(v=>v.includes("ยอดเงินหลายค่า")));
 
+// OCR observed on a real TrueMoney layout (all personal data removed).
+// The baht glyph may be recognized as B in the headline and 8 in amount/fee rows.
+const trueMoneyOcrMisread=[
+ "true money","B154.00","นาย ทดสอบ","KKP Start Saving","XXX-XXX557-7",
+ "นางสาว ผู้รับ ทดสอบ","ธนาคารไทยพาณิชย์ จำกัด (มหาชน)","XXX-XXX049-7",
+ "จํานวนเงิน","8154.00","ค่าธรรมเนียม","80.00",
+ "วันที่ทํารายการ","05พ.ค. 68 22:45:38","เลขที่อ้างอิง","512522060123"
+].join("\n");
+const fixedWallet=parseTransferSlipText(trueMoneyOcrMisread);
+assert.equal(fixedWallet.bank,"TrueMoney Wallet");
+assert.equal(fixedWallet.amountTHB,154,"corroborated headline B154 must override OCR 8154");
+assert.equal(fixedWallet.feeTHB,null,"do not falsely claim the fee was 80 or 0 without proof");
+assert.equal(fixedWallet.feeGlyphUncertain,true);
+assert.equal(fixedWallet.amountCorrectedFromCurrencyGlyph,true);
+assert.ok(fixedWallet.reviewFlags.some(f=>f.includes("สัญลักษณ์ ฿")));
+assert.ok(fixedWallet.reviewFlags.some(f=>f.includes("ค่าธรรมเนียม")));
+assert.equal(fixedWallet.transactionRef,"512522060123");
+
+const mismatchedWallet=parseTransferSlipText(trueMoneyOcrMisread.replace("B154.00","B155.00"));
+assert.equal(mismatchedWallet.amountTHB,null,"disagreeing wallet readings may not silently pick a single amount");
+assert.deepEqual(mismatchedWallet.amountCandidates,[8154,155]);
+assert.ok(mismatchedWallet.missing.includes("ยอดเงิน"));
+
+const actualBangkokOCR=[
+ "Bangkok Bank","รายการสําเร็จ","03 n.w. 69,14:40","จํานวนเงิน","1,405.00 tHe",
+ "จาก","นาย ทดสอบ","050-0-%%%771","ธนาคารกรุงเทพ","ไปที่",
+ "นางสาว ผู้รับ","430-1-%%%497","ธนาคารไทยพาณิชย์",
+ "ค่าธรรมเนียม 0.00 THB","หมายเลขอ้างอิง","631438","เลขที่อ้างอิง",
+ "2026020314403024006233008"
+].join("\n");
+const parsedBankOCR=parseTransferSlipText(actualBangkokOCR);
+assert.equal(parsedBankOCR.payoutAt,"2026-02-03T14:40:00+07:00");
+assert.equal(parsedBankOCR.amountTHB,1405);
+assert.equal(parsedBankOCR.feeTHB,0);
+assert.equal(parsedBankOCR.transactionRef,"2026020314403024006233008");
+
 const fake=Buffer.alloc(3600,7);fake[0]=255;fake[1]=216;
 const imageData="data:image/jpeg;base64,"+fake.toString("base64");
 assert.equal(decodePayoutSlip(imageData).bytes.length,3600);
