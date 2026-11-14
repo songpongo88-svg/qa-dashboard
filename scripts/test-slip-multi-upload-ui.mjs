@@ -54,6 +54,7 @@ try{
   const files=[
     new File(["bkk"],"bangkok.png",{type:"image/png"}),
     new File(["wallet"],"truemoney.jpg",{type:"image/jpeg"}),
+    new File(["bkk"],"duplicate-bank-slip.png",{type:"image/png"}),
     new File(["unsupported"],"not-image.pdf",{type:"application/pdf"})
   ];
   Object.defineProperty(input,"files",{configurable:true,value:files});
@@ -62,24 +63,27 @@ try{
     await new Promise(done=>setTimeout(done,20));
   }
   // Give async input change its first turn even if it has not disabled the input yet.
-  for(let i=0;i<140&&!document.getElementById("batch-summary").textContent.includes("3/3");i++){
+  for(let i=0;i<140&&!document.getElementById("batch-summary").textContent.includes("4/4");i++){
     await new Promise(done=>setTimeout(done,20));
   }
   const cards=[...document.querySelectorAll("[data-slip-result]")];
   const summary=document.getElementById("batch-summary").textContent;
-  assert.equal(cards.length,3,"must preserve a separate card for every submitted file");
+  assert.equal(cards.length,4,"must preserve a separate card for every submitted file");
   assert.match(cards[0].textContent,/bangkok.png/);
   assert.match(cards[0].textContent,/ธนาคารกรุงเทพ/);
   assert.match(cards[0].textContent,/1,405\.00/);
   assert.match(cards[1].textContent,/truemoney.jpg/);
   assert.match(cards[1].textContent,/TrueMoney Wallet/);
   assert.match(cards[1].textContent,/154\.00/);
-  assert.match(cards[2].textContent,/not-image.pdf/);
-  assert.match(cards[2].textContent,/8 MB/);
-  assert.match(summary,/3\/3 ไฟล์/);
+  assert.match(cards[2].textContent,/duplicate-bank-slip.png/);
+  assert.match(cards[2].textContent,/เลขอ้างอิงซ้ำกับไฟล์ที่ 1/);
+  assert.match(cards[3].textContent,/not-image.pdf/);
+  assert.match(cards[3].textContent,/8 MB/);
+  assert.match(summary,/4\/4 ไฟล์/);
   assert.match(summary,/อ่านข้อมูลหลักครบ 2/);
+  assert.match(summary,/อ่านได้บางส่วน 1/);
   assert.match(summary,/อ่านไม่ได้ 1/);
-  assert.equal(readCount,2,"invalid file must not call OCR");
+  assert.equal(readCount,3,"invalid file must not call OCR");
   assert.equal(maxInProgress,1,"OCR must be sequential to limit memory");
   assert.equal(fetchCount,0,"UI must not call any API");
   assert.equal(document.querySelectorAll("button[data-reward-confirm-submit]").length,0);
@@ -88,7 +92,7 @@ try{
   reset.click();
   assert.equal(document.querySelectorAll("[data-slip-result]").length,0,"Clear must remove all bank OCR data");
   assert.equal(document.getElementById("result").classList.contains("hidden"),true);
-  console.log("PASS multi-bank slip upload UI: 3 isolated files, sequential OCR, partial file errors, no API or payout, clear");
+  console.log("PASS multi-bank slip upload UI: 4 isolated files, duplicate reference guard, sequential OCR, no API or payout, clear");
 }finally{
   delete globalThis.__batchScan;
   globalThis.fetch=originalFetch;
