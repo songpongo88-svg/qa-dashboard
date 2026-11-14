@@ -41,7 +41,8 @@ try{
   const tracker = await readFile("src/TrueMoneyTracker.tsx", "utf8");
   assert.match(tracker, /RewardActionConfirmModal/, "TrueMoney payout confirmation uses the shared branded dialog");
   assert.match(tracker, /data-truemoney-paid-action/, "payout button opens a review dialog");
-  assert.match(tracker, /onConfirm=\{\(\)=>void markPaid\(\)\}/, "the confirm action executes the server-authorized payout");
+  assert.match(tracker, /onConfirm=\{proof=>void markPaid\(proof\)\}/, "payout confirmation must carry the mandatory slip proof");
+  assert.match(tracker, /analyze-payout-slip/, "Admin must run OCR after attaching a slip");
   assert.match(tracker, /mark-truemoney-paid/, "payout keeps its original server action");
   assert.doesNotMatch(tracker, /window\.confirm/, "native browser confirmation is not allowed");
   assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");
