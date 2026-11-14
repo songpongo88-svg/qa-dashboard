@@ -56,6 +56,8 @@ on:
       - "server/qaCutoverSessionStore.js"
       - "scripts/test-qa-postgres-session-integration.mjs"
       - "scripts/check-qa-bridge-preview-preflight.mjs"
+      - "scripts/check-qa-no-billing-source-writers.mjs"
+      - "docs/qa-no-billing-source-coverage.md"
       - "server/qaCutoverParityGate.js"
       - "scripts/test-qa-cutover-parity-gate.mjs"
       - "server/qaFailoverDecision.js"
@@ -213,6 +215,7 @@ jobs:
           node --check server/qaCutoverSessionStore.js
           node --check scripts/test-qa-postgres-session-integration.mjs
           node --check scripts/check-qa-bridge-preview-preflight.mjs
+          node --check scripts/check-qa-no-billing-source-writers.mjs
           node --check server/qaCutoverParityGate.js
           node --check scripts/test-qa-cutover-parity-gate.mjs
           node --check server/qaFailoverDecision.js
@@ -279,6 +282,9 @@ jobs:
         run: |
           npm install --prefix cloud/qa-firestore-delta-producer --ignore-scripts --no-package-lock --no-audit --no-fund
           node scripts/test-qa-cloud-event-proto.mjs
+      - name: Audit no-Billing direct Firestore source writers
+        run: |
+          node scripts/check-qa-no-billing-source-writers.mjs
       - name: Run fail-closed safety tests
         run: |
           node scripts/test-qa-local-bridge.mjs
