@@ -4,7 +4,7 @@ import { createFruitMatchService } from "../server/fruitMatchService.js";
 import { createSparkJourneyService } from "../server/sparkJourneyService.js";
 import { createQaLotteryService } from "../server/qaLotteryService.js";
 import { createQaRewardsService } from "../server/qaRewardsService.js";
-import { analyzePayoutSlip, preparePayoutEvidence, ensurePayoutSlipUnused, payoutSlipWrites, readPayoutEvidence } from "../server/payoutSlipService.js";
+import { preparePayoutEvidence, ensurePayoutSlipUnused, payoutSlipWrites, readPayoutEvidence } from "../server/payoutSlipService.js";
 import { createSnakesService } from "../server/snakesLaddersService.js";
 import { createHiddenTreasureService } from "../server/hiddenTreasureService.js";
 import { createAnnouncementShieldService } from "../server/announcementShieldService.js";
@@ -913,7 +913,7 @@ async function markTrueMoneyPaid(body,admin){
   const before=recordValue(await readDoc(requestPath));
   if(before.status==="paid")return {updated:false,alreadyApplied:true,status:"paid"};
   if(before.status!=="pending"||before.amountTHB!==20)fail("สถานะคำขอไม่พร้อมยืนยัน",409);
-  const proof=await preparePayoutEvidence(body,before,admin,getAccessToken);
+  const proof=await preparePayoutEvidence(body,before,admin);
   for(let retry=0;retry<4;retry++){
     const started=await firestoreRequest(":beginTransaction","POST",{options:{readWrite:{}}});
     const transaction=started?.transaction;
@@ -1596,7 +1596,7 @@ const CLOUD_PREVIEW_READ_ACTIONS = new Set([
   "special-rewards-mine", "announcement-shield-state", "treasure-state",
   "fruit-match-data", "snakes-state", "auto-pass-state", "list-truemoney-tracker",
   "special-rewards-admin-list", "special-rewards-admin-receipt",
-  "list-reward-queues", "list", "history", "analyze-payout-slip", "payout-slip-evidence",
+  "list-reward-queues", "list", "history", "payout-slip-evidence",
 ]);
 function sparksCloudReadOnlyEnabled() {
   return process.env.SPARKS_DATA_BACKEND==="supabase" && process.env.SPARKS_CLOUD_READ_ONLY==="1";
@@ -1928,9 +1928,6 @@ async function sparksHandler(req, res) {
         :body.action==="special-rewards-admin-receipt"?await qaSpecialRewards.adminReceipt(body)
         :await qaSpecialRewards.adminAction(body,admin);
       return res.status(200).json(data);
-    }
-    if (body.action === "analyze-payout-slip") {
-      return res.status(200).json(await analyzePayoutSlip(body.imageData,getAccessToken));
     }
     if (body.action === "payout-slip-evidence") {
       return res.status(200).json(await readPayoutEvidence(body,readDoc,recordValue));
