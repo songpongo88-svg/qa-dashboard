@@ -1,6 +1,22 @@
 # QA Core private outbox — no-Google-Billing candidate
 
-**STATUS: SCHEMA/CI ONLY; NOT DEPLOYED TO SUPABASE OR WINDOWS.**
+**STATUS (2026-11-14): EMPTY PRIVATE SCHEMA APPLIED TO EXISTING SUPABASE, NOT INTEGRATED WITH QA WRITES OR WINDOWS.**
+
+## Verified Supabase staging installation (2026-11-14)
+
+- Applied the exact additive migration in this PR to the connected existing
+  Supabase PostgreSQL 17 project. This added only
+  `qa_core_replication_stage.change_outbox`; it did not alter existing
+  `public`, `qa_sparks_identity`, or `sparks_runtime` objects.
+- Verified with read-only SQL on that database: **0 outbox rows**, RLS enabled
+  and forced, no `anon` schema usage, no `anon` SELECT,
+  no `authenticated` INSERT, and no `service_role` INSERT.
+- The Supabase security advisor's "RLS enabled, no policy" INFO finding on
+  this isolated stage is **intentional deny-by-default**. Do not add browser
+  policies or grant writes as a workaround.
+- This does not deploy a Vercel mutation service, connect Windows, establish
+  event provenance, or authorize failover. The stage is deliberately inert.
+
 The existing Supabase project contains QA Core and QA Sparks tables; this
 migration deliberately creates an **isolated, private** schema and never
 modifies existing public QA or sparks tables, policies or permissions.
