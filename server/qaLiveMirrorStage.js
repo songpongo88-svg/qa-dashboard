@@ -57,7 +57,7 @@ function validateMeta(m){
   return result;
 }
 export async function stageQaFirestoreExport({pool,metadata,readCollection,
-  maxBytes=64*1024*1024}={}){
+  maxBytes=64*1024*1024,requireFrozenActiveSnapshotId=null}={}){
   if(typeof pool?.connect!=='function'||typeof readCollection!=='function')
     throw bad('trusted_source_adapter_missing');
   const manifests=validateMeta(metadata),rows=[],observed=[],ids=new Set();
@@ -93,6 +93,31 @@ export async function stageQaFirestoreExport({pool,metadata,readCollection,
       throw bad('unrecognized_qa_database');
     await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');begun=true;
     await client.query("SET LOCAL lock_timeout = '3s'");
+    if(requireFrozenActiveSnapshotId!==null){
+      // Hold a PostgreSQL share lock for the whole candidate-copy transaction:
+      // a concurrent standby state promotion cannot pass while we stage.
+      if(typeof requireFrozenActiveSnapshotId!=='string'||
+         !SNAP.test(requireFrozenActiveSnapshotId)||
+         requireFrozenActiveSnapshotId===metadata.snapshotId)
+        throw bad('qa_reconcile_candidate_snapshot_id_invalid');
+      const state=(await client.query(
+        'SELECT mode,write_frozen,source_snapshot_verified,active_snapshot_id'+
+        ' FROM qa_failover_v1.state WHERE id=1 FOR SHARE')).rows?.[0];
+      if(state?.mode!=='disabled'||state.write_frozen!==true||
+         state.source_snapshot_verified!==false||
+         state.active_snapshot_id!==requireFrozenActiveSnapshotId)
+        throw bad('qa_reconcile_frozen_snapshot_state_changed');
+      const older=(await client.query(
+        'SELECT status,approved_for_failover,source_exported_at'+
+        ' FROM qa_failover_v1.live_snapshot_batches'+
+        ' WHERE snapshot_id=$1 FOR SHARE',
+        [requireFrozenActiveSnapshotId])).rows?.[0];
+      const oldAt=new Date(older?.source_exported_at||0).getTime();
+      if(older?.status!=='copy_verified'||
+         older.approved_for_failover!==false||!Number.isFinite(oldAt)||
+         oldAt<=0||Date.parse(metadata.exportedAt)<=oldAt)
+        throw bad('qa_reconcile_candidate_not_newer_or_untrusted');
+    }
     await client.query("INSERT INTO qa_failover_v1.live_snapshot_batches"+
       " (snapshot_id,source_export_id,source_exported_at,source_provenance,status,"+
       " source_documents,stored_documents,dataset_manifest,approved_for_failover)"+

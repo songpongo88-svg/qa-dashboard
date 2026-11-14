@@ -30,6 +30,8 @@ on:
       - "server/qaSourceReadBudget.js"
       - "server/qaWindowsSourceParity.js"
       - "server/qaWindowsReconciliationReview.js"
+      - "server/qaWindowsCandidateArchiveStage.js"
+      - "scripts/test-qa-windows-candidate-archive-stage.mjs"
       - "scripts/test-qa-windows-reconciliation-review.mjs"
       - "scripts/Run-QA-Windows-Source-Parity.mjs"
       - "scripts/Check-QA-Windows-Source-Parity.ps1"
@@ -92,6 +94,8 @@ jobs:
           node scripts/test-qa-windows-source-parity-wrapper.mjs
           node --check server/qaWindowsReconciliationReview.js
           node scripts/test-qa-windows-reconciliation-review.mjs
+          node --check server/qaWindowsCandidateArchiveStage.js
+          node scripts/test-qa-windows-candidate-archive-stage.mjs
           node --check server/qaWindowsSourceParity.js
           node --check scripts/Run-QA-Windows-Source-Parity.mjs
 
