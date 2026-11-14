@@ -12,7 +12,7 @@ for(const x of [
  'QA_SOURCE_LISTENER=NOT_STARTED','QA_FAILOVER=OFF',
  'NEW_SNAPSHOT_CREATED_AND_VERIFIED_NOT_ACTIVE',
  'Run-QA-Windows-Reconciliation.mjs',
- '0a0961c4b0eba03336a2f4aa04c0195b05ec06f3'
+ '9b17d6703e1fb4effd707e773825e5fe132a8038'
 ])assert.ok(script.includes(x),'missing safety policy: '+x);
 assert.ok(script.indexOf('if(-not $Run)')<
  script.indexOf('Invoke-WebRequest'),'default must be zero-network');
