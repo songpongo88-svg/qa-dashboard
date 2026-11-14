@@ -23,6 +23,8 @@ on:
       - "scripts/Check-QA-Windows-Private-Stage.ps1"
       - "scripts/Check-QA-Windows-Firestore-Auth.ps1"
       - "scripts/Check-QA-Windows-Firestore-Metadata.ps1"
+      - "scripts/Check-QA-Windows-Firestore-OneRead.ps1"
+      - "scripts/test-qa-windows-firestore-one-read-policy.mjs"
       - "scripts/test-qa-windows-firestore-metadata-policy.mjs"
       - "scripts/test-qa-windows-firestore-auth-policy.mjs"
       - "scripts/test-qa-windows-stage-check-wrapper.mjs"
@@ -68,6 +70,7 @@ jobs:
           node scripts/test-qa-windows-stage-check-wrapper.mjs
           node scripts/test-qa-windows-firestore-auth-policy.mjs
           node scripts/test-qa-windows-firestore-metadata-policy.mjs
+          node scripts/test-qa-windows-firestore-one-read-policy.mjs
       - name: Parse Windows PowerShell installer safely
         shell: pwsh
         run: |
@@ -77,6 +80,7 @@ jobs:
           [System.Management.Automation.Language.Parser]::ParseFile('scripts/Check-QA-Windows-Private-Stage.ps1', [ref]$tokens, [ref]$parseErrors) | Out-Null
           [System.Management.Automation.Language.Parser]::ParseFile('scripts/Check-QA-Windows-Firestore-Auth.ps1', [ref]$tokens, [ref]$parseErrors) | Out-Null
           [System.Management.Automation.Language.Parser]::ParseFile('scripts/Check-QA-Windows-Firestore-Metadata.ps1', [ref]$tokens, [ref]$parseErrors) | Out-Null
+          [System.Management.Automation.Language.Parser]::ParseFile('scripts/Check-QA-Windows-Firestore-OneRead.ps1', [ref]$tokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count -gt 0) { throw 'QA Windows installer PowerShell syntax invalid' }
           Write-Output 'PASS Windows PowerShell syntax parse (no execution)'
           node scripts/test-qa-core-private-outbox.mjs
