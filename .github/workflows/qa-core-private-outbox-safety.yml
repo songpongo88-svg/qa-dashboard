@@ -19,6 +19,8 @@ on:
       - "server/qaWindowsProbeBaseline.js"
       - "server/qaWindowsPrivateSignalStage.js"
       - "scripts/Install-QA-Windows-Private-Signal-Stage.ps1"
+      - "scripts/Check-QA-Windows-Private-Signal-Stage.mjs"
+      - "scripts/test-qa-windows-private-stage-acceptance.mjs"
       - "scripts/test-qa-windows-signal-install-policy.mjs"
       - "scripts/test-qa-windows-private-signal-stage.mjs"
       - "scripts/test-qa-windows-probe-baseline.mjs"
@@ -55,6 +57,8 @@ jobs:
           node --check server/qaWindowsPrivateSignalStage.js
           node scripts/test-qa-windows-private-signal-stage.mjs
           node scripts/test-qa-windows-signal-install-policy.mjs
+          node --check scripts/Check-QA-Windows-Private-Signal-Stage.mjs
+          node scripts/test-qa-windows-private-stage-acceptance.mjs
       - name: Parse Windows PowerShell installer safely
         shell: pwsh
         run: |
