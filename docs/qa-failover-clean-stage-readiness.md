@@ -108,3 +108,29 @@ source-verified read is not continuous-source parity or permission proof.
   reservation. It is NOT evidence of live parity.
 - These source modules still require Windows installation and an independent
   real-host acceptance test; neither was started here.
+
+## Integrated private staging composition — no automatic start
+
+- Implemented 'qaWindowsSourceSignalJournal.js' and an additive,
+  Windows-only migration for 'qa_windows_probe_v1.source_signals'.
+  The private metadata events have no QA case payload and are always
+  source-unverified and reconciliation-required; SQL constraints
+  explicitly prohibit claiming source success or cutover readiness.
+- Implemented 'qaWindowsProbeBaseline.js' to read the **existing** frozen
+  'qa_failover_v1.live_snapshot_rows', verify 11 collection counts and
+  SHA-256 digests, derive exact microsecond 'updateTime' values, and
+  fail closed if any copied document has changed.
+- Implemented 'qaWindowsPrivateSignalStage.js' as a **disabled-by-default
+  private composition** connecting the read-only baseline loader,
+  11 Firestore listener probes and durable local signal persister.
+  Its complete flow is tested against fake source and local DB interfaces.
+  This is NOT a runnable background service, scheduled listener or
+  configured Windows host.
+- The additive local signal migration has only been tested with a disposable
+  PostgreSQL 17 instance in GitHub CI. It was **not installed** on the
+  user's Windows machine. The existing Supabase outbox is still separate;
+  its contents have not been copied or mutated by this branch.
+- Need real Windows database connection and credential attestation,
+  a dedicated source-read budget ledger for SDK reconnects,
+  missed-event reconciliation, verified payloads/deletions, and end-to-end
+  authenticated transport and failback before production activation.
