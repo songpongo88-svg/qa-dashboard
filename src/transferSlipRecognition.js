@@ -27,7 +27,7 @@ const banks=[
   {name:"ธนาคารแลนด์ แอนด์ เฮ้าส์",re:/(?:LH BANK|แลนด์.*เฮ้าส์)/i},
   {name:"ธนาคารยูโอบี",re:/(?:UOB|ธนาคารยูโอบี)/i},
   {name:"ธนาคารซีไอเอ็มบี ไทย",re:/(?:CIMB|ธนาคารซีไอเอ็มบี)/i},
-  {name:"TrueMoney Wallet",re:/(?:truemoney|ทรูมันนี่)/i},
+  {name:"TrueMoney Wallet",re:/(?:true\s*money|ทรูมันนี่)/i},
 ];
 const detectBank=s=>banks.find(b=>b.re.test(s||""))?.name||"";
 const noBank=s=>!detectBank(s);
@@ -61,7 +61,7 @@ function amounts(lines){
   const labelled=labelledAmounts(lines,amountLabel,true);
   // Wallet receipts sometimes show a large "B154.00" when OCR mistakes "฿154.00" for B.
   // This is a currency glyph only at the start of an isolated amount, never a bank/reference ID.
-  const wallet=lines.slice(0,8).some(s=>/(?:truemoney|ทรูมันนี่)/i.test(s));
+  const wallet=lines.slice(0,8).some(s=>/(?:true\s*money|ทรูมันนี่)/i.test(s));
   const headline=wallet?uniq(lines.slice(0,10).flatMap(s=>{
     const m=s.match(/^[฿B]\s*((?:\d{1,3}(?:,\d{3})+|\d{1,8})(?:\.\d{2})?)\s*$/i);
     return m?[Number(m[1].replace(/,/g,""))]:[];
@@ -228,6 +228,7 @@ export function parseTransferSlipText(raw){
     party.recipientIdentifierType==="bank-account"&&"เลขบัญชีถูกปิดบังบางส่วน ต้องตรวจยืนยันผู้รับด้วยตนเอง",
     money.amountCandidates.length>1&&!money.amountCorrectedFromCurrencyGlyph&&"OCR พบยอดเงินหลายค่าที่ขัดกัน ต้องตรวจยอดจากภาพต้นฉบับ",
     money.amountCorrectedFromCurrencyGlyph&&"สัญลักษณ์ ฿ ในสลิป Wallet อาจถูก OCR อ่านเป็น 8; ระบบเทียบกับยอดที่พิมพ์ซ้ำบนภาพแล้ว กรุณาตรวจทานยอด",
-    money.feeGlyphUncertain&&"ค่าธรรมเนียมของ Wallet อาจถูก OCR อ่านเป็น 80.00 แทน ฿0.00 จึงไม่ระบุยอดค่าธรรมเนียมจนกว่าจะตรวจภาพจริง"].filter(Boolean);
+    money.feeGlyphUncertain&&"ค่าธรรมเนียมของ Wallet อาจถูก OCR อ่านเป็น 80.00 แทน ฿0.00 จึงไม่ระบุยอดค่าธรรมเนียมจนกว่าจะตรวจภาพจริง",
+    money.feeCandidates.length>1&&"OCR อ่านค่าธรรมเนียมได้หลายค่า ต้องตรวจจากภาพต้นฉบับ"].filter(Boolean);
   return {...refs,...dt,...party,...money,isSuccessful,missing,reviewFlags};
 }
