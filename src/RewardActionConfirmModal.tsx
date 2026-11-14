@@ -14,10 +14,10 @@ export type RewardConfirmation={
   kind:"money"|"netflix";
   expectedAmountTHB?:number;
 };
-export type PayoutScan={ocrStatus:string;message:string;fields:{
+export type PayoutScan={ocrStatus:string;message:string;ocrText?:string;fields:{
   payoutAt:string;transactionRef:string;amountTHB:number|null;recipientLast4:string;recipientLabel:string;missing:string[];
 }};
-export type PayoutProof={slipImageData:string;slipManualReview:boolean;slipManualReason:string;slipManualFields:{
+export type PayoutProof={slipImageData:string;slipOCRText:string;slipManualReview:boolean;slipManualReason:string;slipManualFields:{
   payoutAt:string;transactionRef:string;amountTHB:number;recipientLast4:string;
 }};
 async function shrinkSlip(file:File):Promise<string>{
@@ -141,7 +141,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   },[opened]);
   if(!request||typeof document==="undefined")return null;
   const isNetflix=request.kind==="netflix";
-  const needsManual=!!scan&&(scan.ocrStatus!=="scanned"||scan.fields.missing.length>0);
+  const needsManual=!!scan&&(scan.ocrStatus!=="local"||scan.fields.missing.length>0);
   const expectedRecipient=String(request.destinationLabel||"").replace(/\D/g,"").slice(-4);
   const amountMismatch=scan?.fields.amountTHB!==null&&scan?.fields.amountTHB!==undefined&&
     Number(scan.fields.amountTHB)!==Number(request.expectedAmountTHB);
@@ -152,7 +152,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   const submit=()=>{
     if(isNetflix){onConfirm();return;}
     if(!canConfirm||!scan)return;
-    onConfirm({slipImageData,slipManualReview:needsManual,slipManualReason:manualReason.trim(),
+    onConfirm({slipImageData,slipOCRText:scan.ocrText||"",slipManualReview:needsManual,slipManualReason:manualReason.trim(),
       slipManualFields:{payoutAt:manualDate?manualDate+":00+07:00":"",transactionRef:manualRef,
         amountTHB:Number(manualAmount),recipientLast4:manualRecipient}});
   };
@@ -206,7 +206,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
           {slipImageData?<img className="reward-slip-preview" src={slipImageData} alt="ภาพสลิปโอนเงินที่แนบ"/>:null}
           {scanning?<p role="status">กำลังอ่านวันที่ เวลา ยอดเงิน เลขอ้างอิง และข้อมูลผู้รับ…</p>:null}
           {scan?<div className="reward-slip-fields">
-            <strong>ผลอ่านสลิป: {scan.ocrStatus==="scanned"?"อ่านภาพแล้ว":"ต้องตรวจด้วยตนเอง"}</strong>
+            <strong>ผลอ่านสลิป: {scan.ocrStatus==="local"?"อ่านภาพในเครื่องแล้ว":"ต้องตรวจด้วยตนเอง"}</strong>
             <div>วัน–เวลา: {dateLabel(scan.fields.payoutAt)||"—"}</div>
             <div>เลขอ้างอิง: {scan.fields.transactionRef||"—"}</div>
             <div>ยอดโอน: {scan.fields.amountTHB===null?"—":scan.fields.amountTHB+" บาท"}</div>
