@@ -101,3 +101,27 @@ candidate token or the authoritative Session document. Clients cannot
 write the notification. Do NOT deploy this isolated canary or enable
 Production until live Firestore rules and true two-browser signal delivery
 are verified, including hidden tabs, file uploads and error recovery.
+
+## QA Core Supabase ACL rollback snapshot — verified 14 Nov 2026
+
+The read-only live catalog inspection verified that each of the six QA
+Core tables currently has identical explicit ALL grants (without GRANT OPTION)
+to `anon`, `authenticated` and `service_role`, granted by `postgres`.
+All six tables have RLS enabled, but granting roles direct Data API access
+still violates the browser revocation boundary. The release status query in
+`supabase-client-access-audit.sql` currently returns **six
+BLOCKED_DIRECT_CLIENT** results. These are not cleared by Vercel builds.
+
+`supabase-qa-core-rollback-acl-20261114.sql` is a **guarded manual-only**
+restore script based on that verified ACL snapshot; it provides a tested
+verification section to re-grant exactly the six table roles if a future
+cutover breaks QA Dashboard or Windows Failover. It is **not executed** in
+this PR and does not grant approval to cut over. Re-check live ACLs before use.
+
+Important: the snapshot does not restore future RLS policy changes or
+Supabase `SECURITY DEFINER` RPC grants. In particular, the current owner
+RPCs `qa_sparks_set_access_enabled_v1`, `sparks_admin_directory_v1`,
+`sparks_admin_auth_status_v1`, and other functions still need review for
+old-browser Supabase Auth JWT access. Do not blindly revoke them because the
+QA Sparks server currently calls some functions with a verified Supabase
+user JWT; replace those call paths with server-bound authorization first.

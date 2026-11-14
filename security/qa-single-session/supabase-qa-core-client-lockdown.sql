@@ -19,8 +19,12 @@
 -- [run the guarded DO and REVOKE statements, omitting the outer BEGIN/COMMIT]
 -- COMMIT;
 --
--- IMPORTANT: No automatic rollback GRANT is provided: restore the exact
--- pre-cutover ACL and RLS policy backup from the change-control record.
+-- IMPORTANT: The separately guarded rollback snapshot is available at
+-- supabase-qa-core-rollback-acl-20261114.sql, but requires renewed human
+-- approval and a current ACL/policy comparison. It only restores table
+-- grants, not unrelated RLS/RPC or other future changes.
+-- Do not execute lockdown until QA Core and Windows failover callers have
+-- migrated to independently session-authorized server APIs.
 
 BEGIN;
 DO $security_release_gate$
