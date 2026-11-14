@@ -3766,7 +3766,7 @@ function ThemePickerModal({
           <div role="tablist" aria-label="Theme Collections" className="qa-theme-collection-tabs">
             {[
               ["color", "Color Collection"],
-              ["thai-lessons", "บทเรียนภาษาไทย"],
+              ["thai-lessons", "Thai Lessons Collection"],
               ["character", "Character Collection"],
               ["festival", "Festival Collection"],
               ["weekday", "7 Days Collection"],
@@ -3811,7 +3811,7 @@ function ThemePickerModal({
                 <span className="qa-thai-lessons-cover-stamp">ป.1</span>
               </div>
               <div className="qa-thai-lessons-details">
-                <span className="qa-thai-lessons-eyebrow">COLLECTION · บทเรียนภาษาไทย</span>
+                <span className="qa-thai-lessons-eyebrow">THAI LESSONS COLLECTION</span>
                 <h3>ตา-มา-รถ-ไฟ ป.1</h3>
                 <p>ภาพประกอบรถไฟ คุณครูและนักเรียน พร้อมกระดาษครีม ลายเส้นแบบหนังสือเรียน ทุกหน้า Dashboard และหน้า Login</p>
                 <button type="button" aria-pressed={selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride}
