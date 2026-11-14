@@ -13,6 +13,12 @@ assert.doesNotMatch(html,/supabase|verifyOtp|OTP.*รหัส|\/api\/sparks/i,"
 assert.doesNotMatch(entry,/supabase|fetch\(|\/api\/|mark-truemoney-paid|Paid\b|localStorage|sessionStorage|\.setItem\(/i,
   "demo must not read login state, upload images or submit payouts");
 assert.match(entry,/readPayoutSlipLocally\(data\)/,"demo uses on-device OCR");
+assert.match(html,/type="file"[^>]*multiple/,"must allow simultaneous selection of several different bank slips");
+assert.match(entry,/MAX_FILES=20/,"limit work per batch to keep local OCR responsive");
+assert.match(entry,/for\(let i=0;i<files\.length;i\+\+\)/,"process each image in its own batch result");
+assert.match(entry,/list\.append\(card\)/,"results must stay separate per uploaded file");
+assert.match(entry,/releaseImages\(\)/,"clearing OCR results must release local image URLs");
+
 assert.match(scanner,/createWorker\(\["tha","eng"\]\)/,"OCR includes Thai and English");
 assert.match(entry,/new FileReader\(/,"demo accepts a local image");
 assert.match(entry,/URL\.createObjectURL/,"demo previews the local file without upload");
