@@ -5,10 +5,24 @@
 import {QA_SYNC_DATASETS} from './qaLiveMirrorStage.js';
 const fail=x=>{throw Object.assign(new Error(x),{code:x});};
 const DOC=/^[^\x00-\x1f\x7f/]{1,900}$/;
+const REV=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+function firestoreRevision(doc){
+ const stamp=doc?.updateTime;
+ const seconds=stamp?.seconds,nanos=stamp?.nanoseconds;
+ if(!Number.isSafeInteger(seconds)||seconds<0||
+   !Number.isSafeInteger(nanos)||nanos<0||nanos>999999999||
+   nanos%1000!==0)
+   fail('qa_probe_missing_exact_revision');
+ const date=new Date(seconds*1000);
+ if(!Number.isFinite(date.getTime()))fail('qa_probe_invalid_revision');
+ return date.toISOString().slice(0,19)+'.'+
+   String(nanos/1000).padStart(6,'0')+'Z';
+}
+
 const EXACT_PROJECT='qa-dashboard-b0b5d';
 const finite=n=>Number.isSafeInteger(n)&&n>=0;
 export function planQaWindowsReadOnlyProbe({
- expectedIds, initialReadBudget=3000,maxChangesPerSnapshot=64,
+ expectedIds, expectedRevisions, initialReadBudget=3000,maxChangesPerSnapshot=64,
 }={}){
  if(!expectedIds||typeof expectedIds!=='object'||Array.isArray(expectedIds)||
     Object.keys(expectedIds).length!==QA_SYNC_DATASETS.length)
@@ -17,24 +31,36 @@ export function planQaWindowsReadOnlyProbe({
     initialReadBudget>3000||!Number.isSafeInteger(maxChangesPerSnapshot)||
     maxChangesPerSnapshot<1||maxChangesPerSnapshot>64)
    fail('qa_probe_unbounded_budget');
- const manifests=new Map(),sets=new Map();
+ if(!expectedRevisions||typeof expectedRevisions!=='object'||
+    Array.isArray(expectedRevisions)||
+    Object.keys(expectedRevisions).length!==QA_SYNC_DATASETS.length)
+   fail('qa_probe_requires_exact_revision_manifests');
+ const manifests=new Map(),sets=new Map(),revisions=new Map();
  let estimated=0;
  for(const dataset of QA_SYNC_DATASETS){
   const ids=expectedIds[dataset];
   if(!Array.isArray(ids)||ids.length>50000||ids.some(id=>typeof id!=='string'||
     !DOC.test(id))||new Set(ids).size!==ids.length)
     fail('qa_probe_invalid_dataset_ids');
+  const times=expectedRevisions[dataset];
+  if(!times||typeof times!=='object'||Array.isArray(times)||
+    Object.keys(times).length!==ids.length||
+    ids.some(id=>!Object.prototype.hasOwnProperty.call(times,id)||
+      typeof times[id]!=='string'||!REV.test(times[id])))
+    fail('qa_probe_invalid_revision_manifest');
   sets.set(dataset,new Set(ids));
+  revisions.set(dataset,new Map(ids.map(id=>[id,times[id]])));
   manifests.set(dataset,ids.length);
   estimated+=Math.max(1,ids.length);
  }
  if(estimated>initialReadBudget)fail('qa_probe_initial_reads_budget_exceeded');
  return Object.freeze({datasetCount:QA_SYNC_DATASETS.length,
-   estimatedInitialReads:estimated,maxChangesPerSnapshot,sets,manifests});
+   estimatedInitialReads:estimated,maxChangesPerSnapshot,
+   sets,manifests,revisions});
 }
 
 export async function startQaWindowsReadOnlyProbe({
- firestore,expectedIds,authenticateSource,reserveBudget,
+ firestore,expectedIds,expectedRevisions,authenticateSource,reserveBudget,
  persistSignal,onUnsafe,env=process.env,
  maxChangesPerSnapshot=64,initialReadBudget=3000,
  setDeadline=(fn,ms)=>setTimeout(fn,ms),
@@ -47,7 +73,7 @@ export async function startQaWindowsReadOnlyProbe({
     typeof persistSignal!=='function'||typeof onUnsafe!=='function')
     fail('qa_probe_disabled_or_missing_private_dependencies');
  const plan=planQaWindowsReadOnlyProbe({
-   expectedIds,initialReadBudget,maxChangesPerSnapshot});
+   expectedIds,expectedRevisions,initialReadBudget,maxChangesPerSnapshot});
  const proof=await authenticateSource();
  if(proof?.authority!=='qa-windows-readonly-source'||
     proof?.projectId!==EXACT_PROJECT||proof?.readonly!==true)
@@ -89,6 +115,9 @@ export async function startQaWindowsReadOnlyProbe({
    if(expected.size!==currentIds.size||
       [...currentIds].some(id=>!expected.has(id)))
      return unsafe('qa_probe_baseline_mismatch');
+   const expectedTimes=plan.revisions.get(dataset);
+   if(snapshot.docs.some(doc=>firestoreRevision(doc)!==expectedTimes.get(doc.id)))
+     return unsafe('qa_probe_baseline_revision_mismatch');
    if(seen.size===plan.datasetCount)ready=true;
    // First snapshot "added" entries are baseline, not incremental events.
    return;
@@ -104,12 +133,14 @@ export async function startQaWindowsReadOnlyProbe({
    const id=docId(ch.doc);
    if(!['added','modified','removed'].includes(ch.type))
     return unsafe('qa_probe_unknown_change_type');
-   if(ch.type==='removed')expected.delete(id);
-   else expected.add(id);
+   if(ch.type==='removed'){expected.delete(id);plan.revisions.get(dataset).delete(id);}
+   else {expected.add(id);plan.revisions.get(dataset).set(id,firestoreRevision(ch.doc));}
    // No data payload, secret, score or unverified Firestore timestamp
    // enters this signal. A separate authoritative source read is needed.
    const event=Object.freeze({collection:dataset,documentId:id,
-     changeType:ch.type,authoritativeDocument:false,
+     changeType:ch.type,
+     observedRevision:ch.type==='removed'?null:plan.revisions.get(dataset).get(id),
+     authoritativeDocument:false,
      sourceCommitVerified:false,requiresSourceRead:true});
    chain=chain.then(async()=>{
     if(stopped)return;

@@ -54,7 +54,8 @@ It is an engineer test helper, not a deployable production listener.
   \`qa-dashboard-b0b5d\`, exact expected document IDs for all collections,
   and a **persisted** initial read-budget reservation.
 - Never counts the initial \`added\` set as new data. Must first see exact
-  ID parity on each collection. If a document differs from the stored
+  ID **and microsecond updateTime parity** on each collection. If a
+  document is changed (even when its ID is the same), missing from the
   baseline, or a collection changes during bootstrap, stops and requires
   source reconciliation.
 - Emits **metadata only** after baseline: collection, document ID and change
