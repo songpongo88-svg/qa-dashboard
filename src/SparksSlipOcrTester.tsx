@@ -60,6 +60,7 @@ export default function SparksSlipOcrTester(){
       {fields.reviewFlags?.length?<p className="sa-muted">ต้องตรวจทาน: {fields.reviewFlags.join(" · ")}</p>:null}
       {fields.missing.length?<p className="sa-error">ยังอ่านไม่ครบ: {fields.missing.join(", ")}</p>:null}
       <p className="sa-muted">ข้อความชื่อบุคคลอาจคลาดเคลื่อนจาก OCR และสลิปนี้ยังไม่ได้รับการตรวจยืนยันกับธนาคาร</p>
+      {scan?.ocrText?<details className="sa-slip-ocr-debug"><summary>ดูข้อความต้นฉบับที่ OCR อ่านได้</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere",maxHeight:220,overflowY:"auto",fontSize:12}}>{scan.ocrText}</pre></details>:null}
     </div>:null}
     {image?<details><summary>ดูภาพต้นฉบับที่ใช้ทดสอบ</summary><img src={image} alt="สลิปตัวอย่าง" style={{display:"block",maxWidth:"100%",maxHeight:560,objectFit:"contain",margin:"10px auto"}}/></details>:null}
   </div>;
