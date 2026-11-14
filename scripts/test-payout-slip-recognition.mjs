@@ -26,7 +26,7 @@ await assert.rejects(preparePayoutEvidence({...body,slipManualFields:{...body.sl
 // The server never calls Google Vision and never accepts an OCR mismatch.
 const mismatchedOCR="14/11/2569 15:45\nเลขที่รายการ PAYTEST123456\nจำนวนเงิน 30.00 บาท\nผู้รับเงิน\n•••• 5678";
 await assert.rejects(preparePayoutEvidence({...body,slipOCRText:mismatchedOCR},request,admin),/ยอดเงินในสลิปไม่ตรง/);
-const missingRefOCR="14/11/2569 15:45\nจำนวนเงิน 20.00 บาท";
+const missingRefOCR="จำนวนเงิน 20.00 บาท";
 const localProof=await preparePayoutEvidence({...body,slipOCRText:missingRefOCR},request,admin);
 assert.equal(localProof.summary.ocrEngine,"tesseract-local");
 assert.equal(localProof.summary.reviewMode,"manual");
