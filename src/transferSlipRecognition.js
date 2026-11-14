@@ -119,6 +119,7 @@ function references(lines){
   const refLabel=/(หมายเลขอ้างอิง|เลขที่อ้างอิง|เลข(?:ที่|รายการ)?(?:อ้างอิง|รายการ|ธุรกรรม)|รหัสอ้างอิง|เลขที่รายการ|เลขที่ทำรายการ|(?:TRANSACTION|TRANSFER)\s*(?:ID|NO\.?|REF(?:ERENCE)?)|(?:REFERENCE|REF)\s*(?:NO\.?|NUMBER|ID|#))/i;
   const candidate=s=>{
     const str=String(s||"").trim().replace(/^[\s:：#=\-]+/,"");
+    if(/(?:[xX*•%]{2,})/.test(str))return ""; // masked account is never a transaction reference
     // Reject OCR prefixes glued to Thai gibberish: "202603292ผ...9"
     // is not a valid transaction reference and must never count as one.
     const m=str.match(/^([A-Z0-9][A-Z0-9/_-]{5,69})(?=$|[\s,.!:;])/i);
@@ -130,7 +131,7 @@ function references(lines){
     const m=refLabel.exec(lines[i]);if(!m)continue;
     let ref=candidate(lines[i].slice(m.index+m[0].length));
     if(!ref)for(let step=1;step<=3;step++){
-      const next=lines[i+step];if(!next||refLabel.test(next)||feeLabel.test(next)||amountLabel.test(next))break;
+      const next=lines[i+step];if(!next||refLabel.test(next)||feeLabel.test(next)||amountLabel.test(next)||/^(?:จาก|ไปที่|ไปยัง|ถึง|to|from|ผู้โอน|ผู้รับ|ธนาคาร|นาย|นางสาว)(?:\s|$)/i.test(next))break;
       ref=candidate(next);if(ref)break;
     }
     if(!ref)continue;
