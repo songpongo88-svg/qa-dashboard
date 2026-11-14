@@ -20,7 +20,7 @@ export type PayoutScan={ocrStatus:string;message:string;ocrText?:string;fields:{
   senderName?:string;senderBank?:string;senderAccountMasked?:string;
   recipientName?:string;recipientBank?:string;recipientAccountMasked?:string;
   recipientVisibleSuffix?:string;recipientIdentifierType?:string;
-  feeTHB?:number|null;isSuccessful?:boolean;reviewFlags?:string[];amountCandidates?:number[];
+  feeTHB?:number|null;isSuccessful?:boolean;reviewFlags?:string[];amountCandidates?:number[];amountCorrectedFromCurrencyGlyph?:boolean;
 }};
 export type PayoutProof={slipImageData:string;slipOCRText:string;slipManualReview:boolean;slipManualReason:string;slipRecipientChecked?:boolean;slipManualFields:{
   payoutAt:string;transactionRef:string;amountTHB:number;recipientLast4:string;
