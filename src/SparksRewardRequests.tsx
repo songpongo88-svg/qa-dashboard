@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
-import RewardActionConfirmModal, { type RewardConfirmation, type PayoutProof, type PayoutScan } from "./RewardActionConfirmModal";
+import RewardActionConfirmModal, { type RewardConfirmation, type PayoutProof } from "./RewardActionConfirmModal";
+import {readPayoutSlipLocally} from "./localPayoutSlipOcr";
 
 type RequestRow = {
   requestId: string; itemId: string; username: string; displayName: string; createdAt: string; status: string;
@@ -208,6 +209,6 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
       <div className="sa-request-toolbar"><span>{ready ? visible.length + " รายการ" : loaded.truemoney || loaded.special ? visible.length + " รายการ · ข้อมูลยังโหลดไม่ครบ" : "ยังไม่ได้โหลดรายการ"}</span><label>สถานะ <select aria-label="สถานะคำขอ" value={filter} onChange={event => setFilter(event.target.value)}><option value="pending">รอดำเนินการ</option><option value="all">ทุกสถานะ</option>{Object.entries(stageLabels).filter(([value]) => value !== "unknown").map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></div></div>
       <div className="sa-table-wrap"><table className="sa-request-table"><thead><tr><th>ผู้ขอ / เลขคำขอ</th><th>รางวัล</th><th>สถานะ</th><th>ส่งคำขอ</th><th>ดำเนินการ</th></tr></thead><tbody>{visible.map(item => <tr key={item.channel + item.itemId}><td><strong>{item.displayName || item.username}</strong><small>@{item.username} · {item.requestId}</small></td><td><div className="sa-reward-cell">{brandSymbol(item)}<span>{item.title}</span></div></td><td data-label="สถานะ">{badge(item)}</td><td data-label="ส่งคำขอ">{dateLabel(item.createdAt)}</td><td><button type="button" className="sa-row-action" data-request-open={item.itemId} onClick={() => { setSelected(item.channel + ":" + item.itemId); setNote(item.adminNote || ""); setError(""); setMessage(""); }}>{stage(item) === "review" ? "ตรวจใบเสร็จ" : stage(item) === "send" ? "จัดส่งสิทธิ์ Netflix" : stage(item) === "transfer" ? "บันทึกโอน " + (brands.find(value => value[0] === item.rewardId)?.[1] || item.title) : "ดูผลการดำเนินการ"} →</button></td></tr>)}</tbody></table>{visible.length === 0 ? <p className="sa-empty">{loading ? "กำลังโหลดรายการ..." : !ready ? "กดโหลดคำขอรางวัลเพื่อดูรายการล่าสุด" : "ไม่มีคำขอในสถานะนี้"}</p> : null}</div>
     </>}
-    <RewardActionConfirmModal request={confirmation} busy={saving} error={confirmation ? error : ""} onCancel={() => { if (!saving) { setConfirmation(null); setError(""); } }} onAnalyze={async imageData=>call("analyze-payout-slip",{imageData}) as Promise<PayoutScan>} onConfirm={proof => void perform("complete",proof)}/>
+    <RewardActionConfirmModal request={confirmation} busy={saving} error={confirmation ? error : ""} onCancel={() => { if (!saving) { setConfirmation(null); setError(""); } }} onAnalyze={readPayoutSlipLocally} onConfirm={proof => void perform("complete",proof)}/>
   </section>;
 }
