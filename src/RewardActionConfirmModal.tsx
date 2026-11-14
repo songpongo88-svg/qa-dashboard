@@ -16,11 +16,11 @@ export type RewardConfirmation={
 };
 export type PayoutScan={ocrStatus:string;message:string;ocrText?:string;fields:{
   payoutAt:string;transactionRef:string;amountTHB:number|null;recipientLast4:string;recipientLabel:string;missing:string[];
-  shortReference?:string;longReference?:string;dateSource?:string;bank?:string;
+  shortReference?:string;longReference?:string;referenceCandidates?:string[];dateSource?:string;bank?:string;issuerSource?:string;
   senderName?:string;senderBank?:string;senderAccountMasked?:string;
   recipientName?:string;recipientBank?:string;recipientAccountMasked?:string;
   recipientVisibleSuffix?:string;recipientIdentifierType?:string;
-  feeTHB?:number|null;isSuccessful?:boolean;reviewFlags?:string[];amountCandidates?:number[];amountCorrectedFromCurrencyGlyph?:boolean;
+  feeTHB?:number|null;isSuccessful?:boolean;reviewFlags?:string[];amountCandidates?:number[];amountCorrectedFromCurrencyGlyph?:boolean;walletGlyphUncertain?:boolean;
 }};
 export type PayoutProof={slipImageData:string;slipOCRText:string;slipManualReview:boolean;slipManualReason:string;slipRecipientChecked?:boolean;slipManualFields:{
   payoutAt:string;transactionRef:string;amountTHB:number;recipientLast4:string;
@@ -224,6 +224,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
             <div>เลขอ้างอิงหลัก: {scan.fields.transactionRef||"—"}</div>
             {scan.fields.shortReference?<div>หมายเลขอ้างอิง: {scan.fields.shortReference}</div>:null}
             {scan.fields.longReference?<div>เลขที่อ้างอิง: {scan.fields.longReference}</div>:null}
+            {(scan.fields.referenceCandidates?.length||0)>1?<div>เลขอ้างอิงที่ OCR พบ: {scan.fields.referenceCandidates?.join(" / ")} (ต้องตรวจภาพจริง)</div>:null}
             {scan.fields.senderName?<div>ผู้โอน (อ่านจากภาพ): {scan.fields.senderName}</div>:null}
             {scan.fields.senderAccountMasked?<div>เลขบัญชีผู้โอน: {scan.fields.senderAccountMasked}</div>:null}
             <div>ชื่อผู้รับ (อ่านจากภาพ): {scan.fields.recipientName||scan.fields.recipientLabel||"—"}</div>
