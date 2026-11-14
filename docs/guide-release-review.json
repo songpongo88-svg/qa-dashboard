@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T06:05:27.230Z",
-  "reason": "Reviewed combined textbook selection fixes: retain the latest full-card accessible activation and allow the full card to scroll without clipping. Browser layout and theme preference/login checks pass; QA workflows and guide text are unchanged.",
+  "reviewedAt": "2026-11-14T10:36:03.328Z",
+  "reason": "Reviewed Thai Lessons persistence regression coverage and fresh-install login theme test setup. Theme presentation and user guide content are unchanged.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -370,7 +370,7 @@
     "scripts/test-late-appeal-72h.mjs": "de13de1067162e54334ade6d6a90c7b15d8e17e932f15d9e48958700179c958e",
     "scripts/test-line-drawing-update.mjs": "61771a9c996cfec3aef289cc80caed0370ece9dc640e25deb66779d8fb7f9622",
     "scripts/test-line-drawing.mjs": "2a83eb186d01cb72412a019b62dd854d070b0337584593efe896a9f65243b4ca",
-    "scripts/test-login-themes.mjs": "2a4299f58f8774b2060ba886a9de3639ee1682c82b1c4b43626c072ff0048ffe",
+    "scripts/test-login-themes.mjs": "d0635aceb0340d91091226ee9ff73966a1317112a36332a1c9270ffd9a43f2a4",
     "scripts/test-monthly-coaching.mjs": "2b89d20bf6b3b9692e717a0af80e33a723026652028776e0f5683941f1a2480e",
     "scripts/test-monthly-result-lock.mjs": "275ac86a4849f035302012c586ba0b6be39c93d452c624596dbeb446f001b011",
     "scripts/test-monthly-signature-pdf.mjs": "9905f766878080429fb5bb6231fc8ab433f4b61fa13b2363c385c43a3e0f7016",
@@ -428,7 +428,7 @@
     "scripts/test-special-ui.mjs": "a9f4245a213f59fc12bd2df1faf116a7990bf8ae32160fb379016518ec4b17f4",
     "scripts/test-suphitcha-typing-reset-ui.mjs": "7372eb3de2b30f644d96e994730b794d08adf0931ca25a7ea868bc47de5d5158",
     "scripts/test-suphitcha-typing-reset.mjs": "b7fbca6315cdfe8c7f1be58e09b84775bbea6faeb56b0cdff03824ad0c0563cc",
-    "scripts/test-theme-preference.mjs": "36c3d2dc3f051154af017dd71ce38f6b0d60971c2726cc51f4ae2196d724b619",
+    "scripts/test-theme-preference.mjs": "8315f2ce33bc9166bc9c508c94e2029c43820415f4df14d460a7b3c0a2ce5798",
     "scripts/test-theme-preview.mjs": "92abb82b87cffe7d9ddd03fd4590d7a594e944c0778971d63cefb84a79eed183",
     "scripts/test-truemoney-tracker-confirm-ui.mjs": "1fb9f5918f10d72da1a0e32170f4f1deabb871632b13d8cf5c792656496dcfa0",
     "scripts/test-typing-relief-reward.mjs": "7f6131f39355630542a9a63e697458c667cdd3b2012ab40d810ce55b3d404748",
