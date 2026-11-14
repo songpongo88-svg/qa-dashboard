@@ -34,7 +34,12 @@ assert.equal(model.resolveLoginTheme(otherInk,{lineDrawingPublished:'true'}).id,
 console.log('PASS private owner login skin, shared-browser username isolation, server-published skin and appearance minimization');
 
 
-for (const [id] of model.COLOR_LOGIN_THEMES) assert.equal(model.resolveLoginTheme(appearance(id)).collection, 'color');
+for (const [id] of model.COLOR_LOGIN_THEMES.filter(([id]) => id !== 'textbook-train')) assert.equal(model.resolveLoginTheme(appearance(id)).collection, 'color');
+const textbook = model.resolveLoginTheme(appearance('textbook-train'));
+assert.equal(textbook.id, 'textbook-train');
+assert.equal(textbook.collection, 'thai-lessons');
+assert.equal(textbook.image, '/textbook-theme/landscape.svg');
+assert.ok(fs.statSync(resolve('public' + textbook.image)).size > 1000);
 for (const theme of CHARACTER_THEMES) {
   const v1 = model.resolveLoginTheme(appearance(theme.id)), v2 = model.resolveLoginTheme(appearance(theme.id, { characterVersion: 2 }));
   assert.equal(v1.characterVersion, 1); assert.equal(v2.characterVersion, 2);
@@ -56,7 +61,7 @@ assert.equal(model.resolveLoginTheme(appearance('ocean', { preference: 'weather-
 for (let index = 0; index < 7; index++) assert.equal(model.resolveLoginTheme(appearance('ocean', { preference: 'weekday-auto' }), { now: Date.parse(`2026-10-${19 + index}T05:00:00Z`) }).id, WEEKDAY_IDS[index]);
 assert.equal(model.resolveLoginTheme(appearance('ocean', { preference: 'weekday-auto' }), { now: Date.parse('2026-10-19T16:59:59Z') }).id, 'weekday-monday');
 assert.equal(model.resolveLoginTheme(appearance('ocean', { preference: 'weekday-auto' }), { now: Date.parse('2026-10-19T17:00:00Z') }).id, 'weekday-tuesday');
-console.log('PASS 8 colors, 6 characters in both versions, 3 Special themes, 6 scheduled festivals, 14 weather scenes, and 7 weekdays at Bangkok midnight');
+console.log('PASS 8 colors, standalone Thai Lessons artwork, 6 characters in both versions, 3 Special themes, 6 scheduled festivals, 14 weather scenes, and 7 weekdays at Bangkok midnight');
 
 const dom = new JSDOM('<div id="root"></div>', { url: 'https://login.test/', pretendToBeVisual: true });
 for (const key of ['window', 'document', 'localStorage', 'MutationObserver', 'Event', 'CustomEvent']) globalThis[key] = dom.window[key];
@@ -81,6 +86,8 @@ try {
   assert.equal(localStorage.getItem(model.LOGIN_APPEARANCE_KEY), rememberedA, 'do not replace the last appearance with a temporary account default');
   await render({ authenticated: true, ready: true, themeId: 'kitty-pink', characterVersion: 1 });
   await render(); assert.equal(latest.id, 'kitty-pink'); assert.equal(latest.characterVersion, 1);
+  await render({ authenticated: true, ready: true, themeId: 'textbook-train' });
+  await render(); assert.equal(latest.id, 'textbook-train'); assert.equal(latest.collection, 'thai-lessons', 'logout keeps the chosen textbook login appearance');
   await render({ authenticated: true, ready: true, themeId: 'special-misty' });
   await render(); assert.equal(latest.id, 'special-misty');
   assert.equal(document.documentElement.dataset.qaSpecialUnlocked, 'false', 'displaying the remembered art cannot grant Special access');
