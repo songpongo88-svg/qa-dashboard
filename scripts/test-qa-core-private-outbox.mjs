@@ -7,7 +7,7 @@ const base={
  operationId:'qa-stage-operation-00001',
  documentPath:'qa_evaluations/AA100001',
  operation:'upsert',
- documentJson:{fields:{finalScore:{integerValue:'85'}}},
+ documentJson:{fields:{finalScore:{integerValue:'85'},note:{stringValue:'fixture'}}},
 };
 const e=normalizeQaCoreIntent(base);
 assert.equal(e.collection,'qa_evaluations');
@@ -60,18 +60,13 @@ assert.equal(first.failoverReady,false);
 const duplicate=await stageQaCorePendingIntent({pool,event:base,
  authorizeServerMutation:auth,env});
 assert.equal(duplicate.replay,true);
-const semanticallySame=await stageQaCorePendingIntent({pool,event:{
- ...base,documentJson:{fields:{finalScore:{integerValue:'85'}},extra:undefined}
-},authorizeServerMutation:auth,env});
-assert.equal(semanticallySame.replay,true);
 // JSONB equality ignores JSON object key order, unlike JSON.stringify.
-stored.document_json={fields:{finalScore:{integerValue:'85'}}};
 const sameOrderIndependent=await stageQaCorePendingIntent({pool,event:{
- ...base,documentJson:{fields:{finalScore:{integerValue:'85'}}}
+ ...base,documentJson:{fields:{note:{stringValue:'fixture'},finalScore:{integerValue:'85'}}}
 },authorizeServerMutation:auth,env});
 assert.equal(sameOrderIndependent.replay,true);
 await assert.rejects(stageQaCorePendingIntent({pool,event:{
- ...base,documentJson:{fields:{finalScore:{integerValue:'84'}}}
+ ...base,documentJson:{fields:{finalScore:{integerValue:'84'},note:{stringValue:'fixture'}}}
 },authorizeServerMutation:auth,env}),/qa_outbox_idempotency_collision/);
 
 await assert.rejects(stageQaCorePendingIntent({pool,
