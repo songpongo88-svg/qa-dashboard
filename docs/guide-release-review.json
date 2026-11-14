@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T13:48:45.743Z",
-  "reason": "Reviewed standalone OCR demo as separate public HTML with built-in Tesseract parsing; root HTML routes are outside the source-hash guide guard, while vite.config, standalone entry, tests, package and QA Sparks manual are all hashed. No auth or payout logic exposed.",
+  "reviewedAt": "2026-11-14T14:04:36.149Z",
+  "reason": "Reviewed OCR from actual Bangkok Bank, K PLUS and TrueMoney transfer-slip example images (sanitized regression fixtures). Wallet glyph B/8 ambiguity handled only with corroborated headline, fee ambiguity cannot silently convert to Paid. Thai/English OCR and admin-only payout confirmation unchanged.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -377,7 +377,7 @@
     "scripts/test-monthly-result-lock.mjs": "275ac86a4849f035302012c586ba0b6be39c93d452c624596dbeb446f001b011",
     "scripts/test-monthly-signature-pdf.mjs": "9905f766878080429fb5bb6231fc8ab433f4b61fa13b2363c385c43a3e0f7016",
     "scripts/test-payment-document-ref.mjs": "b3ac8cd094ba6a1e94b6b571c1db529fc939d5201b6d9039a3c2202750d675ba",
-    "scripts/test-payout-slip-recognition.mjs": "3e74b75b0f8a54c8be3fd5bf00bbf0e1ea43fabce6bee2abec66b9067f2cfc11",
+    "scripts/test-payout-slip-recognition.mjs": "152cc51bcdfdd2035a155af47698a5f89cf02f30d0a51fbbd9a7bad88a70750c",
     "scripts/test-pdf-dates.mjs": "b13ed1e04faecd3eca4f08e8a36a4b66bcbeb1aa7636b2a1da01c7fb7472d32b",
     "scripts/test-process-file-confirmation.mjs": "5250147a21e46f3df6f48c04eeed18edfb04da690bbaa9f47abf5e6aa9a4875b",
     "scripts/test-process-file-management.mjs": "5f31e59c8f9a60664e4dd9cb78e2d0e56e3253326efd70500c7f7d9704c4f7a9",
@@ -744,7 +744,7 @@
     "src/THSarabunNew-jsPDF.ts": "531b09f3c91a7afbd5cb124da8c05b695a1f4348ca4e140cd06fc40d7d4fc1bc",
     "src/Time24Input.tsx": "b1234fe54f457f12d86d7edc41eb233ea9ecacf7591708e146e26b37edf764fb",
     "src/TrainingAttendanceMockup.tsx": "ee06591f02edb8b914af12503b4f5bfb519ca33fa4233174e7916ea5711295ea",
-    "src/transferSlipRecognition.js": "f6aba22754934ad39cd90b3bc64afd9386bd74323a50507de8ef8a98919b6b97",
+    "src/transferSlipRecognition.js": "4dde868f666a3eb17a998837a37105e5c491b3c2579374f14e8bed6627c217df",
     "src/TrueMoneyReward.tsx": "65359517746f3fc6c550962e6cce874eeb91d1eded9cd4642e56ceb03f089bc2",
     "src/TrueMoneyTracker.tsx": "8af10164d383a417b0b94a6d5be2639fff4578b3b0dba8c56a9ac4bdcdfa9835",
     "src/typingReliefPricing.mjs": "1b01a39b16ae2b10e4740ea9101478ae5b9c72d24630b73b4e2151b740c96a4c",
