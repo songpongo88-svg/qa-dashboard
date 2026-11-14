@@ -47,3 +47,28 @@ consistency, dedicated authenticated backend, durable source acknowledgment,
 verified replay on Windows with a non-Google sender identity, consumer
 retries/dead-letter alerts, independent parity, local login/roles/locks,
 attachment handling and failback. Keep QA_FAILOVER=OFF and PR Draft.
+
+
+## Pending write outcomes and quarantine (2026-11-14)
+
+- Commit `e71f948` uses PostgreSQL `jsonb` equality for duplicate
+  operation IDs. JSON object key order is not a mutation conflict; a changed
+  score or document path with the same operation ID remains a hard failure.
+  Both unit and disposable PostgreSQL 17 tests cover this.
+- Commit `6b2ecd5` adds `server/qaCoreOutboxUncertainty.js` to
+  stage-only code. If a future trusted server cannot establish whether a
+  Firestore source mutation succeeded, it may atomically quarantine an
+  existing **pending** operation as
+  `source_state=needs_reconcile,delivery_state=blocked`. An already
+  committed/delivered operation cannot be downgraded to uncertain.
+  Quarantine is idempotent and cannot trigger a Windows delivery.
+- These functions are **not currently exposed to browser clients, Vercel or
+  Supabase RPC**. They require a separately authorized server attestor,
+  an explicit server-side feature flag, and a private PostgreSQL connection.
+  A caller-provided object must never be accepted as proof of Firestore
+  mutation success. No function in this stage claims a source commit.
+- The live Supabase table still has **zero records** at the last checked
+  read-only query. The staging receiver on Windows remains `NOLOGIN`
+  and `NOT_STARTED`. There is no actual source event producer or live
+  consumer connected to this outbox.
+
