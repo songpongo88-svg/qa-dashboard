@@ -1,5 +1,6 @@
 import React,{useCallback,useState} from "react";
-import RewardActionConfirmModal,{type PayoutProof,type PayoutScan} from "./RewardActionConfirmModal";
+import RewardActionConfirmModal,{type PayoutProof} from "./RewardActionConfirmModal";
+import {readPayoutSlipLocally} from "./localPayoutSlipOcr";
 
 type Request={
   requestId:string;itemId:string;username:string;displayName:string;phone:string;
@@ -146,7 +147,7 @@ export default function TrueMoneyTracker({actorUsername,sessionId,adminReady}:Pr
       })():null}
       busy={busy} error={selected?error:""}
       onCancel={()=>{if(!busy){setSelected(null);setError("");}}}
-      onAnalyze={async imageData=>call("analyze-payout-slip",{imageData}) as Promise<PayoutScan>}
+      onAnalyze={readPayoutSlipLocally}
       onConfirm={proof=>void markPaid(proof)}/>
   </section>;
 }
