@@ -43,6 +43,39 @@ assert.ok(!manualLogoutPath.includes('qaServerSessionRequest("logout")'),
   "Manual logout must not duplicate the shared server revocation request");
 assert.ok(application.includes('const handleInactivityLogout = () => {\n    endSessionEverywhere("inactivity");'),
   "The idle timer must reach the shared trusted-session logout path");
+assert.ok(logoutPath.includes("logoutUser?.username && !QA_SINGLE_SESSION_CLIENT_ENABLED"),
+  "Trusted mode must never run the legacy global revokedBefore watermark");
+const legacyStore = await readFile(new URL("../src/sessionStore.ts", import.meta.url), "utf8");
+assert.ok(legacyStore.includes("revokedBefore: now"),
+  "The global legacy revocation is broad and must remain disabled under trusted mode");
+const centralCheck = application.split("    const checkCentralSession = async () => {")[1]
+  ?.split("    const handleVisibilityCheck = () => {")[0] || "";
+assert.ok(centralCheck.includes('qaServerSessionRequest("validate")'),
+  "Trusted mode must use the authoritative server instead of a legacy 30-minute record");
+assert.ok(centralCheck.includes("!matchesTrustedQaIdentity(currentUser, verified)"),
+  "A trusted session must be identity-bound on background validation");
+assert.ok(centralCheck.includes("} else {\n          const validation = await validateStoredUserSession("),
+  "Legacy validation remains unchanged when the feature flag is disabled");
+const restore = application.split("async function restoreSecureSession() {")[1]
+  ?.split("const migratedSession = await createStoredUserSession")[0] || "";
+assert.ok(restore.includes('await qaServerSessionRequest("touch")'),
+  "Restoring an active trusted session must renew its 30-minute server cookie");
+assert.ok(application.includes("} else if (QA_SINGLE_SESSION_CLIENT_ENABLED) {\n          // Legacy sessions"),
+  "Trusted restored sessions must not be rejected by expired legacy Firebase timestamps");
+const touchPath = application.split("  const touchTrustedSessionIfDue = (force = false) => {")[1]
+  ?.split("  const resetInactivityTimer = () => {")[0] || "";
+assert.ok(touchPath.includes('qaServerSessionRequest("touch")'),
+  "The trusted 15-minute renewal should be server-verified");
+assert.ok(application.includes("TRUSTED_SESSION_TOUCH_INTERVAL_MS = 15 * 60 * 1000"),
+  "Trusted renewal needs a quota-safe cadence shorter than its 30-minute lifetime");
+assert.ok(application.includes("lastTrustedUserActivityRef.current = now;"),
+  "User interaction must update the last trusted activity marker");
+assert.ok(application.includes("now - lastTrustedUserActivityRef.current >= TRUSTED_SESSION_TOUCH_INTERVAL_MS"),
+  "Hidden or idle browsers may not refresh session expiration automatically");
+assert.ok(application.includes("touchTrustedSessionIfDue(true);"),
+  "Stay signed in must renew the trusted server pointer, not only the legacy document");
+assert.ok(application.includes("!QA_SINGLE_SESSION_CLIENT_ENABLED &&\n      currentUser.sessionId"),
+  "The active server mode must not spend legacy Firestore session-touch writes");
 const takeoverEffect = application.split("// Server-backed takeover requests are checked independently")[1]?.split("  const startSessionTimers = () => {")[0] || "";
 assert.ok(takeoverEffect.includes('document.visibilityState !== "visible"'),
   "Hidden tabs must not repeatedly poll the session backend");

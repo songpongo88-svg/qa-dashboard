@@ -414,6 +414,11 @@ const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 // Keep client-side polling at the existing quota-safe cadence; server-side authorization must enforce invalidation.
 const SESSION_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 const SESSION_TOUCH_INTERVAL_MS = 29 * 60 * 1000;
+// Only a verified QA activity extends the trusted 30-minute session.
+// Firestore writes are capped to once per 15 minutes, and visibility checks
+// never extend an inactive/background browser on their own.
+const TRUSTED_SESSION_TOUCH_INTERVAL_MS = 15 * 60 * 1000;
+const TRUSTED_SESSION_HEARTBEAT_CHECK_MS = 5 * 60 * 1000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
@@ -3927,6 +3932,7 @@ export default function App() {
   const [takeoverStatus, setTakeoverStatus] = useState("awaiting_consent");
   const [takeoverBusy, setTakeoverBusy] = useState(false);
   const lastTrustedSessionTouchRef = useRef(0);
+  const lastTrustedUserActivityRef = useRef(0);
   const [loginStep, setLoginStep] = useState<"username" | "password">("username");
   const [loginUsernameStatus, setLoginUsernameStatus] = useState<
     "idle" | "checking" | "valid" | "invalid"
@@ -4296,6 +4302,10 @@ export default function App() {
       currentUserWasRestoredRef.current = false;
       restoredLoginLoggedRef.current = true;
       lastSessionTouchRef.current = Date.now();
+      if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+        lastTrustedSessionTouchRef.current = Date.now();
+        lastTrustedUserActivityRef.current = Date.now();
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));
       if (rememberLogin) {
         localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);
@@ -4339,6 +4349,12 @@ export default function App() {
             throw new Error("Trusted QA identity mismatch; local session cannot be restored");
           }
           await activateQaFirebaseIdentity();
+          // A new page load is authenticated activity. Refresh the trusted
+          // cookie before opening the workspace; stale legacy-session
+          // timestamps must not invalidate this server-verified login.
+          await qaServerSessionRequest("touch");
+          lastTrustedSessionTouchRef.current = Date.now();
+          lastTrustedUserActivityRef.current = Date.now();
         }
         let restoredUser = storedUser;
 
@@ -4365,6 +4381,10 @@ export default function App() {
             sessionExpiresAt: migratedSession.expiresAt,
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));
+        } else if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+          // Legacy sessions are compatibility records, not an additional
+          // authority for the server-verified Single Active Session.
+          restoredUser = storedUser;
         } else {
           const validation = await validateStoredUserSession(
             storedUser.sessionId,
@@ -6716,7 +6736,10 @@ export default function App() {
       });
     }
 
-    if (logoutUser?.username) {
+    // In trusted mode, the server revokes ONLY its active pointer.
+    // The legacy helper writes revokedBefore for the ENTIRE username,
+    // so a stale browser invoking it could revoke the new browser too.
+    if (logoutUser?.username && !QA_SINGLE_SESSION_CLIENT_ENABLED) {
       void revokeAllStoredUserSessions(
         logoutUser.username,
         logoutUser.sessionId || "",
@@ -6760,20 +6783,33 @@ export default function App() {
       checking = true;
       lastCheckedAt = now;
       try {
-        const validation = await validateStoredUserSession(
-          currentUser.sessionId || "",
-          currentUser.username
-        );
-
-        if (!validation.valid && !cancelled) {
-          clearLocalSession(
-            validation.reason === "expired"
-              ? "Your session expired after 30 minutes of inactivity. Please sign in again."
-              : "This session was logged out from another browser. Please sign in again."
+        if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+          const verified = await qaServerSessionRequest("validate");
+          if (!matchesTrustedQaIdentity(currentUser, verified) && !cancelled) {
+            clearLocalSession("บัญชีนี้ถูกย้ายไปใช้งานบน Browser อื่น กรุณาเข้าสู่ระบบใหม่");
+          }
+        } else {
+          const validation = await validateStoredUserSession(
+            currentUser.sessionId || "",
+            currentUser.username
           );
+
+          if (!validation.valid && !cancelled) {
+            clearLocalSession(
+              validation.reason === "expired"
+                ? "Your session expired after 30 minutes of inactivity. Please sign in again."
+                : "This session was logged out from another browser. Please sign in again."
+            );
+          }
         }
       } catch (error) {
-        console.warn("Central session check failed; will retry.", error);
+        if (!cancelled && QA_SINGLE_SESSION_CLIENT_ENABLED &&
+            error instanceof QaServerSessionError &&
+            (error.code === "SESSION_REPLACED" || error.code === "SESSION_EXPIRED")) {
+          clearLocalSession("Session นี้หมดอายุหรือถูกย้ายไปยัง Browser อื่น");
+        } else {
+          console.warn("Central session check failed; will retry.", error);
+        }
       } finally {
         checking = false;
       }
@@ -6928,21 +6964,36 @@ export default function App() {
     }, INACTIVITY_LIMIT_MS);
   };
 
+  const touchTrustedSessionIfDue = (force = false) => {
+    if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser || navigator.onLine === false) return;
+    const now = Date.now();
+    if (now - lastTrustedSessionTouchRef.current <
+        (force ? 60_000 : TRUSTED_SESSION_TOUCH_INTERVAL_MS)) return;
+    // Set before sending so rapid mouse/keyboard events and the heartbeat
+    // cannot issue parallel Firestore writes for the same session.
+    lastTrustedSessionTouchRef.current = now;
+    void qaServerSessionRequest("touch").catch(error => {
+      // Retry transient outages after one minute; never spam each keystroke.
+      lastTrustedSessionTouchRef.current = Date.now() - TRUSTED_SESSION_TOUCH_INTERVAL_MS + 60_000;
+      if (error instanceof QaServerSessionError &&
+          (error.code === "SESSION_REPLACED" || error.code === "SESSION_EXPIRED")) {
+        clearLocalSession("Session นี้หมดอายุหรือถูกย้ายไปยัง Browser อื่น");
+      } else {
+        console.warn("Trusted QA session renewal unavailable", error);
+      }
+    });
+  };
+
   const resetInactivityTimer = () => {
     if (!currentUser) return;
 
     const now = Date.now();
-    if (QA_SINGLE_SESSION_CLIENT_ENABLED && now - lastTrustedSessionTouchRef.current >= 25 * 60 * 1000) {
-      lastTrustedSessionTouchRef.current = now;
-      void qaServerSessionRequest("touch").catch(error => {
-        lastTrustedSessionTouchRef.current = 0;
-        if (error instanceof QaServerSessionError &&
-            (error.code === "SESSION_REPLACED" || error.code === "SESSION_EXPIRED")) {
-          clearLocalSession("Session นี้หมดอายุหรือถูกย้ายไปยัง Browser อื่น");
-        }
-      });
+    if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+      lastTrustedUserActivityRef.current = now;
+      touchTrustedSessionIfDue();
     }
     if (
+      !QA_SINGLE_SESSION_CLIENT_ENABLED &&
       currentUser.sessionId &&
       now - lastSessionTouchRef.current >= SESSION_TOUCH_INTERVAL_MS
     ) {
@@ -6957,6 +7008,22 @@ export default function App() {
 
     startSessionTimers();
   };
+
+  // A visible, recently active browser refreshes the trusted session before
+  // the 30-minute server expiry, even if the last event occurred just below
+  // the 15-minute write-throttle threshold. Hidden/inactive pages do not
+  // create heartbeat writes.
+  useEffect(() => {
+    if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser?.username) return;
+    const heartbeat = () => {
+      const now = Date.now();
+      if (navigator.onLine === false || document.visibilityState !== "visible" ||
+          now - lastTrustedUserActivityRef.current >= TRUSTED_SESSION_TOUCH_INTERVAL_MS) return;
+      touchTrustedSessionIfDue();
+    };
+    const timer = window.setInterval(heartbeat, TRUSTED_SESSION_HEARTBEAT_CHECK_MS);
+    return () => window.clearInterval(timer);
+  }, [currentUser?.username, currentUser?.sessionId]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -7383,7 +7450,10 @@ export default function App() {
   };
 
   const handleStayLoggedIn = () => {
-    if (currentUser?.sessionId) {
+    if (QA_SINGLE_SESSION_CLIENT_ENABLED && currentUser) {
+      lastTrustedUserActivityRef.current = Date.now();
+      touchTrustedSessionIfDue(true);
+    } else if (currentUser?.sessionId) {
       lastSessionTouchRef.current = Date.now();
       void touchStoredUserSession(
         currentUser.sessionId,

@@ -3,7 +3,7 @@ import { generateKeyPairSync } from "node:crypto";
 import {
   signQaTicket, activateNewSession, requestTakeover, getTakeoverForOldBrowser,
   saveOwnedDraft, acknowledgeTakeover, commitTakeover, authorizeActiveSession,
-  revokeOwnSession,
+  revokeOwnSession, renewActiveSession,
 } from "../server/qaSingleSessionAdmin.js";
 
 const { privateKey } = generateKeyPairSync("rsa", {
@@ -141,6 +141,13 @@ try {
   );
   const currentBrowser = ticketRequest("session", actor.username, replaced.sessionId);
   assert.equal((await authorizeActiveSession(currentBrowser)).ticket.sessionId, replaced.sessionId);
+  const renewed = await renewActiveSession(currentBrowser);
+  assert.equal(renewed.sessionId, replaced.sessionId);
+  assert.equal(renewed.username, actor.username);
+  assert.ok(db.get(prefix + "qa_single_session_active/test-agent").values.expiresAtEpochMs > Date.now());
+  await assert.rejects(renewActiveSession(oldBrowser),
+    error => error.code === "SESSION_REPLACED",
+    "A replaced browser must not extend the new browser's server session");
   // A browser cookie that is still cryptographically valid must not retain
   // privileged access after the authoritative session role/identity changes
   // or after the numeric deadline enforced by Firebase Rules has expired.
