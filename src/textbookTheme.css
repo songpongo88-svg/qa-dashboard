@@ -334,8 +334,13 @@ html:root[data-qa-theme="textbook-train"] #root :is([data-performance-analytics-
  color:#28495b !important; background:#dcebf0 !important; border-color:#a7b6b2 !important;
 }
 /* Theme picker: one actual illustrated theme in its own collection. */
+#qa-theme-collection-panel[data-qa-picker-collection="thai-lessons"] {
+ /* Keep the use-theme action inside the card when the dialog needs to scroll. */
+ grid-auto-rows:max-content;
+}
 #qa-theme-collection-panel .qa-thai-lessons-card {
  grid-column:1/-1; display:grid; grid-template-columns:1fr;
+ align-self:start;
  overflow:hidden; border:2px solid #b7a078; border-radius:20px;
  background:#fff8e8; box-shadow:0 7px 18px #6855371e;
 }
