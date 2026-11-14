@@ -36,6 +36,7 @@ on:
       - "scripts/test-qa-windows-source-parity-runner.mjs"
       - "scripts/test-qa-windows-source-parity-wrapper.mjs"
       - "scripts/test-qa-source-read-budget-integration.mjs"
+      - "migration/qa-source-read-budget-daily.sql"
 
       - "scripts/test-qa-windows-firestore-metadata-policy.mjs"
       - "scripts/test-qa-windows-firestore-auth-policy.mjs"
