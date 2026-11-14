@@ -28,6 +28,61 @@ assert.equal(bankParsed.isSuccessful,true);
 assert.deepEqual(bankParsed.missing,[]);
 assert.ok(bankParsed.reviewFlags.length>=1,"masked account requires Admin review");
 
+
+// Common domestic transfer layouts. All names/accounts/refs are fictional examples.
+const kplus=[
+ "K+","โอนเงินสำเร็จ","4 มี.ค. 69 08:09 น.",
+ "นาย ทดสอบ ตัวอย่าง","ธ.กสิกรไทย","xxx-x-x1555-x",
+ "นางสาว ตัวอย่าง ทดสอบ","ธ.ไทยพาณิชย์","xxx-x-x3049-x",
+ "เลขที่รายการ:","016063080910B0R00001","จำนวน:","1,427.00 บาท",
+ "ค่าธรรมเนียม:","0.00 บาท"
+].join("\n");
+const k=parseTransferSlipText(kplus);
+assert.equal(k.bank,"ธนาคารกสิกรไทย");
+assert.equal(k.payoutAt,"2026-03-04T08:09:00+07:00");
+assert.equal(k.amountTHB,1427);
+assert.equal(k.feeTHB,0);
+assert.equal(k.transactionRef,"016063080910B0R00001");
+assert.equal(k.senderAccountMasked,"xxx-x-x1555-x");
+assert.equal(k.recipientAccountMasked,"xxx-x-x3049-x");
+assert.equal(k.recipientBank,"ธนาคารไทยพาณิชย์");
+assert.equal(k.recipientLast4,"","masked middle digits are not account last-four digits");
+assert.deepEqual(k.missing,[]);
+
+const truemoney=[
+ "truemoney","฿154.00","นาย ตัวอย่าง ทดสอบ",
+ "KKP Start Saving","xxx-xxx557-7",
+ "นางสาว ทดสอบ ตัวอย่าง","ธนาคารไทยพาณิชย์ จำกัด (มหาชน)",
+ "xxx-xxx049-7","จำนวนเงิน ฿154.00","ค่าธรรมเนียม ฿0.00",
+ "วันที่ทำรายการ 05 พ.ค. 68 22:45:38","เลขที่อ้างอิง 512522060123"
+].join("\n");
+const w=parseTransferSlipText(truemoney);
+assert.equal(w.bank,"TrueMoney Wallet");
+assert.equal(w.payoutAt,"2025-05-05T22:45:38+07:00");
+assert.equal(w.amountTHB,154);
+assert.equal(w.feeTHB,0);
+assert.equal(w.transactionRef,"512522060123");
+assert.equal(w.senderBank,"ธนาคารเกียรตินาคินภัทร");
+assert.equal(w.recipientBank,"ธนาคารไทยพาณิชย์");
+assert.equal(w.recipientAccountMasked,"xxx-xxx049-7");
+assert.deepEqual(w.missing,[]);
+
+// SCB-style slip with incomplete text must not be marked as fully extracted.
+const scbIncomplete=parseTransferSlipText("SCB EASY\nจำนวนเงิน 1,273.00 บาท\nเลขที่รายการ 202603290001");
+assert.equal(scbIncomplete.bank,"ธนาคารไทยพาณิชย์");
+assert.equal(scbIncomplete.amountTHB,1273);
+assert.ok(scbIncomplete.missing.includes("วันและเวลา"));
+assert.ok(scbIncomplete.missing.includes("ผู้รับเงิน"));
+
+// Multiple OCR modes may disagree about the amount: never guess which amount is correct.
+const conflict=parseTransferSlipText(
+ "Bangkok Bank\nจำนวนเงิน 1.40 บาท\nเลขที่รายการ ABCD20260304001\n"+
+ "Bangkok Bank\nจำนวนเงิน 1,405.00 บาท\nเลขที่รายการ ABCD20260304001"
+);
+assert.equal(conflict.amountTHB,null);
+assert.deepEqual(conflict.amountCandidates,[1.4,1405]);
+assert.ok(conflict.reviewFlags.some(v=>v.includes("ยอดเงินหลายค่า")));
+
 const fake=Buffer.alloc(3600,7);fake[0]=255;fake[1]=216;
 const imageData="data:image/jpeg;base64,"+fake.toString("base64");
 assert.equal(decodePayoutSlip(imageData).bytes.length,3600);
