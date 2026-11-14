@@ -17,7 +17,7 @@ const uniq=v=>[...new Set(v.filter(x=>x!==null&&x!==undefined&&x!==""))];
 const pick=v=>{const u=uniq(v);return u.length===1?u[0]:"";};
 const banks=[
   {name:"ธนาคารกรุงเทพ",re:/(?:ธนาคารกรุงเทพ|ธ\.?\s*กรุงเทพ|Bangkok Bank|BBL)/i},
-  {name:"ธนาคารกสิกรไทย",re:/(?:ธนาคารกสิกรไทย|ธ\.?\s*กสิกรไทย|Kasikorn(?:bank)?|KBank|K PLUS)/i},
+  {name:"ธนาคารกสิกรไทย",re:/(?:ธนาคารกสิกรไทย|ธ\.?\s*กสิกรไทย|Kasikorn(?:bank)?|KBank|K PLUS|K\\+)/i},
   {name:"ธนาคารไทยพาณิชย์",re:/(?:ธนาคารไทยพาณิชย์|ธ\.?\s*ไทยพาณิชย์|SCB(?: EASY)?|Siam Commercial Bank)/i},
   {name:"ธนาคารกรุงไทย",re:/(?:ธนาคารกรุงไทย|ธ\.?\s*กรุงไทย|Krungthai|KTB|NEXT Banking)/i},
   {name:"ธนาคารกรุงศรีอยุธยา",re:/(?:ธนาคารกรุงศรีอยุธยา|ธ\.?\s*กรุงศรี|Krungsri|Bank of Ayudhya|KMA)/i},
@@ -63,7 +63,10 @@ function amounts(lines){
   const currency=lines.filter(s=>!feeLabel.test(s)&&!/(?:บัญชี|เลขที่|อ้างอิง)/.test(s))
     .flatMap(s=>[...s.matchAll(/(?:฿|THB\s*)(\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d{1,8}(?:\.\d{2})?)(?:\s*(?:THB|บาท|฿))?/gi)]
       .map(m=>Number(m[1].replace(/,/g,""))).filter(Number.isFinite));
-  const candidates=uniq(labelled.length?labelled:currency);
+  const suffix=lines.filter(s=>!feeLabel.test(s)&&!/(?:บัญชี|เลขที่|อ้างอิง)/.test(s))
+    .map(s=>s.match(/(?:^|\s|:)(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d{1,8}\.\d{2})\s*(?:บาท|THB)(?:\s|$)/i)?.[1])
+    .filter(Boolean).map(v=>Number(v.replace(/,/g,"")));
+  const candidates=uniq(labelled.length?labelled:(currency.length?currency:suffix));
   const amountTHB=candidates.length===1?candidates[0]:null;
   const fees=labelledAmounts(lines,feeLabel);
   return {amountTHB,feeTHB:fees.length===1?fees[0]:null,amountCandidates:candidates};
