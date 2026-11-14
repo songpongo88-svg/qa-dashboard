@@ -87,8 +87,17 @@ assert.ok(application.includes("!QA_SINGLE_SESSION_CLIENT_ENABLED &&\n      curr
 const takeoverEffect = application.split("// Server-backed takeover requests are checked independently")[1]?.split("  const startSessionTimers = () => {")[0] || "";
 assert.ok(takeoverEffect.includes('document.visibilityState !== "visible"'),
   "Hidden tabs must not repeatedly poll the session backend");
-assert.ok(takeoverEffect.includes('window.setInterval(() => void checkTakeover(), 10_000)'),
+assert.ok(takeoverEffect.includes('window.setInterval(() => void checkTakeover(), TRUSTED_SESSION_TAKEOVER_POLL_MS)'),
   "Takeover checks should be quota-aware and within the 30-second save window");
+const takeoverPollMs = Number(application.match(/const TRUSTED_SESSION_TAKEOVER_POLL_MS = (\d+);/)?.[1]);
+assert.equal(takeoverPollMs, 15_000, "Takeover should poll every 15 seconds");
+assert.ok(takeoverPollMs <= 15_000,
+  "The old browser must have at least 15 seconds for its draft flush");
+const worstCaseEightHourPolls = 21 * Math.ceil(8 * 60 * 60 * 1000 / takeoverPollMs);
+assert.ok(worstCaseEightHourPolls <= 40_320,
+  "21 visible agents over 8 hours must stay within the takeover read budget");
+assert.ok(worstCaseEightHourPolls < 21 * 8 * 60 * 60 / 10,
+  "The revised polling must improve on the original 10-second interval");
 assert.ok(takeoverEffect.includes('error.code === "QA_OTHER_TABS_OPEN"'),
   "Takeover must remain retryable after extra QA tabs close");
 assert.ok(takeoverEffect.includes("lastPendingId = \"\""),

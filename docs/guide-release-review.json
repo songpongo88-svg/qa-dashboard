@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T11:19:26.542Z",
-  "reason": "Reviewed the added QA single-session release interlock module, its exact three environment checks and tests, and updated source hash registration. User guide content unaffected.",
+  "reviewedAt": "2026-11-14T12:59:08.362Z",
+  "reason": "Reviewed QA takeover 15s visible-only quota ceiling and regression test, retaining 30s draft handoff. No user guide content change.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -461,7 +461,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "c4bbda9e5fb1c346091c72b3999f767ef2d1736550a348afd6d38f01139cf1fc",
+    "src/App.tsx": "1a9ed53fef31ac1d41ea578681ff1ac7c9d73526a80512e66b29e81d91d33bdd",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -778,7 +778,7 @@
     "scripts/test-qa-single-session-api.mjs": "3176cae1c0ea0918c6ca46c1e6a5e58a2299bb5720f0adaef2dcfaffc193ba74",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
     "src/qaSingleSessionClient.ts": "f6ffefb7264345e6084bdc6792603ea8255b764f5d810012471475ae988d1905",
-    "scripts/test-qa-session-write-guards.mjs": "b6493f09bf9391ea4be56d0affb6c1a3127a35b490eb18b8c44165c02ca733bf",
+    "scripts/test-qa-session-write-guards.mjs": "f70f35ba2f040c9447de10392b0e92ccad2af52e837818005772a57ada307a02",
     "src/useCoachingSessionRecovery.ts": "6eb776e8c7a0b38916e2fbd5aca038b775c8dd1e5e680586bfd9369ceec34c68",
     "scripts/test-qa-session-atomic-flow.mjs": "3f171fa9643c333a7945bfd366b7f337ad2ecfaa83923dbdabcef1059751b149",
     "server/qaSingleSessionEndpoint.js": "81d37f27f70a82d33a1da336fd4cfb8bb15446c289760bffef23b7d9f07abd03",

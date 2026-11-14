@@ -77,3 +77,17 @@ DELETE on all six of these tables: `public.qa_evaluations`,
 `public.usage_logs`. Their permissive RLS policies still allow unsafe
 access. The public read-only `qa_sparks_access_control` status is separate.
 Run `supabase-client-access-audit.sql` read-only before any cutover.
+
+## Visible-browser takeover polling quota ceiling
+
+A continuously visible 10-second takeover poll uses at most **60,480
+Firestore session reads** for 21 QA accounts over an 8-hour workday.
+The staged 15-second cadence reduces this specific estimate to **40,320**
+(one third fewer), while preserving the existing 30-second takeover deadline
+and hiding/offlining guards.
+
+This count does **not** include all other Firestore traffic, security-rule
+reads or staff working across multiple windows; it is not an overall quota
+guarantee. Before activation, verify real concurrency and remaining quota.
+A trusted realtime notification channel would be required for much lower
+read counts without making the 30-second Draft guarantee unreliable.

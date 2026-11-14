@@ -419,6 +419,9 @@ const SESSION_TOUCH_INTERVAL_MS = 29 * 60 * 1000;
 // never extend an inactive/background browser on their own.
 const TRUSTED_SESSION_TOUCH_INTERVAL_MS = 15 * 60 * 1000;
 const TRUSTED_SESSION_HEARTBEAT_CHECK_MS = 5 * 60 * 1000;
+// 15s visible-browser poll cuts 1/3 of former 10s Firestore reads while
+// leaving at least 15s of the existing 30s takeover window for draft flush.
+const TRUSTED_SESSION_TAKEOVER_POLL_MS = 15_000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
@@ -6927,10 +6930,10 @@ export default function App() {
         }
       } finally { working = false; }
     };
-    // An active old browser has at most 10 seconds until its next check;
+    // An active old browser has at most 15 seconds until its next check;
     // hidden/background tabs do not spend quota and cannot claim a saved draft.
     void checkTakeover();
-    const timer = window.setInterval(() => void checkTakeover(), 10_000);
+    const timer = window.setInterval(() => void checkTakeover(), TRUSTED_SESSION_TAKEOVER_POLL_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") void checkTakeover();
     };
