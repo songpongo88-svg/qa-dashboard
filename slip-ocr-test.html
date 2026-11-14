@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="robots" content="noindex,nofollow,noarchive"/>
+  <meta name="referrer" content="no-referrer"/>
+  <title>QA Sparks · ทดสอบอ่านสลิปธนาคาร</title>
+  <meta name="description" content="ทดลองอ่านสลิปธนาคารบนอุปกรณ์ ไม่ต้อง Login ไม่ต้อง OTP ไม่บันทึกธุรกรรม"/>
+  <style>
+    :root{font-family:"Segoe UI",Tahoma,sans-serif;color:#172d46;background:#f4f7ff;font-synthesis:none}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh}main{max-width:1000px;margin:0 auto;padding:34px 20px 75px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:22px;flex-wrap:wrap}
+    .brand{font-size:14px;font-weight:800;letter-spacing:.08em;color:#5b43c8}.pill{border:1px solid #a8e6cf;background:#e6fcf4;color:#11694d;border-radius:25px;padding:7px 14px;font-size:12px;font-weight:700}
+    h1{font-size:clamp(24px,4vw,35px);line-height:1.35;margin:10px 0 12px}h2{font-size:20px}
+    p{line-height:1.7} .muted{color:#64748b}.intro{margin:0 0 24px}
+    .card{background:white;border-radius:18px;padding:23px;border:1px solid #e2e7f5;box-shadow:0 12px 42px rgba(39,53,94,.06);margin-bottom:18px}
+    .upload{padding:22px;border-radius:13px;border:2px dashed #8d7ce7;background:#f8f7ff;text-align:center;cursor:pointer;display:block}
+    .upload:hover,.upload:focus-within{border-color:#5136b6;background:#f1efff}.upload b{display:block;margin-bottom:8px}.upload small{color:#66758e}
+    input[type=file]{display:block;width:min(100%,400px);margin:14px auto 0;color:#253752;font:inherit}
+    .status{padding:11px 15px;border-radius:10px;background:#eff6ff;color:#19539a;margin:16px 0}
+    .status[data-kind=warn]{background:#fff3ed;color:#a33f18}.status[data-kind=done]{background:#effbf2;color:#28683d}
+    .hidden{display:none!important}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}
+    .kv{border:1px solid #e9edf4;border-radius:11px;padding:13px 15px;overflow-wrap:anywhere;min-height:75px}.kv .key{font-size:12px;color:#6b7691;margin-bottom:8px}.kv .val{font-size:15px;font-weight:650;white-space:pre-wrap}
+    .kv.wide{grid-column:1/-1} .warning{background:#fff6ee;border:1px solid #ffd9bd;border-radius:11px;padding:12px 16px;color:#914015;margin:18px 0}
+    details{margin-top:14px;border-top:1px solid #e8eaf2;padding-top:14px}summary{cursor:pointer;font-weight:650;color:#5041a4}
+    pre{background:#f5f7fb;border-radius:9px;padding:14px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:340px;overflow:auto}
+    .foot{font-size:13px;color:#627189;margin:22px 0}.image{max-width:100%;max-height:500px;object-fit:contain;border-radius:10px;display:block;margin:auto}
+    @media(max-width:620px){main{padding:22px 12px}.card{padding:16px}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="top"><div class="brand">QA SPARKS · OCR TEST</div><div class="pill">ไม่ต้อง Login · ไม่ต้อง OTP</div></div>
+    <h1>ทดลองอ่านสลิปธนาคาร</h1>
+    <p class="muted intro">สำหรับทดสอบสลิปของธนาคารกรุงเทพ กสิกรไทย ไทยพาณิชย์ TrueMoney และรูปแบบอื่น ๆ โดยไม่ต้องเข้าระบบ QA Sparks</p>
+    <section class="card" aria-label="อัปโหลดภาพเพื่ออ่านสลิป">
+      <label class="upload">
+        <b>เลือกภาพสลิปเพื่อทดสอบ OCR</b>
+        <small>JPG, PNG, WebP · ขนาดสูงสุด 8 MB · อ่านบนเบราว์เซอร์ของคุณ</small>
+        <input type="file" id="file" accept="image/jpeg,image/png,image/webp"/>
+      </label>
+      <div id="status" class="status" role="status" aria-live="polite">พร้อมทดลองอ่านภาพ โดยไม่ต้องเข้าสู่ระบบ</div>
+      <p class="muted" style="font-size:13px;margin-bottom:0">หน้านี้ไม่ส่งภาพไปยัง QA Sparks API ไม่บันทึกคะแนน ไม่บันทึก Paid และไม่เชื่อมต่อบัญชีธนาคาร ข้อความ OCR ใช้สำหรับตรวจทานเท่านั้น</p>
+    </section>
+    <section class="card hidden" id="result" aria-label="ผลการอ่านสลิป">
+      <h2>ผลการอ่านจากสลิป</h2>
+      <p class="muted" id="description">ข้อมูลที่อ่านได้จากภาพ</p>
+      <div id="fields" class="grid"></div>
+      <div class="warning hidden" id="warnings"></div>
+      <details><summary>ดูข้อความต้นฉบับที่ OCR อ่านได้</summary><pre id="raw"></pre></details>
+      <details><summary>ดูภาพที่ใช้ทดสอบ</summary><img class="image" id="preview" alt="ภาพสลิปที่เลือกทดสอบ"/></details>
+    </section>
+    <p class="foot">ข้อจำกัด: OCR อาจอ่านชื่อ วันที่ ยอดเงิน หรือเลขอ้างอิงผิดได้ โดยเฉพาะภาพเบลอหรือบัญชีที่ถูกปิดบัง ไม่ใช่ระบบตรวจยืนยันเงินเข้ากับธนาคาร</p>
+  </main>
+  <script type="module" src="/src/slipOcrStandalone.ts"></script>
+</body>
+</html>
