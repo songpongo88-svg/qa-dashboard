@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T13:36:13.745Z",
-  "reason": "Reviewed server-backed takeover comment anchor consumed by the QA session regression test; event-driven listener and fail-closed fallback retained.",
+  "reviewedAt": "2026-11-14T14:45:36.943Z",
+  "reason": "Reviewed QA Single Active Session Google Drive download authorization: current server-owned session, same-origin access, fail-closed behavior and no-store caching after takeover; tested against anonymous/forged/cross-origin reads.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -28,7 +28,7 @@
     "api/cron/expire-additional-appeals.js": "8138305c1e5afc454288c969d0b51bd3290740884287cf690805961060df1485",
     "api/cron/qa-lottery.js": "b902239b21fb739b0001cfea8cb24deb5286897c235eb9ca6d6df6fc67043239",
     "api/cron/sparks-profile-reconcile.js": "36f32648546ed1ab0b710a2e0434bc4cbd48ccaabe2e156eae03bea3f269fb83",
-    "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
+    "api/google-drive-download.js": "84b1978638aff27dc93e08339e7822c718bb4dbfd437076ee3dc4733e02a5508",
     "api/google-drive-upload.js": "86bb44fa50c483c5f868141835db5765723d603ae29a538fa2a40efbd00f59d7",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
     "api/sparks-admin.js": "4c45a601ccf7c89865165f38df3fc111bee11c99bf886f3e352749ad2aa41164",
@@ -782,7 +782,7 @@
     "src/useCoachingSessionRecovery.ts": "6eb776e8c7a0b38916e2fbd5aca038b775c8dd1e5e680586bfd9369ceec34c68",
     "scripts/test-qa-session-atomic-flow.mjs": "c5d9e7af1b5e52f2db41bd7437876032e962d56c9dd90bafd11a5a91933a0d28",
     "server/qaSingleSessionEndpoint.js": "81d37f27f70a82d33a1da336fd4cfb8bb15446c289760bffef23b7d9f07abd03",
-    "scripts/test-qa-upload-session-gate.mjs": "1c7bb0d1bea7a9a4a68676eab2a5070c81c49d5409fd3e26cb60a7ba96d3e5c6",
+    "scripts/test-qa-upload-session-gate.mjs": "4ed7bec1db41951b3c930b1bc2ac2bc5a0b11c8f3b832fdd6c4c15fa09527c7e",
     "src/qaTabLease.mjs": "9ff18c95d6e91c700e981d257719af827d46bedbd351c0394f1d5e47d3861e4c",
     "scripts/test-qa-tab-lease.mjs": "27e4189486371b21149f4db8c62f9a8470a4662716970c358bfdcaf581372f7e",
     "scripts/test-qa-legacy-profile-lookup.mjs": "a8d4e36954b087a0bfca53b98f19e46edef0a8d07954aa52a50487be2cea8315",
