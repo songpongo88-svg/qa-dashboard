@@ -68,17 +68,19 @@ export async function stageQaCorePendingIntent({
     delivered:false,failoverReady:false,
   });
   const prev=(await c.query(
-    'SELECT collection_name,document_path,operation,document_json,payload_sha256'+
+    'SELECT collection_name,document_path,operation,payload_sha256,'+
+    ' (document_json = $2::jsonb) AS payload_equal,source_state,delivery_state'+
     ' FROM qa_core_replication_stage.change_outbox WHERE operation_id=$1',
-    [e.operationId])).rows?.[0];
+    [e.operationId,e.documentJson===null?null:JSON.stringify(e.documentJson)])).rows?.[0];
   if(!prev||prev.collection_name!==e.collection||
     prev.document_path!==e.documentPath||prev.operation!==e.operation||
     prev.payload_sha256!==e.payloadHash||
-    (e.operation==='delete' ? prev.document_json!==null :
-     JSON.stringify(prev.document_json)!==JSON.stringify(e.documentJson)))
+    (e.operation==='upsert'&&prev.payload_equal!==true))
+    
     err('qa_outbox_idempotency_collision');
   return Object.freeze({
     staged:true,replay:true,sourceConfirmed:false,
+    requiresReconciliation:prev.source_state==='needs_reconcile',
     delivered:false,failoverReady:false,
   });
  }finally{c.release();}

@@ -45,6 +45,32 @@ try{
   " delivered_at=now() WHERE operation_id=$1 AND delivery_state='leased'",[event.id]);
  assert.equal((await pool.query('SELECT delivery_state FROM '+table+
   ' WHERE operation_id=$1',[event.id])).rows[0].delivery_state,'delivered');
+ 
+ // Real Postgres idempotency must compare semantic JSONB, not key ordering.
+ const {stageQaCorePendingIntent}=await import('../server/qaCorePrivateOutbox.js');
+ const serverEvent={
+  operationId:'qa-private-stage-replay-000001',
+  documentPath:'qa_evaluations/AA100002',operation:'upsert',
+  documentJson:{fields:{score:{integerValue:'85'},agent:{stringValue:'Fixture'}}},
+ };
+ const auth=async e=>({
+  authority:'qa-core-private-authorized-mutation',
+  operationId:e.operationId,documentPath:e.documentPath,
+  operation:e.operation,payloadHash:e.payloadHash,
+ });
+ const env={QA_CORE_PRIVATE_OUTBOX_STAGING:'1',QA_PG_ISOLATED_TEST:'1'};
+ const first=await stageQaCorePendingIntent({pool,event:serverEvent,authorizeServerMutation:auth,env});
+ assert.equal(first.replay,false);
+ const same=await stageQaCorePendingIntent({pool,event:{
+  ...serverEvent,documentJson:{fields:{agent:{stringValue:'Fixture'},score:{integerValue:'85'}}}
+ },authorizeServerMutation:auth,env});
+ assert.equal(same.replay,true);
+ await assert.rejects(stageQaCorePendingIntent({pool,event:{
+  ...serverEvent,documentJson:{fields:{score:{integerValue:'84'},agent:{stringValue:'Fixture'}}}
+ },authorizeServerMutation:auth,env}),/qa_outbox_idempotency_collision/);
+ const untouched=await pool.query('SELECT source_state,delivery_state FROM '+table+
+  ' WHERE operation_id=$1',[serverEvent.operationId]);
+ assert.deepEqual(untouched.rows[0],{source_state:'pending',delivery_state:'waiting'});
  await assert.rejects(pool.query('INSERT INTO '+table+
   ' (collection_name,document_path,operation,document_json,payload_sha256,operation_id)'+
   " VALUES ('qa_sparks','qa_sparks/x','delete',NULL,NULL,'qa-stage-event-000000002')"),

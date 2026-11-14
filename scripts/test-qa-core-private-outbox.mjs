@@ -1,5 +1,6 @@
 // Private stage-only unit tests. Never use a production DB or Firestore.
 import assert from 'node:assert/strict';
+import {isDeepStrictEqual} from 'node:util';
 import {normalizeQaCoreIntent,stageQaCorePendingIntent}
  from '../server/qaCorePrivateOutbox.js';
 const base={
@@ -31,7 +32,9 @@ const pool={async connect(){
    return {rows:[{seq:1}]};
   }
   if(sql.startsWith('SELECT collection_name'))
-   return {rows:stored?[stored]:[]};
+   return {rows:stored?[{...stored,
+     payload_equal:isDeepStrictEqual(stored.document_json,args[1]===null?null:JSON.parse(args[1])),
+     source_state:'pending',delivery_state:'waiting'}]:[]};
   throw Error('unexpected sql');
  }};
 }};
@@ -57,6 +60,20 @@ assert.equal(first.failoverReady,false);
 const duplicate=await stageQaCorePendingIntent({pool,event:base,
  authorizeServerMutation:auth,env});
 assert.equal(duplicate.replay,true);
+const semanticallySame=await stageQaCorePendingIntent({pool,event:{
+ ...base,documentJson:{fields:{finalScore:{integerValue:'85'}},extra:undefined}
+},authorizeServerMutation:auth,env});
+assert.equal(semanticallySame.replay,true);
+// JSONB equality ignores JSON object key order, unlike JSON.stringify.
+stored.document_json={fields:{finalScore:{integerValue:'85'}}};
+const sameOrderIndependent=await stageQaCorePendingIntent({pool,event:{
+ ...base,documentJson:{fields:{finalScore:{integerValue:'85'}}}
+},authorizeServerMutation:auth,env});
+assert.equal(sameOrderIndependent.replay,true);
+await assert.rejects(stageQaCorePendingIntent({pool,event:{
+ ...base,documentJson:{fields:{finalScore:{integerValue:'84'}}}
+},authorizeServerMutation:auth,env}),/qa_outbox_idempotency_collision/);
+
 await assert.rejects(stageQaCorePendingIntent({pool,
  event:{...base,documentPath:'qa_evaluations/AA100002'},
  authorizeServerMutation:auth,env}),/qa_outbox_idempotency_collision/);
