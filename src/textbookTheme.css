@@ -428,3 +428,32 @@ html:root[data-qa-theme="textbook-train"] #root :is([data-performance-analytics-
  #qa-theme-collection-panel .qa-thai-lessons-cover {height:130px;}
  #qa-theme-collection-panel .qa-thai-lessons-details {padding:15px;}
 }
+
+/* Accessible whole-card activation, even if the dialog viewport is short. */
+#qa-theme-collection-panel .qa-thai-lessons-card {position:relative;cursor:pointer;}
+#qa-theme-collection-panel .qa-thai-lessons-card:hover {border-color:#315e75;box-shadow:0 6px 20px #315e7530;}
+#qa-theme-collection-panel .qa-thai-lessons-card:focus-within {outline:3px solid #315e75;outline-offset:2px;}
+#qa-theme-collection-panel .qa-thai-lessons-hitarea {
+  position:absolute;inset:0;z-index:3;display:block;width:100%;height:100%;
+  border:0;padding:0;margin:0;background:transparent;cursor:pointer;
+}
+#qa-theme-collection-panel .qa-thai-lessons-cover {height:160px;}
+#qa-theme-collection-panel .qa-thai-lessons-details {padding:15px 20px 18px;}
+#qa-theme-collection-panel .qa-thai-lessons-details p {margin:4px 0 10px;line-height:1.6;}
+#qa-theme-collection-panel .qa-thai-lessons-cover-action {
+  position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;
+  min-height:36px;padding:8px 14px;border-radius:10px;background:#315e75;color:#fffaf0;
+  font:600 13px/1.4 Kanit,sans-serif;box-shadow:0 3px 10px #203c4c38;
+}
+#qa-theme-collection-panel .qa-thai-lessons-action {
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:39px;padding:9px 15px;border:1px solid #2d5b72;
+  border-radius:10px;background:#315e75;color:#fff7e4;
+  font:600 13px/1.35 Kanit,sans-serif;
+}
+#qa-theme-collection-panel .qa-thai-lessons-card[data-selected="true"] .qa-thai-lessons-cover-action,
+#qa-theme-collection-panel .qa-thai-lessons-card[data-selected="true"] .qa-thai-lessons-action {
+  color:#285440;background:#e8f4e6;border-color:#7da482;
+}
+@media(max-width:600px) {#qa-theme-collection-panel .qa-thai-lessons-cover {height:130px;}}
+@media(prefers-reduced-motion:reduce) {#qa-theme-collection-panel .qa-thai-lessons-card {transition:none;}}
