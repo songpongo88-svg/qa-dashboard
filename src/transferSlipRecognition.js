@@ -84,6 +84,9 @@ function amounts(lines){
     if(sourceCandidates.every(v=>v===primary||v===confused)){
       amountCorrectedFromCurrencyGlyph=sourceCandidates.includes(confused);
       candidates=[primary];
+    }else{
+      // Two independent readings disagree: retain all values and refuse a single amount.
+      candidates=uniq([...sourceCandidates,primary]);
     }
   }
   if(wallet&&headline.length===1&&!sourceCandidates.length)candidates=headline;
@@ -94,7 +97,7 @@ function amounts(lines){
   const feeGlyphUncertain=wallet&&fees.length===1&&/^8(?:0|00)\.\d{2}$/.test(fees[0].toFixed(2));
   const feeTHB=fees.length===1&&!feeGlyphUncertain?fees[0]:null;
   return {
-    amountTHB,feeTHB,amountCandidates:sourceCandidates.length?sourceCandidates:candidates,
+    amountTHB,feeTHB,amountCandidates:amountCorrectedFromCurrencyGlyph?sourceCandidates:candidates,
     amountCorrectedFromCurrencyGlyph,feeGlyphUncertain,
     feeCandidates:fees
   };
