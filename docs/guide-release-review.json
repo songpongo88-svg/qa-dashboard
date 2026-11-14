@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T11:15:34.527Z",
-  "reason": "Reviewed explicit server-side pre-cutover security interlock for Firebase rules, Supabase client access and real two-browser tests. Live Supabase ACL verified read-only; no database privileges changed.",
+  "reviewedAt": "2026-11-14T11:19:26.542Z",
+  "reason": "Reviewed the added QA single-session release interlock module, its exact three environment checks and tests, and updated source hash registration. User guide content unaffected.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -788,6 +788,7 @@
     "scripts/test-qa-legacy-profile-lookup.mjs": "a8d4e36954b087a0bfca53b98f19e46edef0a8d07954aa52a50487be2cea8315",
     "scripts/test-qa-single-session-firebase-rules.mjs": "6e21cc8ba4d3e5f1509ec8186a1bffec268434a4b7972fcf3ead826b2c86ba7f",
     "scripts/test-qa-single-session-rules-contract.mjs": "af3e432378f7898c0b62da9cdc8673a333c96d672b8ce689fdc47c5405d15a9c",
-    "scripts/test-qa-dashboard-preview-empty.mjs": "685301d3ea68d35ecf26b92c5b950a8befbd843d7f17029b75c6785f9d3d78da"
+    "scripts/test-qa-dashboard-preview-empty.mjs": "685301d3ea68d35ecf26b92c5b950a8befbd843d7f17029b75c6785f9d3d78da",
+    "server/qaSingleSessionReleaseGate.js": "56911f6856edb5a4641b3d0f7a7ca47b4bac0e7cae520b0f7bc1f4a6a57b3cc1"
   }
 }
