@@ -66,6 +66,7 @@ console.log('PASS 8 colors, standalone Thai Lessons artwork, 6 characters in bot
 const dom = new JSDOM('<div id="root"></div>', { url: 'https://login.test/', pretendToBeVisual: true });
 for (const key of ['window', 'document', 'localStorage', 'MutationObserver', 'Event', 'CustomEvent']) globalThis[key] = dom.window[key];
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+fs.mkdirSync(resolve('node_modules/.cache'), { recursive: true });
 const temp = await mkdtemp(resolve('node_modules/.cache/login-themes-'));
 let root, latest;
 try {
