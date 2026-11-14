@@ -26,6 +26,20 @@
     details{margin-top:14px;border-top:1px solid #e8eaf2;padding-top:14px}summary{cursor:pointer;font-weight:650;color:#5041a4}
     pre{background:#f5f7fb;border-radius:9px;padding:14px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:340px;overflow:auto}
     .foot{font-size:13px;color:#627189;margin:22px 0}.image{max-width:100%;max-height:500px;object-fit:contain;border-radius:10px;display:block;margin:auto}
+    .batch-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0}
+    .batch-summary{font-weight:650;font-size:14px;color:#273f69}
+    .clear-btn{font:inherit;background:white;border:1px solid #bdc6db;border-radius:9px;padding:9px 13px;color:#354364;cursor:pointer}
+    .clear-btn:hover{background:#f1f4fb}.clear-btn:disabled{opacity:.55;cursor:default}
+    .batch-items{display:grid;gap:14px}
+    .slip-card{border:1px solid #e1e7f2;border-radius:14px;padding:17px;background:#fff;overflow-wrap:anywhere}
+    .slip-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+    .slip-name{font-size:15px;font-weight:750;min-width:0;overflow-wrap:anywhere}
+    .slip-state{border-radius:25px;padding:6px 10px;background:#eff4fb;color:#3a536b;font-size:12px}
+    .slip-state.ok{background:#e6fbef;color:#216841}.slip-state.warn{background:#fff1e7;color:#964d18}
+    .slip-state.error{background:#ffeaea;color:#a02b2b}
+    .slip-glance{display:flex;gap:10px 22px;flex-wrap:wrap;font-size:13px;color:#445872;margin-top:12px}
+    .slip-glance strong{font-size:14px;color:#1d3049}.slip-card details{margin-top:12px}
+    .slip-detail{margin:10px 0}.slip-detail p{margin:6px 0 0;font-size:13px}
     @media(max-width:620px){main{padding:22px 12px}.card{padding:16px}.grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -36,20 +50,21 @@
     <p class="muted intro">สำหรับทดสอบสลิปของธนาคารกรุงเทพ กสิกรไทย ไทยพาณิชย์ TrueMoney และรูปแบบอื่น ๆ โดยไม่ต้องเข้าระบบ QA Sparks</p>
     <section class="card" aria-label="อัปโหลดภาพเพื่ออ่านสลิป">
       <label class="upload">
-        <b>เลือกภาพสลิปเพื่อทดสอบ OCR</b>
-        <small>JPG, PNG, WebP · ขนาดสูงสุด 8 MB · อ่านบนเบราว์เซอร์ของคุณ</small>
-        <input type="file" id="file" accept="image/jpeg,image/png,image/webp"/>
+        <b>เลือกสลิปหลายไฟล์ หลายธนาคารพร้อมกัน</b>
+        <small>เลือกได้สูงสุด 20 ภาพต่อรอบ · JPG, PNG, WebP · ไม่เกิน 8 MB ต่อไฟล์ · อ่านบนเบราว์เซอร์ของคุณ</small>
+        <input type="file" id="file" accept="image/jpeg,image/png,image/webp" multiple/>
       </label>
-      <div id="status" class="status" role="status" aria-live="polite">พร้อมทดลองอ่านภาพ โดยไม่ต้องเข้าสู่ระบบ</div>
+      <div id="status" class="status" role="status" aria-live="polite">พร้อมเลือกสลิปหลายภาพ โดยไม่ต้องเข้าสู่ระบบ</div>
+      <div class="batch-toolbar">
+        <div id="batch-summary" class="batch-summary" aria-live="polite">ยังไม่มีไฟล์ที่เลือก</div>
+        <button type="button" class="clear-btn" id="clear" disabled>ล้างผลการทดสอบ</button>
+      </div>
       <p class="muted" style="font-size:13px;margin-bottom:0">หน้านี้ไม่ส่งภาพไปยัง QA Sparks API ไม่บันทึกคะแนน ไม่บันทึก Paid และไม่เชื่อมต่อบัญชีธนาคาร ข้อความ OCR ใช้สำหรับตรวจทานเท่านั้น</p>
     </section>
-    <section class="card hidden" id="result" aria-label="ผลการอ่านสลิป">
-      <h2>ผลการอ่านจากสลิป</h2>
-      <p class="muted" id="description">ข้อมูลที่อ่านได้จากภาพ</p>
-      <div id="fields" class="grid"></div>
-      <div class="warning hidden" id="warnings"></div>
-      <details><summary>ดูข้อความต้นฉบับที่ OCR อ่านได้</summary><pre id="raw"></pre></details>
-      <details><summary>ดูภาพที่ใช้ทดสอบ</summary><img class="image" id="preview" alt="ภาพสลิปที่เลือกทดสอบ"/></details>
+    <section class="card hidden" id="result" aria-label="ผลการอ่านสลิปหลายไฟล์">
+      <h2>ผลการอ่านแยกตามไฟล์</h2>
+      <p class="muted" id="description">ตรวจรายละเอียดได้ทีละไฟล์ ระบบไม่รวมยอดของสลิปต่างธนาคารเป็นยอดจ่ายจริง</p>
+      <div class="batch-items" id="batch-items"></div>
     </section>
     <p class="foot">ข้อจำกัด: OCR อาจอ่านชื่อ วันที่ ยอดเงิน หรือเลขอ้างอิงผิดได้ โดยเฉพาะภาพเบลอหรือบัญชีที่ถูกปิดบัง ไม่ใช่ระบบตรวจยืนยันเงินเข้ากับธนาคาร</p>
   </main>
