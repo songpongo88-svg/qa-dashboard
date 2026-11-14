@@ -4,7 +4,7 @@
 // This may consume up to 3,000 conservatively reserved Firestore read units.
 import {pathToFileURL} from 'node:url';
 import {join} from 'node:path';
-import {open} from 'node:fs/promises';
+import {open,readdir,stat} from 'node:fs/promises';
 import {loadQaWindowsProbeBaseline} from '../server/qaWindowsProbeBaseline.js';
 import {captureQaFirestorePointInTime} from '../server/qaFirestoreRestSnapshot.js';
 import {createQaSourceReadBudget} from '../server/qaSourceReadBudget.js';
@@ -20,6 +20,8 @@ const errors=new Set([
  'qa_candidate_disabled','qa_candidate_local_database_unsafe',
  'qa_candidate_baseline_not_verified','qa_candidate_read_budget_unavailable',
  'qa_candidate_preflight_failed','qa_candidate_already_attempted_today',
+ 'qa_candidate_provider_reset_not_stable',
+ 'qa_candidate_previous_scan_same_pacific_day',
  'qa_candidate_invalid_source_reservation','qa_candidate_source_unverified',
  'qa_candidate_archive_unverified','qa_candidate_reconciliation_unverified',
  'qa_reconcile_frozen_snapshot_state_changed',
@@ -41,6 +43,44 @@ const errors=new Set([
  'qa_reconcile_corrupt_snapshot','qa_reconcile_accounting_mismatch',
  'qa_reconcile_missing_candidate','qa_reconcile_candidate_not_newer',
 ]);
+// Firestore free quota resets around midnight Pacific, NOT midnight UTC.
+// Compare past *real local scan markers* by Pacific day as well as the
+// reservation ledger's UTC day to avoid an unsafe reset-window retry.
+const pacificParts=date=>{
+ const parts=new Intl.DateTimeFormat('en-US',{
+  timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',
+  day:'2-digit',hour:'2-digit',hourCycle:'h23',
+ }).formatToParts(date);
+ const part=key=>parts.find(x=>x.type===key)?.value;
+ return {day:part('year')+'-'+part('month')+'-'+part('day'),
+  hour:Number(part('hour'))};
+};
+export async function assertQaDifferentPacificScanDay({
+ stageRoot,at,
+}={}){
+ if(typeof stageRoot!=='string'||stageRoot.length<10||
+    !(at instanceof Date)||!Number.isFinite(at.getTime()))
+  fail('qa_candidate_preflight_failed');
+ const now=pacificParts(at);
+ // Allow a conservative two-hour cushion after the approximate reset.
+ if(!Number.isInteger(now.hour)||now.hour<2)
+  fail('qa_candidate_provider_reset_not_stable');
+ let entries;
+ try{entries=await readdir(stageRoot);}
+ catch{fail('qa_candidate_preflight_failed');}
+ for(const name of entries){
+  if(!/^\.(?:qa-parity-attempt|qa-reconcile-attempt)-\d{8}$/.test(name))
+   continue;
+  let info;
+  try{info=await stat(join(stageRoot,name));}
+  catch{fail('qa_candidate_preflight_failed');}
+  if(!info.isFile()||!Number.isFinite(info.mtimeMs))
+   fail('qa_candidate_preflight_failed');
+  if(info.mtimeMs>at.getTime()+60000||
+     pacificParts(info.mtime).day===now.day)
+   fail('qa_candidate_previous_scan_same_pacific_day');
+ }
+}
 const markAttempt=async path=>{
  let fd;
  try{fd=await open(path,'wx',0o600);}
@@ -60,6 +100,7 @@ export async function runQaWindowsReconciliation({
  stageCandidate=stageQaWindowsReconciliationCandidate,
  review=inspectQaWindowsReconciliation,
  createAttemptMarker=markAttempt,
+ checkPreviousAttempts=assertQaDifferentPacificScanDay,
 }={}){
  if(env.QA_WINDOWS_RECONCILE_RUN!=='1'||
     env.QA_WINDOWS_CANDIDATE_ARCHIVE_STAGE!=='1'||
@@ -126,6 +167,9 @@ export async function runQaWindowsReconciliation({
   const clock=now();
   if(!(clock instanceof Date)||!Number.isFinite(clock.getTime()))
    fail('qa_candidate_preflight_failed');
+  await checkPreviousAttempts({
+   stageRoot:env.QA_WINDOWS_RECONCILE_STAGE_ROOT,at:clock,
+  });
   const readTime=new Date(clock.getTime()-15000).toISOString();
   // One attempt per UTC day, including any partial HTTP or PG failure.
   // Re-run only in a fresh quota window after independently checking
