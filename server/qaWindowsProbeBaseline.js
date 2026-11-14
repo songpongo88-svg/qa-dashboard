@@ -89,6 +89,7 @@ export async function loadQaWindowsProbeBaseline({pool,env=process.env,
      Math.max(1,rows.length)+QA_SYNC_DATASETS.filter(ds=>
       expectedIds[ds].length===0).length,
    completeCopiedDatasetCount:QA_SYNC_DATASETS.length,
+   datasetManifests:manifests.map(({dataset,count,digest})=>({dataset,count,digest})),
    sourceFreshnessVerified:false,failoverReady:false,
   });
  }catch(error){if(tx)await client.query('ROLLBACK').catch(()=>{});throw error;}
