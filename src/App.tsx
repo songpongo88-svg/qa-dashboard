@@ -3805,17 +3805,26 @@ function ThemePickerModal({
           }} />
           <CharacterCollection version={characterVersion} selectedTheme={selectedTheme} onSelect={id => onSelect(id as QaThemeId)} />
           {collection === "thai-lessons" ? (
-            <article data-qa-theme-collection="thai-lessons" className="qa-thai-lessons-card">
+            <article data-qa-theme-collection="thai-lessons" className="qa-thai-lessons-card"
+              data-selected={selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride}>
+              <button type="button" className="qa-thai-lessons-hitarea"
+                aria-label="เลือกใช้ธีมตา-มา-รถ-ไฟ ป.1"
+                aria-pressed={selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride}
+                onClick={() => { onSelect("textbook-train"); onClose(); }} />
               <div className="qa-thai-lessons-cover">
                 <img src="/textbook-theme/landscape.svg" loading="lazy" alt="ภาพวาดหนังสือเรียนภาษาไทย รถไฟแล่นผ่านภูเขาและสถานีชนบท" />
+                <span className="qa-thai-lessons-cover-action" aria-hidden="true">
+                  {selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride ? "กำลังใช้งานธีมนี้ ✓" : "เลือกใช้ธีมนี้"}
+                </span>
                 <span className="qa-thai-lessons-cover-stamp">ป.1</span>
               </div>
               <div className="qa-thai-lessons-details">
                 <span className="qa-thai-lessons-eyebrow">THAI LESSONS COLLECTION</span>
                 <h3>ตา-มา-รถ-ไฟ ป.1</h3>
                 <p>ภาพประกอบรถไฟ คุณครูและนักเรียน พร้อมกระดาษครีม ลายเส้นแบบหนังสือเรียน ทุกหน้า Dashboard และหน้า Login</p>
-                <button type="button" aria-pressed={selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride}
-                  onClick={() => onSelect("textbook-train")}>{selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride ? "กำลังใช้งานธีมนี้" : "เลือกใช้ธีมนี้"}</button>
+                <span className="qa-thai-lessons-action" aria-hidden="true">
+                  {selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride ? "กำลังใช้งานธีมนี้ ✓" : "เลือกใช้ธีมนี้"}
+                </span>
               </div>
             </article>
           ) : null}
