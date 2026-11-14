@@ -247,7 +247,14 @@ export async function activateNewSession(actor, deviceLabel = "Browser") {
 export async function authorizeActiveSession(req) {
   const ticket = sessionFromRequest(req);
   const current = await readActive(ticket.username);
-  if (!activeNow(current) || current.sessionId !== ticket.sessionId) {
+  // Never authorize a ticket whose principal, role or numeric expiry no
+  // longer matches the server-owned pointer. The same fields are enforced
+  // by the staged Firestore/Storage Rules when those rules are deployed.
+  if (!activeNow(current) || current.sessionId !== ticket.sessionId ||
+      normalizeQaUsername(current.username) !== normalizeQaUsername(ticket.username) ||
+      current.role !== ticket.role ||
+      !Number.isSafeInteger(current.expiresAtEpochMs) ||
+      current.expiresAtEpochMs <= Date.now()) {
     throw fail("Session has moved to another browser", 401, "SESSION_REPLACED");
   }
   return { ticket, current };

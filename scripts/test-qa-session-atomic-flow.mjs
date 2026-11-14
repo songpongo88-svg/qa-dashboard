@@ -118,6 +118,27 @@ try {
   );
   const currentBrowser = ticketRequest("session", actor.username, replaced.sessionId);
   assert.equal((await authorizeActiveSession(currentBrowser)).ticket.sessionId, replaced.sessionId);
+  // A browser cookie that is still cryptographically valid must not retain
+  // privileged access after the authoritative session role/identity changes
+  // or after the numeric deadline enforced by Firebase Rules has expired.
+  const activeKey = prefix + "qa_single_session_active/test-agent";
+  const originalActive = db.get(activeKey);
+  for (const changes of [
+    { role: "Suspended" },
+    { username: "another-agent" },
+    { expiresAtEpochMs: Date.now() - 1_000 },
+  ]) {
+    db.set(activeKey, {
+      values: { ...originalActive.values, ...changes },
+      updateTime: stamp(),
+    });
+    await assert.rejects(
+      authorizeActiveSession(currentBrowser),
+      error => error.code === "SESSION_REPLACED",
+    );
+  }
+  db.set(activeKey, { ...originalActive, updateTime: stamp() });
+  assert.equal((await authorizeActiveSession(currentBrowser)).ticket.sessionId, replaced.sessionId);
   assert.equal(db.get(prefix + "qa_single_session_drafts/test-agent_evaluation-form").values.revision, revisionId);
   assert.ok([...db.keys()].some(name => name.includes("qa_single_session_audit/")));
   console.log("PASS atomic QA takeover, saved draft, active-session switch and old-session rejection");
