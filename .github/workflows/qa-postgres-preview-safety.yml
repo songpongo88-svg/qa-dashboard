@@ -62,6 +62,8 @@ on:
       - "migration/qa-core-private-outbox-stage.sql"
       - "scripts/test-qa-core-private-outbox-stage-integration.mjs"
       - "server/qaCorePrivateOutbox.js"
+      - "server/qaCoreOutboxUncertainty.js"
+      - "scripts/test-qa-core-outbox-uncertainty.mjs"
       - "scripts/test-qa-core-private-outbox.mjs"
       - "server/qaCutoverParityGate.js"
       - "scripts/test-qa-cutover-parity-gate.mjs"
@@ -223,6 +225,8 @@ jobs:
           node --check scripts/check-qa-no-billing-source-writers.mjs
           node --check scripts/test-qa-core-private-outbox-stage-integration.mjs
           node --check server/qaCorePrivateOutbox.js
+          node --check server/qaCoreOutboxUncertainty.js
+          node --check scripts/test-qa-core-outbox-uncertainty.mjs
           node --check scripts/test-qa-core-private-outbox.mjs
           node --check server/qaCutoverParityGate.js
           node --check scripts/test-qa-cutover-parity-gate.mjs
@@ -317,6 +321,7 @@ jobs:
           node scripts/test-qa-firestore-rest-snapshot.mjs
           node scripts/test-qa-source-delta-journal.mjs
           node scripts/test-qa-core-private-outbox.mjs
+          node scripts/test-qa-core-outbox-uncertainty.mjs
           node scripts/test-qa-source-delta-http-handler.mjs
           node scripts/test-qa-google-task-attestor.mjs
           node scripts/test-qa-windows-delta-receiver.mjs

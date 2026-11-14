@@ -71,7 +71,34 @@ try{
  const untouched=await pool.query('SELECT source_state,delivery_state FROM '+table+
   ' WHERE operation_id=$1',[serverEvent.operationId]);
  assert.deepEqual(untouched.rows[0],{source_state:'pending',delivery_state:'waiting'});
- await assert.rejects(pool.query('INSERT INTO '+table+
+
+ // A timed-out source operation must be quarantined and never delivered.
+ const {quarantineUncertainQaCoreMutation}=await import('../server/qaCoreOutboxUncertainty.js');
+ const uncertainId='qa-stage-uncertain-000000001';
+ await pool.query('INSERT INTO '+table+
+  ' (collection_name,document_path,operation,document_json,payload_sha256,operation_id)'+
+  " VALUES ('qa_appeal_events','qa_appeal_events/AA000123','delete',NULL,NULL,$1)",[uncertainId]);
+ const sourceUncertain=async operationId=>({
+  authority:'qa-core-private-uncertain-outcome',
+  operationId,sourceCommitProven:false,
+ });
+ const safe=await quarantineUncertainQaCoreMutation({
+  pool,operationId:uncertainId,authorizeUncertainOutcome:sourceUncertain,
+  env:{QA_PG_ISOLATED_TEST:'1',QA_CORE_PRIVATE_OUTBOX_STAGING:'1'},
+ });
+ assert.equal(safe.quarantined,true);
+ assert.equal((await pool.query('SELECT delivery_state FROM '+table+
+  ' WHERE operation_id=$1',[uncertainId])).rows[0].delivery_state,'blocked');
+ const notReady=(await pool.query("SELECT count(*)::int AS n FROM "+table+
+  " WHERE operation_id=$1 AND source_state='source_confirmed'"+
+  " AND delivery_state IN ('ready','leased')",[uncertainId])).rows[0].n;
+ assert.equal(notReady,0);
+ const replayQuarantine=await quarantineUncertainQaCoreMutation({
+  pool,operationId:uncertainId,authorizeUncertainOutcome:sourceUncertain,
+  env:{QA_PG_ISOLATED_TEST:'1',QA_CORE_PRIVATE_OUTBOX_STAGING:'1'},
+ });
+ assert.equal(replayQuarantine.replay,true);
+  await assert.rejects(pool.query('INSERT INTO '+table+
   ' (collection_name,document_path,operation,document_json,payload_sha256,operation_id)'+
   " VALUES ('qa_sparks','qa_sparks/x','delete',NULL,NULL,'qa-stage-event-000000002')"),
    e=>e.code==='23514');
