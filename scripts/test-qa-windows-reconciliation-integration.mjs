@@ -114,6 +114,10 @@ try{
   ' qa_failover_v1.live_snapshot_batches WHERE snapshot_id=$1',
   [retryCap.metadata.snapshotId])).rows[0].n,0);
 
+ // Prior fixture intentionally filled the budget to test exhaustion.
+ // Clear ONLY this disposable CI database project/day before a new scenario.
+ await pool.query("DELETE FROM qa_failover_v1.source_read_budget_daily"+
+  " WHERE project_id='qa-dashboard-b0b5d'");
  // ACTUAL candidate pipeline under test: bounded REST pages -> immutable
  // snapshot SQL -> verified counts, without any real network or user data.
  await pool.query("UPDATE qa_failover_v1.state SET mode='disabled' WHERE id=1");
