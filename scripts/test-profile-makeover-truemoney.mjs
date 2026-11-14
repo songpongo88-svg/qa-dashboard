@@ -175,7 +175,7 @@ try{
  assert.equal(tracker.body.requests.length,1);
  assert.equal(tracker.body.requests[0].phone,"0812345678");
  assert.equal((await req("mark-truemoney-paid",{itemId:idA})).code,403,"members cannot mark paid");
- assert.equal((await req("mark-truemoney-paid",{itemId:idA},true)).code,400,"cannot confirm payout without a slip");
+ assert.equal((await req("mark-truemoney-paid",{itemId:idA},true)).code,413,"cannot confirm payout without a slip");
  const sampleSlip=Buffer.alloc(3600,7);sampleSlip[0]=255;sampleSlip[1]=216;
  r=await req("mark-truemoney-paid",{itemId:idA,slipImageData:"data:image/jpeg;base64,"+sampleSlip.toString("base64"),
   slipManualReview:true,slipManualReason:"Admin ตรวจสอบสลิปจริงและหมายเลขรายการจากแอปธนาคาร",
