@@ -165,18 +165,15 @@ SELECT CASE WHEN
  AND EXISTS(SELECT 1 FROM qa_failover_v1.state
    WHERE id=1 AND mode='disabled' AND write_frozen IS TRUE
      AND source_snapshot_verified IS FALSE)
- AND NOT has_schema_privilege('public','qa_windows_probe_v1','USAGE')
+ AND NOT EXISTS(
+  SELECT 1 FROM pg_namespace n
+  CROSS JOIN LATERAL
+   aclexplode(COALESCE(n.nspacl,acldefault('n',n.nspowner))) grants
+  WHERE n.nspname='qa_windows_probe_v1'
+   AND grants.grantee=0 AND grants.privilege_type='USAGE'
+ )
  THEN 'SAFE' ELSE 'BLOCKED' END;
 '@
- # PUBLIC is a pseudo-role and cannot be passed to has_schema_privilege
- # by name as a normal role; use a dedicated negative SQL privilege check.
- $postSql=$postSql.Replace(
-  "AND NOT has_schema_privilege('public','qa_windows_probe_v1','USAGE')",
-  "AND NOT EXISTS(SELECT 1 FROM pg_namespace n "+
-  "JOIN pg_roles r ON r.rolname='anon' "+
-  "WHERE n.nspname='qa_windows_probe_v1' "+
-  "AND has_schema_privilege(r.oid,n.oid,'USAGE'))"
- )
  $check=@(& $psql -X -w -A -t -h 127.0.0.1 -p 5432 -U postgres -d qa_dashboard_lab -v ON_ERROR_STOP=1 -c $postSql 2>$null)
  if($LASTEXITCODE -ne 0 -or ($check -join '').Trim() -cne 'SAFE'){
   Block 'PRIVATE_SCHEMA_POSTCHECK_FAILED'
