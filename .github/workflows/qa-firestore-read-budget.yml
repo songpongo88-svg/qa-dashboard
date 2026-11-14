@@ -7,6 +7,8 @@ on:
     paths:
       - "src/useDashboardAutoRefresh.ts"
       - "src/App.tsx"
+      - "src/themeUsageReadPolicy.ts"
+      - "scripts/test-theme-usage-read-policy.mjs"
       - "scripts/test-dashboard-refresh.mjs"
       - ".github/workflows/qa-firestore-read-budget.yml"
   workflow_dispatch:
@@ -28,6 +30,8 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Dashboard revision and cache regression
         run: npm run test:dashboard-refresh
+      - name: Theme picker visual read cache safety
+        run: node scripts/test-theme-usage-read-policy.mjs
       - name: Firestore quota safety
         run: npm run test:firestore-quota
       - name: Coaching regression
