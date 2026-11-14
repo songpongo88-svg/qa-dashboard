@@ -93,12 +93,28 @@ try {
   assert.equal(started.status, "active");
   assert.equal((await activateNewSession(actor, "Other browser")).status, "conflict");
   const oldBrowser = ticketRequest("session", actor.username, started.sessionId);
-  const candidate = ticketRequest("candidate", actor.username);
-  const proposed = await requestTakeover({ username: actor.username, role: actor.role });
+  const candidate = { username: actor.username, role: actor.role,
+    candidateId: "123e4567-e89b-12d3-a456-426614174010" };
+  const differentCandidate = { ...candidate,
+    candidateId: "123e4567-e89b-12d3-a456-426614174011" };
+  const proposed = await requestTakeover(candidate);
   assert.equal(proposed.status, "pending");
+  // A retry must be idempotent, and cannot reset the 30-second draft deadline
+  // or create another audit write. Another candidate must not take over this
+  // in-progress handoff even when authenticated for the same QA account.
+  const beforeRetryAuditCount = [...db.keys()].filter(key => key.includes("qa_single_session_audit/")).length;
+  assert.deepEqual(await requestTakeover(candidate), proposed);
+  assert.equal([...db.keys()].filter(key => key.includes("qa_single_session_audit/")).length,
+    beforeRetryAuditCount, "Repeated takeover must not add a Firestore audit/write");
+  await assert.rejects(requestTakeover(differentCandidate),
+    error => error.code === "TAKEOVER_ALREADY_PENDING");
   assert.equal((await getTakeoverForOldBrowser(oldBrowser)).status, "flush_required");
   await assert.rejects(
-    commitTakeover({ username: actor.username, role: actor.role }, proposed.pendingId),
+    commitTakeover(differentCandidate, proposed.pendingId),
+    error => error.code === "DRAFT_NOT_READY",
+  );
+  await assert.rejects(
+    commitTakeover(candidate, proposed.pendingId),
     error => error.code === "DRAFT_NOT_READY",
   );
   const revisionId = Date.now();
@@ -108,9 +124,12 @@ try {
   assert.equal(draft.revision, revisionId);
   const acknowledged = await acknowledgeTakeover(oldBrowser, proposed.pendingId, "evaluation-form", revisionId);
   assert.equal(acknowledged.status, "ready");
-  const replaced = await commitTakeover({ username: actor.username, role: actor.role }, proposed.pendingId);
+  await assert.rejects(commitTakeover(differentCandidate, proposed.pendingId),
+    error => error.code === "DRAFT_NOT_READY");
+  const replaced = await commitTakeover(candidate, proposed.pendingId);
   assert.equal(replaced.status, "active");
   assert.notEqual(replaced.sessionId, started.sessionId);
+  assert.equal(db.get(prefix + "qa_single_session_active/test-agent").values.pendingCandidateId, "");
   await assert.rejects(authorizeActiveSession(oldBrowser), error => error.code === "SESSION_REPLACED");
   await assert.rejects(
     saveOwnedDraft(oldBrowser, "evaluation-form", revisionId + 1, { caseId: "AA123456" }),

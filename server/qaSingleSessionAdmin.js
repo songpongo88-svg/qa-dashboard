@@ -58,6 +58,12 @@ export function verifyQaTicket(ticket, expectedType, privateKey = null, now = Da
       !normalizeQaUsername(body.username) || !Number.isFinite(body.expiresAt) ||
       body.expiresAt <= now || body.expiresAt > now + TTL_MS + 60_000) return null;
   if (expectedType === "session" && !/^[0-9a-f-]{36}$/i.test(body.sessionId || "")) return null;
+  // Each authenticated login conflict gets its own short-lived candidate ID.
+  // Without this binding, a second browser with the same QA credentials could
+  // commit a takeover acknowledged for the first requesting browser.
+  if (expectedType === "candidate" &&
+      (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.candidateId || "") ||
+       body.expiresAt > now + CANDIDATE_TTL_MS + 60_000)) return null;
   return body;
 }
 
@@ -88,7 +94,8 @@ export function issueSessionCookie(res, actor, sessionId, now = Date.now()) {
 }
 export function issueCandidateCookie(res, actor, now = Date.now()) {
   const ticket = signQaTicket({ type: "candidate", username: actor.username,
-    role: actor.role, issuedAt: now, expiresAt: now + CANDIDATE_TTL_MS });
+    role: actor.role, candidateId: randomUUID(),
+    issuedAt: now, expiresAt: now + CANDIDATE_TTL_MS });
   res.setHeader("Set-Cookie", cookieHeader(COOKIE_CANDIDATE, ticket, 120));
 }
 export function clearSessionCookie(res) {
@@ -239,7 +246,8 @@ export async function activateNewSession(actor, deviceLabel = "Browser") {
   const row = { username: actor.username, sessionId, role: actor.role,
     deviceLabel: String(deviceLabel).slice(0, 60),
     createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + TTL_MS).toISOString(), expiresAtEpochMs: Date.now() + TTL_MS,
-    pendingId: "", pendingSessionId: "", pendingAt: "", pendingDeadline: "", ackRevision: -1,
+    pendingId: "", pendingSessionId: "", pendingCandidateId: "",
+    pendingAt: "", pendingDeadline: "", ackRevision: -1,
   };
   await auditedMutation("update", actor.username, row, current?.updateTime || null, sessionId, "login");
   return { status: "active", sessionId };
@@ -260,12 +268,26 @@ export async function authorizeActiveSession(req) {
   return { ticket, current };
 }
 export async function requestTakeover(candidate) {
+  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(candidate?.candidateId || "")) {
+    throw fail("Please verify your QA password again", 401, "LOGIN_EXPIRED");
+  }
   const current = await readActive(candidate.username);
   if (!activeNow(current)) return { status: "retry_login" };
+  const now = Date.now();
+  if (current.pendingId && Date.parse(current.pendingDeadline) > now) {
+    // An accidental duplicate request from the SAME new browser must not
+    // reset the 30-second deadline, consume more Firestore writes or force the
+    // original browser to restart its draft flush. A DIFFERENT browser cannot
+    // steal or invalidate someone else's pending takeover.
+    if (current.pendingCandidateId === candidate.candidateId) {
+      return { status: "pending", pendingId: current.pendingId, deadline: current.pendingDeadline };
+    }
+    throw fail("Another browser has a pending takeover request", 409, "TAKEOVER_ALREADY_PENDING");
+  }
   const pendingId = randomUUID();
   const sessionId = randomUUID();
-  const now = Date.now();
   const next = { ...current, pendingId, pendingSessionId: sessionId,
+    pendingCandidateId: candidate.candidateId,
     pendingAt: new Date(now).toISOString(),
     pendingDeadline: new Date(now + TAKEOVER_TTL_MS).toISOString(), ackRevision: -1 };
   delete next.updateTime;
@@ -316,13 +338,15 @@ export async function acknowledgeTakeover(req, pendingId, documentKey, revision)
 export async function commitTakeover(candidate, pendingId) {
   const current = await readActive(candidate.username);
   if (!activeNow(current) || !pendingId || current.pendingId !== pendingId ||
+      !candidate?.candidateId || current.pendingCandidateId !== candidate.candidateId ||
       current.ackRevision < 0 || Date.parse(current.pendingDeadline) <= Date.now()) {
     throw fail("Draft saving has not finished", 409, "DRAFT_NOT_READY");
   }
   const next = { ...current, sessionId: current.pendingSessionId, role: candidate.role,
     deviceLabel: "New browser", createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + TTL_MS).toISOString(), expiresAtEpochMs: Date.now() + TTL_MS,
-    pendingId: "", pendingSessionId: "", pendingAt: "", pendingDeadline: "", ackRevision: -1 };
+    pendingId: "", pendingSessionId: "", pendingCandidateId: "",
+    pendingAt: "", pendingDeadline: "", ackRevision: -1 };
   delete next.updateTime;
   await auditedMutation("update", candidate.username, next, current.updateTime, next.sessionId, "takeover");
   return { status: "active", sessionId: next.sessionId };

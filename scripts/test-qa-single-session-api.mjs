@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import handler from "../server/qaSingleSessionEndpoint.js";
-import { signQaTicket, verifyQaTicket, visibleSessionState, issueSessionCookie } from "../server/qaSingleSessionAdmin.js";
+import { signQaTicket, verifyQaTicket, visibleSessionState, issueSessionCookie, issueCandidateCookie, candidateFromRequest } from "../server/qaSingleSessionAdmin.js";
 
 
 // Vercel Hobby capacity: QA session routing reuses one existing serverless function.
@@ -89,6 +89,16 @@ const oldQaServiceEnv = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
 process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = JSON.stringify({
   project_id: "qa-dashboard-b0b5d", private_key: privateKey,
 });
+issueCandidateCookie(responseHeaders, { username: "agent", role: "Quality Assurance" });
+const candidateSetCookie = responseHeaders["Set-Cookie"];
+const candidateCookie = String(candidateSetCookie).split(";")[0];
+const issuedCandidate = candidateFromRequest({ headers: { cookie: candidateCookie } });
+assert.match(issuedCandidate.candidateId, /^[0-9a-f-]{36}$/i);
+assert.equal(issuedCandidate.username, "agent");
+const legacyCandidate = signQaTicket({ type: "candidate", username: "agent",
+  role: "Quality Assurance", expiresAt: Date.now() + 30_000 });
+assert.equal(verifyQaTicket(legacyCandidate, "candidate"), null,
+  "An old candidate ticket without a unique request ID must be rejected");
 issueSessionCookie(responseHeaders, { username: "agent", role: "Quality Assurance" },
   "123e4567-e89b-12d3-a456-426614174000");
 assert.equal(responseHeaders["Set-Cookie"].length, 2);
