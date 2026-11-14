@@ -2,7 +2,6 @@ name: QA Core private outbox safety
 on:
   pull_request:
     branches: [main]
-  workflow_dispatch:
     paths:
       - "migration/qa-core-private-outbox-stage.sql"
       - "server/qaLiveMirrorStage.js"
@@ -15,7 +14,11 @@ on:
       - "scripts/test-qa-core-private-outbox*.mjs"
       - "scripts/test-qa-core-outbox-uncertainty.mjs"
       - "scripts/check-qa-no-billing-source-writers.mjs"
+      - "migration/qa-windows-source-signal-stage.sql"
+      - "server/qaWindowsSourceSignalJournal.js"
+      - "scripts/test-qa-windows-source-signal-integration.mjs"
       - ".github/workflows/qa-core-private-outbox-safety.yml"
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -40,6 +43,7 @@ jobs:
           node scripts/test-qa-windows-source-probe.mjs
           node --check server/qaWindowsSourceDocumentReader.js
           node scripts/test-qa-windows-source-document-reader.mjs
+          node --check server/qaWindowsSourceSignalJournal.js
           node scripts/test-qa-core-private-outbox.mjs
           node scripts/test-qa-core-outbox-uncertainty.mjs
   isolated-postgres:
@@ -72,4 +76,6 @@ jobs:
       - name: Install isolated database driver
         run: npm install --ignore-scripts --no-save --no-package-lock --no-audit --no-fund pg@8.16.3
       - name: Test private PostgreSQL outbox with NO real user data
-        run: node scripts/test-qa-core-private-outbox-stage-integration.mjs
+        run: |
+          node scripts/test-qa-core-private-outbox-stage-integration.mjs
+          node scripts/test-qa-windows-source-signal-integration.mjs
