@@ -11,7 +11,8 @@ const original={snapshotId:'qa-frozen-ci-20261114',
 const env={QA_WINDOWS_SOURCE_PARITY:'1',
  QA_WINDOWS_SOURCE_PROBE_MANIFEST:'1',QA_FAILOVER:'OFF'};
 let capturedCalls=0,reserved=0,alterSource=false,alterBaseline=false;
-const loadBaseline=async()=>alterBaseline?{...original,
+let baselineCalls=0;
+const loadBaseline=async()=>alterBaseline&&++baselineCalls===2?{...original,
  snapshotId:'qa-changed-snapshot'}:original;
 const captureSource=async cfg=>{
  capturedCalls++;
@@ -47,7 +48,7 @@ alterSource=true;
 const mismatch=await checkQaWindowsPointInTimeParity(args);
 assert.equal(mismatch.result,'DIFFERS_FROM_FROZEN_COPY');
 assert.equal(mismatch.mismatchedDatasetCount,1);
-alterSource=false;alterBaseline=true;
+alterSource=false;alterBaseline=true;baselineCalls=0;
 await assert.rejects(checkQaWindowsPointInTimeParity(args),
  /qa_source_parity_frozen_snapshot_changed/);
 alterBaseline=false;
