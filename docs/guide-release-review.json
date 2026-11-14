@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T13:19:27.971Z",
-  "reason": "Reviewed bank-agnostic payout slip OCR support, two-pass Tesseract text extraction, conflict detection, safe Admin-only read-only tester and added local OCR transcript disclosure for troubleshooting. Test on multiple actual formats in Preview before Production.",
+  "reviewedAt": "2026-11-14T13:46:10.981Z",
+  "reason": "Reviewed OTP-free standalone read-only QA Sparks transfer slip OCR test page. Separate Vite HTML entry does not mount Supabase Auth, QA Dashboard or payout APIs; processes selected images locally and exposes no data mutation. Admin production auth remains unchanged. Added regression test and guide.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -114,7 +114,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "0001daca5ac39aa5b03e7946a85e76ef462d17f92f646e368bceb418f438a304",
+    "package.json": "06f2b05f55c8585e0bc5e6c80130321614dd956c3b381e488a4133584ca7ec5b",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -401,6 +401,7 @@
     "scripts/test-rich-text-toolbar.mjs": "adc4f5ae5cd0c0084cb6f5733d8658da9c5519aec79fc56dbcc4d6d42761f4ff",
     "scripts/test-schedule-export.mjs": "b7b5711aa892cb0728519eca86ef1f7888b472ad355434113afc90793f11ba30",
     "scripts/test-signature-appeal-hold.mjs": "0b79b07d2f79307bb09c1c3e205257ea5c4dbfc0cd8b0859a5804bc3274f9bd4",
+    "scripts/test-slip-standalone-route.mjs": "f9076160c0c8d5e9e9fbe1452f0c7cfa3eb2feff465c202c2ae2944d14b26f1a",
     "scripts/test-snakes-ladders-ui.mjs": "aea5b6ecd738a4640fc04b0a4766b41ba2f82f6d14d2214c663cbee43e2e6c24",
     "scripts/test-snakes-ladders.mjs": "8ea7521760c639a648df2a1db66c297ac71455f1cde41ba2862be7b15e424545",
     "scripts/test-spark-journey.mjs": "b0376e8eb90bad15be25e0db3cfb2b09c1ffcb6bc8f9721102e09cdd5cc0b8d9",
@@ -459,6 +460,7 @@
     "server/sparksSupabaseAuth.js": "2d53f8bb4bb9a65027ce93a528648a822bfc8adca4c48549b817b0a44678ab6e",
     "server/sparksSupabaseBridge.js": "6b31f44ff2a027375efea1dead562ebf8ebe3b02144e27425ab071c94fd7ada0",
     "server/typingReliefCloudService.js": "bfbd2ce2bb82ac5548028174ad509901b511fffbea7e9237ae987bddf593e2b2",
+    "slip-ocr-test.html": "62be6ac1177bc84e2233390ace273555e6667c851a64d1c0171c3cf80e646aa0",
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/analyticsTagRates.ts": "e421ff2b4e3d9d9ec7f502f23bb35982d658735d932d461a9f0313f03a644ec2",
     "src/announcementDetail.css": "96a37b49d6c3b43bbe34b3cd27d73de4b92b2b38a43e131a9e66b2e8a416d7c5",
@@ -570,7 +572,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "a3fca17deb53770a7afac728bb0901990bfcb56337ad2685086e0ea98da123d2",
+    "src/knowledge/manual.json": "74a9a40a6e1499e1b5dde23001d4207dcc96c5181e2847bcc31b8a24fbc6c919",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/PdfReader.tsx": "eeef5fda3c22a96bd1497b193a833fa65727e5232046e14751b3e29bd4effeb9",
@@ -684,6 +686,7 @@
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "a7648509a0d93de76b7d5f40b38f858d4ae29351eafd225e28e80e3f9945c0b8",
     "src/signatureStore.ts": "e2c59a43f5b61c6580160391e9c2a3f7d8fca55bebada1bf0e952dc1929e3b33",
+    "src/slipOcrStandalone.ts": "e6ba122fab2c51b14a3949268ccc62fec6f6002e56006ec1eb69a7a3c71f237e",
     "src/snakesLadders.css": "66d896a8ea5d206ab111b6a717a3e82e51322970744c07f05d4cac09bee77a95",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/snakesRules.js": "d15f1b23aeb75876426901aeaf77cf65e6c26262097ecb4a379bcd9faf2747ec",
@@ -781,6 +784,6 @@
     "src/YearlyTeamSummary.tsx": "2b1618ecad55269dd22acf073524ba3471efa65cc626134f7b33ca7581a2bb7d",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "96c96ccacc0f0b6b631d8778fdd9beb05281017fc072170af8d60d18d8900eb6"
   }
 }
