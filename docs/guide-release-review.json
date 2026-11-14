@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T13:16:47.956Z",
-  "reason": "Reviewed flexible OCR parsing for Bangkok Bank, K PLUS/Kasikorn, SCB, TrueMoney and other Thai bank/wallet layouts. Added strict uncertainty handling for conflicting amount readings, masked account checks and two independent OCR page segmentation passes. Source code and release test fixtures reviewed; Preview required before Production.",
+  "reviewedAt": "2026-11-14T13:19:27.971Z",
+  "reason": "Reviewed bank-agnostic payout slip OCR support, two-pass Tesseract text extraction, conflict detection, safe Admin-only read-only tester and added local OCR transcript disclosure for troubleshooting. Test on multiple actual formats in Preview before Production.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -711,7 +711,7 @@
     "src/SparksQaCredentialMigration.tsx": "32e61882f2fdbcbca39c0d8fd5c47bd272a6a80491a74eb5f66b56dbfbce78d4",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
     "src/SparksRewardRequests.tsx": "debe5e89365e0e1c0df6b2bd7a857fba4def6439ea7e1b1c09af01b5e00a7bb8",
-    "src/SparksSlipOcrTester.tsx": "55d69c56ae2ac1a02a1ff244df06b19d5b815ad4374c1c182350f7cd42311c0e",
+    "src/SparksSlipOcrTester.tsx": "696413b97a3df2da5df61ca68a7951b036d7e43eb1b4918bf1b961e69501e3cf",
     "src/SparksStandalone.tsx": "547c71f8243138e0c0eb1582683b871aeff3247f9d2320f973a0c3602610f6fa",
     "src/SparksWelcomeQuests.tsx": "d54135af2897b390843268a1ac022aad8df3ba7484c8c959f21e80e5a0f2fca2",
     "src/SpecialRewardCenter.tsx": "26ecb72922f9ed0e4ece3bace71c99833a5b09231e164a1f512d60012ae3eda1",
