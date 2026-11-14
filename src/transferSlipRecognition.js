@@ -17,7 +17,7 @@ const uniq=v=>[...new Set(v.filter(x=>x!==null&&x!==undefined&&x!==""))];
 const pick=v=>{const u=uniq(v);return u.length===1?u[0]:"";};
 const banks=[
   {name:"ธนาคารกรุงเทพ",re:/(?:ธนาคารกรุงเทพ|ธ\.?\s*กรุงเทพ|Bangkok Bank|BBL)/i},
-  {name:"ธนาคารกสิกรไทย",re:/(?:ธนาคารกสิกรไทย|ธ\.?\s*กสิกรไทย|Kasikorn(?:bank)?|KBank|K PLUS|K\\+)/i},
+  {name:"ธนาคารกสิกรไทย",re:/(?:ธนาคารกสิกรไทย|ธ\.?\s*กสิกรไทย|Kasikorn(?:bank)?|KBank|K PLUS|K\+)/i},
   {name:"ธนาคารไทยพาณิชย์",re:/(?:ธนาคารไทยพาณิชย์|ธ\.?\s*ไทยพาณิชย์|SCB(?: EASY)?|Siam Commercial Bank)/i},
   {name:"ธนาคารกรุงไทย",re:/(?:ธนาคารกรุงไทย|ธ\.?\s*กรุงไทย|Krungthai|KTB|NEXT Banking)/i},
   {name:"ธนาคารกรุงศรีอยุธยา",re:/(?:ธนาคารกรุงศรีอยุธยา|ธ\.?\s*กรุงศรี|Krungsri|Bank of Ayudhya|KMA)/i},
