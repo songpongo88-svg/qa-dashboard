@@ -58,6 +58,9 @@ on:
       - "scripts/check-qa-bridge-preview-preflight.mjs"
       - "scripts/check-qa-no-billing-source-writers.mjs"
       - "docs/qa-no-billing-source-coverage.md"
+      - "docs/qa-core-private-outbox-stage.md"
+      - "migration/qa-core-private-outbox-stage.sql"
+      - "scripts/test-qa-core-private-outbox-stage-integration.mjs"
       - "server/qaCutoverParityGate.js"
       - "scripts/test-qa-cutover-parity-gate.mjs"
       - "server/qaFailoverDecision.js"
@@ -216,6 +219,7 @@ jobs:
           node --check scripts/test-qa-postgres-session-integration.mjs
           node --check scripts/check-qa-bridge-preview-preflight.mjs
           node --check scripts/check-qa-no-billing-source-writers.mjs
+          node --check scripts/test-qa-core-private-outbox-stage-integration.mjs
           node --check server/qaCutoverParityGate.js
           node --check scripts/test-qa-cutover-parity-gate.mjs
           node --check server/qaFailoverDecision.js
@@ -376,6 +380,7 @@ jobs:
           # The delta test uses the shared synthetic database and must run last.
           node scripts/test-qa-source-delta-journal-integration.mjs
           node scripts/test-qa-delta-ingester-role-integration.mjs
+          node scripts/test-qa-core-private-outbox-stage-integration.mjs
 
   windows-candidate-8790:
     name: Windows 8790 isolated bridge checks
