@@ -319,7 +319,7 @@ export function createQaRewardsService(db){
         amount:0,balanceAfter:spendableBalance(wallet),performedBy:admin.username,status:"Completed"})
     ];
     if(proof)writes.push(...payoutSlipWrites(proof,id,request.username,createWrite));
-    return {writes,result:{updated:true,status}};
+    return {writes,result:{updated:true,status,...(proof?{payoutSlip:proof.summary}:{})}};
    });
  }
  return {mine,redeem,activate,receiptCheck,scanReceipt,submit,adminList,adminReceipt,adminAction};
