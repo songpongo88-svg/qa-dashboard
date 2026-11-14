@@ -39,15 +39,15 @@ SELECT t.table_name,
        c.relrowsecurity AS rls_enabled,
        CASE WHEN c.oid IS NULL THEN 'BLOCKED_MISSING_TABLE'
             WHEN NOT c.relrowsecurity THEN 'BLOCKED_RLS_DISABLED'
-            WHEN has_table_privilege('anon',c.oid,'SELECT') OR
-                 has_table_privilege('anon',c.oid,'INSERT') OR
-                 has_table_privilege('anon',c.oid,'UPDATE') OR
-                 has_table_privilege('anon',c.oid,'DELETE') OR
-                 has_table_privilege('authenticated',c.oid,'SELECT') OR
-                 has_table_privilege('authenticated',c.oid,'INSERT') OR
-                 has_table_privilege('authenticated',c.oid,'UPDATE') OR
-                 has_table_privilege('authenticated',c.oid,'DELETE')
-                 THEN 'BLOCKED_DIRECT_CLIENT'
+            WHEN EXISTS (
+               SELECT 1
+               FROM (VALUES ('anon'),('authenticated')) roles(role_name)
+               CROSS JOIN (VALUES
+                 ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),
+                 ('TRUNCATE'),('REFERENCES'),('TRIGGER'),('MAINTAIN')
+               ) privileges(privilege_name)
+               WHERE has_table_privilege(roles.role_name,c.oid,privileges.privilege_name)
+            ) THEN 'BLOCKED_DIRECT_CLIENT'
             ELSE 'GRANTS_LOCKED_DOWN'
        END AS release_status
 FROM target t LEFT JOIN pg_class c ON c.relname=t.table_name
