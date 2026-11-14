@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T14:58:10.067Z",
-  "reason": "Reviewed isolated Preview Dashboard case-list failure diagnostics, zero-data/filtered/no-match distinctions and 2026 filter reset; protects user interpretation of unavailable Firestore histories; no QA scoring or policy changes",
+  "reviewedAt": "2026-11-14T07:54:00.000Z",
+  "reason": "Reviewed server-side QA session principal, role and expiry fail-closed checks plus regression tests for session takeover; no QA workflow, scoring or manual content changes",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -446,7 +446,7 @@
     "server/qaFirebaseCredentials.js": "e2611d2a59e8d41e76f2eec851279fd5c78a6219bc492e724d44287886d06491",
     "server/qaLotteryService.js": "5f23b0561fd0f22874e3d74dd0aafa1d59a3685a455fbb1e21326e829760bac4",
     "server/qaRewardsService.js": "c8b59cad5f709c4a464f262793f7a0153ed959aaca7fec0fef4e6e3906d7a822",
-    "server/qaSingleSessionAdmin.js": "e6bbc4ddcde923c35c7755703367e306c6b8e17bb3e70d6ec3eda87b7d156c2a",
+    "server/qaSingleSessionAdmin.js": "561f26278cb7eb3c015d601c3974590e213bc5b27350fd50dbe847870d49f105",
     "server/snakesLaddersService.js": "fe0bf2ce9eafddc456dc9c58116d7895d484b5cc6e531d238a759cb2861d5442",
     "server/sparksAccessControl.js": "daae2bf5caa8e7c916a24a9d697dd45a4c8952b07c450d37871dfc303c9ebe08",
     "server/sparksAdminReadGrant.js": "f32b8edf4700a2c4f8b0285bc7ddbdc66e35491b9cdb9eb77383fee58698c8a3",
@@ -780,7 +780,7 @@
     "src/qaSingleSessionClient.ts": "f6ffefb7264345e6084bdc6792603ea8255b764f5d810012471475ae988d1905",
     "scripts/test-qa-session-write-guards.mjs": "019573464bd700828901ca4f0701cd4f06b3ca13252d2b3c64bd58d8e3102fe6",
     "src/useCoachingSessionRecovery.ts": "bc77ed5cf03faf0dffbf9ef873f98fb6a5365c56cd22618a8910d5724d46e2f7",
-    "scripts/test-qa-session-atomic-flow.mjs": "8e199c39d023855ed12671dbda4701fcbf6f73460ab43c56e35dd5677171af7a",
+    "scripts/test-qa-session-atomic-flow.mjs": "b0f93946bb8dfac372c8cba8f1065e2aeb1ee2983c5fba8f23e0e2e41f164a7a",
     "server/qaSingleSessionEndpoint.js": "653207f629e248404c6ff25391d0f96447afa6454977402e991f8967d9cd9d59",
     "scripts/test-qa-upload-session-gate.mjs": "1c7bb0d1bea7a9a4a68676eab2a5070c81c49d5409fd3e26cb60a7ba96d3e5c6",
     "src/qaTabLease.mjs": "9ff18c95d6e91c700e981d257719af827d46bedbd351c0394f1d5e47d3861e4c",
