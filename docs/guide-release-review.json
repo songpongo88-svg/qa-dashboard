@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T15:36:49.437Z",
-  "reason": "Reviewed Theme Collection visual-statistics read throttling: 30-minute cache, explicit save refresh, and no changes to UI instructions, access control or QA workflows.",
+  "reviewedAt": "2026-11-14T15:38:19.327Z",
+  "reason": "Reviewed Theme Collection visual usage cache and added invalid clock regression coverage; only backend read behavior changes, no guide content or UI changes.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -775,6 +775,6 @@
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "src/themeUsageReadPolicy.ts": "f6b6f652638bc77ce519ac455766bf48e2d0cd30229c2df6b12acec7f3790241",
-    "scripts/test-theme-usage-read-policy.mjs": "8bf49dc2ebed64f59b49870215a18ed79446657812c5ad68f4fcce4fa320a049"
+    "scripts/test-theme-usage-read-policy.mjs": "089bcbd8976e3b27d0d110f4697991e487b45d9caf147855c69eff399149ab74"
   }
 }

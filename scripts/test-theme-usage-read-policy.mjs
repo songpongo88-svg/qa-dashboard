@@ -11,6 +11,7 @@ assert.equal(isThemeUsageReadFresh(null,now),false);
 assert.equal(isThemeUsageReadFresh("{",now),false);
 assert.equal(isThemeUsageReadFresh(JSON.stringify({updatedAt:new Date(now).toISOString()}),now),false);
 assert.equal(isThemeUsageReadFresh(saved(now),now),true);
+assert.equal(isThemeUsageReadFresh(saved(now),Number.NaN),false);
 assert.equal(isThemeUsageReadFresh(saved(now-THEME_USAGE_READ_TTL_MS+1),now),true);
 assert.equal(isThemeUsageReadFresh(saved(now-THEME_USAGE_READ_TTL_MS),now),false);
 assert.equal(isThemeUsageReadFresh(saved(now+1),now),false);
