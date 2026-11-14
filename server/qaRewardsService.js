@@ -277,7 +277,7 @@ export function createQaRewardsService(db){
    const snapshot=recordValue(await readDoc(rpath(id)));
    if(!snapshot.itemId)err("ไม่พบคำขอ",404);
    const needsSlip=action==="complete"&&rewardFor(snapshot.rewardId).type!=="email"&&snapshot.status==="approved";
-   const proof=needsSlip?await preparePayoutEvidence(body,snapshot,admin,getAccessToken):null;
+   const proof=needsSlip?await preparePayoutEvidence(body,snapshot,admin):null;
    return txRun(async txn=>{
     const reqpath=rpath(id),reqdoc=await readDoc(reqpath,txn),request=recordValue(reqdoc);
     if(!reqdoc)err("ไม่พบคำขอ",404);
