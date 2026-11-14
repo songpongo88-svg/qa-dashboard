@@ -59,17 +59,45 @@ function labelledAmounts(lines,label,excludeFee=false){
 }
 function amounts(lines){
   const labelled=labelledAmounts(lines,amountLabel,true);
-  // Wallet screenshots may show only a large ฿154.00 above the transaction details.
+  // Wallet receipts sometimes show a large "B154.00" when OCR mistakes "฿154.00" for B.
+  // This is a currency glyph only at the start of an isolated amount, never a bank/reference ID.
+  const wallet=lines.slice(0,8).some(s=>/(?:truemoney|ทรูมันนี่)/i.test(s));
+  const headline=wallet?uniq(lines.slice(0,10).flatMap(s=>{
+    const m=s.match(/^[฿B]\s*((?:\d{1,3}(?:,\d{3})+|\d{1,8})(?:\.\d{2})?)\s*$/i);
+    return m?[Number(m[1].replace(/,/g,""))]:[];
+  })):[];
   const currency=lines.filter(s=>!feeLabel.test(s)&&!/(?:บัญชี|เลขที่|อ้างอิง)/.test(s))
     .flatMap(s=>[...s.matchAll(/(?:฿|THB\s*)(\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d{1,8}(?:\.\d{2})?)(?:\s*(?:THB|บาท|฿))?/gi)]
       .map(m=>Number(m[1].replace(/,/g,""))).filter(Number.isFinite));
   const suffix=lines.filter(s=>!feeLabel.test(s)&&!/(?:บัญชี|เลขที่|อ้างอิง)/.test(s))
     .map(s=>s.match(/(?:^|\s|:)(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d{1,8}\.\d{2})\s*(?:บาท|THB)(?:\s|$)/i)?.[1])
     .filter(Boolean).map(v=>Number(v.replace(/,/g,"")));
-  const candidates=uniq(labelled.length?labelled:(currency.length?currency:suffix));
+  const sourceCandidates=uniq(labelled.length?labelled:(currency.length?currency:suffix));
+  let candidates=sourceCandidates;
+  let amountCorrectedFromCurrencyGlyph=false;
+  // Require independent visual/OCR evidence: a large "B154.00" headline AND a
+  // labelled 8154.00 (the same amount prefixed by a misread ฿ symbol).
+  // Without the corroborating headline, preserve uncertainty; never silently trim 8.
+  if(wallet&&headline.length===1&&sourceCandidates.length){
+    const primary=headline[0];
+    const confused=Number("8"+String(primary));
+    if(sourceCandidates.every(v=>v===primary||v===confused)){
+      amountCorrectedFromCurrencyGlyph=sourceCandidates.includes(confused);
+      candidates=[primary];
+    }
+  }
+  if(wallet&&headline.length===1&&!sourceCandidates.length)candidates=headline;
   const amountTHB=candidates.length===1?candidates[0]:null;
   const fees=labelledAmounts(lines,feeLabel);
-  return {amountTHB,feeTHB:fees.length===1?fees[0]:null,amountCandidates:candidates};
+  // On some TrueMoney slips "฿0.00" becomes "80.00". Unlike the transfer amount,
+  // it has no independent corroborating value, so do not fabricate a zero fee.
+  const feeGlyphUncertain=wallet&&fees.length===1&&/^8(?:0|00)\.\d{2}$/.test(fees[0].toFixed(2));
+  const feeTHB=fees.length===1&&!feeGlyphUncertain?fees[0]:null;
+  return {
+    amountTHB,feeTHB,amountCandidates:sourceCandidates.length?sourceCandidates:candidates,
+    amountCorrectedFromCurrencyGlyph,feeGlyphUncertain,
+    feeCandidates:fees
+  };
 }
 function references(lines){
   const short=[],long=[],other=[];
@@ -195,6 +223,8 @@ export function parseTransferSlipText(raw){
     money.amountTHB===null&&"ยอดเงิน",!party.recipientAccountMasked&&!party.recipientName&&"ผู้รับเงิน"].filter(Boolean);
   const reviewFlags=[dt.dateSource==="visible-time-matched-bank-reference"&&"วันเวลาอ้างอิงเลขรายการเพราะ OCR อ่านชื่อเดือนไม่ชัด",
     party.recipientIdentifierType==="bank-account"&&"เลขบัญชีถูกปิดบังบางส่วน ต้องตรวจยืนยันผู้รับด้วยตนเอง",
-    money.amountCandidates.length>1&&"OCR พบยอดเงินหลายค่าที่ขัดกัน ต้องตรวจยอดจากภาพต้นฉบับ"].filter(Boolean);
+    money.amountCandidates.length>1&&!money.amountCorrectedFromCurrencyGlyph&&"OCR พบยอดเงินหลายค่าที่ขัดกัน ต้องตรวจยอดจากภาพต้นฉบับ",
+    money.amountCorrectedFromCurrencyGlyph&&"สัญลักษณ์ ฿ ในสลิป Wallet อาจถูก OCR อ่านเป็น 8; ระบบเทียบกับยอดที่พิมพ์ซ้ำบนภาพแล้ว กรุณาตรวจทานยอด",
+    money.feeGlyphUncertain&&"ค่าธรรมเนียมของ Wallet อาจถูก OCR อ่านเป็น 80.00 แทน ฿0.00 จึงไม่ระบุยอดค่าธรรมเนียมจนกว่าจะตรวจภาพจริง"].filter(Boolean);
   return {...refs,...dt,...party,...money,isSuccessful,missing,reviewFlags};
 }
