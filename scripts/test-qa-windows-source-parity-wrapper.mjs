@@ -14,4 +14,7 @@ for(const must of [
 assert.ok(!/Start-Process|Start-Service|firestore\.googleapis\.com|firebase\.googleapis\.com/i.test(ps));
 assert.ok(ps.indexOf('if(-not $Run)')<ps.indexOf('Invoke-WebRequest'),'default must do no network');
 assert.ok(ps.indexOf('New-Item -ItemType Directory')<ps.indexOf('application-default print-access-token'));
+assert.ok(ps.includes("Result 'RECONCILIATION_REQUIRED'"));
+assert.ok(ps.includes("Result 'MATCHED_SNAPSHOT_ONLY_NOT_LIVE'"));
+assert.ok(!ps.includes("Result 'COMPLETED_INACTIVE'"));
 console.log('PASS offline-by-default Windows source parity wrapper policy');

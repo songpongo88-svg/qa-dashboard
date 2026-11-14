@@ -103,11 +103,15 @@ try{
  # The Node runner checks frozen hash manifest and available quota before
  # creating an exclusive daily marker or issuing the first Firestore GET.
  & $node.Source (Join-Path $folder 'scripts\Run-QA-Windows-Source-Parity.mjs')
+ if($LASTEXITCODE -eq 3){
+  Result 'RECONCILIATION_REQUIRED'
+  exit 3
+ }
  if($LASTEXITCODE -ne 0){
   Result 'CHECK_BLOCKED'
   exit 2
  }
- Result 'COMPLETED_INACTIVE'
+ Result 'MATCHED_SNAPSHOT_ONLY_NOT_LIVE'
 }catch{
  Result 'FAILED_CLOSED'
  exit 2

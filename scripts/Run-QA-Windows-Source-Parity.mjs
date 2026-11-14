@@ -98,6 +98,17 @@ export async function runQaWindowsSourceParity({
   if(!poolOverride)await pool.end();
  }
 }
+export function qaParityExitCode(result){
+ if(result?.result==='MATCHED_AT_SINGLE_READ_TIME'&&
+    result?.mismatchedDatasetCount===0&&
+    result?.sourceCollections===11&&result?.failoverReady===false)
+   return 0;
+ if(result?.result==='DIFFERS_FROM_FROZEN_COPY'&&
+    Number.isSafeInteger(result?.mismatchedDatasetCount)&&
+    result.mismatchedDatasetCount>0)
+   return 3;
+ return 2; // fail closed for unknown or contradictory receipts
+}
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  runQaWindowsSourceParity().then(r=>{
   console.log('QA_SOURCE_PARITY='+r.result);
@@ -108,6 +119,10 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   console.log('QA_SOURCE_PARITY_DOCUMENT_UNITS_RESERVED='+r.reservedUnitsThisRun);
   console.log('QA_SOURCE_PARITY_REST_REQUESTS='+r.apiRequests);
   console.log('QA_SOURCE_PARITY_CONTINUOUS=NOT_CERTIFIED');
+  const code=qaParityExitCode(r);
+  if(code===3)console.log('QA_SOURCE_PARITY_ACTION=RECONCILIATION_REQUIRED');
+  if(code===2)console.log('QA_SOURCE_PARITY_ACTION=UNVERIFIED_RESULT');
+  if(code!==0)process.exitCode=code;
  }).catch(e=>{
   console.log('QA_SOURCE_PARITY='+(safe.has(e?.code||e?.message)?
     e.code||e.message:'CHECK_BLOCKED'));
