@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-13T16:32:42.436Z",
-  "reason": "Reviewed Login Log Firestore read mitigation: cached list for five minutes, explicit manual refresh forces a fresh read; login/logout audit writes and security session validation remain unchanged.",
+  "reviewedAt": "2026-11-14T05:40:00.000Z",
+  "reason": "Reviewed the standalone Thai Lessons Collection label and icon against the approved textbook artwork; no changes to guide steps, scoring, user data, or existing workflows.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -454,7 +454,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "224a03a7d77da1bf5a9de5a12c0c4f1126a69df4c78436cf4ae88a200b1d0933",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "c5c9307c4193c224c5e79d02b618b93a803a44398dfa23f8cebc3563105f1fb6",
+    "src/App.tsx": "604caa17620c7346883f7709f613715ed7611e3e9a5a588869ec7dd4bee5312b",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -731,7 +731,7 @@
     "src/staticFileCache.ts": "7712ae2f3968b506366062a3e9bc611edd3b7c53847e1fb0b157da2ad9deb8e3",
     "src/stickyNoteStore.ts": "fb848e980df87ae2703d780c626af8021114f9526f36e53001af67e2fcd13e9d",
     "src/textbookTheme.css": "0626a304130e404da1f56896b67a8aa81da360f1d4f323c35fe4fdb8dbb7e484",
-    "src/themePickerCollections.css": "12f56f5c410958a248da4147451f80d11d07ed0b2eb6a0b61fcb4a740c9adf96",
+    "src/themePickerCollections.css": "96d6acaae6da7a80a5b4c98ec4b5cfd9e8d1e4557ec6bec0e69e55652b1a66a3",
     "src/themePreview.mjs": "50b6ff6682329e5c0d6e37c9b2ed675ac836cc6465ab1110565cf699d27ecc38",
     "src/typingReliefPricing.mjs": "1b01a39b16ae2b10e4740ea9101478ae5b9c72d24630b73b4e2151b740c96a4c",
     "src/typingReliefReward.ts": "809e9f171f612de51a0d8973ccff9093d56409b13a0c68f523de3307bef85326",

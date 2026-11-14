@@ -117,3 +117,16 @@ html #root #qa-theme-collection-panel > button[data-qa-color-option][aria-presse
 .qa-theme-collection-panel[data-qa-picker-collection="thai-lessons"] > [data-qa-theme-collection]:not([data-qa-theme-collection="thai-lessons"]),
 .qa-theme-collection-panel:not([data-qa-picker-collection="thai-lessons"]) > [data-qa-theme-collection="thai-lessons"] {display:none!important;}
 @media(max-width:600px) {.qa-theme-collection-tabs {grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+/* Thai textbook collection has its own book/railway artwork indicator.
+   It is intentionally separate from Color Collection and never alters theme data. */
+.qa-theme-collection-tabs #qa-collection-tab-thai-lessons {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+}
+.qa-theme-collection-tabs #qa-collection-tab-thai-lessons::before {
+  content:"";display:block;width:32px;height:26px;flex:none;
+  background:url("/textbook-theme/engine.svg") center/contain no-repeat;
+}
+.qa-theme-collection-tabs #qa-collection-tab-thai-lessons[aria-selected="true"] {
+  background:#fff8e9;color:#294f64;border-color:#d1b68a;
+}
