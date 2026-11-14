@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T14:45:36.943Z",
-  "reason": "Reviewed QA Single Active Session Google Drive download authorization: current server-owned session, same-origin access, fail-closed behavior and no-store caching after takeover; tested against anonymous/forged/cross-origin reads.",
+  "reviewedAt": "2026-11-14T15:34:39.239Z",
+  "reason": "Reviewed same-tab logout/login Set-Cookie race, Firebase Auth sign-out barrier, bounded offline logout, and new automated slow/failed request regression coverage.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -19,7 +19,7 @@
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
     ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
     ".github/workflows/qa-session-guide-record.yml": "fc984ed97630d27e02c651323af675198d0d34569ebf1cc3f340049505411729",
-    ".github/workflows/qa-single-session-tests.yml": "e1fbae1808dc2286b2171c73108d3b99fef7c161f4d910108579d181581dc04e",
+    ".github/workflows/qa-single-session-tests.yml": "731378d6253ae4d90e0655ce2ff38bc33ab85191cb88f7c3590027229d0efd95",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -114,7 +114,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "7926ea89108f0087bf357eb1d0f1bd1a75972537feee55137d162993f907a0f7",
+    "package.json": "92984363f4b0e6be59baac6f80092fd827569714d270897ec6321ba89df492f1",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -777,8 +777,8 @@
     "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
     "scripts/test-qa-single-session-api.mjs": "3176cae1c0ea0918c6ca46c1e6a5e58a2299bb5720f0adaef2dcfaffc193ba74",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
-    "src/qaSingleSessionClient.ts": "f6ffefb7264345e6084bdc6792603ea8255b764f5d810012471475ae988d1905",
-    "scripts/test-qa-session-write-guards.mjs": "678d635c164a83730f0bf287dc4f8e78026354631cb75b664e3faaf07f1eb85a",
+    "src/qaSingleSessionClient.ts": "270f855e24d7d76e16d8db8fcaf9b2976d1fa82a41056642a7425761fffb1231",
+    "scripts/test-qa-session-write-guards.mjs": "756722aabc81871169ff3751c8b06931638a4bdecc50a3d22fa2306a65b5ee12",
     "src/useCoachingSessionRecovery.ts": "6eb776e8c7a0b38916e2fbd5aca038b775c8dd1e5e680586bfd9369ceec34c68",
     "scripts/test-qa-session-atomic-flow.mjs": "c5d9e7af1b5e52f2db41bd7437876032e962d56c9dd90bafd11a5a91933a0d28",
     "server/qaSingleSessionEndpoint.js": "81d37f27f70a82d33a1da336fd4cfb8bb15446c289760bffef23b7d9f07abd03",
@@ -789,6 +789,8 @@
     "scripts/test-qa-single-session-firebase-rules.mjs": "540bc11cbd07bae7ccaf983fe63ac752f3b29bdb8b6cdeafe22a2707d3a713bc",
     "scripts/test-qa-single-session-rules-contract.mjs": "af3e432378f7898c0b62da9cdc8673a333c96d672b8ce689fdc47c5405d15a9c",
     "scripts/test-qa-dashboard-preview-empty.mjs": "685301d3ea68d35ecf26b92c5b950a8befbd843d7f17029b75c6785f9d3d78da",
-    "server/qaSingleSessionReleaseGate.js": "56911f6856edb5a4641b3d0f7a7ca47b4bac0e7cae520b0f7bc1f4a6a57b3cc1"
+    "server/qaSingleSessionReleaseGate.js": "56911f6856edb5a4641b3d0f7a7ca47b4bac0e7cae520b0f7bc1f4a6a57b3cc1",
+    "src/qaSessionTransitionBarrier.mjs": "96f18d27b8e28b0ddfd6c51f01d4b7a596a086ad4d494982696759da6670dbd9",
+    "scripts/test-qa-session-logout-race.mjs": "bb65d3d249bf212b3737278c591009e884a38f408f3965b7de864c830da854aa"
   }
 }

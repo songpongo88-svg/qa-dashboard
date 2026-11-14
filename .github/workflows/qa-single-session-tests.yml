@@ -9,6 +9,8 @@ on:
       - "vercel.json"
       - "server/qaSingleSessionAdmin.js"
       - "src/qaSingleSessionClient.ts"
+      - "src/qaSessionTransitionBarrier.mjs"
+      - "scripts/test-qa-session-logout-race.mjs"
       - "src/evaluationStore.ts"
       - "src/coachingStore.ts"
       - "src/appealStore.ts"
@@ -44,6 +46,8 @@ jobs:
         run: node scripts/test-session-takeover-policy.mjs
       - name: API fail-closed guards
         run: node scripts/test-qa-single-session-api.mjs
+      - name: Fast logout/login cookie rotation and Firebase sign-out
+        run: node scripts/test-qa-session-logout-race.mjs
       - name: Browser recovery isolation
         run: node scripts/test-session-recovery.mjs
       - name: Trusted QA credential validation

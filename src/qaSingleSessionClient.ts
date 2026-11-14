@@ -1,6 +1,10 @@
 import { canAcknowledgeQaTakeover } from "./qaTabLease.mjs";
 import { signInWithCustomToken, signOut } from "firebase/auth";
 import { firebaseAuth } from "./firebaseClient";
+import {
+  runQaServerLogout, waitForQaServerLogout,
+  runQaFirebaseSignOut, waitForQaFirebaseSignOut,
+} from "./qaSessionTransitionBarrier.mjs";
 // New session protocol is OFF unless both preview/client and server explicitly
 // enable it. A rejected server check must never silently fall back to legacy
 // Firebase login once the feature flag is enabled.
@@ -55,18 +59,29 @@ export async function qaServerSessionRequest(
   if (action === "ack" && !(await canAcknowledgeQaTakeover())) {
     throw new QaServerSessionError(409, "QA_OTHER_TABS_OPEN");
   }
-  const response = await fetch("/api/qa-single-session", {
-    method: "POST",
-    credentials: "same-origin",
-    cache: "no-store",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action, ...payload }),
-  });
-  const data = await response.json().catch(() => ({ ok: false, code: "INVALID_RESPONSE" }));
-  if (!response.ok && !(action === "login" && response.status === 409 && data?.status === "conflict")) {
-    throw new QaServerSessionError(response.status, String(data?.code || "QA_SESSION_UNAVAILABLE"));
+  // A late old-session logout response can clear a fresh login Set-Cookie.
+  // Wait for the old response before login or takeover starts, even after
+  // network errors; the server still owns authoritative revocation.
+  if (action === "login" || action === "request" || action === "commit") {
+    await waitForQaServerLogout();
   }
-  return data as QaServerSessionResponse;
+  const send = async (): Promise<QaServerSessionResponse> => {
+    const response = await fetch("/api/qa-single-session", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action, ...payload }),
+      signal: action === "logout" ? AbortSignal.timeout(15_000) : undefined,
+    });
+    const data = await response.json().catch(() => ({ ok: false, code: "INVALID_RESPONSE" }));
+    if (!response.ok && !(action === "login" && response.status === 409 && data?.status === "conflict")) {
+      throw new QaServerSessionError(response.status, String(data?.code || "QA_SESSION_UNAVAILABLE"));
+    }
+    return data as QaServerSessionResponse;
+  };
+  if (action === "logout") return runQaServerLogout(send);
+  return send();
 }
 
 
@@ -78,12 +93,15 @@ export async function qaServerSessionRequest(
  */
 export async function activateQaFirebaseIdentity(): Promise<void> {
   if (!QA_SINGLE_SESSION_CLIENT_ENABLED) return;
+  await waitForQaFirebaseSignOut();
   const grant = await qaServerSessionRequest("firebase-token");
   const username = grant.identity?.username?.trim().toLowerCase();
   if (!grant.ok || grant.status !== "active" || !grant.firebaseToken ||
       !grant.sessionId || !username || !grant.identity?.role) {
     throw new QaServerSessionError(401, "QA_FIREBASE_SESSION_NOT_GRANTED");
   }
+  // A Firebase sign-out may have begun while the token was requested.
+  await waitForQaFirebaseSignOut();
   const login = await signInWithCustomToken(firebaseAuth, grant.firebaseToken);
   const idToken = await login.user.getIdTokenResult();
   if (login.user.uid !== "qa-" + username ||
@@ -96,7 +114,9 @@ export async function activateQaFirebaseIdentity(): Promise<void> {
 }
 
 export async function clearQaFirebaseIdentity(): Promise<void> {
-  if (QA_SINGLE_SESSION_CLIENT_ENABLED) await signOut(firebaseAuth);
+  if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+    await runQaFirebaseSignOut(() => signOut(firebaseAuth));
+  }
 }
 
 /**

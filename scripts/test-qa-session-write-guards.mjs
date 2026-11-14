@@ -15,6 +15,16 @@ assert.ok(buildScripts.prebuild.includes("SPARKS_MIGRATED_DOCUMENTS=301 && npm r
 
 const client = await readFile(new URL("../src/qaSingleSessionClient.ts", import.meta.url), "utf8");
 assert.match(client, /export async function assertTrustedQaSessionForMutation\(/);
+assert.ok(client.includes('await waitForQaServerLogout();'),
+  "New login/takeover must await the old cookie-clearing logout response");
+assert.ok(client.includes('if (action === "logout") return runQaServerLogout(send);'),
+  "Logout must register a gate before the request starts");
+assert.ok(client.includes('await waitForQaFirebaseSignOut();'),
+  "Fresh Firebase custom-token sign-in must await previous sign-out");
+assert.ok(client.includes('await runQaFirebaseSignOut(() => signOut(firebaseAuth));'),
+  "Firebase signOut must register its gate synchronously");
+assert.ok(client.includes('signal: action === "logout" ? AbortSignal.timeout(15_000) : undefined'),
+  "Offline logout must have a bounded wait");
 assert.match(client, /await qaServerSessionRequest\("validate"\)/);
 assert.match(client, /throw new QaServerSessionError\(401, "QA_SESSION_NOT_ACTIVE"\)/);
 
