@@ -946,7 +946,7 @@ async function markTrueMoneyPaid(body,admin){
         }),
         ...payoutSlipWrites(proof,itemId,request.username,createWrite),
       ]});
-      return {updated:true,status:"paid",paidAt:now};
+      return {updated:true,status:"paid",paidAt:now,payoutSlip:proof.summary};
     }catch(error){
       if(["ABORTED","FAILED_PRECONDITION"].includes(error?.firestoreStatus)&&retry<3)continue;
       throw error;
