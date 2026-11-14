@@ -1,6 +1,7 @@
 import React,{useCallback,useState} from "react";
 import "./specialRewards.css";
-import RewardActionConfirmModal,{type PayoutProof,type PayoutScan} from "./RewardActionConfirmModal";
+import RewardActionConfirmModal,{type PayoutProof} from "./RewardActionConfirmModal";
+import {readPayoutSlipLocally} from "./localPayoutSlipOcr";
 type Request={requestId:string;itemId:string;rewardId:string;title:string;username:string;displayName:string;
  status:string;createdAt:string;amountTHB?:number;payoutTHB?:number;promptPay?:string;email?:string;
  ocrStatus?:string;ocrNote?:string;receiptNumber?:string;receiptAt?:string;adminNote?:string;
@@ -105,7 +106,7 @@ export default function SpecialRewardsAdmin({actorUsername,sessionId,adminReady}
     })():null}
     busy={busy} error={confirmItem?error:""}
     onCancel={()=>{if(!busy){setConfirmItem(null);setError("");}}}
-    onAnalyze={async imageData=>call("analyze-payout-slip",{imageData}) as Promise<PayoutScan>}
+    onAnalyze={readPayoutSlipLocally}
     onConfirm={proof=>{const row=rows.find(x=>x.itemId===confirmItem);
       if(row)void performAction(row,"complete",proof);}}/>
  </section>;
