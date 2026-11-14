@@ -145,6 +145,7 @@ try{
  const completed=await runQaWindowsReconciliation({
   env:runnerEnv,poolOverride:pool,oauthToken:'fake-ci-token-for-no-live-firestore-only',
   fetchImpl,now,createAttemptMarker:async()=>{markerCount++},
+  checkPreviousAttempts:async()=>{}, // injected CI-only; real Windows uses Pacific marker checks
  });
  assert.equal(completed.status,'CANDIDATE_ARCHIVED_AND_RECONCILED');
  assert.equal(completed.oldDocuments,11);
