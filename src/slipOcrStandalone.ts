@@ -1,30 +1,50 @@
 import {readPayoutSlipLocally} from "./localPayoutSlipOcr";
+
 const byId=(id:string)=>document.getElementById(id)!;
 const fileInput=byId("file") as HTMLInputElement;
+const clearButton=byId("clear") as HTMLButtonElement;
 const status=byId("status");
 const result=byId("result");
-const fields=byId("fields");
-const warning=byId("warnings");
-const preview=byId("preview") as HTMLImageElement;
-const raw=byId("raw");
+const list=byId("batch-items");
+const batchSummary=byId("batch-summary");
 const description=byId("description");
-let chosenObjectUrl="";
-let active=0;
+const MAX_FILES=20;
+const MAX_BYTES=8*1024*1024;
+let running=false;
+let processed=0;
+let completed=0;
+let partial=0;
+let failed=0;
+let reviewCount=0;
+
 function say(message:string,kind="info"){
   status.textContent=message;status.dataset.kind=kind;
 }
-const money=(v:number|null|undefined)=>v===null||v===undefined?"อ่านไม่พบ":v.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2})+" บาท";
+const money=(v:number|null|undefined)=>v===null||v===undefined?"อ่านไม่พบ":
+  v.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2})+" บาท";
 function date(iso:string|undefined){
   if(!iso)return "อ่านไม่พบ";
   const value=new Date(iso);
   if(!Number.isFinite(value.getTime()))return "อ่านไม่พบ";
-  return value.toLocaleString("th-TH",{timeZone:"Asia/Bangkok",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  return value.toLocaleString("th-TH",{timeZone:"Asia/Bangkok",day:"numeric",
+    month:"long",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
 }
-function field(label:string,value:string,wide=false){
-  const box=document.createElement("div");box.className="kv"+(wide?" wide":"");
-  const key=document.createElement("div");key.className="key";key.textContent=label;
-  const val=document.createElement("div");val.className="val";val.textContent=value||"อ่านไม่พบ";
-  box.append(key,val);fields.append(box);
+function el<K extends keyof HTMLElementTagNameMap>(
+  name:K,text?:string,className?:string
+):HTMLElementTagNameMap[K]{
+  const node=document.createElement(name);
+  if(text!==undefined)node.textContent=text;
+  if(className)node.className=className;
+  return node;
+}
+function field(host:HTMLElement,label:string,value:string,wide=false){
+  const box=el("div",undefined,"kv"+(wide?" wide":""));
+  box.append(el("div",label,"key"),el("div",value||"อ่านไม่พบ","val"));
+  host.append(box);
+}
+function progress(total:number){
+  batchSummary.textContent=processed+"/"+total+" ไฟล์ · อ่านข้อมูลหลักครบ "+completed+
+    " · อ่านได้บางส่วน "+partial+" · อ่านไม่ได้ "+failed+" · มีจุดต้องตรวจ "+reviewCount;
 }
 async function toDataUrl(file:File):Promise<string>{
   return await new Promise((resolve,reject)=>{
@@ -34,48 +54,138 @@ async function toDataUrl(file:File):Promise<string>{
     reader.readAsDataURL(file);
   });
 }
+type Card={card:HTMLElement;badge:HTMLElement;glance:HTMLElement;details:HTMLElement};
+function newCard(file:File,index:number):Card{
+  const card=el("article",undefined,"slip-card");
+  card.dataset.slipResult=String(index);
+  const head=el("div",undefined,"slip-head");
+  const name=el("div",(index+1)+". "+file.name,"slip-name");
+  const badge=el("span","รออ่าน","slip-state");
+  head.append(name,badge);
+  const glance=el("div","รอประมวลผล","slip-glance");
+  const details=el("div",undefined,"slip-detail");
+  card.append(head,glance,details);
+  list.append(card);
+  return {card,badge,glance,details};
+}
+function setBadge(card:Card,text:string,kind:"ok"|"warn"|"error"){
+  card.badge.textContent=text;
+  card.badge.className="slip-state "+kind;
+}
+function showError(card:Card,text:string){
+  setBadge(card,"อ่านไม่สำเร็จ","error");
+  card.glance.textContent=text;
+}
+function showScan(card:Card,file:File,scan:Awaited<ReturnType<typeof readPayoutSlipLocally>>){
+  const f=scan.fields;
+  const missing=f.missing||[];
+  const issues=[...missing.map(x=>"อ่านไม่ครบ: "+x),...(f.reviewFlags||[])];
+  const meaningful=Boolean(f.payoutAt||f.transactionRef||f.amountTHB!==null||f.bank||f.recipientAccountMasked);
+  if(f.amountCandidates?.length>1&&!f.amountCorrectedFromCurrencyGlyph)
+    issues.push("OCR อ่านยอดเงินขัดแย้ง กรุณาเทียบกับภาพจริง");
+  if(!meaningful){setBadge(card,"อ่านข้อความไม่ได้","error");failed++;}
+  else if(missing.length){setBadge(card,"อ่านได้บางส่วน","warn");partial++;}
+  else {setBadge(card,"อ่านข้อมูลหลักครบ","ok");completed++;}
+  if(issues.length)reviewCount++;
+  card.glance.replaceChildren();
+  card.glance.append(el("span",f.bank||"ไม่ทราบธนาคาร"));
+  const transfer=el("span",undefined);
+  transfer.append(el("strong",money(f.amountTHB)));
+  card.glance.append(transfer);
+  card.glance.append(el("span",date(f.payoutAt)));
+  const detail=el("details");
+  detail.append(el("summary","ดูข้อมูลทั้งหมดของสลิปนี้"));
+  const grid=el("div",undefined,"grid");
+  field(grid,"ธนาคารหรือ Wallet ที่ออกสลิป",f.bank||"");
+  field(grid,"สถานะที่ปรากฏ",f.isSuccessful?"รายการสำเร็จ (ข้อความจากภาพ)":"อ่านข้อความสถานะไม่ชัด");
+  field(grid,"วันที่และเวลา",date(f.payoutAt));
+  field(grid,"ยอดเงิน",money(f.amountTHB));
+  field(grid,"ค่าธรรมเนียม",money(f.feeTHB));
+  field(grid,"หมายเลขอ้างอิง (สั้น)",f.shortReference||"");
+  field(grid,"เลขที่อ้างอิง / เลขธุรกรรม",f.longReference||f.transactionRef||"",true);
+  field(grid,"ผู้โอน",f.senderName||"");
+  field(grid,"ธนาคารผู้โอน",f.senderBank||"");
+  field(grid,"เลขบัญชีผู้โอนที่แสดง",f.senderAccountMasked||"");
+  field(grid,"ผู้รับ",f.recipientName||f.recipientLabel||"");
+  field(grid,"ธนาคารผู้รับ",f.recipientBank||"");
+  field(grid,"เลขบัญชีผู้รับที่แสดง",f.recipientAccountMasked||f.recipientVisibleSuffix||"",true);
+  detail.append(grid);
+  if(issues.length)detail.append(el("p",issues.join(" · "),"warning"));
+  detail.append(el("p",scan.message,"muted"));
+  const rawDetails=el("details");
+  rawDetails.append(el("summary","ดูข้อความ OCR ของไฟล์นี้"));
+  rawDetails.append(el("pre",scan.ocrText||"ไม่มีข้อความที่อ่านได้"));
+  detail.append(rawDetails);
+  const imageDetails=el("details");
+  imageDetails.append(el("summary","ดูภาพต้นฉบับของไฟล์นี้"));
+  const image=el("img") as HTMLImageElement;
+  image.alt="ภาพสลิปที่เลือกทดสอบ: "+file.name;
+  image.className="image";
+  let objectUrl="";
+  imageDetails.addEventListener("toggle",()=>{
+    if(imageDetails.open){
+      if(!objectUrl)objectUrl=URL.createObjectURL(file);
+      image.src=objectUrl;
+    }else if(objectUrl){
+      image.removeAttribute("src");
+      URL.revokeObjectURL(objectUrl);
+      objectUrl="";
+    }
+  });
+  imageDetails.append(image);
+  detail.append(imageDetails);
+  card.details.append(detail);
+}
+
 fileInput.addEventListener("change",async()=>{
-  const file=fileInput.files?.[0];if(!file)return;
-  const turn=++active;
-  result.classList.add("hidden");fields.replaceChildren();warning.classList.add("hidden");
-  if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>8*1024*1024){
-    say("ใช้รูปภาพ JPG, PNG, WebP ที่มีขนาดไม่เกิน 8 MB เท่านั้น","warn");return;
+  if(running)return;
+  const files=Array.from(fileInput.files||[]);
+  fileInput.value="";
+  if(!files.length)return;
+  if(files.length>MAX_FILES){
+    say("เลือกได้สูงสุด "+MAX_FILES+" ไฟล์ต่อรอบ กรุณาแบ่งเลือกเป็นชุด","warn");
+    return;
   }
-  fileInput.disabled=true;
-  say("กำลังอ่านข้อความภาษาไทยและอังกฤษจากภาพในเครื่อง… อาจใช้เวลาสักครู่");
+  running=true;fileInput.disabled=true;clearButton.disabled=true;
+  processed=0;completed=0;partial=0;failed=0;reviewCount=0;
+  list.replaceChildren();
+  result.classList.remove("hidden");
+  description.textContent="ผลการอ่านแยกตามภาพ · ทุกรายการเป็นเพียงผล OCR ไม่ใช่หลักฐานยืนยันเงินเข้า";
+  const cards=files.map(newCard);
+  progress(files.length);
+  say("กำลังอ่านข้อความจากสลิป 0/"+files.length+" ไฟล์ ในเบราว์เซอร์ของคุณ");
   try{
-    const data=await toDataUrl(file);
-    const scan=await readPayoutSlipLocally(data);
-    if(turn!==active)return;
-    const f=scan.fields;
-    field("ธนาคารหรือ Wallet ที่ออกสลิป",f.bank||"");
-    field("สถานะที่ปรากฏ",f.isSuccessful?"รายการสำเร็จ (ข้อความจากภาพ)":"อ่านข้อความสถานะไม่ชัด");
-    field("วันที่และเวลา",date(f.payoutAt));
-    field("ยอดเงิน",money(f.amountTHB));
-    field("ค่าธรรมเนียม",money(f.feeTHB));
-    field("หมายเลขอ้างอิง (สั้น)",f.shortReference||"");
-    field("เลขที่อ้างอิง / เลขธุรกรรม",f.longReference||f.transactionRef||"",true);
-    field("ผู้โอน",f.senderName||"");
-    field("ธนาคารผู้โอน",f.senderBank||"");
-    field("เลขบัญชีผู้โอนที่แสดง",f.senderAccountMasked||"");
-    field("ผู้รับ",f.recipientName||f.recipientLabel||"");
-    field("ธนาคารผู้รับ",f.recipientBank||"");
-    field("เลขบัญชีผู้รับที่แสดง",f.recipientAccountMasked||f.recipientVisibleSuffix||"",true);
-    const issues=[...(f.missing||[]).map(x=>"อ่านไม่ครบ: "+x),...(f.reviewFlags||[])];
-    if(f.amountCandidates?.length>1)issues.push("OCR อ่านยอดเงินได้มากกว่าหนึ่งค่า กรุณาเทียบกับรูปต้นฉบับ");
-    warning.classList.toggle("hidden",issues.length===0);
-    warning.textContent=issues.join(" · ");
-    raw.textContent=scan.ocrText||"ไม่มีข้อความที่อ่านได้";
-    if(chosenObjectUrl)URL.revokeObjectURL(chosenObjectUrl);
-    chosenObjectUrl=URL.createObjectURL(file);
-    preview.src=chosenObjectUrl;
-    description.textContent=scan.message;
-    result.classList.remove("hidden");
-    say(f.missing?.length?"อ่านข้อความได้บางส่วน กรุณาตรวจข้อมูลที่ขาดด้านล่าง":"อ่านข้อความเสร็จแล้ว กรุณาตรวจเทียบกับสลิปต้นฉบับ",f.missing?.length?"warn":"done");
-  }catch(error){
-    say(error instanceof Error?error.message:"อ่านสลิปไม่สำเร็จ โปรดลองใหม่","warn");
+    // OCR sequentially to avoid exhausting resources on low-powered devices.
+    for(let i=0;i<files.length;i++){
+      const file=files[i],card=cards[i];
+      card.badge.textContent="กำลังอ่าน";
+      say("กำลังอ่านไฟล์ "+(i+1)+"/"+files.length+": "+file.name);
+      try{
+        if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>MAX_BYTES)
+          throw new Error("รองรับ JPG, PNG, WebP ขนาดไม่เกิน 8 MB ต่อไฟล์");
+        const data=await toDataUrl(file);
+        const scan=await readPayoutSlipLocally(data);
+        showScan(card,file,scan);
+      }catch(error){
+        failed++;
+        showError(card,error instanceof Error?error.message:"ไม่สามารถอ่านสลิปนี้ได้");
+      }
+      processed++;
+      progress(files.length);
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    say("อ่านครบ "+processed+" ไฟล์: ข้อมูลหลักครบ "+completed+" · บางส่วน "+partial+" · อ่านไม่ได้ "+failed,
+      failed||partial?"warn":"done");
   }finally{
-    fileInput.disabled=false;
+    running=false;fileInput.disabled=false;clearButton.disabled=false;
   }
 });
-window.addEventListener("pagehide",()=>{if(chosenObjectUrl)URL.revokeObjectURL(chosenObjectUrl);});
+clearButton.addEventListener("click",()=>{
+  if(running)return;
+  list.querySelectorAll("details[open]").forEach(x=>{(x as HTMLDetailsElement).open=false;});
+  list.replaceChildren();result.classList.add("hidden");
+  processed=completed=partial=failed=reviewCount=0;
+  batchSummary.textContent="ยังไม่มีไฟล์ที่เลือก";
+  clearButton.disabled=true;
+  say("ล้างผลการทดสอบแล้ว สามารถเลือกหลายภาพรอบใหม่ได้");
+});
