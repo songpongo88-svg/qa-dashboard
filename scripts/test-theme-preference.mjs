@@ -138,6 +138,20 @@ try {
     assert.equal(profiles.get('auto').themePreference, '', 'selecting the same base theme exits an automatic collection');
   }
   console.log('PASS weather/weekday choices restore, and selecting the same base theme clears the automatic choice');
+
+  await start('textbook-train');
+  profiles.set('thai-reader', { themeId: 'textbook-train', themeCollection: 'thai-lessons', themePreference: '' });
+  await render('thai-reader', usage(false)); await resolveRead('thai-reader');
+  assert.equal(latest[0], 'textbook-train');
+  assert.equal(currentTheme(), 'textbook-train');
+  assert.equal(localStorage.getItem('qa-dashboard:theme-v1'), 'textbook-train');
+  assert.equal(profiles.get('thai-reader').themeCollection, 'thai-lessons');
+  await act(async () => root.unmount()); root = createRoot(document.getElementById('root'));
+  await render('thai-reader', usage(false)); await resolveRead('thai-reader');
+  assert.equal(currentTheme(), 'textbook-train', 'Thai Lessons survives refresh and a new login mount');
+  assert.deepEqual(writes, [], 'restoring the saved Thai Lessons theme does not rewrite the account profile');
+  console.log('PASS Thai Lessons selection survives refresh and a new login mount without rewriting the profile');
+
   const ink=lineDrawing.LINE_DRAWING_THEME_ID;
   await start(ink);profiles.set('Songpon',{themeId:ink,themeCollection:'line-drawing',themePreference:''});
   await render('Songpon',usage(false),{ready:false,allowed:true});await resolveRead('Songpon');
