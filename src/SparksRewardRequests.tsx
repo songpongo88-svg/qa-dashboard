@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import RewardActionConfirmModal, { type RewardConfirmation, type PayoutProof } from "./RewardActionConfirmModal";
 import {readPayoutSlipLocally} from "./localPayoutSlipOcr";
+import SparksSlipOcrTester from "./SparksSlipOcrTester";
 
 type RequestRow = {
   requestId: string; itemId: string; username: string; displayName: string; createdAt: string; status: string;
@@ -203,6 +204,7 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
       </div>
     </> : <>
       <div className="sa-section-head"><div><h3>คำขอรางวัล</h3><p>เลือกประเภทรางวัล แล้วเปิดรายการที่ต้องดำเนินการ</p></div><button type="button" className="sa-secondary" disabled={loading || saving} onClick={() => void refresh()}>{loading ? "กำลังโหลดคำขอ..." : loaded.truemoney || loaded.special ? "รีเฟรชคำขอ" : "โหลดคำขอรางวัล"}</button></div>
+       <details className="sa-box" data-sparks-slip-tester="true"><summary style={{cursor:"pointer",fontWeight:700}}>ทดลองอ่านสลิปธนาคาร (ไม่บันทึกการจ่ายเงิน)</summary><SparksSlipOcrTester/></details>
       <div className="sa-stats">{([["review", "รอตรวจสอบ"], ["transfer", "รอโอนเงิน"], ["send", "รอส่งสิทธิ์"], ["done", "ดำเนินการแล้ว"]] as const).map(([value, label]) => <div key={value} data-stage={value}><span>{label}</span><strong>{ready ? rows.filter(item => value === "done" ? ["done", "rejected"].includes(stage(item)) : stage(item) === value).length : "—"}</strong><small>คำขอ</small></div>)}</div>
       {truncated.truemoney || truncated.special ? <p className="sa-muted">แสดงจำนวนจากคำขอส่วนล่าสุดที่โหลดได้ อาจมีรายการเก่ากว่านี้</p> : null}
       <div className="sa-request-filters"><div className="sa-brand-tabs" aria-label="ประเภทรางวัล">{brands.map(([value, label]) => <button key={value} type="button" aria-pressed={brand === value} onClick={() => setBrand(value)}>{label}</button>)}</div>
