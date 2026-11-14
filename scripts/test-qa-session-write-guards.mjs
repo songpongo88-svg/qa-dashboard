@@ -46,6 +46,20 @@ assert.ok(takeoverEffect.includes("lastPendingId = \"\""),
   "A denied multi-tab acknowledgment cannot permanently suppress retries");
 assert.ok(takeoverEffect.includes('document.addEventListener("visibilitychange", onVisible)'),
   "Visible sessions must promptly resume takeover checks");
+assert.ok(takeoverEffect.includes("takeoverWorkspaceRef.current"),
+  "Takeover polling must use the latest editor state without restarting on tab changes");
+assert.ok(application.includes("const takeoverWorkspaceRef = useRef("),
+  "Takeover polling requires a stable editor-state ref");
+assert.ok(takeoverEffect.includes("}, [currentUser?.username, currentUser?.sessionId]);"),
+  "Switching QA tabs must not create a new Firestore takeover poll");
+assert.ok(!takeoverEffect.includes("currentUser?.sessionId, activeTab, activeWorkspaceTab, openWorkspaceTabs"),
+  "Navigation must not restart takeover requests or clear pending-id state");
+assert.ok(takeoverEffect.includes("lastMultiTabAlertId !== server.pendingId"),
+  "Multiple open editors should warn once per takeover, not at every poll");
+assert.ok(takeoverEffect.includes('lastMultiTabAlertId = server.pendingId'),
+  "The multi-tab warning must remember the current pending takeover");
+assert.match(takeoverEffect, /lastMultiTabAlertId = server.pendingId;[\s\S]*?lastPendingId = "";\s*\} else \{/,
+  "After other workspaces close, a pending takeover must be retried");
 
 const trustedApi = await readFile(new URL("../server/qaSingleSessionEndpoint.js", import.meta.url), "utf8");
 assert.ok(trustedApi.includes('identity: { username: actor.username, role: actor.role }'),

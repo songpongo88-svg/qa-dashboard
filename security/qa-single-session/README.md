@@ -31,3 +31,24 @@ Before live rules activation:
 6. Only then enable `QA_SINGLE_SESSION_ENABLED=true` and `VITE_QA_SINGLE_SESSION_ENABLED=true` together.
 
 Deployment is intentionally **not** automatic from this folder.
+
+## Supabase QA Core Data API boundary — staged, not applied
+
+A live read-only permissions audit on 14 Nov 2026 found that several `public.qa_*`
+tables, including evaluations, user profiles and role definitions, have permissive
+`TO anon` policies and client Data API write grants. These tables are not yet a
+secure Single Active Session mutation boundary even with RLS enabled. The
+`sparks_runtime` schema is private and has no `anon`/`authenticated` usage
+grants, but independent public owner RPCs still need review for stale JWT access.
+
+`supabase-qa-core-client-lockdown.sql` is a **manual-only, approval-gated**
+proposal to revoke direct client table access after every QA Core and failover
+mutation has moved to a trusted session-aware API. It is NOT executed by Vercel,
+CI or this PR. It intentionally excludes the read-only public Sparks status.
+
+Before execution: inventory all client and fallback callers; back up original
+grants and policies; test the real two-browser session handoff, server-backed
+read/write routes, and full QA failover; confirm the release gate; run read-only
+`has_table_privilege` audits after the transaction and test a rollback.
+Do not turn on production session flags or merge PR #238 just because this
+staging script exists.

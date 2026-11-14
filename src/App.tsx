@@ -6815,6 +6815,13 @@ export default function App() {
     return holdQaTabLease();
   }, [currentUser?.username]);
 
+  // Keep the latest editor selection in a ref, so switching QA tabs/workspaces
+  // does NOT tear down and restart the takeover polling effect. Reinitializing
+  // that effect on every navigation sent unnecessary Firestore reads and lost
+  // its pending-id debounce.
+  const takeoverWorkspaceRef = useRef({ activeTab, activeWorkspaceTab, openWorkspaceTabs });
+  takeoverWorkspaceRef.current = { activeTab, activeWorkspaceTab, openWorkspaceTabs };
+
   // Server-backed takeover requests are checked independently of Firestore's
   // quota-safe 15-minute polling. A draft must be durably saved and acknowledged
   // before the new browser may receive the active session.
@@ -6823,6 +6830,7 @@ export default function App() {
     let cancelled = false;
     let working = false;
     let lastPendingId = "";
+    let lastMultiTabAlertId = "";
     const checkTakeover = async () => {
       if (cancelled || working || navigator.onLine === false ||
           document.visibilityState !== "visible") return;
@@ -6831,8 +6839,10 @@ export default function App() {
         const server = await qaServerSessionRequest("pending");
         if (server.status === "flush_required" && server.pendingId && lastPendingId !== server.pendingId) {
           lastPendingId = server.pendingId;
-          if (activeTab === "dashboard" && openWorkspaceTabs.length === 1 &&
-              openWorkspaceTabs[0] === "dashboard" && activeWorkspaceTab === "dashboard") {
+          const { activeTab: selectedTab, activeWorkspaceTab: selectedWorkspace,
+            openWorkspaceTabs: openTabs } = takeoverWorkspaceRef.current;
+          if (selectedTab === "dashboard" && openTabs.length === 1 &&
+              openTabs[0] === "dashboard" && selectedWorkspace === "dashboard") {
             if (!(await canAcknowledgeQaTakeover())) {
               // Another tab may hold dirty Evaluation/Appeal/Coaching data.
               // Retry after that tab is closed, never acknowledge idle falsely.
@@ -6846,10 +6856,15 @@ export default function App() {
             await qaServerSessionRequest("ack", {
               pendingId: server.pendingId, documentKey: "session-idle", revision,
             });
-          } else if (openWorkspaceTabs.length > 1) {
-            // A single editor ACK is not enough to protect other open workspaces.
-            // Fail closed rather than accepting a false "all drafts saved" signal.
-            window.alert("มีหลายหน้า QA ที่เปิดค้างอยู่ กรุณาบันทึก Draft ในทุกหน้าและปิดหน้าที่ไม่ได้ใช้งาน ก่อนย้าย Session ไป Browser ใหม่");
+          } else if (openTabs.length > 1) {
+            // One editor cannot acknowledge the other unsaved workspaces.
+            // Re-check when tabs close, but show at most one warning per
+            // takeover request; do not repeatedly alert every 10 seconds.
+            if (lastMultiTabAlertId !== server.pendingId) {
+              lastMultiTabAlertId = server.pendingId;
+              window.alert("มีหลายหน้า QA ที่เปิดค้างอยู่ กรุณาบันทึก Draft ในทุกหน้าและปิดหน้าที่ไม่ได้ใช้งาน ก่อนย้าย Session ไป Browser ใหม่");
+            }
+            lastPendingId = "";
           } else {
             window.dispatchEvent(new CustomEvent("qa:single-session-save-request", {
               detail: { pendingId: server.pendingId, deadline: server.deadline },
@@ -6882,7 +6897,7 @@ export default function App() {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [currentUser?.username, currentUser?.sessionId, activeTab, activeWorkspaceTab, openWorkspaceTabs]);
+  }, [currentUser?.username, currentUser?.sessionId]);
 
   const startSessionTimers = () => {
     clearSessionTimers();
