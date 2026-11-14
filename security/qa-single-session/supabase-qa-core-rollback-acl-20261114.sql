@@ -46,17 +46,24 @@ TO anon, authenticated;
 DO $qa_acl_rollback_verify$
 DECLARE
   t text;
+  privilege_name text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
     'qa_evaluations', 'qa_role_definitions', 'qa_role_permissions',
     'qa_system_settings', 'qa_user_profiles', 'usage_logs'
   ] LOOP
-    IF NOT has_table_privilege('anon', 'public.' || t,
-      'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-      OR NOT has_table_privilege('authenticated', 'public.' || t,
-      'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') THEN
-      RAISE EXCEPTION 'QA Core ACL rollback verification failed for %', t;
-    END IF;
+    -- has_table_privilege with a comma-separated list checks ANY right,
+    -- not ALL rights. Verify each of the 8 privileges separately.
+    FOREACH privilege_name IN ARRAY ARRAY[
+      'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE',
+      'REFERENCES', 'TRIGGER', 'MAINTAIN'
+    ] LOOP
+      IF NOT has_table_privilege('anon', 'public.' || t, privilege_name)
+         OR NOT has_table_privilege('authenticated', 'public.' || t, privilege_name) THEN
+        RAISE EXCEPTION 'QA Core ACL rollback failed for %, privilege %',
+          t, privilege_name;
+      END IF;
+    END LOOP;
   END LOOP;
 END
 $qa_acl_rollback_verify$;
