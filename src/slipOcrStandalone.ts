@@ -88,8 +88,9 @@ function showScan(card:Card,file:File,scan:Awaited<ReturnType<typeof readPayoutS
   const meaningful=Boolean(f.payoutAt||f.transactionRef||f.amountTHB!==null||f.bank||f.recipientAccountMasked);
   if(f.amountCandidates?.length>1&&!f.amountCorrectedFromCurrencyGlyph)
     issues.push("OCR อ่านยอดเงินขัดแย้ง กรุณาเทียบกับภาพจริง");
+  if(!f.bank)issues.push("OCR ระบุธนาคารผู้ออกสลิปไม่ได้ โปรดตรวจโลโก้จากภาพจริง");
   if(!meaningful){setBadge(card,"อ่านข้อความไม่ได้","error");failed++;}
-  else if(missing.length){setBadge(card,"อ่านได้บางส่วน","warn");partial++;}
+  else if(missing.length||!f.bank||f.walletGlyphUncertain||((f.referenceCandidates?.length||0)>1&&!f.transactionRef)){setBadge(card,"อ่านได้บางส่วน","warn");partial++;}
   else {setBadge(card,"อ่านข้อมูลหลักครบ","ok");completed++;}
   if(issues.length)reviewCount++;
   card.glance.replaceChildren();
@@ -101,13 +102,14 @@ function showScan(card:Card,file:File,scan:Awaited<ReturnType<typeof readPayoutS
   const detail=el("details");
   detail.append(el("summary","ดูข้อมูลทั้งหมดของสลิปนี้"));
   const grid=el("div",undefined,"grid");
-  field(grid,"ธนาคารหรือ Wallet ที่ออกสลิป",f.bank||"");
+  field(grid,"ธนาคารหรือ Wallet ที่ออกสลิป",f.bank?f.bank+(f.issuerSource&&f.issuerSource!=="branding"?" (ระบุจากข้อมูลประกอบ)":""):"");
   field(grid,"สถานะที่ปรากฏ",f.isSuccessful?"รายการสำเร็จ (ข้อความจากภาพ)":"อ่านข้อความสถานะไม่ชัด");
   field(grid,"วันที่และเวลา",date(f.payoutAt));
   field(grid,"ยอดเงิน",money(f.amountTHB));
   field(grid,"ค่าธรรมเนียม",money(f.feeTHB));
   field(grid,"หมายเลขอ้างอิง (สั้น)",f.shortReference||"");
   field(grid,"เลขที่อ้างอิง / เลขธุรกรรม",f.longReference||f.transactionRef||"",true);
+  if((f.referenceCandidates?.length||0)>1)field(grid,"เลขอ้างอิงที่ OCR อ่านได้หลายค่า — ตรวจทาน",f.referenceCandidates!.join(" / "),true);
   field(grid,"ผู้โอน",f.senderName||"");
   field(grid,"ธนาคารผู้โอน",f.senderBank||"");
   field(grid,"เลขบัญชีผู้โอนที่แสดง",f.senderAccountMasked||"");
