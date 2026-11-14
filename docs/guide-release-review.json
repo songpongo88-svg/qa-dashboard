@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T10:36:03.328Z",
-  "reason": "Reviewed Thai Lessons persistence regression coverage and fresh-install login theme test setup. Theme presentation and user guide content are unchanged.",
+  "reviewedAt": "2026-11-14T15:36:49.437Z",
+  "reason": "Reviewed Theme Collection visual-statistics read throttling: 30-minute cache, explicit save refresh, and no changes to UI instructions, access control or QA workflows.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -17,7 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
-    ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
+    ".github/workflows/qa-firestore-read-budget.yml": "f15c9f4e06c64e04ae01af2603da1ba6c5c8716ba5f5de4aaf7d50f461471677",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -458,7 +458,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "224a03a7d77da1bf5a9de5a12c0c4f1126a69df4c78436cf4ae88a200b1d0933",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "eee7645bdc5de3b8673677e21642ff61b787e28d93f55b1267da8bb7443b5156",
+    "src/App.tsx": "3a6f96d6e7e0976dbdca76775a19650a65f6e6cd5ab94d764cf71cf6bdeeb8eb",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -773,6 +773,8 @@
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "src/themeUsageReadPolicy.ts": "f6b6f652638bc77ce519ac455766bf48e2d0cd30229c2df6b12acec7f3790241",
+    "scripts/test-theme-usage-read-policy.mjs": "8bf49dc2ebed64f59b49870215a18ed79446657812c5ad68f4fcce4fa320a049"
   }
 }
