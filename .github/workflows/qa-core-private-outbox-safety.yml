@@ -10,6 +10,8 @@ on:
       - "server/qaLiveMirrorStage.js"
       - "server/qaCorePrivateOutbox.js"
       - "server/qaCoreOutboxUncertainty.js"
+      - "server/qaWindowsSourceProbe.js"
+      - "scripts/test-qa-windows-source-probe.mjs"
       - "scripts/test-qa-core-private-outbox*.mjs"
       - "scripts/test-qa-core-outbox-uncertainty.mjs"
       - "scripts/check-qa-no-billing-source-writers.mjs"
@@ -33,6 +35,9 @@ jobs:
         run: |
           node --check server/qaCorePrivateOutbox.js
           node --check server/qaCoreOutboxUncertainty.js
+          node --check server/qaWindowsSourceProbe.js
+          node --check scripts/test-qa-windows-source-probe.mjs
+          node scripts/test-qa-windows-source-probe.mjs
           node scripts/test-qa-core-private-outbox.mjs
           node scripts/test-qa-core-outbox-uncertainty.mjs
   isolated-postgres:
