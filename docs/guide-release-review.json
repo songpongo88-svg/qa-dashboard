@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T10:22:46.284Z",
-  "reason": "Reviewed trusted QA session owner isolation and quota-safe 15-minute activity renewal, server-based active validation and restore, and legacy-only watermark revocation. No production rules or user manual changes.",
+  "reviewedAt": "2026-11-14T10:28:47.079Z",
+  "reason": "Reviewed exact-username Vite migration pre-transform compatibility with server-trusted QA sessions and legacy login, with real transform regression test",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -110,7 +110,7 @@
     "build/teamChatRoomsUiPatch.js": "501acb826a413a49fdd83d1dce939ee15dec6ee539039eec2d26cdaa5af1d1f1",
     "build/teamChatV2Patch.js": "cedc7d00e29e51cdc5aaedd327ee5983a19a4332297e993ef77b8dd272011565",
     "build/userDirectoryPdfUserColumnPatch.js": "116b6ce12e529c82d5c22dd65d6622f4bc37f780ce2124ac6e17c00d5ad86d62",
-    "build/usernameIdentityPolicyPatchV2.js": "c5c8baec7d5c31fa2f68441bafd885194d965f4074e9df25fb2b329bd4d1990b",
+    "build/usernameIdentityPolicyPatchV2.js": "626c422c33eac294f94289eac2c69fe0c9d76689cff4c080982ec975a1e66a89",
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
@@ -778,7 +778,7 @@
     "scripts/test-qa-single-session-api.mjs": "3a9fdd6fe40d5084f7f64a5985a1f2e8d09dfa9ccf86e76c0e8f880ebbdf4119",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
     "src/qaSingleSessionClient.ts": "f6ffefb7264345e6084bdc6792603ea8255b764f5d810012471475ae988d1905",
-    "scripts/test-qa-session-write-guards.mjs": "cec554bc49549fbe1185afc9cc9f1e3faa435024c24b970fe7f1e909ed5e5ff2",
+    "scripts/test-qa-session-write-guards.mjs": "b6493f09bf9391ea4be56d0affb6c1a3127a35b490eb18b8c44165c02ca733bf",
     "src/useCoachingSessionRecovery.ts": "6eb776e8c7a0b38916e2fbd5aca038b775c8dd1e5e680586bfd9369ceec34c68",
     "scripts/test-qa-session-atomic-flow.mjs": "3f171fa9643c333a7945bfd366b7f337ad2ecfaa83923dbdabcef1059751b149",
     "server/qaSingleSessionEndpoint.js": "10632907024e63e6d1a2ac6c25b10fcc939a5d19ea2cadf914838277ffc23ae0",

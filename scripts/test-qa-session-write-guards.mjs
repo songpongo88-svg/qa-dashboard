@@ -62,6 +62,14 @@ assert.ok(restore.includes('await qaServerSessionRequest("touch")'),
   "Restoring an active trusted session must renew its 30-minute server cookie");
 assert.ok(application.includes("} else if (QA_SINGLE_SESSION_CLIENT_ENABLED) {\n          // Legacy sessions"),
   "Trusted restored sessions must not be rejected by expired legacy Firebase timestamps");
+const migrationPlugin = (await import("../build/usernameIdentityPolicyPatchV2.js")).usernameIdentityPolicyPatchV2();
+const migrationOutput = migrationPlugin.transform.call({
+  error(message) { throw new Error(message); },
+}, application, "/src/App.tsx");
+assert.ok(migrationOutput?.code?.includes("} else if (QA_SINGLE_SESSION_CLIENT_ENABLED) {\n          // Legacy sessions"),
+  "The exact-username Vite patch must preserve the trusted-server restore branch");
+assert.ok(migrationOutput?.code?.includes("Username policy was updated. Please sign in again"),
+  "The exact-username Vite patch must still reject stale identity migration");
 const touchPath = application.split("  const touchTrustedSessionIfDue = (force = false) => {")[1]
   ?.split("  const resetInactivityTimer = () => {")[0] || "";
 assert.ok(touchPath.includes('qaServerSessionRequest("touch")'),
