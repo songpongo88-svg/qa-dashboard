@@ -34,7 +34,9 @@ const noBank=s=>!detectBank(s);
 const isName=s=>/^(?:นาย|นาง|นางสาว|คุณ|Mr\.?|Mrs\.?|Miss|Ms\.?)\s*\S+/i.test(s||"");
 const amountPattern=/((?:\d{1,3}(?:,\d{3})+|\d{1,8})(?:\.\d{1,2})?)/;
 function amountIn(s){
-  const match=String(s||"").match(amountPattern);
+  // Some Thai bank images OCR "1,405.00" as "1.405.00". Never parse it as 1.405.
+  const corrected=String(s||"").replace(/(^|[^\d])(\d{1,3})\.(\d{3})\.(\d{2})(?!\d)/g,"$1$2,$3.$4");
+  const match=corrected.match(amountPattern);
   if(!match)return null;
   const value=Number(match[1].replace(/,/g,""));
   return Number.isFinite(value)&&value>=0&&value<=100000000?value:null;
@@ -61,7 +63,13 @@ function amounts(lines){
   const labelled=labelledAmounts(lines,amountLabel,true);
   // Wallet receipts sometimes show a large "B154.00" when OCR mistakes "฿154.00" for B.
   // This is a currency glyph only at the start of an isolated amount, never a bank/reference ID.
-  const wallet=lines.slice(0,8).some(s=>/(?:true\s*money|ทรูมันนี่)/i.test(s));
+  const walletBrand=lines.slice(0,8).some(s=>/(?:true\s*money|ทรูมันนี่)/i.test(s));
+  // A non-text Wallet logo is often invisible to OCR. Require a distinctive
+  // combination rather than guessing from the recipient's SCB bank name.
+  const walletSignature=lines.some(s=>/KKP\s*Start\s*Saving/i.test(s))&&
+    lines.some(s=>/วันที่\s*(?:ทำ|ทํา)รายการ/i.test(s))&&
+    lines.some(s=>/เลขที่อ้างอิง/i.test(s));
+  const wallet=walletBrand||walletSignature;
   const headline=wallet?uniq(lines.slice(0,10).flatMap(s=>{
     const m=s.match(/^[฿B]\s*((?:\d{1,3}(?:,\d{3})+|\d{1,8})(?:\.\d{2})?)\s*$/i);
     return m?[Number(m[1].replace(/,/g,""))]:[];
@@ -90,7 +98,11 @@ function amounts(lines){
     }
   }
   if(wallet&&headline.length===1&&!sourceCandidates.length)candidates=headline;
-  const amountTHB=candidates.length===1?candidates[0]:null;
+  // Without a separately recognized headline, an OCR "8154.00" could mean
+  // either 8,154.00 or "฿154.00"; do not silently accept the bigger amount.
+  const walletGlyphUncertain=wallet&&headline.length===0&&sourceCandidates.length===1&&
+    /^8\d{2,5}\.\d{2}$/.test(sourceCandidates[0].toFixed(2));
+  const amountTHB=candidates.length===1&&!walletGlyphUncertain?candidates[0]:null;
   const fees=labelledAmounts(lines,feeLabel);
   // On some TrueMoney slips "฿0.00" becomes "80.00". Unlike the transfer amount,
   // it has no independent corroborating value, so do not fabricate a zero fee.
@@ -98,7 +110,7 @@ function amounts(lines){
   const feeTHB=fees.length===1&&!feeGlyphUncertain?fees[0]:null;
   return {
     amountTHB,feeTHB,amountCandidates:amountCorrectedFromCurrencyGlyph?sourceCandidates:candidates,
-    amountCorrectedFromCurrencyGlyph,feeGlyphUncertain,
+    amountCorrectedFromCurrencyGlyph,walletGlyphUncertain,feeGlyphUncertain,
     feeCandidates:fees
   };
 }
@@ -107,7 +119,9 @@ function references(lines){
   const refLabel=/(หมายเลขอ้างอิง|เลขที่อ้างอิง|เลข(?:ที่|รายการ)?(?:อ้างอิง|รายการ|ธุรกรรม)|รหัสอ้างอิง|เลขที่รายการ|เลขที่ทำรายการ|(?:TRANSACTION|TRANSFER)\s*(?:ID|NO\.?|REF(?:ERENCE)?)|(?:REFERENCE|REF)\s*(?:NO\.?|NUMBER|ID|#))/i;
   const candidate=s=>{
     const str=String(s||"").trim().replace(/^[\s:：#=\-]+/,"");
-    const m=str.match(/^([A-Z0-9][A-Z0-9/_-]{5,69})(?![A-Z0-9])/i);
+    // Reject OCR prefixes glued to Thai gibberish: "202603292ผ...9"
+    // is not a valid transaction reference and must never count as one.
+    const m=str.match(/^([A-Z0-9][A-Z0-9/_-]{5,69})(?=$|[\s,.!:;])/i);
     if(!m)return "";
     const value=m[1].toUpperCase().replace(/[^A-Z0-9]/g,"");
     return (value.match(/\d/g)||[]).length>=4?value:"";
@@ -129,7 +143,10 @@ function references(lines){
   }
   const longReference=pick(long),shortReference=pick(short);
   const transactionRef=longReference||pick(other)||shortReference;
-  return {longReference,shortReference,transactionRef};
+  // Even if two passes disagree, show the candidates for a human to compare
+  // instead of hiding all evidence under a blank label.
+  const referenceCandidates=uniq([...long,...other,...short]);
+  return {longReference,shortReference,transactionRef,referenceCandidates};
 }
 function dateTime(text,longRef){
   const known=[],unknown=[];
@@ -142,7 +159,7 @@ function dateTime(text,longRef){
     const t=text.slice(m.index+m[0].length,m.index+m[0].length+45).match(/^\s*(?:[,，|–-]\s*)?(\d{1,2}):(\d{2})(?::(\d{2}))?/);
     if(t)known.push(bangkok(m[3],m[2],m[1],t[1],t[2],t[3]||0));
   }
-  for(const m of text.matchAll(/(\d{1,2})\s*([ก-๙a-zA-Z.]{2,16})\s*(\d{2,4})\s*(?:[,，]\s*)?(\d{1,2}):(\d{2})(?::(\d{2}))?/gi)){
+  for(const m of text.matchAll(/(\d{1,2})\s*([ก-๙a-zA-Z.]{2,16})\s*(\d{2,4})\s*(?:[,，–-]\s*)?(\d{1,2}):(\d{2})(?::(\d{2}))?/gi)){
     const month=monthNames.find(x=>x.label===m[2].toUpperCase().replace(/[.\s]/g,""))?.month;
     if(month)known.push(bangkok(m[3],month,m[1],m[4],m[5],m[6]||0));
     else unknown.push({day:Number(m[1]),year:year(m[3]),hour:Number(m[4]),min:Number(m[5]),seconds:Number(m[6]||0)});
@@ -202,16 +219,21 @@ function accountsAndParties(lines){
   const fallback=!recipientAccountMasked?pick(lines.flatMap(x=>[...x.matchAll(/(?:[xX*•]{2,})\s*(\d{4})(?!\d)/g)].map(m=>m[1]))):"";
   const recipientVisibleSuffix=trailing||fallback;
   const accountType=recipientAccountMasked?"bank-account":fallback?"masked-unknown":"unknown";
-  const issuerText=lines.slice(0,9).join("\n");
+  const issuerText=lines.slice(0,3).join("\n");
   let bank=detectBank(issuerText);
+  let issuerSource=bank?"branding":"unknown";
+  const walletSignature=lines.some(s=>/KKP\s*Start\s*Saving/i.test(s))&&
+    lines.some(s=>/วันที่\s*(?:ทำ|ทํา)รายการ/i.test(s))&&
+    lines.some(s=>/เลขที่อ้างอิง/i.test(s));
   // Branding "Bangkok Bank", "K PLUS", "TrueMoney" outranks incidental sender/receiver mentions.
   for(const brand of ["TrueMoney Wallet","ธนาคารกรุงเทพ","ธนาคารกสิกรไทย","ธนาคารไทยพาณิชย์"]){
     const item=banks.find(x=>x.name===brand);
-    if(item?.re.test(lines.slice(0,3).join(" "))) {bank=brand;break;}
+    if(item?.re.test(lines.slice(0,3).join(" "))) {bank=brand;issuerSource="branding";break;}
   }
-  if(!bank)bank=senderBank;
+  if(!bank&&walletSignature){bank="TrueMoney Wallet";issuerSource="wallet-layout-inferred";}
+  if(!bank&&senderBank){bank=senderBank;issuerSource="sender-bank-inferred";}
   return {
-    bank,senderName,senderBank,senderAccountMasked:sender?.value||"",
+    bank,issuerSource,senderName,senderBank,senderAccountMasked:sender?.value||"",
     recipientName,recipientBank,recipientAccountMasked,
     recipientVisibleSuffix,recipientLast4:recipientVisibleSuffix.length===4?recipientVisibleSuffix:"",
     recipientIdentifierType:accountType,recipientLabel:recipientName||recipientAccountMasked||fallback
@@ -227,8 +249,14 @@ export function parseTransferSlipText(raw){
   const reviewFlags=[dt.dateSource==="visible-time-matched-bank-reference"&&"วันเวลาอ้างอิงเลขรายการเพราะ OCR อ่านชื่อเดือนไม่ชัด",
     party.recipientIdentifierType==="bank-account"&&"เลขบัญชีถูกปิดบังบางส่วน ต้องตรวจยืนยันผู้รับด้วยตนเอง",
     money.amountCandidates.length>1&&!money.amountCorrectedFromCurrencyGlyph&&"OCR พบยอดเงินหลายค่าที่ขัดกัน ต้องตรวจยอดจากภาพต้นฉบับ",
+    money.walletGlyphUncertain&&"ยอดเงินของ Wallet อาจมีสัญลักษณ์ ฿ ถูกอ่านเป็นเลข 8 และยังไม่มีหลักฐานอ่านซ้ำ ต้องตรวจยอดจากภาพจริง",
+    /(^|[^\d])\d{1,3}\.\d{3}\.\d{2}(?!\d)/.test(text)&&"OCR อ่านเครื่องหมายคั่นหลักพันผิดจากจุลภาคเป็นจุด ระบบปรับรูปแบบให้แล้ว โปรดตรวจยอดกับภาพ",
     money.amountCorrectedFromCurrencyGlyph&&"สัญลักษณ์ ฿ ในสลิป Wallet อาจถูก OCR อ่านเป็น 8; ระบบเทียบกับยอดที่พิมพ์ซ้ำบนภาพแล้ว กรุณาตรวจทานยอด",
     money.feeGlyphUncertain&&"ค่าธรรมเนียมของ Wallet อาจถูก OCR อ่านเป็น 80.00 แทน ฿0.00 จึงไม่ระบุยอดค่าธรรมเนียมจนกว่าจะตรวจภาพจริง",
-    money.feeCandidates.length>1&&"OCR อ่านค่าธรรมเนียมได้หลายค่า ต้องตรวจจากภาพต้นฉบับ"].filter(Boolean);
+    money.feeCandidates.length>1&&"OCR อ่านค่าธรรมเนียมได้หลายค่า ต้องตรวจจากภาพต้นฉบับ",
+    refs.referenceCandidates.length>1&&!(refs.shortReference&&refs.longReference&&refs.referenceCandidates.length===2)&&
+      "OCR พบเลขอ้างอิงหลายชุดที่อาจขัดแย้ง โปรดเทียบกับภาพจริง",
+    party.issuerSource==="wallet-layout-inferred"&&"ระบุว่าเป็น TrueMoney จากรูปแบบใบเสร็จ ไม่ใช่การอ่านข้อความโลโก้โดยตรง",
+    party.issuerSource==="sender-bank-inferred"&&"ระบุธนาคารผู้ออกสลิปจากธนาคารผู้โอน โปรดตรวจโลโก้ด้วยตนเอง"].filter(Boolean);
   return {...refs,...dt,...party,...money,isSuccessful,missing,reviewFlags};
 }
