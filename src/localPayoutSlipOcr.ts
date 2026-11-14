@@ -6,9 +6,11 @@ import type {PayoutScan} from "./RewardActionConfirmModal";
 export async function readPayoutSlipLocally(imageData:string):Promise<PayoutScan>{
   let text="";
   try{
-    const {createWorker}=await import("tesseract.js");
+    const {createWorker,PSM}=await import("tesseract.js");
     const worker=await createWorker(["tha","eng"]);
     try{
+      // Bank slips have floating labels and QR codes. Sparse text reads names and account lines better.
+      await worker.setParameters({tessedit_pageseg_mode:PSM.SPARSE_TEXT});
       const result=await worker.recognize(imageData);
       text=String(result?.data?.text||"").slice(0,12000);
     }finally{
