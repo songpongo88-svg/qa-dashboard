@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T13:46:10.981Z",
-  "reason": "Reviewed OTP-free standalone read-only QA Sparks transfer slip OCR test page. Separate Vite HTML entry does not mount Supabase Auth, QA Dashboard or payout APIs; processes selected images locally and exposes no data mutation. Admin production auth remains unchanged. Added regression test and guide.",
+  "reviewedAt": "2026-11-14T13:48:45.743Z",
+  "reason": "Reviewed standalone OCR demo as separate public HTML with built-in Tesseract parsing; root HTML routes are outside the source-hash guide guard, while vite.config, standalone entry, tests, package and QA Sparks manual are all hashed. No auth or payout logic exposed.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -460,7 +460,6 @@
     "server/sparksSupabaseAuth.js": "2d53f8bb4bb9a65027ce93a528648a822bfc8adca4c48549b817b0a44678ab6e",
     "server/sparksSupabaseBridge.js": "6b31f44ff2a027375efea1dead562ebf8ebe3b02144e27425ab071c94fd7ada0",
     "server/typingReliefCloudService.js": "bfbd2ce2bb82ac5548028174ad509901b511fffbea7e9237ae987bddf593e2b2",
-    "slip-ocr-test.html": "62be6ac1177bc84e2233390ace273555e6667c851a64d1c0171c3cf80e646aa0",
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/analyticsTagRates.ts": "e421ff2b4e3d9d9ec7f502f23bb35982d658735d932d461a9f0313f03a644ec2",
     "src/announcementDetail.css": "96a37b49d6c3b43bbe34b3cd27d73de4b92b2b38a43e131a9e66b2e8a416d7c5",
