@@ -6865,6 +6865,8 @@ export default function App() {
   const takeoverWorkspaceRef = useRef({ activeTab, activeWorkspaceTab, openWorkspaceTabs });
   takeoverWorkspaceRef.current = { activeTab, activeWorkspaceTab, openWorkspaceTabs };
 
+  // Server-backed takeover requests are checked independently of
+  // Firestore's ordinary quota-safe 15-minute polling.
   // An identity-gated Firestore change event wakes the old browser only
   // after a takeover request; backend pending/ack/commit stay authoritative.
   // 15s polling is a degraded fallback, not a steady-state read burden.

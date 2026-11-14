@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T13:33:49.420Z",
-  "reason": "Reviewed atomic QA takeover signal and listener with current-session-only Firestore rules, old-browser denial tests and fallback; no production rules changed.",
+  "reviewedAt": "2026-11-14T13:36:13.745Z",
+  "reason": "Reviewed server-backed takeover comment anchor consumed by the QA session regression test; event-driven listener and fail-closed fallback retained.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -461,7 +461,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "09f4fefdefa4dbbb18ace8af11c79ee8f14d045f8d47d418dd9fc450ec224eef",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "fc196e7778902c2dcf2065b61b4a456dcb3ec2111e0729c3d87a0512a8fa1f1e",
+    "src/App.tsx": "feaf873f6a5935a20c135664d06d308e91bba45fd723209f1ace6fa4f75934b7",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
