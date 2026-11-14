@@ -16,6 +16,11 @@ let completed=0;
 let partial=0;
 let failed=0;
 let reviewCount=0;
+const openImageUrls=new Map<HTMLDetailsElement,string>();
+function releaseImages(){
+  for(const url of openImageUrls.values())URL.revokeObjectURL(url);
+  openImageUrls.clear();
+}
 
 function say(message:string,kind="info"){
   status.textContent=message;status.dataset.kind=kind;
@@ -124,11 +129,12 @@ function showScan(card:Card,file:File,scan:Awaited<ReturnType<typeof readPayoutS
   let objectUrl="";
   imageDetails.addEventListener("toggle",()=>{
     if(imageDetails.open){
-      if(!objectUrl)objectUrl=URL.createObjectURL(file);
+      if(!objectUrl){objectUrl=URL.createObjectURL(file);openImageUrls.set(imageDetails,objectUrl);}
       image.src=objectUrl;
     }else if(objectUrl){
       image.removeAttribute("src");
       URL.revokeObjectURL(objectUrl);
+      openImageUrls.delete(imageDetails);
       objectUrl="";
     }
   });
@@ -148,6 +154,7 @@ fileInput.addEventListener("change",async()=>{
   }
   running=true;fileInput.disabled=true;clearButton.disabled=true;
   processed=0;completed=0;partial=0;failed=0;reviewCount=0;
+  releaseImages();
   list.replaceChildren();
   result.classList.remove("hidden");
   description.textContent="ผลการอ่านแยกตามภาพ · ทุกรายการเป็นเพียงผล OCR ไม่ใช่หลักฐานยืนยันเงินเข้า";
@@ -182,7 +189,7 @@ fileInput.addEventListener("change",async()=>{
 });
 clearButton.addEventListener("click",()=>{
   if(running)return;
-  list.querySelectorAll("details[open]").forEach(x=>{(x as HTMLDetailsElement).open=false;});
+  releaseImages();
   list.replaceChildren();result.classList.add("hidden");
   processed=completed=partial=failed=reviewCount=0;
   batchSummary.textContent="ยังไม่มีไฟล์ที่เลือก";
