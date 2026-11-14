@@ -6,7 +6,7 @@
 param([switch]$Run)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-$pinned='0a0961c4b0eba03336a2f4aa04c0195b05ec06f3'
+$pinned='9b17d6703e1fb4effd707e773825e5fe132a8038'
 $root=Join-Path $HOME 'Documents\QA_Backup\source-stage'
 $marker=Join-Path $root '.qa-windows-private-signal-stage-commit'
 $proof='b4edc5101285d3e85ccafaba9a076c3553756879'
