@@ -6,6 +6,12 @@ import { readFile } from "node:fs/promises";
 const buildScripts = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).scripts;
 assert.ok(buildScripts.prebuild.startsWith("set -e; "),
   "Prebuild must abort if any earlier QA security/regression test fails");
+assert.equal(buildScripts.prebuild.split(";").length, 2,
+  "All prebuild security tests and patches must be one && chain; a second shell list masks earlier failures");
+assert.ok(buildScripts.prebuild.includes("CRON_SECRET && export SPARKS_AUTH_MODE=legacy"),
+  "Environment setup must be chained to passed security tests, not run unconditionally");
+assert.ok(buildScripts.prebuild.includes("SPARKS_MIGRATED_DOCUMENTS=301 && npm run test:sparks-cloud-typing-relief"),
+  "Later tests must remain on the same failure-propagating chain");
 
 const client = await readFile(new URL("../src/qaSingleSessionClient.ts", import.meta.url), "utf8");
 assert.match(client, /export async function assertTrustedQaSessionForMutation\(/);
