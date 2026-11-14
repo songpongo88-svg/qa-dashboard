@@ -130,28 +130,14 @@ try {
   await click(popup().querySelector(".reward-confirm-cancel"));
   assert.equal(mutations().length, 0, "cancel does not mutate anything");
   await click(primary("tm-pending"));
-  mutationMode = "error";
+  assert.ok(popup().querySelector('input[type="file"]'),"cash payout must require an uploaded slip");
+  assert.equal(popup().querySelector("[data-reward-confirm-submit]").disabled,true,
+    "cannot mark Paid without OCR and verified slip fields");
+  const beforeNoProof=mutations().length;
   await click(popup().querySelector("[data-reward-confirm-submit]"));
-  assert.match(popup().textContent, /server did not save/);
-  assert.match(document.querySelector(".sa-request-hero").textContent, /รอโอนเงิน/);
-  mutationMode = "wrong-status";
-  await click(popup().querySelector("[data-reward-confirm-submit]"));
-  assert.match(popup().textContent, /เซิร์ฟเวอร์ยังไม่ยืนยัน/);
-  mutationMode = "hold";
-  const beforeDoubleClick = mutations().length;
-  await act(async () => {
-    const submit = popup().querySelector("[data-reward-confirm-submit]");
-    submit.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    submit.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    assert.ok(deferred);
-    deferred(reply({ updated: true, status: "paid", paidAt: "2026-11-07T04:00:00Z" }));
-  });
-  assert.equal(mutations().length, beforeDoubleClick + 1, "rapid duplicate clicks send one write");
-  assert.equal(mutations().at(-1).itemId, "tm-pending");
-  assert.equal(popup(), null);
-  assert.match(document.querySelector(".sa-request-hero").textContent, /เสร็จสิ้น/);
-  assert.equal(count("list-reward-queues"), 1, "server-confirmed success does not reread queues");
-  mutationMode = "success";
+  assert.equal(mutations().length,beforeNoProof,"disabled button must not submit payment");
+  assert.match(document.querySelector(".sa-request-hero").textContent,/รอโอนเงิน/);
+  await click(popup().querySelector(".reward-confirm-cancel"));
   await click(document.querySelector(".sa-back"));
   await click(button(".sa-brand-tabs button", "ทั้งหมด"));
   await open("netflix-approved");

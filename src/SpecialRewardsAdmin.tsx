@@ -1,10 +1,11 @@
 import React,{useCallback,useState} from "react";
 import "./specialRewards.css";
-import RewardActionConfirmModal from "./RewardActionConfirmModal";
+import RewardActionConfirmModal,{type PayoutProof} from "./RewardActionConfirmModal";
+import {readPayoutSlipLocally} from "./localPayoutSlipOcr";
 type Request={requestId:string;itemId:string;rewardId:string;title:string;username:string;displayName:string;
  status:string;createdAt:string;amountTHB?:number;payoutTHB?:number;promptPay?:string;email?:string;
  ocrStatus?:string;ocrNote?:string;receiptNumber?:string;receiptAt?:string;adminNote?:string;
- resolvedAt?:string;resolvedBy?:string};
+ resolvedAt?:string;resolvedBy?:string;payoutSlip?:{transactionRef:string;payoutAt:string;amountTHB:number;reviewMode:string}};
 export default function SpecialRewardsAdmin({actorUsername,sessionId,adminReady}:{actorUsername:string;sessionId:string;adminReady:boolean}){
  const [rows,setRows]=useState<Request[]>([]);
  const [loaded,setLoaded]=useState(false);
@@ -41,13 +42,13 @@ export default function SpecialRewardsAdmin({actorUsername,sessionId,adminReady}
   if(decision==="complete"){setConfirmItem(row.itemId);setError("");setMessage("");return;}
   return performAction(row,decision);
  };
- const performAction=async(row:Request,decision:"approve"|"reject"|"complete")=>{
+ const performAction=async(row:Request,decision:"approve"|"reject"|"complete",proof?:PayoutProof)=>{
   if(busy)return;
   if(decision==="reject"&&(!notes[row.itemId]||notes[row.itemId].trim().length<4)){setError("กรุณาระบุเหตุผลการปฏิเสธอย่างน้อย 4 ตัวอักษร");return;}
   setBusy(true);setError("");setMessage("");
   try{
-   const result=await call("special-rewards-admin-action",{itemId:row.itemId,decision,note:notes[row.itemId]||""});
-   setRows(previous=>previous.map(r=>r.itemId===row.itemId?{...r,status:result.status,resolvedBy:actorUsername}:r));
+   const result=await call("special-rewards-admin-action",{itemId:row.itemId,decision,note:notes[row.itemId]||"",...(proof||{})});
+   setRows(previous=>previous.map(r=>r.itemId===row.itemId?{...r,status:result.status,resolvedBy:actorUsername,payoutSlip:result.payoutSlip||r.payoutSlip}:r));
    setMessage("บันทึกผล "+row.title+" สำเร็จ · "+result.status);
    if(decision==="complete")setConfirmItem(null);
   }catch(e){setError(e instanceof Error?e.message:"บันทึกสถานะไม่สำเร็จ");}
@@ -101,11 +102,12 @@ export default function SpecialRewardsAdmin({actorUsername,sessionId,adminReady}
       return {rewardId:row.rewardId,itemName:row.title,recipientName:row.displayName||row.username,
         username:row.username,amountLabel:netflix?"Netflix 1 เดือน":(row.payoutTHB??0)+" บาท",
         destinationLabel:netflix?(row.email||"ไม่พบอีเมล"):(row.promptPay||"ไม่พบเบอร์พร้อมเพย์"),
-        requestedAt:row.createdAt,kind:netflix?"netflix" as const:"money" as const};
+        requestedAt:row.createdAt,kind:netflix?"netflix" as const:"money" as const,expectedAmountTHB:row.payoutTHB};
     })():null}
     busy={busy} error={confirmItem?error:""}
     onCancel={()=>{if(!busy){setConfirmItem(null);setError("");}}}
-    onConfirm={()=>{const row=rows.find(x=>x.itemId===confirmItem);
-      if(row)void performAction(row,"complete");}}/>
+    onAnalyze={readPayoutSlipLocally}
+    onConfirm={proof=>{const row=rows.find(x=>x.itemId===confirmItem);
+      if(row)void performAction(row,"complete",proof);}}/>
  </section>;
 }

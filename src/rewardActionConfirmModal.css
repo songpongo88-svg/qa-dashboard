@@ -41,3 +41,19 @@ dialog.reward-confirm-modal[open]{display:flex;z-index:2147483600;isolation:isol
 dialog.reward-confirm-modal[open]::backdrop{background:rgba(22,11,29,.72);backdrop-filter:blur(6px)}
 dialog.reward-confirm-modal[open] button{pointer-events:auto;touch-action:manipulation}
 dialog.reward-confirm-modal[open] .reward-confirm-accept{min-height:43px}
+
+/* Payout evidence is private Admin-only material, never displayed in member views. */
+.reward-slip-upload{border:1px solid #e6daee;border-radius:12px;padding:13px;margin-top:13px;background:#faf7fc;font-size:12px}
+.reward-slip-upload h3{font-size:14px;margin:0 0 10px}
+.reward-slip-file{display:block;padding:11px;border:1px dashed #b79fc4;background:white;border-radius:10px;cursor:pointer}
+.reward-slip-file input{display:block;width:100%;font:inherit;font-size:12px;margin-top:6px}
+.reward-slip-preview{display:block;max-width:100%;max-height:290px;object-fit:contain;margin:11px auto;border-radius:8px;border:1px solid #ddd}
+.reward-slip-fields{padding:10px;border-radius:9px;background:white;line-height:1.8;margin-top:10px;overflow-wrap:anywhere}
+.reward-slip-fields strong{display:block}
+.reward-slip-manual{display:grid;gap:9px;margin-top:13px}
+.reward-slip-manual>strong{font-size:12px}
+.reward-slip-manual label{display:grid;gap:3px;font-weight:600}
+.reward-slip-manual input,.reward-slip-manual textarea{padding:9px;border-radius:8px;border:1px solid #d2bedb;font:inherit;width:100%;background:white;color:#36213b}
+.reward-slip-manual input:disabled{background:#f4f0f6;color:#665e6a}
+.reward-slip-manual p{font-size:11px;color:#735679;margin:0}
+.sa-payout-proof-image{display:block;width:auto;max-width:100%;max-height:550px;object-fit:contain;border:1px solid #ddd;border-radius:12px;margin:12px auto}

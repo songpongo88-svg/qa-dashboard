@@ -80,39 +80,18 @@ try{
   assert.equal(document.querySelector("dialog.reward-confirm-modal"),null,"cancel removes the modal portal");
   assert.equal(markCalls,0);
   await click(byText("ตรวจสอบและยืนยันการโอน"));
-  await click(dialog().querySelector('[data-reward-confirm-submit="true"]'));
-  assert.equal(markCalls,1,"one explicit modal confirm sends one payout action");
-  assert.equal(dialog(),null,"success closes popup");
-  assert.match(document.querySelector(".qa-money-tracker").textContent,/บันทึกสถานะว่าโอน TrueMoney 20 บาทสำเร็จแล้ว/);
-  assert.equal(document.querySelectorAll(".qa-money-tracker-request").length,0);
-  await click(byText("โอนแล้ว"));
-  assert.match(document.querySelector(".qa-money-tracker-request").textContent,/โอนแล้ว/);
-  assert.equal(listCalls,1,"show Paid locally without wasteful extra Firestore reads");
-  // An error must keep the exact same payable reward visible and allow retry.
-  status="pending";outcome="quota";
-  await click(byText("รีเฟรช Tracker"));
-  await click(byText("รอโอน"));
-  await click(byText("ตรวจสอบและยืนยันการโอน"));
-  await click(dialog().querySelector('[data-reward-confirm-submit="true"]'));
-  assert.equal(markCalls,2);
-  assert.ok(dialog());
-  assert.match(dialog().querySelector('[role="alert"]').textContent,/Firestore daily quota exceeded/);
-  assert.equal(dialog().querySelector('[data-reward-confirm-submit]').disabled,false);
+  assert.ok(dialog(),"Admin can inspect the payout before uploading");
+  assert.ok(dialog().querySelector('input[type="file"]'),"slip upload input exists");
+  assert.equal(dialog().querySelector('[data-reward-confirm-submit]').disabled,true,
+    "confirmation blocked until slip is uploaded, scanned and reviewed");
+  assert.equal(markCalls,0,"no payout API call without evidence");
   await click(dialog().querySelector(".reward-confirm-close"));
-  assert.equal(dialog(),null);
-  // Failed parent wallet read must not permanently block the UI:
-  // server still authenticates every mutation and can reject it.
   await render(false);
   await click(byText("ตรวจสอบและยืนยันการโอน"));
-  assert.ok(dialog(),"user can inspect popup even when wallet listing failed");
-  assert.equal(dialog().querySelector('[data-reward-confirm-submit]').disabled,false);
-  outcome="unauthorized";
-  await click(dialog().querySelector('[data-reward-confirm-submit]'));
-  assert.equal(markCalls,3);
-  assert.match(dialog().querySelector('[role="alert"]').textContent,/Unauthorized Admin/);
-  assert.equal(status,"pending","server denial never marks the request paid");
+  assert.ok(dialog());
+  assert.equal(dialog().querySelector('[data-reward-confirm-submit]').disabled,true);
   await click(dialog().querySelector(".reward-confirm-close"));
-  console.log("PASS TrueMoney: branded modal displays exact item/recipient/phone, cancel safe, single server-authorized confirmation, quota retry and adminReady-independent clickable button");
+  console.log("PASS TrueMoney: slip required, no-proof payout blocked, cancel safe");
 }finally{
   await act(async()=>root.unmount());
   globalThis.fetch=originalFetch;

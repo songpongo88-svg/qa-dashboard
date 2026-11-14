@@ -72,7 +72,10 @@ const admin={username:"songpon",displayName:"Admin"};
 const list=await service.adminList();assert.equal(list.requests.length,2);
 const approved=await service.adminAction({itemId:first.item.itemId,decision:"approve"},admin);
 assert.equal(approved.status,"approved");
-const paid=await service.adminAction({itemId:first.item.itemId,decision:"complete"},admin);
+await assert.rejects(service.adminAction({itemId:first.item.itemId,decision:"complete"},admin),/สลิป/);
+const paid=await service.adminAction({itemId:first.item.itemId,decision:"complete",slipImageData:imageData,
+ slipManualReview:true,slipManualReason:"Admin ตรวจหลักฐานโอนเงินจากแอปธนาคารด้วยตนเอง",
+ slipManualFields:{payoutAt:new Date().toISOString(),transactionRef:"QAOFFLINETESTPAYOUT001",amountTHB:65,recipientLast4:"5678"}},admin);
 assert.equal(paid.status,"paid");
 assert.equal((await service.adminAction({itemId:first.item.itemId,decision:"complete"},admin)).alreadyApplied,true);
 assert.equal(db.get(wallet("agent-a")).balance,78500);

@@ -75,6 +75,15 @@ const buildMetadata = createBuildMetadata(fileURLToPath(new URL('.', import.meta
 const deployCommitSha = buildMetadata.commitHash;
 
 export default defineConfig({
+  // Independently accessible, read-only slip OCR demo. Does not mount Dashboard/Auth.
+  build: {
+    rollupOptions: {
+      input: {
+        dashboard: fileURLToPath(new URL('./index.html', import.meta.url)),
+        slipOcrTest: fileURLToPath(new URL('./slip-ocr-test.html', import.meta.url)),
+      },
+    },
+  },
   define: {
     "import.meta.env.VITE_DEPLOY_COMMIT_SHA": JSON.stringify(deployCommitSha),
     "import.meta.env.VITE_BUILD_META": JSON.stringify(buildMetadata),

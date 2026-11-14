@@ -41,7 +41,13 @@ try{
   const tracker = await readFile("src/TrueMoneyTracker.tsx", "utf8");
   assert.match(tracker, /RewardActionConfirmModal/, "TrueMoney payout confirmation uses the shared branded dialog");
   assert.match(tracker, /data-truemoney-paid-action/, "payout button opens a review dialog");
-  assert.match(tracker, /onConfirm=\{\(\)=>void markPaid\(\)\}/, "the confirm action executes the server-authorized payout");
+  assert.match(tracker, /onConfirm=\{proof=>void markPaid\(proof\)\}/, "payout confirmation must carry the mandatory slip proof");
+  assert.match(tracker, /readPayoutSlipLocally/, "Admin must read transfer slips on device without paid cloud OCR");
+  const requestsSource = await readFile("src/SparksRewardRequests.tsx", "utf8");
+  assert.match(requestsSource, /SparksSlipOcrTester/, "Admin must be able to test any example slip without a payout request");
+  const testerSource = await readFile("src/SparksSlipOcrTester.tsx", "utf8");
+  assert.match(testerSource, /readPayoutSlipLocally/, "example slip must use OCR without a payment API");
+  assert.doesNotMatch(testerSource, /mark-truemoney-paid|special-rewards-admin-action/, "read-only OCR tester must never mark Paid");
   assert.match(tracker, /mark-truemoney-paid/, "payout keeps its original server action");
   assert.doesNotMatch(tracker, /window\.confirm/, "native browser confirmation is not allowed");
   assert.match(sparksAdmin, /fetchStoredUserProfiles/, "Sparks admin list must reuse QA User Management when the server is unavailable");

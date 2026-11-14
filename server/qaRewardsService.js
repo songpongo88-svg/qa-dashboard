@@ -1,5 +1,6 @@
 import {createHash} from "node:crypto";
 import {parseReceiptText} from "../src/receiptRecognition.js";
+import {preparePayoutEvidence,ensurePayoutSlipUnused,payoutSlipWrites} from "./payoutSlipService.js";
 import {formatReceiptTime,receiptTimeEligibility} from "../src/receiptTimeEligibility.js";
 
 // These are internal QA Sparks reimbursements, not official brand vouchers.
@@ -255,7 +256,7 @@ export function createQaRewardsService(db){
  async function adminList(){
    const found=await listCollection(C,["requestId","itemId","rewardId","title","username","displayName",
      "status","createdAt","amountTHB","payoutTHB","promptPay","email","ocrStatus","ocrNote",
-     "receiptNumber","receiptAt","adminNote","resolvedAt","resolvedBy"]);
+     "receiptNumber","receiptAt","adminNote","resolvedAt","resolvedBy","payoutSlip"]);
    return {requests:found.documents.map(recordValue).sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||""))),
      truncated:found.truncated};
  }
@@ -273,6 +274,10 @@ export function createQaRewardsService(db){
    if(!["approve","reject","complete"].includes(action))err("การดำเนินการไม่ถูกต้อง");
    const note=String(body.note||"").trim().slice(0,350);
    if(action==="reject"&&note.length<4)err("กรุณาระบุเหตุผลที่ไม่อนุมัติ",400);
+   const snapshot=recordValue(await readDoc(rpath(id)));
+   if(!snapshot.itemId)err("ไม่พบคำขอ",404);
+   const needsSlip=action==="complete"&&rewardFor(snapshot.rewardId).type!=="email"&&snapshot.status==="approved";
+   const proof=needsSlip?await preparePayoutEvidence(body,snapshot,admin):null;
    return txRun(async txn=>{
     const reqpath=rpath(id),reqdoc=await readDoc(reqpath,txn),request=recordValue(reqdoc);
     if(!reqdoc)err("ไม่พบคำขอ",404);
@@ -293,6 +298,12 @@ export function createQaRewardsService(db){
       if(["paid","delivered"].includes(request.status))return {writes:[],result:{status:request.status,alreadyApplied:true}};
       if(request.status!=="approved")err("ต้องอนุมัติคำขอก่อนยืนยันการจ่ายหรือจัดส่งสิทธิ์",409);
       status=reward.type==="email"?"delivered":"paid";
+      if(status==="paid"){
+       if(!proof)err("ต้องแนบสลิปโอนเงินก่อนบันทึกจ่ายสำเร็จ",409);
+       if(request.createdAt!==snapshot.createdAt||request.username!==snapshot.username||request.promptPay!==snapshot.promptPay||request.payoutTHB!==snapshot.payoutTHB)
+         err("ข้อมูลคำขอเปลี่ยนไป กรุณาอ่านสลิปใหม่",409);
+       await ensurePayoutSlipUnused(proof,id,readDoc,txn);
+      }
     }
     const now=new Date().toISOString(),next=[...items];
     next[index]={...next[index],status,processedAt:now};
@@ -301,13 +312,14 @@ export function createQaRewardsService(db){
     if(hdoc)return {writes:[],result:{status:request.status,alreadyApplied:true}};
     const writes=[
       updateWrite(reqpath,{status,adminNote:note||String(request.adminNote||""),
-        resolvedAt:now,resolvedBy:admin.username},reqdoc),
+        resolvedAt:now,resolvedBy:admin.username,...(proof?{payoutSlip:proof.summary}:{})},reqdoc),
       updateWrite(wp,{specialRewardItems:next,updatedAt:now},walletDoc),
       createWrite(hp,{createdAt:now,type:"earn",source:"special-reward-admin",rewardId:reward.id,
         itemId:id,title:reward.title+" · "+status,detail:note||"Admin บันทึกสถานะ "+status,
         amount:0,balanceAfter:spendableBalance(wallet),performedBy:admin.username,status:"Completed"})
     ];
-    return {writes,result:{updated:true,status}};
+    if(proof)writes.push(...payoutSlipWrites(proof,id,request.username,createWrite));
+    return {writes,result:{updated:true,status,...(proof?{payoutSlip:proof.summary}:{})}};
    });
  }
  return {mine,redeem,activate,receiptCheck,scanReceipt,submit,adminList,adminReceipt,adminAction};
