@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T10:28:30.966Z",
-  "reason": "Reviewed Bangkok Bank transfer slip example parsing with long and short refs, Thai BE date checked against transfer ID, amount and fee, masked three-digit account suffix and read-only Admin OCR tester. QA Sparks payout confirmation remains manual and Production untouched.",
+  "reviewedAt": "2026-11-14T10:30:32.406Z",
+  "reason": "Reviewed OCR layout after testing Bangkok Bank real image with Thai/English Tesseract PSM 3, 6, 11; Sparse Text captures payee names more completely. QA Sparks read-only slip tester, masked bank suffix, full/short refs and manual verification documented; Production unaffected.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -609,7 +609,7 @@
     "src/lineDrawing/runtime.ts": "828d37d3769b865dd99cd165adf8802d873b6fd83040abe30ea6c5eb70c8ca44",
     "src/lineDrawing/state.ts": "218c6575df9540140aec8049865c938dc93c24961400b2b12e547122a85e823c",
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
-    "src/localPayoutSlipOcr.ts": "8bc7dbd17a09989f5adaad13db6ff7e5277493ef3d81f56bc10e934c4139a642",
+    "src/localPayoutSlipOcr.ts": "fcb786b94fe1d49374fc37e2091ec726351f22f69d0ece9a67d1dd30c7e85bcd",
     "src/loginThemes/appearance.ts": "ae698b15c108b6f9f553df1c449ecb9527115e960bda29baca094f3a06218a4b",
     "src/loginThemes/login.css": "1ef257f91de5d5652ad2484b8aef568d0331c8b03a4c669c9f9bee728672846b",
     "src/loginThemes/LoginFeatureIcon.tsx": "52f8f2ddc419e542cd7192cb190a9c765dcce60cd9f34476dca97a7bfc36966e",
