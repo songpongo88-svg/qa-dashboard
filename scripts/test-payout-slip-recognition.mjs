@@ -119,6 +119,77 @@ assert.equal(parsedBankOCR.amountTHB,1405);
 assert.equal(parsedBankOCR.feeTHB,0);
 assert.equal(parsedBankOCR.transactionRef,"2026020314403024006233008");
 
+
+// Redacted regression data derived from the five-file OCR PDF report.
+// These represent observed text errors, not synthetic claims of confirmed payment.
+const pdfBangkok=parseTransferSlipText([
+ "Bangkok Bank","รายการสําเร็จ","03 ก.ุพ. 69,14:40",
+ "จํานวนเงิน","1.405.00า68","จาก","นาย ทดสอบ","050-0-xxx771",
+ "ธนาคารกรุงเทพ","ไปที่","นางสาว ตัวอย่าง",
+ "430-1-xxx497","ธนาคารไทยพาณิชย์","ค่าธรรมเนียม 0.00 THB",
+ "หมายเลขอ้างอิง","631438","เลขที่อ้างอิง","2026020314403024006233008"
+].join("\n"));
+assert.equal(pdfBangkok.amountTHB,1405,"PDF OCR 1.405.00 must never be parsed as 1.40 baht");
+assert.equal(pdfBangkok.payoutAt,"2026-02-03T14:40:00+07:00");
+assert.equal(pdfBangkok.transactionRef,"2026020314403024006233008");
+assert.ok(pdfBangkok.reviewFlags.some(v=>v.includes("คั่นหลักพัน")),"corrected punctuation is flagged");
+
+const pdfScb=parseTransferSlipText([
+ "SCB EASY","โอนเงินสําเร็จ","29 มี.ค. 2569 - 10:34",
+ "รหัสอ้างอิง: 202603292ผ50่020๐%ฮ15ปทาสุ9","จาก","นาย ตัวอย่าง",
+ "xxx-xxx967-6","ไปยัง","นางสาว ผู้รับ","xxx-xxx049-7","จำนวนเงิน","1,273.00 บาท"
+].join("\n"));
+assert.equal(pdfScb.payoutAt,"2026-03-29T10:34:00+07:00","SCB shows a hyphen before the time");
+assert.equal(pdfScb.transactionRef,"","truncated OCR reference with Thai junk must never count as valid");
+assert.ok(pdfScb.missing.includes("เลขอ้างอิง"));
+
+const pdfKplus=parseTransferSlipText([
+ "K+","โอนเงินสําเร็จ","4 มี.ค. 69 08:09 น.","นาย ตัวอย่าง",
+ "ธ.กสิกรไทย","xxx-x-x1555-x","นางสาว ผู้รับ",
+ "ธ.ไทยพาณิชย์","xxx-x-x3049-x","เลขที่รายการ:",
+ "016063080910BOR09809","จำนวน:","1,427.00 บาท"
+].join("\n"));
+assert.equal(pdfKplus.bank,"ธนาคารกสิกรไทย");
+assert.equal(pdfKplus.amountTHB,1427);
+assert.equal(pdfKplus.transactionRef,"016063080910BOR09809","K PLUS OCR ref should be read from next line");
+
+const refsConflict=parseTransferSlipText([
+ "K+","เลขที่รายการ:","016063080910BOR09809",
+ "K+","เลขที่รายการ:","016063080910B0R09809",
+ "4 มี.ค. 69 08:09","จำนวน: 1,427.00 บาท"
+].join("\n"));
+assert.equal(refsConflict.transactionRef,"","two inconsistent OCR reference codes must not be used in a payout");
+assert.deepEqual(refsConflict.referenceCandidates,["016063080910BOR09809","016063080910B0R09809"]);
+assert.ok(refsConflict.reviewFlags.some(v=>v.includes("เลขอ้างอิงหลายชุด")));
+
+const unidentifiedIssuer=parseTransferSlipText([
+ "โอนเงินสําเร็จ","29 มี.ค. 2569 - 10:34",
+ "จาก","นาย ตัวอย่าง","xxx-xxx967-6","ไปที่","นางสาว ผู้รับ",
+ "xxx-xxx049-7","ธนาคารไทยพาณิชย์","จำนวนเงิน 1,273.00 บาท"
+].join("\n"));
+assert.notEqual(unidentifiedIssuer.bank,"ธนาคารไทยพาณิชย์",
+ "recipient bank must never be presented as the issuer without branding evidence");
+
+const inferredWallet=parseTransferSlipText([
+ "วันที่ทํารายการ","05 พ.ค. 68 22:45:38",
+ "B154.00","นาย ทดสอบ","KKP Start Saving",
+ "xxx-xxx557-7","นางสาว ผู้รับ","ธนาคารไทยพาณิชย์","xxx-xxx049-7",
+ "จำนวนเงิน 8154.00","ค่าธรรมเนียม 80.00","เลขที่อ้างอิง 512522068024"
+].join("\n"));
+assert.equal(inferredWallet.bank,"TrueMoney Wallet");
+assert.equal(inferredWallet.issuerSource,"wallet-layout-inferred");
+assert.equal(inferredWallet.amountTHB,154,"infer amount only with independently corroborating headline");
+assert.equal(inferredWallet.feeTHB,null,"currency-glyph uncertainty cannot fabricate a zero fee");
+assert.ok(inferredWallet.reviewFlags.some(v=>v.includes("รูปแบบใบเสร็จ")));
+
+const isolatedWallet=parseTransferSlipText([
+ "true money","จำนวนเงิน","8154.00",
+ "ค่าธรรมเนียม","80.00","วันที่ทํารายการ 05 พ.ค. 68 22:45:38",
+ "เลขที่อ้างอิง 512522068024","ไปที่","xxx-xxx049-7"
+].join("\n"));
+assert.equal(isolatedWallet.amountTHB,null,
+  "OCR 8154 without an independent original amount is ambiguous; do not misreport 8154");
+
 const fake=Buffer.alloc(3600,7);fake[0]=255;fake[1]=216;
 const imageData="data:image/jpeg;base64,"+fake.toString("base64");
 assert.equal(decodePayoutSlip(imageData).bytes.length,3600);
