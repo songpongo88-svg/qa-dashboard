@@ -95,3 +95,16 @@ revision. No cloud credentials are committed or fetched here.
 **Neither component is started or connected** to Windows, Cloudflare,
 Firestore production, the Supabase outbox, or a failover receiver. A
 source-verified read is not continuous-source parity or permission proof.
+
+## Copy-verified Windows snapshot manifest (stage only)
+
+- The read-only helper 'server/qaWindowsProbeBaseline.js' reads the existing
+  frozen 'qa_failover_v1.live_snapshot_rows' and validates the stored
+  11-collection SHA-256 manifests and exact Firestore 'updateTime' revisions.
+- A missing, changed or unverifiable document aborts before returning any
+  expected ID/revision list. No Firestore reads or PostgreSQL mutations occur.
+- The manifest can be passed to 'startQaWindowsReadOnlyProbe' **after** the
+  separate source credential attestation and a durable read-budget
+  reservation. It is NOT evidence of live parity.
+- These source modules still require Windows installation and an independent
+  real-host acceptance test; neither was started here.

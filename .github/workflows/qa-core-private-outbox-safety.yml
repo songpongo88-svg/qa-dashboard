@@ -16,6 +16,8 @@ on:
       - "scripts/check-qa-no-billing-source-writers.mjs"
       - "migration/qa-windows-source-signal-stage.sql"
       - "server/qaWindowsSourceSignalJournal.js"
+      - "server/qaWindowsProbeBaseline.js"
+      - "scripts/test-qa-windows-probe-baseline.mjs"
       - "scripts/test-qa-windows-source-signal-integration.mjs"
       - ".github/workflows/qa-core-private-outbox-safety.yml"
   workflow_dispatch:
@@ -44,6 +46,8 @@ jobs:
           node --check server/qaWindowsSourceDocumentReader.js
           node scripts/test-qa-windows-source-document-reader.mjs
           node --check server/qaWindowsSourceSignalJournal.js
+          node --check server/qaWindowsProbeBaseline.js
+          node scripts/test-qa-windows-probe-baseline.mjs
           node scripts/test-qa-core-private-outbox.mjs
           node scripts/test-qa-core-outbox-uncertainty.mjs
   isolated-postgres:
