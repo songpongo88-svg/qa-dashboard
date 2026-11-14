@@ -1,10 +1,8 @@
 name: QA Core private outbox safety
 on:
-  push:
-    branches:
-      - feat/qa-core-safe-outbox-current-main-20261114
   pull_request:
     branches: [main]
+  workflow_dispatch:
     paths:
       - "migration/qa-core-private-outbox-stage.sql"
       - "server/qaLiveMirrorStage.js"
