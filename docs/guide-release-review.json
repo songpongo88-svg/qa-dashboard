@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-14T11:11:14Z",
-  "reason": "Reviewed QA Sparks local OCR and Bangkok Bank slip example parsing, admin-only read-only tester, manual recipient checks. Also retained main's reviewed Thai Lessons login/theme persistence test changes; no production release made.",
+  "reviewedAt": "2026-11-14T12:51:14.011Z",
+  "reason": "Added read-only sample bank slip upload UI integration regression. A mocked local Tesseract worker runs on sanitized fictional image input; verifies amount, date, two reference numbers, masked recipient, absence of server calls and Paid action.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -114,7 +114,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "4b94f8ac235cdfdc58552bca6bf6a55ded372b5a976b525c0f813d3368af4c56",
+    "package.json": "0001daca5ac39aa5b03e7946a85e76ef462d17f92f646e368bceb418f438a304",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -421,6 +421,7 @@
     "scripts/test-sparks-qa-migration-runner.mjs": "59ba0c304aa978caf16cc09651cc081351605418dd037d057a8576d5bf84a015",
     "scripts/test-sparks-scheduled-suspension-migration.mjs": "c6b1c7fcc0adc077cc642898daa4fb589dc11748a42c796a2e061865e45b30dd",
     "scripts/test-sparks-shield-preview-readonly.mjs": "a017ed8d5127bffcdcce2d9208596c44bd069085cefb28b8e65c6b11e66ca7b9",
+    "scripts/test-sparks-slip-upload-ui.mjs": "4936b2d94746188b23b08ad5d5ea93b3b22a60c969568932c262e98687443131",
     "scripts/test-sparks-standalone.mjs": "de6c705e9a17f92f2a8186ac883425a448167fef7917abae1b75f762fb58f802",
     "scripts/test-sparks-supabase-bridge.mjs": "49e2ecf28f69361abac281ff8d9e05a51657cf0369dad92f8360b1c1db46a997",
     "scripts/test-sparks-supabase-postgres.mjs": "9247af4c308afbc7f267809273af4de74b2184ca47d1c70e176ef796edb1a49c",
