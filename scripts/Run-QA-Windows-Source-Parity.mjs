@@ -5,7 +5,6 @@
 import {pathToFileURL} from 'node:url';
 import {join} from 'node:path';
 import {open} from 'node:fs/promises';
-import pg from 'pg';
 import {loadQaWindowsProbeBaseline} from '../server/qaWindowsProbeBaseline.js';
 import {createQaSourceReadBudget} from '../server/qaSourceReadBudget.js';
 import {checkQaWindowsPointInTimeParity} from '../server/qaWindowsSourceParity.js';
@@ -43,6 +42,7 @@ export async function runQaWindowsSourceParity({
     !env.QA_WINDOWS_PARITY_STAGE_ROOT||
     typeof oauthToken!=='string'||oauthToken.length<20)
    fail('qa_source_parity_disabled');
+ const pg=poolOverride?null:(await import('pg')).default;
  const pool=poolOverride||new pg.Pool({
   host:'127.0.0.1',port:5432,database:'qa_dashboard_lab',
   user:'postgres',password:env.PGPASSWORD,
