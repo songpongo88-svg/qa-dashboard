@@ -40,12 +40,14 @@ export default function SparksSlipOcrTester(){
     {busy?<p role="status">กำลังอ่านข้อความไทยและอังกฤษจากภาพบนอุปกรณ์นี้…</p>:null}
     {error?<p className="sa-error" role="alert">{error}</p>:null}
     {fields?<div className="sa-slip-test-results">
-      <p><strong>ผลการอ่าน: {scan?.ocrStatus==="local"?"อ่านข้อความได้แล้ว":"ยังอ่านไม่ชัด ต้องตรวจเอง"}</strong></p>
+      <p><strong>ผลการอ่าน: {scan?.ocrStatus==="local"?(fields.missing.length?"อ่านได้บางส่วน ต้องตรวจเพิ่มเติม":"อ่านข้อมูลหลักได้แล้ว"):"ยังอ่านไม่ชัด ต้องตรวจเอง"}</strong></p>
+      <p className="sa-muted">รองรับการอ่านรูปแบบธนาคารและ Wallet ที่แตกต่างกัน แต่ชื่อและบัญชีที่ถูกปิดบังอาจต้องตรวจเองก่อนใช้เป็นหลักฐาน</p>
       <dl className="sa-details">
         <div><dt>ธนาคารที่ออกสลิป</dt><dd>{fields.bank||"—"}</dd></div>
         <div><dt>สถานะที่ปรากฏ</dt><dd>{fields.isSuccessful?"รายการสำเร็จ":"อ่านสถานะไม่ชัด"}</dd></div>
         <div><dt>วันที่และเวลา</dt><dd>{date(fields.payoutAt)}</dd></div>
         <div><dt>ยอดโอน</dt><dd>{fmt(fields.amountTHB)}</dd></div>
+        {(fields.amountCandidates?.length||0)>1?<div><dt>ยอดที่ OCR อ่านขัดกัน</dt><dd>{fields.amountCandidates?.map(fmt).join(" / ")} — กรุณาตรวจภาพต้นฉบับ</dd></div>:null}
         <div><dt>ค่าธรรมเนียม</dt><dd>{fmt(fields.feeTHB)}</dd></div>
         <div><dt>หมายเลขอ้างอิง</dt><dd>{fields.shortReference||"—"}</dd></div>
         <div><dt>เลขที่อ้างอิง</dt><dd>{fields.longReference||fields.transactionRef||"—"}</dd></div>
