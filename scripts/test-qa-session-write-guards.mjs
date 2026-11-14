@@ -60,6 +60,22 @@ assert.ok(takeoverEffect.includes('lastMultiTabAlertId = server.pendingId'),
   "The multi-tab warning must remember the current pending takeover");
 assert.match(takeoverEffect, /lastMultiTabAlertId = server.pendingId;[\s\S]*?lastPendingId = "";\s*\} else \{/,
   "After other workspaces close, a pending takeover must be retried");
+assert.ok(takeoverEffect.includes('window.addEventListener("qa:single-session-save-failed", onSaveFailed)'),
+  "Failed Evaluation/Coaching draft flush must allow another poll-time attempt");
+assert.ok(takeoverEffect.includes('window.removeEventListener("qa:single-session-save-failed", onSaveFailed)'),
+  "Session switch listeners must detach with the session effect");
+assert.ok(takeoverEffect.includes('failedId === lastPendingId'),
+  "A late flush failure must not reset the retry marker of a different takeover");
+assert.ok(takeoverEffect.includes('lastPendingId = "";\n          console.warn("Single session takeover check unavailable"'),
+  "Transient Firestore CAS/network failures must not lock out the pending request");
+const evaluationEditor = await readFile(new URL("../src/CreateEvaluationMockup.tsx", import.meta.url), "utf8");
+const coachingEditor = await readFile(new URL("../src/useCoachingSessionRecovery.ts", import.meta.url), "utf8");
+for (const [name, content] of [["Evaluation", evaluationEditor], ["Coaching", coachingEditor]]) {
+  assert.ok(content.includes('new CustomEvent("qa:single-session-save-failed"'),
+    name + " must signal a failed or blocked flush so the old browser may retry");
+  assert.ok(content.includes("requestRetry();"),
+    name + " must actually signal its blocked save attempts");
+}
 
 const trustedApi = await readFile(new URL("../server/qaSingleSessionEndpoint.js", import.meta.url), "utf8");
 assert.ok(trustedApi.includes('identity: { username: actor.username, role: actor.role }'),

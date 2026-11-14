@@ -53,8 +53,12 @@ export function useCoachingSessionRecovery({ agentUsername, month, form, busy, o
     const flush = (event: Event) => {
       const pendingId = (event as CustomEvent<{ pendingId?: string }>).detail?.pendingId;
       if (!pendingId) return;
+      const requestRetry = () => window.dispatchEvent(new CustomEvent("qa:single-session-save-failed", {
+        detail: { pendingId },
+      }));
       if (savingRef.current || busyRef.current || recovery) {
         onMessage("ยังมี Coaching ที่บันทึกไม่เสร็จ กรุณาตรวจสอบก่อนสลับ Browser");
+        requestRetry();
         return;
       }
       const revision = Date.now();
@@ -66,6 +70,7 @@ export function useCoachingSessionRecovery({ agentUsername, month, form, busy, o
         .catch(error => {
           console.warn("Coaching takeover save failed", error);
           onMessage("สำรอง Coaching ไม่สำเร็จ ระบบจะไม่ตัด Session เดิม");
+          requestRetry();
         })
         .finally(() => { savingRef.current = false; });
     };

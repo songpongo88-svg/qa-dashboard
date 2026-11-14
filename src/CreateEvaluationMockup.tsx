@@ -1249,15 +1249,28 @@ export default function CreateEvaluationMockup({
     if (!QA_SINGLE_SESSION_CLIENT_ENABLED || !currentUser?.username) return;
     const onTakeoverRequest = (event: Event) => {
       const pendingId = (event as CustomEvent<{ pendingId?: string }>).detail?.pendingId;
-      if (!pendingId || cloudSaveInProgressRef.current || inlineImageUploadsRef.current ||
+      if (!pendingId) return;
+      const requestRetry = () => window.dispatchEvent(new CustomEvent("qa:single-session-save-failed", {
+        detail: { pendingId },
+      }));
+      if (cloudSaveInProgressRef.current || inlineImageUploadsRef.current ||
           evidenceFiles.length > 0 || callLogs.length > 0 ||
           // Keep attachments on the original device until a full draft upload exists.
           callRecordingSaveInProgressRef.current || callRecordingUploads.current.size) {
         setDraftMessage("มีคำขอ Login จาก Browser ใหม่ แต่ยังมีไฟล์หรือข้อมูลที่บันทึกไม่เสร็จ กรุณาบันทึกงานก่อนสลับเครื่อง");
+        requestRetry();
         return;
       }
-      const form = readEvaluateTabMemory();
-      const snapshot = form ? sanitizeRecoveryForm(form) : { noOpenEvaluation: true };
+      let snapshot: Record<string, unknown>;
+      try {
+        const form = readEvaluateTabMemory();
+        snapshot = form ? sanitizeRecoveryForm(form) : { noOpenEvaluation: true };
+      } catch (error) {
+        console.warn("Takeover recovery snapshot unavailable", error);
+        setDraftMessage("ไม่สามารถสำรองข้อมูลก่อนสลับ Browser ได้ กรุณาตรวจสอบแบบร่าง");
+        requestRetry();
+        return;
+      }
       const revision = Date.now();
       void qaServerSessionRequest("draft-save", {
         documentKey: "evaluation-form", revision, snapshot,
@@ -1268,6 +1281,7 @@ export default function CreateEvaluationMockup({
       }).catch(error => {
         setDraftMessage("สำรองข้อมูลก่อนสลับ Browser ไม่สำเร็จ ระบบจะไม่ยกเลิก Session เดิม");
         console.warn("Takeover draft flush failed", error);
+        requestRetry();
       });
     };
     window.addEventListener("qa:single-session-save-request", onTakeoverRequest);

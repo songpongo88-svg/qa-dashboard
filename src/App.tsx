@@ -6880,6 +6880,9 @@ export default function App() {
             (error.code === "SESSION_REPLACED" || error.code === "SESSION_EXPIRED")) {
           clearLocalSession("บัญชีนี้ถูกย้ายไปใช้งานบน Browser อื่น กรุณาเข้าสู่ระบบใหม่");
         } else {
+          // A transient session/draft CAS error must not permanently suppress
+          // the original browser's next flush attempt.
+          lastPendingId = "";
           console.warn("Single session takeover check unavailable", error);
         }
       } finally { working = false; }
@@ -6891,11 +6894,19 @@ export default function App() {
     const onVisible = () => {
       if (document.visibilityState === "visible") void checkTakeover();
     };
+    const onSaveFailed = (event: Event) => {
+      const failedId = (event as CustomEvent<{ pendingId?: string }>).detail?.pendingId;
+      // A failed editor flush must permit one more attempt on the next
+      // 10-second poll. A stale failure from another request is ignored.
+      if (failedId && failedId === lastPendingId) lastPendingId = "";
+    };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("qa:single-session-save-failed", onSaveFailed);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("qa:single-session-save-failed", onSaveFailed);
     };
   }, [currentUser?.username, currentUser?.sessionId]);
 
