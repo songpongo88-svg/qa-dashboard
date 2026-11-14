@@ -10,6 +10,8 @@ import {stageQaWindowsReconciliationCandidate}
  from '../server/qaWindowsCandidateArchiveStage.js';
 import {inspectQaWindowsReconciliation}
  from '../server/qaWindowsReconciliationReview.js';
+import {runQaWindowsReconciliation}
+ from './Run-QA-Windows-Reconciliation.mjs';
 if(process.env.QA_PG_ISOLATED_TEST!=='1'||!process.env.QA_TEST_DATABASE_URL)
  throw Error('reconcile_ci_fixture_only');
 const pool=new pg.Pool({connectionString:process.env.QA_TEST_DATABASE_URL,max:3});
@@ -111,5 +113,49 @@ try{
  assert.equal((await pool.query('SELECT count(*)::int AS n FROM'+
   ' qa_failover_v1.live_snapshot_batches WHERE snapshot_id=$1',
   [retryCap.metadata.snapshotId])).rows[0].n,0);
- console.log('PASS PostgreSQL 17 reconciliation: archive new copy, preserve old 11, add/remove/modify, reject unfrozen state');
+
+ // ACTUAL candidate pipeline under test: bounded REST pages -> immutable
+ // snapshot SQL -> verified counts, without any real network or user data.
+ await pool.query("UPDATE qa_failover_v1.state SET mode='disabled' WHERE id=1");
+ let syntheticRequests=0;
+ const fetchImpl=async url=>{
+   const ds=decodeURIComponent(new URL(url).pathname.split('/').at(-1));
+   assert.ok(QA_SYNC_DATASETS.includes(ds));
+   assert.equal(new URL(url).searchParams.get('pageSize'),'50');
+   assert.equal(new URL(url).searchParams.has('readTime'),true);
+   syntheticRequests++;
+   return {
+     status:200,ok:true,headers:{get:()=> 'application/json'},
+     json:async()=>({documents:newDocs[ds].map(doc=>({
+       name:'projects/qa-dashboard-b0b5d/databases/(default)/documents/'+ds+'/'+doc.id,
+       fields:doc.data.fields,createTime:doc.data.createTime,
+       updateTime:doc.data.updateTime,
+     }))}),
+   };
+ };
+ let markerCount=0;
+ const now=()=>new Date();
+ const runnerEnv={...env,QA_WINDOWS_RECONCILE_RUN:'1',
+  QA_WINDOWS_SOURCE_PROBE_MANIFEST:'1',
+  QA_WINDOWS_RECONCILE_STAGE_ROOT:'/tmp/qa-ci-only-no-file-should-be-written'};
+ const completed=await runQaWindowsReconciliation({
+  env:runnerEnv,poolOverride:pool,oauthToken:'fake-ci-token-for-no-live-firestore-only',
+  fetchImpl,now,createAttemptMarker:async()=>{markerCount++},
+ });
+ assert.equal(completed.status,'CANDIDATE_ARCHIVED_AND_RECONCILED');
+ assert.equal(completed.oldDocuments,11);
+ assert.equal(completed.newDocuments,12);
+ assert.equal(completed.added,2);
+ assert.equal(completed.removed,1);
+ assert.equal(completed.modified,1);
+ assert.equal(completed.unchanged,9);
+ assert.equal(completed.changedDatasets,3);
+ assert.equal(completed.failoverReady,false);
+ assert.equal(completed.requests,11);
+ assert.equal(completed.readUnitsReserved,550);
+ assert.equal(syntheticRequests,11);
+ assert.equal(markerCount,1);
+ assert.equal((await pool.query('SELECT active_snapshot_id FROM qa_failover_v1.state WHERE id=1')).rows[0].active_snapshot_id,baselineId);
+ assert.equal((await pool.query('SELECT count(*)::int AS n FROM qa_failover_v1.live_snapshot_rows WHERE snapshot_id=$1',[baselineId])).rows[0].n,11);
+ console.log('PASS PostgreSQL 17 reconciliation: real bounded capture and separate archive, preserve old 11, add/remove/modify, reject unfrozen state');
 }finally{await pool.end();}
