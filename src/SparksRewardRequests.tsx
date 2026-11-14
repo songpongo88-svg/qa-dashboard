@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
-import RewardActionConfirmModal, { type RewardConfirmation } from "./RewardActionConfirmModal";
+import RewardActionConfirmModal, { type RewardConfirmation, type PayoutProof, type PayoutScan } from "./RewardActionConfirmModal";
 
 type RequestRow = {
   requestId: string; itemId: string; username: string; displayName: string; createdAt: string; status: string;
@@ -7,6 +7,7 @@ type RequestRow = {
   amountTHB?: number; payoutTHB?: number; promptPay?: string; email?: string;
   receiptNumber?: string; receiptAt?: string; ocrStatus?: string; ocrNote?: string;
   adminNote?: string; resolvedBy?: string; resolvedAt?: string; payoutConfirmedBy?: string; payoutConfirmedAt?: string;
+  payoutSlip?: { transactionRef:string; payoutAt:string; amountTHB:number; recipientLast4:string; reviewMode:string; confirmedBy?:string };
 };
 const brands = [
   ["all", "ทั้งหมด", ""], ["truemoney-20", "TrueMoney", "T"], ["punthai-65", "พันธุ์ไทย", "P"],
@@ -55,6 +56,8 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
   const [note, setNote] = useState("");
   const [images, setImages] = useState<Record<string, string>>({});
   const [receiptVisible, setReceiptVisible] = useState<Record<string, boolean>>({});
+  const [payoutEvidence,setPayoutEvidence] = useState<Record<string,{imageData:string;transactionRef:string;payoutAt:string;amountTHB:number;reviewMode:string}>>({});
+  const [payoutVisible,setPayoutVisible] = useState<Record<string,boolean>>({});
   const [confirmation, setConfirmation] = useState<RewardConfirmation | null>(null);
   const inFlight = useRef(false);
   const row = rows.find(item => item.channel + ":" + item.itemId === selected);
@@ -117,18 +120,18 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
     finally { setSaving(false); inFlight.current = false; }
   }
 
-  async function perform(decision: "approve" | "reject" | "complete") {
+  async function perform(decision: "approve" | "reject" | "complete",proof?:PayoutProof) {
     if (!row || inFlight.current) return;
     if (decision === "reject" && note.trim().length < 4) { setError("ระบุเหตุผลที่ไม่อนุมัติอย่างน้อย 4 ตัวอักษร"); return; }
     const allowed = decision === "approve" ? row.channel === "special" && stage(row) === "review" : decision === "complete" ? ["transfer", "send"].includes(stage(row)) : row.channel === "special" && ["review", "transfer", "send"].includes(stage(row));
     if (!allowed) { setError("สถานะรายการเปลี่ยนไป กรุณารีเฟรชคำขอ"); return; }
     inFlight.current = true; setSaving(true); setError(""); setMessage("");
     try {
-      const result = row.channel === "truemoney" ? await call("mark-truemoney-paid", { itemId: row.itemId }) : await call("special-rewards-admin-action", { itemId: row.itemId, decision, note: note.trim() });
+      const result = row.channel === "truemoney" ? await call("mark-truemoney-paid", { itemId: row.itemId, ...(proof||{}) }) : await call("special-rewards-admin-action", { itemId: row.itemId, decision, note: note.trim(), ...(proof||{}) });
       const expected = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : row.rewardId === "netflix-1m" ? "delivered" : "paid";
       if (result.status !== expected) throw Error("เซิร์ฟเวอร์ยังไม่ยืนยันสถานะที่ต้องการ กรุณารีเฟรชคำขอเพื่อตรวจสอบ");
       setRows(previous => previous.map(item => item.channel + ":" + item.itemId === selected ? {
-        ...item, status: result.status,
+        ...item, status: result.status, ...(result.payoutSlip?{payoutSlip:result.payoutSlip}:{}),
         ...(row.channel === "truemoney" ? {
           payoutConfirmedAt: result.paidAt || item.payoutConfirmedAt,
           payoutConfirmedBy: result.updated ? actorUsername : item.payoutConfirmedBy,
@@ -150,7 +153,18 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
       setError("ข้อมูลผู้รับหรือยอดรางวัลไม่ครบ กรุณารีเฟรชคำขอก่อนยืนยัน");
       return;
     }
-    setConfirmation({ rewardId: row.rewardId, itemName: row.title, recipientName: row.displayName || row.username, username: row.username, amountLabel: amount(row), destinationLabel: row.rewardId === "netflix-1m" ? row.email || "ไม่พบอีเมล" : row.phone || row.promptPay || "ไม่พบหมายเลขรับเงิน", requestedAt: row.createdAt, dueDate: row.dueDate, kind: row.rewardId === "netflix-1m" ? "netflix" : "money" });
+    setConfirmation({ rewardId: row.rewardId, itemName: row.title, recipientName: row.displayName || row.username, username: row.username, amountLabel: amount(row), destinationLabel: row.rewardId === "netflix-1m" ? row.email || "ไม่พบอีเมล" : row.phone || row.promptPay || "ไม่พบหมายเลขรับเงิน", requestedAt: row.createdAt, dueDate: row.dueDate, kind: row.rewardId === "netflix-1m" ? "netflix" : "money", expectedAmountTHB:row.channel==="truemoney"?row.amountTHB:row.payoutTHB });
+  }
+  async function togglePayoutEvidence(item:RequestRow){
+    if(payoutEvidence[item.itemId]){setPayoutVisible(previous=>({...previous,[item.itemId]:!previous[item.itemId]}));return;}
+    if(inFlight.current)return;
+    inFlight.current=true;setSaving(true);setError("");
+    try{
+      const result=await call("payout-slip-evidence",{itemId:item.itemId});
+      setPayoutEvidence(previous=>({...previous,[item.itemId]:result}));
+      setPayoutVisible(previous=>({...previous,[item.itemId]:true}));
+    }catch(reason){setError(errorText(reason));}
+    finally{setSaving(false);inFlight.current=false;}
   }
   const ready = loaded.truemoney && loaded.special && !incomplete;
   const visible = rows.filter(item => (brand === "all" || item.rewardId === brand) && (filter === "all" || filter === "pending" && ["review", "transfer", "send"].includes(stage(item)) || filter === stage(item)));
@@ -171,6 +185,20 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
         <section className="sa-box"><h3>{stage(row) === "review" ? "ตรวจสอบคำขอ" : stage(row) === "send" ? "ส่งสิทธิ์ Netflix" : stage(row) === "transfer" ? "บันทึกผลการโอนเงิน" : "ผลการดำเนินการ"}</h3><p className="sa-payout">{amount(row)}</p><p className="sa-muted">{stage(row) === "review" ? "ตรวจหลักฐานและเงื่อนไขรางวัลก่อนอนุมัติ" : stage(row) === "send" ? "บันทึกหลังส่งสิทธิ์ให้ผู้รับเรียบร้อยแล้ว" : stage(row) === "transfer" ? "บันทึกหลังโอนเงินจริงให้ผู้รับเรียบร้อยแล้ว" : "ดำเนินการรายการนี้แล้ว"}</p>
           {["review", "transfer", "send"].includes(stage(row)) ? <>{row.channel === "special" ? <label className="sa-field">{stage(row) === "review" ? "หมายเหตุการตรวจสอบ / เหตุผลไม่อนุมัติ" : "เลขอ้างอิง / หมายเหตุ"}<textarea value={note} maxLength={350} onChange={event => setNote(event.target.value)} disabled={saving} placeholder="ระบุรายละเอียดประกอบรายการ"/></label> : null}<div className="sa-actions"><button type="button" className="sa-primary" disabled={saving} data-request-primary={row.itemId} aria-haspopup={stage(row) === "review" ? undefined : "dialog"} aria-expanded={confirmation ? true : undefined} onPointerDown={event => event.stopPropagation()} onClick={event => { event.preventDefault(); event.stopPropagation(); if (stage(row) === "review") void perform("approve"); else openConfirmation(); }}>{saving ? "กำลังบันทึก..." : actionLabel(row)}</button>{row.channel === "special" ? <button type="button" className="sa-danger" disabled={saving} onClick={() => void perform("reject")}>ไม่อนุมัติคำขอ</button> : null}</div></> : <div className={"sa-completed" + (stage(row) === "rejected" ? " sa-rejected" : "")}>{stageLabels[stage(row)]}{row.payoutConfirmedBy || row.resolvedBy ? " · โดย " + (row.payoutConfirmedBy || row.resolvedBy) : ""}{row.adminNote ? <p>{row.adminNote}</p> : null}<small>{row.payoutConfirmedAt || row.resolvedAt ? dateLabel(row.payoutConfirmedAt || row.resolvedAt, true) : "รีเฟรชคำขอเพื่อดูวันเวลาและผู้บันทึกล่าสุด"}</small></div>}
         </section>
+        {stage(row)==="done"&&row.payoutSlip?<section className="sa-box">
+          <h3>หลักฐานการโอนเงิน</h3>
+          <dl className="sa-details">
+            <div><dt>วันที่และเวลาโอน</dt><dd>{dateLabel(row.payoutSlip.payoutAt,true)}</dd></div>
+            <div><dt>เลขอ้างอิง</dt><dd>{row.payoutSlip.transactionRef}</dd></div>
+            <div><dt>ยอดเงิน</dt><dd>{row.payoutSlip.amountTHB} บาท</dd></div>
+            <div><dt>รูปแบบการตรวจ</dt><dd>{row.payoutSlip.reviewMode==="manual"?"Admin ตรวจด้วยตนเอง":"OCR + Admin ตรวจทาน"}</dd></div>
+          </dl>
+          <button type="button" className="sa-row-action" onClick={()=>void togglePayoutEvidence(row)} disabled={saving}>
+            {payoutVisible[row.itemId]?"ซ่อนภาพสลิป":"ดูภาพสลิปที่บันทึก"}
+          </button>
+          {payoutVisible[row.itemId]&&payoutEvidence[row.itemId]?.imageData?
+            <img className="sa-payout-proof-image" src={payoutEvidence[row.itemId].imageData} alt="สลิปหลักฐานการโอนเงิน"/>:null}
+        </section>:null}
       </div>
     </> : <>
       <div className="sa-section-head"><div><h3>คำขอรางวัล</h3><p>เลือกประเภทรางวัล แล้วเปิดรายการที่ต้องดำเนินการ</p></div><button type="button" className="sa-secondary" disabled={loading || saving} onClick={() => void refresh()}>{loading ? "กำลังโหลดคำขอ..." : loaded.truemoney || loaded.special ? "รีเฟรชคำขอ" : "โหลดคำขอรางวัล"}</button></div>
@@ -180,6 +208,6 @@ export default function SparksRewardRequests({ actorUsername, sessionId, onReaut
       <div className="sa-request-toolbar"><span>{ready ? visible.length + " รายการ" : loaded.truemoney || loaded.special ? visible.length + " รายการ · ข้อมูลยังโหลดไม่ครบ" : "ยังไม่ได้โหลดรายการ"}</span><label>สถานะ <select aria-label="สถานะคำขอ" value={filter} onChange={event => setFilter(event.target.value)}><option value="pending">รอดำเนินการ</option><option value="all">ทุกสถานะ</option>{Object.entries(stageLabels).filter(([value]) => value !== "unknown").map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></div></div>
       <div className="sa-table-wrap"><table className="sa-request-table"><thead><tr><th>ผู้ขอ / เลขคำขอ</th><th>รางวัล</th><th>สถานะ</th><th>ส่งคำขอ</th><th>ดำเนินการ</th></tr></thead><tbody>{visible.map(item => <tr key={item.channel + item.itemId}><td><strong>{item.displayName || item.username}</strong><small>@{item.username} · {item.requestId}</small></td><td><div className="sa-reward-cell">{brandSymbol(item)}<span>{item.title}</span></div></td><td data-label="สถานะ">{badge(item)}</td><td data-label="ส่งคำขอ">{dateLabel(item.createdAt)}</td><td><button type="button" className="sa-row-action" data-request-open={item.itemId} onClick={() => { setSelected(item.channel + ":" + item.itemId); setNote(item.adminNote || ""); setError(""); setMessage(""); }}>{stage(item) === "review" ? "ตรวจใบเสร็จ" : stage(item) === "send" ? "จัดส่งสิทธิ์ Netflix" : stage(item) === "transfer" ? "บันทึกโอน " + (brands.find(value => value[0] === item.rewardId)?.[1] || item.title) : "ดูผลการดำเนินการ"} →</button></td></tr>)}</tbody></table>{visible.length === 0 ? <p className="sa-empty">{loading ? "กำลังโหลดรายการ..." : !ready ? "กดโหลดคำขอรางวัลเพื่อดูรายการล่าสุด" : "ไม่มีคำขอในสถานะนี้"}</p> : null}</div>
     </>}
-    <RewardActionConfirmModal request={confirmation} busy={saving} error={confirmation ? error : ""} onCancel={() => { if (!saving) { setConfirmation(null); setError(""); } }} onConfirm={() => void perform("complete")}/>
+    <RewardActionConfirmModal request={confirmation} busy={saving} error={confirmation ? error : ""} onCancel={() => { if (!saving) { setConfirmation(null); setError(""); } }} onAnalyze={async imageData=>call("analyze-payout-slip",{imageData}) as Promise<PayoutScan>} onConfirm={proof => void perform("complete",proof)}/>
   </section>;
 }
