@@ -76,7 +76,6 @@ export async function stageQaCorePendingIntent({
     prev.document_path!==e.documentPath||prev.operation!==e.operation||
     prev.payload_sha256!==e.payloadHash||
     (e.operation==='upsert'&&prev.payload_equal!==true))
-    
     err('qa_outbox_idempotency_collision');
   return Object.freeze({
     staged:true,replay:true,sourceConfirmed:false,
