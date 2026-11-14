@@ -16,11 +16,21 @@ const body={slipImageData:imageData,slipManualReview:true,
   slipManualFields:{payoutAt:new Date().toISOString(),transactionRef:"QASLIPTEST20261114001",amountTHB:20,recipientLast4:"5678"}};
 const request={amountTHB:20,phone:"0812345678",createdAt:new Date(Date.now()-60000).toISOString()};
 const admin={username:"songpon"};
-await assert.rejects(preparePayoutEvidence({...body,slipManualReview:false},request,admin,async()=>{throw Error("offline");}),/อ่านสลิปไม่ครบ/);
-const proof=await preparePayoutEvidence(body,request,admin,async()=>{throw Error("offline");});
+await assert.rejects(preparePayoutEvidence({...body,slipManualReview:false},request,admin),/อ่านสลิปไม่ครบ/);
+const proof=await preparePayoutEvidence(body,request,admin);
 assert.equal(proof.summary.reviewMode,"manual");
 assert.equal(proof.summary.transactionRef,"QASLIPTEST20261114001");
-await assert.rejects(preparePayoutEvidence({...body,slipManualFields:{...body.slipManualFields,amountTHB:25}},request,admin,async()=>{throw Error("offline");}),/ยอดเงิน/);
+await assert.rejects(preparePayoutEvidence({...body,slipManualFields:{...body.slipManualFields,amountTHB:25}},request,admin),/ยอดเงิน/);
+
+// Local OCR may read a transfer amount, but the Admin must still review it.
+// The server never calls Google Vision and never accepts an OCR mismatch.
+const mismatchedOCR="14/11/2569 15:45\nเลขที่รายการ PAYTEST123456\nจำนวนเงิน 30.00 บาท\nผู้รับเงิน\n•••• 5678";
+await assert.rejects(preparePayoutEvidence({...body,slipOCRText:mismatchedOCR},request,admin),/ยอดเงินในสลิปไม่ตรง/);
+const missingRefOCR="14/11/2569 15:45\nจำนวนเงิน 20.00 บาท";
+const localProof=await preparePayoutEvidence({...body,slipOCRText:missingRefOCR},request,admin);
+assert.equal(localProof.summary.ocrEngine,"tesseract-local");
+assert.equal(localProof.summary.reviewMode,"manual");
+
 const writes=payoutSlipWrites(proof,"tm-unittest-123456","agent",(...args)=>({args}));
 assert.equal(writes.length,3);
 await ensurePayoutSlipUnused(proof,"tm-unittest-123456",async()=>null,"test-tx");
