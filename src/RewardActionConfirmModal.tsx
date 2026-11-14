@@ -20,7 +20,7 @@ export type PayoutScan={ocrStatus:string;message:string;ocrText?:string;fields:{
   senderName?:string;senderBank?:string;senderAccountMasked?:string;
   recipientName?:string;recipientBank?:string;recipientAccountMasked?:string;
   recipientVisibleSuffix?:string;recipientIdentifierType?:string;
-  feeTHB?:number|null;isSuccessful?:boolean;reviewFlags?:string[];
+  feeTHB?:number|null;isSuccessful?:boolean;reviewFlags?:string[];amountCandidates?:number[];
 }};
 export type PayoutProof={slipImageData:string;slipOCRText:string;slipManualReview:boolean;slipManualReason:string;slipRecipientChecked?:boolean;slipManualFields:{
   payoutAt:string;transactionRef:string;amountTHB:number;recipientLast4:string;
@@ -219,6 +219,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
             <div>สถานะที่ปรากฏบนสลิป: {scan.fields.isSuccessful?"รายการสำเร็จ":"อ่านสถานะไม่ชัด"}</div>
             <div>วัน–เวลาโอน: {dateLabel(scan.fields.payoutAt)||"—"}</div>
             <div>ยอดเงินที่อ่านได้: {scan.fields.amountTHB===null?"—":scan.fields.amountTHB.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2})+" บาท"}</div>
+            {(scan.fields.amountCandidates?.length||0)>1?<p className="reward-confirm-error" role="alert">OCR พบยอดเงินที่ขัดกัน: {scan.fields.amountCandidates?.map(v=>v.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2})).join(" / ")} บาท กรุณาตรวจภาพและกรอกยอดจริงด้วยตนเอง</p>:null}
             <div>ค่าธรรมเนียม: {scan.fields.feeTHB===null||scan.fields.feeTHB===undefined?"—":scan.fields.feeTHB.toFixed(2)+" บาท"}</div>
             <div>เลขอ้างอิงหลัก: {scan.fields.transactionRef||"—"}</div>
             {scan.fields.shortReference?<div>หมายเลขอ้างอิง: {scan.fields.shortReference}</div>:null}
