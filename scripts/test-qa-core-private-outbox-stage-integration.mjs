@@ -49,9 +49,10 @@ try{
   ' (collection_name,document_path,operation,document_json,payload_sha256,operation_id)'+
   " VALUES ('qa_sparks','qa_sparks/x','delete',NULL,NULL,'qa-stage-event-000000002')"),
    e=>e.code==='23514');
+ await pool.query("DO $qa$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='qa_ci_unprivileged') THEN CREATE ROLE qa_ci_unprivileged NOLOGIN; END IF; END $qa$;");
  const access=(await pool.query(
   "SELECT c.relrowsecurity,c.relforcerowsecurity,"+
-  " has_schema_privilege('public','qa_core_replication_stage','USAGE') AS public_usage"+
+  " has_schema_privilege('qa_ci_unprivileged','qa_core_replication_stage','USAGE') AS public_usage"+
   " FROM pg_class c WHERE c.oid=$1::regclass",[table])).rows[0];
  assert.equal(access.relrowsecurity,true);
  assert.equal(access.relforcerowsecurity,true);
