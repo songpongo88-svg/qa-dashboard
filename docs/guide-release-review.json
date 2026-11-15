@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T06:18:47.096Z",
-  "reason": "Reviewed Thai Lessons profile action text and icon contrast on cream paper, hover/focus visibility and removal of decorative hero circles. Appearance-only fix; guide workflows unchanged.",
-  "contentChanged": false,
-  "reviewedChapters": [],
+  "reviewedAt": "2026-11-15T06:46:05.898Z",
+  "reason": "Reviewed Coaching QA Review saved-field locking, explicit Edit/Cancel, re-save and regression coverage; updated Coaching instructions without changing other workflows.",
+  "contentChanged": true,
+  "reviewedChapters": [
+    "coaching"
+  ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
     "1.1": "a60915de4e1f986f22b78b9666a3fd5db8b88cfa9ff6cd1d5fae53652f3fcecf",
@@ -371,7 +373,7 @@
     "scripts/test-line-drawing-update.mjs": "61771a9c996cfec3aef289cc80caed0370ece9dc640e25deb66779d8fb7f9622",
     "scripts/test-line-drawing.mjs": "2a83eb186d01cb72412a019b62dd854d070b0337584593efe896a9f65243b4ca",
     "scripts/test-login-themes.mjs": "69fa91c7eda17b0f48171286d819ae455fb982947150636b9e266290688894b3",
-    "scripts/test-monthly-coaching.mjs": "2b89d20bf6b3b9692e717a0af80e33a723026652028776e0f5683941f1a2480e",
+    "scripts/test-monthly-coaching.mjs": "a37d6d393ac99edf8a6d1cde40d8ab1b74e482c28d49a54377630f3add4eb53e",
     "scripts/test-monthly-result-lock.mjs": "275ac86a4849f035302012c586ba0b6be39c93d452c624596dbeb446f001b011",
     "scripts/test-monthly-signature-pdf.mjs": "9905f766878080429fb5bb6231fc8ab433f4b61fa13b2363c385c43a3e0f7016",
     "scripts/test-payment-document-ref.mjs": "b3ac8cd094ba6a1e94b6b571c1db529fc939d5201b6d9039a3c2202750d675ba",
@@ -492,7 +494,7 @@
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/LotteryTicketInventory.tsx": "b44a2ae3f33824e571acf6f3f357c96251f7faef6eebad7c09cb78fc020a9663",
     "src/MaintenanceRuntime.tsx": "3fcc32c3c7bd9220b07f83b98e842b2d7432e2efe4897319d0bf4c805bbd85ee",
-    "src/MonthlyCoachingWorkspace.tsx": "56d6870f9f91aa8c611f0cc7750fc6596cb493c506e706bb1123a012d36005cc",
+    "src/MonthlyCoachingWorkspace.tsx": "c09fa996f45fc0a179701f7a6e033b4a4fe71732d69b64713ab65096037253e8",
     "src/MonthlyKpiNotice.tsx": "f99ad56e012035bbecfdad83df02a792d1671b9c02554ca932ead92764aa3f58",
     "src/PageHero.tsx": "f3c717205bd67000ed8b322363b2268849933e9b09404dcc3fe359fcc8d7f342",
     "src/PreTestMockup.tsx": "7e8b9a000276931dea99e471ee254e35f24af7287c71cdc9304b246a9a7b4d40",
@@ -635,7 +637,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "8cc3fdf2815ebe342bbf1f5397ba03ac4980d2e0d0ae9a3d43c787c60d186cf0",
+    "src/knowledge/manual.json": "2ba54a4babed54de8590c11f09e2a8dbfbb193ed9b87b8130d0ea90c77196443",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
