@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T07:06:09.511Z",
-  "reason": "Reviewed server-verified QA identity safe fields and no-preauth-profile-read regression test under trusted login; unchanged Production restrictions.",
+  "reviewedAt": "2026-11-15T07:09:14.747Z",
+  "reason": "Reviewed server-backed trusted login, no anonymous profile reads, session restoration, browser migration bootstrap, and QA session tests; excluded untracked staging README from source-hash inventory.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -792,7 +792,6 @@
     "server/qaSingleSessionReleaseGate.js": "56911f6856edb5a4641b3d0f7a7ca47b4bac0e7cae520b0f7bc1f4a6a57b3cc1",
     "src/qaSessionTransitionBarrier.mjs": "96f18d27b8e28b0ddfd6c51f01d4b7a596a086ad4d494982696759da6670dbd9",
     "scripts/test-qa-session-logout-race.mjs": "bb65d3d249bf212b3737278c591009e884a38f408f3965b7de864c830da854aa",
-    "scripts/test-qa-trusted-login-boundary.mjs": "03d934676c7833f7b88646590f2e385158b150b599e0f68020ea813575d0dc2f",
-    "security/qa-single-session/README.md": "1a189080392f51cbd31e134f7759af3143c83eba03167dbdbf8d184c5fd5c011"
+    "scripts/test-qa-trusted-login-boundary.mjs": "03d934676c7833f7b88646590f2e385158b150b599e0f68020ea813575d0dc2f"
   }
 }
