@@ -71,14 +71,41 @@ function Glyph({ name, size = 23 }: { name: MenuIcon | "grid" | "close" | "searc
   }
   return <svg {...common}>{path}</svg>;
 }
+// Prefer each website's own favicon. Known work portals have verified product-brand
+// fallbacks because private login screens may not expose an icon to unauthenticated browsers.
+// Only the origin / hostname are sent to icon services: never disclose link paths or query strings.
+function logoCandidates(rawUrl: string): string[] {
+  const href = safeUrl(rawUrl);
+  if (!href) return [];
+  const website = new URL(href);
+  const host = website.hostname.toLowerCase();
+  const direct = website.origin + "/favicon.ico";
+  const googleFavicon = "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=128";
+  if (host === "docs.google.com" && website.pathname.startsWith("/spreadsheets/"))
+    return ["/quick-access/google-sheets.svg", direct, googleFavicon];
+  if (host.endsWith(".sharepoint.com") || host === "sharepoint.com")
+    return ["https://fastly.mwm-storage.mwmcdn.com/raw_files/54214a7c-c463-4fdd-bc80-f29203f2dd0c", direct, googleFavicon];
+  if (host === "app.oho.chat")
+    return [direct,
+      "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ea/4d/90/ea4d9073-d781-245f-132f-76d0d6c4fa59/AppIcon-production-0-0-1x_U007emarketing-0-11-0-85-220.png/1200x630wa.png",
+      googleFavicon];
+  if (host.endsWith(".robinhood.in.th") || host === "operations-portal.apps.prod.riderplatform.com")
+    return [direct, "/robinhood-logo.png", googleFavicon];
+  return [direct, googleFavicon];
+}
 function LinkIcon({ link, size = "large" }: { link: QuickLink | DraftLink; size?: "large" | "small" }) {
-  const [broken, setBroken] = useState(false);
-  const url = safeUrl(link.url);
-  const domain = url ? new URL(url).origin : "";
-  const auto = link.icon === "auto" && Boolean(domain) && !broken;
+  const [attempt, setAttempt] = useState(0);
+  const logos = useMemo(() => logoCandidates(link.url), [link.url]);
+  useEffect(() => setAttempt(0), [link.url]);
+  const logoSrc = logos[attempt];
   const glyph = selectedIcon(link);
-  return <span className={"qa-quick-icon qa-quick-icon--" + size} style={{ background: iconColors[glyph] }} aria-hidden="true">
-    {auto ? <img src={domain + "/favicon.ico"} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} /> : <Glyph name={glyph} size={size === "small" ? 19 : 25} />}
+  return <span className={"qa-quick-icon qa-quick-icon--" + size + (logoSrc ? " qa-quick-icon--brand" : "")}
+    data-icon-source={logoSrc ? "website" : "fallback"}
+    style={{ background: logoSrc ? "#ffffff" : iconColors[glyph] }} aria-hidden="true">
+    {logoSrc ?
+      <img key={logoSrc} src={logoSrc} alt="" loading="lazy" referrerPolicy="no-referrer"
+        onError={() => setAttempt(index => index + 1)} /> :
+      <Glyph name={glyph} size={size === "small" ? 19 : 25} />}
   </span>;
 }
 
@@ -189,7 +216,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
   return <div className="qa-quick-root" ref={rootRef} data-quick-access-menu="true">
     <button type="button" className={"qa-quick-trigger" + (open ? " qa-quick-trigger--open" : "")}
       aria-haspopup="dialog" aria-expanded={open} aria-label="Quick Access - External Links" title="Quick Access · External Links"
-      onClick={() => { setOpen(!open); if (!open) { setMode("grid"); setError(""); } }}>
+      onClick={() => { setOpen(!open); if (!open) setMode("grid"); }}>
       <Glyph name="grid" size={20} /><span className="qa-quick-trigger-label">Quick Access</span>
     </button>
     {open && <div className="qa-quick-panel" role="dialog" aria-label="Quick Access External Links">
@@ -215,10 +242,11 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
         <div className="qa-quick-footer"><span>{loading ? "กำลังอัปเดต..." : links.length + " เมนูลัด"}</span>
           <div className="qa-quick-footer-actions">
             <button type="button" className="qa-quick-text-btn" onClick={() => void refresh()} disabled={loading} title="อัปเดตเมนู">รีเฟรช</button>
-            {canManage && <button type="button" className="qa-quick-text-btn" onClick={() => { setMode("manage"); setError(""); }}><Glyph name="settings" size={15}/> จัดการเมนู</button>}
+            {canManage && <button type="button" className="qa-quick-text-btn" onClick={() => setMode("manage")}><Glyph name="settings" size={15}/> จัดการเมนู</button>}
           </div>
         </div>
       </> : mode === "manage" ? <>
+        {!ready && <div className="qa-quick-manage-unavailable" role="status"><strong>ยังแก้ไขรายการส่วนกลางไม่ได้</strong><span>เมนูนี้ยังแสดงลิงก์เริ่มต้นอยู่ กรุณาโหลดข้อมูลจาก Supabase ให้สำเร็จก่อนแก้ไขชื่อหรือเพิ่มลิงก์</span><button type="button" disabled={loading} onClick={() => void refresh()}>{loading ? "กำลังเชื่อมต่อ..." : "เชื่อมต่อใหม่"}</button></div>}
         <div className="qa-quick-manage-toolbar"><span>ลากรายการเพื่อเปลี่ยนลำดับ</span><button type="button" disabled={!ready || saving} onClick={() => edit()}><Glyph name="plus" size={17}/> เพิ่มลิงก์</button></div>
         <div className="qa-quick-manage-list">{[...links].sort((a,b) => a.sortOrder - b.sortOrder).map(link =>
           <div key={link.id} className="qa-quick-manage-row" draggable={ready && !saving}
@@ -247,7 +275,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
             {CATEGORIES.filter(option => option.value !== "all").map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
-        <label>ไอคอน
+        <label>ไอคอนสำรอง (กรณีเว็บไซต์ไม่มี Favicon)
           <select value={draft.icon} onChange={(event) => setDraft(previous => ({ ...previous, icon: event.target.value as MenuIcon }))}>
             {ICONS.map(icon => <option key={icon} value={icon}>{icon === "auto" ? "Favicon อัตโนมัติ" : icon}</option>)}
           </select>

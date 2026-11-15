@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T08:12:00.000Z",
-  "reason": "Reviewed Quick Access API consolidation into the existing cloud-status function to comply with the Vercel Hobby 12-function limit while preserving existing GET status, QA session authorization and Supabase storage; verified no new serverless function.",
+  "reviewedAt": "2026-11-15T08:20:00.000Z",
+  "reason": "Reviewed Quick Access verified website favicon and product logo fallbacks, external image referrer safety, inaccessible link-edit sync state, and matching user guide instructions",
   "contentChanged": true,
   "reviewedChapters": [
     "quick-access"
@@ -168,6 +168,7 @@
     "public/guide/training-management-buttons.png": "d4d12707bfed35535f77c82c4d73f5b68f77737634d85c680411bcd7c6aee7b2",
     "public/guide/users-buttons.png": "0b9254192bcd6428b11440bf91d06ece9e9ea661e7ee16efe6e3fb6b8111e94a",
     "public/guide/weather-buttons.png": "da38136bc380c8dc572a18b5f91c6892cd206a33a53e9f56f5699fe662669f8e",
+    "public/quick-access/google-sheets.svg": "0bccab7787de37e23f8c5ba70112c210f887795a0e11195da384e1f6d42408f7",
     "public/weather/clear.webp": "a8cc19b9f0061c24af23b348fa5c4455092c8ee5dcdbddb6bbd07d2b4bfe494a",
     "public/weather/cloudy.webp": "1bbee6966d26b89837711f4e689cc88471c57fa523547466116ed3cc39923124",
     "public/weather/fog.webp": "7ab0c5e33cce85949141d5ec523fbfb67fdb6eb466f474933c2a6bb0d4c8a146",
@@ -575,7 +576,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "0ee5288d3eeb4e70a3f2d04ba168ad7a7d81b11541d07432deebe67643317fa1",
+    "src/knowledge/manual.json": "feac0cb4c9b33dde17e059d4a36986196e06dcd91d62203e82bbc95a40a15f5e",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/PdfReader.tsx": "eeef5fda3c22a96bd1497b193a833fa65727e5232046e14751b3e29bd4effeb9",
@@ -670,8 +671,8 @@
     "src/qaTypingChallengeStore.ts": "e1c71e682e46fc1c6f5bc0b88812c69df5912ba48d7f105326ff81a7ba882bd7",
     "src/QaTypingChallengeWorkspace.tsx": "43acca6bb86a504bc62caa5b51eb4cce96c2473d0245c60fd5f9d703e64f8b90",
     "src/QaTypingGate.tsx": "956dbd827bc18a09999e1548db463acd43472597c872ab08d3440336d80d592f",
-    "src/quickAccess.css": "5bc1c7a2b5410f572c121237126bfee01edd814d0526cd89382f1be05033ed5a",
-    "src/QuickAccessMenu.tsx": "a74f9af2046f0cddcc9d235047a2d985bc9cd7161baa05535312af7d00ebe3b5",
+    "src/quickAccess.css": "4162bfa16f45dd788fc1e80918ea7a36d22ba970bb1c1bd6f976b91cddd8b50d",
+    "src/QuickAccessMenu.tsx": "d19a4e17142ccd8f2645bdda0a5de490d245b0c3bbb45703ea2491581b8e29b1",
     "src/ReceiptClaimForm.tsx": "a718b991887e4c82ee4ebf15c930db1184adaee046889807d2d8fd7c792bcea6",
     "src/receiptImageOcr.ts": "b7d48cdcc8a6dbcf4cc7e2eb86c4642d7e72c287b4bd47ab0c21ad0d2bbf225e",
     "src/receiptRecognition.js": "290854eda45cca64e4045dfa3ac68fec813fca679f389cc799d42d07d86c1f48",
