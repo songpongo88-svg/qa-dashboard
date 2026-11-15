@@ -236,7 +236,7 @@ const correctedData={
   transactionRef:"CORRECTED987654321"
 };
 const correctionBody={...body,slipOCRText:mismatchedOCR,
-  slipVerifiedFields:correctedData,slipManualReview:true,
+  slipVerifiedFields:correctedData,slipRecipientChecked:true,slipManualReview:true,
   slipManualReason:"Admin ตรวจสลิปจริงยืนยันยอด 20 บาท OCR อ่านผิดเป็น 30 บาท"};
 const correctedProof=await preparePayoutEvidence(correctionBody,request,admin);
 assert.equal(correctedProof.summary.amountTHB,20);
