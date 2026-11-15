@@ -116,8 +116,20 @@ async function sendRequest(username: string, sessionId: string, action: string, 
     body: JSON.stringify({ actorUsername: username, sessionId, action, ...payload }),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(response.status === 401 ? "Session หมดอายุ กรุณาเข้าสู่ระบบใหม่" :
-    response.status === 403 ? "ไม่มีสิทธิ์จัดการ Quick Access" : "ไม่สามารถเชื่อมต่อรายการลิงก์ได้");
+  if (!response.ok) {
+    if (response.status === 401) {
+      const code = String(data.code || "");
+      if (code === "SESSION_EXPIRED")
+        throw new Error("Session สำหรับ Quick Access หมดอายุแล้ว กรุณาบันทึกงานที่ค้างอยู่ จากนั้น Sign Out และ Login QA Dashboard ใหม่");
+      if (code === "SESSION_REVOKED")
+        throw new Error("Session นี้ถูกยกเลิกจากระบบกลาง กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login QA Dashboard ใหม่");
+      if (["SESSION_NOT_FOUND", "SESSION_ID_MISSING", "SESSION_MISMATCH", "SESSION_POLICY"].includes(code))
+        throw new Error("ไม่พบ Session ที่ตรงกับบัญชี QA Dashboard กรุณาบันทึกงานที่ค้างอยู่ แล้วออกจากระบบและ Login ใหม่");
+      throw new Error("ยืนยัน Session กับระบบกลางไม่สำเร็จ กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login QA Dashboard ใหม่");
+    }
+    if (response.status === 403) throw new Error("บัญชีนี้ไม่มีสิทธิ์จัดการ Quick Access กรุณาติดต่อ Admin");
+    throw new Error("เชื่อมต่อรายการลิงก์ส่วนกลางไม่สำเร็จ กรุณาลองใหม่โดยไม่ต้องออกจากระบบ");
+  }
   if (!Array.isArray(data.links)) throw new Error("รูปแบบข้อมูลลิงก์ไม่ถูกต้อง");
   return data.links as QuickLink[];
 }
@@ -187,7 +199,8 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
   };
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!canManage || !ready || saving) return;
+    if (!canManage || saving) return;
+    if (!ready) { setError("ยังบันทึกชื่อไม่ได้จนกว่าจะยืนยัน Session และโหลดรายการจาก Supabase สำเร็จ กรุณาบันทึกงานใน QA Dashboard แล้ว Login ใหม่เมื่อจำเป็น"); return; }
     const url = safeUrl(draft.url);
     if (!url) { setError("กรุณาใช้ลิงก์ HTTPS ที่ถูกต้อง"); return; }
     const title = draft.title.trim() || suggestTitle(url);
@@ -247,7 +260,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
         </div>
       </> : mode === "manage" ? <>
         {!ready && <div className="qa-quick-manage-unavailable" role="status"><strong>ยังแก้ไขรายการส่วนกลางไม่ได้</strong><span>เมนูนี้ยังแสดงลิงก์เริ่มต้นอยู่ กรุณาโหลดข้อมูลจาก Supabase ให้สำเร็จก่อนแก้ไขชื่อหรือเพิ่มลิงก์</span><button type="button" disabled={loading} onClick={() => void refresh()}>{loading ? "กำลังเชื่อมต่อ..." : "เชื่อมต่อใหม่"}</button></div>}
-        <div className="qa-quick-manage-toolbar"><span>ลากรายการเพื่อเปลี่ยนลำดับ</span><button type="button" disabled={!ready || saving} onClick={() => edit()}><Glyph name="plus" size={17}/> เพิ่มลิงก์</button></div>
+        <div className="qa-quick-manage-toolbar"><span>ลากรายการเพื่อเปลี่ยนลำดับ</span><button type="button" disabled={saving} onClick={() => edit()}><Glyph name="plus" size={17}/> เพิ่มลิงก์</button></div>
         <div className="qa-quick-manage-list">{[...links].sort((a,b) => a.sortOrder - b.sortOrder).map(link =>
           <div key={link.id} className="qa-quick-manage-row" draggable={ready && !saving}
             onDragStart={() => { dragId.current = link.id; }}
@@ -256,12 +269,13 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
             onDragEnd={() => { dragId.current = null; }}>
             <span className="qa-quick-drag" aria-hidden="true">⠿</span><LinkIcon link={link} size="small"/>
             <div className="qa-quick-manage-name"><strong>{link.title}</strong><span>{new URL(link.url).hostname}</span></div>
-            <button type="button" disabled={!ready || saving} onClick={() => edit(link)} title={"แก้ไข " + link.title} aria-label={"แก้ไข " + link.title}><Glyph name="edit" size={17}/></button>
+            <button type="button" disabled={saving} onClick={() => edit(link)} title={"แก้ไข " + link.title} aria-label={"แก้ไข " + link.title}><Glyph name="edit" size={17}/></button>
             <button type="button" disabled={!ready || saving} onClick={() => void remove(link)} title={"ลบ " + link.title} aria-label={"ลบ " + link.title}><Glyph name="trash" size={17}/></button>
           </div>)}
         </div>
         <div className="qa-quick-footer"><span>การเปลี่ยนแปลงมีผลกับทุก User</span></div>
       </> : <form onSubmit={(event) => void save(event)} className="qa-quick-form">
+        {!ready && <div className="qa-quick-manage-unavailable" role="status"><strong>แก้ไขชื่อในฟอร์มได้ แต่ยังบันทึกไม่ได้</strong><span>ต้องยืนยัน Session กับเซิร์ฟเวอร์ก่อนจึงจะบันทึกให้ทุกคนเห็นได้</span></div>}
         <label>ลิงก์เว็บไซต์ (HTTPS)
           <input required type="url" value={draft.url} placeholder="https://example.com"
             onChange={(event) => { const url = event.target.value; setDraft(previous => ({ ...previous, url, title: autoTitle ? suggestTitle(url) : previous.title })); }}/>
