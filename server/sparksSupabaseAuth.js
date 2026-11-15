@@ -158,6 +158,20 @@ export async function sparksActiveDirectory() {
     status: "Active",
   }));
 }
+export async function sparksAngelDirectory() {
+  // Read-only, authenticated, Active users only. The SQL RPC exposes no email or private profile fields.
+  await getSparksRequestActor();
+  const jwt = context.getStore()?.accessToken;
+  if (!jwt) throw failure("กรุณาเข้าสู่ระบบ QA Sparks เพื่อดูรายชื่อผู้รับรางวัล", 401);
+  const rows = await supabase("/rest/v1/rpc/sparks_angel_directory_v1", {
+    jwt, method:"POST",body:{},
+  });
+  if (!Array.isArray(rows)) throw failure("ไม่สามารถโหลดรายชื่อเพื่อนสำหรับแบ่ง Jackpot", 503);
+  return rows.map(row=>({
+    username:normalized(row.username),
+    displayName:String(row.display_name||row.username||"").slice(0,80),
+  })).filter(row=>row.username);
+}
 export async function sparksActiveProfile(username) {
   const actor = await getSparksRequestActor();
   const normalizedTarget = normalized(username);
