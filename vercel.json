@@ -12,5 +12,11 @@
       "path": "/api/cron/sparks-profile-reconcile",
       "schedule": "15 11 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/weather-location",
+      "destination": "/api/reverse-geocode?mode=ip-location"
+    }
   ]
 }
