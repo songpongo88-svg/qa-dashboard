@@ -268,7 +268,8 @@ try{
   await click("#qa-sparks-tab-games");
   const gameGallery=main.querySelector(".qa-games-gallery");
   assert.ok(gameGallery,"Mini Games must open to image gallery instead of opening a lobby");
-  assert.equal(main.querySelectorAll("[data-sparks-game-card]").length,1,"only Fruit Match is public while Snakes remains unpublished");
+  assert.equal(main.querySelectorAll("[data-sparks-game-card]").length,2,"Fruit Match and Angel Number are public in Mini Games while Snakes remains unpublished");
+  assert.ok(main.querySelector('[data-sparks-game-card="angel"] svg'),"Angel Number illustrated game is available directly from Mini Games");
   assert.equal(main.querySelector('[data-sparks-game-card="snakes"]'),null,"Snakes art/card is fully hidden");
   const fruitCover=main.querySelector('[data-sparks-game-card="fruit"]');
   assert.ok(fruitCover?.querySelector("svg"),"Fruit Match illustrated game remains available");
