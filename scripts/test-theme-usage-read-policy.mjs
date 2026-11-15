@@ -1,0 +1,24 @@
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+import {transform} from "esbuild";
+const raw = await readFile(new URL("../src/themeUsageReadPolicy.ts",import.meta.url),"utf8");
+const built = await transform(raw,{loader:"ts",format:"esm",target:"es2022"});
+const {isThemeUsageReadFresh,THEME_USAGE_READ_TTL_MS} =
+ await import("data:text/javascript;base64,"+Buffer.from(built.code).toString("base64"));
+const now=Date.parse("2026-11-14T12:00:00.000Z");
+const saved=at=>JSON.stringify({percent:{color:60,character:40},updatedAt:new Date(at).toISOString()});
+assert.equal(isThemeUsageReadFresh(null,now),false);
+assert.equal(isThemeUsageReadFresh("{",now),false);
+assert.equal(isThemeUsageReadFresh(JSON.stringify({updatedAt:new Date(now).toISOString()}),now),false);
+assert.equal(isThemeUsageReadFresh(saved(now),now),true);
+assert.equal(isThemeUsageReadFresh(saved(now),Number.NaN),false);
+assert.equal(isThemeUsageReadFresh(saved(now-THEME_USAGE_READ_TTL_MS+1),now),true);
+assert.equal(isThemeUsageReadFresh(saved(now-THEME_USAGE_READ_TTL_MS),now),false);
+assert.equal(isThemeUsageReadFresh(saved(now+1),now),false);
+assert.equal(isThemeUsageReadFresh(JSON.stringify({percent:[],updatedAt:new Date(now).toISOString()}),now),false);
+const app=await readFile(new URL("../src/App.tsx",import.meta.url),"utf8");
+assert.match(app,/themeUsageRefreshInFlight\.current \|\| \(!force && isCachedThemeUsageFresh\(\)\)/);
+assert.match(app,/refreshThemeUsage\(true\)/);
+assert.match(app,/window\.clearTimeout\(refreshTimer\)/);
+assert.match(app,/getDocs\(firestoreCollection\(firebaseDb, "qa_user_profiles"\)\)/);
+console.log("PASS QA theme usage: 30-minute display-cache TTL, save invalidation, request dedup, event cleanup");

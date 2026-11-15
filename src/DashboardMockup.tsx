@@ -22,6 +22,7 @@ import { generateBulkCaseDetailPdf } from "./bulkCaseDetailPdf";
 import { RichTextContent, richTextToPlainText } from "./richText";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
+import { CASE_APPEAL_REQUEST_TYPES, CASE_APPEAL_OVERRIDE_TYPES, partitionCaseAppealEvents } from "./appealCaseEventsPartition";
 import { useMonthlyResultLock } from "./useMonthlyResultLock";
 import { MonthlyResultLockedError, MonthlyResultLockCheckError } from "./monthlyResultLockStore";
 import { getAppealScoreHold, withAppealScoreState, nextAppealScoreDeadline, type AppealScoreState } from "./pendingAppealScore";
@@ -4137,22 +4138,14 @@ function CaseDetailContent({
     const checkAppealRequest = async () => {
       if (readOnly) return;
       try {
-        const appealLogs = await fetchAppealEvents([
-          "appeal_request_submitted",
-          "appeal_request_reviewed",
-          "appeal_request_reset",
-          "appeal_additional_round_opened",
-          "appeal_additional_round_cancelled",
-          "appeal_additional_round_expired",
-          "appeal_additional_evidence_submitted",
-          "appeal_additional_access_requested", "appeal_additional_access_decided",
-          "appeal_submission_edit_started", "appeal_submission_draft_saved", "appeal_submission_resubmitted",
+        // One authoritative case-scoped Firestore read serves both the appeal
+        // history and Late Appeal controls. These previously repeated the same
+        // unfiltered 250-document query twice on every selected case.
+        const caseEvents = await fetchAppealEvents([
+          ...CASE_APPEAL_REQUEST_TYPES,
+          ...CASE_APPEAL_OVERRIDE_TYPES,
         ], { limit: 250, caseId: caseItem.caseId, forceRefresh: true });
-
-        const overrideLogs = await fetchAppealEvents([
-          "appeal_case_override_added",
-          "appeal_case_override_removed",
-        ], { limit: 250, caseId: caseItem.caseId, forceRefresh: true });
+        const { appealLogs, overrideLogs } = partitionCaseAppealEvents(caseEvents);
 
         const logs = [...appealLogs, ...overrideLogs] as UsageLogEvent[];
         if (cancelled) return;

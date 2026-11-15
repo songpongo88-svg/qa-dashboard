@@ -87,6 +87,7 @@ import {
 } from "./passwordResetStore";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { firebaseDb } from "./firebaseClient";
+import { isThemeUsageReadFresh } from "./themeUsageReadPolicy";
 import { clearStoredProfilePhoto, fetchStoredProfilePhoto, upsertStoredProfilePhoto } from "./profilePhotoStore";
 import { appendUserProfileHistory } from "./profileHistoryStore";
 import TermsWorkspace, { TermsAccessBoundary } from "./knowledge/Terms";
@@ -381,6 +382,13 @@ const PASSWORD_RECORD_KEY = "qa_password_records";
 const QA_THEME_STORAGE_KEY = "qa-dashboard:theme-v1";
 const QA_CUSTOM_THEME_STORAGE_KEY = "qa-dashboard:custom-theme-v1";
 const QA_THEME_USAGE_CACHE_KEY = "qa-dashboard:theme-usage-cache-v1";
+function isCachedThemeUsageFresh(): boolean {
+  try {
+    return isThemeUsageReadFresh(window.localStorage.getItem(QA_THEME_USAGE_CACHE_KEY));
+  } catch {
+    return false; // Browser localStorage can be unavailable.
+  }
+}
 type QaThemeCollectionId = "color" | "thai-lessons" | "character" | "festival" | "weekday" | "weather" | "special" | "line-drawing";
 const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "thai-lessons", "character", "festival", "weekday", "weather", "special", "line-drawing"];
 const QA_THEME_OPTIONS: QaThemeOption[] = [
@@ -3647,8 +3655,13 @@ function ThemePickerModal({
     }
   );
   const [themeUsageReady, setThemeUsageReady] = useState(() => Boolean(cachedThemeUsage));
+  const themeUsageRefreshInFlight = useRef(false);
 
-  const refreshThemeUsage = useCallback(async () => {
+  const refreshThemeUsage = useCallback(async (force = false) => {
+    // Decorative collection-use percentages may reuse a fresh display cache;
+    // permission, suspension, and login reads still use authoritative data.
+    if (themeUsageRefreshInFlight.current || (!force && isCachedThemeUsageFresh())) return;
+    themeUsageRefreshInFlight.current = true;
     try {
       const snapshot = await getDocs(firestoreCollection(firebaseDb, "qa_user_profiles"));
       const activeProfiles = snapshot.docs
@@ -3684,16 +3697,28 @@ function ThemePickerModal({
     } catch (error) {
       // Keep the last cached percentage visible. Do not show loading/error text in the picker.
       console.warn("Theme usage summary unavailable", error);
+    } finally {
+      themeUsageRefreshInFlight.current = false;
     }
   }, []);
   useEffect(() => {
     if (!open) return;
+    const latestCached = readThemeUsageCache();
+    if (latestCached) {
+      setThemeUsagePercent(latestCached);
+      setThemeUsageReady(true);
+    }
     void refreshThemeUsage();
+    let refreshTimer: ReturnType<typeof window.setTimeout> | undefined;
     const handleThemeUsageUpdated = () => {
-      window.setTimeout(() => void refreshThemeUsage(), 120);
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => void refreshThemeUsage(true), 120);
     };
     window.addEventListener("qa-theme-usage-updated", handleThemeUsageUpdated);
-    return () => window.removeEventListener("qa-theme-usage-updated", handleThemeUsageUpdated);
+    return () => {
+      window.clearTimeout(refreshTimer);
+      window.removeEventListener("qa-theme-usage-updated", handleThemeUsageUpdated);
+    };
   }, [open, refreshThemeUsage]);
 
   useEffect(() => {
