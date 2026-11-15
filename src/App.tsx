@@ -24,6 +24,7 @@ import { LoginFeatureIcon } from "./loginThemes/LoginFeatureIcon";
 import "./loginThemes/login.css";
 import "./themePickerCollections.css";
 import "./dashboardShortcuts.css";
+import QuickAccessMenu from "./QuickAccessMenu";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { collection as firestoreCollection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
@@ -7967,7 +7968,8 @@ export default function App() {
         />
 
         <div data-workspace-tabs-draggable-v46="true" data-case-workspace-tabs-v54="true" className="qa-workspace-tabs-v36 sticky top-0 z-[70] border-b border-violet-200 bg-gradient-to-r from-white via-violet-50/80 to-fuchsia-50/70 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5" role="tablist" aria-label="Open workspace tabs">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-0.5" role="tablist" aria-label="Open workspace tabs">
             {openWorkspaceTabs.map((workspaceKey) => {
               const isActive = activeWorkspaceTab === workspaceKey;
               const label = isCaseWorkspaceTabKey(workspaceKey)
@@ -8005,6 +8007,8 @@ export default function App() {
                 {workspaceKey !== "dashboard" ? <button type="button" onClick={() => closeWorkspaceTab(workspaceKey)} aria-label={`Close ${label} tab`} className={`mr-1 flex h-6 w-6 items-center justify-center rounded-lg text-sm font-black transition ${isActive ? "text-violet-100 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-violet-100 hover:text-violet-700"}`}>×</button> : <span className={`mr-2 text-[9px] font-bold ${isActive ? "text-violet-200" : "text-slate-400"}`}>PIN</span>}
               </div>;
             })}
+            </div>
+            <QuickAccessMenu username={currentUser.username} sessionId={currentUser.sessionId || ""} canManage={canAccessUserRoleAdmin(currentUser)} />
           </div>
         </div>
 
