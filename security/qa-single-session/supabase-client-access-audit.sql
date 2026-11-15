@@ -53,3 +53,28 @@ SELECT t.table_name,
 FROM target t LEFT JOIN pg_class c ON c.relname=t.table_name
   AND c.relnamespace='public'::regnamespace AND c.relkind IN ('r','p')
 ORDER BY t.table_name;
+
+
+-- Additional security review: a table grant audit alone cannot confirm
+-- that a browser's old Supabase JWT cannot call a SECURITY DEFINER RPC.
+-- An anonymous-callable status-only RPC needs separate read-only verification;
+-- all authenticated-callable owner RPCs need an explicit active-QA-session
+-- authorization review before release. This audit never revokes privileges.
+SELECT p.proname AS rpc_name,
+       pg_get_function_identity_arguments(p.oid) AS rpc_arguments,
+       p.prosecdef AS security_definer,
+       has_function_privilege('anon',p.oid,'EXECUTE') AS anon_execute,
+       has_function_privilege('authenticated',p.oid,'EXECUTE') AS authenticated_execute,
+       CASE
+         WHEN p.prosecdef
+          AND has_function_privilege('anon',p.oid,'EXECUTE')
+          THEN 'REVIEW_ANONYMOUS_DEFINER'
+         WHEN p.prosecdef
+          AND has_function_privilege('authenticated',p.oid,'EXECUTE')
+          THEN 'REVIEW_AUTHENTICATED_DEFINER'
+         ELSE 'NO_EXPOSED_DEFINER_ACCESS'
+       END AS release_review
+FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+WHERE n.nspname='public' AND p.prosecdef
+  AND (p.proname LIKE 'qa_%' OR p.proname LIKE 'sparks_%')
+ORDER BY release_review, p.proname;
