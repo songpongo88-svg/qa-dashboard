@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T07:03:06.793Z",
-  "reason": "Reviewed server-backed pre-login, server-owned session metadata instead of legacy Firebase session writes, secure restore, browser migration bootstrap bypass and QA login boundary tests. Live Firebase/Supabase security gates remain required.",
+  "reviewedAt": "2026-11-15T07:06:09.511Z",
+  "reason": "Reviewed server-verified QA identity safe fields and no-preauth-profile-read regression test under trusted login; unchanged Production restrictions.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -778,7 +778,7 @@
     "scripts/test-qa-single-session-api.mjs": "3176cae1c0ea0918c6ca46c1e6a5e58a2299bb5720f0adaef2dcfaffc193ba74",
     "src/QaSessionAdminPanel.tsx": "a39e120a737c918f554a977dd6a7e74a727bfd23f1c40a3d828fe8235fa2e20d",
     "src/qaSingleSessionClient.ts": "45207f3c860cc3318cad6f27c208904383cb46183131a2a12f4cbeb6a995f8b2",
-    "scripts/test-qa-session-write-guards.mjs": "756577187a803891e9e3bb38ec989cd7792b144dd98f1dd9309143fbf2a94912",
+    "scripts/test-qa-session-write-guards.mjs": "ced27964dcc61d7edc664a0cf5f518e32bd58d58f80ce7ad99aa21c1c4bf0303",
     "src/useCoachingSessionRecovery.ts": "6eb776e8c7a0b38916e2fbd5aca038b775c8dd1e5e680586bfd9369ceec34c68",
     "scripts/test-qa-session-atomic-flow.mjs": "c5d9e7af1b5e52f2db41bd7437876032e962d56c9dd90bafd11a5a91933a0d28",
     "server/qaSingleSessionEndpoint.js": "82c7d92fcf3a1158e586886719b8e09a08fd460b1a75c47bfdd0a0a2c5b19d66",
