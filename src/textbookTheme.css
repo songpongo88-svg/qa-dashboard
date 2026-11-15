@@ -202,6 +202,22 @@ html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > div:nth
  border-radius:18px !important; box-shadow:0 2px 6px #584a311a !important;
 }
 html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > div:nth-child(2) :is(div,span,strong,p,small) {color:#324e5e !important;}
+/* Profile actions carry their own white utility colors; give them paper/ink contrast too. */
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > div:has(> input[type="file"]) :is(button,a,svg) {
+ color:#294d65 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > div:has(> input[type="file"]) button:not([aria-label^="Change Profile Photo"]):not([aria-label^="Profile."]) {
+ background-color:#fff9ea !important;
+ border-color:#ad9268 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > div:has(> input[type="file"]) button:hover {
+ background-color:#eee1c3 !important;
+ border-color:#315e75 !important;
+}
+html:root[data-qa-theme="textbook-train"] #root .qa-global-sidebar-v39 > div:has(> input[type="file"]) button:focus-visible {
+ outline:2px solid #315e75 !important;
+ outline-offset:2px;
+}
 html:root[data-qa-theme="textbook-train"] #root .qa-sidebar-nav-v39 .qa-sidebar-section-label {
  color:#8a6b46 !important; background:none !important;
  font-weight:700 !important; letter-spacing:.045em;
@@ -273,6 +289,7 @@ html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v15
  color:#264a61 !important;
 }
 html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"]::before {display:none !important;}
+html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .pointer-events-none.absolute {display:none !important;}
 html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] > .relative {
  max-width:none; min-height:248px; margin:0;
  padding:20px 36px !important;
