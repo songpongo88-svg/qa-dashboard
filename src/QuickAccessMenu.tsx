@@ -83,9 +83,9 @@ function LinkIcon({ link, size = "large" }: { link: QuickLink | DraftLink; size?
 }
 
 async function sendRequest(username: string, sessionId: string, action: string, payload: Record<string, unknown> = {}) {
-  const response = await fetch("/api/quick-access", {
+  const response = await fetch("/api/cloud-status", {
     method: "POST", credentials: "same-origin",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-qa-quick-access": "1" },
     body: JSON.stringify({ actorUsername: username, sessionId, action, ...payload }),
   });
   const data = await response.json().catch(() => ({}));

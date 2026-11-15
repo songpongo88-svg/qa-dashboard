@@ -1,3 +1,5 @@
+import quickAccessHandler from "../server/quickAccessHandler.js";
+
 // Public, read-only status endpoint. Never returns keys, private project IDs,
 // wallet amounts or user information. No Firebase or Supabase read is made.
 function provider(value) {
@@ -7,6 +9,11 @@ function provider(value) {
 }
 
 export default function handler(req, res) {
+  // Reuse this existing function slot for authenticated Quick Access POST actions;
+  // all legacy status GETs and unrelated POSTs retain their existing behavior.
+  if (req.method === "POST" && req.headers?.["x-qa-quick-access"] === "1") {
+    return quickAccessHandler(req, res);
+  }
   res.setHeader("Cache-Control", "no-store, max-age=0");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (req.method !== "GET") {
