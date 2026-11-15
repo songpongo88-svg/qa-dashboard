@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T06:34:57.921Z",
-  "reason": "Reviewed standard seven-field QA Sparks bank-slip OCR review in public read-only batch UI and authenticated Admin payout confirmation. Every field can be corrected manually; corrections are audited with original OCR, reviewed values, Admin identity, reason, and timestamp in private payout evidence. Server still enforces matching payout amount, recipient checks, date validity, and duplicate slip/reference lock. No OTP bypass of production Admin flow. Verified Admin evidence regression requires masked recipient check; fail-closed behavior preserved.",
+  "reviewedAt": "2026-11-15T06:37:54.908Z",
+  "reason": "Reviewed standard seven-field QA Sparks bank-slip OCR review in public read-only batch UI and authenticated Admin payout confirmation. Every field can be corrected manually; corrections are audited with original OCR, reviewed values, Admin identity, reason, and timestamp in private payout evidence. Server still enforces matching payout amount, recipient checks, date validity, and duplicate slip/reference lock. No OTP bypass of production Admin flow. Verified Admin evidence regression requires masked recipient check; fail-closed behavior preserved. Confirmed duplicate-slip and OCR uncertainty warnings remain visible after seven-field editing.",
   "contentChanged": true,
   "reviewedChapters": [
     "qa-sparks"
@@ -686,7 +686,7 @@
     "src/SidebarProfileDetails.tsx": "217cc8abeef942dccde5797af1d5dc24d04251fd00ff9a1c59ee93ac8d2a3a69",
     "src/SignatureCenterMockup.tsx": "a7648509a0d93de76b7d5f40b38f858d4ae29351eafd225e28e80e3f9945c0b8",
     "src/signatureStore.ts": "e2c59a43f5b61c6580160391e9c2a3f7d8fca55bebada1bf0e952dc1929e3b33",
-    "src/slipOcrStandalone.ts": "23d3b1b4b46414c117d34d2efb44437fef1b2d28d5cc8b88c0c861f0e936b52a",
+    "src/slipOcrStandalone.ts": "2ce519d9e593465a8b4644a54301fb20fe8f1d26db776bde3b270290459c06db",
     "src/snakesLadders.css": "66d896a8ea5d206ab111b6a717a3e82e51322970744c07f05d4cac09bee77a95",
     "src/SnakesLaddersGame.tsx": "4475b52cc9c72d1c36ae4f5dac81d732654b9de97249bf2e3120ff383ef57ae1",
     "src/snakesRules.js": "d15f1b23aeb75876426901aeaf77cf65e6c26262097ecb4a379bcd9faf2747ec",
