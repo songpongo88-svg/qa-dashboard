@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T08:20:00.000Z",
-  "reason": "Reviewed Quick Access verified website favicon and product logo fallbacks, external image referrer safety, inaccessible link-edit sync state, and matching user guide instructions",
-  "contentChanged": true,
+  "reviewedAt": "2026-11-15T08:33:00.000Z",
+  "reason": "Reviewed compact QA Sparks Mini Games lobby, Angel Number admin secret configuration, preserved Supabase path validation, read-only weather IP rewrite, and early build guide review; source based on latest main to avoid overriding other QA Dashboard work.",
+  "contentChanged": false,
   "reviewedChapters": [
-    "quick-access"
+    "qa-sparks",
+    "weather"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -30,11 +31,10 @@
     "api/cron/sparks-profile-reconcile.js": "36f32648546ed1ab0b710a2e0434bc4cbd48ccaabe2e156eae03bea3f269fb83",
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
-    "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
+    "api/reverse-geocode.js": "46065dca9cf37f8adafc6d68958fb4cbd481334fc16b1bccf7a89526a76f1e00",
     "api/sparks-admin.js": "75be7046ddfb52d71dc4240eb70a312f3725eadaaafbad98b39ba5442207512e",
     "api/sparks-auth.js": "7cf06127fc6fcb210aa872cc1e401be85e008fa3cfc75ea71e7d123712db598b",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
-    "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
     "api/weather.js": "e3c4890bc778d43c1d8b2aa49e223b097ccb97e2e04073c44fb773fe922f8b38",
     "build/adminNameUserProfilePatch.js": "69e5240ec63cb6a33c7febd3fef09d6e9f9811a8fc0e905bc7e48a5603955f8d",
     "build/adminRoleDashboardScopePatch.js": "a77d21ba950fac0436d9632989165c7729a500466df2d7b6708777eca4737c37",
@@ -114,7 +114,7 @@
     "build/usernameMigrationBootstrapBypassPatch.js": "4b943d2a981b391054a944031ef049991f63d273803b25faefda431137144c0e",
     "index.html": "89b672c26a48a70d6960ab8303c7c5d8add012c3132b699f8b35475c765d5f67",
     "package-lock.json": "b160e3f2bdd40896eee2ae7b2ad1faa90d32792282c61e724f08d8db412ebc55",
-    "package.json": "b2c02acb73919c959819578d8401e9fe4732802009bfc870437cd4dd1adc164f",
+    "package.json": "d1a564bfb97822f5080796ee7461a218c3d679e0bf1e518bd9056536f884b504",
     "public/games/fruit-match/apple.jpg": "a4e5ebf0f3f677513e73ce80b1fab344237964769fc97ce8aedad9e89f25ec67",
     "public/games/fruit-match/banana.jpg": "b01131974412e89a7ebc337924f5473a5d8dc28af6713205bbda23ae661ab540",
     "public/games/fruit-match/coconut.jpg": "fc4e8056bb428ead102374ffff458a12587b463f2d0b2bd87054bde4d6231053",
@@ -185,7 +185,7 @@
     "scripts/audit-v13-incentives.mjs": "2cbb3104baf6410fe2c5f4dc4316da966dbb47ddae615558f0a2427b5d84ed42",
     "scripts/check-monthly-kpi.mjs": "0f81a8a5b97f442d13e921ff27a28828ba34a36d3f60db2ff9790d5ffd350bf9",
     "scripts/check-test-case-isolation.mjs": "0de74156ba552220911b5a4683afeca4048f9988dd90096fd8bf7b89357a8288",
-    "scripts/check-user-guide.mjs": "296f0f33e77e392d32c134ed8cc68af81589e7e3a51d7d51bb73fd50c742ccda",
+    "scripts/check-user-guide.mjs": "e1db95db488e17cfac784f96f4d462421fa00ecc630cc5107d771a54387423c1",
     "scripts/cloud-sync-v13-graph.mjs": "97beda7d0daacadffbe3e3d45c68eab899d497d1f382b2cdb4a266d2b6ef63d1",
     "scripts/fix-appeal-submit-fallback-v2.mjs": "565a019b824735d628879f52794feac22f9ccad7d6f2261f2ecf3a4c69e24b11",
     "scripts/fix-jan-feb-raw-authority-v1.mjs": "683a19c5d50633e0bbd3bde530301d4ed996b501a64b9567fa57a0e75a9c75f4",
@@ -464,7 +464,7 @@
     "src/analyticsTagRates.ts": "e421ff2b4e3d9d9ec7f502f23bb35982d658735d932d461a9f0313f03a644ec2",
     "src/angelNumberCatalog.ts": "8af395e5e1dd5d529e58e5cf97de7402dcac27d20f7268a566ea82714fc775b8",
     "src/angelNumberGame.css": "5baefd0c2376a6f5fa0b9f8da0b0e1ca8f6e9569bf62953693fb0038b366deb5",
-    "src/AngelNumberGame.tsx": "25347a9feca321c4280d66e9fced0b237f1d5d377cff6c2a469616ac822c8585",
+    "src/AngelNumberGame.tsx": "73fade84a9623a79fcd5796ad863f715859b0ae5e5bbaad1e987fe64562f5aba",
     "src/announcementDetail.css": "96a37b49d6c3b43bbe34b3cd27d73de4b92b2b38a43e131a9e66b2e8a416d7c5",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "224a03a7d77da1bf5a9de5a12c0c4f1126a69df4c78436cf4ae88a200b1d0933",
@@ -660,7 +660,7 @@
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
     "src/qaSparks.css": "6953a1da0a30258dc145b5001bc30bc2ae06f8f7bfcb0e8311fe0da914419e8c",
-    "src/QASparks.tsx": "fbe26d6694e6aab813e7f1de5c17f0d28e0611db4ef635f0ef51cc48fa80ba9a",
+    "src/QASparks.tsx": "d6bb740eda34fc22b0400e557d2eb4ca18fb4ea4972b3bbd5359d6b8d09b7cec",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksProductCards.css": "8558964fb8693796f83cec022df1d0b823ede990b39ff1e1bf01d600a1190b7a",
@@ -711,8 +711,8 @@
     "src/sparksItemHistory.mjs": "34fb36e3be5550a5e565a0c31d3ed8b8a7bcfb6829ea74730234b51524fd56cd",
     "src/sparksMembership.css": "224d2dfa4fbb51b1b2351738a4db26775d7d9b0a8b7dfb001e3fcf09d57e33bd",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
-    "src/sparksMiniGamesGallery.css": "37562b81b3645f431ab9b8ff869cb53876296a8854627a379c29c9b450d4dcc5",
-    "src/SparksMiniGamesGallery.tsx": "0e468d0fc1e34bb191ed47a0c00bfd09f3e9b918ca2f6314a512708dd8284d12",
+    "src/sparksMiniGamesGallery.css": "f6272f8edff382576629770612b230c2d699694164370237afb3f23b9da2a1a9",
+    "src/SparksMiniGamesGallery.tsx": "1c64f6a923222b78e38c84e2b8cbd33d9fe9c81a745abe1647dbdbeba8a88419",
     "src/sparksPausedLanding.css": "7a4e8094534cf04ace4aec44c259a5bd965782aefd5b216b50ce53528f9a98e2",
     "src/SparksQaCredentialMigration.tsx": "32e61882f2fdbcbca39c0d8fd5c47bd272a6a80491a74eb5f66b56dbfbce78d4",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
@@ -788,6 +788,8 @@
     "src/YearlyTeamSummary.tsx": "2b1618ecad55269dd22acf073524ba3471efa65cc626134f7b33ca7581a2bb7d",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "vercel.json": "0ab51a5a234b5e87bcfb59ae2f4cf61b976a57971a21bc1674de527c870d5256",
+    "scripts/test-weather-route-consolidation.mjs": "b1b45239b5de1863d169152746d15c1e28d541f420f6d88dd54e86d66512c946"
   }
 }
