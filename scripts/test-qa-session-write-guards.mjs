@@ -57,6 +57,15 @@ for (const [file, functions] of expectations) {
   }
 }
 const application = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const trustedLogin = application.split('  const handleLoginAsync = async () => {')[1]
+  ?.split('    // Direct Firebase profile login first.')[0] || "";
+assert.ok(trustedLogin.includes('await qaServerSessionRequest("login", {'),
+  "Trusted login must authenticate on server before Firestore profile access");
+assert.ok(trustedLogin.includes('await activateUserSession(verifiedUser, "", true)'),
+  "Trusted session must reuse server login rather than submitting password twice");
+assert.ok(application.includes('return; // Never read/write legacy session collections in trusted mode.'),
+  "Trusted restore must avoid creating legacy Firebase user sessions");
+
 const logoutPath = application.split('  const endSessionEverywhere = (reason: "manual" | "inactivity") => {')[1]?.split('  const handleLogout = () => {')[0] || "";
 assert.ok(logoutPath.includes('void qaServerSessionRequest("logout")'),
   "Inactivity as well as manual logout must revoke the trusted backend session");

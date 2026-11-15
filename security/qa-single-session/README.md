@@ -125,3 +125,25 @@ RPCs `qa_sparks_set_access_enabled_v1`, `sparks_admin_directory_v1`,
 old-browser Supabase Auth JWT access. Do not blindly revoke them because the
 QA Sparks server currently calls some functions with a verified Supabase
 user JWT; replace those call paths with server-bound authorization first.
+
+## Trusted login bootstrap and legacy-session migration — staged
+
+Before Single Active Session can restrict `qa_user_profiles` and the
+legacy `qa_user_sessions`, it must **not** enumerate profiles before Login,
+compare passwords inside the browser, write a second legacy session document
+after server login, or run the client-side username migration on page load.
+The staged code instead authenticates through the server, accepts only
+the server-verified profile summary, and restores the server-owned session ID.
+The old behavior stays untouched when the rollout flag is disabled.
+
+**Release blocker:** export and verify the existing
+`qa_system_migrations/username-title-case-policy-2026-08-18-v1`
+migration is completely finished, and that all required QA user profiles
+match the server verifier's expected Username casing, *before* activating
+the trusted login branch. The Vite bootstrap bypasses the unprivileged
+browser's migration only in trusted mode; it does **not** perform migration
+on the server or prove migration completion.
+
+Also test actual password reset/recovery, profile directory, access
+permissions, QA Sparks and Windows failover under the merged live rules.
+This PR neither changes live Firebase rules nor enables Single Active Session.

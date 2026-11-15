@@ -17,7 +17,11 @@ export type QaServerSessionResponse = {
   code?: string;
   firebaseToken?: string;
   sessionId?: string;
-  identity?: { username: string; role: string };
+  expiresAt?: string;
+  identity?: {
+    username: string; role: string;
+    displayName?: string; agentName?: string; email?: string;
+  };
   deviceLabel?: string;
   pendingId?: string;
   deadline?: string;

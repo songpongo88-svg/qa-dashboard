@@ -9,6 +9,8 @@ on:
       - "vercel.json"
       - "server/qaSingleSessionAdmin.js"
       - "src/qaSingleSessionClient.ts"
+      - "build/usernameIdentityPolicyPatchV2.js"
+      - "scripts/test-qa-trusted-login-boundary.mjs"
       - "src/qaSessionTransitionBarrier.mjs"
       - "scripts/test-qa-session-logout-race.mjs"
       - "src/evaluationStore.ts"
@@ -46,6 +48,8 @@ jobs:
         run: node scripts/test-session-takeover-policy.mjs
       - name: API fail-closed guards
         run: node scripts/test-qa-single-session-api.mjs
+      - name: Server-backed pre-login and bootstrap boundary
+        run: node scripts/test-qa-trusted-login-boundary.mjs
       - name: Fast logout/login cookie rotation and Firebase sign-out
         run: node scripts/test-qa-session-logout-race.mjs
       - name: Browser recovery isolation

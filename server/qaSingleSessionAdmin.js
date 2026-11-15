@@ -260,7 +260,7 @@ export async function activateNewSession(actor, deviceLabel = "Browser") {
     pendingAt: "", pendingDeadline: "", ackRevision: -1,
   };
   await auditedMutation("update", actor.username, row, current?.updateTime || null, sessionId, "login");
-  return { status: "active", sessionId };
+  return { status: "active", sessionId, expiresAt: row.expiresAt };
 }
 export async function authorizeActiveSession(req) {
   const ticket = sessionFromRequest(req);
@@ -366,7 +366,7 @@ export async function renewActiveSession(req) {
   const next = { ...current, expiresAt: new Date(Date.now() + TTL_MS).toISOString(), expiresAtEpochMs: Date.now() + TTL_MS };
   delete next.updateTime;
   await writeActive(ticket.username, next, current.updateTime);
-  return { sessionId: ticket.sessionId, username: ticket.username, role: ticket.role };
+  return { sessionId: ticket.sessionId, username: ticket.username, role: ticket.role, expiresAt: next.expiresAt };
 }
 export async function revokeOwnSession(req) {
   const { ticket, current } = await authorizeActiveSession(req);

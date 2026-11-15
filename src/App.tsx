@@ -4270,6 +4270,7 @@ export default function App() {
 
   const activateUserSession = async (user: CurrentUser, verifiedPassword = "", serverAlreadyActive = false) => {
     let trustedSessionActivated = false;
+    let trustedSessionMetadata: { sessionId: string; expiresAt: string } | null = null;
     try {
       if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
         // Never create a browser-only Firebase session until the server proves
@@ -4292,9 +4293,19 @@ export default function App() {
           return null;
         }
         if (verification.status !== "active") throw new Error("Server did not activate a session");
+        if (!verification.sessionId || !verification.expiresAt) {
+          throw new Error("Trusted server session metadata is missing");
+        }
+        trustedSessionMetadata = {
+          sessionId: verification.sessionId, expiresAt: verification.expiresAt,
+        };
         await activateQaFirebaseIdentity();
       }
-      const session = await createStoredUserSession(user);
+      // Trusted mode never creates the old qa_user_sessions Firestore row:
+      // the server-owned UUID is authoritative for this browser session.
+      const session = QA_SINGLE_SESSION_CLIENT_ENABLED
+        ? trustedSessionMetadata!
+        : await createStoredUserSession(user);
       const authenticatedUser: CurrentUser = {
         ...user,
         sessionId: session.sessionId,
@@ -4355,9 +4366,25 @@ export default function App() {
           // A new page load is authenticated activity. Refresh the trusted
           // cookie before opening the workspace; stale legacy-session
           // timestamps must not invalidate this server-verified login.
-          await qaServerSessionRequest("touch");
+          const refreshed = await qaServerSessionRequest("touch");
+          if (!refreshed.sessionId || !refreshed.expiresAt ||
+              refreshed.sessionId !== verified.sessionId) {
+            throw new Error("Trusted QA session metadata changed during restore");
+          }
+          const secureRestoredUser: CurrentUser = {
+            ...storedUser,
+            sessionId: refreshed.sessionId,
+            sessionPolicyVersion: SESSION_POLICY_VERSION,
+            sessionExpiresAt: refreshed.expiresAt,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(secureRestoredUser));
           lastTrustedSessionTouchRef.current = Date.now();
           lastTrustedUserActivityRef.current = Date.now();
+          if (!cancelled) {
+            lastSessionTouchRef.current = Date.now();
+            setCurrentUser(secureRestoredUser);
+          }
+          return; // Never read/write legacy session collections in trusted mode.
         }
         let restoredUser = storedUser;
 
@@ -4492,6 +4519,29 @@ export default function App() {
 
     const timer = window.setTimeout(async () => {
       try {
+        if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+          // No anonymous profile lookup or account enumeration. In trusted
+          // mode the server verifies credentials after entering the password.
+          const candidate = typedUsername.toLowerCase();
+          if (!/^[a-z0-9._-]{2,64}$/.test(candidate)) {
+            if (requestId === usernameValidationRequestRef.current) {
+              setLoginUsernameStatus("invalid");
+              setLoginError("กรุณากรอก Username ให้ถูกต้อง");
+            }
+            return;
+          }
+          if (requestId !== usernameValidationRequestRef.current) return;
+          setUsername(candidate);
+          setVerifiedLoginDisplayName("");
+          setLoginUsernameStatus("valid");
+          setLoginStep("password");
+          setPassword("");
+          setLoginError("");
+          window.setTimeout(() => {
+            document.querySelector<HTMLInputElement>('input[aria-label="Login Password"]')?.focus();
+          }, 80);
+          return;
+        }
         const normalizedUsername = typedUsername.toLowerCase();
         let account: UserAccount | null =
           normalizedUsername === "songpon" ? USER_ACCOUNTS[0] : null;
@@ -7152,6 +7202,63 @@ export default function App() {
   const handleLoginAsync = async () => {
     const normalizedUsername = username.trim().toLowerCase();
     const normalizedPassword = password.trim();
+
+    if (QA_SINGLE_SESSION_CLIENT_ENABLED) {
+      // No pre-auth Firestore/profile reads or client-side password checks.
+      // The server verifies the credential and returns only safe account data.
+      try {
+        const result = await qaServerSessionRequest("login", {
+          username: normalizedUsername, password: normalizedPassword,
+          deviceLabel: navigator.userAgent.includes("Edg/") ? "Microsoft Edge" : "Google Chrome / Browser",
+        });
+        if (!result.ok || !result.identity?.username || !result.identity.role ||
+            !["active", "conflict"].includes(String(result.status))) {
+          throw new Error("Trusted QA login did not provide a verified account");
+        }
+        const verifiedUser: CurrentUser = {
+          username: result.identity.username,
+          displayName: result.identity.displayName || result.identity.username,
+          role: normalizeRoleName(result.identity.role),
+          agentName: result.identity.agentName || result.identity.displayName || result.identity.username,
+          email: result.identity.email || "",
+          loginAt: new Date().toISOString(),
+        };
+        if (!matchesTrustedQaIdentity(verifiedUser, result)) {
+          throw new Error("Trusted QA login returned an inconsistent identity");
+        }
+        if (maintenanceState.enabled && !canBypassMaintenance(verifiedUser)) {
+          if (result.status === "active") await qaServerSessionRequest("logout");
+          setLoginError(maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message);
+          return;
+        }
+        if (result.status === "conflict") {
+          setTakeoverUser(verifiedUser);
+          setTakeoverStatus("awaiting_consent");
+          setPassword("");
+          setLoginError("");
+          return;
+        }
+        const activatedUser = await activateUserSession(verifiedUser, "", true);
+        if (!activatedUser) return;
+        void logUsageEvent(verifiedUser, "login", { tab: "dashboard" });
+        setLoginError("");
+        setUsername("");
+        setPassword("");
+        syncRouteFromLocation({ replace: true });
+        const matchedPermissions = rolePermissions[verifiedUser.role] || getDefaultRolePermissions(verifiedUser.role);
+        const scope = matchedPermissions.viewAllAgents ? "" : verifiedUser.agentName;
+        loginAgentScopeSeededRef.current = Boolean(scope);
+        setSelectedAgentGlobal(scope);
+        setSelectedMonthGlobal(getCurrentMonthKey());
+        setSelectedWeekGlobal("all");
+      } catch (error) {
+        const code = error instanceof QaServerSessionError ? error.code : "";
+        setLoginError(code === "INVALID_QA_LOGIN"
+          ? "รหัสผ่านหรือ Username ไม่ถูกต้อง"
+          : "ไม่สามารถยืนยัน Session กับเซิร์ฟเวอร์ได้ กรุณาลองใหม่");
+      }
+      return;
+    }
 
     // Direct Firebase profile login first.
     // This makes generated password from qa_user_profiles the source of truth.

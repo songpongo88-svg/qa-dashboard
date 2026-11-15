@@ -64,7 +64,13 @@ export default async function handler(req, res) {
         else issueCandidateCookie(res, actor);
         return res.status(result.status === "conflict" ? 409 : 200)
           .json({ ok: true, status: result.status, deviceLabel: result.deviceLabel || "",
-            identity: { username: actor.username, role: actor.role } });
+            sessionId: result.status === "active" ? result.sessionId : undefined,
+            expiresAt: result.status === "active" ? result.expiresAt : undefined,
+            identity: {
+              username: actor.username, role: actor.role,
+              displayName: actor.displayName, agentName: actor.agentName,
+              email: actor.email,
+            } });
       }
       case "request": {
         const candidate = candidateFromRequest(req);
@@ -101,7 +107,8 @@ export default async function handler(req, res) {
       case "touch": {
         const active = await renewActiveSession(req);
         issueSessionCookie(res, active, active.sessionId);
-        return res.status(200).json({ ok: true, status: "active" });
+        return res.status(200).json({ ok: true, status: "active",
+          sessionId: active.sessionId, expiresAt: active.expiresAt });
       }
       case "admin-list": {
         const sessions = await listSessionsForOwner(req);
@@ -119,8 +126,9 @@ export default async function handler(req, res) {
           identity: { username: ticket.username, role: ticket.role } });
       }
       case "validate": {
-        const { ticket } = await authorizeActiveSession(req);
+        const { ticket, current } = await authorizeActiveSession(req);
         return res.status(200).json({ ok: true, status: "active",
+          sessionId: ticket.sessionId, expiresAt: current.expiresAt,
           identity: { username: ticket.username, role: ticket.role } });
       }
       case "logout": {
