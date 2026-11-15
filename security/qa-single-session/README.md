@@ -147,3 +147,21 @@ on the server or prove migration completion.
 Also test actual password reset/recovery, profile directory, access
 permissions, QA Sparks and Windows failover under the merged live rules.
 This PR neither changes live Firebase rules nor enables Single Active Session.
+
+## Runtime guard for completed Username migration (staging, not activated)
+
+Trusted `login` now additionally calls
+`server/qaUsernameMigrationReleaseGate.js` after verifying the submitted
+QA username/password and before creating the active session pointer.
+It performs an Admin service-account **read-only** GET of the one
+`qa_system_migrations/username-title-case-policy-2026-08-18-v1` record.
+The migration must contain `status: done` and a nonempty `completedAt`.
+A missing/failed/in-progress migration, permission denial or unavailable
+Firestore returns HTTP **503** and does not issue a new session.
+
+Successful checks are cached in the warm server function for five minutes,
+and concurrent valid logins share the same read; the backend never triggers
+the privileged migration or edits any QA user documents. This guard does
+not prove the underlying profile data is correctly migrated if that status
+document has been forged or modified. Live rules/permissions and the actual
+migration content must still be independently reviewed before release.

@@ -178,6 +178,8 @@ for (const [name, content] of [["Evaluation", evaluationEditor], ["Coaching", co
 }
 
 const trustedApi = await readFile(new URL("../server/qaSingleSessionEndpoint.js", import.meta.url), "utf8");
+assert.ok(trustedApi.includes('await assertQaUsernameMigrationReady();'),
+  "Trusted login may not activate before the server verifies Username migration completed");
 assert.ok(trustedApi.includes('username: actor.username, role: actor.role,') &&
   trustedApi.includes('displayName: actor.displayName, agentName: actor.agentName,') &&
   trustedApi.includes('email: actor.email,'),

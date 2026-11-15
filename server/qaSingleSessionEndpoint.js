@@ -1,5 +1,6 @@
 import { verifyQaUsernamePassword, createQaFirebaseCustomToken } from "./qaFirebaseCredentials.js";
 import { qaSingleSessionReleaseApproved } from "./qaSingleSessionReleaseGate.js";
+import { assertQaUsernameMigrationReady } from "./qaUsernameMigrationReleaseGate.js";
 import {
   sessionPolicyEnabled, issueSessionCookie, issueCandidateCookie,
   clearSessionCookie, candidateFromRequest, authorizeActiveSession,
@@ -59,6 +60,10 @@ export default async function handler(req, res) {
       case "login": {
         const actor = await verifyQaUsernamePassword(body.username, body.password);
         if (!actor) return res.status(401).json({ ok: false, code: "INVALID_QA_LOGIN" });
+        // Only a verified credential can reach this read-only migration gate.
+        // Do NOT create a new active session against an incomplete username
+        // migration, and never attempt the migration from a browser.
+        await assertQaUsernameMigrationReady();
         const result = await activateNewSession(actor, body.deviceLabel);
         if (result.status === "active") issueSessionCookie(res, actor, result.sessionId);
         else issueCandidateCookie(res, actor);

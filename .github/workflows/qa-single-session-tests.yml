@@ -5,6 +5,8 @@ on:
       - "src/sessionTakeoverPolicy.mjs"
       - "src/lib/evaluation/sessionRecoveryStore.mjs"
       - "server/qaSingleSessionEndpoint.js"
+      - "server/qaUsernameMigrationReleaseGate.js"
+      - "scripts/test-qa-username-migration-release-gate.mjs"
       - "api/sparks-auth.js"
       - "vercel.json"
       - "server/qaSingleSessionAdmin.js"
@@ -50,6 +52,8 @@ jobs:
         run: node scripts/test-qa-single-session-api.mjs
       - name: Server-backed pre-login and bootstrap boundary
         run: node scripts/test-qa-trusted-login-boundary.mjs
+      - name: Fail-closed Username migration attestation
+        run: node scripts/test-qa-username-migration-release-gate.mjs
       - name: Fast logout/login cookie rotation and Firebase sign-out
         run: node scripts/test-qa-session-logout-race.mjs
       - name: Browser recovery isolation

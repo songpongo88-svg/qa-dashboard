@@ -25,6 +25,13 @@ function response() {
 // A Firestore Commit write requires a relative document resource name,
 // NOT the full https://firestore.googleapis.com REST URL.
 const sessionBackend = await readFile(new URL("../server/qaSingleSessionAdmin.js", import.meta.url), "utf8");
+const loginBackend = await readFile(new URL("../server/qaSingleSessionEndpoint.js", import.meta.url), "utf8");
+assert.ok(loginBackend.indexOf('await assertQaUsernameMigrationReady();') >
+  loginBackend.indexOf('if (!actor) return res.status(401)'),
+  "Unauthenticated login must not trigger a migration-status Firestore read");
+assert.ok(loginBackend.indexOf('await assertQaUsernameMigrationReady();') <
+  loginBackend.indexOf('const result = await activateNewSession(actor, body.deviceLabel);'),
+  "Incomplete Username migration must fail closed before issuing a server session");
 assert.ok(sessionBackend.includes('const DOCUMENT_PATH = "projects/"'), "Firestore Commit path must be relative");
 assert.ok(sessionBackend.includes("const sessionName = DOCUMENT_PATH + SESSION_COLLECTION"),
   "Session CAS must use a Firestore resource name");
