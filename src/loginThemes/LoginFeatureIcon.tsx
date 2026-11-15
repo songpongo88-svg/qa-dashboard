@@ -1,4 +1,5 @@
 import { InkIcon } from '../lineDrawing/LineDrawing';
+import { TextbookIcon } from '../textbookThemes/TextbookIcon';
 import React, { useEffect, useState } from 'react';
 import { CharacterIcon } from '../characterThemes/Character';
 import { characterIconAtlas } from '../characterThemes/icons.mjs';
@@ -23,6 +24,7 @@ export function LoginFeatureIcon({ theme, index }: { theme: { id: string; collec
     return () => { active = false; image.onload = null; };
   }, [atlas]);
   if (theme.collection === 'line-drawing') return <InkIcon kind={['dashboard','evaluate','permissions'][index]} />;
+  if (theme.collection === 'thai-lessons') return <TextbookIcon kind={['dashboard','evaluate','security'][index]} />;
   if (theme.collection === 'character') return theme.characterVersion === 2 && propsReady
     ? <CharacterIcon themeId={theme.id} kind={(theme.id === 'doraemon-blue' ? ['history', 'library', 'view'] : ['overview', 'view', 'library'])[index]} />
     : <>{String(index + 1).padStart(2, '0')}</>;
