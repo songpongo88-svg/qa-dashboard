@@ -85,6 +85,25 @@ try{
   assert.match(summary,/อ่านไม่ได้ 1/);
   assert.equal(readCount,3,"invalid file must not call OCR");
   assert.equal(maxInProgress,1,"OCR must be sequential to limit memory");
+  // Editable standardized seven-field form: OCR omissions can be corrected locally,
+  // and the audit must keep both the original value and the corrected value.
+  const first=cards[0];
+  const seven=[...first.querySelectorAll("[data-slip-field]")];
+  assert.equal(seven.length,7,"each slip must contain exactly seven editable standard fields");
+  const recipientName=first.querySelector('[data-slip-field="recipientName"]');
+  assert.equal(recipientName.value,"นางสาว ทดสอบ");
+  recipientName.value="นางสาว ผู้รับที่ตรวจแล้ว";
+  recipientName.dispatchEvent(new Event("input",{bubbles:true}));
+  assert.equal(recipientName.dataset.manualEdit,"true","changed OCR field must be marked Manual Edit");
+  const button=first.querySelector(".slip-review-accept");
+  assert.equal(button.disabled,false,"all seven valid fields allow review confirmation");
+  button.click();
+  const audit=first.querySelector(".slip-review-audit pre").textContent;
+  assert.match(audit,/"ocrOriginal"/);
+  assert.match(audit,/"reviewed"/);
+  assert.match(audit,/"นางสาว ทดสอบ"/);
+  assert.match(audit,/"นางสาว ผู้รับที่ตรวจแล้ว"/);
+  assert.match(first.textContent,/ไม่บันทึก Paid/,"reviewing slip text must not mark a payout Paid");
   assert.equal(fetchCount,0,"UI must not call any API");
   assert.equal(document.querySelectorAll("button[data-reward-confirm-submit]").length,0);
   const reset=document.getElementById("clear");
