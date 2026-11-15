@@ -7,9 +7,12 @@ import handler from "../api/sparks-admin.js";
 const {privateKey}=generateKeyPairSync("rsa",{modulusLength:2048,
   privateKeyEncoding:{type:"pkcs8",format:"pem"},publicKeyEncoding:{type:"spki",format:"pem"}});
 const keys=["SPARKS_DATA_BACKEND","SPARKS_CLOUD_READ_ONLY","SPARKS_SUPABASE_BRIDGE_URL",
-"SPARKS_SUPABASE_BRIDGE_TOKEN","FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON"];
+"SPARKS_SUPABASE_BRIDGE_TOKEN","FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON","GOOGLE_SERVICE_ACCOUNT_JSON"];
 const original=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
 const originalFetch=globalThis.fetch;
+// Isolate this test from real Vercel Production service credentials. Both aliases
+// select Firebase authentication and must be absent in the simulated Preview.
+delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 process.env.SPARKS_DATA_BACKEND="supabase";
 process.env.SPARKS_CLOUD_READ_ONLY="1";
 process.env.SPARKS_SUPABASE_BRIDGE_URL="https://private-fixture.supabase.co/functions/v1/qa-sparks-runtime-preview";
@@ -101,6 +104,7 @@ try{
  // copied to the preview. The preview verifies the QA session with the existing
  // production validator, then reads the actual wallet exclusively from Supabase.
  delete process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
+ delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
  requests.length=0;
  sessionMode="valid";
  const preview=await invoke("sparks-cloud-wallet",{historyLimit:1});
