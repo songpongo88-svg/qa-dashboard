@@ -111,7 +111,7 @@ export function resolveLoginTheme(appearance, environment = {}) {
   }
   if (id === 'textbook-train') {
     return skin('textbook-train', 'thai-lessons', ['#315e70', '#294354', '#f8f0dc'], {
-      image: '/textbook-theme/landscape.svg', size: 'cover', position: 'center',
+      image: '/textbook-theme/landscape-watercolor-v2.jpg', size: 'cover', position: '72% center',
     });
   }
   // A manually previewed/legacy Festival id cannot persist beyond its schedule.

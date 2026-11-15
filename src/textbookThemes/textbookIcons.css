@@ -1,0 +1,12 @@
+.qa-textbook-icon {
+  display:inline-block;
+  width:20px;
+  height:20px;
+  flex-shrink:0;
+  vertical-align:middle;
+  background-repeat:no-repeat;
+}
+.qa-login-feature-icon .qa-textbook-icon {
+  width:30px;
+  height:30px;
+}

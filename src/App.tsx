@@ -9,6 +9,7 @@ import { restoreLineDrawingCollection, upgradeLineDrawingCollection, useLineDraw
 import ThemePreview, { WEEKDAY_LABELS, FESTIVAL_LABELS } from "./ThemePreview";
 import { useFestivalTheme } from "./festivalThemes/store";
 import { FestivalIcon } from "./festivalThemes/Festival";
+import { TextbookIcon, useTextbookTheme } from "./textbookThemes/TextbookIcon";
 import { SpecialCollection } from "./specialThemes/SpecialCollection";
 import { CharacterCollection } from "./characterThemes/CharacterCollection";
 import { restoreCharacterCollection, useCharacterCollectionAccount, type CharacterCollectionState } from "./characterThemes/account";
@@ -86,6 +87,7 @@ import {
 } from "./passwordResetStore";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { firebaseDb } from "./firebaseClient";
+import { isThemeUsageReadFresh } from "./themeUsageReadPolicy";
 import { clearStoredProfilePhoto, fetchStoredProfilePhoto, upsertStoredProfilePhoto } from "./profilePhotoStore";
 import { appendUserProfileHistory } from "./profileHistoryStore";
 import TermsWorkspace, { TermsAccessBoundary } from "./knowledge/Terms";
@@ -380,6 +382,13 @@ const PASSWORD_RECORD_KEY = "qa_password_records";
 const QA_THEME_STORAGE_KEY = "qa-dashboard:theme-v1";
 const QA_CUSTOM_THEME_STORAGE_KEY = "qa-dashboard:custom-theme-v1";
 const QA_THEME_USAGE_CACHE_KEY = "qa-dashboard:theme-usage-cache-v1";
+function isCachedThemeUsageFresh(): boolean {
+  try {
+    return isThemeUsageReadFresh(window.localStorage.getItem(QA_THEME_USAGE_CACHE_KEY));
+  } catch {
+    return false; // Browser localStorage can be unavailable.
+  }
+}
 type QaThemeCollectionId = "color" | "thai-lessons" | "character" | "festival" | "weekday" | "weather" | "special" | "line-drawing";
 const QA_THEME_COLLECTION_IDS: QaThemeCollectionId[] = ["color", "thai-lessons", "character", "festival", "weekday", "weather", "special", "line-drawing"];
 const QA_THEME_OPTIONS: QaThemeOption[] = [
@@ -391,7 +400,7 @@ const QA_THEME_OPTIONS: QaThemeOption[] = [
   { id: "emerald", label: "Emerald Mint", swatches: ["#0f8a78", "#115e59", "#5ee0b5"] },
   { id: "midnight", label: "Midnight Violet", swatches: ["#43308a", "#22164f", "#8b72ff"] },
   { id: "graphite", label: "Graphite Mono", swatches: ["#3f4653", "#20242c", "#8d96a5"] },
-  { id: "textbook-train", label: "ตา-มา-รถ-ไฟ ป.1", swatches: ["#315e70", "#a65340", "#f1e4c5"], sceneImage: "/textbook-theme/landscape.svg", description: "บทเรียนภาษาไทย ป.1 · รถไฟ คุณครู นักเรียน และภาพประกอบหนังสือเรียน" },
+  { id: "textbook-train", label: "ตา-มา-รถ-ไฟ ป.1", swatches: ["#315e70", "#a65340", "#f1e4c5"], sceneImage: "/textbook-theme/landscape-watercolor-v2.jpg", description: "บทเรียนภาษาไทย ป.1 · รถไฟ คุณตา นักเรียน และภาพสีน้ำหนังสือเรียน" },
   { id: "kitty-pink", label: "Hello Kitty", swatches: ["#f472b6", "#be185d", "#fbcfe8"], patternImage: "/theme-kitty-pink.png", description: "Hello Kitty · โบว์และหัวใจ" },
   { id: "doraemon-blue", label: "Doraemon", swatches: ["#38bdf8", "#0369a1", "#facc15"], patternImage: "/theme-doraemon-blue.png", description: "Doraemon · กระดิ่ง เมฆ และดาว" },
   { id: "honey-bear", label: "Honey Bear", swatches: ["#fbbf24", "#92400e", "#fde68a"], patternImage: "/theme-honey-bear.png", description: "หมีน้ำผึ้ง · ผึ้งและดอกไม้" },
@@ -880,7 +889,9 @@ function formatWorkSimNumber(value: unknown) {
 
 function SidebarGlyph({ name }: { name: string }) {
   const festival = useFestivalTheme();
+  const textbook = useTextbookTheme();
   if (festival && !["key", "logout"].includes(name)) return <FestivalIcon themeId={festival.id} kind={name} className="h-5 w-5 shrink-0" />;
+  if (textbook && !festival) return <TextbookIcon kind={name} className="h-5 w-5 shrink-0" />;
   const paths: Record<string, string> = {
     dashboard: "M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z",
     chart: "M4 19V9 M10 19V5 M16 19v-7 M2 19h20",
@@ -3644,8 +3655,13 @@ function ThemePickerModal({
     }
   );
   const [themeUsageReady, setThemeUsageReady] = useState(() => Boolean(cachedThemeUsage));
+  const themeUsageRefreshInFlight = useRef(false);
 
-  const refreshThemeUsage = useCallback(async () => {
+  const refreshThemeUsage = useCallback(async (force = false) => {
+    // Decorative collection-use percentages may reuse a fresh display cache;
+    // permission, suspension, and login reads still use authoritative data.
+    if (themeUsageRefreshInFlight.current || (!force && isCachedThemeUsageFresh())) return;
+    themeUsageRefreshInFlight.current = true;
     try {
       const snapshot = await getDocs(firestoreCollection(firebaseDb, "qa_user_profiles"));
       const activeProfiles = snapshot.docs
@@ -3681,16 +3697,28 @@ function ThemePickerModal({
     } catch (error) {
       // Keep the last cached percentage visible. Do not show loading/error text in the picker.
       console.warn("Theme usage summary unavailable", error);
+    } finally {
+      themeUsageRefreshInFlight.current = false;
     }
   }, []);
   useEffect(() => {
     if (!open) return;
+    const latestCached = readThemeUsageCache();
+    if (latestCached) {
+      setThemeUsagePercent(latestCached);
+      setThemeUsageReady(true);
+    }
     void refreshThemeUsage();
+    let refreshTimer: ReturnType<typeof window.setTimeout> | undefined;
     const handleThemeUsageUpdated = () => {
-      window.setTimeout(() => void refreshThemeUsage(), 120);
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => void refreshThemeUsage(true), 120);
     };
     window.addEventListener("qa-theme-usage-updated", handleThemeUsageUpdated);
-    return () => window.removeEventListener("qa-theme-usage-updated", handleThemeUsageUpdated);
+    return () => {
+      window.clearTimeout(refreshTimer);
+      window.removeEventListener("qa-theme-usage-updated", handleThemeUsageUpdated);
+    };
   }, [open, refreshThemeUsage]);
 
   useEffect(() => {
@@ -3812,7 +3840,7 @@ function ThemePickerModal({
                 aria-pressed={selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride}
                 onClick={() => { onSelect("textbook-train"); onClose(); }} />
               <div className="qa-thai-lessons-cover">
-                <img src="/textbook-theme/landscape.svg" loading="lazy" alt="ภาพวาดหนังสือเรียนภาษาไทย รถไฟแล่นผ่านภูเขาและสถานีชนบท" />
+                <img src="/textbook-theme/landscape-watercolor-v2.jpg" loading="lazy" alt="ภาพสีน้ำรถไฟที่สถานีชนบท คุณตาอ่านหนังสือกับนักเรียน" />
                 <span className="qa-thai-lessons-cover-action" aria-hidden="true">
                   {selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride ? "กำลังใช้งานธีมนี้ ✓" : "เลือกใช้ธีมนี้"}
                 </span>
@@ -3821,7 +3849,7 @@ function ThemePickerModal({
               <div className="qa-thai-lessons-details">
                 <span className="qa-thai-lessons-eyebrow">THAI LESSONS COLLECTION</span>
                 <h3>ตา-มา-รถ-ไฟ ป.1</h3>
-                <p>ภาพประกอบรถไฟ คุณครูและนักเรียน พร้อมกระดาษครีม ลายเส้นแบบหนังสือเรียน ทุกหน้า Dashboard และหน้า Login</p>
+                <p>รถไฟ คุณตาและนักเรียน ภาพสีน้ำบนกระดาษครีม พร้อมไอคอนหนังสือเรียน</p>
                 <span className="qa-thai-lessons-action" aria-hidden="true">
                   {selectedTheme === "textbook-train" && !customCollectionSelected && !festivalOverride ? "กำลังใช้งานธีมนี้ ✓" : "เลือกใช้ธีมนี้"}
                 </span>

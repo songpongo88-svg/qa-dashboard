@@ -38,7 +38,7 @@ for (const [id] of model.COLOR_LOGIN_THEMES.filter(([id]) => id !== 'textbook-tr
 const textbook = model.resolveLoginTheme(appearance('textbook-train'));
 assert.equal(textbook.id, 'textbook-train');
 assert.equal(textbook.collection, 'thai-lessons');
-assert.equal(textbook.image, '/textbook-theme/landscape.svg');
+assert.equal(textbook.image, '/textbook-theme/landscape-watercolor-v2.jpg');
 assert.ok(fs.statSync(resolve('public' + textbook.image)).size > 1000);
 for (const theme of CHARACTER_THEMES) {
   const v1 = model.resolveLoginTheme(appearance(theme.id)), v2 = model.resolveLoginTheme(appearance(theme.id, { characterVersion: 2 }));
@@ -66,6 +66,7 @@ console.log('PASS 8 colors, standalone Thai Lessons artwork, 6 characters in bot
 const dom = new JSDOM('<div id="root"></div>', { url: 'https://login.test/', pretendToBeVisual: true });
 for (const key of ['window', 'document', 'localStorage', 'MutationObserver', 'Event', 'CustomEvent']) globalThis[key] = dom.window[key];
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+fs.mkdirSync(resolve('node_modules/.cache'), { recursive: true });
 const temp = await mkdtemp(resolve('node_modules/.cache/login-themes-'));
 let root, latest;
 try {
