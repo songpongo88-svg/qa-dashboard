@@ -82,7 +82,7 @@ function FruitCover(){
    <text x="93" y="322" fontFamily="Kanit, sans-serif" fontSize="13" letterSpacing="3" fill="#d8fff1">12 PAIRS · MEMORY CHALLENGE</text>
  </svg>;
 }
-export default function SparksMiniGamesGallery({onSelect,privateSnakes=false}:{onSelect:(game:SparksGameChoice)=>void;privateSnakes?:boolean}){
+export default function SparksMiniGamesGallery({onSelect,privateSnakes=false,adminAngel=false}:{onSelect:(game:SparksGameChoice)=>void;privateSnakes?:boolean;adminAngel?:boolean}){
  return <section className="qa-games-gallery" aria-label="เลือกมินิเกมจากภาพ">
    <div className="qa-games-gallery-heading">
      <div><span>QA SPARKS GAME ZONE</span><h2>เลือกเกมที่ต้องการเล่น</h2><p>กดที่รูปเกมเพื่อเข้าเล่นหรือกลับไปยังเกมที่เล่นค้างไว้</p></div>
@@ -95,7 +95,7 @@ export default function SparksMiniGamesGallery({onSelect,privateSnakes=false}:{o
      </button>:null}
      <button type="button" data-sparks-game-card="angel" className="qa-games-gallery-card qa-games-gallery-card--angel" onClick={()=>onSelect("angel")}>
        <span className="qa-games-gallery-art"><AngelCover/><span className="qa-games-gallery-tag">เริ่ม 6 ธ.ค. 2569 · เข้าจาก Mini Games เท่านั้น</span></span>
-       <span className="qa-games-gallery-details"><strong>เลขนางฟ้า · Angel Number</strong><span>นางฟ้า 101 คาแรกเตอร์ · เปิดไม่เจอคืนค่าเล่นพร้อมโบนัส 5–50 Sparks · ลุ้น Jackpot และแบ่งรางวัลให้เพื่อน</span><span className="qa-games-gallery-play">เข้าสู่เกมเลขนางฟ้า <span aria-hidden="true">↗</span></span></span>
+       <span className="qa-games-gallery-details"><strong>เลขนางฟ้า · Angel Number</strong><span>นางฟ้า 101 คาแรกเตอร์ · เปิดไม่เจอคืนค่าเล่นพร้อมโบนัส 5–50 Sparks · ลุ้น Jackpot และแบ่งรางวัลให้เพื่อน</span>{adminAngel?<span className="qa-games-gallery-admin-hint">Admin: เข้าเกมเพื่อกำหนดเลขลับ 0–100 และเปิดรอบ</span>:null}<span className="qa-games-gallery-play">เข้าสู่เกมเลขนางฟ้า <span aria-hidden="true">↗</span></span></span>
      </button>
      <button type="button" data-sparks-game-card="fruit" className="qa-games-gallery-card qa-games-gallery-card--fruit" onClick={()=>onSelect("fruit")}>
        <span className="qa-games-gallery-art"><FruitCover/><span className="qa-games-gallery-tag">เกมจับคู่ผลไม้</span></span>
