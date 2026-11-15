@@ -81,7 +81,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   const [verifiedSlipFields,setVerifiedSlipFields]=useState<Record<string,string>>({});
   const onFile=async(file?:File)=>{
     if(!file)return;
-    setScanning(true);setScanError("");setScan(null);setSlipImageData("");setRecipientChecked(false);setVerifiedSlipFields({});
+    setScanning(true);setScanError("");setScan(null);setSlipImageData("");setRecipientChecked(false);setVerifiedSlipFields({});setManualReason("");setManualRef("");setManualAmount("");setManualRecipient("");setManualDate("");
     try{
       const data=await shrinkSlip(file);
       setSlipImageData(data);
