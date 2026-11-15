@@ -20,7 +20,7 @@ export function reviewedSources(root) {
     walk(path.join(root, directory));
   }
   for (const name of ["package.json", "package-lock.json", "vite.config.js", "index.html"]) if (fs.existsSync(path.join(root, name))) files.push(name);
-  return Object.fromEntries(files.sort().map((file) => [file, hash(fs.readFileSync(path.join(root, file)))]));
+  return Object.fromEntries(files.sort().map((file) => { const content = fs.readFileSync(path.join(root, file)); return [file, hash(file === "vercel.json" ? JSON.stringify(JSON.parse(content.toString("utf8")), null, 2) + "\n" : content)]; }));
 }
 function readTerms(root) {
   const document = JSON.parse(fs.readFileSync(path.join(root, "src/knowledge/terms.json"), "utf8"));
@@ -33,6 +33,12 @@ export function checkGuideReview(root = projectRoot) {
   if (!review.reason?.trim() || !review.reviewedAt || !review.sourceHashes) throw new Error("Guide review is incomplete.");
   const current = reviewedSources(root);
   const changed = [...new Set([...Object.keys(current), ...Object.keys(review.sourceHashes)])].filter((file) => current[file] !== review.sourceHashes[file]);
+  if (changed.includes("vercel.json")) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(root, "vercel.json"), "utf8"));
+      console.error("VERCEL_CONFIG_REVIEW_DIAGNOSTIC", JSON.stringify({ expectedHash:review.sourceHashes["vercel.json"],actualHash:current["vercel.json"],config:parsed }));
+    } catch (e) { console.error("VERCEL_CONFIG_REVIEW_DIAGNOSTIC_FAILED",String(e?.message||"unknown")); }
+  }
   if (changed.length) throw new Error(`คู่มือยังไม่ได้ตรวจร่วมกับโค้ดล่าสุด (${changed.length} ไฟล์):\n${changed.slice(0, 15).join("\n")}\nตรวจขั้นตอน/ภาพ แล้วใช้ npm run guide:review -- --reason "เหตุผลที่ตรวจ" --chapters "chapter-id" หรือ --no-content-change`);
   const terms = readTerms(root);
   if (review.termsVersions?.[terms.document.version] !== terms.hash) throw new Error("T&C changed without a new reviewed version.");
