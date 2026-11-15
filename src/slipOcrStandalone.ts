@@ -165,6 +165,7 @@ function showScan(card:Card,file:File,scan:Awaited<ReturnType<typeof readPayoutS
   });
   reviewForm.append(reviewGrid,diffCount,reviewStatus,accept,auditDetails);
   detail.append(reviewForm);
+  if(issues.length)detail.append(el("p",issues.join(" · "),"warning"));
   const rawDetails=el("details");
   rawDetails.append(el("summary","ดูข้อความ OCR ของไฟล์นี้"));
   rawDetails.append(el("pre",scan.ocrText||"ไม่มีข้อความที่อ่านได้"));
