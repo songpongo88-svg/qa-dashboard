@@ -57,3 +57,17 @@ dialog.reward-confirm-modal[open] .reward-confirm-accept{min-height:43px}
 .reward-slip-manual input:disabled{background:#f4f0f6;color:#665e6a}
 .reward-slip-manual p{font-size:11px;color:#735679;margin:0}
 .sa-payout-proof-image{display:block;width:auto;max-width:100%;max-height:550px;object-fit:contain;border:1px solid #ddd;border-radius:12px;margin:12px auto}
+
+/* Standard seven-field, fully editable payout-slip verification form. */
+.reward-slip-standard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.reward-slip-standard-field{display:grid;gap:5px;min-width:0;font-size:12px;color:#615473}
+.reward-slip-standard-field>span{font-weight:700}
+.reward-slip-standard-field input{width:100%;padding:9px 10px;border:1px solid #d5c5e1;border-radius:9px;background:white;color:#2a2234;font:inherit}
+.reward-slip-standard-field input::placeholder{color:#96899f}
+.reward-slip-standard-field input:focus-visible{outline:2px solid #9151bb;outline-offset:1px}
+.reward-slip-standard-edited input{background:#fff7ec;border-color:#edbb78}
+.reward-slip-standard-edited small{font-weight:800;color:#885116;margin-left:5px}
+.reward-slip-edit-summary{font-size:11px;color:#69527d}
+.reward-slip-review-check{display:flex!important;gap:9px;align-items:flex-start}
+.reward-slip-review-check input{width:auto!important;flex:0 0 auto;margin-top:3px}
+@media(max-width:600px){.reward-slip-standard-grid{grid-template-columns:1fr}}
