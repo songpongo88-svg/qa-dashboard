@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T06:18:47.096Z",
-  "reason": "Reviewed Thai Lessons profile action text and icon contrast on cream paper, hover/focus visibility and removal of decorative hero circles. Appearance-only fix; guide workflows unchanged.",
+  "reviewedAt": "2026-11-15T06:34:00.282Z",
+  "reason": "Reviewed QA Firestore quota improvements from current main: visual-only Theme Collection cache, one selected-case Appeal Firestore query, identical case status/history controls. No guide content, screens, permissions, scoring or procedure changed.",
   "contentChanged": false,
   "reviewedChapters": [],
   "termsVersions": {
@@ -17,7 +17,7 @@
     ".github/workflows/diagnose-jan-feb-workbook-v2.yml": "b2f09486af6706bcc48b47728cf74eb71f0f272be5ad51dd9a22f94e59451b3f",
     ".github/workflows/finalize-clean-guide-review.yml": "ae7fe55619dfe6e653da0d8ba40667b5b33720bf5e37ca50624facd5433aa0cd",
     ".github/workflows/fix-appeal-submit-fallback.yml": "0631240497880c45c648ec3252780206de2c0f31db0870f2403b2cac3e13e4b8",
-    ".github/workflows/qa-firestore-read-budget.yml": "4f685df5c65db792ef2b8f9a09fbfb74e4d0c71c0b637752366ef803c05b0a3f",
+    ".github/workflows/qa-firestore-read-budget.yml": "4d152fbeaa72cbbd8a52c5bd99f4b21851a4fb66850589010da79ed128ff0c17",
     ".github/workflows/sparks-preview-guide-review.yml": "e0a45ce278a21b30f5adbb44991223b7a2ff48e7a03a7956499ed79f22d74214",
     ".github/workflows/system-cloud-status-guide-review.yml": "39ec6cdd6a23b3c4ff21fdf6c0013070aeae15a1550776aa82a712ac76f084cd",
     ".github/workflows/test-appeal-pdf.yml": "65a0f7dab6c2333fb242e9cb644b1eb225b29bc0e4890bafdb02a3d5347e05e0",
@@ -458,7 +458,7 @@
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "224a03a7d77da1bf5a9de5a12c0c4f1126a69df4c78436cf4ae88a200b1d0933",
     "src/AnnouncementShieldItem.tsx": "06bc24e1bd10c9c5c2c78a0e3dd12abf3edec0888b3fdede4d10af466ed9d13e",
-    "src/App.tsx": "1dd27d3b853508c45513ffeb84cf47102d0c70b384777feef09ea91d5594240d",
+    "src/App.tsx": "2ba513bd93fcfb42eb1711566c8b0bc6d3cab40114157e218cc218dd3e01a8c2",
     "src/AppealActionTimeline.tsx": "1c576ba639acfb7e54092f1dbbcf6996673cf5d063a41456d28b33dbfcd8a10c",
     "src/AppealEvidence.tsx": "7a63d83cf08d3ac9f9890aafe0b5c1a6349ef91a3f5ac2d9ca528baa3246008e",
     "src/AppealInformationCard.tsx": "1a73400a6f4a30b2a2c06a9d0f040bb6a0dd6d69b3b839e3acad32d5824d27a6",
@@ -481,7 +481,7 @@
     "src/CorporateUserDirectoryProfile.tsx": "6319937a0adac9e3620919350c04a439d12cd90f776358637b00c68830637d7c",
     "src/CreateEvaluationMockup.tsx": "3f8b0cb47ab49e1356ad14fbb287bcf857ca835ee8c1e87f3f9b2bf9dc695083",
     "src/DailyCheckinQuest.tsx": "5ef043ebd1b048e26769ef5825f3f67454787b7525f0a338d5f61c2997e9bf27",
-    "src/DashboardMockup.tsx": "c6015bb7a14105470a3e834283e74901ebb8721e4fad396ae90cd90430164d14",
+    "src/DashboardMockup.tsx": "dab29b47bbff39b373975ed71fee88d5e537c5e8c62752ae1ac57e1c0ea8bdab",
     "src/DateTime24Input.tsx": "faee21dbf86173fbc03e270adc0a764f3a61e3ff79ff68cf81838082b16f9f68",
     "src/EvaluationActivityContext.tsx": "4bf722f964bcd04f4eb28de953b4943f6caa9e389a29d7675ecc91d7f7bb9f3f",
     "src/EvaluationActivityProvider.tsx": "2968e913a270b59a5d9a7eb14a8ef40f37cfffd12578bda0c605f4b19b96137e",
@@ -775,6 +775,10 @@
     "src/yearlyAgentMonthlyExport.ts": "f477f375726b80c8bd5dbd6ea8dbc68fa345a95098a63f35214f297def0a6e12",
     "src/yearlyTeamSummaryData.ts": "c012999e2ffdae42a56f95f0bb03ec4ead52e9c4b53eb2c8134d2ef24a10713e",
     "src/yearlyTeamSummaryPdf.ts": "41a39fd341e057b4dbcd575458644c3b3be4d506ce43dd3572da608356be499b",
-    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37"
+    "vite.config.js": "5546ae6094847ea47711992cf32388cf1636aa90d2aedf8b338f102b3dee3f37",
+    "src/themeUsageReadPolicy.ts": "f6b6f652638bc77ce519ac455766bf48e2d0cd30229c2df6b12acec7f3790241",
+    "src/appealCaseEventsPartition.ts": "4c3e35e711a974c36c26b6cc6efb4ea649b727c238a1facf4e217e292374c9c9",
+    "scripts/test-theme-usage-read-policy.mjs": "089bcbd8976e3b27d0d110f4697991e487b45d9caf147855c69eff399149ab74",
+    "scripts/test-appeal-case-read-sharing.mjs": "e3c52f4f51f45f0d9d0db0062667cc876e555e2e5e3f661a840fe92c96eb60cf"
   }
 }
