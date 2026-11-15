@@ -256,7 +256,7 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
         {gamesOpened && view==="games" ? <section className="qa-sparks-games-container" aria-label="Mini Games">
           {gameMode===null
-            ? <SparksMiniGamesGallery privateSnakes={adminAccess&&username.trim().toLowerCase()==="songpon"} onSelect={choice=>{if(choice==="fruit"||choice==="angel"||(choice==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon"))setGameMode(choice);}}/>
+            ? <SparksMiniGamesGallery privateSnakes={adminAccess&&username.trim().toLowerCase()==="songpon"} adminAngel={adminAccess&&username.trim().toLowerCase()==="songpon"} onSelect={choice=>{if(choice==="fruit"||choice==="angel"||(choice==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon"))setGameMode(choice);}}/>
             : <>
                 <div className="qa-sparks-game-backbar">
                   <button type="button" data-sparks-back-to-games="true" onClick={()=>setGameMode(null)}>‹ กลับไปเลือกเกม</button>
