@@ -225,7 +225,7 @@ html:root[data-qa-theme="textbook-train"] #root .qa-thai-lessons-sidebar-art {
  margin:6px 0 8px; padding:8px 8px; text-align:center;
  border:2px solid #b5a071; border-radius:18px;
  background:
-  url('/textbook-theme/reading.svg') center 43px / 185px auto no-repeat,
+  url('/textbook-theme/landscape-watercolor-v2.jpg') 76% bottom / auto 130px no-repeat,
   linear-gradient(150deg,#fff9e8,#eee1c3) !important;
  box-shadow:inset 0 0 0 3px #fff8e3,0 2px 5px #4d473517;
 }
@@ -265,7 +265,7 @@ html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v15
  background-color:#fbf3df !important;
  background-image:
   linear-gradient(90deg,#fbf4e2 0%,#fbf4e2 21%,#fbf4e2ee 38%,#fbf4e269 55%,transparent 75%),
-  url('/textbook-theme/landscape.svg') !important;
+  url('/textbook-theme/landscape-watercolor-v2.jpg') !important;
  background-size:cover,cover !important;
  background-position:center,center !important;
  background-repeat:no-repeat !important;
@@ -339,7 +339,7 @@ html:root[data-qa-theme="textbook-train"] #root :is([data-performance-analytics-
  grid-auto-rows:max-content;
 }
 #qa-theme-collection-panel .qa-thai-lessons-card {
- grid-column:1/-1; display:grid; grid-template-columns:1fr;
+ display:grid; grid-template-columns:1fr;
  align-self:start;
  overflow:hidden; border:2px solid #b7a078; border-radius:20px;
  background:#fff8e8; box-shadow:0 7px 18px #6855371e;
@@ -389,7 +389,7 @@ html:root[data-qa-theme="textbook-train"] #root :is([data-performance-analytics-
 }
 #root .qa-themed-login[data-login-theme="textbook-train"] .qa-login-scene {
  inset:32% 0 0;z-index:-2;
- background-image:url('/textbook-theme/landscape.svg') !important;
+ background-image:url('/textbook-theme/landscape-watercolor-v2.jpg') !important;
  background-repeat:no-repeat !important;
  background-size:auto 100% !important;background-position:72% bottom !important;
  opacity:.9;
@@ -416,7 +416,7 @@ html:root[data-qa-theme="textbook-train"] #root :is([data-performance-analytics-
 }
 @media(max-width:1000px) {
  html:root[data-qa-theme="textbook-train"] #root [data-unified-robinhood-hero-v156="true"] {
-  background-image:linear-gradient(90deg,#fbf3e2 0%,#fbf3e2f4 35%,#fbf3e27a 70%,transparent 100%),url('/textbook-theme/landscape.svg') !important;
+  background-image:linear-gradient(90deg,#fbf3e2 0%,#fbf3e2f4 35%,#fbf3e27a 70%,transparent 100%),url('/textbook-theme/landscape-watercolor-v2.jpg') !important;
  }
 }
 @media(max-width:900px) {
@@ -442,11 +442,13 @@ html:root[data-qa-theme="textbook-train"] #root :is([data-performance-analytics-
   position:absolute;inset:0;z-index:3;display:block;width:100%;height:100%;
   border:0;padding:0;margin:0;background:transparent;cursor:pointer;
 }
-#qa-theme-collection-panel .qa-thai-lessons-cover {height:160px;}
-#qa-theme-collection-panel .qa-thai-lessons-details {padding:15px 20px 18px;}
+#qa-theme-collection-panel .qa-thai-lessons-cover {height:132px;}
+#qa-theme-collection-panel .qa-thai-lessons-details {padding:14px;}
+#qa-theme-collection-panel .qa-thai-lessons-details h3 {font-size:20px;}
+#qa-theme-collection-panel .qa-thai-lessons-details p {font-size:12px;}
 #qa-theme-collection-panel .qa-thai-lessons-details p {margin:4px 0 10px;line-height:1.6;}
 #qa-theme-collection-panel .qa-thai-lessons-cover-action {
-  position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;
+  position:absolute;top:12px;right:12px;display:none;align-items:center;
   min-height:36px;padding:8px 14px;border-radius:10px;background:#315e75;color:#fffaf0;
   font:600 13px/1.4 Kanit,sans-serif;box-shadow:0 3px 10px #203c4c38;
 }

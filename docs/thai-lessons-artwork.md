@@ -1,0 +1,14 @@
+# Thai Lessons artwork
+
+Generated with the built-in imagegen tool using the user's `image(20261113-044605).png` screenshot as a style reference. These are newly drawn assets inspired by that reference, not extracted originals.
+
+- `public/textbook-theme/landscape-watercolor-v2.jpg`: watercolor hero, encoded as JPEG quality 90 from the generated PNG.
+- `public/textbook-theme/icons-watercolor-v2.png`: transparent 4×4 atlas, row-major slots defined in `TextbookIcon.tsx`.
+
+## Hero prompt
+
+Use case: illustration-story. Asset: wide website hero illustration for Thai Lessons Collection ตา-มา-รถ-ไฟ ป.1. Use attached image solely as a STYLE REFERENCE for the watercolor textbook artwork within the two small UI mockups; do not recreate UI or screenshot. Create a landscape 3:1 watercolor illustration on warm cream paper, delicate old Thai primary school textbook ink outlines, visible paper texture, gentle sage green, faded blue, ochre and terracotta. Scene: rural Thai railway station, old yellow/blue/red diesel train on rails, trees and distant mountains; kind Thai grandfather with glasses reading a book with two primary-school children in white/blue school uniforms. Composition for header: left 45% mostly empty cream paper for overlaid real HTML title; scenery/train middle-right; grandfather and children at far right. Keep all important subjects inside right 55%. Soft irregular watercolor edges blend into cream. No UI, borders, captions, logo, watermark, lettering or text. Charming detailed painted art, no flat SVG shapes, no glossy 3D.
+
+## Icon prompt
+
+Use case: illustration-story. Asset: a production sprite sheet of small watercolor schoolbook prop icons for a Thai primary school textbook website theme. Attached image is a STYLE REFERENCE only. Create a SQUARE 4 by 4 perfectly regular grid of SIXTEEN separate watercolor icons, each icon centered entirely inside its own equal square cell, leaving at least 16% padding all sides of each cell. Transparent background throughout, NO background blocks, no grid lines, no labels, no letters, no text. Delicate brown/blue ink outlines with subtle watercolor washes of muted blue, ochre yellow, sage green, terracotta, cream, on transparent. All consistent scale and clarity legible at 28px. Exact row-major subjects: row1: open schoolbook with small chart; pencil lying diagonally; report paper with checkmark; small old yellow diesel train. row2: envelope with letter; fountain pen and ink bottle; open reading book; gold five-point reward star. row3: two schoolchild busts side by side; small clock; vintage key; paint palette with brush. row4: ticket with blank lines; shield with checkmark; wooden schoolhouse; grandfather with glasses reading to a child. NO extra objects outside each icon. Painterly textured charming vintage Thai textbook illustrations, not UI mockup, not glossy 3D, not flat vector.

@@ -38,7 +38,7 @@ for (const [id] of model.COLOR_LOGIN_THEMES.filter(([id]) => id !== 'textbook-tr
 const textbook = model.resolveLoginTheme(appearance('textbook-train'));
 assert.equal(textbook.id, 'textbook-train');
 assert.equal(textbook.collection, 'thai-lessons');
-assert.equal(textbook.image, '/textbook-theme/landscape.svg');
+assert.equal(textbook.image, '/textbook-theme/landscape-watercolor-v2.jpg');
 assert.ok(fs.statSync(resolve('public' + textbook.image)).size > 1000);
 for (const theme of CHARACTER_THEMES) {
   const v1 = model.resolveLoginTheme(appearance(theme.id)), v2 = model.resolveLoginTheme(appearance(theme.id, { characterVersion: 2 }));

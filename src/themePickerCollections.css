@@ -125,7 +125,7 @@ html #root #qa-theme-collection-panel > button[data-qa-color-option][aria-presse
 }
 .qa-theme-collection-tabs #qa-collection-tab-thai-lessons::before {
   content:"";display:block;width:32px;height:26px;flex:none;
-  background:url("/textbook-theme/engine.svg") center/contain no-repeat;
+  background:url("/textbook-theme/icons-watercolor-v2.png") 100% 0 / 400% 400% no-repeat;
 }
 .qa-theme-collection-tabs #qa-collection-tab-thai-lessons[aria-selected="true"] {
   background:#fff8e9;color:#294f64;border-color:#d1b68a;
