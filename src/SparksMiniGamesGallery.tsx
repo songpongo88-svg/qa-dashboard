@@ -1,8 +1,30 @@
 import React from "react";
 import "./sparksMiniGamesGallery.css";
 
-export type SparksGameChoice="snakes"|"fruit";
+export type SparksGameChoice="snakes"|"fruit"|"angel";
 
+function AngelCover(){
+ return <svg viewBox="0 0 660 350" className="qa-game-cover-svg" role="img" aria-label="เลขนางฟ้า 0–100 ลุ้น Jackpot สะสม">
+  <defs>
+   <linearGradient id="qa-angel-cover-bg" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#3c1a65"/><stop offset=".6" stopColor="#9153c1"/><stop offset="1" stopColor="#f7addd"/></linearGradient>
+   <linearGradient id="qa-angel-cover-tile" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fff9f5"/><stop offset="1" stopColor="#f2d5ff"/></linearGradient>
+  </defs>
+  <rect width="660" height="350" fill="url(#qa-angel-cover-bg)"/>
+  <circle cx="500" cy="36" r="116" fill="#fff4c9" opacity=".13"/>
+  <path d="M0 280Q95 235 172 276Q275 233 368 274Q484 231 660 266V350H0Z" fill="#f9e3ff" opacity=".6"/>
+  {Array.from({length:9},(_,i)=>{const x=65+(i%5)*105,y=98+Math.floor(i/5)*98;return <g key={i} transform={"translate("+x+" "+y+") rotate("+(i%2?8:-6)+")"}>
+   <rect width="86" height="83" rx="16" fill="url(#qa-angel-cover-tile)" stroke="#ffe1a0" strokeWidth="3"/>
+   <ellipse cx="45" cy="27" rx="21" ry="6" fill="none" stroke="#ffc65e" strokeWidth="4"/>
+   <path d="M32 50Q4 29 13 66L36 66M58 50Q86 29 77 66L54 66" fill="#fff6fb"/>
+   <circle cx="45" cy="57" r="17" fill="#ffe0c5"/><path d="M28 55Q27 32 47 38Q62 36 62 53L55 44L36 46Z" fill="#7d4b53"/>
+   <circle cx="39" cy="58" r="2.5" fill="#654550"/><circle cx="52" cy="58" r="2.5" fill="#654550"/>
+   <text x="8" y="19" fontSize="15" fontWeight="900" fill="#6f349f">{i===0?0:i*11}</text>
+  </g>})}
+  <text x="331" y="39" textAnchor="middle" fontFamily="Kanit,sans-serif" fontSize="27" fontWeight="900" fill="#ffe59a">ANGEL NUMBER</text>
+  <rect x="184" y="292" width="300" height="41" rx="19" fill="#4b1d70" stroke="#ffcf62" strokeWidth="3"/>
+  <text x="334" y="319" textAnchor="middle" fontFamily="Kanit,sans-serif" fontSize="20" fontWeight="900" fill="#ffe592">JACKPOT · 5–50 SPARKS</text>
+ </svg>;
+}
 function SnakesCover(){
  return <svg viewBox="0 0 660 350" className="qa-game-cover-svg" role="img" aria-label="ภาพเกมบันไดงู กระดาน ช่องรางวัล งู บันไดและลูกเต๋า">
    <defs>
@@ -64,13 +86,17 @@ export default function SparksMiniGamesGallery({onSelect,privateSnakes=false}:{o
  return <section className="qa-games-gallery" aria-label="เลือกมินิเกมจากภาพ">
    <div className="qa-games-gallery-heading">
      <div><span>QA SPARKS GAME ZONE</span><h2>เลือกเกมที่ต้องการเล่น</h2><p>กดที่รูปเกมเพื่อเข้าเล่นหรือกลับไปยังเกมที่เล่นค้างไว้</p></div>
-     <div className="qa-games-gallery-count">{privateSnakes?"1 เกม + Private Test":"1 เกม"}</div>
+     <div className="qa-games-gallery-count">{privateSnakes?"2 เกม + Private Test":"2 เกม"}</div>
    </div>
    <div className="qa-games-gallery-grid">
      {privateSnakes?<button type="button" data-sparks-game-card="snakes" className="qa-games-gallery-card qa-games-gallery-card--snakes" onClick={()=>onSelect("snakes")}>
        <span className="qa-games-gallery-art"><SnakesCover/><span className="qa-games-gallery-tag">PRIVATE TEST · เฉพาะเจ้าของระบบ</span></span>
        <span className="qa-games-gallery-details"><strong>บันไดงู · โหมดทดสอบส่วนตัว</strong><span>ทดสอบกับ Bot สูงสุด 4 ตัว · ยังไม่เผยแพร่ · ไม่มีการจ่าย Sparks จากเกมทดสอบ</span><span className="qa-games-gallery-play">เข้าทดสอบเกม</span></span>
      </button>:null}
+     <button type="button" data-sparks-game-card="angel" className="qa-games-gallery-card qa-games-gallery-card--angel" onClick={()=>onSelect("angel")}>
+       <span className="qa-games-gallery-art"><AngelCover/><span className="qa-games-gallery-tag">เริ่ม 6 ธ.ค. 2569 · เข้าจาก Mini Games เท่านั้น</span></span>
+       <span className="qa-games-gallery-details"><strong>เลขนางฟ้า · Angel Number</strong><span>นางฟ้า 101 คาแรกเตอร์ · เปิดไม่เจอคืนค่าเล่นพร้อมโบนัส 5–50 Sparks · ลุ้น Jackpot และแบ่งรางวัลให้เพื่อน</span><span className="qa-games-gallery-play">เข้าสู่เกมเลขนางฟ้า <span aria-hidden="true">↗</span></span></span>
+     </button>
      <button type="button" data-sparks-game-card="fruit" className="qa-games-gallery-card qa-games-gallery-card--fruit" onClick={()=>onSelect("fruit")}>
        <span className="qa-games-gallery-art"><FruitCover/><span className="qa-games-gallery-tag">เกมจับคู่ผลไม้</span></span>
        <span className="qa-games-gallery-details"><strong>Fruit Match</strong><span>เปิดภาพจับคู่ผลไม้ 12 คู่ ท้าทายความจำและทำสถิติ</span><span className="qa-games-gallery-play">เข้าเล่นเกม <span aria-hidden="true">↗</span></span></span>

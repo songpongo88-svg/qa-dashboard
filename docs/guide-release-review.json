@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T06:54:00.000Z",
-  "reason": "Reviewed Coaching QA Review immediate lock after successful save, explicit Edit/Cancel and preservation of saved review; retained latest Coaching guide updates and QA Firestore quota reductions.",
+  "reviewedAt": "2026-11-15T08:00:00.000Z",
+  "reason": "Reviewed Angel Number Mini Games 101 cards, 5-Sparks game debit, random bonuses and jackpot ledger, cooldown, admin-controlled rounds, Supabase sharing permissions and no automatic popup; updated QA Sparks guide.",
   "contentChanged": true,
   "reviewedChapters": [
-    "coaching"
+    "qa-sparks"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -31,7 +31,7 @@
     "api/google-drive-download.js": "57bd976d0d46a2a92dc68504d815efd00a23cde37d04c1c9054480a8fbb963bb",
     "api/google-drive-upload.js": "c5ac2144471a77bfd02e07bf7c32a96235310af964498e7f7877f73be5a96917",
     "api/reverse-geocode.js": "1074a2a60a2bfd1c97b971271c916b725c416e9a7d10bc35799a535b375bc69e",
-    "api/sparks-admin.js": "7a44a142d992030192c096658f35d6469762a41c1a5ff40e88c4d73ebbbf86d5",
+    "api/sparks-admin.js": "75be7046ddfb52d71dc4240eb70a312f3725eadaaafbad98b39ba5442207512e",
     "api/sparks-auth.js": "7cf06127fc6fcb210aa872cc1e401be85e008fa3cfc75ea71e7d123712db598b",
     "api/sparks-migration.js": "f24a977a6e56eee933b060d3539f47899272d2e584cd5e6ab59c2245070ea8a1",
     "api/weather-location.js": "14c06d7031c9567ed8c3af1b8bdf327ba4d65add3947978f54335b3b49516dd4",
@@ -391,7 +391,7 @@
     "scripts/test-qa-sparks-member-ui.mjs": "8b972c6ce738fe219f94205f1862dd832042f61a0a7cfeca953dd3b7cfe644f8",
     "scripts/test-qa-sparks-mini-inventory.mjs": "e9de39496de9b1ec32040c36ef1243f3b388944444c427f298bb192e7cb0e328",
     "scripts/test-qa-sparks-quest-ui.mjs": "2469359405956f4973380ae0bffbfb157e80defc6fbcf2d9664ee931214f90e3",
-    "scripts/test-qa-sparks-ui.mjs": "869ad06f6dee4687e17a772b30a758ba8319ab20268b8b1ef2284b08b0475303",
+    "scripts/test-qa-sparks-ui.mjs": "286bca97f5dec5f05dacf08a0ba610068c84ed656c6fa1842e2642eed111aced",
     "scripts/test-qa-typing-gate.mjs": "eca6f552384c1373942e37e8452acbecece4ecc101d64d3f8b579d7f545e91f2",
     "scripts/test-receipt-first-ui.mjs": "bf9463f341f0653be65b08e4bcd98cc0bdb52a16eecd73bbf0990b989a7e6dd2",
     "scripts/test-receipt-recognition.mjs": "e8aed5e833a39162b060a5d2356e07b8bfdfe42964e467f3606605b7cf40eebe",
@@ -453,8 +453,8 @@
     "server/sparksQaCredentialPreflight.js": "f80dd620ee54cae80c36104894ee6a724818fa6a93fc75f23502f5141d20f97d",
     "server/sparksQaMigrationRunner.js": "e4fcc732a86efdad5eda862ccde3a286639d4bdc2e8396a0cb567461188211b2",
     "server/sparksReadGrant.js": "9c203ec48ef07129403c6d973f3844530c09413da9b56a5b637f815fd4db1217",
-    "server/sparksSupabaseAuth.js": "2d53f8bb4bb9a65027ce93a528648a822bfc8adca4c48549b817b0a44678ab6e",
-    "server/sparksSupabaseBridge.js": "6b31f44ff2a027375efea1dead562ebf8ebe3b02144e27425ab071c94fd7ada0",
+    "server/sparksSupabaseAuth.js": "a36bc396c8520c021ad53f68abb220aa658184cca4289f23dba74995f0b80188",
+    "server/sparksSupabaseBridge.js": "25508e5a61164821e49b2b859e55c8fb419b348ff9478845981c163df830bf22",
     "server/typingReliefCloudService.js": "bfbd2ce2bb82ac5548028174ad509901b511fffbea7e9237ae987bddf593e2b2",
     "src/AnalyticsTagDetails.tsx": "426b503de479a884b0feea04fb03acddecfa67a97877c8c079a1eb6cbbf96385",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
@@ -505,7 +505,7 @@
     "src/ProfileMakeoverQuest.tsx": "c6d85c8805a39e49db9aefac339479f42ef51f5d7d491f162b9b678b9b114898",
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
-    "src/QASparks.tsx": "00b9d8f5f513490046bbe1c3dfb03576f1e0eee99903991c70b3f636ab86d345",
+    "src/QASparks.tsx": "fbe26d6694e6aab813e7f1de5c17f0d28e0611db4ef635f0ef51cc48fa80ba9a",
     "src/QaAccessCaseHistoryPopup.tsx": "da29c8b43c9aa32c23cde37fa447f41764477b6659cb2a6bc9384aff71dcf5a7",
     "src/QaAccessCheckOverview.tsx": "348de0058ce1552e358582cf6486812a4c2a6a1801e26361c25ad126b74765ba",
     "src/QaAutoPassRewardCard.tsx": "89423c5c6187a2e5a79437e517d32ffe86b64f5b88026e6d0d3595ef0c41a72a",
@@ -532,7 +532,7 @@
     "src/SparksEmailAuth.tsx": "575bfd26ae059e65bbec3af65c8c98eda5d49dd9eaba66abfb5680eb7b1445c4",
     "src/SparksHistory.tsx": "168a7a814721bb03599f6c5e3238cb8fc5f95936231d41a470a735035078f5b4",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
-    "src/SparksMiniGamesGallery.tsx": "3b2926275f950a385829e4b3aebf748bdf4b1e686b962745fc04bbd21b751e8b",
+    "src/SparksMiniGamesGallery.tsx": "0e468d0fc1e34bb191ed47a0c00bfd09f3e9b918ca2f6314a512708dd8284d12",
     "src/SparksQaCredentialMigration.tsx": "32e61882f2fdbcbca39c0d8fd5c47bd272a6a80491a74eb5f66b56dbfbce78d4",
     "src/SparksRewardRequests.tsx": "32cee31d3bbd0ea50a959ffe42285259c7d65b2f8a3efe3d268aa2787ac8f669",
     "src/SparksStandalone.tsx": "547c71f8243138e0c0eb1582683b871aeff3247f9d2320f973a0c3602610f6fa",
@@ -637,7 +637,7 @@
     "src/knowledge/guideModel.ts": "1248d2ac80eb14cece2f25e0ea6016f7f650b02aa05f50095df7e8f33db39104",
     "src/knowledge/guideStore.ts": "94ecb3401c518f3af3ac9d617617ac219084268a85942560df2b51dec099ffec",
     "src/knowledge/knowledge.css": "4ea413474a40aa2be5fcd7e94715bb50fc9395ca788c285ab05570674208169a",
-    "src/knowledge/manual.json": "2ba54a4babed54de8590c11f09e2a8dbfbb193ed9b87b8130d0ea90c77196443",
+    "src/knowledge/manual.json": "9479b534e855c3340ef5ad1d2c44d386fe8820cc1373faafbe54302171ad633d",
     "src/knowledge/model.ts": "5ba1c12c507008eb1743d208729c96daf5cef3434685ec12e911c6d26c62ac1c",
     "src/knowledge/pdf.ts": "c3c0bdf19b0c33e06d5795c4fcdd59eafc101d92321053eaa44800f409db49f7",
     "src/knowledge/terms.json": "e15cdce9896c155db82721381ff1e9f4fc0402b25cfaa396a1c5db282c2e26af",
@@ -781,6 +781,10 @@
     "scripts/test-appeal-case-read-sharing.mjs": "e3c52f4f51f45f0d9d0db0062667cc876e555e2e5e3f661a840fe92c96eb60cf",
     "scripts/test-theme-usage-read-policy.mjs": "089bcbd8976e3b27d0d110f4697991e487b45d9caf147855c69eff399149ab74",
     "src/appealCaseEventsPartition.ts": "4c3e35e711a974c36c26b6cc6efb4ea649b727c238a1facf4e217e292374c9c9",
-    "src/themeUsageReadPolicy.ts": "f6b6f652638bc77ce519ac455766bf48e2d0cd30229c2df6b12acec7f3790241"
+    "src/themeUsageReadPolicy.ts": "f6b6f652638bc77ce519ac455766bf48e2d0cd30229c2df6b12acec7f3790241",
+    "server/angelNumberService.js": "5f7ba227f6dec1ba3a9d6b6c1209b40ab250c4fe1e417265417c26a8b37fe1d8",
+    "src/AngelNumberGame.tsx": "25347a9feca321c4280d66e9fced0b237f1d5d377cff6c2a469616ac822c8585",
+    "src/angelNumberCatalog.ts": "8af395e5e1dd5d529e58e5cf97de7402dcac27d20f7268a566ea82714fc775b8",
+    "src/angelNumberGame.css": "5baefd0c2376a6f5fa0b9f8da0b0e1ca8f6e9569bf62953693fb0038b366deb5"
   }
 }

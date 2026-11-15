@@ -14,6 +14,7 @@ import ProfileMakeoverQuest from "./ProfileMakeoverQuest";
 import TrueMoneyReward from "./TrueMoneyReward";
 import AnnouncementShieldItem from "./AnnouncementShieldItem";
 import FruitMatchGame from "./FruitMatchGame";
+import AngelNumberGame from "./AngelNumberGame";
 import SnakesLaddersGame from "./SnakesLaddersGame";
 import SparksMiniGamesGallery, {type SparksGameChoice} from "./SparksMiniGamesGallery";
 import QALottery from "./QALottery";
@@ -255,13 +256,13 @@ export default function QASparks({ displayName = "", username = "", adminAccess 
       <div role="tabpanel" id={"qa-sparks-panel-" + view} aria-labelledby={"qa-sparks-tab-" + view} className="qa-sparks-content">
         {gamesOpened && view==="games" ? <section className="qa-sparks-games-container" aria-label="Mini Games">
           {gameMode===null
-            ? <SparksMiniGamesGallery privateSnakes={adminAccess&&username.trim().toLowerCase()==="songpon"} onSelect={choice=>{if(choice==="fruit"||(choice==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon"))setGameMode(choice);}}/>
+            ? <SparksMiniGamesGallery privateSnakes={adminAccess&&username.trim().toLowerCase()==="songpon"} onSelect={choice=>{if(choice==="fruit"||choice==="angel"||(choice==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon"))setGameMode(choice);}}/>
             : <>
                 <div className="qa-sparks-game-backbar">
                   <button type="button" data-sparks-back-to-games="true" onClick={()=>setGameMode(null)}>‹ กลับไปเลือกเกม</button>
-                  <span>{gameMode==="snakes"?"บันไดงู Multiplayer":"Fruit Match"}</span>
+                  <span>{gameMode==="snakes"?"บันไดงู Multiplayer":gameMode==="angel"?"เลขนางฟ้า · Angel Number":"Fruit Match"}</span>
                 </div>
-                {gameMode==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon" ? <SnakesLaddersGame privateTest key={username+":"+sparksSessionId+":snakes"} username={username} sessionId={sparksSessionId}/> : gameMode==="fruit" ? <FruitMatchGame key={username+":"+sparksSessionId+":fruit"} username={username} sessionId={sparksSessionId}/> : null}
+                {gameMode==="snakes"&&adminAccess&&username.trim().toLowerCase()==="songpon" ? <SnakesLaddersGame privateTest key={username+":"+sparksSessionId+":snakes"} username={username} sessionId={sparksSessionId}/> : gameMode==="fruit" ? <FruitMatchGame key={username+":"+sparksSessionId+":fruit"} username={username} sessionId={sparksSessionId}/> : gameMode==="angel" ? <AngelNumberGame key={username+":"+sparksSessionId+":angel"} username={username} sessionId={sparksSessionId} adminAccess={adminAccess} balance={account.balance}/> : null}
               </>}
         </section> : null}
         {view === "overview" && walletLoaded ? <MemberJourney key={username + ":" + account.memberYear} earned={account.memberYearEarned} year={account.memberYear} displayName={displayName || username} balance={account.balance} rewardOrders={account.rewardOrders}/> : null}
