@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
 import "./rewardActionConfirmModal.css";
+import {STANDARD_SLIP_FIELDS,standardSlipFromOcr,validateStandardSlip,diffStandardSlip,normalizeSlipAmount,parseSlipTime} from "./standardSlipFields.js";
 
 export type RewardConfirmation={
   rewardId:string;
@@ -22,7 +23,7 @@ export type PayoutScan={ocrStatus:string;message:string;ocrText?:string;fields:{
   recipientVisibleSuffix?:string;recipientIdentifierType?:string;
   feeTHB?:number|null;isSuccessful?:boolean;reviewFlags?:string[];amountCandidates?:number[];amountCorrectedFromCurrencyGlyph?:boolean;walletGlyphUncertain?:boolean;
 }};
-export type PayoutProof={slipImageData:string;slipOCRText:string;slipManualReview:boolean;slipManualReason:string;slipRecipientChecked?:boolean;slipManualFields:{
+export type PayoutProof={slipImageData:string;slipOCRText:string;slipManualReview:boolean;slipManualReason:string;slipRecipientChecked?:boolean;slipVerifiedFields?:Record<string,string>;slipManualFields:{
   payoutAt:string;transactionRef:string;amountTHB:number;recipientLast4:string;
 }};
 async function shrinkSlip(file:File):Promise<string>{
@@ -77,14 +78,16 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   const [manualAmount,setManualAmount]=useState("");
   const [manualRecipient,setManualRecipient]=useState("");
   const [recipientChecked,setRecipientChecked]=useState(false);
+  const [verifiedSlipFields,setVerifiedSlipFields]=useState<Record<string,string>>({});
   const onFile=async(file?:File)=>{
     if(!file)return;
-    setScanning(true);setScanError("");setScan(null);setSlipImageData("");setRecipientChecked(false);
+    setScanning(true);setScanError("");setScan(null);setSlipImageData("");setRecipientChecked(false);setVerifiedSlipFields({});
     try{
       const data=await shrinkSlip(file);
       setSlipImageData(data);
       const result=await onAnalyze(data);
       setScan(result);
+      setVerifiedSlipFields(standardSlipFromOcr(result.fields));
       setManualRef(result.fields.transactionRef||"");
       setManualAmount(result.fields.amountTHB!==null?String(result.fields.amountTHB):"");
       setManualRecipient(result.fields.recipientLast4||"");
@@ -98,7 +101,7 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
     finally{setScanning(false);}
   };
   useEffect(()=>{setSlipImageData("");setScan(null);setScanError("");setManualReason("");
-    setManualDate("");setManualRef("");setManualAmount("");setManualRecipient("");setRecipientChecked(false);},[request?.username,request?.requestedAt,request?.rewardId]);
+    setManualDate("");setManualRef("");setManualAmount("");setManualRecipient("");setRecipientChecked(false);setVerifiedSlipFields({});},[request?.username,request?.requestedAt,request?.rewardId]);
 
   const opened=Boolean(request);
   const currentBusy=useRef(busy);
@@ -148,21 +151,29 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
   if(!request||typeof document==="undefined")return null;
   const isNetflix=request.kind==="netflix";
   const maskedBankAccount=scan?.fields.recipientIdentifierType==="bank-account";
+  const ocrSeven=scan?standardSlipFromOcr(scan.fields):{};
+  const changedSeven=scan?diffStandardSlip(ocrSeven,verifiedSlipFields):{};
+  const hasCorrections=Object.keys(changedSeven).length>0;
+  const slipValidation=validateStandardSlip(verifiedSlipFields);
   const needsManual=!!scan&&(scan.ocrStatus!=="local"||scan.fields.missing.length>0||
-    (scan.fields.reviewFlags?.length||0)>0||maskedBankAccount||!scan.fields.isSuccessful);
+    (scan.fields.reviewFlags?.length||0)>0||maskedBankAccount||!scan.fields.isSuccessful||hasCorrections);
   const expectedRecipient=String(request.destinationLabel||"").replace(/\D/g,"").slice(-4);
-  const amountMismatch=scan?.fields.amountTHB!==null&&scan?.fields.amountTHB!==undefined&&
-    Number(scan.fields.amountTHB)!==Number(request.expectedAmountTHB);
+  const verifiedAmount=normalizeSlipAmount(verifiedSlipFields.amountTHB);
+  const amountMismatch=!!scan&&verifiedAmount!==null&&
+    Number(verifiedAmount)!==Number(request.expectedAmountTHB);
   const recipientMismatch=!maskedBankAccount&&!!scan?.fields.recipientLast4&&scan.fields.recipientLast4!==expectedRecipient;
-  const manualReady=!needsManual||(manualReason.trim().length>=12&&manualDate&&manualRef.trim().length>=6&&
-    Number(manualAmount)===Number(request.expectedAmountTHB)&&(maskedBankAccount?recipientChecked:manualRecipient===expectedRecipient));
+  const manualReady=!!scan&&slipValidation.complete&&
+    (!needsManual||manualReason.trim().length>=12)&&
+    (maskedBankAccount?recipientChecked:(!recipientMismatch&&manualRecipient===expectedRecipient));
   const canConfirm=isNetflix||!!(slipImageData&&scan&&!scanning&&!amountMismatch&&!recipientMismatch&&manualReady);
   const submit=()=>{
     if(isNetflix){onConfirm();return;}
     if(!canConfirm||!scan)return;
-    onConfirm({slipImageData,slipOCRText:scan.ocrText||"",slipRecipientChecked:maskedBankAccount?recipientChecked:false,slipManualReview:needsManual,slipManualReason:manualReason.trim(),
-      slipManualFields:{payoutAt:manualDate?manualDate+":00+07:00":"",transactionRef:manualRef,
-        amountTHB:Number(manualAmount),recipientLast4:manualRecipient}});
+    onConfirm({slipImageData,slipOCRText:scan.ocrText||"",slipRecipientChecked:maskedBankAccount?recipientChecked:false,
+      slipManualReview:needsManual,slipManualReason:manualReason.trim(),
+      slipVerifiedFields:{...verifiedSlipFields},
+      slipManualFields:{payoutAt:parseSlipTime(verifiedSlipFields.payoutAt),transactionRef:verifiedSlipFields.transactionRef,
+        amountTHB:normalizeSlipAmount(verifiedSlipFields.amountTHB)??0,recipientLast4:manualRecipient}});
   };
 
   const title=isNetflix?"ยืนยันการส่งสิทธิ์ Netflix":"ยืนยันการโอนเงินจริง";
@@ -214,39 +225,48 @@ export default function RewardActionConfirmModal({request,busy,error,onCancel,on
           {slipImageData?<img className="reward-slip-preview" src={slipImageData} alt="ภาพสลิปโอนเงินที่แนบ"/>:null}
           {scanning?<p role="status">กำลังอ่านวันที่ เวลา ยอดเงิน เลขอ้างอิง และข้อมูลผู้รับ…</p>:null}
           {scan?<div className="reward-slip-fields">
-            <strong>ผลอ่านสลิป: {scan.ocrStatus==="local"?"อ่านภาพในเครื่องแล้ว":"ต้องตรวจด้วยตนเอง"}</strong>
-            <div>ธนาคารผู้ออกสลิป: {scan.fields.bank||"—"}</div>
-            <div>สถานะที่ปรากฏบนสลิป: {scan.fields.isSuccessful?"รายการสำเร็จ":"อ่านสถานะไม่ชัด"}</div>
-            <div>วัน–เวลาโอน: {dateLabel(scan.fields.payoutAt)||"—"}</div>
-            <div>ยอดเงินที่อ่านได้: {scan.fields.amountTHB===null?"—":scan.fields.amountTHB.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2})+" บาท"}</div>
-            {(scan.fields.amountCandidates?.length||0)>1?<p className="reward-confirm-error" role="alert">OCR พบยอดเงินที่ขัดกัน: {scan.fields.amountCandidates?.map(v=>v.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2})).join(" / ")} บาท กรุณาตรวจภาพและกรอกยอดจริงด้วยตนเอง</p>:null}
-            <div>ค่าธรรมเนียม: {scan.fields.feeTHB===null||scan.fields.feeTHB===undefined?"—":scan.fields.feeTHB.toFixed(2)+" บาท"}</div>
-            <div>เลขอ้างอิงหลัก: {scan.fields.transactionRef||"—"}</div>
-            {scan.fields.shortReference?<div>หมายเลขอ้างอิง: {scan.fields.shortReference}</div>:null}
-            {scan.fields.longReference?<div>เลขที่อ้างอิง: {scan.fields.longReference}</div>:null}
-            {(scan.fields.referenceCandidates?.length||0)>1?<div>เลขอ้างอิงที่ OCR พบ: {scan.fields.referenceCandidates?.join(" / ")} (ต้องตรวจภาพจริง)</div>:null}
-            {scan.fields.senderName?<div>ผู้โอน (อ่านจากภาพ): {scan.fields.senderName}</div>:null}
-            {scan.fields.senderAccountMasked?<div>เลขบัญชีผู้โอน: {scan.fields.senderAccountMasked}</div>:null}
-            <div>ชื่อผู้รับ (อ่านจากภาพ): {scan.fields.recipientName||scan.fields.recipientLabel||"—"}</div>
-            <div>ธนาคารผู้รับ: {scan.fields.recipientBank||"—"}</div>
-            <div>เลขบัญชีผู้รับที่ปรากฏ: {scan.fields.recipientAccountMasked||scan.fields.recipientVisibleSuffix||"—"}</div>
-            {scan.fields.reviewFlags?.length?<p>ข้อควรตรวจทาน: {scan.fields.reviewFlags.join(" · ")}</p>:null}
-            {needsManual?<p>อ่านไม่ครบ: {scan.fields.missing.join(", ")||"บริการ OCR ไม่พร้อมใช้งาน"}</p>:null}
-            {amountMismatch||recipientMismatch?<p className="reward-confirm-error" role="alert">อ่านข้อมูลสลิปได้แล้ว แต่ข้อมูลไม่ตรงกับคำขอจ่ายเงินรายการนี้ จึงไม่สามารถยืนยัน Paid ได้</p>:null}
-          </div>:null}
-          {needsManual?<div className="reward-slip-manual">
-            <strong>ตรวจสอบและกรอกข้อมูลจากสลิปด้วยตนเอง</strong>
-            <label>วัน–เวลาโอน <input type="datetime-local" value={manualDate} onChange={e=>setManualDate(e.target.value)} disabled={busy||Boolean(scan?.fields.payoutAt)}/></label>
-            <label>เลขอ้างอิง <input value={manualRef} onChange={e=>setManualRef(e.target.value)} disabled={busy||Boolean(scan?.fields.transactionRef)} maxLength={70}/></label>
-            <label>ยอดโอน (บาท) <input type="number" step="0.01" min="0" value={manualAmount} onChange={e=>setManualAmount(e.target.value)} disabled={busy||scan?.fields.amountTHB!==null}/></label>
-            {maskedBankAccount?<label className="reward-slip-review-check">
-              <input type="checkbox" checked={recipientChecked} onChange={e=>setRecipientChecked(e.target.checked)} disabled={busy}/>
-              <span>ฉันตรวจสอบผู้รับจากบัญชีปลายทางที่ธนาคารแสดงจริง และยืนยันว่าตรงกับคำขอจ่ายเงินแล้ว (เลขบัญชีถูกปิดบังบางหลัก)</span>
-            </label>:<label>เลขท้ายหมายเลขผู้รับ 4 หลัก <input inputMode="numeric" maxLength={4} value={manualRecipient} onChange={e=>setManualRecipient(e.target.value)} disabled={busy||Boolean(scan?.fields.recipientLast4)}/></label>}
-            <label>เหตุผลที่ตรวจสอบเอง <textarea maxLength={350} rows={2} value={manualReason} onChange={e=>setManualReason(e.target.value)} disabled={busy} placeholder="ระบุว่าได้ตรวจภาพสลิปและหลักฐานจากแอปธนาคารอย่างไร"/></label>
-            <p>การกรอกเองจะถูกบันทึกว่า Manual Review ไม่ใช่การยืนยันจากธนาคาร</p>
-          </div>:null}
-          {scanError?<p className="reward-confirm-error" role="alert">{scanError}</p>:null}
+             <strong>ตรวจและแก้ไขข้อมูลสลิป 7 รายการ</strong>
+             <p>ระบบใส่ข้อมูลที่อ่านได้ให้อัตโนมัติ ทุกช่องสามารถแก้ไขให้ตรงกับภาพได้</p>
+             <div className="reward-slip-standard-grid">
+               {STANDARD_SLIP_FIELDS.map(({key,label})=>{
+                 const original=ocrSeven[key]||"";
+                 const value=verifiedSlipFields[key]||"";
+                 const edited=value!==original;
+                 return <label key={key} className={"reward-slip-standard-field"+(edited?" reward-slip-standard-edited":"")}>
+                   <span>{label} {edited?<small>Manual Edit</small>:null}</span>
+                   <input type="text" value={value} maxLength={key==="transactionRef"?70:key==="payoutAt"?17:160}
+                     autoComplete="off" placeholder={key==="payoutAt"?"DD/MM/พ.ศ. HH:mm":key==="amountTHB"?"1,405.00":"อ่านไม่พบ — กรุณาตรวจสอบ"}
+                     data-slip-field={key} disabled={busy}
+                     onChange={e=>setVerifiedSlipFields(prev=>({...prev,[key]:e.target.value}))}/>
+                 </label>;
+               })}
+             </div>
+             <p className="reward-slip-edit-summary">
+               {hasCorrections?"แก้ไขจากผล OCR "+Object.keys(changedSeven).length+" ช่อง — จะบันทึกค่าก่อนและหลังแก้ไขพร้อมผู้ตรวจ":"ยังไม่ได้แก้ไขผล OCR"}
+             </p>
+             {!slipValidation.complete?<p className="reward-confirm-error" role="alert">
+               กรุณาตรวจสอบข้อมูล: {slipValidation.missing.concat(slipValidation.invalid).map(k=>STANDARD_SLIP_FIELDS.find(f=>f.key===k)?.label||k).join(", ")}
+             </p>:null}
+             {scan.fields.reviewFlags?.length?<p>ข้อควรตรวจทาน: {scan.fields.reviewFlags.join(" · ")}</p>:null}
+             {(scan.fields.referenceCandidates?.length||0)>1?<p>เลขอ้างอิงที่ OCR พบ: {scan.fields.referenceCandidates?.join(" / ")} — กรุณาเลือกข้อมูลที่ตรงกับภาพ</p>:null}
+             {amountMismatch||recipientMismatch?<p className="reward-confirm-error" role="alert">
+               ข้อมูลที่ตรวจแก้ไม่ตรงกับคำขอจ่ายเงินจริง จึงยังยืนยัน Paid ไม่ได้
+             </p>:null}
+           </div>:null}
+           {needsManual?<div className="reward-slip-manual">
+             {maskedBankAccount?<label className="reward-slip-review-check">
+               <input type="checkbox" checked={recipientChecked} onChange={e=>setRecipientChecked(e.target.checked)} disabled={busy}/>
+               <span>ฉันได้ตรวจยืนยันว่าบัญชีผู้รับที่ถูกปิดบังตรงกับคำขอจ่ายเงินจริงแล้ว</span>
+             </label>:<label>เลขท้ายข้อมูลรับเงิน 4 หลัก (สำหรับตรวจสิทธิ์ ไม่ใช่ช่อง OCR มาตรฐาน)
+               <input inputMode="numeric" maxLength={4} value={manualRecipient}
+                 onChange={e=>setManualRecipient(e.target.value)} disabled={busy||Boolean(scan?.fields.recipientLast4)}/>
+             </label>}
+             <label>เหตุผลที่ตรวจสอบ/แก้ไขข้อมูล <textarea maxLength={350} rows={2} value={manualReason}
+               onChange={e=>setManualReason(e.target.value)} disabled={busy}
+               placeholder="ระบุว่าได้ตรวจค่าที่ OCR อ่านผิดจากภาพสลิปและหลักฐานการโอนจริงอย่างไร"/></label>
+             <p>การแก้ไข OCR เป็นการตรวจสอบโดย Admin ไม่ได้ยืนยันธุรกรรมกับธนาคารและไม่ใช่การสั่งโอนเงิน</p>
+           </div>:null}
+           {scanError?<p className="reward-confirm-error" role="alert">{scanError}</p>:null}
         </section>:null}
         {error?<p className="reward-confirm-error" role="alert">{error}</p>:null}
         <div className="reward-confirm-actions">
