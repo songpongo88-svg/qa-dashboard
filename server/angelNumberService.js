@@ -26,7 +26,7 @@ const publicState = (round,actor,wallet,admin=false) => {
 };
 export function createAngelNumberService(db) {
   const {firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,walletDocumentPath,
-    currentMemberYear,annualEarnedFromWallet,spendableBalance,listCollection,requireActiveTarget,isSuspendedProfile}=db;
+    currentMemberYear,annualEarnedFromWallet,spendableBalance,sparksAngelDirectory}=db;
   const walletHistory=(name,id)=>path("qa_sparks_wallets",encodeURIComponent(name),"history",id);
   async function transact(work){
     for(let attempt=0;attempt<5;attempt++){
@@ -115,11 +115,8 @@ export function createAngelNumberService(db) {
     const round=recordValue(await readDoc(ROUND));
     if(round.status!=="finished"||round.payoutStatus!=="pending"||round.winner!==actor.username)
       reject("เฉพาะผู้ชนะที่ยังไม่ได้รับรางวัลเท่านั้น",403);
-    const result=await listCollection("qa_user_profiles",["username","displayName","status","suspendEffectiveDate","suspendEndDate","suspendAutoReactivate"]);
-    if(result.truncated)reject("ไม่สามารถโหลดรายชื่อผู้ใช้งานให้ครบได้",503);
-    const users=result.documents.map(recordValue)
-      .filter(p=>cleanUser(p.username)&&cleanUser(p.username)!==actor.username&&!isSuspendedProfile(p))
-      .map(p=>({username:cleanUser(p.username),displayName:String(p.displayName||p.username).slice(0,80)}))
+    const users=(await sparksAngelDirectory())
+      .filter(user=>user.username!==actor.username && user.username!=="songpon")
       .sort((a,b)=>a.displayName.localeCompare(b.displayName,"th"));
     return {ok:true,users};
   }
@@ -135,7 +132,10 @@ export function createAngelNumberService(db) {
       usernames.add(username);pctTotal+=percent;selected.push({username,percent});
     }
     if(pctTotal>100)reject("เปอร์เซ็นต์ที่แบ่งรวมกันต้องไม่เกิน 100%");
-    for(const r of selected)await requireActiveTarget(r.username);
+    if(selected.length){
+      const allowed=new Set((await sparksAngelDirectory()).map(user=>user.username));
+      for(const r of selected)if(!allowed.has(r.username))reject("ผู้รับรางวัลไม่ได้อยู่ในรายชื่อบัญชี Active",403);
+    }
     return transact(async transaction=>{
       const roundDoc=await readDoc(ROUND,transaction),round=recordValue(roundDoc);
       if(round.winner!==actor.username)reject("คุณไม่ใช่ผู้ชนะรอบนี้",403);
