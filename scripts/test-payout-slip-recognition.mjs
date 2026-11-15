@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {parseTransferSlipText} from "../src/transferSlipRecognition.js";
 import {preparePayoutEvidence,decodePayoutSlip,ensurePayoutSlipUnused,payoutSlipWrites} from "../server/payoutSlipService.js";
+import {standardSlipFromOcr,formatSlipTime,normalizeSlipAmount,parseSlipTime,validateStandardSlip,diffStandardSlip} from "../src/standardSlipFields.js";
 const text="โอนเงินสำเร็จ\n14/11/2569 15:45\nเลขที่รายการ ABCD202611141234\nจำนวนเงิน 20.00 บาท\nผู้รับเงิน\nธนาคาร ตัวอย่าง\n•••• 5678";
 const parsed=parseTransferSlipText(text);
 assert.equal(parsed.payoutAt,"2026-11-14T15:45:00+07:00");
@@ -212,6 +213,48 @@ const missingRefOCR="จำนวนเงิน 20.00 บาท";
 const localProof=await preparePayoutEvidence({...body,slipOCRText:missingRefOCR},request,admin);
 assert.equal(localProof.summary.ocrEngine,"tesseract-local");
 assert.equal(localProof.summary.reviewMode,"manual");
+
+
+// Seven-field standard format is editable even when OCR got a value wrong.
+assert.equal(formatSlipTime("2026-02-03T14:40:00+07:00"),"03/02/2569 14:40");
+assert.equal(parseSlipTime("03/02/2569 14:40"),"2026-02-03T14:40:00+07:00");
+assert.equal(parseSlipTime("31/02/2569 14:40"),"","invalid calendar dates must be rejected");
+assert.equal(normalizeSlipAmount("1,405.00"),1405);
+assert.equal(normalizeSlipAmount("1.405.00"),null,"malformed amounts must require a correction");
+const ocrSeven=standardSlipFromOcr({senderBank:"ธนาคารกรุงเทพ",senderName:"นาย ตัวอย่าง",
+  recipientBank:"ธนาคารไทยพาณิชย์",recipientName:"",payoutAt:"2026-02-03T14:40:00+07:00",
+  amountTHB:1405,transactionRef:"ABCD123456"});
+const amended={...ocrSeven,recipientName:"นางสาว ผู้รับ"};
+assert.deepEqual(Object.keys(diffStandardSlip(ocrSeven,amended)),["recipientName"]);
+assert.equal(validateStandardSlip(ocrSeven).complete,false);
+assert.equal(validateStandardSlip(amended).complete,true);
+
+const correctedData={
+  senderBank:"ธนาคารกรุงเทพ",senderName:"นาย ตัวอย่าง",
+  recipientBank:"ธนาคารไทยพาณิชย์",recipientName:"นางสาว ผู้รับ",
+  payoutAt:formatSlipTime(new Date().toISOString()),amountTHB:"20.00",
+  transactionRef:"CORRECTED987654321"
+};
+const correctionBody={...body,slipOCRText:mismatchedOCR,
+  slipVerifiedFields:correctedData,slipManualReview:true,
+  slipManualReason:"Admin ตรวจสลิปจริงยืนยันยอด 20 บาท OCR อ่านผิดเป็น 30 บาท"};
+const correctedProof=await preparePayoutEvidence(correctionBody,request,admin);
+assert.equal(correctedProof.summary.amountTHB,20);
+assert.equal(correctedProof.summary.transactionRef,"CORRECTED987654321");
+assert.equal(correctedProof.summary.ocrOriginal.amountTHB,"30.00");
+assert.equal(correctedProof.summary.reviewedFields.amountTHB,"20.00");
+assert.equal(correctedProof.summary.editedFields.amountTHB.ocr,"30.00");
+assert.equal(correctedProof.summary.editedFields.amountTHB.verified,"20.00");
+assert.equal(correctedProof.summary.editedFields.recipientName.verified,"นางสาว ผู้รับ");
+assert.equal(correctedProof.summary.confirmedBy,"songpon");
+assert.equal(correctedProof.summary.reviewMode,"manual");
+assert.equal(correctedProof.summary.editedFieldCount>0,true);
+await assert.rejects(preparePayoutEvidence({...correctionBody,slipManualReview:false},request,admin),/ตรวจด้วยตนเอง/);
+await assert.rejects(preparePayoutEvidence({...correctionBody,slipManualReason:""},request,admin),/เหตุผล/);
+await assert.rejects(preparePayoutEvidence({...correctionBody,
+  slipVerifiedFields:{...correctedData,recipientName:""}},request,admin),/ไม่ครบ/);
+await assert.rejects(preparePayoutEvidence({...correctionBody,
+  slipVerifiedFields:{...correctedData,amountTHB:"21.00"}},request,admin),/ยอดเงิน/);
 
 const writes=payoutSlipWrites(proof,"tm-unittest-123456","agent",(...args)=>({args}));
 assert.equal(writes.length,3);
