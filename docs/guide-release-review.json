@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T08:19:00.000Z",
-  "reason": "Reviewed semantic Vercel config hash normalization (ignore formatting only), IP location API route consolidation, compact Mini Games lobby, and Angel Number admin setup.",
+  "reviewedAt": "2026-11-15T08:23:00.000Z",
+  "reason": "Diagnosing Vercel guide review mismatch while preserving review gate, compact QA Sparks Mini Games, and read-only API rewrite verification.",
   "contentChanged": false,
   "reviewedChapters": [
     "qa-sparks",
@@ -185,7 +185,7 @@
     "scripts/audit-v13-incentives.mjs": "2cbb3104baf6410fe2c5f4dc4316da966dbb47ddae615558f0a2427b5d84ed42",
     "scripts/check-monthly-kpi.mjs": "0f81a8a5b97f442d13e921ff27a28828ba34a36d3f60db2ff9790d5ffd350bf9",
     "scripts/check-test-case-isolation.mjs": "0de74156ba552220911b5a4683afeca4048f9988dd90096fd8bf7b89357a8288",
-    "scripts/check-user-guide.mjs": "de6c2afe3a939d221d00f365e382ff9a71c4a14bcc519d786187af21ce7fe539",
+    "scripts/check-user-guide.mjs": "e1db95db488e17cfac784f96f4d462421fa00ecc630cc5107d771a54387423c1",
     "scripts/cloud-sync-v13-graph.mjs": "97beda7d0daacadffbe3e3d45c68eab899d497d1f382b2cdb4a266d2b6ef63d1",
     "scripts/fix-appeal-submit-fallback-v2.mjs": "565a019b824735d628879f52794feac22f9ccad7d6f2261f2ecf3a4c69e24b11",
     "scripts/fix-jan-feb-raw-authority-v1.mjs": "683a19c5d50633e0bbd3bde530301d4ed996b501a64b9567fa57a0e75a9c75f4",
