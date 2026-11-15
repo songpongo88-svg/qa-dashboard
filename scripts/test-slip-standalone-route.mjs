@@ -10,7 +10,7 @@ const [html,entry,vite,scanner,packageFile]=await Promise.all([
 assert.match(vite,/slipOcrTest:[^\n]*slip-ocr-test\.html/,"OCR demo must be a separate built HTML entry");
 assert.match(html,/src="\/src\/slipOcrStandalone\.ts"/,"demo imports the standalone entry, not the Dashboard");
 assert.doesNotMatch(html,/supabase|verifyOtp|OTP.*รหัส|\/api\/sparks/i,"OCR demo must not require account auth or call Sparks API");
-assert.doesNotMatch(entry,/supabase|fetch\(|\/api\/|mark-truemoney-paid|Paid\b|localStorage|sessionStorage|\.setItem\(/i,
+assert.doesNotMatch(entry,/supabase|fetch\(|\/api\/|mark-truemoney-paid|special-rewards-admin-action|localStorage|sessionStorage|\.setItem\(/i,
   "demo must not read login state, upload images or submit payouts");
 assert.match(entry,/readPayoutSlipLocally\(data\)/,"demo uses on-device OCR");
 assert.match(html,/type="file"[^>]*multiple/,"must allow simultaneous selection of several different bank slips");
