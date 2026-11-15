@@ -5,7 +5,7 @@ const FIRESTORE = "https://firestore.googleapis.com/v1/projects/" + PROJECT + "/
 const POLICY = "qa-session-policy-2026-07-15-v1";
 let googleToken = "";
 let googleTokenExpires = 0;
-const fail = (message, status = 403) => { throw Object.assign(new Error(message), { status }); };
+const fail = (message, status = 403, code = "") => { throw Object.assign(new Error(message), { status, code }); };
 const safeName = (value) => String(value || "").trim().toLowerCase();
 const data = (document) => Object.fromEntries(Object.entries(document?.fields || {}).map(([key, field]) =>
   [key, field?.stringValue ?? field?.booleanValue ?? field?.integerValue ?? ""]));
@@ -49,17 +49,20 @@ async function readDoc(path, token) {
 }
 async function verifyQaSession(username, sessionId, requireAdmin) {
   if (!/^[a-z0-9._-]{1,100}$/.test(username) || !/^[a-zA-Z0-9_-]{10,180}$/.test(sessionId))
-    fail("Please sign in to QA Dashboard again", 401);
+    fail("QA Dashboard session identity is missing", 401, "SESSION_ID_MISSING");
   const token = await getGoogleToken();
   const session = await readDoc("qa_user_sessions/" + encodeURIComponent(sessionId), token);
-  if (!session || safeName(session.username) !== username || session.status !== "active" ||
-      session.policyVersion !== POLICY || !Number.isFinite(Date.parse(session.expiresAt)) ||
-      Date.parse(session.expiresAt) <= Date.now())
-    fail("QA Dashboard session has expired", 401);
+  if (!session) fail("QA Dashboard session not found", 401, "SESSION_NOT_FOUND");
+  if (safeName(session.username) !== username) fail("QA Dashboard session account mismatch", 401, "SESSION_MISMATCH");
+  if (session.policyVersion !== POLICY) fail("QA Dashboard session policy is outdated", 401, "SESSION_POLICY");
+  if (session.status !== "active") fail("QA Dashboard session is revoked", 401, "SESSION_REVOKED");
+  const expiry = Date.parse(session.expiresAt);
+  if (!Number.isFinite(expiry)) fail("QA Dashboard session expiry invalid", 401, "SESSION_INVALID");
+  if (expiry <= Date.now()) fail("QA Dashboard session has expired", 401, "SESSION_EXPIRED");
   const control = await readDoc("qa_user_session_controls/" + encodeURIComponent(username), token);
   const cutoff = Date.parse(control?.revokedBefore || "");
   if (Number.isFinite(cutoff) && Date.parse(session.createdAt) <= cutoff)
-    fail("QA Dashboard session was revoked", 401);
+    fail("QA Dashboard session was revoked", 401, "SESSION_REVOKED");
   if (!requireAdmin) return { username, admin: false };
   if (username !== "songpon" || session.role !== "Quality Assurance")
     fail("Only the QA Dashboard administrator can manage Quick Access links", 403);
@@ -113,6 +116,6 @@ export default async function handler(req, res) {
   } catch (error) {
     const status = Number(error?.status) || 503;
     if (status >= 500) console.error("Quick Access API unavailable", error instanceof Error ? error.name : "unknown");
-    return res.status(status).json({ error: status >= 500 ? "QUICK_ACCESS_UNAVAILABLE" : String(error?.message || "UNAUTHORIZED") });
+    return res.status(status).json({ error: status >= 500 ? "QUICK_ACCESS_UNAVAILABLE" : String(error?.message || "UNAUTHORIZED"), ...(status === 401 && error?.code ? { code: error.code } : {}) });
   }
 }
