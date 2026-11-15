@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "reviewedAt": "2026-11-15T08:05:00.000Z",
-  "reason": "Reviewed Quick Access launcher, six external URLs, persistent Supabase storage, authenticated admin CRUD and ordering, safe new-tab navigation, search and guide chapter",
-  "contentChanged": true,
+  "reason": "Reviewed compact three-column Mini Games lobby cards and admin number selection UX; fixed Supabase runtime Angel Number round collection whitelist, without changing 101-card game board or QA Rewards rules.",
+  "contentChanged": false,
   "reviewedChapters": [
-    "quick-access"
+    "qa-sparks"
   ],
   "termsVersions": {
     "1.0": "2e97fff788769ee950d8135cebe9d742f64b354ae85274a3dde5fb9513ac4d0a",
@@ -464,7 +464,7 @@
     "src/analyticsTagRates.ts": "e421ff2b4e3d9d9ec7f502f23bb35982d658735d932d461a9f0313f03a644ec2",
     "src/angelNumberCatalog.ts": "8af395e5e1dd5d529e58e5cf97de7402dcac27d20f7268a566ea82714fc775b8",
     "src/angelNumberGame.css": "5baefd0c2376a6f5fa0b9f8da0b0e1ca8f6e9569bf62953693fb0038b366deb5",
-    "src/AngelNumberGame.tsx": "25347a9feca321c4280d66e9fced0b237f1d5d377cff6c2a469616ac822c8585",
+    "src/AngelNumberGame.tsx": "73fade84a9623a79fcd5796ad863f715859b0ae5e5bbaad1e987fe64562f5aba",
     "src/announcementDetail.css": "96a37b49d6c3b43bbe34b3cd27d73de4b92b2b38a43e131a9e66b2e8a416d7c5",
     "src/AnnouncementDetail.tsx": "81172ba73bc0414461b904f5face51620b209610a00223a47553a3474e8f3acf",
     "src/AnnouncementHub.tsx": "224a03a7d77da1bf5a9de5a12c0c4f1126a69df4c78436cf4ae88a200b1d0933",
@@ -660,7 +660,7 @@
     "src/QALottery.tsx": "937092173abde69809eed5e12dfeccbbef9b2ec67ced42d19ead25b72ce7f1d9",
     "src/QARubricMockup.tsx": "ac577cf58fdb878d43d9e71eeabeb821aabd08bf28ef16ad5d0445cb214f824d",
     "src/qaSparks.css": "6953a1da0a30258dc145b5001bc30bc2ae06f8f7bfcb0e8311fe0da914419e8c",
-    "src/QASparks.tsx": "fbe26d6694e6aab813e7f1de5c17f0d28e0611db4ef635f0ef51cc48fa80ba9a",
+    "src/QASparks.tsx": "d6bb740eda34fc22b0400e557d2eb4ca18fb4ea4972b3bbd5359d6b8d09b7cec",
     "src/qaSparksItemStatus.ts": "963a88d35861f3e245fc9d8dd146b210787afbb600f85e428632537f79a69b5f",
     "src/qaSparksMemberLevels.ts": "a50fcfccf06c462104164f22064eab302ceb4704fc20678da26e6c2052ca3450",
     "src/qaSparksProductCards.css": "8558964fb8693796f83cec022df1d0b823ede990b39ff1e1bf01d600a1190b7a",
@@ -711,8 +711,8 @@
     "src/sparksItemHistory.mjs": "34fb36e3be5550a5e565a0c31d3ed8b8a7bcfb6829ea74730234b51524fd56cd",
     "src/sparksMembership.css": "224d2dfa4fbb51b1b2351738a4db26775d7d9b0a8b7dfb001e3fcf09d57e33bd",
     "src/SparksMembership.tsx": "ff162d97ed10a1891b91c35abda48d76ec9e9719513cb4a1a19c9477b39a6d51",
-    "src/sparksMiniGamesGallery.css": "37562b81b3645f431ab9b8ff869cb53876296a8854627a379c29c9b450d4dcc5",
-    "src/SparksMiniGamesGallery.tsx": "0e468d0fc1e34bb191ed47a0c00bfd09f3e9b918ca2f6314a512708dd8284d12",
+    "src/sparksMiniGamesGallery.css": "f6272f8edff382576629770612b230c2d699694164370237afb3f23b9da2a1a9",
+    "src/SparksMiniGamesGallery.tsx": "1c64f6a923222b78e38c84e2b8cbd33d9fe9c81a745abe1647dbdbeba8a88419",
     "src/sparksPausedLanding.css": "7a4e8094534cf04ace4aec44c259a5bd965782aefd5b216b50ce53528f9a98e2",
     "src/SparksQaCredentialMigration.tsx": "32e61882f2fdbcbca39c0d8fd5c47bd272a6a80491a74eb5f66b56dbfbce78d4",
     "src/sparksQaPasswordLogin.ts": "b93800f68df30c02114978c09c34e12be9d7c9129111811a41970090ad52790b",
