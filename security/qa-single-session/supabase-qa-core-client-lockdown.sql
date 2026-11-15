@@ -16,8 +16,13 @@
 -- BEGIN;
 -- SELECT set_config('qa.single_session_cutover_approval',
 --   'qa-core-client-lockdown-reviewed-20261114', true);
--- [run the guarded DO and REVOKE statements, omitting the outer BEGIN/COMMIT]
--- COMMIT;
+-- [run the guarded DO and REVOKE statements below]
+-- Confirm 6-table ACL results and dependent callers while transaction is open.
+-- COMMIT; -- operator executes explicitly only after validation
+--
+-- The following SQL intentionally has NO BEGIN/COMMIT. This permits an
+-- operator-controlled rollback if verification fails. Never execute outside
+-- the explicitly approved transaction described above.
 --
 -- IMPORTANT: The separately guarded rollback snapshot is available at
 -- supabase-qa-core-rollback-acl-20261114.sql, but requires renewed human
@@ -26,7 +31,6 @@
 -- Do not execute lockdown until QA Core and Windows failover callers have
 -- migrated to independently session-authorized server APIs.
 
-BEGIN;
 DO $security_release_gate$
 BEGIN
   IF current_setting('qa.single_session_cutover_approval', true)
@@ -45,4 +49,5 @@ REVOKE ALL PRIVILEGES ON TABLE
   public.usage_logs
 FROM PUBLIC, anon, authenticated;
 
-COMMIT;
+-- No automatic COMMIT. Release operator validates grants and executes
+-- COMMIT/ROLLBACK explicitly in the same transaction.
