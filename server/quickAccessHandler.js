@@ -112,6 +112,11 @@ export default async function handler(req, res) {
       signal: AbortSignal.timeout(16000),
     });
     const answer = await response.json().catch(() => ({}));
+    // A Supabase bridge rejection is not the user's QA Dashboard session expiring.
+    if (response.status === 401 || response.status === 403) {
+      console.error("Quick Access service-to-service authorization rejected", response.status);
+      return res.status(503).json({ error: "QUICK_ACCESS_STORAGE_AUTH_UNAVAILABLE", code: "STORAGE_AUTH_UNAVAILABLE" });
+    }
     return res.status(response.status).json(answer);
   } catch (error) {
     const status = Number(error?.status) || 503;

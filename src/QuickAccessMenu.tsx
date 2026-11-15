@@ -128,6 +128,8 @@ async function sendRequest(username: string, sessionId: string, action: string, 
       throw new Error("ยืนยัน Session กับระบบกลางไม่สำเร็จ กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login QA Dashboard ใหม่");
     }
     if (response.status === 403) throw new Error("บัญชีนี้ไม่มีสิทธิ์จัดการ Quick Access กรุณาติดต่อ Admin");
+    if (response.status === 503 && data.code === "STORAGE_AUTH_UNAVAILABLE")
+      throw new Error("Quick Access เชื่อมต่อ Supabase ไม่ผ่านการยืนยันสิทธิ์ฝั่งเซิร์ฟเวอร์ ไม่ใช่ปัญหา Session ของคุณ กรุณาแจ้งผู้ดูแลระบบ");
     throw new Error("เชื่อมต่อรายการลิงก์ส่วนกลางไม่สำเร็จ กรุณาลองใหม่โดยไม่ต้องออกจากระบบ");
   }
   if (!Array.isArray(data.links)) throw new Error("รูปแบบข้อมูลลิงก์ไม่ถูกต้อง");
