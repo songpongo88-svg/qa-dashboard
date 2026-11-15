@@ -20,7 +20,7 @@ export function reviewedSources(root) {
     walk(path.join(root, directory));
   }
   for (const name of ["package.json", "package-lock.json", "vite.config.js", "index.html"]) if (fs.existsSync(path.join(root, name))) files.push(name);
-  return Object.fromEntries(files.sort().map((file) => [file, hash(fs.readFileSync(path.join(root, file)))]));
+  return Object.fromEntries(files.sort().map((file) => { const content = fs.readFileSync(path.join(root, file)); return [file, hash(file === "vercel.json" ? JSON.stringify(JSON.parse(content.toString("utf8")), null, 2) + "\n" : content)]; }));
 }
 function readTerms(root) {
   const document = JSON.parse(fs.readFileSync(path.join(root, "src/knowledge/terms.json"), "utf8"));
