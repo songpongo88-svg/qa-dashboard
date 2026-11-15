@@ -17,7 +17,7 @@ import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksRea
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
 import { auditQaCredentialSource } from "../server/sparksQaCredentialPreflight.js";
 import { migrateQaPasswordsFromTrustedSource } from "../server/sparksQaMigrationRunner.js";
-import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
+import { withSparksRequest, getSparksRequestActor, sparksActiveProfile, sparksActiveDirectory, sparksAngelDirectory, hasSparksEmailAuthCookie } from "../server/sparksSupabaseAuth.js";
 
 // Use the same explicit Firebase project as src/firebaseClient.ts. VITE_* build
 // variables are not a reliable server-side source and may point elsewhere.
@@ -1557,7 +1557,7 @@ async function adjustBalance(body, admin) {
   fail("Concurrent Sparks change; please retry", 409);
 }
 const angelNumber = createAngelNumberService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
-  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance,listCollection,requireActiveTarget,isSuspendedProfile});
+  walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance,sparksAngelDirectory});
 const fruitMatch = createFruitMatchService({firestoreRequest,readDoc,recordValue,path,updateWrite,createWrite,
   walletDocumentPath,currentMemberYear,annualEarnedFromWallet,spendableBalance});
 const sparkJourney = createSparkJourneyService({firestoreRequest,readDoc,recordValue,updateWrite,createWrite,
@@ -1759,6 +1759,8 @@ async function sparksHandler(req, res) {
       return res.status(200).json(result);
     }
     if (["angel-state","angel-open","angel-friends","angel-claim","angel-admin-create"].includes(body.action)) {
+      if(process.env.SPARKS_DATA_BACKEND!=="supabase")
+        fail("เลขนางฟ้าใช้ Supabase เท่านั้น ขณะนี้ระบบยังไม่เปิดเกม",423);
       const adminAction=body.action==="angel-admin-create";
       const actor=adminAction?await authorizeAdmin(body):await authorizeRewardUser(body);
       const data=body.action==="angel-state"?await angelNumber.state(actor,actor.username===ADMIN_USERNAME)
