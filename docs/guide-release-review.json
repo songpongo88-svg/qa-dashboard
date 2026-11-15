@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T08:15:00.000Z",
-  "reason": "Reviewed Mini Games lobby and admin number entry. Verified Supabase Angel path fixes and combined IP-location/reverse-geocode APIs behind a Vercel rewrite to stay within Hobby function limits; no change to weather response contracts, QA scoring or Sparks payout rules.",
+  "reviewedAt": "2026-11-15T08:19:00.000Z",
+  "reason": "Reviewed semantic Vercel config hash normalization (ignore formatting only), IP location API route consolidation, compact Mini Games lobby, and Angel Number admin setup.",
   "contentChanged": false,
   "reviewedChapters": [
     "qa-sparks",
@@ -185,7 +185,7 @@
     "scripts/audit-v13-incentives.mjs": "2cbb3104baf6410fe2c5f4dc4316da966dbb47ddae615558f0a2427b5d84ed42",
     "scripts/check-monthly-kpi.mjs": "0f81a8a5b97f442d13e921ff27a28828ba34a36d3f60db2ff9790d5ffd350bf9",
     "scripts/check-test-case-isolation.mjs": "0de74156ba552220911b5a4683afeca4048f9988dd90096fd8bf7b89357a8288",
-    "scripts/check-user-guide.mjs": "296f0f33e77e392d32c134ed8cc68af81589e7e3a51d7d51bb73fd50c742ccda",
+    "scripts/check-user-guide.mjs": "de6c2afe3a939d221d00f365e382ff9a71c4a14bcc519d786187af21ce7fe539",
     "scripts/cloud-sync-v13-graph.mjs": "97beda7d0daacadffbe3e3d45c68eab899d497d1f382b2cdb4a266d2b6ef63d1",
     "scripts/fix-appeal-submit-fallback-v2.mjs": "565a019b824735d628879f52794feac22f9ccad7d6f2261f2ecf3a4c69e24b11",
     "scripts/fix-jan-feb-raw-authority-v1.mjs": "683a19c5d50633e0bbd3bde530301d4ed996b501a64b9567fa57a0e75a9c75f4",
