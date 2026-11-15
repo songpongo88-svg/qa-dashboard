@@ -1,4 +1,5 @@
 import {readPayoutSlipLocally} from "./localPayoutSlipOcr";
+import {STANDARD_SLIP_FIELDS,standardSlipFromOcr,validateStandardSlip,diffStandardSlip,normalizeStandardSlip} from "./standardSlipFields.js";
 
 const byId=(id:string)=>document.getElementById(id)!;
 const fileInput=byId("file") as HTMLInputElement;
@@ -101,25 +102,69 @@ function showScan(card:Card,file:File,scan:Awaited<ReturnType<typeof readPayoutS
   card.glance.append(transfer);
   card.glance.append(el("span",date(f.payoutAt)));
   const detail=el("details");
-  detail.append(el("summary","ดูข้อมูลทั้งหมดของสลิปนี้"));
-  const grid=el("div",undefined,"grid");
-  field(grid,"ธนาคารหรือ Wallet ที่ออกสลิป",f.bank?f.bank+(f.issuerSource&&f.issuerSource!=="branding"?" (ระบุจากข้อมูลประกอบ)":""):"");
-  field(grid,"สถานะที่ปรากฏ",f.isSuccessful?"รายการสำเร็จ (ข้อความจากภาพ)":"อ่านข้อความสถานะไม่ชัด");
-  field(grid,"วันที่และเวลา",date(f.payoutAt));
-  field(grid,"ยอดเงิน",money(f.amountTHB));
-  field(grid,"ค่าธรรมเนียม",money(f.feeTHB));
-  field(grid,"หมายเลขอ้างอิง (สั้น)",f.shortReference||"");
-  field(grid,"เลขที่อ้างอิง / เลขธุรกรรม",f.longReference||f.transactionRef||"",true);
-  if((f.referenceCandidates?.length||0)>1)field(grid,"เลขอ้างอิงที่ OCR อ่านได้หลายค่า — ตรวจทาน",f.referenceCandidates!.join(" / "),true);
-  field(grid,"ผู้โอน",f.senderName||"");
-  field(grid,"ธนาคารผู้โอน",f.senderBank||"");
-  field(grid,"เลขบัญชีผู้โอนที่แสดง",f.senderAccountMasked||"");
-  field(grid,"ผู้รับ",f.recipientName||f.recipientLabel||"");
-  field(grid,"ธนาคารผู้รับ",f.recipientBank||"");
-  field(grid,"เลขบัญชีผู้รับที่แสดง",f.recipientAccountMasked||f.recipientVisibleSuffix||"",true);
-  detail.append(grid);
-  if(issues.length)detail.append(el("p",issues.join(" · "),"warning"));
-  detail.append(el("p",scan.message,"muted"));
+  detail.append(el("summary","ตรวจและแก้ไขข้อมูลสลิป 7 รายการ"));
+  const original=standardSlipFromOcr(f);
+  const reviewed:Record<string,string>={...original};
+  const reviewForm=el("div",undefined,"slip-standard-form");
+  const reviewGrid=el("div",undefined,"slip-standard-grid");
+  const inputMap=new Map<string,HTMLInputElement>();
+  const diffCount=el("span","ข้อมูล OCR เดิม","slip-correction-summary");
+  const reviewStatus=el("p","ข้อมูลที่ OCR อ่านไม่พบสามารถกรอกเพิ่มได้ ตรวจเทียบกับภาพก่อนยืนยัน","muted");
+  const accept=el("button","ยืนยันข้อมูลที่ตรวจแล้ว","clear-btn slip-review-accept") as HTMLButtonElement;
+  accept.type="button";
+  const auditDetails=el("details",undefined,"slip-review-audit");
+  auditDetails.append(el("summary","ดูข้อมูล OCR เดิมและรายการแก้ไข"));
+  const audit=el("pre","ยังไม่ได้ยืนยันการตรวจข้อมูล");
+  auditDetails.append(audit);
+  const sync=()=>{
+    const check=validateStandardSlip(reviewed);
+    const changes=diffStandardSlip(original,reviewed);
+    const count=Object.keys(changes).length;
+    diffCount.textContent=count?"แก้ไขจากผล OCR "+count+" ช่อง":"ข้อมูล OCR เดิม";
+    accept.disabled=!check.complete;
+    reviewStatus.textContent=!check.complete?
+      "ต้องตรวจสอบเพิ่มเติม: "+check.missing.concat(check.invalid).map(k=>STANDARD_SLIP_FIELDS.find(f=>f.key===k)?.label||k).join(", "):
+      "ข้อมูลครบ 7 ช่องแล้ว โปรดตรวจภาพต้นฉบับก่อนยืนยัน";
+    for(const [key,input] of inputMap){
+      const changed=original[key]!==reviewed[key];
+      input.dataset.manualEdit=changed?"true":"false";
+      input.setAttribute("aria-label",(STANDARD_SLIP_FIELDS.find(f=>f.key===key)?.label||key)+(changed?" (แก้ไขด้วยตนเอง)":""));
+    }
+  };
+  for(const {key,label} of STANDARD_SLIP_FIELDS){
+    const wrap=el("label",undefined,"slip-standard-field");
+    wrap.append(el("span",label,"slip-standard-label"));
+    const input=el("input") as HTMLInputElement;
+    input.type="text";
+    input.value=original[key];
+    input.placeholder=key==="payoutAt"?"DD/MM/พ.ศ. HH:mm":key==="amountTHB"?"1,405.00":"อ่านไม่พบ — กรุณาตรวจสอบ";
+    input.autocomplete="off";
+    input.dataset.slipField=key;
+    input.maxLength=key==="transactionRef"?70:key==="payoutAt"?17:160;
+    input.addEventListener("input",()=>{
+      reviewed[key]=input.value;
+      audit.textContent="มีการแก้ไขหลังการยืนยันครั้งก่อน กรุณาตรวจและยืนยันใหม่";
+      sync();
+    });
+    inputMap.set(key,input);
+    wrap.append(input);
+    reviewGrid.append(wrap);
+  }
+  sync();
+  accept.addEventListener("click",()=>{
+    const check=validateStandardSlip(reviewed);
+    if(!check.complete)return;
+    const verified=normalizeStandardSlip(reviewed);
+    const changes=diffStandardSlip(original,verified);
+    // Public tester: keep the audit in memory only, NEVER persist bank data.
+    const record={ocrOriginal:original,reviewed:verified,changes,
+      checkedAt:new Date().toISOString(),checkedBy:"ผู้ใช้หน้าทดสอบ (ไม่เข้าสู่ระบบ)",
+      status:"ข้อมูลที่ผู้ใช้ตรวจแล้ว ไม่ใช่การยืนยันเงินเข้าธนาคาร"};
+    audit.textContent=JSON.stringify(record,null,2);
+    reviewStatus.textContent="ตรวจข้อมูลครบทั้ง 7 รายการแล้ว (เฉพาะในหน้าทดสอบ ไม่บันทึก Paid)";
+  });
+  reviewForm.append(reviewGrid,diffCount,reviewStatus,accept,auditDetails);
+  detail.append(reviewForm);
   const rawDetails=el("details");
   rawDetails.append(el("summary","ดูข้อความ OCR ของไฟล์นี้"));
   rawDetails.append(el("pre",scan.ocrText||"ไม่มีข้อความที่อ่านได้"));
