@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-11-15T06:49:00.000Z",
-  "reason": "Reviewed combined release: latest Coaching QA Review Edit/Cancel guide updates preserved, plus Theme Collection visual-cache TTL and selected-case Appeal query consolidation. No changes to login, session, roles, scoring or evaluation data integrity.",
+  "reviewedAt": "2026-11-15T06:54:00.000Z",
+  "reason": "Reviewed Coaching QA Review immediate lock after successful save, explicit Edit/Cancel and preservation of saved review; retained latest Coaching guide updates and QA Firestore quota reductions.",
   "contentChanged": true,
   "reviewedChapters": [
     "coaching"
@@ -494,7 +494,7 @@
     "src/LoadingMascot.tsx": "c920eea95f88833b17d5a4f430915c38752956f9361c02bc337f5fc43ce9cb1f",
     "src/LotteryTicketInventory.tsx": "b44a2ae3f33824e571acf6f3f357c96251f7faef6eebad7c09cb78fc020a9663",
     "src/MaintenanceRuntime.tsx": "3fcc32c3c7bd9220b07f83b98e842b2d7432e2efe4897319d0bf4c805bbd85ee",
-    "src/MonthlyCoachingWorkspace.tsx": "c09fa996f45fc0a179701f7a6e033b4a4fe71732d69b64713ab65096037253e8",
+    "src/MonthlyCoachingWorkspace.tsx": "1e8370c94249b79d9bc318382657bd26a0e171455c00c2d6a868366584976776",
     "src/MonthlyKpiNotice.tsx": "f99ad56e012035bbecfdad83df02a792d1671b9c02554ca932ead92764aa3f58",
     "src/PageHero.tsx": "f3c717205bd67000ed8b322363b2268849933e9b09404dcc3fe359fcc8d7f342",
     "src/PreTestMockup.tsx": "7e8b9a000276931dea99e471ee254e35f24af7287c71cdc9304b246a9a7b4d40",
