@@ -12,10 +12,10 @@ export function signatureDocumentRefMatchWebPatch() {
       // Eligibility is refreshed before export, so its local variable can change.
       // Keep the reference source independent of that variable's name.
       next = next.replace(
-        /(generatePayment(?:Excel|Pdf)File\(\s*selectedMonth,\s*[\w$]+,\s*signatures,\s*)selectedMonthAllDocs(\s*\))/g,
-        "$1documents$2"
+        /(generatePayment(?:Excel|Pdf)File\(\s*selectedMonth,\s*[\w$]+,\s*signatures,\s*)selectedMonthAllDocs(?=\s*(?:,|\)))/g,
+        "$1documents"
       );
-      const exportCalls = [...next.matchAll(/generatePayment(?:Excel|Pdf)File\(\s*selectedMonth,\s*[\w$]+,\s*signatures,\s*([\w$]+)\s*\)/g)];
+      const exportCalls = [...next.matchAll(/generatePayment(?:Excel|Pdf)File\(\s*selectedMonth,\s*[\w$]+,\s*signatures,\s*([\w$]+)\s*(?:,\s*[\w$]+)?\s*\)/g)];
       if (exportCalls.length !== 2 || exportCalls.some((call) => call[1] !== "documents")) {
         throw new Error("Monthly Payment Document Ref: both export handlers must use the same documents collection as the web UI.");
       }
