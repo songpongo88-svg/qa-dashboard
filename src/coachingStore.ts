@@ -4,6 +4,7 @@ import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 import { belongsToAgent, isAssignedCoach, coachingSaveRole, isCoachingAccepted, coachingResultError, coachingDeadline, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
 import { monthlyPaymentBatchReference } from './monthlyPaymentBatchStore';
+import { changedCoachingFields, type CoachingFieldChange } from './coachingActivityChanges';
 
 const COACHING_COLLECTION = "qa_coaching_records";
 const COACHING_CACHE_KEY = "qa-dashboard:coaching-records-cache:v1";
@@ -20,6 +21,7 @@ export type CoachingActivityEvent = {
   toStatus: string;
   revision: number;
   note: string;
+  changes?: CoachingFieldChange[];
   paymentEffect?: "Normal Cycle" | "Next Cycle";
 };
 export type CoachingRecordResult =
@@ -176,6 +178,10 @@ function normalizeCoachingTimeline(value: unknown): CoachingActivityEvent[] {
       toStatus: String(item.toStatus || ""),
       revision: Number(item.revision || 0),
       note: String(item.note || ""),
+      changes: Array.isArray(item.changes)
+        ? item.changes.filter((change: any) => change && typeof change.section === "string" && typeof change.detail === "string")
+            .map((change: any) => ({ section: String(change.section).slice(0,120), detail: String(change.detail).slice(0,240) }))
+        : [],
       ...(item.paymentEffect === "Normal Cycle" || item.paymentEffect === "Next Cycle"
         ? { paymentEffect: item.paymentEffect } : {}),
     }));
@@ -416,6 +422,11 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
         }
       }
     }
+    const changes = changedCoachingFields(previous, next);
+    if (previous && previous.status === next.status && changes.length === 0) {
+      // No actual field change and no status transition: avoid a redundant write/event.
+      return previous;
+    }
     const previousEvents = previous?.activityTimeline || [];
     const revision = previousEvents.filter(event => event.action === 'Revision Requested').length +
       (next.status === 'QA Reviewed' && previous?.status !== 'QA Reviewed' ? 1 : 0);
@@ -442,9 +453,11 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
     const event: CoachingActivityEvent = {
       id: `${now}:${actor.username}:${previousEvents.length + 1}`,
       action: eventAction, occurredAt: now,
-      actorId: actor.username, actorName: actor.displayName || actor.username,
-      actorRole: workflowRole, fromStatus: previous?.status || 'Not Created',
-      toStatus: next.status, revision, note: eventNote,
+      actorId: actor.username, actorName: actor.displayName || actor.agentName || actor.username,
+      actorRole: actor.role === 'Quality Assurance' ? 'QA'
+        : actor.role === 'Senior' ? 'Senior' : actor.role,
+      fromStatus: previous?.status || 'Not Created',
+      toStatus: next.status, revision, note: eventNote, changes,
       ...(paymentEffect ? { paymentEffect } : {}),
     };
     // The transaction appends to the server's most recent history, never a stale form copy.

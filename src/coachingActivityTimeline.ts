@@ -36,7 +36,7 @@ export function coachingTimelineEvents(record?: StoredCoachingRecord): CoachingT
     legacy.push({
       id: `legacy:${source}:${when}`,
       action, occurredAt: when,
-      actorId: "", actorName, actorRole: "",
+      actorId: "", actorName, actorRole: source === "qaReviewedAt" || source === "qaClosedAt" ? "QA" : "",
       fromStatus: "", toStatus: "", revision: 0,
       note, legacySource: source,
     });
@@ -59,5 +59,5 @@ export function coachingTimelineEvents(record?: StoredCoachingRecord): CoachingT
     }
   }
   return [...legacy, ...recorded].sort((a, b) =>
-    a.occurredAt.localeCompare(b.occurredAt) || a.id.localeCompare(b.id));
+    b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id));
 }

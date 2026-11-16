@@ -18,12 +18,12 @@ const sample = {
 };
 const oldEvents = coachingTimelineEvents(sample);
 assert.deepEqual(oldEvents.map(e=>e.action), [
-  "Coaching Record Created", "Actual Coaching End",
-  "QA Accepted (Saved Timestamp)", "Coaching Record Last Updated"
+  "Coaching Record Last Updated", "QA Accepted (Saved Timestamp)",
+  "Actual Coaching End", "Coaching Record Created"
 ]);
 assert.equal(oldEvents.length, 4);
-assert.equal(oldEvents[1].occurredAt,"2026-11-12T07:15:00.000Z");
-assert.equal(oldEvents[2].actorName,"QA Reviewer");
+assert.equal(oldEvents[2].occurredAt,"2026-11-12T07:15:00.000Z");
+assert.equal(oldEvents[1].actorName,"QA Reviewer");
 assert.ok(oldEvents.every(e=>e.legacySource),"old data must be visibly labeled as historical");
 assert.ok(!oldEvents.some(e=>/Revision Requested|Action Plan Submitted/.test(e.action)),
   "never fabricate exact historic Revision or Submit timestamps");
@@ -33,7 +33,7 @@ const withNew = coachingTimelineEvents({...sample,activityTimeline:[
    actorId:"qa",actorName:"QA",actorRole:"Quality Assurance",fromStatus:"Action Plan Submitted",
    toStatus:"QA Reviewed",revision:1,note:"Revise"}
 ]});
-assert.equal(withNew.at(-1).action,"Revision Requested");
+assert.equal(withNew[0].action,"Revision Requested");
 assert.equal(withNew.filter(e=>e.action==="Coaching Record Last Updated").length,0,
   "updatedAt should not duplicate known event history");
 assert.equal(withNew.length,4,"three old milestones plus one logged transition");
