@@ -12,6 +12,7 @@ import { createTypingReliefCloudService } from "../server/typingReliefCloudServi
 import { createQaAutoPassService } from "../server/qaAutoPassService.js";
 import { getTypingReliefPricing } from "../src/typingReliefPricing.mjs";
 import { isSparksBackendRequest, requestSparksSupabase, containsSparksWrites } from "../server/sparksSupabaseBridge.js";
+import { requestSparksTimeline } from "../server/sparksTimelineBridge.js";
 import { getSparksAccessState } from "../server/sparksAccessControl.js";
 import { issueSparksReadGrant, verifySparksReadGrant } from "../server/sparksReadGrant.js";
 import { issueSparksAdminReadGrant, verifySparksAdminReadGrant } from "../server/sparksAdminReadGrant.js";
@@ -1174,7 +1175,7 @@ async function loadUsers() {
           documents: users.map(p => ({ name: "qa_user_profiles/" + encodeURIComponent(p.username), fields: encodeFields(p) })),
           truncated: false,
         }))
-      : listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
+      : listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "teamName", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
     listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin", "memberYear", "memberYearEarned", "balanceYear"]),
   ]);
   const wallets = new Map(walletPages.documents.map((doc) => {
@@ -1189,6 +1190,7 @@ async function loadUsers() {
     return {
       username, displayName: String(profile.displayName || profile.agentName || username),
       role: String(profile.role || ""), status: String(profile.status || "Active"),
+      teamName: String(profile.teamName || profile.team_name || ""),
       ...wallet,
     };
   }).filter((x) => x.username);
@@ -1891,6 +1893,43 @@ async function sparksHandler(req, res) {
     }
 
 
+    if (body.action === "timeline") {
+      // Owner-only cross-user history: reuse the validated active roster and never
+      // query Firebase for ledger records. A read grant is only a quota fallback.
+      const grant = process.env.SPARKS_DATA_BACKEND === "supabase"
+        ? verifySparksAdminReadGrant(body.adminReadGrant, body.actorUsername, body.sessionId)
+        : null;
+      let roster;
+      try {
+        await authorizeAdmin(body);
+        roster = grant?.users || (await listUsers()).users;
+      } catch (error) {
+        if (!grant || Number(error?.status) !== 429 || process.env.SPARKS_DATA_BACKEND !== "supabase") throw error;
+        roster = grant.users;
+      }
+      const active = [...new Set((roster || [])
+        .filter(u => !isSuspendedProfile(u))
+        .map(u => normalize(u.username)).filter(Boolean))];
+      const requested = Array.isArray(body.usernames)
+        ? [...new Set(body.usernames.map(normalize))]
+        : active;
+      const selected = requested.filter(username => active.includes(username));
+      if (!selected.length) return res.status(200).json({ ok: true, total: 0, rows: [] });
+      const data = await requestSparksTimeline({
+        usernames: selected,
+        startDate: body.startDate || "",
+        endDate: body.endDate || "",
+        category: body.category || "all",
+        search: body.search || "",
+        offset: body.offset || 0,
+        pageSize: body.pageSize || 50,
+      });
+      const rows = data.rows.map(row => ({
+        username: normalize(String(row.source_path || "").split("/")[1]),
+        ...toHistory({ name: row.source_path, fields: row.fields }),
+      }));
+      return res.status(200).json({ ok: true, total: data.total, rows });
+    }
     if (body.action === "list" || body.action === "history") {
       const target = body.action === "history" ? safeUsername(body.targetUsername) : "";
       const grant = process.env.SPARKS_DATA_BACKEND === "supabase"
