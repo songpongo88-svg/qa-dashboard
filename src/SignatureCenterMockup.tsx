@@ -1680,12 +1680,17 @@ function getDocumentTypeLabel(doc: SignatureDocument) {
     : "Monthly QA Acknowledgement Document";
 }
 
-function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
-  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getCompletedEntry(entries, role)));
-  if (signedComplete) return "signed" as const;
-  if (getTimelineStatus(doc.monthKey) === "Signature Deadline Passed") return "expired" as const;
-  if (getPendingRoles(entries).length) return "pending" as const;
-  return "in-progress" as const;
+function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[], now = new Date()) {
+  const pendingRoles = getPendingRoles(entries);
+  if (!pendingRoles.length) return "signed" as const;
+  if (getTimelineStatus(doc.monthKey, now) === "Signature Deadline Passed") {
+    // A document is overdue only if at least one unfinished signer cannot sign.
+    // The 3-day QA reset reopens the affected role without changing the original due date.
+    return pendingRoles.every((role) => Boolean(getActiveDeadlineResetEntry(entries, role, now)))
+      ? "pending" as const
+      : "expired" as const;
+  }
+  return "pending" as const;
 }
 
 function getWorkspaceStatusLabel(status: WorkspaceStatus) {
@@ -2620,6 +2625,7 @@ export default function SignatureCenterMockup({
   const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
   const [coachingStatusVerified, setCoachingStatusVerified] = useState(false);
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
+  const [signatureStatusClock, setSignatureStatusClock] = useState(() => Date.now());
   const [signatureLibrary, setSignatureLibrary] = useState<Record<string, string>>(() => readSignatureLibraryStore());
   const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
   const [resultLockedDocs, setResultLockedDocs] = useState<Record<string, string>>({});
@@ -2657,6 +2663,36 @@ export default function SignatureCenterMockup({
       window.sessionStorage.setItem("signature-document-actions-mode", actionSidebarMode);
     }
   }, [actionSidebarMode]);
+
+  // Refresh local statuses at the exact due/reset deadline, without polling the backend.
+  useEffect(() => {
+    const now = Date.now();
+    const transitions = [
+      ...documents.map((doc) => getSignatureWindow(doc.monthKey).dueAt.getTime() + 1),
+      ...Object.values(signatures).flatMap((entries) =>
+        entries
+          .filter((entry) => entry.status === "Pending" && entry.note === SIGNATURE_DEADLINE_RESET_NOTE)
+          .map((entry) => (getDeadlineResetExpiresAt(entry)?.getTime() ?? NaN) + 1)
+      ),
+    ].filter((time) => Number.isFinite(time) && time > now);
+    const nextTransition = transitions.length ? Math.min(...transitions) : null;
+    const timer = nextTransition === null
+      ? null
+      : window.setTimeout(
+          () => setSignatureStatusClock(Date.now()),
+          Math.min(2_147_483_647, Math.max(1, nextTransition - now))
+        );
+    const refreshClock = () => {
+      if (!document.hidden) setSignatureStatusClock(Date.now());
+    };
+    window.addEventListener("focus", refreshClock);
+    document.addEventListener("visibilitychange", refreshClock);
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      window.removeEventListener("focus", refreshClock);
+      document.removeEventListener("visibilitychange", refreshClock);
+    };
+  }, [documents, signatures, signatureStatusClock]);
 
   useEffect(() => {
     if (!previewCase) return;
@@ -2904,7 +2940,7 @@ export default function SignatureCenterMockup({
   const workspaceDocuments = useMemo(() => {
     return activeDocuments.filter((doc) => {
       const entries = effectiveEntriesForDoc(doc, signatures);
-      const docStatus = getWorkspaceStatus(doc, entries);
+      const docStatus = getWorkspaceStatus(doc, entries, new Date(signatureStatusClock));
       const yearMatch = selectedYear === "all" || doc.monthKey.startsWith(`${selectedYear}-`);
       const quickMatch = quickFilter === "all" || docStatus === quickFilter;
       return yearMatch && quickMatch;
@@ -2913,7 +2949,7 @@ export default function SignatureCenterMockup({
       if (dateDiff) return dateDiff;
       return a.agentName.localeCompare(b.agentName, "th");
     });
-  }, [activeDocuments, quickFilter, selectedYear, signatures]);
+  }, [activeDocuments, quickFilter, selectedYear, signatures, signatureStatusClock]);
 
   const workspaceSummary = useMemo(() => {
     const counts = {
@@ -2924,14 +2960,14 @@ export default function SignatureCenterMockup({
       inProgress: 0,
     };
     workspaceDocuments.forEach((doc) => {
-      const status = getWorkspaceStatus(doc, effectiveEntriesForDoc(doc, signatures));
+      const status = getWorkspaceStatus(doc, effectiveEntriesForDoc(doc, signatures), new Date(signatureStatusClock));
       if (status === "pending") counts.pending += 1;
       if (status === "signed") counts.signed += 1;
       if (status === "expired") counts.expired += 1;
       if (status === "in-progress") counts.inProgress += 1;
     });
     return counts;
-  }, [signatures, workspaceDocuments]);
+  }, [signatures, signatureStatusClock, workspaceDocuments]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -5598,10 +5634,15 @@ export default function SignatureCenterMockup({
                         <div className="divide-y divide-slate-100">
                           {group.items.map((doc) => {
                             const entries = effectiveEntriesForDoc(doc, signatures);
-                            const status = getWorkspaceStatus(doc, entries);
+                            const status = getWorkspaceStatus(doc, entries, new Date(signatureStatusClock));
                             const selected = selectedDocument?.id === doc.id;
                             const documentRef = getMonthlyDocumentRef(doc, documents);
                             const docPendingRoles = getPendingRoles(entries);
+                            const resetExpiresAt = status === "pending" && getTimelineStatus(doc.monthKey, new Date(signatureStatusClock)) === "Signature Deadline Passed"
+                              ? Math.min(...docPendingRoles.map((role) =>
+                                  getDeadlineResetExpiresAt(getActiveDeadlineResetEntry(entries, role, new Date(signatureStatusClock)))?.getTime() ?? Number.POSITIVE_INFINITY
+                                ))
+                              : Number.POSITIVE_INFINITY;
                             return (
                               <button
                                 key={doc.id}
@@ -5632,7 +5673,14 @@ export default function SignatureCenterMockup({
                                     <span className="truncate">{getDocumentTypeLabel(doc)}</span>
                                   </span>
                                 </div>
-                                <div className="flex min-w-0 items-center justify-center text-center md:justify-self-center"><WorkspaceStatusBadge status={status} /></div>
+                                <div className="flex min-w-0 flex-col items-center justify-center gap-1 text-center md:justify-self-center">
+                                  <WorkspaceStatusBadge status={status} />
+                                  {Number.isFinite(resetExpiresAt) ? (
+                                    <span className="text-[10px] font-semibold text-violet-700" title={`เซ็นได้ถึง ${formatDateTime(new Date(resetExpiresAt).toISOString())}`}>
+                                      Reset Active
+                                    </span>
+                                  ) : null}
+                                </div>
                                 <div className="flex min-w-0 flex-col items-center justify-center gap-1 text-center md:justify-self-center">
                                   {docPendingRoles.length ? (
                                     docPendingRoles.map((role) => (
@@ -5771,7 +5819,7 @@ export default function SignatureCenterMockup({
 
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <div className="min-w-0 truncate text-sm font-medium text-slate-700">{selectedDocument.agentName}</div>
-                  <WorkspaceStatusBadge status={getWorkspaceStatus(selectedDocument, selectedEntries)} />
+                  <WorkspaceStatusBadge status={getWorkspaceStatus(selectedDocument, selectedEntries, new Date(signatureStatusClock))} />
                 </div>
 
                 <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
