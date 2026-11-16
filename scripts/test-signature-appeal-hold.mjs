@@ -282,8 +282,8 @@ try {
     'Closed does not waive a pending Appeal');
   assert.equal(isPaymentReadyDocument(doc, allSigned, new Map(), [{...lateClosed,
     activityTimeline:[{id:'close-exported',action:'Closed',toStatus:'Closed',
-      paymentEffect:'Next Cycle',occurredAt:lateClosed.qaClosedAt,actorName:'QA'}]}]), false,
-    'Closed after an already exported payment batch cannot add a current-cycle recipient');
+      paymentEffect:'Next Cycle',occurredAt:lateClosed.qaClosedAt,actorName:'QA'}]}]), true,
+    'historic generated-file marker does not block Closed; additional-only batch excludes prior recipients');
   assert.equal(isPaymentReadyDocument({ ...doc, monthKey: '2026-08' }, allSigned.map(entry => ({...entry, signedAt:'2026-09-12T03:00:00Z'})), new Map(), []), true, 'historical paid periods do not require retrospective Coaching');
   fixture.coaching = [];
   fixture.extraStored = [{ docId:'2026-09::Fixture Agent B', entries:allSigned.map(entry=>entry.role==='Agent'?{...entry,signerName:'Fixture Agent B',signedBy:'Fixture Agent B'}:entry), confirmedAt:at(-1) }];

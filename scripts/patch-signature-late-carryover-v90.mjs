@@ -130,8 +130,8 @@ if (!source.includes(marker)) {
     "pdf export carry-over persistence"
   );
 
-  // Lock the monthly payment roster when the first PDF or Excel export starts.
-  // An already exported roster remains stable on repeated downloads.
+  // Keep the original roster immutable; an updated roster creates a distinct
+  // additional-only batch without names from previous files.
   source = replaceOnce(
     source,
     '} from "./paymentCarryOverStore";',
@@ -141,7 +141,23 @@ if (!source.includes(marker)) {
   const exportReadyLine = '      const eligible = await paymentDocumentsForExport();';
   if (source.split(exportReadyLine).length - 1 !== 2) throw new Error("Expected both monthly payment export handlers");
   source = source.replaceAll(exportReadyLine, exportReadyLine +
-    '\n      await markMonthlyPaymentBatchExported(selectedMonth, eligible.map((doc) => doc.id), currentUser.username || currentUser.displayName || "");');
+    '\n      const exportBatch = await markMonthlyPaymentBatchExported(selectedMonth, eligible.map((doc) => doc.id), currentUser.username || currentUser.displayName || "");' +
+    '\n      const batchEligible = eligible.filter(doc => exportBatch.documentIds.includes(doc.id));' +
+    '\n      if (!batchEligible.length || batchEligible.length !== exportBatch.documentIds.length) throw new Error("รายชื่อ Additional Batch ไม่ตรงกับผู้ที่เข้าเงื่อนไขปัจจุบัน");' +
+    '\n      const batchSuffix = exportBatch.batchNumber > 1 ? `_Additional_${exportBatch.batchNumber - 1}` : "";');
+  source = replaceOnce(source,
+    'generatePaymentExcelFile(selectedMonth, eligible, signatures, documents);',
+    'generatePaymentExcelFile(selectedMonth, batchEligible, signatures, documents, batchSuffix);',
+    "additional-only Excel");
+  source = replaceOnce(source,
+    'const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, documents);',
+    'const fileName = generatePaymentPdfFile(selectedMonth, batchEligible, signatures, documents, batchSuffix);',
+    "additional-only PDF");
+  source = source.replaceAll('await markCurrentCarryOversExported(eligible);','await markCurrentCarryOversExported(batchEligible);');
+  source = replaceOnce(source,
+    'setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);',
+    'setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth,batchSuffix)}`);',
+    "Excel additional filename message");
 
   fs.writeFileSync(signatureCenterPath, source, "utf8");
 }

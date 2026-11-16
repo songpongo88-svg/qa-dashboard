@@ -2,7 +2,8 @@ const replacement = String.raw`function generatePaymentPdfFile(
   monthKey: string,
   readyDocs: SignatureDocument[],
   signatures: Record<string, SignatureEntry[]>,
-  allMonthDocs: SignatureDocument[] = readyDocs
+  allMonthDocs: SignatureDocument[] = readyDocs,
+  suffix = ""
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const sourceDocs = allMonthDocs.length ? allMonthDocs : sortedDocs;
@@ -70,7 +71,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
     pdf.rect(0, 0, pageW, 7, "F");
     text("QA MONTHLY INCENTIVE PAYMENT AUTHORIZATION", left, 15.8, 15.2, true, purple);
     text(getMonthLabel(monthKey).toUpperCase(), right, 15.4, 10.4, true, purple, { align: "right" });
-    text("Team Performance & Payment Authorization", left, 21.3, 8.2, false, muted);
+    text(suffix ? "ADDITIONAL AGENTS ONLY - Original recipients excluded" : "Team Performance & Payment Authorization", left, 21.3, 8.2, false, muted);
     pdf.setDrawColor(purple[0], purple[1], purple[2]);
     pdf.setLineWidth(0.35);
     pdf.line(left, 24.5, right, 24.5);
@@ -204,7 +205,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
     { label: "Overall Grade", value: overallGrade, color: purple2 },
     { label: "Total Payment (THB)", value: formatBahtAmount(totalCashAmount), color: green },
     { label: "Total Promo (THB)", value: formatBahtAmount(totalPromoAmount) },
-    { label: "Document Status", value: sortedDocs.length ? "READY TO EXPORT" : "HOLD", badge: true },
+    { label: "Document Status", value: suffix ? "ADDITIONAL BATCH" : sortedDocs.length ? "READY TO EXPORT" : "HOLD", badge: true },
   ];
   const summaryColW = tableW / 4;
   const summaryRowH = 12.4;
@@ -529,7 +530,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
     text("Page " + pageIndex + " of " + totalPages, right, pageH - 8, 6.0, false, muted, { align: "right" });
   }
 
-  const fileName = makePaymentPdfFileName(monthKey);
+  const fileName = makePaymentPdfFileName(monthKey,suffix);
   savePdfFile(pdf, fileName);
   return fileName;
 }`;

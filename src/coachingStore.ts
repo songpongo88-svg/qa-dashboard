@@ -402,17 +402,17 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
         ? Date.parse(`${next.actualCoaching.date}T${next.actualCoaching.endTime}:00+07:00`) : NaN;
       const completionTime = Math.max(reviewedTime, actualEnd);
       if (Number.isFinite(completionTime) && Number.isFinite(deadlineTime) && completionTime > deadlineTime) {
-        // Read the payment-cycle export marker BEFORE writing the Coaching close.
-        // QA may close late, but cannot add a new recipient to a batch already exported.
+        // PDF generation is not actual payment transmission; only a separately
+        // confirmed Sent marker can move a newly Closed agent to the next cycle.
         const batch = await transaction.get(monthlyPaymentBatchReference(next.monthKey));
-        if (batch.exists() && String(batch.data()?.exportedAt || '')) {
+        if (batch.exists() && String(batch.data()?.confirmedSentAt || '')) {
           paymentEffect = 'Next Cycle';
         } else {
-          // Legacy payment exports made before audit tracking cannot be detected.
-          // For those periods, an explicit QA attestation is required.
+          // Legacy exports alone do not establish that payment was sent.
+          // QA confirms the real payment status before authorizing Close.
           if (next.monthKey <= '2026-10') {
             if (!verifiedNoEarlierPaymentExport) {
-              throw new Error('รอบจ่ายก่อนเปิดระบบบันทึก Export: QA ต้องตรวจไฟล์จ่ายเงินเดิมและยืนยันว่าไม่เคยส่งออก ก่อนคืนสิทธิ์รอบปกติ');
+              throw new Error('กรุณาตรวจสอบสถานะส่งจ่ายเงินจริงและยืนยันก่อน Close การ Generate PDF เดิมไม่ใช่การส่งจ่ายเงิน');
             }
             priorExportVerifiedAt = now;
             priorExportVerifiedBy = actor.displayName || actor.username;

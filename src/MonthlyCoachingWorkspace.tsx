@@ -271,7 +271,7 @@ function CoachingDetail({currentUser,accounts,account,month,record,prior,rows,to
     const requiresLegacyPaymentCheck = status === 'Closed' && record?.status !== 'Closed' && month <= '2026-10' &&
       Number.isFinite(deadline) && Math.max(reviewTime, coachingEndTime) > deadline;
     const verifiedNoEarlierPaymentExport = requiresLegacyPaymentCheck
-      ? window.confirm('กรุณาตรวจสอบไฟล์ Monthly Payment ของเดือนนี้ก่อน\n\nยืนยันว่าไม่เคย Generate/ส่งออกยอดจ่ายของเดือนนี้มาก่อนใช่หรือไม่?\n\nกด OK เพื่อยืนยันและดำเนินการ Close หรือ Cancel เพื่อหยุดตรวจสอบก่อน')
+      ? window.confirm('กรุณาตรวจสอบไฟล์ Monthly Payment ของเดือนนี้ก่อน\n\nยืนยันว่ายังไม่มีการส่งจ่ายเงินจริงสำหรับรายชื่อใหม่นี้ใช่หรือไม่? การ Generate PDF เดิมไม่ถือเป็นการส่งจ่าย\n\nกด OK เพื่อยืนยันและดำเนินการ Close หรือ Cancel เพื่อหยุดตรวจสอบก่อน')
       : false;
     if (requiresLegacyPaymentCheck && !verifiedNoEarlierPaymentExport) {
       setMessage('ยังไม่ได้ Close · กรุณาตรวจสอบประวัติการส่งออกยอดจ่ายก่อน');

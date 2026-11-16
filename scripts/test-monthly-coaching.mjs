@@ -232,8 +232,8 @@ try {
     'Closed late is eligible for same payment month without the legacy override marker');
   assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[{...lateClosed,
     activityTimeline:[{id:'exported',action:'Closed',toStatus:'Closed',paymentEffect:'Next Cycle',
-      occurredAt:lateClosed.qaClosedAt,actorName:qa.displayName}]}],agentA.username).onTime,false,
-    'Closed after batch export does not restore an already-sent payment cycle');
+      occurredAt:lateClosed.qaClosedAt,actorName:qa.displayName}]}],agentA.username).onTime,true,
+    'historical generated PDF is not proof of actual payout; batch ledger prevents duplicate recipients');
   testNow='2026-09-30T12:00:00Z';
   const withoutReview={...closed,qaReviewComment:'',qaReviewedAt:''};fixture.records.set(id,withoutReview);await mount(qa);
   assert.equal(named('QA Review Comment').readOnly,false,'initial QA Review remains editable');

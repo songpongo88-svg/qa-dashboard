@@ -1831,9 +1831,9 @@ function getOverallPdfGradeLabel(avgScore: number) {
 }
 
 
-function makePaymentFileName(monthKey: string) {
+function makePaymentFileName(monthKey: string, suffix = "") {
   const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
-  return `Incentive_QA_Monthly_${label || monthKey}.xlsx`;
+  return `Incentive_QA_Monthly_${label || monthKey}${suffix}.xlsx`;
 }
 
 function getDocumentIncentive(doc: SignatureDocument) {
@@ -1879,7 +1879,8 @@ function generatePaymentExcelFile(
   monthKey: string,
   readyDocs: SignatureDocument[],
   signatures: Record<string, SignatureEntry[]>,
-  allMonthDocs: SignatureDocument[] = readyDocs
+  allMonthDocs: SignatureDocument[] = readyDocs,
+  suffix = ""
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
@@ -2020,19 +2021,20 @@ function generatePaymentExcelFile(
     { s: { r: summaryStartRow - 1, c: 0 }, e: { r: summaryStartRow - 1, c: 14 } },
   ];
   XLSX.utils.book_append_sheet(workbook, sheet, "Monthly_Team_Summary");
-  XLSX.writeFile(workbook, makePaymentFileName(monthKey));
+  XLSX.writeFile(workbook, makePaymentFileName(monthKey,suffix));
 }
 
-function makePaymentPdfFileName(monthKey: string) {
+function makePaymentPdfFileName(monthKey: string, suffix = "") {
   const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
-  return `Incentive_QA_Monthly_${label || monthKey}.pdf`;
+  return `Incentive_QA_Monthly_${label || monthKey}${suffix}.pdf`;
 }
 
 function generatePaymentPdfFile(
   monthKey: string,
   readyDocs: SignatureDocument[],
   signatures: Record<string, SignatureEntry[]>,
-  allMonthDocs: SignatureDocument[] = readyDocs
+  allMonthDocs: SignatureDocument[] = readyDocs,
+  suffix = ""
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
@@ -2357,7 +2359,7 @@ function generatePaymentPdfFile(
   });
 
   footer();
-  const fileName = makePaymentPdfFileName(monthKey);
+  const fileName = makePaymentPdfFileName(monthKey,suffix);
   savePdfFile(pdf, fileName);
   return fileName;
 }

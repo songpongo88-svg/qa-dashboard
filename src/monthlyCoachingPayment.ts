@@ -27,20 +27,13 @@ export function monthlyCoachingPaymentStatus(month: string, agent: string, recor
   const coachingTime = Date.parse(`${record.actualCoaching!.date}T${record.actualCoaching!.endTime}:00+07:00`);
   if (!Number.isFinite(reviewedTime) || !Number.isFinite(coachingTime)) return incomplete('Coaching / QA Review Completion Time Missing');
   const completedTime = Math.max(reviewedTime, coachingTime);
-  // Closed restores the same-month payment eligibility even after day 15.
-  // Older Closed records may lack the later-added override and Close timestamp fields.
-  // Never reinstate a recipient explicitly marked Next Cycle because the payment
-  // batch had already been exported when QA closed the Coaching document.
-  const closeEvent = [...(record.activityTimeline || [])].reverse()
-    .find(event => event.action === 'Closed' && event.toStatus === 'Closed');
-  const exportedBeforeClose = record.status === 'Closed' && closeEvent?.paymentEffect === 'Next Cycle';
-  const normalCycleClose = record.status === 'Closed' && !exportedBeforeClose;
-  const onTime = !exportedBeforeClose &&
-    (completedTime <= Date.parse(deadline) || normalCycleClose);
-  return { complete: true, onTime, completedAt: new Date(completedTime).toISOString(),
-    reason: exportedBeforeClose
-      ? 'Monthly Payment Batch Already Exported Before QA Close · Next Payment Cycle'
-      : normalCycleClose && completedTime > Date.parse(deadline)
-        ? 'QA Closed · Current Payment Cycle (remaining signature and appeal checks apply)'
-        : onTime ? '' : 'Coaching / QA Review Completed Late · Deferred to the Next Payment Cycle' };
+  // Generating an earlier PDF is not proof that payment was sent.
+  // A Closed record enters the current-cycle report, with any new recipient
+  // added only to a separate Additional Batch by the report export ledger.
+  const onTime=completedTime<=Date.parse(deadline)||record.status==="Closed";
+  return {complete:true,onTime,completedAt:new Date(completedTime).toISOString(),
+    reason:record.status==="Closed"&&completedTime>Date.parse(deadline)
+      ? "QA Closed · Current Cycle / Additional Batch if original roster exists"
+      : onTime?"":"Coaching / QA Review Completed Late · Deferred to the Next Payment Cycle"};
+
 }
