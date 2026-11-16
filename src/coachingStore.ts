@@ -434,7 +434,7 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
       ? (workflowRole === 'Quality Assurance' && next.qaReviewComment !== previous?.qaReviewComment ? 'QA Review Updated' : 'Details Updated')
       : next.status === 'QA Reviewed' ? 'Revision Requested'
       : next.status === 'Action Plan Submitted'
-        ? (revision > 0 ? 'Action Plan Resubmitted' : 'Action Plan Submitted')
+        ? (previous?.status === 'QA Reviewed' || revision > 0 ? 'Action Plan Resubmitted' : 'Action Plan Submitted')
       : next.status === 'Follow-up Next Month' ? 'QA Accepted'
       : next.status === 'Closed' ? 'Closed'
       : next.status === 'Waiting Senior' ? 'QA Prepared / Sent to Coach'
