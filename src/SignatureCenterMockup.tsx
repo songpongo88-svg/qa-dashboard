@@ -2625,8 +2625,8 @@ export default function SignatureCenterMockup({
   const [coachingRecords, setCoachingRecords] = useState<StoredCoachingRecord[]>([]);
   const [coachingStatusVerified, setCoachingStatusVerified] = useState(false);
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
-  const [signatureStatusClock, setSignatureStatusClock] = useState(() => Date.now());
   const [signatureLibrary, setSignatureLibrary] = useState<Record<string, string>>(() => readSignatureLibraryStore());
+  const [signatureStatusClock, setSignatureStatusClock] = useState(() => Date.now());
   const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
   const [resultLockedDocs, setResultLockedDocs] = useState<Record<string, string>>({});
   const [resultRevisionDocs, setResultRevisionDocs] = useState<Record<string, string>>({});
