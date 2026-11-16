@@ -51,7 +51,7 @@ export function changedCoachingFields(
   const field = (section: string, label: string, before: unknown, after: unknown, kind: "text" | "value" | "list" = "text") => {
     const detail = kind === "list" ? listChange(before, after)
       : kind === "value" ? valueChange(before, after) : textChange(before, after);
-    add(section, `${label} — ${detail}`.replace(/ — $/, ""));
+    if (detail) add(section, `${label} — ${detail}`);
   };
   field("QA Summary", "สรุปผล QA", previous?.qaSummary, next.qaSummary);
   field("Coaching Topics", "หัวข้อที่แนะนำ", previous?.recommendedTopics, next.recommendedTopics, "list");
