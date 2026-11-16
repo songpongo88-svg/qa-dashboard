@@ -153,6 +153,18 @@ try {
   assert.equal(auditEntries().length,3,'Send to Coach is logged');
   assert.equal(auditEntries().at(-1).action,'QA Prepared / Sent to Coach');
   assert.equal(fixture.records.get(id).status,'Waiting Senior'); assert.equal(fixture.records.size,2,'one monthly record reused through transitions');
+  await click(button('แก้ไขสรุป QA / หัวข้อ Coaching'));
+  await fill(named('QA Summary'),'QA summary updated after handoff');
+  await click(button('บันทึกการแก้ไขสรุป QA'));
+  assert.equal(auditEntries().at(-1).action,'Details Updated');
+  assert.equal(auditEntries().at(-1).actorName,qa.displayName);
+  assert.ok(auditEntries().at(-1).changes.some(change=>change.section==='QA Summary'));
+  assert.equal(fixture.records.get(id).qaSummary,'QA summary updated after handoff');
+  await fill(field('วันที่นัดหมาย'),'2026-09-29');
+  await click(button('บันทึกการแก้ไขนัดหมาย'));
+  assert.equal(auditEntries().at(-1).action,'Details Updated');
+  assert.ok(auditEntries().at(-1).changes.some(change=>change.section==='Appointment' && change.detail.includes('วันที่นัดหมาย')));
+  assert.ok(text().includes('นัดหมาย Coaching — อัปเดต'),'Appointment save is visible as a named history entry');
   sessionStorage.setItem('qa-dashboard:monthly-coaching:view:lead-a',JSON.stringify({periodVersion:2,month}));
   await mount(seniorA); assert.ok(!rosterText().includes('Agent B Full Name')); await chooseAgent();
   assert.equal(named('QA Summary').readOnly,true); assert.equal(field('วันที่นัดหมาย').disabled,true);
@@ -219,6 +231,8 @@ try {
   await click(button('บันทึก QA Review'));
   assert.equal(fixture.records.get(id).qaReviewComment,'QA corrected the completed Coaching review','Edit allows saved review to be updated');
   assert.equal(named('QA Review Comment').readOnly,true,'re-saved review locks again');
+  assert.equal(auditEntries().at(-1).action,'QA Review Updated');
+  assert.ok(auditEntries().at(-1).changes.some(change=>change.section==='QA Review'));
   const previous=structuredClone(fixture.records.get(id));
   testNow='2026-10-15T12:00:00Z';fixture.evaluations.push({...septemberRows[0],id:'october-1',evaluationMonthKey:'2026-10'});await click(button('โหลดข้อมูลล่าสุด'));await fill(named('เดือน Coaching'),'2026-10');assert.ok(text().includes('ประวัติการ Coaching ล่าสุด (September 2026)'));assert.ok(text().includes('Plan 1'));assert.equal(named('QA Summary').value,'');
   await fill(named('QA Summary'),'October new record');await click(button('Save Draft'));assert.equal(fixture.records.size,3);assert.deepEqual(fixture.records.get(id),previous,'next month must not modify previous month');
