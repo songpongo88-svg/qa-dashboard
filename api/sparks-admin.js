@@ -1175,7 +1175,7 @@ async function loadUsers() {
           documents: users.map(p => ({ name: "qa_user_profiles/" + encodeURIComponent(p.username), fields: encodeFields(p) })),
           truncated: false,
         }))
-      : listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
+      : listCollection("qa_user_profiles", ["username", "displayName", "agentName", "role", "status", "teamName", "suspendEffectiveDate", "suspendEndDate", "suspendAutoReactivate"]),
     listCollection("qa_sparks_wallets", ["username", "balance", "totalEarned", "totalSpent", "rewardOrders", "firstLogin", "memberYear", "memberYearEarned", "balanceYear"]),
   ]);
   const wallets = new Map(walletPages.documents.map((doc) => {
@@ -1190,6 +1190,7 @@ async function loadUsers() {
     return {
       username, displayName: String(profile.displayName || profile.agentName || username),
       role: String(profile.role || ""), status: String(profile.status || "Active"),
+      teamName: String(profile.teamName || profile.team_name || ""),
       ...wallet,
     };
   }).filter((x) => x.username);
