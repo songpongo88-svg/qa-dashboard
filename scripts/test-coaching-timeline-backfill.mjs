@@ -5,47 +5,42 @@ import { transform } from "esbuild";
 const source = await fs.readFile(new URL("../src/coachingActivityTimeline.ts", import.meta.url), "utf8");
 const transpiled = await transform(source, {loader:"ts", format:"esm", target:"es2022"});
 const moduleUrl = "data:text/javascript;base64," + Buffer.from(transpiled.code).toString("base64");
-const { coachingTimelineEvents } = await import(moduleUrl);
-const sample = {
-  createdAt: "2026-11-11T09:00:00Z",
-  updatedAt: "2026-11-16T04:00:00Z",
-  actualCoaching: {date:"2026-11-12",endTime:"14:15"},
-  qaReviewedAt: "2026-11-14T03:00:00Z",
+const {coachingTimelineEvents,coachingHistoryGroups,coachingHistoryTitle} = await import(moduleUrl);
+
+// Timestamp fields predate the audit log and MUST NEVER appear as save history.
+const legacy = {
+  createdAt: "2026-11-04T10:00:00Z",
+  updatedAt: "2026-11-16T03:48:33Z",
+  qaReviewedAt: "2026-11-16T03:48:24Z",
   qaReviewedBy: "QA Reviewer",
-  status: "QA Reviewed",
-  qaReviewComment: "Please revise",
+  status: "Closed",
+  actualCoaching: {date:"2026-11-05",endTime:"14:00"},
   activityTimeline: [],
 };
-const oldEvents = coachingTimelineEvents(sample);
-assert.deepEqual(oldEvents.map(e=>e.action), [
-  "Coaching Record Last Updated", "QA Accepted (Saved Timestamp)",
-  "Actual Coaching End", "Coaching Record Created"
-]);
-assert.equal(oldEvents.length, 4);
-assert.equal(oldEvents[2].occurredAt,"2026-11-12T07:15:00.000Z");
-assert.equal(oldEvents[1].actorName,"QA Reviewer");
-assert.ok(oldEvents.every(e=>e.legacySource),"old data must be visibly labeled as historical");
-assert.ok(!oldEvents.some(e=>/Revision Requested|Action Plan Submitted/.test(e.action)),
-  "never fabricate exact historic Revision or Submit timestamps");
-assert.deepEqual(coachingTimelineEvents({...sample,createdAt:"bad",updatedAt:"",qaReviewedAt:"",actualCoaching:{date:"2026-11-12",endTime:"99:00"}}),[]);
-const withNew = coachingTimelineEvents({...sample,activityTimeline:[
-  {id:"a",action:"Revision Requested",occurredAt:"2026-11-15T10:00:00Z",
-   actorId:"qa",actorName:"QA",actorRole:"Quality Assurance",fromStatus:"Action Plan Submitted",
-   toStatus:"QA Reviewed",revision:1,note:"Revise"}
-]});
-assert.equal(withNew[0].action,"Revision Requested");
-assert.equal(withNew.filter(e=>e.action==="Coaching Record Last Updated").length,0,
-  "updatedAt should not duplicate known event history");
-assert.equal(withNew.length,4,"three old milestones plus one logged transition");
-const preexisting = coachingTimelineEvents({...sample,
-  createdAt:"2026-11-15T10:00:00Z",
-  qaReviewedAt:"2026-11-15T10:00:00Z",
-  actualCoaching:{date:"2026-11-15",endTime:"17:00"},
-  activityTimeline:[{
-    id:"a",action:"QA Accepted",occurredAt:"2026-11-15T10:00:00Z",
-    actorId:"qa",actorName:"QA",actorRole:"Quality Assurance",
-    fromStatus:"Action Plan Submitted",toStatus:"Follow-up Next Month",revision:0,note:""
-  }]
-});
-assert.equal(preexisting.filter(e=>e.occurredAt==="2026-11-15T10:00:00.000Z").length,1);
-console.log("PASS Coaching timeline: accurate legacy timestamps, time-zone conversion, no invented Revision/Submit times, no duplicate new events");
+assert.deepEqual(coachingTimelineEvents(legacy),[],
+  "no synthetic Created/Last Updated/Coaching Completed/QA Accepted/Closed events");
+const real = {
+  id:"logged",action:"QA Accepted",occurredAt:"2026-11-16T03:48:24Z",
+  actorId:"qa-1",actorName:"Songpon Phothong",actorRole:"QA",
+  fromStatus:"Action Plan Submitted",toStatus:"Follow-up Next Month",
+  note:"",revision:0,
+  changes:[
+    {section:"QA Review",detail:"ผลตรวจรับ/ข้อเสนอแนะ — เพิ่มข้อความ"},
+    {section:"Action Plan: SLA",detail:"กำหนดส่ง — 16/11 → 20/11"},
+  ],
+};
+const older = {...real,id:"older",action:"Action Plan Submitted",actorName:"Senior",
+  fromStatus:"Coaching In Progress",toStatus:"Action Plan Submitted",
+  changes:[],occurredAt:"2026-11-13T11:00:00Z"};
+const sorted = coachingTimelineEvents({...legacy,activityTimeline:[older,real]});
+assert.deepEqual(sorted.map(e=>e.id),["logged","older"],"newest first");
+assert.equal(coachingHistoryTitle(real),"QA Review — Accepted");
+assert.equal(coachingHistoryTitle(older),"Action Plan — Submitted");
+assert.deepEqual(coachingHistoryGroups(real).map(x=>x.section),["QA Review","Action Plan: SLA"]);
+assert.deepEqual(coachingTimelineEvents({...legacy,activityTimeline:[{
+  ...real,id:"noop",action:"Details Updated",fromStatus:"Draft",toStatus:"Draft",changes:[]
+}]}),[],"same-status event without recorded changes must not be shown");
+assert.deepEqual(coachingTimelineEvents({...legacy,activityTimeline:[{
+  ...real,id:"no-actor",actorName:""
+}]}),[],"unknown historical actors are not invented");
+console.log("PASS Coaching History: only persisted actions, no synthetic legacy events, real actors, newest first");

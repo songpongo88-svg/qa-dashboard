@@ -1,63 +1,75 @@
 import type { CoachingActivityEvent, StoredCoachingRecord } from "./coachingStore";
 
-// Legacy Coaching records have timestamps, but no historical status-transition log.
-// Display only source-backed milestones and never infer when a button was clicked.
-export type CoachingTimelineDisplayEvent = CoachingActivityEvent & {
-  legacySource?: string;
+const STATUS_ACTIONS: Record<string,string> = {
+  "QA Prepared": "QA สรุปและแนะนำหัวข้อการ Coaching — บันทึก",
+  "QA Prepared / Sent to Coach": "ส่งข้อมูล Coaching ให้ Senior",
+  "Appointment Scheduled": "นัดหมาย Coaching — ยืนยันนัดหมาย",
+  "Coaching Results Saved": "ผล Coaching — บันทึก",
+  "Action Plan Submitted": "Action Plan — Submitted",
+  "Action Plan Resubmitted": "Action Plan — Resubmitted",
+  "Revision Requested": "QA Review — Revision Required",
+  "QA Accepted": "QA Review — Accepted",
+  "Closed": "Closed",
+  "No Coaching Required": "No Coaching Required",
+  "QA Review Updated": "QA Review — Updated",
 };
 
-function validTimestamp(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) return "";
-  const time = Date.parse(value);
-  return Number.isFinite(time) ? new Date(time).toISOString() : "";
+const SECTION_NAMES: Record<string, string> = {
+  "QA Summary": "QA สรุปและแนะนำหัวข้อการ Coaching",
+  "Coaching Topics": "QA สรุปและแนะนำหัวข้อการ Coaching",
+  "Assigned Coach": "นัดหมาย Coaching",
+  "Appointment": "นัดหมาย Coaching",
+  "Coaching Results": "ผล Coaching โดยผู้ Coaching",
+  "QA Review": "QA Review",
+  "Attachments": "เอกสารประกอบ",
+  "QA Score": "ข้อมูลคะแนน QA",
+};
+
+export function coachingHistorySection(section: string): string {
+  return section.startsWith("Action Plan: ") ? section : SECTION_NAMES[section] || section;
 }
 
-function actualCoachingEnd(record: StoredCoachingRecord) {
-  const meeting = record.actualCoaching;
-  if (!meeting || !/^\d{4}-\d{2}-\d{2}$/.test(meeting.date || "") ||
-      !/^([01]\d|2[0-3]):[0-5]\d$/.test(meeting.endTime || "")) return "";
-  return validTimestamp(`${meeting.date}T${meeting.endTime}:00+07:00`);
+export type CoachingHistoryGroup = { section: string; details: string[] };
+
+export function coachingHistoryGroups(event: CoachingActivityEvent): CoachingHistoryGroup[] {
+  const groups = new Map<string, string[]>();
+  (event.changes || []).forEach(change => {
+    if (!change?.section || !change?.detail) return;
+    const section = coachingHistorySection(change.section);
+    const details = groups.get(section) || [];
+    if (!details.includes(change.detail)) details.push(change.detail);
+    groups.set(section, details);
+  });
+  return Array.from(groups, ([section, details]) => ({section, details}));
 }
 
-export function coachingTimelineEvents(record?: StoredCoachingRecord): CoachingTimelineDisplayEvent[] {
-  if (!record) return [];
-  const recorded: CoachingTimelineDisplayEvent[] = (record.activityTimeline || [])
-    .filter(e => Boolean(validTimestamp(e.occurredAt)) && e.action)
-    .map(e => ({ ...e, occurredAt: validTimestamp(e.occurredAt) }));
-  const firstRecordedTime = recorded.length
-    ? Math.min(...recorded.map(e => Date.parse(e.occurredAt)))
-    : Number.POSITIVE_INFINITY;
-  const legacy: CoachingTimelineDisplayEvent[] = [];
-
-  const addLegacy = (source: string, action: string, timeValue: string, note: string, actorName = "") => {
-    const when = validTimestamp(timeValue);
-    if (!when || Date.parse(when) >= firstRecordedTime ||
-        recorded.some(e => e.occurredAt === when)) return;
-    legacy.push({
-      id: `legacy:${source}:${when}`,
-      action, occurredAt: when,
-      actorId: "", actorName, actorRole: source === "qaReviewedAt" || source === "qaClosedAt" ? "QA" : "",
-      fromStatus: "", toStatus: "", revision: 0,
-      note, legacySource: source,
-    });
-  };
-
-  addLegacy("createdAt", "Coaching Record Created", record.createdAt,
-    "วันเวลาสร้างรายการที่บันทึกไว้เดิม ไม่ใช่เวลาที่กดส่งให้ Senior");
-  addLegacy("actualCoaching", "Actual Coaching End", actualCoachingEnd(record),
-    "เวลาสิ้นสุดการ Coaching จริงตามข้อมูลที่ Senior กรอก ไม่ใช่เวลา Submit Action Plan");
-  addLegacy("qaReviewedAt", "QA Accepted (Saved Timestamp)", record.qaReviewedAt || "",
-    "เวลารับรอง QA ที่บันทึกไว้เดิม ไม่สามารถแยกเวลา Accept ทุกครั้งได้",
-    record.qaReviewedBy || "");
-  addLegacy("qaClosedAt", "QA Closed (Saved Timestamp)", record.qaClosedAt || "",
-    "เวลาปิด Coaching ที่ระบบมีบันทึกไว้", record.qaClosedBy || "");
-  if (!recorded.length) {
-    const updatedTime = validTimestamp(record.updatedAt);
-    if (updatedTime && !legacy.some(e => e.occurredAt === updatedTime)) {
-      addLegacy("updatedAt", "Coaching Record Last Updated", record.updatedAt,
-        "เวลาบันทึกแก้ไขล่าสุด ไม่สามารถยืนยันว่าเป็นเวลาที่กด Request Revision หรือ Submit");
-    }
+export function coachingHistoryTitle(event: CoachingActivityEvent): string {
+  if (STATUS_ACTIONS[event.action]) return STATUS_ACTIONS[event.action];
+  const groups = coachingHistoryGroups(event);
+  const namedGroups = [...new Set(groups.map(g =>
+    g.section.startsWith("Action Plan: ") ? "Action Plan" : g.section
+  ))];
+  if (namedGroups.length === 1) {
+    const name = namedGroups[0];
+    return `${name} — ${event.fromStatus === "Not Created" ? "บันทึก" : "อัปเดต"}`;
   }
-  return [...legacy, ...recorded].sort((a, b) =>
+  if (namedGroups.length > 1) return "บันทึก/อัปเดตข้อมูล Coaching";
+  // Historical server-side status transitions are valid actions even when
+  // their older audit entries predate field-level diffs.
+  return event.action || "Coaching Updated";
+}
+
+export function coachingTimelineEvents(record?: StoredCoachingRecord): CoachingActivityEvent[] {
+  // Only append-only audit events written by successful Coaching save transactions.
+  // createdAt/updatedAt, actual meeting dates and qaReviewedAt aren't click events.
+  const events = Array.isArray(record?.activityTimeline) ? record.activityTimeline : [];
+  return events.filter(event => {
+    if (!event || !event.actorName?.trim() || !event.action || !event.occurredAt) return false;
+    if (!Number.isFinite(Date.parse(event.occurredAt))) return false;
+    const hasChanges = Boolean(event.changes?.some(change => change.section && change.detail));
+    const statusChanged = Boolean(event.fromStatus && event.toStatus && event.fromStatus !== event.toStatus);
+    // Older QA Review edits were logged before detailed field diffs existed.
+    return hasChanges || statusChanged || event.action === "QA Review Updated";
+  }).sort((a, b) =>
     b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id));
 }

@@ -48,4 +48,9 @@ assert.ok(store.includes("previous.status === next.status && changes.length === 
 assert.ok(store.includes("note: eventNote, changes,"));
 assert.ok(ui.includes("Coaching Status History"));
 assert.ok(ui.includes("events.slice(0, 7)"));
+assert.ok(ui.includes("if (!events.length) return null"));
+assert.ok(!ui.includes("สถานะปัจจุบัน:"));
+assert.ok(!ui.includes("ข้อมูลย้อนหลัง"));
+assert.ok(ui.includes("coachingHistoryGroups(event)"));
+assert.ok(ui.includes("coachingHistoryTitle(event)"));
 console.log("PASS Coaching Status History: actor roles, exact changed topics and dates, no-op saves, newest-first UI");

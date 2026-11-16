@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fetchCanonicalCoachingEvaluations } from './coachingCanonicalStore';
 import { getStoredEvaluationMonthKey, type StoredEvaluation } from './evaluationStore';
 import { fetchStoredCoachingRecords, saveMonthlyCoachingRecord, type StoredCoachingRecord, type CoachingRecordStatus } from './coachingStore';
-import { coachingTimelineEvents } from './coachingActivityTimeline';
+import { coachingTimelineEvents, coachingHistoryGroups, coachingHistoryTitle } from './coachingActivityTimeline';
 import { coachingActorLabel } from './coachingActivityChanges';
 import './monthlyCoaching.css';
 import AutoResizeTextarea from './AutoResizeTextarea';
@@ -153,73 +153,42 @@ function coachingTimelineTime(value: string) {
 
 function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
   const [expanded,setExpanded] = useState(false);
-  const events = coachingTimelineEvents(record); // newest first
-  const legacyCount = events.filter(event => event.legacySource).length;
+  const events = coachingTimelineEvents(record);
+  // No stored audit history means nothing is rendered. Never invent legacy events.
+  if (!events.length) return null;
   const shown = expanded ? events : events.slice(0, 7);
-  const currentStatusWasLogged = (record?.activityTimeline || [])
-    .some(event => event.toStatus === record?.status);
-  const missingStatusHistory = Boolean(record?.status && !currentStatusWasLogged);
-  const labels: Record<string,string> = {
-    'Coaching Record Created': 'Created',
-    'Actual Coaching End': 'Coaching Completed',
-    'Coaching Record Last Updated': 'Last Updated',
-    'QA Accepted (Saved Timestamp)': 'QA Accepted',
-    'QA Closed (Saved Timestamp)': 'Closed',
-  };
   return <section className={card}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
         <h3 className="font-bold">Coaching Status History</h3>
-        <p className="mt-0.5 text-xs text-slate-500">ล่าสุด → เก่าสุด · สถานะ ผู้ดำเนินการ และรายการที่แก้ไข</p>
+        <p className="mt-0.5 text-xs text-slate-500">ประวัติการบันทึกจริง · ล่าสุด → เก่าสุด</p>
       </div>
       <span className="text-xs text-slate-500">{events.length} รายการ</span>
     </div>
-    {missingStatusHistory && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-      <strong>สถานะปัจจุบัน: {coachingStatusLabel(record?.status)}</strong>
-      <span> · ไม่พบเวลาเปลี่ยนสถานะนี้ในข้อมูลย้อนหลัง</span>
-    </div>}
-    {events.length === 0 ? <p className="mt-3 text-sm text-slate-500">ยังไม่มีประวัติการดำเนินการที่มีเวลาอ้างอิง เมื่อบันทึกหรือเปลี่ยนสถานะครั้งถัดไป ระบบจะเก็บผู้ดำเนินการ เวลา และหัวข้อที่แก้ไขอัตโนมัติ</p> : (
-      <ol className="mt-3 space-y-2" aria-label="Coaching Status History ล่าสุดไปเก่าสุด">
-        {shown.map(event => {
-          const changes = event.changes || [];
-          return <li key={event.id} className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <strong className="text-sm text-slate-900">{labels[event.action] || event.action}</strong>
-              <time dateTime={event.occurredAt} className="text-xs font-medium tabular-nums text-slate-600">{coachingTimelineTime(event.occurredAt)}</time>
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-700">
-              <span>{coachingActorLabel(event.actorName, event.actorRole)}</span>
-              {event.legacySource ? <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">ข้อมูลย้อนหลัง</span> : null}
-              {event.revision > 0 && !event.legacySource ? <span className="text-slate-500">Revision {event.revision}</span> : null}
-            </div>
-            {changes.length ? (
-              <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2">
-                {changes.map((change, index) => <li key={`${event.id}-${index}`} className="text-xs leading-5 text-slate-700">
-                  <strong className="text-slate-900">{change.section}</strong> — {change.detail}
-                </li>)}
+    <ol className="mt-3 space-y-2" aria-label="Coaching Status History ล่าสุดไปเก่าสุด">
+      {shown.map(event => {
+        const groups = coachingHistoryGroups(event);
+        return <li key={event.id} className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <strong className="text-sm text-slate-900">{coachingHistoryTitle(event)}</strong>
+            <time dateTime={event.occurredAt} className="text-xs font-medium tabular-nums text-slate-600">{coachingTimelineTime(event.occurredAt)}</time>
+          </div>
+          <p className="mt-1 text-xs text-slate-700">{coachingActorLabel(event.actorName, event.actorRole)}</p>
+          {groups.length ? <div className="mt-2 space-y-2 border-t border-slate-100 pt-2">
+            {groups.map(group => <div key={group.section}>
+              <strong className="text-xs text-slate-900">{group.section}</strong>
+              <ul className="mt-1 space-y-1">
+                {group.details.map((detail,index) => <li key={index} className="text-xs leading-5 text-slate-700">• {detail}</li>)}
               </ul>
-            ) : (
-              <p className="mt-2 text-xs text-slate-600">
-                {event.legacySource
-                  ? event.legacySource === "createdAt" ? "สร้างรายการ Coaching"
-                    : event.legacySource === "actualCoaching" ? "วันเวลาสิ้นสุด Coaching จริง"
-                    : event.legacySource === "updatedAt" ? "เวลาบันทึกแก้ไขล่าสุด (ไม่พบหัวข้อที่แก้)"
-                    : event.legacySource === "qaReviewedAt" ? "รับรอง QA ตามเวลาในบันทึกเดิม"
-                    : "ปิด Coaching ตามเวลาในบันทึกเดิม"
-                  : event.fromStatus !== event.toStatus
-                    ? `เปลี่ยนสถานะ: ${coachingStatusLabel(event.fromStatus)} → ${coachingStatusLabel(event.toStatus)}`
-                    : "ไม่ได้บันทึกรายละเอียดหัวข้อที่แก้ไขไว้ในเหตุการณ์เดิม"}
-              </p>
-            )}
-            {event.paymentEffect ? <p className="mt-2 text-xs text-violet-700">รอบจ่าย: {event.paymentEffect === "Normal Cycle" ? "รอบปกติ" : "รอบถัดไป"}</p> : null}
-          </li>;
-        })}
-      </ol>
-    )}
+            </div>)}
+          </div> : null}
+          {event.paymentEffect ? <p className="mt-2 text-xs text-violet-700">รอบจ่าย: {event.paymentEffect === "Normal Cycle" ? "รอบปกติ" : "รอบถัดไป"}</p> : null}
+        </li>;
+      })}
+    </ol>
     {events.length > 7 ? <button type="button" className={button} onClick={() => setExpanded(value => !value)}>
       {expanded ? "ย่อประวัติ" : `View Full History (${events.length})`}
     </button> : null}
-    {legacyCount > 0 ? <p className="mt-3 text-xs text-slate-500">ข้อมูลย้อนหลังแสดงเฉพาะเวลาและผู้ดำเนินการที่ระบบเคยบันทึกจริง จึงไม่สามารถแยกการแก้ไขทุกครั้งในอดีตได้</p> : null}
   </section>;
 }
 type DetailProps = { currentUser: CoachingAccount; accounts: CoachingAccount[]; account: CoachingAccount; month: string; record?: StoredCoachingRecord; prior?: StoredCoachingRecord; rows: StoredEvaluation[]; topics: ReturnType<typeof topicPerformance>; blocked: boolean; intro: React.ReactNode; evidence: React.ReactNode; onOpenCase: ()=>void; onBusy: (busy:boolean)=>void; onSaved: (record:StoredCoachingRecord)=>void };
