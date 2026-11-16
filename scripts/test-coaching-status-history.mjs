@@ -48,7 +48,9 @@ assert.ok(store.includes("previous.status === next.status && changes.length === 
 assert.ok(store.includes("note: eventNote, changes,"));
 assert.ok(ui.includes("Coaching Status History"));
 assert.ok(ui.includes("events.slice(0, 7)"));
-assert.ok(ui.includes("if (!events.length) return null"));
+assert.ok(!ui.includes("if (!events.length) return null"));
+assert.ok(ui.includes("Keep the history heading visible"));
+assert.ok(ui.includes("{events.length} รายการ"));
 assert.ok(!ui.includes("สถานะปัจจุบัน:"));
 assert.ok(!ui.includes("ข้อมูลย้อนหลัง"));
 assert.ok(ui.includes("coachingHistoryGroups(event)"));

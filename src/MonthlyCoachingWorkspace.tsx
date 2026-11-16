@@ -154,8 +154,8 @@ function coachingTimelineTime(value: string) {
 function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
   const [expanded,setExpanded] = useState(false);
   const events = coachingTimelineEvents(record);
-  // No stored audit history means nothing is rendered. Never invent legacy events.
-  if (!events.length) return null;
+  // Keep the history heading visible, even before the first verified save.
+  // No synthetic events, inferred timestamps, or placeholder history rows.
   const shown = expanded ? events : events.slice(0, 7);
   return <section className={card}>
     <div className="flex flex-wrap items-center justify-between gap-2">
