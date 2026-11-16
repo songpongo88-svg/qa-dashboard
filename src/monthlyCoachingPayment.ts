@@ -27,7 +27,14 @@ export function monthlyCoachingPaymentStatus(month: string, agent: string, recor
   const coachingTime = Date.parse(`${record.actualCoaching!.date}T${record.actualCoaching!.endTime}:00+07:00`);
   if (!Number.isFinite(reviewedTime) || !Number.isFinite(coachingTime)) return incomplete('Coaching / QA Review Completion Time Missing');
   const completedTime = Math.max(reviewedTime, coachingTime);
-  const onTime = completedTime <= Date.parse(deadline);
+  // A QA Close can restore the original payment cycle for late Coaching when
+  // no monthly payment batch had been exported at the moment of Close.
+  // Neither the original QA review time nor the actual Coaching time is rewritten.
+  const normalCycleClose = record.status === 'Closed' &&
+    Boolean(record.qaClosedAt && record.qaPaymentOverrideApprovedAt);
+  const onTime = completedTime <= Date.parse(deadline) || normalCycleClose;
   return { complete: true, onTime, completedAt: new Date(completedTime).toISOString(),
-    reason: onTime ? '' : 'Coaching / QA Review Completed Late · Deferred to the Next Payment Cycle' };
+    reason: normalCycleClose && completedTime > Date.parse(deadline)
+      ? 'QA Closed Late · Normal Payment Cycle Approved (other eligibility requirements still apply)'
+      : onTime ? '' : 'Coaching / QA Review Completed Late · Deferred to the Next Payment Cycle' };
 }

@@ -2,12 +2,26 @@ import { collection, doc, getDocs, getDocsFromServer, runTransaction, serverTime
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 
-import { belongsToAgent, isAssignedCoach, coachingSaveRole, isCoachingAccepted, coachingResultError, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
+import { belongsToAgent, isAssignedCoach, coachingSaveRole, isCoachingAccepted, coachingResultError, coachingDeadline, mergeMonthlyCoachingSave, coachingSaveError, type CoachingAccount, type CoachingAppointment, type CoachingResult, type CoachingAction, type CoachingAttachment } from './monthlyCoachingModel';
+import { monthlyPaymentBatchReference } from './monthlyPaymentBatchStore';
 
 const COACHING_COLLECTION = "qa_coaching_records";
 const COACHING_CACHE_KEY = "qa-dashboard:coaching-records-cache:v1";
 
 export type CoachingRecordStatus = "Draft" | "Coached" | "Completed" | "Waiting Appointment" | "Appointment Scheduled" | "Waiting Senior" | "Coaching In Progress" | "Action Plan Submitted" | "QA Reviewed" | "Follow-up Next Month" | "Closed" | "No Coaching Required";
+export type CoachingActivityEvent = {
+  id: string;
+  action: string;
+  occurredAt: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  fromStatus: string;
+  toStatus: string;
+  revision: number;
+  note: string;
+  paymentEffect?: "Normal Cycle" | "Next Cycle";
+};
 export type CoachingRecordResult =
   | "Pending Review"
   | "Improved"
@@ -77,6 +91,10 @@ export type StoredCoachingRecord = {
   qaReviewComment?: string;
   qaReviewedAt?: string;
   qaReviewedBy?: string;
+  qaClosedAt?: string;
+  qaClosedBy?: string;
+  qaPaymentOverrideApprovedAt?: string;
+  activityTimeline?: CoachingActivityEvent[];
   qaOwnerId?: string;
   qaOwnerName?: string;
   attachments?: CoachingAttachment[];
@@ -142,6 +160,25 @@ function toChecklistItems(value: unknown): CoachingChecklistItem[] {
     .filter((item) => item.title);
 }
 
+function normalizeCoachingTimeline(value: unknown): CoachingActivityEvent[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item: any) => item && typeof item === "object" && item.occurredAt && item.action)
+    .map((item: any) => ({
+      id: String(item.id || ""),
+      action: String(item.action),
+      occurredAt: String(item.occurredAt),
+      actorId: String(item.actorId || ""),
+      actorName: String(item.actorName || ""),
+      actorRole: String(item.actorRole || ""),
+      fromStatus: String(item.fromStatus || ""),
+      toStatus: String(item.toStatus || ""),
+      revision: Number(item.revision || 0),
+      note: String(item.note || ""),
+      ...(item.paymentEffect === "Normal Cycle" || item.paymentEffect === "Next Cycle"
+        ? { paymentEffect: item.paymentEffect } : {}),
+    }));
+}
+
 function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
   return {
     id: String(row?.id || fallbackId || ""),
@@ -182,6 +219,9 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
     ...(row?.actualCoaching && typeof row.actualCoaching === 'object' ? { actualCoaching: row.actualCoaching } : {}),
     actions: Array.isArray(row?.actions) ? row.actions : [], qaReviewComment: String(row?.qaReviewComment || ''), attachments: Array.isArray(row?.attachments) ? row.attachments : [],
     qaReviewedAt: String(row?.qaReviewedAt || ''), qaReviewedBy: String(row?.qaReviewedBy || ''),
+    qaClosedAt: String(row?.qaClosedAt || ''), qaClosedBy: String(row?.qaClosedBy || ''),
+    qaPaymentOverrideApprovedAt: String(row?.qaPaymentOverrideApprovedAt || ''),
+    activityTimeline: normalizeCoachingTimeline(row?.activityTimeline),
     qaOwnerId: String(row?.qaOwnerId || ''), qaOwnerName: String(row?.qaOwnerName || ''),
   };
 }
@@ -338,7 +378,64 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
     } : { qaReviewedAt: previous?.qaReviewedAt || '', qaReviewedBy: previous?.qaReviewedBy || '' };
     const qaOwnerId = previous?.qaOwnerId || (workflowRole === 'Quality Assurance' ? actor.username : '');
     const qaOwnerName = previous?.qaOwnerName || (workflowRole === 'Quality Assurance' ? actor.displayName || actor.username : '');
-    const normalized = JSON.parse(JSON.stringify({ ...next, ...reviewMetadata, qaOwnerId, qaOwnerName, id: reference.id, updatedAt: now })) as StoredCoachingRecord;
+    const firstClose = workflowRole === 'Quality Assurance' && next.status === 'Closed' && previous?.status !== 'Closed';
+    const qaClosedAt = firstClose ? now : previous?.qaClosedAt || '';
+    const qaClosedBy = firstClose ? actor.displayName || actor.username : previous?.qaClosedBy || '';
+    let qaPaymentOverrideApprovedAt = previous?.qaPaymentOverrideApprovedAt || '';
+    let paymentEffect: CoachingActivityEvent['paymentEffect'];
+    if (firstClose) {
+      const deadlineTime = Date.parse(coachingDeadline(next.monthKey));
+      const reviewedTime = Date.parse(reviewMetadata.qaReviewedAt || '');
+      const actualEnd = next.actualCoaching?.date && next.actualCoaching?.endTime
+        ? Date.parse(`${next.actualCoaching.date}T${next.actualCoaching.endTime}:00+07:00`) : NaN;
+      const completionTime = Math.max(reviewedTime, actualEnd);
+      if (Number.isFinite(completionTime) && Number.isFinite(deadlineTime) && completionTime > deadlineTime) {
+        // Read the payment-cycle export marker BEFORE writing the Coaching close.
+        // QA may close late, but cannot add a new recipient to a batch already exported.
+        const batch = await transaction.get(monthlyPaymentBatchReference(next.monthKey));
+        if (batch.exists() && String(batch.data()?.exportedAt || '')) {
+          paymentEffect = 'Next Cycle';
+        } else {
+          qaPaymentOverrideApprovedAt = now;
+          paymentEffect = 'Normal Cycle';
+        }
+      }
+    }
+    const previousEvents = previous?.activityTimeline || [];
+    const revision = previousEvents.filter(event => event.action === 'Revision Requested').length +
+      (next.status === 'QA Reviewed' && previous?.status !== 'QA Reviewed' ? 1 : 0);
+    const eventAction = next.status === previous?.status
+      ? (workflowRole === 'Quality Assurance' && next.qaReviewComment !== previous?.qaReviewComment ? 'QA Review Updated' : 'Details Updated')
+      : next.status === 'QA Reviewed' ? 'Revision Requested'
+      : next.status === 'Action Plan Submitted'
+        ? (revision > 0 ? 'Action Plan Resubmitted' : 'Action Plan Submitted')
+      : next.status === 'Follow-up Next Month' ? 'QA Accepted'
+      : next.status === 'Closed' ? 'Closed'
+      : next.status === 'Waiting Senior' ? 'QA Prepared / Sent to Coach'
+      : next.status === 'Appointment Scheduled' ? 'Appointment Scheduled'
+      : next.status === 'Coaching In Progress' ? 'Coaching Results Saved'
+      : next.status === 'Draft' ? 'QA Prepared'
+      : next.status;
+    const eventNote = next.status === 'QA Reviewed' || next.status === 'Follow-up Next Month'
+      ? String(next.qaReviewComment || '').trim()
+      : paymentEffect === 'Normal Cycle' ? 'QA Closed late · Normal payment-cycle eligibility restored, subject to remaining requirements'
+      : paymentEffect === 'Next Cycle' ? 'QA Closed late · Monthly payment batch already exported; next payment cycle applies'
+      : '';
+    const event: CoachingActivityEvent = {
+      id: `${now}:${actor.username}:${previousEvents.length + 1}`,
+      action: eventAction, occurredAt: now,
+      actorId: actor.username, actorName: actor.displayName || actor.username,
+      actorRole: workflowRole, fromStatus: previous?.status || 'Not Created',
+      toStatus: next.status, revision, note: eventNote,
+      ...(paymentEffect ? { paymentEffect } : {}),
+    };
+    // The transaction appends to the server's most recent history, never a stale form copy.
+    const activityTimeline = [...previousEvents, event];
+    const normalized = JSON.parse(JSON.stringify({
+      ...next, ...reviewMetadata, qaOwnerId, qaOwnerName,
+      qaClosedAt, qaClosedBy, qaPaymentOverrideApprovedAt, activityTimeline,
+      id: reference.id, updatedAt: now
+    })) as StoredCoachingRecord;
     transaction.set(reference, { ...normalized, updatedAtServer: serverTimestamp() }, { merge: true });
     return normalized;
   });

@@ -140,6 +140,42 @@ function ArchivedCoaching({month,record}: {month:string;record?:StoredCoachingRe
   return <section className={card}><h3 className="text-lg font-bold">{coachingMonthLabel(month)} · {isHistoricalCoachingMonth(month)?coachingStatusLabel('Coaching แล้ว'):'Coaching History'}</h3><p className="mt-2 text-sm text-slate-600">ระบบใหม่เริ่มกันยายน 2026 ไม่ต้องกรอกนัดหมายหรือ Action Plan ย้อนหลัง</p>{record ? <div className="mt-4 space-y-3 whitespace-pre-wrap text-sm"><p>{manualCoachingSummary(record)||'ยังไม่มีบันทึกจาก QA'}</p><p>{record.actualCoaching?.finalNote||record.additionalNote}</p><p>{record.actionPlan||record.agreedActionPlan}</p>{record.actions?.map(a=><p key={a.id}>{a.topic}: {a.plan} · {dateLabel(a.dueDate)}</p>)}{record.attachments?.map(a=><a key={a.path} className="block text-violet-700 underline" href={/^https:\/\//i.test(a.url)?a.url:undefined} target="_blank" rel="noreferrer">{a.name}</a>)}</div> : <p className="mt-4 text-sm text-slate-500">ไม่มีรายละเอียดบันทึกย้อนหลังในระบบ</p>}</section>;
 }
 
+function coachingTimelineTime(value: string) {
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return value || '—';
+  return new Date(time).toLocaleString('en-GB', {
+    timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
+}
+function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
+  const [expanded,setExpanded] = useState(false);
+  const events = [...(record?.activityTimeline || [])].sort((a,b) =>
+    a.occurredAt.localeCompare(b.occurredAt));
+  const shown = expanded ? events : events.slice(-5);
+  return <section className={card}>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h3 className="font-bold">Coaching Activity Timeline</h3>
+      <span className="text-xs text-slate-500">{events.length} เหตุการณ์</span>
+    </div>
+    {!events.length ? <p className="mt-2 text-sm text-slate-500">ยังไม่มีประวัติแบบ Timeline สำหรับรายการนี้ ระบบจะเริ่มเก็บวันเวลาแต่ละขั้นตอนเมื่อบันทึกรายการใหม่ โดยไม่สร้างเวลาย้อนหลัง</p> : (
+      <ol className="mt-3 space-y-3 border-l-2 border-violet-200 pl-4">
+        {shown.map((event) => <li key={event.id} className="relative rounded-lg border border-slate-100 p-3">
+          <span aria-hidden="true" className="absolute -left-[23px] top-4 h-3 w-3 rounded-full border-2 border-white bg-violet-600"/>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <strong className="text-sm text-slate-900">{event.action}</strong>
+            <time className="text-xs tabular-nums text-slate-600" dateTime={event.occurredAt}>{coachingTimelineTime(event.occurredAt)}</time>
+          </div>
+          <p className="mt-1 text-xs text-slate-600">{event.actorName} · {event.actorRole}</p>
+          <p className="mt-1 text-xs text-slate-500">{event.fromStatus} → {event.toStatus}{event.revision > 0 ? ` · Revision ${event.revision}` : ''}</p>
+          {event.note ? <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{event.note}</p> : null}
+          {event.paymentEffect ? <p className="mt-1 text-xs font-semibold text-violet-700">Payment: {event.paymentEffect}</p> : null}
+        </li>)}
+      </ol>
+    )}
+    {events.length > 5 && <button type="button" className={button} onClick={()=>setExpanded(value=>!value)}>{expanded ? 'แสดงเฉพาะล่าสุด' : `View Full History (${events.length})`}</button>}
+  </section>;
+}
 type DetailProps = { currentUser: CoachingAccount; accounts: CoachingAccount[]; account: CoachingAccount; month: string; record?: StoredCoachingRecord; prior?: StoredCoachingRecord; rows: StoredEvaluation[]; topics: ReturnType<typeof topicPerformance>; blocked: boolean; intro: React.ReactNode; evidence: React.ReactNode; onOpenCase: ()=>void; onBusy: (busy:boolean)=>void; onSaved: (record:StoredCoachingRecord)=>void };
 function CoachingDetail({currentUser,accounts,account,month,record,prior,rows,topics,blocked,intro,evidence,onOpenCase,onBusy,onSaved}: DetailProps) {
   const formKey = `qa-dashboard:monthly-coaching:editing:${currentUser.username}:${account.username}:${month}`;
@@ -224,6 +260,10 @@ function CoachingDetail({currentUser,accounts,account,month,record,prior,rows,to
       <p className="mc-muted">{reviewHasBeenSaved&&!reviewEditing?'บันทึกแล้ว · กด Edit เพื่อแก้ไขข้อความ':'ต้องบันทึกข้อสรุป QA Review และกดรับแผนก่อนเข้ารายชื่อ Monthly Payment'}</p>
       {reviewCanType&&record&&allowed.includes(record.status)&&(reviewHasBeenSaved||isCoachingAccepted(record.status))?<button type="button" className={`${primary} mt-3`} disabled={busy||blocked} onClick={()=>void save(record.status)}>บันทึก QA Review</button>:null}
     </section>
+    {record?.qaPaymentOverrideApprovedAt && record.status === 'Closed'
+      ? <p role="status" className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">QA Closed Late · คืนสิทธิ์พิจารณาในรอบจ่ายปกติแล้ว (ยังต้องผ่านเงื่อนไข Signature, Appeal และคะแนน QA)</p>
+      : null}
+    <CoachingActivityTimeline record={record}/>
 </main><aside className="mc-evidence">{evidence}<section className="mc-files"><h3>เอกสาร / ไฟล์ประกอบ (ถ้ามี)</h3>{form.attachments.map(a=><p key={a.path}><a href={/^https:\/\//i.test(a.url)?a.url:undefined} target="_blank" rel="noreferrer">{a.name}</a><small>{a.uploadedBy} • {new Date(a.uploadedAt).toLocaleString('en-GB',{timeZone:'Asia/Bangkok',hour12:false})}</small></p>)}<label className="mc-upload"><Icon kind="upload"/><span>เลือกไฟล์ประกอบ</span><input aria-label="แนบไฟล์ Coaching" type="file" accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg" disabled={!qaAppointmentEdit&&!coachEdit} onChange={e=>{void upload(e.target.files?.[0]);e.target.value='';}}/><small>PDF, DOCX, XLSX, PNG, JPG · ไม่เกิน 3 MB ต่อไฟล์</small></label></section></aside>
     <div className="mc-actions"><div className="flex flex-wrap gap-2">{actions.filter(([,status])=>allowed.includes(status)&&status!==record?.status).map(([title,status])=><button key={status} className={['Waiting Senior','Action Plan Submitted','Follow-up Next Month'].includes(status)?primary:button} disabled={busy||blocked} onClick={()=>void save(status)}>{busy?'Saving...':title}</button>)}</div>{!allowed.length&&<p className="text-sm text-slate-500">{record?.status==='Closed'||record?.status==='No Coaching Required'?'Closed · History Only':'Awaiting Next Action'}</p>}{message&&<p role="status" className="text-sm text-violet-800">{message}</p>}</div>
   </div>;

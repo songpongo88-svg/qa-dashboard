@@ -130,6 +130,19 @@ if (!source.includes(marker)) {
     "pdf export carry-over persistence"
   );
 
+  // Lock the monthly payment roster when the first PDF or Excel export starts.
+  // An already exported roster remains stable on repeated downloads.
+  source = replaceOnce(
+    source,
+    '} from "./paymentCarryOverStore";',
+    '} from "./paymentCarryOverStore";\nimport { markMonthlyPaymentBatchExported } from "./monthlyPaymentBatchStore";',
+    "payment batch import"
+  );
+  const exportReadyLine = '      const eligible = await paymentDocumentsForExport();';
+  if (source.split(exportReadyLine).length - 1 !== 2) throw new Error("Expected both monthly payment export handlers");
+  source = source.replaceAll(exportReadyLine, exportReadyLine +
+    '\n      await markMonthlyPaymentBatchExported(selectedMonth, eligible.map((doc) => doc.id), currentUser.username || currentUser.displayName || "");');
+
   fs.writeFileSync(signatureCenterPath, source, "utf8");
 }
 
