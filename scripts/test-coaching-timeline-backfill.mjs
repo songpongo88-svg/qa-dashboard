@@ -52,4 +52,13 @@ assert.deepEqual(coachingHistoryGroups(actual).map(e=>e.section),["QA Review"]);
 assert.deepEqual(coachingTimelineEvents({...old,qaReviewedAt:"",qaReviewedBy:"",
   activityTimeline:[{...actual,id:"noop",action:"Details Updated",fromStatus:"Draft",toStatus:"Draft",changes:[]}]}),[],
   "no-op saves must be suppressed");
+const editedClosed = {...actual, id:"review-edited", action:"QA Review Updated",
+  occurredAt:old.qaReviewedAt, fromStatus:"Closed", toStatus:"Closed",
+  changes:[{section:"QA Review",detail:"แก้ไขข้อความ"}]};
+assert.deepEqual(coachingTimelineEvents({...old,activityTimeline:[editedClosed]}).map(e=>e.action),
+  ["QA Review Updated"],"editing QA Review after Closed must not invent a second QA Accepted click");
+const sameMoment = [{...actual,id:"first"},{...actual,id:"second"}];
+assert.deepEqual(coachingTimelineEvents({...old,qaReviewedAt:"",qaReviewedBy:"",
+  activityTimeline:sameMoment}).map(e=>e.id),["second","first"],
+  "for equal timestamps, later appended event is displayed first");
 console.log("PASS Coaching History: original QA Accepted/Closed metadata restored with exact actor and time, no invented legacy steps or duplicates");

@@ -72,8 +72,10 @@ function explicitSavedQaEvent(
   if (!Number.isFinite(parsedTime)) return null;
   const occurredAt = new Date(parsedTime).toISOString();
   if (alreadyLogged.some(event =>
-    event.action === action &&
-    Math.abs(Date.parse(event.occurredAt) - parsedTime) < 2_000
+    Math.abs(Date.parse(event.occurredAt) - parsedTime) < 2_000 &&
+    (event.action === action ||
+      (action === "QA Accepted" &&
+        (event.action === "QA Review Updated" || event.action === "Closed")))
   )) return null;
   return {
     id: `saved-field:${field}:${occurredAt}`,
@@ -104,6 +106,9 @@ export function coachingTimelineEvents(record?: StoredCoachingRecord): CoachingA
   if (closed) events.push(closed);
   // Do NOT infer a submit, appointment save, revision, or Close from generic
   // createdAt/updatedAt, status, Coaching meeting dates, or review text.
-  return events.sort((a, b) =>
-    b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id));
+  // Stored events are append-only; retain that insertion order for equal timestamps
+  // instead of lexically comparing numeric event IDs (e.g. 10 vs 9).
+  return events.map((event,index) => ({event,index}))
+    .sort((a,b) => Date.parse(b.event.occurredAt) - Date.parse(a.event.occurredAt) || b.index - a.index)
+    .map(item => item.event);
 }
