@@ -310,8 +310,8 @@ function CoachingDetail({currentUser,accounts,account,month,record,prior,rows,to
       {reviewCanType&&record&&allowed.includes(record.status)&&(reviewHasBeenSaved||isCoachingAccepted(record.status))?<button type="button" className={`${primary} mt-3`} disabled={busy||blocked} onClick={()=>void save(record.status)}>บันทึก QA Review</button>:null}
       {qa&&record ? <div className="mt-3 border-t border-slate-100 pt-3">
         <div className="flex flex-wrap gap-2" aria-label="QA Action Plan review decisions">
-          <button type="button" className={button} disabled={busy||blocked||!allowed.includes('QA Reviewed')} onClick={()=>void save('QA Reviewed')}>Request Plan Revision</button>
-          <button type="button" className={primary} disabled={busy||blocked||!allowed.includes('Follow-up Next Month')} onClick={()=>void save('Follow-up Next Month')}>Accept Action Plan</button>
+          <button type="button" className={button} disabled={busy||blocked||record.status!=='Action Plan Submitted'||!allowed.includes('QA Reviewed')} onClick={()=>void save('QA Reviewed')}>Request Plan Revision</button>
+          <button type="button" className={primary} disabled={busy||blocked||record.status!=='Action Plan Submitted'||!allowed.includes('Follow-up Next Month')} onClick={()=>void save('Follow-up Next Month')}>Accept Action Plan</button>
         </div>
         {!allowed.includes('QA Reviewed')&&!allowed.includes('Follow-up Next Month') ? <p className="mt-2 text-xs text-slate-500">ใช้ได้เมื่อสถานะเป็น Action Plan Submitted เท่านั้น</p> : null}
       </div> : null}
