@@ -59,17 +59,51 @@ export function coachingHistoryTitle(event: CoachingActivityEvent): string {
   return event.action || "Coaching Updated";
 }
 
+function explicitSavedQaEvent(
+  record: StoredCoachingRecord, action: "QA Accepted" | "Closed",
+  timestamp: unknown, actor: unknown, field: "qaReviewedAt" | "qaClosedAt",
+  alreadyLogged: CoachingActivityEvent[]
+): CoachingActivityEvent | null {
+  // Unlike generic updatedAt or meeting times, these fields are written when
+  // QA accepts/closes a Coaching record. They are reliable partial history.
+  if (typeof timestamp !== "string" || !timestamp.includes("T") ||
+      typeof actor !== "string" || !actor.trim()) return null;
+  const parsedTime = Date.parse(timestamp);
+  if (!Number.isFinite(parsedTime)) return null;
+  const occurredAt = new Date(parsedTime).toISOString();
+  if (alreadyLogged.some(event =>
+    event.action === action &&
+    Math.abs(Date.parse(event.occurredAt) - parsedTime) < 2_000
+  )) return null;
+  return {
+    id: `saved-field:${field}:${occurredAt}`,
+    action, occurredAt, actorId: "", actorName: actor.trim(), actorRole: "QA",
+    fromStatus: "", toStatus: "", revision: 0, note: "",
+    changes: [],
+  };
+}
+
 export function coachingTimelineEvents(record?: StoredCoachingRecord): CoachingActivityEvent[] {
-  // Only append-only audit events written by successful Coaching save transactions.
-  // createdAt/updatedAt, actual meeting dates and qaReviewedAt aren't click events.
-  const events = Array.isArray(record?.activityTimeline) ? record.activityTimeline : [];
-  return events.filter(event => {
+  if (!record) return [];
+  // Primary source: append-only audit entries written by successful saves.
+  const recorded = Array.isArray(record.activityTimeline) ? record.activityTimeline : [];
+  const events = recorded.filter(event => {
     if (!event || !event.actorName?.trim() || !event.action || !event.occurredAt) return false;
     if (!Number.isFinite(Date.parse(event.occurredAt))) return false;
     const hasChanges = Boolean(event.changes?.some(change => change.section && change.detail));
     const statusChanged = Boolean(event.fromStatus && event.toStatus && event.fromStatus !== event.toStatus);
-    // Older QA Review edits were logged before detailed field diffs existed.
     return hasChanges || statusChanged || event.action === "QA Review Updated";
-  }).sort((a, b) =>
+  });
+  // Earlier records contain exact QA approval/close time and reviewer, even
+  // before activityTimeline existed. Restore ONLY these explicit milestones.
+  const accepted = explicitSavedQaEvent(record, "QA Accepted",
+    record.qaReviewedAt, record.qaReviewedBy, "qaReviewedAt", events);
+  const closed = explicitSavedQaEvent(record, "Closed",
+    record.qaClosedAt, record.qaClosedBy, "qaClosedAt", events);
+  if (accepted) events.push(accepted);
+  if (closed) events.push(closed);
+  // Do NOT infer a submit, appointment save, revision, or Close from generic
+  // createdAt/updatedAt, status, Coaching meeting dates, or review text.
+  return events.sort((a, b) =>
     b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id));
 }
