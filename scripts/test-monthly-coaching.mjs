@@ -144,6 +144,13 @@ try {
   assert.ok(auditEntries()[0].changes.some(change=>change.section==='Coaching Topics'));
   assert.ok(auditEntries()[0].changes.some(change=>change.section==='Appointment'));
   assert.ok(text().includes('Coaching Status History'),'History is visible after Save Draft');
+  assert.ok(text().includes('ข้อมูล Coaching ที่บันทึกอยู่ในระบบ'),
+    'saved source data appears alongside the verified click history');
+  assert.ok(text().includes('QA summary retained across tabs'),
+    'QA Summary shown from the stored document');
+  assert.ok(text().includes('Review Verify'),
+    'saved appointment agenda is shown as source data');
+  assert.ok(text().includes('ประวัติการกดบันทึกจริง'));
   assert.ok(text().includes('QA สรุปและแนะนำหัวข้อการ Coaching — บันทึก'));
   assert.ok(text().includes('QA Reviewer (QA)'),'History displays the actual actor and role');
   await click(button('Schedule Appointment'));

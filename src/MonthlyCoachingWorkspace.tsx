@@ -6,6 +6,7 @@ import { fetchCanonicalCoachingEvaluations } from './coachingCanonicalStore';
 import { getStoredEvaluationMonthKey, type StoredEvaluation } from './evaluationStore';
 import { fetchStoredCoachingRecords, saveMonthlyCoachingRecord, type StoredCoachingRecord, type CoachingRecordStatus } from './coachingStore';
 import { coachingTimelineEvents, coachingHistoryGroups, coachingHistoryTitle } from './coachingActivityTimeline';
+import { coachingSavedSections } from './coachingSavedSnapshot';
 import { coachingActorLabel } from './coachingActivityChanges';
 import './monthlyCoaching.css';
 import AutoResizeTextarea from './AutoResizeTextarea';
@@ -154,18 +155,38 @@ function coachingTimelineTime(value: string) {
 function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
   const [expanded,setExpanded] = useState(false);
   const events = coachingTimelineEvents(record);
+  const savedSections = coachingSavedSections(record);
   // Keep the history heading visible, even before the first verified save.
-  // No synthetic events, inferred timestamps, or placeholder history rows.
+  // Source fields are a present-day record snapshot, not inferred old Save events.
   const shown = expanded ? events : events.slice(0, 7);
   return <section className={card}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
         <h3 className="font-bold">Coaching Status History</h3>
-        <p className="mt-0.5 text-xs text-slate-500">ประวัติการบันทึกจริง · ล่าสุด → เก่าสุด</p>
+        <p className="mt-0.5 text-xs text-slate-500">ข้อมูล Coaching ที่บันทึกไว้ และประวัติการกด Save จริง</p>
       </div>
-      <span className="text-xs text-slate-500">{events.length} รายการ</span>
+      <span className="text-xs text-slate-500">{events.length} รายการ · {savedSections.length} ส่วนข้อมูล</span>
     </div>
-    <ol className="mt-3 space-y-2" aria-label="Coaching Status History ล่าสุดไปเก่าสุด">
+    {savedSections.length ? <div className="mt-3">
+      <h4 className="text-sm font-semibold text-slate-900">ข้อมูล Coaching ที่บันทึกอยู่ในระบบ</h4>
+      <p className="mt-1 text-xs leading-5 text-slate-600">ข้อมูลจากเอกสาร Coaching ปัจจุบัน รวมข้อมูลเดิมที่ยังเก็บไว้ ไม่ใช่ประวัติการกด Save แต่ละครั้ง วันที่นัดหมาย วันที่ Coaching และกำหนดส่ง ไม่ใช่เวลาบันทึก</p>
+      <ol className="mt-3 space-y-2" aria-label="ข้อมูล Coaching ที่บันทึกอยู่ในเอกสาร">
+        {savedSections.map(section => <li key={section.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <strong className="text-sm text-slate-900">{section.title}</strong>
+          <dl className="mt-2 space-y-2">
+            {section.fields.map((field,index) => <div key={`${field.label}-${index}`} className="text-xs leading-5">
+              <dt className="font-medium text-slate-600">{field.label}</dt>
+              <dd className="whitespace-pre-wrap break-words text-slate-900">{field.value}</dd>
+            </div>)}
+          </dl>
+        </li>)}
+      </ol>
+    </div> : <p className="mt-3 text-xs text-slate-500">ยังไม่มีเนื้อหา Coaching ที่บันทึกไว้สำหรับเดือนนี้</p>}
+    <div className="mt-4 border-t border-slate-200 pt-3">
+      <h4 className="text-sm font-semibold text-slate-900">ประวัติการกดบันทึกจริง · ล่าสุด → เก่าสุด</h4>
+      <p className="mt-1 text-xs text-slate-600">{events.length} รายการ · แสดงเฉพาะเหตุการณ์ที่มีผู้ดำเนินการและเวลาบันทึกจริง</p>
+    </div>
+    {events.length ? <ol className="mt-3 space-y-2" aria-label="Coaching Status History ล่าสุดไปเก่าสุด">
       {shown.map(event => {
         const groups = coachingHistoryGroups(event);
         return <li key={event.id} className="rounded-xl border border-slate-200 bg-white p-3">
@@ -185,7 +206,7 @@ function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
           {event.paymentEffect ? <p className="mt-2 text-xs text-violet-700">รอบจ่าย: {event.paymentEffect === "Normal Cycle" ? "รอบปกติ" : "รอบถัดไป"}</p> : null}
         </li>;
       })}
-    </ol>
+    </ol> : <p className="mt-2 text-xs text-slate-500">ยังไม่มี Audit Log การกดบันทึกแยกรายครั้งในเอกสารนี้</p>}
     {events.length > 7 ? <button type="button" className={button} onClick={() => setExpanded(value => !value)}>
       {expanded ? "ย่อประวัติ" : `View Full History (${events.length})`}
     </button> : null}
