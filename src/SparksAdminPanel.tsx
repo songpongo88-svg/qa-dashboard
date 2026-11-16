@@ -6,6 +6,7 @@ import { collection, getDocsFromCache } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import SparksRewardRequests from "./SparksRewardRequests";
 import SparksAuthStatusPanel from "./SparksAuthStatusPanel";
+import SparksAdminTimeline from "./SparksAdminTimeline";
 import { SparksOwnerAccessControl } from "./SparksAccessGate";
 import {isItemHistoryEntry,itemHistoryLabel,itemHistoryDeltaText} from "./sparksItemHistory.mjs";
 import "./sparksAdminWorkspace.css";
@@ -16,6 +17,7 @@ type AdminUser = {
   displayName: string;
   role: string;
   status: string;
+  teamName?: string;
   balance: number;
   earned: number;
   spent: number;
@@ -107,6 +109,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   actorUsername: string; sessionId: string; ownAccount: OwnAccountSnapshot | null; active?: boolean; accountMigration?: React.ReactNode;
 }) {
   const [adminSection, setAdminSection] = useState<"requests" | "points" | "settings" | "activity" | "auth">("requests");
+  const [activityView, setActivityView] = useState<"person" | "timeline">("person");
   const ownAccountRef = useRef(ownAccount);
   ownAccountRef.current = ownAccount;
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -152,7 +155,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   const [priceRevision, setPriceRevision] = useState(0);
   const priceLoadedKey = useRef("");
 
-  const request = useCallback(async (action: "list" | "history" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price" | "audit-profile-makeover" | "repair-profile-makeover", input: Record<string, unknown> = {}) => {
+  const request = useCallback(async (action: "list" | "history" | "timeline" | "adjust" | "reauth" | "void-chachiya-test-pair" | "void-suphitcha-typing-test" | "get-truemoney-price" | "set-truemoney-price" | "audit-profile-makeover" | "repair-profile-makeover", input: Record<string, unknown> = {}) => {
     if (import.meta.env?.VITE_SPARKS_DATA_BACKEND !== "supabase" && (action === "list" || action === "history")) assertFirestoreReadAllowed();
     if (!sessionId) throw new Error("ไม่พบ Session ที่ถูกต้อง กรุณา Login ใหม่");
     const controller = action === "get-truemoney-price" ? new AbortController() : null;
@@ -164,7 +167,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
         cache: "no-store",
         ...(controller ? { signal: controller.signal } : {}),
         body: JSON.stringify({ action, actorUsername, sessionId, ...input,
-          ...((action === "list" || action === "history") && adminReadGrantRef.current
+          ...((action === "list" || action === "history" || action === "timeline") && adminReadGrantRef.current
             ? { adminReadGrant: adminReadGrantRef.current } : {}),
         }),
       });
@@ -290,6 +293,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
   useEffect(() => {
     let active = true;
     if (!panelActive) return;
+    if (adminSection === "activity" && activityView === "timeline") { setDetailLoading(false); return; }
     if (!chosen) { setDetail(null); return; }
     setDetailLoading(true);
     setDetail(null);
@@ -343,7 +347,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
       }
     }).finally(() => { if (active) setDetailLoading(false); });
     return () => { active = false; };
-  }, [request, chosen, revision, firestoreLimited, panelActive]);
+  }, [request, chosen, revision, firestoreLimited, panelActive, adminSection, activityView]);
 
   const selected = users.find((user) => user.username === chosen);
   const filteredUsers = useMemo(() => users.filter((user) =>
@@ -592,7 +596,14 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     </section>
     <div hidden={adminSection !== "points" && adminSection !== "activity"}>
       <div className="sa-section-head"><div><h3>{adminSection === "activity" ? "ประวัติการจัดการรายผู้ใช้งาน" : "จัดการคะแนนรายผู้ใช้งาน"}</h3><p>{adminSection === "activity" ? "เลือกผู้ใช้งานเพื่อตรวจวันเวลา ผู้ดำเนินการ และเหตุผลจากประวัติที่บันทึกไว้" : "เลือกผู้ใช้งานเพื่อเพิ่ม หัก หรือเปิดดูประวัติ Sparks"}</p></div></div>
-    <div className="qa-sparks-admin-layout">
+    {adminSection === "activity" ? <nav className="sa-activity-subtabs" aria-label="รูปแบบประวัติ Sparks">
+      <button type="button" aria-pressed={activityView === "person"} onClick={() => setActivityView("person")}>ประวัติรายบุคคล</button>
+      <button type="button" aria-pressed={activityView === "timeline"} onClick={() => setActivityView("timeline")}>Timeline รวมทุกคน</button>
+    </nav> : null}
+    {adminSection === "activity" && activityView === "timeline"
+      ? <SparksAdminTimeline active={panelActive} users={users} revision={revision} request={request}
+          onOpenUser={username => { setChosen(username); setActivityView("person"); setFilter("all"); setNotice(""); }} />
+      : <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">
         <label htmlFor="qa-sparks-admin-search">ค้นหาผู้ใช้งาน</label>
         <input id="qa-sparks-admin-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ชื่อ / Username / Role"/>
@@ -630,7 +641,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
             {canCorrectTypingTest ? <button type="button" data-sparks-correction="suphitcha" className="qa-sparks-admin-void-test"
               onClick={() => { setError(""); setTypingTestConfirm(true); }}>ยกเลิกการทดสอบ Typing Relief / −150 Sparks</button> : null}
           </div>
-          <button type="button" className="sa-secondary" onClick={() => setAdminSection("activity")}>ประวัติคะแนนของผู้ใช้งานนี้</button>
+          <button type="button" className="sa-secondary" onClick={() => { setAdminSection("activity"); setActivityView("person"); }}>ประวัติคะแนนของผู้ใช้งานนี้</button>
           </div>
           <div hidden={adminSection !== "activity"}>
           <div className="qa-sparks-admin-history-heading">
@@ -663,7 +674,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
           </div>
         </>}
       </section>
-    </div>
+    </div>}
     </div>
     {typingTestConfirm && selected && canCorrectTypingTest ? <div className="qa-sparks-admin-overlay" role="presentation">
       <section className="qa-sparks-admin-dialog" role="dialog" aria-modal="true" aria-labelledby="qa-sparks-typing-reset-title">
