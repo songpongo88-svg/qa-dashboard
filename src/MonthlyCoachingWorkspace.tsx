@@ -6,6 +6,7 @@ import { fetchCanonicalCoachingEvaluations } from './coachingCanonicalStore';
 import { getStoredEvaluationMonthKey, type StoredEvaluation } from './evaluationStore';
 import { fetchStoredCoachingRecords, saveMonthlyCoachingRecord, type StoredCoachingRecord, type CoachingRecordStatus } from './coachingStore';
 import { coachingTimelineEvents, coachingHistoryTitle } from './coachingActivityTimeline';
+import { coachingSavedSections } from './coachingSavedSnapshot';
 import { coachingActorLabel } from './coachingActivityChanges';
 import './monthlyCoaching.css';
 import AutoResizeTextarea from './AutoResizeTextarea';
@@ -154,8 +155,28 @@ function coachingTimelineTime(value: string) {
 function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
   const [expanded,setExpanded] = useState(false);
   const events = coachingTimelineEvents(record);
-  // Keep the history heading visible, even before the first verified save.
-  // No synthetic events, inferred timestamps, or placeholder history rows.
+  // Before audit tracking, existing values prove a stage contains data, not who/when Save occurred.
+  const savedStageLabels: Record<string,string> = {
+    'qa-summary': 'QA Summary — มีข้อมูลบันทึก',
+    appointment: 'Appointment — มีข้อมูลนัดหมาย',
+    'coaching-result': 'Coaching Results — มีข้อมูลบันทึก',
+    'action-plan': 'Action Plan — มีข้อมูลบันทึก',
+  };
+  const trackedStage = (key:string) => events.some(event => {
+    if (key === 'qa-summary') return ['QA Prepared','QA Prepared / Sent to Coach'].includes(event.action)
+      || Boolean(event.changes?.some(change => ['QA Summary','Coaching Topics'].includes(change.section)));
+    if (key === 'appointment') return event.action === 'Appointment Scheduled'
+      || Boolean(event.changes?.some(change => ['Appointment','Assigned Coach'].includes(change.section)));
+    if (key === 'coaching-result') return ['Coaching Results Saved','Action Plan Submitted','Action Plan Resubmitted'].includes(event.action)
+      || Boolean(event.changes?.some(change => change.section === 'Coaching Results'));
+    if (key === 'action-plan') return ['Action Plan Submitted','Action Plan Resubmitted'].includes(event.action)
+      || Boolean(event.changes?.some(change => change.section.startsWith('Action Plan: ')));
+    return false;
+  });
+  const legacyStages = coachingSavedSections(record)
+    .filter(section => savedStageLabels[section.key] && !trackedStage(section.key))
+    .reverse()
+    .map(section => ({key:section.key,title:savedStageLabels[section.key]}));
   const shown = expanded ? events : events.slice(0, 7);
   return <section className={card}>
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -163,7 +184,7 @@ function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
         <h3 className="font-bold">Coaching Status History</h3>
         <p className="mt-0.5 text-xs text-slate-500">ประวัติการบันทึกจริง · ล่าสุด → เก่าสุด</p>
       </div>
-      <span className="text-xs text-slate-500">{events.length} รายการ</span>
+      <span className="text-xs text-slate-500">{events.length} เหตุการณ์{legacyStages.length ? ` · ${legacyStages.length} สถานะเดิม` : ''}</span>
     </div>
     <ol className="mt-3 space-y-2" aria-label="Coaching Status History ล่าสุดไปเก่าสุด">
       {shown.map(event => {
@@ -176,7 +197,12 @@ function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
           {event.paymentEffect ? <p className="mt-2 text-xs text-violet-700">รอบจ่าย: {event.paymentEffect === "Normal Cycle" ? "รอบปกติ" : "รอบถัดไป"}</p> : null}
         </li>;
       })}
+      {legacyStages.map(stage => <li key={stage.key} className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2">
+        <strong className="text-xs text-slate-900">{stage.title}</strong>
+        <p className="mt-0.5 text-xs text-slate-500">ข้อมูลเดิม · ไม่พบเวลา Save และผู้บันทึกที่ยืนยันได้</p>
+      </li>)}
     </ol>
+    {!events.length && !legacyStages.length ? <p className="mt-3 text-xs text-slate-500">ยังไม่มีประวัติสถานะที่บันทึกไว้</p> : null}
     {events.length > 7 ? <button type="button" className={button} onClick={() => setExpanded(value => !value)}>
       {expanded ? "ย่อประวัติ" : `View Full History (${events.length})`}
     </button> : null}
