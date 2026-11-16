@@ -144,13 +144,6 @@ try {
   assert.ok(auditEntries()[0].changes.some(change=>change.section==='Coaching Topics'));
   assert.ok(auditEntries()[0].changes.some(change=>change.section==='Appointment'));
   assert.ok(text().includes('Coaching Status History'),'History is visible after Save Draft');
-  assert.ok(text().includes('ข้อมูล Coaching ที่บันทึกอยู่ในระบบ'),
-    'saved source data appears alongside the verified click history');
-  assert.ok(text().includes('QA summary retained across tabs'),
-    'QA Summary shown from the stored document');
-  assert.ok(text().includes('Review Verify'),
-    'saved appointment agenda is shown as source data');
-  assert.ok(text().includes('ประวัติการกดบันทึกจริง'));
   assert.ok(text().includes('QA สรุปและแนะนำหัวข้อการ Coaching — บันทึก'));
   assert.ok(text().includes('QA Reviewer (QA)'),'History displays the actual actor and role');
   await click(button('Schedule Appointment'));
@@ -189,6 +182,11 @@ try {
   assert.ok(auditEntries().at(-1).changes.some(change=>change.section==='Coaching Results'));
   assert.ok(auditEntries().at(-1).changes.some(change=>change.section.startsWith('Action Plan: ')));
   await mount(qa);
+  const reviewCard=[...document.querySelectorAll('section')].find(el=>el.querySelector('h3')?.textContent==='QA Review');
+  assert.ok(reviewCard,'QA Review section exists');
+  assert.ok([...reviewCard.querySelectorAll('button')].some(el=>el.textContent.trim()==='Request Plan Revision'),'Revision button near QA Review');
+  assert.ok([...reviewCard.querySelectorAll('button')].some(el=>el.textContent.trim()==='Accept Action Plan'),'Accept button near QA Review');
+  assert.equal(button('Accept Action Plan').disabled,false,'acceptance enabled while Action Plan Submitted');
   const beforeEmptyReview=auditEntries().length;
   await click(button('Request Plan Revision')); assert.equal(fixture.records.get(id).status,'Action Plan Submitted','return requires a review comment');
   assert.equal(auditEntries().length,beforeEmptyReview,'failed Revision must not create an audit event');
@@ -213,6 +211,8 @@ try {
   await fill(named('QA Review Comment'),'Checked both topics and accepted the Action Plan');
   await click(button('Accept Action Plan'));
   assert.equal(fixture.records.get(id).status,'Follow-up Next Month');
+  assert.equal(button('Request Plan Revision').disabled,true,'revision stays visible but disabled after acceptance');
+  assert.equal(button('Accept Action Plan').disabled,true,'accept stays visible but disabled after acceptance');
   assert.equal(named('QA Review Comment').readOnly,true,'QA Review locks immediately after acceptance');
   assert.equal(named('QA Review Comment').value,'Checked both topics and accepted the Action Plan');
   const accepted=fixture.records.get(id);assert.equal(accepted.qaReviewedAt,new Date(testNow).toISOString());assert.equal(accepted.qaReviewedBy,qa.displayName);assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[accepted],agentA.username).onTime,true);assert.ok(text().includes('15/10/2026'));

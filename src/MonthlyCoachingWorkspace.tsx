@@ -5,8 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fetchCanonicalCoachingEvaluations } from './coachingCanonicalStore';
 import { getStoredEvaluationMonthKey, type StoredEvaluation } from './evaluationStore';
 import { fetchStoredCoachingRecords, saveMonthlyCoachingRecord, type StoredCoachingRecord, type CoachingRecordStatus } from './coachingStore';
-import { coachingTimelineEvents, coachingHistoryGroups, coachingHistoryTitle } from './coachingActivityTimeline';
-import { coachingSavedSections } from './coachingSavedSnapshot';
+import { coachingTimelineEvents, coachingHistoryTitle } from './coachingActivityTimeline';
 import { coachingActorLabel } from './coachingActivityChanges';
 import './monthlyCoaching.css';
 import AutoResizeTextarea from './AutoResizeTextarea';
@@ -155,58 +154,29 @@ function coachingTimelineTime(value: string) {
 function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
   const [expanded,setExpanded] = useState(false);
   const events = coachingTimelineEvents(record);
-  const savedSections = coachingSavedSections(record);
   // Keep the history heading visible, even before the first verified save.
-  // Source fields are a present-day record snapshot, not inferred old Save events.
+  // No synthetic events, inferred timestamps, or placeholder history rows.
   const shown = expanded ? events : events.slice(0, 7);
   return <section className={card}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
         <h3 className="font-bold">Coaching Status History</h3>
-        <p className="mt-0.5 text-xs text-slate-500">ข้อมูล Coaching ที่บันทึกไว้ และประวัติการกด Save จริง</p>
+        <p className="mt-0.5 text-xs text-slate-500">ประวัติการบันทึกจริง · ล่าสุด → เก่าสุด</p>
       </div>
-      <span className="text-xs text-slate-500">{events.length} รายการ · {savedSections.length} ส่วนข้อมูล</span>
+      <span className="text-xs text-slate-500">{events.length} รายการ</span>
     </div>
-    {savedSections.length ? <div className="mt-3">
-      <h4 className="text-sm font-semibold text-slate-900">ข้อมูล Coaching ที่บันทึกอยู่ในระบบ</h4>
-      <p className="mt-1 text-xs leading-5 text-slate-600">ข้อมูลจากเอกสาร Coaching ปัจจุบัน รวมข้อมูลเดิมที่ยังเก็บไว้ ไม่ใช่ประวัติการกด Save แต่ละครั้ง วันที่นัดหมาย วันที่ Coaching และกำหนดส่ง ไม่ใช่เวลาบันทึก</p>
-      <ol className="mt-3 space-y-2" aria-label="ข้อมูล Coaching ที่บันทึกอยู่ในเอกสาร">
-        {savedSections.map(section => <li key={section.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <strong className="text-sm text-slate-900">{section.title}</strong>
-          <dl className="mt-2 space-y-2">
-            {section.fields.map((field,index) => <div key={`${field.label}-${index}`} className="text-xs leading-5">
-              <dt className="font-medium text-slate-600">{field.label}</dt>
-              <dd className="whitespace-pre-wrap break-words text-slate-900">{field.value}</dd>
-            </div>)}
-          </dl>
-        </li>)}
-      </ol>
-    </div> : <p className="mt-3 text-xs text-slate-500">ยังไม่มีเนื้อหา Coaching ที่บันทึกไว้สำหรับเดือนนี้</p>}
-    <div className="mt-4 border-t border-slate-200 pt-3">
-      <h4 className="text-sm font-semibold text-slate-900">ประวัติการกดบันทึกจริง · ล่าสุด → เก่าสุด</h4>
-      <p className="mt-1 text-xs text-slate-600">{events.length} รายการ · แสดงเฉพาะเหตุการณ์ที่มีผู้ดำเนินการและเวลาบันทึกจริง</p>
-    </div>
-    {events.length ? <ol className="mt-3 space-y-2" aria-label="Coaching Status History ล่าสุดไปเก่าสุด">
+    <ol className="mt-3 space-y-2" aria-label="Coaching Status History ล่าสุดไปเก่าสุด">
       {shown.map(event => {
-        const groups = coachingHistoryGroups(event);
         return <li key={event.id} className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <strong className="text-sm text-slate-900">{coachingHistoryTitle(event)}</strong>
             <time dateTime={event.occurredAt} className="text-xs font-medium tabular-nums text-slate-600">{coachingTimelineTime(event.occurredAt)}</time>
           </div>
           <p className="mt-1 text-xs text-slate-700">{coachingActorLabel(event.actorName, event.actorRole)}</p>
-          {groups.length ? <div className="mt-2 space-y-2 border-t border-slate-100 pt-2">
-            {groups.map(group => <div key={group.section}>
-              <strong className="text-xs text-slate-900">{group.section}</strong>
-              <ul className="mt-1 space-y-1">
-                {group.details.map((detail,index) => <li key={index} className="text-xs leading-5 text-slate-700">• {detail}</li>)}
-              </ul>
-            </div>)}
-          </div> : null}
           {event.paymentEffect ? <p className="mt-2 text-xs text-violet-700">รอบจ่าย: {event.paymentEffect === "Normal Cycle" ? "รอบปกติ" : "รอบถัดไป"}</p> : null}
         </li>;
       })}
-    </ol> : <p className="mt-2 text-xs text-slate-500">ยังไม่มี Audit Log การกดบันทึกแยกรายครั้งในเอกสารนี้</p>}
+    </ol>
     {events.length > 7 ? <button type="button" className={button} onClick={() => setExpanded(value => !value)}>
       {expanded ? "ย่อประวัติ" : `View Full History (${events.length})`}
     </button> : null}
@@ -292,7 +262,7 @@ function CoachingDetail({currentUser,accounts,account,month,record,prior,rows,to
     }catch(e){setMessage(e instanceof Error?e.message:'บันทึกไม่สำเร็จ');}finally{pending(false);}
   };
   const upload=async(file?:File)=>{if(!file||(!qaAppointmentEdit&&!coachEdit))return;pending(true);try{const attachment=await uploadCoachingAttachment(file,record?.id||monthlyCoachingId(account.username,month),currentUser.displayName);update({attachments:[...form.attachments,attachment]});setMessage('ไฟล์อัปโหลดแล้ว กรุณากดบันทึกเพื่อเชื่อมกับ Coaching');}catch(e){setMessage(e instanceof Error?e.message:'อัปโหลดไม่สำเร็จ');}finally{pending(false);}};
-  const actions:[string,CoachingRecordStatus][] = workflowRole==='Assigned Coach' ? [['Save Coaching Results','Coaching In Progress'],['Submit Action Plan','Action Plan Submitted']] : qa ? [['Save Draft','Draft'],['Awaiting Appointment','Waiting Appointment'],['Schedule Appointment','Appointment Scheduled'],['Send to Coach','Waiting Senior'],['Accept Action Plan','Follow-up Next Month'],['Request Plan Revision','QA Reviewed'],['No Coaching Required','No Coaching Required'],['Close Coaching','Closed']] : [];
+  const actions:[string,CoachingRecordStatus][] = workflowRole==='Assigned Coach' ? [['Save Coaching Results','Coaching In Progress'],['Submit Action Plan','Action Plan Submitted']] : qa ? [['Save Draft','Draft'],['Awaiting Appointment','Waiting Appointment'],['Schedule Appointment','Appointment Scheduled'],['Send to Coach','Waiting Senior'],['No Coaching Required','No Coaching Required'],['Close Coaching','Closed']] : [];
   return <div className="mc-detail-grid"><main className="mc-center">{intro}<p className="mc-muted">กำหนด Coaching ส่งผลและ Action Plan พร้อม QA Review ให้ครบภายใน {dateLabel(coachingDeadline(month))} เวลา 23:59 น. (เวลาไทย) จึงเข้ารอบ Monthly Payment นี้</p><ScoreOverview rows={rows} topics={topics} openCase={onOpenCase}/><PreviousCoaching prior={prior} topics={topics}/>
     <section className={card}><SectionTitle number={3}>QA สรุปและแนะนำหัวข้อการ Coaching (เดือนนี้)</SectionTitle>{qaCorrectionAvailable?<div className="mt-2 mb-3 flex flex-wrap gap-2"><button type="button" className={button} onClick={()=>setQaCorrectionMode(value=>!value)}>{qaCorrectionMode?'ปิดโหมดแก้ไข':'แก้ไขสรุป QA / หัวข้อ Coaching'}</button>{qaCorrectionMode&&record?<button type="button" className={primary} disabled={busy||!allowed.includes(record.status)} onClick={()=>void save(record.status)}>บันทึกการแก้ไขสรุป QA</button>:null}</div>:null}<div className="mc-summary-grid"><Field title="สรุปภาพรวมสำหรับผู้ Coaching"><AutoResizeTextarea aria-label="QA Summary" className={input} value={form.summary} readOnly={!qaEdit} onChange={e=>update({summary:e.target.value})} placeholder="พิมพ์สรุปผลและเรื่องที่ต้องการแจ้งผู้ Coaching..."/></Field><div className="mc-topic-select"><strong>หัวข้อที่แนะนำให้คุยในเดือนนี้</strong>{availableTopics.map(t=><label key={t}><input type="checkbox" checked={form.topics.includes(t)} disabled={!qaEdit} onChange={e=>update({topics:e.target.checked?[...form.topics,t]:form.topics.filter(x=>x!==t)})}/><span>{t}{topics.some(p=>p.label===t&&p.deductedCases)?<small className="mc-bad"> (พบปัญหา)</small>:null}</span></label>)}</div></div></section>
     <section className={card}><SectionTitle number={4}>นัดหมาย Coaching</SectionTitle><div className="mc-appointment-grid"><Field title="วันที่นัดหมาย"><input type="date" className={input} value={form.appointment.date} disabled={!qaAppointmentEdit} onChange={e=>appointment({date:e.target.value})}/></Field><Field title="เวลาเริ่ม (24 ชั่วโมง)"><Time24Input className={input} value={form.appointment.startTime} disabled={!qaAppointmentEdit} onValueChange={value=>appointment({startTime:value})}/></Field><Field title="ระยะเวลา (นาที)"><select className={input} value={form.appointment.duration} disabled={!qaAppointmentEdit} onChange={e=>appointment({duration:Number(e.target.value)})}>{[...new Set([15,30,45,60,90,120,180,form.appointment.duration])].sort((a,b)=>a-b).map(n=><option key={n} value={n}>{n>=60?`${n/60} ชั่วโมง`:`${n} นาที`}</option>)}</select></Field><Field title="ช่องทาง"><select className={input} value={form.appointment.method} disabled={!qaAppointmentEdit} onChange={e=>appointment({method:e.target.value})}><option>Face to Face</option><option>MS Teams</option><option>Other</option></select></Field></div><p className="mc-muted">เวลาสิ้นสุด {coachingEndTime(form.appointment.startTime,form.appointment.duration)||'—'}</p>
@@ -312,6 +282,13 @@ function CoachingDetail({currentUser,accounts,account,month,record,prior,rows,to
       <AutoResizeTextarea aria-label="QA Review Comment" className={`${input} mt-3${reviewCanType?'':' bg-slate-50'}`} value={reviewHasBeenSaved&&!reviewEditing?savedReview:form.review} readOnly={!reviewCanType} onChange={e=>{if(reviewCanType)update({review:e.target.value});}} placeholder="ระบุข้อสรุปเมื่อตรวจรับแผน หรือเหตุผลที่ส่งคืนผู้ Coaching"/>
       <p className="mc-muted">{reviewHasBeenSaved&&!reviewEditing?'บันทึกแล้ว · กด Edit เพื่อแก้ไขข้อความ':'ต้องบันทึกข้อสรุป QA Review และกดรับแผนก่อนเข้ารายชื่อ Monthly Payment'}</p>
       {reviewCanType&&record&&allowed.includes(record.status)&&(reviewHasBeenSaved||isCoachingAccepted(record.status))?<button type="button" className={`${primary} mt-3`} disabled={busy||blocked} onClick={()=>void save(record.status)}>บันทึก QA Review</button>:null}
+      {qa&&record ? <div className="mt-3 border-t border-slate-100 pt-3">
+        <div className="flex flex-wrap gap-2" aria-label="QA Action Plan review decisions">
+          <button type="button" className={button} disabled={busy||blocked||!allowed.includes('QA Reviewed')} onClick={()=>void save('QA Reviewed')}>Request Plan Revision</button>
+          <button type="button" className={primary} disabled={busy||blocked||!allowed.includes('Follow-up Next Month')} onClick={()=>void save('Follow-up Next Month')}>Accept Action Plan</button>
+        </div>
+        {!allowed.includes('QA Reviewed')&&!allowed.includes('Follow-up Next Month') ? <p className="mt-2 text-xs text-slate-500">ใช้ได้เมื่อสถานะเป็น Action Plan Submitted เท่านั้น</p> : null}
+      </div> : null}
     </section>
     {record?.qaPaymentOverrideApprovedAt && record.status === 'Closed'
       ? <p role="status" className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">QA Closed Late · คืนสิทธิ์พิจารณาในรอบจ่ายปกติแล้ว (ยังต้องผ่านเงื่อนไข Signature, Appeal และคะแนน QA)</p>
