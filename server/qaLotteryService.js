@@ -147,7 +147,50 @@ export function createQaLotteryService(db) {
       previous:last!==current?publicDraw(last,recordValue(lastDraw),recordValue(lastPlayer)):null,
       cutoffTime:"14:00",timeZone:TH_TIMEZONE};
   }
+
+  // Backup for Hobby cron's imprecise delivery window: an authenticated member
+  // looking at their own already-purchased tickets can reconcile only their
+  // pending draw. A shared, transaction-protected 10-minute GLO check throttle
+  // prevents a crowd of viewers from exhausting the official API or the wallet.
+  async function syncActorResult(actor,now=new Date()) {
+    const date=previousLotteryDraw(now);
+    const today=bangkokParts(now),todayIso=iso(today.year,today.month,today.day);
+    if(date>todayIso || dateDifference(todayIso,date)>32 ||
+      (date===todayIso && today.hour*60+today.minute<16*60+30))return;
+    const player=recordValue(await readDoc(playerPath(date,actor.username)));
+    if(!Array.isArray(player.tickets)||!player.tickets.some(t=>!t.paidAt))return;
+    const dp=drawPath(date),snapshot=await readDoc(dp);
+    if(!snapshot)return;
+    let result=recordValue(snapshot).officialResult;
+    if(!result) {
+      const mayFetch=await transaction(async tx=>{
+        const doc=await readDoc(dp,tx);
+        if(!doc)return {writes:[],result:false};
+        const value=recordValue(doc);
+        if(value.officialResult)return {writes:[],result:false};
+        const last=Date.parse(value.lastOfficialCheckAt||"");
+        if(Number.isFinite(last)&&Date.now()-last<10*60*1000)
+          return {writes:[],result:false};
+        return {writes:[updateWrite(dp,{lastOfficialCheckAt:new Date().toISOString()},doc)],result:true};
+      });
+      if(mayFetch) {
+        try {
+          const fetched=await fetchOfficial(date);
+          if(fetched)result=await storeOfficial(date,fetched);
+        } catch (err) {
+          console.error("QA Lottery official check failed:",String(err?.message||err));
+        }
+      }
+      if(!result)result=recordValue(await readDoc(dp)).officialResult;
+    }
+    if(result)await settlePlayer(date,actor.username,result);
+  }
+
   async function listTickets(actor){
+    try {await syncActorResult(actor);} catch(err) {
+      // Keep ticket inventory readable if the external result/settlement fails.
+      console.error("QA Lottery ticket reconciliation failed:",String(err?.message||err));
+    }
     const rows=await listCollection(walletDocumentPath(actor.username)+"/lottery_tickets",
       ["id","number","drawDate","createdAt","paidAt","prize","matched","status"]);
     if(rows.truncated) error("จำนวนตั๋ว QA Lottery มากเกินกำหนด",503);
@@ -324,5 +367,5 @@ export function createQaLotteryService(db) {
     }
     return {checkedAt:new Date().toISOString(),reports};
   }
-  return {state,purchase,settle,listTickets};
+  return {state,purchase,settle,listTickets,syncActorResult};
 }

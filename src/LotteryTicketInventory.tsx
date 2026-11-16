@@ -9,28 +9,61 @@ export default function LotteryTicketInventory({username,sessionId,loaded,invent
  const [tickets,setTickets]=useState<Ticket[]>([]);
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState("");
+ const [notice,setNotice]=useState("");
  const [selected,setSelected]=useState<string|null>(null);
+ const previouslyLoaded=useRef<Ticket[]|null>(null);
+ const lastRefreshAt=useRef(0);
  const trigger=useRef<HTMLButtonElement|null>(null);
  const closeRef=useRef<HTMLButtonElement>(null);
  const refresh=useCallback(async()=>{
   if(!username||!sessionId||!loaded)return;
-  setLoading(true);setError("");
+  setLoading(true);setError("");lastRefreshAt.current=Date.now();
   try{
    const response=await fetch("/api/sparks-admin",{method:"POST",cache:"no-store",headers:{"content-type":"application/json"},
     body:JSON.stringify({action:"qa-lottery-my-tickets",actorUsername:username,sessionId})});
    const body=await response.json().catch(()=>({}));
    if(!response.ok)throw Error(String(body.error||"ไม่สามารถโหลดตั๋วได้"));
-   setTickets(Array.isArray(body.tickets)?body.tickets:[]);
+   const current:Ticket[]=Array.isArray(body.tickets)?body.tickets:[];
+   const prior=previouslyLoaded.current;
+   if(prior){
+    const finished=current.filter(t=>Boolean(t.paidAt)&&prior.some(p=>p.id===t.id&&!p.paidAt));
+    if(finished.length){
+     const won=finished.filter(t=>t.prize>0);
+     setNotice(won.length
+      ?"ตรวจผลแล้ว · ถูกรางวัล "+won.reduce((n,t)=>n+t.prize,0).toLocaleString()+" Sparks · ดูรายละเอียดในประวัติ Item"
+      :"ตรวจผลแล้ว · ไม่ถูกรางวัล · ย้ายสลากไปประวัติ Item");
+     window.dispatchEvent(new CustomEvent("qa:sparks-updated"));
+    }
+   }
+   previouslyLoaded.current=current;
+   setTickets(current);
   }catch(e){setError(e instanceof Error?e.message:"ไม่สามารถโหลดตั๋วได้");}
   finally{setLoading(false);}
  },[username,sessionId,loaded]);
- useEffect(()=>{setTickets([]);setSelected(null);},[username,sessionId]);
+ useEffect(()=>{setTickets([]);setSelected(null);setNotice("");previouslyLoaded.current=null;},[username,sessionId]);
  useEffect(()=>{
   void refresh();
   const update=()=>{void refresh();};
   window.addEventListener("qa:sparks-items-refresh",update);
   return()=>window.removeEventListener("qa:sparks-items-refresh",update);
  },[refresh]);
+ // Refresh only due, unsettled draws while the inventory is being viewed.
+ // No polling before draw time; this avoids unnecessary Sparks database reads.
+ useEffect(()=>{
+  if(!loaded||!tickets.some(t=>!t.paidAt))return;
+  const due=()=>{
+   const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date());
+   const val=(name:string)=>Number(parts.find(p=>p.type===name)?.value||0);
+   const today=[val("year"),String(val("month")).padStart(2,"0"),String(val("day")).padStart(2,"0")].join("-");
+   const minute=val("hour")*60+val("minute");
+   return tickets.some(t=>!t.paidAt&&(t.drawDate<today||(t.drawDate===today&&minute>=16*60+30)));
+  };
+  const check=()=>{if(document.visibilityState==="visible"&&due()&&Date.now()-lastRefreshAt.current>=2*60*1000)void refresh();};
+  const timer=window.setInterval(check,10*60*1000);
+  document.addEventListener("visibilitychange",check);
+  window.addEventListener("focus",check);
+  return()=>{window.clearInterval(timer);document.removeEventListener("visibilitychange",check);window.removeEventListener("focus",check);};
+ },[loaded,tickets,refresh]);
  useEffect(()=>{
   if(!selected)return;
   const old=document.body.style.overflow;document.body.style.overflow="hidden";
@@ -43,6 +76,7 @@ export default function LotteryTicketInventory({username,sessionId,loaded,invent
  return <>
   {loading?<p className="qa-sparks-inventory-progress" role="status">กำลังตรวจสอบตั๋ว QA Lottery...</p>:null}
   {error?<p className="sr-error" role="alert">{error}</p>:null}
+  {notice?<p className="qa-sparks-inventory-progress" role="status">{notice}</p>:null}
   {tickets.filter(t=>classifyLotteryTicket(t)===inventoryFilter).map(t=><button type="button" key={t.id} className="qa-sparks-mini-item qa-lottery-item" data-lottery-ticket={t.number}
     onClick={e=>{trigger.current=e.currentTarget;setSelected(t.id);}}>
     <span className="qa-sparks-mini-art qa-lottery-ticket-art">

@@ -1613,8 +1613,15 @@ async function sparksHandler(req, res) {
           body?.action === "qa-password-migrate-server";
       } catch { return false; }
     })();
+  // A verified Vercel cron may finish previously purchased lottery tickets
+  // while the Sparks shop/gameplay switch remains closed. Migration freezes
+  // and Supabase read-only protection still block all settlement writes.
+  const cronSecret=String(process.env.CRON_SECRET||"").trim();
+  const authorizedLotteryCron=req.method==="GET" &&
+    String(req.url||"").split("?")[0]==="/api/cron/qa-lottery" &&
+    Boolean(cronSecret) && req.headers.authorization==="Bearer "+cronSecret;
   const gate=await getSparksAccessState();
-  if(!gate.enabled && !maintenanceAction)
+  if(!gate.enabled && !maintenanceAction && !authorizedLotteryCron)
     return res.status(423).json({error:gate.message,code:"SPARKS_ACCESS_PAUSED"});
   if (sparksEmailAuthEnabled()) {
     const originKind = String(req.headers?.["sec-fetch-site"] || "");
@@ -1633,16 +1640,19 @@ async function sparksHandler(req, res) {
     const expected = String(process.env.CRON_SECRET || "").trim();
     if (!expected || req.headers.authorization !== "Bearer "+expected) return res.status(401).json({error:"Unauthorized cron request"});
     const [lottery,shield,typing,autoPassPending]=await Promise.allSettled([
-      qaLottery.settle(),announcementShield.sweep(),
-      process.env.SPARKS_DATA_BACKEND==="supabase"
+      qaLottery.settle(),
+      gate.enabled?announcementShield.sweep():Promise.resolve({status:"paused"}),
+      gate.enabled&&process.env.SPARKS_DATA_BACKEND==="supabase"
         ?typingReliefCloud.reconcilePending(12):Promise.resolve({scanned:0,completed:0,unresolved:[]}),
-      autoPass.reconcilePending(12),
+      gate.enabled?autoPass.reconcilePending(12):Promise.resolve({status:"paused"}),
     ]);
     if(lottery.status==="rejected")console.error("QA Lottery cron failed:",String(lottery.reason?.message||lottery.reason));
     if(typing.status==="rejected")console.error("Typing Relief reconciliation failed:",String(typing.reason?.message||typing.reason));
     if(shield.status==="rejected")console.error("Announcement Shield renewal cron failed:",String(shield.reason?.message||shield.reason));
     if(autoPassPending.status==="rejected")console.error("Auto-Pass recovery failed:",String(autoPassPending.reason?.message||autoPassPending.reason));
-    if(lottery.status==="rejected"&&shield.status==="rejected")return res.status(503).json({error:"Automatic settlement unavailable"});
+    // Never report a successful cron when the lottery settlement itself failed.
+    // The next scheduled run and authenticated on-view recovery can retry safely.
+    if(lottery.status==="rejected")return res.status(503).json({error:"QA Lottery settlement failed"});
     return res.status(200).json({lottery:lottery.status==="fulfilled"?lottery.value:{error:"Lottery settlement failed"},
       announcementShield:shield.status==="fulfilled"?shield.value:{error:"Subscription settlement failed"},
       typingRelief:typing.status==="fulfilled"?typing.value:{error:"Typing Relief reconciliation failed"},
