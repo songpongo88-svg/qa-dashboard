@@ -71,7 +71,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
     pdf.rect(0, 0, pageW, 7, "F");
     text("QA MONTHLY INCENTIVE PAYMENT AUTHORIZATION", left, 15.8, 15.2, true, purple);
     text(getMonthLabel(monthKey).toUpperCase(), right, 15.4, 10.4, true, purple, { align: "right" });
-    text(suffix ? "ADDITIONAL AGENTS ONLY - Original recipients excluded" : "Team Performance & Payment Authorization", left, 21.3, 8.2, false, muted);
+    text(suffix ? "ALL ELIGIBLE AGENTS - Consolidated roster (not proof of payment)" : "Team Performance & Payment Authorization", left, 21.3, 8.2, false, muted);
     pdf.setDrawColor(purple[0], purple[1], purple[2]);
     pdf.setLineWidth(0.35);
     pdf.line(left, 24.5, right, 24.5);
@@ -199,13 +199,13 @@ const replacement = String.raw`function generatePaymentPdfFile(
   section("1. PAYMENT SUMMARY");
   const summaryItems: Array<{ label: string; value: unknown; color?: [number, number, number]; badge?: boolean }> = [
     { label: "Payment Period", value: getMonthLabel(monthKey), color: purple2 },
-    { label: "Paid Agents", value: sortedDocs.length },
+    { label: "Eligible Agents", value: sortedDocs.length },
     { label: "Team Cases", value: totalCases },
     { label: "Average QA", value: avgScore.toFixed(2) },
     { label: "Overall Grade", value: overallGrade, color: purple2 },
     { label: "Total Payment (THB)", value: formatBahtAmount(totalCashAmount), color: green },
     { label: "Total Promo (THB)", value: formatBahtAmount(totalPromoAmount) },
-    { label: "Document Status", value: suffix ? "ADDITIONAL BATCH" : sortedDocs.length ? "READY TO EXPORT" : "HOLD", badge: true },
+    { label: "Document Status", value: suffix ? "CONSOLIDATED" : sortedDocs.length ? "READY TO EXPORT" : "HOLD", badge: true },
   ];
   const summaryColW = tableW / 4;
   const summaryRowH = 12.4;
@@ -455,7 +455,7 @@ const replacement = String.raw`function generatePaymentPdfFile(
   const certColW = tableW / 3;
   const certItems: Array<{ label: string; value: unknown; color?: [number, number, number] }> = [
     { label: "Payment Period", value: getMonthLabel(monthKey) },
-    { label: "Total Paid Agents", value: sortedDocs.length },
+    { label: "Total Eligible Agents", value: sortedDocs.length },
     { label: "Total Incentive", value: "THB " + formatBahtAmount(totalCashAmount), color: green },
   ];
   certItems.forEach((item, index) => {

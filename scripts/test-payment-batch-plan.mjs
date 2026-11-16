@@ -29,8 +29,18 @@ assert.deepEqual(planMonthlyPaymentBatch(after3,["oct::A","oct::B"],now,who).doc
 assert.throws(()=>planMonthlyPaymentBatch(first,[],now,who),/No payment-ready/);
 assert.throws(()=>planMonthlyPaymentBatch(first,["oct::A"],now,who),/รายชื่อ/);
 const script=await fs.readFile(new URL("../scripts/patch-signature-late-carryover-v90.mjs",import.meta.url),"utf8");
-assert.ok(script.includes("batchEligible"),"only newly eligible recipients in supplemental PDF/Excel");
-assert.ok(script.includes("batchSuffix"),"supplemental files have distinct names");
+assert.ok(script.includes("const onTimeRoster = reportExportOnly ? eligible.filter(doc => doc.monthKey === selectedMonth && !doc.carryOverFrom)"),
+  "Report Center explicitly excludes late-signature carry-overs");
+assert.ok(script.includes("generatePaymentExcelFile(selectedMonth, onTimeRoster, signatures, documents, batchSuffix)"),
+  "Excel must include all eligible on-time recipients, including already generated original batch");
+assert.ok(script.includes("generatePaymentPdfFile(selectedMonth, onTimeRoster, signatures, documents, batchSuffix)"),
+  "PDF must include all eligible on-time recipients, including already generated original batch");
+assert.ok(!script.includes("generatePaymentPdfFile(selectedMonth, batchEligible, signatures, documents, batchSuffix)"),
+  "do not export additional-only recipient list as the monthly summary");
+assert.ok(script.includes('batchEligible = onTimeRoster.filter'),
+  "original and supplemental ledger continues to deduplicate generated batches");
+assert.ok(script.includes('"_Consolidated"'),"revised consolidated report uses distinct filename");
 const pdf=await fs.readFile(new URL("../build/signaturePaymentPdfPatch.js",import.meta.url),"utf8");
-assert.ok(pdf.includes("ADDITIONAL AGENTS ONLY"),"label the additional-only PDF");
-console.log("PASS Monthly Payment additional-only batch, original unchanged, repeat download stable, no double-listed recipients");
+assert.ok(pdf.includes("ALL ELIGIBLE AGENTS"),"consolidated PDF includes original and new recipients");
+assert.ok(pdf.includes("Eligible Agents"),"file must not claim that generating the PDF paid anyone");
+console.log("PASS Monthly Payment: all on-time eligible recipients in one consolidated PDF/Excel, late signers excluded, immutable batch history preserved");

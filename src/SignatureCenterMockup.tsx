@@ -3139,7 +3139,12 @@ export default function SignatureCenterMockup({
 
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
 
-  const canGenerateMonthlyPayment = canExportMonthlyPayment(currentUser) && selectedMonth !== "all" && selectedMonthPaymentExportDocs.length > 0;
+  // Report Center shows only on-time-signed documents for the selected
+  // performance month. Late-signature carry-over stays in its own workflow.
+  const selectedMonthReportOnTimeDocs = selectedMonthPaymentExportDocs.filter(doc =>
+    doc.monthKey === selectedMonth && !doc.carryOverFrom);
+  const canGenerateMonthlyPayment = canExportMonthlyPayment(currentUser) && selectedMonth !== "all" &&
+    (reportExportOnly ? selectedMonthReportOnTimeDocs.length : selectedMonthPaymentExportDocs.length) > 0;
 
   const selectedDocumentSource = selectedDocumentId
     ? documents.find((item) => item.id === selectedDocumentId) || null
@@ -4995,7 +5000,7 @@ export default function SignatureCenterMockup({
           </label>
         </div>
         <div className="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-600">
-          {selectedMonth === "all" ? "กรุณาเลือกเดือน" : `เดือน ${getMonthLabel(selectedMonth)} · เอกสารที่เข้าเงื่อนไข Payment ${selectedMonthPaymentExportDocs.length} รายการ`}
+          {selectedMonth === "all" ? "กรุณาเลือกเดือน" : `เดือน ${getMonthLabel(selectedMonth)} · รายชื่อเข้าเงื่อนไข (ลายเซ็นครบภายในวันที่ 15) ${selectedMonthReportOnTimeDocs.length} คน · รวมทั้งผู้มีสิทธิ์เดิมและผู้ที่เพิ่ง Closed`}
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <button type="button" onClick={generatePaymentPdf} disabled={!canGenerateMonthlyPayment} className="rounded-xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Monthly Payment PDF</button>

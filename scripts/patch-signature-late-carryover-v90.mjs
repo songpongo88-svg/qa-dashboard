@@ -130,8 +130,9 @@ if (!source.includes(marker)) {
     "pdf export carry-over persistence"
   );
 
-  // Keep the original roster immutable; an updated roster creates a distinct
-  // additional-only batch without names from previous files.
+  // Preserve original and additional batches for audit/deduplication. The
+  // monthly authorization PDF/Excel is a consolidated view of ALL eligible
+  // recipients, not the additional-only payment transaction list.
   source = replaceOnce(
     source,
     '} from "./paymentCarryOverStore";',
@@ -141,25 +142,27 @@ if (!source.includes(marker)) {
   const exportReadyLine = '      const eligible = await paymentDocumentsForExport();';
   if (source.split(exportReadyLine).length - 1 !== 2) throw new Error("Expected both monthly payment export handlers");
   source = source.replaceAll(exportReadyLine, exportReadyLine +
-    '\n      const exportBatch = await markMonthlyPaymentBatchExported(selectedMonth, eligible.map((doc) => doc.id), currentUser.username || currentUser.displayName || "");' +
-    '\n      const batchEligible = eligible.filter(doc => exportBatch.documentIds.includes(doc.id));' +
-    '\n      if (!batchEligible.length || batchEligible.length !== exportBatch.documentIds.length) throw new Error("รายชื่อ Additional Batch ไม่ตรงกับผู้ที่เข้าเงื่อนไขปัจจุบัน");' +
-    '\n      const batchSuffix = exportBatch.batchNumber > 1 ? `_Additional_${exportBatch.batchNumber - 1}` : "";');
+    '\n      const onTimeRoster = reportExportOnly ? eligible.filter(doc => doc.monthKey === selectedMonth && !doc.carryOverFrom) : eligible;' +
+    '\n      if (!onTimeRoster.length) throw new Error("ไม่พบรายชื่อที่ลงนามครบภายในวันที่ 15 ของเดือนที่เลือก");' +
+    '\n      const exportBatch = await markMonthlyPaymentBatchExported(selectedMonth, onTimeRoster.map((doc) => doc.id), currentUser.username || currentUser.displayName || "");' +
+    '\n      const batchEligible = onTimeRoster.filter(doc => exportBatch.documentIds.includes(doc.id));' +
+    '\n      if (!batchEligible.length || batchEligible.length !== exportBatch.documentIds.length) throw new Error("รายชื่อใน Payment History ไม่ตรงกับข้อมูลล่าสุด");' +
+    '\n      const batchSuffix = exportBatch.supplementalBatches.length ? "_Consolidated" : "";');
   source = replaceOnce(source,
     'generatePaymentExcelFile(selectedMonth, eligible, signatures, documents);',
-    'generatePaymentExcelFile(selectedMonth, batchEligible, signatures, documents, batchSuffix);',
-    "additional-only Excel");
+    'generatePaymentExcelFile(selectedMonth, onTimeRoster, signatures, documents, batchSuffix);',
+    "consolidated on-time Excel");
   source = replaceOnce(source,
     'const fileName = generatePaymentPdfFile(selectedMonth, eligible, signatures, documents);',
-    'const fileName = generatePaymentPdfFile(selectedMonth, batchEligible, signatures, documents, batchSuffix);',
-    "additional-only PDF");
+    'const fileName = generatePaymentPdfFile(selectedMonth, onTimeRoster, signatures, documents, batchSuffix);',
+    "consolidated on-time PDF");
   source = source.replaceAll('await markCurrentCarryOversExported(eligible);','await markCurrentCarryOversExported(batchEligible);');
   source = replaceOnce(source,
     'setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);',
     'setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth,batchSuffix)}`);',
-    "Excel additional filename message");
+    "Excel consolidated filename message");
 
   fs.writeFileSync(signatureCenterPath, source, "utf8");
 }
 
-console.log("Patched Signature Center: late signatures carry over to the next eligible payment cycle with export metadata and persisted export state.");
+console.log("Patched Signature Center: consolidated on-time PDF/Excel roster and separate immutable payment batch history.");
