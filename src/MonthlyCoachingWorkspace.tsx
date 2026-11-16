@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fetchCanonicalCoachingEvaluations } from './coachingCanonicalStore';
 import { getStoredEvaluationMonthKey, type StoredEvaluation } from './evaluationStore';
 import { fetchStoredCoachingRecords, saveMonthlyCoachingRecord, type StoredCoachingRecord, type CoachingRecordStatus } from './coachingStore';
+import { coachingTimelineEvents } from './coachingActivityTimeline';
 import './monthlyCoaching.css';
 import AutoResizeTextarea from './AutoResizeTextarea';
 import Time24Input from './Time24Input';
@@ -150,15 +151,25 @@ function coachingTimelineTime(value: string) {
 }
 function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
   const [expanded,setExpanded] = useState(false);
-  const events = [...(record?.activityTimeline || [])].sort((a,b) =>
-    a.occurredAt.localeCompare(b.occurredAt));
+  const events = coachingTimelineEvents(record);
+  const previousEvents = record?.activityTimeline || [];
+  const legacyCount = events.filter(event => event.legacySource).length;
   const shown = expanded ? events : events.slice(-5);
+  const currentStatusWasLogged = previousEvents.some(event => event.toStatus === record?.status);
+  const statusWithoutTimestamp = Boolean(record?.status && !currentStatusWasLogged);
   return <section className={card}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="font-bold">Coaching Activity Timeline</h3>
-      <span className="text-xs text-slate-500">{events.length} เหตุการณ์</span>
+      <span className="text-xs text-slate-500">{events.length} เหตุการณ์{legacyCount ? ` · ข้อมูลเดิม ${legacyCount}` : ''}</span>
     </div>
-    {!events.length ? <p className="mt-2 text-sm text-slate-500">ยังไม่มีประวัติแบบ Timeline สำหรับรายการนี้ ระบบจะเริ่มเก็บวันเวลาแต่ละขั้นตอนเมื่อบันทึกรายการใหม่ โดยไม่สร้างเวลาย้อนหลัง</p> : (
+    {legacyCount > 0 && <p className="mt-2 text-xs text-amber-800">ข้อมูลเดิมดึงจากวันที่สร้างรายการ วัน Coaching จริง เวลา QA รับรอง และเวลาบันทึกล่าสุดที่มีหลักฐาน ไม่ใช่ประวัติกดปุ่มย้อนหลังครบทุกขั้นตอน</p>}
+    {statusWithoutTimestamp && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+      <strong>สถานะปัจจุบัน: {coachingStatusLabel(record?.status)}</strong>
+      <p className="mt-1 text-xs text-slate-600">ระบบเดิมไม่ได้บันทึกเวลาเปลี่ยนมาสถานะนี้ จึงไม่สามารถระบุเวลา Request Revision, Submit หรือ Close ย้อนหลังได้แน่นอน</p>
+      {record?.status === 'QA Reviewed' && record.qaReviewComment
+        ? <p className="mt-2 whitespace-pre-wrap text-xs text-slate-700">QA Review ล่าสุด: {record.qaReviewComment}</p> : null}
+    </div>}
+    {!events.length ? <p className="mt-3 text-sm text-slate-500">ไม่มีวันเวลาที่ตรวจสอบได้สำหรับรายการนี้ หากมีการดำเนินการใหม่ ระบบจะเก็บเวลาและผู้ดำเนินการใน Timeline อัตโนมัติ</p> : (
       <ol className="mt-3 space-y-3 border-l-2 border-violet-200 pl-4">
         {shown.map((event) => <li key={event.id} className="relative rounded-lg border border-slate-100 p-3">
           <span aria-hidden="true" className="absolute -left-[23px] top-4 h-3 w-3 rounded-full border-2 border-white bg-violet-600"/>
@@ -166,8 +177,8 @@ function CoachingActivityTimeline({record}: {record?: StoredCoachingRecord}) {
             <strong className="text-sm text-slate-900">{event.action}</strong>
             <time className="text-xs tabular-nums text-slate-600" dateTime={event.occurredAt}>{coachingTimelineTime(event.occurredAt)}</time>
           </div>
-          <p className="mt-1 text-xs text-slate-600">{event.actorName} · {event.actorRole}</p>
-          <p className="mt-1 text-xs text-slate-500">{event.fromStatus} → {event.toStatus}{event.revision > 0 ? ` · Revision ${event.revision}` : ''}</p>
+          <p className="mt-1 text-xs text-slate-600">{event.legacySource ? `ข้อมูลเดิม · ${event.legacySource}` : `${event.actorName} · ${event.actorRole}`}</p>
+          {!event.legacySource && <p className="mt-1 text-xs text-slate-500">{event.fromStatus} → {event.toStatus}{event.revision > 0 ? ` · Revision ${event.revision}` : ''}</p>}
           {event.note ? <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{event.note}</p> : null}
           {event.paymentEffect ? <p className="mt-1 text-xs font-semibold text-violet-700">Payment: {event.paymentEffect}</p> : null}
         </li>)}
