@@ -94,6 +94,8 @@ export type StoredCoachingRecord = {
   qaClosedAt?: string;
   qaClosedBy?: string;
   qaPaymentOverrideApprovedAt?: string;
+  priorExportVerifiedAt?: string;
+  priorExportVerifiedBy?: string;
   activityTimeline?: CoachingActivityEvent[];
   qaOwnerId?: string;
   qaOwnerName?: string;
@@ -221,6 +223,8 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
     qaReviewedAt: String(row?.qaReviewedAt || ''), qaReviewedBy: String(row?.qaReviewedBy || ''),
     qaClosedAt: String(row?.qaClosedAt || ''), qaClosedBy: String(row?.qaClosedBy || ''),
     qaPaymentOverrideApprovedAt: String(row?.qaPaymentOverrideApprovedAt || ''),
+    priorExportVerifiedAt: String(row?.priorExportVerifiedAt || ''),
+    priorExportVerifiedBy: String(row?.priorExportVerifiedBy || ''),
     activityTimeline: normalizeCoachingTimeline(row?.activityTimeline),
     qaOwnerId: String(row?.qaOwnerId || ''), qaOwnerName: String(row?.qaOwnerName || ''),
   };
@@ -336,7 +340,7 @@ export async function upsertStoredCoachingRecord(
 }
 
 // Scoped application workflow. Database rules are managed separately by the existing app.
-export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, actor: CoachingAccount, accounts: CoachingAccount[], expectedUpdatedAt: string | null) {
+export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, actor: CoachingAccount, accounts: CoachingAccount[], expectedUpdatedAt: string | null, verifiedNoEarlierPaymentExport = false) {
   const target = accounts
     .filter(account => account.status !== 'Suspended' && (account.qaEvaluationTarget ?? ['Admin Live Chat', 'Virtual Rider'].includes(account.role)))
     .find(account => belongsToAgent(account, record.agentId, record.agent));
@@ -383,6 +387,8 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
     const qaClosedBy = firstClose ? actor.displayName || actor.username : previous?.qaClosedBy || '';
     let qaPaymentOverrideApprovedAt = previous?.qaPaymentOverrideApprovedAt || '';
     let paymentEffect: CoachingActivityEvent['paymentEffect'];
+    let priorExportVerifiedAt = previous?.priorExportVerifiedAt || '';
+    let priorExportVerifiedBy = previous?.priorExportVerifiedBy || '';
     if (firstClose) {
       const deadlineTime = Date.parse(coachingDeadline(next.monthKey));
       const reviewedTime = Date.parse(reviewMetadata.qaReviewedAt || '');
@@ -396,6 +402,15 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
         if (batch.exists() && String(batch.data()?.exportedAt || '')) {
           paymentEffect = 'Next Cycle';
         } else {
+          // Legacy payment exports made before audit tracking cannot be detected.
+          // For those periods, an explicit QA attestation is required.
+          if (next.monthKey <= '2026-10') {
+            if (!verifiedNoEarlierPaymentExport) {
+              throw new Error('รอบจ่ายก่อนเปิดระบบบันทึก Export: QA ต้องตรวจไฟล์จ่ายเงินเดิมและยืนยันว่าไม่เคยส่งออก ก่อนคืนสิทธิ์รอบปกติ');
+            }
+            priorExportVerifiedAt = now;
+            priorExportVerifiedBy = actor.displayName || actor.username;
+          }
           qaPaymentOverrideApprovedAt = now;
           paymentEffect = 'Normal Cycle';
         }
@@ -418,7 +433,10 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
       : next.status;
     const eventNote = next.status === 'QA Reviewed' || next.status === 'Follow-up Next Month'
       ? String(next.qaReviewComment || '').trim()
-      : paymentEffect === 'Normal Cycle' ? 'QA Closed late · Normal payment-cycle eligibility restored, subject to remaining requirements'
+      : paymentEffect === 'Normal Cycle'
+        ? (priorExportVerifiedAt === now
+          ? 'QA verified no earlier payment export · Normal-cycle eligibility restored, subject to remaining requirements'
+          : 'QA Closed late · Normal payment-cycle eligibility restored, subject to remaining requirements')
       : paymentEffect === 'Next Cycle' ? 'QA Closed late · Monthly payment batch already exported; next payment cycle applies'
       : '';
     const event: CoachingActivityEvent = {
@@ -433,7 +451,8 @@ export async function saveMonthlyCoachingRecord(record: StoredCoachingRecord, ac
     const activityTimeline = [...previousEvents, event];
     const normalized = JSON.parse(JSON.stringify({
       ...next, ...reviewMetadata, qaOwnerId, qaOwnerName,
-      qaClosedAt, qaClosedBy, qaPaymentOverrideApprovedAt, activityTimeline,
+      qaClosedAt, qaClosedBy, qaPaymentOverrideApprovedAt,
+      priorExportVerifiedAt, priorExportVerifiedBy, activityTimeline,
       id: reference.id, updatedAt: now
     })) as StoredCoachingRecord;
     transaction.set(reference, { ...normalized, updatedAtServer: serverTimestamp() }, { merge: true });
