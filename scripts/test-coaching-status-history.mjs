@@ -52,7 +52,8 @@ assert.ok(ui.includes("legacyStages.map(stage =>"),"legacy status rows appear wi
 assert.ok(ui.includes("ไม่พบเวลา Save และผู้บันทึกที่ยืนยันได้"),"never fabricate historical Save metadata");
 assert.ok(ui.includes("events.slice(0, 7)"));
 assert.ok(!ui.includes("if (!events.length) return null"));
-assert.ok(ui.includes("Keep the history heading visible"));
+assert.ok(ui.includes('<h3 className="font-bold">Coaching Status History</h3>'),
+  "History heading remains visible even with no audit entries");
 assert.ok(ui.includes("{events.length} เหตุการณ์"));
 assert.ok(!ui.includes("สถานะปัจจุบัน:"));
 assert.ok(!ui.includes("ข้อมูลย้อนหลัง"));
