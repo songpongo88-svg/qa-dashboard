@@ -224,8 +224,14 @@ try {
   assert.equal(named('QA Review Comment').readOnly,false,'initial QA Review remains editable');
   await fill(named('QA Review Comment'),'QA verified the completed Coaching');
   await click(button('บันทึก QA Review'));
+  await act(async()=>{await flush();});
+  assert.equal(fixture.records.get(id).qaReviewComment,'QA verified the completed Coaching',
+    'QA review must persist: '+(document.querySelector('.mc-actions')?.textContent||document.querySelector('[role="status"]')?.textContent||'no status'));
   assert.equal(fixture.records.get(id).qaReviewedBy,qa.displayName,'QA can complete the required review on an already closed record');
-  assert.equal(named('QA Review Comment').readOnly,true,'saving a review locks it');
+  assert.equal(named('QA Review Comment').readOnly,true,
+    'saving a review locks it; record='+fixture.records.get(id).status+
+    '; savedReview='+fixture.records.get(id).qaReviewComment+
+    '; pageStatus='+(document.querySelector('.mc-actions')?.textContent||''));
   await click(button('Edit'));
   await fill(named('QA Review Comment'),'QA corrected the completed Coaching review');
   await click(button('บันทึก QA Review'));
