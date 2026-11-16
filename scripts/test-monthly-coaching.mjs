@@ -222,6 +222,8 @@ try {
   assert.equal(closed.qaClosedBy,qa.displayName);assert.equal(closed.qaReviewedAt,accepted.qaReviewedAt,'closing later retains the actual first QA acceptance time and ignores a client-supplied date');assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[closed],agentA.username).onTime,true);testNow='2026-09-30T12:00:00Z';
   const withoutReview={...closed,qaReviewComment:'',qaReviewedAt:''};fixture.records.set(id,withoutReview);await mount(qa);
   assert.equal(named('QA Review Comment').readOnly,false,'initial QA Review remains editable');
+  // An existing Closed record must allow QA Review corrections without payout reconfirmation.
+  dom.window.confirm=()=>{throw new Error('Closed QA Review edit must not reopen payment confirmation');};
   await fill(named('QA Review Comment'),'QA verified the completed Coaching');
   await click(button('บันทึก QA Review'));
   await act(async()=>{await flush();});

@@ -244,10 +244,14 @@ function CoachingDetail({currentUser,accounts,account,month,record,prior,rows,to
     if(!allowed.includes(status)){setMessage('สถานะรายการเปลี่ยนแล้ว กรุณาโหลดข้อมูลล่าสุดก่อนทำรายการ');return;}
     if(status==='Waiting Senior'&&!form.coachId.trim()){setMessage('กรุณาเลือกผู้ Coaching ก่อนกดส่งให้ผู้ Coaching');return;}
     const deadline = Date.parse(coachingDeadline(month));
-    const reviewTime = Date.parse(record?.qaReviewedAt || record?.updatedAt || '');
+    const reviewTime = record?.qaReviewedAt
+      ? Date.parse(record.qaReviewedAt)
+      : Date.now();
     const coachingEndTime = record?.actualCoaching?.date && record.actualCoaching.endTime
       ? Date.parse(`${record.actualCoaching.date}T${record.actualCoaching.endTime}:00+07:00`) : NaN;
-    const requiresLegacyPaymentCheck = status === 'Closed' && month <= '2026-10' &&
+    // Only a new Close transition can affect payment-cycle eligibility.
+    // Editing a previously Closed QA Review must never trigger a payout confirmation.
+    const requiresLegacyPaymentCheck = status === 'Closed' && record?.status !== 'Closed' && month <= '2026-10' &&
       Number.isFinite(deadline) && Math.max(reviewTime, coachingEndTime) > deadline;
     const verifiedNoEarlierPaymentExport = requiresLegacyPaymentCheck
       ? window.confirm('กรุณาตรวจสอบไฟล์ Monthly Payment ของเดือนนี้ก่อน\n\nยืนยันว่าไม่เคย Generate/ส่งออกยอดจ่ายของเดือนนี้มาก่อนใช่หรือไม่?\n\nกด OK เพื่อยืนยันและดำเนินการ Close หรือ Cancel เพื่อหยุดตรวจสอบก่อน')
