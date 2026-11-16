@@ -226,7 +226,15 @@ try {
   testNow='2026-10-16T03:00:00Z';const closed=await m.saveMonthlyCoachingRecord({...accepted,status:'Closed',qaReviewedAt:'1900-01-01T00:00:00Z'},qa,accounts,accepted.updatedAt);
   assert.equal(closed.activityTimeline.at(-1).action,'Closed','QA Close creates an event at the time of the real save');
   assert.equal(closed.activityTimeline.at(-1).actorName,qa.displayName);
-  assert.equal(closed.qaClosedBy,qa.displayName);assert.equal(closed.qaReviewedAt,accepted.qaReviewedAt,'closing later retains the actual first QA acceptance time and ignores a client-supplied date');assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[closed],agentA.username).onTime,true);testNow='2026-09-30T12:00:00Z';
+  assert.equal(closed.qaClosedBy,qa.displayName);assert.equal(closed.qaReviewedAt,accepted.qaReviewedAt,'closing later retains the actual first QA acceptance time and ignores a client-supplied date');assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[closed],agentA.username).onTime,true);
+  const lateClosed = {...closed,qaReviewedAt:'2026-10-16T03:00:00Z',qaPaymentOverrideApprovedAt:''};
+  assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[lateClosed],agentA.username).onTime,true,
+    'Closed late is eligible for same payment month without the legacy override marker');
+  assert.equal(m.monthlyCoachingPaymentStatus(month,agentA.agentName,[{...lateClosed,
+    activityTimeline:[{id:'exported',action:'Closed',toStatus:'Closed',paymentEffect:'Next Cycle',
+      occurredAt:lateClosed.qaClosedAt,actorName:qa.displayName}]}],agentA.username).onTime,false,
+    'Closed after batch export does not restore an already-sent payment cycle');
+  testNow='2026-09-30T12:00:00Z';
   const withoutReview={...closed,qaReviewComment:'',qaReviewedAt:''};fixture.records.set(id,withoutReview);await mount(qa);
   assert.equal(named('QA Review Comment').readOnly,false,'initial QA Review remains editable');
   // An existing Closed record must allow QA Review corrections without payout reconfirmation.

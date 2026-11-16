@@ -27,14 +27,20 @@ export function monthlyCoachingPaymentStatus(month: string, agent: string, recor
   const coachingTime = Date.parse(`${record.actualCoaching!.date}T${record.actualCoaching!.endTime}:00+07:00`);
   if (!Number.isFinite(reviewedTime) || !Number.isFinite(coachingTime)) return incomplete('Coaching / QA Review Completion Time Missing');
   const completedTime = Math.max(reviewedTime, coachingTime);
-  // A QA Close can restore the original payment cycle for late Coaching when
-  // no monthly payment batch had been exported at the moment of Close.
-  // Neither the original QA review time nor the actual Coaching time is rewritten.
-  const normalCycleClose = record.status === 'Closed' &&
-    Boolean(record.qaClosedAt && record.qaPaymentOverrideApprovedAt);
-  const onTime = completedTime <= Date.parse(deadline) || normalCycleClose;
+  // Closed restores the same-month payment eligibility even after day 15.
+  // Older Closed records may lack the later-added override and Close timestamp fields.
+  // Never reinstate a recipient explicitly marked Next Cycle because the payment
+  // batch had already been exported when QA closed the Coaching document.
+  const closeEvent = [...(record.activityTimeline || [])].reverse()
+    .find(event => event.action === 'Closed' && event.toStatus === 'Closed');
+  const exportedBeforeClose = record.status === 'Closed' && closeEvent?.paymentEffect === 'Next Cycle';
+  const normalCycleClose = record.status === 'Closed' && !exportedBeforeClose;
+  const onTime = !exportedBeforeClose &&
+    (completedTime <= Date.parse(deadline) || normalCycleClose);
   return { complete: true, onTime, completedAt: new Date(completedTime).toISOString(),
-    reason: normalCycleClose && completedTime > Date.parse(deadline)
-      ? 'QA Closed Late · Normal Payment Cycle Approved (other eligibility requirements still apply)'
-      : onTime ? '' : 'Coaching / QA Review Completed Late · Deferred to the Next Payment Cycle' };
+    reason: exportedBeforeClose
+      ? 'Monthly Payment Batch Already Exported Before QA Close · Next Payment Cycle'
+      : normalCycleClose && completedTime > Date.parse(deadline)
+        ? 'QA Closed · Current Payment Cycle (remaining signature and appeal checks apply)'
+        : onTime ? '' : 'Coaching / QA Review Completed Late · Deferred to the Next Payment Cycle' };
 }

@@ -270,6 +270,20 @@ try {
     assert.equal(isPaymentReadyDocument(doc, allSigned, new Map(), changed), false, label);
   }
   assert.equal(isPaymentReadyDocument(doc, allSigned, new Map(), [{ ...accepted, qaReviewedAt: '2026-10-15T16:59:59.999Z' }]), true, 'Bangkok deadline includes the last millisecond of day 15');
+  const lateClosed = {...accepted, status:'Closed', qaClosedAt:'2026-10-16T04:00:00Z',
+    qaReviewedAt:'2026-10-16T03:00:00Z', qaPaymentOverrideApprovedAt:'', activityTimeline:[]};
+  assert.equal(isPaymentReadyDocument(doc, allSigned, new Map(), [lateClosed]), true,
+    'Closed after day 15 returns to current payment PDF even without the legacy override metadata');
+  assert.equal(isPaymentReadyDocument(doc, allSigned, new Map(), [{...lateClosed,qaClosedAt:''}]), true,
+    'Closed source status is sufficient for legacy records without Close metadata');
+  assert.equal(isPaymentReadyDocument(doc, allSigned.map(entry=>({...entry,signedAt:'2026-10-16T03:00:00Z'})),
+    new Map(), [lateClosed]), false,'Closed does not waive the signed-by-day-15 rule');
+  assert.equal(isPaymentReadyDocument(doc, allSigned, new Map([[caseId,{caseId}]]), [lateClosed]), false,
+    'Closed does not waive a pending Appeal');
+  assert.equal(isPaymentReadyDocument(doc, allSigned, new Map(), [{...lateClosed,
+    activityTimeline:[{id:'close-exported',action:'Closed',toStatus:'Closed',
+      paymentEffect:'Next Cycle',occurredAt:lateClosed.qaClosedAt,actorName:'QA'}]}]), false,
+    'Closed after an already exported payment batch cannot add a current-cycle recipient');
   assert.equal(isPaymentReadyDocument({ ...doc, monthKey: '2026-08' }, allSigned.map(entry => ({...entry, signedAt:'2026-09-12T03:00:00Z'})), new Map(), []), true, 'historical paid periods do not require retrospective Coaching');
   fixture.coaching = [];
   fixture.extraStored = [{ docId:'2026-09::Fixture Agent B', entries:allSigned.map(entry=>entry.role==='Agent'?{...entry,signerName:'Fixture Agent B',signedBy:'Fixture Agent B'}:entry), confirmedAt:at(-1) }];
