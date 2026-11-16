@@ -602,7 +602,7 @@ export default function SparksAdminPanel({ actorUsername, sessionId, ownAccount,
     </nav> : null}
     {adminSection === "activity" && activityView === "timeline"
       ? <SparksAdminTimeline active={panelActive} users={users} revision={revision} request={request}
-          onOpenUser={username => { setChosen(username); setActivityView("person"); setFilter("all"); setNotice(""); }} />
+          onOpenUser={username => { const member = users.find(u => u.username.toLowerCase() === username.toLowerCase()); setChosen(member?.username || username); setActivityView("person"); setFilter("all"); setNotice(""); }} />
       : <div className="qa-sparks-admin-layout">
       <section className="qa-sparks-admin-users">
         <label htmlFor="qa-sparks-admin-search">ค้นหาผู้ใช้งาน</label>
