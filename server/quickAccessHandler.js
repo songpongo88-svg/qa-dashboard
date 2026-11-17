@@ -75,7 +75,8 @@ async function verifyQaSession(username, sessionId, requireAdmin) {
   if (!requireAdmin) return { username, admin: false };
   // Match the administrator identity recognized by the Dashboard UI while
   // verifying it against the server-read profile, never client-supplied names.
-  const profile = await readDoc("qa_user_profiles/" + encodeURIComponent(username), token);
+  const profileDocId = String(session.username || "").trim().replace(/\//g, "__").replace(/\s+/g, " ");
+  const profile = await readDoc("qa_user_profiles/" + encodeURIComponent(profileDocId), token);
   const sessionQa = safeName(session.role) === "quality assurance";
   const profileQa = safeName(profile?.role) === "quality assurance";
   const trustedAdmin = username === "songpon" ||
@@ -134,46 +135,11 @@ export default async function handler(req, res) {
   } catch (error) {
     const status = Number(error?.status) || 503;
     if (status >= 500) console.error("Quick Access API unavailable", error instanceof Error ? error.name : "unknown");
-    return res.status(status).json({ error: status >= 500 ? "QUICK_ACCESS_UNAVAILABLE" : String(error?.message || "UNAUTHORIZED"), ...(status === 401 && error?.code ? { code: error.code } : {}) });
+    const diagnosticCode = String(error?.code || "");
+    const safeCode = /^(SESSION_[A-Z_]+|FIRESTORE_HTTP_[1-5][0-9][0-9])$/.test(diagnosticCode);
+    if (status === 401 && safeCode) console.warn("Quick Access rejected inactive QA session", diagnosticCode);
+    if (status === 503 && safeCode) console.warn("Quick Access storage unavailable", diagnosticCode);
+    return res.status(status).json({ error: status >= 500 ? "QUICK_ACCESS_UNAVAILABLE" : String(error?.message || "UNAUTHORIZED"), ...(safeCode ? { code: diagnosticCode } : {}) });
   }
 }
 
-// Temporary, public-safe connectivity probe. Returns only service health,
-// never user data, credentials, Firestore documents or link contents.
-let quickAccessProbe = { until: 0, value: null };
-export async function probeQuickAccessConnections() {
-  if (quickAccessProbe.value && Date.now() < quickAccessProbe.until) return quickAccessProbe.value;
-  const checks = { identityProvider: "unknown", sessionCollection: "unknown", linkStorage: "unknown" };
-  try {
-    const authToken = await getGoogleToken();
-    checks.identityProvider = "available";
-    await readDoc("qa_user_sessions/quick-access-service-health-check-absent", authToken);
-    checks.sessionCollection = "available";
-  } catch (error) {
-    checks.identityProvider = checks.identityProvider === "available" ? "available" : "unavailable";
-    checks.sessionCollection = "unavailable";
-    // Distinguish quota (429), IAM (403), and temporary upstream failure
-    // without returning credentials, document IDs, or account data.
-    checks.sessionFailure = /^FIRESTORE_HTTP_[1-5][0-9][0-9]$/.test(String(error?.code||""))
-      ? String(error.code) : "PROVIDER_UNAVAILABLE";
-  }
-  try {
-    const bridgeUrl = String(process.env.SPARKS_SUPABASE_BRIDGE_URL || "");
-    const bridgeToken = String(process.env.SPARKS_SUPABASE_BRIDGE_TOKEN || "");
-    if (!/^https:\/\/[^\s]+\/functions\/v1\/qa-sparks-runtime(?:-preview|-test)?$/.test(bridgeUrl) || bridgeToken.length < 40)
-      throw new Error("STORAGE_SETTINGS_UNAVAILABLE");
-    const bridge = bridgeUrl.replace(/qa-sparks-runtime(?:-preview|-test)?$/, "qa-dashboard-quick-access");
-    const answer = await fetch(bridge, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-qa-sparks-server-secret": bridgeToken },
-      body: JSON.stringify({ action:"list", actorUsername:"health-probe", isAdmin:false }),
-      signal: AbortSignal.timeout(12000),
-    });
-    const body = await answer.json().catch(() => ({}));
-    checks.linkStorage = answer.ok && Array.isArray(body.links) ? "available" : "unavailable";
-  } catch {
-    checks.linkStorage = "unavailable";
-  }
-  quickAccessProbe = { until: Date.now() + 120000, value: checks };
-  return checks;
-}

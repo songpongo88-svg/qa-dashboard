@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import handler from "../server/quickAccessHandler.js";
+import { readFileSync } from "node:fs";
 
 const key = generateKeyPairSync("rsa",{modulusLength:2048,privateKeyEncoding:{type:"pkcs8",format:"pem"},publicKeyEncoding:{type:"spki",format:"pem"}}).privateKey;
 process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON = JSON.stringify({
@@ -53,3 +54,12 @@ assert.equal((await request("songpon.qa","../invalid","list")).status,401,"path 
 assert.equal((await request("songpon.qa","songpon.qa-missing-session-id","create")).status,401,"missing session fails closed");
 assert.equal(calls.filter(c=>c.action==="create").length,1,"only authorized write forwarded to Supabase");
 console.log("PASS Quick Access: real-shaped session IDs, stored admin authorization, non-admin denial, unknown session denial, safe Supabase forwarding");
+
+// Prevent a cached default-link ID from being submitted as if it were a
+// server-generated PostgreSQL UUID.
+const quickUi = readFileSync(new URL("../src/QuickAccessMenu.tsx",import.meta.url),"utf8");
+assert.match(quickUi,/matches\.length === 1 \? matches\[0\]\.id : previous/);
+assert.match(quickUi,/editingId\?\.startsWith\("initial-"\)/);
+assert.match(quickUi,/ตรวจสอบการเชื่อมต่อใหม่/);
+assert.match(quickUi,/if \(ready\) setError\(" "\);|if \(ready\) setError\(" "\)/.source?new RegExp("if \\(ready\\) setError"):/if \(ready\) setError/);
+console.log("PASS Quick Access UI: stale initial IDs reconcile against Supabase, session errors remain visible, retry is available");

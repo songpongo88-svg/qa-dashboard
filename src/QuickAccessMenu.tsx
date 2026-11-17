@@ -131,11 +131,17 @@ async function sendRequest(username: string, sessionId: string, action: string, 
         throw new Error("Session และบัญชีที่ Login ไม่ตรงกัน กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login ใหม่");
       if (code === "SESSION_POLICY")
         throw new Error("Session ใช้กติกาเก่า กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login ใหม่");
+      if (code === "SESSION_INVALID")
+        throw new Error("ข้อมูลอายุ Session ไม่ถูกต้อง กรุณาบันทึกงาน แล้ว Login ใหม่");
       throw new Error("ยืนยัน Session กับระบบกลางไม่สำเร็จ กรุณาบันทึกงานที่ค้างอยู่ แล้ว Login QA Dashboard ใหม่");
     }
     if (response.status === 403) throw new Error("บัญชีนี้ไม่มีสิทธิ์จัดการ Quick Access กรุณาติดต่อ Admin");
     if (response.status === 503 && data.code === "STORAGE_AUTH_UNAVAILABLE")
       throw new Error("Quick Access เชื่อมต่อ Supabase ไม่ผ่านการยืนยันสิทธิ์ฝั่งเซิร์ฟเวอร์ ไม่ใช่ปัญหา Session ของคุณ กรุณาแจ้งผู้ดูแลระบบ");
+    if (response.status === 503 && data.code === "FIRESTORE_HTTP_429")
+      throw new Error("Firestore ถึงขีดจำกัดการอ่าน Session ชั่วคราว ระบบจะไม่อนุญาตให้บันทึกโดยข้ามการยืนยันตัวตน");
+    if (response.status === 503 && data.code?.startsWith?.("FIRESTORE_HTTP_"))
+      throw new Error("เซิร์ฟเวอร์ไม่สามารถอ่าน Session ใน Firestore ได้ (รหัส " + String(data.code).replace("FIRESTORE_HTTP_", "") + ") กรุณาติดต่อผู้ดูแลระบบ");
     throw new Error("เชื่อมต่อรายการลิงก์ส่วนกลางไม่สำเร็จ กรุณาลองใหม่โดยไม่ต้องออกจากระบบ");
   }
   if (!Array.isArray(data.links)) throw new Error("รูปแบบข้อมูลลิงก์ไม่ถูกต้อง");
@@ -164,6 +170,13 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
     try {
       const updated = await sendRequest(username, sessionId, "list");
       setLinks(updated);
+      setEditingId(previous => {
+        if (!previous?.startsWith("initial-")) return previous;
+        const source = INITIAL_LINKS.find(item => item.id === previous);
+        if (!source) return previous;
+        const matches = updated.filter(item => item.url === source.url);
+        return matches.length === 1 ? matches[0].id : previous;
+      });
       setReady(true);
     } catch (e) {
       setReady(false);
@@ -189,7 +202,9 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
     setDraft(link ? { title: link.title, url: link.url, category: link.category, icon: link.icon } : { ...EMPTY_DRAFT });
     setEditingId(link?.id || null);
     setAutoTitle(!link);
-    setError("");
+    if (ready) setError("");
+    // Preserve the actual request failure if the user opens an editor while
+    // offline, rather than replacing it with a generic disabled-button notice.
     setMode("editor");
   };
   const mutate = async (action: "create" | "update" | "delete" | "reorder", payload: Record<string, unknown>) => {
@@ -208,7 +223,14 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canManage || saving) return;
-    if (!ready) { setError("ยังบันทึกชื่อไม่ได้จนกว่าจะยืนยัน Session และโหลดรายการจาก Supabase สำเร็จ กรุณาบันทึกงานใน QA Dashboard แล้ว Login ใหม่เมื่อจำเป็น"); return; }
+    if (!ready) {
+      if (!error) setError("ยังเชื่อมต่อ Quick Access ไม่สำเร็จ กรุณากดตรวจสอบการเชื่อมต่ออีกครั้ง");
+      return;
+    }
+    if (editingId?.startsWith("initial-")) {
+      setError("รายการนี้เป็นข้อมูลตั้งต้น ไม่พบรหัสรายการจริงใน Supabase กรุณากลับไปเลือกรายการหลังเชื่อมต่อสำเร็จ");
+      return;
+    }
     const url = safeUrl(draft.url);
     if (!url) { setError("กรุณาใช้ลิงก์ HTTPS ที่ถูกต้อง"); return; }
     const title = draft.title.trim() || suggestTitle(url);
@@ -290,7 +312,17 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
         </div>
         <div className="qa-quick-footer"><span>การเปลี่ยนแปลงมีผลกับทุก User</span></div>
       </> : <form onSubmit={(event) => void save(event)} className="qa-quick-form">
-        {!ready && <div className="qa-quick-manage-unavailable" role="status"><strong>แก้ไขชื่อในฟอร์มได้ แต่ยังบันทึกไม่ได้</strong><span>ต้องยืนยัน Session กับเซิร์ฟเวอร์ก่อนจึงจะบันทึกให้ทุกคนเห็นได้</span></div>}
+        {!ready && <div className="qa-quick-manage-unavailable" role="status">
+          <strong>{loading ? "กำลังตรวจสอบการเชื่อมต่อ..." : "ยังบันทึกเมนูไม่ได้"}</strong>
+          <span>{error || "ระบบต้องตรวจสอบ Session กับเซิร์ฟเวอร์ก่อนบันทึก"}</span>
+          <button type="button" disabled={loading} onClick={() => void refresh()}>
+            {loading ? "กำลังเชื่อมต่อ..." : "ตรวจสอบการเชื่อมต่อใหม่"}
+          </button>
+        </div>}
+        {ready && editingId?.startsWith("initial-") && <div className="qa-quick-manage-unavailable" role="alert">
+          <strong>ยังไม่พบรหัสรายการจริงในฐานข้อมูล</strong>
+          <span>กรุณาย้อนกลับไปเลือกเมนูเดิมอีกครั้ง เพื่อป้องกันการบันทึกทับผิดรายการ</span>
+        </div>}
         <label>ลิงก์เว็บไซต์ (HTTPS)
           <input required type="url" value={draft.url} placeholder="https://example.com"
             onChange={(event) => { const url = event.target.value; setDraft(previous => ({ ...previous, url, title: autoTitle ? suggestTitle(url) : previous.title })); }}/>
@@ -310,7 +342,7 @@ export default function QuickAccessMenu({ username, sessionId, canManage }: { us
           </select>
         </label>
         <div className="qa-quick-preview"><LinkIcon link={draft}/><div><strong>{draft.title || "ตัวอย่างชื่อเมนู"}</strong><small>Preview · Quick Access</small></div></div>
-        <div className="qa-quick-form-actions"><button type="button" onClick={() => setMode("manage")}>ยกเลิก</button><button type="submit" disabled={!ready || saving || !safeUrl(draft.url) || !draft.title.trim()}>{saving ? "กำลังบันทึก..." : "บันทึกเมนู"}</button></div>
+        <div className="qa-quick-form-actions"><button type="button" onClick={() => setMode("manage")}>ยกเลิก</button><button type="submit" disabled={!ready || saving || Boolean(editingId?.startsWith("initial-")) || !safeUrl(draft.url) || !draft.title.trim()}>{saving ? "กำลังบันทึก..." : "บันทึกเมนู"}</button></div>
       </form>}
     </div>}
   </div>;
