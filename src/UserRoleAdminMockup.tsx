@@ -3823,6 +3823,8 @@ function TeamManagementPanel({
 }) {
   const [selectedTeamName, setSelectedTeamName] =
     useState("");
+  const [teamNameDraft, setTeamNameDraft] = useState("");
+  const [teamNameError, setTeamNameError] = useState("");
   const [teamSearch, setTeamSearch] = useState("");
   const [memberSearch, setMemberSearch] =
     useState("");
@@ -4038,10 +4040,51 @@ function TeamManagementPanel({
     teamGroups[0] ||
     null;
 
+  // Keep the text input separate from the team membership data. Renaming on
+  // every keystroke removes the original group and makes the selection jump.
+  useEffect(() => {
+    setTeamNameDraft(selectedTeam?.teamName || "");
+    setTeamNameError("");
+  }, [selectedTeam?.teamName, isEditing]);
+
   const editable =
     canManageTeams &&
     isEditing &&
     !saving;
+
+  const commitSelectedTeamName = () => {
+    if (!editable || !selectedTeam) return;
+
+    const previousName = selectedTeam.teamName;
+    const nextName = teamNameDraft.trim();
+    if (!nextName) {
+      setTeamNameDraft(previousName);
+      setTeamNameError("กรุณาระบุชื่อทีม");
+      return;
+    }
+    if (nextName === previousName) {
+      setTeamNameDraft(previousName);
+      setTeamNameError("");
+      return;
+    }
+    const duplicate = teamGroups.some(
+      (team) =>
+        team.teamName !== previousName &&
+        team.teamName.toLocaleLowerCase() === nextName.toLocaleLowerCase()
+    );
+    if (duplicate) {
+      setTeamNameDraft(previousName);
+      setTeamNameError("มีชื่อทีมนี้อยู่แล้ว กรุณาใช้ชื่ออื่น");
+      return;
+    }
+
+    // Move the selected identity and all its members together, atomically,
+    // so the selection fallback effect never switches to another team.
+    setSelectedTeamName(nextName);
+    setTeamNameDraft(nextName);
+    setTeamNameError("");
+    onTeamChange(previousName, "teamName", nextName);
+  };
 
   const getTeamRoleMode = (
     teamName: string,
@@ -4265,19 +4308,31 @@ function TeamManagementPanel({
                   </div>
 
                   {isEditing ? (
-                    <input
-                      value={selectedTeam.teamName}
-                      disabled={!editable}
-                      onChange={(event) =>
-                        onTeamChange(
-                          selectedTeam.teamName,
-                          "teamName",
-                          event.target.value
-                        )
-                      }
-                      title="แก้ไขชื่อทีม"
-                      className="mt-2 w-full max-w-xl rounded-2xl border border-violet-200 bg-white px-4 py-3 text-xl font-semibold text-slate-950 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
-                    />
+                    <div className="mt-2 w-full max-w-xl">
+                      <input
+                        value={teamNameDraft}
+                        disabled={!editable}
+                        onChange={(event) => {
+                          setTeamNameDraft(event.target.value);
+                          if (teamNameError) setTeamNameError("");
+                        }}
+                        onBlur={commitSelectedTeamName}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        title="แก้ไขชื่อทีม (กด Enter หรือคลิกออกเพื่อยืนยัน)"
+                        aria-invalid={Boolean(teamNameError)}
+                        className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-xl font-semibold text-slate-950 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                      />
+                      {teamNameError ? (
+                        <p role="alert" className="mt-1 text-xs text-rose-600">
+                          {teamNameError}
+                        </p>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className="mt-1 truncate text-2xl font-semibold text-slate-950">
                       {selectedTeam.teamName}
