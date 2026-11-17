@@ -205,7 +205,16 @@ function prepareReadableCaseDetails(rows: Record<string, string | number>[]) {
     });
     record["ดูข้อความทั้งหมด"] = targetLinks.length ? "เปิด Comment Detail →" : "—";
     if(targetLinks.length) targetLinks.push({column:"ดูข้อความทั้งหมด",row:targetLinks[0].row});
-    cases.push(record);
+    // Keep the lookup and QA score at the far left, even when there are many topics.
+    // Excel retains this column order for the entire Case Detail sheet.
+    const preferred = ["Case ID","ดูข้อความทั้งหมด","Week","Agent","Final Score","Grade",
+      "1 Score","2 Score","3 Score","4 Score","Review Status","Appeal Status",
+      "Intent TH","Case Description","Team","Audit Date","Case Date","Month","Intent EN","Previous Score"];
+    const ordered = Object.fromEntries([
+      ...preferred.filter(key=>Object.prototype.hasOwnProperty.call(record,key)).map(key=>[key,record[key]]),
+      ...Object.entries(record).filter(([key])=>!preferred.includes(key))
+    ]) as Record<string,string|number>;
+    cases.push(ordered);
     links.push(targetLinks);
   });
   return {cases, comments, links};
