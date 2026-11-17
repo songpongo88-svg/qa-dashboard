@@ -11,7 +11,7 @@ import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { getAppealScoreHold } from "./pendingAppealScore";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
 
-type Kind = "monthly" | "weekly" | "yearly" | "compare" | "payment" | "slides";
+type Kind = "monthly" | "weekly" | "yearly" | "compare" | "slides";
 type Scope = "all" | "team" | "agent" | "case";
 type Format = "pdf" | "xlsx";
 const TYPES: { id: Kind; name: string; detail: string }[] = [
@@ -19,7 +19,6 @@ const TYPES: { id: Kind; name: string; detail: string }[] = [
   { id: "weekly", name: "Weekly", detail: "รายงานคะแนนรายสัปดาห์" },
   { id: "yearly", name: "Yearly", detail: "คะแนนรายปี / แยกคะแนนรายเดือน" },
   { id: "compare", name: "Compare", detail: "เปรียบเทียบ 2 เดือน" },
-  { id: "payment", name: "Payment / Signed", detail: "Payment PDF / Excel และเอกสารลงนาม" },
   { id: "slides", name: "QA Slides", detail: "สรุป QA รายสัปดาห์เป็น PDF" },
 ];
 const normalize = (value: unknown) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -288,7 +287,7 @@ function drawPdf(title: string, period: string, scope: string, rows: CanonicalRe
   return pdf;
 }
 export default function ReportCenterMockup({
-  currentUser, roleScopedAgentNames = [], canExport = false, canViewAllAgents = false, canViewAllTeams = false, canViewOwnTeam = false, paymentContent, slidesContent,
+  currentUser, roleScopedAgentNames = [], canExport = false, canViewAllAgents = false, canViewAllTeams = false, canViewOwnTeam = false, slidesContent,
 }: {
   currentUser: any;
   roleScopedAgentNames?: string[];
@@ -296,7 +295,6 @@ export default function ReportCenterMockup({
   canViewAllAgents?: boolean;
   canViewAllTeams?: boolean;
   canViewOwnTeam?: boolean;
-  paymentContent?: React.ReactNode;
   slidesContent?: React.ReactNode;
 }) {
   const [kind, setKind] = useState<Kind>("monthly");
@@ -367,7 +365,7 @@ export default function ReportCenterMockup({
   const selectedCases = scope === "case" ? visibleCases.filter(item => item.caseId === caseId) : visibleCases;
   const totals = summary(selectedCases);
   const selectedKind = TYPES.find(item => item.id === kind)!;
-  const specialized = kind === "payment" || kind === "slides";
+  const specialized = kind === "slides";
   const selectedPeriod = kind === "yearly" ? effectiveYear : kind === "compare" ? effectiveMonthInYear + "_vs_" + effectiveCompare : effectiveMonthInYear;
   const scopeLabel = scope === "case" ? caseId : scope === "agent" ? effectiveAgent : scope === "team" ? effectiveTeam : "All_Agents";
   const fail = (error: unknown) => setMessage(error instanceof Error ? error.message : String(error));
@@ -464,7 +462,7 @@ export default function ReportCenterMockup({
           {progress ? <p role="status" className="mt-2 text-xs text-violet-700">Generating {progress}</p> : null}
           <p className="mt-4 text-xs font-medium text-slate-500">Preview แสดงด้านล่างอัตโนมัติและปรับตามตัวเลือกทันที</p>
           {!canExport ? <p className="mt-2 text-center text-xs text-amber-700">บัญชีนี้ไม่มีสิทธิ์ Export รายงาน</p> : null}
-          </> : <div className="mt-6">{kind === "payment" ? paymentContent : slidesContent}</div>}
+          </> : <div className="mt-6">{slidesContent}</div>}
 
         </section>
       {!specialized ? (

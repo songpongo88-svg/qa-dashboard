@@ -7668,7 +7668,7 @@ export default function App() {
       title: "Reports",
       description: "ศูนย์กลางการสร้างและส่งออกรายงาน",
       items: [
-        { key: "report-center", label: "Report Center", description: "Monthly, Yearly, Weekly, Compare, Case Detail, Payment และ PDF / Excel", icon: "chart", allowed: true, active: activeWorkspaceTab === "report-center", onClick: () => activateWorkspaceTab("report-center") },
+        { key: "report-center", label: "Report Center", description: "Monthly, Yearly, Weekly, Compare, Case Detail และ PDF / Excel", icon: "chart", allowed: true, active: activeWorkspaceTab === "report-center", onClick: () => activateWorkspaceTab("report-center") },
       ],
     },
     {
@@ -8114,11 +8114,6 @@ export default function App() {
                             canViewAllAgents={analyticsAllAgentsAllowed}
                             canViewAllTeams={analyticsAllTeamsAllowed}
                             canViewOwnTeam={analyticsOwnTeamAllowed}
-                            paymentContent={
-                              <SignatureCenterErrorBoundary>
-                                <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} reportExportOnly />
-                              </SignatureCenterErrorBoundary>
-                            }
                             slidesContent={
                               <PresentationMockup
                                 currentUser={currentUser}
@@ -8297,11 +8292,6 @@ export default function App() {
             canViewAllAgents={analyticsAllAgentsAllowed}
             canViewAllTeams={analyticsAllTeamsAllowed}
             canViewOwnTeam={analyticsOwnTeamAllowed}
-            paymentContent={
-              <SignatureCenterErrorBoundary>
-                <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} reportExportOnly />
-              </SignatureCenterErrorBoundary>
-            }
             slidesContent={
               <PresentationMockup
                 currentUser={currentUser}

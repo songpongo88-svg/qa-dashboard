@@ -5505,9 +5505,34 @@ export default function SignatureCenterMockup({
                   : `${getMonthLabel(selectedMonth)} • พร้อมส่งออก ${selectedMonthPaymentExportDocs.length} คน`}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-
-
+            <div className="flex flex-wrap gap-2" data-signature-payment-export-restored="true">
+              <button
+                type="button"
+                onClick={generatePaymentPdf}
+                disabled={!canGenerateMonthlyPayment}
+                title={canGenerateMonthlyPayment ? "ส่งออกรายงาน Incentive PDF สำหรับเดือนที่เลือก" : "เลือกเดือนและตรวจสอบสิทธิ์/รายการที่เข้าเงื่อนไขก่อน"}
+                className="rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                Monthly Payment PDF
+              </button>
+              <button
+                type="button"
+                onClick={generatePaymentExcel}
+                disabled={!canGenerateMonthlyPayment}
+                title={canGenerateMonthlyPayment ? "ส่งออกรายงาน Incentive Excel สำหรับเดือนที่เลือก" : "เลือกเดือนและตรวจสอบสิทธิ์/รายการที่เข้าเงื่อนไขก่อน"}
+                className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Monthly Payment Excel
+              </button>
+              <button
+                type="button"
+                onClick={generatePdf}
+                disabled={!selectedDocument}
+                title={selectedDocument ? "ส่งออก PDF เอกสารลงนามของผู้ที่เลือก" : "เลือกเอกสารจาก Document List ก่อน"}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Final Signed PDF
+              </button>
             </div>
           </div>
           {paymentMessage ? (
