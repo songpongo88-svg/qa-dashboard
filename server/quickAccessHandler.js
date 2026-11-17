@@ -147,14 +147,14 @@ export async function probeQuickAccessConnections() {
   try {
     const authToken = await getGoogleToken();
     checks.identityProvider = "available";
-    await readDoc("qa_user_sessions/__quick_access_health_check__", authToken);
+    await readDoc("qa_user_sessions/quick-access-service-health-check-absent", authToken);
     checks.sessionCollection = "available";
   } catch (error) {
     checks.identityProvider = checks.identityProvider === "available" ? "available" : "unavailable";
     checks.sessionCollection = "unavailable";
     // Distinguish quota (429), IAM (403), and temporary upstream failure
     // without returning credentials, document IDs, or account data.
-    checks.sessionFailure = /^FIRESTORE_HTTP_(401|403|404|429|500|502|503)$/.test(String(error?.code||""))
+    checks.sessionFailure = /^FIRESTORE_HTTP_[1-5][0-9][0-9]$/.test(String(error?.code||""))
       ? String(error.code) : "PROVIDER_UNAVAILABLE";
   }
   try {
