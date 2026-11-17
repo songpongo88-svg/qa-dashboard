@@ -5150,10 +5150,10 @@ export default function App() {
     applyRouteParams(nextTab, params);
 
     const urlTab = normalizeAppTab(params.get("tab"));
-    if (options.replace || !urlTab || blockedReason || requestedLegacyTab === "summary") {
+    if (options.replace || !urlTab || blockedReason || requestedLegacyTab === "summary" || requestedLegacyTab === "report-center") {
       writeWorkspaceRoute(nextTab, {
         replace: true,
-        params: blockedReason || requestedLegacyTab === "summary" ? {} : Object.fromEntries(params.entries()),
+        params: blockedReason || requestedLegacyTab === "summary" || requestedLegacyTab === "report-center" ? {} : Object.fromEntries(params.entries()),
       });
     }
   }, [applyRouteParams, getTabBlockedReason, writeWorkspaceRoute]);
