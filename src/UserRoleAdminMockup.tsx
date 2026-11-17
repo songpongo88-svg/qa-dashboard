@@ -917,9 +917,36 @@ export default function UserRoleAdminMockup({
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
   const suspendedUsers = rows.filter((row) => row.status === "Suspended").length;
-  const seniorUsers = rows.filter((row) => row.effectiveRole === "Senior").length;
-  const supervisorUsers = rows.filter((row) => row.effectiveRole === "Supervisor").length;
-  const qaUsers = rows.filter((row) => row.effectiveRole === "Quality Assurance").length;
+  const roleMetrics = useMemo(() => {
+    // Role definitions are the source of truth, including newly created roles
+    // with no assigned accounts yet. Include any role already assigned to
+    // users so it stays visible if a definition is temporarily unavailable.
+    const metricByRole = new Map<string, { name: string; count: number }>();
+    const put = (value: string) => {
+      const name = normalizeRoleName(value).trim();
+      if (!name) return;
+      const key = name.toLocaleLowerCase();
+      const previous = metricByRole.get(key);
+      if (!previous) metricByRole.set(key, { name, count: 0 });
+    };
+    roleDefinitions.filter((role) => role.active).forEach((role) => put(role.name));
+    rows.forEach((row) => {
+      put(row.effectiveRole);
+      const key = row.effectiveRole.trim().toLocaleLowerCase();
+      const item = metricByRole.get(key);
+      if (item) item.count += 1; // Suspended accounts are still assigned a Role.
+    });
+    const originalOrder = ["Senior", "Supervisor", "Quality Assurance"];
+    const isDefault = (name: string) => ROLE_OPTIONS.some((value) => value.toLocaleLowerCase() === name.toLocaleLowerCase());
+    return [...metricByRole.values()].sort((a, b) => {
+      const rank = (name: string) => {
+        const original = originalOrder.findIndex((value) => value.toLocaleLowerCase() === name.toLocaleLowerCase());
+        if (original >= 0) return original;
+        return isDefault(name) ? 100 : 10;
+      };
+      return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name, "th");
+    });
+  }, [rows, roleDefinitions]);
   const currentTeamName = rows.find((row) => normalizeUsername(row.username) === normalizeUsername(currentUser.username))?.teamName || "";
   const scopedRows = isSongponSuperAdmin
     ? rows
@@ -2086,26 +2113,22 @@ export default function UserRoleAdminMockup({
               </span>
             </span>
             <span className="text-slate-300">•</span>
-            <span className="text-amber-600">
-              SENIOR :{" "}
-              <span className="text-slate-700">
-                {seniorUsers}
-              </span>
-            </span>
-            <span className="text-slate-300">•</span>
-            <span className="text-sky-600">
-              SUPERVISORS :{" "}
-              <span className="text-slate-700">
-                {supervisorUsers}
-              </span>
-            </span>
-            <span className="text-slate-300">•</span>
-            <span className="text-fuchsia-600">
-              QUALITY ASSURANCE :{" "}
-              <span className="text-slate-700">
-                {qaUsers}
-              </span>
-            </span>
+            {roleMetrics.map(({ name, count }, index) => (
+              <React.Fragment key={name.toLocaleLowerCase()}>
+                <span className="text-slate-300">•</span>
+                <span
+                  className={name === "Senior" ? "text-amber-600"
+                    : name === "Supervisor" ? "text-sky-600"
+                    : name === "Quality Assurance" ? "text-fuchsia-600"
+                    : index % 2 === 0 ? "text-violet-700" : "text-indigo-700"}
+                  data-user-role-count={name}
+                  title={"จำนวนบัญชีที่กำหนด Role " + name + " (รวมบัญชีที่ Suspended)"}
+                >
+                  {name.toLocaleUpperCase()} :{" "}
+                  <span className="text-slate-700">{count}</span>
+                </span>
+              </React.Fragment>
+            ))}
           </div>
         ) : null}
 
