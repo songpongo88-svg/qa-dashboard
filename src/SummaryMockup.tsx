@@ -6658,10 +6658,11 @@ export default function SummaryMockup({
           [...new Set(actual.map(item => item.monthKey))]
         );
 
-        const weeklyCompare = analysisMode === "weekly" && isComparisonMode && effectivePeriodKeys.length > 1;
+        const comparePeriods = isComparisonMode && effectivePeriodKeys.length > 1 && effectivePeriodKeys.length <= 4
+          ? {unit: analysisMode === "weekly" ? "week" as const : "month" as const, periods:[...effectivePeriodKeys]}
+          : undefined;
         const kind = isComparisonMode ? "compare" : analysisMode === "weekly" ? "weekly" : "monthly";
-        const book = buildReportWorkbook(actual,kind,scopeLabel,periodLabel,generatedBy,generatedAt,
-          weeklyCompare ? {unit:"week",periods:[...effectivePeriodKeys]} : undefined);
+        const book = buildReportWorkbook(actual,kind,scopeLabel,periodLabel,generatedBy,generatedAt,comparePeriods);
         const safePeriod = periodLabel.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 70) || "Current_View";
         const safeScope = scopeLabel.replace(/[^a-zA-Z0-9ก-๙_-]+/g, "_").slice(0, 48) || "All_Agents";
         await saveCorporateWorkbook(book, `QA_${kind.toUpperCase()}_${safePeriod}_${safeScope}.xlsx`);

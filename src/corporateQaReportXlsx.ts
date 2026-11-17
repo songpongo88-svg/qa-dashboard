@@ -20,7 +20,7 @@ const add = (doc: XMLDocument, parent: Element, name: string, attrs: Record<stri
   parent.appendChild(element);
   return element;
 };
-type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain" | "commentLink" | "commentBody" | "topicOneLine" | "numeric2" | "percent2" | "tagPercent2";
+type StyleName = "mastheadRight" | "mastheadDetail" | "mastheadMeta" | "mastheadAccent" | "mastheadLine" | "title" | "subtitle" | "hero" | "section" | "cardLabel" | "cardValue" | "cardDetail" | "heading" | "stripe" | "stripeCenter" | "score" | "success" | "danger" | "footer" | "topicBar" | "plain" | "commentLink" | "commentBody" | "comparePositive" | "compareNegative" | "compareBody" | "caseGroup" | "caseAltGroup" | "caseColumn" | "caseComment" | "topicOneLine" | "numeric2" | "percent2" | "tagPercent2";
 function createStyles(source: string) {
   const doc = parse(source);
   const root = doc.documentElement;
@@ -87,6 +87,13 @@ function createStyles(source: string) {
   style("plain",fontsId.plain,fillsId.white,false,true);
   style("commentLink",fontsId.link,fillsId.pale,true,true);
   style("commentBody",fontsId.plain,fillsId.white,false,true,false,true);
+  style("compareBody",fontsId.plain,fillsId.light,true,true);
+  style("comparePositive",fontsId.green,fillsId.light,true,true);
+  style("compareNegative",fontsId.red,fillsId.light,true,true);
+  style("caseGroup",fontsId.light,fillsId.deep,true,true);
+  style("caseAltGroup",fontsId.light,fillsId.purple,true,true);
+  style("caseColumn",fontsId.bold,fillsId.violet,true,true);
+  style("caseComment",fontsId.plain,fillsId.white,false,true,false,true);
   style("topicOneLine",fontsId.topicName,fillsId.white,false,false);
   style("numeric2",fontsId.score,fillsId.white,true);
   style("percent2",fontsId.score,fillsId.white,true);
@@ -113,6 +120,7 @@ function createStyles(source: string) {
 const colNumber = (c: string) => [...c].reduce((n,v)=>n*26+v.charCodeAt(0)-64,0);
 function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>) {
   const dashboard=sheetName==="Dashboard" || sheetName==="QA Dashboard" || sheetName==="Compare Dashboard";
+  const compareOverview=sheetName==="Compare Overview";
   const baseName=sheetName.replace(/^QA /,"");
   const doc=parse(source);
   const root=doc.documentElement;
@@ -137,7 +145,72 @@ function styleSheet(source:string, sheetName:string, st:Record<StyleName,number>
     }
     cell.setAttribute("s",String(st[style]));
   }
-  if(dashboard) {
+  const textAt=(rowNumber:number,col:string)=>{
+    const row=rows.get(rowNumber);
+    const cell=Array.from(row?.children||[]).find(el=>el.localName==="c"&&el.getAttribute("r")===col+rowNumber);
+    if(!cell)return "";
+    const text=Array.from(cell.getElementsByTagNameNS(NS,"t")).map(el=>el.textContent||"").join("");
+    if(text)return text;
+    return Array.from(cell.getElementsByTagNameNS(NS,"v")).map(el=>el.textContent||"").join("");
+  };
+  const groupedCaseDetail=sheetName==="Case Detail" && textAt(1,"A").startsWith("CASE INFORMATION");
+  if(compareOverview) {
+    // Compare-only workbook: every section has a clear heading and date-labelled columns.
+    for(let r=2;r<=5;r++)for(let col=2;col<=16;col++)set(r,col,"hero");
+    set(2,5,"title");set(2,13,"mastheadRight");
+    set(4,5,"mastheadDetail");set(4,13,"mastheadMeta");
+    set(5,5,"mastheadAccent");set(5,13,"mastheadMeta");
+    for(let col=2;col<=16;col++)set(6,col,"mastheadLine");
+    for(let r=8;r<=12;r++)for(let col=2;col<=16;col++)if(![5,9,13].includes(col))
+      set(r,col,r===8?"cardLabel":r===9||r===10?"cardValue":"cardDetail");
+    const sectionRows=Array.from(rows.keys()).filter(r=>/^0[1-6]\s*[•-]/.test(textAt(r,"B"))).sort((a,b)=>a-b);
+    for(let i=0;i<sectionRows.length;i++){
+      const r=sectionRows[i], next=sectionRows[i+1]??Math.max(...rows.keys())+1;
+      for(let col=2;col<=16;col++)set(r,col,"section");
+      if(r===25)continue; // Chart area is reserved for Excel-native graphs.
+      if(/^06\s/.test(textAt(r,"B"))){
+        for(let x=r+2;x<next;x++)for(let col=2;col<=16;col++)set(x,col,"footer");
+        continue;
+      }
+      for(let col=2;col<=16;col++)set(r+2,col,"heading");
+      for(let x=r+3;x<next;x++){
+        if(!textAt(x,"B"))continue;
+        for(let col=2;col<=16;col++)set(x,col,(x-r)%2===1?"stripe":"plain");
+        set(x,2,r===45?"topicName":"plain");
+        for(const col of [6,8,10,12])set(x,col,r===59?"stripeCenter":"compareBody");
+        const deltaCell=textAt(x,"N"),numeric=Number(deltaCell);
+        if(deltaCell && Number.isFinite(numeric)){
+          const tagSection=/TAG PERFORMANCE/.test(textAt(r,"B"));
+          const good=tagSection?numeric<0:numeric>0;
+          const bad=tagSection?numeric>0:numeric<0;
+          set(x,14,good?"comparePositive":bad?"compareNegative":"compareBody");
+        }
+      }
+    }
+  } else if(groupedCaseDetail){
+    // Two-tier header: Case Information followed by four real QA rubric groups.
+    for(let col=1;col<=31;col++){
+      set(1,col,col<=15?"caseGroup":col<=23?"caseAltGroup":col<=27?"caseGroup":"caseAltGroup");
+      set(2,col,"caseColumn");
+    }
+    for(const r of [...rows.keys()].filter(r=>r>=3)){
+      for(let col=1;col<=31;col++)set(r,col,r%2===0?"stripe":"plain");
+      for(const col of [11,19,23,27,31])set(r,col,"caseComment");
+      set(r,1,"metaLabel");
+      set(r,4,"numeric2");
+    }
+    // Freeze first two header rows and the Case ID / period / Agent columns.
+    let views=child(root,"sheetViews");
+    if(!views){
+      views=doc.createElementNS(NS,"sheetViews");
+      const next=child(root,"sheetFormatPr")||child(root,"cols")||child(root,"sheetData");
+      root.insertBefore(views,next);
+    }
+    let view=child(views,"sheetView");
+    if(!view)view=add(doc,views,"sheetView",{workbookViewId:"0"});
+    Array.from(view.children).filter(el=>el.localName==="pane"||el.localName==="selection").forEach(el=>view!.removeChild(el));
+    add(doc,view,"pane",{xSplit:"3",ySplit:"2",topLeftCell:"D3",activePane:"bottomRight",state:"frozen"});
+  } else if(dashboard) {
     // The layout follows the approved QA Corporate Design prototype:
     // dark masthead, four centered KPI cards, two analytics panels, agent scorecard and attribution.
     for(let r=2;r<=5;r++)for(let col=2;col<=16;col++)set(r,col,"hero");
@@ -225,6 +298,8 @@ const LOGO_IMAGE_PATH = "/robinhood-logo.png";
 type ChartPoint = { label: string; amount: number };
 const escapeXml = (value:string) => value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 function makeNativeChart(title:string,items:ChartPoint[],categoryFormula:string,valueFormula:string,axis:number) {
+  const line=title==="Weekly QA Trend";
+  const chartName=line?"lineChart":"barChart";
   const labels=items.map((item,i)=>`<c:pt idx="${i}"><c:v>${escapeXml(item.label)}</c:v></c:pt>`).join("");
   const values=items.map((item,i)=>`<c:pt idx="${i}"><c:v>${item.amount}</c:v></c:pt>`).join("");
   const ax1=axis,ax2=axis+1;
@@ -232,13 +307,13 @@ function makeNativeChart(title:string,items:ChartPoint[],categoryFormula:string,
 <c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
 <c:lang val="th-TH"/><c:roundedCorners val="0"/>
 <c:chart><c:plotArea><c:layout/>
-<c:barChart><c:barDir val="bar"/><c:grouping val="clustered"/><c:varyColors val="0"/>
+<c:${chartName}>${line?'<c:grouping val="standard"/>':'<c:barDir val="bar"/><c:grouping val="clustered"/>'}<c:varyColors val="0"/>
 <c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>${escapeXml(title)}</c:v></c:tx>
 <c:spPr><a:solidFill><a:srgbClr val="76308B"/></a:solidFill></c:spPr>
 <c:cat><c:strRef><c:f>${escapeXml(categoryFormula)}</c:f><c:strCache><c:ptCount val="${items.length}"/>${labels}</c:strCache></c:strRef></c:cat>
 <c:val><c:numRef><c:f>${escapeXml(valueFormula)}</c:f><c:numCache><c:formatCode>0.00</c:formatCode><c:ptCount val="${items.length}"/>${values}</c:numCache></c:numRef></c:val></c:ser>
-<c:axId val="${ax1}"/><c:axId val="${ax2}"/></c:barChart>
-<c:catAx><c:axId val="${ax1}"/><c:scaling><c:orientation val="maxMin"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax2}"/></c:catAx>
+<c:axId val="${ax1}"/><c:axId val="${ax2}"/></c:${chartName}>
+<c:catAx><c:axId val="${ax1}"/><c:scaling><c:orientation val="${line?"minMax":"maxMin"}"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax2}"/></c:catAx>
 <c:valAx><c:axId val="${ax2}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorGridlines/><c:numFmt formatCode="0.0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ax1}"/><c:crossBetween val="between"/></c:valAx></c:plotArea>
 <c:plotVisOnly val="1"/></c:chart>
 <c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr lang="th-TH" sz="1000"><a:latin typeface="Kanit"/></a:defRPr></a:pPr><a:endParaRPr lang="th-TH"/></a:p></c:txPr>
@@ -285,22 +360,36 @@ async function embedLogo(zip:JSZip,index:number,book:XLSX.WorkBook) {
     const tagData=(tagSheet?XLSX.utils.sheet_to_json<Record<string,unknown>>(tagSheet):[]).slice(0,7)
       .map(row=>({label:String(row.Tag || "").slice(0,28),amount:Number(row["Cases Affected"] || 0)})).filter(x=>Number.isFinite(x.amount));
 
+    const compare=book.Sheets["Compare Overview"];
+    const compareRows=compare?[18,19,20,21].map(row=>({
+      row,label:String(compare["B"+row]?.v||"").trim(),
+      average:Number(compare["H"+row]?.v),
+      count:Number(compare["F"+row]?.v),
+    })).filter(x=>x.label):[];
+    const compareScores=compareRows.filter(x=>Number.isFinite(x.average)).map(x=>({label:x.label,amount:x.average}));
+    const compareCounts=compareRows.filter(x=>Number.isFinite(x.count)).map(x=>({label:x.label,amount:x.count}));
     const weeklyCompare = book.SheetNames.includes("Compare Dashboard") && book.Sheets["Weekly Summary"];
-    const weeklyRows = weeklyCompare ? XLSX.utils.sheet_to_json<Record<string,unknown>>(weeklyCompare) : [];
+    const weeklyRows = weeklyCompare ? XLSX.utils.sheet_to_json<Record<string,unknown>>(book.Sheets["Weekly Summary"]) : [];
     const weeklyScores = weeklyRows.map(row=>({label:String(row.Week||""),amount:Number(row["Average Score"])})).filter(p=>p.label && Number.isFinite(p.amount));
     const weeklyCases = weeklyRows.map(row=>({label:String(row.Week||""),amount:Number(row.Cases)})).filter(p=>p.label && Number.isFinite(p.amount));
     const topicRef=book.Sheets["Topic Performance"] ? "Topic Performance" : "QA Topic Performance";
     const tagRef=book.Sheets["Tag Analysis"] ? "Tag Analysis" : "QA Tag Analysis";
-    const chartParts=weeklyCompare ? [
+    const lastCompareRow=compareRows.length?compareRows[compareRows.length-1].row:18;
+    const chartParts=compare ? [
+      {id:2,name:"qaReportTopic.xml",from:1,to:9,title:"Weekly QA Trend",items:compareScores,
+        labelFormula:"'Compare Overview'!$B$18:$B$"+lastCompareRow,valueFormula:"'Compare Overview'!$H$18:$H$"+lastCompareRow,axis:48650112},
+      {id:3,name:"qaReportTag.xml",from:10,to:16,title:"Evaluated Cases by Period",items:compareCounts,
+        labelFormula:"'Compare Overview'!$B$18:$B$"+lastCompareRow,valueFormula:"'Compare Overview'!$F$18:$F$"+lastCompareRow,axis:48650212},
+    ] : weeklyCompare ? [
       {id:2,name:"qaReportTopic.xml",from:1,to:9,title:"Average QA by Selected Week",items:weeklyScores,
-        labelFormula:`'Weekly Summary'!$A$2:$A${weeklyRows.length+1}`,valueFormula:`'Weekly Summary'!$C$2:$C${weeklyRows.length+1}`,axis:48650112},
+        labelFormula:"'Weekly Summary'!$A$2:$A$"+(weeklyRows.length+1),valueFormula:"'Weekly Summary'!$C$2:$C$"+(weeklyRows.length+1),axis:48650112},
       {id:3,name:"qaReportTag.xml",from:10,to:16,title:"Evaluated Cases by Week",items:weeklyCases,
-        labelFormula:`'Weekly Summary'!$A$2:$A${weeklyRows.length+1}`,valueFormula:`'Weekly Summary'!$B$2:$B${weeklyRows.length+1}`,axis:48650212},
+        labelFormula:"'Weekly Summary'!$A$2:$A$"+(weeklyRows.length+1),valueFormula:"'Weekly Summary'!$B$2:$B$"+(weeklyRows.length+1),axis:48650212},
     ] : [
       {id:2,name:"qaReportTopic.xml",from:1,to:9,title:"Topic Performance (%)",items:topicData,
-        labelFormula:`'${topicRef}'!$A$2:$A${topicData.length+1}`,valueFormula:`'${topicRef}'!$D$2:$D${topicData.length+1}`,axis:48650112},
+        labelFormula:"'"+topicRef+"'!$A$2:$A$"+(topicData.length+1),valueFormula:"'"+topicRef+"'!$D$2:$D$"+(topicData.length+1),axis:48650112},
       {id:3,name:"qaReportTag.xml",from:10,to:16,title:"Most Frequent Tags",items:tagData,
-        labelFormula:`'${tagRef}'!$A$2:$A${tagData.length+1}`,valueFormula:`'${tagRef}'!$B$2:$B${tagData.length+1}`,axis:48650212},
+        labelFormula:"'"+tagRef+"'!$A$2:$A$"+(tagData.length+1),valueFormula:"'"+tagRef+"'!$B$2:$B$"+(tagData.length+1),axis:48650212},
     ];
     const extra=chartParts.map(part=>nativeChartAnchor(part.id,part.from,part.to)).join("");
     const currentDrawing=await zip.file(drawingPath)!.async("string");
@@ -359,7 +448,7 @@ export async function exportCorporateReport(book:XLSX.WorkBook):Promise<Blob> {
     if(!original)continue;
     zip.file(path,styleSheet(original,book.SheetNames[i],styles));
   }
-  const dashboardIndex=book.SheetNames.findIndex(name=>name==="Compare Dashboard" || name==="Dashboard" || name==="QA Dashboard");
+  const dashboardIndex=book.SheetNames.findIndex(name=>name==="Compare Overview" || name==="Compare Dashboard" || name==="Dashboard" || name==="QA Dashboard");
   if(dashboardIndex>=0) await embedLogo(zip,dashboardIndex+1,book);
   return zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6},mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
 }

@@ -10,7 +10,7 @@ import { createYearlyAgentMonthlyPdf, createYearlyAgentMonthlyXlsx } from "./yea
 import { assertEvaluationScopeComplete } from "./evaluationEditingStore";
 import { getAppealScoreHold } from "./pendingAppealScore";
 import { isTestCaseEvaluation } from "./lib/evaluationScope";
-import { addWeeklyCompareViews } from "./weeklyCompareWorkbook";
+import { buildSelectedPeriodComparisonWorkbook } from "./selectedPeriodCompareWorkbook";
 import { richTextToPlainText } from "./richText";
 
 type Kind = "monthly" | "weekly" | "yearly" | "compare" | "slides";
@@ -219,7 +219,9 @@ function prepareReadableCaseDetails(rows: Record<string, string | number>[]) {
   });
   return {cases, comments, links};
 }
-export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string, generatedBy: string, generatedAt: string, compareOptions?: {unit:"week";periods:string[]}) {
+export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, scope: string, period: string, generatedBy: string, generatedAt: string, compareOptions?: {unit:"week" | "month";periods:string[]}) {
+  if(compareOptions && compareOptions.periods.length>1)
+    return buildSelectedPeriodComparisonWorkbook(rows,compareOptions.periods,scope,generatedBy,generatedAt,compareOptions.unit);
   const book = XLSX.utils.book_new();
   const stats = summary(rows), agents = agentRows(rows, kind), topics = topicRows(rows), tags = tagRows(rows);
   const evaluatedMonth=rows[0] ? rowMonth(rows[0]) : "";
@@ -321,9 +323,6 @@ export function buildReportWorkbook(rows: CanonicalReportCase[], kind: Kind, sco
   add("Comment Detail",detailed.comments,
     [17,30,28,21,15,91],
     detailed.comments.map(record=>Math.min(150,Math.max(38,18+String(record.Comment||"").split("\n").length*17))));
-  if(compareOptions?.unit==="week" && compareOptions.periods.length>1) {
-    addWeeklyCompareViews(book,rows,compareOptions.periods,scope,generatedBy,generatedAt);
-  }
   return book;
 }
 
@@ -535,7 +534,9 @@ export default function ReportCenterMockup({
       } else {
         const filename = `QA_${kind.toUpperCase()}_${safe(selectedPeriod)}_${safe(scopeLabel)}`;
         if (format === "xlsx") {
-          const book = buildReportWorkbook(actual, kind, scopeLabel, selectedPeriod, String(currentUser?.displayName || currentUser?.agentName || currentUser?.username || "Authorized QA User"), new Date().toLocaleString("en-GB", {timeZone:"Asia/Bangkok",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}));
+          const selectedComparePeriods = kind === "compare"
+            ? {unit:"month" as const,periods:[effectiveCompare,effectiveMonthInYear].sort()} : undefined;
+          const book = buildReportWorkbook(actual, kind, scopeLabel, selectedPeriod, String(currentUser?.displayName || currentUser?.agentName || currentUser?.username || "Authorized QA User"), new Date().toLocaleString("en-GB", {timeZone:"Asia/Bangkok",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}),selectedComparePeriods);
           download(await exportCorporateReport(book), filename + ".xlsx");
         } else {
           drawPdf("QA " + selectedKind.name + " Report", selectedPeriod, scopeLabel, actual, kind).save(filename + ".pdf");
